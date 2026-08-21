@@ -140,7 +140,7 @@ public sealed class CharacterCreationScreen
         Console.WriteLine("Karakter elkészült!");
         Console.WriteLine($"{character.Name} — {character.Race.Name} {character.CharacterClass.Name}");
         Console.WriteLine(FormatAbilities(character.Abilities));
-        Console.WriteLine($"HP: {character.CurrentVitality}/{character.MaximumVitality}, Manna: {character.CurrentMana}/{character.MaximumMana}");
+        Console.WriteLine($"HP: {character.CurrentVitality}/{character.MaximumVitality}, Manna: {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}");
         Console.WriteLine();
         Console.WriteLine("Bármely billentyű: főmenü");
         Console.ReadKey(intercept: true);

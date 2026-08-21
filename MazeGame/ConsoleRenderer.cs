@@ -1,4 +1,6 @@
 using System.Text;
+using MazeGame.Domain.Characters;
+using MazeGame.Domain.Inventory;
 
 namespace MazeGame;
 
@@ -19,7 +21,7 @@ public sealed class ConsoleRenderer
         Console.Clear();
         DrawPlayfield(maze, fogOfWar);
         DrawFrame();
-        DrawCharacterSheet();
+        RefreshCharacterSheet(player.Character);
         DrawBattleMessage("Találd meg a kijáratot: ⌂");
         DrawPlayer(player.Position);
     }
@@ -48,6 +50,12 @@ public sealed class ConsoleRenderer
     public void DrawBattleStarted(Enemy enemy) => DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
 
+    /// <summary>Csak a jobb oldali karakterlapot rajzolja újra, a játéktér érintése nélkül.</summary>
+    public void RefreshCharacterSheet(LiveCharacter character)
+    {
+        DrawCharacterSheet(character);
+    }
+
     private void DrawPlayfield(Maze maze, FogOfWar fogOfWar)
     {
         for (var y = 0; y < maze.Height; y++)
@@ -66,17 +74,30 @@ public sealed class ConsoleRenderer
         Console.Write('┘');
     }
 
-    private void DrawCharacterSheet()
+    private void DrawCharacterSheet(LiveCharacter character)
     {
-        SetColors(ConsoleColor.Gray, ConsoleColor.Black);
-        WriteAt(173, 2, "KARAKTERLAP");
-        WriteAt(173, 4, "Játékos: ☻");
-        WriteAt(173, 6, "Mozgás: nyilak");
-        WriteAt(173, 7, "Új pálya: R");
-        WriteAt(173, 8, "Kilépés: Esc");
-        WriteAt(173, 10, "Ajtó: ╬");
-        WriteAt(173, 12, "Láda: ▣");
-        WriteAt(173, 13, "Ellenség: ♟");
+        WriteSheetLine(2, "KARAKTERLAP", ConsoleColor.Yellow);
+        WriteSheetLine(3, character.Name, ConsoleColor.Cyan);
+        WriteSheetLine(4, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
+        WriteSheetLine(6, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
+        WriteSheetLine(7, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
+        WriteSheetLine(8, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
+        WriteSheetLine(9, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
+        WriteSheetLine(10, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
+        WriteSheetLine(11, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
+        WriteSheetLine(13, "FEGYVEREK", ConsoleColor.Yellow);
+        WriteSheetLine(14, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray);
+        WriteSheetLine(15, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray);
+        WriteSheetLine(16, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow);
+        WriteSheetLine(18, $"VARÁZSTÁRGYAK {character.MagicItems.Count}/3", ConsoleColor.Magenta);
+        for (var index = 0; index < 3; index++)
+            WriteSheetLine(19 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}", ConsoleColor.Gray);
+        WriteSheetLine(23, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
+        for (var index = 0; index < 10; index++)
+            WriteSheetLine(24 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
+        WriteSheetLine(36, "Mozgás: nyilak", ConsoleColor.DarkCyan);
+        WriteSheetLine(37, "Új pálya: R", ConsoleColor.DarkCyan);
+        WriteSheetLine(38, "Kilépés: Esc", ConsoleColor.DarkCyan);
     }
 
     private void DrawBattleMessage(string message)
@@ -84,6 +105,16 @@ public sealed class ConsoleRenderer
         SetColors(ConsoleColor.Gray, ConsoleColor.Black);
         WriteAt(2, BottomBorderY + 2, "ÜZENET: " + message.PadRight(160));
         WriteAt(2, BottomBorderY + 3, new string(' ', 166));
+    }
+
+    private static string ItemName(IItemDefinition? item) => item?.Name ?? "üres";
+
+    private void WriteSheetLine(int y, string text, ConsoleColor foregroundColor)
+    {
+        const int maximumWidth = 27;
+        var clippedText = text.Length <= maximumWidth ? text : text[..maximumWidth];
+        SetColors(foregroundColor, ConsoleColor.Black);
+        WriteAt(172, y, clippedText.PadRight(maximumWidth));
     }
 
     private void DrawMapCell(Maze maze, FogOfWar fogOfWar, Position position)

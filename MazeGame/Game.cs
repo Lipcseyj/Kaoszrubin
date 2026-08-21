@@ -19,10 +19,12 @@ public sealed class Game
     private readonly Random _random = new();
     private bool _battleStarted;
     public CharacterRoster CharacterRoster { get; }
+    public LiveCharacter SelectedCharacter { get; }
 
-    public Game(GameDataCatalog gameData, CharacterRoster characterRoster)
+    public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter)
     {
         CharacterRoster = characterRoster;
+        SelectedCharacter = selectedCharacter;
         _generator = new MazeGenerator(new MazeGenerationSettings
         {
             DoubleWidthCorridorChance = 0.80,
@@ -88,7 +90,7 @@ public sealed class Game
     private void StartNewMaze()
     {
         _maze = _generator.Create(MazeWidth, MazeHeight);
-        _player = new Player(_maze.Entrance);
+        _player = new Player(_maze.Entrance, SelectedCharacter);
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, VisionRange);
         _fogOfWar.RevealFrom(_maze, _player.Position);
         _battleStarted = false;

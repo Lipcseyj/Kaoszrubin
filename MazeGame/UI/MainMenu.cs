@@ -18,6 +18,8 @@ public sealed class MainMenu
             Console.Clear();
             Console.WriteLine("=== LABIRINTUS ===");
             Console.WriteLine();
+            Console.WriteLine($"Választott karakter: {_characterRoster.SelectedCharacter?.Name ?? "nincs"}");
+            Console.WriteLine();
             Console.WriteLine("1 - Játék indítása");
             Console.WriteLine("2 - Karaktergenerálás");
             Console.WriteLine($"3 - Karakterek ({_characterRoster.Characters.Count})");
@@ -27,7 +29,7 @@ public sealed class MainMenu
             {
                 case ConsoleKey.D1:
                 case ConsoleKey.NumPad1:
-                    new Game(_gameData, _characterRoster).Run();
+                    StartGame();
                     break;
                 case ConsoleKey.D2:
                 case ConsoleKey.NumPad2:
@@ -45,15 +47,60 @@ public sealed class MainMenu
 
     private void ShowCharacters()
     {
-        Console.Clear();
-        Console.WriteLine("=== GENERÁLT KARAKTEREK ===");
-        Console.WriteLine();
-        if (_characterRoster.Characters.Count == 0) Console.WriteLine("Még nincs generált karakter.");
-        foreach (var character in _characterRoster.Characters)
-            Console.WriteLine($"{character.Name} — {character.Race.Name} {character.CharacterClass.Name}, HP {character.CurrentVitality}/{character.MaximumVitality}, Manna {character.CurrentMana}/{character.MaximumMana}");
+        if (_characterRoster.Characters.Count == 0)
+        {
+            Console.Clear();
+            Console.WriteLine("Még nincs generált karakter.");
+            Console.ReadKey(intercept: true);
+            return;
+        }
 
-        Console.WriteLine();
-        Console.WriteLine("Bármely billentyű: vissza");
-        Console.ReadKey(intercept: true);
+        var selectedIndex = _characterRoster.SelectedCharacter is null
+            ? 0
+            : Enumerable.Range(0, _characterRoster.Characters.Count)
+                .FirstOrDefault(index => _characterRoster.Characters[index] == _characterRoster.SelectedCharacter);
+        while (true)
+        {
+            Console.Clear();
+            Console.WriteLine("=== GENERÁLT KARAKTEREK ===");
+            Console.WriteLine("Fel/le: választás | Enter: kijelölés | Esc: vissza");
+            Console.WriteLine();
+            for (var index = 0; index < _characterRoster.Characters.Count; index++)
+            {
+                var character = _characterRoster.Characters[index];
+                var marker = index == selectedIndex ? ">" : " ";
+                var isSelected = character == _characterRoster.SelectedCharacter ? " [aktív]" : string.Empty;
+                Console.WriteLine($"{marker} {character.Name} — {character.Race.Name} {character.CharacterClass.Name}{isSelected}");
+                Console.WriteLine($"   HP {character.CurrentVitality}/{character.MaximumVitality}, Manna {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}");
+            }
+
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow:
+                    selectedIndex = (selectedIndex - 1 + _characterRoster.Characters.Count) % _characterRoster.Characters.Count;
+                    break;
+                case ConsoleKey.DownArrow:
+                    selectedIndex = (selectedIndex + 1) % _characterRoster.Characters.Count;
+                    break;
+                case ConsoleKey.Enter:
+                    _characterRoster.Select(_characterRoster.Characters[selectedIndex]);
+                    return;
+                case ConsoleKey.Escape:
+                    return;
+            }
+        }
+    }
+
+    private void StartGame()
+    {
+        if (_characterRoster.SelectedCharacter is not { } selectedCharacter)
+        {
+            Console.Clear();
+            Console.WriteLine("A játék indításához előbb válassz ki egy karaktert a Karakterek menüben.");
+            Console.ReadKey(intercept: true);
+            return;
+        }
+
+        new Game(_gameData, _characterRoster, selectedCharacter).Run();
     }
 }

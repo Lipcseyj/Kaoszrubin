@@ -46,7 +46,10 @@ public static class CsvGameDataLoader
         return new GameDataCatalog
         {
             Races = races.Select(race => new RaceDefinition(race.Name, raceBonuses.GetValueOrDefault(race.Name, PrimaryAbilities.Zero))).ToList(),
-            CharacterClasses = characterClasses.Select(characterClass => new CharacterClassDefinition(characterClass.Name, classMinimums.GetValueOrDefault(characterClass.Name, PrimaryAbilities.Zero))).ToList(),
+            CharacterClasses = characterClasses.Select(characterClass => new CharacterClassDefinition(
+                characterClass.Name,
+                classMinimums.GetValueOrDefault(characterClass.Name, PrimaryAbilities.Zero),
+                CharacterClassRules.UsesMana(characterClass.Name))).ToList(),
             Enemies = enemies,
             Weapons = weapons,
             Armors = armors,
@@ -75,7 +78,8 @@ public static class CsvGameDataLoader
                 foreach (var race in cells.Where(cell => !string.IsNullOrWhiteSpace(cell))) races.Add(new RaceDefinition(race, PrimaryAbilities.Zero));
                 break;
             case DataSection.CharacterClasses:
-                foreach (var characterClass in cells.Where(cell => !string.IsNullOrWhiteSpace(cell))) characterClasses.Add(new CharacterClassDefinition(characterClass, PrimaryAbilities.Zero));
+                foreach (var characterClass in cells.Where(cell => !string.IsNullOrWhiteSpace(cell)))
+                    characterClasses.Add(new CharacterClassDefinition(characterClass, PrimaryAbilities.Zero, CharacterClassRules.UsesMana(characterClass)));
                 break;
             case DataSection.Enemies:
                 enemies.Add(new EnemyDefinition(name, Integer(cells, 1), Integer(cells, 2), Integer(cells, 3), Integer(cells, 4)));
