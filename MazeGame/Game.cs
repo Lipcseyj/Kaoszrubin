@@ -5,7 +5,13 @@ public sealed class Game
 {
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
-    private readonly MazeGenerator _generator = new();
+    private readonly MazeGenerator _generator = new(new MazeGenerationSettings
+    {
+        DoubleWidthCorridorChance = 0.80,
+        RoomCount = 5,
+        MinimumRoomSize = 2,
+        MaximumRoomSize = 6
+    });
     private readonly ConsoleRenderer _renderer = new();
     private Maze _maze = null!;
     private Player _player = null!;

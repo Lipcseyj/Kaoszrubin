@@ -59,6 +59,7 @@ public sealed class ConsoleRenderer
         WriteAt(173, 6, "Mozgás: nyilak");
         WriteAt(173, 7, "Új pálya: R");
         WriteAt(173, 8, "Kilépés: Esc");
+        WriteAt(173, 10, "Ajtó: ╬");
     }
 
     private static void DrawBattleMessage(string message)

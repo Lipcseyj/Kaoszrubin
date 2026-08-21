@@ -8,13 +8,14 @@ public sealed class Maze
     public static readonly Rune Wall = new('█');
     public static readonly Rune Floor = new(' ');
     public static readonly Rune ExitMarker = new('⌂');
+    public static readonly Rune Door = new('╬');
 
     /// <summary>A pálya cellái. Minden elem egyetlen, keskeny konzolcellára rajzolható rúna.</summary>
     public Rune[,] Tiles { get; }
     public int Width { get; }
     public int Height { get; }
     public Position Entrance { get; }
-    public Position Exit { get; }
+    public Position Exit { get; private set; }
 
     public Maze(int width, int height)
     {
@@ -33,7 +34,8 @@ public sealed class Maze
     }
 
     public bool IsInside(Position position) => position.X >= 0 && position.X < Width && position.Y >= 0 && position.Y < Height;
-    public bool IsWalkable(Position position) => IsInside(position) && (Tiles[position.X, position.Y] == Floor || Tiles[position.X, position.Y] == ExitMarker);
+    public bool IsWalkable(Position position) => IsInside(position) &&
+        (Tiles[position.X, position.Y] == Floor || Tiles[position.X, position.Y] == ExitMarker || Tiles[position.X, position.Y] == Door);
 
     public void Carve(Position position)
     {
@@ -41,7 +43,18 @@ public sealed class Maze
         Tiles[position.X, position.Y] = Floor;
     }
 
-    public void PlaceExit() => Tiles[Exit.X, Exit.Y] = ExitMarker;
+    public void PlaceExit(Position position)
+    {
+        if (!IsWalkable(position)) throw new ArgumentException("A kijáratnak járható cellán kell lennie.", nameof(position));
+        Exit = position;
+        Tiles[Exit.X, Exit.Y] = ExitMarker;
+    }
+
+    public void SetTile(Position position, Rune tile)
+    {
+        if (!IsInside(position)) throw new ArgumentOutOfRangeException(nameof(position));
+        Tiles[position.X, position.Y] = tile;
+    }
 
     private static int LastInnerOddCoordinate(int length)
     {
