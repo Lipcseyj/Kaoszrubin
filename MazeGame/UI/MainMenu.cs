@@ -45,6 +45,11 @@ public sealed class MainMenu
                     DeleteCharacter();
                     SaveCharacters();
                     break;
+                case ConsoleKey.D5:
+                case ConsoleKey.NumPad5:
+                    QuickStart();
+                    SaveCharacters();
+                    break;
                 case ConsoleKey.Escape:
                     return;
             }
@@ -119,6 +124,25 @@ public sealed class MainMenu
         new Game(_gameData, _characterRoster, selectedCharacter).Run();
     }
 
+    private void QuickStart()
+    {
+        try
+        {
+            var name = $"Gyors hős {_characterRoster.Characters.Count + 1}";
+            var character = new CharacterCreationScreen(_gameData, _characterRoster).CreateFirstValidCharacter(name);
+            _characterRoster.Add(character);
+            _characterRoster.Select(character);
+            SaveCharacters();
+            StartGame();
+        }
+        catch (InvalidOperationException exception)
+        {
+            ResetConsole();
+            WriteLine(exception.Message, ConsoleColor.Red);
+            Console.ReadKey(intercept: true);
+        }
+    }
+
     private void DeleteCharacter()
     {
         if (_characterRoster.Characters.Count == 0)
@@ -134,7 +158,7 @@ public sealed class MainMenu
         {
             ResetConsole();
             WriteLine("=== KARAKTER TÖRLÉSE ===", ConsoleColor.Red);
-            WriteLine("Fel/le: választás | Enter: törlés | Esc: vissza", ConsoleColor.DarkCyan);
+            WriteLine("Fel/le: választás | Enter: törlés | O: összes törlése | Esc: vissza", ConsoleColor.DarkCyan);
             Console.WriteLine();
             for (var index = 0; index < _characterRoster.Characters.Count; index++)
             {
@@ -146,6 +170,18 @@ public sealed class MainMenu
 
             switch (Console.ReadKey(intercept: true).Key)
             {
+                case ConsoleKey.O:
+                    WriteLine("\nBiztosan törlöd az ÖSSZES karaktert? (I / N)", ConsoleColor.Red);
+                    if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
+                    {
+                        _characterRoster.Clear();
+                        SaveCharacters();
+                        ResetConsole();
+                        WriteLine("Minden karakter törölve.", ConsoleColor.Green);
+                        Console.ReadKey(intercept: true);
+                        return;
+                    }
+                    break;
                 case ConsoleKey.UpArrow:
                     selectedIndex = (selectedIndex - 1 + _characterRoster.Characters.Count) % _characterRoster.Characters.Count;
                     break;
@@ -185,6 +221,7 @@ public sealed class MainMenu
         WriteLine("2 - Karaktergenerálás", ConsoleColor.Magenta);
         WriteLine($"3 - Karakterek ({_characterRoster.Characters.Count})", ConsoleColor.Cyan);
         WriteLine("4 - Karakter törlése", ConsoleColor.Red);
+        WriteLine("5 - Gyorsindítás (új hős)", ConsoleColor.Green);
         WriteLine("Esc - Kilépés", ConsoleColor.DarkYellow);
         Console.ResetColor();
     }

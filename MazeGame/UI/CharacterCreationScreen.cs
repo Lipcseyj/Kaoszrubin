@@ -46,6 +46,26 @@ public sealed class CharacterCreationScreen
         }
     }
 
+    /// <summary>Interakció nélkül elkészíti az első fajhoz tartozó, első elérhető osztályú érvényes karaktert.</summary>
+    public LiveCharacter CreateFirstValidCharacter(string name)
+    {
+        foreach (var race in _gameData.Races)
+        {
+            for (var attempt = 0; attempt < 1_000; attempt++)
+            {
+                var rolledAbilities = RollAbilities();
+                var finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
+                var characterClass = _gameData.CharacterClasses.FirstOrDefault(candidate => finalAbilities.MeetsMinimum(candidate.MinimumAbilities));
+                if (characterClass is null) continue;
+
+                return LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
+                    _random.Next(1, 16), _random.Next(1, 16), _gameData);
+            }
+        }
+
+        throw new InvalidOperationException("A jelenlegi faj- és osztályadatokból nem generálható érvényes karakter.");
+    }
+
     private string? ReadName()
     {
         while (true)

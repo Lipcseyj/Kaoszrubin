@@ -19,4 +19,10 @@ public sealed class CharacterRoster
         if (SelectedCharacter == character) SelectedCharacter = null;
         return true;
     }
+
+    public void Clear()
+    {
+        _characters.Clear();
+        SelectedCharacter = null;
+    }
 }
