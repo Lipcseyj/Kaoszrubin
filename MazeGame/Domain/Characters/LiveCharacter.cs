@@ -73,4 +73,10 @@ public sealed class LiveCharacter
         return true;
     }
     public void RestoreMana(int amount) => CurrentMana = Math.Min(MaximumMana, CurrentMana + Math.Max(0, amount));
+
+    public void SetCurrentResources(int vitality, int mana)
+    {
+        CurrentVitality = Math.Clamp(vitality, 0, MaximumVitality);
+        CurrentMana = Math.Clamp(mana, 0, MaximumMana);
+    }
 }

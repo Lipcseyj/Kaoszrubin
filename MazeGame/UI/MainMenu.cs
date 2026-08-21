@@ -7,9 +7,15 @@ namespace MazeGame.UI;
 public sealed class MainMenu
 {
     private readonly GameDataCatalog _gameData;
-    private readonly CharacterRoster _characterRoster = new();
+    private readonly CharacterRoster _characterRoster;
+    private readonly CharacterSaveService _characterSaveService;
 
-    public MainMenu(GameDataCatalog gameData) => _gameData = gameData;
+    public MainMenu(GameDataCatalog gameData, string characterSavePath)
+    {
+        _gameData = gameData;
+        _characterSaveService = new CharacterSaveService(characterSavePath, gameData);
+        _characterRoster = _characterSaveService.Load();
+    }
 
     public void Run()
     {
@@ -30,14 +36,17 @@ public sealed class MainMenu
                 case ConsoleKey.D1:
                 case ConsoleKey.NumPad1:
                     StartGame();
+                    SaveCharacters();
                     break;
                 case ConsoleKey.D2:
                 case ConsoleKey.NumPad2:
                     new CharacterCreationScreen(_gameData, _characterRoster).Run();
+                    SaveCharacters();
                     break;
                 case ConsoleKey.D3:
                 case ConsoleKey.NumPad3:
                     ShowCharacters();
+                    SaveCharacters();
                     break;
                 case ConsoleKey.Escape:
                     return;
@@ -103,4 +112,6 @@ public sealed class MainMenu
 
         new Game(_gameData, _characterRoster, selectedCharacter).Run();
     }
+
+    private void SaveCharacters() => _characterSaveService.Save(_characterRoster);
 }
