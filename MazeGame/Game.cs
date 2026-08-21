@@ -123,6 +123,14 @@ public sealed class Game
             StartNewMaze();
             return;
         }
+        var chest = _maze.GetTreasureChestAt(_player.Position);
+        if (chest is not null)
+        {
+            SelectedCharacter.AddGold(chest.GoldAmount);
+            _maze.RemoveTreasureChest(chest);
+            _renderer.RefreshCharacterSheet(SelectedCharacter);
+            _renderer.DrawTreasureCollected(chest.GoldAmount);
+        }
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
     }

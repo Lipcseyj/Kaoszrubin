@@ -128,7 +128,7 @@ public sealed class MazeGenerator
 
     private void PlaceMapObjects(Maze maze)
     {
-        PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze), position => new TreasureChest(position), maze.AddTreasureChest);
+        PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze), position => new TreasureChest(position, _settings.TreasureGoldRange.Roll(_random)), maze.AddTreasureChest);
         var enemyPositions = GetRoomPositions(maze).Concat(GetOutdoorPositions(maze));
         foreach (var spawn in _enemySpawns)
             PlaceObjects(maze, spawn.Count, enemyPositions, position => new ConfiguredEnemy(position, spawn.Definition), maze.AddEnemy);

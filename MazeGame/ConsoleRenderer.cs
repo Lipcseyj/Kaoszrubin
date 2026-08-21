@@ -55,6 +55,7 @@ public sealed class ConsoleRenderer
     }
 
     public void DrawBattleStarted(Enemy enemy) => DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
+    public void DrawTreasureCollected(int goldAmount) => DrawBattleMessage($"Kincsesláda: +{goldAmount} arany!", ConsoleColor.Yellow);
     public void DrawBattleRound(BattleLogEntry entry)
     {
         var color = entry.Kind switch
@@ -156,6 +157,7 @@ public sealed class ConsoleRenderer
         WriteSheetLine(11, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
         WriteSheetLine(12, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
         WriteSheetLine(13, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
+        WriteSheetLine(14, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
         WriteSheetLine(15, "FEGYVEREK", ConsoleColor.Yellow);
         WriteSheetLine(16, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray);
         WriteSheetLine(17, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray);

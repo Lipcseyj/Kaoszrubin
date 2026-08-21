@@ -20,6 +20,7 @@ public sealed class MazeLevelConfiguration
     public required IntRange RoomCount { get; init; }
     public required IntRange RoomSize { get; init; }
     public required IntRange TreasureChestCount { get; init; }
+    public required IntRange TreasureGold { get; init; }
     public required IReadOnlyList<EnemySpawnConfiguration> EnemySpawns { get; init; }
 
     public MazeGenerationSettings CreateGenerationSettings(Random random) => new()
@@ -28,7 +29,8 @@ public sealed class MazeLevelConfiguration
         RoomCount = RoomCount.Roll(random),
         MinimumRoomSize = RoomSize.Minimum,
         MaximumRoomSize = RoomSize.Maximum,
-        TreasureChestCount = TreasureChestCount.Roll(random)
+        TreasureChestCount = TreasureChestCount.Roll(random),
+        TreasureGoldRange = TreasureGold
     };
 }
 
@@ -44,6 +46,7 @@ public static class MazeLevelConfigurations
             RoomCount = new IntRange(3, 4),
             RoomSize = new IntRange(2, 4),
             TreasureChestCount = new IntRange(2, 3),
+            TreasureGold = new IntRange(10, 50),
             EnemySpawns =
             [
                 new("E001", new IntRange(2, 4)), // kevés óriáspatkány
@@ -58,6 +61,7 @@ public static class MazeLevelConfigurations
             RoomCount = new IntRange(4, 5),
             RoomSize = new IntRange(2, 5),
             TreasureChestCount = new IntRange(3, 5),
+            TreasureGold = new IntRange(35, 90),
             EnemySpawns =
             [
                 new("E001", new IntRange(1, 3)),
@@ -73,6 +77,7 @@ public static class MazeLevelConfigurations
             RoomCount = new IntRange(5, 6),
             RoomSize = new IntRange(3, 6),
             TreasureChestCount = new IntRange(4, 6),
+            TreasureGold = new IntRange(70, 150),
             EnemySpawns =
             [
                 new("E002", new IntRange(2, 4)),
@@ -96,6 +101,7 @@ public static class MazeLevelConfigurations
             RoomCount = new IntRange(baseConfiguration.RoomCount.Minimum + increase / 2, baseConfiguration.RoomCount.Maximum + increase / 2),
             RoomSize = baseConfiguration.RoomSize,
             TreasureChestCount = new IntRange(baseConfiguration.TreasureChestCount.Minimum + increase, baseConfiguration.TreasureChestCount.Maximum + increase),
+            TreasureGold = new IntRange(baseConfiguration.TreasureGold.Minimum + increase * 35, baseConfiguration.TreasureGold.Maximum + increase * 60),
             EnemySpawns = baseConfiguration.EnemySpawns.Select(spawn => new EnemySpawnConfiguration(
                 spawn.EnemyId, new IntRange(spawn.Count.Minimum + increase / 2, spawn.Count.Maximum + increase))).ToList()
         };

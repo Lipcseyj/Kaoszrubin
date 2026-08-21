@@ -73,6 +73,8 @@ public sealed class Maze
         _treasureChests.Add(chest);
     }
 
+    public bool RemoveTreasureChest(TreasureChest chest) => _treasureChests.Remove(chest);
+
     public void AddEnemy(Enemy enemy)
     {
         EnsureObjectPositionIsFree(enemy.Position);
@@ -91,6 +93,7 @@ public sealed class Maze
         _corpses.FirstOrDefault(corpse => corpse.Position == position) as WorldObject;
 
     public Enemy? GetEnemyAt(Position position) => _enemies.FirstOrDefault(enemy => enemy.Position == position);
+    public TreasureChest? GetTreasureChestAt(Position position) => _treasureChests.FirstOrDefault(chest => chest.Position == position);
 
     public bool TryMoveEnemy(Enemy enemy, Position destination)
     {

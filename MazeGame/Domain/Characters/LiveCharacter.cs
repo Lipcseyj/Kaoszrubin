@@ -38,6 +38,7 @@ public sealed class LiveCharacter
     public bool IsAlive => CurrentVitality > 0;
     public int FoodLevel { get; private set; } = 100;
     public int WaterLevel { get; private set; } = 100;
+    public int Gold { get; private set; }
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
     public ArmorDefinition? Armor { get; private set; }
     public IReadOnlyList<MagicItemDefinition> MagicItems => _magicItems;
@@ -79,6 +80,8 @@ public sealed class LiveCharacter
 
     public void ConsumeFood(int amount) => FoodLevel = Math.Max(0, FoodLevel - Math.Max(0, amount));
     public void ConsumeWater(int amount) => WaterLevel = Math.Max(0, WaterLevel - Math.Max(0, amount));
+    public void AddGold(int amount) => Gold += Math.Max(0, amount);
+    public void SetGold(int gold) => Gold = Math.Max(0, gold);
 
     public void SetNeedLevels(int foodLevel, int waterLevel)
     {
