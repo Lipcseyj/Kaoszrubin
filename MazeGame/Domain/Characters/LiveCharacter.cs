@@ -36,6 +36,8 @@ public sealed class LiveCharacter
     public int ManaBonus { get; }
     public bool UsesMana => CharacterClass.UsesMana;
     public bool IsAlive => CurrentVitality > 0;
+    public int FoodLevel { get; private set; } = 100;
+    public int WaterLevel { get; private set; } = 100;
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
     public ArmorDefinition? Armor { get; private set; }
     public IReadOnlyList<MagicItemDefinition> MagicItems => _magicItems;
@@ -74,6 +76,15 @@ public sealed class LiveCharacter
         return true;
     }
     public void RestoreMana(int amount) => CurrentMana = Math.Min(MaximumMana, CurrentMana + Math.Max(0, amount));
+
+    public void ConsumeFood(int amount) => FoodLevel = Math.Max(0, FoodLevel - Math.Max(0, amount));
+    public void ConsumeWater(int amount) => WaterLevel = Math.Max(0, WaterLevel - Math.Max(0, amount));
+
+    public void SetNeedLevels(int foodLevel, int waterLevel)
+    {
+        FoodLevel = Math.Clamp(foodLevel, 0, 100);
+        WaterLevel = Math.Clamp(waterLevel, 0, 100);
+    }
 
     public void SetCurrentResources(int vitality, int mana)
     {

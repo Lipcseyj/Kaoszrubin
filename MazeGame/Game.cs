@@ -21,6 +21,7 @@ public sealed class Game
     private readonly BattleSystem _battleSystem;
     private bool _battleStarted;
     private bool _gameOver;
+    private DateTime _nextNeedsDrain;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
 
@@ -46,6 +47,7 @@ public sealed class Game
         Console.CursorVisible = false;
         StartNewMaze();
         var nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
+        _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         try
         {
             while (!_gameOver)
@@ -79,6 +81,12 @@ public sealed class Game
                 {
                     MoveEnemies();
                     nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
+                }
+
+                if (!_battleStarted && DateTime.UtcNow >= _nextNeedsDrain)
+                {
+                    DrainNeeds();
+                    _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
                 }
 
                 Thread.Sleep(20);
@@ -150,12 +158,24 @@ public sealed class Game
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             _renderer.DrawBattleResult(result, enemy);
             _battleStarted = false;
+            _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
             return;
         }
 
         _renderer.DrawBattleResult(result, enemy);
         _renderer.DrawGameOver(SelectedCharacter.Name);
         _gameOver = true;
+    }
+
+    private void DrainNeeds()
+    {
+        var foodLoss = 2 + SelectedCharacter.MaximumVitality / 60;
+        SelectedCharacter.ConsumeFood(foodLoss);
+        var waterLoss = 2;
+        if (SelectedCharacter.CurrentVitality < SelectedCharacter.MaximumVitality) waterLoss++;
+        if (SelectedCharacter.CurrentVitality * 2 < SelectedCharacter.MaximumVitality) waterLoss++;
+        SelectedCharacter.ConsumeWater(waterLoss);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
     }
 
     private static bool TryGetDirection(ConsoleKey key, out Direction direction)

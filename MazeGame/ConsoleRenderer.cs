@@ -151,16 +151,18 @@ public sealed class ConsoleRenderer
         WriteSheetLine(9, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
         WriteSheetLine(10, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
         WriteSheetLine(11, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
-        WriteSheetLine(13, "FEGYVEREK", ConsoleColor.Yellow);
-        WriteSheetLine(14, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray);
-        WriteSheetLine(15, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray);
-        WriteSheetLine(16, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow);
-        WriteSheetLine(18, $"VARÁZSTÁRGYAK {character.MagicItems.Count}/3", ConsoleColor.Magenta);
+        WriteSheetLine(12, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
+        WriteSheetLine(13, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
+        WriteSheetLine(15, "FEGYVEREK", ConsoleColor.Yellow);
+        WriteSheetLine(16, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray);
+        WriteSheetLine(17, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray);
+        WriteSheetLine(18, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow);
+        WriteSheetLine(20, $"VARÁZSTÁRGYAK {character.MagicItems.Count}/3", ConsoleColor.Magenta);
         for (var index = 0; index < 3; index++)
-            WriteSheetLine(19 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}", ConsoleColor.Gray);
-        WriteSheetLine(23, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
+            WriteSheetLine(21 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}", ConsoleColor.Gray);
+        WriteSheetLine(25, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
         for (var index = 0; index < 10; index++)
-            WriteSheetLine(24 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
+            WriteSheetLine(26 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
         WriteSheetLine(36, "Mozgás: nyilak", ConsoleColor.DarkCyan);
         WriteSheetLine(37, "Új pálya: R", ConsoleColor.DarkCyan);
         WriteSheetLine(38, "Kilépés: Esc", ConsoleColor.DarkCyan);
@@ -197,6 +199,7 @@ public sealed class ConsoleRenderer
     private sealed record MessageLogLine(string Text, ConsoleColor Color);
 
     private static string ItemName(IItemDefinition? item) => item?.Name ?? "üres";
+    private static string ResourceIcons(string icon, int level) => string.Concat(Enumerable.Repeat(icon, level / 10));
 
     private void WriteSheetLine(int y, string text, ConsoleColor foregroundColor)
     {

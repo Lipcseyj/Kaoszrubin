@@ -54,6 +54,7 @@ public sealed class CharacterSaveService
             characterClass.UsesMana ? _gameData.GetMinimumMana(saved.Abilities.Intelligence) + saved.ManaBonus : 0,
             saved.VitalityBonus, characterClass.UsesMana ? saved.ManaBonus : 0);
         character.SetCurrentResources(saved.CurrentVitality, saved.CurrentMana);
+        character.SetNeedLevels(saved.FoodLevel ?? 100, saved.WaterLevel ?? 100);
 
         var weaponIds = saved.WeaponIds.Count > 0 ? saved.WeaponIds : saved.WeaponNames;
         for (var index = 0; index < Math.Min(2, weaponIds.Count); index++)
@@ -77,6 +78,8 @@ public sealed class CharacterSaveService
         CurrentMana = character.CurrentMana,
         VitalityBonus = character.VitalityBonus,
         ManaBonus = character.ManaBonus,
+        FoodLevel = character.FoodLevel,
+        WaterLevel = character.WaterLevel,
         WeaponIds = character.WeaponSlots.Select(weapon => weapon?.Id).ToList(),
         ArmorId = character.Armor?.Id,
         MagicItemIds = character.MagicItems.Select(item => item.Id).ToList(),
@@ -118,6 +121,8 @@ public sealed class CharacterSaveService
         public int CurrentMana { get; init; }
         public int VitalityBonus { get; init; }
         public int ManaBonus { get; init; }
+        public int? FoodLevel { get; init; }
+        public int? WaterLevel { get; init; }
         public List<string?> WeaponIds { get; init; } = [];
         public string? ArmorId { get; init; }
         public List<string> MagicItemIds { get; init; } = [];
