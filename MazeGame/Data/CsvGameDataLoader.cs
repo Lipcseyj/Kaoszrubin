@@ -17,6 +17,7 @@ public static class CsvGameDataLoader
         var races = new List<RaceDefinition>();
         var characterClasses = new List<CharacterClassDefinition>();
         var enemies = new List<EnemyDefinition>();
+        var weaponTypes = new List<WeaponTypeDefinition>();
         var weapons = new List<WeaponDefinition>();
         var armors = new List<ArmorDefinition>();
         var abilities = new List<AbilityDefinition>();
@@ -42,7 +43,7 @@ public static class CsvGameDataLoader
             }
 
             if (IsHeaderRow(cells[0])) continue;
-            AddDefinition(section, cells, races, characterClasses, enemies, weapons, armors, abilities, items, magicItems, spells,
+            AddDefinition(section, cells, races, characterClasses, enemies, weaponTypes, weapons, armors, abilities, items, magicItems, spells,
                 raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, startingEquipmentByClass);
         }
 
@@ -55,6 +56,7 @@ public static class CsvGameDataLoader
                 classMinimums.GetValueOrDefault(characterClass.Id, PrimaryAbilities.Zero),
                 CharacterClassRules.UsesMana(characterClass.Id))).ToList(),
             Enemies = enemies,
+            WeaponTypes = weaponTypes,
             Weapons = weapons,
             Armors = armors,
             Abilities = abilities,
@@ -69,7 +71,7 @@ public static class CsvGameDataLoader
 
     private static void AddDefinition(DataSection section, string[] cells,
         ICollection<RaceDefinition> races, ICollection<CharacterClassDefinition> characterClasses,
-        ICollection<EnemyDefinition> enemies, ICollection<WeaponDefinition> weapons,
+        ICollection<EnemyDefinition> enemies, ICollection<WeaponTypeDefinition> weaponTypes, ICollection<WeaponDefinition> weapons,
         ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities, ICollection<MiscItemDefinition> items,
         ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
@@ -91,11 +93,14 @@ public static class CsvGameDataLoader
             case DataSection.Enemies:
                 enemies.Add(new EnemyDefinition(id, name, Integer(cells, 2), Integer(cells, 3), Integer(cells, 4), Integer(cells, 5)));
                 break;
+            case DataSection.WeaponTypes:
+                weaponTypes.Add(new WeaponTypeDefinition(id, name));
+                break;
             case DataSection.Weapons:
-                weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), Integer(cells, 3)));
+                weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), ValueRangeFrom(cells, 3)));
                 break;
             case DataSection.Armors:
-                armors.Add(new ArmorDefinition(id, name, Integer(cells, 2)));
+                armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2)));
                 break;
             case DataSection.Abilities:
                 abilities.Add(new AbilityDefinition(id, name));
@@ -153,6 +158,16 @@ public static class CsvGameDataLoader
     private static string Cell(string[] cells, int index) => index < cells.Length ? cells[index] : string.Empty;
     private static string? EmptyAsNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
     private static int? Integer(string[] cells, int index) => int.TryParse(Cell(cells, index), CultureInfo.InvariantCulture, out var value) ? value : null;
+    private static ValueRange? ValueRangeFrom(string[] cells, int index)
+    {
+        var parts = Cell(cells, index).Split('-', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 2
+            && int.TryParse(parts[0], CultureInfo.InvariantCulture, out var minimum)
+            && int.TryParse(parts[1], CultureInfo.InvariantCulture, out var maximum)
+            && minimum <= maximum
+            ? new ValueRange(minimum, maximum)
+            : null;
+    }
     private static PrimaryAbilities PrimaryAbilitiesFrom(string[] cells) => new(Integer(cells, 1) ?? 0, Integer(cells, 2) ?? 0, Integer(cells, 3) ?? 0, Integer(cells, 4) ?? 0);
 
     private static void AddAbilityThreshold(string[] cells, IDictionary<int, int> thresholds)
@@ -187,6 +202,7 @@ public static class CsvGameDataLoader
         "fajok" => DataSection.Races,
         "osztalyok" => DataSection.CharacterClasses,
         "ellensegek" => DataSection.Enemies,
+        "fegyvertipus" => DataSection.WeaponTypes,
         "fegyverek" => DataSection.Weapons,
         "pancelok" => DataSection.Armors,
         "kepessegek" => DataSection.Abilities,
@@ -214,6 +230,7 @@ public static class CsvGameDataLoader
         Races,
         CharacterClasses,
         Enemies,
+        WeaponTypes,
         Weapons,
         Armors,
         Abilities,

@@ -44,33 +44,39 @@ E025,Fekete sárkány,20,2000,10,8
 
 #Fegyverek
 Id,Név,Típus,Sebzés
-W001,tőr,,
-W002,rövid kard,,
-W003,katana,,
-W004,hosszú kard,,
-W005,bunkó,,
+W001,tőr,WT002,1-4
+W002,rövid kard,WT002,2-5,
+W003,katana,WT002,3-8
+W004,hosszú kard,WT001,4-8
+W005,bunkó,WT001,3-4
 W006,buzogány,,
 W007,láncos buzogány,,
 W008,csatacsillag,,
 W009,pallos,,
-W010,csatabárd,,
+W010,csatabárd,WT001,5-8
 W011,lándzsa,,
 W012,alabárd,,
 W013,csatakalapács,,
-W014,bőrpajzs,,
+W014,bőrpajzs,WT003,1-2
 W015,fapajzs,,
+
+#Fegyvertípus
+Id,Név
+WT001,Erő
+WT002,Ügyesség
+WT003,Védelem
 
 #Páncélok
 Id,Név,Védelem
-A001,kámzsa,
-A002,bőrvért,
-A003,láncing,
-A004,pikkelypáncél,
-A005,mellvért,
-A006,teljes vértezet,
-A007,mitril láncing,
-A008,mitril mellvért,
-A009,mitril teljes vértezet,
+A001,kámzsa,1-2
+A002,bőrvért,2-3
+A003,láncing,3-4
+A004,pikkelypáncél,2-5
+A005,mellvért,6-7
+A006,teljes vértezet,8-10
+A007,mitril láncing,7-8
+A008,mitril mellvért,8-9
+A009,mitril teljes vértezet,12-15
 
 #Képességek
 Id,Név

@@ -12,6 +12,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<RaceDefinition> Races { get; init; } = [];
     public IReadOnlyList<CharacterClassDefinition> CharacterClasses { get; init; } = [];
     public IReadOnlyList<EnemyDefinition> Enemies { get; init; } = [];
+    public IReadOnlyList<WeaponTypeDefinition> WeaponTypes { get; init; } = [];
     public IReadOnlyList<WeaponDefinition> Weapons { get; init; } = [];
     public IReadOnlyList<ArmorDefinition> Armors { get; init; } = [];
     public IReadOnlyList<AbilityDefinition> Abilities { get; init; } = [];
@@ -23,6 +24,7 @@ public sealed class GameDataCatalog
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();
 
     public EnemyDefinition GetEnemy(string id) => FindById(Enemies, id, "ellenfél");
+    public WeaponTypeDefinition GetWeaponType(string id) => FindById(WeaponTypes, id, "fegyvertípus");
     public RaceDefinition GetRace(string id) => FindById(Races, id, "faj");
     public CharacterClassDefinition GetCharacterClass(string id) => FindById(CharacterClasses, id, "osztály");
     public WeaponDefinition GetWeapon(string id) => FindById(Weapons, id, "fegyver");
