@@ -4,6 +4,7 @@ namespace MazeGame;
 public sealed class Game
 {
     private static readonly TimeSpan EnemyMoveInterval = TimeSpan.FromMilliseconds(700);
+    private const int VisionRange = 5;
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
@@ -20,6 +21,7 @@ public sealed class Game
     private readonly ConsoleRenderer _renderer = new();
     private Maze _maze = null!;
     private Player _player = null!;
+    private FogOfWar _fogOfWar = null!;
     private readonly Random _random = new();
     private bool _battleStarted;
 
@@ -66,8 +68,10 @@ public sealed class Game
     {
         _maze = _generator.Create(MazeWidth, MazeHeight);
         _player = new Player(_maze.Entrance);
+        _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, VisionRange);
+        _fogOfWar.RevealFrom(_maze, _player.Position);
         _battleStarted = false;
-        _renderer.DrawInitialState(_maze, _player);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar);
     }
 
     private void MovePlayer(ConsoleKey key)
@@ -77,7 +81,8 @@ public sealed class Game
         var previousPosition = _player.Position;
         if (!_player.TryMove(direction, _maze)) return;
 
-        _renderer.DrawMovement(_maze, previousPosition, _player.Position, _player.Position == _maze.Exit);
+        var newlyRevealed = _fogOfWar.RevealFrom(_maze, _player.Position);
+        _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, _player.Position == _maze.Exit);
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
     }
@@ -90,7 +95,7 @@ public sealed class Game
             var direction = Directions[_random.Next(Directions.Length)];
             if (!_maze.TryMoveEnemy(enemy, previousPosition + direction)) continue;
 
-            _renderer.DrawEnemyMovement(_maze, previousPosition, enemy.Position, _player.Position);
+            _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
             if (enemy.Position == _player.Position)
             {
                 StartBattle(enemy);
