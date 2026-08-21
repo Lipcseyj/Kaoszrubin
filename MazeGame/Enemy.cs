@@ -5,15 +5,15 @@ namespace MazeGame;
 
 public abstract class Enemy(Position position) : WorldObject(position)
 {
-    public abstract string Name { get; }
+    public abstract EnemyDefinition Definition { get; }
+    public string Name => Definition.Name;
 
     public void MoveTo(Position position) => Position = position;
 }
 
-/// <summary>Az első, később további típusokkal bővíthető ellenfél.</summary>
-public sealed class Skeleton(Position position, EnemyDefinition definition) : Enemy(position)
+/// <summary>CSV-definícióból létrehozott, saját megjelenésű ellenfél.</summary>
+public sealed class ConfiguredEnemy(Position position, EnemyDefinition definition) : Enemy(position)
 {
-    public EnemyDefinition Definition { get; } = definition;
-    public override string Name => Definition.Name;
-    public override Rune Symbol { get; } = new('*');
+    public override EnemyDefinition Definition { get; } = definition;
+    public override Rune Symbol { get; } = Rune.GetRuneAt(definition.Appearance, 0);
 }

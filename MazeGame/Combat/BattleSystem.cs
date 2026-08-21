@@ -12,7 +12,7 @@ public sealed class BattleSystem(Random random)
 
     public BattleResult Resolve(LiveCharacter player, Enemy enemy, Action<BattleLogEntry> onRound)
     {
-        var defender = ((Skeleton)enemy).Definition;
+        var defender = enemy.Definition;
         var playerInitiative = RollInitiative(player.Abilities.Dexterity);
         var enemyInitiative = RollInitiative(defender.Speed ?? 1);
         var playerAttacks = playerInitiative.Total >= enemyInitiative.Total;
@@ -34,7 +34,7 @@ public sealed class BattleSystem(Random random)
             {
                 var attack = PlayerAttack(player, defender);
                 if (attack.Hit) defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - attack.Damage) };
-                message = $"{round}. kör — {player.Name} támadja {enemy.Name}-t. {attack.Message} {enemy.Name} HP: {defender.HitPoints}/" + ((Skeleton)enemy).Definition.HitPoints + ".";
+                message = $"{round}. kör — {player.Name} támadja {enemy.Name}-t. {attack.Message} {enemy.Name} HP: {defender.HitPoints}/" + enemy.Definition.HitPoints + ".";
                 logKind = BattleLogKind.PlayerAttack;
             }
             else

@@ -131,7 +131,7 @@ public sealed class MazeGenerator
         PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze), position => new TreasureChest(position), maze.AddTreasureChest);
         var enemyPositions = GetRoomPositions(maze).Concat(GetOutdoorPositions(maze));
         foreach (var spawn in _enemySpawns)
-            PlaceObjects(maze, spawn.Count, enemyPositions, position => new Skeleton(position, spawn.Definition), maze.AddEnemy);
+            PlaceObjects(maze, spawn.Count, enemyPositions, position => new ConfiguredEnemy(position, spawn.Definition), maze.AddEnemy);
     }
 
     private void PlaceObjects<T>(Maze maze, int requestedCount, IEnumerable<Position> candidates, Func<Position, T> factory, Action<T> add)

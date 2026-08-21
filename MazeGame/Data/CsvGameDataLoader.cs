@@ -91,7 +91,7 @@ public static class CsvGameDataLoader
                 characterClasses.Add(new CharacterClassDefinition(id, name, PrimaryAbilities.Zero, CharacterClassRules.UsesMana(id)));
                 break;
             case DataSection.Enemies:
-                enemies.Add(new EnemyDefinition(id, name, Integer(cells, 2), Integer(cells, 3), Integer(cells, 4), Integer(cells, 5)));
+                enemies.Add(new EnemyDefinition(id, name, Cell(cells, 2), Integer(cells, 3), Integer(cells, 4), Integer(cells, 5), Integer(cells, 6)));
                 break;
             case DataSection.WeaponTypes:
                 weaponTypes.Add(new WeaponTypeDefinition(id, name));
