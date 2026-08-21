@@ -10,7 +10,10 @@ public sealed class Game
         DoubleWidthCorridorChance = 0.80,
         RoomCount = 5,
         MinimumRoomSize = 2,
-        MaximumRoomSize = 6
+        MaximumRoomSize = 6,
+        TreasureChestCount = 5,
+        RoomEnemyCount = 5,
+        OutdoorEnemyCount = 10
     });
     private readonly ConsoleRenderer _renderer = new();
     private Maze _maze = null!;

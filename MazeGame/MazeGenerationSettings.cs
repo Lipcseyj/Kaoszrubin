@@ -8,4 +8,7 @@ public sealed class MazeGenerationSettings
     public int RoomCount { get; init; } = 5;
     public int MinimumRoomSize { get; init; } = 2;
     public int MaximumRoomSize { get; init; } = 6;
+    public int TreasureChestCount { get; init; } = 5;
+    public int RoomEnemyCount { get; init; } = 5;
+    public int OutdoorEnemyCount { get; init; } = 10;
 }

@@ -38,7 +38,10 @@ public sealed class ConsoleRenderer
         {
             Console.SetCursorPosition(0, y);
             for (var x = 0; x < maze.Width; x++)
-                WriteRune(maze.Tiles[x, y]);
+            {
+                var position = new Position(x, y);
+                WriteRune(maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[x, y]);
+            }
         }
     }
 
@@ -60,6 +63,8 @@ public sealed class ConsoleRenderer
         WriteAt(173, 7, "Új pálya: R");
         WriteAt(173, 8, "Kilépés: Esc");
         WriteAt(173, 10, "Ajtó: ╬");
+        WriteAt(173, 12, "Láda: ▣");
+        WriteAt(173, 13, "Ellenség: ☠");
     }
 
     private static void DrawBattleMessage(string message)
@@ -71,7 +76,7 @@ public sealed class ConsoleRenderer
     private static void DrawTile(Maze maze, Position position)
     {
         Console.SetCursorPosition(position.X, position.Y);
-        WriteRune(maze.Tiles[position.X, position.Y]);
+        WriteRune(maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y]);
     }
 
     private static void DrawPlayer(Position position)

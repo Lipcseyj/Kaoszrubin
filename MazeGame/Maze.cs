@@ -5,13 +5,20 @@ namespace MazeGame;
 /// <summary>A pálya látható és bejárható rácsa.</summary>
 public sealed class Maze
 {
-    public static readonly Rune Wall = new('█');
+    public static readonly Rune Wall = new('▒');
     public static readonly Rune Floor = new(' ');
     public static readonly Rune ExitMarker = new('⌂');
     public static readonly Rune Door = new('╬');
 
     /// <summary>A pálya cellái. Minden elem egyetlen, keskeny konzolcellára rajzolható rúna.</summary>
     public Rune[,] Tiles { get; }
+    private readonly List<Room> _rooms = [];
+    private readonly List<TreasureChest> _treasureChests = [];
+    private readonly List<Enemy> _enemies = [];
+
+    public IReadOnlyList<Room> Rooms => _rooms;
+    public IReadOnlyList<TreasureChest> TreasureChests => _treasureChests;
+    public IReadOnlyList<Enemy> Enemies => _enemies;
     public int Width { get; }
     public int Height { get; }
     public Position Entrance { get; }
@@ -54,6 +61,30 @@ public sealed class Maze
     {
         if (!IsInside(position)) throw new ArgumentOutOfRangeException(nameof(position));
         Tiles[position.X, position.Y] = tile;
+    }
+
+    public void AddRoom(Room room) => _rooms.Add(room);
+
+    public void AddTreasureChest(TreasureChest chest)
+    {
+        EnsureObjectPositionIsFree(chest.Position);
+        _treasureChests.Add(chest);
+    }
+
+    public void AddEnemy(Enemy enemy)
+    {
+        EnsureObjectPositionIsFree(enemy.Position);
+        _enemies.Add(enemy);
+    }
+
+    public WorldObject? GetObjectAt(Position position) =>
+        _treasureChests.FirstOrDefault(chest => chest.Position == position) as WorldObject ??
+        _enemies.FirstOrDefault(enemy => enemy.Position == position);
+
+    private void EnsureObjectPositionIsFree(Position position)
+    {
+        if (!IsWalkable(position) || position == Entrance || position == Exit || GetObjectAt(position) is not null)
+            throw new ArgumentException("Az objektum helyének üres, járható mezőnek kell lennie.", nameof(position));
     }
 
     private static int LastInnerOddCoordinate(int length)

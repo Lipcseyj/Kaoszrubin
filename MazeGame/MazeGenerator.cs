@@ -26,6 +26,7 @@ public sealed class MazeGenerator
         CarveFrom(maze, new Position(0, 0), visited, gridWidth, gridHeight);
         PlaceRooms(maze);
         maze.PlaceExit(ToMazePosition(new Position(gridWidth - 1, gridHeight - 1)));
+        PlaceMapObjects(maze);
         return maze;
     }
 
@@ -111,10 +112,48 @@ public sealed class MazeGenerator
         for (var x = topLeft.X; x < topLeft.X + width; x++) maze.Carve(new Position(x, y));
         maze.SetTile(doors[_random.Next(doors.Length)], Maze.Door);
 
-        if (HasPath(maze, maze.Entrance, maze.Exit)) return true;
+        if (HasPath(maze, maze.Entrance, maze.Exit))
+        {
+            maze.AddRoom(new Room(topLeft, width, height));
+            return true;
+        }
 
         Array.Copy(originalTiles, maze.Tiles, originalTiles.Length);
         return false;
+    }
+
+    private void PlaceMapObjects(Maze maze)
+    {
+        PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze), position => new TreasureChest(position), maze.AddTreasureChest);
+        PlaceObjects(maze, _settings.RoomEnemyCount, GetRoomPositions(maze), position => new Skeleton(position), maze.AddEnemy);
+        PlaceObjects(maze, _settings.OutdoorEnemyCount, GetOutdoorPositions(maze), position => new Skeleton(position), maze.AddEnemy);
+    }
+
+    private void PlaceObjects<T>(Maze maze, int requestedCount, IEnumerable<Position> candidates, Func<Position, T> factory, Action<T> add)
+        where T : WorldObject
+    {
+        var available = candidates.Where(position => maze.GetObjectAt(position) is null && position != maze.Entrance && position != maze.Exit).ToList();
+        for (var count = 0; count < requestedCount && available.Count > 0; count++)
+        {
+            var index = _random.Next(available.Count);
+            var position = available[index];
+            available.RemoveAt(index);
+            add(factory(position));
+        }
+    }
+
+    private static IEnumerable<Position> GetRoomPositions(Maze maze) =>
+        maze.Rooms.SelectMany(room => room.InteriorPositions()).Where(maze.IsWalkable);
+
+    private static IEnumerable<Position> GetOutdoorPositions(Maze maze)
+    {
+        for (var y = 1; y < maze.Height - 1; y++)
+        for (var x = 1; x < maze.Width - 1; x++)
+        {
+            var position = new Position(x, y);
+            if (maze.IsWalkable(position) && maze.Tiles[x, y] != Maze.Door && !maze.Rooms.Any(room => room.Contains(position)))
+                yield return position;
+        }
     }
 
     private static bool ContainsDoor(Maze maze, Position topLeft, int width, int height)
@@ -185,5 +224,7 @@ public sealed class MazeGenerator
         if (settings.RoomCount < 0) throw new ArgumentOutOfRangeException(nameof(settings.RoomCount));
         if (settings.MinimumRoomSize < 2 || settings.MaximumRoomSize < settings.MinimumRoomSize)
             throw new ArgumentException("A szobaméreteknek legalább 2-nek és növekvő sorrendűnek kell lenniük.");
+        if (settings.TreasureChestCount < 0 || settings.RoomEnemyCount < 0 || settings.OutdoorEnemyCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(settings), "Az objektumok száma nem lehet negatív.");
     }
 }
