@@ -1,6 +1,7 @@
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Magic;
+using MazeGame.Domain.Inventory;
 
 namespace MazeGame.Data;
 
@@ -15,6 +16,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<AbilityDefinition> Abilities { get; init; } = [];
     public IReadOnlyList<MagicItemDefinition> MagicItems { get; init; } = [];
     public IReadOnlyList<SpellDefinition> Spells { get; init; } = [];
+    public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();
 
@@ -27,6 +29,11 @@ public sealed class GameDataCatalog
     public WeaponDefinition GetWeapon(string name) => FindByName(Weapons, name, "fegyver");
     public ArmorDefinition GetArmor(string name) => FindByName(Armors, name, "páncél");
     public MagicItemDefinition GetMagicItem(string name) => FindByName(MagicItems, name, "varázstárgy");
+    public WeaponDefinition ResolveWeapon(string name) => Weapons.FirstOrDefault(weapon => string.Equals(weapon.Name, name, StringComparison.OrdinalIgnoreCase)) ?? new WeaponDefinition(name, null, null);
+    public ArmorDefinition ResolveArmor(string name) => Armors.FirstOrDefault(armor => string.Equals(armor.Name, name, StringComparison.OrdinalIgnoreCase)) ?? new ArmorDefinition(name, null);
+    public MagicItemDefinition ResolveMagicItem(string name) => MagicItems.FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)) ?? new MagicItemDefinition(name);
+    public StartingEquipmentDefinition? GetStartingEquipment(string characterClassName) =>
+        StartingEquipmentByClass.TryGetValue(characterClassName, out var equipment) ? equipment : null;
 
     public int GetMinimumVitality(int health) => GetThresholdValue(MinimumVitalityByHealth, health, "egészség");
     public int GetMinimumMana(int intelligence) => GetThresholdValue(MinimumManaByIntelligence, intelligence, "intelligencia");

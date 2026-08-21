@@ -1,151 +1,181 @@
-#Fajok,,,,,
-ember,törp,elf,félork,,
-,,,,,
-#Osztályok,,,,,
-harcos,barbár,lovag,tolvaj,pap,mágus
-,,,,,
-#Ellenségek,,,,,
-Név,Erő,HP,Páncél,Sebesség,
-Óriáspatkány,,,,,
-Kobold,,,,,
-Goblin,,,,,
-Csontváz,,,,,
-Farkas,,,,,
-Zombi,,,,,
-Ork,,,,,
-Hobgoblin,,,,,
-Óriáspók,,,,,
-Gnoll,,,,,
-Lidércfarkas,,,,,
-Ogre,,,,,
-Troll,,,,,
-Minotaurusz,,,,,
-Múmia,,,,,
-Medúza,,,,,
-Kiméra,,,,,
-Beholder,,,,,
-Vámpír,,,,,
-Vérfarkas,,,,,
-Vörös sárkány,,,,,
-Lich,,,,,
-Démonlovag,,,,,
-Balor démon,,,,,
-Fekete sárkány,,,,,
-,,,,,
-#Fegyverek,,,,,
-Név,Típus,Sebzés,,,
-tőr,,,,,
-rövid kard,,,,,
-katana,,,,,
-hosszú kard,,,,,
-bunkó,,,,,
-buzogány,,,,,
-láncos buzogány,,,,,
-csatacsillag,,,,,
-pallos,,,,,
-csatabárd,,,,,
-lándzsa,,,,,
-alabárd,,,,,
-csatakalapács,,,,,
-bőrpajzs,,,,,
-fapajzs,,,,,
-acélpajzs,,,,,
-mitrilpajzs,,,,,
-,,,,,
-#Páncélok,,,,,
-Név,Védelem,,,,
-kámzsa,,,,,
-bőrvért,,,,,
-láncing,,,,,
-pikkelypáncél,,,,,
-mellvért,,,,,
-teljes vértezet,,,,,
-mitril láncing,,,,,
-mitril mellvért,,,,,
-mitril teljes vértezet,,,,,
-,,,,,
-#Képességek,,,,,
-Erő,,,,,
-Ügyesség,,,,,
-Egészség,,,,,
-Intelligencia,,,,,
-Életerő,,,,,
-Manna,,,,,
-,,,,,
-#Varázstárgyak,,,,,
-varázsgyűrű,,,,,
-varázstekercs,,,,,
-,,,,,
-#Varázslatok,,,,,
-Mágikus lövedék,,,,,
-Fagyasztó érintés,,,,,
-Égő kéz,,,,,
-Villámcsapás,,,,,
-Lángoló nyíl,,,,,
-Láthatatlanság,,,,,
-Tűzgolyó,,,,,
-Jégvihar,,,,,
-Villámvihar,,,,,
-Teleportáció,,,,,
-Meteorzápor,,,,,
-Időmegállítás,,,,,
-,,,,,
-#Papi varázslatok,,,,,
-Gyógyító érintés,,,,,
-Szent fény,,,,,
-Áldás,,,,,
-Szent pajzs,,,,,
-Gyógyítás,,,,,
-Méregűzés,,,,,
-Védelem a gonosztól,,,,,
-Feltámasztás,,,,,
-Szent csapás,,,,,
-Isteni védelem,,,,,
-Szent ítélet,,,,,
-Isteni csoda,,,,,
-,,,,,
-#Faji képességbónuszok,,,,,
-Faj,erő,ügyesség,egészség,intelligencia,
-ember,0,0,0,0,
-törp,1,-4,3,0,
-elf,-2,2,-2,2,
-félork,3,-1,1,-3,
-,,,,,
-#Osztály képességminimumok,,,,,
-Osztály,erő,ügyesség,egészség,intelligencia,
-harcos,7,2,8,2,
-barbár,9,3,6,1,
-lovag,8,2,6,4,
-pap,6,3,5,6,
-tolvaj,5,9,4,5,
-mágus,3,3,2,8,
-,,,,,
-#Egészség által adott életerő minimum,,,,,
-1,15,,,,
-2,20,,,,
-3,25,,,,
-4,30,,,,
-5,35,,,,
-6,40,,,,
-7,50,,,,
-8,60,,,,
-9,70,,,,
-10,85,,,,
-11,100,,,,
-12,110,,,,
-13,120,,,,
-,,,,,
-#Intelligencia által adott manna minimum,,,,,
-1,15,,,,
-2,20,,,,
-3,25,,,,
-4,30,,,,
-5,35,,,,
-6,40,,,,
-7,50,,,,
-8,60,,,,
-9,70,,,,
-10,85,,,,
-11,100,,,,
-12,110,,,,
-13,120,,,,
+#Fajok
+Id,Név
+R001,ember
+R002,törp
+R003,elf
+R004,félork
+
+#Osztályok
+Id,Név
+C001,harcos
+C002,barbár
+C003,lovag
+C004,tolvaj
+C005,pap
+C006,mágus
+
+#Ellenségek
+Id,Név,Erő,HP,Páncél,Sebesség
+E001,Óriáspatkány,,,,
+E002,Kobold,,,,
+E003,Goblin,,,,
+E004,Csontváz,,,,
+E005,Farkas,,,,
+E006,Zombi,,,,
+E007,Ork,,,,
+E008,Hobgoblin,,,,
+E009,Óriáspók,,,,
+E010,Gnoll,,,,
+E011,Lidércfarkas,,,,
+E012,Ogre,,,,
+E013,Troll,,,,
+E014,Minotaurusz,,,,
+E015,Múmia,,,,
+E016,Medúza,,,,
+E017,Kiméra,,,,
+E018,Beholder,,,,
+E019,Vámpír,,,,
+E020,Vérfarkas,,,,
+E021,Vörös sárkány,,,,
+E022,Lich,,,,
+E023,Démonlovag,,,,
+E024,Balor démon,,,,
+E025,Fekete sárkány,,,,
+
+#Fegyverek
+Id,Név,Típus,Sebzés
+W001,tőr,,
+W002,rövid kard,,
+W003,katana,,
+W004,hosszú kard,,
+W005,bunkó,,
+W006,buzogány,,
+W007,láncos buzogány,,
+W008,csatacsillag,,
+W009,pallos,,
+W010,csatabárd,,
+W011,lándzsa,,
+W012,alabárd,,
+W013,csatakalapács,,
+W014,bőrpajzs,,
+W015,fapajzs,,
+
+#Páncélok
+Id,Név,Védelem
+A001,kámzsa,
+A002,bőrvért,
+A003,láncing,
+A004,pikkelypáncél,
+A005,mellvért,
+A006,teljes vértezet,
+A007,mitril láncing,
+A008,mitril mellvért,
+A009,mitril teljes vértezet,
+
+#Képességek
+Id,Név
+K001,Erő
+K002,Ügyesség
+K003,Egészség
+K004,Intelligencia
+K005,Életerő
+K006,Manna
+
+#Tárgyak
+Id,Név
+T001,Élelem
+T002,Kulacs
+
+#Varázstárgyak
+Id,Név
+M001,varázsgyűrű
+M002,varázstekercs
+M003,Szent szimbólum
+M004,Varázskönyv
+
+#Varázslatok
+Id,Név
+S001,Mágikus lövedék
+S002,Fagyasztó érintés
+S003,Égő kéz
+S004,Villámcsapás
+S005,Lángoló nyíl
+S006,Láthatatlanság
+S007,Tűzgolyó
+S008,Jégvihar
+S009,Villámvihar
+S010,Teleportáció
+S011,Meteorzápor
+S012,Időmegállítás
+
+#Papi varázslatok
+Id,Név
+P001,Gyógyító érintés
+P002,Szent fény
+P003,Áldás
+P004,Szent pajzs
+P005,Gyógyítás
+P006,Méregűzés
+P007,Védelem a gonosztól
+P008,Feltámasztás
+P009,Szent csapás
+P010,Isteni védelem
+P011,Szent ítélet
+P012,Isteni csoda
+
+#Faji képességbónuszok
+FajId,Erő,Ügyesség,Egészség,Intelligencia
+R001,0,0,0,0
+R002,1,-4,3,0
+R003,-2,2,-2,2
+R004,3,-1,1,-3
+
+#Osztály képességminimumok
+OsztályId,Erő,Ügyesség,Egészség,Intelligencia
+C001,7,2,8,2
+C002,9,3,6,1
+C003,8,2,6,4
+C004,5,9,4,5
+C005,6,3,5,6
+C006,3,3,2,8
+
+#Osztály kezdőfelszerelés
+OsztályId,Fegyver1Id,Fegyver2Id,PáncélId,VarázstárgyId,HátizsákId,HátizsákId
+C001,W004,,A002,,T001,T002
+C002,W010,,A002,,T001,T002
+C003,W004,W014,A004,,T001,T002
+C005,W005,,A001,M003,T001,T002
+C004,W001,,A002,,T001,T002
+C006,W001,,A001,M004,T001,T002
+
+#Egészség által adott életerő minimum
+Egészség,Életerő
+1,15
+2,20
+3,25
+4,30
+5,35
+6,40
+7,50
+8,60
+9,70
+10,85
+11,100
+12,110
+13,120
+
+#Intelligencia által adott manna minimum
+Intelligencia,Manna
+1,15
+2,20
+3,25
+4,30
+5,35
+6,40
+7,50
+8,60
+9,70
+10,85
+11,100
+12,110
+13,120

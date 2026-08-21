@@ -55,9 +55,9 @@ public sealed class CharacterSaveService
         character.SetCurrentResources(saved.CurrentVitality, saved.CurrentMana);
 
         for (var index = 0; index < Math.Min(2, saved.WeaponNames.Count); index++)
-            if (saved.WeaponNames[index] is { } weaponName) character.EquipWeapon(index, _gameData.GetWeapon(weaponName));
-        if (saved.ArmorName is { } armorName) character.EquipArmor(_gameData.GetArmor(armorName));
-        foreach (var itemName in saved.MagicItemNames) character.AddMagicItem(_gameData.GetMagicItem(itemName));
+            if (saved.WeaponNames[index] is { } weaponName) character.EquipWeapon(index, _gameData.ResolveWeapon(weaponName));
+        if (saved.ArmorName is { } armorName) character.EquipArmor(_gameData.ResolveArmor(armorName));
+        foreach (var itemName in saved.MagicItemNames) character.AddMagicItem(_gameData.ResolveMagicItem(itemName));
         foreach (var item in saved.BackpackItems) character.AddToBackpack(ResolveItem(item));
 
         return character;
@@ -81,9 +81,10 @@ public sealed class CharacterSaveService
 
     private IItemDefinition ResolveItem(ItemSaveData item) => item.Type switch
     {
-        nameof(WeaponDefinition) => _gameData.GetWeapon(item.Name),
-        nameof(ArmorDefinition) => _gameData.GetArmor(item.Name),
-        nameof(MagicItemDefinition) => _gameData.GetMagicItem(item.Name),
+        nameof(WeaponDefinition) => _gameData.ResolveWeapon(item.Name),
+        nameof(ArmorDefinition) => _gameData.ResolveArmor(item.Name),
+        nameof(MagicItemDefinition) => _gameData.ResolveMagicItem(item.Name),
+        nameof(MiscItemDefinition) => new MiscItemDefinition(item.Name),
         _ => throw new InvalidOperationException($"Ismeretlen mentett tárgytípus: {item.Type}")
     };
 

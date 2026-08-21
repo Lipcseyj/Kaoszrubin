@@ -25,6 +25,7 @@ public static class CsvGameDataLoader
         var classMinimums = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var minimumVitalityByHealth = new Dictionary<int, int>();
         var minimumManaByIntelligence = new Dictionary<int, int>();
+        var startingEquipmentByClass = new Dictionary<string, StartingEquipmentDefinition>(StringComparer.OrdinalIgnoreCase);
         var section = DataSection.None;
 
         foreach (var rawLine in ReadLinesWithFallbackEncoding(filePath))
@@ -40,7 +41,7 @@ public static class CsvGameDataLoader
 
             if (IsHeaderRow(cells[0])) continue;
             AddDefinition(section, cells, races, characterClasses, enemies, weapons, armors, abilities, magicItems, spells,
-                raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence);
+                raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, startingEquipmentByClass);
         }
 
         return new GameDataCatalog
@@ -57,7 +58,8 @@ public static class CsvGameDataLoader
             MagicItems = magicItems,
             Spells = spells,
             MinimumVitalityByHealth = minimumVitalityByHealth,
-            MinimumManaByIntelligence = minimumManaByIntelligence
+            MinimumManaByIntelligence = minimumManaByIntelligence,
+            StartingEquipmentByClass = startingEquipmentByClass
         };
     }
 
@@ -67,7 +69,8 @@ public static class CsvGameDataLoader
         ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities,
         ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
-        IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence)
+        IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence,
+        IDictionary<string, StartingEquipmentDefinition> startingEquipmentByClass)
     {
         var name = Cell(cells, 0);
         if (string.IsNullOrWhiteSpace(name)) return;
@@ -113,6 +116,15 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.ManaByIntelligence:
                 AddAbilityThreshold(cells, minimumManaByIntelligence);
+                break;
+            case DataSection.StartingEquipment:
+                startingEquipmentByClass[name] = new StartingEquipmentDefinition(
+                    name,
+                    EmptyAsNull(Cell(cells, 1)),
+                    EmptyAsNull(Cell(cells, 2)),
+                    EmptyAsNull(Cell(cells, 3)),
+                    EmptyAsNull(Cell(cells, 4)),
+                    cells.Skip(5).Where(item => !string.IsNullOrWhiteSpace(item)).ToList());
                 break;
         }
     }
@@ -176,6 +188,7 @@ public static class CsvGameDataLoader
         "papi varazslatok" => DataSection.DivineSpells,
         "faji kepessegbonuszok" => DataSection.RaceAbilityBonuses,
         "osztaly kepessegminimumok" => DataSection.ClassAbilityMinimums,
+        "osztaly kezdofelszereles" => DataSection.StartingEquipment,
         "egeszseg altal adott eletero minimum" => DataSection.VitalityByHealth,
         "intelligencia altal adott manna minimum" => DataSection.ManaByIntelligence,
         _ => DataSection.None
@@ -201,6 +214,7 @@ public static class CsvGameDataLoader
         DivineSpells,
         RaceAbilityBonuses,
         ClassAbilityMinimums,
+        StartingEquipment,
         VitalityByHealth,
         ManaByIntelligence
     }

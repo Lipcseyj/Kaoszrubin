@@ -34,7 +34,7 @@ public sealed class Game
             TreasureChestCount = 5,
             RoomEnemyCount = 5,
             OutdoorEnemyCount = 10
-        }, gameData.GetEnemy("Csontváz"));
+        }, gameData.GetEnemy("E004"));
     }
 
     public void Run()

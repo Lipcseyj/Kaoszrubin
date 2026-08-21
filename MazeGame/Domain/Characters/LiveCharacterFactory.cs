@@ -1,4 +1,5 @@
 using MazeGame.Data;
+using MazeGame.Domain.Inventory;
 
 namespace MazeGame.Domain.Characters;
 
@@ -17,8 +18,20 @@ public static class LiveCharacterFactory
             ? data.GetMinimumMana(finalAbilities.Intelligence) + manaBonus
             : 0;
 
-        return new LiveCharacter(name, race, characterClass, finalAbilities,
+        var character = new LiveCharacter(name, race, characterClass, finalAbilities,
             data.GetMinimumVitality(finalAbilities.Health) + vitalityBonus,
             maximumMana, vitalityBonus, characterClass.UsesMana ? manaBonus : 0);
+        AddStartingEquipment(character, data.GetStartingEquipment(characterClass.Name), data);
+        return character;
+    }
+
+    private static void AddStartingEquipment(LiveCharacter character, StartingEquipmentDefinition? equipment, GameDataCatalog data)
+    {
+        if (equipment is null) return;
+        if (equipment.FirstWeaponName is { } firstWeapon) character.EquipWeapon(0, data.ResolveWeapon(firstWeapon));
+        if (equipment.SecondWeaponName is { } secondWeapon) character.EquipWeapon(1, data.ResolveWeapon(secondWeapon));
+        if (equipment.ArmorName is { } armor) character.EquipArmor(data.ResolveArmor(armor));
+        if (equipment.MagicItemName is { } magicItem) character.AddMagicItem(data.ResolveMagicItem(magicItem));
+        foreach (var backpackItem in equipment.BackpackItemNames) character.AddToBackpack(new MiscItemDefinition(backpackItem));
     }
 }
