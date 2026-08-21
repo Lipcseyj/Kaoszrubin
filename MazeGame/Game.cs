@@ -36,7 +36,18 @@ public sealed class Game
             {
                 if (Console.KeyAvailable)
                 {
-                    var key = Console.ReadKey(intercept: true).Key;
+                    var keyInfo = Console.ReadKey(intercept: true);
+                    if (IsRevealMapShortcut(keyInfo))
+                    {
+                        var isMapRevealed = _fogOfWar.ToggleDeveloperReveal();
+                        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+                        _renderer.DrawDeveloperMessage(isMapRevealed
+                            ? "Fejlesztői mód: teljes térkép felfedve."
+                            : "Fejlesztői mód: köd visszaállítva.");
+                        continue;
+                    }
+
+                    var key = keyInfo.Key;
                     if (key == ConsoleKey.Escape) return;
                     if (key == ConsoleKey.R)
                     {
@@ -123,4 +134,8 @@ public sealed class Game
         };
         return key is ConsoleKey.UpArrow or ConsoleKey.DownArrow or ConsoleKey.LeftArrow or ConsoleKey.RightArrow;
     }
+
+    private static bool IsRevealMapShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.U &&
+        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
 }

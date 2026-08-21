@@ -5,6 +5,7 @@ public sealed class FogOfWar
 {
     private readonly bool[,] _revealed;
     public int VisionRange { get; }
+    public bool IsDeveloperRevealActive { get; private set; }
 
     public FogOfWar(int width, int height, int visionRange)
     {
@@ -16,6 +17,8 @@ public sealed class FogOfWar
     public bool IsRevealed(Position position) =>
         position.X >= 0 && position.X < _revealed.GetLength(0) &&
         position.Y >= 0 && position.Y < _revealed.GetLength(1) && _revealed[position.X, position.Y];
+
+    public bool IsVisible(Position position) => IsDeveloperRevealActive || IsRevealed(position);
 
     public IReadOnlyList<Position> RevealFrom(Maze maze, Position origin)
     {
@@ -30,6 +33,13 @@ public sealed class FogOfWar
             newlyRevealed.Add(target);
         }
         return newlyRevealed;
+    }
+
+    /// <summary>Fejlesztői módban ideiglenesen felfedi, majd visszakapcsolva újra elfedi a térképet.</summary>
+    public bool ToggleDeveloperReveal()
+    {
+        IsDeveloperRevealActive = !IsDeveloperRevealActive;
+        return IsDeveloperRevealActive;
     }
 
     private static bool HasLineOfSight(Maze maze, Position origin, Position target)

@@ -35,7 +35,17 @@ public sealed class ConsoleRenderer
         if (currentPosition != playerPosition) DrawMapCell(maze, fogOfWar, currentPosition);
     }
 
+    public void DrawMapVisibilityChanged(Maze maze, FogOfWar fogOfWar, Position playerPosition)
+    {
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++)
+            DrawMapCell(maze, fogOfWar, new Position(x, y));
+
+        DrawPlayer(playerPosition);
+    }
+
     public void DrawBattleStarted(Enemy enemy) => DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
+    public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
 
     private static void DrawPlayfield(Maze maze, FogOfWar fogOfWar)
     {
@@ -79,7 +89,7 @@ public sealed class ConsoleRenderer
     }
 
     private static void DrawMapRune(Maze maze, FogOfWar fogOfWar, Position position) =>
-        WriteRune(fogOfWar.IsRevealed(position) ? maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y] : FogSymbol);
+        WriteRune(fogOfWar.IsVisible(position) ? maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y] : FogSymbol);
 
     private static void DrawPlayer(Position position)
     {
