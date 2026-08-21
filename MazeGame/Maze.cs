@@ -5,7 +5,7 @@ namespace MazeGame;
 /// <summary>A pálya látható és bejárható rácsa.</summary>
 public sealed class Maze
 {
-    public static readonly Rune Wall = new('▒');
+    public static readonly Rune Wall = new('█');
     public static readonly Rune Floor = new(' ');
     public static readonly Rune ExitMarker = new('⌂');
     public static readonly Rune Door = new('╬');

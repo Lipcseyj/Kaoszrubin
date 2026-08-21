@@ -10,9 +10,12 @@ public sealed class ConsoleRenderer
     private const int BottomBorderY = PlayfieldHeight;
     private static readonly Rune FogSymbol = new('░');
     private static readonly Rune PlayerSymbol = new('☻');
+    private ConsoleColor? _currentForegroundColor;
+    private ConsoleColor? _currentBackgroundColor;
 
     public void DrawInitialState(Maze maze, Player player, FogOfWar fogOfWar)
     {
+        ResetColorCache();
         Console.Clear();
         DrawPlayfield(maze, fogOfWar);
         DrawFrame();
@@ -38,16 +41,14 @@ public sealed class ConsoleRenderer
     public void DrawMapVisibilityChanged(Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
         for (var y = 0; y < maze.Height; y++)
-        for (var x = 0; x < maze.Width; x++)
-            DrawMapCell(maze, fogOfWar, new Position(x, y));
-
+        for (var x = 0; x < maze.Width; x++) DrawMapCell(maze, fogOfWar, new Position(x, y));
         DrawPlayer(playerPosition);
     }
 
     public void DrawBattleStarted(Enemy enemy) => DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
 
-    private static void DrawPlayfield(Maze maze, FogOfWar fogOfWar)
+    private void DrawPlayfield(Maze maze, FogOfWar fogOfWar)
     {
         for (var y = 0; y < maze.Height; y++)
         {
@@ -56,16 +57,18 @@ public sealed class ConsoleRenderer
         }
     }
 
-    private static void DrawFrame()
+    private void DrawFrame()
     {
+        SetColors(ConsoleColor.DarkCyan, ConsoleColor.Black);
         for (var y = 0; y < PlayfieldHeight; y++) WriteAt(RightBorderX, y, "│");
         Console.SetCursorPosition(0, BottomBorderY);
         Console.Write(new string('─', PlayfieldWidth));
         Console.Write('┘');
     }
 
-    private static void DrawCharacterSheet()
+    private void DrawCharacterSheet()
     {
+        SetColors(ConsoleColor.Gray, ConsoleColor.Black);
         WriteAt(173, 2, "KARAKTERLAP");
         WriteAt(173, 4, "Játékos: ☻");
         WriteAt(173, 6, "Mozgás: nyilak");
@@ -76,25 +79,29 @@ public sealed class ConsoleRenderer
         WriteAt(173, 13, "Ellenség: ♟");
     }
 
-    private static void DrawBattleMessage(string message)
+    private void DrawBattleMessage(string message)
     {
+        SetColors(ConsoleColor.Gray, ConsoleColor.Black);
         WriteAt(2, BottomBorderY + 2, "ÜZENET: " + message.PadRight(160));
         WriteAt(2, BottomBorderY + 3, new string(' ', 166));
     }
 
-    private static void DrawMapCell(Maze maze, FogOfWar fogOfWar, Position position)
+    private void DrawMapCell(Maze maze, FogOfWar fogOfWar, Position position)
     {
         Console.SetCursorPosition(position.X, position.Y);
         DrawMapRune(maze, fogOfWar, position);
     }
 
-    private static void DrawMapRune(Maze maze, FogOfWar fogOfWar, Position position) =>
-        WriteRune(fogOfWar.IsVisible(position) ? maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y] : FogSymbol);
+    private void DrawMapRune(Maze maze, FogOfWar fogOfWar, Position position) =>
+        WriteRuneWithColor(
+            fogOfWar.IsVisible(position) ? maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y] : FogSymbol,
+            fogOfWar.IsVisible(position) ? GetForegroundColor(maze, position) : ConsoleColor.Black,
+            fogOfWar.IsVisible(position) ? ConsoleColor.Black : ConsoleColor.DarkBlue);
 
-    private static void DrawPlayer(Position position)
+    private void DrawPlayer(Position position)
     {
         Console.SetCursorPosition(position.X, position.Y);
-        WriteRune(PlayerSymbol);
+        WriteRuneWithColor(PlayerSymbol, ConsoleColor.Cyan, ConsoleColor.Black);
     }
 
     private static void WriteAt(int x, int y, string text)
@@ -103,5 +110,46 @@ public sealed class ConsoleRenderer
         Console.Write(text);
     }
 
-    private static void WriteRune(Rune rune) => Console.Write(rune.ToString());
+    private static ConsoleColor GetForegroundColor(Maze maze, Position position)
+    {
+        var mapObject = maze.GetObjectAt(position);
+        if (mapObject is TreasureChest) return ConsoleColor.Yellow;
+        if (mapObject is Enemy) return ConsoleColor.Red;
+
+        return maze.Tiles[position.X, position.Y] switch
+        {
+            var tile when tile == Maze.Wall => ConsoleColor.DarkGray,
+            var tile when tile == Maze.Door => ConsoleColor.DarkYellow,
+            var tile when tile == Maze.ExitMarker => ConsoleColor.Green,
+            _ => ConsoleColor.Black
+        };
+    }
+
+    private void WriteRuneWithColor(Rune rune, ConsoleColor foregroundColor, ConsoleColor backgroundColor)
+    {
+        SetColors(foregroundColor, backgroundColor);
+        Console.Write(rune.ToString());
+    }
+
+    private void SetColors(ConsoleColor foregroundColor, ConsoleColor backgroundColor)
+    {
+        if (_currentForegroundColor != foregroundColor)
+        {
+            Console.ForegroundColor = foregroundColor;
+            _currentForegroundColor = foregroundColor;
+        }
+
+        if (_currentBackgroundColor != backgroundColor)
+        {
+            Console.BackgroundColor = backgroundColor;
+            _currentBackgroundColor = backgroundColor;
+        }
+    }
+
+    private void ResetColorCache()
+    {
+        Console.ResetColor();
+        _currentForegroundColor = null;
+        _currentBackgroundColor = null;
+    }
 }
