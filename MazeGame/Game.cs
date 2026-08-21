@@ -3,6 +3,8 @@ namespace MazeGame;
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
 public sealed class Game
 {
+    private static readonly TimeSpan EnemyMoveInterval = TimeSpan.FromMilliseconds(700);
+    private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
     private readonly MazeGenerator _generator = new(new MazeGenerationSettings
@@ -18,25 +20,39 @@ public sealed class Game
     private readonly ConsoleRenderer _renderer = new();
     private Maze _maze = null!;
     private Player _player = null!;
+    private readonly Random _random = new();
+    private bool _battleStarted;
 
     public void Run()
     {
         Console.CursorVisible = false;
         StartNewMaze();
+        var nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
         try
         {
             while (true)
             {
-                var key = Console.ReadKey(intercept: true).Key;
-                if (key == ConsoleKey.Escape) return;
-                if (key == ConsoleKey.R) { StartNewMaze(); continue; }
-
-                if (_player.Position != _maze.Exit && TryGetDirection(key, out var direction))
+                if (Console.KeyAvailable)
                 {
-                    var previousPosition = _player.Position;
-                    if (_player.TryMove(direction, _maze))
-                        _renderer.DrawMovement(_maze, previousPosition, _player.Position, _player.Position == _maze.Exit);
+                    var key = Console.ReadKey(intercept: true).Key;
+                    if (key == ConsoleKey.Escape) return;
+                    if (key == ConsoleKey.R)
+                    {
+                        StartNewMaze();
+                        nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
+                        continue;
+                    }
+
+                    MovePlayer(key);
                 }
+
+                if (!_battleStarted && DateTime.UtcNow >= nextEnemyMove)
+                {
+                    MoveEnemies();
+                    nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
+                }
+
+                Thread.Sleep(20);
             }
         }
         finally
@@ -50,7 +66,44 @@ public sealed class Game
     {
         _maze = _generator.Create(MazeWidth, MazeHeight);
         _player = new Player(_maze.Entrance);
+        _battleStarted = false;
         _renderer.DrawInitialState(_maze, _player);
+    }
+
+    private void MovePlayer(ConsoleKey key)
+    {
+        if (_player.Position == _maze.Exit || !TryGetDirection(key, out var direction)) return;
+
+        var previousPosition = _player.Position;
+        if (!_player.TryMove(direction, _maze)) return;
+
+        _renderer.DrawMovement(_maze, previousPosition, _player.Position, _player.Position == _maze.Exit);
+        var enemy = _maze.GetEnemyAt(_player.Position);
+        if (enemy is not null) StartBattle(enemy);
+    }
+
+    private void MoveEnemies()
+    {
+        foreach (var enemy in _maze.Enemies.OrderBy(_ => _random.Next()).ToArray())
+        {
+            var previousPosition = enemy.Position;
+            var direction = Directions[_random.Next(Directions.Length)];
+            if (!_maze.TryMoveEnemy(enemy, previousPosition + direction)) continue;
+
+            _renderer.DrawEnemyMovement(_maze, previousPosition, enemy.Position, _player.Position);
+            if (enemy.Position == _player.Position)
+            {
+                StartBattle(enemy);
+                return;
+            }
+        }
+    }
+
+    private void StartBattle(Enemy enemy)
+    {
+        if (_battleStarted) return;
+        _battleStarted = true;
+        _renderer.DrawBattleStarted(enemy);
     }
 
     private static bool TryGetDirection(ConsoleKey key, out Direction direction)

@@ -32,6 +32,14 @@ public sealed class ConsoleRenderer
             DrawBattleMessage("Célba értél! R: új labirintus, Esc: kilépés.");
     }
 
+    public void DrawEnemyMovement(Maze maze, Position previousPosition, Position currentPosition, Position playerPosition)
+    {
+        if (previousPosition != playerPosition) DrawTile(maze, previousPosition);
+        if (currentPosition != playerPosition) DrawTile(maze, currentPosition);
+    }
+
+    public void DrawBattleStarted(Enemy enemy) => DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
+
     private static void DrawPlayfield(Maze maze)
     {
         for (var y = 0; y < maze.Height; y++)
@@ -64,7 +72,7 @@ public sealed class ConsoleRenderer
         WriteAt(173, 8, "Kilépés: Esc");
         WriteAt(173, 10, "Ajtó: ╬");
         WriteAt(173, 12, "Láda: ▣");
-        WriteAt(173, 13, "Ellenség: ☠");
+        WriteAt(173, 13, "Ellenség: ♟");
     }
 
     private static void DrawBattleMessage(string message)

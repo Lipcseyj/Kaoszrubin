@@ -81,6 +81,18 @@ public sealed class Maze
         _treasureChests.FirstOrDefault(chest => chest.Position == position) as WorldObject ??
         _enemies.FirstOrDefault(enemy => enemy.Position == position);
 
+    public Enemy? GetEnemyAt(Position position) => _enemies.FirstOrDefault(enemy => enemy.Position == position);
+
+    public bool TryMoveEnemy(Enemy enemy, Position destination)
+    {
+        if (!IsWalkable(destination) || destination == Entrance || destination == Exit) return false;
+        var occupant = GetObjectAt(destination);
+        if (occupant is not null && occupant != enemy) return false;
+
+        enemy.MoveTo(destination);
+        return true;
+    }
+
     private void EnsureObjectPositionIsFree(Position position)
     {
         if (!IsWalkable(position) || position == Entrance || position == Exit || GetObjectAt(position) is not null)
