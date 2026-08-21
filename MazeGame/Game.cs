@@ -1,5 +1,6 @@
 using MazeGame.Data;
 using MazeGame.Domain.Characters;
+using MazeGame.Combat;
 
 namespace MazeGame;
 
@@ -17,6 +18,7 @@ public sealed class Game
     private Player _player = null!;
     private FogOfWar _fogOfWar = null!;
     private readonly Random _random = new();
+    private readonly BattleSystem _battleSystem;
     private bool _battleStarted;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
@@ -35,6 +37,7 @@ public sealed class Game
             RoomEnemyCount = 5,
             OutdoorEnemyCount = 10
         }, gameData.GetEnemy("E004"));
+        _battleSystem = new BattleSystem(_random);
     }
 
     public void Run()
@@ -132,6 +135,19 @@ public sealed class Game
         if (_battleStarted) return;
         _battleStarted = true;
         _renderer.DrawBattleStarted(enemy);
+        var result = _battleSystem.Resolve(SelectedCharacter, enemy);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+
+        if (result.PlayerWon)
+        {
+            _maze.ReplaceEnemyWithCorpse(enemy);
+            _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
+            _renderer.DrawBattleResult(result, enemy);
+            _battleStarted = false;
+            return;
+        }
+
+        _renderer.DrawBattleResult(result, enemy);
     }
 
     private static bool TryGetDirection(ConsoleKey key, out Direction direction)

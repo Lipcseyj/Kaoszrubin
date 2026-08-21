@@ -1,4 +1,5 @@
 using System.Text;
+using MazeGame.Combat;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Inventory;
 
@@ -48,7 +49,20 @@ public sealed class ConsoleRenderer
     }
 
     public void DrawBattleStarted(Enemy enemy) => DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
+    public void DrawBattleResult(BattleResult result, Enemy enemy)
+    {
+        var lastEvent = result.Events.LastOrDefault() ?? "";
+        DrawBattleMessage(result.PlayerWon
+            ? $"Győzelem {result.Rounds} kör után! {lastEvent}"
+            : $"Elestél {result.Rounds} kör után. {lastEvent}");
+    }
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
+
+    public void DrawMapCellAfterBattle(Maze maze, FogOfWar fogOfWar, Position battlePosition, Position playerPosition)
+    {
+        if (battlePosition != playerPosition) DrawMapCell(maze, fogOfWar, battlePosition);
+        DrawPlayer(playerPosition);
+    }
 
     /// <summary>Csak a jobb oldali karakterlapot rajzolja újra, a játéktér érintése nélkül.</summary>
     public void RefreshCharacterSheet(LiveCharacter character)
@@ -146,6 +160,7 @@ public sealed class ConsoleRenderer
         var mapObject = maze.GetObjectAt(position);
         if (mapObject is TreasureChest) return ConsoleColor.Yellow;
         if (mapObject is Enemy) return ConsoleColor.Red;
+        if (mapObject is Corpse) return ConsoleColor.DarkRed;
 
         return maze.Tiles[position.X, position.Y] switch
         {
