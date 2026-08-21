@@ -1,4 +1,5 @@
 using System.Text;
+using MazeGame.Domain.Combat;
 
 namespace MazeGame;
 
@@ -10,8 +11,9 @@ public abstract class Enemy(Position position) : WorldObject(position)
 }
 
 /// <summary>Az első, később további típusokkal bővíthető ellenfél.</summary>
-public sealed class Skeleton(Position position) : Enemy(position)
+public sealed class Skeleton(Position position, EnemyDefinition definition) : Enemy(position)
 {
-    public override string Name => "Csontváz";
+    public EnemyDefinition Definition { get; } = definition;
+    public override string Name => Definition.Name;
     public override Rune Symbol { get; } = new('*');
 }

@@ -1,3 +1,5 @@
+using MazeGame.Domain.Combat;
+
 namespace MazeGame;
 
 /// <summary>2×2-es folyosókból, szűkületekből és ajtós szobákból álló labirintust készít.</summary>
@@ -9,10 +11,12 @@ public sealed class MazeGenerator
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private readonly Random _random = new();
     private readonly MazeGenerationSettings _settings;
+    private readonly EnemyDefinition _enemyDefinition;
 
-    public MazeGenerator(MazeGenerationSettings? settings = null)
+    public MazeGenerator(MazeGenerationSettings settings, EnemyDefinition enemyDefinition)
     {
-        _settings = settings ?? new MazeGenerationSettings();
+        _settings = settings;
+        _enemyDefinition = enemyDefinition;
         ValidateSettings(_settings);
     }
 
@@ -125,8 +129,8 @@ public sealed class MazeGenerator
     private void PlaceMapObjects(Maze maze)
     {
         PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze), position => new TreasureChest(position), maze.AddTreasureChest);
-        PlaceObjects(maze, _settings.RoomEnemyCount, GetRoomPositions(maze), position => new Skeleton(position), maze.AddEnemy);
-        PlaceObjects(maze, _settings.OutdoorEnemyCount, GetOutdoorPositions(maze), position => new Skeleton(position), maze.AddEnemy);
+        PlaceObjects(maze, _settings.RoomEnemyCount, GetRoomPositions(maze), position => new Skeleton(position, _enemyDefinition), maze.AddEnemy);
+        PlaceObjects(maze, _settings.OutdoorEnemyCount, GetOutdoorPositions(maze), position => new Skeleton(position, _enemyDefinition), maze.AddEnemy);
     }
 
     private void PlaceObjects<T>(Maze maze, int requestedCount, IEnumerable<Position> candidates, Func<Position, T> factory, Action<T> add)

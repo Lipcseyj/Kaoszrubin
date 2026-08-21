@@ -1,3 +1,5 @@
+using MazeGame.Data;
+
 namespace MazeGame;
 
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
@@ -8,22 +10,27 @@ public sealed class Game
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
-    private readonly MazeGenerator _generator = new(new MazeGenerationSettings
-    {
-        DoubleWidthCorridorChance = 0.80,
-        RoomCount = 5,
-        MinimumRoomSize = 2,
-        MaximumRoomSize = 6,
-        TreasureChestCount = 5,
-        RoomEnemyCount = 5,
-        OutdoorEnemyCount = 10
-    });
+    private readonly MazeGenerator _generator;
     private readonly ConsoleRenderer _renderer = new();
     private Maze _maze = null!;
     private Player _player = null!;
     private FogOfWar _fogOfWar = null!;
     private readonly Random _random = new();
     private bool _battleStarted;
+
+    public Game(GameDataCatalog gameData)
+    {
+        _generator = new MazeGenerator(new MazeGenerationSettings
+        {
+            DoubleWidthCorridorChance = 0.80,
+            RoomCount = 5,
+            MinimumRoomSize = 2,
+            MaximumRoomSize = 6,
+            TreasureChestCount = 5,
+            RoomEnemyCount = 5,
+            OutdoorEnemyCount = 10
+        }, gameData.GetEnemy("Csontváz"));
+    }
 
     public void Run()
     {
