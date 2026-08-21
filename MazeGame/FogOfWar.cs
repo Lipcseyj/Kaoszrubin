@@ -3,6 +3,7 @@ namespace MazeGame;
 /// <summary>A játékos által már felderített pályacellákat tartja nyilván.</summary>
 public sealed class FogOfWar
 {
+    private const int MaximumBridgedFogGapLength = 3;
     private readonly bool[,] _revealed;
     public int VisionRange { get; }
     public bool IsDeveloperRevealActive { get; private set; }
@@ -32,6 +33,7 @@ public sealed class FogOfWar
             _revealed[x, y] = true;
             newlyRevealed.Add(target);
         }
+        BridgeShortFogGaps(maze, newlyRevealed);
         return newlyRevealed;
     }
 
@@ -61,4 +63,47 @@ public sealed class FogOfWar
             if (doubleError < deltaX) { error += deltaX; y += stepY; }
         }
     }
+
+    /// <summary>
+    /// Ha egy rövid (legfeljebb három cellás) ködcsík két végét a játékos már
+    /// felfedezte, a köztes cellák is ténylegesen felderítődnek. Ez lehet fal vagy járat.
+    /// </summary>
+    private void BridgeShortFogGaps(Maze maze, ICollection<Position> newlyRevealed)
+    {
+        var bridgedPositions = new HashSet<Position>();
+        for (var y = 0; y < maze.Height; y++)
+            FindBridgedGaps(maze.Width, x => new Position(x, y), bridgedPositions);
+
+        for (var x = 0; x < maze.Width; x++)
+            FindBridgedGaps(maze.Height, y => new Position(x, y), bridgedPositions);
+
+        foreach (var position in bridgedPositions)
+        {
+            _revealed[position.X, position.Y] = true;
+            newlyRevealed.Add(position);
+        }
+    }
+
+    private void FindBridgedGaps(int lineLength, Func<int, Position> positionAt, ISet<Position> bridgedPositions)
+    {
+        var index = 0;
+        while (index < lineLength)
+        {
+            if (IsVisible(positionAt(index)))
+            {
+                index++;
+                continue;
+            }
+
+            var start = index;
+            while (index < lineLength && !IsVisible(positionAt(index))) index++;
+            var gapLength = index - start;
+            var hasExploredEnds = start > 0 && index < lineLength && IsRevealed(positionAt(start - 1)) && IsRevealed(positionAt(index));
+            if (!hasExploredEnds || gapLength > MaximumBridgedFogGapLength) continue;
+
+            for (var gapIndex = start; gapIndex < index; gapIndex++)
+                bridgedPositions.Add(positionAt(gapIndex));
+        }
+    }
+
 }
