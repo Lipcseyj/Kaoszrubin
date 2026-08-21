@@ -1,4 +1,5 @@
 using MazeGame.Data;
+using MazeGame.Domain.Characters;
 
 namespace MazeGame;
 
@@ -17,9 +18,11 @@ public sealed class Game
     private FogOfWar _fogOfWar = null!;
     private readonly Random _random = new();
     private bool _battleStarted;
+    public CharacterRoster CharacterRoster { get; }
 
-    public Game(GameDataCatalog gameData)
+    public Game(GameDataCatalog gameData, CharacterRoster characterRoster)
     {
+        CharacterRoster = characterRoster;
         _generator = new MazeGenerator(new MazeGenerationSettings
         {
             DoubleWidthCorridorChance = 0.80,

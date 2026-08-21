@@ -1,3 +1,3 @@
 namespace MazeGame.Domain.Characters;
 
-public sealed record RaceDefinition(string Name);
+public sealed record RaceDefinition(string Name, PrimaryAbilities AbilityBonuses);
