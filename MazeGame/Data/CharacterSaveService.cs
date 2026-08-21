@@ -56,6 +56,7 @@ public sealed class CharacterSaveService
         character.SetCurrentResources(saved.CurrentVitality, saved.CurrentMana);
         character.SetNeedLevels(saved.FoodLevel ?? 100, saved.WaterLevel ?? 100);
         character.SetGold(saved.Gold ?? 0);
+        character.SetProgress(saved.Level ?? 1, saved.Experience ?? 0);
 
         var weaponIds = saved.WeaponIds.Count > 0 ? saved.WeaponIds : saved.WeaponNames;
         for (var index = 0; index < Math.Min(2, weaponIds.Count); index++)
@@ -82,6 +83,8 @@ public sealed class CharacterSaveService
         FoodLevel = character.FoodLevel,
         WaterLevel = character.WaterLevel,
         Gold = character.Gold,
+        Level = character.Level,
+        Experience = character.Experience,
         WeaponIds = character.WeaponSlots.Select(weapon => weapon?.Id).ToList(),
         ArmorId = character.Armor?.Id,
         MagicItemIds = character.MagicItems.Select(item => item.Id).ToList(),
@@ -126,6 +129,8 @@ public sealed class CharacterSaveService
         public int? FoodLevel { get; init; }
         public int? WaterLevel { get; init; }
         public int? Gold { get; init; }
+        public int? Level { get; init; }
+        public int? Experience { get; init; }
         public List<string?> WeaponIds { get; init; } = [];
         public string? ArmorId { get; init; }
         public List<string> MagicItemIds { get; init; } = [];

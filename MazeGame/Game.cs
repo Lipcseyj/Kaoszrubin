@@ -14,7 +14,7 @@ public sealed class Game
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
     private readonly GameDataCatalog _gameData;
     private MazeGenerator _generator = null!;
-    private readonly ConsoleRenderer _renderer = new();
+    private readonly ConsoleRenderer _renderer;
     private Maze _maze = null!;
     private Player _player = null!;
     private FogOfWar _fogOfWar = null!;
@@ -32,6 +32,7 @@ public sealed class Game
         CharacterRoster = characterRoster;
         SelectedCharacter = selectedCharacter;
         _gameData = gameData;
+        _renderer = new ConsoleRenderer(gameData);
         _battleSystem = new BattleSystem(_random);
     }
 
@@ -166,9 +167,12 @@ public sealed class Game
 
         if (result.PlayerWon)
         {
+            var experienceResult = SelectedCharacter.AddExperience(enemy.Definition.ExperienceReward, _gameData.ExperienceByLevel);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             _renderer.DrawBattleResult(result, enemy);
+            _renderer.DrawExperienceGained(experienceResult);
+            _renderer.RefreshCharacterSheet(SelectedCharacter);
             _battleStarted = false;
             _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
             return;

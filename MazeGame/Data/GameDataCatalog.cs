@@ -22,6 +22,7 @@ public sealed class GameDataCatalog
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();
+    public IReadOnlyDictionary<int, int> ExperienceByLevel { get; init; } = new Dictionary<int, int>();
 
     public EnemyDefinition GetEnemy(string id) => FindById(Enemies, id, "ellenfél");
     public WeaponTypeDefinition GetWeaponType(string id) => FindById(WeaponTypes, id, "fegyvertípus");

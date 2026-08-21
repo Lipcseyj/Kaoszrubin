@@ -39,6 +39,8 @@ public sealed class LiveCharacter
     public int FoodLevel { get; private set; } = 100;
     public int WaterLevel { get; private set; } = 100;
     public int Gold { get; private set; }
+    public int Level { get; private set; } = 1;
+    public int Experience { get; private set; }
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
     public ArmorDefinition? Armor { get; private set; }
     public IReadOnlyList<MagicItemDefinition> MagicItems => _magicItems;
@@ -83,6 +85,26 @@ public sealed class LiveCharacter
     public void AddGold(int amount) => Gold += Math.Max(0, amount);
     public void SetGold(int gold) => Gold = Math.Max(0, gold);
 
+    public LevelUpResult AddExperience(int amount, IReadOnlyDictionary<int, int> experienceByLevel)
+    {
+        Experience += Math.Max(0, amount);
+        var previousLevel = Level;
+        while (experienceByLevel.ContainsKey(Level + 1) && Experience >= GetRequiredExperience(Level + 1, experienceByLevel)) Level++;
+        return new LevelUpResult(amount, previousLevel, Level);
+    }
+
+    public int? GetNextLevelExperience(IReadOnlyDictionary<int, int> experienceByLevel) =>
+        experienceByLevel.ContainsKey(Level + 1) ? GetRequiredExperience(Level + 1, experienceByLevel) : null;
+
+    public void SetProgress(int level, int experience)
+    {
+        Level = Math.Max(1, level);
+        Experience = Math.Max(0, experience);
+    }
+
+    private int GetRequiredExperience(int targetLevel, IReadOnlyDictionary<int, int> experienceByLevel) =>
+        (int)Math.Ceiling(experienceByLevel[targetLevel] * CharacterClass.ExperienceModifier);
+
     public void SetNeedLevels(int foodLevel, int waterLevel)
     {
         FoodLevel = Math.Clamp(foodLevel, 0, 100);
@@ -94,4 +116,9 @@ public sealed class LiveCharacter
         CurrentVitality = Math.Clamp(vitality, 0, MaximumVitality);
         CurrentMana = Math.Clamp(mana, 0, MaximumMana);
     }
+}
+
+public sealed record LevelUpResult(int GainedExperience, int PreviousLevel, int CurrentLevel)
+{
+    public bool LeveledUp => CurrentLevel > PreviousLevel;
 }

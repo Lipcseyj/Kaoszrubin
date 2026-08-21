@@ -1,5 +1,6 @@
 using System.Text;
 using MazeGame.Combat;
+using MazeGame.Data;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Inventory;
 
@@ -16,9 +17,12 @@ public sealed class ConsoleRenderer
     private const int MessageLineCount = 5;
     private const int MessageWidth = 166;
     private readonly Queue<MessageLogLine> _messageLog = new();
+    private readonly GameDataCatalog _gameData;
     private int _mazeLevel;
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
+
+    public ConsoleRenderer(GameDataCatalog gameData) => _gameData = gameData;
 
     public void DrawInitialState(Maze maze, Player player, FogOfWar fogOfWar, int mazeLevel)
     {
@@ -56,6 +60,11 @@ public sealed class ConsoleRenderer
 
     public void DrawBattleStarted(Enemy enemy) => DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
     public void DrawTreasureCollected(int goldAmount) => DrawBattleMessage($"Kincsesláda: +{goldAmount} arany!", ConsoleColor.Yellow);
+    public void DrawExperienceGained(LevelUpResult result) => DrawBattleMessage(
+        result.LeveledUp
+            ? $"+{result.GainedExperience} XP! Szintlépés: {result.PreviousLevel} → {result.CurrentLevel}."
+            : $"+{result.GainedExperience} XP.",
+        result.LeveledUp ? ConsoleColor.Magenta : ConsoleColor.Cyan);
     public void DrawBattleRound(BattleLogEntry entry)
     {
         var color = entry.Kind switch
@@ -149,28 +158,29 @@ public sealed class ConsoleRenderer
         WriteSheetLine(3, character.Name, ConsoleColor.Cyan);
         WriteSheetLine(4, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
         WriteSheetLine(5, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
-        WriteSheetLine(6, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
-        WriteSheetLine(7, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
-        WriteSheetLine(8, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
-        WriteSheetLine(9, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
-        WriteSheetLine(10, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
-        WriteSheetLine(11, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
-        WriteSheetLine(12, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
-        WriteSheetLine(13, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
-        WriteSheetLine(14, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
-        WriteSheetLine(15, "FEGYVEREK", ConsoleColor.Yellow);
-        WriteSheetLine(16, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray);
-        WriteSheetLine(17, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray);
-        WriteSheetLine(18, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow);
-        WriteSheetLine(20, $"VARÁZSTÁRGYAK {character.MagicItems.Count}/3", ConsoleColor.Magenta);
+        WriteSheetLine(6, FormatExperience(character), ConsoleColor.Cyan);
+        WriteSheetLine(7, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
+        WriteSheetLine(8, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
+        WriteSheetLine(9, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
+        WriteSheetLine(10, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
+        WriteSheetLine(11, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
+        WriteSheetLine(12, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
+        WriteSheetLine(13, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
+        WriteSheetLine(14, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
+        WriteSheetLine(15, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
+        WriteSheetLine(16, "FEGYVEREK", ConsoleColor.Yellow);
+        WriteSheetLine(17, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray);
+        WriteSheetLine(18, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray);
+        WriteSheetLine(19, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow);
+        WriteSheetLine(21, $"VARÁZSTÁRGYAK {character.MagicItems.Count}/3", ConsoleColor.Magenta);
         for (var index = 0; index < 3; index++)
-            WriteSheetLine(21 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}", ConsoleColor.Gray);
-        WriteSheetLine(25, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
+            WriteSheetLine(22 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}", ConsoleColor.Gray);
+        WriteSheetLine(26, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
         for (var index = 0; index < 10; index++)
-            WriteSheetLine(26 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
-        WriteSheetLine(36, "Mozgás: nyilak", ConsoleColor.DarkCyan);
-        WriteSheetLine(37, "Új pálya: R", ConsoleColor.DarkCyan);
-        WriteSheetLine(38, "Kilépés: Esc", ConsoleColor.DarkCyan);
+            WriteSheetLine(27 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
+        WriteSheetLine(37, "Mozgás: nyilak", ConsoleColor.DarkCyan);
+        WriteSheetLine(38, "Új pálya: R", ConsoleColor.DarkCyan);
+        WriteSheetLine(39, "Kilépés: Esc", ConsoleColor.DarkCyan);
     }
 
     private void DrawBattleMessage(string message, ConsoleColor color = ConsoleColor.Gray)
@@ -204,6 +214,9 @@ public sealed class ConsoleRenderer
     private sealed record MessageLogLine(string Text, ConsoleColor Color);
 
     private static string ItemName(IItemDefinition? item) => item?.Name ?? "üres";
+    private string FormatExperience(LiveCharacter character) => character.GetNextLevelExperience(_gameData.ExperienceByLevel) is { } next
+        ? $"Szint: {character.Level}  XP: {character.Experience}/{next}"
+        : $"Szint: {character.Level}  XP: MAX";
     private static string ResourceIcons(string icon, int level) => string.Concat(Enumerable.Repeat(icon, level / 10));
 
     private void WriteSheetLine(int y, string text, ConsoleColor foregroundColor)
