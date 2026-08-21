@@ -21,15 +21,7 @@ public sealed class MainMenu
     {
         while (true)
         {
-            Console.Clear();
-            Console.WriteLine("=== LABIRINTUS ===");
-            Console.WriteLine();
-            Console.WriteLine($"Választott karakter: {_characterRoster.SelectedCharacter?.Name ?? "nincs"}");
-            Console.WriteLine();
-            Console.WriteLine("1 - Játék indítása");
-            Console.WriteLine("2 - Karaktergenerálás");
-            Console.WriteLine($"3 - Karakterek ({_characterRoster.Characters.Count})");
-            Console.WriteLine("Esc - Kilépés");
+            DrawMenu();
 
             switch (Console.ReadKey(intercept: true).Key)
             {
@@ -58,7 +50,7 @@ public sealed class MainMenu
     {
         if (_characterRoster.Characters.Count == 0)
         {
-            Console.Clear();
+            ResetConsole();
             Console.WriteLine("Még nincs generált karakter.");
             Console.ReadKey(intercept: true);
             return;
@@ -70,17 +62,17 @@ public sealed class MainMenu
                 .FirstOrDefault(index => _characterRoster.Characters[index] == _characterRoster.SelectedCharacter);
         while (true)
         {
-            Console.Clear();
-            Console.WriteLine("=== GENERÁLT KARAKTEREK ===");
-            Console.WriteLine("Fel/le: választás | Enter: kijelölés | Esc: vissza");
+            ResetConsole();
+            WriteLine("=== GENERÁLT KARAKTEREK ===", ConsoleColor.Yellow);
+            WriteLine("Fel/le: választás | Enter: kijelölés | Esc: vissza", ConsoleColor.DarkCyan);
             Console.WriteLine();
             for (var index = 0; index < _characterRoster.Characters.Count; index++)
             {
                 var character = _characterRoster.Characters[index];
                 var marker = index == selectedIndex ? ">" : " ";
                 var isSelected = character == _characterRoster.SelectedCharacter ? " [aktív]" : string.Empty;
-                Console.WriteLine($"{marker} {character.Name} — {character.Race.Name} {character.CharacterClass.Name}{isSelected}");
-                Console.WriteLine($"   HP {character.CurrentVitality}/{character.MaximumVitality}, Manna {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}");
+                WriteLine($"{marker} {character.Name} — {character.Race.Name} {character.CharacterClass.Name}{isSelected}", index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray);
+                WriteLine($"   HP {character.CurrentVitality}/{character.MaximumVitality}, Manna {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}", ConsoleColor.DarkGray);
             }
 
             switch (Console.ReadKey(intercept: true).Key)
@@ -104,7 +96,7 @@ public sealed class MainMenu
     {
         if (_characterRoster.SelectedCharacter is not { } selectedCharacter)
         {
-            Console.Clear();
+            ResetConsole();
             Console.WriteLine("A játék indításához előbb válassz ki egy karaktert a Karakterek menüben.");
             Console.ReadKey(intercept: true);
             return;
@@ -114,4 +106,34 @@ public sealed class MainMenu
     }
 
     private void SaveCharacters() => _characterSaveService.Save(_characterRoster);
+
+    private void DrawMenu()
+    {
+        ResetConsole();
+        WriteLine("=== LABIRINTUS ===", ConsoleColor.Yellow);
+        Console.WriteLine();
+        var selectedCharacter = _characterRoster.SelectedCharacter?.Name ?? "nincs";
+        WriteLine($"Választott karakter: {selectedCharacter}", _characterRoster.SelectedCharacter is null ? ConsoleColor.DarkGray : ConsoleColor.Cyan);
+        Console.WriteLine();
+        WriteLine("1 - Játék indítása", ConsoleColor.Green);
+        WriteLine("2 - Karaktergenerálás", ConsoleColor.Magenta);
+        WriteLine($"3 - Karakterek ({_characterRoster.Characters.Count})", ConsoleColor.Cyan);
+        WriteLine("Esc - Kilépés", ConsoleColor.DarkYellow);
+        Console.ResetColor();
+    }
+
+    private static void ResetConsole()
+    {
+        Console.ResetColor();
+        Console.ForegroundColor = ConsoleColor.Gray;
+        Console.BackgroundColor = ConsoleColor.Black;
+        Console.Clear();
+    }
+
+    private static void WriteLine(string text, ConsoleColor foregroundColor)
+    {
+        Console.ForegroundColor = foregroundColor;
+        Console.BackgroundColor = ConsoleColor.Black;
+        Console.WriteLine(text);
+    }
 }
