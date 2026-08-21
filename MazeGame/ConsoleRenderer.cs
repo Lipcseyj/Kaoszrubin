@@ -15,10 +15,14 @@ public sealed class ConsoleRenderer
     private static readonly Rune FogSymbol = new('░');
     private static readonly Rune PlayerSymbol = new('☻');
     private const int MessageLineCount = 5;
-    private const int MessageWidth = 166;
+    private const int MessageWidth = 164;
+    private const int PicturePanelTop = 39;
+    private const int PicturePanelBottom = BottomBorderY + MessageLineCount;
     private readonly Queue<MessageLogLine> _messageLog = new();
     private readonly GameDataCatalog _gameData;
     private int _mazeLevel;
+    private bool _battleActive;
+    private LiveCharacter? _displayedCharacter;
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
 
@@ -29,6 +33,7 @@ public sealed class ConsoleRenderer
         ResetColorCache();
         _messageLog.Clear();
         _mazeLevel = mazeLevel;
+        _battleActive = false;
         Console.Clear();
         DrawPlayfield(maze, fogOfWar);
         DrawFrame();
@@ -58,7 +63,12 @@ public sealed class ConsoleRenderer
         DrawPlayer(playerPosition);
     }
 
-    public void DrawBattleStarted(Enemy enemy) => DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
+    public void DrawBattleStarted(Enemy enemy)
+    {
+        _battleActive = true;
+        DrawPicturePanel();
+        DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
+    }
     public void DrawTreasureCollected(int goldAmount) => DrawBattleMessage($"Kincsesláda: +{goldAmount} arany!", ConsoleColor.Yellow);
     public void DrawExperienceGained(LevelUpResult result) => DrawBattleMessage(
         result.LeveledUp
@@ -74,11 +84,14 @@ public sealed class ConsoleRenderer
             _ => ConsoleColor.Cyan
         };
         DrawBattleMessage(entry.Message, color);
-        WriteSheetLine(40, "Szóköz: következő kör", ConsoleColor.DarkYellow);
+        WriteSheetLine(38, "Szóköz: következő kör", ConsoleColor.DarkYellow);
     }
     public void DrawBattleResult(BattleResult result, Enemy enemy)
     {
-        WriteSheetLine(40, string.Empty, ConsoleColor.DarkYellow);
+        _battleActive = false;
+        DrawPicturePanel();
+        if (_displayedCharacter is not null)
+            WriteSheetLine(38, $"XP szorzó: {_displayedCharacter.CharacterClass.ExperienceModifier:0.00}×", ConsoleColor.DarkCyan);
         var lastEvent = result.Events.LastOrDefault() ?? "";
         DrawBattleMessage(result.PlayerWon
             ? $"Győzelem {result.Rounds} kör után! {lastEvent}"
@@ -146,14 +159,15 @@ public sealed class ConsoleRenderer
     private void DrawFrame()
     {
         SetColors(ConsoleColor.DarkCyan, ConsoleColor.Black);
-        for (var y = 0; y < PlayfieldHeight; y++) WriteAt(RightBorderX, y, "│");
+        for (var y = 0; y <= PicturePanelBottom; y++) WriteAt(RightBorderX, y, "│");
         Console.SetCursorPosition(0, BottomBorderY);
         Console.Write(new string('─', PlayfieldWidth));
-        Console.Write('┘');
+        Console.Write('┤');
     }
 
     private void DrawCharacterSheet(LiveCharacter character)
     {
+        _displayedCharacter = character;
         WriteSheetLine(2, "KARAKTERLAP", ConsoleColor.Yellow);
         WriteSheetLine(3, character.Name, ConsoleColor.Cyan);
         WriteSheetLine(4, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
@@ -178,9 +192,9 @@ public sealed class ConsoleRenderer
         WriteSheetLine(26, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
         for (var index = 0; index < 10; index++)
             WriteSheetLine(27 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
-        WriteSheetLine(37, "Mozgás: nyilak", ConsoleColor.DarkCyan);
-        WriteSheetLine(38, "Új pálya: R", ConsoleColor.DarkCyan);
-        WriteSheetLine(39, "Kilépés: Esc", ConsoleColor.DarkCyan);
+        WriteSheetLine(37, character.IsAlive ? "Állapot: élő" : "Állapot: halott", character.IsAlive ? ConsoleColor.Green : ConsoleColor.Red);
+        WriteSheetLine(38, $"XP szorzó: {character.CharacterClass.ExperienceModifier:0.00}×", ConsoleColor.DarkCyan);
+        DrawPicturePanel();
     }
 
     private void DrawBattleMessage(string message, ConsoleColor color = ConsoleColor.Gray)
@@ -218,6 +232,25 @@ public sealed class ConsoleRenderer
         ? $"Szint: {character.Level}  XP: {character.Experience}/{next}"
         : $"Szint: {character.Level}  XP: MAX";
     private static string ResourceIcons(string icon, int level) => string.Concat(Enumerable.Repeat(icon, level / 10));
+
+    private void DrawPicturePanel()
+    {
+        var kind = _battleActive ? AsciiPortraitKind.Skeleton : AsciiPortraitKind.Warrior;
+        var color = _battleActive ? ConsoleColor.Red : ConsoleColor.Cyan;
+        var portrait = AsciiPortraits.Get(kind);
+        WriteSheetLine(PicturePanelTop, "┌────────── KÉP ──────────┐", ConsoleColor.DarkCyan);
+        for (var index = 0; index < portrait.Lines.Count; index++)
+            WriteSheetLine(PicturePanelTop + index + 1, $"│{CenterPanelText(portrait.Lines[index], portrait.CanvasWidth)}│", color);
+        WriteSheetLine(PicturePanelBottom, "└─────────────────────────┘", ConsoleColor.DarkCyan);
+    }
+
+    private static string CenterPanelText(string text, int canvasWidth)
+    {
+        const int interiorWidth = 25;
+        var canvas = text.PadRight(canvasWidth);
+        var leftPadding = Math.Max(0, (interiorWidth - canvasWidth) / 2);
+        return (new string(' ', leftPadding) + canvas).PadRight(interiorWidth);
+    }
 
     private void WriteSheetLine(int y, string text, ConsoleColor foregroundColor)
     {

@@ -50,6 +50,10 @@ public sealed class MainMenu
                     QuickStart();
                     SaveCharacters();
                     break;
+                case ConsoleKey.D6:
+                case ConsoleKey.NumPad6:
+                    ShowHelp();
+                    break;
                 case ConsoleKey.Escape:
                     return;
             }
@@ -207,6 +211,35 @@ public sealed class MainMenu
         }
     }
 
+    private static void ShowHelp()
+    {
+        ResetConsole();
+        WriteLine("=== SÚGÓ ===", ConsoleColor.Yellow);
+        Console.WriteLine();
+        WriteLine("FŐMENÜ", ConsoleColor.Cyan);
+        Console.WriteLine("1: játék indítása a kijelölt, élő karakterrel");
+        Console.WriteLine("2: karaktergenerálás");
+        Console.WriteLine("3: karakterlista, kijelölés Enterrel");
+        Console.WriteLine("4: karaktertörlés; O: az összes törlése; I/Y: megerősítés");
+        Console.WriteLine("5: gyorsindítás új, automatikusan generált hőssel");
+        Console.WriteLine("6: ez a súgó");
+        Console.WriteLine("Esc: kilépés a programból");
+        Console.WriteLine();
+        WriteLine("KARAKTERGENERÁLÁS", ConsoleColor.Magenta);
+        Console.WriteLine("Számok: faj vagy osztály kiválasztása | Enter: dobás elfogadása | R: újradobás | Esc: vissza");
+        Console.WriteLine();
+        WriteLine("LABIRINTUS", ConsoleColor.Green);
+        Console.WriteLine("Nyilak: mozgás | R: újraindítja az aktuális labirintusszintet | Esc: főmenü");
+        Console.WriteLine("Ctrl + Shift + U: teljes térkép felfedése/elrejtése (fejlesztői mód)");
+        Console.WriteLine("Ládára lépés: arany felvétele | Kijárat (⌂): következő labirintusszint");
+        Console.WriteLine();
+        WriteLine("CSATA", ConsoleColor.Red);
+        Console.WriteLine("Szóköz: következő támadási kör. A csata alatt a világ ideje megáll.");
+        Console.WriteLine();
+        WriteLine("Bármely billentyű: vissza a főmenübe", ConsoleColor.DarkYellow);
+        Console.ReadKey(intercept: true);
+    }
+
     private void SaveCharacters() => _characterSaveService.Save(_characterRoster);
 
     private void DrawMenu()
@@ -222,6 +255,7 @@ public sealed class MainMenu
         WriteLine($"3 - Karakterek ({_characterRoster.Characters.Count})", ConsoleColor.Cyan);
         WriteLine("4 - Karakter törlése", ConsoleColor.Red);
         WriteLine("5 - Gyorsindítás (új hős)", ConsoleColor.Green);
+        WriteLine("6 - Súgó", ConsoleColor.DarkCyan);
         WriteLine("Esc - Kilépés", ConsoleColor.DarkYellow);
         Console.ResetColor();
     }
