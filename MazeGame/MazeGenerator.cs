@@ -11,12 +11,12 @@ public sealed class MazeGenerator
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private readonly Random _random = new();
     private readonly MazeGenerationSettings _settings;
-    private readonly EnemyDefinition _enemyDefinition;
+    private readonly IReadOnlyList<ResolvedEnemySpawn> _enemySpawns;
 
-    public MazeGenerator(MazeGenerationSettings settings, EnemyDefinition enemyDefinition)
+    public MazeGenerator(MazeGenerationSettings settings, IReadOnlyList<ResolvedEnemySpawn> enemySpawns)
     {
         _settings = settings;
-        _enemyDefinition = enemyDefinition;
+        _enemySpawns = enemySpawns;
         ValidateSettings(_settings);
     }
 
@@ -129,8 +129,9 @@ public sealed class MazeGenerator
     private void PlaceMapObjects(Maze maze)
     {
         PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze), position => new TreasureChest(position), maze.AddTreasureChest);
-        PlaceObjects(maze, _settings.RoomEnemyCount, GetRoomPositions(maze), position => new Skeleton(position, _enemyDefinition), maze.AddEnemy);
-        PlaceObjects(maze, _settings.OutdoorEnemyCount, GetOutdoorPositions(maze), position => new Skeleton(position, _enemyDefinition), maze.AddEnemy);
+        var enemyPositions = GetRoomPositions(maze).Concat(GetOutdoorPositions(maze));
+        foreach (var spawn in _enemySpawns)
+            PlaceObjects(maze, spawn.Count, enemyPositions, position => new Skeleton(position, spawn.Definition), maze.AddEnemy);
     }
 
     private void PlaceObjects<T>(Maze maze, int requestedCount, IEnumerable<Position> candidates, Func<Position, T> factory, Action<T> add)

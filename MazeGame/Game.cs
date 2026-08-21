@@ -12,7 +12,8 @@ public sealed class Game
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
-    private readonly MazeGenerator _generator;
+    private readonly GameDataCatalog _gameData;
+    private MazeGenerator _generator = null!;
     private readonly ConsoleRenderer _renderer = new();
     private Maze _maze = null!;
     private Player _player = null!;
@@ -22,6 +23,7 @@ public sealed class Game
     private bool _battleStarted;
     private bool _gameOver;
     private DateTime _nextNeedsDrain;
+    private int _mazeLevel = 1;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
 
@@ -29,16 +31,7 @@ public sealed class Game
     {
         CharacterRoster = characterRoster;
         SelectedCharacter = selectedCharacter;
-        _generator = new MazeGenerator(new MazeGenerationSettings
-        {
-            DoubleWidthCorridorChance = 0.80,
-            RoomCount = 5,
-            MinimumRoomSize = 2,
-            MaximumRoomSize = 6,
-            TreasureChestCount = 5,
-            RoomEnemyCount = 5,
-            OutdoorEnemyCount = 10
-        }, gameData.GetEnemy("E004"));
+        _gameData = gameData;
         _battleSystem = new BattleSystem(_random);
     }
 
@@ -101,13 +94,18 @@ public sealed class Game
 
     private void StartNewMaze()
     {
+        var configuration = MazeLevelConfigurations.Get(_mazeLevel);
+        var enemySpawns = configuration.EnemySpawns
+            .Select(spawn => new ResolvedEnemySpawn(_gameData.GetEnemy(spawn.EnemyId), spawn.Count.Roll(_random)))
+            .ToList();
+        _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random), enemySpawns);
         _maze = _generator.Create(MazeWidth, MazeHeight);
         _player = new Player(_maze.Entrance, SelectedCharacter);
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, VisionRange);
         _fogOfWar.RevealFrom(_maze, _player.Position);
         _battleStarted = false;
         _gameOver = false;
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
     }
 
     private void MovePlayer(ConsoleKey key)
@@ -119,6 +117,12 @@ public sealed class Game
 
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, _player.Position);
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, _player.Position == _maze.Exit);
+        if (_player.Position == _maze.Exit)
+        {
+            _mazeLevel++;
+            StartNewMaze();
+            return;
+        }
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
     }

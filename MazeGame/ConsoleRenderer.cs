@@ -16,13 +16,15 @@ public sealed class ConsoleRenderer
     private const int MessageLineCount = 5;
     private const int MessageWidth = 166;
     private readonly Queue<MessageLogLine> _messageLog = new();
+    private int _mazeLevel;
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
 
-    public void DrawInitialState(Maze maze, Player player, FogOfWar fogOfWar)
+    public void DrawInitialState(Maze maze, Player player, FogOfWar fogOfWar, int mazeLevel)
     {
         ResetColorCache();
         _messageLog.Clear();
+        _mazeLevel = mazeLevel;
         Console.Clear();
         DrawPlayfield(maze, fogOfWar);
         DrawFrame();
@@ -145,6 +147,7 @@ public sealed class ConsoleRenderer
         WriteSheetLine(2, "KARAKTERLAP", ConsoleColor.Yellow);
         WriteSheetLine(3, character.Name, ConsoleColor.Cyan);
         WriteSheetLine(4, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
+        WriteSheetLine(5, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
         WriteSheetLine(6, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
         WriteSheetLine(7, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
         WriteSheetLine(8, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
