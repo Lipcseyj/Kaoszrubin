@@ -58,16 +58,15 @@ public sealed class Game
                             : "Fejlesztői mód: köd visszaállítva.");
                         continue;
                     }
-
-                    var key = keyInfo.Key;
-                    if (key == ConsoleKey.Escape) return;
-                    if (key == ConsoleKey.R)
+                    if (IsNewMazeShortcut(keyInfo))
                     {
                         StartNewMaze();
                         nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
                         continue;
                     }
 
+                    var key = keyInfo.Key;
+                    if (key == ConsoleKey.Escape) return;
                     MovePlayer(key);
                 }
 
@@ -214,5 +213,9 @@ public sealed class Game
 
     private static bool IsRevealMapShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.U &&
+        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
+    private static bool IsNewMazeShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.R &&
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
 }

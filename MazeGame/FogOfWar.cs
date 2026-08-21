@@ -57,7 +57,7 @@ public sealed class FogOfWar
         while (true)
         {
             if (x == target.X && y == target.Y) return true;
-            if ((x != origin.X || y != origin.Y) && maze.Tiles[x, y] == Maze.Wall) return false;
+            if ((x != origin.X || y != origin.Y) && (maze.Tiles[x, y] == Maze.Wall || maze.Tiles[x, y] == Maze.Door)) return false;
             var doubleError = 2 * error;
             if (doubleError > -deltaY) { error -= deltaY; x += stepX; }
             if (doubleError < deltaX) { error += deltaX; y += stepY; }
@@ -72,10 +72,10 @@ public sealed class FogOfWar
     {
         var bridgedPositions = new HashSet<Position>();
         for (var y = 0; y < maze.Height; y++)
-            FindBridgedGaps(maze.Width, x => new Position(x, y), bridgedPositions);
+            FindBridgedGaps(maze, maze.Width, x => new Position(x, y), bridgedPositions);
 
         for (var x = 0; x < maze.Width; x++)
-            FindBridgedGaps(maze.Height, y => new Position(x, y), bridgedPositions);
+            FindBridgedGaps(maze, maze.Height, y => new Position(x, y), bridgedPositions);
 
         foreach (var position in bridgedPositions)
         {
@@ -84,7 +84,7 @@ public sealed class FogOfWar
         }
     }
 
-    private void FindBridgedGaps(int lineLength, Func<int, Position> positionAt, ISet<Position> bridgedPositions)
+    private void FindBridgedGaps(Maze maze, int lineLength, Func<int, Position> positionAt, ISet<Position> bridgedPositions)
     {
         var index = 0;
         while (index < lineLength)
@@ -99,7 +99,8 @@ public sealed class FogOfWar
             while (index < lineLength && !IsVisible(positionAt(index))) index++;
             var gapLength = index - start;
             var hasExploredEnds = start > 0 && index < lineLength && IsRevealed(positionAt(start - 1)) && IsRevealed(positionAt(index));
-            if (!hasExploredEnds || gapLength > MaximumBridgedFogGapLength) continue;
+            var containsDoor = Enumerable.Range(start, gapLength).Any(gapIndex => maze.Tiles[positionAt(gapIndex).X, positionAt(gapIndex).Y] == Maze.Door);
+            if (!hasExploredEnds || gapLength > MaximumBridgedFogGapLength || containsDoor) continue;
 
             for (var gapIndex = start; gapIndex < index; gapIndex++)
                 bridgedPositions.Add(positionAt(gapIndex));

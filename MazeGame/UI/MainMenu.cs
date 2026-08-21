@@ -229,8 +229,8 @@ public sealed class MainMenu
         Console.WriteLine("Számok: faj vagy osztály kiválasztása | Enter: dobás elfogadása | R: újradobás | Esc: vissza");
         Console.WriteLine();
         WriteLine("LABIRINTUS", ConsoleColor.Green);
-        Console.WriteLine("Nyilak: mozgás | R: újraindítja az aktuális labirintusszintet | Esc: főmenü");
-        Console.WriteLine("Ctrl + Shift + U: teljes térkép felfedése/elrejtése (fejlesztői mód)");
+        Console.WriteLine("Nyilak: mozgás | Esc: főmenü");
+        Console.WriteLine("Ctrl + Shift + U: teljes térkép felfedése/elrejtése | Ctrl + Shift + R: új pálya (fejlesztői mód)");
         Console.WriteLine("Ládára lépés: arany felvétele | Kijárat (⌂): következő labirintusszint");
         Console.WriteLine();
         WriteLine("CSATA", ConsoleColor.Red);
