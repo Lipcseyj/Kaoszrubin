@@ -135,7 +135,11 @@ public sealed class Game
         if (_battleStarted) return;
         _battleStarted = true;
         _renderer.DrawBattleStarted(enemy);
-        var result = _battleSystem.Resolve(SelectedCharacter, enemy);
+        var result = _battleSystem.Resolve(SelectedCharacter, enemy, entry =>
+        {
+            _renderer.DrawBattleRound(entry);
+            WaitForBattleContinue();
+        });
         _renderer.RefreshCharacterSheet(SelectedCharacter);
 
         if (result.PlayerWon)
@@ -161,6 +165,11 @@ public sealed class Game
             _ => default
         };
         return key is ConsoleKey.UpArrow or ConsoleKey.DownArrow or ConsoleKey.LeftArrow or ConsoleKey.RightArrow;
+    }
+
+    private static void WaitForBattleContinue()
+    {
+        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Spacebar) { }
     }
 
     private static bool IsRevealMapShortcut(ConsoleKeyInfo keyInfo) =>

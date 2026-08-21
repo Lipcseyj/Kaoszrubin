@@ -12,4 +12,11 @@ public sealed class CharacterRoster
         if (!_characters.Contains(character)) throw new ArgumentException("Csak a karakterlistában szereplő karakter választható.", nameof(character));
         SelectedCharacter = character;
     }
+
+    public bool Remove(LiveCharacter character)
+    {
+        if (!_characters.Remove(character)) return false;
+        if (SelectedCharacter == character) SelectedCharacter = null;
+        return true;
+    }
 }

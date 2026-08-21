@@ -40,6 +40,11 @@ public sealed class MainMenu
                     ShowCharacters();
                     SaveCharacters();
                     break;
+                case ConsoleKey.D4:
+                case ConsoleKey.NumPad4:
+                    DeleteCharacter();
+                    SaveCharacters();
+                    break;
                 case ConsoleKey.Escape:
                     return;
             }
@@ -71,8 +76,9 @@ public sealed class MainMenu
                 var character = _characterRoster.Characters[index];
                 var marker = index == selectedIndex ? ">" : " ";
                 var isSelected = character == _characterRoster.SelectedCharacter ? " [aktív]" : string.Empty;
-                WriteLine($"{marker} {character.Name} — {character.Race.Name} {character.CharacterClass.Name}{isSelected}", index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray);
-                WriteLine($"   HP {character.CurrentVitality}/{character.MaximumVitality}, Manna {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}", ConsoleColor.DarkGray);
+                var deathMarker = character.IsAlive ? string.Empty : " [HALOTT]";
+                WriteLine($"{marker} {character.Name} — {character.Race.Name} {character.CharacterClass.Name}{isSelected}{deathMarker}", character.IsAlive ? (index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray) : ConsoleColor.DarkRed);
+                WriteLine($"   HP {character.CurrentVitality}/{character.MaximumVitality}, Manna {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}", character.IsAlive ? ConsoleColor.DarkGray : ConsoleColor.Red);
             }
 
             switch (Console.ReadKey(intercept: true).Key)
@@ -102,7 +108,67 @@ public sealed class MainMenu
             return;
         }
 
+        if (!selectedCharacter.IsAlive)
+        {
+            ResetConsole();
+            WriteLine("Halott karakterrel nem indítható játék. Válassz másik karaktert vagy készíts újat.", ConsoleColor.Red);
+            Console.ReadKey(intercept: true);
+            return;
+        }
+
         new Game(_gameData, _characterRoster, selectedCharacter).Run();
+    }
+
+    private void DeleteCharacter()
+    {
+        if (_characterRoster.Characters.Count == 0)
+        {
+            ResetConsole();
+            Console.WriteLine("Nincs törölhető karakter.");
+            Console.ReadKey(intercept: true);
+            return;
+        }
+
+        var selectedIndex = 0;
+        while (true)
+        {
+            ResetConsole();
+            WriteLine("=== KARAKTER TÖRLÉSE ===", ConsoleColor.Red);
+            WriteLine("Fel/le: választás | Enter: törlés | Esc: vissza", ConsoleColor.DarkCyan);
+            Console.WriteLine();
+            for (var index = 0; index < _characterRoster.Characters.Count; index++)
+            {
+                var character = _characterRoster.Characters[index];
+                var marker = index == selectedIndex ? ">" : " ";
+                var deathMarker = character.IsAlive ? string.Empty : " [HALOTT]";
+                WriteLine($"{marker} {character.Name} — {character.Race.Name} {character.CharacterClass.Name}{deathMarker}", character.IsAlive ? (index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray) : ConsoleColor.DarkRed);
+            }
+
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow:
+                    selectedIndex = (selectedIndex - 1 + _characterRoster.Characters.Count) % _characterRoster.Characters.Count;
+                    break;
+                case ConsoleKey.DownArrow:
+                    selectedIndex = (selectedIndex + 1) % _characterRoster.Characters.Count;
+                    break;
+                case ConsoleKey.Enter:
+                    var character = _characterRoster.Characters[selectedIndex];
+                    WriteLine($"\nBiztosan törlöd: {character.Name}? (I / N)", ConsoleColor.Red);
+                    if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
+                    {
+                        _characterRoster.Remove(character);
+                        SaveCharacters();
+                        ResetConsole();
+                        WriteLine($"{character.Name} törölve.", ConsoleColor.Green);
+                        Console.ReadKey(intercept: true);
+                        return;
+                    }
+                    break;
+                case ConsoleKey.Escape:
+                    return;
+            }
+        }
     }
 
     private void SaveCharacters() => _characterSaveService.Save(_characterRoster);
@@ -118,6 +184,7 @@ public sealed class MainMenu
         WriteLine("1 - Játék indítása", ConsoleColor.Green);
         WriteLine("2 - Karaktergenerálás", ConsoleColor.Magenta);
         WriteLine($"3 - Karakterek ({_characterRoster.Characters.Count})", ConsoleColor.Cyan);
+        WriteLine("4 - Karakter törlése", ConsoleColor.Red);
         WriteLine("Esc - Kilépés", ConsoleColor.DarkYellow);
         Console.ResetColor();
     }

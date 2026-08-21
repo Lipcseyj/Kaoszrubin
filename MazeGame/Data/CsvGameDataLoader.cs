@@ -118,10 +118,10 @@ public static class CsvGameDataLoader
                 spells.Add(new SpellDefinition(id, name, SpellSchool.Divine));
                 break;
             case DataSection.RaceAbilityBonuses:
-                raceBonuses[name] = PrimaryAbilitiesFrom(cells);
+                raceBonuses[id] = PrimaryAbilitiesFrom(cells);
                 break;
             case DataSection.ClassAbilityMinimums:
-                classMinimums[name] = PrimaryAbilitiesFrom(cells);
+                classMinimums[id] = PrimaryAbilitiesFrom(cells);
                 break;
             case DataSection.VitalityByHealth:
                 AddAbilityThreshold(cells, minimumVitalityByHealth);

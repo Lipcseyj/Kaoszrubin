@@ -13,12 +13,16 @@ public sealed class ConsoleRenderer
     private const int BottomBorderY = PlayfieldHeight;
     private static readonly Rune FogSymbol = new('░');
     private static readonly Rune PlayerSymbol = new('☻');
+    private const int MessageLineCount = 5;
+    private const int MessageWidth = 166;
+    private readonly Queue<MessageLogLine> _messageLog = new();
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
 
     public void DrawInitialState(Maze maze, Player player, FogOfWar fogOfWar)
     {
         ResetColorCache();
+        _messageLog.Clear();
         Console.Clear();
         DrawPlayfield(maze, fogOfWar);
         DrawFrame();
@@ -49,8 +53,20 @@ public sealed class ConsoleRenderer
     }
 
     public void DrawBattleStarted(Enemy enemy) => DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
+    public void DrawBattleRound(BattleLogEntry entry)
+    {
+        var color = entry.Kind switch
+        {
+            BattleLogKind.PlayerAttack => ConsoleColor.Green,
+            BattleLogKind.EnemyAttack => ConsoleColor.Red,
+            _ => ConsoleColor.Cyan
+        };
+        DrawBattleMessage(entry.Message, color);
+        WriteSheetLine(40, "Szóköz: következő kör", ConsoleColor.DarkYellow);
+    }
     public void DrawBattleResult(BattleResult result, Enemy enemy)
     {
+        WriteSheetLine(40, string.Empty, ConsoleColor.DarkYellow);
         var lastEvent = result.Events.LastOrDefault() ?? "";
         DrawBattleMessage(result.PlayerWon
             ? $"Győzelem {result.Rounds} kör után! {lastEvent}"
@@ -114,12 +130,35 @@ public sealed class ConsoleRenderer
         WriteSheetLine(38, "Kilépés: Esc", ConsoleColor.DarkCyan);
     }
 
-    private void DrawBattleMessage(string message)
+    private void DrawBattleMessage(string message, ConsoleColor color = ConsoleColor.Gray)
     {
-        SetColors(ConsoleColor.Gray, ConsoleColor.Black);
-        WriteAt(2, BottomBorderY + 2, "ÜZENET: " + message.PadRight(160));
-        WriteAt(2, BottomBorderY + 3, new string(' ', 166));
+        foreach (var line in WrapMessage(message)) _messageLog.Enqueue(new MessageLogLine(line, color));
+        while (_messageLog.Count > MessageLineCount) _messageLog.Dequeue();
+
+        var messages = _messageLog.ToArray();
+        for (var index = 0; index < MessageLineCount; index++)
+        {
+            var messageLine = index < messages.Length ? messages[index] : new MessageLogLine(string.Empty, ConsoleColor.Gray);
+            SetColors(messageLine.Color, ConsoleColor.Black);
+            var text = messageLine.Text;
+            WriteAt(2, BottomBorderY + 1 + index, text.PadRight(MessageWidth));
+        }
     }
+
+    private static IEnumerable<string> WrapMessage(string message)
+    {
+        while (message.Length > MessageWidth)
+        {
+            var splitAt = message.LastIndexOf(' ', MessageWidth);
+            if (splitAt <= 0) splitAt = MessageWidth;
+            yield return message[..splitAt];
+            message = message[splitAt..].TrimStart();
+        }
+
+        yield return message;
+    }
+
+    private sealed record MessageLogLine(string Text, ConsoleColor Color);
 
     private static string ItemName(IItemDefinition? item) => item?.Name ?? "üres";
 

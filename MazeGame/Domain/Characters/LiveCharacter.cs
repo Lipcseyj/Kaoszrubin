@@ -35,6 +35,7 @@ public sealed class LiveCharacter
     public int VitalityBonus { get; }
     public int ManaBonus { get; }
     public bool UsesMana => CharacterClass.UsesMana;
+    public bool IsAlive => CurrentVitality > 0;
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
     public ArmorDefinition? Armor { get; private set; }
     public IReadOnlyList<MagicItemDefinition> MagicItems => _magicItems;
