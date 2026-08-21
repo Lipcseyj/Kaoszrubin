@@ -20,6 +20,7 @@ public sealed class Game
     private readonly Random _random = new();
     private readonly BattleSystem _battleSystem;
     private bool _battleStarted;
+    private bool _gameOver;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
 
@@ -47,7 +48,7 @@ public sealed class Game
         var nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
         try
         {
-            while (true)
+            while (!_gameOver)
             {
                 if (Console.KeyAvailable)
                 {
@@ -97,6 +98,7 @@ public sealed class Game
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, VisionRange);
         _fogOfWar.RevealFrom(_maze, _player.Position);
         _battleStarted = false;
+        _gameOver = false;
         _renderer.DrawInitialState(_maze, _player, _fogOfWar);
     }
 
@@ -152,6 +154,8 @@ public sealed class Game
         }
 
         _renderer.DrawBattleResult(result, enemy);
+        _renderer.DrawGameOver(SelectedCharacter.Name);
+        _gameOver = true;
     }
 
     private static bool TryGetDirection(ConsoleKey key, out Direction direction)

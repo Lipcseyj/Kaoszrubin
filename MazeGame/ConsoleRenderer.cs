@@ -72,6 +72,42 @@ public sealed class ConsoleRenderer
             ? $"Győzelem {result.Rounds} kör után! {lastEvent}"
             : $"Elestél {result.Rounds} kör után. {lastEvent}");
     }
+
+    public void DrawGameOver(string characterName)
+    {
+        ResetColorCache();
+        Console.Clear();
+
+        const int frameWidth = 96;
+        var left = Math.Max(0, (Console.WindowWidth - frameWidth) / 2);
+        var top = Math.Max(2, (Console.WindowHeight - 11) / 2);
+        var lines = new[]
+        {
+            "💀  JÁTÉK VÉGE  💀",
+            string.Empty,
+            $"{characterName}, elestél a labirintus mélyén.",
+            "A szörnyek tovább kísértenek a sötét folyosókon,",
+            "amíg újabb bátor hősök nem érkeznek, hogy kihívják őket.",
+            "👻 Talán a következő hős te leszel... ⚔️",
+            string.Empty,
+            "Nyomj meg egy billentyűt a főmenühöz."
+        };
+
+        SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
+        WriteAt(left, top, "╔" + new string('═', frameWidth - 2) + "╗");
+        for (var index = 0; index < lines.Length; index++)
+        {
+            SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
+            WriteAt(left, top + index + 1, "║");
+            SetColors(index == 0 ? ConsoleColor.Red : index == lines.Length - 1 ? ConsoleColor.Yellow : ConsoleColor.Gray, ConsoleColor.Black);
+            WriteAt(left + 2, top + index + 1, lines[index].PadRight(frameWidth - 4));
+            SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
+            WriteAt(left + frameWidth - 1, top + index + 1, "║");
+        }
+        SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
+        WriteAt(left, top + lines.Length + 1, "╚" + new string('═', frameWidth - 2) + "╝");
+        Console.ReadKey(intercept: true);
+    }
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
 
     public void DrawMapCellAfterBattle(Maze maze, FogOfWar fogOfWar, Position battlePosition, Position playerPosition)
