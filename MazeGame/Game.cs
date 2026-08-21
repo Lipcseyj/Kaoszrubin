@@ -3,8 +3,8 @@ namespace MazeGame;
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
 public sealed class Game
 {
-    private const int MazeWidth = 31;
-    private const int MazeHeight = 17;
+    private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
+    private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
     private readonly MazeGenerator _generator = new();
     private readonly ConsoleRenderer _renderer = new();
     private Maze _maze = null!;
@@ -13,23 +13,27 @@ public sealed class Game
     public void Run()
     {
         Console.CursorVisible = false;
-        Console.Clear();
         StartNewMaze();
         try
         {
             while (true)
             {
-                _renderer.Draw(_maze, _player, _player.Position == _maze.Exit);
                 var key = Console.ReadKey(intercept: true).Key;
                 if (key == ConsoleKey.Escape) return;
                 if (key == ConsoleKey.R) { StartNewMaze(); continue; }
-                if (_player.Position != _maze.Exit && TryGetDirection(key, out var direction)) _player.TryMove(direction, _maze);
+
+                if (_player.Position != _maze.Exit && TryGetDirection(key, out var direction))
+                {
+                    var previousPosition = _player.Position;
+                    if (_player.TryMove(direction, _maze))
+                        _renderer.DrawMovement(_maze, previousPosition, _player.Position, _player.Position == _maze.Exit);
+                }
             }
         }
         finally
         {
             Console.CursorVisible = true;
-            Console.SetCursorPosition(0, MazeHeight + 5);
+            Console.SetCursorPosition(0, ConsoleRenderer.PlayfieldHeight + 5);
         }
     }
 
@@ -37,6 +41,7 @@ public sealed class Game
     {
         _maze = _generator.Create(MazeWidth, MazeHeight);
         _player = new Player(_maze.Entrance);
+        _renderer.DrawInitialState(_maze, _player);
     }
 
     private static bool TryGetDirection(ConsoleKey key, out Direction direction)

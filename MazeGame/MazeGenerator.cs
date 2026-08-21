@@ -1,14 +1,16 @@
 namespace MazeGame;
 
-/// <summary>Mélységi bejárással készít egy teljesen összefüggő labirintust.</summary>
+/// <summary>Mélységi bejárással teljesen összefüggő labirintust generál.</summary>
 public sealed class MazeGenerator
 {
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private readonly Random _random = new();
+
     public Maze Create(int width, int height)
     {
         var maze = new Maze(width, height);
         CarveFrom(maze, maze.Entrance);
+        maze.PlaceExit();
         return maze;
     }
 
