@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
+using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Magic;
 
 namespace MazeGame.Data;
@@ -19,6 +20,7 @@ public static class CsvGameDataLoader
         var weapons = new List<WeaponDefinition>();
         var armors = new List<ArmorDefinition>();
         var abilities = new List<AbilityDefinition>();
+        var items = new List<MiscItemDefinition>();
         var magicItems = new List<MagicItemDefinition>();
         var spells = new List<SpellDefinition>();
         var raceBonuses = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
@@ -40,21 +42,23 @@ public static class CsvGameDataLoader
             }
 
             if (IsHeaderRow(cells[0])) continue;
-            AddDefinition(section, cells, races, characterClasses, enemies, weapons, armors, abilities, magicItems, spells,
+            AddDefinition(section, cells, races, characterClasses, enemies, weapons, armors, abilities, items, magicItems, spells,
                 raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, startingEquipmentByClass);
         }
 
         return new GameDataCatalog
         {
-            Races = races.Select(race => new RaceDefinition(race.Name, raceBonuses.GetValueOrDefault(race.Name, PrimaryAbilities.Zero))).ToList(),
+            Races = races.Select(race => new RaceDefinition(race.Id, race.Name, raceBonuses.GetValueOrDefault(race.Id, PrimaryAbilities.Zero))).ToList(),
             CharacterClasses = characterClasses.Select(characterClass => new CharacterClassDefinition(
+                characterClass.Id,
                 characterClass.Name,
-                classMinimums.GetValueOrDefault(characterClass.Name, PrimaryAbilities.Zero),
-                CharacterClassRules.UsesMana(characterClass.Name))).ToList(),
+                classMinimums.GetValueOrDefault(characterClass.Id, PrimaryAbilities.Zero),
+                CharacterClassRules.UsesMana(characterClass.Id))).ToList(),
             Enemies = enemies,
             Weapons = weapons,
             Armors = armors,
             Abilities = abilities,
+            Items = items,
             MagicItems = magicItems,
             Spells = spells,
             MinimumVitalityByHealth = minimumVitalityByHealth,
@@ -66,44 +70,47 @@ public static class CsvGameDataLoader
     private static void AddDefinition(DataSection section, string[] cells,
         ICollection<RaceDefinition> races, ICollection<CharacterClassDefinition> characterClasses,
         ICollection<EnemyDefinition> enemies, ICollection<WeaponDefinition> weapons,
-        ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities,
+        ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities, ICollection<MiscItemDefinition> items,
         ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence,
         IDictionary<string, StartingEquipmentDefinition> startingEquipmentByClass)
     {
-        var name = Cell(cells, 0);
-        if (string.IsNullOrWhiteSpace(name)) return;
+        var id = Cell(cells, 0);
+        if (string.IsNullOrWhiteSpace(id)) return;
+        var name = Cell(cells, 1);
 
         switch (section)
         {
             case DataSection.Races:
-                foreach (var race in cells.Where(cell => !string.IsNullOrWhiteSpace(cell))) races.Add(new RaceDefinition(race, PrimaryAbilities.Zero));
+                races.Add(new RaceDefinition(id, name, PrimaryAbilities.Zero));
                 break;
             case DataSection.CharacterClasses:
-                foreach (var characterClass in cells.Where(cell => !string.IsNullOrWhiteSpace(cell)))
-                    characterClasses.Add(new CharacterClassDefinition(characterClass, PrimaryAbilities.Zero, CharacterClassRules.UsesMana(characterClass)));
+                characterClasses.Add(new CharacterClassDefinition(id, name, PrimaryAbilities.Zero, CharacterClassRules.UsesMana(id)));
                 break;
             case DataSection.Enemies:
-                enemies.Add(new EnemyDefinition(name, Integer(cells, 1), Integer(cells, 2), Integer(cells, 3), Integer(cells, 4)));
+                enemies.Add(new EnemyDefinition(id, name, Integer(cells, 2), Integer(cells, 3), Integer(cells, 4), Integer(cells, 5)));
                 break;
             case DataSection.Weapons:
-                weapons.Add(new WeaponDefinition(name, EmptyAsNull(Cell(cells, 1)), Integer(cells, 2)));
+                weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), Integer(cells, 3)));
                 break;
             case DataSection.Armors:
-                armors.Add(new ArmorDefinition(name, Integer(cells, 1)));
+                armors.Add(new ArmorDefinition(id, name, Integer(cells, 2)));
                 break;
             case DataSection.Abilities:
-                abilities.Add(new AbilityDefinition(name));
+                abilities.Add(new AbilityDefinition(id, name));
+                break;
+            case DataSection.Items:
+                items.Add(new MiscItemDefinition(id, name));
                 break;
             case DataSection.MagicItems:
-                magicItems.Add(new MagicItemDefinition(name));
+                magicItems.Add(new MagicItemDefinition(id, name));
                 break;
             case DataSection.ArcaneSpells:
-                spells.Add(new SpellDefinition(name, SpellSchool.Arcane));
+                spells.Add(new SpellDefinition(id, name, SpellSchool.Arcane));
                 break;
             case DataSection.DivineSpells:
-                spells.Add(new SpellDefinition(name, SpellSchool.Divine));
+                spells.Add(new SpellDefinition(id, name, SpellSchool.Divine));
                 break;
             case DataSection.RaceAbilityBonuses:
                 raceBonuses[name] = PrimaryAbilitiesFrom(cells);
@@ -118,8 +125,8 @@ public static class CsvGameDataLoader
                 AddAbilityThreshold(cells, minimumManaByIntelligence);
                 break;
             case DataSection.StartingEquipment:
-                startingEquipmentByClass[name] = new StartingEquipmentDefinition(
-                    name,
+                startingEquipmentByClass[id] = new StartingEquipmentDefinition(
+                    id,
                     EmptyAsNull(Cell(cells, 1)),
                     EmptyAsNull(Cell(cells, 2)),
                     EmptyAsNull(Cell(cells, 3)),
@@ -142,7 +149,7 @@ public static class CsvGameDataLoader
         }
     }
 
-    private static bool IsHeaderRow(string value) => Normalize(value) is "nev" or "faj" or "osztaly";
+    private static bool IsHeaderRow(string value) => Normalize(value) is "id" or "fajid" or "osztalyid" or "egeszseg" or "intelligencia";
     private static string Cell(string[] cells, int index) => index < cells.Length ? cells[index] : string.Empty;
     private static string? EmptyAsNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
     private static int? Integer(string[] cells, int index) => int.TryParse(Cell(cells, index), CultureInfo.InvariantCulture, out var value) ? value : null;
@@ -183,6 +190,7 @@ public static class CsvGameDataLoader
         "fegyverek" => DataSection.Weapons,
         "pancelok" => DataSection.Armors,
         "kepessegek" => DataSection.Abilities,
+        "targyak" => DataSection.Items,
         "varazstargyak" => DataSection.MagicItems,
         "varazslatok" => DataSection.ArcaneSpells,
         "papi varazslatok" => DataSection.DivineSpells,
@@ -209,6 +217,7 @@ public static class CsvGameDataLoader
         Weapons,
         Armors,
         Abilities,
+        Items,
         MagicItems,
         ArcaneSpells,
         DivineSpells,

@@ -15,32 +15,32 @@ C005,pap
 C006,mágus
 
 #Ellenségek
-Id,Név,Erő,HP,Páncél,Sebesség
-E001,Óriáspatkány,,,,
-E002,Kobold,,,,
-E003,Goblin,,,,
-E004,Csontváz,,,,
-E005,Farkas,,,,
-E006,Zombi,,,,
-E007,Ork,,,,
-E008,Hobgoblin,,,,
-E009,Óriáspók,,,,
-E010,Gnoll,,,,
-E011,Lidércfarkas,,,,
-E012,Ogre,,,,
-E013,Troll,,,,
-E014,Minotaurusz,,,,
-E015,Múmia,,,,
-E016,Medúza,,,,
-E017,Kiméra,,,,
-E018,Beholder,,,,
-E019,Vámpír,,,,
-E020,Vérfarkas,,,,
-E021,Vörös sárkány,,,,
-E022,Lich,,,,
-E023,Démonlovag,,,,
-E024,Balor démon,,,,
-E025,Fekete sárkány,,,,
+Id,Név,Erő,HP,Páncél,Gyorsaság
+E001,Óriáspatkány,2,20,0,5
+E002,Kobold,3,30,1,6
+E003,Goblin,4,45,2,6
+E004,Csontváz,5,80,3,3
+E005,Farkas,4,55,1,8
+E006,Zombi,5,100,2,2
+E007,Ork,7,120,4,5
+E008,Hobgoblin,8,150,5,5
+E009,Óriáspók,6,90,3,7
+E010,Gnoll,9,170,4,6
+E011,Lidércfarkas,10,220,5,9
+E012,Ogre,12,320,5,3
+E013,Troll,14,500,6,4
+E014,Minotaurusz,15,650,7,5
+E015,Múmia,12,400,7,3
+E016,Medúza,13,450,6,6
+E017,Kiméra,16,800,7,7
+E018,Beholder,17,1000,8,4
+E019,Vámpír,15,750,7,8
+E020,Vérfarkas,16,850,6,9
+E021,Vörös sárkány,18,1500,9,7
+E022,Lich,17,1200,8,5
+E023,Démonlovag,18,1800,9,6
+E024,Balor démon,19,2500,10,8
+E025,Fekete sárkány,20,2000,10,8
 
 #Fegyverek
 Id,Név,Típus,Sebzés

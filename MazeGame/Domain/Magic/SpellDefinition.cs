@@ -1,3 +1,5 @@
+using MazeGame.Domain;
+
 namespace MazeGame.Domain.Magic;
 
 public enum SpellSchool
@@ -6,4 +8,4 @@ public enum SpellSchool
     Divine
 }
 
-public sealed record SpellDefinition(string Name, SpellSchool School);
+public sealed record SpellDefinition(string Id, string Name, SpellSchool School) : IGameDefinition;

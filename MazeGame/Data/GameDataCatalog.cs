@@ -1,3 +1,4 @@
+using MazeGame.Domain;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Magic;
@@ -14,26 +15,22 @@ public sealed class GameDataCatalog
     public IReadOnlyList<WeaponDefinition> Weapons { get; init; } = [];
     public IReadOnlyList<ArmorDefinition> Armors { get; init; } = [];
     public IReadOnlyList<AbilityDefinition> Abilities { get; init; } = [];
+    public IReadOnlyList<MiscItemDefinition> Items { get; init; } = [];
     public IReadOnlyList<MagicItemDefinition> MagicItems { get; init; } = [];
     public IReadOnlyList<SpellDefinition> Spells { get; init; } = [];
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();
 
-    public EnemyDefinition GetEnemy(string name) =>
-        Enemies.FirstOrDefault(enemy => string.Equals(enemy.Name, name, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException($"A(z) '{name}' nevű ellenfél nem található az adatok.csv fájlban.");
-
-    public RaceDefinition GetRace(string name) => FindByName(Races, name, "faj");
-    public CharacterClassDefinition GetCharacterClass(string name) => FindByName(CharacterClasses, name, "osztály");
-    public WeaponDefinition GetWeapon(string name) => FindByName(Weapons, name, "fegyver");
-    public ArmorDefinition GetArmor(string name) => FindByName(Armors, name, "páncél");
-    public MagicItemDefinition GetMagicItem(string name) => FindByName(MagicItems, name, "varázstárgy");
-    public WeaponDefinition ResolveWeapon(string name) => Weapons.FirstOrDefault(weapon => string.Equals(weapon.Name, name, StringComparison.OrdinalIgnoreCase)) ?? new WeaponDefinition(name, null, null);
-    public ArmorDefinition ResolveArmor(string name) => Armors.FirstOrDefault(armor => string.Equals(armor.Name, name, StringComparison.OrdinalIgnoreCase)) ?? new ArmorDefinition(name, null);
-    public MagicItemDefinition ResolveMagicItem(string name) => MagicItems.FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)) ?? new MagicItemDefinition(name);
-    public StartingEquipmentDefinition? GetStartingEquipment(string characterClassName) =>
-        StartingEquipmentByClass.TryGetValue(characterClassName, out var equipment) ? equipment : null;
+    public EnemyDefinition GetEnemy(string id) => FindById(Enemies, id, "ellenfél");
+    public RaceDefinition GetRace(string id) => FindById(Races, id, "faj");
+    public CharacterClassDefinition GetCharacterClass(string id) => FindById(CharacterClasses, id, "osztály");
+    public WeaponDefinition GetWeapon(string id) => FindById(Weapons, id, "fegyver");
+    public ArmorDefinition GetArmor(string id) => FindById(Armors, id, "páncél");
+    public MagicItemDefinition GetMagicItem(string id) => FindById(MagicItems, id, "varázstárgy");
+    public MiscItemDefinition GetItem(string id) => FindById(Items, id, "tárgy");
+    public StartingEquipmentDefinition? GetStartingEquipment(string characterClassId) =>
+        StartingEquipmentByClass.TryGetValue(characterClassId, out var equipment) ? equipment : null;
 
     public int GetMinimumVitality(int health) => GetThresholdValue(MinimumVitalityByHealth, health, "egészség");
     public int GetMinimumMana(int intelligence) => GetThresholdValue(MinimumManaByIntelligence, intelligence, "intelligencia");
@@ -44,10 +41,7 @@ public sealed class GameDataCatalog
         return matchingValue ?? throw new InvalidOperationException($"Nincs {abilityName} értékhez tartozó minimum az adatok.csv fájlban.");
     }
 
-    private static T FindByName<T>(IReadOnlyList<T> definitions, string name, string typeName) where T : class
-    {
-        var nameProperty = typeof(T).GetProperty("Name")!;
-        return definitions.FirstOrDefault(definition => string.Equals((string?)nameProperty.GetValue(definition), name, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException($"A(z) '{name}' nevű {typeName} nem található az adatok.csv fájlban.");
-    }
+    private static T FindById<T>(IReadOnlyList<T> definitions, string id, string typeName) where T : IGameDefinition =>
+        definitions.FirstOrDefault(definition => string.Equals(definition.Id, id, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException($"A(z) '{id}' azonosítójú {typeName} nem található az adatok.csv fájlban.");
 }

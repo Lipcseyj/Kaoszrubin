@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MazeGame.Domain;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
@@ -46,18 +47,21 @@ public sealed class CharacterSaveService
 
     private LiveCharacter CreateLiveCharacter(CharacterSaveData saved)
     {
-        var race = _gameData.GetRace(saved.RaceName);
-        var characterClass = _gameData.GetCharacterClass(saved.CharacterClassName);
+        var race = FindSavedDefinition(_gameData.Races, saved.RaceId, saved.RaceName, "faj");
+        var characterClass = FindSavedDefinition(_gameData.CharacterClasses, saved.CharacterClassId, saved.CharacterClassName, "osztály");
         var character = new LiveCharacter(saved.Name, race, characterClass, saved.Abilities,
             _gameData.GetMinimumVitality(saved.Abilities.Health) + saved.VitalityBonus,
             characterClass.UsesMana ? _gameData.GetMinimumMana(saved.Abilities.Intelligence) + saved.ManaBonus : 0,
             saved.VitalityBonus, characterClass.UsesMana ? saved.ManaBonus : 0);
         character.SetCurrentResources(saved.CurrentVitality, saved.CurrentMana);
 
-        for (var index = 0; index < Math.Min(2, saved.WeaponNames.Count); index++)
-            if (saved.WeaponNames[index] is { } weaponName) character.EquipWeapon(index, _gameData.ResolveWeapon(weaponName));
-        if (saved.ArmorName is { } armorName) character.EquipArmor(_gameData.ResolveArmor(armorName));
-        foreach (var itemName in saved.MagicItemNames) character.AddMagicItem(_gameData.ResolveMagicItem(itemName));
+        var weaponIds = saved.WeaponIds.Count > 0 ? saved.WeaponIds : saved.WeaponNames;
+        for (var index = 0; index < Math.Min(2, weaponIds.Count); index++)
+            if (weaponIds[index] is { } weaponId) character.EquipWeapon(index, FindSavedDefinition(_gameData.Weapons, weaponId, saved.WeaponNames.ElementAtOrDefault(index), "fegyver"));
+        if ((saved.ArmorId ?? saved.ArmorName) is { } armorId) character.EquipArmor(FindSavedDefinition(_gameData.Armors, armorId, saved.ArmorName, "páncél"));
+        var magicItemIds = saved.MagicItemIds.Count > 0 ? saved.MagicItemIds : saved.MagicItemNames;
+        for (var index = 0; index < magicItemIds.Count; index++)
+            character.AddMagicItem(FindSavedDefinition(_gameData.MagicItems, magicItemIds[index], saved.MagicItemNames.ElementAtOrDefault(index), "varázstárgy"));
         foreach (var item in saved.BackpackItems) character.AddToBackpack(ResolveItem(item));
 
         return character;
@@ -66,27 +70,34 @@ public sealed class CharacterSaveService
     private CharacterSaveData CreateSaveData(LiveCharacter character) => new()
     {
         Name = character.Name,
-        RaceName = character.Race.Name,
-        CharacterClassName = character.CharacterClass.Name,
+        RaceId = character.Race.Id,
+        CharacterClassId = character.CharacterClass.Id,
         Abilities = character.Abilities,
         CurrentVitality = character.CurrentVitality,
         CurrentMana = character.CurrentMana,
         VitalityBonus = character.VitalityBonus,
         ManaBonus = character.ManaBonus,
-        WeaponNames = character.WeaponSlots.Select(weapon => weapon?.Name).ToList(),
-        ArmorName = character.Armor?.Name,
-        MagicItemNames = character.MagicItems.Select(item => item.Name).ToList(),
-        BackpackItems = character.Backpack.Select(item => new ItemSaveData(item.GetType().Name, item.Name)).ToList()
+        WeaponIds = character.WeaponSlots.Select(weapon => weapon?.Id).ToList(),
+        ArmorId = character.Armor?.Id,
+        MagicItemIds = character.MagicItems.Select(item => item.Id).ToList(),
+        BackpackItems = character.Backpack.Select(item => new ItemSaveData(item.GetType().Name, item.Id)).ToList()
     };
 
     private IItemDefinition ResolveItem(ItemSaveData item) => item.Type switch
     {
-        nameof(WeaponDefinition) => _gameData.ResolveWeapon(item.Name),
-        nameof(ArmorDefinition) => _gameData.ResolveArmor(item.Name),
-        nameof(MagicItemDefinition) => _gameData.ResolveMagicItem(item.Name),
-        nameof(MiscItemDefinition) => new MiscItemDefinition(item.Name),
+        nameof(WeaponDefinition) => FindSavedDefinition(_gameData.Weapons, item.Id, item.Name, "fegyver"),
+        nameof(ArmorDefinition) => FindSavedDefinition(_gameData.Armors, item.Id, item.Name, "páncél"),
+        nameof(MagicItemDefinition) => FindSavedDefinition(_gameData.MagicItems, item.Id, item.Name, "varázstárgy"),
+        nameof(MiscItemDefinition) => FindSavedDefinition(_gameData.Items, item.Id, item.Name, "tárgy"),
         _ => throw new InvalidOperationException($"Ismeretlen mentett tárgytípus: {item.Type}")
     };
+
+    private static T FindSavedDefinition<T>(IReadOnlyList<T> definitions, string id, string? legacyName, string typeName) where T : IGameDefinition
+    {
+        var definition = definitions.FirstOrDefault(candidate => string.Equals(candidate.Id, id, StringComparison.OrdinalIgnoreCase))
+            ?? definitions.FirstOrDefault(candidate => string.Equals(candidate.Name, legacyName, StringComparison.OrdinalIgnoreCase));
+        return definition ?? throw new InvalidOperationException($"A mentésben szereplő '{id ?? legacyName}' {typeName} nem található az adatok.csv fájlban.");
+    }
 
     private sealed class RosterSaveData
     {
@@ -97,18 +108,24 @@ public sealed class CharacterSaveService
     private sealed class CharacterSaveData
     {
         public string Name { get; init; } = string.Empty;
-        public string RaceName { get; init; } = string.Empty;
-        public string CharacterClassName { get; init; } = string.Empty;
+        public string RaceId { get; init; } = string.Empty;
+        public string CharacterClassId { get; init; } = string.Empty;
+        // Régi mentések egyszeri betöltéséhez; új mentésbe már csak az ID-k kerülnek.
+        public string? RaceName { get; init; }
+        public string? CharacterClassName { get; init; }
         public PrimaryAbilities Abilities { get; init; }
         public int CurrentVitality { get; init; }
         public int CurrentMana { get; init; }
         public int VitalityBonus { get; init; }
         public int ManaBonus { get; init; }
+        public List<string?> WeaponIds { get; init; } = [];
+        public string? ArmorId { get; init; }
+        public List<string> MagicItemIds { get; init; } = [];
         public List<string?> WeaponNames { get; init; } = [];
         public string? ArmorName { get; init; }
         public List<string> MagicItemNames { get; init; } = [];
         public List<ItemSaveData> BackpackItems { get; init; } = [];
     }
 
-    private sealed record ItemSaveData(string Type, string Name);
+    private sealed record ItemSaveData(string Type, string Id, string? Name = null);
 }

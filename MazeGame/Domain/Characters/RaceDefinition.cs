@@ -1,3 +1,5 @@
+using MazeGame.Domain;
+
 namespace MazeGame.Domain.Characters;
 
-public sealed record RaceDefinition(string Name, PrimaryAbilities AbilityBonuses);
+public sealed record RaceDefinition(string Id, string Name, PrimaryAbilities AbilityBonuses) : IGameDefinition;
