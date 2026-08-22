@@ -48,6 +48,10 @@ public sealed class CharacterCreationScreen
 
     /// <summary>Interakció nélkül elkészíti az első fajhoz tartozó, első elérhető osztályú érvényes karaktert.</summary>
     public LiveCharacter CreateFirstValidCharacter(string name)
+        => CreateFirstValidCharacter(_ => name);
+
+    /// <summary>Interakció nélkül készít karaktert, majd az érvényes osztály alapján kéri le a nevét.</summary>
+    public LiveCharacter CreateFirstValidCharacter(Func<CharacterClassDefinition, string> nameFactory)
     {
         foreach (var race in _gameData.Races)
         {
@@ -58,7 +62,7 @@ public sealed class CharacterCreationScreen
                 var characterClass = _gameData.CharacterClasses.FirstOrDefault(candidate => finalAbilities.MeetsMinimum(candidate.MinimumAbilities));
                 if (characterClass is null) continue;
 
-                return LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
+                return LiveCharacterFactory.Create(nameFactory(characterClass), race, characterClass, rolledAbilities,
                     _random.Next(1, 16), _random.Next(1, 16), _gameData);
             }
         }

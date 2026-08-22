@@ -9,6 +9,7 @@ public sealed class MainMenu
     private readonly GameDataCatalog _gameData;
     private readonly CharacterRoster _characterRoster;
     private readonly CharacterSaveService _characterSaveService;
+    private readonly Random _random = new();
 
     public MainMenu(GameDataCatalog gameData, string characterSavePath)
     {
@@ -132,9 +133,7 @@ public sealed class MainMenu
     {
         try
         {
-            var generatedName = $"Gyors hős {_characterRoster.Characters.Count + 1}";
-            var name = generatedName[..Math.Min(generatedName.Length, LiveCharacter.MaximumNameLength)];
-            var character = new CharacterCreationScreen(_gameData, _characterRoster).CreateFirstValidCharacter(name);
+            var character = new CharacterCreationScreen(_gameData, _characterRoster).CreateFirstValidCharacter(ChooseQuickStartName);
             _characterRoster.Add(character);
             _characterRoster.Select(character);
             SaveCharacters();
@@ -146,6 +145,16 @@ public sealed class MainMenu
             WriteLine(exception.Message, ConsoleColor.Red);
             Console.ReadKey(intercept: true);
         }
+    }
+
+    private string ChooseQuickStartName(CharacterClassDefinition characterClass)
+    {
+        var names = _gameData.GetCharacterNames(characterClass.Id);
+        if (names.Count == 0) throw new InvalidOperationException($"Nincs gyorsindításhoz használható név a(z) {characterClass.Name} osztályhoz.");
+        var unusedNames = names.Where(candidate => !_characterRoster.Characters.Any(character =>
+            string.Equals(character.Name, candidate.Name, StringComparison.OrdinalIgnoreCase))).ToList();
+        var candidates = unusedNames.Count > 0 ? unusedNames : names;
+        return candidates[_random.Next(candidates.Count)].Name;
     }
 
     private void DeleteCharacter()

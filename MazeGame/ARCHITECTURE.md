@@ -89,6 +89,7 @@ A CSV `#` karakterrel kezdődő szekciókból áll. A betöltő az ékezeteket �
 - fajok és faji képességbónuszok;
 - osztályok, képességminimumok és kezdőfelszerelések;
 - osztályonkénti tehetségek és tehetségfokozatok;
+- osztályonkénti karakter- és később NPC-ként is használható nevek;
 - karakterállapotok;
 - szintlépési XP-küszöbök;
 - ellenfelek;
@@ -108,6 +109,8 @@ Az `adatok.csv` a projektfájl beállítása miatt fordításkor a kimeneti kön
 A karaktergenerálás négy elsődleges képességre oszt el összesen 25 pontot. Mindegyik érték legalább 1 és legfeljebb 10 a dobás során. Ehhez adódnak hozzá a faj módosítói, majd a végeredmény 1 és 13 közé szorul.
 
 A karakternév 1–13 karakter hosszú lehet. A korábbi mentésekből érkező hosszabb nevek betöltéskor 13 karakterre rövidülnek, hogy a karakterlap rögzített fejlécébe illeszkedjenek.
+
+Az `adatok.csv` `#Karakternevek` szekciója osztályonként 20 `CharacterNameDefinition` rekordot tartalmaz. A gyorsindítás az elkészült karakter tényleges osztályának névkészletéből választ, és előnyben részesíti a karakterlistában még nem használt neveket. Ha egy osztály mind a 20 neve foglalt, az ismétlődés megengedett. A definíciók nem játékos karakterek későbbi elnevezésére is újrahasználhatók.
 
 Csak olyan osztály választható, amelynek minden CSV-ben megadott képességminimumát teljesíti a karakter. A maximális HP és manna képlete:
 
