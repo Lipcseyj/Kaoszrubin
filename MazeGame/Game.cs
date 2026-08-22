@@ -179,7 +179,7 @@ public sealed class Game
             _renderer.RefreshCharacterSheet(SelectedCharacter);
             if (experienceResult.LeveledUp)
             {
-                _renderer.DrawLevelUpScreen(SelectedCharacter, experienceResult);
+                ResolvePerkOffers(experienceResult);
                 _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
             }
             _battleStarted = false;
@@ -250,7 +250,43 @@ public sealed class Game
         }
 
         var result = AddExperience(neededExperience);
-        _renderer.DrawLevelUpScreen(SelectedCharacter, result);
+        ResolvePerkOffers(result);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+    }
+
+    private void ResolvePerkOffers(LevelUpResult result)
+    {
+        var offers = CreatePerkOffers(result);
+        var selectedPerks = _renderer.DrawLevelUpScreen(SelectedCharacter, result, offers);
+        foreach (var perk in selectedPerks) SelectedCharacter.AddPerk(perk);
+    }
+
+    private IReadOnlyList<PerkOffer> CreatePerkOffers(LevelUpResult result)
+    {
+        var offers = new List<PerkOffer>();
+        var milestones = new[] { 5, 15, 25 };
+        for (var tier = 1; tier <= milestones.Length; tier++)
+        {
+            if (SelectedCharacter.Perks.Any(perk => perk.Tier == tier)) continue;
+            var firstLevel = milestones[tier - 1] - 2;
+            var lastLevel = milestones[tier - 1] + 2;
+            if (result.CurrentLevel < firstLevel) continue;
+
+            int? triggerLevel = null;
+            for (var level = Math.Max(result.PreviousLevel + 1, firstLevel); level <= Math.Min(result.CurrentLevel, lastLevel); level++)
+            {
+                if (level == lastLevel || _random.NextDouble() < 0.40)
+                {
+                    triggerLevel = level;
+                    break;
+                }
+            }
+
+            // A funkció bevezetése előtt az ablakon túljutott mentések a következő szintlépéskor megkapják a kimaradt választást.
+            if (triggerLevel is null && result.CurrentLevel >= lastLevel) triggerLevel = result.CurrentLevel;
+            if (triggerLevel is not null)
+                offers.Add(new PerkOffer(tier, triggerLevel.Value, _gameData.GetPerkChoices(SelectedCharacter.CharacterClass.Id, tier)));
+        }
+        return offers;
     }
 }

@@ -88,6 +88,7 @@ A CSV `#` karakterrel kezdődő szekciókból áll. A betöltő az ékezeteket �
 
 - fajok és faji képességbónuszok;
 - osztályok, képességminimumok és kezdőfelszerelések;
+- osztályonkénti tehetségek és tehetségfokozatok;
 - szintlépési XP-küszöbök;
 - ellenfelek;
 - fegyverek és fegyvertípusok;
@@ -123,6 +124,24 @@ ceil(CSV XP-küszöb × osztály XP-módosító)
 Egy XP-jóváírás egyszerre több szintlépést is eredményezhet.
 
 Minden elért új szinthez külön HP- és – mannát használó osztálynál – mannadobás tartozik. A dobás zárt tartományát az `adatok.csv` `#Szintlépés életerő növekedés`, illetve `#Szintlépés manna növekedés` szekciója adja meg az Egészség és az Intelligencia alapján. A növekmény egyszerre emeli a maximális és az aktuális erőforrást, tehát a szintlépés részleges feltöltést is jelent. Több egyszerre elért szint minden bónusza külön kisorsolódik és összeadódik.
+
+### Tehetségek
+
+Minden osztályhoz hat `PerkDefinition` tartozik az `adatok.csv` `#Tehetségek` szekciójában. A mezők: stabil azonosító, név, leírás, osztályazonosító és fokozat. A hat tehetség három egymást kizáró párt alkot; fokozatonként pontosan két definíció szükséges.
+
+A tehetségablakok az 5., 15. és 25. szint körüli ±2 szint:
+
+```text
+1. fokozat:  3–7. szint
+2. fokozat: 13–17. szint
+3. fokozat: 23–27. szint
+```
+
+Az ablak minden szintlépésénél 40% az esély a tehetségválasztás aktiválására. Ha addig nem történt meg, az ablak utolsó szintjén garantált. Aktiváláskor a szintlépési képernyőn a játékos kiválasztja a pár egyik tagját; a másik végleg kiesik. A kiválasztott tehetség azonosítója bekerül a karaktermentésbe. Egy fokozat lezárását az jelzi, hogy a karakter már rendelkezik az adott fokozat egyik tehetségével.
+
+Ha egy régi mentésből származó karakter már túllépett egy tehetségablakon, de nincs abból a fokozatból tehetsége, a következő szintlépésekor garantáltan megkapja a kimaradt választást. Több szint egyidejű átlépése több tehetségválasztást is kiválthat.
+
+A tehetségek hatásai jelenleg még nincsenek bekötve a harcba vagy más játékrendszerekbe; a rendszer egyelőre a definíciót, a sorsolást, a választást és a mentést kezeli.
 
 ## Játékhurok
 
@@ -245,6 +264,7 @@ A `CharacterSaveService` a karaktereket a futtatási könyvtár `karakterek.json
 - képességek, HP/manna és generált bónuszok;
 - élelem, víz, arany, szint és XP;
 - a szintlépésekből összegyűlt maximális HP- és mannanövekmény;
+- a kiválasztott tehetségek azonosítói;
 - fegyverek, páncél, varázstárgyak és hátizsák;
 - az aktív karakter indexe.
 

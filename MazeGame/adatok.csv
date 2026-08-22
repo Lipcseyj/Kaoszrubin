@@ -152,6 +152,45 @@ K004,Intelligencia
 K005,Életerő
 K006,Manna
 
+#Tehetségek
+Id,Név,Leírás,OsztályId,Fokozat
+PERK-C001-1A,Első csapás,+10 jár a kezdeményezéshez.,C001,1
+PERK-C001-1B,Robusztusság,+10 maximális HP.,C001,1
+PERK-C001-2A,Fegyvermester,+2 jár minden fegyveres találati próbához.,C001,2
+PERK-C001-2B,Rendíthetetlen,Minden elszenvedett találat sebzése 2 ponttal csökken.,C001,2
+PERK-C001-3A,Acélvihar,Sikeres támadás után 35% eséllyel azonnal újra támad.,C001,3
+PERK-C001-3B,Utolsó erőd,Harcban egyszer 1 HP-n túléli a halálos csapást.,C001,3
+PERK-C002-1A,Vérszomj,Fél HP alatt +3 sebzést okoz.,C002,1
+PERK-C002-1B,Vastag bőr,+8 maximális HP és +1 természetes védelem.,C002,1
+PERK-C002-2A,Őrjöngés,Minden egymást követő találat +1 halmozódó sebzést ad.,C002,2
+PERK-C002-2B,Fájdalomtűrés,A 3 pontnál kisebb beérkező sebzést figyelmen kívül hagyja.,C002,2
+PERK-C002-3A,Berserker düh,Fél HP alatt minden körben kétszer támadhat.,C002,3
+PERK-C002-3B,Őserő,+20 maximális HP és +5 állandó közelharci sebzés.,C002,3
+PERK-C003-1A,Pajzsfal,Pajzzsal további +2 védelmet kap.,C003,1
+PERK-C003-1B,Kihívás,Az ellenfél első támadása automatikusan elhibázza.,C003,1
+PERK-C003-2A,Páncélmester,A viselt páncél védelmi dobása mindig legalább az átlagérték.,C003,2
+PERK-C003-2B,Szent eskü,Minden csata elején visszanyer 10 HP-t.,C003,2
+PERK-C003-3A,Őrangyal,Harcban egyszer teljesen kivédi a halálos sebzést és 25 HP-t gyógyul.,C003,3
+PERK-C003-3B,Legyőzhetetlen,+15 maximális HP és minden sebzés 4 ponttal csökken.,C003,3
+PERK-C004-1A,Orvtámadás,A csata első sikeres támadása dupla sebzést okoz.,C004,1
+PERK-C004-1B,Kitérés,15% eséllyel teljesen elkerüli a találatot.,C004,1
+PERK-C004-2A,Méregkeverő,A fegyveres találatok további 1-6 mérgező sebzést okoznak.,C004,2
+PERK-C004-2B,Árnyéklépés,Sikeres kitérés után a következő támadás automatikusan talál.,C004,2
+PERK-C004-3A,Halálos pontosság,A természetes 18-20 dobás háromszoros sebzést okoz.,C004,3
+PERK-C004-3B,Mestertolvaj,A ládák dupla aranyat adnak és 25% eséllyel ritka tárgyat rejtenek.,C004,3
+PERK-C005-1A,Gyógyító kegyelem,Minden gyógyítás további 25% HP-t állít vissza.,C005,1
+PERK-C005-1B,Áldott fegyver,+2 találat és +2 sebzés élőholt ellenfelek ellen.,C005,1
+PERK-C005-2A,Szentély,20% eséllyel az ellenfél elveszíti a támadását.,C005,2
+PERK-C005-2B,Hitforrás,+12 maximális manna és csatánként 5 manna visszatöltés.,C005,2
+PERK-C005-3A,Feltámadás,Naponta egyszer teljes HP-val visszatérhet a halálból.,C005,3
+PERK-C005-3B,Isteni ítélet,Minden ötödik papi varázslat kétszeres hatású és nem fogyaszt mannát.,C005,3
+PERK-C006-1A,Arkán fókusz,+2 jár a mágikus találati próbákhoz.,C006,1
+PERK-C006-1B,Mannatartalék,+15 maximális manna.,C006,1
+PERK-C006-2A,Elemi mester,A sebző varázslatok 25%-kal nagyobb sebzést okoznak.,C006,2
+PERK-C006-2B,Mágikus pajzs,Manna birtokában a sebzés 25%-át manna nyeli el.,C006,2
+PERK-C006-3A,Láncvarázslat,30% eséllyel a varázslat azonnal másodszor is elsül ingyen.,C006,3
+PERK-C006-3B,Főmágus,+25 maximális manna és minden varázslat költsége 2 ponttal csökken.,C006,3
+
 #Tárgyak
 Id,Név
 T001,Élelem

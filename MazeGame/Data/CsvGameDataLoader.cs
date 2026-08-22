@@ -24,6 +24,7 @@ public static class CsvGameDataLoader
         var items = new List<MiscItemDefinition>();
         var magicItems = new List<MagicItemDefinition>();
         var spells = new List<SpellDefinition>();
+        var perks = new List<PerkDefinition>();
         var raceBonuses = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var classMinimums = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var minimumVitalityByHealth = new Dictionary<int, int>();
@@ -46,7 +47,7 @@ public static class CsvGameDataLoader
             }
 
             if (IsHeaderRow(cells[0])) continue;
-            AddDefinition(section, cells, races, characterClasses, enemies, weaponTypes, weapons, armors, abilities, items, magicItems, spells,
+            AddDefinition(section, cells, races, characterClasses, enemies, weaponTypes, weapons, armors, abilities, items, magicItems, spells, perks,
                 raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                 vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass);
         }
@@ -68,6 +69,7 @@ public static class CsvGameDataLoader
             Items = items,
             MagicItems = magicItems,
             Spells = spells,
+            Perks = perks,
             MinimumVitalityByHealth = minimumVitalityByHealth,
             MinimumManaByIntelligence = minimumManaByIntelligence,
             ExperienceByLevel = experienceByLevel,
@@ -81,7 +83,7 @@ public static class CsvGameDataLoader
         ICollection<RaceDefinition> races, ICollection<CharacterClassDefinition> characterClasses,
         ICollection<EnemyDefinition> enemies, ICollection<WeaponTypeDefinition> weaponTypes, ICollection<WeaponDefinition> weapons,
         ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities, ICollection<MiscItemDefinition> items,
-        ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
+        ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells, ICollection<PerkDefinition> perks,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence, IDictionary<int, int> experienceByLevel,
         IDictionary<int, ValueRange> vitalityGrowthByHealth, IDictionary<int, ValueRange> manaGrowthByIntelligence,
@@ -125,6 +127,10 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.DivineSpells:
                 spells.Add(new SpellDefinition(id, name, SpellSchool.Divine));
+                break;
+            case DataSection.Perks:
+                if (Integer(cells, 4) is { } tier)
+                    perks.Add(new PerkDefinition(id, name, Cell(cells, 2), Cell(cells, 3), tier));
                 break;
             case DataSection.RaceAbilityBonuses:
                 raceBonuses[id] = PrimaryAbilitiesFrom(cells);
@@ -235,6 +241,7 @@ public static class CsvGameDataLoader
         "varazstargyak" => DataSection.MagicItems,
         "varazslatok" => DataSection.ArcaneSpells,
         "papi varazslatok" => DataSection.DivineSpells,
+        "tehetsegek" => DataSection.Perks,
         "faji kepessegbonuszok" => DataSection.RaceAbilityBonuses,
         "osztaly kepessegminimumok" => DataSection.ClassAbilityMinimums,
         "osztaly kezdofelszereles" => DataSection.StartingEquipment,
@@ -266,6 +273,7 @@ public static class CsvGameDataLoader
         MagicItems,
         ArcaneSpells,
         DivineSpells,
+        Perks,
         RaceAbilityBonuses,
         ClassAbilityMinimums,
         StartingEquipment,

@@ -67,6 +67,7 @@ public sealed class CharacterSaveService
         for (var index = 0; index < magicItemIds.Count; index++)
             character.AddMagicItem(FindSavedDefinition(_gameData.MagicItems, magicItemIds[index], saved.MagicItemNames.ElementAtOrDefault(index), "varázstárgy"));
         foreach (var item in saved.BackpackItems) character.AddToBackpack(ResolveItem(item));
+        foreach (var perkId in saved.PerkIds) character.AddPerk(_gameData.GetPerk(perkId));
 
         return character;
     }
@@ -93,7 +94,8 @@ public sealed class CharacterSaveService
         WeaponIds = character.WeaponSlots.Select(weapon => weapon?.Id).ToList(),
         ArmorId = character.Armor?.Id,
         MagicItemIds = character.MagicItems.Select(item => item.Id).ToList(),
-        BackpackItems = character.Backpack.Select(item => new ItemSaveData(item.GetType().Name, item.Id)).ToList()
+        BackpackItems = character.Backpack.Select(item => new ItemSaveData(item.GetType().Name, item.Id)).ToList(),
+        PerkIds = character.Perks.Select(perk => perk.Id).ToList()
     };
 
     private IItemDefinition ResolveItem(ItemSaveData item) => item.Type switch
@@ -145,6 +147,7 @@ public sealed class CharacterSaveService
         public string? ArmorName { get; init; }
         public List<string> MagicItemNames { get; init; } = [];
         public List<ItemSaveData> BackpackItems { get; init; } = [];
+        public List<string> PerkIds { get; init; } = [];
     }
 
     private sealed record ItemSaveData(string Type, string Id, string? Name = null);

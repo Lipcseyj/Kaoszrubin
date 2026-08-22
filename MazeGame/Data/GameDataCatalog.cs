@@ -19,6 +19,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<MiscItemDefinition> Items { get; init; } = [];
     public IReadOnlyList<MagicItemDefinition> MagicItems { get; init; } = [];
     public IReadOnlyList<SpellDefinition> Spells { get; init; } = [];
+    public IReadOnlyList<PerkDefinition> Perks { get; init; } = [];
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();
@@ -34,6 +35,15 @@ public sealed class GameDataCatalog
     public ArmorDefinition GetArmor(string id) => FindById(Armors, id, "páncél");
     public MagicItemDefinition GetMagicItem(string id) => FindById(MagicItems, id, "varázstárgy");
     public MiscItemDefinition GetItem(string id) => FindById(Items, id, "tárgy");
+    public PerkDefinition GetPerk(string id) => FindById(Perks, id, "tehetség");
+    public IReadOnlyList<PerkDefinition> GetPerkChoices(string characterClassId, int tier)
+    {
+        var choices = Perks.Where(perk =>
+            string.Equals(perk.CharacterClassId, characterClassId, StringComparison.OrdinalIgnoreCase) && perk.Tier == tier).ToList();
+        if (choices.Count != 2)
+            throw new InvalidOperationException($"A(z) '{characterClassId}' osztály {tier}. tehetségfokozatához pontosan két tehetség szükséges az adatok.csv fájlban.");
+        return choices;
+    }
     public StartingEquipmentDefinition? GetStartingEquipment(string characterClassId) =>
         StartingEquipmentByClass.TryGetValue(characterClassId, out var equipment) ? equipment : null;
 

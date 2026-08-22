@@ -28,6 +28,10 @@ public sealed class ConsoleRenderer
 
     public ConsoleRenderer(GameDataCatalog gameData) => _gameData = gameData;
 
+    /// <summary>
+    /// Inicializálja a teljes képernyős állapotot: törli a konzolt, kirajzolja a pályát,
+    /// keretet, karakterlapot és a játékos pozícióját.
+    /// </summary>
     public void DrawInitialState(Maze maze, Player player, FogOfWar fogOfWar, int mazeLevel)
     {
         ResetColorCache();
@@ -42,6 +46,10 @@ public sealed class ConsoleRenderer
         DrawPlayer(player.Position);
     }
 
+    /// <summary>
+    /// Rajzolja a játékos mozgását: frissíti az újonnan felfedett mezőket,
+    /// az előző pozíciót, és a jelenlegi játékos pozíciót.
+    /// </summary>
     public void DrawMovement(Maze maze, FogOfWar fogOfWar, Position previousPosition, Position currentPosition, IReadOnlyList<Position> newlyRevealed, bool hasWon)
     {
         foreach (var position in newlyRevealed) DrawMapCell(maze, fogOfWar, position);
@@ -50,12 +58,20 @@ public sealed class ConsoleRenderer
         if (hasWon) DrawBattleMessage("Célba értél! R: új labirintus, Esc: kilépés.");
     }
 
+    /// <summary>
+    /// Ellenség mozgásának kirajzolása: frissíti a korábbi és az aktuális mezőt,
+    /// kivéve ha azok a játékos pozíciója (mivel a játékos karakterét külön kezeljük).
+    /// </summary>
     public void DrawEnemyMovement(Maze maze, FogOfWar fogOfWar, Position previousPosition, Position currentPosition, Position playerPosition)
     {
         if (previousPosition != playerPosition) DrawMapCell(maze, fogOfWar, previousPosition);
         if (currentPosition != playerPosition) DrawMapCell(maze, fogOfWar, currentPosition);
     }
 
+    /// <summary>
+    /// A teljes térképet újrarajzolja a jelenlegi láthatósági állapot alapján.
+    /// Hasznos, ha a látótér jelentősen megváltozott (pl. fényforrások).
+    /// </summary>
     public void DrawMapVisibilityChanged(Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
         for (var y = 0; y < maze.Height; y++)
@@ -63,18 +79,27 @@ public sealed class ConsoleRenderer
         DrawPlayer(playerPosition);
     }
 
+    /// <summary>
+    /// Csata kezdetét jelző megjelenítés: kapcsolja a csata állapotát és kirajzolja a kép-panelt.
+    /// </summary>
     public void DrawBattleStarted(Enemy enemy)
     {
         _battleActive = true;
         DrawPicturePanel();
         DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
     }
+    /// <summary>Kincs felvétele esetén rövid üzenet a battle/message panelre.</summary>
     public void DrawTreasureCollected(int goldAmount) => DrawBattleMessage($"Kincsesláda: +{goldAmount} arany!", ConsoleColor.Yellow);
+    /// <summary>Tapasztalati pont szerzés és esetleges szintlépés megjelenítése.</summary>
     public void DrawExperienceGained(LevelUpResult result) => DrawBattleMessage(
         result.LeveledUp
             ? $"+{result.GainedExperience} XP! Szintlépés: {result.PreviousLevel} → {result.CurrentLevel}."
             : $"+{result.GainedExperience} XP.",
         result.LeveledUp ? ConsoleColor.Magenta : ConsoleColor.Cyan);
+
+    /// <summary>
+    /// Csataround naplóbejegyzés megjelenítése. A napló színezése a bejegyzés típusától függ.
+    /// </summary>
     public void DrawBattleRound(BattleLogEntry entry)
     {
         var color = entry.Kind switch
@@ -84,8 +109,13 @@ public sealed class ConsoleRenderer
             _ => ConsoleColor.Cyan
         };
         DrawBattleMessage(entry.Message, color);
+        // A jobb oldali karakterlapon megjelenített sor: információ a vezérlésről.
         WriteSheetLine(38, "Szóköz: következő kör", ConsoleColor.DarkYellow);
     }
+
+    /// <summary>
+    /// Csata eredményének megjelenítése: visszaáll a nem-csata állapotra és kiírja az összegző üzenetet.
+    /// </summary>
     public void DrawBattleResult(BattleResult result, Enemy enemy)
     {
         _battleActive = false;
@@ -98,6 +128,9 @@ public sealed class ConsoleRenderer
             : $"Elestél {result.Rounds} kör után. {lastEvent}");
     }
 
+    /// <summary>
+    /// Játék vége képernyő: középre rajzolt keret és szöveg, majd várakozás billentyűleütésre.
+    /// </summary>
     public void DrawGameOver(string characterName)
     {
         ResetColorCache();
@@ -133,15 +166,36 @@ public sealed class ConsoleRenderer
         WriteAt(left, top + lines.Length + 1, "╚" + new string('═', frameWidth - 2) + "╝");
         Console.ReadKey(intercept: true);
     }
+    /// <summary>Fejlesztői üzenetek gyors megjelenítésére szolgál (battle message panelre).</summary>
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
 
-    public void DrawLevelUpScreen(LiveCharacter character, LevelUpResult result)
+    /// <summary>
+    /// Szintlépés képernyő: összegzi a kapott bónuszokat, és ha vannak tehetség-ajánlatok,
+    /// megjeleníti őket választásra.
+    /// </summary>
+    public IReadOnlyList<PerkDefinition> DrawLevelUpScreen(LiveCharacter character, LevelUpResult result, IReadOnlyList<PerkOffer> perkOffers)
+    {
+        var selectedPerks = new List<PerkDefinition>();
+        DrawLevelUpSummary(character, result, perkOffers.Count > 0);
+        if (perkOffers.Count == 0)
+        {
+            Console.ReadKey(intercept: true);
+            return selectedPerks;
+        }
+
+        foreach (var offer in perkOffers)
+            selectedPerks.Add(DrawPerkChoice(character, offer));
+        return selectedPerks;
+    }
+
+    /// <summary>
+    /// Kirajzol egy középre igazított összegző keretet a szintlépéshez.
+    /// </summary>
+    private void DrawLevelUpSummary(LiveCharacter character, LevelUpResult result, bool hasPerkOffer)
     {
         ResetColorCache();
         Console.Clear();
-
-        const int frameWidth = 78;
-        const int contentWidth = frameWidth - 4;
+        const int frameWidth = 88;
         var detailLines = result.Bonuses.Select(bonus => character.UsesMana
             ? $"⭐ {bonus.Level}. szint:  ❤️ +{bonus.Vitality} HP     🔷 +{bonus.Mana} manna"
             : $"⭐ {bonus.Level}. szint:  ❤️ +{bonus.Vitality} HP").ToList();
@@ -161,7 +215,70 @@ public sealed class ConsoleRenderer
         lines.Add(($"🛡️  Jelenlegi értékek: {character.CurrentVitality}/{character.MaximumVitality} HP" +
             (character.UsesMana ? $"   {character.CurrentMana}/{character.MaximumMana} manna" : string.Empty), ConsoleColor.Cyan));
         lines.Add((string.Empty, ConsoleColor.Gray));
-        lines.Add(("🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟", ConsoleColor.Yellow));
+        lines.Add((hasPerkOffer
+            ? "🌠 Új TEHETSÉG ébred benned! Nyomj meg egy billentyűt... 🌠"
+            : "🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟", ConsoleColor.Yellow));
+
+        DrawCenteredFrame(frameWidth, lines);
+        if (hasPerkOffer) Console.ReadKey(intercept: true);
+    }
+
+    /// <summary>
+    /// Két tehetség közül választó képernyő: bal/jobb vagy fel/le billentyűkkel választ,
+    /// Enterrel véglegesít. Visszaadja a kiválasztott tehetséget.
+    /// </summary>
+    private PerkDefinition DrawPerkChoice(LiveCharacter character, PerkOffer offer)
+    {
+        var selectedIndex = 0;
+        while (true)
+        {
+            ResetColorCache();
+            Console.Clear();
+            const int frameWidth = 112;
+            var first = offer.Choices[0];
+            var second = offer.Choices[1];
+            var lines = new List<(string Text, ConsoleColor Color)>
+            {
+                ("🌟⚔️🌟  TEHETSÉGVÁLASZTÁS  🌟⚔️🌟", ConsoleColor.Yellow),
+                (string.Empty, ConsoleColor.Gray),
+                ($"{character.Name} — {character.CharacterClass.Name} — {offer.Tier}. fokozat", ConsoleColor.Cyan),
+                ($"A tehetség a {offer.TriggerLevel}. szint elérésekor vált elérhetővé.", ConsoleColor.DarkCyan),
+                ("A nem választott tehetség végleg elveszik ennél a karakternél.", ConsoleColor.Red),
+                (string.Empty, ConsoleColor.Gray),
+                ($"{(selectedIndex == 0 ? "▶" : " ")}  🟥 {first.Name}", selectedIndex == 0 ? ConsoleColor.Yellow : ConsoleColor.Gray),
+                ($"     {first.Description}", selectedIndex == 0 ? ConsoleColor.White : ConsoleColor.DarkGray),
+                (string.Empty, ConsoleColor.Gray),
+                ($"{(selectedIndex == 1 ? "▶" : " ")}  🟦 {second.Name}", selectedIndex == 1 ? ConsoleColor.Yellow : ConsoleColor.Gray),
+                ($"     {second.Description}", selectedIndex == 1 ? ConsoleColor.White : ConsoleColor.DarkGray),
+                (string.Empty, ConsoleColor.Gray),
+                ("⬅️  Bal/jobb vagy fel/le: választás     ✅ Enter: véglegesítés", ConsoleColor.Green)
+            };
+            DrawCenteredFrame(frameWidth, lines);
+
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.LeftArrow:
+                case ConsoleKey.UpArrow:
+                    selectedIndex = 0;
+                    break;
+                case ConsoleKey.RightArrow:
+                case ConsoleKey.DownArrow:
+                    selectedIndex = 1;
+                    break;
+                case ConsoleKey.Enter:
+                    return offer.Choices[selectedIndex];
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rajzol egy középre igazított keretet megadott szélességgel és sorokkal.
+    /// Belső szöveg- és színbeállításokat kezel.
+    /// </summary>
+    private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines)
+    {
+        const int horizontalPadding = 2;
+        var contentWidth = frameWidth - horizontalPadding * 2;
 
         var left = Math.Max(0, (Console.WindowWidth - frameWidth) / 2);
         var top = Math.Max(1, (Console.WindowHeight - lines.Count - 2) / 2);
@@ -173,15 +290,17 @@ public sealed class ConsoleRenderer
             WriteAt(left, top + index + 1, "║");
             SetColors(lines[index].Color, ConsoleColor.Black);
             var text = lines[index].Text;
-            WriteAt(left + 2, top + index + 1, text.PadRight(Math.Max(0, contentWidth - text.Length)));
+            WriteAt(left + horizontalPadding, top + index + 1, text.PadRight(Math.Max(0, contentWidth - text.Length)));
             SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
             WriteAt(left + frameWidth - 1, top + index + 1, "║");
         }
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
         WriteAt(left, top + lines.Count + 1, "╚" + new string('═', frameWidth - 2) + "╝");
-        Console.ReadKey(intercept: true);
     }
 
+    /// <summary>
+    /// Csata után frissíti a csatatér mezőjét (ha nem a játékos mezője volt) és a játékost.
+    /// </summary>
     public void DrawMapCellAfterBattle(Maze maze, FogOfWar fogOfWar, Position battlePosition, Position playerPosition)
     {
         if (battlePosition != playerPosition) DrawMapCell(maze, fogOfWar, battlePosition);
@@ -194,6 +313,9 @@ public sealed class ConsoleRenderer
         DrawCharacterSheet(character);
     }
 
+    /// <summary>
+    /// Kirajzolja a teljes játéktér rácsát a megadott labirintus alapján.
+    /// </summary>
     private void DrawPlayfield(Maze maze, FogOfWar fogOfWar)
     {
         for (var y = 0; y < maze.Height; y++)
@@ -203,6 +325,9 @@ public sealed class ConsoleRenderer
         }
     }
 
+    /// <summary>
+    /// A jobb oldali függőleges keret és alja/határainek kirajzolása a teljes ablakhoz.
+    /// </summary>
     private void DrawFrame()
     {
         SetColors(ConsoleColor.DarkCyan, ConsoleColor.Black);
@@ -212,23 +337,25 @@ public sealed class ConsoleRenderer
         Console.Write('┤');
     }
 
+    /// <summary>
+    /// Teljes karakterlap rajzolása a jobb oldali panelre. Minden sor a WriteSheetLine segítségével kerül oda.
+    /// </summary>
     private void DrawCharacterSheet(LiveCharacter character)
     {
         _displayedCharacter = character;
-        WriteSheetLine(2, "KARAKTERLAP", ConsoleColor.Yellow);
-        WriteSheetLine(3, character.Name, ConsoleColor.Cyan);
-        WriteSheetLine(4, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
-        WriteSheetLine(5, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
-        WriteSheetLine(6, FormatExperience(character), ConsoleColor.Cyan);
-        WriteSheetLine(7, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
-        WriteSheetLine(8, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
-        WriteSheetLine(9, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
-        WriteSheetLine(10, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
-        WriteSheetLine(11, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
-        WriteSheetLine(12, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
-        WriteSheetLine(13, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
-        WriteSheetLine(14, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
-        WriteSheetLine(15, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
+        WriteSheetLine(1, "KARAKTERLAP - ", ConsoleColor.Yellow, character.Name, ConsoleColor.Cyan);
+        WriteSheetLine(2, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
+        WriteSheetLine(4, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
+        WriteSheetLine(5, FormatExperience(character), ConsoleColor.Cyan);
+        WriteSheetLine(6, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
+        WriteSheetLine(7, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
+        WriteSheetLine(8, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
+        WriteSheetLine(9, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
+        WriteSheetLine(10, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
+        WriteSheetLine(11, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
+        WriteSheetLine(12, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
+        WriteSheetLine(13, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
+        WriteSheetLine(14, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
         WriteSheetLine(16, "FEGYVEREK", ConsoleColor.Yellow);
         WriteSheetLine(17, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray);
         WriteSheetLine(18, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray);
@@ -239,11 +366,13 @@ public sealed class ConsoleRenderer
         WriteSheetLine(26, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
         for (var index = 0; index < 10; index++)
             WriteSheetLine(27 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
-        WriteSheetLine(37, character.IsAlive ? "Állapot: élő" : "Állapot: halott", character.IsAlive ? ConsoleColor.Green : ConsoleColor.Red);
-        WriteSheetLine(38, $"XP szorzó: {character.CharacterClass.ExperienceModifier:0.00}×", ConsoleColor.DarkCyan);
         DrawPicturePanel();
     }
 
+    /// <summary>
+    /// Battle/message panelre egy új bejegyzést ír: a hosszú üzeneteket megtöri, és
+    /// az utolsó N (MessageLineCount) bejegyzést jeleníti meg a képernyő alsó részén.
+    /// </summary>
     private void DrawBattleMessage(string message, ConsoleColor color = ConsoleColor.Gray)
     {
         foreach (var line in WrapMessage(message)) _messageLog.Enqueue(new MessageLogLine(line, color));
@@ -259,6 +388,9 @@ public sealed class ConsoleRenderer
         }
     }
 
+    /// <summary>
+    /// Segéd: megtöri a hosszú üzenetet MessageWidth szélességre szóközök mentén.
+    /// </summary>
     private static IEnumerable<string> WrapMessage(string message)
     {
         while (message.Length > MessageWidth)
@@ -280,6 +412,10 @@ public sealed class ConsoleRenderer
         : $"Szint: {character.Level}  XP: MAX";
     private static string ResourceIcons(string icon, int level) => string.Concat(Enumerable.Repeat(icon, level / 10));
 
+    /// <summary>
+    /// A jobb oldali kép-panel (ASCII portré) kirajzolása. A PicturePanelTop-ról indul,
+    /// és a WriteSheetLine metódussal írja ki a keretet és a képsorokat.
+    /// </summary>
     private void DrawPicturePanel()
     {
         var kind = _battleActive ? AsciiPortraitKind.Skeleton : AsciiPortraitKind.Warrior;
@@ -299,38 +435,107 @@ public sealed class ConsoleRenderer
         return (new string(' ', leftPadding) + canvas).PadRight(interiorWidth);
     }
 
+    /// <summary>
+    /// A jobb oldali karakterpanel egy sorába ír. Fontos: a tényleges X koordináta
+    /// konstansan 172, és a maximális szélesség 27 karakter (azaz a jobb panel fixelt).
+    /// A metódus beállítja a színeket, levágja a túl hosszú szöveget és jobbra/padra ír.
+    /// </summary>
     private void WriteSheetLine(int y, string text, ConsoleColor foregroundColor)
     {
         const int maximumWidth = 27;
         var clippedText = text.Length <= maximumWidth ? text : text[..maximumWidth];
         SetColors(foregroundColor, ConsoleColor.Black);
+        // Itt történik a tényleges kiírás: balra igazított, maximum 'maximumWidth' karakter,
+        // és X=172 lesz (a jobb oldali karakterlap kezdő X pozíciója).
         WriteAt(172, y, clippedText.PadRight(maximumWidth));
     }
 
+    /// <summary>
+    /// Két szöveget ír ki egymás mellé a jobb oldali karakterlapra, két külön színnel.
+    /// A teljes sor hossza nem haladja meg a maximum 27 karaktert — ha szükséges,
+    /// levágja a szövegeket úgy, hogy mindkét rész látható maradjon lehetőleg.
+    /// </summary>
+    private void WriteSheetLine(int y, string leftText, ConsoleColor leftColor, string rightText, ConsoleColor rightColor)
+    {
+        const int maximumWidth = 27;
+
+        // Alap felosztás: fele-fele, de dinamikusan kiegészítjük ha az egyik rövidebb
+        var leftMax = maximumWidth / 2; // 13
+        var rightMax = maximumWidth - leftMax; // 14
+
+        string leftClipped;
+        string rightClipped;
+
+        if (leftText.Length <= leftMax)
+        {
+            leftClipped = leftText;
+            var remaining = maximumWidth - leftClipped.Length;
+            rightClipped = rightText.Length <= remaining ? rightText : rightText[..remaining];
+        }
+        else if (rightText.Length <= rightMax)
+        {
+            rightClipped = rightText;
+            var remaining = maximumWidth - rightClipped.Length;
+            leftClipped = leftText.Length <= remaining ? leftText : leftText[..remaining];
+        }
+        else
+        {
+            leftClipped = leftText[..leftMax];
+            rightClipped = rightText.Length <= rightMax ? rightText : rightText[..rightMax];
+        }
+
+        // Kiírás: először a bal oldali rész, majd a jobb oldali közvetlenül utána
+        SetColors(leftColor, ConsoleColor.Black);
+        var leftPadded = leftClipped.PadRight(leftClipped.Length);
+        WriteAt(172, y, leftPadded);
+
+        SetColors(rightColor, ConsoleColor.Black);
+        var secondX = 172 + leftPadded.Length;
+        var remainingWidth = maximumWidth - leftPadded.Length;
+        var rightPadded = rightClipped.PadRight(remainingWidth);
+        WriteAt(secondX, y, rightPadded);
+    }
+
+    /// <summary>
+    /// Megadott mező kirajzolása a kurzor mozgatásával, majd a megfelelő Rune kiírásával.
+    /// </summary>
     private void DrawMapCell(Maze maze, FogOfWar fogOfWar, Position position)
     {
         Console.SetCursorPosition(position.X, position.Y);
         DrawMapRune(maze, fogOfWar, position);
     }
 
+    /// <summary>
+    /// Kiírja a mezőre vonatkozó Rune-t a megfelelő színekkel, figyelve a köd/láthatóság állapotára.
+    /// </summary>
     private void DrawMapRune(Maze maze, FogOfWar fogOfWar, Position position) =>
         WriteRuneWithColor(
             fogOfWar.IsVisible(position) ? maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y] : FogSymbol,
             fogOfWar.IsVisible(position) ? GetForegroundColor(maze, position) : ConsoleColor.Black,
             fogOfWar.IsVisible(position) ? ConsoleColor.Black : ConsoleColor.DarkBlue);
 
+    /// <summary>
+    /// Játékos karakterének kirajzolása: fix szimbólum és szín a kurzor aktuális pozíciójára.
+    /// </summary>
     private void DrawPlayer(Position position)
     {
         Console.SetCursorPosition(position.X, position.Y);
         WriteRuneWithColor(PlayerSymbol, ConsoleColor.Cyan, ConsoleColor.Black);
     }
 
+    /// <summary>
+    /// Egyszerű segéd: kiír egy tetszőleges szöveget adott X,Y koordinátára a konzolon.
+    /// </summary>
     private static void WriteAt(int x, int y, string text)
     {
         Console.SetCursorPosition(x, y);
         Console.Write(text);
     }
 
+    /// <summary>
+    /// Visszaadja az adott mező előtérszínét az ott lévő objektum alapján
+    /// (kincsesládához sárga, ellenséghez piros, stb.), vagy a tile alapértelmezettét.
+    /// </summary>
     private static ConsoleColor GetForegroundColor(Maze maze, Position position)
     {
         var mapObject = maze.GetObjectAt(position);
@@ -347,12 +552,19 @@ public sealed class ConsoleRenderer
         };
     }
 
+    /// <summary>
+    /// Egy Rune kiírása: beállítja a kívánt előtér- és háttérszínt és kiírja a Rune stringjét.
+    /// </summary>
     private void WriteRuneWithColor(Rune rune, ConsoleColor foregroundColor, ConsoleColor backgroundColor)
     {
         SetColors(foregroundColor, backgroundColor);
         Console.Write(rune.ToString());
     }
 
+    /// <summary>
+    /// Színkezelő: csak akkor állítja át Console.ForegroundColor/BackgroundColor értékét,
+    /// ha azok eltérnek a cache-elt értékektől, így minimalizálva a felesleges rendszerhívásokat.
+    /// </summary>
     private void SetColors(ConsoleColor foregroundColor, ConsoleColor backgroundColor)
     {
         if (_currentForegroundColor != foregroundColor)
@@ -368,6 +580,7 @@ public sealed class ConsoleRenderer
         }
     }
 
+    /// <summary>Reseteli a konzol színeket és törli a cache-elt színértékeket.</summary>
     private void ResetColorCache()
     {
         Console.ResetColor();

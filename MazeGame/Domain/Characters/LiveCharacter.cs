@@ -10,6 +10,7 @@ public sealed class LiveCharacter
     private readonly WeaponDefinition?[] _weaponSlots = new WeaponDefinition?[2];
     private readonly List<MagicItemDefinition> _magicItems = [];
     private readonly List<IItemDefinition> _backpack = [];
+    private readonly List<PerkDefinition> _perks = [];
     public LiveCharacter(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities abilities, int maximumVitality, int maximumMana, int vitalityBonus, int manaBonus)
     {
         Name = name;
@@ -45,6 +46,7 @@ public sealed class LiveCharacter
     public ArmorDefinition? Armor { get; private set; }
     public IReadOnlyList<MagicItemDefinition> MagicItems => _magicItems;
     public IReadOnlyList<IItemDefinition> Backpack => _backpack;
+    public IReadOnlyList<PerkDefinition> Perks => _perks;
     public const int MaximumMagicItemCount = 3;
     public const int MaximumBackpackItemCount = 10;
 
@@ -67,6 +69,14 @@ public sealed class LiveCharacter
     {
         if (_backpack.Count >= MaximumBackpackItemCount) return false;
         _backpack.Add(item);
+        return true;
+    }
+
+    public bool AddPerk(PerkDefinition perk)
+    {
+        if (!string.Equals(perk.CharacterClassId, CharacterClass.Id, StringComparison.OrdinalIgnoreCase) ||
+            _perks.Any(existing => existing.Tier == perk.Tier)) return false;
+        _perks.Add(perk);
         return true;
     }
 
