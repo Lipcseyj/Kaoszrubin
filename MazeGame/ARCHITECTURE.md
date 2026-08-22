@@ -471,7 +471,13 @@ célérték     = 11 + védekező sebességi képessége
 találat      = támadóérték >= célérték
 ```
 
-A játékos sebességi képessége az Ügyesség, az ellenfélé a Gyorsaság. Sikertelen próba esetén nincs sebzés.
+A játékos sebességi képessége az Ügyesség, az ellenfélé a Gyorsaság. Sikertelen próba esetén nincs sebzés. A természetes 20 a játékos és az ellenfél számára is automatikus, kritikus találat; a tolvaj Halálos pontosság tehetsége természetes 18–20 között teszi kritikussá a támadást.
+
+### Kritikus találat
+
+Az általános kritikus találat kétszeres nyers sebzést okoz. A Halálos pontosság ehelyett háromszoros kritikus szorzót ad, tehát a két kritikus szabály nem szorzódik össze. Az Orvtámadás ettől külön támadási szorzó, ezért kritikussal együtt is érvényesülhet. A szorzás a páncél és más védelmi levonások előtt történik.
+
+Az ellenfél aktiválódott `ExtraDamage` képessége a nyers sebzés része, ezért kritikus találatnál szintén duplázódik. A találat után felkerülő állapotok, a méregkeverő külön `1d6` sebzése, valamint a mérgezés és vérzés időszakos sebzése nem része a kritikus szorzásnak. A természetes 20-as ellenféltámadást a tolvaj Kitérés tehetsége nem háríthatja el. Minden extra vagy ismételt támadás külön találati dobást végez, ezért külön-külön lehet kritikus.
 
 ### 3. Játékos sebzése
 
@@ -485,7 +491,7 @@ A rendszer az első olyan fegyverhelyet használja, amely nem védelmi típusú 
 ```text
 képességbónusz = max(0, (képesség - 1) / 2)  (egész osztás)
 nyers sebzés   = fegyversebzés + képességbónusz + 0..2 + támadóbónuszok
-végső sebzés   = max(1, nyers sebzés × szorzók - ellenfél páncélja - állapotbüntetés)
+végső sebzés   = max(1, nyers sebzés × támadási szorzók × kritikus szorzó - ellenfél páncélja - állapotbüntetés)
 ```
 
 ### 4. Ellenfél sebzése
@@ -496,7 +502,7 @@ Találat esetén az ellenfél sebzése:
 nyers sebzés = ellenfél Erő + dobás(1..max(2, ellenfél Erő)) + aktiválódott extra sebzés
 védelem      = páncél tartományából dobott érték
               + az első felszerelt védelmi fegyver/pajzs tartományából dobott érték
-végső sebzés = max(1, nyers sebzés - védelem)
+végső sebzés = max(1, nyers sebzés × kritikus szorzó - védelem)
 ```
 
 Ha nincs páncél vagy pajzs, annak védelme nulla. Találat esetén legalább 1 sebzés mindig átjut. A sikeres találat sebzésszámítása után külön dobódnak a szörny állapatterjesztő képességei; új vagy frissített állapot esetén a csatanapló feltűnő `⚠️ ÁLLAPOT` jelzéssel, az állapot saját emojijával és az időtartam újraindításának tényével jelzi azt. A karakter saját támadási szakasza után a mérgezés és vérzés egyetlen összesített naplóüzenetben sebez, figyelmen kívül hagyva a páncélt; az időtartam ekkor csökken.

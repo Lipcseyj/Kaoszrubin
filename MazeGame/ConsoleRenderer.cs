@@ -126,6 +126,7 @@ public sealed class ConsoleRenderer
         {
             BattleLogKind.PlayerAttack => ConsoleColor.Green,
             BattleLogKind.EnemyAttack => ConsoleColor.Red,
+            BattleLogKind.CriticalHit => ConsoleColor.Yellow,
             _ => ConsoleColor.Cyan
         };
         DrawBattleMessage(entry.Message, color);
