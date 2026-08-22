@@ -297,7 +297,13 @@ public sealed class Game
         {
             var previousPosition = enemy.Position;
             var direction = Directions[_random.Next(Directions.Length)];
-            if (!_maze.TryMoveEnemy(enemy, previousPosition + direction)) continue;
+            var destination = previousPosition + direction;
+            if (_maze.GetPartyMemberAt(destination) is { } encounteredMember)
+            {
+                ResolveNpcBattle(encounteredMember, enemy);
+                continue;
+            }
+            if (!_maze.TryMoveEnemy(enemy, destination)) continue;
 
             _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
             if (enemy.Position == _player.Position)
@@ -315,12 +321,55 @@ public sealed class Game
         {
             if (_nextPartyMoves.GetValueOrDefault(member) > now) continue;
             ScheduleNextPartyMove(member, now);
+            if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member)) continue;
             var previous = member.Position;
             var next = ChoosePartyMemberStep(member);
             if (next is null || !_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
             var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
             _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
+            if (CanActivelyAttack(member)) TryResolveAdjacentNpcBattle(member);
         }
+    }
+
+    private static bool CanActivelyAttack(PartyMemberAvatar member) =>
+        member.Character.NpcBehavior is NpcBehavior.Defensive or NpcBehavior.Aggressive;
+
+    private bool TryResolveAdjacentNpcBattle(PartyMemberAvatar member)
+    {
+        var enemy = Directions.Select(direction => _maze.GetEnemyAt(member.Position + direction))
+            .FirstOrDefault(candidate => candidate is not null);
+        if (enemy is null) return false;
+        ResolveNpcBattle(member, enemy);
+        return true;
+    }
+
+    private void ResolveNpcBattle(PartyMemberAvatar member, Enemy enemy)
+    {
+        if (_battleStarted || !member.Character.IsAlive || !_maze.Enemies.Contains(enemy)) return;
+        _battleStarted = true;
+        var startingNpcHp = member.Character.CurrentVitality;
+        var startingEnemyHp = enemy.CurrentHitPoints;
+        var result = _battleSystem.Resolve(member.Character, enemy, _ => { });
+        if (result.PlayerWon)
+        {
+            _maze.ReplaceEnemyWithCorpse(enemy);
+            _renderer.DrawNpcBattleSummary(
+                $"{member.Character.Name} automatikus csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
+                $"HP: {startingNpcHp}→{member.Character.CurrentVitality}; ellenfél HP: {startingEnemyHp}→0.",
+                ConsoleColor.Green);
+        }
+        else
+        {
+            _maze.ReplacePartyMemberWithCorpse(member);
+            _nextPartyMoves.Remove(member);
+            _renderer.DrawNpcBattleSummary(
+                $"{member.Character.Name} elesett a(z) {enemy.Name} elleni automatikus csatában {result.Rounds} kör után. " +
+                $"HP: {startingNpcHp}→0; ellenfél HP: {startingEnemyHp}→{enemy.CurrentHitPoints}.",
+                ConsoleColor.Red);
+        }
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _battleStarted = false;
     }
 
     private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from) =>
@@ -701,7 +750,7 @@ public sealed class Game
     private void PlacePartyMembersNear(Position origin)
     {
         var alreadyPlaced = _maze.PartyMembers.Select(member => member.Character).ToHashSet();
-        var companions = CharacterRoster.Party.Members.Where(member => member != SelectedCharacter && !alreadyPlaced.Contains(member)).ToList();
+        var companions = CharacterRoster.Party.Members.Where(member => member != SelectedCharacter && member.IsAlive && !alreadyPlaced.Contains(member)).ToList();
         if (companions.Count == 0) return;
 
         var positions = FindNearbyFreePositions(origin).Take(companions.Count).ToList();

@@ -12,7 +12,7 @@ public sealed class BattleSystem(Random random)
 
     public BattleResult Resolve(LiveCharacter player, Enemy enemy, Action<BattleLogEntry> onRound)
     {
-        var defender = enemy.Definition;
+        var defender = enemy.Definition with { HitPoints = enemy.CurrentHitPoints };
         var context = new BattleContext(player);
         ApplyBattleStartPerks(player, onRound);
         var initiativeBonus = player.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
@@ -63,6 +63,7 @@ public sealed class BattleSystem(Random random)
             onRound(new BattleLogEntry(message, kind));
             playerAttacks = !playerAttacks;
         }
+        enemy.SetCurrentHitPoints(defender.HitPoints ?? 0);
         return new BattleResult(player.CurrentVitality > 0, round, events);
     }
 

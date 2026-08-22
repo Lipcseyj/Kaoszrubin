@@ -228,7 +228,7 @@ A rejtett `Ctrl+Shift+S` fejlesztői gyorsbillentyű pontosan a következő szin
 
 A `Party` 1–4 egyedi `LiveCharacter` objektumot tartalmaz. Első tagja mindig az aktív karakter és egyben a csapat vezetője. Új vezető kiválasztása új, egyszemélyes partit kezd; a társak normál felvételi folyamata későbbi fejlesztési pont. A parti tagjai a központi karakterlistában is szerepelnek, ezért ugyanazzal a karaktermentési modellel tárolódnak. A mentés a tagok karakterlistabeli indexeit őrzi.
 
-A jelenlegi játékmenetben a vezető harcol, kap XP-t, vesz fel aranyat és fogyaszt szükségleteket. A társak mozognak és felderítenek, de egyelőre nem vesznek részt a harcban vagy az erőforrás-fogyasztásban.
+A jelenlegi játékmenetben a vezető és a társak is harcolhatnak. XP-t és aranyat továbbra is csak a vezető kap, és csak az ő szükségletei fogynak; az NPC-csaták jutalmazása későbbi fejlesztési pont.
 
 A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbetűje: `H`, `B`, `L`, `T`, `P` vagy `M`. A jel a karakter saját színével rajzolódik. A társak minden új pályán szélességi kereséssel a vezetőhöz legközelebbi üres, járható cellákra kerülnek. Foglalják a mezőjüket az ellenfelek és a vezető elől; egymásra vagy szörnyre nem lépnek és zárt ajtón nem haladnak át.
 
@@ -238,8 +238,8 @@ A partitársak mozgása a `Game` meglévő egyszálú eseményciklusában fut. M
 
 A játék legfeljebb a vezér utolsó 256 sikeres pozícióját tartja nyilván. A vezetőt követő NPC-k nem annak pillanatnyi X/Y-koordinátája köré választanak célmezőt: a parti sorrendje szerint egyre régebbi nyompontot céloznak és szélességi útkereséssel lépnek felé. Ettől kiskacsaszerű sorban követik a tényleges útvonalat és egy szűkületben nem ugyanarra a mezőre torlódnak. A speciális előremenő vagy ellenségre reagáló viselkedés után ugyanehhez a nyomvonalhoz térnek vissza.
 
-- a defenzív társ legalább két vezérlépéssel korábbi nyompontot követ és így egy üres mezőt hagy közöttük; ötmezős rálátáson belüli szörny esetén annak egyik szabad szomszédos mezője felé indul de még nem támad;
-- az agresszív társ az előre eső tágas mezőket keresi és nem lép a vezető előtti szűk folyosóba; ötmezős rálátáson belüli szörny esetén annak egyik szabad szomszédos mezője felé indul de még nem támad;
+- a defenzív társ legalább két vezérlépéssel korábbi nyompontot követ és így egy üres mezőt hagy közöttük; ötmezős rálátáson belüli szörny felé indul és mellé érve automatikusan megtámadja;
+- az agresszív társ az előre eső tágas mezőket keresi és nem lép a vezető előtti szűk folyosóba; ötmezős rálátáson belüli szörny felé indul és mellé érve automatikusan megtámadja;
 - a felderítő legfeljebb tíz mezőre halad a vezető előtt; ötmezős rálátáson belüli szörny észlelésekor visszatér a vezér nyomvonalára;
 - az óvatos társ legalább két vezérlépéssel korábbi nyompontot követ; ellenség észlelésekor sem indul felé.
 
@@ -316,7 +316,11 @@ A rendszer a két már felfedezett végpont közötti, legfeljebb háromcellás 
 
 ## Csata algoritmusa
 
-A csata automatikus váltott támadásokból áll, de minden naplózott esemény után a játékosnak szóközzel kell továbblépnie. Nincs menekülés vagy harci akcióválasztás. A `BattleSystem` ugyanazt a `Random` példányt használja, mint a játék többi véletlen eseménye.
+A csata automatikus váltott támadásokból áll. A vezér csatájában minden naplózott esemény után a játékosnak szóközzel kell továbblépnie; az NPC-csata megszakítás nélkül lefut és csak egy végeredmény-összefoglalót ír a naplóba. Nincs menekülés vagy harci akcióválasztás. Mindkét út ugyanazt a `BattleSystem` algoritmust és a játék közös `Random` példányát használja.
+
+A defenzív és agresszív NPC a saját mozgási időpontjában aktívan megtámadja a szomszédos szörnyet. Bármely profil automatikusan visszaharcol akkor is ha egy szörny az ő mezőjére próbál lépni. NPC-győzelemkor a szörny holttestté válik. NPC-vereségkor a karakter 0 HP-val a partiban és a mentésben marad de térképi avatárja holttestté alakul és a következő pályákra sem kerül ki.
+
+Az `Enemy.CurrentHitPoints` a szörny futásidejű HP-ja. A `BattleSystem` ebből indítja a harcot és ide írja vissza a maradékot ezért egy NPC-t legyőző sérült szörny nem gyógyul vissza a következő találkozás előtt.
 
 ### 1. Kezdeményezés
 
@@ -412,7 +416,7 @@ Fontos állapotélettartamok:
 - `Game`: egy játékindítás idejére él;
 - `Maze`, `Player`, `FogOfWar`: egy labirintusszint idejére él;
 - `BattleSystem`: egy `Game` példányhoz tartozik;
-- ellenfél csata-HP: egyetlen csata idejére él.
+- ellenfél aktuális HP: az adott `Enemy` teljes labirintusszintbeli életére megmarad.
 
 ## Bővítési irányelvek
 

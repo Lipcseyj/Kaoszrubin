@@ -134,6 +134,12 @@ public sealed class Maze
         _corpses.Add(new Corpse(enemy.Position, enemy.Name));
     }
 
+    public void ReplacePartyMemberWithCorpse(PartyMemberAvatar member)
+    {
+        if (!_partyMembers.Remove(member)) throw new ArgumentException("A partitárs nem a labirintus része.", nameof(member));
+        _corpses.Add(new Corpse(member.Position, member.Character.Name));
+    }
+
     public WorldObject? GetObjectAt(Position position) =>
         _treasureChests.FirstOrDefault(chest => chest.Position == position) as WorldObject ??
         _enemies.FirstOrDefault(enemy => enemy.Position == position) as WorldObject ??
@@ -153,6 +159,7 @@ public sealed class Maze
     }
 
     public Enemy? GetEnemyAt(Position position) => _enemies.FirstOrDefault(enemy => enemy.Position == position);
+    public PartyMemberAvatar? GetPartyMemberAt(Position position) => _partyMembers.FirstOrDefault(member => member.Position == position);
     public TreasureChest? GetTreasureChestAt(Position position) => _treasureChests.FirstOrDefault(chest => chest.Position == position);
 
     public bool TryMoveEnemy(Enemy enemy, Position destination)

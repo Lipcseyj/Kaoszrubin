@@ -396,6 +396,7 @@ public sealed class ConsoleRenderer
     }
 
     public void DrawInventoryMessage(string message, ConsoleColor color = ConsoleColor.Cyan) => DrawBattleMessage(message, color);
+    public void DrawNpcBattleSummary(string message, ConsoleColor color) => DrawBattleMessage(message, color);
 
     /// <summary>
     /// Kirajzolja a teljes játéktér rácsát a megadott labirintus alapján.
