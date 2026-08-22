@@ -235,8 +235,9 @@ public sealed class Game
         var details = item switch
         {
             Domain.Combat.WeaponDefinition weapon =>
-                $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? _gameData.GetWeaponType(typeId).Name : "nincs")} | sebzés: {weapon.Damage?.ToString() ?? "nincs"}",
-            Domain.Combat.ArmorDefinition armor => $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"}",
+                $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? _gameData.GetWeaponType(typeId).Name : "nincs")} | sebzés: {weapon.Damage?.ToString() ?? "nincs"} | " +
+                $"{(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | kasztok: {AllowedClassNames(weapon.AllowedClassIds)}",
+            Domain.Combat.ArmorDefinition armor => $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"} | kasztok: {AllowedClassNames(armor.AllowedClassIds)}",
             Domain.Magic.MagicItemDefinition => "Varázstárgy | mágikus hatása még nincs bevezetve",
             _ => "Általános tárgy"
         };
@@ -252,6 +253,9 @@ public sealed class Game
         NpcBehavior.Cautious => "Óvatos",
         _ => "inaktív"
     };
+
+    private string AllowedClassNames(IReadOnlySet<string> classIds) => string.Join(", ",
+        _gameData.CharacterClasses.Where(characterClass => classIds.Contains(characterClass.Id)).Select(characterClass => characterClass.Name));
 
     private void GrabOrPlaceInventoryItem()
     {
@@ -278,24 +282,29 @@ public sealed class Game
             _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} visszakerült az eredeti helyére.", ConsoleColor.DarkYellow);
             return;
         }
-        if (!LiveCharacter.CanPlaceInventoryItem(target.Kind, held.Item))
-        {
-            _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} nem tehető ebbe a helybe.", ConsoleColor.Red);
-            return;
-        }
         var displaced = target.Character.GetInventoryItem(target.Kind, target.Index);
-        if (displaced is not null && !LiveCharacter.CanPlaceInventoryItem(held.Source.Kind, displaced))
+        var changesByCharacter = new Dictionary<LiveCharacter, List<InventorySlotChange>>();
+        AddInventoryChange(changesByCharacter, target.Character, new(target.Kind, target.Index, held.Item));
+        AddInventoryChange(changesByCharacter, held.Source.Character, new(held.Source.Kind, held.Source.Index, displaced));
+        if (changesByCharacter.Any(entry => !entry.Key.CanApplyInventoryChanges(entry.Value.ToArray())))
         {
-            _renderer.DrawInventoryMessage($"A csere nem lehetséges: a(z) {displaced.Name} nem fér a forráshelyre.", ConsoleColor.Red);
+            _renderer.DrawInventoryMessage("A felszerelés nem használható ezen a helyen vagy ezzel a kaszttal. A kétkezes fegyver csak az első, üres második fegyverhely mellett viselhető.", ConsoleColor.Red);
             return;
         }
-        target.Character.SetInventoryItem(target.Kind, target.Index, held.Item);
-        held.Source.Character.SetInventoryItem(held.Source.Kind, held.Source.Index, displaced);
+        foreach (var entry in changesByCharacter) entry.Key.ApplyInventoryChanges(entry.Value.ToArray());
         _heldInventoryItem = null;
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawInventoryMessage(displaced is null
             ? $"Áthelyezted: {held.Item.Name}."
             : $"Felcserélted: {held.Item.Name} ↔ {displaced.Name}.", ConsoleColor.Green);
+    }
+
+    private static void AddInventoryChange(Dictionary<LiveCharacter, List<InventorySlotChange>> changes,
+        LiveCharacter character, InventorySlotChange change)
+    {
+        if (!changes.TryGetValue(character, out var characterChanges))
+            changes[character] = characterChanges = [];
+        characterChanges.Add(change);
     }
 
     private void CancelHeldInventoryItem()

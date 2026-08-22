@@ -60,13 +60,10 @@ public sealed class LiveCharacter
 
     public void SetNpcBehavior(NpcBehavior? behavior) => NpcBehavior = behavior;
 
-    public void EquipWeapon(int slotIndex, WeaponDefinition? weapon)
-    {
-        if (slotIndex is < 0 or >= 2) throw new ArgumentOutOfRangeException(nameof(slotIndex));
-        _weaponSlots[slotIndex] = weapon;
-    }
+    public bool EquipWeapon(int slotIndex, WeaponDefinition? weapon) =>
+        SetInventoryItem(InventorySlotKind.Weapon, slotIndex, weapon);
 
-    public void EquipArmor(ArmorDefinition? armor) => Armor = armor;
+    public bool EquipArmor(ArmorDefinition? armor) => SetInventoryItem(InventorySlotKind.Armor, 0, armor);
 
     public bool AddMagicItem(MagicItemDefinition item)
     {
@@ -110,25 +107,66 @@ public sealed class LiveCharacter
         _ => false
     };
 
+    public bool CanApplyInventoryChanges(params InventorySlotChange[] changes)
+    {
+        var weapons = (WeaponDefinition?[])_weaponSlots.Clone();
+        var armor = Armor;
+        foreach (var change in changes)
+        {
+            if (change.Item is not null && !CanPlaceInventoryItem(change.Kind, change.Item)) return false;
+            switch (change.Kind)
+            {
+                case InventorySlotKind.Weapon when change.Index is >= 0 and < 2:
+                    weapons[change.Index] = (WeaponDefinition?)change.Item;
+                    break;
+                case InventorySlotKind.Armor when change.Index == 0:
+                    armor = (ArmorDefinition?)change.Item;
+                    break;
+                case InventorySlotKind.MagicItem when change.Index is >= 0 and < MaximumMagicItemCount:
+                case InventorySlotKind.Backpack when change.Index is >= 0 and < MaximumBackpackItemCount:
+                    break;
+                default:
+                    return false;
+            }
+        }
+
+        if (weapons.Any(weapon => weapon is not null && !weapon.CanBeEquippedBy(CharacterClass.Id))) return false;
+        if (armor is not null && !armor.CanBeEquippedBy(CharacterClass.Id)) return false;
+        if (weapons[1]?.IsTwoHanded == true) return false;
+        return weapons[0]?.IsTwoHanded != true || weapons[1] is null;
+    }
+
     public bool SetInventoryItem(InventorySlotKind kind, int index, IItemDefinition? item)
     {
-        if (item is not null && !CanPlaceInventoryItem(kind, item)) return false;
+        var change = new InventorySlotChange(kind, index, item);
+        if (!CanApplyInventoryChanges(change)) return false;
+        ApplyInventoryChangesUnchecked(change);
+        return true;
+    }
+
+    public void ApplyInventoryChanges(params InventorySlotChange[] changes)
+    {
+        if (!CanApplyInventoryChanges(changes)) throw new InvalidOperationException("A felszerelésváltozás nem engedélyezett.");
+        foreach (var change in changes) ApplyInventoryChangesUnchecked(change);
+    }
+
+    private void ApplyInventoryChangesUnchecked(InventorySlotChange change)
+    {
+        var (kind, index, item) = change;
         switch (kind)
         {
             case InventorySlotKind.Weapon when index is >= 0 and < 2:
                 _weaponSlots[index] = (WeaponDefinition?)item;
-                return true;
+                break;
             case InventorySlotKind.Armor when index == 0:
                 Armor = (ArmorDefinition?)item;
-                return true;
+                break;
             case InventorySlotKind.MagicItem when index is >= 0 and < MaximumMagicItemCount:
                 _magicItems[index] = (MagicItemDefinition?)item;
-                return true;
+                break;
             case InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount:
                 _backpack[index] = item;
-                return true;
-            default:
-                return false;
+                break;
         }
     }
 
@@ -260,6 +298,8 @@ public sealed class LiveCharacter
         MaximumMana += UsesMana ? Math.Max(0, manaIncrease) : 0;
     }
 }
+
+public readonly record struct InventorySlotChange(InventorySlotKind Kind, int Index, IItemDefinition? Item);
 
 public sealed record LevelUpBonus(int Level, int Vitality, int Mana);
 

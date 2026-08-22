@@ -508,7 +508,11 @@ public sealed class ConsoleRenderer
             _activeSheetSelection = entries.FirstOrDefault()?.Key;
 
         WriteSheetLine(19, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Weapon, 0)));
-        WriteSheetLine(20, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Weapon, 1)));
+        var secondWeaponText = character.WeaponSlots[0]?.IsTwoHanded == true
+            ? "2: ⛔ kétkezes fegyver"
+            : $"2: {ItemName(character.WeaponSlots[1])}";
+        WriteSheetLine(20, secondWeaponText, character.WeaponSlots[0]?.IsTwoHanded == true ? ConsoleColor.DarkGray : ConsoleColor.Gray,
+            SelectionBackground(new(SheetSelectionKind.Weapon, 1)));
         WriteSheetLine(21, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow, SelectionBackground(new(SheetSelectionKind.Armor, 0)));
         for (var index = 0; index < 3; index++)
             WriteSheetLine(24 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}",

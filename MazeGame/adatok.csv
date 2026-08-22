@@ -234,22 +234,22 @@ E024,Balor démon,♛,19,2500,10,8,7500
 E025,Fekete sárkány,Ð,20,2000,10,8,10000
 
 #Fegyverek
-Id,Név,Típus,Sebzés,Jellemzés
-W001,tőr,WT002,2-5,Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.
-W002,rövid kard,WT002,3-7,Fordulékony egykezes kard amely szűk helyen is jól használható.
-W003,katana,WT002,5-10,Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.
-W004,hosszú kard,WT001,5-11,Megbízható acélkard erőteljes vágásokhoz és szúrásokhoz.
-W005,bunkó,WT001,3-6,Egyszerű nehéz ütőfegyver amelyhez több erő kell mint ügyesség.
-W006,buzogány,WT001,4-9,Vasfejű zúzófegyver amely súlyos csapásokat mér az ellenfélre.
-W007,láncos buzogány,WT001,5-11,Láncon forgó tüskés fej kiszámíthatatlan és veszélyes ívvel.
-W008,csatacsillag,WT001,6-12,Nehéz tüskés fegyver amely pusztító lendületet gyűjt támadáskor.
-W009,pallos,WT001,8-16,Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.
-W010,csatabárd,WT001,6-13,Széles pengéjű bárd erős és könyörtelen vágásokhoz.
-W011,lándzsa,WT001,5-12,Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.
-W012,alabárd,WT001,7-15,Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.
-W013,csatakalapács,WT001,7-14,Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.
-W014,bőrpajzs,WT003,1-3,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.
-W015,fapajzs,WT003,2-5,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.
+Id,Név,Típus,Sebzés,Kétkezes,Tolvaj,Pap,Mágus,Jellemzés
+W001,tőr,WT002,2-5,nem,igen,nem,igen,Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.
+W002,rövid kard,WT002,3-7,nem,igen,nem,nem,Fordulékony egykezes kard amely szűk helyen is jól használható.
+W003,katana,WT002,5-10,igen,igen,nem,nem,Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.
+W004,hosszú kard,WT001,5-11,nem,igen,nem,nem,Megbízható acélkard erőteljes vágásokhoz és szúrásokhoz.
+W005,bunkó,WT001,3-6,nem,igen,igen,nem,Egyszerű nehéz ütőfegyver amelyhez több erő kell mint ügyesség.
+W006,buzogány,WT001,4-9,nem,nem,igen,nem,Vasfejű zúzófegyver amely súlyos csapásokat mér az ellenfélre.
+W007,láncos buzogány,WT001,5-11,nem,nem,igen,nem,Láncon forgó tüskés fej kiszámíthatatlan és veszélyes ívvel.
+W008,csatacsillag,WT001,6-12,nem,nem,igen,nem,Nehéz tüskés fegyver amely pusztító lendületet gyűjt támadáskor.
+W009,pallos,WT001,8-16,igen,nem,nem,nem,Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.
+W010,csatabárd,WT001,6-13,nem,nem,nem,nem,Széles pengéjű bárd erős és könyörtelen vágásokhoz.
+W011,lándzsa,WT001,5-12,igen,nem,nem,nem,Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.
+W012,alabárd,WT001,7-15,igen,nem,nem,nem,Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.
+W013,csatakalapács,WT001,7-14,igen,nem,igen,nem,Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.
+W014,bőrpajzs,WT003,1-3,nem,igen,igen,nem,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.
+W015,fapajzs,WT003,2-5,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.
 
 #Fegyvertípus
 Id,Név
@@ -258,16 +258,16 @@ WT002,Ügyesség
 WT003,Védelem
 
 #Páncélok
-Id,Név,Védelem,Jellemzés
-A001,kámzsa,1-2,Vastag szövetből készült fejvédő a kisebb sérülések ellen.
-A002,bőrvért,2-3,Könnyű edzett bőrpáncél amely szabad mozgást biztosít.
-A003,láncing,3-4,Összefűzött fémkarikákból készült hajlékony vértezet.
-A004,pikkelypáncél,2-5,Egymásra simuló fémpikkelyekből álló változó védelmű páncél.
-A005,mellvért,6-7,Formázott acéllemez amely erősen védi a törzset.
-A006,teljes vértezet,8-10,Nehéz lemezpáncél amely tetőtől talpig óvja viselőjét.
-A007,mitril láncing,7-8,Rendkívül könnyű és erős mitrilkarikákból font ritka vértezet.
-A008,mitril mellvért,8-9,Könnyedén viselhető mitril lemez kiváló törzsvédelemmel.
-A009,mitril teljes vértezet,12-15,Mesteri mitril páncélzat amely páratlan védelmet nyújt.
+Id,Név,Védelem,Barbár,Tolvaj,Pap,Mágus,Jellemzés
+A001,kámzsa,1-2,igen,igen,igen,igen,Vastag szövetből készült fejvédő a kisebb sérülések ellen.
+A002,bőrvért,2-3,igen,igen,igen,nem,Könnyű edzett bőrpáncél amely szabad mozgást biztosít.
+A003,láncing,3-4,igen,nem,igen,nem,Összefűzött fémkarikákból készült hajlékony vértezet.
+A004,pikkelypáncél,2-5,igen,nem,igen,nem,Egymásra simuló fémpikkelyekből álló változó védelmű páncél.
+A005,mellvért,6-7,igen,nem,igen,nem,Formázott acéllemez amely erősen védi a törzset.
+A006,teljes vértezet,8-10,nem,nem,igen,nem,Nehéz lemezpáncél amely tetőtől talpig óvja viselőjét.
+A007,mitril láncing,7-8,igen,igen,igen,nem,Rendkívül könnyű és erős mitrilkarikákból font ritka vértezet.
+A008,mitril mellvért,8-9,igen,nem,igen,nem,Könnyedén viselhető mitril lemez kiváló törzsvédelemmel.
+A009,mitril teljes vértezet,12-15,nem,nem,igen,nem,Mesteri mitril páncélzat amely páratlan védelmet nyújt.
 
 #Képességek
 Id,Név

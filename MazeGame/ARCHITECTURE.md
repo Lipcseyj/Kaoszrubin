@@ -261,9 +261,13 @@ A `Tab` vált a térkép- és karakterlapfókusz között. Karakterlapfókuszban
 
 Karakterlapfókuszban a bal/jobb nyíl körkörösen vált a parti tagjainak teljes karakterlapja és inventoryja között. A három rögzített társsor mindig ugyanazokat a társakat mutatja; az éppen megtekintett társ sora `▶` jelölést kap. A vezető lapjának megtekintésekor nincs nyíl a társsorokban. A megtekintett lap nem változtatja meg a térképen irányított vezetőt.
 
-Az inventory rögzített helyekből áll: két fegyverhely, egy páncélhely, három varázstárgyhely és tíz hátizsákhely. Minden `IItemDefinition` kategóriája fegyver, páncél, varázstárgy vagy általános tárgy. A felszereléshelyek csak a saját kategóriájukat fogadják el, a hátizsák bármelyiket. A `Space` kiemeli a kijelölt tárgyat, majd ugyanazon vagy másik partitag érvényes helyére teszi; foglalt cél esetén a két tárgy helyet cserél, ha a visszakerülő tárgy is megfelel a forráshely kategóriájának. A fókusz elhagyása visszateszi a még kézben tartott tárgyat, így az nem veszhet el.
+Az inventory rögzített helyekből áll: két fegyverhely, egy páncélhely, három varázstárgyhely és tíz hátizsákhely. Minden `IItemDefinition` kategóriája fegyver, páncél, varázstárgy vagy általános tárgy. A felszereléshelyek csak a saját kategóriájukat fogadják el, a hátizsák bármelyiket. A `Space` kiemeli a kijelölt tárgyat, majd ugyanazon vagy másik partitag érvényes helyére teszi; foglalt cél esetén a két tárgy helyet cserél, ha a teljes csere után mindkét felszerelés érvényes. A fókusz elhagyása visszateszi a még kézben tartott tárgyat, így az nem veszhet el.
 
-Az `I` a kijelölt tárgy összes jelenleg ismert adatát az alsó üzenetnaplóba írja: név és stabil ID minden tárgynál; fegyvertípus és sebzés a fegyvereknél; védelem a páncéloknál; valamint a CSV-ből betöltött jellemzés. A fegyverekhez és páncélokhoz tartozó jellemzés a megfelelő szekció utolsó oszlopa; az általános tárgyaknál a harmadik oszlop.
+A `#Fegyverek` és `#Páncélok` CSV-szekció kasztoszlopai határozzák meg, mely osztályok viselhetik az adott tárgyat. A fegyvereknél a Harcos, Barbár és Lovag, a páncéloknál a Harcos és Lovag alapértelmezetten engedélyezett; a többi kaszt engedélyét az `igen` érték adja. A korlátozás csak a felszereléshelyekre vonatkozik, hátizsákban bármely karakter hordozhat bármilyen tárgyat. Az ellenőrzés központilag a `LiveCharacter` végleges, tervezett inventoryállapotán fut, ezért a kézi mozgatásra és cserére, a kezdőfelszerelésre, a mentés betöltésére és a véletlen NPC-felszerelésre is érvényes.
+
+A kétkezes fegyver kizárólag az első fegyverhelyen viselhető. Amíg ott kétkezes fegyver van, a második fegyverhelynek üresnek kell lennie és a karakterlapon `⛔` lezárásként jelenik meg. Kétkezes fegyver csak üres második hely mellett szerelhető fel; a második hely pedig nem tölthető fel, amíg az elsőben kétkezes fegyver marad. A hátizsákban ez a korlátozás sem érvényes.
+
+Az `I` a kijelölt tárgy összes jelenleg ismert adatát az alsó üzenetnaplóba írja: név és stabil ID minden tárgynál; fegyvertípus, sebzés, egy-/kétkezes jelleg és engedélyezett kasztok a fegyvereknél; védelem és engedélyezett kasztok a páncéloknál; valamint a CSV-ből betöltött jellemzés. A fegyverekhez és páncélokhoz tartozó jellemzés a megfelelő szekció utolsó oszlopa; az általános tárgyaknál a harmadik oszlop.
 
 Ha a kijelölés egy partitárs sorára esik akkor az `I` a társ nevét és magyar mozgásprofilját írja az üzenetnaplóba.
 
@@ -275,7 +279,7 @@ A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű négy főre tölti a partit
 - az osztály CSV-s névkészletéből lehetőleg még nem használt nevet választ;
 - 2–30. szint közé fejleszti a normál HP-/mannadobásokkal;
 - szintjének megfelelő eséllyel választ tehetségeket;
-- véletlen fegyvereket, páncélt, varázstárgyakat és hátizsáktartalmat ad.
+- kizárólag a kasztja által használható véletlen fegyvereket és páncélt, továbbá varázstárgyakat és korlátozás nélküli hátizsáktartalmat ad; kétkezes első fegyvernél a második hely üres marad;
 - véletlen NPC-mozgásprofilt rendel hozzá.
 
 A rejtett `Ctrl+Shift+Í` fejlesztői gyorsbillentyű — ha van szabad hely — pontosan egy új NPC-t ad a partihoz. A karakter 1. szintű marad és kizárólag az osztály `#Osztály kezdőfelszerelés` CSV-s szabálya szerinti alapfelszerelést kapja; véletlen magasabb szintet és extra felszerelést nem.

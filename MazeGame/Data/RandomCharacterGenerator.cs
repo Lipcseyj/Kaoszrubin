@@ -28,7 +28,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             var finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
             var eligibleClasses = _gameData.CharacterClasses.Where(candidate => finalAbilities.MeetsMinimum(candidate.MinimumAbilities)).ToList();
             if (eligibleClasses.Count == 0) continue;
-            var characterClass = new CharacterClassDefinition("C004", "Tolvi", PrimaryAbilities.Zero, false, 0.8); /*eligibleClasses[_random.Next(eligibleClasses.Count)];*/
+            var characterClass = eligibleClasses[_random.Next(eligibleClasses.Count)];
             var name = ChooseName(characterClass.Id, usedNames);
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
                 _random.Next(1, 16), _random.Next(1, 16), _gameData,
@@ -90,8 +90,17 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
 
     private void FillRandomEquipment(LiveCharacter character)
     {
-        for (var slot = 0; slot < 2; slot++) character.EquipWeapon(slot, _gameData.Weapons[_random.Next(_gameData.Weapons.Count)]);
-        character.EquipArmor(_gameData.Armors[_random.Next(_gameData.Armors.Count)]);
+        var usableWeapons = _gameData.Weapons.Where(weapon => weapon.CanBeEquippedBy(character.CharacterClass.Id)).ToList();
+        if (usableWeapons.Count > 0)
+        {
+            var firstWeapon = usableWeapons[_random.Next(usableWeapons.Count)];
+            character.EquipWeapon(0, firstWeapon);
+            var usableSecondWeapons = usableWeapons.Where(weapon => !weapon.IsTwoHanded).ToList();
+            if (!firstWeapon.IsTwoHanded && usableSecondWeapons.Count > 0)
+                character.EquipWeapon(1, usableSecondWeapons[_random.Next(usableSecondWeapons.Count)]);
+        }
+        var usableArmors = _gameData.Armors.Where(armor => armor.CanBeEquippedBy(character.CharacterClass.Id)).ToList();
+        if (usableArmors.Count > 0) character.EquipArmor(usableArmors[_random.Next(usableArmors.Count)]);
         var magicItemCount = _random.Next(1, LiveCharacter.MaximumMagicItemCount + 1);
         foreach (var item in _gameData.MagicItems.OrderBy(_ => _random.Next()).Take(magicItemCount)) character.AddMagicItem(item);
 

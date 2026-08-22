@@ -118,10 +118,14 @@ public static class CsvGameDataLoader
                 weaponTypes.Add(new WeaponTypeDefinition(id, name));
                 break;
             case DataSection.Weapons:
-                weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), ValueRangeFrom(cells, 3), Cell(cells, 4)));
+                weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), ValueRangeFrom(cells, 3),
+                    IsYes(cells, 4), AllowedClasses(cells, ("C001", null), ("C002", null), ("C003", null),
+                        ("C004", 5), ("C005", 6), ("C006", 7)), Cell(cells, 8)));
                 break;
             case DataSection.Armors:
-                armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2), Cell(cells, 3)));
+                armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),
+                    AllowedClasses(cells, ("C001", null), ("C003", null), ("C002", 3),
+                        ("C004", 4), ("C005", 5), ("C006", 6)), Cell(cells, 7)));
                 break;
             case DataSection.Abilities:
                 abilities.Add(new AbilityDefinition(id, name));
@@ -183,6 +187,15 @@ public static class CsvGameDataLoader
                 break;
         }
     }
+
+    private static bool IsYes(string[] cells, int index) =>
+        string.Equals(Cell(cells, index), "igen", StringComparison.OrdinalIgnoreCase);
+
+    private static IReadOnlySet<string> AllowedClasses(string[] cells,
+        params (string ClassId, int? FlagIndex)[] classRules) => classRules
+        .Where(rule => rule.FlagIndex is null || IsYes(cells, rule.FlagIndex.Value))
+        .Select(rule => rule.ClassId)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private static IEnumerable<string> ReadLinesWithFallbackEncoding(string filePath)
     {
