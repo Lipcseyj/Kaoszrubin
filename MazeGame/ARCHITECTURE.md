@@ -234,12 +234,14 @@ A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbe
 
 Az NPC-ként vezérelt `LiveCharacter` nullable `NpcBehavior` tulajdonsága mentésre kerül. A vezetőnél inaktív. Generáláskor a barbár mindig `Aggressive`, a lovag mindig `Defensive`, a tolvaj mindig `Scout`, a pap és a mágus mindig `Cautious`; a harcos fele-fele eséllyel `Defensive` vagy `Aggressive`. Régi mentésből származó NPC alapértéke az első elhelyezéskor `Defensive`.
 
-A partitársak mozgása 0.75 másodperces tickkel fut a `Game` meglévő egyszálú eseményciklusában. Ez időzített viselkedést ad anélkül, hogy párhuzamos konzolrajzolás vagy versenyhelyzet keletkezne. Minden tickben szélességi útkeresés választ legfeljebb egy lépést:
+A partitársak mozgása a `Game` meglévő egyszálú eseményciklusában fut. Minden avatár saját következő mozgási időpontot kap 550–950 ms közötti véletlen késleltetéssel; az induló késleltetésük is eltérő. Így nem egyszerre próbálják elfoglalni ugyanazokat a mezőket és nincs párhuzamos konzolrajzolás vagy versenyhelyzet.
 
-- a defenzív társ két lépésnyi távolságot tart a vezetőtől és így egy üres mezőt hagy közöttük; ötmezős rálátáson belüli szörny esetén annak egyik szabad szomszédos mezője felé indul de még nem támad;
+A játék legfeljebb a vezér utolsó 256 sikeres pozícióját tartja nyilván. A vezetőt követő NPC-k nem annak pillanatnyi X/Y-koordinátája köré választanak célmezőt: a parti sorrendje szerint egyre régebbi nyompontot céloznak és szélességi útkereséssel lépnek felé. Ettől kiskacsaszerű sorban követik a tényleges útvonalat és egy szűkületben nem ugyanarra a mezőre torlódnak. A speciális előremenő vagy ellenségre reagáló viselkedés után ugyanehhez a nyomvonalhoz térnek vissza.
+
+- a defenzív társ legalább két vezérlépéssel korábbi nyompontot követ és így egy üres mezőt hagy közöttük; ötmezős rálátáson belüli szörny esetén annak egyik szabad szomszédos mezője felé indul de még nem támad;
 - az agresszív társ az előre eső tágas mezőket keresi és nem lép a vezető előtti szűk folyosóba; ötmezős rálátáson belüli szörny esetén annak egyik szabad szomszédos mezője felé indul de még nem támad;
-- a felderítő legfeljebb tíz mezőre halad a vezető előtt; ötmezős rálátáson belüli szörny észlelésekor a vezető kétmezős környezetébe vonul vissza.
-- az óvatos társ legalább két mezővel a vezető aktuális haladási iránya mögött marad; ellenség észlelésekor sem indul felé.
+- a felderítő legfeljebb tíz mezőre halad a vezető előtt; ötmezős rálátáson belüli szörny észlelésekor visszatér a vezér nyomvonalára;
+- az óvatos társ legalább két vezérlépéssel korábbi nyompontot követ; ellenség észlelésekor sem indul felé.
 
 Minden társ ugyanazzal az ötmezős és falak/ajtók által takart látótérszámítással hívja a `FogOfWar.RevealFrom` műveletet. A társ induló környezete azonnal láthatóvá válik és minden sikeres NPC-lépés csak az újonnan felfedett valamint az elhagyott/elfoglalt térképcellákat rajzolja újra.
 
