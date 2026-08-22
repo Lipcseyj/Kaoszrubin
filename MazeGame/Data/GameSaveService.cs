@@ -107,7 +107,9 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     EnemyMovementProfile MovementProfile = EnemyMovementProfile.Wander,
     Direction PatrolDirection = Direction.Right,
     EnemyPursuitState PursuitState = EnemyPursuitState.Undecided,
-    int NextMoveRemainingMilliseconds = -1);
+    int NextMoveRemainingMilliseconds = -1,
+    string? GroupId = null,
+    EnemyGroupRole GroupRole = EnemyGroupRole.Member);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);

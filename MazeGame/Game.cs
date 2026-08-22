@@ -168,10 +168,14 @@ public sealed class Game
     private void StartNewMaze()
     {
         var configuration = MazeLevelConfigurations.Get(_mazeLevel);
-        var enemySpawns = configuration.EnemySpawns
-            .Select(spawn => new ResolvedEnemySpawn(_gameData.GetEnemy(spawn.EnemyId), spawn.Count.Roll(_random)))
-            .ToList();
-        _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random), enemySpawns);
+        ResolvedEnemyEncounter ResolveEncounter(EnemyEncounterConfiguration encounter) => new(
+            encounter.GroupCount,
+            encounter.Members.Select(member => new ResolvedEnemyGroupMember(
+                _gameData.GetEnemy(member.EnemyId), member.Count, member.Role)).ToList(),
+            encounter.MovementProfile);
+        _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
+            configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
+            configuration.CorridorEncounters.Select(ResolveEncounter).ToList());
         _maze = _generator.Create(MazeWidth, MazeHeight);
         _player = new Player(_maze.Entrance, SelectedCharacter);
         _leaderTrail.Clear();
@@ -224,7 +228,8 @@ public sealed class Game
             Chests = _maze.TreasureChests.Select(chest => new ChestSaveData(chest.Position, chest.GoldAmount)).ToList(),
             Enemies = _maze.Enemies.Select(enemy => new EnemySaveData(enemy.Position, enemy.Definition.Id,
                 enemy.CurrentHitPoints, enemy.MovementProfile, enemy.PatrolDirection, enemy.PursuitState,
-                Math.Max(0, (int)(_nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds))).ToList(),
+                Math.Max(0, (int)(_nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds),
+                enemy.GroupId, enemy.GroupRole)).ToList(),
             Corpses = _maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null)).ToList(),
             PartyAvatars = _maze.PartyMembers.Select(member => new PartyAvatarSaveData(member.Position, CharacterIndex(member.Character))).ToList(),
@@ -275,6 +280,7 @@ public sealed class Game
             var enemy = new ConfiguredEnemy(savedEnemy.Position, _gameData.GetEnemy(savedEnemy.DefinitionId));
             enemy.SetCurrentHitPoints(savedEnemy.CurrentHitPoints);
             enemy.ConfigureMovement(savedEnemy.MovementProfile, savedEnemy.PatrolDirection, savedEnemy.PursuitState);
+            enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
             _maze.AddEnemy(enemy);
             var remaining = savedEnemy.NextMoveRemainingMilliseconds >= 0
                 ? savedEnemy.NextMoveRemainingMilliseconds
@@ -585,7 +591,7 @@ public sealed class Game
             ScheduleNextEnemyMove(enemy, now);
             if (enemy.PursuitState == EnemyPursuitState.Undecided &&
                 FogOfWar.CanSee(_maze, enemy.Position, _player.Position, VisionRange))
-                enemy.ResolvePursuit(_random.Next(100) < 60);
+                ResolveEnemyPursuit(enemy);
 
             Direction? direction = enemy.PursuitState == EnemyPursuitState.Pursuing
                 ? FindEnemyStepToward(enemy, _player.Position)
@@ -607,6 +613,17 @@ public sealed class Game
                 if (TryMoveEnemy(enemy, enemy.PatrolDirection) && _battleStarted) return;
             }
         }
+    }
+
+    private void ResolveEnemyPursuit(Enemy observer)
+    {
+        var pursue = _random.Next(100) < 60;
+        var group = observer.GroupId is null
+            ? [observer]
+            : _maze.Enemies.Where(enemy => string.Equals(enemy.GroupId, observer.GroupId,
+                StringComparison.Ordinal)).ToList();
+        foreach (var enemy in group.Where(enemy => enemy.PursuitState == EnemyPursuitState.Undecided))
+            enemy.ResolvePursuit(pursue);
     }
 
     private void InitializeEnemyMoveSchedule(DateTime from)

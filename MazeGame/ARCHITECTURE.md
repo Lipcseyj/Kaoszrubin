@@ -237,9 +237,24 @@ Minden szörny a pályageneráláskor egyszer kap mozgási profilt és járőrir
 - `Wander`: minden mozgási időpontban véletlen szomszédos irányt választ;
 - `Patrol`: egyenes vonalban halad, akadálynál megfordul, majd az ellenkező irányba folytatja útját.
 
-Szobában generált szörny 80% eséllyel helyben áll; a fennmaradó 20% egyenlően oszlik meg a kóborló és járőr profil között. Folyosón a helyben állás esélye 10%, a maradék 90% fele-fele arányban kóborló vagy járőr.
+Ha egy találkozás nem ír elő mozgást, a szobában generált szörny 80% eséllyel helyben áll; a fennmaradó 20% egyenlően oszlik meg a kóborló és járőr profil között. Folyosón a helyben állás esélye 10%, a maradék 90% fele-fele arányban kóborló vagy járőr. A jelenlegi szobai csoportkonfigurációk kifejezetten `Stationary` profilt kérnek, ezért ezek tagjai és vezérei észlelés előtt együtt, helyben várakoznak.
 
-Profiltól függetlenül minden szörny egyszer hoz üldözési döntést, amikor először legfeljebb öt Chebyshev-távolságra, tiszta látóvonalban meglátja a partyvezért. 60% eséllyel üldözni kezdi, 40% eséllyel végleg megtartja eredeti profilját. Az üldöző a járható útvonalon, zárt ajtókat és foglalt mezőket kerülve közelít; partitársba ütközve vele kezd csatát. Az üldözési döntés, a profil és a járőr aktuális iránya mentéskor megmarad. Régi mentésből hiányzó profil alapértéke a korábbi működést megőrző `Wander`.
+Profiltól függetlenül minden magányos szörny vagy szörnycsoport egyszer hoz üldözési döntést, amikor valamelyik tag először legfeljebb öt Chebyshev-távolságra, tiszta látóvonalban meglátja a partyvezért. 60% eséllyel az egész csoport üldözni kezd, 40% eséllyel minden tag végleg megtartja eredeti profilját. Az üldözők járható útvonalon, zárt ajtókat és foglalt mezőket kerülve közelítenek; partitársba ütközve vele kezdenek csatát. Az üldözési döntés, a csoportazonosító és -szerep, a profil és a járőr aktuális iránya mentéskor megmarad. Régi mentésből hiányzó profil alapértéke a korábbi működést megőrző `Wander`; a hiányzó csoportazonosító magányos ellenfelet jelent.
+
+### Szörnycsoportok és találkozások
+
+A pályakonfiguráció nem összesített ellenféldarabszámokat, hanem külön szobai és folyosói `EnemyEncounterConfiguration` találkozásokat ír le. Három rövid építő áll rendelkezésre:
+
+- `Encounters.Same`: egyetlen fajból álló homogén csoport;
+- `Encounters.Mixed`: két fajból álló, hasonló erejű vegyes csoport;
+- `Encounters.LeaderGroup`: pontosan egy erősebb vezér és több gyengébb követő;
+- `Encounters.Solo`: egyszemélyes találkozások, elsősorban folyosókhoz.
+
+A mennyiségekhez az `Amount` jelzők használhatók: `One` = 1, `Few` = 1–2, `Several` = 3–5, `Band` = 6–9, `Many` = 10–14. A csoportok száma és az egy csoporton belüli létszám külön jelző, ezért például kevés nagy banda és sok kis csoport egymástól függetlenül konfigurálható. Az `IntRange` belső típusként és olyan értékeknél marad meg, ahol egyedi tartomány szükséges, például szobaméretnél, aranynál vagy későbbi szintek képletes skálázásánál.
+
+A generátor előbb a szobai találkozásokat helyezi el, szobánként legfeljebb egy teljes csoporttal, majd csak ezután a folyosói találkozásokat. A csoport vezére a szoba közepéhez legközelebbi alkalmas mezőt kapja, a követők köré rendeződnek. Ajtóval közvetlenül szomszédos belső mezőre nem kerül szörny. Ha egy csoport teljes kisorsolt létszáma nem fér el, a generátor másik szobát keres; ha nincs megfelelő szoba, kihagyja a csoportot, nem helyezi el töredékesen. A folyosói csoportok összefüggő járható mezőkön jelennek meg.
+
+Az 1–2. pályán főként azonos, alacsony erősségű lények csoportjai jelennek meg, a 2. pályától vegyes találkozásokkal. A 3. pályától vezér és kíséret típusú csoport is lehet. A későbbi, automatikusan képzett konfigurációk három pályánként magasabb erősségi készletre váltanak, miközben a szobai csoportok maradnak túlsúlyban.
 
 Minden szörny külön következő mozgási időponttal rendelkezik. A zombi (`E006`) Gyorsasága 2, ehhez tartozik a korábbi 700 ms-os alaptempó; más ellenfélnél a periódus fordítottan arányos a CSV-s Gyorsasággal:
 
@@ -406,7 +421,7 @@ Szabad partihely esetén az `Enter` azonnal felveszi a kijelölt zsoldost. Négy
 
 A rejtett `Ctrl+Shift+E` fejlesztői gyorsbillentyű a partyvezért a kijárat melletti, járható és objektumtól mentes mezők közül a hozzá legközelebbire teleportálja. A teleport frissíti a vezér útvonalát és a látómezőt is; ha nincs megfelelő szabad mező, csak naplóüzenet jelenik meg.
 
-Az 1–3. labirintusszint külön konfigurációval rendelkezik. A későbbi szintek a harmadik szintből számított, fokozatosan növekvő szobaszámot, jutalmat és ellenfélszámot kapnak. Az 50 szörny teljes katalógusa rendelkezésre áll, de az aktuális pályakonfigurációk továbbra is konkrét ellenfél-ID-ket sorolnak fel; az erősségi szint alapján összeállított automatikus pályakészlet későbbi bővítési pont.
+Az 1–3. labirintusszint külön, találkozásalapú konfigurációval rendelkezik. A későbbi szintek fokozatosan növekvő szobaszámot és jutalmat, valamint erősségi szakaszonként cserélődő homogén, vegyes és vezércsoportokat kapnak. A találkozások továbbra is stabil ellenfél-ID-ket használnak, így a pályák összetétele kiszámíthatóan hangolható.
 
 ## Szörnyek erőssége és képességei
 
@@ -566,7 +581,7 @@ A játék közbeni `Ctrl+S` előbb visszateszi az esetleg kézben tartott invent
 - a teljes karakterlistát, partit, inventorykat, állapotokat és erőforrásokat;
 - a pályaszintet, vezetőpozíciót, nézési irányt és követési útvonalat;
 - a teljes térképrácsot, szobákat, kijáratot és ajtóállapotokat;
-- az ellenfelek pozícióját és aktuális HP-ját, ládákat, holttesteket és földi tárgyhalmokat;
+- az ellenfelek pozícióját, aktuális HP-ját, mozgási időzítését, profilját, üldözési döntését, csoportazonosítóját és vezér/tag szerepét, továbbá a ládákat, holttesteket és földi tárgyhalmokat;
 - a partitársak térképi pozícióit és az elesett társak karakterkapcsolatát;
 - a felfedezett ködmezőket, partiparancsot, valamint a szétszóródás, ellenfélmozgás és szükségletfogyás hátralévő idejét.
 

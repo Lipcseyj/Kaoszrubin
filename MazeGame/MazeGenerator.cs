@@ -11,12 +11,15 @@ public sealed class MazeGenerator
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private readonly Random _random = new();
     private readonly MazeGenerationSettings _settings;
-    private readonly IReadOnlyList<ResolvedEnemySpawn> _enemySpawns;
+    private readonly IReadOnlyList<ResolvedEnemyEncounter> _roomEncounters;
+    private readonly IReadOnlyList<ResolvedEnemyEncounter> _corridorEncounters;
 
-    public MazeGenerator(MazeGenerationSettings settings, IReadOnlyList<ResolvedEnemySpawn> enemySpawns)
+    public MazeGenerator(MazeGenerationSettings settings, IReadOnlyList<ResolvedEnemyEncounter> roomEncounters,
+        IReadOnlyList<ResolvedEnemyEncounter> corridorEncounters)
     {
         _settings = settings;
-        _enemySpawns = enemySpawns;
+        _roomEncounters = roomEncounters;
+        _corridorEncounters = corridorEncounters;
         ValidateSettings(_settings);
     }
 
@@ -157,24 +160,107 @@ public sealed class MazeGenerator
     private void PlaceMapObjects(Maze maze)
     {
         PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze).Where(position => maze.StartingRoom?.Contains(position) != true), position => new TreasureChest(position, _settings.TreasureGoldRange.Roll(_random)), maze.AddTreasureChest);
-        var enemyPositions = GetRoomPositions(maze).Concat(GetOutdoorPositions(maze));
-        enemyPositions = enemyPositions.Where(position => maze.StartingRoom?.Contains(position) != true);
-        foreach (var spawn in _enemySpawns)
-            PlaceObjects(maze, spawn.Count, enemyPositions, position => CreateEnemy(maze, position, spawn.Definition), maze.AddEnemy);
+        PlaceRoomEncounters(maze);
+        PlaceCorridorEncounters(maze);
     }
 
-    private ConfiguredEnemy CreateEnemy(Maze maze, Position position, EnemyDefinition definition)
+    private void PlaceRoomEncounters(Maze maze)
+    {
+        var rooms = maze.Rooms.Where(room => room != maze.StartingRoom).OrderBy(_ => _random.Next()).ToList();
+        var encounters = ExpandEncounters(_roomEncounters).OrderBy(_ => _random.Next()).ToList();
+        foreach (var encounter in encounters)
+        {
+            var members = RollMembers(encounter);
+            var roomIndex = rooms.FindIndex(room => AvailableRoomPositions(maze, room).Count >= members.Count);
+            if (roomIndex < 0) continue;
+            var room = rooms[roomIndex];
+            rooms.RemoveAt(roomIndex);
+            var center = new Position(room.TopLeft.X + room.Width / 2, room.TopLeft.Y + room.Height / 2);
+            var positions = AvailableRoomPositions(maze, room)
+                .OrderBy(position => Manhattan(position, center)).ThenBy(_ => _random.Next())
+                .Take(members.Count).ToList();
+            PlaceGroup(maze, encounter, members, positions);
+        }
+    }
+
+    private void PlaceCorridorEncounters(Maze maze)
+    {
+        foreach (var encounter in ExpandEncounters(_corridorEncounters).OrderBy(_ => _random.Next()))
+        {
+            var members = RollMembers(encounter);
+            var available = GetOutdoorPositions(maze).Where(position => maze.GetObjectAt(position) is null &&
+                position != maze.Entrance && position != maze.Exit).ToHashSet();
+            if (available.Count < members.Count) return;
+            var anchor = available.ElementAt(_random.Next(available.Count));
+            var positions = ConnectedPositions(anchor, available, members.Count);
+            if (positions.Count < members.Count) continue;
+            PlaceGroup(maze, encounter, members, positions);
+        }
+    }
+
+    private IEnumerable<ResolvedEnemyEncounter> ExpandEncounters(IEnumerable<ResolvedEnemyEncounter> encounters) =>
+        encounters.SelectMany(encounter => Enumerable.Repeat(encounter, encounter.GroupCount.Roll(_random)));
+
+    private List<(EnemyDefinition Definition, EnemyGroupRole Role)> RollMembers(ResolvedEnemyEncounter encounter) =>
+        encounter.Members
+            .OrderBy(member => member.Role == EnemyGroupRole.Leader ? 0 : 1)
+            .SelectMany(member => Enumerable.Repeat((member.Definition, member.Role), member.Count.Roll(_random)))
+            .ToList();
+
+    private List<Position> AvailableRoomPositions(Maze maze, Room room) => room.InteriorPositions()
+        .Where(position => maze.IsWalkable(position) && maze.GetObjectAt(position) is null &&
+                           !maze.Doors.Any(door => Manhattan(door.Position, position) == 1))
+        .ToList();
+
+    private static List<Position> ConnectedPositions(Position anchor, IReadOnlySet<Position> available, int count)
+    {
+        var result = new List<Position>();
+        var visited = new HashSet<Position> { anchor };
+        var queue = new Queue<Position>();
+        queue.Enqueue(anchor);
+        while (queue.Count > 0 && result.Count < count)
+        {
+            var current = queue.Dequeue();
+            result.Add(current);
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (available.Contains(next) && visited.Add(next)) queue.Enqueue(next);
+            }
+        }
+        return result;
+    }
+
+    private void PlaceGroup(Maze maze, ResolvedEnemyEncounter encounter,
+        IReadOnlyList<(EnemyDefinition Definition, EnemyGroupRole Role)> members,
+        IReadOnlyList<Position> positions)
+    {
+        var groupId = Guid.NewGuid().ToString("N");
+        for (var index = 0; index < members.Count; index++)
+        {
+            var member = members[index];
+            var enemy = CreateEnemy(maze, positions[index], member.Definition, encounter.MovementProfile);
+            enemy.ConfigureGroup(groupId, member.Role);
+            maze.AddEnemy(enemy);
+        }
+    }
+
+    private ConfiguredEnemy CreateEnemy(Maze maze, Position position, EnemyDefinition definition,
+        EnemyMovementProfile? configuredProfile = null)
     {
         var isInRoom = maze.Rooms.Any(room => room.Contains(position));
         var stationaryChance = isInRoom ? 80 : 10;
         var roll = _random.Next(100);
-        var profile = roll < stationaryChance
+        var profile = configuredProfile ?? (roll < stationaryChance
             ? EnemyMovementProfile.Stationary
-            : (roll - stationaryChance) % 2 == 0 ? EnemyMovementProfile.Wander : EnemyMovementProfile.Patrol;
+            : (roll - stationaryChance) % 2 == 0 ? EnemyMovementProfile.Wander : EnemyMovementProfile.Patrol);
         var enemy = new ConfiguredEnemy(position, definition);
         enemy.ConfigureMovement(profile, Directions[_random.Next(Directions.Length)]);
         return enemy;
     }
+
+    private static int Manhattan(Position first, Position second) =>
+        Math.Abs(first.X - second.X) + Math.Abs(first.Y - second.Y);
 
     private static bool OverlapsStartingRoom(Maze maze, Position topLeft, int width, int height)
     {
@@ -288,7 +374,7 @@ public sealed class MazeGenerator
         if (settings.RoomCount < 0) throw new ArgumentOutOfRangeException(nameof(settings.RoomCount));
         if (settings.MinimumRoomSize < 2 || settings.MaximumRoomSize < settings.MinimumRoomSize)
             throw new ArgumentException("A szobaméreteknek legalább 2-nek és növekvő sorrendűnek kell lenniük.");
-        if (settings.TreasureChestCount < 0 || settings.RoomEnemyCount < 0 || settings.OutdoorEnemyCount < 0)
+        if (settings.TreasureChestCount < 0)
             throw new ArgumentOutOfRangeException(nameof(settings), "Az objektumok száma nem lehet negatív.");
     }
 }

@@ -5,6 +5,7 @@ namespace MazeGame;
 
 public enum EnemyMovementProfile { Wander, Stationary, Patrol }
 public enum EnemyPursuitState { Undecided, Pursuing, Declined }
+public enum EnemyGroupRole { Member, Leader }
 
 public abstract class Enemy(Position position) : WorldObject(position)
 {
@@ -14,6 +15,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public EnemyMovementProfile MovementProfile { get; private set; } = EnemyMovementProfile.Wander;
     public Direction PatrolDirection { get; private set; } = Direction.Right;
     public EnemyPursuitState PursuitState { get; private set; } = EnemyPursuitState.Undecided;
+    public string? GroupId { get; private set; }
+    public EnemyGroupRole GroupRole { get; private set; } = EnemyGroupRole.Member;
 
     protected void InitializeHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
     public void SetCurrentHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
@@ -35,6 +38,11 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public void ResolvePursuit(bool pursue) => PursuitState = pursue
         ? EnemyPursuitState.Pursuing
         : EnemyPursuitState.Declined;
+    public void ConfigureGroup(string? groupId, EnemyGroupRole role = EnemyGroupRole.Member)
+    {
+        GroupId = string.IsNullOrWhiteSpace(groupId) ? null : groupId;
+        GroupRole = role;
+    }
 
     public void MoveTo(Position position) => Position = position;
 }
