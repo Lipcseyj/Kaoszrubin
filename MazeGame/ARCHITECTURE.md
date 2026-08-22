@@ -234,6 +234,8 @@ A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbe
 
 A karakterlap a tíz hátizsáksor alatt három sort tart fenn a társaknak. Minden sor a karakter saját színével mutatja az osztály kezdőbetűjét, a nevet, a szintet és az aktuális/maximális HP-t. A vezető nem ismétlődik meg ezekben a sorokban.
 
+A `Tab` vált a térkép- és karakterlapfókusz között. Karakterlapfókuszban a `KARAKTERLAP` cím sötétkék hátteret kap, a fel/le nyilak pedig az elfoglalt felszereléshelyek, varázstárgyak, hátizsáktárgyak és partitársak között léptetik az aktív kijelölést. A kiválasztott sor fehér; a renderer a logikai kategória és index alapján megőrzi az utolsó kijelölést. Lépéskor csak a választható tárgy- és partisorok rajzolódnak újra, a teljes karakterlap és térkép nem.
+
 A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű négy főre tölti a partit. A `RandomCharacterGenerator` minden társhoz:
 
 - érvényes véletlen faj–képesség–osztály kombinációt készít;

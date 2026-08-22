@@ -24,6 +24,8 @@ public sealed class ConsoleRenderer
     private int _mazeLevel;
     private bool _battleActive;
     private LiveCharacter? _displayedCharacter;
+    private bool _characterSheetFocused;
+    private SheetSelectionKey? _activeSheetSelection;
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
 
@@ -318,6 +320,28 @@ public sealed class ConsoleRenderer
         DrawCharacterSheet(character);
     }
 
+    public void SetCharacterSheetFocused(bool focused)
+    {
+        _characterSheetFocused = focused;
+        if (_displayedCharacter is null) return;
+        DrawCharacterSheetHeader(_displayedCharacter);
+        DrawSelectableCharacterSheetRows(_displayedCharacter);
+    }
+
+    public void MoveCharacterSheetSelection(int direction)
+    {
+        if (_displayedCharacter is null || direction == 0) return;
+        var entries = BuildSheetSelections(_displayedCharacter);
+        if (entries.Count == 0) return;
+        var currentIndex = _activeSheetSelection is { } active
+            ? entries.FindIndex(entry => entry.Key == active)
+            : -1;
+        if (currentIndex < 0) currentIndex = direction > 0 ? -1 : 0;
+        var nextIndex = (currentIndex + direction + entries.Count) % entries.Count;
+        _activeSheetSelection = entries[nextIndex].Key;
+        DrawSelectableCharacterSheetRows(_displayedCharacter);
+    }
+
     /// <summary>
     /// Kirajzolja a teljes játéktér rácsát a megadott labirintus alapján.
     /// </summary>
@@ -348,7 +372,7 @@ public sealed class ConsoleRenderer
     private void DrawCharacterSheet(LiveCharacter character)
     {
         _displayedCharacter = character;
-        WriteSheetLine(1, "KARAKTERLAP - ", ConsoleColor.Yellow, character.Name, character.Color);
+        DrawCharacterSheetHeader(character);
         WriteSheetLine(2, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
         WriteSheetLine(3, FormatCompactList("Teh", character.Perks.Select(perk => perk.Name)), ConsoleColor.Magenta);
         WriteSheetLine(4, FormatCompactList("Áll", character.Statuses.Select(status => status.Name)), character.Statuses.Count > 0 ? ConsoleColor.Red : ConsoleColor.DarkGray);
@@ -364,22 +388,60 @@ public sealed class ConsoleRenderer
         WriteSheetLine(15, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
         WriteSheetLine(16, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
         WriteSheetLine(18, "FEGYVEREK", ConsoleColor.Yellow);
-        WriteSheetLine(19, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray);
-        WriteSheetLine(20, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray);
-        WriteSheetLine(21, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow);
         WriteSheetLine(23, $"VARÁZSTÁRGYAK {character.MagicItems.Count}/3", ConsoleColor.Magenta);
-        for (var index = 0; index < 3; index++)
-            WriteSheetLine(24 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}", ConsoleColor.Gray);
         WriteSheetLine(27, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
-        for (var index = 0; index < 10; index++)
-            WriteSheetLine(28 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
-        var companions = _party.Members.Where(member => member != character).Take(3).ToList();
-        for (var index = 0; index < 3; index++)
-            WriteSheetLine(39 + index, index < companions.Count ? FormatPartyMember(companions[index]) : string.Empty,
-                index < companions.Count ? companions[index].Color : ConsoleColor.DarkGray);
+        DrawSelectableCharacterSheetRows(character);
         WriteSheetLine(42, string.Empty, ConsoleColor.DarkGray);
         DrawPicturePanel();
     }
+
+    private void DrawCharacterSheetHeader(LiveCharacter character) => WriteSheetLine(
+        1, "KARAKTERLAP", ConsoleColor.Yellow,
+        _characterSheetFocused ? ConsoleColor.DarkBlue : ConsoleColor.Black,
+        " - " + character.Name, character.Color);
+
+    private void DrawSelectableCharacterSheetRows(LiveCharacter character)
+    {
+        var entries = BuildSheetSelections(character);
+        if (_activeSheetSelection is null || entries.All(entry => entry.Key != _activeSheetSelection))
+            _activeSheetSelection = entries.FirstOrDefault()?.Key;
+
+        WriteSheetLine(19, $"1: {ItemName(character.WeaponSlots[0])}", SelectionColor(new(SheetSelectionKind.Weapon, 0), ConsoleColor.Gray));
+        WriteSheetLine(20, $"2: {ItemName(character.WeaponSlots[1])}", SelectionColor(new(SheetSelectionKind.Weapon, 1), ConsoleColor.Gray));
+        WriteSheetLine(21, $"Páncél: {ItemName(character.Armor)}", SelectionColor(new(SheetSelectionKind.Armor, 0), ConsoleColor.DarkYellow));
+        for (var index = 0; index < 3; index++)
+            WriteSheetLine(24 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}",
+                SelectionColor(new(SheetSelectionKind.MagicItem, index), ConsoleColor.Gray));
+        for (var index = 0; index < 10; index++)
+            WriteSheetLine(28 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}",
+                SelectionColor(new(SheetSelectionKind.Backpack, index), ConsoleColor.Gray));
+        var companions = _party.Members.Where(member => member != character).Take(3).ToList();
+        for (var index = 0; index < 3; index++)
+            WriteSheetLine(39 + index, index < companions.Count ? FormatPartyMember(companions[index]) : string.Empty,
+                index < companions.Count
+                    ? SelectionColor(new(SheetSelectionKind.PartyMember, index), companions[index].Color)
+                    : ConsoleColor.DarkGray);
+    }
+
+    private List<SheetSelectionEntry> BuildSheetSelections(LiveCharacter character)
+    {
+        var entries = new List<SheetSelectionEntry>();
+        for (var index = 0; index < character.WeaponSlots.Count; index++)
+            if (character.WeaponSlots[index] is not null) entries.Add(new(new(SheetSelectionKind.Weapon, index)));
+        if (character.Armor is not null) entries.Add(new(new(SheetSelectionKind.Armor, 0)));
+        for (var index = 0; index < character.MagicItems.Count; index++) entries.Add(new(new(SheetSelectionKind.MagicItem, index)));
+        for (var index = 0; index < character.Backpack.Count; index++) entries.Add(new(new(SheetSelectionKind.Backpack, index)));
+        var companionCount = Math.Min(3, _party.Members.Count(member => member != character));
+        for (var index = 0; index < companionCount; index++) entries.Add(new(new(SheetSelectionKind.PartyMember, index)));
+        return entries;
+    }
+
+    private ConsoleColor SelectionColor(SheetSelectionKey key, ConsoleColor normalColor) =>
+        _activeSheetSelection == key ? ConsoleColor.White : normalColor;
+
+    private enum SheetSelectionKind { Weapon, Armor, MagicItem, Backpack, PartyMember }
+    private readonly record struct SheetSelectionKey(SheetSelectionKind Kind, int Index);
+    private sealed record SheetSelectionEntry(SheetSelectionKey Key);
 
     /// <summary>
     /// Battle/message panelre egy új bejegyzést ír: a hosszú üzeneteket megtöri, és
@@ -492,7 +554,7 @@ public sealed class ConsoleRenderer
     /// A teljes sor hossza nem haladja meg a maximum 27 karaktert — ha szükséges,
     /// levágja a szövegeket úgy, hogy mindkét rész látható maradjon lehetőleg.
     /// </summary>
-    private void WriteSheetLine(int y, string leftText, ConsoleColor leftColor, string rightText, ConsoleColor rightColor)
+    private void WriteSheetLine(int y, string leftText, ConsoleColor leftColor, ConsoleColor leftColorBg, string rightText, ConsoleColor rightColor)
     {
         const int maximumWidth = 27;
 
@@ -522,7 +584,7 @@ public sealed class ConsoleRenderer
         }
 
         // Kiírás: először a bal oldali rész, majd a jobb oldali közvetlenül utána
-        SetColors(leftColor, ConsoleColor.Black);
+        SetColors(leftColor, leftColorBg);
         var leftPadded = leftClipped.PadRight(leftClipped.Length);
         WriteAt(172, y, leftPadded);
 

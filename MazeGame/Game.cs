@@ -23,6 +23,7 @@ public sealed class Game
     private readonly BattleSystem _battleSystem;
     private bool _battleStarted;
     private bool _gameOver;
+    private bool _characterSheetFocused;
     private DateTime _nextNeedsDrain;
     private int _mazeLevel = 1;
     public CharacterRoster CharacterRoster { get; }
@@ -50,6 +51,19 @@ public sealed class Game
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);
+                    if (keyInfo.Key == ConsoleKey.Tab)
+                    {
+                        _characterSheetFocused = !_characterSheetFocused;
+                        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+                        continue;
+                    }
+                    if (_characterSheetFocused)
+                    {
+                        if (keyInfo.Key == ConsoleKey.Escape) return;
+                        if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveCharacterSheetSelection(-1);
+                        else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveCharacterSheetSelection(1);
+                        continue;
+                    }
                     if (IsRevealMapShortcut(keyInfo))
                     {
                         var isMapRevealed = _fogOfWar.ToggleDeveloperReveal();
