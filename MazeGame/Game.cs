@@ -62,6 +62,8 @@ public sealed class Game
                         if (keyInfo.Key == ConsoleKey.Escape) return;
                         if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveCharacterSheetSelection(-1);
                         else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveCharacterSheetSelection(1);
+                        else if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
+                        else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
                         continue;
                     }
                     if (IsRevealMapShortcut(keyInfo))

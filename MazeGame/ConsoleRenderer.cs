@@ -26,6 +26,7 @@ public sealed class ConsoleRenderer
     private LiveCharacter? _displayedCharacter;
     private bool _characterSheetFocused;
     private SheetSelectionKey? _activeSheetSelection;
+    private readonly Dictionary<LiveCharacter, SheetSelectionKey> _lastSheetSelections = [];
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
 
@@ -317,7 +318,10 @@ public sealed class ConsoleRenderer
     /// <summary>Csak a jobb oldali karakterlapot rajzolja újra, a játéktér érintése nélkül.</summary>
     public void RefreshCharacterSheet(LiveCharacter character)
     {
-        DrawCharacterSheet(character);
+        var characterToDraw = _displayedCharacter is not null && _party.Members.Contains(_displayedCharacter)
+            ? _displayedCharacter
+            : character;
+        DrawCharacterSheet(characterToDraw);
     }
 
     public void SetCharacterSheetFocused(bool focused)
@@ -339,7 +343,20 @@ public sealed class ConsoleRenderer
         if (currentIndex < 0) currentIndex = direction > 0 ? -1 : 0;
         var nextIndex = (currentIndex + direction + entries.Count) % entries.Count;
         _activeSheetSelection = entries[nextIndex].Key;
+        _lastSheetSelections[_displayedCharacter] = entries[nextIndex].Key;
         DrawSelectableCharacterSheetRows(_displayedCharacter);
+    }
+
+    public void MoveDisplayedPartyMember(int direction)
+    {
+        if (_displayedCharacter is null || direction == 0 || _party.Members.Count == 0) return;
+        if (_activeSheetSelection is { } active) _lastSheetSelections[_displayedCharacter] = active;
+        var currentIndex = Enumerable.Range(0, _party.Members.Count)
+            .FirstOrDefault(index => _party.Members[index] == _displayedCharacter);
+        var nextIndex = (currentIndex + direction + _party.Members.Count) % _party.Members.Count;
+        _displayedCharacter = _party.Members[nextIndex];
+        _activeSheetSelection = _lastSheetSelections.GetValueOrDefault(_displayedCharacter);
+        DrawCharacterSheet(_displayedCharacter);
     }
 
     /// <summary>
@@ -397,7 +414,7 @@ public sealed class ConsoleRenderer
 
     private void DrawCharacterSheetHeader(LiveCharacter character) => WriteSheetLine(
         1, "KARAKTERLAP", ConsoleColor.Yellow,
-        _characterSheetFocused ? ConsoleColor.DarkBlue : ConsoleColor.Black,
+        _characterSheetFocused ? ConsoleColor.Green : ConsoleColor.Black,
         " - " + character.Name, character.Color);
 
     private void DrawSelectableCharacterSheetRows(LiveCharacter character)
@@ -415,9 +432,9 @@ public sealed class ConsoleRenderer
         for (var index = 0; index < 10; index++)
             WriteSheetLine(28 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}",
                 SelectionColor(new(SheetSelectionKind.Backpack, index), ConsoleColor.Gray));
-        var companions = _party.Members.Where(member => member != character).Take(3).ToList();
+        var companions = _party.Members.Skip(1).Take(3).ToList();
         for (var index = 0; index < 3; index++)
-            WriteSheetLine(39 + index, index < companions.Count ? FormatPartyMember(companions[index]) : string.Empty,
+            WriteSheetLine(39 + index, index < companions.Count ? FormatPartyMember(companions[index], companions[index] == character) : string.Empty,
                 index < companions.Count
                     ? SelectionColor(new(SheetSelectionKind.PartyMember, index), companions[index].Color)
                     : ConsoleColor.DarkGray);
@@ -431,7 +448,7 @@ public sealed class ConsoleRenderer
         if (character.Armor is not null) entries.Add(new(new(SheetSelectionKind.Armor, 0)));
         for (var index = 0; index < character.MagicItems.Count; index++) entries.Add(new(new(SheetSelectionKind.MagicItem, index)));
         for (var index = 0; index < character.Backpack.Count; index++) entries.Add(new(new(SheetSelectionKind.Backpack, index)));
-        var companionCount = Math.Min(3, _party.Members.Count(member => member != character));
+        var companionCount = Math.Min(3, Math.Max(0, _party.Members.Count - 1));
         for (var index = 0; index < companionCount; index++) entries.Add(new(new(SheetSelectionKind.PartyMember, index)));
         return entries;
     }
@@ -486,14 +503,15 @@ public sealed class ConsoleRenderer
         : $"Szint: {character.Level}  XP: MAX";
     private static string ResourceIcons(string icon, int level) => string.Concat(Enumerable.Repeat(icon, level / 10));
 
-    private static string FormatPartyMember(LiveCharacter character)
+    private static string FormatPartyMember(LiveCharacter character, bool isDisplayed)
     {
         const int maximumWidth = 27;
+        var marker = isDisplayed ? "▶ " : "  ";
         var classInitial = character.CharacterClass.Name.EnumerateRunes().First().ToString().ToUpperInvariant();
         var suffix = $" L{character.Level} {character.CurrentVitality}/{character.MaximumVitality}";
-        var maximumNameLength = Math.Max(1, maximumWidth - classInitial.Length - 1 - suffix.Length);
+        var maximumNameLength = Math.Max(1, maximumWidth - marker.Length - classInitial.Length - 1 - suffix.Length);
         var name = character.Name[..Math.Min(character.Name.Length, maximumNameLength)];
-        return $"{classInitial} {name}{suffix}";
+        return $"{marker}{classInitial} {name}{suffix}";
     }
 
     private static string FormatCompactList(string label, IEnumerable<string> values)
@@ -618,7 +636,7 @@ public sealed class ConsoleRenderer
     /// </summary>
     private void DrawPlayer(Position position)
     {
-        var character = _displayedCharacter ?? throw new InvalidOperationException("A főkarakter rajzolása előtt a karakterlapot inicializálni kell.");
+        var character = _party.Leader ?? throw new InvalidOperationException("A főkarakter rajzolása előtt a partit inicializálni kell.");
         Console.SetCursorPosition(position.X, position.Y);
         var symbol = Rune.GetRuneAt(character.CharacterClass.Name.ToUpperInvariant(), 0);
         WriteRuneWithColor(symbol, character.Color, ConsoleColor.Black);

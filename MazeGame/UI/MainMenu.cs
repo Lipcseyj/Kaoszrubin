@@ -240,7 +240,7 @@ public sealed class MainMenu
         Console.WriteLine();
         WriteLine("LABIRINTUS", ConsoleColor.Green);
         Console.WriteLine("Nyilak: mozgás | Esc: főmenü");
-        Console.WriteLine("Tab: váltás a térkép és a karakterlap között; karakterlapon fel/le: kijelölés");
+        Console.WriteLine("Tab: térkép/karakterlap | Karakterlap: fel/le kijelölés, bal/jobb partitagváltás");
         Console.WriteLine("Ajtó mellett: N - nyitás | Z - bezárás | K - kulcsra zárás");
         Console.WriteLine("Ctrl + Shift + U: teljes térkép felfedése/elrejtése | Ctrl + Shift + R: új pálya (fejlesztői mód)");
         Console.WriteLine("Ládára lépés: arany felvétele | Kijárat (⌂): következő labirintusszint");
