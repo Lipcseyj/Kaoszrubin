@@ -9,7 +9,8 @@ namespace MazeGame;
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
 public sealed class Game
 {
-    private static readonly TimeSpan EnemyMoveInterval = TimeSpan.FromMilliseconds(700);
+    private const int ZombieSpeed = 2;
+    private const int ZombieMoveIntervalMilliseconds = 700;
     private const int MinimumPartyMoveDelayMilliseconds = 250;
     private const int MaximumPartyMoveDelayMilliseconds = 300;
     private const int CatchUpMoveDelayMilliseconds = 90;
@@ -32,7 +33,7 @@ public sealed class Game
     private bool _characterSheetFocused;
     private HeldInventoryItem? _heldInventoryItem;
     private DateTime _nextNeedsDrain;
-    private DateTime _nextEnemyMove;
+    private readonly Dictionary<Enemy, DateTime> _nextEnemyMoves = [];
     private readonly Dictionary<PartyMemberAvatar, DateTime> _nextPartyMoves = [];
     private readonly List<Position> _leaderTrail = [];
     private bool _partyHoldingPosition;
@@ -60,7 +61,6 @@ public sealed class Game
         Console.CursorVisible = false;
         if (_loadedState is null) StartNewMaze();
         else RestoreGame(_loadedState);
-        if (_loadedState is null) _nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
         if (_loadedState is null) _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         try
         {
@@ -111,7 +111,6 @@ public sealed class Game
                     if (IsNewMazeShortcut(keyInfo))
                     {
                         StartNewMaze();
-                        _nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
                         continue;
                     }
                     if (IsTeleportToExitShortcut(keyInfo))
@@ -146,11 +145,7 @@ public sealed class Game
                     MovePlayer(key);
                 }
 
-                if (!_battleStarted && DateTime.UtcNow >= _nextEnemyMove)
-                {
-                    MoveEnemies();
-                    _nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
-                }
+                if (!_battleStarted) MoveEnemies();
 
                 if (!_battleStarted) MovePartyMembers();
 
@@ -188,7 +183,7 @@ public sealed class Game
         foreach (var member in _maze.PartyMembers) _fogOfWar.RevealFrom(_maze, member.Position);
         _battleStarted = false;
         _gameOver = false;
-        _nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
+        InitializeEnemyMoveSchedule(DateTime.UtcNow);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
     }
 
@@ -228,7 +223,8 @@ public sealed class Game
             Doors = _maze.Doors.Select(door => new DoorSaveData(door.Position, door.State)).ToList(),
             Chests = _maze.TreasureChests.Select(chest => new ChestSaveData(chest.Position, chest.GoldAmount)).ToList(),
             Enemies = _maze.Enemies.Select(enemy => new EnemySaveData(enemy.Position, enemy.Definition.Id,
-                enemy.CurrentHitPoints, enemy.MovementProfile, enemy.PatrolDirection, enemy.PursuitState)).ToList(),
+                enemy.CurrentHitPoints, enemy.MovementProfile, enemy.PatrolDirection, enemy.PursuitState,
+                Math.Max(0, (int)(_nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds))).ToList(),
             Corpses = _maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null)).ToList(),
             PartyAvatars = _maze.PartyMembers.Select(member => new PartyAvatarSaveData(member.Position, CharacterIndex(member.Character))).ToList(),
@@ -248,7 +244,8 @@ public sealed class Game
             ScatterRemainingMilliseconds = _partyScatterUntil is { } scatter
                 ? Math.Max(0, (int)(scatter - now).TotalMilliseconds) : 0,
             NeedsDrainRemainingMilliseconds = Math.Max(0, (int)(_nextNeedsDrain - now).TotalMilliseconds),
-            EnemyMoveRemainingMilliseconds = Math.Max(0, (int)(_nextEnemyMove - now).TotalMilliseconds),
+            EnemyMoveRemainingMilliseconds = _maze.Enemies.Count == 0 ? 0 : _maze.Enemies.Min(enemy =>
+                Math.Max(0, (int)(_nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds)),
             Maze = mazeData,
             Fog = new FogSaveData
             {
@@ -272,12 +269,17 @@ public sealed class Game
         foreach (var door in state.Maze.Doors) _maze.PlaceDoor(door.Position, door.State);
         _maze.PlaceExit(state.Maze.Exit);
         foreach (var chest in state.Maze.Chests) _maze.AddTreasureChest(new TreasureChest(chest.Position, chest.GoldAmount));
+        _nextEnemyMoves.Clear();
         foreach (var savedEnemy in state.Maze.Enemies)
         {
             var enemy = new ConfiguredEnemy(savedEnemy.Position, _gameData.GetEnemy(savedEnemy.DefinitionId));
             enemy.SetCurrentHitPoints(savedEnemy.CurrentHitPoints);
             enemy.ConfigureMovement(savedEnemy.MovementProfile, savedEnemy.PatrolDirection, savedEnemy.PursuitState);
             _maze.AddEnemy(enemy);
+            var remaining = savedEnemy.NextMoveRemainingMilliseconds >= 0
+                ? savedEnemy.NextMoveRemainingMilliseconds
+                : Math.Max(0, state.EnemyMoveRemainingMilliseconds);
+            _nextEnemyMoves[enemy] = DateTime.UtcNow + TimeSpan.FromMilliseconds(remaining);
         }
         foreach (var corpse in state.Maze.Corpses)
         {
@@ -301,7 +303,6 @@ public sealed class Game
         _partyScatterUntil = state.ScatterRemainingMilliseconds > 0
             ? DateTime.UtcNow + TimeSpan.FromMilliseconds(state.ScatterRemainingMilliseconds) : null;
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMilliseconds(Math.Max(0, state.NeedsDrainRemainingMilliseconds));
-        _nextEnemyMove = DateTime.UtcNow + TimeSpan.FromMilliseconds(Math.Max(0, state.EnemyMoveRemainingMilliseconds));
         _nextPartyMoves.Clear();
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _battleStarted = false;
@@ -577,8 +578,11 @@ public sealed class Game
 
     private void MoveEnemies()
     {
-        foreach (var enemy in _maze.Enemies.OrderBy(_ => _random.Next()).ToArray())
+        var now = DateTime.UtcNow;
+        foreach (var enemy in _maze.Enemies.Where(enemy => _nextEnemyMoves.GetValueOrDefault(enemy) <= now)
+                     .OrderBy(_ => _random.Next()).ToArray())
         {
+            ScheduleNextEnemyMove(enemy, now);
             if (enemy.PursuitState == EnemyPursuitState.Undecided &&
                 FogOfWar.CanSee(_maze, enemy.Position, _player.Position, VisionRange))
                 enemy.ResolvePursuit(_random.Next(100) < 60);
@@ -603,6 +607,21 @@ public sealed class Game
                 if (TryMoveEnemy(enemy, enemy.PatrolDirection) && _battleStarted) return;
             }
         }
+    }
+
+    private void InitializeEnemyMoveSchedule(DateTime from)
+    {
+        _nextEnemyMoves.Clear();
+        foreach (var enemy in _maze.Enemies) ScheduleNextEnemyMove(enemy, from);
+    }
+
+    private void ScheduleNextEnemyMove(Enemy enemy, DateTime from) =>
+        _nextEnemyMoves[enemy] = from + EnemyMoveInterval(enemy);
+
+    private static TimeSpan EnemyMoveInterval(Enemy enemy)
+    {
+        var speed = Math.Max(1, enemy.Definition.Speed ?? ZombieSpeed);
+        return TimeSpan.FromMilliseconds((double)ZombieMoveIntervalMilliseconds * ZombieSpeed / speed);
     }
 
     private bool TryMoveEnemy(Enemy enemy, Direction direction)
@@ -969,6 +988,7 @@ public sealed class Game
                 _saveAfterBattle = false;
                 SaveGame();
             }
+            InitializeEnemyMoveSchedule(DateTime.UtcNow);
             _battleStarted = false;
             _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
             return;

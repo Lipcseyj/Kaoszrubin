@@ -106,7 +106,8 @@ public sealed record ChestSaveData(Position Position, int GoldAmount);
 public sealed record EnemySaveData(Position Position, string DefinitionId, int CurrentHitPoints,
     EnemyMovementProfile MovementProfile = EnemyMovementProfile.Wander,
     Direction PatrolDirection = Direction.Right,
-    EnemyPursuitState PursuitState = EnemyPursuitState.Undecided);
+    EnemyPursuitState PursuitState = EnemyPursuitState.Undecided,
+    int NextMoveRemainingMilliseconds = -1);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);
