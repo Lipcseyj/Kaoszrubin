@@ -474,30 +474,33 @@ public sealed class ConsoleRenderer
     {
         _displayedCharacter = character;
         DrawCharacterSheetHeader(character);
-        WriteSheetLine(2, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
-        WriteSheetLine(3, FormatCompactList("Teh", character.Perks.Select(perk => perk.Name)), ConsoleColor.Magenta);
+        WriteSheetLine(1, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
+        var perkLines = FormatCompactListRows("Teh", character.Perks.Select(perk => perk.Name), 2);
+        WriteSheetLine(2, perkLines[0], ConsoleColor.Magenta);
+        WriteSheetLine(3, perkLines[1], ConsoleColor.Magenta);
         WriteSheetLine(4, FormatCompactList("Áll", character.Statuses.Select(status => status.Name)), character.Statuses.Count > 0 ? ConsoleColor.Red : ConsoleColor.DarkGray);
-        WriteSheetLine(6, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
-        WriteSheetLine(7, FormatExperience(character), ConsoleColor.Cyan);
-        WriteSheetLine(8, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
-        WriteSheetLine(9, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
-        WriteSheetLine(10, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
-        WriteSheetLine(11, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
-        WriteSheetLine(12, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
-        WriteSheetLine(13, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
-        WriteSheetLine(14, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
-        WriteSheetLine(15, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
-        WriteSheetLine(16, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
-        WriteSheetLine(18, "FEGYVEREK", ConsoleColor.Yellow);
-        WriteSheetLine(23, $"VARÁZSTÁRGYAK {character.MagicItems.Count(item => item is not null)}/3", ConsoleColor.Magenta);
-        WriteSheetLine(27, $"HÁTIZSÁK {character.Backpack.Count(item => item is not null)}/10", ConsoleColor.DarkCyan);
+        WriteSheetLine(5, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
+        WriteSheetLine(6, FormatExperience(character), ConsoleColor.Cyan);
+        WriteSheetLine(7, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
+        WriteSheetLine(8, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
+        WriteSheetLine(9, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
+        WriteSheetLine(10, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
+        WriteSheetLine(11, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
+        WriteSheetLine(12, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
+        WriteSheetLine(13, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
+        WriteSheetLine(14, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
+        WriteSheetLine(15, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
+        WriteSheetLine(17, "FEGYVEREK", ConsoleColor.Yellow);
+        WriteSheetLine(22, $"VARÁZSTÁRGYAK {character.MagicItems.Count(item => item is not null)}/3", ConsoleColor.Magenta);
+        WriteSheetLine(26, $"HÁTIZSÁK {character.Backpack.Count(item => item is not null)}/10", ConsoleColor.DarkCyan);
         DrawSelectableCharacterSheetRows(character);
+        WriteSheetLine(41, string.Empty, ConsoleColor.DarkGray);
         WriteSheetLine(42, string.Empty, ConsoleColor.DarkGray);
         DrawPicturePanel();
     }
 
     private void DrawCharacterSheetHeader(LiveCharacter character) => WriteSheetLine(
-        1, "KARAKTERLAP", ConsoleColor.Yellow,
+        0, "KARAKTERLAP", ConsoleColor.Yellow,
         _characterSheetFocused ? ConsoleColor.Green : ConsoleColor.Black,
         " - " + character.Name, character.Color);
 
@@ -507,22 +510,22 @@ public sealed class ConsoleRenderer
         if (_activeSheetSelection is null || entries.All(entry => entry.Key != _activeSheetSelection))
             _activeSheetSelection = entries.FirstOrDefault()?.Key;
 
-        WriteSheetLine(19, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Weapon, 0)));
+        WriteSheetLine(18, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Weapon, 0)));
         var secondWeaponText = character.WeaponSlots[0]?.IsTwoHanded == true
             ? "2: ⛔ kétkezes fegyver"
             : $"2: {ItemName(character.WeaponSlots[1])}";
-        WriteSheetLine(20, secondWeaponText, character.WeaponSlots[0]?.IsTwoHanded == true ? ConsoleColor.DarkGray : ConsoleColor.Gray,
+        WriteSheetLine(19, secondWeaponText, character.WeaponSlots[0]?.IsTwoHanded == true ? ConsoleColor.DarkGray : ConsoleColor.Gray,
             SelectionBackground(new(SheetSelectionKind.Weapon, 1)));
-        WriteSheetLine(21, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow, SelectionBackground(new(SheetSelectionKind.Armor, 0)));
+        WriteSheetLine(20, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow, SelectionBackground(new(SheetSelectionKind.Armor, 0)));
         for (var index = 0; index < 3; index++)
-            WriteSheetLine(24 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}",
+            WriteSheetLine(23 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}",
                 ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.MagicItem, index)));
         for (var index = 0; index < 10; index++)
-            WriteSheetLine(28 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}",
+            WriteSheetLine(27 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}",
                 ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Backpack, index)));
         var companions = _party.Members.Skip(1).Take(3).ToList();
         for (var index = 0; index < 3; index++)
-            WriteSheetLine(39 + index, index < companions.Count ? FormatPartyMember(companions[index], companions[index] == character) : string.Empty,
+            WriteSheetLine(38 + index, index < companions.Count ? FormatPartyMember(companions[index], companions[index] == character) : string.Empty,
                 index < companions.Count ? companions[index].Color : ConsoleColor.DarkGray,
                 index < companions.Count ? SelectionBackground(new(SheetSelectionKind.PartyMember, index)) : ConsoleColor.Black);
     }
@@ -613,6 +616,26 @@ public sealed class ConsoleRenderer
         var availablePerName = Math.Max(1, (maximumWidth - prefix.Length - separatorsWidth) / names.Count);
         var shortenedNames = names.Select(name => name.Length <= availablePerName ? name : name[..availablePerName]);
         return prefix + string.Join(", ", shortenedNames);
+    }
+
+    private static IReadOnlyList<string> FormatCompactListRows(string label, IEnumerable<string> values, int rowCount)
+    {
+        var names = values.ToList();
+        if (names.Count == 0) return [$"{label}: nincs", .. Enumerable.Repeat(string.Empty, rowCount - 1)];
+
+        var rows = new List<string>(rowCount);
+        var namesPerRow = (int)Math.Ceiling(names.Count / (double)rowCount);
+        for (var row = 0; row < rowCount; row++)
+        {
+            var rowNames = names.Skip(row * namesPerRow).Take(namesPerRow).ToList();
+            if (rowNames.Count == 0) { rows.Add(string.Empty); continue; }
+            var prefix = row == 0 ? $"{label}: " : new string(' ', label.Length + 2);
+            var separatorsWidth = (rowNames.Count - 1) * 2;
+            var availablePerName = Math.Max(1, (27 - prefix.Length - separatorsWidth) / rowNames.Count);
+            var shortenedNames = rowNames.Select(name => name.Length <= availablePerName ? name : name[..availablePerName]);
+            rows.Add(prefix + string.Join(", ", shortenedNames));
+        }
+        return rows;
     }
 
     /// <summary>

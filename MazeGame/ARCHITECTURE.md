@@ -255,7 +255,7 @@ Térképfókuszban két ideiglenes partiparancs írhatja felül a profilok mozg�
 
 Minden társ ugyanazzal az ötmezős és falak/ajtók által takart látótérszámítással hívja a `FogOfWar.RevealFrom` műveletet. A társ induló környezete azonnal láthatóvá válik és minden sikeres NPC-lépés csak az újonnan felfedett valamint az elhagyott/elfoglalt térképcellákat rajzolja újra.
 
-A karakterlap a tíz hátizsáksor alatt három sort tart fenn a társaknak. Minden sor a karakter saját színével mutatja az osztály kezdőbetűjét, a nevet, a szintet és az aktuális/maximális HP-t. A vezető nem ismétlődik meg ezekben a sorokban.
+A karakterlap a jobb panel legfelső sorában kezdődik, ezért nem hagy kihasználatlan üres sort a fejléc felett. A faj és osztály alatt a megszerzett tehetségek két sorban jelennek meg; a neveket a renderer a két sor között osztja el és szükség esetén soronként egyenletesen rövidíti. A tíz hátizsáksor alatt három sort tart fenn a társaknak. Minden sor a karakter saját színével mutatja az osztály kezdőbetűjét, a nevet, a szintet és az aktuális/maximális HP-t. A vezető nem ismétlődik meg ezekben a sorokban.
 
 A `Tab` vált a térkép- és karakterlapfókusz között. Karakterlapfókuszban a `KARAKTERLAP` cím zöld hátteret kap, a fel/le nyilak pedig minden felszereléshely, varázstárgyhely, hátizsákhely és partitárs között léptetik az aktív kijelölést; az üres helyek is célpontok. A kiválasztott sor DarkCyan hátteret kap, miközben megtartja saját előtérszínét; a renderer a logikai kategória és index alapján karakterenként külön megőrzi az utolsó kijelölést. Lépéskor csak a választható tárgy- és partisorok rajzolódnak újra, a teljes karakterlap és térkép nem.
 
