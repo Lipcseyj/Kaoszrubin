@@ -2,7 +2,7 @@ using MazeGame.Domain.Inventory;
 
 namespace MazeGame.Domain.Combat;
 
-public sealed record ArmorDefinition(string Id, string Name, ValueRange? Defense) : IItemDefinition
+public sealed record ArmorDefinition(string Id, string Name, ValueRange? Defense, string Description) : IItemDefinition
 {
     public ItemCategory Category => ItemCategory.Armor;
 }

@@ -240,6 +240,8 @@ Karakterlapfókuszban a bal/jobb nyíl körkörösen vált a parti tagjainak tel
 
 Az inventory rögzített helyekből áll: két fegyverhely, egy páncélhely, három varázstárgyhely és tíz hátizsákhely. Minden `IItemDefinition` kategóriája fegyver, páncél, varázstárgy vagy általános tárgy. A felszereléshelyek csak a saját kategóriájukat fogadják el, a hátizsák bármelyiket. A `Space` kiemeli a kijelölt tárgyat, majd ugyanazon vagy másik partitag érvényes helyére teszi; foglalt cél esetén a két tárgy helyet cserél, ha a visszakerülő tárgy is megfelel a forráshely kategóriájának. A fókusz elhagyása visszateszi a még kézben tartott tárgyat, így az nem veszhet el.
 
+Az `I` a kijelölt tárgy összes jelenleg ismert adatát az alsó üzenetnaplóba írja: név és stabil ID minden tárgynál; fegyvertípus és sebzés a fegyvereknél; védelem a páncéloknál; valamint a CSV-ből betöltött jellemzés. A fegyverekhez és páncélokhoz tartozó jellemzés a megfelelő szekció utolsó oszlopa; az általános tárgyaknál a harmadik oszlop.
+
 A `D` a kijelölt tárgyat a parti vezetőjének aktuális térképmezőjére dobja. A `GroundItemPile` egy pozíción tetszőleges számú tárgyat tárol, a térképen cián `◆` jel mutatja; a halom nem akadályozza a mozgást. A földi halmok a labirintusszint futásidejű állapotához tartoznak, ezért új pályán megszűnnek és jelenleg nem kerülnek karaktermentésbe.
 
 A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű négy főre tölti a partit. A `RandomCharacterGenerator` minden társhoz:

@@ -113,16 +113,16 @@ public static class CsvGameDataLoader
                 weaponTypes.Add(new WeaponTypeDefinition(id, name));
                 break;
             case DataSection.Weapons:
-                weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), ValueRangeFrom(cells, 3)));
+                weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), ValueRangeFrom(cells, 3), Cell(cells, 4)));
                 break;
             case DataSection.Armors:
-                armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2)));
+                armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2), Cell(cells, 3)));
                 break;
             case DataSection.Abilities:
                 abilities.Add(new AbilityDefinition(id, name));
                 break;
             case DataSection.Items:
-                items.Add(new MiscItemDefinition(id, name));
+                items.Add(new MiscItemDefinition(id, name, Cell(cells, 2)));
                 break;
             case DataSection.MagicItems:
                 magicItems.Add(new MagicItemDefinition(id, name));

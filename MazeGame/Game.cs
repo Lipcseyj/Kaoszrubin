@@ -67,6 +67,7 @@ public sealed class Game
                         else if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
                         else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
                         else if (keyInfo.Key == ConsoleKey.D) DropSelectedInventoryItem();
+                        else if (keyInfo.Key == ConsoleKey.I) InspectSelectedInventoryItem();
                         else if (keyInfo.Key == ConsoleKey.Spacebar) GrabOrPlaceInventoryItem();
                         continue;
                     }
@@ -183,6 +184,24 @@ public sealed class Game
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         var pileCount = _maze.GetGroundItemPileAt(_player.Position)?.Items.Count ?? 1;
         _renderer.DrawInventoryMessage($"Ledobtad: {item.Name}. A mezőn {pileCount} tárgy van.", ConsoleColor.Cyan);
+    }
+
+    private void InspectSelectedInventoryItem()
+    {
+        var slot = _renderer.GetSelectedInventorySlot();
+        var item = slot is { } selected ? selected.Character.GetInventoryItem(selected.Kind, selected.Index) : null;
+        if (item is null) { _renderer.DrawInventoryMessage("A kijelölt helyen nincs megvizsgálható tárgy.", ConsoleColor.DarkYellow); return; }
+
+        var details = item switch
+        {
+            Domain.Combat.WeaponDefinition weapon =>
+                $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? _gameData.GetWeaponType(typeId).Name : "nincs")} | sebzés: {weapon.Damage?.ToString() ?? "nincs"}",
+            Domain.Combat.ArmorDefinition armor => $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"}",
+            Domain.Magic.MagicItemDefinition => "Varázstárgy | mágikus hatása még nincs bevezetve",
+            _ => "Általános tárgy"
+        };
+        var description = string.IsNullOrWhiteSpace(item.Description) ? "Nincs jellemzés." : item.Description;
+        _renderer.DrawInventoryMessage($"{item.Name} [{item.Id}] — {details}. Jellemzés: {description}", ConsoleColor.Cyan);
     }
 
     private void GrabOrPlaceInventoryItem()
