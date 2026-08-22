@@ -106,7 +106,9 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             IsEquipmentTierAvailable(armor, maximumMagicPower, allowLegendary)).ToList();
         if (usableArmors.Count > 0) character.EquipArmor(usableArmors[_random.Next(usableArmors.Count)]);
         var magicItemCount = _random.Next(1, LiveCharacter.MaximumMagicItemCount + 1);
-        foreach (var item in _gameData.MagicItems.OrderBy(_ => _random.Next()).Take(magicItemCount)) character.AddMagicItem(item);
+        foreach (var item in _gameData.MagicItems.Where(item => item.CanBeEquippedBy(character.CharacterClass.Id) &&
+                         IsEquipmentTierAvailable(item, maximumMagicPower, allowLegendary))
+                     .OrderBy(_ => _random.Next()).Take(magicItemCount)) character.AddMagicItem(item);
 
         var allItems = _gameData.Items.Cast<IItemDefinition>()
             .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems)

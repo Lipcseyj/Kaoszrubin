@@ -1,5 +1,6 @@
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
+using MazeGame.Domain.Magic;
 
 namespace MazeGame.Combat;
 
@@ -15,11 +16,16 @@ public sealed class BattleSystem(Random random)
         var defender = enemy.Definition with { HitPoints = enemy.CurrentHitPoints };
         var context = new BattleContext(player);
         ApplyBattleStartPerks(player, onRound);
-        var initiativeBonus = player.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
+        var perkInitiativeBonus = player.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
+        var magicInitiativeBonus = player.GetMagicItemBonus(MagicItemEffect.Initiative);
+        var initiativeBonus = perkInitiativeBonus + magicInitiativeBonus;
         var playerInitiative = RollInitiative(player.Abilities.Dexterity + initiativeBonus);
         var enemyInitiative = RollInitiative(defender.Speed ?? 1);
         var playerAttacks = playerInitiative.Total >= enemyInitiative.Total;
-        var perkText = initiativeBonus > 0 ? " [Első csapás +10]" : string.Empty;
+        var initiativeNotes = new List<string>();
+        if (perkInitiativeBonus > 0) initiativeNotes.Add($"Első csapás +{perkInitiativeBonus}");
+        if (magicInitiativeBonus > 0) initiativeNotes.Add($"varázstárgy +{magicInitiativeBonus}");
+        var perkText = initiativeNotes.Count > 0 ? $" [{string.Join(", ", initiativeNotes)}]" : string.Empty;
         var events = new List<string>
         {
             $"Kezdeményezés: {player.Name} Ügy {player.Abilities.Dexterity}{perkText} {playerInitiative.ModifierText} = {playerInitiative.Total}; " +
@@ -87,6 +93,22 @@ public sealed class BattleSystem(Random random)
             var restored = player.CurrentMana - before;
             if (restored > 0) onRound(new BattleLogEntry($"Hitforrás: +{restored} manna.", BattleLogKind.Information));
         }
+        var magicHealing = player.GetMagicItemBonus(MagicItemEffect.BattleHeal);
+        if (magicHealing > 0)
+        {
+            var before = player.CurrentVitality;
+            player.RestoreVitality(magicHealing);
+            var restored = player.CurrentVitality - before;
+            if (restored > 0) onRound(new BattleLogEntry($"Varázstárgy: +{restored} HP.", BattleLogKind.Information));
+        }
+        var magicMana = player.GetMagicItemBonus(MagicItemEffect.BattleMana);
+        if (magicMana > 0 && player.UsesMana)
+        {
+            var before = player.CurrentMana;
+            player.RestoreMana(magicMana);
+            var restored = player.CurrentMana - before;
+            if (restored > 0) onRound(new BattleLogEntry($"Varázstárgy: +{restored} manna.", BattleLogKind.Information));
+        }
     }
 
     private InitiativeRoll RollInitiative(int speed)
@@ -100,7 +122,8 @@ public sealed class BattleSystem(Random random)
         var forcedHit = context.ShadowStepReady;
         context.ShadowStepReady = false;
         var weapon = player.WeaponSlots.FirstOrDefault(item => item?.WeaponTypeId != DefenseWeaponTypeId);
-        var hitBonus = weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0;
+        var hitBonus = (weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0) +
+                       player.GetMagicItemBonus(MagicItemEffect.Hit);
         var hit = HitRoll(player.Abilities.Dexterity, defender.Speed ?? 1, hitBonus, forcedHit);
         if (!hit.Hit)
         {
@@ -113,7 +136,7 @@ public sealed class BattleSystem(Random random)
         var ability = usesDexterity ? player.Abilities.Dexterity : player.Abilities.Strength;
         var abilityBonus = AbilityDamageBonus(ability);
         var randomBonus = Roll(new ValueRange(0, 2));
-        var perkBonus = 0;
+        var perkBonus = player.GetMagicItemBonus(MagicItemEffect.Damage);
         var notes = new List<string>();
         if (player.HasPerk(PerkIds.BarbarianBloodlust) && player.CurrentVitality * 2 < player.MaximumVitality) { perkBonus += 3; notes.Add("Vérszomj +3"); }
         if (player.HasPerk(PerkIds.BarbarianPrimalStrength)) { perkBonus += 5; notes.Add("Őserő +5"); }
@@ -136,7 +159,7 @@ public sealed class BattleSystem(Random random)
         }
         context.ConsecutivePlayerHits++;
         var noteText = notes.Count == 0 ? string.Empty : $" [{string.Join(", ", notes)}]";
-        var perkBonusText = perkBonus == 0 ? string.Empty : $" + tehetség {perkBonus}";
+        var perkBonusText = perkBonus == 0 ? string.Empty : $" + bónusz {perkBonus}";
         return AttackResult.HitFor(damage,
             $"találat: {hit.Description} → TALÁL; sebzés: alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText} - páncél {armor}, ×{multiplier} = {damage}.{noteText}");
     }
@@ -158,7 +181,9 @@ public sealed class BattleSystem(Random random)
         var armor = RollArmor(defender);
         var shieldEquipped = defender.WeaponSlots.Any(item => item?.WeaponTypeId == DefenseWeaponTypeId);
         var shield = defender.WeaponSlots.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } shieldRange ? Roll(shieldRange) : 0;
-        var perkDefense = (defender.HasPerk(PerkIds.BarbarianThickSkin) ? 1 : 0) + (shieldEquipped && defender.HasPerk(PerkIds.KnightShieldWall) ? 2 : 0);
+        var perkDefense = (defender.HasPerk(PerkIds.BarbarianThickSkin) ? 1 : 0) +
+                          (shieldEquipped && defender.HasPerk(PerkIds.KnightShieldWall) ? 2 : 0) +
+                          defender.GetMagicItemBonus(MagicItemEffect.Defense);
         var reduction = (defender.HasPerk(PerkIds.FighterUnbreakable) ? 2 : 0) + (defender.HasPerk(PerkIds.KnightInvincible) ? 4 : 0);
         var damage = Math.Max(0, ApplyDefense(strength + randomDamage, armor + shield + perkDefense) - reduction);
         if (defender.HasPerk(PerkIds.BarbarianPainTolerance) && damage < 3) damage = 0;
@@ -169,7 +194,7 @@ public sealed class BattleSystem(Random random)
             defender.SpendMana(absorbed);
             damage -= absorbed;
         }
-        var perkDefenseText = perkDefense == 0 ? string.Empty : $" - tehetségvédelem {perkDefense}";
+        var perkDefenseText = perkDefense == 0 ? string.Empty : $" - bónuszvédelem {perkDefense}";
         var reductionText = reduction == 0 ? string.Empty : $" - csökkentés {reduction}";
         var manaShieldText = absorbed == 0 ? string.Empty : $" - mannapajzs {absorbed}";
         return AttackResult.HitFor(damage,
@@ -207,7 +232,7 @@ public sealed class BattleSystem(Random random)
         if (forcedHit) return new HitRollResult(true, roll, $"Árnyéklépés → automatikus találat ({roll})");
         var total = roll + attackerSpeed + attackerBonus;
         var target = 11 + defenderSpeed;
-        return new HitRollResult(total >= target, roll, $"{total} vs {target}" + (attackerBonus > 0 ? $" (+{attackerBonus} tehetség)" : string.Empty));
+        return new HitRollResult(total >= target, roll, $"{total} vs {target}" + (attackerBonus > 0 ? $" (+{attackerBonus} bónusz)" : string.Empty));
     }
 
     private static int AbilityDamageBonus(int ability) => Math.Max(0, (ability - 1) / 2);

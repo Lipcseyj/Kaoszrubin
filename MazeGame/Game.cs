@@ -241,7 +241,11 @@ public sealed class Game
                 $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? _gameData.GetWeaponType(typeId).Name : "nincs")} | sebzés: {weapon.Damage?.ToString() ?? "nincs"} | " +
                 $"{(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | kasztok: {AllowedClassNames(weapon.AllowedClassIds)}",
             Domain.Combat.ArmorDefinition armor => $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"} | kasztok: {AllowedClassNames(armor.AllowedClassIds)}",
-            Domain.Magic.MagicItemDefinition => "Varázstárgy | mágikus hatása még nincs bevezetve",
+            Domain.Magic.MagicItemDefinition magic =>
+                $"Varázstárgy | típus: {MagicItemKindName(magic.Kind)} | hatás: {MagicItemEffectName(magic.Effect)} {magic.EffectValue}" +
+                (magic.SpellId is null ? string.Empty : $" | varázslat: {_gameData.Spells.First(spell => spell.Id == magic.SpellId).Name}") +
+                (magic.MaximumCharges > 0 ? $" | töltet: {magic.MaximumCharges}" : string.Empty) +
+                $" | kasztok: {AllowedClassNames(magic.AllowedClassIds)}",
             MiscItemDefinition misc when misc.Effect != ConsumableEffect.None => $"Használati tárgy | hatás: {ConsumableEffectName(misc.Effect)} {misc.EffectValue}",
             _ => "Általános tárgy"
         };
@@ -331,6 +335,25 @@ public sealed class Game
         ConsumableEffect.CureDisease => "betegség gyógyítása",
         ConsumableEffect.StopBleeding => "vérzés elállítása",
         _ => "nincs"
+    };
+
+    private static string MagicItemKindName(Domain.Magic.MagicItemKind kind) => kind switch
+    {
+        Domain.Magic.MagicItemKind.Amulet => "amulett",
+        Domain.Magic.MagicItemKind.Wand => "varázspálca",
+        Domain.Magic.MagicItemKind.Scroll => "varázstekercs",
+        _ => "varázsgyűrű"
+    };
+
+    private static string MagicItemEffectName(Domain.Magic.MagicItemEffect effect) => effect switch
+    {
+        Domain.Magic.MagicItemEffect.Initiative => "kezdeményezés",
+        Domain.Magic.MagicItemEffect.Hit => "találati próba",
+        Domain.Magic.MagicItemEffect.Damage => "sebzés",
+        Domain.Magic.MagicItemEffect.Defense => "védelem",
+        Domain.Magic.MagicItemEffect.BattleHeal => "csata eleji HP",
+        Domain.Magic.MagicItemEffect.BattleMana => "csata eleji manna",
+        _ => "varázslattároló"
     };
 
     private static string NpcBehaviorName(NpcBehavior? behavior) => behavior switch

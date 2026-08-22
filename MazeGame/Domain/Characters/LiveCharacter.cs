@@ -69,8 +69,7 @@ public sealed class LiveCharacter
     {
         var index = Array.FindIndex(_magicItems, existing => existing is null);
         if (index < 0) return false;
-        _magicItems[index] = item;
-        return true;
+        return SetInventoryItem(InventorySlotKind.MagicItem, index, item);
     }
 
     public bool AddToBackpack(IItemDefinition item)
@@ -111,6 +110,7 @@ public sealed class LiveCharacter
     {
         var weapons = (WeaponDefinition?[])_weaponSlots.Clone();
         var armor = Armor;
+        var magicItems = (MagicItemDefinition?[])_magicItems.Clone();
         foreach (var change in changes)
         {
             if (change.Item is not null && !CanPlaceInventoryItem(change.Kind, change.Item)) return false;
@@ -123,6 +123,8 @@ public sealed class LiveCharacter
                     armor = (ArmorDefinition?)change.Item;
                     break;
                 case InventorySlotKind.MagicItem when change.Index is >= 0 and < MaximumMagicItemCount:
+                    magicItems[change.Index] = (MagicItemDefinition?)change.Item;
+                    break;
                 case InventorySlotKind.Backpack when change.Index is >= 0 and < MaximumBackpackItemCount:
                     break;
                 default:
@@ -132,6 +134,7 @@ public sealed class LiveCharacter
 
         if (weapons.Any(weapon => weapon is not null && !weapon.CanBeEquippedBy(CharacterClass.Id))) return false;
         if (armor is not null && !armor.CanBeEquippedBy(CharacterClass.Id)) return false;
+        if (magicItems.Any(item => item is not null && !item.CanBeEquippedBy(CharacterClass.Id))) return false;
         if (weapons[1]?.IsTwoHanded == true) return false;
         return weapons[0]?.IsTwoHanded != true || weapons[1] is null;
     }
@@ -180,6 +183,10 @@ public sealed class LiveCharacter
 
     public bool HasPerk(string perkId) => _perks.Any(perk =>
         string.Equals(perk.Id, perkId, StringComparison.OrdinalIgnoreCase));
+
+    public int GetMagicItemBonus(MagicItemEffect effect) => _magicItems
+        .Where(item => item?.Effect == effect)
+        .Sum(item => item!.EffectValue);
 
     /// <summary>Egyszer, közvetlenül a tehetség kiválasztásakor alkalmazandó erőforrásbónusz.</summary>
     public void ApplyPerkAcquisitionBonus(PerkDefinition perk)

@@ -56,6 +56,8 @@ public static class CsvGameDataLoader
                 vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
         }
 
+        ValidateMagicItems(magicItems, spells);
+
         return new GameDataCatalog
         {
             Races = races.Select(race => new RaceDefinition(race.Id, race.Name, raceBonuses.GetValueOrDefault(race.Id, PrimaryAbilities.Zero))).ToList(),
@@ -138,7 +140,10 @@ public static class CsvGameDataLoader
                     ParseConsumableEffect(cells, 4), Integer(cells, 5) ?? 0));
                 break;
             case DataSection.MagicItems:
-                magicItems.Add(new MagicItemDefinition(id, name, RequiredPrice(cells, 2, id)));
+                magicItems.Add(new MagicItemDefinition(id, name,
+                    ParseMagicItemKind(cells, 2), ParseRarity(cells, 3), RequiredPrice(cells, 4, id),
+                    Integer(cells, 5) ?? 0, EmptyAsNull(Cell(cells, 6)), ParseMagicItemEffect(cells, 7),
+                    Integer(cells, 8) ?? 0, MagicItemAllowedClasses(cells, 9), Cell(cells, 10), Integer(cells, 11) ?? 0));
                 break;
             case DataSection.ArcaneSpells:
                 spells.Add(new SpellDefinition(id, name, SpellSchool.Arcane));
@@ -212,6 +217,40 @@ public static class CsvGameDataLoader
 
     private static ConsumableEffect ParseConsumableEffect(string[] cells, int index) =>
         Enum.TryParse<ConsumableEffect>(Cell(cells, index), true, out var effect) ? effect : ConsumableEffect.None;
+
+    private static MagicItemKind ParseMagicItemKind(string[] cells, int index) => Normalize(Cell(cells, index)) switch
+    {
+        "amulett" => MagicItemKind.Amulet,
+        "varazspalca" => MagicItemKind.Wand,
+        "varazstekercs" => MagicItemKind.Scroll,
+        _ => MagicItemKind.Ring
+    };
+
+    private static MagicItemEffect ParseMagicItemEffect(string[] cells, int index) =>
+        Enum.TryParse<MagicItemEffect>(Cell(cells, index), true, out var effect) ? effect : MagicItemEffect.None;
+
+    private static IReadOnlySet<string> MagicItemAllowedClasses(string[] cells, int mageOnlyIndex) =>
+        IsYes(cells, mageOnlyIndex)
+            ? new HashSet<string>(["C006"], StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(["C001", "C002", "C003", "C004", "C005", "C006"], StringComparer.OrdinalIgnoreCase);
+
+    private static void ValidateMagicItems(IEnumerable<MagicItemDefinition> magicItems, IReadOnlyCollection<SpellDefinition> spells)
+    {
+        var spellsById = spells.ToDictionary(spell => spell.Id, StringComparer.OrdinalIgnoreCase);
+        foreach (var item in magicItems)
+        {
+            if (item.SpellId is { } spellId && !spellsById.ContainsKey(spellId))
+                throw new InvalidOperationException($"A(z) '{item.Id}' varázstárgy ismeretlen varázslatra hivatkozik: '{spellId}'.");
+            if (item.Kind == MagicItemKind.Wand && (item.SpellId is null || item.MaximumCharges <= 1 || spellsById[item.SpellId].School != SpellSchool.Arcane))
+                throw new InvalidOperationException($"A(z) '{item.Id}' varázspálcának több töltetű mágusvarázslatot kell tartalmaznia.");
+            if (item.Kind == MagicItemKind.Scroll && (item.SpellId is null || item.MaximumCharges != 1 ||
+                item.AllowedClassIds.Count != 1 || !item.AllowedClassIds.Contains("C006")))
+                throw new InvalidOperationException($"A(z) '{item.Id}' varázstekercsnek egy töltetűnek és csak mágus által használhatónak kell lennie.");
+            if (item.Kind is MagicItemKind.Ring or MagicItemKind.Amulet &&
+                (item.SpellId is not null || item.MaximumCharges != 0 || item.Effect == MagicItemEffect.None))
+                throw new InvalidOperationException($"A(z) '{item.Id}' gyűrűnek vagy amulettnek passzív hatással és töltet nélkül kell rendelkeznie.");
+        }
+    }
 
     private static IReadOnlyList<WeaponDefinition> CreateUpgradedWeapons(
         IReadOnlyCollection<WeaponDefinition> weapons, IReadOnlyCollection<ItemUpgradeDefinition> upgrades)

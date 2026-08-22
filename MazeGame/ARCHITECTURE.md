@@ -272,6 +272,25 @@ A `#Tárgybővítések` szekció határozza meg a név-utótagot, harci bónuszt
 
 A CSV ezen felül húsz egyedi nevű Legendás fegyvert és húsz Legendás páncélt tartalmaz. Ezek nem generált átnevezések: külön sebzésük/védelmük, kasztengedélyük, alapfelszerelés-hivatkozásuk, mágikus erejük, leírásuk és áruk van. A katalógus és a mentés már kezeli őket; későbbi pályatárgy-generálás közvetlenül ezekből a definíciókból válogathat majd.
 
+### Varázstárgyak
+
+A `#Varázstárgyak` szekcióban nincs Sima ritkaság: minden definíció legalább Varázs, az egyedi ereklyék Legendás kategóriájúak. A `MagicItemDefinition` mezői: altípus, ritkaság, alapár, maximális töltet, opcionális varázslat-ID, passzív hatás és érték, kasztengedély, jellemzés és mágikus erő. Négy altípus létezik: `Ring`, `Amulet`, `Wand`, `Scroll`.
+
+A katalógus 57 varázstárgyat tartalmaz: 12 gyűrűt, 12 amulettet, 9 pálcát és 24 tekercset. A gyűrűk között pontosan öt, az amulettek között szintén öt egyedi Legendás darab van. A gyűrűk és amulettek felszerelve összeadódó passzív csatabónuszt adhatnak:
+
+- `Initiative`: hozzáadódik a kezdeményezéshez;
+- `Hit`: hozzáadódik minden fegyveres találati próbához;
+- `Damage`: hozzáadódik a sikeres fegyveres támadás sebzéséhez;
+- `Defense`: hozzáadódik az ellenfél támadásakor számított védelemhez;
+- `BattleHeal`: minden csata kezdetén legfeljebb a maximumig HP-t tölt;
+- `BattleMana`: minden csata kezdetén legfeljebb a maximumig mannát tölt.
+
+A bónusz csak akkor él, ha a tárgy valamelyik varázstárgyhelyen van; hátizsákból nem hat. A felszerelési ellenőrzés a varázstárgy kasztengedélyét is ugyanabban az atomi inventory-ellenőrzésben vizsgálja, mint a fegyvereket és páncélokat.
+
+Mind a 12 mágus- és mind a 12 papi varázslathoz tartozik egy tekercs. A tekercs pontosan egy töltetű és kizárólag a Mágus (`C006`) varázstárgyhelyére szerelhető; hátizsákban más kaszt is szállíthatja. A kilenc pálca 3–8 töltetet és kizárólag mágusiskolájú varázslatot hivatkozhat. A CSV-betöltő ellenőrzi a varázslat-ID létezését, megtiltja a papi varázslatot tartalmazó pálcát, valamint hibát jelez a nem egytöltetű vagy nem kizárólag mágusnak engedélyezett tekercsnél.
+
+A `MaximumCharges` és `SpellId` jelenleg a teljes varázslási rendszer számára előkészített definíciós adat. A pálcák maradék töltetének példányszintű fogyasztása és a tekercsek tényleges elsütése még nem aktív, mert a hivatkozott 24 varázslat célzás-, költség- és hatásalgoritmusa még nem készült el. Emiatt használatkor egyelőre nem fogy el töltet vagy tekercs; a gyűrűk és amulettek fenti passzív hatásai viszont már teljesen működnek.
+
 A `#Fegyverek` és `#Páncélok` CSV-szekció kasztoszlopai határozzák meg, mely osztályok viselhetik az adott tárgyat. A fegyvereknél a Harcos, Barbár és Lovag, a páncéloknál a Harcos és Lovag alapértelmezetten engedélyezett; a többi kaszt engedélyét az `igen` érték adja. A korlátozás csak a felszereléshelyekre vonatkozik, hátizsákban bármely karakter hordozhat bármilyen tárgyat. Az ellenőrzés központilag a `LiveCharacter` végleges, tervezett inventoryállapotán fut, ezért a kézi mozgatásra és cserére, a kezdőfelszerelésre, a mentés betöltésére és a véletlen NPC-felszerelésre is érvényes.
 
 A kétkezes fegyver kizárólag az első fegyverhelyen viselhető. Amíg ott kétkezes fegyver van, a második fegyverhelynek üresnek kell lennie és a karakterlapon `⛔` lezárásként jelenik meg. Kétkezes fegyver csak üres második hely mellett szerelhető fel; a második hely pedig nem tölthető fel, amíg az elsőben kétkezes fegyver marad. A hátizsákban ez a korlátozás sem érvényes.
@@ -326,7 +345,7 @@ Jutalmazás után a parti a fogadóban pihen: kizárólag a túlélők aktuális
 
 ### Fogadói kereskedés
 
-Minden `IItemDefinition` pozitív `BasePrice` alapárral rendelkezik, amely közvetlenül az `adatok.csv` megfelelő sorából származik. Hiányzó, nulla vagy negatív ár betöltési hibát okoz. Az árskála az egyszerű ellátmány 8–60 aranyas tartományától az alapfegyvereken és vérteken át a 6500 aranyas mitril teljes vértezetig terjed; a varázstárgyak alapára 300–900 arany.
+Minden `IItemDefinition` pozitív `BasePrice` alapárral rendelkezik, amely közvetlenül az `adatok.csv` megfelelő sorából származik. Hiányzó, nulla vagy negatív ár betöltési hibát okoz. Az árskála az egyszerű ellátmány néhány aranyas tartományától az alapfegyvereken és vérteken át a több tízezer aranyas legendás felszerelésekig terjed; a legerősebb legendás gyűrűk és amulettek szintén ritka és drága fogadói ajánlatok.
 
 A fogadó minden látogatáskor új, véletlen piacot készít. A kereskedő normál és mágikus tárgyainak eladási ára 80% eséllyel az alapár 105–150%-a, 20% eséllyel kedvezményes 85–100%. A parti tárgyaiért jóval kevesebbet, az alapár véletlen 40–70%-át kínálja. Az ajánlatok az adott fogadólátogatás teljes ideje alatt stabilak, ezért a nézetváltással nem dobhatók újra; a visszavásárlási ár mindig alacsonyabb a lehetséges eladási árnál.
 
