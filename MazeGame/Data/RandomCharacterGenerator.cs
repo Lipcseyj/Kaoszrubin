@@ -81,7 +81,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         var allItems = _gameData.Items.Cast<IItemDefinition>()
             .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems).ToList();
         var targetCount = _random.Next(3, LiveCharacter.MaximumBackpackItemCount + 1);
-        while (character.Backpack.Count < targetCount)
+        while (character.Backpack.Count(item => item is not null) < targetCount)
             character.AddToBackpack(allItems[_random.Next(allItems.Count)]);
     }
 

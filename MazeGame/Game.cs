@@ -24,6 +24,7 @@ public sealed class Game
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
+    private HeldInventoryItem? _heldInventoryItem;
     private DateTime _nextNeedsDrain;
     private int _mazeLevel = 1;
     public CharacterRoster CharacterRoster { get; }
@@ -53,17 +54,20 @@ public sealed class Game
                     var keyInfo = Console.ReadKey(intercept: true);
                     if (keyInfo.Key == ConsoleKey.Tab)
                     {
+                        if (_characterSheetFocused) CancelHeldInventoryItem();
                         _characterSheetFocused = !_characterSheetFocused;
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
                     if (_characterSheetFocused)
                     {
-                        if (keyInfo.Key == ConsoleKey.Escape) return;
+                        if (keyInfo.Key == ConsoleKey.Escape) { CancelHeldInventoryItem(); return; }
                         if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveCharacterSheetSelection(-1);
                         else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveCharacterSheetSelection(1);
                         else if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
                         else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
+                        else if (keyInfo.Key == ConsoleKey.D) DropSelectedInventoryItem();
+                        else if (keyInfo.Key == ConsoleKey.Spacebar) GrabOrPlaceInventoryItem();
                         continue;
                     }
                     if (IsRevealMapShortcut(keyInfo))
@@ -165,6 +169,74 @@ public sealed class Game
         }
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
+    }
+
+    private void DropSelectedInventoryItem()
+    {
+        var slot = _renderer.GetSelectedInventorySlot();
+        if (slot is null) { _renderer.DrawInventoryMessage("Itt nincs ledobható tárgy.", ConsoleColor.DarkYellow); return; }
+        var item = slot.Value.Character.GetInventoryItem(slot.Value.Kind, slot.Value.Index);
+        if (item is null) { _renderer.DrawInventoryMessage("A kijelölt hely üres.", ConsoleColor.DarkYellow); return; }
+        slot.Value.Character.SetInventoryItem(slot.Value.Kind, slot.Value.Index, null);
+        _maze.DropItem(_player.Position, item);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        var pileCount = _maze.GetGroundItemPileAt(_player.Position)?.Items.Count ?? 1;
+        _renderer.DrawInventoryMessage($"Ledobtad: {item.Name}. A mezőn {pileCount} tárgy van.", ConsoleColor.Cyan);
+    }
+
+    private void GrabOrPlaceInventoryItem()
+    {
+        var slot = _renderer.GetSelectedInventorySlot();
+        if (slot is null) { _renderer.DrawInventoryMessage("Válassz egy felszerelés- vagy hátizsákhelyet.", ConsoleColor.DarkYellow); return; }
+        var target = slot.Value;
+        if (_heldInventoryItem is null)
+        {
+            var item = target.Character.GetInventoryItem(target.Kind, target.Index);
+            if (item is null) { _renderer.DrawInventoryMessage("A kijelölt hely üres.", ConsoleColor.DarkYellow); return; }
+            target.Character.SetInventoryItem(target.Kind, target.Index, null);
+            _heldInventoryItem = new HeldInventoryItem(item, target);
+            _renderer.RefreshInventoryRows();
+            _renderer.DrawInventoryMessage($"Kézben: {item.Name}. Válassz célhelyet, majd nyomj Space-t.", ConsoleColor.Yellow);
+            return;
+        }
+
+        var held = _heldInventoryItem;
+        if (target == held.Source)
+        {
+            held.Source.Character.SetInventoryItem(held.Source.Kind, held.Source.Index, held.Item);
+            _heldInventoryItem = null;
+            _renderer.RefreshCharacterSheet(SelectedCharacter);
+            _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} visszakerült az eredeti helyére.", ConsoleColor.DarkYellow);
+            return;
+        }
+        if (!LiveCharacter.CanPlaceInventoryItem(target.Kind, held.Item))
+        {
+            _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} nem tehető ebbe a helybe.", ConsoleColor.Red);
+            return;
+        }
+        var displaced = target.Character.GetInventoryItem(target.Kind, target.Index);
+        if (displaced is not null && !LiveCharacter.CanPlaceInventoryItem(held.Source.Kind, displaced))
+        {
+            _renderer.DrawInventoryMessage($"A csere nem lehetséges: a(z) {displaced.Name} nem fér a forráshelyre.", ConsoleColor.Red);
+            return;
+        }
+        target.Character.SetInventoryItem(target.Kind, target.Index, held.Item);
+        held.Source.Character.SetInventoryItem(held.Source.Kind, held.Source.Index, displaced);
+        _heldInventoryItem = null;
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawInventoryMessage(displaced is null
+            ? $"Áthelyezted: {held.Item.Name}."
+            : $"Felcserélted: {held.Item.Name} ↔ {displaced.Name}.", ConsoleColor.Green);
+    }
+
+    private void CancelHeldInventoryItem()
+    {
+        if (_heldInventoryItem is not { } held) return;
+        held.Source.Character.SetInventoryItem(held.Source.Kind, held.Source.Index, held.Item);
+        _heldInventoryItem = null;
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} visszakerült az eredeti helyére.", ConsoleColor.DarkYellow);
     }
 
     private void MoveEnemies()
@@ -358,6 +430,8 @@ public sealed class Game
     private static bool IsFillPartyShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.Y &&
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
+    private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source);
 
     private void FillPartyForDevelopment()
     {

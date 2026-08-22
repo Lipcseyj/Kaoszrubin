@@ -16,6 +16,7 @@ public sealed class Maze
     private readonly List<Enemy> _enemies = [];
     private readonly List<Corpse> _corpses = [];
     private readonly List<PartyMemberAvatar> _partyMembers = [];
+    private readonly List<GroundItemPile> _groundItemPiles = [];
     private readonly Dictionary<Position, MazeDoor> _doors = [];
 
     public IReadOnlyList<Room> Rooms => _rooms;
@@ -23,6 +24,7 @@ public sealed class Maze
     public IReadOnlyList<Enemy> Enemies => _enemies;
     public IReadOnlyList<Corpse> Corpses => _corpses;
     public IReadOnlyList<PartyMemberAvatar> PartyMembers => _partyMembers;
+    public IReadOnlyList<GroundItemPile> GroundItemPiles => _groundItemPiles;
     public IReadOnlyCollection<MazeDoor> Doors => _doors.Values;
     public Room? StartingRoom { get; private set; }
     public int Width { get; }
@@ -136,7 +138,19 @@ public sealed class Maze
         _treasureChests.FirstOrDefault(chest => chest.Position == position) as WorldObject ??
         _enemies.FirstOrDefault(enemy => enemy.Position == position) as WorldObject ??
         _partyMembers.FirstOrDefault(member => member.Position == position) as WorldObject ??
-        _corpses.FirstOrDefault(corpse => corpse.Position == position) as WorldObject;
+        _corpses.FirstOrDefault(corpse => corpse.Position == position) as WorldObject ??
+        _groundItemPiles.FirstOrDefault(pile => pile.Position == position) as WorldObject;
+
+    public GroundItemPile? GetGroundItemPileAt(Position position) =>
+        _groundItemPiles.FirstOrDefault(pile => pile.Position == position);
+
+    public void DropItem(Position position, Domain.Inventory.IItemDefinition item)
+    {
+        if (!IsWalkable(position)) throw new ArgumentException("Tárgyat csak járható mezőre lehet dobni.", nameof(position));
+        var pile = GetGroundItemPileAt(position);
+        if (pile is null) _groundItemPiles.Add(new GroundItemPile(position, item));
+        else pile.Add(item);
+    }
 
     public Enemy? GetEnemyAt(Position position) => _enemies.FirstOrDefault(enemy => enemy.Position == position);
     public TreasureChest? GetTreasureChestAt(Position position) => _treasureChests.FirstOrDefault(chest => chest.Position == position);
@@ -145,7 +159,7 @@ public sealed class Maze
     {
         if (!IsWalkable(destination) || destination == Entrance || destination == Exit) return false;
         var occupant = GetObjectAt(destination);
-        if (occupant is not null && occupant != enemy) return false;
+        if (occupant is not null && occupant != enemy && occupant is not GroundItemPile) return false;
 
         enemy.MoveTo(destination);
         return true;

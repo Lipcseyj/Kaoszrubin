@@ -9,8 +9,8 @@ public sealed class LiveCharacter
 {
     public const int MaximumNameLength = 13;
     private readonly WeaponDefinition?[] _weaponSlots = new WeaponDefinition?[2];
-    private readonly List<MagicItemDefinition> _magicItems = [];
-    private readonly List<IItemDefinition> _backpack = [];
+    private readonly MagicItemDefinition?[] _magicItems = new MagicItemDefinition?[MaximumMagicItemCount];
+    private readonly IItemDefinition?[] _backpack = new IItemDefinition?[MaximumBackpackItemCount];
     private readonly List<PerkDefinition> _perks = [];
     private readonly List<StatusDefinition> _statuses = [];
     public LiveCharacter(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities abilities, int maximumVitality, int maximumMana, int vitalityBonus, int manaBonus, ConsoleColor color = ConsoleColor.Cyan)
@@ -50,8 +50,8 @@ public sealed class LiveCharacter
     public int Experience { get; private set; }
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
     public ArmorDefinition? Armor { get; private set; }
-    public IReadOnlyList<MagicItemDefinition> MagicItems => _magicItems;
-    public IReadOnlyList<IItemDefinition> Backpack => _backpack;
+    public IReadOnlyList<MagicItemDefinition?> MagicItems => _magicItems;
+    public IReadOnlyList<IItemDefinition?> Backpack => _backpack;
     public IReadOnlyList<PerkDefinition> Perks => _perks;
     public IReadOnlyList<StatusDefinition> Statuses => _statuses;
     public const int MaximumMagicItemCount = 3;
@@ -67,24 +67,66 @@ public sealed class LiveCharacter
 
     public bool AddMagicItem(MagicItemDefinition item)
     {
-        if (_magicItems.Count >= MaximumMagicItemCount) return false;
-        _magicItems.Add(item);
+        var index = Array.FindIndex(_magicItems, existing => existing is null);
+        if (index < 0) return false;
+        _magicItems[index] = item;
         return true;
     }
 
     public bool AddToBackpack(IItemDefinition item)
     {
-        if (_backpack.Count >= MaximumBackpackItemCount) return false;
-        _backpack.Add(item);
+        var index = Array.FindIndex(_backpack, existing => existing is null);
+        if (index < 0) return false;
+        _backpack[index] = item;
         return true;
     }
 
     public bool RemoveFromBackpack(string itemId)
     {
-        var index = _backpack.FindIndex(item => string.Equals(item.Id, itemId, StringComparison.OrdinalIgnoreCase));
+        var index = Array.FindIndex(_backpack, item => item is not null && string.Equals(item.Id, itemId, StringComparison.OrdinalIgnoreCase));
         if (index < 0) return false;
-        _backpack.RemoveAt(index);
+        _backpack[index] = null;
         return true;
+    }
+
+    public IItemDefinition? GetInventoryItem(InventorySlotKind kind, int index) => kind switch
+    {
+        InventorySlotKind.Weapon when index is >= 0 and < 2 => _weaponSlots[index],
+        InventorySlotKind.Armor when index == 0 => Armor,
+        InventorySlotKind.MagicItem when index is >= 0 and < MaximumMagicItemCount => _magicItems[index],
+        InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount => _backpack[index],
+        _ => null
+    };
+
+    public static bool CanPlaceInventoryItem(InventorySlotKind kind, IItemDefinition item) => kind switch
+    {
+        InventorySlotKind.Weapon => item.Category == ItemCategory.Weapon,
+        InventorySlotKind.Armor => item.Category == ItemCategory.Armor,
+        InventorySlotKind.MagicItem => item.Category == ItemCategory.MagicItem,
+        InventorySlotKind.Backpack => true,
+        _ => false
+    };
+
+    public bool SetInventoryItem(InventorySlotKind kind, int index, IItemDefinition? item)
+    {
+        if (item is not null && !CanPlaceInventoryItem(kind, item)) return false;
+        switch (kind)
+        {
+            case InventorySlotKind.Weapon when index is >= 0 and < 2:
+                _weaponSlots[index] = (WeaponDefinition?)item;
+                return true;
+            case InventorySlotKind.Armor when index == 0:
+                Armor = (ArmorDefinition?)item;
+                return true;
+            case InventorySlotKind.MagicItem when index is >= 0 and < MaximumMagicItemCount:
+                _magicItems[index] = (MagicItemDefinition?)item;
+                return true;
+            case InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount:
+                _backpack[index] = item;
+                return true;
+            default:
+                return false;
+        }
     }
 
     public bool AddPerk(PerkDefinition perk)

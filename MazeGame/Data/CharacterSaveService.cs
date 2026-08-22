@@ -73,10 +73,14 @@ public sealed class CharacterSaveService
         for (var index = 0; index < Math.Min(2, weaponIds.Count); index++)
             if (weaponIds[index] is { } weaponId) character.EquipWeapon(index, FindSavedDefinition(_gameData.Weapons, weaponId, saved.WeaponNames.ElementAtOrDefault(index), "fegyver"));
         if ((saved.ArmorId ?? saved.ArmorName) is { } armorId) character.EquipArmor(FindSavedDefinition(_gameData.Armors, armorId, saved.ArmorName, "páncél"));
-        var magicItemIds = saved.MagicItemIds.Count > 0 ? saved.MagicItemIds : saved.MagicItemNames;
-        for (var index = 0; index < magicItemIds.Count; index++)
-            character.AddMagicItem(FindSavedDefinition(_gameData.MagicItems, magicItemIds[index], saved.MagicItemNames.ElementAtOrDefault(index), "varázstárgy"));
-        foreach (var item in saved.BackpackItems) character.AddToBackpack(ResolveItem(item));
+        var magicItemIds = saved.MagicItemIds.Count > 0 ? saved.MagicItemIds : saved.MagicItemNames.Cast<string?>().ToList();
+        for (var index = 0; index < Math.Min(LiveCharacter.MaximumMagicItemCount, magicItemIds.Count); index++)
+            if (magicItemIds[index] is { } magicItemId)
+                character.SetInventoryItem(InventorySlotKind.MagicItem, index,
+                    FindSavedDefinition(_gameData.MagicItems, magicItemId, saved.MagicItemNames.ElementAtOrDefault(index), "varázstárgy"));
+        for (var index = 0; index < Math.Min(LiveCharacter.MaximumBackpackItemCount, saved.BackpackItems.Count); index++)
+            if (saved.BackpackItems[index] is { } item)
+                character.SetInventoryItem(InventorySlotKind.Backpack, index, ResolveItem(item));
         foreach (var perkId in saved.PerkIds)
         {
             var perk = _gameData.GetPerk(perkId);
@@ -113,8 +117,8 @@ public sealed class CharacterSaveService
             : 0,
         WeaponIds = character.WeaponSlots.Select(weapon => weapon?.Id).ToList(),
         ArmorId = character.Armor?.Id,
-        MagicItemIds = character.MagicItems.Select(item => item.Id).ToList(),
-        BackpackItems = character.Backpack.Select(item => new ItemSaveData(item.GetType().Name, item.Id)).ToList(),
+        MagicItemIds = character.MagicItems.Select(item => item?.Id).ToList(),
+        BackpackItems = character.Backpack.Select(item => item is null ? null : new ItemSaveData(item.GetType().Name, item.Id)).ToList(),
         PerkIds = character.Perks.Select(perk => perk.Id).ToList(),
         AppliedPerkBonusIds = character.Perks.Select(perk => perk.Id).ToList(),
         StatusIds = character.Statuses.Select(status => status.Id).ToList()
@@ -166,11 +170,11 @@ public sealed class CharacterSaveService
         public int? LevelManaIncrease { get; init; }
         public List<string?> WeaponIds { get; init; } = [];
         public string? ArmorId { get; init; }
-        public List<string> MagicItemIds { get; init; } = [];
+        public List<string?> MagicItemIds { get; init; } = [];
         public List<string?> WeaponNames { get; init; } = [];
         public string? ArmorName { get; init; }
         public List<string> MagicItemNames { get; init; } = [];
-        public List<ItemSaveData> BackpackItems { get; init; } = [];
+        public List<ItemSaveData?> BackpackItems { get; init; } = [];
         public List<string> PerkIds { get; init; } = [];
         public List<string> AppliedPerkBonusIds { get; init; } = [];
         public List<string> StatusIds { get; init; } = [];

@@ -359,6 +359,29 @@ public sealed class ConsoleRenderer
         DrawCharacterSheet(_displayedCharacter);
     }
 
+    public InventorySlotReference? GetSelectedInventorySlot()
+    {
+        if (_displayedCharacter is null || _activeSheetSelection is not { } selection) return null;
+        var kind = selection.Kind switch
+        {
+            SheetSelectionKind.Weapon => InventorySlotKind.Weapon,
+            SheetSelectionKind.Armor => InventorySlotKind.Armor,
+            SheetSelectionKind.MagicItem => InventorySlotKind.MagicItem,
+            SheetSelectionKind.Backpack => InventorySlotKind.Backpack,
+            _ => (InventorySlotKind?)null
+        };
+        return kind is { } inventoryKind
+            ? new InventorySlotReference(_displayedCharacter, inventoryKind, selection.Index)
+            : null;
+    }
+
+    public void RefreshInventoryRows()
+    {
+        if (_displayedCharacter is not null) DrawSelectableCharacterSheetRows(_displayedCharacter);
+    }
+
+    public void DrawInventoryMessage(string message, ConsoleColor color = ConsoleColor.Cyan) => DrawBattleMessage(message, color);
+
     /// <summary>
     /// Kirajzolja a teljes játéktér rácsát a megadott labirintus alapján.
     /// </summary>
@@ -405,8 +428,8 @@ public sealed class ConsoleRenderer
         WriteSheetLine(15, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
         WriteSheetLine(16, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
         WriteSheetLine(18, "FEGYVEREK", ConsoleColor.Yellow);
-        WriteSheetLine(23, $"VARÁZSTÁRGYAK {character.MagicItems.Count}/3", ConsoleColor.Magenta);
-        WriteSheetLine(27, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
+        WriteSheetLine(23, $"VARÁZSTÁRGYAK {character.MagicItems.Count(item => item is not null)}/3", ConsoleColor.Magenta);
+        WriteSheetLine(27, $"HÁTIZSÁK {character.Backpack.Count(item => item is not null)}/10", ConsoleColor.DarkCyan);
         DrawSelectableCharacterSheetRows(character);
         WriteSheetLine(42, string.Empty, ConsoleColor.DarkGray);
         DrawPicturePanel();
@@ -423,29 +446,28 @@ public sealed class ConsoleRenderer
         if (_activeSheetSelection is null || entries.All(entry => entry.Key != _activeSheetSelection))
             _activeSheetSelection = entries.FirstOrDefault()?.Key;
 
-        WriteSheetLine(19, $"1: {ItemName(character.WeaponSlots[0])}", SelectionColor(new(SheetSelectionKind.Weapon, 0), ConsoleColor.Gray));
-        WriteSheetLine(20, $"2: {ItemName(character.WeaponSlots[1])}", SelectionColor(new(SheetSelectionKind.Weapon, 1), ConsoleColor.Gray));
-        WriteSheetLine(21, $"Páncél: {ItemName(character.Armor)}", SelectionColor(new(SheetSelectionKind.Armor, 0), ConsoleColor.DarkYellow));
+        WriteSheetLine(19, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Weapon, 0)));
+        WriteSheetLine(20, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Weapon, 1)));
+        WriteSheetLine(21, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow, SelectionBackground(new(SheetSelectionKind.Armor, 0)));
         for (var index = 0; index < 3; index++)
             WriteSheetLine(24 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}",
-                SelectionColor(new(SheetSelectionKind.MagicItem, index), ConsoleColor.Gray));
+                ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.MagicItem, index)));
         for (var index = 0; index < 10; index++)
             WriteSheetLine(28 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}",
-                SelectionColor(new(SheetSelectionKind.Backpack, index), ConsoleColor.Gray));
+                ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Backpack, index)));
         var companions = _party.Members.Skip(1).Take(3).ToList();
         for (var index = 0; index < 3; index++)
             WriteSheetLine(39 + index, index < companions.Count ? FormatPartyMember(companions[index], companions[index] == character) : string.Empty,
-                index < companions.Count
-                    ? SelectionColor(new(SheetSelectionKind.PartyMember, index), companions[index].Color)
-                    : ConsoleColor.DarkGray);
+                index < companions.Count ? companions[index].Color : ConsoleColor.DarkGray,
+                index < companions.Count ? SelectionBackground(new(SheetSelectionKind.PartyMember, index)) : ConsoleColor.Black);
     }
 
     private List<SheetSelectionEntry> BuildSheetSelections(LiveCharacter character)
     {
         var entries = new List<SheetSelectionEntry>();
         for (var index = 0; index < character.WeaponSlots.Count; index++)
-            if (character.WeaponSlots[index] is not null) entries.Add(new(new(SheetSelectionKind.Weapon, index)));
-        if (character.Armor is not null) entries.Add(new(new(SheetSelectionKind.Armor, 0)));
+            entries.Add(new(new(SheetSelectionKind.Weapon, index)));
+        entries.Add(new(new(SheetSelectionKind.Armor, 0)));
         for (var index = 0; index < character.MagicItems.Count; index++) entries.Add(new(new(SheetSelectionKind.MagicItem, index)));
         for (var index = 0; index < character.Backpack.Count; index++) entries.Add(new(new(SheetSelectionKind.Backpack, index)));
         var companionCount = Math.Min(3, Math.Max(0, _party.Members.Count - 1));
@@ -453,8 +475,8 @@ public sealed class ConsoleRenderer
         return entries;
     }
 
-    private ConsoleColor SelectionColor(SheetSelectionKey key, ConsoleColor normalColor) =>
-        _activeSheetSelection == key ? ConsoleColor.White : normalColor;
+    private ConsoleColor SelectionBackground(SheetSelectionKey key) =>
+        _activeSheetSelection == key ? ConsoleColor.DarkCyan : ConsoleColor.Black;
 
     private enum SheetSelectionKind { Weapon, Armor, MagicItem, Backpack, PartyMember }
     private readonly record struct SheetSelectionKey(SheetSelectionKind Kind, int Index);
@@ -558,10 +580,13 @@ public sealed class ConsoleRenderer
     /// A metódus beállítja a színeket, levágja a túl hosszú szöveget és jobbra/padra ír.
     /// </summary>
     private void WriteSheetLine(int y, string text, ConsoleColor foregroundColor)
+        => WriteSheetLine(y, text, foregroundColor, ConsoleColor.Black);
+
+    private void WriteSheetLine(int y, string text, ConsoleColor foregroundColor, ConsoleColor backgroundColor)
     {
         const int maximumWidth = 27;
         var clippedText = text.Length <= maximumWidth ? text : text[..maximumWidth];
-        SetColors(foregroundColor, ConsoleColor.Black);
+        SetColors(foregroundColor, backgroundColor);
         // Itt történik a tényleges kiírás: balra igazított, maximum 'maximumWidth' karakter,
         // és X=172 lesz (a jobb oldali karakterlap kezdő X pozíciója).
         WriteAt(172, y, clippedText.PadRight(maximumWidth));
@@ -661,6 +686,7 @@ public sealed class ConsoleRenderer
         if (mapObject is TreasureChest) return ConsoleColor.Yellow;
         if (mapObject is Enemy) return ConsoleColor.Red;
         if (mapObject is Corpse) return ConsoleColor.DarkRed;
+        if (mapObject is GroundItemPile) return ConsoleColor.Cyan;
         if (mapObject is PartyMemberAvatar partyMember) return partyMember.Character.Color;
         if (maze.GetDoorAt(position) is { } door) return door.State switch
         {

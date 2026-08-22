@@ -234,9 +234,13 @@ A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbe
 
 A karakterlap a tíz hátizsáksor alatt három sort tart fenn a társaknak. Minden sor a karakter saját színével mutatja az osztály kezdőbetűjét, a nevet, a szintet és az aktuális/maximális HP-t. A vezető nem ismétlődik meg ezekben a sorokban.
 
-A `Tab` vált a térkép- és karakterlapfókusz között. Karakterlapfókuszban a `KARAKTERLAP` cím sötétkék hátteret kap, a fel/le nyilak pedig az elfoglalt felszereléshelyek, varázstárgyak, hátizsáktárgyak és partitársak között léptetik az aktív kijelölést. A kiválasztott sor fehér; a renderer a logikai kategória és index alapján karakterenként külön megőrzi az utolsó kijelölést. Lépéskor csak a választható tárgy- és partisorok rajzolódnak újra, a teljes karakterlap és térkép nem.
+A `Tab` vált a térkép- és karakterlapfókusz között. Karakterlapfókuszban a `KARAKTERLAP` cím zöld hátteret kap, a fel/le nyilak pedig minden felszereléshely, varázstárgyhely, hátizsákhely és partitárs között léptetik az aktív kijelölést; az üres helyek is célpontok. A kiválasztott sor DarkCyan hátteret kap, miközben megtartja saját előtérszínét; a renderer a logikai kategória és index alapján karakterenként külön megőrzi az utolsó kijelölést. Lépéskor csak a választható tárgy- és partisorok rajzolódnak újra, a teljes karakterlap és térkép nem.
 
 Karakterlapfókuszban a bal/jobb nyíl körkörösen vált a parti tagjainak teljes karakterlapja és inventoryja között. A három rögzített társsor mindig ugyanazokat a társakat mutatja; az éppen megtekintett társ sora `▶` jelölést kap. A vezető lapjának megtekintésekor nincs nyíl a társsorokban. A megtekintett lap nem változtatja meg a térképen irányított vezetőt.
+
+Az inventory rögzített helyekből áll: két fegyverhely, egy páncélhely, három varázstárgyhely és tíz hátizsákhely. Minden `IItemDefinition` kategóriája fegyver, páncél, varázstárgy vagy általános tárgy. A felszereléshelyek csak a saját kategóriájukat fogadják el, a hátizsák bármelyiket. A `Space` kiemeli a kijelölt tárgyat, majd ugyanazon vagy másik partitag érvényes helyére teszi; foglalt cél esetén a két tárgy helyet cserél, ha a visszakerülő tárgy is megfelel a forráshely kategóriájának. A fókusz elhagyása visszateszi a még kézben tartott tárgyat, így az nem veszhet el.
+
+A `D` a kijelölt tárgyat a parti vezetőjének aktuális térképmezőjére dobja. A `GroundItemPile` egy pozíción tetszőleges számú tárgyat tárol, a térképen cián `◆` jel mutatja; a halom nem akadályozza a mozgást. A földi halmok a labirintusszint futásidejű állapotához tartoznak, ezért új pályán megszűnnek és jelenleg nem kerülnek karaktermentésbe.
 
 A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű négy főre tölti a partit. A `RandomCharacterGenerator` minden társhoz:
 
@@ -372,7 +376,7 @@ A `CharacterSaveService` a karaktereket a futtatási könyvtár `karakterek.json
 - a szintlépésekből összegyűlt maximális HP- és mannanövekmény;
 - a kiválasztott tehetségek azonosítói;
 - az aktív nem szükségletalapú állapotok azonosítói;
-- fegyverek, páncél, varázstárgyak és hátizsák;
+- fegyverek, páncél, varázstárgyak és hátizsák, az üres helyeket is megőrző pozíciókkal;
 - az aktív karakter indexe.
 
 A mentés definícióazonosítókat használ, és a betöltéskor az aktuális `GameDataCatalog` elemeihez kapcsolja vissza őket. Régebbi, névalapú mentésekhez kompatibilitási útvonal is tartozik. A labirintus, az aktuális pályaszint, az ellenfelek és a köd nem része a mentésnek.
