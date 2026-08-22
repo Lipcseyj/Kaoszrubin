@@ -47,6 +47,38 @@ Szint,XP értél
 29,	2155000
 30,	2425000
 
+#Szintlépés életerő növekedés
+Egészség,Növekedés
+1,1-3
+2,1-4
+3,2-4
+4,2-5
+5,3-5
+6,3-6
+7,4-6
+8,4-7
+9,5-7
+10,5-8
+11,6-8
+12,6-9
+13,7-10
+
+#Szintlépés manna növekedés
+Intelligencia,Növekedés
+1,1-2
+2,1-3
+3,2-3
+4,2-4
+5,3-4
+6,3-5
+7,4-5
+8,4-6
+9,5-6
+10,5-7
+11,6-7
+12,6-8
+13,7-10
+
 #Ellenségek
 Id,Név,Kinézet,Erő,HP,Páncél,Gyorsaság,XP érték
 E001,Óriáspatkány,r,2,20,0,5,100

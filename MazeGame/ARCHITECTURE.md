@@ -122,6 +122,8 @@ ceil(CSV XP-küszöb × osztály XP-módosító)
 
 Egy XP-jóváírás egyszerre több szintlépést is eredményezhet.
 
+Minden elért új szinthez külön HP- és – mannát használó osztálynál – mannadobás tartozik. A dobás zárt tartományát az `adatok.csv` `#Szintlépés életerő növekedés`, illetve `#Szintlépés manna növekedés` szekciója adja meg az Egészség és az Intelligencia alapján. A növekmény egyszerre emeli a maximális és az aktuális erőforrást, tehát a szintlépés részleges feltöltést is jelent. Több egyszerre elért szint minden bónusza külön kisorsolódik és összeadódik.
+
 ## Játékhurok
 
 A `Game.Run` egy körülbelül 20 ms-onként ismétlődő ciklus. Három eseményforrást kezel:
@@ -142,6 +144,8 @@ vízvesztés    = 2
 ```
 
 A szükségletek jelenleg nem okoznak közvetlen sebzést vagy más hátrányt.
+
+A rejtett `Ctrl+Shift+S` fejlesztői gyorsbillentyű pontosan a következő szinthez hiányzó XP-t adja a karakternek. Ugyanazt a fejlődési és bónuszdobási útvonalat használja, mint egy valódi csatagyőzelem.
 
 ## Labirintusgenerálás
 
@@ -240,6 +244,7 @@ A `CharacterSaveService` a karaktereket a futtatási könyvtár `karakterek.json
 - faj és osztály;
 - képességek, HP/manna és generált bónuszok;
 - élelem, víz, arany, szint és XP;
+- a szintlépésekből összegyűlt maximális HP- és mannanövekmény;
 - fegyverek, páncél, varázstárgyak és hátizsák;
 - az aktív karakter indexe.
 

@@ -64,6 +64,11 @@ public sealed class Game
                         nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
                         continue;
                     }
+                    if (IsLevelUpShortcut(keyInfo))
+                    {
+                        TriggerDeveloperLevelUp();
+                        continue;
+                    }
 
                     var key = keyInfo.Key;
                     if (key == ConsoleKey.Escape) return;
@@ -166,12 +171,17 @@ public sealed class Game
 
         if (result.PlayerWon)
         {
-            var experienceResult = SelectedCharacter.AddExperience(enemy.Definition.ExperienceReward, _gameData.ExperienceByLevel);
+            var experienceResult = AddExperience(enemy.Definition.ExperienceReward);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             _renderer.DrawBattleResult(result, enemy);
             _renderer.DrawExperienceGained(experienceResult);
             _renderer.RefreshCharacterSheet(SelectedCharacter);
+            if (experienceResult.LeveledUp)
+            {
+                _renderer.DrawLevelUpScreen(SelectedCharacter, experienceResult);
+                _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            }
             _battleStarted = false;
             _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
             return;
@@ -218,4 +228,29 @@ public sealed class Game
     private static bool IsNewMazeShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.R &&
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
+    private static bool IsLevelUpShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.L &&
+        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
+    private LevelUpResult AddExperience(int amount) => SelectedCharacter.AddExperience(
+        amount,
+        _gameData.ExperienceByLevel,
+        _gameData.GetVitalityGrowth(SelectedCharacter.Abilities.Health),
+        _gameData.GetManaGrowth(SelectedCharacter.Abilities.Intelligence),
+        _random);
+
+    private void TriggerDeveloperLevelUp()
+    {
+        var neededExperience = SelectedCharacter.GetExperienceNeededForNextLevel(_gameData.ExperienceByLevel);
+        if (neededExperience <= 0)
+        {
+            _renderer.DrawDeveloperMessage("Fejlesztői mód: a karakter már elérte a maximális szintet.");
+            return;
+        }
+
+        var result = AddExperience(neededExperience);
+        _renderer.DrawLevelUpScreen(SelectedCharacter, result);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+    }
 }

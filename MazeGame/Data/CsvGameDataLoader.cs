@@ -29,6 +29,8 @@ public static class CsvGameDataLoader
         var minimumVitalityByHealth = new Dictionary<int, int>();
         var minimumManaByIntelligence = new Dictionary<int, int>();
         var experienceByLevel = new Dictionary<int, int>();
+        var vitalityGrowthByHealth = new Dictionary<int, ValueRange>();
+        var manaGrowthByIntelligence = new Dictionary<int, ValueRange>();
         var startingEquipmentByClass = new Dictionary<string, StartingEquipmentDefinition>(StringComparer.OrdinalIgnoreCase);
         var section = DataSection.None;
 
@@ -45,7 +47,8 @@ public static class CsvGameDataLoader
 
             if (IsHeaderRow(cells[0])) continue;
             AddDefinition(section, cells, races, characterClasses, enemies, weaponTypes, weapons, armors, abilities, items, magicItems, spells,
-                raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel, startingEquipmentByClass);
+                raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
+                vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass);
         }
 
         return new GameDataCatalog
@@ -68,6 +71,8 @@ public static class CsvGameDataLoader
             MinimumVitalityByHealth = minimumVitalityByHealth,
             MinimumManaByIntelligence = minimumManaByIntelligence,
             ExperienceByLevel = experienceByLevel,
+            VitalityGrowthByHealth = vitalityGrowthByHealth,
+            ManaGrowthByIntelligence = manaGrowthByIntelligence,
             StartingEquipmentByClass = startingEquipmentByClass
         };
     }
@@ -79,6 +84,7 @@ public static class CsvGameDataLoader
         ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence, IDictionary<int, int> experienceByLevel,
+        IDictionary<int, ValueRange> vitalityGrowthByHealth, IDictionary<int, ValueRange> manaGrowthByIntelligence,
         IDictionary<string, StartingEquipmentDefinition> startingEquipmentByClass)
     {
         var id = Cell(cells, 0);
@@ -135,6 +141,12 @@ public static class CsvGameDataLoader
             case DataSection.LevelExperience:
                 AddAbilityThreshold(cells, experienceByLevel);
                 break;
+            case DataSection.VitalityGrowth:
+                AddGrowthRange(cells, vitalityGrowthByHealth);
+                break;
+            case DataSection.ManaGrowth:
+                AddGrowthRange(cells, manaGrowthByIntelligence);
+                break;
             case DataSection.StartingEquipment:
                 startingEquipmentByClass[id] = new StartingEquipmentDefinition(
                     id,
@@ -183,6 +195,12 @@ public static class CsvGameDataLoader
         thresholds[ability] = resource;
     }
 
+    private static void AddGrowthRange(string[] cells, IDictionary<int, ValueRange> ranges)
+    {
+        if (Integer(cells, 0) is not { } ability || ValueRangeFrom(cells, 1) is not { } range) return;
+        ranges[ability] = range;
+    }
+
     private static bool TryReadSection(string[] cells, out DataSection section)
     {
         var sectionCell = cells[0];
@@ -223,6 +241,8 @@ public static class CsvGameDataLoader
         "egeszseg altal adott eletero minimum" => DataSection.VitalityByHealth,
         "intelligencia altal adott manna minimum" => DataSection.ManaByIntelligence,
         "szintlepesek" => DataSection.LevelExperience,
+        "szintlepes eletero novekedes" => DataSection.VitalityGrowth,
+        "szintlepes manna novekedes" => DataSection.ManaGrowth,
         _ => DataSection.None
     };
 
@@ -251,6 +271,8 @@ public static class CsvGameDataLoader
         StartingEquipment,
         VitalityByHealth,
         ManaByIntelligence,
-        LevelExperience
+        LevelExperience,
+        VitalityGrowth,
+        ManaGrowth
     }
 }

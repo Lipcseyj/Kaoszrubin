@@ -135,6 +135,53 @@ public sealed class ConsoleRenderer
     }
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
 
+    public void DrawLevelUpScreen(LiveCharacter character, LevelUpResult result)
+    {
+        ResetColorCache();
+        Console.Clear();
+
+        const int frameWidth = 78;
+        const int contentWidth = frameWidth - 4;
+        var detailLines = result.Bonuses.Select(bonus => character.UsesMana
+            ? $"⭐ {bonus.Level}. szint:  ❤️ +{bonus.Vitality} HP     🔷 +{bonus.Mana} manna"
+            : $"⭐ {bonus.Level}. szint:  ❤️ +{bonus.Vitality} HP").ToList();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("✨🏆✨  SZINTLÉPÉS!  ✨🏆✨", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ($"⚔️  {character.Name} új ereje felébredt!", ConsoleColor.Cyan),
+            ($"📜  {result.PreviousLevel}. szint  ➜  {result.CurrentLevel}. szint", ConsoleColor.Magenta),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        lines.AddRange(detailLines.Select(line => (line, ConsoleColor.Green)));
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add((character.UsesMana
+            ? $"💖 Összes növekedés: +{result.VitalityGained} HP   💠 +{result.ManaGained} manna"
+            : $"💖 Összes növekedés: +{result.VitalityGained} HP", ConsoleColor.White));
+        lines.Add(($"🛡️  Jelenlegi értékek: {character.CurrentVitality}/{character.MaximumVitality} HP" +
+            (character.UsesMana ? $"   {character.CurrentMana}/{character.MaximumMana} manna" : string.Empty), ConsoleColor.Cyan));
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟", ConsoleColor.Yellow));
+
+        var left = Math.Max(0, (Console.WindowWidth - frameWidth) / 2);
+        var top = Math.Max(1, (Console.WindowHeight - lines.Count - 2) / 2);
+        SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
+        WriteAt(left, top, "╔" + new string('═', frameWidth - 2) + "╗");
+        for (var index = 0; index < lines.Count; index++)
+        {
+            SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
+            WriteAt(left, top + index + 1, "║");
+            SetColors(lines[index].Color, ConsoleColor.Black);
+            var text = lines[index].Text;
+            WriteAt(left + 2, top + index + 1, text.PadRight(Math.Max(0, contentWidth - text.Length)));
+            SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
+            WriteAt(left + frameWidth - 1, top + index + 1, "║");
+        }
+        SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
+        WriteAt(left, top + lines.Count + 1, "╚" + new string('═', frameWidth - 2) + "╝");
+        Console.ReadKey(intercept: true);
+    }
+
     public void DrawMapCellAfterBattle(Maze maze, FogOfWar fogOfWar, Position battlePosition, Position playerPosition)
     {
         if (battlePosition != playerPosition) DrawMapCell(maze, fogOfWar, battlePosition);

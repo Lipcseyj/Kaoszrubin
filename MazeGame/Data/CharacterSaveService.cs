@@ -53,6 +53,7 @@ public sealed class CharacterSaveService
             _gameData.GetMinimumVitality(saved.Abilities.Health) + saved.VitalityBonus,
             characterClass.UsesMana ? _gameData.GetMinimumMana(saved.Abilities.Intelligence) + saved.ManaBonus : 0,
             saved.VitalityBonus, characterClass.UsesMana ? saved.ManaBonus : 0);
+        character.ApplySavedLevelGrowth(saved.LevelVitalityIncrease ?? 0, saved.LevelManaIncrease ?? 0);
         character.SetCurrentResources(saved.CurrentVitality, saved.CurrentMana);
         character.SetNeedLevels(saved.FoodLevel ?? 100, saved.WaterLevel ?? 100);
         character.SetGold(saved.Gold ?? 0);
@@ -85,6 +86,10 @@ public sealed class CharacterSaveService
         Gold = character.Gold,
         Level = character.Level,
         Experience = character.Experience,
+        LevelVitalityIncrease = character.MaximumVitality - (_gameData.GetMinimumVitality(character.Abilities.Health) + character.VitalityBonus),
+        LevelManaIncrease = character.UsesMana
+            ? character.MaximumMana - (_gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
+            : 0,
         WeaponIds = character.WeaponSlots.Select(weapon => weapon?.Id).ToList(),
         ArmorId = character.Armor?.Id,
         MagicItemIds = character.MagicItems.Select(item => item.Id).ToList(),
@@ -131,6 +136,8 @@ public sealed class CharacterSaveService
         public int? Gold { get; init; }
         public int? Level { get; init; }
         public int? Experience { get; init; }
+        public int? LevelVitalityIncrease { get; init; }
+        public int? LevelManaIncrease { get; init; }
         public List<string?> WeaponIds { get; init; } = [];
         public string? ArmorId { get; init; }
         public List<string> MagicItemIds { get; init; } = [];

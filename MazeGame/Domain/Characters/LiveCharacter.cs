@@ -28,9 +28,9 @@ public sealed class LiveCharacter
     public RaceDefinition Race { get; }
     public CharacterClassDefinition CharacterClass { get; }
     public PrimaryAbilities Abilities { get; }
-    public int MaximumVitality { get; }
+    public int MaximumVitality { get; private set; }
     public int CurrentVitality { get; private set; }
-    public int MaximumMana { get; }
+    public int MaximumMana { get; private set; }
     public int CurrentMana { get; private set; }
     public int VitalityBonus { get; }
     public int ManaBonus { get; }
@@ -85,16 +85,31 @@ public sealed class LiveCharacter
     public void AddGold(int amount) => Gold += Math.Max(0, amount);
     public void SetGold(int gold) => Gold = Math.Max(0, gold);
 
-    public LevelUpResult AddExperience(int amount, IReadOnlyDictionary<int, int> experienceByLevel)
+    public LevelUpResult AddExperience(int amount, IReadOnlyDictionary<int, int> experienceByLevel,
+        ValueRange vitalityGrowth, ValueRange manaGrowth, Random random)
     {
         Experience += Math.Max(0, amount);
         var previousLevel = Level;
-        while (experienceByLevel.ContainsKey(Level + 1) && Experience >= GetRequiredExperience(Level + 1, experienceByLevel)) Level++;
-        return new LevelUpResult(amount, previousLevel, Level);
+        var bonuses = new List<LevelUpBonus>();
+        while (experienceByLevel.ContainsKey(Level + 1) && Experience >= GetRequiredExperience(Level + 1, experienceByLevel))
+        {
+            Level++;
+            var vitality = random.Next(vitalityGrowth.Minimum, vitalityGrowth.Maximum + 1);
+            var mana = UsesMana ? random.Next(manaGrowth.Minimum, manaGrowth.Maximum + 1) : 0;
+            MaximumVitality += vitality;
+            CurrentVitality += vitality;
+            MaximumMana += mana;
+            CurrentMana += mana;
+            bonuses.Add(new LevelUpBonus(Level, vitality, mana));
+        }
+        return new LevelUpResult(amount, previousLevel, Level, bonuses);
     }
 
     public int? GetNextLevelExperience(IReadOnlyDictionary<int, int> experienceByLevel) =>
         experienceByLevel.ContainsKey(Level + 1) ? GetRequiredExperience(Level + 1, experienceByLevel) : null;
+
+    public int GetExperienceNeededForNextLevel(IReadOnlyDictionary<int, int> experienceByLevel) =>
+        Math.Max(0, (GetNextLevelExperience(experienceByLevel) ?? Experience) - Experience);
 
     public void SetProgress(int level, int experience)
     {
@@ -116,9 +131,19 @@ public sealed class LiveCharacter
         CurrentVitality = Math.Clamp(vitality, 0, MaximumVitality);
         CurrentMana = Math.Clamp(mana, 0, MaximumMana);
     }
+
+    public void ApplySavedLevelGrowth(int vitalityIncrease, int manaIncrease)
+    {
+        MaximumVitality += Math.Max(0, vitalityIncrease);
+        MaximumMana += UsesMana ? Math.Max(0, manaIncrease) : 0;
+    }
 }
 
-public sealed record LevelUpResult(int GainedExperience, int PreviousLevel, int CurrentLevel)
+public sealed record LevelUpBonus(int Level, int Vitality, int Mana);
+
+public sealed record LevelUpResult(int GainedExperience, int PreviousLevel, int CurrentLevel, IReadOnlyList<LevelUpBonus> Bonuses)
 {
     public bool LeveledUp => CurrentLevel > PreviousLevel;
+    public int VitalityGained => Bonuses.Sum(bonus => bonus.Vitality);
+    public int ManaGained => Bonuses.Sum(bonus => bonus.Mana);
 }

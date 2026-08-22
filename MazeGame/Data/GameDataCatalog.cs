@@ -23,6 +23,8 @@ public sealed class GameDataCatalog
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> ExperienceByLevel { get; init; } = new Dictionary<int, int>();
+    public IReadOnlyDictionary<int, ValueRange> VitalityGrowthByHealth { get; init; } = new Dictionary<int, ValueRange>();
+    public IReadOnlyDictionary<int, ValueRange> ManaGrowthByIntelligence { get; init; } = new Dictionary<int, ValueRange>();
 
     public EnemyDefinition GetEnemy(string id) => FindById(Enemies, id, "ellenfél");
     public WeaponTypeDefinition GetWeaponType(string id) => FindById(WeaponTypes, id, "fegyvertípus");
@@ -37,12 +39,18 @@ public sealed class GameDataCatalog
 
     public int GetMinimumVitality(int health) => GetThresholdValue(MinimumVitalityByHealth, health, "egészség");
     public int GetMinimumMana(int intelligence) => GetThresholdValue(MinimumManaByIntelligence, intelligence, "intelligencia");
+    public ValueRange GetVitalityGrowth(int health) => GetRangeThresholdValue(VitalityGrowthByHealth, health, "egészség");
+    public ValueRange GetManaGrowth(int intelligence) => GetRangeThresholdValue(ManaGrowthByIntelligence, intelligence, "intelligencia");
 
     private static int GetThresholdValue(IReadOnlyDictionary<int, int> values, int ability, string abilityName)
     {
         var matchingValue = values.Where(pair => pair.Key <= ability).OrderByDescending(pair => pair.Key).Select(pair => (int?)pair.Value).FirstOrDefault();
         return matchingValue ?? throw new InvalidOperationException($"Nincs {abilityName} értékhez tartozó minimum az adatok.csv fájlban.");
     }
+
+    private static ValueRange GetRangeThresholdValue(IReadOnlyDictionary<int, ValueRange> values, int ability, string abilityName) =>
+        values.Where(pair => pair.Key <= ability).OrderByDescending(pair => pair.Key).Select(pair => pair.Value).FirstOrDefault()
+        ?? throw new InvalidOperationException($"Nincs {abilityName} értékhez tartozó szintlépési növekedés az adatok.csv fájlban.");
 
     private static T FindById<T>(IReadOnlyList<T> definitions, string id, string typeName) where T : IGameDefinition =>
         definitions.FirstOrDefault(definition => string.Equals(definition.Id, id, StringComparison.OrdinalIgnoreCase))
