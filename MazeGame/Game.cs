@@ -44,7 +44,7 @@ public sealed class Game
         SelectedCharacter = selectedCharacter;
         _gameData = gameData;
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
-        _battleSystem = new BattleSystem(_random);
+        _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses);
     }
 
     public void Run()

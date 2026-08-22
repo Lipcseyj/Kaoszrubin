@@ -206,32 +206,70 @@ Intelligencia,Növekedés
 13,7-10
 
 #Ellenségek
-Id,Név,Kinézet,Erő,HP,Páncél,Gyorsaság,XP érték
-E001,Óriáspatkány,r,2,20,0,5,100
-E002,Kobold,k,3,30,1,6,150
-E003,Goblin,g,4,45,2,6,200
-E004,Csontváz,I,5,80,3,3,250
-E005,Farkas,w,4,55,1,8,300
-E006,Zombi,z,5,100,2,2,330
-E007,Ork,o,7,120,4,5,400
-E008,Hobgoblin,h,8,150,5,5,450
-E009,Óriáspók,s,6,90,3,7,470
-E010,Gnoll,n,9,170,4,6,600
-E011,Lidércfarkas,W,10,220,5,9,700
-E012,Ogre,O,12,320,5,3,900
-E013,Troll,T,14,500,6,4,1000
-E014,Minotaurusz,M,15,650,7,5,1200
-E015,Múmia,m,12,400,7,3,1400
-E016,Medúza,μ,13,450,6,6,1500
-E017,Kiméra,C,16,800,7,7,2000
-E018,Beholder,B,17,1000,8,4,2800
-E019,Vámpír,V,15,750,7,8,3000
-E020,Vérfarkas,L,16,850,6,9,3200
-E021,Vörös sárkány,D,18,1500,9,7,5000
-E022,Lich,l,17,1200,8,5, 4000
-E023,Démonlovag,♞,18,1800,9,6,5000
-E024,Balor démon,♛,19,2500,10,8,7500
-E025,Fekete sárkány,Ð,20,2000,10,8,10000
+Id,Név,Kinézet,Erő,HP,Páncél,Gyorsaság,XP érték,Erősség,Képesség1Id,Képesség2Id
+E001,Óriáspatkány,r,2,20,0,5,100,1,MA003,
+E002,Kobold,k,3,30,1,6,150,1,MA006,
+E003,Goblin,g,4,45,2,6,200,1,MA004,
+E004,Csontváz,I,5,80,3,3,250,1,MA001,MA007
+E005,Farkas,w,4,55,1,8,300,1,MA006,MA004
+E006,Zombi,z,5,100,2,2,330,1,MA001,MA003
+E007,Ork,o,7,120,4,5,400,2,MA005,
+E008,Hobgoblin,h,8,150,5,5,450,2,MA007,MA005
+E009,Óriáspók,s,6,90,3,7,470,2,MA002,MA006
+E010,Gnoll,n,9,170,4,6,600,2,MA004,MA005
+E011,Lidércfarkas,W,10,220,5,9,700,2,MA001,MA006
+E012,Ogre,O,12,320,5,3,900,3,MA005,MA007
+E013,Troll,T,14,500,6,4,1000,3,MA008,MA007
+E014,Minotaurusz,M,15,650,7,5,1200,3,MA005,MA006
+E015,Múmia,m,12,400,7,3,1400,3,MA001,MA003
+E016,Medúza,μ,13,450,6,6,1500,3,MA002,MA006
+E017,Kiméra,C,16,800,7,7,2000,4,MA005,MA007
+E018,Beholder,B,17,1000,8,4,2800,4,MA006,MA005
+E019,Vámpír,V,15,750,7,8,3000,4,MA001,MA003
+E020,Vérfarkas,L,16,850,6,9,3200,4,MA004,MA006
+E021,Vörös sárkány,D,18,1500,9,7,5000,5,MA007,MA005
+E022,Lich,l,17,1200,8,5,4000,5,MA001,MA007
+E023,Démonlovag,♞,18,1800,9,6,5000,5,MA010,MA004
+E024,Balor démon,♛,19,2500,10,8,7500,5,MA010,MA005
+E025,Fekete sárkány,Ð,20,2000,10,8,10000,5,MA007,MA002
+E026,Óriásdenevér,b,3,35,0,9,160,1,MA006,MA009
+E027,Savanyálka,a,4,65,2,2,230,1,MA002,MA007
+E028,Útonálló,u,5,70,2,6,260,1,MA004,
+E029,Barlangi gyík,j,4,60,2,7,240,1,MA006,
+E030,Pestishordozó patkány,p,3,55,1,6,280,1,MA003,MA002
+E031,Bugbear,q,9,190,5,5,650,2,MA005,MA007
+E032,Hárpia,H,8,160,3,9,680,2,MA009,MA004
+E033,Ghoul,G,9,210,4,7,720,2,MA001,MA003
+E034,Ifjú baziliszkusz,β,10,240,6,4,780,2,MA002,MA007
+E035,Ork sámán,ó,8,180,3,6,750,2,MA006,MA003
+E036,Ettin,E,15,720,8,3,1700,3,MA005,MA007
+E037,Wight,Ŵ,13,560,7,6,1650,3,MA001,MA003
+E038,Wyvern,Y,14,620,6,9,1850,3,MA002,MA009
+E039,Kőgólem,K,16,900,10,2,2100,3,MA007,MA005
+E040,Éji banya,ñ,13,520,6,8,1900,3,MA003,MA006
+E041,Fagyóriás,F,18,1300,10,5,3800,4,MA005,MA007
+E042,Halállovag,†,17,1150,11,6,4000,4,MA001,MA007
+E043,Hidra,Ξ,18,1450,8,7,4300,4,MA002,MA005
+E044,Csontsárkány,δ,19,1600,11,6,4800,4,MA001,MA007
+E045,Démonpók,§,17,1050,8,10,4200,4,MA002,MA004
+E046,Ősvámpír,Ƿ,20,1900,11,10,8500,5,MA001,MA006
+E047,Pokolfejedelem,Φ,22,2800,13,7,11000,5,MA010,MA005
+E048,Vén beholder,Θ,21,2400,12,8,10500,5,MA006,MA005
+E049,Drakolich,Ł,23,3200,14,7,14000,5,MA001,MA007
+E050,Káoszsárkány,Ж,24,3600,13,10,16000,5,MA002,MA003
+
+#Szörnyképességek
+Id,Név,Hatás,AktiválásiEsély,Érték,Leírás
+MA001,Élőholt,Trait,100,0,Élőholt lény amelyre később külön szent és nekrotikus szabályok vonatkozhatnak.
+MA002,Mérges támadás,Poison,25,0,Sikeres találat után 25 százalék eséllyel mérgezést okoz.
+MA003,Fertőzéshordozó,Disease,20,0,Sikeres találat után 20 százalék eséllyel betegséget terjeszt.
+MA004,Vérontó,Bleeding,25,0,Sikeres találat után 25 százalék eséllyel vérzést okoz.
+MA005,Zúzócsapás,ExtraDamage,25,6,Sikeres találatkor 25 százalék eséllyel további 6 sebzést okoz.
+MA006,Villámgyors,InitiativeBonus,100,2,A szörny 2 pont bónuszt kap a kezdeményezéséhez.
+MA007,Vastag bőr,ArmorBonus,100,2,A szörny 2 pont állandó páncélbónuszt kap.
+MA008,Regeneráció,Trait,100,5,A regenerációs hatás későbbi körönkénti gyógyítás számára fenntartott tulajdonság.
+MA009,Repülő,Trait,100,0,A repülés későbbi mozgási és terepszabályok számára fenntartott tulajdonság.
+MA010,Démoni,Trait,100,0,Démoni lény amelyre később külön szent és idézési szabályok vonatkozhatnak.
 
 #Fegyverek
 Id,Név,Típus,Sebzés,Kétkezes,Tolvaj,Pap,Mágus,Jellemzés,Ár,Kategória,AlapId,MágikusErő

@@ -17,6 +17,7 @@ public static class CsvGameDataLoader
         var races = new List<RaceDefinition>();
         var characterClasses = new List<CharacterClassDefinition>();
         var enemies = new List<EnemyDefinition>();
+        var monsterAbilities = new List<MonsterAbilityDefinition>();
         var weaponTypes = new List<WeaponTypeDefinition>();
         var weapons = new List<WeaponDefinition>();
         var armors = new List<ArmorDefinition>();
@@ -51,12 +52,13 @@ public static class CsvGameDataLoader
             }
 
             if (IsHeaderRow(cells[0])) continue;
-            AddDefinition(section, cells, races, characterClasses, enemies, weaponTypes, weapons, armors, abilities, items, magicItems, spells, perks, statuses, characterNames, itemUpgrades,
+            AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, weaponTypes, weapons, armors, abilities, items, magicItems, spells, perks, statuses, characterNames, itemUpgrades,
                 raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                 vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
         }
 
         ValidateMagicItems(magicItems, spells);
+        ValidateEnemies(enemies, monsterAbilities);
 
         return new GameDataCatalog
         {
@@ -68,6 +70,7 @@ public static class CsvGameDataLoader
                 CharacterClassRules.UsesMana(characterClass.Id),
                 characterClass.ExperienceModifier)).ToList(),
             Enemies = enemies,
+            MonsterAbilities = monsterAbilities,
             WeaponTypes = weaponTypes,
             Weapons = CreateUpgradedWeapons(weapons, itemUpgrades),
             Armors = CreateUpgradedArmors(armors, itemUpgrades),
@@ -92,7 +95,8 @@ public static class CsvGameDataLoader
 
     private static void AddDefinition(DataSection section, string[] cells,
         ICollection<RaceDefinition> races, ICollection<CharacterClassDefinition> characterClasses,
-        ICollection<EnemyDefinition> enemies, ICollection<WeaponTypeDefinition> weaponTypes, ICollection<WeaponDefinition> weapons,
+        ICollection<EnemyDefinition> enemies, ICollection<MonsterAbilityDefinition> monsterAbilities,
+        ICollection<WeaponTypeDefinition> weaponTypes, ICollection<WeaponDefinition> weapons,
         ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities, ICollection<MiscItemDefinition> items,
         ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells, ICollection<PerkDefinition> perks,
         ICollection<StatusDefinition> statuses, ICollection<CharacterNameDefinition> characterNames, ICollection<ItemUpgradeDefinition> itemUpgrades,
@@ -115,7 +119,13 @@ public static class CsvGameDataLoader
                 characterClasses.Add(new CharacterClassDefinition(id, name, PrimaryAbilities.Zero, CharacterClassRules.UsesMana(id), Double(cells, 2) ?? 1));
                 break;
             case DataSection.Enemies:
-                enemies.Add(new EnemyDefinition(id, name, Cell(cells, 2), Integer(cells, 3), Integer(cells, 4), Integer(cells, 5), Integer(cells, 6), Integer(cells, 7) ?? 0));
+                enemies.Add(new EnemyDefinition(id, name, Cell(cells, 2), Integer(cells, 3), Integer(cells, 4),
+                    Integer(cells, 5), Integer(cells, 6), Integer(cells, 7) ?? 0, Integer(cells, 8) ?? 1,
+                    cells.Skip(9).Take(2).Where(abilityId => !string.IsNullOrWhiteSpace(abilityId)).ToList()));
+                break;
+            case DataSection.MonsterAbilities:
+                monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),
+                    Math.Clamp(Integer(cells, 3) ?? 0, 0, 100), Integer(cells, 4) ?? 0, Cell(cells, 5)));
                 break;
             case DataSection.WeaponTypes:
                 weaponTypes.Add(new WeaponTypeDefinition(id, name));
@@ -252,6 +262,24 @@ public static class CsvGameDataLoader
         }
     }
 
+    private static MonsterAbilityEffect ParseMonsterAbilityEffect(string[] cells, int index) =>
+        Enum.TryParse<MonsterAbilityEffect>(Cell(cells, index), true, out var effect) ? effect : MonsterAbilityEffect.Trait;
+
+    private static void ValidateEnemies(IEnumerable<EnemyDefinition> enemies,
+        IReadOnlyCollection<MonsterAbilityDefinition> monsterAbilities)
+    {
+        var abilityIds = monsterAbilities.Select(ability => ability.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var enemy in enemies)
+        {
+            if (enemy.StrengthTier is < 1 or > 5)
+                throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny erősségi szintje csak 1 és 5 közötti lehet.");
+            if (enemy.AbilityIds.Count > 2)
+                throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny legfeljebb két képességgel rendelkezhet.");
+            foreach (var abilityId in enemy.AbilityIds.Where(abilityId => !abilityIds.Contains(abilityId)))
+                throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny ismeretlen képességre hivatkozik: '{abilityId}'.");
+        }
+    }
+
     private static IReadOnlyList<WeaponDefinition> CreateUpgradedWeapons(
         IReadOnlyCollection<WeaponDefinition> weapons, IReadOnlyCollection<ItemUpgradeDefinition> upgrades)
     {
@@ -370,6 +398,7 @@ public static class CsvGameDataLoader
         "fajok" => DataSection.Races,
         "osztalyok" => DataSection.CharacterClasses,
         "ellensegek" => DataSection.Enemies,
+        "szornykepessegek" => DataSection.MonsterAbilities,
         "fegyvertipus" => DataSection.WeaponTypes,
         "fegyverek" => DataSection.Weapons,
         "pancelok" => DataSection.Armors,
@@ -406,6 +435,7 @@ public static class CsvGameDataLoader
         Races,
         CharacterClasses,
         Enemies,
+        MonsterAbilities,
         WeaponTypes,
         Weapons,
         Armors,

@@ -839,7 +839,15 @@ public sealed class ConsoleRenderer
     {
         var mapObject = maze.GetObjectAt(position);
         if (mapObject is TreasureChest) return ConsoleColor.Yellow;
-        if (mapObject is Enemy) return ConsoleColor.Red;
+        if (mapObject is Enemy enemy) return enemy.Definition.StrengthTier switch
+        {
+            1 => ConsoleColor.Green,
+            2 => ConsoleColor.Yellow,
+            3 => ConsoleColor.DarkYellow,
+            4 => ConsoleColor.Red,
+            5 => ConsoleColor.Magenta,
+            _ => ConsoleColor.Gray
+        };
         if (mapObject is Corpse) return ConsoleColor.DarkRed;
         if (mapObject is GroundItemPile) return ConsoleColor.Cyan;
         if (mapObject is PartyMemberAvatar partyMember) return partyMember.Character.Color;

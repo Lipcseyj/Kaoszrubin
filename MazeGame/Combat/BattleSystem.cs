@@ -5,11 +5,16 @@ using MazeGame.Domain.Magic;
 namespace MazeGame.Combat;
 
 /// <summary>A közelharc teljes, felhasználó által léptetett körökre osztott szabályrendszere.</summary>
-public sealed class BattleSystem(Random random)
+public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefinition> monsterAbilities,
+    IEnumerable<StatusDefinition> statuses)
 {
     private const string DexterityWeaponTypeId = "WT002";
     private const string DefenseWeaponTypeId = "WT003";
     private readonly Random _random = random;
+    private readonly IReadOnlyDictionary<string, MonsterAbilityDefinition> _monsterAbilities =
+        monsterAbilities.ToDictionary(ability => ability.Id, StringComparer.OrdinalIgnoreCase);
+    private readonly IReadOnlyDictionary<string, StatusDefinition> _statuses =
+        statuses.ToDictionary(status => status.Id, StringComparer.OrdinalIgnoreCase);
 
     public BattleResult Resolve(LiveCharacter player, Enemy enemy, Action<BattleLogEntry> onRound)
     {
@@ -20,7 +25,8 @@ public sealed class BattleSystem(Random random)
         var magicInitiativeBonus = player.GetMagicItemBonus(MagicItemEffect.Initiative);
         var initiativeBonus = perkInitiativeBonus + magicInitiativeBonus;
         var playerInitiative = RollInitiative(player.Abilities.Dexterity + initiativeBonus);
-        var enemyInitiative = RollInitiative(defender.Speed ?? 1);
+        var enemyInitiativeBonus = MonsterAbilityValue(defender, MonsterAbilityEffect.InitiativeBonus);
+        var enemyInitiative = RollInitiative((defender.Speed ?? 1) + enemyInitiativeBonus);
         var playerAttacks = playerInitiative.Total >= enemyInitiative.Total;
         var initiativeNotes = new List<string>();
         if (perkInitiativeBonus > 0) initiativeNotes.Add($"Első csapás +{perkInitiativeBonus}");
@@ -29,7 +35,8 @@ public sealed class BattleSystem(Random random)
         var events = new List<string>
         {
             $"Kezdeményezés: {player.Name} Ügy {player.Abilities.Dexterity}{perkText} {playerInitiative.ModifierText} = {playerInitiative.Total}; " +
-            $"{enemy.Name} Gy {defender.Speed ?? 1} {enemyInitiative.ModifierText} = {enemyInitiative.Total}. {(playerAttacks ? player.Name : enemy.Name)} kezd."
+            $"{enemy.Name} Gy {defender.Speed ?? 1}" + (enemyInitiativeBonus > 0 ? $" + képesség {enemyInitiativeBonus}" : string.Empty) +
+            $" {enemyInitiative.ModifierText} = {enemyInitiative.Total}. {(playerAttacks ? player.Name : enemy.Name)} kezd."
         };
         onRound(new BattleLogEntry(events[0], BattleLogKind.Information));
         var round = 0;
@@ -122,8 +129,10 @@ public sealed class BattleSystem(Random random)
         var forcedHit = context.ShadowStepReady;
         context.ShadowStepReady = false;
         var weapon = player.WeaponSlots.FirstOrDefault(item => item?.WeaponTypeId != DefenseWeaponTypeId);
+        var blessedWeaponBonus = player.HasPerk(PerkIds.PriestBlessedWeapon) &&
+                                 defender.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase) ? 2 : 0;
         var hitBonus = (weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0) +
-                       player.GetMagicItemBonus(MagicItemEffect.Hit);
+                       player.GetMagicItemBonus(MagicItemEffect.Hit) + blessedWeaponBonus;
         var hit = HitRoll(player.Abilities.Dexterity, defender.Speed ?? 1, hitBonus, forcedHit);
         if (!hit.Hit)
         {
@@ -136,8 +145,9 @@ public sealed class BattleSystem(Random random)
         var ability = usesDexterity ? player.Abilities.Dexterity : player.Abilities.Strength;
         var abilityBonus = AbilityDamageBonus(ability);
         var randomBonus = Roll(new ValueRange(0, 2));
-        var perkBonus = player.GetMagicItemBonus(MagicItemEffect.Damage);
+        var perkBonus = player.GetMagicItemBonus(MagicItemEffect.Damage) + blessedWeaponBonus;
         var notes = new List<string>();
+        if (blessedWeaponBonus > 0) notes.Add("Áldott fegyver +2");
         if (player.HasPerk(PerkIds.BarbarianBloodlust) && player.CurrentVitality * 2 < player.MaximumVitality) { perkBonus += 3; notes.Add("Vérszomj +3"); }
         if (player.HasPerk(PerkIds.BarbarianPrimalStrength)) { perkBonus += 5; notes.Add("Őserő +5"); }
         if (player.HasPerk(PerkIds.BarbarianRage))
@@ -145,7 +155,7 @@ public sealed class BattleSystem(Random random)
             perkBonus += context.ConsecutivePlayerHits;
             if (context.ConsecutivePlayerHits > 0) notes.Add($"Őrjöngés +{context.ConsecutivePlayerHits}");
         }
-        var armor = defender.Armor ?? 0;
+        var armor = (defender.Armor ?? 0) + MonsterAbilityValue(defender, MonsterAbilityEffect.ArmorBonus);
         var damage = ApplyDefense(baseDamage + abilityBonus + randomBonus + perkBonus, armor);
         var multiplier = 1;
         if (context.AmbushAvailable) { multiplier *= 2; context.AmbushAvailable = false; notes.Add("Orvtámadás ×2"); }
@@ -186,6 +196,8 @@ public sealed class BattleSystem(Random random)
                           defender.GetMagicItemBonus(MagicItemEffect.Defense);
         var reduction = (defender.HasPerk(PerkIds.FighterUnbreakable) ? 2 : 0) + (defender.HasPerk(PerkIds.KnightInvincible) ? 4 : 0);
         var damage = Math.Max(0, ApplyDefense(strength + randomDamage, armor + shield + perkDefense) - reduction);
+        var monsterBonusDamage = RollMonsterBonusDamage(attacker);
+        damage += monsterBonusDamage;
         if (defender.HasPerk(PerkIds.BarbarianPainTolerance) && damage < 3) damage = 0;
         var absorbed = 0;
         if (damage > 0 && defender.HasPerk(PerkIds.MageMagicShield) && defender.CurrentMana > 0)
@@ -197,8 +209,43 @@ public sealed class BattleSystem(Random random)
         var perkDefenseText = perkDefense == 0 ? string.Empty : $" - bónuszvédelem {perkDefense}";
         var reductionText = reduction == 0 ? string.Empty : $" - csökkentés {reduction}";
         var manaShieldText = absorbed == 0 ? string.Empty : $" - mannapajzs {absorbed}";
+        var monsterBonusText = monsterBonusDamage == 0 ? string.Empty : $" + szörnyképesség {monsterBonusDamage}";
+        var statusText = ApplyMonsterStatusAbilities(attacker, defender);
         return AttackResult.HitFor(damage,
-            $"találat: {hit.Description} → TALÁL; sebzés: Erő {strength} + dobás {randomDamage} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damage}.");
+            $"találat: {hit.Description} → TALÁL; sebzés: Erő {strength} + dobás {randomDamage}{monsterBonusText} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damage}.{statusText}");
+    }
+
+    private int MonsterAbilityValue(EnemyDefinition enemy, MonsterAbilityEffect effect) => enemy.AbilityIds
+        .Where(_monsterAbilities.ContainsKey)
+        .Select(abilityId => _monsterAbilities[abilityId])
+        .Where(ability => ability.Effect == effect)
+        .Sum(ability => ability.Value);
+
+    private int RollMonsterBonusDamage(EnemyDefinition enemy) => enemy.AbilityIds
+        .Where(_monsterAbilities.ContainsKey)
+        .Select(abilityId => _monsterAbilities[abilityId])
+        .Where(ability => ability.Effect == MonsterAbilityEffect.ExtraDamage &&
+                          _random.Next(100) < ability.ChancePercent)
+        .Sum(ability => ability.Value);
+
+    private string ApplyMonsterStatusAbilities(EnemyDefinition enemy, LiveCharacter defender)
+    {
+        var applied = new List<string>();
+        foreach (var ability in enemy.AbilityIds.Where(_monsterAbilities.ContainsKey)
+                     .Select(abilityId => _monsterAbilities[abilityId]))
+        {
+            var statusId = ability.Effect switch
+            {
+                MonsterAbilityEffect.Poison => CharacterStatusIds.Poisoned,
+                MonsterAbilityEffect.Disease => CharacterStatusIds.Diseased,
+                MonsterAbilityEffect.Bleeding => CharacterStatusIds.Bleeding,
+                _ => null
+            };
+            if (statusId is null || _random.Next(100) >= ability.ChancePercent ||
+                !_statuses.TryGetValue(statusId, out var status) || !defender.AddStatus(status)) continue;
+            applied.Add(status.Name);
+        }
+        return applied.Count == 0 ? string.Empty : $" Állapot: {string.Join(", ", applied)}.";
     }
 
     private int RollArmor(LiveCharacter defender)

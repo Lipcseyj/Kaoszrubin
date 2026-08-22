@@ -189,7 +189,7 @@ Az állandó HP- és mannabónuszok a választás pillanatában az aktuális és
 | Tolvaj | Halálos pontosság | kész | természetes 18–20 dobásnál háromszoros sebzés |
 | Tolvaj | Mestertolvaj | részleges | dupla ládaarany kész; ritka tárgydobás tárgyrendszerre vár |
 | Pap | Gyógyító kegyelem | várakozik | gyógyító varázsrendszer szükséges |
-| Pap | Áldott fegyver | várakozik | ellenfél-kategória és élőholt jelölés szükséges |
+| Pap | Áldott fegyver | kész | élőholt (`MA001`) ellen +2 találat és +2 sebzés |
 | Pap | Szentély | kész | ellenséges támadásonként 20% eséllyel kimarad a támadás |
 | Pap | Hitforrás | kész | +12 manna választáskor és csata elején legfeljebb 5 manna visszatöltés |
 | Pap | Feltámadás | várakozik | játéknap- és feltámadási rendszer szükséges |
@@ -357,7 +357,30 @@ Legendás tárgy külön ritka dobással kerülhet a fogadóba: az esély az els
 
 A rejtett `Ctrl+Shift+E` fejlesztői gyorsbillentyű a partyvezért a kijárat melletti, járható és objektumtól mentes mezők közül a hozzá legközelebbire teleportálja. A teleport frissíti a vezér útvonalát és a látómezőt is; ha nincs megfelelő szabad mező, csak naplóüzenet jelenik meg.
 
-Az 1–3. labirintusszint külön konfigurációval rendelkezik. A későbbi szintek a harmadik szintből számított, fokozatosan növekvő szobaszámot, jutalmat és ellenfélszámot kapnak. Az ellenféltípusok listája azonban külön konfiguráció nélkül továbbra is a harmadik szint típusaiból származik.
+Az 1–3. labirintusszint külön konfigurációval rendelkezik. A későbbi szintek a harmadik szintből számított, fokozatosan növekvő szobaszámot, jutalmat és ellenfélszámot kapnak. Az 50 szörny teljes katalógusa rendelkezésre áll, de az aktuális pályakonfigurációk továbbra is konkrét ellenfél-ID-ket sorolnak fel; az erősségi szint alapján összeállított automatikus pályakészlet későbbi bővítési pont.
+
+## Szörnyek erőssége és képességei
+
+Az `adatok.csv` `#Ellenségek` szekciója 50 szörnydefiníciót tartalmaz. Minden sor 1–5 közötti `Erősség` értéket és egy vagy két `#Szörnyképességek`-azonosítót tárol. A betöltő hibát jelez tartományon kívüli erősségnél, kettőnél több képességnél vagy ismeretlen képességhivatkozásnál. Az erősség nem módosítja automatikusan a statisztikákat: a HP, Erő, Páncél, Gyorsaság és XP továbbra is külön hangolható; a szint a pályagenerálás számára használható besorolás.
+
+A térképi szörnyrúnák erősség szerinti színe:
+
+| Erősség | Szín |
+|---:|---|
+| 1 | zöld |
+| 2 | sárga |
+| 3 | sötétsárga |
+| 4 | piros |
+| 5 | magenta |
+
+A `MonsterAbilityDefinition` azonosítót, nevet, hatástípust, 0–100%-os aktiválási esélyt, értéket és leírást tartalmaz. Jelenlegi aktív hatások:
+
+- `Poison`, `Disease`, `Bleeding`: sikeres szörnytámadás után a CSV-s eséllyel hozzáadja a Mérgezés, Betegség vagy Vérzés karakterállapotot;
+- `ExtraDamage`: sikeres találatkor a megadott eséllyel hozzáadja a konfigurált extra sebzést;
+- `InitiativeBonus`: állandóan hozzáadódik a szörny kezdeményezéséhez;
+- `ArmorBonus`: állandóan hozzáadódik a szörny páncéljához.
+
+A `Trait` hatású Élőholt, Regeneráció, Repülő és Démoni képesség már típusos adatként elérhető, de önmagában még nem hajt végre általános csata- vagy mozgáshatást. Az Élőholt (`MA001`) jelölést az Áldott fegyver tehetség már használja: papnál +2 találatot és +2 sebzést ad az ilyen ellenfelek ellen. A regeneráció körönkénti gyógyítása, a repülés terepszabálya és a démoni kategória további hatásai későbbi bővítések.
 
 ### Ajtók
 
@@ -402,7 +425,7 @@ Mindkét fél egyszer dob egy előjeles `1d2` módosítót: a dobás `-1`, `-2`,
 
 ```text
 játékos kezdeményezése  = Ügyesség + előjeles 1d2
-ellenfél kezdeményezése = Gyorsaság + előjeles 1d2
+ellenfél kezdeményezése = Gyorsaság + képességbónusz + előjeles 1d2
 ```
 
 A játékos kezd, ha az eredménye nagyobb vagy egyenlő; döntetlennél tehát a játékosé az első támadás. Ezután a felek felváltva támadnak.
@@ -431,7 +454,7 @@ A rendszer az első olyan fegyverhelyet használja, amely nem védelmi típusú 
 ```text
 képességbónusz = max(0, (képesség - 1) / 2)  (egész osztás)
 nyers sebzés   = fegyversebzés + képességbónusz + 0..2
-végső sebzés   = max(1, nyers sebzés - ellenfél páncélja)
+végső sebzés   = max(1, nyers sebzés - (ellenfél páncélja + képességbónusz))
 ```
 
 ### 4. Ellenfél sebzése
@@ -439,13 +462,13 @@ végső sebzés   = max(1, nyers sebzés - ellenfél páncélja)
 Találat esetén az ellenfél sebzése:
 
 ```text
-nyers sebzés = ellenfél Erő + dobás(1..max(2, ellenfél Erő))
+nyers sebzés = ellenfél Erő + dobás(1..max(2, ellenfél Erő)) + aktiválódott extra sebzés
 védelem      = páncél tartományából dobott érték
               + az első felszerelt védelmi fegyver/pajzs tartományából dobott érték
 végső sebzés = max(1, nyers sebzés - védelem)
 ```
 
-Ha nincs páncél vagy pajzs, annak védelme nulla. Találat esetén legalább 1 sebzés mindig átjut.
+Ha nincs páncél vagy pajzs, annak védelme nulla. Találat esetén legalább 1 sebzés mindig átjut. A sikeres találat sebzésszámítása után külön dobódnak a szörny állapatterjesztő képességei; új állapot esetén a csatanapló megnevezi azt.
 
 ### 5. Befejezés
 
