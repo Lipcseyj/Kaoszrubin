@@ -4,27 +4,19 @@ namespace MazeGame;
 public static class AsciiPortraits
 {
     private static readonly AsciiPortrait Warrior = new([
-        "       /\\",
-        "      /  \\",
-        "      |[]|",
-        "     ( O )",
-        "    /|===|--->",
-        "   /_|___|_\\",
-        "      / \\",
-        "     /   \\",
-        "    /_____\\",
-        "     |___|"
-    ], 16);
+        "      /\\",
+        "     (••)  ⚔",
+        "    /|==|--╪",
+        "     /  \\",
+        "    /____\\"
+    ], 14);
     private static readonly AsciiPortrait Skeleton = new([
         "      .-.",
-        "     (o o)",
-        "      \\_/",
-        "     /|_|--o",
-        "    /_|___|_\\",
+        "     (☠ ☠)",
+        "     /|_|--†",
         "      / \\",
-        "     /   \\",
-        "    /_____\\"
-    ], 16);
+        "     /___\\"
+    ], 14);
 
     public static AsciiPortrait Get(AsciiPortraitKind kind) => kind switch
     {

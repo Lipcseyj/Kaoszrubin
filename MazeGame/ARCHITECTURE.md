@@ -54,7 +54,7 @@ Az indítás menete:
 - `TreasureChest.cs`, `Corpse.cs`: felvehető vagy dekoratív világobjektumok.
 - `WorldObject.cs`: minden, pályaborítástól független objektum alaptípusa.
 - `Position.cs`, `Direction.cs`, `Room.cs`: alapvető térbeli értékobjektumok.
-- `AsciiPortraits.cs`: a jobb oldali képpanel beépített ASCII-ábrái.
+- `AsciiPortraits.cs`: a jobb alsó képpanel legfeljebb öt sor magas beépített ASCII-ábrái.
 
 ### `Data`: betöltés és mentés
 
@@ -252,7 +252,7 @@ Az ellenfél definíciója változatlan adat. A fogyó ellenfél-HP a `Resolve` 
 
 ## Megjelenítés
 
-A `ConsoleRenderer` a pályát, a karakterlapot, az ASCII-képpanelt és az üzenetnaplót egy rögzített konzolelrendezésben jeleníti meg. Mozgáskor és csatakor csak az érintett cellákat vagy panelsorokat írja újra. Emiatt a játékmeneti osztályok a teljes újrarajzolás helyett célzott renderer-metódusokat hívnak.
+A `ConsoleRenderer` a pályát, a karakterlapot, az ASCII-képpanelt és az üzenetnaplót egy rögzített konzolelrendezésben jeleníti meg. A jobb alsó képpanel öt képsorból és az azt körülvevő két keretsorból áll; a rövidebb portrékat a renderer üres sorokkal egészíti ki. Mozgáskor és csatakor csak az érintett cellákat vagy panelsorokat írja újra. Emiatt a játékmeneti osztályok a teljes újrarajzolás helyett célzott renderer-metódusokat hívnak.
 
 A pálya mérete a renderer játékterének méretéből származik, ezért a generálás és a konzolelrendezés jelenleg közvetetten össze van kötve.
 

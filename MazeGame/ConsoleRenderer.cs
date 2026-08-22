@@ -16,8 +16,9 @@ public sealed class ConsoleRenderer
     private static readonly Rune PlayerSymbol = new('☻');
     private const int MessageLineCount = 5;
     private const int MessageWidth = 164;
-    private const int PicturePanelTop = 39;
+    private const int PicturePanelHeight = 5;
     private const int PicturePanelBottom = BottomBorderY + MessageLineCount;
+    private const int PicturePanelTop = PicturePanelBottom - PicturePanelHeight - 1;
     private readonly Queue<MessageLogLine> _messageLog = new();
     private readonly GameDataCatalog _gameData;
     private int _mazeLevel;
@@ -422,8 +423,11 @@ public sealed class ConsoleRenderer
         var color = _battleActive ? ConsoleColor.Red : ConsoleColor.Cyan;
         var portrait = AsciiPortraits.Get(kind);
         WriteSheetLine(PicturePanelTop, "┌────────── KÉP ──────────┐", ConsoleColor.DarkCyan);
-        for (var index = 0; index < portrait.Lines.Count; index++)
-            WriteSheetLine(PicturePanelTop + index + 1, $"│{CenterPanelText(portrait.Lines[index], portrait.CanvasWidth)}│", color);
+        for (var index = 0; index < PicturePanelHeight; index++)
+        {
+            var line = index < portrait.Lines.Count ? portrait.Lines[index] : string.Empty;
+            WriteSheetLine(PicturePanelTop + index + 1, $"│{CenterPanelText(line, portrait.CanvasWidth)}│", color);
+        }
         WriteSheetLine(PicturePanelBottom, "└─────────────────────────┘", ConsoleColor.DarkCyan);
     }
 
