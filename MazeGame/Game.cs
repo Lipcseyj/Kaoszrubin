@@ -200,6 +200,9 @@ public sealed class Game
         if (SelectedCharacter.CurrentVitality < SelectedCharacter.MaximumVitality) waterLoss++;
         if (SelectedCharacter.CurrentVitality * 2 < SelectedCharacter.MaximumVitality) waterLoss++;
         SelectedCharacter.ConsumeWater(waterLoss);
+        SelectedCharacter.SynchronizeNeedStatuses(
+            _gameData.GetStatus(CharacterStatusIds.Hungry),
+            _gameData.GetStatus(CharacterStatusIds.Thirsty));
         _renderer.RefreshCharacterSheet(SelectedCharacter);
     }
 

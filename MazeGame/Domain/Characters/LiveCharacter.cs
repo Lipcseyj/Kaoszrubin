@@ -11,6 +11,7 @@ public sealed class LiveCharacter
     private readonly List<MagicItemDefinition> _magicItems = [];
     private readonly List<IItemDefinition> _backpack = [];
     private readonly List<PerkDefinition> _perks = [];
+    private readonly List<StatusDefinition> _statuses = [];
     public LiveCharacter(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities abilities, int maximumVitality, int maximumMana, int vitalityBonus, int manaBonus)
     {
         Name = name;
@@ -47,6 +48,7 @@ public sealed class LiveCharacter
     public IReadOnlyList<MagicItemDefinition> MagicItems => _magicItems;
     public IReadOnlyList<IItemDefinition> Backpack => _backpack;
     public IReadOnlyList<PerkDefinition> Perks => _perks;
+    public IReadOnlyList<StatusDefinition> Statuses => _statuses;
     public const int MaximumMagicItemCount = 3;
     public const int MaximumBackpackItemCount = 10;
 
@@ -78,6 +80,28 @@ public sealed class LiveCharacter
             _perks.Any(existing => existing.Tier == perk.Tier)) return false;
         _perks.Add(perk);
         return true;
+    }
+
+    public bool AddStatus(StatusDefinition status)
+    {
+        if (_statuses.Any(existing => string.Equals(existing.Id, status.Id, StringComparison.OrdinalIgnoreCase))) return false;
+        _statuses.Add(status);
+        return true;
+    }
+
+    public bool RemoveStatus(string statusId) => _statuses.RemoveAll(status =>
+        string.Equals(status.Id, statusId, StringComparison.OrdinalIgnoreCase)) > 0;
+
+    public void SynchronizeNeedStatuses(StatusDefinition hungry, StatusDefinition thirsty)
+    {
+        SetStatusActive(hungry, FoodLevel <= 30);
+        SetStatusActive(thirsty, WaterLevel <= 30);
+    }
+
+    private void SetStatusActive(StatusDefinition status, bool active)
+    {
+        if (active) AddStatus(status);
+        else RemoveStatus(status.Id);
     }
 
     public void ReceiveDamage(int amount) => CurrentVitality = Math.Max(0, CurrentVitality - Math.Max(0, amount));

@@ -111,7 +111,7 @@ public sealed class ConsoleRenderer
         };
         DrawBattleMessage(entry.Message, color);
         // A jobb oldali karakterlapon megjelenített sor: információ a vezérlésről.
-        WriteSheetLine(38, "Szóköz: következő kör", ConsoleColor.DarkYellow);
+        WriteSheetLine(40, "Szóköz: következő kör", ConsoleColor.DarkYellow);
     }
 
     /// <summary>
@@ -122,7 +122,7 @@ public sealed class ConsoleRenderer
         _battleActive = false;
         DrawPicturePanel();
         if (_displayedCharacter is not null)
-            WriteSheetLine(38, $"XP szorzó: {_displayedCharacter.CharacterClass.ExperienceModifier:0.00}×", ConsoleColor.DarkCyan);
+            WriteSheetLine(40, $"XP szorzó: {_displayedCharacter.CharacterClass.ExperienceModifier:0.00}×", ConsoleColor.DarkCyan);
         var lastEvent = result.Events.LastOrDefault() ?? "";
         DrawBattleMessage(result.PlayerWon
             ? $"Győzelem {result.Rounds} kör után! {lastEvent}"
@@ -346,27 +346,29 @@ public sealed class ConsoleRenderer
         _displayedCharacter = character;
         WriteSheetLine(1, "KARAKTERLAP - ", ConsoleColor.Yellow, character.Name, ConsoleColor.Cyan);
         WriteSheetLine(2, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
-        WriteSheetLine(4, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
-        WriteSheetLine(5, FormatExperience(character), ConsoleColor.Cyan);
-        WriteSheetLine(6, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
-        WriteSheetLine(7, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
-        WriteSheetLine(8, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
-        WriteSheetLine(9, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
-        WriteSheetLine(10, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
-        WriteSheetLine(11, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
-        WriteSheetLine(12, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
-        WriteSheetLine(13, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
-        WriteSheetLine(14, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
-        WriteSheetLine(16, "FEGYVEREK", ConsoleColor.Yellow);
-        WriteSheetLine(17, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray);
-        WriteSheetLine(18, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray);
-        WriteSheetLine(19, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow);
-        WriteSheetLine(21, $"VARÁZSTÁRGYAK {character.MagicItems.Count}/3", ConsoleColor.Magenta);
+        WriteSheetLine(3, FormatCompactList("Teh", character.Perks.Select(perk => perk.Name)), ConsoleColor.Magenta);
+        WriteSheetLine(4, FormatCompactList("Áll", character.Statuses.Select(status => status.Name)), character.Statuses.Count > 0 ? ConsoleColor.Red : ConsoleColor.DarkGray);
+        WriteSheetLine(6, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
+        WriteSheetLine(7, FormatExperience(character), ConsoleColor.Cyan);
+        WriteSheetLine(8, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
+        WriteSheetLine(9, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
+        WriteSheetLine(10, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
+        WriteSheetLine(11, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
+        WriteSheetLine(12, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
+        WriteSheetLine(13, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
+        WriteSheetLine(14, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
+        WriteSheetLine(15, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
+        WriteSheetLine(16, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
+        WriteSheetLine(18, "FEGYVEREK", ConsoleColor.Yellow);
+        WriteSheetLine(19, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray);
+        WriteSheetLine(20, $"2: {ItemName(character.WeaponSlots[1])}", ConsoleColor.Gray);
+        WriteSheetLine(21, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow);
+        WriteSheetLine(23, $"VARÁZSTÁRGYAK {character.MagicItems.Count}/3", ConsoleColor.Magenta);
         for (var index = 0; index < 3; index++)
-            WriteSheetLine(22 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}", ConsoleColor.Gray);
-        WriteSheetLine(26, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
+            WriteSheetLine(24 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}", ConsoleColor.Gray);
+        WriteSheetLine(28, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
         for (var index = 0; index < 10; index++)
-            WriteSheetLine(27 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
+            WriteSheetLine(29 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
         DrawPicturePanel();
     }
 
@@ -412,6 +414,18 @@ public sealed class ConsoleRenderer
         ? $"Szint: {character.Level}  XP: {character.Experience}/{next}"
         : $"Szint: {character.Level}  XP: MAX";
     private static string ResourceIcons(string icon, int level) => string.Concat(Enumerable.Repeat(icon, level / 10));
+
+    private static string FormatCompactList(string label, IEnumerable<string> values)
+    {
+        const int maximumWidth = 27;
+        var names = values.ToList();
+        if (names.Count == 0) return $"{label}: nincs";
+        var prefix = $"{label}: ";
+        var separatorsWidth = (names.Count - 1) * 2;
+        var availablePerName = Math.Max(1, (maximumWidth - prefix.Length - separatorsWidth) / names.Count);
+        var shortenedNames = names.Select(name => name.Length <= availablePerName ? name : name[..availablePerName]);
+        return prefix + string.Join(", ", shortenedNames);
+    }
 
     /// <summary>
     /// A jobb oldali kép-panel (ASCII portré) kirajzolása. A PicturePanelTop-ról indul,

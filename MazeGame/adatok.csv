@@ -191,6 +191,14 @@ PERK-C006-2B,Mágikus pajzs,Manna birtokában a sebzés 25%-át manna nyeli el.,
 PERK-C006-3A,Láncvarázslat,30% eséllyel a varázslat azonnal másodszor is elsül ingyen.,C006,3
 PERK-C006-3B,Főmágus,+25 maximális manna és minden varázslat költsége 2 ponttal csökken.,C006,3
 
+#Állapotok
+Id,Név,Leírás
+STATUS001,Éhes,Az élelem szintje 30 vagy kevesebb.
+STATUS002,Szomjas,A víz szintje 30 vagy kevesebb.
+STATUS003,Mérgezés,A karakter méreg hatása alatt áll.
+STATUS004,Betegség,A karakter valamilyen betegségtől szenved.
+STATUS005,Vérzés,A karakter folyamatos vérzéstől szenved.
+
 #Tárgyak
 Id,Név
 T001,Élelem

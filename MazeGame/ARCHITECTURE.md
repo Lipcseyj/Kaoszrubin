@@ -89,6 +89,7 @@ A CSV `#` karakterrel kezdődő szekciókból áll. A betöltő az ékezeteket �
 - fajok és faji képességbónuszok;
 - osztályok, képességminimumok és kezdőfelszerelések;
 - osztályonkénti tehetségek és tehetségfokozatok;
+- karakterállapotok;
 - szintlépési XP-küszöbök;
 - ellenfelek;
 - fegyverek és fegyvertípusok;
@@ -142,6 +143,12 @@ Az ablak minden szintlépésénél 40% az esély a tehetségválasztás aktivál
 Ha egy régi mentésből származó karakter már túllépett egy tehetségablakon, de nincs abból a fokozatból tehetsége, a következő szintlépésekor garantáltan megkapja a kimaradt választást. Több szint egyidejű átlépése több tehetségválasztást is kiválthat.
 
 A tehetségek hatásai jelenleg még nincsenek bekötve a harcba vagy más játékrendszerekbe; a rendszer egyelőre a definíciót, a sorsolást, a választást és a mentést kezeli.
+
+### Karakterállapotok
+
+Az állapotok az `adatok.csv` `#Állapotok` szekciójának `StatusDefinition` rekordjai. A `LiveCharacter` az aktív állapotok definícióit tartja nyilván; az általános `AddStatus` és `RemoveStatus` műveletekkel további állapotok is beköthetők. A kezdeti katalógus az Éhes, Szomjas, Mérgezés, Betegség és Vérzés állapotot tartalmazza.
+
+Az Éhes és Szomjas állapot származtatott: 30 vagy alacsonyabb élelem-, illetve vízszintnél automatikusan aktív, magasabb értéknél megszűnik. Mentés betöltésekor és a szükségletek csökkenésekor újraszinkronizálódik. A többi állapot tartósan mentődik, de játékmeneti hatása és kiváltó eseménye még nincs bekötve.
 
 ## Játékhurok
 
@@ -254,6 +261,8 @@ Az ellenfél definíciója változatlan adat. A fogyó ellenfél-HP a `Resolve` 
 
 A `ConsoleRenderer` a pályát, a karakterlapot, az ASCII-képpanelt és az üzenetnaplót egy rögzített konzolelrendezésben jeleníti meg. A jobb alsó képpanel öt képsorból és az azt körülvevő két keretsorból áll; a rövidebb portrékat a renderer üres sorokkal egészíti ki. Mozgáskor és csatakor csak az érintett cellákat vagy panelsorokat írja újra. Emiatt a játékmeneti osztályok a teljes újrarajzolás helyett célzott renderer-metódusokat hívnak.
 
+A karakterlap a faj és osztály alatt egy-egy sort tart fenn a tehetségeknek és az aktív állapotoknak. Ha a nevek együtt nem férnek el a 27 karakteres panelen, minden elem azonos rendelkezésre álló hosszra rövidül, így az összes aktív bejegyzés látható marad.
+
 A pálya mérete a renderer játékterének méretéből származik, ezért a generálás és a konzolelrendezés jelenleg közvetetten össze van kötve.
 
 ## Mentés
@@ -265,6 +274,7 @@ A `CharacterSaveService` a karaktereket a futtatási könyvtár `karakterek.json
 - élelem, víz, arany, szint és XP;
 - a szintlépésekből összegyűlt maximális HP- és mannanövekmény;
 - a kiválasztott tehetségek azonosítói;
+- az aktív nem szükségletalapú állapotok azonosítói;
 - fegyverek, páncél, varázstárgyak és hátizsák;
 - az aktív karakter indexe.
 

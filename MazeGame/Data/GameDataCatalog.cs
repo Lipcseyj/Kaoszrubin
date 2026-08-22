@@ -20,6 +20,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<MagicItemDefinition> MagicItems { get; init; } = [];
     public IReadOnlyList<SpellDefinition> Spells { get; init; } = [];
     public IReadOnlyList<PerkDefinition> Perks { get; init; } = [];
+    public IReadOnlyList<StatusDefinition> Statuses { get; init; } = [];
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();
@@ -36,6 +37,7 @@ public sealed class GameDataCatalog
     public MagicItemDefinition GetMagicItem(string id) => FindById(MagicItems, id, "varázstárgy");
     public MiscItemDefinition GetItem(string id) => FindById(Items, id, "tárgy");
     public PerkDefinition GetPerk(string id) => FindById(Perks, id, "tehetség");
+    public StatusDefinition GetStatus(string id) => FindById(Statuses, id, "állapot");
     public IReadOnlyList<PerkDefinition> GetPerkChoices(string characterClassId, int tier)
     {
         var choices = Perks.Where(perk =>
