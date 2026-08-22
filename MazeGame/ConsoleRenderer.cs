@@ -370,9 +370,9 @@ public sealed class ConsoleRenderer
         WriteSheetLine(23, $"VARÁZSTÁRGYAK {character.MagicItems.Count}/3", ConsoleColor.Magenta);
         for (var index = 0; index < 3; index++)
             WriteSheetLine(24 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}", ConsoleColor.Gray);
-        WriteSheetLine(28, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
+        WriteSheetLine(27, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
         for (var index = 0; index < 10; index++)
-            WriteSheetLine(29 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
+            WriteSheetLine(28 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
         var companions = _party.Members.Where(member => member != character).Take(3).ToList();
         for (var index = 0; index < 3; index++)
             WriteSheetLine(39 + index, index < companions.Count ? FormatPartyMember(companions[index]) : string.Empty,
@@ -548,7 +548,7 @@ public sealed class ConsoleRenderer
     private void DrawMapRune(Maze maze, FogOfWar fogOfWar, Position position) =>
         WriteRuneWithColor(
             fogOfWar.IsVisible(position) ? maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y] : FogSymbol,
-            fogOfWar.IsVisible(position) ? GetForegroundColor(maze, position) : ConsoleColor.Black,
+            fogOfWar.IsVisible(position) ? GetForegroundColor(maze, position) : ConsoleColor.DarkGray,
             fogOfWar.IsVisible(position) ? ConsoleColor.Black : ConsoleColor.DarkBlue);
 
     /// <summary>
