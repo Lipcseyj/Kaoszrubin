@@ -181,7 +181,8 @@ public sealed class CharacterCreationScreen
         Console.WriteLine("=== KÉPESSÉGDOBÁS ===");
         Console.WriteLine($"{name} — {race.Name}");
         Console.WriteLine();
-        Console.WriteLine($"Dobott értékek (összesen {AbilityPointTotal}): {FormatAbilities(rolled)}");
+        var rolledPointTotal = rolled.Strength + rolled.Dexterity + rolled.Health + rolled.Intelligence;
+        Console.WriteLine($"Dobott értékek (összesen {rolledPointTotal}): {FormatAbilities(rolled)}");
         Console.WriteLine($"Faji módosító: {FormatAbilities(race.AbilityBonuses)}");
         Console.WriteLine($"Végső értékek: {FormatAbilities(final)}");
         Console.WriteLine();
@@ -194,12 +195,25 @@ public sealed class CharacterCreationScreen
     private PrimaryAbilities RollAbilities()
     {
         var values = new[] { 1, 1, 1, 1 };
-        for (var remainingPoints = AbilityPointTotal - values.Sum(); remainingPoints > 0; remainingPoints--)
+        var pointTotal = RollAbilityPointTotal();
+        for (var remainingPoints = pointTotal - values.Sum(); remainingPoints > 0; remainingPoints--)
         {
             var availableIndices = Enumerable.Range(0, values.Length).Where(index => values[index] < 10).ToArray();
             values[availableIndices[_random.Next(availableIndices.Length)]]++;
         }
         return new PrimaryAbilities(values[0], values[1], values[2], values[3]);
+    }
+
+    private int RollAbilityPointTotal()
+    {
+        var roll = _random.Next(100);
+        return AbilityPointTotal + (roll switch
+        {
+            < 15 => 0,
+            < 65 => 1,
+            < 90 => 2,
+            _ => 3
+        });
     }
 
     private static void ShowCreatedCharacter(LiveCharacter character)

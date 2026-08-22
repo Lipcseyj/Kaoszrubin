@@ -129,11 +129,24 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
     private PrimaryAbilities RollAbilities()
     {
         var values = new[] { 1, 1, 1, 1 };
-        for (var remaining = AbilityPointTotal - values.Sum(); remaining > 0; remaining--)
+        var pointTotal = RollAbilityPointTotal();
+        for (var remaining = pointTotal - values.Sum(); remaining > 0; remaining--)
         {
             var available = Enumerable.Range(0, values.Length).Where(index => values[index] < 10).ToArray();
             values[available[_random.Next(available.Length)]]++;
         }
         return new PrimaryAbilities(values[0], values[1], values[2], values[3]);
+    }
+
+    private int RollAbilityPointTotal()
+    {
+        var roll = _random.Next(100);
+        return AbilityPointTotal + (roll switch
+        {
+            < 15 => 0,
+            < 65 => 1,
+            < 90 => 2,
+            _ => 3
+        });
     }
 }

@@ -243,7 +243,7 @@ public sealed class ConsoleRenderer
             ("🏰🍺  A VÁNDORCSILLAG FOGADÓ KERESKEDŐJE  🛒✨", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
             (buying ? "◀  [ VÁSÁRLÁS ]     ELADÁS  ▶" : "◀    VÁSÁRLÁS     [ ELADÁS ]  ▶", ConsoleColor.Cyan),
-            ($"🪙 {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
+            ($"💰 {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
             ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
         };
 
@@ -558,7 +558,7 @@ public sealed class ConsoleRenderer
         WriteSheetLine(10, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
         WriteSheetLine(13, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
         WriteSheetLine(14, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
-        WriteSheetLine(15, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
+        WriteSheetLine(15, $"Arany: {character.Gold} 💰", ConsoleColor.Yellow);
         WriteSheetLine(17, "FEGYVEREK", ConsoleColor.Yellow);
         WriteSheetLine(22, $"VARÁZSTÁRGYAK {character.MagicItems.Count(item => item is not null)}/3", ConsoleColor.Magenta);
         WriteSheetLine(26, $"HÁTIZSÁK {character.Backpack.Count(item => item is not null)}/10", ConsoleColor.DarkCyan);

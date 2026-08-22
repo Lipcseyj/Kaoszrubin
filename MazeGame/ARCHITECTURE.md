@@ -115,7 +115,7 @@ Az `adatok.csv` a projektfájl beállítása miatt fordításkor a kimeneti kön
 
 ## Karakter létrehozása és fejlődése
 
-A karaktergenerálás négy elsődleges képességre oszt el összesen 25 pontot. Mindegyik érték legalább 1 és legfeljebb 10 a dobás során. Ehhez adódnak hozzá a faj módosítói, majd a végeredmény 1 és 13 közé szorul.
+A karaktergenerálás négy elsődleges képességre egy véletlen méretű pontkészletet oszt el. Az alap 25 pont 15% eséllyel nem kap bónuszt, 50% eséllyel +1, 25% eséllyel +2, 10% eséllyel pedig +3 ponttal nő, így a tényleges készlet 25–28 pont. Mindegyik érték legalább 1 és legfeljebb 10 a dobás során. Ehhez adódnak hozzá a faj módosítói, majd a végeredmény 1 és 13 közé szorul. Ugyanez a pontkészletdobás érvényes a kézi, gyorsindításos és véletlen NPC-karaktergenerálásra.
 
 A karakternév 1–13 karakter hosszú lehet. A korábbi mentésekből érkező hosszabb nevek betöltéskor 13 karakterre rövidülnek, hogy a karakterlap rögzített fejlécébe illeszkedjenek.
 
@@ -255,7 +255,7 @@ A rejtett `Ctrl+Shift+S` fejlesztői gyorsbillentyű pontosan a következő szin
 
 A `Party` 1–4 egyedi `LiveCharacter` objektumot tartalmaz. Első tagja mindig az aktív karakter és egyben a csapat vezetője. Új vezető kiválasztása új, egyszemélyes partit kezd; a társak normál felvételi folyamata későbbi fejlesztési pont. A parti tagjai a központi karakterlistában is szerepelnek, ezért ugyanazzal a karaktermentési modellel tárolódnak. A mentés a tagok karakterlistabeli indexeit őrzi.
 
-A jelenlegi játékmenetben a vezető és a társak is harcolhatnak. A harci XP a 60/40-es parti szabály szerint minden élő taghoz eljuthat; minden részesülő ugyanazzal az osztálymódosítóval valamint HP-/mannanövekedési szabállyal lép szintet. Aranyat továbbra is csak a vezető kap, és csak az ő szükségletei fogynak.
+A jelenlegi játékmenetben a vezető és a társak is harcolhatnak. A harci XP a 60/40-es parti szabály szerint minden élő taghoz eljuthat; minden részesülő ugyanazzal az osztálymódosítóval valamint HP-/mannanövekedési szabállyal lép szintet. Aranyat továbbra is csak a vezető kap. A periódusos szükségletfogyás minden élő tagra lefut, a csata utáni fogyás pedig kizárólag a ténylegesen harcoló karaktert érinti.
 
 A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbetűje: `H`, `B`, `L`, `T`, `P` vagy `M`. A jel a karakter saját színével rajzolódik. A társak minden új pályán szélességi kereséssel a vezetőhöz legközelebbi üres, járható cellákra kerülnek. Foglalják a mezőjüket az ellenfelek és a vezető elől; egymásra vagy szörnyre nem lépnek és zárt ajtón nem haladnak át.
 
@@ -412,7 +412,7 @@ Az ajtó nem egyszerű térképrúna, hanem `MazeDoor` állapotobjektum. Négy �
 | Zárt | `╬` | nem | igen |
 | Bezúzott | `▒` | igen | nem |
 
-A kezdőterem ajtaja mindig nyitott. A további szobaajtók generáláskor 20% eséllyel kulcsra zártak, 60% eséllyel zártak és 20% eséllyel nyitottak. A zárt és kulcsra zárt ajtó a mozgást és a látóvonalat is blokkolja.
+A kezdőterem ajtaja mindig nyitott. A további szobaajtók generáláskor 80% eséllyel kulcsra zártak, 10% eséllyel zártak és 10% eséllyel nyitottak. A zárt és kulcsra zárt ajtó a mozgást és a látóvonalat is blokkolja.
 
 Ajtó mellett a vezető az `N` billentyűvel nyit, a `Z` billentyűvel bezár, a `K` billentyűvel kulcsra zár. A simán zárt ajtó szabadon nyitható. Kulcsra zárt ajtónál a nyitási sorrend:
 
@@ -565,5 +565,5 @@ Fontos állapotélettartamok:
 - A CSV-feldolgozás nem teljes RFC-kompatibilis CSV-parser.
 - A konzolméretek és koordináták nagyrészt rögzítettek.
 - A harc csak közelharcot valósít meg; a CSV-ben lévő varázslatok még nem részei az algoritmusnak.
-- Az élelem és víz csökken; étellel és itallal már visszatölthető, de a nullára fogyásnak még nincs további HP- vagy képességkövetkezménye.
-- A pálya állapota nem menthető és nem tölthető vissza.
+- Az élelem és víz csökken és fogyóeszközökkel visszatölthető; az alacsony és nulla szükségletszintek állapot- és csatakezdő büntetéseket okoznak, de a labirintusban csatán kívül nem sebeznek közvetlenül.
+- A teljes pályaállapot menthető és visszatölthető, de a mentési séma jelenleg egyetlen, `1`-es verziót támogat.
