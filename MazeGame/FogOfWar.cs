@@ -48,6 +48,23 @@ public sealed class FogOfWar
         return IsDeveloperRevealActive;
     }
 
+    public IReadOnlyList<Position> GetRevealedPositions()
+    {
+        var positions = new List<Position>();
+        for (var y = 0; y < _revealed.GetLength(1); y++)
+        for (var x = 0; x < _revealed.GetLength(0); x++)
+            if (_revealed[x, y]) positions.Add(new Position(x, y));
+        return positions;
+    }
+
+    public void Restore(IEnumerable<Position> revealedPositions, bool developerRevealActive)
+    {
+        foreach (var position in revealedPositions)
+            if (position.X >= 0 && position.X < _revealed.GetLength(0) && position.Y >= 0 && position.Y < _revealed.GetLength(1))
+                _revealed[position.X, position.Y] = true;
+        IsDeveloperRevealActive = developerRevealActive;
+    }
+
     private static bool HasLineOfSight(Maze maze, Position origin, Position target)
     {
         var x = origin.X;

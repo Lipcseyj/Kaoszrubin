@@ -2,6 +2,7 @@ using MazeGame.Data;
 using MazeGame.Domain.Characters;
 using MazeGame.Combat;
 using MazeGame.Domain.Inventory;
+using MazeGame.UI;
 
 namespace MazeGame;
 
@@ -24,25 +25,32 @@ public sealed class Game
     private FogOfWar _fogOfWar = null!;
     private readonly Random _random = new();
     private readonly BattleSystem _battleSystem;
+    private readonly GameSaveService _gameSaveService;
+    private readonly GameSaveData? _loadedState;
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
     private HeldInventoryItem? _heldInventoryItem;
     private DateTime _nextNeedsDrain;
+    private DateTime _nextEnemyMove;
     private readonly Dictionary<PartyMemberAvatar, DateTime> _nextPartyMoves = [];
     private readonly List<Position> _leaderTrail = [];
     private bool _partyHoldingPosition;
+    private bool _saveAfterBattle;
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private int _mazeLevel = 1;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
 
-    public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter)
+    public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
+        GameSaveService gameSaveService, GameSaveData? loadedState = null)
     {
         CharacterRoster = characterRoster;
         SelectedCharacter = selectedCharacter;
         _gameData = gameData;
+        _gameSaveService = gameSaveService;
+        _loadedState = loadedState;
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses);
     }
@@ -50,9 +58,10 @@ public sealed class Game
     public void Run()
     {
         Console.CursorVisible = false;
-        StartNewMaze();
-        var nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
-        _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
+        if (_loadedState is null) StartNewMaze();
+        else RestoreGame(_loadedState);
+        if (_loadedState is null) _nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
+        if (_loadedState is null) _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         try
         {
             while (!_gameOver)
@@ -60,6 +69,16 @@ public sealed class Game
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);
+                    if (keyInfo.Key == ConsoleKey.F1)
+                    {
+                        ShowInGameHelp();
+                        continue;
+                    }
+                    if (IsSaveGameShortcut(keyInfo))
+                    {
+                        SaveGame();
+                        continue;
+                    }
                     if (keyInfo.Key == ConsoleKey.Tab)
                     {
                         if (_characterSheetFocused) CancelHeldInventoryItem();
@@ -92,7 +111,7 @@ public sealed class Game
                     if (IsNewMazeShortcut(keyInfo))
                     {
                         StartNewMaze();
-                        nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
+                        _nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
                         continue;
                     }
                     if (IsTeleportToExitShortcut(keyInfo))
@@ -127,10 +146,10 @@ public sealed class Game
                     MovePlayer(key);
                 }
 
-                if (!_battleStarted && DateTime.UtcNow >= nextEnemyMove)
+                if (!_battleStarted && DateTime.UtcNow >= _nextEnemyMove)
                 {
                     MoveEnemies();
-                    nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
+                    _nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
                 }
 
                 if (!_battleStarted) MovePartyMembers();
@@ -169,8 +188,134 @@ public sealed class Game
         foreach (var member in _maze.PartyMembers) _fogOfWar.RevealFrom(_maze, member.Position);
         _battleStarted = false;
         _gameOver = false;
+        _nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
     }
+
+    private void ShowInGameHelp()
+    {
+        MainMenu.ShowHelp();
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+    }
+
+    private void SaveGame()
+    {
+        CancelHeldInventoryItem();
+        try
+        {
+            var path = _gameSaveService.Save(CreateGameSaveData(), CharacterRoster);
+            _renderer.DrawDeveloperMessage($"Játék elmentve: {Path.GetFileName(path)}");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _renderer.DrawDeveloperMessage($"A mentés sikertelen: {exception.Message}");
+        }
+    }
+
+    private GameSaveData CreateGameSaveData()
+    {
+        var now = DateTime.UtcNow;
+        int CharacterIndex(LiveCharacter character) => Enumerable.Range(0, CharacterRoster.Characters.Count)
+            .First(index => CharacterRoster.Characters[index] == character);
+        var mazeData = new MazeSaveData
+        {
+            Width = _maze.Width,
+            Height = _maze.Height,
+            Exit = _maze.Exit,
+            StartingRoom = _maze.StartingRoom,
+            Rooms = _maze.Rooms.Where(room => room != _maze.StartingRoom).ToList(),
+            Doors = _maze.Doors.Select(door => new DoorSaveData(door.Position, door.State)).ToList(),
+            Chests = _maze.TreasureChests.Select(chest => new ChestSaveData(chest.Position, chest.GoldAmount)).ToList(),
+            Enemies = _maze.Enemies.Select(enemy => new EnemySaveData(enemy.Position, enemy.Definition.Id, enemy.CurrentHitPoints)).ToList(),
+            Corpses = _maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
+                corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null)).ToList(),
+            PartyAvatars = _maze.PartyMembers.Select(member => new PartyAvatarSaveData(member.Position, CharacterIndex(member.Character))).ToList(),
+            GroundPiles = _maze.GroundItemPiles.Select(pile => new GroundPileSaveData(pile.Position,
+                pile.Items.Select(item => new SavedItemReference(item.Category.ToString(), item.Id)).ToList())).ToList()
+        };
+        for (var y = 0; y < _maze.Height; y++)
+        for (var x = 0; x < _maze.Width; x++) mazeData.TileCodePoints.Add(_maze.Tiles[x, y].Value);
+        return new GameSaveData
+        {
+            MainCharacterName = SelectedCharacter.Name,
+            MazeLevel = _mazeLevel,
+            PlayerPosition = _player.Position,
+            LeaderFacing = _leaderFacing,
+            LeaderTrail = _leaderTrail.ToList(),
+            PartyHoldingPosition = _partyHoldingPosition,
+            ScatterRemainingMilliseconds = _partyScatterUntil is { } scatter
+                ? Math.Max(0, (int)(scatter - now).TotalMilliseconds) : 0,
+            NeedsDrainRemainingMilliseconds = Math.Max(0, (int)(_nextNeedsDrain - now).TotalMilliseconds),
+            EnemyMoveRemainingMilliseconds = Math.Max(0, (int)(_nextEnemyMove - now).TotalMilliseconds),
+            Maze = mazeData,
+            Fog = new FogSaveData
+            {
+                RevealedPositions = _fogOfWar.GetRevealedPositions().ToList(),
+                DeveloperRevealActive = _fogOfWar.IsDeveloperRevealActive
+            }
+        };
+    }
+
+    private void RestoreGame(GameSaveData state)
+    {
+        if (state.Maze.TileCodePoints.Count != state.Maze.Width * state.Maze.Height)
+            throw new InvalidOperationException("A mentett térképrács mérete érvénytelen.");
+        _mazeLevel = Math.Max(1, state.MazeLevel);
+        _maze = new Maze(state.Maze.Width, state.Maze.Height);
+        var tileIndex = 0;
+        for (var y = 0; y < _maze.Height; y++)
+        for (var x = 0; x < _maze.Width; x++) _maze.SetTile(new Position(x, y), new System.Text.Rune(state.Maze.TileCodePoints[tileIndex++]));
+        if (state.Maze.StartingRoom is { } startingRoom) _maze.SetStartingRoom(startingRoom);
+        foreach (var room in state.Maze.Rooms) _maze.AddRoom(room);
+        foreach (var door in state.Maze.Doors) _maze.PlaceDoor(door.Position, door.State);
+        _maze.PlaceExit(state.Maze.Exit);
+        foreach (var chest in state.Maze.Chests) _maze.AddTreasureChest(new TreasureChest(chest.Position, chest.GoldAmount));
+        foreach (var savedEnemy in state.Maze.Enemies)
+        {
+            var enemy = new ConfiguredEnemy(savedEnemy.Position, _gameData.GetEnemy(savedEnemy.DefinitionId));
+            enemy.SetCurrentHitPoints(savedEnemy.CurrentHitPoints);
+            _maze.AddEnemy(enemy);
+        }
+        foreach (var corpse in state.Maze.Corpses)
+        {
+            var restored = corpse.PartyCharacterIndex is >= 0 and var characterIndex && characterIndex < CharacterRoster.Characters.Count
+                ? new PartyMemberCorpse(corpse.Position, CharacterRoster.Characters[characterIndex])
+                : new Corpse(corpse.Position, corpse.FormerName);
+            _maze.AddCorpse(restored);
+        }
+        foreach (var avatar in state.Maze.PartyAvatars)
+            if (avatar.CharacterIndex >= 0 && avatar.CharacterIndex < CharacterRoster.Characters.Count)
+                _maze.AddPartyMember(new PartyMemberAvatar(avatar.Position, CharacterRoster.Characters[avatar.CharacterIndex]));
+        foreach (var pile in state.Maze.GroundPiles)
+            foreach (var item in pile.Items) _maze.DropItem(pile.Position, ResolveSavedItem(item));
+        _player = new Player(state.PlayerPosition, SelectedCharacter);
+        _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, VisionRange);
+        _fogOfWar.Restore(state.Fog.RevealedPositions, state.Fog.DeveloperRevealActive);
+        _leaderFacing = state.LeaderFacing;
+        _leaderTrail.Clear();
+        _leaderTrail.AddRange(state.LeaderTrail.Count > 0 ? state.LeaderTrail : [state.PlayerPosition]);
+        _partyHoldingPosition = state.PartyHoldingPosition;
+        _partyScatterUntil = state.ScatterRemainingMilliseconds > 0
+            ? DateTime.UtcNow + TimeSpan.FromMilliseconds(state.ScatterRemainingMilliseconds) : null;
+        _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMilliseconds(Math.Max(0, state.NeedsDrainRemainingMilliseconds));
+        _nextEnemyMove = DateTime.UtcNow + TimeSpan.FromMilliseconds(Math.Max(0, state.EnemyMoveRemainingMilliseconds));
+        _nextPartyMoves.Clear();
+        foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
+        _battleStarted = false;
+        _gameOver = false;
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.DrawDeveloperMessage($"Mentés betöltve: {state.MainCharacterName}, {_mazeLevel}. pálya.");
+    }
+
+    private IItemDefinition ResolveSavedItem(SavedItemReference item) => item.Category switch
+    {
+        nameof(ItemCategory.Weapon) => _gameData.GetWeapon(item.Id),
+        nameof(ItemCategory.Armor) => _gameData.GetArmor(item.Id),
+        nameof(ItemCategory.MagicItem) => _gameData.GetMagicItem(item.Id),
+        nameof(ItemCategory.Miscellaneous) => _gameData.GetItem(item.Id),
+        _ => throw new InvalidOperationException($"Ismeretlen mentett tárgykategória: {item.Category}")
+    };
 
     private void MovePlayer(ConsoleKey key)
     {
@@ -742,7 +887,7 @@ public sealed class Game
         {
             _renderer.DrawBattleRound(entry);
             _renderer.RefreshBattleStatusRows();
-            WaitForBattleContinue();
+            WaitForBattleContinue(enemy);
         });
         var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
@@ -763,12 +908,18 @@ public sealed class Game
                 ResolvePerkOffers(experienceResult);
                 _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
             }
+            if (_saveAfterBattle)
+            {
+                _saveAfterBattle = false;
+                SaveGame();
+            }
             _battleStarted = false;
             _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
             return;
         }
 
         _renderer.DrawBattleResult(result, enemy);
+        _saveAfterBattle = false;
         _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
         _renderer.DrawGameOver(SelectedCharacter.Name);
         _gameOver = true;
@@ -907,10 +1058,27 @@ public sealed class Game
         return key is ConsoleKey.UpArrow or ConsoleKey.DownArrow or ConsoleKey.LeftArrow or ConsoleKey.RightArrow;
     }
 
-    private static void WaitForBattleContinue()
+    private void WaitForBattleContinue(Enemy enemy)
     {
-        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Spacebar) { }
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Spacebar) return;
+            if (IsSaveGameShortcut(key))
+            {
+                _saveAfterBattle = true;
+                _renderer.DrawInventoryMessage("Mentés kérve: a csata lezárása után automatikusan elkészül.", ConsoleColor.Yellow);
+                continue;
+            }
+            if (key.Key != ConsoleKey.F1) continue;
+            ShowInGameHelp();
+            _renderer.DrawBattleStarted(enemy);
+            _renderer.RefreshBattleStatusRows();
+        }
     }
+
+    private static bool IsSaveGameShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.F9;
 
     private static bool IsRevealMapShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.U &&
@@ -925,7 +1093,7 @@ public sealed class Game
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
 
     private static bool IsLevelUpShortcut(ConsoleKeyInfo keyInfo) =>
-        keyInfo.Key == ConsoleKey.L &&
+        keyInfo.Key == ConsoleKey.S &&
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
 
     private static bool IsFillPartyShortcut(ConsoleKeyInfo keyInfo) =>

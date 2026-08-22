@@ -1,5 +1,6 @@
 using MazeGame.Data;
 using MazeGame.Domain.Characters;
+using System.Text.Json;
 
 namespace MazeGame.UI;
 
@@ -7,14 +8,16 @@ namespace MazeGame.UI;
 public sealed class MainMenu
 {
     private readonly GameDataCatalog _gameData;
-    private readonly CharacterRoster _characterRoster;
+    private CharacterRoster _characterRoster;
     private readonly CharacterSaveService _characterSaveService;
+    private readonly GameSaveService _gameSaveService;
     private readonly Random _random = new();
 
-    public MainMenu(GameDataCatalog gameData, string characterSavePath)
+    public MainMenu(GameDataCatalog gameData, string characterSavePath, string gameSaveDirectory)
     {
         _gameData = gameData;
         _characterSaveService = new CharacterSaveService(characterSavePath, gameData);
+        _gameSaveService = new GameSaveService(gameSaveDirectory, _characterSaveService);
         _characterRoster = _characterSaveService.Load();
     }
 
@@ -33,26 +36,31 @@ public sealed class MainMenu
                     break;
                 case ConsoleKey.D2:
                 case ConsoleKey.NumPad2:
-                    new CharacterCreationScreen(_gameData, _characterRoster).Run();
+                    LoadGame();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D3:
                 case ConsoleKey.NumPad3:
-                    ShowCharacters();
+                    new CharacterCreationScreen(_gameData, _characterRoster).Run();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D4:
                 case ConsoleKey.NumPad4:
-                    DeleteCharacter();
+                    ShowCharacters();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D5:
                 case ConsoleKey.NumPad5:
-                    QuickStart();
+                    DeleteCharacter();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D6:
                 case ConsoleKey.NumPad6:
+                    QuickStart();
+                    SaveCharacters();
+                    break;
+                case ConsoleKey.D7:
+                case ConsoleKey.NumPad7:
                     ShowHelp();
                     break;
                 case ConsoleKey.Escape:
@@ -126,7 +134,60 @@ public sealed class MainMenu
             return;
         }
 
-        new Game(_gameData, _characterRoster, selectedCharacter).Run();
+        new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService).Run();
+    }
+
+    private void LoadGame()
+    {
+        var saves = _gameSaveService.List();
+        if (saves.Count == 0)
+        {
+            ResetConsole();
+            WriteLine("Nincs betölthető játékállás a mentések mappában.", ConsoleColor.DarkYellow);
+            Console.ReadKey(intercept: true);
+            return;
+        }
+        var selectedIndex = 0;
+        while (true)
+        {
+            ResetConsole();
+            WriteLine("=== JÁTÉK BETÖLTÉSE ===", ConsoleColor.Yellow);
+            WriteLine("Fel/le: választás | Enter: betöltés | Esc: vissza", ConsoleColor.DarkCyan);
+            Console.WriteLine();
+            for (var index = 0; index < saves.Count; index++)
+            {
+                var save = saves[index];
+                var marker = index == selectedIndex ? ">" : " ";
+                WriteLine($"{marker} {save.MainCharacterName} — {save.MazeLevel}. pálya — {save.SavedAt:yyyy-MM-dd HH:mm:ss}",
+                    index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray);
+            }
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow:
+                    selectedIndex = (selectedIndex - 1 + saves.Count) % saves.Count;
+                    break;
+                case ConsoleKey.DownArrow:
+                    selectedIndex = (selectedIndex + 1) % saves.Count;
+                    break;
+                case ConsoleKey.Enter:
+                    try
+                    {
+                        var loaded = _gameSaveService.Load(saves[selectedIndex].Path);
+                        _characterRoster = loaded.Roster;
+                        new Game(_gameData, _characterRoster, _characterRoster.SelectedCharacter!, _gameSaveService, loaded.State).Run();
+                        return;
+                    }
+                    catch (Exception exception) when (exception is IOException or JsonException or InvalidOperationException)
+                    {
+                        ResetConsole();
+                        WriteLine($"A mentés nem tölthető be: {exception.Message}", ConsoleColor.Red);
+                        Console.ReadKey(intercept: true);
+                        return;
+                    }
+                case ConsoleKey.Escape:
+                    return;
+            }
+        }
     }
 
     private void QuickStart()
@@ -221,18 +282,19 @@ public sealed class MainMenu
         }
     }
 
-    private static void ShowHelp()
+    public static void ShowHelp()
     {
         ResetConsole();
         WriteLine("=== SÚGÓ ===", ConsoleColor.Yellow);
         Console.WriteLine();
         WriteLine("FŐMENÜ", ConsoleColor.Cyan);
         Console.WriteLine("1: játék indítása a kijelölt, élő karakterrel");
-        Console.WriteLine("2: karaktergenerálás");
-        Console.WriteLine("3: karakterlista, kijelölés Enterrel");
-        Console.WriteLine("4: karaktertörlés; O: az összes törlése; I/Y: megerősítés");
-        Console.WriteLine("5: gyorsindítás új, automatikusan generált hőssel");
-        Console.WriteLine("6: ez a súgó");
+        Console.WriteLine("2: játékállás betöltése a mentések mappából");
+        Console.WriteLine("3: karaktergenerálás");
+        Console.WriteLine("4: karakterlista, kijelölés Enterrel");
+        Console.WriteLine("5: karaktertörlés; O: az összes törlése; I/Y: megerősítés");
+        Console.WriteLine("6: gyorsindítás új, automatikusan generált hőssel");
+        Console.WriteLine("7: ez a súgó");
         Console.WriteLine("Esc: kilépés a programból");
         Console.WriteLine();
         WriteLine("KARAKTERGENERÁLÁS", ConsoleColor.Magenta);
@@ -241,7 +303,8 @@ public sealed class MainMenu
         WriteLine("LABIRINTUS", ConsoleColor.Green);
         Console.WriteLine("Nyilak: mozgás | Esc: főmenü");
         Console.WriteLine("Tab: térkép/karakterlap | Karakterlap: fel/le kijelölés, bal/jobb partitagváltás");
-        Console.WriteLine("Karakterlap: Space - tárgy mozgatása | D - ledobás | I - részletek | U - használat");
+        Console.WriteLine("Karakterlap: Space - tárgy mozgatása | D - ledobás | I - részletek | Enter - használat");
+        Console.WriteLine("F1: súgó | F9: teljes játékállás mentése a mentések mappába");
         Console.WriteLine("Ajtó mellett: N - nyitás | Z - bezárás | K - kulcsra zárás");
         Console.WriteLine("Partiparancs: H - helyben maradás be/ki | M - 10 másodperces szétszóródás");
         Console.WriteLine("Ctrl + Shift + U: teljes térkép felfedése/elrejtése | Ctrl + Shift + R: új pálya (fejlesztői mód)");
@@ -250,7 +313,7 @@ public sealed class MainMenu
         WriteLine("CSATA", ConsoleColor.Red);
         Console.WriteLine("Szóköz: következő támadási kör. A csata alatt a világ ideje megáll.");
         Console.WriteLine();
-        WriteLine("Bármely billentyű: vissza a főmenübe", ConsoleColor.DarkYellow);
+        WriteLine("Bármely billentyű: vissza az előző képernyőre", ConsoleColor.DarkYellow);
         Console.ReadKey(intercept: true);
     }
 
@@ -265,11 +328,12 @@ public sealed class MainMenu
         WriteLine($"Választott karakter: {selectedCharacter}", _characterRoster.SelectedCharacter is null ? ConsoleColor.DarkGray : ConsoleColor.Cyan);
         Console.WriteLine();
         WriteLine("1 - Játék indítása", ConsoleColor.Green);
-        WriteLine("2 - Karaktergenerálás", ConsoleColor.Magenta);
-        WriteLine($"3 - Karakterek ({_characterRoster.Characters.Count})", ConsoleColor.Cyan);
-        WriteLine("4 - Karakter törlése", ConsoleColor.Red);
-        WriteLine("5 - Gyorsindítás (új hős)", ConsoleColor.Green);
-        WriteLine("6 - Súgó", ConsoleColor.DarkCyan);
+        WriteLine($"2 - Játék betöltése ({_gameSaveService.List().Count})", ConsoleColor.Green);
+        WriteLine("3 - Karaktergenerálás", ConsoleColor.Magenta);
+        WriteLine($"4 - Karakterek ({_characterRoster.Characters.Count})", ConsoleColor.Cyan);
+        WriteLine("5 - Karakter törlése", ConsoleColor.Red);
+        WriteLine("6 - Gyorsindítás (új hős)", ConsoleColor.Green);
+        WriteLine("7 - Súgó", ConsoleColor.DarkCyan);
         WriteLine("Esc - Kilépés", ConsoleColor.DarkYellow);
         Console.ResetColor();
     }

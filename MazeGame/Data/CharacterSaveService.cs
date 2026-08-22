@@ -22,10 +22,14 @@ public sealed class CharacterSaveService
 
     public CharacterRoster Load()
     {
-        var roster = new CharacterRoster();
-        if (!File.Exists(_filePath)) return roster;
+        if (!File.Exists(_filePath)) return new CharacterRoster();
+        return Deserialize(File.ReadAllText(_filePath));
+    }
 
-        var savedRoster = JsonSerializer.Deserialize<RosterSaveData>(File.ReadAllText(_filePath), JsonOptions) ?? new RosterSaveData();
+    public CharacterRoster Deserialize(string json)
+    {
+        var roster = new CharacterRoster();
+        var savedRoster = JsonSerializer.Deserialize<RosterSaveData>(json, JsonOptions) ?? new RosterSaveData();
         foreach (var savedCharacter in savedRoster.Characters)
             roster.Add(CreateLiveCharacter(savedCharacter));
 
@@ -42,6 +46,9 @@ public sealed class CharacterSaveService
     }
 
     public void Save(CharacterRoster roster)
+        => File.WriteAllText(_filePath, Serialize(roster));
+
+    public string Serialize(CharacterRoster roster)
     {
         var savedRoster = new RosterSaveData
         {
@@ -50,7 +57,7 @@ public sealed class CharacterSaveService
                 .First(index => roster.Characters[index] == member)).ToList(),
             Characters = roster.Characters.Select(CreateSaveData).ToList()
         };
-        File.WriteAllText(_filePath, JsonSerializer.Serialize(savedRoster, JsonOptions));
+        return JsonSerializer.Serialize(savedRoster, JsonOptions);
     }
 
     private LiveCharacter CreateLiveCharacter(CharacterSaveData saved)

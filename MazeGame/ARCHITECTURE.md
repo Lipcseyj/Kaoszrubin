@@ -2,7 +2,7 @@
 
 ## Áttekintés
 
-A MazeGame egy .NET 10 konzolos, egyjátékos labirintusjáték. Az alkalmazás adatvezérelt: a fajok, osztályok, ellenfelek, felszerelések, varázslatok és fejlődési küszöbök az `adatok.csv` fájlból töltődnek be. A futás közbeni karakterállapot JSON-fájlban marad meg.
+A MazeGame egy .NET 10 konzolos, egyjátékos labirintusjáték. Az alkalmazás adatvezérelt: a fajok, osztályok, ellenfelek, felszerelések, varázslatok és fejlődési küszöbök az `adatok.csv` fájlból töltődnek be. A karakterlista JSON-fájlban, a teljes futamok pedig időbélyeges `.save` állományokban maradnak meg.
 
 A megoldás fő felelősségi területei:
 
@@ -21,6 +21,7 @@ Program
   ├─ CsvGameDataLoader ── adatok.csv ──> GameDataCatalog
   └─ MainMenu
        ├─ CharacterSaveService <──> karakterek.json
+       ├─ GameSaveService <──> mentések/*.save
        ├─ CharacterCreationScreen
        └─ Game
             ├─ MazeLevelConfigurations
@@ -61,6 +62,7 @@ Az indítás menete:
 - `CsvGameDataLoader`: szekciókra bontott CSV-feldolgozó. Elsődlegesen UTF-8-at olvas, hibás UTF-8 esetén Windows-1250-re vált.
 - `GameDataCatalog`: központi, csak olvasható definíciógyűjtemény és azonosító alapú keresési felület.
 - `CharacterSaveService`: a futó karakterek és az aktív kiválasztás JSON-szerializálása, illetve visszaépítése a katalógus definícióiból.
+- `GameSaveService`: a teljes futam időbélyeges `.save` fájljainak létrehozása, listázása és betöltése.
 
 ### `Domain`: játékadatok és karakterállapot
 
@@ -75,7 +77,7 @@ A `Definition` végű típusok az `adatok.csv` tartalmát képviselik. A `LiveCh
 
 ### `UI`: menük
 
-- `MainMenu`: karakterlista, kiválasztás, törlés, gyorsindítás, súgó és játékindítás.
+- `MainMenu`: új játék, mentésbetöltő, karakterlista, kiválasztás, törlés, gyorsindítás és súgó.
 - `CharacterCreationScreen`: név- és fajválasztás, tulajdonságdobás, osztályjogosultság és karakter létrehozása.
 
 ### `Combat`: harci szabályrendszer
@@ -502,6 +504,8 @@ Az ellenfél definíciója változatlan adat. A fogyó ellenfél-HP a `Resolve` 
 
 A `ConsoleRenderer` a pályát, a karakterlapot, az ASCII-képpanelt és az üzenetnaplót egy rögzített konzolelrendezésben jeleníti meg. A jobb alsó képpanel öt képsorból és az azt körülvevő két keretsorból áll; a rövidebb portrékat a renderer üres sorokkal egészíti ki. Mozgáskor és csatakor csak az érintett cellákat vagy panelsorokat írja újra. Emiatt a játékmeneti osztályok a teljes újrarajzolás helyett célzott renderer-metódusokat hívnak.
 
+Az `F1` a fő játékhurokban, karakterlapfókuszban és a vezéri csata billentyűvárakozásakor is megnyitja ugyanazt a súgóképernyőt, mint a főmenü. Bezárásakor a játék az aktuális térképet és karakterlapot rajzolja vissza; a futásidejű játékállapot nem változik.
+
 A karakterlap a faj és osztály alatt egy-egy sort tart fenn a tehetségeknek és az aktív állapotoknak. Ha a nevek együtt nem férnek el a 27 karakteres panelen, minden elem azonos rendelkezésre álló hosszra rövidül, így az összes aktív bejegyzés látható marad.
 
 A pálya mérete a renderer játékterének méretéből származik, ezért a generálás és a konzolelrendezés jelenleg közvetetten össze van kötve.
@@ -519,7 +523,18 @@ A `CharacterSaveService` a karaktereket a futtatási könyvtár `karakterek.json
 - fegyverek, páncél, varázstárgyak és hátizsák, az üres helyeket is megőrző pozíciókkal;
 - az aktív karakter indexe.
 
-A mentés definícióazonosítókat használ, és a betöltéskor az aktuális `GameDataCatalog` elemeihez kapcsolja vissza őket. Régebbi, névalapú mentésekhez kompatibilitási útvonal is tartozik. A labirintus, az aktuális pályaszint, az ellenfelek és a köd nem része a mentésnek.
+A karaktermentés definícióazonosítókat használ, és a betöltéskor az aktuális `GameDataCatalog` elemeihez kapcsolja vissza őket. Régebbi, névalapú mentésekhez kompatibilitási útvonal is tartozik.
+
+A játék közbeni `Ctrl+S` előbb visszateszi az esetleg kézben tartott inventorytárgyat, majd a futtatási könyvtár `mentések` almappájába ír. Vezéri csata alatt a mentési kérés a győztes csata, XP-elosztás és esetleges tehetségválasztás lezárásakor teljesül, így nem keletkezhet félbehagyott harci körből következetlen állás; vereségnél a függő kérés elmarad. A fájlnév alakja `Főkarakter_yyyyMMdd_HHmmss_fff.save`, ezért minden mentés külön választható marad. A teljes játékmentés tartalmazza:
+
+- a teljes karakterlistát, partit, inventorykat, állapotokat és erőforrásokat;
+- a pályaszintet, vezetőpozíciót, nézési irányt és követési útvonalat;
+- a teljes térképrácsot, szobákat, kijáratot és ajtóállapotokat;
+- az ellenfelek pozícióját és aktuális HP-ját, ládákat, holttesteket és földi tárgyhalmokat;
+- a partitársak térképi pozícióit és az elesett társak karakterkapcsolatát;
+- a felfedezett ködmezőket, partiparancsot, valamint a szétszóródás, ellenfélmozgás és szükségletfogyás hátralévő idejét.
+
+A főmenü mentésválasztója időrendben listázza a `.save` fájlokat a főkarakter nevével, a pályaszámmal és a mentés idejével. Betöltéskor a statikus definíciók továbbra is az aktuális `GameDataCatalog` elemeiből oldódnak fel. A mentési séma verziózott; ismeretlen verzió vagy sérült állomány hibaüzenettel visszautasításra kerül.
 
 ## Függőségek és állapotkezelés
 
