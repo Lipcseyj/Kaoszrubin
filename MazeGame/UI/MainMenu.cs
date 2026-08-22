@@ -243,6 +243,7 @@ public sealed class MainMenu
         Console.WriteLine("Tab: térkép/karakterlap | Karakterlap: fel/le kijelölés, bal/jobb partitagváltás");
         Console.WriteLine("Karakterlap: Space - tárgy megfogása/lerakása vagy cseréje | D - ledobás | I - részletek");
         Console.WriteLine("Ajtó mellett: N - nyitás | Z - bezárás | K - kulcsra zárás");
+        Console.WriteLine("Partiparancs: H - helyben maradás be/ki | M - 10 másodperces szétszóródás");
         Console.WriteLine("Ctrl + Shift + U: teljes térkép felfedése/elrejtése | Ctrl + Shift + R: új pálya (fejlesztői mód)");
         Console.WriteLine("Ládára lépés: arany felvétele | Kijárat (⌂): következő labirintusszint");
         Console.WriteLine();

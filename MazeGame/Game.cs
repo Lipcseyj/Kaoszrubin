@@ -31,6 +31,8 @@ public sealed class Game
     private DateTime _nextNeedsDrain;
     private readonly Dictionary<PartyMemberAvatar, DateTime> _nextPartyMoves = [];
     private readonly List<Position> _leaderTrail = [];
+    private bool _partyHoldingPosition;
+    private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private int _mazeLevel = 1;
     public CharacterRoster CharacterRoster { get; }
@@ -113,6 +115,8 @@ public sealed class Game
                     if (key == ConsoleKey.N) { TryOpenAdjacentDoor(); continue; }
                     if (key == ConsoleKey.Z) { TryCloseAdjacentDoor(); continue; }
                     if (key == ConsoleKey.K) { TryLockAdjacentDoor(); continue; }
+                    if (key == ConsoleKey.H) { TogglePartyHoldPosition(); continue; }
+                    if (key == ConsoleKey.M) { ScatterPartyTemporarily(); continue; }
                     MovePlayer(key);
                 }
 
@@ -318,10 +322,24 @@ public sealed class Game
     private void MovePartyMembers()
     {
         var now = DateTime.UtcNow;
+        if (_partyScatterUntil is { } scatterUntil && now >= scatterUntil)
+        {
+            _partyScatterUntil = null;
+            _renderer.DrawDeveloperMessage(_partyHoldingPosition
+                ? "A szétszóródás véget ért; a parti ismét helyben marad."
+                : "A szétszóródás véget ért; a parti folytatja korábbi viselkedését.");
+        }
+        var isScattering = _partyScatterUntil is not null;
+        if (_partyHoldingPosition && !isScattering) return;
         foreach (var member in _maze.PartyMembers.ToArray())
         {
             if (_nextPartyMoves.GetValueOrDefault(member) > now) continue;
             ScheduleNextPartyMove(member, now);
+            if (isScattering)
+            {
+                MovePartyMemberAwayFromLeader(member);
+                continue;
+            }
             if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member)) continue;
             var previous = member.Position;
             var next = ChoosePartyMemberStep(member);
@@ -330,6 +348,41 @@ public sealed class Game
             _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
             if (CanActivelyAttack(member)) TryResolveAdjacentNpcBattle(member);
         }
+    }
+
+    private void TogglePartyHoldPosition()
+    {
+        _partyHoldingPosition = !_partyHoldingPosition;
+        if (!_partyHoldingPosition)
+            foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
+        _renderer.DrawDeveloperMessage(_partyHoldingPosition
+            ? "Partiparancs: minden társ tartsa a helyét."
+            : "Partiparancs: a társak folytatják korábbi viselkedésüket.");
+    }
+
+    private void ScatterPartyTemporarily()
+    {
+        _partyScatterUntil = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        foreach (var member in _maze.PartyMembers)
+            _nextPartyMoves[member] = DateTime.UtcNow + TimeSpan.FromMilliseconds(_random.Next(0, 100));
+        _renderer.DrawDeveloperMessage("Partiparancs: szétszóródás 10 másodpercig; a társak 10 mező távolságra húzódnak.");
+    }
+
+    private void MovePartyMemberAwayFromLeader(PartyMemberAvatar member)
+    {
+        if (Manhattan(member.Position, _player.Position) >= 10) return;
+        var target = FindReachablePositions(member, 12)
+            .Where(entry => Manhattan(entry.Position, _player.Position) <= 10)
+            .OrderByDescending(entry => Manhattan(entry.Position, _player.Position))
+            .ThenBy(entry => entry.Distance)
+            .FirstOrDefault();
+        if (target == default) return;
+        var next = FindNextStep(member, [target.Position]);
+        if (next is null) return;
+        var previous = member.Position;
+        if (!_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
+        var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
+        _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
     }
 
     private static bool CanActivelyAttack(PartyMemberAvatar member) =>

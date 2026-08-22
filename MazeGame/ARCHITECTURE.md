@@ -238,6 +238,11 @@ A partitársak mozgása a `Game` meglévő egyszálú eseményciklusában fut. M
 
 A játék legfeljebb a vezér utolsó 256 sikeres pozícióját tartja nyilván. A vezetőt követő NPC-k nem annak pillanatnyi X/Y-koordinátája köré választanak célmezőt: a parti sorrendje szerint nyompontot céloznak és szélességi útkereséssel lépnek felé. A sorrend legfeljebb egy további lépésnyi formációs késést okoz ezért a hátsó társ sem marad látványosan messzebb. A speciális előremenő vagy ellenségre reagáló viselkedés után ugyanehhez a nyomvonalhoz térnek vissza.
 
+Térképfókuszban két ideiglenes partiparancs írhatja felül a profilok mozgását:
+
+- a `H` tartósan ki- és bekapcsolja a helyben maradást; aktív állapotban a társak nem kezdeményeznek mozgást vagy támadást de a rájuk lépni próbáló szörnnyel továbbra is automatikusan megküzdenek;
+- az `M` 10 másodpercre szétszóródást rendel el: minden élő társ járható útvonalon legfeljebb tíz Manhattan-távolságra húzódik a vezértől és közben továbbra is felderít. Ez az időszak a `H` állapotát is ideiglenesen felülírja. Lejáratkor minden társ visszakapja a korábbi profilját; ha a `H` előtte aktív volt akkor ismét helyben marad.
+
 - a defenzív társ legalább két vezérlépéssel korábbi nyompontot követ és így egy üres mezőt hagy közöttük; ötmezős rálátáson belüli szörny felé indul és mellé érve automatikusan megtámadja;
 - az agresszív társ az előre eső tágas mezőket keresi és nem lép a vezető előtti szűk folyosóba; ötmezős rálátáson belüli szörny felé indul és mellé érve automatikusan megtámadja;
 - a felderítő legfeljebb tíz mezőre halad a vezető előtt; ötmezős rálátáson belüli szörny észlelésekor visszatér a vezér nyomvonalára;
