@@ -18,4 +18,6 @@ public sealed class Player
         Position = target;
         return true;
     }
+
+    public void TeleportTo(Position position) => Position = position;
 }

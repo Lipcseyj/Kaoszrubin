@@ -170,6 +170,9 @@ Szint,XP értél
 29,	2155000
 30,	2425000
 
+#Base XP pálya végén
+300
+
 #Szintlépés életerő növekedés
 Egészség,Növekedés
 1,1-3

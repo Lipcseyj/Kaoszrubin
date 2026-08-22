@@ -94,6 +94,11 @@ public sealed class Game
                         nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
                         continue;
                     }
+                    if (IsTeleportToExitShortcut(keyInfo))
+                    {
+                        TeleportLeaderNearExit();
+                        continue;
+                    }
                     if (IsLevelUpShortcut(keyInfo))
                     {
                         TriggerDeveloperLevelUp();
@@ -179,6 +184,12 @@ public sealed class Game
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, _player.Position == _maze.Exit);
         if (_player.Position == _maze.Exit)
         {
+            var completedLevel = _mazeLevel;
+            var completion = CompleteLevelAtInn(completedLevel);
+            _renderer.DrawLevelCompletionScreen(completedLevel, _gameData.BaseLevelCompletionExperience,
+                completion.Results, completion.FallenCharacters);
+            var leaderResult = completion.Results.First(result => result.Character == SelectedCharacter).Experience;
+            if (leaderResult.LeveledUp) ResolvePerkOffers(leaderResult);
             _mazeLevel++;
             StartNewMaze();
             return;
@@ -406,10 +417,17 @@ public sealed class Game
         var result = _battleSystem.Resolve(member.Character, enemy, _ => { });
         if (result.PlayerWon)
         {
+            var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
+            var experienceResult = experienceAwards.First(award => award.Character == member.Character).Result;
             _maze.ReplaceEnemyWithCorpse(enemy);
+            var levelText = experienceResult.LeveledUp
+                ? $" Szint: {experienceResult.PreviousLevel}→{experienceResult.CurrentLevel}; +{experienceResult.VitalityGained} max HP" +
+                  (experienceResult.ManaGained > 0 ? $"; +{experienceResult.ManaGained} max manna." : ".")
+                : string.Empty;
             _renderer.DrawNpcBattleSummary(
                 $"{member.Character.Name} automatikus csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
-                $"HP: {startingNpcHp}→{member.Character.CurrentVitality}; ellenfél HP: {startingEnemyHp}→0.",
+                $"HP: {startingNpcHp}→{member.Character.CurrentVitality}; ellenfél HP: {startingEnemyHp}→0; " +
+                $"XP: {FormatExperienceAwards(experienceAwards)}.{levelText}",
                 ConsoleColor.Green);
         }
         else
@@ -600,11 +618,13 @@ public sealed class Game
 
         if (result.PlayerWon)
         {
-            var experienceResult = AddExperience(enemy.Definition.ExperienceReward);
+            var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
+            var experienceResult = experienceAwards.First(award => award.Character == SelectedCharacter).Result;
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             _renderer.DrawBattleResult(result, enemy);
-            _renderer.DrawExperienceGained(experienceResult);
+            _renderer.DrawExperienceDistribution(FormatExperienceAwards(experienceAwards),
+                experienceAwards.Any(award => award.Result.LeveledUp));
             _renderer.RefreshCharacterSheet(SelectedCharacter);
             if (experienceResult.LeveledUp)
             {
@@ -753,6 +773,10 @@ public sealed class Game
         keyInfo.Key == ConsoleKey.R &&
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
 
+    private static bool IsTeleportToExitShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.E &&
+        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
     private static bool IsLevelUpShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.L &&
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
@@ -764,6 +788,28 @@ public sealed class Game
     private static bool IsAddLevelOnePartyMemberShortcut(ConsoleKeyInfo keyInfo) =>
         (keyInfo.Key is ConsoleKey.Oem102 or ConsoleKey.Oem8 || keyInfo.KeyChar is 'í' or 'Í') &&
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
+    private void TeleportLeaderNearExit()
+    {
+        Position? destination = Directions
+            .Select(direction => _maze.Exit + direction)
+            .Where(position => _maze.IsWalkable(position) && _maze.GetObjectAt(position) is null)
+            .OrderBy(position => Manhattan(position, _player.Position))
+            .Select(position => (Position?)position)
+            .FirstOrDefault();
+        if (destination is null)
+        {
+            _renderer.DrawDeveloperMessage("Fejlesztői mód: nincs üres járható mező a kijárat mellett.");
+            return;
+        }
+
+        _player.TeleportTo(destination.Value);
+        _leaderTrail.Clear();
+        _leaderTrail.Add(destination.Value);
+        _fogOfWar.RevealFrom(_maze, destination.Value);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, destination.Value);
+        _renderer.DrawDeveloperMessage("Fejlesztői mód: a partyvezér a kijárat mellé teleportált.");
+    }
 
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source);
 
@@ -876,6 +922,53 @@ public sealed class Game
         _gameData.GetManaGrowth(SelectedCharacter.Abilities.Intelligence),
         _random);
 
+    private IReadOnlyList<ExperienceAward> DistributeExperience(LiveCharacter winner, int totalExperience)
+    {
+        var total = Math.Max(0, totalExperience);
+        var others = CharacterRoster.Party.Members
+            .Where(character => character != winner && character.IsAlive)
+            .ToList();
+        if (others.Count == 0)
+            return [AwardExperience(winner, total)];
+
+        var winnerShare = total * 60 / 100;
+        var remainder = total - winnerShare;
+        var sharedBase = remainder / others.Count;
+        var sharedRemainder = remainder % others.Count;
+        var awards = new List<ExperienceAward> { AwardExperience(winner, winnerShare) };
+        for (var index = 0; index < others.Count; index++)
+            awards.Add(AwardExperience(others[index], sharedBase + (index < sharedRemainder ? 1 : 0)));
+        return awards;
+    }
+
+    private LevelCompletionOutcome CompleteLevelAtInn(int completedLevel)
+    {
+        var reward = checked(_gameData.BaseLevelCompletionExperience * completedLevel);
+        var fallenCharacters = CharacterRoster.Party.Members.Where(character => !character.IsAlive).ToList();
+        foreach (var fallen in fallenCharacters) CharacterRoster.Remove(fallen);
+        var results = CharacterRoster.Party.Members
+            .Select(character => new LevelCompletionResult(character, AwardExperience(character, reward).Result))
+            .ToList();
+        foreach (var character in CharacterRoster.Party.Members)
+        {
+            character.RestoreVitality(character.MaximumVitality);
+            character.RestoreMana(character.MaximumMana);
+        }
+        return new LevelCompletionOutcome(results, fallenCharacters);
+    }
+
+    private ExperienceAward AwardExperience(LiveCharacter character, int amount) => new(character,
+        character.AddExperience(
+            amount,
+            _gameData.ExperienceByLevel,
+            _gameData.GetVitalityGrowth(character.Abilities.Health),
+            _gameData.GetManaGrowth(character.Abilities.Intelligence),
+            _random));
+
+    private static string FormatExperienceAwards(IEnumerable<ExperienceAward> awards) => string.Join("; ", awards.Select(award =>
+        $"{award.Character.Name} +{award.Result.GainedExperience}" +
+        (award.Result.LeveledUp ? $" (L{award.Result.PreviousLevel}→L{award.Result.CurrentLevel})" : string.Empty)));
+
     private void TriggerDeveloperLevelUp()
     {
         var neededExperience = SelectedCharacter.GetExperienceNeededForNextLevel(_gameData.ExperienceByLevel);
@@ -897,6 +990,11 @@ public sealed class Game
         foreach (var perk in selectedPerks)
             if (SelectedCharacter.AddPerk(perk)) SelectedCharacter.ApplyPerkAcquisitionBonus(perk);
     }
+
+    private sealed record ExperienceAward(LiveCharacter Character, LevelUpResult Result);
+    public sealed record LevelCompletionResult(LiveCharacter Character, LevelUpResult Experience);
+    private sealed record LevelCompletionOutcome(IReadOnlyList<LevelCompletionResult> Results,
+        IReadOnlyList<LiveCharacter> FallenCharacters);
 
     private IReadOnlyList<PerkOffer> CreatePerkOffers(LevelUpResult result)
     {

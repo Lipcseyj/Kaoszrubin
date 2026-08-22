@@ -100,8 +100,11 @@ A CSV `#` karakterrel kezdődő szekciókból áll. A betöltő az ékezeteket �
 - varázstárgyak, mágikus és papi varázslatok;
 - egészségből számított minimum életerő;
 - intelligenciából számított minimum manna.
+- a pályavégi teljesítési jutalom konfigurálható `#Base XP pálya végén` alapértéke.
 
 A sorok közötti kapcsolatok szöveges azonosítókon alapulnak, például `C001`, `W004` vagy `E001`. Új adat hozzáadásakor az azonosítóknak egyedieknek, a hivatkozásoknak pedig feloldhatóknak kell lenniük. A CSV egyszerű vessző menti darabolást használ, ezért idézőjeles, vesszőt tartalmazó mezőket jelenleg nem támogat.
+
+A `#Base XP pálya végén` szekció egyetlen nemnegatív egész számot tartalmaz. A `GameDataCatalog.BaseLevelCompletionExperience` kötelező értékként kapja meg; hiánya vagy negatív értéke betöltési hibát okoz.
 
 Az `adatok.csv` a projektfájl beállítása miatt fordításkor a kimeneti könyvtárba másolódik. A program futáskor ezt a másolatot olvassa, nem feltétlenül a forráskönyvtárban lévő fájlt.
 
@@ -124,7 +127,9 @@ max manna = intelligenciához tartozó CSV-minimum + 1..15 mannabónusz
 
 Mannát csak a `CharacterClassRules` által varázshasználónak minősített osztályok kapnak. A kezdőfelszerelés az osztályazonosítóhoz tartozó CSV-sorból épül fel.
 
-Győztes csata után a karakter az ellenfél teljes XP-jutalmát megkapja. A következő szint tényleges küszöbe:
+Győztes csata után az ellenfél teljes XP-jutalma a parti életben lévő tagjai között oszlik meg. A győztes 60%-ot kap; a fennmaradó 40% egyenlően jut a többi élő partitaghoz. Az egész számú osztás maradéka parti-sorrendben egyesével kerül kiosztásra ezért XP nem vész el. Ha nincs más élő partitag akkor a győztes kapja a teljes jutalmat. A szabály a vezér és az NPC által megnyert csatára is azonos.
+
+Minden részesülő karakter saját osztálymódosítójával és fejlődési szabályaival dolgozza fel a kapott XP-t. A következő szint tényleges küszöbe:
 
 ```text
 ceil(CSV XP-küszöb × osztály XP-módosító)
@@ -228,7 +233,7 @@ A rejtett `Ctrl+Shift+S` fejlesztői gyorsbillentyű pontosan a következő szin
 
 A `Party` 1–4 egyedi `LiveCharacter` objektumot tartalmaz. Első tagja mindig az aktív karakter és egyben a csapat vezetője. Új vezető kiválasztása új, egyszemélyes partit kezd; a társak normál felvételi folyamata későbbi fejlesztési pont. A parti tagjai a központi karakterlistában is szerepelnek, ezért ugyanazzal a karaktermentési modellel tárolódnak. A mentés a tagok karakterlistabeli indexeit őrzi.
 
-A jelenlegi játékmenetben a vezető és a társak is harcolhatnak. XP-t és aranyat továbbra is csak a vezető kap, és csak az ő szükségletei fogynak; az NPC-csaták jutalmazása későbbi fejlesztési pont.
+A jelenlegi játékmenetben a vezető és a társak is harcolhatnak. A harci XP a 60/40-es parti szabály szerint minden élő taghoz eljuthat; minden részesülő ugyanazzal az osztálymódosítóval valamint HP-/mannanövekedési szabállyal lép szintet. Aranyat továbbra is csak a vezető kap, és csak az ő szükségletei fogynak.
 
 A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbetűje: `H`, `B`, `L`, `T`, `P` vagy `M`. A jel a karakter saját színével rajzolódik. A társak minden új pályán szélességi kereséssel a vezetőhöz legközelebbi üres, járható cellákra kerülnek. Foglalják a mezőjüket az ellenfelek és a vezető elől; egymásra vagy szörnyre nem lépnek és zárt ajtón nem haladnak át.
 
@@ -290,6 +295,20 @@ Ezután a generátor:
 
 A kezdőterem védett: más szoba fala nem írhatja felül, és nem kerülhet bele láda vagy ellenfél. A 3×3-as járható belső teret külön falburok veszi körül, a korábban kivésett folyosókapcsolatok helyén ajtókkal. A vezető a terem középső celláján áll, ezért egyik oldalán sem kezd közvetlenül fal mellett. A legfeljebb három társ elsőként a távolabbi sarokcellákat foglalja el, így nem zárják körül a vezetőt.
 
+## Pályavége és fogadó
+
+A kijárat elérésekor a játék még a pályaszám növelése előtt lezárja az aktuális labirintusszintet. Az egy karakternek járó teljesítési jutalom:
+
+```text
+teljesítési XP = BaseLevelCompletionExperience × teljesített pályaszám
+```
+
+Ezt az összeget minden életben maradt partitag külön és teljes egészében megkapja; itt nem érvényes a harci 60/40-es XP-elosztás. Minden túlélő karakter saját osztálymódosítója és szintlépési HP-/mannadobása dolgozza fel a jutalmat. A vezető szintlépése a megszokott tehetségválasztási folyamatot is elindíthatja. A halott társak nem kapnak teljesítési XP-t.
+
+Jutalmazás után a parti a fogadóban pihen: kizárólag a túlélők aktuális HP-ja és mannája töltődik maximumra. A 0 HP-s társ halott marad; a pálya végén kikerül a partiból és a karakter-nyilvántartásból, tehát végleg elveszik. A középre igazított színes pályavége képernyő megmutatja a képletet és összeget, karakterenként az XP-t, szintváltozást és feltöltött erőforrásokat, továbbá külön megemlékezik az elvesztett társakról. Enter vagy Space indítja tovább a folyamatot. A kereskedés számára a képernyő és a fogadófolyamat későbbi bővítési pontot biztosít.
+
+A rejtett `Ctrl+Shift+E` fejlesztői gyorsbillentyű a partyvezért a kijárat melletti, járható és objektumtól mentes mezők közül a hozzá legközelebbire teleportálja. A teleport frissíti a vezér útvonalát és a látómezőt is; ha nincs megfelelő szabad mező, csak naplóüzenet jelenik meg.
+
 Az 1–3. labirintusszint külön konfigurációval rendelkezik. A későbbi szintek a harmadik szintből számított, fokozatosan növekvő szobaszámot, jutalmat és ellenfélszámot kapnak. Az ellenféltípusok listája azonban külön konfiguráció nélkül továbbra is a harmadik szint típusaiból származik.
 
 ### Ajtók
@@ -325,7 +344,7 @@ A csata automatikus váltott támadásokból áll. A vezér csatájában minden 
 
 A részletes vezéri csatanapló csak a ténylegesen érvényesülő nem nulla tehetségbónuszokat írja ki. A nulla gyógyítás/mannatöltés és a nulla támadó- vagy védelmi tehetségérték nem foglal helyet a naplóban.
 
-A defenzív és agresszív NPC a saját mozgási időpontjában aktívan megtámadja a szomszédos szörnyet. Bármely profil automatikusan visszaharcol akkor is ha egy szörny az ő mezőjére próbál lépni. NPC-győzelemkor a szörny holttestté válik. NPC-vereségkor a karakter 0 HP-val a partiban és a mentésben marad de térképi avatárja holttestté alakul és a következő pályákra sem kerül ki.
+A defenzív és agresszív NPC a saját mozgási időpontjában aktívan megtámadja a szomszédos szörnyet. Bármely profil automatikusan visszaharcol akkor is ha egy szörny az ő mezőjére próbál lépni. NPC-győzelemkor a szörny holttestté válik és az egyetlen összefoglaló üzenet parttagonként mutatja az XP-részesedést valamint az esetleges szint- és erőforrásnövekedést. NPC-vereségkor a karakter 0 HP-val a partiban marad, a partistátusz `💀` jellel mutatja, térképi avatárja pedig az elesés helyén `PartyMemberCorpse` objektummá alakul. Ez megőrzi a `LiveCharacter` hivatkozást, így a későbbi feltámasztás varázslat ugyanazt a karaktert állíthatja majd vissza az aktuális pályán. Ha a parti nélküle eléri a kijáratot, a társ végleg kikerül a partiból és a karakter-nyilvántartásból.
 
 Az `Enemy.CurrentHitPoints` a szörny futásidejű HP-ja. A `BattleSystem` ebből indítja a harcot és ide írja vissza a maradékot ezért egy NPC-t legyőző sérült szörny nem gyógyul vissza a következő találkozás előtt.
 

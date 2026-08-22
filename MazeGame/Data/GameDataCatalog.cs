@@ -28,6 +28,7 @@ public sealed class GameDataCatalog
     public IReadOnlyDictionary<int, int> ExperienceByLevel { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, ValueRange> VitalityGrowthByHealth { get; init; } = new Dictionary<int, ValueRange>();
     public IReadOnlyDictionary<int, ValueRange> ManaGrowthByIntelligence { get; init; } = new Dictionary<int, ValueRange>();
+    public int BaseLevelCompletionExperience { get; init; }
 
     public EnemyDefinition GetEnemy(string id) => FindById(Enemies, id, "ellenfél");
     public WeaponTypeDefinition GetWeaponType(string id) => FindById(WeaponTypes, id, "fegyvertípus");

@@ -35,6 +35,7 @@ public static class CsvGameDataLoader
         var vitalityGrowthByHealth = new Dictionary<int, ValueRange>();
         var manaGrowthByIntelligence = new Dictionary<int, ValueRange>();
         var startingEquipmentByClass = new Dictionary<string, StartingEquipmentDefinition>(StringComparer.OrdinalIgnoreCase);
+        int? baseLevelCompletionExperience = null;
         var section = DataSection.None;
 
         foreach (var rawLine in ReadLinesWithFallbackEncoding(filePath))
@@ -51,7 +52,7 @@ public static class CsvGameDataLoader
             if (IsHeaderRow(cells[0])) continue;
             AddDefinition(section, cells, races, characterClasses, enemies, weaponTypes, weapons, armors, abilities, items, magicItems, spells, perks, statuses, characterNames,
                 raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
-                vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass);
+                vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
         }
 
         return new GameDataCatalog
@@ -79,7 +80,10 @@ public static class CsvGameDataLoader
             ExperienceByLevel = experienceByLevel,
             VitalityGrowthByHealth = vitalityGrowthByHealth,
             ManaGrowthByIntelligence = manaGrowthByIntelligence,
-            StartingEquipmentByClass = startingEquipmentByClass
+            StartingEquipmentByClass = startingEquipmentByClass,
+            BaseLevelCompletionExperience = baseLevelCompletionExperience is >= 0
+                ? baseLevelCompletionExperience.Value
+                : throw new InvalidOperationException("A #Base XP pálya végén értékének nemnegatív egész számnak kell lennie az adatok.csv fájlban.")
         };
     }
 
@@ -92,7 +96,8 @@ public static class CsvGameDataLoader
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence, IDictionary<int, int> experienceByLevel,
         IDictionary<int, ValueRange> vitalityGrowthByHealth, IDictionary<int, ValueRange> manaGrowthByIntelligence,
-        IDictionary<string, StartingEquipmentDefinition> startingEquipmentByClass)
+        IDictionary<string, StartingEquipmentDefinition> startingEquipmentByClass,
+        ref int? baseLevelCompletionExperience)
     {
         var id = Cell(cells, 0);
         if (string.IsNullOrWhiteSpace(id)) return;
@@ -172,6 +177,9 @@ public static class CsvGameDataLoader
                     EmptyAsNull(Cell(cells, 3)),
                     EmptyAsNull(Cell(cells, 4)),
                     cells.Skip(5).Where(item => !string.IsNullOrWhiteSpace(item)).ToList());
+                break;
+            case DataSection.LevelCompletionExperience:
+                baseLevelCompletionExperience = Integer(cells, 0);
                 break;
         }
     }
@@ -263,6 +271,7 @@ public static class CsvGameDataLoader
         "szintlepesek" => DataSection.LevelExperience,
         "szintlepes eletero novekedes" => DataSection.VitalityGrowth,
         "szintlepes manna novekedes" => DataSection.ManaGrowth,
+        "base xp palya vegen" => DataSection.LevelCompletionExperience,
         _ => DataSection.None
     };
 
@@ -296,6 +305,7 @@ public static class CsvGameDataLoader
         ManaByIntelligence,
         LevelExperience,
         VitalityGrowth,
-        ManaGrowth
+        ManaGrowth,
+        LevelCompletionExperience
     }
 }

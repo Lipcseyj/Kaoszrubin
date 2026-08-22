@@ -114,6 +114,9 @@ public sealed class ConsoleRenderer
             : $"+{result.GainedExperience} XP.",
         result.LeveledUp ? ConsoleColor.Magenta : ConsoleColor.Cyan);
 
+    public void DrawExperienceDistribution(string distribution, bool anyLevelUp) =>
+        DrawBattleMessage($"XP elosztás: {distribution}.", anyLevelUp ? ConsoleColor.Magenta : ConsoleColor.Cyan);
+
     /// <summary>
     /// Csataround naplóbejegyzés megjelenítése. A napló színezése a bejegyzés típusától függ.
     /// </summary>
@@ -181,6 +184,48 @@ public sealed class ConsoleRenderer
         SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
         WriteAt(left, top + lines.Length + 1, "╚" + new string('═', frameWidth - 2) + "╝");
         Console.ReadKey(intercept: true);
+    }
+
+    public void DrawLevelCompletionScreen(int completedLevel, int baseExperience,
+        IReadOnlyList<Game.LevelCompletionResult> results, IReadOnlyList<LiveCharacter> fallenCharacters)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var reward = checked(baseExperience * completedLevel);
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🏆✨  PÁLYA TELJESÍTVE!  ✨🏆", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ($"🚪 A parti kijutott a(z) {completedLevel}. labirintusszintről.", ConsoleColor.Green),
+            ($"📜 Teljesítési XP: {baseExperience} × {completedLevel} = {reward} XP minden túlélő partitag számára", ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray),
+            ("🏰🍺  PIHENŐ A FOGADÓBAN  🍲🛏️", ConsoleColor.DarkYellow)
+        };
+        foreach (var result in results)
+        {
+            var character = result.Character;
+            var levelText = result.Experience.LeveledUp
+                ? $"  ⭐ L{result.Experience.PreviousLevel}→L{result.Experience.CurrentLevel}"
+                : $"  L{character.Level}";
+            var manaText = character.UsesMana ? $"  🔷 {character.CurrentMana}/{character.MaximumMana} manna" : string.Empty;
+            lines.Add(($"✨ {character.Name,-13} +{result.Experience.GainedExperience} XP{levelText}  ❤️ {character.CurrentVitality}/{character.MaximumVitality} HP{manaText}", character.Color));
+        }
+        if (fallenCharacters.Count > 0)
+        {
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add(("💀  A fogadóig nem jutottak el — végleg elvesztek:", ConsoleColor.Red));
+            foreach (var fallen in fallenCharacters)
+                lines.Add(($"† {fallen.Name} ({fallen.CharacterClass.Name})", ConsoleColor.DarkRed));
+        }
+        lines.AddRange([
+            (string.Empty, ConsoleColor.Gray),
+            ("💤 A túlélők kipihenték sérüléseiket: minden HP és manna feltöltve.", ConsoleColor.Green),
+            ("🛒 A fogadó kereskedői később nyitják meg portékáikat...", ConsoleColor.Magenta),
+            (string.Empty, ConsoleColor.Gray),
+            ("Nyomj Entert vagy Space-t a következő pályához! ➡️", ConsoleColor.Yellow)
+        ]);
+        DrawCenteredFrame(112, lines);
+        while (Console.ReadKey(intercept: true).Key is not (ConsoleKey.Enter or ConsoleKey.Spacebar)) { }
     }
     /// <summary>Fejlesztői üzenetek gyors megjelenítésére szolgál (battle message panelre).</summary>
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
@@ -546,7 +591,9 @@ public sealed class ConsoleRenderer
         const int maximumWidth = 27;
         var marker = isDisplayed ? "▶ " : "  ";
         var classInitial = character.CharacterClass.Name.EnumerateRunes().First().ToString().ToUpperInvariant();
-        var suffix = $" L{character.Level} {character.CurrentVitality}/{character.MaximumVitality}";
+        var suffix = character.IsAlive
+            ? $" L{character.Level} {character.CurrentVitality}/{character.MaximumVitality}"
+            : $" L{character.Level} 💀";
         var maximumNameLength = Math.Max(1, maximumWidth - marker.Length - classInitial.Length - 1 - suffix.Length);
         var name = character.Name[..Math.Min(character.Name.Length, maximumNameLength)];
         return $"{marker}{classInitial} {name}{suffix}";

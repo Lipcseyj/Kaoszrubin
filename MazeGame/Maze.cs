@@ -137,7 +137,7 @@ public sealed class Maze
     public void ReplacePartyMemberWithCorpse(PartyMemberAvatar member)
     {
         if (!_partyMembers.Remove(member)) throw new ArgumentException("A partitárs nem a labirintus része.", nameof(member));
-        _corpses.Add(new Corpse(member.Position, member.Character.Name));
+        _corpses.Add(new PartyMemberCorpse(member.Position, member.Character));
     }
 
     public WorldObject? GetObjectAt(Position position) =>
