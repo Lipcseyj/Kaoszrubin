@@ -243,6 +243,12 @@ public sealed class LiveCharacter
     public void ConsumeFood(int amount) => FoodLevel = Math.Max(0, FoodLevel - Math.Max(0, amount));
     public void ConsumeWater(int amount) => WaterLevel = Math.Max(0, WaterLevel - Math.Max(0, amount));
     public void AddGold(int amount) => Gold += Math.Max(0, amount);
+    public bool SpendGold(int amount)
+    {
+        if (amount < 0 || Gold < amount) return false;
+        Gold -= amount;
+        return true;
+    }
     public void SetGold(int gold) => Gold = Math.Max(0, gold);
 
     public LevelUpResult AddExperience(int amount, IReadOnlyDictionary<int, int> experienceByLevel,

@@ -220,13 +220,71 @@ public sealed class ConsoleRenderer
         lines.AddRange([
             (string.Empty, ConsoleColor.Gray),
             ("💤 A túlélők kipihenték sérüléseiket: minden HP és manna feltöltve.", ConsoleColor.Green),
-            ("🛒 A fogadó kereskedői később nyitják meg portékáikat...", ConsoleColor.Magenta),
+            ("🛒 A fogadó kereskedői már várnak a portékáikkal...", ConsoleColor.Magenta),
             (string.Empty, ConsoleColor.Gray),
-            ("Nyomj Entert vagy Space-t a következő pályához! ➡️", ConsoleColor.Yellow)
+            ("Nyomj Entert vagy Space-t a kereskedéshez! ➡️", ConsoleColor.Yellow)
         ]);
         DrawCenteredFrame(112, lines);
         while (Console.ReadKey(intercept: true).Key is not (ConsoleKey.Enter or ConsoleKey.Spacebar)) { }
     }
+
+    public void DrawInnMarketScreen(LiveCharacter leader, InnMarketMode mode,
+        IReadOnlyList<InnStockOffer> stock, IReadOnlyList<InnSellOffer> sellOffers,
+        int selectedIndex, int freeBackpackSlots, string message)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var buying = mode == InnMarketMode.Buy;
+        var entryCount = buying ? stock.Count : sellOffers.Count;
+        const int pageSize = 12;
+        var pageStart = entryCount == 0 ? 0 : Math.Clamp(selectedIndex - pageSize / 2, 0, Math.Max(0, entryCount - pageSize));
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🏰🍺  A VÁNDORCSILLAG FOGADÓ KERESKEDŐJE  🛒✨", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            (buying ? "◀  [ VÁSÁRLÁS ]     ELADÁS  ▶" : "◀    VÁSÁRLÁS     [ ELADÁS ]  ▶", ConsoleColor.Cyan),
+            ($"🪙 {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
+            ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
+        };
+
+        for (var row = 0; row < pageSize; row++)
+        {
+            var index = pageStart + row;
+            if (index >= entryCount) { lines.Add((string.Empty, ConsoleColor.Gray)); continue; }
+            var selected = index == selectedIndex;
+            if (buying)
+            {
+                var offer = stock[index];
+                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} 🪙",
+                    selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
+            }
+            else
+            {
+                var offer = sellOffers[index];
+                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} 🪙",
+                    selected ? ConsoleColor.Yellow : offer.Owner.Color));
+            }
+        }
+
+        var selectedItem = entryCount == 0 ? null : buying ? stock[selectedIndex].Item : sellOffers[selectedIndex].Item;
+        lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
+        lines.Add((selectedItem is null ? (buying ? "Nincs több megvásárolható portéka." : "Nincs eladható tárgy a hátizsákokban.")
+            : ClipMarketText($"ℹ️ {selectedItem.Description}", 94), ConsoleColor.DarkCyan));
+        lines.Add((ClipMarketText(message, 94), ConsoleColor.Magenta));
+        lines.Add(("↑/↓ választás   ←/→ vétel–eladás   Enter üzlet   Esc tovább a következő pályára", ConsoleColor.White));
+        DrawCenteredFrame(100, lines);
+    }
+
+    private static string ItemCategoryIcon(IItemDefinition item) => item.Category switch
+    {
+        ItemCategory.Weapon => "⚔️",
+        ItemCategory.Armor => "🛡️",
+        ItemCategory.MagicItem => "🔮",
+        _ => "📦"
+    };
+
+    private static string ClipMarketText(string text, int maximumLength) =>
+        text.Length <= maximumLength ? text : text[..Math.Max(1, maximumLength - 1)] + "…";
     /// <summary>Fejlesztői üzenetek gyors megjelenítésére szolgál (battle message panelre).</summary>
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
     public void DrawDoorMessage(string message, ConsoleColor color = ConsoleColor.DarkYellow) => DrawBattleMessage(message, color);

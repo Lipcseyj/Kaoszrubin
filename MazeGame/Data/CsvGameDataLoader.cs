@@ -120,21 +120,21 @@ public static class CsvGameDataLoader
             case DataSection.Weapons:
                 weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), ValueRangeFrom(cells, 3),
                     IsYes(cells, 4), AllowedClasses(cells, ("C001", null), ("C002", null), ("C003", null),
-                        ("C004", 5), ("C005", 6), ("C006", 7)), Cell(cells, 8)));
+                        ("C004", 5), ("C005", 6), ("C006", 7)), Cell(cells, 8), RequiredPrice(cells, 9, id)));
                 break;
             case DataSection.Armors:
                 armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),
                     AllowedClasses(cells, ("C001", null), ("C003", null), ("C002", 3),
-                        ("C004", 4), ("C005", 5), ("C006", 6)), Cell(cells, 7)));
+                        ("C004", 4), ("C005", 5), ("C006", 6)), Cell(cells, 7), RequiredPrice(cells, 8, id)));
                 break;
             case DataSection.Abilities:
                 abilities.Add(new AbilityDefinition(id, name));
                 break;
             case DataSection.Items:
-                items.Add(new MiscItemDefinition(id, name, Cell(cells, 2)));
+                items.Add(new MiscItemDefinition(id, name, Cell(cells, 2), RequiredPrice(cells, 3, id)));
                 break;
             case DataSection.MagicItems:
-                magicItems.Add(new MagicItemDefinition(id, name));
+                magicItems.Add(new MagicItemDefinition(id, name, RequiredPrice(cells, 2, id)));
                 break;
             case DataSection.ArcaneSpells:
                 spells.Add(new SpellDefinition(id, name, SpellSchool.Arcane));
@@ -190,6 +190,10 @@ public static class CsvGameDataLoader
 
     private static bool IsYes(string[] cells, int index) =>
         string.Equals(Cell(cells, index), "igen", StringComparison.OrdinalIgnoreCase);
+
+    private static int RequiredPrice(string[] cells, int index, string id) => Integer(cells, index) is > 0 and var price
+        ? price
+        : throw new InvalidOperationException($"A(z) '{id}' tárgy ára hiányzik vagy nem pozitív az adatok.csv fájlban.");
 
     private static IReadOnlySet<string> AllowedClasses(string[] cells,
         params (string ClassId, int? FlagIndex)[] classRules) => classRules

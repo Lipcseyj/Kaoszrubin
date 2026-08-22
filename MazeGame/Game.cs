@@ -97,6 +97,7 @@ public sealed class Game
                     if (IsTeleportToExitShortcut(keyInfo))
                     {
                         TeleportLeaderNearExit();
+                        _player.Character.AddGold(1000);
                         continue;
                     }
                     if (IsLevelUpShortcut(keyInfo))
@@ -190,6 +191,7 @@ public sealed class Game
                 completion.Results, completion.FallenCharacters);
             var leaderResult = completion.Results.First(result => result.Character == SelectedCharacter).Experience;
             if (leaderResult.LeveledUp) ResolvePerkOffers(leaderResult);
+            RunInnMarket(completedLevel);
             _mazeLevel++;
             StartNewMaze();
             return;
@@ -242,7 +244,7 @@ public sealed class Game
             _ => "Általános tárgy"
         };
         var description = string.IsNullOrWhiteSpace(item.Description) ? "Nincs jellemzés." : item.Description;
-        _renderer.DrawInventoryMessage($"{item.Name} [{item.Id}] — {details}. Jellemzés: {description}", ConsoleColor.Cyan);
+        _renderer.DrawInventoryMessage($"{item.Name} [{item.Id}] — {details}. Alapár: {item.BasePrice} arany. Jellemzés: {description}", ConsoleColor.Cyan);
     }
 
     private static string NpcBehaviorName(NpcBehavior? behavior) => behavior switch
@@ -965,6 +967,89 @@ public sealed class Game
         }
         return new LevelCompletionOutcome(results, fallenCharacters);
     }
+
+    private void RunInnMarket(int completedLevel)
+    {
+        var stock = CreateInnStock(completedLevel).ToList();
+        var buybackPrices = AllTradableItems().ToDictionary(item => item.Id,
+            item => Math.Max(1, item.BasePrice * _random.Next(40, 71) / 100), StringComparer.OrdinalIgnoreCase);
+        var mode = InnMarketMode.Buy;
+        var selectedIndex = 0;
+        var message = "A kereskedő rád kacsint: „Nézz körül, kalandozó!”";
+
+        while (true)
+        {
+            var sellOffers = CreateSellOffers(buybackPrices);
+            var entryCount = mode == InnMarketMode.Buy ? stock.Count : sellOffers.Count;
+            selectedIndex = entryCount == 0 ? 0 : Math.Clamp(selectedIndex, 0, entryCount - 1);
+            _renderer.DrawInnMarketScreen(SelectedCharacter, mode, stock, sellOffers, selectedIndex,
+                CharacterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
+
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Escape) return;
+            if (key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow or ConsoleKey.Tab)
+            {
+                mode = mode == InnMarketMode.Buy ? InnMarketMode.Sell : InnMarketMode.Buy;
+                selectedIndex = 0;
+                message = mode == InnMarketMode.Buy ? "A kereskedő kínálata." : "Csak a hátizsákok tárgyai adhatók el.";
+                continue;
+            }
+            if (key == ConsoleKey.UpArrow && entryCount > 0) { selectedIndex = (selectedIndex - 1 + entryCount) % entryCount; continue; }
+            if (key == ConsoleKey.DownArrow && entryCount > 0) { selectedIndex = (selectedIndex + 1) % entryCount; continue; }
+            if (key != ConsoleKey.Enter || entryCount == 0) continue;
+
+            if (mode == InnMarketMode.Buy)
+            {
+                var offer = stock[selectedIndex];
+                var recipient = CharacterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
+                if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
+                if (!SelectedCharacter.SpendGold(offer.Price)) { message = $"🪙 Nincs elég aranyad: még {offer.Price - SelectedCharacter.Gold} hiányzik."; continue; }
+                recipient.AddToBackpack(offer.Item);
+                stock.RemoveAt(selectedIndex);
+                message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
+            }
+            else
+            {
+                var offer = sellOffers[selectedIndex];
+                if (!offer.Owner.SetInventoryItem(InventorySlotKind.Backpack, offer.BackpackIndex, null))
+                { message = "Az üzlet most nem hajtható végre."; continue; }
+                SelectedCharacter.AddGold(offer.Price);
+                message = $"✅ Eladtad: {offer.Item.Name} {offer.Price} aranyért ({offer.Owner.Name} hátizsákjából).";
+            }
+        }
+    }
+
+    private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel)
+    {
+        var allItems = AllTradableItems().OrderBy(item => item.BasePrice).ToList();
+        var unlocked = allItems.Take(Math.Min(allItems.Count, 5 + completedLevel * 3)).ToList();
+        var stockCount = Math.Min(unlocked.Count, Math.Min(12, 5 + completedLevel));
+        var offers = new List<InnStockOffer>(stockCount);
+        while (offers.Count < stockCount && unlocked.Count > 0)
+        {
+            var totalWeight = unlocked.Select((_, index) => 1 + index * Math.Max(1, completedLevel)).Sum();
+            var roll = _random.Next(totalWeight);
+            var chosenIndex = 0;
+            for (; chosenIndex < unlocked.Count - 1; chosenIndex++)
+            {
+                roll -= 1 + chosenIndex * Math.Max(1, completedLevel);
+                if (roll < 0) break;
+            }
+            var item = unlocked[chosenIndex];
+            unlocked.RemoveAt(chosenIndex);
+            var percentage = _random.NextDouble() < 0.20 ? _random.Next(85, 101) : _random.Next(105, 151);
+            offers.Add(new InnStockOffer(item, Math.Max(1, item.BasePrice * percentage / 100)));
+        }
+        return offers.OrderBy(offer => offer.Price).ToList();
+    }
+
+    private IReadOnlyList<InnSellOffer> CreateSellOffers(IReadOnlyDictionary<string, int> buybackPrices) =>
+        CharacterRoster.Party.Members.SelectMany(character => character.Backpack
+            .Select((item, index) => item is null ? null : new InnSellOffer(character, index, item, buybackPrices[item.Id])))
+            .Where(offer => offer is not null).Cast<InnSellOffer>().ToList();
+
+    private IReadOnlyList<IItemDefinition> AllTradableItems() => _gameData.Items.Cast<IItemDefinition>()
+        .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems).ToList();
 
     private ExperienceAward AwardExperience(LiveCharacter character, int amount) => new(character,
         character.AddExperience(

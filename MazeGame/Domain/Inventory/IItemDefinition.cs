@@ -7,6 +7,7 @@ public interface IItemDefinition : IGameDefinition
 {
     ItemCategory Category { get; }
     string Description { get; }
+    int BasePrice { get; }
 }
 
 public enum ItemCategory { Weapon, Armor, MagicItem, Miscellaneous }

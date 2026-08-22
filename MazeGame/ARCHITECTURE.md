@@ -98,6 +98,7 @@ A CSV `#` karakterrel kezdődő szekciókból áll. A betöltő az ékezeteket �
 - páncélok;
 - képességek és tárgyak;
 - varázstárgyak, mágikus és papi varázslatok;
+- a fegyverek, páncélok, általános tárgyak és varázstárgyak pozitív egész alapára;
 - egészségből számított minimum életerő;
 - intelligenciából számított minimum manna.
 - a pályavégi teljesítési jutalom konfigurálható `#Base XP pálya végén` alapértéke.
@@ -309,7 +310,17 @@ teljesítési XP = BaseLevelCompletionExperience × teljesített pályaszám
 
 Ezt az összeget minden életben maradt partitag külön és teljes egészében megkapja; itt nem érvényes a harci 60/40-es XP-elosztás. Minden túlélő karakter saját osztálymódosítója és szintlépési HP-/mannadobása dolgozza fel a jutalmat. A vezető szintlépése a megszokott tehetségválasztási folyamatot is elindíthatja. A halott társak nem kapnak teljesítési XP-t.
 
-Jutalmazás után a parti a fogadóban pihen: kizárólag a túlélők aktuális HP-ja és mannája töltődik maximumra. A 0 HP-s társ halott marad; a pálya végén kikerül a partiból és a karakter-nyilvántartásból, tehát végleg elveszik. A középre igazított színes pályavége képernyő megmutatja a képletet és összeget, karakterenként az XP-t, szintváltozást és feltöltött erőforrásokat, továbbá külön megemlékezik az elvesztett társakról. Enter vagy Space indítja tovább a folyamatot. A kereskedés számára a képernyő és a fogadófolyamat későbbi bővítési pontot biztosít.
+Jutalmazás után a parti a fogadóban pihen: kizárólag a túlélők aktuális HP-ja és mannája töltődik maximumra. A 0 HP-s társ halott marad; a pálya végén kikerül a partiból és a karakter-nyilvántartásból, tehát végleg elveszik. A középre igazított színes pályavége képernyő megmutatja a képletet és összeget, karakterenként az XP-t, szintváltozást és feltöltött erőforrásokat, továbbá külön megemlékezik az elvesztett társakról. Enter vagy Space nyitja meg a fogadó kereskedőjét; a piacról `Esc` indítja a következő pályát.
+
+### Fogadói kereskedés
+
+Minden `IItemDefinition` pozitív `BasePrice` alapárral rendelkezik, amely közvetlenül az `adatok.csv` megfelelő sorából származik. Hiányzó, nulla vagy negatív ár betöltési hibát okoz. Az árskála az egyszerű ellátmány 8–60 aranyas tartományától az alapfegyvereken és vérteken át a 6500 aranyas mitril teljes vértezetig terjed; a varázstárgyak alapára 300–900 arany.
+
+A fogadó minden látogatáskor új, véletlen piacot készít. A kereskedő eladási ára 80% eséllyel az alapár 105–150%-a, 20% eséllyel kedvezményes 85–100%. A parti tárgyaiért jóval kevesebbet, az alapár véletlen 40–70%-át kínálja. Az ajánlatok az adott fogadólátogatás teljes ideje alatt stabilak, ezért a nézetváltással nem dobhatók újra; a visszavásárlási ár mindig alacsonyabb a lehetséges eladási árnál.
+
+A piac `←`/`→` vagy `Tab` billentyűvel vált a vásárlás és eladás között, `↑`/`↓` választ, az `Enter` végrehajtja az üzletet. Eladáskor a teljes parti hátizsákjainak tárgyai láthatók a tulajdonos nevével; a felszerelt tárgyak előbb az inventoryban tehetők hátizsákba. A bevétel és kiadás a partyvezér aranyát módosítja. Vásárláskor a tárgy először a vezér első üres hátizsákhelyére kerül, telt hátizsáknál pedig parti-sorrendben a következő szabad hellyel rendelkező társ kapja. Ha az összes hátizsák tele van, a vásárlás meghiúsul és arany nem fogy.
+
+A készlet az összes tárgy alapár szerint rendezett, fokozatosan feloldódó részéből készül. A teljesített pálya növekedésével egyszerre három újabb, jellemzően értékesebb tárgytípus kerülhet a jelöltek közé, a tényleges kínálat pedig pályánként egy hellyel nő, legfeljebb tizenkettőig. A súlyozott választás a feloldott készleten belül az értékesebb tárgyakat részesíti előnyben, így később több és jobb portéka jelenik meg anélkül, hogy az olcsó ellátmány teljesen eltűnne.
 
 A rejtett `Ctrl+Shift+E` fejlesztői gyorsbillentyű a partyvezért a kijárat melletti, járható és objektumtól mentes mezők közül a hozzá legközelebbire teleportálja. A teleport frissíti a vezér útvonalát és a látómezőt is; ha nincs megfelelő szabad mező, csak naplóüzenet jelenik meg.
 

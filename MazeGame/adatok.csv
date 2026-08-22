@@ -234,22 +234,22 @@ E024,Balor démon,♛,19,2500,10,8,7500
 E025,Fekete sárkány,Ð,20,2000,10,8,10000
 
 #Fegyverek
-Id,Név,Típus,Sebzés,Kétkezes,Tolvaj,Pap,Mágus,Jellemzés
-W001,tőr,WT002,2-5,nem,igen,nem,igen,Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.
-W002,rövid kard,WT002,3-7,nem,igen,nem,nem,Fordulékony egykezes kard amely szűk helyen is jól használható.
-W003,katana,WT002,5-10,igen,igen,nem,nem,Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.
-W004,hosszú kard,WT001,5-11,nem,igen,nem,nem,Megbízható acélkard erőteljes vágásokhoz és szúrásokhoz.
-W005,bunkó,WT001,3-6,nem,igen,igen,nem,Egyszerű nehéz ütőfegyver amelyhez több erő kell mint ügyesség.
-W006,buzogány,WT001,4-9,nem,nem,igen,nem,Vasfejű zúzófegyver amely súlyos csapásokat mér az ellenfélre.
-W007,láncos buzogány,WT001,5-11,nem,nem,igen,nem,Láncon forgó tüskés fej kiszámíthatatlan és veszélyes ívvel.
-W008,csatacsillag,WT001,6-12,nem,nem,igen,nem,Nehéz tüskés fegyver amely pusztító lendületet gyűjt támadáskor.
-W009,pallos,WT001,8-16,igen,nem,nem,nem,Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.
-W010,csatabárd,WT001,6-13,nem,nem,nem,nem,Széles pengéjű bárd erős és könyörtelen vágásokhoz.
-W011,lándzsa,WT001,5-12,igen,nem,nem,nem,Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.
-W012,alabárd,WT001,7-15,igen,nem,nem,nem,Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.
-W013,csatakalapács,WT001,7-14,igen,nem,igen,nem,Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.
-W014,bőrpajzs,WT003,1-3,nem,igen,igen,nem,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.
-W015,fapajzs,WT003,2-5,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.
+Id,Név,Típus,Sebzés,Kétkezes,Tolvaj,Pap,Mágus,Jellemzés,Ár
+W001,tőr,WT002,2-5,nem,igen,nem,igen,Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.,35
+W002,rövid kard,WT002,3-7,nem,igen,nem,nem,Fordulékony egykezes kard amely szűk helyen is jól használható.,70
+W003,katana,WT002,5-10,igen,igen,nem,nem,Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.,420
+W004,hosszú kard,WT001,5-11,nem,igen,nem,nem,Megbízható acélkard erőteljes vágásokhoz és szúrásokhoz.,180
+W005,bunkó,WT001,3-6,nem,igen,igen,nem,Egyszerű nehéz ütőfegyver amelyhez több erő kell mint ügyesség.,25
+W006,buzogány,WT001,4-9,nem,nem,igen,nem,Vasfejű zúzófegyver amely súlyos csapásokat mér az ellenfélre.,110
+W007,láncos buzogány,WT001,5-11,nem,nem,igen,nem,Láncon forgó tüskés fej kiszámíthatatlan és veszélyes ívvel.,210
+W008,csatacsillag,WT001,6-12,nem,nem,igen,nem,Nehéz tüskés fegyver amely pusztító lendületet gyűjt támadáskor.,320
+W009,pallos,WT001,8-16,igen,nem,nem,nem,Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.,550
+W010,csatabárd,WT001,6-13,nem,nem,nem,nem,Széles pengéjű bárd erős és könyörtelen vágásokhoz.,280
+W011,lándzsa,WT001,5-12,igen,nem,nem,nem,Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.,160
+W012,alabárd,WT001,7-15,igen,nem,nem,nem,Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.,480
+W013,csatakalapács,WT001,7-14,igen,nem,igen,nem,Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.,450
+W014,bőrpajzs,WT003,1-3,nem,igen,igen,nem,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.,45
+W015,fapajzs,WT003,2-5,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.,90
 
 #Fegyvertípus
 Id,Név
@@ -258,16 +258,16 @@ WT002,Ügyesség
 WT003,Védelem
 
 #Páncélok
-Id,Név,Védelem,Barbár,Tolvaj,Pap,Mágus,Jellemzés
-A001,kámzsa,1-2,igen,igen,igen,igen,Vastag szövetből készült fejvédő a kisebb sérülések ellen.
-A002,bőrvért,2-3,igen,igen,igen,nem,Könnyű edzett bőrpáncél amely szabad mozgást biztosít.
-A003,láncing,3-4,igen,nem,igen,nem,Összefűzött fémkarikákból készült hajlékony vértezet.
-A004,pikkelypáncél,2-5,igen,nem,igen,nem,Egymásra simuló fémpikkelyekből álló változó védelmű páncél.
-A005,mellvért,6-7,igen,nem,igen,nem,Formázott acéllemez amely erősen védi a törzset.
-A006,teljes vértezet,8-10,nem,nem,igen,nem,Nehéz lemezpáncél amely tetőtől talpig óvja viselőjét.
-A007,mitril láncing,7-8,igen,igen,igen,nem,Rendkívül könnyű és erős mitrilkarikákból font ritka vértezet.
-A008,mitril mellvért,8-9,igen,nem,igen,nem,Könnyedén viselhető mitril lemez kiváló törzsvédelemmel.
-A009,mitril teljes vértezet,12-15,nem,nem,igen,nem,Mesteri mitril páncélzat amely páratlan védelmet nyújt.
+Id,Név,Védelem,Barbár,Tolvaj,Pap,Mágus,Jellemzés,Ár
+A001,kámzsa,1-2,igen,igen,igen,igen,Vastag szövetből készült fejvédő a kisebb sérülések ellen.,20
+A002,bőrvért,2-3,igen,igen,igen,nem,Könnyű edzett bőrpáncél amely szabad mozgást biztosít.,100
+A003,láncing,3-4,igen,nem,igen,nem,Összefűzött fémkarikákból készült hajlékony vértezet.,250
+A004,pikkelypáncél,2-5,igen,nem,igen,nem,Egymásra simuló fémpikkelyekből álló változó védelmű páncél.,350
+A005,mellvért,6-7,igen,nem,igen,nem,Formázott acéllemez amely erősen védi a törzset.,700
+A006,teljes vértezet,8-10,nem,nem,igen,nem,Nehéz lemezpáncél amely tetőtől talpig óvja viselőjét.,1300
+A007,mitril láncing,7-8,igen,igen,igen,nem,Rendkívül könnyű és erős mitrilkarikákból font ritka vértezet.,2200
+A008,mitril mellvért,8-9,igen,nem,igen,nem,Könnyedén viselhető mitril lemez kiváló törzsvédelemmel.,3500
+A009,mitril teljes vértezet,12-15,nem,nem,igen,nem,Mesteri mitril páncélzat amely páratlan védelmet nyújt.,6500
 
 #Képességek
 Id,Név
@@ -326,17 +326,17 @@ STATUS004,Betegség,A karakter valamilyen betegségtől szenved.
 STATUS005,Vérzés,A karakter folyamatos vérzéstől szenved.
 
 #Tárgyak
-Id,Név,Jellemzés
-T001,Élelem,Tartós útravaló amely később az éhség csillapítására használható.
-T002,Kulacs,Vízzel tölthető edény amely később a szomjúság enyhítésére szolgálhat.
-T003,Kulcs,Egyszer használatos kulcs amely garantáltan kinyit vagy bezár egy ajtózárat.
+Id,Név,Jellemzés,Ár
+T001,Élelem,Tartós útravaló amely később az éhség csillapítására használható.,8
+T002,Kulacs,Vízzel tölthető edény amely később a szomjúság enyhítésére szolgálhat.,12
+T003,Kulcs,Egyszer használatos kulcs amely garantáltan kinyit vagy bezár egy ajtózárat.,60
 
 #Varázstárgyak
-Id,Név
-M001,varázsgyűrű
-M002,varázstekercs
-M003,Szent szimbólum
-M004,Varázskönyv
+Id,Név,Ár
+M001,varázsgyűrű,800
+M002,varázstekercs,300
+M003,Szent szimbólum,500
+M004,Varázskönyv,900
 
 #Varázslatok
 Id,Név
