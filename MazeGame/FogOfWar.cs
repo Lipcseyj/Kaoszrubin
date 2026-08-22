@@ -57,7 +57,7 @@ public sealed class FogOfWar
         while (true)
         {
             if (x == target.X && y == target.Y) return true;
-            if ((x != origin.X || y != origin.Y) && (maze.Tiles[x, y] == Maze.Wall || maze.Tiles[x, y] == Maze.Door)) return false;
+            if ((x != origin.X || y != origin.Y) && maze.BlocksSight(new Position(x, y))) return false;
             var doubleError = 2 * error;
             if (doubleError > -deltaY) { error -= deltaY; x += stepX; }
             if (doubleError < deltaX) { error += deltaX; y += stepY; }
@@ -99,7 +99,7 @@ public sealed class FogOfWar
             while (index < lineLength && !IsVisible(positionAt(index))) index++;
             var gapLength = index - start;
             var hasExploredEnds = start > 0 && index < lineLength && IsRevealed(positionAt(start - 1)) && IsRevealed(positionAt(index));
-            var containsDoor = Enumerable.Range(start, gapLength).Any(gapIndex => maze.Tiles[positionAt(gapIndex).X, positionAt(gapIndex).Y] == Maze.Door);
+            var containsDoor = Enumerable.Range(start, gapLength).Any(gapIndex => maze.GetDoorAt(positionAt(gapIndex)) is not null);
             if (!hasExploredEnds || gapLength > MaximumBridgedFogGapLength || containsDoor) continue;
 
             for (var gapIndex = start; gapIndex < index; gapIndex++)

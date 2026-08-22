@@ -11,4 +11,5 @@ public static class CharacterClassRules
     };
 
     public static bool UsesMana(string characterClassId) => !NonManaClassIds.Contains(characterClassId);
+    public static bool IsThief(string characterClassId) => string.Equals(characterClassId, "C004", StringComparison.OrdinalIgnoreCase);
 }

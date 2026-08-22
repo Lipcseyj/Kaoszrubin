@@ -259,9 +259,30 @@ A kezdőterem védett: más szoba fala nem írhatja felül, és nem kerülhet be
 
 Az 1–3. labirintusszint külön konfigurációval rendelkezik. A későbbi szintek a harmadik szintből számított, fokozatosan növekvő szobaszámot, jutalmat és ellenfélszámot kapnak. Az ellenféltípusok listája azonban külön konfiguráció nélkül továbbra is a harmadik szint típusaiból származik.
 
+### Ajtók
+
+Az ajtó nem egyszerű térképrúna, hanem `MazeDoor` állapotobjektum. Négy állapota van:
+
+| Állapot | Jel | Járható | Újra zárható |
+|---|---:|---:|---:|
+| Kulcsra zárt | `╫` | nem | igen |
+| Nyitott | `╱` | igen | igen |
+| Zárt | `╬` | nem | igen |
+| Bezúzott | `▒` | igen | nem |
+
+A kezdőterem ajtaja mindig nyitott. A további szobaajtók generáláskor 20% eséllyel kulcsra zártak, 60% eséllyel zártak és 20% eséllyel nyitottak. A zárt és kulcsra zárt ajtó a mozgást és a látóvonalat is blokkolja.
+
+Ajtó mellett a vezető az `N` billentyűvel nyit, a `Z` billentyűvel bezár, a `K` billentyűvel kulcsra zár. A simán zárt ajtó szabadon nyitható. Kulcsra zárt ajtónál a nyitási sorrend:
+
+1. a `T003` kulcs garantáltan nyit és eltűnik a hátizsákból;
+2. kulcs nélkül a tolvaj százalékos Ügyesség-próbát tesz;
+3. sikertelen zárnyitás vagy más osztály esetén `1d20 ≤ Erő` próba következik, amely siker esetén végleg bezúzza az ajtót.
+
+A tolvaj zárnyitási esélye 10 Ügyességnél 90%, 11-nél 93%, 12-nél 96%, 13-nál 100%; alacsonyabb értéknél fokozatosan csökken. Kulcsra záráshoz egy elfogyó kulcs vagy tolvaj osztály szükséges. Minden művelet és dobás eredménye az alsó üzenetnaplóban jelenik meg. Jelenleg mindig a parti vezetője kezeli az ajtót.
+
 ## Látómező és köd
 
-A `FogOfWar` pályánként külön logikai tömbben tárolja a már felfedezett cellákat. A játékos körül 5 cellás Chebyshev-távolságon belül Bresenham-jellegű látóvonal-ellenőrzés történik. A fal és az ajtó látható lehet, de blokkolja a mögötte lévő cellákat.
+A `FogOfWar` pályánként külön logikai tömbben tárolja a már felfedezett cellákat. A játékos körül 5 cellás Chebyshev-távolságon belül Bresenham-jellegű látóvonal-ellenőrzés történik. A fal és a zárt vagy kulcsra zárt ajtó látható lehet, de blokkolja a mögötte lévő cellákat; a nyitott és bezúzott ajtó nem blokkol.
 
 A rendszer a két már felfedezett végpont közötti, legfeljebb háromcellás rövid ködcsíkot automatikusan kitölti, kivéve ha ajtó van benne. A `Ctrl+Shift+U` csak a megjelenítés számára fedi fel vagy rejti vissza a teljes térképet; a tényleges felfedezettségi adatokat nem írja át.
 

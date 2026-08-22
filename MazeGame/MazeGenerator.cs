@@ -55,7 +55,7 @@ public sealed class MazeGenerator
 
         BuildRoomShell(maze, room.TopLeft, room.Width, room.Height);
         foreach (var position in room.InteriorPositions()) maze.Carve(position);
-        foreach (var door in doors) maze.SetTile(door, Maze.Door);
+        foreach (var door in doors) maze.PlaceDoor(door, DoorState.Open);
         maze.SetStartingRoom(room);
     }
 
@@ -140,7 +140,8 @@ public sealed class MazeGenerator
         BuildRoomShell(maze, topLeft, width, height);
         for (var y = topLeft.Y; y < topLeft.Y + height; y++)
         for (var x = topLeft.X; x < topLeft.X + width; x++) maze.Carve(new Position(x, y));
-        maze.SetTile(doors[_random.Next(doors.Length)], Maze.Door);
+        var doorPosition = doors[_random.Next(doors.Length)];
+        maze.PlaceDoor(doorPosition, RollDoorState());
 
         if (HasPath(maze, maze.Entrance, maze.Exit))
         {
@@ -148,6 +149,7 @@ public sealed class MazeGenerator
             return true;
         }
 
+        maze.RemoveDoor(doorPosition);
         Array.Copy(originalTiles, maze.Tiles, originalTiles.Length);
         return false;
     }
@@ -194,7 +196,7 @@ public sealed class MazeGenerator
         for (var x = 1; x < maze.Width - 1; x++)
         {
             var position = new Position(x, y);
-            if (maze.IsWalkable(position) && maze.Tiles[x, y] != Maze.Door && !maze.Rooms.Any(room => room.Contains(position)))
+            if (maze.IsWalkable(position) && maze.GetDoorAt(position) is null && !maze.Rooms.Any(room => room.Contains(position)))
                 yield return position;
         }
     }
@@ -203,8 +205,14 @@ public sealed class MazeGenerator
     {
         for (var y = topLeft.Y - 1; y <= topLeft.Y + height; y++)
         for (var x = topLeft.X - 1; x <= topLeft.X + width; x++)
-            if (maze.Tiles[x, y] == Maze.Door) return true;
+            if (maze.GetDoorAt(new Position(x, y)) is not null) return true;
         return false;
+    }
+
+    private DoorState RollDoorState()
+    {
+        var roll = _random.Next(100);
+        return roll < 20 ? DoorState.Locked : roll < 80 ? DoorState.Closed : DoorState.Open;
     }
 
     private static void BuildRoomShell(Maze maze, Position topLeft, int width, int height)
@@ -231,7 +239,7 @@ public sealed class MazeGenerator
             foreach (var direction in Directions)
             {
                 var next = current + direction;
-                if (!maze.IsWalkable(next) || visited[next.X, next.Y]) continue;
+                if ((!maze.IsWalkable(next) && maze.GetDoorAt(next) is null) || visited[next.X, next.Y]) continue;
                 visited[next.X, next.Y] = true;
                 queue.Enqueue(next);
             }

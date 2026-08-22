@@ -79,6 +79,14 @@ public sealed class LiveCharacter
         return true;
     }
 
+    public bool RemoveFromBackpack(string itemId)
+    {
+        var index = _backpack.FindIndex(item => string.Equals(item.Id, itemId, StringComparison.OrdinalIgnoreCase));
+        if (index < 0) return false;
+        _backpack.RemoveAt(index);
+        return true;
+    }
+
     public bool AddPerk(PerkDefinition perk)
     {
         if (!string.Equals(perk.CharacterClassId, CharacterClass.Id, StringComparison.OrdinalIgnoreCase) ||

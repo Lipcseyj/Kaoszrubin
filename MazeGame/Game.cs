@@ -1,6 +1,7 @@
 using MazeGame.Data;
 using MazeGame.Domain.Characters;
 using MazeGame.Combat;
+using MazeGame.Domain.Inventory;
 
 namespace MazeGame;
 
@@ -77,6 +78,9 @@ public sealed class Game
 
                     var key = keyInfo.Key;
                     if (key == ConsoleKey.Escape) return;
+                    if (key == ConsoleKey.N) { TryOpenAdjacentDoor(); continue; }
+                    if (key == ConsoleKey.Z) { TryCloseAdjacentDoor(); continue; }
+                    if (key == ConsoleKey.K) { TryLockAdjacentDoor(); continue; }
                     MovePlayer(key);
                 }
 
@@ -213,6 +217,98 @@ public sealed class Game
         _renderer.RefreshCharacterSheet(SelectedCharacter);
     }
 
+    private MazeDoor? GetAdjacentDoor() => Directions
+        .Select(direction => _maze.GetDoorAt(_player.Position + direction))
+        .FirstOrDefault(door => door is not null);
+
+    private void TryOpenAdjacentDoor()
+    {
+        var door = GetAdjacentDoor();
+        if (door is null) { _renderer.DrawDoorMessage("Nincs ajtó melletted."); return; }
+        if (door.State == DoorState.Open) { _renderer.DrawDoorMessage("Az ajtó már nyitva van."); return; }
+        if (door.State == DoorState.Smashed) { _renderer.DrawDoorMessage("A bezúzott ajtónyílás már szabad."); return; }
+        if (door.State == DoorState.Closed)
+        {
+            _maze.SetDoorState(door, DoorState.Open);
+            RefreshAfterDoorChanged("Kinyitottad az ajtót.", ConsoleColor.Green);
+            return;
+        }
+
+        if (SelectedCharacter.RemoveFromBackpack(MiscItemIds.Key))
+        {
+            _maze.SetDoorState(door, DoorState.Open);
+            RefreshAfterDoorChanged("A kulcs kinyitotta a zárat és eltört a használat során.", ConsoleColor.Green);
+            return;
+        }
+
+        if (CharacterClassRules.IsThief(SelectedCharacter.CharacterClass.Id))
+        {
+            var chance = LockpickChance(SelectedCharacter.Abilities.Dexterity);
+            var roll = _random.Next(1, 101);
+            if (roll <= chance)
+            {
+                _maze.SetDoorState(door, DoorState.Open);
+                RefreshAfterDoorChanged($"Zárnyitás sikerült: Ügy {SelectedCharacter.Abilities.Dexterity}, esély {chance}%, dobás {roll}.", ConsoleColor.Green);
+                return;
+            }
+            _renderer.DrawDoorMessage($"Zárnyitás sikertelen: Ügy {SelectedCharacter.Abilities.Dexterity}, esély {chance}%, dobás {roll}.", ConsoleColor.Red);
+        }
+
+        var strengthRoll = _random.Next(1, 21);
+        if (strengthRoll <= SelectedCharacter.Abilities.Strength)
+        {
+            _maze.SetDoorState(door, DoorState.Smashed);
+            RefreshAfterDoorChanged($"Erőpróba sikerült: 1d20({strengthRoll}) ≤ Erő {SelectedCharacter.Abilities.Strength}. Az ajtó bezúzva!", ConsoleColor.Green);
+        }
+        else
+            _renderer.DrawDoorMessage($"Erőpróba sikertelen: 1d20({strengthRoll}) > Erő {SelectedCharacter.Abilities.Strength}. Az ajtó zárva marad.", ConsoleColor.Red);
+    }
+
+    private void TryCloseAdjacentDoor()
+    {
+        var door = GetAdjacentDoor();
+        if (door is null) { _renderer.DrawDoorMessage("Nincs ajtó melletted."); return; }
+        if (door.State == DoorState.Smashed) { _renderer.DrawDoorMessage("A bezúzott ajtó többé nem zárható be.", ConsoleColor.Red); return; }
+        if (door.State == DoorState.Locked) { _renderer.DrawDoorMessage("Az ajtó már kulcsra van zárva."); return; }
+        if (door.State == DoorState.Closed) { _renderer.DrawDoorMessage("Az ajtó már be van zárva."); return; }
+        _maze.SetDoorState(door, DoorState.Closed);
+        RefreshAfterDoorChanged("Bezártad az ajtót.", ConsoleColor.DarkYellow);
+    }
+
+    private void TryLockAdjacentDoor()
+    {
+        var door = GetAdjacentDoor();
+        if (door is null) { _renderer.DrawDoorMessage("Nincs ajtó melletted."); return; }
+        if (door.State == DoorState.Smashed) { _renderer.DrawDoorMessage("A bezúzott ajtó többé nem zárható kulcsra.", ConsoleColor.Red); return; }
+        if (door.State == DoorState.Locked) { _renderer.DrawDoorMessage("Az ajtó már kulcsra van zárva."); return; }
+
+        if (SelectedCharacter.RemoveFromBackpack(MiscItemIds.Key))
+        {
+            _maze.SetDoorState(door, DoorState.Locked);
+            RefreshAfterDoorChanged("Kulccsal bezártad az ajtót. A kulcs elveszett.", ConsoleColor.DarkYellow);
+            return;
+        }
+        if (CharacterClassRules.IsThief(SelectedCharacter.CharacterClass.Id))
+        {
+            _maze.SetDoorState(door, DoorState.Locked);
+            RefreshAfterDoorChanged("Tolvajként kulcs nélkül is bezártad az ajtó zárját.", ConsoleColor.DarkYellow);
+            return;
+        }
+        _renderer.DrawDoorMessage("Az ajtó kulcsra zárásához kulcs vagy tolvaj szükséges.", ConsoleColor.Red);
+    }
+
+    private void RefreshAfterDoorChanged(string message, ConsoleColor color)
+    {
+        _fogOfWar.RevealFrom(_maze, _player.Position);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawDoorMessage(message, color);
+    }
+
+    private static int LockpickChance(int dexterity) => dexterity <= 10
+        ? Math.Clamp(dexterity * 10 - 10, 0, 90)
+        : Math.Clamp(90 + (dexterity - 10) * 10 / 3, 90, 100);
+
     private static bool TryGetDirection(ConsoleKey key, out Direction direction)
     {
         direction = key switch
@@ -317,11 +413,11 @@ public sealed class Game
     {
         var rightBoundary = new Position(room.TopLeft.X + room.Width, position.Y);
         if (position.X == room.TopLeft.X + room.Width - 1 && _maze.IsInside(rightBoundary) &&
-            _maze.Tiles[rightBoundary.X, rightBoundary.Y] == Maze.Door) return true;
+            _maze.GetDoorAt(rightBoundary) is not null) return true;
 
         var bottomBoundary = new Position(position.X, room.TopLeft.Y + room.Height);
         return position.Y == room.TopLeft.Y + room.Height - 1 && _maze.IsInside(bottomBoundary) &&
-            _maze.Tiles[bottomBoundary.X, bottomBoundary.Y] == Maze.Door;
+            _maze.GetDoorAt(bottomBoundary) is not null;
     }
 
     private LevelUpResult AddExperience(int amount) => SelectedCharacter.AddExperience(

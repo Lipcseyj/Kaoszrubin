@@ -326,6 +326,7 @@ STATUS005,Vérzés,A karakter folyamatos vérzéstől szenved.
 Id,Név
 T001,Élelem
 T002,Kulacs
+T003,Kulcs
 
 #Varázstárgyak
 Id,Név

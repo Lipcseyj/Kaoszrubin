@@ -172,6 +172,7 @@ public sealed class ConsoleRenderer
     }
     /// <summary>Fejlesztői üzenetek gyors megjelenítésére szolgál (battle message panelre).</summary>
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
+    public void DrawDoorMessage(string message, ConsoleColor color = ConsoleColor.DarkYellow) => DrawBattleMessage(message, color);
 
     /// <summary>
     /// Szintlépés képernyő: összegzi a kapott bónuszokat, és ha vannak tehetség-ajánlatok,
@@ -581,11 +582,18 @@ public sealed class ConsoleRenderer
         if (mapObject is Enemy) return ConsoleColor.Red;
         if (mapObject is Corpse) return ConsoleColor.DarkRed;
         if (mapObject is PartyMemberAvatar partyMember) return partyMember.Character.Color;
+        if (maze.GetDoorAt(position) is { } door) return door.State switch
+        {
+            DoorState.Locked => ConsoleColor.Red,
+            DoorState.Open => ConsoleColor.DarkGreen,
+            DoorState.Closed => ConsoleColor.DarkYellow,
+            DoorState.Smashed => ConsoleColor.DarkGray,
+            _ => ConsoleColor.Gray
+        };
 
         return maze.Tiles[position.X, position.Y] switch
         {
             var tile when tile == Maze.Wall => ConsoleColor.DarkGray,
-            var tile when tile == Maze.Door => ConsoleColor.DarkYellow,
             var tile when tile == Maze.ExitMarker => ConsoleColor.Green,
             _ => ConsoleColor.Black
         };

@@ -8,7 +8,6 @@ public sealed class Maze
     public static readonly Rune Wall = new('█');
     public static readonly Rune Floor = new(' ');
     public static readonly Rune ExitMarker = new('⌂');
-    public static readonly Rune Door = new('╬');
 
     /// <summary>A pálya cellái. Minden elem egyetlen, keskeny konzolcellára rajzolható rúna.</summary>
     public Rune[,] Tiles { get; }
@@ -17,12 +16,14 @@ public sealed class Maze
     private readonly List<Enemy> _enemies = [];
     private readonly List<Corpse> _corpses = [];
     private readonly List<PartyMemberAvatar> _partyMembers = [];
+    private readonly Dictionary<Position, MazeDoor> _doors = [];
 
     public IReadOnlyList<Room> Rooms => _rooms;
     public IReadOnlyList<TreasureChest> TreasureChests => _treasureChests;
     public IReadOnlyList<Enemy> Enemies => _enemies;
     public IReadOnlyList<Corpse> Corpses => _corpses;
     public IReadOnlyList<PartyMemberAvatar> PartyMembers => _partyMembers;
+    public IReadOnlyCollection<MazeDoor> Doors => _doors.Values;
     public Room? StartingRoom { get; private set; }
     public int Width { get; }
     public int Height { get; }
@@ -47,8 +48,12 @@ public sealed class Maze
     }
 
     public bool IsInside(Position position) => position.X >= 0 && position.X < Width && position.Y >= 0 && position.Y < Height;
-    public bool IsWalkable(Position position) => IsInside(position) &&
-        (Tiles[position.X, position.Y] == Floor || Tiles[position.X, position.Y] == ExitMarker || Tiles[position.X, position.Y] == Door);
+    public bool IsWalkable(Position position)
+    {
+        if (!IsInside(position)) return false;
+        if (_doors.TryGetValue(position, out var door)) return door.IsWalkable;
+        return Tiles[position.X, position.Y] == Floor || Tiles[position.X, position.Y] == ExitMarker;
+    }
 
     public void Carve(Position position)
     {
@@ -68,6 +73,29 @@ public sealed class Maze
         if (!IsInside(position)) throw new ArgumentOutOfRangeException(nameof(position));
         Tiles[position.X, position.Y] = tile;
     }
+
+    public void PlaceDoor(Position position, DoorState state)
+    {
+        if (!IsInside(position)) throw new ArgumentOutOfRangeException(nameof(position));
+        var door = new MazeDoor(position, state);
+        _doors[position] = door;
+        Tiles[position.X, position.Y] = door.Symbol;
+    }
+
+    public MazeDoor? GetDoorAt(Position position) => _doors.GetValueOrDefault(position);
+
+    public bool RemoveDoor(Position position) => _doors.Remove(position);
+
+    public bool SetDoorState(MazeDoor door, DoorState state)
+    {
+        if (!_doors.TryGetValue(door.Position, out var existing) || existing != door || !door.TrySetState(state)) return false;
+        Tiles[door.Position.X, door.Position.Y] = door.Symbol;
+        return true;
+    }
+
+    public bool BlocksSight(Position position) => _doors.TryGetValue(position, out var door)
+        ? door.BlocksSight
+        : Tiles[position.X, position.Y] == Wall;
 
     public void AddRoom(Room room) => _rooms.Add(room);
 
