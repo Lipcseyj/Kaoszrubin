@@ -68,6 +68,7 @@ public sealed class CharacterSaveService
         character.SetNeedLevels(saved.FoodLevel ?? 100, saved.WaterLevel ?? 100);
         character.SetGold(saved.Gold ?? 0);
         character.SetProgress(saved.Level ?? 1, saved.Experience ?? 0);
+        character.SetNpcBehavior(saved.NpcBehavior);
 
         var weaponIds = saved.WeaponIds.Count > 0 ? saved.WeaponIds : saved.WeaponNames;
         for (var index = 0; index < Math.Min(2, weaponIds.Count); index++)
@@ -99,6 +100,7 @@ public sealed class CharacterSaveService
     {
         Name = character.Name,
         Color = character.Color,
+        NpcBehavior = character.NpcBehavior,
         RaceId = character.Race.Id,
         CharacterClassId = character.CharacterClass.Id,
         Abilities = character.Abilities,
@@ -151,6 +153,7 @@ public sealed class CharacterSaveService
     {
         public string Name { get; init; } = string.Empty;
         public ConsoleColor? Color { get; init; }
+        public NpcBehavior? NpcBehavior { get; init; }
         public string RaceId { get; init; } = string.Empty;
         public string CharacterClassId { get; init; } = string.Empty;
         // Régi mentések egyszeri betöltéséhez; új mentésbe már csak az ID-k kerülnek.

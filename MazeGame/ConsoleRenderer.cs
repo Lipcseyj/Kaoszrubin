@@ -76,6 +76,15 @@ public sealed class ConsoleRenderer
         if (currentPosition != playerPosition) DrawMapCell(maze, fogOfWar, currentPosition);
     }
 
+    public void DrawPartyMemberMovement(Maze maze, FogOfWar fogOfWar, Position previousPosition,
+        Position currentPosition, IReadOnlyList<Position> newlyRevealed, Position playerPosition)
+    {
+        foreach (var position in newlyRevealed) DrawMapCell(maze, fogOfWar, position);
+        if (previousPosition != playerPosition) DrawMapCell(maze, fogOfWar, previousPosition);
+        if (currentPosition != playerPosition) DrawMapCell(maze, fogOfWar, currentPosition);
+        DrawPlayer(playerPosition);
+    }
+
     /// <summary>
     /// A teljes térképet újrarajzolja a jelenlegi láthatósági állapot alapján.
     /// Hasznos, ha a látótér jelentősen megváltozott (pl. fényforrások).

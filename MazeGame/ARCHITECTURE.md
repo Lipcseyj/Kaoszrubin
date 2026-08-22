@@ -228,9 +228,19 @@ A rejtett `Ctrl+Shift+S` fejlesztői gyorsbillentyű pontosan a következő szin
 
 A `Party` 1–4 egyedi `LiveCharacter` objektumot tartalmaz. Első tagja mindig az aktív karakter és egyben a csapat vezetője. Új vezető kiválasztása új, egyszemélyes partit kezd; a társak normál felvételi folyamata későbbi fejlesztési pont. A parti tagjai a központi karakterlistában is szerepelnek, ezért ugyanazzal a karaktermentési modellel tárolódnak. A mentés a tagok karakterlistabeli indexeit őrzi.
 
-A jelenlegi játékmenetben a vezető mozog, harcol, kap XP-t, vesz fel aranyat és fogyaszt szükségleteket. A társak egyelőre nem vesznek részt a harcban vagy az erőforrás-fogyasztásban.
+A jelenlegi játékmenetben a vezető harcol, kap XP-t, vesz fel aranyat és fogyaszt szükségleteket. A társak mozognak és felderítenek, de egyelőre nem vesznek részt a harcban vagy az erőforrás-fogyasztásban.
 
-A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbetűje: `H`, `B`, `L`, `T`, `P` vagy `M`. A jel a karakter saját színével rajzolódik. A társak minden új pályán szélességi kereséssel a vezetőhöz legközelebbi üres, járható cellákra kerülnek. Nem mozognak, és foglalják a mezőjüket az ellenfelek és a vezető elől.
+A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbetűje: `H`, `B`, `L`, `T`, `P` vagy `M`. A jel a karakter saját színével rajzolódik. A társak minden új pályán szélességi kereséssel a vezetőhöz legközelebbi üres, járható cellákra kerülnek. Foglalják a mezőjüket az ellenfelek és a vezető elől; egymásra vagy szörnyre nem lépnek és zárt ajtón nem haladnak át.
+
+Az NPC-ként vezérelt `LiveCharacter` nullable `NpcBehavior` tulajdonsága mentésre kerül. A vezetőnél inaktív; a véletlenül létrehozott társak egyenlő eséllyel `Defensive`, `Aggressive` vagy `Scout` profilt kapnak. Régi mentésből származó NPC alapértéke az első elhelyezéskor `Defensive`.
+
+A partitársak mozgása 1.5 másodperces tickkel fut a `Game` meglévő egyszálú eseményciklusában. Ez időzített viselkedést ad anélkül, hogy párhuzamos konzolrajzolás vagy versenyhelyzet keletkezne. Minden tickben szélességi útkeresés választ legfeljebb egy lépést:
+
+- a defenzív társ a vezető mellé zárkózik és ha már közvetlenül mellette — akár mögötte — áll akkor nem igazítja feleslegesen a helyét;
+- az agresszív társ az előre eső tágas mezőket keresi és nem lép a vezető előtti szűk folyosóba; ötmezős rálátáson belüli szörny esetén annak egyik szabad szomszédos mezője felé indul de még nem támad;
+- a felderítő legfeljebb tíz mezőre halad a vezető előtt; ötmezős rálátáson belüli szörny észlelésekor a vezető kétmezős környezetébe vonul vissza.
+
+Minden társ ugyanazzal az ötmezős és falak/ajtók által takart látótérszámítással hívja a `FogOfWar.RevealFrom` műveletet. A társ induló környezete azonnal láthatóvá válik és minden sikeres NPC-lépés csak az újonnan felfedett valamint az elhagyott/elfoglalt térképcellákat rajzolja újra.
 
 A karakterlap a tíz hátizsáksor alatt három sort tart fenn a társaknak. Minden sor a karakter saját színével mutatja az osztály kezdőbetűjét, a nevet, a szintet és az aktuális/maximális HP-t. A vezető nem ismétlődik meg ezekben a sorokban.
 
@@ -251,6 +261,7 @@ A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű négy főre tölti a partit
 - 2–30. szint közé fejleszti a normál HP-/mannadobásokkal;
 - szintjének megfelelő eséllyel választ tehetségeket;
 - véletlen fegyvereket, páncélt, varázstárgyakat és hátizsáktartalmat ad.
+- véletlen NPC-mozgásprofilt rendel hozzá.
 
 ## Labirintusgenerálás
 

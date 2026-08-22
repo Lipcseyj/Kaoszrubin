@@ -24,6 +24,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
                 _random.Next(1, 16), _random.Next(1, 16), _gameData,
                 CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)]);
+            character.SetNpcBehavior(Enum.GetValues<NpcBehavior>()[_random.Next(Enum.GetValues<NpcBehavior>().Length)]);
             RaiseToRandomLevel(character);
             AddRandomPerks(character);
             FillRandomEquipment(character);

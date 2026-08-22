@@ -9,6 +9,7 @@ namespace MazeGame;
 public sealed class Game
 {
     private static readonly TimeSpan EnemyMoveInterval = TimeSpan.FromMilliseconds(700);
+    private static readonly TimeSpan PartyMoveInterval = TimeSpan.FromMilliseconds(1500);
     private const int VisionRange = 5;
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
@@ -26,6 +27,8 @@ public sealed class Game
     private bool _characterSheetFocused;
     private HeldInventoryItem? _heldInventoryItem;
     private DateTime _nextNeedsDrain;
+    private DateTime _nextPartyMove;
+    private Direction _leaderFacing = Direction.Right;
     private int _mazeLevel = 1;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
@@ -111,6 +114,12 @@ public sealed class Game
                     nextEnemyMove = DateTime.UtcNow + EnemyMoveInterval;
                 }
 
+                if (!_battleStarted && DateTime.UtcNow >= _nextPartyMove)
+                {
+                    MovePartyMembers();
+                    _nextPartyMove = DateTime.UtcNow + PartyMoveInterval;
+                }
+
                 if (!_battleStarted && DateTime.UtcNow >= _nextNeedsDrain)
                 {
                     DrainNeeds();
@@ -139,6 +148,8 @@ public sealed class Game
         PlacePartyMembersNear(_player.Position);
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, VisionRange);
         _fogOfWar.RevealFrom(_maze, _player.Position);
+        foreach (var member in _maze.PartyMembers) _fogOfWar.RevealFrom(_maze, member.Position);
+        _nextPartyMove = DateTime.UtcNow + PartyMoveInterval;
         _battleStarted = false;
         _gameOver = false;
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
@@ -150,6 +161,7 @@ public sealed class Game
 
         var previousPosition = _player.Position;
         if (!_player.TryMove(direction, _maze)) return;
+        _leaderFacing = direction;
 
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, _player.Position);
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, _player.Position == _maze.Exit);
@@ -274,6 +286,155 @@ public sealed class Game
             }
         }
     }
+
+    private void MovePartyMembers()
+    {
+        foreach (var member in _maze.PartyMembers.ToArray())
+        {
+            var previous = member.Position;
+            var next = ChoosePartyMemberStep(member);
+            if (next is null || !_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
+            var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
+            _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
+        }
+    }
+
+    private Position? ChoosePartyMemberStep(PartyMemberAvatar member)
+    {
+        var behavior = member.Character.NpcBehavior ?? NpcBehavior.Defensive;
+        var visibleEnemy = _maze.Enemies
+            .Where(enemy => FogOfWar.CanSee(_maze, member.Position, enemy.Position, VisionRange))
+            .OrderBy(enemy => Manhattan(member.Position, enemy.Position))
+            .FirstOrDefault();
+
+        if (behavior == NpcBehavior.Aggressive && visibleEnemy is not null)
+        {
+            if (Manhattan(member.Position, visibleEnemy.Position) == 1) return null;
+            return FindNextStep(member, FreeNeighborsOf(visibleEnemy.Position));
+        }
+
+        if (behavior == NpcBehavior.Scout)
+        {
+            if (visibleEnemy is not null)
+                return FindNextStep(member, FreePositionsNear(_player.Position, 2));
+            return ChooseForwardStep(member, maximumLeaderDistance: 10, maximumSearchDistance: 10, avoidNarrowFront: false)
+                ?? FollowLeader(member, stopDistance: 2);
+        }
+
+        if (behavior == NpcBehavior.Aggressive)
+            return ChooseForwardStep(member, maximumLeaderDistance: 3, maximumSearchDistance: 4, avoidNarrowFront: true)
+                ?? FollowLeader(member, stopDistance: 1);
+
+        return FollowLeader(member, stopDistance: 1);
+    }
+
+    private Position? FollowLeader(PartyMemberAvatar member, int stopDistance)
+    {
+        if (Manhattan(member.Position, _player.Position) <= stopDistance) return null;
+        return FindNextStep(member, FreePositionsNear(_player.Position, stopDistance));
+    }
+
+    private Position? ChooseForwardStep(PartyMemberAvatar member, int maximumLeaderDistance, int maximumSearchDistance, bool avoidNarrowFront)
+    {
+        var forward = DirectionOffset(_leaderFacing);
+        var reachable = FindReachablePositions(member, maximumSearchDistance)
+            .Where(entry => Manhattan(entry.Position, _player.Position) <= maximumLeaderDistance)
+            .Select(entry => new
+            {
+                entry.Position,
+                entry.Distance,
+                Progress = (entry.Position.X - _player.Position.X) * forward.X + (entry.Position.Y - _player.Position.Y) * forward.Y
+            })
+            .Where(entry => entry.Progress > 0)
+            .Where(entry => !avoidNarrowFront || CountWalkableNeighbors(entry.Position) >= 3)
+            .OrderByDescending(entry => entry.Progress)
+            .ThenBy(entry => entry.Distance)
+            .FirstOrDefault();
+        if (reachable is null) return null;
+        var step = FindNextStep(member, [reachable.Position]);
+        if (avoidNarrowFront && step is { } narrowStep && IsAheadOfLeader(narrowStep) && CountWalkableNeighbors(narrowStep) <= 2)
+            return null;
+        return step;
+    }
+
+    private Position? FindNextStep(PartyMemberAvatar member, IEnumerable<Position> targetPositions)
+    {
+        var targets = targetPositions.Where(position => CanPartyTraverse(member, position)).ToHashSet();
+        if (targets.Count == 0 || targets.Contains(member.Position)) return null;
+        var visited = new HashSet<Position> { member.Position };
+        var queue = new Queue<(Position Position, Position FirstStep)>();
+        foreach (var direction in Directions)
+        {
+            var next = member.Position + direction;
+            if (!CanPartyTraverse(member, next) || !visited.Add(next)) continue;
+            queue.Enqueue((next, next));
+        }
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (targets.Contains(current.Position)) return current.FirstStep;
+            foreach (var direction in Directions)
+            {
+                var next = current.Position + direction;
+                if (!CanPartyTraverse(member, next) || !visited.Add(next)) continue;
+                queue.Enqueue((next, current.FirstStep));
+            }
+        }
+        return null;
+    }
+
+    private IReadOnlyList<(Position Position, int Distance)> FindReachablePositions(PartyMemberAvatar member, int maximumDistance)
+    {
+        var result = new List<(Position, int)> { (member.Position, 0) };
+        var visited = new HashSet<Position> { member.Position };
+        var queue = new Queue<(Position Position, int Distance)>();
+        queue.Enqueue((member.Position, 0));
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (current.Distance >= maximumDistance) continue;
+            foreach (var direction in Directions)
+            {
+                var next = current.Position + direction;
+                if (!CanPartyTraverse(member, next) || !visited.Add(next)) continue;
+                var distance = current.Distance + 1;
+                result.Add((next, distance));
+                queue.Enqueue((next, distance));
+            }
+        }
+        return result;
+    }
+
+    private IEnumerable<Position> FreeNeighborsOf(Position origin) => Directions
+        .Select(direction => origin + direction)
+        .Where(position => _maze.IsWalkable(position) && position != _player.Position &&
+                           (_maze.GetObjectAt(position) is null or GroundItemPile));
+
+    private IEnumerable<Position> FreePositionsNear(Position origin, int distance) =>
+        Enumerable.Range(-distance, distance * 2 + 1)
+            .SelectMany(dx => Enumerable.Range(-distance, distance * 2 + 1).Select(dy => new Position(origin.X + dx, origin.Y + dy)))
+            .Where(position => Manhattan(position, origin) > 0 && Manhattan(position, origin) <= distance)
+            .Where(position => _maze.IsWalkable(position) && position != _player.Position &&
+                               (_maze.GetObjectAt(position) is null or GroundItemPile or PartyMemberAvatar));
+
+    private bool CanPartyTraverse(PartyMemberAvatar member, Position position)
+    {
+        if (!_maze.IsWalkable(position) || position == _player.Position) return false;
+        var occupant = _maze.GetObjectAt(position);
+        return occupant is null or GroundItemPile || occupant == member;
+    }
+
+    private int CountWalkableNeighbors(Position position) => Directions.Count(direction => _maze.IsWalkable(position + direction));
+    private bool IsAheadOfLeader(Position position)
+    {
+        var forward = DirectionOffset(_leaderFacing);
+        return (position.X - _player.Position.X) * forward.X + (position.Y - _player.Position.Y) * forward.Y > 0;
+    }
+    private static int Manhattan(Position first, Position second) => Math.Abs(first.X - second.X) + Math.Abs(first.Y - second.Y);
+    private static (int X, int Y) DirectionOffset(Direction direction) => direction switch
+    {
+        Direction.Up => (0, -1), Direction.Down => (0, 1), Direction.Left => (-1, 0), _ => (1, 0)
+    };
 
     private void StartBattle(Enemy enemy)
     {
@@ -468,6 +629,7 @@ public sealed class Game
             CharacterRoster.Party.Add(member);
         }
         PlacePartyMembersNear(_player.Position);
+        foreach (var member in _maze.PartyMembers) _fogOfWar.RevealFrom(_maze, member.Position);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawDeveloperMessage("Fejlesztői mód: a parti véletlen társakkal feltöltve (4/4).");
@@ -481,7 +643,10 @@ public sealed class Game
 
         var positions = FindNearbyFreePositions(origin).Take(companions.Count).ToList();
         for (var index = 0; index < Math.Min(companions.Count, positions.Count); index++)
+        {
+            if (companions[index].NpcBehavior is null) companions[index].SetNpcBehavior(NpcBehavior.Defensive);
             _maze.AddPartyMember(new PartyMemberAvatar(positions[index], companions[index]));
+        }
     }
 
     private IEnumerable<Position> FindNearbyFreePositions(Position origin)

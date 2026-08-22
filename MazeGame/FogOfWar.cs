@@ -37,6 +37,10 @@ public sealed class FogOfWar
         return newlyRevealed;
     }
 
+    public static bool CanSee(Maze maze, Position origin, Position target, int range) =>
+        Math.Max(Math.Abs(target.X - origin.X), Math.Abs(target.Y - origin.Y)) <= range &&
+        HasLineOfSight(maze, origin, target);
+
     /// <summary>Fejlesztői módban ideiglenesen felfedi, majd visszakapcsolva újra elfedi a térképet.</summary>
     public bool ToggleDeveloperReveal()
     {

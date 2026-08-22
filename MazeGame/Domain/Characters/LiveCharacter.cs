@@ -32,6 +32,7 @@ public sealed class LiveCharacter
 
     public string Name { get; }
     public ConsoleColor Color { get; }
+    public NpcBehavior? NpcBehavior { get; private set; }
     public RaceDefinition Race { get; }
     public CharacterClassDefinition CharacterClass { get; }
     public PrimaryAbilities Abilities { get; }
@@ -56,6 +57,8 @@ public sealed class LiveCharacter
     public IReadOnlyList<StatusDefinition> Statuses => _statuses;
     public const int MaximumMagicItemCount = 3;
     public const int MaximumBackpackItemCount = 10;
+
+    public void SetNpcBehavior(NpcBehavior? behavior) => NpcBehavior = behavior;
 
     public void EquipWeapon(int slotIndex, WeaponDefinition? weapon)
     {

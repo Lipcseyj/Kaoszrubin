@@ -165,6 +165,15 @@ public sealed class Maze
         return true;
     }
 
+    public bool TryMovePartyMember(PartyMemberAvatar member, Position destination, Position leaderPosition)
+    {
+        if (!IsWalkable(destination) || destination == leaderPosition) return false;
+        var occupant = GetObjectAt(destination);
+        if (occupant is not null && occupant != member && occupant is not GroundItemPile) return false;
+        member.MoveTo(destination);
+        return true;
+    }
+
     private void EnsureObjectPositionIsFree(Position position)
     {
         if (!IsWalkable(position) || position == Entrance || position == Exit || GetObjectAt(position) is not null)
