@@ -236,6 +236,8 @@ vízvesztés    = 2
                +1, ha a HP a maximum fele alatt van
 ```
 
+A periódusos fogyás külön-külön lefut a parti minden élő tagjára, az adott karakter saját maximális és aktuális HP-ja alapján. A halott társak szükségletei már nem változnak.
+
 Minden csata után kizárólag a ténylegesen harcoló karakter élelem- és vízszintje csökken, ugyanazzal a dobott értékkel:
 
 ```text
@@ -314,7 +316,7 @@ Az `I` a kijelölt tárgy összes jelenleg ismert adatát az alsó üzenetnapló
 
 Az `I` ezen kívül kijelzi a Sima/Varázs/Legendás ritkaságot, a mágikus erőt és az alapárat. Használati tárgynál a hatást és annak számszerű értékét is megmutatja.
 
-A `U` a megtekintett karakter kijelölt hátizsáktárgyát használja el. Az ételek 15–100 élelem-, az italok 30–40 vízpontot töltenek; a három gyógyital 20/50/120 HP-t, a három varázsital 15/40/90 mannát állít helyre. Az ellenméreg a mérgezést, a gyógyfüves orvosság a betegséget, a kötés a vérzést szünteti meg. A tárgy csak sikeres, tényleges hatás esetén fogy el: teljes HP-n nem vész el gyógyital, nem varázshasználónál varázsital, illetve hiányzó állapotnál gyógyító kellék.
+Az `Enter` a megtekintett karakter kijelölt hátizsáktárgyát használja el. Az ételek 15–100 élelem-, az italok 30–40 vízpontot töltenek; a három gyógyital 20/50/120 HP-t, a három varázsital 15/40/90 mannát állít helyre. Az ellenméreg a mérgezést, a gyógyfüves orvosság a betegséget, a kötés a vérzést szünteti meg. A tárgy csak sikeres, tényleges hatás esetén fogy el: teljes HP-n nem vész el gyógyital, nem varázshasználónál varázsital, illetve hiányzó állapotnál gyógyító kellék.
 
 Ha a kijelölés egy partitárs sorára esik akkor az `I` a társ nevét és magyar mozgásprofilját írja az üzenetnaplóba.
 

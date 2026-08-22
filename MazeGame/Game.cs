@@ -76,7 +76,7 @@ public sealed class Game
                         else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
                         else if (keyInfo.Key == ConsoleKey.D) DropSelectedInventoryItem();
                         else if (keyInfo.Key == ConsoleKey.I) InspectSelectedInventoryItem();
-                        else if (keyInfo.Key == ConsoleKey.U) UseSelectedInventoryItem();
+                        else if (keyInfo.Key == ConsoleKey.Enter) UseSelectedInventoryItem();
                         else if (keyInfo.Key == ConsoleKey.Spacebar) GrabOrPlaceInventoryItem();
                         continue;
                     }
@@ -776,15 +776,18 @@ public sealed class Game
 
     private void DrainNeeds()
     {
-        var foodLoss = 2 + SelectedCharacter.MaximumVitality / 60;
-        SelectedCharacter.ConsumeFood(foodLoss);
-        var waterLoss = 2;
-        if (SelectedCharacter.CurrentVitality < SelectedCharacter.MaximumVitality) waterLoss++;
-        if (SelectedCharacter.CurrentVitality * 2 < SelectedCharacter.MaximumVitality) waterLoss++;
-        SelectedCharacter.ConsumeWater(waterLoss);
-        SelectedCharacter.SynchronizeNeedStatuses(
-            _gameData.GetStatus(CharacterStatusIds.Hungry),
-            _gameData.GetStatus(CharacterStatusIds.Thirsty));
+        var hungry = _gameData.GetStatus(CharacterStatusIds.Hungry);
+        var thirsty = _gameData.GetStatus(CharacterStatusIds.Thirsty);
+        foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive))
+        {
+            var foodLoss = 2 + character.MaximumVitality / 60;
+            character.ConsumeFood(foodLoss);
+            var waterLoss = 2;
+            if (character.CurrentVitality < character.MaximumVitality) waterLoss++;
+            if (character.CurrentVitality * 2 < character.MaximumVitality) waterLoss++;
+            character.ConsumeWater(waterLoss);
+            character.SynchronizeNeedStatuses(hungry, thirsty);
+        }
         _renderer.RefreshCharacterSheet(SelectedCharacter);
     }
 
