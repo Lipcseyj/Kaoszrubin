@@ -281,6 +281,18 @@ public sealed class Game
 
     private IEnumerable<Position> FindNearbyFreePositions(Position origin)
     {
+        var yielded = new HashSet<Position>();
+        if (_maze.StartingRoom is { } startingRoom && startingRoom.Contains(origin))
+        {
+            foreach (var position in startingRoom.InteriorPositions()
+                         .Where(position => position != origin && _maze.GetObjectAt(position) is null && !IsStartingRoomDoorApproach(startingRoom, position))
+                         .OrderByDescending(position => Math.Abs(position.X - origin.X) + Math.Abs(position.Y - origin.Y)))
+            {
+                yielded.Add(position);
+                yield return position;
+            }
+        }
+
         var visited = new HashSet<Position> { origin };
         var queue = new Queue<Position>();
         queue.Enqueue(origin);
@@ -292,10 +304,24 @@ public sealed class Game
                 var next = current + direction;
                 if (!visited.Add(next) || !_maze.IsWalkable(next)) continue;
                 queue.Enqueue(next);
-                if (next != _maze.Entrance && next != _maze.Exit && next != _player.Position && _maze.GetObjectAt(next) is null)
+                if (!yielded.Contains(next) && next != _maze.Entrance && next != _maze.Exit && next != _player.Position && _maze.GetObjectAt(next) is null)
+                {
+                    yielded.Add(next);
                     yield return next;
+                }
             }
         }
+    }
+
+    private bool IsStartingRoomDoorApproach(Room room, Position position)
+    {
+        var rightBoundary = new Position(room.TopLeft.X + room.Width, position.Y);
+        if (position.X == room.TopLeft.X + room.Width - 1 && _maze.IsInside(rightBoundary) &&
+            _maze.Tiles[rightBoundary.X, rightBoundary.Y] == Maze.Door) return true;
+
+        var bottomBoundary = new Position(position.X, room.TopLeft.Y + room.Height);
+        return position.Y == room.TopLeft.Y + room.Height - 1 && _maze.IsInside(bottomBoundary) &&
+            _maze.Tiles[bottomBoundary.X, bottomBoundary.Y] == Maze.Door;
     }
 
     private LevelUpResult AddExperience(int amount) => SelectedCharacter.AddExperience(

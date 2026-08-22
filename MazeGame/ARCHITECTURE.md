@@ -248,11 +248,14 @@ A generátor kezdetben falakkal tölti fel a pályát, majd rekurzív mélységi
 
 Ezután a generátor:
 
-1. véletlen méretű szobákat próbál elhelyezni;
-2. ajtóval kapcsolja őket a meglévő járatokhoz;
-3. útkereséssel ellenőrzi, hogy a bejárat és kijárat kapcsolata megmaradt-e;
-4. elhelyezi a kijáratot;
-5. üres, járható cellákon ládákat és konfigurált ellenfeleket helyez el.
+1. a bejárat körül garantált 3×3-as kezdőtermet alakít ki;
+2. véletlen méretű további szobákat próbál elhelyezni;
+3. ajtóval kapcsolja őket a meglévő járatokhoz;
+4. útkereséssel ellenőrzi, hogy a bejárat és kijárat kapcsolata megmaradt-e;
+5. elhelyezi a kijáratot;
+6. üres, járható cellákon ládákat és konfigurált ellenfeleket helyez el.
+
+A kezdőterem védett: más szoba fala nem írhatja felül, és nem kerülhet bele láda vagy ellenfél. A 3×3-as járható belső teret külön falburok veszi körül, a korábban kivésett folyosókapcsolatok helyén ajtókkal. A vezető a terem középső celláján áll, ezért egyik oldalán sem kezd közvetlenül fal mellett. A legfeljebb három társ elsőként a távolabbi sarokcellákat foglalja el, így nem zárják körül a vezetőt.
 
 Az 1–3. labirintusszint külön konfigurációval rendelkezik. A későbbi szintek a harmadik szintből számított, fokozatosan növekvő szobaszámot, jutalmat és ellenfélszámot kapnak. Az ellenféltípusok listája azonban külön konfiguráció nélkül továbbra is a harmadik szint típusaiból származik.
 

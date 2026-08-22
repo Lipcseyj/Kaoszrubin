@@ -23,6 +23,7 @@ public sealed class Maze
     public IReadOnlyList<Enemy> Enemies => _enemies;
     public IReadOnlyList<Corpse> Corpses => _corpses;
     public IReadOnlyList<PartyMemberAvatar> PartyMembers => _partyMembers;
+    public Room? StartingRoom { get; private set; }
     public int Width { get; }
     public int Height { get; }
     public Position Entrance { get; }
@@ -40,7 +41,8 @@ public sealed class Maze
         for (var x = 0; x < width; x++)
             Tiles[x, y] = Wall;
 
-        Entrance = new Position(1, 1);
+        // A garantált 3×3-as kezdőterem középső cellája; így a vezető nem indul fal mellett.
+        Entrance = new Position(2, 2);
         Exit = new Position(LastInnerOddCoordinate(width), LastInnerOddCoordinate(height));
     }
 
@@ -68,6 +70,13 @@ public sealed class Maze
     }
 
     public void AddRoom(Room room) => _rooms.Add(room);
+
+    public void SetStartingRoom(Room room)
+    {
+        if (!room.Contains(Entrance)) throw new ArgumentException("A kezdőteremnek tartalmaznia kell a bejáratot.", nameof(room));
+        StartingRoom = room;
+        _rooms.Insert(0, room);
+    }
 
     public void AddTreasureChest(TreasureChest chest)
     {

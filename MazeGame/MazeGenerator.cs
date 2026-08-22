@@ -28,10 +28,35 @@ public sealed class MazeGenerator
         var visited = new bool[gridWidth, gridHeight];
 
         CarveFrom(maze, new Position(0, 0), visited, gridWidth, gridHeight);
+        CreateStartingRoom(maze);
         PlaceRooms(maze);
         maze.PlaceExit(ToMazePosition(new Position(gridWidth - 1, gridHeight - 1)));
         PlaceMapObjects(maze);
         return maze;
+    }
+
+    /// <summary>A bejáratnál garantált 3×3-as belső teret készít a négyfős partinak.</summary>
+    private static void CreateStartingRoom(Maze maze)
+    {
+        const int size = 3;
+        var room = new Room(new Position(1, 1), size, size);
+
+        // Megőrizzük a már kivésett folyosókhoz vezető jobb és alsó kapcsolatot,
+        // majd valódi falburkot építünk a 3×3-as belső tér köré.
+        var doors = new List<Position>();
+        var rightDoor = Enumerable.Range(room.TopLeft.Y, room.Height)
+            .Select(y => new Position(room.TopLeft.X + room.Width, y))
+            .FirstOrDefault(boundary => maze.IsWalkable(boundary + Direction.Right));
+        if (rightDoor != default) doors.Add(rightDoor);
+        var bottomDoor = Enumerable.Range(room.TopLeft.X, room.Width)
+            .Select(x => new Position(x, room.TopLeft.Y + room.Height))
+            .FirstOrDefault(boundary => maze.IsWalkable(boundary + Direction.Down));
+        if (bottomDoor != default) doors.Add(bottomDoor);
+
+        BuildRoomShell(maze, room.TopLeft, room.Width, room.Height);
+        foreach (var position in room.InteriorPositions()) maze.Carve(position);
+        foreach (var door in doors) maze.SetTile(door, Maze.Door);
+        maze.SetStartingRoom(room);
     }
 
     private void CarveFrom(Maze maze, Position gridPosition, bool[,] visited, int gridWidth, int gridHeight)
@@ -106,6 +131,7 @@ public sealed class MazeGenerator
 
     private bool TryPlaceRoom(Maze maze, Position topLeft, int width, int height)
     {
+        if (OverlapsStartingRoom(maze, topLeft, width, height)) return false;
         if (ContainsDoor(maze, topLeft, width, height)) return false;
         var doors = GetPossibleDoors(maze, topLeft, width, height).ToArray();
         if (doors.Length == 0) return false;
@@ -128,10 +154,22 @@ public sealed class MazeGenerator
 
     private void PlaceMapObjects(Maze maze)
     {
-        PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze), position => new TreasureChest(position, _settings.TreasureGoldRange.Roll(_random)), maze.AddTreasureChest);
+        PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze).Where(position => maze.StartingRoom?.Contains(position) != true), position => new TreasureChest(position, _settings.TreasureGoldRange.Roll(_random)), maze.AddTreasureChest);
         var enemyPositions = GetRoomPositions(maze).Concat(GetOutdoorPositions(maze));
+        enemyPositions = enemyPositions.Where(position => maze.StartingRoom?.Contains(position) != true);
         foreach (var spawn in _enemySpawns)
             PlaceObjects(maze, spawn.Count, enemyPositions, position => new ConfiguredEnemy(position, spawn.Definition), maze.AddEnemy);
+    }
+
+    private static bool OverlapsStartingRoom(Maze maze, Position topLeft, int width, int height)
+    {
+        if (maze.StartingRoom is not { } startingRoom) return false;
+        var shellLeft = topLeft.X - 1;
+        var shellTop = topLeft.Y - 1;
+        var shellRight = topLeft.X + width;
+        var shellBottom = topLeft.Y + height;
+        return startingRoom.InteriorPositions().Any(position =>
+            position.X >= shellLeft && position.X <= shellRight && position.Y >= shellTop && position.Y <= shellBottom);
     }
 
     private void PlaceObjects<T>(Maze maze, int requestedCount, IEnumerable<Position> candidates, Func<Position, T> factory, Action<T> add)
