@@ -160,7 +160,20 @@ public sealed class MazeGenerator
         var enemyPositions = GetRoomPositions(maze).Concat(GetOutdoorPositions(maze));
         enemyPositions = enemyPositions.Where(position => maze.StartingRoom?.Contains(position) != true);
         foreach (var spawn in _enemySpawns)
-            PlaceObjects(maze, spawn.Count, enemyPositions, position => new ConfiguredEnemy(position, spawn.Definition), maze.AddEnemy);
+            PlaceObjects(maze, spawn.Count, enemyPositions, position => CreateEnemy(maze, position, spawn.Definition), maze.AddEnemy);
+    }
+
+    private ConfiguredEnemy CreateEnemy(Maze maze, Position position, EnemyDefinition definition)
+    {
+        var isInRoom = maze.Rooms.Any(room => room.Contains(position));
+        var stationaryChance = isInRoom ? 80 : 10;
+        var roll = _random.Next(100);
+        var profile = roll < stationaryChance
+            ? EnemyMovementProfile.Stationary
+            : (roll - stationaryChance) % 2 == 0 ? EnemyMovementProfile.Wander : EnemyMovementProfile.Patrol;
+        var enemy = new ConfiguredEnemy(position, definition);
+        enemy.ConfigureMovement(profile, Directions[_random.Next(Directions.Length)]);
+        return enemy;
     }
 
     private static bool OverlapsStartingRoom(Maze maze, Position topLeft, int width, int height)

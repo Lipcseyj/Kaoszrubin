@@ -3,14 +3,38 @@ using MazeGame.Domain.Combat;
 
 namespace MazeGame;
 
+public enum EnemyMovementProfile { Wander, Stationary, Patrol }
+public enum EnemyPursuitState { Undecided, Pursuing, Declined }
+
 public abstract class Enemy(Position position) : WorldObject(position)
 {
     public abstract EnemyDefinition Definition { get; }
     public string Name => Definition.Name;
     public int CurrentHitPoints { get; private set; }
+    public EnemyMovementProfile MovementProfile { get; private set; } = EnemyMovementProfile.Wander;
+    public Direction PatrolDirection { get; private set; } = Direction.Right;
+    public EnemyPursuitState PursuitState { get; private set; } = EnemyPursuitState.Undecided;
 
     protected void InitializeHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
     public void SetCurrentHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
+    public void ConfigureMovement(EnemyMovementProfile profile, Direction patrolDirection,
+        EnemyPursuitState pursuitState = EnemyPursuitState.Undecided)
+    {
+        MovementProfile = profile;
+        PatrolDirection = patrolDirection;
+        PursuitState = pursuitState;
+    }
+    public void ReversePatrolDirection() => PatrolDirection = PatrolDirection switch
+    {
+        Direction.Up => Direction.Down,
+        Direction.Down => Direction.Up,
+        Direction.Left => Direction.Right,
+        Direction.Right => Direction.Left,
+        _ => Direction.Right
+    };
+    public void ResolvePursuit(bool pursue) => PursuitState = pursue
+        ? EnemyPursuitState.Pursuing
+        : EnemyPursuitState.Declined;
 
     public void MoveTo(Position position) => Position = position;
 }

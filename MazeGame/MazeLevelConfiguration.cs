@@ -49,8 +49,8 @@ public static class MazeLevelConfigurations
             TreasureGold = new IntRange(10, 50),
             EnemySpawns =
             [
-                new("E001", new IntRange(2, 4)), // kevés óriáspatkány
-                new("E002", new IntRange(3, 5)), // közepes koboldcsapat
+                new("E001", new IntRange(12, 14)), // kevés óriáspatkány
+                new("E002", new IntRange(13, 15)), // közepes koboldcsapat
                 new("E003", new IntRange(1, 2))  // kevés goblin
             ]
         },

@@ -229,6 +229,18 @@ A `Game.Run` egy körülbelül 20 ms-onként ismétlődő ciklus. Három esemén
 
 Az ellenfelek nem léphetnek falra, bejáratra, kijáratra vagy foglalt mezőre. Ha a játékos és egy ellenfél azonos cellára kerül, azonnal csata indul. Csata alatt a világ ideje és az ellenfelek mozgása megáll.
 
+### Szörnymozgási profilok
+
+Minden szörny a pályageneráláskor egyszer kap mozgási profilt és járőrirányt. A profil a szörny teljes pályabeli életére megmarad, és a teljes játékmentés része:
+
+- `Stationary`: normál helyzetben egy helyben áll;
+- `Wander`: minden mozgási időpontban véletlen szomszédos irányt választ;
+- `Patrol`: egyenes vonalban halad, akadálynál megfordul, majd az ellenkező irányba folytatja útját.
+
+Szobában generált szörny 80% eséllyel helyben áll; a fennmaradó 20% egyenlően oszlik meg a kóborló és járőr profil között. Folyosón a helyben állás esélye 10%, a maradék 90% fele-fele arányban kóborló vagy járőr.
+
+Profiltól függetlenül minden szörny egyszer hoz üldözési döntést, amikor először legfeljebb öt Chebyshev-távolságra, tiszta látóvonalban meglátja a partyvezért. 60% eséllyel üldözni kezdi, 40% eséllyel végleg megtartja eredeti profilját. Az üldöző a járható útvonalon, zárt ajtókat és foglalt mezőket kerülve közelít; partitársba ütközve vele kezd csatát. Az üldözési döntés, a profil és a járőr aktuális iránya mentéskor megmarad. Régi mentésből hiányzó profil alapértéke a korábbi működést megőrző `Wander`.
+
 A szükségletek percenkénti csökkenése:
 
 ```text

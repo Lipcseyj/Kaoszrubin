@@ -227,7 +227,8 @@ public sealed class Game
             Rooms = _maze.Rooms.Where(room => room != _maze.StartingRoom).ToList(),
             Doors = _maze.Doors.Select(door => new DoorSaveData(door.Position, door.State)).ToList(),
             Chests = _maze.TreasureChests.Select(chest => new ChestSaveData(chest.Position, chest.GoldAmount)).ToList(),
-            Enemies = _maze.Enemies.Select(enemy => new EnemySaveData(enemy.Position, enemy.Definition.Id, enemy.CurrentHitPoints)).ToList(),
+            Enemies = _maze.Enemies.Select(enemy => new EnemySaveData(enemy.Position, enemy.Definition.Id,
+                enemy.CurrentHitPoints, enemy.MovementProfile, enemy.PatrolDirection, enemy.PursuitState)).ToList(),
             Corpses = _maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null)).ToList(),
             PartyAvatars = _maze.PartyMembers.Select(member => new PartyAvatarSaveData(member.Position, CharacterIndex(member.Character))).ToList(),
@@ -275,6 +276,7 @@ public sealed class Game
         {
             var enemy = new ConfiguredEnemy(savedEnemy.Position, _gameData.GetEnemy(savedEnemy.DefinitionId));
             enemy.SetCurrentHitPoints(savedEnemy.CurrentHitPoints);
+            enemy.ConfigureMovement(savedEnemy.MovementProfile, savedEnemy.PatrolDirection, savedEnemy.PursuitState);
             _maze.AddEnemy(enemy);
         }
         foreach (var corpse in state.Maze.Corpses)
@@ -577,23 +579,76 @@ public sealed class Game
     {
         foreach (var enemy in _maze.Enemies.OrderBy(_ => _random.Next()).ToArray())
         {
-            var previousPosition = enemy.Position;
-            var direction = Directions[_random.Next(Directions.Length)];
-            var destination = previousPosition + direction;
-            if (_maze.GetPartyMemberAt(destination) is { } encounteredMember)
+            if (enemy.PursuitState == EnemyPursuitState.Undecided &&
+                FogOfWar.CanSee(_maze, enemy.Position, _player.Position, VisionRange))
+                enemy.ResolvePursuit(_random.Next(100) < 60);
+
+            Direction? direction = enemy.PursuitState == EnemyPursuitState.Pursuing
+                ? FindEnemyStepToward(enemy, _player.Position)
+                : enemy.MovementProfile switch
+                {
+                    EnemyMovementProfile.Stationary => null,
+                    EnemyMovementProfile.Patrol => enemy.PatrolDirection,
+                    _ => Directions[_random.Next(Directions.Length)]
+                };
+            if (direction is null) continue;
+            if (TryMoveEnemy(enemy, direction.Value))
             {
-                ResolveNpcBattle(encounteredMember, enemy);
+                if (_battleStarted) return;
                 continue;
             }
-            if (!_maze.TryMoveEnemy(enemy, destination)) continue;
-
-            _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
-            if (enemy.Position == _player.Position)
+            if (enemy.PursuitState != EnemyPursuitState.Pursuing && enemy.MovementProfile == EnemyMovementProfile.Patrol)
             {
-                StartBattle(enemy);
-                return;
+                enemy.ReversePatrolDirection();
+                if (TryMoveEnemy(enemy, enemy.PatrolDirection) && _battleStarted) return;
             }
         }
+    }
+
+    private bool TryMoveEnemy(Enemy enemy, Direction direction)
+    {
+        var previousPosition = enemy.Position;
+        var destination = previousPosition + direction;
+        if (_maze.GetPartyMemberAt(destination) is { } encounteredMember)
+        {
+            ResolveNpcBattle(encounteredMember, enemy);
+            return true;
+        }
+        if (!_maze.TryMoveEnemy(enemy, destination)) return false;
+        _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
+        if (enemy.Position == _player.Position) StartBattle(enemy);
+        return true;
+    }
+
+    private Direction? FindEnemyStepToward(Enemy enemy, Position target)
+    {
+        var queue = new Queue<Position>();
+        var previous = new Dictionary<Position, Position>();
+        queue.Enqueue(enemy.Position);
+        previous[enemy.Position] = enemy.Position;
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (current == target) break;
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (previous.ContainsKey(next) || !CanEnemyPathThrough(next, target)) continue;
+                previous[next] = current;
+                queue.Enqueue(next);
+            }
+        }
+        if (!previous.ContainsKey(target)) return null;
+        var step = target;
+        while (previous[step] != enemy.Position) step = previous[step];
+        return Directions.First(direction => enemy.Position + direction == step);
+    }
+
+    private bool CanEnemyPathThrough(Position position, Position target)
+    {
+        if (position == target) return _maze.IsWalkable(position);
+        if (!_maze.IsWalkable(position) || position == _maze.Entrance || position == _maze.Exit) return false;
+        return _maze.GetObjectAt(position) is null or GroundItemPile or PartyMemberAvatar;
     }
 
     private void MovePartyMembers()
@@ -1308,7 +1363,7 @@ public sealed class Game
                 var offer = stock[selectedIndex];
                 var recipient = CharacterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
                 if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
-                if (!SelectedCharacter.SpendGold(offer.Price)) { message = $"🪙 Nincs elég aranyad: még {offer.Price - SelectedCharacter.Gold} hiányzik."; continue; }
+                if (!SelectedCharacter.SpendGold(offer.Price)) { message = $"💰 Nincs elég aranyad: még {offer.Price - SelectedCharacter.Gold} hiányzik."; continue; }
                 recipient.AddToBackpack(offer.Item);
                 stock.RemoveAt(selectedIndex);
                 message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
@@ -1400,7 +1455,7 @@ public sealed class Game
             var price = recruitmentPrices[recruit];
             if (SelectedCharacter.Gold < price)
             {
-                message = $"🪙 Nincs elég aranyad: {price - SelectedCharacter.Gold} arany hiányzik {recruit.Name} felbérléséhez.";
+                message = $"💰 Nincs elég aranyad: {price - SelectedCharacter.Gold} arany hiányzik {recruit.Name} felbérléséhez.";
                 continue;
             }
             LiveCharacter? replaced = null;

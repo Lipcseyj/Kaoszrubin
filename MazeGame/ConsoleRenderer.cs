@@ -256,13 +256,13 @@ public sealed class ConsoleRenderer
             if (buying)
             {
                 var offer = stock[index];
-                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} 🪙",
+                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} 💰",
                     selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
             }
             else
             {
                 var offer = sellOffers[index];
-                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} 🪙",
+                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} 💰",
                     selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
             }
         }
@@ -294,7 +294,7 @@ public sealed class ConsoleRenderer
             var candidate = candidates[index];
             var selected = index == selectedIndex;
             var mana = candidate.UsesMana ? $"  MP {candidate.MaximumMana}" : string.Empty;
-            var price = prices[candidate] == 0 ? "INGYEN" : $"{prices[candidate]} 🪙";
+            var price = prices[candidate] == 0 ? "INGYEN" : $"{prices[candidate]} 💰";
             lines.Add(($"{(selected ? "▶" : " ")} {candidate.Name,-13}  {candidate.Race.Name,-10} {candidate.CharacterClass.Name,-10} L{candidate.Level,2}  HP {candidate.MaximumVitality}{mana}  {price}",
                 selected ? ConsoleColor.White : candidate.Color));
         }
