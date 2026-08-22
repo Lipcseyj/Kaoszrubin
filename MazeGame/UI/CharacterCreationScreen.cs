@@ -72,9 +72,16 @@ public sealed class CharacterCreationScreen
         {
             Console.Clear();
             Console.WriteLine("=== KARAKTERGENERÁLÁS ===");
-            Console.WriteLine("Név (üresen hagyva: vissza):");
+            Console.WriteLine($"Név (legfeljebb {LiveCharacter.MaximumNameLength} karakter; üresen hagyva: vissza):");
             var name = Console.ReadLine()?.Trim();
-            return string.IsNullOrWhiteSpace(name) ? null : name;
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            if (name.Length <= LiveCharacter.MaximumNameLength) return name;
+
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"A név túl hosszú. Legfeljebb {LiveCharacter.MaximumNameLength} karakter adható meg.");
+            Console.ResetColor();
+            Console.WriteLine("Nyomj meg egy billentyűt az újrapróbáláshoz.");
+            Console.ReadKey(intercept: true);
         }
     }
 

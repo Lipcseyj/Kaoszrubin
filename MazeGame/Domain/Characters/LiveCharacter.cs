@@ -7,6 +7,7 @@ namespace MazeGame.Domain.Characters;
 /// <summary>Egy játék közben létező karakter saját, konkrét értékekkel.</summary>
 public sealed class LiveCharacter
 {
+    public const int MaximumNameLength = 13;
     private readonly WeaponDefinition?[] _weaponSlots = new WeaponDefinition?[2];
     private readonly List<MagicItemDefinition> _magicItems = [];
     private readonly List<IItemDefinition> _backpack = [];
@@ -14,6 +15,8 @@ public sealed class LiveCharacter
     private readonly List<StatusDefinition> _statuses = [];
     public LiveCharacter(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities abilities, int maximumVitality, int maximumMana, int vitalityBonus, int manaBonus)
     {
+        if (string.IsNullOrWhiteSpace(name) || name.Length > MaximumNameLength)
+            throw new ArgumentException($"A karakternév 1 és {MaximumNameLength} karakter közötti lehet.", nameof(name));
         Name = name;
         Race = race;
         CharacterClass = characterClass;

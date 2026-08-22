@@ -132,7 +132,8 @@ public sealed class MainMenu
     {
         try
         {
-            var name = $"Gyors hős {_characterRoster.Characters.Count + 1}";
+            var generatedName = $"Gyors hős {_characterRoster.Characters.Count + 1}";
+            var name = generatedName[..Math.Min(generatedName.Length, LiveCharacter.MaximumNameLength)];
             var character = new CharacterCreationScreen(_gameData, _characterRoster).CreateFirstValidCharacter(name);
             _characterRoster.Add(character);
             _characterRoster.Select(character);

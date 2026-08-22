@@ -49,7 +49,9 @@ public sealed class CharacterSaveService
     {
         var race = FindSavedDefinition(_gameData.Races, saved.RaceId, saved.RaceName, "faj");
         var characterClass = FindSavedDefinition(_gameData.CharacterClasses, saved.CharacterClassId, saved.CharacterClassName, "osztály");
-        var character = new LiveCharacter(saved.Name, race, characterClass, saved.Abilities,
+        var compatibleName = saved.Name[..Math.Min(saved.Name.Length, LiveCharacter.MaximumNameLength)];
+        if (string.IsNullOrWhiteSpace(compatibleName)) compatibleName = "Névtelen";
+        var character = new LiveCharacter(compatibleName, race, characterClass, saved.Abilities,
             _gameData.GetMinimumVitality(saved.Abilities.Health) + saved.VitalityBonus,
             characterClass.UsesMana ? _gameData.GetMinimumMana(saved.Abilities.Intelligence) + saved.ManaBonus : 0,
             saved.VitalityBonus, characterClass.UsesMana ? saved.ManaBonus : 0);

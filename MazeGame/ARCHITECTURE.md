@@ -107,6 +107,8 @@ Az `adatok.csv` a projektfájl beállítása miatt fordításkor a kimeneti kön
 
 A karaktergenerálás négy elsődleges képességre oszt el összesen 25 pontot. Mindegyik érték legalább 1 és legfeljebb 10 a dobás során. Ehhez adódnak hozzá a faj módosítói, majd a végeredmény 1 és 13 közé szorul.
 
+A karakternév 1–13 karakter hosszú lehet. A korábbi mentésekből érkező hosszabb nevek betöltéskor 13 karakterre rövidülnek, hogy a karakterlap rögzített fejlécébe illeszkedjenek.
+
 Csak olyan osztály választható, amelynek minden CSV-ben megadott képességminimumát teljesíti a karakter. A maximális HP és manna képlete:
 
 ```text
