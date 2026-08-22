@@ -23,6 +23,7 @@ public sealed class ConsoleRenderer
     private readonly Party _party;
     private int _mazeLevel;
     private bool _battleActive;
+    private Enemy? _battleEnemy;
     private LiveCharacter? _displayedCharacter;
     private bool _characterSheetFocused;
     private SheetSelectionKey? _activeSheetSelection;
@@ -46,6 +47,7 @@ public sealed class ConsoleRenderer
         _messageLog.Clear();
         _mazeLevel = mazeLevel;
         _battleActive = false;
+        _battleEnemy = null;
         Console.Clear();
         DrawPlayfield(maze, fogOfWar);
         DrawFrame();
@@ -102,6 +104,7 @@ public sealed class ConsoleRenderer
     public void DrawBattleStarted(Enemy enemy)
     {
         _battleActive = true;
+        _battleEnemy = enemy;
         DrawPicturePanel();
         DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
     }
@@ -140,6 +143,7 @@ public sealed class ConsoleRenderer
     public void DrawBattleResult(BattleResult result, Enemy enemy)
     {
         _battleActive = false;
+        _battleEnemy = null;
         DrawPicturePanel();
         WriteSheetLine(42, string.Empty, ConsoleColor.DarkCyan);
         var lastEvent = result.Events.LastOrDefault() ?? "";
@@ -785,9 +789,19 @@ public sealed class ConsoleRenderer
     /// </summary>
     private void DrawPicturePanel()
     {
-        var kind = _battleActive ? AsciiPortraitKind.Skeleton : AsciiPortraitKind.Warrior;
-        var color = _battleActive ? ConsoleColor.Red : ConsoleColor.Cyan;
-        var portrait = AsciiPortraits.Get(kind);
+        var portrait = _battleActive && _battleEnemy is not null
+            ? AsciiPortraits.ForEnemy(_battleEnemy.Definition.Id)
+            : AsciiPortraits.ForCharacterClass(_displayedCharacter?.CharacterClass.Id ?? "");
+        var color = _battleActive && _battleEnemy is not null
+            ? _battleEnemy.Definition.StrengthTier switch
+            {
+                1 => ConsoleColor.Green,
+                2 => ConsoleColor.Yellow,
+                3 => ConsoleColor.DarkYellow,
+                4 => ConsoleColor.Red,
+                _ => ConsoleColor.Magenta
+            }
+            : _displayedCharacter?.Color ?? ConsoleColor.Cyan;
         WriteSheetLine(PicturePanelTop, "┌────────── KÉP ──────────┐", ConsoleColor.DarkCyan);
         for (var index = 0; index < PicturePanelHeight; index++)
         {
