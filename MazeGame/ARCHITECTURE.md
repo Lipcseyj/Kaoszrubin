@@ -430,6 +430,8 @@ A csata automatikus váltott támadásokból áll. A vezér csatájában minden 
 
 A részletes vezéri csatanapló csak a ténylegesen érvényesülő nem nulla tehetségbónuszokat írja ki. A nulla gyógyítás/mannatöltés és a nulla támadó- vagy védelmi tehetségérték nem foglal helyet a naplóban.
 
+A vezér csatájában minden megjelenített harci esemény után részlegesen frissül a karakterlap állapot-, HP- és mannasora. A többi karakterlapsor és a térkép nem rajzolódik újra, így a kör közben változó állapotok és erőforrások azonnal láthatók maradnak fölösleges teljes képernyős frissítés nélkül.
+
 A defenzív és agresszív NPC a saját mozgási időpontjában aktívan megtámadja a szomszédos szörnyet. Bármely profil automatikusan visszaharcol akkor is ha egy szörny az ő mezőjére próbál lépni. NPC-győzelemkor a szörny holttestté válik és az egyetlen összefoglaló üzenet parttagonként mutatja az XP-részesedést valamint az esetleges szint- és erőforrásnövekedést. NPC-vereségkor a karakter 0 HP-val a partiban marad, a partistátusz `💀` jellel mutatja, térképi avatárja pedig az elesés helyén `PartyMemberCorpse` objektummá alakul. Ez megőrzi a `LiveCharacter` hivatkozást, így a későbbi feltámasztás varázslat ugyanazt a karaktert állíthatja majd vissza az aktuális pályán. Ha a parti nélküle eléri a kijáratot, a társ végleg kikerül a partiból és a karakter-nyilvántartásból.
 
 Az `Enemy.CurrentHitPoints` a szörny futásidejű HP-ja. A `BattleSystem` ebből indítja a harcot és ide írja vissza a maradékot ezért egy NPC-t legyőző sérült szörny nem gyógyul vissza a következő találkozás előtt.
@@ -483,7 +485,7 @@ védelem      = páncél tartományából dobott érték
 végső sebzés = max(1, nyers sebzés - védelem)
 ```
 
-Ha nincs páncél vagy pajzs, annak védelme nulla. Találat esetén legalább 1 sebzés mindig átjut. A sikeres találat sebzésszámítása után külön dobódnak a szörny állapatterjesztő képességei; új vagy frissített állapot esetén a csatanapló megnevezi azt. A karakter saját támadási szakasza után a mérgezés és vérzés egyetlen összesített naplóüzenetben sebez, figyelmen kívül hagyva a páncélt; az időtartam ekkor csökken.
+Ha nincs páncél vagy pajzs, annak védelme nulla. Találat esetén legalább 1 sebzés mindig átjut. A sikeres találat sebzésszámítása után külön dobódnak a szörny állapatterjesztő képességei; új vagy frissített állapot esetén a csatanapló feltűnő `⚠️ ÁLLAPOT` jelzéssel, az állapot saját emojijával és az időtartam újraindításának tényével jelzi azt. A karakter saját támadási szakasza után a mérgezés és vérzés egyetlen összesített naplóüzenetben sebez, figyelmen kívül hagyva a páncélt; az időtartam ekkor csökken.
 
 ### 5. Befejezés
 

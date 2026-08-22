@@ -534,8 +534,16 @@ public sealed class Game
         _battleStarted = true;
         var startingNpcHp = member.Character.CurrentVitality;
         var startingEnemyHp = enemy.CurrentHitPoints;
+        var startingStatusIds = member.Character.Statuses.Select(status => status.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var result = _battleSystem.Resolve(member.Character, enemy, _ => { });
         var needLoss = DrainNeedsAfterBattle(member.Character, enemy.Definition.StrengthTier);
+        var newStatusText = member.Character.Statuses
+            .Where(status => !startingStatusIds.Contains(status.Id))
+            .Select(status => $"{status.Icon} {status.Name}")
+            .ToList() is { Count: > 0 } newStatuses
+            ? $" Új állapot: {string.Join(", ", newStatuses)}."
+            : string.Empty;
         if (result.PlayerWon)
         {
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
@@ -548,7 +556,7 @@ public sealed class Game
             _renderer.DrawNpcBattleSummary(
                 $"{member.Character.Name} automatikus csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
                 $"HP: {startingNpcHp}→{member.Character.CurrentVitality}; ellenfél HP: {startingEnemyHp}→0; " +
-                $"XP: {FormatExperienceAwards(experienceAwards)}.{levelText} 🍖💧 -{needLoss}.",
+                $"XP: {FormatExperienceAwards(experienceAwards)}.{levelText} 🍖💧 -{needLoss}.{newStatusText}",
                 ConsoleColor.Green);
         }
         else
@@ -557,7 +565,7 @@ public sealed class Game
             _nextPartyMoves.Remove(member);
             _renderer.DrawNpcBattleSummary(
                 $"{member.Character.Name} elesett a(z) {enemy.Name} elleni automatikus csatában {result.Rounds} kör után. " +
-                $"HP: {startingNpcHp}→0; ellenfél HP: {startingEnemyHp}→{enemy.CurrentHitPoints}; 🍖💧 -{needLoss}.",
+                $"HP: {startingNpcHp}→0; ellenfél HP: {startingEnemyHp}→{enemy.CurrentHitPoints}; 🍖💧 -{needLoss}.{newStatusText}",
                 ConsoleColor.Red);
         }
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
@@ -733,6 +741,7 @@ public sealed class Game
         var result = _battleSystem.Resolve(SelectedCharacter, enemy, entry =>
         {
             _renderer.DrawBattleRound(entry);
+            _renderer.RefreshBattleStatusRows();
             WaitForBattleContinue();
         });
         var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);

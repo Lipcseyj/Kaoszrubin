@@ -258,10 +258,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 _ => null
             };
             if (statusId is null || _random.Next(100) >= ability.ChancePercent ||
-                !_statuses.TryGetValue(statusId, out var status) || !defender.AddStatus(status)) continue;
-            applied.Add(status.Name);
+                !_statuses.TryGetValue(statusId, out var status)) continue;
+            var wasActive = defender.HasStatus(statusId);
+            defender.AddStatus(status);
+            applied.Add($"{status.Icon} {status.Name}" + (wasActive ? " időtartama újraindult" : " felkerült"));
         }
-        return applied.Count == 0 ? string.Empty : $" Állapot: {string.Join(", ", applied)}.";
+        return applied.Count == 0 ? string.Empty : $" ⚠️ ÁLLAPOT: {string.Join(", ", applied)}!";
     }
 
     private int RollArmor(LiveCharacter defender)

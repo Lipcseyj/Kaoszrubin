@@ -238,6 +238,9 @@ public sealed class LiveCharacter
         return _statuses.RemoveAll(status => string.Equals(status.Id, statusId, StringComparison.OrdinalIgnoreCase)) > 0;
     }
 
+    public bool HasStatus(string statusId) => _statuses.Any(status =>
+        string.Equals(status.Id, statusId, StringComparison.OrdinalIgnoreCase));
+
     public int? GetStatusDuration(string statusId) => _statusDurations.GetValueOrDefault(statusId);
 
     public void RestoreStatus(StatusDefinition status, int? remainingActivations)

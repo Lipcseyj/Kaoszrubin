@@ -505,6 +505,12 @@ public sealed class ConsoleRenderer
         if (_displayedCharacter is not null) DrawSelectableCharacterSheetRows(_displayedCharacter);
     }
 
+    /// <summary>Csata közben csak az állapot-, HP- és mannasorokat frissíti.</summary>
+    public void RefreshBattleStatusRows()
+    {
+        if (_displayedCharacter is not null) DrawBattleStatusRows(_displayedCharacter);
+    }
+
     public void DrawInventoryMessage(string message, ConsoleColor color = ConsoleColor.Cyan) => DrawBattleMessage(message, color);
     public void DrawNpcBattleSummary(string message, ConsoleColor color) => DrawBattleMessage(message, color);
 
@@ -543,16 +549,13 @@ public sealed class ConsoleRenderer
         var perkLines = FormatCompactListRows("Teh", character.Perks.Select(perk => perk.Name), 2);
         WriteSheetLine(2, perkLines[0], ConsoleColor.Magenta);
         WriteSheetLine(3, perkLines[1], ConsoleColor.Magenta);
-        WriteSheetLine(4, character.Statuses.Count == 0 ? "Áll: nincs" : $"Áll: {string.Join(' ', character.Statuses.Select(status => status.Icon))}",
-            character.Statuses.Count > 0 ? ConsoleColor.Red : ConsoleColor.DarkGray);
+        DrawBattleStatusRows(character);
         WriteSheetLine(5, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
         WriteSheetLine(6, FormatExperience(character), ConsoleColor.Cyan);
         WriteSheetLine(7, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
         WriteSheetLine(8, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
         WriteSheetLine(9, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
         WriteSheetLine(10, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
-        WriteSheetLine(11, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
-        WriteSheetLine(12, character.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs", ConsoleColor.Blue);
         WriteSheetLine(13, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
         WriteSheetLine(14, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
         WriteSheetLine(15, $"Arany: {character.Gold} 🪙", ConsoleColor.Yellow);
@@ -563,6 +566,18 @@ public sealed class ConsoleRenderer
         WriteSheetLine(41, string.Empty, ConsoleColor.DarkGray);
         WriteSheetLine(42, string.Empty, ConsoleColor.DarkGray);
         DrawPicturePanel();
+    }
+
+    private void DrawBattleStatusRows(LiveCharacter character)
+    {
+        WriteSheetLine(4, character.Statuses.Count == 0
+                ? "Áll: nincs"
+                : $"Áll: {string.Join(' ', character.Statuses.Select(status => status.Icon))}",
+            character.Statuses.Count > 0 ? ConsoleColor.Red : ConsoleColor.DarkGray);
+        WriteSheetLine(11, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
+        WriteSheetLine(12, character.UsesMana
+            ? $"Manna: {character.CurrentMana}/{character.MaximumMana}"
+            : "Manna: nincs", ConsoleColor.Blue);
     }
 
     private void DrawCharacterSheetHeader(LiveCharacter character) => WriteSheetLine(
