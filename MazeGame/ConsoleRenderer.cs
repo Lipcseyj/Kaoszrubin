@@ -256,13 +256,13 @@ public sealed class ConsoleRenderer
             {
                 var offer = stock[index];
                 lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} 🪙",
-                    selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
+                    selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
             }
             else
             {
                 var offer = sellOffers[index];
                 lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} 🪙",
-                    selected ? ConsoleColor.Yellow : offer.Owner.Color));
+                    selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
             }
         }
 
@@ -281,6 +281,13 @@ public sealed class ConsoleRenderer
         ItemCategory.Armor => "🛡️",
         ItemCategory.MagicItem => "🔮",
         _ => "📦"
+    };
+
+    private static ConsoleColor ItemRarityColor(ItemRarity rarity) => rarity switch
+    {
+        ItemRarity.Magic => ConsoleColor.Cyan,
+        ItemRarity.Legendary => ConsoleColor.Yellow,
+        _ => ConsoleColor.Gray
     };
 
     private static string ClipMarketText(string text, int maximumLength) =>

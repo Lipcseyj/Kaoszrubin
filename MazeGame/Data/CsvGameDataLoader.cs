@@ -27,6 +27,7 @@ public static class CsvGameDataLoader
         var perks = new List<PerkDefinition>();
         var statuses = new List<StatusDefinition>();
         var characterNames = new List<CharacterNameDefinition>();
+        var itemUpgrades = new List<ItemUpgradeDefinition>();
         var raceBonuses = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var classMinimums = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var minimumVitalityByHealth = new Dictionary<int, int>();
@@ -50,7 +51,7 @@ public static class CsvGameDataLoader
             }
 
             if (IsHeaderRow(cells[0])) continue;
-            AddDefinition(section, cells, races, characterClasses, enemies, weaponTypes, weapons, armors, abilities, items, magicItems, spells, perks, statuses, characterNames,
+            AddDefinition(section, cells, races, characterClasses, enemies, weaponTypes, weapons, armors, abilities, items, magicItems, spells, perks, statuses, characterNames, itemUpgrades,
                 raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                 vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
         }
@@ -66,8 +67,8 @@ public static class CsvGameDataLoader
                 characterClass.ExperienceModifier)).ToList(),
             Enemies = enemies,
             WeaponTypes = weaponTypes,
-            Weapons = weapons,
-            Armors = armors,
+            Weapons = CreateUpgradedWeapons(weapons, itemUpgrades),
+            Armors = CreateUpgradedArmors(armors, itemUpgrades),
             Abilities = abilities,
             Items = items,
             MagicItems = magicItems,
@@ -92,7 +93,7 @@ public static class CsvGameDataLoader
         ICollection<EnemyDefinition> enemies, ICollection<WeaponTypeDefinition> weaponTypes, ICollection<WeaponDefinition> weapons,
         ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities, ICollection<MiscItemDefinition> items,
         ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells, ICollection<PerkDefinition> perks,
-        ICollection<StatusDefinition> statuses, ICollection<CharacterNameDefinition> characterNames,
+        ICollection<StatusDefinition> statuses, ICollection<CharacterNameDefinition> characterNames, ICollection<ItemUpgradeDefinition> itemUpgrades,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence, IDictionary<int, int> experienceByLevel,
         IDictionary<int, ValueRange> vitalityGrowthByHealth, IDictionary<int, ValueRange> manaGrowthByIntelligence,
@@ -120,18 +121,21 @@ public static class CsvGameDataLoader
             case DataSection.Weapons:
                 weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), ValueRangeFrom(cells, 3),
                     IsYes(cells, 4), AllowedClasses(cells, ("C001", null), ("C002", null), ("C003", null),
-                        ("C004", 5), ("C005", 6), ("C006", 7)), Cell(cells, 8), RequiredPrice(cells, 9, id)));
+                        ("C004", 5), ("C005", 6), ("C006", 7)), Cell(cells, 8), RequiredPrice(cells, 9, id),
+                    ParseRarity(cells, 10), EmptyAsNull(Cell(cells, 11)), Integer(cells, 12) ?? 0));
                 break;
             case DataSection.Armors:
                 armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),
                     AllowedClasses(cells, ("C001", null), ("C003", null), ("C002", 3),
-                        ("C004", 4), ("C005", 5), ("C006", 6)), Cell(cells, 7), RequiredPrice(cells, 8, id)));
+                        ("C004", 4), ("C005", 5), ("C006", 6)), Cell(cells, 7), RequiredPrice(cells, 8, id),
+                    ParseRarity(cells, 9), EmptyAsNull(Cell(cells, 10)), Integer(cells, 11) ?? 0));
                 break;
             case DataSection.Abilities:
                 abilities.Add(new AbilityDefinition(id, name));
                 break;
             case DataSection.Items:
-                items.Add(new MiscItemDefinition(id, name, Cell(cells, 2), RequiredPrice(cells, 3, id)));
+                items.Add(new MiscItemDefinition(id, name, Cell(cells, 2), RequiredPrice(cells, 3, id),
+                    ParseConsumableEffect(cells, 4), Integer(cells, 5) ?? 0));
                 break;
             case DataSection.MagicItems:
                 magicItems.Add(new MagicItemDefinition(id, name, RequiredPrice(cells, 2, id)));
@@ -185,6 +189,10 @@ public static class CsvGameDataLoader
             case DataSection.LevelCompletionExperience:
                 baseLevelCompletionExperience = Integer(cells, 0);
                 break;
+            case DataSection.ItemUpgrades:
+                itemUpgrades.Add(new ItemUpgradeDefinition(id, Cell(cells, 1), Integer(cells, 2) ?? 0,
+                    Double(cells, 3) ?? 1, Integer(cells, 4) ?? 0));
+                break;
         }
     }
 
@@ -194,6 +202,60 @@ public static class CsvGameDataLoader
     private static int RequiredPrice(string[] cells, int index, string id) => Integer(cells, index) is > 0 and var price
         ? price
         : throw new InvalidOperationException($"A(z) '{id}' tárgy ára hiányzik vagy nem pozitív az adatok.csv fájlban.");
+
+    private static ItemRarity ParseRarity(string[] cells, int index) => Normalize(Cell(cells, index)) switch
+    {
+        "varazs" => ItemRarity.Magic,
+        "legendas" => ItemRarity.Legendary,
+        _ => ItemRarity.Normal
+    };
+
+    private static ConsumableEffect ParseConsumableEffect(string[] cells, int index) =>
+        Enum.TryParse<ConsumableEffect>(Cell(cells, index), true, out var effect) ? effect : ConsumableEffect.None;
+
+    private static IReadOnlyList<WeaponDefinition> CreateUpgradedWeapons(
+        IReadOnlyCollection<WeaponDefinition> weapons, IReadOnlyCollection<ItemUpgradeDefinition> upgrades)
+    {
+        var result = weapons.ToList();
+        foreach (var weapon in weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal))
+        foreach (var upgrade in upgrades)
+            result.Add(weapon with
+            {
+                Id = $"{weapon.Id}-{upgrade.Id}",
+                Name = weapon.Name + " " + upgrade.NameSuffix,
+                Damage = Increase(weapon.Damage, upgrade.CombatBonus),
+                Description = $"{weapon.Description} Mágikus {upgrade.NameSuffix} változat.",
+                BasePrice = Math.Max(1, (int)Math.Ceiling(weapon.BasePrice * upgrade.PriceMultiplier)),
+                Rarity = ItemRarity.Magic,
+                BaseWeaponId = weapon.Id,
+                MagicPower = upgrade.MagicPower
+            });
+        return result;
+    }
+
+    private static IReadOnlyList<ArmorDefinition> CreateUpgradedArmors(
+        IReadOnlyCollection<ArmorDefinition> armors, IReadOnlyCollection<ItemUpgradeDefinition> upgrades)
+    {
+        var result = armors.ToList();
+        foreach (var armor in armors.Where(armor => armor.Rarity == ItemRarity.Normal))
+        foreach (var upgrade in upgrades)
+            result.Add(armor with
+            {
+                Id = $"{armor.Id}-{upgrade.Id}",
+                Name = armor.Name + " " + upgrade.NameSuffix,
+                Defense = Increase(armor.Defense, upgrade.CombatBonus),
+                Description = $"{armor.Description} Mágikus {upgrade.NameSuffix} változat.",
+                BasePrice = Math.Max(1, (int)Math.Ceiling(armor.BasePrice * upgrade.PriceMultiplier)),
+                Rarity = ItemRarity.Magic,
+                BaseArmorId = armor.Id,
+                MagicPower = upgrade.MagicPower
+            });
+        return result;
+    }
+
+    private static ValueRange? Increase(ValueRange? range, int amount) => range is null
+        ? null
+        : new ValueRange(range.Minimum + amount, range.Maximum + amount);
 
     private static IReadOnlySet<string> AllowedClasses(string[] cells,
         params (string ClassId, int? FlagIndex)[] classRules) => classRules
@@ -289,6 +351,7 @@ public static class CsvGameDataLoader
         "szintlepes eletero novekedes" => DataSection.VitalityGrowth,
         "szintlepes manna novekedes" => DataSection.ManaGrowth,
         "base xp palya vegen" => DataSection.LevelCompletionExperience,
+        "targybovitesek" => DataSection.ItemUpgrades,
         _ => DataSection.None
     };
 
@@ -323,6 +386,7 @@ public static class CsvGameDataLoader
         LevelExperience,
         VitalityGrowth,
         ManaGrowth,
-        LevelCompletionExperience
+        LevelCompletionExperience,
+        ItemUpgrades
     }
 }

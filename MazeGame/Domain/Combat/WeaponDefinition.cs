@@ -3,7 +3,8 @@ using MazeGame.Domain.Inventory;
 namespace MazeGame.Domain.Combat;
 
 public sealed record WeaponDefinition(string Id, string Name, string? WeaponTypeId, ValueRange? Damage,
-    bool IsTwoHanded, IReadOnlySet<string> AllowedClassIds, string Description, int BasePrice) : IItemDefinition
+    bool IsTwoHanded, IReadOnlySet<string> AllowedClassIds, string Description, int BasePrice,
+    ItemRarity Rarity = ItemRarity.Normal, string? BaseWeaponId = null, int MagicPower = 0) : IItemDefinition
 {
     public ItemCategory Category => ItemCategory.Weapon;
     public bool CanBeEquippedBy(string characterClassId) => AllowedClassIds.Contains(characterClassId);

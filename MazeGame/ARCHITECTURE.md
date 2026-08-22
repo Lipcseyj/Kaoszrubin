@@ -99,6 +99,8 @@ A CSV `#` karakterrel kezdődő szekciókból áll. A betöltő az ékezeteket �
 - képességek és tárgyak;
 - varázstárgyak, mágikus és papi varázslatok;
 - a fegyverek, páncélok, általános tárgyak és varázstárgyak pozitív egész alapára;
+- felszerelésritkaságok, mágikus erő, alapfelszerelés-hivatkozások és CSV-vezérelt tárgybővítések;
+- használati tárgyak hatástípusa és hatásértéke;
 - egészségből számított minimum életerő;
 - intelligenciából számított minimum manna.
 - a pályavégi teljesítési jutalom konfigurálható `#Base XP pálya végén` alapértéke.
@@ -264,11 +266,21 @@ Karakterlapfókuszban a bal/jobb nyíl körkörösen vált a parti tagjainak tel
 
 Az inventory rögzített helyekből áll: két fegyverhely, egy páncélhely, három varázstárgyhely és tíz hátizsákhely. Minden `IItemDefinition` kategóriája fegyver, páncél, varázstárgy vagy általános tárgy. A felszereléshelyek csak a saját kategóriájukat fogadják el, a hátizsák bármelyiket. A `Space` kiemeli a kijelölt tárgyat, majd ugyanazon vagy másik partitag érvényes helyére teszi; foglalt cél esetén a két tárgy helyet cserél, ha a teljes csere után mindkét felszerelés érvényes. A fókusz elhagyása visszateszi a még kézben tartott tárgyat, így az nem veszhet el.
 
+A fegyverek és páncélok ritkasága `Normal`, `Magic` vagy `Legendary`, a felületen Sima, Varázs és Legendás néven jelenik meg. A CSV-ben minden kézzel felvett felszerelés külön `Kategória`, opcionális `AlapId` és `MágikusErő` mezőt kap. A mágikus erő már adatként, menthető tárgydefiníció részeként rendelkezésre áll; a jelenlegi csatában a mágikus `+N` felszerelések megnövelt sebzés-/védelmi tartománya aktív, az általános mágikus-erő mechanika a későbbi varázsrendszer bővítési pontja.
+
+A `#Tárgybővítések` szekció határozza meg a név-utótagot, harci bónuszt, árszorzót és mágikus erőt. Betöltéskor minden Sima fegyverből és páncélból automatikusan létrejön a három Varázs változat. A `+1`, `+2`, `+3` bónusz a sebzés- vagy védelmi tartomány mindkét végére rákerül; az ár rendre az alapár 2×, 4× és 7× értéke. Így új alapfelszerelés vagy új bővítési fokozat hozzáadásához nem kell C# kódot módosítani.
+
+A CSV ezen felül húsz egyedi nevű Legendás fegyvert és húsz Legendás páncélt tartalmaz. Ezek nem generált átnevezések: külön sebzésük/védelmük, kasztengedélyük, alapfelszerelés-hivatkozásuk, mágikus erejük, leírásuk és áruk van. A katalógus és a mentés már kezeli őket; későbbi pályatárgy-generálás közvetlenül ezekből a definíciókból válogathat majd.
+
 A `#Fegyverek` és `#Páncélok` CSV-szekció kasztoszlopai határozzák meg, mely osztályok viselhetik az adott tárgyat. A fegyvereknél a Harcos, Barbár és Lovag, a páncéloknál a Harcos és Lovag alapértelmezetten engedélyezett; a többi kaszt engedélyét az `igen` érték adja. A korlátozás csak a felszereléshelyekre vonatkozik, hátizsákban bármely karakter hordozhat bármilyen tárgyat. Az ellenőrzés központilag a `LiveCharacter` végleges, tervezett inventoryállapotán fut, ezért a kézi mozgatásra és cserére, a kezdőfelszerelésre, a mentés betöltésére és a véletlen NPC-felszerelésre is érvényes.
 
 A kétkezes fegyver kizárólag az első fegyverhelyen viselhető. Amíg ott kétkezes fegyver van, a második fegyverhelynek üresnek kell lennie és a karakterlapon `⛔` lezárásként jelenik meg. Kétkezes fegyver csak üres második hely mellett szerelhető fel; a második hely pedig nem tölthető fel, amíg az elsőben kétkezes fegyver marad. A hátizsákban ez a korlátozás sem érvényes.
 
-Az `I` a kijelölt tárgy összes jelenleg ismert adatát az alsó üzenetnaplóba írja: név és stabil ID minden tárgynál; fegyvertípus, sebzés, egy-/kétkezes jelleg és engedélyezett kasztok a fegyvereknél; védelem és engedélyezett kasztok a páncéloknál; valamint a CSV-ből betöltött jellemzés. A fegyverekhez és páncélokhoz tartozó jellemzés a megfelelő szekció utolsó oszlopa; az általános tárgyaknál a harmadik oszlop.
+Az `I` a kijelölt tárgy összes jelenleg ismert adatát az alsó üzenetnaplóba írja: név és stabil ID minden tárgynál; fegyvertípus, sebzés, egy-/kétkezes jelleg és engedélyezett kasztok a fegyvereknél; védelem és engedélyezett kasztok a páncéloknál; valamint a CSV-ből betöltött jellemzés. A fegyverekhez és páncélokhoz tartozó szöveg a `Jellemzés`, az általános tárgyaknál szintén a `Jellemzés` nevű oszlopból érkezik.
+
+Az `I` ezen kívül kijelzi a Sima/Varázs/Legendás ritkaságot, a mágikus erőt és az alapárat. Használati tárgynál a hatást és annak számszerű értékét is megmutatja.
+
+A `U` a megtekintett karakter kijelölt hátizsáktárgyát használja el. Az ételek 15–100 élelem-, az italok 30–40 vízpontot töltenek; a három gyógyital 20/50/120 HP-t, a három varázsital 15/40/90 mannát állít helyre. Az ellenméreg a mérgezést, a gyógyfüves orvosság a betegséget, a kötés a vérzést szünteti meg. A tárgy csak sikeres, tényleges hatás esetén fogy el: teljes HP-n nem vész el gyógyital, nem varázshasználónál varázsital, illetve hiányzó állapotnál gyógyító kellék.
 
 Ha a kijelölés egy partitárs sorára esik akkor az `I` a társ nevét és magyar mozgásprofilját írja az üzenetnaplóba.
 
@@ -316,11 +328,13 @@ Jutalmazás után a parti a fogadóban pihen: kizárólag a túlélők aktuális
 
 Minden `IItemDefinition` pozitív `BasePrice` alapárral rendelkezik, amely közvetlenül az `adatok.csv` megfelelő sorából származik. Hiányzó, nulla vagy negatív ár betöltési hibát okoz. Az árskála az egyszerű ellátmány 8–60 aranyas tartományától az alapfegyvereken és vérteken át a 6500 aranyas mitril teljes vértezetig terjed; a varázstárgyak alapára 300–900 arany.
 
-A fogadó minden látogatáskor új, véletlen piacot készít. A kereskedő eladási ára 80% eséllyel az alapár 105–150%-a, 20% eséllyel kedvezményes 85–100%. A parti tárgyaiért jóval kevesebbet, az alapár véletlen 40–70%-át kínálja. Az ajánlatok az adott fogadólátogatás teljes ideje alatt stabilak, ezért a nézetváltással nem dobhatók újra; a visszavásárlási ár mindig alacsonyabb a lehetséges eladási árnál.
+A fogadó minden látogatáskor új, véletlen piacot készít. A kereskedő normál és mágikus tárgyainak eladási ára 80% eséllyel az alapár 105–150%-a, 20% eséllyel kedvezményes 85–100%. A parti tárgyaiért jóval kevesebbet, az alapár véletlen 40–70%-át kínálja. Az ajánlatok az adott fogadólátogatás teljes ideje alatt stabilak, ezért a nézetváltással nem dobhatók újra; a visszavásárlási ár mindig alacsonyabb a lehetséges eladási árnál.
 
 A piac `←`/`→` vagy `Tab` billentyűvel vált a vásárlás és eladás között, `↑`/`↓` választ, az `Enter` végrehajtja az üzletet. Eladáskor a teljes parti hátizsákjainak tárgyai láthatók a tulajdonos nevével; a felszerelt tárgyak előbb az inventoryban tehetők hátizsákba. A bevétel és kiadás a partyvezér aranyát módosítja. Vásárláskor a tárgy először a vezér első üres hátizsákhelyére kerül, telt hátizsáknál pedig parti-sorrendben a következő szabad hellyel rendelkező társ kapja. Ha az összes hátizsák tele van, a vásárlás meghiúsul és arany nem fogy.
 
-A készlet az összes tárgy alapár szerint rendezett, fokozatosan feloldódó részéből készül. A teljesített pálya növekedésével egyszerre három újabb, jellemzően értékesebb tárgytípus kerülhet a jelöltek közé, a tényleges kínálat pedig pályánként egy hellyel nő, legfeljebb tizenkettőig. A súlyozott választás a feloldott készleten belül az értékesebb tárgyakat részesíti előnyben, így később több és jobb portéka jelenik meg anélkül, hogy az olcsó ellátmány teljesen eltűnne.
+A készlet a nem legendás tárgyak alapár szerint rendezett, fokozatosan feloldódó részéből készül. A teljesített pálya növekedésével nyolc újabb, jellemzően értékesebb tárgytípus kerülhet a jelöltek közé, a tényleges kínálat pedig pályánként egy hellyel nő, legfeljebb tizenkettőig. A súlyozott választás a feloldott készleten belül az értékesebb tárgyakat részesíti előnyben, így később több és jobb portéka jelenik meg anélkül, hogy az olcsó ellátmány teljesen eltűnne.
+
+Legendás tárgy külön ritka dobással kerülhet a fogadóba: az esély az első pálya után 1.5%, pályánként további 0.5 százalékponttal nő, és legfeljebb 8%. Egy látogatáskor legfeljebb egy Legendás ajánlat jelenik meg, az alapár 125–180%-áért. A választható Legendás készlet pályánként bővül, így korán csak az olcsóbb legendák kerülhetnek elő.
 
 A rejtett `Ctrl+Shift+E` fejlesztői gyorsbillentyű a partyvezért a kijárat melletti, járható és objektumtól mentes mezők közül a hozzá legközelebbire teleportálja. A teleport frissíti a vezér útvonalát és a látómezőt is; ha nincs megfelelő szabad mező, csak naplóüzenet jelenik meg.
 
@@ -475,5 +489,5 @@ Fontos állapotélettartamok:
 - A CSV-feldolgozás nem teljes RFC-kompatibilis CSV-parser.
 - A konzolméretek és koordináták nagyrészt rögzítettek.
 - A harc csak közelharcot valósít meg; a CSV-ben lévő varázslatok még nem részei az algoritmusnak.
-- Az élelem és víz csökken, de a nullára fogyásnak még nincs játékmeneti következménye.
+- Az élelem és víz csökken; étellel és itallal már visszatölthető, de a nullára fogyásnak még nincs további HP- vagy képességkövetkezménye.
 - A pálya állapota nem menthető és nem tölthető vissza.

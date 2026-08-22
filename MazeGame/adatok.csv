@@ -1,18 +1,18 @@
 #Fajok
 Id,Név
-R001,ember
-R002,törp
-R003,elf
-R004,félork
+R001,Ember
+R002,Törp
+R003,Elf
+R004,Félork
 
 #Osztályok
 Id,Név,XP módosító
-C001,harcos,1
-C002,barbár,0.95
-C003,lovag,1.05
-C004,tolvaj,0.85
-C005,pap,1
-C006,mágus,1.1
+C001,Harcos,1
+C002,Barbár,0.95
+C003,Lovag,1.05
+C004,Tolvaj,0.85
+C005,Pap,1
+C006,Mágus,1.1
 
 #Karakternevek
 Id,Név,OsztályId
@@ -234,7 +234,7 @@ E024,Balor démon,♛,19,2500,10,8,7500
 E025,Fekete sárkány,Ð,20,2000,10,8,10000
 
 #Fegyverek
-Id,Név,Típus,Sebzés,Kétkezes,Tolvaj,Pap,Mágus,Jellemzés,Ár
+Id,Név,Típus,Sebzés,Kétkezes,Tolvaj,Pap,Mágus,Jellemzés,Ár,Kategória,AlapId,MágikusErő
 W001,tőr,WT002,2-5,nem,igen,nem,igen,Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.,35
 W002,rövid kard,WT002,3-7,nem,igen,nem,nem,Fordulékony egykezes kard amely szűk helyen is jól használható.,70
 W003,katana,WT002,5-10,igen,igen,nem,nem,Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.,420
@@ -250,6 +250,26 @@ W012,alabárd,WT001,7-15,igen,nem,nem,nem,Sokoldalú hosszú fegyver fejszepeng�
 W013,csatakalapács,WT001,7-14,igen,nem,igen,nem,Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.,450
 W014,bőrpajzs,WT003,1-3,nem,igen,igen,nem,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.,45
 W015,fapajzs,WT003,2-5,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.,90
+LW001,Hajnalpenge,WT001,9-17,nem,nem,igen,nem,A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.,6500,Legendás,W004,3
+LW002,Éjcsók,WT002,7-14,nem,igen,nem,igen,Fekete tőr amely hangtalanul találja meg a páncél réseit.,5200,Legendás,W001,4
+LW003,Vérivó,WT002,10-19,igen,igen,nem,nem,Bíbor katana amely minden győzelemmel sötétebben fénylik.,7800,Legendás,W003,4
+LW004,Viharpallos,WT001,14-27,igen,nem,nem,nem,Mennydörgéstől vibráló pallos amely viharfelhőket hasít ketté.,11000,Legendás,W009,5
+LW005,Mennydörgő,WT001,13-25,igen,nem,igen,nem,Ősi csatakalapács amelynek ütését távoli égzengés követi.,9800,Legendás,W013,5
+LW006,Sárkányölő,WT001,12-23,igen,nem,nem,nem,Hosszú lándzsa pikkelyek áttörésére kovácsolt ezüstheggyel.,8500,Legendás,W011,4
+LW007,Árnyékél,WT002,9-18,nem,igen,nem,igen,Alkonyati rövid kard amely elmosódik gyors mozdulat közben.,6900,Legendás,W002,4
+LW008,Napbuzogány,WT001,11-22,nem,nem,igen,nem,Aranyszínű buzogány amely szent fénnyel perzseli a gonoszt.,7600,Legendás,W006,5
+LW009,Világdaraboló,WT001,14-26,nem,nem,nem,nem,Óriások kovácsolta csatabárd amely követ és acélt egyaránt hasít.,10500,Legendás,W010,4
+LW010,Fagykarom,WT001,11-21,nem,igen,nem,nem,Jégkék hosszú kard amely dércsíkot hagy minden vágás után.,7200,Legendás,W004,4
+LW011,Pokollánc,WT001,12-23,nem,nem,igen,nem,Lángoló láncos buzogány amely kiszámíthatatlan tűzíveket rajzol.,8800,Legendás,W007,5
+LW012,Csillaghullás,WT001,13-24,nem,nem,igen,nem,Meteoritvasból készült csatacsillag vakító szikrákkal.,9300,Legendás,W008,5
+LW013,Őrzők pajzsa,WT003,6-12,nem,nem,igen,nem,Rúnás pajzs amely ősi őrszemek erejét hordozza.,7000,Legendás,W015,6
+LW014,Tölgykirály pajzsa,WT003,7-13,nem,igen,igen,nem,Élő szentfából nőtt pajzs amely soha nem reped meg.,7400,Legendás,W014,5
+LW015,Lélekarató,WT001,15-29,igen,nem,nem,nem,Fekete alabárd amely hideg suttogással várja következő áldozatát.,12000,Legendás,W012,6
+LW016,Titánöklű,WT001,10-20,nem,nem,igen,nem,Sűrű csillagfémből öntött bunkó felfoghatatlan súllyal.,6800,Legendás,W005,3
+LW017,Ezüsthold,WT002,12-22,igen,igen,nem,igen,Holdfényben kovácsolt katana amely kékes félholdakat rajzol.,9000,Legendás,W003,5
+LW018,Mélységszúró,WT002,10-18,nem,igen,nem,igen,Tengermélyi kristályból csiszolt tőr nyugtalanító kék ragyogással.,7100,Legendás,W001,5
+LW019,Főnixlándzsa,WT001,14-25,igen,nem,igen,nem,Újjászülető lánggal égő lándzsa amelynek hegye sosem hűl ki.,10200,Legendás,W011,6
+LW020,Koronatörő,WT001,16-30,igen,nem,nem,nem,Királyok bukását megélt pallos aranyrepedésekkel a pengéjén.,13500,Legendás,W009,7
 
 #Fegyvertípus
 Id,Név
@@ -258,8 +278,8 @@ WT002,Ügyesség
 WT003,Védelem
 
 #Páncélok
-Id,Név,Védelem,Barbár,Tolvaj,Pap,Mágus,Jellemzés,Ár
-A001,kámzsa,1-2,igen,igen,igen,igen,Vastag szövetből készült fejvédő a kisebb sérülések ellen.,20
+Id,Név,Védelem,Barbár,Tolvaj,Pap,Mágus,Jellemzés,Ár,Kategória,AlapId,MágikusErő
+A001,kámzsa,1-2,igen,igen,igen,igen,Vastag szövetből készült csuklyás ruházat a kisebb sérülések ellen.,20
 A002,bőrvért,2-3,igen,igen,igen,nem,Könnyű edzett bőrpáncél amely szabad mozgást biztosít.,100
 A003,láncing,3-4,igen,nem,igen,nem,Összefűzött fémkarikákból készült hajlékony vértezet.,250
 A004,pikkelypáncél,2-5,igen,nem,igen,nem,Egymásra simuló fémpikkelyekből álló változó védelmű páncél.,350
@@ -268,6 +288,32 @@ A006,teljes vértezet,8-10,nem,nem,igen,nem,Nehéz lemezpáncél amely tetőtől
 A007,mitril láncing,7-8,igen,igen,igen,nem,Rendkívül könnyű és erős mitrilkarikákból font ritka vértezet.,2200
 A008,mitril mellvért,8-9,igen,nem,igen,nem,Könnyedén viselhető mitril lemez kiváló törzsvédelemmel.,3500
 A009,mitril teljes vértezet,12-15,nem,nem,igen,nem,Mesteri mitril páncélzat amely páratlan védelmet nyújt.,6500
+LA001,Csillagköpeny,5-8,igen,igen,igen,igen,Éjszakai égboltot idéző kámzsa apró mozgó csillagokkal.,4800,Legendás,A001,5
+LA002,Árnyékjáró vértje,6-9,igen,igen,nem,igen,Füstként simuló bőrvért amely elnyeli a léptek zaját.,6200,Legendás,A002,5
+LA003,Sárkánypikkely,10-15,igen,nem,igen,nem,Ősi vörös sárkány pikkelyeiből illesztett forró páncél.,9000,Legendás,A004,6
+LA004,Naplovag vértje,13-17,nem,nem,igen,nem,Ragyogó mellvért amely hajnalban arany fénnyel telik meg.,10800,Legendás,A005,6
+LA005,Éjfekete láncing,9-13,igen,igen,igen,nem,Fényt nem tükröző láncing az árnyak bajnokainak.,8400,Legendás,A003,5
+LA006,Hegykirály vértezete,16-22,nem,nem,igen,nem,Törp királyok gránitrúnás teljes vértezete.,14500,Legendás,A006,7
+LA007,Holdszövött láncing,14-18,igen,igen,igen,igen,Súlytalan mitrilkarikákból szőtt ezüstös láncing.,13200,Legendás,A007,7
+LA008,Hajnalpajzs mellvért,16-20,igen,nem,igen,nem,Fehér mitril mellvért napkorong alakú mellrésszel.,15500,Legendás,A008,7
+LA009,Istenek bástyája,22-30,nem,nem,igen,nem,Legendák szerint égi kovácsok készítették az első hősnek.,24000,Legendás,A009,10
+LA010,Főnixvért,12-18,igen,nem,igen,igen,Parázsló pikkelypáncél amely melegséggel öleli körül viselőjét.,11500,Legendás,A004,7
+LA011,Leviatán páncélja,18-24,nem,nem,igen,nem,Mélységi szörny csontlemezeiből készült teljes vértezet.,17200,Legendás,A006,8
+LA012,Erdőszív vértje,8-12,igen,igen,igen,igen,Élő indákkal átszőtt bőrvért amely együtt lélegzik viselőjével.,7600,Legendás,A002,6
+LA013,Mennydörgés mellvértje,15-20,igen,nem,igen,nem,Viharfelhők színében játszó mellvért villámrúnákkal.,13800,Legendás,A005,7
+LA014,Szent ereklyevért,18-23,nem,nem,igen,nem,Szentek neveivel vésett mitril mellvért tiszta aurával.,16800,Legendás,A008,9
+LA015,Árnyékkámzsa,7-11,igen,igen,igen,igen,Sötét csuklya amely alatt a viselő arca köddé válik.,5900,Legendás,A001,6
+LA016,Titán láncinge,14-19,igen,nem,igen,nem,Hatalmas szemű mégis könnyű láncing egy letűnt óriásbirodalomból.,12800,Legendás,A003,6
+LA017,Démonőr vértezete,20-27,nem,nem,igen,nem,Obszidián teljes vért izzó vörös illesztésekkel.,19500,Legendás,A006,9
+LA018,Ezüstsárkány lánca,15-21,igen,igen,igen,igen,Fagyos fényű mitril láncing ezüstsárkány-rúnákkal.,14900,Legendás,A007,8
+LA019,Időjáró köpenye,10-15,igen,igen,igen,igen,Kámzsa amelynek szálai között lassabban peregnek a porszemek.,9800,Legendás,A001,9
+LA020,Világpajzs vértezete,25-34,nem,nem,igen,nem,A világ mélyének érceiből kovácsolt áthatolhatatlan mitril vért.,28000,Legendás,A009,12
+
+#Tárgybővítések
+Id,NévUtótag,HarciBónusz,ÁrSzorzó,MágikusErő
+PLUS1,+1,1,2.0,1
+PLUS2,+2,2,4.0,2
+PLUS3,+3,3,7.0,3
 
 #Képességek
 Id,Név
@@ -326,10 +372,27 @@ STATUS004,Betegség,A karakter valamilyen betegségtől szenved.
 STATUS005,Vérzés,A karakter folyamatos vérzéstől szenved.
 
 #Tárgyak
-Id,Név,Jellemzés,Ár
-T001,Élelem,Tartós útravaló amely később az éhség csillapítására használható.,8
-T002,Kulacs,Vízzel tölthető edény amely később a szomjúság enyhítésére szolgálhat.,12
-T003,Kulcs,Egyszer használatos kulcs amely garantáltan kinyit vagy bezár egy ajtózárat.,60
+Id,Név,Jellemzés,Ár,Hatás,Érték
+T001,Útravaló,Egyszerű tartós élelem amely csillapítja az éhséget.,8,Food,20
+T002,Kulacs,Vízzel töltött edény amely enyhíti a szomjúságot.,12,Water,30
+T003,Kulcs,Egyszer használatos kulcs amely garantáltan kinyit vagy bezár egy ajtózárat.,60,None,0
+T004,Kenyér,Friss cipó szerény de megbízható tápértékkel.,6,Food,15
+T005,Sajt,Érett kemény sajt amely sokáig eltartható.,14,Food,28
+T006,Füstölt hús,Nehéz füstölt húsadag hosszú utakra.,24,Food,45
+T007,Törp útravaló,Rendkívül tömény lepény amely kis darabban is jóllakat.,45,Food,65
+T008,Fogadói lakoma,Gazdag hidegtál egy teljes napi éhség elűzésére.,70,Food,100
+T009,Aszalt gyümölcs,Édes könnyű élelem gyors erőgyűjtéshez.,12,Food,25
+T010,Mézes kalács,Fűszeres sütemény amely meglepően laktató.,20,Food,38
+T011,Kis gyógyital,Vörös ital amely kisebb sebeket azonnal összeforraszt.,35,Heal,20
+T012,Gyógyital,Erős vörös főzet komoly sérülések kezelésére.,90,Heal,50
+T013,Nagy gyógyital,Sűrű rubinszínű elixír amely súlyos sebeket is begyógyít.,220,Heal,120
+T014,Kis varázsital,Kék ital amely kevés mágikus energiát állít helyre.,40,RestoreMana,15
+T015,Varázsital,Fénylő kék főzet a kimerült varázshasználóknak.,110,RestoreMana,40
+T016,Nagy varázsital,Örvénylő azúr elixír jelentős manna visszanyerésére.,260,RestoreMana,90
+T017,Ellenméreg,Keserű zöld oldat amely megszünteti a mérgezést.,75,CurePoison,0
+T018,Gyógyfüves orvosság,Erős gyógynövénykeverék betegségek kezelésére.,90,CureDisease,0
+T019,Kötés,Tiszta vászon és vérzéscsillapító por friss sebekhez.,30,StopBleeding,0
+T020,Gyógytea,Meleg gyógynövénytea amely enyhíti a szomjúságot.,18,Water,40
 
 #Varázstárgyak
 Id,Név,Ár

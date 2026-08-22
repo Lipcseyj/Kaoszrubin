@@ -76,6 +76,7 @@ public sealed class Game
                         else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
                         else if (keyInfo.Key == ConsoleKey.D) DropSelectedInventoryItem();
                         else if (keyInfo.Key == ConsoleKey.I) InspectSelectedInventoryItem();
+                        else if (keyInfo.Key == ConsoleKey.U) UseSelectedInventoryItem();
                         else if (keyInfo.Key == ConsoleKey.Spacebar) GrabOrPlaceInventoryItem();
                         continue;
                     }
@@ -241,11 +242,96 @@ public sealed class Game
                 $"{(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | kasztok: {AllowedClassNames(weapon.AllowedClassIds)}",
             Domain.Combat.ArmorDefinition armor => $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"} | kasztok: {AllowedClassNames(armor.AllowedClassIds)}",
             Domain.Magic.MagicItemDefinition => "Varázstárgy | mágikus hatása még nincs bevezetve",
+            MiscItemDefinition misc when misc.Effect != ConsumableEffect.None => $"Használati tárgy | hatás: {ConsumableEffectName(misc.Effect)} {misc.EffectValue}",
             _ => "Általános tárgy"
         };
         var description = string.IsNullOrWhiteSpace(item.Description) ? "Nincs jellemzés." : item.Description;
-        _renderer.DrawInventoryMessage($"{item.Name} [{item.Id}] — {details}. Alapár: {item.BasePrice} arany. Jellemzés: {description}", ConsoleColor.Cyan);
+        _renderer.DrawInventoryMessage($"{item.Name} [{item.Id}] — {details}. Ritkaság: {ItemRarityName(item.Rarity)}; mágikus erő: {item.MagicPower}; alapár: {item.BasePrice} arany. Jellemzés: {description}", RarityColor(item.Rarity));
     }
+
+    private void UseSelectedInventoryItem()
+    {
+        var slot = _renderer.GetSelectedInventorySlot();
+        if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
+        { _renderer.DrawInventoryMessage("Használható tárgyat a hátizsákban jelölj ki.", ConsoleColor.DarkYellow); return; }
+        if (slot.Value.Character.GetInventoryItem(slot.Value.Kind, slot.Value.Index) is not MiscItemDefinition item || item.Effect == ConsumableEffect.None)
+        { _renderer.DrawInventoryMessage("A kijelölt tárgy közvetlenül nem használható.", ConsoleColor.DarkYellow); return; }
+
+        var character = slot.Value.Character;
+        var used = true;
+        var result = item.Effect switch
+        {
+            ConsumableEffect.Food when character.FoodLevel < 100 => UseFood(character, item.EffectValue),
+            ConsumableEffect.Water when character.WaterLevel < 100 => UseWater(character, item.EffectValue),
+            ConsumableEffect.Heal when character.IsAlive && character.CurrentVitality < character.MaximumVitality => UseHealing(character, item.EffectValue),
+            ConsumableEffect.RestoreMana when character.IsAlive && character.UsesMana && character.CurrentMana < character.MaximumMana => UseManaPotion(character, item.EffectValue),
+            ConsumableEffect.CurePoison when character.RemoveStatus(CharacterStatusIds.Poisoned) => "a mérgezés megszűnt",
+            ConsumableEffect.CureDisease when character.RemoveStatus(CharacterStatusIds.Diseased) => "a betegség megszűnt",
+            ConsumableEffect.StopBleeding when character.RemoveStatus(CharacterStatusIds.Bleeding) => "a vérzés elállt",
+            _ => string.Empty
+        };
+        if (string.IsNullOrEmpty(result)) used = false;
+        if (!used) { _renderer.DrawInventoryMessage("A tárgy hatására most nincs szükség vagy nem alkalmazható.", ConsoleColor.DarkYellow); return; }
+
+        character.SetInventoryItem(InventorySlotKind.Backpack, slot.Value.Index, null);
+        character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry), _gameData.GetStatus(CharacterStatusIds.Thirsty));
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawInventoryMessage($"{character.Name} használta: {item.Name} — {result}.", ConsoleColor.Green);
+    }
+
+    private static string UseFood(LiveCharacter character, int amount)
+    {
+        var before = character.FoodLevel;
+        character.RestoreFood(amount);
+        return $"élelem +{character.FoodLevel - before}";
+    }
+
+    private static string UseWater(LiveCharacter character, int amount)
+    {
+        var before = character.WaterLevel;
+        character.RestoreWater(amount);
+        return $"víz +{character.WaterLevel - before}";
+    }
+
+    private static string UseHealing(LiveCharacter character, int amount)
+    {
+        var before = character.CurrentVitality;
+        character.RestoreVitality(amount);
+        return $"HP +{character.CurrentVitality - before}";
+    }
+
+    private static string UseManaPotion(LiveCharacter character, int amount)
+    {
+        var before = character.CurrentMana;
+        character.RestoreMana(amount);
+        return $"manna +{character.CurrentMana - before}";
+    }
+
+    private static string ItemRarityName(ItemRarity rarity) => rarity switch
+    {
+        ItemRarity.Magic => "Varázs",
+        ItemRarity.Legendary => "Legendás",
+        _ => "Sima"
+    };
+
+    private static ConsoleColor RarityColor(ItemRarity rarity) => rarity switch
+    {
+        ItemRarity.Magic => ConsoleColor.Cyan,
+        ItemRarity.Legendary => ConsoleColor.Yellow,
+        _ => ConsoleColor.Gray
+    };
+
+    private static string ConsumableEffectName(ConsumableEffect effect) => effect switch
+    {
+        ConsumableEffect.Food => "élelem",
+        ConsumableEffect.Water => "víz",
+        ConsumableEffect.Heal => "HP",
+        ConsumableEffect.RestoreMana => "manna",
+        ConsumableEffect.CurePoison => "mérgezés gyógyítása",
+        ConsumableEffect.CureDisease => "betegség gyógyítása",
+        ConsumableEffect.StopBleeding => "vérzés elállítása",
+        _ => "nincs"
+    };
 
     private static string NpcBehaviorName(NpcBehavior? behavior) => behavior switch
     {
@@ -1021,8 +1107,8 @@ public sealed class Game
 
     private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel)
     {
-        var allItems = AllTradableItems().OrderBy(item => item.BasePrice).ToList();
-        var unlocked = allItems.Take(Math.Min(allItems.Count, 5 + completedLevel * 3)).ToList();
+        var allItems = AllTradableItems().Where(item => item.Rarity != ItemRarity.Legendary).OrderBy(item => item.BasePrice).ToList();
+        var unlocked = allItems.Take(Math.Min(allItems.Count, 8 + completedLevel * 8)).ToList();
         var stockCount = Math.Min(unlocked.Count, Math.Min(12, 5 + completedLevel));
         var offers = new List<InnStockOffer>(stockCount);
         while (offers.Count < stockCount && unlocked.Count > 0)
@@ -1039,6 +1125,18 @@ public sealed class Game
             unlocked.RemoveAt(chosenIndex);
             var percentage = _random.NextDouble() < 0.20 ? _random.Next(85, 101) : _random.Next(105, 151);
             offers.Add(new InnStockOffer(item, Math.Max(1, item.BasePrice * percentage / 100)));
+        }
+        var legendaryChance = Math.Min(0.08, 0.01 + completedLevel * 0.005);
+        if (_random.NextDouble() < legendaryChance)
+        {
+            var legendaryPool = AllTradableItems().Where(item => item.Rarity == ItemRarity.Legendary)
+                .OrderBy(item => item.BasePrice).Take(Math.Min(40, Math.Max(4, completedLevel * 4))).ToList();
+            if (legendaryPool.Count > 0)
+            {
+                if (offers.Count >= 12) offers.RemoveAt(_random.Next(offers.Count));
+                var legendary = legendaryPool[_random.Next(legendaryPool.Count)];
+                offers.Add(new InnStockOffer(legendary, legendary.BasePrice * _random.Next(125, 181) / 100));
+            }
         }
         return offers.OrderBy(offer => offer.Price).ToList();
     }

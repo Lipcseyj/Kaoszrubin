@@ -242,6 +242,8 @@ public sealed class LiveCharacter
 
     public void ConsumeFood(int amount) => FoodLevel = Math.Max(0, FoodLevel - Math.Max(0, amount));
     public void ConsumeWater(int amount) => WaterLevel = Math.Max(0, WaterLevel - Math.Max(0, amount));
+    public void RestoreFood(int amount) => FoodLevel = Math.Min(100, FoodLevel + Math.Max(0, amount));
+    public void RestoreWater(int amount) => WaterLevel = Math.Min(100, WaterLevel + Math.Max(0, amount));
     public void AddGold(int amount) => Gold += Math.Max(0, amount);
     public bool SpendGold(int amount)
     {
