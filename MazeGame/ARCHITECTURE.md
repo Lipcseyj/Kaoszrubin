@@ -205,9 +205,17 @@ A csatában aktiválódó tehetségek bekerülnek a harci napló számításaiba
 
 ### Karakterállapotok
 
-Az állapotok az `adatok.csv` `#Állapotok` szekciójának `StatusDefinition` rekordjai. A `LiveCharacter` az aktív állapotok definícióit tartja nyilván; az általános `AddStatus` és `RemoveStatus` műveletekkel további állapotok is beköthetők. A kezdeti katalógus az Éhes, Szomjas, Mérgezés, Betegség és Vérzés állapotot tartalmazza.
+Az állapotok az `adatok.csv` `#Állapotok` szekciójának `StatusDefinition` rekordjai. A CSV állapotonként tárolja az emojit, időtartamot, körsebzést, támadó- és kezdeményezésbüntetést, maximum-erőforrás és regeneráció százalékokat, csatakezdő veszteségeket és a nulla szükségletszint szorzóját. Hibás sebzéstartomány, százalék vagy üres emoji betöltési hibát okoz.
 
-Az Éhes és Szomjas állapot származtatott: 30 vagy alacsonyabb élelem-, illetve vízszintnél automatikusan aktív, magasabb értéknél megszűnik. Mentés betöltésekor és a szükségletek csökkenésekor újraszinkronizálódik. A többi állapot tartósan mentődik, de játékmeneti hatása és kiváltó eseménye még nincs bekötve.
+| Állapot | Aktív hatás |
+|---|---|
+| 🍖 Éhes | −2 fizikai sebzés és 75%-os HP-gyógyulás; nulla élelemnél csatakezdéskor a maximális HP 5%-a elveszik |
+| 💧 Szomjas | −3 kezdeményezés, −1 találati próba és csatakezdéskor 5% maximálismanna-vesztés; nulla víznél minden büntetés kétszeres |
+| ☠️ Mérgezés | saját támadási kör végén 1d4 közvetlen sebzés, hat aktiválódás után elmúlik |
+| 🤒 Betegség | a maximális HP és manna 80%-os, minden HP-/mannavisszatöltés 50%-os; nem jár le magától |
+| 🩸 Vérzés | saját támadási kör végén 1d3 közvetlen sebzés, négy aktiválódás után elmúlik |
+
+Az Éhes és Szomjas állapot származtatott: 30 vagy alacsonyabb élelem-, illetve vízszintnél automatikusan aktív, magasabb értéknél megszűnik. A többi állapot hátralévő aktiválódásszámmal együtt mentődik. Az ismételt mérgezés vagy vérzés nem halmozódik, hanem visszaállítja az állapot teljes CSV-s időtartamát. Az ellenméreg, gyógyfüves orvosság és kötés továbbra is azonnal eltávolítja a megfelelő állapotot. A karakterlap az állapotok neve helyett a CSV-s emojikat mutatja.
 
 ## Játékhurok
 
@@ -228,7 +236,14 @@ vízvesztés    = 2
                +1, ha a HP a maximum fele alatt van
 ```
 
-A szükségletek jelenleg nem okoznak közvetlen sebzést vagy más hátrányt.
+Minden csata után kizárólag a ténylegesen harcoló karakter élelem- és vízszintje csökken, ugyanazzal a dobott értékkel:
+
+```text
+csata utáni élelemvesztés = 1d5 + szörny erősségi szintje
+csata utáni vízvesztés    = 1d5 + szörny erősségi szintje
+```
+
+Ez a vezér és az automatikusan harcoló NPC-k csatáira is érvényes.
 
 A rejtett `Ctrl+Shift+S` fejlesztői gyorsbillentyű pontosan a következő szinthez hiányzó XP-t adja a karakternek. Ugyanazt a fejlődési és bónuszdobási útvonalat használja, mint egy valódi csatagyőzelem.
 
@@ -424,7 +439,7 @@ Az `Enemy.CurrentHitPoints` a szörny futásidejű HP-ja. A `BattleSystem` ebbő
 Mindkét fél egyszer dob egy előjeles `1d2` módosítót: a dobás `-1`, `-2`, `+1` vagy `+2`, az előjel és a nagyság külön véletlen választás eredménye.
 
 ```text
-játékos kezdeményezése  = Ügyesség + előjeles 1d2
+játékos kezdeményezése  = Ügyesség + bónuszok - állapotbüntetés + előjeles 1d2
 ellenfél kezdeményezése = Gyorsaság + képességbónusz + előjeles 1d2
 ```
 
@@ -435,7 +450,7 @@ A játékos kezd, ha az eredménye nagyobb vagy egyenlő; döntetlennél tehát 
 Minden támadásnál új `1d20` dobás készül.
 
 ```text
-támadóérték = 1d20 + támadó sebességi képessége
+támadóérték = 1d20 + támadó sebességi képessége + bónuszok - állapotbüntetés
 célérték     = 11 + védekező sebességi képessége
 találat      = támadóérték >= célérték
 ```
@@ -453,8 +468,8 @@ A rendszer az első olyan fegyverhelyet használja, amely nem védelmi típusú 
 
 ```text
 képességbónusz = max(0, (képesség - 1) / 2)  (egész osztás)
-nyers sebzés   = fegyversebzés + képességbónusz + 0..2
-végső sebzés   = max(1, nyers sebzés - (ellenfél páncélja + képességbónusz))
+nyers sebzés   = fegyversebzés + képességbónusz + 0..2 + támadóbónuszok
+végső sebzés   = max(1, nyers sebzés × szorzók - ellenfél páncélja - állapotbüntetés)
 ```
 
 ### 4. Ellenfél sebzése
@@ -468,7 +483,7 @@ védelem      = páncél tartományából dobott érték
 végső sebzés = max(1, nyers sebzés - védelem)
 ```
 
-Ha nincs páncél vagy pajzs, annak védelme nulla. Találat esetén legalább 1 sebzés mindig átjut. A sikeres találat sebzésszámítása után külön dobódnak a szörny állapatterjesztő képességei; új állapot esetén a csatanapló megnevezi azt.
+Ha nincs páncél vagy pajzs, annak védelme nulla. Találat esetén legalább 1 sebzés mindig átjut. A sikeres találat sebzésszámítása után külön dobódnak a szörny állapatterjesztő képességei; új vagy frissített állapot esetén a csatanapló megnevezi azt. A karakter saját támadási szakasza után a mérgezés és vérzés egyetlen összesített naplóüzenetben sebez, figyelmen kívül hagyva a páncélt; az időtartam ekkor csökken.
 
 ### 5. Befejezés
 

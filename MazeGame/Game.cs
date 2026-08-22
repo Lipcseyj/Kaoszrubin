@@ -535,6 +535,7 @@ public sealed class Game
         var startingNpcHp = member.Character.CurrentVitality;
         var startingEnemyHp = enemy.CurrentHitPoints;
         var result = _battleSystem.Resolve(member.Character, enemy, _ => { });
+        var needLoss = DrainNeedsAfterBattle(member.Character, enemy.Definition.StrengthTier);
         if (result.PlayerWon)
         {
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
@@ -547,7 +548,7 @@ public sealed class Game
             _renderer.DrawNpcBattleSummary(
                 $"{member.Character.Name} automatikus csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
                 $"HP: {startingNpcHp}→{member.Character.CurrentVitality}; ellenfél HP: {startingEnemyHp}→0; " +
-                $"XP: {FormatExperienceAwards(experienceAwards)}.{levelText}",
+                $"XP: {FormatExperienceAwards(experienceAwards)}.{levelText} 🍖💧 -{needLoss}.",
                 ConsoleColor.Green);
         }
         else
@@ -556,7 +557,7 @@ public sealed class Game
             _nextPartyMoves.Remove(member);
             _renderer.DrawNpcBattleSummary(
                 $"{member.Character.Name} elesett a(z) {enemy.Name} elleni automatikus csatában {result.Rounds} kör után. " +
-                $"HP: {startingNpcHp}→0; ellenfél HP: {startingEnemyHp}→{enemy.CurrentHitPoints}.",
+                $"HP: {startingNpcHp}→0; ellenfél HP: {startingEnemyHp}→{enemy.CurrentHitPoints}; 🍖💧 -{needLoss}.",
                 ConsoleColor.Red);
         }
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
@@ -734,6 +735,7 @@ public sealed class Game
             _renderer.DrawBattleRound(entry);
             WaitForBattleContinue();
         });
+        var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
 
         if (result.PlayerWon)
@@ -743,6 +745,7 @@ public sealed class Game
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             _renderer.DrawBattleResult(result, enemy);
+            _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
             _renderer.DrawExperienceDistribution(FormatExperienceAwards(experienceAwards),
                 experienceAwards.Any(award => award.Result.LeveledUp));
             _renderer.RefreshCharacterSheet(SelectedCharacter);
@@ -757,6 +760,7 @@ public sealed class Game
         }
 
         _renderer.DrawBattleResult(result, enemy);
+        _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
         _renderer.DrawGameOver(SelectedCharacter.Name);
         _gameOver = true;
     }
@@ -773,6 +777,17 @@ public sealed class Game
             _gameData.GetStatus(CharacterStatusIds.Hungry),
             _gameData.GetStatus(CharacterStatusIds.Thirsty));
         _renderer.RefreshCharacterSheet(SelectedCharacter);
+    }
+
+    private int DrainNeedsAfterBattle(LiveCharacter character, int monsterTier)
+    {
+        var loss = _random.Next(1, 6) + Math.Clamp(monsterTier, 1, 5);
+        character.ConsumeFood(loss);
+        character.ConsumeWater(loss);
+        character.SynchronizeNeedStatuses(
+            _gameData.GetStatus(CharacterStatusIds.Hungry),
+            _gameData.GetStatus(CharacterStatusIds.Thirsty));
+        return loss;
     }
 
     private MazeDoor? GetAdjacentDoor() => Directions

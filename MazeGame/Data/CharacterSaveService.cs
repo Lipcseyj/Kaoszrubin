@@ -89,8 +89,11 @@ public sealed class CharacterSaveService
             if (!saved.AppliedPerkBonusIds.Contains(perkId, StringComparer.OrdinalIgnoreCase))
                 character.ApplyPerkAcquisitionBonus(perk);
         }
-        foreach (var statusId in saved.StatusIds.Where(id => id is not CharacterStatusIds.Hungry and not CharacterStatusIds.Thirsty))
-            character.AddStatus(_gameData.GetStatus(statusId));
+        var savedStatuses = saved.Statuses.Count > 0
+            ? saved.Statuses
+            : saved.StatusIds.Select(id => new StatusSaveData(id, null)).ToList();
+        foreach (var savedStatus in savedStatuses.Where(status => status.Id is not CharacterStatusIds.Hungry and not CharacterStatusIds.Thirsty))
+            character.RestoreStatus(_gameData.GetStatus(savedStatus.Id), savedStatus.RemainingActivations);
         character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry), _gameData.GetStatus(CharacterStatusIds.Thirsty));
 
         return character;
@@ -113,9 +116,9 @@ public sealed class CharacterSaveService
         Gold = character.Gold,
         Level = character.Level,
         Experience = character.Experience,
-        LevelVitalityIncrease = character.MaximumVitality - (_gameData.GetMinimumVitality(character.Abilities.Health) + character.VitalityBonus),
+        LevelVitalityIncrease = character.UnmodifiedMaximumVitality - (_gameData.GetMinimumVitality(character.Abilities.Health) + character.VitalityBonus),
         LevelManaIncrease = character.UsesMana
-            ? character.MaximumMana - (_gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
+            ? character.UnmodifiedMaximumMana - (_gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
             : 0,
         WeaponIds = character.WeaponSlots.Select(weapon => weapon?.Id).ToList(),
         ArmorId = character.Armor?.Id,
@@ -123,7 +126,8 @@ public sealed class CharacterSaveService
         BackpackItems = character.Backpack.Select(item => item is null ? null : new ItemSaveData(item.GetType().Name, item.Id)).ToList(),
         PerkIds = character.Perks.Select(perk => perk.Id).ToList(),
         AppliedPerkBonusIds = character.Perks.Select(perk => perk.Id).ToList(),
-        StatusIds = character.Statuses.Select(status => status.Id).ToList()
+        StatusIds = character.Statuses.Select(status => status.Id).ToList(),
+        Statuses = character.Statuses.Select(status => new StatusSaveData(status.Id, character.GetStatusDuration(status.Id))).ToList()
     };
 
     private IItemDefinition ResolveItem(ItemSaveData item) => item.Type switch
@@ -181,7 +185,9 @@ public sealed class CharacterSaveService
         public List<string> PerkIds { get; init; } = [];
         public List<string> AppliedPerkBonusIds { get; init; } = [];
         public List<string> StatusIds { get; init; } = [];
+        public List<StatusSaveData> Statuses { get; init; } = [];
     }
 
     private sealed record ItemSaveData(string Type, string Id, string? Name = null);
+    private sealed record StatusSaveData(string Id, int? RemainingActivations);
 }

@@ -59,6 +59,7 @@ public static class CsvGameDataLoader
 
         ValidateMagicItems(magicItems, spells);
         ValidateEnemies(enemies, monsterAbilities);
+        ValidateStatuses(statuses);
 
         return new GameDataCatalog
         {
@@ -166,7 +167,14 @@ public static class CsvGameDataLoader
                     perks.Add(new PerkDefinition(id, name, Cell(cells, 2), Cell(cells, 3), tier));
                 break;
             case DataSection.Statuses:
-                statuses.Add(new StatusDefinition(id, name, Cell(cells, 2)));
+                statuses.Add(new StatusDefinition(
+                    id, name, Cell(cells, 2), Integer(cells, 3) is > 0 and var duration ? duration : null,
+                    Integer(cells, 4) ?? 0, Integer(cells, 5) ?? 0,
+                    Integer(cells, 6) ?? 0, Integer(cells, 7) ?? 0, Integer(cells, 8) ?? 0,
+                    Integer(cells, 9) ?? 100, Integer(cells, 10) ?? 100,
+                    Integer(cells, 11) ?? 100, Integer(cells, 12) ?? 100,
+                    Integer(cells, 13) ?? 0, Integer(cells, 14) ?? 0,
+                    Math.Max(1, Integer(cells, 15) ?? 1), Cell(cells, 16)));
                 break;
             case DataSection.CharacterNames:
                 characterNames.Add(new CharacterNameDefinition(id, name, Cell(cells, 2)));
@@ -213,6 +221,21 @@ public static class CsvGameDataLoader
 
     private static bool IsYes(string[] cells, int index) =>
         string.Equals(Cell(cells, index), "igen", StringComparison.OrdinalIgnoreCase);
+
+    private static void ValidateStatuses(IEnumerable<StatusDefinition> statuses)
+    {
+        foreach (var status in statuses)
+        {
+            if (string.IsNullOrWhiteSpace(status.Icon))
+                throw new InvalidOperationException($"A(z) {status.Id} állapot emoji mezője nem lehet üres.");
+            if (status.PeriodicDamageMinimum < 0 || status.PeriodicDamageMaximum < status.PeriodicDamageMinimum)
+                throw new InvalidOperationException($"A(z) {status.Id} állapot körsebzés-tartománya érvénytelen.");
+            var percentages = new[] { status.MaximumVitalityPercent, status.MaximumManaPercent,
+                status.VitalityRecoveryPercent, status.ManaRecoveryPercent };
+            if (percentages.Any(value => value is < 0 or > 100))
+                throw new InvalidOperationException($"A(z) {status.Id} állapot százalékos erőforrásértékeinek 0 és 100 közé kell esniük.");
+        }
+    }
 
     private static int RequiredPrice(string[] cells, int index, string id) => Integer(cells, index) is > 0 and var price
         ? price

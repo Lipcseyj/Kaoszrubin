@@ -13,6 +13,9 @@ public sealed class LiveCharacter
     private readonly IItemDefinition?[] _backpack = new IItemDefinition?[MaximumBackpackItemCount];
     private readonly List<PerkDefinition> _perks = [];
     private readonly List<StatusDefinition> _statuses = [];
+    private readonly Dictionary<string, int?> _statusDurations = new(StringComparer.OrdinalIgnoreCase);
+    private int _maximumVitality;
+    private int _maximumMana;
     public LiveCharacter(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities abilities, int maximumVitality, int maximumMana, int vitalityBonus, int manaBonus, ConsoleColor color = ConsoleColor.Cyan)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > MaximumNameLength)
@@ -22,9 +25,9 @@ public sealed class LiveCharacter
         Race = race;
         CharacterClass = characterClass;
         Abilities = abilities;
-        MaximumVitality = maximumVitality;
+        _maximumVitality = maximumVitality;
         CurrentVitality = maximumVitality;
-        MaximumMana = maximumMana;
+        _maximumMana = maximumMana;
         CurrentMana = maximumMana;
         VitalityBonus = vitalityBonus;
         ManaBonus = manaBonus;
@@ -36,9 +39,11 @@ public sealed class LiveCharacter
     public RaceDefinition Race { get; }
     public CharacterClassDefinition CharacterClass { get; }
     public PrimaryAbilities Abilities { get; }
-    public int MaximumVitality { get; private set; }
+    public int MaximumVitality => ApplyMaximumResourceModifier(_maximumVitality, status => status.MaximumVitalityPercent);
+    public int UnmodifiedMaximumVitality => _maximumVitality;
     public int CurrentVitality { get; private set; }
-    public int MaximumMana { get; private set; }
+    public int MaximumMana => ApplyMaximumResourceModifier(_maximumMana, status => status.MaximumManaPercent);
+    public int UnmodifiedMaximumMana => _maximumMana;
     public int CurrentMana { get; private set; }
     public int VitalityBonus { get; }
     public int ManaBonus { get; }
@@ -206,24 +211,95 @@ public sealed class LiveCharacter
             PerkIds.MageArchmage => 25,
             _ => 0
         };
-        MaximumVitality += vitality;
+        _maximumVitality += vitality;
         CurrentVitality += vitality;
         if (UsesMana)
         {
-            MaximumMana += mana;
+            _maximumMana += mana;
             CurrentMana += mana;
         }
+        CurrentVitality = Math.Min(CurrentVitality, MaximumVitality);
+        CurrentMana = Math.Min(CurrentMana, MaximumMana);
     }
 
     public bool AddStatus(StatusDefinition status)
     {
-        if (_statuses.Any(existing => string.Equals(existing.Id, status.Id, StringComparison.OrdinalIgnoreCase))) return false;
-        _statuses.Add(status);
+        var existing = _statuses.FirstOrDefault(candidate => string.Equals(candidate.Id, status.Id, StringComparison.OrdinalIgnoreCase));
+        if (existing is null) _statuses.Add(status);
+        _statusDurations[status.Id] = status.DefaultDuration;
+        CurrentVitality = Math.Min(CurrentVitality, MaximumVitality);
+        CurrentMana = Math.Min(CurrentMana, MaximumMana);
         return true;
     }
 
-    public bool RemoveStatus(string statusId) => _statuses.RemoveAll(status =>
-        string.Equals(status.Id, statusId, StringComparison.OrdinalIgnoreCase)) > 0;
+    public bool RemoveStatus(string statusId)
+    {
+        _statusDurations.Remove(statusId);
+        return _statuses.RemoveAll(status => string.Equals(status.Id, statusId, StringComparison.OrdinalIgnoreCase)) > 0;
+    }
+
+    public int? GetStatusDuration(string statusId) => _statusDurations.GetValueOrDefault(statusId);
+
+    public void RestoreStatus(StatusDefinition status, int? remainingActivations)
+    {
+        AddStatus(status);
+        _statusDurations[status.Id] = remainingActivations ?? status.DefaultDuration;
+    }
+
+    public IReadOnlyList<StatusTickResult> ApplyTurnEndStatusEffects(Random random)
+    {
+        var results = new List<StatusTickResult>();
+        foreach (var status in _statuses.Where(status => status.PeriodicDamageMaximum > 0).ToList())
+        {
+            var damage = random.Next(status.PeriodicDamageMinimum, status.PeriodicDamageMaximum + 1);
+            ReceiveDamage(damage);
+            var remaining = _statusDurations.GetValueOrDefault(status.Id);
+            var expired = remaining is > 0 && remaining.Value - 1 <= 0;
+            if (remaining is > 0) _statusDurations[status.Id] = remaining.Value - 1;
+            if (expired) RemoveStatus(status.Id);
+            results.Add(new StatusTickResult(status.Name, status.Icon, damage, expired));
+        }
+        return results;
+    }
+
+    public BattleStartStatusResult ApplyBattleStartStatusEffects()
+    {
+        var vitalityLoss = 0;
+        var manaLoss = 0;
+        foreach (var status in _statuses)
+        {
+            var multiplier = NeedIsZero(status) ? status.ZeroNeedMultiplier : 1;
+            if (status.BattleStartVitalityLossPercent > 0 &&
+                (!string.Equals(status.Id, CharacterStatusIds.Hungry, StringComparison.OrdinalIgnoreCase) || FoodLevel == 0))
+                vitalityLoss += Math.Max(1, MaximumVitality * status.BattleStartVitalityLossPercent * multiplier / 100);
+            if (UsesMana && status.BattleStartManaLossPercent > 0)
+                manaLoss += Math.Max(1, MaximumMana * status.BattleStartManaLossPercent * multiplier / 100);
+        }
+        vitalityLoss = Math.Min(CurrentVitality, vitalityLoss);
+        manaLoss = Math.Min(CurrentMana, manaLoss);
+        ReceiveDamage(vitalityLoss);
+        SpendMana(manaLoss);
+        return new BattleStartStatusResult(vitalityLoss, manaLoss);
+    }
+
+    public int StatusInitiativePenalty => StatusPenalty(status => status.InitiativePenalty);
+    public int StatusHitPenalty => StatusPenalty(status => status.HitPenalty);
+    public int StatusPhysicalDamagePenalty => StatusPenalty(status => status.PhysicalDamagePenalty);
+
+    private int StatusPenalty(Func<StatusDefinition, int> selector) => _statuses.Sum(status =>
+        selector(status) * (NeedIsZero(status) ? status.ZeroNeedMultiplier : 1));
+
+    private bool NeedIsZero(StatusDefinition status) =>
+        string.Equals(status.Id, CharacterStatusIds.Hungry, StringComparison.OrdinalIgnoreCase) ? FoodLevel == 0 :
+        string.Equals(status.Id, CharacterStatusIds.Thirsty, StringComparison.OrdinalIgnoreCase) && WaterLevel == 0;
+
+    private int ApplyMaximumResourceModifier(int baseValue, Func<StatusDefinition, int> selector)
+    {
+        var result = baseValue;
+        foreach (var percentage in _statuses.Select(selector).Where(value => value != 100))
+            result = result * Math.Max(0, percentage) / 100;
+        return Math.Max(baseValue > 0 ? 1 : 0, result);
+    }
 
     public void SynchronizeNeedStatuses(StatusDefinition hungry, StatusDefinition thirsty)
     {
@@ -238,14 +314,30 @@ public sealed class LiveCharacter
     }
 
     public void ReceiveDamage(int amount) => CurrentVitality = Math.Max(0, CurrentVitality - Math.Max(0, amount));
-    public void RestoreVitality(int amount) => CurrentVitality = Math.Min(MaximumVitality, CurrentVitality + Math.Max(0, amount));
+    public void RestoreVitality(int amount)
+    {
+        var adjusted = ApplyRecoveryModifier(amount, status => status.VitalityRecoveryPercent);
+        CurrentVitality = Math.Min(MaximumVitality, CurrentVitality + adjusted);
+    }
     public bool SpendMana(int amount)
     {
         if (amount < 0 || CurrentMana < amount) return false;
         CurrentMana -= amount;
         return true;
     }
-    public void RestoreMana(int amount) => CurrentMana = Math.Min(MaximumMana, CurrentMana + Math.Max(0, amount));
+    public void RestoreMana(int amount)
+    {
+        var adjusted = ApplyRecoveryModifier(amount, status => status.ManaRecoveryPercent);
+        CurrentMana = Math.Min(MaximumMana, CurrentMana + adjusted);
+    }
+
+    private int ApplyRecoveryModifier(int amount, Func<StatusDefinition, int> selector)
+    {
+        var adjusted = Math.Max(0, amount);
+        foreach (var percentage in _statuses.Select(selector).Where(value => value != 100))
+            adjusted = adjusted * Math.Max(0, percentage) / 100;
+        return amount > 0 && adjusted == 0 ? 1 : adjusted;
+    }
 
     public void ConsumeFood(int amount) => FoodLevel = Math.Max(0, FoodLevel - Math.Max(0, amount));
     public void ConsumeWater(int amount) => WaterLevel = Math.Max(0, WaterLevel - Math.Max(0, amount));
@@ -271,12 +363,14 @@ public sealed class LiveCharacter
             Level++;
             var vitality = random.Next(vitalityGrowth.Minimum, vitalityGrowth.Maximum + 1);
             var mana = UsesMana ? random.Next(manaGrowth.Minimum, manaGrowth.Maximum + 1) : 0;
-            MaximumVitality += vitality;
+            _maximumVitality += vitality;
             CurrentVitality += vitality;
-            MaximumMana += mana;
+            _maximumMana += mana;
             CurrentMana += mana;
             bonuses.Add(new LevelUpBonus(Level, vitality, mana));
         }
+        CurrentVitality = Math.Min(CurrentVitality, MaximumVitality);
+        CurrentMana = Math.Min(CurrentMana, MaximumMana);
         return new LevelUpResult(amount, previousLevel, Level, bonuses);
     }
 
@@ -309,8 +403,8 @@ public sealed class LiveCharacter
 
     public void ApplySavedLevelGrowth(int vitalityIncrease, int manaIncrease)
     {
-        MaximumVitality += Math.Max(0, vitalityIncrease);
-        MaximumMana += UsesMana ? Math.Max(0, manaIncrease) : 0;
+        _maximumVitality += Math.Max(0, vitalityIncrease);
+        _maximumMana += UsesMana ? Math.Max(0, manaIncrease) : 0;
     }
 }
 

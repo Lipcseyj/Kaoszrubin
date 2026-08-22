@@ -21,10 +21,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var defender = enemy.Definition with { HitPoints = enemy.CurrentHitPoints };
         var context = new BattleContext(player);
         ApplyBattleStartPerks(player, onRound);
+        var statusCosts = player.ApplyBattleStartStatusEffects();
+        if (statusCosts.VitalityLost > 0 || statusCosts.ManaLost > 0)
+        {
+            var costs = new List<string>();
+            if (statusCosts.VitalityLost > 0) costs.Add($"-{statusCosts.VitalityLost} HP");
+            if (statusCosts.ManaLost > 0) costs.Add($"-{statusCosts.ManaLost} manna");
+            onRound(new BattleLogEntry($"Állapothatás a csata kezdetén: {string.Join(", ", costs)}.", BattleLogKind.Information));
+        }
         var perkInitiativeBonus = player.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
         var magicInitiativeBonus = player.GetMagicItemBonus(MagicItemEffect.Initiative);
         var initiativeBonus = perkInitiativeBonus + magicInitiativeBonus;
-        var playerInitiative = RollInitiative(player.Abilities.Dexterity + initiativeBonus);
+        var playerInitiative = RollInitiative(player.Abilities.Dexterity + initiativeBonus - player.StatusInitiativePenalty);
         var enemyInitiativeBonus = MonsterAbilityValue(defender, MonsterAbilityEffect.InitiativeBonus);
         var enemyInitiative = RollInitiative((defender.Speed ?? 1) + enemyInitiativeBonus);
         var playerAttacks = playerInitiative.Total >= enemyInitiative.Total;
@@ -34,7 +42,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var perkText = initiativeNotes.Count > 0 ? $" [{string.Join(", ", initiativeNotes)}]" : string.Empty;
         var events = new List<string>
         {
-            $"Kezdeményezés: {player.Name} Ügy {player.Abilities.Dexterity}{perkText} {playerInitiative.ModifierText} = {playerInitiative.Total}; " +
+            $"Kezdeményezés: {player.Name} Ügy {player.Abilities.Dexterity}{perkText}" +
+            (player.StatusInitiativePenalty > 0 ? $" - állapot {player.StatusInitiativePenalty}" : string.Empty) +
+            $" {playerInitiative.ModifierText} = {playerInitiative.Total}; " +
             $"{enemy.Name} Gy {defender.Speed ?? 1}" + (enemyInitiativeBonus > 0 ? $" + képesség {enemyInitiativeBonus}" : string.Empty) +
             $" {enemyInitiative.ModifierText} = {enemyInitiative.Total}. {(playerAttacks ? player.Name : enemy.Name)} kezd."
         };
@@ -62,7 +72,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                         messages.Add($"Acélvihar: {extra.Message}");
                     }
                 }
-                message = $"{round}. kör — {player.Name} támadja {enemy.Name}-t. {string.Join(" ", messages)} {enemy.Name} HP: {defender.HitPoints}/{enemy.Definition.HitPoints}.";
+                var statusTicks = player.ApplyTurnEndStatusEffects(_random);
+                var statusText = statusTicks.Count == 0 ? string.Empty :
+                    $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
+                message = $"{round}. kör — {player.Name} támadja {enemy.Name}-t. {string.Join(" ", messages)} {enemy.Name} HP: {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
                 kind = BattleLogKind.PlayerAttack;
             }
             else
@@ -133,7 +146,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                                  defender.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase) ? 2 : 0;
         var hitBonus = (weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0) +
                        player.GetMagicItemBonus(MagicItemEffect.Hit) + blessedWeaponBonus;
-        var hit = HitRoll(player.Abilities.Dexterity, defender.Speed ?? 1, hitBonus, forcedHit);
+        var hit = HitRoll(player.Abilities.Dexterity, defender.Speed ?? 1, hitBonus - player.StatusHitPenalty, forcedHit);
         if (!hit.Hit)
         {
             context.ConsecutivePlayerHits = 0;
@@ -161,6 +174,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (context.AmbushAvailable) { multiplier *= 2; context.AmbushAvailable = false; notes.Add("Orvtámadás ×2"); }
         if (player.HasPerk(PerkIds.ThiefDeadlyAccuracy) && hit.NaturalRoll >= 18) { multiplier *= 3; notes.Add("Halálos pontosság ×3"); }
         damage *= multiplier;
+        var statusDamagePenalty = player.StatusPhysicalDamagePenalty;
+        damage = Math.Max(1, damage - statusDamagePenalty);
+        if (statusDamagePenalty > 0) notes.Add($"állapot -{statusDamagePenalty}");
         if (player.HasPerk(PerkIds.ThiefPoisoner))
         {
             var poison = Roll(new ValueRange(1, 6));

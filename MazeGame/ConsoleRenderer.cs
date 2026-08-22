@@ -543,7 +543,8 @@ public sealed class ConsoleRenderer
         var perkLines = FormatCompactListRows("Teh", character.Perks.Select(perk => perk.Name), 2);
         WriteSheetLine(2, perkLines[0], ConsoleColor.Magenta);
         WriteSheetLine(3, perkLines[1], ConsoleColor.Magenta);
-        WriteSheetLine(4, FormatCompactList("Áll", character.Statuses.Select(status => status.Name)), character.Statuses.Count > 0 ? ConsoleColor.Red : ConsoleColor.DarkGray);
+        WriteSheetLine(4, character.Statuses.Count == 0 ? "Áll: nincs" : $"Áll: {string.Join(' ', character.Statuses.Select(status => status.Icon))}",
+            character.Statuses.Count > 0 ? ConsoleColor.Red : ConsoleColor.DarkGray);
         WriteSheetLine(5, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
         WriteSheetLine(6, FormatExperience(character), ConsoleColor.Cyan);
         WriteSheetLine(7, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
