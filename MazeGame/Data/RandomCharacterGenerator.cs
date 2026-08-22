@@ -28,7 +28,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             var finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
             var eligibleClasses = _gameData.CharacterClasses.Where(candidate => finalAbilities.MeetsMinimum(candidate.MinimumAbilities)).ToList();
             if (eligibleClasses.Count == 0) continue;
-            var characterClass = eligibleClasses[_random.Next(eligibleClasses.Count)];
+            var characterClass = new CharacterClassDefinition("C004", "Tolvi", PrimaryAbilities.Zero, false, 0.8); /*eligibleClasses[_random.Next(eligibleClasses.Count)];*/
             var name = ChooseName(characterClass.Id, usedNames);
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
                 _random.Next(1, 16), _random.Next(1, 16), _gameData,

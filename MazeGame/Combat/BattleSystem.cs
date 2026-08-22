@@ -77,13 +77,15 @@ public sealed class BattleSystem(Random random)
         {
             var before = player.CurrentVitality;
             player.RestoreVitality(10);
-            onRound(new BattleLogEntry($"Szent eskü: +{player.CurrentVitality - before} HP.", BattleLogKind.Information));
+            var restored = player.CurrentVitality - before;
+            if (restored > 0) onRound(new BattleLogEntry($"Szent eskü: +{restored} HP.", BattleLogKind.Information));
         }
         if (player.HasPerk(PerkIds.PriestFaithSource))
         {
             var before = player.CurrentMana;
             player.RestoreMana(5);
-            onRound(new BattleLogEntry($"Hitforrás: +{player.CurrentMana - before} manna.", BattleLogKind.Information));
+            var restored = player.CurrentMana - before;
+            if (restored > 0) onRound(new BattleLogEntry($"Hitforrás: +{restored} manna.", BattleLogKind.Information));
         }
     }
 
@@ -134,8 +136,9 @@ public sealed class BattleSystem(Random random)
         }
         context.ConsecutivePlayerHits++;
         var noteText = notes.Count == 0 ? string.Empty : $" [{string.Join(", ", notes)}]";
+        var perkBonusText = perkBonus == 0 ? string.Empty : $" + tehetség {perkBonus}";
         return AttackResult.HitFor(damage,
-            $"találat: {hit.Description} → TALÁL; sebzés: alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus} + tehetség {perkBonus} - páncél {armor}, ×{multiplier} = {damage}.{noteText}");
+            $"találat: {hit.Description} → TALÁL; sebzés: alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText} - páncél {armor}, ×{multiplier} = {damage}.{noteText}");
     }
 
     private AttackResult EnemyAttack(EnemyDefinition attacker, LiveCharacter defender, BattleContext context)
@@ -166,8 +169,11 @@ public sealed class BattleSystem(Random random)
             defender.SpendMana(absorbed);
             damage -= absorbed;
         }
+        var perkDefenseText = perkDefense == 0 ? string.Empty : $" - tehetségvédelem {perkDefense}";
+        var reductionText = reduction == 0 ? string.Empty : $" - csökkentés {reduction}";
+        var manaShieldText = absorbed == 0 ? string.Empty : $" - mannapajzs {absorbed}";
         return AttackResult.HitFor(damage,
-            $"találat: {hit.Description} → TALÁL; sebzés: Erő {strength} + dobás {randomDamage} - páncél {armor} - pajzs {shield} - tehetségvédelem {perkDefense} - csökkentés {reduction} - mannapajzs {absorbed} = {damage}.");
+            $"találat: {hit.Description} → TALÁL; sebzés: Erő {strength} + dobás {randomDamage} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damage}.");
     }
 
     private int RollArmor(LiveCharacter defender)

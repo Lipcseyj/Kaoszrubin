@@ -234,9 +234,9 @@ A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbe
 
 Az NPC-ként vezérelt `LiveCharacter` nullable `NpcBehavior` tulajdonsága mentésre kerül. A vezetőnél inaktív. Generáláskor a barbár mindig `Aggressive`, a lovag mindig `Defensive`, a tolvaj mindig `Scout`, a pap és a mágus mindig `Cautious`; a harcos fele-fele eséllyel `Defensive` vagy `Aggressive`. Régi mentésből származó NPC alapértéke az első elhelyezéskor `Defensive`.
 
-A partitársak mozgása a `Game` meglévő egyszálú eseményciklusában fut. Minden avatár saját következő mozgási időpontot kap 550–950 ms közötti véletlen késleltetéssel; az induló késleltetésük is eltérő. Így nem egyszerre próbálják elfoglalni ugyanazokat a mezőket és nincs párhuzamos konzolrajzolás vagy versenyhelyzet.
+A partitársak mozgása a `Game` meglévő egyszálú eseményciklusában fut. Minden avatár saját következő mozgási időpontot kap: normál helyzetben 180–240 ms közötti kis véletlen eltéréssel lépnek; legalább öt mezős lemaradásnál 130–170 ms-ra és legalább nyolc mezőnél 90–120 ms-ra gyorsulnak. Az induló késleltetésük 80–240 ms között eltérő. Így nem egyszerre próbálják elfoglalni ugyanazokat a mezőket de nagy lemaradásból is gyorsan felzárkóznak.
 
-A játék legfeljebb a vezér utolsó 256 sikeres pozícióját tartja nyilván. A vezetőt követő NPC-k nem annak pillanatnyi X/Y-koordinátája köré választanak célmezőt: a parti sorrendje szerint egyre régebbi nyompontot céloznak és szélességi útkereséssel lépnek felé. Ettől kiskacsaszerű sorban követik a tényleges útvonalat és egy szűkületben nem ugyanarra a mezőre torlódnak. A speciális előremenő vagy ellenségre reagáló viselkedés után ugyanehhez a nyomvonalhoz térnek vissza.
+A játék legfeljebb a vezér utolsó 256 sikeres pozícióját tartja nyilván. A vezetőt követő NPC-k nem annak pillanatnyi X/Y-koordinátája köré választanak célmezőt: a parti sorrendje szerint nyompontot céloznak és szélességi útkereséssel lépnek felé. A sorrend legfeljebb egy további lépésnyi formációs késést okoz ezért a hátsó társ sem marad látványosan messzebb. A speciális előremenő vagy ellenségre reagáló viselkedés után ugyanehhez a nyomvonalhoz térnek vissza.
 
 - a defenzív társ legalább két vezérlépéssel korábbi nyompontot követ és így egy üres mezőt hagy közöttük; ötmezős rálátáson belüli szörny felé indul és mellé érve automatikusan megtámadja;
 - az agresszív társ az előre eső tágas mezőket keresi és nem lép a vezető előtti szűk folyosóba; ötmezős rálátáson belüli szörny felé indul és mellé érve automatikusan megtámadja;
@@ -317,6 +317,8 @@ A rendszer a két már felfedezett végpont közötti, legfeljebb háromcellás 
 ## Csata algoritmusa
 
 A csata automatikus váltott támadásokból áll. A vezér csatájában minden naplózott esemény után a játékosnak szóközzel kell továbblépnie; az NPC-csata megszakítás nélkül lefut és csak egy végeredmény-összefoglalót ír a naplóba. Nincs menekülés vagy harci akcióválasztás. Mindkét út ugyanazt a `BattleSystem` algoritmust és a játék közös `Random` példányát használja.
+
+A részletes vezéri csatanapló csak a ténylegesen érvényesülő nem nulla tehetségbónuszokat írja ki. A nulla gyógyítás/mannatöltés és a nulla támadó- vagy védelmi tehetségérték nem foglal helyet a naplóban.
 
 A defenzív és agresszív NPC a saját mozgási időpontjában aktívan megtámadja a szomszédos szörnyet. Bármely profil automatikusan visszaharcol akkor is ha egy szörny az ő mezőjére próbál lépni. NPC-győzelemkor a szörny holttestté válik. NPC-vereségkor a karakter 0 HP-val a partiban és a mentésben marad de térképi avatárja holttestté alakul és a következő pályákra sem kerül ki.
 

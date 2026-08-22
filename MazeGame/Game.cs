@@ -9,8 +9,9 @@ namespace MazeGame;
 public sealed class Game
 {
     private static readonly TimeSpan EnemyMoveInterval = TimeSpan.FromMilliseconds(700);
-    private const int MinimumPartyMoveDelayMilliseconds = 550;
-    private const int MaximumPartyMoveDelayMilliseconds = 950;
+    private const int MinimumPartyMoveDelayMilliseconds = 250;
+    private const int MaximumPartyMoveDelayMilliseconds = 300;
+    private const int CatchUpMoveDelayMilliseconds = 90;
     private const int VisionRange = 5;
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
@@ -372,9 +373,15 @@ public sealed class Game
         _battleStarted = false;
     }
 
-    private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from) =>
-        _nextPartyMoves[member] = from + TimeSpan.FromMilliseconds(
-            _random.Next(MinimumPartyMoveDelayMilliseconds, MaximumPartyMoveDelayMilliseconds + 1));
+    private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from)
+    {
+        var distance = Manhattan(member.Position, _player.Position);
+        var minimumDelay = distance >= 8 ? CatchUpMoveDelayMilliseconds :
+            distance >= 5 ? 130 : MinimumPartyMoveDelayMilliseconds;
+        var maximumDelay = distance >= 8 ? CatchUpMoveDelayMilliseconds + 30 :
+            distance >= 5 ? 170 : MaximumPartyMoveDelayMilliseconds;
+        _nextPartyMoves[member] = from + TimeSpan.FromMilliseconds(_random.Next(minimumDelay, maximumDelay + 1));
+    }
 
     private Position? ChoosePartyMemberStep(PartyMemberAvatar member)
     {
@@ -419,7 +426,8 @@ public sealed class Game
         if (_leaderTrail.Count == 0) return null;
         var partyOrder = Enumerable.Range(0, _maze.PartyMembers.Count)
             .FirstOrDefault(index => _maze.PartyMembers[index] == member);
-        var targetIndex = Math.Max(0, _leaderTrail.Count - 1 - minimumLag - partyOrder);
+        var formationLag = Math.Min(1, partyOrder);
+        var targetIndex = Math.Max(0, _leaderTrail.Count - 1 - minimumLag - formationLag);
         for (var index = targetIndex; index >= 0; index--)
         {
             var target = _leaderTrail[index];
@@ -759,7 +767,7 @@ public sealed class Game
             if (companions[index].NpcBehavior is null) companions[index].SetNpcBehavior(NpcBehavior.Defensive);
             var avatar = new PartyMemberAvatar(positions[index], companions[index]);
             _maze.AddPartyMember(avatar);
-            _nextPartyMoves[avatar] = DateTime.UtcNow + TimeSpan.FromMilliseconds(_random.Next(100, MaximumPartyMoveDelayMilliseconds + 1));
+            _nextPartyMoves[avatar] = DateTime.UtcNow + TimeSpan.FromMilliseconds(_random.Next(80, MaximumPartyMoveDelayMilliseconds + 1));
         }
     }
 
