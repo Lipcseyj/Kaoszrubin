@@ -9,7 +9,7 @@ namespace MazeGame;
 public sealed class Game
 {
     private static readonly TimeSpan EnemyMoveInterval = TimeSpan.FromMilliseconds(700);
-    private static readonly TimeSpan PartyMoveInterval = TimeSpan.FromMilliseconds(1500);
+    private static readonly TimeSpan PartyMoveInterval = TimeSpan.FromMilliseconds(750);
     private const int VisionRange = 5;
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
@@ -97,6 +97,11 @@ public sealed class Game
                     if (IsFillPartyShortcut(keyInfo))
                     {
                         FillPartyForDevelopment();
+                        continue;
+                    }
+                    if (IsAddLevelOnePartyMemberShortcut(keyInfo))
+                    {
+                        AddLevelOnePartyMemberForDevelopment();
                         continue;
                     }
 
@@ -201,6 +206,11 @@ public sealed class Game
     private void InspectSelectedInventoryItem()
     {
         var slot = _renderer.GetSelectedInventorySlot();
+        if (slot is null && _renderer.GetSelectedPartyMember() is { } partyMember)
+        {
+            _renderer.DrawInventoryMessage($"{partyMember.Name} — mozgásprofil: {NpcBehaviorName(partyMember.NpcBehavior)}.", partyMember.Color);
+            return;
+        }
         var item = slot is { } selected ? selected.Character.GetInventoryItem(selected.Kind, selected.Index) : null;
         if (item is null) { _renderer.DrawInventoryMessage("A kijelölt helyen nincs megvizsgálható tárgy.", ConsoleColor.DarkYellow); return; }
 
@@ -215,6 +225,15 @@ public sealed class Game
         var description = string.IsNullOrWhiteSpace(item.Description) ? "Nincs jellemzés." : item.Description;
         _renderer.DrawInventoryMessage($"{item.Name} [{item.Id}] — {details}. Jellemzés: {description}", ConsoleColor.Cyan);
     }
+
+    private static string NpcBehaviorName(NpcBehavior? behavior) => behavior switch
+    {
+        NpcBehavior.Defensive => "Defenzív",
+        NpcBehavior.Aggressive => "Aggresszív",
+        NpcBehavior.Scout => "Felderítő",
+        NpcBehavior.Cautious => "Óvatos",
+        _ => "inaktív"
+    };
 
     private void GrabOrPlaceInventoryItem()
     {
@@ -313,6 +332,12 @@ public sealed class Game
             return FindNextStep(member, FreeNeighborsOf(visibleEnemy.Position));
         }
 
+        if (behavior == NpcBehavior.Defensive && visibleEnemy is not null)
+        {
+            if (Manhattan(member.Position, visibleEnemy.Position) == 1) return null;
+            return FindNextStep(member, FreeNeighborsOf(visibleEnemy.Position));
+        }
+
         if (behavior == NpcBehavior.Scout)
         {
             if (visibleEnemy is not null)
@@ -321,17 +346,33 @@ public sealed class Game
                 ?? FollowLeader(member, stopDistance: 2);
         }
 
+        if (behavior == NpcBehavior.Cautious)
+            return ChooseBehindStep(member);
+
         if (behavior == NpcBehavior.Aggressive)
             return ChooseForwardStep(member, maximumLeaderDistance: 3, maximumSearchDistance: 4, avoidNarrowFront: true)
                 ?? FollowLeader(member, stopDistance: 1);
 
-        return FollowLeader(member, stopDistance: 1);
+        return KeepLeaderDistance(member, preferredDistance: 2);
     }
 
     private Position? FollowLeader(PartyMemberAvatar member, int stopDistance)
     {
         if (Manhattan(member.Position, _player.Position) <= stopDistance) return null;
         return FindNextStep(member, FreePositionsNear(_player.Position, stopDistance));
+    }
+
+    private Position? KeepLeaderDistance(PartyMemberAvatar member, int preferredDistance)
+    {
+        var distance = Manhattan(member.Position, _player.Position);
+        if (distance == preferredDistance) return null;
+        if (distance > preferredDistance)
+            return FindNextStep(member, FreePositionsAtDistance(_player.Position, preferredDistance));
+
+        var retreatTargets = FindReachablePositions(member, 3)
+            .Where(entry => Manhattan(entry.Position, _player.Position) == preferredDistance)
+            .Select(entry => entry.Position);
+        return FindNextStep(member, retreatTargets);
     }
 
     private Position? ChooseForwardStep(PartyMemberAvatar member, int maximumLeaderDistance, int maximumSearchDistance, bool avoidNarrowFront)
@@ -355,6 +396,31 @@ public sealed class Game
         if (avoidNarrowFront && step is { } narrowStep && IsAheadOfLeader(narrowStep) && CountWalkableNeighbors(narrowStep) <= 2)
             return null;
         return step;
+    }
+
+    private Position? ChooseBehindStep(PartyMemberAvatar member)
+    {
+        var forward = DirectionOffset(_leaderFacing);
+        var currentBehind = -((member.Position.X - _player.Position.X) * forward.X +
+                              (member.Position.Y - _player.Position.Y) * forward.Y);
+        var currentDistance = Manhattan(member.Position, _player.Position);
+        if (currentBehind >= 2 && currentDistance is >= 2 and <= 4) return null;
+
+        var target = FindReachablePositions(member, 8)
+            .Select(entry => new
+            {
+                entry.Position,
+                entry.Distance,
+                Behind = -((entry.Position.X - _player.Position.X) * forward.X +
+                           (entry.Position.Y - _player.Position.Y) * forward.Y),
+                LeaderDistance = Manhattan(entry.Position, _player.Position)
+            })
+            .Where(entry => entry.Behind >= 2 && entry.LeaderDistance is >= 2 and <= 4)
+            .OrderBy(entry => Math.Abs(entry.Behind - 2))
+            .ThenBy(entry => entry.LeaderDistance)
+            .ThenBy(entry => entry.Distance)
+            .FirstOrDefault();
+        return target is null ? null : FindNextStep(member, [target.Position]);
     }
 
     private Position? FindNextStep(PartyMemberAvatar member, IEnumerable<Position> targetPositions)
@@ -414,6 +480,13 @@ public sealed class Game
         Enumerable.Range(-distance, distance * 2 + 1)
             .SelectMany(dx => Enumerable.Range(-distance, distance * 2 + 1).Select(dy => new Position(origin.X + dx, origin.Y + dy)))
             .Where(position => Manhattan(position, origin) > 0 && Manhattan(position, origin) <= distance)
+            .Where(position => _maze.IsWalkable(position) && position != _player.Position &&
+                               (_maze.GetObjectAt(position) is null or GroundItemPile or PartyMemberAvatar));
+
+    private IEnumerable<Position> FreePositionsAtDistance(Position origin, int distance) =>
+        Enumerable.Range(-distance, distance * 2 + 1)
+            .SelectMany(dx => Enumerable.Range(-distance, distance * 2 + 1).Select(dy => new Position(origin.X + dx, origin.Y + dy)))
+            .Where(position => Manhattan(position, origin) == distance)
             .Where(position => _maze.IsWalkable(position) && position != _player.Position &&
                                (_maze.GetObjectAt(position) is null or GroundItemPile or PartyMemberAvatar));
 
@@ -611,6 +684,10 @@ public sealed class Game
         keyInfo.Key == ConsoleKey.Y &&
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
 
+    private static bool IsAddLevelOnePartyMemberShortcut(ConsoleKeyInfo keyInfo) =>
+        (keyInfo.Key is ConsoleKey.Oem102 or ConsoleKey.Oem8 || keyInfo.KeyChar is 'í' or 'Í') &&
+        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source);
 
     private void FillPartyForDevelopment()
@@ -633,6 +710,25 @@ public sealed class Game
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawDeveloperMessage("Fejlesztői mód: a parti véletlen társakkal feltöltve (4/4).");
+    }
+
+    private void AddLevelOnePartyMemberForDevelopment()
+    {
+        if (CharacterRoster.Party.Members.Count >= Party.MaximumSize)
+        {
+            _renderer.DrawDeveloperMessage("Fejlesztői mód: a parti már teljes (4/4). ");
+            return;
+        }
+
+        var generator = new RandomCharacterGenerator(_gameData, _random);
+        var member = generator.CreateLevelOne(CharacterRoster.Characters.Select(character => character.Name).ToList());
+        CharacterRoster.Add(member);
+        CharacterRoster.Party.Add(member);
+        PlacePartyMembersNear(_player.Position);
+        foreach (var avatar in _maze.PartyMembers) _fogOfWar.RevealFrom(_maze, avatar.Position);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawDeveloperMessage($"Fejlesztői mód: {member.Name} ({member.CharacterClass.Name}) 1. szinten csatlakozott. Profil: {NpcBehaviorName(member.NpcBehavior)}.");
     }
 
     private void PlacePartyMembersNear(Position origin)

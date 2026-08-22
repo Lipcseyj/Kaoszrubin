@@ -12,6 +12,15 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
 
     public LiveCharacter Create(IReadOnlyCollection<string> usedNames)
     {
+        var character = CreateLevelOne(usedNames);
+        RaiseToRandomLevel(character);
+        AddRandomPerks(character);
+        FillRandomEquipment(character);
+        return character;
+    }
+
+    public LiveCharacter CreateLevelOne(IReadOnlyCollection<string> usedNames)
+    {
         for (var attempt = 0; attempt < 2_000; attempt++)
         {
             var race = _gameData.Races[_random.Next(_gameData.Races.Count)];
@@ -24,14 +33,21 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
                 _random.Next(1, 16), _random.Next(1, 16), _gameData,
                 CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)]);
-            character.SetNpcBehavior(Enum.GetValues<NpcBehavior>()[_random.Next(Enum.GetValues<NpcBehavior>().Length)]);
-            RaiseToRandomLevel(character);
-            AddRandomPerks(character);
-            FillRandomEquipment(character);
+            character.SetNpcBehavior(BehaviorFor(characterClass.Id));
             return character;
         }
         throw new InvalidOperationException("A jelenlegi játékadatokból nem generálható véletlen partitárs.");
     }
+
+    private NpcBehavior BehaviorFor(string characterClassId) => characterClassId.ToUpperInvariant() switch
+    {
+        "C001" => _random.Next(2) == 0 ? NpcBehavior.Defensive : NpcBehavior.Aggressive,
+        "C002" => NpcBehavior.Aggressive,
+        "C003" => NpcBehavior.Defensive,
+        "C004" => NpcBehavior.Scout,
+        "C005" or "C006" => NpcBehavior.Cautious,
+        _ => NpcBehavior.Defensive
+    };
 
     private string ChooseName(string characterClassId, IReadOnlyCollection<string> usedNames)
     {

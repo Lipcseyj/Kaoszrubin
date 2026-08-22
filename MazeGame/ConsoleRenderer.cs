@@ -384,6 +384,12 @@ public sealed class ConsoleRenderer
             : null;
     }
 
+    public LiveCharacter? GetSelectedPartyMember()
+    {
+        if (_activeSheetSelection is not { Kind: SheetSelectionKind.PartyMember } selection) return null;
+        return _party.Members.Skip(1).ElementAtOrDefault(selection.Index);
+    }
+
     public void RefreshInventoryRows()
     {
         if (_displayedCharacter is not null) DrawSelectableCharacterSheetRows(_displayedCharacter);

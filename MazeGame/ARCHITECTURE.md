@@ -232,13 +232,14 @@ A jelenlegi játékmenetben a vezető harcol, kap XP-t, vesz fel aranyat és fog
 
 A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbetűje: `H`, `B`, `L`, `T`, `P` vagy `M`. A jel a karakter saját színével rajzolódik. A társak minden új pályán szélességi kereséssel a vezetőhöz legközelebbi üres, járható cellákra kerülnek. Foglalják a mezőjüket az ellenfelek és a vezető elől; egymásra vagy szörnyre nem lépnek és zárt ajtón nem haladnak át.
 
-Az NPC-ként vezérelt `LiveCharacter` nullable `NpcBehavior` tulajdonsága mentésre kerül. A vezetőnél inaktív; a véletlenül létrehozott társak egyenlő eséllyel `Defensive`, `Aggressive` vagy `Scout` profilt kapnak. Régi mentésből származó NPC alapértéke az első elhelyezéskor `Defensive`.
+Az NPC-ként vezérelt `LiveCharacter` nullable `NpcBehavior` tulajdonsága mentésre kerül. A vezetőnél inaktív. Generáláskor a barbár mindig `Aggressive`, a lovag mindig `Defensive`, a tolvaj mindig `Scout`, a pap és a mágus mindig `Cautious`; a harcos fele-fele eséllyel `Defensive` vagy `Aggressive`. Régi mentésből származó NPC alapértéke az első elhelyezéskor `Defensive`.
 
-A partitársak mozgása 1.5 másodperces tickkel fut a `Game` meglévő egyszálú eseményciklusában. Ez időzített viselkedést ad anélkül, hogy párhuzamos konzolrajzolás vagy versenyhelyzet keletkezne. Minden tickben szélességi útkeresés választ legfeljebb egy lépést:
+A partitársak mozgása 0.75 másodperces tickkel fut a `Game` meglévő egyszálú eseményciklusában. Ez időzített viselkedést ad anélkül, hogy párhuzamos konzolrajzolás vagy versenyhelyzet keletkezne. Minden tickben szélességi útkeresés választ legfeljebb egy lépést:
 
-- a defenzív társ a vezető mellé zárkózik és ha már közvetlenül mellette — akár mögötte — áll akkor nem igazítja feleslegesen a helyét;
+- a defenzív társ két lépésnyi távolságot tart a vezetőtől és így egy üres mezőt hagy közöttük; ötmezős rálátáson belüli szörny esetén annak egyik szabad szomszédos mezője felé indul de még nem támad;
 - az agresszív társ az előre eső tágas mezőket keresi és nem lép a vezető előtti szűk folyosóba; ötmezős rálátáson belüli szörny esetén annak egyik szabad szomszédos mezője felé indul de még nem támad;
 - a felderítő legfeljebb tíz mezőre halad a vezető előtt; ötmezős rálátáson belüli szörny észlelésekor a vezető kétmezős környezetébe vonul vissza.
+- az óvatos társ legalább két mezővel a vezető aktuális haladási iránya mögött marad; ellenség észlelésekor sem indul felé.
 
 Minden társ ugyanazzal az ötmezős és falak/ajtók által takart látótérszámítással hívja a `FogOfWar.RevealFrom` műveletet. A társ induló környezete azonnal láthatóvá válik és minden sikeres NPC-lépés csak az újonnan felfedett valamint az elhagyott/elfoglalt térképcellákat rajzolja újra.
 
@@ -252,6 +253,8 @@ Az inventory rögzített helyekből áll: két fegyverhely, egy páncélhely, h�
 
 Az `I` a kijelölt tárgy összes jelenleg ismert adatát az alsó üzenetnaplóba írja: név és stabil ID minden tárgynál; fegyvertípus és sebzés a fegyvereknél; védelem a páncéloknál; valamint a CSV-ből betöltött jellemzés. A fegyverekhez és páncélokhoz tartozó jellemzés a megfelelő szekció utolsó oszlopa; az általános tárgyaknál a harmadik oszlop.
 
+Ha a kijelölés egy partitárs sorára esik akkor az `I` a társ nevét és magyar mozgásprofilját írja az üzenetnaplóba.
+
 A `D` a kijelölt tárgyat a parti vezetőjének aktuális térképmezőjére dobja. A `GroundItemPile` egy pozíción tetszőleges számú tárgyat tárol, a térképen cián `◆` jel mutatja; a halom nem akadályozza a mozgást. A földi halmok a labirintusszint futásidejű állapotához tartoznak, ezért új pályán megszűnnek és jelenleg nem kerülnek karaktermentésbe.
 
 A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű négy főre tölti a partit. A `RandomCharacterGenerator` minden társhoz:
@@ -262,6 +265,8 @@ A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű négy főre tölti a partit
 - szintjének megfelelő eséllyel választ tehetségeket;
 - véletlen fegyvereket, páncélt, varázstárgyakat és hátizsáktartalmat ad.
 - véletlen NPC-mozgásprofilt rendel hozzá.
+
+A rejtett `Ctrl+Shift+Í` fejlesztői gyorsbillentyű — ha van szabad hely — pontosan egy új NPC-t ad a partihoz. A karakter 1. szintű marad és kizárólag az osztály `#Osztály kezdőfelszerelés` CSV-s szabálya szerinti alapfelszerelést kapja; véletlen magasabb szintet és extra felszerelést nem.
 
 ## Labirintusgenerálás
 
