@@ -360,7 +360,7 @@ teljesítési XP = BaseLevelCompletionExperience × teljesített pályaszám
 
 Ezt az összeget minden életben maradt partitag külön és teljes egészében megkapja; itt nem érvényes a harci 60/40-es XP-elosztás. Minden túlélő karakter saját osztálymódosítója és szintlépési HP-/mannadobása dolgozza fel a jutalmat. A vezető szintlépése a megszokott tehetségválasztási folyamatot is elindíthatja. A halott társak nem kapnak teljesítési XP-t.
 
-Jutalmazás után a parti a fogadóban pihen: kizárólag a túlélők aktuális HP-ja és mannája töltődik maximumra. A 0 HP-s társ halott marad; a pálya végén kikerül a partiból és a karakter-nyilvántartásból, tehát végleg elveszik. A középre igazított színes pályavége képernyő megmutatja a képletet és összeget, karakterenként az XP-t, szintváltozást és feltöltött erőforrásokat, továbbá külön megemlékezik az elvesztett társakról. Enter vagy Space nyitja meg a fogadó kereskedőjét; a piacról `Esc` indítja a következő pályát.
+Jutalmazás után a parti a fogadóban pihen: kizárólag a túlélők aktuális HP-ja és mannája töltődik maximumra. A 0 HP-s társ halott marad; a pálya végén kikerül a partiból és a karakter-nyilvántartásból, tehát végleg elveszik. A középre igazított színes pályavége képernyő megmutatja a képletet és összeget, karakterenként az XP-t, szintváltozást és feltöltött erőforrásokat, továbbá külön megemlékezik az elvesztett társakról. Enter vagy Space nyitja meg a fogadó kereskedőjét; a piacról `Esc` a toborzáshoz, onnan `Esc` a következő pályára visz.
 
 ### Fogadói kereskedés
 
@@ -373,6 +373,16 @@ A piac `←`/`→` vagy `Tab` billentyűvel vált a vásárlás és eladás köz
 A készlet a nem legendás tárgyak alapár szerint rendezett, fokozatosan feloldódó részéből készül. A teljesített pálya növekedésével nyolc újabb, jellemzően értékesebb tárgytípus kerülhet a jelöltek közé, a tényleges kínálat pedig pályánként egy hellyel nő, legfeljebb tizenkettőig. A súlyozott választás a feloldott készleten belül az értékesebb tárgyakat részesíti előnyben, így később több és jobb portéka jelenik meg anélkül, hogy az olcsó ellátmány teljesen eltűnne.
 
 Legendás tárgy külön ritka dobással kerülhet a fogadóba: az esély az első pálya után 1.5%, pályánként további 0.5 százalékponttal nő, és legfeljebb 8%. Egy látogatáskor legfeljebb egy Legendás ajánlat jelenik meg, az alapár 125–180%-áért. A választható Legendás készlet pályánként bővül, így korán csak az olcsóbb legendák kerülhetnek elő.
+
+### Fogadói toborzás
+
+A kereskedés után minden fogadólátogatáskor 1–3 zsoldos jelenik meg. A rendszer először ugyanennyi különböző osztályt választ, majd osztályonként addig dob fajt és képességeket, amíg a karakter teljesíti az adott osztály minimumait. A jelöltek neve a karakter-nyilvántartásban és az adott ajánlatban is egyedi, amíg az osztály névkészlete ezt lehetővé teszi.
+
+A vezérnél alacsonyabb szintű zsoldos ingyen csatlakozik. Azonos vagy magasabb szinten az alap felbérlési díj `zsoldos szintje × 100` arany, amelyre fogadólátogatásonként egyszer kisorsolt 50–150%-os szorzó kerül. Az ajánlati ár a toborzóképernyő használata közben nem változik. Ha nincs elég arany, a felvétel meghiúsul, és teljes parti esetén a régi társ kiválasztása és elvesztése sem történik meg.
+
+A zsoldos célpontszintje a partyvezér aktuális szintje körüli zárt ±3 tartományból készül, a játékadatokban elérhető szintekre szorítva. A karakter a szintlépés normál HP-/mannadobásait és a szintjéhez illő véletlen tehetségeket kapja. Alacsony szinten az osztály CSV-s kezdőfelszerelését viseli; a szint emelkedésével növekvő eséllyel annak nem legendás, mágikus továbbfejlesztéseit kaphatja meg. Hátizsákjában pontosan 1–3 véletlen használati tárgy van, például étel, ital, gyógyital, varázsital, ellenméreg, orvosság vagy kötés.
+
+Szabad partihely esetén az `Enter` azonnal felveszi a kijelölt zsoldost. Négyfős partinál előbb ki kell választani a lecserélendő, nem vezető társat. A lecserélt karakter kikerül a partiból és a központi karakter-nyilvántartásból, ezért végleg elveszik; a csere képernyője `Esc`-pel következmény nélkül megszakítható.
 
 A rejtett `Ctrl+Shift+E` fejlesztői gyorsbillentyű a partyvezért a kijárat melletti, járható és objektumtól mentes mezők közül a hozzá legközelebbire teleportálja. A teleport frissíti a vezér útvonalát és a látómezőt is; ha nincs megfelelő szabad mező, csak naplóüzenet jelenik meg.
 

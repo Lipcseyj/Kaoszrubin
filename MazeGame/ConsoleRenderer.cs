@@ -271,8 +271,67 @@ public sealed class ConsoleRenderer
         lines.Add((selectedItem is null ? (buying ? "Nincs több megvásárolható portéka." : "Nincs eladható tárgy a hátizsákokban.")
             : ClipMarketText($"ℹ️ {selectedItem.Description}", 94), ConsoleColor.DarkCyan));
         lines.Add((ClipMarketText(message, 94), ConsoleColor.Magenta));
-        lines.Add(("↑/↓ választás   ←/→ vétel–eladás   Enter üzlet   Esc tovább a következő pályára", ConsoleColor.White));
+        lines.Add(("↑/↓ választás   ←/→ vétel–eladás   Enter üzlet   Esc tovább a toborzáshoz", ConsoleColor.White));
         DrawCenteredFrame(100, lines);
+    }
+
+    public void DrawInnRecruitmentScreen(IReadOnlyList<LiveCharacter> candidates,
+        IReadOnlyDictionary<LiveCharacter, int> prices, int selectedIndex,
+        IReadOnlyList<LiveCharacter> party, int leaderGold, string message)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🏰🍺  A VÁNDORCSILLAG FOGADÓ ZSOLDOSAI  ⚔️✨", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ($"Parti: {party.Count}/{Party.MaximumSize} fő     💰 Arany: {leaderGold}", ConsoleColor.Cyan),
+            ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
+        };
+        for (var index = 0; index < candidates.Count; index++)
+        {
+            var candidate = candidates[index];
+            var selected = index == selectedIndex;
+            var mana = candidate.UsesMana ? $"  MP {candidate.MaximumMana}" : string.Empty;
+            var price = prices[candidate] == 0 ? "INGYEN" : $"{prices[candidate]} 🪙";
+            lines.Add(($"{(selected ? "▶" : " ")} {candidate.Name,-13}  {candidate.Race.Name,-10} {candidate.CharacterClass.Name,-10} L{candidate.Level,2}  HP {candidate.MaximumVitality}{mana}  {price}",
+                selected ? ConsoleColor.White : candidate.Color));
+        }
+        var shown = candidates[selectedIndex];
+        var weaponNames = shown.WeaponSlots.Where(item => item is not null).Select(item => item!.Name).ToList();
+        var weapons = weaponNames.Count == 0 ? "nincs" : string.Join(", ", weaponNames);
+        lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
+        lines.Add(($"Erő {shown.Abilities.Strength}  Ügy {shown.Abilities.Dexterity}  Egész {shown.Abilities.Health}  Int {shown.Abilities.Intelligence}", ConsoleColor.Cyan));
+        lines.Add(($"Fegyver: {weapons}  |  Páncél: {shown.Armor?.Name ?? "nincs"}", ConsoleColor.Gray));
+        lines.Add(($"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
+        lines.Add((ClipMarketText(message, 94), ConsoleColor.Magenta));
+        lines.Add((party.Count >= Party.MaximumSize
+            ? "↑/↓ választás   Enter felvétel és társ lecserélése   Esc következő pálya"
+            : "↑/↓ választás   Enter felvétel   Esc következő pálya", ConsoleColor.White));
+        DrawCenteredFrame(100, lines);
+    }
+
+    public void DrawInnReplacementScreen(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable,
+        int selectedIndex)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("⚠️  A PARTI MEGTELT  ⚠️", ConsoleColor.Yellow),
+            ($"{recruit.Name} ({recruit.CharacterClass.Name}, L{recruit.Level}) csak egy régi társ helyére léphet.", ConsoleColor.Cyan),
+            ("A lecserélt karakter végleg elveszik.", ConsoleColor.Red),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        for (var index = 0; index < replaceable.Count; index++)
+        {
+            var member = replaceable[index];
+            lines.Add(($"{(index == selectedIndex ? "▶" : " ")} {member.Name,-13} {member.CharacterClass.Name,-10} L{member.Level,2}  HP {member.CurrentVitality}/{member.MaximumVitality}",
+                index == selectedIndex ? ConsoleColor.White : member.Color));
+        }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("↑/↓ választás   Enter végleges csere   Esc mégse", ConsoleColor.White));
+        DrawCenteredFrame(90, lines);
     }
 
     private static string ItemCategoryIcon(IItemDefinition item) => item.Category switch

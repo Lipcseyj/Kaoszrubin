@@ -1,4 +1,5 @@
 using MazeGame.Domain.Characters;
+using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
 
 namespace MazeGame.Data;
@@ -39,6 +40,33 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         throw new InvalidOperationException("A jelenlegi játékadatokból nem generálható véletlen partitárs.");
     }
 
+    /// <summary>A fogadóban egy előre kiválasztott osztályú, a vezér szintjéhez igazított zsoldost készít.</summary>
+    public LiveCharacter CreateRecruit(CharacterClassDefinition characterClass, int leaderLevel,
+        IReadOnlyCollection<string> usedNames)
+    {
+        for (var attempt = 0; attempt < 2_000; attempt++)
+        {
+            var race = _gameData.Races[_random.Next(_gameData.Races.Count)];
+            var rolledAbilities = RollAbilities();
+            var finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
+            if (!finalAbilities.MeetsMinimum(characterClass.MinimumAbilities)) continue;
+
+            var character = LiveCharacterFactory.Create(ChooseName(characterClass.Id, usedNames), race,
+                characterClass, rolledAbilities, _random.Next(1, 16), _random.Next(1, 16), _gameData,
+                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)]);
+            character.SetNpcBehavior(BehaviorFor(characterClass.Id));
+            var maximumLevel = Math.Max(1, _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(1).Max());
+            var targetLevel = Math.Clamp(leaderLevel + _random.Next(-3, 4), 1, maximumLevel);
+            RaiseToLevel(character, targetLevel);
+            AddRandomPerks(character);
+            ImproveRecruitEquipment(character);
+            FillRecruitBackpack(character);
+            return character;
+        }
+
+        throw new InvalidOperationException($"A(z) {characterClass.Name} osztályhoz nem sikerült érvényes zsoldost generálni.");
+    }
+
     private NpcBehavior BehaviorFor(string characterClassId) => characterClassId.ToUpperInvariant() switch
     {
         "C001" => _random.Next(2) == 0 ? NpcBehavior.Defensive : NpcBehavior.Aggressive,
@@ -61,6 +89,11 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
     private void RaiseToRandomLevel(LiveCharacter character)
     {
         var targetLevel = _random.Next(2, 31);
+        RaiseToLevel(character, targetLevel);
+    }
+
+    private void RaiseToLevel(LiveCharacter character, int targetLevel)
+    {
         while (character.Level < targetLevel)
         {
             var needed = character.GetExperienceNeededForNextLevel(_gameData.ExperienceByLevel);
@@ -69,6 +102,40 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
                 _gameData.GetVitalityGrowth(character.Abilities.Health),
                 _gameData.GetManaGrowth(character.Abilities.Intelligence), _random);
         }
+    }
+
+    private void ImproveRecruitEquipment(LiveCharacter character)
+    {
+        var upgradeChance = Math.Clamp((character.Level - 3) * 0.06, 0, 0.75);
+        for (var slot = 0; slot < character.WeaponSlots.Count; slot++)
+        {
+            var current = character.WeaponSlots[slot];
+            if (current is null || _random.NextDouble() >= upgradeChance) continue;
+            var upgrades = _gameData.Weapons.Where(candidate =>
+                string.Equals(candidate.BaseWeaponId, current.Id, StringComparison.OrdinalIgnoreCase) &&
+                candidate.Rarity != ItemRarity.Legendary && candidate.MagicPower <= Math.Max(1, character.Level / 5) &&
+                candidate.CanBeEquippedBy(character.CharacterClass.Id)).ToList();
+            if (upgrades.Count > 0) character.EquipWeapon(slot, upgrades[_random.Next(upgrades.Count)]);
+        }
+
+        if (character.Armor is { } armor && _random.NextDouble() < upgradeChance)
+        {
+            var upgrades = _gameData.Armors.Where(candidate =>
+                string.Equals(candidate.BaseArmorId, armor.Id, StringComparison.OrdinalIgnoreCase) &&
+                candidate.Rarity != ItemRarity.Legendary && candidate.MagicPower <= Math.Max(1, character.Level / 5) &&
+                candidate.CanBeEquippedBy(character.CharacterClass.Id)).ToList();
+            if (upgrades.Count > 0) character.EquipArmor(upgrades[_random.Next(upgrades.Count)]);
+        }
+    }
+
+    private void FillRecruitBackpack(LiveCharacter character)
+    {
+        for (var index = 0; index < LiveCharacter.MaximumBackpackItemCount; index++)
+            character.SetInventoryItem(InventorySlotKind.Backpack, index, null);
+        var supplies = _gameData.Items.Where(item => item.Effect != ConsumableEffect.None).ToList();
+        var itemCount = _random.Next(1, 4);
+        for (var index = 0; index < itemCount && supplies.Count > 0; index++)
+            character.AddToBackpack(supplies[_random.Next(supplies.Count)]);
     }
 
     private void AddRandomPerks(LiveCharacter character)

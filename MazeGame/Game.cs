@@ -338,6 +338,7 @@ public sealed class Game
             var leaderResult = completion.Results.First(result => result.Character == SelectedCharacter).Experience;
             if (leaderResult.LeveledUp) ResolvePerkOffers(leaderResult);
             RunInnMarket(completedLevel);
+            RunInnRecruitment();
             _mazeLevel++;
             StartNewMaze();
             return;
@@ -1363,6 +1364,87 @@ public sealed class Game
         CharacterRoster.Party.Members.SelectMany(character => character.Backpack
             .Select((item, index) => item is null ? null : new InnSellOffer(character, index, item, buybackPrices[item.Id])))
             .Where(offer => offer is not null).Cast<InnSellOffer>().ToList();
+
+    private void RunInnRecruitment()
+    {
+        var generator = new RandomCharacterGenerator(_gameData, _random);
+        var candidateCount = _random.Next(1, 4);
+        var classes = _gameData.CharacterClasses.OrderBy(_ => _random.Next()).Take(candidateCount).ToList();
+        var usedNames = CharacterRoster.Characters.Select(character => character.Name).ToList();
+        var candidates = new List<LiveCharacter>();
+        foreach (var characterClass in classes)
+        {
+            var candidate = generator.CreateRecruit(characterClass, SelectedCharacter.Level,
+                usedNames.Concat(candidates.Select(character => character.Name)).ToList());
+            candidates.Add(candidate);
+        }
+        var recruitmentPrices = candidates.ToDictionary(candidate => candidate,
+            candidate => candidate.Level < SelectedCharacter.Level
+                ? 0
+                : Math.Max(1, candidate.Level * 100 * _random.Next(50, 151) / 100));
+
+        var selectedIndex = 0;
+        var message = "A fogadós bemutatja az utazásra kész zsoldosokat.";
+        while (candidates.Count > 0)
+        {
+            selectedIndex = Math.Clamp(selectedIndex, 0, candidates.Count - 1);
+            _renderer.DrawInnRecruitmentScreen(candidates, recruitmentPrices, selectedIndex,
+                CharacterRoster.Party.Members, SelectedCharacter.Gold, message);
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Escape) return;
+            if (key == ConsoleKey.UpArrow) { selectedIndex = (selectedIndex - 1 + candidates.Count) % candidates.Count; continue; }
+            if (key == ConsoleKey.DownArrow) { selectedIndex = (selectedIndex + 1) % candidates.Count; continue; }
+            if (key != ConsoleKey.Enter) continue;
+
+            var recruit = candidates[selectedIndex];
+            var price = recruitmentPrices[recruit];
+            if (SelectedCharacter.Gold < price)
+            {
+                message = $"🪙 Nincs elég aranyad: {price - SelectedCharacter.Gold} arany hiányzik {recruit.Name} felbérléséhez.";
+                continue;
+            }
+            LiveCharacter? replaced = null;
+            if (CharacterRoster.Party.Members.Count >= Party.MaximumSize)
+            {
+                var replaceable = CharacterRoster.Party.Members.Skip(1).ToList();
+                var replacementIndex = ChoosePartyMemberToReplace(recruit, replaceable);
+                if (replacementIndex is null)
+                {
+                    message = "A toborzást megszakítottad; választhatsz másik jelöltet.";
+                    continue;
+                }
+                replaced = replaceable[replacementIndex.Value];
+                CharacterRoster.Remove(replaced);
+            }
+
+            SelectedCharacter.SpendGold(price);
+            CharacterRoster.Add(recruit);
+            CharacterRoster.Party.Add(recruit);
+            candidates.RemoveAt(selectedIndex);
+            recruitmentPrices.Remove(recruit);
+            message = replaced is null
+                ? $"✅ {recruit.Name} csatlakozott a partihoz{FormatRecruitmentPricePaid(price)}."
+                : $"✅ {recruit.Name} átvette {replaced.Name} helyét{FormatRecruitmentPricePaid(price)}; a régi társ végleg távozott.";
+        }
+    }
+
+    private static string FormatRecruitmentPricePaid(int price) => price == 0
+        ? " ingyen"
+        : $" {price} aranyért";
+
+    private int? ChoosePartyMemberToReplace(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable)
+    {
+        var selectedIndex = 0;
+        while (true)
+        {
+            _renderer.DrawInnReplacementScreen(recruit, replaceable, selectedIndex);
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Escape) return null;
+            if (key == ConsoleKey.UpArrow) selectedIndex = (selectedIndex - 1 + replaceable.Count) % replaceable.Count;
+            else if (key == ConsoleKey.DownArrow) selectedIndex = (selectedIndex + 1) % replaceable.Count;
+            else if (key == ConsoleKey.Enter) return selectedIndex;
+        }
+    }
 
     private IReadOnlyList<IItemDefinition> AllTradableItems() => _gameData.Items.Cast<IItemDefinition>()
         .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems).ToList();
