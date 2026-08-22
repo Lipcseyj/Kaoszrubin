@@ -212,7 +212,7 @@ public sealed class MazeGenerator
     private DoorState RollDoorState()
     {
         var roll = _random.Next(100);
-        return roll < 20 ? DoorState.Locked : roll < 80 ? DoorState.Closed : DoorState.Open;
+        return roll < 80 ? DoorState.Locked : roll < 90 ? DoorState.Closed : DoorState.Open;
     }
 
     private static void BuildRoomShell(Maze maze, Position topLeft, int width, int height)

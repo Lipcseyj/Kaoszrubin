@@ -43,8 +43,8 @@ public static class MazeLevelConfigurations
         {
             Level = 1,
             DoubleWidthCorridorChance = 0.80,
-            RoomCount = new IntRange(3, 4),
-            RoomSize = new IntRange(2, 4),
+            RoomCount = new IntRange(10, 10), //3,4
+            RoomSize = new IntRange(4, 8),  //2,4
             TreasureChestCount = new IntRange(2, 3),
             TreasureGold = new IntRange(10, 50),
             EnemySpawns =
