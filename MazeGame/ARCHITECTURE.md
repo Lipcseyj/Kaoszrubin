@@ -144,7 +144,50 @@ Az ablak minden szintlépésénél 40% az esély a tehetségválasztás aktivál
 
 Ha egy régi mentésből származó karakter már túllépett egy tehetségablakon, de nincs abból a fokozatból tehetsége, a következő szintlépésekor garantáltan megkapja a kimaradt választást. Több szint egyidejű átlépése több tehetségválasztást is kiválthat.
 
-A tehetségek hatásai jelenleg még nincsenek bekötve a harcba vagy más játékrendszerekbe; a rendszer egyelőre a definíciót, a sorsolást, a választást és a mentést kezeli.
+Az állandó HP- és mannabónuszok a választás pillanatában az aktuális és maximális értéket is növelik. A mentés külön jelzi, hogy mely tehetségek egyszeri bónusza lett már alkalmazva; így a régi mentések megkapják a korábban még passzív tehetségeik bónuszát, de az újabb betöltések nem halmozzák azt többször.
+
+#### Tehetségek implementációs állapota
+
+| Osztály | Tehetség | Állapot | Megvalósított hatás |
+|---|---|---:|---|
+| Harcos | Első csapás | kész | +10 kezdeményezés |
+| Harcos | Robusztusság | kész | +10 maximális és aktuális HP választáskor |
+| Harcos | Fegyvermester | kész | +2 fegyveres találati próba |
+| Harcos | Rendíthetetlen | kész | találatonként 2 sebzéscsökkentés |
+| Harcos | Acélvihar | kész | sikeres első támadás után 35% eséllyel extra támadás |
+| Harcos | Utolsó erőd | kész | csatánként egyszer 1 HP-n túléli a halálos csapást |
+| Barbár | Vérszomj | kész | fél HP alatt +3 sebzés |
+| Barbár | Vastag bőr | kész | +8 HP választáskor és +1 védelem |
+| Barbár | Őrjöngés | kész | megszakítás nélküli találatonként halmozódó +1 sebzés |
+| Barbár | Fájdalomtűrés | kész | a 3 alatti végső sebzést lenullázza |
+| Barbár | Berserker düh | kész | fél HP alatt két támadás saját támadókörönként |
+| Barbár | Őserő | kész | +20 HP választáskor és +5 közelharci sebzés |
+| Lovag | Pajzsfal | kész | felszerelt pajzzsal további +2 védelem |
+| Lovag | Kihívás | kész | az ellenfél első támadása automatikusan kimarad |
+| Lovag | Páncélmester | kész | a páncéldobás legalább a tartomány felfelé kerekített átlaga |
+| Lovag | Szent eskü | kész | csata elején legfeljebb 10 HP gyógyulás |
+| Lovag | Őrangyal | kész | csatánként egyszer kivédi a halálos csapást és 25 HP-t gyógyít |
+| Lovag | Legyőzhetetlen | kész | +15 HP választáskor és találatonként 4 sebzéscsökkentés |
+| Tolvaj | Orvtámadás | kész | a csata első sikeres támadása kétszeres sebzésű |
+| Tolvaj | Kitérés | kész | találat után 15% eséllyel teljes elkerülés |
+| Tolvaj | Méregkeverő | kész | sikeres fegyveres támadáshoz +1d6 sebzés |
+| Tolvaj | Árnyéklépés | kész | sikeres kitérés után a következő támadás automatikusan talál |
+| Tolvaj | Halálos pontosság | kész | természetes 18–20 dobásnál háromszoros sebzés |
+| Tolvaj | Mestertolvaj | részleges | dupla ládaarany kész; ritka tárgydobás tárgyrendszerre vár |
+| Pap | Gyógyító kegyelem | várakozik | gyógyító varázsrendszer szükséges |
+| Pap | Áldott fegyver | várakozik | ellenfél-kategória és élőholt jelölés szükséges |
+| Pap | Szentély | kész | ellenséges támadásonként 20% eséllyel kimarad a támadás |
+| Pap | Hitforrás | kész | +12 manna választáskor és csata elején legfeljebb 5 manna visszatöltés |
+| Pap | Feltámadás | várakozik | játéknap- és feltámadási rendszer szükséges |
+| Pap | Isteni ítélet | várakozik | papi varázsrendszer szükséges |
+| Mágus | Arkán fókusz | várakozik | mágikus találati próba szükséges |
+| Mágus | Mannatartalék | kész | +15 maximális és aktuális manna választáskor |
+| Mágus | Elemi mester | várakozik | sebző varázsrendszer szükséges |
+| Mágus | Mágikus pajzs | kész | a beérkező sebzés felfelé kerekített negyedét manna nyeli el |
+| Mágus | Láncvarázslat | várakozik | varázslás szükséges |
+| Mágus | Főmágus | részleges | +25 manna kész; varázslatköltség-csökkentés varázsrendszerre vár |
+
+A csatában aktiválódó tehetségek bekerülnek a harci napló számításaiba és magyarázó szövegeibe. Az egyszer használható túlélési és első támadásos hatások minden csata elején új harci kontextust kapnak.
 
 ### Karakterállapotok
 

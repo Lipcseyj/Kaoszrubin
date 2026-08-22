@@ -69,7 +69,13 @@ public sealed class CharacterSaveService
         for (var index = 0; index < magicItemIds.Count; index++)
             character.AddMagicItem(FindSavedDefinition(_gameData.MagicItems, magicItemIds[index], saved.MagicItemNames.ElementAtOrDefault(index), "varázstárgy"));
         foreach (var item in saved.BackpackItems) character.AddToBackpack(ResolveItem(item));
-        foreach (var perkId in saved.PerkIds) character.AddPerk(_gameData.GetPerk(perkId));
+        foreach (var perkId in saved.PerkIds)
+        {
+            var perk = _gameData.GetPerk(perkId);
+            character.AddPerk(perk);
+            if (!saved.AppliedPerkBonusIds.Contains(perkId, StringComparer.OrdinalIgnoreCase))
+                character.ApplyPerkAcquisitionBonus(perk);
+        }
         foreach (var statusId in saved.StatusIds.Where(id => id is not CharacterStatusIds.Hungry and not CharacterStatusIds.Thirsty))
             character.AddStatus(_gameData.GetStatus(statusId));
         character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry), _gameData.GetStatus(CharacterStatusIds.Thirsty));
@@ -101,6 +107,7 @@ public sealed class CharacterSaveService
         MagicItemIds = character.MagicItems.Select(item => item.Id).ToList(),
         BackpackItems = character.Backpack.Select(item => new ItemSaveData(item.GetType().Name, item.Id)).ToList(),
         PerkIds = character.Perks.Select(perk => perk.Id).ToList(),
+        AppliedPerkBonusIds = character.Perks.Select(perk => perk.Id).ToList(),
         StatusIds = character.Statuses.Select(status => status.Id).ToList()
     };
 
@@ -154,6 +161,7 @@ public sealed class CharacterSaveService
         public List<string> MagicItemNames { get; init; } = [];
         public List<ItemSaveData> BackpackItems { get; init; } = [];
         public List<string> PerkIds { get; init; } = [];
+        public List<string> AppliedPerkBonusIds { get; init; } = [];
         public List<string> StatusIds { get; init; } = [];
     }
 

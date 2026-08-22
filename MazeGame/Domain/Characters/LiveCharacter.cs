@@ -85,6 +85,36 @@ public sealed class LiveCharacter
         return true;
     }
 
+    public bool HasPerk(string perkId) => _perks.Any(perk =>
+        string.Equals(perk.Id, perkId, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Egyszer, közvetlenül a tehetség kiválasztásakor alkalmazandó erőforrásbónusz.</summary>
+    public void ApplyPerkAcquisitionBonus(PerkDefinition perk)
+    {
+        var vitality = perk.Id switch
+        {
+            PerkIds.FighterRobustness => 10,
+            PerkIds.BarbarianThickSkin => 8,
+            PerkIds.BarbarianPrimalStrength => 20,
+            PerkIds.KnightInvincible => 15,
+            _ => 0
+        };
+        var mana = perk.Id switch
+        {
+            PerkIds.PriestFaithSource => 12,
+            PerkIds.MageManaReserve => 15,
+            PerkIds.MageArchmage => 25,
+            _ => 0
+        };
+        MaximumVitality += vitality;
+        CurrentVitality += vitality;
+        if (UsesMana)
+        {
+            MaximumMana += mana;
+            CurrentMana += mana;
+        }
+    }
+
     public bool AddStatus(StatusDefinition status)
     {
         if (_statuses.Any(existing => string.Equals(existing.Id, status.Id, StringComparison.OrdinalIgnoreCase))) return false;

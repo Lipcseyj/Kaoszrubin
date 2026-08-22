@@ -131,10 +131,11 @@ public sealed class Game
         var chest = _maze.GetTreasureChestAt(_player.Position);
         if (chest is not null)
         {
-            SelectedCharacter.AddGold(chest.GoldAmount);
+            var goldAmount = SelectedCharacter.HasPerk(PerkIds.ThiefMasterThief) ? chest.GoldAmount * 2 : chest.GoldAmount;
+            SelectedCharacter.AddGold(goldAmount);
             _maze.RemoveTreasureChest(chest);
             _renderer.RefreshCharacterSheet(SelectedCharacter);
-            _renderer.DrawTreasureCollected(chest.GoldAmount);
+            _renderer.DrawTreasureCollected(goldAmount);
         }
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
@@ -261,7 +262,8 @@ public sealed class Game
     {
         var offers = CreatePerkOffers(result);
         var selectedPerks = _renderer.DrawLevelUpScreen(SelectedCharacter, result, offers);
-        foreach (var perk in selectedPerks) SelectedCharacter.AddPerk(perk);
+        foreach (var perk in selectedPerks)
+            if (SelectedCharacter.AddPerk(perk)) SelectedCharacter.ApplyPerkAcquisitionBonus(perk);
     }
 
     private IReadOnlyList<PerkOffer> CreatePerkOffers(LevelUpResult result)
