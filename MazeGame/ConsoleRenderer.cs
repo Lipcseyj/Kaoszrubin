@@ -50,7 +50,7 @@ public sealed class ConsoleRenderer
         DrawPlayfield(maze, fogOfWar);
         DrawFrame();
         RefreshCharacterSheet(player.Character);
-        DrawBattleMessage("Találd meg a kijáratot: ⌂");
+        DrawBattleMessage($"{maze.LevelName} — találd meg a kijáratot: ⌂");
         DrawPlayer(player.Position);
     }
 
@@ -938,7 +938,7 @@ public sealed class ConsoleRenderer
 
         return maze.Tiles[position.X, position.Y] switch
         {
-            var tile when tile == Maze.Wall => ConsoleColor.DarkGray,
+            var tile when tile == maze.WallRune => maze.WallColor,
             var tile when tile == Maze.ExitMarker => ConsoleColor.Green,
             _ => ConsoleColor.Black
         };

@@ -421,7 +421,24 @@ Szabad partihely esetén az `Enter` azonnal felveszi a kijelölt zsoldost. Négy
 
 A rejtett `Ctrl+Shift+E` fejlesztői gyorsbillentyű a partyvezért a kijárat melletti, járható és objektumtól mentes mezők közül a hozzá legközelebbire teleportálja. A teleport frissíti a vezér útvonalát és a látómezőt is; ha nincs megfelelő szabad mező, csak naplóüzenet jelenik meg.
 
-Az 1–3. labirintusszint külön, találkozásalapú konfigurációval rendelkezik. A későbbi szintek fokozatosan növekvő szobaszámot és jutalmat, valamint erősségi szakaszonként cserélődő homogén, vegyes és vezércsoportokat kapnak. A találkozások továbbra is stabil ellenfél-ID-ket használnak, így a pályák összetétele kiszámíthatóan hangolható.
+Az első tíz labirintusszint külön, találkozásalapú konfigurációval rendelkezik. A 11. szinttől a rendszer fokozatosan növekvő szobaszámot és jutalmat, valamint erősségi szakaszonként cserélődő homogén, vegyes és vezércsoportokat képez. A találkozások stabil ellenfél-ID-ket használnak, így a pályák összetétele kiszámíthatóan hangolható.
+
+| Szint | Téma | Fal | Szín | Dupla folyosó esélye | Fő ellenfelek |
+|---:|---|:---:|---|---:|---|
+| 1 | Patkányjáratok | `█` | sötétszürke | 95% | patkányok, koboldok, goblinok |
+| 2 | Goblinüregek | `▓` | sötétzöld | 75% | koboldok, goblinok, farkasok |
+| 3 | Vadállatok odúi | `▒` | sötétsárga | 70% | goblinok, csontvázak, zombik, ork vezér |
+| 4 | A holtak katakombái | `▓` | sötétszürke | 82% | csontvázak, zombik, ghoul vezér |
+| 5 | A nagy csarnokok szintje | `▦` | sötétsárga | 20% | orkok, hobgoblinok, ogre vezér |
+| 6 | A mérgező barlang | `▒` | sötétcián | 88% | pókok, nyálkák, gyíkok, baziliszkuszok |
+| 7 | Az ork haditábor | `▓` | sötétpiros | 78% | orkok, hobgoblinok, bugbearek, sámánok |
+| 8 | Az elátkozott sírkamrák | `▦` | sötétmagenta | 92% | múmiák, ghoulok, wightok, éji banyák |
+| 9 | Az óriások erődje | `▩` | szürke | 12% | ogrék, trollok, ettinek, fagyóriás |
+| 10 | A sárkánykultusz szentélye | `▥` | piros | 80% | wyvernek, kimérák, ork sámánok, vörös sárkány |
+
+A `MazeLevelConfiguration` a fal egyetlen konzolcellás `Rune` karakterét, `ConsoleColor` színét és a pálya megjelenített nevét is tartalmazza. Ezek bekerülnek a `MazeGenerationSettings` és a futásidejű `Maze` objektumba. A járhatóság és látóvonal az adott példány `WallRune` értékét használja, nem egy rögzített `█` karaktert; a renderer az adott pálya falszínével rajzol. A fal karaktere, színe és pályanév a teljes játékmentés része, a régi mentések pedig `█`, sötétszürke és „Labirintus” alapértékkel tölthetők be.
+
+A `DoubleWidthCorridorChance` a legtöbb pályán 0,7–0,95 között marad. Tematikus kivétel a nagy csarnokok 0,20-as és az óriások erődjének 0,12-es értéke: ezekben ritkábbak a két cella széles összeköttetések, miközben a szobák jóval nagyobbak és számosabbak.
 
 ## Szörnyek erőssége és képességei
 

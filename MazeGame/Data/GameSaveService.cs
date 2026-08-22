@@ -83,6 +83,9 @@ public sealed class MazeSaveData
 {
     public int Width { get; set; }
     public int Height { get; set; }
+    public int WallCodePoint { get; set; }
+    public ConsoleColor WallColor { get; set; } = ConsoleColor.DarkGray;
+    public string LevelName { get; set; } = "Labirintus";
     public List<int> TileCodePoints { get; set; } = [];
     public Position Exit { get; set; }
     public Room? StartingRoom { get; set; }

@@ -55,7 +55,10 @@ public static class Encounters
 public sealed class MazeLevelConfiguration
 {
     public required int Level { get; init; }
+    public required string Name { get; init; }
     public double DoubleWidthCorridorChance { get; init; } = 0.80;
+    public System.Text.Rune WallRune { get; init; } = new('█');
+    public ConsoleColor WallColor { get; init; } = ConsoleColor.DarkGray;
     public required IntRange RoomCount { get; init; }
     public required IntRange RoomSize { get; init; }
     public required IntRange TreasureChestCount { get; init; }
@@ -70,7 +73,10 @@ public sealed class MazeLevelConfiguration
         MinimumRoomSize = RoomSize.Minimum,
         MaximumRoomSize = RoomSize.Maximum,
         TreasureChestCount = TreasureChestCount.Roll(random),
-        TreasureGoldRange = TreasureGold
+        TreasureGoldRange = TreasureGold,
+        WallRune = WallRune,
+        WallColor = WallColor,
+        LevelName = Name
     };
 }
 
@@ -81,6 +87,7 @@ public static class MazeLevelConfigurations
         {
             [1] = new()
             {
+                Name = "Patkányjáratok",
                 DoubleWidthCorridorChance = 0.95,
                 Level = 1,
                 RoomCount = Amount.Several.Range(),
@@ -101,6 +108,9 @@ public static class MazeLevelConfigurations
             },
             [2] = new()
             {
+                Name = "Goblinüregek",
+                WallRune = new('▓'),
+                WallColor = ConsoleColor.DarkGreen,
                 Level = 2,
                 DoubleWidthCorridorChance = 0.75,
                 RoomCount = Amount.Several.Range(),
@@ -121,6 +131,9 @@ public static class MazeLevelConfigurations
             },
             [3] = new()
             {
+                Name = "Vadállatok odúi",
+                WallRune = new('▒'),
+                WallColor = ConsoleColor.DarkYellow,
                 Level = 3,
                 DoubleWidthCorridorChance = 0.70,
                 RoomCount = Amount.Band.Range(),
@@ -138,29 +151,191 @@ public static class MazeLevelConfigurations
                     Encounters.Solo("E005", Amount.Few, EnemyMovementProfile.Patrol),
                     Encounters.Solo("E003", Amount.Few)
                 ]
+            },
+            [4] = new()
+            {
+                Level = 4,
+                Name = "A holtak katakombái",
+                DoubleWidthCorridorChance = 0.82,
+                WallRune = new('▓'),
+                WallColor = ConsoleColor.DarkGray,
+                RoomCount = Amount.Band.Range(),
+                RoomSize = new(4, 7),
+                TreasureChestCount = Amount.Several.Range(),
+                TreasureGold = new(120, 240),
+                RoomEncounters =
+                [
+                    Encounters.Same("E004", Amount.Several, Amount.Several),
+                    Encounters.Mixed("E006", Amount.Several, "E004", Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup("E033", "E004", Amount.One, Amount.Band)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo("E006", Amount.Few),
+                    Encounters.Solo("E033", Amount.Few, EnemyMovementProfile.Patrol)
+                ]
+            },
+            [5] = new()
+            {
+                Level = 5,
+                Name = "A nagy csarnokok szintje",
+                DoubleWidthCorridorChance = 0.20,
+                WallRune = new('▦'),
+                WallColor = ConsoleColor.DarkYellow,
+                RoomCount = Amount.Many.Range(),
+                RoomSize = new(7, 11),
+                TreasureChestCount = Amount.Band.Range(),
+                TreasureGold = new(180, 360),
+                RoomEncounters =
+                [
+                    Encounters.Same("E007", Amount.Several, Amount.Several),
+                    Encounters.Mixed("E008", Amount.Several, "E007", Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup("E012", "E007", Amount.One, Amount.Band)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo("E008", Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo("E010", Amount.Few)
+                ]
+            },
+            [6] = new()
+            {
+                Level = 6,
+                Name = "A mérgező barlang",
+                DoubleWidthCorridorChance = 0.88,
+                WallRune = new('▒'),
+                WallColor = ConsoleColor.DarkCyan,
+                RoomCount = Amount.Band.Range(),
+                RoomSize = new(4, 8),
+                TreasureChestCount = Amount.Several.Range(),
+                TreasureGold = new(240, 480),
+                RoomEncounters =
+                [
+                    Encounters.Same("E009", Amount.Several, Amount.Several),
+                    Encounters.Mixed("E027", Amount.Several, "E029", Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup("E034", "E009", Amount.Few, Amount.Several)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo("E026", Amount.Several),
+                    Encounters.Solo("E029", Amount.Few, EnemyMovementProfile.Patrol)
+                ]
+            },
+            [7] = new()
+            {
+                Level = 7,
+                Name = "Az ork haditábor",
+                DoubleWidthCorridorChance = 0.78,
+                WallRune = new('▓'),
+                WallColor = ConsoleColor.DarkRed,
+                RoomCount = Amount.Band.Range(),
+                RoomSize = new(5, 8),
+                TreasureChestCount = Amount.Several.Range(),
+                TreasureGold = new(320, 620),
+                RoomEncounters =
+                [
+                    Encounters.Same("E007", Amount.Several, Amount.Band),
+                    Encounters.Mixed("E008", Amount.Several, "E031", Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup("E035", "E007", Amount.Few, Amount.Band)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo("E031", Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo("E008", Amount.Few)
+                ]
+            },
+            [8] = new()
+            {
+                Level = 8,
+                Name = "Az elátkozott sírkamrák",
+                DoubleWidthCorridorChance = 0.92,
+                WallRune = new('▦'),
+                WallColor = ConsoleColor.DarkMagenta,
+                RoomCount = Amount.Band.Range(),
+                RoomSize = new(4, 8),
+                TreasureChestCount = Amount.Band.Range(),
+                TreasureGold = new(420, 800),
+                RoomEncounters =
+                [
+                    Encounters.Same("E015", Amount.Several, Amount.Several),
+                    Encounters.Mixed("E037", Amount.Several, "E033", Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup("E040", "E015", Amount.Few, Amount.Several)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo("E037", Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo("E033", Amount.Several)
+                ]
+            },
+            [9] = new()
+            {
+                Level = 9,
+                Name = "Az óriások erődje",
+                DoubleWidthCorridorChance = 0.12,
+                WallRune = new('▩'),
+                WallColor = ConsoleColor.Gray,
+                RoomCount = Amount.Band.Range(),
+                RoomSize = new(7, 11),
+                TreasureChestCount = Amount.Band.Range(),
+                TreasureGold = new(560, 1050),
+                RoomEncounters =
+                [
+                    Encounters.Same("E012", Amount.Few, Amount.Several),
+                    Encounters.Mixed("E013", Amount.Few, "E036", Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup("E041", "E012", Amount.One, Amount.Several)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo("E036", Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo("E014", Amount.Few)
+                ]
+            },
+            [10] = new()
+            {
+                Level = 10,
+                Name = "A sárkánykultusz szentélye",
+                DoubleWidthCorridorChance = 0.80,
+                WallRune = new('▥'),
+                WallColor = ConsoleColor.Red,
+                RoomCount = Amount.Band.Range(),
+                RoomSize = new(5, 9),
+                TreasureChestCount = Amount.Band.Range(),
+                TreasureGold = new(750, 1400),
+                RoomEncounters =
+                [
+                    Encounters.Same("E038", Amount.Several, Amount.Several),
+                    Encounters.Mixed("E017", Amount.Few, "E035", Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup("E021", "E035", Amount.One, Amount.Band)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo("E038", Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo("E017", Amount.Few)
+                ]
             }
         };
 
     public static MazeLevelConfiguration Get(int level)
     {
         if (Configurations.TryGetValue(level, out var configuration)) return configuration;
-        var increase = level - 3;
-        var tier = Math.Clamp(2 + increase / 3, 2, 5);
+        var increase = level - 10;
+        var tier = Math.Clamp(4 + increase / 3, 4, 5);
         var (leader, follower, peer) = tier switch
         {
-            2 => ("E008", "E003", "E009"),
-            3 => ("E014", "E007", "E013"),
             4 => ("E018", "E012", "E017"),
             _ => ("E047", "E023", "E046")
         };
         return new MazeLevelConfiguration
         {
             Level = level,
-            DoubleWidthCorridorChance = Math.Max(0.50, 0.70 - increase * 0.03),
-            RoomCount = new(6 + increase / 2, 9 + increase / 2),
-            RoomSize = new(4, Math.Min(9, 7 + increase / 3)),
-            TreasureChestCount = new(4 + increase, 6 + increase),
-            TreasureGold = new(70 + increase * 35, 150 + increase * 60),
+            Name = $"A mélység {level}. szintje",
+            WallRune = level % 2 == 0 ? new('▓') : new('█'),
+            WallColor = level % 2 == 0 ? ConsoleColor.DarkMagenta : ConsoleColor.DarkGray,
+            DoubleWidthCorridorChance = Math.Max(0.60, 0.80 - increase * 0.02),
+            RoomCount = new(8 + increase / 2, 11 + increase / 2),
+            RoomSize = new(5, Math.Min(10, 8 + increase / 3)),
+            TreasureChestCount = new(7 + increase, 10 + increase),
+            TreasureGold = new(750 + increase * 80, 1400 + increase * 130),
             RoomEncounters =
             [
                 Encounters.Same(peer, Amount.Few, Amount.Several),

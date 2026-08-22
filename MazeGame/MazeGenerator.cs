@@ -25,7 +25,7 @@ public sealed class MazeGenerator
 
     public Maze Create(int width, int height)
     {
-        var maze = new Maze(width, height);
+        var maze = new Maze(width, height, _settings.WallRune, _settings.WallColor, _settings.LevelName);
         var gridWidth = (width - 3) / GridStep + 1;
         var gridHeight = (height - 3) / GridStep + 1;
         var visited = new bool[gridWidth, gridHeight];
@@ -320,7 +320,7 @@ public sealed class MazeGenerator
         for (var x = topLeft.X - 1; x <= topLeft.X + width; x++)
         {
             var isInterior = x >= topLeft.X && x < topLeft.X + width && y >= topLeft.Y && y < topLeft.Y + height;
-            if (!isInterior) maze.SetTile(new Position(x, y), Maze.Wall);
+            if (!isInterior) maze.SetTile(new Position(x, y), maze.WallRune);
         }
     }
 

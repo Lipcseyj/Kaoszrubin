@@ -31,18 +31,25 @@ public sealed class Maze
     public int Height { get; }
     public Position Entrance { get; }
     public Position Exit { get; private set; }
+    public Rune WallRune { get; }
+    public ConsoleColor WallColor { get; }
+    public string LevelName { get; }
 
-    public Maze(int width, int height)
+    public Maze(int width, int height, Rune? wallRune = null, ConsoleColor wallColor = ConsoleColor.DarkGray,
+        string? levelName = null)
     {
         if (width < 5 || height < 5)
             throw new ArgumentException("A labirintus méretei legalább 5-ösek legyenek.");
 
         Width = width;
         Height = height;
+        WallRune = wallRune ?? Wall;
+        WallColor = wallColor;
+        LevelName = string.IsNullOrWhiteSpace(levelName) ? "Labirintus" : levelName;
         Tiles = new Rune[width, height];
         for (var y = 0; y < height; y++)
         for (var x = 0; x < width; x++)
-            Tiles[x, y] = Wall;
+            Tiles[x, y] = WallRune;
 
         // A garantált 3×3-as kezdőterem középső cellája; így a vezető nem indul fal mellett.
         Entrance = new Position(2, 2);
@@ -97,7 +104,7 @@ public sealed class Maze
 
     public bool BlocksSight(Position position) => _doors.TryGetValue(position, out var door)
         ? door.BlocksSight
-        : Tiles[position.X, position.Y] == Wall;
+        : Tiles[position.X, position.Y] == WallRune;
 
     public void AddRoom(Room room) => _rooms.Add(room);
 

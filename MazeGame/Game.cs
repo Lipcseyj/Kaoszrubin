@@ -221,6 +221,9 @@ public sealed class Game
         {
             Width = _maze.Width,
             Height = _maze.Height,
+            WallCodePoint = _maze.WallRune.Value,
+            WallColor = _maze.WallColor,
+            LevelName = _maze.LevelName,
             Exit = _maze.Exit,
             StartingRoom = _maze.StartingRoom,
             Rooms = _maze.Rooms.Where(room => room != _maze.StartingRoom).ToList(),
@@ -265,7 +268,11 @@ public sealed class Game
         if (state.Maze.TileCodePoints.Count != state.Maze.Width * state.Maze.Height)
             throw new InvalidOperationException("A mentett térképrács mérete érvénytelen.");
         _mazeLevel = Math.Max(1, state.MazeLevel);
-        _maze = new Maze(state.Maze.Width, state.Maze.Height);
+        var wallRune = state.Maze.WallCodePoint > 0
+            ? new System.Text.Rune(state.Maze.WallCodePoint)
+            : Maze.Wall;
+        _maze = new Maze(state.Maze.Width, state.Maze.Height, wallRune,
+            state.Maze.WallColor, state.Maze.LevelName);
         var tileIndex = 0;
         for (var y = 0; y < _maze.Height; y++)
         for (var x = 0; x < _maze.Width; x++) _maze.SetTile(new Position(x, y), new System.Text.Rune(state.Maze.TileCodePoints[tileIndex++]));
