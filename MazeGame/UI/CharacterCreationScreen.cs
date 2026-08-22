@@ -39,7 +39,10 @@ public sealed class CharacterCreationScreen
             var characterClass = ChooseClass(finalAbilities);
             if (characterClass is null) continue;
 
-            var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities, vitalityBonus, manaBonus, _gameData);
+            var color = ChooseColor();
+            if (color is null) continue;
+
+            var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities, vitalityBonus, manaBonus, _gameData, color.Value);
             _characterRoster.Add(character);
             ShowCreatedCharacter(character);
             return;
@@ -63,12 +66,46 @@ public sealed class CharacterCreationScreen
                 if (characterClass is null) continue;
 
                 return LiveCharacterFactory.Create(nameFactory(characterClass), race, characterClass, rolledAbilities,
-                    _random.Next(1, 16), _random.Next(1, 16), _gameData);
+                    _random.Next(1, 16), _random.Next(1, 16), _gameData, RandomCharacterColor());
             }
         }
 
         throw new InvalidOperationException("A jelenlegi faj- és osztályadatokból nem generálható érvényes karakter.");
     }
+
+    private ConsoleColor? ChooseColor()
+    {
+        var colors = CharacterColors.Selectable;
+        var selectedIndex = 0;
+        while (true)
+        {
+            Console.Clear();
+            Console.WriteLine("=== KARAKTERSZÍN ===");
+            Console.WriteLine("Fel/le: választás | Enter: elfogadás | Esc: vissza");
+            Console.WriteLine();
+            for (var index = 0; index < colors.Count; index++)
+            {
+                Console.ForegroundColor = colors[index];
+                Console.WriteLine($"{(index == selectedIndex ? ">" : " ")} {CharacterColors.NameOf(colors[index])} — ●");
+            }
+            Console.ResetColor();
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow:
+                    selectedIndex = (selectedIndex - 1 + colors.Count) % colors.Count;
+                    break;
+                case ConsoleKey.DownArrow:
+                    selectedIndex = (selectedIndex + 1) % colors.Count;
+                    break;
+                case ConsoleKey.Enter:
+                    return colors[selectedIndex];
+                case ConsoleKey.Escape:
+                    return null;
+            }
+        }
+    }
+
+    private ConsoleColor RandomCharacterColor() => CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)];
 
     private string? ReadName()
     {

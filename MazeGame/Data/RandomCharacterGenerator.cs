@@ -22,7 +22,8 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             var characterClass = eligibleClasses[_random.Next(eligibleClasses.Count)];
             var name = ChooseName(characterClass.Id, usedNames);
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
-                _random.Next(1, 16), _random.Next(1, 16), _gameData);
+                _random.Next(1, 16), _random.Next(1, 16), _gameData,
+                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)]);
             RaiseToRandomLevel(character);
             AddRandomPerks(character);
             FillRandomEquipment(character);

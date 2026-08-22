@@ -111,6 +111,8 @@ A karaktergenerálás négy elsődleges képességre oszt el összesen 25 pontot
 
 A karakternév 1–13 karakter hosszú lehet. A korábbi mentésekből érkező hosszabb nevek betöltéskor 13 karakterre rövidülnek, hogy a karakterlap rögzített fejlécébe illeszkedjenek.
 
+Minden `LiveCharacter` tartós `ConsoleColor` tulajdonsággal rendelkezik. Kézi karaktergeneráláskor a játékos egy jól látható színpalettáról választ; gyorsindításkor és fejlesztői társgeneráláskor a szín véletlen. Régi mentéseknél az alapértelmezés cián.
+
 Az `adatok.csv` `#Karakternevek` szekciója osztályonként 20 `CharacterNameDefinition` rekordot tartalmaz. A gyorsindítás az elkészült karakter tényleges osztályának névkészletéből választ, és előnyben részesíti a karakterlistában még nem használt neveket. Ha egy osztály mind a 20 neve foglalt, az ismétlődés megengedett. A definíciók nem játékos karakterek későbbi elnevezésére is újrahasználhatók.
 
 Csak olyan osztály választható, amelynek minden CSV-ben megadott képességminimumát teljesíti a karakter. A maximális HP és manna képlete:
@@ -228,7 +230,9 @@ A `Party` 1–4 egyedi `LiveCharacter` objektumot tartalmaz. Első tagja mindig 
 
 A jelenlegi játékmenetben a vezető mozog, harcol, kap XP-t, vesz fel aranyat és fogyaszt szükségleteket. A társak egyelőre nem vesznek részt a harcban vagy az erőforrás-fogyasztásban.
 
-A karakterlap a tíz hátizsáksor alatt három sort tart fenn a társaknak. Minden sor az osztály kezdőbetűjét, a nevet, a szintet és az aktuális/maximális HP-t mutatja. A vezető nem ismétlődik meg ezekben a sorokban.
+A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbetűje: `H`, `B`, `L`, `T`, `P` vagy `M`. A jel a karakter saját színével rajzolódik. A társak minden új pályán szélességi kereséssel a vezetőhöz legközelebbi üres, járható cellákra kerülnek. Nem mozognak, és foglalják a mezőjüket az ellenfelek és a vezető elől.
+
+A karakterlap a tíz hátizsáksor alatt három sort tart fenn a társaknak. Minden sor a karakter saját színével mutatja az osztály kezdőbetűjét, a nevet, a szintet és az aktuális/maximális HP-t. A vezető nem ismétlődik meg ezekben a sorokban.
 
 A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű négy főre tölti a partit. A `RandomCharacterGenerator` minden társhoz:
 

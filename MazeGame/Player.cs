@@ -14,7 +14,7 @@ public sealed class Player
     public bool TryMove(Direction direction, Maze maze)
     {
         var target = Position + direction;
-        if (!maze.IsWalkable(target)) return false;
+        if (!maze.IsWalkable(target) || maze.GetObjectAt(target) is PartyMemberAvatar) return false;
         Position = target;
         return true;
     }

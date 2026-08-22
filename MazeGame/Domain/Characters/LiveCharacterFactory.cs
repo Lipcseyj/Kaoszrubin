@@ -5,7 +5,7 @@ namespace MazeGame.Domain.Characters;
 
 public static class LiveCharacterFactory
 {
-    public static LiveCharacter Create(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities rolledAbilities, int vitalityBonus, int manaBonus, GameDataCatalog data)
+    public static LiveCharacter Create(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities rolledAbilities, int vitalityBonus, int manaBonus, GameDataCatalog data, ConsoleColor color = ConsoleColor.Cyan)
     {
         if (vitalityBonus is < 1 or > 15 || manaBonus is < 1 or > 15)
             throw new ArgumentOutOfRangeException("A HP- és mannabónusznak 1 és 15 között kell lennie.");
@@ -20,7 +20,7 @@ public static class LiveCharacterFactory
 
         var character = new LiveCharacter(name, race, characterClass, finalAbilities,
             data.GetMinimumVitality(finalAbilities.Health) + vitalityBonus,
-            maximumMana, vitalityBonus, characterClass.UsesMana ? manaBonus : 0);
+            maximumMana, vitalityBonus, characterClass.UsesMana ? manaBonus : 0, color);
         AddStartingEquipment(character, data.GetStartingEquipment(characterClass.Id), data);
         return character;
     }

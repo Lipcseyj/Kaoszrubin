@@ -16,11 +16,13 @@ public sealed class Maze
     private readonly List<TreasureChest> _treasureChests = [];
     private readonly List<Enemy> _enemies = [];
     private readonly List<Corpse> _corpses = [];
+    private readonly List<PartyMemberAvatar> _partyMembers = [];
 
     public IReadOnlyList<Room> Rooms => _rooms;
     public IReadOnlyList<TreasureChest> TreasureChests => _treasureChests;
     public IReadOnlyList<Enemy> Enemies => _enemies;
     public IReadOnlyList<Corpse> Corpses => _corpses;
+    public IReadOnlyList<PartyMemberAvatar> PartyMembers => _partyMembers;
     public int Width { get; }
     public int Height { get; }
     public Position Entrance { get; }
@@ -81,6 +83,12 @@ public sealed class Maze
         _enemies.Add(enemy);
     }
 
+    public void AddPartyMember(PartyMemberAvatar member)
+    {
+        EnsureObjectPositionIsFree(member.Position);
+        _partyMembers.Add(member);
+    }
+
     public void ReplaceEnemyWithCorpse(Enemy enemy)
     {
         if (!_enemies.Remove(enemy)) throw new ArgumentException("Az ellenfél nem a labirintus része.", nameof(enemy));
@@ -90,6 +98,7 @@ public sealed class Maze
     public WorldObject? GetObjectAt(Position position) =>
         _treasureChests.FirstOrDefault(chest => chest.Position == position) as WorldObject ??
         _enemies.FirstOrDefault(enemy => enemy.Position == position) as WorldObject ??
+        _partyMembers.FirstOrDefault(member => member.Position == position) as WorldObject ??
         _corpses.FirstOrDefault(corpse => corpse.Position == position) as WorldObject;
 
     public Enemy? GetEnemyAt(Position position) => _enemies.FirstOrDefault(enemy => enemy.Position == position);

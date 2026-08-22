@@ -13,7 +13,6 @@ public sealed class ConsoleRenderer
     private const int RightBorderX = PlayfieldWidth;
     private const int BottomBorderY = PlayfieldHeight;
     private static readonly Rune FogSymbol = new('░');
-    private static readonly Rune PlayerSymbol = new('☻');
     private const int MessageLineCount = 5;
     private const int MessageWidth = 164;
     private const int PicturePanelHeight = 5;
@@ -348,7 +347,7 @@ public sealed class ConsoleRenderer
     private void DrawCharacterSheet(LiveCharacter character)
     {
         _displayedCharacter = character;
-        WriteSheetLine(1, "KARAKTERLAP - ", ConsoleColor.Yellow, character.Name, ConsoleColor.Cyan);
+        WriteSheetLine(1, "KARAKTERLAP - ", ConsoleColor.Yellow, character.Name, character.Color);
         WriteSheetLine(2, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
         WriteSheetLine(3, FormatCompactList("Teh", character.Perks.Select(perk => perk.Name)), ConsoleColor.Magenta);
         WriteSheetLine(4, FormatCompactList("Áll", character.Statuses.Select(status => status.Name)), character.Statuses.Count > 0 ? ConsoleColor.Red : ConsoleColor.DarkGray);
@@ -376,7 +375,7 @@ public sealed class ConsoleRenderer
         var companions = _party.Members.Where(member => member != character).Take(3).ToList();
         for (var index = 0; index < 3; index++)
             WriteSheetLine(39 + index, index < companions.Count ? FormatPartyMember(companions[index]) : string.Empty,
-                index < companions.Count && companions[index].IsAlive ? ConsoleColor.Green : ConsoleColor.DarkRed);
+                index < companions.Count ? companions[index].Color : ConsoleColor.DarkGray);
         WriteSheetLine(42, string.Empty, ConsoleColor.DarkGray);
         DrawPicturePanel();
     }
@@ -556,8 +555,10 @@ public sealed class ConsoleRenderer
     /// </summary>
     private void DrawPlayer(Position position)
     {
+        var character = _displayedCharacter ?? throw new InvalidOperationException("A főkarakter rajzolása előtt a karakterlapot inicializálni kell.");
         Console.SetCursorPosition(position.X, position.Y);
-        WriteRuneWithColor(PlayerSymbol, ConsoleColor.Cyan, ConsoleColor.Black);
+        var symbol = Rune.GetRuneAt(character.CharacterClass.Name.ToUpperInvariant(), 0);
+        WriteRuneWithColor(symbol, character.Color, ConsoleColor.Black);
     }
 
     /// <summary>
@@ -579,6 +580,7 @@ public sealed class ConsoleRenderer
         if (mapObject is TreasureChest) return ConsoleColor.Yellow;
         if (mapObject is Enemy) return ConsoleColor.Red;
         if (mapObject is Corpse) return ConsoleColor.DarkRed;
+        if (mapObject is PartyMemberAvatar partyMember) return partyMember.Character.Color;
 
         return maze.Tiles[position.X, position.Y] switch
         {

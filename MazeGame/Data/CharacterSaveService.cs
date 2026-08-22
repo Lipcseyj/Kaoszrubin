@@ -62,7 +62,7 @@ public sealed class CharacterSaveService
         var character = new LiveCharacter(compatibleName, race, characterClass, saved.Abilities,
             _gameData.GetMinimumVitality(saved.Abilities.Health) + saved.VitalityBonus,
             characterClass.UsesMana ? _gameData.GetMinimumMana(saved.Abilities.Intelligence) + saved.ManaBonus : 0,
-            saved.VitalityBonus, characterClass.UsesMana ? saved.ManaBonus : 0);
+            saved.VitalityBonus, characterClass.UsesMana ? saved.ManaBonus : 0, saved.Color ?? ConsoleColor.Cyan);
         character.ApplySavedLevelGrowth(saved.LevelVitalityIncrease ?? 0, saved.LevelManaIncrease ?? 0);
         character.SetCurrentResources(saved.CurrentVitality, saved.CurrentMana);
         character.SetNeedLevels(saved.FoodLevel ?? 100, saved.WaterLevel ?? 100);
@@ -94,6 +94,7 @@ public sealed class CharacterSaveService
     private CharacterSaveData CreateSaveData(LiveCharacter character) => new()
     {
         Name = character.Name,
+        Color = character.Color,
         RaceId = character.Race.Id,
         CharacterClassId = character.CharacterClass.Id,
         Abilities = character.Abilities,
@@ -145,6 +146,7 @@ public sealed class CharacterSaveService
     private sealed class CharacterSaveData
     {
         public string Name { get; init; } = string.Empty;
+        public ConsoleColor? Color { get; init; }
         public string RaceId { get; init; } = string.Empty;
         public string CharacterClassId { get; init; } = string.Empty;
         // Régi mentések egyszeri betöltéséhez; új mentésbe már csak az ID-k kerülnek.

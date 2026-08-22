@@ -111,6 +111,7 @@ public sealed class Game
         _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random), enemySpawns);
         _maze = _generator.Create(MazeWidth, MazeHeight);
         _player = new Player(_maze.Entrance, SelectedCharacter);
+        PlacePartyMembersNear(_player.Position);
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, VisionRange);
         _fogOfWar.RevealFrom(_maze, _player.Position);
         _battleStarted = false;
@@ -261,8 +262,40 @@ public sealed class Game
             CharacterRoster.Add(member);
             CharacterRoster.Party.Add(member);
         }
+        PlacePartyMembersNear(_player.Position);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawDeveloperMessage("Fejlesztői mód: a parti véletlen társakkal feltöltve (4/4).");
+    }
+
+    private void PlacePartyMembersNear(Position origin)
+    {
+        var alreadyPlaced = _maze.PartyMembers.Select(member => member.Character).ToHashSet();
+        var companions = CharacterRoster.Party.Members.Where(member => member != SelectedCharacter && !alreadyPlaced.Contains(member)).ToList();
+        if (companions.Count == 0) return;
+
+        var positions = FindNearbyFreePositions(origin).Take(companions.Count).ToList();
+        for (var index = 0; index < Math.Min(companions.Count, positions.Count); index++)
+            _maze.AddPartyMember(new PartyMemberAvatar(positions[index], companions[index]));
+    }
+
+    private IEnumerable<Position> FindNearbyFreePositions(Position origin)
+    {
+        var visited = new HashSet<Position> { origin };
+        var queue = new Queue<Position>();
+        queue.Enqueue(origin);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (!visited.Add(next) || !_maze.IsWalkable(next)) continue;
+                queue.Enqueue(next);
+                if (next != _maze.Entrance && next != _maze.Exit && next != _player.Position && _maze.GetObjectAt(next) is null)
+                    yield return next;
+            }
+        }
     }
 
     private LevelUpResult AddExperience(int amount) => SelectedCharacter.AddExperience(

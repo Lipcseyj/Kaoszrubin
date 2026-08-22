@@ -13,11 +13,12 @@ public sealed class LiveCharacter
     private readonly List<IItemDefinition> _backpack = [];
     private readonly List<PerkDefinition> _perks = [];
     private readonly List<StatusDefinition> _statuses = [];
-    public LiveCharacter(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities abilities, int maximumVitality, int maximumMana, int vitalityBonus, int manaBonus)
+    public LiveCharacter(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities abilities, int maximumVitality, int maximumMana, int vitalityBonus, int manaBonus, ConsoleColor color = ConsoleColor.Cyan)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > MaximumNameLength)
             throw new ArgumentException($"A karakternév 1 és {MaximumNameLength} karakter közötti lehet.", nameof(name));
         Name = name;
+        Color = color;
         Race = race;
         CharacterClass = characterClass;
         Abilities = abilities;
@@ -30,6 +31,7 @@ public sealed class LiveCharacter
     }
 
     public string Name { get; }
+    public ConsoleColor Color { get; }
     public RaceDefinition Race { get; }
     public CharacterClassDefinition CharacterClass { get; }
     public PrimaryAbilities Abilities { get; }
