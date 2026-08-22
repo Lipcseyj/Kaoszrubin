@@ -21,13 +21,18 @@ public sealed class ConsoleRenderer
     private const int PicturePanelTop = PicturePanelBottom - PicturePanelHeight - 1;
     private readonly Queue<MessageLogLine> _messageLog = new();
     private readonly GameDataCatalog _gameData;
+    private readonly Party _party;
     private int _mazeLevel;
     private bool _battleActive;
     private LiveCharacter? _displayedCharacter;
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
 
-    public ConsoleRenderer(GameDataCatalog gameData) => _gameData = gameData;
+    public ConsoleRenderer(GameDataCatalog gameData, Party party)
+    {
+        _gameData = gameData;
+        _party = party;
+    }
 
     /// <summary>
     /// Inicializálja a teljes képernyős állapotot: törli a konzolt, kirajzolja a pályát,
@@ -111,7 +116,7 @@ public sealed class ConsoleRenderer
         };
         DrawBattleMessage(entry.Message, color);
         // A jobb oldali karakterlapon megjelenített sor: információ a vezérlésről.
-        WriteSheetLine(40, "Szóköz: következő kör", ConsoleColor.DarkYellow);
+        WriteSheetLine(42, "Szóköz: következő kör", ConsoleColor.DarkYellow);
     }
 
     /// <summary>
@@ -121,8 +126,7 @@ public sealed class ConsoleRenderer
     {
         _battleActive = false;
         DrawPicturePanel();
-        if (_displayedCharacter is not null)
-            WriteSheetLine(40, $"XP szorzó: {_displayedCharacter.CharacterClass.ExperienceModifier:0.00}×", ConsoleColor.DarkCyan);
+        WriteSheetLine(42, string.Empty, ConsoleColor.DarkCyan);
         var lastEvent = result.Events.LastOrDefault() ?? "";
         DrawBattleMessage(result.PlayerWon
             ? $"Győzelem {result.Rounds} kör után! {lastEvent}"
@@ -369,6 +373,11 @@ public sealed class ConsoleRenderer
         WriteSheetLine(28, $"HÁTIZSÁK {character.Backpack.Count}/10", ConsoleColor.DarkCyan);
         for (var index = 0; index < 10; index++)
             WriteSheetLine(29 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}", ConsoleColor.Gray);
+        var companions = _party.Members.Where(member => member != character).Take(3).ToList();
+        for (var index = 0; index < 3; index++)
+            WriteSheetLine(39 + index, index < companions.Count ? FormatPartyMember(companions[index]) : string.Empty,
+                index < companions.Count && companions[index].IsAlive ? ConsoleColor.Green : ConsoleColor.DarkRed);
+        WriteSheetLine(42, string.Empty, ConsoleColor.DarkGray);
         DrawPicturePanel();
     }
 
@@ -414,6 +423,16 @@ public sealed class ConsoleRenderer
         ? $"Szint: {character.Level}  XP: {character.Experience}/{next}"
         : $"Szint: {character.Level}  XP: MAX";
     private static string ResourceIcons(string icon, int level) => string.Concat(Enumerable.Repeat(icon, level / 10));
+
+    private static string FormatPartyMember(LiveCharacter character)
+    {
+        const int maximumWidth = 27;
+        var classInitial = character.CharacterClass.Name.EnumerateRunes().First().ToString().ToUpperInvariant();
+        var suffix = $" L{character.Level} {character.CurrentVitality}/{character.MaximumVitality}";
+        var maximumNameLength = Math.Max(1, maximumWidth - classInitial.Length - 1 - suffix.Length);
+        var name = character.Name[..Math.Min(character.Name.Length, maximumNameLength)];
+        return $"{classInitial} {name}{suffix}";
+    }
 
     private static string FormatCompactList(string label, IEnumerable<string> values)
     {

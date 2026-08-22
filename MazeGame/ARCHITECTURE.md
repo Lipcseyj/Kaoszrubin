@@ -66,6 +66,7 @@ Az indítás menete:
 
 - `IGameDefinition`: az azonosítóval és névvel rendelkező definíciók közös szerződése.
 - `Domain/Characters`: fajok, osztályok, képességek, kezdőfelszerelés, karakterlista és `LiveCharacter`.
+- `Domain/Characters/Party.cs`: az aktív vezetőből és legfeljebb három társából álló csapat.
 - `Domain/Combat`: ellenfél-, fegyver-, fegyvertípus- és páncéldefiníciók, valamint zárt számtartományok.
 - `Domain/Inventory`: általános tárgyfelület és hétköznapi tárgyak.
 - `Domain/Magic`: varázstárgyak és varázslatok.
@@ -221,6 +222,22 @@ A szükségletek jelenleg nem okoznak közvetlen sebzést vagy más hátrányt.
 
 A rejtett `Ctrl+Shift+S` fejlesztői gyorsbillentyű pontosan a következő szinthez hiányzó XP-t adja a karakternek. Ugyanazt a fejlődési és bónuszdobási útvonalat használja, mint egy valódi csatagyőzelem.
 
+## Parti
+
+A `Party` 1–4 egyedi `LiveCharacter` objektumot tartalmaz. Első tagja mindig az aktív karakter és egyben a csapat vezetője. Új vezető kiválasztása új, egyszemélyes partit kezd; a társak normál felvételi folyamata későbbi fejlesztési pont. A parti tagjai a központi karakterlistában is szerepelnek, ezért ugyanazzal a karaktermentési modellel tárolódnak. A mentés a tagok karakterlistabeli indexeit őrzi.
+
+A jelenlegi játékmenetben a vezető mozog, harcol, kap XP-t, vesz fel aranyat és fogyaszt szükségleteket. A társak egyelőre nem vesznek részt a harcban vagy az erőforrás-fogyasztásban.
+
+A karakterlap a tíz hátizsáksor alatt három sort tart fenn a társaknak. Minden sor az osztály kezdőbetűjét, a nevet, a szintet és az aktuális/maximális HP-t mutatja. A vezető nem ismétlődik meg ezekben a sorokban.
+
+A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű négy főre tölti a partit. A `RandomCharacterGenerator` minden társhoz:
+
+- érvényes véletlen faj–képesség–osztály kombinációt készít;
+- az osztály CSV-s névkészletéből lehetőleg még nem használt nevet választ;
+- 2–30. szint közé fejleszti a normál HP-/mannadobásokkal;
+- szintjének megfelelő eséllyel választ tehetségeket;
+- véletlen fegyvereket, páncélt, varázstárgyakat és hátizsáktartalmat ad.
+
 ## Labirintusgenerálás
 
 A generátor kezdetben falakkal tölti fel a pályát, majd rekurzív mélységi bejárással összefüggő folyosóhálózatot vés ki egy ötlépéses logikai rácson. A csomópontok két cella szélesek; az összekötő folyosók a konfigurált valószínűséggel kétcellásak.
@@ -335,7 +352,7 @@ A projekt csak a .NET alaprendszerét használja, külső NuGet-csomag nincs. A 
 Fontos állapotélettartamok:
 
 - `GameDataCatalog`: egy alkalmazásfutásra változatlan;
-- `CharacterRoster` és `LiveCharacter`: menük és játékok között tovább él, JSON-ba menthető;
+- `CharacterRoster`, `Party` és `LiveCharacter`: menük és játékok között tovább él, JSON-ba menthető;
 - `Game`: egy játékindítás idejére él;
 - `Maze`, `Player`, `FogOfWar`: egy labirintusszint idejére él;
 - `BattleSystem`: egy `Game` példányhoz tartozik;

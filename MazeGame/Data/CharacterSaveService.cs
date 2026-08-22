@@ -30,7 +30,13 @@ public sealed class CharacterSaveService
             roster.Add(CreateLiveCharacter(savedCharacter));
 
         if (savedRoster.SelectedCharacterIndex is int selectedIndex && selectedIndex >= 0 && selectedIndex < roster.Characters.Count)
+        {
             roster.Select(roster.Characters[selectedIndex]);
+            var partyMembers = savedRoster.PartyMemberIndices
+                .Where(index => index >= 0 && index < roster.Characters.Count)
+                .Select(index => roster.Characters[index]);
+            roster.Party.Restore(roster.Characters[selectedIndex], partyMembers);
+        }
 
         return roster;
     }
@@ -40,6 +46,8 @@ public sealed class CharacterSaveService
         var savedRoster = new RosterSaveData
         {
             SelectedCharacterIndex = roster.SelectedCharacter is null ? null : Enumerable.Range(0, roster.Characters.Count).FirstOrDefault(index => roster.Characters[index] == roster.SelectedCharacter),
+            PartyMemberIndices = roster.Party.Members.Select(member => Enumerable.Range(0, roster.Characters.Count)
+                .First(index => roster.Characters[index] == member)).ToList(),
             Characters = roster.Characters.Select(CreateSaveData).ToList()
         };
         File.WriteAllText(_filePath, JsonSerializer.Serialize(savedRoster, JsonOptions));
@@ -130,6 +138,7 @@ public sealed class CharacterSaveService
     private sealed class RosterSaveData
     {
         public int? SelectedCharacterIndex { get; init; }
+        public List<int> PartyMemberIndices { get; init; } = [];
         public List<CharacterSaveData> Characters { get; init; } = [];
     }
 

@@ -32,7 +32,7 @@ public sealed class Game
         CharacterRoster = characterRoster;
         SelectedCharacter = selectedCharacter;
         _gameData = gameData;
-        _renderer = new ConsoleRenderer(gameData);
+        _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
         _battleSystem = new BattleSystem(_random);
     }
 
@@ -67,6 +67,11 @@ public sealed class Game
                     if (IsLevelUpShortcut(keyInfo))
                     {
                         TriggerDeveloperLevelUp();
+                        continue;
+                    }
+                    if (IsFillPartyShortcut(keyInfo))
+                    {
+                        FillPartyForDevelopment();
                         continue;
                     }
 
@@ -236,6 +241,29 @@ public sealed class Game
     private static bool IsLevelUpShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.L &&
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
+    private static bool IsFillPartyShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.Y &&
+        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
+    private void FillPartyForDevelopment()
+    {
+        if (CharacterRoster.Party.Members.Count >= Party.MaximumSize)
+        {
+            _renderer.DrawDeveloperMessage("Fejlesztői mód: a parti már teljes (4/4). ");
+            return;
+        }
+
+        var generator = new RandomCharacterGenerator(_gameData, _random);
+        while (CharacterRoster.Party.Members.Count < Party.MaximumSize)
+        {
+            var member = generator.Create(CharacterRoster.Characters.Select(character => character.Name).ToList());
+            CharacterRoster.Add(member);
+            CharacterRoster.Party.Add(member);
+        }
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawDeveloperMessage("Fejlesztői mód: a parti véletlen társakkal feltöltve (4/4).");
+    }
 
     private LevelUpResult AddExperience(int amount) => SelectedCharacter.AddExperience(
         amount,
