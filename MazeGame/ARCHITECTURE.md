@@ -385,7 +385,7 @@ Például 8 Intelligencián és 1. szinten ez `2 + 2 + 0 = 4`. Ugyanaz a varázs
 
 ### Varázslás és célzás
 
-A partivezér a térképen `V`-vel nyitja meg a memorizált varázslatok színes választóképernyőjét, az `F1–F8` billentyűkkel pedig közvetlenül indítja a megfelelő gyorshelyet. A választó megmutatja a szintet, mannaköltséget és célponttípust. Entitás-, mező-, terület- és iránycélzásnál `✥` célkereszt jelenik meg: a nyilak mozgatják, a `Tab` a CSV-s szabályoknak megfelelő érvényes célpontok között léptet, az `Enter` megerősít, az `Esc` megszakít. Érvényes célhoz a hatótáv, a már felfedett mező és szükség esetén a látóvonal is teljesüljön. Az önmagára és az egész partira ható varázslatok nem nyitnak célkeresztet.
+A partivezér a térképen `V`-vel nyitja meg a memorizált varázslatok színes választóképernyőjét, az `F1–F8` billentyűkkel pedig közvetlenül indítja a megfelelő gyorshelyet. A keskeny, legfeljebb tizenkét varázslatsort egyszerre mutató felugró panel a térkép közepére rajzolódik; előtte eltárolja a lefedett térképcellák rúnáját és színeit, bezárásakor pedig kizárólag ezeket állítja vissza. Így sem teljes konzoltörlés, sem teljes térkép- vagy karakterlapfrissítés nem történik. A választó megmutatja a szintet, mannaköltséget és célponttípust. Entitás-, mező-, terület- és iránycélzásnál `✥` célkereszt jelenik meg: a nyilak mozgatják, a `Tab` a CSV-s szabályoknak megfelelő érvényes célpontok között léptet, az `Enter` megerősít, az `Esc` megszakít. Érvényes célhoz a hatótáv, a már felfedett mező és szükség esetén a látóvonal is teljesüljön. Az önmagára és az egész partira ható varázslatok nem nyitnak célkeresztet.
 
 Sikeres aktiváláskor a teljes CSV-s mannaköltség levonódik. Csatán kívül nincs külön koncentrációs kudarc. Csatában a varázslat a karakter fegyveres támadása helyetti teljes akció, és a mannaköltség levonása után százalékos kudarcpróba történik:
 
@@ -559,7 +559,7 @@ A rendszer a két már felfedezett végpont közötti, legfeljebb háromcellás 
 
 ## Csata algoritmusa
 
-A csata váltott akciókból áll. A vezér csatájában minden naplózott esemény után a játékosnak szóközzel kell továbblépnie; saját akciójánál a szóköz fegyveres támadást, a `V` vagy `F1–F8` varázslást választ. A varázslás teljes akciót használ, és a fenti intelligenciaalapú kudarcpróbát végzi. Az NPC-csata megszakítás nélkül, egyelőre kizárólag fizikai támadásokkal fut le és csak egy végeredmény-összefoglalót ír a naplóba. Menekülés nincs. Mindkét út ugyanazt a `BattleSystem` algoritmust és a játék közös `Random` példányát használja.
+A csata váltott akciókból áll. A vezér saját akciójánál csak akkor jelenik meg a fegyver/varázslat kérdés, ha élő varázshasználó, rendelkezik a megfelelő fókusszal, és van legalább egy csatában engedélyezett, memorizált, elegendő mannából kifizethető, aktuálisan érvényes célpontra használható varázslata. Ellenkező esetben a fegyveres támadás kérdés nélkül végrehajtódik. Választáskor a szóköz fegyveres támadást, a `V` vagy `F1–F8` varázslást indít. A varázslás teljes akciót használ, és a fenti intelligenciaalapú kudarcpróbát végzi. Az NPC-csata megszakítás nélkül, egyelőre kizárólag fizikai támadásokkal fut le és csak egy végeredmény-összefoglalót ír a naplóba. Menekülés nincs. Mindkét út ugyanazt a `BattleSystem` algoritmust és a játék közös `Random` példányát használja.
 
 A részletes vezéri csatanapló csak a ténylegesen érvényesülő nem nulla tehetségbónuszokat írja ki. A nulla gyógyítás/mannatöltés és a nulla támadó- vagy védelmi tehetségérték nem foglal helyet a naplóban.
 

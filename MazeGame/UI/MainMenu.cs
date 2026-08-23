@@ -315,7 +315,7 @@ public sealed class MainMenu
         Console.WriteLine("Ládára lépés: arany felvétele | Kijárat (⌂): következő labirintusszint");
         Console.WriteLine();
         WriteLine("CSATA", ConsoleColor.Red);
-        Console.WriteLine("Szóköz: tovább/fegyveres támadás | saját körben V vagy F1-F8: varázslás.");
+        Console.WriteLine("Saját kör: Space - fegyver | V/F1-F8 - varázslás; választás csak használható varázslatnál jelenik meg.");
         Console.WriteLine("Harci varázslási kudarc: max(0, 30 - Intelligencia - Ügyesség)%; a manna és az akció elvész.");
         Console.WriteLine("A csata alatt a világ ideje megáll.");
         Console.WriteLine();

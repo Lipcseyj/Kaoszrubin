@@ -29,6 +29,7 @@ public sealed class ConsoleRenderer
     private bool _characterSheetFocused;
     private LiveCharacter? _spellInfoCharacter;
     private int _selectedSpellInfoIndex;
+    private List<MapCellSnapshot>? _spellCastingOverlaySnapshot;
     private SheetSelectionKey? _activeSheetSelection;
     private readonly Dictionary<LiveCharacter, SheetSelectionKey> _lastSheetSelections = [];
     private ConsoleColor? _currentForegroundColor;
@@ -52,6 +53,7 @@ public sealed class ConsoleRenderer
         _battleActive = false;
         _battleEnemy = null;
         _spellInfoCharacter = null;
+        _spellCastingOverlaySnapshot = null;
         Console.Clear();
         DrawPlayfield(maze, fogOfWar);
         DrawFrame();
@@ -484,40 +486,47 @@ public sealed class ConsoleRenderer
         }
     }
 
-    public SpellDefinition? DrawSpellCastingScreen(LiveCharacter character, bool inCombat)
+    public SpellDefinition? DrawSpellCastingScreen(LiveCharacter character, bool inCombat, Maze maze,
+        FogOfWar fogOfWar, Position playerPosition, Action? showHelp = null)
     {
         var spells = character.MemorizedSpells
             .Where(spell => inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration)
             .OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).ToList();
         if (spells.Count == 0) return null;
+        _spellCastingOverlaySnapshot = null;
         var selectedIndex = 0;
         while (true)
         {
-            ResetColorCache();
-            Console.Clear();
+            const int maximumVisibleSpellCount = 12;
+            var firstVisibleIndex = Math.Clamp(selectedIndex - maximumVisibleSpellCount / 2, 0,
+                Math.Max(0, spells.Count - maximumVisibleSpellCount));
+            var visibleSpells = spells.Skip(firstVisibleIndex).Take(maximumVisibleSpellCount).ToList();
             var lines = new List<(string Text, ConsoleColor Color)>
             {
-                (inCombat ? "⚔️✨  HARCI VARÁZSLÁS" : "🔮✨  VARÁZSLÁS", ConsoleColor.Magenta),
-                (string.Empty, ConsoleColor.Gray),
-                ($"{character.Name} — manna: {character.CurrentMana}/{character.MaximumMana}", ConsoleColor.Cyan),
-                ("Fel/le: választás   Enter: célzás   Esc: mégse", ConsoleColor.Green),
-                (string.Empty, ConsoleColor.Gray)
+                (inCombat ? "⚔️ HARCI VARÁZSLÁS" : "🔮 VARÁZSLÁS", ConsoleColor.Magenta),
+                ($"{character.Name}  ◆ {character.CurrentMana}/{character.MaximumMana} manna", ConsoleColor.Cyan),
+                ("↑↓ választ  Enter célzás  Esc bezár", ConsoleColor.Green),
+                ("────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
             };
-            lines.AddRange(spells.Select((spell, index) =>
+            lines.AddRange(visibleSpells.Select((spell, visibleIndex) =>
             {
+                var index = firstVisibleIndex + visibleIndex;
                 var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
                     string.Equals(candidate?.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
                 var quick = quickIndex >= 0 ? $"F{quickIndex + 1}" : "--";
-                var text = $"{(index == selectedIndex ? "▶" : " ")} [{quick}] L{spell.Level} {spell.Name} — {spell.ManaCost} manna — {SpellTargetName(spell.TargetType)}";
+                var text = $"{(index == selectedIndex ? "▶" : " ")} [{quick}] L{spell.Level}  {spell.Name,-24} {spell.ManaCost}M  {SpellTargetName(spell.TargetType)}";
                 var color = character.CurrentMana < spell.ManaCost ? ConsoleColor.DarkRed :
                     index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray;
                 return (text, color);
             }));
-            DrawCenteredFrame(112, lines);
+            if (spells.Count > maximumVisibleSpellCount)
+                lines.Add(($"{firstVisibleIndex + 1}–{firstVisibleIndex + visibleSpells.Count} / {spells.Count}", ConsoleColor.DarkCyan));
+            DrawSpellCastingOverlay(76, lines, maze, fogOfWar, playerPosition);
             var key = Console.ReadKey(intercept: true);
             if (key.Key == ConsoleKey.F1 && (key.Modifiers & ConsoleModifiers.Shift) != 0)
             {
-                UI.MainMenu.ShowHelp();
+                showHelp?.Invoke();
+                _spellCastingOverlaySnapshot = null;
                 continue;
             }
             switch (key.Key)
@@ -528,6 +537,56 @@ public sealed class ConsoleRenderer
                 case ConsoleKey.Escape: return null;
             }
         }
+    }
+
+    public void RestoreSpellCastingOverlay()
+    {
+        if (_spellCastingOverlaySnapshot is null) return;
+        foreach (var cell in _spellCastingOverlaySnapshot)
+        {
+            Console.SetCursorPosition(cell.Position.X, cell.Position.Y);
+            WriteRuneWithColor(cell.Rune, cell.ForegroundColor, cell.BackgroundColor);
+        }
+        _spellCastingOverlaySnapshot = null;
+    }
+
+    private void DrawSpellCastingOverlay(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
+        Maze maze, FogOfWar fogOfWar, Position playerPosition)
+    {
+        const int horizontalPadding = 2;
+        var frameHeight = lines.Count + 2;
+        var left = Math.Max(0, (PlayfieldWidth - frameWidth) / 2);
+        var top = Math.Max(1, (PlayfieldHeight - frameHeight) / 2);
+        if (_spellCastingOverlaySnapshot is null)
+        {
+            _spellCastingOverlaySnapshot = [];
+            for (var y = top; y < top + frameHeight; y++)
+            for (var x = left; x < left + frameWidth; x++)
+            {
+                var position = new Position(x, y);
+                var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
+                _spellCastingOverlaySnapshot.Add(new MapCellSnapshot(position, visual.Rune,
+                    visual.ForegroundColor, visual.BackgroundColor));
+            }
+        }
+
+        SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
+        WriteAt(left, top, "╔" + new string('═', frameWidth - 2) + "╗");
+        var contentWidth = frameWidth - horizontalPadding * 2;
+        for (var index = 0; index < lines.Count; index++)
+        {
+            SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
+            WriteAt(left, top + index + 1, "║");
+            SetColors(lines[index].Color, ConsoleColor.Black);
+            var text = lines[index].Text.Length <= contentWidth
+                ? lines[index].Text
+                : lines[index].Text[..contentWidth];
+            WriteAt(left + horizontalPadding, top + index + 1, text.PadRight(contentWidth));
+            SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
+            WriteAt(left + frameWidth - 1, top + index + 1, "║");
+        }
+        SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
+        WriteAt(left, top + lines.Count + 1, "╚" + new string('═', frameWidth - 2) + "╝");
     }
 
     /// <summary>
@@ -1157,11 +1216,25 @@ public sealed class ConsoleRenderer
     /// <summary>
     /// Kiírja a mezőre vonatkozó Rune-t a megfelelő színekkel, figyelve a köd/láthatóság állapotára.
     /// </summary>
-    private void DrawMapRune(Maze maze, FogOfWar fogOfWar, Position position) =>
-        WriteRuneWithColor(
-            fogOfWar.IsVisible(position) ? maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y] : FogSymbol,
-            fogOfWar.IsVisible(position) ? GetForegroundColor(maze, position) : ConsoleColor.DarkGray,
-            fogOfWar.IsVisible(position) ? ConsoleColor.Black : ConsoleColor.DarkBlue);
+    private void DrawMapRune(Maze maze, FogOfWar fogOfWar, Position position)
+    {
+        var visual = GetMapCellVisual(maze, fogOfWar, position, null);
+        WriteRuneWithColor(visual.Rune, visual.ForegroundColor, visual.BackgroundColor);
+    }
+
+    private MapCellVisual GetMapCellVisual(Maze maze, FogOfWar fogOfWar, Position position, Position? playerPosition)
+    {
+        if (playerPosition == position)
+        {
+            var character = _party.Leader ?? throw new InvalidOperationException("A főkarakter rajzolása előtt a partit inicializálni kell.");
+            return new MapCellVisual(Rune.GetRuneAt(character.CharacterClass.Name.ToUpperInvariant(), 0),
+                character.Color, ConsoleColor.Black);
+        }
+        if (!fogOfWar.IsVisible(position))
+            return new MapCellVisual(FogSymbol, ConsoleColor.DarkGray, ConsoleColor.DarkBlue);
+        return new MapCellVisual(maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y],
+            GetForegroundColor(maze, position), ConsoleColor.Black);
+    }
 
     public static string SpellTargetName(SpellTargetType targetType) => targetType switch
     {
@@ -1268,4 +1341,7 @@ public sealed class ConsoleRenderer
         _currentForegroundColor = null;
         _currentBackgroundColor = null;
     }
+
+    private readonly record struct MapCellVisual(Rune Rune, ConsoleColor ForegroundColor, ConsoleColor BackgroundColor);
+    private readonly record struct MapCellSnapshot(Position Position, Rune Rune, ConsoleColor ForegroundColor, ConsoleColor BackgroundColor);
 }

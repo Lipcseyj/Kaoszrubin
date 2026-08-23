@@ -259,8 +259,9 @@ public sealed class Game
         var spell = quickSpell;
         if (spell is null)
         {
-            spell = _renderer.DrawSpellCastingScreen(SelectedCharacter, inCombat: false);
-            RestorePlayfieldAfterSpellModal();
+            spell = _renderer.DrawSpellCastingScreen(SelectedCharacter, inCombat: false, _maze, _fogOfWar,
+                _player.Position, ShowInGameHelp);
+            _renderer.RestoreSpellCastingOverlay();
         }
         if (spell is null) return;
         var result = TryCastSpell(spell, inCombat: false, currentEnemy: null);
@@ -269,13 +270,6 @@ public sealed class Game
             _renderer.RefreshBattleStatusRows();
             _renderer.DrawInventoryMessage(result.Message, result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
         }
-    }
-
-    private void RestorePlayfieldAfterSpellModal(Enemy? battleEnemy = null)
-    {
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
-        if (battleEnemy is not null) _renderer.DrawBattleStarted(battleEnemy);
     }
 
     private void SaveGame()
@@ -1158,6 +1152,7 @@ public sealed class Game
 
     private BattlePlayerAction? ChooseBattlePlayerAction(Enemy enemy)
     {
+        if (!HasUsableCombatSpell(enemy)) return null;
         while (true)
         {
             _renderer.DrawInventoryMessage("Akció: Space — fegyveres támadás | V — varázslat | F1-F8 — gyorsvarázslat", ConsoleColor.Yellow);
@@ -1180,8 +1175,14 @@ public sealed class Game
             SpellDefinition? spell = null;
             if (key.Key == ConsoleKey.V)
             {
-                spell = _renderer.DrawSpellCastingScreen(SelectedCharacter, inCombat: true);
-                RestorePlayfieldAfterSpellModal(enemy);
+                spell = _renderer.DrawSpellCastingScreen(SelectedCharacter, inCombat: true, _maze, _fogOfWar,
+                    _player.Position, () =>
+                    {
+                        ShowInGameHelp();
+                        _renderer.DrawBattleStarted(enemy);
+                        _renderer.RefreshBattleStatusRows();
+                    });
+                _renderer.RestoreSpellCastingOverlay();
             }
             else if (TryGetQuickSpellIndex(key, out var slotIndex))
                 spell = SelectedCharacter.QuickSpells[slotIndex];
@@ -1200,6 +1201,12 @@ public sealed class Game
             _renderer.DrawInventoryMessage(attempt.Message, ConsoleColor.Red);
         }
     }
+
+    private bool HasUsableCombatSpell(Enemy enemy) =>
+        SelectedCharacter.CanCastSpells && SelectedCharacter.MemorizedSpells.Any(spell =>
+            spell.CanUseInCombat && spell.ManaCost <= SelectedCharacter.CurrentMana &&
+            (spell.TargetType is SpellTargetType.Self or SpellTargetType.Party ||
+             GetValidSpellTargets(spell, enemy).Any()));
 
     private SpellCastAttempt? TryCastSpell(SpellDefinition spell, bool inCombat, Enemy? currentEnemy)
     {
