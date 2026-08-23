@@ -110,10 +110,31 @@ public static class MazeLevelConfigurations
             },
             [2] = new()
             {
+                Name = "Patkányvezér",
+                DoubleWidthCorridorChance = 0.40,
+                Level = 2,
+                RoomCount = Amount.TwoThree.Range(),
+                RoomSize = new(3, 5),
+                TreasureChestCount = Amount.Few.Range(),
+                TreasureGold = new(30, 70),
+                RoomEncounters =
+                [
+                    Encounters.Same("E001", Amount.Few, Amount.TwoThree),
+                    Encounters.Same("E004", Amount.One, Amount.One),
+                    Encounters.LeaderGroup("E051", "E001", Amount.One, Amount.TwoThree)
+],
+                CorridorEncounters =
+                [
+                    Encounters.Solo("E001", Amount.Pack),
+                    Encounters.Solo("E002", Amount.Few)
+                ]
+            },
+            [3] = new()
+            {
                 Name = "Goblinüregek",
                 WallRune = new('▓'),
                 WallColor = ConsoleColor.DarkGreen,
-                Level = 2,
+                Level = 3,
                 DoubleWidthCorridorChance = 0.75,
                 RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 6),
@@ -132,12 +153,12 @@ public static class MazeLevelConfigurations
                     Encounters.Solo("E005", Amount.Few, EnemyMovementProfile.Patrol)
                 ]
             },
-            [3] = new()
+            [4] = new()
             {
                 Name = "Vadállatok odúi",
                 WallRune = new('▒'),
                 WallColor = ConsoleColor.DarkYellow,
-                Level = 3,
+                Level = 4,
                 DoubleWidthCorridorChance = 0.70,
                 RoomCount = Amount.Pack.Range(),
                 RoomSize = new(3, 7),
@@ -155,9 +176,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo("E003", Amount.Few)
                 ]
             },
-            [4] = new()
+            [5] = new()
             {
-                Level = 4,
+                Level = 5,
                 Name = "A holtak katakombái",
                 DoubleWidthCorridorChance = 0.82,
                 WallRune = new('▓'),
@@ -178,9 +199,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo("E033", Amount.Few, EnemyMovementProfile.Patrol)
                 ]
             },
-            [5] = new()
+            [6] = new()
             {
-                Level = 5,
+                Level = 6,
                 Name = "A nagy csarnokok szintje",
                 DoubleWidthCorridorChance = 0.20,
                 WallRune = new('▦'),
@@ -201,9 +222,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo("E010", Amount.Few)
                 ]
             },
-            [6] = new()
+            [7] = new()
             {
-                Level = 6,
+                Level = 7,
                 Name = "A mérgező barlang",
                 DoubleWidthCorridorChance = 0.88,
                 WallRune = new('▒'),
@@ -224,9 +245,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo("E029", Amount.Few, EnemyMovementProfile.Patrol)
                 ]
             },
-            [7] = new()
+            [8] = new()
             {
-                Level = 7,
+                Level = 8,
                 Name = "Az ork haditábor",
                 DoubleWidthCorridorChance = 0.78,
                 WallRune = new('▓'),
@@ -247,9 +268,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo("E008", Amount.Few)
                 ]
             },
-            [8] = new()
+            [9] = new()
             {
-                Level = 8,
+                Level = 9,
                 Name = "Az elátkozott sírkamrák",
                 DoubleWidthCorridorChance = 0.92,
                 WallRune = new('▦'),
@@ -270,9 +291,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo("E033", Amount.Several)
                 ]
             },
-            [9] = new()
+            [10] = new()
             {
-                Level = 9,
+                Level = 10,
                 Name = "Az óriások erődje",
                 DoubleWidthCorridorChance = 0.12,
                 WallRune = new('▩'),
@@ -293,9 +314,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo("E014", Amount.Few)
                 ]
             },
-            [10] = new()
+            [11] = new()
             {
-                Level = 10,
+                Level = 11,
                 Name = "A sárkánykultusz szentélye",
                 DoubleWidthCorridorChance = 0.80,
                 WallRune = new('▥'),
@@ -321,7 +342,7 @@ public static class MazeLevelConfigurations
     public static MazeLevelConfiguration Get(int level)
     {
         if (Configurations.TryGetValue(level, out var configuration)) return configuration;
-        var increase = level - 10;
+        var increase = level - 11;
         var tier = Math.Clamp(4 + increase / 3, 4, 5);
         var (leader, follower, peer) = tier switch
         {

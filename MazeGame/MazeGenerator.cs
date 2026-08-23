@@ -167,7 +167,9 @@ public sealed class MazeGenerator
     private void PlaceRoomEncounters(Maze maze)
     {
         var rooms = maze.Rooms.Where(room => room != maze.StartingRoom).OrderBy(_ => _random.Next()).ToList();
-        var encounters = ExpandEncounters(_roomEncounters).OrderBy(_ => _random.Next()).ToList();
+        var encounters = ExpandEncounters(_roomEncounters)
+            .OrderByDescending(encounter => encounter.Members.Any(member => member.Role == EnemyGroupRole.Leader))
+            .ThenBy(_ => _random.Next()).ToList();
         foreach (var encounter in encounters)
         {
             var members = RollMembers(encounter);

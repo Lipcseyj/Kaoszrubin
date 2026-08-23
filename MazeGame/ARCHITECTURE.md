@@ -254,7 +254,7 @@ A pályakonfiguráció nem összesített ellenféldarabszámokat, hanem külön 
 
 A mennyiségekhez az `Amount` jelzők használhatók: `One` = 1, `Few` = 1–2, `Several` = 3–5, `Band` = 6–9, `Many` = 10–14. A csoportok száma és az egy csoporton belüli létszám külön jelző, ezért például kevés nagy banda és sok kis csoport egymástól függetlenül konfigurálható. Az `IntRange` belső típusként és olyan értékeknél marad meg, ahol egyedi tartomány szükséges, például szobaméretnél, aranynál vagy későbbi szintek képletes skálázásánál.
 
-A generátor előbb a szobai találkozásokat helyezi el, szobánként legfeljebb egy teljes csoporttal, majd csak ezután a folyosói találkozásokat. A csoport vezére a szoba közepéhez legközelebbi alkalmas mezőt kapja, a követők köré rendeződnek. Ajtóval közvetlenül szomszédos belső mezőre nem kerül szörny. Ha egy csoport teljes kisorsolt létszáma nem fér el, a generátor másik szobát keres; ha nincs megfelelő szoba, kihagyja a csoportot, nem helyezi el töredékesen. A folyosói csoportok összefüggő járható mezőkön jelennek meg.
+A generátor előbb a szobai találkozásokat helyezi el, szobánként legfeljebb egy teljes csoporttal, majd csak ezután a folyosói találkozásokat. A vezércsoportok a szobai találkozások között elsőbbséget élveznek, így kevés szobás pályán sem szoríthatják ki őket a közönséges csoportok. A csoport vezére a szoba közepéhez legközelebbi alkalmas mezőt kapja, a követők köré rendeződnek. Ajtóval közvetlenül szomszédos belső mezőre nem kerül szörny. Ha egy csoport teljes kisorsolt létszáma nem fér el, a generátor másik szobát keres; ha nincs megfelelő szoba, kihagyja a csoportot, nem helyezi el töredékesen. A folyosói csoportok összefüggő járható mezőkön jelennek meg.
 
 Az 1–2. pályán főként azonos, alacsony erősségű lények csoportjai jelennek meg, a 2. pályától vegyes találkozásokkal. A 3. pályától vezér és kíséret típusú csoport is lehet. A későbbi, automatikusan képzett konfigurációk három pályánként magasabb erősségi készletre váltanak, miközben a szobai csoportok maradnak túlsúlyban.
 
@@ -504,20 +504,21 @@ A pletyka mindig az aktuális `MazeLevelConfigurations` és `GameDataCatalog` ad
 
 A rejtett `Ctrl+Shift+E` fejlesztői gyorsbillentyű a partyvezért a kijárat melletti, járható és objektumtól mentes mezők közül a hozzá legközelebbire teleportálja. A teleport frissíti a vezér útvonalát és a látómezőt is; ha nincs megfelelő szabad mező, csak naplóüzenet jelenik meg.
 
-Az első tíz labirintusszint külön, találkozásalapú konfigurációval rendelkezik. A 11. szinttől a rendszer fokozatosan növekvő szobaszámot és jutalmat, valamint erősségi szakaszonként cserélődő homogén, vegyes és vezércsoportokat képez. A találkozások stabil ellenfél-ID-ket használnak, így a pályák összetétele kiszámíthatóan hangolható.
+Az első tizenegy labirintusszint külön, találkozásalapú konfigurációval rendelkezik. A 12. szinttől a rendszer fokozatosan növekvő szobaszámot és jutalmat, valamint erősségi szakaszonként cserélődő homogén, vegyes és vezércsoportokat képez. A találkozások stabil ellenfél-ID-ket használnak, így a pályák összetétele kiszámíthatóan hangolható.
 
 | Szint | Téma | Fal | Szín | Dupla folyosó esélye | Fő ellenfelek |
 |---:|---|:---:|---|---:|---|
 | 1 | Patkányjáratok | `█` | sötétszürke | 95% | patkányok, koboldok, goblinok |
-| 2 | Goblinüregek | `▓` | sötétzöld | 75% | koboldok, goblinok, farkasok |
-| 3 | Vadállatok odúi | `▒` | sötétsárga | 70% | goblinok, csontvázak, zombik, ork vezér |
-| 4 | A holtak katakombái | `▓` | sötétszürke | 82% | csontvázak, zombik, ghoul vezér |
-| 5 | A nagy csarnokok szintje | `▦` | sötétsárga | 20% | orkok, hobgoblinok, ogre vezér |
-| 6 | A mérgező barlang | `▒` | sötétcián | 88% | pókok, nyálkák, gyíkok, baziliszkuszok |
-| 7 | Az ork haditábor | `▓` | sötétpiros | 78% | orkok, hobgoblinok, bugbearek, sámánok |
-| 8 | Az elátkozott sírkamrák | `▦` | sötétmagenta | 92% | múmiák, ghoulok, wightok, éji banyák |
-| 9 | Az óriások erődje | `▩` | szürke | 12% | ogrék, trollok, ettinek, fagyóriás |
-| 10 | A sárkánykultusz szentélye | `▥` | piros | 80% | wyvernek, kimérák, ork sámánok, vörös sárkány |
+| 2 | Patkányvezér | `█` | sötétszürke | 40% | óriáspatkányok, koboldok, csontváz, patkányember vezér |
+| 3 | Goblinüregek | `▓` | sötétzöld | 75% | koboldok, goblinok, farkasok |
+| 4 | Vadállatok odúi | `▒` | sötétsárga | 70% | goblinok, csontvázak, zombik, ork vezér |
+| 5 | A holtak katakombái | `▓` | sötétszürke | 82% | csontvázak, zombik, ghoul vezér |
+| 6 | A nagy csarnokok szintje | `▦` | sötétsárga | 20% | orkok, hobgoblinok, ogre vezér |
+| 7 | A mérgező barlang | `▒` | sötétcián | 88% | pókok, nyálkák, gyíkok, baziliszkuszok |
+| 8 | Az ork haditábor | `▓` | sötétpiros | 78% | orkok, hobgoblinok, bugbearek, sámánok |
+| 9 | Az elátkozott sírkamrák | `▦` | sötétmagenta | 92% | múmiák, ghoulok, wightok, éji banyák |
+| 10 | Az óriások erődje | `▩` | szürke | 12% | ogrék, trollok, ettinek, fagyóriás |
+| 11 | A sárkánykultusz szentélye | `▥` | piros | 80% | wyvernek, kimérák, ork sámánok, vörös sárkány |
 
 A `MazeLevelConfiguration` a fal egyetlen konzolcellás `Rune` karakterét, `ConsoleColor` színét és a pálya megjelenített nevét is tartalmazza. Ezek bekerülnek a `MazeGenerationSettings` és a futásidejű `Maze` objektumba. A járhatóság és látóvonal az adott példány `WallRune` értékét használja, nem egy rögzített `█` karaktert; a renderer az adott pálya falszínével rajzol. A fal karaktere, színe és pályanév a teljes játékmentés része, a régi mentések pedig `█`, sötétszürke és „Labirintus” alapértékkel tölthetők be.
 

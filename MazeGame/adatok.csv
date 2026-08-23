@@ -257,6 +257,7 @@ E047,Pokolfejedelem,Φ,22,2800,13,7,11000,5,MA010,MA005
 E048,Vén beholder,Θ,21,2400,12,8,10500,5,MA006,MA005
 E049,Drakolich,Ł,23,3200,14,7,14000,5,MA001,MA007
 E050,Káoszsárkány,Ж,24,3600,13,10,16000,5,MA002,MA003
+E051,Patkányember,&,7,105,4,7,600,2,MA003,
 
 #Zsákmány paraméterek
 Id,Érték
@@ -317,6 +318,7 @@ E047,100,igen,igen,igen,Varázs,Legendás,12,40000
 E048,95,nem,nem,igen,Varázs,Legendás,12,40000
 E049,100,igen,igen,igen,Varázs,Legendás,12,40000
 E050,100,igen,igen,igen,Varázs,Legendás,12,40000
+E051,65,igen,igen,igen,Sima,Varázs,2,900
 
 #Szörnyképességek
 Id,Név,Hatás,AktiválásiEsély,Érték,Leírás
@@ -472,7 +474,7 @@ STATUS005,Vérzés,🩸,4,1,3,0,0,0,100,100,100,100,0,0,1,Minden saját támadá
 #Tárgyak
 Id,Név,Jellemzés,Ár,Hatás,Érték
 T001,Útravaló,Egyszerű tartós élelem amely csillapítja az éhséget.,8,Food,20
-T002,Kulacs,Vízzel töltött edény amely enyhíti a szomjúságot.,12,Water,30
+T002,Bőrkulacs,Vízzel töltött edény amely enyhíti a szomjúságot.,12,Water,30
 T003,Kulcs,Egyszer használatos kulcs amely garantáltan kinyit vagy bezár egy ajtózárat.,60,None,0
 T004,Kenyér,Friss cipó szerény de megbízható tápértékkel.,6,Food,15
 T005,Sajt,Érett kemény sajt amely sokáig eltartható.,14,Food,28
