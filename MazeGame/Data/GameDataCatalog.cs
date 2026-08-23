@@ -14,6 +14,8 @@ public sealed class GameDataCatalog
     public IReadOnlyList<EnemyDefinition> Enemies { get; init; } = [];
     public IReadOnlyList<MonsterAbilityDefinition> MonsterAbilities { get; init; } = [];
     public IReadOnlyList<StrengthHitBonusDefinition> StrengthHitBonuses { get; init; } = [];
+    public IReadOnlyList<MonsterLootDefinition> MonsterLoot { get; init; } = [];
+    public LootRules LootRules { get; init; } = new(10, 40, 10, 130, 1);
     public IReadOnlyList<WeaponTypeDefinition> WeaponTypes { get; init; } = [];
     public IReadOnlyList<WeaponDefinition> Weapons { get; init; } = [];
     public IReadOnlyList<ArmorDefinition> Armors { get; init; } = [];
@@ -35,6 +37,8 @@ public sealed class GameDataCatalog
 
     public EnemyDefinition GetEnemy(string id) => FindById(Enemies, id, "ellenfél");
     public MonsterAbilityDefinition GetMonsterAbility(string id) => FindById(MonsterAbilities, id, "szörnyképesség");
+    public MonsterLootDefinition? GetMonsterLoot(string enemyId) => MonsterLoot.FirstOrDefault(loot =>
+        string.Equals(loot.EnemyId, enemyId, StringComparison.OrdinalIgnoreCase));
     public WeaponTypeDefinition GetWeaponType(string id) => FindById(WeaponTypes, id, "fegyvertípus");
     public RaceDefinition GetRace(string id) => FindById(Races, id, "faj");
     public CharacterClassDefinition GetCharacterClass(string id) => FindById(CharacterClasses, id, "osztály");

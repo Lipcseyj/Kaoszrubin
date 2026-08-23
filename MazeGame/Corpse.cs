@@ -8,3 +8,12 @@ public class Corpse(Position position, string formerName) : WorldObject(position
     public string FormerName { get; } = formerName;
     public override Rune Symbol { get; } = new('†');
 }
+
+/// <summary>Egy szörny egyszer átkutatható teteme, amely őrzi az eredeti definíció azonosítóját.</summary>
+public sealed class MonsterCorpse(Position position, string formerName, string enemyDefinitionId,
+    bool isSearched = false) : Corpse(position, formerName)
+{
+    public string EnemyDefinitionId { get; } = enemyDefinitionId;
+    public bool IsSearched { get; private set; } = isSearched;
+    public void MarkSearched() => IsSearched = true;
+}

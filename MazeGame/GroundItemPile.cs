@@ -14,4 +14,5 @@ public sealed class GroundItemPile : WorldObject
     public override Rune Symbol => new('◆');
 
     public void Add(IItemDefinition item) => _items.Add(item);
+    public bool Remove(IItemDefinition item) => _items.Remove(item);
 }

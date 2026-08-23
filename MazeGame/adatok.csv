@@ -258,6 +258,57 @@ E048,Vén beholder,Θ,21,2400,12,8,10500,5,MA006,MA005
 E049,Drakolich,Ł,23,3200,14,7,14000,5,MA001,MA007
 E050,Káoszsárkány,Ж,24,3600,13,10,16000,5,MA002,MA003
 
+#Zsákmány paraméterek
+Id,Érték
+KulcsEsély,10
+AranyEsély,40
+AranyTierSzorzó,10
+TolvajEsélySzorzó,130
+IntelligenciaPontBónusz,1
+
+#Szörny zsákmány
+SzörnyId,FelszerelésEsély,Fegyver,Páncél,Varázstárgy,MinRitkaság,MaxRitkaság,MaxMágikusErő,MaxÁr
+E002,25,igen,igen,nem,Sima,Sima,0,70
+E003,40,igen,igen,nem,Sima,Sima,0,100
+E004,15,igen,igen,nem,Sima,Sima,0,250
+E006,8,igen,igen,nem,Sima,Sima,0,100
+E007,45,igen,igen,nem,Sima,Sima,0,250
+E008,55,igen,igen,nem,Sima,Varázs,1,450
+E010,40,igen,igen,nem,Sima,Sima,0,250
+E012,40,igen,igen,nem,Sima,Varázs,1,700
+E013,15,igen,igen,nem,Sima,Varázs,1,700
+E014,50,igen,igen,nem,Sima,Varázs,1,1200
+E015,35,nem,igen,igen,Varázs,Varázs,3,2500
+E016,45,igen,igen,igen,Varázs,Varázs,3,3000
+E017,30,nem,igen,igen,Varázs,Varázs,4,4500
+E018,65,nem,nem,igen,Varázs,Legendás,7,12000
+E019,70,igen,igen,igen,Varázs,Legendás,7,12000
+E020,25,igen,igen,nem,Sima,Varázs,2,2000
+E021,90,igen,igen,igen,Varázs,Legendás,9,22000
+E022,90,igen,igen,igen,Varázs,Legendás,9,22000
+E023,85,igen,igen,igen,Varázs,Legendás,9,22000
+E024,90,igen,igen,igen,Varázs,Legendás,10,28000
+E025,95,igen,igen,igen,Varázs,Legendás,10,30000
+E028,50,igen,igen,nem,Sima,Varázs,1,450
+E031,50,igen,igen,nem,Sima,Varázs,2,700
+E033,10,igen,igen,nem,Sima,Sima,0,100
+E035,60,igen,igen,igen,Sima,Varázs,3,3000
+E036,45,igen,igen,nem,Sima,Varázs,2,1500
+E037,50,igen,igen,igen,Varázs,Varázs,5,6000
+E038,20,nem,igen,igen,Varázs,Varázs,3,3500
+E039,25,nem,igen,igen,Varázs,Varázs,5,6000
+E040,65,igen,nem,igen,Varázs,Legendás,7,12000
+E041,65,igen,igen,nem,Varázs,Legendás,7,12000
+E042,85,igen,igen,igen,Varázs,Legendás,9,22000
+E043,25,nem,igen,igen,Varázs,Varázs,5,7000
+E044,80,igen,igen,igen,Varázs,Legendás,9,22000
+E045,25,nem,igen,igen,Varázs,Varázs,5,7000
+E046,95,igen,igen,igen,Varázs,Legendás,10,30000
+E047,100,igen,igen,igen,Varázs,Legendás,12,40000
+E048,95,nem,nem,igen,Varázs,Legendás,12,40000
+E049,100,igen,igen,igen,Varázs,Legendás,12,40000
+E050,100,igen,igen,igen,Varázs,Legendás,12,40000
+
 #Szörnyképességek
 Id,Név,Hatás,AktiválásiEsély,Érték,Leírás
 MA001,Élőholt,Trait,100,0,Élőholt lény amelyre később külön szent és nekrotikus szabályok vonatkozhatnak.

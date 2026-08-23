@@ -168,7 +168,11 @@ public sealed class Game
                     if (key == ConsoleKey.Escape) return;
                     if (key == ConsoleKey.N) { TryOpenAdjacentDoor(); continue; }
                     if (key == ConsoleKey.Z) { TryCloseAdjacentDoor(); continue; }
-                    if (key == ConsoleKey.K) { TryLockAdjacentDoor(); continue; }
+                    if (key == ConsoleKey.K)
+                    {
+                        if (!TrySearchCurrentCell()) TryLockAdjacentDoor();
+                        continue;
+                    }
                     if (key == ConsoleKey.H) { TogglePartyHoldPosition(); continue; }
                     if (key == ConsoleKey.M) { ScatterPartyTemporarily(); continue; }
                     if (key == ConsoleKey.P) { TryRestParty(); continue; }
@@ -311,7 +315,8 @@ public sealed class Game
                 Math.Max(0, (int)(_nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds),
                 enemy.GroupId, enemy.GroupRole, enemy.ActiveSpellEffects.ToList())).ToList(),
             Corpses = _maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
-                corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null)).ToList(),
+                corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
+                (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false)).ToList(),
             PartyAvatars = _maze.PartyMembers.Select(member => new PartyAvatarSaveData(member.Position, CharacterIndex(member.Character))).ToList(),
             GroundPiles = _maze.GroundItemPiles.Select(pile => new GroundPileSaveData(pile.Position,
                 pile.Items.Select(item => new SavedItemReference(item.Category.ToString(), item.Id)).ToList())).ToList()
@@ -377,7 +382,9 @@ public sealed class Game
         {
             var restored = corpse.PartyCharacterIndex is >= 0 and var characterIndex && characterIndex < CharacterRoster.Characters.Count
                 ? new PartyMemberCorpse(corpse.Position, CharacterRoster.Characters[characterIndex])
-                : new Corpse(corpse.Position, corpse.FormerName);
+                : corpse.EnemyDefinitionId is { Length: > 0 } enemyDefinitionId
+                    ? new MonsterCorpse(corpse.Position, corpse.FormerName, enemyDefinitionId, corpse.IsSearched)
+                    : new Corpse(corpse.Position, corpse.FormerName);
             _maze.AddCorpse(restored);
         }
         foreach (var avatar in state.Maze.PartyAvatars)
@@ -544,6 +551,135 @@ public sealed class Game
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         var pileCount = _maze.GetGroundItemPileAt(_player.Position)?.Items.Count ?? 1;
         _renderer.DrawInventoryMessage($"Ledobtad: {item.Name}. A mezőn {pileCount} tárgy van.", ConsoleColor.Cyan);
+    }
+
+    private bool TrySearchCurrentCell()
+    {
+        var corpse = _maze.GetCorpseAt(_player.Position);
+        var pile = _maze.GetGroundItemPileAt(_player.Position);
+        if (corpse is null && pile is null) return false;
+
+        var messages = new List<string>();
+        if (corpse is MonsterCorpse monsterCorpse)
+        {
+            if (monsterCorpse.IsSearched)
+                messages.Add($"{monsterCorpse.FormerName} tetemét már átkutattad");
+            else
+            {
+                monsterCorpse.MarkSearched();
+                SearchMonsterCorpse(monsterCorpse, messages);
+            }
+        }
+        else if (corpse is PartyMemberCorpse)
+            messages.Add("Az elesett társ testén nincs elvehető zsákmány");
+        else if (corpse is not null)
+            messages.Add("Ez a régi tetem már nem tartalmaz azonosítható zsákmányt");
+
+        PickUpGroundItems(messages);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.DrawInventoryMessage("🔎 " + (messages.Count == 0
+            ? "A keresés nem hozott eredményt."
+            : string.Join("; ", messages) + "."), ConsoleColor.Yellow);
+        return true;
+    }
+
+    private void SearchMonsterCorpse(MonsterCorpse corpse, ICollection<string> messages)
+    {
+        var enemy = _gameData.GetEnemy(corpse.EnemyDefinitionId);
+        var rules = _gameData.LootRules;
+        var keyChance = AdjustedSearchChance(rules.KeyChancePercent);
+        var goldChance = AdjustedSearchChance(rules.GoldChancePercent);
+        var equipmentDefinition = _gameData.GetMonsterLoot(enemy.Id);
+        var equipmentChance = equipmentDefinition is null
+            ? 0
+            : AdjustedSearchChance(equipmentDefinition.EquipmentChancePercent);
+        messages.Add($"esélyek: 🔑 {keyChance}%, 🪙 {goldChance}%" +
+                     (equipmentDefinition is null ? string.Empty : $", 🎁 {equipmentChance}%"));
+
+        var foundItems = new List<IItemDefinition>();
+        if (_random.Next(100) < keyChance) foundItems.Add(_gameData.GetItem(MiscItemIds.Key));
+        if (_random.Next(100) < goldChance)
+        {
+            var maximumGold = Math.Max(1, enemy.StrengthTier * rules.GoldPerStrengthTier);
+            var gold = _random.Next(1, maximumGold + 1);
+            SelectedCharacter.AddGold(gold);
+            messages.Add($"🪙 {gold} arany");
+        }
+        if (equipmentDefinition is not null && _random.Next(100) < equipmentChance &&
+            RollEquipmentLoot(equipmentDefinition) is { } equipment)
+            foundItems.Add(equipment);
+
+        foreach (var item in foundItems)
+        {
+            if (TryStoreLootInParty(item, out var owner))
+                messages.Add($"{item.Name} → {owner} hátizsákja");
+            else
+            {
+                _maze.DropItem(_player.Position, item);
+                messages.Add($"{item.Name} a földön maradt (a hátizsákok tele vannak)");
+            }
+        }
+        if (foundItems.Count == 0 && messages.All(message => !message.StartsWith("🪙", StringComparison.Ordinal)))
+            messages.Add("a tetemnél nem találtál zsákmányt");
+    }
+
+    private int AdjustedSearchChance(int baseChance)
+    {
+        var chance = Math.Max(0, baseChance);
+        if (CharacterClassRules.IsThief(SelectedCharacter.CharacterClass.Id))
+            chance = chance * _gameData.LootRules.ThiefChanceMultiplierPercent / 100;
+        chance += SelectedCharacter.Abilities.Intelligence * _gameData.LootRules.IntelligenceChanceBonusPerPoint;
+        return Math.Clamp(chance, 0, 100);
+    }
+
+    private IItemDefinition? RollEquipmentLoot(MonsterLootDefinition loot)
+    {
+        bool Eligible(IItemDefinition item) => item.Rarity >= loot.MinimumRarity &&
+            item.Rarity <= loot.MaximumRarity && item.MagicPower <= loot.MaximumMagicPower &&
+            item.BasePrice <= loot.MaximumBasePrice &&
+            !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item);
+
+        var categoryCandidates = new List<List<IItemDefinition>>();
+        if (loot.CanDropWeapon)
+            categoryCandidates.Add(_gameData.Weapons.Where(Eligible).Cast<IItemDefinition>().ToList());
+        if (loot.CanDropArmor)
+            categoryCandidates.Add(_gameData.Armors.Where(Eligible).Cast<IItemDefinition>().ToList());
+        if (loot.CanDropMagicItem)
+            categoryCandidates.Add(_gameData.MagicItems.Where(Eligible).Cast<IItemDefinition>().ToList());
+        categoryCandidates.RemoveAll(candidates => candidates.Count == 0);
+        if (categoryCandidates.Count == 0) return null;
+        var candidates = categoryCandidates[_random.Next(categoryCandidates.Count)];
+        return candidates[_random.Next(candidates.Count)];
+    }
+
+    private bool TryStoreLootInParty(IItemDefinition item, out string ownerName)
+    {
+        foreach (var character in new[] { SelectedCharacter }.Concat(CharacterRoster.Party.Members
+                     .Where(character => character != SelectedCharacter && character.IsAlive)))
+        {
+            if (!character.AddToBackpack(item)) continue;
+            ownerName = character.Name;
+            return true;
+        }
+        ownerName = string.Empty;
+        return false;
+    }
+
+    private void PickUpGroundItems(ICollection<string> messages)
+    {
+        var pile = _maze.GetGroundItemPileAt(_player.Position);
+        if (pile is null) return;
+        var pickedUp = new List<string>();
+        foreach (var item in pile.Items.ToArray())
+        {
+            if (!TryStoreLootInParty(item, out var owner)) continue;
+            pile.Remove(item);
+            pickedUp.Add($"{item.Name} → {owner}");
+        }
+        if (pickedUp.Count > 0) messages.Add("felvéve: " + string.Join(", ", pickedUp));
+        if (pile.Items.Count == 0) _maze.RemoveGroundItemPile(pile);
+        else messages.Add($"a földön maradt {pile.Items.Count} tárgy (nincs hely)");
     }
 
     private void InspectSelectedInventoryItem()
@@ -1252,7 +1388,7 @@ public sealed class Game
 
         if (inCombat)
         {
-            var failureChance = Math.Clamp(30 - SelectedCharacter.Abilities.Intelligence - SelectedCharacter.Abilities.Intelligence, 0, 100);
+            var failureChance = Math.Clamp(30 - SelectedCharacter.Abilities.Intelligence - SelectedCharacter.Abilities.Dexterity, 0, 100);
             var roll = _random.Next(1, 101);
             if (roll <= failureChance)
                 return new SpellCastAttempt(true,

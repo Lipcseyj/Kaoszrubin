@@ -116,7 +116,8 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     string? GroupId = null,
     EnemyGroupRole GroupRole = EnemyGroupRole.Member,
     List<ActiveSpellEffect>? ActiveSpellEffects = null);
-public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex);
+public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
+    string? EnemyDefinitionId = null, bool IsSearched = false);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);
 public sealed record SavedItemReference(string Category, string Id);

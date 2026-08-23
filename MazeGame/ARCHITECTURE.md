@@ -419,7 +419,7 @@ Az `Enter` a megtekintett karakter kijelölt hátizsáktárgyát használja el. 
 
 Ha a kijelölés egy partitárs sorára esik akkor az `I` a társ nevét és magyar mozgásprofilját írja az üzenetnaplóba.
 
-A `D` a kijelölt tárgyat a parti vezetőjének aktuális térképmezőjére dobja. A `GroundItemPile` egy pozíción tetszőleges számú tárgyat tárol, a térképen cián `◆` jel mutatja; a halom nem akadályozza a mozgást. A földi halmok a labirintusszint futásidejű állapotához tartoznak, ezért új pályán megszűnnek és jelenleg nem kerülnek karaktermentésbe.
+A `D` a kijelölt tárgyat a parti vezetőjének aktuális térképmezőjére dobja. A `GroundItemPile` egy pozíción tetszőleges számú tárgyat tárol, a térképen cián `◆` jel mutatja; a halom nem akadályozza a mozgást. A földi halmok a labirintusszint futásidejű állapotához tartoznak, új pályán megszűnnek, a teljes játékmentésben viszont megmaradnak. A vezető a halmon állva `K`-val próbálja a tárgyakat az élő parti hátizsákjaiba venni, a vezértől kezdve; ami továbbra sem fér el, a földön marad.
 
 A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű négy főre tölti a partit. A `RandomCharacterGenerator` minden társhoz:
 
@@ -536,6 +536,26 @@ A `MonsterAbilityDefinition` azonosítót, nevet, hatástípust, 0–100%-os akt
 
 A `Trait` hatású Élőholt, Regeneráció, Repülő és Démoni képesség már típusos adatként elérhető, de önmagában még nem hajt végre általános csata- vagy mozgáshatást. Az Élőholt (`MA001`) jelölést az Áldott fegyver tehetség már használja: papnál +2 találatot és +2 sebzést ad az ilyen ellenfelek ellen. A regeneráció körönkénti gyógyítása, a repülés terepszabálya és a démoni kategória további hatásai későbbi bővítések.
 
+### Szörnyzsákmány és keresés
+
+Az ellenfél halálakor `MonsterCorpse` kerül a pályára, amely megőrzi a szörny definícióazonosítóját és azt, hogy átkutatták-e már. Ez minden halálútnál azonos: vezéri csata, automatikus NPC-csata és felfedezés közbeni varázssebzés után is kereshető tetem marad. A tetemen állva a `K` pontosan egyszer sorsolja ki a zsákmányt; az eredmény és az átkutatottság a teljes játékmentés része. Partitárs teteme nem fosztható ki, a definíció nélküli régi tetem pedig nem generál új zsákmányt.
+
+A `#Zsákmány paraméterek` globális alapszabályai:
+
+```text
+kulcs alap-esélye       = 10%
+arany alap-esélye       = 40%
+arany mennyisége        = 1..(szörny Erősség × 10)
+tolvaj esélyszorzója    = 130%
+Intelligencia-bónusz    = +1 százalékpont / Intelligencia
+```
+
+Az esélyszámítás sorrendje `floor(alapesély × tolvajszorzó) + Intelligencia-bónusz`, 0–100%-ra korlátozva. A tolvajszorzó csak akkor él, ha maga a kereső partyvezér Tolvaj; az Intelligencia minden osztálynál hozzáadódik. Például egy 10 Intelligenciájú Tolvaj egy 40%-os felszerelésesélyt `40 × 1,30 + 10 = 62%` eséllyel old fel.
+
+A `#Szörny zsákmány` szörnyenként beállítja az egy darab felszerelés alap-esélyét, az engedélyezett Fegyver/Páncél/Varázstárgy kategóriákat, a minimum és maximum ritkaságot, a maximális mágikus erőt és az alapár felső korlátját. A kategória és a megfelelő tárgy véletlen; személyes varázsfókusz nem sorsolható. A Goblin 40%-os alapeséllyel legfeljebb 100 arany értékű sima fegyvert vagy páncélt, a Fekete sárkány 95%-os alapeséllyel akár 10-es mágikus erejű, 30 000 aranyig terjedő Varázs vagy Legendás felszerelést adhat. A konfiguráció nélküli szörny kulcsot és aranyat továbbra is dobhat, felszerelést nem.
+
+A megtalált tárgyak sorban az élő party hátizsákjaiba kerülnek. Ha minden hátizsák tele van, `GroundItemPile` formájában a tetem mezőjén maradnak. Ugyanez a keresési művelet veszi fel a korábban kézzel ledobott tárgyakat is; az arany közvetlenül a partyvezérhez kerül.
+
 ### Ajtók
 
 Az ajtó nem egyszerű térképrúna, hanem `MazeDoor` állapotobjektum. Négy állapota van:
@@ -549,7 +569,7 @@ Az ajtó nem egyszerű térképrúna, hanem `MazeDoor` állapotobjektum. Négy �
 
 A kezdőterem ajtaja mindig nyitott. A további szobaajtók generáláskor 80% eséllyel kulcsra zártak, 10% eséllyel zártak és 10% eséllyel nyitottak. A zárt és kulcsra zárt ajtó a mozgást és a látóvonalat is blokkolja.
 
-Ajtó mellett a vezető az `N` billentyűvel nyit, a `Z` billentyűvel bezár, a `K` billentyűvel kulcsra zár. A simán zárt ajtó szabadon nyitható. Kulcsra zárt ajtónál a nyitási sorrend:
+Ajtó mellett a vezető az `N` billentyűvel nyit, a `Z` billentyűvel bezár, a `K` billentyűvel kulcsra zár. A `K` helyzetfüggő: ha a vezető tetemen vagy földi tárgyhalmon áll, előbb a keresés/felvétel történik, ezért ilyenkor nem kezeli a szomszédos ajtót. A simán zárt ajtó szabadon nyitható. Kulcsra zárt ajtónál a nyitási sorrend:
 
 1. a `T003` kulcs garantáltan nyit és eltűnik a hátizsákból;
 2. kulcs nélkül a tolvaj százalékos Ügyesség-próbát tesz;
@@ -641,7 +661,7 @@ A támadások addig váltakoznak, amíg valamelyik fél HP-ja nullára nem csök
 - **Játékosgyőzelem:** megkapja az ellenfél XP-jét; az ellenfél kikerül a pálya aktív listájából, és holttest kerül a helyére; a szükséglet-időzítő újabb egy percről indul.
 - **Játékosvereség:** a karakter HP-ja 0 marad, halottnak számít, és a játék véget ér. A főmenüből halott karakterrel nem indítható új játék.
 
-Az ellenfél definíciója változatlan adat. A fogyó ellenfél-HP a `Resolve` metódus lokális `EnemyDefinition` másolatában él, és a csata után nem kerül mentésre. A játékos HP-ja közvetlenül a `LiveCharacter` objektumon változik, ezért menthető állapot.
+Az ellenfél definíciója változatlan adat. A `Resolve` a csata alatt lokális `EnemyDefinition` másolaton számol, majd a maradék HP-t visszaírja az `Enemy.CurrentHitPoints` értékébe; így a túlélő, korábban megsérült szörny állapota menthető. A játékos HP-ja közvetlenül a `LiveCharacter` objektumon változik.
 
 ## Megjelenítés
 
@@ -676,7 +696,7 @@ A játék közbeni `F9` előbb visszateszi az esetleg kézben tartott inventoryt
 - a teljes karakterlistát, partit, inventorykat, állapotokat és erőforrásokat;
 - a pályaszintet, vezetőpozíciót, nézési irányt és követési útvonalat;
 - a teljes térképrácsot, szobákat, kijáratot és ajtóállapotokat;
-- az ellenfelek pozícióját, aktuális HP-ját, mozgási időzítését, profilját, üldözési döntését, csoportazonosítóját és vezér/tag szerepét, továbbá a ládákat, holttesteket és földi tárgyhalmokat;
+- az ellenfelek pozícióját, aktuális HP-ját, mozgási időzítését, profilját, üldözési döntését, csoportazonosítóját és vezér/tag szerepét, továbbá a ládákat, a szörnytetemek definícióját és átkutatottságát, valamint a földi tárgyhalmokat;
 - a partitársak térképi pozícióit és az elesett társak karakterkapcsolatát;
 - a felfedezett ködmezőket, partiparancsot, valamint a szétszóródás, ellenfélmozgás és szükségletfogyás hátralévő idejét.
 

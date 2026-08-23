@@ -140,7 +140,7 @@ public sealed class Maze
     public void ReplaceEnemyWithCorpse(Enemy enemy)
     {
         if (!_enemies.Remove(enemy)) throw new ArgumentException("Az ellenfél nem a labirintus része.", nameof(enemy));
-        _corpses.Add(new Corpse(enemy.Position, enemy.Name));
+        _corpses.Add(new MonsterCorpse(enemy.Position, enemy.Name, enemy.Definition.Id));
     }
 
     public void ReplacePartyMemberWithCorpse(PartyMemberAvatar member)
@@ -158,6 +158,8 @@ public sealed class Maze
 
     public GroundItemPile? GetGroundItemPileAt(Position position) =>
         _groundItemPiles.FirstOrDefault(pile => pile.Position == position);
+    public Corpse? GetCorpseAt(Position position) => _corpses.FirstOrDefault(corpse => corpse.Position == position);
+    public bool RemoveGroundItemPile(GroundItemPile pile) => _groundItemPiles.Remove(pile);
 
     public void DropItem(Position position, Domain.Inventory.IItemDefinition item)
     {

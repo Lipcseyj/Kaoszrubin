@@ -19,6 +19,8 @@ public static class CsvGameDataLoader
         var enemies = new List<EnemyDefinition>();
         var monsterAbilities = new List<MonsterAbilityDefinition>();
         var strengthHitBonuses = new List<StrengthHitBonusDefinition>();
+        var monsterLoot = new List<MonsterLootDefinition>();
+        var lootRuleValues = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var weaponTypes = new List<WeaponTypeDefinition>();
         var weapons = new List<WeaponDefinition>();
         var armors = new List<ArmorDefinition>();
@@ -54,7 +56,8 @@ public static class CsvGameDataLoader
             }
 
             if (IsHeaderRow(cells[0])) continue;
-            AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, itemUpgrades,
+            AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
+                monsterLoot, lootRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, itemUpgrades,
                 raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                 vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
         }
@@ -65,6 +68,8 @@ public static class CsvGameDataLoader
         ValidateEnemies(enemies, monsterAbilities);
         ValidateStatuses(statuses);
         ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
+        ValidateMonsterLoot(enemies, monsterLoot);
+        var lootRules = CreateLootRules(lootRuleValues);
 
         return new GameDataCatalog
         {
@@ -78,6 +83,8 @@ public static class CsvGameDataLoader
             Enemies = enemies,
             MonsterAbilities = monsterAbilities,
             StrengthHitBonuses = strengthHitBonuses,
+            MonsterLoot = monsterLoot,
+            LootRules = lootRules,
             WeaponTypes = weaponTypes,
             Weapons = CreateUpgradedWeapons(weapons, itemUpgrades),
             Armors = CreateUpgradedArmors(armors, itemUpgrades),
@@ -105,6 +112,7 @@ public static class CsvGameDataLoader
         ICollection<RaceDefinition> races, ICollection<CharacterClassDefinition> characterClasses,
         ICollection<EnemyDefinition> enemies, ICollection<MonsterAbilityDefinition> monsterAbilities,
         ICollection<StrengthHitBonusDefinition> strengthHitBonuses,
+        ICollection<MonsterLootDefinition> monsterLoot, IDictionary<string, int> lootRuleValues,
         ICollection<WeaponTypeDefinition> weaponTypes, ICollection<WeaponDefinition> weapons,
         ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities, ICollection<MiscItemDefinition> items,
         ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
@@ -175,6 +183,17 @@ public static class CsvGameDataLoader
             case DataSection.StrengthHitBonuses:
                 strengthHitBonuses.Add(new StrengthHitBonusDefinition(id, Integer(cells, 1) ?? 0,
                     Integer(cells, 2) ?? 0));
+                break;
+            case DataSection.MonsterLoot:
+                monsterLoot.Add(new MonsterLootDefinition(id, Integer(cells, 1) ?? 0,
+                    IsYes(cells, 2), IsYes(cells, 3), IsYes(cells, 4),
+                    RequiredItemRarity(cells, 5, id, "minimumritkaság"),
+                    RequiredItemRarity(cells, 6, id, "maximumritkaság"),
+                    Integer(cells, 7) ?? 0, Integer(cells, 8) ?? 0));
+                break;
+            case DataSection.LootRules:
+                lootRuleValues[id] = Integer(cells, 1) ??
+                    throw new InvalidOperationException($"A(z) '{id}' zsákmányparaméter értéke egész szám legyen.");
                 break;
             case DataSection.DivineSpells:
                 spells.Add(new SpellDefinition(id, name, SpellSchool.Divine, RequiredSpellLevel(cells, id),
@@ -272,10 +291,18 @@ public static class CsvGameDataLoader
 
     private static ItemRarity ParseRarity(string[] cells, int index) => Normalize(Cell(cells, index)) switch
     {
-        "varazs" => ItemRarity.Magic,
-        "legendas" => ItemRarity.Legendary,
+        "varazs" or "magic" => ItemRarity.Magic,
+        "legendas" or "legendary" => ItemRarity.Legendary,
         _ => ItemRarity.Normal
     };
+
+    private static ItemRarity RequiredItemRarity(string[] cells, int index, string id, string fieldName)
+    {
+        var normalized = Normalize(Cell(cells, index));
+        if (normalized is not ("sima" or "normal" or "varazs" or "magic" or "legendas" or "legendary"))
+            throw new InvalidOperationException($"A(z) '{id}' {fieldName} mezője ismeretlen: '{Cell(cells, index)}'.");
+        return ParseRarity(cells, index);
+    }
 
     private static ConsumableEffect ParseConsumableEffect(string[] cells, int index) =>
         Enum.TryParse<ConsumableEffect>(Cell(cells, index), true, out var effect) ? effect : ConsumableEffect.None;
@@ -423,6 +450,39 @@ public static class CsvGameDataLoader
             throw new InvalidOperationException("Egy osztályhoz ugyanaz az Erő-találati küszöb csak egyszer szerepelhet.");
     }
 
+    private static void ValidateMonsterLoot(IEnumerable<EnemyDefinition> enemies,
+        IReadOnlyCollection<MonsterLootDefinition> lootDefinitions)
+    {
+        var enemyIds = enemies.Select(enemy => enemy.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var loot in lootDefinitions)
+        {
+            if (!enemyIds.Contains(loot.EnemyId))
+                throw new InvalidOperationException($"A szörnyzsákmány ismeretlen ellenfélre hivatkozik: '{loot.EnemyId}'.");
+            if (loot.EquipmentChancePercent is < 0 or > 100 || loot.MaximumMagicPower < 0 ||
+                loot.MaximumBasePrice <= 0 || loot.MinimumRarity > loot.MaximumRarity)
+                throw new InvalidOperationException($"A(z) '{loot.EnemyId}' szörnyzsákmány-korlátai érvénytelenek.");
+            if (!loot.CanDropWeapon && !loot.CanDropArmor && !loot.CanDropMagicItem)
+                throw new InvalidOperationException($"A(z) '{loot.EnemyId}' zsákmánysora egyetlen tárgykategóriát sem engedélyez.");
+        }
+        if (lootDefinitions.GroupBy(loot => loot.EnemyId, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1))
+            throw new InvalidOperationException("Egy szörnyhöz csak egy #Szörny zsákmány sor tartozhat.");
+    }
+
+    private static LootRules CreateLootRules(IReadOnlyDictionary<string, int> values)
+    {
+        int Required(string id) => values.TryGetValue(id, out var value)
+            ? value
+            : throw new InvalidOperationException($"Hiányzó #Zsákmány paraméterek érték: '{id}'.");
+        var rules = new LootRules(Required("KulcsEsély"), Required("AranyEsély"),
+            Required("AranyTierSzorzó"), Required("TolvajEsélySzorzó"),
+            Required("IntelligenciaPontBónusz"));
+        if (rules.KeyChancePercent is < 0 or > 100 || rules.GoldChancePercent is < 0 or > 100 ||
+            rules.GoldPerStrengthTier <= 0 || rules.ThiefChanceMultiplierPercent <= 0 ||
+            rules.IntelligenceChanceBonusPerPoint < 0)
+            throw new InvalidOperationException("A #Zsákmány paraméterek értékei érvénytelenek.");
+        return rules;
+    }
+
     private static IReadOnlyList<WeaponDefinition> CreateUpgradedWeapons(
         IReadOnlyCollection<WeaponDefinition> weapons, IReadOnlyCollection<ItemUpgradeDefinition> upgrades)
     {
@@ -486,7 +546,8 @@ public static class CsvGameDataLoader
         }
     }
 
-    private static bool IsHeaderRow(string value) => Normalize(value) is "id" or "fajid" or "osztalyid" or "egeszseg" or "intelligencia" or "szint";
+    private static bool IsHeaderRow(string value) => Normalize(value) is "id" or "fajid" or "osztalyid" or
+        "szornyid" or "egeszseg" or "intelligencia" or "szint";
     private static string Cell(string[] cells, int index) => index < cells.Length ? cells[index] : string.Empty;
     private static string? EmptyAsNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
     private static int? Integer(string[] cells, int index) => int.TryParse(Cell(cells, index), CultureInfo.InvariantCulture, out var value) ? value : null;
@@ -557,6 +618,8 @@ public static class CsvGameDataLoader
         "faji kepessegbonuszok" => DataSection.RaceAbilityBonuses,
         "osztaly kepessegminimumok" => DataSection.ClassAbilityMinimums,
         "ero talalati bonusz" => DataSection.StrengthHitBonuses,
+        "szorny zsakmany" => DataSection.MonsterLoot,
+        "zsakmany parameterek" => DataSection.LootRules,
         "osztaly kezdofelszereles" => DataSection.StartingEquipment,
         "egeszseg altal adott eletero minimum" => DataSection.VitalityByHealth,
         "intelligencia altal adott manna minimum" => DataSection.ManaByIntelligence,
@@ -596,6 +659,8 @@ public static class CsvGameDataLoader
         RaceAbilityBonuses,
         ClassAbilityMinimums,
         StrengthHitBonuses,
+        MonsterLoot,
+        LootRules,
         StartingEquipment,
         VitalityByHealth,
         ManaByIntelligence,

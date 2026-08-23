@@ -308,7 +308,8 @@ public sealed class MainMenu
         Console.WriteLine("Varázslatlista: fel/le, Enter - elsütés, F1-F8 - gyorshely, Esc - vissza");
         Console.WriteLine("Célzás: nyilak - célkereszt | Tab - következő érvényes cél | Enter - megerősítés | Esc - mégse");
         Console.WriteLine("Shift+F1: súgó | F9: teljes játékállás mentése a mentések mappába");
-        Console.WriteLine("Ajtó mellett: N - nyitás | Z - bezárás | K - kulcsra zárás");
+        Console.WriteLine("K: tetem átkutatása/földi tárgyak felvétele | máshol, ajtó mellett: kulcsra zárás");
+        Console.WriteLine("Ajtó mellett: N - nyitás | Z - bezárás");
         Console.WriteLine("P: pihenés (pályánként egyszer, ellenségmentes és kulcsra zárt szobában)");
         Console.WriteLine("Partiparancs: H - helyben maradás be/ki | M - 10 másodperces szétszóródás");
         Console.WriteLine("Ctrl + Shift + U: teljes térkép felfedése/elrejtése | Ctrl + Shift + R: új pálya (fejlesztői mód)");
@@ -316,7 +317,7 @@ public sealed class MainMenu
         Console.WriteLine();
         WriteLine("CSATA", ConsoleColor.Red);
         Console.WriteLine("Saját kör: Space - fegyver | V/F1-F8 - varázslás; választás csak használható varázslatnál jelenik meg.");
-        Console.WriteLine("Harci varázslási kudarc: max(0, 30 - Intelligencia - Ügyesség)%; a manna és az akció elvész.");
+        Console.WriteLine("Harci varázslási kudarc: max(0, 30 - Intelligencia × 2)%; a manna és az akció elvész.");
         Console.WriteLine("A csata alatt a világ ideje megáll.");
         Console.WriteLine();
         WriteLine("Bármely billentyű: vissza az előző képernyőre", ConsoleColor.DarkYellow);
