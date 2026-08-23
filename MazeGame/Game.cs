@@ -46,6 +46,7 @@ public sealed class Game
     private Direction _leaderFacing = Direction.Right;
     private int _mazeLevel = 1;
     private bool _hasRestedThisLevel;
+    private bool _developerPhasing;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
 
@@ -308,6 +309,11 @@ public sealed class Game
                     if (IsAddLevelOnePartyMemberShortcut(keyInfo))
                     {
                         AddLevelOnePartyMemberForDevelopment();
+                        continue;
+                    }
+                    if (IsDeveloperPhasingShortcut(keyInfo))
+                    {
+                        ToggleDeveloperPhasing();
                         continue;
                     }
 
@@ -649,9 +655,27 @@ public sealed class Game
     private void MovePlayer(ConsoleKey key)
     {
         if (_player.Position == _maze.Exit || !TryGetDirection(key, out var direction)) return;
-
         var previousPosition = _player.Position;
-        if (!_player.TryMove(direction, _maze)) return;
+        var targetPosition = previousPosition + direction;
+
+        // Prevent moving into a party member avatar even in developer mode
+        if (_maze.GetObjectAt(targetPosition) is PartyMemberAvatar) return;
+
+        var moved = _player.TryMove(direction, _maze);
+        if (!moved)
+        {
+            if (_developerPhasing && _maze.IsInside(targetPosition))
+            {
+                // Destroy wall/door and move through
+                _maze.RemoveDoor(targetPosition);
+                _maze.Carve(targetPosition);
+                _player.TeleportTo(targetPosition);
+            }
+            else
+            {
+                return;
+            }
+        }
         SelectedCharacter.AdvanceSpellEffects();
         _leaderFacing = direction;
         if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
@@ -2579,6 +2603,10 @@ public sealed class Game
         (keyInfo.Key is ConsoleKey.Oem102 or ConsoleKey.Oem8 || keyInfo.KeyChar is 'í' or 'Í') &&
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
 
+    private static bool IsDeveloperPhasingShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.I &&
+        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
     private void TeleportLeaderNearExit()
     {
         Position? destination = Directions
@@ -2599,6 +2627,14 @@ public sealed class Game
         _fogOfWar.RevealFrom(_maze, destination.Value);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, destination.Value);
         _renderer.DrawDeveloperMessage("Fejlesztői mód: a partyvezér a kijárat mellé teleportált.");
+    }
+
+    private void ToggleDeveloperPhasing()
+    {
+        _developerPhasing = !_developerPhasing;
+        _renderer.DrawDeveloperMessage(_developerPhasing
+            ? "Fejlesztői mód: fal-áthaladás engedélyezve."
+            : "Fejlesztői mód: fal-áthaladás letiltva.");
     }
 
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source);
