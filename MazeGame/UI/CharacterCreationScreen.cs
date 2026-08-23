@@ -25,18 +25,26 @@ public sealed class CharacterCreationScreen
 
         while (true)
         {
-            var rolledAbilities = RollAbilities();
+            PrimaryAbilities rolledAbilities;
+            PrimaryAbilities finalAbilities;
+            List<CharacterClassDefinition> eligibleClasses;
+            do
+            {
+                rolledAbilities = RollAbilities();
+                finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
+                eligibleClasses = EligibleClasses(finalAbilities);
+            } while (eligibleClasses.Count == 0);
+
             var vitalityBonus = _random.Next(1, 16);
             var manaBonus = _random.Next(1, 16);
-            var finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
 
-            DrawAbilityRoll(name, race, rolledAbilities, finalAbilities, vitalityBonus, manaBonus);
+            DrawAbilityRoll(name, race, rolledAbilities, finalAbilities, vitalityBonus, manaBonus, eligibleClasses);
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.R) continue;
             if (key != ConsoleKey.Enter) continue;
 
-            var characterClass = ChooseClass(finalAbilities);
+            var characterClass = ChooseClass(finalAbilities, eligibleClasses);
             if (characterClass is null) continue;
 
             var color = ChooseColor();
@@ -181,23 +189,19 @@ public sealed class CharacterCreationScreen
         }
     }
 
-    private CharacterClassDefinition? ChooseClass(PrimaryAbilities abilities)
+    private List<CharacterClassDefinition> EligibleClasses(PrimaryAbilities abilities) =>
+        _gameData.CharacterClasses.Where(characterClass =>
+            abilities.MeetsMinimum(characterClass.MinimumAbilities)).ToList();
+
+    private CharacterClassDefinition? ChooseClass(PrimaryAbilities abilities,
+        IReadOnlyList<CharacterClassDefinition> eligibleClasses)
     {
-        var eligibleClasses = _gameData.CharacterClasses.Where(characterClass => abilities.MeetsMinimum(characterClass.MinimumAbilities)).ToList();
         while (true)
         {
             Console.Clear();
             Console.WriteLine("=== OSZTÁLY VÁLASZTÁSA ===");
             Console.WriteLine($"Végső képességek: {FormatAbilities(abilities)}");
             Console.WriteLine();
-            if (eligibleClasses.Count == 0)
-            {
-                Console.WriteLine("Ezekkel az értékekkel nincs választható osztály.");
-                Console.WriteLine("R - újradobás, Esc - kilépés");
-                var noClassKey = Console.ReadKey(intercept: true).Key;
-                return null;
-            }
-
             for (var index = 0; index < eligibleClasses.Count; index++)
             {
                 var characterClass = eligibleClasses[index];
@@ -211,7 +215,8 @@ public sealed class CharacterCreationScreen
         }
     }
 
-    private void DrawAbilityRoll(string name, RaceDefinition race, PrimaryAbilities rolled, PrimaryAbilities final, int vitalityBonus, int manaBonus)
+    private void DrawAbilityRoll(string name, RaceDefinition race, PrimaryAbilities rolled, PrimaryAbilities final,
+        int vitalityBonus, int manaBonus, IReadOnlyList<CharacterClassDefinition> eligibleClasses)
     {
         Console.Clear();
         Console.WriteLine("=== KÉPESSÉGDOBÁS ===");
@@ -221,6 +226,9 @@ public sealed class CharacterCreationScreen
         Console.WriteLine($"Dobott értékek (összesen {rolledPointTotal}): {FormatAbilities(rolled)}");
         Console.WriteLine($"Faji módosító: {FormatAbilities(race.AbilityBonuses)}");
         Console.WriteLine($"Végső értékek: {FormatAbilities(final)}");
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"Választható osztályok: {string.Join(", ", eligibleClasses.Select(characterClass => characterClass.Name))}");
+        Console.ResetColor();
         Console.WriteLine();
         Console.WriteLine($"Életerő: {_gameData.GetMinimumVitality(final.Health)} + {vitalityBonus} = {_gameData.GetMinimumVitality(final.Health) + vitalityBonus}");
         Console.WriteLine($"Manna: {_gameData.GetMinimumMana(final.Intelligence)} + {manaBonus} = {_gameData.GetMinimumMana(final.Intelligence) + manaBonus}");

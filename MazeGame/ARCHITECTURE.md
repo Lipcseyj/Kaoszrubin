@@ -115,7 +115,7 @@ Az `adatok.csv` a projektfájl beállítása miatt fordításkor a kimeneti kön
 
 ## Karakter létrehozása és fejlődése
 
-A karaktergenerálás négy elsődleges képességre egy véletlen méretű pontkészletet oszt el. Az alap 25 pont 15% eséllyel nem kap bónuszt, 50% eséllyel +1, 25% eséllyel +2, 10% eséllyel pedig +3 ponttal nő, így a tényleges készlet 25–28 pont. Mindegyik érték legalább 1 és legfeljebb 10 a dobás során. Ehhez adódnak hozzá a faj módosítói, majd a végeredmény 1 és 13 közé szorul. Ugyanez a pontkészletdobás érvényes a kézi, gyorsindításos és véletlen NPC-karaktergenerálásra.
+A karaktergenerálás négy elsődleges képességre egy véletlen méretű pontkészletet oszt el. Az alap 25 pont 15% eséllyel nem kap bónuszt, 50% eséllyel +1, 25% eséllyel +2, 10% eséllyel pedig +3 ponttal nő, így a tényleges készlet 25–28 pont. Mindegyik érték legalább 1 és legfeljebb 10 a dobás során. Ehhez adódnak hozzá a faj módosítói, majd a végeredmény 1 és 13 közé szorul. A kézi generálás azokat a dobásokat, amelyek a kiválasztott fajjal egyetlen osztály CSV-s minimumát sem teljesítik, megjelenítés nélkül automatikusan újradobja. A képességdobás képernyő már az elfogadás előtt felsorolja az eredményhez választható osztályokat, és az osztályválasztó ugyanezt az előre kiszámított listát használja. Ugyanez a pontkészletdobás érvényes a kézi, gyorsindításos és véletlen NPC-karaktergenerálásra.
 
 A karakternév 1–13 karakter hosszú lehet. A korábbi mentésekből érkező hosszabb nevek betöltéskor 13 karakterre rövidülnek, hogy a karakterlap rögzített fejlécébe illeszkedjenek.
 
