@@ -880,6 +880,15 @@ public sealed class ConsoleRenderer
         return _party.Members.Skip(1).ElementAtOrDefault(selection.Index);
     }
 
+    public void RefreshAfterPartyMemberRemoved(LiveCharacter removedCharacter, LiveCharacter leader)
+    {
+        _lastSheetSelections.Remove(removedCharacter);
+        if (_displayedCharacter == removedCharacter) _displayedCharacter = leader;
+        if (_displayedCharacter is null || !_party.Members.Contains(_displayedCharacter)) _displayedCharacter = leader;
+        _activeSheetSelection = _lastSheetSelections.GetValueOrDefault(_displayedCharacter);
+        DrawCharacterSheet(_displayedCharacter);
+    }
+
     public void RefreshInventoryRows()
     {
         if (_displayedCharacter is not null) DrawSelectableCharacterSheetRows(_displayedCharacter);

@@ -138,6 +138,8 @@ public sealed class Maze
         _partyMembers.Add(member);
     }
 
+    public bool RemovePartyMember(PartyMemberAvatar member) => _partyMembers.Remove(member);
+
     public void ReplaceEnemyWithCorpse(Enemy enemy)
     {
         if (!_enemies.Remove(enemy)) throw new ArgumentException("Az ellenfél nem a labirintus része.", nameof(enemy));

@@ -124,6 +124,7 @@ public sealed class Game
                         else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
                         else if (keyInfo.Key == ConsoleKey.D) DropSelectedInventoryItem();
                         else if (keyInfo.Key == ConsoleKey.I) InspectSelectedInventoryItem();
+                        else if (keyInfo.Key == ConsoleKey.Delete) DismissSelectedPartyMember();
                         else if (keyInfo.Key == ConsoleKey.Enter) UseSelectedInventoryItem();
                         else if (keyInfo.Key == ConsoleKey.Spacebar) GrabOrPlaceInventoryItem();
                         continue;
@@ -717,6 +718,54 @@ public sealed class Game
         };
         var description = string.IsNullOrWhiteSpace(item.Description) ? "Nincs jellemzés." : item.Description;
         _renderer.DrawInventoryMessage($"{item.Name} [{item.Id}] — {details}. Ritkaság: {ItemRarityName(item.Rarity)}; mágikus erő: {item.MagicPower}; alapár: {item.BasePrice} arany. Jellemzés: {description}", RarityColor(item.Rarity));
+    }
+
+    private void DismissSelectedPartyMember()
+    {
+        var character = _renderer.GetSelectedPartyMember();
+        if (character is null)
+        {
+            _renderer.DrawInventoryMessage("A Del használatához jelölj ki egy partitársat.", ConsoleColor.DarkYellow);
+            return;
+        }
+
+        CancelHeldInventoryItem();
+        _renderer.DrawInventoryMessage(
+            $"⚠️ Biztosan kirúgod {character.Name} karaktert? Felszerelésével együtt végleg távozik. I/Y: igen | N/Esc: nem",
+            ConsoleColor.Red);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key is ConsoleKey.N or ConsoleKey.Escape)
+            {
+                _renderer.DrawInventoryMessage($"{character.Name} a partiban marad.", ConsoleColor.DarkYellow);
+                return;
+            }
+            if (key is not (ConsoleKey.I or ConsoleKey.Y)) continue;
+            break;
+        }
+
+        var changedPositions = new List<Position>();
+        var avatar = _maze.PartyMembers.FirstOrDefault(member => member.Character == character);
+        if (avatar is not null)
+        {
+            changedPositions.Add(avatar.Position);
+            _maze.RemovePartyMember(avatar);
+            _nextPartyMoves.Remove(avatar);
+        }
+        foreach (var corpse in _maze.Corpses.OfType<PartyMemberCorpse>()
+                     .Where(corpse => corpse.Character == character).ToList())
+        {
+            changedPositions.Add(corpse.Position);
+            _maze.RemoveCorpse(corpse);
+        }
+
+        CharacterRoster.Remove(character);
+        foreach (var position in changedPositions.Distinct())
+            _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, position, _player.Position);
+        _renderer.RefreshAfterPartyMemberRemoved(character, SelectedCharacter);
+        _renderer.DrawInventoryMessage($"👋 {character.Name} felszerelésével együtt végleg távozott a partiból.",
+            ConsoleColor.DarkYellow);
     }
 
     private void UseSelectedInventoryItem()

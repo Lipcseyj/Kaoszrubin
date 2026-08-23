@@ -304,6 +304,7 @@ public sealed class MainMenu
         Console.WriteLine("Nyilak: mozgás | Esc: főmenü");
         Console.WriteLine("Tab: térkép/karakterlap | Karakterlap: fel/le kijelölés, bal/jobb partitagváltás");
         Console.WriteLine("Karakterlap: Space - tárgy mozgatása | D - ledobás | I - részletek | Enter - használat");
+        Console.WriteLine("Partitárs kijelölve: Del - végleges kirúgás megerősítéssel");
         Console.WriteLine("Mágus/Pap: V - memorizált varázslatok | F1-F8 - gyorsvarázslatok");
         Console.WriteLine("Varázslatlista: fel/le, Enter - elsütés, F1-F8 - gyorshely, Esc - vissza");
         Console.WriteLine("Célzás: nyilak - célkereszt | Tab - következő érvényes cél | Enter - megerősítés | Esc - mégse");
@@ -317,7 +318,7 @@ public sealed class MainMenu
         Console.WriteLine();
         WriteLine("CSATA", ConsoleColor.Red);
         Console.WriteLine("Saját kör: Space - fegyver | V/F1-F8 - varázslás; választás csak használható varázslatnál jelenik meg.");
-        Console.WriteLine("Harci varázslási kudarc: max(0, 30 - Intelligencia × 2)%; a manna és az akció elvész.");
+        Console.WriteLine("Harci varázslási kudarc: max(0, 30 - Intelligencia - Ügyesség)%; a manna és az akció elvész.");
         Console.WriteLine("A csata alatt a világ ideje megáll.");
         Console.WriteLine();
         WriteLine("Bármely billentyű: vissza az előző képernyőre", ConsoleColor.DarkYellow);
