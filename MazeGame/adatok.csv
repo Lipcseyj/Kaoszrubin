@@ -590,6 +590,18 @@ C004,3,7,4,4
 C005,6,3,5,6
 C006,3,3,2,8
 
+#Erő találati bónusz
+OsztályId,MinimumErő,Bónusz
+C001,7,1
+C001,10,2
+C001,13,3
+C002,7,1
+C002,10,2
+C002,13,3
+C003,7,1
+C003,10,2
+C003,13,3
+
 #Osztály kezdőfelszerelés
 OsztályId,Fegyver1Id,Fegyver2Id,PáncélId,VarázstárgyId,HátizsákId,HátizsákId
 C001,W004,,A002,,T001,T002

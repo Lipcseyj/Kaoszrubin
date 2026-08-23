@@ -18,6 +18,7 @@ public static class CsvGameDataLoader
         var characterClasses = new List<CharacterClassDefinition>();
         var enemies = new List<EnemyDefinition>();
         var monsterAbilities = new List<MonsterAbilityDefinition>();
+        var strengthHitBonuses = new List<StrengthHitBonusDefinition>();
         var weaponTypes = new List<WeaponTypeDefinition>();
         var weapons = new List<WeaponDefinition>();
         var armors = new List<ArmorDefinition>();
@@ -53,7 +54,7 @@ public static class CsvGameDataLoader
             }
 
             if (IsHeaderRow(cells[0])) continue;
-            AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, itemUpgrades,
+            AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, itemUpgrades,
                 raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                 vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
         }
@@ -63,6 +64,7 @@ public static class CsvGameDataLoader
         ValidateMagicItems(magicItems, spells);
         ValidateEnemies(enemies, monsterAbilities);
         ValidateStatuses(statuses);
+        ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
 
         return new GameDataCatalog
         {
@@ -75,6 +77,7 @@ public static class CsvGameDataLoader
                 characterClass.ExperienceModifier)).ToList(),
             Enemies = enemies,
             MonsterAbilities = monsterAbilities,
+            StrengthHitBonuses = strengthHitBonuses,
             WeaponTypes = weaponTypes,
             Weapons = CreateUpgradedWeapons(weapons, itemUpgrades),
             Armors = CreateUpgradedArmors(armors, itemUpgrades),
@@ -101,6 +104,7 @@ public static class CsvGameDataLoader
     private static void AddDefinition(DataSection section, string[] cells,
         ICollection<RaceDefinition> races, ICollection<CharacterClassDefinition> characterClasses,
         ICollection<EnemyDefinition> enemies, ICollection<MonsterAbilityDefinition> monsterAbilities,
+        ICollection<StrengthHitBonusDefinition> strengthHitBonuses,
         ICollection<WeaponTypeDefinition> weaponTypes, ICollection<WeaponDefinition> weapons,
         ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities, ICollection<MiscItemDefinition> items,
         ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
@@ -167,6 +171,10 @@ public static class CsvGameDataLoader
                     RequiredSpellTargetType(cells, id), RequiredNonNegativeInteger(cells, 6, id, "hatótáv"),
                     RequiredNonNegativeInteger(cells, 7, id, "terület"), IsYes(cells, 8),
                     RequiredSpellUsageMode(cells, id)));
+                break;
+            case DataSection.StrengthHitBonuses:
+                strengthHitBonuses.Add(new StrengthHitBonusDefinition(id, Integer(cells, 1) ?? 0,
+                    Integer(cells, 2) ?? 0));
                 break;
             case DataSection.DivineSpells:
                 spells.Add(new SpellDefinition(id, name, SpellSchool.Divine, RequiredSpellLevel(cells, id),
@@ -398,6 +406,23 @@ public static class CsvGameDataLoader
         }
     }
 
+    private static void ValidateStrengthHitBonuses(IEnumerable<CharacterClassDefinition> characterClasses,
+        IReadOnlyCollection<StrengthHitBonusDefinition> bonuses)
+    {
+        var classIds = characterClasses.Select(characterClass => characterClass.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var bonus in bonuses)
+        {
+            if (!classIds.Contains(bonus.CharacterClassId))
+                throw new InvalidOperationException($"Az Erő-találati bónusz ismeretlen osztályra hivatkozik: '{bonus.CharacterClassId}'.");
+            if (bonus.MinimumStrength is < 1 or > 13 || bonus.Bonus <= 0)
+                throw new InvalidOperationException($"A(z) '{bonus.CharacterClassId}' Erő-találati küszöbe 1–13, bónusza pozitív legyen.");
+        }
+        if (bonuses.GroupBy(bonus => (bonus.CharacterClassId.ToUpperInvariant(), bonus.MinimumStrength))
+            .Any(group => group.Count() > 1))
+            throw new InvalidOperationException("Egy osztályhoz ugyanaz az Erő-találati küszöb csak egyszer szerepelhet.");
+    }
+
     private static IReadOnlyList<WeaponDefinition> CreateUpgradedWeapons(
         IReadOnlyCollection<WeaponDefinition> weapons, IReadOnlyCollection<ItemUpgradeDefinition> upgrades)
     {
@@ -531,6 +556,7 @@ public static class CsvGameDataLoader
         "karakternevek" => DataSection.CharacterNames,
         "faji kepessegbonuszok" => DataSection.RaceAbilityBonuses,
         "osztaly kepessegminimumok" => DataSection.ClassAbilityMinimums,
+        "ero talalati bonusz" => DataSection.StrengthHitBonuses,
         "osztaly kezdofelszereles" => DataSection.StartingEquipment,
         "egeszseg altal adott eletero minimum" => DataSection.VitalityByHealth,
         "intelligencia altal adott manna minimum" => DataSection.ManaByIntelligence,
@@ -569,6 +595,7 @@ public static class CsvGameDataLoader
         CharacterNames,
         RaceAbilityBonuses,
         ClassAbilityMinimums,
+        StrengthHitBonuses,
         StartingEquipment,
         VitalityByHealth,
         ManaByIntelligence,

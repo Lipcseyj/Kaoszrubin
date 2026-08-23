@@ -596,7 +596,9 @@ célérték     = 11 + védekező sebességi képessége
 találat      = támadóérték >= célérték
 ```
 
-A játékos sebességi képessége az Ügyesség, az ellenfélé a Gyorsaság. Sikertelen próba esetén nincs sebzés. A természetes 20 a játékos és az ellenfél számára is automatikus, kritikus találat; a tolvaj Halálos pontosság tehetsége természetes 18–20 között teszi kritikussá a támadást.
+A játékos sebességi képessége az Ügyesség, az ellenfélé a Gyorsaság. A Harcos, Barbár és Lovag fegyveres támadásához az Erő további találati bónuszt ad: 7–9 Erőnél +1, 10–12-nél +2, 13-nál +3. A szabály nem keménykódolt kasztlista: az `adatok.csv` `#Erő találati bónusz` szekciója osztályonként külön `MinimumErő` és `Bónusz` küszöbsorokat tárol, így a jogosult osztályok és a görbe külön-külön hangolhatók. Mindig a karakter Erőértékét nem meghaladó legmagasabb küszöb érvényesül; a napló csak a tényleges, nem nulla `Erő-találat` bónuszt mutatja.
+
+Sikertelen próba esetén nincs sebzés. A természetes 20 a játékos és az ellenfél számára is automatikus, kritikus találat; a tolvaj Halálos pontosság tehetsége természetes 18–20 között teszi kritikussá a támadást.
 
 ### Kritikus találat
 

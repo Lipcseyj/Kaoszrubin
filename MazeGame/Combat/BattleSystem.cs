@@ -6,7 +6,7 @@ namespace MazeGame.Combat;
 
 /// <summary>A közelharc teljes, felhasználó által léptetett körökre osztott szabályrendszere.</summary>
 public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefinition> monsterAbilities,
-    IEnumerable<StatusDefinition> statuses)
+    IEnumerable<StatusDefinition> statuses, IEnumerable<StrengthHitBonusDefinition> strengthHitBonuses)
 {
     private const string DexterityWeaponTypeId = "WT002";
     private const string DefenseWeaponTypeId = "WT003";
@@ -15,6 +15,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         monsterAbilities.ToDictionary(ability => ability.Id, StringComparer.OrdinalIgnoreCase);
     private readonly IReadOnlyDictionary<string, StatusDefinition> _statuses =
         statuses.ToDictionary(status => status.Id, StringComparer.OrdinalIgnoreCase);
+    private readonly IReadOnlyList<StrengthHitBonusDefinition> _strengthHitBonuses = strengthHitBonuses.ToList();
 
     public BattleResult Resolve(LiveCharacter player, Enemy enemy, Action<BattleLogEntry> onRound,
         Func<BattlePlayerAction?>? choosePlayerAction = null)
@@ -186,15 +187,17 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var blessedWeaponBonus = player.HasPerk(PerkIds.PriestBlessedWeapon) &&
                                  defender.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase) ? 2 : 0;
         var invisibilityBonus = player.SpellEffectValue(ActiveSpellEffectType.Invisibility);
+        var strengthHitBonus = StrengthHitBonus(player);
         var hitBonus = (weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0) +
                        player.GetMagicItemBonus(MagicItemEffect.Hit) + blessedWeaponBonus;
-        hitBonus += invisibilityBonus;
+        hitBonus += invisibilityBonus + strengthHitBonus;
         var hit = HitRoll(player.Abilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
+        var strengthHitText = strengthHitBonus > 0 ? $" [Erő-találat +{strengthHitBonus}]" : string.Empty;
         if (!hit.Hit)
         {
             context.ConsecutivePlayerHits = 0;
-            return AttackResult.Miss($"találat: {hit.Description} → NEM TALÁL.");
+            return AttackResult.Miss($"találat: {hit.Description} → NEM TALÁL.{strengthHitText}");
         }
 
         var baseDamage = weapon?.Damage is { } range ? Roll(range) : Roll(new ValueRange(1, 2));
@@ -236,9 +239,16 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var noteText = notes.Count == 0 ? string.Empty : $" [{string.Join(", ", notes)}]";
         var perkBonusText = perkBonus == 0 ? string.Empty : $" + bónusz {perkBonus}";
         return AttackResult.HitFor(damage,
-            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description} → TALÁL; sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplier} - páncél {armor} = {damage}.{noteText}",
+            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description} → TALÁL;{strengthHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplier} - páncél {armor} = {damage}.{noteText}",
             criticalMultiplier > 1);
     }
+
+    private int StrengthHitBonus(LiveCharacter character) => _strengthHitBonuses
+        .Where(bonus => string.Equals(bonus.CharacterClassId, character.CharacterClass.Id,
+            StringComparison.OrdinalIgnoreCase) && bonus.MinimumStrength <= character.Abilities.Strength)
+        .OrderByDescending(bonus => bonus.MinimumStrength)
+        .Select(bonus => bonus.Bonus)
+        .FirstOrDefault();
 
     private AttackResult EnemyAttack(EnemyDefinition attacker, LiveCharacter defender, BattleContext context, int attackerSpeed)
     {

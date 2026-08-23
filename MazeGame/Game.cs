@@ -58,7 +58,8 @@ public sealed class Game
         _gameSaveService = gameSaveService;
         _loadedState = loadedState;
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
-        _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses);
+        _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
+            gameData.StrengthHitBonuses);
     }
 
     public void Run()
@@ -1251,7 +1252,7 @@ public sealed class Game
 
         if (inCombat)
         {
-            var failureChance = Math.Clamp(30 - SelectedCharacter.Abilities.Intelligence * 2, 0, 100);
+            var failureChance = Math.Clamp(30 - SelectedCharacter.Abilities.Intelligence - SelectedCharacter.Abilities.Intelligence, 0, 100);
             var roll = _random.Next(1, 101);
             if (roll <= failureChance)
                 return new SpellCastAttempt(true,

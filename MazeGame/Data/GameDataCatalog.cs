@@ -13,6 +13,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<CharacterClassDefinition> CharacterClasses { get; init; } = [];
     public IReadOnlyList<EnemyDefinition> Enemies { get; init; } = [];
     public IReadOnlyList<MonsterAbilityDefinition> MonsterAbilities { get; init; } = [];
+    public IReadOnlyList<StrengthHitBonusDefinition> StrengthHitBonuses { get; init; } = [];
     public IReadOnlyList<WeaponTypeDefinition> WeaponTypes { get; init; } = [];
     public IReadOnlyList<WeaponDefinition> Weapons { get; init; } = [];
     public IReadOnlyList<ArmorDefinition> Armors { get; init; } = [];
