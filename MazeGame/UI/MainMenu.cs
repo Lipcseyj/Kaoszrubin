@@ -301,7 +301,7 @@ public sealed class MainMenu
         Console.WriteLine("Számok: faj vagy osztály kiválasztása | Enter: dobás elfogadása | R: újradobás | Esc: vissza");
         Console.WriteLine();
         WriteLine("LABIRINTUS", ConsoleColor.Green);
-        Console.WriteLine("Nyilak: mozgás | Esc: főmenü");
+        Console.WriteLine("Nyilak: mozgás | Esc: visszatérés a főmenübe megerősítéssel");
         Console.WriteLine("Tab: térkép/karakterlap | Karakterlap: fel/le kijelölés, bal/jobb partitagváltás");
         Console.WriteLine("Karakterlap: Space - tárgy mozgatása | D - ledobás | I - részletek | Enter - használat");
         Console.WriteLine("Partitárs kijelölve: Del - végleges kirúgás megerősítéssel");

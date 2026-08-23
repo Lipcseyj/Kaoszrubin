@@ -7,7 +7,7 @@ public sealed record IntRange(int Minimum, int Maximum)
     public int Roll(Random random) => random.Next(Minimum, Maximum + 1);
 }
 
-public enum Amount { One, Few, Several, Pack, Lots, Horde }
+public enum Amount { One, Few, TwoThree, Several, Pack, Lots, Horde }
 
 public static class AmountRanges
 {
@@ -15,6 +15,7 @@ public static class AmountRanges
     {
         Amount.One => new(1, 1),
         Amount.Few => new(1, 2),
+        Amount.TwoThree => new(2, 3),
         Amount.Several => new(3, 9),
         Amount.Pack => new(10, 19),
         Amount.Lots => new(20, 49),
@@ -97,7 +98,7 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(10, 50),
                 RoomEncounters =
                 [
-                    Encounters.Same("E001", Amount.Several, Amount.Several),
+                    Encounters.Same("E001", Amount.Several, Amount.TwoThree),
                     Encounters.Same("E002", Amount.Few, Amount.Several),
                     Encounters.Same("E003", Amount.Few, Amount.Few)
                 ],

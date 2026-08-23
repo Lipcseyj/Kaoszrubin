@@ -117,7 +117,11 @@ public sealed class Game
                     }
                     if (_characterSheetFocused)
                     {
-                        if (keyInfo.Key == ConsoleKey.Escape) { CancelHeldInventoryItem(); return; }
+                        if (keyInfo.Key == ConsoleKey.Escape)
+                        {
+                            if (ConfirmReturnToMainMenu()) { CancelHeldInventoryItem(); return; }
+                            continue;
+                        }
                         if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveCharacterSheetSelection(-1);
                         else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveCharacterSheetSelection(1);
                         else if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
@@ -166,7 +170,11 @@ public sealed class Game
                     }
 
                     var key = keyInfo.Key;
-                    if (key == ConsoleKey.Escape) return;
+                    if (key == ConsoleKey.Escape)
+                    {
+                        if (ConfirmReturnToMainMenu()) return;
+                        continue;
+                    }
                     if (key == ConsoleKey.N) { TryOpenAdjacentDoor(); continue; }
                     if (key == ConsoleKey.Z) { TryCloseAdjacentDoor(); continue; }
                     if (key == ConsoleKey.K)
@@ -768,6 +776,23 @@ public sealed class Game
             ConsoleColor.DarkYellow);
     }
 
+    private bool ConfirmReturnToMainMenu()
+    {
+        _renderer.DrawInventoryMessage(
+            "⚠️ Visszatérsz a főmenübe? A legutóbbi mentés óta történt változások elvesznek. I/Y: igen | N/Esc: maradok",
+            ConsoleColor.Red);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key is ConsoleKey.I or ConsoleKey.Y) return true;
+            if (key is ConsoleKey.N or ConsoleKey.Escape)
+            {
+                _renderer.DrawInventoryMessage("A játék folytatódik.", ConsoleColor.Cyan);
+                return false;
+            }
+        }
+    }
+
     private void UseSelectedInventoryItem()
     {
         var slot = _renderer.GetSelectedInventorySlot();
@@ -1062,7 +1087,7 @@ public sealed class Game
     {
         if (position == target) return _maze.IsWalkable(position);
         if (!_maze.IsWalkable(position) || position == _maze.Entrance || position == _maze.Exit) return false;
-        return _maze.GetObjectAt(position) is null or GroundItemPile or PartyMemberAvatar;
+        return _maze.GetObjectAt(position) is null or GroundItemPile or Corpse or PartyMemberAvatar;
     }
 
     private void MovePartyMembers()
@@ -1334,13 +1359,13 @@ public sealed class Game
     private IEnumerable<Position> FreeNeighborsOf(Position origin) => Directions
         .Select(direction => origin + direction)
         .Where(position => _maze.IsWalkable(position) && position != _player.Position &&
-                           (_maze.GetObjectAt(position) is null or GroundItemPile));
+                           (_maze.GetObjectAt(position) is null or GroundItemPile or Corpse));
 
     private bool CanPartyTraverse(PartyMemberAvatar member, Position position)
     {
         if (!_maze.IsWalkable(position) || position == _player.Position) return false;
         var occupant = _maze.GetObjectAt(position);
-        return occupant is null or GroundItemPile || occupant == member;
+        return occupant is null or GroundItemPile or Corpse || occupant == member;
     }
 
     private int CountWalkableNeighbors(Position position) => Directions.Count(direction => _maze.IsWalkable(position + direction));
@@ -1674,7 +1699,11 @@ public sealed class Game
         bool divineJudgment = false)
     {
         var resolution = ResolveAgainstEnemy(effect, spell, enemy, cache);
-        if (!resolution.Applies) return 0;
+        if (!resolution.Applies)
+        {
+            notes.Add($"{enemy.Name}: a varázslat célt tévesztett ({resolution.Text})");
+            return 0;
+        }
         var rolled = (effect.Dice?.Roll(_random) ?? 0) +
                      (int)Math.Round(SelectedCharacter.Abilities.Intelligence * effect.IntelligenceMultiplier) +
                      SelectedCharacter.Level * effect.LevelMultiplier + effect.Value;

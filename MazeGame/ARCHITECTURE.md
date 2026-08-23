@@ -292,7 +292,7 @@ A `Party` 1–4 egyedi `LiveCharacter` objektumot tartalmaz. Első tagja mindig 
 
 A jelenlegi játékmenetben a vezető és a társak is harcolhatnak. A harci XP a 60/40-es parti szabály szerint minden élő taghoz eljuthat; minden részesülő ugyanazzal az osztálymódosítóval valamint HP-/mannanövekedési szabállyal lép szintet. Aranyat továbbra is csak a vezető kap. A periódusos szükségletfogyás minden élő tagra lefut, a csata utáni fogyás pedig kizárólag a ténylegesen harcoló karaktert érinti.
 
-A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbetűje: `H`, `B`, `L`, `T`, `P` vagy `M`. A jel a karakter saját színével rajzolódik. A társak minden új pályán szélességi kereséssel a vezetőhöz legközelebbi üres, járható cellákra kerülnek. Foglalják a mezőjüket az ellenfelek és a vezető elől; egymásra vagy szörnyre nem lépnek és zárt ajtón nem haladnak át.
+A vezető és a társak térképi jele az osztály magyar nevének nagy kezdőbetűje: `H`, `B`, `L`, `T`, `P` vagy `M`. A jel a karakter saját színével rajzolódik. A társak minden új pályán szélességi kereséssel a vezetőhöz legközelebbi üres, járható cellákra kerülnek. Foglalják a mezőjüket az ellenfelek és a vezető elől; egymásra vagy szörnyre nem lépnek és zárt ajtón nem haladnak át. A szörny- és partitárstetemek viszont nem blokkolják sem az NPC-k sem a szörnyek útkeresését vagy lépését; az élő szereplő ideiglenesen eltakarja a tetem jelét, amely a mező elhagyásakor újra láthatóvá válik.
 
 Az NPC-ként vezérelt `LiveCharacter` nullable `NpcBehavior` tulajdonsága mentésre kerül. A vezetőnél inaktív. Generáláskor a barbár mindig `Aggressive`, a lovag mindig `Defensive`, a tolvaj mindig `Scout`, a pap és a mágus mindig `Cautious`; a harcos fele-fele eséllyel `Defensive` vagy `Aggressive`. Régi mentésből származó NPC alapértéke az első elhelyezéskor `Defensive`.
 
@@ -317,6 +317,8 @@ A karakterlap a jobb panel legfelső sorában kezdődik, ezért nem hagy kihaszn
 A `Tab` vált a térkép- és karakterlapfókusz között. Karakterlapfókuszban a `KARAKTERLAP` cím zöld hátteret kap, a fel/le nyilak pedig minden felszereléshely, varázstárgyhely, hátizsákhely és partitárs között léptetik az aktív kijelölést; az üres helyek is célpontok. A kiválasztott sor DarkCyan hátteret kap, miközben megtartja saját előtérszínét; a renderer a logikai kategória és index alapján karakterenként külön megőrzi az utolsó kijelölést. Lépéskor csak a választható tárgy- és partisorok rajzolódnak újra, a teljes karakterlap és térkép nem.
 
 Kijelölt partitársnál a `Del` megerősítést kér a végleges kirúgáshoz. Jóváhagyáskor a karakter felszerelésével együtt kikerül a rosterből és a partiból; élő avatárja vagy pályán maradt teteme eltűnik a térképről, mozgási időzítője pedig törlődik. Ha az ő karakterlapja volt megnyitva, a panel automatikusan visszavált a partivezérre.
+
+Az `Esc` a térkép- és karakterlapfókuszból is megerősítést kér, mielőtt visszatér a főmenübe, mert a legutóbbi mentés utáni állapot elveszik. A célzó- és varázslatinformációs képernyőkön az `Esc` továbbra is csak az aktuális segédnézetet zárja be.
 
 Karakterlapfókuszban a bal/jobb nyíl körkörösen vált a parti tagjainak teljes karakterlapja és inventoryja között. A három rögzített társsor mindig ugyanazokat a társakat mutatja; az éppen megtekintett társ sora `▶` jelölést kap. A vezető lapjának megtekintésekor nincs nyíl a társsorokban. A megtekintett lap nem változtatja meg a térképen irányított vezetőt.
 
