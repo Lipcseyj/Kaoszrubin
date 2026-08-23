@@ -158,10 +158,12 @@ public static class CsvGameDataLoader
                     Integer(cells, 8) ?? 0, MagicItemAllowedClasses(cells, 9), Cell(cells, 10), Integer(cells, 11) ?? 0));
                 break;
             case DataSection.ArcaneSpells:
-                spells.Add(new SpellDefinition(id, name, SpellSchool.Arcane, RequiredSpellLevel(cells, id)));
+                spells.Add(new SpellDefinition(id, name, SpellSchool.Arcane, RequiredSpellLevel(cells, id),
+                    RequiredSpellManaCost(cells, id), RequiredSpellDescription(cells, id)));
                 break;
             case DataSection.DivineSpells:
-                spells.Add(new SpellDefinition(id, name, SpellSchool.Divine, RequiredSpellLevel(cells, id)));
+                spells.Add(new SpellDefinition(id, name, SpellSchool.Divine, RequiredSpellLevel(cells, id),
+                    RequiredSpellManaCost(cells, id), RequiredSpellDescription(cells, id)));
                 break;
             case DataSection.Perks:
                 if (Integer(cells, 4) is { } tier)
@@ -289,6 +291,15 @@ public static class CsvGameDataLoader
     private static int RequiredSpellLevel(string[] cells, string id) => Integer(cells, 2) is >= 1 and <= 5 and var level
         ? level
         : throw new InvalidOperationException($"A(z) '{id}' varázslat szintjének 1 és 5 közé kell esnie.");
+
+    private static int RequiredSpellManaCost(string[] cells, string id) => Integer(cells, 3) is > 0 and var manaCost
+        ? manaCost
+        : throw new InvalidOperationException($"A(z) '{id}' varázslat mannaköltségének pozitív egésznek kell lennie.");
+
+    private static string RequiredSpellDescription(string[] cells, string id) =>
+        !string.IsNullOrWhiteSpace(Cell(cells, 4))
+            ? Cell(cells, 4)
+            : throw new InvalidOperationException($"A(z) '{id}' varázslathoz leírás szükséges.");
 
     private static void ValidateSpells(IReadOnlyCollection<SpellDefinition> spells)
     {

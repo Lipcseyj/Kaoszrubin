@@ -81,6 +81,13 @@ public sealed class Game
                         SaveGame();
                         continue;
                     }
+                    if (_renderer.IsSpellInfoPageOpen)
+                    {
+                        if (keyInfo.Key == ConsoleKey.Escape) _renderer.CloseSpellInfoPage();
+                        else if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveSpellInfoSelection(-1);
+                        else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveSpellInfoSelection(1);
+                        continue;
+                    }
                     if (keyInfo.Key == ConsoleKey.Tab)
                     {
                         if (_characterSheetFocused) CancelHeldInventoryItem();
@@ -460,7 +467,10 @@ public sealed class Game
         if (slot is null) { _renderer.DrawInventoryMessage("Itt nincs ledobható tárgy.", ConsoleColor.DarkYellow); return; }
         var item = slot.Value.Character.GetInventoryItem(slot.Value.Kind, slot.Value.Index);
         if (item is null) { _renderer.DrawInventoryMessage("A kijelölt hely üres.", ConsoleColor.DarkYellow); return; }
-        slot.Value.Character.SetInventoryItem(slot.Value.Kind, slot.Value.Index, null);
+        if (SpellcastingRules.IsSpellcastingFocus(item))
+        { _renderer.DrawInventoryMessage($"A(z) {item.Name} a karakterhez kötött varázsfókusz, ezért nem dobható el.", ConsoleColor.Red); return; }
+        if (!slot.Value.Character.SetInventoryItem(slot.Value.Kind, slot.Value.Index, null))
+        { _renderer.DrawInventoryMessage("A kijelölt tárgy nem távolítható el erről a helyről.", ConsoleColor.Red); return; }
         _maze.DropItem(_player.Position, item);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
@@ -490,6 +500,8 @@ public sealed class Game
                 (magic.SpellId is null ? string.Empty : $" | varázslat: {_gameData.Spells.First(spell => spell.Id == magic.SpellId).Name}") +
                 (magic.MaximumCharges > 0 ? $" | töltet: {magic.MaximumCharges}" : string.Empty) +
                 $" | kasztok: {AllowedClassNames(magic.AllowedClassIds)}",
+            MiscItemDefinition misc when SpellcastingRules.IsSpellcastingFocus(misc) =>
+                "Karakterhez kötött varázsfókusz | nem mozgatható, nem dobható el és nem kereskedhető",
             MiscItemDefinition misc when misc.Effect != ConsumableEffect.None => $"Használati tárgy | hatás: {ConsumableEffectName(misc.Effect)} {misc.EffectValue}",
             _ => "Általános tárgy"
         };
@@ -502,7 +514,13 @@ public sealed class Game
         var slot = _renderer.GetSelectedInventorySlot();
         if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
         { _renderer.DrawInventoryMessage("Használható tárgyat a hátizsákban jelölj ki.", ConsoleColor.DarkYellow); return; }
-        if (slot.Value.Character.GetInventoryItem(slot.Value.Kind, slot.Value.Index) is not MiscItemDefinition item || item.Effect == ConsumableEffect.None)
+        var selectedItem = slot.Value.Character.GetInventoryItem(slot.Value.Kind, slot.Value.Index);
+        if (SpellcastingRules.IsSpellcastingFocus(selectedItem))
+        {
+            _renderer.DrawSpellInfoPage(slot.Value.Character, 0);
+            return;
+        }
+        if (selectedItem is not MiscItemDefinition item || item.Effect == ConsumableEffect.None)
         { _renderer.DrawInventoryMessage("A kijelölt tárgy közvetlenül nem használható.", ConsoleColor.DarkYellow); return; }
 
         var character = slot.Value.Character;
@@ -621,7 +639,10 @@ public sealed class Game
         {
             var item = target.Character.GetInventoryItem(target.Kind, target.Index);
             if (item is null) { _renderer.DrawInventoryMessage("A kijelölt hely üres.", ConsoleColor.DarkYellow); return; }
-            target.Character.SetInventoryItem(target.Kind, target.Index, null);
+            if (SpellcastingRules.IsSpellcastingFocus(item))
+            { _renderer.DrawInventoryMessage($"A(z) {item.Name} a hátizsák első helyéhez kötött, ezért nem mozgatható.", ConsoleColor.Red); return; }
+            if (!target.Character.SetInventoryItem(target.Kind, target.Index, null))
+            { _renderer.DrawInventoryMessage("A kijelölt tárgy nem mozgatható.", ConsoleColor.Red); return; }
             _heldInventoryItem = new HeldInventoryItem(item, target);
             _renderer.RefreshInventoryRows();
             _renderer.DrawInventoryMessage($"Kézben: {item.Name}. Válassz célhelyet, majd nyomj Space-t.", ConsoleColor.Yellow);
@@ -1069,6 +1090,7 @@ public sealed class Game
     private void StartBattle(Enemy enemy)
     {
         if (_battleStarted) return;
+        if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
         _battleStarted = true;
         _renderer.DrawBattleStarted(enemy);
         var result = _battleSystem.Resolve(SelectedCharacter, enemy, entry =>
@@ -1547,7 +1569,9 @@ public sealed class Game
 
     private IReadOnlyList<InnSellOffer> CreateSellOffers(IReadOnlyDictionary<string, int> buybackPrices) =>
         CharacterRoster.Party.Members.SelectMany(character => character.Backpack
-            .Select((item, index) => item is null ? null : new InnSellOffer(character, index, item, buybackPrices[item.Id])))
+            .Select((item, index) => item is null || !buybackPrices.TryGetValue(item.Id, out var price)
+                ? null
+                : new InnSellOffer(character, index, item, price)))
             .Where(offer => offer is not null).Cast<InnSellOffer>().ToList();
 
     private void RunInnRecruitment()
@@ -1727,7 +1751,8 @@ public sealed class Game
     }
 
     private IReadOnlyList<IItemDefinition> AllTradableItems() => _gameData.Items.Cast<IItemDefinition>()
-        .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems).ToList();
+        .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems)
+        .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item)).ToList();
 
     private ExperienceAward AwardExperience(LiveCharacter character, int amount) => new(character,
         AddExperienceAndLearnForNpc(character, amount));

@@ -76,6 +76,7 @@ public sealed class CharacterSaveService
         character.SetGold(saved.Gold ?? 0);
         character.SetProgress(saved.Level ?? 1, saved.Experience ?? 0);
         character.SetNpcBehavior(saved.NpcBehavior);
+        SpellcastingRules.GiveRequiredFocus(character, _gameData);
 
         if (character.IsSpellcaster)
         {
@@ -96,11 +97,21 @@ public sealed class CharacterSaveService
         var magicItemIds = saved.MagicItemIds.Count > 0 ? saved.MagicItemIds : saved.MagicItemNames.Cast<string?>().ToList();
         for (var index = 0; index < Math.Min(LiveCharacter.MaximumMagicItemCount, magicItemIds.Count); index++)
             if (magicItemIds[index] is { } magicItemId)
+            {
+                if (SpellcastingRules.IsLegacyStartingFocusId(magicItemId)) continue;
                 character.SetInventoryItem(InventorySlotKind.MagicItem, index,
                     FindSavedDefinition(_gameData.MagicItems, magicItemId, saved.MagicItemNames.ElementAtOrDefault(index), "varázstárgy"));
-        for (var index = 0; index < Math.Min(LiveCharacter.MaximumBackpackItemCount, saved.BackpackItems.Count); index++)
+            }
+        var requiredFocusId = SpellcastingRules.RequiredFocusItemId(character.CharacterClass.Id);
+        var savedHasFocus = requiredFocusId is not null && saved.BackpackItems.Any(item =>
+            string.Equals(item?.Id, requiredFocusId, StringComparison.OrdinalIgnoreCase));
+        var backpackOffset = requiredFocusId is not null && !savedHasFocus ? 1 : 0;
+        for (var index = 0; index + backpackOffset < LiveCharacter.MaximumBackpackItemCount && index < saved.BackpackItems.Count; index++)
             if (saved.BackpackItems[index] is { } item)
-                character.SetInventoryItem(InventorySlotKind.Backpack, index, ResolveItem(item));
+            {
+                if (SpellcastingRules.IsSpellcastingFocusId(item.Id) || SpellcastingRules.IsLegacyStartingFocusId(item.Id)) continue;
+                character.SetInventoryItem(InventorySlotKind.Backpack, index + backpackOffset, ResolveItem(item));
+            }
         foreach (var perkId in saved.PerkIds)
         {
             var perk = _gameData.GetPerk(perkId);

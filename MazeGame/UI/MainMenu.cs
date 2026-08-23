@@ -304,6 +304,7 @@ public sealed class MainMenu
         Console.WriteLine("Nyilak: mozgás | Esc: főmenü");
         Console.WriteLine("Tab: térkép/karakterlap | Karakterlap: fel/le kijelölés, bal/jobb partitagváltás");
         Console.WriteLine("Karakterlap: Space - tárgy mozgatása | D - ledobás | I - részletek | Enter - használat");
+        Console.WriteLine("Mágus/Pap: Enter a hátizsák első helyén lévő fókuszon - varázslatlista; ott fel/le és Esc");
         Console.WriteLine("F1: súgó | F9: teljes játékállás mentése a mentések mappába");
         Console.WriteLine("Ajtó mellett: N - nyitás | Z - bezárás | K - kulcsra zárás");
         Console.WriteLine("P: pihenés (pályánként egyszer, ellenségmentes és kulcsra zárt szobában)");

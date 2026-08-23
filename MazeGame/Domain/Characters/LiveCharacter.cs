@@ -65,6 +65,7 @@ public sealed class LiveCharacter
     public IReadOnlyList<SpellDefinition> KnownSpells => _knownSpells;
     public IReadOnlyList<SpellDefinition> MemorizedSpells => _memorizedSpells;
     public bool IsSpellcaster => SpellcastingRules.TryGetSchool(CharacterClass.Id, out _);
+    public bool CanCastSpells => IsAlive && SpellcastingRules.HasRequiredFocus(this);
     public int MemorizationCapacity => SpellcastingRules.MemorizationCapacity(this);
     public const int MaximumMagicItemCount = 3;
     public const int MaximumBackpackItemCount = 10;
@@ -106,16 +107,14 @@ public sealed class LiveCharacter
     {
         var index = Array.FindIndex(_backpack, existing => existing is null);
         if (index < 0) return false;
-        _backpack[index] = item;
-        return true;
+        return SetInventoryItem(InventorySlotKind.Backpack, index, item);
     }
 
     public bool RemoveFromBackpack(string itemId)
     {
         var index = Array.FindIndex(_backpack, item => item is not null && string.Equals(item.Id, itemId, StringComparison.OrdinalIgnoreCase));
         if (index < 0) return false;
-        _backpack[index] = null;
-        return true;
+        return SetInventoryItem(InventorySlotKind.Backpack, index, null);
     }
 
     public IItemDefinition? GetInventoryItem(InventorySlotKind kind, int index) => kind switch
@@ -143,6 +142,7 @@ public sealed class LiveCharacter
         var magicItems = (MagicItemDefinition?[])_magicItems.Clone();
         foreach (var change in changes)
         {
+            if (!IsValidSpellcastingFocusChange(change)) return false;
             if (change.Item is not null && !CanPlaceInventoryItem(change.Kind, change.Item)) return false;
             switch (change.Kind)
             {
@@ -167,6 +167,17 @@ public sealed class LiveCharacter
         if (magicItems.Any(item => item is not null && !item.CanBeEquippedBy(CharacterClass.Id))) return false;
         if (weapons[1]?.IsTwoHanded == true) return false;
         return weapons[0]?.IsTwoHanded != true || weapons[1] is null;
+    }
+
+    private bool IsValidSpellcastingFocusChange(InventorySlotChange change)
+    {
+        var existing = GetInventoryItem(change.Kind, change.Index);
+        if (SpellcastingRules.IsSpellcastingFocus(existing) &&
+            !string.Equals(existing!.Id, change.Item?.Id, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!SpellcastingRules.IsSpellcastingFocus(change.Item)) return true;
+        return change.Kind == InventorySlotKind.Backpack && change.Index == 0 &&
+            string.Equals(SpellcastingRules.RequiredFocusItemId(CharacterClass.Id), change.Item!.Id,
+                StringComparison.OrdinalIgnoreCase);
     }
 
     public bool SetInventoryItem(InventorySlotKind kind, int index, IItemDefinition? item)

@@ -135,7 +135,8 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
     {
         for (var index = 0; index < LiveCharacter.MaximumBackpackItemCount; index++)
             character.SetInventoryItem(InventorySlotKind.Backpack, index, null);
-        var supplies = _gameData.Items.Where(item => item.Effect != ConsumableEffect.None).ToList();
+        var supplies = _gameData.Items.Where(item => item.Effect != ConsumableEffect.None &&
+            !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item)).ToList();
         var itemCount = _random.Next(1, 4);
         for (var index = 0; index < itemCount && supplies.Count > 0; index++)
             character.AddToBackpack(supplies[_random.Next(supplies.Count)]);
@@ -176,13 +177,15 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             IsEquipmentTierAvailable(armor, maximumMagicPower, allowLegendary)).ToList();
         if (usableArmors.Count > 0) character.EquipArmor(usableArmors[_random.Next(usableArmors.Count)]);
         var magicItemCount = _random.Next(1, LiveCharacter.MaximumMagicItemCount + 1);
-        foreach (var item in _gameData.MagicItems.Where(item => item.CanBeEquippedBy(character.CharacterClass.Id) &&
+        foreach (var item in _gameData.MagicItems.Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item) &&
+                         item.CanBeEquippedBy(character.CharacterClass.Id) &&
                          IsEquipmentTierAvailable(item, maximumMagicPower, allowLegendary))
                      .OrderBy(_ => _random.Next()).Take(magicItemCount)) character.AddMagicItem(item);
 
         var allItems = _gameData.Items.Cast<IItemDefinition>()
             .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems)
-            .Where(item => IsEquipmentTierAvailable(item, maximumMagicPower, allowLegendary)).ToList();
+            .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item) &&
+                           IsEquipmentTierAvailable(item, maximumMagicPower, allowLegendary)).ToList();
         var targetCount = _random.Next(3, LiveCharacter.MaximumBackpackItemCount + 1);
         while (character.Backpack.Count(item => item is not null) < targetCount)
             character.AddToBackpack(allItems[_random.Next(allItems.Count)]);

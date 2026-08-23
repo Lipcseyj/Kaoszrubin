@@ -347,7 +347,7 @@ A `MaximumCharges` és `SpellId` jelenleg a teljes varázslási rendszer számá
 
 ### Varázslatdefiníciók és szintek
 
-A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát és 1–5 közötti varázslatszintet tartalmaz. Az `adatok.csv` `#Varázslatok` és `#Papi varázslatok` szekciójának harmadik oszlopa a `Szint`.
+A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív mannaköltséget és leírást tartalmaz. Az `adatok.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`. A jelenlegi előkészítő adatokban minden varázslat mannaköltsége 1, a leírások pedig később lecserélendő helykitöltő szövegek.
 
 Mindkét iskolában pontosan 20 varázslat található, szintenként pontosan négy:
 
@@ -363,10 +363,14 @@ A CSV-betöltő visszautasítja az 1–5 tartományon kívüli szintet, illetve 
 
 ### Varázslattanulás és memorizálás
 
-Varázskönyve kizárólag a Papnak (`C005`, `Divine`) és a Mágusnak (`C006`, `Arcane`) van. Ez szándékosan nem azonos a `UsesMana` szabállyal: a Lovag használ mannát, de nem tanul varázslatokat. A karakter két külön listát tárol:
+Varázslatgyűjteménye kizárólag a Papnak (`C005`, `Divine`) és a Mágusnak (`C006`, `Arcane`) van. Ez szándékosan nem azonos a `UsesMana` szabállyal: a Lovag használ mannát, de nem tanul varázslatokat. A karakter két külön listát tárol:
 
 - az ismert varázslatok tartós varázskönyvét;
 - az ismert varázslatokból pihenéskor összeállított, aktuálisan memorizált készletet.
+
+A varázsláshoz kötelező kasztfókusz tartozik: a Mágus személyes `Varázskönyvet`, a Pap személyes `Szent szimbólumot` kap. Ez mindig a hátizsák első helyén van, karakterhez kötött, ezért nem mozgatható, dobható el, adható el vagy vásárolható meg, és a véletlen tárgygenerátorok sem választhatják. A korábbi mágikus kezdőtárgyak (`M003` Szent szimbólum és `M004` Tanonc pálcája) már nem kerülnek új karakterhez, piacra vagy véletlen felszerelésbe; kizárólag régi mentések feloldhatósága miatt maradnak adatdefinícióként. Betöltéskor a régi kezdőtárgy eltűnik, az új fókusz az első helyre kerül, a korábbi hátizsáktartalom pedig egy hellyel jobbra tolódik, amennyiben elfér.
+
+Karakterlapfókuszban a fókusztárgyon nyomott `Enter` a jobb oldali karakterpanel helyén nyitja meg a varázslatinformációs oldalt. Ez felsorolja az ismert varázslatokat, külön jelöli a memorizáltakat, megmutatja a memória kapacitását, a kijelölt varázslat szintjét, mannaköltségét és leírását, továbbá az 1–5. varázslatszint karakter-szintküszöbeit és a következő feloldást. A fel/le nyilak böngésznek, az `Esc` bezárja az oldalt és visszaállítja ugyanannak a karakternek a karakterlapját.
 
 A memorizálható különböző varázslatok száma egész osztással számolódik:
 

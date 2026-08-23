@@ -1,5 +1,6 @@
 using MazeGame.Data;
 using MazeGame.Domain.Magic;
+using MazeGame.Domain.Inventory;
 
 namespace MazeGame.Domain.Characters;
 
@@ -7,6 +8,10 @@ namespace MazeGame.Domain.Characters;
 public static class SpellcastingRules
 {
     public const int StartingSpellCount = 3;
+    public const string MageSpellbookItemId = "T021";
+    public const string PriestHolySymbolItemId = "T022";
+    public const string LegacyHolySymbolItemId = "M003";
+    public const string LegacyApprenticeWandItemId = "M004";
 
     public static bool TryGetSchool(string characterClassId, out SpellSchool school)
     {
@@ -17,6 +22,40 @@ public static class SpellcastingRules
             default: school = default; return false;
         }
     }
+
+    public static string? RequiredFocusItemId(string characterClassId) => characterClassId.ToUpperInvariant() switch
+    {
+        "C005" => PriestHolySymbolItemId,
+        "C006" => MageSpellbookItemId,
+        _ => null
+    };
+
+    public static bool IsSpellcastingFocus(IItemDefinition? item) => item is not null &&
+        IsSpellcastingFocusId(item.Id);
+
+    public static bool IsSpellcastingFocusId(string itemId) =>
+        string.Equals(itemId, MageSpellbookItemId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(itemId, PriestHolySymbolItemId, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsLegacyStartingFocus(IItemDefinition item) =>
+        IsLegacyStartingFocusId(item.Id);
+
+    public static bool IsLegacyStartingFocusId(string itemIdOrName) =>
+        string.Equals(itemIdOrName, LegacyHolySymbolItemId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(itemIdOrName, LegacyApprenticeWandItemId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(itemIdOrName, "Szent szimbólum", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(itemIdOrName, "Tanonc pálcája", StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsRestrictedFromTradingAndGeneration(IItemDefinition item) =>
+        IsSpellcastingFocus(item) || IsLegacyStartingFocus(item);
+
+    public static bool HasRequiredFocus(LiveCharacter character) =>
+        RequiredFocusItemId(character.CharacterClass.Id) is { } requiredId &&
+        character.Backpack[0] is { } focus && string.Equals(focus.Id, requiredId, StringComparison.OrdinalIgnoreCase);
+
+    public static bool GiveRequiredFocus(LiveCharacter character, GameDataCatalog gameData) =>
+        RequiredFocusItemId(character.CharacterClass.Id) is not { } focusId ||
+        character.SetInventoryItem(InventorySlotKind.Backpack, 0, gameData.GetItem(focusId));
 
     public static int MemorizationCapacity(LiveCharacter character) =>
         TryGetSchool(character.CharacterClass.Id, out _)

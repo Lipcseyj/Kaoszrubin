@@ -21,6 +21,7 @@ public static class LiveCharacterFactory
         var character = new LiveCharacter(name, race, characterClass, finalAbilities,
             data.GetMinimumVitality(finalAbilities.Health) + vitalityBonus,
             maximumMana, vitalityBonus, characterClass.UsesMana ? manaBonus : 0, color);
+        SpellcastingRules.GiveRequiredFocus(character, data);
         AddStartingEquipment(character, data.GetStartingEquipment(characterClass.Id), data);
         return character;
     }

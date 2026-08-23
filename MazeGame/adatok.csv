@@ -431,6 +431,8 @@ T017,Ellenméreg,Keserű zöld oldat amely megszünteti a mérgezést.,75,CurePo
 T018,Gyógyfüves orvosság,Erős gyógynövénykeverék betegségek kezelésére.,90,CureDisease,0
 T019,Kötés,Tiszta vászon és vérzéscsillapító por friss sebekhez.,30,StopBleeding,0
 T020,Gyógytea,Meleg gyógynövénytea amely enyhíti a szomjúságot.,18,Water,40
+T021,Varázskönyv,A mágus ismert és memorizált varázslatait tartalmazó személyes könyv.,1,None,0
+T022,Szent szimbólum,A pap hitét és ismert imáit összpontosító személyes szent jelkép.,1,None,0
 
 #Varázstárgyak
 Id,Név,Típus,Kategória,Ár,Töltet,VarázslatId,Hatás,Érték,CsakMágus,Jellemzés,MágikusErő
@@ -493,50 +495,50 @@ PS011,Szent ítélet tekercse,Varázstekercs,Legendás,1900,1,P011,None,0,igen,E
 PS012,Isteni csoda tekercse,Varázstekercs,Legendás,4000,1,P012,None,0,igen,Egyetlen Isteni csoda papi varázslat mágusok által használható legendás másolata.,12
 
 #Varázslatok
-Id,Név,Szint
-S001,Mágikus lövedék,1
-S002,Fagyasztó érintés,1
-S003,Égő kéz,1
-S005,Lángoló nyíl,1
-S004,Villámcsapás,2
-S006,Láthatatlanság,2
-S013,Arkán páncél,2
-S014,Lassítás,2
-S007,Tűzgolyó,3
-S008,Jégvihar,3
-S010,Teleportáció,3
-S015,Mágia szétoszlatása,3
-S009,Villámvihar,4
-S011,Meteorzápor,4
-S016,Láncvillám,4
-S017,Kőbőr,4
-S012,Időmegállítás,5
-S018,Dezintegráció,5
-S019,Dimenziókapu,5
-S020,Arkán kataklizma,5
+Id,Név,Szint,Manna,Leírás
+S001,Mágikus lövedék,1,1,A Mágikus lövedék varázslat leírása.
+S002,Fagyasztó érintés,1,1,A Fagyasztó érintés varázslat leírása.
+S003,Égő kéz,1,1,Az Égő kéz varázslat leírása.
+S005,Lángoló nyíl,1,1,A Lángoló nyíl varázslat leírása.
+S004,Villámcsapás,2,1,A Villámcsapás varázslat leírása.
+S006,Láthatatlanság,2,1,A Láthatatlanság varázslat leírása.
+S013,Arkán páncél,2,1,Az Arkán páncél varázslat leírása.
+S014,Lassítás,2,1,A Lassítás varázslat leírása.
+S007,Tűzgolyó,3,1,A Tűzgolyó varázslat leírása.
+S008,Jégvihar,3,1,A Jégvihar varázslat leírása.
+S010,Teleportáció,3,1,A Teleportáció varázslat leírása.
+S015,Mágia szétoszlatása,3,1,A Mágia szétoszlatása varázslat leírása.
+S009,Villámvihar,4,1,A Villámvihar varázslat leírása.
+S011,Meteorzápor,4,1,A Meteorzápor varázslat leírása.
+S016,Láncvillám,4,1,A Láncvillám varázslat leírása.
+S017,Kőbőr,4,1,A Kőbőr varázslat leírása.
+S012,Időmegállítás,5,1,Az Időmegállítás varázslat leírása.
+S018,Dezintegráció,5,1,A Dezintegráció varázslat leírása.
+S019,Dimenziókapu,5,1,A Dimenziókapu varázslat leírása.
+S020,Arkán kataklizma,5,1,Az Arkán kataklizma varázslat leírása.
 
 #Papi varázslatok
-Id,Név,Szint
-P001,Gyógyító érintés,1
-P002,Szent fény,1
-P003,Áldás,1
-P006,Méregűzés,1
-P004,Szent pajzs,2
-P005,Gyógyítás,2
-P007,Védelem a gonosztól,2
-P013,Betegségűzés,2
-P009,Szent csapás,3
-P010,Isteni védelem,3
-P014,Megtisztítás,3
-P015,Bátorság imája,3
-P008,Feltámasztás,4
-P011,Szent ítélet,4
-P016,Őrangyal,4
-P017,Tömeges gyógyítás,4
-P012,Isteni csoda,5
-P018,Isteni harag,5
-P019,Szentély,5
-P020,Igazi feltámasztás,5
+Id,Név,Szint,Manna,Leírás
+P001,Gyógyító érintés,1,1,A Gyógyító érintés varázslat leírása.
+P002,Szent fény,1,1,A Szent fény varázslat leírása.
+P003,Áldás,1,1,Az Áldás varázslat leírása.
+P006,Méregűzés,1,1,A Méregűzés varázslat leírása.
+P004,Szent pajzs,2,1,A Szent pajzs varázslat leírása.
+P005,Gyógyítás,2,1,A Gyógyítás varázslat leírása.
+P007,Védelem a gonosztól,2,1,A Védelem a gonosztól varázslat leírása.
+P013,Betegségűzés,2,1,A Betegségűzés varázslat leírása.
+P009,Szent csapás,3,1,A Szent csapás varázslat leírása.
+P010,Isteni védelem,3,1,Az Isteni védelem varázslat leírása.
+P014,Megtisztítás,3,1,A Megtisztítás varázslat leírása.
+P015,Bátorság imája,3,1,A Bátorság imája varázslat leírása.
+P008,Feltámasztás,4,1,A Feltámasztás varázslat leírása.
+P011,Szent ítélet,4,1,A Szent ítélet varázslat leírása.
+P016,Őrangyal,4,1,Az Őrangyal varázslat leírása.
+P017,Tömeges gyógyítás,4,1,A Tömeges gyógyítás varázslat leírása.
+P012,Isteni csoda,5,1,Az Isteni csoda varázslat leírása.
+P018,Isteni harag,5,1,Az Isteni harag varázslat leírása.
+P019,Szentély,5,1,A Szentély varázslat leírása.
+P020,Igazi feltámasztás,5,1,Az Igazi feltámasztás varázslat leírása.
 
 #Faji képességbónuszok
 FajId,Erő,Ügyesség,Egészség,Intelligencia
@@ -559,9 +561,9 @@ OsztályId,Fegyver1Id,Fegyver2Id,PáncélId,VarázstárgyId,HátizsákId,Hátizs
 C001,W004,,A002,,T001,T002
 C002,W010,,A002,,T001,T002
 C003,W004,W014,A004,,T001,T002
-C005,W005,,A001,M003,T001,T002
+C005,W005,,A001,,T001,T002
 C004,W001,,A002,,T001,T002
-C006,W001,,A001,M004,T001,T002
+C006,W001,,A001,,T001,T002
 
 #Egészség által adott életerő minimum
 Egészség,Életerő

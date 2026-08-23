@@ -27,6 +27,8 @@ public sealed class ConsoleRenderer
     private Enemy? _battleEnemy;
     private LiveCharacter? _displayedCharacter;
     private bool _characterSheetFocused;
+    private LiveCharacter? _spellInfoCharacter;
+    private int _selectedSpellInfoIndex;
     private SheetSelectionKey? _activeSheetSelection;
     private readonly Dictionary<LiveCharacter, SheetSelectionKey> _lastSheetSelections = [];
     private ConsoleColor? _currentForegroundColor;
@@ -49,6 +51,7 @@ public sealed class ConsoleRenderer
         _mazeLevel = mazeLevel;
         _battleActive = false;
         _battleEnemy = null;
+        _spellInfoCharacter = null;
         Console.Clear();
         DrawPlayfield(maze, fogOfWar);
         DrawFrame();
@@ -603,6 +606,11 @@ public sealed class ConsoleRenderer
     /// <summary>Csak a jobb oldali karakterlapot rajzolja újra, a játéktér érintése nélkül.</summary>
     public void RefreshCharacterSheet(LiveCharacter character)
     {
+        if (_spellInfoCharacter is not null)
+        {
+            DrawSpellInfoPage(_spellInfoCharacter, _selectedSpellInfoIndex);
+            return;
+        }
         var characterToDraw = _displayedCharacter is not null && _party.Members.Contains(_displayedCharacter)
             ? _displayedCharacter
             : character;
@@ -642,6 +650,83 @@ public sealed class ConsoleRenderer
         _displayedCharacter = _party.Members[nextIndex];
         _activeSheetSelection = _lastSheetSelections.GetValueOrDefault(_displayedCharacter);
         DrawCharacterSheet(_displayedCharacter);
+    }
+
+    public void DrawSpellInfoPage(LiveCharacter character, int selectedIndex)
+    {
+        var spells = character.KnownSpells.OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).ToList();
+        selectedIndex = spells.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, spells.Count - 1);
+        _spellInfoCharacter = character;
+        _selectedSpellInfoIndex = selectedIndex;
+        for (var line = 0; line <= PicturePanelBottom; line++) WriteSheetLine(line, string.Empty, ConsoleColor.Gray);
+
+        WriteSheetLine(0, $"VARÁZSLATOK - {character.Name}", ConsoleColor.Yellow,
+            _characterSheetFocused ? ConsoleColor.Green : ConsoleColor.Black);
+        WriteSheetLine(1, SpellcastingRules.HasRequiredFocus(character)
+            ? $"Fókusz: {character.Backpack[0]!.Name}"
+            : "Fókusz: HIÁNYZIK", SpellcastingRules.HasRequiredFocus(character) ? ConsoleColor.Cyan : ConsoleColor.Red);
+        WriteSheetLine(2, $"Memória: {character.MemorizedSpells.Count}/{character.MemorizationCapacity}", ConsoleColor.Magenta);
+        WriteSheetLine(3, "[M] memorizált  [ ] ismert", ConsoleColor.DarkCyan);
+        WriteSheetLine(4, "ISMERT VARÁZSLATOK", ConsoleColor.White);
+
+        for (var index = 0; index < 20; index++)
+        {
+            if (index >= spells.Count) { WriteSheetLine(5 + index, string.Empty, ConsoleColor.Gray); continue; }
+            var spell = spells[index];
+            var memorized = character.MemorizedSpells.Any(candidate =>
+                string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
+            var marker = index == selectedIndex ? ">" : " ";
+            WriteSheetLine(5 + index, $"{marker}[{(memorized ? "M" : " ")}] {spell.Level}. {spell.Name}",
+                index == selectedIndex ? ConsoleColor.Yellow : memorized ? ConsoleColor.Cyan : ConsoleColor.Gray,
+                index == selectedIndex ? ConsoleColor.DarkCyan : ConsoleColor.Black);
+        }
+
+        if (spells.Count > 0)
+        {
+            var selected = spells[selectedIndex];
+            WriteSheetLine(26, "KIJELÖLT VARÁZSLAT", ConsoleColor.White);
+            WriteSheetLine(27, selected.Name, ConsoleColor.Yellow);
+            WriteSheetLine(28, $"Szint: {selected.Level} | Manna: {selected.ManaCost}", ConsoleColor.Blue);
+            WriteSheetLine(29, character.MemorizedSpells.Any(spell => spell.Id == selected.Id)
+                ? "Állapot: memorizált"
+                : "Állapot: csak ismert", ConsoleColor.Magenta);
+            var descriptionLines = WrapText(selected.Description, 27).Take(5).ToList();
+            for (var index = 0; index < 5; index++)
+                WriteSheetLine(30 + index, index < descriptionLines.Count ? descriptionLines[index] : string.Empty, ConsoleColor.Gray);
+        }
+
+        WriteSheetLine(36, "VARÁZSLATSZINTEK", ConsoleColor.White);
+        var unlockLevels = new[] { 1, 5, 10, 15, 20 };
+        for (var spellLevel = 1; spellLevel <= 5; spellLevel++)
+        {
+            var requiredLevel = unlockLevels[spellLevel - 1];
+            var unlocked = character.Level >= requiredLevel;
+            WriteSheetLine(36 + spellLevel,
+                $"{spellLevel}. szint: L{requiredLevel} {(unlocked ? "feloldva" : $"még {requiredLevel - character.Level}")}",
+                unlocked ? ConsoleColor.Green : ConsoleColor.DarkYellow);
+        }
+        var nextUnlock = unlockLevels.FirstOrDefault(level => level > character.Level);
+        WriteSheetLine(43, nextUnlock == 0 ? "Minden szint feloldva." : $"Következő feloldás: L{nextUnlock}", ConsoleColor.Cyan);
+        WriteSheetLine(45, "Fel/le: varázslat böngészése", ConsoleColor.Green);
+        WriteSheetLine(46, "Esc: vissza a karakterlapra", ConsoleColor.DarkYellow);
+    }
+
+    public bool IsSpellInfoPageOpen => _spellInfoCharacter is not null;
+
+    public void MoveSpellInfoSelection(int direction)
+    {
+        if (_spellInfoCharacter is null || direction == 0 || _spellInfoCharacter.KnownSpells.Count == 0) return;
+        _selectedSpellInfoIndex = (_selectedSpellInfoIndex + direction + _spellInfoCharacter.KnownSpells.Count) %
+                                  _spellInfoCharacter.KnownSpells.Count;
+        DrawSpellInfoPage(_spellInfoCharacter, _selectedSpellInfoIndex);
+    }
+
+    public void CloseSpellInfoPage()
+    {
+        if (_spellInfoCharacter is null) return;
+        var character = _spellInfoCharacter;
+        _spellInfoCharacter = null;
+        DrawCharacterSheet(character);
     }
 
     public InventorySlotReference? GetSelectedInventorySlot()
