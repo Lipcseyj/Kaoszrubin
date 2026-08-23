@@ -42,6 +42,7 @@ public sealed class Game
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private int _mazeLevel = 1;
+    private bool _hasRestedThisLevel;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
 
@@ -143,6 +144,7 @@ public sealed class Game
                     if (key == ConsoleKey.K) { TryLockAdjacentDoor(); continue; }
                     if (key == ConsoleKey.H) { TogglePartyHoldPosition(); continue; }
                     if (key == ConsoleKey.M) { ScatterPartyTemporarily(); continue; }
+                    if (key == ConsoleKey.P) { TryRestParty(); continue; }
                     MovePlayer(key);
                 }
 
@@ -168,6 +170,7 @@ public sealed class Game
 
     private void StartNewMaze()
     {
+        _hasRestedThisLevel = false;
         var configuration = MazeLevelConfigurations.Get(_mazeLevel);
         ResolvedEnemyEncounter ResolveEncounter(EnemyEncounterConfiguration encounter) => new(
             encounter.GroupCount,
@@ -250,6 +253,7 @@ public sealed class Game
             LeaderFacing = _leaderFacing,
             LeaderTrail = _leaderTrail.ToList(),
             PartyHoldingPosition = _partyHoldingPosition,
+            HasRestedThisLevel = _hasRestedThisLevel,
             ScatterRemainingMilliseconds = _partyScatterUntil is { } scatter
                 ? Math.Max(0, (int)(scatter - now).TotalMilliseconds) : 0,
             NeedsDrainRemainingMilliseconds = Math.Max(0, (int)(_nextNeedsDrain - now).TotalMilliseconds),
@@ -314,6 +318,7 @@ public sealed class Game
         _leaderTrail.Clear();
         _leaderTrail.AddRange(state.LeaderTrail.Count > 0 ? state.LeaderTrail : [state.PlayerPosition]);
         _partyHoldingPosition = state.PartyHoldingPosition;
+        _hasRestedThisLevel = state.HasRestedThisLevel;
         _partyScatterUntil = state.ScatterRemainingMilliseconds > 0
             ? DateTime.UtcNow + TimeSpan.FromMilliseconds(state.ScatterRemainingMilliseconds) : null;
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMilliseconds(Math.Max(0, state.NeedsDrainRemainingMilliseconds));
@@ -333,6 +338,80 @@ public sealed class Game
         nameof(ItemCategory.Miscellaneous) => _gameData.GetItem(item.Id),
         _ => throw new InvalidOperationException($"Ismeretlen mentett tárgykategória: {item.Category}")
     };
+
+    private void TryRestParty()
+    {
+        if (_hasRestedThisLevel)
+        {
+            _renderer.DrawDeveloperMessage("Ezen a pályán már pihentetek egyszer.");
+            return;
+        }
+        var room = _maze.Rooms.FirstOrDefault(candidate => candidate.Contains(_player.Position));
+        if (room is null)
+        {
+            _renderer.DrawDeveloperMessage("Pihenni csak egy szoba belsejében lehet.");
+            return;
+        }
+        var livingParty = CharacterRoster.Party.Members.Where(character => character.IsAlive).ToList();
+        var everyoneInside = livingParty.All(character => character == SelectedCharacter
+            ? room.Contains(_player.Position)
+            : _maze.PartyMembers.Any(avatar => avatar.Character == character && room.Contains(avatar.Position)));
+        if (!everyoneInside)
+        {
+            _renderer.DrawDeveloperMessage("Pihenéshez minden élő partitag ugyanabban a szobában legyen.");
+            return;
+        }
+        if (_maze.Enemies.Any(enemy => room.Contains(enemy.Position)))
+        {
+            _renderer.DrawDeveloperMessage("Ellenség van a szobában; itt nem lehet pihenni.");
+            return;
+        }
+        var roomDoors = _maze.Doors.Where(door => room.InteriorPositions()
+            .Any(position => Manhattan(position, door.Position) == 1)).ToList();
+        if (roomDoors.Count == 0 || roomDoors.Any(door => door.State != DoorState.Locked))
+        {
+            _renderer.DrawDeveloperMessage("Pihenéshez a szoba minden ajtaját kulcsra kell zárni.");
+            return;
+        }
+
+        var summaries = new List<string>();
+        foreach (var character in livingParty)
+        {
+            var before = character.CurrentVitality;
+            character.RestoreVitality(_random.Next(1, 11));
+            character.SetCurrentResources(character.CurrentVitality, character.MaximumMana);
+            var cured = new List<string>();
+            var cureChance = Math.Clamp(30 + character.Abilities.Health * 2, 0, 100);
+            foreach (var (statusId, name) in new[]
+                     {
+                         (CharacterStatusIds.Diseased, "betegség"),
+                         (CharacterStatusIds.Poisoned, "mérgezés"),
+                         (CharacterStatusIds.Bleeding, "vérzés")
+                     })
+                if (character.HasStatus(statusId) && _random.Next(100) < cureChance && character.RemoveStatus(statusId))
+                    cured.Add(name);
+            character.ConsumeFood(10);
+            character.ConsumeWater(10);
+            character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
+                _gameData.GetStatus(CharacterStatusIds.Thirsty));
+            summaries.Add($"{character.Name}: +{character.CurrentVitality - before} HP" +
+                (cured.Count > 0 ? $", elmúlt: {string.Join(", ", cured)}" : string.Empty));
+        }
+        _hasRestedThisLevel = true;
+        PreparePartySpells();
+        foreach (var door in roomDoors) _maze.SetDoorState(door, DoorState.Closed);
+        _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
+        InitializeEnemyMoveSchedule(DateTime.UtcNow);
+        foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.DrawDeveloperMessage("A parti kipihente magát. " + string.Join("; ", summaries));
+    }
+
+    private void PreparePartySpells()
+    {
+        foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive && character.IsSpellcaster))
+            character.SetMemorizedSpells(_renderer.DrawSpellPreparationScreen(character));
+    }
 
     private void MovePlayer(ConsoleKey key)
     {
@@ -356,6 +435,7 @@ public sealed class Game
             if (leaderResult.LeveledUp) ResolvePerkOffers(leaderResult);
             RunInnMarket(completedLevel);
             RunInnRecruitment();
+            PreparePartySpells();
             RunInnRumors(completedLevel);
             _mazeLevel++;
             StartNewMaze();
@@ -790,9 +870,11 @@ public sealed class Game
             .ToList() is { Count: > 0 } newStatuses
             ? $" Új állapot: {string.Join(", ", newStatuses)}."
             : string.Empty;
+        LevelUpResult? leaderLevelUp = null;
         if (result.PlayerWon)
         {
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
+            leaderLevelUp = experienceAwards.FirstOrDefault(award => award.Character == SelectedCharacter)?.Result;
             var experienceResult = experienceAwards.First(award => award.Character == member.Character).Result;
             _maze.ReplaceEnemyWithCorpse(enemy);
             var levelText = experienceResult.LeveledUp
@@ -817,6 +899,11 @@ public sealed class Game
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _battleStarted = false;
+        if (leaderLevelUp?.LeveledUp == true)
+        {
+            ResolvePerkOffers(leaderLevelUp);
+            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        }
     }
 
     private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from)
@@ -1367,10 +1454,7 @@ public sealed class Game
             .Select(character => new LevelCompletionResult(character, AwardExperience(character, reward).Result))
             .ToList();
         foreach (var character in CharacterRoster.Party.Members)
-        {
-            character.RestoreVitality(character.MaximumVitality);
-            character.RestoreMana(character.MaximumMana);
-        }
+            character.SetCurrentResources(character.MaximumVitality, character.MaximumMana);
         return new LevelCompletionOutcome(results, fallenCharacters);
     }
 
@@ -1646,12 +1730,20 @@ public sealed class Game
         .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems).ToList();
 
     private ExperienceAward AwardExperience(LiveCharacter character, int amount) => new(character,
-        character.AddExperience(
+        AddExperienceAndLearnForNpc(character, amount));
+
+    private LevelUpResult AddExperienceAndLearnForNpc(LiveCharacter character, int amount)
+    {
+        var result = character.AddExperience(
             amount,
             _gameData.ExperienceByLevel,
             _gameData.GetVitalityGrowth(character.Abilities.Health),
             _gameData.GetManaGrowth(character.Abilities.Intelligence),
-            _random));
+            _random);
+        if (character != SelectedCharacter)
+            SpellcastingRules.LearnAutomaticSpells(character, _gameData, result.Bonuses, _random);
+        return result;
+    }
 
     private static string FormatExperienceAwards(IEnumerable<ExperienceAward> awards) => string.Join("; ", awards.Select(award =>
         $"{award.Character.Name} +{award.Result.GainedExperience}" +
@@ -1677,6 +1769,35 @@ public sealed class Game
         var selectedPerks = _renderer.DrawLevelUpScreen(SelectedCharacter, result, offers);
         foreach (var perk in selectedPerks)
             if (SelectedCharacter.AddPerk(perk)) SelectedCharacter.ApplyPerkAcquisitionBonus(perk);
+        ResolveSpellLearning(result);
+    }
+
+    private void ResolveSpellLearning(LevelUpResult result)
+    {
+        if (!SelectedCharacter.IsSpellcaster) return;
+        var simulatedKnown = SelectedCharacter.KnownSpells.Select(spell => spell.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var learningCount = 0;
+        foreach (var bonus in result.Bonuses)
+        {
+            if (!SpellcastingRules.TryGetSchool(SelectedCharacter.CharacterClass.Id, out var school)) break;
+            var simulatedChoice = _gameData.Spells.FirstOrDefault(spell => spell.School == school &&
+                spell.Level <= SpellcastingRules.MaximumSpellLevel(bonus.Level) && !simulatedKnown.Contains(spell.Id));
+            if (simulatedChoice is null) continue;
+            simulatedKnown.Add(simulatedChoice.Id);
+            learningCount++;
+        }
+        var learnedNumber = 0;
+        foreach (var bonus in result.Bonuses)
+        {
+            var choices = SpellcastingRules.AvailableUnknownSpells(SelectedCharacter, _gameData, bonus.Level);
+            if (choices.Count > 0)
+            {
+                learnedNumber++;
+                SelectedCharacter.LearnSpell(_renderer.DrawSpellLearningScreen(SelectedCharacter, choices,
+                    learnedNumber, learningCount));
+            }
+        }
     }
 
     private sealed record ExperienceAward(LiveCharacter Character, LevelUpResult Result);

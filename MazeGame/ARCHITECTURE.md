@@ -73,7 +73,7 @@ Az indítás menete:
 - `Domain/Inventory`: általános tárgyfelület és hétköznapi tárgyak.
 - `Domain/Magic`: varázstárgyak és varázslatok.
 
-A `Definition` végű típusok az `adatok.csv` tartalmát képviselik. A `LiveCharacter` ezzel szemben változó futásidejű állapot: HP, manna, szükségletek, arany, XP, szint, felszerelés és hátizsák.
+A `Definition` végű típusok az `adatok.csv` tartalmát képviselik. A `LiveCharacter` ezzel szemben változó futásidejű állapot: HP, manna, szükségletek, arany, XP, szint, felszerelés, hátizsák, valamint az ismert és memorizált varázslatok.
 
 ### `UI`: menük
 
@@ -223,7 +223,7 @@ Az Éhes és Szomjas állapot származtatott: 30 vagy alacsonyabb élelem-, ille
 
 A `Game.Run` egy körülbelül 20 ms-onként ismétlődő ciklus. Három eseményforrást kezel:
 
-1. **Billentyűzet:** nyilakkal játékosmozgás, `Esc`-pel visszatérés, fejlesztői gyorsbillentyűk.
+1. **Billentyűzet:** nyilakkal játékosmozgás, `P`-vel biztonságos pihenés, `Esc`-pel visszatérés, fejlesztői gyorsbillentyűk.
 2. **Ellenfélmozgás:** csatán kívül minden ellenfél a saját Gyorsaságából számított időpontokban hajtja végre a profiljának megfelelő mozgást.
 3. **Szükségletcsökkenés:** csatán kívül percenként csökken az élelem és a víz.
 
@@ -359,7 +359,30 @@ Mindkét iskolában pontosan 20 varázslat található, szintenként pontosan n�
 | 4 | Villámvihar; Meteorzápor; Láncvillám; Kőbőr | Feltámasztás; Szent ítélet; Őrangyal; Tömeges gyógyítás |
 | 5 | Időmegállítás; Dezintegráció; Dimenziókapu; Arkán kataklizma | Isteni csoda; Isteni harag; Szentély; Igazi feltámasztás |
 
-A CSV-betöltő visszautasítja az 1–5 tartományon kívüli szintet, illetve azt az adatállományt, amelyben egy iskola nem pontosan 20 vagy valamely szint nem pontosan négy definíciót tartalmaz. A `GameDataCatalog.GetSpell` azonosító szerint, a `GetSpells(school, level)` pedig iskola és szint szerint szolgáltat definíciókat. A szint jelenleg előkészítő adat; a megtanulási követelmény, mannaköltség, célzás és tényleges hatás későbbi varázsrendszer feladata.
+A CSV-betöltő visszautasítja az 1–5 tartományon kívüli szintet, illetve azt az adatállományt, amelyben egy iskola nem pontosan 20 vagy valamely szint nem pontosan négy definíciót tartalmaz. A `GameDataCatalog.GetSpell` azonosító szerint, a `GetSpells(school, level)` pedig iskola és szint szerint szolgáltat definíciókat. A mannaköltség, célzás és tényleges varázshatás továbbra is későbbi fejlesztés; a tanulás és memorizálás viszont már aktív.
+
+### Varázslattanulás és memorizálás
+
+Varázskönyve kizárólag a Papnak (`C005`, `Divine`) és a Mágusnak (`C006`, `Arcane`) van. Ez szándékosan nem azonos a `UsesMana` szabállyal: a Lovag használ mannát, de nem tanul varázslatokat. A karakter két külön listát tárol:
+
+- az ismert varázslatok tartós varázskönyvét;
+- az ismert varázslatokból pihenéskor összeállított, aktuálisan memorizált készletet.
+
+A memorizálható különböző varázslatok száma egész osztással számolódik:
+
+```text
+2 + floor(Intelligencia / 3) + floor(karakterszint / 5)
+```
+
+Például 8 Intelligencián és 1. szinten ez `2 + 2 + 0 = 4`. Ugyanaz a varázslat nem foglalhat több helyet. A kézi karaktergenerálás végén a játékos a kaszt négy első szintű varázslatából pontosan hármat választ; ezek rögtön ismertek és memorizáltak. Gyorsindításnál, zsoldosnál és fejlesztői NPC-generálásnál a három kezdővarázslat automatikus.
+
+Új varázslatszint az 1., 5., 10., 15. és 20. karakterszinten nyílik meg. Minden egyes elért karakterszinthez egy, az aktuális szinten már használható, még nem ismert varázslat tanulható. A vezető választóképernyőt kap, az NPC-k véletlenszerűen választanak. Több egyszerre elért szint külön tanulási alkalmakat jelent. Az ismert és memorizált varázslat-ID-k a karaktermentés részei; régi mentésből betöltött Pap vagy Mágus három determinisztikusan választott első szintű kezdővarázslatot kap.
+
+### Pihenés a labirintusban
+
+A `P` billentyűvel pályánként pontosan egyszer lehet pihenni. A pihenés csak akkor indul el, ha a vezető egy szoba belsejében áll, minden élő partitag ugyanabban a szobában van, nincs bent élő ellenfél, a szobának van ajtaja, és minden hozzá tartozó ajtó `Locked` állapotú. A felhasznált pihenési lehetőség a teljes játékmentés része.
+
+Pihenéskor minden élő partitag 1d10 HP-t gyógyul a normál gyógyulásmódosítókkal, a mannája az aktuális maximumra töltődik, továbbá 10 élelem- és 10 vízpontot fogyaszt. A betegségre, mérgezésre és vérzésre egymástól függetlenül `30 + Egészség × 2` százalék eséllyel történik gyógyulási próba; siker esetén az adott állapot megszűnik. Ezután a Papok és Mágusok újra összeállíthatják memorizált készletüket. A pihenés végén a szoba ajtajai `Closed` állapotba kerülnek, és újraindulnak a szükséglet-, szörny- és partitárs-időzítők.
 
 A `#Fegyverek` és `#Páncélok` CSV-szekció kasztoszlopai határozzák meg, mely osztályok viselhetik az adott tárgyat. A fegyvereknél a Harcos, Barbár és Lovag, a páncéloknál a Harcos és Lovag alapértelmezetten engedélyezett; a többi kaszt engedélyét az `igen` érték adja. A korlátozás csak a felszereléshelyekre vonatkozik, hátizsákban bármely karakter hordozhat bármilyen tárgyat. Az ellenőrzés központilag a `LiveCharacter` végleges, tervezett inventoryállapotán fut, ezért a kézi mozgatásra és cserére, a kezdőfelszerelésre, a mentés betöltésére és a véletlen NPC-felszerelésre is érvényes.
 
@@ -411,7 +434,7 @@ teljesítési XP = BaseLevelCompletionExperience × teljesített pályaszám
 
 Ezt az összeget minden életben maradt partitag külön és teljes egészében megkapja; itt nem érvényes a harci 60/40-es XP-elosztás. Minden túlélő karakter saját osztálymódosítója és szintlépési HP-/mannadobása dolgozza fel a jutalmat. A vezető szintlépése a megszokott tehetségválasztási folyamatot is elindíthatja. A halott társak nem kapnak teljesítési XP-t.
 
-Jutalmazás után a parti a fogadóban pihen: kizárólag a túlélők aktuális HP-ja és mannája töltődik maximumra. A 0 HP-s társ halott marad; a pálya végén kikerül a partiból és a karakter-nyilvántartásból, tehát végleg elveszik. A középre igazított színes pályavége képernyő megmutatja a képletet és összeget, karakterenként az XP-t, szintváltozást és feltöltött erőforrásokat, továbbá külön megemlékezik az elvesztett társakról. Enter vagy Space nyitja meg a fogadó kereskedőjét; a piacról `Esc` a toborzáshoz, onnan `Esc` a pletykákhoz, végül `Enter` vagy `Esc` a következő pályára visz.
+Jutalmazás után a parti a fogadóban pihen: kizárólag a túlélők aktuális HP-ja és mannája töltődik maximumra. A 0 HP-s társ halott marad; a pálya végén kikerül a partiból és a karakter-nyilvántartásból, tehát végleg elveszik. A középre igazított színes pályavége képernyő megmutatja a képletet és összeget, karakterenként az XP-t, szintváltozást és feltöltött erőforrásokat, továbbá külön megemlékezik az elvesztett társakról. Enter vagy Space nyitja meg a fogadó kereskedőjét; a piacról `Esc` a toborzáshoz vezet. A toborzás után minden túlélő Pap és Mágus memorizálhat, így az újonnan csatlakozott zsoldos is felkészíthető. Ezután következnek a pletykák, végül `Enter` vagy `Esc` a következő pályára visz.
 
 ### Fogadói kereskedés
 

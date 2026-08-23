@@ -35,6 +35,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
                 _random.Next(1, 16), _random.Next(1, 16), _gameData,
                 CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)]);
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
+            SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
             return character;
         }
         throw new InvalidOperationException("A jelenlegi játékadatokból nem generálható véletlen partitárs.");
@@ -55,6 +56,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
                 characterClass, rolledAbilities, _random.Next(1, 16), _random.Next(1, 16), _gameData,
                 CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)]);
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
+            SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
             var maximumLevel = Math.Max(1, _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(1).Max());
             var targetLevel = Math.Clamp(leaderLevel + _random.Next(-3, 4), 1, maximumLevel);
             RaiseToLevel(character, targetLevel);
@@ -98,9 +100,10 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         {
             var needed = character.GetExperienceNeededForNextLevel(_gameData.ExperienceByLevel);
             if (needed <= 0) break;
-            character.AddExperience(needed, _gameData.ExperienceByLevel,
+            var result = character.AddExperience(needed, _gameData.ExperienceByLevel,
                 _gameData.GetVitalityGrowth(character.Abilities.Health),
                 _gameData.GetManaGrowth(character.Abilities.Intelligence), _random);
+            SpellcastingRules.LearnAutomaticSpells(character, _gameData, result.Bonuses, _random);
         }
     }
 

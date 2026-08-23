@@ -77,6 +77,18 @@ public sealed class CharacterSaveService
         character.SetProgress(saved.Level ?? 1, saved.Experience ?? 0);
         character.SetNpcBehavior(saved.NpcBehavior);
 
+        if (character.IsSpellcaster)
+        {
+            var knownSpells = saved.KnownSpellIds.Count > 0
+                ? saved.KnownSpellIds.Select(_gameData.GetSpell).ToList()
+                : DefaultLegacySpells(character);
+            foreach (var spell in knownSpells) character.LearnSpell(spell);
+            var memorizedIds = saved.MemorizedSpellIds.Count > 0
+                ? saved.MemorizedSpellIds
+                : knownSpells.Take(SpellcastingRules.StartingSpellCount).Select(spell => spell.Id).ToList();
+            character.SetMemorizedSpells(knownSpells.Where(spell => memorizedIds.Contains(spell.Id, StringComparer.OrdinalIgnoreCase)));
+        }
+
         var weaponIds = saved.WeaponIds.Count > 0 ? saved.WeaponIds : saved.WeaponNames;
         for (var index = 0; index < Math.Min(2, weaponIds.Count); index++)
             if (weaponIds[index] is { } weaponId) character.EquipWeapon(index, FindSavedDefinition(_gameData.Weapons, weaponId, saved.WeaponNames.ElementAtOrDefault(index), "fegyver"));
@@ -134,8 +146,16 @@ public sealed class CharacterSaveService
         PerkIds = character.Perks.Select(perk => perk.Id).ToList(),
         AppliedPerkBonusIds = character.Perks.Select(perk => perk.Id).ToList(),
         StatusIds = character.Statuses.Select(status => status.Id).ToList(),
-        Statuses = character.Statuses.Select(status => new StatusSaveData(status.Id, character.GetStatusDuration(status.Id))).ToList()
+        Statuses = character.Statuses.Select(status => new StatusSaveData(status.Id, character.GetStatusDuration(status.Id))).ToList(),
+        KnownSpellIds = character.KnownSpells.Select(spell => spell.Id).ToList(),
+        MemorizedSpellIds = character.MemorizedSpells.Select(spell => spell.Id).ToList()
     };
+
+    private List<SpellDefinition> DefaultLegacySpells(LiveCharacter character)
+    {
+        SpellcastingRules.TryGetSchool(character.CharacterClass.Id, out var school);
+        return _gameData.GetSpells(school, 1).OrderBy(spell => spell.Id).Take(SpellcastingRules.StartingSpellCount).ToList();
+    }
 
     private IItemDefinition ResolveItem(ItemSaveData item) => item.Type switch
     {
@@ -193,6 +213,8 @@ public sealed class CharacterSaveService
         public List<string> AppliedPerkBonusIds { get; init; } = [];
         public List<string> StatusIds { get; init; } = [];
         public List<StatusSaveData> Statuses { get; init; } = [];
+        public List<string> KnownSpellIds { get; init; } = [];
+        public List<string> MemorizedSpellIds { get; init; } = [];
     }
 
     private sealed record ItemSaveData(string Type, string Id, string? Name = null);

@@ -3,6 +3,7 @@ using MazeGame.Combat;
 using MazeGame.Data;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Inventory;
+using MazeGame.Domain.Magic;
 
 namespace MazeGame;
 
@@ -413,6 +414,71 @@ public sealed class ConsoleRenderer
         foreach (var offer in perkOffers)
             selectedPerks.Add(DrawPerkChoice(character, offer));
         return selectedPerks;
+    }
+
+    public SpellDefinition DrawSpellLearningScreen(LiveCharacter character,
+        IReadOnlyList<SpellDefinition> choices, int learnedNumber, int learnedTotal)
+    {
+        var selectedIndex = 0;
+        while (true)
+        {
+            ResetColorCache();
+            Console.Clear();
+            var lines = new List<(string Text, ConsoleColor Color)>
+            {
+                ("📖  ÚJ VARÁZSLAT TANULÁSA", ConsoleColor.Magenta),
+                (string.Empty, ConsoleColor.Gray),
+                ($"{character.Name} — {learnedNumber}/{learnedTotal}. új varázslat", ConsoleColor.Cyan),
+                ("Fel/le: választás     Enter: megtanulás", ConsoleColor.Green),
+                (string.Empty, ConsoleColor.Gray)
+            };
+            lines.AddRange(choices.Select((spell, index) =>
+                ($"{(index == selectedIndex ? "▶" : " ")}  {spell.Level}. szint — {spell.Name}",
+                    index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray)));
+            DrawCenteredFrame(88, lines);
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow: selectedIndex = (selectedIndex - 1 + choices.Count) % choices.Count; break;
+                case ConsoleKey.DownArrow: selectedIndex = (selectedIndex + 1) % choices.Count; break;
+                case ConsoleKey.Enter: return choices[selectedIndex];
+            }
+        }
+    }
+
+    public IReadOnlyList<SpellDefinition> DrawSpellPreparationScreen(LiveCharacter character)
+    {
+        var spells = character.KnownSpells.OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).ToList();
+        if (spells.Count == 0) return [];
+        var selected = character.MemorizedSpells.Select(spell => spell.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var cursor = 0;
+        while (true)
+        {
+            ResetColorCache();
+            Console.Clear();
+            var lines = new List<(string Text, ConsoleColor Color)>
+            {
+                ("🧠✨  VARÁZSLATOK MEMORIZÁLÁSA", ConsoleColor.Magenta),
+                (string.Empty, ConsoleColor.Gray),
+                ($"{character.Name} — kapacitás: {selected.Count}/{character.MemorizationCapacity}", ConsoleColor.Cyan),
+                ("Fel/le: mozgás   Space: ki/be   Enter: kész", ConsoleColor.Green),
+                (string.Empty, ConsoleColor.Gray)
+            };
+            lines.AddRange(spells.Select((spell, index) =>
+                ($"{(index == cursor ? "▶" : " ")} [{(selected.Contains(spell.Id) ? "X" : " ")}]  {spell.Level}. szint — {spell.Name}",
+                    index == cursor ? ConsoleColor.Yellow : ConsoleColor.Gray)));
+            DrawCenteredFrame(92, lines);
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow: cursor = (cursor - 1 + spells.Count) % spells.Count; break;
+                case ConsoleKey.DownArrow: cursor = (cursor + 1) % spells.Count; break;
+                case ConsoleKey.Spacebar:
+                    if (!selected.Remove(spells[cursor].Id) && selected.Count < character.MemorizationCapacity)
+                        selected.Add(spells[cursor].Id);
+                    break;
+                case ConsoleKey.Enter:
+                    return spells.Where(spell => selected.Contains(spell.Id)).ToList();
+            }
+        }
     }
 
     /// <summary>

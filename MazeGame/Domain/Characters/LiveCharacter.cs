@@ -13,6 +13,8 @@ public sealed class LiveCharacter
     private readonly IItemDefinition?[] _backpack = new IItemDefinition?[MaximumBackpackItemCount];
     private readonly List<PerkDefinition> _perks = [];
     private readonly List<StatusDefinition> _statuses = [];
+    private readonly List<SpellDefinition> _knownSpells = [];
+    private readonly List<SpellDefinition> _memorizedSpells = [];
     private readonly Dictionary<string, int?> _statusDurations = new(StringComparer.OrdinalIgnoreCase);
     private int _maximumVitality;
     private int _maximumMana;
@@ -60,10 +62,33 @@ public sealed class LiveCharacter
     public IReadOnlyList<IItemDefinition?> Backpack => _backpack;
     public IReadOnlyList<PerkDefinition> Perks => _perks;
     public IReadOnlyList<StatusDefinition> Statuses => _statuses;
+    public IReadOnlyList<SpellDefinition> KnownSpells => _knownSpells;
+    public IReadOnlyList<SpellDefinition> MemorizedSpells => _memorizedSpells;
+    public bool IsSpellcaster => SpellcastingRules.TryGetSchool(CharacterClass.Id, out _);
+    public int MemorizationCapacity => SpellcastingRules.MemorizationCapacity(this);
     public const int MaximumMagicItemCount = 3;
     public const int MaximumBackpackItemCount = 10;
 
     public void SetNpcBehavior(NpcBehavior? behavior) => NpcBehavior = behavior;
+
+    public bool LearnSpell(SpellDefinition spell)
+    {
+        if (!SpellcastingRules.TryGetSchool(CharacterClass.Id, out var school) || spell.School != school ||
+            spell.Level > SpellcastingRules.MaximumSpellLevel(Level) ||
+            _knownSpells.Any(known => string.Equals(known.Id, spell.Id, StringComparison.OrdinalIgnoreCase))) return false;
+        _knownSpells.Add(spell);
+        return true;
+    }
+
+    public bool SetMemorizedSpells(IEnumerable<SpellDefinition> spells)
+    {
+        var selected = spells.DistinctBy(spell => spell.Id, StringComparer.OrdinalIgnoreCase).ToList();
+        if (selected.Count > MemorizationCapacity || selected.Any(spell =>
+                _knownSpells.All(known => !string.Equals(known.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))) return false;
+        _memorizedSpells.Clear();
+        _memorizedSpells.AddRange(selected);
+        return true;
+    }
 
     public bool EquipWeapon(int slotIndex, WeaponDefinition? weapon) =>
         SetInventoryItem(InventorySlotKind.Weapon, slotIndex, weapon);

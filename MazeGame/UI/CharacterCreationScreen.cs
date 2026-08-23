@@ -43,6 +43,7 @@ public sealed class CharacterCreationScreen
             if (color is null) continue;
 
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities, vitalityBonus, manaBonus, _gameData, color.Value);
+            if (character.IsSpellcaster) ChooseStartingSpells(character);
             _characterRoster.Add(character);
             ShowCreatedCharacter(character);
             return;
@@ -65,8 +66,10 @@ public sealed class CharacterCreationScreen
                 var characterClass = _gameData.CharacterClasses.FirstOrDefault(candidate => finalAbilities.MeetsMinimum(candidate.MinimumAbilities));
                 if (characterClass is null) continue;
 
-                return LiveCharacterFactory.Create(nameFactory(characterClass), race, characterClass, rolledAbilities,
+                var character = LiveCharacterFactory.Create(nameFactory(characterClass), race, characterClass, rolledAbilities,
                     _random.Next(1, 16), _random.Next(1, 16), _gameData, RandomCharacterColor());
+                SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
+                return character;
             }
         }
 
@@ -106,6 +109,39 @@ public sealed class CharacterCreationScreen
     }
 
     private ConsoleColor RandomCharacterColor() => CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)];
+
+    private void ChooseStartingSpells(LiveCharacter character)
+    {
+        SpellcastingRules.TryGetSchool(character.CharacterClass.Id, out var school);
+        var spells = _gameData.GetSpells(school, 1).OrderBy(spell => spell.Name).ToList();
+        var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var cursor = 0;
+        while (true)
+        {
+            Console.Clear();
+            Console.WriteLine("=== KEZDŐ VARÁZSLATOK ===");
+            Console.WriteLine($"Válassz pontosan {SpellcastingRules.StartingSpellCount} varázslatot. Fel/le: mozgás, Space: kijelölés, Enter: elfogadás");
+            Console.WriteLine();
+            for (var index = 0; index < spells.Count; index++)
+                Console.WriteLine($"{(index == cursor ? ">" : " ")} [{(selected.Contains(spells[index].Id) ? "X" : " ")}] {spells[index].Name}");
+            Console.WriteLine();
+            Console.WriteLine($"Kijelölve: {selected.Count}/{SpellcastingRules.StartingSpellCount}");
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow: cursor = (cursor - 1 + spells.Count) % spells.Count; break;
+                case ConsoleKey.DownArrow: cursor = (cursor + 1) % spells.Count; break;
+                case ConsoleKey.Spacebar:
+                    if (!selected.Remove(spells[cursor].Id) && selected.Count < SpellcastingRules.StartingSpellCount)
+                        selected.Add(spells[cursor].Id);
+                    break;
+                case ConsoleKey.Enter when selected.Count == SpellcastingRules.StartingSpellCount:
+                    var chosen = spells.Where(spell => selected.Contains(spell.Id)).ToList();
+                    foreach (var spell in chosen) character.LearnSpell(spell);
+                    character.SetMemorizedSpells(chosen);
+                    return;
+            }
+        }
+    }
 
     private string? ReadName()
     {
