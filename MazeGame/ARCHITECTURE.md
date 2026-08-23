@@ -189,12 +189,12 @@ Az állandó HP- és mannabónuszok a választás pillanatában az aktuális és
 | Tolvaj | Méregkeverő | kész | sikeres fegyveres támadáshoz +1d6 sebzés |
 | Tolvaj | Árnyéklépés | kész | sikeres kitérés után a következő támadás automatikusan talál |
 | Tolvaj | Halálos pontosság | kész | természetes 18–20 dobásnál háromszoros sebzés |
-| Tolvaj | Mestertolvaj | részleges | dupla ládaarany kész; ritka tárgydobás tárgyrendszerre vár |
+| Tolvaj | Mestertolvaj | kész | dupla ládaarany és ládánként 25% eséllyel egy véletlen mágikus ritkaságú tárgy; telt parti-inventorynál a tárgy a láda mezőjén marad |
 | Pap | Gyógyító kegyelem | kész | minden papi HP-gyógyítást 25%-kal növel |
 | Pap | Áldott fegyver | kész | élőholt (`MA001`) ellen +2 találat és +2 sebzés |
 | Pap | Szentély | kész | ellenséges támadásonként 20% eséllyel kimarad a támadás |
 | Pap | Hitforrás | kész | +12 manna választáskor és csata elején legfeljebb 5 manna visszatöltés |
-| Pap | Feltámadás | várakozik | játéknap- és feltámadási rendszer szükséges |
+| Pap | Feltámadás | kész | pályánként egyszer egy halálos csapás után automatikusan teljes HP-val visszatér; vezetői és NPC-csatában is működik |
 | Pap | Isteni ítélet | kész | minden ötödik papi varázslat ingyenes; sebzése vagy gyógyítása kétszeres és az időtartama megduplázódik |
 | Mágus | Arkán fókusz | kész | +2 a mágikus támadódobásokhoz |
 | Mágus | Mannatartalék | kész | +15 maximális és aktuális manna választáskor |
@@ -204,6 +204,8 @@ Az állandó HP- és mannabónuszok a választás pillanatában az aktuális és
 | Mágus | Főmágus | kész | +25 manna választáskor és minden varázslat legalább 1-ig csökkentett, -2 mannaköltsége |
 
 A csatában aktiválódó tehetségek bekerülnek a harci napló számításaiba és magyarázó szövegeibe. Az egyszer használható túlélési és első támadásos hatások minden csata elején új harci kontextust kapnak.
+
+A Pap Feltámadás tehetségének „naponta egyszer” korlátját a jelenlegi időmodellben a két fogadólátogatás közötti pálya jelenti. Ugyanazt a mentett visszatérési jelzőt használja mint a papi feltámasztó varázslatok: ha a tehetség már aktiválódott akkor azon a pályán varázslattal sem hozható vissza újra a karakter és fordítva. Az Őrangyal vagy Utolsó erőd jellegű csatánkénti védelem előbb aktiválódik ezért a ritkább Feltámadás csak akkor fogy el ha más túlélési hatás már nem menti meg a karaktert.
 
 ### Karakterállapotok
 

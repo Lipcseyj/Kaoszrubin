@@ -543,9 +543,24 @@ public sealed class Game
             if (SelectedCharacter.HasPerk(PerkIds.ThiefMasterThief)) rewardMultiplier *= 2;
             var goldAmount = chest.GoldAmount * rewardMultiplier;
             SelectedCharacter.AddGold(goldAmount);
+            var masterThiefLoot = RollMasterThiefChestLoot();
             _maze.RemoveTreasureChest(chest);
             _renderer.RefreshCharacterSheet(SelectedCharacter);
             _renderer.DrawTreasureCollected(goldAmount, jackpot, jackpotChance, rewardMultiplier);
+            if (masterThiefLoot is not null)
+            {
+                if (TryStoreLootInParty(masterThiefLoot, out var owner))
+                    _renderer.DrawInventoryMessage(
+                        $"🎁 Mestertolvaj: {masterThiefLoot.Name} → {owner} hátizsákja.", ConsoleColor.Magenta);
+                else
+                {
+                    _maze.DropItem(_player.Position, masterThiefLoot);
+                    _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+                    _renderer.DrawInventoryMessage(
+                        $"🎁 Mestertolvaj: {masterThiefLoot.Name} a földön maradt mert a hátizsákok tele vannak.",
+                        ConsoleColor.Magenta);
+                }
+            }
         }
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
@@ -666,6 +681,13 @@ public sealed class Game
         if (categoryCandidates.Count == 0) return null;
         var candidates = categoryCandidates[_random.Next(categoryCandidates.Count)];
         return candidates[_random.Next(candidates.Count)];
+    }
+
+    private IItemDefinition? RollMasterThiefChestLoot()
+    {
+        if (!SelectedCharacter.HasPerk(PerkIds.ThiefMasterThief) || _random.Next(100) >= 25) return null;
+        var candidates = AllTradableItems().Where(item => item.Rarity == ItemRarity.Magic).ToList();
+        return candidates.Count == 0 ? null : candidates[_random.Next(candidates.Count)];
     }
 
     private bool TryStoreLootInParty(IItemDefinition item, out string ownerName)

@@ -377,6 +377,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             player.ReceiveDamage(Math.Max(0, player.CurrentVitality - 1));
             return "Utolsó erőd: 1 HP-n talpon marad.";
         }
+        if (damage >= player.CurrentVitality && player.HasPerk(PerkIds.PriestResurrection) &&
+            !player.WasResurrectedThisLevel)
+        {
+            player.SetCurrentResources(player.MaximumVitality, player.CurrentMana);
+            player.MarkResurrectedThisLevel();
+            return $"✨ Feltámadás: {player.Name} teljes HP-val visszatér a halálból.";
+        }
         player.ReceiveDamage(damage);
         return string.Empty;
     }
