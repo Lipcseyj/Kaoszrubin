@@ -577,6 +577,8 @@ public sealed class ConsoleRenderer
         {
             SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
             WriteAt(left, top + index + 1, "║");
+            SetColors(ConsoleColor.Gray, ConsoleColor.Black);
+            WriteAt(left + 1, top + index + 1, new string(' ', frameWidth - 2));
             SetColors(lines[index].Color, ConsoleColor.Black);
             var text = lines[index].Text.Length <= contentWidth
                 ? lines[index].Text
@@ -892,7 +894,7 @@ public sealed class ConsoleRenderer
     {
         if (previousPosition is { } previous) DrawMapCell(maze, fogOfWar, previous);
         Console.SetCursorPosition(position.X, position.Y);
-        WriteRuneWithColor(new Rune('✥'), valid ? ConsoleColor.Green : ConsoleColor.Red, ConsoleColor.DarkBlue);
+        WriteRuneWithColor(new Rune('╳'), valid ? ConsoleColor.Green : ConsoleColor.Red, ConsoleColor.DarkBlue);
         DrawBattleMessage(prompt, valid ? ConsoleColor.Cyan : ConsoleColor.DarkYellow);
     }
 

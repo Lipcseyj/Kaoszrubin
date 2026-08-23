@@ -1259,7 +1259,7 @@ public sealed class Game
         while (true)
         {
             var valid = IsValidSpellTarget(spell, cursor, currentEnemy);
-            var prompt = $"✥ {spell.Name} — {ConsoleRenderer.SpellTargetName(spell.TargetType)}, táv {spell.Range}" +
+            var prompt = $"╳ {spell.Name} — {ConsoleRenderer.SpellTargetName(spell.TargetType)}, táv {spell.Range}" +
                          (spell.AreaRadius > 0 ? $", sugár {spell.AreaRadius}" : string.Empty) +
                          $" | {(valid ? DescribeSpellTarget(spell, cursor, currentEnemy) : "érvénytelen cél")} | Enter: célzás, Tab: következő, Esc: mégse";
             _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, previous, cursor, valid, prompt);
