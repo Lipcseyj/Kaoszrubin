@@ -2,6 +2,7 @@ using MazeGame.Data;
 using MazeGame.Domain.Characters;
 using MazeGame.Combat;
 using MazeGame.Domain.Inventory;
+using MazeGame.Domain.Combat;
 using MazeGame.UI;
 
 namespace MazeGame;
@@ -355,6 +356,7 @@ public sealed class Game
             if (leaderResult.LeveledUp) ResolvePerkOffers(leaderResult);
             RunInnMarket(completedLevel);
             RunInnRecruitment();
+            RunInnRumors(completedLevel);
             _mazeLevel++;
             StartNewMaze();
             return;
@@ -1543,6 +1545,101 @@ public sealed class Game
             else if (key == ConsoleKey.DownArrow) selectedIndex = (selectedIndex + 1) % replaceable.Count;
             else if (key == ConsoleKey.Enter) return selectedIndex;
         }
+    }
+
+    private void RunInnRumors(int completedLevel)
+    {
+        const int maximumRefreshes = 3;
+        var refreshesUsed = 0;
+        var shownRumors = new HashSet<string>(StringComparer.Ordinal);
+        var rumor = CreateUniqueInnRumor(completedLevel, shownRumors);
+        while (true)
+        {
+            _renderer.DrawInnRumorScreen(rumor, maximumRefreshes - refreshesUsed);
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key is ConsoleKey.Enter or ConsoleKey.Escape) return;
+            if (key != ConsoleKey.N || refreshesUsed >= maximumRefreshes) continue;
+            refreshesUsed++;
+            rumor = CreateUniqueInnRumor(completedLevel, shownRumors);
+        }
+    }
+
+    private InnRumor CreateUniqueInnRumor(int completedLevel, ISet<string> shownRumors)
+    {
+        InnRumor rumor;
+        var attempts = 0;
+        do rumor = CreateInnRumor(completedLevel);
+        while (!shownRumors.Add(rumor.Title + "\n" + string.Join('\n', rumor.Lines)) && ++attempts < 30);
+        return rumor;
+    }
+
+    private InnRumor CreateInnRumor(int completedLevel) => _random.Next(2) == 0
+        ? CreateNextLevelRumor(completedLevel + 1)
+        : CreateMonsterRumor(completedLevel);
+
+    private InnRumor CreateNextLevelRumor(int level)
+    {
+        var configuration = MazeLevelConfigurations.Get(level);
+        var enemyIds = configuration.RoomEncounters.Concat(configuration.CorridorEncounters)
+            .SelectMany(encounter => encounter.Members).Select(member => member.EnemyId)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var enemyNames = enemyIds.Select(id => _gameData.GetEnemy(id).Name).ToList();
+        var leaders = configuration.RoomEncounters.SelectMany(encounter => encounter.Members)
+            .Where(member => member.Role == EnemyGroupRole.Leader)
+            .Select(member => _gameData.GetEnemy(member.EnemyId).Name).Distinct().ToList();
+        var corridorText = configuration.DoubleWidthCorridorChance switch
+        {
+            >= 0.9 => "szinte mindenütt széles, páros folyosók",
+            >= 0.7 => "többnyire széles folyosók",
+            <= 0.25 => "szűk, egycellás átjárók a nagyobb terek között",
+            _ => "változó szélességű folyosók"
+        };
+        var wall = $"{configuration.WallRune} ({configuration.WallColor})";
+        return new InnRumor($"Úti pletyka: {configuration.Name}",
+        [
+            $"A következő út a(z) {level}. szintre vezet: {configuration.Name}.",
+            $"Terep: {configuration.RoomCount.Minimum}–{configuration.RoomCount.Maximum} szoba, " +
+            $"{configuration.RoomSize.Minimum}–{configuration.RoomSize.Maximum} mezős oldalakkal; {corridorText}.",
+            $"A falazat jele és színe: {wall}.",
+            $"Várható ellenfelek: {string.Join(", ", enemyNames)}.",
+            leaders.Count == 0
+                ? "Külön vezéralakú szörnycsoportról nem érkezett biztos hír."
+                : $"Vezérrel felvonuló csoportra is számíts: {string.Join(", ", leaders)}.",
+            "A fogadós tanácsa: töltsd fel az ellátmányt, és a felsorolt ellenfelek képességeihez igazítsd a felszerelést."
+        ], ConsoleColor.Yellow);
+    }
+
+    private InnRumor CreateMonsterRumor(int completedLevel)
+    {
+        var nearbyLevels = Enumerable.Range(Math.Max(1, completedLevel - 1), 3)
+            .Where(level => level <= completedLevel + 1).ToList();
+        var candidates = nearbyLevels.SelectMany(level =>
+                MazeLevelConfigurations.Get(level).RoomEncounters
+                    .Concat(MazeLevelConfigurations.Get(level).CorridorEncounters)
+                    .SelectMany(encounter => encounter.Members)
+                    .Select(member => (Level: level, Enemy: _gameData.GetEnemy(member.EnemyId))))
+            .GroupBy(entry => entry.Enemy.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First()).ToList();
+        var selected = candidates[_random.Next(candidates.Count)];
+        var enemy = selected.Enemy;
+        var abilities = enemy.AbilityIds.Select(_gameData.GetMonsterAbility).ToList();
+        var lines = new List<string>
+        {
+            $"A(z) {selected.Level}. szint környékén látták. Jel a térképen: {enemy.Appearance}.",
+            $"Erősség: {enemy.StrengthTier}/5; HP {enemy.HitPoints ?? 0}; Erő {enemy.Strength ?? 0}; " +
+            $"Páncél {enemy.Armor ?? 0}; Gyorsaság {enemy.Speed ?? 0}; jutalom {enemy.ExperienceReward} XP."
+        };
+        if (abilities.Count == 0) lines.Add("Nincs ismert különleges képessége.");
+        else
+            foreach (var ability in abilities)
+            {
+                var activation = ability.Effect == MonsterAbilityEffect.Trait
+                    ? "állandó tulajdonság"
+                    : $"{ability.ChancePercent}% aktiválási esély, érték {ability.Value}";
+                lines.Add($"{ability.Name} — {activation}. {ability.Description}");
+            }
+        lines.Add($"Mozgástempója a Gyorsasága alapján körülbelül {1400 / Math.Max(1, enemy.Speed ?? 2)} ms lépésenként.");
+        return new InnRumor($"Szörnypletyka: {enemy.Name}", lines, ConsoleColor.Cyan);
     }
 
     private IReadOnlyList<IItemDefinition> AllTradableItems() => _gameData.Items.Cast<IItemDefinition>()

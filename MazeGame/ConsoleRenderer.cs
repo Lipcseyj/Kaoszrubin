@@ -311,8 +311,8 @@ public sealed class ConsoleRenderer
         lines.Add(($"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
         lines.Add((ClipMarketText(message, 94), ConsoleColor.Magenta));
         lines.Add((party.Count >= Party.MaximumSize
-            ? "↑/↓ választás   Enter felvétel és társ lecserélése   Esc következő pálya"
-            : "↑/↓ választás   Enter felvétel   Esc következő pálya", ConsoleColor.White));
+            ? "↑/↓ választás   Enter felvétel és társ lecserélése   Esc tovább a pletykákhoz"
+            : "↑/↓ választás   Enter felvétel   Esc tovább a pletykákhoz", ConsoleColor.White));
         DrawCenteredFrame(100, lines);
     }
 
@@ -337,6 +337,42 @@ public sealed class ConsoleRenderer
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("↑/↓ választás   Enter végleges csere   Esc mégse", ConsoleColor.White));
         DrawCenteredFrame(90, lines);
+    }
+
+    public void DrawInnRumorScreen(InnRumor rumor, int refreshesRemaining)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🏰🍺  PLETYKÁK A VÁNDORCSILLAG FOGADÓBAN  👂📜", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            (rumor.Title, rumor.Color),
+            ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
+        };
+        foreach (var paragraph in rumor.Lines)
+        {
+            foreach (var line in WrapText(paragraph, 100)) lines.Add((line, ConsoleColor.Gray));
+            lines.Add((string.Empty, ConsoleColor.Gray));
+        }
+        lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
+        lines.Add((refreshesRemaining > 0
+            ? $"N: új pletyka ({refreshesRemaining} maradt)   Enter/Esc: indulás a következő pályára"
+            : "Nincs több új pletyka.   Enter/Esc: indulás a következő pályára", ConsoleColor.White));
+        DrawCenteredFrame(108, lines);
+    }
+
+    private static IEnumerable<string> WrapText(string text, int maximumWidth)
+    {
+        var remaining = text;
+        while (remaining.Length > maximumWidth)
+        {
+            var splitAt = remaining.LastIndexOf(' ', maximumWidth);
+            if (splitAt <= 0) splitAt = maximumWidth;
+            yield return remaining[..splitAt];
+            remaining = remaining[splitAt..].TrimStart();
+        }
+        yield return remaining;
     }
 
     private static string ItemCategoryIcon(IItemDefinition item) => item.Category switch
