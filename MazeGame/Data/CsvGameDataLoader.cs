@@ -159,11 +159,17 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.ArcaneSpells:
                 spells.Add(new SpellDefinition(id, name, SpellSchool.Arcane, RequiredSpellLevel(cells, id),
-                    RequiredSpellManaCost(cells, id), RequiredSpellDescription(cells, id)));
+                    RequiredSpellManaCost(cells, id), RequiredSpellDescription(cells, id),
+                    RequiredSpellTargetType(cells, id), RequiredNonNegativeInteger(cells, 6, id, "hatótáv"),
+                    RequiredNonNegativeInteger(cells, 7, id, "terület"), IsYes(cells, 8),
+                    RequiredSpellUsageMode(cells, id)));
                 break;
             case DataSection.DivineSpells:
                 spells.Add(new SpellDefinition(id, name, SpellSchool.Divine, RequiredSpellLevel(cells, id),
-                    RequiredSpellManaCost(cells, id), RequiredSpellDescription(cells, id)));
+                    RequiredSpellManaCost(cells, id), RequiredSpellDescription(cells, id),
+                    RequiredSpellTargetType(cells, id), RequiredNonNegativeInteger(cells, 6, id, "hatótáv"),
+                    RequiredNonNegativeInteger(cells, 7, id, "terület"), IsYes(cells, 8),
+                    RequiredSpellUsageMode(cells, id)));
                 break;
             case DataSection.Perks:
                 if (Integer(cells, 4) is { } tier)
@@ -300,6 +306,21 @@ public static class CsvGameDataLoader
         !string.IsNullOrWhiteSpace(Cell(cells, 4))
             ? Cell(cells, 4)
             : throw new InvalidOperationException($"A(z) '{id}' varázslathoz leírás szükséges.");
+
+    private static SpellTargetType RequiredSpellTargetType(string[] cells, string id) =>
+        Enum.TryParse<SpellTargetType>(Cell(cells, 5), true, out var targetType)
+            ? targetType
+            : throw new InvalidOperationException($"A(z) '{id}' varázslat célzása ismeretlen: '{Cell(cells, 5)}'.");
+
+    private static SpellUsageMode RequiredSpellUsageMode(string[] cells, string id) =>
+        Enum.TryParse<SpellUsageMode>(Cell(cells, 9), true, out var usageMode)
+            ? usageMode
+            : throw new InvalidOperationException($"A(z) '{id}' varázslat használati módja ismeretlen: '{Cell(cells, 9)}'.");
+
+    private static int RequiredNonNegativeInteger(string[] cells, int index, string id, string fieldName) =>
+        Integer(cells, index) is >= 0 and var value
+            ? value
+            : throw new InvalidOperationException($"A(z) '{id}' varázslat {fieldName} mezője nemnegatív egész legyen.");
 
     private static void ValidateSpells(IReadOnlyCollection<SpellDefinition> spells)
     {

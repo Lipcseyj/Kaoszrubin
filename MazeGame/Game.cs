@@ -3,6 +3,7 @@ using MazeGame.Domain.Characters;
 using MazeGame.Combat;
 using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Combat;
+using MazeGame.Domain.Magic;
 using MazeGame.UI;
 
 namespace MazeGame;
@@ -71,7 +72,7 @@ public sealed class Game
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);
-                    if (keyInfo.Key == ConsoleKey.F1)
+                    if (IsHelpShortcut(keyInfo))
                     {
                         ShowInGameHelp();
                         continue;
@@ -86,6 +87,22 @@ public sealed class Game
                         if (keyInfo.Key == ConsoleKey.Escape) _renderer.CloseSpellInfoPage();
                         else if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveSpellInfoSelection(-1);
                         else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveSpellInfoSelection(1);
+                        else if (TryGetQuickSpellIndex(keyInfo, out var spellSlot)) AssignSelectedSpellQuickSlot(spellSlot);
+                        else if (keyInfo.Key == ConsoleKey.Enter) CastSelectedSpellInfo();
+                        continue;
+                    }
+                    if (keyInfo.Key == ConsoleKey.V)
+                    {
+                        BeginExplorationSpellCasting();
+                        continue;
+                    }
+                    if (TryGetQuickSpellIndex(keyInfo, out var quickSpellSlot))
+                    {
+                        var quickSpell = SelectedCharacter.QuickSpells[quickSpellSlot];
+                        if (quickSpell is null)
+                            _renderer.DrawInventoryMessage("Ez a varázslat-gyorshely üres.", ConsoleColor.DarkYellow);
+                        else
+                            BeginExplorationSpellCasting(quickSpell);
                         continue;
                     }
                     if (keyInfo.Key == ConsoleKey.Tab)
@@ -207,6 +224,58 @@ public sealed class Game
         MainMenu.ShowHelp();
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+    }
+
+    private void AssignSelectedSpellQuickSlot(int slotIndex)
+    {
+        var character = _renderer.SpellInfoCharacter;
+        var spell = _renderer.GetSelectedSpellInfo();
+        if (character is null || spell is null) return;
+        if (!character.AssignQuickSpell(slotIndex, spell))
+        {
+            _renderer.DrawInventoryMessage("Csak memorizált varázslat tehető gyorshelyre.", ConsoleColor.Red);
+            return;
+        }
+        _renderer.RefreshSpellInfoPage();
+        _renderer.DrawInventoryMessage($"{spell.Name} hozzárendelve: F{slotIndex + 1}.", ConsoleColor.Cyan);
+    }
+
+    private void CastSelectedSpellInfo()
+    {
+        var character = _renderer.SpellInfoCharacter;
+        var spell = _renderer.GetSelectedSpellInfo();
+        if (character != SelectedCharacter || spell is null ||
+            character.MemorizedSpells.All(candidate => !string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))
+        {
+            _renderer.DrawInventoryMessage("Csak a partivezér memorizált varázslata süthető el.", ConsoleColor.DarkYellow);
+            return;
+        }
+        _renderer.CloseSpellInfoPage();
+        BeginExplorationSpellCasting(spell);
+    }
+
+    private void BeginExplorationSpellCasting(SpellDefinition? quickSpell = null)
+    {
+        var spell = quickSpell;
+        if (spell is null)
+        {
+            spell = _renderer.DrawSpellCastingScreen(SelectedCharacter, inCombat: false);
+            RestorePlayfieldAfterSpellModal();
+        }
+        if (spell is null) return;
+        var result = TryCastSpell(spell, inCombat: false, currentEnemy: null);
+        if (result is not null)
+        {
+            _renderer.RefreshBattleStatusRows();
+            _renderer.DrawInventoryMessage(result.Message, result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
+        }
+    }
+
+    private void RestorePlayfieldAfterSpellModal(Enemy? battleEnemy = null)
+    {
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+        if (battleEnemy is not null) _renderer.DrawBattleStarted(battleEnemy);
     }
 
     private void SaveGame()
@@ -1087,6 +1156,198 @@ public sealed class Game
         Direction.Up => (0, -1), Direction.Down => (0, 1), Direction.Left => (-1, 0), _ => (1, 0)
     };
 
+    private BattlePlayerAction? ChooseBattlePlayerAction(Enemy enemy)
+    {
+        while (true)
+        {
+            _renderer.DrawInventoryMessage("Akció: Space — fegyveres támadás | V — varázslat | F1-F8 — gyorsvarázslat", ConsoleColor.Yellow);
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Spacebar) return null;
+            if (IsSaveGameShortcut(key))
+            {
+                _saveAfterBattle = true;
+                _renderer.DrawInventoryMessage("Mentés kérve: a csata lezárása után automatikusan elkészül.", ConsoleColor.Yellow);
+                continue;
+            }
+            if (IsHelpShortcut(key))
+            {
+                ShowInGameHelp();
+                _renderer.DrawBattleStarted(enemy);
+                _renderer.RefreshBattleStatusRows();
+                continue;
+            }
+
+            SpellDefinition? spell = null;
+            if (key.Key == ConsoleKey.V)
+            {
+                spell = _renderer.DrawSpellCastingScreen(SelectedCharacter, inCombat: true);
+                RestorePlayfieldAfterSpellModal(enemy);
+            }
+            else if (TryGetQuickSpellIndex(key, out var slotIndex))
+                spell = SelectedCharacter.QuickSpells[slotIndex];
+            else
+                continue;
+
+            if (spell is null)
+            {
+                if (key.Key != ConsoleKey.V)
+                    _renderer.DrawInventoryMessage("Ez a varázslat-gyorshely üres.", ConsoleColor.DarkYellow);
+                continue;
+            }
+            var attempt = TryCastSpell(spell, inCombat: true, enemy);
+            if (attempt is null) continue;
+            if (attempt.ConsumesTurn) return new BattlePlayerAction(attempt.Message, attempt.Kind);
+            _renderer.DrawInventoryMessage(attempt.Message, ConsoleColor.Red);
+        }
+    }
+
+    private SpellCastAttempt? TryCastSpell(SpellDefinition spell, bool inCombat, Enemy? currentEnemy)
+    {
+        if (!SelectedCharacter.IsAlive)
+            return new SpellCastAttempt(false, $"{SelectedCharacter.Name} nem képes varázsolni.", BattleLogKind.Information);
+        if (!SelectedCharacter.IsSpellcaster)
+            return new SpellCastAttempt(false, "Ez az osztály nem használ varázslatokat.", BattleLogKind.Information);
+        if (!SpellcastingRules.HasRequiredFocus(SelectedCharacter))
+            return new SpellCastAttempt(false, "A varázsláshoz hiányzik a megfelelő fókusztárgy.", BattleLogKind.Information);
+        if (SelectedCharacter.MemorizedSpells.All(candidate =>
+                !string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))
+            return new SpellCastAttempt(false, $"A(z) {spell.Name} nincs memorizálva.", BattleLogKind.Information);
+        if (inCombat ? !spell.CanUseInCombat : !spell.CanUseDuringExploration)
+            return new SpellCastAttempt(false, $"A(z) {spell.Name} ebben a helyzetben nem használható.", BattleLogKind.Information);
+        if (SelectedCharacter.CurrentMana < spell.ManaCost)
+            return new SpellCastAttempt(false, $"Nincs elég manna: {spell.Name} {spell.ManaCost} mannát igényel.", BattleLogKind.Information);
+
+        var target = SelectSpellTarget(spell, currentEnemy);
+        if (target is null) return null;
+        SelectedCharacter.SpendMana(spell.ManaCost);
+        _renderer.RefreshBattleStatusRows();
+
+        if (inCombat)
+        {
+            var failureChance = Math.Clamp(30 - SelectedCharacter.Abilities.Intelligence - SelectedCharacter.Abilities.Dexterity, 0, 100);
+            var roll = _random.Next(1, 101);
+            if (roll <= failureChance)
+                return new SpellCastAttempt(true,
+                    $"{SelectedCharacter.Name} varázslata meghiúsul: {spell.Name} — kockázat {failureChance}%, dobás {roll}. -{spell.ManaCost} manna; az akció elveszett.",
+                    BattleLogKind.Information);
+        }
+
+        var targetText = DescribeSpellTarget(spell, target.Value, currentEnemy);
+        return new SpellCastAttempt(true,
+            $"{SelectedCharacter.Name} sikeresen elsüti: {spell.Name} → {targetText}. -{spell.ManaCost} manna. A konkrét varázshatás végrehajtóhelye aktiválva.",
+            BattleLogKind.PlayerAttack);
+    }
+
+    private Position? SelectSpellTarget(SpellDefinition spell, Enemy? currentEnemy)
+    {
+        if (spell.TargetType is SpellTargetType.Self or SpellTargetType.Party) return _player.Position;
+        var candidates = GetValidSpellTargets(spell, currentEnemy).Distinct().ToList();
+        var forward = DirectionOffset(_leaderFacing);
+        var fallback = new Position(
+            Math.Clamp(_player.Position.X + forward.X, 0, _maze.Width - 1),
+            Math.Clamp(_player.Position.Y + forward.Y, 0, _maze.Height - 1));
+        var cursor = candidates.OrderBy(position => Chebyshev(position, _player.Position)).FirstOrDefault(fallback);
+        Position? previous = null;
+
+        while (true)
+        {
+            var valid = IsValidSpellTarget(spell, cursor, currentEnemy);
+            var prompt = $"✥ {spell.Name} — {ConsoleRenderer.SpellTargetName(spell.TargetType)}, táv {spell.Range}" +
+                         (spell.AreaRadius > 0 ? $", sugár {spell.AreaRadius}" : string.Empty) +
+                         $" | {(valid ? DescribeSpellTarget(spell, cursor, currentEnemy) : "érvénytelen cél")} | Enter: célzás, Tab: következő, Esc: mégse";
+            _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, previous, cursor, valid, prompt);
+            previous = cursor;
+            var key = Console.ReadKey(intercept: true);
+            if (IsHelpShortcut(key))
+            {
+                ShowInGameHelp();
+                if (currentEnemy is not null) _renderer.DrawBattleStarted(currentEnemy);
+                previous = null;
+                continue;
+            }
+            if (key.Key == ConsoleKey.Escape)
+            {
+                _renderer.FinishSpellTargeting(_maze, _fogOfWar, _player.Position);
+                return null;
+            }
+            if (key.Key == ConsoleKey.Enter && valid)
+            {
+                _renderer.FinishSpellTargeting(_maze, _fogOfWar, _player.Position);
+                return cursor;
+            }
+            if (key.Key == ConsoleKey.Tab && candidates.Count > 0)
+            {
+                var index = candidates.IndexOf(cursor);
+                cursor = candidates[(index + 1 + candidates.Count) % candidates.Count];
+                continue;
+            }
+            if (!TryGetDirection(key.Key, out var direction)) continue;
+            cursor = spell.TargetType == SpellTargetType.Direction
+                ? _player.Position + direction
+                : cursor + direction;
+            if (!_maze.IsInside(cursor)) cursor = previous.Value;
+        }
+    }
+
+    private IEnumerable<Position> GetValidSpellTargets(SpellDefinition spell, Enemy? currentEnemy)
+    {
+        IEnumerable<Position> possible = spell.TargetType switch
+        {
+            SpellTargetType.Enemy when currentEnemy is not null => [currentEnemy.Position],
+            SpellTargetType.Enemy => _maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).Select(enemy => enemy.Position),
+            SpellTargetType.PartyMember => new[] { _player.Position }.Concat(_maze.PartyMembers
+                .Where(member => member.Character.IsAlive).Select(member => member.Position)),
+            SpellTargetType.Corpse => _maze.Corpses.OfType<PartyMemberCorpse>().Select(corpse => corpse.Position),
+            SpellTargetType.Direction => Directions.Select(direction => _player.Position + direction),
+            SpellTargetType.Cell or SpellTargetType.Area =>
+                from y in Enumerable.Range(Math.Max(0, _player.Position.Y - spell.Range),
+                    Math.Min(_maze.Height - 1, _player.Position.Y + spell.Range) - Math.Max(0, _player.Position.Y - spell.Range) + 1)
+                from x in Enumerable.Range(Math.Max(0, _player.Position.X - spell.Range),
+                    Math.Min(_maze.Width - 1, _player.Position.X + spell.Range) - Math.Max(0, _player.Position.X - spell.Range) + 1)
+                select new Position(x, y),
+            _ => []
+        };
+        return possible.Where(position => IsValidSpellTarget(spell, position, currentEnemy));
+    }
+
+    private bool IsValidSpellTarget(SpellDefinition spell, Position position, Enemy? currentEnemy)
+    {
+        if (!_maze.IsInside(position) || !_fogOfWar.IsVisible(position)) return false;
+        var inRange = Chebyshev(_player.Position, position) <= Math.Max(1, spell.Range);
+        if (!inRange || spell.RequiresLineOfSight && !FogOfWar.CanSee(_maze, _player.Position, position, Math.Max(1, spell.Range))) return false;
+        return spell.TargetType switch
+        {
+            SpellTargetType.Enemy => currentEnemy is not null
+                ? currentEnemy.CurrentHitPoints > 0 && currentEnemy.Position == position
+                : _maze.GetEnemyAt(position)?.CurrentHitPoints > 0,
+            SpellTargetType.PartyMember => position == _player.Position && SelectedCharacter.IsAlive ||
+                                           _maze.PartyMembers.Any(member => member.Position == position && member.Character.IsAlive),
+            SpellTargetType.Corpse => _maze.Corpses.OfType<PartyMemberCorpse>().Any(corpse => corpse.Position == position),
+            SpellTargetType.Direction => Manhattan(_player.Position, position) == 1,
+            SpellTargetType.Cell or SpellTargetType.Area => true,
+            _ => false
+        };
+    }
+
+    private string DescribeSpellTarget(SpellDefinition spell, Position position, Enemy? currentEnemy) => spell.TargetType switch
+    {
+        SpellTargetType.Self => SelectedCharacter.Name,
+        SpellTargetType.Party => "az egész parti",
+        SpellTargetType.Enemy when currentEnemy is not null && currentEnemy.Position == position => currentEnemy.Name,
+        SpellTargetType.Enemy => _maze.GetEnemyAt(position)?.Name ?? $"({position.X},{position.Y})",
+        SpellTargetType.PartyMember when position == _player.Position => SelectedCharacter.Name,
+        SpellTargetType.PartyMember => _maze.PartyMembers.FirstOrDefault(member => member.Position == position)?.Character.Name ?? $"({position.X},{position.Y})",
+        SpellTargetType.Corpse => _maze.Corpses.OfType<PartyMemberCorpse>().FirstOrDefault(corpse => corpse.Position == position)?.Character.Name ?? $"({position.X},{position.Y})",
+        SpellTargetType.Direction => $"{DirectionName(position)} irány",
+        _ => $"({position.X},{position.Y})"
+    };
+
+    private string DirectionName(Position position) => position.X < _player.Position.X ? "bal" :
+        position.X > _player.Position.X ? "jobb" : position.Y < _player.Position.Y ? "fel" : "le";
+
+    private static int Chebyshev(Position first, Position second) =>
+        Math.Max(Math.Abs(first.X - second.X), Math.Abs(first.Y - second.Y));
+
     private void StartBattle(Enemy enemy)
     {
         if (_battleStarted) return;
@@ -1098,7 +1359,7 @@ public sealed class Game
             _renderer.DrawBattleRound(entry);
             _renderer.RefreshBattleStatusRows();
             WaitForBattleContinue(enemy);
-        });
+        }, () => ChooseBattlePlayerAction(enemy));
         var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
 
@@ -1281,7 +1542,7 @@ public sealed class Game
                 _renderer.DrawInventoryMessage("Mentés kérve: a csata lezárása után automatikusan elkészül.", ConsoleColor.Yellow);
                 continue;
             }
-            if (key.Key != ConsoleKey.F1) continue;
+            if (!IsHelpShortcut(key)) continue;
             ShowInGameHelp();
             _renderer.DrawBattleStarted(enemy);
             _renderer.RefreshBattleStatusRows();
@@ -1290,6 +1551,26 @@ public sealed class Game
 
     private static bool IsSaveGameShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.F9;
+
+    private static bool IsHelpShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.F1 && (keyInfo.Modifiers & ConsoleModifiers.Shift) != 0;
+
+    private static bool TryGetQuickSpellIndex(ConsoleKeyInfo keyInfo, out int slotIndex)
+    {
+        slotIndex = keyInfo.Key switch
+        {
+            ConsoleKey.F1 => 0,
+            ConsoleKey.F2 => 1,
+            ConsoleKey.F3 => 2,
+            ConsoleKey.F4 => 3,
+            ConsoleKey.F5 => 4,
+            ConsoleKey.F6 => 5,
+            ConsoleKey.F7 => 6,
+            ConsoleKey.F8 => 7,
+            _ => -1
+        };
+        return slotIndex >= 0 && (keyInfo.Modifiers & ConsoleModifiers.Shift) == 0;
+    }
 
     private static bool IsRevealMapShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.U &&
@@ -1338,6 +1619,7 @@ public sealed class Game
     }
 
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source);
+    private sealed record SpellCastAttempt(bool ConsumesTurn, string Message, BattleLogKind Kind);
 
     private void FillPartyForDevelopment()
     {

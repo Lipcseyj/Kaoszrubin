@@ -304,8 +304,10 @@ public sealed class MainMenu
         Console.WriteLine("Nyilak: mozgás | Esc: főmenü");
         Console.WriteLine("Tab: térkép/karakterlap | Karakterlap: fel/le kijelölés, bal/jobb partitagváltás");
         Console.WriteLine("Karakterlap: Space - tárgy mozgatása | D - ledobás | I - részletek | Enter - használat");
-        Console.WriteLine("Mágus/Pap: Enter a hátizsák első helyén lévő fókuszon - varázslatlista; ott fel/le és Esc");
-        Console.WriteLine("F1: súgó | F9: teljes játékállás mentése a mentések mappába");
+        Console.WriteLine("Mágus/Pap: V - memorizált varázslatok | F1-F8 - gyorsvarázslatok");
+        Console.WriteLine("Varázslatlista: fel/le, Enter - elsütés, F1-F8 - gyorshely, Esc - vissza");
+        Console.WriteLine("Célzás: nyilak - célkereszt | Tab - következő érvényes cél | Enter - megerősítés | Esc - mégse");
+        Console.WriteLine("Shift+F1: súgó | F9: teljes játékállás mentése a mentések mappába");
         Console.WriteLine("Ajtó mellett: N - nyitás | Z - bezárás | K - kulcsra zárás");
         Console.WriteLine("P: pihenés (pályánként egyszer, ellenségmentes és kulcsra zárt szobában)");
         Console.WriteLine("Partiparancs: H - helyben maradás be/ki | M - 10 másodperces szétszóródás");
@@ -313,7 +315,9 @@ public sealed class MainMenu
         Console.WriteLine("Ládára lépés: arany felvétele | Kijárat (⌂): következő labirintusszint");
         Console.WriteLine();
         WriteLine("CSATA", ConsoleColor.Red);
-        Console.WriteLine("Szóköz: következő támadási kör. A csata alatt a világ ideje megáll.");
+        Console.WriteLine("Szóköz: tovább/fegyveres támadás | saját körben V vagy F1-F8: varázslás.");
+        Console.WriteLine("Harci varázslási kudarc: max(0, 30 - Intelligencia - Ügyesség)%; a manna és az akció elvész.");
+        Console.WriteLine("A csata alatt a világ ideje megáll.");
         Console.WriteLine();
         WriteLine("Bármely billentyű: vissza az előző képernyőre", ConsoleColor.DarkYellow);
         Console.ReadKey(intercept: true);

@@ -88,6 +88,11 @@ public sealed class CharacterSaveService
                 ? saved.MemorizedSpellIds
                 : knownSpells.Take(SpellcastingRules.StartingSpellCount).Select(spell => spell.Id).ToList();
             character.SetMemorizedSpells(knownSpells.Where(spell => memorizedIds.Contains(spell.Id, StringComparer.OrdinalIgnoreCase)));
+            if (saved.QuickSpellIds.Count > 0)
+                for (var index = 0; index < Math.Min(LiveCharacter.MaximumQuickSpellCount, saved.QuickSpellIds.Count); index++)
+                    character.AssignQuickSpell(index, saved.QuickSpellIds[index] is { } spellId
+                        ? character.MemorizedSpells.FirstOrDefault(spell => string.Equals(spell.Id, spellId, StringComparison.OrdinalIgnoreCase))
+                        : null);
         }
 
         var weaponIds = saved.WeaponIds.Count > 0 ? saved.WeaponIds : saved.WeaponNames;
@@ -159,7 +164,8 @@ public sealed class CharacterSaveService
         StatusIds = character.Statuses.Select(status => status.Id).ToList(),
         Statuses = character.Statuses.Select(status => new StatusSaveData(status.Id, character.GetStatusDuration(status.Id))).ToList(),
         KnownSpellIds = character.KnownSpells.Select(spell => spell.Id).ToList(),
-        MemorizedSpellIds = character.MemorizedSpells.Select(spell => spell.Id).ToList()
+        MemorizedSpellIds = character.MemorizedSpells.Select(spell => spell.Id).ToList(),
+        QuickSpellIds = character.QuickSpells.Select(spell => spell?.Id).ToList()
     };
 
     private List<SpellDefinition> DefaultLegacySpells(LiveCharacter character)
@@ -226,6 +232,7 @@ public sealed class CharacterSaveService
         public List<StatusSaveData> Statuses { get; init; } = [];
         public List<string> KnownSpellIds { get; init; } = [];
         public List<string> MemorizedSpellIds { get; init; } = [];
+        public List<string?> QuickSpellIds { get; init; } = [];
     }
 
     private sealed record ItemSaveData(string Type, string Id, string? Name = null);

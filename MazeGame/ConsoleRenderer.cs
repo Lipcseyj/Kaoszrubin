@@ -138,7 +138,7 @@ public sealed class ConsoleRenderer
         };
         DrawBattleMessage(entry.Message, color);
         // A jobb oldali karakterlapon megjelenített sor: információ a vezérlésről.
-        WriteSheetLine(42, "Szóköz: következő kör", ConsoleColor.DarkYellow);
+        WriteSheetLine(42, "Space: tovább | saját kör: V/F1-F8", ConsoleColor.DarkYellow);
     }
 
     /// <summary>
@@ -484,6 +484,52 @@ public sealed class ConsoleRenderer
         }
     }
 
+    public SpellDefinition? DrawSpellCastingScreen(LiveCharacter character, bool inCombat)
+    {
+        var spells = character.MemorizedSpells
+            .Where(spell => inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration)
+            .OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).ToList();
+        if (spells.Count == 0) return null;
+        var selectedIndex = 0;
+        while (true)
+        {
+            ResetColorCache();
+            Console.Clear();
+            var lines = new List<(string Text, ConsoleColor Color)>
+            {
+                (inCombat ? "⚔️✨  HARCI VARÁZSLÁS" : "🔮✨  VARÁZSLÁS", ConsoleColor.Magenta),
+                (string.Empty, ConsoleColor.Gray),
+                ($"{character.Name} — manna: {character.CurrentMana}/{character.MaximumMana}", ConsoleColor.Cyan),
+                ("Fel/le: választás   Enter: célzás   Esc: mégse", ConsoleColor.Green),
+                (string.Empty, ConsoleColor.Gray)
+            };
+            lines.AddRange(spells.Select((spell, index) =>
+            {
+                var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
+                    string.Equals(candidate?.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
+                var quick = quickIndex >= 0 ? $"F{quickIndex + 1}" : "--";
+                var text = $"{(index == selectedIndex ? "▶" : " ")} [{quick}] L{spell.Level} {spell.Name} — {spell.ManaCost} manna — {SpellTargetName(spell.TargetType)}";
+                var color = character.CurrentMana < spell.ManaCost ? ConsoleColor.DarkRed :
+                    index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray;
+                return (text, color);
+            }));
+            DrawCenteredFrame(112, lines);
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.F1 && (key.Modifiers & ConsoleModifiers.Shift) != 0)
+            {
+                UI.MainMenu.ShowHelp();
+                continue;
+            }
+            switch (key.Key)
+            {
+                case ConsoleKey.UpArrow: selectedIndex = (selectedIndex - 1 + spells.Count) % spells.Count; break;
+                case ConsoleKey.DownArrow: selectedIndex = (selectedIndex + 1) % spells.Count; break;
+                case ConsoleKey.Enter: return spells[selectedIndex];
+                case ConsoleKey.Escape: return null;
+            }
+        }
+    }
+
     /// <summary>
     /// Kirajzol egy középre igazított összegző keretet a szintlépéshez.
     /// </summary>
@@ -666,7 +712,7 @@ public sealed class ConsoleRenderer
             ? $"Fókusz: {character.Backpack[0]!.Name}"
             : "Fókusz: HIÁNYZIK", SpellcastingRules.HasRequiredFocus(character) ? ConsoleColor.Cyan : ConsoleColor.Red);
         WriteSheetLine(2, $"Memória: {character.MemorizedSpells.Count}/{character.MemorizationCapacity}", ConsoleColor.Magenta);
-        WriteSheetLine(3, "[M] memorizált  [ ] ismert", ConsoleColor.DarkCyan);
+        WriteSheetLine(3, "[M] memorizált  [F#] gyors", ConsoleColor.DarkCyan);
         WriteSheetLine(4, "ISMERT VARÁZSLATOK", ConsoleColor.White);
 
         for (var index = 0; index < 20; index++)
@@ -675,8 +721,10 @@ public sealed class ConsoleRenderer
             var spell = spells[index];
             var memorized = character.MemorizedSpells.Any(candidate =>
                 string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
+            var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
+                string.Equals(candidate?.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
             var marker = index == selectedIndex ? ">" : " ";
-            WriteSheetLine(5 + index, $"{marker}[{(memorized ? "M" : " ")}] {spell.Level}. {spell.Name}",
+            WriteSheetLine(5 + index, $"{marker}[{(memorized ? "M" : " ")}]{(quickIndex >= 0 ? $"[F{quickIndex + 1}]" : "    ")} {spell.Level}. {spell.Name}",
                 index == selectedIndex ? ConsoleColor.Yellow : memorized ? ConsoleColor.Cyan : ConsoleColor.Gray,
                 index == selectedIndex ? ConsoleColor.DarkCyan : ConsoleColor.Black);
         }
@@ -686,9 +734,10 @@ public sealed class ConsoleRenderer
             var selected = spells[selectedIndex];
             WriteSheetLine(26, "KIJELÖLT VARÁZSLAT", ConsoleColor.White);
             WriteSheetLine(27, selected.Name, ConsoleColor.Yellow);
-            WriteSheetLine(28, $"Szint: {selected.Level} | Manna: {selected.ManaCost}", ConsoleColor.Blue);
+            WriteSheetLine(28, $"Szint: {selected.Level} | Manna: {selected.ManaCost} | Cél: {SpellTargetName(selected.TargetType)}", ConsoleColor.Blue);
+            var quickIndex = character.QuickSpells.ToList().FindIndex(spell => spell?.Id == selected.Id);
             WriteSheetLine(29, character.MemorizedSpells.Any(spell => spell.Id == selected.Id)
-                ? "Állapot: memorizált"
+                ? $"Állapot: memorizált{(quickIndex >= 0 ? $", F{quickIndex + 1}" : string.Empty)}"
                 : "Állapot: csak ismert", ConsoleColor.Magenta);
             var descriptionLines = WrapText(selected.Description, 27).Take(5).ToList();
             for (var index = 0; index < 5; index++)
@@ -707,11 +756,25 @@ public sealed class ConsoleRenderer
         }
         var nextUnlock = unlockLevels.FirstOrDefault(level => level > character.Level);
         WriteSheetLine(43, nextUnlock == 0 ? "Minden szint feloldva." : $"Következő feloldás: L{nextUnlock}", ConsoleColor.Cyan);
-        WriteSheetLine(45, "Fel/le: varázslat böngészése", ConsoleColor.Green);
-        WriteSheetLine(46, "Esc: vissza a karakterlapra", ConsoleColor.DarkYellow);
+        WriteSheetLine(45, "Fel/le: böngészés | F1-F8: gyorshely", ConsoleColor.Green);
+        WriteSheetLine(46, "Enter: elsütés | Esc: vissza", ConsoleColor.DarkYellow);
     }
 
     public bool IsSpellInfoPageOpen => _spellInfoCharacter is not null;
+
+    public LiveCharacter? SpellInfoCharacter => _spellInfoCharacter;
+
+    public SpellDefinition? GetSelectedSpellInfo()
+    {
+        if (_spellInfoCharacter is null) return null;
+        var spells = _spellInfoCharacter.KnownSpells.OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).ToList();
+        return spells.ElementAtOrDefault(_selectedSpellInfoIndex);
+    }
+
+    public void RefreshSpellInfoPage()
+    {
+        if (_spellInfoCharacter is not null) DrawSpellInfoPage(_spellInfoCharacter, _selectedSpellInfoIndex);
+    }
 
     public void MoveSpellInfoSelection(int direction)
     {
@@ -764,6 +827,18 @@ public sealed class ConsoleRenderer
 
     public void DrawInventoryMessage(string message, ConsoleColor color = ConsoleColor.Cyan) => DrawBattleMessage(message, color);
     public void DrawNpcBattleSummary(string message, ConsoleColor color) => DrawBattleMessage(message, color);
+
+    public void DrawSpellTargetCursor(Maze maze, FogOfWar fogOfWar, Position? previousPosition,
+        Position position, bool valid, string prompt)
+    {
+        if (previousPosition is { } previous) DrawMapCell(maze, fogOfWar, previous);
+        Console.SetCursorPosition(position.X, position.Y);
+        WriteRuneWithColor(new Rune('✥'), valid ? ConsoleColor.Green : ConsoleColor.Red, ConsoleColor.DarkBlue);
+        DrawBattleMessage(prompt, valid ? ConsoleColor.Cyan : ConsoleColor.DarkYellow);
+    }
+
+    public void FinishSpellTargeting(Maze maze, FogOfWar fogOfWar, Position playerPosition) =>
+        DrawMapVisibilityChanged(maze, fogOfWar, playerPosition);
 
     /// <summary>
     /// Kirajzolja a teljes játéktér rácsát a megadott labirintus alapján.
@@ -1087,6 +1162,19 @@ public sealed class ConsoleRenderer
             fogOfWar.IsVisible(position) ? maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y] : FogSymbol,
             fogOfWar.IsVisible(position) ? GetForegroundColor(maze, position) : ConsoleColor.DarkGray,
             fogOfWar.IsVisible(position) ? ConsoleColor.Black : ConsoleColor.DarkBlue);
+
+    public static string SpellTargetName(SpellTargetType targetType) => targetType switch
+    {
+        SpellTargetType.Self => "önmaga",
+        SpellTargetType.Party => "parti",
+        SpellTargetType.PartyMember => "partitag",
+        SpellTargetType.Enemy => "ellenség",
+        SpellTargetType.Corpse => "elesett társ",
+        SpellTargetType.Cell => "mező",
+        SpellTargetType.Area => "terület",
+        SpellTargetType.Direction => "irány",
+        _ => "célpont"
+    };
 
     /// <summary>
     /// Játékos karakterének kirajzolása: fix szimbólum és szín a kurzor aktuális pozíciójára.

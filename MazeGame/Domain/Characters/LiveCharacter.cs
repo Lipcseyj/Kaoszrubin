@@ -15,6 +15,7 @@ public sealed class LiveCharacter
     private readonly List<StatusDefinition> _statuses = [];
     private readonly List<SpellDefinition> _knownSpells = [];
     private readonly List<SpellDefinition> _memorizedSpells = [];
+    private readonly SpellDefinition?[] _quickSpells = new SpellDefinition?[MaximumQuickSpellCount];
     private readonly Dictionary<string, int?> _statusDurations = new(StringComparer.OrdinalIgnoreCase);
     private int _maximumVitality;
     private int _maximumMana;
@@ -64,11 +65,13 @@ public sealed class LiveCharacter
     public IReadOnlyList<StatusDefinition> Statuses => _statuses;
     public IReadOnlyList<SpellDefinition> KnownSpells => _knownSpells;
     public IReadOnlyList<SpellDefinition> MemorizedSpells => _memorizedSpells;
+    public IReadOnlyList<SpellDefinition?> QuickSpells => _quickSpells;
     public bool IsSpellcaster => SpellcastingRules.TryGetSchool(CharacterClass.Id, out _);
     public bool CanCastSpells => IsAlive && SpellcastingRules.HasRequiredFocus(this);
     public int MemorizationCapacity => SpellcastingRules.MemorizationCapacity(this);
     public const int MaximumMagicItemCount = 3;
     public const int MaximumBackpackItemCount = 10;
+    public const int MaximumQuickSpellCount = 8;
 
     public void SetNpcBehavior(NpcBehavior? behavior) => NpcBehavior = behavior;
 
@@ -88,6 +91,30 @@ public sealed class LiveCharacter
                 _knownSpells.All(known => !string.Equals(known.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))) return false;
         _memorizedSpells.Clear();
         _memorizedSpells.AddRange(selected);
+        for (var index = 0; index < _quickSpells.Length; index++)
+            if (_quickSpells[index] is { } assigned &&
+                selected.All(spell => !string.Equals(spell.Id, assigned.Id, StringComparison.OrdinalIgnoreCase)))
+                _quickSpells[index] = null;
+        foreach (var spell in selected.Where(spell => _quickSpells.All(assigned =>
+                     !string.Equals(assigned?.Id, spell.Id, StringComparison.OrdinalIgnoreCase))))
+        {
+            var empty = Array.FindIndex(_quickSpells, assigned => assigned is null);
+            if (empty < 0) break;
+            _quickSpells[empty] = spell;
+        }
+        return true;
+    }
+
+    public bool AssignQuickSpell(int slotIndex, SpellDefinition? spell)
+    {
+        if (slotIndex < 0 || slotIndex >= MaximumQuickSpellCount) return false;
+        if (spell is not null && _memorizedSpells.All(memorized =>
+                !string.Equals(memorized.Id, spell.Id, StringComparison.OrdinalIgnoreCase))) return false;
+        if (spell is not null)
+            for (var index = 0; index < _quickSpells.Length; index++)
+                if (index != slotIndex && string.Equals(_quickSpells[index]?.Id, spell.Id, StringComparison.OrdinalIgnoreCase))
+                    _quickSpells[index] = null;
+        _quickSpells[slotIndex] = spell;
         return true;
     }
 

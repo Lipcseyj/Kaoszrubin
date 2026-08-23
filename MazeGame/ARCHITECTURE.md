@@ -343,11 +343,11 @@ A bónusz csak akkor él, ha a tárgy valamelyik varázstárgyhelyen van; hátiz
 
 Az eredeti 12 mágus- és 12 papi varázslathoz tartozik egy-egy tekercs. A további, varázsrendszert előkészítő definíciókhoz még nincs automatikusan varázstárgy. A tekercs pontosan egy töltetű és kizárólag a Mágus (`C006`) varázstárgyhelyére szerelhető; hátizsákban más kaszt is szállíthatja. A kilenc pálca 3–8 töltetet és kizárólag mágusiskolájú varázslatot hivatkozhat. A CSV-betöltő ellenőrzi a varázslat-ID létezését, megtiltja a papi varázslatot tartalmazó pálcát, valamint hibát jelez a nem egytöltetű vagy nem kizárólag mágusnak engedélyezett tekercsnél.
 
-A `MaximumCharges` és `SpellId` jelenleg a teljes varázslási rendszer számára előkészített definíciós adat. A pálcák maradék töltetének példányszintű fogyasztása és a tekercsek tényleges elsütése még nem aktív, mert a varázslatok célzás-, költség- és hatásalgoritmusa még nem készült el. Emiatt használatkor egyelőre nem fogy el töltet vagy tekercs; a gyűrűk és amulettek fenti passzív hatásai viszont már teljesen működnek.
+A `MaximumCharges` és `SpellId` a varázstárgyak későbbi, példányszintű elsütéséhez előkészített definíciós adat. A karakter memorizált saját varázslatainak célzása és mannaköltsége már aktív, de a pálcák maradék töltetének fogyasztása és a tekercsek tényleges elsütése még nem az. Emiatt használatkor egyelőre nem fogy el töltet vagy tekercs; a gyűrűk és amulettek fenti passzív hatásai teljesen működnek.
 
 ### Varázslatdefiníciók és szintek
 
-A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív mannaköltséget és leírást tartalmaz. Az `adatok.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`. A jelenlegi előkészítő adatokban minden varázslat mannaköltsége 1, a leírások pedig később lecserélendő helykitöltő szövegek.
+A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív mannaköltséget, leírást és célzási metaadatokat tartalmaz. Az `adatok.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`, `Célzás`, `Hatótáv`, `Terület`, `Látóvonal`, `HasználatiMód`. A célzás típusa `Self`, `Party`, `PartyMember`, `Enemy`, `Corpse`, `Cell`, `Area` vagy `Direction`; a használati mód `Exploration`, `Combat` vagy `Both`. A jelenlegi előkészítő adatokban minden varázslat mannaköltsége 1, a leírások pedig később lecserélendő helykitöltő szövegek.
 
 Mindkét iskolában pontosan 20 varázslat található, szintenként pontosan négy:
 
@@ -359,7 +359,7 @@ Mindkét iskolában pontosan 20 varázslat található, szintenként pontosan n�
 | 4 | Villámvihar; Meteorzápor; Láncvillám; Kőbőr | Feltámasztás; Szent ítélet; Őrangyal; Tömeges gyógyítás |
 | 5 | Időmegállítás; Dezintegráció; Dimenziókapu; Arkán kataklizma | Isteni csoda; Isteni harag; Szentély; Igazi feltámasztás |
 
-A CSV-betöltő visszautasítja az 1–5 tartományon kívüli szintet, illetve azt az adatállományt, amelyben egy iskola nem pontosan 20 vagy valamely szint nem pontosan négy definíciót tartalmaz. A `GameDataCatalog.GetSpell` azonosító szerint, a `GetSpells(school, level)` pedig iskola és szint szerint szolgáltat definíciókat. A mannaköltség, célzás és tényleges varázshatás továbbra is későbbi fejlesztés; a tanulás és memorizálás viszont már aktív.
+A CSV-betöltő visszautasítja az 1–5 tartományon kívüli szintet, az ismeretlen célzás- vagy használatimód-nevet, a negatív hatótávot/területet, illetve azt az adatállományt, amelyben egy iskola nem pontosan 20 vagy valamely szint nem pontosan négy definíciót tartalmaz. A `GameDataCatalog.GetSpell` azonosító szerint, a `GetSpells(school, level)` pedig iskola és szint szerint szolgáltat definíciókat. A mannaköltség, aktiválás és célzás aktív; az egyes varázslatok konkrét sebző, gyógyító, állapot- és térképhatásai továbbra is következő fejlesztési lépést jelentenek.
 
 ### Varázslattanulás és memorizálás
 
@@ -367,10 +367,11 @@ Varázslatgyűjteménye kizárólag a Papnak (`C005`, `Divine`) és a Mágusnak 
 
 - az ismert varázslatok tartós varázskönyvét;
 - az ismert varázslatokból pihenéskor összeállított, aktuálisan memorizált készletet.
+- nyolc, mentett gyorshelyet, amelyek kizárólag memorizált varázslatra mutathatnak.
 
 A varázsláshoz kötelező kasztfókusz tartozik: a Mágus személyes `Varázskönyvet`, a Pap személyes `Szent szimbólumot` kap. Ez mindig a hátizsák első helyén van, karakterhez kötött, ezért nem mozgatható, dobható el, adható el vagy vásárolható meg, és a véletlen tárgygenerátorok sem választhatják. A korábbi mágikus kezdőtárgyak (`M003` Szent szimbólum és `M004` Tanonc pálcája) már nem kerülnek új karakterhez, piacra vagy véletlen felszerelésbe; kizárólag régi mentések feloldhatósága miatt maradnak adatdefinícióként. Betöltéskor a régi kezdőtárgy eltűnik, az új fókusz az első helyre kerül, a korábbi hátizsáktartalom pedig egy hellyel jobbra tolódik, amennyiben elfér.
 
-Karakterlapfókuszban a fókusztárgyon nyomott `Enter` a jobb oldali karakterpanel helyén nyitja meg a varázslatinformációs oldalt. Ez felsorolja az ismert varázslatokat, külön jelöli a memorizáltakat, megmutatja a memória kapacitását, a kijelölt varázslat szintjét, mannaköltségét és leírását, továbbá az 1–5. varázslatszint karakter-szintküszöbeit és a következő feloldást. A fel/le nyilak böngésznek, az `Esc` bezárja az oldalt és visszaállítja ugyanannak a karakternek a karakterlapját.
+Karakterlapfókuszban a fókusztárgyon nyomott `Enter` a jobb oldali karakterpanel helyén nyitja meg a varázslatinformációs oldalt. Ez felsorolja az ismert varázslatokat, külön jelöli a memorizáltakat és az `F1–F8` gyorshelyet, megmutatja a memória kapacitását, a kijelölt varázslat szintjét, mannaköltségét, célzástípusát és leírását, továbbá az 1–5. varázslatszint karakter-szintküszöbeit és a következő feloldást. A fel/le nyilak böngésznek, az `F1–F8` a kijelölt memorizált varázslatot rendeli a gyorshelyhez, az `Enter` a partivezér memorizált varázslatát indítja, az `Esc` pedig bezárja az oldalt.
 
 A memorizálható különböző varázslatok száma egész osztással számolódik:
 
@@ -380,7 +381,19 @@ A memorizálható különböző varázslatok száma egész osztással számolód
 
 Például 8 Intelligencián és 1. szinten ez `2 + 2 + 0 = 4`. Ugyanaz a varázslat nem foglalhat több helyet. A kézi karaktergenerálás végén a játékos a kaszt négy első szintű varázslatából pontosan hármat választ; ezek rögtön ismertek és memorizáltak. Gyorsindításnál, zsoldosnál és fejlesztői NPC-generálásnál a három kezdővarázslat automatikus.
 
-Új varázslatszint az 1., 5., 10., 15. és 20. karakterszinten nyílik meg. Minden egyes elért karakterszinthez egy, az aktuális szinten már használható, még nem ismert varázslat tanulható. A vezető választóképernyőt kap, az NPC-k véletlenszerűen választanak. Több egyszerre elért szint külön tanulási alkalmakat jelent. Az ismert és memorizált varázslat-ID-k a karaktermentés részei; régi mentésből betöltött Pap vagy Mágus három determinisztikusan választott első szintű kezdővarázslatot kap.
+Új varázslatszint az 1., 5., 10., 15. és 20. karakterszinten nyílik meg. Minden egyes elért karakterszinthez egy, az aktuális szinten már használható, még nem ismert varázslat tanulható. A vezető választóképernyőt kap, az NPC-k véletlenszerűen választanak. Több egyszerre elért szint külön tanulási alkalmakat jelent. Az ismert és memorizált varázslat-ID-k, valamint a gyorshelyek a karaktermentés részei; régi mentésből betöltött Pap vagy Mágus három determinisztikusan választott első szintű kezdővarázslatot kap. Memorizáláskor az új varázslatok automatikusan az első szabad gyorshelyekre kerülnek, a már érvényes kézi kiosztás megmarad.
+
+### Varázslás és célzás
+
+A partivezér a térképen `V`-vel nyitja meg a memorizált varázslatok színes választóképernyőjét, az `F1–F8` billentyűkkel pedig közvetlenül indítja a megfelelő gyorshelyet. A választó megmutatja a szintet, mannaköltséget és célponttípust. Entitás-, mező-, terület- és iránycélzásnál `✥` célkereszt jelenik meg: a nyilak mozgatják, a `Tab` a CSV-s szabályoknak megfelelő érvényes célpontok között léptet, az `Enter` megerősít, az `Esc` megszakít. Érvényes célhoz a hatótáv, a már felfedett mező és szükség esetén a látóvonal is teljesüljön. Az önmagára és az egész partira ható varázslatok nem nyitnak célkeresztet.
+
+Sikeres aktiváláskor a teljes CSV-s mannaköltség levonódik. Csatán kívül nincs külön koncentrációs kudarc. Csatában a varázslat a karakter fegyveres támadása helyetti teljes akció, és a mannaköltség levonása után százalékos kudarcpróba történik:
+
+```text
+kudarc esélye = clamp(30 - Intelligencia × 2, 0, 100)%
+```
+
+Ha a `d100` eredménye legfeljebb a kudarc esélye, a varázslat meghiúsul, a manna és az akció elvész. Siker esetén az aktiválási réteg naplózza a varázslatot és a kiválasztott célpontot. A konkrét varázslatonkénti hatásvégrehajtás szándékosan külön bővítési pont; jelenleg az elsütés, erőforrásfogyasztás, célzás és harci akciókezelés működik.
 
 ### Pihenés a labirintusban
 
@@ -546,7 +559,7 @@ A rendszer a két már felfedezett végpont közötti, legfeljebb háromcellás 
 
 ## Csata algoritmusa
 
-A csata automatikus váltott támadásokból áll. A vezér csatájában minden naplózott esemény után a játékosnak szóközzel kell továbblépnie; az NPC-csata megszakítás nélkül lefut és csak egy végeredmény-összefoglalót ír a naplóba. Nincs menekülés vagy harci akcióválasztás. Mindkét út ugyanazt a `BattleSystem` algoritmust és a játék közös `Random` példányát használja.
+A csata váltott akciókból áll. A vezér csatájában minden naplózott esemény után a játékosnak szóközzel kell továbblépnie; saját akciójánál a szóköz fegyveres támadást, a `V` vagy `F1–F8` varázslást választ. A varázslás teljes akciót használ, és a fenti intelligenciaalapú kudarcpróbát végzi. Az NPC-csata megszakítás nélkül, egyelőre kizárólag fizikai támadásokkal fut le és csak egy végeredmény-összefoglalót ír a naplóba. Menekülés nincs. Mindkét út ugyanazt a `BattleSystem` algoritmust és a játék közös `Random` példányát használja.
 
 A részletes vezéri csatanapló csak a ténylegesen érvényesülő nem nulla tehetségbónuszokat írja ki. A nulla gyógyítás/mannatöltés és a nulla támadó- vagy védelmi tehetségérték nem foglal helyet a naplóban.
 
@@ -628,7 +641,7 @@ A `ConsoleRenderer` a pályát, a karakterlapot, az ASCII-képpanelt és az üze
 
 Az `AsciiPortraits` mind a hat karakterosztályhoz (`C001`–`C006`) és az első tíz ellenfélhez (`E001`–`E010`) külön, ötsoros portrét tartalmaz. Normál nézetben mindig a karakterlapon éppen megjelenített partitag osztályképe látható a karakter saját színével; a bal/jobb karakterváltás a képpanelt is azonnal újrarajzolja. Vezéri csata kezdetén a panel az aktuális ellenfél azonosító szerinti portréjára vált, színe az ellenfél 1–5-ös erősségi szintjét követi. A csata lezárásakor visszaáll a megjelenített karakter portréja. Ismeretlen vagy még portré nélküli azonosítóhoz külön `???` tartalékkép tartozik.
 
-Az `F1` a fő játékhurokban, karakterlapfókuszban és a vezéri csata billentyűvárakozásakor is megnyitja ugyanazt a súgóképernyőt, mint a főmenü. Bezárásakor a játék az aktuális térképet és karakterlapot rajzolja vissza; a futásidejű játékállapot nem változik.
+A `Shift+F1` a fő játékhurokban, karakterlapfókuszban, varázsválasztás/célzás alatt és a vezéri csata billentyűvárakozásakor is megnyitja ugyanazt a súgóképernyőt, mint a főmenü. A sima `F1` az első varázslat-gyorshely. Bezáráskor a játék az aktuális térképet és karakterlapot rajzolja vissza; a futásidejű játékállapot nem változik.
 
 A karakterlap a faj és osztály alatt egy-egy sort tart fenn a tehetségeknek és az aktív állapotoknak. Ha a nevek együtt nem férnek el a 27 karakteres panelen, minden elem azonos rendelkezésre álló hosszra rövidül, így az összes aktív bejegyzés látható marad.
 
@@ -645,11 +658,12 @@ A `CharacterSaveService` a karaktereket a futtatási könyvtár `karakterek.json
 - a kiválasztott tehetségek azonosítói;
 - az aktív nem szükségletalapú állapotok azonosítói;
 - fegyverek, páncél, varázstárgyak és hátizsák, az üres helyeket is megőrző pozíciókkal;
+- az ismert és memorizált varázslatok, valamint az `F1–F8` gyorshelyek;
 - az aktív karakter indexe.
 
 A karaktermentés definícióazonosítókat használ, és a betöltéskor az aktuális `GameDataCatalog` elemeihez kapcsolja vissza őket. Régebbi, névalapú mentésekhez kompatibilitási útvonal is tartozik.
 
-A játék közbeni `Ctrl+S` előbb visszateszi az esetleg kézben tartott inventorytárgyat, majd a futtatási könyvtár `mentések` almappájába ír. Vezéri csata alatt a mentési kérés a győztes csata, XP-elosztás és esetleges tehetségválasztás lezárásakor teljesül, így nem keletkezhet félbehagyott harci körből következetlen állás; vereségnél a függő kérés elmarad. A fájlnév alakja `Főkarakter_yyyyMMdd_HHmmss_fff.save`, ezért minden mentés külön választható marad. A teljes játékmentés tartalmazza:
+A játék közbeni `F9` előbb visszateszi az esetleg kézben tartott inventorytárgyat, majd a futtatási könyvtár `mentések` almappájába ír. Vezéri csata alatt a mentési kérés a győztes csata, XP-elosztás és esetleges tehetségválasztás lezárásakor teljesül, így nem keletkezhet félbehagyott harci körből következetlen állás; vereségnél a függő kérés elmarad. A fájlnév alakja `Főkarakter_yyyyMMdd_HHmmss_fff.save`, ezért minden mentés külön választható marad. A teljes játékmentés tartalmazza:
 
 - a teljes karakterlistát, partit, inventorykat, állapotokat és erőforrásokat;
 - a pályaszintet, vezetőpozíciót, nézési irányt és követési útvonalat;
@@ -688,6 +702,6 @@ Fontos állapotélettartamok:
 - Nincs automatikus tesztprojekt; a fő ellenőrzés jelenleg a fordítás és a kézi konzolos próba.
 - A CSV-feldolgozás nem teljes RFC-kompatibilis CSV-parser.
 - A konzolméretek és koordináták nagyrészt rögzítettek.
-- A harc csak közelharcot valósít meg; a CSV-ben lévő varázslatok még nem részei az algoritmusnak.
+- A varázslatok aktiválása, mannaköltsége, célzása és harci kudarcpróbája működik; az egyedi sebző, gyógyító, állapot- és térképhatások még nincsenek implementálva.
 - Az élelem és víz csökken és fogyóeszközökkel visszatölthető; az alacsony és nulla szükségletszintek állapot- és csatakezdő büntetéseket okoznak, de a labirintusban csatán kívül nem sebeznek közvetlenül.
 - A teljes pályaállapot menthető és visszatölthető, de a mentési séma jelenleg egyetlen, `1`-es verziót támogat.

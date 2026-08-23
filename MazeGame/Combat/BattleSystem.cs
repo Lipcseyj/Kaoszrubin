@@ -16,7 +16,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private readonly IReadOnlyDictionary<string, StatusDefinition> _statuses =
         statuses.ToDictionary(status => status.Id, StringComparer.OrdinalIgnoreCase);
 
-    public BattleResult Resolve(LiveCharacter player, Enemy enemy, Action<BattleLogEntry> onRound)
+    public BattleResult Resolve(LiveCharacter player, Enemy enemy, Action<BattleLogEntry> onRound,
+        Func<BattlePlayerAction?>? choosePlayerAction = null)
     {
         var defender = enemy.Definition with { HitPoints = enemy.CurrentHitPoints };
         var context = new BattleContext(player);
@@ -58,28 +59,40 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             BattleLogKind kind;
             if (playerAttacks)
             {
-                var count = player.HasPerk(PerkIds.BarbarianBerserkerRage) && player.CurrentVitality * 2 < player.MaximumVitality ? 2 : 1;
-                var messages = new List<string>();
-                var criticalHit = false;
-                for (var index = 0; index < count && defender.HitPoints is > 0; index++)
+                var chosenAction = choosePlayerAction?.Invoke();
+                if (chosenAction is not null)
                 {
-                    var attack = PlayerAttack(player, defender, context);
-                    criticalHit |= attack.Critical;
-                    defender = ApplyAttack(defender, attack);
-                    messages.Add(attack.Message);
-                    if (index == 0 && attack.Hit && defender.HitPoints is > 0 && player.HasPerk(PerkIds.FighterSteelStorm) && _random.NextDouble() < 0.35)
-                    {
-                        var extra = PlayerAttack(player, defender, context);
-                        criticalHit |= extra.Critical;
-                        defender = ApplyAttack(defender, extra);
-                        messages.Add($"Acélvihar: {extra.Message}");
-                    }
+                    var statusTicks = player.ApplyTurnEndStatusEffects(_random);
+                    var statusText = statusTicks.Count == 0 ? string.Empty :
+                        $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
+                    message = $"{round}. kör — {chosenAction.Message}{statusText}";
+                    kind = chosenAction.Kind;
                 }
-                var statusTicks = player.ApplyTurnEndStatusEffects(_random);
-                var statusText = statusTicks.Count == 0 ? string.Empty :
-                    $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
-                message = $"{round}. kör — {player.Name} támadja {enemy.Name}-t. {string.Join(" ", messages)} {enemy.Name} HP: {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
-                kind = criticalHit ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack;
+                else
+                {
+                    var count = player.HasPerk(PerkIds.BarbarianBerserkerRage) && player.CurrentVitality * 2 < player.MaximumVitality ? 2 : 1;
+                    var messages = new List<string>();
+                    var criticalHit = false;
+                    for (var index = 0; index < count && defender.HitPoints is > 0; index++)
+                    {
+                        var attack = PlayerAttack(player, defender, context);
+                        criticalHit |= attack.Critical;
+                        defender = ApplyAttack(defender, attack);
+                        messages.Add(attack.Message);
+                        if (index == 0 && attack.Hit && defender.HitPoints is > 0 && player.HasPerk(PerkIds.FighterSteelStorm) && _random.NextDouble() < 0.35)
+                        {
+                            var extra = PlayerAttack(player, defender, context);
+                            criticalHit |= extra.Critical;
+                            defender = ApplyAttack(defender, extra);
+                            messages.Add($"Acélvihar: {extra.Message}");
+                        }
+                    }
+                    var statusTicks = player.ApplyTurnEndStatusEffects(_random);
+                    var statusText = statusTicks.Count == 0 ? string.Empty :
+                        $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
+                    message = $"{round}. kör — {player.Name} támadja {enemy.Name}-t. {string.Join(" ", messages)} {enemy.Name} HP: {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
+                    kind = criticalHit ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack;
+                }
             }
             else
             {
@@ -344,4 +357,5 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
 public sealed record BattleResult(bool PlayerWon, int Rounds, IReadOnlyList<string> Events);
 public sealed record BattleLogEntry(string Message, BattleLogKind Kind);
+public sealed record BattlePlayerAction(string Message, BattleLogKind Kind = BattleLogKind.PlayerAttack);
 public enum BattleLogKind { Information, PlayerAttack, EnemyAttack, CriticalHit }
