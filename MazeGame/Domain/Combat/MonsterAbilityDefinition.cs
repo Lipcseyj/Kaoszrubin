@@ -20,4 +20,5 @@ public enum MonsterAbilityEffect
 public static class MonsterAbilityIds
 {
     public const string Undead = "MA001";
+    public const string Demonic = "MA010";
 }

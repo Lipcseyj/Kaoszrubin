@@ -405,9 +405,9 @@ public static class CsvGameDataLoader
             if (effect.Order <= 0 || effect.Duration < 0)
                 throw new InvalidOperationException($"A(z) '{effect.Id}' hatás sorrendje legyen pozitív és időtartama nemnegatív.");
         }
-        foreach (var spell in spells.Where(spell => spell.School == SpellSchool.Arcane))
+        foreach (var spell in spells)
             if (!effects.Any(effect => string.Equals(effect.SpellId, spell.Id, StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidOperationException($"A(z) '{spell.Id}' mágusvarázslathoz legalább egy #Varázshatások sor szükséges.");
+                throw new InvalidOperationException($"A(z) '{spell.Id}' varázslathoz legalább egy #Varázshatások sor szükséges.");
     }
 
     private static T ParseRequiredEnum<T>(string[] cells, int index, string id, string fieldName) where T : struct, Enum =>

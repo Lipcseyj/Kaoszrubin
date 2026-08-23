@@ -124,6 +124,7 @@ public sealed class Maze
     public bool RemoveTreasureChest(TreasureChest chest) => _treasureChests.Remove(chest);
 
     public void AddCorpse(Corpse corpse) => _corpses.Add(corpse);
+    public bool RemoveCorpse(Corpse corpse) => _corpses.Remove(corpse);
 
     public void AddEnemy(Enemy enemy)
     {

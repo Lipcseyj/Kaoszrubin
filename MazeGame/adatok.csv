@@ -209,7 +209,7 @@ Intelligencia,Növekedés
 Id,Név,Kinézet,Erő,HP,Páncél,Gyorsaság,XP érték,Erősség,Képesség1Id,Képesség2Id
 E001,Óriáspatkány,r,2,20,0,5,100,1,MA003,
 E002,Kobold,k,3,30,1,6,150,1,MA006,
-E003,Goblin,g,4,45,2,6,200,1,MA004,
+E003,Goblin,g,4,45,2,6,200,1,,
 E004,Csontváz,I,5,80,3,3,250,1,MA001,MA007
 E005,Farkas,w,4,55,1,8,300,1,MA006,MA004
 E006,Zombi,z,5,100,2,2,330,1,MA001,MA003
@@ -329,7 +329,7 @@ MA006,Villámgyors,InitiativeBonus,100,2,A szörny 2 pont bónuszt kap a kezdem�
 MA007,Vastag bőr,ArmorBonus,100,2,A szörny 2 pont állandó páncélbónuszt kap.
 MA008,Regeneráció,Trait,100,5,A regenerációs hatás későbbi körönkénti gyógyítás számára fenntartott tulajdonság.
 MA009,Repülő,Trait,100,0,A repülés későbbi mozgási és terepszabályok számára fenntartott tulajdonság.
-MA010,Démoni,Trait,100,0,Démoni lény amelyre később külön szent és idézési szabályok vonatkozhatnak.
+MA010,Démoni,Trait,100,0,Démoni lény amelyet a szent varázslatok és a gonosz elleni védelem külön célpontként kezelnek.
 
 #Fegyverek
 Id,Név,Típus,Sebzés,Kétkezes,Tolvaj,Pap,Mágus,Jellemzés,Ár,Kategória,AlapId,MágikusErő
@@ -610,29 +610,58 @@ FX-S018-2,S018,2,Execute,,0,0,25,0,100,Attack,,A huszonöt százalék HP-n áll�
 FX-S019-1,S019,1,TeleportParty,,0,0,0,0,100,Auto,,A teljes élő partit a célmező köré teleportálja.
 FX-S020-1,S020,1,Damage,24d12,6,20,0,0,100,SaveHalf,,Hatalmas területi arkán sebzés mentőre felezve.
 FX-S020-2,S020,2,RandomElement,4d10,0,0,4,3,30,SaveNegates,Fire|Frost|Lightning,Véletlen tűz fagy vagy villám utóhatást okoz.
+FX-P001-1,P001,1,Heal,2d8,1,1,0,0,100,Auto,,Érintéssel helyreállított életerő.
+FX-P002-1,P002,1,Damage,2d6,1,1,0,0,100,Attack,Holy50,Szent sebzés élőholt és démoni célpont ellen másfélszeres erővel.
+FX-P003-1,P003,1,HitBonus,,0,0,1,4,100,Auto,,Négy akcióra találati bónuszt ad a teljes partinak.
+FX-P003-2,P003,2,DefenseBonus,,0,0,1,4,100,Auto,,Négy akcióra védelmi bónuszt ad a teljes partinak.
+FX-P003-3,P003,3,InitiativeBonus,,0,0,2,4,100,Auto,,Négy akcióra kezdeményezési bónuszt ad a teljes partinak.
+FX-P006-1,P006,1,CureStatus,,0,0,0,0,100,Auto,STATUS003,Eltávolítja a Mérgezés állapotot.
+FX-P004-1,P004,1,DefenseBonus,,0,0,5,4,100,Auto,,Négy akcióra öt pont védelmet ad.
+FX-P005-1,P005,1,Heal,5d8,2,2,0,0,100,Auto,,Nagy erejű távolsági gyógyítás.
+FX-P007-1,P007,1,ProtectionFromEvil,,0,0,30,5,100,Auto,4,Öt akcióra négy védelmet és harminc százalék csökkentést ad élőholt és démoni támadó ellen.
+FX-P013-1,P013,1,CureStatus,,0,0,0,0,100,Auto,STATUS004,Eltávolítja a Betegség állapotot.
+FX-P009-1,P009,1,Damage,8d8,2,4,0,0,100,SaveHalf,Holy50,Szent sebzés ellenpróbára felezve és gonosz lény ellen másfélszeres erővel.
+FX-P009-2,P009,2,SkipAlternate,,0,0,1,1,100,SaveNegates,Next,Rontott ellenpróbánál a célpont következő akciója kimarad.
+FX-P010-1,P010,1,DefenseBonus,,0,0,3,4,100,Auto,,Négy akcióra három pont védelmet ad a teljes partinak.
+FX-P010-2,P010,2,PhysicalReduction,,0,0,25,4,100,Auto,,Négy akcióra huszonöt százalékkal csökkenti a fizikai sebzést.
+FX-P014-1,P014,1,CureStatus,,0,0,0,0,100,Auto,STATUS003|STATUS004|STATUS005,Eltávolítja a Mérgezés Betegség és Vérzés állapotot.
+FX-P014-2,P014,2,Heal,3d8,1,0,0,0,100,Auto,,A megtisztítás után életerőt is helyreállít.
+FX-P015-1,P015,1,HitBonus,,0,0,2,5,100,Auto,,Öt akcióra két pont találati bónuszt ad a teljes partinak.
+FX-P015-2,P015,2,DamageBonus,,0,0,2,5,100,Auto,,Öt akcióra két pont fizikai sebzést ad a teljes partinak.
+FX-P015-3,P015,3,InitiativeBonus,,0,0,3,5,100,Auto,,Öt akcióra három pont kezdeményezést ad a teljes partinak.
+FX-P008-1,P008,1,Resurrect,,0,0,25,0,100,Auto,0|STATUS003|STATUS005,Huszonöt százalék HP-val és nulla mannával visszahoz egy elesett társat.
+FX-P011-1,P011,1,Damage,14d10,4,8,0,0,100,SaveHalf,Holy50,Nagy erejű szent sebzés élőholt és démoni célpont ellen másfélszeres erővel.
+FX-P011-2,P011,2,DispelBeneficial,,0,0,0,0,100,SaveNegates,,Rontott ellenpróbánál eltávolítja a célpont pozitív varázshatásait.
+FX-P016-1,P016,1,GuardianAngel,4d8,1,0,0,5,100,Auto,,Az első halálos csapást kivédi majd életerőt állít vissza.
+FX-P017-1,P017,1,Heal,5d8,2,3,0,0,100,Auto,,A teljes élő partit egyszerre gyógyítja.
+FX-P012-1,P012,1,CureStatus,,0,0,0,0,100,Auto,STATUS003|STATUS004|STATUS005,Minden élő part tagjáról eltávolítja a súlyos állapotokat.
+FX-P012-2,P012,2,Heal,,0,0,0,0,100,Auto,Full,Minden élő partitag életerejét maximumra tölti.
+FX-P018-1,P018,1,Damage,18d10,5,12,0,0,100,SaveHalf,Holy50,Hatalmas területi szent sebzés amely a partit nem érinti.
+FX-P019-1,P019,1,Sanctuary,,0,0,50,4,100,Auto,,A Pap közelében álló társakat védi amíg nem támadnak.
+FX-P020-1,P020,1,Resurrect,,0,0,100,0,100,Auto,50|STATUS003|STATUS004|STATUS005,Teljes HP-val fél mannával és megtisztítva hoz vissza egy elesett társat.
 
 #Papi varázslatok
 Id,Név,Szint,Manna,Leírás,Célzás,Hatótáv,Terület,Látóvonal,HasználatiMód
-P001,Gyógyító érintés,1,1,A Gyógyító érintés varázslat leírása.,PartyMember,1,0,igen,Both
-P002,Szent fény,1,1,A Szent fény varázslat leírása.,Enemy,8,0,igen,Both
-P003,Áldás,1,1,Az Áldás varázslat leírása.,Party,0,0,nem,Both
-P006,Méregűzés,1,1,A Méregűzés varázslat leírása.,PartyMember,6,0,igen,Both
-P004,Szent pajzs,2,1,A Szent pajzs varázslat leírása.,PartyMember,6,0,igen,Both
-P005,Gyógyítás,2,1,A Gyógyítás varázslat leírása.,PartyMember,6,0,igen,Both
-P007,Védelem a gonosztól,2,1,A Védelem a gonosztól varázslat leírása.,PartyMember,6,0,igen,Both
-P013,Betegségűzés,2,1,A Betegségűzés varázslat leírása.,PartyMember,6,0,igen,Both
-P009,Szent csapás,3,1,A Szent csapás varázslat leírása.,Enemy,8,0,igen,Both
-P010,Isteni védelem,3,1,Az Isteni védelem varázslat leírása.,Party,0,0,nem,Both
-P014,Megtisztítás,3,1,A Megtisztítás varázslat leírása.,PartyMember,6,0,igen,Both
-P015,Bátorság imája,3,1,A Bátorság imája varázslat leírása.,Party,0,0,nem,Both
-P008,Feltámasztás,4,1,A Feltámasztás varázslat leírása.,Corpse,6,0,igen,Both
-P011,Szent ítélet,4,1,A Szent ítélet varázslat leírása.,Enemy,8,0,igen,Both
-P016,Őrangyal,4,1,Az Őrangyal varázslat leírása.,PartyMember,6,0,igen,Both
-P017,Tömeges gyógyítás,4,1,A Tömeges gyógyítás varázslat leírása.,Party,0,0,nem,Both
-P012,Isteni csoda,5,1,Az Isteni csoda varázslat leírása.,Party,0,0,nem,Both
-P018,Isteni harag,5,1,Az Isteni harag varázslat leírása.,Area,8,3,igen,Both
-P019,Szentély,5,1,A Szentély varázslat leírása.,Self,0,0,nem,Both
-P020,Igazi feltámasztás,5,1,Az Igazi feltámasztás varázslat leírása.,Corpse,8,0,igen,Both
+P001,Gyógyító érintés,1,5,Érintéssel gyógyít 2d8 plusz Intelligencia plusz karakterszint HP-t.,PartyMember,1,0,igen,Both
+P002,Szent fény,1,6,Szent fényt lő egy ellenfélre amely élőholt és démoni célpont ellen másfélszeres sebzést okoz.,Enemy,8,0,igen,Both
+P003,Áldás,1,8,Négy akcióra találatot védelmet és kezdeményezést ad minden élő part tagnak.,Party,0,0,nem,Both
+P006,Méregűzés,1,5,Eltávolítja a Mérgezés állapotot egy élő part tagjáról.,PartyMember,6,0,igen,Both
+P004,Szent pajzs,2,10,Négy akcióra öt pont védelmet ad egy élő part tagnak.,PartyMember,6,0,igen,Both
+P005,Gyógyítás,2,11,Hat mezőről nagy mennyiségű életerőt állít vissza egy élő part tagnak.,PartyMember,6,0,igen,Both
+P007,Védelem a gonosztól,2,12,Öt akcióra védelmet és sebzéscsökkentést ad élőholt vagy démoni támadó ellen.,PartyMember,6,0,igen,Both
+P013,Betegségűzés,2,10,Eltávolítja a Betegség állapotot és visszaállítja a normál erőforrásmaximumokat.,PartyMember,6,0,igen,Both
+P009,Szent csapás,3,17,Súlyos szent sebzést okoz és rontott ellenpróbánál elveszi a következő ellenséges akciót.,Enemy,8,0,igen,Both
+P010,Isteni védelem,3,18,Négy akcióra védelmet és huszonöt százalék fizikai sebzéscsökkentést ad a teljes partinak.,Party,0,0,nem,Both
+P014,Megtisztítás,3,15,Eltávolítja a Mérgezés Betegség és Vérzés állapotot majd gyógyítja a célpontot.,PartyMember,6,0,igen,Both
+P015,Bátorság imája,3,14,Öt akcióra találatot fizikai sebzést és kezdeményezést ad a teljes partinak.,Party,0,0,nem,Both
+P008,Feltámasztás,4,30,Egy elesett társat huszonöt százalék HP-val és nulla mannával hoz vissza.,Corpse,6,0,igen,Both
+P011,Szent ítélet,4,28,Nagy szent sebzést okoz és rontott ellenpróbánál eltávolítja a pozitív varázshatásokat.,Enemy,8,0,igen,Both
+P016,Őrangyal,4,26,Öt akcióig kivédi a célpont első halálos csapását majd gyógyítja őt.,PartyMember,6,0,igen,Both
+P017,Tömeges gyógyítás,4,30,Minden élő part tagnak egyszerre nagy mennyiségű életerőt állít vissza.,Party,0,0,nem,Both
+P012,Isteni csoda,5,45,Maximumra gyógyítja és minden súlyos állapottól megtisztítja a teljes élő partit.,Party,0,0,nem,Both
+P018,Isteni harag,5,46,Hatalmas területi szent sebzést okoz minden ellenségnek de a partit nem sebzi.,Area,8,3,igen,Both
+P019,Szentély,5,38,Négy akcióra felére csökkenti a közeli part tagokat érő sebzést és állapotvédelmet ad.,Self,0,3,nem,Both
+P020,Igazi feltámasztás,5,50,Egy elesett társat teljes HP-val fél mannával és negatív állapotok nélkül hoz vissza.,Corpse,8,0,igen,Both
 
 #Faji képességbónuszok
 FajId,Erő,Ügyesség,Egészség,Intelligencia
@@ -645,10 +674,10 @@ R004,3,-1,1,-3
 OsztályId,Erő,Ügyesség,Egészség,Intelligencia
 C001,7,2,8,2
 C002,9,3,6,1
-C003,8,2,6,4
+C003,7,2,6,4
 C004,3,7,4,4
-C005,6,3,5,6
-C006,3,3,2,8
+C005,5,3,5,6
+C006,3,3,1,8
 
 #Erő találati bónusz
 OsztályId,MinimumErő,Bónusz

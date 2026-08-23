@@ -969,6 +969,12 @@ public sealed class ConsoleRenderer
                 ActiveSpellEffectType.DefenseBonus => "🛡️",
                 ActiveSpellEffectType.PhysicalReduction => "🪨",
                 ActiveSpellEffectType.BleedingImmunity => "🩸🚫",
+                ActiveSpellEffectType.HitBonus => "🎯",
+                ActiveSpellEffectType.DamageBonus => "⚔️✨",
+                ActiveSpellEffectType.InitiativeBonus => "⚡",
+                ActiveSpellEffectType.ProtectionFromEvil => "✝️🛡️",
+                ActiveSpellEffectType.GuardianAngel => "👼",
+                ActiveSpellEffectType.Sanctuary => "⛪",
                 _ => "✨"
             })).ToList();
         WriteSheetLine(4, statusIcons.Count == 0

@@ -20,6 +20,7 @@ public sealed class LiveCharacter
     private readonly Dictionary<string, int?> _statusDurations = new(StringComparer.OrdinalIgnoreCase);
     private int _maximumVitality;
     private int _maximumMana;
+    private int _divineSpellCycle;
     public LiveCharacter(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities abilities, int maximumVitality, int maximumMana, int vitalityBonus, int manaBonus, ConsoleColor color = ConsoleColor.Cyan)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > MaximumNameLength)
@@ -58,6 +59,8 @@ public sealed class LiveCharacter
     public int Gold { get; private set; }
     public int Level { get; private set; } = 1;
     public int Experience { get; private set; }
+    public int DivineSpellCycle => _divineSpellCycle;
+    public bool WasResurrectedThisLevel { get; private set; }
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
     public ArmorDefinition? Armor { get; private set; }
     public IReadOnlyList<MagicItemDefinition?> MagicItems => _magicItems;
@@ -122,7 +125,8 @@ public sealed class LiveCharacter
 
     public void ApplySpellEffect(ActiveSpellEffect effect)
     {
-        _activeSpellEffects.RemoveAll(existing => existing.Type == effect.Type);
+        _activeSpellEffects.RemoveAll(existing => existing.Type == effect.Type &&
+            string.Equals(existing.SourceSpellId, effect.SourceSpellId, StringComparison.OrdinalIgnoreCase));
         _activeSpellEffects.Add(effect);
     }
 
@@ -132,7 +136,16 @@ public sealed class LiveCharacter
         .Where(effect => effect.Type == type).Sum(effect => effect.Value);
     public int RemoveSpellEffects(Func<ActiveSpellEffect, bool>? predicate = null) =>
         _activeSpellEffects.RemoveAll(effect => predicate?.Invoke(effect) ?? true);
+    public ActiveSpellEffect? TakeSpellEffect(ActiveSpellEffectType type)
+    {
+        var index = _activeSpellEffects.FindIndex(effect => effect.Type == type);
+        if (index < 0) return null;
+        var effect = _activeSpellEffects[index];
+        _activeSpellEffects.RemoveAt(index);
+        return effect;
+    }
     public void BreakInvisibility() => _activeSpellEffects.RemoveAll(effect => effect.Type == ActiveSpellEffectType.Invisibility);
+    public void BreakSanctuary() => _activeSpellEffects.RemoveAll(effect => effect.Type == ActiveSpellEffectType.Sanctuary);
     public void AdvanceSpellEffects()
     {
         for (var index = _activeSpellEffects.Count - 1; index >= 0; index--)
@@ -146,6 +159,22 @@ public sealed class LiveCharacter
     }
 
     public void ClearTemporarySpellEffects() => _activeSpellEffects.Clear();
+
+    public bool NextDivineSpellTriggersJudgment(SpellDefinition spell) =>
+        spell.School == SpellSchool.Divine && HasPerk(PerkIds.PriestDivineJudgment) && _divineSpellCycle == 4;
+
+    public bool RecordDivineSpellCast(SpellDefinition spell)
+    {
+        if (spell.School != SpellSchool.Divine || !HasPerk(PerkIds.PriestDivineJudgment)) return false;
+        var empowered = _divineSpellCycle == 4;
+        _divineSpellCycle = (_divineSpellCycle + 1) % 5;
+        return empowered;
+    }
+
+    public void RestoreDivineSpellCycle(int cycle) => _divineSpellCycle = Math.Clamp(cycle, 0, 4);
+    public void MarkResurrectedThisLevel() => WasResurrectedThisLevel = true;
+    public void ResetLevelResurrection() => WasResurrectedThisLevel = false;
+    public void RestoreLevelResurrection(bool used) => WasResurrectedThisLevel = used;
 
     public bool EquipWeapon(int slotIndex, WeaponDefinition? weapon) =>
         SetInventoryItem(InventorySlotKind.Weapon, slotIndex, weapon);

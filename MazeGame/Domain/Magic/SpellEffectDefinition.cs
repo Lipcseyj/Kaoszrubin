@@ -19,7 +19,17 @@ public enum SpellEffectType
     ExtraActions,
     Execute,
     TeleportParty,
-    RandomElement
+    RandomElement,
+    Heal,
+    CureStatus,
+    HitBonus,
+    DamageBonus,
+    InitiativeBonus,
+    ProtectionFromEvil,
+    GuardianAngel,
+    Sanctuary,
+    Resurrect,
+    DispelBeneficial
 }
 
 public enum SpellResolution
@@ -67,11 +77,18 @@ public enum ActiveSpellEffectType
     DefenseBonus,
     PhysicalReduction,
     BleedingImmunity,
-    Frost
+    Frost,
+    HitBonus,
+    DamageBonus,
+    InitiativeBonus,
+    ProtectionFromEvil,
+    GuardianAngel,
+    Sanctuary,
+    SkipNext
 }
 
 public sealed record ActiveSpellEffect(string SourceSpellId, ActiveSpellEffectType Type, int Value,
     int RemainingActions, DiceExpression? PeriodicDamage = null, int IntelligenceBonus = 0,
-    bool Beneficial = false, int DamageMultiplierPercent = 100);
+    bool Beneficial = false, int DamageMultiplierPercent = 100, string? Parameter = null);
 
 public sealed record SpellEffectTickResult(int Damage, bool SkipAction, IReadOnlyList<string> Notes);

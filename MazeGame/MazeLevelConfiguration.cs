@@ -127,6 +127,7 @@ public static class MazeLevelConfigurations
                 CorridorEncounters =
                 [
                     Encounters.Solo("E001", Amount.Few),
+                    Encounters.Solo("E003", Amount.Several, EnemyMovementProfile.Patrol),
                     Encounters.Solo("E005", Amount.Few, EnemyMovementProfile.Patrol)
                 ]
             },

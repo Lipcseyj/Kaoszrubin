@@ -52,7 +52,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
             notes.Add($"{EffectName(effect.Type)} -{rolled} HP");
         }
         _spellActionCounter++;
-        var skip = _activeSpellEffects.Any(effect => effect.Type == ActiveSpellEffectType.SkipAlternate) &&
+        var skip = _activeSpellEffects.Any(effect => effect.Type == ActiveSpellEffectType.SkipNext) ||
+                   _activeSpellEffects.Any(effect => effect.Type == ActiveSpellEffectType.SkipAlternate) &&
                    _spellActionCounter % 2 == 0;
         for (var index = _activeSpellEffects.Count - 1; index >= 0; index--)
         {

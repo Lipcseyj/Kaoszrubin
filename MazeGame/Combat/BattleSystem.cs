@@ -33,7 +33,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         }
         var perkInitiativeBonus = player.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
         var magicInitiativeBonus = player.GetMagicItemBonus(MagicItemEffect.Initiative);
-        var initiativeBonus = perkInitiativeBonus + magicInitiativeBonus;
+        var spellInitiativeBonus = player.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus);
+        var initiativeBonus = perkInitiativeBonus + magicInitiativeBonus + spellInitiativeBonus;
         var playerInitiative = RollInitiative(player.Abilities.Dexterity + initiativeBonus - player.StatusInitiativePenalty);
         var enemyInitiativeBonus = MonsterAbilityValue(defender, MonsterAbilityEffect.InitiativeBonus);
         var enemyInitiative = RollInitiative(enemy.EffectiveSpeed + enemyInitiativeBonus);
@@ -41,6 +42,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var initiativeNotes = new List<string>();
         if (perkInitiativeBonus > 0) initiativeNotes.Add($"Első csapás +{perkInitiativeBonus}");
         if (magicInitiativeBonus > 0) initiativeNotes.Add($"varázstárgy +{magicInitiativeBonus}");
+        if (spellInitiativeBonus > 0) initiativeNotes.Add($"áldás +{spellInitiativeBonus}");
         var perkText = initiativeNotes.Count > 0 ? $" [{string.Join(", ", initiativeNotes)}]" : string.Empty;
         var events = new List<string>
         {
@@ -181,6 +183,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleContext context, int defenderSpeed)
     {
+        player.BreakSanctuary();
         var forcedHit = context.ShadowStepReady;
         context.ShadowStepReady = false;
         var weapon = player.WeaponSlots.FirstOrDefault(item => item?.WeaponTypeId != DefenseWeaponTypeId);
@@ -190,7 +193,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var strengthHitBonus = StrengthHitBonus(player);
         var hitBonus = (weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0) +
                        player.GetMagicItemBonus(MagicItemEffect.Hit) + blessedWeaponBonus;
-        hitBonus += invisibilityBonus + strengthHitBonus;
+        hitBonus += invisibilityBonus + strengthHitBonus + player.SpellEffectValue(ActiveSpellEffectType.HitBonus);
         var hit = HitRoll(player.Abilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
         var strengthHitText = strengthHitBonus > 0 ? $" [Erő-találat +{strengthHitBonus}]" : string.Empty;
@@ -205,7 +208,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var ability = usesDexterity ? player.Abilities.Dexterity : player.Abilities.Strength;
         var abilityBonus = AbilityDamageBonus(ability);
         var randomBonus = Roll(new ValueRange(0, 2));
-        var perkBonus = player.GetMagicItemBonus(MagicItemEffect.Damage) + blessedWeaponBonus;
+        var perkBonus = player.GetMagicItemBonus(MagicItemEffect.Damage) + blessedWeaponBonus +
+                        player.SpellEffectValue(ActiveSpellEffectType.DamageBonus);
         var notes = new List<string>();
         if (blessedWeaponBonus > 0) notes.Add("Áldott fegyver +2");
         if (player.HasPerk(PerkIds.BarbarianBloodlust) && player.CurrentVitality * 2 < player.MaximumVitality) { perkBonus += 3; notes.Add("Vérszomj +3"); }
@@ -269,15 +273,20 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var armor = RollArmor(defender);
         var shieldEquipped = defender.WeaponSlots.Any(item => item?.WeaponTypeId == DefenseWeaponTypeId);
         var shield = defender.WeaponSlots.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } shieldRange ? Roll(shieldRange) : 0;
+        var evilWard = IsUnholy(attacker)
+            ? defender.ActiveSpellEffects.Where(effect => effect.Type == ActiveSpellEffectType.ProtectionFromEvil).ToList()
+            : [];
+        var evilWardDefense = evilWard.Sum(effect => ParseInt(effect.Parameter));
         var perkDefense = (defender.HasPerk(PerkIds.BarbarianThickSkin) ? 1 : 0) +
                           (shieldEquipped && defender.HasPerk(PerkIds.KnightShieldWall) ? 2 : 0) +
                           defender.GetMagicItemBonus(MagicItemEffect.Defense) +
-                          defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus);
+                          defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus) + evilWardDefense;
         var reduction = (defender.HasPerk(PerkIds.FighterUnbreakable) ? 2 : 0) + (defender.HasPerk(PerkIds.KnightInvincible) ? 4 : 0);
         var monsterBonusDamage = RollMonsterBonusDamage(attacker);
         var rawDamage = strength + randomDamage + monsterBonusDamage;
         var damage = Math.Max(0, ApplyDefense(rawDamage * criticalMultiplier, armor + shield + perkDefense) - reduction);
-        var physicalReduction = Math.Clamp(defender.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction), 0, 100);
+        var physicalReduction = Math.Clamp(defender.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction) +
+            defender.SpellEffectValue(ActiveSpellEffectType.Sanctuary) + evilWard.Sum(effect => effect.Value), 0, 100);
         if (physicalReduction > 0) damage = damage * (100 - physicalReduction) / 100;
         if (defender.HasPerk(PerkIds.BarbarianPainTolerance) && damage < 3) damage = 0;
         var absorbed = 0;
@@ -323,8 +332,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 MonsterAbilityEffect.Bleeding => CharacterStatusIds.Bleeding,
                 _ => null
             };
+            var sanctuaryImmunity = defender.HasSpellEffect(ActiveSpellEffectType.Sanctuary) &&
+                                    statusId is CharacterStatusIds.Poisoned or CharacterStatusIds.Diseased or CharacterStatusIds.Bleeding;
+            var evilWardImmunity = IsUnholy(enemy) && defender.HasSpellEffect(ActiveSpellEffectType.ProtectionFromEvil) &&
+                                   statusId is CharacterStatusIds.Poisoned or CharacterStatusIds.Diseased;
             if (statusId is null || statusId == CharacterStatusIds.Bleeding &&
-                defender.HasSpellEffect(ActiveSpellEffectType.BleedingImmunity) ||
+                defender.HasSpellEffect(ActiveSpellEffectType.BleedingImmunity) || sanctuaryImmunity || evilWardImmunity ||
                 _random.Next(100) >= ability.ChancePercent ||
                 !_statuses.TryGetValue(statusId, out var status)) continue;
             var wasActive = defender.HasStatus(statusId);
@@ -341,8 +354,17 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return defender.HasPerk(PerkIds.KnightArmorMaster) ? Math.Max(rolled, (int)Math.Ceiling((range.Minimum + range.Maximum) / 2.0)) : rolled;
     }
 
-    private static string ApplyEnemyDamage(LiveCharacter player, int damage, BattleContext context)
+    private string ApplyEnemyDamage(LiveCharacter player, int damage, BattleContext context)
     {
+        if (damage >= player.CurrentVitality && player.TakeSpellEffect(ActiveSpellEffectType.GuardianAngel) is { } angel)
+        {
+            player.ReceiveDamage(Math.Max(0, player.CurrentVitality - 1));
+            var healing = ((angel.PeriodicDamage?.Roll(_random) ?? 0) + angel.IntelligenceBonus) *
+                          angel.DamageMultiplierPercent / 100;
+            var beforeHealing = player.CurrentVitality;
+            player.RestoreVitality(healing);
+            return $"👼 Őrangyal: a halálos csapás kivédve és +{player.CurrentVitality - beforeHealing} HP.";
+        }
         if (damage >= player.CurrentVitality && context.GuardianAngelAvailable)
         {
             context.GuardianAngelAvailable = false;
@@ -358,6 +380,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         player.ReceiveDamage(damage);
         return string.Empty;
     }
+
+    private static bool IsUnholy(EnemyDefinition enemy) => enemy.AbilityIds.Any(abilityId =>
+        string.Equals(abilityId, MonsterAbilityIds.Undead, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(abilityId, MonsterAbilityIds.Demonic, StringComparison.OrdinalIgnoreCase));
+
+    private static int ParseInt(string? value) => int.TryParse(value, out var parsed) ? parsed : 0;
 
     private HitRollResult HitRoll(int attackerSpeed, int defenderSpeed, int attackerBonus, bool forcedHit)
     {

@@ -190,12 +190,12 @@ Az állandó HP- és mannabónuszok a választás pillanatában az aktuális és
 | Tolvaj | Árnyéklépés | kész | sikeres kitérés után a következő támadás automatikusan talál |
 | Tolvaj | Halálos pontosság | kész | természetes 18–20 dobásnál háromszoros sebzés |
 | Tolvaj | Mestertolvaj | részleges | dupla ládaarany kész; ritka tárgydobás tárgyrendszerre vár |
-| Pap | Gyógyító kegyelem | várakozik | gyógyító varázsrendszer szükséges |
+| Pap | Gyógyító kegyelem | kész | minden papi HP-gyógyítást 25%-kal növel |
 | Pap | Áldott fegyver | kész | élőholt (`MA001`) ellen +2 találat és +2 sebzés |
 | Pap | Szentély | kész | ellenséges támadásonként 20% eséllyel kimarad a támadás |
 | Pap | Hitforrás | kész | +12 manna választáskor és csata elején legfeljebb 5 manna visszatöltés |
 | Pap | Feltámadás | várakozik | játéknap- és feltámadási rendszer szükséges |
-| Pap | Isteni ítélet | várakozik | papi varázsrendszer szükséges |
+| Pap | Isteni ítélet | kész | minden ötödik papi varázslat ingyenes; sebzése vagy gyógyítása kétszeres és az időtartama megduplázódik |
 | Mágus | Arkán fókusz | kész | +2 a mágikus támadódobásokhoz |
 | Mágus | Mannatartalék | kész | +15 maximális és aktuális manna választáskor |
 | Mágus | Elemi mester | kész | minden sebző mágusvarázslat sebzésére +25% |
@@ -347,7 +347,7 @@ A `MaximumCharges` és `SpellId` a varázstárgyak későbbi, példányszintű e
 
 ### Varázslatdefiníciók és szintek
 
-A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív mannaköltséget, leírást és célzási metaadatokat tartalmaz. Az `adatok.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`, `Célzás`, `Hatótáv`, `Terület`, `Látóvonal`, `HasználatiMód`. A célzás típusa `Self`, `Party`, `PartyMember`, `Enemy`, `Corpse`, `Cell`, `Area` vagy `Direction`; a használati mód `Exploration`, `Combat` vagy `Both`. A mágusvarázslatok mannaköltsége és végleges leírása már a tényleges hatáshoz van hangolva; a papi varázslatok hatásai a következő fejlesztési lépés részei.
+A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív alap-mannaköltséget, leírást és célzási metaadatokat tartalmaz. Az `adatok.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`, `Célzás`, `Hatótáv`, `Terület`, `Látóvonal`, `HasználatiMód`. A célzás típusa `Self`, `Party`, `PartyMember`, `Enemy`, `Corpse`, `Cell`, `Area` vagy `Direction`; a használati mód `Exploration`, `Combat` vagy `Both`. Mindkét iskola mannaköltsége és leírása a tényleges CSV-s hatásokhoz van hangolva.
 
 Mindkét iskolában pontosan 20 varázslat található, szintenként pontosan négy:
 
@@ -361,11 +361,15 @@ Mindkét iskolában pontosan 20 varázslat található, szintenként pontosan n�
 
 A CSV-betöltő visszautasítja az 1–5 tartományon kívüli szintet, az ismeretlen célzás- vagy használatimód-nevet, a negatív hatótávot/területet, illetve azt az adatállományt, amelyben egy iskola nem pontosan 20 vagy valamely szint nem pontosan négy definíciót tartalmaz. A `GameDataCatalog.GetSpell` azonosító szerint, a `GetSpells(school, level)` pedig iskola és szint szerint szolgáltat definíciókat.
 
-Az összetett működést az önálló `#Varázshatások` szekció írja le. Egy varázslathoz több, sorrendben végrehajtott `SpellEffectDefinition` tartozhat. A sor konfigurálja a hatástípust, kockát, intelligencia- és karakterszint-szorzót, állandó értéket, akciókban számolt időtartamot, esélyt, `Auto`/`Attack`/`SaveHalf`/`SaveNegates` feloldást és opcionális paramétert. A betöltő ellenőrzi az ID-ket, kockakifejezéseket, tartományokat és azt is, hogy mind a húsz mágusvarázslathoz legyen hatás.
+Az összetett működést az önálló `#Varázshatások` szekció írja le. Egy varázslathoz több, sorrendben végrehajtott `SpellEffectDefinition` tartozhat. A sor konfigurálja a hatástípust, kockát, intelligencia- és karakterszint-szorzót, állandó értéket, akciókban számolt időtartamot, esélyt, `Auto`/`Attack`/`SaveHalf`/`SaveNegates` feloldást és opcionális paramétert. A betöltő ellenőrzi az ID-ket, kockakifejezéseket, tartományokat és azt is, hogy mind a negyven varázslathoz legyen legalább egy hatás.
 
 A mágikus támadás `d20 + Intelligencia + tárgyi találati bónusz` a szörny `11 + effektív Gyorsaság` értéke ellen; az Arkán fókusz további +2-t ad, a természetes 20 kritikus. Az ellenpróba célszáma `10 + floor(Intelligencia / 2) + varázslatszint`; siker esetén a `SaveHalf` felezi a sebzést, a `SaveNegates` teljesen kivédi a mellékhatást. Az Elemi mester a kiszámolt sebzést 25%-kal növeli.
 
 Az implementált mágushatások lefedik az egycélpontos és területi sebzést, a kétmezős iránykúpot, égést és viharsebzést, sebességcsökkentést, minden második akció kihagyását, láthatatlanságot, arkán páncélt, kőbőrt és vérzésvédelmet, láncoló sebzést, varázshatás-szétoszlatást, ön- és partiteleportációt, csatánként egyszeri két extra akciót, kivégzési küszöböt és véletlen elemi mellékhatást. Az időzített hatások a karakter- és pályamentés részei; a fogadóban az élő karakterekről törlődnek.
+
+Az implementált papi hatások gyógyítanak, Mérgezést/Betegséget/Vérzést tisztítanak, valamint találatot, fizikai sebzést, kezdeményezést, védelmet és sebzéscsökkentést adnak. A Szent fény, Szent csapás, Szent ítélet és Isteni harag élőholt (`MA001`) vagy démoni (`MA010`) célpont ellen 50%-kal nagyobbat sebez. A Védelem a gonosztól kizárólag ilyen támadó ellen ad +4 védelmet, 30% sebzéscsökkentést és mérgezés-/betegségvédelmet. Az Őrangyal az első halálos ellenséges csapást 1 HP-n kivédi és utólag gyógyít. A Szentély a varázslás pillanatában három mezőn belüli élő tagokra kerül; 50% sebzéscsökkentést és súlyosállapot-védelmet ad, de az adott karakter első fegyveres vagy támadó varázsakciójánál megszűnik.
+
+A `Feltámasztás` 25% HP-val és 0 mannával, az `Igazi feltámasztás` teljes HP-val és 50% mannával teszi vissza ugyanazt a `LiveCharacter` példányt a tetemhez legközelebbi szabad mezőre. A karakter egy pályán legfeljebb egyszer térhet vissza; ez a jelző és a papi Isteni ítélet 0–4 közötti varázslatciklusa a karaktermentés része. Új pálya indításakor a feltámasztási korlát törlődik. Az Isteni ítélet ötödik papi varázslata célkiválasztáskor 0 mannába kerül; a csatabeli koncentrációs kudarc ezt az ingyenes alkalmat is elfogyasztja. Siker esetén a sebzés és gyógyítás kétszeres, az időzített hatások időtartama kétszeres, de a tisztítás és feltámasztás önmagában nem duplázódik.
 
 ### Varázslattanulás és memorizálás
 
@@ -396,7 +400,7 @@ A partivezér a térképen `V`-vel nyitja meg a memorizált varázslatok színes
 Sikeres aktiváláskor a teljes CSV-s mannaköltség levonódik. Csatán kívül nincs külön koncentrációs kudarc. Csatában a varázslat a karakter fegyveres támadása helyetti teljes akció, és a mannaköltség levonása után százalékos kudarcpróba történik:
 
 ```text
-kudarc esélye = clamp(30 - Intelligencia × 2, 0, 100)%
+kudarc esélye = clamp(30 - Intelligencia - Ügyesség, 0, 100)%
 ```
 
 Ha a `d100` eredménye legfeljebb a kudarc esélye, a varázslat meghiúsul, a manna és az akció elvész. Siker esetén a játék végrehajtja a CSV-ben sorolt hatásokat, és a naplóban összegzi a célpontonkénti sebzést, próbát, kontrollt vagy helyváltoztatást. A sebző és időzített mágushatások csatán kívül is működnek; az ellenfelek saját mozgási akciójuk elején szenvedik el a körönkénti sebzést. A karakterlap csata közbeni részleges frissítése a mágikus védőhatásokat is emojival jelzi.
@@ -589,7 +593,7 @@ A rendszer a két már felfedezett végpont közötti, legfeljebb háromcellás 
 
 ## Csata algoritmusa
 
-A csata váltott akciókból áll. A vezér saját akciójánál csak akkor jelenik meg a fegyver/varázslat kérdés, ha élő varázshasználó, rendelkezik a megfelelő fókusszal, és van legalább egy csatában engedélyezett, memorizált, elegendő mannából kifizethető, aktuálisan érvényes célpontra használható varázslata. Ellenkező esetben a fegyveres támadás kérdés nélkül végrehajtódik. Választáskor a szóköz fegyveres támadást, a `V` vagy `F1–F8` varázslást indít. A varázslás teljes akciót használ, és a fenti intelligenciaalapú kudarcpróbát végzi. Az NPC-csata megszakítás nélkül, egyelőre kizárólag fizikai támadásokkal fut le és csak egy végeredmény-összefoglalót ír a naplóba. Menekülés nincs. Mindkét út ugyanazt a `BattleSystem` algoritmust és a játék közös `Random` példányát használja.
+A csata váltott akciókból áll. A vezér saját akciójánál csak akkor jelenik meg a fegyver/varázslat kérdés, ha élő varázshasználó, rendelkezik a megfelelő fókusszal, és van legalább egy csatában engedélyezett, memorizált, elegendő mannából kifizethető, aktuálisan érvényes célpontra használható varázslata. Ellenkező esetben a fegyveres támadás kérdés nélkül végrehajtódik. Választáskor a szóköz fegyveres támadást, a `V` vagy `F1–F8` varázslást indít. A varázslás teljes akciót használ, és a fenti Intelligencia- és Ügyességalapú kudarcpróbát végzi. Az NPC-csata megszakítás nélkül, egyelőre kizárólag fizikai támadásokkal fut le és csak egy végeredmény-összefoglalót ír a naplóba. Menekülés nincs. Mindkét út ugyanazt a `BattleSystem` algoritmust és a játék közös `Random` példányát használja.
 
 A részletes vezéri csatanapló csak a ténylegesen érvényesülő nem nulla tehetségbónuszokat írja ki. A nulla gyógyítás/mannatöltés és a nulla támadó- vagy védelmi tehetségérték nem foglal helyet a naplóban.
 
