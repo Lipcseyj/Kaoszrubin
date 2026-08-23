@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using MazeGame.Domain;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
@@ -21,6 +22,7 @@ public static class CsvGameDataLoader
         var strengthHitBonuses = new List<StrengthHitBonusDefinition>();
         var monsterLoot = new List<MonsterLootDefinition>();
         var lootRuleValues = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var doorAttemptRuleValues = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var weaponTypes = new List<WeaponTypeDefinition>();
         var weapons = new List<WeaponDefinition>();
         var armors = new List<ArmorDefinition>();
@@ -57,7 +59,7 @@ public static class CsvGameDataLoader
 
             if (IsHeaderRow(cells[0])) continue;
             AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
-                monsterLoot, lootRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, itemUpgrades,
+                monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, itemUpgrades,
                 raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                 vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
         }
@@ -70,6 +72,7 @@ public static class CsvGameDataLoader
         ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
         ValidateMonsterLoot(enemies, monsterLoot);
         var lootRules = CreateLootRules(lootRuleValues);
+        var doorAttemptRules = CreateDoorAttemptRules(doorAttemptRuleValues);
 
         return new GameDataCatalog
         {
@@ -85,6 +88,7 @@ public static class CsvGameDataLoader
             StrengthHitBonuses = strengthHitBonuses,
             MonsterLoot = monsterLoot,
             LootRules = lootRules,
+            DoorAttemptRules = doorAttemptRules,
             WeaponTypes = weaponTypes,
             Weapons = CreateUpgradedWeapons(weapons, itemUpgrades),
             Armors = CreateUpgradedArmors(armors, itemUpgrades),
@@ -113,6 +117,7 @@ public static class CsvGameDataLoader
         ICollection<EnemyDefinition> enemies, ICollection<MonsterAbilityDefinition> monsterAbilities,
         ICollection<StrengthHitBonusDefinition> strengthHitBonuses,
         ICollection<MonsterLootDefinition> monsterLoot, IDictionary<string, int> lootRuleValues,
+        IDictionary<string, int> doorAttemptRuleValues,
         ICollection<WeaponTypeDefinition> weaponTypes, ICollection<WeaponDefinition> weapons,
         ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities, ICollection<MiscItemDefinition> items,
         ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
@@ -194,6 +199,10 @@ public static class CsvGameDataLoader
             case DataSection.LootRules:
                 lootRuleValues[id] = Integer(cells, 1) ??
                     throw new InvalidOperationException($"A(z) '{id}' zsákmányparaméter értéke egész szám legyen.");
+                break;
+            case DataSection.DoorAttemptRules:
+                doorAttemptRuleValues[id] = Integer(cells, 1) ??
+                    throw new InvalidOperationException($"A(z) '{id}' ajtópróba-paraméter értéke egész szám legyen.");
                 break;
             case DataSection.DivineSpells:
                 spells.Add(new SpellDefinition(id, name, SpellSchool.Divine, RequiredSpellLevel(cells, id),
@@ -475,11 +484,26 @@ public static class CsvGameDataLoader
             : throw new InvalidOperationException($"Hiányzó #Zsákmány paraméterek érték: '{id}'.");
         var rules = new LootRules(Required("KulcsEsély"), Required("AranyEsély"),
             Required("AranyTierSzorzó"), Required("TolvajEsélySzorzó"),
-            Required("IntelligenciaPontBónusz"));
+            Required("IntelligenciaPontBónusz"), Required("LádaFőnyereményEsély"),
+            Required("LádaFőnyereménySzorzó"));
         if (rules.KeyChancePercent is < 0 or > 100 || rules.GoldChancePercent is < 0 or > 100 ||
             rules.GoldPerStrengthTier <= 0 || rules.ThiefChanceMultiplierPercent <= 0 ||
-            rules.IntelligenceChanceBonusPerPoint < 0)
+            rules.IntelligenceChanceBonusPerPoint < 0 || rules.ChestJackpotChancePercent is < 0 or > 100 ||
+            rules.ChestJackpotMultiplier < 1)
             throw new InvalidOperationException("A #Zsákmány paraméterek értékei érvénytelenek.");
+        return rules;
+    }
+
+    private static DoorAttemptRules CreateDoorAttemptRules(IReadOnlyDictionary<string, int> values)
+    {
+        int Required(string id) => values.TryGetValue(id, out var value)
+            ? value
+            : throw new InvalidOperationException($"Hiányzó #Ajtópróba paraméterek érték: '{id}'.");
+        var rules = new DoorAttemptRules(Required("ÉlelemMinimum"), Required("ÉlelemMaximum"),
+            Required("VízMinimum"), Required("VízMaximum"));
+        if (rules.FoodMinimum < 0 || rules.FoodMaximum < rules.FoodMinimum ||
+            rules.WaterMinimum < 0 || rules.WaterMaximum < rules.WaterMinimum)
+            throw new InvalidOperationException("A #Ajtópróba paraméterek értékei érvénytelenek.");
         return rules;
     }
 
@@ -620,6 +644,7 @@ public static class CsvGameDataLoader
         "ero talalati bonusz" => DataSection.StrengthHitBonuses,
         "szorny zsakmany" => DataSection.MonsterLoot,
         "zsakmany parameterek" => DataSection.LootRules,
+        "ajtoproba parameterek" => DataSection.DoorAttemptRules,
         "osztaly kezdofelszereles" => DataSection.StartingEquipment,
         "egeszseg altal adott eletero minimum" => DataSection.VitalityByHealth,
         "intelligencia altal adott manna minimum" => DataSection.ManaByIntelligence,
@@ -661,6 +686,7 @@ public static class CsvGameDataLoader
         StrengthHitBonuses,
         MonsterLoot,
         LootRules,
+        DoorAttemptRules,
         StartingEquipment,
         VitalityByHealth,
         ManaByIntelligence,

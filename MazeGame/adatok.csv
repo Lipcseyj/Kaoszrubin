@@ -265,6 +265,15 @@ AranyEsély,40
 AranyTierSzorzó,10
 TolvajEsélySzorzó,130
 IntelligenciaPontBónusz,1
+LádaFőnyereményEsély,10
+LádaFőnyereménySzorzó,3
+
+#Ajtópróba paraméterek
+Id,Érték
+ÉlelemMinimum,1
+ÉlelemMaximum,2
+VízMinimum,1
+VízMaximum,2
 
 #Szörny zsákmány
 SzörnyId,FelszerelésEsély,Fegyver,Páncél,Varázstárgy,MinRitkaság,MaxRitkaság,MaxMágikusErő,MaxÁr

@@ -526,11 +526,16 @@ public sealed class Game
         var chest = _maze.GetTreasureChestAt(_player.Position);
         if (chest is not null)
         {
-            var goldAmount = SelectedCharacter.HasPerk(PerkIds.ThiefMasterThief) ? chest.GoldAmount * 2 : chest.GoldAmount;
+            var rules = _gameData.LootRules;
+            var jackpotChance = AdjustedSearchChance(rules.ChestJackpotChancePercent);
+            var jackpot = _random.Next(100) < jackpotChance;
+            var rewardMultiplier = jackpot ? rules.ChestJackpotMultiplier : 1;
+            if (SelectedCharacter.HasPerk(PerkIds.ThiefMasterThief)) rewardMultiplier *= 2;
+            var goldAmount = chest.GoldAmount * rewardMultiplier;
             SelectedCharacter.AddGold(goldAmount);
             _maze.RemoveTreasureChest(chest);
             _renderer.RefreshCharacterSheet(SelectedCharacter);
-            _renderer.DrawTreasureCollected(goldAmount);
+            _renderer.DrawTreasureCollected(goldAmount, jackpot, jackpotChance, rewardMultiplier);
         }
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
@@ -1971,6 +1976,9 @@ public sealed class Game
             return;
         }
 
+        var attemptCost = ConsumeLockedDoorAttemptNeeds();
+        var costMessage = $" Próba ára: 🍖 -{attemptCost.Food}, 💧 -{attemptCost.Water}.";
+
         if (CharacterClassRules.IsThief(SelectedCharacter.CharacterClass.Id))
         {
             var chance = LockpickChance(SelectedCharacter.Abilities.Dexterity);
@@ -1978,7 +1986,7 @@ public sealed class Game
             if (roll <= chance)
             {
                 _maze.SetDoorState(door, DoorState.Open);
-                RefreshAfterDoorChanged($"Zárnyitás sikerült: Ügy {SelectedCharacter.Abilities.Dexterity}, esély {chance}%, dobás {roll}.", ConsoleColor.Green);
+                RefreshAfterDoorChanged($"Zárnyitás sikerült: Ügy {SelectedCharacter.Abilities.Dexterity}, esély {chance}%, dobás {roll}." + costMessage, ConsoleColor.Green);
                 return;
             }
             _renderer.DrawDoorMessage($"Zárnyitás sikertelen: Ügy {SelectedCharacter.Abilities.Dexterity}, esély {chance}%, dobás {roll}.", ConsoleColor.Red);
@@ -1988,10 +1996,26 @@ public sealed class Game
         if (strengthRoll <= SelectedCharacter.Abilities.Strength)
         {
             _maze.SetDoorState(door, DoorState.Smashed);
-            RefreshAfterDoorChanged($"Erőpróba sikerült: 1d20({strengthRoll}) ≤ Erő {SelectedCharacter.Abilities.Strength}. Az ajtó bezúzva!", ConsoleColor.Green);
+            RefreshAfterDoorChanged($"Erőpróba sikerült: 1d20({strengthRoll}) ≤ Erő {SelectedCharacter.Abilities.Strength}. Az ajtó bezúzva!" + costMessage, ConsoleColor.Green);
         }
         else
-            _renderer.DrawDoorMessage($"Erőpróba sikertelen: 1d20({strengthRoll}) > Erő {SelectedCharacter.Abilities.Strength}. Az ajtó zárva marad.", ConsoleColor.Red);
+        {
+            _renderer.RefreshCharacterSheet(SelectedCharacter);
+            _renderer.DrawDoorMessage($"Erőpróba sikertelen: 1d20({strengthRoll}) > Erő {SelectedCharacter.Abilities.Strength}. Az ajtó zárva marad." + costMessage, ConsoleColor.Red);
+        }
+    }
+
+    private (int Food, int Water) ConsumeLockedDoorAttemptNeeds()
+    {
+        var rules = _gameData.DoorAttemptRules;
+        var food = _random.Next(rules.FoodMinimum, rules.FoodMaximum + 1);
+        var water = _random.Next(rules.WaterMinimum, rules.WaterMaximum + 1);
+        SelectedCharacter.ConsumeFood(food);
+        SelectedCharacter.ConsumeWater(water);
+        SelectedCharacter.SynchronizeNeedStatuses(
+            _gameData.GetStatus(CharacterStatusIds.Hungry),
+            _gameData.GetStatus(CharacterStatusIds.Thirsty));
+        return (food, water);
     }
 
     private void TryCloseAdjacentDoor()

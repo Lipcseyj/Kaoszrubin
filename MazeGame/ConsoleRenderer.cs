@@ -115,7 +115,10 @@ public sealed class ConsoleRenderer
         DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
     }
     /// <summary>Kincs felvétele esetén rövid üzenet a battle/message panelre.</summary>
-    public void DrawTreasureCollected(int goldAmount) => DrawBattleMessage($"Kincsesláda: +{goldAmount} arany!", ConsoleColor.Yellow);
+    public void DrawTreasureCollected(int goldAmount, bool jackpot, int jackpotChance, int rewardMultiplier) =>
+        DrawBattleMessage(jackpot
+            ? $"💰🎉 FŐNYEREMÉNY! +{goldAmount} arany (esély {jackpotChance}%, ×{rewardMultiplier})!"
+            : $"Kincsesláda: +{goldAmount} arany!", jackpot ? ConsoleColor.Magenta : ConsoleColor.Yellow);
     /// <summary>Tapasztalati pont szerzés és esetleges szintlépés megjelenítése.</summary>
     public void DrawExperienceGained(LevelUpResult result) => DrawBattleMessage(
         result.LeveledUp

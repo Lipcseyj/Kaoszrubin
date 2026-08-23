@@ -7,7 +7,7 @@ public sealed record IntRange(int Minimum, int Maximum)
     public int Roll(Random random) => random.Next(Minimum, Maximum + 1);
 }
 
-public enum Amount { One, Few, Several, Band, Many }
+public enum Amount { One, Few, Several, Pack, Lots, Horde }
 
 public static class AmountRanges
 {
@@ -15,9 +15,10 @@ public static class AmountRanges
     {
         Amount.One => new(1, 1),
         Amount.Few => new(1, 2),
-        Amount.Several => new(3, 5),
-        Amount.Band => new(6, 9),
-        Amount.Many => new(10, 14),
+        Amount.Several => new(3, 9),
+        Amount.Pack => new(10, 19),
+        Amount.Lots => new(20, 49),
+        Amount.Horde => new(50, 100),
         _ => new(1, 1)
     };
 }
@@ -102,7 +103,7 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E001", Amount.Few),
+                    Encounters.Solo("E001", Amount.Several),
                     Encounters.Solo("E002", Amount.Few)
                 ]
             },
@@ -136,7 +137,7 @@ public static class MazeLevelConfigurations
                 WallColor = ConsoleColor.DarkYellow,
                 Level = 3,
                 DoubleWidthCorridorChance = 0.70,
-                RoomCount = Amount.Band.Range(),
+                RoomCount = Amount.Pack.Range(),
                 RoomSize = new(3, 7),
                 TreasureChestCount = Amount.Several.Range(),
                 TreasureGold = new(70, 150),
@@ -159,7 +160,7 @@ public static class MazeLevelConfigurations
                 DoubleWidthCorridorChance = 0.82,
                 WallRune = new('▓'),
                 WallColor = ConsoleColor.DarkGray,
-                RoomCount = Amount.Band.Range(),
+                RoomCount = Amount.Pack.Range(),
                 RoomSize = new(4, 7),
                 TreasureChestCount = Amount.Several.Range(),
                 TreasureGold = new(120, 240),
@@ -167,7 +168,7 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Same("E004", Amount.Several, Amount.Several),
                     Encounters.Mixed("E006", Amount.Several, "E004", Amount.Few, Amount.Few),
-                    Encounters.LeaderGroup("E033", "E004", Amount.One, Amount.Band)
+                    Encounters.LeaderGroup("E033", "E004", Amount.One, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
@@ -182,15 +183,15 @@ public static class MazeLevelConfigurations
                 DoubleWidthCorridorChance = 0.20,
                 WallRune = new('▦'),
                 WallColor = ConsoleColor.DarkYellow,
-                RoomCount = Amount.Many.Range(),
+                RoomCount = Amount.Lots.Range(),
                 RoomSize = new(7, 11),
-                TreasureChestCount = Amount.Band.Range(),
+                TreasureChestCount = Amount.Pack.Range(),
                 TreasureGold = new(180, 360),
                 RoomEncounters =
                 [
                     Encounters.Same("E007", Amount.Several, Amount.Several),
                     Encounters.Mixed("E008", Amount.Several, "E007", Amount.Few, Amount.Few),
-                    Encounters.LeaderGroup("E012", "E007", Amount.One, Amount.Band)
+                    Encounters.LeaderGroup("E012", "E007", Amount.One, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
@@ -205,7 +206,7 @@ public static class MazeLevelConfigurations
                 DoubleWidthCorridorChance = 0.88,
                 WallRune = new('▒'),
                 WallColor = ConsoleColor.DarkCyan,
-                RoomCount = Amount.Band.Range(),
+                RoomCount = Amount.Pack.Range(),
                 RoomSize = new(4, 8),
                 TreasureChestCount = Amount.Several.Range(),
                 TreasureGold = new(240, 480),
@@ -228,15 +229,15 @@ public static class MazeLevelConfigurations
                 DoubleWidthCorridorChance = 0.78,
                 WallRune = new('▓'),
                 WallColor = ConsoleColor.DarkRed,
-                RoomCount = Amount.Band.Range(),
+                RoomCount = Amount.Pack.Range(),
                 RoomSize = new(5, 8),
                 TreasureChestCount = Amount.Several.Range(),
                 TreasureGold = new(320, 620),
                 RoomEncounters =
                 [
-                    Encounters.Same("E007", Amount.Several, Amount.Band),
+                    Encounters.Same("E007", Amount.Several, Amount.Pack),
                     Encounters.Mixed("E008", Amount.Several, "E031", Amount.Few, Amount.Few),
-                    Encounters.LeaderGroup("E035", "E007", Amount.Few, Amount.Band)
+                    Encounters.LeaderGroup("E035", "E007", Amount.Few, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
@@ -251,9 +252,9 @@ public static class MazeLevelConfigurations
                 DoubleWidthCorridorChance = 0.92,
                 WallRune = new('▦'),
                 WallColor = ConsoleColor.DarkMagenta,
-                RoomCount = Amount.Band.Range(),
+                RoomCount = Amount.Pack.Range(),
                 RoomSize = new(4, 8),
-                TreasureChestCount = Amount.Band.Range(),
+                TreasureChestCount = Amount.Pack.Range(),
                 TreasureGold = new(420, 800),
                 RoomEncounters =
                 [
@@ -274,9 +275,9 @@ public static class MazeLevelConfigurations
                 DoubleWidthCorridorChance = 0.12,
                 WallRune = new('▩'),
                 WallColor = ConsoleColor.Gray,
-                RoomCount = Amount.Band.Range(),
+                RoomCount = Amount.Pack.Range(),
                 RoomSize = new(7, 11),
-                TreasureChestCount = Amount.Band.Range(),
+                TreasureChestCount = Amount.Pack.Range(),
                 TreasureGold = new(560, 1050),
                 RoomEncounters =
                 [
@@ -297,15 +298,15 @@ public static class MazeLevelConfigurations
                 DoubleWidthCorridorChance = 0.80,
                 WallRune = new('▥'),
                 WallColor = ConsoleColor.Red,
-                RoomCount = Amount.Band.Range(),
+                RoomCount = Amount.Pack.Range(),
                 RoomSize = new(5, 9),
-                TreasureChestCount = Amount.Band.Range(),
+                TreasureChestCount = Amount.Pack.Range(),
                 TreasureGold = new(750, 1400),
                 RoomEncounters =
                 [
                     Encounters.Same("E038", Amount.Several, Amount.Several),
                     Encounters.Mixed("E017", Amount.Few, "E035", Amount.Several, Amount.Few),
-                    Encounters.LeaderGroup("E021", "E035", Amount.One, Amount.Band)
+                    Encounters.LeaderGroup("E021", "E035", Amount.One, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [

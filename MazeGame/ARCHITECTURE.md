@@ -556,6 +556,8 @@ A `#Szörny zsákmány` szörnyenként beállítja az egy darab felszerelés ala
 
 A megtalált tárgyak sorban az élő party hátizsákjaiba kerülnek. Ha minden hátizsák tele van, `GroundItemPile` formájában a tetem mezőjén maradnak. Ugyanez a keresési művelet veszi fel a korábban kézzel ledobott tárgyakat is; az arany közvetlenül a partyvezérhez kerül.
 
+A térképi kincsesláda felvételekor külön főnyereménydobás történik. A `#Zsákmány paraméterek` 10%-os alapesélyét ugyanaz a Tolvaj-szorzó és Intelligencia-bónusz növeli, mint a tetemkeresést. Siker esetén a láda aranyjutalma háromszoros. A Tolvaj Mestertolvaj tehetségének kétszerezése ezzel halmozódik, ezért a két hatás együtt hatszoros jutalmat ad. Az alap-esély és a főnyeremény-szorzó is CSV-ből hangolható.
+
 ### Ajtók
 
 Az ajtó nem egyszerű térképrúna, hanem `MazeDoor` állapotobjektum. Négy állapota van:
@@ -575,7 +577,9 @@ Ajtó mellett a vezető az `N` billentyűvel nyit, a `Z` billentyűvel bezár, a
 2. kulcs nélkül a tolvaj százalékos Ügyesség-próbát tesz;
 3. sikertelen zárnyitás vagy más osztály esetén `1d20 ≤ Erő` próba következik, amely siker esetén végleg bezúzza az ajtót.
 
-A tolvaj zárnyitási esélye 10 Ügyességnél 90%, 11-nél 93%, 12-nél 96%, 13-nál 100%; alacsonyabb értéknél fokozatosan csökken. Kulcsra záráshoz egy elfogyó kulcs vagy tolvaj osztály szükséges. Minden művelet és dobás eredménye az alsó üzenetnaplóban jelenik meg. Jelenleg mindig a parti vezetője kezeli az ajtót.
+A kulcs nélküli nyitás egyetlen `N` lenyomásra egy próbának számít akkor is, ha a sikertelen tolvajpróbát rögtön erőpróba követi. A próba egymástól függetlenül 1–2 élelmet és 1–2 vizet fogyaszt; a minimumok és maximumok a `#Ajtópróba paraméterek` szekcióból hangolhatók. Kulccsal történő nyitás és a simán zárt ajtó kinyitása nem fogyaszt szükségletet.
+
+A tolvaj zárnyitási esélye 10 Ügyességnél 90%, 11-nél 93%, 12-nél 96%, 13-nál 100%; alacsonyabb értéknél fokozatosan csökken. Kulcsra záráshoz egy elfogyó kulcs vagy tolvaj osztály szükséges. Minden művelet, dobás és a levont élelem/víz eredménye az alsó üzenetnaplóban jelenik meg. Jelenleg mindig a parti vezetője kezeli az ajtót.
 
 ## Látómező és köd
 
