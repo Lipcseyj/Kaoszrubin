@@ -62,6 +62,148 @@ public sealed class Game
             gameData.StrengthHitBonuses);
     }
 
+    // NPC spellcasting for combat
+    private BattlePlayerAction? ChooseNpcBattlePlayerAction(PartyMemberAvatar member, Enemy enemy)
+    {
+        var caster = member.Character;
+        if (!caster.IsAlive || !caster.IsSpellcaster || !caster.CanCastSpells) return null;
+        // Simple mana reserve policy (don't drop below 20% unless emergency)
+        var manaReservePercent = 20;
+        var manaReserve = Math.Max(0, caster.MaximumMana * manaReservePercent / 100);
+
+        // Emergency heal: any ally under 35% HP
+        var healThresholdPercent = 35;
+        var allies = CharacterRoster.Party.Members.Where(c => c.IsAlive).ToList();
+        var lowest = allies.OrderBy(c => (double)c.CurrentVitality / c.MaximumVitality).FirstOrDefault();
+        if (lowest is not null && (double)lowest.CurrentVitality / lowest.MaximumVitality * 100 <= healThresholdPercent)
+        {
+            foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseInCombat))
+            {
+                var effects = _gameData.GetSpellEffects(spell.Id);
+                if (!effects.Any(e => e.Type == SpellEffectType.Heal)) continue;
+                var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+                if (caster.CurrentMana < manaCost) continue;
+                var emergency = (double)lowest.CurrentVitality / lowest.MaximumVitality <= 0.10;
+                if (caster.CurrentMana - manaCost < manaReserve && !emergency) continue;
+                // Cast heal
+                var divine = caster.RecordDivineSpellCast(spell);
+                caster.SpendMana(manaCost);
+                var notes = new List<string>();
+                foreach (var effect in effects.Where(e => e.Type == SpellEffectType.Heal))
+                    ApplyHealingForCaster(effect, spell, new[] { lowest }, divine, notes, caster);
+                var summary = notes.Count == 0 ? "" : $" {string.Join("; ", notes)}";
+                var message = $"{caster.Name} elsüti: {spell.Name} → {lowest.Name}. -{manaCost} manna.{summary}";
+                _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+                _renderer.RefreshBattleStatusRows();
+                return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
+            }
+        }
+
+        // Cure status if helpful
+        foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseInCombat))
+        {
+            var effects = _gameData.GetSpellEffects(spell.Id);
+            if (!effects.Any(e => e.Type == SpellEffectType.CureStatus)) continue;
+            var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+            if (caster.CurrentMana < manaCost) continue;
+            var candidates = CharacterRoster.Party.Members.Where(c => c.IsAlive && effects.SelectMany(e => ParseEffectParameters(e.Parameter)).Any(p => c.HasStatus(p))).ToList();
+            if (!candidates.Any()) continue;
+            var targetChar = candidates.First();
+            var divine = caster.RecordDivineSpellCast(spell);
+            caster.SpendMana(manaCost);
+            var notes = new List<string>();
+            foreach (var effect in effects.Where(e => e.Type == SpellEffectType.CureStatus))
+                ApplyStatusCureForCaster(effect, new[] { targetChar }, notes);
+            var message = $"{caster.Name} elsüti: {spell.Name} → {targetChar.Name}. -{manaCost} manna. {string.Join("; ", notes)}";
+            _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+            _renderer.RefreshBattleStatusRows();
+            return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
+        }
+
+        return null;
+    }
+
+    // NPC spellcasting for exploration - simple heals/cures/buffs
+    private void TryNpcCastExplorationSpell(PartyMemberAvatar member)
+    {
+        var caster = member.Character;
+        if (!caster.IsAlive || !caster.IsSpellcaster || !caster.CanCastSpells) return;
+        var manaReservePercent = 20;
+        var manaReserve = Math.Max(0, caster.MaximumMana * manaReservePercent / 100);
+        var healThresholdPercent = 50; // more generous during exploration
+        var allies = CharacterRoster.Party.Members.Where(c => c.IsAlive).ToList();
+        var lowest = allies.OrderBy(c => (double)c.CurrentVitality / c.MaximumVitality).FirstOrDefault();
+        if (lowest is not null && (double)lowest.CurrentVitality / lowest.MaximumVitality * 100 <= healThresholdPercent)
+        {
+            foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseDuringExploration))
+            {
+                var effects = _gameData.GetSpellEffects(spell.Id);
+                if (!effects.Any(e => e.Type == SpellEffectType.Heal)) continue;
+                var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+                if (caster.CurrentMana < manaCost) continue;
+                if (caster.CurrentMana - manaCost < manaReserve) continue;
+                var divine = caster.RecordDivineSpellCast(spell);
+                caster.SpendMana(manaCost);
+                var notes = new List<string>();
+                foreach (var effect in effects.Where(e => e.Type == SpellEffectType.Heal))
+                    ApplyHealingForCaster(effect, spell, new[] { lowest }, divine, notes, caster);
+                var summary = notes.Count == 0 ? "" : $" {string.Join("; ", notes)}";
+                var message = $"{caster.Name} elsüti: {spell.Name} → {lowest.Name}. -{manaCost} manna.{summary}";
+                _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+                _renderer.RefreshCharacterSheet(SelectedCharacter);
+                return;
+            }
+        }
+    }
+
+    private void ApplyCharacterEffectForCaster(LiveCharacter character, SpellEffectDefinition effect, SpellDefinition spell,
+        ActiveSpellEffectType type, bool divineJudgment, LiveCharacter caster)
+    {
+        var multiplier = divineJudgment ? 200 : 100;
+        if (type == ActiveSpellEffectType.GuardianAngel && caster.HasPerk(PerkIds.PriestHealingGrace))
+            multiplier = multiplier * 125 / 100;
+        character.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type,
+            effect.Value, AdjustedDuration(effect, divineJudgment), effect.Dice,
+            (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier), true,
+            multiplier, effect.Parameter));
+    }
+
+    private void ApplyCharacterEffectsForCaster(IEnumerable<LiveCharacter> characters, SpellEffectDefinition effect,
+        SpellDefinition spell, ActiveSpellEffectType type, bool divineJudgment, LiveCharacter caster)
+    {
+        foreach (var character in characters) ApplyCharacterEffectForCaster(character, effect, spell, type, divineJudgment, caster);
+    }
+
+    private void ApplyHealingForCaster(SpellEffectDefinition effect, SpellDefinition spell,
+        IEnumerable<LiveCharacter> characters, bool divineJudgment, ICollection<string> notes, LiveCharacter caster)
+    {
+        foreach (var character in characters.Where(character => character.IsAlive))
+        {
+            var fullHealing = string.Equals(effect.Parameter, "Full", StringComparison.OrdinalIgnoreCase);
+            var amount = fullHealing
+                ? character.MaximumVitality
+                : (effect.Dice?.Roll(_random) ?? 0) +
+                  (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier) +
+                  caster.Level * effect.LevelMultiplier + effect.Value;
+            if (!fullHealing && divineJudgment) amount *= 2;
+            if (caster.HasPerk(PerkIds.PriestHealingGrace)) amount = (int)Math.Ceiling(amount * 1.25);
+            var before = character.CurrentVitality;
+            character.RestoreVitality(amount);
+            notes.Add($"{character.Name}: ❤️ +{character.CurrentVitality - before} HP");
+        }
+    }
+
+    private void ApplyStatusCureForCaster(SpellEffectDefinition effect, IEnumerable<LiveCharacter> characters,
+        ICollection<string> notes)
+    {
+        var statusIds = ParseEffectParameters(effect.Parameter);
+        foreach (var character in characters)
+        {
+            var removed = statusIds.Where(character.RemoveStatus).Select(StatusName).ToList();
+            if (removed.Count > 0) notes.Add($"{character.Name}: ✨ megszűnt {string.Join(" és ", removed)}");
+        }
+    }
+
     public void Run()
     {
         Console.CursorVisible = false;
@@ -1128,6 +1270,8 @@ public sealed class Game
         {
             if (_nextPartyMoves.GetValueOrDefault(member) > now) continue;
             ScheduleNextPartyMove(member, now);
+            // Allow NPCs to cast simple exploration spells (heals/cures) before moving
+            TryNpcCastExplorationSpell(member);
             if (isScattering)
             {
                 MovePartyMemberAwayFromLeader(member);
@@ -1198,7 +1342,7 @@ public sealed class Game
         var startingEnemyHp = enemy.CurrentHitPoints;
         var startingStatusIds = member.Character.Statuses.Select(status => status.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var result = _battleSystem.Resolve(member.Character, enemy, _ => { });
+        var result = _battleSystem.Resolve(member.Character, enemy, _ => { }, () => ChooseNpcBattlePlayerAction(member, enemy));
         var needLoss = DrainNeedsAfterBattle(member.Character, enemy.Definition.StrengthTier);
         var newStatusText = member.Character.Statuses
             .Where(status => !startingStatusIds.Contains(status.Id))

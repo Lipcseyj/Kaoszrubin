@@ -113,7 +113,7 @@ public static class MazeLevelConfigurations
                 Name = "Patkányvezér",
                 DoubleWidthCorridorChance = 0.40,
                 Level = 2,
-                RoomCount = Amount.TwoThree.Range(),
+                RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 5),
                 TreasureChestCount = Amount.Few.Range(),
                 TreasureGold = new(30, 70),
@@ -168,7 +168,7 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Same("E003", Amount.Few, Amount.Several),
                     Encounters.Mixed("E004", Amount.Several, "E006", Amount.Few, Amount.Few),
-                    Encounters.LeaderGroup("E007", "E002", Amount.Few, Amount.Several)
+                    Encounters.LeaderGroup("E007", "E003", Amount.Few, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
