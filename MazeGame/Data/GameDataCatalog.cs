@@ -39,6 +39,9 @@ public sealed class GameDataCatalog
     public WeaponDefinition GetWeapon(string id) => FindById(Weapons, id, "fegyver");
     public ArmorDefinition GetArmor(string id) => FindById(Armors, id, "páncél");
     public MagicItemDefinition GetMagicItem(string id) => FindById(MagicItems, id, "varázstárgy");
+    public SpellDefinition GetSpell(string id) => FindById(Spells, id, "varázslat");
+    public IReadOnlyList<SpellDefinition> GetSpells(SpellSchool school, int level) => Spells
+        .Where(spell => spell.School == school && spell.Level == level).ToList();
     public MiscItemDefinition GetItem(string id) => FindById(Items, id, "tárgy");
     public PerkDefinition GetPerk(string id) => FindById(Perks, id, "tehetség");
     public StatusDefinition GetStatus(string id) => FindById(Statuses, id, "állapot");

@@ -57,6 +57,7 @@ public static class CsvGameDataLoader
                 vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
         }
 
+        ValidateSpells(spells);
         ValidateMagicItems(magicItems, spells);
         ValidateEnemies(enemies, monsterAbilities);
         ValidateStatuses(statuses);
@@ -157,10 +158,10 @@ public static class CsvGameDataLoader
                     Integer(cells, 8) ?? 0, MagicItemAllowedClasses(cells, 9), Cell(cells, 10), Integer(cells, 11) ?? 0));
                 break;
             case DataSection.ArcaneSpells:
-                spells.Add(new SpellDefinition(id, name, SpellSchool.Arcane));
+                spells.Add(new SpellDefinition(id, name, SpellSchool.Arcane, RequiredSpellLevel(cells, id)));
                 break;
             case DataSection.DivineSpells:
-                spells.Add(new SpellDefinition(id, name, SpellSchool.Divine));
+                spells.Add(new SpellDefinition(id, name, SpellSchool.Divine, RequiredSpellLevel(cells, id)));
                 break;
             case DataSection.Perks:
                 if (Integer(cells, 4) is { } tier)
@@ -282,6 +283,26 @@ public static class CsvGameDataLoader
             if (item.Kind is MagicItemKind.Ring or MagicItemKind.Amulet &&
                 (item.SpellId is not null || item.MaximumCharges != 0 || item.Effect == MagicItemEffect.None))
                 throw new InvalidOperationException($"A(z) '{item.Id}' gyűrűnek vagy amulettnek passzív hatással és töltet nélkül kell rendelkeznie.");
+        }
+    }
+
+    private static int RequiredSpellLevel(string[] cells, string id) => Integer(cells, 2) is >= 1 and <= 5 and var level
+        ? level
+        : throw new InvalidOperationException($"A(z) '{id}' varázslat szintjének 1 és 5 közé kell esnie.");
+
+    private static void ValidateSpells(IReadOnlyCollection<SpellDefinition> spells)
+    {
+        foreach (var school in Enum.GetValues<SpellSchool>())
+        {
+            var schoolSpells = spells.Where(spell => spell.School == school).ToList();
+            if (schoolSpells.Count != 20)
+                throw new InvalidOperationException($"A(z) {school} iskolához pontosan 20 varázslat szükséges; jelenleg {schoolSpells.Count} található.");
+            for (var level = 1; level <= 5; level++)
+            {
+                var count = schoolSpells.Count(spell => spell.Level == level);
+                if (count != 4)
+                    throw new InvalidOperationException($"A(z) {school} iskola {level}. szintjén pontosan 4 varázslat szükséges; jelenleg {count} található.");
+            }
         }
     }
 

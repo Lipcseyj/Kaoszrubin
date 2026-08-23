@@ -493,34 +493,50 @@ PS011,Szent ítélet tekercse,Varázstekercs,Legendás,1900,1,P011,None,0,igen,E
 PS012,Isteni csoda tekercse,Varázstekercs,Legendás,4000,1,P012,None,0,igen,Egyetlen Isteni csoda papi varázslat mágusok által használható legendás másolata.,12
 
 #Varázslatok
-Id,Név
-S001,Mágikus lövedék
-S002,Fagyasztó érintés
-S003,Égő kéz
-S004,Villámcsapás
-S005,Lángoló nyíl
-S006,Láthatatlanság
-S007,Tűzgolyó
-S008,Jégvihar
-S009,Villámvihar
-S010,Teleportáció
-S011,Meteorzápor
-S012,Időmegállítás
+Id,Név,Szint
+S001,Mágikus lövedék,1
+S002,Fagyasztó érintés,1
+S003,Égő kéz,1
+S005,Lángoló nyíl,1
+S004,Villámcsapás,2
+S006,Láthatatlanság,2
+S013,Arkán páncél,2
+S014,Lassítás,2
+S007,Tűzgolyó,3
+S008,Jégvihar,3
+S010,Teleportáció,3
+S015,Mágia szétoszlatása,3
+S009,Villámvihar,4
+S011,Meteorzápor,4
+S016,Láncvillám,4
+S017,Kőbőr,4
+S012,Időmegállítás,5
+S018,Dezintegráció,5
+S019,Dimenziókapu,5
+S020,Arkán kataklizma,5
 
 #Papi varázslatok
-Id,Név
-P001,Gyógyító érintés
-P002,Szent fény
-P003,Áldás
-P004,Szent pajzs
-P005,Gyógyítás
-P006,Méregűzés
-P007,Védelem a gonosztól
-P008,Feltámasztás
-P009,Szent csapás
-P010,Isteni védelem
-P011,Szent ítélet
-P012,Isteni csoda
+Id,Név,Szint
+P001,Gyógyító érintés,1
+P002,Szent fény,1
+P003,Áldás,1
+P006,Méregűzés,1
+P004,Szent pajzs,2
+P005,Gyógyítás,2
+P007,Védelem a gonosztól,2
+P013,Betegségűzés,2
+P009,Szent csapás,3
+P010,Isteni védelem,3
+P014,Megtisztítás,3
+P015,Bátorság imája,3
+P008,Feltámasztás,4
+P011,Szent ítélet,4
+P016,Őrangyal,4
+P017,Tömeges gyógyítás,4
+P012,Isteni csoda,5
+P018,Isteni harag,5
+P019,Szentély,5
+P020,Igazi feltámasztás,5
 
 #Faji képességbónuszok
 FajId,Erő,Ügyesség,Egészség,Intelligencia

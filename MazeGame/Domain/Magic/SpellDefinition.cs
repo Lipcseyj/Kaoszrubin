@@ -8,4 +8,4 @@ public enum SpellSchool
     Divine
 }
 
-public sealed record SpellDefinition(string Id, string Name, SpellSchool School) : IGameDefinition;
+public sealed record SpellDefinition(string Id, string Name, SpellSchool School, int Level) : IGameDefinition;

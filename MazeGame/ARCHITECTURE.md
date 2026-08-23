@@ -341,9 +341,25 @@ A katalógus 57 varázstárgyat tartalmaz: 12 gyűrűt, 12 amulettet, 9 pálcát
 
 A bónusz csak akkor él, ha a tárgy valamelyik varázstárgyhelyen van; hátizsákból nem hat. A felszerelési ellenőrzés a varázstárgy kasztengedélyét is ugyanabban az atomi inventory-ellenőrzésben vizsgálja, mint a fegyvereket és páncélokat.
 
-Mind a 12 mágus- és mind a 12 papi varázslathoz tartozik egy tekercs. A tekercs pontosan egy töltetű és kizárólag a Mágus (`C006`) varázstárgyhelyére szerelhető; hátizsákban más kaszt is szállíthatja. A kilenc pálca 3–8 töltetet és kizárólag mágusiskolájú varázslatot hivatkozhat. A CSV-betöltő ellenőrzi a varázslat-ID létezését, megtiltja a papi varázslatot tartalmazó pálcát, valamint hibát jelez a nem egytöltetű vagy nem kizárólag mágusnak engedélyezett tekercsnél.
+Az eredeti 12 mágus- és 12 papi varázslathoz tartozik egy-egy tekercs. A további, varázsrendszert előkészítő definíciókhoz még nincs automatikusan varázstárgy. A tekercs pontosan egy töltetű és kizárólag a Mágus (`C006`) varázstárgyhelyére szerelhető; hátizsákban más kaszt is szállíthatja. A kilenc pálca 3–8 töltetet és kizárólag mágusiskolájú varázslatot hivatkozhat. A CSV-betöltő ellenőrzi a varázslat-ID létezését, megtiltja a papi varázslatot tartalmazó pálcát, valamint hibát jelez a nem egytöltetű vagy nem kizárólag mágusnak engedélyezett tekercsnél.
 
-A `MaximumCharges` és `SpellId` jelenleg a teljes varázslási rendszer számára előkészített definíciós adat. A pálcák maradék töltetének példányszintű fogyasztása és a tekercsek tényleges elsütése még nem aktív, mert a hivatkozott 24 varázslat célzás-, költség- és hatásalgoritmusa még nem készült el. Emiatt használatkor egyelőre nem fogy el töltet vagy tekercs; a gyűrűk és amulettek fenti passzív hatásai viszont már teljesen működnek.
+A `MaximumCharges` és `SpellId` jelenleg a teljes varázslási rendszer számára előkészített definíciós adat. A pálcák maradék töltetének példányszintű fogyasztása és a tekercsek tényleges elsütése még nem aktív, mert a varázslatok célzás-, költség- és hatásalgoritmusa még nem készült el. Emiatt használatkor egyelőre nem fogy el töltet vagy tekercs; a gyűrűk és amulettek fenti passzív hatásai viszont már teljesen működnek.
+
+### Varázslatdefiníciók és szintek
+
+A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát és 1–5 közötti varázslatszintet tartalmaz. Az `adatok.csv` `#Varázslatok` és `#Papi varázslatok` szekciójának harmadik oszlopa a `Szint`.
+
+Mindkét iskolában pontosan 20 varázslat található, szintenként pontosan négy:
+
+| Szint | Mágusvarázslatok | Papi varázslatok |
+|---:|---|---|
+| 1 | Mágikus lövedék; Fagyasztó érintés; Égő kéz; Lángoló nyíl | Gyógyító érintés; Szent fény; Áldás; Méregűzés |
+| 2 | Villámcsapás; Láthatatlanság; Arkán páncél; Lassítás | Szent pajzs; Gyógyítás; Védelem a gonosztól; Betegségűzés |
+| 3 | Tűzgolyó; Jégvihar; Teleportáció; Mágia szétoszlatása | Szent csapás; Isteni védelem; Megtisztítás; Bátorság imája |
+| 4 | Villámvihar; Meteorzápor; Láncvillám; Kőbőr | Feltámasztás; Szent ítélet; Őrangyal; Tömeges gyógyítás |
+| 5 | Időmegállítás; Dezintegráció; Dimenziókapu; Arkán kataklizma | Isteni csoda; Isteni harag; Szentély; Igazi feltámasztás |
+
+A CSV-betöltő visszautasítja az 1–5 tartományon kívüli szintet, illetve azt az adatállományt, amelyben egy iskola nem pontosan 20 vagy valamely szint nem pontosan négy definíciót tartalmaz. A `GameDataCatalog.GetSpell` azonosító szerint, a `GetSpells(school, level)` pedig iskola és szint szerint szolgáltat definíciókat. A szint jelenleg előkészítő adat; a megtanulási követelmény, mannaköltség, célzás és tényleges hatás későbbi varázsrendszer feladata.
 
 A `#Fegyverek` és `#Páncélok` CSV-szekció kasztoszlopai határozzák meg, mely osztályok viselhetik az adott tárgyat. A fegyvereknél a Harcos, Barbár és Lovag, a páncéloknál a Harcos és Lovag alapértelmezetten engedélyezett; a többi kaszt engedélyét az `igen` érték adja. A korlátozás csak a felszereléshelyekre vonatkozik, hátizsákban bármely karakter hordozhat bármilyen tárgyat. Az ellenőrzés központilag a `LiveCharacter` végleges, tervezett inventoryállapotán fut, ezért a kézi mozgatásra és cserére, a kezdőfelszerelésre, a mentés betöltésére és a véletlen NPC-felszerelésre is érvényes.
 
