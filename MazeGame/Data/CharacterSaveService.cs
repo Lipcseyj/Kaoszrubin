@@ -94,6 +94,7 @@ public sealed class CharacterSaveService
                         ? character.MemorizedSpells.FirstOrDefault(spell => string.Equals(spell.Id, spellId, StringComparison.OrdinalIgnoreCase))
                         : null);
         }
+        foreach (var effect in saved.ActiveSpellEffects) character.RestoreSpellEffect(effect);
 
         var weaponIds = saved.WeaponIds.Count > 0 ? saved.WeaponIds : saved.WeaponNames;
         for (var index = 0; index < Math.Min(2, weaponIds.Count); index++)
@@ -165,7 +166,8 @@ public sealed class CharacterSaveService
         Statuses = character.Statuses.Select(status => new StatusSaveData(status.Id, character.GetStatusDuration(status.Id))).ToList(),
         KnownSpellIds = character.KnownSpells.Select(spell => spell.Id).ToList(),
         MemorizedSpellIds = character.MemorizedSpells.Select(spell => spell.Id).ToList(),
-        QuickSpellIds = character.QuickSpells.Select(spell => spell?.Id).ToList()
+        QuickSpellIds = character.QuickSpells.Select(spell => spell?.Id).ToList(),
+        ActiveSpellEffects = character.ActiveSpellEffects.ToList()
     };
 
     private List<SpellDefinition> DefaultLegacySpells(LiveCharacter character)
@@ -233,6 +235,7 @@ public sealed class CharacterSaveService
         public List<string> KnownSpellIds { get; init; } = [];
         public List<string> MemorizedSpellIds { get; init; } = [];
         public List<string?> QuickSpellIds { get; init; } = [];
+        public List<ActiveSpellEffect> ActiveSpellEffects { get; init; } = [];
     }
 
     private sealed record ItemSaveData(string Type, string Id, string? Name = null);

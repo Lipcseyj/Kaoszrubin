@@ -1,5 +1,6 @@
 using System.Text;
 using MazeGame.Domain.Combat;
+using MazeGame.Domain.Magic;
 
 namespace MazeGame;
 
@@ -17,9 +18,59 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public EnemyPursuitState PursuitState { get; private set; } = EnemyPursuitState.Undecided;
     public string? GroupId { get; private set; }
     public EnemyGroupRole GroupRole { get; private set; } = EnemyGroupRole.Member;
+    private readonly List<ActiveSpellEffect> _activeSpellEffects = [];
+    private int _spellActionCounter;
+    public IReadOnlyList<ActiveSpellEffect> ActiveSpellEffects => _activeSpellEffects;
 
     protected void InitializeHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
     public void SetCurrentHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
+    public void ReceiveSpellDamage(int damage) => SetCurrentHitPoints(CurrentHitPoints - Math.Max(0, damage));
+    public int EffectiveSpeed => Math.Max(0, (Definition.Speed ?? 1) -
+        _activeSpellEffects.Where(effect => effect.Type is ActiveSpellEffectType.SpeedPenalty or ActiveSpellEffectType.Frost)
+            .Sum(effect => effect.Value));
+
+    public void ApplySpellEffect(ActiveSpellEffect effect)
+    {
+        _activeSpellEffects.RemoveAll(existing => existing.Type == effect.Type);
+        _activeSpellEffects.Add(effect);
+        if (effect.Type == ActiveSpellEffectType.SkipAlternate) _spellActionCounter = 0;
+    }
+
+    public void RestoreSpellEffect(ActiveSpellEffect effect) => ApplySpellEffect(effect);
+    public int RemoveSpellEffects(Func<ActiveSpellEffect, bool>? predicate = null) =>
+        _activeSpellEffects.RemoveAll(effect => predicate?.Invoke(effect) ?? true);
+
+    public SpellEffectTickResult AdvanceSpellEffects(Random random)
+    {
+        var damage = 0;
+        var notes = new List<string>();
+        foreach (var effect in _activeSpellEffects)
+        {
+            if (effect.PeriodicDamage is not { } dice) continue;
+            var rolled = (dice.Roll(random) + effect.IntelligenceBonus) * effect.DamageMultiplierPercent / 100;
+            damage += rolled;
+            notes.Add($"{EffectName(effect.Type)} -{rolled} HP");
+        }
+        _spellActionCounter++;
+        var skip = _activeSpellEffects.Any(effect => effect.Type == ActiveSpellEffectType.SkipAlternate) &&
+                   _spellActionCounter % 2 == 0;
+        for (var index = _activeSpellEffects.Count - 1; index >= 0; index--)
+        {
+            var effect = _activeSpellEffects[index];
+            if (effect.RemainingActions <= 0) continue;
+            var remaining = effect.RemainingActions - 1;
+            if (remaining == 0) _activeSpellEffects.RemoveAt(index);
+            else _activeSpellEffects[index] = effect with { RemainingActions = remaining };
+        }
+        return new SpellEffectTickResult(damage, skip, notes);
+    }
+
+    private static string EffectName(ActiveSpellEffectType type) => type switch
+    {
+        ActiveSpellEffectType.Burning => "🔥 Égés",
+        ActiveSpellEffectType.Storm => "⚡ Vihar",
+        _ => "✨ Varázshatás"
+    };
     public void ConfigureMovement(EnemyMovementProfile profile, Direction patrolDirection,
         EnemyPursuitState pursuitState = EnemyPursuitState.Undecided)
     {

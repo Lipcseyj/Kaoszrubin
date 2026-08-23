@@ -196,12 +196,12 @@ Az állandó HP- és mannabónuszok a választás pillanatában az aktuális és
 | Pap | Hitforrás | kész | +12 manna választáskor és csata elején legfeljebb 5 manna visszatöltés |
 | Pap | Feltámadás | várakozik | játéknap- és feltámadási rendszer szükséges |
 | Pap | Isteni ítélet | várakozik | papi varázsrendszer szükséges |
-| Mágus | Arkán fókusz | várakozik | mágikus találati próba szükséges |
+| Mágus | Arkán fókusz | kész | +2 a mágikus támadódobásokhoz |
 | Mágus | Mannatartalék | kész | +15 maximális és aktuális manna választáskor |
-| Mágus | Elemi mester | várakozik | sebző varázsrendszer szükséges |
+| Mágus | Elemi mester | kész | minden sebző mágusvarázslat sebzésére +25% |
 | Mágus | Mágikus pajzs | kész | a beérkező sebzés felfelé kerekített negyedét manna nyeli el |
-| Mágus | Láncvarázslat | várakozik | varázslás szükséges |
-| Mágus | Főmágus | részleges | +25 manna kész; varázslatköltség-csökkentés varázsrendszerre vár |
+| Mágus | Láncvarázslat | kész | 30% eséllyel ingyen megismétli a sebző varázslat sebzését |
+| Mágus | Főmágus | kész | +25 manna választáskor és minden varázslat legalább 1-ig csökkentett, -2 mannaköltsége |
 
 A csatában aktiválódó tehetségek bekerülnek a harci napló számításaiba és magyarázó szövegeibe. Az egyszer használható túlélési és első támadásos hatások minden csata elején új harci kontextust kapnak.
 
@@ -347,7 +347,7 @@ A `MaximumCharges` és `SpellId` a varázstárgyak későbbi, példányszintű e
 
 ### Varázslatdefiníciók és szintek
 
-A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív mannaköltséget, leírást és célzási metaadatokat tartalmaz. Az `adatok.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`, `Célzás`, `Hatótáv`, `Terület`, `Látóvonal`, `HasználatiMód`. A célzás típusa `Self`, `Party`, `PartyMember`, `Enemy`, `Corpse`, `Cell`, `Area` vagy `Direction`; a használati mód `Exploration`, `Combat` vagy `Both`. A jelenlegi előkészítő adatokban minden varázslat mannaköltsége 1, a leírások pedig később lecserélendő helykitöltő szövegek.
+A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív mannaköltséget, leírást és célzási metaadatokat tartalmaz. Az `adatok.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`, `Célzás`, `Hatótáv`, `Terület`, `Látóvonal`, `HasználatiMód`. A célzás típusa `Self`, `Party`, `PartyMember`, `Enemy`, `Corpse`, `Cell`, `Area` vagy `Direction`; a használati mód `Exploration`, `Combat` vagy `Both`. A mágusvarázslatok mannaköltsége és végleges leírása már a tényleges hatáshoz van hangolva; a papi varázslatok hatásai a következő fejlesztési lépés részei.
 
 Mindkét iskolában pontosan 20 varázslat található, szintenként pontosan négy:
 
@@ -359,7 +359,13 @@ Mindkét iskolában pontosan 20 varázslat található, szintenként pontosan n�
 | 4 | Villámvihar; Meteorzápor; Láncvillám; Kőbőr | Feltámasztás; Szent ítélet; Őrangyal; Tömeges gyógyítás |
 | 5 | Időmegállítás; Dezintegráció; Dimenziókapu; Arkán kataklizma | Isteni csoda; Isteni harag; Szentély; Igazi feltámasztás |
 
-A CSV-betöltő visszautasítja az 1–5 tartományon kívüli szintet, az ismeretlen célzás- vagy használatimód-nevet, a negatív hatótávot/területet, illetve azt az adatállományt, amelyben egy iskola nem pontosan 20 vagy valamely szint nem pontosan négy definíciót tartalmaz. A `GameDataCatalog.GetSpell` azonosító szerint, a `GetSpells(school, level)` pedig iskola és szint szerint szolgáltat definíciókat. A mannaköltség, aktiválás és célzás aktív; az egyes varázslatok konkrét sebző, gyógyító, állapot- és térképhatásai továbbra is következő fejlesztési lépést jelentenek.
+A CSV-betöltő visszautasítja az 1–5 tartományon kívüli szintet, az ismeretlen célzás- vagy használatimód-nevet, a negatív hatótávot/területet, illetve azt az adatállományt, amelyben egy iskola nem pontosan 20 vagy valamely szint nem pontosan négy definíciót tartalmaz. A `GameDataCatalog.GetSpell` azonosító szerint, a `GetSpells(school, level)` pedig iskola és szint szerint szolgáltat definíciókat.
+
+Az összetett működést az önálló `#Varázshatások` szekció írja le. Egy varázslathoz több, sorrendben végrehajtott `SpellEffectDefinition` tartozhat. A sor konfigurálja a hatástípust, kockát, intelligencia- és karakterszint-szorzót, állandó értéket, akciókban számolt időtartamot, esélyt, `Auto`/`Attack`/`SaveHalf`/`SaveNegates` feloldást és opcionális paramétert. A betöltő ellenőrzi az ID-ket, kockakifejezéseket, tartományokat és azt is, hogy mind a húsz mágusvarázslathoz legyen hatás.
+
+A mágikus támadás `d20 + Intelligencia + tárgyi találati bónusz` a szörny `11 + effektív Gyorsaság` értéke ellen; az Arkán fókusz további +2-t ad, a természetes 20 kritikus. Az ellenpróba célszáma `10 + floor(Intelligencia / 2) + varázslatszint`; siker esetén a `SaveHalf` felezi a sebzést, a `SaveNegates` teljesen kivédi a mellékhatást. Az Elemi mester a kiszámolt sebzést 25%-kal növeli.
+
+Az implementált mágushatások lefedik az egycélpontos és területi sebzést, a kétmezős iránykúpot, égést és viharsebzést, sebességcsökkentést, minden második akció kihagyását, láthatatlanságot, arkán páncélt, kőbőrt és vérzésvédelmet, láncoló sebzést, varázshatás-szétoszlatást, ön- és partiteleportációt, csatánként egyszeri két extra akciót, kivégzési küszöböt és véletlen elemi mellékhatást. Az időzített hatások a karakter- és pályamentés részei; a fogadóban az élő karakterekről törlődnek.
 
 ### Varázslattanulás és memorizálás
 
@@ -393,7 +399,7 @@ Sikeres aktiváláskor a teljes CSV-s mannaköltség levonódik. Csatán kívül
 kudarc esélye = clamp(30 - Intelligencia × 2, 0, 100)%
 ```
 
-Ha a `d100` eredménye legfeljebb a kudarc esélye, a varázslat meghiúsul, a manna és az akció elvész. Siker esetén az aktiválási réteg naplózza a varázslatot és a kiválasztott célpontot. A konkrét varázslatonkénti hatásvégrehajtás szándékosan külön bővítési pont; jelenleg az elsütés, erőforrásfogyasztás, célzás és harci akciókezelés működik.
+Ha a `d100` eredménye legfeljebb a kudarc esélye, a varázslat meghiúsul, a manna és az akció elvész. Siker esetén a játék végrehajtja a CSV-ben sorolt hatásokat, és a naplóban összegzi a célpontonkénti sebzést, próbát, kontrollt vagy helyváltoztatást. A sebző és időzített mágushatások csatán kívül is működnek; az ellenfelek saját mozgási akciójuk elején szenvedik el a körönkénti sebzést. A karakterlap csata közbeni részleges frissítése a mágikus védőhatásokat is emojival jelzi.
 
 ### Pihenés a labirintusban
 
@@ -702,6 +708,6 @@ Fontos állapotélettartamok:
 - Nincs automatikus tesztprojekt; a fő ellenőrzés jelenleg a fordítás és a kézi konzolos próba.
 - A CSV-feldolgozás nem teljes RFC-kompatibilis CSV-parser.
 - A konzolméretek és koordináták nagyrészt rögzítettek.
-- A varázslatok aktiválása, mannaköltsége, célzása és harci kudarcpróbája működik; az egyedi sebző, gyógyító, állapot- és térképhatások még nincsenek implementálva.
+- Mind a húsz mágusvarázslat működik; a húsz papi varázslat egyedi gyógyító, tisztító, feltámasztó és szent harci hatásai még nincsenek implementálva.
 - Az élelem és víz csökken és fogyóeszközökkel visszatölthető; az alacsony és nulla szükségletszintek állapot- és csatakezdő büntetéseket okoznak, de a labirintusban csatán kívül nem sebeznek közvetlenül.
 - A teljes pályaállapot menthető és visszatölthető, de a mentési séma jelenleg egyetlen, `1`-es verziót támogat.

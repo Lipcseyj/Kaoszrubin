@@ -40,6 +40,8 @@ public sealed class Game
     private readonly List<Position> _leaderTrail = [];
     private bool _partyHoldingPosition;
     private bool _saveAfterBattle;
+    private bool _timeStopUsedThisBattle;
+    private readonly List<LevelUpResult> _pendingSpellLevelUps = [];
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private int _mazeLevel = 1;
@@ -306,7 +308,7 @@ public sealed class Game
             Enemies = _maze.Enemies.Select(enemy => new EnemySaveData(enemy.Position, enemy.Definition.Id,
                 enemy.CurrentHitPoints, enemy.MovementProfile, enemy.PatrolDirection, enemy.PursuitState,
                 Math.Max(0, (int)(_nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds),
-                enemy.GroupId, enemy.GroupRole)).ToList(),
+                enemy.GroupId, enemy.GroupRole, enemy.ActiveSpellEffects.ToList())).ToList(),
             Corpses = _maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null)).ToList(),
             PartyAvatars = _maze.PartyMembers.Select(member => new PartyAvatarSaveData(member.Position, CharacterIndex(member.Character))).ToList(),
@@ -363,6 +365,7 @@ public sealed class Game
             enemy.SetCurrentHitPoints(savedEnemy.CurrentHitPoints);
             enemy.ConfigureMovement(savedEnemy.MovementProfile, savedEnemy.PatrolDirection, savedEnemy.PursuitState);
             enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
+            foreach (var effect in savedEnemy.ActiveSpellEffects ?? []) enemy.RestoreSpellEffect(effect);
             _maze.AddEnemy(enemy);
             var remaining = savedEnemy.NextMoveRemainingMilliseconds >= 0
                 ? savedEnemy.NextMoveRemainingMilliseconds
@@ -489,6 +492,7 @@ public sealed class Game
 
         var previousPosition = _player.Position;
         if (!_player.TryMove(direction, _maze)) return;
+        SelectedCharacter.AdvanceSpellEffects();
         _leaderFacing = direction;
         if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
@@ -762,6 +766,15 @@ public sealed class Game
                      .OrderBy(_ => _random.Next()).ToArray())
         {
             ScheduleNextEnemyMove(enemy, now);
+            var spellTick = enemy.AdvanceSpellEffects(_random);
+            if (spellTick.Damage > 0)
+            {
+                var spellNotes = new List<string>();
+                ApplyExplorationSpellDamage(enemy, spellTick.Damage, spellNotes);
+                _renderer.DrawInventoryMessage(string.Join("; ", spellTick.Notes.Concat(spellNotes)), ConsoleColor.Magenta);
+                if (enemy.CurrentHitPoints <= 0) continue;
+            }
+            if (spellTick.SkipAction) continue;
             if (enemy.PursuitState == EnemyPursuitState.Undecided &&
                 FogOfWar.CanSee(_maze, enemy.Position, _player.Position, VisionRange))
                 ResolveEnemyPursuit(enemy);
@@ -810,7 +823,7 @@ public sealed class Game
 
     private static TimeSpan EnemyMoveInterval(Enemy enemy)
     {
-        var speed = Math.Max(1, enemy.Definition.Speed ?? ZombieSpeed);
+        var speed = Math.Max(1, enemy.EffectiveSpeed);
         return TimeSpan.FromMilliseconds((double)ZombieMoveIntervalMilliseconds * ZombieSpeed / speed);
     }
 
@@ -1197,14 +1210,17 @@ public sealed class Game
             }
             var attempt = TryCastSpell(spell, inCombat: true, enemy);
             if (attempt is null) continue;
-            if (attempt.ConsumesTurn) return new BattlePlayerAction(attempt.Message, attempt.Kind);
+            if (attempt.ConsumesTurn) return new BattlePlayerAction(attempt.Message, attempt.Kind,
+                attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions);
             _renderer.DrawInventoryMessage(attempt.Message, ConsoleColor.Red);
         }
     }
 
     private bool HasUsableCombatSpell(Enemy enemy) =>
         SelectedCharacter.CanCastSpells && SelectedCharacter.MemorizedSpells.Any(spell =>
-            spell.CanUseInCombat && spell.ManaCost <= SelectedCharacter.CurrentMana &&
+            spell.CanUseInCombat && SpellcastingRules.EffectiveManaCost(SelectedCharacter, spell) <= SelectedCharacter.CurrentMana &&
+            (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id)
+                .All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
             (spell.TargetType is SpellTargetType.Self or SpellTargetType.Party ||
              GetValidSpellTargets(spell, enemy).Any()));
 
@@ -1221,28 +1237,383 @@ public sealed class Game
             return new SpellCastAttempt(false, $"A(z) {spell.Name} nincs memorizálva.", BattleLogKind.Information);
         if (inCombat ? !spell.CanUseInCombat : !spell.CanUseDuringExploration)
             return new SpellCastAttempt(false, $"A(z) {spell.Name} ebben a helyzetben nem használható.", BattleLogKind.Information);
-        if (SelectedCharacter.CurrentMana < spell.ManaCost)
-            return new SpellCastAttempt(false, $"Nincs elég manna: {spell.Name} {spell.ManaCost} mannát igényel.", BattleLogKind.Information);
+        if (inCombat && _timeStopUsedThisBattle && _gameData.GetSpellEffects(spell.Id)
+                .Any(effect => effect.Type == SpellEffectType.ExtraActions))
+            return new SpellCastAttempt(false, "Az Időmegállítás csatánként csak egyszer használható.", BattleLogKind.Information);
+        var manaCost = SpellcastingRules.EffectiveManaCost(SelectedCharacter, spell);
+        if (SelectedCharacter.CurrentMana < manaCost)
+            return new SpellCastAttempt(false, $"Nincs elég manna: {spell.Name} {manaCost} mannát igényel.", BattleLogKind.Information);
 
         var target = SelectSpellTarget(spell, currentEnemy);
         if (target is null) return null;
-        SelectedCharacter.SpendMana(spell.ManaCost);
+        SelectedCharacter.SpendMana(manaCost);
         _renderer.RefreshBattleStatusRows();
 
         if (inCombat)
         {
-            var failureChance = Math.Clamp(30 - SelectedCharacter.Abilities.Intelligence - SelectedCharacter.Abilities.Dexterity, 0, 100);
+            var failureChance = Math.Clamp(30 - SelectedCharacter.Abilities.Intelligence * 2, 0, 100);
             var roll = _random.Next(1, 101);
             if (roll <= failureChance)
                 return new SpellCastAttempt(true,
-                    $"{SelectedCharacter.Name} varázslata meghiúsul: {spell.Name} — kockázat {failureChance}%, dobás {roll}. -{spell.ManaCost} manna; az akció elveszett.",
+                    $"{SelectedCharacter.Name} varázslata meghiúsul: {spell.Name} — kockázat {failureChance}%, dobás {roll}. -{manaCost} manna; az akció elveszett.",
                     BattleLogKind.Information);
         }
 
         var targetText = DescribeSpellTarget(spell, target.Value, currentEnemy);
+        var execution = ExecuteArcaneSpell(spell, target.Value, inCombat, currentEnemy);
         return new SpellCastAttempt(true,
-            $"{SelectedCharacter.Name} sikeresen elsüti: {spell.Name} → {targetText}. -{spell.ManaCost} manna. A konkrét varázshatás végrehajtóhelye aktiválva.",
-            BattleLogKind.PlayerAttack);
+            $"{SelectedCharacter.Name} elsüti: {spell.Name} → {targetText}. -{manaCost} manna. {execution.Summary}",
+            BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions);
+    }
+
+    private SpellExecutionResult ExecuteArcaneSpell(SpellDefinition spell, Position target, bool inCombat,
+        Enemy? currentEnemy)
+    {
+        var effects = _gameData.GetSpellEffects(spell.Id);
+        var targets = ResolveEnemySpellTargets(spell, target, currentEnemy).ToList();
+        var characterTarget = ResolveCharacterSpellTarget(spell, target);
+        var damage = targets.ToDictionary(enemy => enemy, _ => 0);
+        var initialHitPoints = targets.ToDictionary(enemy => enemy, enemy => enemy.CurrentHitPoints);
+        var resolutionCache = new Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult>();
+        var notes = new List<string>();
+        var extraActions = 0;
+
+        foreach (var effect in effects)
+        {
+            switch (effect.Type)
+            {
+                case SpellEffectType.Damage:
+                    foreach (var enemy in targets)
+                        damage[enemy] += ResolveSpellDamage(effect, spell, enemy, resolutionCache, notes);
+                    break;
+                case SpellEffectType.ChainDamage:
+                    ApplyChainDamage(effect, spell, target, currentEnemy, damage, initialHitPoints, notes);
+                    break;
+                case SpellEffectType.Burning:
+                    ApplyEnemyTimedEffect(effect, spell, targets, ActiveSpellEffectType.Burning, resolutionCache, notes);
+                    break;
+                case SpellEffectType.Storm:
+                    ApplyEnemyTimedEffect(effect, spell, targets, ActiveSpellEffectType.Storm, resolutionCache, notes);
+                    break;
+                case SpellEffectType.SpeedPenalty:
+                    ApplyEnemyTimedEffect(effect, spell, targets, ActiveSpellEffectType.SpeedPenalty, resolutionCache, notes);
+                    break;
+                case SpellEffectType.SkipAlternate:
+                    ApplyEnemyTimedEffect(effect, spell, targets, ActiveSpellEffectType.SkipAlternate, resolutionCache, notes);
+                    break;
+                case SpellEffectType.Invisibility:
+                    if (characterTarget is not null)
+                        ApplyCharacterEffect(characterTarget, effect, spell, ActiveSpellEffectType.Invisibility);
+                    notes.Add($"láthatatlanság {effect.Duration} akcióra");
+                    break;
+                case SpellEffectType.DefenseBonus:
+                    if (characterTarget is not null)
+                        ApplyCharacterEffect(characterTarget, effect, spell, ActiveSpellEffectType.DefenseBonus);
+                    notes.Add($"+{effect.Value} védelem {effect.Duration} akcióra");
+                    break;
+                case SpellEffectType.PhysicalReduction:
+                    if (characterTarget is not null)
+                        ApplyCharacterEffect(characterTarget, effect, spell, ActiveSpellEffectType.PhysicalReduction);
+                    notes.Add($"{effect.Value}% fizikai védelem {effect.Duration} akcióra");
+                    break;
+                case SpellEffectType.BleedingImmunity:
+                    if (characterTarget is not null)
+                    {
+                        ApplyCharacterEffect(characterTarget, effect, spell, ActiveSpellEffectType.BleedingImmunity);
+                        characterTarget.RemoveStatus(CharacterStatusIds.Bleeding);
+                    }
+                    notes.Add("vérzés megszüntetve és ideiglenesen kivédve");
+                    break;
+                case SpellEffectType.TeleportSelf:
+                    notes.Add(TeleportLeader(target, inCombat) ? "teleportáció sikeres" : "a célmező nem szabad");
+                    break;
+                case SpellEffectType.TeleportParty:
+                    notes.Add(TeleportLivingParty(target, inCombat));
+                    break;
+                case SpellEffectType.Dispel:
+                    notes.Add(DispelAt(target, spell.AreaRadius));
+                    break;
+                case SpellEffectType.ExtraActions:
+                    if (_timeStopUsedThisBattle && inCombat)
+                        notes.Add("az Időmegállítás ebben a csatában már nem ismételhető");
+                    else
+                    {
+                        extraActions += effect.Value;
+                        if (inCombat) _timeStopUsedThisBattle = true;
+                        notes.Add($"+{effect.Value} azonnali akció");
+                    }
+                    break;
+                case SpellEffectType.Execute:
+                    foreach (var enemy in targets)
+                    {
+                        var resolution = ResolveAgainstEnemy(effect, spell, enemy, resolutionCache);
+                        if (!resolution.Applies || enemy.Definition.StrengthTier >= 5 ||
+                            initialHitPoints[enemy] * 100 > enemy.Definition.HitPoints * effect.Value) continue;
+                        damage[enemy] = Math.Max(damage[enemy], enemy.CurrentHitPoints);
+                        notes.Add($"💀 {enemy.Name}: megsemmisítés");
+                    }
+                    break;
+                case SpellEffectType.RandomElement:
+                    ApplyRandomElement(effect, spell, targets, damage, resolutionCache, notes);
+                    break;
+            }
+        }
+
+        var chainRepeated = SelectedCharacter.HasPerk(PerkIds.MageChainSpell) &&
+                            effects.Any(effect => effect.Type is SpellEffectType.Damage or SpellEffectType.ChainDamage) &&
+                            _random.Next(100) < 30;
+        if (chainRepeated)
+        {
+            foreach (var effect in effects.Where(effect => effect.Type == SpellEffectType.Damage))
+                foreach (var enemy in targets)
+                    damage[enemy] += ResolveSpellDamage(effect, spell, enemy,
+                        new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes);
+            foreach (var effect in effects.Where(effect => effect.Type == SpellEffectType.ChainDamage))
+                ApplyChainDamage(effect, spell, target, currentEnemy, damage, initialHitPoints, notes);
+            notes.Add("🔁 Láncvarázs: a sebzés ingyen megismétlődött");
+        }
+
+        var currentDamage = 0;
+        foreach (var entry in damage.Where(entry => entry.Value > 0))
+        {
+            if (inCombat && entry.Key == currentEnemy)
+                currentDamage += Math.Min(entry.Value, entry.Key.CurrentHitPoints);
+            else
+                ApplyExplorationSpellDamage(entry.Key, entry.Value, notes);
+        }
+        if (damage.Values.Any(value => value > 0)) SelectedCharacter.BreakInvisibility();
+        if (!inCombat) _renderer.RefreshCharacterSheet(SelectedCharacter);
+        return new SpellExecutionResult(currentDamage, extraActions,
+            notes.Count == 0 ? "A varázslat nem talált érvényes célpontot." : string.Join("; ", notes.Distinct()));
+    }
+
+    private IEnumerable<Enemy> ResolveEnemySpellTargets(SpellDefinition spell, Position target, Enemy? currentEnemy)
+    {
+        var enemies = _maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0);
+        return spell.TargetType switch
+        {
+            SpellTargetType.Enemy => enemies.Where(enemy => enemy.Position == target)
+                .Concat(currentEnemy is not null && currentEnemy.Position == target ? [currentEnemy] : []).Distinct(),
+            SpellTargetType.Area => enemies.Where(enemy => Chebyshev(enemy.Position, target) <= spell.AreaRadius),
+            SpellTargetType.Direction => enemies.Where(enemy => IsInSpellCone(enemy.Position, target)),
+            _ => []
+        };
+    }
+
+    private LiveCharacter? ResolveCharacterSpellTarget(SpellDefinition spell, Position target) => spell.TargetType switch
+    {
+        SpellTargetType.Self => SelectedCharacter,
+        SpellTargetType.PartyMember when target == _player.Position => SelectedCharacter,
+        SpellTargetType.PartyMember => _maze.GetPartyMemberAt(target)?.Character,
+        _ => SelectedCharacter
+    };
+
+    private bool IsInSpellCone(Position position, Position selectedDirection)
+    {
+        var dx = selectedDirection.X - _player.Position.X;
+        var dy = selectedDirection.Y - _player.Position.Y;
+        var relativeX = position.X - _player.Position.X;
+        var relativeY = position.Y - _player.Position.Y;
+        var forward = relativeX * dx + relativeY * dy;
+        var lateral = Math.Abs(relativeX * dy - relativeY * dx);
+        return forward is >= 1 and <= 2 && lateral <= forward - 1;
+    }
+
+    private int ResolveSpellDamage(SpellEffectDefinition effect, SpellDefinition spell, Enemy enemy,
+        Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache, List<string> notes)
+    {
+        var resolution = ResolveAgainstEnemy(effect, spell, enemy, cache);
+        if (!resolution.Applies) return 0;
+        var rolled = (effect.Dice?.Roll(_random) ?? 0) +
+                     (int)Math.Round(SelectedCharacter.Abilities.Intelligence * effect.IntelligenceMultiplier) +
+                     SelectedCharacter.Level * effect.LevelMultiplier + effect.Value;
+        if (SelectedCharacter.HasPerk(PerkIds.MageElementalMaster)) rolled = (int)Math.Ceiling(rolled * 1.25);
+        if (resolution.Critical) rolled *= 2;
+        if (resolution.Half) rolled = Math.Max(1, rolled / 2);
+        notes.Add($"{enemy.Name}: -{rolled} HP ({resolution.Text})");
+        return rolled;
+    }
+
+    private SpellResolutionResult ResolveAgainstEnemy(SpellEffectDefinition effect, SpellDefinition spell, Enemy enemy,
+        Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache)
+    {
+        if (effect.Resolution == SpellResolution.Auto) return new SpellResolutionResult(true, false, false, "automatikus");
+        var cacheResolution = effect.Resolution == SpellResolution.SaveNegates
+            ? SpellResolution.SaveHalf
+            : effect.Resolution;
+        var key = (enemy, cacheResolution);
+        if (cache.TryGetValue(key, out var cached))
+            return effect.Resolution == SpellResolution.SaveNegates && cached.Half
+                ? cached with { Applies = false, Half = false }
+                : cached with { Half = effect.Resolution == SpellResolution.SaveHalf && cached.Half };
+        SpellResolutionResult result;
+        if (effect.Resolution == SpellResolution.Attack)
+        {
+            var roll = _random.Next(1, 21);
+            var bonus = SelectedCharacter.Abilities.Intelligence +
+                        (SelectedCharacter.HasPerk(PerkIds.MageArcaneFocus) ? 2 : 0) +
+                        SelectedCharacter.GetMagicItemBonus(MagicItemEffect.Hit) +
+                        SelectedCharacter.SpellEffectValue(ActiveSpellEffectType.Invisibility);
+            var hit = roll == 20 || roll != 1 && roll + bonus >= 11 + enemy.EffectiveSpeed;
+            result = new SpellResolutionResult(hit, false, roll == 20, hit ? $"mágikus támadás {roll + bonus}" : $"mellé {roll + bonus}");
+        }
+        else
+        {
+            var dc = 10 + SelectedCharacter.Abilities.Intelligence / 2 + spell.Level;
+            var roll = _random.Next(1, 21) + enemy.EffectiveSpeed;
+            var saved = roll >= dc;
+            result = new SpellResolutionResult(!saved || effect.Resolution == SpellResolution.SaveHalf,
+                saved && effect.Resolution == SpellResolution.SaveHalf, false,
+                saved ? $"sikeres ellenpróba {roll}/{dc}" : $"rontott ellenpróba {roll}/{dc}");
+        }
+        cache[key] = result;
+        return result;
+    }
+
+    private void ApplyEnemyTimedEffect(SpellEffectDefinition effect, SpellDefinition spell, IEnumerable<Enemy> targets,
+        ActiveSpellEffectType type, Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache,
+        List<string> notes)
+    {
+        foreach (var enemy in targets)
+        {
+            var resolution = ResolveAgainstEnemy(effect, spell, enemy, cache);
+            if (!resolution.Applies || _random.Next(100) >= effect.ChancePercent) continue;
+            enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type, effect.Value, effect.Duration,
+                effect.Dice, (int)Math.Round(SelectedCharacter.Abilities.Intelligence * effect.IntelligenceMultiplier),
+                false, effect.Dice is not null && SelectedCharacter.HasPerk(PerkIds.MageElementalMaster) ? 125 : 100));
+            notes.Add($"{enemy.Name}: {TimedEffectName(type)} ({effect.Duration} akció)");
+        }
+    }
+
+    private static string TimedEffectName(ActiveSpellEffectType type) => type switch
+    {
+        ActiveSpellEffectType.Burning => "🔥 égés",
+        ActiveSpellEffectType.Storm => "⚡ vihar",
+        ActiveSpellEffectType.SpeedPenalty => "🐌 lassítás",
+        ActiveSpellEffectType.SkipAlternate => "⏳ minden második akció kimarad",
+        ActiveSpellEffectType.Frost => "❄️ fagyás",
+        _ => "varázshatás"
+    };
+
+    private void ApplyCharacterEffect(LiveCharacter character, SpellEffectDefinition effect, SpellDefinition spell,
+        ActiveSpellEffectType type) => character.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type,
+        effect.Value, effect.Duration, effect.Dice, 0, true));
+
+    private void ApplyChainDamage(SpellEffectDefinition effect, SpellDefinition spell, Position target,
+        Enemy? currentEnemy, Dictionary<Enemy, int> damage, Dictionary<Enemy, int> initialHitPoints, List<string> notes)
+    {
+        var candidates = _maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
+            .Concat(currentEnemy is null ? [] : [currentEnemy]).Distinct()
+            .OrderBy(enemy => enemy.Position == target ? 0 : Chebyshev(enemy.Position, target))
+            .Where(enemy => enemy.Position == target || Chebyshev(enemy.Position, target) <= 4).Take(4).ToList();
+        var multipliers = (effect.Parameter ?? "100|75|50|25").Split('|')
+            .Select(value => int.TryParse(value, out var parsed) ? parsed : 100).ToArray();
+        for (var index = 0; index < candidates.Count; index++)
+        {
+            var enemy = candidates[index];
+            if (!damage.ContainsKey(enemy)) damage[enemy] = 0;
+            if (!initialHitPoints.ContainsKey(enemy)) initialHitPoints[enemy] = enemy.CurrentHitPoints;
+            var baseDamage = ResolveSpellDamage(effect, spell, enemy,
+                new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes);
+            damage[enemy] += baseDamage * multipliers[Math.Min(index, multipliers.Length - 1)] / 100;
+        }
+    }
+
+    private void ApplyRandomElement(SpellEffectDefinition effect, SpellDefinition spell, IEnumerable<Enemy> targets,
+        Dictionary<Enemy, int> damage, Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache,
+        List<string> notes)
+    {
+        var element = (effect.Parameter ?? "Fire|Frost|Lightning").Split('|')[_random.Next(3)];
+        foreach (var enemy in targets)
+        {
+            if (!ResolveAgainstEnemy(effect, spell, enemy, cache).Applies) continue;
+            if (element.Equals("Fire", StringComparison.OrdinalIgnoreCase))
+            {
+                var fireDamage = effect.Dice?.Roll(_random) ?? 0;
+                if (SelectedCharacter.HasPerk(PerkIds.MageElementalMaster))
+                    fireDamage = (int)Math.Ceiling(fireDamage * 1.25);
+                damage[enemy] += fireDamage;
+                notes.Add($"{enemy.Name}: 🔥 -{fireDamage} HP");
+            }
+            else if (element.Equals("Frost", StringComparison.OrdinalIgnoreCase))
+                enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, ActiveSpellEffectType.Frost, effect.Value, effect.Duration));
+            else if (_random.Next(100) < effect.ChancePercent)
+                enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, ActiveSpellEffectType.SkipAlternate, 0, effect.Duration));
+        }
+        notes.Add($"🎲 véletlen elem: {element}");
+    }
+
+    private void ApplyExplorationSpellDamage(Enemy enemy, int amount, List<string> notes)
+    {
+        enemy.ReceiveSpellDamage(amount);
+        if (enemy.CurrentHitPoints > 0) return;
+        _maze.ReplaceEnemyWithCorpse(enemy);
+        _nextEnemyMoves.Remove(enemy);
+        var awards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
+        notes.Add($"☠ {enemy.Name} elpusztult; {FormatExperienceAwards(awards)}");
+        _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
+        var leaderLevelUp = awards.FirstOrDefault(award => award.Character == SelectedCharacter)?.Result;
+        if (leaderLevelUp?.LeveledUp != true) return;
+        if (_battleStarted) _pendingSpellLevelUps.Add(leaderLevelUp);
+        else
+        {
+            ResolvePerkOffers(leaderLevelUp);
+            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        }
+    }
+
+    private bool TeleportLeader(Position target, bool inCombat)
+    {
+        if (!_maze.IsWalkable(target) || _maze.GetObjectAt(target) is not null) return false;
+        _player.TeleportTo(target);
+        _leaderTrail.Clear();
+        _leaderTrail.Add(target);
+        _fogOfWar.RevealFrom(_maze, target);
+        if (!inCombat) _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, target);
+        return true;
+    }
+
+    private string TeleportLivingParty(Position target, bool inCombat)
+    {
+        if (!TeleportLeader(target, inCombat)) return "a dimenziókapu célmezője nem szabad";
+        var positions = FindNearbyTeleportPositions(target).Take(_maze.PartyMembers.Count).ToList();
+        var moved = 0;
+        foreach (var pair in _maze.PartyMembers.Zip(positions))
+        {
+            pair.First.MoveTo(pair.Second);
+            _fogOfWar.RevealFrom(_maze, pair.Second);
+            moved++;
+        }
+        if (!inCombat) _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, target);
+        return $"dimenziókapu: a vezér és {moved} társ átkerült";
+    }
+
+    private IEnumerable<Position> FindNearbyTeleportPositions(Position origin)
+    {
+        var queue = new Queue<Position>();
+        var visited = new HashSet<Position> { origin };
+        queue.Enqueue(origin);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (!visited.Add(next) || !_maze.IsWalkable(next)) continue;
+                queue.Enqueue(next);
+                if (next != _player.Position && _maze.GetObjectAt(next) is null) yield return next;
+            }
+        }
+    }
+
+    private string DispelAt(Position target, int radius)
+    {
+        var removed = _maze.Enemies.Where(enemy => Chebyshev(enemy.Position, target) <= radius)
+            .Sum(enemy => enemy.RemoveSpellEffects());
+        if (Chebyshev(_player.Position, target) <= radius) removed += SelectedCharacter.RemoveSpellEffects();
+        foreach (var member in _maze.PartyMembers.Where(member => Chebyshev(member.Position, target) <= radius))
+            removed += member.Character.RemoveSpellEffects();
+        return $"✨ szétoszlatott varázshatások: {removed}";
     }
 
     private Position? SelectSpellTarget(SpellDefinition spell, Enemy? currentEnemy)
@@ -1331,6 +1702,9 @@ public sealed class Game
                                            _maze.PartyMembers.Any(member => member.Position == position && member.Character.IsAlive),
             SpellTargetType.Corpse => _maze.Corpses.OfType<PartyMemberCorpse>().Any(corpse => corpse.Position == position),
             SpellTargetType.Direction => Manhattan(_player.Position, position) == 1,
+            SpellTargetType.Cell when _gameData.GetSpellEffects(spell.Id).Any(effect =>
+                effect.Type is SpellEffectType.TeleportSelf or SpellEffectType.TeleportParty) =>
+                _maze.IsWalkable(position) && _maze.GetObjectAt(position) is null,
             SpellTargetType.Cell or SpellTargetType.Area => true,
             _ => false
         };
@@ -1358,6 +1732,7 @@ public sealed class Game
     private void StartBattle(Enemy enemy)
     {
         if (_battleStarted) return;
+        _timeStopUsedThisBattle = false;
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
         _battleStarted = true;
         _renderer.DrawBattleStarted(enemy);
@@ -1381,9 +1756,12 @@ public sealed class Game
             _renderer.DrawExperienceDistribution(FormatExperienceAwards(experienceAwards),
                 experienceAwards.Any(award => award.Result.LeveledUp));
             _renderer.RefreshCharacterSheet(SelectedCharacter);
-            if (experienceResult.LeveledUp)
+            var levelUps = _pendingSpellLevelUps.ToList();
+            _pendingSpellLevelUps.Clear();
+            if (experienceResult.LeveledUp) levelUps.Add(experienceResult);
+            if (levelUps.Count > 0)
             {
-                ResolvePerkOffers(experienceResult);
+                foreach (var levelUp in levelUps) ResolvePerkOffers(levelUp);
                 _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
             }
             if (_saveAfterBattle)
@@ -1626,7 +2004,10 @@ public sealed class Game
     }
 
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source);
-    private sealed record SpellCastAttempt(bool ConsumesTurn, string Message, BattleLogKind Kind);
+    private sealed record SpellCastAttempt(bool ConsumesTurn, string Message, BattleLogKind Kind,
+        int DamageToCurrentEnemy = 0, int ExtraPlayerActions = 0);
+    private sealed record SpellExecutionResult(int DamageToCurrentEnemy, int ExtraPlayerActions, string Summary);
+    private sealed record SpellResolutionResult(bool Applies, bool Half, bool Critical, string Text);
 
     private void FillPartyForDevelopment()
     {
@@ -1765,7 +2146,10 @@ public sealed class Game
             .Select(character => new LevelCompletionResult(character, AwardExperience(character, reward).Result))
             .ToList();
         foreach (var character in CharacterRoster.Party.Members)
+        {
             character.SetCurrentResources(character.MaximumVitality, character.MaximumMana);
+            character.ClearTemporarySpellEffects();
+        }
         return new LevelCompletionOutcome(results, fallenCharacters);
     }
 

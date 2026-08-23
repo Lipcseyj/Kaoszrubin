@@ -25,6 +25,7 @@ public static class CsvGameDataLoader
         var items = new List<MiscItemDefinition>();
         var magicItems = new List<MagicItemDefinition>();
         var spells = new List<SpellDefinition>();
+        var spellEffects = new List<SpellEffectDefinition>();
         var perks = new List<PerkDefinition>();
         var statuses = new List<StatusDefinition>();
         var characterNames = new List<CharacterNameDefinition>();
@@ -52,12 +53,13 @@ public static class CsvGameDataLoader
             }
 
             if (IsHeaderRow(cells[0])) continue;
-            AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, weaponTypes, weapons, armors, abilities, items, magicItems, spells, perks, statuses, characterNames, itemUpgrades,
+            AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, itemUpgrades,
                 raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                 vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
         }
 
         ValidateSpells(spells);
+        ValidateSpellEffects(spells, spellEffects);
         ValidateMagicItems(magicItems, spells);
         ValidateEnemies(enemies, monsterAbilities);
         ValidateStatuses(statuses);
@@ -80,6 +82,7 @@ public static class CsvGameDataLoader
             Items = items,
             MagicItems = magicItems,
             Spells = spells,
+            SpellEffects = spellEffects,
             Perks = perks,
             Statuses = statuses,
             CharacterNames = characterNames,
@@ -100,7 +103,8 @@ public static class CsvGameDataLoader
         ICollection<EnemyDefinition> enemies, ICollection<MonsterAbilityDefinition> monsterAbilities,
         ICollection<WeaponTypeDefinition> weaponTypes, ICollection<WeaponDefinition> weapons,
         ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities, ICollection<MiscItemDefinition> items,
-        ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells, ICollection<PerkDefinition> perks,
+        ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
+        ICollection<SpellEffectDefinition> spellEffects, ICollection<PerkDefinition> perks,
         ICollection<StatusDefinition> statuses, ICollection<CharacterNameDefinition> characterNames, ICollection<ItemUpgradeDefinition> itemUpgrades,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence, IDictionary<int, int> experienceByLevel,
@@ -170,6 +174,14 @@ public static class CsvGameDataLoader
                     RequiredSpellTargetType(cells, id), RequiredNonNegativeInteger(cells, 6, id, "hatótáv"),
                     RequiredNonNegativeInteger(cells, 7, id, "terület"), IsYes(cells, 8),
                     RequiredSpellUsageMode(cells, id)));
+                break;
+            case DataSection.SpellEffects:
+                spellEffects.Add(new SpellEffectDefinition(id, Cell(cells, 1), Integer(cells, 2) ?? 0,
+                    ParseRequiredEnum<SpellEffectType>(cells, 3, id, "hatástípus"), ParseDice(cells, 4, id),
+                    Double(cells, 5) ?? 0, Integer(cells, 6) ?? 0, Integer(cells, 7) ?? 0,
+                    Integer(cells, 8) ?? 0, Math.Clamp(Integer(cells, 9) ?? 100, 0, 100),
+                    ParseRequiredEnum<SpellResolution>(cells, 10, id, "ellenpróba"),
+                    EmptyAsNull(Cell(cells, 11)), Cell(cells, 12)));
                 break;
             case DataSection.Perks:
                 if (Integer(cells, 4) is { } tier)
@@ -338,6 +350,36 @@ public static class CsvGameDataLoader
         }
     }
 
+    private static void ValidateSpellEffects(IReadOnlyCollection<SpellDefinition> spells,
+        IReadOnlyCollection<SpellEffectDefinition> effects)
+    {
+        var spellIds = spells.Select(spell => spell.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var effect in effects)
+        {
+            if (!spellIds.Contains(effect.SpellId))
+                throw new InvalidOperationException($"A(z) '{effect.Id}' hatás ismeretlen varázslatra hivatkozik: '{effect.SpellId}'.");
+            if (effect.Order <= 0 || effect.Duration < 0)
+                throw new InvalidOperationException($"A(z) '{effect.Id}' hatás sorrendje legyen pozitív és időtartama nemnegatív.");
+        }
+        foreach (var spell in spells.Where(spell => spell.School == SpellSchool.Arcane))
+            if (!effects.Any(effect => string.Equals(effect.SpellId, spell.Id, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException($"A(z) '{spell.Id}' mágusvarázslathoz legalább egy #Varázshatások sor szükséges.");
+    }
+
+    private static T ParseRequiredEnum<T>(string[] cells, int index, string id, string fieldName) where T : struct, Enum =>
+        Enum.TryParse<T>(Cell(cells, index), true, out var value)
+            ? value
+            : throw new InvalidOperationException($"A(z) '{id}' {fieldName} mezője ismeretlen: '{Cell(cells, index)}'.");
+
+    private static DiceExpression? ParseDice(string[] cells, int index, string id)
+    {
+        var value = Cell(cells, index);
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return DiceExpression.TryParse(value, out var dice)
+            ? dice
+            : throw new InvalidOperationException($"A(z) '{id}' kockaképlete hibás: '{value}'.");
+    }
+
     private static MonsterAbilityEffect ParseMonsterAbilityEffect(string[] cells, int index) =>
         Enum.TryParse<MonsterAbilityEffect>(Cell(cells, index), true, out var effect) ? effect : MonsterAbilityEffect.Trait;
 
@@ -483,6 +525,7 @@ public static class CsvGameDataLoader
         "varazstargyak" => DataSection.MagicItems,
         "varazslatok" => DataSection.ArcaneSpells,
         "papi varazslatok" => DataSection.DivineSpells,
+        "varazshatasok" => DataSection.SpellEffects,
         "tehetsegek" => DataSection.Perks,
         "allapotok" => DataSection.Statuses,
         "karakternevek" => DataSection.CharacterNames,
@@ -520,6 +563,7 @@ public static class CsvGameDataLoader
         MagicItems,
         ArcaneSpells,
         DivineSpells,
+        SpellEffects,
         Perks,
         Statuses,
         CharacterNames,

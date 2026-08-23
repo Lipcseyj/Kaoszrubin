@@ -514,8 +514,9 @@ public sealed class ConsoleRenderer
                 var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
                     string.Equals(candidate?.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
                 var quick = quickIndex >= 0 ? $"F{quickIndex + 1}" : "--";
-                var text = $"{(index == selectedIndex ? "▶" : " ")} [{quick}] L{spell.Level}  {spell.Name,-24} {spell.ManaCost}M  {SpellTargetName(spell.TargetType)}";
-                var color = character.CurrentMana < spell.ManaCost ? ConsoleColor.DarkRed :
+                var manaCost = SpellcastingRules.EffectiveManaCost(character, spell);
+                var text = $"{(index == selectedIndex ? "▶" : " ")} [{quick}] L{spell.Level}  {spell.Name,-24} {manaCost}M  {SpellTargetName(spell.TargetType)}";
+                var color = character.CurrentMana < manaCost ? ConsoleColor.DarkRed :
                     index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray;
                 return (text, color);
             }));
@@ -795,7 +796,8 @@ public sealed class ConsoleRenderer
             var selected = spells[selectedIndex];
             WriteSheetLine(26, "KIJELÖLT VARÁZSLAT", ConsoleColor.White);
             WriteSheetLine(27, selected.Name, ConsoleColor.Yellow);
-            WriteSheetLine(28, $"Szint: {selected.Level} | Manna: {selected.ManaCost} | Cél: {SpellTargetName(selected.TargetType)}", ConsoleColor.Blue);
+            var manaCost = SpellcastingRules.EffectiveManaCost(character, selected);
+            WriteSheetLine(28, $"Szint: {selected.Level} | Manna: {manaCost} | Cél: {SpellTargetName(selected.TargetType)}", ConsoleColor.Blue);
             var quickIndex = character.QuickSpells.ToList().FindIndex(spell => spell?.Id == selected.Id);
             WriteSheetLine(29, character.MemorizedSpells.Any(spell => spell.Id == selected.Id)
                 ? $"Állapot: memorizált{(quickIndex >= 0 ? $", F{quickIndex + 1}" : string.Empty)}"
@@ -957,10 +959,19 @@ public sealed class ConsoleRenderer
 
     private void DrawBattleStatusRows(LiveCharacter character)
     {
-        WriteSheetLine(4, character.Statuses.Count == 0
+        var statusIcons = character.Statuses.Select(status => status.Icon)
+            .Concat(character.ActiveSpellEffects.Select(effect => effect.Type switch
+            {
+                ActiveSpellEffectType.Invisibility => "👻",
+                ActiveSpellEffectType.DefenseBonus => "🛡️",
+                ActiveSpellEffectType.PhysicalReduction => "🪨",
+                ActiveSpellEffectType.BleedingImmunity => "🩸🚫",
+                _ => "✨"
+            })).ToList();
+        WriteSheetLine(4, statusIcons.Count == 0
                 ? "Áll: nincs"
-                : $"Áll: {string.Join(' ', character.Statuses.Select(status => status.Icon))}",
-            character.Statuses.Count > 0 ? ConsoleColor.Red : ConsoleColor.DarkGray);
+                : $"Áll: {string.Join(' ', statusIcons)}",
+            statusIcons.Count > 0 ? ConsoleColor.Magenta : ConsoleColor.DarkGray);
         WriteSheetLine(11, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
         WriteSheetLine(12, character.UsesMana
             ? $"Manna: {character.CurrentMana}/{character.MaximumMana}"

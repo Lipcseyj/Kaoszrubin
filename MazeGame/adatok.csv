@@ -496,26 +496,60 @@ PS012,Isteni csoda tekercse,Varázstekercs,Legendás,4000,1,P012,None,0,igen,Egy
 
 #Varázslatok
 Id,Név,Szint,Manna,Leírás,Célzás,Hatótáv,Terület,Látóvonal,HasználatiMód
-S001,Mágikus lövedék,1,1,A Mágikus lövedék varázslat leírása.,Enemy,8,0,igen,Both
-S002,Fagyasztó érintés,1,1,A Fagyasztó érintés varázslat leírása.,Enemy,1,0,igen,Both
-S003,Égő kéz,1,1,Az Égő kéz varázslat leírása.,Direction,2,1,igen,Both
-S005,Lángoló nyíl,1,1,A Lángoló nyíl varázslat leírása.,Enemy,8,0,igen,Both
-S004,Villámcsapás,2,1,A Villámcsapás varázslat leírása.,Enemy,6,0,igen,Both
-S006,Láthatatlanság,2,1,A Láthatatlanság varázslat leírása.,PartyMember,6,0,igen,Both
-S013,Arkán páncél,2,1,Az Arkán páncél varázslat leírása.,Self,0,0,nem,Both
-S014,Lassítás,2,1,A Lassítás varázslat leírása.,Enemy,8,0,igen,Both
-S007,Tűzgolyó,3,1,A Tűzgolyó varázslat leírása.,Area,8,2,igen,Both
-S008,Jégvihar,3,1,A Jégvihar varázslat leírása.,Area,8,2,igen,Both
-S010,Teleportáció,3,1,A Teleportáció varázslat leírása.,Cell,8,0,igen,Both
-S015,Mágia szétoszlatása,3,1,A Mágia szétoszlatása varázslat leírása.,Area,6,1,igen,Both
-S009,Villámvihar,4,1,A Villámvihar varázslat leírása.,Area,8,2,igen,Both
-S011,Meteorzápor,4,1,A Meteorzápor varázslat leírása.,Area,10,3,igen,Both
-S016,Láncvillám,4,1,A Láncvillám varázslat leírása.,Enemy,8,0,igen,Both
-S017,Kőbőr,4,1,A Kőbőr varázslat leírása.,PartyMember,6,0,igen,Both
-S012,Időmegállítás,5,1,Az Időmegállítás varázslat leírása.,Self,0,0,nem,Both
-S018,Dezintegráció,5,1,A Dezintegráció varázslat leírása.,Enemy,8,0,igen,Both
-S019,Dimenziókapu,5,1,A Dimenziókapu varázslat leírása.,Cell,10,0,igen,Both
-S020,Arkán kataklizma,5,1,Az Arkán kataklizma varázslat leírása.,Area,10,4,igen,Both
+S001,Mágikus lövedék,1,6,Biztosan célba találó arkán lövedék amely a varázsló erejével növekszik.,Enemy,8,0,igen,Both
+S002,Fagyasztó érintés,1,5,Fagyos közelharci varázslat amely megsebzi és lelassítja az ellenfelet.,Enemy,1,0,igen,Both
+S003,Égő kéz,1,8,Rövid lángtölcsér amely több ellenfelet megsebezhet és lángra lobbanthat.,Direction,2,1,igen,Both
+S005,Lángoló nyíl,1,7,Nagy hatótávú tűznyíl amely találatkor égést okoz.,Enemy,8,0,igen,Both
+S004,Villámcsapás,2,12,Egyetlen célpontba vezetett nagy erejű villámcsapás.,Enemy,6,0,igen,Both
+S006,Láthatatlanság,2,11,Egy partitag eltűnik az ellenfelek szeme elől amíg támadást nem indít.,PartyMember,6,0,igen,Both
+S013,Arkán páncél,2,10,Mágikus védőréteg amely ideiglenesen növeli a varázsló védelmét.,Self,0,0,nem,Both
+S014,Lassítás,2,12,Megzavarja az ellenfél időérzékét és minden második akcióját elveheti.,Enemy,8,0,igen,Both
+S007,Tűzgolyó,3,18,Nagy területen robbanó tűzgömb amely égő sebeket hagy maga után.,Area,8,2,igen,Both
+S008,Jégvihar,3,18,Fagyos vihar amely megsebzi és több körre lelassítja az ellenfeleket.,Area,8,2,igen,Both
+S010,Teleportáció,3,14,A varázsló egy már felfedezett szabad mezőre teleportál.,Cell,8,0,nem,Both
+S015,Mágia szétoszlatása,3,16,Megszünteti a célterületen működő ideiglenes mágikus hatásokat.,Area,6,1,igen,Both
+S009,Villámvihar,4,26,Tartós villámvihar amely a kezdeti csapás után tovább sebzi az ellenfeleket.,Area,8,2,igen,Both
+S011,Meteorzápor,4,30,Meteorok pusztítják el a célterületet és égő talajt hagynak hátra.,Area,10,3,igen,Both
+S016,Láncvillám,4,28,A villám az első célpontról legfeljebb három közeli ellenfélre ugrik.,Enemy,8,0,igen,Both
+S017,Kőbőr,4,24,Egy partitag kőkemény bőrt kap amely felezi a fizikai sérülést és megakadályozza a vérzést.,PartyMember,6,0,igen,Both
+S012,Időmegállítás,5,42,A mágus rövid időre megállítja környezetét és két további akciót kap.,Self,0,0,nem,Combat
+S018,Dezintegráció,5,40,Elsöprő sugár amely súlyosan sebzi és a legyengült ellenfelet elpusztíthatja.,Enemy,8,0,igen,Both
+S019,Dimenziókapu,5,32,A teljes élő parti egy távoli felfedezett területre teleportál.,Cell,10,0,nem,Both
+S020,Arkán kataklizma,5,50,Hatalmas területi pusztítás amely véletlen elemi utóhatást kelt.,Area,10,4,igen,Both
+
+#Varázshatások
+Id,VarázslatId,Sorrend,Típus,Kocka,IntSzorzó,SzintSzorzó,Érték,Időtartam,Esély,Ellenpróba,Paraméter,Leírás
+FX-S001-1,S001,1,Damage,2d6,1,1,0,0,100,Auto,,Automatikusan találó mágikus sebzés.
+FX-S002-1,S002,1,Damage,2d6,0.5,1,0,0,100,Attack,,Mágikus támadással okozott fagysebzés.
+FX-S002-2,S002,2,SpeedPenalty,,0,0,3,2,100,Attack,,Találatkor három ponttal csökkenti a Gyorsaságot.
+FX-S003-1,S003,1,Damage,3d6,1,1,0,0,100,SaveHalf,,Területi tűzsebzés mentőre felezve.
+FX-S003-2,S003,2,Burning,1d4,0,0,0,2,100,SaveNegates,,Sikertelen mentőnél két akcióig égést okoz.
+FX-S005-1,S005,1,Damage,3d6,1,1,0,0,100,Attack,,Mágikus támadással okozott tűzsebzés.
+FX-S005-2,S005,2,Burning,1d4,0,0,0,2,100,Attack,,Találatkor két akcióig égést okoz.
+FX-S004-1,S004,1,Damage,5d8,2,3,0,0,100,Attack,,Nagy erejű egycélpontos villámsebzés.
+FX-S006-1,S006,1,Invisibility,,0,0,5,3,100,Auto,,Közvetlen célzás elleni védelem és plusz öt az első támadáshoz.
+FX-S013-1,S013,1,DefenseBonus,,0,0,5,5,100,Auto,,Öt akcióig öt pont mágikus védelmet ad.
+FX-S014-1,S014,1,SpeedPenalty,,0,0,4,3,100,SaveNegates,,Három akcióig négy ponttal csökkenti a Gyorsaságot.
+FX-S014-2,S014,2,SkipAlternate,,0,0,1,3,100,SaveNegates,,Minden második ellenséges akció kimarad.
+FX-S007-1,S007,1,Damage,8d8,3,5,0,0,100,SaveHalf,,Nagy területi tűzsebzés mentőre felezve.
+FX-S007-2,S007,2,Burning,1d6,0,0,0,2,100,SaveNegates,,Sikertelen mentőnél két akcióig égést okoz.
+FX-S008-1,S008,1,Damage,6d8,3,5,0,0,100,SaveHalf,,Területi fagysebzés mentőre felezve.
+FX-S008-2,S008,2,SpeedPenalty,,0,0,4,3,100,SaveNegates,,Három akcióig jeges lassítást okoz.
+FX-S010-1,S010,1,TeleportSelf,,0,0,0,0,100,Auto,,A varázslót a célmezőre teleportálja.
+FX-S015-1,S015,1,Dispel,,0,0,0,0,100,Auto,,Eltávolítja az ideiglenes mágikus hatásokat.
+FX-S009-1,S009,1,Damage,10d10,4,8,0,0,100,SaveHalf,,A villámvihar kezdeti területi sebzése.
+FX-S009-2,S009,2,Storm,3d10,1,0,0,3,100,SaveNegates,,Három ellenséges akcióig további villámsebzést okoz.
+FX-S011-1,S011,1,Damage,14d10,4,10,0,0,100,SaveHalf,,A meteorzápor nagy területi sebzése.
+FX-S011-2,S011,2,Burning,2d8,0,0,0,2,100,SaveNegates,,Két ellenséges akcióig égő talajsebzést okoz.
+FX-S016-1,S016,1,ChainDamage,12d8,4,8,0,0,100,SaveHalf,100|75|50|25,Legfeljebb három további célpontra ugró villámsebzés.
+FX-S017-1,S017,1,PhysicalReduction,,0,0,50,4,100,Auto,,Négy akcióig ötven százalékkal csökkenti a fizikai sebzést.
+FX-S017-2,S017,2,BleedingImmunity,,0,0,1,4,100,Auto,,Négy akcióig megakadályozza a vérzés felkerülését.
+FX-S012-1,S012,1,ExtraActions,,0,0,2,0,100,Auto,,Két azonnali további játékosakciót ad.
+FX-S018-1,S018,1,Damage,30d12,6,20,0,0,100,Attack,,Rendkívül nagy egycélpontos mágikus sebzés.
+FX-S018-2,S018,2,Execute,,0,0,25,0,100,Attack,,A huszonöt százalék HP-n álló nem főellenfelet elpusztítja.
+FX-S019-1,S019,1,TeleportParty,,0,0,0,0,100,Auto,,A teljes élő partit a célmező köré teleportálja.
+FX-S020-1,S020,1,Damage,24d12,6,20,0,0,100,SaveHalf,,Hatalmas területi arkán sebzés mentőre felezve.
+FX-S020-2,S020,2,RandomElement,4d10,0,0,4,3,30,SaveNegates,Fire|Frost|Lightning,Véletlen tűz fagy vagy villám utóhatást okoz.
 
 #Papi varázslatok
 Id,Név,Szint,Manna,Leírás,Célzás,Hatótáv,Terület,Látóvonal,HasználatiMód

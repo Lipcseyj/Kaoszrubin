@@ -20,6 +20,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<MiscItemDefinition> Items { get; init; } = [];
     public IReadOnlyList<MagicItemDefinition> MagicItems { get; init; } = [];
     public IReadOnlyList<SpellDefinition> Spells { get; init; } = [];
+    public IReadOnlyList<SpellEffectDefinition> SpellEffects { get; init; } = [];
     public IReadOnlyList<PerkDefinition> Perks { get; init; } = [];
     public IReadOnlyList<StatusDefinition> Statuses { get; init; } = [];
     public IReadOnlyList<CharacterNameDefinition> CharacterNames { get; init; } = [];
@@ -42,6 +43,9 @@ public sealed class GameDataCatalog
     public SpellDefinition GetSpell(string id) => FindById(Spells, id, "varázslat");
     public IReadOnlyList<SpellDefinition> GetSpells(SpellSchool school, int level) => Spells
         .Where(spell => spell.School == school && spell.Level == level).ToList();
+    public IReadOnlyList<SpellEffectDefinition> GetSpellEffects(string spellId) => SpellEffects
+        .Where(effect => string.Equals(effect.SpellId, spellId, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(effect => effect.Order).ToList();
     public MiscItemDefinition GetItem(string id) => FindById(Items, id, "tárgy");
     public PerkDefinition GetPerk(string id) => FindById(Perks, id, "tehetség");
     public StatusDefinition GetStatus(string id) => FindById(Statuses, id, "állapot");

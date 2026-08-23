@@ -71,6 +71,9 @@ public static class SpellcastingRules
         _ => 1
     };
 
+    public static int EffectiveManaCost(LiveCharacter character, SpellDefinition spell) =>
+        Math.Max(1, spell.ManaCost - (character.HasPerk(PerkIds.MageArchmage) ? 2 : 0));
+
     public static IReadOnlyList<SpellDefinition> AvailableUnknownSpells(
         LiveCharacter character, GameDataCatalog gameData, int atCharacterLevel)
     {

@@ -16,6 +16,7 @@ public sealed class LiveCharacter
     private readonly List<SpellDefinition> _knownSpells = [];
     private readonly List<SpellDefinition> _memorizedSpells = [];
     private readonly SpellDefinition?[] _quickSpells = new SpellDefinition?[MaximumQuickSpellCount];
+    private readonly List<ActiveSpellEffect> _activeSpellEffects = [];
     private readonly Dictionary<string, int?> _statusDurations = new(StringComparer.OrdinalIgnoreCase);
     private int _maximumVitality;
     private int _maximumMana;
@@ -66,6 +67,7 @@ public sealed class LiveCharacter
     public IReadOnlyList<SpellDefinition> KnownSpells => _knownSpells;
     public IReadOnlyList<SpellDefinition> MemorizedSpells => _memorizedSpells;
     public IReadOnlyList<SpellDefinition?> QuickSpells => _quickSpells;
+    public IReadOnlyList<ActiveSpellEffect> ActiveSpellEffects => _activeSpellEffects;
     public bool IsSpellcaster => SpellcastingRules.TryGetSchool(CharacterClass.Id, out _);
     public bool CanCastSpells => IsAlive && SpellcastingRules.HasRequiredFocus(this);
     public int MemorizationCapacity => SpellcastingRules.MemorizationCapacity(this);
@@ -117,6 +119,33 @@ public sealed class LiveCharacter
         _quickSpells[slotIndex] = spell;
         return true;
     }
+
+    public void ApplySpellEffect(ActiveSpellEffect effect)
+    {
+        _activeSpellEffects.RemoveAll(existing => existing.Type == effect.Type);
+        _activeSpellEffects.Add(effect);
+    }
+
+    public void RestoreSpellEffect(ActiveSpellEffect effect) => ApplySpellEffect(effect);
+    public bool HasSpellEffect(ActiveSpellEffectType type) => _activeSpellEffects.Any(effect => effect.Type == type);
+    public int SpellEffectValue(ActiveSpellEffectType type) => _activeSpellEffects
+        .Where(effect => effect.Type == type).Sum(effect => effect.Value);
+    public int RemoveSpellEffects(Func<ActiveSpellEffect, bool>? predicate = null) =>
+        _activeSpellEffects.RemoveAll(effect => predicate?.Invoke(effect) ?? true);
+    public void BreakInvisibility() => _activeSpellEffects.RemoveAll(effect => effect.Type == ActiveSpellEffectType.Invisibility);
+    public void AdvanceSpellEffects()
+    {
+        for (var index = _activeSpellEffects.Count - 1; index >= 0; index--)
+        {
+            var effect = _activeSpellEffects[index];
+            if (effect.RemainingActions <= 0) continue;
+            var remaining = effect.RemainingActions - 1;
+            if (remaining == 0) _activeSpellEffects.RemoveAt(index);
+            else _activeSpellEffects[index] = effect with { RemainingActions = remaining };
+        }
+    }
+
+    public void ClearTemporarySpellEffects() => _activeSpellEffects.Clear();
 
     public bool EquipWeapon(int slotIndex, WeaponDefinition? weapon) =>
         SetInventoryItem(InventorySlotKind.Weapon, slotIndex, weapon);

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MazeGame.Domain.Characters;
+using MazeGame.Domain.Magic;
 
 namespace MazeGame.Data;
 
@@ -113,7 +114,8 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     EnemyPursuitState PursuitState = EnemyPursuitState.Undecided,
     int NextMoveRemainingMilliseconds = -1,
     string? GroupId = null,
-    EnemyGroupRole GroupRole = EnemyGroupRole.Member);
+    EnemyGroupRole GroupRole = EnemyGroupRole.Member,
+    List<ActiveSpellEffect>? ActiveSpellEffects = null);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);

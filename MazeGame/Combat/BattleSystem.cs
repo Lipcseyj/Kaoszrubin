@@ -35,7 +35,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var initiativeBonus = perkInitiativeBonus + magicInitiativeBonus;
         var playerInitiative = RollInitiative(player.Abilities.Dexterity + initiativeBonus - player.StatusInitiativePenalty);
         var enemyInitiativeBonus = MonsterAbilityValue(defender, MonsterAbilityEffect.InitiativeBonus);
-        var enemyInitiative = RollInitiative((defender.Speed ?? 1) + enemyInitiativeBonus);
+        var enemyInitiative = RollInitiative(enemy.EffectiveSpeed + enemyInitiativeBonus);
         var playerAttacks = playerInitiative.Total >= enemyInitiative.Total;
         var initiativeNotes = new List<string>();
         if (perkInitiativeBonus > 0) initiativeNotes.Add($"Első csapás +{perkInitiativeBonus}");
@@ -51,6 +51,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         };
         onRound(new BattleLogEntry(events[0], BattleLogKind.Information));
         var round = 0;
+        var queuedPlayerActions = 0;
 
         while (player.CurrentVitality > 0 && defender.HitPoints is > 0)
         {
@@ -59,13 +60,17 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             BattleLogKind kind;
             if (playerAttacks)
             {
+                player.AdvanceSpellEffects();
                 var chosenAction = choosePlayerAction?.Invoke();
                 if (chosenAction is not null)
                 {
+                    if (chosenAction.DamageToEnemy > 0)
+                        defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - chosenAction.DamageToEnemy) };
+                    queuedPlayerActions += chosenAction.ExtraPlayerActions;
                     var statusTicks = player.ApplyTurnEndStatusEffects(_random);
                     var statusText = statusTicks.Count == 0 ? string.Empty :
                         $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
-                    message = $"{round}. kör — {chosenAction.Message}{statusText}";
+                    message = $"{round}. kör — {chosenAction.Message} {enemy.Name} HP: {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
                     kind = chosenAction.Kind;
                 }
                 else
@@ -75,13 +80,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                     var criticalHit = false;
                     for (var index = 0; index < count && defender.HitPoints is > 0; index++)
                     {
-                        var attack = PlayerAttack(player, defender, context);
+                        var attack = PlayerAttack(player, defender, context, enemy.EffectiveSpeed);
                         criticalHit |= attack.Critical;
                         defender = ApplyAttack(defender, attack);
                         messages.Add(attack.Message);
                         if (index == 0 && attack.Hit && defender.HitPoints is > 0 && player.HasPerk(PerkIds.FighterSteelStorm) && _random.NextDouble() < 0.35)
                         {
-                            var extra = PlayerAttack(player, defender, context);
+                            var extra = PlayerAttack(player, defender, context, enemy.EffectiveSpeed);
                             criticalHit |= extra.Critical;
                             defender = ApplyAttack(defender, extra);
                             messages.Add($"Acélvihar: {extra.Message}");
@@ -96,14 +101,34 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             }
             else
             {
-                var attack = EnemyAttack(defender, player, context);
-                var survival = attack.Hit ? ApplyEnemyDamage(player, attack.Damage, context) : string.Empty;
-                message = $"{round}. kör — {enemy.Name} támadja {player.Name}-t. {attack.Message} {survival} {player.Name} HP: {player.CurrentVitality}/{player.MaximumVitality}.";
-                kind = attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack;
+                var spellTick = enemy.AdvanceSpellEffects(_random);
+                if (spellTick.Damage > 0)
+                    defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - spellTick.Damage) };
+                var effectText = spellTick.Notes.Count == 0 ? string.Empty : $" {string.Join(", ", spellTick.Notes)}.";
+                if (defender.HitPoints <= 0)
+                {
+                    message = $"{round}. kör — {enemy.Name} elbukik a varázshatásoktól.{effectText}";
+                    kind = BattleLogKind.PlayerAttack;
+                }
+                else if (spellTick.SkipAction)
+                {
+                    message = $"{round}. kör — {enemy.Name} varázshatás miatt kihagyja az akcióját.{effectText}";
+                    kind = BattleLogKind.Information;
+                }
+                else
+                {
+                    var attack = EnemyAttack(defender, player, context, enemy.EffectiveSpeed);
+                    var survival = attack.Hit ? ApplyEnemyDamage(player, attack.Damage, context) : string.Empty;
+                    message = $"{round}. kör — {enemy.Name} támadja {player.Name}-t. {attack.Message} {survival} {player.Name} HP: {player.CurrentVitality}/{player.MaximumVitality}.{effectText}";
+                    kind = attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack;
+                }
             }
             events.Add(message);
             onRound(new BattleLogEntry(message, kind));
-            playerAttacks = !playerAttacks;
+            if (playerAttacks && queuedPlayerActions > 0)
+                queuedPlayerActions--;
+            else
+                playerAttacks = !playerAttacks;
         }
         enemy.SetCurrentHitPoints(defender.HitPoints ?? 0);
         return new BattleResult(player.CurrentVitality > 0, round, events);
@@ -153,16 +178,19 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return new InitiativeRoll(speed + modifier, $"{(modifier >= 0 ? "+" : string.Empty)}1d2({modifier})");
     }
 
-    private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleContext context)
+    private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleContext context, int defenderSpeed)
     {
         var forcedHit = context.ShadowStepReady;
         context.ShadowStepReady = false;
         var weapon = player.WeaponSlots.FirstOrDefault(item => item?.WeaponTypeId != DefenseWeaponTypeId);
         var blessedWeaponBonus = player.HasPerk(PerkIds.PriestBlessedWeapon) &&
                                  defender.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase) ? 2 : 0;
+        var invisibilityBonus = player.SpellEffectValue(ActiveSpellEffectType.Invisibility);
         var hitBonus = (weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0) +
                        player.GetMagicItemBonus(MagicItemEffect.Hit) + blessedWeaponBonus;
-        var hit = HitRoll(player.Abilities.Dexterity, defender.Speed ?? 1, hitBonus - player.StatusHitPenalty, forcedHit);
+        hitBonus += invisibilityBonus;
+        var hit = HitRoll(player.Abilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
+        if (invisibilityBonus > 0) player.BreakInvisibility();
         if (!hit.Hit)
         {
             context.ConsecutivePlayerHits = 0;
@@ -212,11 +240,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             criticalMultiplier > 1);
     }
 
-    private AttackResult EnemyAttack(EnemyDefinition attacker, LiveCharacter defender, BattleContext context)
+    private AttackResult EnemyAttack(EnemyDefinition attacker, LiveCharacter defender, BattleContext context, int attackerSpeed)
     {
         if (context.ChallengeAvailable) { context.ChallengeAvailable = false; return AttackResult.Miss("Kihívás: az első támadás automatikusan elhibázza."); }
         if (defender.HasPerk(PerkIds.PriestSanctuary) && _random.NextDouble() < 0.20) return AttackResult.Miss("Szentély: az ellenfél elveszíti a támadását.");
-        var hit = HitRoll(attacker.Speed ?? 1, defender.Abilities.Dexterity, 0, false);
+        if (defender.HasSpellEffect(ActiveSpellEffectType.Invisibility)) return AttackResult.Miss("Láthatatlanság: az ellenfél nem talál célpontot.");
+        var hit = HitRoll(attackerSpeed, defender.Abilities.Dexterity, 0, false);
         if (!hit.Hit) return AttackResult.Miss($"találat: {hit.Description} → NEM TALÁL.");
         var criticalMultiplier = hit.NaturalRoll == 20 ? 2 : 1;
         if (criticalMultiplier == 1 && defender.HasPerk(PerkIds.ThiefEvasion) && _random.NextDouble() < 0.15)
@@ -232,11 +261,14 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var shield = defender.WeaponSlots.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } shieldRange ? Roll(shieldRange) : 0;
         var perkDefense = (defender.HasPerk(PerkIds.BarbarianThickSkin) ? 1 : 0) +
                           (shieldEquipped && defender.HasPerk(PerkIds.KnightShieldWall) ? 2 : 0) +
-                          defender.GetMagicItemBonus(MagicItemEffect.Defense);
+                          defender.GetMagicItemBonus(MagicItemEffect.Defense) +
+                          defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus);
         var reduction = (defender.HasPerk(PerkIds.FighterUnbreakable) ? 2 : 0) + (defender.HasPerk(PerkIds.KnightInvincible) ? 4 : 0);
         var monsterBonusDamage = RollMonsterBonusDamage(attacker);
         var rawDamage = strength + randomDamage + monsterBonusDamage;
         var damage = Math.Max(0, ApplyDefense(rawDamage * criticalMultiplier, armor + shield + perkDefense) - reduction);
+        var physicalReduction = Math.Clamp(defender.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction), 0, 100);
+        if (physicalReduction > 0) damage = damage * (100 - physicalReduction) / 100;
         if (defender.HasPerk(PerkIds.BarbarianPainTolerance) && damage < 3) damage = 0;
         var absorbed = 0;
         if (damage > 0 && defender.HasPerk(PerkIds.MageMagicShield) && defender.CurrentMana > 0)
@@ -281,7 +313,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 MonsterAbilityEffect.Bleeding => CharacterStatusIds.Bleeding,
                 _ => null
             };
-            if (statusId is null || _random.Next(100) >= ability.ChancePercent ||
+            if (statusId is null || statusId == CharacterStatusIds.Bleeding &&
+                defender.HasSpellEffect(ActiveSpellEffectType.BleedingImmunity) ||
+                _random.Next(100) >= ability.ChancePercent ||
                 !_statuses.TryGetValue(statusId, out var status)) continue;
             var wasActive = defender.HasStatus(statusId);
             defender.AddStatus(status);
@@ -357,5 +391,6 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
 public sealed record BattleResult(bool PlayerWon, int Rounds, IReadOnlyList<string> Events);
 public sealed record BattleLogEntry(string Message, BattleLogKind Kind);
-public sealed record BattlePlayerAction(string Message, BattleLogKind Kind = BattleLogKind.PlayerAttack);
+public sealed record BattlePlayerAction(string Message, BattleLogKind Kind = BattleLogKind.PlayerAttack,
+    int DamageToEnemy = 0, int ExtraPlayerActions = 0);
 public enum BattleLogKind { Information, PlayerAttack, EnemyAttack, CriticalHit }
