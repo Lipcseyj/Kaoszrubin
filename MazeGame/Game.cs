@@ -30,6 +30,7 @@ public sealed class Game
     private readonly BattleSystem _battleSystem;
     private readonly GameSaveService _gameSaveService;
     private readonly GameSaveData? _loadedState;
+    private readonly SoundEffects _soundEffects;
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
@@ -61,6 +62,7 @@ public sealed class Game
         _gameSaveService = gameSaveService;
         _loadedState = loadedState;
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
+        _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
     }
@@ -373,6 +375,7 @@ public sealed class Game
                     if (key == ConsoleKey.Enter && _player.Position == _maze.Exit)
                     {
                         var completedLevel = _mazeLevel;
+                        _soundEffects.Play(SoundEffect.LevelComplete);
                         RunInn(completedLevel);
                         _mazeLevel++;
                         StartNewMaze();
@@ -427,6 +430,7 @@ public sealed class Game
         _gameOver = false;
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _soundEffects.Play(SoundEffect.LevelStart);
         LogMazeAccessibilityCheck();
     }
 
@@ -717,6 +721,7 @@ public sealed class Game
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.DrawDeveloperMessage("A parti kipihente magát. " + string.Join("; ", summaries));
+        _soundEffects.Play(SoundEffect.Rest);
     }
 
     private void PreparePartySpells()
@@ -757,6 +762,7 @@ public sealed class Game
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, _player.Position);
         var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit;
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
+        _soundEffects.Play(SoundEffect.Step);
         var chest = _maze.GetTreasureChestAt(_player.Position);
         if (chest is not null)
         {
@@ -771,6 +777,7 @@ public sealed class Game
             _maze.RemoveTreasureChest(chest);
             _renderer.RefreshCharacterSheet(SelectedCharacter);
             _renderer.DrawTreasureCollected(goldAmount, jackpot, jackpotChance, rewardMultiplier);
+            _soundEffects.Play(SoundEffect.Chest);
             if (masterThiefLoot is not null)
             {
                 if (TryStoreLootInParty(masterThiefLoot, out var owner))
@@ -1421,6 +1428,7 @@ public sealed class Game
     {
         if (_battleStarted || !member.Character.IsAlive || !_maze.Enemies.Contains(enemy)) return;
         _battleStarted = true;
+        _soundEffects.Play(SoundEffect.BattleStart);
         var startingNpcHp = member.Character.CurrentVitality;
         var startingEnemyHp = enemy.CurrentHitPoints;
         var startingStatusIds = member.Character.Statuses.Select(status => status.Id)
@@ -1436,6 +1444,7 @@ public sealed class Game
         var levelUps = new List<ExperienceAward>();
         if (result.PlayerWon)
         {
+            _soundEffects.Play(SoundEffect.Victory);
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
             levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive));
             var experienceResult = experienceAwards.First(award => award.Character == member.Character).Result;
@@ -1452,6 +1461,7 @@ public sealed class Game
         }
         else
         {
+            _soundEffects.Play(SoundEffect.Defeat);
             _maze.ReplacePartyMemberWithCorpse(member);
             _nextPartyMoves.Remove(member);
             _renderer.DrawNpcBattleSummary(
@@ -1729,6 +1739,7 @@ public sealed class Game
         }
 
         if (IsOffensiveSpell(spell)) caster.BreakSanctuary();
+        _soundEffects.Play(IsOffensiveSpell(spell) ? SoundEffect.OffensiveSpell : SoundEffect.DefensiveSpell);
         var targetText = DescribeSpellTarget(caster, spell, target.Value, currentEnemy);
         var execution = ExecuteSpell(caster, casterPosition, spell, target.Value, inCombat, currentEnemy, divineJudgment);
         var judgmentText = divineJudgment ? " ⚡ Isteni ítélet: kétszeres számszerű hatás és ingyenes varázslat." : string.Empty;
@@ -2399,10 +2410,12 @@ public sealed class Game
         _timeStopUsedThisBattle = false;
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
         _battleStarted = true;
+        _soundEffects.Play(SoundEffect.BattleStart);
         _renderer.DrawBattleStarted(enemy);
         var result = _battleSystem.Resolve(SelectedCharacter, enemy, entry =>
         {
             _renderer.DrawBattleRound(entry);
+            PlayBattleRoundSound(entry);
             _renderer.RefreshBattleStatusRows();
             WaitForBattleContinue(enemy);
         }, () => ChooseBattlePlayerAction(enemy), () => TryPartyMembersActInLeaderBattle(enemy));
@@ -2411,6 +2424,7 @@ public sealed class Game
 
         if (result.PlayerWon)
         {
+            _soundEffects.Play(SoundEffect.Victory);
             var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
@@ -2440,6 +2454,7 @@ public sealed class Game
         }
 
         _renderer.DrawBattleResult(result, enemy);
+        _soundEffects.Play(SoundEffect.Defeat);
         _saveAfterBattle = false;
         _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
         _renderer.DrawGameOver(SelectedCharacter.Name);
@@ -2579,11 +2594,23 @@ public sealed class Game
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawDoorMessage(message, color);
+        _soundEffects.Play(message.Contains("Bezártad", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("bezártad", StringComparison.OrdinalIgnoreCase)
+            ? SoundEffect.DoorClose
+            : SoundEffect.DoorOpen);
     }
 
     private static int LockpickChance(int dexterity) => dexterity <= 10
         ? Math.Clamp(dexterity * 10 - 10, 0, 90)
         : Math.Clamp(90 + (dexterity - 10) * 10 / 3, 90, 100);
+
+    private void PlayBattleRoundSound(BattleLogEntry entry)
+    {
+        if (entry.Kind is not (BattleLogKind.PlayerAttack or BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)) return;
+        _soundEffects.Play(entry.Message.Contains("NEM TALÁL", StringComparison.OrdinalIgnoreCase)
+            ? SoundEffect.Miss
+            : SoundEffect.Hit);
+    }
 
     private static bool TryGetDirection(ConsoleKey key, out Direction direction)
     {
@@ -2926,6 +2953,7 @@ public sealed class Game
         }
         _hasRestedAtInn = true;
         _renderer.DrawInnRestScreen(summaries);
+        _soundEffects.Play(SoundEffect.Rest);
         PreparePartySpells();
     }
 

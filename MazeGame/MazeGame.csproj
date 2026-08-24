@@ -9,6 +9,6 @@
 
   <ItemGroup>
     <None Update="adatok.csv" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Sounds\**\*.mp3" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
-
 </Project>
