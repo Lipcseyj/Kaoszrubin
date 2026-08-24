@@ -47,6 +47,7 @@ public sealed class Game
     private int _mazeLevel = 1;
     private bool _hasRestedThisLevel;
     private bool _hasRestedAtInn;
+    private int _secretStashAccessCost;
     private bool _developerPhasing;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
@@ -2840,6 +2841,7 @@ public sealed class Game
     private void RunInn(int completedLevel)
     {
         _hasRestedAtInn = false;
+        _secretStashAccessCost = _random.Next(50, 101) + completedLevel * 50;
         var completion = CompleteLevelAtInn(completedLevel);
         _renderer.DrawLevelCompletionScreen(completedLevel, _gameData.BaseLevelCompletionExperience,
             completion.Results, completion.FallenCharacters);
@@ -2850,7 +2852,7 @@ public sealed class Game
         {
             (InnMenuOption.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára."),
             (InnMenuOption.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása."),
-            (InnMenuOption.SecretStash, "🗝️ Titkos raktár", "Aranyért cserébe a kereskedő megmutatja fejlettebb, drágább különleges készletét."),
+            (InnMenuOption.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} 💰)", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött."),
             (InnMenuOption.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása."),
             (InnMenuOption.Rumors, "👂 Pletykák", "Hírek a következő pályáról és a környékbeli szörnyekről."),
             (InnMenuOption.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.")
@@ -2956,16 +2958,16 @@ public sealed class Game
 
     private void RunInnSecretStash(int completedLevel)
     {
-        var cost = _random.Next(50, 101) + completedLevel * 50;
-        if (SelectedCharacter.Gold < cost)
+        if (SelectedCharacter.Gold < _secretStashAccessCost)
         {
-            _renderer.DrawDeveloperMessage($"🗝️ A kereskedő titkos készletéhez {cost} arany kell; még {cost - SelectedCharacter.Gold} hiányzik.");
+            _renderer.DrawDeveloperMessage($"🗝️ A kereskedő titkos készletéhez {_secretStashAccessCost} arany kell; még {_secretStashAccessCost - SelectedCharacter.Gold} hiányzik.");
             return;
         }
-        SelectedCharacter.SpendGold(cost);
+        if (!_renderer.ConfirmInnSecretStashAccess(_secretStashAccessCost)) return;
+        SelectedCharacter.SpendGold(_secretStashAccessCost);
         var stock = CreateInnStock(completedLevel, completedLevel + SecretStashLevelAdvance, _random.Next(105, 121) / 100.0).ToList();
         var selectedIndex = 0;
-        var message = $"🗝️ {cost} aranyért a kereskedő megmutatta titkos, fejlettebb készletét.";
+        var message = $"🗝️ {_secretStashAccessCost} aranyért a kereskedő megmutatta titkos, fejlettebb készletét.";
         while (true)
         {
             var entryCount = stock.Count;
@@ -2992,24 +2994,35 @@ public sealed class Game
     private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel, int unlockLevel, double priceMultiplier)
     {
         var allItems = AllTradableItems().Where(item => item.Rarity != ItemRarity.Legendary).OrderBy(item => item.BasePrice).ToList();
-        var unlocked = allItems.Take(Math.Min(allItems.Count, 8 + unlockLevel * 8)).ToList();
-        var stockCount = Math.Min(unlocked.Count, Math.Min(12, 5 + completedLevel));
+        var normalUnlockedCount = Math.Min(allItems.Count, 8 + unlockLevel * 8);
+        var normalPool = allItems.Take(normalUnlockedCount).ToList();
+        var baseStockCount = Math.Min(normalPool.Count, Math.Min(12, 5 + completedLevel));
+        var stockCount = Math.Min(allItems.Count, Math.Min(18, (int)Math.Ceiling(baseStockCount * 1.5))) + 2;
+        var premiumUnlockedCount = Math.Min(allItems.Count, 40 + unlockLevel * 19);
+        var premiumPool = allItems.Skip(normalUnlockedCount).Take(premiumUnlockedCount - normalUnlockedCount).ToList();
+        var premiumStockCount = Math.Min(premiumPool.Count, Math.Max(1, stockCount / 3));
+        var normalStockCount = stockCount - premiumStockCount;
         var offers = new List<InnStockOffer>(stockCount);
-        while (offers.Count < stockCount && unlocked.Count > 0)
+        while (offers.Count < normalStockCount && normalPool.Count > 0)
         {
-            var totalWeight = unlocked.Select((_, index) => 1 + index * Math.Max(1, unlockLevel)).Sum();
-            var roll = _random.Next(totalWeight);
-            var chosenIndex = 0;
-            for (; chosenIndex < unlocked.Count - 1; chosenIndex++)
-            {
-                roll -= 1 + chosenIndex * Math.Max(1, unlockLevel);
-                if (roll < 0) break;
-            }
-            var item = unlocked[chosenIndex];
-            unlocked.RemoveAt(chosenIndex);
-            var percentage = _random.NextDouble() < 0.20 ? _random.Next(85, 101) : _random.Next(105, 151);
-            var price = Math.Max(1, (int)Math.Round(item.BasePrice * percentage / 100.0 * priceMultiplier));
-            offers.Add(new InnStockOffer(item, price));
+            var equipmentPool = completedLevel < 5 && offers.Count >= baseStockCount * 2 / 3
+                ? normalPool.Where(item => item.Category is ItemCategory.Weapon or ItemCategory.Armor && item.Rarity == ItemRarity.Normal).ToList()
+                : [];
+            var item = SelectWeightedStockItem(equipmentPool.Count > 0 ? equipmentPool : normalPool, unlockLevel);
+            normalPool.Remove(item);
+            offers.Add(CreateInnStockOffer(item, priceMultiplier));
+        }
+        while (offers.Count < stockCount && premiumPool.Count > 0)
+        {
+            var item = SelectWeightedStockItem(premiumPool, unlockLevel);
+            premiumPool.Remove(item);
+            offers.Add(CreateInnStockOffer(item, priceMultiplier));
+        }
+        while (offers.Count < stockCount && normalPool.Count > 0)
+        {
+            var item = SelectWeightedStockItem(normalPool, unlockLevel);
+            normalPool.Remove(item);
+            offers.Add(CreateInnStockOffer(item, priceMultiplier));
         }
         var legendaryChance = Math.Min(0.08, 0.01 + unlockLevel * 0.005);
         if (_random.NextDouble() < legendaryChance)
@@ -3018,13 +3031,32 @@ public sealed class Game
                 .OrderBy(item => item.BasePrice).Take(Math.Min(40, Math.Max(4, unlockLevel * 4))).ToList();
             if (legendaryPool.Count > 0)
             {
-                if (offers.Count >= 12) offers.RemoveAt(_random.Next(offers.Count));
+                if (offers.Count >= 18) offers.RemoveAt(_random.Next(offers.Count));
                 var legendary = legendaryPool[_random.Next(legendaryPool.Count)];
                 var price = (int)Math.Round(legendary.BasePrice * _random.Next(125, 181) / 100.0 * priceMultiplier);
                 offers.Add(new InnStockOffer(legendary, price));
             }
         }
         return offers.OrderBy(offer => offer.Price).ToList();
+    }
+
+    private IItemDefinition SelectWeightedStockItem(IReadOnlyList<IItemDefinition> candidates, int unlockLevel)
+    {
+        var totalWeight = candidates.Select((_, index) => 1 + index * Math.Max(1, unlockLevel)).Sum();
+        var roll = _random.Next(totalWeight);
+        for (var index = 0; index < candidates.Count - 1; index++)
+        {
+            roll -= 1 + index * Math.Max(1, unlockLevel);
+            if (roll < 0) return candidates[index];
+        }
+        return candidates[^1];
+    }
+
+    private InnStockOffer CreateInnStockOffer(IItemDefinition item, double priceMultiplier)
+    {
+        var percentage = _random.NextDouble() < 0.20 ? _random.Next(85, 101) : _random.Next(105, 151);
+        var price = Math.Max(1, (int)Math.Round(item.BasePrice * percentage / 100.0 * priceMultiplier));
+        return new InnStockOffer(item, price);
     }
 
     private IReadOnlyList<InnSellOffer> CreateSellOffers(IReadOnlyDictionary<string, int> buybackPrices) =>

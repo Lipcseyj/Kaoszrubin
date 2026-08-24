@@ -267,6 +267,28 @@ public sealed class ConsoleRenderer
         DrawCenteredFrame(90, lines);
     }
 
+    public bool ConfirmInnSecretStashAccess(int cost)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🗝️🛒  A KERESKEDŐ TITKOS RAKTÁRA  🛒🗝️", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ($"A kereskedő {cost} aranyért hajlandó megmutatni a pult mögötti készletét.", ConsoleColor.Cyan),
+            ("A belépődíj nem jár vissza. Megfizeted?", ConsoleColor.DarkYellow),
+            (string.Empty, ConsoleColor.Gray),
+            ("Enter: igen   Esc: mégsem", ConsoleColor.Green)
+        };
+        DrawCenteredFrame(90, lines);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Enter) return true;
+            if (key == ConsoleKey.Escape) return false;
+        }
+    }
+
     public void DrawInnRestScreen(IReadOnlyList<(LiveCharacter Character, int HealedAmount)> summaries)
     {
         ResetColorCache();
