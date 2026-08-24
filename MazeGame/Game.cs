@@ -124,6 +124,13 @@ public sealed class Game
         return null;
     }
 
+    // Let non-fighting party members support-cast (heal/cure) during the leader's own battle
+    private void TryPartyMembersCastSupportSpellsInLeaderBattle(Enemy enemy)
+    {
+        foreach (var member in _maze.PartyMembers.Where(member => member.Character.IsAlive))
+            ChooseNpcBattlePlayerAction(member, enemy);
+    }
+
     // NPC spellcasting for exploration - simple heals/cures/buffs
     private void TryNpcCastExplorationSpell(PartyMemberAvatar member)
     {
@@ -2343,6 +2350,7 @@ public sealed class Game
         {
             _renderer.DrawBattleRound(entry);
             _renderer.RefreshBattleStatusRows();
+            TryPartyMembersCastSupportSpellsInLeaderBattle(enemy);
             WaitForBattleContinue(enemy);
         }, () => ChooseBattlePlayerAction(enemy));
         var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);
