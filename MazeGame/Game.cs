@@ -128,36 +128,24 @@ public sealed class Game
             return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
         }
 
-        // Offensive spell against the enemy the leader is fighting
-        foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseInCombat))
+        // Offensive spell against the enemy the leader is fighting (single-target only, don't waste area/direction spells on one foe)
+        foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseInCombat && s.TargetType == SpellTargetType.Enemy))
         {
             var effects = _gameData.GetSpellEffects(spell.Id);
             if (!effects.Any(e => e.Type == SpellEffectType.Damage)) continue;
             var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
             if (caster.CurrentMana < manaCost) continue;
             if (caster.CurrentMana - manaCost < manaReserve) continue;
-            var target = FindOffensiveSpellTarget(member.Position, spell, enemy);
-            if (target is null) continue;
+            if (!IsValidSpellTarget(member.Position, spell, enemy.Position, enemy)) continue;
             var divine = caster.RecordDivineSpellCast(spell);
             caster.SpendMana(manaCost);
-            var execution = ExecuteSpell(caster, member.Position, spell, target.Value, inCombat: true, enemy, divine);
+            var execution = ExecuteSpell(caster, member.Position, spell, enemy.Position, inCombat: true, enemy, divine);
             var message = $"{caster.Name} elsüti: {spell.Name} → {enemy.Name}. -{manaCost} manna. {execution.Summary}";
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
             _renderer.RefreshBattleStatusRows();
             return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions);
         }
 
-        return null;
-    }
-
-    private Position? FindOffensiveSpellTarget(Position casterPosition, SpellDefinition spell, Enemy enemy)
-    {
-        if (spell.TargetType is SpellTargetType.Enemy or SpellTargetType.Area)
-            return IsValidSpellTarget(casterPosition, spell, enemy.Position, enemy) ? enemy.Position : null;
-        if (spell.TargetType != SpellTargetType.Direction) return null;
-        foreach (var candidate in GetValidSpellTargets(casterPosition, spell, enemy))
-            if (ResolveEnemySpellTargets(spell, candidate, enemy, casterPosition).Contains(enemy))
-                return candidate;
         return null;
     }
 
