@@ -2835,7 +2835,7 @@ public sealed class Game
         return new LevelCompletionOutcome(results, fallenCharacters);
     }
 
-    private enum InnMenuOption { Rest, Market, Recruit, Rumors, Leave }
+    private enum InnMenuOption { Rest, Market, SecretStash, Recruit, Rumors, Leave }
 
     private void RunInn(int completedLevel)
     {
@@ -2850,6 +2850,7 @@ public sealed class Game
         {
             (InnMenuOption.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára."),
             (InnMenuOption.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása."),
+            (InnMenuOption.SecretStash, "🗝️ Titkos raktár", "Aranyért cserébe a kereskedő megmutatja fejlettebb, drágább különleges készletét."),
             (InnMenuOption.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása."),
             (InnMenuOption.Rumors, "👂 Pletykák", "Hírek a következő pályáról és a környékbeli szörnyekről."),
             (InnMenuOption.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.")
@@ -2868,6 +2869,7 @@ public sealed class Game
             {
                 case InnMenuOption.Rest: RestPartyAtInn(); break;
                 case InnMenuOption.Market: RunInnMarket(completedLevel); break;
+                case InnMenuOption.SecretStash: RunInnSecretStash(completedLevel); break;
                 case InnMenuOption.Recruit: RunInnRecruitment(); break;
                 case InnMenuOption.Rumors: RunInnRumors(completedLevel); break;
                 case InnMenuOption.Leave: return;
@@ -2947,37 +2949,79 @@ public sealed class Game
         }
     }
 
-    private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel)
+    private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel) =>
+        CreateInnStock(completedLevel, completedLevel, 1.0);
+
+    private const int SecretStashLevelAdvance = 4;
+
+    private void RunInnSecretStash(int completedLevel)
+    {
+        var cost = _random.Next(50, 101) + completedLevel * 50;
+        if (SelectedCharacter.Gold < cost)
+        {
+            _renderer.DrawDeveloperMessage($"🗝️ A kereskedő titkos készletéhez {cost} arany kell; még {cost - SelectedCharacter.Gold} hiányzik.");
+            return;
+        }
+        SelectedCharacter.SpendGold(cost);
+        var stock = CreateInnStock(completedLevel, completedLevel + SecretStashLevelAdvance, _random.Next(105, 121) / 100.0).ToList();
+        var selectedIndex = 0;
+        var message = $"🗝️ {cost} aranyért a kereskedő megmutatta titkos, fejlettebb készletét.";
+        while (true)
+        {
+            var entryCount = stock.Count;
+            selectedIndex = entryCount == 0 ? 0 : Math.Clamp(selectedIndex, 0, entryCount - 1);
+            _renderer.DrawInnSecretStashScreen(SelectedCharacter, stock, selectedIndex,
+                CharacterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
+
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Escape) return;
+            if (key == ConsoleKey.UpArrow && entryCount > 0) { selectedIndex = (selectedIndex - 1 + entryCount) % entryCount; continue; }
+            if (key == ConsoleKey.DownArrow && entryCount > 0) { selectedIndex = (selectedIndex + 1) % entryCount; continue; }
+            if (key != ConsoleKey.Enter || entryCount == 0) continue;
+
+            var offer = stock[selectedIndex];
+            var recipient = CharacterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
+            if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
+            if (!SelectedCharacter.SpendGold(offer.Price)) { message = $"💰 Nincs elég aranyad: még {offer.Price - SelectedCharacter.Gold} hiányzik."; continue; }
+            recipient.AddToBackpack(offer.Item);
+            stock.RemoveAt(selectedIndex);
+            message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
+        }
+    }
+
+    private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel, int unlockLevel, double priceMultiplier)
     {
         var allItems = AllTradableItems().Where(item => item.Rarity != ItemRarity.Legendary).OrderBy(item => item.BasePrice).ToList();
-        var unlocked = allItems.Take(Math.Min(allItems.Count, 8 + completedLevel * 8)).ToList();
+        var unlocked = allItems.Take(Math.Min(allItems.Count, 8 + unlockLevel * 8)).ToList();
         var stockCount = Math.Min(unlocked.Count, Math.Min(12, 5 + completedLevel));
         var offers = new List<InnStockOffer>(stockCount);
         while (offers.Count < stockCount && unlocked.Count > 0)
         {
-            var totalWeight = unlocked.Select((_, index) => 1 + index * Math.Max(1, completedLevel)).Sum();
+            var totalWeight = unlocked.Select((_, index) => 1 + index * Math.Max(1, unlockLevel)).Sum();
             var roll = _random.Next(totalWeight);
             var chosenIndex = 0;
             for (; chosenIndex < unlocked.Count - 1; chosenIndex++)
             {
-                roll -= 1 + chosenIndex * Math.Max(1, completedLevel);
+                roll -= 1 + chosenIndex * Math.Max(1, unlockLevel);
                 if (roll < 0) break;
             }
             var item = unlocked[chosenIndex];
             unlocked.RemoveAt(chosenIndex);
             var percentage = _random.NextDouble() < 0.20 ? _random.Next(85, 101) : _random.Next(105, 151);
-            offers.Add(new InnStockOffer(item, Math.Max(1, item.BasePrice * percentage / 100)));
+            var price = Math.Max(1, (int)Math.Round(item.BasePrice * percentage / 100.0 * priceMultiplier));
+            offers.Add(new InnStockOffer(item, price));
         }
-        var legendaryChance = Math.Min(0.08, 0.01 + completedLevel * 0.005);
+        var legendaryChance = Math.Min(0.08, 0.01 + unlockLevel * 0.005);
         if (_random.NextDouble() < legendaryChance)
         {
             var legendaryPool = AllTradableItems().Where(item => item.Rarity == ItemRarity.Legendary)
-                .OrderBy(item => item.BasePrice).Take(Math.Min(40, Math.Max(4, completedLevel * 4))).ToList();
+                .OrderBy(item => item.BasePrice).Take(Math.Min(40, Math.Max(4, unlockLevel * 4))).ToList();
             if (legendaryPool.Count > 0)
             {
                 if (offers.Count >= 12) offers.RemoveAt(_random.Next(offers.Count));
                 var legendary = legendaryPool[_random.Next(legendaryPool.Count)];
-                offers.Add(new InnStockOffer(legendary, legendary.BasePrice * _random.Next(125, 181) / 100));
+                var price = (int)Math.Round(legendary.BasePrice * _random.Next(125, 181) / 100.0 * priceMultiplier);
+                offers.Add(new InnStockOffer(legendary, price));
             }
         }
         return offers.OrderBy(offer => offer.Price).ToList();

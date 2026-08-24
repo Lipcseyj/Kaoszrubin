@@ -355,6 +355,39 @@ public sealed class ConsoleRenderer
         DrawCenteredFrame(100, lines);
     }
 
+    public void DrawInnSecretStashScreen(LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
+        int selectedIndex, int freeBackpackSlots, string message)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var entryCount = stock.Count;
+        const int pageSize = 12;
+        var pageStart = entryCount == 0 ? 0 : Math.Clamp(selectedIndex - pageSize / 2, 0, Math.Max(0, entryCount - pageSize));
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🗝️🛒  A KERESKEDŐ TITKOS RAKTÁRA  🛒🗝️", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ("Fejlettebb, ritkább árucikkek — csak a beavatottaknak, borsos áron.", ConsoleColor.DarkYellow),
+            ($"💰 {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
+            ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
+        };
+        for (var row = 0; row < pageSize; row++)
+        {
+            var index = pageStart + row;
+            if (index >= entryCount) { lines.Add((string.Empty, ConsoleColor.Gray)); continue; }
+            var selected = index == selectedIndex;
+            var offer = stock[index];
+            lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} 💰",
+                selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
+        }
+        var selectedItem = entryCount == 0 ? null : stock[selectedIndex].Item;
+        lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
+        lines.Add((selectedItem is null ? "Nincs több megvásárolható portéka." : ClipMarketText($"ℹ️ {selectedItem.Description}", 94), ConsoleColor.DarkCyan));
+        lines.Add((ClipMarketText(message, 94), ConsoleColor.Magenta));
+        lines.Add(("↑/↓ választás   Enter vásárlás   Esc vissza a fogadóba", ConsoleColor.White));
+        DrawCenteredFrame(100, lines);
+    }
+
     public void DrawInnRecruitmentScreen(IReadOnlyList<LiveCharacter> candidates,
         IReadOnlyDictionary<LiveCharacter, int> prices, int selectedIndex,
         IReadOnlyList<LiveCharacter> party, int leaderGold, string message)
