@@ -46,6 +46,7 @@ public sealed class Game
     private Direction _leaderFacing = Direction.Right;
     private int _mazeLevel = 1;
     private bool _hasRestedThisLevel;
+    private bool _hasRestedAtInn;
     private bool _developerPhasing;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
@@ -2831,11 +2832,6 @@ public sealed class Game
         var results = CharacterRoster.Party.Members
             .Select(character => new LevelCompletionResult(character, AwardExperience(character, reward).Result))
             .ToList();
-        foreach (var character in CharacterRoster.Party.Members)
-        {
-            character.SetCurrentResources(character.MaximumVitality, character.MaximumMana);
-            character.ClearTemporarySpellEffects();
-        }
         return new LevelCompletionOutcome(results, fallenCharacters);
     }
 
@@ -2843,6 +2839,7 @@ public sealed class Game
 
     private void RunInn(int completedLevel)
     {
+        _hasRestedAtInn = false;
         var completion = CompleteLevelAtInn(completedLevel);
         _renderer.DrawLevelCompletionScreen(completedLevel, _gameData.BaseLevelCompletionExperience,
             completion.Results, completion.FallenCharacters);
@@ -2851,7 +2848,7 @@ public sealed class Game
 
         var options = new (InnMenuOption Option, string Label, string Description)[]
         {
-            (InnMenuOption.Rest, "🛏️ Pihenés", "Varázslatok memorizálása minden partitag számára (a HP/manna már feltöltve érkezéskor)."),
+            (InnMenuOption.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára."),
             (InnMenuOption.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása."),
             (InnMenuOption.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása."),
             (InnMenuOption.Rumors, "👂 Pletykák", "Hírek a következő pályáról és a környékbeli szörnyekről."),
@@ -2869,13 +2866,34 @@ public sealed class Game
 
             switch (options[selectedIndex].Option)
             {
-                case InnMenuOption.Rest: PreparePartySpells(); break;
+                case InnMenuOption.Rest: RestPartyAtInn(); break;
                 case InnMenuOption.Market: RunInnMarket(completedLevel); break;
                 case InnMenuOption.Recruit: RunInnRecruitment(); break;
                 case InnMenuOption.Rumors: RunInnRumors(completedLevel); break;
                 case InnMenuOption.Leave: return;
             }
         }
+    }
+
+    private void RestPartyAtInn()
+    {
+        if (_hasRestedAtInn)
+        {
+            _renderer.DrawInnRestUnavailableScreen();
+            return;
+        }
+        var summaries = new List<(LiveCharacter Character, int HealedAmount)>();
+        foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive))
+        {
+            var before = character.CurrentVitality;
+            character.RestoreVitality(_random.Next(1, 11));
+            character.SetCurrentResources(character.CurrentVitality, character.MaximumMana);
+            character.ClearTemporarySpellEffects();
+            summaries.Add((character, character.CurrentVitality - before));
+        }
+        _hasRestedAtInn = true;
+        _renderer.DrawInnRestScreen(summaries);
+        PreparePartySpells();
     }
 
     private void RunInnMarket(int completedLevel)

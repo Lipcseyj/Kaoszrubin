@@ -235,8 +235,7 @@ public sealed class ConsoleRenderer
         }
         lines.AddRange([
             (string.Empty, ConsoleColor.Gray),
-            ("💤 A túlélők kipihenték sérüléseiket: minden HP és manna feltöltve.", ConsoleColor.Green),
-            ("🛒 A fogadó kereskedői már várnak a portékáikkal...", ConsoleColor.Magenta),
+            (" A fogadó kereskedői már várnak a portékáikkal...", ConsoleColor.Magenta),
             (string.Empty, ConsoleColor.Gray),
             ("Nyomj Entert vagy Space-t a fogadó megnyitásához! ➡️", ConsoleColor.Yellow)
         ]);
@@ -266,6 +265,47 @@ public sealed class ConsoleRenderer
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("↑/↓ választás   Enter belépés", ConsoleColor.Green));
         DrawCenteredFrame(90, lines);
+    }
+
+    public void DrawInnRestScreen(IReadOnlyList<(LiveCharacter Character, int HealedAmount)> summaries)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🛏️💤  A PARTI PIHEN A FOGADÓBAN  💤🛏️", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ("A parti kényelmes ágyakba dől, és nagyjából 8 órát alszik.", ConsoleColor.Cyan),
+            ("🕯️🛌 ...zzz...🛌 🌙 🛌...zzz... 🛌🕯️", ConsoleColor.DarkCyan),
+            (string.Empty, ConsoleColor.Gray),
+            ("💤 Regenerálódás ébredéskor:", ConsoleColor.Green)
+        };
+        foreach (var (character, healedAmount) in summaries)
+        {
+            var manaText = character.UsesMana ? $"   🔷 manna: {character.CurrentMana}/{character.MaximumMana} (teljesen feltöltve)" : string.Empty;
+            lines.Add(($"❤️ {character.Name,-13} +{healedAmount} HP ({character.CurrentVitality}/{character.MaximumVitality}){manaText}", character.Color));
+        }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("Nyomj Entert a folytatáshoz...", ConsoleColor.Yellow));
+        DrawCenteredFrame(100, lines);
+        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
+    }
+
+    public void DrawInnRestUnavailableScreen()
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🛏️  PIHENÉS  🛏️", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ("A parti már kipihente magát ebben a fogadóban.", ConsoleColor.Red),
+            ("A küldetés sürgető — nincs idő újra ledőlni, tovább kell indulni!", ConsoleColor.DarkYellow),
+            (string.Empty, ConsoleColor.Gray),
+            ("Nyomj Entert a folytatáshoz...", ConsoleColor.Yellow)
+        };
+        DrawCenteredFrame(90, lines);
+        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
     public void DrawInnMarketScreen(LiveCharacter leader, InnMarketMode mode,
