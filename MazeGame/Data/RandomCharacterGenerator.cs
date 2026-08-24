@@ -135,7 +135,8 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
     {
         for (var index = 0; index < LiveCharacter.MaximumBackpackItemCount; index++)
             character.SetInventoryItem(InventorySlotKind.Backpack, index, null);
-        var supplies = _gameData.Items.Where(item => item.Effect != ConsumableEffect.None &&
+        var preferredPotion = character.UsesMana ? ConsumableEffect.RestoreMana : ConsumableEffect.Heal;
+        var supplies = _gameData.Items.Where(item => item.Effect == preferredPotion &&
             !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item)).ToList();
         var itemCount = _random.Next(1, 4);
         for (var index = 0; index < itemCount && supplies.Count > 0; index++)
