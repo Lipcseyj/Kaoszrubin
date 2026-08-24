@@ -762,7 +762,11 @@ public sealed class Game
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, _player.Position);
         var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit;
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
-        _soundEffects.Play(SoundEffect.Step);
+        switch (_random.Next(5))
+        {
+            case 0: _soundEffects.Play(SoundEffect.Step1); break;
+            case 1: _soundEffects.Play(SoundEffect.Step2); break;
+        }
         var chest = _maze.GetTreasureChestAt(_player.Position);
         if (chest is not null)
         {

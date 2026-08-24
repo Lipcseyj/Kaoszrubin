@@ -6,7 +6,11 @@ namespace MazeGame;
 
 public enum SoundEffect
 {
-    Step,
+    Step1,
+    Step2,
+    Step3,
+    Step4,
+    Step5,
     BattleStart,
     Hit,
     Miss,
@@ -27,7 +31,11 @@ public sealed class SoundEffects
     private static readonly IReadOnlyDictionary<SoundEffect, (int Frequency, int Duration)> ToneSettings =
         new Dictionary<SoundEffect, (int, int)>
         {
-            [SoundEffect.Step] = (180, 55),
+            [SoundEffect.Step1] = (180, 55),
+            [SoundEffect.Step2] = (200, 55),
+            [SoundEffect.Step3] = (220, 55),
+            [SoundEffect.Step4] = (240, 55),
+            [SoundEffect.Step5] = (260, 55),
             [SoundEffect.BattleStart] = (330, 220),
             [SoundEffect.Hit] = (700, 70),
             [SoundEffect.Miss] = (250, 70),
@@ -55,7 +63,7 @@ public sealed class SoundEffects
     public void Play(SoundEffect effect)
     {
         var now = DateTime.UtcNow;
-        var cooldown = effect == SoundEffect.Step ? TimeSpan.FromMilliseconds(150) : TimeSpan.FromMilliseconds(75);
+        var cooldown = effect.ToString().Contains("Step")  ? TimeSpan.FromMilliseconds(1500) : TimeSpan.FromMilliseconds(75);
         lock (_sync)
         {
             if (_lastPlayed.TryGetValue(effect, out var lastPlayed) && now - lastPlayed < cooldown) return;
@@ -73,7 +81,6 @@ public sealed class SoundEffects
             var name = ToFileName(effect);
             var mp3Path = Path.Combine(_soundsDirectory, name + ".mp3");
             var wavPath = Path.Combine(_soundsDirectory, name + ".wav");
-            if (!File.Exists(mp3Path) && !File.Exists(wavPath)) GenerateFallbackWav(wavPath, ToneSettings[effect]);
             if (File.Exists(mp3Path)) PlayMp3OnStaThread(mp3Path, ToneSettings[effect].Duration);
             else if (!PlaySound(wavPath, IntPtr.Zero, SoundAsync | SoundFilename))
                 _reportFailure?.Invoke($"Hangeffekt nem indítható: {wavPath}");
@@ -87,33 +94,31 @@ public sealed class SoundEffects
     [SupportedOSPlatform("windows")]
     private void PlayMp3OnStaThread(string path, int fallbackDuration)
     {
-        var thread = new Thread(() =>
+        // Use mciSendString to play MP3s instead of automating Windows Media Player via COM.
+        // Using the COM-based Windows Media Player control caused RCW lifetime issues
+        // when the player was accessed from managed threads. mciSendString avoids COM
+        // RCW lifetime management and is sufficient for short sound effects.
+        _ = Task.Run(() =>
         {
-            object? player = null;
             try
             {
-                var playerType = Type.GetTypeFromProgID("WMPlayer.OCX")
-                    ?? throw new InvalidOperationException("A Windows Media Player nem érhető el.");
-                player = Activator.CreateInstance(playerType)
-                    ?? throw new InvalidOperationException("A Windows Media Player nem indítható.");
-                dynamic mediaPlayer = player;
-                mediaPlayer.URL = new Uri(path).AbsoluteUri;
-                mediaPlayer.controls.play();
+                var alias = "snd" + Guid.NewGuid().ToString("N");
+                var openCmd = $"open \"{path}\" type mpegvideo alias {alias}";
+                mciSendString(openCmd, null, 0, IntPtr.Zero);
+                mciSendString($"play {alias}", null, 0, IntPtr.Zero);
                 Thread.Sleep(Math.Max(1_000, fallbackDuration * 4));
-                mediaPlayer.controls.stop();
+                mciSendString($"stop {alias}", null, 0, IntPtr.Zero);
+                mciSendString($"close {alias}", null, 0, IntPtr.Zero);
             }
             catch (Exception exception)
             {
                 _reportFailure?.Invoke($"MP3 lejátszási hiba: {exception.Message}");
             }
-            finally
-            {
-                if (player is not null && Marshal.IsComObject(player)) Marshal.ReleaseComObject(player);
-            }
-        }) { IsBackground = true };
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
+        });
     }
+
+    [DllImport("winmm.dll", CharSet = CharSet.Auto)]
+    private static extern int mciSendString(string command, StringBuilder returnValue, int returnLength, IntPtr winHandle);
 
     private static void GenerateFallbackWav(string path, (int Frequency, int Duration) settings)
     {
