@@ -71,11 +71,11 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
 
     private NpcBehavior BehaviorFor(string characterClassId) => characterClassId.ToUpperInvariant() switch
     {
-        "C001" => _random.Next(2) == 0 ? NpcBehavior.Defensive : NpcBehavior.Aggressive,
-        "C002" => NpcBehavior.Aggressive,
-        "C003" => NpcBehavior.Defensive,
-        "C004" => NpcBehavior.Scout,
-        "C005" or "C006" => NpcBehavior.Cautious,
+        CharacterClassIds.Harcos => _random.Next(2) == 0 ? NpcBehavior.Defensive : NpcBehavior.Aggressive,
+        CharacterClassIds.Barbár => NpcBehavior.Aggressive,
+        CharacterClassIds.Lovag => NpcBehavior.Defensive,
+        CharacterClassIds.Tolvaj => NpcBehavior.Scout,
+        CharacterClassIds.Pap or CharacterClassIds.Mágus => NpcBehavior.Cautious,
         _ => NpcBehavior.Defensive
     };
 

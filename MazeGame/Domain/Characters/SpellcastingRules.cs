@@ -17,16 +17,16 @@ public static class SpellcastingRules
     {
         switch (characterClassId.ToUpperInvariant())
         {
-            case "C005": school = SpellSchool.Divine; return true;
-            case "C006": school = SpellSchool.Arcane; return true;
+            case CharacterClassIds.Pap: school = SpellSchool.Divine; return true;
+            case CharacterClassIds.Mágus: school = SpellSchool.Arcane; return true;
             default: school = default; return false;
         }
     }
 
     public static string? RequiredFocusItemId(string characterClassId) => characterClassId.ToUpperInvariant() switch
     {
-        "C005" => PriestHolySymbolItemId,
-        "C006" => MageSpellbookItemId,
+        CharacterClassIds.Pap => PriestHolySymbolItemId,
+        CharacterClassIds.Mágus => MageSpellbookItemId,
         _ => null
     };
 

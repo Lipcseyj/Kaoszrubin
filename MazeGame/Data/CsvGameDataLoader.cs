@@ -155,14 +155,14 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.Weapons:
                 weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), ValueRangeFrom(cells, 3),
-                    IsYes(cells, 4), AllowedClasses(cells, ("C001", null), ("C002", null), ("C003", null),
-                        ("C004", 5), ("C005", 6), ("C006", 7)), Cell(cells, 8), RequiredPrice(cells, 9, id),
+                    IsYes(cells, 4), AllowedClasses(cells, (CharacterClassIds.Harcos, null), (CharacterClassIds.Barbár, null), (CharacterClassIds.Lovag, null),
+                        (CharacterClassIds.Tolvaj, 5), (CharacterClassIds.Pap, 6), (CharacterClassIds.Mágus, 7)), Cell(cells, 8), RequiredPrice(cells, 9, id),
                     ParseRarity(cells, 10), EmptyAsNull(Cell(cells, 11)), Integer(cells, 12) ?? 0));
                 break;
             case DataSection.Armors:
                 armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),
-                    AllowedClasses(cells, ("C001", null), ("C003", null), ("C002", 3),
-                        ("C004", 4), ("C005", 5), ("C006", 6)), Cell(cells, 7), RequiredPrice(cells, 8, id),
+                    AllowedClasses(cells, (CharacterClassIds.Harcos, null), (CharacterClassIds.Lovag, null), (CharacterClassIds.Barbár, 3),
+                        (CharacterClassIds.Tolvaj, 4), (CharacterClassIds.Pap, 5), (CharacterClassIds.Mágus, 6)), Cell(cells, 7), RequiredPrice(cells, 8, id),
                     ParseRarity(cells, 9), EmptyAsNull(Cell(cells, 10)), Integer(cells, 11) ?? 0));
                 break;
             case DataSection.Abilities:
@@ -329,8 +329,9 @@ public static class CsvGameDataLoader
 
     private static IReadOnlySet<string> MagicItemAllowedClasses(string[] cells, int mageOnlyIndex) =>
         IsYes(cells, mageOnlyIndex)
-            ? new HashSet<string>(["C006"], StringComparer.OrdinalIgnoreCase)
-            : new HashSet<string>(["C001", "C002", "C003", "C004", "C005", "C006"], StringComparer.OrdinalIgnoreCase);
+            ? new HashSet<string>([CharacterClassIds.Mágus], StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>([CharacterClassIds.Harcos, CharacterClassIds.Barbár, CharacterClassIds.Lovag,
+                CharacterClassIds.Tolvaj, CharacterClassIds.Pap, CharacterClassIds.Mágus], StringComparer.OrdinalIgnoreCase);
 
     private static void ValidateMagicItems(IEnumerable<MagicItemDefinition> magicItems, IReadOnlyCollection<SpellDefinition> spells)
     {
@@ -342,7 +343,7 @@ public static class CsvGameDataLoader
             if (item.Kind == MagicItemKind.Wand && (item.SpellId is null || item.MaximumCharges <= 1 || spellsById[item.SpellId].School != SpellSchool.Arcane))
                 throw new InvalidOperationException($"A(z) '{item.Id}' varázspálcának több töltetű mágusvarázslatot kell tartalmaznia.");
             if (item.Kind == MagicItemKind.Scroll && (item.SpellId is null || item.MaximumCharges != 1 ||
-                item.AllowedClassIds.Count != 1 || !item.AllowedClassIds.Contains("C006")))
+                item.AllowedClassIds.Count != 1 || !item.AllowedClassIds.Contains(CharacterClassIds.Mágus)))
                 throw new InvalidOperationException($"A(z) '{item.Id}' varázstekercsnek egy töltetűnek és csak mágus által használhatónak kell lennie.");
             if (item.Kind is MagicItemKind.Ring or MagicItemKind.Amulet &&
                 (item.SpellId is not null || item.MaximumCharges != 0 || item.Effect == MagicItemEffect.None))

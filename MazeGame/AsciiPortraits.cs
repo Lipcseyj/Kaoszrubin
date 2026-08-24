@@ -1,4 +1,5 @@
 using MazeGame.Domain.Combat;
+using MazeGame.Domain.Characters;
 
 namespace MazeGame;
 
@@ -10,38 +11,38 @@ public static class AsciiPortraits
     private static readonly IReadOnlyDictionary<string, AsciiPortrait> CharacterClasses =
         new Dictionary<string, AsciiPortrait>(StringComparer.OrdinalIgnoreCase)
         {
-            ["C001"] = Portrait(
+            [CharacterClassIds.Harcos] = Portrait(
                 "     └__┘",
                 "     (••)  │",
                 "    /|==|--╪",
                 "     /  \\",
                 "    /____\\"),
-            ["C002"] = Portrait(
+            [CharacterClassIds.Barbár] = Portrait(
                 "    ╭━━╮  Đ",
                 "    (òó) / ",
                 "   /|##|/▲ ",
                 "    |  |",
                 "   /_/\\_\\"),
             // C003 - Lovag
-            ["C003"] = Portrait(
+            [CharacterClassIds.Lovag] = Portrait(
 "     /▲\\     ║",
 "    [• •]    ║",
 "  ╔═|███|═╗  ║",
 "  ║ |███|═╬══╣",
 "  ╚═/___\\═╝"),
-            ["C004"] = Portrait(
+            [CharacterClassIds.Tolvaj] = Portrait(
                 "     ▒▒▒▒  │",
                 "    ▒(••)▒ ┼",
                 "    /|__|--╯",
                 "     /  \\",
                 "    /_  _\\"),
-            ["C005"] = Portrait(
+            [CharacterClassIds.Pap] = Portrait(
                 "      _†_",
                 "     (• •)  ☼",
                 "    /|___|--┤",
                 "     |   |",
                 "    /_____\\"),
-            ["C006"] = Portrait(
+            [CharacterClassIds.Mágus] = Portrait(
                 "      /\\   ✦",
                 "     /__\\ ( )",
                 "     (••)--╂",

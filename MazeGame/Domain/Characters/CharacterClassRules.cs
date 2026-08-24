@@ -5,11 +5,11 @@ public static class CharacterClassRules
 {
     private static readonly HashSet<string> NonManaClassIds = new(StringComparer.OrdinalIgnoreCase)
     {
-        "C001",
-        "C002",
-        "C004"
+        CharacterClassIds.Harcos,
+        CharacterClassIds.Barbár,
+        CharacterClassIds.Tolvaj
     };
 
     public static bool UsesMana(string characterClassId) => !NonManaClassIds.Contains(characterClassId);
-    public static bool IsThief(string characterClassId) => string.Equals(characterClassId, "C004", StringComparison.OrdinalIgnoreCase);
+    public static bool IsThief(string characterClassId) => string.Equals(characterClassId, CharacterClassIds.Tolvaj, StringComparison.OrdinalIgnoreCase);
 }
