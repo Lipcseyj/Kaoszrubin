@@ -511,7 +511,8 @@ public static class CsvGameDataLoader
         IReadOnlyCollection<WeaponDefinition> weapons, IReadOnlyCollection<ItemUpgradeDefinition> upgrades)
     {
         var result = weapons.ToList();
-        foreach (var weapon in weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal))
+        foreach (var weapon in weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal &&
+                     !string.Equals(weapon.Id, "W005", StringComparison.OrdinalIgnoreCase)))
         foreach (var upgrade in upgrades)
             result.Add(weapon with
             {

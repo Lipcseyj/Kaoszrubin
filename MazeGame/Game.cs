@@ -2952,7 +2952,7 @@ public sealed class Game
     }
 
     private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel) =>
-        CreateInnStock(completedLevel, completedLevel, 1.0);
+        CreateInnStock(completedLevel, completedLevel, 1.0, includePremiumStock: true, includeRandomLegendary: true);
 
     private const int SecretStashLevelAdvance = 4;
 
@@ -2965,7 +2965,10 @@ public sealed class Game
         }
         if (!_renderer.ConfirmInnSecretStashAccess(_secretStashAccessCost)) return;
         SelectedCharacter.SpendGold(_secretStashAccessCost);
-        var stock = CreateInnStock(completedLevel, completedLevel + SecretStashLevelAdvance, _random.Next(105, 121) / 100.0).ToList();
+        var secretLevel = completedLevel + SecretStashLevelAdvance;
+        var stock = CreateInnStock(completedLevel, secretLevel, _random.Next(105, 121) / 100.0,
+            includePremiumStock: false, includeRandomLegendary: false).ToList();
+        AddSecretStashSpecialOffer(stock, completedLevel, secretLevel);
         var selectedIndex = 0;
         var message = $"🗝️ {_secretStashAccessCost} aranyért a kereskedő megmutatta titkos, fejlettebb készletét.";
         while (true)
@@ -2991,7 +2994,8 @@ public sealed class Game
         }
     }
 
-    private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel, int unlockLevel, double priceMultiplier)
+    private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel, int unlockLevel, double priceMultiplier,
+        bool includePremiumStock, bool includeRandomLegendary)
     {
         var allItems = AllTradableItems().Where(item => item.Rarity != ItemRarity.Legendary).OrderBy(item => item.BasePrice).ToList();
         var normalUnlockedCount = Math.Min(allItems.Count, 8 + unlockLevel * 8);
@@ -3000,7 +3004,9 @@ public sealed class Game
         var stockCount = Math.Min(allItems.Count, Math.Min(18, (int)Math.Ceiling(baseStockCount * 1.5))) + 2;
         var premiumUnlockedCount = Math.Min(allItems.Count, 40 + unlockLevel * 19);
         var premiumPool = allItems.Skip(normalUnlockedCount).Take(premiumUnlockedCount - normalUnlockedCount).ToList();
-        var premiumStockCount = Math.Min(premiumPool.Count, Math.Max(1, stockCount / 3));
+        var premiumStockCount = includePremiumStock
+            ? Math.Min(premiumPool.Count, Math.Max(1, stockCount / 3))
+            : 0;
         var normalStockCount = stockCount - premiumStockCount;
         var offers = new List<InnStockOffer>(stockCount);
         while (offers.Count < normalStockCount && normalPool.Count > 0)
@@ -3025,19 +3031,34 @@ public sealed class Game
             offers.Add(CreateInnStockOffer(item, priceMultiplier));
         }
         var legendaryChance = Math.Min(0.08, 0.01 + unlockLevel * 0.005);
-        if (_random.NextDouble() < legendaryChance)
+        if (includeRandomLegendary && _random.NextDouble() < legendaryChance)
         {
             var legendaryPool = AllTradableItems().Where(item => item.Rarity == ItemRarity.Legendary)
                 .OrderBy(item => item.BasePrice).Take(Math.Min(40, Math.Max(4, unlockLevel * 4))).ToList();
             if (legendaryPool.Count > 0)
             {
-                if (offers.Count >= 18) offers.RemoveAt(_random.Next(offers.Count));
+                if (offers.Count >= stockCount) offers.RemoveAt(_random.Next(offers.Count));
                 var legendary = legendaryPool[_random.Next(legendaryPool.Count)];
                 var price = (int)Math.Round(legendary.BasePrice * _random.Next(125, 181) / 100.0 * priceMultiplier);
                 offers.Add(new InnStockOffer(legendary, price));
             }
         }
         return offers.OrderBy(offer => offer.Price).ToList();
+    }
+
+    private void AddSecretStashSpecialOffer(ICollection<InnStockOffer> stock, int completedLevel, int secretLevel)
+    {
+        var specialPool = completedLevel <= 5
+            ? AllTradableItems().Where(item => item.Rarity == ItemRarity.Magic && item.MagicPower == 3 &&
+                    item.Category is ItemCategory.Weapon or ItemCategory.Armor)
+                .OrderBy(item => item.BasePrice).Take(12).ToList()
+            : AllTradableItems().Where(item => item.Rarity == ItemRarity.Legendary)
+                .OrderBy(item => item.BasePrice).Take(Math.Min(12, Math.Max(4, secretLevel * 2))).ToList();
+        if (specialPool.Count == 0) return;
+        if (stock.Count > 0) stock.Remove(stock.OrderBy(offer => offer.Price).First());
+        var special = specialPool[_random.Next(specialPool.Count)];
+        var price = Math.Max(1, special.BasePrice * _random.Next(85, 101) / 100);
+        stock.Add(new InnStockOffer(special, price));
     }
 
     private IItemDefinition SelectWeightedStockItem(IReadOnlyList<IItemDefinition> candidates, int unlockLevel)
@@ -3242,9 +3263,12 @@ public sealed class Game
         return new InnRumor($"Szörnypletyka: {enemy.Name}", lines, ConsoleColor.Cyan);
     }
 
+    private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002"];
+
     private IReadOnlyList<IItemDefinition> AllTradableItems() => _gameData.Items.Cast<IItemDefinition>()
         .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems)
-        .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item)).ToList();
+        .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item))
+        .Where(item => !MerchantExcludedItemIds.Contains(item.Id)).ToList();
 
     private ExperienceAward AwardExperience(LiveCharacter character, int amount) => new(character,
         character.AddExperience(amount, _gameData.ExperienceByLevel,
