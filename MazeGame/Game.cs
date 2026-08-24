@@ -609,6 +609,9 @@ public sealed class Game
                 : Math.Max(0, state.EnemyMoveRemainingMilliseconds);
             _nextEnemyMoves[enemy] = DateTime.UtcNow + TimeSpan.FromMilliseconds(remaining);
         }
+        foreach (var avatar in state.Maze.PartyAvatars)
+            if (avatar.CharacterIndex >= 0 && avatar.CharacterIndex < CharacterRoster.Characters.Count)
+                _maze.AddPartyMember(new PartyMemberAvatar(avatar.Position, CharacterRoster.Characters[avatar.CharacterIndex]));
         foreach (var corpse in state.Maze.Corpses)
         {
             var restored = corpse.PartyCharacterIndex is >= 0 and var characterIndex && characterIndex < CharacterRoster.Characters.Count
@@ -618,9 +621,6 @@ public sealed class Game
                     : new Corpse(corpse.Position, corpse.FormerName);
             _maze.AddCorpse(restored);
         }
-        foreach (var avatar in state.Maze.PartyAvatars)
-            if (avatar.CharacterIndex >= 0 && avatar.CharacterIndex < CharacterRoster.Characters.Count)
-                _maze.AddPartyMember(new PartyMemberAvatar(avatar.Position, CharacterRoster.Characters[avatar.CharacterIndex]));
         foreach (var pile in state.Maze.GroundPiles)
             foreach (var item in pile.Items) _maze.DropItem(pile.Position, ResolveSavedItem(item));
         _player = new Player(state.PlayerPosition, SelectedCharacter);

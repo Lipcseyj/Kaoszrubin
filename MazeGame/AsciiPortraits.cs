@@ -1,3 +1,5 @@
+using MazeGame.Domain.Combat;
+
 namespace MazeGame;
 
 /// <summary>A jobb alsó képpanel legfeljebb ötsoros, egycellás karakterekből álló portréi.</summary>
@@ -52,7 +54,7 @@ public static class AsciiPortraits
        new Dictionary<string, AsciiPortrait>(StringComparer.OrdinalIgnoreCase)
        {
            // E001 - Óriáspatkány
-           ["E001"] = Portrait(
+           [MonsterIds.Óriáspatkány] = Portrait(
                "     ___",
                "  __/o  \\_",
                " /  ___   \\___",
@@ -60,7 +62,7 @@ public static class AsciiPortraits
                "        /_/"),
 
            // E002 - Kobold
-           ["E002"] = Portrait(
+           [MonsterIds.Kobold] = Portrait(
                "   /\\     /\\",
                "  /  \\___/  \\",
                " <  o   o   >",
@@ -68,7 +70,7 @@ public static class AsciiPortraits
                "    /|_|\\ "),
 
            // E003 - Goblin
-           ["E003"] = Portrait(
+           [MonsterIds.Goblin] = Portrait(
                "  /\\       /\\",
                " <  \\_____/  >",
                "  \\ ò   ó  /",
@@ -76,7 +78,7 @@ public static class AsciiPortraits
                "    /|  |\\"),
 
            // E004 - Csontváz
-           ["E004"] = Portrait(
+           [MonsterIds.Csontváz] = Portrait(
     "    .----.",
     "   / ◉  ◉ \\",
     "  |  ▽▽▽▽  |",
@@ -84,7 +86,7 @@ public static class AsciiPortraits
     "   /|    |\\  †"),
 
            // E005 - Farkas
-           ["E005"] = Portrait(
+           [MonsterIds.Farkas] = Portrait(
                "  /\\       /\\",
                " /  \\_____/  \\",
                "|    •   •    |",
@@ -92,7 +94,7 @@ public static class AsciiPortraits
                "  \\__/   \\__/"),
 
            // E006 - Zombi
-           ["E006"] = Portrait(
+           [MonsterIds.Zombi] = Portrait(
                "     _____",
                "    /x   o\\",
                "   /__△____\\",
@@ -100,7 +102,7 @@ public static class AsciiPortraits
                "    /_\\ /_\\ "),
 
            // E007 - Ork
-           ["E007"] = Portrait(
+           [MonsterIds.Ork] = Portrait(
                "    ______",
                "   / ò  ó \\",
                "  |  _▲_  |",
@@ -108,7 +110,7 @@ public static class AsciiPortraits
                "  \\_|██|_/"),
 
            // E008 - Hobgoblin
-           ["E008"] = Portrait(
+           [MonsterIds.Hobgoblin] = Portrait(
                "    __/\\__",
                "   / (• •) \\",
                "  /__|██|__\\-->",
@@ -116,7 +118,7 @@ public static class AsciiPortraits
                "    /_/\\_\\ "),
 
            // E009 - Óriáspók
-           ["E009"] = Portrait(
+           [MonsterIds.Óriáspók] = Portrait(
                "\\  \\  /  /",
                " \\ _\\/\\_ /",
                "--(••••)--",
@@ -124,7 +126,7 @@ public static class AsciiPortraits
                "/_/ || \\_\\"),
 
            // E010 - Gnoll
-           ["E010"] = Portrait(
+           [MonsterIds.Gnoll] = Portrait(
                "   /\\____/\\",
                "  /  •  •  \\",
                " /   __▲__  \\",
@@ -132,7 +134,7 @@ public static class AsciiPortraits
                "    /|  |\\"),
 
            // E011 - Lidércfarkas
-           ["E011"] = Portrait(
+           [MonsterIds.Lidércfarkas] = Portrait(
     "  /\\       /\\",
     " /  \\_____/  \\",
     "|    ◉   ◉    |",
@@ -140,7 +142,7 @@ public static class AsciiPortraits
     "  ~~/   \\_~~"),
 
            // E012 - Ogre
-           ["E012"] = Portrait(
+           [MonsterIds.Ogre] = Portrait(
     "    _______",
     "   / o   o \\",
     "  |    ▲    |",
@@ -148,7 +150,7 @@ public static class AsciiPortraits
     " /|_/     \\_|\\"),
 
            // E013 - Troll
-           ["E013"] = Portrait(
+           [MonsterIds.Troll] = Portrait(
     "   __/\\____",
     "  /  o   o \\",
     " /    ___   \\",
@@ -156,7 +158,7 @@ public static class AsciiPortraits
     " \\_/|____|\\_/"),
 
            // E014 - Minotaurusz
-           ["E014"] = Portrait(
+           [MonsterIds.Minotaurusz] = Portrait(
     " \\__     __/",
     "    \\___/",
     "   / ò ó \\",
@@ -164,7 +166,7 @@ public static class AsciiPortraits
     "   \\_===_/"),
 
            // E015 - Múmia
-           ["E015"] = Portrait(
+           [MonsterIds.Múmia] = Portrait(
     "    .----.",
     "   /==o===\\",
     "  |===|====|",
@@ -172,7 +174,7 @@ public static class AsciiPortraits
     "   /_| |_\\"),
 
            // E016 - Medúza
-           ["E016"] = Portrait(
+           [MonsterIds.Medúza] = Portrait(
     " ~S~S~S~S~",
     "S / ò  ó \\ S",
     " S|   ▲  |S",
@@ -180,7 +182,7 @@ public static class AsciiPortraits
     "   \\_____/"),
 
            // E017 - Kiméra
-           ["E017"] = Portrait(
+           [MonsterIds.Kiméra] = Portrait(
     " /\\  /\\  /\\",
     "(o )(ò )( o)",
     " \\▲/\\▽/\\▲/",
@@ -188,7 +190,7 @@ public static class AsciiPortraits
     "    /\\/\\"),
 
            // E018 - Beholder
-           ["E018"] = Portrait(
+           [MonsterIds.Beholder] = Portrait(
     "  \\◉/ \\◉/ \\◉/",
     "   \\  |  /",
     "  .--(◉)--.",
@@ -196,7 +198,7 @@ public static class AsciiPortraits
     "  '------'"),
 
            // E019 - Vámpír
-           ["E019"] = Portrait(
+           [MonsterIds.Vámpír] = Portrait(
     "    _____",
     "   /ò   ó\\",
     "  |   ▽   |",
@@ -204,7 +206,7 @@ public static class AsciiPortraits
     "  /V\\___/V\\"),
 
            // E020 - Vérfarkas
-           ["E020"] = Portrait(
+           [MonsterIds.Vérfarkas] = Portrait(
     "  /\\       /\\",
     " /  \\_____/  \\",
     "|   ò     ó   |",
@@ -212,7 +214,7 @@ public static class AsciiPortraits
     " /\\/     \\/\\"),
 
            // E021 - Vörös sárkány
-           ["E021"] = Portrait(
+           [MonsterIds.VörösSárkány] = Portrait(
     "   /\\____/\\",
     "  / ò    ó \\",
     " <   /▲\\    >",
@@ -220,7 +222,7 @@ public static class AsciiPortraits
     " ~~~/\\  /\\~~~"),
 
            // E022 - Lich
-           ["E022"] = Portrait(
+           [MonsterIds.Lich] = Portrait(
     "    .---.",
     "   /◉   ◉\\",
     "  |  ☠☠☠  |",
@@ -228,7 +230,7 @@ public static class AsciiPortraits
     "   /|___|\\"),
 
            // E023 - Démonlovag
-           ["E023"] = Portrait(
+           [MonsterIds.Démonlovag] = Portrait(
     "   /\\___/\\",
     "  | ◉   ◉ |",
     "  |  /▲\\  |",
@@ -236,7 +238,7 @@ public static class AsciiPortraits
     "    /| |\\   †"),
 
            // E024 - Balor démon
-           ["E024"] = Portrait(
+           [MonsterIds.BalorDémon] = Portrait(
     " \\_/\\___/\\_/",
     "  / ◉     ◉ \\",
     " |   ▽▽▽▽▽   |",
@@ -244,7 +246,7 @@ public static class AsciiPortraits
     "  ~~\\|  |/~~"),
 
            // E025 - Fekete sárkány
-           ["E025"] = Portrait(
+           [MonsterIds.FeketeSárkány] = Portrait(
     " \\^/\\____/\\^/",
     "  \\ ◉    ◉ /",
     "   \\  /▲\\  /",
@@ -252,7 +254,7 @@ public static class AsciiPortraits
     "  <==/\\/\\==>"),
 
            // E026 - Óriásdenevér
-           ["E026"] = Portrait(
+           [MonsterIds.Óriásdenevér] = Portrait(
     "\\\\           //",
     " \\\\  /\\_/\\  //",
     "  >\\( • • )/<",
@@ -260,7 +262,7 @@ public static class AsciiPortraits
     "/_/\\_\\___/_/\\_\\"),
 
            // E027 - Savanyálka
-           ["E027"] = Portrait(
+           [MonsterIds.Savanyálka] = Portrait(
     "     _____",
     "   _/     \\_",
     "  /  •   •  \\",
@@ -268,7 +270,7 @@ public static class AsciiPortraits
     " \\___________/"),
 
            // E028 - Útonálló
-           ["E028"] = Portrait(
+           [MonsterIds.Útonálló] = Portrait(
     "     _____",
     "    /_____\\",
     "   | •   • |",
@@ -276,7 +278,7 @@ public static class AsciiPortraits
     "   /|     |\\  /"),
 
            // E029 - Barlangi gyík
-           ["E029"] = Portrait(
+           [MonsterIds.BarlangiGyík] = Portrait(
     "       __",
     "  ____/• \\___",
     " /  _    ___  \\__",
@@ -284,7 +286,7 @@ public static class AsciiPortraits
     "     /_/"),
 
            // E030 - Pestishordozó patkány
-           ["E030"] = Portrait(
+           [MonsterIds.PestishordozóPatkány] = Portrait(
     "    _☠_",
     "  __/x  \\_",
     " /  ___   \\___",
@@ -292,7 +294,7 @@ public static class AsciiPortraits
     "   ~*~  /_/"),
 
            // E031 - Bugbear
-           ["E031"] = Portrait(
+           [MonsterIds.Bugbear] = Portrait(
     "   /\\____/\\",
     "  /  ò  ó  \\",
     " |    ▲     |",
@@ -300,7 +302,7 @@ public static class AsciiPortraits
     "  \\_/|██|\\_/"),
 
            // E032 - Hárpia
-           ["E032"] = Portrait(
+           [MonsterIds.Hárpia] = Portrait(
     "\\\\  /\\_/\\  //",
     " \\\\( ò ó )//",
     "  \\ \\_▽_/ /",
@@ -308,7 +310,7 @@ public static class AsciiPortraits
     "    /\\ /\\"),
 
            // E033 - Ghoul
-           ["E033"] = Portrait(
+           [MonsterIds.Ghoul] = Portrait(
     "    _____",
     "   /◉   ◉\\",
     "  |   ▲   |",
@@ -316,7 +318,7 @@ public static class AsciiPortraits
     " __/|    |\\__"),
 
            // E034 - Ifjú baziliszkusz
-           ["E034"] = Portrait(
+           [MonsterIds.IfjúBaziliszkusz] = Portrait(
     "    ^ ^ ^",
     " __/◉___◉\\___",
     "/    /▲\\     \\",
@@ -324,7 +326,7 @@ public static class AsciiPortraits
     "   /_/ \\_\\"),
 
            // E035 - Ork sámán
-           ["E035"] = Portrait(
+           [MonsterIds.OrkSámán] = Portrait(
     "   ^\\____/^",
     "   / ◉  ◉ \\",
     "  |  _▲_   |",
@@ -332,7 +334,7 @@ public static class AsciiPortraits
     "   /|☼☼|\\  Y"),
 
            // E036 - Ettin
-           ["E036"] = Portrait(
+           [MonsterIds.Ettin] = Portrait(
     "  ___     ___",
     " /ò ó\\___/ó ò\\",
     "|  ▲ |   | ▲  |",
@@ -340,7 +342,7 @@ public static class AsciiPortraits
     "   /|     |\\"),
 
            // E037 - Wight
-           ["E037"] = Portrait(
+           [MonsterIds.Wight] = Portrait(
     "    .~~~~.",
     "   / ◉  ◉ \\",
     "  |   ▽▽   |",
@@ -348,7 +350,7 @@ public static class AsciiPortraits
     "  ~~/|  |\\~~"),
 
            // E038 - Wyvern
-           ["E038"] = Portrait(
+           [MonsterIds.Wyvern] = Portrait(
     "\\\\   /\\___",
     " \\\\_/◉  ▲ \\__",
     "  >  ▽▽▽    _>",
@@ -356,7 +358,7 @@ public static class AsciiPortraits
     "/       \\___~>"),
 
            // E039 - Kőgólem
-           ["E039"] = Portrait(
+           [MonsterIds.Kőgólem] = Portrait(
     "   ._______.",
     "  /| ■   ■ |\\",
     " | |   ▲   | |",
@@ -364,7 +366,7 @@ public static class AsciiPortraits
     "   /|_____|\\ "),
 
            // E040 - Éji banya
-           ["E040"] = Portrait(
+           [MonsterIds.ÉjiBanya] = Portrait(
     "     /\\",
     "   _/  \\_",
     "  / ◉  ◉ \\",
@@ -372,7 +374,7 @@ public static class AsciiPortraits
     " \\_/▽▽▽▽\\_/"),
 
            // E041 - Fagyóriás
-           ["E041"] = Portrait(
+           [MonsterIds.Fagyóriás] = Portrait(
     "   /\\____/\\",
     "  / ◉    ◉ \\",
     " |   __▲__   |",
@@ -380,7 +382,7 @@ public static class AsciiPortraits
     "  \\_/|██|\\_/"),
 
            // E042 - Halállovag
-           ["E042"] = Portrait(
+           [MonsterIds.Halállovag] = Portrait(
     "   /\\___/\\",
     "  | ◉   ◉ |",
     "  |  ☠▲☠  |",
@@ -388,7 +390,7 @@ public static class AsciiPortraits
     "   /|___|\\  †"),
 
            // E043 - Hidra
-           ["E043"] = Portrait(
+           [MonsterIds.Hidra] = Portrait(
     " /\\  /\\  /\\",
     "(◉ )(◉ )(◉ )",
     " \\▲/\\▲/\\▲/",
@@ -396,7 +398,7 @@ public static class AsciiPortraits
     "   /| | |\\"),
 
            // E044 - Csontsárkány
-           ["E044"] = Portrait(
+           [MonsterIds.Csontsárkány] = Portrait(
     " \\^/\\____/\\^/",
     "  \\ x    x /",
     "   \\_☠▲☠_/",
@@ -404,7 +406,7 @@ public static class AsciiPortraits
     "  <==/\\/\\==>"),
 
            // E045 - Démonpók
-           ["E045"] = Portrait(
+           [MonsterIds.Démonpók] = Portrait(
     "\\  \\  /  /",
     " \\_/◉\\/◉\\_/",
     "--(▽▽▽▽▽)--",
@@ -412,7 +414,7 @@ public static class AsciiPortraits
     "/_/ /  \\ \\_\\"),
 
            // E046 - Ősvámpír
-           ["E046"] = Portrait(
+           [MonsterIds.Ősvámpír] = Portrait(
     "   /\\____/\\",
     "  / ◉    ◉ \\",
     " |   __▲__  |",
@@ -420,7 +422,7 @@ public static class AsciiPortraits
     "  /V\\_██_/V\\"),
 
            // E047 - Pokolfejedelem
-           ["E047"] = Portrait(
+           [MonsterIds.Pokolfejedelem] = Portrait(
     "\\\\^/\\____/\\^//",
     " \\ ◉    ◉ /",
     " |  ▽▽▽▽▽  |",
@@ -428,7 +430,7 @@ public static class AsciiPortraits
     "  ~~\\|  |/~~"),
 
            // E048 - Vén beholder
-           ["E048"] = Portrait(
+           [MonsterIds.VénBeholder] = Portrait(
     "\\◉/\\◉/\\◉/\\◉/",
     " \\  \\ | /  /",
     " .--(◎◎)--.",
@@ -436,7 +438,7 @@ public static class AsciiPortraits
     " '--------'"),
 
            // E049 - Drakolich
-           ["E049"] = Portrait(
+           [MonsterIds.Drakolich] = Portrait(
     "\\^/\\_☠__/\\^/",
     " \\ ◉    ◉ /",
     "  \\_||||_/",
@@ -444,7 +446,7 @@ public static class AsciiPortraits
     " <==/\\/\\==>"),
 
            // E050 - Káoszsárkány
-           ["E050"] = Portrait(
+           [MonsterIds.Káoszsárkány] = Portrait(
     "\\^/\\◎_☠_◎/\\^/",
     " \\ ◉    ◉ /",
     " <  ▽▽▽▽  >",

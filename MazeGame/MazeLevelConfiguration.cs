@@ -98,14 +98,14 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(10, 50),
                 RoomEncounters =
                 [
-                    Encounters.Same("E001", Amount.Several, Amount.TwoThree),
-                    Encounters.Same("E002", Amount.Few, Amount.Several),
-                    Encounters.Same("E003", Amount.Few, Amount.Few)
+                    Encounters.Same(MonsterIds.Óriáspatkány, Amount.Several, Amount.TwoThree),
+                    Encounters.Same(MonsterIds.Kobold, Amount.Few, Amount.Several),
+                    Encounters.Same(MonsterIds.Goblin, Amount.Few, Amount.Few)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E001", Amount.Several),
-                    Encounters.Solo("E002", Amount.Few)
+                    Encounters.Solo(MonsterIds.Óriáspatkány, Amount.Several),
+                    Encounters.Solo(MonsterIds.Kobold, Amount.Few)
                 ]
             },
             [2] = new()
@@ -119,14 +119,14 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(30, 70),
                 RoomEncounters =
                 [
-                    Encounters.Same("E001", Amount.Few, Amount.TwoThree),
-                    Encounters.Same("E004", Amount.One, Amount.One),
-                    Encounters.LeaderGroup("E051", "E001", Amount.One, Amount.TwoThree)
+                    Encounters.Same(MonsterIds.Óriáspatkány, Amount.Few, Amount.TwoThree),
+                    Encounters.Same(MonsterIds.Csontváz, Amount.One, Amount.One),
+                    Encounters.LeaderGroup(MonsterIds.Patkányember, MonsterIds.Óriáspatkány, Amount.One, Amount.TwoThree)
 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E001", Amount.Pack),
-                    Encounters.Solo("E002", Amount.Few)
+                    Encounters.Solo(MonsterIds.Óriáspatkány, Amount.Pack),
+                    Encounters.Solo(MonsterIds.Kobold, Amount.Few)
                 ]
             },
             [3] = new()
@@ -142,15 +142,15 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(35, 90),
                 RoomEncounters =
                 [
-                    Encounters.Same("E002", Amount.Few, Amount.Several),
-                    Encounters.Mixed("E003", Amount.Several, "E002", Amount.Few, Amount.Few),
-                    Encounters.Same("E004", Amount.Few, Amount.Few)
+                    Encounters.Same(MonsterIds.Kobold, Amount.Few, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Goblin, Amount.Several, MonsterIds.Kobold, Amount.Few, Amount.Few),
+                    Encounters.Same(MonsterIds.Csontváz, Amount.Few, Amount.Few)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E001", Amount.Few),
-                    Encounters.Solo("E003", Amount.Several, EnemyMovementProfile.Patrol),
-                    Encounters.Solo("E005", Amount.Few, EnemyMovementProfile.Patrol)
+                    Encounters.Solo(MonsterIds.Óriáspatkány, Amount.Few),
+                    Encounters.Solo(MonsterIds.Goblin, Amount.Several, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Farkas, Amount.Few, EnemyMovementProfile.Patrol)
                 ]
             },
             [4] = new()
@@ -166,14 +166,14 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(70, 150),
                 RoomEncounters =
                 [
-                    Encounters.Same("E003", Amount.Few, Amount.Several),
-                    Encounters.Mixed("E004", Amount.Several, "E006", Amount.Few, Amount.Few),
-                    Encounters.LeaderGroup("E007", "E003", Amount.Few, Amount.Several)
+                    Encounters.Same(MonsterIds.Goblin, Amount.Few, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Csontváz, Amount.Several, MonsterIds.Zombi, Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Ork, MonsterIds.Goblin, Amount.Few, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E005", Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.Solo("E003", Amount.Few)
+                    Encounters.Solo(MonsterIds.Farkas, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Goblin, Amount.Few)
                 ]
             },
             [5] = new()
@@ -189,14 +189,14 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(120, 240),
                 RoomEncounters =
                 [
-                    Encounters.Same("E004", Amount.Several, Amount.Several),
-                    Encounters.Mixed("E006", Amount.Several, "E004", Amount.Few, Amount.Few),
-                    Encounters.LeaderGroup("E033", "E004", Amount.One, Amount.Pack)
+                    Encounters.Same(MonsterIds.Csontváz, Amount.Several, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Zombi, Amount.Several, MonsterIds.Csontváz, Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Ghoul, MonsterIds.Csontváz, Amount.One, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E006", Amount.Few),
-                    Encounters.Solo("E033", Amount.Few, EnemyMovementProfile.Patrol)
+                    Encounters.Solo(MonsterIds.Zombi, Amount.Few),
+                    Encounters.Solo(MonsterIds.Ghoul, Amount.Few, EnemyMovementProfile.Patrol)
                 ]
             },
             [6] = new()
@@ -212,14 +212,14 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(180, 360),
                 RoomEncounters =
                 [
-                    Encounters.Same("E007", Amount.Several, Amount.Several),
-                    Encounters.Mixed("E008", Amount.Several, "E007", Amount.Few, Amount.Few),
-                    Encounters.LeaderGroup("E012", "E007", Amount.One, Amount.Pack)
+                    Encounters.Same(MonsterIds.Ork, Amount.Several, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Hobgoblin, Amount.Several, MonsterIds.Ork, Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Ogre, MonsterIds.Ork, Amount.One, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E008", Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.Solo("E010", Amount.Few)
+                    Encounters.Solo(MonsterIds.Hobgoblin, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Gnoll, Amount.Few)
                 ]
             },
             [7] = new()
@@ -235,14 +235,14 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(240, 480),
                 RoomEncounters =
                 [
-                    Encounters.Same("E009", Amount.Several, Amount.Several),
-                    Encounters.Mixed("E027", Amount.Several, "E029", Amount.Several, Amount.Few),
-                    Encounters.LeaderGroup("E034", "E009", Amount.Few, Amount.Several)
+                    Encounters.Same(MonsterIds.Óriáspók, Amount.Several, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Savanyálka, Amount.Several, MonsterIds.BarlangiGyík, Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.IfjúBaziliszkusz, MonsterIds.Óriáspók, Amount.Few, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E026", Amount.Several),
-                    Encounters.Solo("E029", Amount.Few, EnemyMovementProfile.Patrol)
+                    Encounters.Solo(MonsterIds.Óriásdenevér, Amount.Several),
+                    Encounters.Solo(MonsterIds.BarlangiGyík, Amount.Few, EnemyMovementProfile.Patrol)
                 ]
             },
             [8] = new()
@@ -258,14 +258,14 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(320, 620),
                 RoomEncounters =
                 [
-                    Encounters.Same("E007", Amount.Several, Amount.Pack),
-                    Encounters.Mixed("E008", Amount.Several, "E031", Amount.Few, Amount.Few),
-                    Encounters.LeaderGroup("E035", "E007", Amount.Few, Amount.Pack)
+                    Encounters.Same(MonsterIds.Ork, Amount.Several, Amount.Pack),
+                    Encounters.Mixed(MonsterIds.Hobgoblin, Amount.Several, MonsterIds.Bugbear, Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.OrkSámán, MonsterIds.Ork, Amount.Few, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E031", Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.Solo("E008", Amount.Few)
+                    Encounters.Solo(MonsterIds.Bugbear, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Hobgoblin, Amount.Few)
                 ]
             },
             [9] = new()
@@ -281,14 +281,14 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(420, 800),
                 RoomEncounters =
                 [
-                    Encounters.Same("E015", Amount.Several, Amount.Several),
-                    Encounters.Mixed("E037", Amount.Several, "E033", Amount.Several, Amount.Few),
-                    Encounters.LeaderGroup("E040", "E015", Amount.Few, Amount.Several)
+                    Encounters.Same(MonsterIds.Múmia, Amount.Several, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Wight, Amount.Several, MonsterIds.Ghoul, Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.ÉjiBanya, MonsterIds.Múmia, Amount.Few, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E037", Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.Solo("E033", Amount.Several)
+                    Encounters.Solo(MonsterIds.Wight, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Ghoul, Amount.Several)
                 ]
             },
             [10] = new()
@@ -304,14 +304,14 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(560, 1050),
                 RoomEncounters =
                 [
-                    Encounters.Same("E012", Amount.Few, Amount.Several),
-                    Encounters.Mixed("E013", Amount.Few, "E036", Amount.Few, Amount.Few),
-                    Encounters.LeaderGroup("E041", "E012", Amount.One, Amount.Several)
+                    Encounters.Same(MonsterIds.Ogre, Amount.Few, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Troll, Amount.Few, MonsterIds.Ettin, Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Fagyóriás, MonsterIds.Ogre, Amount.One, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E036", Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.Solo("E014", Amount.Few)
+                    Encounters.Solo(MonsterIds.Ettin, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Minotaurusz, Amount.Few)
                 ]
             },
             [11] = new()
@@ -327,14 +327,14 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(750, 1400),
                 RoomEncounters =
                 [
-                    Encounters.Same("E038", Amount.Several, Amount.Several),
-                    Encounters.Mixed("E017", Amount.Few, "E035", Amount.Several, Amount.Few),
-                    Encounters.LeaderGroup("E021", "E035", Amount.One, Amount.Pack)
+                    Encounters.Same(MonsterIds.Wyvern, Amount.Several, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Kiméra, Amount.Few, MonsterIds.OrkSámán, Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.VörösSárkány, MonsterIds.OrkSámán, Amount.One, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo("E038", Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.Solo("E017", Amount.Few)
+                    Encounters.Solo(MonsterIds.Wyvern, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Kiméra, Amount.Few)
                 ]
             }
         };
@@ -346,8 +346,8 @@ public static class MazeLevelConfigurations
         var tier = Math.Clamp(4 + increase / 3, 4, 5);
         var (leader, follower, peer) = tier switch
         {
-            4 => ("E018", "E012", "E017"),
-            _ => ("E047", "E023", "E046")
+            4 => (MonsterIds.Beholder, MonsterIds.Ogre, MonsterIds.Kiméra),
+            _ => (MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, MonsterIds.Ősvámpír)
         };
         return new MazeLevelConfiguration
         {
