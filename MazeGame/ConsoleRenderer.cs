@@ -1090,18 +1090,30 @@ public sealed class ConsoleRenderer
                 WriteSheetLine(30 + index, index < descriptionLines.Count ? descriptionLines[index] : string.Empty, ConsoleColor.Gray);
         }
 
-        WriteSheetLine(36, "VARÁZSLATSZINTEK", ConsoleColor.White);
+        bool isPaladin = false;
         var unlockLevels = new[] { 1, 5, 10, 15, 20 };
+        if (character.CharacterClass.Id == CharacterClassIds.Lovag)
+        {
+            isPaladin = true;
+            unlockLevels = new[] { 1, 8, 99, 99, 99 };
+        }
+
+        WriteSheetLine(36, "VARÁZSLATSZINTEK", ConsoleColor.White);
         for (var spellLevel = 1; spellLevel <= 5; spellLevel++)
         {
+            if (isPaladin && spellLevel > 2) continue;
             var requiredLevel = unlockLevels[spellLevel - 1];
             var unlocked = character.Level >= requiredLevel;
             WriteSheetLine(36 + spellLevel,
                 $"{spellLevel}. szint: L{requiredLevel} {(unlocked ? "feloldva" : $"még {requiredLevel - character.Level}")}",
                 unlocked ? ConsoleColor.Green : ConsoleColor.DarkYellow);
         }
-        var nextUnlock = unlockLevels.FirstOrDefault(level => level > character.Level);
-        WriteSheetLine(43, nextUnlock == 0 ? "Minden szint feloldva." : $"Következő feloldás: L{nextUnlock}", ConsoleColor.Cyan);
+        if (isPaladin && character.Level >= 8) { }
+        else
+        {
+            var nextUnlock = unlockLevels.FirstOrDefault(level => level > character.Level);
+            WriteSheetLine(43, nextUnlock == 0 ? "Minden szint feloldva." : $"Következő feloldás: L{nextUnlock}", ConsoleColor.Cyan);
+        }
         WriteSheetLine(45, "Fel/le: böngészés | F1-F8: gyorshely", ConsoleColor.Green);
         WriteSheetLine(46, "Enter: elsütés | Esc: vissza", ConsoleColor.DarkYellow);
     }

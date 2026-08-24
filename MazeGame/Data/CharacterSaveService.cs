@@ -88,7 +88,7 @@ public sealed class CharacterSaveService
             foreach (var spell in knownSpells) character.LearnSpell(spell);
             var memorizedIds = saved.MemorizedSpellIds.Count > 0
                 ? saved.MemorizedSpellIds
-                : knownSpells.Take(SpellcastingRules.StartingSpellCount).Select(spell => spell.Id).ToList();
+                : knownSpells.Take(SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)).Select(spell => spell.Id).ToList();
             character.SetMemorizedSpells(knownSpells.Where(spell => memorizedIds.Contains(spell.Id, StringComparer.OrdinalIgnoreCase)));
             if (saved.QuickSpellIds.Count > 0)
                 for (var index = 0; index < Math.Min(LiveCharacter.MaximumQuickSpellCount, saved.QuickSpellIds.Count); index++)
@@ -177,7 +177,7 @@ public sealed class CharacterSaveService
     private List<SpellDefinition> DefaultLegacySpells(LiveCharacter character)
     {
         SpellcastingRules.TryGetSchool(character.CharacterClass.Id, out var school);
-        return _gameData.GetSpells(school, 1).OrderBy(spell => spell.Id).Take(SpellcastingRules.StartingSpellCount).ToList();
+        return _gameData.GetSpells(school, 1).OrderBy(spell => spell.Id).Take(SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)).ToList();
     }
 
     private IItemDefinition ResolveItem(ItemSaveData item) => item.Type switch

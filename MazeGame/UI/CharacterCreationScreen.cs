@@ -128,21 +128,21 @@ public sealed class CharacterCreationScreen
         {
             Console.Clear();
             Console.WriteLine("=== KEZDŐ VARÁZSLATOK ===");
-            Console.WriteLine($"Válassz pontosan {SpellcastingRules.StartingSpellCount} varázslatot. Fel/le: mozgás, Space: kijelölés, Enter: elfogadás");
+                Console.WriteLine($"Válassz pontosan {SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)} varázslatot. Fel/le: mozgás, Space: kijelölés, Enter: elfogadás");
             Console.WriteLine();
             for (var index = 0; index < spells.Count; index++)
                 Console.WriteLine($"{(index == cursor ? ">" : " ")} [{(selected.Contains(spells[index].Id) ? "X" : " ")}] {spells[index].Name}");
             Console.WriteLine();
-            Console.WriteLine($"Kijelölve: {selected.Count}/{SpellcastingRules.StartingSpellCount}");
+            Console.WriteLine($"Kijelölve: {selected.Count}/{SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)}");
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow: cursor = (cursor - 1 + spells.Count) % spells.Count; break;
                 case ConsoleKey.DownArrow: cursor = (cursor + 1) % spells.Count; break;
                 case ConsoleKey.Spacebar:
-                    if (!selected.Remove(spells[cursor].Id) && selected.Count < SpellcastingRules.StartingSpellCount)
+                    if (!selected.Remove(spells[cursor].Id) && selected.Count < SpellcastingRules.StartingSpellCount(character.CharacterClass.Id))
                         selected.Add(spells[cursor].Id);
                     break;
-                case ConsoleKey.Enter when selected.Count == SpellcastingRules.StartingSpellCount:
+                case ConsoleKey.Enter when selected.Count == SpellcastingRules.StartingSpellCount(character.CharacterClass.Id):
                     var chosen = spells.Where(spell => selected.Contains(spell.Id)).ToList();
                     foreach (var spell in chosen) character.LearnSpell(spell);
                     character.SetMemorizedSpells(chosen);
