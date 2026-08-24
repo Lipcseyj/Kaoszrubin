@@ -812,6 +812,7 @@ public sealed class Game
         var corpse = _maze.GetCorpseAt(_player.Position);
         var pile = _maze.GetGroundItemPileAt(_player.Position);
         if (corpse is null && pile is null) return false;
+        if (corpse is MonsterCorpse { IsSearched: true } && pile is null) return false;
 
         var messages = new List<string>();
         if (corpse is MonsterCorpse monsterCorpse)
