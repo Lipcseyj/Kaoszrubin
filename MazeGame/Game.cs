@@ -368,6 +368,14 @@ public sealed class Game
                     if (key == ConsoleKey.H) { TogglePartyHoldPosition(); continue; }
                     if (key == ConsoleKey.M) { ScatterPartyTemporarily(); continue; }
                     if (key == ConsoleKey.P) { TryRestParty(); continue; }
+                    if (key == ConsoleKey.Enter && _player.Position == _maze.Exit)
+                    {
+                        var completedLevel = _mazeLevel;
+                        RunInn(completedLevel);
+                        _mazeLevel++;
+                        StartNewMaze();
+                        continue;
+                    }
                     MovePlayer(key);
                 }
 
@@ -707,7 +715,7 @@ public sealed class Game
 
     private void MovePlayer(ConsoleKey key)
     {
-        if (_player.Position == _maze.Exit || !TryGetDirection(key, out var direction)) return;
+        if (!TryGetDirection(key, out var direction)) return;
         var previousPosition = _player.Position;
         var targetPosition = previousPosition + direction;
 
@@ -735,23 +743,8 @@ public sealed class Game
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
 
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, _player.Position);
-        _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, _player.Position == _maze.Exit);
-        if (_player.Position == _maze.Exit)
-        {
-            var completedLevel = _mazeLevel;
-            var completion = CompleteLevelAtInn(completedLevel);
-            _renderer.DrawLevelCompletionScreen(completedLevel, _gameData.BaseLevelCompletionExperience,
-                completion.Results, completion.FallenCharacters);
-            foreach (var levelResult in completion.Results.Where(result => result.Experience.LeveledUp))
-                ResolvePerkOffers(levelResult.Character, levelResult.Experience);
-            RunInnMarket(completedLevel);
-            RunInnRecruitment();
-            PreparePartySpells();
-            RunInnRumors(completedLevel);
-            _mazeLevel++;
-            StartNewMaze();
-            return;
-        }
+        var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit;
+        _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
         var chest = _maze.GetTreasureChestAt(_player.Position);
         if (chest is not null)
         {
@@ -2844,6 +2837,45 @@ public sealed class Game
             character.ClearTemporarySpellEffects();
         }
         return new LevelCompletionOutcome(results, fallenCharacters);
+    }
+
+    private enum InnMenuOption { Rest, Market, Recruit, Rumors, Leave }
+
+    private void RunInn(int completedLevel)
+    {
+        var completion = CompleteLevelAtInn(completedLevel);
+        _renderer.DrawLevelCompletionScreen(completedLevel, _gameData.BaseLevelCompletionExperience,
+            completion.Results, completion.FallenCharacters);
+        foreach (var levelResult in completion.Results.Where(result => result.Experience.LeveledUp))
+            ResolvePerkOffers(levelResult.Character, levelResult.Experience);
+
+        var options = new (InnMenuOption Option, string Label, string Description)[]
+        {
+            (InnMenuOption.Rest, "🛏️ Pihenés", "Varázslatok memorizálása minden partitag számára (a HP/manna már feltöltve érkezéskor)."),
+            (InnMenuOption.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása."),
+            (InnMenuOption.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása."),
+            (InnMenuOption.Rumors, "👂 Pletykák", "Hírek a következő pályáról és a környékbeli szörnyekről."),
+            (InnMenuOption.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.")
+        };
+        var selectedIndex = 0;
+        while (true)
+        {
+            _renderer.DrawInnMenuScreen(SelectedCharacter, CharacterRoster.Party.Members.Count, selectedIndex,
+                options.Select(option => (option.Label, option.Description)).ToList());
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.UpArrow) { selectedIndex = (selectedIndex - 1 + options.Length) % options.Length; continue; }
+            if (key == ConsoleKey.DownArrow) { selectedIndex = (selectedIndex + 1) % options.Length; continue; }
+            if (key != ConsoleKey.Enter) continue;
+
+            switch (options[selectedIndex].Option)
+            {
+                case InnMenuOption.Rest: PreparePartySpells(); break;
+                case InnMenuOption.Market: RunInnMarket(completedLevel); break;
+                case InnMenuOption.Recruit: RunInnRecruitment(); break;
+                case InnMenuOption.Rumors: RunInnRumors(completedLevel); break;
+                case InnMenuOption.Leave: return;
+            }
+        }
     }
 
     private void RunInnMarket(int completedLevel)

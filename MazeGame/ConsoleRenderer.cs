@@ -73,7 +73,7 @@ public sealed class ConsoleRenderer
         foreach (var position in newlyRevealed) DrawMapCell(maze, fogOfWar, position);
         DrawMapCell(maze, fogOfWar, previousPosition);
         DrawPlayer(currentPosition);
-        if (hasWon) DrawBattleMessage("Célba értél! R: új labirintus, Esc: kilépés.");
+        if (hasWon) DrawBattleMessage("Elérted a kijáratot! Nyomj Entert a fogadóba lépéshez.");
     }
 
     /// <summary>
@@ -238,10 +238,34 @@ public sealed class ConsoleRenderer
             ("💤 A túlélők kipihenték sérüléseiket: minden HP és manna feltöltve.", ConsoleColor.Green),
             ("🛒 A fogadó kereskedői már várnak a portékáikkal...", ConsoleColor.Magenta),
             (string.Empty, ConsoleColor.Gray),
-            ("Nyomj Entert vagy Space-t a kereskedéshez! ➡️", ConsoleColor.Yellow)
+            ("Nyomj Entert vagy Space-t a fogadó megnyitásához! ➡️", ConsoleColor.Yellow)
         ]);
         DrawCenteredFrame(112, lines);
         while (Console.ReadKey(intercept: true).Key is not (ConsoleKey.Enter or ConsoleKey.Spacebar)) { }
+    }
+
+    public void DrawInnMenuScreen(LiveCharacter leader, int partyCount, int selectedIndex,
+        IReadOnlyList<(string Label, string Description)> options)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🏰🍺  A VÁNDORCSILLAG FOGADÓ  🍺🏰", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ($"Parti: {partyCount}/{Party.MaximumSize} fő     💰 Arany: {leader.Gold}", ConsoleColor.Cyan),
+            ("────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        for (var index = 0; index < options.Count; index++)
+        {
+            var selected = index == selectedIndex;
+            lines.Add(($"{(selected ? "▶" : " ")} {options[index].Label}", selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
+            lines.Add(($"     {options[index].Description}", selected ? ConsoleColor.White : ConsoleColor.DarkGray));
+        }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("↑/↓ választás   Enter belépés", ConsoleColor.Green));
+        DrawCenteredFrame(90, lines);
     }
 
     public void DrawInnMarketScreen(LiveCharacter leader, InnMarketMode mode,
@@ -287,7 +311,7 @@ public sealed class ConsoleRenderer
         lines.Add((selectedItem is null ? (buying ? "Nincs több megvásárolható portéka." : "Nincs eladható tárgy a hátizsákokban.")
             : ClipMarketText($"ℹ️ {selectedItem.Description}", 94), ConsoleColor.DarkCyan));
         lines.Add((ClipMarketText(message, 94), ConsoleColor.Magenta));
-        lines.Add(("↑/↓ választás   ←/→ vétel–eladás   Enter üzlet   Esc tovább a toborzáshoz", ConsoleColor.White));
+        lines.Add(("↑/↓ választás   ←/→ vétel–eladás   Enter üzlet   Esc vissza a fogadóba", ConsoleColor.White));
         DrawCenteredFrame(100, lines);
     }
 
@@ -322,8 +346,8 @@ public sealed class ConsoleRenderer
         lines.Add(($"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
         lines.Add((ClipMarketText(message, 94), ConsoleColor.Magenta));
         lines.Add((party.Count >= Party.MaximumSize
-            ? "↑/↓ választás   Enter felvétel és társ lecserélése   Esc tovább a pletykákhoz"
-            : "↑/↓ választás   Enter felvétel   Esc tovább a pletykákhoz", ConsoleColor.White));
+            ? "↑/↓ választás   Enter felvétel és társ lecserélése   Esc vissza a fogadóba"
+            : "↑/↓ választás   Enter felvétel   Esc vissza a fogadóba", ConsoleColor.White));
         DrawCenteredFrame(100, lines);
     }
 
@@ -368,8 +392,8 @@ public sealed class ConsoleRenderer
         }
         lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
         lines.Add((refreshesRemaining > 0
-            ? $"N: új pletyka ({refreshesRemaining} maradt)   Enter/Esc: indulás a következő pályára"
-            : "Nincs több új pletyka.   Enter/Esc: indulás a következő pályára", ConsoleColor.White));
+            ? $"N: új pletyka ({refreshesRemaining} maradt)   Enter/Esc: vissza a fogadóba"
+            : "Nincs több új pletyka.   Enter/Esc: vissza a fogadóba", ConsoleColor.White));
         DrawCenteredFrame(108, lines);
     }
 
