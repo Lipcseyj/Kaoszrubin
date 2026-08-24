@@ -6,7 +6,6 @@ namespace MazeGame;
 public sealed class MazeGenerator
 {
     private const int CorridorWidth = 2;
-    // A folyosóblokkok között három falcella marad: ezekben kapnak helyet a szobák.
     private const int GridStep = 5;
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private readonly Random _random = new();
@@ -30,10 +29,13 @@ public sealed class MazeGenerator
         var gridHeight = (height - 3) / GridStep + 1;
         var visited = new bool[gridWidth, gridHeight];
 
+        PlaceRooms(maze, gridWidth, gridHeight);
         CarveFrom(maze, new Position(0, 0), visited, gridWidth, gridHeight);
         CreateStartingRoom(maze);
-        PlaceRooms(maze);
+        ConnectRoomsToMaze(maze);
         maze.PlaceExit(ToMazePosition(new Position(gridWidth - 1, gridHeight - 1)));
+        // Végső biztosíték: ha bármi mégis leválasztott maradt, a legkevesebb faláttöréssel visszaköti a hálózathoz.
+        maze.EnsureFullAccessibility(RollDoorState);
         PlaceMapObjects(maze);
         return maze;
     }
@@ -83,7 +85,7 @@ public sealed class MazeGenerator
         var topLeft = ToMazePosition(gridPosition);
         for (var y = topLeft.Y; y < topLeft.Y + CorridorWidth; y++)
         for (var x = topLeft.X; x < topLeft.X + CorridorWidth; x++)
-            maze.Carve(new Position(x, y));
+            CarveOutsideRoomFootprints(maze, new Position(x, y));
     }
 
     private void CarveConnection(Maze maze, Position gridPosition, Direction direction, bool isWide)
@@ -105,8 +107,8 @@ public sealed class MazeGenerator
     {
         for (var offset = 0; offset < length; offset++)
         {
-            maze.Carve(new Position(startX + offset * step, y));
-            if (isWide) maze.Carve(new Position(startX + offset * step, y + 1));
+            CarveOutsideRoomFootprints(maze, new Position(startX + offset * step, y));
+            if (isWide) CarveOutsideRoomFootprints(maze, new Position(startX + offset * step, y + 1));
         }
     }
 
@@ -114,12 +116,12 @@ public sealed class MazeGenerator
     {
         for (var offset = 0; offset < length; offset++)
         {
-            maze.Carve(new Position(x, startY + offset * step));
-            if (isWide) maze.Carve(new Position(x + 1, startY + offset * step));
+            CarveOutsideRoomFootprints(maze, new Position(x, startY + offset * step));
+            if (isWide) CarveOutsideRoomFootprints(maze, new Position(x + 1, startY + offset * step));
         }
     }
 
-    private void PlaceRooms(Maze maze)
+    private void PlaceRooms(Maze maze, int gridWidth, int gridHeight)
     {
         var placedRooms = 0;
         var attempts = _settings.RoomCount * 400;
@@ -128,33 +130,22 @@ public sealed class MazeGenerator
             var width = _random.Next(_settings.MinimumRoomSize, _settings.MaximumRoomSize + 1);
             var height = _random.Next(_settings.MinimumRoomSize, _settings.MaximumRoomSize + 1);
             var topLeft = new Position(_random.Next(2, maze.Width - width), _random.Next(2, maze.Height - height));
-            if (TryPlaceRoom(maze, topLeft, width, height)) placedRooms++;
+            if (TryReserveRoom(maze, topLeft, width, height, gridWidth, gridHeight)) placedRooms++;
         }
     }
 
-    private bool TryPlaceRoom(Maze maze, Position topLeft, int width, int height)
+    private static bool TryReserveRoom(Maze maze, Position topLeft, int width, int height, int gridWidth, int gridHeight)
     {
-        if (OverlapsStartingRoom(maze, topLeft, width, height)) return false;
-        if (ContainsDoor(maze, topLeft, width, height)) return false;
-        var doors = GetPossibleDoors(maze, topLeft, width, height).ToArray();
-        if (doors.Length == 0) return false;
+        if (OverlapsStartingRoom(maze, topLeft, width, height) ||
+            CoversPosition(topLeft, width, height, maze.Entrance) ||
+            CoversPosition(topLeft, width, height, ToMazePosition(new Position(gridWidth - 1, gridHeight - 1)))) return false;
+        if (maze.Rooms.Any(room => FootprintsOverlap(room.TopLeft, room.Width, room.Height, topLeft, width, height))) return false;
 
-        var originalTiles = (System.Text.Rune[,])maze.Tiles.Clone();
         BuildRoomShell(maze, topLeft, width, height);
         for (var y = topLeft.Y; y < topLeft.Y + height; y++)
         for (var x = topLeft.X; x < topLeft.X + width; x++) maze.Carve(new Position(x, y));
-        var doorPosition = doors[_random.Next(doors.Length)];
-        maze.PlaceDoor(doorPosition, RollDoorState());
-
-        if (HasPath(maze, maze.Entrance, maze.Exit))
-        {
-            maze.AddRoom(new Room(topLeft, width, height));
-            return true;
-        }
-
-        maze.RemoveDoor(doorPosition);
-        Array.Copy(originalTiles, maze.Tiles, originalTiles.Length);
-        return false;
+        maze.AddRoom(new Room(topLeft, width, height));
+        return true;
     }
 
     private void PlaceMapObjects(Maze maze)
@@ -264,15 +255,109 @@ public sealed class MazeGenerator
     private static int Manhattan(Position first, Position second) =>
         Math.Abs(first.X - second.X) + Math.Abs(first.Y - second.Y);
 
+    private void ConnectRoomsToMaze(Maze maze)
+    {
+        foreach (var room in maze.Rooms.Where(room => room != maze.StartingRoom))
+        {
+            if (!TryConnectRoom(maze, room, allowTunnelingThroughOtherRoomWalls: false))
+                TryConnectRoom(maze, room, allowTunnelingThroughOtherRoomWalls: true);
+        }
+    }
+
+    /// <summary>Egy szoba bekötése a hálózatba; ha a szigorú keresés nem talál utat (pl. túl zsúfolt
+    /// szobaelrendezés), a mentőkör áttörhet más szobák puszta falpuffer-övezetén (nem a belsejükön).</summary>
+    private bool TryConnectRoom(Maze maze, Room room, bool allowTunnelingThroughOtherRoomWalls)
+    {
+        var bestConnection = GetRoomDoorCandidates(room)
+            .Select(candidate => (Candidate: candidate,
+                Path: FindPathToCorridor(maze, candidate.Outside, room, allowTunnelingThroughOtherRoomWalls)))
+            .Where(entry => entry.Path is not null)
+            .OrderBy(entry => entry.Path!.Count)
+            .FirstOrDefault();
+        if (bestConnection.Path is null) return false;
+        foreach (var position in bestConnection.Path) maze.Carve(position);
+        maze.PlaceDoor(bestConnection.Candidate.Door, RollDoorState());
+
+        var primarySide = GetRoomDoorSide(room, bestConnection.Candidate.Door);
+        var oppositeConnection = GetRoomDoorCandidates(room)
+            .Where(candidate => GetRoomDoorSide(room, candidate.Door) == Opposite(primarySide))
+            .Where(candidate => maze.IsWalkable(candidate.Outside))
+            .OrderBy(_ => _random.Next())
+            .FirstOrDefault();
+        if (oppositeConnection.Door != default)
+            maze.PlaceDoor(oppositeConnection.Door, RollDoorState());
+        return true;
+    }
+
+    private static Direction GetRoomDoorSide(Room room, Position door) => door.Y == room.TopLeft.Y - 1
+        ? Direction.Up
+        : door.Y == room.TopLeft.Y + room.Height
+            ? Direction.Down
+            : door.X == room.TopLeft.X - 1
+                ? Direction.Left
+                : Direction.Right;
+
+    private static Direction Opposite(Direction direction) => direction switch
+    {
+        Direction.Up => Direction.Down,
+        Direction.Down => Direction.Up,
+        Direction.Left => Direction.Right,
+        _ => Direction.Left
+    };
+
+    private static IReadOnlyList<Position>? FindPathToCorridor(Maze maze, Position start, Room room,
+        bool allowTunnelingThroughOtherRoomWalls)
+    {
+        if (!maze.IsInside(start) || IsBlockedFootprint(maze, start, room, allowTunnelingThroughOtherRoomWalls)) return null;
+        var previous = new Dictionary<Position, Position> { [start] = start };
+        var queue = new Queue<Position>();
+        queue.Enqueue(start);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (maze.IsWalkable(current) && !maze.Rooms.Any(candidate => candidate.Contains(current)))
+            {
+                var path = new List<Position>();
+                for (var position = current; position != start; position = previous[position]) path.Add(position);
+                path.Add(start);
+                path.Reverse();
+                return path;
+            }
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (!maze.IsInside(next) || IsBlockedFootprint(maze, next, room, allowTunnelingThroughOtherRoomWalls) ||
+                    !previous.TryAdd(next, current)) continue;
+                queue.Enqueue(next);
+            }
+        }
+        return null;
+    }
+
+    /// <summary>A saját szoba teljes lenyomata mindig tilos; más szobáké csak a szigorú módban (a puffer-övezetükkel együtt).</summary>
+    private static bool IsBlockedFootprint(Maze maze, Position position, Room excludedRoom, bool allowTunnelingThroughOtherRoomWalls) =>
+        maze.Rooms.Any(room => room == excludedRoom
+            ? CoversPosition(room.TopLeft, room.Width, room.Height, position)
+            : allowTunnelingThroughOtherRoomWalls ? room.Contains(position) : CoversPosition(room.TopLeft, room.Width, room.Height, position));
+
+    private static IEnumerable<(Position Door, Position Outside)> GetRoomDoorCandidates(Room room)
+    {
+        for (var x = room.TopLeft.X; x < room.TopLeft.X + room.Width; x++)
+        {
+            yield return (new Position(x, room.TopLeft.Y - 1), new Position(x, room.TopLeft.Y - 2));
+            yield return (new Position(x, room.TopLeft.Y + room.Height), new Position(x, room.TopLeft.Y + room.Height + 1));
+        }
+        for (var y = room.TopLeft.Y; y < room.TopLeft.Y + room.Height; y++)
+        {
+            yield return (new Position(room.TopLeft.X - 1, y), new Position(room.TopLeft.X - 2, y));
+            yield return (new Position(room.TopLeft.X + room.Width, y), new Position(room.TopLeft.X + room.Width + 1, y));
+        }
+    }
+
     private static bool OverlapsStartingRoom(Maze maze, Position topLeft, int width, int height)
     {
-        if (maze.StartingRoom is not { } startingRoom) return false;
-        var shellLeft = topLeft.X - 1;
-        var shellTop = topLeft.Y - 1;
-        var shellRight = topLeft.X + width;
-        var shellBottom = topLeft.Y + height;
-        return startingRoom.InteriorPositions().Any(position =>
-            position.X >= shellLeft && position.X <= shellRight && position.Y >= shellTop && position.Y <= shellBottom);
+        var startingRoom = maze.StartingRoom ?? new Room(new Position(1, 1), 3, 3);
+        return FootprintsOverlap(startingRoom.TopLeft, startingRoom.Width, startingRoom.Height, topLeft, width, height);
     }
 
     private void PlaceObjects<T>(Maze maze, int requestedCount, IEnumerable<Position> candidates, Func<Position, T> factory, Action<T> add)
@@ -302,13 +387,22 @@ public sealed class MazeGenerator
         }
     }
 
-    private static bool ContainsDoor(Maze maze, Position topLeft, int width, int height)
+    private static void CarveOutsideRoomFootprints(Maze maze, Position position)
     {
-        for (var y = topLeft.Y - 1; y <= topLeft.Y + height; y++)
-        for (var x = topLeft.X - 1; x <= topLeft.X + width; x++)
-            if (maze.GetDoorAt(new Position(x, y)) is not null) return true;
-        return false;
+        if (!IsInsideAnyRoomFootprint(maze, position)) maze.Carve(position);
     }
+
+    private static bool IsInsideAnyRoomFootprint(Maze maze, Position position) =>
+        maze.Rooms.Any(room => CoversPosition(room.TopLeft, room.Width, room.Height, position));
+
+    private static bool CoversPosition(Position topLeft, int width, int height, Position position) =>
+        position.X >= topLeft.X - 1 && position.X <= topLeft.X + width &&
+        position.Y >= topLeft.Y - 1 && position.Y <= topLeft.Y + height;
+
+    private static bool FootprintsOverlap(Position firstTopLeft, int firstWidth, int firstHeight,
+        Position secondTopLeft, int secondWidth, int secondHeight) =>
+        firstTopLeft.X - 1 <= secondTopLeft.X + secondWidth && firstTopLeft.X + firstWidth >= secondTopLeft.X - 1 &&
+        firstTopLeft.Y - 1 <= secondTopLeft.Y + secondHeight && firstTopLeft.Y + firstHeight >= secondTopLeft.Y - 1;
 
     private DoorState RollDoorState()
     {
@@ -324,29 +418,6 @@ public sealed class MazeGenerator
             var isInterior = x >= topLeft.X && x < topLeft.X + width && y >= topLeft.Y && y < topLeft.Y + height;
             if (!isInterior) maze.SetTile(new Position(x, y), maze.WallRune);
         }
-    }
-
-    private static bool HasPath(Maze maze, Position start, Position destination)
-    {
-        var visited = new bool[maze.Width, maze.Height];
-        var queue = new Queue<Position>();
-        queue.Enqueue(start);
-        visited[start.X, start.Y] = true;
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (current == destination) return true;
-            foreach (var direction in Directions)
-            {
-                var next = current + direction;
-                if ((!maze.IsWalkable(next) && maze.GetDoorAt(next) is null) || visited[next.X, next.Y]) continue;
-                visited[next.X, next.Y] = true;
-                queue.Enqueue(next);
-            }
-        }
-
-        return false;
     }
 
     private static IEnumerable<Position> GetPossibleDoors(Maze maze, Position topLeft, int width, int height)

@@ -427,6 +427,16 @@ public sealed class Game
         _gameOver = false;
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        LogMazeAccessibilityCheck();
+    }
+
+    private void LogMazeAccessibilityCheck()
+    {
+        var report = _maze.CheckFullAccessibility();
+        _renderer.DrawDeveloperMessage(report.IsFullyAccessible
+            ? $"Bejárhatósági önellenőrzés: OK, mind a(z) {report.TotalWalkableCount} padló-/ajtócella elérhető."
+            : $"Bejárhatósági önellenőrzés: HIBA, {report.UnreachablePositions.Count}/{report.TotalWalkableCount} cella nem érhető el " +
+              $"(pl. {report.UnreachablePositions[0].X},{report.UnreachablePositions[0].Y}).");
     }
 
     private void ShowInGameHelp()

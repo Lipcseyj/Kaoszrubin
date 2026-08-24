@@ -206,4 +206,106 @@ public sealed class Maze
         var coordinate = length - 2;
         return coordinate % 2 == 0 ? coordinate - 1 : coordinate;
     }
+
+    /// <summary>Bejárja a teljes labirintust a bejárattól (ajtókon is áthaladva, állapotuktól függetlenül),
+    /// és összeveti az elért mezőket az összes padló- és ajtócellával, hogy minden terület elérhető-e.</summary>
+    public MazeAccessibilityReport CheckFullAccessibility()
+    {
+        var allFloorCells = GetAllFloorOrDoorPositions();
+        var reachable = ComputeReachableFromEntrance();
+        var unreachable = allFloorCells.Where(position => !reachable.Contains(position)).ToList();
+        return new MazeAccessibilityReport(unreachable.Count == 0, reachable.Count, allFloorCells.Count, unreachable);
+    }
+
+    /// <summary>Amíg az önellenőrzés leválasztott területet talál, a legkevesebb faláttöréssel köti azt
+    /// vissza a bejárattól elérhető hálózathoz. Végeredményként garantáltan teljesen bejárható labirintust ad.</summary>
+    public MazeAccessibilityReport EnsureFullAccessibility(Func<DoorState> rollDoorState, int maxRepairAttempts = 500)
+    {
+        for (var attempt = 0; attempt < maxRepairAttempts; attempt++)
+        {
+            var report = CheckFullAccessibility();
+            if (report.IsFullyAccessible) return report;
+            CarveConnectionToReachableNetwork(report.UnreachablePositions[0], rollDoorState);
+        }
+        return CheckFullAccessibility();
+    }
+
+    /// <summary>0-1 BFS: a már járható cellák felé ingyen, a falak felé egy-egy áttörés árán lép,
+    /// így a leválasztott cellától a legkevesebb új nyílással érhető el az elérhető hálózat.</summary>
+    private void CarveConnectionToReachableNetwork(Position isolated, Func<DoorState> rollDoorState)
+    {
+        var reachable = ComputeReachableFromEntrance();
+        var distances = new Dictionary<Position, int> { [isolated] = 0 };
+        var previous = new Dictionary<Position, Position>();
+        var deque = new LinkedList<Position>();
+        deque.AddLast(isolated);
+        Position? target = null;
+
+        while (deque.Count > 0)
+        {
+            var current = deque.First!.Value;
+            deque.RemoveFirst();
+            if (reachable.Contains(current) && current != isolated) { target = current; break; }
+            foreach (var direction in Enum.GetValues<Direction>())
+            {
+                var next = current + direction;
+                if (!IsInside(next)) continue;
+                var weight = IsFloorOrDoor(next) ? 0 : 1;
+                var newDistance = distances[current] + weight;
+                if (distances.TryGetValue(next, out var known) && known <= newDistance) continue;
+                distances[next] = newDistance;
+                previous[next] = current;
+                if (weight == 0) deque.AddFirst(next); else deque.AddLast(next);
+            }
+        }
+
+        if (target is null)
+            throw new InvalidOperationException("Nem található kapcsolat a leválasztott labirintusterülethez.");
+        for (var position = target.Value; position != isolated; position = previous[position])
+        {
+            if (IsFloorOrDoor(position)) continue;
+            if (IsAdjacentToRoomInterior(position)) PlaceDoor(position, rollDoorState());
+            else Carve(position);
+        }
+    }
+
+    private bool IsAdjacentToRoomInterior(Position position) => Enum.GetValues<Direction>()
+        .Select(direction => position + direction).Any(neighbor => _rooms.Any(room => room.Contains(neighbor)));
+
+    private HashSet<Position> ComputeReachableFromEntrance()
+    {
+        var reachable = new HashSet<Position> { Entrance };
+        var queue = new Queue<Position>();
+        queue.Enqueue(Entrance);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            foreach (var direction in Enum.GetValues<Direction>())
+            {
+                var next = current + direction;
+                if (!IsFloorOrDoor(next) || !reachable.Add(next)) continue;
+                queue.Enqueue(next);
+            }
+        }
+        return reachable;
+    }
+
+    private List<Position> GetAllFloorOrDoorPositions()
+    {
+        var cells = new List<Position>();
+        for (var y = 0; y < Height; y++)
+        for (var x = 0; x < Width; x++)
+        {
+            var position = new Position(x, y);
+            if (IsFloorOrDoor(position)) cells.Add(position);
+        }
+        return cells;
+    }
+
+    private bool IsFloorOrDoor(Position position) => IsInside(position) &&
+        (_doors.ContainsKey(position) || Tiles[position.X, position.Y] == Floor || Tiles[position.X, position.Y] == ExitMarker);
 }
+
+/// <summary>A teljes bejárhatósági önellenőrzés eredménye.</summary>
+public sealed record MazeAccessibilityReport(bool IsFullyAccessible, int ReachableCount, int TotalWalkableCount,
+    IReadOnlyList<Position> UnreachablePositions);
