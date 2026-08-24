@@ -172,7 +172,7 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo(MonsterIds.Farkas, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Farkas, Amount.Several, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Goblin, Amount.Few)
                 ]
             },
@@ -196,7 +196,7 @@ public static class MazeLevelConfigurations
                 CorridorEncounters =
                 [
                     Encounters.Solo(MonsterIds.Zombi, Amount.Few),
-                    Encounters.Solo(MonsterIds.Ghoul, Amount.Few, EnemyMovementProfile.Patrol)
+                    Encounters.Mixed(MonsterIds.Zombi, Amount.Few, MonsterIds.Csontváz, Amount.Few, Amount.Few),
                 ]
             },
             [6] = new()
@@ -218,6 +218,7 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
+                    Encounters.Solo(MonsterIds.Ork, Amount.Few, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Hobgoblin, Amount.Few, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Gnoll, Amount.Few)
                 ]

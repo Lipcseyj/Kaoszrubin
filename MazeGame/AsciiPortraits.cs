@@ -452,7 +452,15 @@ public static class AsciiPortraits
     " \\ ◉    ◉ /",
     " <  ▽▽▽▽  >",
     "  \\_█╳█_/",
-    " ~<=/\\/\\=>~")
+    " ~<=/\\/\\=>~"),
+
+           // E051 - Patkányember
+           [MonsterIds.Patkányember] = Portrait(
+    "  (\\_____/)",
+    "  / ò   ó \\__",
+    " <   _▲_____)~",
+    "  \\_▽▽_/|--†",
+    "    /|  |\\")
        };
 
     private static readonly AsciiPortrait Unknown = Portrait(
