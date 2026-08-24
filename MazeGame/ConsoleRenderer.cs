@@ -267,6 +267,21 @@ public sealed class ConsoleRenderer
         DrawCenteredFrame(90, lines);
     }
 
+    public void UpdateInnMenuSelection(IReadOnlyList<(string Label, string Description)> options,
+        int previousIndex, int selectedIndex)
+    {
+        var updates = new List<(int Index, string Text, ConsoleColor Color)>();
+        foreach (var index in new[] { previousIndex, selectedIndex }.Distinct())
+        {
+            var selected = index == selectedIndex;
+            updates.Add((5 + index * 2, $"{(selected ? "▶" : " ")} {options[index].Label}",
+                selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
+            updates.Add((6 + index * 2, $"     {options[index].Description}",
+                selected ? ConsoleColor.White : ConsoleColor.DarkGray));
+        }
+        UpdateCenteredFrameLines(90, 7 + options.Count * 2, updates);
+    }
+
     public bool ConfirmInnSecretStashAccess(int cost)
     {
         ResetColorCache();
@@ -410,6 +425,47 @@ public sealed class ConsoleRenderer
         DrawCenteredFrame(100, lines);
     }
 
+    public bool UpdateInnMarketSelection(InnMarketMode mode, IReadOnlyList<InnStockOffer> stock,
+        IReadOnlyList<InnSellOffer> sellOffers, int previousIndex, int selectedIndex)
+    {
+        var entries = mode == InnMarketMode.Buy ? stock.Count : sellOffers.Count;
+        var previousPageStart = InnMarketPageStart(entries, previousIndex);
+        var pageStart = InnMarketPageStart(entries, selectedIndex);
+        if (previousPageStart != pageStart) return false;
+        var updates = new List<(int Index, string Text, ConsoleColor Color)>();
+        foreach (var index in new[] { previousIndex, selectedIndex }.Distinct())
+        {
+            var selected = index == selectedIndex;
+            var text = mode == InnMarketMode.Buy
+                ? InnStockLine(stock[index], selected)
+                : InnSellLine(sellOffers[index], selected);
+            var color = selected ? ConsoleColor.White : ItemRarityColor(mode == InnMarketMode.Buy
+                ? stock[index].Item.Rarity : sellOffers[index].Item.Rarity);
+            updates.Add((5 + index - pageStart, text, color));
+        }
+        var selectedItem = mode == InnMarketMode.Buy ? stock[selectedIndex].Item : sellOffers[selectedIndex].Item;
+        updates.Add((18, ClipMarketText($"ℹ️ {selectedItem.Description}", 94), ConsoleColor.DarkCyan));
+        UpdateCenteredFrameLines(100, 21, updates);
+        return true;
+    }
+
+    public bool UpdateInnSecretStashSelection(IReadOnlyList<InnStockOffer> stock, int previousIndex, int selectedIndex)
+    {
+        var previousPageStart = InnMarketPageStart(stock.Count, previousIndex);
+        var pageStart = InnMarketPageStart(stock.Count, selectedIndex);
+        if (previousPageStart != pageStart) return false;
+        var updates = new List<(int Index, string Text, ConsoleColor Color)>();
+        foreach (var index in new[] { previousIndex, selectedIndex }.Distinct())
+        {
+            var selected = index == selectedIndex;
+            updates.Add((5 + index - pageStart, InnStockLine(stock[index], selected),
+                selected ? ConsoleColor.White : ItemRarityColor(stock[index].Item.Rarity)));
+        }
+        updates.Add((18, ClipMarketText($"ℹ️ {stock[selectedIndex].Item.Description}", 94), ConsoleColor.DarkCyan));
+        UpdateCenteredFrameLines(100, 21, updates);
+        return true;
+    }
+
     public void DrawInnRecruitmentScreen(IReadOnlyList<LiveCharacter> candidates,
         IReadOnlyDictionary<LiveCharacter, int> prices, int selectedIndex,
         IReadOnlyList<LiveCharacter> party, int leaderGold, string message)
@@ -467,6 +523,40 @@ public sealed class ConsoleRenderer
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("↑/↓ választás   Enter végleges csere   Esc mégse", ConsoleColor.White));
         DrawCenteredFrame(90, lines);
+    }
+
+    public void UpdateInnRecruitmentSelection(IReadOnlyList<LiveCharacter> candidates,
+        IReadOnlyDictionary<LiveCharacter, int> prices, int previousIndex, int selectedIndex)
+    {
+        var updates = new List<(int Index, string Text, ConsoleColor Color)>();
+        foreach (var index in new[] { previousIndex, selectedIndex }.Distinct())
+        {
+            var candidate = candidates[index];
+            var selected = index == selectedIndex;
+            updates.Add((4 + index, InnRecruitLine(candidate, prices[candidate], selected),
+                selected ? ConsoleColor.White : candidate.Color));
+        }
+        var shown = candidates[selectedIndex];
+        var weaponNames = shown.WeaponSlots.Where(item => item is not null).Select(item => item!.Name).ToList();
+        var weapons = weaponNames.Count == 0 ? "nincs" : string.Join(", ", weaponNames);
+        var detailStart = 5 + candidates.Count;
+        updates.Add((detailStart, $"Erő {shown.Abilities.Strength}  Ügy {shown.Abilities.Dexterity}  Egész {shown.Abilities.Health}  Int {shown.Abilities.Intelligence}", ConsoleColor.Cyan));
+        updates.Add((detailStart + 1, $"Fegyver: {weapons}  |  Páncél: {shown.Armor?.Name ?? "nincs"}", ConsoleColor.Gray));
+        updates.Add((detailStart + 2, $"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
+        UpdateCenteredFrameLines(100, 10 + candidates.Count, updates);
+    }
+
+    public void UpdateInnReplacementSelection(IReadOnlyList<LiveCharacter> replaceable,
+        int previousIndex, int selectedIndex)
+    {
+        var updates = new List<(int Index, string Text, ConsoleColor Color)>();
+        foreach (var index in new[] { previousIndex, selectedIndex }.Distinct())
+        {
+            var member = replaceable[index];
+            var selected = index == selectedIndex;
+            updates.Add((4 + index, InnReplacementLine(member, selected), selected ? ConsoleColor.White : member.Color));
+        }
+        UpdateCenteredFrameLines(90, 6 + replaceable.Count, updates);
     }
 
     public void DrawInnRumorScreen(InnRumor rumor, int refreshesRemaining)
@@ -849,6 +939,43 @@ public sealed class ConsoleRenderer
         }
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
         WriteAt(left, top + lines.Count + 1, "╚" + new string('═', frameWidth - 2) + "╝");
+    }
+
+    private static int InnMarketPageStart(int entryCount, int selectedIndex)
+    {
+        const int pageSize = 12;
+        return entryCount == 0 ? 0 : Math.Clamp(selectedIndex - pageSize / 2, 0, Math.Max(0, entryCount - pageSize));
+    }
+
+    private string InnStockLine(InnStockOffer offer, bool selected) =>
+        $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} 💰";
+
+    private string InnSellLine(InnSellOffer offer, bool selected) =>
+        $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} 💰";
+
+    private static string InnRecruitLine(LiveCharacter candidate, int price, bool selected)
+    {
+        var mana = candidate.UsesMana ? $"  MP {candidate.MaximumMana}" : string.Empty;
+        var priceText = price == 0 ? "INGYEN" : $"{price} 💰";
+        return $"{(selected ? "▶" : " ")} {candidate.Name,-13}  {candidate.Race.Name,-10} {candidate.CharacterClass.Name,-10} L{candidate.Level,2}  HP {candidate.MaximumVitality}{mana}  {priceText}";
+    }
+
+    private static string InnReplacementLine(LiveCharacter member, bool selected) =>
+        $"{(selected ? "▶" : " ")} {member.Name,-13} {member.CharacterClass.Name,-10} L{member.Level,2}  HP {member.CurrentVitality}/{member.MaximumVitality}";
+
+    private void UpdateCenteredFrameLines(int frameWidth, int lineCount,
+        IEnumerable<(int Index, string Text, ConsoleColor Color)> updates)
+    {
+        const int horizontalPadding = 2;
+        var contentWidth = frameWidth - horizontalPadding * 2;
+        var left = Math.Max(0, (Console.WindowWidth - frameWidth) / 2);
+        var top = Math.Max(1, (Console.WindowHeight - lineCount - 2) / 2);
+        foreach (var (index, text, color) in updates)
+        {
+            SetColors(color, ConsoleColor.Black);
+            WriteAt(left + horizontalPadding, top + index + 1,
+                text.PadRight(Math.Max(0, contentWidth - text.Length)));
+        }
     }
 
     /// <summary>

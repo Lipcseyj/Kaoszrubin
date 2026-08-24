@@ -2858,14 +2858,32 @@ public sealed class Game
             (InnMenuOption.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.")
         };
         var selectedIndex = 0;
+        var redraw = true;
         while (true)
         {
-            _renderer.DrawInnMenuScreen(SelectedCharacter, CharacterRoster.Party.Members.Count, selectedIndex,
-                options.Select(option => (option.Label, option.Description)).ToList());
+            var displayOptions = options.Select(option => (option.Label, option.Description)).ToList();
+            if (redraw)
+            {
+                _renderer.DrawInnMenuScreen(SelectedCharacter, CharacterRoster.Party.Members.Count, selectedIndex, displayOptions);
+                redraw = false;
+            }
             var key = Console.ReadKey(intercept: true).Key;
-            if (key == ConsoleKey.UpArrow) { selectedIndex = (selectedIndex - 1 + options.Length) % options.Length; continue; }
-            if (key == ConsoleKey.DownArrow) { selectedIndex = (selectedIndex + 1) % options.Length; continue; }
+            if (key == ConsoleKey.UpArrow)
+            {
+                var previousIndex = selectedIndex;
+                selectedIndex = (selectedIndex - 1 + options.Length) % options.Length;
+                _renderer.UpdateInnMenuSelection(displayOptions, previousIndex, selectedIndex);
+                continue;
+            }
+            if (key == ConsoleKey.DownArrow)
+            {
+                var previousIndex = selectedIndex;
+                selectedIndex = (selectedIndex + 1) % options.Length;
+                _renderer.UpdateInnMenuSelection(displayOptions, previousIndex, selectedIndex);
+                continue;
+            }
             if (key != ConsoleKey.Enter) continue;
+            redraw = true;
 
             switch (options[selectedIndex].Option)
             {
@@ -2908,14 +2926,19 @@ public sealed class Game
         var mode = InnMarketMode.Buy;
         var selectedIndex = 0;
         var message = "A kereskedő rád kacsint: „Nézz körül, kalandozó!”";
+        var redraw = true;
 
         while (true)
         {
             var sellOffers = CreateSellOffers(buybackPrices);
             var entryCount = mode == InnMarketMode.Buy ? stock.Count : sellOffers.Count;
             selectedIndex = entryCount == 0 ? 0 : Math.Clamp(selectedIndex, 0, entryCount - 1);
-            _renderer.DrawInnMarketScreen(SelectedCharacter, mode, stock, sellOffers, selectedIndex,
-                CharacterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
+            if (redraw)
+            {
+                _renderer.DrawInnMarketScreen(SelectedCharacter, mode, stock, sellOffers, selectedIndex,
+                    CharacterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
+                redraw = false;
+            }
 
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return;
@@ -2924,11 +2947,25 @@ public sealed class Game
                 mode = mode == InnMarketMode.Buy ? InnMarketMode.Sell : InnMarketMode.Buy;
                 selectedIndex = 0;
                 message = mode == InnMarketMode.Buy ? "A kereskedő kínálata." : "Csak a hátizsákok tárgyai adhatók el.";
+                redraw = true;
                 continue;
             }
-            if (key == ConsoleKey.UpArrow && entryCount > 0) { selectedIndex = (selectedIndex - 1 + entryCount) % entryCount; continue; }
-            if (key == ConsoleKey.DownArrow && entryCount > 0) { selectedIndex = (selectedIndex + 1) % entryCount; continue; }
+            if (key == ConsoleKey.UpArrow && entryCount > 0)
+            {
+                var previousIndex = selectedIndex;
+                selectedIndex = (selectedIndex - 1 + entryCount) % entryCount;
+                redraw = !_renderer.UpdateInnMarketSelection(mode, stock, sellOffers, previousIndex, selectedIndex);
+                continue;
+            }
+            if (key == ConsoleKey.DownArrow && entryCount > 0)
+            {
+                var previousIndex = selectedIndex;
+                selectedIndex = (selectedIndex + 1) % entryCount;
+                redraw = !_renderer.UpdateInnMarketSelection(mode, stock, sellOffers, previousIndex, selectedIndex);
+                continue;
+            }
             if (key != ConsoleKey.Enter || entryCount == 0) continue;
+            redraw = true;
 
             if (mode == InnMarketMode.Buy)
             {
@@ -2971,18 +3008,36 @@ public sealed class Game
         AddSecretStashSpecialOffer(stock, completedLevel, secretLevel);
         var selectedIndex = 0;
         var message = $"🗝️ {_secretStashAccessCost} aranyért a kereskedő megmutatta titkos, fejlettebb készletét.";
+        var redraw = true;
         while (true)
         {
             var entryCount = stock.Count;
             selectedIndex = entryCount == 0 ? 0 : Math.Clamp(selectedIndex, 0, entryCount - 1);
-            _renderer.DrawInnSecretStashScreen(SelectedCharacter, stock, selectedIndex,
-                CharacterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
+            if (redraw)
+            {
+                _renderer.DrawInnSecretStashScreen(SelectedCharacter, stock, selectedIndex,
+                    CharacterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
+                redraw = false;
+            }
 
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return;
-            if (key == ConsoleKey.UpArrow && entryCount > 0) { selectedIndex = (selectedIndex - 1 + entryCount) % entryCount; continue; }
-            if (key == ConsoleKey.DownArrow && entryCount > 0) { selectedIndex = (selectedIndex + 1) % entryCount; continue; }
+            if (key == ConsoleKey.UpArrow && entryCount > 0)
+            {
+                var previousIndex = selectedIndex;
+                selectedIndex = (selectedIndex - 1 + entryCount) % entryCount;
+                redraw = !_renderer.UpdateInnSecretStashSelection(stock, previousIndex, selectedIndex);
+                continue;
+            }
+            if (key == ConsoleKey.DownArrow && entryCount > 0)
+            {
+                var previousIndex = selectedIndex;
+                selectedIndex = (selectedIndex + 1) % entryCount;
+                redraw = !_renderer.UpdateInnSecretStashSelection(stock, previousIndex, selectedIndex);
+                continue;
+            }
             if (key != ConsoleKey.Enter || entryCount == 0) continue;
+            redraw = true;
 
             var offer = stock[selectedIndex];
             var recipient = CharacterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
@@ -3107,16 +3162,34 @@ public sealed class Game
 
         var selectedIndex = 0;
         var message = "A fogadós bemutatja az utazásra kész zsoldosokat.";
+        var redraw = true;
         while (candidates.Count > 0)
         {
             selectedIndex = Math.Clamp(selectedIndex, 0, candidates.Count - 1);
-            _renderer.DrawInnRecruitmentScreen(candidates, recruitmentPrices, selectedIndex,
-                CharacterRoster.Party.Members, SelectedCharacter.Gold, message);
+            if (redraw)
+            {
+                _renderer.DrawInnRecruitmentScreen(candidates, recruitmentPrices, selectedIndex,
+                    CharacterRoster.Party.Members, SelectedCharacter.Gold, message);
+                redraw = false;
+            }
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return;
-            if (key == ConsoleKey.UpArrow) { selectedIndex = (selectedIndex - 1 + candidates.Count) % candidates.Count; continue; }
-            if (key == ConsoleKey.DownArrow) { selectedIndex = (selectedIndex + 1) % candidates.Count; continue; }
+            if (key == ConsoleKey.UpArrow)
+            {
+                var previousIndex = selectedIndex;
+                selectedIndex = (selectedIndex - 1 + candidates.Count) % candidates.Count;
+                _renderer.UpdateInnRecruitmentSelection(candidates, recruitmentPrices, previousIndex, selectedIndex);
+                continue;
+            }
+            if (key == ConsoleKey.DownArrow)
+            {
+                var previousIndex = selectedIndex;
+                selectedIndex = (selectedIndex + 1) % candidates.Count;
+                _renderer.UpdateInnRecruitmentSelection(candidates, recruitmentPrices, previousIndex, selectedIndex);
+                continue;
+            }
             if (key != ConsoleKey.Enter) continue;
+            redraw = true;
 
             var recruit = candidates[selectedIndex];
             var price = recruitmentPrices[recruit];
@@ -3157,13 +3230,28 @@ public sealed class Game
     private int? ChoosePartyMemberToReplace(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable)
     {
         var selectedIndex = 0;
+        var redraw = true;
         while (true)
         {
-            _renderer.DrawInnReplacementScreen(recruit, replaceable, selectedIndex);
+            if (redraw)
+            {
+                _renderer.DrawInnReplacementScreen(recruit, replaceable, selectedIndex);
+                redraw = false;
+            }
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return null;
-            if (key == ConsoleKey.UpArrow) selectedIndex = (selectedIndex - 1 + replaceable.Count) % replaceable.Count;
-            else if (key == ConsoleKey.DownArrow) selectedIndex = (selectedIndex + 1) % replaceable.Count;
+            if (key == ConsoleKey.UpArrow)
+            {
+                var previousIndex = selectedIndex;
+                selectedIndex = (selectedIndex - 1 + replaceable.Count) % replaceable.Count;
+                _renderer.UpdateInnReplacementSelection(replaceable, previousIndex, selectedIndex);
+            }
+            else if (key == ConsoleKey.DownArrow)
+            {
+                var previousIndex = selectedIndex;
+                selectedIndex = (selectedIndex + 1) % replaceable.Count;
+                _renderer.UpdateInnReplacementSelection(replaceable, previousIndex, selectedIndex);
+            }
             else if (key == ConsoleKey.Enter) return selectedIndex;
         }
     }
