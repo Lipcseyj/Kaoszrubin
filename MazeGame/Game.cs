@@ -3144,6 +3144,22 @@ public sealed class Game
                 offers.Add(new InnStockOffer(legendary, price));
             }
         }
+
+        var fixedExtras = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["T001"] = 4, 
+            ["T002"] = 4  
+        };
+
+        // Add fixed items first (they will use the same probabilistic pricing logic)
+        foreach (var kv in fixedExtras)
+        {
+            var fixedItem = allItems.FirstOrDefault(i => string.Equals(i.Id, kv.Key, StringComparison.OrdinalIgnoreCase));
+            if (fixedItem is null) continue;
+            for (var c = 0; c < kv.Value; c++)
+                offers.Insert(0, CreateInnStockOffer(fixedItem, priceMultiplier, completedLevel));
+        }
+
         return offers.OrderBy(offer => offer.Price).ToList();
     }
 
@@ -3536,7 +3552,8 @@ public sealed class Game
             ["T019"] = 1  // Kötés
         };
 
-        var priceMultiplier = _random.Next(105, 121) / 100.0;
+        // Use neutral price multiplier (1.0) so the witcher follows the same probabilistic pricing as the inn
+        var priceMultiplier = 1.0;
 
         // Add minimum entries first
         foreach (var kv in minQuantities)
@@ -3547,11 +3564,51 @@ public sealed class Game
         }
 
         // Fill remaining stock with level-based count
-        var baseCount = Math.Min(allowedItems.Count * 3, Math.Max(6, 5 + completedLevel));
+        var baseCount = Math.Min(allowedItems.Count * 3, Math.Max(7, 6 + completedLevel));
         while (stock.Count < baseCount)
         {
             var item = allowedItems[_random.Next(allowedItems.Count)];
             stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+        }
+
+        if (completedLevel >= 3)
+        {
+            var extraCount = _random.Next(1, 2);
+            for (var i = 0; i < extraCount; i++)
+            {
+                var item = allowedItems.FirstOrDefault(i => string.Equals(i.Id, "T012", StringComparison.OrdinalIgnoreCase));
+                stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+            }
+        }
+
+        if (completedLevel >= 6)
+        {
+            var extraCount = _random.Next(1, 2);
+            for (var i = 0; i < extraCount; i++)
+            {
+                var item = allowedItems.FirstOrDefault(i => string.Equals(i.Id, "T012", StringComparison.OrdinalIgnoreCase));
+                stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+            }
+        }
+
+        if (completedLevel >= 8)
+        {
+            var extraCount = _random.Next(1, 2);
+            for (var i = 0; i < extraCount; i++)
+            {
+                var item = allowedItems.FirstOrDefault(i => string.Equals(i.Id, "T013", StringComparison.OrdinalIgnoreCase));
+                stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+            }
+        }
+
+        if (completedLevel >= 10)
+        {
+            var extraCount = _random.Next(1, 2);
+            for (var i = 0; i < extraCount; i++)
+            {
+                var item = allowedItems.FirstOrDefault(i => string.Equals(i.Id, "T013", StringComparison.OrdinalIgnoreCase));
+                stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+            }
         }
 
         // Shuffle stock for variety
@@ -3561,11 +3618,7 @@ public sealed class Game
     private void RunWitcherMarket(int completedLevel)
     {
         var stock = CreateWitcherStock(completedLevel).ToList();
-        // Allow witcher to buy witcher-only items as well
-        var buybackItems = AllTradableItems().Concat(_gameData.Items.Where(item => WitcherOnlyItemIds.Contains(item.Id))).ToList();
-        var buybackPrices = buybackItems.ToDictionary(item => item.Id,
-            item => Math.Max(1, item.BasePrice * _random.Next(40, 71) / 100), StringComparer.OrdinalIgnoreCase);
-
+        // Witcher only sells; does not buy from player
         var mode = InnMarketMode.Buy;
         var selectedIndex = 0;
         var message = "A vajákos bólint: 'Gyógyitalok és orvosságok, kigyógyítom a sebet.'";
@@ -3573,8 +3626,9 @@ public sealed class Game
 
         while (true)
         {
-            var sellOffers = CreateSellOffers(buybackPrices);
-            var entryCount = mode == InnMarketMode.Buy ? stock.Count : sellOffers.Count;
+            // witcher does not accept sells, so sellOffers is empty
+            var sellOffers = new List<InnSellOffer>();
+            var entryCount = stock.Count;
             selectedIndex = entryCount == 0 ? 0 : Math.Clamp(selectedIndex, 0, entryCount - 1);
             if (redraw)
             {
@@ -3585,14 +3639,7 @@ public sealed class Game
 
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return;
-            if (key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow or ConsoleKey.Tab)
-            {
-                mode = mode == InnMarketMode.Buy ? InnMarketMode.Sell : InnMarketMode.Buy;
-                selectedIndex = 0;
-                message = mode == InnMarketMode.Buy ? "A vajákos kínálata." : "Csak a hátizsákok tárgyai adhatók el.";
-                redraw = true;
-                continue;
-            }
+            // witcher does not allow toggling to sell mode
             if (key == ConsoleKey.UpArrow && entryCount > 0)
             {
                 var previousIndex = selectedIndex;
@@ -3609,25 +3656,14 @@ public sealed class Game
             }
             if (key != ConsoleKey.Enter || entryCount == 0) continue;
             redraw = true;
-
-            if (mode == InnMarketMode.Buy)
-            {
-                var offer = stock[selectedIndex];
-                var recipient = CharacterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
-                if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
-                if (!SelectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - SelectedCharacter.Gold} hiányzik."; continue; }
-                recipient.AddToBackpack(offer.Item);
-                stock.RemoveAt(selectedIndex);
-                message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
-            }
-            else
-            {
-                var offer = sellOffers[selectedIndex];
-                if (!offer.Owner.SetInventoryItem(InventorySlotKind.Backpack, offer.BackpackIndex, null))
-                { message = "Az üzlet most nem hajtható végre."; continue; }
-                SelectedCharacter.AddGold(offer.Price);
-                message = $"✅ Eladtad: {offer.Item.Name} {offer.Price} aranyért ({offer.Owner.Name} hátizsákjából).";
-            }
+            // Only buying from the witcher is supported
+            var offer = stock[selectedIndex];
+            var recipient = CharacterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
+            if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
+            if (!SelectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - SelectedCharacter.Gold} hiányzik."; continue; }
+            recipient.AddToBackpack(offer.Item);
+            stock.RemoveAt(selectedIndex);
+            message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
         }
     }
 }
