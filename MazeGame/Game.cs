@@ -41,7 +41,7 @@ public sealed class Game
     private bool _partyHoldingPosition;
     private bool _saveAfterBattle;
     private bool _timeStopUsedThisBattle;
-    private readonly List<LevelUpResult> _pendingSpellLevelUps = [];
+    private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private int _mazeLevel = 1;
@@ -344,6 +344,11 @@ public sealed class Game
                     if (IsDeveloperPhasingShortcut(keyInfo))
                     {
                         ToggleDeveloperPhasing();
+                        continue;
+                    }
+                    if (IsGrantPartyExperienceShortcut(keyInfo))
+                    {
+                        GrantPartyExperienceForDevelopment();
                         continue;
                     }
 
@@ -737,8 +742,8 @@ public sealed class Game
             var completion = CompleteLevelAtInn(completedLevel);
             _renderer.DrawLevelCompletionScreen(completedLevel, _gameData.BaseLevelCompletionExperience,
                 completion.Results, completion.FallenCharacters);
-            var leaderResult = completion.Results.First(result => result.Character == SelectedCharacter).Experience;
-            if (leaderResult.LeveledUp) ResolvePerkOffers(leaderResult);
+            foreach (var levelResult in completion.Results.Where(result => result.Experience.LeveledUp))
+                ResolvePerkOffers(levelResult.Character, levelResult.Experience);
             RunInnMarket(completedLevel);
             RunInnRecruitment();
             PreparePartySpells();
@@ -1422,11 +1427,11 @@ public sealed class Game
             .ToList() is { Count: > 0 } newStatuses
             ? $" Új állapot: {string.Join(", ", newStatuses)}."
             : string.Empty;
-        LevelUpResult? leaderLevelUp = null;
+        var levelUps = new List<ExperienceAward>();
         if (result.PlayerWon)
         {
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
-            leaderLevelUp = experienceAwards.FirstOrDefault(award => award.Character == SelectedCharacter)?.Result;
+            levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive));
             var experienceResult = experienceAwards.First(award => award.Character == member.Character).Result;
             _maze.ReplaceEnemyWithCorpse(enemy);
             var levelText = experienceResult.LeveledUp
@@ -1451,9 +1456,9 @@ public sealed class Game
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _battleStarted = false;
-        if (leaderLevelUp?.LeveledUp == true)
+        if (levelUps.Count > 0)
         {
-            ResolvePerkOffers(leaderLevelUp);
+            foreach (var award in levelUps) ResolvePerkOffers(award.Character, award.Result);
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         }
     }
@@ -2182,12 +2187,13 @@ public sealed class Game
         var awards = DistributeExperience(caster, enemy.Definition.ExperienceReward);
         notes.Add($"☠ {enemy.Name} elpusztult; {FormatExperienceAwards(awards)}");
         _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
-        var casterLevelUp = awards.FirstOrDefault(award => award.Character == caster)?.Result;
-        if (casterLevelUp?.LeveledUp != true) return;
-        if (_battleStarted) _pendingSpellLevelUps.Add(casterLevelUp);
+        var leveledAwards = awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive).ToList();
+        if (leveledAwards.Count == 0) return;
+        if (_battleStarted)
+            _pendingLevelUps.AddRange(leveledAwards.Select(award => (award.Character, award.Result)));
         else
         {
-            ResolvePerkOffers(casterLevelUp);
+            foreach (var award in leveledAwards) ResolvePerkOffers(award.Character, award.Result);
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         }
     }
@@ -2400,7 +2406,6 @@ public sealed class Game
         if (result.PlayerWon)
         {
             var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
-            var experienceResult = experienceAwards.First(award => award.Character == SelectedCharacter).Result;
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             _renderer.DrawBattleResult(result, enemy);
@@ -2408,12 +2413,13 @@ public sealed class Game
             _renderer.DrawExperienceDistribution(FormatExperienceAwards(experienceAwards),
                 experienceAwards.Any(award => award.Result.LeveledUp));
             _renderer.RefreshCharacterSheet(SelectedCharacter);
-            var levelUps = _pendingSpellLevelUps.ToList();
-            _pendingSpellLevelUps.Clear();
-            if (experienceResult.LeveledUp) levelUps.Add(experienceResult);
+            var levelUps = _pendingLevelUps.ToList();
+            _pendingLevelUps.Clear();
+            levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive)
+                .Select(award => (award.Character, award.Result)));
             if (levelUps.Count > 0)
             {
-                foreach (var levelUp in levelUps) ResolvePerkOffers(levelUp);
+                foreach (var (character, levelUpResult) in levelUps) ResolvePerkOffers(character, levelUpResult);
                 _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
             }
             if (_saveAfterBattle)
@@ -2654,6 +2660,10 @@ public sealed class Game
 
     private static bool IsDeveloperPhasingShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.I &&
+        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
+    private static bool IsGrantPartyExperienceShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.X &&
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
 
     private void TeleportLeaderNearExit()
@@ -3111,24 +3121,24 @@ public sealed class Game
         .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item)).ToList();
 
     private ExperienceAward AwardExperience(LiveCharacter character, int amount) => new(character,
-        AddExperienceAndLearnForNpc(character, amount));
-
-    private LevelUpResult AddExperienceAndLearnForNpc(LiveCharacter character, int amount)
-    {
-        var result = character.AddExperience(
-            amount,
-            _gameData.ExperienceByLevel,
+        character.AddExperience(amount, _gameData.ExperienceByLevel,
             _gameData.GetVitalityGrowth(character.Abilities.Health),
-            _gameData.GetManaGrowth(character.Abilities.Intelligence),
-            _random);
-        if (character != SelectedCharacter)
-            SpellcastingRules.LearnAutomaticSpells(character, _gameData, result.Bonuses, _random);
-        return result;
-    }
+            _gameData.GetManaGrowth(character.Abilities.Intelligence), _random));
 
     private static string FormatExperienceAwards(IEnumerable<ExperienceAward> awards) => string.Join("; ", awards.Select(award =>
         $"{award.Character.Name} +{award.Result.GainedExperience}" +
         (award.Result.LeveledUp ? $" (L{award.Result.PreviousLevel}→L{award.Result.CurrentLevel})" : string.Empty)));
+
+    private void GrantPartyExperienceForDevelopment()
+    {
+        var awards = CharacterRoster.Party.Members.Where(character => character.IsAlive)
+            .Select(character => AwardExperience(character, 5000)).ToList();
+        foreach (var award in awards.Where(award => award.Result.LeveledUp))
+            ResolvePerkOffers(award.Character, award.Result);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawDeveloperMessage($"Fejlesztői mód: 5000 XP minden partitagnak. {FormatExperienceAwards(awards)}");
+    }
 
     private void TriggerDeveloperLevelUp()
     {
@@ -3140,28 +3150,28 @@ public sealed class Game
         }
 
         var result = AddExperience(neededExperience);
-        ResolvePerkOffers(result);
+        ResolvePerkOffers(SelectedCharacter, result);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
     }
 
-    private void ResolvePerkOffers(LevelUpResult result)
+    private void ResolvePerkOffers(LiveCharacter character, LevelUpResult result)
     {
-        var offers = CreatePerkOffers(result);
-        var selectedPerks = _renderer.DrawLevelUpScreen(SelectedCharacter, result, offers);
+        var offers = CreatePerkOffers(character, result);
+        var selectedPerks = _renderer.DrawLevelUpScreen(character, result, offers);
         foreach (var perk in selectedPerks)
-            if (SelectedCharacter.AddPerk(perk)) SelectedCharacter.ApplyPerkAcquisitionBonus(perk);
-        ResolveSpellLearning(result);
+            if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
+        ResolveSpellLearning(character, result);
     }
 
-    private void ResolveSpellLearning(LevelUpResult result)
+    private void ResolveSpellLearning(LiveCharacter character, LevelUpResult result)
     {
-        if (!SelectedCharacter.IsSpellcaster) return;
-        var simulatedKnown = SelectedCharacter.KnownSpells.Select(spell => spell.Id)
+        if (!character.IsSpellcaster) return;
+        var simulatedKnown = character.KnownSpells.Select(spell => spell.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var learningCount = 0;
         foreach (var bonus in result.Bonuses)
         {
-            if (!SpellcastingRules.TryGetSchool(SelectedCharacter.CharacterClass.Id, out var school)) break;
+            if (!SpellcastingRules.TryGetSchool(character.CharacterClass.Id, out var school)) break;
             var simulatedChoice = _gameData.Spells.FirstOrDefault(spell => spell.School == school &&
                 spell.Level <= SpellcastingRules.MaximumSpellLevel(bonus.Level) && !simulatedKnown.Contains(spell.Id));
             if (simulatedChoice is null) continue;
@@ -3171,11 +3181,11 @@ public sealed class Game
         var learnedNumber = 0;
         foreach (var bonus in result.Bonuses)
         {
-            var choices = SpellcastingRules.AvailableUnknownSpells(SelectedCharacter, _gameData, bonus.Level);
+            var choices = SpellcastingRules.AvailableUnknownSpells(character, _gameData, bonus.Level);
             if (choices.Count > 0)
             {
                 learnedNumber++;
-                SelectedCharacter.LearnSpell(_renderer.DrawSpellLearningScreen(SelectedCharacter, choices,
+                character.LearnSpell(_renderer.DrawSpellLearningScreen(character, choices,
                     learnedNumber, learningCount));
             }
         }
@@ -3186,13 +3196,13 @@ public sealed class Game
     private sealed record LevelCompletionOutcome(IReadOnlyList<LevelCompletionResult> Results,
         IReadOnlyList<LiveCharacter> FallenCharacters);
 
-    private IReadOnlyList<PerkOffer> CreatePerkOffers(LevelUpResult result)
+    private IReadOnlyList<PerkOffer> CreatePerkOffers(LiveCharacter character, LevelUpResult result)
     {
         var offers = new List<PerkOffer>();
         var milestones = new[] { 5, 15, 25 };
         for (var tier = 1; tier <= milestones.Length; tier++)
         {
-            if (SelectedCharacter.Perks.Any(perk => perk.Tier == tier)) continue;
+            if (character.Perks.Any(perk => perk.Tier == tier)) continue;
             var firstLevel = milestones[tier - 1] - 2;
             var lastLevel = milestones[tier - 1] + 2;
             if (result.CurrentLevel < firstLevel) continue;
@@ -3210,7 +3220,7 @@ public sealed class Game
             // A funkció bevezetése előtt az ablakon túljutott mentések a következő szintlépéskor megkapják a kimaradt választást.
             if (triggerLevel is null && result.CurrentLevel >= lastLevel) triggerLevel = result.CurrentLevel;
             if (triggerLevel is not null)
-                offers.Add(new PerkOffer(tier, triggerLevel.Value, _gameData.GetPerkChoices(SelectedCharacter.CharacterClass.Id, tier)));
+                offers.Add(new PerkOffer(tier, triggerLevel.Value, _gameData.GetPerkChoices(character.CharacterClass.Id, tier)));
         }
         return offers;
     }
