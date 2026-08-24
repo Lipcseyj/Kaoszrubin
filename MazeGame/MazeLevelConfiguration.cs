@@ -95,7 +95,7 @@ public static class MazeLevelConfigurations
                 RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 5),
                 TreasureChestCount = Amount.Few.Range(),
-                TreasureGold = new(10, 50),
+                TreasureGold = new(20, 100),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Óriáspatkány, Amount.Several, Amount.TwoThree),
@@ -116,7 +116,7 @@ public static class MazeLevelConfigurations
                 RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 5),
                 TreasureChestCount = Amount.Few.Range(),
-                TreasureGold = new(30, 70),
+                TreasureGold = new(60, 140),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Óriáspatkány, Amount.Few, Amount.TwoThree),
@@ -139,7 +139,7 @@ public static class MazeLevelConfigurations
                 RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 6),
                 TreasureChestCount = Amount.Pack.Range(),
-                TreasureGold = new(50, 140),
+                TreasureGold = new(100, 280),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Kobold, Amount.Few, Amount.Several),
@@ -163,7 +163,7 @@ public static class MazeLevelConfigurations
                 RoomCount = Amount.Pack.Range(),
                 RoomSize = new(3, 7),
                 TreasureChestCount = Amount.Several.Range(),
-                TreasureGold = new(70, 150),
+                TreasureGold = new(140, 300),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Goblin, Amount.Few, Amount.Several),
@@ -186,7 +186,7 @@ public static class MazeLevelConfigurations
                 RoomCount = Amount.Pack.Range(),
                 RoomSize = new(4, 7),
                 TreasureChestCount = Amount.Several.Range(),
-                TreasureGold = new(120, 240),
+                TreasureGold = new(240, 480),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Csontváz, Amount.Several, Amount.Several),
@@ -209,7 +209,7 @@ public static class MazeLevelConfigurations
                 RoomCount = Amount.Lots.Range(),
                 RoomSize = new(7, 11),
                 TreasureChestCount = Amount.Pack.Range(),
-                TreasureGold = new(180, 360),
+                TreasureGold = new(180, 460),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Ork, Amount.Several, Amount.Several),
@@ -233,7 +233,7 @@ public static class MazeLevelConfigurations
                 RoomCount = Amount.Pack.Range(),
                 RoomSize = new(4, 8),
                 TreasureChestCount = Amount.Several.Range(),
-                TreasureGold = new(240, 480),
+                TreasureGold = new(300, 780),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Óriáspók, Amount.Several, Amount.Several),
@@ -256,7 +256,7 @@ public static class MazeLevelConfigurations
                 RoomCount = Amount.Pack.Range(),
                 RoomSize = new(5, 8),
                 TreasureChestCount = Amount.Several.Range(),
-                TreasureGold = new(320, 620),
+                TreasureGold = new(420, 820),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Ork, Amount.Several, Amount.Pack),
@@ -279,7 +279,7 @@ public static class MazeLevelConfigurations
                 RoomCount = Amount.Pack.Range(),
                 RoomSize = new(4, 8),
                 TreasureChestCount = Amount.Pack.Range(),
-                TreasureGold = new(420, 800),
+                TreasureGold = new(520, 1000),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Múmia, Amount.Several, Amount.Several),
@@ -325,7 +325,7 @@ public static class MazeLevelConfigurations
                 RoomCount = Amount.Pack.Range(),
                 RoomSize = new(5, 9),
                 TreasureChestCount = Amount.Pack.Range(),
-                TreasureGold = new(750, 1400),
+                TreasureGold = new(750, 1500),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Wyvern, Amount.Several, Amount.Several),
