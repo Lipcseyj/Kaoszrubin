@@ -138,8 +138,8 @@ public static class MazeLevelConfigurations
                 DoubleWidthCorridorChance = 0.75,
                 RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 6),
-                TreasureChestCount = Amount.Several.Range(),
-                TreasureGold = new(35, 90),
+                TreasureChestCount = Amount.Pack.Range(),
+                TreasureGold = new(50, 140),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Kobold, Amount.Few, Amount.Several),
