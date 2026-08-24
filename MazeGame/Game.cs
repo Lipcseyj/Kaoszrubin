@@ -848,7 +848,7 @@ public sealed class Game
         var equipmentChance = equipmentDefinition is null
             ? 0
             : AdjustedSearchChance(equipmentDefinition.EquipmentChancePercent);
-        messages.Add($"esélyek: 🔑 {keyChance}%, 🪙 {goldChance}%" +
+        messages.Add($"esélyek: 🔑 {keyChance}%, {ConsoleRenderer.MoneyIcon} {goldChance}%" +
                      (equipmentDefinition is null ? string.Empty : $", 🎁 {equipmentChance}%"));
 
         var foundItems = new List<IItemDefinition>();
@@ -858,7 +858,7 @@ public sealed class Game
             var maximumGold = Math.Max(1, enemy.StrengthTier * rules.GoldPerStrengthTier);
             var gold = _random.Next(1, maximumGold + 1);
             SelectedCharacter.AddGold(gold);
-            messages.Add($"🪙 {gold} arany");
+            messages.Add($"{ConsoleRenderer.MoneyIcon} {gold} arany");
         }
         if (equipmentDefinition is not null && _random.Next(100) < equipmentChance &&
             RollEquipmentLoot(equipmentDefinition) is { } equipment)
@@ -874,7 +874,7 @@ public sealed class Game
                 messages.Add($"{item.Name} a földön maradt (a hátizsákok tele vannak)");
             }
         }
-        if (foundItems.Count == 0 && messages.All(message => !message.StartsWith("🪙", StringComparison.Ordinal)))
+        if (foundItems.Count == 0 && messages.All(message => !message.StartsWith(ConsoleRenderer.MoneyIcon, StringComparison.Ordinal)))
             messages.Add("a tetemnél nem találtál zsákmányt");
     }
 
@@ -2862,7 +2862,7 @@ public sealed class Game
         {
             (InnMenuOption.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára."),
             (InnMenuOption.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása."),
-            (InnMenuOption.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} 💰)", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött."),
+            (InnMenuOption.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} {ConsoleRenderer.MoneyIcon})", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött."),
             (InnMenuOption.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása."),
             (InnMenuOption.Rumors, "👂 Pletykák", "Hírek a következő pályáról és a környékbeli szörnyekről."),
             (InnMenuOption.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.")
@@ -2982,7 +2982,7 @@ public sealed class Game
                 var offer = stock[selectedIndex];
                 var recipient = CharacterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
                 if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
-                if (!SelectedCharacter.SpendGold(offer.Price)) { message = $"💰 Nincs elég aranyad: még {offer.Price - SelectedCharacter.Gold} hiányzik."; continue; }
+                if (!SelectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - SelectedCharacter.Gold} hiányzik."; continue; }
                 recipient.AddToBackpack(offer.Item);
                 stock.RemoveAt(selectedIndex);
                 message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
@@ -3052,7 +3052,7 @@ public sealed class Game
             var offer = stock[selectedIndex];
             var recipient = CharacterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
-            if (!SelectedCharacter.SpendGold(offer.Price)) { message = $"💰 Nincs elég aranyad: még {offer.Price - SelectedCharacter.Gold} hiányzik."; continue; }
+            if (!SelectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - SelectedCharacter.Gold} hiányzik."; continue; }
             recipient.AddToBackpack(offer.Item);
             stock.RemoveAt(selectedIndex);
             message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
@@ -3205,7 +3205,7 @@ public sealed class Game
             var price = recruitmentPrices[recruit];
             if (SelectedCharacter.Gold < price)
             {
-                message = $"💰 Nincs elég aranyad: {price - SelectedCharacter.Gold} arany hiányzik {recruit.Name} felbérléséhez.";
+                message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: {price - SelectedCharacter.Gold} arany hiányzik {recruit.Name} felbérléséhez.";
                 continue;
             }
             LiveCharacter? replaced = null;

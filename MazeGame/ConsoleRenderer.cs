@@ -13,6 +13,7 @@ public sealed class ConsoleRenderer
 {
     public const int PlayfieldWidth = 170;
     public const int PlayfieldHeight = 44;
+    public static string MoneyIcon { get; } = IsWindows11OrLater() ? "🪙" : "💰";
     private const int RightBorderX = PlayfieldWidth;
     private const int BottomBorderY = PlayfieldHeight;
     private static readonly Rune FogSymbol = new('░');
@@ -41,6 +42,12 @@ public sealed class ConsoleRenderer
     {
         _gameData = gameData;
         _party = party;
+    }
+
+    private static bool IsWindows11OrLater()
+    {
+        var version = Environment.OSVersion.Version;
+        return OperatingSystem.IsWindows() && version.Major >= 10 && version.Build >= 22000;
     }
 
     /// <summary>
@@ -119,7 +126,7 @@ public sealed class ConsoleRenderer
     /// <summary>Kincs felvétele esetén rövid üzenet a battle/message panelre.</summary>
     public void DrawTreasureCollected(int goldAmount, bool jackpot, int jackpotChance, int rewardMultiplier) =>
         DrawBattleMessage(jackpot
-            ? $"💰🎉 FŐNYEREMÉNY! +{goldAmount} arany (esély {jackpotChance}%, ×{rewardMultiplier})!"
+            ? $"{MoneyIcon}🎉 FŐNYEREMÉNY! +{goldAmount} arany (esély {jackpotChance}%, ×{rewardMultiplier})!"
             : $"Kincsesláda: +{goldAmount} arany!", jackpot ? ConsoleColor.Magenta : ConsoleColor.Yellow);
     /// <summary>Tapasztalati pont szerzés és esetleges szintlépés megjelenítése.</summary>
     public void DrawExperienceGained(LevelUpResult result) => DrawBattleMessage(
@@ -252,7 +259,7 @@ public sealed class ConsoleRenderer
         {
             ("🏰🍺  A VÁNDORCSILLAG FOGADÓ  🍺🏰", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
-            ($"Parti: {partyCount}/{Party.MaximumSize} fő     💰 Arany: {leader.Gold}", ConsoleColor.Cyan),
+            ($"Parti: {partyCount}/{Party.MaximumSize} fő     {MoneyIcon} Arany: {leader.Gold}", ConsoleColor.Cyan),
             ("────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta),
             (string.Empty, ConsoleColor.Gray)
         };
@@ -360,7 +367,7 @@ public sealed class ConsoleRenderer
             ("🏰🍺  A VÁNDORCSILLAG FOGADÓ KERESKEDŐJE  🛒✨", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
             (buying ? "◀  [ VÁSÁRLÁS ]     ELADÁS  ▶" : "◀    VÁSÁRLÁS     [ ELADÁS ]  ▶", ConsoleColor.Cyan),
-            ($"💰 {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
+            ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
             ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
         };
 
@@ -372,13 +379,13 @@ public sealed class ConsoleRenderer
             if (buying)
             {
                 var offer = stock[index];
-                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} 💰",
+                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} {MoneyIcon}",
                     selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
             }
             else
             {
                 var offer = sellOffers[index];
-                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} 💰",
+                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} {MoneyIcon}",
                     selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
             }
         }
@@ -405,7 +412,7 @@ public sealed class ConsoleRenderer
             ("🗝️🛒  A KERESKEDŐ TITKOS RAKTÁRA  🛒🗝️", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
             ("Fejlettebb, ritkább árucikkek — csak a beavatottaknak, borsos áron.", ConsoleColor.DarkYellow),
-            ($"💰 {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
+            ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
             ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
         };
         for (var row = 0; row < pageSize; row++)
@@ -414,7 +421,7 @@ public sealed class ConsoleRenderer
             if (index >= entryCount) { lines.Add((string.Empty, ConsoleColor.Gray)); continue; }
             var selected = index == selectedIndex;
             var offer = stock[index];
-            lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} 💰",
+            lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} {MoneyIcon}",
                 selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
         }
         var selectedItem = entryCount == 0 ? null : stock[selectedIndex].Item;
@@ -476,7 +483,7 @@ public sealed class ConsoleRenderer
         {
             ("🏰🍺  A VÁNDORCSILLAG FOGADÓ ZSOLDOSAI  ⚔️✨", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
-            ($"Parti: {party.Count}/{Party.MaximumSize} fő     💰 Arany: {leaderGold}", ConsoleColor.Cyan),
+            ($"Parti: {party.Count}/{Party.MaximumSize} fő     {MoneyIcon} Arany: {leaderGold}", ConsoleColor.Cyan),
             ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
         };
         for (var index = 0; index < candidates.Count; index++)
@@ -484,7 +491,7 @@ public sealed class ConsoleRenderer
             var candidate = candidates[index];
             var selected = index == selectedIndex;
             var mana = candidate.UsesMana ? $"  MP {candidate.MaximumMana}" : string.Empty;
-            var price = prices[candidate] == 0 ? "INGYEN" : $"{prices[candidate]} 💰";
+            var price = prices[candidate] == 0 ? "INGYEN" : $"{prices[candidate]} {MoneyIcon}";
             lines.Add(($"{(selected ? "▶" : " ")} {candidate.Name,-13}  {candidate.Race.Name,-10} {candidate.CharacterClass.Name,-10} L{candidate.Level,2}  HP {candidate.MaximumVitality}{mana}  {price}",
                 selected ? ConsoleColor.White : candidate.Color));
         }
@@ -948,15 +955,15 @@ public sealed class ConsoleRenderer
     }
 
     private string InnStockLine(InnStockOffer offer, bool selected) =>
-        $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} 💰";
+        $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} {MoneyIcon}";
 
     private string InnSellLine(InnSellOffer offer, bool selected) =>
-        $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} 💰";
+        $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} {MoneyIcon}";
 
     private static string InnRecruitLine(LiveCharacter candidate, int price, bool selected)
     {
         var mana = candidate.UsesMana ? $"  MP {candidate.MaximumMana}" : string.Empty;
-        var priceText = price == 0 ? "INGYEN" : $"{price} 💰";
+        var priceText = price == 0 ? "INGYEN" : $"{price} {MoneyIcon}";
         return $"{(selected ? "▶" : " ")} {candidate.Name,-13}  {candidate.Race.Name,-10} {candidate.CharacterClass.Name,-10} L{candidate.Level,2}  HP {candidate.MaximumVitality}{mana}  {priceText}";
     }
 
@@ -1232,7 +1239,7 @@ public sealed class ConsoleRenderer
         WriteSheetLine(10, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
         WriteSheetLine(13, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
         WriteSheetLine(14, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
-        WriteSheetLine(15, $"Arany: {character.Gold} 💰", ConsoleColor.Yellow);
+        WriteSheetLine(15, $"Arany: {character.Gold} {MoneyIcon}", ConsoleColor.Yellow);
         WriteSheetLine(17, "FEGYVEREK", ConsoleColor.Yellow);
         WriteSheetLine(22, $"VARÁZSTÁRGYAK {character.MagicItems.Count(item => item is not null)}/3", ConsoleColor.Magenta);
         WriteSheetLine(26, $"HÁTIZSÁK {character.Backpack.Count(item => item is not null)}/10", ConsoleColor.DarkCyan);
