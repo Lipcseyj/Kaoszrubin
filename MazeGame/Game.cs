@@ -72,7 +72,7 @@ public sealed class Game
         var manaReservePercent = 20;
         var manaReserve = Math.Max(0, caster.MaximumMana * manaReservePercent / 100);
 
-        // Emergency heal: any ally under 35% HP
+        // Emergency heal: any ally under 35% HP, within the spell's range of the caster
         var healThresholdPercent = 35;
         var allies = CharacterRoster.Party.Members.Where(c => c.IsAlive).ToList();
         var lowest = allies.OrderBy(c => (double)c.CurrentVitality / c.MaximumVitality).FirstOrDefault();
@@ -84,30 +84,37 @@ public sealed class Game
                 if (!effects.Any(e => e.Type == SpellEffectType.Heal)) continue;
                 var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
                 if (caster.CurrentMana < manaCost) continue;
-                var emergency = (double)lowest.CurrentVitality / lowest.MaximumVitality <= 0.10;
+                var range = Math.Max(1, spell.Range);
+                var reachable = allies.Where(c => Chebyshev(member.Position, GetCasterPosition(c)) <= range).ToList();
+                if (reachable.Count == 0) continue;
+                var target = reachable.OrderBy(c => (double)c.CurrentVitality / c.MaximumVitality).First();
+                var emergency = (double)target.CurrentVitality / target.MaximumVitality <= 0.10;
                 if (caster.CurrentMana - manaCost < manaReserve && !emergency) continue;
                 // Cast heal
                 var divine = caster.RecordDivineSpellCast(spell);
                 caster.SpendMana(manaCost);
                 var notes = new List<string>();
                 foreach (var effect in effects.Where(e => e.Type == SpellEffectType.Heal))
-                    ApplyHealingForCaster(effect, spell, new[] { lowest }, divine, notes, caster);
+                    ApplyHealingForCaster(effect, spell, new[] { target }, divine, notes, caster);
                 var summary = notes.Count == 0 ? "" : $" {string.Join("; ", notes)}";
-                var message = $"{caster.Name} elsüti: {spell.Name} → {lowest.Name}. -{manaCost} manna.{summary}";
+                var message = $"{caster.Name} elsüti: {spell.Name} → {target.Name}. -{manaCost} manna.{summary}";
                 _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
                 _renderer.RefreshBattleStatusRows();
                 return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
             }
         }
 
-        // Cure status if helpful
+        // Cure status if helpful, within the spell's range of the caster
         foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseInCombat))
         {
             var effects = _gameData.GetSpellEffects(spell.Id);
             if (!effects.Any(e => e.Type == SpellEffectType.CureStatus)) continue;
             var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
             if (caster.CurrentMana < manaCost) continue;
-            var candidates = CharacterRoster.Party.Members.Where(c => c.IsAlive && effects.SelectMany(e => ParseEffectParameters(e.Parameter)).Any(p => c.HasStatus(p))).ToList();
+            var range = Math.Max(1, spell.Range);
+            var candidates = CharacterRoster.Party.Members.Where(c => c.IsAlive &&
+                effects.SelectMany(e => ParseEffectParameters(e.Parameter)).Any(p => c.HasStatus(p)) &&
+                Chebyshev(member.Position, GetCasterPosition(c)) <= range).ToList();
             if (!candidates.Any()) continue;
             var targetChar = candidates.First();
             var divine = caster.RecordDivineSpellCast(spell);
@@ -121,15 +128,43 @@ public sealed class Game
             return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
         }
 
+        // Offensive spell against the enemy the leader is fighting
+        foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseInCombat))
+        {
+            var effects = _gameData.GetSpellEffects(spell.Id);
+            if (!effects.Any(e => e.Type == SpellEffectType.Damage)) continue;
+            var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+            if (caster.CurrentMana < manaCost) continue;
+            if (caster.CurrentMana - manaCost < manaReserve) continue;
+            var target = FindOffensiveSpellTarget(member.Position, spell, enemy);
+            if (target is null) continue;
+            var divine = caster.RecordDivineSpellCast(spell);
+            caster.SpendMana(manaCost);
+            var execution = ExecuteSpell(caster, member.Position, spell, target.Value, inCombat: true, enemy, divine);
+            var message = $"{caster.Name} elsüti: {spell.Name} → {enemy.Name}. -{manaCost} manna. {execution.Summary}";
+            _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+            _renderer.RefreshBattleStatusRows();
+            return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions);
+        }
+
         return null;
     }
 
-    // Let non-fighting party members support-cast (heal/cure) during the leader's own battle
-    private void TryPartyMembersCastSupportSpellsInLeaderBattle(Enemy enemy)
+    private Position? FindOffensiveSpellTarget(Position casterPosition, SpellDefinition spell, Enemy enemy)
     {
-        foreach (var member in _maze.PartyMembers.Where(member => member.Character.IsAlive))
-            ChooseNpcBattlePlayerAction(member, enemy);
+        if (spell.TargetType is SpellTargetType.Enemy or SpellTargetType.Area)
+            return IsValidSpellTarget(casterPosition, spell, enemy.Position, enemy) ? enemy.Position : null;
+        if (spell.TargetType != SpellTargetType.Direction) return null;
+        foreach (var candidate in GetValidSpellTargets(casterPosition, spell, enemy))
+            if (ResolveEnemySpellTargets(spell, candidate, enemy, casterPosition).Contains(enemy))
+                return candidate;
+        return null;
     }
+
+    // Let non-fighting party members act (heal/cure/offensive spells) during the leader's own battle
+    private int TryPartyMembersActInLeaderBattle(Enemy enemy) => _maze.PartyMembers
+        .Where(member => member.Character.IsAlive)
+        .Sum(member => ChooseNpcBattlePlayerAction(member, enemy)?.DamageToEnemy ?? 0);
 
     // NPC spellcasting for exploration - simple heals/cures/buffs
     private void TryNpcCastExplorationSpell(PartyMemberAvatar member)
@@ -2369,9 +2404,8 @@ public sealed class Game
         {
             _renderer.DrawBattleRound(entry);
             _renderer.RefreshBattleStatusRows();
-            TryPartyMembersCastSupportSpellsInLeaderBattle(enemy);
             WaitForBattleContinue(enemy);
-        }, () => ChooseBattlePlayerAction(enemy));
+        }, () => ChooseBattlePlayerAction(enemy), () => TryPartyMembersActInLeaderBattle(enemy));
         var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
 

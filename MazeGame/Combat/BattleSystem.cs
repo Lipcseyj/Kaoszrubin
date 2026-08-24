@@ -18,7 +18,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private readonly IReadOnlyList<StrengthHitBonusDefinition> _strengthHitBonuses = strengthHitBonuses.ToList();
 
     public BattleResult Resolve(LiveCharacter player, Enemy enemy, Action<BattleLogEntry> onRound,
-        Func<BattlePlayerAction?>? choosePlayerAction = null)
+        Func<BattlePlayerAction?>? choosePlayerAction = null, Func<int>? partyMemberDamage = null)
     {
         var defender = enemy.Definition with { HitPoints = enemy.CurrentHitPoints };
         var context = new BattleContext(player);
@@ -59,6 +59,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         while (player.CurrentVitality > 0 && defender.HitPoints is > 0)
         {
             round++;
+            var supportDamage = partyMemberDamage?.Invoke() ?? 0;
+            if (supportDamage > 0)
+            {
+                defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - supportDamage) };
+                if (defender.HitPoints <= 0)
+                {
+                    var finishMessage = $"{round}. kör — a parti támogató varázslatai végeztek {enemy.Name}-vel.";
+                    events.Add(finishMessage);
+                    onRound(new BattleLogEntry(finishMessage, BattleLogKind.PlayerAttack));
+                    break;
+                }
+            }
             string message;
             BattleLogKind kind;
             if (playerAttacks)
