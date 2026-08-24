@@ -306,7 +306,7 @@ public sealed class MainMenu
         Console.WriteLine("Karakterlap: Space - tárgy mozgatása | D - ledobás | I - részletek | Enter - használat");
         Console.WriteLine("Partitárs kijelölve: Del - végleges kirúgás megerősítéssel");
         Console.WriteLine("Mágus/Pap: V - memorizált varázslatok | F1-F8 - gyorsvarázslatok");
-        Console.WriteLine("Varázslatlista: fel/le, Enter - elsütés, F1-F8 - gyorshely, Esc - vissza");
+        Console.WriteLine("Varázslatlista: fel/le, Enter - elsütés, bal/jobb - partitag varázslóváltás, F1-F8 - gyorshely, Esc - vissza");
         Console.WriteLine("Célzás: nyilak - célkereszt | Tab - következő érvényes cél | Enter - megerősítés | Esc - mégse");
         Console.WriteLine("Shift+F1: súgó | F9: teljes játékállás mentése a mentések mappába");
         Console.WriteLine("K: tetem átkutatása/földi tárgyak felvétele | máshol, ajtó mellett: kulcsra zárás");

@@ -429,20 +429,38 @@ public sealed class Game
     private void BeginExplorationSpellCasting(SpellDefinition? quickSpell = null)
     {
         var spell = quickSpell;
+        var caster = SelectedCharacter;
         if (spell is null)
         {
-            spell = _renderer.DrawSpellCastingScreen(SelectedCharacter, inCombat: false, _maze, _fogOfWar,
-                _player.Position, ShowInGameHelp);
+            var casters = GetSpellcastingPartyMembers();
+            if (casters.Count == 0)
+            {
+                _renderer.DrawInventoryMessage("Senki nem tud varázsolni a partiban.", ConsoleColor.DarkYellow);
+                return;
+            }
+            var startIndex = Math.Max(0, casters.IndexOf(SelectedCharacter));
+            var selection = _renderer.DrawSpellCastingScreen(casters, startIndex, inCombat: false, _maze, _fogOfWar,
+                GetCasterPosition, ShowInGameHelp);
             _renderer.RestoreSpellCastingOverlay();
+            if (selection is null) return;
+            spell = selection.Spell;
+            caster = selection.Caster;
         }
-        if (spell is null) return;
-        var result = TryCastSpell(spell, inCombat: false, currentEnemy: null);
+        var result = TryCastSpell(caster, GetCasterPosition(caster), spell, inCombat: false, currentEnemy: null);
         if (result is not null)
         {
             _renderer.RefreshBattleStatusRows();
             _renderer.DrawInventoryMessage(result.Message, result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
         }
     }
+
+    private List<LiveCharacter> GetSpellcastingPartyMembers() => CharacterRoster.Party.Members
+        .Where(character => character.IsAlive && character.IsSpellcaster && character.CanCastSpells)
+        .ToList();
+
+    private Position GetCasterPosition(LiveCharacter character) => character == SelectedCharacter
+        ? _player.Position
+        : _maze.PartyMembers.First(member => member.Character == character).Position;
 
     private void SaveGame()
     {
@@ -1182,7 +1200,7 @@ public sealed class Game
             if (spellTick.Damage > 0)
             {
                 var spellNotes = new List<string>();
-                ApplyExplorationSpellDamage(enemy, spellTick.Damage, spellNotes);
+                ApplyExplorationSpellDamage(SelectedCharacter, enemy, spellTick.Damage, spellNotes);
                 _renderer.DrawInventoryMessage(string.Join("; ", spellTick.Notes.Concat(spellNotes)), ConsoleColor.Magenta);
                 if (enemy.CurrentHitPoints <= 0) continue;
             }
@@ -1602,14 +1620,15 @@ public sealed class Game
             SpellDefinition? spell = null;
             if (key.Key == ConsoleKey.V)
             {
-                spell = _renderer.DrawSpellCastingScreen(SelectedCharacter, inCombat: true, _maze, _fogOfWar,
-                    _player.Position, () =>
+                var selection = _renderer.DrawSpellCastingScreen([SelectedCharacter], 0, inCombat: true, _maze, _fogOfWar,
+                    _ => _player.Position, () =>
                     {
                         ShowInGameHelp();
                         _renderer.DrawBattleStarted(enemy);
                         _renderer.RefreshBattleStatusRows();
                     });
                 _renderer.RestoreSpellCastingOverlay();
+                spell = selection?.Spell;
             }
             else if (TryGetQuickSpellIndex(key, out var slotIndex))
                 spell = SelectedCharacter.QuickSpells[slotIndex];
@@ -1622,7 +1641,7 @@ public sealed class Game
                     _renderer.DrawInventoryMessage("Ez a varázslat-gyorshely üres.", ConsoleColor.DarkYellow);
                 continue;
             }
-            var attempt = TryCastSpell(spell, inCombat: true, enemy);
+            var attempt = TryCastSpell(SelectedCharacter, _player.Position, spell, inCombat: true, enemy);
             if (attempt is null) continue;
             if (attempt.ConsumesTurn) return new BattlePlayerAction(attempt.Message, attempt.Kind,
                 attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions);
@@ -1635,17 +1654,17 @@ public sealed class Game
             spell.CanUseInCombat && SpellcastingRules.EffectiveManaCost(SelectedCharacter, spell) <= SelectedCharacter.CurrentMana &&
             (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id)
                 .All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
-            HasValidSpellTarget(spell, enemy));
+            HasValidSpellTarget(SelectedCharacter, _player.Position, spell, enemy));
 
-    private SpellCastAttempt? TryCastSpell(SpellDefinition spell, bool inCombat, Enemy? currentEnemy)
+    private SpellCastAttempt? TryCastSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell, bool inCombat, Enemy? currentEnemy)
     {
-        if (!SelectedCharacter.IsAlive)
-            return new SpellCastAttempt(false, $"{SelectedCharacter.Name} nem képes varázsolni.", BattleLogKind.Information);
-        if (!SelectedCharacter.IsSpellcaster)
+        if (!caster.IsAlive)
+            return new SpellCastAttempt(false, $"{caster.Name} nem képes varázsolni.", BattleLogKind.Information);
+        if (!caster.IsSpellcaster)
             return new SpellCastAttempt(false, "Ez az osztály nem használ varázslatokat.", BattleLogKind.Information);
-        if (!SpellcastingRules.HasRequiredFocus(SelectedCharacter))
+        if (!SpellcastingRules.HasRequiredFocus(caster))
             return new SpellCastAttempt(false, "A varázsláshoz hiányzik a megfelelő fókusztárgy.", BattleLogKind.Information);
-        if (SelectedCharacter.MemorizedSpells.All(candidate =>
+        if (caster.MemorizedSpells.All(candidate =>
                 !string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))
             return new SpellCastAttempt(false, $"A(z) {spell.Name} nincs memorizálva.", BattleLogKind.Information);
         if (inCombat ? !spell.CanUseInCombat : !spell.CanUseDuringExploration)
@@ -1653,43 +1672,43 @@ public sealed class Game
         if (inCombat && _timeStopUsedThisBattle && _gameData.GetSpellEffects(spell.Id)
                 .Any(effect => effect.Type == SpellEffectType.ExtraActions))
             return new SpellCastAttempt(false, "Az Időmegállítás csatánként csak egyszer használható.", BattleLogKind.Information);
-        var manaCost = SpellcastingRules.EffectiveManaCost(SelectedCharacter, spell);
-        if (SelectedCharacter.CurrentMana < manaCost)
+        var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+        if (caster.CurrentMana < manaCost)
             return new SpellCastAttempt(false, $"Nincs elég manna: {spell.Name} {manaCost} mannát igényel.", BattleLogKind.Information);
-        if (!HasValidSpellTarget(spell, currentEnemy))
+        if (!HasValidSpellTarget(caster, casterPosition, spell, currentEnemy))
             return new SpellCastAttempt(false, $"A(z) {spell.Name} számára nincs érvényes célpont.", BattleLogKind.Information);
 
-        var target = SelectSpellTarget(spell, currentEnemy);
+        var target = SelectSpellTarget(caster, casterPosition, spell, currentEnemy);
         if (target is null) return null;
-        var divineJudgment = SelectedCharacter.RecordDivineSpellCast(spell);
-        SelectedCharacter.SpendMana(manaCost);
+        var divineJudgment = caster.RecordDivineSpellCast(spell);
+        caster.SpendMana(manaCost);
         _renderer.RefreshBattleStatusRows();
 
         if (inCombat)
         {
-            var failureChance = Math.Clamp(30 - SelectedCharacter.Abilities.Intelligence - SelectedCharacter.Abilities.Dexterity, 0, 100);
+            var failureChance = Math.Clamp(30 - caster.Abilities.Intelligence - caster.Abilities.Dexterity, 0, 100);
             var roll = _random.Next(1, 101);
             if (roll <= failureChance)
                 return new SpellCastAttempt(true,
-                    $"{SelectedCharacter.Name} varázslata meghiúsul: {spell.Name} — kockázat {failureChance}%, dobás {roll}. -{manaCost} manna; az akció elveszett.",
+                    $"{caster.Name} varázslata meghiúsul: {spell.Name} — kockázat {failureChance}%, dobás {roll}. -{manaCost} manna; az akció elveszett.",
                     BattleLogKind.Information);
         }
 
-        if (IsOffensiveSpell(spell)) SelectedCharacter.BreakSanctuary();
-        var targetText = DescribeSpellTarget(spell, target.Value, currentEnemy);
-        var execution = ExecuteSpell(spell, target.Value, inCombat, currentEnemy, divineJudgment);
+        if (IsOffensiveSpell(spell)) caster.BreakSanctuary();
+        var targetText = DescribeSpellTarget(caster, spell, target.Value, currentEnemy);
+        var execution = ExecuteSpell(caster, casterPosition, spell, target.Value, inCombat, currentEnemy, divineJudgment);
         var judgmentText = divineJudgment ? " ⚡ Isteni ítélet: kétszeres számszerű hatás és ingyenes varázslat." : string.Empty;
         return new SpellCastAttempt(true,
-            $"{SelectedCharacter.Name} elsüti: {spell.Name} → {targetText}. -{manaCost} manna.{judgmentText} {execution.Summary}",
+            $"{caster.Name} elsüti: {spell.Name} → {targetText}. -{manaCost} manna.{judgmentText} {execution.Summary}",
             BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions);
     }
 
-    private SpellExecutionResult ExecuteSpell(SpellDefinition spell, Position target, bool inCombat,
+    private SpellExecutionResult ExecuteSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Position target, bool inCombat,
         Enemy? currentEnemy, bool divineJudgment)
     {
         var effects = _gameData.GetSpellEffects(spell.Id);
-        var targets = ResolveEnemySpellTargets(spell, target, currentEnemy).ToList();
-        var characterTargets = ResolveCharacterSpellTargets(spell, target).ToList();
+        var targets = ResolveEnemySpellTargets(spell, target, currentEnemy, casterPosition).ToList();
+        var characterTargets = ResolveCharacterSpellTargets(caster, spell, target).ToList();
         var damage = targets.ToDictionary(enemy => enemy, _ => 0);
         var initialHitPoints = targets.ToDictionary(enemy => enemy, enemy => enemy.CurrentHitPoints);
         var resolutionCache = new Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult>();
@@ -1702,43 +1721,43 @@ public sealed class Game
             {
                 case SpellEffectType.Damage:
                     foreach (var enemy in targets)
-                        damage[enemy] += ResolveSpellDamage(effect, spell, enemy, resolutionCache, notes, divineJudgment);
+                        damage[enemy] += ResolveSpellDamage(caster, effect, spell, enemy, resolutionCache, notes, divineJudgment);
                     break;
                 case SpellEffectType.ChainDamage:
-                    ApplyChainDamage(effect, spell, target, currentEnemy, damage, initialHitPoints, notes);
+                    ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints, notes);
                     break;
                 case SpellEffectType.Burning:
-                    ApplyEnemyTimedEffect(effect, spell, targets, ActiveSpellEffectType.Burning, resolutionCache, notes, divineJudgment);
+                    ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.Burning, resolutionCache, notes, divineJudgment);
                     break;
                 case SpellEffectType.Storm:
-                    ApplyEnemyTimedEffect(effect, spell, targets, ActiveSpellEffectType.Storm, resolutionCache, notes, divineJudgment);
+                    ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.Storm, resolutionCache, notes, divineJudgment);
                     break;
                 case SpellEffectType.SpeedPenalty:
-                    ApplyEnemyTimedEffect(effect, spell, targets, ActiveSpellEffectType.SpeedPenalty, resolutionCache, notes, divineJudgment);
+                    ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.SpeedPenalty, resolutionCache, notes, divineJudgment);
                     break;
                 case SpellEffectType.SkipAlternate:
-                    ApplyEnemyTimedEffect(effect, spell, targets,
+                    ApplyEnemyTimedEffect(caster, effect, spell, targets,
                         string.Equals(effect.Parameter, "Next", StringComparison.OrdinalIgnoreCase)
                             ? ActiveSpellEffectType.SkipNext
                             : ActiveSpellEffectType.SkipAlternate,
                         resolutionCache, notes, divineJudgment);
                     break;
                 case SpellEffectType.Invisibility:
-                    ApplyCharacterEffects(characterTargets, effect, spell, ActiveSpellEffectType.Invisibility, divineJudgment);
+                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.Invisibility, divineJudgment);
                     notes.Add($"láthatatlanság {AdjustedDuration(effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.DefenseBonus:
-                    ApplyCharacterEffects(characterTargets, effect, spell, ActiveSpellEffectType.DefenseBonus, divineJudgment);
+                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.DefenseBonus, divineJudgment);
                     notes.Add($"+{effect.Value} védelem {AdjustedDuration(effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.PhysicalReduction:
-                    ApplyCharacterEffects(characterTargets, effect, spell, ActiveSpellEffectType.PhysicalReduction, divineJudgment);
+                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.PhysicalReduction, divineJudgment);
                     notes.Add($"{effect.Value}% fizikai védelem {AdjustedDuration(effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.BleedingImmunity:
                     foreach (var characterTarget in characterTargets)
                     {
-                        ApplyCharacterEffect(characterTarget, effect, spell, ActiveSpellEffectType.BleedingImmunity, divineJudgment);
+                        ApplyCharacterEffect(caster, characterTarget, effect, spell, ActiveSpellEffectType.BleedingImmunity, divineJudgment);
                         characterTarget.RemoveStatus(CharacterStatusIds.Bleeding);
                     }
                     notes.Add("vérzés megszüntetve és ideiglenesen kivédve");
@@ -1765,7 +1784,7 @@ public sealed class Game
                 case SpellEffectType.Execute:
                     foreach (var enemy in targets)
                     {
-                        var resolution = ResolveAgainstEnemy(effect, spell, enemy, resolutionCache);
+                        var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, resolutionCache);
                         if (!resolution.Applies || enemy.Definition.StrengthTier >= 5 ||
                             initialHitPoints[enemy] * 100 > enemy.Definition.HitPoints * effect.Value) continue;
                         damage[enemy] = Math.Max(damage[enemy], enemy.CurrentHitPoints);
@@ -1773,39 +1792,39 @@ public sealed class Game
                     }
                     break;
                 case SpellEffectType.RandomElement:
-                    ApplyRandomElement(effect, spell, targets, damage, resolutionCache, notes);
+                    ApplyRandomElement(caster, effect, spell, targets, damage, resolutionCache, notes);
                     break;
                 case SpellEffectType.Heal:
-                    ApplyHealing(effect, spell, characterTargets, divineJudgment, notes);
+                    ApplyHealing(caster, effect, spell, characterTargets, divineJudgment, notes);
                     break;
                 case SpellEffectType.CureStatus:
                     ApplyStatusCure(effect, characterTargets, notes);
                     break;
                 case SpellEffectType.HitBonus:
-                    ApplyCharacterEffects(characterTargets, effect, spell, ActiveSpellEffectType.HitBonus, divineJudgment);
+                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.HitBonus, divineJudgment);
                     notes.Add($"+{effect.Value} találat {AdjustedDuration(effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.DamageBonus:
-                    ApplyCharacterEffects(characterTargets, effect, spell, ActiveSpellEffectType.DamageBonus, divineJudgment);
+                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.DamageBonus, divineJudgment);
                     notes.Add($"+{effect.Value} fizikai sebzés {AdjustedDuration(effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.InitiativeBonus:
-                    ApplyCharacterEffects(characterTargets, effect, spell, ActiveSpellEffectType.InitiativeBonus, divineJudgment);
+                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.InitiativeBonus, divineJudgment);
                     notes.Add($"+{effect.Value} kezdeményezés {AdjustedDuration(effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.ProtectionFromEvil:
-                    ApplyCharacterEffects(characterTargets, effect, spell, ActiveSpellEffectType.ProtectionFromEvil, divineJudgment);
+                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.ProtectionFromEvil, divineJudgment);
                     notes.Add($"gonosz elleni védelem {AdjustedDuration(effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.GuardianAngel:
-                    ApplyCharacterEffects(characterTargets, effect, spell, ActiveSpellEffectType.GuardianAngel, divineJudgment);
+                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.GuardianAngel, divineJudgment);
                     notes.Add($"👼 Őrangyal {AdjustedDuration(effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.Sanctuary:
                     var sanctuaryTargets = LivingPartyWithPositions()
-                        .Where(entry => Chebyshev(entry.Position, _player.Position) <= Math.Max(0, spell.AreaRadius))
+                        .Where(entry => Chebyshev(entry.Position, casterPosition) <= Math.Max(0, spell.AreaRadius))
                         .Select(entry => entry.Character).ToList();
-                    ApplyCharacterEffects(sanctuaryTargets, effect, spell, ActiveSpellEffectType.Sanctuary, divineJudgment);
+                    ApplyCharacterEffects(caster, sanctuaryTargets, effect, spell, ActiveSpellEffectType.Sanctuary, divineJudgment);
                     notes.Add($"⛪ Szentély: {sanctuaryTargets.Count} karakter védett {AdjustedDuration(effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.Resurrect:
@@ -1814,7 +1833,7 @@ public sealed class Game
                 case SpellEffectType.DispelBeneficial:
                     foreach (var enemy in targets)
                     {
-                        var resolution = ResolveAgainstEnemy(effect, spell, enemy, resolutionCache);
+                        var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, resolutionCache);
                         if (!resolution.Applies) continue;
                         var removed = enemy.RemoveSpellEffects(active => active.Beneficial);
                         notes.Add($"{enemy.Name}: {removed} pozitív varázshatás szétoszlatva");
@@ -1823,17 +1842,17 @@ public sealed class Game
             }
         }
 
-        var chainRepeated = SelectedCharacter.HasPerk(PerkIds.MageChainSpell) &&
+        var chainRepeated = caster.HasPerk(PerkIds.MageChainSpell) &&
                             effects.Any(effect => effect.Type is SpellEffectType.Damage or SpellEffectType.ChainDamage) &&
                             _random.Next(100) < 30;
         if (chainRepeated)
         {
             foreach (var effect in effects.Where(effect => effect.Type == SpellEffectType.Damage))
                 foreach (var enemy in targets)
-                    damage[enemy] += ResolveSpellDamage(effect, spell, enemy,
+                    damage[enemy] += ResolveSpellDamage(caster, effect, spell, enemy,
                         new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes);
             foreach (var effect in effects.Where(effect => effect.Type == SpellEffectType.ChainDamage))
-                ApplyChainDamage(effect, spell, target, currentEnemy, damage, initialHitPoints, notes);
+                ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints, notes);
             notes.Add("🔁 Láncvarázs: a sebzés ingyen megismétlődött");
         }
 
@@ -1843,15 +1862,15 @@ public sealed class Game
             if (inCombat && entry.Key == currentEnemy)
                 currentDamage += Math.Min(entry.Value, entry.Key.CurrentHitPoints);
             else
-                ApplyExplorationSpellDamage(entry.Key, entry.Value, notes);
+                ApplyExplorationSpellDamage(caster, entry.Key, entry.Value, notes);
         }
-        if (damage.Values.Any(value => value > 0)) SelectedCharacter.BreakInvisibility();
-        if (!inCombat) _renderer.RefreshCharacterSheet(SelectedCharacter);
+        if (damage.Values.Any(value => value > 0)) caster.BreakInvisibility();
+        if (!inCombat) _renderer.RefreshCharacterSheet(caster);
         return new SpellExecutionResult(currentDamage, extraActions,
             notes.Count == 0 ? "A varázslat nem talált érvényes célpontot." : string.Join("; ", notes.Distinct()));
     }
 
-    private IEnumerable<Enemy> ResolveEnemySpellTargets(SpellDefinition spell, Position target, Enemy? currentEnemy)
+    private IEnumerable<Enemy> ResolveEnemySpellTargets(SpellDefinition spell, Position target, Enemy? currentEnemy, Position casterPosition)
     {
         var enemies = _maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0);
         return spell.TargetType switch
@@ -1859,14 +1878,14 @@ public sealed class Game
             SpellTargetType.Enemy => enemies.Where(enemy => enemy.Position == target)
                 .Concat(currentEnemy is not null && currentEnemy.Position == target ? [currentEnemy] : []).Distinct(),
             SpellTargetType.Area => enemies.Where(enemy => Chebyshev(enemy.Position, target) <= spell.AreaRadius),
-            SpellTargetType.Direction => enemies.Where(enemy => IsInSpellCone(enemy.Position, target)),
+            SpellTargetType.Direction => enemies.Where(enemy => IsInSpellCone(casterPosition, enemy.Position, target)),
             _ => []
         };
     }
 
-    private IEnumerable<LiveCharacter> ResolveCharacterSpellTargets(SpellDefinition spell, Position target) => spell.TargetType switch
+    private IEnumerable<LiveCharacter> ResolveCharacterSpellTargets(LiveCharacter caster, SpellDefinition spell, Position target) => spell.TargetType switch
     {
-        SpellTargetType.Self => [SelectedCharacter],
+        SpellTargetType.Self => [caster],
         SpellTargetType.Party => CharacterRoster.Party.Members.Where(character => character.IsAlive),
         SpellTargetType.PartyMember when target == _player.Position => [SelectedCharacter],
         SpellTargetType.PartyMember => _maze.GetPartyMemberAt(target) is { } member ? [member.Character] : [],
@@ -1880,31 +1899,31 @@ public sealed class Game
             yield return (member.Character, member.Position);
     }
 
-    private bool IsInSpellCone(Position position, Position selectedDirection)
+    private static bool IsInSpellCone(Position casterPosition, Position position, Position selectedDirection)
     {
-        var dx = selectedDirection.X - _player.Position.X;
-        var dy = selectedDirection.Y - _player.Position.Y;
-        var relativeX = position.X - _player.Position.X;
-        var relativeY = position.Y - _player.Position.Y;
+        var dx = selectedDirection.X - casterPosition.X;
+        var dy = selectedDirection.Y - casterPosition.Y;
+        var relativeX = position.X - casterPosition.X;
+        var relativeY = position.Y - casterPosition.Y;
         var forward = relativeX * dx + relativeY * dy;
         var lateral = Math.Abs(relativeX * dy - relativeY * dx);
         return forward is >= 1 and <= 2 && lateral <= forward - 1;
     }
 
-    private int ResolveSpellDamage(SpellEffectDefinition effect, SpellDefinition spell, Enemy enemy,
+    private int ResolveSpellDamage(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell, Enemy enemy,
         Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache, List<string> notes,
         bool divineJudgment = false)
     {
-        var resolution = ResolveAgainstEnemy(effect, spell, enemy, cache);
+        var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, cache);
         if (!resolution.Applies)
         {
             notes.Add($"{enemy.Name}: a varázslat célt tévesztett ({resolution.Text})");
             return 0;
         }
         var rolled = (effect.Dice?.Roll(_random) ?? 0) +
-                     (int)Math.Round(SelectedCharacter.Abilities.Intelligence * effect.IntelligenceMultiplier) +
-                     SelectedCharacter.Level * effect.LevelMultiplier + effect.Value;
-        if (SelectedCharacter.HasPerk(PerkIds.MageElementalMaster)) rolled = (int)Math.Ceiling(rolled * 1.25);
+                     (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier) +
+                     caster.Level * effect.LevelMultiplier + effect.Value;
+        if (caster.HasPerk(PerkIds.MageElementalMaster)) rolled = (int)Math.Ceiling(rolled * 1.25);
         if (IsHolyEffect(effect) && IsUnholy(enemy.Definition))
         {
             rolled = (int)Math.Ceiling(rolled * 1.5);
@@ -1917,7 +1936,7 @@ public sealed class Game
         return rolled;
     }
 
-    private SpellResolutionResult ResolveAgainstEnemy(SpellEffectDefinition effect, SpellDefinition spell, Enemy enemy,
+    private SpellResolutionResult ResolveAgainstEnemy(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell, Enemy enemy,
         Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache)
     {
         if (effect.Resolution == SpellResolution.Auto) return new SpellResolutionResult(true, false, false, "automatikus");
@@ -1933,17 +1952,17 @@ public sealed class Game
         if (effect.Resolution == SpellResolution.Attack)
         {
             var roll = _random.Next(1, 21);
-            var bonus = SelectedCharacter.Abilities.Intelligence +
-                        (SelectedCharacter.HasPerk(PerkIds.MageArcaneFocus) ? 2 : 0) +
-                        SelectedCharacter.GetMagicItemBonus(MagicItemEffect.Hit) +
-                        SelectedCharacter.SpellEffectValue(ActiveSpellEffectType.Invisibility) +
-                        SelectedCharacter.SpellEffectValue(ActiveSpellEffectType.HitBonus);
+            var bonus = caster.Abilities.Intelligence +
+                        (caster.HasPerk(PerkIds.MageArcaneFocus) ? 2 : 0) +
+                        caster.GetMagicItemBonus(MagicItemEffect.Hit) +
+                        caster.SpellEffectValue(ActiveSpellEffectType.Invisibility) +
+                        caster.SpellEffectValue(ActiveSpellEffectType.HitBonus);
             var hit = roll == 20 || roll != 1 && roll + bonus >= 11 + enemy.EffectiveSpeed;
             result = new SpellResolutionResult(hit, false, roll == 20, hit ? $"mágikus támadás {roll + bonus}" : $"mellé {roll + bonus}");
         }
         else
         {
-            var dc = 10 + SelectedCharacter.Abilities.Intelligence / 2 + spell.Level;
+            var dc = 10 + caster.Abilities.Intelligence / 2 + spell.Level;
             var roll = _random.Next(1, 21) + enemy.EffectiveSpeed;
             var saved = roll >= dc;
             result = new SpellResolutionResult(!saved || effect.Resolution == SpellResolution.SaveHalf,
@@ -1954,18 +1973,18 @@ public sealed class Game
         return result;
     }
 
-    private void ApplyEnemyTimedEffect(SpellEffectDefinition effect, SpellDefinition spell, IEnumerable<Enemy> targets,
+    private void ApplyEnemyTimedEffect(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell, IEnumerable<Enemy> targets,
         ActiveSpellEffectType type, Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache,
         List<string> notes, bool divineJudgment = false)
     {
         foreach (var enemy in targets)
         {
-            var resolution = ResolveAgainstEnemy(effect, spell, enemy, cache);
+            var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, cache);
             if (!resolution.Applies || _random.Next(100) >= effect.ChancePercent) continue;
             enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type, effect.Value,
                 AdjustedDuration(effect, divineJudgment),
-                effect.Dice, (int)Math.Round(SelectedCharacter.Abilities.Intelligence * effect.IntelligenceMultiplier),
-                false, effect.Dice is not null && SelectedCharacter.HasPerk(PerkIds.MageElementalMaster) ? 125 : 100));
+                effect.Dice, (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier),
+                false, effect.Dice is not null && caster.HasPerk(PerkIds.MageElementalMaster) ? 125 : 100));
             notes.Add($"{enemy.Name}: {TimedEffectName(type)} ({AdjustedDuration(effect, divineJudgment)} akció)");
         }
     }
@@ -1981,25 +2000,25 @@ public sealed class Game
         _ => "varázshatás"
     };
 
-    private void ApplyCharacterEffect(LiveCharacter character, SpellEffectDefinition effect, SpellDefinition spell,
+    private void ApplyCharacterEffect(LiveCharacter caster, LiveCharacter character, SpellEffectDefinition effect, SpellDefinition spell,
         ActiveSpellEffectType type, bool divineJudgment = false)
     {
         var multiplier = divineJudgment ? 200 : 100;
-        if (type == ActiveSpellEffectType.GuardianAngel && SelectedCharacter.HasPerk(PerkIds.PriestHealingGrace))
+        if (type == ActiveSpellEffectType.GuardianAngel && caster.HasPerk(PerkIds.PriestHealingGrace))
             multiplier = multiplier * 125 / 100;
         character.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type,
             effect.Value, AdjustedDuration(effect, divineJudgment), effect.Dice,
-            (int)Math.Round(SelectedCharacter.Abilities.Intelligence * effect.IntelligenceMultiplier), true,
+            (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier), true,
             multiplier, effect.Parameter));
     }
 
-    private void ApplyCharacterEffects(IEnumerable<LiveCharacter> characters, SpellEffectDefinition effect,
+    private void ApplyCharacterEffects(LiveCharacter caster, IEnumerable<LiveCharacter> characters, SpellEffectDefinition effect,
         SpellDefinition spell, ActiveSpellEffectType type, bool divineJudgment)
     {
-        foreach (var character in characters) ApplyCharacterEffect(character, effect, spell, type, divineJudgment);
+        foreach (var character in characters) ApplyCharacterEffect(caster, character, effect, spell, type, divineJudgment);
     }
 
-    private void ApplyHealing(SpellEffectDefinition effect, SpellDefinition spell,
+    private void ApplyHealing(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell,
         IEnumerable<LiveCharacter> characters, bool divineJudgment, ICollection<string> notes)
     {
         foreach (var character in characters.Where(character => character.IsAlive))
@@ -2008,10 +2027,10 @@ public sealed class Game
             var amount = fullHealing
                 ? character.MaximumVitality
                 : (effect.Dice?.Roll(_random) ?? 0) +
-                  (int)Math.Round(SelectedCharacter.Abilities.Intelligence * effect.IntelligenceMultiplier) +
-                  SelectedCharacter.Level * effect.LevelMultiplier + effect.Value;
+                  (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier) +
+                  caster.Level * effect.LevelMultiplier + effect.Value;
             if (!fullHealing && divineJudgment) amount *= 2;
-            if (SelectedCharacter.HasPerk(PerkIds.PriestHealingGrace))
+            if (caster.HasPerk(PerkIds.PriestHealingGrace))
                 amount = (int)Math.Ceiling(amount * 1.25);
             var before = character.CurrentVitality;
             character.RestoreVitality(amount);
@@ -2087,7 +2106,7 @@ public sealed class Game
             SpellEffectType.Storm or SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate or
             SpellEffectType.Execute or SpellEffectType.RandomElement or SpellEffectType.DispelBeneficial);
 
-    private void ApplyChainDamage(SpellEffectDefinition effect, SpellDefinition spell, Position target,
+    private void ApplyChainDamage(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell, Position target,
         Enemy? currentEnemy, Dictionary<Enemy, int> damage, Dictionary<Enemy, int> initialHitPoints, List<string> notes)
     {
         var candidates = _maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
@@ -2101,24 +2120,24 @@ public sealed class Game
             var enemy = candidates[index];
             if (!damage.ContainsKey(enemy)) damage[enemy] = 0;
             if (!initialHitPoints.ContainsKey(enemy)) initialHitPoints[enemy] = enemy.CurrentHitPoints;
-            var baseDamage = ResolveSpellDamage(effect, spell, enemy,
+            var baseDamage = ResolveSpellDamage(caster, effect, spell, enemy,
                 new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes);
             damage[enemy] += baseDamage * multipliers[Math.Min(index, multipliers.Length - 1)] / 100;
         }
     }
 
-    private void ApplyRandomElement(SpellEffectDefinition effect, SpellDefinition spell, IEnumerable<Enemy> targets,
+    private void ApplyRandomElement(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell, IEnumerable<Enemy> targets,
         Dictionary<Enemy, int> damage, Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache,
         List<string> notes)
     {
         var element = (effect.Parameter ?? "Fire|Frost|Lightning").Split('|')[_random.Next(3)];
         foreach (var enemy in targets)
         {
-            if (!ResolveAgainstEnemy(effect, spell, enemy, cache).Applies) continue;
+            if (!ResolveAgainstEnemy(caster, effect, spell, enemy, cache).Applies) continue;
             if (element.Equals("Fire", StringComparison.OrdinalIgnoreCase))
             {
                 var fireDamage = effect.Dice?.Roll(_random) ?? 0;
-                if (SelectedCharacter.HasPerk(PerkIds.MageElementalMaster))
+                if (caster.HasPerk(PerkIds.MageElementalMaster))
                     fireDamage = (int)Math.Ceiling(fireDamage * 1.25);
                 damage[enemy] += fireDamage;
                 notes.Add($"{enemy.Name}: 🔥 -{fireDamage} HP");
@@ -2131,21 +2150,21 @@ public sealed class Game
         notes.Add($"🎲 véletlen elem: {element}");
     }
 
-    private void ApplyExplorationSpellDamage(Enemy enemy, int amount, List<string> notes)
+    private void ApplyExplorationSpellDamage(LiveCharacter caster, Enemy enemy, int amount, List<string> notes)
     {
         enemy.ReceiveSpellDamage(amount);
         if (enemy.CurrentHitPoints > 0) return;
         _maze.ReplaceEnemyWithCorpse(enemy);
         _nextEnemyMoves.Remove(enemy);
-        var awards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
+        var awards = DistributeExperience(caster, enemy.Definition.ExperienceReward);
         notes.Add($"☠ {enemy.Name} elpusztult; {FormatExperienceAwards(awards)}");
         _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
-        var leaderLevelUp = awards.FirstOrDefault(award => award.Character == SelectedCharacter)?.Result;
-        if (leaderLevelUp?.LeveledUp != true) return;
-        if (_battleStarted) _pendingSpellLevelUps.Add(leaderLevelUp);
+        var casterLevelUp = awards.FirstOrDefault(award => award.Character == caster)?.Result;
+        if (casterLevelUp?.LeveledUp != true) return;
+        if (_battleStarted) _pendingSpellLevelUps.Add(casterLevelUp);
         else
         {
-            ResolvePerkOffers(leaderLevelUp);
+            ResolvePerkOffers(casterLevelUp);
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         }
     }
@@ -2204,23 +2223,23 @@ public sealed class Game
         return $"✨ szétoszlatott varázshatások: {removed}";
     }
 
-    private Position? SelectSpellTarget(SpellDefinition spell, Enemy? currentEnemy)
+    private Position? SelectSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Enemy? currentEnemy)
     {
-        if (spell.TargetType is SpellTargetType.Self or SpellTargetType.Party) return _player.Position;
-        var candidates = GetValidSpellTargets(spell, currentEnemy).Distinct().ToList();
+        if (spell.TargetType is SpellTargetType.Self or SpellTargetType.Party) return casterPosition;
+        var candidates = GetValidSpellTargets(casterPosition, spell, currentEnemy).Distinct().ToList();
         var forward = DirectionOffset(_leaderFacing);
         var fallback = new Position(
-            Math.Clamp(_player.Position.X + forward.X, 0, _maze.Width - 1),
-            Math.Clamp(_player.Position.Y + forward.Y, 0, _maze.Height - 1));
-        var cursor = candidates.OrderBy(position => Chebyshev(position, _player.Position)).FirstOrDefault(fallback);
+            Math.Clamp(casterPosition.X + forward.X, 0, _maze.Width - 1),
+            Math.Clamp(casterPosition.Y + forward.Y, 0, _maze.Height - 1));
+        var cursor = candidates.OrderBy(position => Chebyshev(position, casterPosition)).FirstOrDefault(fallback);
         Position? previous = null;
 
         while (true)
         {
-            var valid = IsValidSpellTarget(spell, cursor, currentEnemy);
+            var valid = IsValidSpellTarget(casterPosition, spell, cursor, currentEnemy);
             var prompt = $"╳ {spell.Name} — {ConsoleRenderer.SpellTargetName(spell.TargetType)}, táv {spell.Range}" +
                          (spell.AreaRadius > 0 ? $", sugár {spell.AreaRadius}" : string.Empty) +
-                         $" | {(valid ? DescribeSpellTarget(spell, cursor, currentEnemy) : "érvénytelen cél")} | Enter: célzás, Tab: következő, Esc: mégse";
+                         $" | {(valid ? DescribeSpellTarget(caster, spell, cursor, currentEnemy) : "érvénytelen cél")} | Enter: célzás, Tab: következő, Esc: mégse";
             _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, previous, cursor, valid, prompt);
             previous = cursor;
             var key = Console.ReadKey(intercept: true);
@@ -2249,13 +2268,13 @@ public sealed class Game
             }
             if (!TryGetDirection(key.Key, out var direction)) continue;
             cursor = spell.TargetType == SpellTargetType.Direction
-                ? _player.Position + direction
+                ? casterPosition + direction
                 : cursor + direction;
             if (!_maze.IsInside(cursor)) cursor = previous.Value;
         }
     }
 
-    private IEnumerable<Position> GetValidSpellTargets(SpellDefinition spell, Enemy? currentEnemy)
+    private IEnumerable<Position> GetValidSpellTargets(Position casterPosition, SpellDefinition spell, Enemy? currentEnemy)
     {
         IEnumerable<Position> possible = spell.TargetType switch
         {
@@ -2264,23 +2283,23 @@ public sealed class Game
             SpellTargetType.PartyMember => new[] { _player.Position }.Concat(_maze.PartyMembers
                 .Where(member => member.Character.IsAlive).Select(member => member.Position)),
             SpellTargetType.Corpse => _maze.Corpses.OfType<PartyMemberCorpse>().Select(corpse => corpse.Position),
-            SpellTargetType.Direction => Directions.Select(direction => _player.Position + direction),
+            SpellTargetType.Direction => Directions.Select(direction => casterPosition + direction),
             SpellTargetType.Cell or SpellTargetType.Area =>
-                from y in Enumerable.Range(Math.Max(0, _player.Position.Y - spell.Range),
-                    Math.Min(_maze.Height - 1, _player.Position.Y + spell.Range) - Math.Max(0, _player.Position.Y - spell.Range) + 1)
-                from x in Enumerable.Range(Math.Max(0, _player.Position.X - spell.Range),
-                    Math.Min(_maze.Width - 1, _player.Position.X + spell.Range) - Math.Max(0, _player.Position.X - spell.Range) + 1)
+                from y in Enumerable.Range(Math.Max(0, casterPosition.Y - spell.Range),
+                    Math.Min(_maze.Height - 1, casterPosition.Y + spell.Range) - Math.Max(0, casterPosition.Y - spell.Range) + 1)
+                from x in Enumerable.Range(Math.Max(0, casterPosition.X - spell.Range),
+                    Math.Min(_maze.Width - 1, casterPosition.X + spell.Range) - Math.Max(0, casterPosition.X - spell.Range) + 1)
                 select new Position(x, y),
             _ => []
         };
-        return possible.Where(position => IsValidSpellTarget(spell, position, currentEnemy));
+        return possible.Where(position => IsValidSpellTarget(casterPosition, spell, position, currentEnemy));
     }
 
-    private bool IsValidSpellTarget(SpellDefinition spell, Position position, Enemy? currentEnemy)
+    private bool IsValidSpellTarget(Position casterPosition, SpellDefinition spell, Position position, Enemy? currentEnemy)
     {
         if (!_maze.IsInside(position) || !_fogOfWar.IsVisible(position)) return false;
-        var inRange = Chebyshev(_player.Position, position) <= Math.Max(1, spell.Range);
-        if (!inRange || spell.RequiresLineOfSight && !FogOfWar.CanSee(_maze, _player.Position, position, Math.Max(1, spell.Range))) return false;
+        var inRange = Chebyshev(casterPosition, position) <= Math.Max(1, spell.Range);
+        if (!inRange || spell.RequiresLineOfSight && !FogOfWar.CanSee(_maze, casterPosition, position, Math.Max(1, spell.Range))) return false;
         return spell.TargetType switch
         {
             SpellTargetType.Enemy => currentEnemy is not null
@@ -2293,7 +2312,7 @@ public sealed class Game
             SpellTargetType.Corpse => _maze.Corpses.OfType<PartyMemberCorpse>().Any(corpse =>
                 corpse.Position == position && !corpse.Character.WasResurrectedThisLevel &&
                 FindResurrectionPosition(corpse) is not null),
-            SpellTargetType.Direction => Manhattan(_player.Position, position) == 1,
+            SpellTargetType.Direction => Manhattan(casterPosition, position) == 1,
             SpellTargetType.Cell when _gameData.GetSpellEffects(spell.Id).Any(effect =>
                 effect.Type is SpellEffectType.TeleportSelf or SpellEffectType.TeleportParty) =>
                 _maze.IsWalkable(position) && _maze.GetObjectAt(position) is null,
@@ -2302,11 +2321,11 @@ public sealed class Game
         };
     }
 
-    private bool HasValidSpellTarget(SpellDefinition spell, Enemy? currentEnemy) => spell.TargetType switch
+    private bool HasValidSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Enemy? currentEnemy) => spell.TargetType switch
     {
-        SpellTargetType.Self => CanAffectCharacter(spell, SelectedCharacter),
+        SpellTargetType.Self => CanAffectCharacter(spell, caster),
         SpellTargetType.Party => CharacterRoster.Party.Members.Any(character => character.IsAlive && CanAffectCharacter(spell, character)),
-        _ => GetValidSpellTargets(spell, currentEnemy).Any()
+        _ => GetValidSpellTargets(casterPosition, spell, currentEnemy).Any()
     };
 
     private bool CanAffectCharacter(SpellDefinition spell, LiveCharacter character)
@@ -2320,21 +2339,21 @@ public sealed class Game
         });
     }
 
-    private string DescribeSpellTarget(SpellDefinition spell, Position position, Enemy? currentEnemy) => spell.TargetType switch
+    private string DescribeSpellTarget(LiveCharacter caster, SpellDefinition spell, Position position, Enemy? currentEnemy) => spell.TargetType switch
     {
-        SpellTargetType.Self => SelectedCharacter.Name,
+        SpellTargetType.Self => caster.Name,
         SpellTargetType.Party => "az egész parti",
         SpellTargetType.Enemy when currentEnemy is not null && currentEnemy.Position == position => currentEnemy.Name,
         SpellTargetType.Enemy => _maze.GetEnemyAt(position)?.Name ?? $"({position.X},{position.Y})",
         SpellTargetType.PartyMember when position == _player.Position => SelectedCharacter.Name,
         SpellTargetType.PartyMember => _maze.PartyMembers.FirstOrDefault(member => member.Position == position)?.Character.Name ?? $"({position.X},{position.Y})",
         SpellTargetType.Corpse => _maze.Corpses.OfType<PartyMemberCorpse>().FirstOrDefault(corpse => corpse.Position == position)?.Character.Name ?? $"({position.X},{position.Y})",
-        SpellTargetType.Direction => $"{DirectionName(position)} irány",
+        SpellTargetType.Direction => $"{DirectionName(_player.Position, position)} irány",
         _ => $"({position.X},{position.Y})"
     };
 
-    private string DirectionName(Position position) => position.X < _player.Position.X ? "bal" :
-        position.X > _player.Position.X ? "jobb" : position.Y < _player.Position.Y ? "fel" : "le";
+    private static string DirectionName(Position origin, Position position) => position.X < origin.X ? "bal" :
+        position.X > origin.X ? "jobb" : position.Y < origin.Y ? "fel" : "le";
 
     private static int Chebyshev(Position first, Position second) =>
         Math.Max(Math.Abs(first.X - second.X), Math.Abs(first.Y - second.Y));

@@ -7,6 +7,8 @@ using MazeGame.Domain.Magic;
 
 namespace MazeGame;
 
+public sealed record SpellCastSelection(SpellDefinition Spell, LiveCharacter Caster);
+
 public sealed class ConsoleRenderer
 {
     public const int PlayfieldWidth = 170;
@@ -489,56 +491,81 @@ public sealed class ConsoleRenderer
         }
     }
 
-    public SpellDefinition? DrawSpellCastingScreen(LiveCharacter character, bool inCombat, Maze maze,
-        FogOfWar fogOfWar, Position playerPosition, Action? showHelp = null)
+    public SpellCastSelection? DrawSpellCastingScreen(IReadOnlyList<LiveCharacter> casters, int casterIndex, bool inCombat,
+        Maze maze, FogOfWar fogOfWar, Func<LiveCharacter, Position> casterPosition, Action? showHelp = null)
     {
-        var spells = character.MemorizedSpells
-            .Where(spell => inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration)
-            .OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).ToList();
-        if (spells.Count == 0) return null;
         _spellCastingOverlaySnapshot = null;
-        var selectedIndex = 0;
         while (true)
         {
-            const int maximumVisibleSpellCount = 12;
-            var firstVisibleIndex = Math.Clamp(selectedIndex - maximumVisibleSpellCount / 2, 0,
-                Math.Max(0, spells.Count - maximumVisibleSpellCount));
-            var visibleSpells = spells.Skip(firstVisibleIndex).Take(maximumVisibleSpellCount).ToList();
-            var lines = new List<(string Text, ConsoleColor Color)>
+            var character = casters[casterIndex];
+            var playerPosition = casterPosition(character);
+            var spells = character.MemorizedSpells
+                .Where(spell => inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration)
+                .OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).ToList();
+            var selectedIndex = 0;
+            var switchDirection = 0;
+            while (true)
             {
-                (inCombat ? "⚔️ HARCI VARÁZSLÁS" : "🔮 VARÁZSLÁS", ConsoleColor.Magenta),
-                ($"{character.Name}  ◆ {character.CurrentMana}/{character.MaximumMana} manna", ConsoleColor.Cyan),
-                ("↑↓ választ  Enter célzás  Esc bezár", ConsoleColor.Green),
-                ("────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
-            };
-            lines.AddRange(visibleSpells.Select((spell, visibleIndex) =>
-            {
-                var index = firstVisibleIndex + visibleIndex;
-                var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
-                    string.Equals(candidate?.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
-                var quick = quickIndex >= 0 ? $"F{quickIndex + 1}" : "--";
-                var manaCost = SpellcastingRules.EffectiveManaCost(character, spell);
-                var text = $"{(index == selectedIndex ? "▶" : " ")} [{quick}] L{spell.Level}  {spell.Name,-24} {manaCost}M  {SpellTargetName(spell.TargetType)}";
-                var color = character.CurrentMana < manaCost ? ConsoleColor.DarkRed :
-                    index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray;
-                return (text, color);
-            }));
-            if (spells.Count > maximumVisibleSpellCount)
-                lines.Add(($"{firstVisibleIndex + 1}–{firstVisibleIndex + visibleSpells.Count} / {spells.Count}", ConsoleColor.DarkCyan));
-            DrawSpellCastingOverlay(76, lines, maze, fogOfWar, playerPosition);
-            var key = Console.ReadKey(intercept: true);
-            if (key.Key == ConsoleKey.F1 && (key.Modifiers & ConsoleModifiers.Shift) != 0)
-            {
-                showHelp?.Invoke();
-                _spellCastingOverlaySnapshot = null;
-                continue;
-            }
-            switch (key.Key)
-            {
-                case ConsoleKey.UpArrow: selectedIndex = (selectedIndex - 1 + spells.Count) % spells.Count; break;
-                case ConsoleKey.DownArrow: selectedIndex = (selectedIndex + 1) % spells.Count; break;
-                case ConsoleKey.Enter: return spells[selectedIndex];
-                case ConsoleKey.Escape: return null;
+                const int maximumVisibleSpellCount = 12;
+                var firstVisibleIndex = spells.Count == 0 ? 0 : Math.Clamp(selectedIndex - maximumVisibleSpellCount / 2, 0,
+                    Math.Max(0, spells.Count - maximumVisibleSpellCount));
+                var visibleSpells = spells.Skip(firstVisibleIndex).Take(maximumVisibleSpellCount).ToList();
+                var switchHint = casters.Count > 1 ? "  ◄► váltás" : string.Empty;
+                var casterHint = casters.Count > 1 ? $"   ({casterIndex + 1}/{casters.Count})" : string.Empty;
+                var lines = new List<(string Text, ConsoleColor Color)>
+                {
+                    (inCombat ? "⚔️ HARCI VARÁZSLÁS" : "🔮 VARÁZSLÁS", ConsoleColor.Magenta),
+                    ($"{character.Name}  ◆ {character.CurrentMana}/{character.MaximumMana} manna{casterHint}", ConsoleColor.Cyan),
+                    ("↑↓ választ  Enter célzás  Esc bezár" + switchHint, ConsoleColor.Green),
+                    ("────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
+                };
+                if (spells.Count == 0)
+                    lines.Add(("Ebben a helyzetben nincs használható memorizált varázslata.", ConsoleColor.DarkYellow));
+                else
+                {
+                    lines.AddRange(visibleSpells.Select((spell, visibleIndex) =>
+                    {
+                        var index = firstVisibleIndex + visibleIndex;
+                        var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
+                            string.Equals(candidate?.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
+                        var quick = quickIndex >= 0 ? $"F{quickIndex + 1}" : "--";
+                        var manaCost = SpellcastingRules.EffectiveManaCost(character, spell);
+                        var text = $"{(index == selectedIndex ? "▶" : " ")} [{quick}] L{spell.Level}  {spell.Name,-24} {manaCost}M  {SpellTargetName(spell.TargetType)}";
+                        var color = character.CurrentMana < manaCost ? ConsoleColor.DarkRed :
+                            index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray;
+                        return (text, color);
+                    }));
+                    if (spells.Count > maximumVisibleSpellCount)
+                        lines.Add(($"{firstVisibleIndex + 1}–{firstVisibleIndex + visibleSpells.Count} / {spells.Count}", ConsoleColor.DarkCyan));
+                }
+                DrawSpellCastingOverlay(76, lines, maze, fogOfWar, playerPosition);
+                var key = Console.ReadKey(intercept: true);
+                if (key.Key == ConsoleKey.F1 && (key.Modifiers & ConsoleModifiers.Shift) != 0)
+                {
+                    showHelp?.Invoke();
+                    _spellCastingOverlaySnapshot = null;
+                    continue;
+                }
+                switch (key.Key)
+                {
+                    case ConsoleKey.UpArrow when spells.Count > 0: selectedIndex = (selectedIndex - 1 + spells.Count) % spells.Count; break;
+                    case ConsoleKey.DownArrow when spells.Count > 0: selectedIndex = (selectedIndex + 1) % spells.Count; break;
+                    case ConsoleKey.Enter when spells.Count > 0: return new SpellCastSelection(spells[selectedIndex], character);
+                    case ConsoleKey.Escape: return null;
+                    case ConsoleKey.LeftArrow when casters.Count > 1:
+                        casterIndex = (casterIndex - 1 + casters.Count) % casters.Count;
+                        switchDirection = -1;
+                        break;
+                    case ConsoleKey.RightArrow when casters.Count > 1:
+                        casterIndex = (casterIndex + 1) % casters.Count;
+                        switchDirection = 1;
+                        break;
+                }
+                if (switchDirection != 0)
+                {
+                    RestoreSpellCastingOverlay();
+                    break;
+                }
             }
         }
     }
