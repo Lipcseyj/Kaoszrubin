@@ -333,6 +333,7 @@ public sealed class MainMenu
         Console.WriteLine();
         WriteLine("CSATA", ConsoleColor.Red);
         Console.WriteLine("Saját kör: Space - fegyver | V/F1-F8 - varázslás; választás csak használható varázslatnál jelenik meg.");
+        Console.WriteLine("Pap/Lovag élőholt ellen: T - csatánként egyszer Halottűzés / Szent elűzés.");
         Console.WriteLine("Harci varázslási kudarc: max(0, 30 - Intelligencia - Ügyesség)%; a manna és az akció elvész.");
         Console.WriteLine("A csata alatt a világ ideje megáll.");
         Console.WriteLine();

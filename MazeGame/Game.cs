@@ -46,6 +46,7 @@ public sealed class Game
     private bool _partyHoldingPosition;
     private bool _saveAfterBattle;
     private bool _timeStopUsedThisBattle;
+    private readonly HashSet<LiveCharacter> _turnUndeadUsedThisBattle = [];
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
@@ -77,7 +78,10 @@ public sealed class Game
     private BattlePlayerAction? ChooseNpcBattlePlayerAction(PartyMemberAvatar member, Enemy enemy)
     {
         var caster = member.Character;
-        if (!caster.IsAlive || !caster.IsSpellcaster || !caster.CanCastSpells) return null;
+        if (!caster.IsAlive) return null;
+        if (CanTurnUndead(caster, enemy) && !_turnUndeadUsedThisBattle.Contains(caster))
+            return ResolveTurnUndead(caster, enemy);
+        if (!caster.IsSpellcaster || !caster.CanCastSpells) return null;
         // Simple mana reserve policy (don't drop below 20% unless emergency)
         var manaReservePercent = 20;
         var manaReserve = Math.Max(0, caster.MaximumMana * manaReservePercent / 100);
@@ -1398,6 +1402,7 @@ public sealed class Game
     {
         if (_battleStarted || !member.Character.IsAlive || !_maze.Enemies.Contains(enemy)) return;
         _battleStarted = true;
+        _turnUndeadUsedThisBattle.Clear();
         _soundEffects.Play(SoundEffect.BattleStart);
         var startingNpcHp = member.Character.CurrentVitality;
         var startingEnemyHp = enemy.CurrentHitPoints;
@@ -1611,12 +1616,17 @@ public sealed class Game
 
     private BattlePlayerAction? ChooseBattlePlayerAction(Enemy enemy)
     {
-        if (!HasUsableCombatSpell(enemy)) return null;
+        var canTurnUndead = CanTurnUndead(SelectedCharacter, enemy) &&
+                            !_turnUndeadUsedThisBattle.Contains(SelectedCharacter);
+        if (!HasUsableCombatSpell(enemy) && !canTurnUndead) return null;
         while (true)
         {
-            _renderer.DrawInventoryMessage("Akció: Space — fegyveres támadás | V — varázslat | F1-F8 — gyorsvarázslat", ConsoleColor.Yellow);
+            _renderer.DrawInventoryMessage("Akció: Space — fegyveres támadás | V — varázslat | F1-F8 — gyorsvarázslat" +
+                (canTurnUndead ? " | T — halottűzés" : string.Empty), ConsoleColor.Yellow);
             var key = Console.ReadKey(intercept: true);
             if (key.Key == ConsoleKey.Spacebar) return null;
+            if (key.Key == ConsoleKey.T && canTurnUndead)
+                return ResolveTurnUndead(SelectedCharacter, enemy);
             if (IsSaveGameShortcut(key))
             {
                 _saveAfterBattle = true;
@@ -1677,6 +1687,43 @@ public sealed class Game
             _gameData.GetSpell(item.SpellId!) is { } spell && spell.CanUseInCombat &&
             (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id).All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
             HasValidSpellTarget(SelectedCharacter, _player.Position, spell, enemy));
+
+    private static bool CanTurnUndead(LiveCharacter character, Enemy enemy) =>
+        character.CharacterClass.Id is CharacterClassIds.Pap or CharacterClassIds.Lovag &&
+        enemy.Definition.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase);
+
+    private BattlePlayerAction ResolveTurnUndead(LiveCharacter character, Enemy enemy)
+    {
+        _turnUndeadUsedThisBattle.Add(character);
+        var priest = character.CharacterClass.Id == CharacterClassIds.Pap;
+        var ability = priest ? character.Abilities.Intelligence : character.Abilities.Strength;
+        var levelBonus = priest ? character.Level / 2 : character.Level / 3;
+        var roll = _random.Next(1, 21);
+        var total = roll + ability + levelBonus;
+        var difficulty = 10 + enemy.Definition.StrengthTier * 2;
+        var abilityName = priest ? "Halottűzés" : "Szent elűzés";
+        if (total < difficulty)
+            return new BattlePlayerAction($"{character.Name} megkísérli: {abilityName}, de az élőholt ellenáll " +
+                $"({roll} + {ability} + {levelBonus} = {total}, cél {difficulty}).", BattleLogKind.Information);
+
+        if (priest && total >= difficulty + 10 && enemy.Definition.StrengthTier <= 2 && enemy.GroupRole != EnemyGroupRole.Leader)
+            return new BattlePlayerAction($"{character.Name} {abilityName} képessége szent fénnyel megsemmisíti {enemy.Name} ellenfelet " +
+                $"({total}, cél {difficulty}+10).", BattleLogKind.PlayerAttack, enemy.CurrentHitPoints);
+
+        if (priest)
+        {
+            enemy.ApplySpellEffect(new ActiveSpellEffect("TURN-UNDEAD", ActiveSpellEffectType.SkipNext, 0, 2));
+            return new BattlePlayerAction($"{character.Name} sikeresen használja: {abilityName}. {enemy.Name} két akciót kihagy " +
+                $"({total}, cél {difficulty}).", BattleLogKind.PlayerAttack);
+        }
+
+        var damage = _random.Next(1, 7) + character.Level / 2;
+        enemy.ApplySpellEffect(new ActiveSpellEffect("HOLY-TURNING", ActiveSpellEffectType.SkipNext, 0, 1));
+        character.ApplySpellEffect(new ActiveSpellEffect("HOLY-TURNING", ActiveSpellEffectType.DefenseBonus, 2, 2, Beneficial: true));
+        return new BattlePlayerAction($"{character.Name} sikeresen használja: {abilityName}. {enemy.Name} -{damage} HP, " +
+            "kihagyja következő akcióját; a Lovag +2 védelmet kap 2 akcióig " +
+            $"({total}, cél {difficulty}).", BattleLogKind.PlayerAttack, damage);
+    }
 
     private SpellCastAttempt? TryCastSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
         bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null)
@@ -2406,6 +2453,7 @@ public sealed class Game
     {
         if (_battleStarted) return;
         _timeStopUsedThisBattle = false;
+        _turnUndeadUsedThisBattle.Clear();
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
         _battleStarted = true;
         _soundEffects.Play(SoundEffect.BattleStart);

@@ -19,6 +19,14 @@ A két rögzített osztályszett magasabb szintű, véletlenül generált karakt
 
 A MazeGame egy .NET 10 konzolos, egyjátékos labirintusjáték. Az alkalmazás adatvezérelt: a fajok, osztályok, ellenfelek, felszerelések, varázslatok és fejlődési küszöbök az `adatok.csv` fájlból töltődnek be. A karakterlista JSON-fájlban, a teljes futamok pedig időbélyeges `.save` állományokban maradnak meg.
 
+### Halottűzés
+
+Az `MA001` Élőholt tulajdonságú ellenfelek ellen a Pap és a Lovag csatánként egyszer külön kasztakciót használhat; a partyvezérnél ez a `T` billentyű, az NPC-k pedig automatikusan választják. A képesség nem varázslat, ezért nem fogyaszt mannát, nem igényel memorizálást vagy fókusztárgyat, de egy teljes harci akcióba kerül.
+
+- Pap: `1d20 + Intelligencia + szint/2` a `10 + ellenfél-erősség×2` nehézség ellen. Sikerre az élőholt két akciót kihagy. Legalább 10 pontos túldobás az 1–2-es erősségű, nem vezér élőholtat azonnal megsemmisíti.
+- Lovag: `1d20 + Erő + szint/3` ugyanilyen nehézség ellen. Sikerre `1d6 + szint/2` szent sebzést okoz, az ellenfél kihagyja következő akcióját, a Lovag pedig két akcióra +2 védelmet kap.
+- Kudarc esetén csak az akció és az adott csatára szóló használat vész el. A 4–5-ös erősségű és vezér ellenfelek nem semmisíthetők meg azonnal.
+
 A megoldás fő felelősségi területei:
 
 - **indítás és menü:** az adatok betöltése, karakterkezelés és játékindítás;
