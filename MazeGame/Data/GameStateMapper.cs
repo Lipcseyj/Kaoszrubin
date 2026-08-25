@@ -1,0 +1,163 @@
+using System.Text;
+using MazeGame.Domain.Characters;
+using MazeGame.Domain.Inventory;
+
+namespace MazeGame.Data;
+
+internal sealed class GameStateMapper
+{
+    private const int VisionRange = 5;
+    private readonly GameDataCatalog _gameData;
+    private readonly CharacterRoster _characterRoster;
+    private readonly LiveCharacter _selectedCharacter;
+
+    public GameStateMapper(GameDataCatalog gameData, CharacterRoster characterRoster,
+        LiveCharacter selectedCharacter)
+    {
+        _gameData = gameData;
+        _characterRoster = characterRoster;
+        _selectedCharacter = selectedCharacter;
+    }
+
+    public GameSaveData Create(int mazeLevel, Maze maze, Player player, FogOfWar fogOfWar,
+        Direction leaderFacing, IReadOnlyList<Position> leaderTrail, bool partyHoldingPosition,
+        bool hasRestedThisLevel, DateTime? partyScatterUntil, DateTime nextNeedsDrain,
+        IReadOnlyDictionary<Enemy, DateTime> nextEnemyMoves)
+    {
+        var now = DateTime.UtcNow;
+        var mazeData = new MazeSaveData
+        {
+            Width = maze.Width,
+            Height = maze.Height,
+            WallCodePoint = maze.WallRune.Value,
+            WallColor = maze.WallColor,
+            LevelName = maze.LevelName,
+            Exit = maze.Exit,
+            StartingRoom = maze.StartingRoom,
+            Rooms = maze.Rooms.Where(room => room != maze.StartingRoom).ToList(),
+            Doors = maze.Doors.Select(door => new DoorSaveData(door.Position, door.State)).ToList(),
+            Chests = maze.TreasureChests.Select(chest => new ChestSaveData(chest.Position, chest.GoldAmount)).ToList(),
+            Enemies = maze.Enemies.Select(enemy => new EnemySaveData(enemy.Position, enemy.Definition.Id,
+                enemy.CurrentHitPoints, enemy.MovementProfile, enemy.PatrolDirection, enemy.PursuitState,
+                Math.Max(0, (int)(nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds),
+                enemy.GroupId, enemy.GroupRole, enemy.ActiveSpellEffects.ToList())).ToList(),
+            Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
+                corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
+                (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false)).ToList(),
+            PartyAvatars = maze.PartyMembers.Select(member => new PartyAvatarSaveData(member.Position,
+                CharacterIndex(member.Character))).ToList(),
+            GroundPiles = maze.GroundItemPiles.Select(pile => new GroundPileSaveData(pile.Position,
+                pile.Items.Select(item => new SavedItemReference(item.Category.ToString(), item.Id)).ToList())).ToList()
+        };
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++) mazeData.TileCodePoints.Add(maze.Tiles[x, y].Value);
+
+        return new GameSaveData
+        {
+            MainCharacterName = _selectedCharacter.Name,
+            MazeLevel = mazeLevel,
+            PlayerPosition = player.Position,
+            LeaderFacing = leaderFacing,
+            LeaderTrail = leaderTrail.ToList(),
+            PartyHoldingPosition = partyHoldingPosition,
+            HasRestedThisLevel = hasRestedThisLevel,
+            ScatterRemainingMilliseconds = partyScatterUntil is { } scatter
+                ? Math.Max(0, (int)(scatter - now).TotalMilliseconds) : 0,
+            NeedsDrainRemainingMilliseconds = Math.Max(0, (int)(nextNeedsDrain - now).TotalMilliseconds),
+            EnemyMoveRemainingMilliseconds = maze.Enemies.Count == 0 ? 0 : maze.Enemies.Min(enemy =>
+                Math.Max(0, (int)(nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds)),
+            Maze = mazeData,
+            Fog = new FogSaveData
+            {
+                RevealedPositions = fogOfWar.GetRevealedPositions().ToList(),
+                DeveloperRevealActive = fogOfWar.IsDeveloperRevealActive
+            }
+        };
+    }
+
+    public RestoredGameState Restore(GameSaveData state)
+    {
+        if (state.Maze.TileCodePoints.Count != state.Maze.Width * state.Maze.Height)
+            throw new InvalidOperationException("A mentett térképrács mérete érvénytelen.");
+
+        var now = DateTime.UtcNow;
+        var mazeLevel = Math.Max(1, state.MazeLevel);
+        var wallRune = state.Maze.WallCodePoint > 0
+            ? new Rune(state.Maze.WallCodePoint)
+            : Maze.Wall;
+        var maze = new Maze(state.Maze.Width, state.Maze.Height, wallRune,
+            state.Maze.WallColor, state.Maze.LevelName);
+        var tileIndex = 0;
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++)
+            maze.SetTile(new Position(x, y), new Rune(state.Maze.TileCodePoints[tileIndex++]));
+        if (state.Maze.StartingRoom is { } startingRoom) maze.SetStartingRoom(startingRoom);
+        foreach (var room in state.Maze.Rooms) maze.AddRoom(room);
+        foreach (var door in state.Maze.Doors) maze.PlaceDoor(door.Position, door.State);
+        maze.PlaceExit(state.Maze.Exit);
+        foreach (var chest in state.Maze.Chests) maze.AddTreasureChest(new TreasureChest(chest.Position, chest.GoldAmount));
+
+        var nextEnemyMoves = new Dictionary<Enemy, DateTime>();
+        foreach (var savedEnemy in state.Maze.Enemies)
+        {
+            var enemy = new ConfiguredEnemy(savedEnemy.Position, _gameData.GetEnemy(savedEnemy.DefinitionId));
+            enemy.SetCurrentHitPoints(savedEnemy.CurrentHitPoints);
+            enemy.ConfigureMovement(savedEnemy.MovementProfile, savedEnemy.PatrolDirection, savedEnemy.PursuitState);
+            enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
+            foreach (var effect in savedEnemy.ActiveSpellEffects ?? []) enemy.RestoreSpellEffect(effect);
+            maze.AddEnemy(enemy);
+            var remaining = savedEnemy.NextMoveRemainingMilliseconds >= 0
+                ? savedEnemy.NextMoveRemainingMilliseconds
+                : Math.Max(0, state.EnemyMoveRemainingMilliseconds);
+            nextEnemyMoves[enemy] = now + TimeSpan.FromMilliseconds(remaining);
+        }
+        foreach (var avatar in state.Maze.PartyAvatars)
+            if (avatar.CharacterIndex >= 0 && avatar.CharacterIndex < _characterRoster.Characters.Count)
+                maze.AddPartyMember(new PartyMemberAvatar(avatar.Position, _characterRoster.Characters[avatar.CharacterIndex]));
+        foreach (var corpse in state.Maze.Corpses)
+        {
+            var restored = corpse.PartyCharacterIndex is >= 0 and var characterIndex && characterIndex < _characterRoster.Characters.Count
+                ? new PartyMemberCorpse(corpse.Position, _characterRoster.Characters[characterIndex])
+                : corpse.EnemyDefinitionId is { Length: > 0 } enemyDefinitionId
+                    ? new MonsterCorpse(corpse.Position, corpse.FormerName, enemyDefinitionId, corpse.IsSearched)
+                    : new Corpse(corpse.Position, corpse.FormerName);
+            maze.AddCorpse(restored);
+        }
+        foreach (var pile in state.Maze.GroundPiles)
+            foreach (var item in pile.Items) maze.DropItem(pile.Position, ResolveSavedItem(item));
+
+        var player = new Player(state.PlayerPosition, _selectedCharacter);
+        var fogOfWar = new FogOfWar(maze.Width, maze.Height, VisionRange);
+        fogOfWar.Restore(state.Fog.RevealedPositions, state.Fog.DeveloperRevealActive);
+
+        return new RestoredGameState(
+            mazeLevel,
+            maze,
+            player,
+            fogOfWar,
+            state.LeaderFacing,
+            state.LeaderTrail.Count > 0 ? state.LeaderTrail.ToList() : [state.PlayerPosition],
+            state.PartyHoldingPosition,
+            state.HasRestedThisLevel,
+            state.ScatterRemainingMilliseconds > 0 ? now + TimeSpan.FromMilliseconds(state.ScatterRemainingMilliseconds) : null,
+            now + TimeSpan.FromMilliseconds(Math.Max(0, state.NeedsDrainRemainingMilliseconds)),
+            nextEnemyMoves);
+    }
+
+    private int CharacterIndex(LiveCharacter character) => Enumerable.Range(0, _characterRoster.Characters.Count)
+        .First(index => _characterRoster.Characters[index] == character);
+
+    private IItemDefinition ResolveSavedItem(SavedItemReference item) => item.Category switch
+    {
+        nameof(ItemCategory.Weapon) => _gameData.GetWeapon(item.Id),
+        nameof(ItemCategory.Armor) => _gameData.GetArmor(item.Id),
+        nameof(ItemCategory.MagicItem) => _gameData.GetMagicItem(item.Id),
+        nameof(ItemCategory.Miscellaneous) => _gameData.GetItem(item.Id),
+        _ => throw new InvalidOperationException($"Ismeretlen mentett tárgykategória: {item.Category}")
+    };
+}
+
+internal sealed record RestoredGameState(int MazeLevel, Maze Maze, Player Player, FogOfWar FogOfWar,
+    Direction LeaderFacing, IReadOnlyList<Position> LeaderTrail, bool PartyHoldingPosition,
+    bool HasRestedThisLevel, DateTime? PartyScatterUntil, DateTime NextNeedsDrain,
+    IReadOnlyDictionary<Enemy, DateTime> NextEnemyMoves);

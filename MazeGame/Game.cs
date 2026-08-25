@@ -30,6 +30,8 @@ public sealed class Game
     private readonly Random _random = new();
     private readonly BattleSystem _battleSystem;
     private readonly GameSaveService _gameSaveService;
+    private readonly GameStateMapper _gameStateMapper;
+    private readonly DoorInteractionController _doorInteractions;
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
     private bool _battleStarted;
@@ -61,9 +63,11 @@ public sealed class Game
         SelectedCharacter = selectedCharacter;
         _gameData = gameData;
         _gameSaveService = gameSaveService;
+        _gameStateMapper = new GameStateMapper(gameData, characterRoster, selectedCharacter);
         _loadedState = loadedState;
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
         _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
+        _doorInteractions = new DoorInteractionController(gameData, _renderer, _soundEffects, _random);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
     }
@@ -363,11 +367,11 @@ public sealed class Game
                         if (ConfirmReturnToMainMenu()) return;
                         continue;
                     }
-                    if (key == ConsoleKey.N) { TryOpenAdjacentDoor(); continue; }
-                    if (key == ConsoleKey.Z) { TryCloseAdjacentDoor(); continue; }
+                    if (key == ConsoleKey.N) { _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter); continue; }
+                    if (key == ConsoleKey.Z) { _doorInteractions.TryCloseAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter); continue; }
                     if (key == ConsoleKey.K)
                     {
-                        if (!TrySearchCurrentCell()) TryLockAdjacentDoor();
+                        if (!TrySearchCurrentCell()) _doorInteractions.TryLockAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter);
                         continue;
                     }
                     if (key == ConsoleKey.H) { TogglePartyHoldPosition(); continue; }
@@ -531,114 +535,27 @@ public sealed class Game
 
     private GameSaveData CreateGameSaveData()
     {
-        var now = DateTime.UtcNow;
-        int CharacterIndex(LiveCharacter character) => Enumerable.Range(0, CharacterRoster.Characters.Count)
-            .First(index => CharacterRoster.Characters[index] == character);
-        var mazeData = new MazeSaveData
-        {
-            Width = _maze.Width,
-            Height = _maze.Height,
-            WallCodePoint = _maze.WallRune.Value,
-            WallColor = _maze.WallColor,
-            LevelName = _maze.LevelName,
-            Exit = _maze.Exit,
-            StartingRoom = _maze.StartingRoom,
-            Rooms = _maze.Rooms.Where(room => room != _maze.StartingRoom).ToList(),
-            Doors = _maze.Doors.Select(door => new DoorSaveData(door.Position, door.State)).ToList(),
-            Chests = _maze.TreasureChests.Select(chest => new ChestSaveData(chest.Position, chest.GoldAmount)).ToList(),
-            Enemies = _maze.Enemies.Select(enemy => new EnemySaveData(enemy.Position, enemy.Definition.Id,
-                enemy.CurrentHitPoints, enemy.MovementProfile, enemy.PatrolDirection, enemy.PursuitState,
-                Math.Max(0, (int)(_nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds),
-                enemy.GroupId, enemy.GroupRole, enemy.ActiveSpellEffects.ToList())).ToList(),
-            Corpses = _maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
-                corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
-                (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false)).ToList(),
-            PartyAvatars = _maze.PartyMembers.Select(member => new PartyAvatarSaveData(member.Position, CharacterIndex(member.Character))).ToList(),
-            GroundPiles = _maze.GroundItemPiles.Select(pile => new GroundPileSaveData(pile.Position,
-                pile.Items.Select(item => new SavedItemReference(item.Category.ToString(), item.Id)).ToList())).ToList()
-        };
-        for (var y = 0; y < _maze.Height; y++)
-        for (var x = 0; x < _maze.Width; x++) mazeData.TileCodePoints.Add(_maze.Tiles[x, y].Value);
-        return new GameSaveData
-        {
-            MainCharacterName = SelectedCharacter.Name,
-            MazeLevel = _mazeLevel,
-            PlayerPosition = _player.Position,
-            LeaderFacing = _leaderFacing,
-            LeaderTrail = _leaderTrail.ToList(),
-            PartyHoldingPosition = _partyHoldingPosition,
-            HasRestedThisLevel = _hasRestedThisLevel,
-            ScatterRemainingMilliseconds = _partyScatterUntil is { } scatter
-                ? Math.Max(0, (int)(scatter - now).TotalMilliseconds) : 0,
-            NeedsDrainRemainingMilliseconds = Math.Max(0, (int)(_nextNeedsDrain - now).TotalMilliseconds),
-            EnemyMoveRemainingMilliseconds = _maze.Enemies.Count == 0 ? 0 : _maze.Enemies.Min(enemy =>
-                Math.Max(0, (int)(_nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds)),
-            Maze = mazeData,
-            Fog = new FogSaveData
-            {
-                RevealedPositions = _fogOfWar.GetRevealedPositions().ToList(),
-                DeveloperRevealActive = _fogOfWar.IsDeveloperRevealActive
-            }
-        };
+        return _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
+            _leaderTrail, _partyHoldingPosition, _hasRestedThisLevel, _partyScatterUntil,
+            _nextNeedsDrain, _nextEnemyMoves);
     }
 
     private void RestoreGame(GameSaveData state)
     {
-        if (state.Maze.TileCodePoints.Count != state.Maze.Width * state.Maze.Height)
-            throw new InvalidOperationException("A mentett térképrács mérete érvénytelen.");
-        _mazeLevel = Math.Max(1, state.MazeLevel);
-        var wallRune = state.Maze.WallCodePoint > 0
-            ? new System.Text.Rune(state.Maze.WallCodePoint)
-            : Maze.Wall;
-        _maze = new Maze(state.Maze.Width, state.Maze.Height, wallRune,
-            state.Maze.WallColor, state.Maze.LevelName);
-        var tileIndex = 0;
-        for (var y = 0; y < _maze.Height; y++)
-        for (var x = 0; x < _maze.Width; x++) _maze.SetTile(new Position(x, y), new System.Text.Rune(state.Maze.TileCodePoints[tileIndex++]));
-        if (state.Maze.StartingRoom is { } startingRoom) _maze.SetStartingRoom(startingRoom);
-        foreach (var room in state.Maze.Rooms) _maze.AddRoom(room);
-        foreach (var door in state.Maze.Doors) _maze.PlaceDoor(door.Position, door.State);
-        _maze.PlaceExit(state.Maze.Exit);
-        foreach (var chest in state.Maze.Chests) _maze.AddTreasureChest(new TreasureChest(chest.Position, chest.GoldAmount));
-        _nextEnemyMoves.Clear();
-        foreach (var savedEnemy in state.Maze.Enemies)
-        {
-            var enemy = new ConfiguredEnemy(savedEnemy.Position, _gameData.GetEnemy(savedEnemy.DefinitionId));
-            enemy.SetCurrentHitPoints(savedEnemy.CurrentHitPoints);
-            enemy.ConfigureMovement(savedEnemy.MovementProfile, savedEnemy.PatrolDirection, savedEnemy.PursuitState);
-            enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
-            foreach (var effect in savedEnemy.ActiveSpellEffects ?? []) enemy.RestoreSpellEffect(effect);
-            _maze.AddEnemy(enemy);
-            var remaining = savedEnemy.NextMoveRemainingMilliseconds >= 0
-                ? savedEnemy.NextMoveRemainingMilliseconds
-                : Math.Max(0, state.EnemyMoveRemainingMilliseconds);
-            _nextEnemyMoves[enemy] = DateTime.UtcNow + TimeSpan.FromMilliseconds(remaining);
-        }
-        foreach (var avatar in state.Maze.PartyAvatars)
-            if (avatar.CharacterIndex >= 0 && avatar.CharacterIndex < CharacterRoster.Characters.Count)
-                _maze.AddPartyMember(new PartyMemberAvatar(avatar.Position, CharacterRoster.Characters[avatar.CharacterIndex]));
-        foreach (var corpse in state.Maze.Corpses)
-        {
-            var restored = corpse.PartyCharacterIndex is >= 0 and var characterIndex && characterIndex < CharacterRoster.Characters.Count
-                ? new PartyMemberCorpse(corpse.Position, CharacterRoster.Characters[characterIndex])
-                : corpse.EnemyDefinitionId is { Length: > 0 } enemyDefinitionId
-                    ? new MonsterCorpse(corpse.Position, corpse.FormerName, enemyDefinitionId, corpse.IsSearched)
-                    : new Corpse(corpse.Position, corpse.FormerName);
-            _maze.AddCorpse(restored);
-        }
-        foreach (var pile in state.Maze.GroundPiles)
-            foreach (var item in pile.Items) _maze.DropItem(pile.Position, ResolveSavedItem(item));
-        _player = new Player(state.PlayerPosition, SelectedCharacter);
-        _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, VisionRange);
-        _fogOfWar.Restore(state.Fog.RevealedPositions, state.Fog.DeveloperRevealActive);
-        _leaderFacing = state.LeaderFacing;
+        var restored = _gameStateMapper.Restore(state);
+        _mazeLevel = restored.MazeLevel;
+        _maze = restored.Maze;
+        _player = restored.Player;
+        _fogOfWar = restored.FogOfWar;
+        _leaderFacing = restored.LeaderFacing;
         _leaderTrail.Clear();
-        _leaderTrail.AddRange(state.LeaderTrail.Count > 0 ? state.LeaderTrail : [state.PlayerPosition]);
-        _partyHoldingPosition = state.PartyHoldingPosition;
-        _hasRestedThisLevel = state.HasRestedThisLevel;
-        _partyScatterUntil = state.ScatterRemainingMilliseconds > 0
-            ? DateTime.UtcNow + TimeSpan.FromMilliseconds(state.ScatterRemainingMilliseconds) : null;
-        _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMilliseconds(Math.Max(0, state.NeedsDrainRemainingMilliseconds));
+        _leaderTrail.AddRange(restored.LeaderTrail);
+        _partyHoldingPosition = restored.PartyHoldingPosition;
+        _hasRestedThisLevel = restored.HasRestedThisLevel;
+        _partyScatterUntil = restored.PartyScatterUntil;
+        _nextNeedsDrain = restored.NextNeedsDrain;
+        _nextEnemyMoves.Clear();
+        foreach (var enemyMove in restored.NextEnemyMoves) _nextEnemyMoves[enemyMove.Key] = enemyMove.Value;
         _nextPartyMoves.Clear();
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _battleStarted = false;
@@ -646,15 +563,6 @@ public sealed class Game
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.DrawDeveloperMessage($"Mentés betöltve: {state.MainCharacterName}, {_mazeLevel}. pálya.");
     }
-
-    private IItemDefinition ResolveSavedItem(SavedItemReference item) => item.Category switch
-    {
-        nameof(ItemCategory.Weapon) => _gameData.GetWeapon(item.Id),
-        nameof(ItemCategory.Armor) => _gameData.GetArmor(item.Id),
-        nameof(ItemCategory.MagicItem) => _gameData.GetMagicItem(item.Id),
-        nameof(ItemCategory.Miscellaneous) => _gameData.GetItem(item.Id),
-        _ => throw new InvalidOperationException($"Ismeretlen mentett tárgykategória: {item.Category}")
-    };
 
     private void TryRestParty()
     {
@@ -2493,121 +2401,6 @@ public sealed class Game
             _gameData.GetStatus(CharacterStatusIds.Thirsty));
         return loss;
     }
-
-    private MazeDoor? GetAdjacentDoor() => Directions
-        .Select(direction => _maze.GetDoorAt(_player.Position + direction))
-        .FirstOrDefault(door => door is not null);
-
-    private void TryOpenAdjacentDoor()
-    {
-        var door = GetAdjacentDoor();
-        if (door is null) { _renderer.DrawDoorMessage("Nincs ajtó melletted."); return; }
-        if (door.State == DoorState.Open) { _renderer.DrawDoorMessage("Az ajtó már nyitva van."); return; }
-        if (door.State == DoorState.Smashed) { _renderer.DrawDoorMessage("A bezúzott ajtónyílás már szabad."); return; }
-        if (door.State == DoorState.Closed)
-        {
-            _maze.SetDoorState(door, DoorState.Open);
-            RefreshAfterDoorChanged("Kinyitottad az ajtót.", ConsoleColor.Green);
-            return;
-        }
-
-        if (SelectedCharacter.RemoveFromBackpack(MiscItemIds.Key))
-        {
-            _maze.SetDoorState(door, DoorState.Open);
-            RefreshAfterDoorChanged("A kulcs kinyitotta a zárat és eltört a használat során.", ConsoleColor.Green);
-            return;
-        }
-
-        var attemptCost = ConsumeLockedDoorAttemptNeeds();
-        var costMessage = $" Próba ára: 🍖 -{attemptCost.Food}, 💧 -{attemptCost.Water}.";
-
-        if (CharacterClassRules.IsThief(SelectedCharacter.CharacterClass.Id))
-        {
-            var chance = LockpickChance(SelectedCharacter.Abilities.Dexterity);
-            var roll = _random.Next(1, 101);
-            if (roll <= chance)
-            {
-                _maze.SetDoorState(door, DoorState.Open);
-                RefreshAfterDoorChanged($"Zárnyitás sikerült: Ügy {SelectedCharacter.Abilities.Dexterity}, esély {chance}%, dobás {roll}." + costMessage, ConsoleColor.Green);
-                return;
-            }
-            _renderer.DrawDoorMessage($"Zárnyitás sikertelen: Ügy {SelectedCharacter.Abilities.Dexterity}, esély {chance}%, dobás {roll}.", ConsoleColor.Red);
-        }
-
-        var strengthRoll = _random.Next(1, 21);
-        if (strengthRoll <= SelectedCharacter.Abilities.Strength)
-        {
-            _maze.SetDoorState(door, DoorState.Smashed);
-            RefreshAfterDoorChanged($"Erőpróba sikerült: 1d20({strengthRoll}) ≤ Erő {SelectedCharacter.Abilities.Strength}. Az ajtó bezúzva!" + costMessage, ConsoleColor.Green);
-        }
-        else
-        {
-            _renderer.RefreshCharacterSheet(SelectedCharacter);
-            _renderer.DrawDoorMessage($"Erőpróba sikertelen: 1d20({strengthRoll}) > Erő {SelectedCharacter.Abilities.Strength}. Az ajtó zárva marad." + costMessage, ConsoleColor.Red);
-        }
-    }
-
-    private (int Food, int Water) ConsumeLockedDoorAttemptNeeds()
-    {
-        var rules = _gameData.DoorAttemptRules;
-        var food = _random.Next(rules.FoodMinimum, rules.FoodMaximum + 1);
-        var water = _random.Next(rules.WaterMinimum, rules.WaterMaximum + 1);
-        SelectedCharacter.ConsumeFood(food);
-        SelectedCharacter.ConsumeWater(water);
-        SelectedCharacter.SynchronizeNeedStatuses(
-            _gameData.GetStatus(CharacterStatusIds.Hungry),
-            _gameData.GetStatus(CharacterStatusIds.Thirsty));
-        return (food, water);
-    }
-
-    private void TryCloseAdjacentDoor()
-    {
-        var door = GetAdjacentDoor();
-        if (door is null) { _renderer.DrawDoorMessage("Nincs ajtó melletted."); return; }
-        if (door.State == DoorState.Smashed) { _renderer.DrawDoorMessage("A bezúzott ajtó többé nem zárható be.", ConsoleColor.Red); return; }
-        if (door.State == DoorState.Locked) { _renderer.DrawDoorMessage("Az ajtó már kulcsra van zárva."); return; }
-        if (door.State == DoorState.Closed) { _renderer.DrawDoorMessage("Az ajtó már be van zárva."); return; }
-        _maze.SetDoorState(door, DoorState.Closed);
-        RefreshAfterDoorChanged("Bezártad az ajtót.", ConsoleColor.DarkYellow);
-    }
-
-    private void TryLockAdjacentDoor()
-    {
-        var door = GetAdjacentDoor();
-        if (door is null) { _renderer.DrawDoorMessage("Nincs ajtó melletted."); return; }
-        if (door.State == DoorState.Smashed) { _renderer.DrawDoorMessage("A bezúzott ajtó többé nem zárható kulcsra.", ConsoleColor.Red); return; }
-        if (door.State == DoorState.Locked) { _renderer.DrawDoorMessage("Az ajtó már kulcsra van zárva."); return; }
-
-        if (SelectedCharacter.RemoveFromBackpack(MiscItemIds.Key))
-        {
-            _maze.SetDoorState(door, DoorState.Locked);
-            RefreshAfterDoorChanged("Kulccsal bezártad az ajtót. A kulcs elveszett.", ConsoleColor.DarkYellow);
-            return;
-        }
-        if (CharacterClassRules.IsThief(SelectedCharacter.CharacterClass.Id))
-        {
-            _maze.SetDoorState(door, DoorState.Locked);
-            RefreshAfterDoorChanged("Tolvajként kulcs nélkül is bezártad az ajtó zárját.", ConsoleColor.DarkYellow);
-            return;
-        }
-        _renderer.DrawDoorMessage("Az ajtó kulcsra zárásához kulcs vagy tolvaj szükséges.", ConsoleColor.Red);
-    }
-
-    private void RefreshAfterDoorChanged(string message, ConsoleColor color)
-    {
-        _fogOfWar.RevealFrom(_maze, _player.Position);
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawDoorMessage(message, color);
-        _soundEffects.Play(message.Contains("Bezártad", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("bezártad", StringComparison.OrdinalIgnoreCase)
-            ? SoundEffect.DoorClose
-            : SoundEffect.DoorOpen);
-    }
-
-    private static int LockpickChance(int dexterity) => dexterity <= 10
-        ? Math.Clamp(dexterity * 10 - 10, 0, 90)
-        : Math.Clamp(90 + (dexterity - 10) * 10 / 3, 90, 100);
 
     private void PlayBattleRoundSound(BattleLogEntry entry)
     {
