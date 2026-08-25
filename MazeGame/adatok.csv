@@ -348,8 +348,9 @@ W010,csatabárd,WT001,6-13,nem,nem,nem,nem,Széles pengéjű bárd erős és kö
 W011,lándzsa,WT001,5-12,igen,nem,nem,nem,Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.,160
 W012,alabárd,WT001,7-15,igen,nem,nem,nem,Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.,480
 W013,csatakalapács,WT001,7-14,igen,nem,igen,nem,Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.,450
-W014,bőrpajzs,WT003,1-3,nem,igen,igen,nem,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.,45
-W015,fapajzs,WT003,2-5,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.,90
+W014,fapajzs,WT003,1-2,nem,igen,igen,nem,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.,45
+W015,vaspajzs,WT003,2-3,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.,90
+W016,acélpajzs,WT003,2-5,nem,nem,igen,nem,Masszív acélpajzs ami kitűnő védelemet biztosít csak erős karúaknak.,90
 LW001,Hajnalpenge,WT001,9-17,nem,nem,igen,nem,A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.,6500,Legendás,W004,3
 LW002,Éjcsók,WT002,7-14,nem,igen,nem,igen,Fekete tőr amely hangtalanul találja meg a páncél réseit.,5200,Legendás,W001,4
 LW003,Vérivó,WT002,10-19,igen,igen,nem,nem,Bíbor katana amely minden győzelemmel sötétebben fénylik.,7800,Legendás,W003,4

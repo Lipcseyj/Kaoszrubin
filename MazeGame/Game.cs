@@ -496,6 +496,11 @@ public sealed class Game
                     if (key == ConsoleKey.P) { TryRestParty(); continue; }
                     if (key == ConsoleKey.Enter && _player.Position == _maze.Exit)
                     {
+                        if (_mazeLevel == MazeLevelConfigurations.FinalLevel)
+                        {
+                            CompleteCampaign();
+                            continue;
+                        }
                         var completedLevel = _mazeLevel;
                         _soundEffects.Play(SoundEffect.LevelComplete);
                         _innController.Run(completedLevel);
@@ -525,6 +530,61 @@ public sealed class Game
             Console.SetCursorPosition(0, ConsoleRenderer.PlayfieldHeight + 5);
         }
     }
+
+    private void CompleteCampaign()
+    {
+        if (_collectedBossKeyIds.Count < MonsterIds.Bosses.Count)
+        {
+            _renderer.DrawInventoryMessage(
+                $"A Káoszrubin körül még zárva kering néhány aranylakat. Kulcsok: {_collectedBossKeyIds.Count}/{MonsterIds.Bosses.Count}.",
+                ConsoleColor.Yellow);
+            return;
+        }
+
+        _soundEffects.Play(SoundEffect.LevelComplete);
+        _soundEffects.Play(SoundEffect.Victory);
+        _renderer.DrawStoryOverlay("GRATULÁLUNK, KULCSHORDOZÓK!",
+            "XV. fejezet — A csillagok választottai", CreateCampaignFinale(),
+            _maze, _fogOfWar, _player.Position);
+        _gameOver = true;
+    }
+
+    private IReadOnlyList<string> CreateCampaignFinale()
+    {
+        var paragraphs = new List<string>
+        {
+            "A Káoszrubin a rejtekhely legutolsó termében lebeg. Belsejében tűz, víz, föld és szél kergeti egymást, mintha a négy ősi elementálmágus vitája még mindig nem ért volna véget. Amikor megérintitek, a kő egyetlen szívdobbanásnyi időre elnémul — aztán bíbor fénye elnyeli a labirintust.",
+            "Nem zuhantok, mégis világok suhannak el mellettetek. A káosz huszonegy megtört törvénye egyetlen villanásba roskad, majd márvány érinti a lábatokat. Saját világotokban álltok, Aurelios Máguskirály tróntermében, a Káoszrubinnal együtt.",
+            "A Csillagszeműek teljes köre vár benneteket az aranykupola alatt. Már órákkal korábban meggyújtották a tizenkét csillaglámpást: megérezték, hogy közeledik a kiválasztott. Vhar-Zul árnyéka visszahúzódik az ólomüveg ablakokról, Aurelios pedig leszáll trónjáról, és király létére fejet hajt előttetek.",
+            "A királyi krónikás felnyitja az üresen hagyott aranylapokat. Nemcsak a Káoszrubin visszatérését jegyzi fel, hanem mindazok nevét is, akik élve járták végig az utat:"
+        };
+
+        paragraphs.AddRange(CharacterRoster.Party.Members.Where(character => character.IsAlive)
+            .Select(CreateSurvivorTribute));
+        paragraphs.Add(
+            $"Aurelios végül {SelectedCharacter.Name} kezére teszi a kezét. „A csillagok kiválasztottak benneteket, de nem a jóslat győzött helyettetek. Ti tettétek valóra. Mától nem alattvalóimként, hanem a birodalom megmentőiként álltok előttem.”");
+        paragraphs.Add(
+            "A tizenkét csillaglámpás egyszerre lobban fel, a tróntermet pedig harangzúgás és ujjongás tölti be. A Káoszrubin hazatért, Vhar-Zul terve meghiúsult, és a túlélők neve örökre felkerült az Aranykor új krónikájába. Gratulálunk — végigjártátok a Káoszlabirintust, és megnyertétek a játékot!");
+        return paragraphs;
+    }
+
+    private static string CreateSurvivorTribute(LiveCharacter character) => character.CharacterClass.Id switch
+    {
+        CharacterClassIds.Harcos =>
+            $"{character.Name}, a harcos erős keze sosem hagyta cserben társait. Ellenfelei rettegtek fegyverének súlyától, barátai pedig tudták, hogy mellette a legvadabb roham is megtörik.",
+        CharacterClassIds.Barbár =>
+            $"{character.Name}, a barbár fékezhetetlen bátorsága utat tört ott is, ahol más már csak a biztos halált látta. Haragja viharként söpört végig a szörnyeken, de társait mindvégig hűséges szívvel oltalmazta.",
+        CharacterClassIds.Lovag =>
+            $"{character.Name}, a lovag pajzsa élő várfalként állt a csapat előtt. Becsülete a legsötétebb síkokon sem homályosult el, és esküjét még a Káosz sem tudta megtörni.",
+        CharacterClassIds.Tolvaj =>
+            $"{character.Name}, a tolvaj ott talált ösvényt, ahol más csak zárakat, csapdákat és árnyakat látott. Éles szeme és gyors keze számtalanszor mentette meg a csapatot, gyakran még azelőtt, hogy társai észrevették volna a veszélyt.",
+        CharacterClassIds.Pap =>
+            $"{character.Name}, a pap hite fényt gyújtott a holtak és démonok birodalmában. Imái visszahívták társait a kétségbeesés pereméről, szent erejétől pedig még a sír nyughatatlan urai is meghátráltak.",
+        CharacterClassIds.Mágus =>
+            $"{character.Name}, a mágus tudása megszelídítette a labirintus vad erőit. Varázslatai csillagfényként hasították fel a sötétséget, és elméje olyan titkokat fejtett meg, amelyeket évszázadok óta senki sem mert megérinteni.",
+        _ =>
+            $"{character.Name}, a {character.CharacterClass.Name.ToLowerInvariant()} rendíthetetlen társként járta végig a Káoszlabirintust; neve méltán került a birodalom legnagyobb hősei közé."
+    };
 
     private void StartNewMaze()
     {

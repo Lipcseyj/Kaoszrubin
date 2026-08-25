@@ -663,6 +663,8 @@ A `MazeLevelConfiguration` a fal egyetlen konzolcellás `Rune` karakterét, `Con
 
 A `DoubleWidthCorridorChance` a legtöbb pályán 0,7–0,95 között marad. Tematikus kivétel a nagy csarnokok 0,20-as és az óriások erődjének 0,12-es értéke: ezekben ritkábbak a két cella széles összeköttetések, miközben a szobák jóval nagyobbak és számosabbak.
 
+A kampány zárópályája a 21. szint, „A Káoszrubin rejtekhelye”. A 20. szinten Kael-Zhur, a Káoszsárkány őrzi a tizenkettedik kulcsot; az utána megnyíló rejtekhelyen a káosz a korábbi világok lényeit vegyes csoportokba sodorja. Mitikus szörnyek, élőholtak, bestiák, sárkányok és démonok együtt őrzik a nagy, magenta kristályfalú termeket. A kijárat maga a Káoszrubinhoz vezető végpont: tizenkét aranykulcs nélkül nem aktiválható, mind a tizenkettő birtokában pedig fogadó és új pályagenerálás helyett elindítja a XV., befejező fejezetet. A finálé név és kaszt szerint külön méltatja a parti minden életben maradt tagját, majd győzelemmel lezárja a futamot.
+
 ## Szörnyek erőssége és képességei
 
 Az `adatok.csv` `#Ellenségek` szekciója 50 szörnydefiníciót tartalmaz. Minden sor 1–5 közötti `Erősség` értéket és egy vagy két `#Szörnyképességek`-azonosítót tárol. A betöltő hibát jelez tartományon kívüli erősségnél, kettőnél több képességnél vagy ismeretlen képességhivatkozásnál. Az erősség nem módosítja automatikusan a statisztikákat: a HP, Erő, Páncél, Gyorsaság és XP továbbra is külön hangolható; a szint a pályagenerálás számára használható besorolás.

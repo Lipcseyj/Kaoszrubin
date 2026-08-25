@@ -84,6 +84,8 @@ public sealed class MazeLevelConfiguration
 
 public static class MazeLevelConfigurations
 {
+    public const int FinalLevel = 21;
+
     private static readonly IReadOnlyDictionary<int, MazeLevelConfiguration> Configurations =
         new Dictionary<int, MazeLevelConfiguration>
         {
@@ -551,6 +553,36 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Solo(MonsterIds.VénBeholder, Amount.Few, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Drakolich, Amount.Few),
+                    Encounters.Solo(MonsterIds.Pokolfejedelem, Amount.Few)
+                ]
+            },
+            [21] = new()
+            {
+                Level = 21,
+                Name = "A Káoszrubin rejtekhelye",
+                DoubleWidthCorridorChance = 0.86,
+                WallRune = new('▓'),
+                WallColor = ConsoleColor.Magenta,
+                RoomCount = new(13, 17),
+                RoomSize = new(6, 12),
+                TreasureChestCount = new(18, 24),
+                TreasureGold = new(2800, 5600),
+                RoomEncounters =
+                [
+                    Encounters.Mixed(MonsterIds.Minotaurusz, Amount.Few, MonsterIds.Medúza, Amount.Few, Amount.Few),
+                    Encounters.Mixed(MonsterIds.Kőgólem, Amount.Few, MonsterIds.Beholder, Amount.Few, Amount.Few),
+                    Encounters.Mixed(MonsterIds.Vámpír, Amount.Few, MonsterIds.Vérfarkas, Amount.Several, Amount.Few),
+                    Encounters.Mixed(MonsterIds.FeketeSárkány, Amount.Few, MonsterIds.Kiméra, Amount.Few, Amount.Few),
+                    Encounters.Mixed(MonsterIds.Lich, Amount.Few, MonsterIds.Halállovag, Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, Amount.Few, Amount.Pack)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Mixed(MonsterIds.Wyvern, Amount.Few, MonsterIds.Hárpia, Amount.Several,
+                        Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Mixed(MonsterIds.Troll, Amount.Few, MonsterIds.ÉjiBanya, Amount.Few, Amount.Few),
+                    Encounters.Mixed(MonsterIds.Wight, Amount.Few, MonsterIds.Démonpók, Amount.Several, Amount.Few),
+                    Encounters.Solo(MonsterIds.VénBeholder, Amount.Few, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Pokolfejedelem, Amount.Few)
                 ]
             }
