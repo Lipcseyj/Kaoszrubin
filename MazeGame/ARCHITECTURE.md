@@ -749,6 +749,8 @@ A vezér csatájában minden megjelenített harci esemény után részlegesen fr
 
 A defenzív és agresszív NPC a saját mozgási időpontjában aktívan megtámadja a szomszédos szörnyet. Bármely profil automatikusan visszaharcol akkor is ha egy szörny az ő mezőjére próbál lépni. NPC-győzelemkor a szörny holttestté válik és az egyetlen összefoglaló üzenet parttagonként mutatja az XP-részesedést valamint az esetleges szint- és erőforrásnövekedést. NPC-vereségkor a karakter 0 HP-val a partiban marad, a partistátusz `💀` jellel mutatja, térképi avatárja pedig az elesés helyén `PartyMemberCorpse` objektummá alakul. Ez megőrzi a `LiveCharacter` hivatkozást, így a későbbi feltámasztás varázslat ugyanazt a karaktert állíthatja majd vissza az aktuális pályán. Ha a parti nélküle eléri a kijáratot, a társ végleg kikerül a partiból és a karakter-nyilvántartásból.
 
+Amikor egy NPC a partyvezér saját harcába segít be, a gyógyító és állapottisztító varázslatait továbbra is a megszokott vészhelyzeti szabályok szerint használja. Támadó varázslatot azonban csak akkor süt el, ha a vezér HP-ja legfeljebb a maximum fele, az ellenfél boss vagy 5-ös erősségi kategóriájú, illetve ha a szörny Erő + Gyorsaság összege nagyobb a vezér Erő + Ügyesség összegénél. Ez a takarékossági szabály nem vonatkozik az NPC saját külön harcára.
+
 Az `Enemy.CurrentHitPoints` a szörny futásidejű HP-ja. A `BattleSystem` ebből indítja a harcot és ide írja vissza a maradékot ezért egy NPC-t legyőző sérült szörny nem gyógyul vissza a következő találkozás előtt.
 
 ### 1. Kezdeményezés

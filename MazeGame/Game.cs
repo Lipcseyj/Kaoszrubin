@@ -175,7 +175,8 @@ public sealed class Game
     }
 
     // NPC spellcasting for combat
-    private BattlePlayerAction? ChooseNpcBattlePlayerAction(PartyMemberAvatar member, Enemy enemy)
+    private BattlePlayerAction? ChooseNpcBattlePlayerAction(PartyMemberAvatar member, Enemy enemy,
+        bool supportingLeaderBattle = false)
     {
         var caster = member.Character;
         if (!caster.IsAlive) return null;
@@ -242,6 +243,10 @@ public sealed class Game
             return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
         }
 
+        // A leader harcát támadó varázslattal csak valódi vészhelyzetben támogatják.
+        // Saját harcukban ez a korlátozás nem érvényes.
+        if (supportingLeaderBattle && !ShouldUseOffensiveSupportSpell(enemy)) return null;
+
         // Offensive spell against the enemy the leader is fighting (single-target only, don't waste area/direction spells on one foe)
         foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseInCombat && s.TargetType == SpellTargetType.Enemy))
         {
@@ -263,6 +268,15 @@ public sealed class Game
         return null;
     }
 
+    private bool ShouldUseOffensiveSupportSpell(Enemy enemy)
+    {
+        var enemyCombatAbilities = (enemy.Definition.Strength ?? 0) + (enemy.Definition.Speed ?? 0);
+        var leaderCombatAbilities = SelectedCharacter.Abilities.Strength + SelectedCharacter.Abilities.Dexterity;
+        return SelectedCharacter.CurrentVitality * 2 <= SelectedCharacter.MaximumVitality ||
+               enemy.Definition.IsBoss || enemy.Definition.StrengthTier >= 5 ||
+               enemyCombatAbilities > leaderCombatAbilities;
+    }
+
     // Let non-fighting party members act (heal/cure/offensive spells) during the leader's own battle
     private int TryPartyMembersActInLeaderBattle(Enemy enemy)
     {
@@ -270,7 +284,7 @@ public sealed class Game
         foreach (var member in _maze.PartyMembers.Where(member => member.Character.IsAlive))
         {
             member.Character.AdvanceSpellEffects();
-            totalDamage += ChooseNpcBattlePlayerAction(member, enemy)?.DamageToEnemy ?? 0;
+            totalDamage += ChooseNpcBattlePlayerAction(member, enemy, supportingLeaderBattle: true)?.DamageToEnemy ?? 0;
         }
         return totalDamage;
     }
