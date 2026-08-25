@@ -132,6 +132,8 @@ max manna = intelligenciához tartozó CSV-minimum + 1..15 mannabónusz
 
 Mannát csak a `CharacterClassRules` által varázshasználónak minősített osztályok kapnak. A kezdőfelszerelés az osztályazonosítóhoz tartozó CSV-sorból épül fel.
 
+A CSV intelligenciaküszöbe és a generált 1–15 közötti mannabónusz először közös kezdő mannaösszeget képez. Ebből a Pap 90%-ot, a Lovag 50%-ot kap matematikai egész kerekítéssel; a Mágus teljes értéket kap. Szintlépéskor a Pap és Mágus a teljes CSV-s mannanövekedést, a Lovag minden külön növekedési dobás 50%-át kapja, szintén matematikai kerekítéssel és pozitív dobásnál legalább 1 ponttal. A mentési alapérték-számítás ugyanezt a kasztszabályt használja.
+
 Győztes csata után az ellenfél teljes XP-jutalma a parti életben lévő tagjai között oszlik meg. A győztes 60%-ot kap; a fennmaradó 40% egyenlően jut a többi élő partitaghoz. Az egész számú osztás maradéka parti-sorrendben egyesével kerül kiosztásra ezért XP nem vész el. Ha nincs más élő partitag akkor a győztes kapja a teljes jutalmat. A szabály a vezér és az NPC által megnyert csatára is azonos.
 
 Minden részesülő karakter saját osztálymódosítójával és fejlődési szabályaival dolgozza fel a kapott XP-t. A következő szint tényleges küszöbe:

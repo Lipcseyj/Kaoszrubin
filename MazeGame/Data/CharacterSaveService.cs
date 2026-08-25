@@ -68,7 +68,8 @@ public sealed class CharacterSaveService
         if (string.IsNullOrWhiteSpace(compatibleName)) compatibleName = "Névtelen";
         var character = new LiveCharacter(compatibleName, race, characterClass, saved.Abilities,
             _gameData.GetMinimumVitality(saved.Abilities.Health) + saved.VitalityBonus,
-            characterClass.UsesMana ? _gameData.GetMinimumMana(saved.Abilities.Intelligence) + saved.ManaBonus : 0,
+            characterClass.UsesMana ? CharacterClassRules.AdjustStartingMana(characterClass.Id,
+                _gameData.GetMinimumMana(saved.Abilities.Intelligence) + saved.ManaBonus) : 0,
             saved.VitalityBonus, characterClass.UsesMana ? saved.ManaBonus : 0, saved.Color ?? ConsoleColor.Cyan);
         character.ApplySavedLevelGrowth(saved.LevelVitalityIncrease ?? 0, saved.LevelManaIncrease ?? 0);
         character.SetCurrentResources(saved.CurrentVitality, saved.CurrentMana);
@@ -160,7 +161,8 @@ public sealed class CharacterSaveService
         ExplorationStepsTowardSpellAction = character.ExplorationStepsTowardSpellAction,
         LevelVitalityIncrease = character.UnmodifiedMaximumVitality - (_gameData.GetMinimumVitality(character.Abilities.Health) + character.VitalityBonus),
         LevelManaIncrease = character.UsesMana
-            ? character.UnmodifiedMaximumMana - (_gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
+            ? character.UnmodifiedMaximumMana - CharacterClassRules.AdjustStartingMana(character.CharacterClass.Id,
+                _gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
             : 0,
         WeaponIds = character.WeaponSlots.Select(weapon => weapon?.Id).ToList(),
         ArmorId = character.Armor?.Id,

@@ -499,7 +499,10 @@ public sealed class LiveCharacter
         {
             Level++;
             var vitality = random.Next(vitalityGrowth.Minimum, vitalityGrowth.Maximum + 1);
-            var mana = UsesMana ? random.Next(manaGrowth.Minimum, manaGrowth.Maximum + 1) : 0;
+            var mana = UsesMana
+                ? CharacterClassRules.AdjustManaGrowth(CharacterClass.Id,
+                    random.Next(manaGrowth.Minimum, manaGrowth.Maximum + 1))
+                : 0;
             _maximumVitality += vitality;
             CurrentVitality += vitality;
             _maximumMana += mana;

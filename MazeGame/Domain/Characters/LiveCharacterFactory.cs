@@ -15,7 +15,8 @@ public static class LiveCharacterFactory
             throw new ArgumentException("A végső képességértékek nem érik el a választott osztály minimumait.", nameof(rolledAbilities));
 
         var maximumMana = characterClass.UsesMana
-            ? data.GetMinimumMana(finalAbilities.Intelligence) + manaBonus
+            ? CharacterClassRules.AdjustStartingMana(characterClass.Id,
+                data.GetMinimumMana(finalAbilities.Intelligence) + manaBonus)
             : 0;
 
         var character = new LiveCharacter(name, race, characterClass, finalAbilities,
