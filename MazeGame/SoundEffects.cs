@@ -8,9 +8,6 @@ public enum SoundEffect
 {
     Step1,
     Step2,
-    Step3,
-    Step4,
-    Step5,
     BattleStart,
     Hit,
     Miss,
@@ -33,9 +30,6 @@ public sealed class SoundEffects
         {
             [SoundEffect.Step1] = (180, 55),
             [SoundEffect.Step2] = (200, 55),
-            [SoundEffect.Step3] = (220, 55),
-            [SoundEffect.Step4] = (240, 55),
-            [SoundEffect.Step5] = (260, 55),
             [SoundEffect.BattleStart] = (330, 220),
             [SoundEffect.Hit] = (700, 70),
             [SoundEffect.Miss] = (250, 70),
