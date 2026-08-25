@@ -764,7 +764,7 @@ internal sealed class InnController
     {
         var options = new List<(string Label, string Description)>
         {
-            ("🪄 Kiürült varázspálcák feltöltése", "Teljes feltöltés a pálca eredeti árának kétharmadáért."),
+            ($"{ConsoleRenderer.WandIcon} Kiürült varázspálcák feltöltése", "Teljes feltöltés a pálca eredeti árának kétharmadáért."),
             ("📜 Varázsportékák", "Egy véletlen varázspálca és egy véletlen tekercs, egyszeri készletről."),
             ("🔮 Varázstárgy azonosítása", "Az azonosítás szolgáltatása hamarosan elérhető lesz."),
             ("🚪 Vissza", "Visszatérés a fogadó főtermébe.")

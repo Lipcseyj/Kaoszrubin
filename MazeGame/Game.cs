@@ -1744,7 +1744,7 @@ public sealed class Game
 
     private static string CastingItemUseText(MagicItemDefinition item) => item.Kind == MagicItemKind.Scroll
         ? "📜 A tekercs elhasználódott"
-        : "🪄 A pálca egy töltete elfogyott";
+        : $"{ConsoleRenderer.WandIcon} A pálca egy töltete elfogyott";
 
     private SpellExecutionResult ExecuteSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Position target, bool inCombat,
         Enemy? currentEnemy, bool divineJudgment)

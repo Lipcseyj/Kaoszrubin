@@ -15,6 +15,7 @@ public sealed class ConsoleRenderer
     public const int PlayfieldWidth = 170;
     public const int PlayfieldHeight = 44;
     public static string MoneyIcon { get; } = IsWindows11OrLater() ? "🪙" : "💰";
+    public static string WandIcon { get; } = IsWindows11OrLater() ? "🪄" : "✨";
     private const int RightBorderX = PlayfieldWidth;
     private const int BottomBorderY = PlayfieldHeight;
     private static readonly Rune FogSymbol = new('░');
@@ -591,7 +592,7 @@ public sealed class ConsoleRenderer
         Console.Clear();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
-            ("🪄✨  VARÁZSPÁLCA-FELTÖLTÉS  ✨🪄", ConsoleColor.Magenta),
+            ($"{WandIcon}✨  VARÁZSPÁLCA-FELTÖLTÉS  ✨{WandIcon}", ConsoleColor.Magenta),
             ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}", ConsoleColor.Green),
             ("A teljes feltöltés díja a pálca eredeti árának kétharmada.", ConsoleColor.DarkYellow),
             (string.Empty, ConsoleColor.Gray)
@@ -945,7 +946,7 @@ public sealed class ConsoleRenderer
                         var quick = spell.CastingItem?.Kind switch
                         {
                             MagicItemKind.Scroll => "📜",
-                            MagicItemKind.Wand => $"🪄{character.MagicItemCharges[spell.SlotIndex!.Value]}",
+                            MagicItemKind.Wand => $"{WandIcon}{character.MagicItemCharges[spell.SlotIndex!.Value]}",
                             _ => quickIndex >= 0 ? $"F{quickIndex + 1}" : "--"
                         };
                         var manaCost = spell.CastingItem is null ? SpellcastingRules.EffectiveManaCost(character, spell.Spell) : 0;
