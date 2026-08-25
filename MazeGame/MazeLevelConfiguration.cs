@@ -17,8 +17,8 @@ public static class AmountRanges
         Amount.Few => new(1, 2),
         Amount.TwoThree => new(2, 3),
         Amount.Several => new(3, 9),
-        Amount.Pack => new(10, 19),
-        Amount.Lots => new(20, 49),
+        Amount.Pack => new(10, 15),
+        Amount.Lots => new(16, 49),
         Amount.Horde => new(50, 100),
         _ => new(1, 1)
     };
@@ -115,7 +115,7 @@ public static class MazeLevelConfigurations
                 Level = 2,
                 RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 5),
-                TreasureChestCount = Amount.Few.Range(),
+                TreasureChestCount = Amount.TwoThree.Range(),
                 TreasureGold = new(60, 140),
                 RoomEncounters =
                 [
@@ -138,8 +138,8 @@ public static class MazeLevelConfigurations
                 DoubleWidthCorridorChance = 0.75,
                 RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 6),
-                TreasureChestCount = Amount.Pack.Range(),
-                TreasureGold = new(100, 280),
+                TreasureChestCount = new(8, 12),
+                TreasureGold = new(80, 200),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Kobold, Amount.Few, Amount.Several),
