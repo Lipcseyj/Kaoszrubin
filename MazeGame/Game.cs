@@ -1091,6 +1091,7 @@ public sealed class Game
             Domain.Combat.WeaponDefinition weapon =>
                 $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? _gameData.GetWeaponType(typeId).Name : "nincs")} | sebzés: {weapon.Damage?.ToString() ?? "nincs"} | " +
                 $"minimum Erő: {weapon.MinimumStrength} | {(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | " +
+                (weapon.IsTwoHanded ? "⚒️ páncéltörő: az ellenfél páncéljának 50%-át figyelmen kívül hagyja | " : string.Empty) +
                 $"kasztok: {AllowedClassNames(weapon.AllowedClassIds)}",
             Domain.Combat.ArmorDefinition armor => $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"} | kasztok: {AllowedClassNames(armor.AllowedClassIds)}",
             Domain.Magic.MagicItemDefinition magic =>
