@@ -5,6 +5,7 @@ using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Magic;
 using MazeGame.UI;
+using static MazeGame.GameInput;
 
 namespace MazeGame;
 
@@ -2616,19 +2617,6 @@ public sealed class Game
             : SoundEffect.Hit);
     }
 
-    private static bool TryGetDirection(ConsoleKey key, out Direction direction)
-    {
-        direction = key switch
-        {
-            ConsoleKey.UpArrow => Direction.Up,
-            ConsoleKey.DownArrow => Direction.Down,
-            ConsoleKey.LeftArrow => Direction.Left,
-            ConsoleKey.RightArrow => Direction.Right,
-            _ => default
-        };
-        return key is ConsoleKey.UpArrow or ConsoleKey.DownArrow or ConsoleKey.LeftArrow or ConsoleKey.RightArrow;
-    }
-
     private void WaitForBattleContinue(Enemy enemy)
     {
         while (true)
@@ -2647,61 +2635,6 @@ public sealed class Game
             _renderer.RefreshBattleStatusRows();
         }
     }
-
-    private static bool IsSaveGameShortcut(ConsoleKeyInfo keyInfo) =>
-        keyInfo.Key == ConsoleKey.F9;
-
-    private static bool IsHelpShortcut(ConsoleKeyInfo keyInfo) =>
-        keyInfo.Key == ConsoleKey.F1 && (keyInfo.Modifiers & ConsoleModifiers.Shift) != 0;
-
-    private static bool TryGetQuickSpellIndex(ConsoleKeyInfo keyInfo, out int slotIndex)
-    {
-        slotIndex = keyInfo.Key switch
-        {
-            ConsoleKey.F1 => 0,
-            ConsoleKey.F2 => 1,
-            ConsoleKey.F3 => 2,
-            ConsoleKey.F4 => 3,
-            ConsoleKey.F5 => 4,
-            ConsoleKey.F6 => 5,
-            ConsoleKey.F7 => 6,
-            ConsoleKey.F8 => 7,
-            _ => -1
-        };
-        return slotIndex >= 0 && (keyInfo.Modifiers & ConsoleModifiers.Shift) == 0;
-    }
-
-    private static bool IsRevealMapShortcut(ConsoleKeyInfo keyInfo) =>
-        keyInfo.Key == ConsoleKey.U &&
-        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
-
-    private static bool IsNewMazeShortcut(ConsoleKeyInfo keyInfo) =>
-        keyInfo.Key == ConsoleKey.R &&
-        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
-
-    private static bool IsTeleportToExitShortcut(ConsoleKeyInfo keyInfo) =>
-        keyInfo.Key == ConsoleKey.E &&
-        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
-
-    private static bool IsLevelUpShortcut(ConsoleKeyInfo keyInfo) =>
-        keyInfo.Key == ConsoleKey.S &&
-        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
-
-    private static bool IsFillPartyShortcut(ConsoleKeyInfo keyInfo) =>
-        keyInfo.Key == ConsoleKey.Y &&
-        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
-
-    private static bool IsAddLevelOnePartyMemberShortcut(ConsoleKeyInfo keyInfo) =>
-        (keyInfo.Key is ConsoleKey.Oem102 or ConsoleKey.Oem8 || keyInfo.KeyChar is 'í' or 'Í') &&
-        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
-
-    private static bool IsDeveloperPhasingShortcut(ConsoleKeyInfo keyInfo) =>
-        keyInfo.Key == ConsoleKey.I &&
-        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
-
-    private static bool IsGrantPartyExperienceShortcut(ConsoleKeyInfo keyInfo) =>
-        keyInfo.Key == ConsoleKey.X &&
-        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) == (ConsoleModifiers.Control | ConsoleModifiers.Shift);
 
     private void TeleportLeaderNearExit()
     {
@@ -3577,7 +3510,7 @@ public sealed class Game
             for (var i = 0; i < extraCount; i++)
             {
                 var item = allowedItems.FirstOrDefault(i => string.Equals(i.Id, "T012", StringComparison.OrdinalIgnoreCase));
-                stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+                if (item is not null) stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
             }
         }
 
@@ -3587,7 +3520,7 @@ public sealed class Game
             for (var i = 0; i < extraCount; i++)
             {
                 var item = allowedItems.FirstOrDefault(i => string.Equals(i.Id, "T012", StringComparison.OrdinalIgnoreCase));
-                stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+                if (item is not null) stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
             }
         }
 
@@ -3597,7 +3530,7 @@ public sealed class Game
             for (var i = 0; i < extraCount; i++)
             {
                 var item = allowedItems.FirstOrDefault(i => string.Equals(i.Id, "T013", StringComparison.OrdinalIgnoreCase));
-                stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+                if (item is not null) stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
             }
         }
 
@@ -3607,7 +3540,7 @@ public sealed class Game
             for (var i = 0; i < extraCount; i++)
             {
                 var item = allowedItems.FirstOrDefault(i => string.Equals(i.Id, "T013", StringComparison.OrdinalIgnoreCase));
-                stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+                if (item is not null) stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
             }
         }
 

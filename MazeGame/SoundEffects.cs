@@ -118,7 +118,7 @@ public sealed class SoundEffects
     }
 
     [DllImport("winmm.dll", CharSet = CharSet.Auto)]
-    private static extern int mciSendString(string command, StringBuilder returnValue, int returnLength, IntPtr winHandle);
+    private static extern int mciSendString(string command, StringBuilder? returnValue, int returnLength, IntPtr winHandle);
 
     private static void GenerateFallbackWav(string path, (int Frequency, int Duration) settings)
     {
