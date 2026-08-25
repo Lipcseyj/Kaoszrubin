@@ -13,7 +13,7 @@ Az alábbi rejtett gyorsbillentyűk közvetlenül be vannak kötve a játék fő
 - `Ctrl+Shift+Í`: egy véletlen osztályú, első szintű NPC hozzáadása, ha van szabad partihely;
 - `Ctrl+Shift+I`: a falakon való áthaladás be- és kikapcsolása.
 
-A két rögzített osztályszett magasabb szintű, véletlenül generált karakterei három felszerelt varázstárgyat kapnak. A Mágus, Pap és Lovag egy pálcát, egy számukra használható tekercset és egy passzív gyűrűt vagy amulettet visel. A Harcos, Barbár és Tolvaj tekercs helyett egy második pálcát kap, így a tekercsek normál kasztkorlátozása változatlan marad.
+A két rögzített osztályszett magasabb szintű, véletlenül generált karakterei három felszerelt varázstárgyat és pontosan egy kulcsot kapnak. A kulcs számára telt hátizsáknál az utolsó véletlen tárgy helye szabadul fel. A Mágus, Pap és Lovag egy pálcát, egy számukra használható tekercset és egy passzív gyűrűt vagy amulettet visel. A Harcos, Barbár és Tolvaj tekercs helyett egy második pálcát kap, így a tekercsek normál kasztkorlátozása változatlan marad.
 
 ## Áttekintés
 
@@ -337,9 +337,10 @@ A partitársak mozgása a `Game` meglévő egyszálú eseményciklusában fut. M
 
 A játék legfeljebb a vezér utolsó 256 sikeres pozícióját tartja nyilván. A vezetőt követő NPC-k nem annak pillanatnyi X/Y-koordinátája köré választanak célmezőt: a parti sorrendje szerint nyompontot céloznak és szélességi útkereséssel lépnek felé. A sorrend legfeljebb egy további lépésnyi formációs késést okoz ezért a hátsó társ sem marad látványosan messzebb. A speciális előremenő vagy ellenségre reagáló viselkedés után ugyanehhez a nyomvonalhoz térnek vissza.
 
-Térképfókuszban két ideiglenes partiparancs írhatja felül a profilok mozgását:
+Térképfókuszban három partiparancs írhatja felül a profilok mozgását:
 
 - a `H` tartósan ki- és bekapcsolja a helyben maradást; aktív állapotban a társak nem kezdeményeznek mozgást vagy támadást de a rájuk lépni próbáló szörnnyel továbbra is automatikusan megküzdenek;
+- a `Shift+H` tartósan ki- és bekapcsolja a szoros gyülekezőt: minden élő társ a vezér közvetlen szomszédos szabad mezőihez útvonalaz, majd a vezérrel együtt mozog, és közben nem tér el ellenfél vagy saját NPC-profilja miatt. Ha a közvetlen mezők megteltek, a többiek a lehető legközelebb zárkóznak fel. A parancs bekapcsolása megszünteti a helyben maradást és az aktív szétszóródást; aktív állapotát csak újabb `Shift+H` kapcsolja ki, ezért a `H` és `M` ilyenkor csak figyelmeztetést ad;
 - az `M` 10 másodpercre szétszóródást rendel el: minden élő társ járható útvonalon legfeljebb tíz Manhattan-távolságra húzódik a vezértől és közben továbbra is felderít. Ez az időszak a `H` állapotát is ideiglenesen felülírja. Lejáratkor minden társ visszakapja a korábbi profilját; ha a `H` előtte aktív volt akkor ismét helyben marad.
 
 - a defenzív társ legalább két vezérlépéssel korábbi nyompontot követ és így egy üres mezőt hagy közöttük; ötmezős rálátáson belüli szörny felé indul és mellé érve automatikusan megtámadja;
@@ -725,11 +726,13 @@ A kezdőterem ajtaja mindig nyitott. A további szobaajtók generáláskor 80% e
 
 Ajtó mellett a vezető az `N` billentyűvel nyit, a `Z` billentyűvel bezár, a `K` billentyűvel kulcsra zár. A `K` helyzetfüggő: ha a vezető tetemen vagy földi tárgyhalmon áll, előbb a keresés/felvétel történik, ezért ilyenkor nem kezeli a szomszédos ajtót. A simán zárt ajtó szabadon nyitható. Kulcsra zárt ajtónál a nyitási sorrend:
 
-1. a `T003` kulcs garantáltan nyit és eltűnik a hátizsákból;
-2. kulcs nélkül a tolvaj százalékos Ügyesség-próbát tesz;
+1. a `T003` kulcs garantáltan nyit és eltűnik a hátizsákból; tolvajnál előtte térképre rajzolt modális ablak kérdezi meg, hogy valóban felhasználja-e;
+2. kulcs nélkül, illetve a kulcs használatának elutasításakor a tolvaj százalékos Ügyesség-próbát tesz;
 3. sikertelen zárnyitás vagy más osztály esetén `1d20 ≤ Erő` próba következik, amely siker esetén végleg bezúzza az ajtót.
 
-A kulcs nélküli nyitás egyetlen `N` lenyomásra egy próbának számít akkor is, ha a sikertelen tolvajpróbát rögtön erőpróba követi. A próba egymástól függetlenül 1–2 élelmet és 1–2 vizet fogyaszt; a minimumok és maximumok a `#Ajtópróba paraméterek` szekcióból hangolhatók. Kulccsal történő nyitás és a simán zárt ajtó kinyitása nem fogyaszt szükségletet.
+A tolvaj kulcsválasztó ablaka a varázslás ablakához hasonlóan csak az alatta levő térképcellákat menti el és állítja vissza. `I`, `Y` vagy `Enter` használja a kulcsot; `N` vagy `Esc` megtartja és a zárnyitást választja. A kulcs nélküli nyitás egyetlen `N` lenyomásra egy próbának számít akkor is, ha a sikertelen tolvajpróbát rögtön erőpróba követi. A próba egymástól függetlenül 1–2 élelmet és 1–2 vizet fogyaszt; a minimumok és maximumok a `#Ajtópróba paraméterek` szekcióból hangolhatók. Kulccsal történő nyitás és a simán zárt ajtó kinyitása nem fogyaszt szükségletet.
+
+Ha nem tolvaj partyvezér nyitna kulcsra zárt ajtót, a játék legfeljebb két mező Chebyshev-távolságon belül megkeresi a legnagyobb Ügyességű élő NPC tolvajt. A segítő a saját kulcsát használhatja a kulcsválasztó ablakban, vagy a saját Ügyességével tesz zárnyitási próbát; a szükségletköltséget is ő fizeti. Sikertelen próbája után egy második, térképre rajzolt ablakban a játékos dönt arról, hogy a vezér megpróbálja-e Erőből bezúzni az ajtót. Elutasításkor az ajtó zárva marad, és nem történik automatikus erőpróba.
 
 A tolvaj zárnyitási esélye 10 Ügyességnél 90%, 11-nél 93%, 12-nél 96%, 13-nál 100%; alacsonyabb értéknél fokozatosan csökken. Kulcsra záráshoz egy elfogyó kulcs vagy tolvaj osztály szükséges. Minden művelet, dobás és a levont élelem/víz eredménye az alsó üzenetnaplóban jelenik meg. Jelenleg mindig a parti vezetője kezeli az ajtót.
 

@@ -29,6 +29,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         AddRandomPerks(character);
         FillRandomEquipment(character);
         EquipDevelopmentMagicItems(character);
+        GiveDevelopmentKey(character);
         return character;
     }
 
@@ -240,6 +241,19 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         character.AddMagicItem(wand);
         character.AddMagicItem(scrollOrSecondWand);
         character.AddMagicItem(passive);
+    }
+
+    private void GiveDevelopmentKey(LiveCharacter character)
+    {
+        for (var index = 0; index < LiveCharacter.MaximumBackpackItemCount; index++)
+            if (string.Equals(character.Backpack[index]?.Id, MiscItemIds.Key,
+                    StringComparison.OrdinalIgnoreCase))
+                character.SetInventoryItem(InventorySlotKind.Backpack, index, null);
+
+        var key = _gameData.GetItem(MiscItemIds.Key);
+        if (character.AddToBackpack(key)) return;
+        character.SetInventoryItem(InventorySlotKind.Backpack, LiveCharacter.MaximumBackpackItemCount - 1, null);
+        character.AddToBackpack(key);
     }
 
     private MagicItemDefinition RandomMagicItem(LiveCharacter character, Func<MagicItemDefinition, bool> predicate)

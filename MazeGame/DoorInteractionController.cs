@@ -34,30 +34,52 @@ internal sealed class DoorInteractionController
             return;
         }
 
-        if (selectedCharacter.RemoveFromBackpack(MiscItemIds.Key))
+        var assistingThief = CharacterClassRules.IsThief(selectedCharacter.CharacterClass.Id)
+            ? null
+            : FindNearbyNpcThief(maze, player.Position);
+        var lockHandler = assistingThief?.Character ?? selectedCharacter;
+        var isThief = CharacterClassRules.IsThief(lockHandler.CharacterClass.Id);
+        var hasKey = lockHandler.Backpack.Any(item =>
+            string.Equals(item?.Id, MiscItemIds.Key, StringComparison.OrdinalIgnoreCase));
+        var useKey = hasKey && (!isThief || _renderer.DrawThiefKeyChoice(lockHandler,
+            maze, fogOfWar, player.Position));
+        if (useKey && lockHandler.RemoveFromBackpack(MiscItemIds.Key))
         {
             maze.SetDoorState(door, DoorState.Open);
             RefreshAfterDoorChanged(maze, fogOfWar, player, selectedCharacter,
-                "A kulcs kinyitotta a zárat és eltört a használat során.", ConsoleColor.Green);
+                assistingThief is null
+                    ? "A kulcs kinyitotta a zárat és eltört a használat során."
+                    : $"{lockHandler.Name} kulcsa kinyitotta a zárat és eltört a használat során.",
+                ConsoleColor.Green);
             return;
         }
 
-        var attemptCost = ConsumeLockedDoorAttemptNeeds(selectedCharacter);
+        var attemptCost = ConsumeLockedDoorAttemptNeeds(lockHandler);
         var costMessage = $" Próba ára: 🍖 -{attemptCost.Food}, 💧 -{attemptCost.Water}.";
 
-        if (CharacterClassRules.IsThief(selectedCharacter.CharacterClass.Id))
+        if (isThief)
         {
-            var chance = LockpickChance(selectedCharacter.Abilities.Dexterity);
+            var chance = LockpickChance(lockHandler.Abilities.Dexterity);
             var roll = _random.Next(1, 101);
             if (roll <= chance)
             {
                 maze.SetDoorState(door, DoorState.Open);
                 RefreshAfterDoorChanged(maze, fogOfWar, player, selectedCharacter,
-                    $"Zárnyitás sikerült: Ügy {selectedCharacter.Abilities.Dexterity}, esély {chance}%, dobás {roll}." + costMessage,
+                    $"{(assistingThief is null ? string.Empty : lockHandler.Name + " előrelép. ")}Zárnyitás sikerült: " +
+                    $"Ügy {lockHandler.Abilities.Dexterity}, esély {chance}%, dobás {roll}." + costMessage,
                     ConsoleColor.Green);
                 return;
             }
-            _renderer.DrawDoorMessage($"Zárnyitás sikertelen: Ügy {selectedCharacter.Abilities.Dexterity}, esély {chance}%, dobás {roll}.", ConsoleColor.Red);
+            _renderer.DrawDoorMessage($"{(assistingThief is null ? string.Empty : lockHandler.Name + ": ")}Zárnyitás sikertelen: " +
+                $"Ügy {lockHandler.Abilities.Dexterity}, esély {chance}%, dobás {roll}." + costMessage,
+                ConsoleColor.Red);
+            if (assistingThief is not null && !_renderer.DrawDoorSmashChoice(selectedCharacter, lockHandler,
+                    maze, fogOfWar, player.Position))
+            {
+                _renderer.DrawDoorMessage($"{selectedCharacter.Name} nem próbálta betörni az ajtót. Az ajtó zárva marad.",
+                    ConsoleColor.DarkYellow);
+                return;
+            }
         }
 
         var strengthRoll = _random.Next(1, 21);
@@ -115,6 +137,16 @@ internal sealed class DoorInteractionController
     private static MazeDoor? GetAdjacentDoor(Maze maze, Position playerPosition) => Directions
         .Select(direction => maze.GetDoorAt(playerPosition + direction))
         .FirstOrDefault(door => door is not null);
+
+    private static PartyMemberAvatar? FindNearbyNpcThief(Maze maze, Position leaderPosition) =>
+        maze.PartyMembers.Where(member => member.Character.IsAlive &&
+                CharacterClassRules.IsThief(member.Character.CharacterClass.Id) &&
+                Chebyshev(member.Position, leaderPosition) <= 2)
+            .OrderByDescending(member => member.Character.Abilities.Dexterity)
+            .FirstOrDefault();
+
+    private static int Chebyshev(Position first, Position second) =>
+        Math.Max(Math.Abs(first.X - second.X), Math.Abs(first.Y - second.Y));
 
     private (int Food, int Water) ConsumeLockedDoorAttemptNeeds(LiveCharacter selectedCharacter)
     {

@@ -156,6 +156,67 @@ public sealed class ConsoleRenderer
 
     public void SetGoldenKeyCount(int count) => _goldenKeyCount = Math.Clamp(count, 0, MonsterIds.Bosses.Count);
 
+    public bool DrawThiefKeyChoice(LiveCharacter thief, Maze maze, FogOfWar fogOfWar, Position playerPosition)
+    {
+        _spellCastingOverlaySnapshot = null;
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🔐  KULCSRA ZÁRT AJTÓ", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ($"{thief.Name} tolvajnál van egy használható kulcs.", ConsoleColor.Cyan),
+            ("Felhasználod? A kulcs nyitás közben eltörik.", ConsoleColor.White),
+            (string.Empty, ConsoleColor.Gray),
+            ("I / Y / Enter: kulcs használata", ConsoleColor.Green),
+            ("N / Esc: zárnyitási próba", ConsoleColor.DarkYellow)
+        };
+        DrawSpellCastingOverlay(SpellCastingOverlayFrameWidth, lines, maze, fogOfWar, playerPosition);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key is ConsoleKey.I or ConsoleKey.Y or ConsoleKey.Enter)
+            {
+                RestoreSpellCastingOverlay();
+                return true;
+            }
+            if (key is ConsoleKey.N or ConsoleKey.Escape)
+            {
+                RestoreSpellCastingOverlay();
+                return false;
+            }
+        }
+    }
+
+    public bool DrawDoorSmashChoice(LiveCharacter leader, LiveCharacter thief, Maze maze,
+        FogOfWar fogOfWar, Position playerPosition)
+    {
+        _spellCastingOverlaySnapshot = null;
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🔨  A ZÁR ELLENÁLLT", ConsoleColor.Red),
+            (string.Empty, ConsoleColor.Gray),
+            ($"{thief.Name} nem tudta kinyitni az ajtót.", ConsoleColor.Yellow),
+            ($"Megpróbálja {leader.Name} erővel betörni?", ConsoleColor.White),
+            (string.Empty, ConsoleColor.Gray),
+            ("I / Y / Enter: betörési kísérlet", ConsoleColor.Green),
+            ("N / Esc: az ajtó maradjon zárva", ConsoleColor.DarkYellow)
+        };
+        DrawSpellCastingOverlay(SpellCastingOverlayFrameWidth, lines, maze, fogOfWar, playerPosition);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key is ConsoleKey.I or ConsoleKey.Y or ConsoleKey.Enter)
+            {
+                RestoreSpellCastingOverlay();
+                return true;
+            }
+            if (key is ConsoleKey.N or ConsoleKey.Escape)
+            {
+                RestoreSpellCastingOverlay();
+                return false;
+            }
+        }
+    }
+
     public void DrawBossIntroduction(EnemyDefinition boss, string chapterTitle, IReadOnlyList<string> speech,
         Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {

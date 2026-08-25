@@ -25,11 +25,11 @@ public static class AsciiPortraits
                 "   /_/\\_\\"),
             // C003 - Lovag
             [CharacterClassIds.Lovag] = Portrait(
-"     /▲\\     ║",
-"    [• •]    ║",
-"  ╔═|███|═╗  ║",
-"  ║ |███|═╬══╣",
-"  ╚═/___\\═╝"),
+"     /▲\\   ║",
+"    [• •]   ║",
+"  ╔═|███|═╗ ║",
+"  ║ |███|═╬═╣",
+"  ╚═/___\\╝"),
             [CharacterClassIds.Tolvaj] = Portrait(
                 "     ▒▒▒▒  │",
                 "    ▒(••)▒ ┼",

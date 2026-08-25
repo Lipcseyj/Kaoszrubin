@@ -141,6 +141,7 @@ public sealed class Game
     private readonly Dictionary<PartyMemberAvatar, DateTime> _nextPartyMoves = [];
     private readonly List<Position> _leaderTrail = [];
     private bool _partyHoldingPosition;
+    private bool _partyRegrouping;
     private bool _saveAfterBattle;
     private bool _timeStopUsedThisBattle;
     private readonly HashSet<LiveCharacter> _turnUndeadUsedThisBattle = [];
@@ -505,6 +506,11 @@ public sealed class Game
                         if (!TrySearchCurrentCell()) _doorInteractions.TryLockAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter);
                         continue;
                     }
+                    if (key == ConsoleKey.G)
+                    {
+                        TogglePartyRegrouping();
+                        continue;
+                    }
                     if (key == ConsoleKey.H) { TogglePartyHoldPosition(); continue; }
                     if (key == ConsoleKey.M) { ScatterPartyTemporarily(); continue; }
                     if (key == ConsoleKey.P) { TryRestParty(); continue; }
@@ -741,7 +747,7 @@ public sealed class Game
     private GameSaveData CreateGameSaveData()
     {
         return _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
-            _leaderTrail, _partyHoldingPosition, _hasRestedThisLevel, _partyScatterUntil,
+            _leaderTrail, _partyHoldingPosition, _partyRegrouping, _hasRestedThisLevel, _partyScatterUntil,
             _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
     }
 
@@ -761,6 +767,7 @@ public sealed class Game
         _leaderTrail.Clear();
         _leaderTrail.AddRange(restored.LeaderTrail);
         _partyHoldingPosition = restored.PartyHoldingPosition;
+        _partyRegrouping = restored.PartyRegrouping;
         _hasRestedThisLevel = restored.HasRestedThisLevel;
         _partyScatterUntil = restored.PartyScatterUntil;
         _nextNeedsDrain = restored.NextNeedsDrain;
@@ -1515,7 +1522,8 @@ public sealed class Game
                 : "A szétszóródás véget ért; a parti folytatja korábbi viselkedését.");
         }
         var isScattering = _partyScatterUntil is not null;
-        if (_partyHoldingPosition && !isScattering) return;
+        if (_partyRegrouping) isScattering = false;
+        if (_partyHoldingPosition && !isScattering && !_partyRegrouping) return;
         foreach (var member in _maze.PartyMembers.ToArray())
         {
             if (_nextPartyMoves.GetValueOrDefault(member) > now) continue;
@@ -1525,6 +1533,11 @@ public sealed class Game
             if (isScattering)
             {
                 MovePartyMemberAwayFromLeader(member);
+                continue;
+            }
+            if (_partyRegrouping)
+            {
+                MovePartyMemberTowardLeader(member);
                 continue;
             }
             if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member)) continue;
@@ -1541,6 +1554,11 @@ public sealed class Game
 
     private void TogglePartyHoldPosition()
     {
+        if (_partyRegrouping)
+        {
+            _renderer.DrawDeveloperMessage("Partiparancs: előbb kapcsold ki a szoros gyülekezőt Shift+H-val.");
+            return;
+        }
         _partyHoldingPosition = !_partyHoldingPosition;
         if (!_partyHoldingPosition)
             foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
@@ -1549,12 +1567,45 @@ public sealed class Game
             : "Partiparancs: a társak folytatják korábbi viselkedésüket.");
     }
 
+    private void TogglePartyRegrouping()
+    {
+        _partyRegrouping = !_partyRegrouping;
+        if (_partyRegrouping)
+        {
+            _partyHoldingPosition = false;
+            _partyScatterUntil = null;
+        }
+        foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
+        _renderer.DrawDeveloperMessage(_partyRegrouping
+            ? "Partiparancs: szoros gyülekező; minden társ a vezér mellé zárkózik és ott marad."
+            : "Partiparancs: a szoros gyülekező véget ért; a társak folytatják korábbi viselkedésüket.");
+    }
+
     private void ScatterPartyTemporarily()
     {
+        if (_partyRegrouping)
+        {
+            _renderer.DrawDeveloperMessage("Partiparancs: előbb kapcsold ki a szoros gyülekezőt Shift+H-val.");
+            return;
+        }
         _partyScatterUntil = DateTime.UtcNow + TimeSpan.FromSeconds(10);
         foreach (var member in _maze.PartyMembers)
             _nextPartyMoves[member] = DateTime.UtcNow + TimeSpan.FromMilliseconds(_random.Next(0, 100));
         _renderer.DrawDeveloperMessage("Partiparancs: szétszóródás 10 másodpercig; a társak 10 mező távolságra húzódnak.");
+    }
+
+    private void MovePartyMemberTowardLeader(PartyMemberAvatar member)
+    {
+        var next = FindNextStep(member, FreeNeighborsOf(_player.Position))
+                   ?? FollowLeaderTrail(member, minimumLag: 1);
+        if (next is null) return;
+        var previous = member.Position;
+        if (!_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
+        member.Character.RegisterExplorationStep();
+        var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
+        _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed,
+            _player.Position);
+        CheckBossDiscoveryAt(newlyRevealed);
     }
 
     private void MovePartyMemberAwayFromLeader(PartyMemberAvatar member)
