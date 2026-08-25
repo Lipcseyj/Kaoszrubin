@@ -609,7 +609,7 @@ internal sealed class InnController
             for (var i = 0; i < kv.Value; i++) stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
         }
 
-        var baseCount = Math.Min(allowedItems.Count * 3, Math.Max(7, 6 + completedLevel));
+        var baseCount = Math.Min(allowedItems.Count * 3, Math.Max(8, 7 + completedLevel));
         while (stock.Count < baseCount)
         {
             var item = allowedItems[_random.Next(allowedItems.Count)];

@@ -22,6 +22,105 @@ public sealed class ConsoleRenderer
     private const int PicturePanelHeight = 5;
     private const int PicturePanelBottom = BottomBorderY + MessageLineCount;
     private const int PicturePanelTop = PicturePanelBottom - PicturePanelHeight - 1;
+    private const int CenteredFrameHorizontalPadding = 2;
+    private const int FrameBorderWidth = 2;
+    private const int MinimumCenteredFrameTop = 1;
+    private const int GameOverFrameWidth = 96;
+    private const int GameOverFrameHeight = 11;
+    private const int GameOverMinimumTop = 2;
+    private const int LevelCompletionFrameWidth = 112;
+    private const int InnMenuFrameWidth = 90;
+    private const int InnMenuFirstOptionLabelLine = 5;
+    private const int InnMenuFirstOptionDescriptionLine = 6;
+    private const int InnMenuOptionLineStride = 2;
+    private const int InnMenuFrameBaseLineCount = 7;
+    private const int InnConfirmationFrameWidth = 90;
+    private const int InnRestFrameWidth = 100;
+    private const int InnRestUnavailableFrameWidth = 90;
+    private const int InnMarketFrameWidth = 100;
+    private const int InnMarketPageSize = 12;
+    private const int InnMarketTextWidth = 94;
+    private const int InnMarketSelectedItemDetailLine = 18;
+    private const int InnMarketFrameLineCount = 21;
+    private const int InnRecruitmentFirstCandidateLine = 4;
+    private const int InnRecruitmentDetailStartOffset = 5;
+    private const int InnRecruitmentFrameBaseLineCount = 10;
+    private const int InnReplacementFrameWidth = 90;
+    private const int InnReplacementFirstMemberLine = 4;
+    private const int InnReplacementFrameBaseLineCount = 6;
+    private const int InnRumorFrameWidth = 108;
+    private const int InnRumorTextWidth = 100;
+    private const int DetailNextLineOffset = 1;
+    private const int DetailSecondLineOffset = 2;
+    private const int TruncationEllipsisReserve = 1;
+    private const int FirstItemNumber = 1;
+    private const int SecondItemNumber = 2;
+    private const int SpellLearningFrameWidth = 88;
+    private const int SpellPreparationFrameWidth = 92;
+    private const int SpellCastingOverlayFrameWidth = 76;
+    private const int MaximumVisibleSpellCount = 12;
+    private const int LevelUpSummaryFrameWidth = 88;
+    private const int PerkChoiceFrameWidth = 112;
+    private const int RightSheetX = 172;
+    private const int RightSheetWidth = 27;
+    private const int RightSheetBattleHintLine = 42;
+    private const int SpellInfoKnownSpellRows = 20;
+    private const int SpellInfoKnownSpellStartLine = 5;
+    private const int SpellInfoSelectedSpellHeadingLine = 26;
+    private const int SpellInfoSelectedSpellNameLine = 27;
+    private const int SpellInfoSelectedSpellSummaryLine = 28;
+    private const int SpellInfoSelectedSpellStateLine = 29;
+    private const int SpellInfoDescriptionStartLine = 30;
+    private const int SpellInfoDescriptionRows = 5;
+    private const int SpellInfoDescriptionWidth = RightSheetWidth;
+    private const int SpellInfoLevelsHeadingLine = 36;
+    private const int SpellInfoNextUnlockLine = 43;
+    private const int SpellInfoControlsLine = 45;
+    private const int SpellInfoCloseControlsLine = 46;
+    private const int SpellLevelCount = 5;
+    private const int PaladinSpellLevelCount = 2;
+    private const int FirstSpellUnlockLevel = 1;
+    private const int SecondSpellUnlockLevel = 5;
+    private const int ThirdSpellUnlockLevel = 10;
+    private const int FourthSpellUnlockLevel = 15;
+    private const int FifthSpellUnlockLevel = 20;
+    private const int SecondPaladinSpellUnlockLevel = 8;
+    private const int UnavailableSpellUnlockLevel = 99;
+    private const int CharacterSheetPerkRows = 2;
+    private const int CharacterSheetHeaderLine = 0;
+    private const int CharacterSheetRaceClassLine = 1;
+    private const int CharacterSheetFirstPerkLine = 2;
+    private const int CharacterSheetSecondPerkLine = 3;
+    private const int CharacterSheetStatusLine = 4;
+    private const int CharacterSheetLevelLine = 5;
+    private const int CharacterSheetExperienceLine = 6;
+    private const int CharacterSheetStrengthLine = 7;
+    private const int CharacterSheetDexterityLine = 8;
+    private const int CharacterSheetHealthLine = 9;
+    private const int CharacterSheetIntelligenceLine = 10;
+    private const int CharacterSheetVitalityLine = 11;
+    private const int CharacterSheetManaLine = 12;
+    private const int CharacterSheetFoodLine = 13;
+    private const int CharacterSheetWaterLine = 14;
+    private const int CharacterSheetGoldLine = 15;
+    private const int CharacterSheetWeaponsHeadingLine = 17;
+    private const int CharacterSheetFirstWeaponLine = 18;
+    private const int CharacterSheetSecondWeaponLine = 19;
+    private const int CharacterSheetArmorLine = 20;
+    private const int CharacterSheetMagicItemsHeadingLine = 22;
+    private const int CharacterSheetMagicItemsStartLine = 23;
+    private const int CharacterSheetBackpackHeadingLine = 26;
+    private const int CharacterSheetBackpackStartLine = 27;
+    private const int CharacterSheetPartyMembersStartLine = 38;
+    private const int CharacterSheetMaximumMagicItems = 3;
+    private const int CharacterSheetBackpackSlots = 10;
+    private const int CharacterSheetPartyMemberRows = 3;
+    private const int CharacterSheetReservedMessageLine = 41;
+    private const int CharacterSheetControlsLine = 42;
+    private const int ResourceIconStep = 10;
+    private const int PortraitInteriorWidth = 25;
+    private const int MessagePanelLeft = 2;
+    private const int FirstMessageLineOffset = 1;
     private readonly Queue<MessageLogLine> _messageLog = new();
     private readonly GameDataCatalog _gameData;
     private readonly Party _party;
@@ -152,7 +251,7 @@ public sealed class ConsoleRenderer
         };
         DrawBattleMessage(entry.Message, color);
         // A jobb oldali karakterlapon megjelenített sor: információ a vezérlésről.
-        WriteSheetLine(42, "Space: tovább | saját kör: V/F1-F8", ConsoleColor.DarkYellow);
+        WriteSheetLine(RightSheetBattleHintLine, "Space: tovább | saját kör: V/F1-F8", ConsoleColor.DarkYellow);
     }
 
     /// <summary>
@@ -163,7 +262,7 @@ public sealed class ConsoleRenderer
         _battleActive = false;
         _battleEnemy = null;
         DrawPicturePanel();
-        WriteSheetLine(42, string.Empty, ConsoleColor.DarkCyan);
+        WriteSheetLine(RightSheetBattleHintLine, string.Empty, ConsoleColor.DarkCyan);
         var lastEvent = result.Events.LastOrDefault() ?? "";
         DrawBattleMessage(result.PlayerWon
             ? $"Győzelem {result.Rounds} kör után! {lastEvent}"
@@ -178,9 +277,8 @@ public sealed class ConsoleRenderer
         ResetColorCache();
         Console.Clear();
 
-        const int frameWidth = 96;
-        var left = Math.Max(0, (Console.WindowWidth - frameWidth) / 2);
-        var top = Math.Max(2, (Console.WindowHeight - 11) / 2);
+        var left = Math.Max(0, (Console.WindowWidth - GameOverFrameWidth) / FrameBorderWidth);
+        var top = Math.Max(GameOverMinimumTop, (Console.WindowHeight - GameOverFrameHeight) / FrameBorderWidth);
         var lines = new[]
         {
             "💀  JÁTÉK VÉGE  💀",
@@ -194,18 +292,19 @@ public sealed class ConsoleRenderer
         };
 
         SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
-        WriteAt(left, top, "╔" + new string('═', frameWidth - 2) + "╗");
+        WriteAt(left, top, "╔" + new string('═', GameOverFrameWidth - FrameBorderWidth) + "╗");
         for (var index = 0; index < lines.Length; index++)
         {
             SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
             WriteAt(left, top + index + 1, "║");
             SetColors(index == 0 ? ConsoleColor.Red : index == lines.Length - 1 ? ConsoleColor.Yellow : ConsoleColor.Gray, ConsoleColor.Black);
-            WriteAt(left + 2, top + index + 1, lines[index].PadRight(frameWidth - 4));
+            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1,
+                lines[index].PadRight(GameOverFrameWidth - CenteredFrameHorizontalPadding * FrameBorderWidth));
             SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
-            WriteAt(left + frameWidth - 1, top + index + 1, "║");
+            WriteAt(left + GameOverFrameWidth - 1, top + index + 1, "║");
         }
         SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
-        WriteAt(left, top + lines.Length + 1, "╚" + new string('═', frameWidth - 2) + "╝");
+        WriteAt(left, top + lines.Length + 1, "╚" + new string('═', GameOverFrameWidth - FrameBorderWidth) + "╝");
         Console.ReadKey(intercept: true);
     }
 
@@ -246,7 +345,7 @@ public sealed class ConsoleRenderer
             (string.Empty, ConsoleColor.Gray),
             ("Nyomj Entert vagy Space-t a fogadó megnyitásához! ➡️", ConsoleColor.Yellow)
         ]);
-        DrawCenteredFrame(112, lines);
+        DrawCenteredFrame(LevelCompletionFrameWidth, lines);
         while (Console.ReadKey(intercept: true).Key is not (ConsoleKey.Enter or ConsoleKey.Spacebar)) { }
     }
 
@@ -271,7 +370,7 @@ public sealed class ConsoleRenderer
         }
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("↑/↓ választás   Enter belépés", ConsoleColor.Green));
-        DrawCenteredFrame(90, lines);
+        DrawCenteredFrame(InnMenuFrameWidth, lines);
     }
 
     public void UpdateInnMenuSelection(IReadOnlyList<(string Label, string Description)> options,
@@ -281,12 +380,12 @@ public sealed class ConsoleRenderer
         foreach (var index in new[] { previousIndex, selectedIndex }.Distinct())
         {
             var selected = index == selectedIndex;
-            updates.Add((5 + index * 2, $"{(selected ? "▶" : " ")} {options[index].Label}",
+            updates.Add((InnMenuFirstOptionLabelLine + index * InnMenuOptionLineStride, $"{(selected ? "▶" : " ")} {options[index].Label}",
                 selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
-            updates.Add((6 + index * 2, $"     {options[index].Description}",
+            updates.Add((InnMenuFirstOptionDescriptionLine + index * InnMenuOptionLineStride, $"     {options[index].Description}",
                 selected ? ConsoleColor.White : ConsoleColor.DarkGray));
         }
-        UpdateCenteredFrameLines(90, 7 + options.Count * 2, updates);
+        UpdateCenteredFrameLines(InnMenuFrameWidth, InnMenuFrameBaseLineCount + options.Count * InnMenuOptionLineStride, updates);
     }
 
     public bool ConfirmInnSecretStashAccess(int cost)
@@ -302,7 +401,7 @@ public sealed class ConsoleRenderer
             (string.Empty, ConsoleColor.Gray),
             ("Enter: igen   Esc: mégsem", ConsoleColor.Green)
         };
-        DrawCenteredFrame(90, lines);
+        DrawCenteredFrame(InnConfirmationFrameWidth, lines);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
@@ -331,7 +430,7 @@ public sealed class ConsoleRenderer
         }
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("Nyomj Entert a folytatáshoz...", ConsoleColor.Yellow));
-        DrawCenteredFrame(100, lines);
+        DrawCenteredFrame(InnRestFrameWidth, lines);
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
@@ -348,7 +447,7 @@ public sealed class ConsoleRenderer
             (string.Empty, ConsoleColor.Gray),
             ("Nyomj Entert a folytatáshoz...", ConsoleColor.Yellow)
         };
-        DrawCenteredFrame(90, lines);
+        DrawCenteredFrame(InnRestUnavailableFrameWidth, lines);
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
@@ -360,8 +459,7 @@ public sealed class ConsoleRenderer
         Console.Clear();
         var buying = mode == InnMarketMode.Buy;
         var entryCount = buying ? stock.Count : sellOffers.Count;
-        const int pageSize = 12;
-        var pageStart = entryCount == 0 ? 0 : Math.Clamp(selectedIndex - pageSize / 2, 0, Math.Max(0, entryCount - pageSize));
+        var pageStart = InnMarketPageStart(entryCount, selectedIndex);
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("🏰🍺  A VÁNDORCSILLAG FOGADÓ KERESKEDŐJE  🛒✨", ConsoleColor.Yellow),
@@ -371,7 +469,7 @@ public sealed class ConsoleRenderer
             ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
         };
 
-        for (var row = 0; row < pageSize; row++)
+        for (var row = 0; row < InnMarketPageSize; row++)
         {
             var index = pageStart + row;
             if (index >= entryCount) { lines.Add((string.Empty, ConsoleColor.Gray)); continue; }
@@ -393,10 +491,10 @@ public sealed class ConsoleRenderer
         var selectedItem = entryCount == 0 ? null : buying ? stock[selectedIndex].Item : sellOffers[selectedIndex].Item;
         lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
         lines.Add((selectedItem is null ? (buying ? "Nincs több megvásárolható portéka." : "Nincs eladható tárgy a hátizsákokban.")
-            : ClipMarketText($"ℹ️ {selectedItem.Description}", 94), ConsoleColor.DarkCyan));
-        lines.Add((ClipMarketText(message, 94), ConsoleColor.Magenta));
+            : ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
+        lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
         lines.Add(("↑/↓ választás   ←/→ vétel–eladás   Enter üzlet   Esc vissza a fogadóba", ConsoleColor.White));
-        DrawCenteredFrame(100, lines);
+        DrawCenteredFrame(InnMarketFrameWidth, lines);
     }
 
     public void DrawInnSecretStashScreen(LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
@@ -405,8 +503,7 @@ public sealed class ConsoleRenderer
         ResetColorCache();
         Console.Clear();
         var entryCount = stock.Count;
-        const int pageSize = 12;
-        var pageStart = entryCount == 0 ? 0 : Math.Clamp(selectedIndex - pageSize / 2, 0, Math.Max(0, entryCount - pageSize));
+        var pageStart = InnMarketPageStart(entryCount, selectedIndex);
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("🗝️🛒  A KERESKEDŐ TITKOS RAKTÁRA  🛒🗝️", ConsoleColor.Yellow),
@@ -415,7 +512,7 @@ public sealed class ConsoleRenderer
             ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
             ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
         };
-        for (var row = 0; row < pageSize; row++)
+        for (var row = 0; row < InnMarketPageSize; row++)
         {
             var index = pageStart + row;
             if (index >= entryCount) { lines.Add((string.Empty, ConsoleColor.Gray)); continue; }
@@ -426,10 +523,10 @@ public sealed class ConsoleRenderer
         }
         var selectedItem = entryCount == 0 ? null : stock[selectedIndex].Item;
         lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
-        lines.Add((selectedItem is null ? "Nincs több megvásárolható portéka." : ClipMarketText($"ℹ️ {selectedItem.Description}", 94), ConsoleColor.DarkCyan));
-        lines.Add((ClipMarketText(message, 94), ConsoleColor.Magenta));
+        lines.Add((selectedItem is null ? "Nincs több megvásárolható portéka." : ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
+        lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
         lines.Add(("↑/↓ választás   Enter vásárlás   Esc vissza a fogadóba", ConsoleColor.White));
-        DrawCenteredFrame(100, lines);
+        DrawCenteredFrame(InnMarketFrameWidth, lines);
     }
 
     public bool UpdateInnMarketSelection(InnMarketMode mode, IReadOnlyList<InnStockOffer> stock,
@@ -448,11 +545,11 @@ public sealed class ConsoleRenderer
                 : InnSellLine(sellOffers[index], selected);
             var color = selected ? ConsoleColor.White : ItemRarityColor(mode == InnMarketMode.Buy
                 ? stock[index].Item.Rarity : sellOffers[index].Item.Rarity);
-            updates.Add((5 + index - pageStart, text, color));
+            updates.Add((InnMenuFirstOptionLabelLine + index - pageStart, text, color));
         }
         var selectedItem = mode == InnMarketMode.Buy ? stock[selectedIndex].Item : sellOffers[selectedIndex].Item;
-        updates.Add((18, ClipMarketText($"ℹ️ {selectedItem.Description}", 94), ConsoleColor.DarkCyan));
-        UpdateCenteredFrameLines(100, 21, updates);
+        updates.Add((InnMarketSelectedItemDetailLine, ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
+        UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates);
         return true;
     }
 
@@ -465,11 +562,11 @@ public sealed class ConsoleRenderer
         foreach (var index in new[] { previousIndex, selectedIndex }.Distinct())
         {
             var selected = index == selectedIndex;
-            updates.Add((5 + index - pageStart, InnStockLine(stock[index], selected),
+            updates.Add((InnMenuFirstOptionLabelLine + index - pageStart, InnStockLine(stock[index], selected),
                 selected ? ConsoleColor.White : ItemRarityColor(stock[index].Item.Rarity)));
         }
-        updates.Add((18, ClipMarketText($"ℹ️ {stock[selectedIndex].Item.Description}", 94), ConsoleColor.DarkCyan));
-        UpdateCenteredFrameLines(100, 21, updates);
+        updates.Add((InnMarketSelectedItemDetailLine, ClipMarketText($"ℹ️ {stock[selectedIndex].Item.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
+        UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates);
         return true;
     }
 
@@ -502,11 +599,11 @@ public sealed class ConsoleRenderer
         lines.Add(($"Erő {shown.Abilities.Strength}  Ügy {shown.Abilities.Dexterity}  Egész {shown.Abilities.Health}  Int {shown.Abilities.Intelligence}", ConsoleColor.Cyan));
         lines.Add(($"Fegyver: {weapons}  |  Páncél: {shown.Armor?.Name ?? "nincs"}", ConsoleColor.Gray));
         lines.Add(($"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
-        lines.Add((ClipMarketText(message, 94), ConsoleColor.Magenta));
+        lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
         lines.Add((party.Count >= Party.MaximumSize
             ? "↑/↓ választás   Enter felvétel és társ lecserélése   Esc vissza a fogadóba"
             : "↑/↓ választás   Enter felvétel   Esc vissza a fogadóba", ConsoleColor.White));
-        DrawCenteredFrame(100, lines);
+        DrawCenteredFrame(InnMarketFrameWidth, lines);
     }
 
     public void DrawInnReplacementScreen(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable,
@@ -529,7 +626,7 @@ public sealed class ConsoleRenderer
         }
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("↑/↓ választás   Enter végleges csere   Esc mégse", ConsoleColor.White));
-        DrawCenteredFrame(90, lines);
+        DrawCenteredFrame(InnReplacementFrameWidth, lines);
     }
 
     public void UpdateInnRecruitmentSelection(IReadOnlyList<LiveCharacter> candidates,
@@ -540,17 +637,17 @@ public sealed class ConsoleRenderer
         {
             var candidate = candidates[index];
             var selected = index == selectedIndex;
-            updates.Add((4 + index, InnRecruitLine(candidate, prices[candidate], selected),
+            updates.Add((InnRecruitmentFirstCandidateLine + index, InnRecruitLine(candidate, prices[candidate], selected),
                 selected ? ConsoleColor.White : candidate.Color));
         }
         var shown = candidates[selectedIndex];
         var weaponNames = shown.WeaponSlots.Where(item => item is not null).Select(item => item!.Name).ToList();
         var weapons = weaponNames.Count == 0 ? "nincs" : string.Join(", ", weaponNames);
-        var detailStart = 5 + candidates.Count;
+        var detailStart = InnRecruitmentDetailStartOffset + candidates.Count;
         updates.Add((detailStart, $"Erő {shown.Abilities.Strength}  Ügy {shown.Abilities.Dexterity}  Egész {shown.Abilities.Health}  Int {shown.Abilities.Intelligence}", ConsoleColor.Cyan));
-        updates.Add((detailStart + 1, $"Fegyver: {weapons}  |  Páncél: {shown.Armor?.Name ?? "nincs"}", ConsoleColor.Gray));
-        updates.Add((detailStart + 2, $"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
-        UpdateCenteredFrameLines(100, 10 + candidates.Count, updates);
+        updates.Add((detailStart + DetailNextLineOffset, $"Fegyver: {weapons}  |  Páncél: {shown.Armor?.Name ?? "nincs"}", ConsoleColor.Gray));
+        updates.Add((detailStart + DetailSecondLineOffset, $"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
+        UpdateCenteredFrameLines(InnMarketFrameWidth, InnRecruitmentFrameBaseLineCount + candidates.Count, updates);
     }
 
     public void UpdateInnReplacementSelection(IReadOnlyList<LiveCharacter> replaceable,
@@ -561,9 +658,9 @@ public sealed class ConsoleRenderer
         {
             var member = replaceable[index];
             var selected = index == selectedIndex;
-            updates.Add((4 + index, InnReplacementLine(member, selected), selected ? ConsoleColor.White : member.Color));
+            updates.Add((InnReplacementFirstMemberLine + index, InnReplacementLine(member, selected), selected ? ConsoleColor.White : member.Color));
         }
-        UpdateCenteredFrameLines(90, 6 + replaceable.Count, updates);
+        UpdateCenteredFrameLines(InnReplacementFrameWidth, InnReplacementFrameBaseLineCount + replaceable.Count, updates);
     }
 
     public void DrawInnRumorScreen(InnRumor rumor, int refreshesRemaining)
@@ -579,14 +676,14 @@ public sealed class ConsoleRenderer
         };
         foreach (var paragraph in rumor.Lines)
         {
-            foreach (var line in WrapText(paragraph, 100)) lines.Add((line, ConsoleColor.Gray));
+            foreach (var line in WrapText(paragraph, InnRumorTextWidth)) lines.Add((line, ConsoleColor.Gray));
             lines.Add((string.Empty, ConsoleColor.Gray));
         }
         lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
         lines.Add((refreshesRemaining > 0
             ? $"N: új pletyka ({refreshesRemaining} maradt)   Enter/Esc: vissza a fogadóba"
             : "Nincs több új pletyka.   Enter/Esc: vissza a fogadóba", ConsoleColor.White));
-        DrawCenteredFrame(108, lines);
+        DrawCenteredFrame(InnRumorFrameWidth, lines);
     }
 
     private static IEnumerable<string> WrapText(string text, int maximumWidth)
@@ -618,7 +715,7 @@ public sealed class ConsoleRenderer
     };
 
     private static string ClipMarketText(string text, int maximumLength) =>
-        text.Length <= maximumLength ? text : text[..Math.Max(1, maximumLength - 1)] + "…";
+        text.Length <= maximumLength ? text : text[..Math.Max(TruncationEllipsisReserve, maximumLength - TruncationEllipsisReserve)] + "…";
     /// <summary>Fejlesztői üzenetek gyors megjelenítésére szolgál (battle message panelre).</summary>
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
     public void DrawDoorMessage(string message, ConsoleColor color = ConsoleColor.DarkYellow) => DrawBattleMessage(message, color);
@@ -661,7 +758,7 @@ public sealed class ConsoleRenderer
             lines.AddRange(choices.Select((spell, index) =>
                 ($"{(index == selectedIndex ? "▶" : " ")}  {spell.Level}. szint — {spell.Name}",
                     index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray)));
-            DrawCenteredFrame(88, lines);
+            DrawCenteredFrame(SpellLearningFrameWidth, lines);
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow: selectedIndex = (selectedIndex - 1 + choices.Count) % choices.Count; break;
@@ -692,7 +789,7 @@ public sealed class ConsoleRenderer
             lines.AddRange(spells.Select((spell, index) =>
                 ($"{(index == cursor ? "▶" : " ")} [{(selected.Contains(spell.Id) ? "X" : " ")}]  {spell.Level}. szint — {spell.Name}",
                     index == cursor ? ConsoleColor.Yellow : ConsoleColor.Gray)));
-            DrawCenteredFrame(92, lines);
+            DrawCenteredFrame(SpellPreparationFrameWidth, lines);
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow: cursor = (cursor - 1 + spells.Count) % spells.Count; break;
@@ -722,10 +819,9 @@ public sealed class ConsoleRenderer
             var switchDirection = 0;
             while (true)
             {
-                const int maximumVisibleSpellCount = 12;
-                var firstVisibleIndex = spells.Count == 0 ? 0 : Math.Clamp(selectedIndex - maximumVisibleSpellCount / 2, 0,
-                    Math.Max(0, spells.Count - maximumVisibleSpellCount));
-                var visibleSpells = spells.Skip(firstVisibleIndex).Take(maximumVisibleSpellCount).ToList();
+                var firstVisibleIndex = spells.Count == 0 ? 0 : Math.Clamp(selectedIndex - MaximumVisibleSpellCount / FrameBorderWidth, 0,
+                    Math.Max(0, spells.Count - MaximumVisibleSpellCount));
+                var visibleSpells = spells.Skip(firstVisibleIndex).Take(MaximumVisibleSpellCount).ToList();
                 var switchHint = casters.Count > 1 ? "  ◄► váltás" : string.Empty;
                 var casterHint = casters.Count > 1 ? $"   ({casterIndex + 1}/{casters.Count})" : string.Empty;
                 var lines = new List<(string Text, ConsoleColor Color)>
@@ -751,10 +847,10 @@ public sealed class ConsoleRenderer
                             index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray;
                         return (text, color);
                     }));
-                    if (spells.Count > maximumVisibleSpellCount)
+                    if (spells.Count > MaximumVisibleSpellCount)
                         lines.Add(($"{firstVisibleIndex + 1}–{firstVisibleIndex + visibleSpells.Count} / {spells.Count}", ConsoleColor.DarkCyan));
                 }
-                DrawSpellCastingOverlay(76, lines, maze, fogOfWar, playerPosition);
+                DrawSpellCastingOverlay(SpellCastingOverlayFrameWidth, lines, maze, fogOfWar, playerPosition);
                 var key = Console.ReadKey(intercept: true);
                 if (key.Key == ConsoleKey.F1 && (key.Modifiers & ConsoleModifiers.Shift) != 0)
                 {
@@ -800,10 +896,9 @@ public sealed class ConsoleRenderer
     private void DrawSpellCastingOverlay(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
         Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
-        const int horizontalPadding = 2;
-        var frameHeight = lines.Count + 2;
-        var left = Math.Max(0, (PlayfieldWidth - frameWidth) / 2);
-        var top = Math.Max(1, (PlayfieldHeight - frameHeight) / 2);
+        var frameHeight = lines.Count + FrameBorderWidth;
+        var left = Math.Max(0, (PlayfieldWidth - frameWidth) / FrameBorderWidth);
+        var top = Math.Max(MinimumCenteredFrameTop, (PlayfieldHeight - frameHeight) / FrameBorderWidth);
         if (_spellCastingOverlaySnapshot is null)
         {
             _spellCastingOverlaySnapshot = [];
@@ -818,24 +913,24 @@ public sealed class ConsoleRenderer
         }
 
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-        WriteAt(left, top, "╔" + new string('═', frameWidth - 2) + "╗");
-        var contentWidth = frameWidth - horizontalPadding * 2;
+        WriteAt(left, top, "╔" + new string('═', frameWidth - FrameBorderWidth) + "╗");
+        var contentWidth = frameWidth - CenteredFrameHorizontalPadding * FrameBorderWidth;
         for (var index = 0; index < lines.Count; index++)
         {
             SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
             WriteAt(left, top + index + 1, "║");
             SetColors(ConsoleColor.Gray, ConsoleColor.Black);
-            WriteAt(left + 1, top + index + 1, new string(' ', frameWidth - 2));
+            WriteAt(left + 1, top + index + 1, new string(' ', frameWidth - FrameBorderWidth));
             SetColors(lines[index].Color, ConsoleColor.Black);
             var text = lines[index].Text.Length <= contentWidth
                 ? lines[index].Text
                 : lines[index].Text[..contentWidth];
-            WriteAt(left + horizontalPadding, top + index + 1, text.PadRight(contentWidth));
+            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1, text.PadRight(contentWidth));
             SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
             WriteAt(left + frameWidth - 1, top + index + 1, "║");
         }
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-        WriteAt(left, top + lines.Count + 1, "╚" + new string('═', frameWidth - 2) + "╝");
+        WriteAt(left, top + lines.Count + 1, "╚" + new string('═', frameWidth - FrameBorderWidth) + "╝");
     }
 
     /// <summary>
@@ -845,7 +940,6 @@ public sealed class ConsoleRenderer
     {
         ResetColorCache();
         Console.Clear();
-        const int frameWidth = 88;
         var detailLines = result.Bonuses.Select(bonus => character.UsesMana
             ? $"⭐ {bonus.Level}. szint:  ❤️ +{bonus.Vitality} HP     🔷 +{bonus.Mana} manna"
             : $"⭐ {bonus.Level}. szint:  ❤️ +{bonus.Vitality} HP").ToList();
@@ -869,7 +963,7 @@ public sealed class ConsoleRenderer
             ? "🌠 Új TEHETSÉG ébred benned! Nyomj meg egy billentyűt... 🌠"
             : "🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟", ConsoleColor.Yellow));
 
-        DrawCenteredFrame(frameWidth, lines);
+        DrawCenteredFrame(LevelUpSummaryFrameWidth, lines);
         if (hasPerkOffer) Console.ReadKey(intercept: true);
     }
 
@@ -884,7 +978,6 @@ public sealed class ConsoleRenderer
         {
             ResetColorCache();
             Console.Clear();
-            const int frameWidth = 112;
             var first = offer.Choices[0];
             var second = offer.Choices[1];
             var lines = new List<(string Text, ConsoleColor Color)>
@@ -903,7 +996,7 @@ public sealed class ConsoleRenderer
                 (string.Empty, ConsoleColor.Gray),
                 ("⬅️  Bal/jobb vagy fel/le: választás     ✅ Enter: véglegesítés", ConsoleColor.Green)
             };
-            DrawCenteredFrame(frameWidth, lines);
+            DrawCenteredFrame(PerkChoiceFrameWidth, lines);
 
             switch (Console.ReadKey(intercept: true).Key)
             {
@@ -927,31 +1020,29 @@ public sealed class ConsoleRenderer
     /// </summary>
     private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines)
     {
-        const int horizontalPadding = 2;
-        var contentWidth = frameWidth - horizontalPadding * 2;
+        var contentWidth = frameWidth - CenteredFrameHorizontalPadding * FrameBorderWidth;
 
-        var left = Math.Max(0, (Console.WindowWidth - frameWidth) / 2);
-        var top = Math.Max(1, (Console.WindowHeight - lines.Count - 2) / 2);
+        var left = Math.Max(0, (Console.WindowWidth - frameWidth) / FrameBorderWidth);
+        var top = Math.Max(MinimumCenteredFrameTop, (Console.WindowHeight - lines.Count - FrameBorderWidth) / FrameBorderWidth);
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-        WriteAt(left, top, "╔" + new string('═', frameWidth - 2) + "╗");
+        WriteAt(left, top, "╔" + new string('═', frameWidth - FrameBorderWidth) + "╗");
         for (var index = 0; index < lines.Count; index++)
         {
             SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
             WriteAt(left, top + index + 1, "║");
             SetColors(lines[index].Color, ConsoleColor.Black);
             var text = lines[index].Text;
-            WriteAt(left + horizontalPadding, top + index + 1, text.PadRight(Math.Max(0, contentWidth - text.Length)));
+            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1, text.PadRight(Math.Max(0, contentWidth - text.Length)));
             SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
             WriteAt(left + frameWidth - 1, top + index + 1, "║");
         }
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-        WriteAt(left, top + lines.Count + 1, "╚" + new string('═', frameWidth - 2) + "╝");
+        WriteAt(left, top + lines.Count + 1, "╚" + new string('═', frameWidth - FrameBorderWidth) + "╝");
     }
 
     private static int InnMarketPageStart(int entryCount, int selectedIndex)
     {
-        const int pageSize = 12;
-        return entryCount == 0 ? 0 : Math.Clamp(selectedIndex - pageSize / 2, 0, Math.Max(0, entryCount - pageSize));
+        return entryCount == 0 ? 0 : Math.Clamp(selectedIndex - InnMarketPageSize / FrameBorderWidth, 0, Math.Max(0, entryCount - InnMarketPageSize));
     }
 
     private string InnStockLine(InnStockOffer offer, bool selected) =>
@@ -973,14 +1064,13 @@ public sealed class ConsoleRenderer
     private void UpdateCenteredFrameLines(int frameWidth, int lineCount,
         IEnumerable<(int Index, string Text, ConsoleColor Color)> updates)
     {
-        const int horizontalPadding = 2;
-        var contentWidth = frameWidth - horizontalPadding * 2;
-        var left = Math.Max(0, (Console.WindowWidth - frameWidth) / 2);
-        var top = Math.Max(1, (Console.WindowHeight - lineCount - 2) / 2);
+        var contentWidth = frameWidth - CenteredFrameHorizontalPadding * FrameBorderWidth;
+        var left = Math.Max(0, (Console.WindowWidth - frameWidth) / FrameBorderWidth);
+        var top = Math.Max(MinimumCenteredFrameTop, (Console.WindowHeight - lineCount - FrameBorderWidth) / FrameBorderWidth);
         foreach (var (index, text, color) in updates)
         {
             SetColors(color, ConsoleColor.Black);
-            WriteAt(left + horizontalPadding, top + index + 1,
+            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1,
                 text.PadRight(Math.Max(0, contentWidth - text.Length)));
         }
     }
@@ -1049,27 +1139,27 @@ public sealed class ConsoleRenderer
         selectedIndex = spells.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, spells.Count - 1);
         _spellInfoCharacter = character;
         _selectedSpellInfoIndex = selectedIndex;
-        for (var line = 0; line <= PicturePanelBottom; line++) WriteSheetLine(line, string.Empty, ConsoleColor.Gray);
+        for (var line = CharacterSheetHeaderLine; line <= PicturePanelBottom; line++) WriteSheetLine(line, string.Empty, ConsoleColor.Gray);
 
-        WriteSheetLine(0, $"VARÁZSLATOK - {character.Name}", ConsoleColor.Yellow,
+        WriteSheetLine(CharacterSheetHeaderLine, $"VARÁZSLATOK - {character.Name}", ConsoleColor.Yellow,
             _characterSheetFocused ? ConsoleColor.Green : ConsoleColor.Black);
-        WriteSheetLine(1, SpellcastingRules.HasRequiredFocus(character)
+        WriteSheetLine(CharacterSheetRaceClassLine, SpellcastingRules.HasRequiredFocus(character)
             ? $"Fókusz: {character.Backpack[0]!.Name}"
             : "Fókusz: HIÁNYZIK", SpellcastingRules.HasRequiredFocus(character) ? ConsoleColor.Cyan : ConsoleColor.Red);
-        WriteSheetLine(2, $"Memória: {character.MemorizedSpells.Count}/{character.MemorizationCapacity}", ConsoleColor.Magenta);
-        WriteSheetLine(3, "[M] memorizált  [F#] gyors", ConsoleColor.DarkCyan);
-        WriteSheetLine(4, "ISMERT VARÁZSLATOK", ConsoleColor.White);
+        WriteSheetLine(CharacterSheetFirstPerkLine, $"Memória: {character.MemorizedSpells.Count}/{character.MemorizationCapacity}", ConsoleColor.Magenta);
+        WriteSheetLine(CharacterSheetSecondPerkLine, "[M] memorizált  [F#] gyors", ConsoleColor.DarkCyan);
+        WriteSheetLine(CharacterSheetStatusLine, "ISMERT VARÁZSLATOK", ConsoleColor.White);
 
-        for (var index = 0; index < 20; index++)
+        for (var index = 0; index < SpellInfoKnownSpellRows; index++)
         {
-            if (index >= spells.Count) { WriteSheetLine(5 + index, string.Empty, ConsoleColor.Gray); continue; }
+            if (index >= spells.Count) { WriteSheetLine(SpellInfoKnownSpellStartLine + index, string.Empty, ConsoleColor.Gray); continue; }
             var spell = spells[index];
             var memorized = character.MemorizedSpells.Any(candidate =>
                 string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
             var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
                 string.Equals(candidate?.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
             var marker = index == selectedIndex ? ">" : " ";
-            WriteSheetLine(5 + index, $"{marker}[{(memorized ? "M" : " ")}]{(quickIndex >= 0 ? $"[F{quickIndex + 1}]" : "    ")} {spell.Level}. {spell.Name}",
+            WriteSheetLine(SpellInfoKnownSpellStartLine + index, $"{marker}[{(memorized ? "M" : " ")}]{(quickIndex >= 0 ? $"[F{quickIndex + FirstItemNumber}]" : "    ")} {spell.Level}. {spell.Name}",
                 index == selectedIndex ? ConsoleColor.Yellow : memorized ? ConsoleColor.Cyan : ConsoleColor.Gray,
                 index == selectedIndex ? ConsoleColor.DarkCyan : ConsoleColor.Black);
         }
@@ -1077,45 +1167,59 @@ public sealed class ConsoleRenderer
         if (spells.Count > 0)
         {
             var selected = spells[selectedIndex];
-            WriteSheetLine(26, "KIJELÖLT VARÁZSLAT", ConsoleColor.White);
-            WriteSheetLine(27, selected.Name, ConsoleColor.Yellow);
+            WriteSheetLine(SpellInfoSelectedSpellHeadingLine, "KIJELÖLT VARÁZSLAT", ConsoleColor.White);
+            WriteSheetLine(SpellInfoSelectedSpellNameLine, selected.Name, ConsoleColor.Yellow);
             var manaCost = SpellcastingRules.EffectiveManaCost(character, selected);
-            WriteSheetLine(28, $"Szint: {selected.Level} | Manna: {manaCost} | Cél: {SpellTargetName(selected.TargetType)}", ConsoleColor.Blue);
+            WriteSheetLine(SpellInfoSelectedSpellSummaryLine, $"Szint: {selected.Level} | Manna: {manaCost} | Cél: {SpellTargetName(selected.TargetType)}", ConsoleColor.Blue);
             var quickIndex = character.QuickSpells.ToList().FindIndex(spell => spell?.Id == selected.Id);
-            WriteSheetLine(29, character.MemorizedSpells.Any(spell => spell.Id == selected.Id)
-                ? $"Állapot: memorizált{(quickIndex >= 0 ? $", F{quickIndex + 1}" : string.Empty)}"
+            WriteSheetLine(SpellInfoSelectedSpellStateLine, character.MemorizedSpells.Any(spell => spell.Id == selected.Id)
+                ? $"Állapot: memorizált{(quickIndex >= 0 ? $", F{quickIndex + FirstItemNumber}" : string.Empty)}"
                 : "Állapot: csak ismert", ConsoleColor.Magenta);
-            var descriptionLines = WrapText(selected.Description, 27).Take(5).ToList();
-            for (var index = 0; index < 5; index++)
-                WriteSheetLine(30 + index, index < descriptionLines.Count ? descriptionLines[index] : string.Empty, ConsoleColor.Gray);
+            var descriptionLines = WrapText(selected.Description, SpellInfoDescriptionWidth).Take(SpellInfoDescriptionRows).ToList();
+            for (var index = 0; index < SpellInfoDescriptionRows; index++)
+                WriteSheetLine(SpellInfoDescriptionStartLine + index, index < descriptionLines.Count ? descriptionLines[index] : string.Empty, ConsoleColor.Gray);
         }
 
         bool isPaladin = false;
-        var unlockLevels = new[] { 1, 5, 10, 15, 20 };
+        var unlockLevels = new[]
+        {
+            FirstSpellUnlockLevel,
+            SecondSpellUnlockLevel,
+            ThirdSpellUnlockLevel,
+            FourthSpellUnlockLevel,
+            FifthSpellUnlockLevel
+        };
         if (character.CharacterClass.Id == CharacterClassIds.Lovag)
         {
             isPaladin = true;
-            unlockLevels = new[] { 1, 8, 99, 99, 99 };
+            unlockLevels = new[]
+            {
+                FirstSpellUnlockLevel,
+                SecondPaladinSpellUnlockLevel,
+                UnavailableSpellUnlockLevel,
+                UnavailableSpellUnlockLevel,
+                UnavailableSpellUnlockLevel
+            };
         }
 
-        WriteSheetLine(36, "VARÁZSLATSZINTEK", ConsoleColor.White);
-        for (var spellLevel = 1; spellLevel <= 5; spellLevel++)
+        WriteSheetLine(SpellInfoLevelsHeadingLine, "VARÁZSLATSZINTEK", ConsoleColor.White);
+        for (var spellLevel = FirstItemNumber; spellLevel <= SpellLevelCount; spellLevel++)
         {
-            if (isPaladin && spellLevel > 2) continue;
-            var requiredLevel = unlockLevels[spellLevel - 1];
+            if (isPaladin && spellLevel > PaladinSpellLevelCount) continue;
+            var requiredLevel = unlockLevels[spellLevel - FirstItemNumber];
             var unlocked = character.Level >= requiredLevel;
-            WriteSheetLine(36 + spellLevel,
+            WriteSheetLine(SpellInfoLevelsHeadingLine + spellLevel,
                 $"{spellLevel}. szint: L{requiredLevel} {(unlocked ? "feloldva" : $"még {requiredLevel - character.Level}")}",
                 unlocked ? ConsoleColor.Green : ConsoleColor.DarkYellow);
         }
-        if (isPaladin && character.Level >= 8) { }
+        if (isPaladin && character.Level >= SecondPaladinSpellUnlockLevel) { }
         else
         {
             var nextUnlock = unlockLevels.FirstOrDefault(level => level > character.Level);
-            WriteSheetLine(43, nextUnlock == 0 ? "Minden szint feloldva." : $"Következő feloldás: L{nextUnlock}", ConsoleColor.Cyan);
+            WriteSheetLine(SpellInfoNextUnlockLine, nextUnlock == 0 ? "Minden szint feloldva." : $"Következő feloldás: L{nextUnlock}", ConsoleColor.Cyan);
         }
-        WriteSheetLine(45, "Fel/le: böngészés | F1-F8: gyorshely", ConsoleColor.Green);
-        WriteSheetLine(46, "Enter: elsütés | Esc: vissza", ConsoleColor.DarkYellow);
+        WriteSheetLine(SpellInfoControlsLine, "Fel/le: böngészés | F1-F8: gyorshely", ConsoleColor.Green);
+        WriteSheetLine(SpellInfoCloseControlsLine, "Enter: elsütés | Esc: vissza", ConsoleColor.DarkYellow);
     }
 
     public bool IsSpellInfoPageOpen => _spellInfoCharacter is not null;
@@ -1238,26 +1342,26 @@ public sealed class ConsoleRenderer
     {
         _displayedCharacter = character;
         DrawCharacterSheetHeader(character);
-        WriteSheetLine(1, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
-        var perkLines = FormatCompactListRows("Teh", character.Perks.Select(perk => perk.Name), 2);
-        WriteSheetLine(2, perkLines[0], ConsoleColor.Magenta);
-        WriteSheetLine(3, perkLines[1], ConsoleColor.Magenta);
+        WriteSheetLine(CharacterSheetRaceClassLine, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
+        var perkLines = FormatCompactListRows("Teh", character.Perks.Select(perk => perk.Name), CharacterSheetPerkRows);
+        WriteSheetLine(CharacterSheetFirstPerkLine, perkLines[0], ConsoleColor.Magenta);
+        WriteSheetLine(CharacterSheetSecondPerkLine, perkLines[1], ConsoleColor.Magenta);
         DrawBattleStatusRows(character);
-        WriteSheetLine(5, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
-        WriteSheetLine(6, FormatExperience(character), ConsoleColor.Cyan);
-        WriteSheetLine(7, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
-        WriteSheetLine(8, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
-        WriteSheetLine(9, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
-        WriteSheetLine(10, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
-        WriteSheetLine(13, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
-        WriteSheetLine(14, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
-        WriteSheetLine(15, $"Arany: {character.Gold} {MoneyIcon}", ConsoleColor.Yellow);
-        WriteSheetLine(17, "FEGYVEREK", ConsoleColor.Yellow);
-        WriteSheetLine(22, $"VARÁZSTÁRGYAK {character.MagicItems.Count(item => item is not null)}/3", ConsoleColor.Magenta);
-        WriteSheetLine(26, $"HÁTIZSÁK {character.Backpack.Count(item => item is not null)}/10", ConsoleColor.DarkCyan);
+        WriteSheetLine(CharacterSheetLevelLine, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
+        WriteSheetLine(CharacterSheetExperienceLine, FormatExperience(character), ConsoleColor.Cyan);
+        WriteSheetLine(CharacterSheetStrengthLine, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
+        WriteSheetLine(CharacterSheetDexterityLine, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
+        WriteSheetLine(CharacterSheetHealthLine, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
+        WriteSheetLine(CharacterSheetIntelligenceLine, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
+        WriteSheetLine(CharacterSheetFoodLine, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
+        WriteSheetLine(CharacterSheetWaterLine, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
+        WriteSheetLine(CharacterSheetGoldLine, $"Arany: {character.Gold} {MoneyIcon}", ConsoleColor.Yellow);
+        WriteSheetLine(CharacterSheetWeaponsHeadingLine, "FEGYVEREK", ConsoleColor.Yellow);
+        WriteSheetLine(CharacterSheetMagicItemsHeadingLine, $"VARÁZSTÁRGYAK {character.MagicItems.Count(item => item is not null)}/{CharacterSheetMaximumMagicItems}", ConsoleColor.Magenta);
+        WriteSheetLine(CharacterSheetBackpackHeadingLine, $"HÁTIZSÁK {character.Backpack.Count(item => item is not null)}/{CharacterSheetBackpackSlots}", ConsoleColor.DarkCyan);
         DrawSelectableCharacterSheetRows(character);
-        WriteSheetLine(41, string.Empty, ConsoleColor.DarkGray);
-        WriteSheetLine(42, string.Empty, ConsoleColor.DarkGray);
+        WriteSheetLine(CharacterSheetReservedMessageLine, string.Empty, ConsoleColor.DarkGray);
+        WriteSheetLine(CharacterSheetControlsLine, string.Empty, ConsoleColor.DarkGray);
         DrawPicturePanel();
     }
 
@@ -1278,18 +1382,18 @@ public sealed class ConsoleRenderer
                 ActiveSpellEffectType.Sanctuary => "⛪",
                 _ => "✨"
             })).ToList();
-        WriteSheetLine(4, statusIcons.Count == 0
+        WriteSheetLine(CharacterSheetStatusLine, statusIcons.Count == 0
                 ? "Áll: nincs"
                 : $"Áll: {string.Join(' ', statusIcons)}",
             statusIcons.Count > 0 ? ConsoleColor.Magenta : ConsoleColor.DarkGray);
-        WriteSheetLine(11, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
-        WriteSheetLine(12, character.UsesMana
+        WriteSheetLine(CharacterSheetVitalityLine, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
+        WriteSheetLine(CharacterSheetManaLine, character.UsesMana
             ? $"Manna: {character.CurrentMana}/{character.MaximumMana}"
             : "Manna: nincs", ConsoleColor.Blue);
     }
 
     private void DrawCharacterSheetHeader(LiveCharacter character) => WriteSheetLine(
-        0, "KARAKTERLAP", ConsoleColor.Yellow,
+        CharacterSheetHeaderLine, "KARAKTERLAP", ConsoleColor.Yellow,
         _characterSheetFocused ? ConsoleColor.Green : ConsoleColor.Black,
         " - " + character.Name, character.Color);
 
@@ -1299,22 +1403,22 @@ public sealed class ConsoleRenderer
         if (_activeSheetSelection is null || entries.All(entry => entry.Key != _activeSheetSelection))
             _activeSheetSelection = entries.FirstOrDefault()?.Key;
 
-        WriteSheetLine(18, $"1: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Weapon, 0)));
+        WriteSheetLine(CharacterSheetFirstWeaponLine, $"{FirstItemNumber}: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Weapon, 0)));
         var secondWeaponText = character.WeaponSlots[0]?.IsTwoHanded == true
-            ? "2: ⛔ kétkezes fegyver"
-            : $"2: {ItemName(character.WeaponSlots[1])}";
-        WriteSheetLine(19, secondWeaponText, character.WeaponSlots[0]?.IsTwoHanded == true ? ConsoleColor.DarkGray : ConsoleColor.Gray,
+            ? $"{SecondItemNumber}: ⛔ kétkezes fegyver"
+            : $"{SecondItemNumber}: {ItemName(character.WeaponSlots[1])}";
+        WriteSheetLine(CharacterSheetSecondWeaponLine, secondWeaponText, character.WeaponSlots[0]?.IsTwoHanded == true ? ConsoleColor.DarkGray : ConsoleColor.Gray,
             SelectionBackground(new(SheetSelectionKind.Weapon, 1)));
-        WriteSheetLine(20, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow, SelectionBackground(new(SheetSelectionKind.Armor, 0)));
-        for (var index = 0; index < 3; index++)
-            WriteSheetLine(23 + index, $"{index + 1}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}",
+        WriteSheetLine(CharacterSheetArmorLine, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow, SelectionBackground(new(SheetSelectionKind.Armor, 0)));
+        for (var index = 0; index < CharacterSheetMaximumMagicItems; index++)
+            WriteSheetLine(CharacterSheetMagicItemsStartLine + index, $"{index + FirstItemNumber}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}",
                 ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.MagicItem, index)));
-        for (var index = 0; index < 10; index++)
-            WriteSheetLine(27 + index, $"{index + 1}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}",
+        for (var index = 0; index < CharacterSheetBackpackSlots; index++)
+            WriteSheetLine(CharacterSheetBackpackStartLine + index, $"{index + FirstItemNumber}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}",
                 ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Backpack, index)));
-        var companions = _party.Members.Skip(1).Take(3).ToList();
-        for (var index = 0; index < 3; index++)
-            WriteSheetLine(38 + index, index < companions.Count ? FormatPartyMember(companions[index], companions[index] == character) : string.Empty,
+        var companions = _party.Members.Skip(FirstItemNumber).Take(CharacterSheetPartyMemberRows).ToList();
+        for (var index = 0; index < CharacterSheetPartyMemberRows; index++)
+            WriteSheetLine(CharacterSheetPartyMembersStartLine + index, index < companions.Count ? FormatPartyMember(companions[index], companions[index] == character) : string.Empty,
                 index < companions.Count ? companions[index].Color : ConsoleColor.DarkGray,
                 index < companions.Count ? SelectionBackground(new(SheetSelectionKind.PartyMember, index)) : ConsoleColor.Black);
     }
@@ -1327,7 +1431,7 @@ public sealed class ConsoleRenderer
         entries.Add(new(new(SheetSelectionKind.Armor, 0)));
         for (var index = 0; index < character.MagicItems.Count; index++) entries.Add(new(new(SheetSelectionKind.MagicItem, index)));
         for (var index = 0; index < character.Backpack.Count; index++) entries.Add(new(new(SheetSelectionKind.Backpack, index)));
-        var companionCount = Math.Min(3, Math.Max(0, _party.Members.Count - 1));
+        var companionCount = Math.Min(CharacterSheetPartyMemberRows, Math.Max(0, _party.Members.Count - FirstItemNumber));
         for (var index = 0; index < companionCount; index++) entries.Add(new(new(SheetSelectionKind.PartyMember, index)));
         return entries;
     }
@@ -1354,7 +1458,7 @@ public sealed class ConsoleRenderer
             var messageLine = index < messages.Length ? messages[index] : new MessageLogLine(string.Empty, ConsoleColor.Gray);
             SetColors(messageLine.Color, ConsoleColor.Black);
             var text = messageLine.Text;
-            WriteAt(2, BottomBorderY + 1 + index, text.PadRight(MessageWidth));
+            WriteAt(MessagePanelLeft, BottomBorderY + FirstMessageLineOffset + index, text.PadRight(MessageWidth));
         }
     }
 
@@ -1380,29 +1484,27 @@ public sealed class ConsoleRenderer
     private string FormatExperience(LiveCharacter character) => character.GetNextLevelExperience(_gameData.ExperienceByLevel) is { } next
         ? $"Szint: {character.Level}  XP: {character.Experience}/{next}"
         : $"Szint: {character.Level}  XP: MAX";
-    private static string ResourceIcons(string icon, int level) => string.Concat(Enumerable.Repeat(icon, level / 10));
+    private static string ResourceIcons(string icon, int level) => string.Concat(Enumerable.Repeat(icon, level / ResourceIconStep));
 
     private static string FormatPartyMember(LiveCharacter character, bool isDisplayed)
     {
-        const int maximumWidth = 27;
         var marker = isDisplayed ? "▶ " : "  ";
         var classInitial = character.CharacterClass.Name.EnumerateRunes().First().ToString().ToUpperInvariant();
         var suffix = character.IsAlive
             ? $" L{character.Level} {character.CurrentVitality}/{character.MaximumVitality}"
             : $" L{character.Level} 💀";
-        var maximumNameLength = Math.Max(1, maximumWidth - marker.Length - classInitial.Length - 1 - suffix.Length);
+        var maximumNameLength = Math.Max(FirstItemNumber, RightSheetWidth - marker.Length - classInitial.Length - FirstItemNumber - suffix.Length);
         var name = character.Name[..Math.Min(character.Name.Length, maximumNameLength)];
         return $"{marker}{classInitial} {name}{suffix}";
     }
 
     private static string FormatCompactList(string label, IEnumerable<string> values)
     {
-        const int maximumWidth = 27;
         var names = values.ToList();
         if (names.Count == 0) return $"{label}: nincs";
         var prefix = $"{label}: ";
-        var separatorsWidth = (names.Count - 1) * 2;
-        var availablePerName = Math.Max(1, (maximumWidth - prefix.Length - separatorsWidth) / names.Count);
+        var separatorsWidth = (names.Count - FirstItemNumber) * FrameBorderWidth;
+        var availablePerName = Math.Max(FirstItemNumber, (RightSheetWidth - prefix.Length - separatorsWidth) / names.Count);
         var shortenedNames = names.Select(name => name.Length <= availablePerName ? name : name[..availablePerName]);
         return prefix + string.Join(", ", shortenedNames);
     }
@@ -1410,7 +1512,7 @@ public sealed class ConsoleRenderer
     private static IReadOnlyList<string> FormatCompactListRows(string label, IEnumerable<string> values, int rowCount)
     {
         var names = values.ToList();
-        if (names.Count == 0) return [$"{label}: nincs", .. Enumerable.Repeat(string.Empty, rowCount - 1)];
+        if (names.Count == 0) return [$"{label}: nincs", .. Enumerable.Repeat(string.Empty, rowCount - FirstItemNumber)];
 
         var rows = new List<string>(rowCount);
         var namesPerRow = (int)Math.Ceiling(names.Count / (double)rowCount);
@@ -1418,9 +1520,9 @@ public sealed class ConsoleRenderer
         {
             var rowNames = names.Skip(row * namesPerRow).Take(namesPerRow).ToList();
             if (rowNames.Count == 0) { rows.Add(string.Empty); continue; }
-            var prefix = row == 0 ? $"{label}: " : new string(' ', label.Length + 2);
-            var separatorsWidth = (rowNames.Count - 1) * 2;
-            var availablePerName = Math.Max(1, (27 - prefix.Length - separatorsWidth) / rowNames.Count);
+            var prefix = row == 0 ? $"{label}: " : new string(' ', label.Length + FrameBorderWidth);
+            var separatorsWidth = (rowNames.Count - FirstItemNumber) * FrameBorderWidth;
+            var availablePerName = Math.Max(FirstItemNumber, (RightSheetWidth - prefix.Length - separatorsWidth) / rowNames.Count);
             var shortenedNames = rowNames.Select(name => name.Length <= availablePerName ? name : name[..availablePerName]);
             rows.Add(prefix + string.Join(", ", shortenedNames));
         }
@@ -1450,17 +1552,16 @@ public sealed class ConsoleRenderer
         for (var index = 0; index < PicturePanelHeight; index++)
         {
             var line = index < portrait.Lines.Count ? portrait.Lines[index] : string.Empty;
-            WriteSheetLine(PicturePanelTop + index + 1, $"│{CenterPanelText(line, portrait.CanvasWidth)}│", color);
+            WriteSheetLine(PicturePanelTop + index + FirstMessageLineOffset, $"│{CenterPanelText(line, portrait.CanvasWidth)}│", color);
         }
         WriteSheetLine(PicturePanelBottom, "└─────────────────────────┘", ConsoleColor.DarkCyan);
     }
 
     private static string CenterPanelText(string text, int canvasWidth)
     {
-        const int interiorWidth = 25;
         var canvas = text.PadRight(canvasWidth);
-        var leftPadding = Math.Max(0, (interiorWidth - canvasWidth) / 2);
-        return (new string(' ', leftPadding) + canvas).PadRight(interiorWidth);
+        var leftPadding = Math.Max(0, (PortraitInteriorWidth - canvasWidth) / FrameBorderWidth);
+        return (new string(' ', leftPadding) + canvas).PadRight(PortraitInteriorWidth);
     }
 
     /// <summary>
@@ -1473,12 +1574,11 @@ public sealed class ConsoleRenderer
 
     private void WriteSheetLine(int y, string text, ConsoleColor foregroundColor, ConsoleColor backgroundColor)
     {
-        const int maximumWidth = 27;
-        var clippedText = text.Length <= maximumWidth ? text : text[..maximumWidth];
+        var clippedText = text.Length <= RightSheetWidth ? text : text[..RightSheetWidth];
         SetColors(foregroundColor, backgroundColor);
         // Itt történik a tényleges kiírás: balra igazított, maximum 'maximumWidth' karakter,
         // és X=172 lesz (a jobb oldali karakterlap kezdő X pozíciója).
-        WriteAt(172, y, clippedText.PadRight(maximumWidth));
+        WriteAt(RightSheetX, y, clippedText.PadRight(RightSheetWidth));
     }
 
     /// <summary>
@@ -1488,11 +1588,9 @@ public sealed class ConsoleRenderer
     /// </summary>
     private void WriteSheetLine(int y, string leftText, ConsoleColor leftColor, ConsoleColor leftColorBg, string rightText, ConsoleColor rightColor)
     {
-        const int maximumWidth = 27;
-
         // Alap felosztás: fele-fele, de dinamikusan kiegészítjük ha az egyik rövidebb
-        var leftMax = maximumWidth / 2; // 13
-        var rightMax = maximumWidth - leftMax; // 14
+        var leftMax = RightSheetWidth / FrameBorderWidth;
+        var rightMax = RightSheetWidth - leftMax;
 
         string leftClipped;
         string rightClipped;
@@ -1500,13 +1598,13 @@ public sealed class ConsoleRenderer
         if (leftText.Length <= leftMax)
         {
             leftClipped = leftText;
-            var remaining = maximumWidth - leftClipped.Length;
+            var remaining = RightSheetWidth - leftClipped.Length;
             rightClipped = rightText.Length <= remaining ? rightText : rightText[..remaining];
         }
         else if (rightText.Length <= rightMax)
         {
             rightClipped = rightText;
-            var remaining = maximumWidth - rightClipped.Length;
+            var remaining = RightSheetWidth - rightClipped.Length;
             leftClipped = leftText.Length <= remaining ? leftText : leftText[..remaining];
         }
         else
@@ -1518,11 +1616,11 @@ public sealed class ConsoleRenderer
         // Kiírás: először a bal oldali rész, majd a jobb oldali közvetlenül utána
         SetColors(leftColor, leftColorBg);
         var leftPadded = leftClipped.PadRight(leftClipped.Length);
-        WriteAt(172, y, leftPadded);
+        WriteAt(RightSheetX, y, leftPadded);
 
         SetColors(rightColor, ConsoleColor.Black);
-        var secondX = 172 + leftPadded.Length;
-        var remainingWidth = maximumWidth - leftPadded.Length;
+        var secondX = RightSheetX + leftPadded.Length;
+        var remainingWidth = RightSheetWidth - leftPadded.Length;
         var rightPadded = rightClipped.PadRight(remainingWidth);
         WriteAt(secondX, y, rightPadded);
     }
