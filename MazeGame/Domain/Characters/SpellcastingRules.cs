@@ -43,7 +43,7 @@ public static class SpellcastingRules
         item.Kind == MagicItemKind.Wand || item.Kind == MagicItemKind.Scroll && spell.School switch
         {
             SpellSchool.Arcane => character.CharacterClass.Id == CharacterClassIds.Mágus,
-            SpellSchool.Divine => character.CharacterClass.Id is CharacterClassIds.Pap or CharacterClassIds.Lovag,
+            SpellSchool.Divine => character.CharacterClass.Id is CharacterClassIds.Pap or CharacterClassIds.Lovag or CharacterClassIds.Mágus,
             _ => false
         };
 

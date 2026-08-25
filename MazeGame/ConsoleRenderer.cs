@@ -561,6 +561,56 @@ public sealed class ConsoleRenderer
         DrawCenteredFrame(InnMarketFrameWidth, lines);
     }
 
+    public void DrawWanderingMageMenu(LiveCharacter leader, IReadOnlyList<(string Label, string Description)> options,
+        int selectedIndex, string message)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🧙✨  A VÁNDORMÁGUS  ✨🧙", ConsoleColor.Magenta),
+            ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}", ConsoleColor.Green),
+            (ClipMarketText(message, InnMenuFrameWidth - 6), ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        for (var index = 0; index < options.Count; index++)
+        {
+            var selected = index == selectedIndex;
+            lines.Add(($"{(selected ? "▶" : " ")} {options[index].Label}", selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
+            lines.Add(($"     {options[index].Description}", selected ? ConsoleColor.White : ConsoleColor.DarkGray));
+        }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("↑/↓ választás   Enter belépés   Esc vissza", ConsoleColor.Green));
+        DrawCenteredFrame(InnMenuFrameWidth, lines);
+    }
+
+    public void DrawWandRechargeScreen(LiveCharacter leader,
+        IReadOnlyList<(string Owner, string Item, int Price, int Charges)> wands, int selectedIndex, string message)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🪄✨  VARÁZSPÁLCA-FELTÖLTÉS  ✨🪄", ConsoleColor.Magenta),
+            ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}", ConsoleColor.Green),
+            ("A teljes feltöltés díja a pálca eredeti árának kétharmada.", ConsoleColor.DarkYellow),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        if (wands.Count == 0) lines.Add(("Nincs teljesen kiürült varázspálca a partinál.", ConsoleColor.DarkGray));
+        else
+            for (var index = 0; index < wands.Count; index++)
+            {
+                var wand = wands[index];
+                var selected = index == selectedIndex;
+                lines.Add(($"{(selected ? "▶" : " ")} {wand.Owner,-13}  {wand.Item,-28} → {wand.Charges} töltet   {wand.Price} {MoneyIcon}",
+                    selected ? ConsoleColor.White : ConsoleColor.Cyan));
+            }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add((ClipMarketText(message, InnMarketFrameWidth - 6), ConsoleColor.Magenta));
+        lines.Add(("↑/↓ választás   Enter feltöltés   Esc vissza", ConsoleColor.Green));
+        DrawCenteredFrame(InnMenuFrameWidth, lines);
+    }
+
     public void UpdateInnMarketSelection(InnMarketMode mode, IReadOnlyList<InnStockOffer> stock,
         IReadOnlyList<InnSellOffer> sellOffers, int previousIndex, int selectedIndex)
     {

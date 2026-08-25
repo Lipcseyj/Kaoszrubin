@@ -332,7 +332,7 @@ public static class CsvGameDataLoader
         MagicItemKind.Wand => new HashSet<string>([CharacterClassIds.Harcos, CharacterClassIds.Barbár, CharacterClassIds.Lovag,
             CharacterClassIds.Tolvaj, CharacterClassIds.Pap, CharacterClassIds.Mágus], StringComparer.OrdinalIgnoreCase),
         MagicItemKind.Scroll when spellId?.StartsWith('P') == true =>
-            new HashSet<string>([CharacterClassIds.Pap, CharacterClassIds.Lovag], StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>([CharacterClassIds.Pap, CharacterClassIds.Lovag, CharacterClassIds.Mágus], StringComparer.OrdinalIgnoreCase),
         MagicItemKind.Scroll => new HashSet<string>([CharacterClassIds.Mágus], StringComparer.OrdinalIgnoreCase),
         _ when IsYes(cells, mageOnlyIndex) => new HashSet<string>([CharacterClassIds.Mágus], StringComparer.OrdinalIgnoreCase),
         _ => new HashSet<string>([CharacterClassIds.Harcos, CharacterClassIds.Barbár, CharacterClassIds.Lovag,

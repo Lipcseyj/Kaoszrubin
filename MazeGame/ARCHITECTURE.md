@@ -355,6 +355,81 @@ Az eredeti 12 mágus- és 12 papi varázslathoz tartozik egy-egy tekercs. A tov�
 
 A `SpellId` határozza meg a varázstárgyhoz kötött varázslatot. Ha használható tekercs vagy pálca van a karakter három varázstárgyhelyének egyikén, a `V` varázsválasztóban külön `📜 0M`, illetve `🪄 0M` sor jelenik meg. Ezekhez nem kell fókusztárgy, ismertség, memorizálás vagy manna. Varázshasználónál az eszközös varázslat a memorizált lista mellett jelenik meg; azonos varázslat esetén külön normál és eszközös sor választható. A célzás `Esc` megszakításakor semmi nem fogy. A célpont megerősítése után a tekercs eltűnik, a pálca aktuális töltete eggyel csökken; a harci koncentrációs kudarc is fogyaszt. A töltet az inventorymozgatáskor és karakterek közötti átadáskor a tárggyal mozog, a karaktermentés pedig slotonként tárolja. A 0 töltetű pálca megmarad, de nem jelenik meg a varázslistában. A gyűrűk és amulettek passzív hatásai továbbra is teljesen működnek.
 
+Alapműködés
+Minden karakternek:
+- 3 felszerelt varázstárgyhelye van;
+- 10 hátizsákhelye van;
+- csak a felszerelt varázstárgyak fejtenek ki hatást;
+- a hátizsákban lévő varázstárgy passzív bónuszt sem ad, és onnan pálca vagy tekercs sem süthető el.
+A tárgyakat a karakterlapon, Space segítségével lehet mozgatni a hátizsák, a varázstárgyhelyek és a partitagok között. A kasztkorlátozást felszereléskor ellenőrzi a játék.
+Jelenleg 57 varázstárgy van:
+Típus	Darab	Működés
+Varázsgyűrű	12	Állandó passzív bónusz
+Amulett	12	Állandó vagy csata eleji passzív hatás
+Varázspálca	9	Több töltetes, 0 mannába kerülő varázslás
+Varázstekercs	24	Egyszer használható, 0 mannába kerülő varázslás
+
+
+A kezdőfelszerelések között jelenleg nincs varázstárgy.
+Gyűrűk és amulettek
+Ezeknek nincs töltetük: amíg fel vannak szerelve, automatikusan működnek.
+A lehetséges hatások:
+- Initiative: hozzáadódik a harc eleji kezdeményezéshez.
+- Hit: hozzáadódik a fizikai és a támadó varázslatok találati próbájához.
+- Damage: hozzáadódik a fizikai támadás sebzéséhez.
+- Defense: csökkenti a beérkező fizikai sebzést.
+- BattleHeal: minden csata elején HP-t gyógyít.
+- BattleMana: minden csata elején mannát tölt vissza, ha a karakter használ mannát.
+A három felszerelt tárgy azonos típusú bónuszai összeadódnak. Nincs „csak egy gyűrű” vagy „csak egy azonos nevű tárgy” korlátozás, tehát akár három azonos bónuszú tárgy is viselhető egyszerre.
+A gyógyítás és mannatöltés nem mehet a maximum fölé. Ha a karakter már tele van, a hatás gyakorlatilag elvész, és nem jelenik meg hozzá harci üzenet.
+Varázspálcák
+A pálca egy meghatározott varázslatot tárol, általában 3–8 töltettel.
+Használata:
+- fel kell szerelni valamelyik varázstárgyhelyre;
+- a V varázslási menüben jelenik meg;
+- minden kaszt használhatja;
+- nem kell hozzá varázshasználó kaszt, varázskönyv, szent szimbólum, ismert vagy memorizált varázslat;
+- nem fogyaszt mannát;
+- elsütésenként egy töltetet fogyaszt.
+A pálca ugyanazt a teljes varázslat-végrehajtást használja, mint a normál varázslás: célzás, hatótáv, támadó dobás, mentődobás és a varázslat összes hatása érvényesül. A hatás számításánál továbbra is a használó tulajdonságai – például az Intelligenciája – számítanak.
+Az üres pálca:
+- nem jelenik meg többé a varázslási menüben;
+- nem tűnik el;
+- továbbra is elfoglalja a varázstárgyhelyet;
+- jelenleg nem tölthető újra.
+Varázstekercsek
+A tekercsek egyetlen töltettel rendelkeznek, és használatkor eltűnnek.
+Kasztkorlátozás:
+- mágusvarázslatot tartalmazó tekercs: csak mágus;
+- papi varázslatot tartalmazó tekercs: csak pap vagy lovag.
+A tekercs:
+- nem igényli, hogy a karakter ismerje vagy memorizálja a varázslatot;
+- nem fogyaszt mannát;
+- a V menüből használható;
+- a sikeres célpontválasztás után azonnal elhasználódik.
+Fontos eltérés: a CSV-ben a papi tekercsek leírása még azt mondja, hogy „mágusok által használható másolat”. Ez már nem felel meg a tényleges működésnek: a kód papnak és lovagnak engedi őket felszerelni és használni.
+Harci varázslási kudarc
+Pálcára és tekercsre is vonatkozik a normál harci varázslási kudarc:
+max(0, 30 − Intelligencia − Ügyesség)%
+A töltet már a kudarc ellenőrzése előtt elfogy. Ez azt jelenti, hogy:
+- sikertelen pálcahasználatnál elveszik egy töltet;
+- sikertelen tekercshasználatnál a tekercs teljesen eltűnik;
+- az akció is elvész.
+Ha a játékos még a célzásnál visszalép, nem fogy töltet.
+A papi „Isteni ítélet” és más, normál varázslásra kötött bónuszok tárgyból történő varázsláskor nem aktiválódnak. Az Időmegállítás csatánként egyszeri korlátozása viszont tekercsre és pálcára is érvényes.
+Megszerzés és tárolás
+Varázstárgyak jelenleg:
+- szörnyzsákmányként eshetnek, ha az adott szörny zsákmánytáblája engedi;
+- fogadói kereskedőnél megjelenhetnek;
+- legendás tárgyként ritkábban kerülhetnek készletbe;
+- generált karakterek felszerelésében vagy hátizsákjában is előfordulhatnak.
+A zsákmány először hátizsákba kerül. Ha nincs szabad hátizsákhely a partiban, a földön marad.
+A töltetszámot a játék:
+- hátizsákba mozgatáskor;
+- karakterek közötti átadáskor;
+- mentéskor és visszatöltéskor
+is megőrzi. Tehát egy félig elhasznált pálca mozgatással vagy mentés-visszatöltéssel nem töltődik újra.
+
 ### Varázslatdefiníciók és szintek
 
 A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív alap-mannaköltséget, leírást és célzási metaadatokat tartalmaz. Az `adatok.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`, `Célzás`, `Hatótáv`, `Terület`, `Látóvonal`, `HasználatiMód`. A célzás típusa `Self`, `Party`, `PartyMember`, `Enemy`, `Corpse`, `Cell`, `Area` vagy `Direction`; a használati mód `Exploration`, `Combat` vagy `Both`. Mindkét iskola mannaköltsége és leírása a tényleges CSV-s hatásokhoz van hangolva.

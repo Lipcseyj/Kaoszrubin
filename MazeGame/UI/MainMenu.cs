@@ -306,7 +306,7 @@ public sealed class MainMenu
         Console.WriteLine("Karakterlap: Space - tárgy mozgatása | D - ledobás | I - részletek | Enter - használat");
         Console.WriteLine("Partitárs kijelölve: Del - végleges kirúgás megerősítéssel");
         Console.WriteLine("Mágus/Pap: V - memorizált varázslatok | F1-F8 - gyorsvarázslatok");
-        Console.WriteLine("V alatt: 📜 tekercs 0 mannás és egyszeri (mágus: mágusige; pap/lovag: papi ima).");
+        Console.WriteLine("V alatt: 📜 tekercs 0 mannás és egyszeri (mágus: mágusige vagy papi ima; pap/lovag: papi ima).");
         Console.WriteLine("Felszerelt 🪄 pálca: minden kaszt használhatja 0 mannából; elsütésenként egy töltet fogy.");
         Console.WriteLine("Varázslatlista: fel/le, Enter - elsütés, bal/jobb - partitag varázslóváltás, F1-F8 - gyorshely, Esc - vissza");
         Console.WriteLine("Célzás: nyilak - célkereszt | Tab - következő érvényes cél | Enter - megerősítés | Esc - mégse");

@@ -545,18 +545,18 @@ MS009,Villámvihar tekercse,Varázstekercs,Varázs,1100,1,S009,None,0,igen,Egyet
 MS010,Teleportáció tekercse,Varázstekercs,Varázs,1300,1,S010,None,0,igen,Egyetlen Teleportáció varázslatot tartalmazó tekercs.,7
 MS011,Meteorzápor tekercse,Varázstekercs,Varázs,1800,1,S011,None,0,igen,Egyetlen Meteorzápor varázslatot tartalmazó ritka tekercs.,9
 MS012,Időmegállítás tekercse,Varázstekercs,Legendás,3500,1,S012,None,0,igen,Egyetlen Időmegállítás varázslatot őrző legendás tekercs.,12
-PS001,Gyógyító érintés tekercse,Varázstekercs,Varázs,220,1,P001,None,0,igen,Egyetlen Gyógyító érintés papi varázslat mágusok által használható másolata.,1
-PS002,Szent fény tekercse,Varázstekercs,Varázs,280,1,P002,None,0,igen,Egyetlen Szent fény papi varázslat mágusok által használható másolata.,1
-PS003,Áldás tekercse,Varázstekercs,Varázs,320,1,P003,None,0,igen,Egyetlen Áldás papi varázslat mágusok által használható másolata.,2
-PS004,Szent pajzs tekercse,Varázstekercs,Varázs,420,1,P004,None,0,igen,Egyetlen Szent pajzs papi varázslat mágusok által használható másolata.,2
-PS005,Gyógyítás tekercse,Varázstekercs,Varázs,600,1,P005,None,0,igen,Egyetlen Gyógyítás papi varázslat mágusok által használható másolata.,3
-PS006,Méregűzés tekercse,Varázstekercs,Varázs,500,1,P006,None,0,igen,Egyetlen Méregűzés papi varázslat mágusok által használható másolata.,3
-PS007,Védelem a gonosztól tekercse,Varázstekercs,Varázs,700,1,P007,None,0,igen,Egyetlen Védelem a gonosztól papi varázslat mágusok által használható másolata.,4
-PS008,Feltámasztás tekercse,Varázstekercs,Legendás,2500,1,P008,None,0,igen,Egyetlen Feltámasztás papi varázslat mágusok által használható legendás másolata.,10
-PS009,Szent csapás tekercse,Varázstekercs,Varázs,900,1,P009,None,0,igen,Egyetlen Szent csapás papi varázslat mágusok által használható másolata.,5
-PS010,Isteni védelem tekercse,Varázstekercs,Varázs,1200,1,P010,None,0,igen,Egyetlen Isteni védelem papi varázslat mágusok által használható másolata.,6
-PS011,Szent ítélet tekercse,Varázstekercs,Legendás,1900,1,P011,None,0,igen,Egyetlen Szent ítélet papi varázslat mágusok által használható legendás másolata.,8
-PS012,Isteni csoda tekercse,Varázstekercs,Legendás,4000,1,P012,None,0,igen,Egyetlen Isteni csoda papi varázslat mágusok által használható legendás másolata.,12
+PS001,Gyógyító érintés tekercse,Varázstekercs,Varázs,220,1,P001,None,0,igen,Egyetlen Gyógyító érintés papi varázslat mágusok által is használható másolata.,1
+PS002,Szent fény tekercse,Varázstekercs,Varázs,280,1,P002,None,0,igen,Egyetlen Szent fény papi varázslat mágusok által is használható másolata.,1
+PS003,Áldás tekercse,Varázstekercs,Varázs,320,1,P003,None,0,igen,Egyetlen Áldás papi varázslat mágusok által is használható másolata.,2
+PS004,Szent pajzs tekercse,Varázstekercs,Varázs,420,1,P004,None,0,igen,Egyetlen Szent pajzs papi varázslat mágusok által is használható másolata.,2
+PS005,Gyógyítás tekercse,Varázstekercs,Varázs,600,1,P005,None,0,igen,Egyetlen Gyógyítás papi varázslat mágusok által is használható másolata.,3
+PS006,Méregűzés tekercse,Varázstekercs,Varázs,500,1,P006,None,0,igen,Egyetlen Méregűzés papi varázslat mágusok által is használható másolata.,3
+PS007,Védelem a gonosztól tekercse,Varázstekercs,Varázs,700,1,P007,None,0,igen,Egyetlen Védelem a gonosztól papi varázslat mágusok által is használható másolata.,4
+PS008,Feltámasztás tekercse,Varázstekercs,Legendás,2500,1,P008,None,0,igen,Egyetlen Feltámasztás papi varázslat mágusok által is használható legendás másolata.,10
+PS009,Szent csapás tekercse,Varázstekercs,Varázs,900,1,P009,None,0,igen,Egyetlen Szent csapás papi varázslat mágusok által is használható másolata.,5
+PS010,Isteni védelem tekercse,Varázstekercs,Varázs,1200,1,P010,None,0,igen,Egyetlen Isteni védelem papi varázslat mágusok által is használható másolata.,6
+PS011,Szent ítélet tekercse,Varázstekercs,Legendás,1900,1,P011,None,0,igen,Egyetlen Szent ítélet papi varázslat mágusok által is használható legendás másolata.,8
+PS012,Isteni csoda tekercse,Varázstekercs,Legendás,4000,1,P012,None,0,igen,Egyetlen Isteni csoda papi varázslat mágusok által is használható legendás másolata.,12
 
 #Varázslatok
 Id,Név,Szint,Manna,Leírás,Célzás,Hatótáv,Terület,Látóvonal,HasználatiMód

@@ -2,6 +2,7 @@ using MazeGame.Data;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
+using MazeGame.Domain.Magic;
 
 namespace MazeGame;
 
@@ -53,15 +54,17 @@ internal sealed class InnController
 
         var blacksmithPresent = _random.Next(2) == 0;
         var armorerPresent = _random.Next(2) == 0;
+        var wanderingMagePresent = _random.Next(100) < 30;
         var blacksmithStock = blacksmithPresent ? CreateSpecialistStock(completedLevel, ItemCategory.Weapon) : [];
         var armorerStock = armorerPresent ? CreateSpecialistStock(completedLevel, ItemCategory.Armor) : [];
-        var artisanNotice = (blacksmithPresent, armorerPresent) switch
-        {
-            (true, true) => "A fogadós jelzi: ma a Kovácsmester és a Páncélmíves is jelen van.",
-            (true, false) => "A fogadós jelzi: ma a Kovácsmester van jelen.",
-            (false, true) => "A fogadós jelzi: ma a Páncélmíves van jelen.",
-            _ => "A fogadós jelzi: ma egyik vándormester sincs jelen."
-        };
+        var wanderingMageStock = wanderingMagePresent ? CreateWanderingMageStock() : [];
+        var presentVisitors = new List<string>();
+        if (blacksmithPresent) presentVisitors.Add("a Kovácsmester");
+        if (armorerPresent) presentVisitors.Add("a Páncélmíves");
+        if (wanderingMagePresent) presentVisitors.Add("a Vándormágus");
+        var artisanNotice = presentVisitors.Count == 0
+            ? "A fogadós jelzi: ma egyik vándormester sincs jelen."
+            : $"A fogadós jelzi: ma {HungarianList(presentVisitors)} van jelen.";
         var options = new List<(InnMenuOption Option, string Label, string Description)>
         {
             (InnMenuOption.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára."),
@@ -71,6 +74,7 @@ internal sealed class InnController
         };
         if (blacksmithPresent) options.Add((InnMenuOption.Blacksmith, "🔨 Kovácsmester", "Kizárólag fegyvereket kínál, csak vásárlásra."));
         if (armorerPresent) options.Add((InnMenuOption.Armorer, "🛡️ Páncélmíves", "Kizárólag páncélokat kínál, csak vásárlásra."));
+        if (wanderingMagePresent) options.Add((InnMenuOption.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka és varázstárgy-azonosítás."));
         options.Add((InnMenuOption.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása."));
         options.Add((InnMenuOption.Rumors, "👂 Pletykák", "Hírek a következő pályáról és a környékbeli szörnyekről."));
         options.Add((InnMenuOption.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót."));
@@ -110,6 +114,7 @@ internal sealed class InnController
                 case InnMenuOption.SecretStash: RunInnSecretStash(completedLevel); break;
                 case InnMenuOption.Blacksmith: RunSpecialistMarket("🔨 KOVÁCSMESTER", blacksmithStock); break;
                 case InnMenuOption.Armorer: RunSpecialistMarket("🛡️ PÁNCÉLMÍVES", armorerStock); break;
+                case InnMenuOption.WanderingMage: RunWanderingMage(wanderingMageStock); break;
                 case InnMenuOption.Recruit: RunInnRecruitment(); break;
                 case InnMenuOption.Rumors: RunInnRumors(completedLevel); break;
                 case InnMenuOption.Leave: return;
@@ -737,6 +742,108 @@ internal sealed class InnController
             .OrderBy(offer => offer.Price).ToList();
     }
 
+    private List<InnStockOffer> CreateWanderingMageStock()
+    {
+        var stock = new List<InnStockOffer>();
+        AddRandomMagicItemOffer(stock, MagicItemKind.Wand);
+        AddRandomMagicItemOffer(stock, MagicItemKind.Scroll);
+        return stock;
+    }
+
+    private void AddRandomMagicItemOffer(ICollection<InnStockOffer> stock, MagicItemKind kind)
+    {
+        var candidates = _gameData.MagicItems.Where(item => item.Kind == kind &&
+            !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item)).ToList();
+        if (candidates.Count == 0) return;
+        var item = candidates[_random.Next(candidates.Count)];
+        var price = Math.Max(1, (int)Math.Round(item.BasePrice * _random.Next(90, 151) / 100.0));
+        stock.Add(new InnStockOffer(item, price));
+    }
+
+    private void RunWanderingMage(List<InnStockOffer> stock)
+    {
+        var options = new List<(string Label, string Description)>
+        {
+            ("🪄 Kiürült varázspálcák feltöltése", "Teljes feltöltés a pálca eredeti árának kétharmadáért."),
+            ("📜 Varázsportékák", "Egy véletlen varázspálca és egy véletlen tekercs, egyszeri készletről."),
+            ("🔮 Varázstárgy azonosítása", "Az azonosítás szolgáltatása hamarosan elérhető lesz."),
+            ("🚪 Vissza", "Visszatérés a fogadó főtermébe.")
+        };
+        var selectedIndex = 0;
+        var message = "A vándormágus köpenye alól halk, kékes fény szűrődik ki.";
+        while (true)
+        {
+            _renderer.DrawWanderingMageMenu(_selectedCharacter, options, selectedIndex, message);
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Escape) return;
+            if (key == ConsoleKey.UpArrow) selectedIndex = (selectedIndex - 1 + options.Count) % options.Count;
+            else if (key == ConsoleKey.DownArrow) selectedIndex = (selectedIndex + 1) % options.Count;
+            else if (key == ConsoleKey.Enter)
+            {
+                switch (selectedIndex)
+                {
+                    case 0: RunWandRecharging(); break;
+                    case 1: RunSpecialistMarket("🧙 VÁNDORMÁGUS PORTÉKÁI", stock); break;
+                    case 2: message = "🔮 A varázstárgy-azonosítás még nem használható; a szolgáltatás helye már elő van készítve."; break;
+                    case 3: return;
+                }
+            }
+        }
+    }
+
+    private void RunWandRecharging()
+    {
+        var selectedIndex = 0;
+        var message = "Csak a teljesen kiürült varázspálcák tölthetők fel.";
+        while (true)
+        {
+            var wands = EmptyWands().ToList();
+            selectedIndex = wands.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, wands.Count - 1);
+            _renderer.DrawWandRechargeScreen(_selectedCharacter, wands.Select(wand =>
+                (wand.Character.Name, wand.Item.Name, WandRechargePrice(wand.Item), wand.Item.MaximumCharges)).ToList(), selectedIndex, message);
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Escape) return;
+            if (key == ConsoleKey.UpArrow && wands.Count > 0) selectedIndex = (selectedIndex - 1 + wands.Count) % wands.Count;
+            else if (key == ConsoleKey.DownArrow && wands.Count > 0) selectedIndex = (selectedIndex + 1) % wands.Count;
+            else if (key == ConsoleKey.Enter && wands.Count > 0)
+            {
+                var wand = wands[selectedIndex];
+                var price = WandRechargePrice(wand.Item);
+                if (!_selectedCharacter.SpendGold(price))
+                {
+                    message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {price - _selectedCharacter.Gold} hiányzik.";
+                    continue;
+                }
+                wand.Character.ApplyInventoryChanges(new InventorySlotChange(wand.Kind, wand.Index, wand.Item, wand.Item.MaximumCharges));
+                message = $"✅ {wand.Character.Name} {wand.Item.Name} pálcája feltöltve: {wand.Item.MaximumCharges}/{wand.Item.MaximumCharges} töltet ({price} arany).";
+            }
+        }
+    }
+
+    private IEnumerable<RechargeableWand> EmptyWands()
+    {
+        foreach (var character in _characterRoster.Party.Members)
+        {
+            for (var index = 0; index < character.MagicItems.Count; index++)
+                if (character.MagicItems[index] is { Kind: MagicItemKind.Wand } equipped && character.MagicItemCharges[index] == 0)
+                    yield return new RechargeableWand(character, InventorySlotKind.MagicItem, index, equipped);
+            for (var index = 0; index < character.Backpack.Count; index++)
+                if (character.Backpack[index] is MagicItemDefinition { Kind: MagicItemKind.Wand } packed &&
+                    character.GetInventoryItemCharges(InventorySlotKind.Backpack, index) == 0)
+                    yield return new RechargeableWand(character, InventorySlotKind.Backpack, index, packed);
+        }
+    }
+
+    private static int WandRechargePrice(MagicItemDefinition item) => Math.Max(1, (int)Math.Ceiling(item.BasePrice * 2 / 3.0));
+
+    private static string HungarianList(IReadOnlyList<string> items) => items.Count switch
+    {
+        0 => string.Empty,
+        1 => items[0],
+        2 => $"{items[0]} és {items[1]}",
+        _ => $"{string.Join(", ", items.Take(items.Count - 1))} és {items[^1]}"
+    };
+
     private void RunSpecialistMarket(string title, List<InnStockOffer> stock)
     {
         var selectedIndex = 0;
@@ -774,7 +881,9 @@ internal sealed class InnController
         }
     }
 
-    private enum InnMenuOption { Rest, Market, Witcher, SecretStash, Blacksmith, Armorer, Recruit, Rumors, Leave }
+    private enum InnMenuOption { Rest, Market, Witcher, SecretStash, Blacksmith, Armorer, WanderingMage, Recruit, Rumors, Leave }
+
+    private sealed record RechargeableWand(LiveCharacter Character, InventorySlotKind Kind, int Index, MagicItemDefinition Item);
 
     private sealed record LevelCompletionOutcome(IReadOnlyList<LevelCompletionResult> Results,
         IReadOnlyList<LiveCharacter> FallenCharacters);
