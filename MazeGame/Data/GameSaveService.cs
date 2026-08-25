@@ -69,6 +69,8 @@ public sealed class GameSaveData
     public string MainCharacterName { get; set; } = string.Empty;
     public string RosterJson { get; set; } = string.Empty;
     public int MazeLevel { get; set; } = 1;
+    public List<string> CollectedBossKeyIds { get; set; } = [];
+    public List<string> SeenBossIds { get; set; } = [];
     public Position PlayerPosition { get; set; }
     public Direction LeaderFacing { get; set; } = Direction.Right;
     public List<Position> LeaderTrail { get; set; } = [];

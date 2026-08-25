@@ -2,6 +2,7 @@ using System.Text;
 using MazeGame.Combat;
 using MazeGame.Data;
 using MazeGame.Domain.Characters;
+using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Magic;
 
@@ -128,6 +129,7 @@ public sealed class ConsoleRenderer
     private readonly GameDataCatalog _gameData;
     private readonly Party _party;
     private int _mazeLevel;
+    private int _goldenKeyCount;
     private bool _battleActive;
     private Enemy? _battleEnemy;
     private LiveCharacter? _displayedCharacter;
@@ -150,6 +152,29 @@ public sealed class ConsoleRenderer
     {
         var version = Environment.OSVersion.Version;
         return OperatingSystem.IsWindows() && version.Major >= 10 && version.Build >= 22000;
+    }
+
+    public void SetGoldenKeyCount(int count) => _goldenKeyCount = Math.Clamp(count, 0, MonsterIds.Bosses.Count);
+
+    public void DrawBossIntroduction(EnemyDefinition boss, string story)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("⚔️👑  BOSS KÖZELEG  👑⚔️", ConsoleColor.Red),
+            (string.Empty, ConsoleColor.Gray),
+            ($"{boss.Appearance}  {boss.Name}", ConsoleColor.Yellow),
+            ($"Erősség: {boss.StrengthTier}/5     Jutalom: 🔑 Aranykulcs", ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray),
+            (ClipMarketText(story, InnRumorTextWidth), ConsoleColor.White),
+            (string.Empty, ConsoleColor.Gray),
+            ("A történet részletes szövege később kerül ide.", ConsoleColor.DarkMagenta),
+            (string.Empty, ConsoleColor.Gray),
+            ("Nyomj Entert a folytatáshoz...", ConsoleColor.Green)
+        };
+        DrawCenteredFrame(InnRumorFrameWidth, lines);
+        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
     /// <summary>
@@ -1456,7 +1481,7 @@ public sealed class ConsoleRenderer
         WriteSheetLine(CharacterSheetFirstPerkLine, perkLines[0], ConsoleColor.Magenta);
         WriteSheetLine(CharacterSheetSecondPerkLine, perkLines[1], ConsoleColor.Magenta);
         DrawBattleStatusRows(character);
-        WriteSheetLine(CharacterSheetLevelLine, $"Labirintus: {_mazeLevel}", ConsoleColor.Green);
+        WriteSheetLine(CharacterSheetLevelLine, $"Labirintus: {_mazeLevel}  🔑 {_goldenKeyCount}/{MonsterIds.Bosses.Count}", ConsoleColor.Green);
         WriteSheetLine(CharacterSheetExperienceLine, FormatExperience(character), ConsoleColor.Cyan);
         WriteSheetLine(CharacterSheetStrengthLine, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
         WriteSheetLine(CharacterSheetDexterityLine, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);

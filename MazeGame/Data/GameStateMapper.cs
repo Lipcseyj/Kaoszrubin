@@ -22,7 +22,8 @@ internal sealed class GameStateMapper
     public GameSaveData Create(int mazeLevel, Maze maze, Player player, FogOfWar fogOfWar,
         Direction leaderFacing, IReadOnlyList<Position> leaderTrail, bool partyHoldingPosition,
         bool hasRestedThisLevel, DateTime? partyScatterUntil, DateTime nextNeedsDrain,
-        IReadOnlyDictionary<Enemy, DateTime> nextEnemyMoves)
+        IReadOnlyDictionary<Enemy, DateTime> nextEnemyMoves, IReadOnlyCollection<string> collectedBossKeyIds,
+        IReadOnlyCollection<string> seenBossIds)
     {
         var now = DateTime.UtcNow;
         var mazeData = new MazeSaveData
@@ -56,6 +57,8 @@ internal sealed class GameStateMapper
         {
             MainCharacterName = _selectedCharacter.Name,
             MazeLevel = mazeLevel,
+            CollectedBossKeyIds = collectedBossKeyIds.ToList(),
+            SeenBossIds = seenBossIds.ToList(),
             PlayerPosition = player.Position,
             LeaderFacing = leaderFacing,
             LeaderTrail = leaderTrail.ToList(),

@@ -53,4 +53,10 @@ public static class MonsterIds
     public const string Drakolich = "E049";
     public const string Káoszsárkány = "E050";
     public const string Patkányember = "E051";
+
+    public static IReadOnlySet<string> Bosses { get; } = new HashSet<string>(
+    [
+        Patkányember, Ghoul, OrkSámán, Fagyóriás, VörösSárkány, Hidra,
+        VénBeholder, Csontsárkány, Ősvámpír, Drakolich, BalorDémon, Káoszsárkány
+    ], StringComparer.OrdinalIgnoreCase);
 }

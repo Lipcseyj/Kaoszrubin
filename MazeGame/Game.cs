@@ -53,6 +53,8 @@ public sealed class Game
     private int _mazeLevel = 1;
     private bool _hasRestedThisLevel;
     private bool _developerPhasing;
+    private readonly HashSet<string> _collectedBossKeyIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _seenBossIds = new(StringComparer.OrdinalIgnoreCase);
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
 
@@ -66,6 +68,7 @@ public sealed class Game
         _gameStateMapper = new GameStateMapper(gameData, characterRoster, selectedCharacter);
         _loadedState = loadedState;
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
+        _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
         _doorInteractions = new DoorInteractionController(gameData, _renderer, _soundEffects, _random);
         _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer, _soundEffects,
@@ -447,6 +450,7 @@ public sealed class Game
         _gameOver = false;
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        CheckBossDiscovery(_maze.Enemies.Where(enemy => _fogOfWar.IsRevealed(enemy.Position)));
         _soundEffects.Play(SoundEffect.LevelStart);
         LogMazeAccessibilityCheck();
     }
@@ -562,13 +566,18 @@ public sealed class Game
     {
         return _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
             _leaderTrail, _partyHoldingPosition, _hasRestedThisLevel, _partyScatterUntil,
-            _nextNeedsDrain, _nextEnemyMoves);
+            _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
     }
 
     private void RestoreGame(GameSaveData state)
     {
         var restored = _gameStateMapper.Restore(state);
         _mazeLevel = restored.MazeLevel;
+        _collectedBossKeyIds.Clear();
+        _collectedBossKeyIds.UnionWith(state.CollectedBossKeyIds ?? []);
+        _seenBossIds.Clear();
+        _seenBossIds.UnionWith(state.SeenBossIds ?? []);
+        _renderer.SetGoldenKeyCount(_collectedBossKeyIds.Count);
         _maze = restored.Maze;
         _player = restored.Player;
         _fogOfWar = restored.FogOfWar;
@@ -696,6 +705,7 @@ public sealed class Game
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, _player.Position);
         var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit;
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
+        CheckBossDiscoveryAt(newlyRevealed);
         switch (_random.Next(5))
         {
             case 0: _soundEffects.Play(SoundEffect.Step1); break;
@@ -1346,6 +1356,7 @@ public sealed class Game
             member.Character.RegisterExplorationStep();
             var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
             _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
+            CheckBossDiscoveryAt(newlyRevealed);
             if (CanActivelyAttack(member)) TryResolveAdjacentNpcBattle(member);
         }
     }
@@ -1419,6 +1430,7 @@ public sealed class Game
         var levelUps = new List<ExperienceAward>();
         if (result.PlayerWon)
         {
+            AwardBossKey(enemy);
             _soundEffects.Play(SoundEffect.Victory);
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
             levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive));
@@ -2449,9 +2461,45 @@ public sealed class Game
     private static int Chebyshev(Position first, Position second) =>
         Math.Max(Math.Abs(first.X - second.X), Math.Abs(first.Y - second.Y));
 
+    private void CheckBossDiscoveryAt(IEnumerable<Position> positions)
+    {
+        var revealed = positions.ToHashSet();
+        if (revealed.Count == 0) return;
+        CheckBossDiscovery(_maze.Enemies.Where(enemy => revealed.Contains(enemy.Position)));
+    }
+
+    private void CheckBossDiscovery(IEnumerable<Enemy> enemies)
+    {
+        var discovered = enemies.Where(enemy => enemy.Definition.IsBoss &&
+                !_seenBossIds.Contains(enemy.Definition.Id))
+            .DistinctBy(enemy => enemy.Definition.Id, StringComparer.OrdinalIgnoreCase).ToList();
+        if (discovered.Count == 0) return;
+        foreach (var boss in discovered)
+        {
+            _seenBossIds.Add(boss.Definition.Id);
+            _renderer.DrawBossIntroduction(boss.Definition,
+                $"A labirintus mélyén {boss.Name} őrzi a tizenkét aranykulcs egyikét. " +
+                "Jelenléte eltorzítja a környező folyosókat, és a parti érzi, hogy ez a találkozás a küldetés része.");
+        }
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+    }
+
+    private void AwardBossKey(Enemy enemy)
+    {
+        if (!enemy.Definition.IsBoss || !_collectedBossKeyIds.Add(enemy.Definition.Id)) return;
+        _renderer.SetGoldenKeyCount(_collectedBossKeyIds.Count);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        var completed = _collectedBossKeyIds.Count == MonsterIds.Bosses.Count
+            ? " A tizenkét aranykulcs összegyűlt — a küldetés első célja teljesült!"
+            : string.Empty;
+        _renderer.DrawInventoryMessage($"🔑 Aranykulcs megszerezve: {enemy.Name}. " +
+            $"Kulcsok: {_collectedBossKeyIds.Count}/{MonsterIds.Bosses.Count}.{completed}", ConsoleColor.Yellow);
+    }
+
     private void StartBattle(Enemy enemy)
     {
         if (_battleStarted) return;
+        CheckBossDiscovery([enemy]);
         _timeStopUsedThisBattle = false;
         _turnUndeadUsedThisBattle.Clear();
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
@@ -2470,6 +2518,7 @@ public sealed class Game
 
         if (result.PlayerWon)
         {
+            AwardBossKey(enemy);
             _soundEffects.Play(SoundEffect.Victory);
             var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
             _maze.ReplaceEnemyWithCorpse(enemy);
