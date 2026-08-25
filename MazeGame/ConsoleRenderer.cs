@@ -351,7 +351,7 @@ public sealed class ConsoleRenderer
     }
 
     public void DrawInnMenuScreen(LiveCharacter leader, int partyCount, int selectedIndex,
-        IReadOnlyList<(string Label, string Description)> options)
+        IReadOnlyList<(string Label, string Description)> options, string artisanNotice)
     {
         ResetColorCache();
         Console.Clear();
@@ -360,7 +360,7 @@ public sealed class ConsoleRenderer
             ("🏰🍺  A VÁNDORCSILLAG FOGADÓ  🍺🏰", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
             ($"Parti: {partyCount}/{Party.MaximumSize} fő     {MoneyIcon} Arany: {leader.Gold}", ConsoleColor.Cyan),
-            ("────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta),
+            (ClipMarketText(artisanNotice, InnMenuFrameWidth - 6), ConsoleColor.DarkYellow),
             (string.Empty, ConsoleColor.Gray)
         };
         for (var index = 0; index < options.Count; index++)
@@ -530,6 +530,36 @@ public sealed class ConsoleRenderer
         DrawCenteredFrame(InnMarketFrameWidth, lines);
     }
 
+    public void DrawInnSpecialistScreen(string title, LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
+        int selectedIndex, int freeBackpackSlots, string message)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var pageStart = InnMarketPageStart(stock.Count, selectedIndex);
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ($"🏰🍺  {title}  ✨", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ("Csak vásárlás — a kínálat és az árak a fogadóba érkezéskor rögzültek.", ConsoleColor.DarkYellow),
+            ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
+            ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
+        };
+        for (var row = 0; row < InnMarketPageSize; row++)
+        {
+            var index = pageStart + row;
+            if (index >= stock.Count) { lines.Add((string.Empty, ConsoleColor.Gray)); continue; }
+            var offer = stock[index];
+            lines.Add((InnStockLine(offer, index == selectedIndex),
+                index == selectedIndex ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
+        }
+        var selectedItem = stock.Count == 0 ? null : stock[selectedIndex].Item;
+        lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
+        lines.Add((selectedItem is null ? "Elfogyott a mester készlete." : ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
+        lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
+        lines.Add(("↑/↓ választás   Enter vásárlás   Esc vissza a fogadóba", ConsoleColor.White));
+        DrawCenteredFrame(InnMarketFrameWidth, lines);
+    }
+
     public void UpdateInnMarketSelection(InnMarketMode mode, IReadOnlyList<InnStockOffer> stock,
         IReadOnlyList<InnSellOffer> sellOffers, int previousIndex, int selectedIndex)
     {
@@ -560,7 +590,7 @@ public sealed class ConsoleRenderer
         UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates);
     }
 
-    public void UpdateInnSecretStashSelection(IReadOnlyList<InnStockOffer> stock, int previousIndex, int selectedIndex)
+    public void UpdateInnBuyOnlySelection(IReadOnlyList<InnStockOffer> stock, int previousIndex, int selectedIndex)
     {
         var previousPageStart = InnMarketPageStart(stock.Count, previousIndex);
         var pageStart = InnMarketPageStart(stock.Count, selectedIndex);

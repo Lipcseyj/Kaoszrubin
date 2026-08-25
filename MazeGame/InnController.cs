@@ -51,16 +51,29 @@ internal sealed class InnController
         foreach (var levelResult in completion.Results.Where(result => result.Experience.LeveledUp))
             _resolvePerkOffers(levelResult.Character, levelResult.Experience);
 
-        var options = new (InnMenuOption Option, string Label, string Description)[]
+        var blacksmithPresent = _random.Next(2) == 0;
+        var armorerPresent = _random.Next(2) == 0;
+        var blacksmithStock = blacksmithPresent ? CreateSpecialistStock(completedLevel, ItemCategory.Weapon) : [];
+        var armorerStock = armorerPresent ? CreateSpecialistStock(completedLevel, ItemCategory.Armor) : [];
+        var artisanNotice = (blacksmithPresent, armorerPresent) switch
+        {
+            (true, true) => "A fogadós jelzi: ma a Kovácsmester és a Páncélmíves is jelen van.",
+            (true, false) => "A fogadós jelzi: ma a Kovácsmester van jelen.",
+            (false, true) => "A fogadós jelzi: ma a Páncélmíves van jelen.",
+            _ => "A fogadós jelzi: ma egyik vándormester sincs jelen."
+        };
+        var options = new List<(InnMenuOption Option, string Label, string Description)>
         {
             (InnMenuOption.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára."),
             (InnMenuOption.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása."),
             (InnMenuOption.Witcher, "⚗️ Vajákos", "Gyógy- és varázsitalok, kötés és gyógyfüves készítmények."),
-            (InnMenuOption.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} {ConsoleRenderer.MoneyIcon})", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött."),
-            (InnMenuOption.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása."),
-            (InnMenuOption.Rumors, "👂 Pletykák", "Hírek a következő pályáról és a környékbeli szörnyekről."),
-            (InnMenuOption.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.")
+            (InnMenuOption.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} {ConsoleRenderer.MoneyIcon})", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött.")
         };
+        if (blacksmithPresent) options.Add((InnMenuOption.Blacksmith, "🔨 Kovácsmester", "Kizárólag fegyvereket kínál, csak vásárlásra."));
+        if (armorerPresent) options.Add((InnMenuOption.Armorer, "🛡️ Páncélmíves", "Kizárólag páncélokat kínál, csak vásárlásra."));
+        options.Add((InnMenuOption.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása."));
+        options.Add((InnMenuOption.Rumors, "👂 Pletykák", "Hírek a következő pályáról és a környékbeli szörnyekről."));
+        options.Add((InnMenuOption.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót."));
         var selectedIndex = 0;
         var redraw = true;
         while (true)
@@ -68,21 +81,21 @@ internal sealed class InnController
             var displayOptions = options.Select(option => (option.Label, option.Description)).ToList();
             if (redraw)
             {
-                _renderer.DrawInnMenuScreen(_selectedCharacter, _characterRoster.Party.Members.Count, selectedIndex, displayOptions);
+                _renderer.DrawInnMenuScreen(_selectedCharacter, _characterRoster.Party.Members.Count, selectedIndex, displayOptions, artisanNotice);
                 redraw = false;
             }
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.UpArrow)
             {
                 var previousIndex = selectedIndex;
-                selectedIndex = (selectedIndex - 1 + options.Length) % options.Length;
+                selectedIndex = (selectedIndex - 1 + options.Count) % options.Count;
                 _renderer.UpdateInnMenuSelection(displayOptions, previousIndex, selectedIndex);
                 continue;
             }
             if (key == ConsoleKey.DownArrow)
             {
                 var previousIndex = selectedIndex;
-                selectedIndex = (selectedIndex + 1) % options.Length;
+                selectedIndex = (selectedIndex + 1) % options.Count;
                 _renderer.UpdateInnMenuSelection(displayOptions, previousIndex, selectedIndex);
                 continue;
             }
@@ -95,6 +108,8 @@ internal sealed class InnController
                 case InnMenuOption.Market: RunInnMarket(completedLevel); break;
                 case InnMenuOption.Witcher: RunWitcherMarket(completedLevel); break;
                 case InnMenuOption.SecretStash: RunInnSecretStash(completedLevel); break;
+                case InnMenuOption.Blacksmith: RunSpecialistMarket("🔨 KOVÁCSMESTER", blacksmithStock); break;
+                case InnMenuOption.Armorer: RunSpecialistMarket("🛡️ PÁNCÉLMÍVES", armorerStock); break;
                 case InnMenuOption.Recruit: RunInnRecruitment(); break;
                 case InnMenuOption.Rumors: RunInnRumors(completedLevel); break;
                 case InnMenuOption.Leave: return;
@@ -245,7 +260,7 @@ internal sealed class InnController
             {
                 var previousIndex = selectedIndex;
                 selectedIndex = (selectedIndex - 1 + entryCount) % entryCount;
-                _renderer.UpdateInnSecretStashSelection(stock, previousIndex, selectedIndex);
+                _renderer.UpdateInnBuyOnlySelection(stock, previousIndex, selectedIndex);
                 redraw = false;
                 continue;
             }
@@ -253,7 +268,7 @@ internal sealed class InnController
             {
                 var previousIndex = selectedIndex;
                 selectedIndex = (selectedIndex + 1) % entryCount;
-                _renderer.UpdateInnSecretStashSelection(stock, previousIndex, selectedIndex);
+                _renderer.UpdateInnBuyOnlySelection(stock, previousIndex, selectedIndex);
                 redraw = false;
                 continue;
             }
@@ -697,7 +712,69 @@ internal sealed class InnController
         }
     }
 
-    private enum InnMenuOption { Rest, Market, Witcher, SecretStash, Recruit, Rumors, Leave }
+    private List<InnStockOffer> CreateSpecialistStock(int completedLevel, ItemCategory category)
+    {
+        var totalCount = _random.Next(2, 5) + completedLevel / 3;
+        var magicCount = completedLevel switch { >= 15 => 4, >= 10 => 3, >= 5 => 2, >= 4 => 1, _ => 0 };
+        magicCount = Math.Min(magicCount, totalCount);
+        var magicPower = completedLevel switch { >= 12 => 3, >= 8 => 2, >= 4 => 1, _ => 0 };
+        var source = category == ItemCategory.Weapon
+            ? _gameData.Weapons.Cast<IItemDefinition>()
+            : _gameData.Armors.Cast<IItemDefinition>();
+        var normalPool = source.Where(item => item.Rarity == ItemRarity.Normal).OrderBy(_ => _random.Next()).ToList();
+        var magicPool = source.Where(item => item.Rarity == ItemRarity.Magic && item.MagicPower == magicPower)
+            .OrderBy(_ => _random.Next()).ToList();
+        var selected = normalPool.Take(Math.Max(0, totalCount - magicCount)).ToList();
+        selected.AddRange(magicPool.Take(magicCount));
+        if (completedLevel >= 10 && magicCount > 0 && _random.Next(2) == 0)
+        {
+            var legendary = source.Where(item => item.Rarity == ItemRarity.Legendary).OrderBy(_ => _random.Next()).FirstOrDefault();
+            var replaceIndex = selected.FindIndex(item => item.Rarity == ItemRarity.Magic);
+            if (legendary is not null && replaceIndex >= 0) selected[replaceIndex] = legendary;
+        }
+        return selected.Select(item => new InnStockOffer(item,
+                Math.Max(1, (int)Math.Round(item.BasePrice * _random.Next(90, 151) / 100.0))))
+            .OrderBy(offer => offer.Price).ToList();
+    }
+
+    private void RunSpecialistMarket(string title, List<InnStockOffer> stock)
+    {
+        var selectedIndex = 0;
+        var message = "A mester készlete és egyedi árai erre a fogadólátogatásra rögzítve vannak.";
+        var redraw = true;
+        while (true)
+        {
+            selectedIndex = stock.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, stock.Count - 1);
+            if (redraw)
+            {
+                _renderer.DrawInnSpecialistScreen(title, _selectedCharacter, stock, selectedIndex,
+                    _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
+                redraw = false;
+            }
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Escape) return;
+            if (key is ConsoleKey.UpArrow or ConsoleKey.DownArrow && stock.Count > 0)
+            {
+                var previousIndex = selectedIndex;
+                selectedIndex = key == ConsoleKey.UpArrow
+                    ? (selectedIndex - 1 + stock.Count) % stock.Count
+                    : (selectedIndex + 1) % stock.Count;
+                _renderer.UpdateInnBuyOnlySelection(stock, previousIndex, selectedIndex);
+                continue;
+            }
+            if (key != ConsoleKey.Enter || stock.Count == 0) continue;
+            var offer = stock[selectedIndex];
+            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
+            if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; redraw = true; continue; }
+            if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; redraw = true; continue; }
+            recipient.AddToBackpack(offer.Item);
+            stock.RemoveAt(selectedIndex);
+            message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
+            redraw = true;
+        }
+    }
+
+    private enum InnMenuOption { Rest, Market, Witcher, SecretStash, Blacksmith, Armorer, Recruit, Rumors, Leave }
 
     private sealed record LevelCompletionOutcome(IReadOnlyList<LevelCompletionResult> Results,
         IReadOnlyList<LiveCharacter> FallenCharacters);

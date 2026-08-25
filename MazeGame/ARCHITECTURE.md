@@ -500,6 +500,14 @@ A készlet a nem legendás tárgyak alapár szerint rendezett, fokozatosan felol
 
 Legendás tárgy külön ritka dobással kerülhet a fogadóba: az esély az első pálya után 1.5%, pályánként további 0.5 százalékponttal nő, és legfeljebb 8%. Egy látogatáskor legfeljebb egy Legendás ajánlat jelenik meg, az alapár 125–180%-áért. A választható Legendás készlet pályánként bővül, így korán csak az olcsóbb legendák kerülhetnek elő.
 
+### Kovácsmester és Páncélmíves
+
+Fogadóba érkezéskor a Kovácsmester és a Páncélmíves egymástól független 50%-os jelenlétdobást kap. A fogadós a fő fogadói menüben közli, hogy egyikük, mindkettőjük vagy egyikük sem érkezett meg; csak a jelen lévő mesterek kapnak választható menüpontot. A Kovácsmester kizárólag fegyvert, a Páncélmíves kizárólag páncélt ad el, visszavásárlás nélkül.
+
+Mindkét mester készlete egyenletes 2–4 darabos kezdődobásból és `floor(teljesített pálya / 3)` további tárgyból áll. A készlet és minden tétel ára már a fogadóba érkezéskor rögzül; az ár az adott definíció alapárának egymástól független 90–150%-a, és semmilyen más fogadói árszorzó nem módosítja. A kínálat ár szerint növekvő sorrendben jelenik meg.
+
+A 4. pályától egy mágikus készlethely nyílik, az 5. pályától kettő, a 10. pályától három, a 15. pályától négy. A mágikus készlethelyek a 4–7. pályán `+1`, a 8–11. pályán `+2`, a 12. pályától legfeljebb `+3` mágikus erejű felszerelést választanak. A 10. pályától mesterenként 50% eséllyel pontosan egy mágikus készlethelyet az adott mester kategóriájába tartozó Legendás tárgy vált fel.
+
 ### Fogadói toborzás
 
 A kereskedés után minden fogadólátogatáskor 1–3 zsoldos jelenik meg. A rendszer először ugyanennyi különböző osztályt választ, majd osztályonként addig dob fajt és képességeket, amíg a karakter teljesíti az adott osztály minimumait. A jelöltek neve a karakter-nyilvántartásban és az adott ajánlatban is egyedi, amíg az osztály névkészlete ezt lehetővé teszi.
