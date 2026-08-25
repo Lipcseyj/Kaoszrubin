@@ -10,7 +10,9 @@ public sealed class LiveCharacter
     public const int MaximumNameLength = 13;
     private readonly WeaponDefinition?[] _weaponSlots = new WeaponDefinition?[2];
     private readonly MagicItemDefinition?[] _magicItems = new MagicItemDefinition?[MaximumMagicItemCount];
+    private readonly int[] _magicItemCharges = new int[MaximumMagicItemCount];
     private readonly IItemDefinition?[] _backpack = new IItemDefinition?[MaximumBackpackItemCount];
+    private readonly int[] _backpackItemCharges = new int[MaximumBackpackItemCount];
     private readonly List<PerkDefinition> _perks = [];
     private readonly List<StatusDefinition> _statuses = [];
     private readonly List<SpellDefinition> _knownSpells = [];
@@ -65,6 +67,7 @@ public sealed class LiveCharacter
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
     public ArmorDefinition? Armor { get; private set; }
     public IReadOnlyList<MagicItemDefinition?> MagicItems => _magicItems;
+    public IReadOnlyList<int> MagicItemCharges => _magicItemCharges;
     public IReadOnlyList<IItemDefinition?> Backpack => _backpack;
     public IReadOnlyList<PerkDefinition> Perks => _perks;
     public IReadOnlyList<StatusDefinition> Statuses => _statuses;
@@ -224,6 +227,13 @@ public sealed class LiveCharacter
         _ => null
     };
 
+    public int GetInventoryItemCharges(InventorySlotKind kind, int index) => kind switch
+    {
+        InventorySlotKind.MagicItem when index is >= 0 and < MaximumMagicItemCount => _magicItemCharges[index],
+        InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount => _backpackItemCharges[index],
+        _ => 0
+    };
+
     public static bool CanPlaceInventoryItem(InventorySlotKind kind, IItemDefinition item) => kind switch
     {
         InventorySlotKind.Weapon => item.Category == ItemCategory.Weapon,
@@ -294,7 +304,7 @@ public sealed class LiveCharacter
 
     private void ApplyInventoryChangesUnchecked(InventorySlotChange change)
     {
-        var (kind, index, item) = change;
+        var (kind, index, item, _) = change;
         switch (kind)
         {
             case InventorySlotKind.Weapon when index is >= 0 and < 2:
@@ -305,11 +315,28 @@ public sealed class LiveCharacter
                 break;
             case InventorySlotKind.MagicItem when index is >= 0 and < MaximumMagicItemCount:
                 _magicItems[index] = (MagicItemDefinition?)item;
+                _magicItemCharges[index] = InitialCharges(item, change.Charges);
                 break;
             case InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount:
                 _backpack[index] = item;
+                _backpackItemCharges[index] = InitialCharges(item, change.Charges);
                 break;
         }
+    }
+
+    private static int InitialCharges(IItemDefinition? item, int? charges) => item is MagicItemDefinition magic &&
+        magic.Kind is MagicItemKind.Wand or MagicItemKind.Scroll
+            ? Math.Clamp(charges ?? magic.MaximumCharges, 0, magic.MaximumCharges)
+            : 0;
+
+    public bool ConsumeMagicItemCharge(int slotIndex)
+    {
+        if (slotIndex is < 0 or >= MaximumMagicItemCount || _magicItems[slotIndex] is not { } item ||
+            item.Kind is not (MagicItemKind.Wand or MagicItemKind.Scroll) || _magicItemCharges[slotIndex] <= 0) return false;
+        _magicItemCharges[slotIndex]--;
+        if (item.Kind == MagicItemKind.Scroll)
+            ApplyInventoryChangesUnchecked(new InventorySlotChange(InventorySlotKind.MagicItem, slotIndex, null));
+        return true;
     }
 
     public bool AddPerk(PerkDefinition perk)
@@ -548,7 +575,7 @@ public sealed class LiveCharacter
     }
 }
 
-public readonly record struct InventorySlotChange(InventorySlotKind Kind, int Index, IItemDefinition? Item);
+public readonly record struct InventorySlotChange(InventorySlotKind Kind, int Index, IItemDefinition? Item, int? Charges = null);
 
 public sealed record LevelUpBonus(int Level, int Vitality, int Mana);
 

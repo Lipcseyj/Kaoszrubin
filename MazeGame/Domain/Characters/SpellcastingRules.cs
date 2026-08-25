@@ -39,6 +39,14 @@ public static class SpellcastingRules
         _ => 0
     };
 
+    public static bool CanUseCastingItem(LiveCharacter character, MagicItemDefinition item, SpellDefinition spell) =>
+        item.Kind == MagicItemKind.Wand || item.Kind == MagicItemKind.Scroll && spell.School switch
+        {
+            SpellSchool.Arcane => character.CharacterClass.Id == CharacterClassIds.Mágus,
+            SpellSchool.Divine => character.CharacterClass.Id is CharacterClassIds.Pap or CharacterClassIds.Lovag,
+            _ => false
+        };
+
     public static bool IsSpellcastingFocus(IItemDefinition? item) => item is not null &&
         IsSpellcastingFocusId(item.Id);
 

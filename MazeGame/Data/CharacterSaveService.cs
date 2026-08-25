@@ -109,8 +109,9 @@ public sealed class CharacterSaveService
             if (magicItemIds[index] is { } magicItemId)
             {
                 if (SpellcastingRules.IsLegacyStartingFocusId(magicItemId)) continue;
-                character.SetInventoryItem(InventorySlotKind.MagicItem, index,
-                    FindSavedDefinition(_gameData.MagicItems, magicItemId, saved.MagicItemNames.ElementAtOrDefault(index), "varázstárgy"));
+                character.ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.MagicItem, index,
+                    FindSavedDefinition(_gameData.MagicItems, magicItemId, saved.MagicItemNames.ElementAtOrDefault(index), "varázstárgy"),
+                    index < saved.MagicItemCharges.Count ? saved.MagicItemCharges[index] : null));
             }
         var requiredFocusId = SpellcastingRules.RequiredFocusItemId(character.CharacterClass.Id);
         var savedHasFocus = requiredFocusId is not null && saved.BackpackItems.Any(item =>
@@ -120,7 +121,8 @@ public sealed class CharacterSaveService
             if (saved.BackpackItems[index] is { } item)
             {
                 if (SpellcastingRules.IsSpellcastingFocusId(item.Id) || SpellcastingRules.IsLegacyStartingFocusId(item.Id)) continue;
-                character.SetInventoryItem(InventorySlotKind.Backpack, index + backpackOffset, ResolveItem(item));
+                character.ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.Backpack, index + backpackOffset,
+                    ResolveItem(item), item.Charges));
             }
         foreach (var perkId in saved.PerkIds)
         {
@@ -167,7 +169,9 @@ public sealed class CharacterSaveService
         WeaponIds = character.WeaponSlots.Select(weapon => weapon?.Id).ToList(),
         ArmorId = character.Armor?.Id,
         MagicItemIds = character.MagicItems.Select(item => item?.Id).ToList(),
-        BackpackItems = character.Backpack.Select(item => item is null ? null : new ItemSaveData(item.GetType().Name, item.Id)).ToList(),
+        MagicItemCharges = character.MagicItemCharges.ToList(),
+        BackpackItems = character.Backpack.Select((item, index) => item is null ? null :
+            new ItemSaveData(item.GetType().Name, item.Id, Charges: character.GetInventoryItemCharges(InventorySlotKind.Backpack, index))).ToList(),
         PerkIds = character.Perks.Select(perk => perk.Id).ToList(),
         AppliedPerkBonusIds = character.Perks.Select(perk => perk.Id).ToList(),
         StatusIds = character.Statuses.Select(status => status.Id).ToList(),
@@ -235,6 +239,7 @@ public sealed class CharacterSaveService
         public List<string?> WeaponIds { get; init; } = [];
         public string? ArmorId { get; init; }
         public List<string?> MagicItemIds { get; init; } = [];
+        public List<int> MagicItemCharges { get; init; } = [];
         public List<string?> WeaponNames { get; init; } = [];
         public string? ArmorName { get; init; }
         public List<string> MagicItemNames { get; init; } = [];
@@ -249,6 +254,6 @@ public sealed class CharacterSaveService
         public List<ActiveSpellEffect> ActiveSpellEffects { get; init; } = [];
     }
 
-    private sealed record ItemSaveData(string Type, string Id, string? Name = null);
+    private sealed record ItemSaveData(string Type, string Id, string? Name = null, int? Charges = null);
     private sealed record StatusSaveData(string Id, int? RemainingActivations);
 }

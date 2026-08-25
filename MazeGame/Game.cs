@@ -494,6 +494,8 @@ public sealed class Game
     private void BeginExplorationSpellCasting(SpellDefinition? quickSpell = null)
     {
         var spell = quickSpell;
+        MagicItemDefinition? castingItem = null;
+        int? castingItemSlotIndex = null;
         var caster = SelectedCharacter;
         if (spell is null)
         {
@@ -510,8 +512,11 @@ public sealed class Game
             if (selection is null) return;
             spell = selection.Spell;
             caster = selection.Caster;
+            castingItem = selection.CastingItem;
+            castingItemSlotIndex = selection.CastingItemSlotIndex;
         }
-        var result = TryCastSpell(caster, GetCasterPosition(caster), spell, inCombat: false, currentEnemy: null);
+        var result = TryCastSpell(caster, GetCasterPosition(caster), spell, inCombat: false,
+            currentEnemy: null, castingItem: castingItem, castingItemSlotIndex: castingItemSlotIndex);
         if (result is not null)
         {
             _renderer.RefreshBattleStatusRows();
@@ -520,8 +525,16 @@ public sealed class Game
     }
 
     private List<LiveCharacter> GetSpellcastingPartyMembers() => CharacterRoster.Party.Members
-        .Where(character => character.IsAlive && character.IsSpellcaster && character.CanCastSpells)
+        .Where(character => character.IsAlive &&
+            (character.IsSpellcaster && character.CanCastSpells || EquippedCastingItems(character).Any()))
         .ToList();
+
+    private IEnumerable<MagicItemDefinition> EquippedCastingItems(LiveCharacter character) =>
+        character.MagicItems.Select((item, index) => (Item: item, Index: index))
+            .Where(entry => entry.Item?.Kind is MagicItemKind.Scroll or MagicItemKind.Wand &&
+                entry.Item.SpellId is not null && character.MagicItemCharges[entry.Index] > 0)
+            .Where(entry => SpellcastingRules.CanUseCastingItem(character, entry.Item!, _gameData.GetSpell(entry.Item!.SpellId!)))
+            .Select(entry => entry.Item!);
 
     private Position GetCasterPosition(LiveCharacter character) => character == SelectedCharacter
         ? _player.Position
@@ -892,7 +905,7 @@ public sealed class Game
             Domain.Magic.MagicItemDefinition magic =>
                 $"Varázstárgy | típus: {MagicItemKindName(magic.Kind)} | hatás: {MagicItemEffectName(magic.Effect)} {magic.EffectValue}" +
                 (magic.SpellId is null ? string.Empty : $" | varázslat: {_gameData.Spells.First(spell => spell.Id == magic.SpellId).Name}") +
-                (magic.MaximumCharges > 0 ? $" | töltet: {magic.MaximumCharges}" : string.Empty) +
+                (magic.MaximumCharges > 0 ? $" | töltet: {(slot is { } magicSlot ? magicSlot.Character.GetInventoryItemCharges(magicSlot.Kind, magicSlot.Index) : magic.MaximumCharges)}/{magic.MaximumCharges}" : string.Empty) +
                 $" | kasztok: {AllowedClassNames(magic.AllowedClassIds)}",
             MiscItemDefinition misc when SpellcastingRules.IsSpellcastingFocus(misc) =>
                 "Karakterhez kötött varázsfókusz | nem mozgatható, nem dobható el és nem kereskedhető",
@@ -1130,11 +1143,12 @@ public sealed class Game
         {
             var item = target.Character.GetInventoryItem(target.Kind, target.Index);
             if (item is null) { _renderer.DrawInventoryMessage("A kijelölt hely üres.", ConsoleColor.DarkYellow); return; }
+            var charges = target.Character.GetInventoryItemCharges(target.Kind, target.Index);
             if (SpellcastingRules.IsSpellcastingFocus(item))
             { _renderer.DrawInventoryMessage($"A(z) {item.Name} a hátizsák első helyéhez kötött, ezért nem mozgatható.", ConsoleColor.Red); return; }
             if (!target.Character.SetInventoryItem(target.Kind, target.Index, null))
             { _renderer.DrawInventoryMessage("A kijelölt tárgy nem mozgatható.", ConsoleColor.Red); return; }
-            _heldInventoryItem = new HeldInventoryItem(item, target);
+            _heldInventoryItem = new HeldInventoryItem(item, target, charges);
             _renderer.RefreshInventoryRows();
             _renderer.DrawInventoryMessage($"Kézben: {item.Name}. Válassz célhelyet, majd nyomj Space-t.", ConsoleColor.Yellow);
             return;
@@ -1143,7 +1157,7 @@ public sealed class Game
         var held = _heldInventoryItem;
         if (target == held.Source)
         {
-            held.Source.Character.SetInventoryItem(held.Source.Kind, held.Source.Index, held.Item);
+            held.Source.Character.ApplyInventoryChanges(new InventorySlotChange(held.Source.Kind, held.Source.Index, held.Item, held.Charges));
             _heldInventoryItem = null;
             _renderer.RefreshCharacterSheet(SelectedCharacter);
             _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} visszakerült az eredeti helyére.", ConsoleColor.DarkYellow);
@@ -1151,8 +1165,9 @@ public sealed class Game
         }
         var displaced = target.Character.GetInventoryItem(target.Kind, target.Index);
         var changesByCharacter = new Dictionary<LiveCharacter, List<InventorySlotChange>>();
-        AddInventoryChange(changesByCharacter, target.Character, new(target.Kind, target.Index, held.Item));
-        AddInventoryChange(changesByCharacter, held.Source.Character, new(held.Source.Kind, held.Source.Index, displaced));
+        var displacedCharges = target.Character.GetInventoryItemCharges(target.Kind, target.Index);
+        AddInventoryChange(changesByCharacter, target.Character, new(target.Kind, target.Index, held.Item, held.Charges));
+        AddInventoryChange(changesByCharacter, held.Source.Character, new(held.Source.Kind, held.Source.Index, displaced, displacedCharges));
         if (changesByCharacter.Any(entry => !entry.Key.CanApplyInventoryChanges(entry.Value.ToArray())))
         {
             _renderer.DrawInventoryMessage("A felszerelés nem használható ezen a helyen vagy ezzel a kaszttal. A kétkezes fegyver csak az első, üres második fegyverhely mellett viselhető.", ConsoleColor.Red);
@@ -1177,7 +1192,7 @@ public sealed class Game
     private void CancelHeldInventoryItem()
     {
         if (_heldInventoryItem is not { } held) return;
-        held.Source.Character.SetInventoryItem(held.Source.Kind, held.Source.Index, held.Item);
+        held.Source.Character.ApplyInventoryChanges(new InventorySlotChange(held.Source.Kind, held.Source.Index, held.Item, held.Charges));
         _heldInventoryItem = null;
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} visszakerült az eredeti helyére.", ConsoleColor.DarkYellow);
@@ -1617,6 +1632,8 @@ public sealed class Game
             }
 
             SpellDefinition? spell = null;
+            MagicItemDefinition? castingItem = null;
+            int? castingItemSlotIndex = null;
             if (key.Key == ConsoleKey.V)
             {
                 var selection = _renderer.DrawSpellCastingScreen([SelectedCharacter], 0, inCombat: true, _maze, _fogOfWar,
@@ -1628,6 +1645,8 @@ public sealed class Game
                     });
                 _renderer.RestoreSpellCastingOverlay();
                 spell = selection?.Spell;
+                castingItem = selection?.CastingItem;
+                castingItemSlotIndex = selection?.CastingItemSlotIndex;
             }
             else if (TryGetQuickSpellIndex(key, out var slotIndex))
                 spell = SelectedCharacter.QuickSpells[slotIndex];
@@ -1640,7 +1659,8 @@ public sealed class Game
                     _renderer.DrawInventoryMessage("Ez a varázslat-gyorshely üres.", ConsoleColor.DarkYellow);
                 continue;
             }
-            var attempt = TryCastSpell(SelectedCharacter, _player.Position, spell, inCombat: true, enemy);
+            var attempt = TryCastSpell(SelectedCharacter, _player.Position, spell, inCombat: true, enemy,
+                castingItem, castingItemSlotIndex);
             if (attempt is null) continue;
             if (attempt.ConsumesTurn) return new BattlePlayerAction(attempt.Message, attempt.Kind,
                 attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions);
@@ -1650,20 +1670,31 @@ public sealed class Game
 
     private bool HasUsableCombatSpell(Enemy enemy) =>
         SelectedCharacter.CanCastSpells && SelectedCharacter.MemorizedSpells.Any(spell =>
-            spell.CanUseInCombat && SpellcastingRules.EffectiveManaCost(SelectedCharacter, spell) <= SelectedCharacter.CurrentMana &&
-            (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id)
-                .All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
+                spell.CanUseInCombat && SpellcastingRules.EffectiveManaCost(SelectedCharacter, spell) <= SelectedCharacter.CurrentMana &&
+                (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id).All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
+                HasValidSpellTarget(SelectedCharacter, _player.Position, spell, enemy)) ||
+        EquippedCastingItems(SelectedCharacter).Any(item =>
+            _gameData.GetSpell(item.SpellId!) is { } spell && spell.CanUseInCombat &&
+            (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id).All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
             HasValidSpellTarget(SelectedCharacter, _player.Position, spell, enemy));
 
-    private SpellCastAttempt? TryCastSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell, bool inCombat, Enemy? currentEnemy)
+    private SpellCastAttempt? TryCastSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
+        bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null)
     {
         if (!caster.IsAlive)
             return new SpellCastAttempt(false, $"{caster.Name} nem képes varázsolni.", BattleLogKind.Information);
-        if (!caster.IsSpellcaster)
+        var usingItem = castingItem is not null;
+        var castingItemIndex = usingItem ? castingItemSlotIndex ?? -1 : -1;
+        if (usingItem && (castingItem!.Kind is not (MagicItemKind.Scroll or MagicItemKind.Wand) || castingItem.SpellId != spell.Id ||
+                castingItemIndex is < 0 or >= LiveCharacter.MaximumMagicItemCount ||
+                caster.MagicItems[castingItemIndex]?.Id != castingItem.Id || caster.MagicItemCharges[castingItemIndex] <= 0 ||
+                !SpellcastingRules.CanUseCastingItem(caster, castingItem, spell)))
+            return new SpellCastAttempt(false, "A kiválasztott tekercs vagy pálca nem használható.", BattleLogKind.Information);
+        if (!usingItem && !caster.IsSpellcaster)
             return new SpellCastAttempt(false, "Ez az osztály nem használ varázslatokat.", BattleLogKind.Information);
-        if (!SpellcastingRules.HasRequiredFocus(caster))
+        if (!usingItem && !SpellcastingRules.HasRequiredFocus(caster))
             return new SpellCastAttempt(false, "A varázsláshoz hiányzik a megfelelő fókusztárgy.", BattleLogKind.Information);
-        if (caster.MemorizedSpells.All(candidate =>
+        if (!usingItem && caster.MemorizedSpells.All(candidate =>
                 !string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))
             return new SpellCastAttempt(false, $"A(z) {spell.Name} nincs memorizálva.", BattleLogKind.Information);
         if (inCombat ? !spell.CanUseInCombat : !spell.CanUseDuringExploration)
@@ -1671,7 +1702,7 @@ public sealed class Game
         if (inCombat && _timeStopUsedThisBattle && _gameData.GetSpellEffects(spell.Id)
                 .Any(effect => effect.Type == SpellEffectType.ExtraActions))
             return new SpellCastAttempt(false, "Az Időmegállítás csatánként csak egyszer használható.", BattleLogKind.Information);
-        var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+        var manaCost = usingItem ? 0 : SpellcastingRules.EffectiveManaCost(caster, spell);
         if (caster.CurrentMana < manaCost)
             return new SpellCastAttempt(false, $"Nincs elég manna: {spell.Name} {manaCost} mannát igényel.", BattleLogKind.Information);
         if (!HasValidSpellTarget(caster, casterPosition, spell, currentEnemy))
@@ -1679,8 +1710,13 @@ public sealed class Game
 
         var target = SelectSpellTarget(caster, casterPosition, spell, currentEnemy);
         if (target is null) return null;
-        var divineJudgment = caster.RecordDivineSpellCast(spell);
-        caster.SpendMana(manaCost);
+        var divineJudgment = !usingItem && caster.RecordDivineSpellCast(spell);
+        if (usingItem)
+        {
+            caster.ConsumeMagicItemCharge(castingItemIndex);
+            _renderer.RefreshCharacterSheet(SelectedCharacter);
+        }
+        else caster.SpendMana(manaCost);
         _renderer.RefreshBattleStatusRows();
 
         if (inCombat)
@@ -1689,7 +1725,8 @@ public sealed class Game
             var roll = _random.Next(1, 101);
             if (roll <= failureChance)
                 return new SpellCastAttempt(true,
-                    $"{caster.Name} varázslata meghiúsul: {spell.Name} — kockázat {failureChance}%, dobás {roll}. -{manaCost} manna; az akció elveszett.",
+                    $"{caster.Name} varázslata meghiúsul: {spell.Name} — kockázat {failureChance}%, dobás {roll}. " +
+                    (usingItem ? $"{CastingItemUseText(castingItem!)}; az akció elveszett." : $"-{manaCost} manna; az akció elveszett."),
                     BattleLogKind.Information);
         }
 
@@ -1699,9 +1736,15 @@ public sealed class Game
         var execution = ExecuteSpell(caster, casterPosition, spell, target.Value, inCombat, currentEnemy, divineJudgment);
         var judgmentText = divineJudgment ? " ⚡ Isteni ítélet: kétszeres számszerű hatás és ingyenes varázslat." : string.Empty;
         return new SpellCastAttempt(true,
-            $"{caster.Name} elsüti: {spell.Name} → {targetText}. -{manaCost} manna.{judgmentText} {execution.Summary}",
+            $"{caster.Name} elsüti: {spell.Name} → {targetText}. " +
+            (usingItem ? $"{CastingItemUseText(castingItem!)}; 0 manna." : $"-{manaCost} manna.") +
+            $"{judgmentText} {execution.Summary}",
             BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions);
     }
+
+    private static string CastingItemUseText(MagicItemDefinition item) => item.Kind == MagicItemKind.Scroll
+        ? "📜 A tekercs elhasználódott"
+        : "🪄 A pálca egy töltete elfogyott";
 
     private SpellExecutionResult ExecuteSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Position target, bool inCombat,
         Enemy? currentEnemy, bool divineJudgment)
@@ -2501,7 +2544,7 @@ public sealed class Game
             : "Fejlesztői mód: fal-áthaladás letiltva.");
     }
 
-    private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source);
+    private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source, int Charges);
     private sealed record SpellCastAttempt(bool ConsumesTurn, string Message, BattleLogKind Kind,
         int DamageToCurrentEnemy = 0, int ExtraPlayerActions = 0);
     private sealed record SpellExecutionResult(int DamageToCurrentEnemy, int ExtraPlayerActions, string Summary);

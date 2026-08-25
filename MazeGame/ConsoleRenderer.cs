@@ -7,7 +7,8 @@ using MazeGame.Domain.Magic;
 
 namespace MazeGame;
 
-public sealed record SpellCastSelection(SpellDefinition Spell, LiveCharacter Caster);
+public sealed record SpellCastSelection(SpellDefinition Spell, LiveCharacter Caster,
+    MagicItemDefinition? CastingItem = null, int? CastingItemSlotIndex = null);
 
 public sealed class ConsoleRenderer
 {
@@ -857,7 +858,15 @@ public sealed class ConsoleRenderer
             var playerPosition = casterPosition(character);
             var spells = character.MemorizedSpells
                 .Where(spell => inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration)
-                .OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).ToList();
+                .Select(spell => (Spell: spell, CastingItem: (MagicItemDefinition?)null, SlotIndex: (int?)null))
+                .Concat(character.MagicItems.Select((item, index) => (Item: item, Index: index))
+                    .Where(entry => entry.Item?.Kind is MagicItemKind.Scroll or MagicItemKind.Wand &&
+                        entry.Item.SpellId is not null && character.MagicItemCharges[entry.Index] > 0)
+                    .Select(entry => (Spell: _gameData.GetSpell(entry.Item!.SpellId!), CastingItem: (MagicItemDefinition?)entry.Item, SlotIndex: (int?)entry.Index))
+                    .Where(entry => SpellcastingRules.CanUseCastingItem(character, entry.CastingItem!, entry.Spell))
+                    .Where(entry => inCombat ? entry.Spell.CanUseInCombat : entry.Spell.CanUseDuringExploration))
+                .OrderBy(entry => entry.Spell.Level).ThenBy(entry => entry.Spell.Name).ThenBy(entry => entry.CastingItem is not null)
+                .ToList();
             var selectedIndex = 0;
             var switchDirection = 0;
             while (true)
@@ -875,17 +884,22 @@ public sealed class ConsoleRenderer
                     ("────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
                 };
                 if (spells.Count == 0)
-                    lines.Add(("Ebben a helyzetben nincs használható memorizált varázslata.", ConsoleColor.DarkYellow));
+                    lines.Add(("Ebben a helyzetben nincs használható memorizált vagy tekercses varázslata.", ConsoleColor.DarkYellow));
                 else
                 {
                     lines.AddRange(visibleSpells.Select((spell, visibleIndex) =>
                     {
                         var index = firstVisibleIndex + visibleIndex;
                         var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
-                            string.Equals(candidate?.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
-                        var quick = quickIndex >= 0 ? $"F{quickIndex + 1}" : "--";
-                        var manaCost = SpellcastingRules.EffectiveManaCost(character, spell);
-                        var text = $"{(index == selectedIndex ? "▶" : " ")} [{quick}] L{spell.Level}  {spell.Name,-24} {manaCost}M  {SpellTargetName(spell.TargetType)}";
+                            string.Equals(candidate?.Id, spell.Spell.Id, StringComparison.OrdinalIgnoreCase));
+                        var quick = spell.CastingItem?.Kind switch
+                        {
+                            MagicItemKind.Scroll => "📜",
+                            MagicItemKind.Wand => $"🪄{character.MagicItemCharges[spell.SlotIndex!.Value]}",
+                            _ => quickIndex >= 0 ? $"F{quickIndex + 1}" : "--"
+                        };
+                        var manaCost = spell.CastingItem is null ? SpellcastingRules.EffectiveManaCost(character, spell.Spell) : 0;
+                        var text = $"{(index == selectedIndex ? "▶" : " ")} [{quick}] L{spell.Spell.Level}  {spell.Spell.Name,-24} {manaCost}M  {SpellTargetName(spell.Spell.TargetType)}";
                         var color = character.CurrentMana < manaCost ? ConsoleColor.DarkRed :
                             index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray;
                         return (text, color);
@@ -905,7 +919,8 @@ public sealed class ConsoleRenderer
                 {
                     case ConsoleKey.UpArrow when spells.Count > 0: selectedIndex = (selectedIndex - 1 + spells.Count) % spells.Count; break;
                     case ConsoleKey.DownArrow when spells.Count > 0: selectedIndex = (selectedIndex + 1) % spells.Count; break;
-                    case ConsoleKey.Enter when spells.Count > 0: return new SpellCastSelection(spells[selectedIndex], character);
+                    case ConsoleKey.Enter when spells.Count > 0: return new SpellCastSelection(spells[selectedIndex].Spell,
+                        character, spells[selectedIndex].CastingItem, spells[selectedIndex].SlotIndex);
                     case ConsoleKey.Escape: return null;
                     case ConsoleKey.LeftArrow when casters.Count > 1:
                         casterIndex = (casterIndex - 1 + casters.Count) % casters.Count;
