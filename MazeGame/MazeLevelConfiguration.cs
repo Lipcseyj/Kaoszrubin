@@ -337,6 +337,222 @@ public static class MazeLevelConfigurations
                     Encounters.Solo(MonsterIds.Wyvern, Amount.Few, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Kiméra, Amount.Few)
                 ]
+            },
+            [12] = new()
+            {
+                Level = 12,
+                Name = "A rothadó mocsár",
+                DoubleWidthCorridorChance = 0.90,
+                WallRune = new('▒'),
+                WallColor = ConsoleColor.DarkGreen,
+                RoomCount = Amount.Pack.Range(),
+                RoomSize = new(5, 10),
+                TreasureChestCount = Amount.Pack.Range(),
+                TreasureGold = new(850, 1700),
+                RoomEncounters =
+                [
+                    Encounters.Same(MonsterIds.Savanyálka, Amount.Several, Amount.Several),
+                    Encounters.Mixed(MonsterIds.PestishordozóPatkány, Amount.Pack, MonsterIds.Óriáspók, Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Hidra, MonsterIds.BarlangiGyík, Amount.One, Amount.Pack)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo(MonsterIds.PestishordozóPatkány, Amount.Several),
+                    Encounters.Solo(MonsterIds.ÉjiBanya, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Savanyálka, Amount.Few)
+                ]
+            },
+            [13] = new()
+            {
+                Level = 13,
+                Name = "A fojtogató mélyjárat",
+                DoubleWidthCorridorChance = 0,
+                WallRune = new('█'),
+                WallColor = ConsoleColor.DarkGray,
+                RoomCount = Amount.Pack.Range(),
+                RoomSize = new(3, 5),
+                TreasureChestCount = Amount.Several.Range(),
+                TreasureGold = new(950, 1850),
+                RoomEncounters =
+                [
+                    Encounters.Same(MonsterIds.Minotaurusz, Amount.Few, Amount.Few),
+                    Encounters.Mixed(MonsterIds.Kőgólem, Amount.Few, MonsterIds.BarlangiGyík, Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Beholder, MonsterIds.Óriásdenevér, Amount.One, Amount.Pack)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo(MonsterIds.Minotaurusz, Amount.Several, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Kőgólem, Amount.Few),
+                    Encounters.Solo(MonsterIds.Óriásdenevér, Amount.Several)
+                ]
+            },
+            [14] = new()
+            {
+                Level = 14,
+                Name = "A megtört kristálycsarnok",
+                DoubleWidthCorridorChance = 0.72,
+                WallRune = new('▓'),
+                WallColor = ConsoleColor.Cyan,
+                RoomCount = Amount.Pack.Range(),
+                RoomSize = new(5, 9),
+                TreasureChestCount = Amount.Pack.Range(),
+                TreasureGold = new(1100, 2100),
+                RoomEncounters =
+                [
+                    Encounters.Same(MonsterIds.Medúza, Amount.Few, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Kőgólem, Amount.Several, MonsterIds.Kiméra, Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.VénBeholder, MonsterIds.Beholder, Amount.One, Amount.Few)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo(MonsterIds.Medúza, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Kiméra, Amount.Few),
+                    Encounters.Solo(MonsterIds.Beholder, Amount.Few)
+                ]
+            },
+            [15] = new()
+            {
+                Level = 15,
+                Name = "A dermedt mélység",
+                DoubleWidthCorridorChance = 0.62,
+                WallRune = new('▒'),
+                WallColor = ConsoleColor.White,
+                RoomCount = Amount.Pack.Range(),
+                RoomSize = new(6, 10),
+                TreasureChestCount = Amount.Pack.Range(),
+                TreasureGold = new(1250, 2400),
+                RoomEncounters =
+                [
+                    Encounters.Same(MonsterIds.Fagyóriás, Amount.Few, Amount.Few),
+                    Encounters.Mixed(MonsterIds.Fagyóriás, Amount.Few, MonsterIds.Lidércfarkas, Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Csontsárkány, MonsterIds.Wight, Amount.One, Amount.Several)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo(MonsterIds.Lidércfarkas, Amount.Several, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Fagyóriás, Amount.Few),
+                    Encounters.Solo(MonsterIds.Wight, Amount.Few)
+                ]
+            },
+            [16] = new()
+            {
+                Level = 16,
+                Name = "Az örökéj vámpírerődje",
+                DoubleWidthCorridorChance = 0.76,
+                WallRune = new('▓'),
+                WallColor = ConsoleColor.DarkMagenta,
+                RoomCount = Amount.Pack.Range(),
+                RoomSize = new(5, 9),
+                TreasureChestCount = Amount.Pack.Range(),
+                TreasureGold = new(1450, 2750),
+                RoomEncounters =
+                [
+                    Encounters.Same(MonsterIds.Vámpír, Amount.Few, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Halállovag, Amount.Few, MonsterIds.Wight, Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Ősvámpír, MonsterIds.Vámpír, Amount.One, Amount.Several)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo(MonsterIds.Vámpír, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Halállovag, Amount.Few),
+                    Encounters.Solo(MonsterIds.ÉjiBanya, Amount.Few)
+                ]
+            },
+            [17] = new()
+            {
+                Level = 17,
+                Name = "A sárkányok temetője",
+                DoubleWidthCorridorChance = 0.84,
+                WallRune = new('█'),
+                WallColor = ConsoleColor.Gray,
+                RoomCount = Amount.Pack.Range(),
+                RoomSize = new(6, 11),
+                TreasureChestCount = new(12, 18),
+                TreasureGold = new(1650, 3150),
+                RoomEncounters =
+                [
+                    Encounters.Same(MonsterIds.Csontsárkány, Amount.Few, Amount.Few),
+                    Encounters.Mixed(MonsterIds.Wyvern, Amount.Several, MonsterIds.Csontsárkány, Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Drakolich, MonsterIds.Halállovag, Amount.One, Amount.Several)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo(MonsterIds.Wyvern, Amount.Several, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Csontsárkány, Amount.Few),
+                    Encounters.Solo(MonsterIds.Halállovag, Amount.Few)
+                ]
+            },
+            [18] = new()
+            {
+                Level = 18,
+                Name = "A démoni sík: Parázspusztaság",
+                DoubleWidthCorridorChance = 0.88,
+                WallRune = new('█'),
+                WallColor = ConsoleColor.DarkRed,
+                RoomCount = Amount.Pack.Range(),
+                RoomSize = new(6, 10),
+                TreasureChestCount = new(12, 18),
+                TreasureGold = new(1900, 3600),
+                RoomEncounters =
+                [
+                    Encounters.Same(MonsterIds.Démonpók, Amount.Several, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Démonlovag, Amount.Several, MonsterIds.Démonpók, Amount.Several, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, Amount.One, Amount.Pack)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo(MonsterIds.Démonpók, Amount.Several, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Démonlovag, Amount.Few),
+                    Encounters.Solo(MonsterIds.Pokolfejedelem, Amount.One)
+                ]
+            },
+            [19] = new()
+            {
+                Level = 19,
+                Name = "A démoni sík: Vértrónus",
+                DoubleWidthCorridorChance = 0.68,
+                WallRune = new('▓'),
+                WallColor = ConsoleColor.Red,
+                RoomCount = Amount.Pack.Range(),
+                RoomSize = new(7, 11),
+                TreasureChestCount = new(14, 20),
+                TreasureGold = new(2200, 4200),
+                RoomEncounters =
+                [
+                    Encounters.Same(MonsterIds.Démonlovag, Amount.Several, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Pokolfejedelem, Amount.Few, MonsterIds.Démonpók, Amount.Pack, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.BalorDémon, MonsterIds.Démonlovag, Amount.Few, Amount.Pack)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo(MonsterIds.Démonlovag, Amount.Several, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Pokolfejedelem, Amount.Few),
+                    Encounters.Solo(MonsterIds.BalorDémon, Amount.One)
+                ]
+            },
+            [20] = new()
+            {
+                Level = 20,
+                Name = "A káosz szíve",
+                DoubleWidthCorridorChance = 0.80,
+                WallRune = new('▒'),
+                WallColor = ConsoleColor.Magenta,
+                RoomCount = Amount.Pack.Range(),
+                RoomSize = new(7, 12),
+                TreasureChestCount = new(16, 22),
+                TreasureGold = new(2600, 5000),
+                RoomEncounters =
+                [
+                    Encounters.Mixed(MonsterIds.VénBeholder, Amount.Few, MonsterIds.Drakolich, Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, Amount.Few, Amount.Several),
+                    Encounters.LeaderGroup(MonsterIds.Káoszsárkány, MonsterIds.Drakolich, Amount.One, Amount.Few)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Solo(MonsterIds.VénBeholder, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Drakolich, Amount.Few),
+                    Encounters.Solo(MonsterIds.Pokolfejedelem, Amount.Few)
+                ]
             }
         };
 
