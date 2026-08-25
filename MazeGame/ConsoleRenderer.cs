@@ -210,7 +210,7 @@ public sealed class ConsoleRenderer
     }
 
     public void DrawLevelCompletionScreen(int completedLevel, int baseExperience,
-        IReadOnlyList<Game.LevelCompletionResult> results, IReadOnlyList<LiveCharacter> fallenCharacters)
+        IReadOnlyList<LevelCompletionResult> results, IReadOnlyList<LiveCharacter> fallenCharacters)
     {
         ResetColorCache();
         Console.Clear();
