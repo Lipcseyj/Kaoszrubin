@@ -24,4 +24,7 @@ public enum ConsumableEffect
 public static class MiscItemIds
 {
     public const string Key = "T003";
+    public const string HerbalTea = "T020";
+    public const string Mead = "T023";
+    public const string SpicedWine = "T024";
 }

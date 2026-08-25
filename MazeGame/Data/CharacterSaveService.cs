@@ -78,6 +78,7 @@ public sealed class CharacterSaveService
         character.SetNpcBehavior(saved.NpcBehavior);
         character.RestoreDivineSpellCycle(saved.DivineSpellCycle ?? 0);
         character.RestoreLevelResurrection(saved.WasResurrectedThisLevel ?? false);
+        character.RestoreExplorationStepsTowardSpellAction(saved.ExplorationStepsTowardSpellAction ?? 0);
         SpellcastingRules.GiveRequiredFocus(character, _gameData);
 
         if (character.IsSpellcaster)
@@ -156,6 +157,7 @@ public sealed class CharacterSaveService
         Experience = character.Experience,
         DivineSpellCycle = character.DivineSpellCycle,
         WasResurrectedThisLevel = character.WasResurrectedThisLevel,
+        ExplorationStepsTowardSpellAction = character.ExplorationStepsTowardSpellAction,
         LevelVitalityIncrease = character.UnmodifiedMaximumVitality - (_gameData.GetMinimumVitality(character.Abilities.Health) + character.VitalityBonus),
         LevelManaIncrease = character.UsesMana
             ? character.UnmodifiedMaximumMana - (_gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
@@ -225,6 +227,7 @@ public sealed class CharacterSaveService
         public int? Experience { get; init; }
         public int? DivineSpellCycle { get; init; }
         public bool? WasResurrectedThisLevel { get; init; }
+        public int? ExplorationStepsTowardSpellAction { get; init; }
         public int? LevelVitalityIncrease { get; init; }
         public int? LevelManaIncrease { get; init; }
         public List<string?> WeaponIds { get; init; } = [];

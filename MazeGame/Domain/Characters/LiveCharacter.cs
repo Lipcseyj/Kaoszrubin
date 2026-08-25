@@ -17,6 +17,7 @@ public sealed class LiveCharacter
     private readonly List<SpellDefinition> _memorizedSpells = [];
     private readonly SpellDefinition?[] _quickSpells = new SpellDefinition?[MaximumQuickSpellCount];
     private readonly List<ActiveSpellEffect> _activeSpellEffects = [];
+    private int _explorationStepsTowardSpellAction;
     private readonly Dictionary<string, int?> _statusDurations = new(StringComparer.OrdinalIgnoreCase);
     private int _maximumVitality;
     private int _maximumMana;
@@ -71,6 +72,7 @@ public sealed class LiveCharacter
     public IReadOnlyList<SpellDefinition> MemorizedSpells => _memorizedSpells;
     public IReadOnlyList<SpellDefinition?> QuickSpells => _quickSpells;
     public IReadOnlyList<ActiveSpellEffect> ActiveSpellEffects => _activeSpellEffects;
+    public int ExplorationStepsTowardSpellAction => _explorationStepsTowardSpellAction;
     public bool IsSpellcaster => SpellcastingRules.TryGetSchool(CharacterClass.Id, out _);
     public bool CanCastSpells => IsAlive && SpellcastingRules.HasRequiredFocus(this);
     public int MemorizationCapacity => SpellcastingRules.MemorizationCapacity(this);
@@ -157,6 +159,17 @@ public sealed class LiveCharacter
             else _activeSpellEffects[index] = effect with { RemainingActions = remaining };
         }
     }
+
+    public void RegisterExplorationStep()
+    {
+        _explorationStepsTowardSpellAction++;
+        if (_explorationStepsTowardSpellAction < 10) return;
+        _explorationStepsTowardSpellAction = 0;
+        AdvanceSpellEffects();
+    }
+
+    public void RestoreExplorationStepsTowardSpellAction(int steps) =>
+        _explorationStepsTowardSpellAction = Math.Clamp(steps, 0, 9);
 
     public void ClearTemporarySpellEffects() => _activeSpellEffects.Clear();
 

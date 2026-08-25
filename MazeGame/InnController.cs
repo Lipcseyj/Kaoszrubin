@@ -9,7 +9,7 @@ internal sealed class InnController
 {
     private const int SecretStashLevelAdvance = 4;
     private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002",
-        "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020"];
+        "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020", "T023", "T024"];
     private static readonly HashSet<string> WitcherOnlyItemIds = ["T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020"];
 
     private readonly GameDataCatalog _gameData;
@@ -171,14 +171,16 @@ internal sealed class InnController
             {
                 var previousIndex = selectedIndex;
                 selectedIndex = (selectedIndex - 1 + entryCount) % entryCount;
-                redraw = !_renderer.UpdateInnMarketSelection(mode, stock, sellOffers, previousIndex, selectedIndex);
+                _renderer.UpdateInnMarketSelection(mode, stock, sellOffers, previousIndex, selectedIndex);
+                redraw = false;
                 continue;
             }
             if (key == ConsoleKey.DownArrow && entryCount > 0)
             {
                 var previousIndex = selectedIndex;
                 selectedIndex = (selectedIndex + 1) % entryCount;
-                redraw = !_renderer.UpdateInnMarketSelection(mode, stock, sellOffers, previousIndex, selectedIndex);
+                _renderer.UpdateInnMarketSelection(mode, stock, sellOffers, previousIndex, selectedIndex);
+                redraw = false;
                 continue;
             }
             if (key != ConsoleKey.Enter || entryCount == 0) continue;
@@ -206,7 +208,8 @@ internal sealed class InnController
     }
 
     private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel) =>
-        CreateInnStock(completedLevel, completedLevel, 1.0, includePremiumStock: true, includeRandomLegendary: true);
+        CreateInnStock(completedLevel, completedLevel, 1.0, includePremiumStock: true,
+            includeRandomLegendary: true, includePremiumSupplies: false);
 
     private void RunInnSecretStash(int completedLevel)
     {
@@ -219,8 +222,9 @@ internal sealed class InnController
         _selectedCharacter.SpendGold(_secretStashAccessCost);
         var secretLevel = completedLevel + SecretStashLevelAdvance;
         var stock = CreateInnStock(completedLevel, secretLevel, _random.Next(105, 121) / 100.0,
-            includePremiumStock: false, includeRandomLegendary: false).ToList();
+            includePremiumStock: false, includeRandomLegendary: false, includePremiumSupplies: true).ToList();
         AddSecretStashSpecialOffer(stock, completedLevel, secretLevel);
+        stock.Sort((left, right) => left.Price.CompareTo(right.Price));
         var selectedIndex = 0;
         var message = $"🗝️ {_secretStashAccessCost} aranyért a kereskedő megmutatta titkos, fejlettebb készletét.";
         var redraw = true;
@@ -241,14 +245,16 @@ internal sealed class InnController
             {
                 var previousIndex = selectedIndex;
                 selectedIndex = (selectedIndex - 1 + entryCount) % entryCount;
-                redraw = !_renderer.UpdateInnSecretStashSelection(stock, previousIndex, selectedIndex);
+                _renderer.UpdateInnSecretStashSelection(stock, previousIndex, selectedIndex);
+                redraw = false;
                 continue;
             }
             if (key == ConsoleKey.DownArrow && entryCount > 0)
             {
                 var previousIndex = selectedIndex;
                 selectedIndex = (selectedIndex + 1) % entryCount;
-                redraw = !_renderer.UpdateInnSecretStashSelection(stock, previousIndex, selectedIndex);
+                _renderer.UpdateInnSecretStashSelection(stock, previousIndex, selectedIndex);
+                redraw = false;
                 continue;
             }
             if (key != ConsoleKey.Enter || entryCount == 0) continue;
@@ -265,7 +271,7 @@ internal sealed class InnController
     }
 
     private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel, int unlockLevel, double priceMultiplier,
-        bool includePremiumStock, bool includeRandomLegendary)
+        bool includePremiumStock, bool includeRandomLegendary, bool includePremiumSupplies)
     {
         var allItems = AllTradableItems().Where(item => item.Rarity != ItemRarity.Legendary).OrderBy(item => item.BasePrice).ToList();
         var normalUnlockedCount = Math.Min(allItems.Count, 8 + unlockLevel * 8);
@@ -314,21 +320,25 @@ internal sealed class InnController
             }
         }
 
-        var fixedExtras = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["T001"] = 4,
-            ["T002"] = 4
-        };
+        var fixedExtras = includePremiumSupplies
+            ? CreateSecretStashSupplies()
+            : new[] { "T001", "T001", "T001", "T001", "T002", "T002", "T002", "T002" };
 
-        foreach (var kv in fixedExtras)
+        foreach (var itemId in fixedExtras)
         {
-            var fixedItem = allItems.FirstOrDefault(i => string.Equals(i.Id, kv.Key, StringComparison.OrdinalIgnoreCase));
+            var fixedItem = _gameData.Items.FirstOrDefault(i => string.Equals(i.Id, itemId, StringComparison.OrdinalIgnoreCase));
             if (fixedItem is null) continue;
-            for (var c = 0; c < kv.Value; c++)
-                offers.Insert(0, CreateInnStockOffer(fixedItem, priceMultiplier, completedLevel));
+            offers.Add(CreateInnStockOffer(fixedItem, priceMultiplier, completedLevel));
         }
 
         return offers.OrderBy(offer => offer.Price).ToList();
+    }
+
+    private IReadOnlyList<string> CreateSecretStashSupplies()
+    {
+        var firstDrink = _random.Next(2) == 0 ? MiscItemIds.Mead : MiscItemIds.SpicedWine;
+        var secondDrink = firstDrink == MiscItemIds.Mead ? MiscItemIds.SpicedWine : MiscItemIds.Mead;
+        return ["T008", "T007", "T010", firstDrink, firstDrink, secondDrink];
     }
 
     private void AddSecretStashSpecialOffer(ICollection<InnStockOffer> stock, int completedLevel, int secretLevel)
@@ -370,7 +380,8 @@ internal sealed class InnController
             .Select((item, index) => item is null || !buybackPrices.TryGetValue(item.Id, out var price)
                 ? null
                 : new InnSellOffer(character, index, item, price)))
-            .Where(offer => offer is not null).Cast<InnSellOffer>().ToList();
+            .Where(offer => offer is not null).Cast<InnSellOffer>()
+            .OrderBy(offer => offer.Price).ToList();
 
     private void RunInnRecruitment()
     {
@@ -621,7 +632,7 @@ internal sealed class InnController
         AddWitcherExtraStock(allowedItems, stock, completedLevel, 8, "T013");
         AddWitcherExtraStock(allowedItems, stock, completedLevel, 10, "T013");
 
-        return stock.OrderBy(_ => _random.Next()).ToList();
+        return stock.OrderBy(offer => offer.Price).ToList();
     }
 
     private void AddWitcherExtraStock(IReadOnlyList<MiscItemDefinition> allowedItems, ICollection<InnStockOffer> stock,
@@ -662,14 +673,16 @@ internal sealed class InnController
             {
                 var previousIndex = selectedIndex;
                 selectedIndex = (selectedIndex - 1 + entryCount) % entryCount;
-                redraw = !_renderer.UpdateInnMarketSelection(mode, stock, sellOffers, previousIndex, selectedIndex);
+                _renderer.UpdateInnMarketSelection(mode, stock, sellOffers, previousIndex, selectedIndex);
+                redraw = false;
                 continue;
             }
             if (key == ConsoleKey.DownArrow && entryCount > 0)
             {
                 var previousIndex = selectedIndex;
                 selectedIndex = (selectedIndex + 1) % entryCount;
-                redraw = !_renderer.UpdateInnMarketSelection(mode, stock, sellOffers, previousIndex, selectedIndex);
+                _renderer.UpdateInnMarketSelection(mode, stock, sellOffers, previousIndex, selectedIndex);
+                redraw = false;
                 continue;
             }
             if (key != ConsoleKey.Enter || entryCount == 0) continue;

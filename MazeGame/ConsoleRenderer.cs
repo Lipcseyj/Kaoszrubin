@@ -37,11 +37,12 @@ public sealed class ConsoleRenderer
     private const int InnConfirmationFrameWidth = 90;
     private const int InnRestFrameWidth = 100;
     private const int InnRestUnavailableFrameWidth = 90;
-    private const int InnMarketFrameWidth = 100;
-    private const int InnMarketPageSize = 12;
-    private const int InnMarketTextWidth = 94;
-    private const int InnMarketSelectedItemDetailLine = 18;
-    private const int InnMarketFrameLineCount = 21;
+    private const int InnMarketFrameWidth = 110;
+    private const int InnRecruitmentFrameWidth = 100;
+    private const int InnMarketPageSize = 22;
+    private const int InnMarketTextWidth = 104;
+    private const int InnMarketSelectedItemDetailLine = 28;
+    private const int InnMarketFrameLineCount = 31;
     private const int InnRecruitmentFirstCandidateLine = 4;
     private const int InnRecruitmentDetailStartOffset = 5;
     private const int InnRecruitmentFrameBaseLineCount = 10;
@@ -529,15 +530,17 @@ public sealed class ConsoleRenderer
         DrawCenteredFrame(InnMarketFrameWidth, lines);
     }
 
-    public bool UpdateInnMarketSelection(InnMarketMode mode, IReadOnlyList<InnStockOffer> stock,
+    public void UpdateInnMarketSelection(InnMarketMode mode, IReadOnlyList<InnStockOffer> stock,
         IReadOnlyList<InnSellOffer> sellOffers, int previousIndex, int selectedIndex)
     {
         var entries = mode == InnMarketMode.Buy ? stock.Count : sellOffers.Count;
         var previousPageStart = InnMarketPageStart(entries, previousIndex);
         var pageStart = InnMarketPageStart(entries, selectedIndex);
-        if (previousPageStart != pageStart) return false;
         var updates = new List<(int Index, string Text, ConsoleColor Color)>();
-        foreach (var index in new[] { previousIndex, selectedIndex }.Distinct())
+        var visibleIndices = previousPageStart == pageStart
+            ? new[] { previousIndex, selectedIndex }.Distinct()
+            : Enumerable.Range(pageStart, Math.Min(InnMarketPageSize, entries - pageStart));
+        foreach (var index in visibleIndices)
         {
             var selected = index == selectedIndex;
             var text = mode == InnMarketMode.Buy
@@ -547,27 +550,37 @@ public sealed class ConsoleRenderer
                 ? stock[index].Item.Rarity : sellOffers[index].Item.Rarity);
             updates.Add((InnMenuFirstOptionLabelLine + index - pageStart, text, color));
         }
+        if (previousPageStart != pageStart)
+        {
+            for (var row = entries - pageStart; row < InnMarketPageSize; row++)
+                updates.Add((InnMenuFirstOptionLabelLine + row, string.Empty, ConsoleColor.Gray));
+        }
         var selectedItem = mode == InnMarketMode.Buy ? stock[selectedIndex].Item : sellOffers[selectedIndex].Item;
         updates.Add((InnMarketSelectedItemDetailLine, ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
         UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates);
-        return true;
     }
 
-    public bool UpdateInnSecretStashSelection(IReadOnlyList<InnStockOffer> stock, int previousIndex, int selectedIndex)
+    public void UpdateInnSecretStashSelection(IReadOnlyList<InnStockOffer> stock, int previousIndex, int selectedIndex)
     {
         var previousPageStart = InnMarketPageStart(stock.Count, previousIndex);
         var pageStart = InnMarketPageStart(stock.Count, selectedIndex);
-        if (previousPageStart != pageStart) return false;
         var updates = new List<(int Index, string Text, ConsoleColor Color)>();
-        foreach (var index in new[] { previousIndex, selectedIndex }.Distinct())
+        var visibleIndices = previousPageStart == pageStart
+            ? new[] { previousIndex, selectedIndex }.Distinct()
+            : Enumerable.Range(pageStart, Math.Min(InnMarketPageSize, stock.Count - pageStart));
+        foreach (var index in visibleIndices)
         {
             var selected = index == selectedIndex;
             updates.Add((InnMenuFirstOptionLabelLine + index - pageStart, InnStockLine(stock[index], selected),
                 selected ? ConsoleColor.White : ItemRarityColor(stock[index].Item.Rarity)));
         }
+        if (previousPageStart != pageStart)
+        {
+            for (var row = stock.Count - pageStart; row < InnMarketPageSize; row++)
+                updates.Add((InnMenuFirstOptionLabelLine + row, string.Empty, ConsoleColor.Gray));
+        }
         updates.Add((InnMarketSelectedItemDetailLine, ClipMarketText($"ℹ️ {stock[selectedIndex].Item.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
         UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates);
-        return true;
     }
 
     public void DrawInnRecruitmentScreen(IReadOnlyList<LiveCharacter> candidates,
@@ -603,7 +616,7 @@ public sealed class ConsoleRenderer
         lines.Add((party.Count >= Party.MaximumSize
             ? "↑/↓ választás   Enter felvétel és társ lecserélése   Esc vissza a fogadóba"
             : "↑/↓ választás   Enter felvétel   Esc vissza a fogadóba", ConsoleColor.White));
-        DrawCenteredFrame(InnMarketFrameWidth, lines);
+        DrawCenteredFrame(InnRecruitmentFrameWidth, lines);
     }
 
     public void DrawInnReplacementScreen(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable,
@@ -647,7 +660,7 @@ public sealed class ConsoleRenderer
         updates.Add((detailStart, $"Erő {shown.Abilities.Strength}  Ügy {shown.Abilities.Dexterity}  Egész {shown.Abilities.Health}  Int {shown.Abilities.Intelligence}", ConsoleColor.Cyan));
         updates.Add((detailStart + DetailNextLineOffset, $"Fegyver: {weapons}  |  Páncél: {shown.Armor?.Name ?? "nincs"}", ConsoleColor.Gray));
         updates.Add((detailStart + DetailSecondLineOffset, $"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
-        UpdateCenteredFrameLines(InnMarketFrameWidth, InnRecruitmentFrameBaseLineCount + candidates.Count, updates);
+        UpdateCenteredFrameLines(InnRecruitmentFrameWidth, InnRecruitmentFrameBaseLineCount + candidates.Count, updates);
     }
 
     public void UpdateInnReplacementSelection(IReadOnlyList<LiveCharacter> replaceable,
@@ -1070,8 +1083,8 @@ public sealed class ConsoleRenderer
         foreach (var (index, text, color) in updates)
         {
             SetColors(color, ConsoleColor.Black);
-            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1,
-                text.PadRight(Math.Max(0, contentWidth - text.Length)));
+            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1, new string(' ', contentWidth));
+            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1, text);
         }
     }
 

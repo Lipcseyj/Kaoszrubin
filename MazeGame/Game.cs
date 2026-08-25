@@ -160,9 +160,16 @@ public sealed class Game
     }
 
     // Let non-fighting party members act (heal/cure/offensive spells) during the leader's own battle
-    private int TryPartyMembersActInLeaderBattle(Enemy enemy) => _maze.PartyMembers
-        .Where(member => member.Character.IsAlive)
-        .Sum(member => ChooseNpcBattlePlayerAction(member, enemy)?.DamageToEnemy ?? 0);
+    private int TryPartyMembersActInLeaderBattle(Enemy enemy)
+    {
+        var totalDamage = 0;
+        foreach (var member in _maze.PartyMembers.Where(member => member.Character.IsAlive))
+        {
+            member.Character.AdvanceSpellEffects();
+            totalDamage += ChooseNpcBattlePlayerAction(member, enemy)?.DamageToEnemy ?? 0;
+        }
+        return totalDamage;
+    }
 
     // NPC spellcasting for exploration - simple heals/cures/buffs
     private void TryNpcCastExplorationSpell(PartyMemberAvatar member)
@@ -664,7 +671,7 @@ public sealed class Game
                 return;
             }
         }
-        SelectedCharacter.AdvanceSpellEffects();
+        SelectedCharacter.RegisterExplorationStep();
         _leaderFacing = direction;
         if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
@@ -889,6 +896,10 @@ public sealed class Game
                 $" | kasztok: {AllowedClassNames(magic.AllowedClassIds)}",
             MiscItemDefinition misc when SpellcastingRules.IsSpellcastingFocus(misc) =>
                 "Karakterhez kötött varázsfókusz | nem mozgatható, nem dobható el és nem kereskedhető",
+            MiscItemDefinition misc when misc.Id == MiscItemIds.HerbalTea =>
+                $"Használati tárgy | hatás: víz {misc.EffectValue}, HP 5–15",
+            MiscItemDefinition misc when IsInitiativeDrink(misc) =>
+                $"Használati tárgy | hatás: víz {misc.EffectValue}, +2 kezdeményezés és +1 találat 10 akcióig",
             MiscItemDefinition misc when misc.Effect != ConsumableEffect.None => $"Használati tárgy | hatás: {ConsumableEffectName(misc.Effect)} {misc.EffectValue}",
             _ => "Általános tárgy"
         };
@@ -977,7 +988,12 @@ public sealed class Game
 
         var character = slot.Value.Character;
         var used = true;
-        var result = item.Effect switch
+        var result = item.Id == MiscItemIds.HerbalTea &&
+                     (character.WaterLevel < 100 || character.IsAlive && character.CurrentVitality < character.MaximumVitality)
+            ? UseHerbalTea(character, item.EffectValue)
+            : IsInitiativeDrink(item) && character.IsAlive
+                ? UseInitiativeDrink(character, item)
+            : item.Effect switch
         {
             ConsumableEffect.Food when character.FoodLevel < 100 => UseFood(character, item.EffectValue),
             ConsumableEffect.Water when character.WaterLevel < 100 => UseWater(character, item.EffectValue),
@@ -1009,6 +1025,29 @@ public sealed class Game
         var before = character.WaterLevel;
         character.RestoreWater(amount);
         return $"víz +{character.WaterLevel - before}";
+    }
+
+    private string UseHerbalTea(LiveCharacter character, int waterAmount)
+    {
+        var waterBefore = character.WaterLevel;
+        var vitalityBefore = character.CurrentVitality;
+        character.RestoreWater(waterAmount);
+        if (character.IsAlive) character.RestoreVitality(_random.Next(5, 16));
+        return $"víz +{character.WaterLevel - waterBefore}, HP +{character.CurrentVitality - vitalityBefore}";
+    }
+
+    private static bool IsInitiativeDrink(MiscItemDefinition item) =>
+        item.Id is MiscItemIds.Mead or MiscItemIds.SpicedWine;
+
+    private static string UseInitiativeDrink(LiveCharacter character, MiscItemDefinition item)
+    {
+        var waterBefore = character.WaterLevel;
+        character.RestoreWater(item.EffectValue);
+        character.ApplySpellEffect(new ActiveSpellEffect(item.Id, ActiveSpellEffectType.InitiativeBonus,
+            2, 10, Beneficial: true));
+        character.ApplySpellEffect(new ActiveSpellEffect(item.Id, ActiveSpellEffectType.HitBonus,
+            1, 10, Beneficial: true));
+        return $"víz +{character.WaterLevel - waterBefore}, +2 kezdeményezés és +1 találat 10 akcióig";
     }
 
     private static string UseHealing(LiveCharacter character, int amount)
@@ -1285,6 +1324,7 @@ public sealed class Game
             var previous = member.Position;
             var next = ChoosePartyMemberStep(member);
             if (next is null || !_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
+            member.Character.RegisterExplorationStep();
             var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
             _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
             if (CanActivelyAttack(member)) TryResolveAdjacentNpcBattle(member);
@@ -1322,6 +1362,7 @@ public sealed class Game
         if (next is null) return;
         var previous = member.Position;
         if (!_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
+        member.Character.RegisterExplorationStep();
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
     }
@@ -2596,7 +2637,9 @@ public sealed class Game
 
     private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002",
         // Witcher-only consumables (potions and medical supplies)
-        "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020"];
+        "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020",
+        // Secret-stash-only drinks
+        "T023", "T024"];
 
 
     private IReadOnlyList<IItemDefinition> AllTradableItems() => _gameData.Items.Cast<IItemDefinition>()

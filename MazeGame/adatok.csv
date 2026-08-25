@@ -479,7 +479,7 @@ T003,Kulcs,Egyszer használatos kulcs amely garantáltan kinyit vagy bezár egy 
 T004,Kenyér,Friss cipó szerény de megbízható tápértékkel.,6,Food,15
 T005,Sajt,Érett kemény sajt amely sokáig eltartható.,14,Food,28
 T006,Füstölt hús,Nehéz füstölt húsadag hosszú utakra.,24,Food,45
-T007,Törp útravaló,Rendkívül tömény lepény amely kis darabban is jóllakat.,45,Food,65
+T007,Törplakoma,Rendkívül tápláló törp étel amely kis adagban is jóllakat.,45,Food,65
 T008,Fogadói lakoma,Gazdag hidegtál egy teljes napi éhség elűzésére.,70,Food,100
 T009,Aszalt gyümölcs,Édes könnyű élelem gyors erőgyűjtéshez.,12,Food,25
 T010,Mézes kalács,Fűszeres sütemény amely meglepően laktató.,20,Food,38
@@ -492,9 +492,11 @@ T016,Nagy varázsital,Örvénylő azúr elixír jelentős manna visszanyerésér
 T017,Ellenméreg,Keserű zöld oldat amely megszünteti a mérgezést.,75,CurePoison,0
 T018,Gyógyfüves orvosság,Erős gyógynövénykeverék betegségek kezelésére.,90,CureDisease,0
 T019,Kötés,Tiszta vászon és vérzéscsillapító por friss sebekhez.,30,StopBleeding,0
-T020,Gyógytea,Meleg gyógynövénytea amely enyhíti a szomjúságot.,18,Water,40
+T020,Gyógytea,Meleg gyógynövénytea amely 60 vizet ad és 5–15 HP-t gyógyít.,36,Water,60
 T021,Varázskönyv,A mágus ismert és memorizált varázslatait tartalmazó személyes könyv.,1,None,0
 T022,Szent szimbólum,A pap hitét és ismert imáit összpontosító személyes szent jelkép.,1,None,0
+T023,Mézsör,Édes mézes ital amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40
+T024,Fűszeres bor,Melengető bor amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40
 
 #Varázstárgyak
 Id,Név,Típus,Kategória,Ár,Töltet,VarázslatId,Hatás,Érték,CsakMágus,Jellemzés,MágikusErő
