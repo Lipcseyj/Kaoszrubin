@@ -1090,7 +1090,8 @@ public sealed class Game
         {
             Domain.Combat.WeaponDefinition weapon =>
                 $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? _gameData.GetWeaponType(typeId).Name : "nincs")} | sebzés: {weapon.Damage?.ToString() ?? "nincs"} | " +
-                $"{(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | kasztok: {AllowedClassNames(weapon.AllowedClassIds)}",
+                $"minimum Erő: {weapon.MinimumStrength} | {(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | " +
+                $"kasztok: {AllowedClassNames(weapon.AllowedClassIds)}",
             Domain.Combat.ArmorDefinition armor => $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"} | kasztok: {AllowedClassNames(armor.AllowedClassIds)}",
             Domain.Magic.MagicItemDefinition magic =>
                 $"Varázstárgy | típus: {MagicItemKindName(magic.Kind)} | hatás: {MagicItemEffectName(magic.Effect)} {magic.EffectValue}" +
@@ -1360,7 +1361,7 @@ public sealed class Game
         AddInventoryChange(changesByCharacter, held.Source.Character, new(held.Source.Kind, held.Source.Index, displaced, displacedCharges));
         if (changesByCharacter.Any(entry => !entry.Key.CanApplyInventoryChanges(entry.Value.ToArray())))
         {
-            _renderer.DrawInventoryMessage("A felszerelés nem használható ezen a helyen vagy ezzel a kaszttal. A kétkezes fegyver csak az első, üres második fegyverhely mellett viselhető.", ConsoleColor.Red);
+            _renderer.DrawInventoryMessage("A felszerelés nem használható ezen a helyen, ezzel a kaszttal vagy a karakter jelenlegi Erejével. A kétkezes fegyver csak az első, üres második fegyverhely mellett viselhető.", ConsoleColor.Red);
             return;
         }
         foreach (var entry in changesByCharacter) entry.Key.ApplyInventoryChanges(entry.Value.ToArray());

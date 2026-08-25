@@ -270,7 +270,8 @@ public sealed class LiveCharacter
             }
         }
 
-        if (weapons.Any(weapon => weapon is not null && !weapon.CanBeEquippedBy(CharacterClass.Id))) return false;
+        if (weapons.Any(weapon => weapon is not null &&
+                !weapon.CanBeEquippedBy(CharacterClass.Id, Abilities.Strength))) return false;
         if (armor is not null && !armor.CanBeEquippedBy(CharacterClass.Id)) return false;
         if (magicItems.Any(item => item is not null && !item.CanBeEquippedBy(CharacterClass.Id))) return false;
         if (weapons[1]?.IsTwoHanded == true) return false;

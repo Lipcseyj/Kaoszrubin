@@ -156,9 +156,11 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.Weapons:
                 weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), ValueRangeFrom(cells, 3),
-                    IsYes(cells, 4), AllowedClasses(cells, (CharacterClassIds.Harcos, null), (CharacterClassIds.Barbár, null), (CharacterClassIds.Lovag, null),
-                        (CharacterClassIds.Tolvaj, 5), (CharacterClassIds.Pap, 6), (CharacterClassIds.Mágus, 7)), Cell(cells, 8), RequiredPrice(cells, 9, id),
-                    ParseRarity(cells, 10), EmptyAsNull(Cell(cells, 11)), Integer(cells, 12) ?? 0));
+                    RequiredWeaponStrength(cells, 4, id), IsYes(cells, 5),
+                    AllowedClasses(cells, (CharacterClassIds.Harcos, null), (CharacterClassIds.Barbár, null), (CharacterClassIds.Lovag, null),
+                        (CharacterClassIds.Tolvaj, 6), (CharacterClassIds.Pap, 7), (CharacterClassIds.Mágus, 8)),
+                    Cell(cells, 9), RequiredPrice(cells, 10, id), ParseRarity(cells, 11),
+                    EmptyAsNull(Cell(cells, 12)), Integer(cells, 13) ?? 0));
                 break;
             case DataSection.Armors:
                 armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),
@@ -298,6 +300,12 @@ public static class CsvGameDataLoader
     private static int RequiredPrice(string[] cells, int index, string id) => Integer(cells, index) is > 0 and var price
         ? price
         : throw new InvalidOperationException($"A(z) '{id}' tárgy ára hiányzik vagy nem pozitív az adatok.csv fájlban.");
+
+    private static int RequiredWeaponStrength(string[] cells, int index, string id) =>
+        Integer(cells, index) is >= 1 and <= 13 and var strength
+            ? strength
+            : throw new InvalidOperationException(
+                $"A(z) '{id}' fegyver MinimumErő értékének 1 és 13 közé kell esnie.");
 
     private static ItemRarity ParseRarity(string[] cells, int index) => Normalize(Cell(cells, index)) switch
     {
@@ -518,8 +526,7 @@ public static class CsvGameDataLoader
         IReadOnlyCollection<WeaponDefinition> weapons, IReadOnlyCollection<ItemUpgradeDefinition> upgrades)
     {
         var result = weapons.ToList();
-        foreach (var weapon in weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal &&
-                     weapon.Id is not ("W005" or "W014" or "W015")))
+        foreach (var weapon in weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal && weapon.Id != "W005"))
         foreach (var upgrade in upgrades)
             result.Add(weapon with
             {

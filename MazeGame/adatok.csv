@@ -334,43 +334,43 @@ MA009,Repülő,Trait,100,0,A repülés későbbi mozgási és terepszabályok sz
 MA010,Démoni,Trait,100,0,Démoni lény amelyet a szent varázslatok és a gonosz elleni védelem külön célpontként kezelnek.
 
 #Fegyverek
-Id,Név,Típus,Sebzés,Kétkezes,Tolvaj,Pap,Mágus,Jellemzés,Ár,Kategória,AlapId,MágikusErő
-W001,tőr,WT002,2-5,nem,igen,nem,igen,Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.,35
-W002,rövid kard,WT002,3-7,nem,igen,nem,nem,Fordulékony egykezes kard amely szűk helyen is jól használható.,70
-W003,katana,WT002,5-10,igen,igen,nem,nem,Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.,420
-W004,hosszú kard,WT001,5-11,nem,igen,nem,nem,Megbízható acélkard erőteljes vágásokhoz és szúrásokhoz.,180
-W005,bunkó,WT001,3-6,nem,igen,igen,nem,Egyszerű nehéz ütőfegyver amelyhez több erő kell mint ügyesség.,25
-W006,buzogány,WT001,4-9,nem,nem,igen,nem,Vasfejű zúzófegyver amely súlyos csapásokat mér az ellenfélre.,110
-W007,láncos buzogány,WT001,5-11,nem,nem,igen,nem,Láncon forgó tüskés fej kiszámíthatatlan és veszélyes ívvel.,210
-W008,csatacsillag,WT001,6-12,nem,nem,igen,nem,Nehéz tüskés fegyver amely pusztító lendületet gyűjt támadáskor.,320
-W009,pallos,WT001,8-16,igen,nem,nem,nem,Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.,550
-W010,csatabárd,WT001,6-13,nem,nem,nem,nem,Széles pengéjű bárd erős és könyörtelen vágásokhoz.,280
-W011,lándzsa,WT001,5-12,igen,nem,nem,nem,Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.,160
-W012,alabárd,WT001,7-15,igen,nem,nem,nem,Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.,480
-W013,csatakalapács,WT001,7-14,igen,nem,igen,nem,Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.,450
-W014,fapajzs,WT003,1-2,nem,igen,igen,nem,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.,45
-W015,vaspajzs,WT003,2-3,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.,90
-W016,acélpajzs,WT003,2-5,nem,nem,igen,nem,Masszív acélpajzs ami kitűnő védelemet biztosít csak erős karúaknak.,90
-LW001,Hajnalpenge,WT001,9-17,nem,nem,igen,nem,A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.,6500,Legendás,W004,3
-LW002,Éjcsók,WT002,7-14,nem,igen,nem,igen,Fekete tőr amely hangtalanul találja meg a páncél réseit.,5200,Legendás,W001,4
-LW003,Vérivó,WT002,10-19,igen,igen,nem,nem,Bíbor katana amely minden győzelemmel sötétebben fénylik.,7800,Legendás,W003,4
-LW004,Viharpallos,WT001,14-27,igen,nem,nem,nem,Mennydörgéstől vibráló pallos amely viharfelhőket hasít ketté.,11000,Legendás,W009,5
-LW005,Mennydörgő,WT001,13-25,igen,nem,igen,nem,Ősi csatakalapács amelynek ütését távoli égzengés követi.,9800,Legendás,W013,5
-LW006,Sárkányölő,WT001,12-23,igen,nem,nem,nem,Hosszú lándzsa pikkelyek áttörésére kovácsolt ezüstheggyel.,8500,Legendás,W011,4
-LW007,Árnyékél,WT002,9-18,nem,igen,nem,igen,Alkonyati rövid kard amely elmosódik gyors mozdulat közben.,6900,Legendás,W002,4
-LW008,Napbuzogány,WT001,11-22,nem,nem,igen,nem,Aranyszínű buzogány amely szent fénnyel perzseli a gonoszt.,7600,Legendás,W006,5
-LW009,Világdaraboló,WT001,14-26,nem,nem,nem,nem,Óriások kovácsolta csatabárd amely követ és acélt egyaránt hasít.,10500,Legendás,W010,4
-LW010,Fagykarom,WT001,11-21,nem,igen,nem,nem,Jégkék hosszú kard amely dércsíkot hagy minden vágás után.,7200,Legendás,W004,4
-LW011,Pokollánc,WT001,12-23,nem,nem,igen,nem,Lángoló láncos buzogány amely kiszámíthatatlan tűzíveket rajzol.,8800,Legendás,W007,5
-LW012,Csillaghullás,WT001,13-24,nem,nem,igen,nem,Meteoritvasból készült csatacsillag vakító szikrákkal.,9300,Legendás,W008,5
-LW013,Őrzők pajzsa,WT003,6-12,nem,nem,igen,nem,Rúnás pajzs amely ősi őrszemek erejét hordozza.,7000,Legendás,W015,6
-LW014,Tölgykirály pajzsa,WT003,7-13,nem,igen,igen,nem,Élő szentfából nőtt pajzs amely soha nem reped meg.,7400,Legendás,W014,5
-LW015,Lélekarató,WT001,15-29,igen,nem,nem,nem,Fekete alabárd amely hideg suttogással várja következő áldozatát.,12000,Legendás,W012,6
-LW016,Titánöklű,WT001,10-20,nem,nem,igen,nem,Sűrű csillagfémből öntött bunkó felfoghatatlan súllyal.,6800,Legendás,W005,3
-LW017,Ezüsthold,WT002,12-22,igen,igen,nem,igen,Holdfényben kovácsolt katana amely kékes félholdakat rajzol.,9000,Legendás,W003,5
-LW018,Mélységszúró,WT002,10-18,nem,igen,nem,igen,Tengermélyi kristályból csiszolt tőr nyugtalanító kék ragyogással.,7100,Legendás,W001,5
-LW019,Főnixlándzsa,WT001,14-25,igen,nem,igen,nem,Újjászülető lánggal égő lándzsa amelynek hegye sosem hűl ki.,10200,Legendás,W011,6
-LW020,Koronatörő,WT001,16-30,igen,nem,nem,nem,Királyok bukását megélt pallos aranyrepedésekkel a pengéjén.,13500,Legendás,W009,7
+Id,Név,Típus,Sebzés,MinimumErő,Kétkezes,Tolvaj,Pap,Mágus,Jellemzés,Ár,Kategória,AlapId,MágikusErő
+W001,tőr,WT002,2-5,1,nem,igen,nem,igen,Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.,35
+W002,rövid kard,WT002,3-7,3,nem,igen,nem,nem,Fordulékony egykezes kard amely szűk helyen is jól használható.,70
+W003,katana,WT002,5-10,4,igen,igen,nem,nem,Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.,420
+W004,hosszú kard,WT001,5-11,5,nem,igen,nem,nem,Megbízható acélkard erőteljes vágásokhoz és szúrásokhoz.,180
+W005,bunkó,WT001,3-6,3,nem,igen,igen,nem,Egyszerű nehéz ütőfegyver amelyhez több erő kell mint ügyesség.,25
+W006,buzogány,WT001,4-9,5,nem,nem,igen,nem,Vasfejű zúzófegyver amely súlyos csapásokat mér az ellenfélre.,110
+W007,láncos buzogány,WT001,5-11,6,nem,nem,igen,nem,Láncon forgó tüskés fej kiszámíthatatlan és veszélyes ívvel.,210
+W008,csatacsillag,WT001,6-12,7,nem,nem,igen,nem,Nehéz tüskés fegyver amely pusztító lendületet gyűjt támadáskor.,320
+W009,pallos,WT001,8-16,9,igen,nem,nem,nem,Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.,550
+W010,csatabárd,WT001,6-13,7,nem,nem,nem,nem,Széles pengéjű bárd erős és könyörtelen vágásokhoz.,280
+W011,lándzsa,WT001,5-12,5,igen,nem,nem,nem,Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.,160
+W012,alabárd,WT001,7-15,8,igen,nem,nem,nem,Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.,480
+W013,csatakalapács,WT001,7-14,8,igen,nem,igen,nem,Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.,450
+W014,fapajzs,WT003,1-2,3,nem,igen,igen,nem,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.,85
+W015,vaspajzs,WT003,2-3,6,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.,120
+W016,acélpajzs,WT003,2-5,10,nem,nem,igen,nem,Masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.,250
+LW001,Hajnalpenge,WT001,9-17,6,nem,nem,igen,nem,A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.,6500,Legendás,W004,3
+LW002,Éjcsók,WT002,7-14,1,nem,igen,nem,igen,Fekete tőr amely hangtalanul találja meg a páncél réseit.,5200,Legendás,W001,4
+LW003,Vérivó,WT002,10-19,4,igen,igen,nem,nem,Bíbor katana amely minden győzelemmel sötétebben fénylik.,7800,Legendás,W003,4
+LW004,Viharpallos,WT001,14-27,10,igen,nem,nem,nem,Mennydörgéstől vibráló pallos amely viharfelhőket hasít ketté.,11000,Legendás,W009,5
+LW005,Mennydörgő,WT001,13-25,9,igen,nem,igen,nem,Ősi csatakalapács amelynek ütését távoli égzengés követi.,9800,Legendás,W013,5
+LW006,Sárkányölő,WT001,12-23,6,igen,nem,nem,nem,Hosszú lándzsa pikkelyek áttörésére kovácsolt ezüstheggyel.,8500,Legendás,W011,4
+LW007,Árnyékél,WT002,9-18,3,nem,igen,nem,igen,Alkonyati rövid kard amely elmosódik gyors mozdulat közben.,6900,Legendás,W002,4
+LW008,Napbuzogány,WT001,11-22,7,nem,nem,igen,nem,Aranyszínű buzogány amely szent fénnyel perzseli a gonoszt.,7600,Legendás,W006,5
+LW009,Világdaraboló,WT001,14-26,8,nem,nem,nem,nem,Óriások kovácsolta csatabárd amely követ és acélt egyaránt hasít.,10500,Legendás,W010,4
+LW010,Fagykarom,WT001,11-21,6,nem,igen,nem,nem,Jégkék hosszú kard amely dércsíkot hagy minden vágás után.,7200,Legendás,W004,4
+LW011,Pokollánc,WT001,12-23,7,nem,nem,igen,nem,Lángoló láncos buzogány amely kiszámíthatatlan tűzíveket rajzol.,8800,Legendás,W007,5
+LW012,Csillaghullás,WT001,13-24,8,nem,nem,igen,nem,Meteoritvasból készült csatacsillag vakító szikrákkal.,9300,Legendás,W008,5
+LW013,Őrzők pajzsa,WT003,6-12,9,nem,nem,igen,nem,Rúnás pajzs amely ősi őrszemek erejét hordozza.,7000,Legendás,W015,6
+LW014,Tölgykirály pajzsa,WT003,7-13,6,nem,igen,igen,nem,Élő szentfából nőtt pajzs amely soha nem reped meg.,7400,Legendás,W014,5
+LW015,Lélekarató,WT001,15-29,9,igen,nem,nem,nem,Fekete alabárd amely hideg suttogással várja következő áldozatát.,12000,Legendás,W012,6
+LW016,Titánöklű,WT001,10-20,5,nem,nem,igen,nem,Sűrű csillagfémből öntött bunkó felfoghatatlan súllyal.,6800,Legendás,W005,3
+LW017,Ezüsthold,WT002,12-22,7,igen,igen,nem,igen,Holdfényben kovácsolt katana amely kékes félholdakat rajzol.,9000,Legendás,W003,5
+LW018,Mélységszúró,WT002,10-18,4,nem,igen,nem,igen,Tengermélyi kristályból csiszolt tőr nyugtalanító kék ragyogással.,7100,Legendás,W001,5
+LW019,Főnixlándzsa,WT001,14-25,7,igen,nem,igen,nem,Újjászülető lánggal égő lándzsa amelynek hegye sosem hűl ki.,10200,Legendás,W011,6
+LW020,Koronatörő,WT001,16-30,11,igen,nem,nem,nem,Királyok bukását megélt pallos aranyrepedésekkel a pengéjén.,13500,Legendás,W009,7
 
 #Fegyvertípus
 Id,Név

@@ -147,7 +147,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             var upgrades = _gameData.Weapons.Where(candidate =>
                 string.Equals(candidate.BaseWeaponId, current.Id, StringComparison.OrdinalIgnoreCase) &&
                 candidate.Rarity != ItemRarity.Legendary && candidate.MagicPower <= Math.Max(1, character.Level / 5) &&
-                candidate.CanBeEquippedBy(character.CharacterClass.Id)).ToList();
+                candidate.CanBeEquippedBy(character.CharacterClass.Id, character.Abilities.Strength)).ToList();
             if (upgrades.Count > 0) character.EquipWeapon(slot, upgrades[_random.Next(upgrades.Count)]);
         }
 
@@ -194,7 +194,8 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
     {
         var allowLegendary = character.Level >= 15 && _random.NextDouble() < 0.02;
         var maximumMagicPower = Math.Clamp(character.Level / 5, 0, 3);
-        var usableWeapons = _gameData.Weapons.Where(weapon => weapon.CanBeEquippedBy(character.CharacterClass.Id) &&
+        var usableWeapons = _gameData.Weapons.Where(weapon =>
+            weapon.CanBeEquippedBy(character.CharacterClass.Id, character.Abilities.Strength) &&
             IsEquipmentTierAvailable(weapon, maximumMagicPower, allowLegendary)).ToList();
         if (usableWeapons.Count > 0)
         {
