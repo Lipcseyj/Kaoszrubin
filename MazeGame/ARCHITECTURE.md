@@ -35,6 +35,8 @@ Egy bossfaj legyőzése pontosan egyszer ad aranykulcsot, ezért ismételt péld
 
 Amikor egy boss mezője először ténylegesen láthatóvá válik, modális bossbemutató ablak jelenik meg. Az ablak a varázsválasztóhoz hasonlóan kizárólag a térkép fölé rajzolódik: előtte elmenti az érintett térképcellák vizuális állapotát, bezáráskor pedig célzottan csak ezeket állítja vissza. A karakterlap és a teljes konzol újrarajzolása nem szükséges. A már bemutatott bossazonosítók szintén a teljes játékmentés részei. Az ablakok jelenleg cserélhető helykitöltő történetszöveget használnak; a részletes történetek később kerülnek be.
 
+Új játék indításakor ugyanezzel a térképoverlay-mechanizmussal jelenik meg a Káoszrubin eredetét, Aurelios Máguskirály megbízását, Vhar-Zul fenyegetését és a kiválasztott Kulcshordozók küldetését elmesélő nyitófejezet. A tizenkettedik kulcs megszerzésekor külön második fejezet nyílik: a zárak feloldódnak, és feltárul a Káoszrubinhoz vezető huszonegy további szint. Ez mérföldkő, nem játékbefejezés.
+
 A megoldás fő felelősségi területei:
 
 - **indítás és menü:** az adatok betöltése, karakterkezelés és játékindítás;

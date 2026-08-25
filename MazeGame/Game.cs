@@ -12,6 +12,25 @@ namespace MazeGame;
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
 public sealed class Game
 {
+    private static readonly IReadOnlyList<string> CampaignIntroduction =
+    [
+        "Az Aranykor hajnalán négy ősi elementálmágus őrizte a világ egyensúlyát: Pyranthos, a Lángok Atyja; Nymara, a Mélytengerek Asszonya; Goram, a Hegyek Szíve; és Zephyriel, az Ég Vándora. Együtt alkották meg a Káoszrubint, amelyben tűz, víz, föld és szél ereje egyetlen, lüktető drágakővé forrt.",
+        "A rubin hatalma azonban nagyobbnak bizonyult alkotói bölcsességénél. A négy szövetséges egymás ellen fordult, palotáik elégtek, tengereik felforrtak, hegyeik meghasadtak. A végső összecsapásban Zephyriel ragadta magához a követ, és mielőtt társai elérhették volna, egy másik dimenzióba rejtette: a folyton változó Káoszlabirintusba.",
+        "Zephyriel tizenkét aranylakatot kovácsolt a dimenzió kapujára. Mindegyikhez egyetlen aranykulcs tartozik, s azokat a labirintus legfélelmetesebb őrzőire bízta. Aki mind a tizenkettőt megszerzi, megnyithatja a Rubin Útját — és kezébe veheti azt a hatalmat, amely birodalmakat emelhet fel vagy törölhet el.",
+        "Most Vhar-Zul, a Sötét Úr is a Káoszrubint keresi. Árnyékhadseregei már áttörték a dimenzió peremét. Ha ő ér előbb a kőhöz, nem marad királyság, amely ellenállhatna neki.",
+        "Aurelios Máguskirály ezért hívatott benneteket a Csillagtoronyba. Jósai, a Csillagszeműek ugyanazt a jelet látták mind a hét éjszakai égen: tizenkét aranyfény között a ti alakotok állt. A jóslat szerint ti vagytok a Kulcshordozók — az egyetlenek, akik végigjárhatják a kaotikus szinteket anélkül, hogy a dimenzió elnyelné őket.",
+        "Nem indultok teljesen egyedül. Aurelios ügynököket küldött elétek: kereskedőket, mestereket, gyógyítókat és titkok tudóit. A Káoszlabirintus fogadóiban várnak majd rátok, ahol a világok közötti vihar rövid időre elcsendesedik.",
+        "Gyűjtsétek össze a tizenkét aranykulcsot. Előzzétek meg Vhar-Zult. Találjátok meg a Káoszrubint — és amikor eljön az idő, döntsétek el, méltó volt-e Aurelios bizalma."
+    ];
+
+    private static readonly IReadOnlyList<string> TwelveKeysStory =
+    [
+        "A tizenkettedik boss elbukik. Az utolsó aranykulcs a levegőbe emelkedik, és társai felelnek hívására: tizenkét fénypont kering körülöttetek, akár egy aranyból rajzolt csillagkép.",
+        "A kulcsok egyszerre fordulnak el láthatatlan zárakban. A Káoszlabirintus megrázkódik. Távoli falak omlanak le, eddig nem létező lépcsők nőnek ki a semmiből, és a mélységből olyan harangszó kondul, amelyet nem füllel, hanem a csontjaitokban hallotok.",
+        "Ekkor megjelenik előttetek Aurelios Máguskirály áttetsző képmása. „Beteljesítettétek a Csillagszeműek első jóslatát” — mondja. — „De a kulcsok csak a külső pecséteket törték fel. Zephyriel a Rubinhoz vezető utat huszonegy halálos szint mögé rejtette. Ami mögöttetek van, próba volt. Ami előttetek áll, háború.”",
+        "A látomás mögött egy másik alak is kirajzolódik: Vhar-Zul fekete koronája, majd két parázsló szem. A Sötét Úr nevetése végigviharzik a dimenzión. Ő is megérezte a zárak felnyílását — és most már pontosan tudja, merre vezet a Rubin Útja.",
+        "A tizenkét kulcs egyetlen ragyogó pecsétté olvad a parti előtt. A kapu túloldalán huszonegy új, brutális világ vár, mind közelebb a Káoszrubin lüktető fényéhez. A küldetés első célja teljesült. A valódi verseny most kezdődik."
+    ];
     private const int ZombieSpeed = 2;
     private const int ZombieMoveIntervalMilliseconds = 700;
     private const int MinimumPartyMoveDelayMilliseconds = 250;
@@ -262,7 +281,12 @@ public sealed class Game
     public void Run()
     {
         Console.CursorVisible = false;
-        if (_loadedState is null) StartNewMaze();
+        if (_loadedState is null)
+        {
+            StartNewMaze();
+            _renderer.DrawStoryOverlay("A KÁOSZRUBIN KRÓNIKÁJA", "I. fejezet — A tizenkét aranykulcs",
+                CampaignIntroduction, _maze, _fogOfWar, _player.Position);
+        }
         else RestoreGame(_loadedState);
         if (_loadedState is null) _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         try
@@ -2494,6 +2518,9 @@ public sealed class Game
             : string.Empty;
         _renderer.DrawInventoryMessage($"🔑 Aranykulcs megszerezve: {enemy.Name}. " +
             $"Kulcsok: {_collectedBossKeyIds.Count}/{MonsterIds.Bosses.Count}.{completed}", ConsoleColor.Yellow);
+        if (_collectedBossKeyIds.Count == MonsterIds.Bosses.Count)
+            _renderer.DrawStoryOverlay("A TIZENKÉT ZÁR FELNYÍLIK", "II. fejezet — A Rubin Útja",
+                TwelveKeysStory, _maze, _fogOfWar, _player.Position);
     }
 
     private void StartBattle(Enemy enemy)
