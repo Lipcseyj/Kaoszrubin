@@ -375,6 +375,25 @@ Az implementált mágushatások lefedik az egycélpontos és területi sebzést,
 
 Az implementált papi hatások gyógyítanak, Mérgezést/Betegséget/Vérzést tisztítanak, valamint találatot, fizikai sebzést, kezdeményezést, védelmet és sebzéscsökkentést adnak. A Szent fény, Szent csapás, Szent ítélet és Isteni harag élőholt (`MA001`) vagy démoni (`MA010`) célpont ellen 50%-kal nagyobbat sebez. A Védelem a gonosztól kizárólag ilyen támadó ellen ad +4 védelmet, 30% sebzéscsökkentést és mérgezés-/betegségvédelmet. Az Őrangyal az első halálos ellenséges csapást 1 HP-n kivédi és utólag gyógyít. A Szentély a varázslás pillanatában három mezőn belüli élő tagokra kerül; 50% sebzéscsökkentést és súlyosállapot-védelmet ad, de az adott karakter első fegyveres vagy támadó varázsakciójánál megszűnik.
 
+### Aktív karakterbuffok és ikonjaik
+
+A karakterlap `Áll:` sora a hagyományos állapotok mellett az aktív pozitív varázshatásokat is emojival jelzi. Az időtartam karakterenként, akciókban fogy: csatában az adott karakter saját harci akciója egy akció, felfedezéskor pedig ugyanazon karakter minden tizedik sikeres térképi lépése egy akció. A vezér és az automatikus partitagok külön lépésszámlálót használnak; a 0–9 közötti részszámláló a karaktermentés része. Sikertelen mozgás, inventorykezelés és információs képernyő nem fogyaszt időtartamot. Az Isteni ítélettel megerősített papi varázslat az alábbi alap-időtartamokat kétszerezi.
+
+| Ikon | Aktív hatás | Forrás, érték és alap-időtartam |
+|---|---|---|
+| 👻 | Láthatatlanság | `Láthatatlanság`: 3 akció. Az ellenfél támadása automatikusan hibázik; az első saját támadás +5 találatot kap, majd a buff megszűnik. |
+| 🛡️ | Védelmi bónusz | `Arkán páncél`: +5/5 akció; `Áldás`: +1/4; `Szent pajzs`: +5/4; `Isteni védelem`: +3/4. |
+| 🪨 | Fizikai sebzéscsökkentés | `Kőbőr`: 50%/4 akció; `Isteni védelem`: 25%/4 akció. |
+| 🩸🚫 | Vérzésimmunitás | `Kőbőr`: 4 akcióig megakadályozza a Vérzés felkerülését. |
+| 🎯 | Találati bónusz | `Áldás`: +1/4 akció; `Bátorság imája`: +2/5; `Mézsör` vagy `Fűszeres bor`: +1/10. |
+| ⚔️✨ | Fizikai sebzésbónusz | `Bátorság imája`: +2/5 akció. |
+| ⚡ | Kezdeményezési bónusz | `Áldás`: +2/4 akció; `Bátorság imája`: +3/5; `Mézsör` vagy `Fűszeres bor`: +2/10. |
+| ✝️🛡️ | Védelem a gonosztól | 5 akcióig élőholt és démoni támadó ellen +4 védelem, 30% sebzéscsökkentés, továbbá mérgezés- és betegségimmunitás. |
+| 👼 | Őrangyal | 5 akcióig várakozik; az első halálos csapást kivédi, gyógyít, majd azonnal elfogy. |
+| ⛪ | Szentély | 4 akcióig 50% sebzéscsökkentést és Mérgezés/Betegség/Vérzés elleni immunitást ad; a védett karakter első fegyveres vagy támadó varázsakciójánál azonnal megszűnik. |
+
+Azonos típusú, különböző forrásból származó számszerű buffok összeadódnak. Ugyanaz a forrás ugyanazt a hatást újra alkalmazva frissíti a bejegyzést. Emiatt a Mézsör és a Fűszeres bor külön-külön frissíthető és egymással halmozható; mindkettő egyszerre adja a 🎯 +1 találatot és a ⚡ +2 kezdeményezést 10 akcióra.
+
 A `Feltámasztás` 25% HP-val és 0 mannával, az `Igazi feltámasztás` teljes HP-val és 50% mannával teszi vissza ugyanazt a `LiveCharacter` példányt a tetemhez legközelebbi szabad mezőre. A karakter egy pályán legfeljebb egyszer térhet vissza; ez a jelző és a papi Isteni ítélet 0–4 közötti varázslatciklusa a karaktermentés része. Új pálya indításakor a feltámasztási korlát törlődik. Az Isteni ítélet ötödik papi varázslata célkiválasztáskor 0 mannába kerül; a csatabeli koncentrációs kudarc ezt az ingyenes alkalmat is elfogyasztja. Siker esetén a sebzés és gyógyítás kétszeres, az időzített hatások időtartama kétszeres, de a tisztítás és feltámasztás önmagában nem duplázódik.
 
 ### Varázslattanulás és memorizálás
@@ -425,7 +444,7 @@ Az `I` a kijelölt tárgy összes jelenleg ismert adatát az alsó üzenetnapló
 
 Az `I` ezen kívül kijelzi a Sima/Varázs/Legendás ritkaságot, a mágikus erőt és az alapárat. Használati tárgynál a hatást és annak számszerű értékét is megmutatja.
 
-Az `Enter` a megtekintett karakter kijelölt hátizsáktárgyát használja el. Az ételek 15–100 élelem-, az italok 30–40 vízpontot töltenek; a három gyógyital 20/50/120 HP-t, a három varázsital 15/40/90 mannát állít helyre. Az ellenméreg a mérgezést, a gyógyfüves orvosság a betegséget, a kötés a vérzést szünteti meg. A tárgy csak sikeres, tényleges hatás esetén fogy el: teljes HP-n nem vész el gyógyital, nem varázshasználónál varázsital, illetve hiányzó állapotnál gyógyító kellék.
+Az `Enter` a megtekintett karakter kijelölt hátizsáktárgyát használja el. Az ételek 15–100 élelem-, az egyszerű italok 30–40 vízpontot töltenek; a Gyógytea 60 vizet és 5–15 HP-t ad. A titkos raktár Mézsöre és Fűszeres bora 40 víz mellett 10 akcióra 🎯 +1 találatot és ⚡ +2 kezdeményezést biztosít, ezért teljes víznél is elfogyasztható. A három gyógyital 20/50/120 HP-t, a három varázsital 15/40/90 mannát állít helyre. Az ellenméreg a mérgezést, a gyógyfüves orvosság a betegséget, a kötés a vérzést szünteti meg. A tárgy csak sikeres, tényleges hatás esetén fogy el: teljes HP-n nem vész el gyógyital, nem varázshasználónál varázsital, illetve hiányzó állapotnál gyógyító kellék.
 
 Ha a kijelölés egy partitárs sorára esik akkor az `I` a társ nevét és magyar mozgásprofilját írja az üzenetnaplóba.
 
@@ -686,7 +705,7 @@ Az `AsciiPortraits` mind a hat karakterosztályhoz (`C001`–`C006`) és az els�
 
 A `Shift+F1` a fő játékhurokban, karakterlapfókuszban, varázsválasztás/célzás alatt és a vezéri csata billentyűvárakozásakor is megnyitja ugyanazt a súgóképernyőt, mint a főmenü. A sima `F1` az első varázslat-gyorshely. Bezáráskor a játék az aktuális térképet és karakterlapot rajzolja vissza; a futásidejű játékállapot nem változik.
 
-A karakterlap a faj és osztály alatt egy-egy sort tart fenn a tehetségeknek és az aktív állapotoknak. Ha a nevek együtt nem férnek el a 27 karakteres panelen, minden elem azonos rendelkezésre álló hosszra rövidül, így az összes aktív bejegyzés látható marad.
+A karakterlap a faj és osztály alatt egy-egy sort tart fenn a tehetségeknek és az aktív állapotoknak. Az `Áll:` sor a negatív állapotok CSV-s ikonjai mellett a fenti buffemojikat is megjeleníti, hogy a hatás a súgó jelmagyarázata alapján azonosítható legyen. Ha a nevek együtt nem férnek el a 27 karakteres panelen, minden elem azonos rendelkezésre álló hosszra rövidül, így az összes aktív bejegyzés látható marad.
 
 A pálya mérete a renderer játékterének méretéből származik, ezért a generálás és a konzolelrendezés jelenleg közvetetten össze van kötve.
 

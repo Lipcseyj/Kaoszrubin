@@ -317,6 +317,18 @@ public sealed class MainMenu
         Console.WriteLine("Ctrl + Shift + X: 5000 XP minden partitagnak (fejlesztői mód)");
         Console.WriteLine("Ládára lépés: arany felvétele | Kijárat (⌂): következő labirintusszint");
         Console.WriteLine();
+        WriteLine("BUFFOK ÉS IDŐTARTAM", ConsoleColor.Magenta);
+        Console.WriteLine("Akció: csatában a karakter saját köre; térképen ugyanazon karakter minden 10. sikeres lépése.");
+        Console.WriteLine("A partitagok saját akciószámlálót használnak. Az Isteni ítélet megduplázza a papi buff időtartamát.");
+        Console.WriteLine("👻 Láthatatlanság: 3 akció; támadásig célpontvédelem, az első támadásra +5 találat.");
+        Console.WriteLine("🛡️ Védelem: Arkán páncél +5/5; Áldás +1/4; Szent pajzs +5/4; Isteni védelem +3/4 akció.");
+        Console.WriteLine("🪨 Sebzéscsökkentés: Kőbőr 50%/4; Isteni védelem 25%/4 akció. 🩸🚫 Kőbőr: vérzésvédelem/4.");
+        Console.WriteLine("🎯 Találat: Áldás +1/4; Bátorság imája +2/5; Mézsör/Fűszeres bor +1/10 akció.");
+        Console.WriteLine("⚔️✨ Sebzés: Bátorság imája +2/5 akció. ⚡ Kezdeményezés: Áldás +2/4; Bátorság +3/5; ital +2/10.");
+        Console.WriteLine("✝️🛡️ Gonosz elleni védelem: +4 védelem, 30% csökkentés és állapotvédelem 5 akcióig.");
+        Console.WriteLine("👼 Őrangyal: 5 akcióig kivédi az első halálos csapást és gyógyít; aktiváláskor elfogy.");
+        Console.WriteLine("⛪ Szentély: 50% sebzéscsökkentés és állapotvédelem 4 akcióig; saját támadáskor megszűnik.");
+        Console.WriteLine();
         WriteLine("CSATA", ConsoleColor.Red);
         Console.WriteLine("Saját kör: Space - fegyver | V/F1-F8 - varázslás; választás csak használható varázslatnál jelenik meg.");
         Console.WriteLine("Harci varázslási kudarc: max(0, 30 - Intelligencia - Ügyesség)%; a manna és az akció elvész.");
