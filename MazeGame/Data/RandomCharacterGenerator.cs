@@ -1,6 +1,7 @@
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
+using MazeGame.Domain.Magic;
 
 namespace MazeGame.Data;
 
@@ -17,6 +18,17 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         RaiseToRandomLevel(character);
         AddRandomPerks(character);
         FillRandomEquipment(character);
+        return character;
+    }
+
+    public LiveCharacter CreateDevelopmentCharacter(CharacterClassDefinition characterClass,
+        IReadOnlyCollection<string> usedNames)
+    {
+        var character = CreateLevelOne(characterClass, usedNames);
+        RaiseToRandomLevel(character);
+        AddRandomPerks(character);
+        FillRandomEquipment(character);
+        EquipDevelopmentMagicItems(character);
         return character;
     }
 
@@ -39,6 +51,24 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             return character;
         }
         throw new InvalidOperationException("A jelenlegi játékadatokból nem generálható véletlen partitárs.");
+    }
+
+    private LiveCharacter CreateLevelOne(CharacterClassDefinition characterClass, IReadOnlyCollection<string> usedNames)
+    {
+        for (var attempt = 0; attempt < 2_000; attempt++)
+        {
+            var race = _gameData.Races[_random.Next(_gameData.Races.Count)];
+            var rolledAbilities = RollAbilities();
+            var finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
+            if (!finalAbilities.MeetsMinimum(characterClass.MinimumAbilities)) continue;
+            var character = LiveCharacterFactory.Create(ChooseName(characterClass.Id, usedNames), race, characterClass,
+                rolledAbilities, _random.Next(1, 16), _random.Next(1, 16), _gameData,
+                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)]);
+            character.SetNpcBehavior(BehaviorFor(characterClass.Id));
+            SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
+            return character;
+        }
+        throw new InvalidOperationException($"A(z) {characterClass.Name} osztályhoz nem sikerült fejlesztői karaktert generálni.");
     }
 
     /// <summary>A fogadóban egy előre kiválasztott osztályú, a vezér szintjéhez igazított zsoldost készít.</summary>
@@ -190,6 +220,35 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         var targetCount = _random.Next(3, LiveCharacter.MaximumBackpackItemCount + 1);
         while (character.Backpack.Count(item => item is not null) < targetCount)
             character.AddToBackpack(allItems[_random.Next(allItems.Count)]);
+    }
+
+    private void EquipDevelopmentMagicItems(LiveCharacter character)
+    {
+        for (var index = 0; index < LiveCharacter.MaximumMagicItemCount; index++)
+            character.SetInventoryItem(InventorySlotKind.MagicItem, index, null);
+
+        var wand = RandomMagicItem(character, item => item.Kind == MagicItemKind.Wand);
+        var usableScrolls = _gameData.MagicItems.Where(item => item.Kind == MagicItemKind.Scroll &&
+            item.CanBeEquippedBy(character.CharacterClass.Id) && item.SpellId is not null &&
+            SpellcastingRules.CanUseCastingItem(character, item, _gameData.GetSpell(item.SpellId))).ToList();
+        var scrollOrSecondWand = usableScrolls.Count > 0
+            ? usableScrolls[_random.Next(usableScrolls.Count)]
+            : RandomMagicItem(character, item => item.Kind == MagicItemKind.Wand);
+        var passive = RandomMagicItem(character, item => item.Kind is MagicItemKind.Ring or MagicItemKind.Amulet);
+
+        character.AddMagicItem(wand);
+        character.AddMagicItem(scrollOrSecondWand);
+        character.AddMagicItem(passive);
+    }
+
+    private MagicItemDefinition RandomMagicItem(LiveCharacter character, Func<MagicItemDefinition, bool> predicate)
+    {
+        var candidates = _gameData.MagicItems.Where(item => predicate(item) &&
+            item.CanBeEquippedBy(character.CharacterClass.Id) &&
+            !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item)).ToList();
+        if (candidates.Count == 0)
+            throw new InvalidOperationException($"Nincs megfelelő fejlesztői varázstárgy a(z) {character.CharacterClass.Name} osztályhoz.");
+        return candidates[_random.Next(candidates.Count)];
     }
 
     private static bool IsEquipmentTierAvailable(IItemDefinition item, int maximumMagicPower, bool allowLegendary) =>

@@ -348,9 +348,14 @@ public sealed class Game
                         TriggerDeveloperLevelUp();
                         continue;
                     }
-                    if (IsFillPartyShortcut(keyInfo))
+                    if (IsFillPartySetYShortcut(keyInfo))
                     {
-                        FillPartyForDevelopment();
+                        FillPartyForDevelopment([CharacterClassIds.Harcos, CharacterClassIds.Mágus, CharacterClassIds.Lovag], "Y");
+                        continue;
+                    }
+                    if (IsFillPartySetXShortcut(keyInfo))
+                    {
+                        FillPartyForDevelopment([CharacterClassIds.Barbár, CharacterClassIds.Tolvaj, CharacterClassIds.Pap], "X");
                         continue;
                     }
                     if (IsAddLevelOnePartyMemberShortcut(keyInfo))
@@ -361,11 +366,6 @@ public sealed class Game
                     if (IsDeveloperPhasingShortcut(keyInfo))
                     {
                         ToggleDeveloperPhasing();
-                        continue;
-                    }
-                    if (IsGrantPartyExperienceShortcut(keyInfo))
-                    {
-                        GrantPartyExperienceForDevelopment();
                         continue;
                     }
 
@@ -2550,7 +2550,7 @@ public sealed class Game
     private sealed record SpellExecutionResult(int DamageToCurrentEnemy, int ExtraPlayerActions, string Summary);
     private sealed record SpellResolutionResult(bool Applies, bool Half, bool Critical, string Text);
 
-    private void FillPartyForDevelopment()
+    private void FillPartyForDevelopment(IReadOnlyList<string> characterClassIds, string setName)
     {
         if (CharacterRoster.Party.Members.Count >= Party.MaximumSize)
         {
@@ -2559,17 +2559,22 @@ public sealed class Game
         }
 
         var generator = new RandomCharacterGenerator(_gameData, _random);
-        while (CharacterRoster.Party.Members.Count < Party.MaximumSize)
+        var added = new List<LiveCharacter>();
+        foreach (var characterClassId in characterClassIds)
         {
-            var member = generator.Create(CharacterRoster.Characters.Select(character => character.Name).ToList());
+            if (CharacterRoster.Party.Members.Count >= Party.MaximumSize) break;
+            var member = generator.CreateDevelopmentCharacter(_gameData.GetCharacterClass(characterClassId),
+                CharacterRoster.Characters.Select(character => character.Name).ToList());
             CharacterRoster.Add(member);
             CharacterRoster.Party.Add(member);
+            added.Add(member);
         }
         PlacePartyMembersNear(_player.Position);
         foreach (var member in _maze.PartyMembers) _fogOfWar.RevealFrom(_maze, member.Position);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawDeveloperMessage("Fejlesztői mód: a parti véletlen társakkal feltöltve (4/4).");
+        _renderer.DrawDeveloperMessage($"Fejlesztői mód: {setName} osztályszett hozzáadva: " +
+            string.Join(", ", added.Select(member => $"{member.Name} ({member.CharacterClass.Name})")) + ".");
     }
 
     private void AddLevelOnePartyMemberForDevelopment()

@@ -1,5 +1,20 @@
 # MazeGame architektúra
 
+## Ténylegesen működő fejlesztői funkciók
+
+Az alábbi rejtett gyorsbillentyűk közvetlenül be vannak kötve a játék fő bemeneti ciklusába:
+
+- `Ctrl+Shift+U`: a teljes térkép megjelenítésének be- és kikapcsolása a felfedezettségi adatok módosítása nélkül;
+- `Ctrl+Shift+R`: az aktuális futam következő, újonnan generált labirintusának indítása;
+- `Ctrl+Shift+E`: a partyvezér teleportálása a kijárathoz legközelebbi szabad mezőre;
+- `Ctrl+Alt+S`: a partyvezér azonnali felléptetése a következő szintre a hiányzó XP megadásával;
+- `Ctrl+Shift+Y`: a szabad partihelyek feltöltése Harcos–Mágus–Lovag sorrendben;
+- `Ctrl+Alt+X`: a szabad partihelyek feltöltése Barbár–Tolvaj–Pap sorrendben;
+- `Ctrl+Shift+Í`: egy véletlen osztályú, első szintű NPC hozzáadása, ha van szabad partihely;
+- `Ctrl+Shift+I`: a falakon való áthaladás be- és kikapcsolása.
+
+A két rögzített osztályszett magasabb szintű, véletlenül generált karakterei három felszerelt varázstárgyat kapnak. A Mágus, Pap és Lovag egy pálcát, egy számukra használható tekercset és egy passzív gyűrűt vagy amulettet visel. A Harcos, Barbár és Tolvaj tekercs helyett egy második pálcát kap, így a tekercsek normál kasztkorlátozása változatlan marad.
+
 ## Áttekintés
 
 A MazeGame egy .NET 10 konzolos, egyjátékos labirintusjáték. Az alkalmazás adatvezérelt: a fajok, osztályok, ellenfelek, felszerelések, varázslatok és fejlődési küszöbök az `adatok.csv` fájlból töltődnek be. A karakterlista JSON-fájlban, a teljes futamok pedig időbélyeges `.save` állományokban maradnak meg.
@@ -529,13 +544,13 @@ Ha a kijelölés egy partitárs sorára esik akkor az `I` a társ nevét és mag
 
 A `D` a kijelölt tárgyat a parti vezetőjének aktuális térképmezőjére dobja. A `GroundItemPile` egy pozíción tetszőleges számú tárgyat tárol, a térképen cián `◆` jel mutatja; a halom nem akadályozza a mozgást. A földi halmok a labirintusszint futásidejű állapotához tartoznak, új pályán megszűnnek, a teljes játékmentésben viszont megmaradnak. A vezető a halmon állva `K`-val próbálja a tárgyakat az élő parti hátizsákjaiba venni, a vezértől kezdve; ami továbbra sem fér el, a földön marad.
 
-A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű négy főre tölti a partit. A `RandomCharacterGenerator` minden társhoz:
+A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű Harcos–Mágus–Lovag, a `Ctrl+Alt+X` pedig Barbár–Tolvaj–Pap sorrendben tölti fel a parti szabad helyeit. A `RandomCharacterGenerator` minden társhoz:
 
-- érvényes véletlen faj–képesség–osztály kombinációt készít;
+- a gyorsbillentyűhöz rögzített osztály mellett érvényes véletlen faj–képesség kombinációt készít;
 - az osztály CSV-s névkészletéből lehetőleg még nem használt nevet választ;
 - 2–30. szint közé fejleszti a normál HP-/mannadobásokkal;
 - szintjének megfelelő eséllyel választ tehetségeket;
-- kizárólag a kasztja által használható véletlen fegyvereket és páncélt, továbbá varázstárgyakat és korlátozás nélküli hátizsáktartalmat ad; kétkezes első fegyvernél a második hely üres marad;
+- véletlen fegyvereket, páncélt és hátizsáktartalmat ad; a három varázstárgyhelyre a varázshasználóknál egy pálca, egy használható tekercs és egy passzív tárgy, másoknál két pálca és egy passzív tárgy kerül; kétkezes első fegyvernél a második hely üres marad;
 - véletlen NPC-mozgásprofilt rendel hozzá.
 
 A rejtett `Ctrl+Shift+Í` fejlesztői gyorsbillentyű — ha van szabad hely — pontosan egy új NPC-t ad a partihoz. A karakter 1. szintű marad és kizárólag az osztály `#Osztály kezdőfelszerelés` CSV-s szabálya szerinti alapfelszerelést kapja; véletlen magasabb szintet és extra felszerelést nem.

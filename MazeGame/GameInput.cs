@@ -52,11 +52,15 @@ internal static class GameInput
 
     public static bool IsLevelUpShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.S &&
-        HasControlShift(keyInfo);
+        HasControlAlt(keyInfo);
 
-    public static bool IsFillPartyShortcut(ConsoleKeyInfo keyInfo) =>
+    public static bool IsFillPartySetYShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.Y &&
         HasControlShift(keyInfo);
+
+    public static bool IsFillPartySetXShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.X &&
+        HasControlAlt(keyInfo);
 
     public static bool IsAddLevelOnePartyMemberShortcut(ConsoleKeyInfo keyInfo) =>
         (keyInfo.Key is ConsoleKey.Oem102 or ConsoleKey.Oem8 || keyInfo.KeyChar is 'í' or 'Í') &&
@@ -66,11 +70,11 @@ internal static class GameInput
         keyInfo.Key == ConsoleKey.I &&
         HasControlShift(keyInfo);
 
-    public static bool IsGrantPartyExperienceShortcut(ConsoleKeyInfo keyInfo) =>
-        keyInfo.Key == ConsoleKey.X &&
-        HasControlShift(keyInfo);
-
     private static bool HasControlShift(ConsoleKeyInfo keyInfo) =>
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Shift)) ==
         (ConsoleModifiers.Control | ConsoleModifiers.Shift);
+
+    private static bool HasControlAlt(ConsoleKeyInfo keyInfo) =>
+        (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) ==
+        (ConsoleModifiers.Control | ConsoleModifiers.Alt);
 }

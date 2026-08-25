@@ -316,7 +316,7 @@ public sealed class MainMenu
         Console.WriteLine("P: pihenés (pályánként egyszer, ellenségmentes és kulcsra zárt szobában)");
         Console.WriteLine("Partiparancs: H - helyben maradás be/ki | M - 10 másodperces szétszóródás");
         Console.WriteLine("Ctrl + Shift + U: teljes térkép felfedése/elrejtése | Ctrl + Shift + R: új pálya (fejlesztői mód)");
-        Console.WriteLine("Ctrl + Shift + X: 5000 XP minden partitagnak (fejlesztői mód)");
+        Console.WriteLine("Ctrl + Shift + Y: Harcos–Mágus–Lovag szett | Ctrl + Alt + X: Barbár–Tolvaj–Pap szett (fejlesztői mód)");
         Console.WriteLine("Ládára lépés: arany felvétele | Kijárat (⌂): következő labirintusszint");
         Console.WriteLine();
         WriteLine("BUFFOK ÉS IDŐTARTAM", ConsoleColor.Magenta);
