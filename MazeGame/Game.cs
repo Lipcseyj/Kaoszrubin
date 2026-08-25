@@ -2479,9 +2479,9 @@ public sealed class Game
             _seenBossIds.Add(boss.Definition.Id);
             _renderer.DrawBossIntroduction(boss.Definition,
                 $"A labirintus mélyén {boss.Name} őrzi a tizenkét aranykulcs egyikét. " +
-                "Jelenléte eltorzítja a környező folyosókat, és a parti érzi, hogy ez a találkozás a küldetés része.");
+                "Jelenléte eltorzítja a környező folyosókat, és a parti érzi, hogy ez a találkozás a küldetés része.",
+                _maze, _fogOfWar, _player.Position);
         }
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
     }
 
     private void AwardBossKey(Enemy enemy)

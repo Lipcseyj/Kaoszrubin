@@ -156,10 +156,10 @@ public sealed class ConsoleRenderer
 
     public void SetGoldenKeyCount(int count) => _goldenKeyCount = Math.Clamp(count, 0, MonsterIds.Bosses.Count);
 
-    public void DrawBossIntroduction(EnemyDefinition boss, string story)
+    public void DrawBossIntroduction(EnemyDefinition boss, string story, Maze maze, FogOfWar fogOfWar,
+        Position playerPosition)
     {
-        ResetColorCache();
-        Console.Clear();
+        _spellCastingOverlaySnapshot = null;
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("⚔️👑  BOSS KÖZELEG  👑⚔️", ConsoleColor.Red),
@@ -173,8 +173,9 @@ public sealed class ConsoleRenderer
             (string.Empty, ConsoleColor.Gray),
             ("Nyomj Entert a folytatáshoz...", ConsoleColor.Green)
         };
-        DrawCenteredFrame(InnRumorFrameWidth, lines);
+        DrawSpellCastingOverlay(InnRumorFrameWidth, lines, maze, fogOfWar, playerPosition);
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
+        RestoreSpellCastingOverlay();
     }
 
     /// <summary>

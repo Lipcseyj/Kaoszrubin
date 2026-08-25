@@ -33,7 +33,7 @@ Az `EnemyDefinition.IsBoss` jelöli a tizenkét bossfajt. Ezek: Patkányember, G
 
 Egy bossfaj legyőzése pontosan egyszer ad aranykulcsot, ezért ismételt példány vagy mentés-visszatöltés nem sokszorozhatja a jutalmat. A kulcsok nem inventorytárgyak: a játékállás az összegyűjtött bossazonosítókat tárolja, a karakterlap pedig a labirintusszint mellett `🔑 n/12` formában mutatja az előrehaladást. A tizenkettedik kulcs megszerzése külön cél-teljesítési üzenetet ad.
 
-Amikor egy boss mezője először ténylegesen láthatóvá válik, modális bossbemutató ablak jelenik meg. A már bemutatott bossazonosítók szintén a teljes játékmentés részei. Az ablakok jelenleg cserélhető helykitöltő történetszöveget használnak; a részletes történetek később kerülnek be.
+Amikor egy boss mezője először ténylegesen láthatóvá válik, modális bossbemutató ablak jelenik meg. Az ablak a varázsválasztóhoz hasonlóan kizárólag a térkép fölé rajzolódik: előtte elmenti az érintett térképcellák vizuális állapotát, bezáráskor pedig célzottan csak ezeket állítja vissza. A karakterlap és a teljes konzol újrarajzolása nem szükséges. A már bemutatott bossazonosítók szintén a teljes játékmentés részei. Az ablakok jelenleg cserélhető helykitöltő történetszöveget használnak; a részletes történetek később kerülnek be.
 
 A megoldás fő felelősségi területei:
 
