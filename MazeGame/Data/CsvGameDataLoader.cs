@@ -513,7 +513,7 @@ public static class CsvGameDataLoader
     {
         var result = weapons.ToList();
         foreach (var weapon in weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal &&
-                     !string.Equals(weapon.Id, "W005", StringComparison.OrdinalIgnoreCase)))
+                     weapon.Id is not ("W005" or "W014" or "W015")))
         foreach (var upgrade in upgrades)
             result.Add(weapon with
             {
@@ -521,7 +521,7 @@ public static class CsvGameDataLoader
                 Name = weapon.Name + " " + upgrade.NameSuffix,
                 Damage = Increase(weapon.Damage, upgrade.CombatBonus),
                 Description = $"{weapon.Description} Mágikus {upgrade.NameSuffix} változat.",
-                BasePrice = Math.Max(1, (int)Math.Ceiling(weapon.BasePrice * upgrade.PriceMultiplier)),
+                BasePrice = Math.Max(1, (int)Math.Ceiling(weapon.BasePrice * upgrade.PriceMultiplier) + 500),
                 Rarity = ItemRarity.Magic,
                 BaseWeaponId = weapon.Id,
                 MagicPower = upgrade.MagicPower
@@ -541,7 +541,8 @@ public static class CsvGameDataLoader
                 Name = armor.Name + " " + upgrade.NameSuffix,
                 Defense = Increase(armor.Defense, upgrade.CombatBonus),
                 Description = $"{armor.Description} Mágikus {upgrade.NameSuffix} változat.",
-                BasePrice = Math.Max(1, (int)Math.Ceiling(armor.BasePrice * upgrade.PriceMultiplier)),
+                BasePrice = Math.Max(1, (int)Math.Ceiling(armor.BasePrice * upgrade.PriceMultiplier) +
+                    (armor.Id is "A001" or "A002" ? upgrade.MagicPower * 500 : 500)),
                 Rarity = ItemRarity.Magic,
                 BaseArmorId = armor.Id,
                 MagicPower = upgrade.MagicPower

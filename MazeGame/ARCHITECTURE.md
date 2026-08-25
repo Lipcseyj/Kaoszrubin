@@ -328,6 +328,8 @@ Az inventory rögzített helyekből áll: két fegyverhely, egy páncélhely, h�
 
 A fegyverek és páncélok ritkasága `Normal`, `Magic` vagy `Legendary`, a felületen Sima, Varázs és Legendás néven jelenik meg. A CSV-ben minden kézzel felvett felszerelés külön `Kategória`, opcionális `AlapId` és `MágikusErő` mezőt kap. A mágikus erő már adatként, menthető tárgydefiníció részeként rendelkezésre áll; a jelenlegi csatában a mágikus `+N` felszerelések megnövelt sebzés-/védelmi tartománya aktív, az általános mágikus-erő mechanika a későbbi varázsrendszer bővítési pontja.
 
+A generált `+1/+2/+3` fegyverek és páncélok harci tartományának mindkét széle rendre 1/2/3 ponttal nő. Az eddigi 2×/4×/7× alapárhoz általában fix 500 arany mágikus felár adódik. A kámzsa (`A001`) és bőrvért (`A002`) kivétel: feláruk `MágikusErő × 500`, vagyis +1/+2/+3 fokozaton 500/1000/1500 arany. A bunkónak (`W005`), bőrpajzsnak (`W014`) és fapajzsnak (`W015`) nem készül generált mágikus változata.
+
 A `#Tárgybővítések` szekció határozza meg a név-utótagot, harci bónuszt, árszorzót és mágikus erőt. Betöltéskor minden Sima fegyverből és páncélból automatikusan létrejön a három Varázs változat. A `+1`, `+2`, `+3` bónusz a sebzés- vagy védelmi tartomány mindkét végére rákerül; az ár rendre az alapár 2×, 4× és 7× értéke. Így új alapfelszerelés vagy új bővítési fokozat hozzáadásához nem kell C# kódot módosítani.
 
 A CSV ezen felül húsz egyedi nevű Legendás fegyvert és húsz Legendás páncélt tartalmaz. Ezek nem generált átnevezések: külön sebzésük/védelmük, kasztengedélyük, alapfelszerelés-hivatkozásuk, mágikus erejük, leírásuk és áruk van. A katalógus és a mentés már kezeli őket; későbbi pályatárgy-generálás közvetlenül ezekből a definíciókból válogathat majd.
