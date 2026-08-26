@@ -435,6 +435,13 @@ static void WorldSnapshotOnlyContainsRevealedState()
         "A felfedett statikus entitások hiányoznak a world snapshotból.");
     Assert(world.Exit is null && world.RevealedCells.All(cell => fog.IsRevealed(cell.Position)),
         "A world snapshot rejtett kijáratot vagy cellát publikált.");
+    Assert(world.RevealedCells.Single(cell => cell.Position == new Position(2, 1)).ForegroundColor == maze.WallColor,
+        "A world snapshot nem őrizte meg a host falszínét.");
+    Assert(world.Doors.Single().ForegroundColor == ConsoleColor.DarkYellow &&
+           world.Doors.Single().SymbolCodePoint == new Rune('╬').Value,
+        "A world snapshot nem őrizte meg a host ajtószínét vagy ajtójelét.");
+    Assert(world.Enemies.Single().Color != ConsoleColor.Red,
+        "A world snapshot a host erősségfüggő színe helyett fix kliensszínt adott az ellenfélnek.");
     var restored = JsonSerializer.Deserialize<WorldSnapshot>(JsonSerializer.Serialize(world));
     Assert(restored?.Enemies.Single().DefinitionId == "E-VISIBLE",
         "A world snapshot JSON round-trip közben megváltozott.");

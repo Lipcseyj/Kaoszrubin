@@ -9,13 +9,15 @@ public sealed record WorldSnapshot(WorldId WorldId, int Width, int Height, Posit
     IReadOnlyList<WorldEnemySnapshot> Enemies, IReadOnlyList<WorldChestSnapshot> Chests,
     IReadOnlyList<WorldCorpseSnapshot> Corpses, IReadOnlyList<WorldGroundPileSnapshot> GroundPiles);
 
-public sealed record WorldCellSnapshot(Position Position, int TileCodePoint);
+public sealed record WorldCellSnapshot(Position Position, int TileCodePoint,
+    ConsoleColor ForegroundColor = ConsoleColor.Black, ConsoleColor BackgroundColor = ConsoleColor.Black);
 
-public sealed record WorldDoorSnapshot(Position Position, DoorState State);
+public sealed record WorldDoorSnapshot(Position Position, DoorState State, int SymbolCodePoint = '▥',
+    ConsoleColor ForegroundColor = ConsoleColor.Gray, ConsoleColor BackgroundColor = ConsoleColor.Black);
 
 public sealed record WorldEnemySnapshot(WorldEntityId EntityId, string DefinitionId, string Name,
     Position Position, int CurrentHitPoints, int MaximumHitPoints, string? GroupId,
-    EnemyGroupRole GroupRole, IReadOnlyList<string> ActiveEffectTypes);
+    EnemyGroupRole GroupRole, IReadOnlyList<string> ActiveEffectTypes, ConsoleColor Color = ConsoleColor.Red);
 
 public sealed record WorldChestSnapshot(WorldEntityId EntityId, Position Position);
 
@@ -43,12 +45,24 @@ public static class WorldSnapshotProjector
             // A host fejlesztői teljes-felfedése lokális segédeszköz; távoli kliensnek csak ténylegesen felfedett adat mehet.
             if (!fogOfWar.IsRevealed(position)) continue;
             visible.Add(position);
-            cells.Add(new WorldCellSnapshot(position, maze.Tiles[x, y].Value));
+            var tile = maze.Tiles[x, y];
+            var color = tile == maze.WallRune
+                ? maze.WallColor
+                : tile == Maze.ExitMarker ? ConsoleColor.Green : ConsoleColor.Black;
+            cells.Add(new WorldCellSnapshot(position, tile.Value, color));
         }
         bool IsVisible(Position position) => visible.Contains(position);
 
         var doors = maze.Doors.Where(door => IsVisible(door.Position))
-            .Select(door => new WorldDoorSnapshot(door.Position, door.State)).ToArray();
+            .Select(door => new WorldDoorSnapshot(door.Position, door.State, door.Symbol.Value,
+                door.State switch
+                {
+                    DoorState.Locked => ConsoleColor.Red,
+                    DoorState.Open => ConsoleColor.DarkGreen,
+                    DoorState.Closed => ConsoleColor.DarkYellow,
+                    DoorState.Smashed => ConsoleColor.DarkGray,
+                    _ => ConsoleColor.Gray
+                })).ToArray();
         var enemies = maze.Enemies.Where(enemy => IsVisible(enemy.Position)).Select(enemy =>
         {
             var hitPoints = activeBattle is { IsCompleted: false } battle && battle.Enemy == enemy
@@ -56,7 +70,16 @@ public static class WorldSnapshotProjector
                 : enemy.CurrentHitPoints;
             return new WorldEnemySnapshot(enemy.Id, enemy.Definition.Id, enemy.Name, enemy.Position, hitPoints,
                 enemy.Definition.HitPoints ?? hitPoints, enemy.GroupId, enemy.GroupRole,
-                enemy.ActiveSpellEffects.Select(effect => effect.Type.ToString()).ToArray());
+                enemy.ActiveSpellEffects.Select(effect => effect.Type.ToString()).ToArray(),
+                enemy.Definition.StrengthTier switch
+                {
+                    1 => ConsoleColor.Green,
+                    2 => ConsoleColor.Yellow,
+                    3 => ConsoleColor.DarkYellow,
+                    4 => ConsoleColor.Red,
+                    5 => ConsoleColor.Magenta,
+                    _ => ConsoleColor.Gray
+                });
         }).ToArray();
         var chests = maze.TreasureChests.Where(chest => IsVisible(chest.Position))
             .Select(chest => new WorldChestSnapshot(chest.Id, chest.Position)).ToArray();
