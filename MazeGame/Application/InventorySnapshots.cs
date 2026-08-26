@@ -12,7 +12,8 @@ public sealed record InventorySlotSnapshot(InventorySlotKind Kind, int Index, In
 
 /// <summary>A slot hiteles tartalma; a részletes statisztikát a verzióazonos katalógusból kell feloldani.</summary>
 public sealed record InventoryItemSnapshot(string DefinitionId, string Name, ItemCategory Category,
-    ItemRarity Rarity, int Charges, int MaximumCharges, bool IsTwoHanded = false);
+    ItemRarity Rarity, int Charges, int MaximumCharges, bool IsTwoHanded = false,
+    string Description = "", int BasePrice = 0, int MagicPower = 0);
 
 public static class InventorySnapshotProjector
 {
@@ -37,7 +38,7 @@ public static class InventorySnapshotProjector
                 item.Id, item.Name, item.Category, item.Rarity,
                 character.GetInventoryItemCharges(kind, index),
                 item is MagicItemDefinition magic ? magic.MaximumCharges : 0,
-                item is WeaponDefinition { IsTwoHanded: true })));
+                item is WeaponDefinition { IsTwoHanded: true }, item.Description, item.BasePrice, item.MagicPower)));
         }
     }
 }

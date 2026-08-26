@@ -51,7 +51,7 @@ public sealed class CoopGuestScreen
                 if (Console.KeyAvailable)
                 {
                     var key = Console.ReadKey(intercept: true);
-                    if (key.Key == ConsoleKey.Escape && !_inventoryOpen) break;
+                    if (key.Key == ConsoleKey.Escape) break;
                     await HandleInputAsync(client, selected.CharacterId, key.Key, cancellationToken);
                 }
                 await Task.Delay(20, cancellationToken);
@@ -133,16 +133,18 @@ public sealed class CoopGuestScreen
                 command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                     battle.BattleId, battle.TurnId, action.Value);
         }
-        else if (snapshot.Phase is (GameSessionPhase.Exploration or GameSessionPhase.Inn) && key == ConsoleKey.I)
+        else if (snapshot.Phase is (GameSessionPhase.Exploration or GameSessionPhase.Inn) &&
+                 GameInputBindings.IsCharacterSheetToggle(key))
         {
             _inventoryOpen = true;
             _inventorySelection = 0;
             _inventorySource = null;
             Interlocked.Exchange(ref _redrawRequested, 1);
         }
-        else if (snapshot.Phase == GameSessionPhase.Exploration && key == ConsoleKey.G)
+        else if (snapshot.Phase == GameSessionPhase.Exploration && GameInputBindings.CharacterAction(key) is { } action)
         {
-            command = CreatePickUpCommand(client, characterId, snapshot);
+            command = new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                action);
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && TryGetDirection(key, out var direction))
         {
@@ -172,19 +174,20 @@ public sealed class CoopGuestScreen
         var slots = inventory.Slots;
         _inventorySelection = Math.Clamp(_inventorySelection, 0, Math.Max(0, slots.Count - 1));
         GameCommand? command = null;
-        switch (key)
+        if (GameInputBindings.IsCharacterSheetToggle(key))
         {
-            case ConsoleKey.Escape:
-            case ConsoleKey.I:
-                CloseInventory();
-                return;
-            case ConsoleKey.UpArrow when slots.Count > 0:
+            CloseInventory();
+            return;
+        }
+        switch (GameInputBindings.InventoryAction(key))
+        {
+            case InventoryInputAction.MoveUp when slots.Count > 0:
                 _inventorySelection = (_inventorySelection - 1 + slots.Count) % slots.Count;
                 break;
-            case ConsoleKey.DownArrow when slots.Count > 0:
+            case InventoryInputAction.MoveDown when slots.Count > 0:
                 _inventorySelection = (_inventorySelection + 1) % slots.Count;
                 break;
-            case ConsoleKey.Spacebar when slots.Count > 0:
+            case InventoryInputAction.MoveItem when slots.Count > 0:
                 var selected = slots[_inventorySelection];
                 if (_inventorySource is null)
                 {
@@ -201,7 +204,7 @@ public sealed class CoopGuestScreen
                     _inventorySource = null;
                 }
                 break;
-            case ConsoleKey.U when slots.Count > 0:
+            case InventoryInputAction.Use when slots.Count > 0:
                 var useSlot = slots[_inventorySelection];
                 if (useSlot.Kind == InventorySlotKind.Backpack && useSlot.Item is not null)
                     command = new UseInventoryItemCommand(client.PlayerId!.Value, client.NextCommandId(),
@@ -209,7 +212,7 @@ public sealed class CoopGuestScreen
                 else
                     SetMessage("Használható tárgyat a hátizsákban jelölj ki.");
                 break;
-            case ConsoleKey.D when slots.Count > 0 && snapshot.Phase == GameSessionPhase.Exploration:
+            case InventoryInputAction.Drop when slots.Count > 0 && snapshot.Phase == GameSessionPhase.Exploration:
                 var dropSlot = slots[_inventorySelection];
                 if (dropSlot.Item is not null)
                     command = new DropInventoryItemCommand(client.PlayerId!.Value, client.NextCommandId(),
@@ -217,8 +220,13 @@ public sealed class CoopGuestScreen
                 else
                     SetMessage("Az üres slot nem dobható el.");
                 break;
-            case ConsoleKey.G when snapshot.Phase == GameSessionPhase.Exploration:
-                command = CreatePickUpCommand(client, characterId, snapshot);
+            case InventoryInputAction.Inspect when slots.Count > 0:
+                var inspectSlot = slots[_inventorySelection];
+                SetMessage(inspectSlot.Item is null
+                    ? "A kijelölt hely üres."
+                    : $"{inspectSlot.Item.Name} [{inspectSlot.Item.DefinitionId}] — " +
+                      $"ritkaság: {inspectSlot.Item.Rarity}; mágikus erő: {inspectSlot.Item.MagicPower}; " +
+                      $"alapár: {inspectSlot.Item.BasePrice}. {inspectSlot.Item.Description}");
                 break;
         }
         Interlocked.Exchange(ref _redrawRequested, 1);
@@ -233,29 +241,6 @@ public sealed class CoopGuestScreen
         }
     }
 
-    private GameCommand? CreatePickUpCommand(CoopSignalRClient client, CharacterId characterId,
-        SessionSnapshot snapshot)
-    {
-        var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == characterId);
-        var inventory = own?.Inventory;
-        if (own?.Position is not { } position || inventory is null || snapshot.World is not { } world) return null;
-        var pile = world.GroundPiles.FirstOrDefault(candidate => candidate.Position == position);
-        if (pile is null || pile.Items.Count == 0)
-        {
-            SetMessage("Nincs felvehető tárgy ezen a mezőn.");
-            return null;
-        }
-        var destination = inventory.Slots.FirstOrDefault(slot =>
-            slot.Kind == InventorySlotKind.Backpack && slot.Item is null);
-        if (destination is null)
-        {
-            SetMessage("A hátizsák megtelt.");
-            return null;
-        }
-        return new PickUpGroundItemCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-            inventory.Revision, pile.EntityId, pile.Revision, 0, destination.Index);
-    }
-
     private void CloseInventory()
     {
         _inventoryOpen = false;
@@ -267,7 +252,7 @@ public sealed class CoopGuestScreen
     {
         ResetConsole();
         WriteLine($"=== COOP VENDÉG — {selected.Name} ===", ConsoleColor.Yellow);
-        WriteLine($"Kapcsolat: {client.State} | Esc: kilépés | Nyilak: mozgás | I: inventory | G: felvétel | Harc: Space/T",
+        WriteLine($"Kapcsolat: {client.State} | Tab: térkép/inventory | Nyilak: mozgás | N/Z/K: ajtó/keresés | Harc: Space/T",
             client.State == CoopClientConnectionState.Connected ? ConsoleColor.Green : ConsoleColor.DarkYellow);
         var snapshot = client.CurrentSnapshot;
         if (snapshot?.World is not { } world)
@@ -326,7 +311,7 @@ public sealed class CoopGuestScreen
         }
         if (_inventoryOpen)
         {
-            WriteLine("Inventory fókusz — Fel/le | Space: felvesz/letesz | U: használ | D: eldob | G: felvesz | I/Esc: vissza",
+            WriteLine("Inventory fókusz — Fel/le | Enter: használ | D: eldob | Space: mozgat | I: vizsgál | Tab: térkép",
                 ConsoleColor.Green);
             var pile = own?.Position is { } position
                 ? world.GroundPiles.FirstOrDefault(candidate => candidate.Position == position)

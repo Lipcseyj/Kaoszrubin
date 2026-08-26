@@ -473,7 +473,7 @@ public sealed class Game
                             BeginExplorationSpellCasting(quickSpell);
                         continue;
                     }
-                    if (keyInfo.Key == ConsoleKey.Tab)
+                    if (GameInputBindings.IsCharacterSheetToggle(keyInfo.Key))
                     {
                         if (_characterSheetFocused) CancelHeldInventoryItem();
                         _characterSheetFocused = !_characterSheetFocused;
@@ -487,15 +487,20 @@ public sealed class Game
                             if (ConfirmReturnToMainMenu()) { CancelHeldInventoryItem(); return; }
                             continue;
                         }
-                        if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveCharacterSheetSelection(-1);
-                        else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveCharacterSheetSelection(1);
-                        else if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
-                        else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
-                        else if (keyInfo.Key == ConsoleKey.D) DropSelectedInventoryItem();
-                        else if (keyInfo.Key == ConsoleKey.I) InspectSelectedInventoryItem();
-                        else if (keyInfo.Key == ConsoleKey.Delete) DismissSelectedPartyMember();
-                        else if (keyInfo.Key == ConsoleKey.Enter) UseSelectedInventoryItem();
-                        else if (keyInfo.Key == ConsoleKey.Spacebar) GrabOrPlaceInventoryItem();
+                        switch (GameInputBindings.InventoryAction(keyInfo.Key))
+                        {
+                            case InventoryInputAction.MoveUp: _renderer.MoveCharacterSheetSelection(-1); break;
+                            case InventoryInputAction.MoveDown: _renderer.MoveCharacterSheetSelection(1); break;
+                            case InventoryInputAction.Drop: DropSelectedInventoryItem(); break;
+                            case InventoryInputAction.Inspect: InspectSelectedInventoryItem(); break;
+                            case InventoryInputAction.Use: UseSelectedInventoryItem(); break;
+                            case InventoryInputAction.MoveItem: GrabOrPlaceInventoryItem(); break;
+                            default:
+                                if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
+                                else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
+                                else if (keyInfo.Key == ConsoleKey.Delete) DismissSelectedPartyMember();
+                                break;
+                        }
                         continue;
                     }
                     if (IsRevealMapShortcut(keyInfo))
@@ -928,7 +933,7 @@ public sealed class Game
         if (chest is not null)
         {
             var rules = _gameData.LootRules;
-            var jackpotChance = AdjustedSearchChance(rules.ChestJackpotChancePercent);
+            var jackpotChance = AdjustedSearchChance(SelectedCharacter, rules.ChestJackpotChancePercent);
             var jackpot = _random.Next(100) < jackpotChance;
             var rewardMultiplier = jackpot ? rules.ChestJackpotMultiplier : 1;
             if (SelectedCharacter.HasPerk(PerkIds.ThiefMasterThief)) rewardMultiplier *= 2;
@@ -982,20 +987,12 @@ public sealed class Game
         var commandId = _localCommandId + 1;
         if (TryGetDirection(key, out var direction))
             command = new MoveCharacterCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id, direction);
+        else if (GameInputBindings.CharacterAction(key) is { } characterAction)
+            command = new CharacterActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
+                characterAction);
         else
         {
-            var action = key switch
-            {
-                ConsoleKey.N => LeaderAction.OpenDoor,
-                ConsoleKey.Z => LeaderAction.CloseDoor,
-                ConsoleKey.K => LeaderAction.SearchOrLockDoor,
-                ConsoleKey.G => LeaderAction.ToggleRegrouping,
-                ConsoleKey.H => LeaderAction.ToggleHoldPosition,
-                ConsoleKey.M => LeaderAction.ScatterParty,
-                ConsoleKey.P => LeaderAction.Rest,
-                ConsoleKey.Enter when _player.Position == _maze.Exit => LeaderAction.ActivateExit,
-                _ => (LeaderAction?)null
-            };
+            var action = GameInputBindings.LeaderAction(key, _player.Position == _maze.Exit);
             if (action is not null)
                 command = new LeaderActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id, action.Value);
         }
@@ -1014,6 +1011,9 @@ public sealed class Game
                     break;
                 case MoveCharacterCommand move:
                     MoveRemotePartyMember(move);
+                    break;
+                case CharacterActionCommand characterAction:
+                    ExecuteCharacterAction(characterAction);
                     break;
                 case LeaderActionCommand action:
                     ExecuteLeaderAction(action.Action);
@@ -1053,16 +1053,6 @@ public sealed class Game
     {
         switch (action)
         {
-            case LeaderAction.OpenDoor:
-                _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter);
-                break;
-            case LeaderAction.CloseDoor:
-                _doorInteractions.TryCloseAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter);
-                break;
-            case LeaderAction.SearchOrLockDoor:
-                if (!TrySearchCurrentCell())
-                    _doorInteractions.TryLockAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter);
-                break;
             case LeaderAction.ToggleRegrouping:
                 TogglePartyRegrouping();
                 break;
@@ -1077,6 +1067,30 @@ public sealed class Game
                 break;
             case LeaderAction.ActivateExit:
                 ActivateExit();
+                break;
+        }
+    }
+
+    private void ExecuteCharacterAction(CharacterActionCommand command)
+    {
+        var character = CharacterRoster.Party.Members.FirstOrDefault(candidate => candidate.Id == command.CharacterId);
+        var position = character is null ? null : GetCharacterWorldPosition(character);
+        if (character is null || position is null || !character.IsAlive) return;
+        var isLeader = character == SelectedCharacter;
+        switch (command.Action)
+        {
+            case CharacterAction.OpenDoor:
+                _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
+                    character, allowPartyAssistanceAndPrompts: isLeader);
+                break;
+            case CharacterAction.CloseDoor:
+                _doorInteractions.TryCloseAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
+                    character);
+                break;
+            case CharacterAction.SearchOrLockDoor:
+                if (!TrySearchCurrentCell(character, position.Value, shareLootWithParty: isLeader))
+                    _doorInteractions.TryLockAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
+                        character);
                 break;
         }
     }
@@ -1111,10 +1125,10 @@ public sealed class Game
         _localCommandId = commandId;
     }
 
-    private bool TrySearchCurrentCell()
+    private bool TrySearchCurrentCell(LiveCharacter character, Position position, bool shareLootWithParty)
     {
-        var corpse = _maze.GetCorpseAt(_player.Position);
-        var pile = _maze.GetGroundItemPileAt(_player.Position);
+        var corpse = _maze.GetCorpseAt(position);
+        var pile = _maze.GetGroundItemPileAt(position);
         if (corpse is null && pile is null) return false;
         if (corpse is MonsterCorpse { IsSearched: true } && pile is null) return false;
 
@@ -1126,7 +1140,7 @@ public sealed class Game
             else
             {
                 monsterCorpse.MarkSearched();
-                SearchMonsterCorpse(monsterCorpse, messages);
+                SearchMonsterCorpse(monsterCorpse, character, position, shareLootWithParty, messages);
             }
         }
         else if (corpse is PartyMemberCorpse)
@@ -1134,7 +1148,7 @@ public sealed class Game
         else if (corpse is not null)
             messages.Add("Ez a régi tetem már nem tartalmaz azonosítható zsákmányt");
 
-        PickUpGroundItems(messages);
+        PickUpGroundItems(character, position, shareLootWithParty, messages);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.DrawInventoryMessage("🔎 " + (messages.Count == 0
@@ -1143,16 +1157,17 @@ public sealed class Game
         return true;
     }
 
-    private void SearchMonsterCorpse(MonsterCorpse corpse, ICollection<string> messages)
+    private void SearchMonsterCorpse(MonsterCorpse corpse, LiveCharacter character, Position position,
+        bool shareLootWithParty, ICollection<string> messages)
     {
         var enemy = _gameData.GetEnemy(corpse.EnemyDefinitionId);
         var rules = _gameData.LootRules;
-        var keyChance = AdjustedSearchChance(rules.KeyChancePercent);
-        var goldChance = AdjustedSearchChance(rules.GoldChancePercent);
+        var keyChance = AdjustedSearchChance(character, rules.KeyChancePercent);
+        var goldChance = AdjustedSearchChance(character, rules.GoldChancePercent);
         var equipmentDefinition = _gameData.GetMonsterLoot(enemy.Id);
         var equipmentChance = equipmentDefinition is null
             ? 0
-            : AdjustedSearchChance(equipmentDefinition.EquipmentChancePercent);
+            : AdjustedSearchChance(character, equipmentDefinition.EquipmentChancePercent);
         messages.Add($"esélyek: 🔑 {keyChance}%, {ConsoleRenderer.MoneyIcon} {goldChance}%" +
                      (equipmentDefinition is null ? string.Empty : $", 🎁 {equipmentChance}%"));
 
@@ -1162,7 +1177,7 @@ public sealed class Game
         {
             var maximumGold = Math.Max(1, enemy.StrengthTier * rules.GoldPerStrengthTier);
             var gold = _random.Next(1, maximumGold + 1);
-            SelectedCharacter.AddGold(gold);
+            character.AddGold(gold);
             messages.Add($"{ConsoleRenderer.MoneyIcon} {gold} arany");
         }
         if (equipmentDefinition is not null && _random.Next(100) < equipmentChance &&
@@ -1171,11 +1186,11 @@ public sealed class Game
 
         foreach (var item in foundItems)
         {
-            if (TryStoreLootInParty(item, out var owner))
+            if (TryStoreSearchedLoot(character, item, shareLootWithParty, out var owner))
                 messages.Add($"{item.Name} → {owner} hátizsákja");
             else
             {
-                _maze.DropItem(_player.Position, item);
+                _maze.DropItem(position, item);
                 messages.Add($"{item.Name} a földön maradt (a hátizsákok tele vannak)");
             }
         }
@@ -1183,12 +1198,12 @@ public sealed class Game
             messages.Add("a tetemnél nem találtál zsákmányt");
     }
 
-    private int AdjustedSearchChance(int baseChance)
+    private int AdjustedSearchChance(LiveCharacter character, int baseChance)
     {
         var chance = Math.Max(0, baseChance);
-        if (CharacterClassRules.IsThief(SelectedCharacter.CharacterClass.Id))
+        if (CharacterClassRules.IsThief(character.CharacterClass.Id))
             chance = chance * _gameData.LootRules.ThiefChanceMultiplierPercent / 100;
-        chance += SelectedCharacter.Abilities.Intelligence * _gameData.LootRules.IntelligenceChanceBonusPerPoint;
+        chance += character.Abilities.Intelligence * _gameData.LootRules.IntelligenceChanceBonusPerPoint;
         return Math.Clamp(chance, 0, 100);
     }
 
@@ -1232,14 +1247,32 @@ public sealed class Game
         return false;
     }
 
-    private void PickUpGroundItems(ICollection<string> messages)
+    private bool TryStoreSearchedLoot(LiveCharacter character, IItemDefinition item, bool shareLootWithParty,
+        out string ownerName)
     {
-        var pile = _maze.GetGroundItemPileAt(_player.Position);
+        var candidates = shareLootWithParty
+            ? new[] { character }.Concat(CharacterRoster.Party.Members.Where(candidate =>
+                candidate != character && candidate.IsAlive))
+            : [character];
+        foreach (var candidate in candidates)
+        {
+            if (!candidate.AddToBackpack(item)) continue;
+            ownerName = candidate.Name;
+            return true;
+        }
+        ownerName = string.Empty;
+        return false;
+    }
+
+    private void PickUpGroundItems(LiveCharacter character, Position position, bool shareLootWithParty,
+        ICollection<string> messages)
+    {
+        var pile = _maze.GetGroundItemPileAt(position);
         if (pile is null) return;
         var pickedUp = new List<string>();
         foreach (var item in pile.Items.ToArray())
         {
-            if (!TryStoreLootInParty(item, out var owner)) continue;
+            if (!TryStoreSearchedLoot(character, item, shareLootWithParty, out var owner)) continue;
             pile.Remove(item);
             pickedUp.Add($"{item.Name} → {owner}");
         }

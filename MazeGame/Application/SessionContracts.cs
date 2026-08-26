@@ -41,11 +41,18 @@ public abstract record GameCommand(PlayerId SenderId, long CommandId, CharacterI
 public sealed record MoveCharacterCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     Direction Direction) : GameCommand(SenderId, CommandId, CharacterId);
 
-public enum LeaderAction
+public enum CharacterAction
 {
     OpenDoor,
     CloseDoor,
-    SearchOrLockDoor,
+    SearchOrLockDoor
+}
+
+public sealed record CharacterActionCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    CharacterAction Action) : GameCommand(SenderId, CommandId, CharacterId);
+
+public enum LeaderAction
+{
     ToggleRegrouping,
     ToggleHoldPosition,
     ScatterParty,
