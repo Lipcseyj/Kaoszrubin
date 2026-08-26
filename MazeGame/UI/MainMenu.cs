@@ -15,7 +15,9 @@ public sealed class MainMenu
     private readonly string _applicationVersion;
     private readonly string _catalogHash;
     private readonly Random _random = new();
-    private bool _mainScreenDrawn = false;
+
+    private const int SideMenuWidth = 55; 
+    private const int SideMenuLeft = 140;
 
     // Helpers to measure and pad visible width in console cells (surrogate pairs count as width 2).
     private static int DisplayWidth(string? s)
@@ -86,7 +88,7 @@ public sealed class MainMenu
     {
         while (true)
         {
-            DrawMenu();
+            DrawMainMenu();
 
             switch (Console.ReadKey(intercept: true).Key)
             {
@@ -102,22 +104,22 @@ public sealed class MainMenu
                     break;
                 case ConsoleKey.D3:
                 case ConsoleKey.NumPad3:
-                    new CharacterCreationScreen(_gameData, _characterRoster).Run();
+                    QuickStart();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D4:
                 case ConsoleKey.NumPad4:
-                    ShowCharacters();
+                    new CharacterCreationScreen(_gameData, _characterRoster).Run();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D5:
                 case ConsoleKey.NumPad5:
-                    DeleteCharacter();
+                    ShowCharacters();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D6:
                 case ConsoleKey.NumPad6:
-                    QuickStart();
+                    DeleteCharacter();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D7:
@@ -134,6 +136,7 @@ public sealed class MainMenu
                     JoinGame();
                     break;
                 case ConsoleKey.Escape:
+                    Console.Clear();
                     return;
             }
         }
@@ -430,21 +433,6 @@ public sealed class MainMenu
         ResetConsole();
         WriteLine("=== SÚGÓ ===", ConsoleColor.Yellow);
         Console.WriteLine();
-        WriteLine("FŐMENÜ", ConsoleColor.Cyan);
-        Console.WriteLine("1: játék indítása a kijelölt, élő karakterrel");
-        Console.WriteLine("2: játékállás betöltése a mentések mappából");
-        Console.WriteLine("3: karaktergenerálás");
-        Console.WriteLine("4: karakterlista, kijelölés Enterrel");
-        Console.WriteLine("5: karaktertörlés; O: az összes törlése; I/Y: megerősítés");
-        Console.WriteLine("6: gyorsindítás új, automatikusan generált hőssel");
-        Console.WriteLine("7: ez a súgó");
-        Console.WriteLine("8: új LAN coop játék hostolása (szükség esetén egy NPC társat generál)");
-        Console.WriteLine("9: csatlakozás LAN coop hosthoz");
-        Console.WriteLine("Esc: kilépés a programból");
-        Console.WriteLine();
-        WriteLine("KARAKTERGENERÁLÁS", ConsoleColor.Magenta);
-        Console.WriteLine("Számok: faj vagy osztály kiválasztása | Enter: dobás elfogadása | R: újradobás | Esc: vissza");
-        Console.WriteLine();
         WriteLine("LABIRINTUS", ConsoleColor.Green);
         Console.WriteLine("Nyilak: mozgás | Esc: visszatérés a főmenübe megerősítéssel");
         Console.WriteLine("Tab: térkép/karakterlap | Karakterlap: fel/le kijelölés, bal/jobb partitagváltás");
@@ -460,8 +448,6 @@ public sealed class MainMenu
         Console.WriteLine("Ajtó mellett: N - nyitás | Z - bezárás");
         Console.WriteLine("P: pihenés (pályánként egyszer, ellenségmentes és kulcsra zárt szobában)");
         Console.WriteLine("Partiparancs: H - helyben maradás | Shift+H - szoros gyülekező | M - 10 másodperces szétszóródás");
-        Console.WriteLine("Ctrl + Shift + U: teljes térkép felfedése/elrejtése | Ctrl + Shift + R: új pálya (fejlesztői mód)");
-        Console.WriteLine("Ctrl + Shift + Y: Harcos–Mágus–Lovag szett | Ctrl + Alt + X: Barbár–Tolvaj–Pap szett (fejlesztői mód)");
         Console.WriteLine("Ládára lépés: arany felvétele | Kijárat (⌂): következő labirintusszint");
         Console.WriteLine();
         WriteLine("BUFFOK ÉS IDŐTARTAM", ConsoleColor.Magenta);
@@ -488,47 +474,40 @@ public sealed class MainMenu
 
     private void SaveCharacters() => _characterSaveService.Save(_characterRoster);
 
-    private void DrawMenu()
+    private void DrawMainMenu()
     {
-        // Draw the large ASCII art once to avoid flicker.
-        if (!_mainScreenDrawn)
+        Console.Clear();
+        try
         {
-            Console.Clear();
-            try
-            {
-                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                var art = AsciiArts.GetMainScreen();
-                Console.Write(art);
-            }
-            catch
-            {
-                // If ASCII art can't be loaded, fall back to a simple header.
-                Console.WriteLine("=== LABIRINTUS ===");
-            }
-            _mainScreenDrawn = true;
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            var art = AsciiArts.GetMainScreen();
+            Console.Write(art);
+        }
+        catch
+        {
+            // If ASCII art can't be loaded, fall back to a simple header.
+            Console.WriteLine("=== Káoszrubin ===");
         }
 
-        // Draw the menu at column 142 inside a framed panel so it doesn't clear the whole screen each tick.
-        const int menuLeftRequested = 142;
-        const int menuWidth = 30; // make border a bit wider so heading has extra space
-        var left = Math.Min(menuLeftRequested, Math.Max(0, Console.WindowWidth - menuWidth - 1));
+        var left = Math.Min(SideMenuLeft, Math.Max(0, Console.WindowWidth - SideMenuWidth - 1));
+        var right = left + SideMenuWidth - 2;
         var top = 8; // slightly below the top of the ASCII art
 
         string[] lines = new[]
         {
             "🏛️  FŐMENÜ  🏛",
             string.Empty,
-            $"Választott: {_characterRoster.SelectedCharacter?.Name ?? "(nincs)"}",
+            $"Választott karakter: {_characterRoster.SelectedCharacter?.Name ?? "(nincs)"}",
             string.Empty,
             "1) ▶ Játék indítása",
-            $"2) ▶ Betöltés ({_gameSaveService.List().Count})",
-            "3) ▶ Karaktergenerálás",
-            $"4) ▶ Karakterek ({_characterRoster.Characters.Count})",
-            "5) ▶ Karakter törlése",
-            "6) ▶ Gyorsindítás",
+            $"2) ▶ Játék betöltése ({_gameSaveService.List().Count})",
+            "3) ▶ Gyorsindítás (autogenerált karakter)",
+            "4) ▶ Karaktergenerálás",
+            $"5) ▶ Karakterek listája({_characterRoster.Characters.Count})",
+            "6) ▶ Karakterek törlése",
             "7) ▶ Súgó",
-            "8) ▶ LAN host",
-            "9) ▶ Csatlakozás",
+            "8) ▶ Többjátékos coop játék hostolása (LAN) - ",
+            "9) ▶ Csatlakozás LAN játékhoz",
             string.Empty,
             "Esc - Kilépés"
         };
@@ -536,61 +515,60 @@ public sealed class MainMenu
         // Top border
         Console.ForegroundColor = ConsoleColor.Magenta;
         Console.SetCursorPosition(left, top);
-        Console.Write("╔" + new string('═', menuWidth - 2) + "╗");
+        Console.Write("╔" + new string('═', SideMenuWidth - 2) + "╗");
 
         for (var i = 0; i < lines.Length; i++)
         {
             var line = lines[i] ?? string.Empty;
             // simple truncation that doesn't consider emoji width; keep small lines so alignment ok
-            var content = line.Length > menuWidth - 4 ? line.Substring(0, menuWidth - 4) : line;
-            // if this is the heading line, add two extra spaces so the border appears 2 chars to the right
-            if (i == 0) content = content + "  ";
+            var content = line.Length > SideMenuWidth - 4 ? line.Substring(0, SideMenuWidth - 4) : line;
             Console.SetCursorPosition(left, top + i + 1);
             Console.Write("║ ");
             // Color each menu point individually
-            switch (i)
+            switch (i - 3)
             {
                 case 0:
                     Console.ForegroundColor = ConsoleColor.Yellow; // heading
                     break;
-                case 4: // 1) Játék indítása
-                case 9: // 6) Gyorsindítás
+                case 1: // 1) Játék indítása
+                case 3: // 3) Gyorsindítás
                     Console.ForegroundColor = ConsoleColor.Green;
                     break;
-                case 5: // 2) Betöltés
+                case 2: // 2) Betöltés
                     Console.ForegroundColor = ConsoleColor.DarkGreen;
                     break;
-                case 6: // 3) Karaktergenerálás
+                case 4: // 4) Karaktergenerálás
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     break;
-                case 7: // 4) Karakterek
+                case 5: // 5) Karakterek
                     Console.ForegroundColor = ConsoleColor.Blue;
                     break;
-                case 8: // 5) Karakter törlése
+                case 6: // 6) Karakter törlése
                     Console.ForegroundColor = ConsoleColor.Red;
                     break;
-                case 10: // 7) Súgó
+                case 7: // 7) Súgó
                     Console.ForegroundColor = ConsoleColor.DarkCyan;
                     break;
-                case 11: // 8) LAN host
-                case 12: // 9) Csatlakozás
+                case 8: // 8) LAN host
+                case 9: // 9) Csatlakozás
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     break;
-                case 14: // Esc
+                case 10: // Esc
                     Console.ForegroundColor = ConsoleColor.DarkYellow;
                     break;
                 default:
                     Console.ForegroundColor = ConsoleColor.Gray;
                     break;
             }
-            Console.Write(content.PadRight(menuWidth - 4));
+            Console.Write(content.PadRight(SideMenuWidth - 4));
             Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.SetCursorPosition(right, top + i + 1);
             Console.Write(" ║");
         }
 
         // Bottom border
         Console.SetCursorPosition(left, top + lines.Length + 1);
-        Console.Write("╚" + new string('═', menuWidth - 2) + "╝");
+        Console.Write("╚" + new string('═', SideMenuWidth - 2) + "╝");
         Console.ResetColor();
     }
 
