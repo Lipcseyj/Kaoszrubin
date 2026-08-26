@@ -14,4 +14,14 @@
     <None Include="Sounds\**\*.wav" CopyToOutputDirectory="PreserveNewest" />
     <Compile Remove="Tests\**\*.cs" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="UI\Mainscreen.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="UI\Mainscreen.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

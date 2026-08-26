@@ -8,6 +8,8 @@ using System.Reflection;
 Console.OutputEncoding = Encoding.UTF8;
 Console.InputEncoding = Encoding.UTF8;
 
+Console.ForegroundColor = ConsoleColor.Magenta;
+
 var dataPath = Path.Combine(AppContext.BaseDirectory, "adatok.csv");
 var gameData = CsvGameDataLoader.Load(dataPath);
 var savePath = Path.Combine(AppContext.BaseDirectory, "karakterek.json");
