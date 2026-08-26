@@ -19,6 +19,7 @@ public sealed class Maze
     private readonly List<GroundItemPile> _groundItemPiles = [];
     private readonly Dictionary<Position, MazeDoor> _doors = [];
 
+    public WorldId Id { get; } = WorldId.New();
     public IReadOnlyList<Room> Rooms => _rooms;
     public IReadOnlyList<TreasureChest> TreasureChests => _treasureChests;
     public IReadOnlyList<Enemy> Enemies => _enemies;

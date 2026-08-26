@@ -4,7 +4,7 @@ using MazeGame.Combat;
 namespace MazeGame.Application;
 
 /// <summary>A kliens által ismert pályarész teljes képe. Rejtett cellát vagy entitást nem tartalmaz.</summary>
-public sealed record WorldSnapshot(int Width, int Height, Position? Entrance, Position? Exit,
+public sealed record WorldSnapshot(WorldId WorldId, int Width, int Height, Position? Entrance, Position? Exit,
     IReadOnlyList<WorldCellSnapshot> RevealedCells, IReadOnlyList<WorldDoorSnapshot> Doors,
     IReadOnlyList<WorldEnemySnapshot> Enemies, IReadOnlyList<WorldChestSnapshot> Chests,
     IReadOnlyList<WorldCorpseSnapshot> Corpses, IReadOnlyList<WorldGroundPileSnapshot> GroundPiles);
@@ -39,7 +39,8 @@ public static class WorldSnapshotProjector
         for (var x = 0; x < maze.Width; x++)
         {
             var position = new Position(x, y);
-            if (!fogOfWar.IsVisible(position)) continue;
+            // A host fejlesztői teljes-felfedése lokális segédeszköz; távoli kliensnek csak ténylegesen felfedett adat mehet.
+            if (!fogOfWar.IsRevealed(position)) continue;
             visible.Add(position);
             cells.Add(new WorldCellSnapshot(position, maze.Tiles[x, y].Value));
         }
@@ -66,7 +67,7 @@ public static class WorldSnapshotProjector
             new WorldGroundPileSnapshot(pile.Id, pile.Position, pile.Items.Select(item =>
                 new WorldItemSnapshot(item.Category.ToString(), item.Id, item.Name)).ToArray())).ToArray();
 
-        return new WorldSnapshot(maze.Width, maze.Height,
+        return new WorldSnapshot(maze.Id, maze.Width, maze.Height,
             IsVisible(maze.Entrance) ? maze.Entrance : null,
             IsVisible(maze.Exit) ? maze.Exit : null,
             cells, doors, enemies, chests, corpses, groundPiles);

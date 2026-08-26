@@ -27,7 +27,9 @@ var tests = new (string Name, Action Run)[]
     ("A session snapshot JSON-on körbeírható", SessionSnapshotRoundTripsThroughJson),
     ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
-    ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement)
+    ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
+    ("A world delta minden lényeges változást leír", WorldDeltaCapturesChanges),
+    ("Eltérő pályák között nem készülhet delta", WorldDeltaRejectsDifferentWorld)
 };
 
 var failures = 0;
@@ -327,13 +329,14 @@ static void WorldSnapshotOnlyContainsRevealedState()
     maze.PlaceDoor(new Position(2, 3), DoorState.Closed);
     var fog = new FogOfWar(maze.Width, maze.Height, 1);
     fog.RevealFrom(maze, maze.Entrance);
+    fog.ToggleDeveloperReveal();
 
     var world = WorldSnapshotProjector.Create(maze, fog);
     Assert(world.Enemies.Count == 1 && world.Enemies[0].EntityId == visibleEnemy.Id,
         "A world snapshot rejtett ellenfelet is publikált, vagy kihagyta a láthatót.");
     Assert(world.Chests.Count == 1 && world.Doors.Count == 1,
         "A felfedett statikus entitások hiányoznak a world snapshotból.");
-    Assert(world.Exit is null && world.RevealedCells.All(cell => fog.IsVisible(cell.Position)),
+    Assert(world.Exit is null && world.RevealedCells.All(cell => fog.IsRevealed(cell.Position)),
         "A world snapshot rejtett kijáratot vagy cellát publikált.");
     var restored = JsonSerializer.Deserialize<WorldSnapshot>(JsonSerializer.Serialize(world));
     Assert(restored?.Enemies.Single().DefinitionId == "E-VISIBLE",
@@ -351,6 +354,64 @@ static void WorldEntityIdSurvivesMovement()
     var entityId = enemy.Id;
     Assert(maze.TryMoveEnemy(enemy, destination), "A tesztellenfél nem tudott elmozdulni.");
     Assert(enemy.Id == entityId, "A world entity azonosítója mozgáskor megváltozott.");
+}
+
+static void WorldDeltaCapturesChanges()
+{
+    var (session, leader, _) = CreateSession();
+    var characterPositions = new Dictionary<CharacterId, Position> { [leader.Id] = new Position(2, 2) };
+    var maze = new Maze(7, 7);
+    var enemy = CreateEnemyAt(new Position(3, 2), "E-DELTA");
+    var chest = new TreasureChest(new Position(1, 2), 10);
+    foreach (var position in new[] { enemy.Position, new Position(3, 3), chest.Position }) maze.Carve(position);
+    maze.AddEnemy(enemy);
+    maze.AddTreasureChest(chest);
+    maze.PlaceDoor(new Position(2, 3), DoorState.Closed);
+    var fog = new FogOfWar(maze.Width, maze.Height, 1);
+    fog.RevealFrom(maze, maze.Entrance);
+    var previous = WorldSnapshotProjector.Create(maze, fog);
+    var previousSession = session.CreateSnapshot(new SessionSnapshotContext(1, "Delta-labirintus",
+        characterPositions, World: previous));
+
+    enemy.SetCurrentHitPoints(6);
+    Assert(maze.TryMoveEnemy(enemy, new Position(3, 3)), "A delta tesztellenfele nem tudott mozogni.");
+    maze.SetDoorState(maze.GetDoorAt(new Position(2, 3))!, DoorState.Open);
+    maze.RemoveTreasureChest(chest);
+    var corpse = new MonsterCorpse(new Position(1, 2), "Elesett", "E-DEAD");
+    maze.AddCorpse(corpse);
+    fog.RevealFrom(maze, new Position(3, 3));
+    var current = WorldSnapshotProjector.Create(maze, fog);
+    var currentSession = session.CreateSnapshot(new SessionSnapshotContext(1, "Delta-labirintus",
+        characterPositions, World: current));
+
+    var delta = WorldDeltaProjector.Create(previousSession, currentSession);
+    Assert(delta.EnemyUpserts.Single() is { CurrentHitPoints: 6, Position: { X: 3, Y: 3 } },
+        "Az ellenfél mozgása vagy HP-változása hiányzik a deltából.");
+    Assert(delta.DoorUpserts.Single().State == DoorState.Open && delta.CorpseUpserts.Single().EntityId == corpse.Id,
+        "Az ajtóállapot vagy az új tetem hiányzik a deltából.");
+    Assert(delta.RemovedEntityIds.Contains(chest.Id) && delta.RevealedOrChangedCells.Count > 0,
+        "Az entitáseltávolítás vagy cellafelfedés hiányzik a deltából.");
+    var restored = JsonSerializer.Deserialize<WorldDelta>(JsonSerializer.Serialize(delta));
+    Assert(restored?.ToSnapshotSequence == currentSession.SnapshotSequence && restored.EnemyUpserts.Count == 1,
+        "A world delta JSON round-trip közben megváltozott.");
+}
+
+static void WorldDeltaRejectsDifferentWorld()
+{
+    var firstMaze = new Maze(7, 7);
+    var secondMaze = new Maze(7, 7);
+    var first = WorldSnapshotProjector.Create(firstMaze, new FogOfWar(7, 7, 0));
+    var second = WorldSnapshotProjector.Create(secondMaze, new FogOfWar(7, 7, 0));
+    var rejected = false;
+    try
+    {
+        WorldDeltaProjector.Create(1, first, 2, second);
+    }
+    catch (ArgumentException)
+    {
+        rejected = true;
+    }
+    Assert(rejected, "Különböző WorldId értékek között is elkészült a delta.");
 }
 
 static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) CreateSession()
