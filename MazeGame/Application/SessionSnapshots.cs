@@ -18,7 +18,7 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
 public sealed record SessionCharacterSnapshot(CharacterId CharacterId, string Name, string RaceId,
     string CharacterClassId, int Level, int CurrentVitality, int MaximumVitality, int CurrentMana,
     int MaximumMana, int FoodLevel, int WaterLevel, int Gold, bool IsAlive, Position? Position,
-    IReadOnlyList<string> StatusIds);
+    IReadOnlyList<string> StatusIds, CharacterInventorySnapshot? Inventory);
 
 public sealed record BattleSnapshot(BattleId BattleId, long TurnId, int Round, bool IsPlayerTurn,
     CharacterId ActingCharacterId, SessionEnemySnapshot Enemy,

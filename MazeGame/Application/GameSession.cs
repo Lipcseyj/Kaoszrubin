@@ -122,7 +122,8 @@ public sealed class GameSession
             character.Gold,
             character.IsAlive,
             context.CharacterPositions.TryGetValue(character.Id, out var position) ? position : null,
-            character.Statuses.Select(status => status.Id).ToArray())).ToArray();
+            character.Statuses.Select(status => status.Id).ToArray(),
+            InventorySnapshotProjector.Create(character))).ToArray();
         var controls = _party.Members.Select(character => _controls[character.Id]).ToArray();
         return new SessionSnapshot(SessionProtocol.Version, ++_snapshotSequence, _eventSequence, Phase,
             HostPlayerId, _party.Leader!.Id, context.MazeLevel, context.LevelName, party, controls, context.Battle,

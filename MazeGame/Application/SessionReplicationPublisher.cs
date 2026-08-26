@@ -27,6 +27,7 @@ public sealed class SessionReplicationPublisher
             throw new ArgumentException("A snapshot protokollverziója nem támogatott.", nameof(current));
         if (current.World is null)
             throw new ArgumentException("Publikáláshoz teljes world résszel rendelkező snapshot szükséges.", nameof(current));
+        current = Personalize(current, recipientPlayerId);
 
         lock (_gate)
         {
@@ -111,6 +112,21 @@ public sealed class SessionReplicationPublisher
         client.SentSnapshots[snapshot.SnapshotSequence] = snapshot;
         while (client.SentSnapshots.Count > MaximumPendingSnapshotsPerClient)
             client.SentSnapshots.Remove(client.SentSnapshots.Keys.First());
+    }
+
+    private static SessionSnapshot Personalize(SessionSnapshot snapshot, PlayerId recipientPlayerId)
+    {
+        if (recipientPlayerId == snapshot.HostPlayerId) return snapshot;
+        var controlledCharacters = snapshot.CharacterControls
+            .Where(control => control.AssignedPlayerId == recipientPlayerId &&
+                              control.ConnectionState == PlayerConnectionState.Connected)
+            .Select(control => control.CharacterId).ToHashSet();
+        return snapshot with
+        {
+            Party = snapshot.Party.Select(character => controlledCharacters.Contains(character.CharacterId)
+                ? character
+                : character with { Inventory = null }).ToArray()
+        };
     }
 
     private static bool Fail(string reason, out string error)

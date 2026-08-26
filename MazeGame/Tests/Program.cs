@@ -4,6 +4,7 @@ using MazeGame.Combat;
 using MazeGame.Data;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
+using MazeGame.Domain.Inventory;
 using System.Text.Json;
 
 var tests = new (string Name, Action Run)[]
@@ -32,7 +33,9 @@ var tests = new (string Name, Action Run)[]
     ("Eltérő pályák között nem készülhet delta", WorldDeltaRejectsDifferentWorld),
     ("A publisher teljes snapshot után ACK-alapú deltát küld", ReplicationPublisherUsesAcknowledgedBaseline),
     ("Ismeretlen ACK teljes resyncet kényszerít", UnknownReplicationAckForcesResync),
-    ("Pályaváltáskor a publisher teljes snapshotra vált", ReplicationPublisherUsesFullSnapshotForNewWorld)
+    ("Pályaváltáskor a publisher teljes snapshotra vált", ReplicationPublisherUsesFullSnapshotForNewWorld),
+    ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
+    ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories)
 };
 
 var failures = 0;
@@ -491,6 +494,51 @@ static void ReplicationPublisherUsesFullSnapshotForNewWorld()
         World: WorldSnapshotProjector.Create(secondMaze, secondFog)));
     Assert(publisher.CreateFrame(playerId, second).Kind == SessionReplicationFrameKind.FullSnapshot,
         "Pályaváltáskor a publisher deltát próbált küldeni.");
+}
+
+static void InventorySnapshotHasSlotsAndRevision()
+{
+    var character = CreateCharacter("Inventory");
+    var ration = new MiscItemDefinition("I-FOOD", "Útravaló", "Tesztélelem", 2, ConsumableEffect.Food, 10);
+    Assert(character.AddToBackpack(ration), "A teszttárgy nem került a hátizsákba.");
+    var first = InventorySnapshotProjector.Create(character);
+    Assert(first.Revision == 1 && first.Slots.Count == 16 &&
+           first.Slots.Single(slot => slot.Kind == InventorySlotKind.Backpack && slot.Index == 0)
+               .Item?.DefinitionId == ration.Id,
+        "Az inventory snapshot slotjai vagy revíziója hibás.");
+    Assert(character.SetInventoryItem(InventorySlotKind.Backpack, 0, null), "A teszttárgy nem távolítható el.");
+    var second = InventorySnapshotProjector.Create(character);
+    Assert(second.Revision == first.Revision + 1 &&
+           second.Slots.Single(slot => slot.Kind == InventorySlotKind.Backpack && slot.Index == 0).Item is null,
+        "Az inventory mutáció nem növelte pontosan egyszer a revíziót.");
+}
+
+static void ReplicationPublisherRedactsOtherInventories()
+{
+    var (session, leader, companion) = CreateSession();
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var assignmentError), assignmentError);
+    leader.AddToBackpack(new MiscItemDefinition("I-LEADER", "Leader tárgy", "Teszt", 1));
+    companion.AddToBackpack(new MiscItemDefinition("I-GUEST", "Vendég tárgy", "Teszt", 1));
+    var maze = new Maze(7, 7);
+    var fog = new FogOfWar(7, 7, 0);
+    fog.RevealFrom(maze, maze.Entrance);
+    var positions = new Dictionary<CharacterId, Position>
+    {
+        [leader.Id] = maze.Entrance,
+        [companion.Id] = new Position(3, 2)
+    };
+    var snapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "Inventory pálya", positions,
+        World: WorldSnapshotProjector.Create(maze, fog)));
+    var publisher = new SessionReplicationPublisher();
+    var hostFrame = publisher.CreateFrame(session.HostPlayerId, snapshot);
+    var guestFrame = publisher.CreateFrame(remote, snapshot);
+
+    Assert(hostFrame.Session.Party.All(character => character.Inventory is not null),
+        "A host nem kapta meg a teljes parti inventory read modelt.");
+    Assert(guestFrame.Session.Party.Single(character => character.CharacterId == companion.Id).Inventory is not null &&
+           guestFrame.Session.Party.Single(character => character.CharacterId == leader.Id).Inventory is null,
+        "A vendég más karakter inventoryját is megkapta, vagy a sajátját sem kapta meg.");
 }
 
 static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) CreateSession()

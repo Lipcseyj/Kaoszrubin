@@ -79,6 +79,7 @@ public sealed class LiveCharacter
     public IReadOnlyList<SpellDefinition> MemorizedSpells => _memorizedSpells;
     public IReadOnlyList<SpellDefinition?> QuickSpells => _quickSpells;
     public IReadOnlyList<ActiveSpellEffect> ActiveSpellEffects => _activeSpellEffects;
+    public long InventoryRevision { get; private set; }
     public int ExplorationStepsTowardSpellAction => _explorationStepsTowardSpellAction;
     public bool IsSpellcaster => SpellcastingRules.TryGetSchool(CharacterClass.Id, out _);
     public bool CanCastSpells => IsAlive && SpellcastingRules.HasRequiredFocus(this);
@@ -298,6 +299,7 @@ public sealed class LiveCharacter
         var change = new InventorySlotChange(kind, index, item);
         if (!CanApplyInventoryChanges(change)) return false;
         ApplyInventoryChangesUnchecked(change);
+        InventoryRevision++;
         return true;
     }
 
@@ -305,6 +307,7 @@ public sealed class LiveCharacter
     {
         if (!CanApplyInventoryChanges(changes)) throw new InvalidOperationException("A felszerelésváltozás nem engedélyezett.");
         foreach (var change in changes) ApplyInventoryChangesUnchecked(change);
+        if (changes.Length > 0) InventoryRevision++;
     }
 
     private void ApplyInventoryChangesUnchecked(InventorySlotChange change)
@@ -341,6 +344,7 @@ public sealed class LiveCharacter
         _magicItemCharges[slotIndex]--;
         if (item.Kind == MagicItemKind.Scroll)
             ApplyInventoryChangesUnchecked(new InventorySlotChange(InventorySlotKind.MagicItem, slotIndex, null));
+        InventoryRevision++;
         return true;
     }
 
