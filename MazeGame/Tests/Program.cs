@@ -7,6 +7,7 @@ using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Magic;
 using System.Text.Json;
+using System.Text;
 
 var tests = new (string Name, Action Run)[]
 {
@@ -42,7 +43,13 @@ var tests = new (string Name, Action Run)[]
     ("A vendég nem mozgathat tárgyat más karakterhez", RemoteInventoryTransferCannotCrossCharacters),
     ("A használat, eldobás és pickup command alakja validált", InventoryActionCommandsAreValidated),
     ("Nem fogyasztható tárgy használata elutasításra kerül", NonConsumableUseIsRejected),
-    ("A földi loot megőrzi a töltetet és revíziózott", GroundPilePreservesChargesAndRevision)
+    ("A földi loot megőrzi a töltetet és revíziózott", GroundPilePreservesChargesAndRevision),
+    ("A katalógus fingerprint determinisztikus", CatalogFingerprintIsDeterministic),
+    ("A handshake verziót és katalógushasht ellenőriz", HandshakeValidatesProtocolAndCatalog),
+    ("A reconnect-token ugyanazt a PlayerId-t állítja vissza", HandshakeReconnectRestoresPlayer),
+    ("A JSON wire codec allowlistelt commandot ír körbe", ProtocolCodecRoundTripsCommand),
+    ("Az in-memory transport végigviszi a coop protokollfolyamot", () =>
+        InMemoryTransportRunsProtocolFlow().GetAwaiter().GetResult())
 };
 
 var failures = 0;
@@ -644,6 +651,111 @@ static void GroundPilePreservesChargesAndRevision()
     var worldPile = WorldSnapshotProjector.Create(maze, fog).GroundPiles.Single();
     Assert(worldPile.Revision == 1 && worldPile.Items.Single().Charges == 3,
         "A world snapshot nem publikálta a kupac revízióját vagy töltetszámát.");
+}
+
+static void CatalogFingerprintIsDeterministic()
+{
+    var content = Encoding.UTF8.GetBytes("azonos katalógus\nR001;Ember");
+    var first = CatalogFingerprint.Compute(content);
+    var second = CatalogFingerprint.Compute(content);
+    var changed = CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("más katalógus"));
+    Assert(first == second && first.Length == 64 && first != changed,
+        "A katalógus SHA-256 fingerprint nem determinisztikus vagy nem érzékeli a változást.");
+}
+
+static void HandshakeValidatesProtocolAndCatalog()
+{
+    var (session, _, _) = CreateSession();
+    var hash = CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("catalog"));
+    var handshake = new SessionHandshakeService(session, "1.0.0", hash);
+    var wrongProtocol = handshake.Handle(new ClientHello(SessionProtocol.Version + 1, "1.0.0", hash, "Vendég"));
+    var wrongCatalog = handshake.Handle(new ClientHello(SessionProtocol.Version, "1.0.0",
+        CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("other")), "Vendég"));
+    var accepted = handshake.Handle(new ClientHello(SessionProtocol.Version, "1.0.0", hash, "Vendég"));
+    Assert(!wrongProtocol.Accepted && !wrongCatalog.Accepted && accepted.Accepted &&
+           accepted.PlayerId is not null && accepted.ReconnectToken?.Length == 64,
+        "A handshake verzió-/katalógusellenőrzése vagy elfogadott válasza hibás.");
+}
+
+static void HandshakeReconnectRestoresPlayer()
+{
+    var (session, _, companion) = CreateSession();
+    var hash = CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("catalog"));
+    var handshake = new SessionHandshakeService(session, "1.0.0", hash);
+    var first = handshake.Handle(new ClientHello(SessionProtocol.Version, "1.0.0", hash, "Vendég"));
+    Assert(first is { Accepted: true, PlayerId: not null, ReconnectToken: not null },
+        "Az első handshake sikertelen.");
+    var playerId = first.PlayerId!.Value;
+    var token = first.ReconnectToken!;
+    Assert(session.TryAssignRemoteControl(playerId, companion.Id, out var error), error);
+    session.MarkPlayerDisconnected(playerId);
+    var reconnected = handshake.Handle(new ClientHello(SessionProtocol.Version, "1.0.0", hash,
+        "Vendég", token));
+    Assert(reconnected.Accepted && reconnected.PlayerId == playerId,
+        "A reconnect-token nem az eredeti PlayerId-t állította vissza.");
+}
+
+static void ProtocolCodecRoundTripsCommand()
+{
+    var command = new BattleActionCommand(PlayerId.New(), 7, CharacterId.New(), BattleId.New(), 3,
+        BattleActionKind.CastSpell, "SP-TEST", 1, new Position(4, 5));
+    var restored = CoopProtocolJson.Decode(CoopProtocolJson.Encode(command));
+    Assert(restored is BattleActionCommand decoded && decoded == command,
+        "A JSON wire codec megváltoztatta a battle commandot.");
+    var rejected = false;
+    try
+    {
+        CoopProtocolJson.Decode("{\"Type\":\"command.unknown\",\"Payload\":{}}");
+    }
+    catch (JsonException)
+    {
+        rejected = true;
+    }
+    Assert(rejected, "A codec elfogadott egy nem allowlistelt üzenettípust.");
+}
+
+static async Task InMemoryTransportRunsProtocolFlow()
+{
+    var (session, leader, companion) = CreateSession();
+    var hash = CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("catalog"));
+    var handshake = new SessionHandshakeService(session, "1.0.0", hash);
+    var (host, client) = InMemoryCoopTransport.CreatePair();
+
+    await client.SendAsync(CoopProtocolJson.Encode(new ClientHello(SessionProtocol.Version, "1.0.0", hash, "Vendég")));
+    var hello = (ClientHello)CoopProtocolJson.Decode(await host.ReceiveAsync());
+    var serverHello = handshake.Handle(hello);
+    await host.SendAsync(CoopProtocolJson.Encode(serverHello));
+    var accepted = (ServerHello)CoopProtocolJson.Decode(await client.ReceiveAsync());
+    Assert(accepted is { Accepted: true, PlayerId: { } }, "Az in-memory handshake sikertelen.");
+    var remote = accepted.PlayerId!.Value;
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var assignmentError), assignmentError);
+
+    var move = new MoveCharacterCommand(remote, 1, companion.Id, Direction.Right);
+    await client.SendAsync(CoopProtocolJson.Encode(move));
+    var decodedMove = (MoveCharacterCommand)CoopProtocolJson.Decode(await host.ReceiveAsync());
+    session.Submit(decodedMove);
+    Assert(session.TryReadCommand(out var acceptedCommand) && acceptedCommand == move,
+        "Az in-memory transporton érkezett commandot nem fogadta el a session.");
+
+    var maze = new Maze(7, 7);
+    maze.Carve(maze.Entrance);
+    var fog = new FogOfWar(7, 7, 0);
+    fog.RevealFrom(maze, maze.Entrance);
+    var positions = new Dictionary<CharacterId, Position>
+    {
+        [leader.Id] = maze.Entrance,
+        [companion.Id] = new Position(3, 2)
+    };
+    var snapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "Wire pálya", positions,
+        World: WorldSnapshotProjector.Create(maze, fog)));
+    var publisher = new SessionReplicationPublisher();
+    await host.SendAsync(CoopProtocolJson.Encode(publisher.CreateFrame(remote, snapshot)));
+    var frame = (SessionReplicationFrame)CoopProtocolJson.Decode(await client.ReceiveAsync());
+    Assert(frame.Kind == SessionReplicationFrameKind.FullSnapshot && frame.Session.World is not null,
+        "Az első replikációs frame nem jutott át az in-memory transporton.");
+    await client.SendAsync(CoopProtocolJson.Encode(new SnapshotAck(remote, frame.Session.SnapshotSequence)));
+    var ack = (SnapshotAck)CoopProtocolJson.Decode(await host.ReceiveAsync());
+    Assert(publisher.TryAcknowledge(ack.PlayerId, ack.SnapshotSequence, out var ackError), ackError);
 }
 
 static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) CreateSession()
