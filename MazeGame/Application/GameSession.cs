@@ -203,6 +203,8 @@ public sealed class GameSession
             return Fail("A parancs küldője nem tagja a sessionnek.", out reason);
         if (command.CommandId <= 0 || _lastCommandIds.GetValueOrDefault(command.SenderId) >= command.CommandId)
             return Fail("Ismételt vagy sorrenden kívüli parancs.", out reason);
+        if (command is InventoryTransferCommand inventoryTransfer)
+            return ValidateInventoryTransfer(inventoryTransfer, out reason);
         if (!_controls.TryGetValue(command.CharacterId, out var control) ||
             control.AssignedPlayerId != command.SenderId || control.ConnectionState != PlayerConnectionState.Connected ||
             control.ControllerKind == CharacterControllerKind.Npc)
@@ -227,6 +229,26 @@ public sealed class GameSession
         reason = string.Empty;
         return true;
     }
+
+    private bool ValidateInventoryTransfer(InventoryTransferCommand command, out string reason)
+    {
+        if (Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn))
+            return Fail("Inventory csak felfedezés vagy fogadó közben módosítható.", out reason);
+        var source = _party.Members.FirstOrDefault(character => character.Id == command.CharacterId);
+        var destination = _party.Members.FirstOrDefault(character => character.Id == command.DestinationCharacterId);
+        if (source is null || destination is null)
+            return Fail("Az inventory-command egyik karaktere nem tagja a partinak.", out reason);
+        if (command.SenderId != HostPlayerId &&
+            (!CanPlayerManageInventory(command.SenderId, source.Id) ||
+             !CanPlayerManageInventory(command.SenderId, destination.Id)))
+            return Fail("A vendég csak a saját karakterének inventoryját kezelheti.", out reason);
+        return InventoryTransferService.Validate(_party, command, out reason);
+    }
+
+    private bool CanPlayerManageInventory(PlayerId playerId, CharacterId characterId) =>
+        _controls.TryGetValue(characterId, out var control) && control.AssignedPlayerId == playerId &&
+        control.ControllerKind != CharacterControllerKind.Npc &&
+        control.ConnectionState == PlayerConnectionState.Connected;
 
     private void SetControl(CharacterControlState control)
     {

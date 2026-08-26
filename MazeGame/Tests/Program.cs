@@ -5,6 +5,7 @@ using MazeGame.Data;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
+using MazeGame.Domain.Magic;
 using System.Text.Json;
 
 var tests = new (string Name, Action Run)[]
@@ -35,7 +36,10 @@ var tests = new (string Name, Action Run)[]
     ("Ismeretlen ACK teljes resyncet kényszerít", UnknownReplicationAckForcesResync),
     ("Pályaváltáskor a publisher teljes snapshotra vált", ReplicationPublisherUsesFullSnapshotForNewWorld),
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
-    ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories)
+    ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories),
+    ("Az inventory transfer atomi és megőrzi a töltetet", InventoryTransferIsAtomicAndPreservesCharges),
+    ("Az elavult inventory-revízió elutasításra kerül", StaleInventoryRevisionIsRejected),
+    ("A vendég nem mozgathat tárgyat más karakterhez", RemoteInventoryTransferCannotCrossCharacters)
 };
 
 var failures = 0;
@@ -539,6 +543,56 @@ static void ReplicationPublisherRedactsOtherInventories()
     Assert(guestFrame.Session.Party.Single(character => character.CharacterId == companion.Id).Inventory is not null &&
            guestFrame.Session.Party.Single(character => character.CharacterId == leader.Id).Inventory is null,
         "A vendég más karakter inventoryját is megkapta, vagy a sajátját sem kapta meg.");
+}
+
+static void InventoryTransferIsAtomicAndPreservesCharges()
+{
+    var party = new Party();
+    var leader = CreateCharacter("InvLeader");
+    party.SetLeader(leader);
+    var session = new GameSession(party, leader);
+    var wand = new MagicItemDefinition("MI-TEST", "Tesztpálca", MagicItemKind.Wand, ItemRarity.Magic,
+        10, 5, null, MagicItemEffect.None, 0, new HashSet<string> { leader.CharacterClass.Id }, "Teszt", 1);
+    Assert(leader.AddMagicItem(wand), "A tesztpálca nem került a varázstárgyslotba.");
+    var revision = leader.InventoryRevision;
+    var command = new InventoryTransferCommand(session.HostPlayerId, 1, leader.Id, revision,
+        InventorySlotKind.MagicItem, 0, leader.Id, revision, InventorySlotKind.Backpack, 1);
+    session.Submit(command);
+    Assert(session.TryReadCommand(out var accepted) && accepted == command,
+        "Az érvényes inventory transfer commandot elutasította a session.");
+    Assert(InventoryTransferService.TryExecute(party, command, out _, out var error), error);
+    Assert(leader.GetInventoryItem(InventorySlotKind.MagicItem, 0) is null &&
+           leader.GetInventoryItem(InventorySlotKind.Backpack, 1)?.Id == wand.Id &&
+           leader.GetInventoryItemCharges(InventorySlotKind.Backpack, 1) == wand.MaximumCharges &&
+           leader.InventoryRevision == revision + 1,
+        "Az atomi transfer elvesztette a tárgyat, töltetet vagy hibásan növelte a revíziót.");
+}
+
+static void StaleInventoryRevisionIsRejected()
+{
+    var (session, leader, _) = CreateSession();
+    leader.AddToBackpack(new MiscItemDefinition("I-SOURCE", "Forrás", "Teszt", 1));
+    var staleRevision = leader.InventoryRevision;
+    var command = new InventoryTransferCommand(session.HostPlayerId, 1, leader.Id, staleRevision,
+        InventorySlotKind.Backpack, 0, leader.Id, staleRevision, InventorySlotKind.Backpack, 1);
+    leader.AddToBackpack(new MiscItemDefinition("I-CHANGE", "Változás", "Teszt", 1));
+    var events = CollectEvents(session);
+    session.Submit(command);
+    Assert(!session.TryReadCommand(out _) && events.OfType<GameCommandRejectedEvent>().Any(rejected =>
+            rejected.Reason.Contains("megváltozott", StringComparison.OrdinalIgnoreCase)),
+        "Az elavult inventory-revíziójú command átjutott.");
+}
+
+static void RemoteInventoryTransferCannotCrossCharacters()
+{
+    var (session, leader, companion) = CreateSession();
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var assignmentError), assignmentError);
+    companion.AddToBackpack(new MiscItemDefinition("I-REMOTE", "Vendégtárgy", "Teszt", 1));
+    var command = new InventoryTransferCommand(remote, 1, companion.Id, companion.InventoryRevision,
+        InventorySlotKind.Backpack, 0, leader.Id, leader.InventoryRevision, InventorySlotKind.Backpack, 1);
+    session.Submit(command);
+    Assert(!session.TryReadCommand(out _), "A vendég másik karakterhez mozgathatott tárgyat.");
 }
 
 static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) CreateSession()

@@ -997,6 +997,9 @@ public sealed class Game
                 case LeaderActionCommand action:
                     ExecuteLeaderAction(action.Action);
                     break;
+                case InventoryTransferCommand inventoryTransfer:
+                    ExecuteInventoryTransfer(inventoryTransfer);
+                    break;
                 case BattleActionCommand battleAction:
                     ExecuteBattleAction(battleAction);
                     break;
@@ -1466,13 +1469,9 @@ public sealed class Game
         {
             var item = target.Character.GetInventoryItem(target.Kind, target.Index);
             if (item is null) { _renderer.DrawInventoryMessage("A kijelölt hely üres.", ConsoleColor.DarkYellow); return; }
-            var charges = target.Character.GetInventoryItemCharges(target.Kind, target.Index);
             if (SpellcastingRules.IsSpellcastingFocus(item))
             { _renderer.DrawInventoryMessage($"A(z) {item.Name} a hátizsák első helyéhez kötött, ezért nem mozgatható.", ConsoleColor.Red); return; }
-            if (!target.Character.SetInventoryItem(target.Kind, target.Index, null))
-            { _renderer.DrawInventoryMessage("A kijelölt tárgy nem mozgatható.", ConsoleColor.Red); return; }
-            _heldInventoryItem = new HeldInventoryItem(item, target, charges);
-            _renderer.RefreshInventoryRows();
+            _heldInventoryItem = new HeldInventoryItem(item, target, target.Character.InventoryRevision);
             _renderer.DrawInventoryMessage($"Kézben: {item.Name}. Válassz célhelyet, majd nyomj Space-t.", ConsoleColor.Yellow);
             return;
         }
@@ -1480,45 +1479,37 @@ public sealed class Game
         var held = _heldInventoryItem;
         if (target == held.Source)
         {
-            held.Source.Character.ApplyInventoryChanges(new InventorySlotChange(held.Source.Kind, held.Source.Index, held.Item, held.Charges));
             _heldInventoryItem = null;
-            _renderer.RefreshCharacterSheet(SelectedCharacter);
-            _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} visszakerült az eredeti helyére.", ConsoleColor.DarkYellow);
+            _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} áthelyezése megszakítva.", ConsoleColor.DarkYellow);
             return;
         }
-        var displaced = target.Character.GetInventoryItem(target.Kind, target.Index);
-        var changesByCharacter = new Dictionary<LiveCharacter, List<InventorySlotChange>>();
-        var displacedCharges = target.Character.GetInventoryItemCharges(target.Kind, target.Index);
-        AddInventoryChange(changesByCharacter, target.Character, new(target.Kind, target.Index, held.Item, held.Charges));
-        AddInventoryChange(changesByCharacter, held.Source.Character, new(held.Source.Kind, held.Source.Index, displaced, displacedCharges));
-        if (changesByCharacter.Any(entry => !entry.Key.CanApplyInventoryChanges(entry.Value.ToArray())))
-        {
-            _renderer.DrawInventoryMessage("A felszerelés nem használható ezen a helyen, ezzel a kaszttal vagy a karakter jelenlegi Erejével. A kétkezes fegyver csak az első, üres második fegyverhely mellett viselhető.", ConsoleColor.Red);
-            return;
-        }
-        foreach (var entry in changesByCharacter) entry.Key.ApplyInventoryChanges(entry.Value.ToArray());
+        var commandId = _localCommandId + 1;
+        var command = new InventoryTransferCommand(_session.HostPlayerId, commandId, held.Source.Character.Id,
+            held.SourceRevision, held.Source.Kind, held.Source.Index, target.Character.Id,
+            target.Character.InventoryRevision, target.Kind, target.Index);
+        if (!_session.Submit(command)) return;
+        _localCommandId = commandId;
         _heldInventoryItem = null;
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawInventoryMessage(displaced is null
-            ? $"Áthelyezted: {held.Item.Name}."
-            : $"Felcserélted: {held.Item.Name} ↔ {displaced.Name}.", ConsoleColor.Green);
-    }
-
-    private static void AddInventoryChange(Dictionary<LiveCharacter, List<InventorySlotChange>> changes,
-        LiveCharacter character, InventorySlotChange change)
-    {
-        if (!changes.TryGetValue(character, out var characterChanges))
-            changes[character] = characterChanges = [];
-        characterChanges.Add(change);
     }
 
     private void CancelHeldInventoryItem()
     {
         if (_heldInventoryItem is not { } held) return;
-        held.Source.Character.ApplyInventoryChanges(new InventorySlotChange(held.Source.Kind, held.Source.Index, held.Item, held.Charges));
         _heldInventoryItem = null;
+        _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} áthelyezése megszakítva.", ConsoleColor.DarkYellow);
+    }
+
+    private void ExecuteInventoryTransfer(InventoryTransferCommand command)
+    {
+        if (!InventoryTransferService.TryExecute(CharacterRoster.Party, command, out var result, out var error))
+        {
+            _renderer.DrawInventoryMessage(error, ConsoleColor.Red);
+            return;
+        }
         _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} visszakerült az eredeti helyére.", ConsoleColor.DarkYellow);
+        _renderer.DrawInventoryMessage(result.DisplacedItemName is null
+            ? $"Áthelyezted: {result.SourceItemName}."
+            : $"Felcserélted: {result.SourceItemName} ↔ {result.DisplacedItemName}.", ConsoleColor.Green);
     }
 
     private void MoveEnemies()
@@ -3170,7 +3161,7 @@ public sealed class Game
             : "Fejlesztői mód: fal-áthaladás letiltva.");
     }
 
-    private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source, int Charges);
+    private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source, long SourceRevision);
     private sealed record SpellCastAttempt(bool ConsumesTurn, string Message, BattleLogKind Kind,
         int DamageToCurrentEnemy = 0, int ExtraPlayerActions = 0);
     private sealed record SpellExecutionResult(int DamageToCurrentEnemy, int ExtraPlayerActions, string Summary);

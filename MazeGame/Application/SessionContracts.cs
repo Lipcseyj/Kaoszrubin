@@ -1,5 +1,6 @@
 using MazeGame.Domain.Characters;
 using MazeGame.Combat;
+using MazeGame.Domain.Inventory;
 
 namespace MazeGame.Application;
 
@@ -54,6 +55,13 @@ public enum LeaderAction
 
 public sealed record LeaderActionCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     LeaderAction Action) : GameCommand(SenderId, CommandId, CharacterId);
+
+/// <summary>Atomi slotcsere-szándék; tárgydefiníciót vagy töltetszámot szándékosan nem fogad a klienstől.</summary>
+public sealed record InventoryTransferCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    long ExpectedSourceRevision, InventorySlotKind SourceKind, int SourceIndex,
+    CharacterId DestinationCharacterId, long ExpectedDestinationRevision,
+    InventorySlotKind DestinationKind, int DestinationIndex)
+    : GameCommand(SenderId, CommandId, CharacterId);
 
 public enum BattleActionKind
 {
