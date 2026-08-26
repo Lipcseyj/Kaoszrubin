@@ -96,6 +96,10 @@ public sealed record BattleActionCommand(PlayerId SenderId, long CommandId, Char
     int? CastingItemSlotIndex = null, Position? Target = null)
     : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record CastExplorationSpellCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    string SpellId, int? CastingItemSlotIndex, Position Target)
+    : GameCommand(SenderId, CommandId, CharacterId);
+
 public abstract record GameSessionEvent(long Sequence);
 
 public sealed record SessionPhaseChangedEvent(long Sequence, GameSessionPhase PreviousPhase,

@@ -17,6 +17,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
     ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),
     ("A vendég saját ajtó- és keresési akciót küldhet", RemotePlayerCanIssueCharacterAction),
+    ("A vendég térképről varázslási parancsot küldhet", RemotePlayerCanCastExplorationSpell),
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A duplikált parancs elutasításra kerül", DuplicateCommandIsRejected),
@@ -139,6 +140,18 @@ static void RemotePlayerCanIssueCharacterAction()
     session.Submit(command);
     Assert(session.TryReadCommand(out var accepted) && accepted == command,
         "A session elutasította a vendég saját karakterhez kötött ajtóakcióját.");
+}
+
+static void RemotePlayerCanCastExplorationSpell()
+{
+    var (session, _, companion) = CreateSession();
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var assignmentError), assignmentError);
+    var command = new CastExplorationSpellCommand(remote, 1, companion.Id, "S-TEST", null,
+        new Position(3, 2));
+    session.Submit(command);
+    Assert(session.TryReadCommand(out var accepted) && accepted == command,
+        "A session nem fogadta el a vendég saját, térképi varázslási parancsát.");
 }
 
 static void HostAndGuestUseSharedInputBindings()

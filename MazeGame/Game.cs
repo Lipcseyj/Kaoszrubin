@@ -182,7 +182,7 @@ public sealed class Game
                 new SessionEnemySnapshot(state.EnemyDefinitionId, state.Enemy.Name, state.Enemy.Position,
                     state.CurrentEnemyHitPoints, state.Enemy.Definition.HitPoints ?? state.CurrentEnemyHitPoints),
                 GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy),
-                GetBattleSpellOptions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
+                GetSpellOptions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy, inCombat: true));
         }
         var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions,
             battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState)));
@@ -194,7 +194,11 @@ public sealed class Game
             Party = snapshot.Party.Select(character => character with
             {
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
-                    _gameData.ExperienceByLevel)
+                    _gameData.ExperienceByLevel),
+                ExplorationSpellOptions = snapshot.Phase == GameSessionPhase.Exploration &&
+                                          positions.TryGetValue(character.CharacterId, out var characterPosition)
+                    ? GetSpellOptions(characters[character.CharacterId], characterPosition, null, inCombat: false)
+                    : null
             }).ToArray()
         };
     }
@@ -1033,6 +1037,9 @@ public sealed class Game
                     break;
                 case BattleActionCommand battleAction:
                     ExecuteBattleAction(battleAction);
+                    break;
+                case CastExplorationSpellCommand castSpell:
+                    ExecuteExplorationSpell(castSpell);
                     break;
             }
         }
@@ -2272,18 +2279,18 @@ public sealed class Game
         return actions;
     }
 
-    private IReadOnlyList<BattleSpellOption> GetBattleSpellOptions(LiveCharacter character,
-        Position characterPosition, Enemy enemy)
+    private IReadOnlyList<BattleSpellOption> GetSpellOptions(LiveCharacter character,
+        Position characterPosition, Enemy? enemy, bool inCombat)
     {
         return character.MemorizedSpells
-            .Where(spell => spell.CanUseInCombat)
+            .Where(spell => inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration)
             .Select(spell => (Spell: spell, Item: (MagicItemDefinition?)null, Slot: (int?)null))
             .Concat(character.MagicItems.Select((item, index) => (Item: item, Index: index))
                 .Where(entry => entry.Item?.Kind is MagicItemKind.Scroll or MagicItemKind.Wand &&
                                 entry.Item.SpellId is not null && character.MagicItemCharges[entry.Index] > 0)
                 .Select(entry => (Spell: _gameData.GetSpell(entry.Item!.SpellId!), Item: (MagicItemDefinition?)entry.Item,
                     Slot: (int?)entry.Index))
-                .Where(entry => entry.Spell.CanUseInCombat &&
+                .Where(entry => (inCombat ? entry.Spell.CanUseInCombat : entry.Spell.CanUseDuringExploration) &&
                                 SpellcastingRules.CanUseCastingItem(character, entry.Item!, entry.Spell)))
             .OrderBy(entry => entry.Spell.Level).ThenBy(entry => entry.Spell.Name)
             .ThenBy(entry => entry.Item is not null)
@@ -2302,6 +2309,33 @@ public sealed class Game
                     entry.Item?.Kind, entry.Slot is { } slot ? character.MagicItemCharges[slot] : 0,
                     entry.Item is null && quickIndex >= 0 ? quickIndex : null, targets);
             }).ToArray();
+    }
+
+    private void ExecuteExplorationSpell(CastExplorationSpellCommand command)
+    {
+        var character = CharacterRoster.Party.Members.FirstOrDefault(member => member.Id == command.CharacterId);
+        if (character is null || !character.IsAlive) return;
+        var spell = _gameData.Spells.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, command.SpellId, StringComparison.OrdinalIgnoreCase));
+        if (spell is null)
+        {
+            _session.RejectExecutedCommand(command, "Ismeretlen varázslat.");
+            return;
+        }
+        MagicItemDefinition? castingItem = null;
+        if (command.CastingItemSlotIndex is { } slot)
+            castingItem = character.MagicItems.ElementAtOrDefault(slot);
+        var result = TryCastSpell(character, GetCasterPosition(character), spell, inCombat: false,
+            currentEnemy: null, castingItem: castingItem,
+            castingItemSlotIndex: command.CastingItemSlotIndex, explicitTarget: command.Target);
+        if (result is null || !result.ConsumesTurn)
+        {
+            _session.RejectExecutedCommand(command, result?.Message ?? "A varázslat célpontja érvénytelen.");
+            return;
+        }
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawInventoryMessage(result.Message,
+            result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
     }
 
     private bool HasUsableCombatSpell(LiveCharacter character, Position characterPosition, Enemy enemy) =>

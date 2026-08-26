@@ -23,6 +23,7 @@ public sealed class CoopGuestScreen
     private int _battleSpellSelection;
     private BattleSpellOption? _targetedBattleSpell;
     private Position? _spellTargetCursor;
+    private bool _spellCastingInBattle;
     private GuestRenderFrame? _lastFrame;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData)
@@ -95,7 +96,7 @@ public sealed class CoopGuestScreen
         }
         if (_inventoryOpen && snapshot.Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn))
             CloseInventory();
-        SynchronizeBattleSpellUi(snapshot, characterId);
+        SynchronizeSpellUi(snapshot, characterId);
         if (_battleSpellMenuOpen)
         {
             command = HandleBattleSpellMenuInput(client, characterId, snapshot, key);
@@ -125,6 +126,7 @@ public sealed class CoopGuestScreen
             if (key == ConsoleKey.V && battle.AllowedActions.Contains(BattleActionKind.CastSpell))
             {
                 _battleSpellMenuOpen = true;
+                _spellCastingInBattle = true;
                 _battleSpellSelection = 0;
                 Interlocked.Exchange(ref _redrawRequested, 1);
                 return;
@@ -132,7 +134,7 @@ public sealed class CoopGuestScreen
             if (TryGetFunctionKeyIndex(key, out var quickSlot) &&
                 battle.SpellOptions?.FirstOrDefault(option => option.QuickSlot == quickSlot) is { } quickSpell)
             {
-                command = BeginBattleSpellTargeting(client, characterId, battle, quickSpell);
+                command = BeginSpellTargeting(client, characterId, snapshot, quickSpell);
                 if (command is null) return;
             }
             else
@@ -147,6 +149,22 @@ public sealed class CoopGuestScreen
                 command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                     battle.BattleId, battle.TurnId, action.Value);
             }
+        }
+        else if (snapshot.Phase == GameSessionPhase.Exploration && key == ConsoleKey.V)
+        {
+            _battleSpellMenuOpen = true;
+            _spellCastingInBattle = false;
+            _battleSpellSelection = 0;
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return;
+        }
+        else if (snapshot.Phase == GameSessionPhase.Exploration &&
+                 TryGetFunctionKeyIndex(key, out var explorationQuickSlot) &&
+                 OwnExplorationSpellOptions(snapshot, characterId)
+                     .FirstOrDefault(option => option.QuickSlot == explorationQuickSlot) is { } explorationQuick)
+        {
+            command = BeginSpellTargeting(client, characterId, snapshot, explorationQuick);
+            if (command is null) return;
         }
         else if (snapshot.Phase is (GameSessionPhase.Exploration or GameSessionPhase.Inn) &&
                  GameInputBindings.IsCharacterSheetToggle(key))
@@ -176,9 +194,11 @@ public sealed class CoopGuestScreen
         }
     }
 
-    private void SynchronizeBattleSpellUi(SessionSnapshot snapshot, CharacterId characterId)
+    private void SynchronizeSpellUi(SessionSnapshot snapshot, CharacterId characterId)
     {
-        if (snapshot.Battle is { } battle && battle.ActingCharacterId == characterId) return;
+        if (_spellCastingInBattle && snapshot.Battle is { } battle && battle.ActingCharacterId == characterId)
+            return;
+        if (!_spellCastingInBattle && snapshot.Phase == GameSessionPhase.Exploration) return;
         _battleSpellMenuOpen = false;
         _targetedBattleSpell = null;
         _spellTargetCursor = null;
@@ -187,7 +207,7 @@ public sealed class CoopGuestScreen
     private GameCommand? HandleBattleSpellMenuInput(CoopSignalRClient client, CharacterId characterId,
         SessionSnapshot snapshot, ConsoleKey key)
     {
-        var options = snapshot.Battle?.SpellOptions ?? [];
+        var options = CurrentSpellOptions(snapshot, characterId);
         if (key == ConsoleKey.Escape)
         {
             _battleSpellMenuOpen = false;
@@ -205,7 +225,7 @@ public sealed class CoopGuestScreen
             else
             {
                 Interlocked.Exchange(ref _redrawRequested, 1);
-                return BeginBattleSpellTargeting(client, characterId, snapshot.Battle!, option);
+                return BeginSpellTargeting(client, characterId, snapshot, option);
             }
         }
         Interlocked.Exchange(ref _redrawRequested, 1);
@@ -215,7 +235,6 @@ public sealed class CoopGuestScreen
     private GameCommand? HandleBattleSpellTargetInput(CoopSignalRClient client, CharacterId characterId,
         SessionSnapshot snapshot, ConsoleKey key)
     {
-        var battle = snapshot.Battle!;
         var spell = _targetedBattleSpell!;
         if (key == ConsoleKey.Escape)
         {
@@ -241,16 +260,19 @@ public sealed class CoopGuestScreen
             return null;
         }
         if (key != ConsoleKey.Enter || !spell.ValidTargets.Contains(_spellTargetCursor!.Value)) return null;
-        var command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-            battle.BattleId, battle.TurnId, BattleActionKind.CastSpell, spell.SpellId,
-            spell.CastingItemSlotIndex, _spellTargetCursor);
+        GameCommand command = _spellCastingInBattle
+            ? new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                snapshot.Battle!.BattleId, snapshot.Battle.TurnId, BattleActionKind.CastSpell, spell.SpellId,
+                spell.CastingItemSlotIndex, _spellTargetCursor)
+            : new CastExplorationSpellCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                spell.SpellId, spell.CastingItemSlotIndex, _spellTargetCursor.Value);
         _targetedBattleSpell = null;
         _spellTargetCursor = null;
         return command;
     }
 
-    private GameCommand? BeginBattleSpellTargeting(CoopSignalRClient client, CharacterId characterId,
-        BattleSnapshot battle, BattleSpellOption spell)
+    private GameCommand? BeginSpellTargeting(CoopSignalRClient client, CharacterId characterId,
+        SessionSnapshot snapshot, BattleSpellOption spell)
     {
         if (spell.ValidTargets.Count == 0)
         {
@@ -258,14 +280,26 @@ public sealed class CoopGuestScreen
             return null;
         }
         if (spell.TargetType is SpellTargetType.Self or SpellTargetType.Party)
-            return new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-                battle.BattleId, battle.TurnId, BattleActionKind.CastSpell, spell.SpellId,
-                spell.CastingItemSlotIndex, spell.ValidTargets[0]);
+            return _spellCastingInBattle
+                ? new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                    snapshot.Battle!.BattleId, snapshot.Battle.TurnId, BattleActionKind.CastSpell, spell.SpellId,
+                    spell.CastingItemSlotIndex, spell.ValidTargets[0])
+                : new CastExplorationSpellCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                    spell.SpellId, spell.CastingItemSlotIndex, spell.ValidTargets[0]);
         _targetedBattleSpell = spell;
         _spellTargetCursor = spell.ValidTargets[0];
         Interlocked.Exchange(ref _redrawRequested, 1);
         return null;
     }
+
+    private static IReadOnlyList<BattleSpellOption> OwnExplorationSpellOptions(SessionSnapshot snapshot,
+        CharacterId characterId) => snapshot.Party.FirstOrDefault(character => character.CharacterId == characterId)
+        ?.ExplorationSpellOptions ?? [];
+
+    private IReadOnlyList<BattleSpellOption> CurrentSpellOptions(SessionSnapshot snapshot,
+        CharacterId characterId) => _spellCastingInBattle
+        ? snapshot.Battle?.SpellOptions ?? []
+        : OwnExplorationSpellOptions(snapshot, characterId);
 
     private static bool TryGetFunctionKeyIndex(ConsoleKey key, out int index)
     {
@@ -500,15 +534,15 @@ public sealed class CoopGuestScreen
                 ConsoleColor.DarkBlue);
             return;
         }
-        if (!_battleSpellMenuOpen || snapshot.Battle is not { } battle) return;
-        var options = battle.SpellOptions ?? [];
+        if (!_battleSpellMenuOpen || own is null) return;
+        var options = CurrentSpellOptions(snapshot, own.CharacterId);
         _battleSpellSelection = options.Count == 0 ? 0 : Math.Clamp(_battleSpellSelection, 0, options.Count - 1);
         var visibleStart = options.Count == 0 ? 0 : Math.Clamp(_battleSpellSelection - 6, 0,
             Math.Max(0, options.Count - 12));
         var visible = options.Skip(visibleStart).Take(12).ToArray();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
-            ("⚔ HARCI VARÁZSLÁS", ConsoleColor.Magenta),
+            (_spellCastingInBattle ? "⚔ HARCI VARÁZSLÁS" : "🔮 VARÁZSLÁS", ConsoleColor.Magenta),
             ($"{own?.Name}  ◆ {own?.CurrentMana}/{own?.MaximumMana} manna", ConsoleColor.Cyan),
             ("↑↓ választ  Enter célzás  Esc bezár", ConsoleColor.Green),
             (new string('─', 68), ConsoleColor.DarkMagenta)

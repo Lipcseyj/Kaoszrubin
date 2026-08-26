@@ -7,7 +7,7 @@ namespace MazeGame.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 6;
+    public const int Version = 7;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -21,7 +21,8 @@ public sealed record SessionCharacterSnapshot(CharacterId CharacterId, string Na
     string CharacterClassId, int Level, int CurrentVitality, int MaximumVitality, int CurrentMana,
     int MaximumMana, int FoodLevel, int WaterLevel, int Gold, bool IsAlive, Position? Position,
     IReadOnlyList<string> StatusIds, CharacterInventorySnapshot? Inventory,
-    CharacterSheetSnapshot? CharacterSheet = null, ConsoleColor Color = ConsoleColor.Gray);
+    CharacterSheetSnapshot? CharacterSheet = null, ConsoleColor Color = ConsoleColor.Gray,
+    IReadOnlyList<BattleSpellOption>? ExplorationSpellOptions = null);
 
 public sealed record BattleSnapshot(BattleId BattleId, long TurnId, int Round, bool IsPlayerTurn,
     CharacterId ActingCharacterId, SessionEnemySnapshot Enemy,

@@ -346,6 +346,10 @@ public sealed class GameSession
         }
         if (Phase != GameSessionPhase.Exploration)
             return Fail("Ez a parancs csak felfedezés közben hajtható végre.", out reason);
+        if (command is CastExplorationSpellCommand explorationSpell &&
+            (string.IsNullOrWhiteSpace(explorationSpell.SpellId) ||
+             explorationSpell.CastingItemSlotIndex is < 0 or >= LiveCharacter.MaximumMagicItemCount))
+            return Fail("A felfedezési varázslat parancsa hiányos vagy érvénytelen.", out reason);
         if (command is LeaderActionCommand && control.ControllerKind != CharacterControllerKind.HostPlayer)
             return Fail("Ez a party-szintű művelet csak a leader számára engedélyezett.", out reason);
         reason = string.Empty;
