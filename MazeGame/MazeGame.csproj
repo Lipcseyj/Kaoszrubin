@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <None Update="adatok.csv" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Sounds\**\*.wav" CopyToOutputDirectory="PreserveNewest" />
     <Compile Remove="Tests\**\*.cs" />

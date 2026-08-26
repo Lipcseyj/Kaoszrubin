@@ -6,6 +6,7 @@ using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Magic;
+using MazeGame.Transport.SignalR;
 using System.Text.Json;
 using System.Text;
 
@@ -48,6 +49,10 @@ var tests = new (string Name, Action Run)[]
     ("A handshake verziót és katalógushasht ellenőriz", HandshakeValidatesProtocolAndCatalog),
     ("A reconnect-token ugyanazt a PlayerId-t állítja vissza", HandshakeReconnectRestoresPlayer),
     ("A JSON wire codec allowlistelt commandot ír körbe", ProtocolCodecRoundTripsCommand),
+    ("A host gateway kapcsolathoz köti a PlayerId-t", HostGatewayBindsAuthenticatedPlayer),
+    ("A host gateway kezeli a control-, replikáció- és disconnect-folyamot", HostGatewayRunsConnectionLifecycle),
+    ("A SignalR LAN host elindítható és leállítható", () =>
+        SignalRServerStartsAndStops().GetAwaiter().GetResult()),
     ("Az in-memory transport végigviszi a coop protokollfolyamot", () =>
         InMemoryTransportRunsProtocolFlow().GetAwaiter().GetResult())
 };
@@ -712,6 +717,80 @@ static void ProtocolCodecRoundTripsCommand()
         rejected = true;
     }
     Assert(rejected, "A codec elfogadott egy nem allowlistelt üzenettípust.");
+}
+
+static void HostGatewayBindsAuthenticatedPlayer()
+{
+    var (session, _, companion) = CreateSession();
+    var hash = CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("catalog"));
+    var gateway = new CoopHostGateway(session, new SessionHandshakeService(session, "1.0.0", hash),
+        new SessionReplicationPublisher());
+    var helloMessages = gateway.HandleIncoming("connection-1", CoopProtocolJson.Encode(
+        new ClientHello(SessionProtocol.Version, "1.0.0", hash, "Vendég")));
+    var hello = (ServerHello)CoopProtocolJson.Decode(helloMessages.Single().WireMessage);
+    Assert(hello is { Accepted: true, PlayerId: { } }, "A gateway handshake sikertelen.");
+    var playerId = hello.PlayerId!.Value;
+
+    var assignmentMessages = gateway.HandleIncoming("connection-1", CoopProtocolJson.Encode(
+        new CharacterControlRequest(playerId, companion.Id)));
+    var assignment = (CharacterControlResult)CoopProtocolJson.Decode(assignmentMessages.Single().WireMessage);
+    Assert(assignment.Accepted && session.IsHumanControlled(companion.Id),
+        "A gateway nem adta át a kiválasztott NPC vezérlését.");
+
+    var impostor = new MoveCharacterCommand(PlayerId.New(), 1, companion.Id, Direction.Right);
+    var rejectionMessages = gateway.HandleIncoming("connection-1", CoopProtocolJson.Encode(impostor));
+    var rejection = (CoopProtocolError)CoopProtocolJson.Decode(rejectionMessages.Single().WireMessage);
+    Assert(rejection.Code == "sender-mismatch" && !session.TryReadCommand(out _),
+        "A gateway elfogadta a kapcsolattól eltérő PlayerId-jú commandot.");
+}
+
+static void HostGatewayRunsConnectionLifecycle()
+{
+    var (session, leader, companion) = CreateSession();
+    var hash = CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("catalog"));
+    var gateway = new CoopHostGateway(session, new SessionHandshakeService(session, "1.0.0", hash),
+        new SessionReplicationPublisher());
+    var helloMessage = gateway.HandleIncoming("connection-2", CoopProtocolJson.Encode(
+        new ClientHello(SessionProtocol.Version, "1.0.0", hash, "Vendég"))).Single();
+    var playerId = ((ServerHello)CoopProtocolJson.Decode(helloMessage.WireMessage)).PlayerId!.Value;
+    gateway.HandleIncoming("connection-2", CoopProtocolJson.Encode(
+        new CharacterControlRequest(playerId, companion.Id)));
+
+    var move = new MoveCharacterCommand(playerId, 1, companion.Id, Direction.Left);
+    Assert(gateway.HandleIncoming("connection-2", CoopProtocolJson.Encode(move)).Count == 0 &&
+           session.TryReadCommand(out var accepted) && accepted == move,
+        "A hitelesített gateway-command nem jutott el a session queue-ba.");
+
+    var maze = new Maze(7, 7);
+    maze.Carve(maze.Entrance);
+    var fog = new FogOfWar(7, 7, 0);
+    fog.RevealFrom(maze, maze.Entrance);
+    var snapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "Gateway pálya",
+        new Dictionary<CharacterId, Position>
+        {
+            [leader.Id] = maze.Entrance,
+            [companion.Id] = new Position(3, 2)
+        }, World: WorldSnapshotProjector.Create(maze, fog)));
+    var replication = gateway.CreateReplicationMessages(snapshot);
+    var frame = (SessionReplicationFrame)CoopProtocolJson.Decode(replication.Single().WireMessage);
+    Assert(frame.Kind == SessionReplicationFrameKind.FullSnapshot && frame.RecipientPlayerId == playerId,
+        "A gateway nem a csatlakozott játékosnak készítette a replikációs frame-et.");
+    Assert(gateway.HandleIncoming("connection-2", CoopProtocolJson.Encode(
+        new SnapshotAck(playerId, frame.Session.SnapshotSequence))).Count == 0,
+        "A gateway nem fogadta el a snapshot ACK-ot.");
+
+    gateway.Disconnect("connection-2");
+    Assert(!session.IsHumanControlled(companion.Id) && gateway.CreateReplicationMessages(snapshot).Count == 0,
+        "Disconnect után nem állt vissza az NPC-vezérlés vagy megmaradt a címzett kapcsolat.");
+}
+
+static async Task SignalRServerStartsAndStops()
+{
+    var (session, _, _) = CreateSession();
+    var hash = CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("catalog"));
+    var gateway = new CoopHostGateway(session, new SessionHandshakeService(session, "1.0.0", hash),
+        new SessionReplicationPublisher());
+    await using var server = await CoopSignalRServer.StartAsync(gateway, "http://127.0.0.1:0");
 }
 
 static async Task InMemoryTransportRunsProtocolFlow()

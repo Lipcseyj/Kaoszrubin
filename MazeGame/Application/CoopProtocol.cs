@@ -14,6 +14,10 @@ public sealed record ServerHello(bool Accepted, string? RejectionReason, int Pro
 
 public sealed record SnapshotAck(PlayerId PlayerId, long SnapshotSequence);
 public sealed record SnapshotResyncRequest(PlayerId PlayerId);
+public sealed record CharacterControlRequest(PlayerId PlayerId, CharacterId CharacterId);
+public sealed record CharacterControlResult(PlayerId PlayerId, CharacterId CharacterId, bool Accepted,
+    string? RejectionReason = null);
+public sealed record CoopProtocolError(string Code, string Message);
 
 public static class CatalogFingerprint
 {
@@ -113,6 +117,7 @@ public static class CoopProtocolJson
             ClientHello => ("client.hello", typeof(ClientHello)),
             SnapshotAck => ("client.snapshot-ack", typeof(SnapshotAck)),
             SnapshotResyncRequest => ("client.snapshot-resync", typeof(SnapshotResyncRequest)),
+            CharacterControlRequest => ("client.character-control", typeof(CharacterControlRequest)),
             MoveCharacterCommand => ("command.move", typeof(MoveCharacterCommand)),
             LeaderActionCommand => ("command.leader-action", typeof(LeaderActionCommand)),
             InventoryTransferCommand => ("command.inventory-transfer", typeof(InventoryTransferCommand)),
@@ -121,6 +126,8 @@ public static class CoopProtocolJson
             PickUpGroundItemCommand => ("command.inventory-pickup", typeof(PickUpGroundItemCommand)),
             BattleActionCommand => ("command.battle-action", typeof(BattleActionCommand)),
             ServerHello => ("server.hello", typeof(ServerHello)),
+            CharacterControlResult => ("server.character-control", typeof(CharacterControlResult)),
+            CoopProtocolError => ("server.protocol-error", typeof(CoopProtocolError)),
             SessionReplicationFrame => ("server.replication", typeof(SessionReplicationFrame)),
             GameCommandRejectedEvent => ("server.command-rejected", typeof(GameCommandRejectedEvent)),
             _ => throw new NotSupportedException($"Nem támogatott protokollüzenet: {message.GetType().Name}.")
@@ -139,6 +146,7 @@ public static class CoopProtocolJson
             "client.hello" => Deserialize<ClientHello>(envelope),
             "client.snapshot-ack" => Deserialize<SnapshotAck>(envelope),
             "client.snapshot-resync" => Deserialize<SnapshotResyncRequest>(envelope),
+            "client.character-control" => Deserialize<CharacterControlRequest>(envelope),
             "command.move" => Deserialize<MoveCharacterCommand>(envelope),
             "command.leader-action" => Deserialize<LeaderActionCommand>(envelope),
             "command.inventory-transfer" => Deserialize<InventoryTransferCommand>(envelope),
@@ -147,6 +155,8 @@ public static class CoopProtocolJson
             "command.inventory-pickup" => Deserialize<PickUpGroundItemCommand>(envelope),
             "command.battle-action" => Deserialize<BattleActionCommand>(envelope),
             "server.hello" => Deserialize<ServerHello>(envelope),
+            "server.character-control" => Deserialize<CharacterControlResult>(envelope),
+            "server.protocol-error" => Deserialize<CoopProtocolError>(envelope),
             "server.replication" => Deserialize<SessionReplicationFrame>(envelope),
             "server.command-rejected" => Deserialize<GameCommandRejectedEvent>(envelope),
             _ => throw new JsonException($"Ismeretlen protokollüzenet-típus: '{envelope.Type}'.")
