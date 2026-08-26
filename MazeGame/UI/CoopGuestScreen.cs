@@ -24,6 +24,8 @@ public sealed class CoopGuestScreen
     private BattleSpellOption? _targetedBattleSpell;
     private Position? _spellTargetCursor;
     private bool _spellCastingInBattle;
+    private InnVendorKind? _innVendor;
+    private int _innSelection;
     private GuestRenderFrame? _lastFrame;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData)
@@ -63,7 +65,8 @@ public sealed class CoopGuestScreen
                 if (Console.KeyAvailable)
                 {
                     var key = Console.ReadKey(intercept: true);
-                    if (key.Key == ConsoleKey.Escape) break;
+                    if (key.Key == ConsoleKey.Escape && client.CurrentSnapshot?.Phase != GameSessionPhase.Inn &&
+                        !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null) break;
                     await HandleInputAsync(client, selected.CharacterId, key.Key, cancellationToken);
                 }
                 await Task.Delay(20, cancellationToken);
@@ -120,6 +123,11 @@ public sealed class CoopGuestScreen
         {
             await HandleInventoryInputAsync(client, characterId, snapshot, key, cancellationToken);
             return;
+        }
+        else if (snapshot.Phase == GameSessionPhase.Inn && snapshot.Inn is { } inn)
+        {
+            command = HandleInnInput(client, characterId, inn, key);
+            if (command is null) return;
         }
         else if (snapshot.Battle is { } battle && battle.ActingCharacterId == characterId)
         {
@@ -192,6 +200,55 @@ public sealed class CoopGuestScreen
         {
             SetMessage(exception.Message);
         }
+    }
+
+    private GameCommand? HandleInnInput(CoopSignalRClient client, CharacterId characterId,
+        InnSnapshot inn, ConsoleKey key)
+    {
+        if (GameInputBindings.IsCharacterSheetToggle(key))
+        {
+            _inventoryOpen = true;
+            _inventorySelection = 0;
+            _inventorySource = null;
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return null;
+        }
+        if (_innVendor is null)
+        {
+            var count = inn.Vendors.Count + 3;
+            _innSelection = Math.Clamp(_innSelection, 0, Math.Max(0, count - 1));
+            if (key == ConsoleKey.UpArrow) _innSelection = (_innSelection - 1 + count) % count;
+            else if (key == ConsoleKey.DownArrow) _innSelection = (_innSelection + 1) % count;
+            else if (key == ConsoleKey.Enter)
+            {
+                if (_innSelection < inn.Vendors.Count)
+                {
+                    _innVendor = inn.Vendors[_innSelection].Kind;
+                    _innSelection = 0;
+                }
+                else SetMessage("Ezt a party-szintű műveletet csak a host aktiválhatja.");
+            }
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return null;
+        }
+
+        var vendor = inn.Vendors.FirstOrDefault(candidate => candidate.Kind == _innVendor);
+        if (vendor is null) { _innVendor = null; _innSelection = 0; return null; }
+        if (key == ConsoleKey.Escape)
+        { _innVendor = null; _innSelection = 0; Interlocked.Exchange(ref _redrawRequested, 1); return null; }
+        if (vendor.Offers.Count == 0) return null;
+        _innSelection = Math.Clamp(_innSelection, 0, vendor.Offers.Count - 1);
+        if (key == ConsoleKey.UpArrow) _innSelection = (_innSelection - 1 + vendor.Offers.Count) % vendor.Offers.Count;
+        else if (key == ConsoleKey.DownArrow) _innSelection = (_innSelection + 1) % vendor.Offers.Count;
+        else if (key == ConsoleKey.Enter)
+        {
+            var offer = vendor.Offers[_innSelection];
+            SetMessage($"Vásárlás: {offer.Item.Name}…", ConsoleColor.Cyan);
+            return new InnPurchaseCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                inn.Revision, vendor.Kind, offer.Index);
+        }
+        Interlocked.Exchange(ref _redrawRequested, 1);
+        return null;
     }
 
     private void SynchronizeSpellUi(SessionSnapshot snapshot, CharacterId characterId)
@@ -452,6 +509,7 @@ public sealed class CoopGuestScreen
             control.ConnectionState == PlayerConnectionState.Connected);
         var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == selected.CharacterId);
         ApplyBattleSpellUi(grid, snapshot, own);
+        ApplyInnUi(grid, snapshot);
         var panelLines = own?.CharacterSheet is not null && own.Inventory is not null
             ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount, snapshot.BossKeyCount)
                 .ToDictionary(line => line.Row)
@@ -522,6 +580,59 @@ public sealed class CoopGuestScreen
 
         return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, grid, panel,
             footer);
+    }
+
+    private void ApplyInnUi(GuestMapCell[,] grid, SessionSnapshot snapshot)
+    {
+        if (snapshot.Phase != GameSessionPhase.Inn || snapshot.Inn is not { } inn) return;
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("PÁLYAVÉGI FOGADÓ", ConsoleColor.Yellow),
+            ($"Közös arany: {inn.PartyGold} {ConsoleRenderer.MoneyIcon}", ConsoleColor.Yellow),
+            ("↑↓ választ  Enter belép/vásárol  Esc vissza  Tab karakterlap", ConsoleColor.Green),
+            (new string('─', 68), ConsoleColor.DarkYellow)
+        };
+        if (_innVendor is null)
+        {
+            var entries = inn.Vendors.Select(vendor => vendor.Name).Concat([
+                "Pihenés (csak host)", "Titkos raktár (csak host)", "Továbbindulás (csak host)"]).ToArray();
+            _innSelection = Math.Clamp(_innSelection, 0, Math.Max(0, entries.Length - 1));
+            lines.AddRange(entries.Select((entry, index) =>
+                ($"{(index == _innSelection ? "▶" : " ")} {entry}",
+                    index >= inn.Vendors.Count ? ConsoleColor.DarkGray :
+                    index == _innSelection ? ConsoleColor.White : ConsoleColor.Gray)));
+        }
+        else
+        {
+            var vendor = inn.Vendors.FirstOrDefault(candidate => candidate.Kind == _innVendor);
+            lines.Add((vendor?.Name.ToUpperInvariant() ?? "KERESKEDŐ", ConsoleColor.Cyan));
+            if (vendor is null || vendor.Offers.Count == 0) lines.Add(("A készlet elfogyott.", ConsoleColor.DarkYellow));
+            else
+            {
+                _innSelection = Math.Clamp(_innSelection, 0, vendor.Offers.Count - 1);
+                var start = Math.Clamp(_innSelection - 7, 0, Math.Max(0, vendor.Offers.Count - 16));
+                lines.AddRange(vendor.Offers.Skip(start).Take(16).Select((offer, index) =>
+                {
+                    var absolute = start + index;
+                    return ($"{(absolute == _innSelection ? "▶" : " ")} {offer.Item.Name,-34} {offer.Price,6} arany",
+                        absolute == _innSelection ? ConsoleColor.White : ConsoleColor.Gray);
+                }));
+            }
+        }
+        const int desiredWidth = 76;
+        var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
+        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
+        var top = Math.Max(0, (grid.GetLength(1) - lines.Count - 2) / 2);
+        DrawOverlayText(grid, left, top, "╔" + new string('═', width - 2) + "╗", ConsoleColor.Yellow);
+        var renderedRows = Math.Min(lines.Count, grid.GetLength(1) - top - 2);
+        for (var row = 0; row < renderedRows; row++)
+        {
+            var value = lines[row].Text.Length > width - 4 ? lines[row].Text[..(width - 4)] : lines[row].Text;
+            DrawOverlayText(grid, left, top + row + 1, "║" + new string(' ', width - 2) + "║", ConsoleColor.Yellow);
+            DrawOverlayText(grid, left + 2, top + row + 1, value.PadRight(width - 4), lines[row].Color);
+        }
+        DrawOverlayText(grid, left, top + renderedRows + 1, "╚" + new string('═', width - 2) + "╝",
+            ConsoleColor.Yellow);
     }
 
     private void ApplyBattleSpellUi(GuestMapCell[,] grid, SessionSnapshot snapshot,

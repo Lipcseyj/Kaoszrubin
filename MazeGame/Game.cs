@@ -131,6 +131,7 @@ public sealed class Game
     private readonly GameStateMapper _gameStateMapper;
     private readonly DoorInteractionController _doorInteractions;
     private readonly InnController _innController;
+    private ICoopHostLoop? _activeCoopHost;
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
     private readonly GameSession _session;
@@ -191,6 +192,7 @@ public sealed class Game
         {
             GoldenKeyCount = _collectedBossKeyIds.Count,
             BossKeyCount = MonsterIds.Bosses.Count,
+            Inn = _innController.CreateSnapshot(),
             Party = snapshot.Party.Select(character => character with
             {
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
@@ -218,7 +220,7 @@ public sealed class Game
         _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
         _doorInteractions = new DoorInteractionController(gameData, _renderer, _soundEffects, _random);
         _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer, _soundEffects,
-            _random, AwardExperienceResult, ResolvePerkOffers, PreparePartySpells);
+            _random, AwardExperienceResult, ResolvePerkOffers, PreparePartySpells, ReadInnKey);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
     }
@@ -422,6 +424,7 @@ public sealed class Game
 
     public void Run(ICoopHostLoop? coopHost = null)
     {
+        _activeCoopHost = coopHost;
         Console.CursorVisible = false;
         if (_loadedState is null)
         {
@@ -584,6 +587,7 @@ public sealed class Game
         }
         finally
         {
+            _activeCoopHost = null;
             Console.CursorVisible = true;
             Console.SetCursorPosition(0, ConsoleRenderer.PlayfieldHeight + 5);
         }
@@ -1041,8 +1045,36 @@ public sealed class Game
                 case CastExplorationSpellCommand castSpell:
                     ExecuteExplorationSpell(castSpell);
                     break;
+                case InnPurchaseCommand purchase:
+                    ExecuteInnPurchase(purchase);
+                    break;
             }
         }
+    }
+
+    private void ExecuteInnPurchase(InnPurchaseCommand command)
+    {
+        var recipient = CharacterRoster.Party.Members.FirstOrDefault(character => character.Id == command.CharacterId);
+        if (recipient is null)
+        {
+            _session.RejectExecutedCommand(command, "A vásárló karakter már nem tagja a partinak.");
+            return;
+        }
+        if (!_innController.TryPurchase(command.Vendor, command.OfferIndex, command.ExpectedInnRevision,
+                recipient, out var message))
+            _session.RejectExecutedCommand(command, message);
+    }
+
+    private ConsoleKeyInfo ReadInnKey()
+    {
+        while (!Console.KeyAvailable)
+        {
+            ProcessSessionCommands();
+            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            Thread.Sleep(20);
+        }
+        return Console.ReadKey(intercept: true);
     }
 
     private void ContinueDisconnectedRemoteBattleAsNpc()

@@ -100,6 +100,10 @@ public sealed record CastExplorationSpellCommand(PlayerId SenderId, long Command
     string SpellId, int? CastingItemSlotIndex, Position Target)
     : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record InnPurchaseCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    long ExpectedInnRevision, InnVendorKind Vendor, int OfferIndex)
+    : GameCommand(SenderId, CommandId, CharacterId);
+
 public abstract record GameSessionEvent(long Sequence);
 
 public sealed record SessionPhaseChangedEvent(long Sequence, GameSessionPhase PreviousPhase,

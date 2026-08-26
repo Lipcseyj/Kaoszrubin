@@ -3,6 +3,7 @@ using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Magic;
+using MazeGame.Application;
 
 namespace MazeGame;
 
@@ -22,6 +23,10 @@ internal sealed class InnController
     private readonly Func<LiveCharacter, int, LevelUpResult> _awardExperience;
     private readonly Action<LiveCharacter, LevelUpResult> _resolvePerkOffers;
     private readonly Action _preparePartySpells;
+    private readonly Func<ConsoleKeyInfo> _readKey;
+    private readonly Dictionary<InnVendorKind, List<InnStockOffer>> _vendorStocks = [];
+    private long _revision;
+    private bool _active;
     private bool _hasRestedAtInn;
     private int _secretStashAccessCost;
 
@@ -29,7 +34,7 @@ internal sealed class InnController
         ConsoleRenderer renderer, SoundEffects soundEffects, Random random,
         Func<LiveCharacter, int, LevelUpResult> awardExperience,
         Action<LiveCharacter, LevelUpResult> resolvePerkOffers,
-        Action preparePartySpells)
+        Action preparePartySpells, Func<ConsoleKeyInfo>? readKey = null)
     {
         _gameData = gameData;
         _characterRoster = characterRoster;
@@ -40,7 +45,51 @@ internal sealed class InnController
         _awardExperience = awardExperience;
         _resolvePerkOffers = resolvePerkOffers;
         _preparePartySpells = preparePartySpells;
+        _readKey = readKey ?? (() => Console.ReadKey(intercept: true));
     }
+
+    public InnSnapshot? CreateSnapshot()
+    {
+        if (!_active) return null;
+        var vendors = _vendorStocks.Select(pair => new InnVendorSnapshot(pair.Key, VendorName(pair.Key),
+            pair.Value.Select((offer, index) => new InnOfferSnapshot(index, ToSnapshot(offer.Item), offer.Price)).ToArray()))
+            .ToArray();
+        return new InnSnapshot(_revision, _selectedCharacter.Gold, vendors);
+    }
+
+    public bool TryPurchase(InnVendorKind vendor, int offerIndex, long expectedRevision,
+        LiveCharacter recipient, out string message)
+    {
+        if (!_active) { message = "A parti jelenleg nincs a fogadóban."; return false; }
+        if (expectedRevision != _revision) { message = "A készlet időközben megváltozott; válassz újra."; return false; }
+        if (!_vendorStocks.TryGetValue(vendor, out var stock)) { message = "Ez a kereskedő most nincs jelen."; return false; }
+        if (offerIndex < 0 || offerIndex >= stock.Count) { message = "Az ajánlat már nem érhető el."; return false; }
+        var backpackIndex = recipient.Backpack.ToList().FindIndex(item => item is null);
+        if (backpackIndex < 0) { message = $"{recipient.Name} hátizsákja tele van."; return false; }
+        var offer = stock[offerIndex];
+        if (!_selectedCharacter.SpendGold(offer.Price))
+        { message = $"Nincs elég közös arany: még {offer.Price - _selectedCharacter.Gold} hiányzik."; return false; }
+        recipient.SetInventoryItem(InventorySlotKind.Backpack, backpackIndex, offer.Item);
+        stock.RemoveAt(offerIndex);
+        _revision++;
+        message = $"Megvetted: {offer.Item.Name} ({offer.Price} arany).";
+        return true;
+    }
+
+    private static InventoryItemSnapshot ToSnapshot(IItemDefinition item) => new(item.Id, item.Name, item.Category,
+        item.Rarity, item is MagicItemDefinition magic ? magic.MaximumCharges : 0,
+        item is MagicItemDefinition magicItem ? magicItem.MaximumCharges : 0,
+        item is WeaponDefinition { IsTwoHanded: true }, item.Description, item.BasePrice, item.MagicPower);
+
+    private static string VendorName(InnVendorKind vendor) => vendor switch
+    {
+        InnVendorKind.Market => "Kereskedő",
+        InnVendorKind.Witcher => "Vajákos",
+        InnVendorKind.Blacksmith => "Kovácsmester",
+        InnVendorKind.Armorer => "Páncélmíves",
+        InnVendorKind.WanderingMage => "Vándormágus portéka",
+        _ => vendor.ToString()
+    };
 
     public void Run(int completedLevel)
     {
@@ -58,6 +107,14 @@ internal sealed class InnController
         var blacksmithStock = blacksmithPresent ? CreateSpecialistStock(completedLevel, ItemCategory.Weapon) : [];
         var armorerStock = armorerPresent ? CreateSpecialistStock(completedLevel, ItemCategory.Armor) : [];
         var wanderingMageStock = wanderingMagePresent ? CreateWanderingMageStock() : [];
+        _vendorStocks.Clear();
+        _vendorStocks[InnVendorKind.Market] = CreateInnStock(completedLevel).ToList();
+        _vendorStocks[InnVendorKind.Witcher] = CreateWitcherStock(completedLevel).ToList();
+        if (blacksmithPresent) _vendorStocks[InnVendorKind.Blacksmith] = blacksmithStock;
+        if (armorerPresent) _vendorStocks[InnVendorKind.Armorer] = armorerStock;
+        if (wanderingMagePresent) _vendorStocks[InnVendorKind.WanderingMage] = wanderingMageStock;
+        _revision++;
+        _active = true;
         var presentVisitors = new List<string>();
         if (blacksmithPresent) presentVisitors.Add("a Kovácsmester");
         if (armorerPresent) presentVisitors.Add("a Páncélmíves");
@@ -88,7 +145,7 @@ internal sealed class InnController
                 _renderer.DrawInnMenuScreen(_selectedCharacter, _characterRoster.Party.Members.Count, selectedIndex, displayOptions, artisanNotice);
                 redraw = false;
             }
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = _readKey().Key;
             if (key == ConsoleKey.UpArrow)
             {
                 var previousIndex = selectedIndex;
@@ -117,7 +174,7 @@ internal sealed class InnController
                 case InnMenuOption.WanderingMage: RunWanderingMage(wanderingMageStock); break;
                 case InnMenuOption.Recruit: RunInnRecruitment(); break;
                 case InnMenuOption.Rumors: RunInnRumors(completedLevel); break;
-                case InnMenuOption.Leave: return;
+                case InnMenuOption.Leave: _active = false; return;
             }
         }
     }
@@ -157,7 +214,7 @@ internal sealed class InnController
 
     private void RunInnMarket(int completedLevel)
     {
-        var stock = CreateInnStock(completedLevel).ToList();
+        var stock = _vendorStocks[InnVendorKind.Market];
         var buybackPrices = AllTradableItems().ToDictionary(item => item.Id,
             item => Math.Max(1, item.BasePrice * _random.Next(40, 71) / 100), StringComparer.OrdinalIgnoreCase);
         var mode = InnMarketMode.Buy;
@@ -177,7 +234,7 @@ internal sealed class InnController
                 redraw = false;
             }
 
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = _readKey().Key;
             if (key == ConsoleKey.Escape) return;
             if (key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow or ConsoleKey.Tab)
             {
@@ -208,12 +265,15 @@ internal sealed class InnController
 
             if (mode == InnMarketMode.Buy)
             {
+                if (stock.Count == 0) { selectedIndex = 0; continue; }
+                selectedIndex = Math.Clamp(selectedIndex, 0, stock.Count - 1);
                 var offer = stock[selectedIndex];
                 var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
                 if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
                 if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; continue; }
                 recipient.AddToBackpack(offer.Item);
                 stock.RemoveAt(selectedIndex);
+                _revision++;
                 message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
             }
             else
@@ -259,7 +319,7 @@ internal sealed class InnController
                 redraw = false;
             }
 
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = _readKey().Key;
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow && entryCount > 0)
             {
@@ -286,6 +346,7 @@ internal sealed class InnController
             if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; continue; }
             recipient.AddToBackpack(offer.Item);
             stock.RemoveAt(selectedIndex);
+            _revision++;
             message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
         }
     }
@@ -433,7 +494,7 @@ internal sealed class InnController
                     _characterRoster.Party.Members, _selectedCharacter.Gold, message);
                 redraw = false;
             }
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = _readKey().Key;
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow)
             {
@@ -499,7 +560,7 @@ internal sealed class InnController
                 _renderer.DrawInnReplacementScreen(recruit, replaceable, selectedIndex);
                 redraw = false;
             }
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = _readKey().Key;
             if (key == ConsoleKey.Escape) return null;
             if (key == ConsoleKey.UpArrow)
             {
@@ -526,7 +587,7 @@ internal sealed class InnController
         while (true)
         {
             _renderer.DrawInnRumorScreen(rumor, maximumRefreshes - refreshesUsed);
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = _readKey().Key;
             if (key is ConsoleKey.Enter or ConsoleKey.Escape) return;
             if (key != ConsoleKey.N || refreshesUsed >= maximumRefreshes) continue;
             refreshesUsed++;
@@ -669,7 +730,7 @@ internal sealed class InnController
 
     private void RunWitcherMarket(int completedLevel)
     {
-        var stock = CreateWitcherStock(completedLevel).ToList();
+        var stock = _vendorStocks[InnVendorKind.Witcher];
         var mode = InnMarketMode.Buy;
         var selectedIndex = 0;
         var message = "A vajákos bólint: 'Gyógyitalok és orvosságok, kigyógyítom a sebet.'";
@@ -687,7 +748,7 @@ internal sealed class InnController
                 redraw = false;
             }
 
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = _readKey().Key;
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow && entryCount > 0)
             {
@@ -707,12 +768,15 @@ internal sealed class InnController
             }
             if (key != ConsoleKey.Enter || entryCount == 0) continue;
             redraw = true;
+            if (stock.Count == 0) { selectedIndex = 0; continue; }
+            selectedIndex = Math.Clamp(selectedIndex, 0, stock.Count - 1);
             var offer = stock[selectedIndex];
             var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
             if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; continue; }
             recipient.AddToBackpack(offer.Item);
             stock.RemoveAt(selectedIndex);
+            _revision++;
             message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
         }
     }
@@ -774,7 +838,7 @@ internal sealed class InnController
         while (true)
         {
             _renderer.DrawWanderingMageMenu(_selectedCharacter, options, selectedIndex, message);
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = _readKey().Key;
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow) selectedIndex = (selectedIndex - 1 + options.Count) % options.Count;
             else if (key == ConsoleKey.DownArrow) selectedIndex = (selectedIndex + 1) % options.Count;
@@ -801,7 +865,7 @@ internal sealed class InnController
             selectedIndex = wands.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, wands.Count - 1);
             _renderer.DrawWandRechargeScreen(_selectedCharacter, wands.Select(wand =>
                 (wand.Character.Name, wand.Item.Name, WandRechargePrice(wand.Item), wand.Item.MaximumCharges)).ToList(), selectedIndex, message);
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = _readKey().Key;
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow && wands.Count > 0) selectedIndex = (selectedIndex - 1 + wands.Count) % wands.Count;
             else if (key == ConsoleKey.DownArrow && wands.Count > 0) selectedIndex = (selectedIndex + 1) % wands.Count;
@@ -858,7 +922,7 @@ internal sealed class InnController
                     _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
                 redraw = false;
             }
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = _readKey().Key;
             if (key == ConsoleKey.Escape) return;
             if (key is ConsoleKey.UpArrow or ConsoleKey.DownArrow && stock.Count > 0)
             {
@@ -870,12 +934,14 @@ internal sealed class InnController
                 continue;
             }
             if (key != ConsoleKey.Enter || stock.Count == 0) continue;
+            selectedIndex = Math.Clamp(selectedIndex, 0, stock.Count - 1);
             var offer = stock[selectedIndex];
             var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; redraw = true; continue; }
             if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; redraw = true; continue; }
             recipient.AddToBackpack(offer.Item);
             stock.RemoveAt(selectedIndex);
+            _revision++;
             message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
             redraw = true;
         }

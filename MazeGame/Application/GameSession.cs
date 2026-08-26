@@ -344,6 +344,15 @@ public sealed class GameSession
             reason = string.Empty;
             return true;
         }
+        if (command is InnPurchaseCommand purchase)
+        {
+            if (Phase != GameSessionPhase.Inn)
+                return Fail("Vásárolni csak a fogadóban lehet.", out reason);
+            if (!Enum.IsDefined(purchase.Vendor) || purchase.ExpectedInnRevision <= 0 || purchase.OfferIndex < 0)
+                return Fail("A fogadói vásárlási parancs érvénytelen.", out reason);
+            reason = string.Empty;
+            return true;
+        }
         if (Phase != GameSessionPhase.Exploration)
             return Fail("Ez a parancs csak felfedezés közben hajtható végre.", out reason);
         if (command is CastExplorationSpellCommand explorationSpell &&

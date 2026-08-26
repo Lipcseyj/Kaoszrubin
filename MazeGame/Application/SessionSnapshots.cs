@@ -7,7 +7,7 @@ namespace MazeGame.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 7;
+    public const int Version = 8;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -15,7 +15,15 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
     GameSessionPhase Phase, PlayerId HostPlayerId, CharacterId LeaderCharacterId, int MazeLevel,
     string LevelName, IReadOnlyList<SessionCharacterSnapshot> Party,
     IReadOnlyList<CharacterControlState> CharacterControls, BattleSnapshot? Battle, WorldSnapshot? World = null,
-    int GoldenKeyCount = 0, int BossKeyCount = 0);
+    int GoldenKeyCount = 0, int BossKeyCount = 0, InnSnapshot? Inn = null);
+
+public enum InnVendorKind { Market, Witcher, Blacksmith, Armorer, WanderingMage }
+
+public sealed record InnSnapshot(long Revision, int PartyGold, IReadOnlyList<InnVendorSnapshot> Vendors);
+
+public sealed record InnVendorSnapshot(InnVendorKind Kind, string Name, IReadOnlyList<InnOfferSnapshot> Offers);
+
+public sealed record InnOfferSnapshot(int Index, InventoryItemSnapshot Item, int Price);
 
 public sealed record SessionCharacterSnapshot(CharacterId CharacterId, string Name, string RaceId,
     string CharacterClassId, int Level, int CurrentVitality, int MaximumVitality, int CurrentMana,
