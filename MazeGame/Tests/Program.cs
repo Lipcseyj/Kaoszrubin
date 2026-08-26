@@ -15,7 +15,9 @@ var tests = new (string Name, Action Run)[]
 {
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
+    ("A vendég saját ajtó- és keresési akciót küldhet", RemotePlayerCanIssueCharacterAction),
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
+    ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A duplikált parancs elutasításra kerül", DuplicateCommandIsRejected),
     ("Harc közben nem futhat felfedezési parancs", ExplorationCommandIsRejectedDuringBattle),
     ("A CharacterId mentés után is stabil", CharacterIdSurvivesSerialization),
@@ -43,6 +45,8 @@ var tests = new (string Name, Action Run)[]
     ("Hiányzó delta-baseline esetén a kliens resyncet kér", ClientStoreRequestsResyncForMissingBaseline),
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
+    ("A vendég snapshot kasztbetűt és karakterszínt őriz", GuestAvatarUsesClassGlyphAndCharacterColor),
+    ("A vendég nem rajzol újra puszta snapshot-sorszám változásra", GuestRedrawIgnoresReplicationSequences),
     ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories),
     ("Az inventory transfer atomi és megőrzi a töltetet", InventoryTransferIsAtomicAndPreservesCharges),
     ("Az elavult inventory-revízió elutasításra kerül", StaleInventoryRevisionIsRejected),
@@ -100,6 +104,36 @@ static void RemotePlayerCanTakeNpcControl()
         "A vendég parancsa nem került a sorba.");
     Assert(session.TryReadCommand(out var command) && command.SenderId == remote,
         "A vendég saját karakterének parancsát elutasította a session.");
+}
+
+static void RemotePlayerCanIssueCharacterAction()
+{
+    var (session, _, companion) = CreateSession();
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var error), error);
+    var command = new CharacterActionCommand(remote, 1, companion.Id, CharacterAction.OpenDoor);
+    session.Submit(command);
+    Assert(session.TryReadCommand(out var accepted) && accepted == command,
+        "A session elutasította a vendég saját karakterhez kötött ajtóakcióját.");
+}
+
+static void HostAndGuestUseSharedInputBindings()
+{
+    Assert(GameInputBindings.IsCharacterSheetToggle(ConsoleKey.Tab), "A Tab nem vált karakterlapfókuszt.");
+    Assert(GameInputBindings.InventoryAction(ConsoleKey.Enter) == InventoryInputAction.Use &&
+           GameInputBindings.InventoryAction(ConsoleKey.D) == InventoryInputAction.Drop &&
+           GameInputBindings.InventoryAction(ConsoleKey.Spacebar) == InventoryInputAction.MoveItem &&
+           GameInputBindings.InventoryAction(ConsoleKey.I) == InventoryInputAction.Inspect,
+        "Az inventory közös billentyűkiosztása eltér a host vezérlésétől.");
+    Assert(GameInputBindings.CharacterAction(ConsoleKey.N) == CharacterAction.OpenDoor &&
+           GameInputBindings.CharacterAction(ConsoleKey.Z) == CharacterAction.CloseDoor &&
+           GameInputBindings.CharacterAction(ConsoleKey.K) == CharacterAction.SearchOrLockDoor,
+        "Az N/Z/K karakterakciók nincsenek a közös keymapben.");
+    Assert(GameInputBindings.LeaderAction(ConsoleKey.P, false) == LeaderAction.Rest &&
+           GameInputBindings.LeaderAction(ConsoleKey.G, false) == LeaderAction.ToggleRegrouping &&
+           GameInputBindings.LeaderAction(ConsoleKey.Enter, false) is null &&
+           GameInputBindings.LeaderAction(ConsoleKey.Enter, true) == LeaderAction.ActivateExit,
+        "A leader-only billentyűkiosztás hibás.");
 }
 
 static void RemotePlayerCannotIssueLeaderAction()
@@ -656,6 +690,48 @@ static void CharacterSheetLayoutIsShared()
         "A közös karakterlap read modelje nem élte túl a JSON wire-körutat.");
 }
 
+static void GuestAvatarUsesClassGlyphAndCharacterColor()
+{
+    Assert(CharacterSheetPanel.CharacterClassGlyph(CharacterClassIds.Harcos) == "H" &&
+           CharacterSheetPanel.CharacterClassGlyph(CharacterClassIds.Barbár) == "B" &&
+           CharacterSheetPanel.CharacterClassGlyph(CharacterClassIds.Lovag) == "L" &&
+           CharacterSheetPanel.CharacterClassGlyph(CharacterClassIds.Tolvaj) == "T" &&
+           CharacterSheetPanel.CharacterClassGlyph(CharacterClassIds.Pap) == "P" &&
+           CharacterSheetPanel.CharacterClassGlyph(CharacterClassIds.Mágus) == "M",
+        "A kasztazonosítók nem a megfelelő térképi betűre képződnek.");
+    var (session, leader, companion) = CreateSession();
+    var snapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "Színteszt",
+        new Dictionary<CharacterId, Position>
+        {
+            [leader.Id] = new Position(1, 1),
+            [companion.Id] = new Position(2, 1)
+        }));
+    Assert(snapshot.Party.Single(character => character.CharacterId == leader.Id).Color == leader.Color &&
+           snapshot.Party.Single(character => character.CharacterId == companion.Id).Color == companion.Color,
+        "A session snapshot nem őrizte meg a karakterhez rendelt konzolszínt.");
+}
+
+static void GuestRedrawIgnoresReplicationSequences()
+{
+    var (session, leader, companion) = CreateSession();
+    var positions = new Dictionary<CharacterId, Position>
+    {
+        [leader.Id] = new Position(1, 1),
+        [companion.Id] = new Position(2, 1)
+    };
+    var first = session.CreateSnapshot(new SessionSnapshotContext(1, "Render", positions));
+    var sequenceOnly = first with
+    {
+        SnapshotSequence = first.SnapshotSequence + 10,
+        LastEventSequence = first.LastEventSequence + 5
+    };
+    var changed = first with { MazeLevel = first.MazeLevel + 1 };
+    Assert(CoopGuestRenderFingerprint.Compute(first) == CoopGuestRenderFingerprint.Compute(sequenceOnly),
+        "A render fingerprint puszta replikációs sorszámra megváltozott.");
+    Assert(CoopGuestRenderFingerprint.Compute(first) != CoopGuestRenderFingerprint.Compute(changed),
+        "A render fingerprint valódi látható állapotváltozást nem érzékelt.");
+}
+
 static void ReplicationPublisherRedactsOtherInventories()
 {
     var (session, leader, companion) = CreateSession();
@@ -844,6 +920,11 @@ static void ProtocolCodecRoundTripsCommand()
     var restored = CoopProtocolJson.Decode(CoopProtocolJson.Encode(command));
     Assert(restored is BattleActionCommand decoded && decoded == command,
         "A JSON wire codec megváltoztatta a battle commandot.");
+    var characterAction = new CharacterActionCommand(PlayerId.New(), 8, CharacterId.New(),
+        CharacterAction.SearchOrLockDoor);
+    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(characterAction)) is CharacterActionCommand decodedAction &&
+           decodedAction == characterAction,
+        "A JSON wire codec megváltoztatta a karakterhez kötött akciót.");
     var rejected = false;
     try
     {

@@ -15,6 +15,17 @@ public static class CharacterSheetPanel
     public const int Width = 27;
     private const int ResourceIconStep = 10;
 
+    public static string CharacterClassGlyph(string characterClassId) => characterClassId switch
+    {
+        CharacterClassIds.Harcos => "H",
+        CharacterClassIds.Barbár => "B",
+        CharacterClassIds.Lovag => "L",
+        CharacterClassIds.Tolvaj => "T",
+        CharacterClassIds.Pap => "P",
+        CharacterClassIds.Mágus => "M",
+        _ => "?"
+    };
+
     public static IReadOnlyList<CharacterSheetPanelLine> Build(LiveCharacter character,
         IReadOnlyDictionary<int, int> experienceByLevel, int mazeLevel, int goldenKeyCount, int bossCount)
     {

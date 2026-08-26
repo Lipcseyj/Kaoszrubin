@@ -20,7 +20,7 @@ public sealed record SessionCharacterSnapshot(CharacterId CharacterId, string Na
     string CharacterClassId, int Level, int CurrentVitality, int MaximumVitality, int CurrentMana,
     int MaximumMana, int FoodLevel, int WaterLevel, int Gold, bool IsAlive, Position? Position,
     IReadOnlyList<string> StatusIds, CharacterInventorySnapshot? Inventory,
-    CharacterSheetSnapshot? CharacterSheet = null);
+    CharacterSheetSnapshot? CharacterSheet = null, ConsoleColor Color = ConsoleColor.Gray);
 
 public sealed record BattleSnapshot(BattleId BattleId, long TurnId, int Round, bool IsPlayerTurn,
     CharacterId ActingCharacterId, SessionEnemySnapshot Enemy,

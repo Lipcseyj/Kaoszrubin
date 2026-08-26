@@ -15,6 +15,8 @@ public sealed class CoopGuestScreen
     private bool _inventoryOpen;
     private int _inventorySelection;
     private InventorySlotAddress? _inventorySource;
+    private readonly object _renderFingerprintGate = new();
+    private string? _lastRenderFingerprint;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash)
     {
@@ -25,7 +27,7 @@ public sealed class CoopGuestScreen
     public async Task RunAsync(string hostUrl, string displayName, CancellationToken cancellationToken = default)
     {
         await using var client = new CoopSignalRClient(hostUrl, _applicationVersion, _catalogHash, displayName);
-        client.SnapshotChanged += _ => Interlocked.Exchange(ref _redrawRequested, 1);
+        client.SnapshotChanged += snapshot => RequestRedrawWhenContentChanged(snapshot);
         client.ConnectionStateChanged += _ => Interlocked.Exchange(ref _redrawRequested, 1);
         client.ProtocolErrorReceived += error => SetMessage($"Protokollhiba: {error.Message}");
         client.CommandRejected += rejected => SetMessage($"A host elutasította: {rejected.Reason}");
@@ -250,7 +252,7 @@ public sealed class CoopGuestScreen
 
     private void Draw(CoopSignalRClient client, CoopCharacterOption selected)
     {
-        ResetConsole();
+        ResetConsole(clear: false);
         WriteLine($"=== COOP VENDÉG — {selected.Name} ===", ConsoleColor.Yellow);
         WriteLine($"Kapcsolat: {client.State} | Tab: térkép/inventory | Nyilak: mozgás | N/Z/K: ajtó/keresés | Harc: Space/T",
             client.State == CoopClientConnectionState.Connected ? ConsoleColor.Green : ConsoleColor.DarkYellow);
@@ -269,17 +271,19 @@ public sealed class CoopGuestScreen
         if (!stillControlled)
             WriteLine("Megfigyelő mód: a karaktered már nincs a vezérlésed alatt.", ConsoleColor.DarkYellow);
         var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == selected.CharacterId);
-        var grid = new string[world.Width, world.Height];
+        var grid = new GuestMapCell[world.Width, world.Height];
         for (var y = 0; y < world.Height; y++)
-            for (var x = 0; x < world.Width; x++) grid[x, y] = "░";
+            for (var x = 0; x < world.Width; x++) grid[x, y] = new GuestMapCell("░", ConsoleColor.DarkGray);
         foreach (var cell in world.RevealedCells)
-            if (IsInside(cell.Position, world)) grid[cell.Position.X, cell.Position.Y] = char.ConvertFromUtf32(cell.TileCodePoint);
-        foreach (var enemy in world.Enemies) Put(grid, world, enemy.Position, "e");
-        foreach (var chest in world.Chests) Put(grid, world, chest.Position, "$");
-        foreach (var corpse in world.Corpses) Put(grid, world, corpse.Position, "%");
-        foreach (var pile in world.GroundPiles) Put(grid, world, pile.Position, "*");
+            if (IsInside(cell.Position, world)) grid[cell.Position.X, cell.Position.Y] =
+                new GuestMapCell(char.ConvertFromUtf32(cell.TileCodePoint), ConsoleColor.Gray);
+        foreach (var enemy in world.Enemies) Put(grid, world, enemy.Position, "e", ConsoleColor.Red);
+        foreach (var chest in world.Chests) Put(grid, world, chest.Position, "$", ConsoleColor.Yellow);
+        foreach (var corpse in world.Corpses) Put(grid, world, corpse.Position, "%", ConsoleColor.DarkRed);
+        foreach (var pile in world.GroundPiles) Put(grid, world, pile.Position, "◆", ConsoleColor.Cyan);
         foreach (var character in snapshot.Party.Where(character => character.Position is not null))
-            Put(grid, world, character.Position!.Value, character.CharacterId == selected.CharacterId ? "@" : "&");
+            Put(grid, world, character.Position!.Value, CharacterSheetPanel.CharacterClassGlyph(character.CharacterClassId),
+                character.Color);
 
         var panelLines = own?.CharacterSheet is not null && own.Inventory is not null
             ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount, snapshot.BossKeyCount)
@@ -295,7 +299,12 @@ public sealed class CoopGuestScreen
         for (var y = 0; y < maximumHeight; y++)
         {
             for (var x = 0; x < maximumWidth; x++)
-                Console.Write(y < world.Height ? grid[x, y] : " ");
+            {
+                var cell = y < world.Height ? grid[x, y] : new GuestMapCell(" ", ConsoleColor.Gray);
+                Console.ForegroundColor = cell.Color;
+                Console.Write(cell.Glyph);
+            }
+            Console.ResetColor();
             Console.Write(" │ ");
             if (panelLines.TryGetValue(y, out var line))
             {
@@ -304,9 +313,11 @@ public sealed class CoopGuestScreen
                 Console.BackgroundColor = line.InventorySlot is not null && line.InventorySlot == selectedSlot
                     ? ConsoleColor.DarkCyan
                     : ConsoleColor.Black;
-                Console.Write((marker + line.Text).PadRight(CharacterSheetPanel.Width + 1));
+                Console.Write(FitConsoleLine(marker + line.Text, CharacterSheetPanel.Width));
                 Console.ResetColor();
             }
+            else
+                Console.Write(new string(' ', CharacterSheetPanel.Width));
             Console.WriteLine();
         }
         if (_inventoryOpen)
@@ -346,9 +357,21 @@ public sealed class CoopGuestScreen
     private static bool IsInside(Position position, WorldSnapshot world) =>
         position.X >= 0 && position.X < world.Width && position.Y >= 0 && position.Y < world.Height;
 
-    private static void Put(string[,] grid, WorldSnapshot world, Position position, string value)
+    private static void Put(GuestMapCell[,] grid, WorldSnapshot world, Position position, string value,
+        ConsoleColor color)
     {
-        if (IsInside(position, world)) grid[position.X, position.Y] = value;
+        if (IsInside(position, world)) grid[position.X, position.Y] = new GuestMapCell(value, color);
+    }
+
+    private void RequestRedrawWhenContentChanged(SessionSnapshot snapshot)
+    {
+        var fingerprint = CoopGuestRenderFingerprint.Compute(snapshot);
+        lock (_renderFingerprintGate)
+        {
+            if (string.Equals(_lastRenderFingerprint, fingerprint, StringComparison.Ordinal)) return;
+            _lastRenderFingerprint = fingerprint;
+        }
+        Interlocked.Exchange(ref _redrawRequested, 1);
     }
 
     private static int SafeWindowWidth()
@@ -361,19 +384,28 @@ public sealed class CoopGuestScreen
         try { return Console.WindowHeight; } catch (IOException) { return 30; }
     }
 
-    private static void ResetConsole()
+    private static void ResetConsole(bool clear = true)
     {
         Console.ResetColor();
         Console.ForegroundColor = ConsoleColor.Gray;
         Console.BackgroundColor = ConsoleColor.Black;
-        Console.Clear();
+        if (clear) Console.Clear();
+        else Console.SetCursorPosition(0, 0);
     }
 
     private static void WriteLine(string text, ConsoleColor color, ConsoleColor background = ConsoleColor.Black)
     {
         Console.ForegroundColor = color;
         Console.BackgroundColor = background;
-        Console.WriteLine(text);
+        Console.WriteLine(FitConsoleLine(text, Math.Max(1, SafeWindowWidth() - 1)));
         Console.ResetColor();
     }
+
+    private static string FitConsoleLine(string text, int width)
+    {
+        if (text.Length > width) text = text[..width];
+        return text.PadRight(width);
+    }
+
+    private readonly record struct GuestMapCell(string Glyph, ConsoleColor Color);
 }
