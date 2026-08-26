@@ -62,6 +62,7 @@ public sealed class CoopSignalRClient : IAsyncDisposable
     public PlayerId? PlayerId { get; private set; }
     public PlayerId? HostPlayerId { get; private set; }
     public IReadOnlyList<CharacterId> AvailableCharacterIds { get; private set; } = [];
+    public IReadOnlyList<CoopCharacterOption> AvailableCharacters { get; private set; } = [];
     public SessionSnapshot? CurrentSnapshot => _sessionStore?.CurrentSnapshot;
     public CoopClientConnectionState State { get { lock (_gate) return _state; } }
 
@@ -250,6 +251,7 @@ public sealed class CoopSignalRClient : IAsyncDisposable
             HostPlayerId = hello.HostPlayerId;
             _reconnectToken = hello.ReconnectToken;
             AvailableCharacterIds = hello.AvailableCharacterIds ?? [];
+            AvailableCharacters = hello.AvailableCharacters ?? [];
             if (_sessionStore is null)
             {
                 _sessionStore = new ClientSessionStore(playerId);

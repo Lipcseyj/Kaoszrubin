@@ -402,7 +402,7 @@ public sealed class Game
         }
     }
 
-    public void Run()
+    public void Run(ICoopHostLoop? coopHost = null)
     {
         Console.CursorVisible = false;
         if (_loadedState is null)
@@ -413,6 +413,8 @@ public sealed class Game
         }
         else RestoreGame(_loadedState);
         if (_loadedState is null) _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
+        if (coopHost is not null)
+            _renderer.DrawDeveloperMessage($"Coop host aktív: {coopHost.ConnectionHint}");
         try
         {
             while (!_gameOver)
@@ -549,6 +551,9 @@ public sealed class Game
                     DrainNeeds();
                     _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
                 }
+
+                if (coopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                    coopHost.TryPublish(CreateSessionSnapshot());
 
                 Thread.Sleep(20);
             }
@@ -1351,16 +1356,16 @@ public sealed class Game
             : IsInitiativeDrink(item) && character.IsAlive
                 ? UseInitiativeDrink(character, item)
             : item.Effect switch
-        {
-            ConsumableEffect.Food when character.FoodLevel < 100 => UseFood(character, item.EffectValue),
-            ConsumableEffect.Water when character.WaterLevel < 100 => UseWater(character, item.EffectValue),
-            ConsumableEffect.Heal when character.IsAlive && character.CurrentVitality < character.MaximumVitality => UseHealing(character, item.EffectValue),
-            ConsumableEffect.RestoreMana when character.IsAlive && character.UsesMana && character.CurrentMana < character.MaximumMana => UseManaPotion(character, item.EffectValue),
-            ConsumableEffect.CurePoison when character.RemoveStatus(CharacterStatusIds.Poisoned) => "a mérgezés megszűnt",
-            ConsumableEffect.CureDisease when character.RemoveStatus(CharacterStatusIds.Diseased) => "a betegség megszűnt",
-            ConsumableEffect.StopBleeding when character.RemoveStatus(CharacterStatusIds.Bleeding) => "a vérzés elállt",
-            _ => string.Empty
-        };
+            {
+                ConsumableEffect.Food when character.FoodLevel < 100 => UseFood(character, item.EffectValue),
+                ConsumableEffect.Water when character.WaterLevel < 100 => UseWater(character, item.EffectValue),
+                ConsumableEffect.Heal when character.IsAlive && character.CurrentVitality < character.MaximumVitality => UseHealing(character, item.EffectValue),
+                ConsumableEffect.RestoreMana when character.IsAlive && character.UsesMana && character.CurrentMana < character.MaximumMana => UseManaPotion(character, item.EffectValue),
+                ConsumableEffect.CurePoison when character.RemoveStatus(CharacterStatusIds.Poisoned) => "a mérgezés megszűnt",
+                ConsumableEffect.CureDisease when character.RemoveStatus(CharacterStatusIds.Diseased) => "a betegség megszűnt",
+                ConsumableEffect.StopBleeding when character.RemoveStatus(CharacterStatusIds.Bleeding) => "a vérzés elállt",
+                _ => string.Empty
+            };
         if (string.IsNullOrEmpty(result)) used = false;
         if (!used) { _renderer.DrawInventoryMessage("A tárgy hatására most nincs szükség vagy nem alkalmazható.", ConsoleColor.DarkYellow); return; }
 
@@ -2033,7 +2038,10 @@ public sealed class Game
     private static int Manhattan(Position first, Position second) => Math.Abs(first.X - second.X) + Math.Abs(first.Y - second.Y);
     private static (int X, int Y) DirectionOffset(Direction direction) => direction switch
     {
-        Direction.Up => (0, -1), Direction.Down => (0, 1), Direction.Left => (-1, 0), _ => (1, 0)
+        Direction.Up => (0, -1),
+        Direction.Down => (0, 1),
+        Direction.Left => (-1, 0),
+        _ => (1, 0)
     };
 
     private void HandleLocalBattleInput(ConsoleKeyInfo key)
@@ -2337,12 +2345,12 @@ public sealed class Game
 
     private bool IsValidExplicitSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
         Position target, Enemy? currentEnemy) => spell.TargetType switch
-    {
-        SpellTargetType.Self => target == casterPosition && CanAffectCharacter(spell, caster),
-        SpellTargetType.Party => target == casterPosition &&
-                                 CharacterRoster.Party.Members.Any(character => character.IsAlive && CanAffectCharacter(spell, character)),
-        _ => IsValidSpellTarget(casterPosition, spell, target, currentEnemy)
-    };
+        {
+            SpellTargetType.Self => target == casterPosition && CanAffectCharacter(spell, caster),
+            SpellTargetType.Party => target == casterPosition &&
+                                     CharacterRoster.Party.Members.Any(character => character.IsAlive && CanAffectCharacter(spell, character)),
+            _ => IsValidSpellTarget(casterPosition, spell, target, currentEnemy)
+        };
 
     private static string CastingItemUseText(MagicItemDefinition item) => item.Kind == MagicItemKind.Scroll
         ? "📜 A tekercs elhasználódott"

@@ -53,6 +53,7 @@ var tests = new (string Name, Action Run)[]
     ("A JSON wire codec allowlistelt commandot ír körbe", ProtocolCodecRoundTripsCommand),
     ("A host gateway kapcsolathoz köti a PlayerId-t", HostGatewayBindsAuthenticatedPlayer),
     ("A host gateway kezeli a control-, replikáció- és disconnect-folyamot", HostGatewayRunsConnectionLifecycle),
+    ("A hálózati lifecycle és a szimulációs esemény nem deadlockol", GatewayAndSimulationDoNotDeadlock),
     ("A SignalR LAN host elindítható és leállítható", () =>
         SignalRServerStartsAndStops().GetAwaiter().GetResult()),
     ("A SignalR kliens végigviszi a LAN coop kapcsolatot", () =>
@@ -748,7 +749,8 @@ static void HandshakeValidatesProtocolAndCatalog()
         CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("other")), "Vendég"));
     var accepted = handshake.Handle(new ClientHello(SessionProtocol.Version, "1.0.0", hash, "Vendég"));
     Assert(!wrongProtocol.Accepted && !wrongCatalog.Accepted && accepted.Accepted &&
-           accepted.PlayerId is not null && accepted.ReconnectToken?.Length == 64,
+           accepted.PlayerId is not null && accepted.ReconnectToken?.Length == 64 &&
+           accepted.AvailableCharacters?.Single().Name == "Companion",
         "A handshake verzió-/katalógusellenőrzése vagy elfogadott válasza hibás.");
 }
 
@@ -854,6 +856,41 @@ static void HostGatewayRunsConnectionLifecycle()
         "Disconnect után nem állt vissza az NPC-vezérlés vagy megmaradt a címzett kapcsolat.");
 }
 
+static void GatewayAndSimulationDoNotDeadlock()
+{
+    var (session, _, companion) = CreateSession();
+    var hash = CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("catalog"));
+    var gateway = new CoopHostGateway(session, new SessionHandshakeService(session, "1.0.0", hash),
+        new SessionReplicationPublisher());
+    var hello = (ServerHello)CoopProtocolJson.Decode(gateway.HandleIncoming("deadlock-connection",
+        CoopProtocolJson.Encode(new ClientHello(SessionProtocol.Version, "1.0.0", hash, "Vendég")))
+        .Single().WireMessage);
+    var playerId = hello.PlayerId!.Value;
+    gateway.HandleIncoming("deadlock-connection",
+        CoopProtocolJson.Encode(new CharacterControlRequest(playerId, companion.Id)));
+
+    var simulation = Task.Run(() =>
+    {
+        for (var index = 1; index <= 200; index++)
+        {
+            gateway.HandleIncoming("deadlock-connection", CoopProtocolJson.Encode(
+                new MoveCharacterCommand(playerId, index, companion.Id, Direction.Right)));
+            session.TryReadCommand(out _);
+            gateway.HandleIncoming("deadlock-connection", CoopProtocolJson.Encode(
+                new MoveCharacterCommand(playerId, index, companion.Id, Direction.Left)));
+            session.TryReadCommand(out _);
+        }
+    });
+    var lifecycle = Task.Run(() =>
+    {
+        for (var index = 0; index < 200; index++)
+            gateway.HandleIncoming("deadlock-connection",
+                CoopProtocolJson.Encode(new CharacterControlRequest(playerId, companion.Id)));
+    });
+    Assert(Task.WaitAll([simulation, lifecycle], TimeSpan.FromSeconds(5)),
+        "A session-event és a gateway lifecycle egymás zárolására várt.");
+}
+
 static async Task SignalRServerStartsAndStops()
 {
     var (session, _, _) = CreateSession();
@@ -879,6 +916,8 @@ static async Task SignalRClientRunsLanProtocolFlow()
     client.SnapshotChanged += snapshot => receivedSnapshot.TrySetResult(snapshot);
     var protocolErrors = new List<CoopProtocolError>();
     client.ProtocolErrorReceived += protocolErrors.Add;
+    var commandRejected = new TaskCompletionSource<GameCommandRejectedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+    client.CommandRejected += rejected => commandRejected.TrySetResult(rejected);
     var hello = await client.ConnectAsync();
     Assert(hello is { Accepted: true, PlayerId: { } } && client.State == CoopClientConnectionState.Connected,
         "A valódi SignalR kliens handshake-je sikertelen.");
@@ -907,6 +946,17 @@ static async Task SignalRClientRunsLanProtocolFlow()
     await client.SendCommandAsync(move);
     Assert(session.TryReadCommand(out var accepted) && accepted == move,
         "A SignalR kliens commandja nem jutott el a host session queue-jáig.");
+    await client.SendCommandAsync(move);
+    Assert(!session.TryReadCommand(out _), "A host session elfogadta a duplikált hálózati commandot.");
+    var rejectionSnapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "SignalR pálya",
+        new Dictionary<CharacterId, Position>
+        {
+            [leader.Id] = maze.Entrance,
+            [companion.Id] = new Position(3, 2)
+        }, World: WorldSnapshotProjector.Create(maze, fog)));
+    await server.PublishSnapshotAsync(rejectionSnapshot);
+    Assert((await commandRejected.Task.WaitAsync(TimeSpan.FromSeconds(5))).CommandId == move.CommandId,
+        "A szimulációs szál command-elutasítása nem jutott vissza a SignalR klienshez.");
     Assert(protocolErrors.Count == 0, "A hibamentes SignalR folyamat közben protokollhiba érkezett.");
 }
 

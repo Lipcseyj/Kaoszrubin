@@ -11,6 +11,7 @@ namespace MazeGame.Application;
 /// </summary>
 public sealed class GameSession
 {
+    private readonly object _stateGate = new();
     private readonly Party _party;
     private readonly Channel<GameCommand> _commands = Channel.CreateUnbounded<GameCommand>(
         new UnboundedChannelOptions { SingleReader = true, AllowSynchronousContinuations = false });
@@ -23,6 +24,7 @@ public sealed class GameSession
     private long _activeBattleTurnId;
     private CharacterId? _actingBattleCharacterId;
     private IReadOnlySet<BattleActionKind> _allowedBattleActions = new HashSet<BattleActionKind>();
+    private GameSessionPhase _phase = GameSessionPhase.Exploration;
 
     public GameSession(Party party, LiveCharacter leader, PlayerId? hostPlayerId = null)
     {
@@ -35,166 +37,214 @@ public sealed class GameSession
     }
 
     public PlayerId HostPlayerId { get; }
-    public GameSessionPhase Phase { get; private set; } = GameSessionPhase.Exploration;
-    public IReadOnlyCollection<CharacterControlState> CharacterControls => _controls.Values;
+    public GameSessionPhase Phase { get { lock (_stateGate) return _phase; } }
+    public IReadOnlyCollection<CharacterControlState> CharacterControls
+    {
+        get { lock (_stateGate) return _controls.Values.ToArray(); }
+    }
     public event Action<GameSessionEvent>? EventPublished;
 
-    public bool IsHumanControlled(CharacterId characterId) => _controls.TryGetValue(characterId, out var control) &&
-        control.ControllerKind is CharacterControllerKind.HostPlayer or CharacterControllerKind.RemotePlayer &&
-        control.ConnectionState == PlayerConnectionState.Connected;
+    public bool IsHumanControlled(CharacterId characterId)
+    {
+        lock (_stateGate) return _controls.TryGetValue(characterId, out var control) &&
+            control.ControllerKind is CharacterControllerKind.HostPlayer or CharacterControllerKind.RemotePlayer &&
+            control.ConnectionState == PlayerConnectionState.Connected;
+    }
+
+    public IReadOnlyList<CoopCharacterOption> GetAvailableRemoteCharacters()
+    {
+        lock (_stateGate)
+        {
+            SynchronizeParty();
+            return _party.Members.Where(character => _controls[character.Id] is
+            { ControllerKind: CharacterControllerKind.Npc, AssignedPlayerId: null })
+                .Select(character => new CoopCharacterOption(character.Id, character.Name,
+                    character.CharacterClass.Name, character.Level)).ToArray();
+        }
+    }
 
     public PlayerId RegisterRemotePlayer()
     {
-        var playerId = PlayerId.New();
-        _players.Add(playerId);
-        return playerId;
+        lock (_stateGate)
+        {
+            var playerId = PlayerId.New();
+            _players.Add(playerId);
+            return playerId;
+        }
     }
 
     public bool TryAssignRemoteControl(PlayerId playerId, CharacterId characterId, out string error)
     {
-        SynchronizeParty();
-        if (!_players.Contains(playerId) || playerId == HostPlayerId)
-            return Fail("Ismeretlen vagy nem távoli játékos.", out error);
-        if (_party.Leader?.Id == characterId)
-            return Fail("A party-leader irányítása nem adható át.", out error);
-        if (!_controls.TryGetValue(characterId, out var control))
-            return Fail("A karakter nem tagja a partinak.", out error);
-        if (control.ControllerKind != CharacterControllerKind.Npc || control.AssignedPlayerId is not null)
-            return Fail("A karaktert már emberi játékos irányítja vagy foglalja.", out error);
-
-        SetControl(control with
+        lock (_stateGate)
         {
-            ControllerKind = CharacterControllerKind.RemotePlayer,
-            AssignedPlayerId = playerId,
-            ConnectionState = PlayerConnectionState.Connected
-        });
-        error = string.Empty;
-        return true;
+            SynchronizeParty();
+            if (!_players.Contains(playerId) || playerId == HostPlayerId)
+                return Fail("Ismeretlen vagy nem távoli játékos.", out error);
+            if (_party.Leader?.Id == characterId)
+                return Fail("A party-leader irányítása nem adható át.", out error);
+            if (!_controls.TryGetValue(characterId, out var control))
+                return Fail("A karakter nem tagja a partinak.", out error);
+            if (control.ControllerKind != CharacterControllerKind.Npc || control.AssignedPlayerId is not null)
+                return Fail("A karaktert már emberi játékos irányítja vagy foglalja.", out error);
+
+            SetControl(control with
+            {
+                ControllerKind = CharacterControllerKind.RemotePlayer,
+                AssignedPlayerId = playerId,
+                ConnectionState = PlayerConnectionState.Connected
+            });
+            error = string.Empty;
+            return true;
+        }
     }
 
     public void MarkPlayerDisconnected(PlayerId playerId)
     {
-        if (playerId == HostPlayerId) return;
-        foreach (var control in _controls.Values.Where(control => control.AssignedPlayerId == playerId).ToList())
-            SetControl(control with
-            {
-                ControllerKind = CharacterControllerKind.Npc,
-                ConnectionState = PlayerConnectionState.Disconnected
-            });
+        lock (_stateGate)
+        {
+            if (playerId == HostPlayerId) return;
+            foreach (var control in _controls.Values.Where(control => control.AssignedPlayerId == playerId).ToList())
+                SetControl(control with
+                {
+                    ControllerKind = CharacterControllerKind.Npc,
+                    ConnectionState = PlayerConnectionState.Disconnected
+                });
+        }
     }
 
     public bool TryReconnectPlayer(PlayerId playerId)
     {
-        var reserved = _controls.Values.Where(control => control.AssignedPlayerId == playerId &&
-            control.ConnectionState != PlayerConnectionState.Connected).ToList();
-        if (reserved.Count == 0) return false;
-        _players.Add(playerId);
-        foreach (var control in reserved)
-            SetControl(control with
-            {
-                ControllerKind = CharacterControllerKind.RemotePlayer,
-                ConnectionState = PlayerConnectionState.Connected
-            });
-        return true;
+        lock (_stateGate)
+        {
+            var reserved = _controls.Values.Where(control => control.AssignedPlayerId == playerId &&
+                control.ConnectionState != PlayerConnectionState.Connected).ToList();
+            if (reserved.Count == 0) return false;
+            _players.Add(playerId);
+            foreach (var control in reserved)
+                SetControl(control with
+                {
+                    ControllerKind = CharacterControllerKind.RemotePlayer,
+                    ConnectionState = PlayerConnectionState.Connected
+                });
+            return true;
+        }
     }
 
     public bool Submit(GameCommand command) => _commands.Writer.TryWrite(command);
 
     public SessionSnapshot CreateSnapshot(SessionSnapshotContext context)
     {
-        ArgumentNullException.ThrowIfNull(context);
-        if (context.MazeLevel <= 0) throw new ArgumentOutOfRangeException(nameof(context), "A pályaszintnek pozitívnak kell lennie.");
-        if (string.IsNullOrWhiteSpace(context.LevelName)) throw new ArgumentException("A pályanév nem lehet üres.", nameof(context));
-        SynchronizeParty();
-        ValidateSnapshotBattle(context.Battle);
+        lock (_stateGate)
+        {
+            ArgumentNullException.ThrowIfNull(context);
+            if (context.MazeLevel <= 0) throw new ArgumentOutOfRangeException(nameof(context), "A pályaszintnek pozitívnak kell lennie.");
+            if (string.IsNullOrWhiteSpace(context.LevelName)) throw new ArgumentException("A pályanév nem lehet üres.", nameof(context));
+            SynchronizeParty();
+            ValidateSnapshotBattle(context.Battle);
 
-        var party = _party.Members.Select(character => new SessionCharacterSnapshot(
-            character.Id,
-            character.Name,
-            character.Race.Id,
-            character.CharacterClass.Id,
-            character.Level,
-            character.CurrentVitality,
-            character.MaximumVitality,
-            character.CurrentMana,
-            character.MaximumMana,
-            character.FoodLevel,
-            character.WaterLevel,
-            character.Gold,
-            character.IsAlive,
-            context.CharacterPositions.TryGetValue(character.Id, out var position) ? position : null,
-            character.Statuses.Select(status => status.Id).ToArray(),
-            InventorySnapshotProjector.Create(character))).ToArray();
-        var controls = _party.Members.Select(character => _controls[character.Id]).ToArray();
-        return new SessionSnapshot(SessionProtocol.Version, ++_snapshotSequence, _eventSequence, Phase,
-            HostPlayerId, _party.Leader!.Id, context.MazeLevel, context.LevelName, party, controls, context.Battle,
-            context.World);
+            var party = _party.Members.Select(character => new SessionCharacterSnapshot(
+                character.Id,
+                character.Name,
+                character.Race.Id,
+                character.CharacterClass.Id,
+                character.Level,
+                character.CurrentVitality,
+                character.MaximumVitality,
+                character.CurrentMana,
+                character.MaximumMana,
+                character.FoodLevel,
+                character.WaterLevel,
+                character.Gold,
+                character.IsAlive,
+                context.CharacterPositions.TryGetValue(character.Id, out var position) ? position : null,
+                character.Statuses.Select(status => status.Id).ToArray(),
+                InventorySnapshotProjector.Create(character))).ToArray();
+            var controls = _party.Members.Select(character => _controls[character.Id]).ToArray();
+            return new SessionSnapshot(SessionProtocol.Version, ++_snapshotSequence, _eventSequence, Phase,
+                HostPlayerId, _party.Leader!.Id, context.MazeLevel, context.LevelName, party, controls, context.Battle,
+                context.World);
+        }
     }
 
     public void SetBattlePrompt(BattleId battleId, long turnId, CharacterId actingCharacterId,
         IReadOnlyList<BattleActionKind>? allowedActions = null)
     {
-        if (turnId <= 0) throw new ArgumentOutOfRangeException(nameof(turnId));
-        allowedActions ??= [BattleActionKind.PhysicalAttack];
-        if (allowedActions.Count == 0) throw new ArgumentException("Legalább egy harci akció engedélyezése szükséges.", nameof(allowedActions));
-        SetPhase(GameSessionPhase.Battle);
-        _activeBattleId = battleId;
-        _activeBattleTurnId = turnId;
-        _actingBattleCharacterId = actingCharacterId;
-        _allowedBattleActions = allowedActions.ToHashSet();
-        Publish(sequence => new BattlePromptEvent(sequence, battleId, turnId, actingCharacterId,
-            allowedActions));
+        lock (_stateGate)
+        {
+            if (turnId <= 0) throw new ArgumentOutOfRangeException(nameof(turnId));
+            allowedActions ??= [BattleActionKind.PhysicalAttack];
+            if (allowedActions.Count == 0) throw new ArgumentException("Legalább egy harci akció engedélyezése szükséges.", nameof(allowedActions));
+            SetPhase(GameSessionPhase.Battle);
+            _activeBattleId = battleId;
+            _activeBattleTurnId = turnId;
+            _actingBattleCharacterId = actingCharacterId;
+            _allowedBattleActions = allowedActions.ToHashSet();
+            Publish(sequence => new BattlePromptEvent(sequence, battleId, turnId, actingCharacterId,
+                allowedActions));
+        }
     }
 
     public void EndBattle(BattleId battleId)
     {
-        if (_activeBattleId != battleId) return;
-        _activeBattleId = null;
-        _activeBattleTurnId = 0;
-        _actingBattleCharacterId = null;
-        _allowedBattleActions = new HashSet<BattleActionKind>();
-        Publish(sequence => new BattleEndedEvent(sequence, battleId));
+        lock (_stateGate)
+        {
+            if (_activeBattleId != battleId) return;
+            _activeBattleId = null;
+            _activeBattleTurnId = 0;
+            _actingBattleCharacterId = null;
+            _allowedBattleActions = new HashSet<BattleActionKind>();
+            Publish(sequence => new BattleEndedEvent(sequence, battleId));
+        }
     }
 
     /// <summary>Az első érvényes parancsot adja vissza; a megelőző hibás parancsokról eseményt bocsát ki.</summary>
     public bool TryReadCommand(out GameCommand command)
     {
-        SynchronizeParty();
-        while (_commands.Reader.TryRead(out var candidate))
+        lock (_stateGate)
         {
-            if (Validate(candidate, out var reason))
+            SynchronizeParty();
+            while (_commands.Reader.TryRead(out var candidate))
             {
-                _lastCommandIds[candidate.SenderId] = candidate.CommandId;
-                command = candidate;
-                return true;
+                if (Validate(candidate, out var reason))
+                {
+                    _lastCommandIds[candidate.SenderId] = candidate.CommandId;
+                    command = candidate;
+                    return true;
+                }
+                Publish(sequence => new GameCommandRejectedEvent(sequence, candidate.SenderId,
+                    candidate.CommandId, reason));
             }
-            Publish(sequence => new GameCommandRejectedEvent(sequence, candidate.SenderId,
-                candidate.CommandId, reason));
+            command = null!;
+            return false;
         }
-        command = null!;
-        return false;
     }
 
     public void SetPhase(GameSessionPhase phase)
     {
-        if (Phase == phase) return;
-        var previous = Phase;
-        Phase = phase;
-        Publish(sequence => new SessionPhaseChangedEvent(sequence, previous, phase));
+        lock (_stateGate)
+        {
+            if (_phase == phase) return;
+            var previous = _phase;
+            _phase = phase;
+            Publish(sequence => new SessionPhaseChangedEvent(sequence, previous, phase));
+        }
     }
 
     public void SynchronizeParty()
     {
-        var members = _party.Members.Select(character => character.Id).ToHashSet();
-        foreach (var removed in _controls.Keys.Where(id => !members.Contains(id)).ToList()) _controls.Remove(removed);
-        foreach (var character in _party.Members)
+        lock (_stateGate)
         {
-            if (_controls.ContainsKey(character.Id)) continue;
-            _controls[character.Id] = character == _party.Leader
-                ? new CharacterControlState(character.Id, CharacterControllerKind.HostPlayer, HostPlayerId,
-                    PlayerConnectionState.Connected)
-                : new CharacterControlState(character.Id, CharacterControllerKind.Npc, null,
-                    PlayerConnectionState.Connected);
+            var members = _party.Members.Select(character => character.Id).ToHashSet();
+            foreach (var removed in _controls.Keys.Where(id => !members.Contains(id)).ToList()) _controls.Remove(removed);
+            foreach (var character in _party.Members)
+            {
+                if (_controls.ContainsKey(character.Id)) continue;
+                _controls[character.Id] = character == _party.Leader
+                    ? new CharacterControlState(character.Id, CharacterControllerKind.HostPlayer, HostPlayerId,
+                        PlayerConnectionState.Connected)
+                    : new CharacterControlState(character.Id, CharacterControllerKind.Npc, null,
+                        PlayerConnectionState.Connected);
+            }
         }
     }
 

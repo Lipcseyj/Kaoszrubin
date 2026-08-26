@@ -52,7 +52,7 @@ public sealed class CoopSignalRServer : IAsyncDisposable
     public async Task PublishSnapshotAsync(SessionSnapshot snapshot,
         CancellationToken cancellationToken = default)
     {
-        var messages = _gateway.CreateReplicationMessages(snapshot);
+        var messages = _gateway.DrainPendingMessages().Concat(_gateway.CreateReplicationMessages(snapshot));
         await Task.WhenAll(messages.Select(message => _hubContext.Clients.Client(message.ConnectionId)
             .SendAsync(CoopHub.ClientReceiveMethod, message.WireMessage, cancellationToken)));
     }

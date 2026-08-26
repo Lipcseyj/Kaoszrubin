@@ -10,7 +10,10 @@ public sealed record ClientHello(int ProtocolVersion, string ApplicationVersion,
 
 public sealed record ServerHello(bool Accepted, string? RejectionReason, int ProtocolVersion,
     string ApplicationVersion, string CatalogHash, PlayerId? PlayerId = null, PlayerId? HostPlayerId = null,
-    string? ReconnectToken = null, IReadOnlyList<CharacterId>? AvailableCharacterIds = null);
+    string? ReconnectToken = null, IReadOnlyList<CharacterId>? AvailableCharacterIds = null,
+    IReadOnlyList<CoopCharacterOption>? AvailableCharacters = null);
+
+public sealed record CoopCharacterOption(CharacterId CharacterId, string Name, string CharacterClassName, int Level);
 
 public sealed record SnapshotAck(PlayerId PlayerId, long SnapshotSequence);
 public sealed record SnapshotResyncRequest(PlayerId PlayerId);
@@ -33,6 +36,7 @@ public static class CatalogFingerprint
 
 public sealed class SessionHandshakeService
 {
+    private readonly object _gate = new();
     private readonly GameSession _session;
     private readonly string _applicationVersion;
     private readonly string _catalogHash;
@@ -49,35 +53,39 @@ public sealed class SessionHandshakeService
 
     public ServerHello Handle(ClientHello hello)
     {
-        ArgumentNullException.ThrowIfNull(hello);
-        if (hello.ProtocolVersion != SessionProtocol.Version)
-            return Reject($"Nem támogatott protokollverzió: {hello.ProtocolVersion}.");
-        if (!HashesEqual(_catalogHash, hello.CatalogHash))
-            return Reject("A host és a kliens játékkatalógusa eltér.");
-        if (string.IsNullOrWhiteSpace(hello.DisplayName) || hello.DisplayName.Length > 32)
-            return Reject("A játékosnév 1 és 32 karakter közötti lehet.");
-
-        PlayerId playerId;
-        string reconnectToken;
-        if (!string.IsNullOrWhiteSpace(hello.ReconnectToken))
+        lock (_gate)
         {
-            if (!_reconnectTokens.TryGetValue(hello.ReconnectToken, out playerId) ||
-                !_session.TryReconnectPlayer(playerId))
-                return Reject("A reconnect-token ismeretlen, lejárt vagy a játékos már csatlakoztatva van.");
-            reconnectToken = hello.ReconnectToken;
-        }
-        else
-        {
-            playerId = _session.RegisterRemotePlayer();
-            reconnectToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-            _reconnectTokens[reconnectToken] = playerId;
-        }
+            ArgumentNullException.ThrowIfNull(hello);
+            if (hello.ProtocolVersion != SessionProtocol.Version)
+                return Reject($"Nem támogatott protokollverzió: {hello.ProtocolVersion}.");
+            if (!HashesEqual(_catalogHash, hello.CatalogHash))
+                return Reject("A host és a kliens játékkatalógusa eltér.");
+            if (string.IsNullOrWhiteSpace(hello.DisplayName) || hello.DisplayName.Length > 32)
+                return Reject("A játékosnév 1 és 32 karakter közötti lehet.");
 
-        var available = _session.CharacterControls
-            .Where(control => control.ControllerKind == CharacterControllerKind.Npc && control.AssignedPlayerId is null)
-            .Select(control => control.CharacterId).ToArray();
-        return new ServerHello(true, null, SessionProtocol.Version, _applicationVersion, _catalogHash,
-            playerId, _session.HostPlayerId, reconnectToken, available);
+            PlayerId playerId;
+            string reconnectToken;
+            if (!string.IsNullOrWhiteSpace(hello.ReconnectToken))
+            {
+                if (!_reconnectTokens.TryGetValue(hello.ReconnectToken, out playerId) ||
+                    !_session.TryReconnectPlayer(playerId))
+                    return Reject("A reconnect-token ismeretlen, lejárt vagy a játékos már csatlakoztatva van.");
+                reconnectToken = hello.ReconnectToken;
+            }
+            else
+            {
+                playerId = _session.RegisterRemotePlayer();
+                reconnectToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+                _reconnectTokens[reconnectToken] = playerId;
+            }
+
+            var available = _session.CharacterControls
+                .Where(control => control.ControllerKind == CharacterControllerKind.Npc && control.AssignedPlayerId is null)
+                .Select(control => control.CharacterId).ToArray();
+            var availableCharacters = _session.GetAvailableRemoteCharacters();
+            return new ServerHello(true, null, SessionProtocol.Version, _applicationVersion, _catalogHash,
+                playerId, _session.HostPlayerId, reconnectToken, available, availableCharacters);
+        }
     }
 
     private ServerHello Reject(string reason) => new(false, reason, SessionProtocol.Version,

@@ -1,5 +1,6 @@
 using MazeGame.Data;
 using MazeGame.Domain.Characters;
+using MazeGame.Transport.SignalR;
 using System.Text.Json;
 
 namespace MazeGame.UI;
@@ -11,13 +12,18 @@ public sealed class MainMenu
     private CharacterRoster _characterRoster;
     private readonly CharacterSaveService _characterSaveService;
     private readonly GameSaveService _gameSaveService;
+    private readonly string _applicationVersion;
+    private readonly string _catalogHash;
     private readonly Random _random = new();
 
-    public MainMenu(GameDataCatalog gameData, string characterSavePath, string gameSaveDirectory)
+    public MainMenu(GameDataCatalog gameData, string characterSavePath, string gameSaveDirectory,
+        string applicationVersion, string catalogHash)
     {
         _gameData = gameData;
         _characterSaveService = new CharacterSaveService(characterSavePath, gameData);
         _gameSaveService = new GameSaveService(gameSaveDirectory, _characterSaveService);
+        _applicationVersion = applicationVersion;
+        _catalogHash = catalogHash;
         _characterRoster = _characterSaveService.Load();
     }
 
@@ -62,6 +68,15 @@ public sealed class MainMenu
                 case ConsoleKey.D7:
                 case ConsoleKey.NumPad7:
                     ShowHelp();
+                    break;
+                case ConsoleKey.D8:
+                case ConsoleKey.NumPad8:
+                    StartHostedGame();
+                    SaveCharacters();
+                    break;
+                case ConsoleKey.D9:
+                case ConsoleKey.NumPad9:
+                    JoinGame();
                     break;
                 case ConsoleKey.Escape:
                     return;
@@ -135,6 +150,79 @@ public sealed class MainMenu
         }
 
         new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService).Run();
+    }
+
+    private void StartHostedGame()
+    {
+        if (!TryGetPlayableSelectedCharacter(out var selectedCharacter)) return;
+        try
+        {
+            if (_characterRoster.Party.Members.Count == 1)
+            {
+                var companion = new RandomCharacterGenerator(_gameData, _random).CreateLevelOne(
+                    _characterRoster.Characters.Select(character => character.Name).ToArray());
+                _characterRoster.Add(companion);
+                _characterRoster.Party.Add(companion);
+            }
+            var game = new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService);
+            var host = CoopHostRuntime.StartAsync(game.Session, _applicationVersion, _catalogHash)
+                .GetAwaiter().GetResult();
+            try { game.Run(host); }
+            finally { host.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or
+                                           System.Net.Sockets.SocketException)
+        {
+            ResetConsole();
+            WriteLine($"A coop host nem indítható: {exception.Message}", ConsoleColor.Red);
+            Console.ReadKey(intercept: true);
+        }
+    }
+
+    private void JoinGame()
+    {
+        ResetConsole();
+        WriteLine("=== CSATLAKOZÁS COOP JÁTÉKHOZ ===", ConsoleColor.Yellow);
+        Console.Write("Host címe [http://localhost:5127]: ");
+        var hostUrl = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(hostUrl)) hostUrl = "http://localhost:5127";
+        Console.Write("Játékosnév: ");
+        var displayName = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(displayName)) displayName = Environment.UserName;
+        try
+        {
+            new CoopGuestScreen(_applicationVersion, _catalogHash)
+                .RunAsync(hostUrl, displayName).GetAwaiter().GetResult();
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or
+                                           TimeoutException or HttpRequestException)
+        {
+            ResetConsole();
+            WriteLine($"A csatlakozás sikertelen: {exception.Message}", ConsoleColor.Red);
+            Console.ReadKey(intercept: true);
+        }
+    }
+
+    private bool TryGetPlayableSelectedCharacter(out LiveCharacter selectedCharacter)
+    {
+        if (_characterRoster.SelectedCharacter is not { } candidate)
+        {
+            ResetConsole();
+            Console.WriteLine("A játék indításához előbb válassz ki egy karaktert a Karakterek menüben.");
+            Console.ReadKey(intercept: true);
+            selectedCharacter = null!;
+            return false;
+        }
+        if (!candidate.IsAlive)
+        {
+            ResetConsole();
+            WriteLine("Halott karakterrel nem indítható játék. Válassz másik karaktert vagy készíts újat.", ConsoleColor.Red);
+            Console.ReadKey(intercept: true);
+            selectedCharacter = null!;
+            return false;
+        }
+        selectedCharacter = candidate;
+        return true;
     }
 
     private void LoadGame()
@@ -295,6 +383,8 @@ public sealed class MainMenu
         Console.WriteLine("5: karaktertörlés; O: az összes törlése; I/Y: megerősítés");
         Console.WriteLine("6: gyorsindítás új, automatikusan generált hőssel");
         Console.WriteLine("7: ez a súgó");
+        Console.WriteLine("8: új LAN coop játék hostolása (szükség esetén egy NPC társat generál)");
+        Console.WriteLine("9: csatlakozás LAN coop hosthoz");
         Console.WriteLine("Esc: kilépés a programból");
         Console.WriteLine();
         WriteLine("KARAKTERGENERÁLÁS", ConsoleColor.Magenta);
@@ -358,6 +448,8 @@ public sealed class MainMenu
         WriteLine("5 - Karakter törlése", ConsoleColor.Red);
         WriteLine("6 - Gyorsindítás (új hős)", ConsoleColor.Green);
         WriteLine("7 - Súgó", ConsoleColor.DarkCyan);
+        WriteLine("8 - LAN coop host", ConsoleColor.Green);
+        WriteLine("9 - Csatlakozás coop játékhoz", ConsoleColor.Cyan);
         WriteLine("Esc - Kilépés", ConsoleColor.DarkYellow);
         Console.ResetColor();
     }
