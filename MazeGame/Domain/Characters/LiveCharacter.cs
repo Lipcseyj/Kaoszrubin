@@ -24,10 +24,13 @@ public sealed class LiveCharacter
     private int _maximumVitality;
     private int _maximumMana;
     private int _divineSpellCycle;
-    public LiveCharacter(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities abilities, int maximumVitality, int maximumMana, int vitalityBonus, int manaBonus, ConsoleColor color = ConsoleColor.Cyan)
+    public LiveCharacter(string name, RaceDefinition race, CharacterClassDefinition characterClass, PrimaryAbilities abilities,
+        int maximumVitality, int maximumMana, int vitalityBonus, int manaBonus, ConsoleColor color = ConsoleColor.Cyan,
+        CharacterId? id = null)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > MaximumNameLength)
             throw new ArgumentException($"A karakternév 1 és {MaximumNameLength} karakter közötti lehet.", nameof(name));
+        Id = id ?? CharacterId.New();
         Name = name;
         Color = color;
         Race = race;
@@ -41,6 +44,7 @@ public sealed class LiveCharacter
         ManaBonus = manaBonus;
     }
 
+    public CharacterId Id { get; }
     public string Name { get; }
     public ConsoleColor Color { get; }
     public NpcBehavior? NpcBehavior { get; private set; }

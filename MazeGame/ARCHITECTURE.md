@@ -118,6 +118,13 @@ A `Definition` végű típusok az `adatok.csv` tartalmát képviselik. A `LiveCh
 - `BattleSystem`: a megjelenítéstől független harci algoritmus.
 - `BattleResult`, `BattleLogEntry`: a csata végeredménye és megjeleníthető eseményei.
 
+### `Application`: session- és parancshatár
+
+- `GameSession`: egy futó játék helyi vagy később hálózati parancsainak egyetlen belépési pontja. Tulajdonjog, session-fázis és monoton parancssorszám alapján validál, majd a `Game` egyetlen szimulációs szála olvassa ki az elfogadott parancsokat.
+- `SessionContracts`: stabil `PlayerId`/`CharacterId` alapú commandok, vezérlési állapotok és sorrendezett session-eseményfolyam.
+- A konzolos leader mozgása, ajtókezelése, partiparancsai, pihenése és pályaváltása már ezen az útvonalon halad. Távoli vezérlő egy NPC-partitag mozgását veheti át; ilyenkor az automatikus NPC-mozgás leáll, disconnectkor visszaáll, reconnectkor pedig ugyanahhoz a karakterhez tér vissza.
+- A harc és a fogadó már explicit session-fázist jelez, de belső blokkoló inputjuk és szinkron állapotkezelésük még további refaktorálást igényel.
+
 ## Adatmodell és `adatok.csv`
 
 A CSV `#` karakterrel kezdődő szekciókból áll. A betöltő az ékezeteket és kis-/nagybetűket figyelmen kívül hagyva azonosítja a szekcióneveket. A jelenlegi szekciók:

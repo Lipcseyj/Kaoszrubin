@@ -1,4 +1,5 @@
 using MazeGame.Data;
+using MazeGame.Application;
 using MazeGame.Domain.Characters;
 using MazeGame.Combat;
 using MazeGame.Domain.Inventory;
@@ -132,6 +133,8 @@ public sealed class Game
     private readonly InnController _innController;
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
+    private readonly GameSession _session;
+    private long _localCommandId;
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
@@ -155,9 +158,10 @@ public sealed class Game
     private readonly HashSet<string> _seenBossIds = new(StringComparer.OrdinalIgnoreCase);
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
+    public GameSession Session => _session;
 
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
-        GameSaveService gameSaveService, GameSaveData? loadedState = null)
+        GameSaveService gameSaveService, GameSaveData? loadedState = null, GameSession? session = null)
     {
         CharacterRoster = characterRoster;
         SelectedCharacter = selectedCharacter;
@@ -165,6 +169,7 @@ public sealed class Game
         _gameSaveService = gameSaveService;
         _gameStateMapper = new GameStateMapper(gameData, characterRoster, selectedCharacter);
         _loadedState = loadedState;
+        _session = session ?? new GameSession(characterRoster.Party, selectedCharacter);
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
         _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
@@ -499,37 +504,10 @@ public sealed class Game
                         if (ConfirmReturnToMainMenu()) return;
                         continue;
                     }
-                    if (key == ConsoleKey.N) { _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter); continue; }
-                    if (key == ConsoleKey.Z) { _doorInteractions.TryCloseAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter); continue; }
-                    if (key == ConsoleKey.K)
-                    {
-                        if (!TrySearchCurrentCell()) _doorInteractions.TryLockAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter);
-                        continue;
-                    }
-                    if (key == ConsoleKey.G)
-                    {
-                        TogglePartyRegrouping();
-                        continue;
-                    }
-                    if (key == ConsoleKey.H) { TogglePartyHoldPosition(); continue; }
-                    if (key == ConsoleKey.M) { ScatterPartyTemporarily(); continue; }
-                    if (key == ConsoleKey.P) { TryRestParty(); continue; }
-                    if (key == ConsoleKey.Enter && _player.Position == _maze.Exit)
-                    {
-                        if (_mazeLevel == MazeLevelConfigurations.FinalLevel)
-                        {
-                            CompleteCampaign();
-                            continue;
-                        }
-                        var completedLevel = _mazeLevel;
-                        _soundEffects.Play(SoundEffect.LevelComplete);
-                        _innController.Run(completedLevel);
-                        _mazeLevel++;
-                        StartNewMaze();
-                        continue;
-                    }
-                    MovePlayer(key);
+                    SubmitLocalExplorationCommand(key);
                 }
+
+                ProcessSessionCommands();
 
                 if (!_battleStarted) MoveEnemies();
 
@@ -567,6 +545,7 @@ public sealed class Game
             "XV. fejezet — A csillagok választottai", CreateCampaignFinale(),
             _maze, _fogOfWar, _player.Position);
         _gameOver = true;
+        _session.SetPhase(GameSessionPhase.GameOver);
     }
 
     private IReadOnlyList<string> CreateCampaignFinale()
@@ -608,6 +587,8 @@ public sealed class Game
 
     private void StartNewMaze()
     {
+        _session.SetPhase(GameSessionPhase.Exploration);
+        _session.SynchronizeParty();
         _hasRestedThisLevel = false;
         foreach (var character in CharacterRoster.Party.Members) character.ResetLevelResurrection();
         var configuration = MazeLevelConfigurations.Get(_mazeLevel);
@@ -856,9 +837,8 @@ public sealed class Game
             character.SetMemorizedSpells(_renderer.DrawSpellPreparationScreen(character));
     }
 
-    private void MovePlayer(ConsoleKey key)
+    private void MovePlayer(Direction direction)
     {
-        if (!TryGetDirection(key, out var direction)) return;
         var previousPosition = _player.Position;
         var targetPosition = previousPosition + direction;
 
@@ -926,6 +906,116 @@ public sealed class Game
         }
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
+    }
+
+    private void MoveRemotePartyMember(MoveCharacterCommand command)
+    {
+        var member = _maze.PartyMembers.FirstOrDefault(candidate => candidate.Character.Id == command.CharacterId);
+        if (member is null || !member.Character.IsAlive) return;
+        var previous = member.Position;
+        var destination = previous + command.Direction;
+        // A távoli játékos harcának interaktív state machine-je a következő refaktorfázis része.
+        // Addig az ellenség cellájára lépés nem indítja el tévesen az NPC-autoharcot.
+        if (_maze.GetEnemyAt(destination) is not null ||
+            !_maze.TryMovePartyMember(member, destination, _player.Position)) return;
+        member.Character.RegisterExplorationStep();
+        var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
+        _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
+        CheckBossDiscoveryAt(newlyRevealed);
+    }
+
+    private void SubmitLocalExplorationCommand(ConsoleKey key)
+    {
+        GameCommand? command = null;
+        var commandId = _localCommandId + 1;
+        if (TryGetDirection(key, out var direction))
+            command = new MoveCharacterCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id, direction);
+        else
+        {
+            var action = key switch
+            {
+                ConsoleKey.N => LeaderAction.OpenDoor,
+                ConsoleKey.Z => LeaderAction.CloseDoor,
+                ConsoleKey.K => LeaderAction.SearchOrLockDoor,
+                ConsoleKey.G => LeaderAction.ToggleRegrouping,
+                ConsoleKey.H => LeaderAction.ToggleHoldPosition,
+                ConsoleKey.M => LeaderAction.ScatterParty,
+                ConsoleKey.P => LeaderAction.Rest,
+                ConsoleKey.Enter when _player.Position == _maze.Exit => LeaderAction.ActivateExit,
+                _ => (LeaderAction?)null
+            };
+            if (action is not null)
+                command = new LeaderActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id, action.Value);
+        }
+        if (command is null || !_session.Submit(command)) return;
+        _localCommandId = commandId;
+    }
+
+    private void ProcessSessionCommands()
+    {
+        while (_session.TryReadCommand(out var command))
+        {
+            switch (command)
+            {
+                case MoveCharacterCommand move when move.CharacterId == SelectedCharacter.Id:
+                    MovePlayer(move.Direction);
+                    break;
+                case MoveCharacterCommand move:
+                    MoveRemotePartyMember(move);
+                    break;
+                case LeaderActionCommand action:
+                    ExecuteLeaderAction(action.Action);
+                    break;
+            }
+        }
+    }
+
+    private void ExecuteLeaderAction(LeaderAction action)
+    {
+        switch (action)
+        {
+            case LeaderAction.OpenDoor:
+                _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter);
+                break;
+            case LeaderAction.CloseDoor:
+                _doorInteractions.TryCloseAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter);
+                break;
+            case LeaderAction.SearchOrLockDoor:
+                if (!TrySearchCurrentCell())
+                    _doorInteractions.TryLockAdjacentDoor(_maze, _fogOfWar, _player, SelectedCharacter);
+                break;
+            case LeaderAction.ToggleRegrouping:
+                TogglePartyRegrouping();
+                break;
+            case LeaderAction.ToggleHoldPosition:
+                TogglePartyHoldPosition();
+                break;
+            case LeaderAction.ScatterParty:
+                ScatterPartyTemporarily();
+                break;
+            case LeaderAction.Rest:
+                TryRestParty();
+                break;
+            case LeaderAction.ActivateExit:
+                ActivateExit();
+                break;
+        }
+    }
+
+    private void ActivateExit()
+    {
+        if (_player.Position != _maze.Exit) return;
+        if (_mazeLevel == MazeLevelConfigurations.FinalLevel)
+        {
+            CompleteCampaign();
+            return;
+        }
+        var completedLevel = _mazeLevel;
+        _soundEffects.Play(SoundEffect.LevelComplete);
+        _session.SetPhase(GameSessionPhase.Inn);
+        _innController.Run(completedLevel);
+        _mazeLevel++;
+        StartNewMaze();
     }
 
     private void DropSelectedInventoryItem()
@@ -1526,6 +1616,7 @@ public sealed class Game
         if (_partyHoldingPosition && !isScattering && !_partyRegrouping) return;
         foreach (var member in _maze.PartyMembers.ToArray())
         {
+            if (_session.IsHumanControlled(member.Character.Id)) continue;
             if (_nextPartyMoves.GetValueOrDefault(member) > now) continue;
             ScheduleNextPartyMove(member, now);
             // Allow NPCs to cast simple exploration spells (heals/cures) before moving
@@ -1642,6 +1733,7 @@ public sealed class Game
     {
         if (_battleStarted || !member.Character.IsAlive || !_maze.Enemies.Contains(enemy)) return;
         _battleStarted = true;
+        _session.SetPhase(GameSessionPhase.Battle);
         _turnUndeadUsedThisBattle.Clear();
         _soundEffects.Play(SoundEffect.BattleStart);
         var startingNpcHp = member.Character.CurrentVitality;
@@ -1693,6 +1785,7 @@ public sealed class Game
             foreach (var award in levelUps) ResolvePerkOffers(award.Character, award.Result);
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         }
+        _session.SetPhase(GameSessionPhase.Exploration);
     }
 
     private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from)
@@ -2737,6 +2830,7 @@ public sealed class Game
         _turnUndeadUsedThisBattle.Clear();
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
         _battleStarted = true;
+        _session.SetPhase(GameSessionPhase.Battle);
         _soundEffects.Play(SoundEffect.BattleStart);
         _renderer.DrawBattleStarted(enemy);
         var result = _battleSystem.Resolve(SelectedCharacter, enemy, entry =>
@@ -2777,6 +2871,7 @@ public sealed class Game
             }
             InitializeEnemyMoveSchedule(DateTime.UtcNow);
             _battleStarted = false;
+            _session.SetPhase(GameSessionPhase.Exploration);
             _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
             return;
         }
@@ -2787,6 +2882,7 @@ public sealed class Game
         _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
         _renderer.DrawGameOver(SelectedCharacter.Name);
         _gameOver = true;
+        _session.SetPhase(GameSessionPhase.GameOver);
     }
 
     private void DrainNeeds()

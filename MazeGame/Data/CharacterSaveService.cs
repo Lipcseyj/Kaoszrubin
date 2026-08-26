@@ -70,7 +70,8 @@ public sealed class CharacterSaveService
             _gameData.GetMinimumVitality(saved.Abilities.Health) + saved.VitalityBonus,
             characterClass.UsesMana ? CharacterClassRules.AdjustStartingMana(characterClass.Id,
                 _gameData.GetMinimumMana(saved.Abilities.Intelligence) + saved.ManaBonus) : 0,
-            saved.VitalityBonus, characterClass.UsesMana ? saved.ManaBonus : 0, saved.Color ?? ConsoleColor.Cyan);
+            saved.VitalityBonus, characterClass.UsesMana ? saved.ManaBonus : 0, saved.Color ?? ConsoleColor.Cyan,
+            CharacterId.From(saved.Id));
         character.ApplySavedLevelGrowth(saved.LevelVitalityIncrease ?? 0, saved.LevelManaIncrease ?? 0);
         character.SetCurrentResources(saved.CurrentVitality, saved.CurrentMana);
         character.SetNeedLevels(saved.FoodLevel ?? 100, saved.WaterLevel ?? 100);
@@ -143,6 +144,7 @@ public sealed class CharacterSaveService
 
     private CharacterSaveData CreateSaveData(LiveCharacter character) => new()
     {
+        Id = character.Id.Value,
         Name = character.Name,
         Color = character.Color,
         NpcBehavior = character.NpcBehavior,
@@ -213,6 +215,7 @@ public sealed class CharacterSaveService
 
     private sealed class CharacterSaveData
     {
+        public Guid Id { get; init; }
         public string Name { get; init; } = string.Empty;
         public ConsoleColor? Color { get; init; }
         public NpcBehavior? NpcBehavior { get; init; }
