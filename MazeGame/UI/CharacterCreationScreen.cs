@@ -47,7 +47,7 @@ public sealed class CharacterCreationScreen
             var characterClass = ChooseClass(finalAbilities, eligibleClasses);
             if (characterClass is null) continue;
 
-            var color = ChooseColor();
+            var color = ChooseColor(characterClass);
             if (color is null) continue;
 
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities, vitalityBonus, manaBonus, _gameData, color.Value);
@@ -84,7 +84,7 @@ public sealed class CharacterCreationScreen
         throw new InvalidOperationException("A jelenlegi faj- és osztályadatokból nem generálható érvényes karakter.");
     }
 
-    private ConsoleColor? ChooseColor()
+    private ConsoleColor? ChooseColor(CharacterClassDefinition characterClass)
     {
         var colors = CharacterColors.Selectable;
         var selectedIndex = 0;
@@ -99,6 +99,7 @@ public sealed class CharacterCreationScreen
                 Console.ForegroundColor = colors[index];
                 Console.WriteLine($"{(index == selectedIndex ? ">" : " ")} {CharacterColors.NameOf(colors[index])} — ●");
             }
+            DrawClassPortrait(characterClass, colors[selectedIndex]);
             Console.ResetColor();
             switch (Console.ReadKey(intercept: true).Key)
             {
@@ -134,6 +135,7 @@ public sealed class CharacterCreationScreen
                 Console.WriteLine($"{(index == cursor ? ">" : " ")} [{(selected.Contains(spells[index].Id) ? "X" : " ")}] {spells[index].Name}");
             Console.WriteLine();
             Console.WriteLine($"Kijelölve: {selected.Count}/{SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)}");
+            DrawClassPortrait(character.CharacterClass, character.Color);
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow: cursor = (cursor - 1 + spells.Count) % spells.Count; break;
@@ -196,6 +198,7 @@ public sealed class CharacterCreationScreen
     private CharacterClassDefinition? ChooseClass(PrimaryAbilities abilities,
         IReadOnlyList<CharacterClassDefinition> eligibleClasses)
     {
+        var selectedIndex = 0;
         while (true)
         {
             Console.Clear();
@@ -205,13 +208,16 @@ public sealed class CharacterCreationScreen
             for (var index = 0; index < eligibleClasses.Count; index++)
             {
                 var characterClass = eligibleClasses[index];
-                Console.WriteLine($"{index + 1} - {characterClass.Name} (min.: {FormatAbilities(characterClass.MinimumAbilities)})");
+                Console.WriteLine($"{(index == selectedIndex ? ">" : " ")} {characterClass.Name} (min.: {FormatAbilities(characterClass.MinimumAbilities)})");
             }
-            Console.WriteLine("R - újradobás, Esc - kilépés");
+            Console.WriteLine("Fel/le: választás | Enter: elfogadás | R: újradobás | Esc: kilépés");
+            DrawClassPortrait(eligibleClasses[selectedIndex], ConsoleColor.Cyan);
 
             var key = Console.ReadKey(intercept: true).Key;
             if (key is ConsoleKey.R or ConsoleKey.Escape) return null;
-            if (TryGetNumberKey(key, out var choice) && choice <= eligibleClasses.Count) return eligibleClasses[choice - 1];
+            if (key == ConsoleKey.UpArrow) selectedIndex = (selectedIndex - 1 + eligibleClasses.Count) % eligibleClasses.Count;
+            else if (key == ConsoleKey.DownArrow) selectedIndex = (selectedIndex + 1) % eligibleClasses.Count;
+            else if (key == ConsoleKey.Enter) return eligibleClasses[selectedIndex];
         }
     }
 
@@ -267,9 +273,28 @@ public sealed class CharacterCreationScreen
         Console.WriteLine($"{character.Name} — {character.Race.Name} {character.CharacterClass.Name}");
         Console.WriteLine(FormatAbilities(character.Abilities));
         Console.WriteLine($"HP: {character.CurrentVitality}/{character.MaximumVitality}, Manna: {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}");
+        DrawClassPortrait(character.CharacterClass, character.Color);
         Console.WriteLine();
-        Console.WriteLine("Bármely billentyű: főmenü");
+        Console.WriteLine("Bármely billentyű: vissza a karakterlistához");
         Console.ReadKey(intercept: true);
+    }
+
+    private static void DrawClassPortrait(CharacterClassDefinition characterClass, ConsoleColor color)
+    {
+        var portrait = AsciiPortraits.ForCharacterClass(characterClass.Id);
+        var left = Math.Min(60, Math.Max(0, Console.WindowWidth - 24));
+        var top = 2;
+        var returnLeft = Console.CursorLeft;
+        var returnTop = Console.CursorTop;
+        Console.ForegroundColor = color;
+        for (var index = 0; index < portrait.Lines.Count; index++)
+        {
+            if (top + index >= Console.WindowHeight) break;
+            Console.SetCursorPosition(left, top + index);
+            Console.Write(portrait.Lines[index].PadRight(portrait.CanvasWidth));
+        }
+        Console.ResetColor();
+        Console.SetCursorPosition(returnLeft, returnTop);
     }
 
     private static string FormatAbilities(PrimaryAbilities abilities) =>

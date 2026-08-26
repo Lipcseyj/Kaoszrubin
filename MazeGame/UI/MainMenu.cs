@@ -16,8 +16,9 @@ public sealed class MainMenu
     private readonly string _catalogHash;
     private readonly Random _random = new();
 
-    private const int SideMenuWidth = 55; 
-    private const int SideMenuLeft = 140;
+    private const int SideMenuWidth = 52;
+    private const int SideMenuLeft = 142;
+    private const int SideMenuTop = 8;
 
     // Helpers to measure and pad visible width in console cells (surrogate pairs count as width 2).
     private static int DisplayWidth(string? s)
@@ -99,40 +100,30 @@ public sealed class MainMenu
                     break;
                 case ConsoleKey.D2:
                 case ConsoleKey.NumPad2:
-                    LoadGame();
+                    QuickStart();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D3:
                 case ConsoleKey.NumPad3:
-                    QuickStart();
+                    ManageCharacters();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D4:
                 case ConsoleKey.NumPad4:
-                    new CharacterCreationScreen(_gameData, _characterRoster).Run();
-                    SaveCharacters();
+                    ShowHelp();
                     break;
                 case ConsoleKey.D5:
                 case ConsoleKey.NumPad5:
-                    ShowCharacters();
+                    LoadGame();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D6:
                 case ConsoleKey.NumPad6:
-                    DeleteCharacter();
+                    StartHostedGame();
                     SaveCharacters();
                     break;
                 case ConsoleKey.D7:
                 case ConsoleKey.NumPad7:
-                    ShowHelp();
-                    break;
-                case ConsoleKey.D8:
-                case ConsoleKey.NumPad8:
-                    StartHostedGame();
-                    SaveCharacters();
-                    break;
-                case ConsoleKey.D9:
-                case ConsoleKey.NumPad9:
                     JoinGame();
                     break;
                 case ConsoleKey.Escape:
@@ -223,11 +214,15 @@ public sealed class MainMenu
                 .GetAwaiter().GetResult();
             try
             {
-                ResetConsole();
-                WriteLine("=== COOP VÁRAKOZÓSZOBA ===", ConsoleColor.Yellow);
-                WriteLine($"Csatlakozási cím: {host.ConnectionHint}", ConsoleColor.Cyan);
-                WriteLine("Várakozás a vendég karakterére…", ConsoleColor.Gray);
-                WriteLine("Esc: lobby bezárása", ConsoleColor.DarkYellow);
+                DrawMainBackdrop();
+                DrawSidePanel("COOP VÁRAKOZÓSZOBA",
+                [
+                    "A host elindult.", string.Empty,
+                    "Csatlakozási cím:", host.ConnectionHint, string.Empty,
+                    $"Leader: {selectedCharacter.Name}",
+                    "Várakozás a vendég karakterére…", string.Empty,
+                    "Esc) Lobby bezárása"
+                ]);
                 while (game.Session.ConnectedRemoteCharacterCount == 0)
                 {
                     if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.Escape) return;
@@ -243,8 +238,8 @@ public sealed class MainMenu
         catch (Exception exception) when (exception is IOException or InvalidOperationException or
                                            System.Net.Sockets.SocketException)
         {
-            ResetConsole();
-            WriteLine($"A coop host nem indítható: {exception.Message}", ConsoleColor.Red);
+            DrawMainBackdrop();
+            DrawSidePanel("HOST HIBA", [$"A coop host nem indítható:", exception.Message, string.Empty, "Bármely billentyű: vissza"]);
             Console.ReadKey(intercept: true);
         }
     }
@@ -252,9 +247,18 @@ public sealed class MainMenu
     private void JoinGame()
     {
         if (!TryGetPlayableSelectedCharacter(out var character)) return;
-        ResetConsole();
-        WriteLine("=== CSATLAKOZÁS COOP JÁTÉKHOZ ===", ConsoleColor.Yellow);
-        Console.Write("Host címe [http://localhost:5127]: ");
+        DrawMainBackdrop();
+        DrawSidePanel("COOP CSATLAKOZÁS",
+        [
+            $"Karakter: {character.Name}", string.Empty,
+            "Add meg a host címét:",
+            "(Enter = localhost:5127)", string.Empty,
+            ">", string.Empty,
+            "Üres Enter = localhost:5127"
+        ]);
+        var inputLeft = Math.Min(SideMenuLeft, Math.Max(0, Console.WindowWidth - SideMenuWidth - 1)) + 4;
+        Console.SetCursorPosition(inputLeft, SideMenuTop + 7);
+        Console.ForegroundColor = ConsoleColor.Cyan;
         var hostUrl = Console.ReadLine();
         if (string.IsNullOrWhiteSpace(hostUrl)) hostUrl = "http://localhost:5127";
         try
@@ -266,26 +270,104 @@ public sealed class MainMenu
         catch (Exception exception) when (exception is IOException or InvalidOperationException or
                                            TimeoutException or HttpRequestException)
         {
-            ResetConsole();
-            WriteLine($"A csatlakozás sikertelen: {exception.Message}", ConsoleColor.Red);
+            DrawMainBackdrop();
+            DrawSidePanel("CSATLAKOZÁSI HIBA", ["A csatlakozás sikertelen:", exception.Message, string.Empty, "Bármely billentyű: vissza"]);
             Console.ReadKey(intercept: true);
         }
+    }
+
+    private void ManageCharacters()
+    {
+        var selectedIndex = _characterRoster.SelectedCharacter is null ? 0 :
+            Math.Max(0, _characterRoster.Characters.ToList().IndexOf(_characterRoster.SelectedCharacter));
+        while (true)
+        {
+            selectedIndex = _characterRoster.Characters.Count == 0 ? 0 :
+                Math.Clamp(selectedIndex, 0, _characterRoster.Characters.Count - 1);
+            DrawCharacterManager(selectedIndex);
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow when _characterRoster.Characters.Count > 0:
+                    selectedIndex = (selectedIndex - 1 + _characterRoster.Characters.Count) % _characterRoster.Characters.Count;
+                    break;
+                case ConsoleKey.DownArrow when _characterRoster.Characters.Count > 0:
+                    selectedIndex = (selectedIndex + 1) % _characterRoster.Characters.Count;
+                    break;
+                case ConsoleKey.Enter when _characterRoster.Characters.Count > 0:
+                    _characterRoster.Select(_characterRoster.Characters[selectedIndex]);
+                    SaveCharacters();
+                    break;
+                case ConsoleKey.N:
+                    var before = _characterRoster.Characters.Count;
+                    new CharacterCreationScreen(_gameData, _characterRoster).Run();
+                    if (_characterRoster.Characters.Count > before) selectedIndex = _characterRoster.Characters.Count - 1;
+                    SaveCharacters();
+                    break;
+                case ConsoleKey.D when _characterRoster.Characters.Count > 0:
+                case ConsoleKey.Delete when _characterRoster.Characters.Count > 0:
+                    var character = _characterRoster.Characters[selectedIndex];
+                    WriteAt(4, Math.Min(Console.WindowHeight - 2, 6 + _characterRoster.Characters.Count * 2),
+                        $"Biztosan törlöd: {character.Name}? I/Y = igen", ConsoleColor.Red, 70);
+                    if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
+                    {
+                        _characterRoster.Remove(character);
+                        SaveCharacters();
+                    }
+                    break;
+                case ConsoleKey.Escape:
+                    return;
+            }
+        }
+    }
+
+    private void DrawCharacterManager(int selectedIndex)
+    {
+        ResetConsole();
+        WriteAt(3, 1, "═══ KARAKTEREK ═══", ConsoleColor.Yellow, 72);
+        WriteAt(3, 2, "↑↓ választ  Enter aktívvá tesz  N új karakter  D/Del törlés  Esc főmenü",
+            ConsoleColor.DarkCyan, 90);
+        if (_characterRoster.Characters.Count == 0)
+            WriteAt(4, 5, "Még nincs karakter. Nyomj N-t egy új karakter generálásához.", ConsoleColor.DarkYellow, 80);
+        for (var index = 0; index < _characterRoster.Characters.Count; index++)
+        {
+            var character = _characterRoster.Characters[index];
+            var active = character == _characterRoster.SelectedCharacter ? " [AKTÍV]" : string.Empty;
+            var dead = character.IsAlive ? string.Empty : " [HALOTT]";
+            WriteAt(4, 5 + index * 2,
+                $"{(index == selectedIndex ? "▶" : " ")} {character.Name} — {character.Race.Name} {character.CharacterClass.Name}{active}{dead}",
+                !character.IsAlive ? ConsoleColor.DarkRed : index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray, 82);
+            WriteAt(7, 6 + index * 2,
+                $"L{character.Level}  HP {character.CurrentVitality}/{character.MaximumVitality}  " +
+                $"Manna {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}",
+                ConsoleColor.DarkGray, 76);
+        }
+        if (_characterRoster.Characters.Count > 0)
+            DrawPortrait(_characterRoster.Characters[selectedIndex], Math.Max(92, Console.WindowWidth - 34), 5);
+    }
+
+    private static void DrawPortrait(LiveCharacter character, int left, int top)
+    {
+        var portrait = AsciiPortraits.ForCharacterClass(character.CharacterClass.Id);
+        WriteAt(left, top, $"┌──── {character.CharacterClass.Name.ToUpperInvariant(),-17} ────┐", character.Color, 30);
+        for (var index = 0; index < portrait.Lines.Count; index++)
+            WriteAt(left, top + index + 1, $"│ {portrait.Lines[index].PadRight(25)} │", character.Color, 30);
+        WriteAt(left, top + portrait.Lines.Count + 1, "└───────────────────────────┘", character.Color, 30);
     }
 
     private bool TryGetPlayableSelectedCharacter(out LiveCharacter selectedCharacter)
     {
         if (_characterRoster.SelectedCharacter is not { } candidate)
         {
-            ResetConsole();
-            Console.WriteLine("A játék indításához előbb válassz ki egy karaktert a Karakterek menüben.");
+            DrawMainBackdrop();
+            DrawSidePanel("NINCS AKTÍV KARAKTER", ["Előbb válassz aktív karaktert", "a Karakterek menüben.", string.Empty, "Bármely billentyű: vissza"]);
             Console.ReadKey(intercept: true);
             selectedCharacter = null!;
             return false;
         }
         if (!candidate.IsAlive)
         {
-            ResetConsole();
-            WriteLine("Halott karakterrel nem indítható játék. Válassz másik karaktert vagy készíts újat.", ConsoleColor.Red);
+            DrawMainBackdrop();
+            DrawSidePanel("A KARAKTER HALOTT", ["Válassz másik karaktert", "vagy készíts újat.", string.Empty, "Bármely billentyű: vissza"]);
             Console.ReadKey(intercept: true);
             selectedCharacter = null!;
             return false;
@@ -299,25 +381,30 @@ public sealed class MainMenu
         var saves = _gameSaveService.List();
         if (saves.Count == 0)
         {
-            ResetConsole();
-            WriteLine("Nincs betölthető játékállás a mentések mappában.", ConsoleColor.DarkYellow);
+            DrawMainBackdrop();
+            DrawSidePanel("JÁTÉK BETÖLTÉSE", ["Nincs betölthető játékállás.", string.Empty, "Bármely billentyű: vissza"]);
             Console.ReadKey(intercept: true);
             return;
         }
         var selectedIndex = 0;
         while (true)
         {
-            ResetConsole();
-            WriteLine("=== JÁTÉK BETÖLTÉSE ===", ConsoleColor.Yellow);
-            WriteLine("Fel/le: választás | Enter: betöltés | Esc: vissza", ConsoleColor.DarkCyan);
-            Console.WriteLine();
-            for (var index = 0; index < saves.Count; index++)
+            DrawMainBackdrop();
+            var lines = new List<string> { "↑↓ választ  Enter betölt  Esc vissza", string.Empty };
+            var maximumVisibleSaves = Math.Max(1, (Console.WindowHeight - SideMenuTop - 6) / 2);
+            var firstVisible = Math.Clamp(selectedIndex - maximumVisibleSaves / 2, 0,
+                Math.Max(0, saves.Count - maximumVisibleSaves));
+            var lastVisible = Math.Min(saves.Count, firstVisible + maximumVisibleSaves);
+            if (firstVisible > 0) lines.Add($"  ↑ még {firstVisible} mentés");
+            for (var index = firstVisible; index < lastVisible; index++)
             {
                 var save = saves[index];
                 var marker = index == selectedIndex ? ">" : " ";
-                WriteLine($"{marker} {save.MainCharacterName} — {save.MazeLevel}. pálya — {save.SavedAt:yyyy-MM-dd HH:mm:ss}",
-                    index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray);
+                lines.Add($"{marker} {save.MainCharacterName} — {save.MazeLevel}. pálya");
+                lines.Add($"  {save.SavedAt:yyyy-MM-dd HH:mm}");
             }
+            if (lastVisible < saves.Count) lines.Add($"  ↓ még {saves.Count - lastVisible} mentés");
+            DrawSidePanel("JÁTÉK BETÖLTÉSE", lines);
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow:
@@ -336,8 +423,8 @@ public sealed class MainMenu
                     }
                     catch (Exception exception) when (exception is IOException or JsonException or InvalidOperationException)
                     {
-                        ResetConsole();
-                        WriteLine($"A mentés nem tölthető be: {exception.Message}", ConsoleColor.Red);
+                        DrawMainBackdrop();
+                        DrawSidePanel("BETÖLTÉSI HIBA", ["A mentés nem tölthető be:", exception.Message, string.Empty, "Bármely billentyű: vissza"]);
                         Console.ReadKey(intercept: true);
                         return;
                     }
@@ -487,6 +574,30 @@ public sealed class MainMenu
 
     private void DrawMainMenu()
     {
+        DrawMainBackdrop();
+        var lines = new[]
+        {
+            "🏛️  FŐMENÜ",
+            string.Empty,
+            $"Aktív karakter: {_characterRoster.SelectedCharacter?.Name ?? "(nincs kiválasztva)"}",
+            string.Empty,
+            "1) Játék indítása",
+            "2) Gyorsindítás",
+            $"3) Karakterek ({_characterRoster.Characters.Count})",
+            "4) Súgó",
+            string.Empty,
+            "── JÁTÉKÁLLÁS ÉS COOP ──",
+            $"5) Játék betöltése ({_gameSaveService.List().Count})",
+            "6) Coop játék hostolása",
+            "7) Csatlakozás coop játékhoz",
+            string.Empty,
+            "Esc) Kilépés"
+        };
+        DrawSidePanel("KÁOSZRUBIN", lines);
+    }
+
+    private void DrawMainBackdrop()
+    {
         Console.Clear();
         try
         {
@@ -499,86 +610,31 @@ public sealed class MainMenu
             // If ASCII art can't be loaded, fall back to a simple header.
             Console.WriteLine("=== Káoszrubin ===");
         }
+    }
 
+    private void DrawSidePanel(string title, IReadOnlyList<string> lines)
+    {
         var left = Math.Min(SideMenuLeft, Math.Max(0, Console.WindowWidth - SideMenuWidth - 1));
         var right = left + SideMenuWidth - 2;
-        var top = 8; // slightly below the top of the ASCII art
-
-        string[] lines = new[]
-        {
-            "🏛️  FŐMENÜ  🏛",
-            string.Empty,
-            $"Választott karakter: {_characterRoster.SelectedCharacter?.Name ?? "(nincs)"}",
-            string.Empty,
-            "1) ▶ Játék indítása",
-            $"2) ▶ Játék betöltése ({_gameSaveService.List().Count})",
-            "3) ▶ Gyorsindítás (autogenerált karakter)",
-            "4) ▶ Karaktergenerálás",
-            $"5) ▶ Karakterek listája({_characterRoster.Characters.Count})",
-            "6) ▶ Karakterek törlése",
-            "7) ▶ Súgó",
-            "8) ▶ Többjátékos coop játék hostolása (LAN) - ",
-            "9) ▶ Csatlakozás LAN játékhoz",
-            string.Empty,
-            "Esc - Kilépés"
-        };
-
-        // Top border
+        var top = Math.Min(SideMenuTop, Math.Max(0, Console.WindowHeight - 3));
         Console.ForegroundColor = ConsoleColor.Magenta;
         Console.SetCursorPosition(left, top);
         Console.Write("╔" + new string('═', SideMenuWidth - 2) + "╗");
-
-        for (var i = 0; i < lines.Length; i++)
+        var visibleLineCount = Math.Min(lines.Count, Math.Max(1, Console.WindowHeight - top - 2));
+        for (var i = 0; i < visibleLineCount; i++)
         {
             var line = lines[i] ?? string.Empty;
-            // simple truncation that doesn't consider emoji width; keep small lines so alignment ok
-            var content = line.Length > SideMenuWidth - 4 ? line.Substring(0, SideMenuWidth - 4) : line;
+            var content = TruncateByDisplayWidth(line, SideMenuWidth - 4);
             Console.SetCursorPosition(left, top + i + 1);
+            Console.ForegroundColor = ConsoleColor.Magenta;
             Console.Write("║ ");
-            // Color each menu point individually
-            switch (i - 3)
-            {
-                case 0:
-                    Console.ForegroundColor = ConsoleColor.Yellow; // heading
-                    break;
-                case 1: // 1) Játék indítása
-                case 3: // 3) Gyorsindítás
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    break;
-                case 2: // 2) Betöltés
-                    Console.ForegroundColor = ConsoleColor.DarkGreen;
-                    break;
-                case 4: // 4) Karaktergenerálás
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    break;
-                case 5: // 5) Karakterek
-                    Console.ForegroundColor = ConsoleColor.Blue;
-                    break;
-                case 6: // 6) Karakter törlése
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    break;
-                case 7: // 7) Súgó
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    break;
-                case 8: // 8) LAN host
-                case 9: // 9) Csatlakozás
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    break;
-                case 10: // Esc
-                    Console.ForegroundColor = ConsoleColor.DarkYellow;
-                    break;
-                default:
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    break;
-            }
-            Console.Write(content.PadRight(SideMenuWidth - 4));
+            Console.ForegroundColor = MainMenuLineColor(line);
+            Console.Write(PadRightDisplay(content, SideMenuWidth - 4));
             Console.ForegroundColor = ConsoleColor.Magenta;
             Console.SetCursorPosition(right, top + i + 1);
             Console.Write(" ║");
         }
-
-        // Bottom border
-        Console.SetCursorPosition(left, top + lines.Length + 1);
+        Console.SetCursorPosition(left, top + visibleLineCount + 1);
         Console.Write("╚" + new string('═', SideMenuWidth - 2) + "╝");
         Console.ResetColor();
     }
@@ -596,5 +652,30 @@ public sealed class MainMenu
         Console.ForegroundColor = foregroundColor;
         Console.BackgroundColor = ConsoleColor.Black;
         Console.WriteLine(text);
+    }
+
+    private static void WriteAt(int left, int top, string text, ConsoleColor color, int width)
+    {
+        if (left < 0 || top < 0 || left >= Console.WindowWidth || top >= Console.WindowHeight) return;
+        Console.SetCursorPosition(left, top);
+        Console.ForegroundColor = color;
+        Console.BackgroundColor = ConsoleColor.Black;
+        Console.Write(PadRightDisplay(text, Math.Min(width, Console.WindowWidth - left)));
+        Console.ResetColor();
+    }
+
+    private static ConsoleColor MainMenuLineColor(string line)
+    {
+        if (line.StartsWith("Aktív:", StringComparison.Ordinal)) return ConsoleColor.Yellow;
+        if (line.StartsWith("1)", StringComparison.Ordinal)) return ConsoleColor.DarkGreen;
+        if (line.StartsWith("2)", StringComparison.Ordinal)) return ConsoleColor.Green;
+        if (line.StartsWith("3)", StringComparison.Ordinal)) return ConsoleColor.Cyan;
+        if (line.StartsWith("4)", StringComparison.Ordinal)) return ConsoleColor.Blue;
+        if (line.Contains("COOP", StringComparison.OrdinalIgnoreCase) ||
+            line.Contains("host", StringComparison.OrdinalIgnoreCase) ||
+            line.Contains("Csatlakozás", StringComparison.OrdinalIgnoreCase)) return ConsoleColor.DarkYellow;
+        if (line.StartsWith("──", StringComparison.Ordinal)) return ConsoleColor.DarkMagenta;
+        if (line.StartsWith("Esc", StringComparison.Ordinal)) return ConsoleColor.DarkYellow;
+        return ConsoleColor.Gray;
     }
 }
