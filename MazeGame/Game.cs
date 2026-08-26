@@ -135,6 +135,7 @@ public sealed class Game
     private readonly SoundEffects _soundEffects;
     private readonly GameSession _session;
     private long _localCommandId;
+    private BattleState? _activeBattleState;
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
@@ -159,6 +160,7 @@ public sealed class Game
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
     public GameSession Session => _session;
+    public BattleState? ActiveBattle => _activeBattleState;
 
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
         GameSaveService gameSaveService, GameSaveData? loadedState = null, GameSession? session = null)
@@ -2833,13 +2835,20 @@ public sealed class Game
         _session.SetPhase(GameSessionPhase.Battle);
         _soundEffects.Play(SoundEffect.BattleStart);
         _renderer.DrawBattleStarted(enemy);
-        var result = _battleSystem.Resolve(SelectedCharacter, enemy, entry =>
+        var started = _battleSystem.StartBattle(SelectedCharacter, enemy);
+        _activeBattleState = started.State;
+        PresentBattleEntries(started.Entries, enemy);
+        while (!_activeBattleState.IsCompleted)
         {
-            _renderer.DrawBattleRound(entry);
-            PlayBattleRoundSound(entry);
-            _renderer.RefreshBattleStatusRows();
-            WaitForBattleContinue(enemy);
-        }, () => ChooseBattlePlayerAction(enemy), () => TryPartyMembersActInLeaderBattle(enemy));
+            var supportDamage = TryPartyMembersActInLeaderBattle(enemy);
+            var action = _activeBattleState.IsPlayerTurn && supportDamage < _activeBattleState.CurrentEnemyHitPoints
+                ? ChooseBattlePlayerAction(enemy)
+                : null;
+            var step = _battleSystem.Advance(_activeBattleState, action, supportDamage);
+            PresentBattleEntries(step.Entries, enemy);
+        }
+        var result = _activeBattleState.Result!;
+        _activeBattleState = null;
         var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
 
@@ -2919,6 +2928,17 @@ public sealed class Game
         _soundEffects.Play(entry.Message.Contains("NEM TALÁL", StringComparison.OrdinalIgnoreCase)
             ? SoundEffect.Miss
             : SoundEffect.Hit);
+    }
+
+    private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries, Enemy enemy)
+    {
+        foreach (var entry in entries)
+        {
+            _renderer.DrawBattleRound(entry);
+            PlayBattleRoundSound(entry);
+            _renderer.RefreshBattleStatusRows();
+            WaitForBattleContinue(enemy);
+        }
     }
 
     private void WaitForBattleContinue(Enemy enemy)

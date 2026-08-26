@@ -1,7 +1,9 @@
 using MazeGame;
 using MazeGame.Application;
+using MazeGame.Combat;
 using MazeGame.Data;
 using MazeGame.Domain.Characters;
+using MazeGame.Domain.Combat;
 
 var tests = new (string Name, Action Run)[]
 {
@@ -11,7 +13,12 @@ var tests = new (string Name, Action Run)[]
     ("A duplikált parancs elutasításra kerül", DuplicateCommandIsRejected),
     ("Harc közben nem futhat felfedezési parancs", ExplorationCommandIsRejectedDuringBattle),
     ("A CharacterId mentés után is stabil", CharacterIdSurvivesSerialization),
-    ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl)
+    ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
+    ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
+    ("A csata megvárhatja a játékos hálózati akcióját", BattleCanWaitForPlayerAction),
+    ("A támogatás a fő akció előtt lezárhatja a csatát", SupportCanFinishBattleBeforePlayerAction),
+    ("A régi Resolve API az állapotgépet hajtja", ResolveUsesStateMachineAdapter),
+    ("A Resolve támogatói győzelemnél nem kér fölösleges akciót", ResolveSkipsActionAfterSupportVictory)
 };
 
 var failures = 0;
@@ -115,6 +122,80 @@ static void DisconnectAndReconnectRestoreControl()
     Assert(session.TryReadCommand(out _), "Reconnect után elutasította az új parancsot.");
 }
 
+static void BattleAdvanceRunsOneAction()
+{
+    var system = CreateBattleSystem(11);
+    var player = CreateCharacter("Fighter", vitality: 500);
+    var enemy = CreateEnemy(hitPoints: 500, strength: 1);
+    var started = system.StartBattle(player, enemy);
+    var previousTurnId = started.State.TurnId;
+    var step = system.Advance(started.State);
+    Assert(step.State.Round == 1, "Egy Advance nem pontosan egy akciót futtatott.");
+    Assert(step.State.TurnId == previousTurnId + 1, "A harci turn ID nem növekedett.");
+    Assert(step.Entries.Count == 1, "Egy akció nem pontosan egy naplóbejegyzést adott.");
+    Assert(!step.IsCompleted, "A nagy HP-jú tesztcsata váratlanul lezárult.");
+}
+
+static void BattleCanWaitForPlayerAction()
+{
+    var system = CreateBattleSystem(22);
+    var player = CreateCharacter("Fighter", vitality: 500);
+    var enemy = CreateEnemy(hitPoints: 100, strength: 1);
+    var state = system.StartBattle(player, enemy).State;
+    while (!state.IsPlayerTurn && !state.IsCompleted) system.Advance(state);
+    Assert(!state.IsCompleted && state.IsPlayerTurn, "A teszt nem jutott el játékosakcióig.");
+    var turnId = state.TurnId;
+    Assert(state.Round <= 1, "A csata input nélkül túlhaladt a játékos körén.");
+    var step = system.Advance(state, new BattlePlayerAction("Hálózatról érkezett varázslat.",
+        DamageToEnemy: 100));
+    Assert(step.IsCompleted && step.Result?.PlayerWon == true, "A beadott játékosakció nem zárta le a csatát.");
+    Assert(state.TurnId == turnId + 1, "Nem a várt hálózati turn oldódott fel.");
+}
+
+static void SupportCanFinishBattleBeforePlayerAction()
+{
+    var system = CreateBattleSystem(33);
+    var player = CreateCharacter("Fighter", vitality: 100);
+    var enemy = CreateEnemy(hitPoints: 20, strength: 1);
+    var state = system.StartBattle(player, enemy).State;
+    var step = system.Advance(state, supportDamage: 20);
+    Assert(step.IsCompleted && enemy.CurrentHitPoints == 0, "A támogatói sebzés nem zárta le a csatát.");
+    Assert(step.Entries.Single().Message.Contains("támogató", StringComparison.Ordinal),
+        "A támogatói győzelem nem kapott saját eseményt.");
+}
+
+static void ResolveUsesStateMachineAdapter()
+{
+    var system = CreateBattleSystem(44);
+    var player = CreateCharacter("Fighter", vitality: 100);
+    var enemy = CreateEnemy(hitPoints: 50, strength: 1);
+    var entries = new List<BattleLogEntry>();
+    var actionRequests = 0;
+    var result = system.Resolve(player, enemy, entries.Add, () =>
+    {
+        actionRequests++;
+        return new BattlePlayerAction("Adapter-akció.", DamageToEnemy: 50);
+    });
+    Assert(result.PlayerWon && enemy.CurrentHitPoints == 0, "A kompatibilitási Resolve nem fejezte be a csatát.");
+    Assert(actionRequests == 1, "A Resolve nem egyszer kérte be a győztes játékosakciót.");
+    Assert(entries.Count >= 2, "A kezdő- és akcióesemények nem jutottak el a callbackhez.");
+}
+
+static void ResolveSkipsActionAfterSupportVictory()
+{
+    var system = CreateBattleSystem(55);
+    var player = CreateCharacter("Fighter", vitality: 100);
+    var enemy = CreateEnemy(hitPoints: 10, strength: 1);
+    var actionRequests = 0;
+    var result = system.Resolve(player, enemy, _ => { }, () =>
+    {
+        actionRequests++;
+        return null;
+    }, () => 10);
+    Assert(result.PlayerWon && actionRequests == 0,
+        "A támogatói győzelem után a kompatibilitási adapter még játékosakciót kért.");
+}
+
 static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) CreateSession()
 {
     var party = new Party();
@@ -125,13 +206,21 @@ static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) Crea
     return (new GameSession(party, leader), leader, companion);
 }
 
-static LiveCharacter CreateCharacter(string name)
+static LiveCharacter CreateCharacter(string name, int vitality = 20)
 {
     var abilities = new PrimaryAbilities(5, 5, 5, 5);
     var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
     var characterClass = new CharacterClassDefinition("C001", "Harcos", PrimaryAbilities.Zero, false, 1.0);
-    return new LiveCharacter(name, race, characterClass, abilities, 20, 0, 1, 0);
+    return new LiveCharacter(name, race, characterClass, abilities, vitality, 0, 1, 0);
 }
+
+static BattleSystem CreateBattleSystem(int seed) => new(new Random(seed),
+    Array.Empty<MonsterAbilityDefinition>(), Array.Empty<StatusDefinition>(),
+    Array.Empty<StrengthHitBonusDefinition>());
+
+static ConfiguredEnemy CreateEnemy(int hitPoints, int strength) => new(new Position(1, 1),
+    new EnemyDefinition("E-TEST", "Tesztellenfél", "e", strength, hitPoints, 0, 1,
+        1, 1, Array.Empty<string>()));
 
 static List<GameSessionEvent> CollectEvents(GameSession session)
 {

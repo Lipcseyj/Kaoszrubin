@@ -20,16 +20,34 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public BattleResult Resolve(LiveCharacter player, Enemy enemy, Action<BattleLogEntry> onRound,
         Func<BattlePlayerAction?>? choosePlayerAction = null, Func<int>? partyMemberDamage = null)
     {
+        var started = StartBattle(player, enemy);
+        foreach (var entry in started.Entries) onRound(entry);
+        var state = started.State;
+        while (!state.IsCompleted)
+        {
+            var supportDamage = partyMemberDamage?.Invoke() ?? 0;
+            var action = state.IsPlayerTurn && supportDamage < state.CurrentEnemyHitPoints
+                ? choosePlayerAction?.Invoke()
+                : null;
+            var step = Advance(state, action, supportDamage);
+            foreach (var entry in step.Entries) onRound(entry);
+        }
+        return state.Result!;
+    }
+
+    public BattleStartResult StartBattle(LiveCharacter player, Enemy enemy)
+    {
         var defender = enemy.Definition with { HitPoints = enemy.CurrentHitPoints };
-        var context = new BattleContext(player);
-        ApplyBattleStartPerks(player, onRound);
+        var context = new BattleRuntimeContext(player);
+        var entries = new List<BattleLogEntry>();
+        ApplyBattleStartPerks(player, entries.Add);
         var statusCosts = player.ApplyBattleStartStatusEffects();
         if (statusCosts.VitalityLost > 0 || statusCosts.ManaLost > 0)
         {
             var costs = new List<string>();
             if (statusCosts.VitalityLost > 0) costs.Add($"-{statusCosts.VitalityLost} HP");
             if (statusCosts.ManaLost > 0) costs.Add($"-{statusCosts.ManaLost} manna");
-            onRound(new BattleLogEntry($"Állapothatás a csata kezdetén: {string.Join(", ", costs)}.", BattleLogKind.Information));
+            entries.Add(new BattleLogEntry($"Állapothatás a csata kezdetén: {string.Join(", ", costs)}.", BattleLogKind.Information));
         }
         var perkInitiativeBonus = player.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
         var magicInitiativeBonus = player.GetMagicItemBonus(MagicItemEffect.Initiative);
@@ -44,109 +62,133 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (magicInitiativeBonus > 0) initiativeNotes.Add($"varázstárgy +{magicInitiativeBonus}");
         if (spellInitiativeBonus > 0) initiativeNotes.Add($"áldás +{spellInitiativeBonus}");
         var perkText = initiativeNotes.Count > 0 ? $" [{string.Join(", ", initiativeNotes)}]" : string.Empty;
-        var events = new List<string>
-        {
-            $"Kezdeményezés: {player.Name} Ügy {player.Abilities.Dexterity}{perkText}" +
+        var initiativeMessage = $"Kezdeményezés: {player.Name} Ügy {player.Abilities.Dexterity}{perkText}" +
             (player.StatusInitiativePenalty > 0 ? $" - állapot {player.StatusInitiativePenalty}" : string.Empty) +
             $" {playerInitiative.ModifierText} = {playerInitiative.Total}; " +
             $"{enemy.Name} Gy {defender.Speed ?? 1}" + (enemyInitiativeBonus > 0 ? $" + képesség {enemyInitiativeBonus}" : string.Empty) +
-            $" {enemyInitiative.ModifierText} = {enemyInitiative.Total}. {(playerAttacks ? player.Name : enemy.Name)} kezd."
-        };
-        onRound(new BattleLogEntry(events[0], BattleLogKind.Information));
-        var round = 0;
-        var queuedPlayerActions = 0;
+            $" {enemyInitiative.ModifierText} = {enemyInitiative.Total}. {(playerAttacks ? player.Name : enemy.Name)} kezd.";
+        entries.Add(new BattleLogEntry(initiativeMessage, BattleLogKind.Information));
+        var state = new BattleState(player, enemy, defender, context, playerAttacks, [initiativeMessage]);
+        if (player.CurrentVitality <= 0 || state.CurrentEnemyHitPoints <= 0) Complete(state);
+        return new BattleStartResult(state, entries);
+    }
 
-        while (player.CurrentVitality > 0 && defender.HitPoints is > 0)
+    /// <summary>
+    /// Pontosan egy harci akciót old fel. Játékoskörben a null akció fizikai támadás; ellenfélkörben
+    /// játékosakció nem adható. A supportDamage ugyanúgy az akció előtt érvényesül, mint a régi ciklusban.
+    /// A BattlePlayerAction már hostoldalon feloldott eredmény; hálózatról érkező nyers DTO-t nem szabad ide átadni.
+    /// </summary>
+    public BattleStepResult Advance(BattleState state, BattlePlayerAction? playerAction = null, int supportDamage = 0)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        if (state.IsCompleted) throw new InvalidOperationException("A lezárt csata nem folytatható.");
+        if (!state.IsPlayerTurn && playerAction is not null)
+            throw new InvalidOperationException("Az ellenfél körében nem adható játékosakció.");
+        if (supportDamage < 0) throw new ArgumentOutOfRangeException(nameof(supportDamage));
+
+        var player = state.Player;
+        var enemy = state.Enemy;
+        var defender = state.Defender;
+        var context = state.Context;
+        var entries = new List<BattleLogEntry>();
+        state.Round++;
+        if (supportDamage > 0)
         {
-            round++;
-            var supportDamage = partyMemberDamage?.Invoke() ?? 0;
-            if (supportDamage > 0)
+            defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - supportDamage) };
+            if (defender.HitPoints <= 0)
             {
-                defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - supportDamage) };
-                if (defender.HitPoints <= 0)
-                {
-                    var finishMessage = $"{round}. kör — a parti támogató varázslatai végeztek {enemy.Name}-vel.";
-                    events.Add(finishMessage);
-                    onRound(new BattleLogEntry(finishMessage, BattleLogKind.PlayerAttack));
-                    break;
-                }
+                var finishMessage = $"{state.Round}. kör — a parti támogató varázslatai végeztek {enemy.Name}-vel.";
+                state.Events.Add(finishMessage);
+                entries.Add(new BattleLogEntry(finishMessage, BattleLogKind.PlayerAttack));
+                state.Defender = defender;
+                state.TurnId++;
+                Complete(state);
+                return new BattleStepResult(state, entries);
             }
-            string message;
-            BattleLogKind kind;
-            if (playerAttacks)
-            {
-                player.AdvanceSpellEffects();
-                var chosenAction = choosePlayerAction?.Invoke();
-                if (chosenAction is not null)
-                {
-                    if (chosenAction.DamageToEnemy > 0)
-                        defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - chosenAction.DamageToEnemy) };
-                    queuedPlayerActions += chosenAction.ExtraPlayerActions;
-                    var statusTicks = player.ApplyTurnEndStatusEffects(_random);
-                    var statusText = statusTicks.Count == 0 ? string.Empty :
-                        $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
-                    message = $"{round}. kör — {chosenAction.Message} {enemy.Name} HP: {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
-                    kind = chosenAction.Kind;
-                }
-                else
-                {
-                    var count = player.HasPerk(PerkIds.BarbarianBerserkerRage) && player.CurrentVitality * 2 < player.MaximumVitality ? 2 : 1;
-                    var messages = new List<string>();
-                    var criticalHit = false;
-                    for (var index = 0; index < count && defender.HitPoints is > 0; index++)
-                    {
-                        var attack = PlayerAttack(player, defender, context, enemy.EffectiveSpeed);
-                        criticalHit |= attack.Critical;
-                        defender = ApplyAttack(defender, attack);
-                        messages.Add(attack.Message);
-                        if (index == 0 && attack.Hit && defender.HitPoints is > 0 && player.HasPerk(PerkIds.FighterSteelStorm) && _random.NextDouble() < 0.35)
-                        {
-                            var extra = PlayerAttack(player, defender, context, enemy.EffectiveSpeed);
-                            criticalHit |= extra.Critical;
-                            defender = ApplyAttack(defender, extra);
-                            messages.Add($"Acélvihar: {extra.Message}");
-                        }
-                    }
-                    var statusTicks = player.ApplyTurnEndStatusEffects(_random);
-                    var statusText = statusTicks.Count == 0 ? string.Empty :
-                        $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
-                    message = $"{round}. kör — {player.Name} támadja {enemy.Name}-t. {string.Join(" ", messages)} {enemy.Name} HP: {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
-                    kind = criticalHit ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack;
-                }
-            }
-            else
-            {
-                var spellTick = enemy.AdvanceSpellEffects(_random);
-                if (spellTick.Damage > 0)
-                    defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - spellTick.Damage) };
-                var effectText = spellTick.Notes.Count == 0 ? string.Empty : $" {string.Join(", ", spellTick.Notes)}.";
-                if (defender.HitPoints <= 0)
-                {
-                    message = $"{round}. kör — {enemy.Name} elbukik a varázshatásoktól.{effectText}";
-                    kind = BattleLogKind.PlayerAttack;
-                }
-                else if (spellTick.SkipAction)
-                {
-                    message = $"{round}. kör — {enemy.Name} varázshatás miatt kihagyja az akcióját.{effectText}";
-                    kind = BattleLogKind.Information;
-                }
-                else
-                {
-                    var attack = EnemyAttack(defender, player, context, enemy.EffectiveSpeed);
-                    var survival = attack.Hit ? ApplyEnemyDamage(player, attack.Damage, context) : string.Empty;
-                    message = $"{round}. kör — {enemy.Name} támadja {player.Name}-t. {attack.Message} {survival} {player.Name} HP: {player.CurrentVitality}/{player.MaximumVitality}.{effectText}";
-                    kind = attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack;
-                }
-            }
-            events.Add(message);
-            onRound(new BattleLogEntry(message, kind));
-            if (playerAttacks && queuedPlayerActions > 0)
-                queuedPlayerActions--;
-            else
-                playerAttacks = !playerAttacks;
         }
-        enemy.SetCurrentHitPoints(defender.HitPoints ?? 0);
-        return new BattleResult(player.CurrentVitality > 0, round, events);
+        string message;
+        BattleLogKind kind;
+        if (state.IsPlayerTurn)
+        {
+            player.AdvanceSpellEffects();
+            if (playerAction is not null)
+            {
+                if (playerAction.DamageToEnemy > 0)
+                    defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - playerAction.DamageToEnemy) };
+                state.QueuedPlayerActions += playerAction.ExtraPlayerActions;
+                var statusTicks = player.ApplyTurnEndStatusEffects(_random);
+                var statusText = statusTicks.Count == 0 ? string.Empty :
+                    $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
+                message = $"{state.Round}. kör — {playerAction.Message} {enemy.Name} HP: {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
+                kind = playerAction.Kind;
+            }
+            else
+            {
+                var count = player.HasPerk(PerkIds.BarbarianBerserkerRage) && player.CurrentVitality * 2 < player.MaximumVitality ? 2 : 1;
+                var messages = new List<string>();
+                var criticalHit = false;
+                for (var index = 0; index < count && defender.HitPoints is > 0; index++)
+                {
+                    var attack = PlayerAttack(player, defender, context, enemy.EffectiveSpeed);
+                    criticalHit |= attack.Critical;
+                    defender = ApplyAttack(defender, attack);
+                    messages.Add(attack.Message);
+                    if (index == 0 && attack.Hit && defender.HitPoints is > 0 && player.HasPerk(PerkIds.FighterSteelStorm) && _random.NextDouble() < 0.35)
+                    {
+                        var extra = PlayerAttack(player, defender, context, enemy.EffectiveSpeed);
+                        criticalHit |= extra.Critical;
+                        defender = ApplyAttack(defender, extra);
+                        messages.Add($"Acélvihar: {extra.Message}");
+                    }
+                }
+                var statusTicks = player.ApplyTurnEndStatusEffects(_random);
+                var statusText = statusTicks.Count == 0 ? string.Empty :
+                    $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
+                message = $"{state.Round}. kör — {player.Name} támadja {enemy.Name}-t. {string.Join(" ", messages)} {enemy.Name} HP: {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
+                kind = criticalHit ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack;
+            }
+        }
+        else
+        {
+            var spellTick = enemy.AdvanceSpellEffects(_random);
+            if (spellTick.Damage > 0)
+                defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - spellTick.Damage) };
+            var effectText = spellTick.Notes.Count == 0 ? string.Empty : $" {string.Join(", ", spellTick.Notes)}.";
+            if (defender.HitPoints <= 0)
+            {
+                message = $"{state.Round}. kör — {enemy.Name} elbukik a varázshatásoktól.{effectText}";
+                kind = BattleLogKind.PlayerAttack;
+            }
+            else if (spellTick.SkipAction)
+            {
+                message = $"{state.Round}. kör — {enemy.Name} varázshatás miatt kihagyja az akcióját.{effectText}";
+                kind = BattleLogKind.Information;
+            }
+            else
+            {
+                var attack = EnemyAttack(defender, player, context, enemy.EffectiveSpeed);
+                var survival = attack.Hit ? ApplyEnemyDamage(player, attack.Damage, context) : string.Empty;
+                message = $"{state.Round}. kör — {enemy.Name} támadja {player.Name}-t. {attack.Message} {survival} {player.Name} HP: {player.CurrentVitality}/{player.MaximumVitality}.{effectText}";
+                kind = attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack;
+            }
+        }
+        state.Defender = defender;
+        state.Events.Add(message);
+        entries.Add(new BattleLogEntry(message, kind));
+        if (state.IsPlayerTurn && state.QueuedPlayerActions > 0)
+            state.QueuedPlayerActions--;
+        else
+            state.IsPlayerTurn = !state.IsPlayerTurn;
+        state.TurnId++;
+        if (player.CurrentVitality <= 0 || state.CurrentEnemyHitPoints <= 0) Complete(state);
+        return new BattleStepResult(state, entries);
+    }
+
+    private static void Complete(BattleState state)
+    {
+        state.Enemy.SetCurrentHitPoints(state.CurrentEnemyHitPoints);
+        state.IsCompleted = true;
+        state.Result = new BattleResult(state.Player.CurrentVitality > 0, state.Round, state.Events.ToList());
     }
 
     private static EnemyDefinition ApplyAttack(EnemyDefinition defender, AttackResult attack) => attack.Hit
@@ -193,7 +235,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return new InitiativeRoll(speed + modifier, $"{(modifier >= 0 ? "+" : string.Empty)}1d2({modifier})");
     }
 
-    private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleContext context, int defenderSpeed)
+    private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleRuntimeContext context, int defenderSpeed)
     {
         player.BreakSanctuary();
         var forcedHit = context.ShadowStepReady;
@@ -270,7 +312,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         .Select(bonus => bonus.Bonus)
         .FirstOrDefault();
 
-    private AttackResult EnemyAttack(EnemyDefinition attacker, LiveCharacter defender, BattleContext context, int attackerSpeed)
+    private AttackResult EnemyAttack(EnemyDefinition attacker, LiveCharacter defender, BattleRuntimeContext context, int attackerSpeed)
     {
         if (context.ChallengeAvailable) { context.ChallengeAvailable = false; return AttackResult.Miss("Kihívás: az első támadás automatikusan elhibázza."); }
         if (defender.HasPerk(PerkIds.PriestSanctuary) && _random.NextDouble() < 0.20) return AttackResult.Miss("Szentély: az ellenfél elveszíti a támadását.");
@@ -370,7 +412,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return defender.HasPerk(PerkIds.KnightArmorMaster) ? Math.Max(rolled, (int)Math.Ceiling((range.Minimum + range.Maximum) / 2.0)) : rolled;
     }
 
-    private string ApplyEnemyDamage(LiveCharacter player, int damage, BattleContext context)
+    private string ApplyEnemyDamage(LiveCharacter player, int damage, BattleRuntimeContext context)
     {
         if (damage >= player.CurrentVitality && player.TakeSpellEffect(ActiveSpellEffectType.GuardianAngel) is { } angel)
         {
@@ -423,23 +465,6 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private static int AbilityDamageBonus(int ability) => Math.Max(0, (ability - 1) / 2);
     private int Roll(ValueRange range) => _random.Next(range.Minimum, range.Maximum + 1);
     private static int ApplyDefense(int rawDamage, int defense) => Math.Max(1, rawDamage - defense);
-
-    private sealed class BattleContext
-    {
-        public BattleContext(LiveCharacter player)
-        {
-            ChallengeAvailable = player.HasPerk(PerkIds.KnightChallenge);
-            GuardianAngelAvailable = player.HasPerk(PerkIds.KnightGuardianAngel);
-            LastFortressAvailable = player.HasPerk(PerkIds.FighterLastFortress);
-            AmbushAvailable = player.HasPerk(PerkIds.ThiefAmbush);
-        }
-        public bool ChallengeAvailable { get; set; }
-        public bool GuardianAngelAvailable { get; set; }
-        public bool LastFortressAvailable { get; set; }
-        public bool AmbushAvailable { get; set; }
-        public bool ShadowStepReady { get; set; }
-        public int ConsecutivePlayerHits { get; set; }
-    }
 
     private sealed record InitiativeRoll(int Total, string ModifierText);
     private sealed record HitRollResult(bool Hit, int NaturalRoll, string Description);
