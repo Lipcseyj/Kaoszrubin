@@ -1696,7 +1696,10 @@ public sealed class Game
         var destination = previousPosition + direction;
         if (_maze.GetPartyMemberAt(destination) is { } encounteredMember)
         {
-            ResolveNpcBattle(encounteredMember, enemy);
+            if (_session.IsHumanControlled(encounteredMember.Character.Id))
+                StartBattle(encounteredMember, enemy);
+            else
+                ResolveNpcBattle(encounteredMember, enemy);
             return true;
         }
         if (!_maze.TryMoveEnemy(enemy, destination)) return false;
