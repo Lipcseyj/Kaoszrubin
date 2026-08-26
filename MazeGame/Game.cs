@@ -183,8 +183,19 @@ public sealed class Game
                     state.CurrentEnemyHitPoints, state.Enemy.Definition.HitPoints ?? state.CurrentEnemyHitPoints),
                 GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
         }
-        return _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions, battle,
-            WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState)));
+        var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions,
+            battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState)));
+        var characters = CharacterRoster.Party.Members.ToDictionary(character => character.Id);
+        return snapshot with
+        {
+            GoldenKeyCount = _collectedBossKeyIds.Count,
+            BossKeyCount = MonsterIds.Bosses.Count,
+            Party = snapshot.Party.Select(character => character with
+            {
+                CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
+                    _gameData.ExperienceByLevel)
+            }).ToArray()
+        };
     }
 
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,

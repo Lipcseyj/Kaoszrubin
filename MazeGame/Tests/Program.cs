@@ -7,6 +7,7 @@ using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Magic;
 using MazeGame.Transport.SignalR;
+using MazeGame.UI;
 using System.Text.Json;
 using System.Text;
 
@@ -41,6 +42,7 @@ var tests = new (string Name, Action Run)[]
     ("A kliens store teljes snapshotot és régi baseline-ról érkező deltát alkalmaz", ClientStoreAppliesReplicationFrames),
     ("Hiányzó delta-baseline esetén a kliens resyncet kér", ClientStoreRequestsResyncForMissingBaseline),
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
+    ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
     ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories),
     ("Az inventory transfer atomi és megőrzi a töltetet", InventoryTransferIsAtomicAndPreservesCharges),
     ("Az elavult inventory-revízió elutasításra kerül", StaleInventoryRevisionIsRejected),
@@ -634,6 +636,26 @@ static void InventorySnapshotHasSlotsAndRevision()
         "Az inventory mutáció nem növelte pontosan egyszer a revíziót.");
 }
 
+static void CharacterSheetLayoutIsShared()
+{
+    var character = CreateCharacter("Közös lap");
+    var experienceByLevel = new Dictionary<int, int> { [2] = 100 };
+    var inventory = InventorySnapshotProjector.Create(character);
+    var snapshot = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
+        character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
+        character.CurrentMana, character.MaximumMana, character.FoodLevel, character.WaterLevel, character.Gold,
+        character.IsAlive, null, [], inventory,
+        CharacterSheetSnapshotProjector.Create(character, experienceByLevel));
+
+    var hostLines = CharacterSheetPanel.Build(character, experienceByLevel, 3, 1, 4);
+    var guestLines = CharacterSheetPanel.Build(snapshot, 3, 1, 4);
+    Assert(hostLines.SequenceEqual(guestLines),
+        "A doménkarakterből és a hálózati snapshotból felépített karakterlap eltér.");
+    var restored = JsonSerializer.Deserialize<SessionCharacterSnapshot>(JsonSerializer.Serialize(snapshot));
+    Assert(restored is not null && CharacterSheetPanel.Build(restored, 3, 1, 4).SequenceEqual(hostLines),
+        "A közös karakterlap read modelje nem élte túl a JSON wire-körutat.");
+}
+
 static void ReplicationPublisherRedactsOtherInventories()
 {
     var (session, leader, companion) = CreateSession();
@@ -651,6 +673,15 @@ static void ReplicationPublisherRedactsOtherInventories()
     };
     var snapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "Inventory pálya", positions,
         World: WorldSnapshotProjector.Create(maze, fog)));
+    var experienceByLevel = new Dictionary<int, int> { [2] = 100 };
+    snapshot = snapshot with
+    {
+        Party = snapshot.Party.Select(character => character with
+        {
+            CharacterSheet = CharacterSheetSnapshotProjector.Create(
+                character.CharacterId == leader.Id ? leader : companion, experienceByLevel)
+        }).ToArray()
+    };
     var publisher = new SessionReplicationPublisher();
     var hostFrame = publisher.CreateFrame(session.HostPlayerId, snapshot);
     var guestFrame = publisher.CreateFrame(remote, snapshot);
@@ -660,6 +691,9 @@ static void ReplicationPublisherRedactsOtherInventories()
     Assert(guestFrame.Session.Party.Single(character => character.CharacterId == companion.Id).Inventory is not null &&
            guestFrame.Session.Party.Single(character => character.CharacterId == leader.Id).Inventory is null,
         "A vendég más karakter inventoryját is megkapta, vagy a sajátját sem kapta meg.");
+    Assert(guestFrame.Session.Party.Single(character => character.CharacterId == companion.Id).CharacterSheet is not null &&
+           guestFrame.Session.Party.Single(character => character.CharacterId == leader.Id).CharacterSheet is null,
+        "A vendég más karakter teljes karakterlapját is megkapta, vagy a sajátját sem kapta meg.");
 }
 
 static void InventoryTransferIsAtomicAndPreservesCharges()

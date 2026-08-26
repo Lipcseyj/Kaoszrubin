@@ -1,4 +1,5 @@
 using MazeGame.Domain.Characters;
+using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Magic;
 
@@ -11,7 +12,7 @@ public sealed record InventorySlotSnapshot(InventorySlotKind Kind, int Index, In
 
 /// <summary>A slot hiteles tartalma; a részletes statisztikát a verzióazonos katalógusból kell feloldani.</summary>
 public sealed record InventoryItemSnapshot(string DefinitionId, string Name, ItemCategory Category,
-    ItemRarity Rarity, int Charges, int MaximumCharges);
+    ItemRarity Rarity, int Charges, int MaximumCharges, bool IsTwoHanded = false);
 
 public static class InventorySnapshotProjector
 {
@@ -35,7 +36,8 @@ public static class InventorySnapshotProjector
             slots.Add(new InventorySlotSnapshot(kind, index, item is null ? null : new InventoryItemSnapshot(
                 item.Id, item.Name, item.Category, item.Rarity,
                 character.GetInventoryItemCharges(kind, index),
-                item is MagicItemDefinition magic ? magic.MaximumCharges : 0)));
+                item is MagicItemDefinition magic ? magic.MaximumCharges : 0,
+                item is WeaponDefinition { IsTwoHanded: true })));
         }
     }
 }

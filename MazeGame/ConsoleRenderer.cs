@@ -5,6 +5,7 @@ using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Magic;
+using MazeGame.UI;
 
 namespace MazeGame;
 
@@ -323,7 +324,7 @@ public sealed class ConsoleRenderer
     public void DrawMapVisibilityChanged(Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
         for (var y = 0; y < maze.Height; y++)
-        for (var x = 0; x < maze.Width; x++) DrawMapCell(maze, fogOfWar, new Position(x, y));
+            for (var x = 0; x < maze.Width; x++) DrawMapCell(maze, fogOfWar, new Position(x, y));
         DrawPlayer(playerPosition);
     }
 
@@ -1082,7 +1083,8 @@ public sealed class ConsoleRenderer
                 {
                     case ConsoleKey.UpArrow when spells.Count > 0: selectedIndex = (selectedIndex - 1 + spells.Count) % spells.Count; break;
                     case ConsoleKey.DownArrow when spells.Count > 0: selectedIndex = (selectedIndex + 1) % spells.Count; break;
-                    case ConsoleKey.Enter when spells.Count > 0: return new SpellCastSelection(spells[selectedIndex].Spell,
+                    case ConsoleKey.Enter when spells.Count > 0:
+                        return new SpellCastSelection(spells[selectedIndex].Spell,
                         character, spells[selectedIndex].CastingItem, spells[selectedIndex].SlotIndex);
                     case ConsoleKey.Escape: return null;
                     case ConsoleKey.LeftArrow when casters.Count > 1:
@@ -1124,13 +1126,13 @@ public sealed class ConsoleRenderer
         {
             _spellCastingOverlaySnapshot = [];
             for (var y = top; y < top + frameHeight; y++)
-            for (var x = left; x < left + frameWidth; x++)
-            {
-                var position = new Position(x, y);
-                var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
-                _spellCastingOverlaySnapshot.Add(new MapCellSnapshot(position, visual.Rune,
-                    visual.ForegroundColor, visual.BackgroundColor));
-            }
+                for (var x = left; x < left + frameWidth; x++)
+                {
+                    var position = new Position(x, y);
+                    var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
+                    _spellCastingOverlaySnapshot.Add(new MapCellSnapshot(position, visual.Rune,
+                        visual.ForegroundColor, visual.BackgroundColor));
+                }
         }
 
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
@@ -1562,24 +1564,11 @@ public sealed class ConsoleRenderer
     private void DrawCharacterSheet(LiveCharacter character)
     {
         _displayedCharacter = character;
+        var panelLines = CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
+            _goldenKeyCount, MonsterIds.Bosses.Count);
         DrawCharacterSheetHeader(character);
-        WriteSheetLine(CharacterSheetRaceClassLine, $"{character.Race.Name} {character.CharacterClass.Name}", ConsoleColor.White);
-        var perkLines = FormatCompactListRows("Teh", character.Perks.Select(perk => perk.Name), CharacterSheetPerkRows);
-        WriteSheetLine(CharacterSheetFirstPerkLine, perkLines[0], ConsoleColor.Magenta);
-        WriteSheetLine(CharacterSheetSecondPerkLine, perkLines[1], ConsoleColor.Magenta);
-        DrawBattleStatusRows(character);
-        WriteSheetLine(CharacterSheetLevelLine, $"Labirintus: {_mazeLevel}  🔑 {_goldenKeyCount}/{MonsterIds.Bosses.Count}", ConsoleColor.Green);
-        WriteSheetLine(CharacterSheetExperienceLine, FormatExperience(character), ConsoleColor.Cyan);
-        WriteSheetLine(CharacterSheetStrengthLine, $"Erő: {character.Abilities.Strength}", ConsoleColor.Red);
-        WriteSheetLine(CharacterSheetDexterityLine, $"Ügy: {character.Abilities.Dexterity}", ConsoleColor.Green);
-        WriteSheetLine(CharacterSheetHealthLine, $"Egs: {character.Abilities.Health}", ConsoleColor.DarkYellow);
-        WriteSheetLine(CharacterSheetIntelligenceLine, $"Int: {character.Abilities.Intelligence}", ConsoleColor.Magenta);
-        WriteSheetLine(CharacterSheetFoodLine, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow);
-        WriteSheetLine(CharacterSheetWaterLine, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan);
-        WriteSheetLine(CharacterSheetGoldLine, $"Arany: {character.Gold} {MoneyIcon}", ConsoleColor.Yellow);
-        WriteSheetLine(CharacterSheetWeaponsHeadingLine, "FEGYVEREK", ConsoleColor.Yellow);
-        WriteSheetLine(CharacterSheetMagicItemsHeadingLine, $"VARÁZSTÁRGYAK {character.MagicItems.Count(item => item is not null)}/{CharacterSheetMaximumMagicItems}", ConsoleColor.Magenta);
-        WriteSheetLine(CharacterSheetBackpackHeadingLine, $"HÁTIZSÁK {character.Backpack.Count(item => item is not null)}/{CharacterSheetBackpackSlots}", ConsoleColor.DarkCyan);
+        foreach (var line in panelLines.Where(line => line.Row != CharacterSheetHeaderLine && line.InventorySlot is null))
+            WriteSheetLine(line.Row, line.Text, line.Color);
         DrawSelectableCharacterSheetRows(character);
         WriteSheetLine(CharacterSheetReservedMessageLine, string.Empty, ConsoleColor.DarkGray);
         WriteSheetLine(CharacterSheetControlsLine, string.Empty, ConsoleColor.DarkGray);
@@ -1623,20 +1612,21 @@ public sealed class ConsoleRenderer
         var entries = BuildSheetSelections(character);
         if (_activeSheetSelection is null || entries.All(entry => entry.Key != _activeSheetSelection))
             _activeSheetSelection = entries.FirstOrDefault()?.Key;
-
-        WriteSheetLine(CharacterSheetFirstWeaponLine, $"{FirstItemNumber}: {ItemName(character.WeaponSlots[0])}", ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Weapon, 0)));
-        var secondWeaponText = character.WeaponSlots[0]?.IsTwoHanded == true
-            ? $"{SecondItemNumber}: ⛔ kétkezes fegyver"
-            : $"{SecondItemNumber}: {ItemName(character.WeaponSlots[1])}";
-        WriteSheetLine(CharacterSheetSecondWeaponLine, secondWeaponText, character.WeaponSlots[0]?.IsTwoHanded == true ? ConsoleColor.DarkGray : ConsoleColor.Gray,
-            SelectionBackground(new(SheetSelectionKind.Weapon, 1)));
-        WriteSheetLine(CharacterSheetArmorLine, $"Páncél: {ItemName(character.Armor)}", ConsoleColor.DarkYellow, SelectionBackground(new(SheetSelectionKind.Armor, 0)));
-        for (var index = 0; index < CharacterSheetMaximumMagicItems; index++)
-            WriteSheetLine(CharacterSheetMagicItemsStartLine + index, $"{index + FirstItemNumber}: {ItemName(index < character.MagicItems.Count ? character.MagicItems[index] : null)}",
-                ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.MagicItem, index)));
-        for (var index = 0; index < CharacterSheetBackpackSlots; index++)
-            WriteSheetLine(CharacterSheetBackpackStartLine + index, $"{index + FirstItemNumber}: {ItemName(index < character.Backpack.Count ? character.Backpack[index] : null)}",
-                ConsoleColor.Gray, SelectionBackground(new(SheetSelectionKind.Backpack, index)));
+        foreach (var line in CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
+                     _goldenKeyCount, MonsterIds.Bosses.Count).Where(line => line.InventorySlot is not null))
+        {
+            var slot = line.InventorySlot!.Value;
+            var kind = slot.Kind switch
+            {
+                InventorySlotKind.Weapon => SheetSelectionKind.Weapon,
+                InventorySlotKind.Armor => SheetSelectionKind.Armor,
+                InventorySlotKind.MagicItem => SheetSelectionKind.MagicItem,
+                InventorySlotKind.Backpack => SheetSelectionKind.Backpack,
+                _ => throw new ArgumentOutOfRangeException()
+            };
+            WriteSheetLine(line.Row, line.Text, line.Color,
+                SelectionBackground(new SheetSelectionKey(kind, slot.Index)));
+        }
         var companions = _party.Members.Skip(FirstItemNumber).Take(CharacterSheetPartyMemberRows).ToList();
         for (var index = 0; index < CharacterSheetPartyMemberRows; index++)
             WriteSheetLine(CharacterSheetPartyMembersStartLine + index, index < companions.Count ? FormatPartyMember(companions[index], companions[index] == character) : string.Empty,
