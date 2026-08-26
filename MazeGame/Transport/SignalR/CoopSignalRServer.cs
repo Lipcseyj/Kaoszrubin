@@ -23,6 +23,8 @@ public sealed class CoopSignalRServer : IAsyncDisposable
         _hubContext = application.Services.GetRequiredService<IHubContext<CoopHub>>();
     }
 
+    public IReadOnlyCollection<string> Addresses => _application.Urls.ToArray();
+
     public static async Task<CoopSignalRServer> StartAsync(CoopHostGateway gateway,
         string listenUrl = "http://0.0.0.0:5127", CancellationToken cancellationToken = default)
     {

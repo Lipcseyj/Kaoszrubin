@@ -7,6 +7,7 @@ namespace MazeGame.Transport.SignalR;
 public sealed class CoopHub(CoopHostGateway gateway) : Hub
 {
     public const string Path = "/coop";
+    public const string ServerSendMethod = "SendWire";
     public const string ClientReceiveMethod = "ReceiveWire";
 
     public async Task SendWire(string wireMessage)

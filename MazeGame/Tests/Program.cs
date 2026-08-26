@@ -55,6 +55,8 @@ var tests = new (string Name, Action Run)[]
     ("A host gateway kezeli a control-, replikáció- és disconnect-folyamot", HostGatewayRunsConnectionLifecycle),
     ("A SignalR LAN host elindítható és leállítható", () =>
         SignalRServerStartsAndStops().GetAwaiter().GetResult()),
+    ("A SignalR kliens végigviszi a LAN coop kapcsolatot", () =>
+        SignalRClientRunsLanProtocolFlow().GetAwaiter().GetResult()),
     ("Az in-memory transport végigviszi a coop protokollfolyamot", () =>
         InMemoryTransportRunsProtocolFlow().GetAwaiter().GetResult())
 };
@@ -859,6 +861,53 @@ static async Task SignalRServerStartsAndStops()
     var gateway = new CoopHostGateway(session, new SessionHandshakeService(session, "1.0.0", hash),
         new SessionReplicationPublisher());
     await using var server = await CoopSignalRServer.StartAsync(gateway, "http://127.0.0.1:0");
+}
+
+static async Task SignalRClientRunsLanProtocolFlow()
+{
+    var (session, leader, companion) = CreateSession();
+    var hash = CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("catalog"));
+    var publisher = new SessionReplicationPublisher();
+    var gateway = new CoopHostGateway(session, new SessionHandshakeService(session, "1.0.0", hash), publisher);
+    await using var server = await CoopSignalRServer.StartAsync(gateway, "http://127.0.0.1:0");
+    var address = server.Addresses.Single();
+    Assert(!address.EndsWith(":0", StringComparison.Ordinal),
+        "A Kestrel nem publikálta a dinamikusan választott portot.");
+
+    await using var client = new CoopSignalRClient(address, "1.0.0", hash, "LAN vendég");
+    var receivedSnapshot = new TaskCompletionSource<SessionSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+    client.SnapshotChanged += snapshot => receivedSnapshot.TrySetResult(snapshot);
+    var protocolErrors = new List<CoopProtocolError>();
+    client.ProtocolErrorReceived += protocolErrors.Add;
+    var hello = await client.ConnectAsync();
+    Assert(hello is { Accepted: true, PlayerId: { } } && client.State == CoopClientConnectionState.Connected,
+        "A valódi SignalR kliens handshake-je sikertelen.");
+
+    var control = await client.RequestCharacterControlAsync(companion.Id);
+    Assert(control.Accepted && session.IsHumanControlled(companion.Id),
+        "A SignalR kliens nem tudta átvenni az NPC irányítását.");
+
+    var maze = new Maze(7, 7);
+    maze.Carve(maze.Entrance);
+    var fog = new FogOfWar(7, 7, 0);
+    fog.RevealFrom(maze, maze.Entrance);
+    var snapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "SignalR pálya",
+        new Dictionary<CharacterId, Position>
+        {
+            [leader.Id] = maze.Entrance,
+            [companion.Id] = new Position(3, 2)
+        }, World: WorldSnapshotProjector.Create(maze, fog)));
+    await server.PublishSnapshotAsync(snapshot);
+    var applied = await receivedSnapshot.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    Assert(applied.SnapshotSequence == snapshot.SnapshotSequence && client.CurrentSnapshot?.World is not null,
+        "A SignalR kliens nem alkalmazta a host teljes snapshotját.");
+
+    var move = new MoveCharacterCommand(client.PlayerId!.Value, client.NextCommandId(), companion.Id,
+        Direction.Right);
+    await client.SendCommandAsync(move);
+    Assert(session.TryReadCommand(out var accepted) && accepted == move,
+        "A SignalR kliens commandja nem jutott el a host session queue-jáig.");
+    Assert(protocolErrors.Count == 0, "A hibamentes SignalR folyamat közben protokollhiba érkezett.");
 }
 
 static async Task InMemoryTransportRunsProtocolFlow()
