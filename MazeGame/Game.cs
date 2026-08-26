@@ -1000,6 +1000,15 @@ public sealed class Game
                 case InventoryTransferCommand inventoryTransfer:
                     ExecuteInventoryTransfer(inventoryTransfer);
                     break;
+                case UseInventoryItemCommand useItem:
+                    ExecuteUseInventoryItem(useItem);
+                    break;
+                case DropInventoryItemCommand dropItem:
+                    ExecuteDropInventoryItem(dropItem);
+                    break;
+                case PickUpGroundItemCommand pickUpItem:
+                    ExecutePickUpGroundItem(pickUpItem);
+                    break;
                 case BattleActionCommand battleAction:
                     ExecuteBattleAction(battleAction);
                     break;
@@ -1063,13 +1072,10 @@ public sealed class Game
         if (item is null) { _renderer.DrawInventoryMessage("A kijelölt hely üres.", ConsoleColor.DarkYellow); return; }
         if (SpellcastingRules.IsSpellcastingFocus(item))
         { _renderer.DrawInventoryMessage($"A(z) {item.Name} a karakterhez kötött varázsfókusz, ezért nem dobható el.", ConsoleColor.Red); return; }
-        if (!slot.Value.Character.SetInventoryItem(slot.Value.Kind, slot.Value.Index, null))
-        { _renderer.DrawInventoryMessage("A kijelölt tárgy nem távolítható el erről a helyről.", ConsoleColor.Red); return; }
-        _maze.DropItem(_player.Position, item);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        var pileCount = _maze.GetGroundItemPileAt(_player.Position)?.Items.Count ?? 1;
-        _renderer.DrawInventoryMessage($"Ledobtad: {item.Name}. A mezőn {pileCount} tárgy van.", ConsoleColor.Cyan);
+        var commandId = _localCommandId + 1;
+        if (!_session.Submit(new DropInventoryItemCommand(_session.HostPlayerId, commandId,
+                slot.Value.Character.Id, slot.Value.Character.InventoryRevision, slot.Value.Kind, slot.Value.Index))) return;
+        _localCommandId = commandId;
     }
 
     private bool TrySearchCurrentCell()
@@ -1325,7 +1331,19 @@ public sealed class Game
         if (selectedItem is not MiscItemDefinition item || item.Effect == ConsumableEffect.None)
         { _renderer.DrawInventoryMessage("A kijelölt tárgy közvetlenül nem használható.", ConsoleColor.DarkYellow); return; }
 
-        var character = slot.Value.Character;
+        var commandId = _localCommandId + 1;
+        if (!_session.Submit(new UseInventoryItemCommand(_session.HostPlayerId, commandId,
+                slot.Value.Character.Id, slot.Value.Character.InventoryRevision, slot.Value.Index))) return;
+        _localCommandId = commandId;
+    }
+
+    private void ExecuteUseInventoryItem(UseInventoryItemCommand command)
+    {
+        var character = CharacterRoster.Party.Members.FirstOrDefault(member => member.Id == command.CharacterId);
+        if (character?.GetInventoryItem(InventorySlotKind.Backpack, command.BackpackIndex) is not MiscItemDefinition item ||
+            item.Effect == ConsumableEffect.None || character.InventoryRevision != command.ExpectedInventoryRevision)
+            return;
+
         var used = true;
         var result = item.Id == MiscItemIds.HerbalTea &&
                      (character.WaterLevel < 100 || character.IsAlive && character.CurrentVitality < character.MaximumVitality)
@@ -1346,10 +1364,55 @@ public sealed class Game
         if (string.IsNullOrEmpty(result)) used = false;
         if (!used) { _renderer.DrawInventoryMessage("A tárgy hatására most nincs szükség vagy nem alkalmazható.", ConsoleColor.DarkYellow); return; }
 
-        character.SetInventoryItem(InventorySlotKind.Backpack, slot.Value.Index, null);
+        character.SetInventoryItem(InventorySlotKind.Backpack, command.BackpackIndex, null);
         character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry), _gameData.GetStatus(CharacterStatusIds.Thirsty));
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawInventoryMessage($"{character.Name} használta: {item.Name} — {result}.", ConsoleColor.Green);
+    }
+
+    private void ExecuteDropInventoryItem(DropInventoryItemCommand command)
+    {
+        var character = CharacterRoster.Party.Members.FirstOrDefault(member => member.Id == command.CharacterId);
+        if (character is null || character.InventoryRevision != command.ExpectedInventoryRevision) return;
+        var item = character.GetInventoryItem(command.SlotKind, command.SlotIndex);
+        if (item is null || SpellcastingRules.IsSpellcastingFocus(item)) return;
+        var charges = character.GetInventoryItemCharges(command.SlotKind, command.SlotIndex);
+        var position = GetCharacterWorldPosition(character);
+        if (position is null || !character.SetInventoryItem(command.SlotKind, command.SlotIndex, null)) return;
+        _maze.DropItem(position.Value, item, charges);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        var pileCount = _maze.GetGroundItemPileAt(position.Value)?.Items.Count ?? 1;
+        _renderer.DrawInventoryMessage($"Ledobtad: {item.Name}. A mezőn {pileCount} tárgy van.", ConsoleColor.Cyan);
+    }
+
+    private void ExecutePickUpGroundItem(PickUpGroundItemCommand command)
+    {
+        var character = CharacterRoster.Party.Members.FirstOrDefault(member => member.Id == command.CharacterId);
+        var pile = _maze.GroundItemPiles.FirstOrDefault(candidate => candidate.Id == command.GroundPileId);
+        var position = character is null ? null : GetCharacterWorldPosition(character);
+        if (character is null || pile is null || position != pile.Position ||
+            character.InventoryRevision != command.ExpectedInventoryRevision ||
+            pile.Revision != command.ExpectedGroundPileRevision || command.GroundItemIndex < 0 ||
+            command.GroundItemIndex >= pile.Entries.Count ||
+            character.GetInventoryItem(InventorySlotKind.Backpack, command.DestinationBackpackIndex) is not null)
+            return;
+        var entry = pile.Entries[command.GroundItemIndex];
+        var change = new InventorySlotChange(InventorySlotKind.Backpack, command.DestinationBackpackIndex,
+            entry.Item, entry.Charges);
+        if (!character.CanApplyInventoryChanges(change) ||
+            !pile.TryTake(command.GroundItemIndex, command.ExpectedGroundPileRevision, out _)) return;
+        character.ApplyInventoryChanges(change);
+        if (pile.Entries.Count == 0) _maze.RemoveGroundItemPile(pile);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.DrawInventoryMessage($"Felvetted: {entry.Item.Name}.", ConsoleColor.Green);
+    }
+
+    private Position? GetCharacterWorldPosition(LiveCharacter character)
+    {
+        if (character == SelectedCharacter) return _player.Position;
+        return _maze.PartyMembers.FirstOrDefault(member => member.Character == character)?.Position;
     }
 
     private static string UseFood(LiveCharacter character, int amount)

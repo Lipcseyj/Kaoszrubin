@@ -39,7 +39,10 @@ var tests = new (string Name, Action Run)[]
     ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories),
     ("Az inventory transfer atomi és megőrzi a töltetet", InventoryTransferIsAtomicAndPreservesCharges),
     ("Az elavult inventory-revízió elutasításra kerül", StaleInventoryRevisionIsRejected),
-    ("A vendég nem mozgathat tárgyat más karakterhez", RemoteInventoryTransferCannotCrossCharacters)
+    ("A vendég nem mozgathat tárgyat más karakterhez", RemoteInventoryTransferCannotCrossCharacters),
+    ("A használat, eldobás és pickup command alakja validált", InventoryActionCommandsAreValidated),
+    ("Nem fogyasztható tárgy használata elutasításra kerül", NonConsumableUseIsRejected),
+    ("A földi loot megőrzi a töltetet és revíziózott", GroundPilePreservesChargesAndRevision)
 };
 
 var failures = 0;
@@ -593,6 +596,54 @@ static void RemoteInventoryTransferCannotCrossCharacters()
         InventorySlotKind.Backpack, 0, leader.Id, leader.InventoryRevision, InventorySlotKind.Backpack, 1);
     session.Submit(command);
     Assert(!session.TryReadCommand(out _), "A vendég másik karakterhez mozgathatott tárgyat.");
+}
+
+static void InventoryActionCommandsAreValidated()
+{
+    var (session, leader, _) = CreateSession();
+    leader.AddToBackpack(new MiscItemDefinition("I-USE", "Gyógyital", "Teszt", 1, ConsumableEffect.Heal, 5));
+    var revision = leader.InventoryRevision;
+    session.Submit(new UseInventoryItemCommand(session.HostPlayerId, 1, leader.Id, revision, 0));
+    Assert(session.TryReadCommand(out var use) && use is UseInventoryItemCommand,
+        "Az érvényes használati commandot elutasította a session.");
+    session.Submit(new DropInventoryItemCommand(session.HostPlayerId, 2, leader.Id, revision,
+        InventorySlotKind.Backpack, 0));
+    Assert(session.TryReadCommand(out var drop) && drop is DropInventoryItemCommand,
+        "Az érvényes eldobási commandot elutasította a session.");
+    session.Submit(new PickUpGroundItemCommand(session.HostPlayerId, 3, leader.Id, revision,
+        WorldEntityId.New(), 1, 0, 1));
+    Assert(session.TryReadCommand(out var pickup) && pickup is PickUpGroundItemCommand,
+        "Az érvényes pickup command alakját elutasította a session.");
+}
+
+static void NonConsumableUseIsRejected()
+{
+    var (session, leader, _) = CreateSession();
+    leader.AddToBackpack(new MiscItemDefinition("I-NOUSE", "Dísztárgy", "Teszt", 1));
+    session.Submit(new UseInventoryItemCommand(session.HostPlayerId, 1, leader.Id,
+        leader.InventoryRevision, 0));
+    Assert(!session.TryReadCommand(out _), "A nem fogyasztható tárgy használati commandja átjutott.");
+}
+
+static void GroundPilePreservesChargesAndRevision()
+{
+    var character = CreateCharacter("PileTest");
+    var wand = new MagicItemDefinition("MI-PILE", "Földi pálca", MagicItemKind.Wand, ItemRarity.Magic,
+        10, 5, null, MagicItemEffect.None, 0, new HashSet<string> { character.CharacterClass.Id }, "Teszt", 1);
+    var pile = new GroundItemPile(new Position(2, 2), wand, 3);
+    Assert(pile.Revision == 1 && pile.Entries.Single().Charges == 3,
+        "A földi kupac nem őrizte meg a kezdeti töltetet vagy revíziót.");
+    Assert(!pile.TryTake(0, 2, out _), "A kupac elfogadta az elavult revíziót.");
+    Assert(pile.TryTake(0, 1, out var entry) && entry.Charges == 3 && pile.Revision == 2,
+        "A revíziózott pickup elvesztette a töltetet vagy nem növelte a kupacrevíziót.");
+    var maze = new Maze(7, 7);
+    maze.Carve(maze.Entrance);
+    maze.DropItem(maze.Entrance, wand, 3);
+    var fog = new FogOfWar(7, 7, 0);
+    fog.RevealFrom(maze, maze.Entrance);
+    var worldPile = WorldSnapshotProjector.Create(maze, fog).GroundPiles.Single();
+    Assert(worldPile.Revision == 1 && worldPile.Items.Single().Charges == 3,
+        "A world snapshot nem publikálta a kupac revízióját vagy töltetszámát.");
 }
 
 static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) CreateSession()

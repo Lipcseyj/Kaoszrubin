@@ -165,12 +165,12 @@ public sealed class Maze
     public Corpse? GetCorpseAt(Position position) => _corpses.FirstOrDefault(corpse => corpse.Position == position);
     public bool RemoveGroundItemPile(GroundItemPile pile) => _groundItemPiles.Remove(pile);
 
-    public void DropItem(Position position, Domain.Inventory.IItemDefinition item)
+    public void DropItem(Position position, Domain.Inventory.IItemDefinition item, int? charges = null)
     {
         if (!IsWalkable(position)) throw new ArgumentException("Tárgyat csak járható mezőre lehet dobni.", nameof(position));
         var pile = GetGroundItemPileAt(position);
-        if (pile is null) _groundItemPiles.Add(new GroundItemPile(position, item));
-        else pile.Add(item);
+        if (pile is null) _groundItemPiles.Add(new GroundItemPile(position, item, charges));
+        else pile.Add(item, charges);
     }
 
     public Enemy? GetEnemyAt(Position position) => _enemies.FirstOrDefault(enemy => enemy.Position == position);

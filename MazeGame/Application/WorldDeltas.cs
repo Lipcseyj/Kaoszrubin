@@ -83,6 +83,6 @@ public static class WorldDeltaProjector
         first.GroupRole == second.GroupRole && first.ActiveEffectTypes.SequenceEqual(second.ActiveEffectTypes);
 
     private static bool GroundPileEquals(WorldGroundPileSnapshot first, WorldGroundPileSnapshot second) =>
-        first.EntityId == second.EntityId && first.Position == second.Position &&
+        first.EntityId == second.EntityId && first.Position == second.Position && first.Revision == second.Revision &&
         first.Items.SequenceEqual(second.Items);
 }

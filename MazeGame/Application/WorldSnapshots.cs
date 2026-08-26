@@ -22,10 +22,11 @@ public sealed record WorldChestSnapshot(WorldEntityId EntityId, Position Positio
 public sealed record WorldCorpseSnapshot(WorldEntityId EntityId, Position Position, string FormerName,
     CharacterId? PartyCharacterId, string? EnemyDefinitionId, bool IsSearched);
 
-public sealed record WorldGroundPileSnapshot(WorldEntityId EntityId, Position Position,
+public sealed record WorldGroundPileSnapshot(WorldEntityId EntityId, Position Position, long Revision,
     IReadOnlyList<WorldItemSnapshot> Items);
 
-public sealed record WorldItemSnapshot(string Category, string DefinitionId, string Name);
+public sealed record WorldItemSnapshot(string Category, string DefinitionId, string Name, int Charges,
+    int MaximumCharges);
 
 public static class WorldSnapshotProjector
 {
@@ -64,8 +65,9 @@ public static class WorldSnapshotProjector
                 (corpse as PartyMemberCorpse)?.Character.Id, (corpse as MonsterCorpse)?.EnemyDefinitionId,
                 (corpse as MonsterCorpse)?.IsSearched ?? false)).ToArray();
         var groundPiles = maze.GroundItemPiles.Where(pile => IsVisible(pile.Position)).Select(pile =>
-            new WorldGroundPileSnapshot(pile.Id, pile.Position, pile.Items.Select(item =>
-                new WorldItemSnapshot(item.Category.ToString(), item.Id, item.Name)).ToArray())).ToArray();
+            new WorldGroundPileSnapshot(pile.Id, pile.Position, pile.Revision, pile.Entries.Select(entry =>
+                new WorldItemSnapshot(entry.Item.Category.ToString(), entry.Item.Id, entry.Item.Name, entry.Charges,
+                    entry.Item is Domain.Magic.MagicItemDefinition magic ? magic.MaximumCharges : 0)).ToArray())).ToArray();
 
         return new WorldSnapshot(maze.Id, maze.Width, maze.Height,
             IsVisible(maze.Entrance) ? maze.Entrance : null,

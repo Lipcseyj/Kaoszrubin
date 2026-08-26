@@ -31,8 +31,8 @@ public static class InventoryTransferService
         var destination = party.Members.FirstOrDefault(character => character.Id == command.DestinationCharacterId);
         if (source is null || destination is null)
             return Fail("Az inventory-command egyik karaktere nem tagja a partinak.", out plan, out error);
-        if (!IsValidSlot(command.SourceKind, command.SourceIndex) ||
-            !IsValidSlot(command.DestinationKind, command.DestinationIndex) ||
+        if (!IsValidSlotAddress(command.SourceKind, command.SourceIndex) ||
+            !IsValidSlotAddress(command.DestinationKind, command.DestinationIndex) ||
             command.CharacterId == command.DestinationCharacterId && command.SourceKind == command.DestinationKind &&
             command.SourceIndex == command.DestinationIndex)
             return Fail("Az inventory-command slotcíme érvénytelen.", out plan, out error);
@@ -58,7 +58,7 @@ public static class InventoryTransferService
         return true;
     }
 
-    private static bool IsValidSlot(InventorySlotKind kind, int index) => kind switch
+    public static bool IsValidSlotAddress(InventorySlotKind kind, int index) => kind switch
     {
         InventorySlotKind.Weapon => index is >= 0 and < 2,
         InventorySlotKind.Armor => index == 0,

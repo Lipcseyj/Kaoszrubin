@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using MazeGame.Domain.Characters;
 using MazeGame.Combat;
+using MazeGame.Domain.Inventory;
 
 namespace MazeGame.Application;
 
@@ -205,6 +206,19 @@ public sealed class GameSession
             return Fail("Ismételt vagy sorrenden kívüli parancs.", out reason);
         if (command is InventoryTransferCommand inventoryTransfer)
             return ValidateInventoryTransfer(inventoryTransfer, out reason);
+        if (command is UseInventoryItemCommand useItem)
+            return ValidateUseInventoryItem(useItem, out reason);
+        if (command is DropInventoryItemCommand dropItem)
+            return ValidateDropInventoryItem(dropItem, out reason);
+        if (command is PickUpGroundItemCommand pickUpItem)
+        {
+            if (pickUpItem.GroundPileId.Value == Guid.Empty || pickUpItem.ExpectedGroundPileRevision <= 0 ||
+                pickUpItem.GroundItemIndex < 0)
+                return Fail("A földi tárgy hivatkozása érvénytelen.", out reason);
+            return ValidateInventorySlotCommand(pickUpItem.SenderId, pickUpItem.CharacterId,
+                pickUpItem.ExpectedInventoryRevision, InventorySlotKind.Backpack,
+                pickUpItem.DestinationBackpackIndex, allowInn: false, requireItem: false, out reason);
+        }
         if (!_controls.TryGetValue(command.CharacterId, out var control) ||
             control.AssignedPlayerId != command.SenderId || control.ConnectionState != PlayerConnectionState.Connected ||
             control.ControllerKind == CharacterControllerKind.Npc)
@@ -249,6 +263,52 @@ public sealed class GameSession
         _controls.TryGetValue(characterId, out var control) && control.AssignedPlayerId == playerId &&
         control.ControllerKind != CharacterControllerKind.Npc &&
         control.ConnectionState == PlayerConnectionState.Connected;
+
+    private bool ValidateInventorySlotCommand(PlayerId senderId, CharacterId characterId, long expectedRevision,
+        InventorySlotKind kind, int index, bool allowInn, bool requireItem, out string reason)
+    {
+        if (Phase != GameSessionPhase.Exploration && !(allowInn && Phase == GameSessionPhase.Inn))
+            return Fail("Ez az inventory-művelet az aktuális fázisban nem használható.", out reason);
+        var character = _party.Members.FirstOrDefault(member => member.Id == characterId);
+        if (character is null) return Fail("A karakter nem tagja a partinak.", out reason);
+        if (senderId != HostPlayerId && !CanPlayerManageInventory(senderId, characterId))
+            return Fail("A vendég csak a saját karakterének inventoryját kezelheti.", out reason);
+        if (!InventoryTransferService.IsValidSlotAddress(kind, index))
+            return Fail("Az inventory slotcíme érvénytelen.", out reason);
+        if (character.InventoryRevision != expectedRevision)
+            return Fail("Az inventory azóta megváltozott; friss snapshot szükséges.", out reason);
+        if (requireItem && character.GetInventoryItem(kind, index) is null)
+            return Fail("A kijelölt inventory-slot üres.", out reason);
+        if (!requireItem && character.GetInventoryItem(kind, index) is not null)
+            return Fail("A cél inventory-slot nem üres.", out reason);
+        reason = string.Empty;
+        return true;
+    }
+
+    private bool ValidateUseInventoryItem(UseInventoryItemCommand command, out string reason)
+    {
+        if (!ValidateInventorySlotCommand(command.SenderId, command.CharacterId,
+                command.ExpectedInventoryRevision, InventorySlotKind.Backpack, command.BackpackIndex,
+                allowInn: true, requireItem: true, out reason)) return false;
+        var character = _party.Members.First(member => member.Id == command.CharacterId);
+        if (character.GetInventoryItem(InventorySlotKind.Backpack, command.BackpackIndex) is not MiscItemDefinition
+            { Effect: not ConsumableEffect.None })
+            return Fail("A kijelölt tárgy közvetlenül nem használható.", out reason);
+        reason = string.Empty;
+        return true;
+    }
+
+    private bool ValidateDropInventoryItem(DropInventoryItemCommand command, out string reason)
+    {
+        if (!ValidateInventorySlotCommand(command.SenderId, command.CharacterId,
+                command.ExpectedInventoryRevision, command.SlotKind, command.SlotIndex,
+                allowInn: false, requireItem: true, out reason)) return false;
+        var character = _party.Members.First(member => member.Id == command.CharacterId);
+        if (SpellcastingRules.IsSpellcastingFocus(character.GetInventoryItem(command.SlotKind, command.SlotIndex)))
+            return Fail("A karakterhez kötött varázsfókusz nem dobható el.", out reason);
+        reason = string.Empty;
+        return true;
+    }
 
     private void SetControl(CharacterControlState control)
     {

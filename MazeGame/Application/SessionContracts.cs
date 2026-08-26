@@ -63,6 +63,19 @@ public sealed record InventoryTransferCommand(PlayerId SenderId, long CommandId,
     InventorySlotKind DestinationKind, int DestinationIndex)
     : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record UseInventoryItemCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    long ExpectedInventoryRevision, int BackpackIndex)
+    : GameCommand(SenderId, CommandId, CharacterId);
+
+public sealed record DropInventoryItemCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    long ExpectedInventoryRevision, InventorySlotKind SlotKind, int SlotIndex)
+    : GameCommand(SenderId, CommandId, CharacterId);
+
+public sealed record PickUpGroundItemCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    long ExpectedInventoryRevision, WorldEntityId GroundPileId, long ExpectedGroundPileRevision,
+    int GroundItemIndex, int DestinationBackpackIndex)
+    : GameCommand(SenderId, CommandId, CharacterId);
+
 public enum BattleActionKind
 {
     PhysicalAttack,

@@ -123,4 +123,4 @@ public sealed record CorpseSaveData(Position Position, string FormerName, int? P
     string? EnemyDefinitionId = null, bool IsSearched = false);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);
-public sealed record SavedItemReference(string Category, string Id);
+public sealed record SavedItemReference(string Category, string Id, int Charges = 0);
