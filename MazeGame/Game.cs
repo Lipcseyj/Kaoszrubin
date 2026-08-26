@@ -182,7 +182,8 @@ public sealed class Game
                     state.CurrentEnemyHitPoints, state.Enemy.Definition.HitPoints ?? state.CurrentEnemyHitPoints),
                 GetAllowedBattleActions(state.Enemy));
         }
-        return _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions, battle));
+        return _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions, battle,
+            WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState)));
     }
 
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,

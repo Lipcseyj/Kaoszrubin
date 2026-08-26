@@ -13,7 +13,7 @@ public static class SessionProtocol
 public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence, long LastEventSequence,
     GameSessionPhase Phase, PlayerId HostPlayerId, CharacterId LeaderCharacterId, int MazeLevel,
     string LevelName, IReadOnlyList<SessionCharacterSnapshot> Party,
-    IReadOnlyList<CharacterControlState> CharacterControls, BattleSnapshot? Battle);
+    IReadOnlyList<CharacterControlState> CharacterControls, BattleSnapshot? Battle, WorldSnapshot? World = null);
 
 public sealed record SessionCharacterSnapshot(CharacterId CharacterId, string Name, string RaceId,
     string CharacterClassId, int Level, int CurrentVitality, int MaximumVitality, int CurrentMana,
@@ -29,4 +29,5 @@ public sealed record SessionEnemySnapshot(string DefinitionId, string Name, Posi
 
 /// <summary>Host-oldali projekciós input; nem része a hálózaton fogadott parancsoknak.</summary>
 public sealed record SessionSnapshotContext(int MazeLevel, string LevelName,
-    IReadOnlyDictionary<CharacterId, Position> CharacterPositions, BattleSnapshot? Battle = null);
+    IReadOnlyDictionary<CharacterId, Position> CharacterPositions, BattleSnapshot? Battle = null,
+    WorldSnapshot? World = null);

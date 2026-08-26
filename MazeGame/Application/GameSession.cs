@@ -125,7 +125,8 @@ public sealed class GameSession
             character.Statuses.Select(status => status.Id).ToArray())).ToArray();
         var controls = _party.Members.Select(character => _controls[character.Id]).ToArray();
         return new SessionSnapshot(SessionProtocol.Version, ++_snapshotSequence, _eventSequence, Phase,
-            HostPlayerId, _party.Leader!.Id, context.MazeLevel, context.LevelName, party, controls, context.Battle);
+            HostPlayerId, _party.Leader!.Id, context.MazeLevel, context.LevelName, party, controls, context.Battle,
+            context.World);
     }
 
     public void SetBattlePrompt(BattleId battleId, long turnId, CharacterId actingCharacterId,

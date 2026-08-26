@@ -25,7 +25,9 @@ var tests = new (string Name, Action Run)[]
     ("Hiányos varázslat command nem juthat át", MalformedSpellBattleCommandIsRejected),
     ("A promptban nem engedélyezett harci akció elutasításra kerül", DisallowedBattleActionIsRejected),
     ("A session snapshot JSON-on körbeírható", SessionSnapshotRoundTripsThroughJson),
-    ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt)
+    ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
+    ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
+    ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement)
 };
 
 var failures = 0;
@@ -312,6 +314,45 @@ static void SnapshotRequiresCurrentBattlePrompt()
     Assert(rejected, "A lejárt körhöz tartozó harci snapshotot elfogadta a session.");
 }
 
+static void WorldSnapshotOnlyContainsRevealedState()
+{
+    var maze = new Maze(7, 7);
+    var visibleEnemy = CreateEnemyAt(new Position(3, 2), "E-VISIBLE");
+    var hiddenEnemy = CreateEnemyAt(new Position(4, 5), "E-HIDDEN");
+    foreach (var position in new[] { visibleEnemy.Position, hiddenEnemy.Position, new Position(1, 2) })
+        maze.Carve(position);
+    maze.AddEnemy(visibleEnemy);
+    maze.AddEnemy(hiddenEnemy);
+    maze.AddTreasureChest(new TreasureChest(new Position(1, 2), 99));
+    maze.PlaceDoor(new Position(2, 3), DoorState.Closed);
+    var fog = new FogOfWar(maze.Width, maze.Height, 1);
+    fog.RevealFrom(maze, maze.Entrance);
+
+    var world = WorldSnapshotProjector.Create(maze, fog);
+    Assert(world.Enemies.Count == 1 && world.Enemies[0].EntityId == visibleEnemy.Id,
+        "A world snapshot rejtett ellenfelet is publikált, vagy kihagyta a láthatót.");
+    Assert(world.Chests.Count == 1 && world.Doors.Count == 1,
+        "A felfedett statikus entitások hiányoznak a world snapshotból.");
+    Assert(world.Exit is null && world.RevealedCells.All(cell => fog.IsVisible(cell.Position)),
+        "A world snapshot rejtett kijáratot vagy cellát publikált.");
+    var restored = JsonSerializer.Deserialize<WorldSnapshot>(JsonSerializer.Serialize(world));
+    Assert(restored?.Enemies.Single().DefinitionId == "E-VISIBLE",
+        "A world snapshot JSON round-trip közben megváltozott.");
+}
+
+static void WorldEntityIdSurvivesMovement()
+{
+    var maze = new Maze(7, 7);
+    var enemy = CreateEnemyAt(new Position(2, 3), "E-MOVING");
+    var destination = new Position(3, 3);
+    maze.Carve(enemy.Position);
+    maze.Carve(destination);
+    maze.AddEnemy(enemy);
+    var entityId = enemy.Id;
+    Assert(maze.TryMoveEnemy(enemy, destination), "A tesztellenfél nem tudott elmozdulni.");
+    Assert(enemy.Id == entityId, "A world entity azonosítója mozgáskor megváltozott.");
+}
+
 static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) CreateSession()
 {
     var party = new Party();
@@ -336,6 +377,10 @@ static BattleSystem CreateBattleSystem(int seed) => new(new Random(seed),
 
 static ConfiguredEnemy CreateEnemy(int hitPoints, int strength) => new(new Position(1, 1),
     new EnemyDefinition("E-TEST", "Tesztellenfél", "e", strength, hitPoints, 0, 1,
+        1, 1, Array.Empty<string>()));
+
+static ConfiguredEnemy CreateEnemyAt(Position position, string id) => new(position,
+    new EnemyDefinition(id, "Tesztellenfél", "e", 1, 10, 0, 1,
         1, 1, Array.Empty<string>()));
 
 static List<GameSessionEvent> CollectEvents(GameSession session)
