@@ -246,6 +246,14 @@ public sealed class ConsoleRenderer
     public void DrawStoryOverlay(string title, string subtitle, IReadOnlyList<string> paragraphs,
         Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
+        ShowStoryOverlay(title, subtitle, paragraphs, maze, fogOfWar, playerPosition);
+        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
+        CloseStoryOverlay();
+    }
+
+    public void ShowStoryOverlay(string title, string subtitle, IReadOnlyList<string> paragraphs,
+        Maze maze, FogOfWar fogOfWar, Position playerPosition)
+    {
         _spellCastingOverlaySnapshot = null;
         var lines = new List<(string Text, ConsoleColor Color)>
         {
@@ -261,9 +269,9 @@ public sealed class ConsoleRenderer
         }
         lines.Add(("❖  Nyomj Entert a történet folytatásához...  ❖", ConsoleColor.Green));
         DrawSpellCastingOverlay(InnRumorFrameWidth, lines, maze, fogOfWar, playerPosition);
-        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
-        RestoreSpellCastingOverlay();
     }
+
+    public void CloseStoryOverlay() => RestoreSpellCastingOverlay();
 
     /// <summary>
     /// Inicializálja a teljes képernyős állapotot: törli a konzolt, kirajzolja a pályát,

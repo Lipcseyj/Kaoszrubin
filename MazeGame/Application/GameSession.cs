@@ -51,6 +51,21 @@ public sealed class GameSession
                 control.ConnectionState == PlayerConnectionState.Connected);
         }
     }
+    public IReadOnlySet<PlayerId> ConnectedHumanPlayerIds
+    {
+        get
+        {
+            lock (_stateGate)
+            {
+                var result = _controls.Values.Where(control => control.AssignedPlayerId is not null &&
+                        control.ControllerKind != CharacterControllerKind.Npc &&
+                        control.ConnectionState == PlayerConnectionState.Connected)
+                    .Select(control => control.AssignedPlayerId!.Value).ToHashSet();
+                result.Add(HostPlayerId);
+                return result;
+            }
+        }
+    }
     public event Action<GameSessionEvent>? EventPublished;
 
     public bool IsHumanControlled(CharacterId characterId)
@@ -350,6 +365,13 @@ public sealed class GameSession
                 return Fail("Vásárolni csak a fogadóban lehet.", out reason);
             if (!Enum.IsDefined(purchase.Vendor) || purchase.ExpectedInnRevision <= 0 || purchase.OfferIndex < 0)
                 return Fail("A fogadói vásárlási parancs érvénytelen.", out reason);
+            reason = string.Empty;
+            return true;
+        }
+        if (command is AcknowledgeNarrativeCommand acknowledgement)
+        {
+            if (Phase != GameSessionPhase.Paused || acknowledgement.NarrativeId == Guid.Empty)
+                return Fail("Nincs nyugtázható történeti ablak.", out reason);
             reason = string.Empty;
             return true;
         }

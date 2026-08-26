@@ -26,6 +26,7 @@ public sealed class CoopGuestScreen
     private bool _spellCastingInBattle;
     private InnVendorKind? _innVendor;
     private int _innSelection;
+    private Guid? _acknowledgedNarrativeId;
     private GuestRenderFrame? _lastFrame;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData)
@@ -66,6 +67,7 @@ public sealed class CoopGuestScreen
                 {
                     var key = Console.ReadKey(intercept: true);
                     if (key.Key == ConsoleKey.Escape && client.CurrentSnapshot?.Phase != GameSessionPhase.Inn &&
+                        client.CurrentSnapshot?.Narrative is null &&
                         !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null) break;
                     await HandleInputAsync(client, selected.CharacterId, key.Key, cancellationToken);
                 }
@@ -100,7 +102,15 @@ public sealed class CoopGuestScreen
         if (_inventoryOpen && snapshot.Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn))
             CloseInventory();
         SynchronizeSpellUi(snapshot, characterId);
-        if (_battleSpellMenuOpen)
+        if (snapshot.Narrative is { } narrative)
+        {
+            if (key != ConsoleKey.Enter || _acknowledgedNarrativeId == narrative.NarrativeId) return;
+            _acknowledgedNarrativeId = narrative.NarrativeId;
+            command = new AcknowledgeNarrativeCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                narrative.NarrativeId);
+        }
+        else _acknowledgedNarrativeId = null;
+        if (command is null && _battleSpellMenuOpen)
         {
             command = HandleBattleSpellMenuInput(client, characterId, snapshot, key);
             if (command is not null)
@@ -113,7 +123,8 @@ public sealed class CoopGuestScreen
             }
             return;
         }
-        if (_targetedBattleSpell is not null)
+        if (command is not null) { }
+        else if (_targetedBattleSpell is not null)
         {
             command = HandleBattleSpellTargetInput(client, characterId, snapshot, key);
             if (command is null) return;
@@ -510,6 +521,7 @@ public sealed class CoopGuestScreen
         var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == selected.CharacterId);
         ApplyBattleSpellUi(grid, snapshot, own);
         ApplyInnUi(grid, snapshot);
+        ApplyNarrativeUi(grid, snapshot, client.PlayerId);
         var panelLines = own?.CharacterSheet is not null && own.Inventory is not null
             ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount, snapshot.BossKeyCount)
                 .ToDictionary(line => line.Row)
@@ -633,6 +645,47 @@ public sealed class CoopGuestScreen
         }
         DrawOverlayText(grid, left, top + renderedRows + 1, "╚" + new string('═', width - 2) + "╝",
             ConsoleColor.Yellow);
+    }
+
+    private void ApplyNarrativeUi(GuestMapCell[,] grid, SessionSnapshot snapshot, PlayerId? playerId)
+    {
+        if (snapshot.Narrative is not { } narrative) return;
+        var acknowledged = playerId is not null && narrative.AcknowledgedPlayerIds.Contains(playerId.Value);
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ($"✦═━─  {narrative.Title}  ─━═✦", ConsoleColor.Yellow),
+            (narrative.Subtitle, ConsoleColor.Magenta),
+            (new string('─', 68), ConsoleColor.DarkMagenta),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        foreach (var paragraph in narrative.Paragraphs)
+        {
+            lines.AddRange(WrapMessage(paragraph, 68).Select(line => (line, ConsoleColor.White)));
+            lines.Add((string.Empty, ConsoleColor.Gray));
+        }
+        lines.Add(acknowledged
+            ? ("Várakozás a másik játékosra…", ConsoleColor.DarkCyan)
+            : ("Nyomj Entert a történet folytatásához…", ConsoleColor.Green));
+
+        const int desiredWidth = 76;
+        var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
+        var maxContentRows = Math.Max(1, grid.GetLength(1) - 2);
+        if (lines.Count > maxContentRows)
+        {
+            var footer = lines[^1];
+            lines = lines.Take(maxContentRows - 1).Append(footer).ToList();
+        }
+        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
+        var top = Math.Max(0, (grid.GetLength(1) - lines.Count - 2) / 2);
+        DrawOverlayText(grid, left, top, "╔" + new string('═', width - 2) + "╗", ConsoleColor.Magenta);
+        for (var row = 0; row < lines.Count; row++)
+        {
+            var value = lines[row].Text.Length > width - 4 ? lines[row].Text[..(width - 4)] : lines[row].Text;
+            DrawOverlayText(grid, left, top + row + 1, "║" + new string(' ', width - 2) + "║", ConsoleColor.Magenta);
+            DrawOverlayText(grid, left + 2, top + row + 1, value.PadRight(width - 4), lines[row].Color);
+        }
+        DrawOverlayText(grid, left, top + lines.Count + 1, "╚" + new string('═', width - 2) + "╝",
+            ConsoleColor.Magenta);
     }
 
     private void ApplyBattleSpellUi(GuestMapCell[,] grid, SessionSnapshot snapshot,

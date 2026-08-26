@@ -132,6 +132,8 @@ public sealed class Game
     private readonly DoorInteractionController _doorInteractions;
     private readonly InnController _innController;
     private ICoopHostLoop? _activeCoopHost;
+    private NarrativeSnapshot? _activeNarrative;
+    private readonly HashSet<PlayerId> _narrativeAcknowledgements = [];
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
     private readonly GameSession _session;
@@ -193,6 +195,8 @@ public sealed class Game
             GoldenKeyCount = _collectedBossKeyIds.Count,
             BossKeyCount = MonsterIds.Bosses.Count,
             Inn = _innController.CreateSnapshot(),
+            Narrative = _activeNarrative is null ? null : _activeNarrative with
+            { AcknowledgedPlayerIds = _narrativeAcknowledgements.ToArray() },
             Party = snapshot.Party.Select(character => character with
             {
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
@@ -429,8 +433,8 @@ public sealed class Game
         if (_loadedState is null)
         {
             StartNewMaze();
-            _renderer.DrawStoryOverlay("A KÁOSZRUBIN KRÓNIKÁJA", "I. fejezet — A tizenkét aranykulcs",
-                CampaignIntroduction, _maze, _fogOfWar, _player.Position);
+            ShowSynchronizedNarrative(NarrativeKind.CampaignIntroduction, "A KÁOSZRUBIN KRÓNIKÁJA",
+                "I. fejezet — A tizenkét aranykulcs", CampaignIntroduction);
         }
         else RestoreGame(_loadedState);
         if (_loadedState is null) _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
@@ -605,11 +609,11 @@ public sealed class Game
 
         _soundEffects.Play(SoundEffect.LevelComplete);
         _soundEffects.Play(SoundEffect.Victory);
-        _renderer.DrawStoryOverlay("GRATULÁLUNK, KULCSHORDOZÓK!",
-            "XV. fejezet — A csillagok választottai", CreateCampaignFinale(),
-            _maze, _fogOfWar, _player.Position);
+        ShowSynchronizedNarrative(NarrativeKind.CampaignFinale, "GRATULÁLUNK, KULCSHORDOZÓK!",
+            "XV. fejezet — A csillagok választottai", CreateCampaignFinale());
         _gameOver = true;
         _session.SetPhase(GameSessionPhase.GameOver);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
     }
 
     private IReadOnlyList<string> CreateCampaignFinale()
@@ -1048,6 +1052,9 @@ public sealed class Game
                 case InnPurchaseCommand purchase:
                     ExecuteInnPurchase(purchase);
                     break;
+                case AcknowledgeNarrativeCommand acknowledgement:
+                    ExecuteNarrativeAcknowledgement(acknowledgement);
+                    break;
             }
         }
     }
@@ -1075,6 +1082,43 @@ public sealed class Game
             Thread.Sleep(20);
         }
         return Console.ReadKey(intercept: true);
+    }
+
+    private void ExecuteNarrativeAcknowledgement(AcknowledgeNarrativeCommand command)
+    {
+        if (_activeNarrative?.NarrativeId != command.NarrativeId)
+        {
+            _session.RejectExecutedCommand(command, "Ez a történeti ablak már nem aktív.");
+            return;
+        }
+        _narrativeAcknowledgements.Add(command.SenderId);
+    }
+
+    private void ShowSynchronizedNarrative(NarrativeKind kind, string title, string subtitle,
+        IReadOnlyList<string> paragraphs)
+    {
+        var previousPhase = _session.Phase;
+        _narrativeAcknowledgements.Clear();
+        _activeNarrative = new NarrativeSnapshot(Guid.NewGuid(), kind, title, subtitle, paragraphs, []);
+        _session.SetPhase(GameSessionPhase.Paused);
+        _renderer.ShowStoryOverlay(title, subtitle, paragraphs, _maze, _fogOfWar, _player.Position);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        while (true)
+        {
+            ProcessSessionCommands();
+            if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.Enter)
+                _narrativeAcknowledgements.Add(_session.HostPlayerId);
+            var required = _session.ConnectedHumanPlayerIds;
+            if (required.All(_narrativeAcknowledgements.Contains)) break;
+            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            Thread.Sleep(20);
+        }
+        _renderer.CloseStoryOverlay();
+        _activeNarrative = null;
+        _narrativeAcknowledgements.Clear();
+        _session.SetPhase(previousPhase);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
     }
 
     private void ContinueDisconnectedRemoteBattleAsNpc()
@@ -3184,8 +3228,12 @@ public sealed class Game
             var narrative = BossNarratives.GetValueOrDefault(boss.Definition.Id)
                 ?? new BossNarrative("Ismeretlen fejezet",
                     [$"Én vagyok {boss.Name}. E folyosók titkait nem osztom meg veletek."]);
-            _renderer.DrawBossIntroduction(boss.Definition, narrative.ChapterTitle, narrative.Speech,
-                _maze, _fogOfWar, _player.Position);
+            var paragraphs = new[]
+            {
+                $"{boss.Definition.Appearance}  {boss.Name} — Erősség: {boss.Definition.StrengthTier}/5; jutalom: Aranykulcs."
+            }.Concat(narrative.Speech).ToArray();
+            ShowSynchronizedNarrative(NarrativeKind.BossIntroduction, "BOSS KÖZELEG",
+                narrative.ChapterTitle, paragraphs);
         }
     }
 
@@ -3200,8 +3248,8 @@ public sealed class Game
         _renderer.DrawInventoryMessage($"🔑 Aranykulcs megszerezve: {enemy.Name}. " +
             $"Kulcsok: {_collectedBossKeyIds.Count}/{MonsterIds.Bosses.Count}.{completed}", ConsoleColor.Yellow);
         if (_collectedBossKeyIds.Count == MonsterIds.Bosses.Count)
-            _renderer.DrawStoryOverlay("A TIZENKÉT ZÁR FELNYÍLIK", "XIV. fejezet — A Rubin Útja",
-                TwelveKeysStory, _maze, _fogOfWar, _player.Position);
+            ShowSynchronizedNarrative(NarrativeKind.TwelveKeys, "A TIZENKÉT ZÁR FELNYÍLIK",
+                "XIV. fejezet — A Rubin Útja", TwelveKeysStory);
     }
 
     private void StartBattle(Enemy enemy)
