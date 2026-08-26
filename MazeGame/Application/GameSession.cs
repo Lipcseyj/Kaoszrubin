@@ -17,6 +17,7 @@ public sealed class GameSession
     private readonly Dictionary<PlayerId, long> _lastCommandIds = [];
     private readonly HashSet<PlayerId> _players = [];
     private long _eventSequence;
+    private long _snapshotSequence;
     private BattleId? _activeBattleId;
     private long _activeBattleTurnId;
     private CharacterId? _actingBattleCharacterId;
@@ -97,6 +98,35 @@ public sealed class GameSession
     }
 
     public bool Submit(GameCommand command) => _commands.Writer.TryWrite(command);
+
+    public SessionSnapshot CreateSnapshot(SessionSnapshotContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        if (context.MazeLevel <= 0) throw new ArgumentOutOfRangeException(nameof(context), "A pályaszintnek pozitívnak kell lennie.");
+        if (string.IsNullOrWhiteSpace(context.LevelName)) throw new ArgumentException("A pályanév nem lehet üres.", nameof(context));
+        SynchronizeParty();
+        ValidateSnapshotBattle(context.Battle);
+
+        var party = _party.Members.Select(character => new SessionCharacterSnapshot(
+            character.Id,
+            character.Name,
+            character.Race.Id,
+            character.CharacterClass.Id,
+            character.Level,
+            character.CurrentVitality,
+            character.MaximumVitality,
+            character.CurrentMana,
+            character.MaximumMana,
+            character.FoodLevel,
+            character.WaterLevel,
+            character.Gold,
+            character.IsAlive,
+            context.CharacterPositions.TryGetValue(character.Id, out var position) ? position : null,
+            character.Statuses.Select(status => status.Id).ToArray())).ToArray();
+        var controls = _party.Members.Select(character => _controls[character.Id]).ToArray();
+        return new SessionSnapshot(SessionProtocol.Version, ++_snapshotSequence, _eventSequence, Phase,
+            HostPlayerId, _party.Leader!.Id, context.MazeLevel, context.LevelName, party, controls, context.Battle);
+    }
 
     public void SetBattlePrompt(BattleId battleId, long turnId, CharacterId actingCharacterId,
         IReadOnlyList<BattleActionKind>? allowedActions = null)
@@ -222,4 +252,19 @@ public sealed class GameSession
                                       command.CastingItemSlotIndex is null or >= 0 and < LiveCharacter.MaximumMagicItemCount,
         _ => false
     };
+
+    private void ValidateSnapshotBattle(BattleSnapshot? battle)
+    {
+        if (battle is null)
+        {
+            if (Phase == GameSessionPhase.Battle && _activeBattleId is not null)
+                throw new ArgumentException("Az aktív csatához harci snapshot szükséges.", nameof(battle));
+            return;
+        }
+        if (Phase != GameSessionPhase.Battle || _activeBattleId != battle.BattleId ||
+            _activeBattleTurnId != battle.TurnId || _actingBattleCharacterId != battle.ActingCharacterId)
+            throw new ArgumentException("A harci snapshot nem az aktív session-prompthoz tartozik.", nameof(battle));
+        if (!_allowedBattleActions.SetEquals(battle.AllowedActions))
+            throw new ArgumentException("A harci snapshot engedélyezett akciói eltérnek az aktív prompttól.", nameof(battle));
+    }
 }

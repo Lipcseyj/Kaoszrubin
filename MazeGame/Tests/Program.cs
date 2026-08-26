@@ -4,6 +4,7 @@ using MazeGame.Combat;
 using MazeGame.Data;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
+using System.Text.Json;
 
 var tests = new (string Name, Action Run)[]
 {
@@ -22,7 +23,9 @@ var tests = new (string Name, Action Run)[]
     ("Csak az aktív BattleId és TurnId parancsa fogadható el", BattleCommandRequiresCurrentPrompt),
     ("A varázslat command csak szemantikus választást hordoz", SpellBattleCommandIsAccepted),
     ("Hiányos varázslat command nem juthat át", MalformedSpellBattleCommandIsRejected),
-    ("A promptban nem engedélyezett harci akció elutasításra kerül", DisallowedBattleActionIsRejected)
+    ("A promptban nem engedélyezett harci akció elutasításra kerül", DisallowedBattleActionIsRejected),
+    ("A session snapshot JSON-on körbeírható", SessionSnapshotRoundTripsThroughJson),
+    ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt)
 };
 
 var failures = 0;
@@ -259,6 +262,54 @@ static void DisallowedBattleActionIsRejected()
     session.Submit(new BattleActionCommand(session.HostPlayerId, 1, leader.Id, battleId, 1,
         BattleActionKind.TurnUndead));
     Assert(!session.TryReadCommand(out _), "A promptban nem szereplő halottűzés átjutott.");
+}
+
+static void SessionSnapshotRoundTripsThroughJson()
+{
+    var (session, leader, companion) = CreateSession();
+    var positions = new Dictionary<CharacterId, Position>
+    {
+        [leader.Id] = new Position(2, 2),
+        [companion.Id] = new Position(3, 2)
+    };
+    var snapshot = session.CreateSnapshot(new SessionSnapshotContext(4, "Tesztlabirintus", positions));
+    var json = JsonSerializer.Serialize(snapshot);
+    var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
+    Assert(restored is not null && restored.ProtocolVersion == SessionProtocol.Version &&
+           restored.Phase == GameSessionPhase.Exploration && restored.Party.Count == 2 &&
+           restored.Party.Single(character => character.CharacterId == companion.Id).Position == new Position(3, 2),
+        "A session snapshot JSON round-trip közben megváltozott.");
+    var next = session.CreateSnapshot(new SessionSnapshotContext(4, "Tesztlabirintus", positions));
+    Assert(next.SnapshotSequence == snapshot.SnapshotSequence + 1,
+        "A publikált snapshot sorszáma nem monoton nő.");
+}
+
+static void SnapshotRequiresCurrentBattlePrompt()
+{
+    var (session, leader, _) = CreateSession();
+    var battleId = BattleId.New();
+    session.SetBattlePrompt(battleId, 2, leader.Id,
+        [BattleActionKind.PhysicalAttack, BattleActionKind.TurnUndead]);
+    var battle = new BattleSnapshot(battleId, 2, 1, true, leader.Id,
+        new SessionEnemySnapshot("E-TEST", "Tesztellenfél", new Position(3, 2), 8, 10),
+        [BattleActionKind.PhysicalAttack, BattleActionKind.TurnUndead]);
+    var snapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "Tesztlabirintus",
+        new Dictionary<CharacterId, Position> { [leader.Id] = new Position(2, 2) }, battle));
+    Assert(snapshot.Battle?.BattleId == battleId && snapshot.Battle.AllowedActions.Count == 2,
+        "Az aktív harci prompt nem került a snapshotba.");
+
+    var stale = battle with { TurnId = 1 };
+    var rejected = false;
+    try
+    {
+        session.CreateSnapshot(new SessionSnapshotContext(1, "Tesztlabirintus",
+            new Dictionary<CharacterId, Position> { [leader.Id] = new Position(2, 2) }, stale));
+    }
+    catch (ArgumentException)
+    {
+        rejected = true;
+    }
+    Assert(rejected, "A lejárt körhöz tartozó harci snapshotot elfogadta a session.");
 }
 
 static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) CreateSession()

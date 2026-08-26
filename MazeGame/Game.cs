@@ -163,6 +163,28 @@ public sealed class Game
     public GameSession Session => _session;
     public BattleState? ActiveBattle => _activeBattleState;
 
+    public SessionSnapshot CreateSessionSnapshot()
+    {
+        if (_maze is null || _player is null)
+            throw new InvalidOperationException("Session snapshot csak inicializált játékból készíthető.");
+        var positions = new Dictionary<CharacterId, Position>
+        {
+            [SelectedCharacter.Id] = _player.Position
+        };
+        foreach (var member in _maze.PartyMembers) positions[member.Character.Id] = member.Position;
+
+        BattleSnapshot? battle = null;
+        if (_activeBattleState is { IsCompleted: false, IsPlayerTurn: true } state)
+        {
+            battle = new BattleSnapshot(state.Id, state.TurnId, state.Round, state.IsPlayerTurn,
+                state.PlayerCharacterId,
+                new SessionEnemySnapshot(state.EnemyDefinitionId, state.Enemy.Name, state.Enemy.Position,
+                    state.CurrentEnemyHitPoints, state.Enemy.Definition.HitPoints ?? state.CurrentEnemyHitPoints),
+                GetAllowedBattleActions(state.Enemy));
+        }
+        return _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions, battle));
+    }
+
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
         GameSaveService gameSaveService, GameSaveData? loadedState = null, GameSession? session = null)
     {
