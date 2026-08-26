@@ -37,6 +37,8 @@ var tests = new (string Name, Action Run)[]
     ("A publisher teljes snapshot után ACK-alapú deltát küld", ReplicationPublisherUsesAcknowledgedBaseline),
     ("Ismeretlen ACK teljes resyncet kényszerít", UnknownReplicationAckForcesResync),
     ("Pályaváltáskor a publisher teljes snapshotra vált", ReplicationPublisherUsesFullSnapshotForNewWorld),
+    ("A kliens store teljes snapshotot és régi baseline-ról érkező deltát alkalmaz", ClientStoreAppliesReplicationFrames),
+    ("Hiányzó delta-baseline esetén a kliens resyncet kér", ClientStoreRequestsResyncForMissingBaseline),
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
     ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories),
     ("Az inventory transfer atomi és megőrzi a töltetet", InventoryTransferIsAtomicAndPreservesCharges),
@@ -513,6 +515,72 @@ static void ReplicationPublisherUsesFullSnapshotForNewWorld()
         World: WorldSnapshotProjector.Create(secondMaze, secondFog)));
     Assert(publisher.CreateFrame(playerId, second).Kind == SessionReplicationFrameKind.FullSnapshot,
         "Pályaváltáskor a publisher deltát próbált küldeni.");
+}
+
+static void ClientStoreAppliesReplicationFrames()
+{
+    var (session, leader, _) = CreateSession();
+    var playerId = PlayerId.New();
+    var publisher = new SessionReplicationPublisher();
+    var store = new ClientSessionStore(playerId);
+    var changedSnapshots = new List<SessionSnapshot>();
+    store.SnapshotChanged += changedSnapshots.Add;
+    var maze = new Maze(7, 7);
+    var enemyPosition = new Position(3, 2);
+    maze.Carve(maze.Entrance);
+    maze.Carve(enemyPosition);
+    var fog = new FogOfWar(7, 7, 1);
+    fog.RevealFrom(maze, maze.Entrance);
+    var positions = new Dictionary<CharacterId, Position> { [leader.Id] = maze.Entrance };
+
+    var first = session.CreateSnapshot(new SessionSnapshotContext(1, "Kliens pálya", positions,
+        World: WorldSnapshotProjector.Create(maze, fog)));
+    var full = publisher.CreateFrame(playerId, first);
+    var fullResult = store.Apply(full);
+    Assert(fullResult is { Status: ClientFrameApplyStatus.Applied, Response: SnapshotAck } &&
+           store.CurrentSnapshot?.World is not null, "A kliens store nem alkalmazta a teljes snapshotot.");
+    Assert(publisher.TryAcknowledge(playerId, first.SnapshotSequence, out var ackError), ackError);
+
+    var enemy = CreateEnemyAt(enemyPosition, "E-CLIENT-DELTA");
+    maze.AddEnemy(enemy);
+    var second = session.CreateSnapshot(new SessionSnapshotContext(1, "Kliens pálya", positions,
+        World: WorldSnapshotProjector.Create(maze, fog)));
+    var firstDelta = publisher.CreateFrame(playerId, second);
+    Assert(store.Apply(firstDelta).Status == ClientFrameApplyStatus.Applied &&
+           store.CurrentSnapshot!.World!.Enemies.Single().EntityId == enemy.Id,
+        "A kliens store nem alkalmazta az entitás-upsertet.");
+
+    // Az ACK még nem ért vissza a hosthoz: a következő delta továbbra is az első snapshotból indul.
+    maze.ReplaceEnemyWithCorpse(enemy);
+    var third = session.CreateSnapshot(new SessionSnapshotContext(1, "Kliens pálya", positions,
+        World: WorldSnapshotProjector.Create(maze, fog)));
+    var oldBaselineDelta = publisher.CreateFrame(playerId, third);
+    Assert(oldBaselineDelta.BaseSnapshotSequence == first.SnapshotSequence,
+        "A tesztframe nem a várt régi ACK-baseline-ról indult.");
+    Assert(store.Apply(oldBaselineDelta).Status == ClientFrameApplyStatus.Applied &&
+           store.CurrentSnapshot!.World!.Enemies.Count == 0 &&
+           store.CurrentSnapshot.World.Corpses.Count == 1 && changedSnapshots.Count == 3,
+        "A kliens nem a deklarált baseline-ra alkalmazta a deltát, vagy nem publikálta az új read modelt.");
+}
+
+static void ClientStoreRequestsResyncForMissingBaseline()
+{
+    var playerId = PlayerId.New();
+    var world = new WorldSnapshot(WorldId.New(), 7, 7, null, null, [], [], [], [], [], []);
+    var delta = new WorldDelta(10, 11, null, null, [], [], [], [], [], [], [], []);
+    var session = new SessionSnapshot(SessionProtocol.Version, 11, 0, GameSessionPhase.Exploration,
+        PlayerId.New(), CharacterId.New(), 1, "Hiányzó baseline", [], [], null);
+    var frame = new SessionReplicationFrame(SessionReplicationFrameKind.Delta, playerId, 10, session, delta);
+    var store = new ClientSessionStore(playerId);
+    var result = store.Apply(frame);
+    Assert(result is { Status: ClientFrameApplyStatus.ResyncRequired, Response: SnapshotResyncRequest } &&
+           store.CurrentSnapshot is null,
+        "A kliens hiányzó baseline esetén nem kért teljes resyncet.");
+
+    var wrongRecipient = new SessionReplicationFrame(SessionReplicationFrameKind.FullSnapshot, PlayerId.New(),
+        null, session with { SnapshotSequence = 1, World = world }, null);
+    Assert(store.Apply(wrongRecipient).Status == ClientFrameApplyStatus.Rejected,
+        "A kliens elfogadta a másik játékosnak címzett snapshotot.");
 }
 
 static void InventorySnapshotHasSlotsAndRevision()
