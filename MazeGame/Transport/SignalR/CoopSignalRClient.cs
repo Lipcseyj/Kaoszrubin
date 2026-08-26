@@ -320,7 +320,7 @@ public sealed class CoopSignalRClient : IAsyncDisposable
     }
 
     private Task SendWireAsync(object message, CancellationToken cancellationToken) =>
-        _connection.InvokeAsync(CoopHub.ServerSendMethod, CoopProtocolJson.Encode(message), cancellationToken);
+        _connection.SendAsync(CoopHub.ServerSendMethod, CoopProtocolJson.Encode(message), cancellationToken);
 
     private void PublishProtocolError(CoopProtocolError error) => ProtocolErrorReceived?.Invoke(error);
 

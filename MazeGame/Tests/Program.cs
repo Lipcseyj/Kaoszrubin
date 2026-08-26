@@ -1090,10 +1090,22 @@ static async Task SignalRClientRunsLanProtocolFlow()
     var move = new MoveCharacterCommand(client.PlayerId!.Value, client.NextCommandId(), companion.Id,
         Direction.Right);
     await client.SendCommandAsync(move);
-    Assert(session.TryReadCommand(out var accepted) && accepted == move,
+    GameCommand? accepted = null;
+    for (var attempt = 0; attempt < 100 && accepted is null; attempt++)
+    {
+        if (session.TryReadCommand(out var queued)) accepted = queued;
+        else await Task.Delay(10);
+    }
+    Assert(accepted == move,
         "A SignalR kliens commandja nem jutott el a host session queue-jáig.");
     await client.SendCommandAsync(move);
-    Assert(!session.TryReadCommand(out _), "A host session elfogadta a duplikált hálózati commandot.");
+    var duplicateAccepted = false;
+    for (var attempt = 0; attempt < 100 && !commandRejected.Task.IsCompleted; attempt++)
+    {
+        duplicateAccepted |= session.TryReadCommand(out _);
+        if (!commandRejected.Task.IsCompleted) await Task.Delay(10);
+    }
+    Assert(!duplicateAccepted, "A host session elfogadta a duplikált hálózati commandot.");
     var rejectionSnapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "SignalR pálya",
         new Dictionary<CharacterId, Position>
         {
