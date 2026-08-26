@@ -2,6 +2,7 @@ using MazeGame.Application;
 using MazeGame.Data;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Inventory;
+using MazeGame.Domain.Magic;
 using MazeGame.Transport.SignalR;
 
 namespace MazeGame.UI;
@@ -18,6 +19,10 @@ public sealed class CoopGuestScreen
     private bool _inventoryOpen;
     private int _inventorySelection;
     private InventorySlotAddress? _inventorySource;
+    private bool _battleSpellMenuOpen;
+    private int _battleSpellSelection;
+    private BattleSpellOption? _targetedBattleSpell;
+    private Position? _spellTargetCursor;
     private GuestRenderFrame? _lastFrame;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData)
@@ -90,13 +95,48 @@ public sealed class CoopGuestScreen
         }
         if (_inventoryOpen && snapshot.Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn))
             CloseInventory();
+        SynchronizeBattleSpellUi(snapshot, characterId);
+        if (_battleSpellMenuOpen)
+        {
+            command = HandleBattleSpellMenuInput(client, characterId, snapshot, key);
+            if (command is not null)
+            {
+                try { await client.SendCommandAsync(command, cancellationToken); }
+                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
+                {
+                    SetMessage(exception.Message);
+                }
+            }
+            return;
+        }
+        if (_targetedBattleSpell is not null)
+        {
+            command = HandleBattleSpellTargetInput(client, characterId, snapshot, key);
+            if (command is null) return;
+        }
+        else
         if (_inventoryOpen)
         {
             await HandleInventoryInputAsync(client, characterId, snapshot, key, cancellationToken);
             return;
         }
-        if (snapshot.Battle is { } battle && battle.ActingCharacterId == characterId)
+        else if (snapshot.Battle is { } battle && battle.ActingCharacterId == characterId)
         {
+            if (key == ConsoleKey.V && battle.AllowedActions.Contains(BattleActionKind.CastSpell))
+            {
+                _battleSpellMenuOpen = true;
+                _battleSpellSelection = 0;
+                Interlocked.Exchange(ref _redrawRequested, 1);
+                return;
+            }
+            if (TryGetFunctionKeyIndex(key, out var quickSlot) &&
+                battle.SpellOptions?.FirstOrDefault(option => option.QuickSlot == quickSlot) is { } quickSpell)
+            {
+                command = BeginBattleSpellTargeting(client, characterId, battle, quickSpell);
+                if (command is null) return;
+            }
+            else
+            {
             var action = key switch
             {
                 ConsoleKey.Spacebar => BattleActionKind.PhysicalAttack,
@@ -106,6 +146,7 @@ public sealed class CoopGuestScreen
             if (action is not null)
                 command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                     battle.BattleId, battle.TurnId, action.Value);
+            }
         }
         else if (snapshot.Phase is (GameSessionPhase.Exploration or GameSessionPhase.Inn) &&
                  GameInputBindings.IsCharacterSheetToggle(key))
@@ -133,6 +174,103 @@ public sealed class CoopGuestScreen
         {
             SetMessage(exception.Message);
         }
+    }
+
+    private void SynchronizeBattleSpellUi(SessionSnapshot snapshot, CharacterId characterId)
+    {
+        if (snapshot.Battle is { } battle && battle.ActingCharacterId == characterId) return;
+        _battleSpellMenuOpen = false;
+        _targetedBattleSpell = null;
+        _spellTargetCursor = null;
+    }
+
+    private GameCommand? HandleBattleSpellMenuInput(CoopSignalRClient client, CharacterId characterId,
+        SessionSnapshot snapshot, ConsoleKey key)
+    {
+        var options = snapshot.Battle?.SpellOptions ?? [];
+        if (key == ConsoleKey.Escape)
+        {
+            _battleSpellMenuOpen = false;
+        }
+        else if (options.Count > 0 && key == ConsoleKey.UpArrow)
+            _battleSpellSelection = (_battleSpellSelection - 1 + options.Count) % options.Count;
+        else if (options.Count > 0 && key == ConsoleKey.DownArrow)
+            _battleSpellSelection = (_battleSpellSelection + 1) % options.Count;
+        else if (options.Count > 0 && key == ConsoleKey.Enter)
+        {
+            _battleSpellMenuOpen = false;
+            var option = options[Math.Clamp(_battleSpellSelection, 0, options.Count - 1)];
+            if (option.ValidTargets.Count == 0)
+                SetMessage("A varázslatnak jelenleg nincs érvényes célpontja.", ConsoleColor.Red);
+            else
+            {
+                Interlocked.Exchange(ref _redrawRequested, 1);
+                return BeginBattleSpellTargeting(client, characterId, snapshot.Battle!, option);
+            }
+        }
+        Interlocked.Exchange(ref _redrawRequested, 1);
+        return null;
+    }
+
+    private GameCommand? HandleBattleSpellTargetInput(CoopSignalRClient client, CharacterId characterId,
+        SessionSnapshot snapshot, ConsoleKey key)
+    {
+        var battle = snapshot.Battle!;
+        var spell = _targetedBattleSpell!;
+        if (key == ConsoleKey.Escape)
+        {
+            _targetedBattleSpell = null;
+            _spellTargetCursor = null;
+            _battleSpellMenuOpen = true;
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return null;
+        }
+        if (key == ConsoleKey.Tab && spell.ValidTargets.Count > 0)
+        {
+            var index = spell.ValidTargets.ToList().IndexOf(_spellTargetCursor!.Value);
+            _spellTargetCursor = spell.ValidTargets[(index + 1 + spell.ValidTargets.Count) % spell.ValidTargets.Count];
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return null;
+        }
+        if (TryGetDirection(key, out var direction))
+        {
+            var next = _spellTargetCursor!.Value + direction;
+            if (next.X >= 0 && next.Y >= 0 && next.X < snapshot.World!.Width && next.Y < snapshot.World.Height)
+                _spellTargetCursor = next;
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return null;
+        }
+        if (key != ConsoleKey.Enter || !spell.ValidTargets.Contains(_spellTargetCursor!.Value)) return null;
+        var command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+            battle.BattleId, battle.TurnId, BattleActionKind.CastSpell, spell.SpellId,
+            spell.CastingItemSlotIndex, _spellTargetCursor);
+        _targetedBattleSpell = null;
+        _spellTargetCursor = null;
+        return command;
+    }
+
+    private GameCommand? BeginBattleSpellTargeting(CoopSignalRClient client, CharacterId characterId,
+        BattleSnapshot battle, BattleSpellOption spell)
+    {
+        if (spell.ValidTargets.Count == 0)
+        {
+            SetMessage("A gyorshely varázslatának nincs érvényes célpontja.", ConsoleColor.Red);
+            return null;
+        }
+        if (spell.TargetType is SpellTargetType.Self or SpellTargetType.Party)
+            return new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                battle.BattleId, battle.TurnId, BattleActionKind.CastSpell, spell.SpellId,
+                spell.CastingItemSlotIndex, spell.ValidTargets[0]);
+        _targetedBattleSpell = spell;
+        _spellTargetCursor = spell.ValidTargets[0];
+        Interlocked.Exchange(ref _redrawRequested, 1);
+        return null;
+    }
+
+    private static bool TryGetFunctionKeyIndex(ConsoleKey key, out int index)
+    {
+        index = (int)key - (int)ConsoleKey.F1;
+        return key is >= ConsoleKey.F1 and <= ConsoleKey.F8;
     }
 
     private async Task HandleInventoryInputAsync(CoopSignalRClient client, CharacterId characterId,
@@ -279,6 +417,7 @@ public sealed class CoopGuestScreen
             control.CharacterId == selected.CharacterId && control.AssignedPlayerId == client.PlayerId &&
             control.ConnectionState == PlayerConnectionState.Connected);
         var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == selected.CharacterId);
+        ApplyBattleSpellUi(grid, snapshot, own);
         var panelLines = own?.CharacterSheet is not null && own.Inventory is not null
             ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount, snapshot.BossKeyCount)
                 .ToDictionary(line => line.Row)
@@ -340,9 +479,84 @@ public sealed class CoopGuestScreen
             footer[index] = index < messages.Length
                 ? messages[index]
                 : new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
+        if (_targetedBattleSpell is { } targeted && _spellTargetCursor is { } cursor)
+            footer[^1] = new GuestTextLine($"╳ {targeted.Name} — {ConsoleRenderer.SpellTargetName(targeted.TargetType)}, " +
+                $"táv {targeted.Range}{(targeted.AreaRadius > 0 ? $", sugár {targeted.AreaRadius}" : string.Empty)} | " +
+                $"({cursor.X},{cursor.Y}) | Enter: célzás, Tab: következő, Esc: mégse",
+                targeted.ValidTargets.Contains(cursor) ? ConsoleColor.Cyan : ConsoleColor.DarkYellow,
+                ConsoleColor.Black);
 
         return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, grid, panel,
             footer);
+    }
+
+    private void ApplyBattleSpellUi(GuestMapCell[,] grid, SessionSnapshot snapshot,
+        SessionCharacterSnapshot? own)
+    {
+        if (_targetedBattleSpell is not null && _spellTargetCursor is { } cursor)
+        {
+            Put(grid, cursor, "╳",
+                _targetedBattleSpell.ValidTargets.Contains(cursor) ? ConsoleColor.Green : ConsoleColor.Red,
+                ConsoleColor.DarkBlue);
+            return;
+        }
+        if (!_battleSpellMenuOpen || snapshot.Battle is not { } battle) return;
+        var options = battle.SpellOptions ?? [];
+        _battleSpellSelection = options.Count == 0 ? 0 : Math.Clamp(_battleSpellSelection, 0, options.Count - 1);
+        var visibleStart = options.Count == 0 ? 0 : Math.Clamp(_battleSpellSelection - 6, 0,
+            Math.Max(0, options.Count - 12));
+        var visible = options.Skip(visibleStart).Take(12).ToArray();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("⚔ HARCI VARÁZSLÁS", ConsoleColor.Magenta),
+            ($"{own?.Name}  ◆ {own?.CurrentMana}/{own?.MaximumMana} manna", ConsoleColor.Cyan),
+            ("↑↓ választ  Enter célzás  Esc bezár", ConsoleColor.Green),
+            (new string('─', 68), ConsoleColor.DarkMagenta)
+        };
+        if (options.Count == 0)
+            lines.Add(("Ebben a helyzetben nincs használható memorizált vagy tárgyban tárolt varázslat.",
+                ConsoleColor.DarkYellow));
+        else
+            lines.AddRange(visible.Select((spell, index) =>
+            {
+                var absoluteIndex = visibleStart + index;
+                var quick = spell.CastingItemKind switch
+                {
+                    MagicItemKind.Scroll => "📜",
+                    MagicItemKind.Wand => $"{ConsoleRenderer.WandIcon}{spell.Charges}",
+                    _ => spell.QuickSlot is { } slot ? $"F{slot + 1}" : "--"
+                };
+                var text = $"{(absoluteIndex == _battleSpellSelection ? "▶" : " ")} [{quick}] L{spell.Level}  " +
+                           $"{spell.Name,-24} {spell.ManaCost}M  {ConsoleRenderer.SpellTargetName(spell.TargetType)}";
+                var color = (own?.CurrentMana ?? 0) < spell.ManaCost ? ConsoleColor.DarkRed :
+                    absoluteIndex == _battleSpellSelection ? ConsoleColor.Yellow : ConsoleColor.Gray;
+                return (text, color);
+            }));
+
+        const int desiredWidth = 76;
+        var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
+        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
+        var top = Math.Max(1, (grid.GetLength(1) - lines.Count - 2) / 2);
+        DrawOverlayText(grid, left, top, "╔" + new string('═', width - 2) + "╗", ConsoleColor.Magenta);
+        for (var row = 0; row < lines.Count; row++)
+        {
+            var text = lines[row].Text.Length > width - 4 ? lines[row].Text[..(width - 4)] : lines[row].Text;
+            DrawOverlayText(grid, left, top + row + 1, "║", ConsoleColor.Magenta);
+            DrawOverlayText(grid, left + 1, top + row + 1, new string(' ', width - 2), ConsoleColor.Gray);
+            DrawOverlayText(grid, left + 2, top + row + 1, text.PadRight(width - 4), lines[row].Color);
+            DrawOverlayText(grid, left + width - 1, top + row + 1, "║", ConsoleColor.Magenta);
+        }
+        DrawOverlayText(grid, left, top + lines.Count + 1, "╚" + new string('═', width - 2) + "╝",
+            ConsoleColor.Magenta);
+    }
+
+    private static void DrawOverlayText(GuestMapCell[,] grid, int x, int y, string text, ConsoleColor color)
+    {
+        foreach (var rune in text.EnumerateRunes())
+        {
+            Put(grid, new Position(x++, y), rune.ToString(), color);
+            if (x >= grid.GetLength(0)) break;
+        }
     }
 
     private static void RenderFrame(GuestRenderFrame frame, GuestRenderFrame? previous)

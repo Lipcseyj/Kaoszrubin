@@ -417,10 +417,13 @@ static void SnapshotRequiresCurrentBattlePrompt()
         [BattleActionKind.PhysicalAttack, BattleActionKind.TurnUndead]);
     var battle = new BattleSnapshot(battleId, 2, 1, true, leader.Id,
         new SessionEnemySnapshot("E-TEST", "Tesztellenfél", new Position(3, 2), 8, 10),
-        [BattleActionKind.PhysicalAttack, BattleActionKind.TurnUndead]);
+        [BattleActionKind.PhysicalAttack, BattleActionKind.TurnUndead],
+        [new BattleSpellOption("S-TEST", "Tesztvarázs", 1, 3, SpellTargetType.Enemy, 5, 0,
+            null, null, 0, 0, [new Position(3, 2)])]);
     var snapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "Tesztlabirintus",
         new Dictionary<CharacterId, Position> { [leader.Id] = new Position(2, 2) }, battle));
-    Assert(snapshot.Battle?.BattleId == battleId && snapshot.Battle.AllowedActions.Count == 2,
+    Assert(snapshot.Battle?.BattleId == battleId && snapshot.Battle.AllowedActions.Count == 2 &&
+           snapshot.Battle.SpellOptions?.Single().ValidTargets.Single() == new Position(3, 2),
         "Az aktív harci prompt nem került a snapshotba.");
 
     var stale = battle with { TurnId = 1 };

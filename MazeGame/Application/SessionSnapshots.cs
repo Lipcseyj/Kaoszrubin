@@ -1,12 +1,13 @@
 using MazeGame.Combat;
 using MazeGame.Domain.Characters;
+using MazeGame.Domain.Magic;
 
 namespace MazeGame.Application;
 
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 5;
+    public const int Version = 6;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -24,7 +25,11 @@ public sealed record SessionCharacterSnapshot(CharacterId CharacterId, string Na
 
 public sealed record BattleSnapshot(BattleId BattleId, long TurnId, int Round, bool IsPlayerTurn,
     CharacterId ActingCharacterId, SessionEnemySnapshot Enemy,
-    IReadOnlyList<BattleActionKind> AllowedActions);
+    IReadOnlyList<BattleActionKind> AllowedActions, IReadOnlyList<BattleSpellOption>? SpellOptions = null);
+
+public sealed record BattleSpellOption(string SpellId, string Name, int Level, int ManaCost,
+    SpellTargetType TargetType, int Range, int AreaRadius, int? CastingItemSlotIndex,
+    MagicItemKind? CastingItemKind, int Charges, int? QuickSlot, IReadOnlyList<Position> ValidTargets);
 
 public sealed record SessionEnemySnapshot(string DefinitionId, string Name, Position Position,
     int CurrentHitPoints, int MaximumHitPoints);

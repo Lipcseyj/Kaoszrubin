@@ -181,7 +181,8 @@ public sealed class Game
                 state.PlayerCharacterId,
                 new SessionEnemySnapshot(state.EnemyDefinitionId, state.Enemy.Name, state.Enemy.Position,
                     state.CurrentEnemyHitPoints, state.Enemy.Definition.HitPoints ?? state.CurrentEnemyHitPoints),
-                GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
+                GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy),
+                GetBattleSpellOptions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
         }
         var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions,
             battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState)));
@@ -2269,6 +2270,38 @@ public sealed class Game
         if (CanTurnUndead(character, enemy) && !_turnUndeadUsedThisBattle.Contains(character))
             actions.Add(BattleActionKind.TurnUndead);
         return actions;
+    }
+
+    private IReadOnlyList<BattleSpellOption> GetBattleSpellOptions(LiveCharacter character,
+        Position characterPosition, Enemy enemy)
+    {
+        return character.MemorizedSpells
+            .Where(spell => spell.CanUseInCombat)
+            .Select(spell => (Spell: spell, Item: (MagicItemDefinition?)null, Slot: (int?)null))
+            .Concat(character.MagicItems.Select((item, index) => (Item: item, Index: index))
+                .Where(entry => entry.Item?.Kind is MagicItemKind.Scroll or MagicItemKind.Wand &&
+                                entry.Item.SpellId is not null && character.MagicItemCharges[entry.Index] > 0)
+                .Select(entry => (Spell: _gameData.GetSpell(entry.Item!.SpellId!), Item: (MagicItemDefinition?)entry.Item,
+                    Slot: (int?)entry.Index))
+                .Where(entry => entry.Spell.CanUseInCombat &&
+                                SpellcastingRules.CanUseCastingItem(character, entry.Item!, entry.Spell)))
+            .OrderBy(entry => entry.Spell.Level).ThenBy(entry => entry.Spell.Name)
+            .ThenBy(entry => entry.Item is not null)
+            .Select(entry =>
+            {
+                var targets = entry.Spell.TargetType is SpellTargetType.Self or SpellTargetType.Party
+                    ? HasValidSpellTarget(character, characterPosition, entry.Spell, enemy)
+                        ? new[] { characterPosition }
+                        : []
+                    : GetValidSpellTargets(characterPosition, entry.Spell, enemy).Distinct().ToArray();
+                var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
+                    string.Equals(candidate?.Id, entry.Spell.Id, StringComparison.OrdinalIgnoreCase));
+                return new BattleSpellOption(entry.Spell.Id, entry.Spell.Name, entry.Spell.Level,
+                    entry.Item is null ? SpellcastingRules.EffectiveManaCost(character, entry.Spell) : 0,
+                    entry.Spell.TargetType, entry.Spell.Range, entry.Spell.AreaRadius, entry.Slot,
+                    entry.Item?.Kind, entry.Slot is { } slot ? character.MagicItemCharges[slot] : 0,
+                    entry.Item is null && quickIndex >= 0 ? quickIndex : null, targets);
+            }).ToArray();
     }
 
     private bool HasUsableCombatSpell(LiveCharacter character, Position characterPosition, Enemy enemy) =>
