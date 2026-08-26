@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using MazeGame.Domain.Characters;
+using MazeGame.Combat;
 
 namespace MazeGame.Application;
 
@@ -16,6 +17,9 @@ public sealed class GameSession
     private readonly Dictionary<PlayerId, long> _lastCommandIds = [];
     private readonly HashSet<PlayerId> _players = [];
     private long _eventSequence;
+    private BattleId? _activeBattleId;
+    private long _activeBattleTurnId;
+    private CharacterId? _actingBattleCharacterId;
 
     public GameSession(Party party, LiveCharacter leader, PlayerId? hostPlayerId = null)
     {
@@ -93,6 +97,26 @@ public sealed class GameSession
 
     public bool Submit(GameCommand command) => _commands.Writer.TryWrite(command);
 
+    public void SetBattlePrompt(BattleId battleId, long turnId, CharacterId actingCharacterId)
+    {
+        if (turnId <= 0) throw new ArgumentOutOfRangeException(nameof(turnId));
+        SetPhase(GameSessionPhase.Battle);
+        _activeBattleId = battleId;
+        _activeBattleTurnId = turnId;
+        _actingBattleCharacterId = actingCharacterId;
+        Publish(sequence => new BattlePromptEvent(sequence, battleId, turnId, actingCharacterId,
+            [BattleActionKind.PhysicalAttack]));
+    }
+
+    public void EndBattle(BattleId battleId)
+    {
+        if (_activeBattleId != battleId) return;
+        _activeBattleId = null;
+        _activeBattleTurnId = 0;
+        _actingBattleCharacterId = null;
+        Publish(sequence => new BattleEndedEvent(sequence, battleId));
+    }
+
     /// <summary>Az első érvényes parancsot adja vissza; a megelőző hibás parancsokról eseményt bocsát ki.</summary>
     public bool TryReadCommand(out GameCommand command)
     {
@@ -141,12 +165,21 @@ public sealed class GameSession
             return Fail("A parancs küldője nem tagja a sessionnek.", out reason);
         if (command.CommandId <= 0 || _lastCommandIds.GetValueOrDefault(command.SenderId) >= command.CommandId)
             return Fail("Ismételt vagy sorrenden kívüli parancs.", out reason);
-        if (Phase != GameSessionPhase.Exploration)
-            return Fail("Ez a parancs csak felfedezés közben hajtható végre.", out reason);
         if (!_controls.TryGetValue(command.CharacterId, out var control) ||
             control.AssignedPlayerId != command.SenderId || control.ConnectionState != PlayerConnectionState.Connected ||
             control.ControllerKind == CharacterControllerKind.Npc)
             return Fail("A játékos nem irányíthatja ezt a karaktert.", out reason);
+        if (command is BattleActionCommand battleAction)
+        {
+            if (Phase != GameSessionPhase.Battle || _activeBattleId != battleAction.BattleId)
+                return Fail("A harci parancs nem az aktív csatához tartozik.", out reason);
+            if (_activeBattleTurnId != battleAction.TurnId || _actingBattleCharacterId != battleAction.CharacterId)
+                return Fail("A harci parancs egy lejárt vagy más karakterhez tartozó körre érkezett.", out reason);
+            reason = string.Empty;
+            return true;
+        }
+        if (Phase != GameSessionPhase.Exploration)
+            return Fail("Ez a parancs csak felfedezés közben hajtható végre.", out reason);
         if (command is LeaderActionCommand && control.ControllerKind != CharacterControllerKind.HostPlayer)
             return Fail("Ez a party-szintű művelet csak a leader számára engedélyezett.", out reason);
         reason = string.Empty;

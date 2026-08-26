@@ -1,4 +1,5 @@
 using MazeGame.Domain.Characters;
+using MazeGame.Combat;
 
 namespace MazeGame.Application;
 
@@ -54,6 +55,16 @@ public enum LeaderAction
 public sealed record LeaderActionCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     LeaderAction Action) : GameCommand(SenderId, CommandId, CharacterId);
 
+public enum BattleActionKind
+{
+    PhysicalAttack
+}
+
+/// <summary>A kliens választása, nem kész sebzés- vagy dobáseredmény.</summary>
+public sealed record BattleActionCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    BattleId BattleId, long TurnId, BattleActionKind Action)
+    : GameCommand(SenderId, CommandId, CharacterId);
+
 public abstract record GameSessionEvent(long Sequence);
 
 public sealed record SessionPhaseChangedEvent(long Sequence, GameSessionPhase PreviousPhase,
@@ -64,3 +75,8 @@ public sealed record CharacterControlChangedEvent(long Sequence, CharacterContro
 
 public sealed record GameCommandRejectedEvent(long Sequence, PlayerId PlayerId, long CommandId,
     string Reason) : GameSessionEvent(Sequence);
+
+public sealed record BattlePromptEvent(long Sequence, BattleId BattleId, long TurnId,
+    CharacterId ActingCharacterId, IReadOnlyList<BattleActionKind> AllowedActions) : GameSessionEvent(Sequence);
+
+public sealed record BattleEndedEvent(long Sequence, BattleId BattleId) : GameSessionEvent(Sequence);

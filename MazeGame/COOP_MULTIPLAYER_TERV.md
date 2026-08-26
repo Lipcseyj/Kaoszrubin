@@ -400,7 +400,7 @@ Tudatosan későbbre marad:
 
 ## 17. Következő konkrét lépés
 
-> Implementációs állapot (2026-08-26): az első session-alap elkészült. Van stabil, mentett `CharacterId`, `PlayerId`, karaktervezérlési tulajdon, fázis- és sorszám-validált command queue, sorrendezett session-eseményfolyam, remote NPC-átvétel, disconnect → AI és reconnect. A helyi leader térképi parancsai már ezen az útvonalon mennek. A harc `BattleId`/`TurnId`-val azonosított, egy akciót végrehajtó `BattleState` állapotgépet használ; a konzolos akcióbekérés még blokkoló. A fogadó egyelőre csak a fázisát jelzi.
+> Implementációs állapot (2026-08-26): az első session-alap elkészült. Van stabil, mentett `CharacterId`, `PlayerId`, karaktervezérlési tulajdon, fázis- és sorszám-validált command queue, sorrendezett session-eseményfolyam, remote NPC-átvétel, disconnect → AI és reconnect. A helyi leader térképi parancsai már ezen az útvonalon mennek. A harc `BattleId`/`TurnId`-val azonosított, egy akciót végrehajtó `BattleState` állapotgépet használ. A fizikai támadás `BattlePromptEvent` → `BattleActionCommand` útvonalon, blokkoló belső `ReadKey` nélkül működik; a varázslat és halottűzés még átmeneti helyi adapter. A fogadó egyelőre csak a fázisát jelzi.
 
 Ne a SignalR csomag telepítésével kezdjünk. Az első implementációs mérföldkő egy kis, renderer nélküli `GameSession` legyen, amely két tesztbeli parancsforrásból képes:
 

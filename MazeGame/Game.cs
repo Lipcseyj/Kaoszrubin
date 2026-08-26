@@ -136,6 +136,7 @@ public sealed class Game
     private readonly GameSession _session;
     private long _localCommandId;
     private BattleState? _activeBattleState;
+    private int _pendingBattleSupportDamage;
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
@@ -396,6 +397,11 @@ public sealed class Game
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);
+                    if (_activeBattleState is not null)
+                    {
+                        HandleLocalBattleInput(keyInfo);
+                        continue;
+                    }
                     if (IsHelpShortcut(keyInfo))
                     {
                         ShowInGameHelp();
@@ -967,6 +973,9 @@ public sealed class Game
                     break;
                 case LeaderActionCommand action:
                     ExecuteLeaderAction(action.Action);
+                    break;
+                case BattleActionCommand battleAction:
+                    ExecuteBattleAction(battleAction);
                     break;
             }
         }
@@ -1950,67 +1959,104 @@ public sealed class Game
         Direction.Up => (0, -1), Direction.Down => (0, 1), Direction.Left => (-1, 0), _ => (1, 0)
     };
 
-    private BattlePlayerAction? ChooseBattlePlayerAction(Enemy enemy)
+    private void HandleLocalBattleInput(ConsoleKeyInfo key)
     {
+        if (_activeBattleState is null || _activeBattleState.IsCompleted || !_activeBattleState.IsPlayerTurn) return;
+        var enemy = _activeBattleState.Enemy;
         var canTurnUndead = CanTurnUndead(SelectedCharacter, enemy) &&
                             !_turnUndeadUsedThisBattle.Contains(SelectedCharacter);
-        if (!HasUsableCombatSpell(enemy) && !canTurnUndead) return null;
-        while (true)
+        if (IsSaveGameShortcut(key))
         {
-            _renderer.DrawInventoryMessage("Akció: Space — fegyveres támadás | V — varázslat | F1-F8 — gyorsvarázslat" +
-                (canTurnUndead ? " | T — halottűzés" : string.Empty), ConsoleColor.Yellow);
-            var key = Console.ReadKey(intercept: true);
-            if (key.Key == ConsoleKey.Spacebar) return null;
-            if (key.Key == ConsoleKey.T && canTurnUndead)
-                return ResolveTurnUndead(SelectedCharacter, enemy);
-            if (IsSaveGameShortcut(key))
-            {
-                _saveAfterBattle = true;
-                _renderer.DrawInventoryMessage("Mentés kérve: a csata lezárása után automatikusan elkészül.", ConsoleColor.Yellow);
-                continue;
-            }
-            if (IsHelpShortcut(key))
+            _saveAfterBattle = true;
+            _renderer.DrawInventoryMessage("Mentés kérve: a csata lezárása után automatikusan elkészül.", ConsoleColor.Yellow);
+            return;
+        }
+        if (IsHelpShortcut(key))
+        {
+            ShowInGameHelp();
+            _renderer.DrawBattleStarted(enemy);
+            _renderer.RefreshBattleStatusRows();
+            DrawBattleActionPrompt(enemy);
+            return;
+        }
+        if (key.Key == ConsoleKey.Spacebar)
+        {
+            var commandId = _localCommandId + 1;
+            if (_session.Submit(new BattleActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
+                    _activeBattleState.Id, _activeBattleState.TurnId, BattleActionKind.PhysicalAttack)))
+                _localCommandId = commandId;
+            return;
+        }
+        if (key.Key == ConsoleKey.T && canTurnUndead)
+        {
+            ResolveActiveBattleAction(ResolveTurnUndead(SelectedCharacter, enemy));
+            return;
+        }
+
+        SpellDefinition? spell = null;
+        MagicItemDefinition? castingItem = null;
+        int? castingItemSlotIndex = null;
+        if (key.Key == ConsoleKey.V)
+        {
+            var selection = _renderer.DrawSpellCastingScreen([SelectedCharacter], 0, inCombat: true, _maze, _fogOfWar,
+                _ => _player.Position, () =>
             {
                 ShowInGameHelp();
                 _renderer.DrawBattleStarted(enemy);
                 _renderer.RefreshBattleStatusRows();
-                continue;
-            }
+            });
+            _renderer.RestoreSpellCastingOverlay();
+            spell = selection?.Spell;
+            castingItem = selection?.CastingItem;
+            castingItemSlotIndex = selection?.CastingItemSlotIndex;
+        }
+        else if (TryGetQuickSpellIndex(key, out var slotIndex))
+            spell = SelectedCharacter.QuickSpells[slotIndex];
+        else
+            return;
 
-            SpellDefinition? spell = null;
-            MagicItemDefinition? castingItem = null;
-            int? castingItemSlotIndex = null;
-            if (key.Key == ConsoleKey.V)
-            {
-                var selection = _renderer.DrawSpellCastingScreen([SelectedCharacter], 0, inCombat: true, _maze, _fogOfWar,
-                    _ => _player.Position, () =>
-                    {
-                        ShowInGameHelp();
-                        _renderer.DrawBattleStarted(enemy);
-                        _renderer.RefreshBattleStatusRows();
-                    });
-                _renderer.RestoreSpellCastingOverlay();
-                spell = selection?.Spell;
-                castingItem = selection?.CastingItem;
-                castingItemSlotIndex = selection?.CastingItemSlotIndex;
-            }
-            else if (TryGetQuickSpellIndex(key, out var slotIndex))
-                spell = SelectedCharacter.QuickSpells[slotIndex];
-            else
-                continue;
-
-            if (spell is null)
-            {
-                if (key.Key != ConsoleKey.V)
-                    _renderer.DrawInventoryMessage("Ez a varázslat-gyorshely üres.", ConsoleColor.DarkYellow);
-                continue;
-            }
-            var attempt = TryCastSpell(SelectedCharacter, _player.Position, spell, inCombat: true, enemy,
-                castingItem, castingItemSlotIndex);
-            if (attempt is null) continue;
-            if (attempt.ConsumesTurn) return new BattlePlayerAction(attempt.Message, attempt.Kind,
-                attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions);
+        if (spell is null)
+        {
+            if (key.Key != ConsoleKey.V)
+                _renderer.DrawInventoryMessage("Ez a varázslat-gyorshely üres.", ConsoleColor.DarkYellow);
+            DrawBattleActionPrompt(enemy);
+            return;
+        }
+        var attempt = TryCastSpell(SelectedCharacter, _player.Position, spell, inCombat: true, enemy,
+            castingItem, castingItemSlotIndex);
+        if (attempt is null)
+        {
+            DrawBattleActionPrompt(enemy);
+            return;
+        }
+        if (!attempt.ConsumesTurn)
+        {
             _renderer.DrawInventoryMessage(attempt.Message, ConsoleColor.Red);
+            DrawBattleActionPrompt(enemy);
+            return;
+        }
+        ResolveActiveBattleAction(new BattlePlayerAction(attempt.Message, attempt.Kind,
+            attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions));
+    }
+
+    private void DrawBattleActionPrompt(Enemy enemy)
+    {
+        var canTurnUndead = CanTurnUndead(SelectedCharacter, enemy) &&
+                            !_turnUndeadUsedThisBattle.Contains(SelectedCharacter);
+        _renderer.DrawInventoryMessage("Akció: Space — fegyveres támadás" +
+            (HasUsableCombatSpell(enemy) ? " | V — varázslat | F1-F8 — gyorsvarázslat" : string.Empty) +
+            (canTurnUndead ? " | T — halottűzés" : string.Empty), ConsoleColor.Yellow);
+    }
+
+    private void ExecuteBattleAction(BattleActionCommand command)
+    {
+        if (_activeBattleState is null || command.BattleId != _activeBattleState.Id ||
+            command.TurnId != _activeBattleState.TurnId || command.CharacterId != _activeBattleState.PlayerCharacterId) return;
+        switch (command.Action)
+        {
+            case BattleActionKind.PhysicalAttack:
+                ResolveActiveBattleAction(null);
+                break;
         }
     }
 
@@ -2837,18 +2883,52 @@ public sealed class Game
         _renderer.DrawBattleStarted(enemy);
         var started = _battleSystem.StartBattle(SelectedCharacter, enemy);
         _activeBattleState = started.State;
-        PresentBattleEntries(started.Entries, enemy);
-        while (!_activeBattleState.IsCompleted)
+        PresentBattleEntries(started.Entries);
+        ContinueActiveBattle();
+    }
+
+    private void ContinueActiveBattle()
+    {
+        while (_activeBattleState is { IsCompleted: false } state)
         {
-            var supportDamage = TryPartyMembersActInLeaderBattle(enemy);
-            var action = _activeBattleState.IsPlayerTurn && supportDamage < _activeBattleState.CurrentEnemyHitPoints
-                ? ChooseBattlePlayerAction(enemy)
-                : null;
-            var step = _battleSystem.Advance(_activeBattleState, action, supportDamage);
-            PresentBattleEntries(step.Entries, enemy);
+            if (state.IsPlayerTurn)
+            {
+                _pendingBattleSupportDamage = TryPartyMembersActInLeaderBattle(state.Enemy);
+                if (_pendingBattleSupportDamage < state.CurrentEnemyHitPoints)
+                {
+                    _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId);
+                    DrawBattleActionPrompt(state.Enemy);
+                    return;
+                }
+                var supportStep = _battleSystem.Advance(state, supportDamage: _pendingBattleSupportDamage);
+                _pendingBattleSupportDamage = 0;
+                PresentBattleEntries(supportStep.Entries);
+                continue;
+            }
+
+            var supportDamage = TryPartyMembersActInLeaderBattle(state.Enemy);
+            var step = _battleSystem.Advance(state, supportDamage: supportDamage);
+            PresentBattleEntries(step.Entries);
         }
-        var result = _activeBattleState.Result!;
+        if (_activeBattleState is { IsCompleted: true }) FinishActiveBattle();
+    }
+
+    private void ResolveActiveBattleAction(BattlePlayerAction? action)
+    {
+        if (_activeBattleState is not { IsCompleted: false, IsPlayerTurn: true } state) return;
+        var step = _battleSystem.Advance(state, action, _pendingBattleSupportDamage);
+        _pendingBattleSupportDamage = 0;
+        PresentBattleEntries(step.Entries);
+        ContinueActiveBattle();
+    }
+
+    private void FinishActiveBattle()
+    {
+        if (_activeBattleState is not { IsCompleted: true, Result: { } result } state) return;
+        var enemy = state.Enemy;
+        _session.EndBattle(state.Id);
         _activeBattleState = null;
+        _pendingBattleSupportDamage = 0;
         var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
 
@@ -2930,32 +3010,12 @@ public sealed class Game
             : SoundEffect.Hit);
     }
 
-    private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries, Enemy enemy)
+    private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries)
     {
         foreach (var entry in entries)
         {
             _renderer.DrawBattleRound(entry);
             PlayBattleRoundSound(entry);
-            _renderer.RefreshBattleStatusRows();
-            WaitForBattleContinue(enemy);
-        }
-    }
-
-    private void WaitForBattleContinue(Enemy enemy)
-    {
-        while (true)
-        {
-            var key = Console.ReadKey(intercept: true);
-            if (key.Key == ConsoleKey.Spacebar) return;
-            if (IsSaveGameShortcut(key))
-            {
-                _saveAfterBattle = true;
-                _renderer.DrawInventoryMessage("Mentés kérve: a csata lezárása után automatikusan elkészül.", ConsoleColor.Yellow);
-                continue;
-            }
-            if (!IsHelpShortcut(key)) continue;
-            ShowInGameHelp();
-            _renderer.DrawBattleStarted(enemy);
             _renderer.RefreshBattleStatusRows();
         }
     }

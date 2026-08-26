@@ -122,9 +122,9 @@ A `Definition` végű típusok az `adatok.csv` tartalmát képviselik. A `LiveCh
 ### `Application`: session- és parancshatár
 
 - `GameSession`: egy futó játék helyi vagy később hálózati parancsainak egyetlen belépési pontja. Tulajdonjog, session-fázis és monoton parancssorszám alapján validál, majd a `Game` egyetlen szimulációs szála olvassa ki az elfogadott parancsokat.
-- `SessionContracts`: stabil `PlayerId`/`CharacterId` alapú commandok, vezérlési állapotok és sorrendezett session-eseményfolyam.
+- `SessionContracts`: stabil `PlayerId`/`CharacterId` alapú commandok, vezérlési állapotok és sorrendezett session-eseményfolyam. A fizikai harci választás `BattleActionCommand`, amely az aktuális `BattleId` és `TurnId` értékét is hordozza.
 - A konzolos leader mozgása, ajtókezelése, partiparancsai, pihenése és pályaváltása már ezen az útvonalon halad. Távoli vezérlő egy NPC-partitag mozgását veheti át; ilyenkor az automatikus NPC-mozgás leáll, disconnectkor visszaáll, reconnectkor pedig ugyanahhoz a karakterhez tér vissza.
-- A leader tényleges harca már léptethető `BattleState`-et használ és az aktív `BattleId`/`TurnId` a `Game` felől megfigyelhető. A konzolos akcióbekérés és naplóléptetés még blokkoló; a fogadó csak explicit session-fázist jelez.
+- A leader tényleges harca már léptethető `BattleState`-et használ és az aktív `BattleId`/`TurnId` a `Game` felől megfigyelhető. A harc játékosakciónál visszatér a fő játékhurokba; `BattlePromptEvent` jelzi a döntést, a helyi Space pedig ugyanazon a validált command queue-n érkezik vissza, amelyet később a hálózat használ. A varázslat- és halottűzés-választás még átmeneti helyi adapter, a fogadó pedig csak explicit session-fázist jelez.
 
 ## Adatmodell és `adatok.csv`
 
@@ -752,11 +752,11 @@ A rendszer a két már felfedezett végpont közötti, legfeljebb háromcellás 
 
 ## Csata algoritmusa
 
-A csata váltott akciókból áll. A vezér saját akciójánál csak akkor jelenik meg a fegyver/varázslat kérdés, ha élő varázshasználó, rendelkezik a megfelelő fókusszal, és van legalább egy csatában engedélyezett, memorizált, elegendő mannából kifizethető, aktuálisan érvényes célpontra használható varázslata. Ellenkező esetben a fegyveres támadás kérdés nélkül végrehajtódik. Választáskor a szóköz fegyveres támadást, a `V` vagy `F1–F8` varázslást indít. A varázslás teljes akciót használ, és a fenti Intelligencia- és Ügyességalapú kudarcpróbát végzi. Az NPC-csata megszakítás nélkül, egyelőre kizárólag fizikai támadásokkal fut le és csak egy végeredmény-összefoglalót ír a naplóba. Menekülés nincs. Mindkét út ugyanazt a `BattleSystem` algoritmust és a játék közös `Random` példányát használja.
+A csata váltott akciókból áll. A vezér minden saját akciójánál döntési promptot kap: a szóköz fegyveres támadást indít, használható harci varázslat esetén a `V` vagy `F1–F8` varázslást választ, jogosult papnál/lovagnál pedig a `T` halottűzést. A prompt nem belső billentyűvárakozás: a csata visszatér a fő ciklusba, és csak az aktuális `BattleId`/`TurnId` értékhez elfogadott parancs lépteti tovább. A varázslás teljes akciót használ, és a fenti Intelligencia- és Ügyességalapú kudarcpróbát végzi. Az NPC-csata megszakítás nélkül, egyelőre kizárólag fizikai támadásokkal fut le és csak egy végeredmény-összefoglalót ír a naplóba. Menekülés nincs. Mindkét út ugyanazt a `BattleSystem` algoritmust és a játék közös `Random` példányát használja.
 
 A részletes vezéri csatanapló csak a ténylegesen érvényesülő nem nulla tehetségbónuszokat írja ki. A nulla gyógyítás/mannatöltés és a nulla támadó- vagy védelmi tehetségérték nem foglal helyet a naplóban.
 
-A vezér csatájában minden megjelenített harci esemény után részlegesen frissül a karakterlap állapot-, HP- és mannasora. A többi karakterlapsor és a térkép nem rajzolódik újra, így a kör közben változó állapotok és erőforrások azonnal láthatók maradnak fölösleges teljes képernyős frissítés nélkül.
+A vezér csatájában minden megjelenített harci esemény után részlegesen frissül a karakterlap állapot-, HP- és mannasora. A naplóesemények nem állítják meg külön Space-várakozással a sessiont; az állapotgép a következő emberi döntésnél vár. A többi karakterlapsor és a térkép nem rajzolódik újra, így a kör közben változó állapotok és erőforrások azonnal láthatók maradnak fölösleges teljes képernyős frissítés nélkül.
 
 A defenzív és agresszív NPC a saját mozgási időpontjában aktívan megtámadja a szomszédos szörnyet. Bármely profil automatikusan visszaharcol akkor is ha egy szörny az ő mezőjére próbál lépni. NPC-győzelemkor a szörny holttestté válik és az egyetlen összefoglaló üzenet parttagonként mutatja az XP-részesedést valamint az esetleges szint- és erőforrásnövekedést. NPC-vereségkor a karakter 0 HP-val a partiban marad, a partistátusz `💀` jellel mutatja, térképi avatárja pedig az elesés helyén `PartyMemberCorpse` objektummá alakul. Ez megőrzi a `LiveCharacter` hivatkozást, így a későbbi feltámasztás varázslat ugyanazt a karaktert állíthatja majd vissza az aktuális pályán. Ha a parti nélküle eléri a kijáratot, a társ végleg kikerül a partiból és a karakter-nyilvántartásból.
 

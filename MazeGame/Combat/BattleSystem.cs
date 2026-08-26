@@ -4,7 +4,7 @@ using MazeGame.Domain.Magic;
 
 namespace MazeGame.Combat;
 
-/// <summary>A közelharc teljes, felhasználó által léptetett körökre osztott szabályrendszere.</summary>
+/// <summary>A közelharc egy akciónként léptethető, megjelenítéstől és inputforrástól független szabályrendszere.</summary>
 public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefinition> monsterAbilities,
     IEnumerable<StatusDefinition> statuses, IEnumerable<StrengthHitBonusDefinition> strengthHitBonuses)
 {

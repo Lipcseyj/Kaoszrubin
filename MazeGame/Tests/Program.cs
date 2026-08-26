@@ -18,7 +18,8 @@ var tests = new (string Name, Action Run)[]
     ("A csata megvárhatja a játékos hálózati akcióját", BattleCanWaitForPlayerAction),
     ("A támogatás a fő akció előtt lezárhatja a csatát", SupportCanFinishBattleBeforePlayerAction),
     ("A régi Resolve API az állapotgépet hajtja", ResolveUsesStateMachineAdapter),
-    ("A Resolve támogatói győzelemnél nem kér fölösleges akciót", ResolveSkipsActionAfterSupportVictory)
+    ("A Resolve támogatói győzelemnél nem kér fölösleges akciót", ResolveSkipsActionAfterSupportVictory),
+    ("Csak az aktív BattleId és TurnId parancsa fogadható el", BattleCommandRequiresCurrentPrompt)
 };
 
 var failures = 0;
@@ -194,6 +195,26 @@ static void ResolveSkipsActionAfterSupportVictory()
     }, () => 10);
     Assert(result.PlayerWon && actionRequests == 0,
         "A támogatói győzelem után a kompatibilitási adapter még játékosakciót kért.");
+}
+
+static void BattleCommandRequiresCurrentPrompt()
+{
+    var (session, leader, _) = CreateSession();
+    var battleId = BattleId.New();
+    var events = CollectEvents(session);
+    session.SetBattlePrompt(battleId, 7, leader.Id);
+    Assert(events.OfType<BattlePromptEvent>().Any(prompt => prompt.BattleId == battleId && prompt.TurnId == 7),
+        "A session nem publikálta a harci promptot.");
+    session.Submit(new BattleActionCommand(session.HostPlayerId, 1, leader.Id, battleId, 6,
+        BattleActionKind.PhysicalAttack));
+    Assert(!session.TryReadCommand(out _), "A lejárt TurnId harci parancsa átjutott.");
+    session.Submit(new BattleActionCommand(session.HostPlayerId, 2, leader.Id, battleId, 7,
+        BattleActionKind.PhysicalAttack));
+    Assert(session.TryReadCommand(out var command) && command is BattleActionCommand,
+        "Az aktív BattleId/TurnId érvényes parancsát elutasította a session.");
+    session.EndBattle(battleId);
+    Assert(events.OfType<BattleEndedEvent>().Any(ended => ended.BattleId == battleId),
+        "A session nem publikálta a csata végét.");
 }
 
 static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) CreateSession()
