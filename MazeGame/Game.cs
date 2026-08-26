@@ -1292,30 +1292,11 @@ public sealed class Game
         var item = slot is { } selected ? selected.Character.GetInventoryItem(selected.Kind, selected.Index) : null;
         if (item is null) { _renderer.DrawInventoryMessage("A kijelölt helyen nincs megvizsgálható tárgy.", ConsoleColor.DarkYellow); return; }
 
-        var details = item switch
-        {
-            Domain.Combat.WeaponDefinition weapon =>
-                $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? _gameData.GetWeaponType(typeId).Name : "nincs")} | sebzés: {weapon.Damage?.ToString() ?? "nincs"} | " +
-                $"minimum Erő: {weapon.MinimumStrength} | {(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | " +
-                (weapon.IsTwoHanded ? "⚒️ páncéltörő: az ellenfél páncéljának 50%-át figyelmen kívül hagyja | " : string.Empty) +
-                $"kasztok: {AllowedClassNames(weapon.AllowedClassIds)}",
-            Domain.Combat.ArmorDefinition armor => $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"} | kasztok: {AllowedClassNames(armor.AllowedClassIds)}",
-            Domain.Magic.MagicItemDefinition magic =>
-                $"Varázstárgy | típus: {MagicItemKindName(magic.Kind)} | hatás: {MagicItemEffectName(magic.Effect)} {magic.EffectValue}" +
-                (magic.SpellId is null ? string.Empty : $" | varázslat: {_gameData.Spells.First(spell => spell.Id == magic.SpellId).Name}") +
-                (magic.MaximumCharges > 0 ? $" | töltet: {(slot is { } magicSlot ? magicSlot.Character.GetInventoryItemCharges(magicSlot.Kind, magicSlot.Index) : magic.MaximumCharges)}/{magic.MaximumCharges}" : string.Empty) +
-                $" | kasztok: {AllowedClassNames(magic.AllowedClassIds)}",
-            MiscItemDefinition misc when SpellcastingRules.IsSpellcastingFocus(misc) =>
-                "Karakterhez kötött varázsfókusz | nem mozgatható, nem dobható el és nem kereskedhető",
-            MiscItemDefinition misc when misc.Id == MiscItemIds.HerbalTea =>
-                $"Használati tárgy | hatás: víz {misc.EffectValue}, HP 5–15",
-            MiscItemDefinition misc when IsInitiativeDrink(misc) =>
-                $"Használati tárgy | hatás: víz {misc.EffectValue}, +2 kezdeményezés és +1 találat 10 akcióig",
-            MiscItemDefinition misc when misc.Effect != ConsumableEffect.None => $"Használati tárgy | hatás: {ConsumableEffectName(misc.Effect)} {misc.EffectValue}",
-            _ => "Általános tárgy"
-        };
-        var description = string.IsNullOrWhiteSpace(item.Description) ? "Nincs jellemzés." : item.Description;
-        _renderer.DrawInventoryMessage($"{item.Name} [{item.Id}] — {details}. Ritkaság: {ItemRarityName(item.Rarity)}; mágikus erő: {item.MagicPower}; alapár: {item.BasePrice} arany. Jellemzés: {description}", RarityColor(item.Rarity));
+        var inspection = ItemInspectionFormatter.Format(item, _gameData,
+            slot is { } itemSlot
+                ? itemSlot.Character.GetInventoryItemCharges(itemSlot.Kind, itemSlot.Index)
+                : 0);
+        _renderer.DrawInventoryMessage(inspection.Text, inspection.Color);
     }
 
     private void DismissSelectedPartyMember()

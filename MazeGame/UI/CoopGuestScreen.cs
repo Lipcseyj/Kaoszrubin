@@ -1,4 +1,5 @@
 using MazeGame.Application;
+using MazeGame.Data;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Inventory;
 using MazeGame.Transport.SignalR;
@@ -10,6 +11,7 @@ public sealed class CoopGuestScreen
 {
     private readonly string _applicationVersion;
     private readonly string _catalogHash;
+    private readonly GameDataCatalog _gameData;
     private int _redrawRequested = 1;
     private const int MessageLineCount = 5;
     private readonly Queue<GuestTextLine> _messageLog = new();
@@ -18,10 +20,11 @@ public sealed class CoopGuestScreen
     private InventorySlotAddress? _inventorySource;
     private GuestRenderFrame? _lastFrame;
 
-    public CoopGuestScreen(string applicationVersion, string catalogHash)
+    public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData)
     {
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
+        _gameData = gameData ?? throw new ArgumentNullException(nameof(gameData));
     }
 
     public async Task RunAsync(string hostUrl, string displayName, LiveCharacter localCharacter,
@@ -193,11 +196,20 @@ public sealed class CoopGuestScreen
                 break;
             case InventoryInputAction.Inspect when slots.Count > 0:
                 var inspectSlot = slots[_inventorySelection];
-                SetMessage(inspectSlot.Item is null
-                    ? "A kijelölt hely üres."
-                    : $"{inspectSlot.Item.Name} [{inspectSlot.Item.DefinitionId}] — " +
-                      $"ritkaság: {inspectSlot.Item.Rarity}; mágikus erő: {inspectSlot.Item.MagicPower}; " +
-                      $"alapár: {inspectSlot.Item.BasePrice}. {inspectSlot.Item.Description}");
+                if (inspectSlot.Item is null)
+                    SetMessage("A kijelölt helyen nincs megvizsgálható tárgy.");
+                else
+                {
+                    IItemDefinition definition = inspectSlot.Item.Category switch
+                    {
+                        ItemCategory.Weapon => _gameData.GetWeapon(inspectSlot.Item.DefinitionId),
+                        ItemCategory.Armor => _gameData.GetArmor(inspectSlot.Item.DefinitionId),
+                        ItemCategory.MagicItem => _gameData.GetMagicItem(inspectSlot.Item.DefinitionId),
+                        _ => _gameData.GetItem(inspectSlot.Item.DefinitionId)
+                    };
+                    var inspection = ItemInspectionFormatter.Format(definition, _gameData, inspectSlot.Item.Charges);
+                    SetMessage(inspection.Text, inspection.Color);
+                }
                 break;
         }
         Interlocked.Exchange(ref _redrawRequested, 1);
@@ -384,10 +396,10 @@ public sealed class CoopGuestScreen
         Console.Write(FitConsoleLine(line.Text, width));
     }
 
-    private void SetMessage(string message)
+    private void SetMessage(string message, ConsoleColor color = ConsoleColor.DarkYellow)
     {
         foreach (var line in WrapMessage(message, Math.Max(1, SafeWindowWidth() - CharacterSheetPanel.Width - 8)))
-            _messageLog.Enqueue(new GuestTextLine(line, ConsoleColor.DarkYellow, ConsoleColor.Black));
+            _messageLog.Enqueue(new GuestTextLine(line, color, ConsoleColor.Black));
         while (_messageLog.Count > MessageLineCount) _messageLog.Dequeue();
         Interlocked.Exchange(ref _redrawRequested, 1);
     }

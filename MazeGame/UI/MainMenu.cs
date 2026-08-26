@@ -251,20 +251,16 @@ public sealed class MainMenu
 
     private void JoinGame()
     {
-        var character = ChooseCoopCharacter();
-        if (character is null) return;
+        if (!TryGetPlayableSelectedCharacter(out var character)) return;
         ResetConsole();
         WriteLine("=== CSATLAKOZÁS COOP JÁTÉKHOZ ===", ConsoleColor.Yellow);
         Console.Write("Host címe [http://localhost:5127]: ");
         var hostUrl = Console.ReadLine();
         if (string.IsNullOrWhiteSpace(hostUrl)) hostUrl = "http://localhost:5127";
-        Console.Write("Játékosnév: ");
-        var displayName = Console.ReadLine();
-        if (string.IsNullOrWhiteSpace(displayName)) displayName = Environment.UserName;
         try
         {
-            new CoopGuestScreen(_applicationVersion, _catalogHash)
-                .RunAsync(hostUrl, displayName, character, _characterSaveService.SerializeCharacter(character))
+            new CoopGuestScreen(_applicationVersion, _catalogHash, _gameData)
+                .RunAsync(hostUrl, character.Name, character, _characterSaveService.SerializeCharacter(character))
                 .GetAwaiter().GetResult();
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or
@@ -273,58 +269,6 @@ public sealed class MainMenu
             ResetConsole();
             WriteLine($"A csatlakozás sikertelen: {exception.Message}", ConsoleColor.Red);
             Console.ReadKey(intercept: true);
-        }
-    }
-
-    private LiveCharacter? ChooseCoopCharacter()
-    {
-        var selectedIndex = _characterRoster.SelectedCharacter is { } selected
-            ? Enumerable.Range(0, _characterRoster.Characters.Count)
-                .FirstOrDefault(index => _characterRoster.Characters[index] == selected)
-            : 0;
-        while (true)
-        {
-            ResetConsole();
-            WriteLine("=== COOP KARAKTERVÁLASZTÁS ===", ConsoleColor.Yellow);
-            WriteLine("Fel/le: választás | Enter: csatlakozás | G: új karakter | Esc: vissza",
-                ConsoleColor.DarkCyan);
-            Console.WriteLine();
-            if (_characterRoster.Characters.Count == 0)
-                WriteLine("Még nincs karaktered. Nyomj G-t egy karakter generálásához.", ConsoleColor.DarkYellow);
-            else
-                for (var index = 0; index < _characterRoster.Characters.Count; index++)
-                {
-                    var candidate = _characterRoster.Characters[index];
-                    WriteLine($"{(index == selectedIndex ? ">" : " ")} {candidate.Name} — " +
-                              $"{candidate.Race.Name} {candidate.CharacterClass.Name}, {candidate.Level}. szint" +
-                              (candidate.IsAlive ? string.Empty : " [HALOTT]"),
-                        candidate.IsAlive
-                            ? index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray
-                            : ConsoleColor.DarkRed);
-                }
-
-            var key = Console.ReadKey(intercept: true).Key;
-            if (key == ConsoleKey.Escape) return null;
-            if (key == ConsoleKey.G)
-            {
-                new CharacterCreationScreen(_gameData, _characterRoster).Run();
-                SaveCharacters();
-                selectedIndex = Math.Max(0, _characterRoster.Characters.Count - 1);
-                continue;
-            }
-            if (_characterRoster.Characters.Count == 0) continue;
-            if (key == ConsoleKey.UpArrow)
-                selectedIndex = (selectedIndex - 1 + _characterRoster.Characters.Count) % _characterRoster.Characters.Count;
-            else if (key == ConsoleKey.DownArrow)
-                selectedIndex = (selectedIndex + 1) % _characterRoster.Characters.Count;
-            else if (key == ConsoleKey.Enter)
-            {
-                var candidate = _characterRoster.Characters[selectedIndex];
-                if (!candidate.IsAlive) continue;
-                _characterRoster.Select(candidate);
-                SaveCharacters();
-                return candidate;
-            }
         }
     }
 
