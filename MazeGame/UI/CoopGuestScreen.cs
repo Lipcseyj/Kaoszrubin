@@ -24,23 +24,24 @@ public sealed class CoopGuestScreen
         _catalogHash = catalogHash;
     }
 
-    public async Task RunAsync(string hostUrl, string displayName, CancellationToken cancellationToken = default)
+    public async Task RunAsync(string hostUrl, string displayName, LiveCharacter localCharacter,
+        string characterData, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(localCharacter);
         await using var client = new CoopSignalRClient(hostUrl, _applicationVersion, _catalogHash, displayName);
         client.SnapshotChanged += _ => Interlocked.Exchange(ref _redrawRequested, 1);
         client.ConnectionStateChanged += _ => Interlocked.Exchange(ref _redrawRequested, 1);
         client.ProtocolErrorReceived += error => SetMessage($"Protokollhiba: {error.Message}");
         client.CommandRejected += rejected => SetMessage($"A host elutasította: {rejected.Reason}");
 
-        var hello = await client.ConnectAsync(cancellationToken);
-        var options = hello.AvailableCharacters ?? [];
-        if (options.Count == 0)
-            throw new InvalidOperationException("A host partijában nincs átvehető NPC karakter.");
-        var selected = ChooseCharacter(options);
-        if (selected is null) return;
-        var control = await client.RequestCharacterControlAsync(selected.CharacterId, cancellationToken);
+        await client.ConnectAsync(cancellationToken);
+        var selected = new CoopCharacterOption(localCharacter.Id, localCharacter.Name,
+            localCharacter.CharacterClass.Name, localCharacter.Level);
+        var control = await client.JoinCharacterAsync(characterData, cancellationToken);
         if (!control.Accepted)
-            throw new InvalidOperationException(control.RejectionReason ?? "A karakter átvételét a host elutasította.");
+            throw new InvalidOperationException(control.RejectionReason ?? "A karakter belépését a host elutasította.");
+        if (control.CharacterId != localCharacter.Id)
+            throw new InvalidOperationException("A host nem a kiválasztott helyi karaktert regisztrálta.");
 
         Console.CursorVisible = false;
         try
@@ -66,38 +67,6 @@ public sealed class CoopGuestScreen
         {
             Console.CursorVisible = true;
             await client.DisconnectAsync(CancellationToken.None);
-        }
-    }
-
-    private static CoopCharacterOption? ChooseCharacter(IReadOnlyList<CoopCharacterOption> options)
-    {
-        var selectedIndex = 0;
-        while (true)
-        {
-            ResetConsole();
-            WriteLine("=== COOP KARAKTERVÁLASZTÁS ===", ConsoleColor.Yellow);
-            WriteLine("Fel/le: választás | Enter: átvétel | Esc: vissza", ConsoleColor.DarkCyan);
-            Console.WriteLine();
-            for (var index = 0; index < options.Count; index++)
-            {
-                var option = options[index];
-                WriteLine($"{(index == selectedIndex ? ">" : " ")} {option.Name} — " +
-                          $"{option.CharacterClassName}, {option.Level}. szint",
-                    index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray);
-            }
-            switch (Console.ReadKey(intercept: true).Key)
-            {
-                case ConsoleKey.UpArrow:
-                    selectedIndex = (selectedIndex - 1 + options.Count) % options.Count;
-                    break;
-                case ConsoleKey.DownArrow:
-                    selectedIndex = (selectedIndex + 1) % options.Count;
-                    break;
-                case ConsoleKey.Enter:
-                    return options[selectedIndex];
-                case ConsoleKey.Escape:
-                    return null;
-            }
         }
     }
 

@@ -60,6 +60,22 @@ public sealed class CharacterSaveService
         return JsonSerializer.Serialize(savedRoster, JsonOptions);
     }
 
+    public string SerializeCharacter(LiveCharacter character)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+        var roster = new CharacterRoster();
+        roster.Add(character);
+        roster.Select(character);
+        return Serialize(roster);
+    }
+
+    public LiveCharacter DeserializeCharacter(string json)
+    {
+        var roster = Deserialize(json);
+        return roster.SelectedCharacter ?? roster.Characters.SingleOrDefault()
+            ?? throw new InvalidOperationException("A csatlakozási adat nem tartalmaz karaktert.");
+    }
+
     private LiveCharacter CreateLiveCharacter(CharacterSaveData saved)
     {
         var race = FindSavedDefinition(_gameData.Races, saved.RaceId, saved.RaceName, "faj");

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MazeGame.Domain.Characters;
 
 namespace MazeGame.Application;
 
@@ -16,16 +17,21 @@ public sealed class CoopHostGateway
     private readonly GameSession _session;
     private readonly SessionHandshakeService _handshake;
     private readonly SessionReplicationPublisher _publisher;
+    private readonly Func<string, LiveCharacter>? _deserializeCharacter;
+    private readonly Action<LiveCharacter>? _registerCharacter;
     private readonly Dictionary<string, PlayerId> _playersByConnection = new(StringComparer.Ordinal);
     private readonly Dictionary<PlayerId, string> _connectionsByPlayer = [];
     private readonly Queue<CoopOutgoingMessage> _pendingMessages = [];
 
     public CoopHostGateway(GameSession session, SessionHandshakeService handshake,
-        SessionReplicationPublisher publisher)
+        SessionReplicationPublisher publisher, Func<string, LiveCharacter>? deserializeCharacter = null,
+        Action<LiveCharacter>? registerCharacter = null)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
         _handshake = handshake ?? throw new ArgumentNullException(nameof(handshake));
         _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
+        _deserializeCharacter = deserializeCharacter;
+        _registerCharacter = registerCharacter;
         _session.EventPublished += HandleSessionEvent;
     }
 
@@ -58,6 +64,7 @@ public sealed class CoopHostGateway
 
         return message switch
         {
+            JoinCharacterRequest request => HandleJoinCharacter(connectionId, authenticatedPlayerId, request),
             CharacterControlRequest request => HandleCharacterControl(connectionId, authenticatedPlayerId, request),
             SnapshotAck ack => HandleAck(connectionId, authenticatedPlayerId, ack),
             SnapshotResyncRequest request => HandleResync(connectionId, authenticatedPlayerId, request),
@@ -135,6 +142,28 @@ public sealed class CoopHostGateway
         var accepted = _session.TryAssignRemoteControl(authenticatedPlayerId, request.CharacterId, out var error);
         return Single(connectionId, new CharacterControlResult(authenticatedPlayerId, request.CharacterId,
             accepted, accepted ? null : error));
+    }
+
+    private IReadOnlyList<CoopOutgoingMessage> HandleJoinCharacter(string connectionId,
+        PlayerId authenticatedPlayerId, JoinCharacterRequest request)
+    {
+        if (request.PlayerId != authenticatedPlayerId) return SenderMismatch(connectionId);
+        if (_deserializeCharacter is null || _registerCharacter is null)
+            return Single(connectionId, new CharacterControlResult(authenticatedPlayerId, default, false,
+                "A host nem fogad kliensoldali karaktert."));
+        try
+        {
+            var character = _deserializeCharacter(request.CharacterData);
+            var accepted = _session.TryJoinRemoteCharacter(authenticatedPlayerId, character, out var error);
+            if (accepted) _registerCharacter(character);
+            return Single(connectionId, new CharacterControlResult(authenticatedPlayerId, character.Id,
+                accepted, accepted ? null : error));
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or ArgumentException)
+        {
+            return Single(connectionId, new CharacterControlResult(authenticatedPlayerId, default, false,
+                $"A karakteradat nem fogadható el: {exception.Message}"));
+        }
     }
 
     private IReadOnlyList<CoopOutgoingMessage> HandleAck(string connectionId, PlayerId authenticatedPlayerId,

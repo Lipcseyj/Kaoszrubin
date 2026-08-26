@@ -15,6 +15,7 @@ var tests = new (string Name, Action Run)[]
 {
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
+    ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),
     ("A vendég saját ajtó- és keresési akciót küldhet", RemotePlayerCanIssueCharacterAction),
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
@@ -104,6 +105,29 @@ static void RemotePlayerCanTakeNpcControl()
         "A vendég parancsa nem került a sorba.");
     Assert(session.TryReadCommand(out var command) && command.SenderId == remote,
         "A vendég saját karakterének parancsát elutasította a session.");
+}
+
+static void RemotePlayerCanJoinOwnCharacter()
+{
+    var leader = CreateCharacter("Host");
+    var party = new Party();
+    party.SetLeader(leader);
+    var session = new GameSession(party, leader);
+    var joined = CreateCharacter("Vendég");
+    LiveCharacter? registered = null;
+    var hash = CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("catalog"));
+    var gateway = new CoopHostGateway(session, new SessionHandshakeService(session, "1.0.0", hash),
+        new SessionReplicationPublisher(), _ => joined, character => registered = character);
+    var helloMessages = gateway.HandleIncoming("guest", CoopProtocolJson.Encode(
+        new ClientHello(SessionProtocol.Version, "1.0.0", hash, "Vendég")));
+    var hello = (ServerHello)CoopProtocolJson.Decode(helloMessages.Single().WireMessage);
+    var responseMessages = gateway.HandleIncoming("guest", CoopProtocolJson.Encode(
+        new JoinCharacterRequest(hello.PlayerId!.Value, "character-data")));
+    var response = (CharacterControlResult)CoopProtocolJson.Decode(responseMessages.Single().WireMessage);
+
+    Assert(response.Accepted && response.CharacterId == joined.Id && registered == joined &&
+           party.Members.Contains(joined) && session.IsHumanControlled(joined.Id),
+        "A host nem vette fel és nem rendelte a távoli játékoshoz a kliens karakterét.");
 }
 
 static void RemotePlayerCanIssueCharacterAction()

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
 using MazeGame.Application;
+using MazeGame.Domain.Characters;
 
 namespace MazeGame.Transport.SignalR;
 
@@ -37,13 +38,16 @@ public sealed class CoopHostRuntime : ICoopHostLoop, IAsyncDisposable
     public Exception? LastPublishError { get; private set; }
 
     public static async Task<CoopHostRuntime> StartAsync(GameSession session, string applicationVersion,
-        string catalogHash, int port = 5127, CancellationToken cancellationToken = default)
+        string catalogHash, Func<string, LiveCharacter>? deserializeCharacter = null,
+        Action<LiveCharacter>? registerCharacter = null, int port = 5127,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
         if (port is < 1 or > 65535) throw new ArgumentOutOfRangeException(nameof(port));
         var publisher = new SessionReplicationPublisher();
         var gateway = new CoopHostGateway(session,
-            new SessionHandshakeService(session, applicationVersion, catalogHash), publisher);
+            new SessionHandshakeService(session, applicationVersion, catalogHash), publisher,
+            deserializeCharacter, registerCharacter);
         var server = await CoopSignalRServer.StartAsync(gateway, $"http://0.0.0.0:{port}", cancellationToken);
         return new CoopHostRuntime(gateway, server, CreateConnectionHint(port));
     }

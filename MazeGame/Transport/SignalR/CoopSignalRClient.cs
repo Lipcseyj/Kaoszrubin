@@ -96,8 +96,21 @@ public sealed class CoopSignalRClient : IAsyncDisposable
 
     public async Task<CharacterControlResult> RequestCharacterControlAsync(CharacterId characterId,
         CancellationToken cancellationToken = default)
+        => await RequestControlAsync(new CharacterControlRequest(RequireConnectedPlayer(), characterId),
+            cancellationToken);
+
+    public async Task<CharacterControlResult> JoinCharacterAsync(string characterData,
+        CancellationToken cancellationToken = default)
     {
-        var playerId = RequireConnectedPlayer();
+        if (string.IsNullOrWhiteSpace(characterData))
+            throw new ArgumentException("A karakteradat nem lehet üres.", nameof(characterData));
+        return await RequestControlAsync(new JoinCharacterRequest(RequireConnectedPlayer(), characterData),
+            cancellationToken);
+    }
+
+    private async Task<CharacterControlResult> RequestControlAsync(object request,
+        CancellationToken cancellationToken)
+    {
         await _controlRequestGate.WaitAsync(cancellationToken);
         try
         {
@@ -105,7 +118,7 @@ public sealed class CoopSignalRClient : IAsyncDisposable
             lock (_gate) _pendingControlRequest = completion;
             try
             {
-                await SendWireAsync(new CharacterControlRequest(playerId, characterId), cancellationToken);
+                await SendWireAsync(request, cancellationToken);
                 return await completion.Task.WaitAsync(HandshakeTimeout, cancellationToken);
             }
             finally

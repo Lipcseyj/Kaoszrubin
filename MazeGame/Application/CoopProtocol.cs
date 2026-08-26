@@ -18,6 +18,7 @@ public sealed record CoopCharacterOption(CharacterId CharacterId, string Name, s
 public sealed record SnapshotAck(PlayerId PlayerId, long SnapshotSequence);
 public sealed record SnapshotResyncRequest(PlayerId PlayerId);
 public sealed record CharacterControlRequest(PlayerId PlayerId, CharacterId CharacterId);
+public sealed record JoinCharacterRequest(PlayerId PlayerId, string CharacterData);
 public sealed record CharacterControlResult(PlayerId PlayerId, CharacterId CharacterId, bool Accepted,
     string? RejectionReason = null);
 public sealed record CoopProtocolError(string Code, string Message);
@@ -126,6 +127,7 @@ public static class CoopProtocolJson
             SnapshotAck => ("client.snapshot-ack", typeof(SnapshotAck)),
             SnapshotResyncRequest => ("client.snapshot-resync", typeof(SnapshotResyncRequest)),
             CharacterControlRequest => ("client.character-control", typeof(CharacterControlRequest)),
+            JoinCharacterRequest => ("client.join-character", typeof(JoinCharacterRequest)),
             MoveCharacterCommand => ("command.move", typeof(MoveCharacterCommand)),
             CharacterActionCommand => ("command.character-action", typeof(CharacterActionCommand)),
             LeaderActionCommand => ("command.leader-action", typeof(LeaderActionCommand)),
@@ -156,6 +158,7 @@ public static class CoopProtocolJson
             "client.snapshot-ack" => Deserialize<SnapshotAck>(envelope),
             "client.snapshot-resync" => Deserialize<SnapshotResyncRequest>(envelope),
             "client.character-control" => Deserialize<CharacterControlRequest>(envelope),
+            "client.join-character" => Deserialize<JoinCharacterRequest>(envelope),
             "command.move" => Deserialize<MoveCharacterCommand>(envelope),
             "command.character-action" => Deserialize<CharacterActionCommand>(envelope),
             "command.leader-action" => Deserialize<LeaderActionCommand>(envelope),

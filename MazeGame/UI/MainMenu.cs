@@ -215,17 +215,29 @@ public sealed class MainMenu
         if (!TryGetPlayableSelectedCharacter(out var selectedCharacter)) return;
         try
         {
-            if (_characterRoster.Party.Members.Count == 1)
-            {
-                var companion = new RandomCharacterGenerator(_gameData, _random).CreateLevelOne(
-                    _characterRoster.Characters.Select(character => character.Name).ToArray());
-                _characterRoster.Add(companion);
-                _characterRoster.Party.Add(companion);
-            }
+            // A coop lobby a leaderből indul; a távoli játékos a saját karakterével tölti fel a következő helyet.
+            _characterRoster.Party.SetLeader(selectedCharacter);
             var game = new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService);
-            var host = CoopHostRuntime.StartAsync(game.Session, _applicationVersion, _catalogHash)
+            var host = CoopHostRuntime.StartAsync(game.Session, _applicationVersion, _catalogHash,
+                    _characterSaveService.DeserializeCharacter, character => _characterRoster.Add(character))
                 .GetAwaiter().GetResult();
-            try { game.Run(host); }
+            try
+            {
+                ResetConsole();
+                WriteLine("=== COOP VÁRAKOZÓSZOBA ===", ConsoleColor.Yellow);
+                WriteLine($"Csatlakozási cím: {host.ConnectionHint}", ConsoleColor.Cyan);
+                WriteLine("Várakozás a vendég karakterére…", ConsoleColor.Gray);
+                WriteLine("Esc: lobby bezárása", ConsoleColor.DarkYellow);
+                while (game.Session.ConnectedRemoteCharacterCount == 0)
+                {
+                    if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.Escape) return;
+                    Thread.Sleep(50);
+                }
+                ResetConsole();
+                WriteLine("A vendég csatlakozott. A játék indul…", ConsoleColor.Green);
+                Thread.Sleep(500);
+                game.Run(host);
+            }
             finally { host.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or
@@ -239,6 +251,8 @@ public sealed class MainMenu
 
     private void JoinGame()
     {
+        var character = ChooseCoopCharacter();
+        if (character is null) return;
         ResetConsole();
         WriteLine("=== CSATLAKOZÁS COOP JÁTÉKHOZ ===", ConsoleColor.Yellow);
         Console.Write("Host címe [http://localhost:5127]: ");
@@ -250,7 +264,8 @@ public sealed class MainMenu
         try
         {
             new CoopGuestScreen(_applicationVersion, _catalogHash)
-                .RunAsync(hostUrl, displayName).GetAwaiter().GetResult();
+                .RunAsync(hostUrl, displayName, character, _characterSaveService.SerializeCharacter(character))
+                .GetAwaiter().GetResult();
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or
                                            TimeoutException or HttpRequestException)
@@ -258,6 +273,58 @@ public sealed class MainMenu
             ResetConsole();
             WriteLine($"A csatlakozás sikertelen: {exception.Message}", ConsoleColor.Red);
             Console.ReadKey(intercept: true);
+        }
+    }
+
+    private LiveCharacter? ChooseCoopCharacter()
+    {
+        var selectedIndex = _characterRoster.SelectedCharacter is { } selected
+            ? Enumerable.Range(0, _characterRoster.Characters.Count)
+                .FirstOrDefault(index => _characterRoster.Characters[index] == selected)
+            : 0;
+        while (true)
+        {
+            ResetConsole();
+            WriteLine("=== COOP KARAKTERVÁLASZTÁS ===", ConsoleColor.Yellow);
+            WriteLine("Fel/le: választás | Enter: csatlakozás | G: új karakter | Esc: vissza",
+                ConsoleColor.DarkCyan);
+            Console.WriteLine();
+            if (_characterRoster.Characters.Count == 0)
+                WriteLine("Még nincs karaktered. Nyomj G-t egy karakter generálásához.", ConsoleColor.DarkYellow);
+            else
+                for (var index = 0; index < _characterRoster.Characters.Count; index++)
+                {
+                    var candidate = _characterRoster.Characters[index];
+                    WriteLine($"{(index == selectedIndex ? ">" : " ")} {candidate.Name} — " +
+                              $"{candidate.Race.Name} {candidate.CharacterClass.Name}, {candidate.Level}. szint" +
+                              (candidate.IsAlive ? string.Empty : " [HALOTT]"),
+                        candidate.IsAlive
+                            ? index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray
+                            : ConsoleColor.DarkRed);
+                }
+
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Escape) return null;
+            if (key == ConsoleKey.G)
+            {
+                new CharacterCreationScreen(_gameData, _characterRoster).Run();
+                SaveCharacters();
+                selectedIndex = Math.Max(0, _characterRoster.Characters.Count - 1);
+                continue;
+            }
+            if (_characterRoster.Characters.Count == 0) continue;
+            if (key == ConsoleKey.UpArrow)
+                selectedIndex = (selectedIndex - 1 + _characterRoster.Characters.Count) % _characterRoster.Characters.Count;
+            else if (key == ConsoleKey.DownArrow)
+                selectedIndex = (selectedIndex + 1) % _characterRoster.Characters.Count;
+            else if (key == ConsoleKey.Enter)
+            {
+                var candidate = _characterRoster.Characters[selectedIndex];
+                if (!candidate.IsAlive) continue;
+                _characterRoster.Select(candidate);
+                SaveCharacters();
+                return candidate;
+            }
         }
     }
 

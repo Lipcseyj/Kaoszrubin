@@ -42,6 +42,15 @@ public sealed class GameSession
     {
         get { lock (_stateGate) return _controls.Values.ToArray(); }
     }
+    public int ConnectedRemoteCharacterCount
+    {
+        get
+        {
+            lock (_stateGate) return _controls.Values.Count(control =>
+                control.ControllerKind == CharacterControllerKind.RemotePlayer &&
+                control.ConnectionState == PlayerConnectionState.Connected);
+        }
+    }
     public event Action<GameSessionEvent>? EventPublished;
 
     public bool IsHumanControlled(CharacterId characterId)
@@ -93,6 +102,28 @@ public sealed class GameSession
                 AssignedPlayerId = playerId,
                 ConnectionState = PlayerConnectionState.Connected
             });
+            error = string.Empty;
+            return true;
+        }
+    }
+
+    public bool TryJoinRemoteCharacter(PlayerId playerId, LiveCharacter character, out string error)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+        lock (_stateGate)
+        {
+            if (!_players.Contains(playerId) || playerId == HostPlayerId)
+                return Fail("Ismeretlen vagy nem távoli játékos.", out error);
+            if (!character.IsAlive) return Fail("Halott karakter nem csatlakozhat a partihoz.", out error);
+            if (_controls.Values.Any(control => control.AssignedPlayerId == playerId))
+                return Fail("Ehhez a játékoshoz már tartozik karakter.", out error);
+            if (_party.Members.Any(member => member.Id == character.Id))
+                return Fail("Ezzel az azonosítóval már van karakter a partiban.", out error);
+            if (!_party.Add(character)) return Fail("A parti megtelt.", out error);
+
+            _controls[character.Id] = new CharacterControlState(character.Id,
+                CharacterControllerKind.RemotePlayer, playerId, PlayerConnectionState.Connected);
+            Publish(sequence => new CharacterControlChangedEvent(sequence, _controls[character.Id]));
             error = string.Empty;
             return true;
         }
