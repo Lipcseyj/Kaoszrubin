@@ -20,6 +20,7 @@ public sealed class GameSession
     private BattleId? _activeBattleId;
     private long _activeBattleTurnId;
     private CharacterId? _actingBattleCharacterId;
+    private IReadOnlySet<BattleActionKind> _allowedBattleActions = new HashSet<BattleActionKind>();
 
     public GameSession(Party party, LiveCharacter leader, PlayerId? hostPlayerId = null)
     {
@@ -97,15 +98,19 @@ public sealed class GameSession
 
     public bool Submit(GameCommand command) => _commands.Writer.TryWrite(command);
 
-    public void SetBattlePrompt(BattleId battleId, long turnId, CharacterId actingCharacterId)
+    public void SetBattlePrompt(BattleId battleId, long turnId, CharacterId actingCharacterId,
+        IReadOnlyList<BattleActionKind>? allowedActions = null)
     {
         if (turnId <= 0) throw new ArgumentOutOfRangeException(nameof(turnId));
+        allowedActions ??= [BattleActionKind.PhysicalAttack];
+        if (allowedActions.Count == 0) throw new ArgumentException("Legalább egy harci akció engedélyezése szükséges.", nameof(allowedActions));
         SetPhase(GameSessionPhase.Battle);
         _activeBattleId = battleId;
         _activeBattleTurnId = turnId;
         _actingBattleCharacterId = actingCharacterId;
+        _allowedBattleActions = allowedActions.ToHashSet();
         Publish(sequence => new BattlePromptEvent(sequence, battleId, turnId, actingCharacterId,
-            [BattleActionKind.PhysicalAttack]));
+            allowedActions));
     }
 
     public void EndBattle(BattleId battleId)
@@ -114,6 +119,7 @@ public sealed class GameSession
         _activeBattleId = null;
         _activeBattleTurnId = 0;
         _actingBattleCharacterId = null;
+        _allowedBattleActions = new HashSet<BattleActionKind>();
         Publish(sequence => new BattleEndedEvent(sequence, battleId));
     }
 
@@ -175,6 +181,10 @@ public sealed class GameSession
                 return Fail("A harci parancs nem az aktív csatához tartozik.", out reason);
             if (_activeBattleTurnId != battleAction.TurnId || _actingBattleCharacterId != battleAction.CharacterId)
                 return Fail("A harci parancs egy lejárt vagy más karakterhez tartozó körre érkezett.", out reason);
+            if (!_allowedBattleActions.Contains(battleAction.Action))
+                return Fail("Ez a harci akció nem engedélyezett az aktuális promptban.", out reason);
+            if (!HasValidBattleActionShape(battleAction))
+                return Fail("A harci parancs adatai hiányosak vagy érvénytelenek.", out reason);
             reason = string.Empty;
             return true;
         }
@@ -203,4 +213,13 @@ public sealed class GameSession
         error = reason;
         return false;
     }
+
+    private static bool HasValidBattleActionShape(BattleActionCommand command) => command.Action switch
+    {
+        BattleActionKind.PhysicalAttack or BattleActionKind.TurnUndead =>
+            command.SpellId is null && command.CastingItemSlotIndex is null && command.Target is null,
+        BattleActionKind.CastSpell => !string.IsNullOrWhiteSpace(command.SpellId) && command.Target is not null &&
+                                      command.CastingItemSlotIndex is null or >= 0 and < LiveCharacter.MaximumMagicItemCount,
+        _ => false
+    };
 }

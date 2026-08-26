@@ -19,7 +19,10 @@ var tests = new (string Name, Action Run)[]
     ("A támogatás a fő akció előtt lezárhatja a csatát", SupportCanFinishBattleBeforePlayerAction),
     ("A régi Resolve API az állapotgépet hajtja", ResolveUsesStateMachineAdapter),
     ("A Resolve támogatói győzelemnél nem kér fölösleges akciót", ResolveSkipsActionAfterSupportVictory),
-    ("Csak az aktív BattleId és TurnId parancsa fogadható el", BattleCommandRequiresCurrentPrompt)
+    ("Csak az aktív BattleId és TurnId parancsa fogadható el", BattleCommandRequiresCurrentPrompt),
+    ("A varázslat command csak szemantikus választást hordoz", SpellBattleCommandIsAccepted),
+    ("Hiányos varázslat command nem juthat át", MalformedSpellBattleCommandIsRejected),
+    ("A promptban nem engedélyezett harci akció elutasításra kerül", DisallowedBattleActionIsRejected)
 };
 
 var failures = 0;
@@ -215,6 +218,47 @@ static void BattleCommandRequiresCurrentPrompt()
     session.EndBattle(battleId);
     Assert(events.OfType<BattleEndedEvent>().Any(ended => ended.BattleId == battleId),
         "A session nem publikálta a csata végét.");
+}
+
+static void SpellBattleCommandIsAccepted()
+{
+    var (session, leader, _) = CreateSession();
+    var battleId = BattleId.New();
+    session.SetBattlePrompt(battleId, 3, leader.Id,
+        [BattleActionKind.PhysicalAttack, BattleActionKind.CastSpell]);
+    var target = new Position(4, 2);
+    session.Submit(new BattleActionCommand(session.HostPlayerId, 1, leader.Id, battleId, 3,
+        BattleActionKind.CastSpell, "SP-TEST", 1, target));
+    Assert(session.TryReadCommand(out var command) && command is BattleActionCommand
+        {
+            Action: BattleActionKind.CastSpell,
+            SpellId: "SP-TEST",
+            CastingItemSlotIndex: 1,
+            Target: { } acceptedTarget
+        } && acceptedTarget == target, "A teljes szemantikus varázslat-commandot elutasította a session.");
+}
+
+static void MalformedSpellBattleCommandIsRejected()
+{
+    var (session, leader, _) = CreateSession();
+    var battleId = BattleId.New();
+    var events = CollectEvents(session);
+    session.SetBattlePrompt(battleId, 1, leader.Id, [BattleActionKind.CastSpell]);
+    session.Submit(new BattleActionCommand(session.HostPlayerId, 1, leader.Id, battleId, 1,
+        BattleActionKind.CastSpell, SpellId: "SP-TEST"));
+    Assert(!session.TryReadCommand(out _), "A célpont nélküli varázslat-command átjutott.");
+    Assert(events.OfType<GameCommandRejectedEvent>().Any(rejected => rejected.CommandId == 1),
+        "A hiányos varázslat-command elutasításáról nem keletkezett esemény.");
+}
+
+static void DisallowedBattleActionIsRejected()
+{
+    var (session, leader, _) = CreateSession();
+    var battleId = BattleId.New();
+    session.SetBattlePrompt(battleId, 1, leader.Id, [BattleActionKind.PhysicalAttack]);
+    session.Submit(new BattleActionCommand(session.HostPlayerId, 1, leader.Id, battleId, 1,
+        BattleActionKind.TurnUndead));
+    Assert(!session.TryReadCommand(out _), "A promptban nem szereplő halottűzés átjutott.");
 }
 
 static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) CreateSession()

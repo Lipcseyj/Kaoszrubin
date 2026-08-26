@@ -122,9 +122,9 @@ A `Definition` végű típusok az `adatok.csv` tartalmát képviselik. A `LiveCh
 ### `Application`: session- és parancshatár
 
 - `GameSession`: egy futó játék helyi vagy később hálózati parancsainak egyetlen belépési pontja. Tulajdonjog, session-fázis és monoton parancssorszám alapján validál, majd a `Game` egyetlen szimulációs szála olvassa ki az elfogadott parancsokat.
-- `SessionContracts`: stabil `PlayerId`/`CharacterId` alapú commandok, vezérlési állapotok és sorrendezett session-eseményfolyam. A fizikai harci választás `BattleActionCommand`, amely az aktuális `BattleId` és `TurnId` értékét is hordozza.
+- `SessionContracts`: stabil `PlayerId`/`CharacterId` alapú commandok, vezérlési állapotok és sorrendezett session-eseményfolyam. Minden harci választás `BattleActionCommand`, amely az aktuális `BattleId` és `TurnId` mellett csak szemantikus inputot hordoz: akciótípust, varázslat-ID-t, opcionális varázstárgyslotot és célpozíciót.
 - A konzolos leader mozgása, ajtókezelése, partiparancsai, pihenése és pályaváltása már ezen az útvonalon halad. Távoli vezérlő egy NPC-partitag mozgását veheti át; ilyenkor az automatikus NPC-mozgás leáll, disconnectkor visszaáll, reconnectkor pedig ugyanahhoz a karakterhez tér vissza.
-- A leader tényleges harca már léptethető `BattleState`-et használ és az aktív `BattleId`/`TurnId` a `Game` felől megfigyelhető. A harc játékosakciónál visszatér a fő játékhurokba; `BattlePromptEvent` jelzi a döntést, a helyi Space pedig ugyanazon a validált command queue-n érkezik vissza, amelyet később a hálózat használ. A varázslat- és halottűzés-választás még átmeneti helyi adapter, a fogadó pedig csak explicit session-fázist jelez.
+- A leader tényleges harca már léptethető `BattleState`-et használ és az aktív `BattleId`/`TurnId` a `Game` felől megfigyelhető. A harc játékosakciónál visszatér a fő játékhurokba; `BattlePromptEvent` jelzi az adott körben engedélyezett akciókat. A fegyveres támadás, a varázslat és a halottűzés ugyanazon a validált command queue-n érkezik vissza, amelyet később a hálózat használ. A kliens nem küldhet dobás- vagy sebzéseredményt: a jogosultságot, célpontot, erőforrás-felhasználást és véletlent a host ellenőrzi és számolja. A fogadó egyelőre csak explicit session-fázist jelez.
 
 ## Adatmodell és `adatok.csv`
 

@@ -1981,15 +1981,12 @@ public sealed class Game
         }
         if (key.Key == ConsoleKey.Spacebar)
         {
-            var commandId = _localCommandId + 1;
-            if (_session.Submit(new BattleActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
-                    _activeBattleState.Id, _activeBattleState.TurnId, BattleActionKind.PhysicalAttack)))
-                _localCommandId = commandId;
+            SubmitLocalBattleCommand(BattleActionKind.PhysicalAttack);
             return;
         }
         if (key.Key == ConsoleKey.T && canTurnUndead)
         {
-            ResolveActiveBattleAction(ResolveTurnUndead(SelectedCharacter, enemy));
+            SubmitLocalBattleCommand(BattleActionKind.TurnUndead);
             return;
         }
 
@@ -2022,21 +2019,31 @@ public sealed class Game
             DrawBattleActionPrompt(enemy);
             return;
         }
-        var attempt = TryCastSpell(SelectedCharacter, _player.Position, spell, inCombat: true, enemy,
+        var validation = ValidateSpellCast(SelectedCharacter, _player.Position, spell, inCombat: true, enemy,
             castingItem, castingItemSlotIndex);
-        if (attempt is null)
+        if (validation is not null)
+        {
+            _renderer.DrawInventoryMessage(validation.Message, ConsoleColor.Red);
+            DrawBattleActionPrompt(enemy);
+            return;
+        }
+        var target = SelectSpellTarget(SelectedCharacter, _player.Position, spell, enemy);
+        if (target is null)
         {
             DrawBattleActionPrompt(enemy);
             return;
         }
-        if (!attempt.ConsumesTurn)
-        {
-            _renderer.DrawInventoryMessage(attempt.Message, ConsoleColor.Red);
-            DrawBattleActionPrompt(enemy);
-            return;
-        }
-        ResolveActiveBattleAction(new BattlePlayerAction(attempt.Message, attempt.Kind,
-            attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions));
+        SubmitLocalBattleCommand(BattleActionKind.CastSpell, spell.Id, castingItemSlotIndex, target);
+    }
+
+    private void SubmitLocalBattleCommand(BattleActionKind action, string? spellId = null,
+        int? castingItemSlotIndex = null, Position? target = null)
+    {
+        if (_activeBattleState is null) return;
+        var commandId = _localCommandId + 1;
+        if (_session.Submit(new BattleActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
+                _activeBattleState.Id, _activeBattleState.TurnId, action, spellId, castingItemSlotIndex, target)))
+            _localCommandId = commandId;
     }
 
     private void DrawBattleActionPrompt(Enemy enemy)
@@ -2057,7 +2064,72 @@ public sealed class Game
             case BattleActionKind.PhysicalAttack:
                 ResolveActiveBattleAction(null);
                 break;
+            case BattleActionKind.TurnUndead:
+                if (CanTurnUndead(SelectedCharacter, _activeBattleState.Enemy) &&
+                    !_turnUndeadUsedThisBattle.Contains(SelectedCharacter))
+                    ResolveActiveBattleAction(ResolveTurnUndead(SelectedCharacter, _activeBattleState.Enemy));
+                else
+                    RejectBattleAction("A halottűzés ebben a körben nem használható.");
+                break;
+            case BattleActionKind.CastSpell:
+                ExecuteSpellBattleAction(command);
+                break;
         }
+    }
+
+    private void ExecuteSpellBattleAction(BattleActionCommand command)
+    {
+        if (_activeBattleState is null || command.SpellId is null || command.Target is null) return;
+        var spell = _gameData.Spells.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, command.SpellId, StringComparison.OrdinalIgnoreCase));
+        if (spell is null)
+        {
+            RejectBattleAction("Ismeretlen varázslat.");
+            return;
+        }
+        MagicItemDefinition? castingItem = null;
+        if (command.CastingItemSlotIndex is { } slot)
+        {
+            if (slot is < 0 or >= LiveCharacter.MaximumMagicItemCount)
+            {
+                RejectBattleAction("Érvénytelen varázstárgy-hely.");
+                return;
+            }
+            castingItem = SelectedCharacter.MagicItems[slot];
+            if (castingItem is null)
+            {
+                RejectBattleAction("A kiválasztott varázstárgy-hely üres.");
+                return;
+            }
+        }
+        var attempt = TryCastSpell(SelectedCharacter, _player.Position, spell, inCombat: true,
+            _activeBattleState.Enemy, castingItem, command.CastingItemSlotIndex, command.Target);
+        if (attempt is null || !attempt.ConsumesTurn)
+        {
+            RejectBattleAction(attempt?.Message ?? "A varázslat célpontja érvénytelen.");
+            return;
+        }
+        ResolveActiveBattleAction(new BattlePlayerAction(attempt.Message, attempt.Kind,
+            attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions));
+    }
+
+    private void RejectBattleAction(string message)
+    {
+        _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
+        if (_activeBattleState is { IsCompleted: false, IsPlayerTurn: true } state)
+        {
+            _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId, GetAllowedBattleActions(state.Enemy));
+            DrawBattleActionPrompt(state.Enemy);
+        }
+    }
+
+    private IReadOnlyList<BattleActionKind> GetAllowedBattleActions(Enemy enemy)
+    {
+        var actions = new List<BattleActionKind> { BattleActionKind.PhysicalAttack };
+        if (HasUsableCombatSpell(enemy)) actions.Add(BattleActionKind.CastSpell);
+        if (CanTurnUndead(SelectedCharacter, enemy) && !_turnUndeadUsedThisBattle.Contains(SelectedCharacter))
+            actions.Add(BattleActionKind.TurnUndead);
+        return actions;
     }
 
     private bool HasUsableCombatSpell(Enemy enemy) =>
@@ -2108,36 +2180,16 @@ public sealed class Game
     }
 
     private SpellCastAttempt? TryCastSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
-        bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null)
+        bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null,
+        Position? explicitTarget = null)
     {
-        if (!caster.IsAlive)
-            return new SpellCastAttempt(false, $"{caster.Name} nem képes varázsolni.", BattleLogKind.Information);
+        var validation = ValidateSpellCast(caster, casterPosition, spell, inCombat, currentEnemy, castingItem,
+            castingItemSlotIndex, explicitTarget);
+        if (validation is not null) return validation;
         var usingItem = castingItem is not null;
         var castingItemIndex = usingItem ? castingItemSlotIndex ?? -1 : -1;
-        if (usingItem && (castingItem!.Kind is not (MagicItemKind.Scroll or MagicItemKind.Wand) || castingItem.SpellId != spell.Id ||
-                castingItemIndex is < 0 or >= LiveCharacter.MaximumMagicItemCount ||
-                caster.MagicItems[castingItemIndex]?.Id != castingItem.Id || caster.MagicItemCharges[castingItemIndex] <= 0 ||
-                !SpellcastingRules.CanUseCastingItem(caster, castingItem, spell)))
-            return new SpellCastAttempt(false, "A kiválasztott tekercs vagy pálca nem használható.", BattleLogKind.Information);
-        if (!usingItem && !caster.IsSpellcaster)
-            return new SpellCastAttempt(false, "Ez az osztály nem használ varázslatokat.", BattleLogKind.Information);
-        if (!usingItem && !SpellcastingRules.HasRequiredFocus(caster))
-            return new SpellCastAttempt(false, "A varázsláshoz hiányzik a megfelelő fókusztárgy.", BattleLogKind.Information);
-        if (!usingItem && caster.MemorizedSpells.All(candidate =>
-                !string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))
-            return new SpellCastAttempt(false, $"A(z) {spell.Name} nincs memorizálva.", BattleLogKind.Information);
-        if (inCombat ? !spell.CanUseInCombat : !spell.CanUseDuringExploration)
-            return new SpellCastAttempt(false, $"A(z) {spell.Name} ebben a helyzetben nem használható.", BattleLogKind.Information);
-        if (inCombat && _timeStopUsedThisBattle && _gameData.GetSpellEffects(spell.Id)
-                .Any(effect => effect.Type == SpellEffectType.ExtraActions))
-            return new SpellCastAttempt(false, "Az Időmegállítás csatánként csak egyszer használható.", BattleLogKind.Information);
         var manaCost = usingItem ? 0 : SpellcastingRules.EffectiveManaCost(caster, spell);
-        if (caster.CurrentMana < manaCost)
-            return new SpellCastAttempt(false, $"Nincs elég manna: {spell.Name} {manaCost} mannát igényel.", BattleLogKind.Information);
-        if (!HasValidSpellTarget(caster, casterPosition, spell, currentEnemy))
-            return new SpellCastAttempt(false, $"A(z) {spell.Name} számára nincs érvényes célpont.", BattleLogKind.Information);
-
-        var target = SelectSpellTarget(caster, casterPosition, spell, currentEnemy);
+        var target = explicitTarget ?? SelectSpellTarget(caster, casterPosition, spell, currentEnemy);
         if (target is null) return null;
         var divineJudgment = !usingItem && caster.RecordDivineSpellCast(spell);
         if (usingItem)
@@ -2170,6 +2222,50 @@ public sealed class Game
             $"{judgmentText} {execution.Summary}",
             BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions);
     }
+
+    private SpellCastAttempt? ValidateSpellCast(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
+        bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null,
+        Position? explicitTarget = null)
+    {
+        if (!caster.IsAlive)
+            return new SpellCastAttempt(false, $"{caster.Name} nem képes varázsolni.", BattleLogKind.Information);
+        var usingItem = castingItem is not null;
+        var castingItemIndex = usingItem ? castingItemSlotIndex ?? -1 : -1;
+        if (usingItem && (castingItem!.Kind is not (MagicItemKind.Scroll or MagicItemKind.Wand) || castingItem.SpellId != spell.Id ||
+                castingItemIndex is < 0 or >= LiveCharacter.MaximumMagicItemCount ||
+                caster.MagicItems[castingItemIndex]?.Id != castingItem.Id || caster.MagicItemCharges[castingItemIndex] <= 0 ||
+                !SpellcastingRules.CanUseCastingItem(caster, castingItem, spell)))
+            return new SpellCastAttempt(false, "A kiválasztott tekercs vagy pálca nem használható.", BattleLogKind.Information);
+        if (!usingItem && !caster.IsSpellcaster)
+            return new SpellCastAttempt(false, "Ez az osztály nem használ varázslatokat.", BattleLogKind.Information);
+        if (!usingItem && !SpellcastingRules.HasRequiredFocus(caster))
+            return new SpellCastAttempt(false, "A varázsláshoz hiányzik a megfelelő fókusztárgy.", BattleLogKind.Information);
+        if (!usingItem && caster.MemorizedSpells.All(candidate =>
+                !string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))
+            return new SpellCastAttempt(false, $"A(z) {spell.Name} nincs memorizálva.", BattleLogKind.Information);
+        if (inCombat ? !spell.CanUseInCombat : !spell.CanUseDuringExploration)
+            return new SpellCastAttempt(false, $"A(z) {spell.Name} ebben a helyzetben nem használható.", BattleLogKind.Information);
+        if (inCombat && _timeStopUsedThisBattle && _gameData.GetSpellEffects(spell.Id)
+                .Any(effect => effect.Type == SpellEffectType.ExtraActions))
+            return new SpellCastAttempt(false, "Az Időmegállítás csatánként csak egyszer használható.", BattleLogKind.Information);
+        var manaCost = usingItem ? 0 : SpellcastingRules.EffectiveManaCost(caster, spell);
+        if (caster.CurrentMana < manaCost)
+            return new SpellCastAttempt(false, $"Nincs elég manna: {spell.Name} {manaCost} mannát igényel.", BattleLogKind.Information);
+        if (!HasValidSpellTarget(caster, casterPosition, spell, currentEnemy))
+            return new SpellCastAttempt(false, $"A(z) {spell.Name} számára nincs érvényes célpont.", BattleLogKind.Information);
+        if (explicitTarget is { } target && !IsValidExplicitSpellTarget(caster, casterPosition, spell, target, currentEnemy))
+            return new SpellCastAttempt(false, "A varázslat célpontja érvénytelen.", BattleLogKind.Information);
+        return null;
+    }
+
+    private bool IsValidExplicitSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
+        Position target, Enemy? currentEnemy) => spell.TargetType switch
+    {
+        SpellTargetType.Self => target == casterPosition && CanAffectCharacter(spell, caster),
+        SpellTargetType.Party => target == casterPosition &&
+                                 CharacterRoster.Party.Members.Any(character => character.IsAlive && CanAffectCharacter(spell, character)),
+        _ => IsValidSpellTarget(casterPosition, spell, target, currentEnemy)
+    };
 
     private static string CastingItemUseText(MagicItemDefinition item) => item.Kind == MagicItemKind.Scroll
         ? "📜 A tekercs elhasználódott"
@@ -2896,7 +2992,8 @@ public sealed class Game
                 _pendingBattleSupportDamage = TryPartyMembersActInLeaderBattle(state.Enemy);
                 if (_pendingBattleSupportDamage < state.CurrentEnemyHitPoints)
                 {
-                    _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId);
+                    _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
+                        GetAllowedBattleActions(state.Enemy));
                     DrawBattleActionPrompt(state.Enemy);
                     return;
                 }

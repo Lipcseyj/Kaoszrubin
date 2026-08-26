@@ -57,12 +57,15 @@ public sealed record LeaderActionCommand(PlayerId SenderId, long CommandId, Char
 
 public enum BattleActionKind
 {
-    PhysicalAttack
+    PhysicalAttack,
+    CastSpell,
+    TurnUndead
 }
 
 /// <summary>A kliens választása, nem kész sebzés- vagy dobáseredmény.</summary>
 public sealed record BattleActionCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
-    BattleId BattleId, long TurnId, BattleActionKind Action)
+    BattleId BattleId, long TurnId, BattleActionKind Action, string? SpellId = null,
+    int? CastingItemSlotIndex = null, Position? Target = null)
     : GameCommand(SenderId, CommandId, CharacterId);
 
 public abstract record GameSessionEvent(long Sequence);
