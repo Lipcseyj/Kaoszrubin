@@ -29,7 +29,10 @@ var tests = new (string Name, Action Run)[]
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
     ("A world delta minden lényeges változást leír", WorldDeltaCapturesChanges),
-    ("Eltérő pályák között nem készülhet delta", WorldDeltaRejectsDifferentWorld)
+    ("Eltérő pályák között nem készülhet delta", WorldDeltaRejectsDifferentWorld),
+    ("A publisher teljes snapshot után ACK-alapú deltát küld", ReplicationPublisherUsesAcknowledgedBaseline),
+    ("Ismeretlen ACK teljes resyncet kényszerít", UnknownReplicationAckForcesResync),
+    ("Pályaváltáskor a publisher teljes snapshotra vált", ReplicationPublisherUsesFullSnapshotForNewWorld)
 };
 
 var failures = 0;
@@ -412,6 +415,82 @@ static void WorldDeltaRejectsDifferentWorld()
         rejected = true;
     }
     Assert(rejected, "Különböző WorldId értékek között is elkészült a delta.");
+}
+
+static void ReplicationPublisherUsesAcknowledgedBaseline()
+{
+    var (session, leader, _) = CreateSession();
+    var positions = new Dictionary<CharacterId, Position> { [leader.Id] = new Position(2, 2) };
+    var maze = new Maze(7, 7);
+    maze.Carve(new Position(3, 2));
+    var fog = new FogOfWar(7, 7, 1);
+    fog.RevealFrom(maze, maze.Entrance);
+    var first = session.CreateSnapshot(new SessionSnapshotContext(1, "Replikációs pálya", positions,
+        World: WorldSnapshotProjector.Create(maze, fog)));
+    var playerId = PlayerId.New();
+    var publisher = new SessionReplicationPublisher();
+
+    var full = publisher.CreateFrame(playerId, first);
+    Assert(full.Kind == SessionReplicationFrameKind.FullSnapshot && full.Session.World is not null &&
+           full.WorldDelta is null && full.BaseSnapshotSequence is null,
+        "Az első replikációs frame nem teljes snapshot.");
+    Assert(publisher.TryAcknowledge(playerId, first.SnapshotSequence, out var error), error);
+
+    var enemy = CreateEnemyAt(new Position(3, 2), "E-REPLICATION");
+    maze.AddEnemy(enemy);
+    var second = session.CreateSnapshot(new SessionSnapshotContext(1, "Replikációs pálya", positions,
+        World: WorldSnapshotProjector.Create(maze, fog)));
+    var delta = publisher.CreateFrame(playerId, second);
+    Assert(delta.Kind == SessionReplicationFrameKind.Delta && delta.Session.World is null &&
+           delta.BaseSnapshotSequence == first.SnapshotSequence &&
+           delta.WorldDelta?.EnemyUpserts.Single().EntityId == enemy.Id,
+        "A nyugtázott baseline után nem megfelelő world delta készült.");
+    var restored = JsonSerializer.Deserialize<SessionReplicationFrame>(JsonSerializer.Serialize(delta));
+    Assert(restored?.WorldDelta?.ToSnapshotSequence == second.SnapshotSequence,
+        "A replikációs frame JSON round-trip közben megváltozott.");
+}
+
+static void UnknownReplicationAckForcesResync()
+{
+    var (session, leader, _) = CreateSession();
+    var maze = new Maze(7, 7);
+    var fog = new FogOfWar(7, 7, 0);
+    fog.RevealFrom(maze, maze.Entrance);
+    var positions = new Dictionary<CharacterId, Position> { [leader.Id] = maze.Entrance };
+    var publisher = new SessionReplicationPublisher();
+    var playerId = PlayerId.New();
+    var first = session.CreateSnapshot(new SessionSnapshotContext(1, "ACK pálya", positions,
+        World: WorldSnapshotProjector.Create(maze, fog)));
+    publisher.CreateFrame(playerId, first);
+    Assert(!publisher.TryAcknowledge(playerId, first.SnapshotSequence + 99, out _),
+        "Az ismeretlen snapshot ACK-ot elfogadta a publisher.");
+    var second = session.CreateSnapshot(new SessionSnapshotContext(1, "ACK pálya", positions,
+        World: WorldSnapshotProjector.Create(maze, fog)));
+    Assert(publisher.CreateFrame(playerId, second).Kind == SessionReplicationFrameKind.FullSnapshot,
+        "Ismeretlen ACK után nem történt teljes resync.");
+}
+
+static void ReplicationPublisherUsesFullSnapshotForNewWorld()
+{
+    var (session, leader, _) = CreateSession();
+    var positions = new Dictionary<CharacterId, Position> { [leader.Id] = new Position(2, 2) };
+    var firstMaze = new Maze(7, 7);
+    var firstFog = new FogOfWar(7, 7, 0);
+    firstFog.RevealFrom(firstMaze, firstMaze.Entrance);
+    var publisher = new SessionReplicationPublisher();
+    var playerId = PlayerId.New();
+    var first = session.CreateSnapshot(new SessionSnapshotContext(1, "Első pálya", positions,
+        World: WorldSnapshotProjector.Create(firstMaze, firstFog)));
+    publisher.CreateFrame(playerId, first);
+    Assert(publisher.TryAcknowledge(playerId, first.SnapshotSequence, out var error), error);
+
+    var secondMaze = new Maze(7, 7);
+    var secondFog = new FogOfWar(7, 7, 0);
+    secondFog.RevealFrom(secondMaze, secondMaze.Entrance);
+    var second = session.CreateSnapshot(new SessionSnapshotContext(2, "Második pálya", positions,
+        World: WorldSnapshotProjector.Create(secondMaze, secondFog)));
+    Assert(publisher.CreateFrame(playerId, second).Kind == SessionReplicationFrameKind.FullSnapshot,
+        "Pályaváltáskor a publisher deltát próbált küldeni.");
 }
 
 static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) CreateSession()
