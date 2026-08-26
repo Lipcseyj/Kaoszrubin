@@ -101,6 +101,9 @@ public sealed class CoopGuestScreen
         if (client.State != CoopClientConnectionState.Connected) return;
         GameCommand? command = null;
         var snapshot = client.CurrentSnapshot;
+        if (snapshot is null || !snapshot.CharacterControls.Any(control =>
+                control.CharacterId == characterId && control.AssignedPlayerId == client.PlayerId &&
+                control.ConnectionState == PlayerConnectionState.Connected)) return;
         if (snapshot?.Battle is { } battle && battle.ActingCharacterId == characterId)
         {
             var action = key switch
@@ -143,6 +146,11 @@ public sealed class CoopGuestScreen
         }
 
         WriteLine($"{snapshot.MazeLevel}. pálya — {snapshot.LevelName} — {snapshot.Phase}", ConsoleColor.Cyan);
+        var stillControlled = snapshot.CharacterControls.Any(control =>
+            control.CharacterId == selected.CharacterId && control.AssignedPlayerId == client.PlayerId &&
+            control.ConnectionState == PlayerConnectionState.Connected);
+        if (!stillControlled)
+            WriteLine("Megfigyelő mód: a karaktered már nincs a vezérlésed alatt.", ConsoleColor.DarkYellow);
         var grid = new string[world.Width, world.Height];
         for (var y = 0; y < world.Height; y++)
             for (var x = 0; x < world.Width; x++) grid[x, y] = "░";

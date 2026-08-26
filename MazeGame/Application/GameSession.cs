@@ -56,7 +56,7 @@ public sealed class GameSession
         lock (_stateGate)
         {
             SynchronizeParty();
-            return _party.Members.Where(character => _controls[character.Id] is
+            return _party.Members.Where(character => character.IsAlive && _controls[character.Id] is
             { ControllerKind: CharacterControllerKind.Npc, AssignedPlayerId: null })
                 .Select(character => new CoopCharacterOption(character.Id, character.Name,
                     character.CharacterClass.Name, character.Level)).ToArray();
@@ -116,10 +116,9 @@ public sealed class GameSession
     {
         lock (_stateGate)
         {
+            if (playerId == HostPlayerId || !_players.Contains(playerId)) return false;
             var reserved = _controls.Values.Where(control => control.AssignedPlayerId == playerId &&
                 control.ConnectionState != PlayerConnectionState.Connected).ToList();
-            if (reserved.Count == 0) return false;
-            _players.Add(playerId);
             foreach (var control in reserved)
                 SetControl(control with
                 {
@@ -131,6 +130,30 @@ public sealed class GameSession
     }
 
     public bool Submit(GameCommand command) => _commands.Writer.TryWrite(command);
+
+    /// <summary>A queue-validáció után, a host végrehajtási rétegében felismert szemantikai hibát jelzi.</summary>
+    public void RejectExecutedCommand(GameCommand command, string reason)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("Az elutasítás oka nem lehet üres.", nameof(reason));
+        lock (_stateGate)
+            Publish(sequence => new GameCommandRejectedEvent(sequence, command.SenderId, command.CommandId, reason));
+    }
+
+    public void ReleaseCharacterControl(CharacterId characterId)
+    {
+        lock (_stateGate)
+        {
+            if (!_controls.TryGetValue(characterId, out var control) ||
+                control.ControllerKind != CharacterControllerKind.RemotePlayer) return;
+            SetControl(control with
+            {
+                ControllerKind = CharacterControllerKind.Npc,
+                AssignedPlayerId = null,
+                ConnectionState = PlayerConnectionState.Disconnected
+            });
+        }
+    }
 
     public SessionSnapshot CreateSnapshot(SessionSnapshotContext context)
     {

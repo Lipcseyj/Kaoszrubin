@@ -25,6 +25,7 @@ var tests = new (string Name, Action Run)[]
     ("A régi Resolve API az állapotgépet hajtja", ResolveUsesStateMachineAdapter),
     ("A Resolve támogatói győzelemnél nem kér fölösleges akciót", ResolveSkipsActionAfterSupportVictory),
     ("Csak az aktív BattleId és TurnId parancsa fogadható el", BattleCommandRequiresCurrentPrompt),
+    ("A távoli harci promptot csak a karakter gazdája oldhatja fel", RemoteBattlePromptRequiresCharacterOwner),
     ("A varázslat command csak szemantikus választást hordoz", SpellBattleCommandIsAccepted),
     ("Hiányos varázslat command nem juthat át", MalformedSpellBattleCommandIsRejected),
     ("A promptban nem engedélyezett harci akció elutasításra kerül", DisallowedBattleActionIsRejected),
@@ -255,6 +256,36 @@ static void BattleCommandRequiresCurrentPrompt()
     session.EndBattle(battleId);
     Assert(events.OfType<BattleEndedEvent>().Any(ended => ended.BattleId == battleId),
         "A session nem publikálta a csata végét.");
+}
+
+static void RemoteBattlePromptRequiresCharacterOwner()
+{
+    var (session, leader, companion) = CreateSession();
+    var events = CollectEvents(session);
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var assignmentError), assignmentError);
+    var battleId = BattleId.New();
+    session.SetBattlePrompt(battleId, 1, companion.Id, [BattleActionKind.PhysicalAttack]);
+    session.Submit(new BattleActionCommand(session.HostPlayerId, 1, companion.Id, battleId, 1,
+        BattleActionKind.PhysicalAttack));
+    Assert(!session.TryReadCommand(out _), "A host feloldhatta a távoli karakter harci promptját.");
+    session.Submit(new BattleActionCommand(remote, 1, companion.Id, battleId, 1,
+        BattleActionKind.PhysicalAttack));
+    Assert(session.TryReadCommand(out var accepted) && accepted.SenderId == remote,
+        "A távoli karakter gazdájának érvényes harci akcióját elutasította a session.");
+    session.RejectExecutedCommand(accepted, "Szemantikai próbahiba.");
+    Assert(events.OfType<GameCommandRejectedEvent>().Any(rejected => rejected.PlayerId == remote &&
+            rejected.CommandId == accepted.CommandId && rejected.Reason == "Szemantikai próbahiba."),
+        "A végrehajtási réteg szemantikai elutasítása nem került vissza a parancs gazdájához.");
+
+    companion.ReceiveDamage(companion.CurrentVitality);
+    session.ReleaseCharacterControl(companion.Id);
+    Assert(!session.IsHumanControlled(companion.Id) && session.GetAvailableRemoteCharacters()
+            .All(option => option.CharacterId != companion.Id),
+        "A halott távoli karakter vezérlése nem szűnt meg, vagy újra kiválasztható maradt.");
+    Assert(session.TryReconnectPlayer(remote),
+        "A karakterét elvesztő megfigyelő reconnect-tokenje nem maradt érvényes.");
+    session.EndBattle(battleId);
 }
 
 static void SpellBattleCommandIsAccepted()

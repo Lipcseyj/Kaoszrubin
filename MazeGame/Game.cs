@@ -176,11 +176,12 @@ public sealed class Game
         BattleSnapshot? battle = null;
         if (_activeBattleState is { IsCompleted: false, IsPlayerTurn: true } state)
         {
+            var battleCharacter = state.Player;
             battle = new BattleSnapshot(state.Id, state.TurnId, state.Round, state.IsPlayerTurn,
                 state.PlayerCharacterId,
                 new SessionEnemySnapshot(state.EnemyDefinitionId, state.Enemy.Name, state.Enemy.Position,
                     state.CurrentEnemyHitPoints, state.Enemy.Definition.HitPoints ?? state.CurrentEnemyHitPoints),
-                GetAllowedBattleActions(state.Enemy));
+                GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
         }
         return _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions, battle,
             WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState)));
@@ -208,7 +209,7 @@ public sealed class Game
 
     // NPC spellcasting for combat
     private BattlePlayerAction? ChooseNpcBattlePlayerAction(PartyMemberAvatar member, Enemy enemy,
-        bool supportingLeaderBattle = false)
+        LiveCharacter? supportedFighter = null)
     {
         var caster = member.Character;
         if (!caster.IsAlive) return null;
@@ -275,9 +276,9 @@ public sealed class Game
             return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
         }
 
-        // A leader harcát támadó varázslattal csak valódi vészhelyzetben támogatják.
+        // Más karakter harcát támadó varázslattal csak valódi vészhelyzetben támogatják.
         // Saját harcukban ez a korlátozás nem érvényes.
-        if (supportingLeaderBattle && !ShouldUseOffensiveSupportSpell(enemy)) return null;
+        if (supportedFighter is not null && !ShouldUseOffensiveSupportSpell(supportedFighter, enemy)) return null;
 
         // Offensive spell against the enemy the leader is fighting (single-target only, don't waste area/direction spells on one foe)
         foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseInCombat && s.TargetType == SpellTargetType.Enemy))
@@ -300,23 +301,24 @@ public sealed class Game
         return null;
     }
 
-    private bool ShouldUseOffensiveSupportSpell(Enemy enemy)
+    private bool ShouldUseOffensiveSupportSpell(LiveCharacter fighter, Enemy enemy)
     {
         var enemyCombatAbilities = (enemy.Definition.Strength ?? 0) + (enemy.Definition.Speed ?? 0);
-        var leaderCombatAbilities = SelectedCharacter.Abilities.Strength + SelectedCharacter.Abilities.Dexterity;
-        return SelectedCharacter.CurrentVitality * 2 <= SelectedCharacter.MaximumVitality ||
+        var fighterCombatAbilities = fighter.Abilities.Strength + fighter.Abilities.Dexterity;
+        return fighter.CurrentVitality * 2 <= fighter.MaximumVitality ||
                enemy.Definition.IsBoss || enemy.Definition.StrengthTier >= 5 ||
-               enemyCombatAbilities > leaderCombatAbilities;
+               enemyCombatAbilities > fighterCombatAbilities;
     }
 
-    // Let non-fighting party members act (heal/cure/offensive spells) during the leader's own battle
-    private int TryPartyMembersActInLeaderBattle(Enemy enemy)
+    // A globálisan megállított csatában csak az NPC-k adnak automatikus támogatást; más emberi karakter nem.
+    private int TryPartyMembersActInBattle(LiveCharacter fighter, Enemy enemy)
     {
         var totalDamage = 0;
-        foreach (var member in _maze.PartyMembers.Where(member => member.Character.IsAlive))
+        foreach (var member in _maze.PartyMembers.Where(member => member.Character != fighter &&
+                     member.Character.IsAlive && !_session.IsHumanControlled(member.Character.Id)))
         {
             member.Character.AdvanceSpellEffects();
-            totalDamage += ChooseNpcBattlePlayerAction(member, enemy, supportingLeaderBattle: true)?.DamageToEnemy ?? 0;
+            totalDamage += ChooseNpcBattlePlayerAction(member, enemy, fighter)?.DamageToEnemy ?? 0;
         }
         return totalDamage;
     }
@@ -541,6 +543,7 @@ public sealed class Game
                 }
 
                 ProcessSessionCommands();
+                ContinueDisconnectedRemoteBattleAsNpc();
 
                 if (!_battleStarted) MoveEnemies();
 
@@ -950,10 +953,12 @@ public sealed class Game
         if (member is null || !member.Character.IsAlive) return;
         var previous = member.Position;
         var destination = previous + command.Direction;
-        // A távoli játékos harcának interaktív state machine-je a következő refaktorfázis része.
-        // Addig az ellenség cellájára lépés nem indítja el tévesen az NPC-autoharcot.
-        if (_maze.GetEnemyAt(destination) is not null ||
-            !_maze.TryMovePartyMember(member, destination, _player.Position)) return;
+        if (_maze.GetEnemyAt(destination) is { } enemy)
+        {
+            StartBattle(member, enemy);
+            return;
+        }
+        if (!_maze.TryMovePartyMember(member, destination, _player.Position)) return;
         member.Character.RegisterExplorationStep();
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
@@ -1019,6 +1024,18 @@ public sealed class Game
                     break;
             }
         }
+    }
+
+    private void ContinueDisconnectedRemoteBattleAsNpc()
+    {
+        if (_activeBattleState is not { IsCompleted: false, IsPlayerTurn: true } state ||
+            state.PlayerCharacterId == SelectedCharacter.Id ||
+            _session.IsHumanControlled(state.PlayerCharacterId)) return;
+
+        _renderer.DrawInventoryMessage(
+            $"{state.Player.Name} kapcsolata megszakadt; az AI fegyveres támadással folytatja a csatát.",
+            ConsoleColor.DarkYellow);
+        ResolveActiveBattleAction(null);
     }
 
     private void ExecuteLeaderAction(LeaderAction action)
@@ -2047,6 +2064,7 @@ public sealed class Game
     private void HandleLocalBattleInput(ConsoleKeyInfo key)
     {
         if (_activeBattleState is null || _activeBattleState.IsCompleted || !_activeBattleState.IsPlayerTurn) return;
+        if (_activeBattleState.PlayerCharacterId != SelectedCharacter.Id) return;
         var enemy = _activeBattleState.Enemy;
         var canTurnUndead = CanTurnUndead(SelectedCharacter, enemy) &&
                             !_turnUndeadUsedThisBattle.Contains(SelectedCharacter);
@@ -2136,7 +2154,9 @@ public sealed class Game
         var canTurnUndead = CanTurnUndead(SelectedCharacter, enemy) &&
                             !_turnUndeadUsedThisBattle.Contains(SelectedCharacter);
         _renderer.DrawInventoryMessage("Akció: Space — fegyveres támadás" +
-            (HasUsableCombatSpell(enemy) ? " | V — varázslat | F1-F8 — gyorsvarázslat" : string.Empty) +
+            (HasUsableCombatSpell(SelectedCharacter, _player.Position, enemy)
+                ? " | V — varázslat | F1-F8 — gyorsvarázslat"
+                : string.Empty) +
             (canTurnUndead ? " | T — halottűzés" : string.Empty), ConsoleColor.Yellow);
     }
 
@@ -2144,17 +2164,18 @@ public sealed class Game
     {
         if (_activeBattleState is null || command.BattleId != _activeBattleState.Id ||
             command.TurnId != _activeBattleState.TurnId || command.CharacterId != _activeBattleState.PlayerCharacterId) return;
+        var battleCharacter = _activeBattleState.Player;
         switch (command.Action)
         {
             case BattleActionKind.PhysicalAttack:
                 ResolveActiveBattleAction(null);
                 break;
             case BattleActionKind.TurnUndead:
-                if (CanTurnUndead(SelectedCharacter, _activeBattleState.Enemy) &&
-                    !_turnUndeadUsedThisBattle.Contains(SelectedCharacter))
-                    ResolveActiveBattleAction(ResolveTurnUndead(SelectedCharacter, _activeBattleState.Enemy));
+                if (CanTurnUndead(battleCharacter, _activeBattleState.Enemy) &&
+                    !_turnUndeadUsedThisBattle.Contains(battleCharacter))
+                    ResolveActiveBattleAction(ResolveTurnUndead(battleCharacter, _activeBattleState.Enemy));
                 else
-                    RejectBattleAction("A halottűzés ebben a körben nem használható.");
+                    RejectBattleAction(command, "A halottűzés ebben a körben nem használható.");
                 break;
             case BattleActionKind.CastSpell:
                 ExecuteSpellBattleAction(command);
@@ -2165,11 +2186,12 @@ public sealed class Game
     private void ExecuteSpellBattleAction(BattleActionCommand command)
     {
         if (_activeBattleState is null || command.SpellId is null || command.Target is null) return;
+        var battleCharacter = _activeBattleState.Player;
         var spell = _gameData.Spells.FirstOrDefault(candidate =>
             string.Equals(candidate.Id, command.SpellId, StringComparison.OrdinalIgnoreCase));
         if (spell is null)
         {
-            RejectBattleAction("Ismeretlen varázslat.");
+            RejectBattleAction(command, "Ismeretlen varázslat.");
             return;
         }
         MagicItemDefinition? castingItem = null;
@@ -2177,55 +2199,59 @@ public sealed class Game
         {
             if (slot is < 0 or >= LiveCharacter.MaximumMagicItemCount)
             {
-                RejectBattleAction("Érvénytelen varázstárgy-hely.");
+                RejectBattleAction(command, "Érvénytelen varázstárgy-hely.");
                 return;
             }
-            castingItem = SelectedCharacter.MagicItems[slot];
+            castingItem = battleCharacter.MagicItems[slot];
             if (castingItem is null)
             {
-                RejectBattleAction("A kiválasztott varázstárgy-hely üres.");
+                RejectBattleAction(command, "A kiválasztott varázstárgy-hely üres.");
                 return;
             }
         }
-        var attempt = TryCastSpell(SelectedCharacter, _player.Position, spell, inCombat: true,
+        var attempt = TryCastSpell(battleCharacter, GetCasterPosition(battleCharacter), spell, inCombat: true,
             _activeBattleState.Enemy, castingItem, command.CastingItemSlotIndex, command.Target);
         if (attempt is null || !attempt.ConsumesTurn)
         {
-            RejectBattleAction(attempt?.Message ?? "A varázslat célpontja érvénytelen.");
+            RejectBattleAction(command, attempt?.Message ?? "A varázslat célpontja érvénytelen.");
             return;
         }
         ResolveActiveBattleAction(new BattlePlayerAction(attempt.Message, attempt.Kind,
             attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions));
     }
 
-    private void RejectBattleAction(string message)
+    private void RejectBattleAction(BattleActionCommand command, string message)
     {
+        _session.RejectExecutedCommand(command, message);
         _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
         if (_activeBattleState is { IsCompleted: false, IsPlayerTurn: true } state)
         {
-            _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId, GetAllowedBattleActions(state.Enemy));
-            DrawBattleActionPrompt(state.Enemy);
+            var battleCharacter = state.Player;
+            _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
+                GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
+            if (battleCharacter == SelectedCharacter) DrawBattleActionPrompt(state.Enemy);
         }
     }
 
-    private IReadOnlyList<BattleActionKind> GetAllowedBattleActions(Enemy enemy)
+    private IReadOnlyList<BattleActionKind> GetAllowedBattleActions(LiveCharacter character,
+        Position characterPosition, Enemy enemy)
     {
         var actions = new List<BattleActionKind> { BattleActionKind.PhysicalAttack };
-        if (HasUsableCombatSpell(enemy)) actions.Add(BattleActionKind.CastSpell);
-        if (CanTurnUndead(SelectedCharacter, enemy) && !_turnUndeadUsedThisBattle.Contains(SelectedCharacter))
+        if (HasUsableCombatSpell(character, characterPosition, enemy)) actions.Add(BattleActionKind.CastSpell);
+        if (CanTurnUndead(character, enemy) && !_turnUndeadUsedThisBattle.Contains(character))
             actions.Add(BattleActionKind.TurnUndead);
         return actions;
     }
 
-    private bool HasUsableCombatSpell(Enemy enemy) =>
-        SelectedCharacter.CanCastSpells && SelectedCharacter.MemorizedSpells.Any(spell =>
-                spell.CanUseInCombat && SpellcastingRules.EffectiveManaCost(SelectedCharacter, spell) <= SelectedCharacter.CurrentMana &&
+    private bool HasUsableCombatSpell(LiveCharacter character, Position characterPosition, Enemy enemy) =>
+        character.CanCastSpells && character.MemorizedSpells.Any(spell =>
+                spell.CanUseInCombat && SpellcastingRules.EffectiveManaCost(character, spell) <= character.CurrentMana &&
                 (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id).All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
-                HasValidSpellTarget(SelectedCharacter, _player.Position, spell, enemy)) ||
-        EquippedCastingItems(SelectedCharacter).Any(item =>
+                HasValidSpellTarget(character, characterPosition, spell, enemy)) ||
+        EquippedCastingItems(character).Any(item =>
             _gameData.GetSpell(item.SpellId!) is { } spell && spell.CanUseInCombat &&
             (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id).All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
-            HasValidSpellTarget(SelectedCharacter, _player.Position, spell, enemy));
+            HasValidSpellTarget(character, characterPosition, spell, enemy));
 
     private static bool CanTurnUndead(LiveCharacter character, Enemy enemy) =>
         character.CharacterClass.Id is CharacterClassIds.Pap or CharacterClassIds.Lovag &&
@@ -3052,6 +3078,12 @@ public sealed class Game
     }
 
     private void StartBattle(Enemy enemy)
+        => StartInteractiveBattle(SelectedCharacter, enemy);
+
+    private void StartBattle(PartyMemberAvatar member, Enemy enemy)
+        => StartInteractiveBattle(member.Character, enemy);
+
+    private void StartInteractiveBattle(LiveCharacter battleCharacter, Enemy enemy)
     {
         if (_battleStarted) return;
         CheckBossDiscovery([enemy]);
@@ -3062,7 +3094,7 @@ public sealed class Game
         _session.SetPhase(GameSessionPhase.Battle);
         _soundEffects.Play(SoundEffect.BattleStart);
         _renderer.DrawBattleStarted(enemy);
-        var started = _battleSystem.StartBattle(SelectedCharacter, enemy);
+        var started = _battleSystem.StartBattle(battleCharacter, enemy);
         _activeBattleState = started.State;
         PresentBattleEntries(started.Entries);
         ContinueActiveBattle();
@@ -3074,12 +3106,17 @@ public sealed class Game
         {
             if (state.IsPlayerTurn)
             {
-                _pendingBattleSupportDamage = TryPartyMembersActInLeaderBattle(state.Enemy);
+                var battleCharacter = state.Player;
+                _pendingBattleSupportDamage = TryPartyMembersActInBattle(battleCharacter, state.Enemy);
                 if (_pendingBattleSupportDamage < state.CurrentEnemyHitPoints)
                 {
                     _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
-                        GetAllowedBattleActions(state.Enemy));
-                    DrawBattleActionPrompt(state.Enemy);
+                        GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
+                    if (battleCharacter == SelectedCharacter)
+                        DrawBattleActionPrompt(state.Enemy);
+                    else
+                        _renderer.DrawInventoryMessage($"Globális szünet: várakozás {battleCharacter.Name} " +
+                            "távoli harci akciójára.", ConsoleColor.Yellow);
                     return;
                 }
                 var supportStep = _battleSystem.Advance(state, supportDamage: _pendingBattleSupportDamage);
@@ -3088,7 +3125,7 @@ public sealed class Game
                 continue;
             }
 
-            var supportDamage = TryPartyMembersActInLeaderBattle(state.Enemy);
+            var supportDamage = TryPartyMembersActInBattle(state.Player, state.Enemy);
             var step = _battleSystem.Advance(state, supportDamage: supportDamage);
             PresentBattleEntries(step.Entries);
         }
@@ -3108,9 +3145,15 @@ public sealed class Game
     {
         if (_activeBattleState is not { IsCompleted: true, Result: { } result } state) return;
         var enemy = state.Enemy;
+        var battleCharacter = state.Player;
         _session.EndBattle(state.Id);
         _activeBattleState = null;
         _pendingBattleSupportDamage = 0;
+        if (battleCharacter != SelectedCharacter)
+        {
+            FinishRemoteBattle(state, result, battleCharacter, enemy);
+            return;
+        }
         var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
 
@@ -3154,6 +3197,48 @@ public sealed class Game
         _renderer.DrawGameOver(SelectedCharacter.Name);
         _gameOver = true;
         _session.SetPhase(GameSessionPhase.GameOver);
+    }
+
+    private void FinishRemoteBattle(BattleState state, BattleResult result, LiveCharacter battleCharacter,
+        Enemy enemy)
+    {
+        var needLoss = DrainNeedsAfterBattle(battleCharacter, enemy.Definition.StrengthTier);
+        _renderer.DrawBattleResult(result, enemy);
+        if (result.PlayerWon)
+        {
+            AwardBossKey(enemy);
+            _soundEffects.Play(SoundEffect.Victory);
+            var experienceAwards = DistributeExperience(battleCharacter, enemy.Definition.ExperienceReward);
+            _maze.ReplaceEnemyWithCorpse(enemy);
+            _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
+            _renderer.DrawNpcBattleSummary(
+                $"{battleCharacter.Name} távoli csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
+                $"{FormatExperienceAwards(experienceAwards)}; 🍖💧 -{needLoss}.", ConsoleColor.Green);
+            var levelUps = experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive).ToList();
+            // Az első vertical slice-ban a perk-/varázsválasztás még a host konzolján történik.
+            foreach (var award in levelUps) ResolvePerkOffers(award.Character, award.Result);
+        }
+        else
+        {
+            _soundEffects.Play(SoundEffect.Defeat);
+            var member = _maze.PartyMembers.FirstOrDefault(candidate => candidate.Character == battleCharacter);
+            if (member is not null)
+            {
+                _maze.ReplacePartyMemberWithCorpse(member);
+                _nextPartyMoves.Remove(member);
+            }
+            _session.ReleaseCharacterControl(battleCharacter.Id);
+            _renderer.DrawNpcBattleSummary(
+                $"{battleCharacter.Name} elesett a(z) {enemy.Name} elleni távoli csatában {result.Rounds} kör után. " +
+                $"A vendég megfigyelő marad; 🍖💧 -{needLoss}.", ConsoleColor.Red);
+        }
+
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        InitializeEnemyMoveSchedule(DateTime.UtcNow);
+        _battleStarted = false;
+        _session.SetPhase(GameSessionPhase.Exploration);
+        _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
     }
 
     private void DrainNeeds()
