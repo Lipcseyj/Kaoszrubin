@@ -20,7 +20,7 @@ public sealed class GameSaveService
     public string Save(GameSaveData state, CharacterRoster roster)
     {
         Directory.CreateDirectory(_saveDirectory);
-        state.Version = 1;
+        state.Version = 2;
         state.SavedAt = DateTimeOffset.Now;
         state.RosterJson = _characterSaveService.Serialize(roster);
         var safeName = string.Concat(state.MainCharacterName.Select(character =>
@@ -35,7 +35,8 @@ public sealed class GameSaveService
     {
         var state = JsonSerializer.Deserialize<GameSaveData>(File.ReadAllText(path), JsonOptions)
             ?? throw new InvalidOperationException("A mentés üres vagy sérült.");
-        if (state.Version != 1) throw new InvalidOperationException($"Nem támogatott mentésverzió: {state.Version}.");
+        if (state.Version is not (1 or 2))
+            throw new InvalidOperationException($"Nem támogatott mentésverzió: {state.Version}.");
         if (string.IsNullOrWhiteSpace(state.RosterJson)) throw new InvalidOperationException("A mentés nem tartalmaz karakteradatokat.");
         var roster = _characterSaveService.Deserialize(state.RosterJson);
         if (roster.SelectedCharacter is null) throw new InvalidOperationException("A mentés nem tartalmaz érvényes főkaraktert.");
@@ -51,7 +52,8 @@ public sealed class GameSaveService
             try
             {
                 var state = JsonSerializer.Deserialize<GameSaveData>(File.ReadAllText(path), JsonOptions);
-                if (state is not null) results.Add(new GameSaveInfo(path, state.MainCharacterName, state.MazeLevel, state.SavedAt));
+                if (state is not null) results.Add(new GameSaveInfo(path, state.MainCharacterName, state.MazeLevel,
+                    state.SavedAt, state.IsCoopGame));
             }
             catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException) { }
         }
@@ -60,17 +62,20 @@ public sealed class GameSaveService
 }
 
 public sealed record LoadedGameSave(string Path, CharacterRoster Roster, GameSaveData State);
-public sealed record GameSaveInfo(string Path, string MainCharacterName, int MazeLevel, DateTimeOffset SavedAt);
+public sealed record GameSaveInfo(string Path, string MainCharacterName, int MazeLevel, DateTimeOffset SavedAt,
+    bool IsCoopGame);
 
 public sealed class GameSaveData
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
     public DateTimeOffset SavedAt { get; set; }
     public string MainCharacterName { get; set; } = string.Empty;
     public string RosterJson { get; set; } = string.Empty;
     public int MazeLevel { get; set; } = 1;
     public List<string> CollectedBossKeyIds { get; set; } = [];
     public List<string> SeenBossIds { get; set; } = [];
+    public bool IsCoopGame { get; set; }
+    public List<Guid> RemoteCharacterIds { get; set; } = [];
     public Position PlayerPosition { get; set; }
     public Direction LeaderFacing { get; set; } = Direction.Right;
     public List<Position> LeaderTrail { get; set; } = [];

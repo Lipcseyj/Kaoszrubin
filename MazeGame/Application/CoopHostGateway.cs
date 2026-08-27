@@ -19,19 +19,21 @@ public sealed class CoopHostGateway
     private readonly SessionReplicationPublisher _publisher;
     private readonly Func<string, LiveCharacter>? _deserializeCharacter;
     private readonly Action<LiveCharacter>? _registerCharacter;
+    private readonly CharacterId? _reservedRemoteCharacterId;
     private readonly Dictionary<string, PlayerId> _playersByConnection = new(StringComparer.Ordinal);
     private readonly Dictionary<PlayerId, string> _connectionsByPlayer = [];
     private readonly Queue<CoopOutgoingMessage> _pendingMessages = [];
 
     public CoopHostGateway(GameSession session, SessionHandshakeService handshake,
         SessionReplicationPublisher publisher, Func<string, LiveCharacter>? deserializeCharacter = null,
-        Action<LiveCharacter>? registerCharacter = null)
+        Action<LiveCharacter>? registerCharacter = null, CharacterId? reservedRemoteCharacterId = null)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
         _handshake = handshake ?? throw new ArgumentNullException(nameof(handshake));
         _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
         _deserializeCharacter = deserializeCharacter;
         _registerCharacter = registerCharacter;
+        _reservedRemoteCharacterId = reservedRemoteCharacterId;
         _session.EventPublished += HandleSessionEvent;
     }
 
@@ -154,6 +156,15 @@ public sealed class CoopHostGateway
         try
         {
             var character = _deserializeCharacter(request.CharacterData);
+            if (_reservedRemoteCharacterId is { } reserved)
+            {
+                if (character.Id != reserved)
+                    return Single(connectionId, new CharacterControlResult(authenticatedPlayerId, reserved, false,
+                        "Ez a coop mentés másik vendégkaraktert vár."));
+                var assigned = _session.TryAssignRemoteControl(authenticatedPlayerId, reserved, out var assignmentError);
+                return Single(connectionId, new CharacterControlResult(authenticatedPlayerId, reserved,
+                    assigned, assigned ? null : assignmentError));
+            }
             var accepted = _session.TryJoinRemoteCharacter(authenticatedPlayerId, character, out var error);
             if (accepted) _registerCharacter(character);
             return Single(connectionId, new CharacterControlResult(authenticatedPlayerId, character.Id,

@@ -276,6 +276,48 @@ public sealed class MainMenu
         }
     }
 
+    private void StartHostedLoadedGame(LoadedGameSave loaded)
+    {
+        _characterRoster = loaded.Roster;
+        var leader = _characterRoster.SelectedCharacter
+            ?? throw new InvalidOperationException("A mentés nem tartalmaz party-leadert.");
+        var reservedGuid = loaded.State.RemoteCharacterIds.FirstOrDefault();
+        var reservedId = new CharacterId(reservedGuid);
+        var reservedCharacter = _characterRoster.Party.Members.FirstOrDefault(character => character.Id == reservedId);
+        if (reservedGuid == Guid.Empty || reservedCharacter is null || reservedCharacter == leader)
+            throw new InvalidOperationException("A coop mentés nem tartalmaz érvényes vendégkarakter-slotot.");
+
+        var game = new Game(_gameData, _characterRoster, leader, _gameSaveService, loaded.State);
+        var host = CoopHostRuntime.StartAsync(game.Session, _applicationVersion, _catalogHash,
+                _characterSaveService.DeserializeCharacter, character => _characterRoster.Add(character),
+                reservedRemoteCharacterId: reservedId)
+            .GetAwaiter().GetResult();
+        try
+        {
+            DrawMainBackdrop();
+            DrawSidePanel("COOP MENTÉS VÁRÓSZOBÁJA",
+            [
+                $"Mentés: {loaded.State.MazeLevel}. pálya", string.Empty,
+                "Csatlakozási cím:", host.ConnectionHint, string.Empty,
+                $"Leader: {leader.Name}",
+                $"Várt vendég: {reservedCharacter.Name}",
+                $"{reservedCharacter.CharacterClass.Name}, {reservedCharacter.Level}. szint", string.Empty,
+                "A mentett CharacterId egyezése szükséges.",
+                "Esc) Lobby bezárása"
+            ]);
+            while (game.Session.ConnectedRemoteCharacterCount == 0)
+            {
+                if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.Escape) return;
+                Thread.Sleep(50);
+            }
+            ResetConsole();
+            WriteLine($"{reservedCharacter.Name} visszacsatlakozott. A mentett játék indul…", ConsoleColor.Green);
+            Thread.Sleep(500);
+            game.Run(host);
+        }
+        finally { host.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+    }
+
     private void ManageCharacters()
     {
         var selectedIndex = _characterRoster.SelectedCharacter is null ? 0 :
@@ -400,7 +442,7 @@ public sealed class MainMenu
             {
                 var save = saves[index];
                 var marker = index == selectedIndex ? ">" : " ";
-                lines.Add($"{marker} {save.MainCharacterName} — {save.MazeLevel}. pálya");
+                lines.Add($"{marker} {(save.IsCoopGame ? "[COOP] " : string.Empty)}{save.MainCharacterName} — {save.MazeLevel}. pálya");
                 lines.Add($"  {save.SavedAt:yyyy-MM-dd HH:mm}");
             }
             if (lastVisible < saves.Count) lines.Add($"  ↓ még {saves.Count - lastVisible} mentés");
@@ -417,11 +459,34 @@ public sealed class MainMenu
                     try
                     {
                         var loaded = _gameSaveService.Load(saves[selectedIndex].Path);
-                        _characterRoster = loaded.Roster;
-                        new Game(_gameData, _characterRoster, _characterRoster.SelectedCharacter!, _gameSaveService, loaded.State).Run();
+                        var loadAsCoopHost = false;
+                        if (loaded.State.IsCoopGame && loaded.State.RemoteCharacterIds.Count > 0)
+                        {
+                            DrawMainBackdrop();
+                            DrawSidePanel("COOP MENTÉS BETÖLTÉSE",
+                            [
+                                $"{loaded.State.MainCharacterName} — {loaded.State.MazeLevel}. pálya", string.Empty,
+                                "S) Betöltés egyjátékos módban",
+                                "C) Betöltés coop hostként", string.Empty,
+                                "Esc) Vissza"
+                            ]);
+                            var modeKey = Console.ReadKey(intercept: true).Key;
+                            if (modeKey == ConsoleKey.Escape) break;
+                            loadAsCoopHost = modeKey == ConsoleKey.C;
+                            if (!loadAsCoopHost && modeKey != ConsoleKey.S) break;
+                        }
+                        if (loadAsCoopHost)
+                            StartHostedLoadedGame(loaded);
+                        else
+                        {
+                            _characterRoster = loaded.Roster;
+                            new Game(_gameData, _characterRoster, _characterRoster.SelectedCharacter!,
+                                _gameSaveService, loaded.State).Run();
+                        }
                         return;
                     }
-                    catch (Exception exception) when (exception is IOException or JsonException or InvalidOperationException)
+                    catch (Exception exception) when (exception is IOException or JsonException or InvalidOperationException or
+                                                       System.Net.Sockets.SocketException)
                     {
                         DrawMainBackdrop();
                         DrawSidePanel("BETÖLTÉSI HIBA", ["A mentés nem tölthető be:", exception.Message, string.Empty, "Bármely billentyű: vissza"]);

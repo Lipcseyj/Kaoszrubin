@@ -39,7 +39,8 @@ public sealed class CoopHostRuntime : ICoopHostLoop, IAsyncDisposable
 
     public static async Task<CoopHostRuntime> StartAsync(GameSession session, string applicationVersion,
         string catalogHash, Func<string, LiveCharacter>? deserializeCharacter = null,
-        Action<LiveCharacter>? registerCharacter = null, int port = 5127,
+        Action<LiveCharacter>? registerCharacter = null, CharacterId? reservedRemoteCharacterId = null,
+        int port = 5127,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -47,7 +48,7 @@ public sealed class CoopHostRuntime : ICoopHostLoop, IAsyncDisposable
         var publisher = new SessionReplicationPublisher();
         var gateway = new CoopHostGateway(session,
             new SessionHandshakeService(session, applicationVersion, catalogHash), publisher,
-            deserializeCharacter, registerCharacter);
+            deserializeCharacter, registerCharacter, reservedRemoteCharacterId);
         var server = await CoopSignalRServer.StartAsync(gateway, $"http://0.0.0.0:{port}", cancellationToken);
         return new CoopHostRuntime(gateway, server, CreateConnectionHint(port));
     }

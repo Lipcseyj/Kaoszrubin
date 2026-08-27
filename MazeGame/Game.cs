@@ -807,9 +807,15 @@ public sealed class Game
 
     private GameSaveData CreateGameSaveData()
     {
-        return _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
+        var state = _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
             _leaderTrail, _partyHoldingPosition, _partyRegrouping, _hasRestedThisLevel, _partyScatterUntil,
             _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
+        state.IsCoopGame = _activeCoopHost is not null;
+        state.RemoteCharacterIds = _session.CharacterControls
+            .Where(control => control.AssignedPlayerId is not null &&
+                              control.AssignedPlayerId != _session.HostPlayerId)
+            .Select(control => control.CharacterId.Value).ToList();
+        return state;
     }
 
     private void RestoreGame(GameSaveData state)

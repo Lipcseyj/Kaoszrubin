@@ -16,6 +16,7 @@ var tests = new (string Name, Action Run)[]
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
     ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),
+    ("A vendég visszaveheti a coop mentésben foglalt karakterét", RemotePlayerCanReclaimSavedCharacter),
     ("A vendég saját ajtó- és keresési akciót küldhet", RemotePlayerCanIssueCharacterAction),
     ("A vendég térképről varázslási parancsot küldhet", RemotePlayerCanCastExplorationSpell),
     ("A vendég saját karakterével fogadói vásárlást küldhet", RemotePlayerCanPurchaseAtInn),
@@ -135,6 +136,23 @@ static void RemotePlayerCanJoinOwnCharacter()
     Assert(response.Accepted && response.CharacterId == joined.Id && registered == joined &&
            party.Members.Contains(joined) && session.IsHumanControlled(joined.Id),
         "A host nem vette fel és nem rendelte a távoli játékoshoz a kliens karakterét.");
+}
+
+static void RemotePlayerCanReclaimSavedCharacter()
+{
+    var (session, _, companion) = CreateSession();
+    var hash = CatalogFingerprint.Compute(Encoding.UTF8.GetBytes("catalog"));
+    var registered = false;
+    var gateway = new CoopHostGateway(session, new SessionHandshakeService(session, "1.0.0", hash),
+        new SessionReplicationPublisher(), _ => companion, _ => registered = true, companion.Id);
+    var helloMessage = gateway.HandleIncoming("saved-guest", CoopProtocolJson.Encode(
+        new ClientHello(SessionProtocol.Version, "1.0.0", hash, "Vendég"))).Single();
+    var hello = (ServerHello)CoopProtocolJson.Decode(helloMessage.WireMessage);
+    var resultMessage = gateway.HandleIncoming("saved-guest", CoopProtocolJson.Encode(
+        new JoinCharacterRequest(hello.PlayerId!.Value, "saved-character"))).Single();
+    var result = (CharacterControlResult)CoopProtocolJson.Decode(resultMessage.WireMessage);
+    Assert(result.Accepted && result.CharacterId == companion.Id && session.IsHumanControlled(companion.Id) &&
+           !registered, "A mentett vendégslot nem a host meglévő karakterpéldányához lett rendelve.");
 }
 
 static void RemotePlayerCanIssueCharacterAction()
