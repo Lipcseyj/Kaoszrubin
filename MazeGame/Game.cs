@@ -2216,9 +2216,10 @@ public sealed class Game
                 ? $" Szint: {experienceResult.PreviousLevel}→{experienceResult.CurrentLevel}; +{experienceResult.VitalityGained} max HP" +
                   (experienceResult.ManaGained > 0 ? $"; +{experienceResult.ManaGained} max manna." : ".")
                 : string.Empty;
+            var spellText = spellsCast > 0 ? $"📜 {spellsCast}; " : string.Empty;
             var summary = $"{member.Character.Name} automatikus csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
                 $"HP: {startingNpcHp}→{member.Character.CurrentVitality}; ellenfél HP: {startingEnemyHp}→0; " +
-                $"Varázslatok: {spellsCast}; XP: {FormatExperienceAwards(experienceAwards)}.{levelText} " +
+                $"{spellText}XP: {FormatExperienceAwards(experienceAwards)}.{levelText} " +
                 $"🍖💧 -{needLoss}.{newStatusText}{knightProtectionText}";
             _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Green);
             RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Green);
@@ -2228,9 +2229,10 @@ public sealed class Game
             _soundEffects.Play(SoundEffect.Defeat);
             _maze.ReplacePartyMemberWithCorpse(member);
             _nextPartyMoves.Remove(member);
+            var spellText = spellsCast > 0 ? $" 📜 {spellsCast};" : string.Empty;
             var summary = $"{member.Character.Name} elesett a(z) {enemy.Name} elleni automatikus csatában " +
                 $"{result.Rounds} kör után. HP: {startingNpcHp}→0; ellenfél HP: {startingEnemyHp}→" +
-                $"{enemy.CurrentHitPoints}; Varázslatok: {spellsCast}; 🍖💧 -{needLoss}.{newStatusText}{knightProtectionText}";
+                $"{enemy.CurrentHitPoints};{spellText} 🍖💧 -{needLoss}.{newStatusText}{knightProtectionText}";
             _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Red);
             RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Red);
         }
@@ -3823,7 +3825,7 @@ public sealed class Game
     private void PlayBattleRoundSound(BattleLogEntry entry)
     {
         if (entry.Kind is not (BattleLogKind.PlayerAttack or BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)) return;
-        _soundEffects.Play(entry.Message.Contains("NEM TALÁL", StringComparison.OrdinalIgnoreCase)
+        _soundEffects.PlayAndWait(entry.Message.Contains("💨", StringComparison.Ordinal)
             ? SoundEffect.Miss
             : SoundEffect.Hit);
     }

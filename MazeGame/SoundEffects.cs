@@ -56,17 +56,32 @@ public sealed class SoundEffects
 
     public void Play(SoundEffect effect)
     {
-        var now = DateTime.UtcNow;
-        var cooldown = effect.ToString().Contains("Step")  ? TimeSpan.FromMilliseconds(1500) : TimeSpan.FromMilliseconds(75);
-        lock (_sync)
-        {
-            if (_lastPlayed.TryGetValue(effect, out var lastPlayed) && now - lastPlayed < cooldown) return;
-            _lastPlayed[effect] = now;
-        }
-        _ = Task.Run(() => PlayCore(effect));
+        if (!TryReservePlayback(effect)) return;
+        _ = Task.Run(() => PlayCore(effect, waitForCompletion: false));
     }
 
-    private void PlayCore(SoundEffect effect)
+    /// <summary>Harci visszajelzés, amelyet a következő naplósor előtt teljesen lejátszunk.</summary>
+    public void PlayAndWait(SoundEffect effect)
+    {
+        if (!TryReservePlayback(effect)) return;
+        PlayCore(effect, waitForCompletion: true);
+    }
+
+    private bool TryReservePlayback(SoundEffect effect)
+    {
+        var now = DateTime.UtcNow;
+        var cooldown = effect.ToString().Contains("Step")
+            ? TimeSpan.FromMilliseconds(1500)
+            : TimeSpan.FromMilliseconds(75);
+        lock (_sync)
+        {
+            if (_lastPlayed.TryGetValue(effect, out var lastPlayed) && now - lastPlayed < cooldown) return false;
+            _lastPlayed[effect] = now;
+            return true;
+        }
+    }
+
+    private void PlayCore(SoundEffect effect, bool waitForCompletion)
     {
         try
         {
@@ -75,8 +90,8 @@ public sealed class SoundEffects
             var name = ToFileName(effect);
             var mp3Path = Path.Combine(_soundsDirectory, name + ".mp3");
             var wavPath = Path.Combine(_soundsDirectory, name + ".wav");
-            if (File.Exists(mp3Path)) PlayMp3OnStaThread(mp3Path, ToneSettings[effect].Duration);
-            else if (!PlaySound(wavPath, IntPtr.Zero, SoundAsync | SoundFilename))
+            if (File.Exists(mp3Path)) PlayMp3(mp3Path, ToneSettings[effect].Duration, waitForCompletion);
+            else if (!PlaySound(wavPath, IntPtr.Zero, SoundFilename | (waitForCompletion ? 0 : SoundAsync)))
                 _reportFailure?.Invoke($"Hangeffekt nem indítható: {wavPath}");
         }
         catch (Exception exception)
@@ -86,13 +101,13 @@ public sealed class SoundEffects
     }
 
     [SupportedOSPlatform("windows")]
-    private void PlayMp3OnStaThread(string path, int fallbackDuration)
+    private void PlayMp3(string path, int fallbackDuration, bool waitForCompletion)
     {
         // Use mciSendString to play MP3s instead of automating Windows Media Player via COM.
         // Using the COM-based Windows Media Player control caused RCW lifetime issues
         // when the player was accessed from managed threads. mciSendString avoids COM
         // RCW lifetime management and is sufficient for short sound effects.
-        _ = Task.Run(() =>
+        void PlayCore()
         {
             try
             {
@@ -108,7 +123,10 @@ public sealed class SoundEffects
             {
                 _reportFailure?.Invoke($"MP3 lejátszási hiba: {exception.Message}");
             }
-        });
+        }
+
+        if (waitForCompletion) PlayCore();
+        else _ = Task.Run(PlayCore);
     }
 
     [DllImport("winmm.dll", CharSet = CharSet.Auto)]

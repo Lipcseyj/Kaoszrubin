@@ -273,7 +273,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (!hit.Hit)
         {
             context.ConsecutivePlayerHits = 0;
-            return AttackResult.Miss($"találat: {hit.Description} → NEM TALÁL.{strengthHitText}");
+            return AttackResult.Miss($"találat: {hit.Description} → 💨.{strengthHitText}");
         }
 
         var baseDamage = weapon?.Damage is { } range ? Roll(range) : Roll(new ValueRange(1, 2));
@@ -333,7 +333,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             ? $"páncél {armor} → {effectiveArmor} (⚒️ páncéltörés)"
             : $"páncél {armor}";
         return AttackResult.HitFor(damage,
-            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description} → TALÁL;{strengthHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplier} - {armorText} = {damage}.{noteText}",
+            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description} → 🎯;{strengthHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplier} - {armorText} = {damage}.{noteText}",
             criticalMultiplier > 1);
     }
 
@@ -346,16 +346,16 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     private AttackResult EnemyAttack(EnemyDefinition attacker, LiveCharacter defender, BattleRuntimeContext context, int attackerSpeed)
     {
-        if (context.ChallengeAvailable) { context.ChallengeAvailable = false; return AttackResult.Miss("Kihívás: az első támadás automatikusan elhibázza."); }
-        if (defender.HasPerk(PerkIds.PriestSanctuary) && _random.NextDouble() < 0.20) return AttackResult.Miss("Szentély: az ellenfél elveszíti a támadását.");
-        if (defender.HasSpellEffect(ActiveSpellEffectType.Invisibility)) return AttackResult.Miss("Láthatatlanság: az ellenfél nem talál célpontot.");
+        if (context.ChallengeAvailable) { context.ChallengeAvailable = false; return AttackResult.Miss("💨 Kihívás: az első támadás automatikusan elhibázza."); }
+        if (defender.HasPerk(PerkIds.PriestSanctuary) && _random.NextDouble() < 0.20) return AttackResult.Miss("💨 Szentély: az ellenfél elveszíti a támadását.");
+        if (defender.HasSpellEffect(ActiveSpellEffectType.Invisibility)) return AttackResult.Miss("💨 Láthatatlanság: az ellenfél nem talál célpontot.");
         var hit = HitRoll(attackerSpeed, defender.Abilities.Dexterity, 0, false);
-        if (!hit.Hit) return AttackResult.Miss($"találat: {hit.Description} → NEM TALÁL.");
+        if (!hit.Hit) return AttackResult.Miss($"találat: {hit.Description} → 💨.");
         var criticalMultiplier = hit.NaturalRoll == 20 ? 2 : 1;
         if (criticalMultiplier == 1 && defender.HasPerk(PerkIds.ThiefEvasion) && _random.NextDouble() < 0.15)
         {
             context.ShadowStepReady = defender.HasPerk(PerkIds.ThiefShadowStep);
-            return AttackResult.Miss("Kitérés: a találat elkerülve." + (context.ShadowStepReady ? " Árnyéklépés aktiválva." : string.Empty));
+            return AttackResult.Miss("💨 Kitérés: a találat elkerülve." + (context.ShadowStepReady ? " Árnyéklépés aktiválva." : string.Empty));
         }
 
         var strength = attacker.Strength ?? 1;
@@ -395,7 +395,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var monsterBonusText = monsterBonusDamage == 0 ? string.Empty : $" + szörnyképesség {monsterBonusDamage}";
         var statusText = ApplyMonsterStatusAbilities(attacker, defender);
         return AttackResult.HitFor(damage,
-            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description} → TALÁL; sebzés: (Erő {strength} + dobás {randomDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damage}.{statusText}",
+            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description} → 🎯; sebzés: (Erő {strength} + dobás {randomDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damage}.{statusText}",
             criticalMultiplier > 1);
     }
 
