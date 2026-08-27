@@ -686,7 +686,11 @@ public sealed class Game
         _session.SetPhase(GameSessionPhase.Exploration);
         _session.SynchronizeParty();
         _hasRestedThisLevel = false;
-        foreach (var character in CharacterRoster.Party.Members) character.ResetLevelResurrection();
+        foreach (var character in CharacterRoster.Party.Members)
+        {
+            character.ResetLevelResurrection();
+            character.ResetLevelRelentless();
+        }
         var configuration = MazeLevelConfigurations.Get(_mazeLevel);
         ResolvedEnemyEncounter ResolveEncounter(EnemyEncounterConfiguration encounter) => new(
             encounter.GroupCount,
@@ -1507,6 +1511,7 @@ public sealed class Game
         var chance = Math.Max(0, baseChance);
         if (CharacterClassRules.IsThief(character.CharacterClass.Id))
             chance = chance * _gameData.LootRules.ThiefChanceMultiplierPercent / 100;
+        if (character.Race.HasTrait(RaceTraits.KeenSenses)) chance += 15;
         chance += character.Abilities.Intelligence * _gameData.LootRules.IntelligenceChanceBonusPerPoint;
         return Math.Clamp(chance, 0, 100);
     }
@@ -4051,28 +4056,15 @@ public sealed class Game
     private IReadOnlyList<PerkOffer> CreatePerkOffers(LiveCharacter character, LevelUpResult result)
     {
         var offers = new List<PerkOffer>();
-        var milestones = new[] { 5, 15, 25 };
-        for (var tier = 1; tier <= milestones.Length; tier++)
+        for (var tier = 1; tier <= 3; tier++)
         {
             if (character.Perks.Any(perk => perk.Tier == tier)) continue;
-            var firstLevel = milestones[tier - 1] - 2;
-            var lastLevel = milestones[tier - 1] + 2;
-            if (result.CurrentLevel < firstLevel) continue;
+            var milestone = PerkProgressionRules.TriggerLevel(character.Race, tier);
+            if (result.CurrentLevel < milestone) continue;
 
-            int? triggerLevel = null;
-            for (var level = Math.Max(result.PreviousLevel + 1, firstLevel); level <= Math.Min(result.CurrentLevel, lastLevel); level++)
-            {
-                if (level == lastLevel || _random.NextDouble() < 0.40)
-                {
-                    triggerLevel = level;
-                    break;
-                }
-            }
-
-            // A funkció bevezetése előtt az ablakon túljutott mentések a következő szintlépéskor megkapják a kimaradt választást.
-            if (triggerLevel is null && result.CurrentLevel >= lastLevel) triggerLevel = result.CurrentLevel;
-            if (triggerLevel is not null)
-                offers.Add(new PerkOffer(tier, triggerLevel.Value, _gameData.GetPerkChoices(character.CharacterClass.Id, tier)));
+            // Régi mentésnél a következő szintlépés pótolja a már elhagyott, de ki nem választott tehetséget.
+            var triggerLevel = result.PreviousLevel < milestone ? milestone : result.CurrentLevel;
+            offers.Add(new PerkOffer(tier, triggerLevel, _gameData.GetPerkChoices(character.CharacterClass.Id, tier)));
         }
         return offers;
     }

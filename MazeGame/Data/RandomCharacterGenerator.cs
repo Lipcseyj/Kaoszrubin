@@ -38,15 +38,16 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         for (var attempt = 0; attempt < 2_000; attempt++)
         {
             var race = _gameData.Races[_random.Next(_gameData.Races.Count)];
+            var adaptableAbilityBonus = RandomAdaptableAbilityBonus(race);
             var rolledAbilities = RollAbilities();
-            var finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
+            var finalAbilities = (rolledAbilities + race.AbilityBonuses + adaptableAbilityBonus).Clamp(1, 13);
             var eligibleClasses = _gameData.CharacterClasses.Where(candidate => finalAbilities.MeetsMinimum(candidate.MinimumAbilities)).ToList();
             if (eligibleClasses.Count == 0) continue;
             var characterClass = eligibleClasses[_random.Next(eligibleClasses.Count)];
             var name = ChooseName(characterClass.Id, usedNames);
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
                 _random.Next(1, 16), _random.Next(1, 16), _gameData,
-                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)]);
+                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)], adaptableAbilityBonus);
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
             SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
             return character;
@@ -59,12 +60,13 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         for (var attempt = 0; attempt < 2_000; attempt++)
         {
             var race = _gameData.Races[_random.Next(_gameData.Races.Count)];
+            var adaptableAbilityBonus = RandomAdaptableAbilityBonus(race);
             var rolledAbilities = RollAbilities();
-            var finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
+            var finalAbilities = (rolledAbilities + race.AbilityBonuses + adaptableAbilityBonus).Clamp(1, 13);
             if (!finalAbilities.MeetsMinimum(characterClass.MinimumAbilities)) continue;
             var character = LiveCharacterFactory.Create(ChooseName(characterClass.Id, usedNames), race, characterClass,
                 rolledAbilities, _random.Next(1, 16), _random.Next(1, 16), _gameData,
-                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)]);
+                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)], adaptableAbilityBonus);
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
             SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
             return character;
@@ -79,13 +81,14 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         for (var attempt = 0; attempt < 2_000; attempt++)
         {
             var race = _gameData.Races[_random.Next(_gameData.Races.Count)];
+            var adaptableAbilityBonus = RandomAdaptableAbilityBonus(race);
             var rolledAbilities = RollAbilities();
-            var finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
+            var finalAbilities = (rolledAbilities + race.AbilityBonuses + adaptableAbilityBonus).Clamp(1, 13);
             if (!finalAbilities.MeetsMinimum(characterClass.MinimumAbilities)) continue;
 
             var character = LiveCharacterFactory.Create(ChooseName(characterClass.Id, usedNames), race,
                 characterClass, rolledAbilities, _random.Next(1, 16), _random.Next(1, 16), _gameData,
-                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)]);
+                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)], adaptableAbilityBonus);
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
             SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
             var maximumLevel = Math.Max(1, _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(1).Max());
@@ -176,15 +179,10 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
 
     private void AddRandomPerks(LiveCharacter character)
     {
-        var milestones = new[] { 5, 15, 25 };
-        for (var tier = 1; tier <= milestones.Length; tier++)
+        for (var tier = 1; tier <= 3; tier++)
         {
-            var first = milestones[tier - 1] - 2;
-            var last = milestones[tier - 1] + 2;
-            if (character.Level < first) continue;
-            var attempts = Math.Min(character.Level, last) - first + 1;
-            var earned = character.Level >= last || Enumerable.Range(0, attempts).Any(_ => _random.NextDouble() < 0.40);
-            if (!earned) continue;
+            var milestone = PerkProgressionRules.TriggerLevel(character.Race, tier);
+            if (character.Level < milestone) continue;
             var choices = _gameData.GetPerkChoices(character.CharacterClass.Id, tier);
             var perk = choices[_random.Next(choices.Count)];
             if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
@@ -284,6 +282,18 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             values[available[_random.Next(available.Length)]]++;
         }
         return new PrimaryAbilities(values[0], values[1], values[2], values[3]);
+    }
+
+    private PrimaryAbilities RandomAdaptableAbilityBonus(RaceDefinition race)
+    {
+        if (!race.HasTrait(RaceTraits.Adaptable)) return PrimaryAbilities.Zero;
+        return _random.Next(4) switch
+        {
+            0 => new PrimaryAbilities(1, 0, 0, 0),
+            1 => new PrimaryAbilities(0, 1, 0, 0),
+            2 => new PrimaryAbilities(0, 0, 1, 0),
+            _ => new PrimaryAbilities(0, 0, 0, 1)
+        };
     }
 
     private int RollAbilityPointTotal()

@@ -76,7 +76,10 @@ public static class CsvGameDataLoader
 
         return new GameDataCatalog
         {
-            Races = races.Select(race => new RaceDefinition(race.Id, race.Name, raceBonuses.GetValueOrDefault(race.Id, PrimaryAbilities.Zero))).ToList(),
+            Races = races.Select(race => race with
+            {
+                AbilityBonuses = raceBonuses.GetValueOrDefault(race.Id, PrimaryAbilities.Zero)
+            }).ToList(),
             CharacterClasses = characterClasses.Select(characterClass => new CharacterClassDefinition(
                 characterClass.Id,
                 characterClass.Name,
@@ -136,7 +139,7 @@ public static class CsvGameDataLoader
         switch (section)
         {
             case DataSection.Races:
-                races.Add(new RaceDefinition(id, name, PrimaryAbilities.Zero));
+                races.Add(new RaceDefinition(id, name, PrimaryAbilities.Zero, ParseRaceTraits(Cell(cells, 2))));
                 break;
             case DataSection.CharacterClasses:
                 characterClasses.Add(new CharacterClassDefinition(id, name, PrimaryAbilities.Zero, CharacterClassRules.UsesMana(id), Double(cells, 2) ?? 1));
@@ -437,6 +440,19 @@ public static class CsvGameDataLoader
         return DiceExpression.TryParse(value, out var dice)
             ? dice
             : throw new InvalidOperationException($"A(z) '{id}' kockaképlete hibás: '{value}'.");
+    }
+
+    private static RaceTraits ParseRaceTraits(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return RaceTraits.None;
+        var result = RaceTraits.None;
+        foreach (var name in value.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!Enum.TryParse<RaceTraits>(name, true, out var trait) || trait == RaceTraits.None)
+                throw new InvalidDataException($"Ismeretlen faji tulajdonság: {name}.");
+            result |= trait;
+        }
+        return result;
     }
 
     private static MonsterAbilityEffect ParseMonsterAbilityEffect(string[] cells, int index) =>

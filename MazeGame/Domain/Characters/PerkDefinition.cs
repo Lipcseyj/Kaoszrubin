@@ -8,6 +8,17 @@ public sealed record PerkDefinition(string Id, string Name, string Description, 
 /// <summary>Egy szintlépéskor felkínált, egymást kizáró tehetségpár.</summary>
 public sealed record PerkOffer(int Tier, int TriggerLevel, IReadOnlyList<PerkDefinition> Choices);
 
+public static class PerkProgressionRules
+{
+    private static readonly int[] Milestones = [5, 15, 25];
+
+    public static int TriggerLevel(RaceDefinition race, int tier)
+    {
+        if (tier is < 1 or > 3) throw new ArgumentOutOfRangeException(nameof(tier));
+        return tier == 1 && race.HasTrait(RaceTraits.Adaptable) ? 4 : Milestones[tier - 1];
+    }
+}
+
 /// <summary>A beépített tehetséghatások stabil CSV-azonosítói.</summary>
 public static class PerkIds
 {

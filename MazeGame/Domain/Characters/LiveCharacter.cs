@@ -68,6 +68,7 @@ public sealed class LiveCharacter
     public int Experience { get; private set; }
     public int DivineSpellCycle => _divineSpellCycle;
     public bool WasResurrectedThisLevel { get; private set; }
+    public bool WasRelentlessUsedThisLevel { get; private set; }
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
     public ArmorDefinition? Armor { get; private set; }
     public IReadOnlyList<MagicItemDefinition?> MagicItems => _magicItems;
@@ -196,6 +197,9 @@ public sealed class LiveCharacter
     public void MarkResurrectedThisLevel() => WasResurrectedThisLevel = true;
     public void ResetLevelResurrection() => WasResurrectedThisLevel = false;
     public void RestoreLevelResurrection(bool used) => WasResurrectedThisLevel = used;
+    public void ResetLevelRelentless() => WasRelentlessUsedThisLevel = false;
+    public void MarkRelentlessUsedThisLevel() => WasRelentlessUsedThisLevel = true;
+    public void RestoreLevelRelentless(bool used) => WasRelentlessUsedThisLevel = used;
 
     public bool EquipWeapon(int slotIndex, WeaponDefinition? weapon) =>
         SetInventoryItem(InventorySlotKind.Weapon, slotIndex, weapon);
@@ -528,7 +532,8 @@ public sealed class LiveCharacter
     public LevelUpResult AddExperience(int amount, IReadOnlyDictionary<int, int> experienceByLevel,
         ValueRange vitalityGrowth, ValueRange manaGrowth, Random random)
     {
-        Experience += Math.Max(0, amount);
+        var awardedExperience = Math.Max(0, amount);
+        Experience += awardedExperience;
         var previousLevel = Level;
         var bonuses = new List<LevelUpBonus>();
         while (experienceByLevel.ContainsKey(Level + 1) && Experience >= GetRequiredExperience(Level + 1, experienceByLevel))
@@ -547,7 +552,7 @@ public sealed class LiveCharacter
         }
         CurrentVitality = Math.Min(CurrentVitality, MaximumVitality);
         CurrentMana = Math.Min(CurrentMana, MaximumMana);
-        return new LevelUpResult(amount, previousLevel, Level, bonuses);
+        return new LevelUpResult(awardedExperience, previousLevel, Level, bonuses);
     }
 
     public int? GetNextLevelExperience(IReadOnlyDictionary<int, int> experienceByLevel) =>

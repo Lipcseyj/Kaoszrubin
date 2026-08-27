@@ -85,18 +85,24 @@ internal sealed class DoorInteractionController
         }
 
         var strengthRoll = _random.Next(1, 21);
-        if (strengthRoll <= selectedCharacter.Abilities.Strength)
+        var racialStrengthBonus = selectedCharacter.Race.HasTrait(RaceTraits.Relentless) ? 2 : 0;
+        var effectiveStrength = selectedCharacter.Abilities.Strength + racialStrengthBonus;
+        if (strengthRoll <= effectiveStrength)
         {
             maze.SetDoorState(door, DoorState.Smashed);
             RefreshAfterDoorChanged(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter,
-                $"Erőpróba sikerült: 1d20({strengthRoll}) ≤ Erő {selectedCharacter.Abilities.Strength}. Az ajtó bezúzva!" + costMessage,
+                $"Erőpróba sikerült: 1d20({strengthRoll}) ≤ Erő {selectedCharacter.Abilities.Strength}" +
+                (racialStrengthBonus > 0 ? $" + faji bónusz {racialStrengthBonus}" : string.Empty) +
+                ". Az ajtó bezúzva!" + costMessage,
                 ConsoleColor.Green);
         }
         else
         {
             _renderer.RefreshCharacterSheet(selectedCharacter);
             _renderer.DrawDoorMessage(
-                $"Erőpróba sikertelen: 1d20({strengthRoll}) > Erő {selectedCharacter.Abilities.Strength}. Az ajtó zárva marad." + costMessage,
+                $"Erőpróba sikertelen: 1d20({strengthRoll}) > Erő {selectedCharacter.Abilities.Strength}" +
+                (racialStrengthBonus > 0 ? $" + faji bónusz {racialStrengthBonus}" : string.Empty) +
+                ". Az ajtó zárva marad." + costMessage,
                 ConsoleColor.Red);
         }
     }

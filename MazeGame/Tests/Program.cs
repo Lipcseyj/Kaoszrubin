@@ -26,6 +26,8 @@ var tests = new (string Name, Action Run)[]
     ("A vendég válaszolhat a saját szintlépési promptjára", RemotePlayerCanResolveLevelUpPrompt),
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
+    ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
+    ("Az alkalmazkodó ember választott képességbónuszt kap", AdaptableRaceGainsChosenAbility),
     ("A duplikált parancs elutasításra kerül", DuplicateCommandIsRejected),
     ("Harc közben nem futhat felfedezési parancs", ExplorationCommandIsRejectedDuringBattle),
     ("A CharacterId mentés után is stabil", CharacterIdSurvivesSerialization),
@@ -1342,6 +1344,31 @@ static LiveCharacter CreateCharacter(string name, int vitality = 20)
     var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
     var characterClass = new CharacterClassDefinition("C001", "Harcos", PrimaryAbilities.Zero, false, 1.0);
     return new LiveCharacter(name, race, characterClass, abilities, vitality, 0, 1, 0);
+}
+
+static void RaceTraitsAreLoadedFromData()
+{
+    var dataPath = Path.Combine(AppContext.BaseDirectory, "adatok.csv");
+    var catalog = CsvGameDataLoader.Load(dataPath);
+    Assert(catalog.GetRace("R001").HasTrait(RaceTraits.Adaptable), "Az ember Alkalmazkodó tulajdonsága hiányzik.");
+    Assert(catalog.GetRace("R002").HasTrait(RaceTraits.Resilient), "A törp Rendíthetetlen tulajdonsága hiányzik.");
+    Assert(catalog.GetRace("R003").HasTrait(RaceTraits.KeenSenses), "Az elf Éles érzékek tulajdonsága hiányzik.");
+    Assert(catalog.GetRace("R004").HasTrait(RaceTraits.Relentless), "A félork Könyörtelen tulajdonsága hiányzik.");
+}
+
+static void AdaptableRaceGainsChosenAbility()
+{
+    var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero, RaceTraits.Adaptable);
+    var characterClass = new CharacterClassDefinition("C001", "Harcos", PrimaryAbilities.Zero, false, 1.0);
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var character = LiveCharacterFactory.Create("Ember", race, characterClass,
+        new PrimaryAbilities(5, 5, 5, 5), 1, 1, data, ConsoleColor.Cyan,
+        new PrimaryAbilities(0, 0, 0, 1));
+    Assert(character.Abilities == new PrimaryAbilities(5, 5, 5, 6),
+        "Az Alkalmazkodó tulajdonság nem a kiválasztott képességre adta a +1-et.");
+    Assert(PerkProgressionRules.TriggerLevel(race, 1) == 4 &&
+           PerkProgressionRules.TriggerLevel(race, 2) == 15,
+        "Az Alkalmazkodó ember tehetségszintjei hibásak.");
 }
 
 static BattleSystem CreateBattleSystem(int seed) => new(new Random(seed),

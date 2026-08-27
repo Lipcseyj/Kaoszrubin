@@ -394,10 +394,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                                     statusId is CharacterStatusIds.Poisoned or CharacterStatusIds.Diseased or CharacterStatusIds.Bleeding;
             var evilWardImmunity = IsUnholy(enemy) && defender.HasSpellEffect(ActiveSpellEffectType.ProtectionFromEvil) &&
                                    statusId is CharacterStatusIds.Poisoned or CharacterStatusIds.Diseased;
+            var racialResistance = defender.Race.HasTrait(RaceTraits.Resilient) &&
+                                   statusId is CharacterStatusIds.Poisoned or CharacterStatusIds.Diseased &&
+                                   _random.Next(100) < 50;
             if (statusId is null || statusId == CharacterStatusIds.Bleeding &&
                 defender.HasSpellEffect(ActiveSpellEffectType.BleedingImmunity) || sanctuaryImmunity || evilWardImmunity ||
                 _random.Next(100) >= ability.ChancePercent ||
                 !_statuses.TryGetValue(statusId, out var status)) continue;
+            if (racialResistance)
+            {
+                applied.Add($"⛰️ {defender.Race.Name} ellenállt: {status.Name}");
+                continue;
+            }
             var wasActive = defender.HasStatus(statusId);
             defender.AddStatus(status);
             applied.Add($"{status.Icon} {status.Name}" + (wasActive ? " időtartama újraindult" : " felkerült"));
@@ -434,6 +442,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             context.LastFortressAvailable = false;
             player.ReceiveDamage(Math.Max(0, player.CurrentVitality - 1));
             return "Utolsó erőd: 1 HP-n talpon marad.";
+        }
+        if (damage >= player.CurrentVitality && player.Race.HasTrait(RaceTraits.Relentless) &&
+            !player.WasRelentlessUsedThisLevel)
+        {
+            player.ReceiveDamage(Math.Max(0, player.CurrentVitality - 1));
+            player.MarkRelentlessUsedThisLevel();
+            return $"🔥 Könyörtelen: {player.Name} 1 HP-n túléli a halálos csapást.";
         }
         if (damage >= player.CurrentVitality && player.HasPerk(PerkIds.PriestResurrection) &&
             !player.WasResurrectedThisLevel)

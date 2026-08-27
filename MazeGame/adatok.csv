@@ -1,9 +1,9 @@
 #Fajok
-Id,Név
-R001,Ember
-R002,Törp
-R003,Elf
-R004,Félork
+Id,Név,Tulajdonság
+R001,Ember,Adaptable
+R002,Törp,Resilient
+R003,Elf,KeenSenses
+R004,Félork,Relentless
 
 #Osztályok
 Id,Név,XP módosító
@@ -455,7 +455,7 @@ PERK-C005-1A,Gyógyító kegyelem,Minden gyógyítás további 25% HP-t állít 
 PERK-C005-1B,Áldott fegyver,+2 találat és +2 sebzés élőholt ellenfelek ellen.,C005,1
 PERK-C005-2A,Szentély,20% eséllyel az ellenfél elveszíti a támadását.,C005,2
 PERK-C005-2B,Hitforrás,+12 maximális manna és csatánként 5 manna visszatöltés.,C005,2
-PERK-C005-3A,Feltámadás,Naponta egyszer teljes HP-val visszatérhet a halálból.,C005,3
+PERK-C005-3A,Feltámadás,Pályánként egyszer teljes HP-val visszatérhet a halálból.,C005,3
 PERK-C005-3B,Isteni ítélet,Minden ötödik papi varázslat kétszeres hatású és nem fogyaszt mannát.,C005,3
 PERK-C006-1A,Arkán fókusz,+2 jár a mágikus találati próbákhoz.,C006,1
 PERK-C006-1B,Mannatartalék,+15 maximális manna.,C006,1
@@ -671,9 +671,9 @@ P020,Igazi feltámasztás,5,50,Egy elesett társat teljes HP-val fél mannával 
 #Faji képességbónuszok
 FajId,Erő,Ügyesség,Egészség,Intelligencia
 R001,0,0,0,0
-R002,1,-2,3,-2
-R003,-2,2,-2,2
-R004,3,-1,1,-3
+R002,1,-1,2,-1
+R003,-1,2,-1,1
+R004,2,-1,1,-2
 
 #Osztály képességminimumok
 OsztályId,Erő,Ügyesség,Egészség,Intelligencia

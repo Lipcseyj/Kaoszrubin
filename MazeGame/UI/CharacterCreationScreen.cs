@@ -22,6 +22,8 @@ public sealed class CharacterCreationScreen
         if (name is null) return;
         var race = ChooseRace();
         if (race is null) return;
+        var adaptableAbilityBonus = ChooseAdaptableAbilityBonus(race);
+        if (adaptableAbilityBonus is null) return;
 
         while (true)
         {
@@ -31,14 +33,15 @@ public sealed class CharacterCreationScreen
             do
             {
                 rolledAbilities = RollAbilities();
-                finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
+                finalAbilities = (rolledAbilities + race.AbilityBonuses + adaptableAbilityBonus.Value).Clamp(1, 13);
                 eligibleClasses = EligibleClasses(finalAbilities);
             } while (eligibleClasses.Count == 0);
 
             var vitalityBonus = _random.Next(1, 16);
             var manaBonus = _random.Next(1, 16);
 
-            DrawAbilityRoll(name, race, rolledAbilities, finalAbilities, vitalityBonus, manaBonus, eligibleClasses);
+            DrawAbilityRoll(name, race, adaptableAbilityBonus.Value, rolledAbilities, finalAbilities,
+                vitalityBonus, manaBonus, eligibleClasses);
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.R) continue;
@@ -50,7 +53,8 @@ public sealed class CharacterCreationScreen
             var color = ChooseColor(characterClass);
             if (color is null) continue;
 
-            var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities, vitalityBonus, manaBonus, _gameData, color.Value);
+            var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
+                vitalityBonus, manaBonus, _gameData, color.Value, adaptableAbilityBonus.Value);
             if (character.IsSpellcaster) ChooseStartingSpells(character);
             _characterRoster.Add(character);
             ShowCreatedCharacter(character);
@@ -69,13 +73,14 @@ public sealed class CharacterCreationScreen
         {
             for (var attempt = 0; attempt < 1_000; attempt++)
             {
+                var adaptableAbilityBonus = RandomAdaptableAbilityBonus(race);
                 var rolledAbilities = RollAbilities();
-                var finalAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
+                var finalAbilities = (rolledAbilities + race.AbilityBonuses + adaptableAbilityBonus).Clamp(1, 13);
                 var characterClass = _gameData.CharacterClasses.FirstOrDefault(candidate => finalAbilities.MeetsMinimum(candidate.MinimumAbilities));
                 if (characterClass is null) continue;
 
                 var character = LiveCharacterFactory.Create(nameFactory(characterClass), race, characterClass, rolledAbilities,
-                    _random.Next(1, 16), _random.Next(1, 16), _gameData, RandomCharacterColor());
+                    _random.Next(1, 16), _random.Next(1, 16), _gameData, RandomCharacterColor(), adaptableAbilityBonus);
                 SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
                 return character;
             }
@@ -181,7 +186,7 @@ public sealed class CharacterCreationScreen
             for (var index = 0; index < _gameData.Races.Count; index++)
             {
                 var race = _gameData.Races[index];
-                Console.WriteLine($"{index + 1} - {race.Name} ({FormatAbilities(race.AbilityBonuses)})");
+                Console.WriteLine($"{index + 1} - {race.Name} ({FormatAbilities(race.AbilityBonuses)}) — {FormatRaceTraits(race)}");
             }
             Console.WriteLine("Esc - vissza");
 
@@ -221,7 +226,46 @@ public sealed class CharacterCreationScreen
         }
     }
 
-    private void DrawAbilityRoll(string name, RaceDefinition race, PrimaryAbilities rolled, PrimaryAbilities final,
+    private static PrimaryAbilities? ChooseAdaptableAbilityBonus(RaceDefinition race)
+    {
+        if (!race.HasTrait(RaceTraits.Adaptable)) return PrimaryAbilities.Zero;
+        while (true)
+        {
+            Console.Clear();
+            Console.WriteLine("=== ALKALMAZKODÓ KÉPESSÉGBÓNUSZ ===");
+            Console.WriteLine("Válassz egy képességet, amely +1 bónuszt kap:");
+            Console.WriteLine("1 - Erő");
+            Console.WriteLine("2 - Ügyesség");
+            Console.WriteLine("3 - Egészség");
+            Console.WriteLine("4 - Intelligencia");
+            Console.WriteLine("Esc - vissza");
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Escape) return null;
+            if (!TryGetNumberKey(key, out var choice) || choice > 4) continue;
+            return choice switch
+            {
+                1 => new PrimaryAbilities(1, 0, 0, 0),
+                2 => new PrimaryAbilities(0, 1, 0, 0),
+                3 => new PrimaryAbilities(0, 0, 1, 0),
+                _ => new PrimaryAbilities(0, 0, 0, 1)
+            };
+        }
+    }
+
+    private PrimaryAbilities RandomAdaptableAbilityBonus(RaceDefinition race)
+    {
+        if (!race.HasTrait(RaceTraits.Adaptable)) return PrimaryAbilities.Zero;
+        return _random.Next(4) switch
+        {
+            0 => new PrimaryAbilities(1, 0, 0, 0),
+            1 => new PrimaryAbilities(0, 1, 0, 0),
+            2 => new PrimaryAbilities(0, 0, 1, 0),
+            _ => new PrimaryAbilities(0, 0, 0, 1)
+        };
+    }
+
+    private void DrawAbilityRoll(string name, RaceDefinition race, PrimaryAbilities adaptableAbilityBonus,
+        PrimaryAbilities rolled, PrimaryAbilities final,
         int vitalityBonus, int manaBonus, IReadOnlyList<CharacterClassDefinition> eligibleClasses)
     {
         Console.Clear();
@@ -231,6 +275,9 @@ public sealed class CharacterCreationScreen
         var rolledPointTotal = rolled.Strength + rolled.Dexterity + rolled.Health + rolled.Intelligence;
         Console.WriteLine($"Dobott értékek (összesen {rolledPointTotal}): {FormatAbilities(rolled)}");
         Console.WriteLine($"Faji módosító: {FormatAbilities(race.AbilityBonuses)}");
+        if (race.HasTrait(RaceTraits.Adaptable))
+            Console.WriteLine($"Választott emberi bónusz: {FormatAbilities(adaptableAbilityBonus)}");
+        Console.WriteLine($"Faji tulajdonság: {FormatRaceTraits(race)}");
         Console.WriteLine($"Végső értékek: {FormatAbilities(final)}");
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine($"Választható osztályok: {string.Join(", ", eligibleClasses.Select(characterClass => characterClass.Name))}");
@@ -296,6 +343,15 @@ public sealed class CharacterCreationScreen
         Console.ResetColor();
         Console.SetCursorPosition(returnLeft, returnTop);
     }
+
+    private static string FormatRaceTraits(RaceDefinition race) => race.Traits switch
+    {
+        RaceTraits.Adaptable => "Alkalmazkodó: választott képesség +1, első tehetség a 4. szinten",
+        RaceTraits.Resilient => "Rendíthetetlen: 50% mérgezés- és betegség-ellenállás",
+        RaceTraits.KeenSenses => "Éles érzékek: +15% keresési esély",
+        RaceTraits.Relentless => "Könyörtelen: +2 ajtóbetörés, pályánként egyszer 1 HP-n túlél",
+        _ => "nincs különleges tulajdonság"
+    };
 
     private static string FormatAbilities(PrimaryAbilities abilities) =>
         $"Erő {abilities.Strength}, Ügyesség {abilities.Dexterity}, Egészség {abilities.Health}, Intelligencia {abilities.Intelligence}";
