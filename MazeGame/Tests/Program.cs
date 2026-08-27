@@ -61,6 +61,7 @@ var tests = new (string Name, Action Run)[]
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
     ("A kompakt party státusz HP-t és manát százalékosan mutat", CompactPartyStatusShowsResources),
+    ("Az ablakkeret-katalógus méretezhető és konfigurálható", WindowFrameCatalogIsResizableAndConfigured),
     ("A vendég snapshot kasztbetűt és karakterszínt őriz", GuestAvatarUsesClassGlyphAndCharacterColor),
     ("A vendég nem rajzol újra puszta snapshot-sorszám változásra", GuestRedrawIgnoresReplicationSequences),
     ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories),
@@ -1433,6 +1434,22 @@ static void CompactPartyStatusShowsResources()
         "A party státusz nem százalékosan mutatja a HP-t és a manát.");
     Assert(status.VitalityColor == ConsoleColor.Red && status.ManaColor == ConsoleColor.Cyan,
         "A party státusz erőforrásszínei nem követik a százalékos küszöböket.");
+}
+
+static void WindowFrameCatalogIsResizableAndConfigured()
+{
+    foreach (var style in Enum.GetValues<WindowFrameStyle>())
+    {
+        Assert(WindowFrameCatalog.Horizontal(style, 52).Length == 52,
+            $"A(z) {style} keret felső sora nem tartja a kért szélességet.");
+        Assert(WindowFrameCatalog.Horizontal(style, 27, bottom: true).Length == 27,
+            $"A(z) {style} keret alsó sora nem tartja a kért szélességet.");
+    }
+    Assert(WindowFrameConfiguration.For(FramedWindow.MainMenu) == WindowFrameStyle.Ruby &&
+           WindowFrameConfiguration.For(FramedWindow.SpellSelector) == WindowFrameStyle.Magic &&
+           WindowFrameConfiguration.For(FramedWindow.CreaturePortrait) == WindowFrameStyle.Stone &&
+           WindowFrameConfiguration.For(FramedWindow.Storyline) == WindowFrameStyle.Stone,
+        "Az első körös ablak–keret alapbeállítások hibásak.");
 }
 
 static void RaceTraitsAreLoadedFromData()

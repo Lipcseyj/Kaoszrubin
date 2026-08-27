@@ -939,15 +939,20 @@ public sealed class CoopGuestScreen
                   ?? ConsoleColor.Red
                 : own?.Color ?? ConsoleColor.Cyan;
             var pictureTop = Math.Max(0, panel.Length - 7);
-            panel[pictureTop] = new GuestTextLine("┌────────── KÉP ──────────┐", ConsoleColor.DarkCyan, ConsoleColor.Black);
+            var pictureStyle = WindowFrameConfiguration.For(FramedWindow.CreaturePortrait);
+            panel[pictureTop] = new GuestTextLine(WindowFrameCatalog.Horizontal(pictureStyle,
+                CharacterSheetPanel.Width), ConsoleColor.DarkCyan, ConsoleColor.Black);
             for (var index = 0; index < 5; index++)
             {
                 var line = index < portrait.Lines.Count ? portrait.Lines[index] : string.Empty;
-                panel[pictureTop + index + 1] = new GuestTextLine($"│{CenterPortrait(line, portrait.CanvasWidth)}│",
+                var sides = WindowFrameCatalog.Sides(pictureStyle, index, 5);
+                var interiorWidth = CharacterSheetPanel.Width - sides.Left.Length - sides.Right.Length;
+                panel[pictureTop + index + 1] = new GuestTextLine(
+                    sides.Left + CenterPortrait(line, portrait.CanvasWidth, interiorWidth) + sides.Right,
                     portraitColor, ConsoleColor.Black);
             }
-            panel[pictureTop + 6] = new GuestTextLine("└─────────────────────────┘", ConsoleColor.DarkCyan,
-                ConsoleColor.Black);
+            panel[pictureTop + 6] = new GuestTextLine(WindowFrameCatalog.Horizontal(pictureStyle,
+                CharacterSheetPanel.Width, bottom: true), ConsoleColor.DarkCyan, ConsoleColor.Black);
         }
 
         var messages = _messageLog.ToArray();
@@ -1158,17 +1163,7 @@ public sealed class CoopGuestScreen
             var footer = lines[^1];
             lines = lines.Take(Math.Max(0, maxRows - 1)).Append(footer).ToList();
         }
-        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
-        var top = Math.Max(0, (grid.GetLength(1) - lines.Count - 2) / 2);
-        DrawOverlayText(grid, left, top, "╔" + new string('═', width - 2) + "╗", ConsoleColor.Magenta);
-        for (var row = 0; row < lines.Count; row++)
-        {
-            var value = lines[row].Text.Length > width - 4 ? lines[row].Text[..(width - 4)] : lines[row].Text;
-            DrawOverlayText(grid, left, top + row + 1, "║" + new string(' ', width - 2) + "║", ConsoleColor.Magenta);
-            DrawOverlayText(grid, left + 2, top + row + 1, value.PadRight(width - 4), lines[row].Color);
-        }
-        DrawOverlayText(grid, left, top + lines.Count + 1, "╚" + new string('═', width - 2) + "╝",
-            ConsoleColor.Magenta);
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, width);
     }
 
     private void ApplyNarrativeUi(GuestMapCell[,] grid, SessionSnapshot snapshot, PlayerId? playerId)
@@ -1199,17 +1194,7 @@ public sealed class CoopGuestScreen
             var footer = lines[^1];
             lines = lines.Take(maxContentRows - 1).Append(footer).ToList();
         }
-        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
-        var top = Math.Max(0, (grid.GetLength(1) - lines.Count - 2) / 2);
-        DrawOverlayText(grid, left, top, "╔" + new string('═', width - 2) + "╗", ConsoleColor.Magenta);
-        for (var row = 0; row < lines.Count; row++)
-        {
-            var value = lines[row].Text.Length > width - 4 ? lines[row].Text[..(width - 4)] : lines[row].Text;
-            DrawOverlayText(grid, left, top + row + 1, "║" + new string(' ', width - 2) + "║", ConsoleColor.Magenta);
-            DrawOverlayText(grid, left + 2, top + row + 1, value.PadRight(width - 4), lines[row].Color);
-        }
-        DrawOverlayText(grid, left, top + lines.Count + 1, "╚" + new string('═', width - 2) + "╝",
-            ConsoleColor.Magenta);
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, width, FramedWindow.Storyline);
     }
 
     private void ApplySpellPreparationUi(GuestMapCell[,] grid, SessionSnapshot snapshot,
@@ -1280,21 +1265,28 @@ public sealed class CoopGuestScreen
     }
 
     private static void DrawGuestOverlay(GuestMapCell[,] grid, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
-        ConsoleColor borderColor, int desiredWidth)
+        ConsoleColor borderColor, int desiredWidth, FramedWindow? framedWindow = null)
     {
         var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
         var maximumRows = Math.Max(1, grid.GetLength(1) - 2);
         var visible = lines.Take(maximumRows).ToArray();
         var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
         var top = Math.Max(0, (grid.GetLength(1) - visible.Length - 2) / 2);
-        DrawOverlayText(grid, left, top, "╔" + new string('═', width - 2) + "╗", borderColor);
+        var style = framedWindow is { } window
+            ? WindowFrameConfiguration.For(window)
+            : WindowFrameStyle.Double;
+        DrawOverlayText(grid, left, top, WindowFrameCatalog.Horizontal(style, width), borderColor);
         for (var row = 0; row < visible.Length; row++)
         {
+            var sides = WindowFrameCatalog.Sides(style, row, visible.Length);
             var value = visible[row].Text.Length > width - 4 ? visible[row].Text[..(width - 4)] : visible[row].Text;
-            DrawOverlayText(grid, left, top + row + 1, "║" + new string(' ', width - 2) + "║", borderColor);
+            DrawOverlayText(grid, left, top + row + 1,
+                sides.Left + new string(' ', width - sides.Left.Length - sides.Right.Length) + sides.Right,
+                borderColor);
             DrawOverlayText(grid, left + 2, top + row + 1, value.PadRight(width - 4), visible[row].Color);
         }
-        DrawOverlayText(grid, left, top + visible.Length + 1, "╚" + new string('═', width - 2) + "╝", borderColor);
+        DrawOverlayText(grid, left, top + visible.Length + 1,
+            WindowFrameCatalog.Horizontal(style, width, bottom: true), borderColor);
     }
 
     private void ApplyBattleSpellUi(GuestMapCell[,] grid, SessionSnapshot snapshot,
@@ -1340,21 +1332,7 @@ public sealed class CoopGuestScreen
                 return (text, color);
             }));
 
-        const int desiredWidth = 76;
-        var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
-        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
-        var top = Math.Max(1, (grid.GetLength(1) - lines.Count - 2) / 2);
-        DrawOverlayText(grid, left, top, "╔" + new string('═', width - 2) + "╗", ConsoleColor.Magenta);
-        for (var row = 0; row < lines.Count; row++)
-        {
-            var text = lines[row].Text.Length > width - 4 ? lines[row].Text[..(width - 4)] : lines[row].Text;
-            DrawOverlayText(grid, left, top + row + 1, "║", ConsoleColor.Magenta);
-            DrawOverlayText(grid, left + 1, top + row + 1, new string(' ', width - 2), ConsoleColor.Gray);
-            DrawOverlayText(grid, left + 2, top + row + 1, text.PadRight(width - 4), lines[row].Color);
-            DrawOverlayText(grid, left + width - 1, top + row + 1, "║", ConsoleColor.Magenta);
-        }
-        DrawOverlayText(grid, left, top + lines.Count + 1, "╚" + new string('═', width - 2) + "╝",
-            ConsoleColor.Magenta);
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, 76, FramedWindow.SpellSelector);
     }
 
     private static void DrawOverlayText(GuestMapCell[,] grid, int x, int y, string text, ConsoleColor color)
@@ -1469,9 +1447,8 @@ public sealed class CoopGuestScreen
             grid[position.X, position.Y] = new GuestMapCell(value, color, background);
     }
 
-    private static string CenterPortrait(string text, int canvasWidth)
+    private static string CenterPortrait(string text, int canvasWidth, int interiorWidth = 25)
     {
-        const int interiorWidth = 25;
         var canvas = text.PadRight(canvasWidth);
         var leftPadding = Math.Max(0, (interiorWidth - canvasWidth) / 2);
         return (new string(' ', leftPadding) + canvas).PadRight(interiorWidth);

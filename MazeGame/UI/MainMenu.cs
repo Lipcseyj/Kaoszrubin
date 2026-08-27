@@ -816,27 +816,29 @@ public sealed class MainMenu
     private void DrawSidePanel(string title, IReadOnlyList<string> lines)
     {
         var left = Math.Min(SideMenuLeft, Math.Max(0, Console.WindowWidth - SideMenuWidth - 1));
-        var right = left + SideMenuWidth - 2;
         var top = Math.Min(SideMenuTop, Math.Max(0, Console.WindowHeight - 3));
+        var style = WindowFrameConfiguration.For(FramedWindow.MainMenu);
         Console.ForegroundColor = ConsoleColor.Magenta;
         Console.SetCursorPosition(left, top);
-        Console.Write("╔" + new string('═', SideMenuWidth - 2) + "╗");
+        Console.Write(WindowFrameCatalog.Horizontal(style, SideMenuWidth));
         var visibleLineCount = Math.Min(lines.Count, Math.Max(1, Console.WindowHeight - top - 2));
         for (var i = 0; i < visibleLineCount; i++)
         {
             var line = lines[i] ?? string.Empty;
-            var content = TruncateByDisplayWidth(line, SideMenuWidth - 4);
+            var sides = WindowFrameCatalog.Sides(style, i, visibleLineCount);
+            var interiorWidth = SideMenuWidth - sides.Left.Length - sides.Right.Length;
+            var contentWidth = Math.Max(0, interiorWidth - 2);
+            var content = TruncateByDisplayWidth(line, contentWidth);
             Console.SetCursorPosition(left, top + i + 1);
             Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.Write("║ ");
+            Console.Write(sides.Left + " ");
             Console.ForegroundColor = MainMenuLineColor(line);
-            Console.Write(PadRightDisplay(content, SideMenuWidth - 4));
+            Console.Write(PadRightDisplay(content, contentWidth));
             Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.SetCursorPosition(right, top + i + 1);
-            Console.Write(" ║");
+            Console.Write(" " + sides.Right);
         }
         Console.SetCursorPosition(left, top + visibleLineCount + 1);
-        Console.Write("╚" + new string('═', SideMenuWidth - 2) + "╝");
+        Console.Write(WindowFrameCatalog.Horizontal(style, SideMenuWidth, bottom: true));
         Console.ResetColor();
     }
 
@@ -867,7 +869,7 @@ public sealed class MainMenu
 
     private static ConsoleColor MainMenuLineColor(string line)
     {
-        if (line.StartsWith("Aktív:", StringComparison.Ordinal)) return ConsoleColor.Yellow;
+        if (line.StartsWith("Aktív", StringComparison.Ordinal)) return ConsoleColor.Yellow;
         if (line.StartsWith("1)", StringComparison.Ordinal)) return ConsoleColor.DarkGreen;
         if (line.StartsWith("2)", StringComparison.Ordinal)) return ConsoleColor.Green;
         if (line.StartsWith("3)", StringComparison.Ordinal)) return ConsoleColor.Cyan;

@@ -268,7 +268,8 @@ public sealed class ConsoleRenderer
             lines.Add((string.Empty, ConsoleColor.Gray));
         }
         lines.Add(("❖  Nyomj Entert a történet folytatásához...  ❖", ConsoleColor.Green));
-        DrawSpellCastingOverlay(InnRumorFrameWidth, lines, maze, fogOfWar, playerPosition);
+        DrawSpellCastingOverlay(InnRumorFrameWidth, lines, maze, fogOfWar, playerPosition,
+            FramedWindow.Storyline);
     }
 
     public void CloseStoryOverlay() => RestoreSpellCastingOverlay();
@@ -1121,7 +1122,8 @@ public sealed class ConsoleRenderer
                     if (spells.Count > MaximumVisibleSpellCount)
                         lines.Add(($"{firstVisibleIndex + 1}–{firstVisibleIndex + visibleSpells.Count} / {spells.Count}", ConsoleColor.DarkCyan));
                 }
-                DrawSpellCastingOverlay(SpellCastingOverlayFrameWidth, lines, maze, fogOfWar, playerPosition);
+                DrawSpellCastingOverlay(SpellCastingOverlayFrameWidth, lines, maze, fogOfWar, playerPosition,
+                    FramedWindow.SpellSelector);
                 var key = Console.ReadKey(intercept: true);
                 if (key.Key == ConsoleKey.F1 && (key.Modifiers & ConsoleModifiers.Shift) != 0)
                 {
@@ -1167,7 +1169,7 @@ public sealed class ConsoleRenderer
     }
 
     private void DrawSpellCastingOverlay(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
-        Maze maze, FogOfWar fogOfWar, Position playerPosition)
+        Maze maze, FogOfWar fogOfWar, Position playerPosition, FramedWindow? framedWindow = null)
     {
         var frameHeight = lines.Count + FrameBorderWidth;
         var left = Math.Max(0, (PlayfieldWidth - frameWidth) / FrameBorderWidth);
@@ -1185,25 +1187,30 @@ public sealed class ConsoleRenderer
                 }
         }
 
+        var style = framedWindow is { } window
+            ? WindowFrameConfiguration.For(window)
+            : WindowFrameStyle.Double;
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-        WriteAt(left, top, "╔" + new string('═', frameWidth - FrameBorderWidth) + "╗");
+        WriteAt(left, top, WindowFrameCatalog.Horizontal(style, frameWidth));
         var contentWidth = frameWidth - CenteredFrameHorizontalPadding * FrameBorderWidth;
         for (var index = 0; index < lines.Count; index++)
         {
+            var sides = WindowFrameCatalog.Sides(style, index, lines.Count);
             SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-            WriteAt(left, top + index + 1, "║");
+            WriteAt(left, top + index + 1, sides.Left);
             SetColors(ConsoleColor.Gray, ConsoleColor.Black);
-            WriteAt(left + 1, top + index + 1, new string(' ', frameWidth - FrameBorderWidth));
+            WriteAt(left + sides.Left.Length, top + index + 1,
+                new string(' ', frameWidth - sides.Left.Length - sides.Right.Length));
             SetColors(lines[index].Color, ConsoleColor.Black);
             var text = lines[index].Text.Length <= contentWidth
                 ? lines[index].Text
                 : lines[index].Text[..contentWidth];
             WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1, text.PadRight(contentWidth));
             SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-            WriteAt(left + frameWidth - 1, top + index + 1, "║");
+            WriteAt(left + frameWidth - sides.Right.Length, top + index + 1, sides.Right);
         }
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-        WriteAt(left, top + lines.Count + 1, "╚" + new string('═', frameWidth - FrameBorderWidth) + "╝");
+        WriteAt(left, top + lines.Count + 1, WindowFrameCatalog.Horizontal(style, frameWidth, bottom: true));
     }
 
     /// <summary>
@@ -1828,20 +1835,25 @@ public sealed class ConsoleRenderer
                 _ => ConsoleColor.Magenta
             }
             : _displayedCharacter?.Color ?? ConsoleColor.Cyan;
-        WriteSheetLine(PicturePanelTop, "┌────────── KÉP ──────────┐", ConsoleColor.DarkCyan);
+        var style = WindowFrameConfiguration.For(FramedWindow.CreaturePortrait);
+        WriteSheetLine(PicturePanelTop, WindowFrameCatalog.Horizontal(style, RightSheetWidth), ConsoleColor.DarkCyan);
         for (var index = 0; index < PicturePanelHeight; index++)
         {
             var line = index < portrait.Lines.Count ? portrait.Lines[index] : string.Empty;
-            WriteSheetLine(PicturePanelTop + index + FirstMessageLineOffset, $"│{CenterPanelText(line, portrait.CanvasWidth)}│", color);
+            var sides = WindowFrameCatalog.Sides(style, index, PicturePanelHeight);
+            var interiorWidth = RightSheetWidth - sides.Left.Length - sides.Right.Length;
+            WriteSheetLine(PicturePanelTop + index + FirstMessageLineOffset,
+                sides.Left + CenterPanelText(line, portrait.CanvasWidth, interiorWidth) + sides.Right, color);
         }
-        WriteSheetLine(PicturePanelBottom, "└─────────────────────────┘", ConsoleColor.DarkCyan);
+        WriteSheetLine(PicturePanelBottom, WindowFrameCatalog.Horizontal(style, RightSheetWidth, bottom: true),
+            ConsoleColor.DarkCyan);
     }
 
-    private static string CenterPanelText(string text, int canvasWidth)
+    private static string CenterPanelText(string text, int canvasWidth, int interiorWidth = PortraitInteriorWidth)
     {
         var canvas = text.PadRight(canvasWidth);
-        var leftPadding = Math.Max(0, (PortraitInteriorWidth - canvasWidth) / FrameBorderWidth);
-        return (new string(' ', leftPadding) + canvas).PadRight(PortraitInteriorWidth);
+        var leftPadding = Math.Max(0, (interiorWidth - canvasWidth) / FrameBorderWidth);
+        return (new string(' ', leftPadding) + canvas).PadRight(interiorWidth);
     }
 
     /// <summary>
