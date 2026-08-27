@@ -20,13 +20,16 @@ public sealed record WorldEnemySnapshot(WorldEntityId EntityId, string Definitio
     EnemyGroupRole GroupRole, IReadOnlyList<string> ActiveEffectTypes, ConsoleColor Color = ConsoleColor.Red,
     int SymbolCodePoint = 'e');
 
-public sealed record WorldChestSnapshot(WorldEntityId EntityId, Position Position);
+public sealed record WorldChestSnapshot(WorldEntityId EntityId, Position Position, int SymbolCodePoint = '▣',
+    ConsoleColor ForegroundColor = ConsoleColor.Yellow, ConsoleColor BackgroundColor = ConsoleColor.Black);
 
 public sealed record WorldCorpseSnapshot(WorldEntityId EntityId, Position Position, string FormerName,
-    CharacterId? PartyCharacterId, string? EnemyDefinitionId, bool IsSearched);
+    CharacterId? PartyCharacterId, string? EnemyDefinitionId, bool IsSearched, int SymbolCodePoint = '†',
+    ConsoleColor ForegroundColor = ConsoleColor.DarkRed, ConsoleColor BackgroundColor = ConsoleColor.Black);
 
 public sealed record WorldGroundPileSnapshot(WorldEntityId EntityId, Position Position, long Revision,
-    IReadOnlyList<WorldItemSnapshot> Items);
+    IReadOnlyList<WorldItemSnapshot> Items, int SymbolCodePoint = '◆',
+    ConsoleColor ForegroundColor = ConsoleColor.Cyan, ConsoleColor BackgroundColor = ConsoleColor.Black);
 
 public sealed record WorldItemSnapshot(string Category, string DefinitionId, string Name, int Charges,
     int MaximumCharges);
@@ -83,15 +86,16 @@ public static class WorldSnapshotProjector
                 }, enemy.Symbol.Value);
         }).ToArray();
         var chests = maze.TreasureChests.Where(chest => IsVisible(chest.Position))
-            .Select(chest => new WorldChestSnapshot(chest.Id, chest.Position)).ToArray();
+            .Select(chest => new WorldChestSnapshot(chest.Id, chest.Position, chest.Symbol.Value)).ToArray();
         var corpses = maze.Corpses.Where(corpse => IsVisible(corpse.Position)).Select(corpse =>
             new WorldCorpseSnapshot(corpse.Id, corpse.Position, corpse.FormerName,
                 (corpse as PartyMemberCorpse)?.Character.Id, (corpse as MonsterCorpse)?.EnemyDefinitionId,
-                (corpse as MonsterCorpse)?.IsSearched ?? false)).ToArray();
+                (corpse as MonsterCorpse)?.IsSearched ?? false, corpse.Symbol.Value)).ToArray();
         var groundPiles = maze.GroundItemPiles.Where(pile => IsVisible(pile.Position)).Select(pile =>
             new WorldGroundPileSnapshot(pile.Id, pile.Position, pile.Revision, pile.Entries.Select(entry =>
                 new WorldItemSnapshot(entry.Item.Category.ToString(), entry.Item.Id, entry.Item.Name, entry.Charges,
-                    entry.Item is Domain.Magic.MagicItemDefinition magic ? magic.MaximumCharges : 0)).ToArray())).ToArray();
+                    entry.Item is Domain.Magic.MagicItemDefinition magic ? magic.MaximumCharges : 0)).ToArray(),
+                pile.Symbol.Value)).ToArray();
 
         return new WorldSnapshot(maze.Id, maze.Width, maze.Height,
             IsVisible(maze.Entrance) ? maze.Entrance : null,

@@ -49,6 +49,7 @@ var tests = new (string Name, Action Run)[]
     ("A promptban nem engedélyezett harci akció elutasításra kerül", DisallowedBattleActionIsRejected),
     ("A csatakezdő taktikai parancs átjut a session-validáción", BattleTacticCommandIsAccepted),
     ("A session snapshot JSON-on körbeírható", SessionSnapshotRoundTripsThroughJson),
+    ("A session-aktivitás karakterhez címezhető", SessionActivityCanTargetCharacter),
     ("A fogadó snapshotja közös pletykákat továbbít", InnSnapshotCarriesSharedRumors),
     ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
@@ -623,6 +624,18 @@ static void SessionSnapshotRoundTripsThroughJson()
         "A publikált snapshot sorszáma nem monoton nő.");
 }
 
+static void SessionActivityCanTargetCharacter()
+{
+    var first = new CharacterId(Guid.NewGuid());
+    var second = new CharacterId(Guid.NewGuid());
+    var targeted = new SessionActivitySnapshot(1, SessionActivityKind.System, "Keresési eredmény",
+        ConsoleColor.Yellow, [first]);
+    var shared = new SessionActivitySnapshot(2, SessionActivityKind.Battle, "Közös esemény", ConsoleColor.Red);
+    Assert(targeted.IsVisibleTo(first) && !targeted.IsVisibleTo(second) &&
+           shared.IsVisibleTo(first) && shared.IsVisibleTo(second),
+        "A karakterhez címzett session-aktivitás láthatósága hibás.");
+}
+
 static void InnSnapshotCarriesSharedRumors()
 {
     var snapshot = new InnSnapshot(3, 120, [],
@@ -688,6 +701,9 @@ static void WorldSnapshotOnlyContainsRevealedState()
         "A world snapshot rejtett ellenfelet is publikált, vagy kihagyta a láthatót.");
     Assert(world.Chests.Count == 1 && world.Doors.Count == 1,
         "A felfedett statikus entitások hiányoznak a world snapshotból.");
+    Assert(world.Chests.Single().SymbolCodePoint == new Rune('▣').Value &&
+           world.Chests.Single().ForegroundColor == ConsoleColor.Yellow,
+        "A world snapshot nem őrizte meg a láda hostoldali megjelenését.");
     Assert(world.Exit is null && world.RevealedCells.All(cell => fog.IsRevealed(cell.Position)),
         "A world snapshot rejtett kijáratot vagy cellát publikált.");
     Assert(world.RevealedCells.Single(cell => cell.Position == new Position(2, 1)).ForegroundColor == maze.WallColor,

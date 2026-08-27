@@ -784,7 +784,7 @@ public sealed class CoopGuestScreen
             SynchronizeRestNotice(snapshot, selected.CharacterId);
             SynchronizeInnTransactions(snapshot);
             SynchronizeSessionSounds(snapshot, selected.CharacterId);
-            SynchronizeSessionActivities(snapshot);
+            SynchronizeSessionActivities(snapshot, selected.CharacterId);
         }
         if (snapshot?.World is not { } world)
         {
@@ -845,7 +845,7 @@ public sealed class CoopGuestScreen
         }
     }
 
-    private void SynchronizeSessionActivities(SessionSnapshot snapshot)
+    private void SynchronizeSessionActivities(SessionSnapshot snapshot, CharacterId characterId)
     {
         foreach (var activity in (snapshot.Activities ?? []).Where(activity =>
                      activity.Sequence > _lastSessionActivitySequence).OrderBy(activity => activity.Sequence))
@@ -857,7 +857,7 @@ public sealed class CoopGuestScreen
                 SessionActivityKind.Support => "🤝 ",
                 _ => string.Empty
             };
-            SetMessage(prefix + activity.Message, activity.Color);
+            if (activity.IsVisibleTo(characterId)) SetMessage(prefix + activity.Message, activity.Color);
             _lastSessionActivitySequence = activity.Sequence;
         }
     }
@@ -903,9 +903,15 @@ public sealed class CoopGuestScreen
                 door.BackgroundColor);
         foreach (var enemy in world.Enemies)
             Put(grid, enemy.Position, char.ConvertFromUtf32(enemy.SymbolCodePoint), enemy.Color);
-        foreach (var chest in world.Chests) Put(grid, chest.Position, "$", ConsoleColor.Yellow);
-        foreach (var corpse in world.Corpses) Put(grid, corpse.Position, "%", ConsoleColor.DarkRed);
-        foreach (var pile in world.GroundPiles) Put(grid, pile.Position, "◆", ConsoleColor.Cyan);
+        foreach (var chest in world.Chests)
+            Put(grid, chest.Position, char.ConvertFromUtf32(chest.SymbolCodePoint), chest.ForegroundColor,
+                chest.BackgroundColor);
+        foreach (var corpse in world.Corpses)
+            Put(grid, corpse.Position, char.ConvertFromUtf32(corpse.SymbolCodePoint), corpse.ForegroundColor,
+                corpse.BackgroundColor);
+        foreach (var pile in world.GroundPiles)
+            Put(grid, pile.Position, char.ConvertFromUtf32(pile.SymbolCodePoint), pile.ForegroundColor,
+                pile.BackgroundColor);
         foreach (var character in snapshot.Party.Where(character => character.Position is not null))
             Put(grid, character.Position!.Value, CharacterSheetPanel.CharacterClassGlyph(character.CharacterClassId),
                 character.Color);

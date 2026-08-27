@@ -85,5 +85,6 @@ public static class WorldDeltaProjector
 
     private static bool GroundPileEquals(WorldGroundPileSnapshot first, WorldGroundPileSnapshot second) =>
         first.EntityId == second.EntityId && first.Position == second.Position && first.Revision == second.Revision &&
-        first.Items.SequenceEqual(second.Items);
+        first.Items.SequenceEqual(second.Items) && first.SymbolCodePoint == second.SymbolCodePoint &&
+        first.ForegroundColor == second.ForegroundColor && first.BackgroundColor == second.BackgroundColor;
 }

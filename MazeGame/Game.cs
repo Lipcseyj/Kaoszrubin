@@ -1474,9 +1474,11 @@ public sealed class Game
         PickUpGroundItems(character, position, shareLootWithParty, messages);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        _renderer.DrawInventoryMessage("🔎 " + (messages.Count == 0
+        var resultMessage = "🔎 " + (messages.Count == 0
             ? "A keresés nem hozott eredményt."
-            : string.Join("; ", messages) + "."), ConsoleColor.Yellow);
+            : string.Join("; ", messages) + ".");
+        _renderer.DrawInventoryMessage(resultMessage, ConsoleColor.Yellow);
+        RecordSessionActivity(SessionActivityKind.System, resultMessage, ConsoleColor.Yellow, [character.Id]);
         return true;
     }
 
@@ -3888,10 +3890,12 @@ public sealed class Game
         }
     }
 
-    private void RecordSessionActivity(SessionActivityKind kind, string message, ConsoleColor color)
+    private void RecordSessionActivity(SessionActivityKind kind, string message, ConsoleColor color,
+        IReadOnlyCollection<CharacterId>? listeners = null)
     {
         if (string.IsNullOrWhiteSpace(message)) return;
-        _sessionActivities.Enqueue(new SessionActivitySnapshot(++_sessionActivitySequence, kind, message, color));
+        _sessionActivities.Enqueue(new SessionActivitySnapshot(++_sessionActivitySequence, kind, message, color,
+            listeners?.Distinct().ToArray()));
         while (_sessionActivities.Count > 24) _sessionActivities.Dequeue();
     }
 
