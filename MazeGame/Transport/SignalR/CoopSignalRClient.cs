@@ -70,6 +70,7 @@ public sealed class CoopSignalRClient : IAsyncDisposable
     public event Action<SessionSnapshot>? SnapshotChanged;
     public event Action<CharacterControlResult>? CharacterControlResultReceived;
     public event Action<GameCommandRejectedEvent>? CommandRejected;
+    public event Action<CharacterStateSync>? CharacterStateReceived;
     public event Action<CoopProtocolError>? ProtocolErrorReceived;
 
     public async Task<ServerHello> ConnectAsync(CancellationToken cancellationToken = default)
@@ -217,6 +218,13 @@ public sealed class CoopSignalRClient : IAsyncDisposable
                     break;
                 case GameCommandRejectedEvent rejected:
                     CommandRejected?.Invoke(rejected);
+                    break;
+                case CharacterStateSync characterState:
+                    if (characterState.PlayerId != PlayerId)
+                        PublishProtocolError(new CoopProtocolError("character-state-recipient-mismatch",
+                            "A karakterállapot másik játékoshoz tartozik."));
+                    else
+                        CharacterStateReceived?.Invoke(characterState);
                     break;
                 case CoopProtocolError error:
                     PublishProtocolError(error);

@@ -1,4 +1,5 @@
 using MazeGame.Data;
+using MazeGame.Application;
 using MazeGame.Domain.Characters;
 using MazeGame.Transport.SignalR;
 using System.Text.Json;
@@ -264,7 +265,8 @@ public sealed class MainMenu
         try
         {
             new CoopGuestScreen(_applicationVersion, _catalogHash, _gameData)
-                .RunAsync(hostUrl, character.Name, character, _characterSaveService.SerializeCharacter(character))
+                .RunAsync(hostUrl, character.Name, character, _characterSaveService.SerializeCharacter(character),
+                    PersistGuestCharacterState)
                 .GetAwaiter().GetResult();
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or
@@ -273,6 +275,19 @@ public sealed class MainMenu
             DrawMainBackdrop();
             DrawSidePanel("CSATLAKOZÁSI HIBA", ["A csatlakozás sikertelen:", exception.Message, string.Empty, "Bármely billentyű: vissza"]);
             Console.ReadKey(intercept: true);
+        }
+    }
+
+    private void PersistGuestCharacterState(CharacterStateSync state)
+    {
+        lock (_characterRoster)
+        {
+            var current = _characterRoster.Characters.FirstOrDefault(character => character.Id == state.CharacterId)
+                ?? throw new InvalidOperationException("A visszaszinkronizált karakter nincs a helyi karakterlistában.");
+            var replacement = _characterSaveService.DeserializeCharacter(state.CharacterData);
+            if (replacement.Id != state.CharacterId || !_characterRoster.Replace(current, replacement))
+                throw new InvalidOperationException("A host érvénytelen karakterállapotot küldött.");
+            _characterSaveService.Save(_characterRoster);
         }
     }
 

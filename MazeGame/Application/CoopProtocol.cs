@@ -19,6 +19,11 @@ public sealed record SnapshotAck(PlayerId PlayerId, long SnapshotSequence);
 public sealed record SnapshotResyncRequest(PlayerId PlayerId);
 public sealed record CharacterControlRequest(PlayerId PlayerId, CharacterId CharacterId);
 public sealed record JoinCharacterRequest(PlayerId PlayerId, string CharacterData);
+
+public enum CharacterSyncReason { GameSaved, SessionEnded }
+
+public sealed record CharacterStateSync(PlayerId PlayerId, CharacterId CharacterId, string CharacterData,
+    CharacterSyncReason Reason);
 public sealed record CharacterControlResult(PlayerId PlayerId, CharacterId CharacterId, bool Accepted,
     string? RejectionReason = null);
 public sealed record CoopProtocolError(string Code, string Message);
@@ -143,6 +148,7 @@ public static class CoopProtocolJson
             AssignQuickSpellCommand => ("command.quick-spell", typeof(AssignQuickSpellCommand)),
             PrepareSpellsCommand => ("command.prepare-spells", typeof(PrepareSpellsCommand)),
             ResolveLevelUpPromptCommand => ("command.level-up", typeof(ResolveLevelUpPromptCommand)),
+            CharacterStateSync => ("server.character-state", typeof(CharacterStateSync)),
             ServerHello => ("server.hello", typeof(ServerHello)),
             CharacterControlResult => ("server.character-control", typeof(CharacterControlResult)),
             CoopProtocolError => ("server.protocol-error", typeof(CoopProtocolError)),
@@ -181,6 +187,7 @@ public static class CoopProtocolJson
             "command.quick-spell" => Deserialize<AssignQuickSpellCommand>(envelope),
             "command.prepare-spells" => Deserialize<PrepareSpellsCommand>(envelope),
             "command.level-up" => Deserialize<ResolveLevelUpPromptCommand>(envelope),
+            "server.character-state" => Deserialize<CharacterStateSync>(envelope),
             "server.hello" => Deserialize<ServerHello>(envelope),
             "server.character-control" => Deserialize<CharacterControlResult>(envelope),
             "server.protocol-error" => Deserialize<CoopProtocolError>(envelope),

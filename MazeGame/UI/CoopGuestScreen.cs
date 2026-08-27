@@ -52,7 +52,8 @@ public sealed class CoopGuestScreen
     }
 
     public async Task RunAsync(string hostUrl, string displayName, LiveCharacter localCharacter,
-        string characterData, CancellationToken cancellationToken = default)
+        string characterData, Action<CharacterStateSync>? persistCharacterState = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(localCharacter);
         await using var client = new CoopSignalRClient(hostUrl, _applicationVersion, _catalogHash, displayName);
@@ -60,6 +61,26 @@ public sealed class CoopGuestScreen
         client.ConnectionStateChanged += _ => Interlocked.Exchange(ref _redrawRequested, 1);
         client.ProtocolErrorReceived += error => SetMessage($"Protokollhiba: {error.Message}");
         client.CommandRejected += rejected => SetMessage($"A host elutasította: {rejected.Reason}");
+        client.CharacterStateReceived += state =>
+        {
+            if (state.CharacterId != localCharacter.Id)
+            {
+                SetMessage("A host másik karakterhez küldött mentési állapotot.", ConsoleColor.Red);
+                return;
+            }
+            try
+            {
+                persistCharacterState?.Invoke(state);
+                SetMessage(state.Reason == CharacterSyncReason.GameSaved
+                    ? "A host mentette és visszaszinkronizálta a karakteredet."
+                    : "A karaktered végső állapota visszaszinkronizálva.", ConsoleColor.Green);
+            }
+            catch (Exception exception) when (exception is IOException or InvalidOperationException or
+                                               UnauthorizedAccessException)
+            {
+                SetMessage($"A helyi karakter mentése sikertelen: {exception.Message}", ConsoleColor.Red);
+            }
+        };
 
         await client.ConnectAsync(cancellationToken);
         var selected = new CoopCharacterOption(localCharacter.Id, localCharacter.Name,

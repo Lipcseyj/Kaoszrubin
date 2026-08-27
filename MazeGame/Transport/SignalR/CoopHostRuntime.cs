@@ -69,6 +69,9 @@ public sealed class CoopHostRuntime : ICoopHostLoop, IAsyncDisposable
         return _snapshots.Writer.TryWrite(snapshot);
     }
 
+    public bool TryPublishCharacterState(CharacterId characterId, string characterData, CharacterSyncReason reason) =>
+        _gateway.QueueCharacterState(characterId, characterData, reason);
+
     private async Task PublishLoopAsync()
     {
         try
@@ -113,8 +116,8 @@ public sealed class CoopHostRuntime : ICoopHostLoop, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _snapshots.Writer.TryComplete();
-        _shutdown.Cancel();
         try { await _publishWorker; } catch (OperationCanceledException) { }
+        _shutdown.Cancel();
         await _server.DisposeAsync();
         _shutdown.Dispose();
     }

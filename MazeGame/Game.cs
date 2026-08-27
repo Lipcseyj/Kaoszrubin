@@ -603,6 +603,11 @@ public sealed class Game
         }
         finally
         {
+            if (_activeCoopHost is not null)
+            {
+                PublishRemoteCharacterStates(CharacterSyncReason.SessionEnded);
+                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            }
             _activeCoopHost = null;
             Console.CursorVisible = true;
             Console.SetCursorPosition(0, ConsoleRenderer.PlayfieldHeight + 5);
@@ -798,6 +803,11 @@ public sealed class Game
         {
             var path = _gameSaveService.Save(CreateGameSaveData(), CharacterRoster);
             _renderer.DrawDeveloperMessage($"Játék elmentve: {Path.GetFileName(path)}");
+            if (_activeCoopHost is not null)
+            {
+                PublishRemoteCharacterStates(CharacterSyncReason.GameSaved);
+                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -816,6 +826,19 @@ public sealed class Game
                               control.AssignedPlayerId != _session.HostPlayerId)
             .Select(control => control.CharacterId.Value).ToList();
         return state;
+    }
+
+    private void PublishRemoteCharacterStates(CharacterSyncReason reason)
+    {
+        if (_activeCoopHost is null) return;
+        foreach (var control in _session.CharacterControls.Where(control =>
+                     control.AssignedPlayerId is not null && control.AssignedPlayerId != _session.HostPlayerId))
+        {
+            var character = CharacterRoster.Party.Members.FirstOrDefault(member => member.Id == control.CharacterId);
+            if (character is not null)
+                _activeCoopHost.TryPublishCharacterState(character.Id,
+                    _gameSaveService.SerializeCharacter(character), reason);
+        }
     }
 
     private void RestoreGame(GameSaveData state)

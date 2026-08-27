@@ -98,6 +98,22 @@ public sealed class CoopHostGateway
         }
     }
 
+    public bool QueueCharacterState(CharacterId characterId, string characterData, CharacterSyncReason reason)
+    {
+        if (string.IsNullOrWhiteSpace(characterData)) return false;
+        var control = _session.CharacterControls.FirstOrDefault(candidate =>
+            candidate.CharacterId == characterId && candidate.AssignedPlayerId is not null);
+        if (control?.AssignedPlayerId is not { } playerId) return false;
+        lock (_gate)
+        {
+            if (!_connectionsByPlayer.TryGetValue(playerId, out var connectionId)) return false;
+            while (_pendingMessages.Count >= MaximumPendingMessages) _pendingMessages.Dequeue();
+            _pendingMessages.Enqueue(new CoopOutgoingMessage(connectionId,
+                CoopProtocolJson.Encode(new CharacterStateSync(playerId, characterId, characterData, reason))));
+            return true;
+        }
+    }
+
     public void Disconnect(string connectionId)
     {
         ValidateConnectionId(connectionId);

@@ -27,6 +27,18 @@ public sealed class CharacterRoster
         return true;
     }
 
+    public bool Replace(LiveCharacter current, LiveCharacter replacement)
+    {
+        var index = _characters.IndexOf(current);
+        if (index < 0 || replacement.Id != current.Id) return false;
+        var partyMembers = Party.Members.Select(member => member == current ? replacement : member).ToArray();
+        var leader = Party.Leader == current ? replacement : Party.Leader;
+        _characters[index] = replacement;
+        if (SelectedCharacter == current) SelectedCharacter = replacement;
+        if (leader is not null) Party.Restore(leader, partyMembers);
+        return true;
+    }
+
     public void Clear()
     {
         _characters.Clear();

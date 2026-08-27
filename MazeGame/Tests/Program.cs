@@ -153,6 +153,12 @@ static void RemotePlayerCanReclaimSavedCharacter()
     var result = (CharacterControlResult)CoopProtocolJson.Decode(resultMessage.WireMessage);
     Assert(result.Accepted && result.CharacterId == companion.Id && session.IsHumanControlled(companion.Id) &&
            !registered, "A mentett vendégslot nem a host meglévő karakterpéldányához lett rendelve.");
+    Assert(gateway.QueueCharacterState(companion.Id, "authoritative-character", CharacterSyncReason.GameSaved),
+        "A host nem tudta sorba állítani a vendég célzott karakterállapotát.");
+    var sync = (CharacterStateSync)CoopProtocolJson.Decode(gateway.DrainPendingMessages().Single().WireMessage);
+    Assert(sync.PlayerId == hello.PlayerId && sync.CharacterId == companion.Id &&
+           sync.CharacterData == "authoritative-character",
+        "A karakter-visszaszinkronizálás nem a megfelelő vendéghez került.");
 }
 
 static void RemotePlayerCanIssueCharacterAction()
@@ -1074,6 +1080,10 @@ static void ProtocolCodecRoundTripsCommand()
     var sale = new InnSaleCommand(PlayerId.New(), 9, CharacterId.New(), 4, 7, 2);
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(sale)) is InnSaleCommand decodedSale &&
            decodedSale == sale, "A JSON wire codec megváltoztatta a fogadói eladást.");
+    var characterState = new CharacterStateSync(PlayerId.New(), CharacterId.New(), "character-json",
+        CharacterSyncReason.SessionEnded);
+    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(characterState)) is CharacterStateSync decodedState &&
+           decodedState == characterState, "A JSON wire codec megváltoztatta a karakter-visszaszinkronizálást.");
     var rejected = false;
     try
     {

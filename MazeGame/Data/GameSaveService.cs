@@ -59,6 +59,9 @@ public sealed class GameSaveService
         }
         return results;
     }
+
+    public string SerializeCharacter(LiveCharacter character) =>
+        _characterSaveService.SerializeCharacter(character);
 }
 
 public sealed record LoadedGameSave(string Path, CharacterRoster Roster, GameSaveData State);
