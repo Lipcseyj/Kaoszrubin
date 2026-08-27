@@ -2,7 +2,7 @@ namespace MazeGame.UI;
 
 public enum WindowFrameStyle { Single, Double, Scroll, Ruby, Stone, Magic }
 
-public enum FramedWindow { MainMenu, SpellSelector, CreaturePortrait, Storyline }
+public enum FramedWindow { MainMenu, Help, SpellSelector, CreaturePortrait, Storyline }
 
 /// <summary>Az egyes képernyők kerete itt cserélhető, a rajzolókód módosítása nélkül.</summary>
 public static class WindowFrameConfiguration
@@ -11,6 +11,7 @@ public static class WindowFrameConfiguration
         new Dictionary<FramedWindow, WindowFrameStyle>
         {
             [FramedWindow.MainMenu] = WindowFrameStyle.Ruby,
+            [FramedWindow.Help] = WindowFrameStyle.Ruby,
             [FramedWindow.SpellSelector] = WindowFrameStyle.Magic,
             [FramedWindow.CreaturePortrait] = WindowFrameStyle.Stone,
             [FramedWindow.Storyline] = WindowFrameStyle.Stone

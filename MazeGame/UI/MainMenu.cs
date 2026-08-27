@@ -723,26 +723,35 @@ public sealed class MainMenu
             var width = Math.Max(30, Math.Min(122, Console.WindowWidth - 4));
             var height = Math.Max(8, Console.WindowHeight - 4);
             var contentWidth = width - 4;
+            var style = WindowFrameConfiguration.For(FramedWindow.Help);
             var lines = source.SelectMany(entry => WrapHelpText(entry.Text, contentWidth)
                 .Select(text => (text, entry.Color))).ToArray();
-            var pageSize = Math.Max(1, height - 4);
+            var pageSize = Math.Max(1, height - 5);
             offset = Math.Clamp(offset, 0, Math.Max(0, lines.Length - pageSize));
             var left = Math.Max(0, (Console.WindowWidth - width) / 2);
             var top = Math.Max(0, (Console.WindowHeight - height) / 2);
             ResetConsole();
-            WriteAt(left, top, "┌" + new string('─', width - 2) + "┐", ConsoleColor.DarkCyan, width);
-            WriteAt(left + 3, top, " SÚGÓ ", ConsoleColor.Yellow, 8);
+            WriteAt(left, top, WindowFrameCatalog.Horizontal(style, width), ConsoleColor.Magenta, width);
+            var interiorRows = height - 2;
+            for (var row = 0; row < interiorRows; row++)
+            {
+                var sides = WindowFrameCatalog.Sides(style, row, interiorRows);
+                WriteAt(left, top + row + 1, sides.Left, ConsoleColor.Magenta, sides.Left.Length);
+                WriteAt(left + sides.Left.Length, top + row + 1, string.Empty, ConsoleColor.Gray,
+                    width - sides.Left.Length - sides.Right.Length);
+                WriteAt(left + width - sides.Right.Length, top + row + 1, sides.Right,
+                    ConsoleColor.Magenta, sides.Right.Length);
+            }
+            WriteAt(left + 2, top + 1, "◆ SÚGÓ ◆", ConsoleColor.Yellow, contentWidth);
             for (var row = 0; row < pageSize; row++)
             {
-                WriteAt(left, top + row + 1, "│", ConsoleColor.DarkCyan, 1);
                 var line = offset + row < lines.Length ? lines[offset + row] : (string.Empty, ConsoleColor.Gray);
-                WriteAt(left + 2, top + row + 1, line.Item1, line.Item2, contentWidth);
-                WriteAt(left + width - 1, top + row + 1, "│", ConsoleColor.DarkCyan, 1);
+                WriteAt(left + 2, top + row + 2, line.Item1, line.Item2, contentWidth);
             }
             var status = $" ↑↓ görget  PgUp/PgDn lapoz  Home/End  Esc/Enter vissza  {offset + 1}-{Math.Min(lines.Length, offset + pageSize)}/{lines.Length} ";
-            WriteAt(left, top + height - 2, "├" + new string('─', width - 2) + "┤", ConsoleColor.DarkCyan, width);
             WriteAt(left + 2, top + height - 2, TruncateByDisplayWidth(status, width - 4), ConsoleColor.DarkYellow, width - 4);
-            WriteAt(left, top + height - 1, "└" + new string('─', width - 2) + "┘", ConsoleColor.DarkCyan, width);
+            WriteAt(left, top + height - 1, WindowFrameCatalog.Horizontal(style, width, bottom: true),
+                ConsoleColor.Magenta, width);
 
             switch (Console.ReadKey(intercept: true).Key)
             {

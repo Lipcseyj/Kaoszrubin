@@ -1446,6 +1446,7 @@ static void WindowFrameCatalogIsResizableAndConfigured()
             $"A(z) {style} keret alsó sora nem tartja a kért szélességet.");
     }
     Assert(WindowFrameConfiguration.For(FramedWindow.MainMenu) == WindowFrameStyle.Ruby &&
+           WindowFrameConfiguration.For(FramedWindow.Help) == WindowFrameStyle.Ruby &&
            WindowFrameConfiguration.For(FramedWindow.SpellSelector) == WindowFrameStyle.Magic &&
            WindowFrameConfiguration.For(FramedWindow.CreaturePortrait) == WindowFrameStyle.Stone &&
            WindowFrameConfiguration.For(FramedWindow.Storyline) == WindowFrameStyle.Stone,
