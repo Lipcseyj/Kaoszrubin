@@ -160,6 +160,8 @@ public sealed class Game
     private bool _timeStopUsedThisBattle;
     private readonly HashSet<LiveCharacter> _turnUndeadUsedThisBattle = [];
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
+    private readonly Queue<SessionActivitySnapshot> _sessionActivities = new();
+    private long _sessionActivitySequence;
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private int _mazeLevel = 1;
@@ -206,6 +208,7 @@ public sealed class Game
             SpellPreparation = _activeSpellPreparation,
             RestNotice = _latestRestNotice,
             LevelUpPrompt = _activeLevelUpPrompt,
+            Activities = _sessionActivities.ToArray(),
             Party = snapshot.Party.Select(character => character with
             {
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
@@ -281,6 +284,7 @@ public sealed class Game
                 var summary = notes.Count == 0 ? "" : $" {string.Join("; ", notes)}";
                 var message = $"{caster.Name} elsüti: {spell.Name} → {target.Name}. -{manaCost} manna.{summary}";
                 _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+                RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
                 _renderer.RefreshBattleStatusRows();
                 return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
             }
@@ -306,6 +310,7 @@ public sealed class Game
                 ApplyStatusCureForCaster(effect, new[] { targetChar }, notes);
             var message = $"{caster.Name} elsüti: {spell.Name} → {targetChar.Name}. -{manaCost} manna. {string.Join("; ", notes)}";
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+            RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
             _renderer.RefreshBattleStatusRows();
             return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
         }
@@ -328,6 +333,7 @@ public sealed class Game
             var execution = ExecuteSpell(caster, member.Position, spell, enemy.Position, inCombat: true, enemy, divine);
             var message = $"{caster.Name} elsüti: {spell.Name} → {enemy.Name}. -{manaCost} manna. {execution.Summary}";
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+            RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
             _renderer.RefreshBattleStatusRows();
             return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions);
         }
@@ -384,6 +390,7 @@ public sealed class Game
                 var summary = notes.Count == 0 ? "" : $" {string.Join("; ", notes)}";
                 var message = $"{caster.Name} elsüti: {spell.Name} → {lowest.Name}. -{manaCost} manna.{summary}";
                 _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+                RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
                 _renderer.RefreshCharacterSheet(SelectedCharacter);
                 return;
             }
@@ -2621,6 +2628,8 @@ public sealed class Game
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawInventoryMessage(result.Message,
             result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
+        RecordSessionActivity(SessionActivityKind.Spell, result.Message,
+            result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
     }
 
     private bool HasUsableCombatSpell(LiveCharacter character, Position characterPosition, Enemy enemy) =>
@@ -3666,10 +3675,26 @@ public sealed class Game
         foreach (var entry in entries)
         {
             _renderer.DrawBattleRound(entry);
+            RecordSessionActivity(SessionActivityKind.Battle, entry.Message, BattleEntryColor(entry.Kind));
             PlayBattleRoundSound(entry);
             _renderer.RefreshBattleStatusRows();
         }
     }
+
+    private void RecordSessionActivity(SessionActivityKind kind, string message, ConsoleColor color)
+    {
+        if (string.IsNullOrWhiteSpace(message)) return;
+        _sessionActivities.Enqueue(new SessionActivitySnapshot(++_sessionActivitySequence, kind, message, color));
+        while (_sessionActivities.Count > 24) _sessionActivities.Dequeue();
+    }
+
+    private static ConsoleColor BattleEntryColor(BattleLogKind kind) => kind switch
+    {
+        BattleLogKind.PlayerAttack => ConsoleColor.Green,
+        BattleLogKind.EnemyAttack => ConsoleColor.Red,
+        BattleLogKind.CriticalHit => ConsoleColor.Yellow,
+        _ => ConsoleColor.Gray
+    };
 
     private void TeleportLeaderNearExit()
     {

@@ -501,11 +501,16 @@ static void SessionSnapshotRoundTripsThroughJson()
         [leader.Id] = new Position(2, 2),
         [companion.Id] = new Position(3, 2)
     };
-    var snapshot = session.CreateSnapshot(new SessionSnapshotContext(4, "Tesztlabirintus", positions));
+    var snapshot = session.CreateSnapshot(new SessionSnapshotContext(4, "Tesztlabirintus", positions)) with
+    {
+        Activities = [new SessionActivitySnapshot(1, SessionActivityKind.Spell,
+            "A host térképi varázslatot használt.", ConsoleColor.Magenta)]
+    };
     var json = JsonSerializer.Serialize(snapshot);
     var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
     Assert(restored is not null && restored.ProtocolVersion == SessionProtocol.Version &&
            restored.Phase == GameSessionPhase.Exploration && restored.Party.Count == 2 &&
+           restored.Activities is [{ Kind: SessionActivityKind.Spell }] &&
            restored.Party.Single(character => character.CharacterId == companion.Id).Position == new Position(3, 2),
         "A session snapshot JSON round-trip közben megváltozott.");
     var next = session.CreateSnapshot(new SessionSnapshotContext(4, "Tesztlabirintus", positions));

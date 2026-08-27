@@ -30,6 +30,7 @@ public sealed class CoopGuestScreen
     private bool _innRumorOpen;
     private int _innRumorSelection;
     private long _lastInnTransactionSequence;
+    private long _lastSessionActivitySequence;
     private Guid? _acknowledgedNarrativeId;
     private bool _spellInfoOpen;
     private int _spellInfoSelection;
@@ -770,6 +771,7 @@ public sealed class CoopGuestScreen
         {
             SynchronizeRestNotice(snapshot, selected.CharacterId);
             SynchronizeInnTransactions(snapshot);
+            SynchronizeSessionActivities(snapshot);
         }
         if (snapshot?.World is not { } world)
         {
@@ -814,6 +816,23 @@ public sealed class CoopGuestScreen
             };
             SetMessage(message, ConsoleColor.Yellow);
             _lastInnTransactionSequence = transaction.Sequence;
+        }
+    }
+
+    private void SynchronizeSessionActivities(SessionSnapshot snapshot)
+    {
+        foreach (var activity in (snapshot.Activities ?? []).Where(activity =>
+                     activity.Sequence > _lastSessionActivitySequence).OrderBy(activity => activity.Sequence))
+        {
+            var prefix = activity.Kind switch
+            {
+                SessionActivityKind.Battle => "⚔ ",
+                SessionActivityKind.Spell => "✨ ",
+                SessionActivityKind.Support => "🤝 ",
+                _ => string.Empty
+            };
+            SetMessage(prefix + activity.Message, activity.Color);
+            _lastSessionActivitySequence = activity.Sequence;
         }
     }
 
