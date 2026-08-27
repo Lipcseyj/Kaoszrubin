@@ -363,8 +363,10 @@ public sealed class MainMenu
                 case ConsoleKey.D when _characterRoster.Characters.Count > 0:
                 case ConsoleKey.Delete when _characterRoster.Characters.Count > 0:
                     var character = _characterRoster.Characters[selectedIndex];
-                    WriteAt(4, Math.Min(Console.WindowHeight - 2, 6 + _characterRoster.Characters.Count * 2),
-                        $"Biztosan törlöd: {character.Name}? I/Y = igen", ConsoleColor.Red, 70);
+                    var confirmationFrame = GetCharacterManagerFrame();
+                    WriteAt(confirmationFrame.Left + 4, confirmationFrame.Top + confirmationFrame.Height - 3,
+                        $"⚠ Biztosan törlöd: {character.Name}?  I/Y = igen", ConsoleColor.Red,
+                        confirmationFrame.Width - 8);
                     if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
                     {
                         _characterRoster.Remove(character);
@@ -380,36 +382,101 @@ public sealed class MainMenu
     private void DrawCharacterManager(int selectedIndex)
     {
         ResetConsole();
-        WriteAt(3, 1, "═══ KARAKTEREK ═══", ConsoleColor.Yellow, 72);
-        WriteAt(3, 2, "↑↓ választ  Enter aktívvá tesz  N új karakter  D/Del törlés  Esc főmenü",
-            ConsoleColor.DarkCyan, 90);
+        var frame = GetCharacterManagerFrame();
+        DrawCharacterManagerFrame(frame);
+        WriteAt(frame.Left + 4, frame.Top + 1, "👥 KARAKTEREK", ConsoleColor.Yellow, frame.Width - 8);
+        WriteAt(frame.Left + 4, frame.Top + 3,
+            "↑/↓ választ   Enter aktív   N új hős   D/Del törlés   Esc főmenü",
+            ConsoleColor.DarkCyan, frame.Width - 8);
         if (_characterRoster.Characters.Count == 0)
-            WriteAt(4, 5, "Még nincs karakter. Nyomj N-t egy új karakter generálásához.", ConsoleColor.DarkYellow, 80);
-        for (var index = 0; index < _characterRoster.Characters.Count; index++)
+            WriteAt(frame.Left + 5, frame.Top + 7,
+                "🪶 Még nincs hős. Nyomj N-t egy új karakter megalkotásához.", ConsoleColor.DarkYellow,
+                frame.Width - 10);
+
+        var showPortrait = frame.Width >= 90;
+        var portraitWidth = showPortrait ? 31 : 0;
+        var listWidth = Math.Max(38, frame.Width - portraitWidth - 10);
+        var visibleCount = Math.Max(1, (frame.Height - 9) / 2);
+        var maximumStart = Math.Max(0, _characterRoster.Characters.Count - visibleCount);
+        var firstVisible = Math.Clamp(selectedIndex - visibleCount / 2, 0, maximumStart);
+        var lastVisible = Math.Min(_characterRoster.Characters.Count, firstVisible + visibleCount);
+        for (var index = firstVisible; index < lastVisible; index++)
         {
             var character = _characterRoster.Characters[index];
-            var active = character == _characterRoster.SelectedCharacter ? " [AKTÍV]" : string.Empty;
-            var dead = character.IsAlive ? string.Empty : " [HALOTT]";
-            WriteAt(4, 5 + index * 2,
-                $"{(index == selectedIndex ? "▶" : " ")} {character.Name} — {character.Race.Name} {character.CharacterClass.Name}{active}{dead}",
-                !character.IsAlive ? ConsoleColor.DarkRed : index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray, 82);
-            WriteAt(7, 6 + index * 2,
-                $"L{character.Level}  HP {character.CurrentVitality}/{character.MaximumVitality}  " +
-                $"Manna {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}",
-                ConsoleColor.DarkGray, 76);
+            var row = frame.Top + 6 + (index - firstVisible) * 2;
+            var active = character == _characterRoster.SelectedCharacter ? " ★ AKTÍV" : string.Empty;
+            var dead = character.IsAlive ? string.Empty : " ☠ HALOTT";
+            var nameColor = !character.IsAlive ? ConsoleColor.DarkRed :
+                index == selectedIndex ? ConsoleColor.Cyan :
+                character == _characterRoster.SelectedCharacter ? ConsoleColor.Yellow : ConsoleColor.Gray;
+            WriteAt(frame.Left + 4, row,
+                $"{(index == selectedIndex ? "▶" : " ")} {CharacterClassIcon(character.CharacterClass.Id)} " +
+                $"{character.Name} · {character.Race.Name} {character.CharacterClass.Name}{active}{dead}",
+                nameColor, listWidth);
+            WriteAt(frame.Left + 8, row + 1,
+                $"Szint {character.Level}   ❤️ {character.CurrentVitality}/{character.MaximumVitality}   " +
+                $"🔷 {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "—")}",
+                character.IsAlive ? ConsoleColor.DarkGray : ConsoleColor.Red, listWidth - 4);
         }
         if (_characterRoster.Characters.Count > 0)
-            DrawPortrait(_characterRoster.Characters[selectedIndex], Math.Max(92, Console.WindowWidth - 34), 5);
+        {
+            if (firstVisible > 0)
+                WriteAt(frame.Left + 4, frame.Top + 5, $"▲ még {firstVisible} karakter", ConsoleColor.DarkCyan, listWidth);
+            if (lastVisible < _characterRoster.Characters.Count)
+                WriteAt(frame.Left + 4, frame.Top + frame.Height - 4,
+                    $"▼ még {_characterRoster.Characters.Count - lastVisible} karakter", ConsoleColor.DarkCyan, listWidth);
+            if (showPortrait)
+                DrawPortrait(_characterRoster.Characters[selectedIndex],
+                    frame.Left + frame.Width - portraitWidth - 3, frame.Top + 6);
+        }
     }
 
     private static void DrawPortrait(LiveCharacter character, int left, int top)
     {
         var portrait = AsciiPortraits.ForCharacterClass(character.CharacterClass.Id);
-        WriteAt(left, top, $"┌──── {character.CharacterClass.Name.ToUpperInvariant(),-17} ────┐", character.Color, 30);
+        WriteAt(left, top, "@)" + new string('=', 25) + "(@", character.Color, 29);
+        WriteAt(left + 3, top + 1, $"{CharacterClassIcon(character.CharacterClass.Id)} {character.CharacterClass.Name.ToUpperInvariant()}",
+            character.Color, 23);
         for (var index = 0; index < portrait.Lines.Count; index++)
-            WriteAt(left, top + index + 1, $"│ {portrait.Lines[index].PadRight(25)} │", character.Color, 30);
-        WriteAt(left, top + portrait.Lines.Count + 1, "└───────────────────────────┘", character.Color, 30);
+        {
+            WriteAt(left + 1, top + index + 2, "|", character.Color, 1);
+            WriteAt(left + 3, top + index + 2, portrait.Lines[index], character.Color, 23);
+            WriteAt(left + 27, top + index + 2, "|", character.Color, 1);
+        }
+        WriteAt(left, top + portrait.Lines.Count + 2, "@)" + new string('=', 25) + "(@", character.Color, 29);
     }
+
+    private readonly record struct CharacterManagerFrame(int Left, int Top, int Width, int Height);
+
+    private static CharacterManagerFrame GetCharacterManagerFrame()
+    {
+        var width = Math.Max(10, Math.Min(118, Console.WindowWidth - 2));
+        var height = Math.Max(8, Math.Min(Console.WindowHeight - 1, 28));
+        return new CharacterManagerFrame(Math.Max(0, (Console.WindowWidth - width) / 2), 0, width, height);
+    }
+
+    private static void DrawCharacterManagerFrame(CharacterManagerFrame frame)
+    {
+        WriteAt(frame.Left, frame.Top, "@)" + new string('=', frame.Width - 4) + "(@", ConsoleColor.DarkYellow, frame.Width);
+        for (var row = 1; row < frame.Height - 1; row++)
+        {
+            WriteAt(frame.Left, frame.Top + row, " |", ConsoleColor.DarkCyan, 2);
+            WriteAt(frame.Left + frame.Width - 2, frame.Top + row, "| ", ConsoleColor.DarkCyan, 2);
+        }
+        WriteAt(frame.Left, frame.Top + frame.Height - 1,
+            "@)" + new string('=', frame.Width - 4) + "(@", ConsoleColor.DarkYellow, frame.Width);
+    }
+
+    private static string CharacterClassIcon(string characterClassId) => characterClassId switch
+    {
+        CharacterClassIds.Harcos => "⚔",
+        CharacterClassIds.Barbár => "🪓",
+        CharacterClassIds.Lovag => "🛡",
+        CharacterClassIds.Tolvaj => "🗡",
+        CharacterClassIds.Pap => "✝",
+        CharacterClassIds.Mágus => "🔮",
+        _ => "◆"
+    };
 
     private bool TryGetPlayableSelectedCharacter(out LiveCharacter selectedCharacter)
     {
