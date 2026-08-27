@@ -32,6 +32,7 @@ public sealed class CoopGuestScreen
     private Guid? _spellPreparationPromptId;
     private int _spellPreparationCursor;
     private readonly HashSet<string> _preparedSpellIds = new(StringComparer.OrdinalIgnoreCase);
+    private Guid? _lastRestNoticeId;
     private GuestRenderFrame? _lastFrame;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData)
@@ -574,6 +575,7 @@ public sealed class CoopGuestScreen
     private void Draw(CoopSignalRClient client, CoopCharacterOption selected)
     {
         var snapshot = client.CurrentSnapshot;
+        if (snapshot is not null) SynchronizeRestNotice(snapshot, selected.CharacterId);
         if (snapshot?.World is not { } world)
         {
             ResetConsole();
@@ -586,6 +588,19 @@ public sealed class CoopGuestScreen
         var frame = BuildFrame(client, selected, snapshot, world);
         RenderFrame(frame, _lastFrame);
         _lastFrame = frame;
+    }
+
+    private void SynchronizeRestNotice(SessionSnapshot snapshot, CharacterId characterId)
+    {
+        if (snapshot.RestNotice is not { } notice || notice.RestId == _lastRestNoticeId) return;
+        _lastRestNoticeId = notice.RestId;
+        var own = notice.Characters.FirstOrDefault(result => result.CharacterId == characterId);
+        if (own is null) return;
+        var statusText = own.RemovedNegativeStatuses.Count > 0
+            ? $" Megszűnt: {string.Join(", ", own.RemovedNegativeStatuses)}."
+            : " Negatív állapot nem szűnt meg.";
+        SetMessage($"{(notice.AtInn ? "Fogadói" : "Tábori")} pihenés: {own.CharacterName} " +
+                   $"+{own.HealedAmount} HP.{statusText}", ConsoleColor.Green);
     }
 
     private GuestRenderFrame BuildFrame(CoopSignalRClient client, CoopCharacterOption selected,

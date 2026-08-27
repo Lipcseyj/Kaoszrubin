@@ -136,6 +136,7 @@ public sealed class Game
     private readonly HashSet<PlayerId> _narrativeAcknowledgements = [];
     private SpellPreparationSnapshot? _activeSpellPreparation;
     private bool _spellPreparationCompleted;
+    private PartyRestSnapshot? _latestRestNotice;
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
     private readonly GameSession _session;
@@ -200,6 +201,7 @@ public sealed class Game
             Narrative = _activeNarrative is null ? null : _activeNarrative with
             { AcknowledgedPlayerIds = _narrativeAcknowledgements.ToArray() },
             SpellPreparation = _activeSpellPreparation,
+            RestNotice = _latestRestNotice,
             Party = snapshot.Party.Select(character => character with
             {
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
@@ -229,7 +231,8 @@ public sealed class Game
         _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
         _doorInteractions = new DoorInteractionController(gameData, _renderer, _soundEffects, _random);
         _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer, _soundEffects,
-            _random, AwardExperienceResult, ResolvePerkOffers, PreparePartySpells, ReadInnKey);
+            _random, AwardExperienceResult, ResolvePerkOffers, PreparePartySpells, ReadInnKey,
+            notice => _latestRestNotice = notice);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
     }
@@ -871,6 +874,7 @@ public sealed class Game
         }
 
         var summaries = new List<string>();
+        var restResults = new List<CharacterRestSnapshot>();
         foreach (var character in livingParty)
         {
             var before = character.CurrentVitality;
@@ -892,8 +896,11 @@ public sealed class Game
                 _gameData.GetStatus(CharacterStatusIds.Thirsty));
             summaries.Add($"{character.Name}: +{character.CurrentVitality - before} HP" +
                 (cured.Count > 0 ? $", elmúlt: {string.Join(", ", cured)}" : string.Empty));
+            restResults.Add(new CharacterRestSnapshot(character.Id, character.Name,
+                character.CurrentVitality - before, cured));
         }
         _hasRestedThisLevel = true;
+        _latestRestNotice = new PartyRestSnapshot(Guid.NewGuid(), false, restResults);
         PreparePartySpells();
         foreach (var door in roomDoors) _maze.SetDoorState(door, DoorState.Closed);
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);

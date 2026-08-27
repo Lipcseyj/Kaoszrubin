@@ -24,6 +24,7 @@ internal sealed class InnController
     private readonly Action<LiveCharacter, LevelUpResult> _resolvePerkOffers;
     private readonly Action _preparePartySpells;
     private readonly Func<ConsoleKeyInfo> _readKey;
+    private readonly Action<PartyRestSnapshot> _reportRest;
     private readonly Dictionary<InnVendorKind, List<InnStockOffer>> _vendorStocks = [];
     private long _revision;
     private bool _active;
@@ -34,7 +35,8 @@ internal sealed class InnController
         ConsoleRenderer renderer, SoundEffects soundEffects, Random random,
         Func<LiveCharacter, int, LevelUpResult> awardExperience,
         Action<LiveCharacter, LevelUpResult> resolvePerkOffers,
-        Action preparePartySpells, Func<ConsoleKeyInfo>? readKey = null)
+        Action preparePartySpells, Func<ConsoleKeyInfo>? readKey = null,
+        Action<PartyRestSnapshot>? reportRest = null)
     {
         _gameData = gameData;
         _characterRoster = characterRoster;
@@ -46,6 +48,7 @@ internal sealed class InnController
         _resolvePerkOffers = resolvePerkOffers;
         _preparePartySpells = preparePartySpells;
         _readKey = readKey ?? (() => Console.ReadKey(intercept: true));
+        _reportRest = reportRest ?? (_ => { });
     }
 
     public InnSnapshot? CreateSnapshot()
@@ -207,6 +210,8 @@ internal sealed class InnController
             summaries.Add((character, character.CurrentVitality - before));
         }
         _hasRestedAtInn = true;
+        _reportRest(new PartyRestSnapshot(Guid.NewGuid(), true, summaries.Select(summary =>
+            new CharacterRestSnapshot(summary.Character.Id, summary.Character.Name, summary.HealedAmount, [])).ToArray()));
         _renderer.DrawInnRestScreen(summaries);
         _soundEffects.Play(SoundEffect.Rest);
         _preparePartySpells();

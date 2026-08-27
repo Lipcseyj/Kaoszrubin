@@ -126,6 +126,11 @@ public sealed class SessionReplicationPublisher
             SpellPreparation = snapshot.SpellPreparation is { } preparation &&
                                controlledCharacters.Contains(preparation.CharacterId)
                 ? preparation : null,
+            RestNotice = snapshot.RestNotice is null ? null : snapshot.RestNotice with
+            {
+                Characters = snapshot.RestNotice.Characters
+                    .Where(result => controlledCharacters.Contains(result.CharacterId)).ToArray()
+            },
             Party = snapshot.Party.Select(character => controlledCharacters.Contains(character.CharacterId)
                 ? character
                 : character with { Inventory = null, CharacterSheet = null, ExplorationSpellOptions = null,

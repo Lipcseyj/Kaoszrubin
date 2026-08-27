@@ -7,7 +7,7 @@ namespace MazeGame.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 11;
+    public const int Version = 12;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -16,7 +16,13 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
     string LevelName, IReadOnlyList<SessionCharacterSnapshot> Party,
     IReadOnlyList<CharacterControlState> CharacterControls, BattleSnapshot? Battle, WorldSnapshot? World = null,
     int GoldenKeyCount = 0, int BossKeyCount = 0, InnSnapshot? Inn = null,
-    NarrativeSnapshot? Narrative = null, SpellPreparationSnapshot? SpellPreparation = null);
+    NarrativeSnapshot? Narrative = null, SpellPreparationSnapshot? SpellPreparation = null,
+    PartyRestSnapshot? RestNotice = null);
+
+public sealed record PartyRestSnapshot(Guid RestId, bool AtInn, IReadOnlyList<CharacterRestSnapshot> Characters);
+
+public sealed record CharacterRestSnapshot(CharacterId CharacterId, string CharacterName, int HealedAmount,
+    IReadOnlyList<string> RemovedNegativeStatuses);
 
 public sealed record SpellPreparationSnapshot(Guid PromptId, CharacterId CharacterId, string CharacterName,
     int Capacity, IReadOnlyList<KnownSpellSnapshot> Spells, IReadOnlyList<string> SelectedSpellIds);
