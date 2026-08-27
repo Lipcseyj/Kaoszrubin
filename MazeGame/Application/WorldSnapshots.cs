@@ -17,7 +17,8 @@ public sealed record WorldDoorSnapshot(Position Position, DoorState State, int S
 
 public sealed record WorldEnemySnapshot(WorldEntityId EntityId, string DefinitionId, string Name,
     Position Position, int CurrentHitPoints, int MaximumHitPoints, string? GroupId,
-    EnemyGroupRole GroupRole, IReadOnlyList<string> ActiveEffectTypes, ConsoleColor Color = ConsoleColor.Red);
+    EnemyGroupRole GroupRole, IReadOnlyList<string> ActiveEffectTypes, ConsoleColor Color = ConsoleColor.Red,
+    int SymbolCodePoint = 'e');
 
 public sealed record WorldChestSnapshot(WorldEntityId EntityId, Position Position);
 
@@ -79,7 +80,7 @@ public static class WorldSnapshotProjector
                     4 => ConsoleColor.Red,
                     5 => ConsoleColor.Magenta,
                     _ => ConsoleColor.Gray
-                });
+                }, enemy.Symbol.Value);
         }).ToArray();
         var chests = maze.TreasureChests.Where(chest => IsVisible(chest.Position))
             .Select(chest => new WorldChestSnapshot(chest.Id, chest.Position)).ToArray();

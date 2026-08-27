@@ -795,6 +795,19 @@ public sealed class CoopGuestScreen
             return;
         }
 
+        var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == selected.CharacterId);
+        var ownsCharacter = snapshot.CharacterControls.Any(control =>
+            control.CharacterId == selected.CharacterId && control.AssignedPlayerId == client.PlayerId &&
+            control.ConnectionState == PlayerConnectionState.Connected);
+        if (!ownsCharacter || own?.CharacterSheet is null || own.Inventory is null)
+        {
+            ResetConsole();
+            WriteLine($"=== COOP VENDÉG — {selected.Name} ===", ConsoleColor.Yellow);
+            WriteLine("A karakter teljes állapotának szinkronizálása…", ConsoleColor.DarkCyan);
+            _lastFrame = null;
+            return;
+        }
+
         var frame = BuildFrame(client, selected, snapshot, world);
         RenderFrame(frame, _lastFrame);
         _lastFrame = frame;
@@ -862,13 +875,9 @@ public sealed class CoopGuestScreen
         foreach (var sound in sounds.Where(sound => sound.Sequence > _lastSessionSoundSequence)
                      .OrderBy(sound => sound.Sequence))
         {
-            if (sound.IsAudibleTo(localCharacterId))
-            {
-                if (sound.Effect is SoundEffect.Hit or SoundEffect.Miss)
-                    _soundEffects.Play(sound.Effect);
-                else
-                    _soundEffects.PlayAndWait(sound.Effect);
-            }
+            // A vendég egyetlen UI-hurka kezeli a rajzolást és a billentyűket is. A blokkoló
+            // lejátszás MP3-on hangonként legalább egy másodpercre megakasztaná mindkettőt.
+            if (sound.IsAudibleTo(localCharacterId)) _soundEffects.Play(sound.Effect);
             _lastSessionSoundSequence = sound.Sequence;
         }
     }
@@ -892,7 +901,8 @@ public sealed class CoopGuestScreen
         foreach (var door in world.Doors)
             Put(grid, door.Position, char.ConvertFromUtf32(door.SymbolCodePoint), door.ForegroundColor,
                 door.BackgroundColor);
-        foreach (var enemy in world.Enemies) Put(grid, enemy.Position, "e", enemy.Color);
+        foreach (var enemy in world.Enemies)
+            Put(grid, enemy.Position, char.ConvertFromUtf32(enemy.SymbolCodePoint), enemy.Color);
         foreach (var chest in world.Chests) Put(grid, chest.Position, "$", ConsoleColor.Yellow);
         foreach (var corpse in world.Corpses) Put(grid, corpse.Position, "%", ConsoleColor.DarkRed);
         foreach (var pile in world.GroundPiles) Put(grid, pile.Position, "◆", ConsoleColor.Cyan);

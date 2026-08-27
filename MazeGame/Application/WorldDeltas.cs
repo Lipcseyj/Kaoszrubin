@@ -80,7 +80,8 @@ public static class WorldDeltaProjector
         first.EntityId == second.EntityId && first.DefinitionId == second.DefinitionId && first.Name == second.Name &&
         first.Position == second.Position && first.CurrentHitPoints == second.CurrentHitPoints &&
         first.MaximumHitPoints == second.MaximumHitPoints && first.GroupId == second.GroupId &&
-        first.GroupRole == second.GroupRole && first.ActiveEffectTypes.SequenceEqual(second.ActiveEffectTypes);
+        first.GroupRole == second.GroupRole && first.ActiveEffectTypes.SequenceEqual(second.ActiveEffectTypes) &&
+        first.Color == second.Color && first.SymbolCodePoint == second.SymbolCodePoint;
 
     private static bool GroundPileEquals(WorldGroundPileSnapshot first, WorldGroundPileSnapshot second) =>
         first.EntityId == second.EntityId && first.Position == second.Position && first.Revision == second.Revision &&

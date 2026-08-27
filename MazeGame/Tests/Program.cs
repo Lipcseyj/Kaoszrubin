@@ -671,7 +671,7 @@ static void SnapshotRequiresCurrentBattlePrompt()
 static void WorldSnapshotOnlyContainsRevealedState()
 {
     var maze = new Maze(7, 7);
-    var visibleEnemy = CreateEnemyAt(new Position(3, 2), "E-VISIBLE");
+    var visibleEnemy = CreateEnemyAt(new Position(3, 2), "E-VISIBLE", "r");
     var hiddenEnemy = CreateEnemyAt(new Position(4, 5), "E-HIDDEN");
     foreach (var position in new[] { visibleEnemy.Position, hiddenEnemy.Position, new Position(1, 2) })
         maze.Carve(position);
@@ -697,6 +697,8 @@ static void WorldSnapshotOnlyContainsRevealedState()
         "A world snapshot nem őrizte meg a host ajtószínét vagy ajtójelét.");
     Assert(world.Enemies.Single().Color != ConsoleColor.Red,
         "A world snapshot a host erősségfüggő színe helyett fix kliensszínt adott az ellenfélnek.");
+    Assert(world.Enemies.Single().SymbolCodePoint == new Rune('r').Value,
+        "A world snapshot nem őrizte meg az ellenfél katalógusban megadott jelét.");
     var restored = JsonSerializer.Deserialize<WorldSnapshot>(JsonSerializer.Serialize(world));
     Assert(restored?.Enemies.Single().DefinitionId == "E-VISIBLE",
         "A world snapshot JSON round-trip közben megváltozott.");
@@ -1524,8 +1526,8 @@ static ConfiguredEnemy CreateEnemy(int hitPoints, int strength) => new(new Posit
     new EnemyDefinition("E-TEST", "Tesztellenfél", "e", strength, hitPoints, 0, 1,
         1, 1, Array.Empty<string>()));
 
-static ConfiguredEnemy CreateEnemyAt(Position position, string id) => new(position,
-    new EnemyDefinition(id, "Tesztellenfél", "e", 1, 10, 0, 1,
+static ConfiguredEnemy CreateEnemyAt(Position position, string id, string appearance = "e") => new(position,
+    new EnemyDefinition(id, "Tesztellenfél", appearance, 1, 10, 0, 1,
         1, 1, Array.Empty<string>()));
 
 static List<GameSessionEvent> CollectEvents(GameSession session)
