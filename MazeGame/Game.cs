@@ -1056,8 +1056,21 @@ public sealed class Game
         if (TryGetDirection(key, out var direction))
             command = new MoveCharacterCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id, direction);
         else if (GameInputBindings.CharacterAction(key) is { } characterAction)
+        {
+            Position? targetDoor = null;
+            if (characterAction is CharacterAction.OpenDoor or CharacterAction.CloseOrLockDoor)
+            {
+                var doors = AdjacentDoorPositions(_player.Position);
+                if (doors.Count == 1) targetDoor = doors[0];
+                else if (doors.Count > 1)
+                {
+                    targetDoor = SelectDoorTarget(doors, characterAction);
+                    if (targetDoor is null) return;
+                }
+            }
             command = new CharacterActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
-                characterAction);
+                characterAction, targetDoor);
+        }
         else
         {
             var action = GameInputBindings.LeaderAction(key, _player.Position == _maze.Exit);
@@ -1271,15 +1284,62 @@ public sealed class Game
         {
             case CharacterAction.OpenDoor:
                 _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
-                    character, allowPartyAssistanceAndPrompts: isLeader);
+                    character, allowPartyAssistanceAndPrompts: isLeader, command.TargetDoorPosition);
                 break;
             case CharacterAction.CloseOrLockDoor:
                 _doorInteractions.TryCloseOrLockAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
-                    character);
+                    character, command.TargetDoorPosition);
                 break;
             case CharacterAction.SearchCurrentPosition:
                 TrySearchCurrentCell(character, position.Value, shareLootWithParty: isLeader);
                 break;
+        }
+    }
+
+    private IReadOnlyList<Position> AdjacentDoorPositions(Position position) =>
+        Enum.GetValues<Direction>()
+            .Select(direction => position + direction)
+            .Where(candidate => _maze.GetDoorAt(candidate) is not null)
+            .ToArray();
+
+    private Position? SelectDoorTarget(IReadOnlyList<Position> doors, CharacterAction action)
+    {
+        var selected = 0;
+        Position? previous = null;
+        while (true)
+        {
+            var current = doors[selected];
+            var verb = action == CharacterAction.OpenDoor ? "nyitás" : "bezárás/zárás";
+            _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, previous, current, true,
+                $"Ajtó kiválasztása ({verb}): nyilak/Tab, Enter: kész, Esc: mégse");
+            previous = current;
+            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+            while (!Console.KeyAvailable)
+            {
+                ProcessSessionCommands();
+                if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                    _activeCoopHost.TryPublish(CreateSessionSnapshot());
+                Thread.Sleep(20);
+            }
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Escape)
+            {
+                _renderer.FinishSpellTargeting(_maze, _fogOfWar, _player.Position);
+                return null;
+            }
+            if (key == ConsoleKey.Enter)
+            {
+                _renderer.FinishSpellTargeting(_maze, _fogOfWar, _player.Position);
+                return current;
+            }
+            if (key == ConsoleKey.Tab)
+                selected = (selected + 1) % doors.Count;
+            else if (TryGetDirection(key, out var direction))
+            {
+                var directionalDoor = _player.Position + direction;
+                var index = doors.ToList().IndexOf(directionalDoor);
+                if (index >= 0) selected = index;
+            }
         }
     }
 

@@ -342,8 +342,14 @@ public sealed class GameSession
             control.AssignedPlayerId != command.SenderId || control.ConnectionState != PlayerConnectionState.Connected ||
             control.ControllerKind == CharacterControllerKind.Npc)
             return Fail("A játékos nem irányíthatja ezt a karaktert.", out reason);
-        if (command is CharacterActionCommand characterAction && !Enum.IsDefined(characterAction.Action))
-            return Fail("Ismeretlen karakterakció.", out reason);
+        if (command is CharacterActionCommand characterAction)
+        {
+            if (!Enum.IsDefined(characterAction.Action))
+                return Fail("Ismeretlen karakterakció.", out reason);
+            if (characterAction.Action == CharacterAction.SearchCurrentPosition &&
+                characterAction.TargetDoorPosition is not null)
+                return Fail("A keresési akció nem kaphat ajtócélpontot.", out reason);
+        }
         if (command is LeaderActionCommand leaderAction && !Enum.IsDefined(leaderAction.Action))
             return Fail("Ismeretlen leader-akció.", out reason);
         if (command is BattleActionCommand battleAction)

@@ -140,7 +140,8 @@ static void RemotePlayerCanIssueCharacterAction()
     var (session, _, companion) = CreateSession();
     var remote = session.RegisterRemotePlayer();
     Assert(session.TryAssignRemoteControl(remote, companion.Id, out var error), error);
-    var command = new CharacterActionCommand(remote, 1, companion.Id, CharacterAction.OpenDoor);
+    var command = new CharacterActionCommand(remote, 1, companion.Id, CharacterAction.OpenDoor,
+        new Position(4, 3));
     session.Submit(command);
     Assert(session.TryReadCommand(out var accepted) && accepted == command,
         "A session elutasította a vendég saját karakterhez kötött ajtóakcióját.");
@@ -1020,7 +1021,7 @@ static void ProtocolCodecRoundTripsCommand()
     Assert(restored is BattleActionCommand decoded && decoded == command,
         "A JSON wire codec megváltoztatta a battle commandot.");
     var characterAction = new CharacterActionCommand(PlayerId.New(), 8, CharacterId.New(),
-        CharacterAction.SearchCurrentPosition);
+        CharacterAction.CloseOrLockDoor, new Position(7, 9));
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(characterAction)) is CharacterActionCommand decodedAction &&
            decodedAction == characterAction,
         "A JSON wire codec megváltoztatta a karakterhez kötött akciót.");

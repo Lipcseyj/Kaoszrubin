@@ -22,9 +22,9 @@ internal sealed class DoorInteractionController
     }
 
     public void TryOpenAdjacentDoor(Maze maze, FogOfWar fogOfWar, Position actorPosition, Position leaderPosition,
-        LiveCharacter selectedCharacter, bool allowPartyAssistanceAndPrompts)
+        LiveCharacter selectedCharacter, bool allowPartyAssistanceAndPrompts, Position? targetDoorPosition = null)
     {
-        var door = GetAdjacentDoor(maze, actorPosition);
+        var door = GetAdjacentDoor(maze, actorPosition, targetDoorPosition);
         if (door is null) { _renderer.DrawDoorMessage("Nincs ajtó melletted."); return; }
         if (door.State == DoorState.Open) { _renderer.DrawDoorMessage("Az ajtó már nyitva van."); return; }
         if (door.State == DoorState.Smashed) { _renderer.DrawDoorMessage("A bezúzott ajtónyílás már szabad."); return; }
@@ -102,9 +102,9 @@ internal sealed class DoorInteractionController
     }
 
     public void TryCloseAdjacentDoor(Maze maze, FogOfWar fogOfWar, Position actorPosition,
-        Position leaderPosition, LiveCharacter selectedCharacter)
+        Position leaderPosition, LiveCharacter selectedCharacter, Position? targetDoorPosition = null)
     {
-        var door = GetAdjacentDoor(maze, actorPosition);
+        var door = GetAdjacentDoor(maze, actorPosition, targetDoorPosition);
         if (door is null) { _renderer.DrawDoorMessage("Nincs ajtó melletted."); return; }
         if (door.State == DoorState.Smashed) { _renderer.DrawDoorMessage("A bezúzott ajtó többé nem zárható be.", ConsoleColor.Red); return; }
         if (door.State == DoorState.Locked) { _renderer.DrawDoorMessage("Az ajtó már kulcsra van zárva."); return; }
@@ -115,22 +115,24 @@ internal sealed class DoorInteractionController
     }
 
     public void TryCloseOrLockAdjacentDoor(Maze maze, FogOfWar fogOfWar, Position actorPosition,
-        Position leaderPosition, LiveCharacter selectedCharacter)
+        Position leaderPosition, LiveCharacter selectedCharacter, Position? targetDoorPosition = null)
     {
-        var door = GetAdjacentDoor(maze, actorPosition);
+        var door = GetAdjacentDoor(maze, actorPosition, targetDoorPosition);
         if (door is null) { _renderer.DrawDoorMessage("Nincs ajtó melletted."); return; }
         if (door.State == DoorState.Open)
         {
-            TryCloseAdjacentDoor(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter);
+            TryCloseAdjacentDoor(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter,
+                targetDoorPosition);
             return;
         }
-        TryLockAdjacentDoor(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter);
+        TryLockAdjacentDoor(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter,
+            targetDoorPosition);
     }
 
     public void TryLockAdjacentDoor(Maze maze, FogOfWar fogOfWar, Position actorPosition,
-        Position leaderPosition, LiveCharacter selectedCharacter)
+        Position leaderPosition, LiveCharacter selectedCharacter, Position? targetDoorPosition = null)
     {
-        var door = GetAdjacentDoor(maze, actorPosition);
+        var door = GetAdjacentDoor(maze, actorPosition, targetDoorPosition);
         if (door is null) { _renderer.DrawDoorMessage("Nincs ajtó melletted."); return; }
         if (door.State == DoorState.Smashed) { _renderer.DrawDoorMessage("A bezúzott ajtó többé nem zárható kulcsra.", ConsoleColor.Red); return; }
         if (door.State == DoorState.Locked) { _renderer.DrawDoorMessage("Az ajtó már kulcsra van zárva."); return; }
@@ -152,9 +154,16 @@ internal sealed class DoorInteractionController
         _renderer.DrawDoorMessage("Az ajtó kulcsra zárásához kulcs vagy tolvaj szükséges.", ConsoleColor.Red);
     }
 
-    private static MazeDoor? GetAdjacentDoor(Maze maze, Position playerPosition) => Directions
-        .Select(direction => maze.GetDoorAt(playerPosition + direction))
-        .FirstOrDefault(door => door is not null);
+    private static MazeDoor? GetAdjacentDoor(Maze maze, Position playerPosition, Position? targetDoorPosition)
+    {
+        if (targetDoorPosition is { } target)
+            return Math.Abs(target.X - playerPosition.X) + Math.Abs(target.Y - playerPosition.Y) == 1
+                ? maze.GetDoorAt(target)
+                : null;
+        var adjacentDoors = Directions.Select(direction => maze.GetDoorAt(playerPosition + direction))
+            .Where(door => door is not null).ToArray();
+        return adjacentDoors.Length == 1 ? adjacentDoors[0] : null;
+    }
 
     private static PartyMemberAvatar? FindNearbyNpcThief(Maze maze, Position leaderPosition) =>
         maze.PartyMembers.Where(member => member.Character.IsAlive &&

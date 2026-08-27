@@ -35,6 +35,9 @@ public sealed class CoopGuestScreen
     private Guid? _lastRestNoticeId;
     private Guid? _levelUpPromptId;
     private int _levelUpSelection;
+    private CharacterAction? _doorTargetAction;
+    private IReadOnlyList<Position> _doorTargetCandidates = [];
+    private int _doorTargetSelection;
     private GuestRenderFrame? _lastFrame;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData)
@@ -78,7 +81,8 @@ public sealed class CoopGuestScreen
                         client.CurrentSnapshot?.Narrative is null &&
                         client.CurrentSnapshot?.SpellPreparation is null &&
                         client.CurrentSnapshot?.LevelUpPrompt is null &&
-                        !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null) break;
+                        !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null &&
+                        _doorTargetAction is null) break;
                     await HandleInputAsync(client, selected.CharacterId, key.Key, cancellationToken);
                 }
                 await Task.Delay(20, cancellationToken);
@@ -111,6 +115,8 @@ public sealed class CoopGuestScreen
         }
         if (_inventoryOpen && snapshot.Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn))
             CloseInventory();
+        if (snapshot.Phase != GameSessionPhase.Exploration)
+            ClearDoorTargeting();
         if (snapshot.SpellPreparation is { CharacterId: var preparingCharacter } preparation &&
             preparingCharacter == characterId)
         {
@@ -165,6 +171,11 @@ public sealed class CoopGuestScreen
             return;
         }
         if (command is not null) { }
+        else if (_doorTargetAction is not null)
+        {
+            command = HandleDoorTargetInput(client, characterId, snapshot, key);
+            if (command is null) return;
+        }
         else if (_targetedBattleSpell is not null)
         {
             command = HandleBattleSpellTargetInput(client, characterId, snapshot, key);
@@ -236,8 +247,28 @@ public sealed class CoopGuestScreen
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && GameInputBindings.CharacterAction(key) is { } action)
         {
-            command = new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-                action);
+            if (action is CharacterAction.OpenDoor or CharacterAction.CloseOrLockDoor)
+            {
+                var ownPosition = snapshot.Party.FirstOrDefault(character => character.CharacterId == characterId)
+                    ?.Position;
+                var doors = ownPosition is { } position && snapshot.World is { } world
+                    ? world.Doors.Select(door => door.Position)
+                        .Where(candidate => Manhattan(candidate, position) == 1).ToArray()
+                    : [];
+                if (doors.Length > 1)
+                {
+                    _doorTargetAction = action;
+                    _doorTargetCandidates = doors;
+                    _doorTargetSelection = 0;
+                    Interlocked.Exchange(ref _redrawRequested, 1);
+                    return;
+                }
+                command = new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                    action, doors.Length == 1 ? doors[0] : null);
+            }
+            else
+                command = new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                    action);
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && TryGetDirection(key, out var direction))
         {
@@ -253,6 +284,44 @@ public sealed class CoopGuestScreen
             SetMessage(exception.Message);
         }
     }
+
+    private GameCommand? HandleDoorTargetInput(CoopSignalRClient client, CharacterId characterId,
+        SessionSnapshot snapshot, ConsoleKey key)
+    {
+        if (_doorTargetAction is not { } action || _doorTargetCandidates.Count == 0)
+        { ClearDoorTargeting(); return null; }
+        _doorTargetSelection = Math.Clamp(_doorTargetSelection, 0, _doorTargetCandidates.Count - 1);
+        if (key == ConsoleKey.Escape) { ClearDoorTargeting(); return null; }
+        if (key == ConsoleKey.Enter)
+        {
+            var target = _doorTargetCandidates[_doorTargetSelection];
+            ClearDoorTargeting();
+            return new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                action, target);
+        }
+        if (key == ConsoleKey.Tab)
+            _doorTargetSelection = (_doorTargetSelection + 1) % _doorTargetCandidates.Count;
+        else if (TryGetDirection(key, out var direction) &&
+                 snapshot.Party.FirstOrDefault(character => character.CharacterId == characterId)?.Position is { } own)
+        {
+            var target = own + direction;
+            var index = _doorTargetCandidates.ToList().IndexOf(target);
+            if (index >= 0) _doorTargetSelection = index;
+        }
+        Interlocked.Exchange(ref _redrawRequested, 1);
+        return null;
+    }
+
+    private void ClearDoorTargeting()
+    {
+        _doorTargetAction = null;
+        _doorTargetCandidates = [];
+        _doorTargetSelection = 0;
+        Interlocked.Exchange(ref _redrawRequested, 1);
+    }
+
+    private static int Manhattan(Position first, Position second) =>
+        Math.Abs(first.X - second.X) + Math.Abs(first.Y - second.Y);
 
     private GameCommand? HandleLevelUpInput(CoopSignalRClient client, CharacterId characterId,
         LevelUpPromptSnapshot prompt, ConsoleKey key)
@@ -669,6 +738,14 @@ public sealed class CoopGuestScreen
         foreach (var character in snapshot.Party.Where(character => character.Position is not null))
             Put(grid, character.Position!.Value, CharacterSheetPanel.CharacterClassGlyph(character.CharacterClassId),
                 character.Color);
+        if (_doorTargetAction is not null && _doorTargetCandidates.Count > 0)
+        {
+            _doorTargetSelection = Math.Clamp(_doorTargetSelection, 0, _doorTargetCandidates.Count - 1);
+            for (var index = 0; index < _doorTargetCandidates.Count; index++)
+                Put(grid, _doorTargetCandidates[index], index == _doorTargetSelection ? "╳" : "◇",
+                    index == _doorTargetSelection ? ConsoleColor.Green : ConsoleColor.DarkCyan,
+                    ConsoleColor.DarkBlue);
+        }
 
         var stillControlled = snapshot.CharacterControls.Any(control =>
             control.CharacterId == selected.CharacterId && control.AssignedPlayerId == client.PlayerId &&
@@ -751,6 +828,11 @@ public sealed class CoopGuestScreen
                 $"({cursor.X},{cursor.Y}) | Enter: célzás, Tab: következő, Esc: mégse",
                 targeted.ValidTargets.Contains(cursor) ? ConsoleColor.Cyan : ConsoleColor.DarkYellow,
                 ConsoleColor.Black);
+        else if (_doorTargetAction is { } doorAction && _doorTargetCandidates.Count > 0)
+            footer[^1] = new GuestTextLine(
+                $"╳ Ajtó kiválasztása ({(doorAction == CharacterAction.OpenDoor ? "nyitás" : "bezárás/zárás")})" +
+                " — nyilak/Tab, Enter: kész, Esc: mégse",
+                ConsoleColor.Cyan, ConsoleColor.Black);
 
         return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, grid, panel,
             footer);
