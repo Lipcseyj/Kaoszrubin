@@ -34,6 +34,9 @@ var tests = new (string Name, Action Run)[]
     ("Az osztályspecializáció mentés után is megmarad", ClassSpecializationSurvivesSerialization),
     ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
+    ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
+    ("A barbár öt sebzés után Dühbe gurul", BarbarianRageTriggersAfterFiveDamage),
+    ("A lovagi közbelépés felezi az első találat sebzését", KnightProtectionHalvesFirstHit),
     ("A csata megvárhatja a játékos hálózati akcióját", BattleCanWaitForPlayerAction),
     ("A támogatás a fő akció előtt lezárhatja a csatát", SupportCanFinishBattleBeforePlayerAction),
     ("A régi Resolve API az állapotgépet hajtja", ResolveUsesStateMachineAdapter),
@@ -360,6 +363,55 @@ static void BattleAdvanceRunsOneAction()
     Assert(step.State.TurnId == previousTurnId + 1, "A harci turn ID nem növekedett.");
     Assert(step.Entries.Count == 1, "Egy akció nem pontosan egy naplóbejegyzést adott.");
     Assert(!step.IsCompleted, "A nagy HP-jú tesztcsata váratlanul lezárult.");
+}
+
+static void PhysicalClassesChooseBattleTactic()
+{
+    var system = CreateBattleSystem(71);
+    var fighter = CreateCharacter("Harcos", characterClassId: CharacterClassIds.Harcos);
+    var fighterState = system.StartBattle(fighter, CreateEnemy(100, 1)).State;
+    Assert(fighterState.RequiresTacticSelection, "A harcos nem kapott csatakezdő állásválasztást.");
+    Assert(!fighterState.TryChooseTactic(BattleTactic.ThiefPoison), "A harcos elfogadott egy tolvaj taktikát.");
+    Assert(fighterState.TryChooseTactic(BattleTactic.FighterDefensive) && !fighterState.RequiresTacticSelection,
+        "A harcos érvényes állása nem oldotta fel a választást.");
+
+    var thief = CreateCharacter("Tolvaj", characterClassId: CharacterClassIds.Tolvaj);
+    var thiefState = system.StartBattle(thief, CreateEnemy(100, 1)).State;
+    Assert(thiefState.RequiresTacticSelection && thiefState.TryChooseTactic(BattleTactic.ThiefObserve),
+        "A tolvaj nem tudta kiválasztani a csatakezdő megközelítését.");
+}
+
+static void BarbarianRageTriggersAfterFiveDamage()
+{
+    var system = CreateBattleSystem(72);
+    var barbarian = CreateCharacter("Barbár", vitality: 500, characterClassId: CharacterClassIds.Barbár);
+    var state = system.StartBattle(barbarian, CreateEnemy(1000, 20)).State;
+    for (var step = 0; step < 100 && !state.IsBarbarianRaging; step++)
+        system.Advance(state);
+    Assert(state.IsBarbarianRaging, "A barbár legalább 5 tényleges sebzés után sem került Dühbe.");
+}
+
+static void KnightProtectionHalvesFirstHit()
+{
+    var unprotectedSystem = CreateBattleSystem(73);
+    var protectedSystem = CreateBattleSystem(73);
+    var unprotected = CreateCharacter("Védtelen", vitality: 500, characterClassId: CharacterClassIds.Pap);
+    var protectedCharacter = CreateCharacter("Védett", vitality: 500, characterClassId: CharacterClassIds.Pap);
+    var unprotectedState = unprotectedSystem.StartBattle(unprotected, CreateEnemy(1000, 20)).State;
+    var protectedState = protectedSystem.StartBattle(protectedCharacter, CreateEnemy(1000, 20)).State;
+    protectedState.SetKnightProtection("Őrszem");
+    var protectedEntries = new List<BattleLogEntry>();
+    for (var step = 0; step < 100 && unprotected.CurrentVitality == 500; step++)
+    {
+        unprotectedSystem.Advance(unprotectedState);
+        protectedEntries.AddRange(protectedSystem.Advance(protectedState).Entries);
+    }
+    var fullDamage = 500 - unprotected.CurrentVitality;
+    var reducedDamage = 500 - protectedCharacter.CurrentVitality;
+    Assert(fullDamage > 0 && reducedDamage == fullDamage / 2,
+        $"A lovagi védelem nem felezte a sebzést: {fullDamage} helyett {reducedDamage} érkezett.");
+    Assert(protectedEntries.Any(entry => entry.Message.Contains("Őrszem közbelépett", StringComparison.Ordinal)),
+        "A lovagi közbelépés nem került a harci eseménynaplóba.");
 }
 
 static void BattleCanWaitForPlayerAction()
@@ -1356,11 +1408,12 @@ static (GameSession Session, LiveCharacter Leader, LiveCharacter Companion) Crea
     return (new GameSession(party, leader), leader, companion);
 }
 
-static LiveCharacter CreateCharacter(string name, int vitality = 20)
+static LiveCharacter CreateCharacter(string name, int vitality = 20,
+    string characterClassId = CharacterClassIds.Harcos)
 {
     var abilities = new PrimaryAbilities(5, 5, 5, 5);
     var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
-    var characterClass = new CharacterClassDefinition("C001", "Harcos", PrimaryAbilities.Zero, false, 1.0);
+    var characterClass = new CharacterClassDefinition(characterClassId, characterClassId, PrimaryAbilities.Zero, false, 1.0);
     return new LiveCharacter(name, race, characterClass, abilities, vitality, 0, 1, 0);
 }
 

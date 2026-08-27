@@ -18,11 +18,21 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private readonly IReadOnlyList<StrengthHitBonusDefinition> _strengthHitBonuses = strengthHitBonuses.ToList();
 
     public BattleResult Resolve(LiveCharacter player, Enemy enemy, Action<BattleLogEntry> onRound,
-        Func<BattlePlayerAction?>? choosePlayerAction = null, Func<int>? partyMemberDamage = null)
+        Func<BattlePlayerAction?>? choosePlayerAction = null, Func<int>? partyMemberDamage = null,
+        string? knightProtectorName = null)
     {
         var started = StartBattle(player, enemy);
         foreach (var entry in started.Entries) onRound(entry);
         var state = started.State;
+        if (!string.IsNullOrWhiteSpace(knightProtectorName))
+            state.SetKnightProtection(knightProtectorName);
+        if (state.RequiresTacticSelection)
+        {
+            var tactics = player.CharacterClass.Id == CharacterClassIds.Harcos
+                ? new[] { BattleTactic.FighterPrecise, BattleTactic.FighterPowerful, BattleTactic.FighterDefensive }
+                : new[] { BattleTactic.ThiefAmbush, BattleTactic.ThiefObserve, BattleTactic.ThiefPoison };
+            state.TryChooseTactic(tactics[_random.Next(tactics.Length)]);
+        }
         while (!state.IsCompleted)
         {
             var supportDamage = partyMemberDamage?.Invoke() ?? 0;
@@ -175,6 +185,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         state.Defender = defender;
         state.Events.Add(message);
         entries.Add(new BattleLogEntry(message, kind));
+        if (state.IsPlayerTurn && context.BarbarianRageActionsRemaining > 0)
+            context.BarbarianRageActionsRemaining--;
         if (state.IsPlayerTurn && state.QueuedPlayerActions > 0)
             state.QueuedPlayerActions--;
         else
@@ -245,9 +257,16 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                                  defender.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase) ? 2 : 0;
         var invisibilityBonus = player.SpellEffectValue(ActiveSpellEffectType.Invisibility);
         var strengthHitBonus = StrengthHitBonus(player);
+        var tacticHitBonus = context.Tactic switch
+        {
+            BattleTactic.FighterPrecise => 3,
+            BattleTactic.FighterPowerful => -2,
+            BattleTactic.ThiefObserve => 2,
+            _ => 0
+        };
         var hitBonus = (weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0) +
                        player.GetMagicItemBonus(MagicItemEffect.Hit) + blessedWeaponBonus;
-        hitBonus += invisibilityBonus + strengthHitBonus + player.SpellEffectValue(ActiveSpellEffectType.HitBonus);
+        hitBonus += invisibilityBonus + strengthHitBonus + player.SpellEffectValue(ActiveSpellEffectType.HitBonus) + tacticHitBonus;
         var hit = HitRoll(player.Abilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
         var strengthHitText = strengthHitBonus > 0 ? $" [Erő-találat +{strengthHitBonus}]" : string.Empty;
@@ -273,6 +292,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             perkBonus += context.ConsecutivePlayerHits;
             if (context.ConsecutivePlayerHits > 0) notes.Add($"Őrjöngés +{context.ConsecutivePlayerHits}");
         }
+        if (context.BarbarianRageActionsRemaining > 0) { perkBonus += 3; notes.Add("Düh +3"); }
+        switch (context.Tactic)
+        {
+            case BattleTactic.FighterPrecise: perkBonus -= 2; notes.Add("Pontos: +3 találat, -2 sebzés"); break;
+            case BattleTactic.FighterPowerful: perkBonus += 4; notes.Add("Erőteljes: -2 találat, +4 sebzés"); break;
+            case BattleTactic.FighterDefensive: perkBonus -= 2; notes.Add("Védekező: -2 sebzés, +2 védelem"); break;
+        }
         var armor = (defender.Armor ?? 0) + MonsterAbilityValue(defender, MonsterAbilityEffect.ArmorBonus);
         var effectiveArmor = weapon?.IsTwoHanded == true ? (armor + 1) / 2 : armor;
         var damageMultiplier = 1;
@@ -293,6 +319,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             var poison = Roll(new ValueRange(1, 6));
             damage += poison;
             notes.Add($"Méreg +{poison}");
+        }
+        if (context.Tactic == BattleTactic.ThiefPoison)
+        {
+            var poison = Roll(new ValueRange(1, 4));
+            damage += poison;
+            notes.Add($"Mérgezett penge +{poison}");
         }
         context.ConsecutivePlayerHits++;
         var noteText = notes.Count == 0 ? string.Empty : $" [{string.Join(", ", notes)}]";
@@ -335,10 +367,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             ? defender.ActiveSpellEffects.Where(effect => effect.Type == ActiveSpellEffectType.ProtectionFromEvil).ToList()
             : [];
         var evilWardDefense = evilWard.Sum(effect => ParseInt(effect.Parameter));
+        var tacticDefense = context.Tactic == BattleTactic.FighterDefensive ? 2 : 0;
+        var rageDefensePenalty = context.BarbarianRageActionsRemaining > 0 ? 2 : 0;
         var perkDefense = (defender.HasPerk(PerkIds.BarbarianThickSkin) ? 1 : 0) +
                           (shieldEquipped && defender.HasPerk(PerkIds.KnightShieldWall) ? 2 : 0) +
                           defender.GetMagicItemBonus(MagicItemEffect.Defense) +
-                          defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus) + evilWardDefense;
+                          defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus) + evilWardDefense +
+                          tacticDefense - rageDefensePenalty;
         var reduction = (defender.HasPerk(PerkIds.FighterUnbreakable) ? 2 : 0) + (defender.HasPerk(PerkIds.KnightInvincible) ? 4 : 0);
         var monsterBonusDamage = RollMonsterBonusDamage(attacker);
         var rawDamage = strength + randomDamage + monsterBonusDamage;
@@ -422,6 +457,16 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     private string ApplyEnemyDamage(LiveCharacter player, int damage, BattleRuntimeContext context)
     {
+        var notes = new List<string>();
+        if (damage > 0 && context.KnightProtectionAvailable)
+        {
+            context.KnightProtectionAvailable = false;
+            var prevented = (damage + 1) / 2;
+            damage -= prevented;
+            notes.Add($"🛡 {context.KnightProtectorName} közbelépett: -{prevented} sebzés");
+        }
+        string WithNotes(string message) => string.Join(". ", notes.Append(message));
+
         if (damage >= player.CurrentVitality && player.TakeSpellEffect(ActiveSpellEffectType.GuardianAngel) is { } angel)
         {
             player.ReceiveDamage(Math.Max(0, player.CurrentVitality - 1));
@@ -429,36 +474,43 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                           angel.DamageMultiplierPercent / 100;
             var beforeHealing = player.CurrentVitality;
             player.RestoreVitality(healing);
-            return $"👼 Őrangyal: a halálos csapás kivédve és +{player.CurrentVitality - beforeHealing} HP.";
+            return WithNotes($"👼 Őrangyal: a halálos csapás kivédve és +{player.CurrentVitality - beforeHealing} HP.");
         }
         if (damage >= player.CurrentVitality && context.GuardianAngelAvailable)
         {
             context.GuardianAngelAvailable = false;
             player.RestoreVitality(25);
-            return "Őrangyal: a halálos csapás kivédve és +25 HP.";
+            return WithNotes("Őrangyal: a halálos csapás kivédve és +25 HP.");
         }
         if (damage >= player.CurrentVitality && context.LastFortressAvailable)
         {
             context.LastFortressAvailable = false;
             player.ReceiveDamage(Math.Max(0, player.CurrentVitality - 1));
-            return "Utolsó erőd: 1 HP-n talpon marad.";
+            return WithNotes("Utolsó erőd: 1 HP-n talpon marad.");
         }
         if (damage >= player.CurrentVitality && player.Race.HasTrait(RaceTraits.Relentless) &&
             !player.WasRelentlessUsedThisLevel)
         {
             player.ReceiveDamage(Math.Max(0, player.CurrentVitality - 1));
             player.MarkRelentlessUsedThisLevel();
-            return $"🔥 Könyörtelen: {player.Name} 1 HP-n túléli a halálos csapást.";
+            return WithNotes($"🔥 Könyörtelen: {player.Name} 1 HP-n túléli a halálos csapást.");
         }
         if (damage >= player.CurrentVitality && player.HasPerk(PerkIds.PriestResurrection) &&
             !player.WasResurrectedThisLevel)
         {
             player.SetCurrentResources(player.MaximumVitality, player.CurrentMana);
             player.MarkResurrectedThisLevel();
-            return $"✨ Feltámadás: {player.Name} teljes HP-val visszatér a halálból.";
+            return WithNotes($"✨ Feltámadás: {player.Name} teljes HP-val visszatér a halálból.");
         }
         player.ReceiveDamage(damage);
-        return string.Empty;
+        if (damage >= 5 && player.CharacterClass.Id == CharacterClassIds.Barbár &&
+            !context.BarbarianRageTriggered)
+        {
+            context.BarbarianRageTriggered = true;
+            context.BarbarianRageActionsRemaining = 3;
+            notes.Add("🔥 Düh: 3 akcióig +3 sebzés és -2 védelem");
+        }
+        return string.Join(". ", notes);
     }
 
     private static bool IsUnholy(EnemyDefinition enemy) => enemy.AbilityIds.Any(abilityId =>

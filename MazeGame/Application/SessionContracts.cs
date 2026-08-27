@@ -87,7 +87,13 @@ public enum BattleActionKind
 {
     PhysicalAttack,
     CastSpell,
-    TurnUndead
+    TurnUndead,
+    FighterPrecise,
+    FighterPowerful,
+    FighterDefensive,
+    ThiefAmbush,
+    ThiefObserve,
+    ThiefPoison
 }
 
 /// <summary>A kliens választása, nem kész sebzés- vagy dobáseredmény.</summary>

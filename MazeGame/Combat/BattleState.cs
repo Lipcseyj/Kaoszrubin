@@ -9,6 +9,16 @@ public readonly record struct BattleId(Guid Value)
     public override string ToString() => Value.ToString("N");
 }
 
+public enum BattleTactic
+{
+    FighterPrecise,
+    FighterPowerful,
+    FighterDefensive,
+    ThiefAmbush,
+    ThiefObserve,
+    ThiefPoison
+}
+
 /// <summary>Egy megkezdett, több inputcikluson vagy hálózati várakozáson át folytatható csata.</summary>
 public sealed class BattleState
 {
@@ -33,6 +43,30 @@ public sealed class BattleState
     public long TurnId { get; internal set; } = 1;
     public int CurrentEnemyHitPoints => Defender.HitPoints ?? 0;
     public BattleResult? Result { get; internal set; }
+    public BattleTactic? Tactic => Context.Tactic;
+    public bool RequiresTacticSelection => Context.RequiresTacticSelection && Context.Tactic is null;
+    public bool IsBarbarianRaging => Context.BarbarianRageActionsRemaining > 0;
+
+    public bool TryChooseTactic(BattleTactic tactic)
+    {
+        if (!RequiresTacticSelection) return false;
+        var valid = Player.CharacterClass.Id switch
+        {
+            CharacterClassIds.Harcos => tactic is BattleTactic.FighterPrecise or BattleTactic.FighterPowerful or BattleTactic.FighterDefensive,
+            CharacterClassIds.Tolvaj => tactic is BattleTactic.ThiefAmbush or BattleTactic.ThiefObserve or BattleTactic.ThiefPoison,
+            _ => false
+        };
+        if (!valid) return false;
+        Context.Tactic = tactic;
+        Context.AmbushAvailable |= tactic == BattleTactic.ThiefAmbush;
+        return true;
+    }
+
+    public void SetKnightProtection(string knightName)
+    {
+        Context.KnightProtectorName = knightName;
+        Context.KnightProtectionAvailable = true;
+    }
 
     internal LiveCharacter Player { get; }
     internal Enemy Enemy { get; }
@@ -59,6 +93,7 @@ internal sealed class BattleRuntimeContext
         GuardianAngelAvailable = player.HasPerk(PerkIds.KnightGuardianAngel);
         LastFortressAvailable = player.HasPerk(PerkIds.FighterLastFortress);
         AmbushAvailable = player.HasPerk(PerkIds.ThiefAmbush);
+        RequiresTacticSelection = player.CharacterClass.Id is CharacterClassIds.Harcos or CharacterClassIds.Tolvaj;
     }
 
     public bool ChallengeAvailable { get; set; }
@@ -67,4 +102,10 @@ internal sealed class BattleRuntimeContext
     public bool AmbushAvailable { get; set; }
     public bool ShadowStepReady { get; set; }
     public int ConsecutivePlayerHits { get; set; }
+    public bool RequiresTacticSelection { get; }
+    public BattleTactic? Tactic { get; set; }
+    public int BarbarianRageActionsRemaining { get; set; }
+    public bool BarbarianRageTriggered { get; set; }
+    public bool KnightProtectionAvailable { get; set; }
+    public string? KnightProtectorName { get; set; }
 }

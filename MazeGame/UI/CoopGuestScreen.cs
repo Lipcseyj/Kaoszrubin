@@ -225,6 +225,12 @@ public sealed class CoopGuestScreen
         }
         else if (snapshot.Battle is { } battle && battle.ActingCharacterId == characterId)
         {
+            if (TryGetBattleTacticAction(battle, key, out var tacticAction))
+            {
+                command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                    battle.BattleId, battle.TurnId, tacticAction);
+            }
+            else
             if (key == ConsoleKey.V && battle.AllowedActions.Contains(BattleActionKind.CastSpell))
             {
                 _battleSpellMenuOpen = true;
@@ -957,10 +963,44 @@ public sealed class CoopGuestScreen
                 $"╳ Ajtó kiválasztása ({(doorAction == CharacterAction.OpenDoor ? "nyitás" : "bezárás/zárás")})" +
                 " — nyilak/Tab, Enter: kész, Esc: mégse",
                 ConsoleColor.Cyan, ConsoleColor.Black);
+        else if (snapshot.Battle is { ActingCharacterId: var acting, AllowedActions: var actions } &&
+                 acting == selected.CharacterId && actions.Any(IsBattleTacticAction))
+            footer[^1] = new GuestTextLine(actions.Contains(BattleActionKind.FighterPrecise)
+                    ? "Taktika: 1 Pontos  |  2 Erőteljes  |  3 Védekező"
+                    : "Taktika: 1 Orvtámadás  |  2 Megfigyelés  |  3 Mérgezett penge",
+                ConsoleColor.Yellow, ConsoleColor.Black);
 
         return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, grid, panel,
             footer);
     }
+
+    private static bool TryGetBattleTacticAction(BattleSnapshot battle, ConsoleKey key,
+        out BattleActionKind action)
+    {
+        var option = key is ConsoleKey.D1 or ConsoleKey.NumPad1 ? 1 :
+            key is ConsoleKey.D2 or ConsoleKey.NumPad2 ? 2 :
+            key is ConsoleKey.D3 or ConsoleKey.NumPad3 ? 3 : 0;
+        action = battle.AllowedActions.Contains(BattleActionKind.FighterPrecise)
+            ? option switch
+            {
+                1 => BattleActionKind.FighterPrecise,
+                2 => BattleActionKind.FighterPowerful,
+                3 => BattleActionKind.FighterDefensive,
+                _ => default
+            }
+            : option switch
+            {
+                1 => BattleActionKind.ThiefAmbush,
+                2 => BattleActionKind.ThiefObserve,
+                3 => BattleActionKind.ThiefPoison,
+                _ => default
+            };
+        return option > 0 && battle.AllowedActions.Contains(action);
+    }
+
+    private static bool IsBattleTacticAction(BattleActionKind action) => action is
+        BattleActionKind.FighterPrecise or BattleActionKind.FighterPowerful or BattleActionKind.FighterDefensive or
+        BattleActionKind.ThiefAmbush or BattleActionKind.ThiefObserve or BattleActionKind.ThiefPoison;
 
     private IReadOnlyList<CharacterSheetPanelLine> BuildSpellInfoPanel(SessionCharacterSnapshot character)
     {

@@ -2189,8 +2189,13 @@ public sealed class Game
         var startingStatusIds = member.Character.Statuses.Select(status => status.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var spellsCast = 0;
+        var knightProtector = TryRollKnightProtector(member.Character);
         var result = _battleSystem.Resolve(member.Character, enemy, _ => { },
-            () => ChooseNpcBattlePlayerAction(member, enemy, onSpellCast: () => spellsCast++));
+            () => ChooseNpcBattlePlayerAction(member, enemy, onSpellCast: () => spellsCast++),
+            knightProtectorName: knightProtector?.Name);
+        var knightProtectionText = result.Events.Any(message => message.Contains("közbelépett", StringComparison.Ordinal))
+            ? $" Lovagi védelem: {knightProtector!.Name} közbelépett."
+            : string.Empty;
         var needLoss = DrainNeedsAfterBattle(member.Character, enemy.Definition.StrengthTier);
         var newStatusText = member.Character.Statuses
             .Where(status => !startingStatusIds.Contains(status.Id))
@@ -2214,7 +2219,7 @@ public sealed class Game
             var summary = $"{member.Character.Name} automatikus csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
                 $"HP: {startingNpcHp}→{member.Character.CurrentVitality}; ellenfél HP: {startingEnemyHp}→0; " +
                 $"Varázslatok: {spellsCast}; XP: {FormatExperienceAwards(experienceAwards)}.{levelText} " +
-                $"🍖💧 -{needLoss}.{newStatusText}";
+                $"🍖💧 -{needLoss}.{newStatusText}{knightProtectionText}";
             _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Green);
             RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Green);
         }
@@ -2225,7 +2230,7 @@ public sealed class Game
             _nextPartyMoves.Remove(member);
             var summary = $"{member.Character.Name} elesett a(z) {enemy.Name} elleni automatikus csatában " +
                 $"{result.Rounds} kör után. HP: {startingNpcHp}→0; ellenfél HP: {startingEnemyHp}→" +
-                $"{enemy.CurrentHitPoints}; Varázslatok: {spellsCast}; 🍖💧 -{needLoss}.{newStatusText}";
+                $"{enemy.CurrentHitPoints}; Varázslatok: {spellsCast}; 🍖💧 -{needLoss}.{newStatusText}{knightProtectionText}";
             _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Red);
             RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Red);
         }
@@ -2405,7 +2410,8 @@ public sealed class Game
 
     private void HandleLocalBattleInput(ConsoleKeyInfo key)
     {
-        if (_activeBattleState is null || _activeBattleState.IsCompleted || !_activeBattleState.IsPlayerTurn) return;
+        if (_activeBattleState is null || _activeBattleState.IsCompleted ||
+            (!_activeBattleState.IsPlayerTurn && !_activeBattleState.RequiresTacticSelection)) return;
         if (_activeBattleState.PlayerCharacterId != SelectedCharacter.Id) return;
         var enemy = _activeBattleState.Enemy;
         var canTurnUndead = CanTurnUndead(SelectedCharacter, enemy) &&
@@ -2422,6 +2428,14 @@ public sealed class Game
             _renderer.DrawBattleStarted(enemy);
             _renderer.RefreshBattleStatusRows();
             DrawBattleActionPrompt(enemy);
+            return;
+        }
+        if (_activeBattleState.RequiresTacticSelection && key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 or
+                ConsoleKey.D2 or ConsoleKey.NumPad2 or ConsoleKey.D3 or ConsoleKey.NumPad3)
+        {
+            var option = key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 ? 1 :
+                key.Key is ConsoleKey.D2 or ConsoleKey.NumPad2 ? 2 : 3;
+            SubmitLocalBattleCommand(TacticActionFor(SelectedCharacter.CharacterClass.Id, option));
             return;
         }
         if (key.Key == ConsoleKey.Spacebar)
@@ -2493,6 +2507,14 @@ public sealed class Game
 
     private void DrawBattleActionPrompt(Enemy enemy)
     {
+        if (_activeBattleState?.RequiresTacticSelection == true)
+        {
+            _renderer.DrawInventoryMessage(SelectedCharacter.CharacterClass.Id == CharacterClassIds.Harcos
+                ? "Válassz harci állást: 1 — Pontos | 2 — Erőteljes | 3 — Védekező"
+                : "Válassz megközelítést: 1 — Orvtámadás | 2 — Megfigyelés | 3 — Mérgezett penge",
+                ConsoleColor.Yellow);
+            return;
+        }
         var canTurnUndead = CanTurnUndead(SelectedCharacter, enemy) &&
                             !_turnUndeadUsedThisBattle.Contains(SelectedCharacter);
         _renderer.DrawInventoryMessage("Akció: Space — fegyveres támadás" +
@@ -2502,6 +2524,21 @@ public sealed class Game
             (canTurnUndead ? " | T — halottűzés" : string.Empty), ConsoleColor.Yellow);
     }
 
+    private static BattleActionKind TacticActionFor(string characterClassId, int option) =>
+        characterClassId == CharacterClassIds.Harcos
+            ? option switch
+            {
+                1 => BattleActionKind.FighterPrecise,
+                2 => BattleActionKind.FighterPowerful,
+                _ => BattleActionKind.FighterDefensive
+            }
+            : option switch
+            {
+                1 => BattleActionKind.ThiefAmbush,
+                2 => BattleActionKind.ThiefObserve,
+                _ => BattleActionKind.ThiefPoison
+            };
+
     private void ExecuteBattleAction(BattleActionCommand command)
     {
         if (_activeBattleState is null || command.BattleId != _activeBattleState.Id ||
@@ -2509,6 +2546,19 @@ public sealed class Game
         var battleCharacter = _activeBattleState.Player;
         switch (command.Action)
         {
+            case BattleActionKind.FighterPrecise:
+            case BattleActionKind.FighterPowerful:
+            case BattleActionKind.FighterDefensive:
+            case BattleActionKind.ThiefAmbush:
+            case BattleActionKind.ThiefObserve:
+            case BattleActionKind.ThiefPoison:
+                if (_activeBattleState.TryChooseTactic(ToBattleTactic(command.Action)))
+                {
+                    _renderer.DrawInventoryMessage($"Harci taktika: {BattleTacticName(_activeBattleState.Tactic!.Value)}.", ConsoleColor.Cyan);
+                    ContinueActiveBattle();
+                }
+                else RejectBattleAction(command, "Ez a harci taktika most nem választható.");
+                break;
             case BattleActionKind.PhysicalAttack:
                 ResolveActiveBattleAction(null);
                 break;
@@ -2562,6 +2612,49 @@ public sealed class Game
             attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions));
     }
 
+    private void TryAssignKnightProtection(BattleState state, LiveCharacter protectedCharacter)
+    {
+        var knight = TryRollKnightProtector(protectedCharacter);
+        if (knight is null) return;
+        state.SetKnightProtection(knight.Name);
+        _renderer.DrawInventoryMessage($"🛡 {knight.Name} készen áll közbelépni: az első találat sebzése feleződik.",
+            ConsoleColor.Cyan);
+    }
+
+    private LiveCharacter? TryRollKnightProtector(LiveCharacter protectedCharacter)
+    {
+        var protectedPosition = GetCasterPosition(protectedCharacter);
+        var knight = LivingPartyWithPositions()
+            .Where(entry => entry.Character != protectedCharacter && entry.Character.IsAlive &&
+                            entry.Character.CharacterClass.Id == CharacterClassIds.Lovag &&
+                            Chebyshev(entry.Position, protectedPosition) <= 2)
+            .OrderBy(entry => Chebyshev(entry.Position, protectedPosition))
+            .Select(entry => entry.Character).FirstOrDefault();
+        return knight is not null && _random.Next(100) < 75 ? knight : null;
+    }
+
+    private static BattleTactic ToBattleTactic(BattleActionKind action) => action switch
+    {
+        BattleActionKind.FighterPrecise => BattleTactic.FighterPrecise,
+        BattleActionKind.FighterPowerful => BattleTactic.FighterPowerful,
+        BattleActionKind.FighterDefensive => BattleTactic.FighterDefensive,
+        BattleActionKind.ThiefAmbush => BattleTactic.ThiefAmbush,
+        BattleActionKind.ThiefObserve => BattleTactic.ThiefObserve,
+        BattleActionKind.ThiefPoison => BattleTactic.ThiefPoison,
+        _ => throw new ArgumentOutOfRangeException(nameof(action))
+    };
+
+    private static string BattleTacticName(BattleTactic tactic) => tactic switch
+    {
+        BattleTactic.FighterPrecise => "Pontos állás (+3 találat, -2 sebzés)",
+        BattleTactic.FighterPowerful => "Erőteljes állás (-2 találat, +4 sebzés)",
+        BattleTactic.FighterDefensive => "Védekező állás (-2 sebzés, +2 védelem)",
+        BattleTactic.ThiefAmbush => "Orvtámadás (az első sikeres támadás dupla sebzés)",
+        BattleTactic.ThiefObserve => "Megfigyelés (+2 találat)",
+        BattleTactic.ThiefPoison => "Mérgezett penge (+1-4 sebzés találatonként)",
+        _ => tactic.ToString()
+    };
+
     private void RejectBattleAction(BattleActionCommand command, string message)
     {
         _session.RejectExecutedCommand(command, message);
@@ -2578,6 +2671,10 @@ public sealed class Game
     private IReadOnlyList<BattleActionKind> GetAllowedBattleActions(LiveCharacter character,
         Position characterPosition, Enemy enemy)
     {
+        if (_activeBattleState is { RequiresTacticSelection: true } state && state.PlayerCharacterId == character.Id)
+            return character.CharacterClass.Id == CharacterClassIds.Harcos
+                ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
+                : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
         var actions = new List<BattleActionKind> { BattleActionKind.PhysicalAttack };
         if (HasUsableCombatSpell(character, characterPosition, enemy)) actions.Add(BattleActionKind.CastSpell);
         if (CanTurnUndead(character, enemy) && !_turnUndeadUsedThisBattle.Contains(character))
@@ -3540,6 +3637,7 @@ public sealed class Game
         _renderer.DrawBattleStarted(enemy);
         var started = _battleSystem.StartBattle(battleCharacter, enemy);
         _activeBattleState = started.State;
+        TryAssignKnightProtection(_activeBattleState, battleCharacter);
         PresentBattleEntries(started.Entries);
         ContinueActiveBattle();
     }
@@ -3548,6 +3646,15 @@ public sealed class Game
     {
         while (_activeBattleState is { IsCompleted: false } state)
         {
+            if (state.RequiresTacticSelection)
+            {
+                var battleCharacter = state.Player;
+                _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
+                    GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
+                if (battleCharacter == SelectedCharacter) DrawBattleActionPrompt(state.Enemy);
+                else _renderer.DrawInventoryMessage($"Várakozás {battleCharacter.Name} harci taktikájára.", ConsoleColor.Yellow);
+                return;
+            }
             if (state.IsPlayerTurn)
             {
                 var battleCharacter = state.Player;
