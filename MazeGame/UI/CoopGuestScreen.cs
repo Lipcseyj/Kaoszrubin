@@ -28,6 +28,7 @@ public sealed class CoopGuestScreen
     private int _innSelection;
     private bool _innRumorOpen;
     private int _innRumorSelection;
+    private long _lastInnTransactionSequence;
     private Guid? _acknowledgedNarrativeId;
     private bool _spellInfoOpen;
     private int _spellInfoSelection;
@@ -709,7 +710,11 @@ public sealed class CoopGuestScreen
     private void Draw(CoopSignalRClient client, CoopCharacterOption selected)
     {
         var snapshot = client.CurrentSnapshot;
-        if (snapshot is not null) SynchronizeRestNotice(snapshot, selected.CharacterId);
+        if (snapshot is not null)
+        {
+            SynchronizeRestNotice(snapshot, selected.CharacterId);
+            SynchronizeInnTransactions(snapshot);
+        }
         if (snapshot?.World is not { } world)
         {
             ResetConsole();
@@ -735,6 +740,25 @@ public sealed class CoopGuestScreen
             : " Negatív állapot nem szűnt meg.";
         SetMessage($"{(notice.AtInn ? "Fogadói" : "Tábori")} pihenés: {own.CharacterName} " +
                    $"+{own.HealedAmount} HP.{statusText}", ConsoleColor.Green);
+    }
+
+    private void SynchronizeInnTransactions(SessionSnapshot snapshot)
+    {
+        if (snapshot.Inn is not { } inn) return;
+        foreach (var transaction in inn.Transactions.Where(transaction =>
+                     transaction.Sequence > _lastInnTransactionSequence).OrderBy(transaction => transaction.Sequence))
+        {
+            var message = transaction.Kind switch
+            {
+                InnTransactionKind.Purchase => $"🏰 {transaction.ActorName} megvette: {transaction.ItemName} " +
+                                               $"({transaction.Price} arany) → {transaction.InventoryOwnerName}",
+                InnTransactionKind.Sale => $"🏰 {transaction.ActorName} eladta: {transaction.ItemName} " +
+                                           $"({transaction.Price} arany) ← {transaction.InventoryOwnerName}",
+                _ => $"🏰 {transaction.ActorName}: {transaction.ItemName}"
+            };
+            SetMessage(message, ConsoleColor.Yellow);
+            _lastInnTransactionSequence = transaction.Sequence;
+        }
     }
 
     private GuestRenderFrame BuildFrame(CoopSignalRClient client, CoopCharacterOption selected,

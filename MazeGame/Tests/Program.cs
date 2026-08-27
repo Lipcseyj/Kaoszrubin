@@ -479,11 +479,12 @@ static void SessionSnapshotRoundTripsThroughJson()
 static void InnSnapshotCarriesSharedRumors()
 {
     var snapshot = new InnSnapshot(3, 120, [],
-        [new InnRumorSnapshot("Úti hír", ["Ugyanazt hallja a host és a vendég."], ConsoleColor.Yellow)]);
+        [new InnRumorSnapshot("Úti hír", ["Ugyanazt hallja a host és a vendég."], ConsoleColor.Yellow)],
+        [new InnTransactionSnapshot(1, InnTransactionKind.Purchase, "Vendég", "Kard", 50, "Vendég")]);
     var restored = JsonSerializer.Deserialize<InnSnapshot>(JsonSerializer.Serialize(snapshot));
     Assert(restored is { Rumors.Count: 1 } && restored.Rumors[0].Title == "Úti hír" &&
            restored.Rumors[0].Lines.SequenceEqual(snapshot.Rumors[0].Lines) &&
-           restored.Rumors[0].Color == ConsoleColor.Yellow,
+           restored.Rumors[0].Color == ConsoleColor.Yellow && restored.Transactions is [{ ActorName: "Vendég" }],
         "A fogadói pletyka nem maradt meg a snapshot JSON round-trip során.");
 }
 

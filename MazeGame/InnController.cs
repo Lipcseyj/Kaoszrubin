@@ -27,6 +27,8 @@ internal sealed class InnController
     private readonly Action<PartyRestSnapshot> _reportRest;
     private readonly Dictionary<InnVendorKind, List<InnStockOffer>> _vendorStocks = [];
     private readonly List<InnRumor> _rumors = [];
+    private readonly Queue<InnTransactionSnapshot> _transactions = new();
+    private long _transactionSequence;
     private long _revision;
     private bool _active;
     private bool _hasRestedAtInn;
@@ -59,7 +61,8 @@ internal sealed class InnController
             pair.Value.Select((offer, index) => new InnOfferSnapshot(index, ToSnapshot(offer.Item), offer.Price)).ToArray()))
             .ToArray();
         return new InnSnapshot(_revision, _selectedCharacter.Gold, vendors,
-            _rumors.Select(rumor => new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color)).ToArray());
+            _rumors.Select(rumor => new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color)).ToArray(),
+            _transactions.ToArray());
     }
 
     public bool TryPurchase(InnVendorKind vendor, int offerIndex, long expectedRevision,
@@ -78,6 +81,8 @@ internal sealed class InnController
         stock.RemoveAt(offerIndex);
         _revision++;
         message = $"Megvetted: {offer.Item.Name} ({offer.Price} arany).";
+        RecordTransaction(InnTransactionKind.Purchase, recipient.Name, offer.Item.Name, offer.Price,
+            recipient.Name, announceOnHost: true);
         return true;
     }
 
@@ -119,6 +124,7 @@ internal sealed class InnController
         if (armorerPresent) _vendorStocks[InnVendorKind.Armorer] = armorerStock;
         if (wanderingMagePresent) _vendorStocks[InnVendorKind.WanderingMage] = wanderingMageStock;
         _rumors.Clear();
+        _transactions.Clear();
         var shownRumors = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < 4; index++)
             _rumors.Add(CreateUniqueInnRumor(completedLevel, shownRumors));
@@ -286,6 +292,8 @@ internal sealed class InnController
                 stock.RemoveAt(selectedIndex);
                 _revision++;
                 message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
+                RecordTransaction(InnTransactionKind.Purchase, _selectedCharacter.Name, offer.Item.Name,
+                    offer.Price, recipient.Name);
             }
             else
             {
@@ -293,7 +301,10 @@ internal sealed class InnController
                 if (!offer.Owner.SetInventoryItem(InventorySlotKind.Backpack, offer.BackpackIndex, null))
                 { message = "Az üzlet most nem hajtható végre."; continue; }
                 _selectedCharacter.AddGold(offer.Price);
+                _revision++;
                 message = $"✅ Eladtad: {offer.Item.Name} {offer.Price} aranyért ({offer.Owner.Name} hátizsákjából).";
+                RecordTransaction(InnTransactionKind.Sale, _selectedCharacter.Name, offer.Item.Name,
+                    offer.Price, offer.Owner.Name);
             }
         }
     }
@@ -359,6 +370,8 @@ internal sealed class InnController
             stock.RemoveAt(selectedIndex);
             _revision++;
             message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
+            RecordTransaction(InnTransactionKind.Purchase, _selectedCharacter.Name, offer.Item.Name,
+                offer.Price, recipient.Name);
         }
     }
 
@@ -788,6 +801,8 @@ internal sealed class InnController
             stock.RemoveAt(selectedIndex);
             _revision++;
             message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
+            RecordTransaction(InnTransactionKind.Purchase, _selectedCharacter.Name, offer.Item.Name,
+                offer.Price, recipient.Name);
         }
     }
 
@@ -953,9 +968,31 @@ internal sealed class InnController
             stock.RemoveAt(selectedIndex);
             _revision++;
             message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
+            RecordTransaction(InnTransactionKind.Purchase, _selectedCharacter.Name, offer.Item.Name,
+                offer.Price, recipient.Name);
             redraw = true;
         }
     }
+
+    private void RecordTransaction(InnTransactionKind kind, string actorName, string itemName, int price,
+        string inventoryOwnerName, bool announceOnHost = false)
+    {
+        var transaction = new InnTransactionSnapshot(++_transactionSequence, kind, actorName, itemName, price,
+            inventoryOwnerName);
+        _transactions.Enqueue(transaction);
+        while (_transactions.Count > 8) _transactions.Dequeue();
+        if (announceOnHost)
+            _renderer.DrawInventoryMessage(FormatTransaction(transaction), ConsoleColor.Yellow);
+    }
+
+    private static string FormatTransaction(InnTransactionSnapshot transaction) => transaction.Kind switch
+    {
+        InnTransactionKind.Purchase => $"🏰 {transaction.ActorName} megvette: {transaction.ItemName} " +
+                                       $"({transaction.Price} arany) → {transaction.InventoryOwnerName}",
+        InnTransactionKind.Sale => $"🏰 {transaction.ActorName} eladta: {transaction.ItemName} " +
+                                   $"({transaction.Price} arany) ← {transaction.InventoryOwnerName}",
+        _ => $"🏰 {transaction.ActorName}: {transaction.ItemName}"
+    };
 
     private enum InnMenuOption { Rest, Market, Witcher, SecretStash, Blacksmith, Armorer, WanderingMage, Recruit, Rumors, Leave }
 
