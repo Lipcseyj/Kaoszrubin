@@ -29,6 +29,9 @@ public sealed class CoopGuestScreen
     private Guid? _acknowledgedNarrativeId;
     private bool _spellInfoOpen;
     private int _spellInfoSelection;
+    private Guid? _spellPreparationPromptId;
+    private int _spellPreparationCursor;
+    private readonly HashSet<string> _preparedSpellIds = new(StringComparer.OrdinalIgnoreCase);
     private GuestRenderFrame? _lastFrame;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData)
@@ -70,6 +73,7 @@ public sealed class CoopGuestScreen
                     var key = Console.ReadKey(intercept: true);
                     if (key.Key == ConsoleKey.Escape && client.CurrentSnapshot?.Phase != GameSessionPhase.Inn &&
                         client.CurrentSnapshot?.Narrative is null &&
+                        client.CurrentSnapshot?.SpellPreparation is null &&
                         !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null) break;
                     await HandleInputAsync(client, selected.CharacterId, key.Key, cancellationToken);
                 }
@@ -103,6 +107,19 @@ public sealed class CoopGuestScreen
         }
         if (_inventoryOpen && snapshot.Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn))
             CloseInventory();
+        if (snapshot.SpellPreparation is { CharacterId: var preparingCharacter } preparation &&
+            preparingCharacter == characterId)
+        {
+            var preparationCommand = HandleSpellPreparationInput(client, characterId, preparation, key);
+            if (preparationCommand is not null)
+            {
+                try { await client.SendCommandAsync(preparationCommand, cancellationToken); }
+                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
+                { SetMessage(exception.Message); }
+            }
+            return;
+        }
+        _spellPreparationPromptId = null;
         SynchronizeSpellUi(snapshot, characterId);
         if (snapshot.Narrative is { } narrative)
         {
@@ -218,6 +235,39 @@ public sealed class CoopGuestScreen
         {
             SetMessage(exception.Message);
         }
+    }
+
+    private GameCommand? HandleSpellPreparationInput(CoopSignalRClient client, CharacterId characterId,
+        SpellPreparationSnapshot preparation, ConsoleKey key)
+    {
+        if (_spellPreparationPromptId != preparation.PromptId)
+        {
+            _spellPreparationPromptId = preparation.PromptId;
+            _spellPreparationCursor = 0;
+            _preparedSpellIds.Clear();
+            _preparedSpellIds.UnionWith(preparation.SelectedSpellIds);
+        }
+        var spells = preparation.Spells;
+        if (spells.Count == 0 && key == ConsoleKey.Enter)
+            return new PrepareSpellsCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                preparation.PromptId, []);
+        if (spells.Count == 0) return null;
+        _spellPreparationCursor = Math.Clamp(_spellPreparationCursor, 0, spells.Count - 1);
+        if (key == ConsoleKey.UpArrow)
+            _spellPreparationCursor = (_spellPreparationCursor - 1 + spells.Count) % spells.Count;
+        else if (key == ConsoleKey.DownArrow)
+            _spellPreparationCursor = (_spellPreparationCursor + 1) % spells.Count;
+        else if (key == ConsoleKey.Spacebar)
+        {
+            var id = spells[_spellPreparationCursor].SpellId;
+            if (!_preparedSpellIds.Remove(id) && _preparedSpellIds.Count < preparation.Capacity)
+                _preparedSpellIds.Add(id);
+        }
+        else if (key == ConsoleKey.Enter)
+            return new PrepareSpellsCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                preparation.PromptId, _preparedSpellIds.ToArray());
+        Interlocked.Exchange(ref _redrawRequested, 1);
+        return null;
     }
 
     private GameCommand? HandleSpellInfoInput(CoopSignalRClient client, CharacterId characterId,
@@ -572,6 +622,7 @@ public sealed class CoopGuestScreen
         ApplyBattleSpellUi(grid, snapshot, own);
         ApplyInnUi(grid, snapshot);
         ApplyNarrativeUi(grid, snapshot, client.PlayerId);
+        ApplySpellPreparationUi(grid, snapshot, own);
         var panelLines = _spellInfoOpen && own?.SpellInfo is not null
             ? BuildSpellInfoPanel(own).ToDictionary(line => line.Row)
             : own?.CharacterSheet is not null && own.Inventory is not null
@@ -790,6 +841,52 @@ public sealed class CoopGuestScreen
         }
         DrawOverlayText(grid, left, top + lines.Count + 1, "╚" + new string('═', width - 2) + "╝",
             ConsoleColor.Magenta);
+    }
+
+    private void ApplySpellPreparationUi(GuestMapCell[,] grid, SessionSnapshot snapshot,
+        SessionCharacterSnapshot? own)
+    {
+        if (snapshot.SpellPreparation is not { } preparation || own?.CharacterId != preparation.CharacterId) return;
+        if (_spellPreparationPromptId != preparation.PromptId)
+        {
+            _spellPreparationPromptId = preparation.PromptId;
+            _spellPreparationCursor = 0;
+            _preparedSpellIds.Clear();
+            _preparedSpellIds.UnionWith(preparation.SelectedSpellIds);
+        }
+        var spells = preparation.Spells;
+        _spellPreparationCursor = spells.Count == 0 ? 0 : Math.Clamp(_spellPreparationCursor, 0, spells.Count - 1);
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🧠✨  VARÁZSLATOK MEMORIZÁLÁSA", ConsoleColor.Magenta),
+            ($"{preparation.CharacterName} — kapacitás: {_preparedSpellIds.Count}/{preparation.Capacity}", ConsoleColor.Cyan),
+            ("Fel/le: mozgás   Space: ki/be   Enter: kész", ConsoleColor.Green),
+            (new string('─', 64), ConsoleColor.DarkMagenta)
+        };
+        if (spells.Count == 0) lines.Add(("Nincs ismert varázslat. Enter: kész.", ConsoleColor.DarkYellow));
+        else lines.AddRange(spells.Select((spell, index) =>
+            ($"{(index == _spellPreparationCursor ? "▶" : " ")} [{(_preparedSpellIds.Contains(spell.SpellId) ? "X" : " ")}]  " +
+             $"{spell.Level}. szint — {spell.Name}",
+                index == _spellPreparationCursor ? ConsoleColor.Yellow : ConsoleColor.Gray)));
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, 72);
+    }
+
+    private static void DrawGuestOverlay(GuestMapCell[,] grid, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
+        ConsoleColor borderColor, int desiredWidth)
+    {
+        var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
+        var maximumRows = Math.Max(1, grid.GetLength(1) - 2);
+        var visible = lines.Take(maximumRows).ToArray();
+        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
+        var top = Math.Max(0, (grid.GetLength(1) - visible.Length - 2) / 2);
+        DrawOverlayText(grid, left, top, "╔" + new string('═', width - 2) + "╗", borderColor);
+        for (var row = 0; row < visible.Length; row++)
+        {
+            var value = visible[row].Text.Length > width - 4 ? visible[row].Text[..(width - 4)] : visible[row].Text;
+            DrawOverlayText(grid, left, top + row + 1, "║" + new string(' ', width - 2) + "║", borderColor);
+            DrawOverlayText(grid, left + 2, top + row + 1, value.PadRight(width - 4), visible[row].Color);
+        }
+        DrawOverlayText(grid, left, top + visible.Length + 1, "╚" + new string('═', width - 2) + "╝", borderColor);
     }
 
     private void ApplyBattleSpellUi(GuestMapCell[,] grid, SessionSnapshot snapshot,

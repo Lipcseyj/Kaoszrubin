@@ -110,6 +110,9 @@ public sealed record AcknowledgeNarrativeCommand(PlayerId SenderId, long Command
 public sealed record AssignQuickSpellCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     string SpellId, int QuickSlot) : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record PrepareSpellsCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    Guid PromptId, IReadOnlyList<string> SpellIds) : GameCommand(SenderId, CommandId, CharacterId);
+
 public abstract record GameSessionEvent(long Sequence);
 
 public sealed record SessionPhaseChangedEvent(long Sequence, GameSessionPhase PreviousPhase,

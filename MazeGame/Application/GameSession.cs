@@ -383,6 +383,15 @@ public sealed class GameSession
             reason = string.Empty;
             return true;
         }
+        if (command is PrepareSpellsCommand preparation)
+        {
+            if (Phase != GameSessionPhase.Paused || preparation.PromptId == Guid.Empty ||
+                preparation.SpellIds is null || preparation.SpellIds.Count > 32 ||
+                preparation.SpellIds.Any(string.IsNullOrWhiteSpace))
+                return Fail("A varázslat-memorizálási parancs érvénytelen.", out reason);
+            reason = string.Empty;
+            return true;
+        }
         if (Phase != GameSessionPhase.Exploration)
             return Fail("Ez a parancs csak felfedezés közben hajtható végre.", out reason);
         if (command is CastExplorationSpellCommand explorationSpell &&

@@ -134,6 +134,8 @@ public sealed class Game
     private ICoopHostLoop? _activeCoopHost;
     private NarrativeSnapshot? _activeNarrative;
     private readonly HashSet<PlayerId> _narrativeAcknowledgements = [];
+    private SpellPreparationSnapshot? _activeSpellPreparation;
+    private bool _spellPreparationCompleted;
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
     private readonly GameSession _session;
@@ -197,6 +199,7 @@ public sealed class Game
             Inn = _innController.CreateSnapshot(),
             Narrative = _activeNarrative is null ? null : _activeNarrative with
             { AcknowledgedPlayerIds = _narrativeAcknowledgements.ToArray() },
+            SpellPreparation = _activeSpellPreparation,
             Party = snapshot.Party.Select(character => character with
             {
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
@@ -904,7 +907,46 @@ public sealed class Game
     private void PreparePartySpells()
     {
         foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive && character.IsSpellcaster))
-            character.SetMemorizedSpells(_renderer.DrawSpellPreparationScreen(character));
+        {
+            var control = _session.CharacterControls.FirstOrDefault(candidate => candidate.CharacterId == character.Id);
+            if (control is { ControllerKind: CharacterControllerKind.RemotePlayer,
+                    ConnectionState: PlayerConnectionState.Connected, AssignedPlayerId: not null })
+                WaitForRemoteSpellPreparation(character);
+            else
+                character.SetMemorizedSpells(_renderer.DrawSpellPreparationScreen(character));
+        }
+    }
+
+    private void WaitForRemoteSpellPreparation(LiveCharacter character)
+    {
+        var previousPhase = _session.Phase;
+        var spellInfo = SpellInfoSnapshotProjector.Create(character);
+        _activeSpellPreparation = new SpellPreparationSnapshot(Guid.NewGuid(), character.Id, character.Name,
+            character.MemorizationCapacity, spellInfo.KnownSpells,
+            character.MemorizedSpells.Select(spell => spell.Id).ToArray());
+        _spellPreparationCompleted = false;
+        _session.SetPhase(GameSessionPhase.Paused);
+        Console.Clear();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("=== VÁRAKOZÁS A COOP JÁTÉKOSRA ===");
+        Console.ResetColor();
+        Console.WriteLine($"{character.Name} a memorizált varázslatait választja.");
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        while (!_spellPreparationCompleted)
+        {
+            ProcessSessionCommands();
+            var stillConnected = _session.CharacterControls.Any(control => control.CharacterId == character.Id &&
+                control.ControllerKind == CharacterControllerKind.RemotePlayer &&
+                control.ConnectionState == PlayerConnectionState.Connected);
+            if (!stillConnected) break;
+            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            Thread.Sleep(20);
+        }
+        _activeSpellPreparation = null;
+        _spellPreparationCompleted = false;
+        _session.SetPhase(previousPhase);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
     }
 
     private void MovePlayer(Direction direction)
@@ -1060,6 +1102,9 @@ public sealed class Game
                 case AssignQuickSpellCommand quickSpell:
                     ExecuteAssignQuickSpell(quickSpell);
                     break;
+                case PrepareSpellsCommand preparation:
+                    ExecuteSpellPreparation(preparation);
+                    break;
             }
         }
     }
@@ -1106,6 +1151,25 @@ public sealed class Game
             string.Equals(candidate.Id, command.SpellId, StringComparison.OrdinalIgnoreCase));
         if (character is null || spell is null || !character.AssignQuickSpell(command.QuickSlot, spell))
             _session.RejectExecutedCommand(command, "Csak memorizált varázslat tehető gyorshelyre.");
+    }
+
+    private void ExecuteSpellPreparation(PrepareSpellsCommand command)
+    {
+        if (_activeSpellPreparation is null || _activeSpellPreparation.PromptId != command.PromptId ||
+            _activeSpellPreparation.CharacterId != command.CharacterId)
+        {
+            _session.RejectExecutedCommand(command, "Ez a memorizálási kérés már nem aktív.");
+            return;
+        }
+        var character = CharacterRoster.Party.Members.FirstOrDefault(member => member.Id == command.CharacterId);
+        var ids = command.SpellIds.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var spells = character?.KnownSpells.Where(spell => ids.Contains(spell.Id, StringComparer.OrdinalIgnoreCase)).ToArray();
+        if (character is null || spells is null || spells.Length != ids.Length || !character.SetMemorizedSpells(spells))
+        {
+            _session.RejectExecutedCommand(command, "A választott varázslatlista nem memorizálható.");
+            return;
+        }
+        _spellPreparationCompleted = true;
     }
 
     private void ShowSynchronizedNarrative(NarrativeKind kind, string title, string subtitle,

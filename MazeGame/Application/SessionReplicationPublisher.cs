@@ -123,6 +123,9 @@ public sealed class SessionReplicationPublisher
             .Select(control => control.CharacterId).ToHashSet();
         return snapshot with
         {
+            SpellPreparation = snapshot.SpellPreparation is { } preparation &&
+                               controlledCharacters.Contains(preparation.CharacterId)
+                ? preparation : null,
             Party = snapshot.Party.Select(character => controlledCharacters.Contains(character.CharacterId)
                 ? character
                 : character with { Inventory = null, CharacterSheet = null, ExplorationSpellOptions = null,

@@ -20,6 +20,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég térképről varázslási parancsot küldhet", RemotePlayerCanCastExplorationSpell),
     ("A vendég saját karakterével fogadói vásárlást küldhet", RemotePlayerCanPurchaseAtInn),
     ("A vendég nyugtázhatja a közös történeti ablakot", RemotePlayerCanAcknowledgeNarrative),
+    ("A vendég elküldheti a saját memorizált varázslatait", RemotePlayerCanPrepareSpells),
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A duplikált parancs elutasításra kerül", DuplicateCommandIsRejected),
@@ -178,6 +179,18 @@ static void RemotePlayerCanAcknowledgeNarrative()
     session.Submit(command);
     Assert(session.TryReadCommand(out var accepted) && accepted == command,
         "A session elutasította a vendég történeti nyugtázását.");
+}
+
+static void RemotePlayerCanPrepareSpells()
+{
+    var (session, _, companion) = CreateSession();
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var assignmentError), assignmentError);
+    session.SetPhase(GameSessionPhase.Paused);
+    var command = new PrepareSpellsCommand(remote, 1, companion.Id, Guid.NewGuid(), ["S001", "S002"]);
+    session.Submit(command);
+    Assert(session.TryReadCommand(out var accepted) && accepted == command,
+        "A session elutasította a vendég memorizálási választását.");
 }
 
 static void HostAndGuestUseSharedInputBindings()
