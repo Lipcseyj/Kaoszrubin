@@ -1419,8 +1419,19 @@ public sealed class CoopGuestScreen
 
         for (var row = 0; row < frame.PartyStatuses.Length; row++)
         {
-            if (!fullRedraw && previous!.PartyStatuses[row] == frame.PartyStatuses[row]) continue;
-            WritePartyStatusAt(frame.MapWidth + 3, row, frame.PartyStatuses[row]);
+            var status = frame.PartyStatuses[row];
+            if (status is null)
+            {
+                // Teljes rajzoláskor a panel már elkészült, ezért a hiányzó státusz nem törölheti le.
+                // Részleges rajzoláskor viszont egy megszűnt státusz helyére vissza kell tenni a panel sorát.
+                if (!fullRedraw && previous!.PartyStatuses[row] is not null)
+                    WriteAt(frame.MapWidth + 3, row, frame.Panel[row], CharacterSheetPanel.Width);
+                continue;
+            }
+
+            if (!fullRedraw && previous!.PartyStatuses[row] == status &&
+                previous.Panel[row] == frame.Panel[row]) continue;
+            WritePartyStatusAt(frame.MapWidth + 3, row, status);
         }
 
         for (var row = 0; row < frame.Footers.Length; row++)
