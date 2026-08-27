@@ -7,6 +7,7 @@ using MazeGame.Domain.Combat;
 using MazeGame.Domain.Magic;
 using MazeGame.UI;
 using static MazeGame.GameInput;
+using MainMenu = MazeGame.UI.MainMenu;
 
 namespace MazeGame;
 
