@@ -246,7 +246,7 @@ public sealed class Game
 
     // NPC spellcasting for combat
     private BattlePlayerAction? ChooseNpcBattlePlayerAction(PartyMemberAvatar member, Enemy enemy,
-        LiveCharacter? supportedFighter = null)
+        LiveCharacter? supportedFighter = null, Action? onSpellCast = null)
     {
         var caster = member.Character;
         if (!caster.IsAlive) return null;
@@ -286,6 +286,7 @@ public sealed class Game
                 _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
                 RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
                 _renderer.RefreshBattleStatusRows();
+                onSpellCast?.Invoke();
                 return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
             }
         }
@@ -312,6 +313,7 @@ public sealed class Game
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
             RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
             _renderer.RefreshBattleStatusRows();
+            onSpellCast?.Invoke();
             return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
         }
 
@@ -335,6 +337,7 @@ public sealed class Game
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
             RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
             _renderer.RefreshBattleStatusRows();
+            onSpellCast?.Invoke();
             return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions);
         }
 
@@ -2178,7 +2181,9 @@ public sealed class Game
         var startingEnemyHp = enemy.CurrentHitPoints;
         var startingStatusIds = member.Character.Statuses.Select(status => status.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var result = _battleSystem.Resolve(member.Character, enemy, _ => { }, () => ChooseNpcBattlePlayerAction(member, enemy));
+        var spellsCast = 0;
+        var result = _battleSystem.Resolve(member.Character, enemy, _ => { },
+            () => ChooseNpcBattlePlayerAction(member, enemy, onSpellCast: () => spellsCast++));
         var needLoss = DrainNeedsAfterBattle(member.Character, enemy.Definition.StrengthTier);
         var newStatusText = member.Character.Statuses
             .Where(status => !startingStatusIds.Contains(status.Id))
@@ -2199,21 +2204,23 @@ public sealed class Game
                 ? $" Szint: {experienceResult.PreviousLevel}→{experienceResult.CurrentLevel}; +{experienceResult.VitalityGained} max HP" +
                   (experienceResult.ManaGained > 0 ? $"; +{experienceResult.ManaGained} max manna." : ".")
                 : string.Empty;
-            _renderer.DrawNpcBattleSummary(
-                $"{member.Character.Name} automatikus csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
+            var summary = $"{member.Character.Name} automatikus csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
                 $"HP: {startingNpcHp}→{member.Character.CurrentVitality}; ellenfél HP: {startingEnemyHp}→0; " +
-                $"XP: {FormatExperienceAwards(experienceAwards)}.{levelText} 🍖💧 -{needLoss}.{newStatusText}",
-                ConsoleColor.Green);
+                $"Varázslatok: {spellsCast}; XP: {FormatExperienceAwards(experienceAwards)}.{levelText} " +
+                $"🍖💧 -{needLoss}.{newStatusText}";
+            _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Green);
+            RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Green);
         }
         else
         {
             _soundEffects.Play(SoundEffect.Defeat);
             _maze.ReplacePartyMemberWithCorpse(member);
             _nextPartyMoves.Remove(member);
-            _renderer.DrawNpcBattleSummary(
-                $"{member.Character.Name} elesett a(z) {enemy.Name} elleni automatikus csatában {result.Rounds} kör után. " +
-                $"HP: {startingNpcHp}→0; ellenfél HP: {startingEnemyHp}→{enemy.CurrentHitPoints}; 🍖💧 -{needLoss}.{newStatusText}",
-                ConsoleColor.Red);
+            var summary = $"{member.Character.Name} elesett a(z) {enemy.Name} elleni automatikus csatában " +
+                $"{result.Rounds} kör után. HP: {startingNpcHp}→0; ellenfél HP: {startingEnemyHp}→" +
+                $"{enemy.CurrentHitPoints}; Varázslatok: {spellsCast}; 🍖💧 -{needLoss}.{newStatusText}";
+            _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Red);
+            RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Red);
         }
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
