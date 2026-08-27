@@ -699,7 +699,7 @@ public sealed class MainMenu
             ("A partitagok saját akciószámlálót használnak. Az Isteni ítélet megduplázza a papi buff időtartamát.", ConsoleColor.Gray),
             ("👻 Láthatatlanság: 3 akció; támadásig célpontvédelem, az első támadásra +5 találat.", ConsoleColor.Gray),
             ("🛡️ Védelem: Arkán páncél +5/5; Áldás +1/4; Szent pajzs +5/4; Isteni védelem +3/4 akció.", ConsoleColor.Gray),
-            ("🪨 Sebzéscsökkentés: Kőbőr 50%/4; Isteni védelem 25%/4 akció. 🩸🚫 Kőbőr: vérzésvédelem/4.", ConsoleColor.Gray),
+            ($"{ConsoleRenderer.DamageReductionIcon} Sebzéscsökkentés: Kőbőr 50%/4; Isteni védelem 25%/4 akció. 🩸🚫 Kőbőr: vérzésvédelem/4.", ConsoleColor.Gray),
             ("🎯 Találat: Áldás +1/4; Bátorság imája +2/5; Mézsör/Fűszeres bor +1/10 akció.", ConsoleColor.Gray),
             ("⚔️✨ Sebzés: Bátorság imája +2/5 akció. ⚡ Kezdeményezés: Áldás +2/4; Bátorság +3/5; ital +2/10.", ConsoleColor.Gray),
             ("✝️🛡️ Gonosz elleni védelem: +4 védelem, 30% csökkentés és állapotvédelem 5 akcióig.", ConsoleColor.Gray),

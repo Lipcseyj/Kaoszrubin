@@ -104,7 +104,9 @@ public static class CharacterSheetPanel
         var perkRows = CompactRows("Teh", details.PerkNames, 2);
         lines.Add(new(2, perkRows[0], ConsoleColor.Magenta));
         lines.Add(new(3, perkRows[1], ConsoleColor.Magenta));
-        lines.Add(new(4, details.StatusIcons.Count == 0 ? "Áll: nincs" : $"Áll: {string.Join(' ', details.StatusIcons)}",
+        var statusIcons = details.StatusIcons
+            .Select(icon => icon == "🪨" ? ConsoleRenderer.DamageReductionIcon : icon).ToArray();
+        lines.Add(new(4, statusIcons.Length == 0 ? "Áll: nincs" : $"Áll: {string.Join(' ', statusIcons)}",
             details.StatusIcons.Count == 0 ? ConsoleColor.DarkGray : ConsoleColor.Magenta));
         lines.Add(new(5, $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}", ConsoleColor.Green));
         lines.Add(new(6, details.NextLevelExperience is { } next

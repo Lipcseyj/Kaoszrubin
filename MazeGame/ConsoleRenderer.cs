@@ -18,6 +18,7 @@ public sealed class ConsoleRenderer
     public const int PlayfieldHeight = 44;
     public static string MoneyIcon { get; } = IsWindows11OrLater() ? "🪙" : "💰";
     public static string WandIcon { get; } = IsWindows11OrLater() ? "🪄" : "✨";
+    public static string DamageReductionIcon { get; } = IsWindows11OrLater() ? "🪨" : "💥🛡️";
     private const int RightBorderX = PlayfieldWidth;
     private const int BottomBorderY = PlayfieldHeight;
     private static readonly Rune FogSymbol = new('░');
@@ -1641,7 +1642,7 @@ public sealed class ConsoleRenderer
             {
                 ActiveSpellEffectType.Invisibility => "👻",
                 ActiveSpellEffectType.DefenseBonus => "🛡️",
-                ActiveSpellEffectType.PhysicalReduction => "🪨",
+                ActiveSpellEffectType.PhysicalReduction => DamageReductionIcon,
                 ActiveSpellEffectType.BleedingImmunity => "🩸🚫",
                 ActiveSpellEffectType.HitBonus => "🎯",
                 ActiveSpellEffectType.DamageBonus => "⚔️✨",
