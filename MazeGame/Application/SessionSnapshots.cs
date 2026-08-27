@@ -7,7 +7,7 @@ namespace MazeGame.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 22;
+    public const int Version = 24;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -18,7 +18,16 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
     int GoldenKeyCount = 0, int BossKeyCount = 0, InnSnapshot? Inn = null,
     NarrativeSnapshot? Narrative = null, SpellPreparationSnapshot? SpellPreparation = null,
     PartyRestSnapshot? RestNotice = null, LevelUpPromptSnapshot? LevelUpPrompt = null,
-    IReadOnlyList<SessionActivitySnapshot>? Activities = null);
+    IReadOnlyList<SessionActivitySnapshot>? Activities = null,
+    IReadOnlyList<SessionSoundSnapshot>? Sounds = null);
+
+/// <summary>A null címzettlista közös hangot, a nem üres lista karakterhez kötött hallgatókat jelent.</summary>
+public sealed record SessionSoundSnapshot(long Sequence, SoundEffect Effect,
+    IReadOnlyList<CharacterId>? ListenerCharacterIds = null)
+{
+    public bool IsAudibleTo(CharacterId characterId) =>
+        ListenerCharacterIds is null || ListenerCharacterIds.Contains(characterId);
+}
 
 public enum SessionActivityKind { Battle, Spell, Support, System }
 

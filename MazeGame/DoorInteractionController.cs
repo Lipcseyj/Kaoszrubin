@@ -9,15 +9,15 @@ internal sealed class DoorInteractionController
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private readonly GameDataCatalog _gameData;
     private readonly ConsoleRenderer _renderer;
-    private readonly SoundEffects _soundEffects;
+    private readonly Action<SoundEffect, LiveCharacter> _playActorSound;
     private readonly Random _random;
 
     public DoorInteractionController(GameDataCatalog gameData, ConsoleRenderer renderer,
-        SoundEffects soundEffects, Random random)
+        Action<SoundEffect, LiveCharacter> playActorSound, Random random)
     {
         _gameData = gameData;
         _renderer = renderer;
-        _soundEffects = soundEffects;
+        _playActorSound = playActorSound;
         _random = random;
     }
 
@@ -201,10 +201,10 @@ internal sealed class DoorInteractionController
         _renderer.DrawMapVisibilityChanged(maze, fogOfWar, leaderPosition);
         _renderer.RefreshCharacterSheet(selectedCharacter);
         _renderer.DrawDoorMessage(message, color);
-        _soundEffects.Play(message.Contains("Bezártad", StringComparison.OrdinalIgnoreCase) ||
+        _playActorSound(message.Contains("Bezártad", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("bezártad", StringComparison.OrdinalIgnoreCase)
             ? SoundEffect.DoorClose
-            : SoundEffect.DoorOpen);
+            : SoundEffect.DoorOpen, selectedCharacter);
     }
 
     private static int LockpickChance(int dexterity) => dexterity <= 10

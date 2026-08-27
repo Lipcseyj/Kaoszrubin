@@ -18,7 +18,7 @@ internal sealed class InnController
     private readonly CharacterRoster _characterRoster;
     private readonly LiveCharacter _selectedCharacter;
     private readonly ConsoleRenderer _renderer;
-    private readonly SoundEffects _soundEffects;
+    private readonly Action<SoundEffect> _playGlobalSound;
     private readonly Random _random;
     private readonly Func<LiveCharacter, int, LevelUpResult> _awardExperience;
     private readonly Action<LiveCharacter, LevelUpResult> _resolvePerkOffers;
@@ -36,7 +36,7 @@ internal sealed class InnController
     private int _secretStashAccessCost;
 
     public InnController(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
-        ConsoleRenderer renderer, SoundEffects soundEffects, Random random,
+        ConsoleRenderer renderer, Action<SoundEffect> playGlobalSound, Random random,
         Func<LiveCharacter, int, LevelUpResult> awardExperience,
         Action<LiveCharacter, LevelUpResult> resolvePerkOffers,
         Action preparePartySpells, Func<ConsoleKeyInfo>? readKey = null,
@@ -46,7 +46,7 @@ internal sealed class InnController
         _characterRoster = characterRoster;
         _selectedCharacter = selectedCharacter;
         _renderer = renderer;
-        _soundEffects = soundEffects;
+        _playGlobalSound = playGlobalSound;
         _random = random;
         _awardExperience = awardExperience;
         _resolvePerkOffers = resolvePerkOffers;
@@ -252,7 +252,7 @@ internal sealed class InnController
         _reportRest(new PartyRestSnapshot(Guid.NewGuid(), true, summaries.Select(summary =>
             new CharacterRestSnapshot(summary.Character.Id, summary.Character.Name, summary.HealedAmount, [])).ToArray()));
         _renderer.DrawInnRestScreen(summaries);
-        _soundEffects.Play(SoundEffect.Rest);
+        _playGlobalSound(SoundEffect.Rest);
         _preparePartySpells();
     }
 

@@ -163,6 +163,8 @@ public sealed class Game
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
     private readonly Queue<SessionActivitySnapshot> _sessionActivities = new();
     private long _sessionActivitySequence;
+    private readonly Queue<SessionSoundSnapshot> _sessionSounds = new();
+    private long _sessionSoundSequence;
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private int _mazeLevel = 1;
@@ -210,6 +212,7 @@ public sealed class Game
             RestNotice = _latestRestNotice,
             LevelUpPrompt = _activeLevelUpPrompt,
             Activities = _sessionActivities.ToArray(),
+            Sounds = _sessionSounds.ToArray(),
             Party = snapshot.Party.Select(character => character with
             {
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
@@ -237,8 +240,10 @@ public sealed class Game
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
         _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
-        _doorInteractions = new DoorInteractionController(gameData, _renderer, _soundEffects, _random);
-        _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer, _soundEffects,
+        _doorInteractions = new DoorInteractionController(gameData, _renderer,
+            (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random);
+        _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer,
+            effect => PlaySessionSound(effect),
             _random, AwardExperienceResult, ResolvePerkOffers, PreparePartySpells, ReadInnKey,
             notice => _latestRestNotice = notice);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
@@ -279,6 +284,7 @@ public sealed class Game
                 // Cast heal
                 var divine = caster.RecordDivineSpellCast(spell);
                 caster.SpendMana(manaCost);
+                PlaySessionSound(SoundEffect.DefensiveSpell, [caster.Id, target.Id]);
                 var notes = new List<string>();
                 foreach (var effect in effects.Where(e => e.Type == SpellEffectType.Heal))
                     ApplyHealingForCaster(effect, spell, new[] { target }, divine, notes, caster);
@@ -307,6 +313,7 @@ public sealed class Game
             var targetChar = candidates.First();
             var divine = caster.RecordDivineSpellCast(spell);
             caster.SpendMana(manaCost);
+            PlaySessionSound(SoundEffect.DefensiveSpell, [caster.Id, targetChar.Id]);
             var notes = new List<string>();
             foreach (var effect in effects.Where(e => e.Type == SpellEffectType.CureStatus))
                 ApplyStatusCureForCaster(effect, new[] { targetChar }, notes);
@@ -333,6 +340,10 @@ public sealed class Game
             if (!IsValidSpellTarget(member.Position, spell, enemy.Position, enemy)) continue;
             var divine = caster.RecordDivineSpellCast(spell);
             caster.SpendMana(manaCost);
+            var listeners = new List<CharacterId> { caster.Id };
+            if (supportedFighter is not null) listeners.Add(supportedFighter.Id);
+            if (_activeBattleState is not null) listeners.Add(SelectedCharacter.Id);
+            PlaySessionSound(SoundEffect.OffensiveSpell, listeners);
             var execution = ExecuteSpell(caster, member.Position, spell, enemy.Position, inCombat: true, enemy, divine);
             var message = $"{caster.Name} elsüti: {spell.Name} → {enemy.Name}. -{manaCost} manna. {execution.Summary}";
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
@@ -388,6 +399,7 @@ public sealed class Game
                 if (caster.CurrentMana - manaCost < manaReserve) continue;
                 var divine = caster.RecordDivineSpellCast(spell);
                 caster.SpendMana(manaCost);
+                PlaySessionSound(SoundEffect.DefensiveSpell, [caster.Id, lowest.Id]);
                 var notes = new List<string>();
                 foreach (var effect in effects.Where(e => e.Type == SpellEffectType.Heal))
                     ApplyHealingForCaster(effect, spell, new[] { lowest }, divine, notes, caster);
@@ -636,8 +648,8 @@ public sealed class Game
             return;
         }
 
-        _soundEffects.Play(SoundEffect.LevelComplete);
-        _soundEffects.Play(SoundEffect.Victory);
+        PlaySessionSound(SoundEffect.LevelComplete);
+        PlaySessionSound(SoundEffect.Victory);
         ShowSynchronizedNarrative(NarrativeKind.CampaignFinale, "GRATULÁLUNK, KULCSHORDOZÓK!",
             "XV. fejezet — A csillagok választottai", CreateCampaignFinale());
         _gameOver = true;
@@ -715,7 +727,7 @@ public sealed class Game
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         CheckBossDiscovery(_maze.Enemies.Where(enemy => _fogOfWar.IsRevealed(enemy.Position)));
-        _soundEffects.Play(SoundEffect.LevelStart);
+        PlaySessionSound(SoundEffect.LevelStart);
         LogMazeAccessibilityCheck();
     }
 
@@ -957,7 +969,7 @@ public sealed class Game
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.DrawDeveloperMessage("A parti kipihente magát. " + string.Join("; ", summaries));
-        _soundEffects.Play(SoundEffect.Rest);
+        PlaySessionSound(SoundEffect.Rest);
     }
 
     private void PreparePartySpells()
@@ -1037,11 +1049,7 @@ public sealed class Game
         var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit;
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
         CheckBossDiscoveryAt(newlyRevealed);
-        switch (_random.Next(5))
-        {
-            case 0: _soundEffects.Play(SoundEffect.Step1); break;
-            case 1: _soundEffects.Play(SoundEffect.Step2); break;
-        }
+        PlayCharacterStepSound(SelectedCharacter);
         var chest = _maze.GetTreasureChestAt(_player.Position);
         if (chest is not null)
         {
@@ -1056,7 +1064,7 @@ public sealed class Game
             _maze.RemoveTreasureChest(chest);
             _renderer.RefreshCharacterSheet(SelectedCharacter);
             _renderer.DrawTreasureCollected(goldAmount, jackpot, jackpotChance, rewardMultiplier);
-            _soundEffects.Play(SoundEffect.Chest);
+            PlaySessionSound(SoundEffect.Chest, [SelectedCharacter.Id]);
             if (masterThiefLoot is not null)
             {
                 if (TryStoreLootInParty(masterThiefLoot, out var owner))
@@ -1091,6 +1099,7 @@ public sealed class Game
         member.Character.RegisterExplorationStep();
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
+        PlayCharacterStepSound(member.Character);
         CheckBossDiscoveryAt(newlyRevealed);
     }
 
@@ -1413,7 +1422,7 @@ public sealed class Game
             return;
         }
         var completedLevel = _mazeLevel;
-        _soundEffects.Play(SoundEffect.LevelComplete);
+        PlaySessionSound(SoundEffect.LevelComplete);
         _session.SetPhase(GameSessionPhase.Inn);
         _innController.Run(completedLevel);
         _mazeLevel++;
@@ -2183,7 +2192,7 @@ public sealed class Game
         _battleStarted = true;
         _session.SetPhase(GameSessionPhase.Battle);
         _turnUndeadUsedThisBattle.Clear();
-        _soundEffects.Play(SoundEffect.BattleStart);
+        PlaySessionSound(SoundEffect.BattleStart);
         var startingNpcHp = member.Character.CurrentVitality;
         var startingEnemyHp = enemy.CurrentHitPoints;
         var startingStatusIds = member.Character.Statuses.Select(status => status.Id)
@@ -2207,7 +2216,7 @@ public sealed class Game
         if (result.PlayerWon)
         {
             AwardBossKey(enemy);
-            _soundEffects.Play(SoundEffect.Victory);
+            PlaySessionSound(SoundEffect.Victory);
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
             levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive));
             var experienceResult = experienceAwards.First(award => award.Character == member.Character).Result;
@@ -2226,7 +2235,7 @@ public sealed class Game
         }
         else
         {
-            _soundEffects.Play(SoundEffect.Defeat);
+            PlaySessionSound(SoundEffect.Defeat);
             _maze.ReplacePartyMemberWithCorpse(member);
             _nextPartyMoves.Remove(member);
             var spellText = spellsCast > 0 ? $" 📜 {spellsCast};" : string.Empty;
@@ -2825,7 +2834,14 @@ public sealed class Game
         }
 
         if (IsOffensiveSpell(spell)) caster.BreakSanctuary();
-        _soundEffects.Play(IsOffensiveSpell(spell) ? SoundEffect.OffensiveSpell : SoundEffect.DefensiveSpell);
+        var spellListeners = ResolveCharacterSpellTargets(caster, spell, target.Value)
+            .Select(character => character.Id)
+            .Append(caster.Id)
+            .Concat(inCombat ? [SelectedCharacter.Id] : [])
+            .Distinct()
+            .ToArray();
+        PlaySessionSound(IsOffensiveSpell(spell) ? SoundEffect.OffensiveSpell : SoundEffect.DefensiveSpell,
+            spellListeners);
         var targetText = DescribeSpellTarget(caster, spell, target.Value, currentEnemy);
         var execution = ExecuteSpell(caster, casterPosition, spell, target.Value, inCombat, currentEnemy, divineJudgment);
         var judgmentText = divineJudgment ? " ⚡ Isteni ítélet: kétszeres számszerű hatás és ingyenes varázslat." : string.Empty;
@@ -3635,7 +3651,7 @@ public sealed class Game
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
         _battleStarted = true;
         _session.SetPhase(GameSessionPhase.Battle);
-        _soundEffects.Play(SoundEffect.BattleStart);
+        PlaySessionSound(SoundEffect.BattleStart);
         _renderer.DrawBattleStarted(enemy);
         var started = _battleSystem.StartBattle(battleCharacter, enemy);
         _activeBattleState = started.State;
@@ -3713,7 +3729,7 @@ public sealed class Game
         if (result.PlayerWon)
         {
             AwardBossKey(enemy);
-            _soundEffects.Play(SoundEffect.Victory);
+            PlaySessionSound(SoundEffect.Victory);
             var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
@@ -3744,7 +3760,7 @@ public sealed class Game
         }
 
         _renderer.DrawBattleResult(result, enemy);
-        _soundEffects.Play(SoundEffect.Defeat);
+        PlaySessionSound(SoundEffect.Defeat);
         _saveAfterBattle = false;
         _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
         _renderer.DrawGameOver(SelectedCharacter.Name);
@@ -3760,7 +3776,7 @@ public sealed class Game
         if (result.PlayerWon)
         {
             AwardBossKey(enemy);
-            _soundEffects.Play(SoundEffect.Victory);
+            PlaySessionSound(SoundEffect.Victory);
             var experienceAwards = DistributeExperience(battleCharacter, enemy.Definition.ExperienceReward);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
@@ -3773,7 +3789,7 @@ public sealed class Game
         }
         else
         {
-            _soundEffects.Play(SoundEffect.Defeat);
+            PlaySessionSound(SoundEffect.Defeat);
             var member = _maze.PartyMembers.FirstOrDefault(candidate => candidate.Character == battleCharacter);
             if (member is not null)
             {
@@ -3825,9 +3841,12 @@ public sealed class Game
     private void PlayBattleRoundSound(BattleLogEntry entry)
     {
         if (entry.Kind is not (BattleLogKind.PlayerAttack or BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)) return;
-        _soundEffects.PlayAndWait(entry.Message.Contains("💨", StringComparison.Ordinal)
+        var listeners = _activeBattleState is { } battle
+            ? new[] { battle.PlayerCharacterId, SelectedCharacter.Id }.Distinct().ToArray()
+            : [SelectedCharacter.Id];
+        PlaySessionSound(entry.Message.Contains("💨", StringComparison.Ordinal)
             ? SoundEffect.Miss
-            : SoundEffect.Hit);
+            : SoundEffect.Hit, listeners, waitForCompletion: true);
     }
 
     private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries)
@@ -3846,6 +3865,31 @@ public sealed class Game
         if (string.IsNullOrWhiteSpace(message)) return;
         _sessionActivities.Enqueue(new SessionActivitySnapshot(++_sessionActivitySequence, kind, message, color));
         while (_sessionActivities.Count > 24) _sessionActivities.Dequeue();
+    }
+
+    private void PlayCharacterStepSound(LiveCharacter character)
+    {
+        switch (_random.Next(5))
+        {
+            case 0: PlaySessionSound(SoundEffect.Step1, [character.Id]); break;
+            case 1: PlaySessionSound(SoundEffect.Step2, [character.Id]); break;
+        }
+    }
+
+    private void PlaySessionSound(SoundEffect effect, IReadOnlyCollection<CharacterId>? listeners = null,
+        bool waitForCompletion = false)
+    {
+        var listenerIds = listeners?.Distinct().ToArray();
+        RecordSessionSound(effect, listenerIds);
+        if (listenerIds is not null && !listenerIds.Contains(SelectedCharacter.Id)) return;
+        if (waitForCompletion) _soundEffects.PlayAndWait(effect);
+        else _soundEffects.Play(effect);
+    }
+
+    private void RecordSessionSound(SoundEffect effect, IReadOnlyList<CharacterId>? listenerCharacterIds)
+    {
+        _sessionSounds.Enqueue(new SessionSoundSnapshot(++_sessionSoundSequence, effect, listenerCharacterIds));
+        while (_sessionSounds.Count > 48) _sessionSounds.Dequeue();
     }
 
     private static ConsoleColor BattleEntryColor(BattleLogKind kind) => kind switch

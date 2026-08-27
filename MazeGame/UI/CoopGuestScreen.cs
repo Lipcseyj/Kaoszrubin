@@ -13,6 +13,7 @@ public sealed class CoopGuestScreen
     private readonly string _applicationVersion;
     private readonly string _catalogHash;
     private readonly GameDataCatalog _gameData;
+    private readonly SoundEffects _soundEffects;
     private int _redrawRequested = 1;
     private const int MessageLineCount = 5;
     private readonly Queue<GuestTextLine> _messageLog = new();
@@ -31,6 +32,8 @@ public sealed class CoopGuestScreen
     private int _innRumorSelection;
     private long _lastInnTransactionSequence;
     private long _lastSessionActivitySequence;
+    private long _lastSessionSoundSequence;
+    private bool _sessionSoundsInitialized;
     private Guid? _acknowledgedNarrativeId;
     private bool _spellInfoOpen;
     private int _spellInfoSelection;
@@ -50,6 +53,7 @@ public sealed class CoopGuestScreen
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
         _gameData = gameData ?? throw new ArgumentNullException(nameof(gameData));
+        _soundEffects = new SoundEffects(message => SetMessage(message, ConsoleColor.DarkYellow));
     }
 
     public async Task RunAsync(string hostUrl, string displayName, LiveCharacter localCharacter,
@@ -777,6 +781,7 @@ public sealed class CoopGuestScreen
         {
             SynchronizeRestNotice(snapshot, selected.CharacterId);
             SynchronizeInnTransactions(snapshot);
+            SynchronizeSessionSounds(snapshot, selected.CharacterId);
             SynchronizeSessionActivities(snapshot);
         }
         if (snapshot?.World is not { } world)
@@ -839,6 +844,25 @@ public sealed class CoopGuestScreen
             };
             SetMessage(prefix + activity.Message, activity.Color);
             _lastSessionActivitySequence = activity.Sequence;
+        }
+    }
+
+    private void SynchronizeSessionSounds(SessionSnapshot snapshot, CharacterId localCharacterId)
+    {
+        var sounds = snapshot.Sounds ?? [];
+        if (!_sessionSoundsInitialized)
+        {
+            _lastSessionSoundSequence = sounds.Count == 0 ? 0 : sounds.Max(sound => sound.Sequence);
+            _sessionSoundsInitialized = true;
+            return;
+        }
+
+        foreach (var sound in sounds.Where(sound => sound.Sequence > _lastSessionSoundSequence)
+                     .OrderBy(sound => sound.Sequence))
+        {
+            if (sound.IsAudibleTo(localCharacterId))
+                _soundEffects.PlayAndWait(sound.Effect);
+            _lastSessionSoundSequence = sound.Sequence;
         }
     }
 

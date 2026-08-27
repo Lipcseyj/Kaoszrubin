@@ -591,13 +591,17 @@ static void SessionSnapshotRoundTripsThroughJson()
     var snapshot = session.CreateSnapshot(new SessionSnapshotContext(4, "Tesztlabirintus", positions)) with
     {
         Activities = [new SessionActivitySnapshot(1, SessionActivityKind.Spell,
-            "A host térképi varázslatot használt.", ConsoleColor.Magenta)]
+            "A host térképi varázslatot használt.", ConsoleColor.Magenta)],
+        Sounds = [new SessionSoundSnapshot(1, SoundEffect.OffensiveSpell, [companion.Id])]
     };
     var json = JsonSerializer.Serialize(snapshot);
     var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
     Assert(restored is not null && restored.ProtocolVersion == SessionProtocol.Version &&
            restored.Phase == GameSessionPhase.Exploration && restored.Party.Count == 2 &&
            restored.Activities is [{ Kind: SessionActivityKind.Spell }] &&
+           restored.Sounds is [{ Sequence: 1, Effect: SoundEffect.OffensiveSpell,
+               ListenerCharacterIds: [{ } listener] }] && listener == companion.Id &&
+           restored.Sounds[0].IsAudibleTo(companion.Id) && !restored.Sounds[0].IsAudibleTo(leader.Id) &&
            restored.Party.Single(character => character.CharacterId == companion.Id).Position == new Position(3, 2),
         "A session snapshot JSON round-trip közben megváltozott.");
     var next = session.CreateSnapshot(new SessionSnapshotContext(4, "Tesztlabirintus", positions));
