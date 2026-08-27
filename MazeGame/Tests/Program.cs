@@ -215,8 +215,8 @@ static void HostAndGuestUseSharedInputBindings()
            GameInputBindings.InventoryAction(ConsoleKey.I) == InventoryInputAction.Inspect,
         "Az inventory közös billentyűkiosztása eltér a host vezérlésétől.");
     Assert(GameInputBindings.CharacterAction(ConsoleKey.N) == CharacterAction.OpenDoor &&
-           GameInputBindings.CharacterAction(ConsoleKey.Z) == CharacterAction.CloseDoor &&
-           GameInputBindings.CharacterAction(ConsoleKey.K) == CharacterAction.SearchOrLockDoor,
+           GameInputBindings.CharacterAction(ConsoleKey.Z) == CharacterAction.CloseOrLockDoor &&
+           GameInputBindings.CharacterAction(ConsoleKey.K) == CharacterAction.SearchCurrentPosition,
         "Az N/Z/K karakterakciók nincsenek a közös keymapben.");
     Assert(GameInputBindings.LeaderAction(ConsoleKey.P, false) == LeaderAction.Rest &&
            GameInputBindings.LeaderAction(ConsoleKey.G, false) == LeaderAction.ToggleRegrouping &&
@@ -1020,7 +1020,7 @@ static void ProtocolCodecRoundTripsCommand()
     Assert(restored is BattleActionCommand decoded && decoded == command,
         "A JSON wire codec megváltoztatta a battle commandot.");
     var characterAction = new CharacterActionCommand(PlayerId.New(), 8, CharacterId.New(),
-        CharacterAction.SearchOrLockDoor);
+        CharacterAction.SearchCurrentPosition);
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(characterAction)) is CharacterActionCommand decodedAction &&
            decodedAction == characterAction,
         "A JSON wire codec megváltoztatta a karakterhez kötött akciót.");

@@ -23,8 +23,8 @@ public static class GameInputBindings
     public static CharacterAction? CharacterAction(ConsoleKey key) => key switch
     {
         ConsoleKey.N => Application.CharacterAction.OpenDoor,
-        ConsoleKey.Z => Application.CharacterAction.CloseDoor,
-        ConsoleKey.K => Application.CharacterAction.SearchOrLockDoor,
+        ConsoleKey.Z => Application.CharacterAction.CloseOrLockDoor,
+        ConsoleKey.K => Application.CharacterAction.SearchCurrentPosition,
         _ => null
     };
 

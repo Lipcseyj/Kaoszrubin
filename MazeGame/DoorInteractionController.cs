@@ -114,6 +114,19 @@ internal sealed class DoorInteractionController
             "Bezártad az ajtót.", ConsoleColor.DarkYellow);
     }
 
+    public void TryCloseOrLockAdjacentDoor(Maze maze, FogOfWar fogOfWar, Position actorPosition,
+        Position leaderPosition, LiveCharacter selectedCharacter)
+    {
+        var door = GetAdjacentDoor(maze, actorPosition);
+        if (door is null) { _renderer.DrawDoorMessage("Nincs ajtó melletted."); return; }
+        if (door.State == DoorState.Open)
+        {
+            TryCloseAdjacentDoor(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter);
+            return;
+        }
+        TryLockAdjacentDoor(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter);
+    }
+
     public void TryLockAdjacentDoor(Maze maze, FogOfWar fogOfWar, Position actorPosition,
         Position leaderPosition, LiveCharacter selectedCharacter)
     {

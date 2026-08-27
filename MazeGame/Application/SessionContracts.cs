@@ -44,8 +44,8 @@ public sealed record MoveCharacterCommand(PlayerId SenderId, long CommandId, Cha
 public enum CharacterAction
 {
     OpenDoor,
-    CloseDoor,
-    SearchOrLockDoor
+    CloseOrLockDoor,
+    SearchCurrentPosition
 }
 
 public sealed record CharacterActionCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,

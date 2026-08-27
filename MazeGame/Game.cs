@@ -1273,14 +1273,12 @@ public sealed class Game
                 _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
                     character, allowPartyAssistanceAndPrompts: isLeader);
                 break;
-            case CharacterAction.CloseDoor:
-                _doorInteractions.TryCloseAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
+            case CharacterAction.CloseOrLockDoor:
+                _doorInteractions.TryCloseOrLockAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
                     character);
                 break;
-            case CharacterAction.SearchOrLockDoor:
-                if (!TrySearchCurrentCell(character, position.Value, shareLootWithParty: isLeader))
-                    _doorInteractions.TryLockAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
-                        character);
+            case CharacterAction.SearchCurrentPosition:
+                TrySearchCurrentCell(character, position.Value, shareLootWithParty: isLeader);
                 break;
         }
     }
