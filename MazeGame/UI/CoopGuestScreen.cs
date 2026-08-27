@@ -898,6 +898,7 @@ public sealed class CoopGuestScreen
             : (InventorySlotAddress?)null;
         var panelHeight = mapHeight + MessageLineCount + 1;
         var panel = new GuestTextLine[panelHeight];
+        var partyStatuses = new PartyStatusLine?[panelHeight];
         for (var y = 0; y < panelHeight; y++)
         {
             if (panelLines.TryGetValue(y, out var line))
@@ -918,8 +919,11 @@ public sealed class CoopGuestScreen
         {
             var companion = companions[index];
             if (38 + index < panel.Length)
-                panel[38 + index] = new GuestTextLine(FormatPartyMember(companion,
-                    companion.CharacterId == selected.CharacterId), companion.Color, ConsoleColor.Black);
+            {
+                panel[38 + index] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
+                partyStatuses[38 + index] = CharacterSheetPanel.BuildPartyStatus(companion,
+                    companion.CharacterId == selected.CharacterId);
+            }
         }
 
         if (!stillControlled && panel.Length > 41)
@@ -971,7 +975,7 @@ public sealed class CoopGuestScreen
                 ConsoleColor.Yellow, ConsoleColor.Black);
 
         return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, grid, panel,
-            footer);
+            partyStatuses, footer);
     }
 
     private static bool TryGetBattleTacticAction(BattleSnapshot battle, ConsoleKey key,
@@ -1389,6 +1393,12 @@ public sealed class CoopGuestScreen
                 WriteAt(frame.MapWidth + 3, row, frame.Panel[row], CharacterSheetPanel.Width);
         }
 
+        for (var row = 0; row < frame.PartyStatuses.Length; row++)
+        {
+            if (!fullRedraw && previous!.PartyStatuses[row] == frame.PartyStatuses[row]) continue;
+            WritePartyStatusAt(frame.MapWidth + 3, row, frame.PartyStatuses[row]);
+        }
+
         for (var row = 0; row < frame.Footers.Length; row++)
             if (fullRedraw || previous!.Footers[row] != frame.Footers[row])
                 WriteAt(2, frame.MapHeight + 1 + row, frame.Footers[row], Math.Max(1, frame.MapWidth - 4));
@@ -1411,6 +1421,24 @@ public sealed class CoopGuestScreen
         Console.ForegroundColor = line.Foreground;
         Console.BackgroundColor = line.Background;
         Console.Write(FitConsoleLine(line.Text, width));
+    }
+
+    private static void WritePartyStatusAt(int x, int y, PartyStatusLine? status)
+    {
+        WriteAt(x, y, new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black),
+            CharacterSheetPanel.Width);
+        if (status is null || !TrySetCursorPosition(x, y)) return;
+        foreach (var (text, color) in new[]
+                 {
+                     (status.Identity, status.IdentityColor),
+                     (status.Vitality, status.VitalityColor),
+                     (status.Mana, status.ManaColor)
+                 })
+        {
+            Console.ForegroundColor = color;
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.Write(text);
+        }
     }
 
     private void SetMessage(string message, ConsoleColor color = ConsoleColor.DarkYellow)
@@ -1439,18 +1467,6 @@ public sealed class CoopGuestScreen
     {
         if (position.X >= 0 && position.X < grid.GetLength(0) && position.Y >= 0 && position.Y < grid.GetLength(1))
             grid[position.X, position.Y] = new GuestMapCell(value, color, background);
-    }
-
-    private static string FormatPartyMember(SessionCharacterSnapshot character, bool isDisplayed)
-    {
-        var marker = isDisplayed ? "▶ " : "  ";
-        var suffix = character.IsAlive
-            ? $" L{character.Level} {character.CurrentVitality}/{character.MaximumVitality}"
-            : $" L{character.Level} 💀";
-        var glyph = CharacterSheetPanel.CharacterClassGlyph(character.CharacterClassId);
-        var maximumNameLength = Math.Max(1, CharacterSheetPanel.Width - marker.Length - glyph.Length - 1 - suffix.Length);
-        var name = character.Name[..Math.Min(character.Name.Length, maximumNameLength)];
-        return $"{marker}{glyph} {name}{suffix}";
     }
 
     private static string CenterPortrait(string text, int canvasWidth)
@@ -1517,5 +1533,6 @@ public sealed class CoopGuestScreen
         ConsoleColor Background = ConsoleColor.Black);
     private readonly record struct GuestTextLine(string Text, ConsoleColor Foreground, ConsoleColor Background);
     private sealed record GuestRenderFrame(WorldId WorldId, int WindowWidth, int WindowHeight, int MapWidth,
-        int MapHeight, GuestMapCell[,] Map, GuestTextLine[] Panel, GuestTextLine[] Footers);
+        int MapHeight, GuestMapCell[,] Map, GuestTextLine[] Panel, PartyStatusLine?[] PartyStatuses,
+        GuestTextLine[] Footers);
 }

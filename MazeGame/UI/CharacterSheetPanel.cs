@@ -9,6 +9,12 @@ public readonly record struct InventorySlotAddress(InventorySlotKind Kind, int I
 public sealed record CharacterSheetPanelLine(int Row, string Text, ConsoleColor Color,
     InventorySlotAddress? InventorySlot = null);
 
+public sealed record PartyStatusLine(string Identity, ConsoleColor IdentityColor,
+    string Vitality, ConsoleColor VitalityColor, string Mana, ConsoleColor ManaColor)
+{
+    public string Text => Identity + Vitality + Mana;
+}
+
 /// <summary>A host és a vendég azonos karakterlap- és inventory-sorelrendezése.</summary>
 public static class CharacterSheetPanel
 {
@@ -25,6 +31,48 @@ public static class CharacterSheetPanel
         CharacterClassIds.Mágus => "M",
         _ => "?"
     };
+
+    public static PartyStatusLine BuildPartyStatus(LiveCharacter character, bool isDisplayed) =>
+        BuildPartyStatus(character.Name, character.CharacterClass.Id, character.CurrentVitality,
+            character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
+            character.Color, isDisplayed);
+
+    public static PartyStatusLine BuildPartyStatus(SessionCharacterSnapshot character, bool isDisplayed) =>
+        BuildPartyStatus(character.Name, character.CharacterClassId, character.CurrentVitality,
+            character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
+            character.Color, isDisplayed);
+
+    private static PartyStatusLine BuildPartyStatus(string name, string classId, int currentVitality,
+        int maximumVitality, int currentMana, int maximumMana, bool isAlive, ConsoleColor identityColor,
+        bool isDisplayed)
+    {
+        var marker = isDisplayed ? "▶ " : "  ";
+        var prefix = $"{marker}{CharacterClassGlyph(classId)} ";
+        if (!isAlive)
+        {
+            const string dead = " 💀";
+            return new PartyStatusLine(prefix + Shorten(name, Width - prefix.Length - dead.Length),
+                identityColor, dead, ConsoleColor.DarkRed, string.Empty, ConsoleColor.DarkGray);
+        }
+
+        var vitalityPercent = Percent(currentVitality, maximumVitality);
+        var manaPercent = Percent(currentMana, maximumMana);
+        var vitality = $" ❤️{vitalityPercent}%";
+        var mana = maximumMana > 0 ? $" 🔷{manaPercent}%" : " 🔷—";
+        var maximumNameLength = Width - prefix.Length - vitality.Length - mana.Length;
+        return new PartyStatusLine(prefix + Shorten(name, maximumNameLength), identityColor,
+            vitality, vitalityPercent <= 25 ? ConsoleColor.Red :
+            vitalityPercent <= 50 ? ConsoleColor.Yellow : ConsoleColor.Green,
+            mana, maximumMana <= 0 || currentMana <= 0 ? ConsoleColor.DarkGray :
+            manaPercent <= 50 ? ConsoleColor.Blue : ConsoleColor.Cyan);
+    }
+
+    private static int Percent(int current, int maximum) => maximum <= 0
+        ? 0
+        : Math.Clamp((int)Math.Round(current * 100d / maximum), 0, 100);
+
+    private static string Shorten(string value, int maximumLength) =>
+        value[..Math.Min(value.Length, Math.Max(1, maximumLength))];
 
     public static IReadOnlyList<CharacterSheetPanelLine> Build(LiveCharacter character,
         IReadOnlyDictionary<int, int> experienceByLevel, int mazeLevel, int goldenKeyCount, int bossCount)

@@ -1566,7 +1566,9 @@ public sealed class ConsoleRenderer
     /// <summary>Csata közben csak az állapot-, HP- és mannasorokat frissíti.</summary>
     public void RefreshBattleStatusRows()
     {
-        if (_displayedCharacter is not null) DrawBattleStatusRows(_displayedCharacter);
+        if (_displayedCharacter is null) return;
+        DrawBattleStatusRows(_displayedCharacter);
+        DrawPartyStatusRows(_displayedCharacter);
     }
 
     public void DrawInventoryMessage(string message, ConsoleColor color = ConsoleColor.Cyan) => DrawBattleMessage(message, color);
@@ -1677,11 +1679,23 @@ public sealed class ConsoleRenderer
             WriteSheetLine(line.Row, line.Text, line.Color,
                 SelectionBackground(new SheetSelectionKey(kind, slot.Index)));
         }
+        DrawPartyStatusRows(character);
+    }
+
+    private void DrawPartyStatusRows(LiveCharacter displayedCharacter)
+    {
         var companions = _party.Members.Skip(FirstItemNumber).Take(CharacterSheetPartyMemberRows).ToList();
         for (var index = 0; index < CharacterSheetPartyMemberRows; index++)
-            WriteSheetLine(CharacterSheetPartyMembersStartLine + index, index < companions.Count ? FormatPartyMember(companions[index], companions[index] == character) : string.Empty,
-                index < companions.Count ? companions[index].Color : ConsoleColor.DarkGray,
-                index < companions.Count ? SelectionBackground(new(SheetSelectionKind.PartyMember, index)) : ConsoleColor.Black);
+        {
+            var row = CharacterSheetPartyMembersStartLine + index;
+            if (index >= companions.Count)
+            {
+                WriteSheetLine(row, string.Empty, ConsoleColor.DarkGray);
+                continue;
+            }
+            DrawPartyStatusLine(row, CharacterSheetPanel.BuildPartyStatus(companions[index],
+                companions[index] == displayedCharacter), SelectionBackground(new(SheetSelectionKind.PartyMember, index)));
+        }
     }
 
     private List<SheetSelectionEntry> BuildSheetSelections(LiveCharacter character)
@@ -1747,16 +1761,21 @@ public sealed class ConsoleRenderer
         : $"Szint: {character.Level}  XP: MAX";
     private static string ResourceIcons(string icon, int level) => string.Concat(Enumerable.Repeat(icon, level / ResourceIconStep));
 
-    private static string FormatPartyMember(LiveCharacter character, bool isDisplayed)
+    private void DrawPartyStatusLine(int y, PartyStatusLine status, ConsoleColor background)
     {
-        var marker = isDisplayed ? "▶ " : "  ";
-        var classInitial = character.CharacterClass.Name.EnumerateRunes().First().ToString().ToUpperInvariant();
-        var suffix = character.IsAlive
-            ? $" L{character.Level} {character.CurrentVitality}/{character.MaximumVitality}"
-            : $" L{character.Level} 💀";
-        var maximumNameLength = Math.Max(FirstItemNumber, RightSheetWidth - marker.Length - classInitial.Length - FirstItemNumber - suffix.Length);
-        var name = character.Name[..Math.Min(character.Name.Length, maximumNameLength)];
-        return $"{marker}{classInitial} {name}{suffix}";
+        WriteSheetLine(y, string.Empty, ConsoleColor.Gray, background);
+        var x = RightSheetX;
+        foreach (var (text, color) in new[]
+                 {
+                     (status.Identity, status.IdentityColor),
+                     (status.Vitality, status.VitalityColor),
+                     (status.Mana, status.ManaColor)
+                 })
+        {
+            SetColors(color, background);
+            WriteAt(x, y, text);
+            x += text.Length;
+        }
     }
 
     private static string FormatCompactList(string label, IEnumerable<string> values)

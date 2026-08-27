@@ -60,6 +60,7 @@ var tests = new (string Name, Action Run)[]
     ("Hiányzó delta-baseline esetén a kliens resyncet kér", ClientStoreRequestsResyncForMissingBaseline),
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
+    ("A kompakt party státusz HP-t és manát százalékosan mutat", CompactPartyStatusShowsResources),
     ("A vendég snapshot kasztbetűt és karakterszínt őriz", GuestAvatarUsesClassGlyphAndCharacterColor),
     ("A vendég nem rajzol újra puszta snapshot-sorszám változásra", GuestRedrawIgnoresReplicationSequences),
     ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories),
@@ -1415,6 +1416,23 @@ static LiveCharacter CreateCharacter(string name, int vitality = 20,
     var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
     var characterClass = new CharacterClassDefinition(characterClassId, characterClassId, PrimaryAbilities.Zero, false, 1.0);
     return new LiveCharacter(name, race, characterClass, abilities, vitality, 0, 1, 0);
+}
+
+static void CompactPartyStatusShowsResources()
+{
+    var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
+    var mageClass = new CharacterClassDefinition(CharacterClassIds.Mágus, "Mágus", PrimaryAbilities.Zero,
+        true, 1.0);
+    var mage = new LiveCharacter("Hosszúnevű", race, mageClass, new PrimaryAbilities(5, 5, 5, 5),
+        40, 20, 1, 0);
+    mage.SetCurrentResources(10, 12);
+    var status = CharacterSheetPanel.BuildPartyStatus(mage, true);
+    Assert(status.Text.Length <= CharacterSheetPanel.Width, "A party státusz túllóg a jobb panelen.");
+    Assert(status.Text.Contains("❤️25%", StringComparison.Ordinal) &&
+           status.Text.Contains("🔷60%", StringComparison.Ordinal),
+        "A party státusz nem százalékosan mutatja a HP-t és a manát.");
+    Assert(status.VitalityColor == ConsoleColor.Red && status.ManaColor == ConsoleColor.Cyan,
+        "A party státusz erőforrásszínei nem követik a százalékos küszöböket.");
 }
 
 static void RaceTraitsAreLoadedFromData()
