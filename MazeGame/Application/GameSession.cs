@@ -374,6 +374,14 @@ public sealed class GameSession
             reason = string.Empty;
             return true;
         }
+        if (command is InnSaleCommand sale)
+        {
+            if (Phase != GameSessionPhase.Inn || sale.ExpectedInnRevision <= 0)
+                return Fail("A fogadói eladási parancs érvénytelen.", out reason);
+            return ValidateInventorySlotCommand(sale.SenderId, sale.CharacterId,
+                sale.ExpectedInventoryRevision, InventorySlotKind.Backpack, sale.BackpackIndex,
+                allowInn: true, requireItem: true, out reason);
+        }
         if (command is AcknowledgeNarrativeCommand acknowledgement)
         {
             if (Phase != GameSessionPhase.Paused || acknowledgement.NarrativeId == Guid.Empty)

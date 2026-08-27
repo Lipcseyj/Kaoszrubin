@@ -26,6 +26,7 @@ public sealed class CoopGuestScreen
     private bool _spellCastingInBattle;
     private InnVendorKind? _innVendor;
     private int _innSelection;
+    private InnMarketMode _innMarketMode = InnMarketMode.Buy;
     private bool _innRumorOpen;
     private int _innRumorSelection;
     private long _lastInnTransactionSequence;
@@ -197,7 +198,7 @@ public sealed class CoopGuestScreen
         }
         else if (snapshot.Phase == GameSessionPhase.Inn && snapshot.Inn is { } inn)
         {
-            command = HandleInnInput(client, characterId, inn, key);
+            command = HandleInnInput(client, characterId, snapshot, inn, key);
             if (command is null) return;
         }
         else if (snapshot.Battle is { } battle && battle.ActingCharacterId == characterId)
@@ -425,9 +426,10 @@ public sealed class CoopGuestScreen
     }
 
     private GameCommand? HandleInnInput(CoopSignalRClient client, CharacterId characterId,
-        InnSnapshot inn, ConsoleKey key)
+        SessionSnapshot snapshot, InnSnapshot inn, ConsoleKey key)
     {
-        if (GameInputBindings.IsCharacterSheetToggle(key))
+        if (GameInputBindings.IsCharacterSheetToggle(key) &&
+            !(_innVendor == InnVendorKind.Market && key == ConsoleKey.Tab))
         {
             _inventoryOpen = true;
             _inventorySelection = 0;
@@ -459,6 +461,7 @@ public sealed class CoopGuestScreen
                 if (_innSelection < inn.Vendors.Count)
                 {
                     _innVendor = inn.Vendors[_innSelection].Kind;
+                    _innMarketMode = InnMarketMode.Buy;
                     _innSelection = 0;
                 }
                 else if (_innSelection == inn.Vendors.Count)
@@ -476,19 +479,51 @@ public sealed class CoopGuestScreen
         if (vendor is null) { _innVendor = null; _innSelection = 0; return null; }
         if (key == ConsoleKey.Escape)
         { _innVendor = null; _innSelection = 0; Interlocked.Exchange(ref _redrawRequested, 1); return null; }
-        if (vendor.Offers.Count == 0) return null;
-        _innSelection = Math.Clamp(_innSelection, 0, vendor.Offers.Count - 1);
-        if (key == ConsoleKey.UpArrow) _innSelection = (_innSelection - 1 + vendor.Offers.Count) % vendor.Offers.Count;
-        else if (key == ConsoleKey.DownArrow) _innSelection = (_innSelection + 1) % vendor.Offers.Count;
+        if (vendor.Kind == InnVendorKind.Market &&
+            key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow or ConsoleKey.Tab)
+        {
+            _innMarketMode = _innMarketMode == InnMarketMode.Buy ? InnMarketMode.Sell : InnMarketMode.Buy;
+            _innSelection = 0;
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return null;
+        }
+        var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == characterId);
+        var sellOffers = _innMarketMode == InnMarketMode.Sell && vendor.Kind == InnVendorKind.Market
+            ? GuestInnSellOffers(inn, own).ToArray()
+            : [];
+        var entryCount = _innMarketMode == InnMarketMode.Sell && vendor.Kind == InnVendorKind.Market
+            ? sellOffers.Length
+            : vendor.Offers.Count;
+        if (entryCount == 0) return null;
+        _innSelection = Math.Clamp(_innSelection, 0, entryCount - 1);
+        if (key == ConsoleKey.UpArrow) _innSelection = (_innSelection - 1 + entryCount) % entryCount;
+        else if (key == ConsoleKey.DownArrow) _innSelection = (_innSelection + 1) % entryCount;
         else if (key == ConsoleKey.Enter)
         {
-            var offer = vendor.Offers[_innSelection];
-            SetMessage($"Vásárlás: {offer.Item.Name}…", ConsoleColor.Cyan);
+            if (_innMarketMode == InnMarketMode.Sell && vendor.Kind == InnVendorKind.Market)
+            {
+                var saleOffer = sellOffers[_innSelection];
+                SetMessage($"Eladás: {saleOffer.Slot.Item!.Name}…", ConsoleColor.Cyan);
+                return new InnSaleCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                    inn.Revision, own!.Inventory!.Revision, saleOffer.Slot.Index);
+            }
+            var purchaseOffer = vendor.Offers[_innSelection];
+            SetMessage($"Vásárlás: {purchaseOffer.Item.Name}…", ConsoleColor.Cyan);
             return new InnPurchaseCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-                inn.Revision, vendor.Kind, offer.Index);
+                inn.Revision, vendor.Kind, purchaseOffer.Index);
         }
         Interlocked.Exchange(ref _redrawRequested, 1);
         return null;
+    }
+
+    private static IEnumerable<(InventorySlotSnapshot Slot, int Price)> GuestInnSellOffers(InnSnapshot inn,
+        SessionCharacterSnapshot? character)
+    {
+        if (character?.Inventory is not { } inventory) yield break;
+        var prices = inn.SellPrices.ToDictionary(price => price.ItemDefinitionId, price => price.Price,
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var slot in inventory.Slots.Where(slot => slot.Kind == InventorySlotKind.Backpack && slot.Item is not null))
+            if (prices.TryGetValue(slot.Item!.DefinitionId, out var price)) yield return (slot, price);
     }
 
     private void SynchronizeSpellUi(SessionSnapshot snapshot, CharacterId characterId)
@@ -960,13 +995,34 @@ public sealed class CoopGuestScreen
         else
         {
             var vendor = inn.Vendors.FirstOrDefault(candidate => candidate.Kind == _innVendor);
-            lines.Add((vendor?.Name.ToUpperInvariant() ?? "KERESKEDŐ", ConsoleColor.Cyan));
-            if (vendor is null || vendor.Offers.Count == 0) lines.Add(("A készlet elfogyott.", ConsoleColor.DarkYellow));
+            var own = snapshot.Party.FirstOrDefault(character => character.Inventory is not null);
+            var sellOffers = vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell
+                ? GuestInnSellOffers(inn, own).ToArray()
+                : [];
+            lines.Add((vendor?.Kind == InnVendorKind.Market
+                ? $"KERESKEDŐ — {(_innMarketMode == InnMarketMode.Buy ? "VÉTEL" : "ELADÁS")}"
+                : vendor?.Name.ToUpperInvariant() ?? "KERESKEDŐ", ConsoleColor.Cyan));
+            if (vendor?.Kind == InnVendorKind.Market)
+                lines.Add(("←/→ vagy Tab: vétel–eladás", ConsoleColor.Green));
+            var entryCount = vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell
+                ? sellOffers.Length
+                : vendor?.Offers.Count ?? 0;
+            if (entryCount == 0) lines.Add((_innMarketMode == InnMarketMode.Sell
+                ? "Nincs eladható tárgy a hátizsákodban."
+                : "A készlet elfogyott.", ConsoleColor.DarkYellow));
             else
             {
-                _innSelection = Math.Clamp(_innSelection, 0, vendor.Offers.Count - 1);
-                var start = Math.Clamp(_innSelection - 7, 0, Math.Max(0, vendor.Offers.Count - 16));
-                lines.AddRange(vendor.Offers.Skip(start).Take(16).Select((offer, index) =>
+                _innSelection = Math.Clamp(_innSelection, 0, entryCount - 1);
+                var start = Math.Clamp(_innSelection - 7, 0, Math.Max(0, entryCount - 16));
+                if (vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell)
+                    lines.AddRange(sellOffers.Skip(start).Take(16).Select((offer, index) =>
+                    {
+                        var absolute = start + index;
+                        return ($"{(absolute == _innSelection ? "▶" : " ")} {offer.Slot.Item!.Name,-34} {offer.Price,6} arany",
+                            absolute == _innSelection ? ConsoleColor.White : ConsoleColor.Gray);
+                    }));
+                else
+                    lines.AddRange(vendor!.Offers.Skip(start).Take(16).Select((offer, index) =>
                 {
                     var absolute = start + index;
                     return ($"{(absolute == _innSelection ? "▶" : " ")} {offer.Item.Name,-34} {offer.Price,6} arany",

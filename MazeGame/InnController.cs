@@ -28,6 +28,7 @@ internal sealed class InnController
     private readonly Dictionary<InnVendorKind, List<InnStockOffer>> _vendorStocks = [];
     private readonly List<InnRumor> _rumors = [];
     private readonly Queue<InnTransactionSnapshot> _transactions = new();
+    private readonly Dictionary<string, int> _buybackPrices = new(StringComparer.OrdinalIgnoreCase);
     private long _transactionSequence;
     private long _revision;
     private bool _active;
@@ -62,7 +63,8 @@ internal sealed class InnController
             .ToArray();
         return new InnSnapshot(_revision, _selectedCharacter.Gold, vendors,
             _rumors.Select(rumor => new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color)).ToArray(),
-            _transactions.ToArray());
+            _transactions.ToArray(),
+            _buybackPrices.Select(pair => new InnSellPriceSnapshot(pair.Key, pair.Value)).ToArray());
     }
 
     public bool TryPurchase(InnVendorKind vendor, int offerIndex, long expectedRevision,
@@ -83,6 +85,28 @@ internal sealed class InnController
         message = $"Megvetted: {offer.Item.Name} ({offer.Price} arany).";
         RecordTransaction(InnTransactionKind.Purchase, recipient.Name, offer.Item.Name, offer.Price,
             recipient.Name, announceOnHost: true);
+        return true;
+    }
+
+    public bool TrySell(long expectedInnRevision, long expectedInventoryRevision, int backpackIndex,
+        LiveCharacter seller, out string message)
+    {
+        if (!_active) { message = "A parti jelenleg nincs a fogadóban."; return false; }
+        if (expectedInnRevision != _revision)
+        { message = "A fogadói készlet időközben megváltozott; válassz újra."; return false; }
+        if (seller.InventoryRevision != expectedInventoryRevision)
+        { message = "Az inventory időközben megváltozott; válassz újra."; return false; }
+        if (backpackIndex < 0 || backpackIndex >= seller.Backpack.Count || seller.Backpack[backpackIndex] is not { } item)
+        { message = "A kijelölt hátizsákhely üres vagy érvénytelen."; return false; }
+        if (!_buybackPrices.TryGetValue(item.Id, out var price))
+        { message = "Ezt a tárgyat a kereskedő nem veszi meg."; return false; }
+        if (!seller.SetInventoryItem(InventorySlotKind.Backpack, backpackIndex, null))
+        { message = "Az eladás most nem hajtható végre."; return false; }
+        _selectedCharacter.AddGold(price);
+        _revision++;
+        message = $"Eladtad: {item.Name} ({price} arany).";
+        RecordTransaction(InnTransactionKind.Sale, seller.Name, item.Name, price, seller.Name,
+            announceOnHost: true);
         return true;
     }
 
@@ -123,6 +147,9 @@ internal sealed class InnController
         if (blacksmithPresent) _vendorStocks[InnVendorKind.Blacksmith] = blacksmithStock;
         if (armorerPresent) _vendorStocks[InnVendorKind.Armorer] = armorerStock;
         if (wanderingMagePresent) _vendorStocks[InnVendorKind.WanderingMage] = wanderingMageStock;
+        _buybackPrices.Clear();
+        foreach (var item in AllTradableItems())
+            _buybackPrices[item.Id] = Math.Max(1, item.BasePrice * _random.Next(40, 71) / 100);
         _rumors.Clear();
         _transactions.Clear();
         var shownRumors = new HashSet<string>(StringComparer.Ordinal);
@@ -232,8 +259,6 @@ internal sealed class InnController
     private void RunInnMarket(int completedLevel)
     {
         var stock = _vendorStocks[InnVendorKind.Market];
-        var buybackPrices = AllTradableItems().ToDictionary(item => item.Id,
-            item => Math.Max(1, item.BasePrice * _random.Next(40, 71) / 100), StringComparer.OrdinalIgnoreCase);
         var mode = InnMarketMode.Buy;
         var selectedIndex = 0;
         var message = "A kereskedő rád kacsint: „Nézz körül, kalandozó!”";
@@ -241,7 +266,7 @@ internal sealed class InnController
 
         while (true)
         {
-            var sellOffers = CreateSellOffers(buybackPrices);
+            var sellOffers = CreateSellOffers(_buybackPrices);
             var entryCount = mode == InnMarketMode.Buy ? stock.Count : sellOffers.Count;
             selectedIndex = entryCount == 0 ? 0 : Math.Clamp(selectedIndex, 0, entryCount - 1);
             if (redraw)

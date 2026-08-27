@@ -1120,6 +1120,9 @@ public sealed class Game
                 case InnPurchaseCommand purchase:
                     ExecuteInnPurchase(purchase);
                     break;
+                case InnSaleCommand sale:
+                    ExecuteInnSale(sale);
+                    break;
                 case AcknowledgeNarrativeCommand acknowledgement:
                     ExecuteNarrativeAcknowledgement(acknowledgement);
                     break;
@@ -1146,6 +1149,19 @@ public sealed class Game
         }
         if (!_innController.TryPurchase(command.Vendor, command.OfferIndex, command.ExpectedInnRevision,
                 recipient, out var message))
+            _session.RejectExecutedCommand(command, message);
+    }
+
+    private void ExecuteInnSale(InnSaleCommand command)
+    {
+        var seller = CharacterRoster.Party.Members.FirstOrDefault(character => character.Id == command.CharacterId);
+        if (seller is null)
+        {
+            _session.RejectExecutedCommand(command, "Az eladó karakter már nem tagja a partinak.");
+            return;
+        }
+        if (!_innController.TrySell(command.ExpectedInnRevision, command.ExpectedInventoryRevision,
+                command.BackpackIndex, seller, out var message))
             _session.RejectExecutedCommand(command, message);
     }
 

@@ -19,6 +19,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég saját ajtó- és keresési akciót küldhet", RemotePlayerCanIssueCharacterAction),
     ("A vendég térképről varázslási parancsot küldhet", RemotePlayerCanCastExplorationSpell),
     ("A vendég saját karakterével fogadói vásárlást küldhet", RemotePlayerCanPurchaseAtInn),
+    ("A vendég saját hátizsákjából fogadói eladást küldhet", RemotePlayerCanSellAtInn),
     ("A vendég nyugtázhatja a közös történeti ablakot", RemotePlayerCanAcknowledgeNarrative),
     ("A vendég elküldheti a saját memorizált varázslatait", RemotePlayerCanPrepareSpells),
     ("A vendég válaszolhat a saját szintlépési promptjára", RemotePlayerCanResolveLevelUpPrompt),
@@ -170,6 +171,18 @@ static void RemotePlayerCanPurchaseAtInn()
     session.Submit(command);
     Assert(session.TryReadCommand(out var accepted) && accepted == command,
         "A session elutasította a vendég saját fogadói vásárlását.");
+}
+
+static void RemotePlayerCanSellAtInn()
+{
+    var (session, _, companion) = CreateSession();
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var assignmentError), assignmentError);
+    companion.AddToBackpack(new MiscItemDefinition("I-SELL", "Eladó tárgy", "Teszt", 10));
+    session.SetPhase(GameSessionPhase.Inn);
+    var command = new InnSaleCommand(remote, 1, companion.Id, 3, companion.InventoryRevision, 0);
+    Assert(session.Submit(command) && session.TryReadCommand(out var accepted) && accepted == command,
+        "A session elutasította a vendég saját fogadói eladását.");
 }
 
 static void RemotePlayerCanAcknowledgeNarrative()
@@ -480,11 +493,13 @@ static void InnSnapshotCarriesSharedRumors()
 {
     var snapshot = new InnSnapshot(3, 120, [],
         [new InnRumorSnapshot("Úti hír", ["Ugyanazt hallja a host és a vendég."], ConsoleColor.Yellow)],
-        [new InnTransactionSnapshot(1, InnTransactionKind.Purchase, "Vendég", "Kard", 50, "Vendég")]);
+        [new InnTransactionSnapshot(1, InnTransactionKind.Purchase, "Vendég", "Kard", 50, "Vendég")],
+        [new InnSellPriceSnapshot("W-TEST", 25)]);
     var restored = JsonSerializer.Deserialize<InnSnapshot>(JsonSerializer.Serialize(snapshot));
     Assert(restored is { Rumors.Count: 1 } && restored.Rumors[0].Title == "Úti hír" &&
            restored.Rumors[0].Lines.SequenceEqual(snapshot.Rumors[0].Lines) &&
-           restored.Rumors[0].Color == ConsoleColor.Yellow && restored.Transactions is [{ ActorName: "Vendég" }],
+           restored.Rumors[0].Color == ConsoleColor.Yellow && restored.Transactions is [{ ActorName: "Vendég" }] &&
+           restored.SellPrices is [{ Price: 25 }],
         "A fogadói pletyka nem maradt meg a snapshot JSON round-trip során.");
 }
 
@@ -1038,6 +1053,9 @@ static void ProtocolCodecRoundTripsCommand()
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(characterAction)) is CharacterActionCommand decodedAction &&
            decodedAction == characterAction,
         "A JSON wire codec megváltoztatta a karakterhez kötött akciót.");
+    var sale = new InnSaleCommand(PlayerId.New(), 9, CharacterId.New(), 4, 7, 2);
+    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(sale)) is InnSaleCommand decodedSale &&
+           decodedSale == sale, "A JSON wire codec megváltoztatta a fogadói eladást.");
     var rejected = false;
     try
     {

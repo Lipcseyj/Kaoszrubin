@@ -104,6 +104,10 @@ public sealed record InnPurchaseCommand(PlayerId SenderId, long CommandId, Chara
     long ExpectedInnRevision, InnVendorKind Vendor, int OfferIndex)
     : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record InnSaleCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    long ExpectedInnRevision, long ExpectedInventoryRevision, int BackpackIndex)
+    : GameCommand(SenderId, CommandId, CharacterId);
+
 public sealed record AcknowledgeNarrativeCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     Guid NarrativeId) : GameCommand(SenderId, CommandId, CharacterId);
 
