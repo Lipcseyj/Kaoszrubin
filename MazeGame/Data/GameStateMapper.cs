@@ -75,7 +75,11 @@ internal sealed class GameStateMapper
             Fog = new FogSaveData
             {
                 RevealedPositions = fogOfWar.GetRevealedPositions().ToList(),
+#if DEBUG
                 DeveloperRevealActive = fogOfWar.IsDeveloperRevealActive
+#else
+                DeveloperRevealActive = false
+#endif
             }
         };
     }
@@ -133,7 +137,11 @@ internal sealed class GameStateMapper
 
         var player = new Player(state.PlayerPosition, _selectedCharacter);
         var fogOfWar = new FogOfWar(maze.Width, maze.Height, VisionRange);
+#if DEBUG
         fogOfWar.Restore(state.Fog.RevealedPositions, state.Fog.DeveloperRevealActive);
+#else
+        fogOfWar.Restore(state.Fog.RevealedPositions, developerRevealActive: false);
+#endif
 
         return new RestoredGameState(
             mazeLevel,

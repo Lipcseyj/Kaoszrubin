@@ -553,6 +553,7 @@ public sealed class Game
                         }
                         continue;
                     }
+#if DEBUG
                     if (IsRevealMapShortcut(keyInfo))
                     {
                         var isMapRevealed = _fogOfWar.ToggleDeveloperReveal();
@@ -598,6 +599,7 @@ public sealed class Game
                         ToggleDeveloperPhasing();
                         continue;
                     }
+#endif
 
                     var key = keyInfo.Key;
                     if (key == ConsoleKey.Escape)

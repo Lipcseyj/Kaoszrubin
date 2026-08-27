@@ -38,6 +38,7 @@ internal static class GameInput
         return slotIndex >= 0 && (keyInfo.Modifiers & ConsoleModifiers.Shift) == 0;
     }
 
+#if DEBUG
     public static bool IsRevealMapShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.U &&
         HasControlShift(keyInfo);
@@ -77,4 +78,5 @@ internal static class GameInput
     private static bool HasControlAlt(ConsoleKeyInfo keyInfo) =>
         (keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) ==
         (ConsoleModifiers.Control | ConsoleModifiers.Alt);
+#endif
 }
