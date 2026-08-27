@@ -137,6 +137,9 @@ public sealed class Game
     private SpellPreparationSnapshot? _activeSpellPreparation;
     private bool _spellPreparationCompleted;
     private PartyRestSnapshot? _latestRestNotice;
+    private LevelUpPromptSnapshot? _activeLevelUpPrompt;
+    private string? _levelUpResponse;
+    private bool _levelUpPromptCompleted;
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
     private readonly GameSession _session;
@@ -202,6 +205,7 @@ public sealed class Game
             { AcknowledgedPlayerIds = _narrativeAcknowledgements.ToArray() },
             SpellPreparation = _activeSpellPreparation,
             RestNotice = _latestRestNotice,
+            LevelUpPrompt = _activeLevelUpPrompt,
             Party = snapshot.Party.Select(character => character with
             {
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
@@ -1112,6 +1116,9 @@ public sealed class Game
                 case PrepareSpellsCommand preparation:
                     ExecuteSpellPreparation(preparation);
                     break;
+                case ResolveLevelUpPromptCommand levelUp:
+                    ExecuteLevelUpPrompt(levelUp);
+                    break;
             }
         }
     }
@@ -1177,6 +1184,20 @@ public sealed class Game
             return;
         }
         _spellPreparationCompleted = true;
+    }
+
+    private void ExecuteLevelUpPrompt(ResolveLevelUpPromptCommand command)
+    {
+        if (_activeLevelUpPrompt is null || _activeLevelUpPrompt.PromptId != command.PromptId ||
+            _activeLevelUpPrompt.CharacterId != command.CharacterId ||
+            (_activeLevelUpPrompt.Kind != LevelUpPromptKind.Summary &&
+             _activeLevelUpPrompt.Choices.All(choice => choice.Id != command.ChoiceId)))
+        {
+            _session.RejectExecutedCommand(command, "Ez a szintlépési választás már nem aktív vagy nem érvényes.");
+            return;
+        }
+        _levelUpResponse = command.ChoiceId;
+        _levelUpPromptCompleted = true;
     }
 
     private void ShowSynchronizedNarrative(NarrativeKind kind, string title, string subtitle,
@@ -3768,10 +3789,95 @@ public sealed class Game
     private void ResolvePerkOffers(LiveCharacter character, LevelUpResult result)
     {
         var offers = CreatePerkOffers(character, result);
+        var control = _session.CharacterControls.FirstOrDefault(candidate => candidate.CharacterId == character.Id);
+        if (control is { ControllerKind: CharacterControllerKind.RemotePlayer,
+                ConnectionState: PlayerConnectionState.Connected, AssignedPlayerId: not null })
+        {
+            ResolveRemoteLevelUp(character, result, offers);
+            return;
+        }
         var selectedPerks = _renderer.DrawLevelUpScreen(character, result, offers);
         foreach (var perk in selectedPerks)
             if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
         ResolveSpellLearning(character, result);
+    }
+
+    private void ResolveRemoteLevelUp(LiveCharacter character, LevelUpResult result,
+        IReadOnlyList<PerkOffer> offers)
+    {
+        WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.Summary, [],
+            $"{result.PreviousLevel}. szint → {result.CurrentLevel}. szint");
+        foreach (var offer in offers)
+        {
+            var choices = offer.Choices.Select(perk => new LevelUpChoiceSnapshot(perk.Id, perk.Name, perk.Description)).ToArray();
+            var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.PerkChoice, choices,
+                $"{offer.Tier}. tehetségfokozat — a nem választott tehetség végleg elveszik.");
+            var perk = offer.Choices.FirstOrDefault(candidate => candidate.Id == selectedId) ?? offer.Choices[0];
+            if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
+        }
+        ResolveRemoteSpellLearning(character, result);
+    }
+
+    private void ResolveRemoteSpellLearning(LiveCharacter character, LevelUpResult result)
+    {
+        if (!character.IsSpellcaster) return;
+        var simulatedKnown = character.KnownSpells.Select(spell => spell.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var learningCount = result.Bonuses.Count(bonus =>
+        {
+            if (!SpellcastingRules.TryGetSchool(character.CharacterClass.Id, out var school)) return false;
+            var candidate = _gameData.Spells.FirstOrDefault(spell => spell.School == school &&
+                spell.Level <= SpellcastingRules.MaximumSpellLevel(bonus.Level) && !simulatedKnown.Contains(spell.Id));
+            if (candidate is null) return false;
+            simulatedKnown.Add(candidate.Id);
+            return true;
+        });
+        var learnedNumber = 0;
+        foreach (var bonus in result.Bonuses)
+        {
+            var choices = SpellcastingRules.AvailableUnknownSpells(character, _gameData, bonus.Level);
+            if (choices.Count == 0) continue;
+            learnedNumber++;
+            var projected = choices.Select(spell => new LevelUpChoiceSnapshot(spell.Id,
+                $"{spell.Level}. szint — {spell.Name}", spell.Description)).ToArray();
+            var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.SpellChoice,
+                projected, $"{learnedNumber}/{learningCount}. új varázslat");
+            character.LearnSpell(choices.FirstOrDefault(spell => spell.Id == selectedId) ?? choices[0]);
+        }
+    }
+
+    private string? WaitForRemoteLevelUpChoice(LiveCharacter character, LevelUpResult result,
+        LevelUpPromptKind kind, IReadOnlyList<LevelUpChoiceSnapshot> choices, string message)
+    {
+        var previousPhase = _session.Phase;
+        _activeLevelUpPrompt = new LevelUpPromptSnapshot(Guid.NewGuid(), character.Id, character.Name, kind,
+            result.PreviousLevel, result.CurrentLevel, result.VitalityGained, result.ManaGained, choices, message);
+        _levelUpResponse = null;
+        _levelUpPromptCompleted = false;
+        _session.SetPhase(GameSessionPhase.Paused);
+        Console.Clear();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("=== VÁRAKOZÁS A COOP JÁTÉKOS SZINTLÉPÉSÉRE ===");
+        Console.ResetColor();
+        Console.WriteLine($"{character.Name} a saját szintlépési döntését végzi.");
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        while (!_levelUpPromptCompleted)
+        {
+            ProcessSessionCommands();
+            var stillConnected = _session.CharacterControls.Any(control => control.CharacterId == character.Id &&
+                control.ControllerKind == CharacterControllerKind.RemotePlayer &&
+                control.ConnectionState == PlayerConnectionState.Connected);
+            if (!stillConnected) break;
+            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            Thread.Sleep(20);
+        }
+        var response = _levelUpResponse;
+        _activeLevelUpPrompt = null;
+        _levelUpResponse = null;
+        _levelUpPromptCompleted = false;
+        _session.SetPhase(previousPhase);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        return response;
     }
 
     private void ResolveSpellLearning(LiveCharacter character, LevelUpResult result)

@@ -113,6 +113,9 @@ public sealed record AssignQuickSpellCommand(PlayerId SenderId, long CommandId, 
 public sealed record PrepareSpellsCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     Guid PromptId, IReadOnlyList<string> SpellIds) : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record ResolveLevelUpPromptCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    Guid PromptId, string? ChoiceId) : GameCommand(SenderId, CommandId, CharacterId);
+
 public abstract record GameSessionEvent(long Sequence);
 
 public sealed record SessionPhaseChangedEvent(long Sequence, GameSessionPhase PreviousPhase,

@@ -33,6 +33,8 @@ public sealed class CoopGuestScreen
     private int _spellPreparationCursor;
     private readonly HashSet<string> _preparedSpellIds = new(StringComparer.OrdinalIgnoreCase);
     private Guid? _lastRestNoticeId;
+    private Guid? _levelUpPromptId;
+    private int _levelUpSelection;
     private GuestRenderFrame? _lastFrame;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData)
@@ -75,6 +77,7 @@ public sealed class CoopGuestScreen
                     if (key.Key == ConsoleKey.Escape && client.CurrentSnapshot?.Phase != GameSessionPhase.Inn &&
                         client.CurrentSnapshot?.Narrative is null &&
                         client.CurrentSnapshot?.SpellPreparation is null &&
+                        client.CurrentSnapshot?.LevelUpPrompt is null &&
                         !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null) break;
                     await HandleInputAsync(client, selected.CharacterId, key.Key, cancellationToken);
                 }
@@ -121,6 +124,19 @@ public sealed class CoopGuestScreen
             return;
         }
         _spellPreparationPromptId = null;
+        if (snapshot.LevelUpPrompt is { CharacterId: var levelingCharacter } levelUp &&
+            levelingCharacter == characterId)
+        {
+            var levelUpCommand = HandleLevelUpInput(client, characterId, levelUp, key);
+            if (levelUpCommand is not null)
+            {
+                try { await client.SendCommandAsync(levelUpCommand, cancellationToken); }
+                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
+                { SetMessage(exception.Message); }
+            }
+            return;
+        }
+        _levelUpPromptId = null;
         SynchronizeSpellUi(snapshot, characterId);
         if (snapshot.Narrative is { } narrative)
         {
@@ -236,6 +252,30 @@ public sealed class CoopGuestScreen
         {
             SetMessage(exception.Message);
         }
+    }
+
+    private GameCommand? HandleLevelUpInput(CoopSignalRClient client, CharacterId characterId,
+        LevelUpPromptSnapshot prompt, ConsoleKey key)
+    {
+        if (_levelUpPromptId != prompt.PromptId)
+        { _levelUpPromptId = prompt.PromptId; _levelUpSelection = 0; }
+        if (prompt.Kind == LevelUpPromptKind.Summary)
+        {
+            if (key != ConsoleKey.Enter) return null;
+            return new ResolveLevelUpPromptCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                prompt.PromptId, null);
+        }
+        if (prompt.Choices.Count == 0) return null;
+        _levelUpSelection = Math.Clamp(_levelUpSelection, 0, prompt.Choices.Count - 1);
+        if (key is ConsoleKey.UpArrow or ConsoleKey.LeftArrow)
+            _levelUpSelection = (_levelUpSelection - 1 + prompt.Choices.Count) % prompt.Choices.Count;
+        else if (key is ConsoleKey.DownArrow or ConsoleKey.RightArrow)
+            _levelUpSelection = (_levelUpSelection + 1) % prompt.Choices.Count;
+        else if (key == ConsoleKey.Enter)
+            return new ResolveLevelUpPromptCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                prompt.PromptId, prompt.Choices[_levelUpSelection].Id);
+        Interlocked.Exchange(ref _redrawRequested, 1);
+        return null;
     }
 
     private GameCommand? HandleSpellPreparationInput(CoopSignalRClient client, CharacterId characterId,
@@ -638,6 +678,7 @@ public sealed class CoopGuestScreen
         ApplyInnUi(grid, snapshot);
         ApplyNarrativeUi(grid, snapshot, client.PlayerId);
         ApplySpellPreparationUi(grid, snapshot, own);
+        ApplyLevelUpUi(grid, snapshot, own);
         var panelLines = _spellInfoOpen && own?.SpellInfo is not null
             ? BuildSpellInfoPanel(own).ToDictionary(line => line.Row)
             : own?.CharacterSheet is not null && own.Inventory is not null
@@ -884,6 +925,44 @@ public sealed class CoopGuestScreen
              $"{spell.Level}. szint — {spell.Name}",
                 index == _spellPreparationCursor ? ConsoleColor.Yellow : ConsoleColor.Gray)));
         DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, 72);
+    }
+
+    private void ApplyLevelUpUi(GuestMapCell[,] grid, SessionSnapshot snapshot, SessionCharacterSnapshot? own)
+    {
+        if (snapshot.LevelUpPrompt is not { } prompt || own?.CharacterId != prompt.CharacterId) return;
+        if (_levelUpPromptId != prompt.PromptId)
+        { _levelUpPromptId = prompt.PromptId; _levelUpSelection = 0; }
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            (prompt.Kind switch
+            {
+                LevelUpPromptKind.PerkChoice => "🌟⚔️🌟  TEHETSÉGVÁLASZTÁS  🌟⚔️🌟",
+                LevelUpPromptKind.SpellChoice => "📖  ÚJ VARÁZSLAT TANULÁSA",
+                _ => "✨🏆✨  SZINTLÉPÉS!  ✨🏆✨"
+            }, prompt.Kind == LevelUpPromptKind.Summary ? ConsoleColor.Yellow : ConsoleColor.Magenta),
+            (string.Empty, ConsoleColor.Gray),
+            ($"{prompt.CharacterName}: {prompt.PreviousLevel}. szint → {prompt.CurrentLevel}. szint", ConsoleColor.Cyan),
+            ($"Növekedés: +{prompt.VitalityGained} HP" +
+                (own.CharacterSheet?.UsesMana == true ? $", +{prompt.ManaGained} manna" : string.Empty), ConsoleColor.Green),
+            (prompt.Message, ConsoleColor.DarkCyan),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        if (prompt.Kind == LevelUpPromptKind.Summary)
+            lines.Add(("Enter: tovább", ConsoleColor.Green));
+        else
+        {
+            _levelUpSelection = Math.Clamp(_levelUpSelection, 0, Math.Max(0, prompt.Choices.Count - 1));
+            foreach (var (choice, index) in prompt.Choices.Select((choice, index) => (choice, index)))
+            {
+                lines.Add(($"{(index == _levelUpSelection ? "▶" : " ")} {choice.Name}",
+                    index == _levelUpSelection ? ConsoleColor.Yellow : ConsoleColor.Gray));
+                lines.AddRange(WrapMessage(choice.Description, 62).Take(3).Select(description =>
+                    ($"    {description}", index == _levelUpSelection ? ConsoleColor.White : ConsoleColor.DarkGray)));
+                lines.Add((string.Empty, ConsoleColor.Gray));
+            }
+            lines.Add(("Nyilak: választás   Enter: véglegesítés", ConsoleColor.Green));
+        }
+        DrawGuestOverlay(grid, lines, ConsoleColor.Yellow, 76);
     }
 
     private static void DrawGuestOverlay(GuestMapCell[,] grid, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
