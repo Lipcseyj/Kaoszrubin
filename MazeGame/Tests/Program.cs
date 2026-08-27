@@ -46,6 +46,7 @@ var tests = new (string Name, Action Run)[]
     ("A varázslat command csak szemantikus választást hordoz", SpellBattleCommandIsAccepted),
     ("Hiányos varázslat command nem juthat át", MalformedSpellBattleCommandIsRejected),
     ("A promptban nem engedélyezett harci akció elutasításra kerül", DisallowedBattleActionIsRejected),
+    ("A csatakezdő taktikai parancs átjut a session-validáción", BattleTacticCommandIsAccepted),
     ("A session snapshot JSON-on körbeírható", SessionSnapshotRoundTripsThroughJson),
     ("A fogadó snapshotja közös pletykákat továbbít", InnSnapshotCarriesSharedRumors),
     ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
@@ -567,6 +568,18 @@ static void DisallowedBattleActionIsRejected()
     Assert(!session.TryReadCommand(out _), "A promptban nem szereplő halottűzés átjutott.");
 }
 
+static void BattleTacticCommandIsAccepted()
+{
+    var (session, leader, _) = CreateSession();
+    var battleId = BattleId.New();
+    session.SetBattlePrompt(battleId, 1, leader.Id,
+        [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]);
+    Assert(session.Submit(new BattleActionCommand(session.HostPlayerId, 1, leader.Id, battleId, 1,
+            BattleActionKind.FighterPowerful)),
+        "A session elutasította az engedélyezett harcos taktikát.");
+    Assert(session.TryReadCommand(out var command) && command is BattleActionCommand
+        { Action: BattleActionKind.FighterPowerful }, "A taktikai parancs nem került a feldolgozási sorba.");
+}
 static void SessionSnapshotRoundTripsThroughJson()
 {
     var (session, leader, companion) = CreateSession();
