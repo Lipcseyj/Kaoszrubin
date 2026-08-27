@@ -408,7 +408,7 @@ public sealed class Game
         if (type == ActiveSpellEffectType.GuardianAngel && caster.HasPerk(PerkIds.PriestHealingGrace))
             multiplier = multiplier * 125 / 100;
         character.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type,
-            effect.Value, AdjustedDuration(effect, divineJudgment), effect.Dice,
+            effect.Value, AdjustedDuration(caster, spell, effect, divineJudgment), effect.Dice,
             (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier), true,
             multiplier, effect.Parameter));
     }
@@ -432,6 +432,7 @@ public sealed class Game
                   caster.Level * effect.LevelMultiplier + effect.Value;
             if (!fullHealing && divineJudgment) amount *= 2;
             if (caster.HasPerk(PerkIds.PriestHealingGrace)) amount = (int)Math.Ceiling(amount * 1.25);
+            if (caster.SpecializationId == ClassSpecializations.PriestLife) amount = (int)Math.Ceiling(amount * 1.25);
             var before = character.CurrentVitality;
             character.RestoreVitality(amount);
             notes.Add($"{character.Name}: ❤️ +{character.CurrentVitality - before} HP");
@@ -2825,15 +2826,15 @@ public sealed class Game
                     break;
                 case SpellEffectType.Invisibility:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.Invisibility, divineJudgment);
-                    notes.Add($"láthatatlanság {AdjustedDuration(effect, divineJudgment)} akcióra");
+                    notes.Add($"láthatatlanság {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.DefenseBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.DefenseBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} védelem {AdjustedDuration(effect, divineJudgment)} akcióra");
+                    notes.Add($"+{effect.Value} védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.PhysicalReduction:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.PhysicalReduction, divineJudgment);
-                    notes.Add($"{effect.Value}% fizikai védelem {AdjustedDuration(effect, divineJudgment)} akcióra");
+                    notes.Add($"{effect.Value}% fizikai védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.BleedingImmunity:
                     foreach (var characterTarget in characterTargets)
@@ -2883,30 +2884,30 @@ public sealed class Game
                     break;
                 case SpellEffectType.HitBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.HitBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} találat {AdjustedDuration(effect, divineJudgment)} akcióra");
+                    notes.Add($"+{effect.Value} találat {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.DamageBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.DamageBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} fizikai sebzés {AdjustedDuration(effect, divineJudgment)} akcióra");
+                    notes.Add($"+{effect.Value} fizikai sebzés {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.InitiativeBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.InitiativeBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} kezdeményezés {AdjustedDuration(effect, divineJudgment)} akcióra");
+                    notes.Add($"+{effect.Value} kezdeményezés {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.ProtectionFromEvil:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.ProtectionFromEvil, divineJudgment);
-                    notes.Add($"gonosz elleni védelem {AdjustedDuration(effect, divineJudgment)} akcióra");
+                    notes.Add($"gonosz elleni védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.GuardianAngel:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.GuardianAngel, divineJudgment);
-                    notes.Add($"👼 Őrangyal {AdjustedDuration(effect, divineJudgment)} akcióra");
+                    notes.Add($"👼 Őrangyal {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.Sanctuary:
                     var sanctuaryTargets = LivingPartyWithPositions()
                         .Where(entry => Chebyshev(entry.Position, casterPosition) <= Math.Max(0, spell.AreaRadius))
                         .Select(entry => entry.Character).ToList();
                     ApplyCharacterEffects(caster, sanctuaryTargets, effect, spell, ActiveSpellEffectType.Sanctuary, divineJudgment);
-                    notes.Add($"⛪ Szentély: {sanctuaryTargets.Count} karakter védett {AdjustedDuration(effect, divineJudgment)} akcióra");
+                    notes.Add($"⛪ Szentély: {sanctuaryTargets.Count} karakter védett {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
                     break;
                 case SpellEffectType.Resurrect:
                     notes.Add(ResurrectPartyMember(target, effect));
@@ -2938,12 +2939,27 @@ public sealed class Game
         }
 
         var currentDamage = 0;
+        var actualDamage = 0;
         foreach (var entry in damage.Where(entry => entry.Value > 0))
         {
             if (inCombat && entry.Key == currentEnemy)
-                currentDamage += Math.Min(entry.Value, entry.Key.CurrentHitPoints);
+            {
+                var inflicted = Math.Min(entry.Value, entry.Key.CurrentHitPoints);
+                currentDamage += inflicted;
+                actualDamage += inflicted;
+            }
             else
+            {
+                actualDamage += Math.Min(entry.Value, entry.Key.CurrentHitPoints);
                 ApplyExplorationSpellDamage(caster, entry.Key, entry.Value, notes);
+            }
+        }
+        if (actualDamage > 0 && caster.SpecializationId == ClassSpecializations.MageNecromancer)
+        {
+            var before = caster.CurrentVitality;
+            caster.RestoreVitality(Math.Max(1, (int)Math.Ceiling(actualDamage * 0.10)));
+            var restored = caster.CurrentVitality - before;
+            if (restored > 0) notes.Add($"💀 Nekromancia: ❤️ +{restored} HP");
         }
         if (damage.Values.Any(value => value > 0)) caster.BreakInvisibility();
         if (!inCombat) _renderer.RefreshCharacterSheet(caster);
@@ -3005,6 +3021,10 @@ public sealed class Game
                      (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier) +
                      caster.Level * effect.LevelMultiplier + effect.Value;
         if (caster.HasPerk(PerkIds.MageElementalMaster)) rolled = (int)Math.Ceiling(rolled * 1.25);
+        if (caster.SpecializationId == ClassSpecializations.PriestJudgment && spell.School == SpellSchool.Divine)
+            rolled = (int)Math.Ceiling(rolled * 1.20);
+        if (caster.SpecializationId == ClassSpecializations.MageElementalist && spell.School == SpellSchool.Arcane)
+            rolled = (int)Math.Ceiling(rolled * 1.20);
         if (IsHolyEffect(effect) && IsUnholy(enemy.Definition))
         {
             rolled = (int)Math.Ceiling(rolled * 1.5);
@@ -3063,10 +3083,10 @@ public sealed class Game
             var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, cache);
             if (!resolution.Applies || _random.Next(100) >= effect.ChancePercent) continue;
             enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type, effect.Value,
-                AdjustedDuration(effect, divineJudgment),
+                AdjustedDuration(caster, spell, effect, divineJudgment),
                 effect.Dice, (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier),
                 false, effect.Dice is not null && caster.HasPerk(PerkIds.MageElementalMaster) ? 125 : 100));
-            notes.Add($"{enemy.Name}: {TimedEffectName(type)} ({AdjustedDuration(effect, divineJudgment)} akció)");
+            notes.Add($"{enemy.Name}: {TimedEffectName(type)} ({AdjustedDuration(caster, spell, effect, divineJudgment)} akció)");
         }
     }
 
@@ -3088,7 +3108,7 @@ public sealed class Game
         if (type == ActiveSpellEffectType.GuardianAngel && caster.HasPerk(PerkIds.PriestHealingGrace))
             multiplier = multiplier * 125 / 100;
         character.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type,
-            effect.Value, AdjustedDuration(effect, divineJudgment), effect.Dice,
+            effect.Value, AdjustedDuration(caster, spell, effect, divineJudgment), effect.Dice,
             (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier), true,
             multiplier, effect.Parameter));
     }
@@ -3112,6 +3132,8 @@ public sealed class Game
                   caster.Level * effect.LevelMultiplier + effect.Value;
             if (!fullHealing && divineJudgment) amount *= 2;
             if (caster.HasPerk(PerkIds.PriestHealingGrace))
+                amount = (int)Math.Ceiling(amount * 1.25);
+            if (caster.SpecializationId == ClassSpecializations.PriestLife)
                 amount = (int)Math.Ceiling(amount * 1.25);
             var before = character.CurrentVitality;
             character.RestoreVitality(amount);
@@ -3168,8 +3190,24 @@ public sealed class Game
         return FindNearbyTeleportPositions(corpse.Position).Where(CanUse).Select(position => (Position?)position).FirstOrDefault();
     }
 
-    private static int AdjustedDuration(SpellEffectDefinition effect, bool divineJudgment) =>
-        divineJudgment ? effect.Duration * 2 : effect.Duration;
+    private static int AdjustedDuration(LiveCharacter caster, SpellDefinition spell,
+        SpellEffectDefinition effect, bool divineJudgment)
+    {
+        var duration = divineJudgment ? effect.Duration * 2 : effect.Duration;
+        var priestProtection = caster.SpecializationId == ClassSpecializations.PriestProtection &&
+                               spell.School == SpellSchool.Divine && effect.Type is
+                                   SpellEffectType.DefenseBonus or SpellEffectType.PhysicalReduction or
+                                   SpellEffectType.BleedingImmunity or SpellEffectType.HitBonus or
+                                   SpellEffectType.DamageBonus or SpellEffectType.InitiativeBonus or
+                                   SpellEffectType.ProtectionFromEvil or SpellEffectType.GuardianAngel or
+                                   SpellEffectType.Sanctuary;
+        var mageIllusion = caster.SpecializationId == ClassSpecializations.MageIllusionist &&
+                           spell.School == SpellSchool.Arcane && effect.Type is
+                               SpellEffectType.Invisibility or SpellEffectType.DefenseBonus or
+                               SpellEffectType.PhysicalReduction or SpellEffectType.BleedingImmunity or
+                               SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate;
+        return duration > 0 && (priestProtection || mageIllusion) ? duration + 1 : duration;
+    }
     private static IReadOnlyList<string> ParseEffectParameters(string? parameter) =>
         string.IsNullOrWhiteSpace(parameter)
             ? []
@@ -3940,6 +3978,7 @@ public sealed class Game
         var selectedPerks = _renderer.DrawLevelUpScreen(character, result, offers);
         foreach (var perk in selectedPerks)
             if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
+        if (ShouldChooseSpecialization(character, offers)) ResolveLocalSpecialization(character);
         ResolveSpellLearning(character, result);
     }
 
@@ -3955,8 +3994,32 @@ public sealed class Game
                 $"{offer.Tier}. tehetségfokozat — a nem választott tehetség végleg elveszik.");
             var perk = offer.Choices.FirstOrDefault(candidate => candidate.Id == selectedId) ?? offer.Choices[0];
             if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
+            if (offer.Tier == 1) ResolveRemoteSpecialization(character, result);
         }
+        if (ShouldChooseSpecialization(character, offers)) ResolveRemoteSpecialization(character, result);
         ResolveRemoteSpellLearning(character, result);
+    }
+
+    private static bool ShouldChooseSpecialization(LiveCharacter character, IReadOnlyList<PerkOffer> offers) =>
+        character.SpecializationId is null && ClassSpecializations.ForClass(character.CharacterClass.Id).Count > 0 &&
+        (offers.Any(offer => offer.Tier == 1) || character.Perks.Any(perk => perk.Tier == 1));
+
+    private void ResolveLocalSpecialization(LiveCharacter character)
+    {
+        if (character.SpecializationId is not null) return;
+        var choices = ClassSpecializations.ForClass(character.CharacterClass.Id);
+        if (choices.Count > 0) character.ChooseSpecialization(_renderer.DrawSpecializationChoice(character, choices).Id);
+    }
+
+    private void ResolveRemoteSpecialization(LiveCharacter character, LevelUpResult result)
+    {
+        if (character.SpecializationId is not null) return;
+        var choices = ClassSpecializations.ForClass(character.CharacterClass.Id);
+        if (choices.Count == 0) return;
+        var projected = choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray();
+        var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.SpecializationChoice,
+            projected, "Válassz végleges papi vagy mágusi specializációt.");
+        character.ChooseSpecialization(choices.FirstOrDefault(choice => choice.Id == selectedId)?.Id ?? choices[0].Id);
     }
 
     private void ResolveRemoteSpellLearning(LiveCharacter character, LevelUpResult result)

@@ -31,6 +31,7 @@ var tests = new (string Name, Action Run)[]
     ("A duplikált parancs elutasításra kerül", DuplicateCommandIsRejected),
     ("Harc közben nem futhat felfedezési parancs", ExplorationCommandIsRejectedDuringBattle),
     ("A CharacterId mentés után is stabil", CharacterIdSurvivesSerialization),
+    ("Az osztályspecializáció mentés után is megmarad", ClassSpecializationSurvivesSerialization),
     ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A csata megvárhatja a játékos hálózati akcióját", BattleCanWaitForPlayerAction),
@@ -313,6 +314,23 @@ static void CharacterIdSurvivesSerialization()
     var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-character-save.json"), data);
     var restored = service.Deserialize(service.Serialize(roster));
     Assert(restored.SelectedCharacter?.Id == character.Id, "A karakter stabil azonosítója megváltozott mentéskor.");
+}
+
+static void ClassSpecializationSurvivesSerialization()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var race = data.GetRace("R003");
+    var mageClass = data.CharacterClasses.Single(characterClass => characterClass.Id == CharacterClassIds.Mágus);
+    var character = new LiveCharacter("Specialista", race, mageClass,
+        new PrimaryAbilities(1, 3, 3, 10), 30, 60, 1, 1);
+    Assert(character.ChooseSpecialization(ClassSpecializations.MageIllusionist),
+        "A mágus nem tudta kiválasztani az Illuzionista specializációt.");
+    var roster = new CharacterRoster();
+    roster.Add(character);
+    var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-specialization-save.json"), data);
+    var restored = service.Deserialize(service.Serialize(roster)).Characters.Single();
+    Assert(restored.SpecializationId == ClassSpecializations.MageIllusionist,
+        "A specializáció elveszett a mentési kör után.");
 }
 
 static void DisconnectAndReconnectRestoreControl()

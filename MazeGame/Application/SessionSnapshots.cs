@@ -7,7 +7,7 @@ namespace MazeGame.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 20;
+    public const int Version = 21;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -25,7 +25,7 @@ public enum SessionActivityKind { Battle, Spell, Support, System }
 public sealed record SessionActivitySnapshot(long Sequence, SessionActivityKind Kind, string Message,
     ConsoleColor Color);
 
-public enum LevelUpPromptKind { Summary, PerkChoice, SpellChoice }
+public enum LevelUpPromptKind { Summary, PerkChoice, SpecializationChoice, SpellChoice }
 
 public sealed record LevelUpPromptSnapshot(Guid PromptId, CharacterId CharacterId, string CharacterName,
     LevelUpPromptKind Kind, int PreviousLevel, int CurrentLevel, int VitalityGained, int ManaGained,

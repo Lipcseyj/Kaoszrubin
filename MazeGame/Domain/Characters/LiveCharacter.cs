@@ -69,6 +69,8 @@ public sealed class LiveCharacter
     public int DivineSpellCycle => _divineSpellCycle;
     public bool WasResurrectedThisLevel { get; private set; }
     public bool WasRelentlessUsedThisLevel { get; private set; }
+    public string? SpecializationId { get; private set; }
+    public ClassSpecializationDefinition? Specialization => ClassSpecializations.Find(SpecializationId);
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
     public ArmorDefinition? Armor { get; private set; }
     public IReadOnlyList<MagicItemDefinition?> MagicItems => _magicItems;
@@ -200,6 +202,23 @@ public sealed class LiveCharacter
     public void ResetLevelRelentless() => WasRelentlessUsedThisLevel = false;
     public void MarkRelentlessUsedThisLevel() => WasRelentlessUsedThisLevel = true;
     public void RestoreLevelRelentless(bool used) => WasRelentlessUsedThisLevel = used;
+
+    public bool ChooseSpecialization(string specializationId)
+    {
+        if (SpecializationId is not null) return false;
+        var specialization = ClassSpecializations.Find(specializationId);
+        if (specialization is null || !string.Equals(specialization.CharacterClassId, CharacterClass.Id,
+                StringComparison.OrdinalIgnoreCase)) return false;
+        SpecializationId = specialization.Id;
+        return true;
+    }
+
+    public void RestoreSpecialization(string? specializationId)
+    {
+        if (specializationId is null) return;
+        if (!ChooseSpecialization(specializationId))
+            throw new InvalidDataException($"Érvénytelen osztályspecializáció: {specializationId}.");
+    }
 
     public bool EquipWeapon(int slotIndex, WeaponDefinition? weapon) =>
         SetInventoryItem(InventorySlotKind.Weapon, slotIndex, weapon);

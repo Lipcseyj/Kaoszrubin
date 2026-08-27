@@ -186,6 +186,12 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             var choices = _gameData.GetPerkChoices(character.CharacterClass.Id, tier);
             var perk = choices[_random.Next(choices.Count)];
             if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
+            if (tier == 1 && character.SpecializationId is null)
+            {
+                var specializations = ClassSpecializations.ForClass(character.CharacterClass.Id);
+                if (specializations.Count > 0)
+                    character.ChooseSpecialization(specializations[_random.Next(specializations.Count)].Id);
+            }
         }
     }
 

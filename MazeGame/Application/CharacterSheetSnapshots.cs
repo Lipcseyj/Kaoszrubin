@@ -45,6 +45,8 @@ public static class CharacterSheetSnapshotProjector
             })).ToArray();
         return new CharacterSheetSnapshot(character.Race.Name, character.CharacterClass.Name,
             character.Experience, character.GetNextLevelExperience(experienceByLevel), character.Abilities,
-            character.Perks.Select(perk => perk.Name).ToArray(), icons, character.UsesMana, character.Color);
+            character.Perks.Select(perk => perk.Name)
+                .Concat(character.Specialization is { } specialization ? [$"{specialization.Name} specializáció"] : [])
+                .ToArray(), icons, character.UsesMana, character.Color);
     }
 }

@@ -97,6 +97,7 @@ public sealed class CharacterSaveService
         character.RestoreDivineSpellCycle(saved.DivineSpellCycle ?? 0);
         character.RestoreLevelResurrection(saved.WasResurrectedThisLevel ?? false);
         character.RestoreLevelRelentless(saved.WasRelentlessUsedThisLevel ?? false);
+        character.RestoreSpecialization(saved.SpecializationId);
         character.RestoreExplorationStepsTowardSpellAction(saved.ExplorationStepsTowardSpellAction ?? 0);
         SpellcastingRules.GiveRequiredFocus(character, _gameData);
 
@@ -180,6 +181,7 @@ public sealed class CharacterSaveService
         DivineSpellCycle = character.DivineSpellCycle,
         WasResurrectedThisLevel = character.WasResurrectedThisLevel,
         WasRelentlessUsedThisLevel = character.WasRelentlessUsedThisLevel,
+        SpecializationId = character.SpecializationId,
         ExplorationStepsTowardSpellAction = character.ExplorationStepsTowardSpellAction,
         LevelVitalityIncrease = character.UnmodifiedMaximumVitality - (_gameData.GetMinimumVitality(character.Abilities.Health) + character.VitalityBonus),
         LevelManaIncrease = character.UsesMana
@@ -255,6 +257,7 @@ public sealed class CharacterSaveService
         public int? DivineSpellCycle { get; init; }
         public bool? WasResurrectedThisLevel { get; init; }
         public bool? WasRelentlessUsedThisLevel { get; init; }
+        public string? SpecializationId { get; init; }
         public int? ExplorationStepsTowardSpellAction { get; init; }
         public int? LevelVitalityIncrease { get; init; }
         public int? LevelManaIncrease { get; init; }
