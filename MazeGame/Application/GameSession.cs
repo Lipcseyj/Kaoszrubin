@@ -375,6 +375,14 @@ public sealed class GameSession
             reason = string.Empty;
             return true;
         }
+        if (command is AssignQuickSpellCommand quickSpell)
+        {
+            if (Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn) ||
+                string.IsNullOrWhiteSpace(quickSpell.SpellId) || quickSpell.QuickSlot is < 0 or >= 8)
+                return Fail("A varázslat-gyorshely parancsa érvénytelen.", out reason);
+            reason = string.Empty;
+            return true;
+        }
         if (Phase != GameSessionPhase.Exploration)
             return Fail("Ez a parancs csak felfedezés közben hajtható végre.", out reason);
         if (command is CastExplorationSpellCommand explorationSpell &&

@@ -125,7 +125,8 @@ public sealed class SessionReplicationPublisher
         {
             Party = snapshot.Party.Select(character => controlledCharacters.Contains(character.CharacterId)
                 ? character
-                : character with { Inventory = null, CharacterSheet = null, ExplorationSpellOptions = null }).ToArray()
+                : character with { Inventory = null, CharacterSheet = null, ExplorationSpellOptions = null,
+                    SpellInfo = null }).ToArray()
         };
     }
 

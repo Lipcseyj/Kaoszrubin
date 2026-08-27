@@ -27,6 +27,8 @@ public sealed class CoopGuestScreen
     private InnVendorKind? _innVendor;
     private int _innSelection;
     private Guid? _acknowledgedNarrativeId;
+    private bool _spellInfoOpen;
+    private int _spellInfoSelection;
     private GuestRenderFrame? _lastFrame;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData)
@@ -110,6 +112,11 @@ public sealed class CoopGuestScreen
                 narrative.NarrativeId);
         }
         else _acknowledgedNarrativeId = null;
+        if (command is null && _spellInfoOpen)
+        {
+            command = HandleSpellInfoInput(client, characterId, snapshot, key);
+            if (command is null) return;
+        }
         if (command is null && _battleSpellMenuOpen)
         {
             command = HandleBattleSpellMenuInput(client, characterId, snapshot, key);
@@ -211,6 +218,42 @@ public sealed class CoopGuestScreen
         {
             SetMessage(exception.Message);
         }
+    }
+
+    private GameCommand? HandleSpellInfoInput(CoopSignalRClient client, CharacterId characterId,
+        SessionSnapshot snapshot, ConsoleKey key)
+    {
+        var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == characterId);
+        var spells = own?.SpellInfo?.KnownSpells ?? [];
+        _spellInfoSelection = spells.Count == 0 ? 0 : Math.Clamp(_spellInfoSelection, 0, spells.Count - 1);
+        if (key == ConsoleKey.Escape)
+        {
+            _spellInfoOpen = false;
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return null;
+        }
+        if (spells.Count == 0) return null;
+        if (key == ConsoleKey.UpArrow) _spellInfoSelection = (_spellInfoSelection - 1 + spells.Count) % spells.Count;
+        else if (key == ConsoleKey.DownArrow) _spellInfoSelection = (_spellInfoSelection + 1) % spells.Count;
+        else if (TryGetFunctionKeyIndex(key, out var quickSlot))
+            return new AssignQuickSpellCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                spells[_spellInfoSelection].SpellId, quickSlot);
+        else if (key == ConsoleKey.Enter)
+        {
+            if (snapshot.Phase != GameSessionPhase.Exploration)
+                SetMessage("A fogadóban a varázslat csak megtekinthető; elsütni a térképen lehet.");
+            else if (OwnExplorationSpellOptions(snapshot, characterId).FirstOrDefault(option =>
+                         option.SpellId == spells[_spellInfoSelection].SpellId &&
+                         option.CastingItemSlotIndex is null) is { } option)
+            {
+                _spellInfoOpen = false;
+                _inventoryOpen = false;
+                return BeginSpellTargeting(client, characterId, snapshot, option);
+            }
+            else SetMessage("Csak memorizált, jelenleg használható varázslat süthető el.");
+        }
+        Interlocked.Exchange(ref _redrawRequested, 1);
+        return null;
     }
 
     private GameCommand? HandleInnInput(CoopSignalRClient client, CharacterId characterId,
@@ -420,7 +463,13 @@ public sealed class CoopGuestScreen
                 break;
             case InventoryInputAction.Use when slots.Count > 0:
                 var useSlot = slots[_inventorySelection];
-                if (useSlot.Kind == InventorySlotKind.Backpack && useSlot.Item is not null)
+                if (useSlot.Kind == InventorySlotKind.Backpack && useSlot.Item is not null &&
+                    SpellcastingRules.IsSpellcastingFocusId(useSlot.Item.DefinitionId))
+                {
+                    _spellInfoOpen = true;
+                    _spellInfoSelection = 0;
+                }
+                else if (useSlot.Kind == InventorySlotKind.Backpack && useSlot.Item is not null)
                     command = new UseInventoryItemCommand(client.PlayerId!.Value, client.NextCommandId(),
                         characterId, inventory.Revision, useSlot.Index);
                 else
@@ -467,6 +516,7 @@ public sealed class CoopGuestScreen
     private void CloseInventory()
     {
         _inventoryOpen = false;
+        _spellInfoOpen = false;
         _inventorySource = null;
         Interlocked.Exchange(ref _redrawRequested, 1);
     }
@@ -522,10 +572,12 @@ public sealed class CoopGuestScreen
         ApplyBattleSpellUi(grid, snapshot, own);
         ApplyInnUi(grid, snapshot);
         ApplyNarrativeUi(grid, snapshot, client.PlayerId);
-        var panelLines = own?.CharacterSheet is not null && own.Inventory is not null
-            ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount, snapshot.BossKeyCount)
-                .ToDictionary(line => line.Row)
-            : [];
+        var panelLines = _spellInfoOpen && own?.SpellInfo is not null
+            ? BuildSpellInfoPanel(own).ToDictionary(line => line.Row)
+            : own?.CharacterSheet is not null && own.Inventory is not null
+                ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount, snapshot.BossKeyCount)
+                    .ToDictionary(line => line.Row)
+                : [];
         var selectedSlot = _inventoryOpen && own?.Inventory is { Slots.Count: > 0 } inventory
             ? new InventorySlotAddress(inventory.Slots[Math.Clamp(_inventorySelection, 0, inventory.Slots.Count - 1)].Kind,
                 inventory.Slots[Math.Clamp(_inventorySelection, 0, inventory.Slots.Count - 1)].Index)
@@ -546,8 +598,8 @@ public sealed class CoopGuestScreen
                 panel[y] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
         }
 
-        var companions = snapshot.Party.Where(character => character.CharacterId != snapshot.LeaderCharacterId)
-            .Take(3).ToArray();
+        var companions = _spellInfoOpen ? [] : snapshot.Party
+            .Where(character => character.CharacterId != snapshot.LeaderCharacterId).Take(3).ToArray();
         for (var index = 0; index < companions.Length; index++)
         {
             var companion = companions[index];
@@ -559,23 +611,26 @@ public sealed class CoopGuestScreen
         if (!stillControlled && panel.Length > 41)
             panel[41] = new GuestTextLine("Megfigyelő mód", ConsoleColor.DarkYellow, ConsoleColor.Black);
 
-        var portrait = snapshot.Battle is { Enemy: { } battleEnemy }
-            ? AsciiPortraits.ForEnemy(battleEnemy.DefinitionId)
-            : AsciiPortraits.ForCharacterClass(own?.CharacterClassId ?? string.Empty);
-        var portraitColor = snapshot.Battle is { Enemy: { } battleSnapshotEnemy }
-            ? world.Enemies.FirstOrDefault(candidate => candidate.DefinitionId == battleSnapshotEnemy.DefinitionId)?.Color
-              ?? ConsoleColor.Red
-            : own?.Color ?? ConsoleColor.Cyan;
-        var pictureTop = Math.Max(0, panel.Length - 7);
-        panel[pictureTop] = new GuestTextLine("┌────────── KÉP ──────────┐", ConsoleColor.DarkCyan, ConsoleColor.Black);
-        for (var index = 0; index < 5; index++)
+        if (!_spellInfoOpen)
         {
-            var line = index < portrait.Lines.Count ? portrait.Lines[index] : string.Empty;
-            panel[pictureTop + index + 1] = new GuestTextLine($"│{CenterPortrait(line, portrait.CanvasWidth)}│",
-                portraitColor, ConsoleColor.Black);
+            var portrait = snapshot.Battle is { Enemy: { } battleEnemy }
+                ? AsciiPortraits.ForEnemy(battleEnemy.DefinitionId)
+                : AsciiPortraits.ForCharacterClass(own?.CharacterClassId ?? string.Empty);
+            var portraitColor = snapshot.Battle is { Enemy: { } battleSnapshotEnemy }
+                ? world.Enemies.FirstOrDefault(candidate => candidate.DefinitionId == battleSnapshotEnemy.DefinitionId)?.Color
+                  ?? ConsoleColor.Red
+                : own?.Color ?? ConsoleColor.Cyan;
+            var pictureTop = Math.Max(0, panel.Length - 7);
+            panel[pictureTop] = new GuestTextLine("┌────────── KÉP ──────────┐", ConsoleColor.DarkCyan, ConsoleColor.Black);
+            for (var index = 0; index < 5; index++)
+            {
+                var line = index < portrait.Lines.Count ? portrait.Lines[index] : string.Empty;
+                panel[pictureTop + index + 1] = new GuestTextLine($"│{CenterPortrait(line, portrait.CanvasWidth)}│",
+                    portraitColor, ConsoleColor.Black);
+            }
+            panel[pictureTop + 6] = new GuestTextLine("└─────────────────────────┘", ConsoleColor.DarkCyan,
+                ConsoleColor.Black);
         }
-        panel[pictureTop + 6] = new GuestTextLine("└─────────────────────────┘", ConsoleColor.DarkCyan,
-            ConsoleColor.Black);
 
         var messages = _messageLog.ToArray();
         var footer = new GuestTextLine[MessageLineCount];
@@ -592,6 +647,55 @@ public sealed class CoopGuestScreen
 
         return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, grid, panel,
             footer);
+    }
+
+    private IReadOnlyList<CharacterSheetPanelLine> BuildSpellInfoPanel(SessionCharacterSnapshot character)
+    {
+        var info = character.SpellInfo!;
+        var spells = info.KnownSpells;
+        _spellInfoSelection = spells.Count == 0 ? 0 : Math.Clamp(_spellInfoSelection, 0, spells.Count - 1);
+        var lines = new List<CharacterSheetPanelLine>
+        {
+            new(0, $"VARÁZSLATOK - {character.Name}", ConsoleColor.Yellow),
+            new(1, $"Fókusz: {info.FocusName}", info.FocusName == "HIÁNYZIK" ? ConsoleColor.Red : ConsoleColor.Cyan),
+            new(2, $"Memória: {spells.Count(spell => spell.IsMemorized)}/{info.MemorizationCapacity}", ConsoleColor.Magenta),
+            new(3, "[M] mem. [F#] gyors", ConsoleColor.DarkCyan),
+            new(4, "ISMERT VARÁZSLATOK", ConsoleColor.White)
+        };
+        var start = Math.Clamp(_spellInfoSelection - 9, 0, Math.Max(0, spells.Count - 20));
+        for (var row = 0; row < 20; row++)
+        {
+            var index = start + row;
+            if (index >= spells.Count) { lines.Add(new(5 + row, string.Empty, ConsoleColor.Gray)); continue; }
+            var spell = spells[index];
+            var quick = spell.QuickSlot is { } slot ? $"F{slot + 1}" : "  ";
+            lines.Add(new CharacterSheetPanelLine(5 + row,
+                $"{(index == _spellInfoSelection ? ">" : " ")}[{(spell.IsMemorized ? "M" : " ")}][{quick}] {spell.Level}. {spell.Name}",
+                index == _spellInfoSelection ? ConsoleColor.Yellow :
+                    spell.IsMemorized ? ConsoleColor.Cyan : ConsoleColor.Gray));
+        }
+        if (spells.Count > 0)
+        {
+            var selected = spells[_spellInfoSelection];
+            lines.Add(new(26, "KIJELÖLT VARÁZSLAT", ConsoleColor.White));
+            lines.Add(new(27, selected.Name, ConsoleColor.Yellow));
+            lines.Add(new(28, $"L{selected.Level} {selected.ManaCost}M {ConsoleRenderer.SpellTargetName(selected.TargetType)}", ConsoleColor.Blue));
+            lines.Add(new(29, selected.IsMemorized
+                ? $"Memorizált{(selected.QuickSlot is { } slot ? $", F{slot + 1}" : string.Empty)}"
+                : "Csak ismert", ConsoleColor.Magenta));
+            var description = WrapMessage(selected.Description, CharacterSheetPanel.Width).Take(5).ToArray();
+            for (var row = 0; row < 5; row++)
+                lines.Add(new(30 + row, row < description.Length ? description[row] : string.Empty, ConsoleColor.Gray));
+        }
+        lines.Add(new(36, "VARÁZSLATSZINTEK", ConsoleColor.White));
+        var unlocks = character.CharacterClassId == CharacterClassIds.Lovag ? new[] { 1, 8 } : new[] { 1, 5, 10, 15, 20 };
+        for (var index = 0; index < unlocks.Length; index++)
+            lines.Add(new(37 + index, $"{index + 1}. szint: L{unlocks[index]} " +
+                (character.Level >= unlocks[index] ? "feloldva" : $"még {unlocks[index] - character.Level}"),
+                character.Level >= unlocks[index] ? ConsoleColor.Green : ConsoleColor.DarkYellow));
+        lines.Add(new(45, "Fel/le | F1-F8 gyors", ConsoleColor.Green));
+        lines.Add(new(46, "Enter elsüt | Esc vissza", ConsoleColor.DarkYellow));
+        return lines;
     }
 
     private void ApplyInnUi(GuestMapCell[,] grid, SessionSnapshot snapshot)

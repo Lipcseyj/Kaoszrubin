@@ -8,6 +8,19 @@ public sealed record CharacterSheetSnapshot(string RaceName, string CharacterCla
     int? NextLevelExperience, PrimaryAbilities Abilities, IReadOnlyList<string> PerkNames,
     IReadOnlyList<string> StatusIcons, bool UsesMana, ConsoleColor Color);
 
+public static class SpellInfoSnapshotProjector
+{
+    public static SpellInfoSnapshot Create(LiveCharacter character) => new(
+        character.Backpack.FirstOrDefault(item => SpellcastingRules.IsSpellcastingFocus(item))?.Name ?? "HIÁNYZIK",
+        character.MemorizationCapacity,
+        character.KnownSpells.OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).Select(spell =>
+            new KnownSpellSnapshot(spell.Id, spell.Name, spell.Level,
+                SpellcastingRules.EffectiveManaCost(character, spell), spell.TargetType, spell.Description,
+                character.MemorizedSpells.Any(candidate => candidate.Id == spell.Id),
+                character.QuickSpells.ToList().FindIndex(candidate => candidate?.Id == spell.Id) is var index && index >= 0
+                    ? index : null)).ToArray());
+}
+
 public static class CharacterSheetSnapshotProjector
 {
     public static CharacterSheetSnapshot Create(LiveCharacter character,

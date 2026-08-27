@@ -201,6 +201,8 @@ public sealed class Game
             {
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
                     _gameData.ExperienceByLevel),
+                SpellInfo = SpellcastingRules.TryGetSchool(characters[character.CharacterId].CharacterClass.Id, out _)
+                    ? SpellInfoSnapshotProjector.Create(characters[character.CharacterId]) : null,
                 ExplorationSpellOptions = snapshot.Phase == GameSessionPhase.Exploration &&
                                           positions.TryGetValue(character.CharacterId, out var characterPosition)
                     ? GetSpellOptions(characters[character.CharacterId], characterPosition, null, inCombat: false)
@@ -1055,6 +1057,9 @@ public sealed class Game
                 case AcknowledgeNarrativeCommand acknowledgement:
                     ExecuteNarrativeAcknowledgement(acknowledgement);
                     break;
+                case AssignQuickSpellCommand quickSpell:
+                    ExecuteAssignQuickSpell(quickSpell);
+                    break;
             }
         }
     }
@@ -1092,6 +1097,15 @@ public sealed class Game
             return;
         }
         _narrativeAcknowledgements.Add(command.SenderId);
+    }
+
+    private void ExecuteAssignQuickSpell(AssignQuickSpellCommand command)
+    {
+        var character = CharacterRoster.Party.Members.FirstOrDefault(member => member.Id == command.CharacterId);
+        var spell = character?.KnownSpells.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, command.SpellId, StringComparison.OrdinalIgnoreCase));
+        if (character is null || spell is null || !character.AssignQuickSpell(command.QuickSlot, spell))
+            _session.RejectExecutedCommand(command, "Csak memorizált varázslat tehető gyorshelyre.");
     }
 
     private void ShowSynchronizedNarrative(NarrativeKind kind, string title, string subtitle,
