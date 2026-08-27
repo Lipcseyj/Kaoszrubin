@@ -187,11 +187,13 @@ public sealed class Maze
         return true;
     }
 
-    public bool TryMovePartyMember(PartyMemberAvatar member, Position destination, Position leaderPosition)
+    public bool TryMovePartyMember(PartyMemberAvatar member, Position destination, Position leaderPosition,
+        bool allowTreasureChest = false)
     {
         if (!IsWalkable(destination) || destination == leaderPosition) return false;
         var occupant = GetObjectAt(destination);
-        if (occupant is not null && occupant != member && occupant is not (GroundItemPile or Corpse)) return false;
+        if (occupant is not null && occupant != member && occupant is not (GroundItemPile or Corpse) &&
+            !(allowTreasureChest && occupant is TreasureChest)) return false;
         member.MoveTo(destination);
         return true;
     }

@@ -1054,36 +1054,7 @@ public sealed class Game
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
         CheckBossDiscoveryAt(newlyRevealed);
         PlayCharacterStepSound(SelectedCharacter);
-        var chest = _maze.GetTreasureChestAt(_player.Position);
-        if (chest is not null)
-        {
-            var rules = _gameData.LootRules;
-            var jackpotChance = AdjustedSearchChance(SelectedCharacter, rules.ChestJackpotChancePercent);
-            var jackpot = _random.Next(100) < jackpotChance;
-            var rewardMultiplier = jackpot ? rules.ChestJackpotMultiplier : 1;
-            if (SelectedCharacter.HasPerk(PerkIds.ThiefMasterThief)) rewardMultiplier *= 2;
-            var goldAmount = chest.GoldAmount * rewardMultiplier;
-            SelectedCharacter.AddGold(goldAmount);
-            var masterThiefLoot = RollMasterThiefChestLoot();
-            _maze.RemoveTreasureChest(chest);
-            _renderer.RefreshCharacterSheet(SelectedCharacter);
-            _renderer.DrawTreasureCollected(goldAmount, jackpot, jackpotChance, rewardMultiplier);
-            PlaySessionSound(SoundEffect.Chest, [SelectedCharacter.Id]);
-            if (masterThiefLoot is not null)
-            {
-                if (TryStoreLootInParty(masterThiefLoot, out var owner))
-                    _renderer.DrawInventoryMessage(
-                        $"🎁 Mestertolvaj: {masterThiefLoot.Name} → {owner} hátizsákja.", ConsoleColor.Magenta);
-                else
-                {
-                    _maze.DropItem(_player.Position, masterThiefLoot);
-                    _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-                    _renderer.DrawInventoryMessage(
-                        $"🎁 Mestertolvaj: {masterThiefLoot.Name} a földön maradt mert a hátizsákok tele vannak.",
-                        ConsoleColor.Magenta);
-                }
-            }
-        }
+        CollectTreasureChest(SelectedCharacter, _player.Position, shareLootWithParty: true);
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
     }
@@ -1099,12 +1070,50 @@ public sealed class Game
             StartBattle(member, enemy);
             return;
         }
-        if (!_maze.TryMovePartyMember(member, destination, _player.Position)) return;
+        if (!_maze.TryMovePartyMember(member, destination, _player.Position, allowTreasureChest: true)) return;
         member.Character.RegisterExplorationStep();
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
         PlayCharacterStepSound(member.Character);
         CheckBossDiscoveryAt(newlyRevealed);
+        CollectTreasureChest(member.Character, member.Position, shareLootWithParty: false);
+    }
+
+    private void CollectTreasureChest(LiveCharacter character, Position position, bool shareLootWithParty)
+    {
+        var chest = _maze.GetTreasureChestAt(position);
+        if (chest is null) return;
+        var rules = _gameData.LootRules;
+        var jackpotChance = AdjustedSearchChance(character, rules.ChestJackpotChancePercent);
+        var jackpot = _random.Next(100) < jackpotChance;
+        var rewardMultiplier = jackpot ? rules.ChestJackpotMultiplier : 1;
+        if (character.HasPerk(PerkIds.ThiefMasterThief)) rewardMultiplier *= 2;
+        var goldAmount = chest.GoldAmount * rewardMultiplier;
+        character.AddGold(goldAmount);
+        var masterThiefLoot = RollMasterThiefChestLoot(character);
+        _maze.RemoveTreasureChest(chest);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        if (character == SelectedCharacter)
+            _renderer.DrawTreasureCollected(goldAmount, jackpot, jackpotChance, rewardMultiplier);
+
+        var message = $"🎁 {character.Name} kinyitotta a kincsesládát: {goldAmount} arany" +
+                      (jackpot ? $" (jackpot, {jackpotChance}% esély)" : string.Empty) + ".";
+        _renderer.DrawInventoryMessage(message, jackpot ? ConsoleColor.Magenta : ConsoleColor.Yellow);
+        RecordSessionActivity(SessionActivityKind.System, message,
+            jackpot ? ConsoleColor.Magenta : ConsoleColor.Yellow, [character.Id]);
+        PlaySessionSound(SoundEffect.Chest, [character.Id]);
+
+        if (masterThiefLoot is null) return;
+        if (TryStoreSearchedLoot(character, masterThiefLoot, shareLootWithParty, out var owner))
+            message = $"🎁 Mestertolvaj: {masterThiefLoot.Name} → {owner} hátizsákja.";
+        else
+        {
+            _maze.DropItem(position, masterThiefLoot);
+            message = $"🎁 Mestertolvaj: {masterThiefLoot.Name} a földön maradt, mert a hátizsák tele van.";
+        }
+        _renderer.DrawInventoryMessage(message, ConsoleColor.Magenta);
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Magenta, [character.Id]);
     }
 
     private void SubmitLocalExplorationCommand(ConsoleKey key)
@@ -1553,9 +1562,9 @@ public sealed class Game
         return candidates[_random.Next(candidates.Count)];
     }
 
-    private IItemDefinition? RollMasterThiefChestLoot()
+    private IItemDefinition? RollMasterThiefChestLoot(LiveCharacter character)
     {
-        if (!SelectedCharacter.HasPerk(PerkIds.ThiefMasterThief) || _random.Next(100) >= 25) return null;
+        if (!character.HasPerk(PerkIds.ThiefMasterThief) || _random.Next(100) >= 25) return null;
         var candidates = AllTradableItems().Where(item => item.Rarity == ItemRarity.Magic).ToList();
         return candidates.Count == 0 ? null : candidates[_random.Next(candidates.Count)];
     }

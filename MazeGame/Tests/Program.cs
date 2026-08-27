@@ -16,6 +16,7 @@ var tests = new (string Name, Action Run)[]
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
     ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),
+    ("Az emberi vendég ráléphet a kincsesláda mezőjére", RemotePlayerCanStepOntoTreasureChest),
     ("A vendég visszaveheti a coop mentésben foglalt karakterét", RemotePlayerCanReclaimSavedCharacter),
     ("A vendég saját ajtó- és keresési akciót küldhet", RemotePlayerCanIssueCharacterAction),
     ("A vendég térképről varázslási parancsot küldhet", RemotePlayerCanCastExplorationSpell),
@@ -622,6 +623,25 @@ static void SessionSnapshotRoundTripsThroughJson()
     var next = session.CreateSnapshot(new SessionSnapshotContext(4, "Tesztlabirintus", positions));
     Assert(next.SnapshotSequence == snapshot.SnapshotSequence + 1,
         "A publikált snapshot sorszáma nem monoton nő.");
+}
+
+static void RemotePlayerCanStepOntoTreasureChest()
+{
+    var maze = new Maze(7, 7);
+    var start = new Position(2, 3);
+    var chestPosition = new Position(3, 3);
+    maze.Carve(start);
+    maze.Carve(chestPosition);
+    var member = new PartyMemberAvatar(start, CreateCharacter("Vendég"));
+    var chest = new TreasureChest(chestPosition, 25);
+    maze.AddPartyMember(member);
+    maze.AddTreasureChest(chest);
+
+    Assert(!maze.TryMovePartyMember(member, chestPosition, maze.Entrance),
+        "Az NPC partitárs önállóan felvehetne kincsesládát.");
+    Assert(maze.TryMovePartyMember(member, chestPosition, maze.Entrance, allowTreasureChest: true) &&
+           member.Position == chestPosition && maze.GetTreasureChestAt(chestPosition) == chest,
+        "Az ember által vezérelt vendéget a láda mezője blokkolta.");
 }
 
 static void SessionActivityCanTargetCharacter()
