@@ -39,6 +39,7 @@ var tests = new (string Name, Action Run)[]
     ("Hiányos varázslat command nem juthat át", MalformedSpellBattleCommandIsRejected),
     ("A promptban nem engedélyezett harci akció elutasításra kerül", DisallowedBattleActionIsRejected),
     ("A session snapshot JSON-on körbeírható", SessionSnapshotRoundTripsThroughJson),
+    ("A fogadó snapshotja közös pletykákat továbbít", InnSnapshotCarriesSharedRumors),
     ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
@@ -473,6 +474,17 @@ static void SessionSnapshotRoundTripsThroughJson()
     var next = session.CreateSnapshot(new SessionSnapshotContext(4, "Tesztlabirintus", positions));
     Assert(next.SnapshotSequence == snapshot.SnapshotSequence + 1,
         "A publikált snapshot sorszáma nem monoton nő.");
+}
+
+static void InnSnapshotCarriesSharedRumors()
+{
+    var snapshot = new InnSnapshot(3, 120, [],
+        [new InnRumorSnapshot("Úti hír", ["Ugyanazt hallja a host és a vendég."], ConsoleColor.Yellow)]);
+    var restored = JsonSerializer.Deserialize<InnSnapshot>(JsonSerializer.Serialize(snapshot));
+    Assert(restored is { Rumors.Count: 1 } && restored.Rumors[0].Title == "Úti hír" &&
+           restored.Rumors[0].Lines.SequenceEqual(snapshot.Rumors[0].Lines) &&
+           restored.Rumors[0].Color == ConsoleColor.Yellow,
+        "A fogadói pletyka nem maradt meg a snapshot JSON round-trip során.");
 }
 
 static void SnapshotRequiresCurrentBattlePrompt()

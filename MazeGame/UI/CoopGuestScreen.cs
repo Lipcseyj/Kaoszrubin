@@ -26,6 +26,8 @@ public sealed class CoopGuestScreen
     private bool _spellCastingInBattle;
     private InnVendorKind? _innVendor;
     private int _innSelection;
+    private bool _innRumorOpen;
+    private int _innRumorSelection;
     private Guid? _acknowledgedNarrativeId;
     private bool _spellInfoOpen;
     private int _spellInfoSelection;
@@ -115,6 +117,11 @@ public sealed class CoopGuestScreen
         }
         if (_inventoryOpen && snapshot.Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn))
             CloseInventory();
+        if (snapshot.Phase != GameSessionPhase.Inn)
+        {
+            _innVendor = null;
+            _innRumorOpen = false;
+        }
         if (snapshot.Phase != GameSessionPhase.Exploration)
             ClearDoorTargeting();
         if (snapshot.SpellPreparation is { CharacterId: var preparingCharacter } preparation &&
@@ -427,9 +434,22 @@ public sealed class CoopGuestScreen
             Interlocked.Exchange(ref _redrawRequested, 1);
             return null;
         }
+        if (_innRumorOpen)
+        {
+            if (inn.Rumors.Count == 0) { _innRumorOpen = false; return null; }
+            _innRumorSelection = Math.Clamp(_innRumorSelection, 0, inn.Rumors.Count - 1);
+            if (key is ConsoleKey.Enter or ConsoleKey.Escape)
+                _innRumorOpen = false;
+            else if (key is ConsoleKey.N or ConsoleKey.RightArrow or ConsoleKey.DownArrow)
+                _innRumorSelection = (_innRumorSelection + 1) % inn.Rumors.Count;
+            else if (key is ConsoleKey.LeftArrow or ConsoleKey.UpArrow)
+                _innRumorSelection = (_innRumorSelection - 1 + inn.Rumors.Count) % inn.Rumors.Count;
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return null;
+        }
         if (_innVendor is null)
         {
-            var count = inn.Vendors.Count + 3;
+            var count = inn.Vendors.Count + 4;
             _innSelection = Math.Clamp(_innSelection, 0, Math.Max(0, count - 1));
             if (key == ConsoleKey.UpArrow) _innSelection = (_innSelection - 1 + count) % count;
             else if (key == ConsoleKey.DownArrow) _innSelection = (_innSelection + 1) % count;
@@ -439,6 +459,11 @@ public sealed class CoopGuestScreen
                 {
                     _innVendor = inn.Vendors[_innSelection].Kind;
                     _innSelection = 0;
+                }
+                else if (_innSelection == inn.Vendors.Count)
+                {
+                    _innRumorOpen = true;
+                    _innRumorSelection = 0;
                 }
                 else SetMessage("Ezt a party-szintű műveletet csak a host aktiválhatja.");
             }
@@ -900,11 +925,12 @@ public sealed class CoopGuestScreen
         if (_innVendor is null)
         {
             var entries = inn.Vendors.Select(vendor => vendor.Name).Concat([
-                "Pihenés (csak host)", "Titkos raktár (csak host)", "Továbbindulás (csak host)"]).ToArray();
+                "Pletykák", "Pihenés (csak host)", "Titkos raktár (csak host)",
+                "Továbbindulás (csak host)"]).ToArray();
             _innSelection = Math.Clamp(_innSelection, 0, Math.Max(0, entries.Length - 1));
             lines.AddRange(entries.Select((entry, index) =>
                 ($"{(index == _innSelection ? "▶" : " ")} {entry}",
-                    index >= inn.Vendors.Count ? ConsoleColor.DarkGray :
+                    index > inn.Vendors.Count ? ConsoleColor.DarkGray :
                     index == _innSelection ? ConsoleColor.White : ConsoleColor.Gray)));
         }
         else
@@ -938,6 +964,47 @@ public sealed class CoopGuestScreen
         }
         DrawOverlayText(grid, left, top + renderedRows + 1, "╚" + new string('═', width - 2) + "╝",
             ConsoleColor.Yellow);
+        if (_innRumorOpen) ApplyInnRumorUi(grid, inn);
+    }
+
+    private void ApplyInnRumorUi(GuestMapCell[,] grid, InnSnapshot inn)
+    {
+        if (inn.Rumors.Count == 0) { _innRumorOpen = false; return; }
+        _innRumorSelection = Math.Clamp(_innRumorSelection, 0, inn.Rumors.Count - 1);
+        var rumor = inn.Rumors[_innRumorSelection];
+        const int textWidth = 68;
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("PLETYKÁK A VÁNDORCSILLAG FOGADÓBAN", ConsoleColor.Yellow),
+            (rumor.Title, rumor.Color),
+            (new string('─', textWidth), ConsoleColor.DarkMagenta)
+        };
+        foreach (var paragraph in rumor.Lines)
+        {
+            lines.AddRange(WrapMessage(paragraph, textWidth).Select(line => (line, ConsoleColor.Gray)));
+            lines.Add((string.Empty, ConsoleColor.Gray));
+        }
+        lines.Add(($"Pletyka {_innRumorSelection + 1}/{inn.Rumors.Count}   ←/→ vagy N: lapozás   Enter/Esc: vissza",
+            ConsoleColor.White));
+        const int desiredWidth = 76;
+        var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
+        var maxRows = Math.Max(1, grid.GetLength(1) - 2);
+        if (lines.Count > maxRows)
+        {
+            var footer = lines[^1];
+            lines = lines.Take(Math.Max(0, maxRows - 1)).Append(footer).ToList();
+        }
+        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
+        var top = Math.Max(0, (grid.GetLength(1) - lines.Count - 2) / 2);
+        DrawOverlayText(grid, left, top, "╔" + new string('═', width - 2) + "╗", ConsoleColor.Magenta);
+        for (var row = 0; row < lines.Count; row++)
+        {
+            var value = lines[row].Text.Length > width - 4 ? lines[row].Text[..(width - 4)] : lines[row].Text;
+            DrawOverlayText(grid, left, top + row + 1, "║" + new string(' ', width - 2) + "║", ConsoleColor.Magenta);
+            DrawOverlayText(grid, left + 2, top + row + 1, value.PadRight(width - 4), lines[row].Color);
+        }
+        DrawOverlayText(grid, left, top + lines.Count + 1, "╚" + new string('═', width - 2) + "╝",
+            ConsoleColor.Magenta);
     }
 
     private void ApplyNarrativeUi(GuestMapCell[,] grid, SessionSnapshot snapshot, PlayerId? playerId)

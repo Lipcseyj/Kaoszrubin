@@ -7,7 +7,7 @@ namespace MazeGame.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 15;
+    public const int Version = 16;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -42,7 +42,10 @@ public sealed record NarrativeSnapshot(Guid NarrativeId, NarrativeKind Kind, str
 
 public enum InnVendorKind { Market, Witcher, Blacksmith, Armorer, WanderingMage }
 
-public sealed record InnSnapshot(long Revision, int PartyGold, IReadOnlyList<InnVendorSnapshot> Vendors);
+public sealed record InnSnapshot(long Revision, int PartyGold, IReadOnlyList<InnVendorSnapshot> Vendors,
+    IReadOnlyList<InnRumorSnapshot> Rumors);
+
+public sealed record InnRumorSnapshot(string Title, IReadOnlyList<string> Lines, ConsoleColor Color);
 
 public sealed record InnVendorSnapshot(InnVendorKind Kind, string Name, IReadOnlyList<InnOfferSnapshot> Offers);
 

@@ -879,7 +879,7 @@ public sealed class ConsoleRenderer
         UpdateCenteredFrameLines(InnReplacementFrameWidth, InnReplacementFrameBaseLineCount + replaceable.Count, updates);
     }
 
-    public void DrawInnRumorScreen(InnRumor rumor, int refreshesRemaining)
+    public void DrawInnRumorScreen(InnRumor rumor, int selectedIndex, int rumorCount)
     {
         ResetColorCache();
         Console.Clear();
@@ -896,9 +896,8 @@ public sealed class ConsoleRenderer
             lines.Add((string.Empty, ConsoleColor.Gray));
         }
         lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
-        lines.Add((refreshesRemaining > 0
-            ? $"N: új pletyka ({refreshesRemaining} maradt)   Enter/Esc: vissza a fogadóba"
-            : "Nincs több új pletyka.   Enter/Esc: vissza a fogadóba", ConsoleColor.White));
+        lines.Add(($"Pletyka {selectedIndex + 1}/{rumorCount}   ←/→ vagy N: lapozás   Enter/Esc: vissza a fogadóba",
+            ConsoleColor.White));
         DrawCenteredFrame(InnRumorFrameWidth, lines);
     }
 

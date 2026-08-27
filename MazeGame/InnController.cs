@@ -26,6 +26,7 @@ internal sealed class InnController
     private readonly Func<ConsoleKeyInfo> _readKey;
     private readonly Action<PartyRestSnapshot> _reportRest;
     private readonly Dictionary<InnVendorKind, List<InnStockOffer>> _vendorStocks = [];
+    private readonly List<InnRumor> _rumors = [];
     private long _revision;
     private bool _active;
     private bool _hasRestedAtInn;
@@ -57,7 +58,8 @@ internal sealed class InnController
         var vendors = _vendorStocks.Select(pair => new InnVendorSnapshot(pair.Key, VendorName(pair.Key),
             pair.Value.Select((offer, index) => new InnOfferSnapshot(index, ToSnapshot(offer.Item), offer.Price)).ToArray()))
             .ToArray();
-        return new InnSnapshot(_revision, _selectedCharacter.Gold, vendors);
+        return new InnSnapshot(_revision, _selectedCharacter.Gold, vendors,
+            _rumors.Select(rumor => new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color)).ToArray());
     }
 
     public bool TryPurchase(InnVendorKind vendor, int offerIndex, long expectedRevision,
@@ -116,6 +118,10 @@ internal sealed class InnController
         if (blacksmithPresent) _vendorStocks[InnVendorKind.Blacksmith] = blacksmithStock;
         if (armorerPresent) _vendorStocks[InnVendorKind.Armorer] = armorerStock;
         if (wanderingMagePresent) _vendorStocks[InnVendorKind.WanderingMage] = wanderingMageStock;
+        _rumors.Clear();
+        var shownRumors = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < 4; index++)
+            _rumors.Add(CreateUniqueInnRumor(completedLevel, shownRumors));
         _revision++;
         _active = true;
         var presentVisitors = new List<string>();
@@ -176,7 +182,7 @@ internal sealed class InnController
                 case InnMenuOption.Armorer: RunSpecialistMarket("🛡️ PÁNCÉLMÍVES", armorerStock); break;
                 case InnMenuOption.WanderingMage: RunWanderingMage(wanderingMageStock); break;
                 case InnMenuOption.Recruit: RunInnRecruitment(); break;
-                case InnMenuOption.Rumors: RunInnRumors(completedLevel); break;
+                case InnMenuOption.Rumors: RunInnRumors(); break;
                 case InnMenuOption.Leave: _active = false; return;
             }
         }
@@ -583,20 +589,19 @@ internal sealed class InnController
         }
     }
 
-    private void RunInnRumors(int completedLevel)
+    private void RunInnRumors()
     {
-        const int maximumRefreshes = 3;
-        var refreshesUsed = 0;
-        var shownRumors = new HashSet<string>(StringComparer.Ordinal);
-        var rumor = CreateUniqueInnRumor(completedLevel, shownRumors);
+        var selectedIndex = 0;
         while (true)
         {
-            _renderer.DrawInnRumorScreen(rumor, maximumRefreshes - refreshesUsed);
+            if (_rumors.Count == 0) return;
+            _renderer.DrawInnRumorScreen(_rumors[selectedIndex], selectedIndex, _rumors.Count);
             var key = _readKey().Key;
             if (key is ConsoleKey.Enter or ConsoleKey.Escape) return;
-            if (key != ConsoleKey.N || refreshesUsed >= maximumRefreshes) continue;
-            refreshesUsed++;
-            rumor = CreateUniqueInnRumor(completedLevel, shownRumors);
+            if (key is ConsoleKey.N or ConsoleKey.RightArrow or ConsoleKey.DownArrow)
+                selectedIndex = (selectedIndex + 1) % _rumors.Count;
+            else if (key is ConsoleKey.LeftArrow or ConsoleKey.UpArrow)
+                selectedIndex = (selectedIndex - 1 + _rumors.Count) % _rumors.Count;
         }
     }
 
