@@ -6,6 +6,9 @@ namespace MazeGame.UI;
 public sealed class CharacterCreationScreen
 {
     private const int AbilityPointTotal = 25;
+    private const int FramePreferredWidth = 84;
+    private static int _frameLeft;
+    private static int _frameWidth;
     private readonly GameDataCatalog _gameData;
     private readonly CharacterRoster _characterRoster;
     private readonly Random _random = new();
@@ -95,14 +98,12 @@ public sealed class CharacterCreationScreen
         var selectedIndex = 0;
         while (true)
         {
-            Console.Clear();
-            Console.WriteLine("=== KARAKTERSZÍN ===");
-            Console.WriteLine("Fel/le: választás | Enter: elfogadás | Esc: vissza");
-            Console.WriteLine();
+            DrawFrame("🎨 KARAKTERSZÍN", Math.Max(16, colors.Count + 6));
+            WriteInside(3, "↑/↓ választás   Enter elfogadás   Esc vissza", ConsoleColor.DarkCyan);
             for (var index = 0; index < colors.Count; index++)
             {
-                Console.ForegroundColor = colors[index];
-                Console.WriteLine($"{(index == selectedIndex ? ">" : " ")} {CharacterColors.NameOf(colors[index])} — ●");
+                WriteInside(5 + index,
+                    $"{(index == selectedIndex ? "▶" : " ")} ● {CharacterColors.NameOf(colors[index])}", colors[index]);
             }
             DrawClassPortrait(characterClass, colors[selectedIndex]);
             Console.ResetColor();
@@ -132,14 +133,15 @@ public sealed class CharacterCreationScreen
         var cursor = 0;
         while (true)
         {
-            Console.Clear();
-            Console.WriteLine("=== KEZDŐ VARÁZSLATOK ===");
-                Console.WriteLine($"Válassz pontosan {SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)} varázslatot. Fel/le: mozgás, Space: kijelölés, Enter: elfogadás");
-            Console.WriteLine();
+            DrawFrame("🔮 KEZDŐ VARÁZSLATOK", Math.Max(18, spells.Count + 9));
+            WriteInside(3, $"Válassz pontosan {SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)} varázslatot.", ConsoleColor.Cyan);
+            WriteInside(4, "↑/↓ mozgás   Space kijelölés   Enter elfogadás", ConsoleColor.DarkCyan);
             for (var index = 0; index < spells.Count; index++)
-                Console.WriteLine($"{(index == cursor ? ">" : " ")} [{(selected.Contains(spells[index].Id) ? "X" : " ")}] {spells[index].Name}");
-            Console.WriteLine();
-            Console.WriteLine($"Kijelölve: {selected.Count}/{SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)}");
+                WriteInside(6 + index,
+                    $"{(index == cursor ? "▶" : " ")} [{(selected.Contains(spells[index].Id) ? "✨" : " ")}] {spells[index].Name}",
+                    selected.Contains(spells[index].Id) ? ConsoleColor.Magenta : ConsoleColor.Gray);
+            WriteInside(7 + spells.Count,
+                $"📖 Kijelölve: {selected.Count}/{SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)}", ConsoleColor.Yellow);
             DrawClassPortrait(character.CharacterClass, character.Color);
             switch (Console.ReadKey(intercept: true).Key)
             {
@@ -162,17 +164,17 @@ public sealed class CharacterCreationScreen
     {
         while (true)
         {
-            Console.Clear();
-            Console.WriteLine("=== KARAKTERGENERÁLÁS ===");
-            Console.WriteLine($"Név (legfeljebb {LiveCharacter.MaximumNameLength} karakter; üresen hagyva: vissza):");
+            DrawFrame("⚔ KARAKTERGENERÁLÁS ⚔", 12);
+            WriteInside(3, "🪶 Add meg a hős nevét", ConsoleColor.Yellow);
+            WriteInside(5, $"Legfeljebb {LiveCharacter.MaximumNameLength} karakter · üresen: vissza", ConsoleColor.DarkGray);
+            WriteInside(7, "Név: ", ConsoleColor.Cyan);
+            Console.SetCursorPosition(_frameLeft + 10, 7);
+            Console.ForegroundColor = ConsoleColor.White;
             var name = Console.ReadLine()?.Trim();
             if (string.IsNullOrWhiteSpace(name)) return null;
             if (name.Length <= LiveCharacter.MaximumNameLength) return name;
 
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"A név túl hosszú. Legfeljebb {LiveCharacter.MaximumNameLength} karakter adható meg.");
-            Console.ResetColor();
-            Console.WriteLine("Nyomj meg egy billentyűt az újrapróbáláshoz.");
+            WriteInside(9, $"⚠ A név túl hosszú. Maximum {LiveCharacter.MaximumNameLength} karakter.", ConsoleColor.Red);
             Console.ReadKey(intercept: true);
         }
     }
@@ -181,14 +183,15 @@ public sealed class CharacterCreationScreen
     {
         while (true)
         {
-            Console.Clear();
-            Console.WriteLine("=== FAJ VÁLASZTÁSA ===");
+            DrawFrame("🧬 FAJ VÁLASZTÁSA", 16);
+            WriteInside(3, "Válassz származást az 1–4 billentyűkkel", ConsoleColor.DarkCyan);
             for (var index = 0; index < _gameData.Races.Count; index++)
             {
                 var race = _gameData.Races[index];
-                Console.WriteLine($"{index + 1} - {race.Name} ({FormatAbilities(race.AbilityBonuses)}) — {FormatRaceTraits(race)}");
+                WriteInside(5 + index * 2, $"{index + 1}  {RaceIcon(race)} {race.Name}  {FormatAbilities(race.AbilityBonuses)}", RaceColor(race));
+                WriteInside(6 + index * 2, $"   {FormatRaceTraits(race)}", ConsoleColor.DarkGray);
             }
-            Console.WriteLine("Esc - vissza");
+            WriteInside(14, "Esc · vissza", ConsoleColor.DarkCyan);
 
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return null;
@@ -206,16 +209,17 @@ public sealed class CharacterCreationScreen
         var selectedIndex = 0;
         while (true)
         {
-            Console.Clear();
-            Console.WriteLine("=== OSZTÁLY VÁLASZTÁSA ===");
-            Console.WriteLine($"Végső képességek: {FormatAbilities(abilities)}");
-            Console.WriteLine();
+            DrawFrame("🛡 OSZTÁLY VÁLASZTÁSA", Math.Max(17, eligibleClasses.Count + 12));
+            WriteInside(3, $"Végső képességek: {FormatAbilities(abilities)}", ConsoleColor.Yellow);
             for (var index = 0; index < eligibleClasses.Count; index++)
             {
                 var characterClass = eligibleClasses[index];
-                Console.WriteLine($"{(index == selectedIndex ? ">" : " ")} {characterClass.Name} (min.: {FormatAbilities(characterClass.MinimumAbilities)})");
+                WriteInside(5 + index, $"{(index == selectedIndex ? "▶" : " ")} {ClassIcon(characterClass)} {characterClass.Name}",
+                    index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray);
+                if (index == selectedIndex)
+                    WriteInside(7 + eligibleClasses.Count, $"Minimum: {FormatAbilities(characterClass.MinimumAbilities)}", ConsoleColor.DarkGray);
             }
-            Console.WriteLine("Fel/le: választás | Enter: elfogadás | R: újradobás | Esc: kilépés");
+            WriteInside(9 + eligibleClasses.Count, "↑/↓ választás   Enter elfogadás   R újradobás   Esc kilépés", ConsoleColor.DarkCyan);
             DrawClassPortrait(eligibleClasses[selectedIndex], ConsoleColor.Cyan);
 
             var key = Console.ReadKey(intercept: true).Key;
@@ -231,14 +235,13 @@ public sealed class CharacterCreationScreen
         if (!race.HasTrait(RaceTraits.Adaptable)) return PrimaryAbilities.Zero;
         while (true)
         {
-            Console.Clear();
-            Console.WriteLine("=== ALKALMAZKODÓ KÉPESSÉGBÓNUSZ ===");
-            Console.WriteLine("Válassz egy képességet, amely +1 bónuszt kap:");
-            Console.WriteLine("1 - Erő");
-            Console.WriteLine("2 - Ügyesség");
-            Console.WriteLine("3 - Egészség");
-            Console.WriteLine("4 - Intelligencia");
-            Console.WriteLine("Esc - vissza");
+            DrawFrame("🌟 ALKALMAZKODÓ", 14);
+            WriteInside(3, "Válassz egy képességet, amely +1 bónuszt kap:", ConsoleColor.Yellow);
+            WriteInside(5, "1  💪 Erő", ConsoleColor.Red);
+            WriteInside(6, "2  🏹 Ügyesség", ConsoleColor.Green);
+            WriteInside(7, "3  ❤️ Egészség", ConsoleColor.DarkYellow);
+            WriteInside(8, "4  🧠 Intelligencia", ConsoleColor.Magenta);
+            WriteInside(11, "Esc · vissza", ConsoleColor.DarkCyan);
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return null;
             if (!TryGetNumberKey(key, out var choice) || choice > 4) continue;
@@ -268,25 +271,18 @@ public sealed class CharacterCreationScreen
         PrimaryAbilities rolled, PrimaryAbilities final,
         int vitalityBonus, int manaBonus, IReadOnlyList<CharacterClassDefinition> eligibleClasses)
     {
-        Console.Clear();
-        Console.WriteLine("=== KÉPESSÉGDOBÁS ===");
-        Console.WriteLine($"{name} — {race.Name}");
-        Console.WriteLine();
+        DrawFrame("🎲 KÉPESSÉGDOBÁS", 18);
+        WriteInside(3, $"⚔ {name}  ·  {RaceIcon(race)} {race.Name}", ConsoleColor.Yellow);
         var rolledPointTotal = rolled.Strength + rolled.Dexterity + rolled.Health + rolled.Intelligence;
-        Console.WriteLine($"Dobott értékek (összesen {rolledPointTotal}): {FormatAbilities(rolled)}");
-        Console.WriteLine($"Faji módosító: {FormatAbilities(race.AbilityBonuses)}");
+        WriteInside(5, $"🎲 Dobás ({rolledPointTotal} pont): {FormatAbilities(rolled)}", ConsoleColor.Gray);
+        WriteInside(6, $"🧬 Faji módosító:      {FormatAbilities(race.AbilityBonuses)}", RaceColor(race));
         if (race.HasTrait(RaceTraits.Adaptable))
-            Console.WriteLine($"Választott emberi bónusz: {FormatAbilities(adaptableAbilityBonus)}");
-        Console.WriteLine($"Faji tulajdonság: {FormatRaceTraits(race)}");
-        Console.WriteLine($"Végső értékek: {FormatAbilities(final)}");
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"Választható osztályok: {string.Join(", ", eligibleClasses.Select(characterClass => characterClass.Name))}");
-        Console.ResetColor();
-        Console.WriteLine();
-        Console.WriteLine($"Életerő: {_gameData.GetMinimumVitality(final.Health)} + {vitalityBonus} = {_gameData.GetMinimumVitality(final.Health) + vitalityBonus}");
-        Console.WriteLine($"Manna: {_gameData.GetMinimumMana(final.Intelligence)} + {manaBonus} = {_gameData.GetMinimumMana(final.Intelligence) + manaBonus}");
-        Console.WriteLine();
-        Console.WriteLine("Enter - elfogadás | R - újradobás | Esc - megszakítás");
+            WriteInside(7, $"🌟 Választott bónusz:  {FormatAbilities(adaptableAbilityBonus)}", ConsoleColor.Cyan);
+        WriteInside(8, $"✨ Végső értékek:      {FormatAbilities(final)}", ConsoleColor.White);
+        WriteInside(10, $"🏷 Osztályok: {string.Join(", ", eligibleClasses.Select(characterClass => characterClass.Name))}", ConsoleColor.Green);
+        WriteInside(12, $"❤️ Életerő: {_gameData.GetMinimumVitality(final.Health)} + {vitalityBonus} = {_gameData.GetMinimumVitality(final.Health) + vitalityBonus}", ConsoleColor.Red);
+        WriteInside(13, $"🔷 Manna:   {_gameData.GetMinimumMana(final.Intelligence)} + {manaBonus} = {_gameData.GetMinimumMana(final.Intelligence) + manaBonus}", ConsoleColor.Blue);
+        WriteInside(15, "Enter elfogadás   R újradobás   Esc megszakítás", ConsoleColor.DarkCyan);
     }
 
     private PrimaryAbilities RollAbilities()
@@ -315,22 +311,23 @@ public sealed class CharacterCreationScreen
 
     private static void ShowCreatedCharacter(LiveCharacter character)
     {
-        Console.Clear();
-        Console.WriteLine("Karakter elkészült!");
-        Console.WriteLine($"{character.Name} — {character.Race.Name} {character.CharacterClass.Name}");
-        Console.WriteLine(FormatAbilities(character.Abilities));
-        Console.WriteLine($"HP: {character.CurrentVitality}/{character.MaximumVitality}, Manna: {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}");
+        DrawFrame("✨ A HŐS ELKÉSZÜLT ✨", 16);
+        WriteInside(3, $"⚔ {character.Name}", character.Color);
+        WriteInside(5, $"{RaceIcon(character.Race)} {character.Race.Name}  ·  {ClassIcon(character.CharacterClass)} {character.CharacterClass.Name}", ConsoleColor.Yellow);
+        WriteInside(7, FormatAbilities(character.Abilities), ConsoleColor.White);
+        WriteInside(9, $"❤️ HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
+        WriteInside(10, $"🔷 Manna: {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}", ConsoleColor.Blue);
         DrawClassPortrait(character.CharacterClass, character.Color);
-        Console.WriteLine();
-        Console.WriteLine("Bármely billentyű: vissza a karakterlistához");
+        WriteInside(13, "Bármely billentyű · vissza a karakterlistához", ConsoleColor.DarkCyan);
         Console.ReadKey(intercept: true);
     }
 
     private static void DrawClassPortrait(CharacterClassDefinition characterClass, ConsoleColor color)
     {
         var portrait = AsciiPortraits.ForCharacterClass(characterClass.Id);
-        var left = Math.Min(60, Math.Max(0, Console.WindowWidth - 24));
-        var top = 2;
+        var preferredLeft = Math.Max(_frameLeft + 42, _frameLeft + _frameWidth - portrait.CanvasWidth - 4);
+        var left = Math.Max(0, Math.Min(preferredLeft, Console.WindowWidth - portrait.CanvasWidth));
+        var top = 3;
         var returnLeft = Console.CursorLeft;
         var returnTop = Console.CursorTop;
         Console.ForegroundColor = color;
@@ -353,8 +350,73 @@ public sealed class CharacterCreationScreen
         _ => "nincs különleges tulajdonság"
     };
 
+    private static string RaceIcon(RaceDefinition race) => race.Traits switch
+    {
+        RaceTraits.Adaptable => "🌟",
+        RaceTraits.Resilient => "⛰",
+        RaceTraits.KeenSenses => "🌙",
+        RaceTraits.Relentless => "🔥",
+        _ => "◆"
+    };
+
+    private static ConsoleColor RaceColor(RaceDefinition race) => race.Traits switch
+    {
+        RaceTraits.Adaptable => ConsoleColor.Yellow,
+        RaceTraits.Resilient => ConsoleColor.DarkYellow,
+        RaceTraits.KeenSenses => ConsoleColor.Cyan,
+        RaceTraits.Relentless => ConsoleColor.Red,
+        _ => ConsoleColor.White
+    };
+
+    private static string ClassIcon(CharacterClassDefinition characterClass) => characterClass.Id switch
+    {
+        CharacterClassIds.Harcos => "⚔",
+        CharacterClassIds.Barbár => "🪓",
+        CharacterClassIds.Lovag => "🛡",
+        CharacterClassIds.Tolvaj => "🗡",
+        CharacterClassIds.Pap => "✝",
+        CharacterClassIds.Mágus => "🔮",
+        _ => "◆"
+    };
+
     private static string FormatAbilities(PrimaryAbilities abilities) =>
-        $"Erő {abilities.Strength}, Ügyesség {abilities.Dexterity}, Egészség {abilities.Health}, Intelligencia {abilities.Intelligence}";
+        $"💪 {abilities.Strength}  🏹 {abilities.Dexterity}  ❤️ {abilities.Health}  🧠 {abilities.Intelligence}";
+
+    private static void DrawFrame(string title, int requestedHeight)
+    {
+        Console.Clear();
+        _frameWidth = Math.Max(10, Math.Min(FramePreferredWidth, Console.WindowWidth - 2));
+        var height = Math.Max(4, Math.Min(requestedHeight, Console.WindowHeight - 1));
+        _frameLeft = Math.Max(0, (Console.WindowWidth - _frameWidth) / 2);
+        Console.ForegroundColor = ConsoleColor.DarkYellow;
+        Console.SetCursorPosition(_frameLeft, 0);
+        Console.Write("@)" + new string('=', _frameWidth - 4) + "(@");
+        for (var row = 1; row < height - 1; row++)
+        {
+            Console.SetCursorPosition(_frameLeft, row);
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.Write(" |");
+            Console.SetCursorPosition(_frameLeft + _frameWidth - 2, row);
+            Console.Write("| ");
+        }
+        Console.SetCursorPosition(_frameLeft, height - 1);
+        Console.ForegroundColor = ConsoleColor.DarkYellow;
+        Console.Write("@)" + new string('=', _frameWidth - 4) + "(@");
+        WriteInside(1, title, ConsoleColor.Yellow, centered: true);
+        Console.ResetColor();
+    }
+
+    private static void WriteInside(int row, string text, ConsoleColor color, bool centered = false)
+    {
+        if (row < 1 || row >= Console.WindowHeight) return;
+        var maximumLength = Math.Max(0, _frameWidth - 8);
+        if (text.Length > maximumLength) text = text[..maximumLength];
+        var offset = centered ? Math.Max(0, (maximumLength - text.Length) / 2) : 0;
+        Console.SetCursorPosition(_frameLeft + 4 + offset, row);
+        Console.ForegroundColor = color;
+        Console.Write(text);
+        Console.ResetColor();
+    }
 
     private static bool TryGetNumberKey(ConsoleKey key, out int number)
     {
