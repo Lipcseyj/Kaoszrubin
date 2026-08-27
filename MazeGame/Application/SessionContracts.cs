@@ -86,6 +86,7 @@ public sealed record PickUpGroundItemCommand(PlayerId SenderId, long CommandId, 
 public enum BattleActionKind
 {
     PhysicalAttack,
+    AdvanceEnemyTurn,
     CastSpell,
     TurnUndead,
     FighterPrecise,

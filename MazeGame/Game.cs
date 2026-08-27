@@ -188,7 +188,7 @@ public sealed class Game
         foreach (var member in _maze.PartyMembers) positions[member.Character.Id] = member.Position;
 
         BattleSnapshot? battle = null;
-        if (_activeBattleState is { IsCompleted: false, IsPlayerTurn: true } state)
+        if (_activeBattleState is { IsCompleted: false } state)
         {
             var battleCharacter = state.Player;
             battle = new BattleSnapshot(state.Id, state.TurnId, state.Round, state.IsPlayerTurn,
@@ -196,7 +196,9 @@ public sealed class Game
                 new SessionEnemySnapshot(state.EnemyDefinitionId, state.Enemy.Name, state.Enemy.Position,
                     state.CurrentEnemyHitPoints, state.Enemy.Definition.HitPoints ?? state.CurrentEnemyHitPoints),
                 GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy),
-                GetSpellOptions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy, inCombat: true));
+                state.IsPlayerTurn
+                    ? GetSpellOptions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy, inCombat: true)
+                    : null);
         }
         var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions,
             battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState)));
@@ -1312,14 +1314,15 @@ public sealed class Game
 
     private void ContinueDisconnectedRemoteBattleAsNpc()
     {
-        if (_activeBattleState is not { IsCompleted: false, IsPlayerTurn: true } state ||
+        if (_activeBattleState is not { IsCompleted: false } state ||
             state.PlayerCharacterId == SelectedCharacter.Id ||
             _session.IsHumanControlled(state.PlayerCharacterId)) return;
 
         _renderer.DrawInventoryMessage(
             $"{state.Player.Name} kapcsolata megszakadt; az AI fegyveres támadással folytatja a csatát.",
             ConsoleColor.DarkYellow);
-        ResolveActiveBattleAction(null);
+        if (state.IsPlayerTurn) ResolveActiveBattleAction(null);
+        else ResolveActiveEnemyTurn();
     }
 
     private void ExecuteLeaderAction(LeaderAction action)
@@ -2421,9 +2424,14 @@ public sealed class Game
 
     private void HandleLocalBattleInput(ConsoleKeyInfo key)
     {
-        if (_activeBattleState is null || _activeBattleState.IsCompleted ||
-            (!_activeBattleState.IsPlayerTurn && !_activeBattleState.RequiresTacticSelection)) return;
+        if (_activeBattleState is null || _activeBattleState.IsCompleted) return;
         if (_activeBattleState.PlayerCharacterId != SelectedCharacter.Id) return;
+        if (!_activeBattleState.IsPlayerTurn)
+        {
+            if (key.Key == ConsoleKey.Spacebar)
+                SubmitLocalBattleCommand(BattleActionKind.AdvanceEnemyTurn);
+            return;
+        }
         var enemy = _activeBattleState.Enemy;
         var canTurnUndead = CanTurnUndead(SelectedCharacter, enemy) &&
                             !_turnUndeadUsedThisBattle.Contains(SelectedCharacter);
@@ -2573,6 +2581,12 @@ public sealed class Game
             case BattleActionKind.PhysicalAttack:
                 ResolveActiveBattleAction(null);
                 break;
+            case BattleActionKind.AdvanceEnemyTurn:
+                if (!_activeBattleState.IsPlayerTurn)
+                    ResolveActiveEnemyTurn();
+                else
+                    RejectBattleAction(command, "Az ellenfél körét most nem lehet léptetni.");
+                break;
             case BattleActionKind.TurnUndead:
                 if (CanTurnUndead(battleCharacter, _activeBattleState.Enemy) &&
                     !_turnUndeadUsedThisBattle.Contains(battleCharacter))
@@ -2682,6 +2696,9 @@ public sealed class Game
     private IReadOnlyList<BattleActionKind> GetAllowedBattleActions(LiveCharacter character,
         Position characterPosition, Enemy enemy)
     {
+        if (_activeBattleState is { IsCompleted: false, IsPlayerTurn: false } enemyTurn &&
+            enemyTurn.PlayerCharacterId == character.Id)
+            return [BattleActionKind.AdvanceEnemyTurn];
         if (_activeBattleState is { RequiresTacticSelection: true } state && state.PlayerCharacterId == character.Id)
             return character.CharacterClass.Id == CharacterClassIds.Harcos
                 ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
@@ -3694,9 +3711,9 @@ public sealed class Game
                 continue;
             }
 
-            var supportDamage = TryPartyMembersActInBattle(state.Player, state.Enemy);
-            var step = _battleSystem.Advance(state, supportDamage: supportDamage);
-            PresentBattleEntries(step.Entries);
+            _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
+                [BattleActionKind.AdvanceEnemyTurn]);
+            return;
         }
         if (_activeBattleState is { IsCompleted: true }) FinishActiveBattle();
     }
@@ -3706,6 +3723,15 @@ public sealed class Game
         if (_activeBattleState is not { IsCompleted: false, IsPlayerTurn: true } state) return;
         var step = _battleSystem.Advance(state, action, _pendingBattleSupportDamage);
         _pendingBattleSupportDamage = 0;
+        PresentBattleEntries(step.Entries);
+        ContinueActiveBattle();
+    }
+
+    private void ResolveActiveEnemyTurn()
+    {
+        if (_activeBattleState is not { IsCompleted: false, IsPlayerTurn: false } state) return;
+        var supportDamage = TryPartyMembersActInBattle(state.Player, state.Enemy);
+        var step = _battleSystem.Advance(state, supportDamage: supportDamage);
         PresentBattleEntries(step.Entries);
         ContinueActiveBattle();
     }
@@ -3846,7 +3872,7 @@ public sealed class Game
             : [SelectedCharacter.Id];
         PlaySessionSound(entry.Message.Contains("💨", StringComparison.Ordinal)
             ? SoundEffect.Miss
-            : SoundEffect.Hit, listeners, waitForCompletion: true);
+            : SoundEffect.Hit, listeners);
     }
 
     private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries)
@@ -3876,14 +3902,12 @@ public sealed class Game
         }
     }
 
-    private void PlaySessionSound(SoundEffect effect, IReadOnlyCollection<CharacterId>? listeners = null,
-        bool waitForCompletion = false)
+    private void PlaySessionSound(SoundEffect effect, IReadOnlyCollection<CharacterId>? listeners = null)
     {
         var listenerIds = listeners?.Distinct().ToArray();
         RecordSessionSound(effect, listenerIds);
         if (listenerIds is not null && !listenerIds.Contains(SelectedCharacter.Id)) return;
-        if (waitForCompletion) _soundEffects.PlayAndWait(effect);
-        else _soundEffects.Play(effect);
+        _soundEffects.Play(effect);
     }
 
     private void RecordSessionSound(SoundEffect effect, IReadOnlyList<CharacterId>? listenerCharacterIds)

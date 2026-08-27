@@ -253,6 +253,8 @@ public sealed class CoopGuestScreen
             {
             var action = key switch
             {
+                ConsoleKey.Spacebar when battle.AllowedActions.Contains(BattleActionKind.AdvanceEnemyTurn) =>
+                    BattleActionKind.AdvanceEnemyTurn,
                 ConsoleKey.Spacebar => BattleActionKind.PhysicalAttack,
                 ConsoleKey.T => BattleActionKind.TurnUndead,
                 _ => (BattleActionKind?)null
@@ -861,7 +863,12 @@ public sealed class CoopGuestScreen
                      .OrderBy(sound => sound.Sequence))
         {
             if (sound.IsAudibleTo(localCharacterId))
-                _soundEffects.PlayAndWait(sound.Effect);
+            {
+                if (sound.Effect is SoundEffect.Hit or SoundEffect.Miss)
+                    _soundEffects.Play(sound.Effect);
+                else
+                    _soundEffects.PlayAndWait(sound.Effect);
+            }
             _lastSessionSoundSequence = sound.Sequence;
         }
     }
@@ -1003,6 +1010,10 @@ public sealed class CoopGuestScreen
                     ? "Taktika: 1 Pontos  |  2 Erőteljes  |  3 Védekező"
                     : "Taktika: 1 Orvtámadás  |  2 Megfigyelés  |  3 Mérgezett penge",
                 ConsoleColor.Yellow, ConsoleColor.Black);
+        else if (snapshot.Battle is { ActingCharacterId: var enemyTurnActor, IsPlayerTurn: false,
+                     AllowedActions: var enemyTurnActions } && enemyTurnActor == selected.CharacterId &&
+                 enemyTurnActions.Contains(BattleActionKind.AdvanceEnemyTurn))
+            footer[^1] = new GuestTextLine("Space — ellenfél köre", ConsoleColor.Yellow, ConsoleColor.Black);
 
         return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, grid, panel,
             partyStatuses, footer);

@@ -511,7 +511,7 @@ public sealed class GameSession
 
     private static bool HasValidBattleActionShape(BattleActionCommand command) => command.Action switch
     {
-        BattleActionKind.PhysicalAttack or BattleActionKind.TurnUndead or
+        BattleActionKind.PhysicalAttack or BattleActionKind.AdvanceEnemyTurn or BattleActionKind.TurnUndead or
         BattleActionKind.FighterPrecise or BattleActionKind.FighterPowerful or
         BattleActionKind.FighterDefensive or BattleActionKind.ThiefAmbush or
         BattleActionKind.ThiefObserve or BattleActionKind.ThiefPoison =>

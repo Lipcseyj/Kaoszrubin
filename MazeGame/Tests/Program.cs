@@ -42,6 +42,7 @@ var tests = new (string Name, Action Run)[]
     ("A régi Resolve API az állapotgépet hajtja", ResolveUsesStateMachineAdapter),
     ("A Resolve támogatói győzelemnél nem kér fölösleges akciót", ResolveSkipsActionAfterSupportVictory),
     ("Csak az aktív BattleId és TurnId parancsa fogadható el", BattleCommandRequiresCurrentPrompt),
+    ("Az ellenfél köre külön Space-paranccsal léptethető", EnemyTurnAdvanceCommandIsAccepted),
     ("A távoli harci promptot csak a karakter gazdája oldhatja fel", RemoteBattlePromptRequiresCharacterOwner),
     ("A varázslat command csak szemantikus választást hordoz", SpellBattleCommandIsAccepted),
     ("Hiányos varázslat command nem juthat át", MalformedSpellBattleCommandIsRejected),
@@ -525,6 +526,19 @@ static void RemoteBattlePromptRequiresCharacterOwner()
     Assert(session.TryReconnectPlayer(remote),
         "A karakterét elvesztő megfigyelő reconnect-tokenje nem maradt érvényes.");
     session.EndBattle(battleId);
+}
+
+static void EnemyTurnAdvanceCommandIsAccepted()
+{
+    var (session, leader, _) = CreateSession();
+    var battleId = BattleId.New();
+    session.SetBattlePrompt(battleId, 4, leader.Id, [BattleActionKind.AdvanceEnemyTurn]);
+    Assert(session.Submit(new BattleActionCommand(session.HostPlayerId, 1, leader.Id, battleId, 4,
+            BattleActionKind.AdvanceEnemyTurn)),
+        "Az ellenfél körét léptető Space-parancsot elutasította a session.");
+    Assert(session.TryReadCommand(out var command) && command is BattleActionCommand
+        { Action: BattleActionKind.AdvanceEnemyTurn },
+        "Az ellenfél körét léptető parancs nem került a végrehajtási sorba.");
 }
 
 static void SpellBattleCommandIsAccepted()
