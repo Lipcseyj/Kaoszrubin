@@ -889,7 +889,8 @@ public sealed class CoopGuestScreen
         var panelLines = _spellInfoOpen && own?.SpellInfo is not null
             ? BuildSpellInfoPanel(own).ToDictionary(line => line.Row)
             : own?.CharacterSheet is not null && own.Inventory is not null
-                ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount, snapshot.BossKeyCount)
+                ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount,
+                    snapshot.BossKeyCount, own.CharacterId == snapshot.LeaderCharacterId)
                     .ToDictionary(line => line.Row)
                 : [];
         var selectedSlot = _inventoryOpen && own?.Inventory is { Slots.Count: > 0 } inventory

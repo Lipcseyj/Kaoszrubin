@@ -1624,7 +1624,7 @@ public sealed class ConsoleRenderer
     {
         _displayedCharacter = character;
         var panelLines = CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
-            _goldenKeyCount, MonsterIds.Bosses.Count);
+            _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader);
         DrawCharacterSheetHeader(character);
         foreach (var line in panelLines.Where(line => line.Row != CharacterSheetHeaderLine && line.InventorySlot is null))
             WriteSheetLine(line.Row, line.Text, line.Color);
@@ -1672,7 +1672,8 @@ public sealed class ConsoleRenderer
         if (_activeSheetSelection is null || entries.All(entry => entry.Key != _activeSheetSelection))
             _activeSheetSelection = entries.FirstOrDefault()?.Key;
         foreach (var line in CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
-                     _goldenKeyCount, MonsterIds.Bosses.Count).Where(line => line.InventorySlot is not null))
+                     _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader)
+                 .Where(line => line.InventorySlot is not null))
         {
             var slot = line.InventorySlot!.Value;
             var kind = slot.Kind switch

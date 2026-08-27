@@ -75,7 +75,8 @@ public static class CharacterSheetPanel
         value[..Math.Min(value.Length, Math.Max(1, maximumLength))];
 
     public static IReadOnlyList<CharacterSheetPanelLine> Build(LiveCharacter character,
-        IReadOnlyDictionary<int, int> experienceByLevel, int mazeLevel, int goldenKeyCount, int bossCount)
+        IReadOnlyDictionary<int, int> experienceByLevel, int mazeLevel, int goldenKeyCount, int bossCount,
+        bool isPartyLeader = false)
     {
         var snapshot = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
             character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
@@ -83,11 +84,11 @@ public static class CharacterSheetPanel
             character.Gold, character.IsAlive, null, character.Statuses.Select(status => status.Id).ToArray(),
             InventorySnapshotProjector.Create(character),
             CharacterSheetSnapshotProjector.Create(character, experienceByLevel));
-        return Build(snapshot, mazeLevel, goldenKeyCount, bossCount);
+        return Build(snapshot, mazeLevel, goldenKeyCount, bossCount, isPartyLeader);
     }
 
     public static IReadOnlyList<CharacterSheetPanelLine> Build(SessionCharacterSnapshot character,
-        int mazeLevel, int goldenKeyCount, int bossCount)
+        int mazeLevel, int goldenKeyCount, int bossCount, bool isPartyLeader = false)
     {
         ArgumentNullException.ThrowIfNull(character);
         var details = character.CharacterSheet ?? throw new ArgumentException(
@@ -97,7 +98,8 @@ public static class CharacterSheetPanel
         var lines = new List<CharacterSheetPanelLine>
         {
             new(0, $"KARAKTERLAP - {character.Name}", ConsoleColor.Yellow),
-            new(1, $"{details.RaceName} {details.CharacterClassName}", ConsoleColor.White)
+            new(1, $"{details.RaceName} {details.CharacterClassName}" + (isPartyLeader ? "  👑 VEZÉR" : string.Empty),
+                isPartyLeader ? ConsoleColor.Yellow : ConsoleColor.White)
         };
         var perkRows = CompactRows("Teh", details.PerkNames, 2);
         lines.Add(new(2, perkRows[0], ConsoleColor.Magenta));

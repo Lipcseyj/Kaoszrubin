@@ -919,6 +919,13 @@ static void CharacterSheetLayoutIsShared()
     var restored = JsonSerializer.Deserialize<SessionCharacterSnapshot>(JsonSerializer.Serialize(snapshot));
     Assert(restored is not null && CharacterSheetPanel.Build(restored, 3, 1, 4).SequenceEqual(hostLines),
         "A közös karakterlap read modelje nem élte túl a JSON wire-körutat.");
+    var hostLeaderLine = CharacterSheetPanel.Build(character, experienceByLevel, 3, 1, 4, true)
+        .Single(line => line.Row == 1);
+    var guestLeaderLine = CharacterSheetPanel.Build(snapshot, 3, 1, 4, true)
+        .Single(line => line.Row == 1);
+    Assert(hostLeaderLine == guestLeaderLine && hostLeaderLine.Text.Contains("👑 VEZÉR", StringComparison.Ordinal) &&
+           hostLeaderLine.Color == ConsoleColor.Yellow,
+        "A host és a vendég karakterlapján nem azonos a feltűnő vezérjelzés.");
 }
 
 static void GuestAvatarUsesClassGlyphAndCharacterColor()
