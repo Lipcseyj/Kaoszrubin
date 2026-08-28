@@ -32,22 +32,23 @@ public static class CharacterSheetPanel
         _ => "?"
     };
 
-    public static PartyStatusLine BuildPartyStatus(LiveCharacter character, bool isDisplayed) =>
+    public static PartyStatusLine BuildPartyStatus(LiveCharacter character, bool isDisplayed, bool isLeader = false) =>
         BuildPartyStatus(character.Name, character.CharacterClass.Id, character.CurrentVitality,
             character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
-            character.Color, isDisplayed);
+            character.Color, isDisplayed, isLeader);
 
-    public static PartyStatusLine BuildPartyStatus(SessionCharacterSnapshot character, bool isDisplayed) =>
+    public static PartyStatusLine BuildPartyStatus(SessionCharacterSnapshot character, bool isDisplayed,
+        bool isLeader = false) =>
         BuildPartyStatus(character.Name, character.CharacterClassId, character.CurrentVitality,
             character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
-            character.Color, isDisplayed);
+            character.Color, isDisplayed, isLeader);
 
     private static PartyStatusLine BuildPartyStatus(string name, string classId, int currentVitality,
         int maximumVitality, int currentMana, int maximumMana, bool isAlive, ConsoleColor identityColor,
-        bool isDisplayed)
+        bool isDisplayed, bool isLeader)
     {
         var marker = isDisplayed ? "▶ " : "  ";
-        var prefix = $"{marker}{CharacterClassGlyph(classId)} ";
+        var prefix = $"{marker}{(isLeader ? "👑" : string.Empty)}{CharacterClassGlyph(classId)} ";
         if (!isAlive)
         {
             const string dead = " 💀";

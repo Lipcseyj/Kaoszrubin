@@ -650,7 +650,14 @@ public sealed class Game
             }
             _activeCoopHost = null;
             Console.CursorVisible = true;
-            Console.SetCursorPosition(0, ConsoleRenderer.ScreenRowCount - 1);
+            try
+            {
+                Console.SetCursorPosition(0, Math.Min(ConsoleRenderer.ScreenRowCount - 1,
+                    Math.Max(0, Console.BufferHeight - 1)));
+            }
+            catch (IOException)
+            {
+            }
         }
     }
 
@@ -1685,6 +1692,11 @@ public sealed class Game
         if (character is null)
         {
             _renderer.DrawInventoryMessage("A Del használatához jelölj ki egy partitársat.", ConsoleColor.DarkYellow);
+            return;
+        }
+        if (character == SelectedCharacter)
+        {
+            _renderer.DrawInventoryMessage("👑 A party leaderét nem lehet kirúgni.", ConsoleColor.DarkYellow);
             return;
         }
 

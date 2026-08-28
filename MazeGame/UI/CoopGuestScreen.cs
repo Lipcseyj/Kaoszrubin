@@ -1015,16 +1015,16 @@ public sealed class CoopGuestScreen
                 panel[y] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
         }
 
-        var companions = _spellInfoOpen ? [] : snapshot.Party
-            .Where(character => character.CharacterId != snapshot.LeaderCharacterId).Take(3).ToArray();
-        for (var index = 0; index < companions.Length; index++)
+        var partyMembers = _spellInfoOpen ? [] : snapshot.Party.Take(4).ToArray();
+        for (var index = 0; index < partyMembers.Length; index++)
         {
-            var companion = companions[index];
-            if (38 + index < panel.Length)
+            var member = partyMembers[index];
+            if (41 + index < panel.Length)
             {
-                panel[38 + index] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
-                partyStatuses[38 + index] = CharacterSheetPanel.BuildPartyStatus(companion,
-                    companion.CharacterId == selected.CharacterId);
+                panel[41 + index] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
+                partyStatuses[41 + index] = CharacterSheetPanel.BuildPartyStatus(member,
+                    member.CharacterId == selected.CharacterId,
+                    member.CharacterId == snapshot.LeaderCharacterId);
             }
         }
 

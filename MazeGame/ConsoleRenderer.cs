@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using MazeGame.Application;
 using MazeGame.Combat;
@@ -120,12 +121,12 @@ public sealed class ConsoleRenderer
     private const int CharacterSheetMagicItemsStartLine = 23;
     private const int CharacterSheetBackpackHeadingLine = 26;
     private const int CharacterSheetBackpackStartLine = 27;
-    private const int CharacterSheetPartyMembersStartLine = 38;
+    private const int CharacterSheetPartyMembersStartLine = 41;
     private const int CharacterSheetMaximumMagicItems = 3;
     private const int CharacterSheetBackpackSlots = 10;
-    private const int CharacterSheetPartyMemberRows = 3;
-    private const int CharacterSheetReservedMessageLine = 41;
-    private const int CharacterSheetControlsLine = 42;
+    private const int CharacterSheetPartyMemberRows = 4;
+    private const int CharacterSheetReservedMessageLine = 39;
+    private const int CharacterSheetControlsLine = 40;
     private const int ResourceIconStep = 10;
     private const int PortraitInteriorWidth = 25;
     private const int MessagePanelLeft = 2;
@@ -284,6 +285,7 @@ public sealed class ConsoleRenderer
     /// </summary>
     public void DrawInitialState(Maze maze, Player player, FogOfWar fogOfWar, int mazeLevel)
     {
+        EnsureConsoleBufferHeight();
         ResetColorCache();
         _messageLog.Clear();
         _mazeLevel = mazeLevel;
@@ -1663,7 +1665,7 @@ public sealed class ConsoleRenderer
     public LiveCharacter? GetSelectedPartyMember()
     {
         if (_activeSheetSelection is not { Kind: SheetSelectionKind.PartyMember } selection) return null;
-        return _party.Members.Skip(1).ElementAtOrDefault(selection.Index);
+        return _party.Members.ElementAtOrDefault(selection.Index);
     }
 
     public void RefreshAfterPartyMemberRemoved(LiveCharacter removedCharacter, LiveCharacter leader)
@@ -1802,17 +1804,19 @@ public sealed class ConsoleRenderer
 
     private void DrawPartyStatusRows(LiveCharacter displayedCharacter)
     {
-        var companions = _party.Members.Skip(FirstItemNumber).Take(CharacterSheetPartyMemberRows).ToList();
+        var partyMembers = _party.Members.Take(CharacterSheetPartyMemberRows).ToList();
         for (var index = 0; index < CharacterSheetPartyMemberRows; index++)
         {
             var row = CharacterSheetPartyMembersStartLine + index;
-            if (index >= companions.Count)
+            if (index >= partyMembers.Count)
             {
                 WriteSheetLine(row, string.Empty, ConsoleColor.DarkGray);
                 continue;
             }
-            DrawPartyStatusLine(row, CharacterSheetPanel.BuildPartyStatus(companions[index],
-                companions[index] == displayedCharacter), SelectionBackground(new(SheetSelectionKind.PartyMember, index)));
+            var member = partyMembers[index];
+            DrawPartyStatusLine(row, CharacterSheetPanel.BuildPartyStatus(member,
+                member == displayedCharacter, member == _party.Leader),
+                SelectionBackground(new(SheetSelectionKind.PartyMember, index)));
         }
     }
 
@@ -1824,8 +1828,8 @@ public sealed class ConsoleRenderer
         entries.Add(new(new(SheetSelectionKind.Armor, 0)));
         for (var index = 0; index < character.MagicItems.Count; index++) entries.Add(new(new(SheetSelectionKind.MagicItem, index)));
         for (var index = 0; index < character.Backpack.Count; index++) entries.Add(new(new(SheetSelectionKind.Backpack, index)));
-        var companionCount = Math.Min(CharacterSheetPartyMemberRows, Math.Max(0, _party.Members.Count - FirstItemNumber));
-        for (var index = 0; index < companionCount; index++) entries.Add(new(new(SheetSelectionKind.PartyMember, index)));
+        var partyMemberCount = Math.Min(CharacterSheetPartyMemberRows, _party.Members.Count);
+        for (var index = 0; index < partyMemberCount; index++) entries.Add(new(new(SheetSelectionKind.PartyMember, index)));
         return entries;
     }
 
@@ -2089,8 +2093,37 @@ public sealed class ConsoleRenderer
     /// </summary>
     private static void WriteAt(int x, int y, string text)
     {
+        int bufferWidth;
+        int bufferHeight;
+        try
+        {
+            bufferWidth = Console.BufferWidth;
+            bufferHeight = Console.BufferHeight;
+        }
+        catch (IOException)
+        {
+            return;
+        }
+        if (x < 0 || y < 0 || x >= bufferWidth || y >= bufferHeight) return;
+        if (text.Length > bufferWidth - x) text = text[..(bufferWidth - x)];
         Console.SetCursorPosition(x, y);
         Console.Write(text);
+    }
+
+    private static void EnsureConsoleBufferHeight()
+    {
+        try
+        {
+            if (Console.BufferHeight >= ScreenRowCount) return;
+            Console.SetBufferSize(200, Math.Max(ScreenRowCount, Console.WindowHeight));
+        }
+        catch (Exception exception) when (exception is IOException or ArgumentOutOfRangeException or
+                                          PlatformNotSupportedException or System.Security.SecurityException)
+        {
+            Debug.WriteLine($"Nem sikerült a konzol bufferméretét {ScreenRowCount} sorra állítani: {exception.GetType().Name} - {exception.Message}");
+            // Egyes terminálhostok a bufferméretet nem engedik programból állítani.
+            // A koordinátás rajzolás ilyenkor a tényleges buffermérethez igazodva biztonságosan levág.
+        }
     }
 
     /// <summary>

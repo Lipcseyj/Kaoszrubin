@@ -1613,8 +1613,10 @@ static void CompactPartyStatusShowsResources()
     var mage = new LiveCharacter("Hosszúnevű", race, mageClass, new PrimaryAbilities(5, 5, 5, 5),
         40, 20, 1, 0);
     mage.SetCurrentResources(10, 12);
-    var status = CharacterSheetPanel.BuildPartyStatus(mage, true);
+    var status = CharacterSheetPanel.BuildPartyStatus(mage, true, isLeader: true);
     Assert(status.Text.Length <= CharacterSheetPanel.Width, "A party státusz túllóg a jobb panelen.");
+    Assert(status.Identity.Contains("👑", StringComparison.Ordinal),
+        "A leader koronája hiányzik a party státuszból.");
     Assert(status.Text.Contains("❤️25%", StringComparison.Ordinal) &&
            status.Text.Contains("🔷60%", StringComparison.Ordinal),
         "A party státusz nem százalékosan mutatja a HP-t és a manát.");
