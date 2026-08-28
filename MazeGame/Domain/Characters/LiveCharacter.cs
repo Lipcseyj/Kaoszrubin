@@ -15,6 +15,7 @@ public sealed class LiveCharacter
     private readonly int[] _backpackItemCharges = new int[MaximumBackpackItemCount];
     private readonly List<PerkDefinition> _perks = [];
     private readonly List<ClassFeatureUpgradeDefinition> _classFeatureUpgrades = [];
+    private readonly List<WeaponProficiencyState> _weaponProficiencies = [];
     private readonly List<StatusDefinition> _statuses = [];
     private readonly List<SpellDefinition> _knownSpells = [];
     private readonly List<SpellDefinition> _memorizedSpells = [];
@@ -81,6 +82,8 @@ public sealed class LiveCharacter
     public IReadOnlyList<IItemDefinition?> Backpack => _backpack;
     public IReadOnlyList<PerkDefinition> Perks => _perks;
     public IReadOnlyList<ClassFeatureUpgradeDefinition> ClassFeatureUpgrades => _classFeatureUpgrades;
+    public IReadOnlyList<WeaponProficiencyState> WeaponProficiencies => _weaponProficiencies;
+    public int WeaponProficiencyAdvances => _weaponProficiencies.Sum(proficiency => (int)proficiency.Rank);
     public IReadOnlyList<StatusDefinition> Statuses => _statuses;
     public IReadOnlyList<SpellDefinition> KnownSpells => _knownSpells;
     public IReadOnlyList<SpellDefinition> MemorizedSpells => _memorizedSpells;
@@ -99,6 +102,27 @@ public sealed class LiveCharacter
         if (upgrade is null || upgrade.CharacterClassId != CharacterClass.Id ||
             _classFeatureUpgrades.Count >= 2 || HasClassFeatureUpgrade(id)) return false;
         _classFeatureUpgrades.Add(upgrade);
+        return true;
+    }
+
+    public WeaponProficiencyRank? WeaponProficiencyRankFor(string? familyId) => familyId is null ? null :
+        _weaponProficiencies.FirstOrDefault(proficiency =>
+            string.Equals(proficiency.FamilyId, familyId, StringComparison.OrdinalIgnoreCase))?.Rank;
+
+    public bool TryAdvanceWeaponProficiency(string familyId)
+    {
+        if (WeaponFamilies.Find(familyId) is null) return false;
+        var existingIndex = _weaponProficiencies.FindIndex(proficiency =>
+            string.Equals(proficiency.FamilyId, familyId, StringComparison.OrdinalIgnoreCase));
+        if (existingIndex >= 0)
+        {
+            if (_weaponProficiencies[existingIndex].Rank == WeaponProficiencyRank.Master) return false;
+            _weaponProficiencies[existingIndex] = _weaponProficiencies[existingIndex] with
+                { Rank = WeaponProficiencyRank.Master };
+            return true;
+        }
+        if (_weaponProficiencies.Count >= 2) return false;
+        _weaponProficiencies.Add(new WeaponProficiencyState(familyId, WeaponProficiencyRank.Trained));
         return true;
     }
 

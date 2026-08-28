@@ -35,6 +35,7 @@ var tests = new (string Name, Action Run)[]
     ("Az osztályspecializáció mentés után is megmarad", ClassSpecializationSurvivesSerialization),
     ("A 10. és 20. szintű osztályfejlesztések mentődnek és megjelennek", ClassFeatureUpgradesPersistAndAppearOnSheet),
     ("A képességpontok 13-nál megállnak és mentődnek", AbilityIncreasesAreCappedAndPersisted),
+    ("A fegyverjártasság két családra korlátozott, hat és menthető", WeaponProficienciesAreLimitedEffectiveAndPersisted),
     ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
@@ -468,6 +469,51 @@ static void AbilityIncreasesAreCappedAndPersisted()
     Assert(restored.Abilities == character.Abilities && restored.AbilityIncreasesClaimed == 2 &&
            restored.MaximumVitality == character.MaximumVitality,
         "A képességnövelések vagy az elköltött pontok száma elveszett a mentési kör után.");
+}
+
+static void WeaponProficienciesAreLimitedEffectiveAndPersisted()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    Assert(WeaponProficiencyProgression.MilestonesFor(CharacterClassIds.Harcos).SequenceEqual(new[] { 1, 7, 17, 27 }) &&
+           WeaponProficiencyProgression.MilestonesFor(CharacterClassIds.Tolvaj).SequenceEqual(new[] { 7, 17 }),
+        "A harci és nem harci osztályok fegyverjártassági mérföldkövei hibásak.");
+    var fighter = CreateCharacter("Fegyvermester", characterClassId: CharacterClassIds.Harcos);
+    var sword = data.GetWeapon("W004");
+    Assert(WeaponFamilies.ForWeapon(sword) == WeaponFamilies.Sword &&
+           WeaponFamilies.ForWeapon(data.GetWeapon("LW004")) == WeaponFamilies.Sword &&
+           WeaponFamilies.All.Count == 6,
+        "A normál vagy legendás fegyver családbesorolása hibás.");
+    Assert(fighter.EquipWeapon(0, sword), "A tesztkarakter nem tudta felszerelni a hosszú kardot.");
+    var system = CreateBattleSystem(2201);
+    var enemy = CreateEnemy(100, 1, speed: 8);
+    var before = system.EstimatePlayerHitChance(fighter, enemy, BattleTactic.FighterDefensive);
+    Assert(fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Sword), "A Kard Jártas fok nem volt választható.");
+    var after = system.EstimatePlayerHitChance(fighter, enemy, BattleTactic.FighterDefensive);
+    Assert(after == before + 5, "A Kard Jártas fok nem adott +1, azaz 5 százalékpont találati esélyt.");
+    Assert(fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Sword) &&
+           fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Shield) &&
+           !fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Dagger) &&
+           fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Shield) &&
+           fighter.WeaponProficiencyAdvances == 4,
+        "A két családos vagy kétfokozatú fegyverjártassági korlát hibás.");
+
+    var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-proficiency-save.json"), data);
+    var restored = service.DeserializeCharacter(service.SerializeCharacter(fighter));
+    Assert(restored.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master &&
+           restored.WeaponProficiencyRankFor(WeaponFamilies.Shield) == WeaponProficiencyRank.Master,
+        "A fegyverjártasságok elvesztek a mentési kör után.");
+    var lines = CharacterSheetPanel.Build(restored, data.ExperienceByLevel, 1, 0, 12);
+    Assert(lines.Single(line => line.Row == 11).Text.Contains("⚔️M", StringComparison.Ordinal) &&
+           lines.Single(line => line.Row == 11).Text.Contains("🛡️M", StringComparison.Ordinal) &&
+           lines.Single(line => line.Row == 12).Text.Contains("❤️", StringComparison.Ordinal) &&
+           !lines.Single(line => line.Row == 12).Text.Contains("🔷", StringComparison.Ordinal),
+        "A fegyverjártasság- vagy az összevont erőforrássor hibás a karakterlapon.");
+    var inspection = ItemInspectionFormatter.Format(sword, data, weaponProficiencies:
+        restored.WeaponProficiencies.ToDictionary(proficiency => proficiency.FamilyId,
+            proficiency => (int)proficiency.Rank));
+    Assert(inspection.Text.Contains("Kard", StringComparison.Ordinal) &&
+           inspection.Text.Contains("Mester", StringComparison.Ordinal),
+        "A fegyver részletes nézete nem mutatja a családot és a jártassági fokot.");
 }
 
 static void KnightProtectionTransfersThirdOfFirstHit()

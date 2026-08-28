@@ -11,7 +11,8 @@ public readonly record struct ItemInspection(string Text, ConsoleColor Color);
 /// <summary>A host és a vendég közös, katalógusalapú tárgyrészletezője.</summary>
 public static class ItemInspectionFormatter
 {
-    public static ItemInspection Format(IItemDefinition item, GameDataCatalog gameData, int charges = 0)
+    public static ItemInspection Format(IItemDefinition item, GameDataCatalog gameData, int charges = 0,
+        IReadOnlyDictionary<string, int>? weaponProficiencies = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(gameData);
@@ -19,6 +20,7 @@ public static class ItemInspectionFormatter
         {
             WeaponDefinition weapon =>
                 $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? gameData.GetWeaponType(typeId).Name : "nincs")} | " +
+                WeaponProficiencyText(weapon, weaponProficiencies) +
                 $"sebzés: {weapon.Damage?.ToString() ?? "nincs"} | minimum Erő: {weapon.MinimumStrength} | " +
                 $"{(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | " +
                 (weapon.IsTwoHanded
@@ -47,6 +49,31 @@ public static class ItemInspectionFormatter
         return new ItemInspection($"{item.Name} [{item.Id}] — {details}. Ritkaság: {RarityName(item.Rarity)}; " +
             $"mágikus erő: {item.MagicPower}; alapár: {item.BasePrice} arany. Jellemzés: {description}",
             RarityColor(item.Rarity));
+    }
+
+    private static string WeaponProficiencyText(WeaponDefinition weapon,
+        IReadOnlyDictionary<string, int>? proficiencies)
+    {
+        var family = WeaponFamilies.Find(WeaponFamilies.ForWeapon(weapon) ?? string.Empty);
+        if (family is null) return "család: nincs | ";
+        var rank = proficiencies is not null && proficiencies.TryGetValue(family.Id, out var value)
+            ? (WeaponProficiencyRank?)Math.Clamp(value, 1, 2)
+            : null;
+        var rankText = rank switch
+        {
+            WeaponProficiencyRank.Master => "Mester",
+            WeaponProficiencyRank.Trained => "Jártas",
+            _ => "járatlan"
+        };
+        var active = rank switch
+        {
+            WeaponProficiencyRank.Master => family.MasterDescription,
+            WeaponProficiencyRank.Trained => family.TrainedDescription,
+            _ => "Nincs aktív jártassági bónusz."
+        };
+        var next = rank is null ? $" Következő fok: {family.TrainedDescription}"
+            : rank == WeaponProficiencyRank.Trained ? $" Következő fok: {family.MasterDescription}" : string.Empty;
+        return $"család: {family.Icon} {family.Name} | jártasság: {rankText} — {active}{next} | ";
     }
 
     private static string AllowedClassNames(IReadOnlySet<string> ids, GameDataCatalog gameData) => string.Join(", ",

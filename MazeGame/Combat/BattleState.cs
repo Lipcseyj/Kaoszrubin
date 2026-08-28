@@ -97,6 +97,7 @@ internal sealed class BattleRuntimeContext
         AmbushAvailable = player.HasPerk(PerkIds.ThiefAmbush);
         RequiresTacticSelection = player.CharacterClass.Id is CharacterClassIds.Harcos or CharacterClassIds.Tolvaj;
         KnightRetaliationReady = player.ConsumeKnightRetaliation();
+        PolearmMasterOpeningAvailable = true;
     }
 
     public bool ChallengeAvailable { get; set; }
@@ -109,6 +110,7 @@ internal sealed class BattleRuntimeContext
     public BattleTactic? Tactic { get; set; }
     public int BarbarianRageActionsRemaining { get; set; }
     public bool KnightRetaliationReady { get; set; }
+    public bool PolearmMasterOpeningAvailable { get; set; }
     public bool BarbarianRageTriggered { get; set; }
     public bool KnightProtectionAvailable { get; set; }
     public LiveCharacter? KnightProtector { get; set; }

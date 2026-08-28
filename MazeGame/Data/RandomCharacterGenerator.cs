@@ -17,6 +17,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         var character = CreateLevelOne(usedNames);
         RaiseToRandomLevel(character);
         AddRandomPerks(character);
+        AddRandomWeaponProficiencies(character);
         FillRandomEquipment(character);
         return character;
     }
@@ -27,6 +28,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         var character = CreateLevelOne(characterClass, usedNames);
         RaiseToRandomLevel(character);
         AddRandomPerks(character);
+        AddRandomWeaponProficiencies(character);
         FillRandomEquipment(character);
         EquipDevelopmentMagicItems(character);
         GiveDevelopmentKey(character);
@@ -49,6 +51,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
                 _random.Next(1, 16), _random.Next(1, 16), _gameData,
                 CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)], adaptableAbilityBonus);
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
+            AddRandomWeaponProficiencies(character);
             SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
             return character;
         }
@@ -68,6 +71,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
                 rolledAbilities, _random.Next(1, 16), _random.Next(1, 16), _gameData,
                 CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)], adaptableAbilityBonus);
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
+            AddRandomWeaponProficiencies(character);
             SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
             return character;
         }
@@ -95,6 +99,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             var targetLevel = Math.Clamp(leaderLevel + _random.Next(-3, 4), 1, maximumLevel);
             RaiseToLevel(character, targetLevel);
             AddRandomPerks(character);
+            AddRandomWeaponProficiencies(character);
             ImproveRecruitEquipment(character);
             FillRecruitBackpack(character);
             return character;
@@ -288,6 +293,22 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             values[available[_random.Next(available.Length)]]++;
         }
         return new PrimaryAbilities(values[0], values[1], values[2], values[3]);
+    }
+
+    private void AddRandomWeaponProficiencies(LiveCharacter character)
+    {
+        var desiredAdvances = WeaponProficiencyProgression.EarnedAdvances(
+            character.CharacterClass.Id, character.Level);
+        var families = WeaponFamilies.AvailableFor(character.CharacterClass.Id, _gameData.Weapons);
+        while (character.WeaponProficiencyAdvances < desiredAdvances)
+        {
+            var choices = families.Where(family =>
+                character.WeaponProficiencyRankFor(family.Id) != WeaponProficiencyRank.Master &&
+                (character.WeaponProficiencies.Count < 2 || character.WeaponProficiencyRankFor(family.Id) is not null))
+                .ToArray();
+            if (choices.Length == 0) break;
+            character.TryAdvanceWeaponProficiency(choices[_random.Next(choices.Length)].Id);
+        }
     }
 
     private PrimaryAbilities RandomAdaptableAbilityBonus(RaceDefinition race)

@@ -118,9 +118,12 @@ public static class CharacterSheetPanel
         var upgrades = details.ClassFeatureUpgradeNames ?? [];
         lines.Add(new(9, upgrades.Count > 0 ? Shorten($"L10: {upgrades[0]}", Width) : "L10: —", upgrades.Count > 0 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
         lines.Add(new(10, upgrades.Count > 1 ? Shorten($"L20: {upgrades[1]}", Width) : "L20: —", upgrades.Count > 1 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
-        lines.Add(new(11, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red));
-        lines.Add(new(12, details.UsesMana ? $"Manna: {character.CurrentMana}/{character.MaximumMana}" : "Manna: nincs",
-            ConsoleColor.Blue));
+        var proficiencies = details.WeaponProficiencyNames ?? [];
+        lines.Add(new(11, proficiencies.Count > 0 ? $"Fegyver: {string.Join(' ', proficiencies)}" : "Fegyver: —",
+            proficiencies.Count > 0 ? ConsoleColor.Yellow : ConsoleColor.DarkGray));
+        lines.Add(new(12, $"❤️{character.CurrentVitality}/{character.MaximumVitality}" +
+            (details.UsesMana ? $"  🔷{character.CurrentMana}/{character.MaximumMana}" : string.Empty),
+            details.UsesMana ? ConsoleColor.Cyan : ConsoleColor.Red));
         lines.Add(new(13, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow));
         lines.Add(new(14, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan));
         lines.Add(new(15, $"Arany: {character.Gold} {ConsoleRenderer.MoneyIcon}", ConsoleColor.Yellow));

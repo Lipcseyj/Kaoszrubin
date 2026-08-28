@@ -102,6 +102,9 @@ public sealed class CharacterSaveService
         character.RestoreSpecialization(saved.SpecializationId);
         foreach (var upgradeId in saved.ClassFeatureUpgradeIds)
             character.ChooseClassFeatureUpgrade(upgradeId);
+        foreach (var proficiency in saved.WeaponProficiencies)
+            for (var rank = 0; rank < Math.Clamp(proficiency.Rank, 0, 2); rank++)
+                character.TryAdvanceWeaponProficiency(proficiency.FamilyId);
         character.RestoreExplorationStepsTowardSpellAction(saved.ExplorationStepsTowardSpellAction ?? 0);
         SpellcastingRules.GiveRequiredFocus(character, _gameData);
 
@@ -189,6 +192,8 @@ public sealed class CharacterSaveService
         KnightRetaliationReady = character.KnightRetaliationReady,
         SpecializationId = character.SpecializationId,
         ClassFeatureUpgradeIds = character.ClassFeatureUpgrades.Select(upgrade => upgrade.Id).ToList(),
+        WeaponProficiencies = character.WeaponProficiencies.Select(proficiency =>
+            new WeaponProficiencySaveData(proficiency.FamilyId, (int)proficiency.Rank)).ToList(),
         ExplorationStepsTowardSpellAction = character.ExplorationStepsTowardSpellAction,
         LevelVitalityIncrease = character.UnmodifiedMaximumVitality - (_gameData.GetMinimumVitality(character.Abilities.Health) + character.VitalityBonus),
         LevelManaIncrease = character.UsesMana
@@ -268,6 +273,7 @@ public sealed class CharacterSaveService
         public bool? KnightRetaliationReady { get; init; }
         public string? SpecializationId { get; init; }
         public List<string> ClassFeatureUpgradeIds { get; init; } = [];
+        public List<WeaponProficiencySaveData> WeaponProficiencies { get; init; } = [];
         public int? ExplorationStepsTowardSpellAction { get; init; }
         public int? LevelVitalityIncrease { get; init; }
         public int? LevelManaIncrease { get; init; }
@@ -291,4 +297,5 @@ public sealed class CharacterSaveService
 
     private sealed record ItemSaveData(string Type, string Id, string? Name = null, int? Charges = null);
     private sealed record StatusSaveData(string Id, int? RemainingActivations);
+    private sealed record WeaponProficiencySaveData(string FamilyId, int Rank);
 }

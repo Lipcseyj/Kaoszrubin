@@ -3,6 +3,8 @@ namespace MazeGame.Domain.Characters;
 /// <summary>Az osztályok CSV-n kívüli alapvető játékszabályai.</summary>
 public static class CharacterClassRules
 {
+    public static bool IsMartial(string characterClassId) => characterClassId is
+        CharacterClassIds.Harcos or CharacterClassIds.Barbár or CharacterClassIds.Lovag;
     private static readonly HashSet<string> NonManaClassIds = new(StringComparer.OrdinalIgnoreCase)
     {
         CharacterClassIds.Harcos,

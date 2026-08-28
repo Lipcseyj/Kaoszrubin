@@ -61,10 +61,19 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 costs.Add($"💧 szomjúság: 🔷 -{statusCosts.ManaLost} manna");
             entries.Add(new BattleLogEntry($"Csatakezdő állapothatás — {string.Join("; ", costs)}.", BattleLogKind.Information));
         }
+        var attackWeapon = player.WeaponSlots.FirstOrDefault(item =>
+            item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
+        var initiativeFamily = WeaponFamilies.ForWeapon(attackWeapon);
+        var proficiencyInitiativeBonus = initiativeFamily switch
+        {
+            WeaponFamilies.Dagger when player.WeaponProficiencyRankFor(initiativeFamily) is not null => 2,
+            WeaponFamilies.Polearm when player.WeaponProficiencyRankFor(initiativeFamily) is not null => 3,
+            _ => 0
+        };
         var perkInitiativeBonus = player.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
         var magicInitiativeBonus = player.GetMagicItemBonus(MagicItemEffect.Initiative);
         var spellInitiativeBonus = player.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus);
-        var initiativeBonus = perkInitiativeBonus + magicInitiativeBonus + spellInitiativeBonus;
+        var initiativeBonus = perkInitiativeBonus + magicInitiativeBonus + spellInitiativeBonus + proficiencyInitiativeBonus;
         var playerInitiative = RollInitiative(player.Abilities.Dexterity + initiativeBonus - player.StatusInitiativePenalty);
         var enemyInitiativeBonus = MonsterAbilityValue(defender, MonsterAbilityEffect.InitiativeBonus);
         var enemyInitiative = RollInitiative(enemy.EffectiveSpeed + enemyInitiativeBonus);
@@ -73,6 +82,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (perkInitiativeBonus > 0) initiativeNotes.Add($"Első csapás +{perkInitiativeBonus}");
         if (magicInitiativeBonus > 0) initiativeNotes.Add($"varázstárgy +{magicInitiativeBonus}");
         if (spellInitiativeBonus > 0) initiativeNotes.Add($"áldás +{spellInitiativeBonus}");
+        if (proficiencyInitiativeBonus > 0)
+            initiativeNotes.Add($"{WeaponFamilies.Find(initiativeFamily!)!.Icon} jártasság +{proficiencyInitiativeBonus}");
         var perkText = initiativeNotes.Count > 0 ? $" [{string.Join(", ", initiativeNotes)}]" : string.Empty;
         var initiativeMessage = $"Kezdeményezés: {player.Name} Ügy {player.Abilities.Dexterity}{perkText}" +
             (player.StatusInitiativePenalty > 0
@@ -263,10 +274,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var invisibilityBonus = player.SpellEffectValue(ActiveSpellEffectType.Invisibility);
         var strengthHitBonus = StrengthHitBonus(player);
         var classHitBonus = ClassHitBonus(player);
+        var weaponFamily = WeaponFamilies.ForWeapon(weapon);
+        var weaponRank = player.WeaponProficiencyRankFor(weaponFamily);
         var retaliation = context.KnightRetaliationReady;
         context.KnightRetaliationReady = false;
         var hitBonus = PlayerHitBonus(player, context.Tactic, weapon is not null, invisibilityBonus,
-            strengthHitBonus, blessedWeaponBonus) + (retaliation ? 2 : 0);
+            strengthHitBonus, blessedWeaponBonus) + (retaliation ? 2 : 0) +
+                       (weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0);
         var hit = HitRoll(player.Abilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
         var strengthHitText = strengthHitBonus > 0 ? $" [Erő-találat +{strengthHitBonus}]" : string.Empty;
@@ -288,6 +302,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var perkBonus = player.GetMagicItemBonus(MagicItemEffect.Damage) + blessedWeaponBonus +
                         player.SpellEffectValue(ActiveSpellEffectType.DamageBonus);
         var notes = new List<string>();
+        if (weaponFamily == WeaponFamilies.Sword && weaponRank is not null)
+            notes.Add("⚔️ Kardjártasság +1 találat");
+        if (weaponFamily == WeaponFamilies.Dagger && weaponRank is not null)
+        { perkBonus += 1; notes.Add("🗡️ Tőrjártasság +1 sebzés"); }
+        if (weaponFamily == WeaponFamilies.Axe && weaponRank is not null)
+        { perkBonus += 2; notes.Add("🪓 Bárdjártasság +2 sebzés"); }
         if (blessedWeaponBonus > 0) notes.Add("Áldott fegyver +2");
         if (player.HasPerk(PerkIds.BarbarianBloodlust) && player.CurrentVitality * 2 < player.MaximumVitality) { perkBonus += 3; notes.Add("Vérszomj +3"); }
         if (player.HasPerk(PerkIds.BarbarianPrimalStrength)) { perkBonus += 5; notes.Add("Őserő +5"); }
@@ -312,7 +332,14 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var powerfulMastery = context.Tactic == BattleTactic.FighterPowerful &&
                               player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful);
         var armorPiercing = weapon?.IsTwoHanded == true || context.Tactic == BattleTactic.FighterPowerful;
-        var effectiveArmor = powerfulMastery ? (armor + 3) / 4 : armorPiercing ? (armor + 1) / 2 : armor;
+        var armorAfterPiercing = powerfulMastery ? (armor + 3) / 4 : armorPiercing ? (armor + 1) / 2 : armor;
+        var bluntArmorIgnored = weaponFamily == WeaponFamilies.Blunt ? weaponRank switch
+        {
+            WeaponProficiencyRank.Master => 4,
+            WeaponProficiencyRank.Trained => 2,
+            _ => 0
+        } : 0;
+        var effectiveArmor = Math.Max(0, armorAfterPiercing - bluntArmorIgnored);
         var damageMultiplierPercent = 100;
         if (context.AmbushAvailable)
         {
@@ -322,11 +349,27 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         }
         var criticalMultiplier = player.HasPerk(PerkIds.ThiefDeadlyAccuracy) && hit.NaturalRoll >= 18
             ? 3
+            : weaponFamily == WeaponFamilies.Axe && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll == 20
+                ? 3
+            : weaponFamily == WeaponFamilies.Dagger && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll >= 19
+                ? 2
             : hit.NaturalRoll == 20 || context.Tactic == BattleTactic.ThiefObserve && hit.NaturalRoll == 19 &&
               player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve) ? 2 : 1;
         if (criticalMultiplier > 1)
-            notes.Add(criticalMultiplier == 3 ? "💥 KRITIKUS — Halálos pontosság ×3" : "💥 KRITIKUS TALÁLAT ×2");
+            notes.Add(criticalMultiplier == 3
+                ? weaponFamily == WeaponFamilies.Axe && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll == 20 &&
+                  !player.HasPerk(PerkIds.ThiefDeadlyAccuracy)
+                    ? "💥 KRITIKUS — Bárdmester ×3"
+                    : "💥 KRITIKUS — Halálos pontosság ×3"
+                : "💥 KRITIKUS TALÁLAT ×2");
         damageMultiplierPercent *= criticalMultiplier;
+        if (weaponFamily == WeaponFamilies.Polearm && weaponRank == WeaponProficiencyRank.Master &&
+            context.PolearmMasterOpeningAvailable)
+        {
+            damageMultiplierPercent = damageMultiplierPercent * 150 / 100;
+            context.PolearmMasterOpeningAvailable = false;
+            notes.Add("🔱 Szálfegyver-mester: első találat ×1,5");
+        }
         var rawDamage = baseDamage + abilityBonus + randomBonus + perkBonus;
         var damage = ApplyDefense((rawDamage * damageMultiplierPercent + 99) / 100, effectiveArmor);
         var statusDamagePenalty = player.StatusPhysicalDamagePenalty;
@@ -376,8 +419,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var noteText = notes.Count == 0 ? string.Empty : $" [{string.Join(", ", notes)}]";
         var perkBonusText = perkBonus == 0 ? string.Empty : $" + bónusz {perkBonus}";
         var armorText = armorPiercing
-            ? $"páncél {armor} → {effectiveArmor} ({(context.Tactic == BattleTactic.FighterPowerful ? "💥 erőteljes páncéltörés" : "⚒️ páncéltörés")})"
+            ? $"páncél {armor} → {armorAfterPiercing} ({(context.Tactic == BattleTactic.FighterPowerful ? "💥 erőteljes páncéltörés" : "⚒️ páncéltörés")})"
             : $"páncél {armor}";
+        if (bluntArmorIgnored > 0)
+            armorText += $" → {effectiveArmor} (🔨 jártasság -{bluntArmorIgnored})";
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
         return AttackResult.HitFor(damage,
             $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplierPercent / 100d:0.##} - {armorText} = {damageText}.{noteText}",
@@ -387,12 +432,15 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public int EstimatePlayerHitChance(LiveCharacter player, Enemy enemy, BattleTactic tactic)
     {
         var defender = enemy.Definition with { HitPoints = enemy.CurrentHitPoints };
-        var weaponEquipped = player.WeaponSlots.Any(item => item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
+        var weapon = player.WeaponSlots.FirstOrDefault(item => item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
+        var weaponEquipped = weapon is not null;
         var blessedWeaponBonus = player.HasPerk(PerkIds.PriestBlessedWeapon) &&
                                  defender.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase) ? 2 : 0;
         var bonus = PlayerHitBonus(player, tactic, weaponEquipped,
             player.SpellEffectValue(ActiveSpellEffectType.Invisibility), StrengthHitBonus(player), blessedWeaponBonus) -
-                    player.StatusHitPenalty;
+                    player.StatusHitPenalty +
+                    (WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Sword &&
+                     player.WeaponProficiencyRankFor(WeaponFamilies.Sword) is not null ? 1 : 0);
         var target = 11 + enemy.EffectiveSpeed;
         var successfulRolls = Enumerable.Range(1, 20).Count(roll =>
             roll != 1 && (roll == 20 || roll + player.Abilities.Dexterity + bonus >= target));
@@ -448,6 +496,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var armor = RollArmor(defender);
         var shieldEquipped = defender.WeaponSlots.Any(item => item?.WeaponTypeId == DefenseWeaponTypeId);
         var shield = defender.WeaponSlots.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } shieldRange ? Roll(shieldRange) : 0;
+        var shieldRank = defender.WeaponProficiencyRankFor(WeaponFamilies.Shield);
+        if (shieldRank == WeaponProficiencyRank.Master && shieldEquipped &&
+            defender.WeaponSlots.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } masterShieldRange)
+            shield = Math.Max(shield, Roll(masterShieldRange));
         var evilWard = IsUnholy(attacker)
             ? defender.ActiveSpellEffects.Where(effect => effect.Type == ActiveSpellEffectType.ProtectionFromEvil).ToList()
             : [];
@@ -462,6 +514,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                           (shieldEquipped && defender.HasPerk(PerkIds.KnightShieldWall) ? 2 : 0) +
                           defender.GetMagicItemBonus(MagicItemEffect.Defense) +
                           defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus) + evilWardDefense +
+                          (shieldEquipped && shieldRank is not null ? 1 : 0) +
+                          (defender.WeaponSlots.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
+                           defender.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master ? 1 : 0) +
                           tacticDefense - rageDefensePenalty;
         var reduction = (defender.HasPerk(PerkIds.FighterUnbreakable) ? 2 : 0) + (defender.HasPerk(PerkIds.KnightInvincible) ? 4 : 0);
         var monsterBonusDamage = RollMonsterBonusDamage(attacker);

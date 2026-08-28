@@ -792,7 +792,17 @@ public sealed class MainMenu
             ColoredText("🌟 10./20. szint: Tomboló elemek — további +15% arkán sebzés | Tökéletes illúzió — kontroll/védelem +1 akció | Életaratás — sebzés 15%-a gyógyít.", ConsoleColor.DarkCyan),
             Text("1. fokozat — 5. szint (Ember: 4.): Arkán fókusz — +2 mágikus találat | Mannatartalék — +15 max manna."),
             Text("2. fokozat — 15. szint: Elemi mester — sebző varázslatok ×1,25 | Mágikus pajzs — a sebzés 25%-át manna nyeli el."),
-            Text("3. fokozat — 25. szint: Láncvarázslat — 30% eséllyel ingyen megismétlődik | Főmágus — +25 max manna és -2 mannaköltség.")
+            Text("3. fokozat — 25. szint: Láncvarázslat — 30% eséllyel ingyen megismétlődik | Főmágus — +25 max manna és -2 mannaköltség."),
+            Blank(),
+            Section("FEGYVERJÁRTASSÁGOK", ConsoleColor.Yellow),
+            Text("A Harcos, Barbár és Lovag karakteralkotáskor, majd a 7., 17. és 27. szinten kap egy jártassági lépést. A Tolvaj, Pap és Mágus a 7. és 17. szinten kap lépést."),
+            Text("Egy karakter legfeljebb két fegyvercsaládot tanulhat. Egy lépés új családban Jártas fokot nyit, vagy egy Jártas családot Mester fokra emel. A járatlan fegyver büntetés nélkül használható."),
+            ColoredText("🗡️ Tőr — Jártas: +2 kezdeményezés, +1 sebzés | Mester: természetes 19–20 esetén ×2 kritikus.", ConsoleColor.DarkYellow),
+            ColoredText("⚔️ Kard — Jártas: +1 találat | Mester: felszerelt karddal +1 védelem.", ConsoleColor.Cyan),
+            ColoredText("🪓 Bárd — Jártas: +2 sebzés | Mester: természetes 20 esetén ×3 kritikus.", ConsoleColor.Red),
+            ColoredText("🔨 Zúzófegyver — Jártas: -2 ellenséges páncél | Mester: összesen -4 páncél. A fix csökkentés a páncélfelezés után történik.", ConsoleColor.DarkYellow),
+            ColoredText("🔱 Szálfegyver — Jártas: +3 kezdeményezés | Mester: a csata első sikeres találata ×1,5 sebzés.", ConsoleColor.Green),
+            ColoredText("🛡️ Pajzs — Jártas: +1 védelem | Mester: a pajzs védelmi dobása kétszer történik, és a jobb eredmény számít.", ConsoleColor.Blue)
         };
         ShowScrollableHelp(source);
     }

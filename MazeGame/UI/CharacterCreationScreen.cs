@@ -58,6 +58,12 @@ public sealed class CharacterCreationScreen
 
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
                 vitalityBonus, manaBonus, _gameData, color.Value, adaptableAbilityBonus.Value);
+            if (CharacterClassRules.IsMartial(character.CharacterClass.Id))
+            {
+                var family = ChooseStartingWeaponProficiency(character);
+                if (family is null) continue;
+                character.TryAdvanceWeaponProficiency(family.Id);
+            }
             if (character.IsSpellcaster) ChooseStartingSpells(character);
             _characterRoster.Add(character);
             ShowCreatedCharacter(character);
@@ -84,6 +90,7 @@ public sealed class CharacterCreationScreen
 
                 var character = LiveCharacterFactory.Create(nameFactory(characterClass), race, characterClass, rolledAbilities,
                     _random.Next(1, 16), _random.Next(1, 16), _gameData, RandomCharacterColor(), adaptableAbilityBonus);
+                GiveRandomStartingWeaponProficiency(character);
                 SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
                 return character;
             }
@@ -228,6 +235,45 @@ public sealed class CharacterCreationScreen
             else if (key == ConsoleKey.DownArrow) selectedIndex = (selectedIndex + 1) % eligibleClasses.Count;
             else if (key == ConsoleKey.Enter) return eligibleClasses[selectedIndex];
         }
+    }
+
+    private WeaponFamilyDefinition? ChooseStartingWeaponProficiency(LiveCharacter character)
+    {
+        var choices = WeaponFamilies.AvailableFor(character.CharacterClass.Id, _gameData.Weapons);
+        if (choices.Count == 0) return null;
+        var selectedIndex = 0;
+        while (true)
+        {
+            DrawFrame("⚔️ KEZDŐ FEGYVERJÁRTASSÁG", Math.Max(15, choices.Count * 3 + 7));
+            WriteInside(3, "Válassz egy fegyvercsaládot! A választás végleges.", ConsoleColor.Cyan);
+            foreach (var (choice, index) in choices.Select((choice, index) => (choice, index)))
+            {
+                WriteInside(5 + index * 2, $"{(index == selectedIndex ? "▶" : " ")} {choice.Icon} {choice.Name}",
+                    index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray);
+                WriteInside(6 + index * 2, $"   {choice.TrainedDescription}",
+                    index == selectedIndex ? ConsoleColor.White : ConsoleColor.DarkGray);
+            }
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow:
+                    selectedIndex = (selectedIndex - 1 + choices.Count) % choices.Count;
+                    break;
+                case ConsoleKey.DownArrow:
+                    selectedIndex = (selectedIndex + 1) % choices.Count;
+                    break;
+                case ConsoleKey.Enter:
+                    return choices[selectedIndex];
+                case ConsoleKey.Escape:
+                    return null;
+            }
+        }
+    }
+
+    private void GiveRandomStartingWeaponProficiency(LiveCharacter character)
+    {
+        if (!CharacterClassRules.IsMartial(character.CharacterClass.Id)) return;
+        var choices = WeaponFamilies.AvailableFor(character.CharacterClass.Id, _gameData.Weapons);
+        if (choices.Count > 0) character.TryAdvanceWeaponProficiency(choices[_random.Next(choices.Count)].Id);
     }
 
     private static PrimaryAbilities? ChooseAdaptableAbilityBonus(RaceDefinition race)

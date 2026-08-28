@@ -7,7 +7,9 @@ namespace MazeGame.Application;
 public sealed record CharacterSheetSnapshot(string RaceName, string CharacterClassName, int Experience,
     int? NextLevelExperience, PrimaryAbilities Abilities, IReadOnlyList<string> PerkNames,
     IReadOnlyList<string> StatusIcons, bool UsesMana, ConsoleColor Color,
-    IReadOnlyList<string>? ClassFeatureUpgradeNames = null);
+    IReadOnlyList<string>? ClassFeatureUpgradeNames = null,
+    IReadOnlyList<string>? WeaponProficiencyNames = null,
+    IReadOnlyDictionary<string, int>? WeaponProficiencyRanks = null);
 
 public static class SpellInfoSnapshotProjector
 {
@@ -49,6 +51,13 @@ public static class CharacterSheetSnapshotProjector
             character.Perks.Select(perk => perk.Name)
                 .Concat(character.Specialization is { } specialization ? [$"{specialization.Name} specializáció"] : [])
                 .ToArray(), icons, character.UsesMana, character.Color,
-            character.ClassFeatureUpgrades.Select(upgrade => upgrade.Name).ToArray());
+            character.ClassFeatureUpgrades.Select(upgrade => upgrade.Name).ToArray(),
+            character.WeaponProficiencies.Select(proficiency =>
+            {
+                var family = WeaponFamilies.Find(proficiency.FamilyId)!;
+                return $"{family.Icon}{(proficiency.Rank == WeaponProficiencyRank.Master ? "M" : "J")}";
+            }).ToArray(),
+            character.WeaponProficiencies.ToDictionary(proficiency => proficiency.FamilyId,
+                proficiency => (int)proficiency.Rank, StringComparer.OrdinalIgnoreCase));
     }
 }

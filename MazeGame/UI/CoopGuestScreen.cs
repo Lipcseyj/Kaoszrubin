@@ -812,7 +812,8 @@ public sealed class CoopGuestScreen
                         ItemCategory.MagicItem => _gameData.GetMagicItem(inspectSlot.Item.DefinitionId),
                         _ => _gameData.GetItem(inspectSlot.Item.DefinitionId)
                     };
-                    var inspection = ItemInspectionFormatter.Format(definition, _gameData, inspectSlot.Item.Charges);
+                    var inspection = ItemInspectionFormatter.Format(definition, _gameData, inspectSlot.Item.Charges,
+                        own?.CharacterSheet?.WeaponProficiencyRanks);
                     SetMessage(inspection.Text, inspection.Color);
                 }
                 break;
@@ -1328,6 +1329,7 @@ public sealed class CoopGuestScreen
                 LevelUpPromptKind.SpecializationChoice => "✨  SPECIALIZÁCIÓ  ✨",
                 LevelUpPromptKind.ClassFeatureChoice => "🌟  OSZTÁLYKÉPESSÉG FEJLESZTÉSE  🌟",
                 LevelUpPromptKind.AbilityChoice => "💪🏹❤️🧠  KÉPESSÉGPONT  💪🏹❤️🧠",
+                LevelUpPromptKind.WeaponProficiencyChoice => "⚔️  FEGYVERJÁRTASSÁG  ⚔️",
                 LevelUpPromptKind.SpellChoice => "📖  ÚJ VARÁZSLAT TANULÁSA",
                 _ => "✨🏆✨  SZINTLÉPÉS!  ✨🏆✨"
             }, prompt.Kind == LevelUpPromptKind.Summary ? ConsoleColor.Yellow : ConsoleColor.Magenta),

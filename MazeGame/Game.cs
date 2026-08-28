@@ -1688,7 +1688,9 @@ public sealed class Game
         var inspection = ItemInspectionFormatter.Format(item, _gameData,
             slot is { } itemSlot
                 ? itemSlot.Character.GetInventoryItemCharges(itemSlot.Kind, itemSlot.Index)
-                : 0);
+                : 0,
+            slot?.Character.WeaponProficiencies.ToDictionary(proficiency => proficiency.FamilyId,
+                proficiency => (int)proficiency.Rank, StringComparer.OrdinalIgnoreCase));
         _renderer.DrawInventoryMessage(inspection.Text, inspection.Color);
     }
 
@@ -4362,6 +4364,7 @@ public sealed class Game
         if (ShouldChooseSpecialization(character, offers)) ResolveLocalSpecialization(character);
         ResolveLocalClassFeatureUpgrades(character, result);
         ResolveLocalAbilityIncreases(character, result);
+        ResolveLocalWeaponProficiencies(character, result);
         ResolveSpellLearning(character, result);
     }
 
@@ -4382,6 +4385,7 @@ public sealed class Game
         if (ShouldChooseSpecialization(character, offers)) ResolveRemoteSpecialization(character, result);
         ResolveRemoteClassFeatureUpgrades(character, result);
         ResolveRemoteAbilityIncreases(character, result);
+        ResolveRemoteWeaponProficiencies(character, result);
         ResolveRemoteSpellLearning(character, result);
     }
 
@@ -4508,6 +4512,55 @@ public sealed class Game
             : 0;
         character.ApplyAbilityResourceIncrease(newVitalityBase - oldVitalityBase, newManaBase - oldManaBase);
         return true;
+    }
+
+    private static int EarnedWeaponProficiencyAdvances(LiveCharacter character, int level) =>
+        WeaponProficiencyProgression.EarnedAdvances(character.CharacterClass.Id, level);
+
+    private IReadOnlyList<(string Id, string Name, string Description)> WeaponProficiencyChoices(
+        LiveCharacter character) => WeaponFamilies.AvailableFor(character.CharacterClass.Id, _gameData.Weapons)
+        .Where(family => character.WeaponProficiencyRankFor(family.Id) != WeaponProficiencyRank.Master &&
+                         (character.WeaponProficiencies.Count < 2 ||
+                          character.WeaponProficiencyRankFor(family.Id) is not null))
+        .Select(family => character.WeaponProficiencyRankFor(family.Id) is null
+            ? (family.Id, $"{family.Icon} {family.Name} — Jártas", family.TrainedDescription)
+            : (family.Id, $"{family.Icon} {family.Name} — Mester", family.MasterDescription))
+        .ToArray();
+
+    private static int NextWeaponProficiencyMilestone(LiveCharacter character)
+    {
+        var index = character.WeaponProficiencyAdvances;
+        return WeaponProficiencyProgression.MilestonesFor(character.CharacterClass.Id).ElementAtOrDefault(index);
+    }
+
+    private void ResolveLocalWeaponProficiencies(LiveCharacter character, LevelUpResult result)
+    {
+        var earned = EarnedWeaponProficiencyAdvances(character, result.CurrentLevel);
+        while (character.WeaponProficiencyAdvances < earned)
+        {
+            var choices = WeaponProficiencyChoices(character);
+            if (choices.Count == 0) return;
+            var milestone = NextWeaponProficiencyMilestone(character);
+            character.TryAdvanceWeaponProficiency(
+                _renderer.DrawWeaponProficiencyChoice(character, choices, milestone));
+        }
+    }
+
+    private void ResolveRemoteWeaponProficiencies(LiveCharacter character, LevelUpResult result)
+    {
+        var earned = EarnedWeaponProficiencyAdvances(character, result.CurrentLevel);
+        while (character.WeaponProficiencyAdvances < earned)
+        {
+            var choices = WeaponProficiencyChoices(character);
+            if (choices.Count == 0) return;
+            var milestone = NextWeaponProficiencyMilestone(character);
+            var projected = choices.Select(choice =>
+                new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray();
+            var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.WeaponProficiencyChoice,
+                projected, $"{milestone}. szint — válassz fegyverjártassági fejlesztést.");
+            character.TryAdvanceWeaponProficiency(
+                choices.FirstOrDefault(choice => choice.Id == selectedId).Id ?? choices[0].Id);
+        }
     }
 
     private void ResolveRemoteSpellLearning(LiveCharacter character, LevelUpResult result)
