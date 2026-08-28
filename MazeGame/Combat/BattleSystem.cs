@@ -244,7 +244,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private InitiativeRoll RollInitiative(int speed)
     {
         var modifier = _random.Next(2) == 0 ? -Roll(new ValueRange(1, 2)) : Roll(new ValueRange(1, 2));
-        return new InitiativeRoll(speed + modifier, $"{(modifier >= 0 ? "+" : string.Empty)}1d2({modifier})");
+        return new InitiativeRoll(speed + modifier, $"±1d2({modifier:+#;-#;0})");
     }
 
     private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleRuntimeContext context, int defenderSpeed)

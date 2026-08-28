@@ -45,6 +45,8 @@ public sealed class BattleState
     public BattleResult? Result { get; internal set; }
     public BattleTactic? Tactic => Context.Tactic;
     public bool RequiresTacticSelection => Context.RequiresTacticSelection && Context.Tactic is null;
+    public bool IsAwaitingTacticSelection => IsPlayerTurn && RequiresTacticSelection;
+    public bool IsOpeningEnemyTurn => !IsPlayerTurn && Round == 0;
     public bool IsBarbarianRaging => Context.BarbarianRageActionsRemaining > 0;
 
     public bool TryChooseTactic(BattleTactic tactic)

@@ -2470,7 +2470,7 @@ public sealed class Game
             DrawBattleActionPrompt(enemy);
             return;
         }
-        if (_activeBattleState.RequiresTacticSelection && key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 or
+        if (_activeBattleState.IsAwaitingTacticSelection && key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 or
                 ConsoleKey.D2 or ConsoleKey.NumPad2 or ConsoleKey.D3 or ConsoleKey.NumPad3)
         {
             var option = key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 ? 1 :
@@ -2547,7 +2547,7 @@ public sealed class Game
 
     private void DrawBattleActionPrompt(Enemy enemy)
     {
-        if (_activeBattleState?.RequiresTacticSelection == true)
+        if (_activeBattleState?.IsAwaitingTacticSelection == true)
         {
             _renderer.DrawInventoryMessage(SelectedCharacter.CharacterClass.Id == CharacterClassIds.Harcos
                 ? "Válassz harci állást: 1 — Pontos | 2 — Erőteljes | 3 — Védekező"
@@ -2720,7 +2720,7 @@ public sealed class Game
         if (_activeBattleState is { IsCompleted: false, IsPlayerTurn: false } enemyTurn &&
             enemyTurn.PlayerCharacterId == character.Id)
             return [BattleActionKind.AdvanceEnemyTurn];
-        if (_activeBattleState is { RequiresTacticSelection: true } state && state.PlayerCharacterId == character.Id)
+        if (_activeBattleState is { IsAwaitingTacticSelection: true } state && state.PlayerCharacterId == character.Id)
             return character.CharacterClass.Id == CharacterClassIds.Harcos
                 ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
                 : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
@@ -3702,7 +3702,14 @@ public sealed class Game
     {
         while (_activeBattleState is { IsCompleted: false } state)
         {
-            if (state.RequiresTacticSelection)
+            if (state.IsOpeningEnemyTurn)
+            {
+                var openingSupportDamage = TryPartyMembersActInBattle(state.Player, state.Enemy);
+                var openingStep = _battleSystem.Advance(state, supportDamage: openingSupportDamage);
+                PresentBattleEntries(openingStep.Entries);
+                continue;
+            }
+            if (state.IsAwaitingTacticSelection)
             {
                 var battleCharacter = state.Player;
                 _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,

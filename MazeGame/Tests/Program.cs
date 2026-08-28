@@ -36,6 +36,8 @@ var tests = new (string Name, Action Run)[]
     ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
+    ("Az ellenséges kezdeményezés az első saját körig késlelteti a taktikát", EnemyInitiativeDelaysTacticPrompt),
+    ("A kezdeményezési napló előjeles 1d2 dobást mutat", InitiativeLogShowsSignedDie),
     ("A barbár öt sebzés után Dühbe gurul", BarbarianRageTriggersAfterFiveDamage),
     ("A lovagi közbelépés felezi az első találat sebzését", KnightProtectionHalvesFirstHit),
     ("A csata megvárhatja a játékos hálózati akcióját", BattleCanWaitForPlayerAction),
@@ -681,6 +683,29 @@ static void InnSnapshotCarriesSharedRumors()
            restored.PartyFreeBackpackSlots == 7 && restored.LevelCompletion?.CompletionId == completionId &&
            restored.LevelCompletion.FallenCharacters is [{ Name: "Elesett" }],
         "A fogadó közös menü- vagy pályavégi állapota nem maradt meg a snapshot JSON round-trip során.");
+}
+
+static void EnemyInitiativeDelaysTacticPrompt()
+{
+    var system = CreateBattleSystem(710);
+    var fighter = CreateCharacter("Harcos", vitality: 100, characterClassId: CharacterClassIds.Harcos);
+    var state = system.StartBattle(fighter, CreateEnemy(100, 1, speed: 100)).State;
+    Assert(state.IsOpeningEnemyTurn && state.RequiresTacticSelection && !state.IsAwaitingTacticSelection,
+        "Az ellenséges nyitókör előtt a rendszer már taktikai inputot várt.");
+    system.Advance(state);
+    Assert(state.IsPlayerTurn && state.IsAwaitingTacticSelection,
+        "Az első ellenséges támadás után nem jelent meg az első saját kör taktikai választása.");
+}
+
+static void InitiativeLogShowsSignedDie()
+{
+    var started = CreateBattleSystem(711).StartBattle(CreateCharacter("Kezdeményező"),
+        CreateEnemy(100, 1));
+    var message = started.Entries.Single(entry => entry.Message.StartsWith("Kezdeményezés:",
+        StringComparison.Ordinal)).Message;
+    Assert(message.Split("±1d2(", StringSplitOptions.None).Length == 3 &&
+           !message.Contains(" +1d2(", StringComparison.Ordinal),
+        "A kezdeményezési napló nem mindkét félnél ±1d2 formában mutatja a dobást.");
 }
 
 static void SnapshotRequiresCurrentBattlePrompt()
@@ -1571,8 +1596,8 @@ static BattleSystem CreateBattleSystem(int seed) => new(new Random(seed),
     Array.Empty<MonsterAbilityDefinition>(), Array.Empty<StatusDefinition>(),
     Array.Empty<StrengthHitBonusDefinition>());
 
-static ConfiguredEnemy CreateEnemy(int hitPoints, int strength) => new(new Position(1, 1),
-    new EnemyDefinition("E-TEST", "Tesztellenfél", "e", strength, hitPoints, 0, 1,
+static ConfiguredEnemy CreateEnemy(int hitPoints, int strength, int speed = 1) => new(new Position(1, 1),
+    new EnemyDefinition("E-TEST", "Tesztellenfél", "e", strength, hitPoints, 0, speed,
         1, 1, Array.Empty<string>()));
 
 static ConfiguredEnemy CreateEnemyAt(Position position, string id, string appearance = "e") => new(position,
