@@ -3811,6 +3811,7 @@ public sealed class Game
         Enemy enemy)
     {
         var needLoss = DrainNeedsAfterBattle(battleCharacter, enemy.Definition.StrengthTier);
+        var companionDied = !result.PlayerWon;
         _renderer.DrawBattleResult(result, enemy);
         if (result.PlayerWon)
         {
@@ -3835,10 +3836,12 @@ public sealed class Game
                 _maze.ReplacePartyMemberWithCorpse(member);
                 _nextPartyMoves.Remove(member);
             }
+            _activeCoopHost?.TryPublishCharacterState(battleCharacter.Id,
+                _gameSaveService.SerializeCharacter(battleCharacter), CharacterSyncReason.CharacterDied);
             _session.ReleaseCharacterControl(battleCharacter.Id);
             _renderer.DrawNpcBattleSummary(
                 $"{battleCharacter.Name} elesett a(z) {enemy.Name} elleni távoli csatában {result.Rounds} kör után. " +
-                $"A vendég megfigyelő marad; 🍖💧 -{needLoss}.", ConsoleColor.Red);
+                $"A vendég visszatér a főmenübe; 🍖💧 -{needLoss}.", ConsoleColor.Red);
         }
 
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
@@ -3847,6 +3850,12 @@ public sealed class Game
         _battleStarted = false;
         _session.SetPhase(GameSessionPhase.Exploration);
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
+        if (companionDied)
+        {
+            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+            _renderer.DrawCompanionDeath(battleCharacter.Name);
+            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        }
     }
 
     private void DrainNeeds()

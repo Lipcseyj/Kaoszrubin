@@ -34,6 +34,7 @@ public sealed class CoopGuestScreen
     private long _lastSessionActivitySequence;
     private long _lastSessionSoundSequence;
     private bool _sessionSoundsInitialized;
+    private int _deathStateSynchronized;
     private Guid? _acknowledgedNarrativeId;
     private bool _spellInfoOpen;
     private int _spellInfoSelection;
@@ -76,14 +77,22 @@ public sealed class CoopGuestScreen
             try
             {
                 persistCharacterState?.Invoke(state);
-                SetMessage(state.Reason == CharacterSyncReason.GameSaved
-                    ? "A host mentette és visszaszinkronizálta a karakteredet."
-                    : "A karaktered végső állapota visszaszinkronizálva.", ConsoleColor.Green);
+                SetMessage(state.Reason switch
+                {
+                    CharacterSyncReason.GameSaved => "A host mentette és visszaszinkronizálta a karakteredet.",
+                    CharacterSyncReason.CharacterDied => "A karaktered halálállapota visszaszinkronizálva.",
+                    _ => "A karaktered végső állapota visszaszinkronizálva."
+                }, ConsoleColor.Green);
             }
             catch (Exception exception) when (exception is IOException or InvalidOperationException or
                                                UnauthorizedAccessException)
             {
                 SetMessage($"A helyi karakter mentése sikertelen: {exception.Message}", ConsoleColor.Red);
+            }
+            finally
+            {
+                if (state.Reason == CharacterSyncReason.CharacterDied)
+                    Interlocked.Exchange(ref _deathStateSynchronized, 1);
             }
         };
 
@@ -104,6 +113,13 @@ public sealed class CoopGuestScreen
             {
                 if (Interlocked.Exchange(ref _redrawRequested, 0) != 0)
                     Draw(client, selected);
+                if (Volatile.Read(ref _deathStateSynchronized) != 0 &&
+                    client.CurrentSnapshot?.Party.FirstOrDefault(character =>
+                        character.CharacterId == selected.CharacterId) is { IsAlive: false })
+                {
+                    ConsoleRenderer.DrawCoopGuestGameOver(selected.Name);
+                    break;
+                }
                 if (Console.KeyAvailable)
                 {
                     var key = Console.ReadKey(intercept: true);

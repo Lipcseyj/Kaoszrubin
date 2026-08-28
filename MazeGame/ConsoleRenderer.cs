@@ -400,11 +400,6 @@ public sealed class ConsoleRenderer
     /// </summary>
     public void DrawGameOver(string characterName)
     {
-        ResetColorCache();
-        Console.Clear();
-
-        var left = Math.Max(0, (Console.WindowWidth - GameOverFrameWidth) / FrameBorderWidth);
-        var top = Math.Max(GameOverMinimumTop, (Console.WindowHeight - GameOverFrameHeight) / FrameBorderWidth);
         var lines = new[]
         {
             "💀  JÁTÉK VÉGE  💀",
@@ -416,22 +411,66 @@ public sealed class ConsoleRenderer
             string.Empty,
             "Nyomj meg egy billentyűt a főmenühöz."
         };
+        DrawGameOverFrame(lines);
+    }
 
-        SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
+    public static void DrawCoopGuestGameOver(string characterName) => DrawGameOverFrame(
+    [
+        "💀  JÁTÉK VÉGE  💀",
+        string.Empty,
+        $"{characterName}, elestél a labirintus mélyén.",
+        "A kalandod ezen a ponton véget ért.",
+        "A host csapata nélküled folytathatja az utat.",
+        "Új coop játékhoz válassz vagy készíts egy élő karaktert,",
+        "majd csatlakozz újra a host címére.",
+        string.Empty,
+        "Nyomj meg egy billentyűt a főmenühöz."
+    ]);
+
+    public void DrawCompanionDeath(string characterName)
+    {
+        DrawGameOverFrame(
+        [
+            "💀  EGY TÁRS ELBUKOTT  💀",
+            string.Empty,
+            $"{characterName} elhalálozott a labirintus mélyén.",
+            "A vendég a Game Over képernyő után visszatér a főmenübe.",
+            "Ha újra együtt játszanátok, válasszon vagy készítsen egy élő karaktert,",
+            "majd csatlakozzon újra ugyanerre a host címre.",
+            "A megmaradt csapattal addig is folytathatod a kalandot.",
+            string.Empty,
+            "Nyomj meg egy billentyűt a folytatáshoz."
+        ]);
+        ResetColorCache();
+    }
+
+    private static void DrawGameOverFrame(IReadOnlyList<string> lines)
+    {
+        Console.ResetColor();
+        Console.Clear();
+
+        var left = Math.Max(0, (Console.WindowWidth - GameOverFrameWidth) / FrameBorderWidth);
+        var top = Math.Max(GameOverMinimumTop, (Console.WindowHeight - (lines.Count + 2)) / FrameBorderWidth);
+
+        Console.ForegroundColor = ConsoleColor.DarkRed;
+        Console.BackgroundColor = ConsoleColor.Black;
         WriteAt(left, top, "╔" + new string('═', GameOverFrameWidth - FrameBorderWidth) + "╗");
-        for (var index = 0; index < lines.Length; index++)
+        for (var index = 0; index < lines.Count; index++)
         {
-            SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
+            Console.ForegroundColor = ConsoleColor.DarkRed;
+            Console.BackgroundColor = ConsoleColor.Black;
             WriteAt(left, top + index + 1, "║");
-            SetColors(index == 0 ? ConsoleColor.Red : index == lines.Length - 1 ? ConsoleColor.Yellow : ConsoleColor.Gray, ConsoleColor.Black);
+            Console.ForegroundColor = index == 0 ? ConsoleColor.Red :
+                index == lines.Count - 1 ? ConsoleColor.Yellow : ConsoleColor.Gray;
             WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1,
                 lines[index].PadRight(GameOverFrameWidth - CenteredFrameHorizontalPadding * FrameBorderWidth));
-            SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
+            Console.ForegroundColor = ConsoleColor.DarkRed;
             WriteAt(left + GameOverFrameWidth - 1, top + index + 1, "║");
         }
-        SetColors(ConsoleColor.DarkRed, ConsoleColor.Black);
-        WriteAt(left, top + lines.Length + 1, "╚" + new string('═', GameOverFrameWidth - FrameBorderWidth) + "╝");
+        Console.ForegroundColor = ConsoleColor.DarkRed;
+        WriteAt(left, top + lines.Count + 1, "╚" + new string('═', GameOverFrameWidth - FrameBorderWidth) + "╝");
         Console.ReadKey(intercept: true);
+        Console.ResetColor();
     }
 
     public void DrawLevelCompletionScreen(int completedLevel, int baseExperience,

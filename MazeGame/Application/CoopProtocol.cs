@@ -20,7 +20,7 @@ public sealed record SnapshotResyncRequest(PlayerId PlayerId);
 public sealed record CharacterControlRequest(PlayerId PlayerId, CharacterId CharacterId);
 public sealed record JoinCharacterRequest(PlayerId PlayerId, string CharacterData);
 
-public enum CharacterSyncReason { GameSaved, SessionEnded }
+public enum CharacterSyncReason { GameSaved, SessionEnded, CharacterDied }
 
 public sealed record CharacterStateSync(PlayerId PlayerId, CharacterId CharacterId, string CharacterData,
     CharacterSyncReason Reason);
