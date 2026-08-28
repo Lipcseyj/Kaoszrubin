@@ -894,3 +894,56 @@ INN-23,A Rubinserleg
 INN-24,A Káosz Korsója
 INN-25,Az Utolsó Lámpás
 INN-26,A Vándor Pihenője
+
+#Pletykák
+Id,Név
+PL001,Azt beszélik, hogy az északi erdőben egy farkas jár, amelyik emberi hangon kiált segítségért. Aki válaszol neki, azt többé nem látják.
+PL002,Egy részeg bányász szerint a hegyek alatt aranyból készült ajtót találtak. Másnapra a bányász és az egész tárna bejárata eltűnt.
+PL003,A múlt héten egy kereskedő három koboldot látott egy szekéren utazni. Állítólag még útdíjat is fizettek.
+PL004,Azt mondják, teliholdkor egy fekete lovag áll a régi híd közepén. Nem támad, csak megkérdezi az átkelőktől, hogy látták-e már a halált.
+PL005,Egy öreg vadász esküszik rá, hogy a trollok félnek a macskáktól. Senki sem volt még elég ostoba, hogy kipróbálja.
+PL006,A keleti romok között állítólag van egy kút, amelyből éjszakánként énekszó hallatszik. Vizet viszont száz éve senki sem mert húzni belőle.
+PL007,A pék szerint valaki minden éjjel ellop egyetlen cipót az ablakából. Tegnap lisztet szórt a földre, reggelre apró mezítlábas lábnyomokat talált.
+PL008,Egy vándor azt mesélte, hogy látott egy goblint tökéletes közös nyelven verseket szavalni. Senki sem hitte el neki, főleg mert nagyon részeg volt.
+PL009,A déli mocsárban állítólag egy elsüllyedt templom tornya bukkan elő minden századik éjszakán. A harangja olyankor magától megszólal.
+PL010,A városi őrség kapitánya tagadja, hogy patkányemberek élnének a csatornákban. Érdekes módon az őrök sötétedés után mégsem mennek le oda.
+PL011,Azt beszélik, egy törpe húsz aranyat fizet annak, aki visszahozza az elveszett baltáját. Ötvenet annak, aki nem kérdezi meg, hogyan veszítette el.
+PL012,Egy kereskedő szerint nyugaton olyan fogadó működik, ahol egy csontváz a csapos. Állítólag legalább soha nem hígítja a sört.
+PL013,Tegnap egy idegen egyetlen aranyért eladott egy térképet, amely állítólag egy sárkány kincséhez vezet. Ma reggel ugyanazt a térképet még hat ember mutogatta.
+PL014,A hegyi úton éjszakánként egy lámpás lebeg a fák között. Aki követi, reggel mindig ugyanott ébred, ahonnan elindult.
+PL015,Egy öregasszony szerint a hollók mindent megjegyeznek, amit előttük mondanak. Ezért ő csak a tyúkjainak meséli el a titkait.
+PL016,A kovács állítólag olyan kardot készített, amely kéken izzik démonok közelében. Tegnap óta folyamatosan világít a műhelyében.
+PL017,A keleti erdőben találtak egy kunyhót, amelynek belül háromszor akkora a tere, mint kívülről. A tulajdonosát senki sem látta.
+PL018,Egy zsoldos szerint az ogre, amelyik hónapok óta fosztogatja az utat, valójában tud sakkozni. Állítólag veszíteni viszont nagyon nem szeret.
+PL019,Azt mondják, a régi temetőben az egyik sírkő minden hajnalban máshol áll. A sírásó szerint jobb nem utánanézni.
+PL020,Egy bárd esküszik rá, hogy létezik egy lant, amely magától játszik, ha veszély közeleg. A tulajdonosa állítólag azért adta el, mert sosem hallgatott el.
+PL021,A folyóparton egy halász akkora pikkelyt talált, mint egy pajzs. Azóta senki sem akar a folyó közepén horgászni.
+PL022,A hegy túloldalán állítólag él egy remete, aki sárkánynyelven beszél. A sárkányok véleményét erről még senki sem kérdezte meg.
+PL023,Egy kereskedő tegnap egy ládányi ezüsttel érkezett a városba. Ma reggelre a láda tele volt kaviccsal, az ajtaja pedig belülről volt bezárva.
+PL024,Azt beszélik, egy vámpír él a régi malomban. A molnár szerint ez képtelenség, bár furcsa módon csak éjszaka dolgozik.
+PL025,Egy kalandozó azt állította, hogy megölt egy hidrafejet. Azt már kevésbé lelkesen mesélte, hogy utána kettő nőtt a helyére.
+PL026,A fekete hegy lábánál van egy barlang, ahonnan télen meleg szél fúj. A pásztorok szerint néha a hegy még horkol is.
+PL027,Azt mondják, egy mágus száz aranyat fizet egy élő óriáspatkányért. Senki sem tudja, mire kell neki, és talán jobb is így.
+PL028,A múlt hónapban egy férfi azzal dicsekedett, hogy megtalálta a halhatatlanság titkát. Két nappal később leesett a fogadó lépcsőjén és kitörte a nyakát.
+PL029,Egy vén katona szerint a csontvázakat a legegyszerűbb bunkós fegyverrel szétverni. A mágusok ezt tudománytalan megközelítésnek nevezik, de működik.
+PL030,A közeli romoknál minden éjfélkor fény gyullad az egyik toronyban. A toronynak már háromszáz éve nincs teteje.
+PL031,Azt beszélik, hogy a goblinok királya valójában egy különösen nagy kobold. Ezt goblin társaságban nem ajánlatos megemlíteni.
+PL032,Egy részeg törpe szerint nincs olyan ajtó, amit megfelelő méretű kalapáccsal ne lehetne kinyitni. A fogadós azóta nem engedi a szobák közelébe.
+PL033,A nyugati országúton egy szekér jár hajtó nélkül. Ha valaki felszáll rá, mindig oda viszi, ahová menni akart, csak éppen néhány évvel később érkezik meg.
+PL034,Egy vadász látott egy szarvast, amelynek agancsai között kék láng égett. Inkább nem lőtt rá.
+PL035,A régi vár pincéjében állítólag egy hordó bor maradt az utolsó király lakomájáról. A fogadós szerint ezért még ő is hajlandó lenne kalandozónak állni.
+PL036,Egy tolvaj azt állítja, létezik olyan kulcs, amely minden zárat kinyit. Furcsa módon a saját cellájából mégsem tudott megszökni.
+PL037,Azt mondják, ha háromszor kimondod egy démon nevét egy tükör előtt, megjelenik mögötted. A fogadós ezért leszedette az összes tükröt az emeleti szobákból.
+PL038,Egy karaván tegnap üresen érkezett a sivatagi útról. A lovak megvoltak, az áru megvolt, csak az emberek hiányoztak.
+PL039,A város alatt állítólag egy régebbi város fekszik. Egyesek szerint az alatt pedig még egy.
+PL040,Egy pap szerint valami nincs rendben a régi kápolna harangjával. Néha akkor is megszólal, amikor a kötele le van vágva.
+PL041,A favágók szerint egy fa minden éjjel visszanő az erdő szélén, akárhányszor kivágják. Most már inkább békén hagyják.
+PL042,Egy vándor mágus azt állította, hogy képes aranyat teremteni. A fogadós csak akkor kezdett gyanakodni, amikor az aranyak reggelre hagymává változtak.
+PL043,A hegyi törpék állítólag találtak egy fémet, amely könnyebb a fánál és keményebb az acélnál. Természetesen egyetlen darabot sem hajlandók eladni belőle.
+PL044,Egy pásztor minden este eggyel több juhot számol, mint amennyivel reggel elindult. Nem panaszkodik, de az új juhoknak vörösen világít a szemük.
+PL045,Azt beszélik, egy lich könyvtára valahol a keleti hegyekben rejtőzik. Állítólag a könyvek közül néhány visszaolvassa azt, aki kinyitja.
+PL046,Egy öreg tengerész szerint egyszer látott egy szigetet, amely felállt és elúszott. A többiek szerint akkor már a hetedik korsó rumjánál tartott.
+PL047,A fogadó mögötti sikátorban néha egy fekete macska ül, nyakában aranykulccsal. Eddig senkinek sem sikerült elkapnia.
+PL048,Egy kereskedő szerint a Káoszrubin nem is egyetlen kő, hanem egy nagyobb drágakő széttört darabja. Amikor ezt elmesélte, két csuklyás alak azonnal elhagyta a fogadót.
+PL049,Azt mondják, valahol a mélységben egy fekete sárkány olyan kincshalmon alszik, amelyből egyetlen arany is gazdaggá tenne egy embert. Azt már kevesebben mesélik, hányan próbálták megszerezni.
+PL050,Egy őrült öreg szerint egyszer eljön egy kalandozó, aki megtalálja a Káoszrubint és eldönti vele a világ sorsát. A fogadós szerint ugyanezt minden új vendégnek elmondja egy korsó sörért.

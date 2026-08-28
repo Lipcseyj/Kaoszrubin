@@ -63,7 +63,7 @@ var tests = new (string Name, Action Run)[]
     ("A session snapshot JSON-on körbeírható", SessionSnapshotRoundTripsThroughJson),
     ("A session-aktivitás karakterhez címezhető", SessionActivityCanTargetCharacter),
     ("A fogadó snapshotja közös pletykákat továbbít", InnSnapshotCarriesSharedRumors),
-    ("A fogadónevek CSV-ből töltődnek és a szinttel együtt megjelennek", InnNamesLoadAndRenderWithLevel),
+    ("A fogadónevek és hangulatpletykák CSV-ből töltődnek", InnNamesAndRumorsLoadFromCsv),
     ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
@@ -810,12 +810,16 @@ static void InnSnapshotCarriesSharedRumors()
         "A fogadó közös menü- vagy pályavégi állapota nem maradt meg a snapshot JSON round-trip során.");
 }
 
-static void InnNamesLoadAndRenderWithLevel()
+static void InnNamesAndRumorsLoadFromCsv()
 {
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
     Assert(data.InnNames.Count == 26 && data.InnNames.Contains("A Törött Kard") &&
            data.InnNames.Contains("A Vándor Pihenője"),
         "A fogadónév-halmaz nem megfelelően töltődött be a CSV-ből.");
+    Assert(data.InnRumors.Count == 50 &&
+           data.InnRumors.Single(rumor => rumor.Id == "PL001").Name.Contains(
+               "Aki válaszol neki, azt többé nem látják.", StringComparison.Ordinal),
+        "A hangulatpletykák vagy a szövegükben lévő vesszők nem megfelelően töltődtek be a CSV-ből.");
 }
 
 static void FighterTacticHitChancesUseCombatFormula()

@@ -181,8 +181,12 @@ internal sealed class InnController
         _transactions.Clear();
         _pendingHostTransactionMessages.Clear();
         var shownRumors = new HashSet<string>(StringComparer.Ordinal);
-        for (var index = 0; index < 4; index++)
-            _rumors.Add(CreateUniqueInnRumor(completedLevel, shownRumors));
+        var selectedRumors = new List<InnRumor>();
+        for (var index = 0; index < 2; index++)
+            selectedRumors.Add(CreateUniqueInnRumor(completedLevel, shownRumors));
+        foreach (var definition in _gameData.InnRumors.OrderBy(_ => _random.Next()).Take(2))
+            selectedRumors.Add(new InnRumor("Fogadói szóbeszéd", [definition.Name], ConsoleColor.Gray));
+        foreach (var rumor in selectedRumors.OrderBy(_ => _random.Next())) _rumors.Add(rumor);
         _revision++;
         var presentVisitors = new List<string>();
         if (blacksmithPresent) presentVisitors.Add("a Kovácsmester");
@@ -202,7 +206,7 @@ internal sealed class InnController
         if (armorerPresent) options.Add(new(InnMenuOptionKind.Armorer, "🛡️ Páncélmíves", "Kizárólag páncélokat kínál, csak vásárlásra.", InnVendorKind.Armorer));
         if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka és varázstárgy-azonosítás.", InnVendorKind.WanderingMage));
         options.Add(new(InnMenuOptionKind.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása.", LeaderOnly: true));
-        options.Add(new(InnMenuOptionKind.Rumors, "👂 Pletykák", "Hírek a következő pályáról és a környékbeli szörnyekről."));
+        options.Add(new(InnMenuOptionKind.Rumors, "👂 Pletykák", "Helyi szóbeszédek, hírek a következő pályáról és a környékbeli szörnyekről."));
         options.Add(new(InnMenuOptionKind.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.", LeaderOnly: true));
         _menuOptions = options;
         var selectedIndex = 0;

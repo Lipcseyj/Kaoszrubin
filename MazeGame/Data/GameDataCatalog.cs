@@ -29,6 +29,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<StatusDefinition> Statuses { get; init; } = [];
     public IReadOnlyList<CharacterNameDefinition> CharacterNames { get; init; } = [];
     public IReadOnlyList<string> InnNames { get; init; } = [];
+    public IReadOnlyList<InnRumorDefinition> InnRumors { get; init; } = [];
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();
