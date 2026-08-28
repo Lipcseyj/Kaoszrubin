@@ -454,8 +454,14 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 continue;
             }
             var wasActive = defender.HasStatus(statusId);
+            var maximumVitalityBefore = defender.MaximumVitality;
             defender.AddStatus(status);
-            applied.Add($"{status.Icon} {status.Name}" + (wasActive ? " időtartama újraindult" : " felkerült"));
+            var maximumVitalityChange = !wasActive && statusId == CharacterStatusIds.Diseased &&
+                                        defender.MaximumVitality != maximumVitalityBefore
+                ? $" (max ❤️ {maximumVitalityBefore}→{defender.MaximumVitality} HP)"
+                : string.Empty;
+            applied.Add($"{status.Icon} {status.Name}" +
+                        (wasActive ? " időtartama újraindult" : " felkerült") + maximumVitalityChange);
         }
         return applied.Count == 0 ? string.Empty : $" ⚠️ ÁLLAPOT: {string.Join(", ", applied)}!";
     }
