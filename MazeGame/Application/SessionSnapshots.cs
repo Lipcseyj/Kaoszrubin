@@ -7,7 +7,7 @@ namespace MazeGame.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 28;
+    public const int Version = 29;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -61,9 +61,30 @@ public sealed record NarrativeSnapshot(Guid NarrativeId, NarrativeKind Kind, str
 
 public enum InnVendorKind { Market, Witcher, Blacksmith, Armorer, WanderingMage }
 
+public enum InnMenuOptionKind
+{
+    Rest, Market, Witcher, SecretStash, Blacksmith, Armorer, WanderingMage, Recruit, Rumors, Leave
+}
+
+public sealed record InnMenuOptionSnapshot(InnMenuOptionKind Kind, string Label, string Description,
+    InnVendorKind? Vendor = null, bool LeaderOnly = false);
+
+public sealed record LevelCompletionSnapshot(Guid CompletionId, int CompletedLevel, int BaseExperience,
+    IReadOnlyList<LevelCompletionCharacterSnapshot> Survivors,
+    IReadOnlyList<LevelCompletionFallenSnapshot> FallenCharacters);
+
+public sealed record LevelCompletionCharacterSnapshot(string Name, ConsoleColor Color, int GainedExperience,
+    int PreviousLevel, int CurrentLevel, int CurrentVitality, int MaximumVitality,
+    int CurrentMana, int MaximumMana, bool UsesMana);
+
+public sealed record LevelCompletionFallenSnapshot(string Name, string CharacterClassName);
+
 public sealed record InnSnapshot(long Revision, int PartyGold, IReadOnlyList<InnVendorSnapshot> Vendors,
     IReadOnlyList<InnRumorSnapshot> Rumors, IReadOnlyList<InnTransactionSnapshot> Transactions,
-    IReadOnlyList<InnSellPriceSnapshot> SellPrices);
+    IReadOnlyList<InnSellPriceSnapshot> SellPrices,
+    IReadOnlyList<InnMenuOptionSnapshot>? MenuOptions = null, string ArtisanNotice = "",
+    int PartyCount = 0, int PartyFreeBackpackSlots = 0,
+    LevelCompletionSnapshot? LevelCompletion = null);
 
 public sealed record InnSellPriceSnapshot(string ItemDefinitionId, int Price);
 

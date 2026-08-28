@@ -34,6 +34,9 @@ internal sealed class InnController
     private bool _active;
     private bool _hasRestedAtInn;
     private int _secretStashAccessCost;
+    private string _artisanNotice = string.Empty;
+    private IReadOnlyList<InnMenuOptionSnapshot> _menuOptions = [];
+    private LevelCompletionSnapshot? _levelCompletion;
 
     public InnController(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
         ConsoleRenderer renderer, Action<SoundEffect> playGlobalSound, Random random,
@@ -64,7 +67,10 @@ internal sealed class InnController
         return new InnSnapshot(_revision, _selectedCharacter.Gold, vendors,
             _rumors.Select(rumor => new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color)).ToArray(),
             _transactions.ToArray(),
-            _buybackPrices.Select(pair => new InnSellPriceSnapshot(pair.Key, pair.Value)).ToArray());
+            _buybackPrices.Select(pair => new InnSellPriceSnapshot(pair.Key, pair.Value)).ToArray(),
+            _menuOptions, _artisanNotice, _characterRoster.Party.Members.Count,
+            _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)),
+            _levelCompletion);
     }
 
     public bool TryPurchase(InnVendorKind vendor, int offerIndex, long expectedRevision,
@@ -130,8 +136,13 @@ internal sealed class InnController
         _hasRestedAtInn = false;
         _secretStashAccessCost = _random.Next(50, 101) + completedLevel * 50;
         var completion = CompleteLevelAtInn(completedLevel);
-        _renderer.DrawLevelCompletionScreen(completedLevel, _gameData.BaseLevelCompletionExperience,
-            completion.Results, completion.FallenCharacters);
+        _levelCompletion = CreateLevelCompletionSnapshot(completedLevel, completion);
+        _active = true;
+        _revision++;
+        _renderer.DrawLevelCompletionScreen(_levelCompletion);
+        while (_readKey().Key is not (ConsoleKey.Enter or ConsoleKey.Spacebar)) { }
+        _levelCompletion = null;
+        _revision++;
         foreach (var levelResult in completion.Results.Where(result => result.Experience.LeveledUp))
             _resolvePerkOffers(levelResult.Character, levelResult.Experience);
 
@@ -156,35 +167,34 @@ internal sealed class InnController
         for (var index = 0; index < 4; index++)
             _rumors.Add(CreateUniqueInnRumor(completedLevel, shownRumors));
         _revision++;
-        _active = true;
         var presentVisitors = new List<string>();
         if (blacksmithPresent) presentVisitors.Add("a Kovácsmester");
         if (armorerPresent) presentVisitors.Add("a Páncélmíves");
         if (wanderingMagePresent) presentVisitors.Add("a Vándormágus");
-        var artisanNotice = presentVisitors.Count == 0
+        _artisanNotice = presentVisitors.Count == 0
             ? "A fogadós jelzi: ma egyik vándormester sincs jelen."
             : $"A fogadós jelzi: ma {HungarianList(presentVisitors)} van jelen.";
-        var options = new List<(InnMenuOption Option, string Label, string Description)>
+        var options = new List<InnMenuOptionSnapshot>
         {
-            (InnMenuOption.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára."),
-            (InnMenuOption.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása."),
-            (InnMenuOption.Witcher, "⚗️ Vajákos", "Gyógy- és varázsitalok, kötés és gyógyfüves készítmények."),
-            (InnMenuOption.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} {ConsoleRenderer.MoneyIcon})", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött.")
+            new(InnMenuOptionKind.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára.", LeaderOnly: true),
+            new(InnMenuOptionKind.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása.", InnVendorKind.Market),
+            new(InnMenuOptionKind.Witcher, "⚗️ Vajákos", "Gyógy- és varázsitalok, kötés és gyógyfüves készítmények.", InnVendorKind.Witcher),
+            new(InnMenuOptionKind.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} {ConsoleRenderer.MoneyIcon})", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött.", LeaderOnly: true)
         };
-        if (blacksmithPresent) options.Add((InnMenuOption.Blacksmith, "🔨 Kovácsmester", "Kizárólag fegyvereket kínál, csak vásárlásra."));
-        if (armorerPresent) options.Add((InnMenuOption.Armorer, "🛡️ Páncélmíves", "Kizárólag páncélokat kínál, csak vásárlásra."));
-        if (wanderingMagePresent) options.Add((InnMenuOption.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka és varázstárgy-azonosítás."));
-        options.Add((InnMenuOption.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása."));
-        options.Add((InnMenuOption.Rumors, "👂 Pletykák", "Hírek a következő pályáról és a környékbeli szörnyekről."));
-        options.Add((InnMenuOption.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót."));
+        if (blacksmithPresent) options.Add(new(InnMenuOptionKind.Blacksmith, "🔨 Kovácsmester", "Kizárólag fegyvereket kínál, csak vásárlásra.", InnVendorKind.Blacksmith));
+        if (armorerPresent) options.Add(new(InnMenuOptionKind.Armorer, "🛡️ Páncélmíves", "Kizárólag páncélokat kínál, csak vásárlásra.", InnVendorKind.Armorer));
+        if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka és varázstárgy-azonosítás.", InnVendorKind.WanderingMage));
+        options.Add(new(InnMenuOptionKind.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása.", LeaderOnly: true));
+        options.Add(new(InnMenuOptionKind.Rumors, "👂 Pletykák", "Hírek a következő pályáról és a környékbeli szörnyekről."));
+        options.Add(new(InnMenuOptionKind.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.", LeaderOnly: true));
+        _menuOptions = options;
         var selectedIndex = 0;
         var redraw = true;
         while (true)
         {
-            var displayOptions = options.Select(option => (option.Label, option.Description)).ToList();
             if (redraw)
             {
-                _renderer.DrawInnMenuScreen(_selectedCharacter, _characterRoster.Party.Members.Count, selectedIndex, displayOptions, artisanNotice);
+                _renderer.DrawInnMenuScreen(_selectedCharacter, _characterRoster.Party.Members.Count, selectedIndex, options, _artisanNotice);
                 redraw = false;
             }
             var key = _readKey().Key;
@@ -192,34 +202,43 @@ internal sealed class InnController
             {
                 var previousIndex = selectedIndex;
                 selectedIndex = (selectedIndex - 1 + options.Count) % options.Count;
-                _renderer.UpdateInnMenuSelection(displayOptions, previousIndex, selectedIndex);
+                _renderer.UpdateInnMenuSelection(options, previousIndex, selectedIndex);
                 continue;
             }
             if (key == ConsoleKey.DownArrow)
             {
                 var previousIndex = selectedIndex;
                 selectedIndex = (selectedIndex + 1) % options.Count;
-                _renderer.UpdateInnMenuSelection(displayOptions, previousIndex, selectedIndex);
+                _renderer.UpdateInnMenuSelection(options, previousIndex, selectedIndex);
                 continue;
             }
             if (key != ConsoleKey.Enter) continue;
             redraw = true;
 
-            switch (options[selectedIndex].Option)
+            switch (options[selectedIndex].Kind)
             {
-                case InnMenuOption.Rest: RestPartyAtInn(); break;
-                case InnMenuOption.Market: RunInnMarket(completedLevel); break;
-                case InnMenuOption.Witcher: RunWitcherMarket(completedLevel); break;
-                case InnMenuOption.SecretStash: RunInnSecretStash(completedLevel); break;
-                case InnMenuOption.Blacksmith: RunSpecialistMarket("🔨 KOVÁCSMESTER", blacksmithStock); break;
-                case InnMenuOption.Armorer: RunSpecialistMarket("🛡️ PÁNCÉLMÍVES", armorerStock); break;
-                case InnMenuOption.WanderingMage: RunWanderingMage(wanderingMageStock); break;
-                case InnMenuOption.Recruit: RunInnRecruitment(); break;
-                case InnMenuOption.Rumors: RunInnRumors(); break;
-                case InnMenuOption.Leave: _active = false; return;
+                case InnMenuOptionKind.Rest: RestPartyAtInn(); break;
+                case InnMenuOptionKind.Market: RunInnMarket(completedLevel); break;
+                case InnMenuOptionKind.Witcher: RunWitcherMarket(completedLevel); break;
+                case InnMenuOptionKind.SecretStash: RunInnSecretStash(completedLevel); break;
+                case InnMenuOptionKind.Blacksmith: RunSpecialistMarket("🔨 KOVÁCSMESTER", blacksmithStock); break;
+                case InnMenuOptionKind.Armorer: RunSpecialistMarket("🛡️ PÁNCÉLMÍVES", armorerStock); break;
+                case InnMenuOptionKind.WanderingMage: RunWanderingMage(wanderingMageStock); break;
+                case InnMenuOptionKind.Recruit: RunInnRecruitment(); break;
+                case InnMenuOptionKind.Rumors: RunInnRumors(); break;
+                case InnMenuOptionKind.Leave: _active = false; return;
             }
         }
     }
+
+    private LevelCompletionSnapshot CreateLevelCompletionSnapshot(int completedLevel, LevelCompletionOutcome completion) =>
+        new(Guid.NewGuid(), completedLevel, _gameData.BaseLevelCompletionExperience,
+            completion.Results.Select(result => new LevelCompletionCharacterSnapshot(result.Character.Name,
+                result.Character.Color, result.Experience.GainedExperience, result.Experience.PreviousLevel,
+                result.Experience.CurrentLevel, result.Character.CurrentVitality, result.Character.MaximumVitality,
+                result.Character.CurrentMana, result.Character.MaximumMana, result.Character.UsesMana)).ToArray(),
+            completion.FallenCharacters.Select(character => new LevelCompletionFallenSnapshot(character.Name,
+                character.CharacterClass.Name)).ToArray());
 
     private LevelCompletionOutcome CompleteLevelAtInn(int completedLevel)
     {
@@ -1018,8 +1037,6 @@ internal sealed class InnController
                                    $"({transaction.Price} arany) ← {transaction.InventoryOwnerName}",
         _ => $"🏰 {transaction.ActorName}: {transaction.ItemName}"
     };
-
-    private enum InnMenuOption { Rest, Market, Witcher, SecretStash, Blacksmith, Armorer, WanderingMage, Recruit, Rumors, Leave }
 
     private sealed record RechargeableWand(LiveCharacter Character, InventorySlotKind Kind, int Index, MagicItemDefinition Item);
 

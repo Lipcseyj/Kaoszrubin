@@ -1,4 +1,5 @@
 using System.Text;
+using MazeGame.Application;
 using MazeGame.Combat;
 using MazeGame.Data;
 using MazeGame.Domain.Characters;
@@ -473,36 +474,42 @@ public sealed class ConsoleRenderer
         Console.ResetColor();
     }
 
-    public void DrawLevelCompletionScreen(int completedLevel, int baseExperience,
-        IReadOnlyList<LevelCompletionResult> results, IReadOnlyList<LiveCharacter> fallenCharacters)
+    public void DrawLevelCompletionScreen(LevelCompletionSnapshot completion)
     {
         ResetColorCache();
         Console.Clear();
-        var reward = checked(baseExperience * completedLevel);
+        DrawCenteredFrame(LevelCompletionFrameWidth, BuildLevelCompletionLines(completion));
+    }
+
+    internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildLevelCompletionLines(
+        LevelCompletionSnapshot completion)
+    {
+        var reward = checked(completion.BaseExperience * completion.CompletedLevel);
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("🏆✨  PÁLYA TELJESÍTVE!  ✨🏆", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
-            ($"🚪 A parti kijutott a(z) {completedLevel}. labirintusszintről.", ConsoleColor.Green),
-            ($"📜 Teljesítési XP: {baseExperience} × {completedLevel} = {reward} XP minden túlélő partitag számára", ConsoleColor.Cyan),
+            ($"🚪 A parti kijutott a(z) {completion.CompletedLevel}. labirintusszintről.", ConsoleColor.Green),
+            ($"📜 Teljesítési XP: {completion.BaseExperience} × {completion.CompletedLevel} = {reward} XP minden túlélő partitag számára", ConsoleColor.Cyan),
             (string.Empty, ConsoleColor.Gray),
             ("🏰🍺  PIHENŐ A FOGADÓBAN  🍲🛏️", ConsoleColor.DarkYellow)
         };
-        foreach (var result in results)
+        foreach (var character in completion.Survivors)
         {
-            var character = result.Character;
-            var levelText = result.Experience.LeveledUp
-                ? $"  ⭐ L{result.Experience.PreviousLevel}→L{result.Experience.CurrentLevel}"
-                : $"  L{character.Level}";
-            var manaText = character.UsesMana ? $"  🔷 {character.CurrentMana}/{character.MaximumMana} manna" : string.Empty;
-            lines.Add(($"✨ {character.Name,-13} +{result.Experience.GainedExperience} XP{levelText}  ❤️ {character.CurrentVitality}/{character.MaximumVitality} HP{manaText}", character.Color));
+            var levelText = character.CurrentLevel > character.PreviousLevel
+                ? $"  ⭐ L{character.PreviousLevel}→L{character.CurrentLevel}"
+                : $"  L{character.CurrentLevel}";
+            var manaText = character.UsesMana
+                ? $"  🔷 {character.CurrentMana}/{character.MaximumMana} manna"
+                : string.Empty;
+            lines.Add(($"✨ {character.Name,-13} +{character.GainedExperience} XP{levelText}  ❤️ {character.CurrentVitality}/{character.MaximumVitality} HP{manaText}", character.Color));
         }
-        if (fallenCharacters.Count > 0)
+        if (completion.FallenCharacters.Count > 0)
         {
             lines.Add((string.Empty, ConsoleColor.Gray));
             lines.Add(("💀  A fogadóig nem jutottak el — végleg elvesztek:", ConsoleColor.Red));
-            foreach (var fallen in fallenCharacters)
-                lines.Add(($"† {fallen.Name} ({fallen.CharacterClass.Name})", ConsoleColor.DarkRed));
+            foreach (var fallen in completion.FallenCharacters)
+                lines.Add(($"† {fallen.Name} ({fallen.CharacterClassName})", ConsoleColor.DarkRed));
         }
         lines.AddRange([
             (string.Empty, ConsoleColor.Gray),
@@ -510,35 +517,161 @@ public sealed class ConsoleRenderer
             (string.Empty, ConsoleColor.Gray),
             ("Nyomj Entert vagy Space-t a fogadó megnyitásához! ➡️", ConsoleColor.Yellow)
         ]);
-        DrawCenteredFrame(LevelCompletionFrameWidth, lines);
-        while (Console.ReadKey(intercept: true).Key is not (ConsoleKey.Enter or ConsoleKey.Spacebar)) { }
+        return lines;
     }
 
-    public void DrawInnMenuScreen(LiveCharacter leader, int partyCount, int selectedIndex,
-        IReadOnlyList<(string Label, string Description)> options, string artisanNotice)
+    internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnMenuLines(int partyCount,
+        int partyGold, IReadOnlyList<InnMenuOptionSnapshot> options, int selectedIndex, string artisanNotice,
+        bool disableLeaderOnly)
     {
-        ResetColorCache();
-        Console.Clear();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("🏰🍺  A VÁNDORCSILLAG FOGADÓ  🍺🏰", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
-            ($"Parti: {partyCount}/{Party.MaximumSize} fő     {MoneyIcon} Arany: {leader.Gold}", ConsoleColor.Cyan),
+            ($"Parti: {partyCount}/{Party.MaximumSize} fő     {MoneyIcon} Arany: {partyGold}", ConsoleColor.Cyan),
             (ClipMarketText(artisanNotice, InnMenuFrameWidth - 6), ConsoleColor.DarkYellow),
             (string.Empty, ConsoleColor.Gray)
         };
         for (var index = 0; index < options.Count; index++)
         {
             var selected = index == selectedIndex;
-            lines.Add(($"{(selected ? "▶" : " ")} {options[index].Label}", selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
-            lines.Add(($"     {options[index].Description}", selected ? ConsoleColor.White : ConsoleColor.DarkGray));
+            var disabled = disableLeaderOnly && options[index].LeaderOnly;
+            lines.Add(($"{(selected ? "▶" : " ")} {options[index].Label}", disabled
+                ? ConsoleColor.DarkGray : selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
+            lines.Add(($"     {options[index].Description}", disabled
+                ? ConsoleColor.DarkGray : selected ? ConsoleColor.White : ConsoleColor.DarkGray));
         }
         lines.Add((string.Empty, ConsoleColor.Gray));
-        lines.Add(("↑/↓ választás   Enter belépés", ConsoleColor.Green));
-        DrawCenteredFrame(InnMenuFrameWidth, lines);
+        lines.Add((disableLeaderOnly ? "↑/↓ választás   Enter belépés   Szürke: csak a party leader használhatja"
+            : "↑/↓ választás   Enter belépés", ConsoleColor.Green));
+        return lines;
     }
 
-    public void UpdateInnMenuSelection(IReadOnlyList<(string Label, string Description)> options,
+    internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnVendorLines(
+        InnVendorSnapshot vendor, InnMarketMode mode,
+        IReadOnlyList<(InventoryItemSnapshot Item, int Price, string OwnerName)> sellOffers,
+        int selectedIndex, int partyGold, string buyerName, int freeBackpackSlots, string message)
+    {
+        var buying = vendor.Kind != InnVendorKind.Market || mode == InnMarketMode.Buy;
+        var entryCount = buying ? vendor.Offers.Count : sellOffers.Count;
+        var pageStart = InnMarketPageStart(entryCount, selectedIndex);
+        var title = vendor.Kind switch
+        {
+            InnVendorKind.Blacksmith => "🏰🍺  🔨 KOVÁCSMESTER  ✨",
+            InnVendorKind.Armorer => "🏰🍺  🛡️ PÁNCÉLMÍVES  ✨",
+            InnVendorKind.WanderingMage => "🏰🍺  🧙 VÁNDORMÁGUS PORTÉKÁI  ✨",
+            _ => "🏰🍺  A VÁNDORCSILLAG FOGADÓ KERESKEDŐJE  🛒✨"
+        };
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            (title, ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        var usesMarketLayout = vendor.Kind is InnVendorKind.Market or InnVendorKind.Witcher;
+        if (usesMarketLayout)
+            lines.Add((buying ? "◀  [ VÁSÁRLÁS ]     ELADÁS  ▶" : "◀    VÁSÁRLÁS     [ ELADÁS ]  ▶",
+                ConsoleColor.Cyan));
+        else
+            lines.Add(("Csak vásárlás — a kínálat és az árak a fogadóba érkezéskor rögzültek.",
+                ConsoleColor.DarkYellow));
+        lines.Add(($"{MoneyIcon} {buyerName} aranya: {partyGold}     🎒 Szabad hátizsákhely: {freeBackpackSlots}",
+            ConsoleColor.Green));
+        lines.Add((new string('─', 92), ConsoleColor.DarkMagenta));
+        for (var row = 0; row < InnMarketPageSize; row++)
+        {
+            var index = pageStart + row;
+            if (index >= entryCount) { lines.Add((string.Empty, ConsoleColor.Gray)); continue; }
+            var selected = index == selectedIndex;
+            if (buying)
+            {
+                var offer = vendor.Offers[index];
+                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} {MoneyIcon}",
+                    selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
+            }
+            else
+            {
+                var offer = sellOffers[index];
+                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {offer.Item.Name,-22} {offer.OwnerName,-13} ajánlat {offer.Price,5} {MoneyIcon}",
+                    selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
+            }
+        }
+        var selectedItem = entryCount == 0 ? null : buying
+            ? vendor.Offers[selectedIndex].Item
+            : sellOffers[selectedIndex].Item;
+        lines.Add((new string('─', 92), ConsoleColor.DarkMagenta));
+        lines.Add((selectedItem is null
+            ? buying ? "Nincs több megvásárolható portéka." : "Nincs eladható tárgy a hátizsákodban."
+            : ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
+        lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
+        lines.Add((usesMarketLayout
+            ? "↑/↓ választás   ←/→ vétel–eladás   Enter üzlet   Esc vissza a fogadóba"
+            : "↑/↓ választás   Enter vásárlás   Esc vissza a fogadóba", ConsoleColor.White));
+        return lines;
+    }
+
+    internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildWanderingMageMenuLines(int partyGold,
+        IReadOnlyList<(string Label, string Description, bool Disabled)> options, int selectedIndex, string message)
+    {
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🧙✨  A VÁNDORMÁGUS  ✨🧙", ConsoleColor.Magenta),
+            ($"{MoneyIcon} Közös arany: {partyGold}", ConsoleColor.Green),
+            (ClipMarketText(message, InnMenuFrameWidth - 6), ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        for (var index = 0; index < options.Count; index++)
+        {
+            var selected = index == selectedIndex;
+            var disabled = options[index].Disabled;
+            lines.Add(($"{(selected ? "▶" : " ")} {options[index].Label}", disabled
+                ? ConsoleColor.DarkGray : selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
+            lines.Add(($"     {options[index].Description}", disabled
+                ? ConsoleColor.DarkGray : selected ? ConsoleColor.White : ConsoleColor.DarkGray));
+        }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("↑/↓ választás   Enter belépés   Esc vissza", ConsoleColor.Green));
+        return lines;
+    }
+
+    internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnRumorLines(
+        InnRumorSnapshot rumor, int selectedIndex, int rumorCount)
+    {
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🏰🍺  PLETYKÁK A VÁNDORCSILLAG FOGADÓBAN  👂📜", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            (rumor.Title, rumor.Color),
+            (new string('─', 92), ConsoleColor.DarkMagenta)
+        };
+        foreach (var paragraph in rumor.Lines)
+        {
+            foreach (var line in WrapText(paragraph, InnRumorTextWidth)) lines.Add((line, ConsoleColor.Gray));
+            lines.Add((string.Empty, ConsoleColor.Gray));
+        }
+        lines.Add((new string('─', 92), ConsoleColor.DarkMagenta));
+        lines.Add(($"Pletyka {selectedIndex + 1}/{rumorCount}   ←/→ vagy N: lapozás   Enter/Esc: vissza a fogadóba",
+            ConsoleColor.White));
+        return lines;
+    }
+
+    private static string ItemCategoryIcon(ItemCategory category) => category switch
+    {
+        ItemCategory.Weapon => "⚔️",
+        ItemCategory.Armor => "🛡️",
+        ItemCategory.MagicItem => "✨",
+        _ => "🎒"
+    };
+
+    public void DrawInnMenuScreen(LiveCharacter leader, int partyCount, int selectedIndex,
+        IReadOnlyList<InnMenuOptionSnapshot> options, string artisanNotice)
+    {
+        ResetColorCache();
+        Console.Clear();
+        DrawCenteredFrame(InnMenuFrameWidth, BuildInnMenuLines(partyCount, leader.Gold, options,
+            selectedIndex, artisanNotice, disableLeaderOnly: false));
+    }
+
+    public void UpdateInnMenuSelection(IReadOnlyList<InnMenuOptionSnapshot> options,
         int previousIndex, int selectedIndex)
     {
         var updates = new List<(int Index, string Text, ConsoleColor Color)>();
@@ -622,44 +755,12 @@ public sealed class ConsoleRenderer
     {
         ResetColorCache();
         Console.Clear();
-        var buying = mode == InnMarketMode.Buy;
-        var entryCount = buying ? stock.Count : sellOffers.Count;
-        var pageStart = InnMarketPageStart(entryCount, selectedIndex);
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            ("🏰🍺  A VÁNDORCSILLAG FOGADÓ KERESKEDŐJE  🛒✨", ConsoleColor.Yellow),
-            (string.Empty, ConsoleColor.Gray),
-            (buying ? "◀  [ VÁSÁRLÁS ]     ELADÁS  ▶" : "◀    VÁSÁRLÁS     [ ELADÁS ]  ▶", ConsoleColor.Cyan),
-            ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
-            ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
-        };
-
-        for (var row = 0; row < InnMarketPageSize; row++)
-        {
-            var index = pageStart + row;
-            if (index >= entryCount) { lines.Add((string.Empty, ConsoleColor.Gray)); continue; }
-            var selected = index == selectedIndex;
-            if (buying)
-            {
-                var offer = stock[index];
-                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} {MoneyIcon}",
-                    selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
-            }
-            else
-            {
-                var offer = sellOffers[index];
-                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} {MoneyIcon}",
-                    selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
-            }
-        }
-
-        var selectedItem = entryCount == 0 ? null : buying ? stock[selectedIndex].Item : sellOffers[selectedIndex].Item;
-        lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
-        lines.Add((selectedItem is null ? (buying ? "Nincs több megvásárolható portéka." : "Nincs eladható tárgy a hátizsákokban.")
-            : ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
-        lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
-        lines.Add(("↑/↓ választás   ←/→ vétel–eladás   Enter üzlet   Esc vissza a fogadóba", ConsoleColor.White));
-        DrawCenteredFrame(InnMarketFrameWidth, lines);
+        var vendor = new InnVendorSnapshot(InnVendorKind.Market, "Kereskedő", stock.Select((offer, index) =>
+            new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item), offer.Price)).ToArray());
+        var sales = sellOffers.Select(offer => (ToInventoryItemSnapshot(offer.Item), offer.Price,
+            offer.Owner.Name)).ToArray();
+        DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, mode, sales, selectedIndex,
+            leader.Gold, leader.Name, freeBackpackSlots, message));
     }
 
     public void DrawInnSecretStashScreen(LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
@@ -699,52 +800,28 @@ public sealed class ConsoleRenderer
     {
         ResetColorCache();
         Console.Clear();
-        var pageStart = InnMarketPageStart(stock.Count, selectedIndex);
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            ($"🏰🍺  {title}  ✨", ConsoleColor.Yellow),
-            (string.Empty, ConsoleColor.Gray),
-            ("Csak vásárlás — a kínálat és az árak a fogadóba érkezéskor rögzültek.", ConsoleColor.DarkYellow),
-            ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}     🎒 Szabad parti-hátizsákhely: {freeBackpackSlots}", ConsoleColor.Green),
-            ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
-        };
-        for (var row = 0; row < InnMarketPageSize; row++)
-        {
-            var index = pageStart + row;
-            if (index >= stock.Count) { lines.Add((string.Empty, ConsoleColor.Gray)); continue; }
-            var offer = stock[index];
-            lines.Add((InnStockLine(offer, index == selectedIndex),
-                index == selectedIndex ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
-        }
-        var selectedItem = stock.Count == 0 ? null : stock[selectedIndex].Item;
-        lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
-        lines.Add((selectedItem is null ? "Elfogyott a mester készlete." : ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
-        lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
-        lines.Add(("↑/↓ választás   Enter vásárlás   Esc vissza a fogadóba", ConsoleColor.White));
-        DrawCenteredFrame(InnMarketFrameWidth, lines);
+        var kind = title.Contains("KOVÁCS", StringComparison.OrdinalIgnoreCase) ? InnVendorKind.Blacksmith
+            : title.Contains("PÁNCÉL", StringComparison.OrdinalIgnoreCase) ? InnVendorKind.Armorer
+            : InnVendorKind.WanderingMage;
+        var vendor = new InnVendorSnapshot(kind, title, stock.Select((offer, index) =>
+            new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item), offer.Price)).ToArray());
+        DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, InnMarketMode.Buy, [], selectedIndex,
+            leader.Gold, leader.Name, freeBackpackSlots, message));
     }
+
+    private static InventoryItemSnapshot ToInventoryItemSnapshot(IItemDefinition item) => new(item.Id, item.Name,
+        item.Category, item.Rarity, item is MagicItemDefinition magic ? magic.MaximumCharges : 0,
+        item is MagicItemDefinition magicItem ? magicItem.MaximumCharges : 0,
+        item is WeaponDefinition { IsTwoHanded: true }, item.Description, item.BasePrice, item.MagicPower);
 
     public void DrawWanderingMageMenu(LiveCharacter leader, IReadOnlyList<(string Label, string Description)> options,
         int selectedIndex, string message)
     {
         ResetColorCache();
         Console.Clear();
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            ("🧙✨  A VÁNDORMÁGUS  ✨🧙", ConsoleColor.Magenta),
-            ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}", ConsoleColor.Green),
-            (ClipMarketText(message, InnMenuFrameWidth - 6), ConsoleColor.Cyan),
-            (string.Empty, ConsoleColor.Gray)
-        };
-        for (var index = 0; index < options.Count; index++)
-        {
-            var selected = index == selectedIndex;
-            lines.Add(($"{(selected ? "▶" : " ")} {options[index].Label}", selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
-            lines.Add(($"     {options[index].Description}", selected ? ConsoleColor.White : ConsoleColor.DarkGray));
-        }
-        lines.Add((string.Empty, ConsoleColor.Gray));
-        lines.Add(("↑/↓ választás   Enter belépés   Esc vissza", ConsoleColor.Green));
-        DrawCenteredFrame(InnMenuFrameWidth, lines);
+        DrawCenteredFrame(InnMenuFrameWidth, BuildWanderingMageMenuLines(leader.Gold,
+            options.Select(option => (option.Label, option.Description, Disabled: false)).ToArray(),
+            selectedIndex, message));
     }
 
     public void DrawWandRechargeScreen(LiveCharacter leader,
@@ -924,22 +1001,8 @@ public sealed class ConsoleRenderer
     {
         ResetColorCache();
         Console.Clear();
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            ("🏰🍺  PLETYKÁK A VÁNDORCSILLAG FOGADÓBAN  👂📜", ConsoleColor.Yellow),
-            (string.Empty, ConsoleColor.Gray),
-            (rumor.Title, rumor.Color),
-            ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
-        };
-        foreach (var paragraph in rumor.Lines)
-        {
-            foreach (var line in WrapText(paragraph, InnRumorTextWidth)) lines.Add((line, ConsoleColor.Gray));
-            lines.Add((string.Empty, ConsoleColor.Gray));
-        }
-        lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
-        lines.Add(($"Pletyka {selectedIndex + 1}/{rumorCount}   ←/→ vagy N: lapozás   Enter/Esc: vissza a fogadóba",
-            ConsoleColor.White));
-        DrawCenteredFrame(InnRumorFrameWidth, lines);
+        DrawCenteredFrame(InnRumorFrameWidth, BuildInnRumorLines(
+            new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color), selectedIndex, rumorCount));
     }
 
     private static IEnumerable<string> WrapText(string text, int maximumWidth)

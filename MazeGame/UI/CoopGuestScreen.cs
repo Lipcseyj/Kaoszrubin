@@ -26,6 +26,7 @@ public sealed class CoopGuestScreen
     private Position? _spellTargetCursor;
     private bool _spellCastingInBattle;
     private InnVendorKind? _innVendor;
+    private bool _innMageMenuOpen;
     private int _innSelection;
     private InnMarketMode _innMarketMode = InnMarketMode.Buy;
     private bool _innRumorOpen;
@@ -478,6 +479,7 @@ public sealed class CoopGuestScreen
     private GameCommand? HandleInnInput(CoopSignalRClient client, CharacterId characterId,
         SessionSnapshot snapshot, InnSnapshot inn, ConsoleKey key)
     {
+        if (inn.LevelCompletion is not null) return null;
         if (GameInputBindings.IsCharacterSheetToggle(key) &&
             !(_innVendor == InnVendorKind.Market && key == ConsoleKey.Tab))
         {
@@ -502,24 +504,29 @@ public sealed class CoopGuestScreen
         }
         if (_innVendor is null)
         {
-            var count = inn.Vendors.Count + 4;
+            var options = inn.MenuOptions ?? [];
+            var count = options.Count;
+            if (count == 0) return null;
             _innSelection = Math.Clamp(_innSelection, 0, Math.Max(0, count - 1));
             if (key == ConsoleKey.UpArrow) _innSelection = (_innSelection - 1 + count) % count;
             else if (key == ConsoleKey.DownArrow) _innSelection = (_innSelection + 1) % count;
             else if (key == ConsoleKey.Enter)
             {
-                if (_innSelection < inn.Vendors.Count)
-                {
-                    _innVendor = inn.Vendors[_innSelection].Kind;
-                    _innMarketMode = InnMarketMode.Buy;
-                    _innSelection = 0;
-                }
-                else if (_innSelection == inn.Vendors.Count)
+                var option = options[_innSelection];
+                if (option.LeaderOnly)
+                    SetMessage("Ezt a party-szintű műveletet csak a host aktiválhatja.");
+                else if (option.Kind == InnMenuOptionKind.Rumors)
                 {
                     _innRumorOpen = true;
                     _innRumorSelection = 0;
                 }
-                else SetMessage("Ezt a party-szintű műveletet csak a host aktiválhatja.");
+                else if (option.Vendor is { } selectedVendor)
+                {
+                    _innVendor = selectedVendor;
+                    _innMageMenuOpen = selectedVendor == InnVendorKind.WanderingMage;
+                    _innMarketMode = InnMarketMode.Buy;
+                    _innSelection = 0;
+                }
             }
             Interlocked.Exchange(ref _redrawRequested, 1);
             return null;
@@ -527,6 +534,20 @@ public sealed class CoopGuestScreen
 
         var vendor = inn.Vendors.FirstOrDefault(candidate => candidate.Kind == _innVendor);
         if (vendor is null) { _innVendor = null; _innSelection = 0; return null; }
+        if (_innMageMenuOpen)
+        {
+            const int mageOptionCount = 4;
+            if (key == ConsoleKey.Escape) { _innVendor = null; _innMageMenuOpen = false; _innSelection = 0; }
+            else if (key == ConsoleKey.UpArrow) _innSelection = (_innSelection - 1 + mageOptionCount) % mageOptionCount;
+            else if (key == ConsoleKey.DownArrow) _innSelection = (_innSelection + 1) % mageOptionCount;
+            else if (key == ConsoleKey.Enter && _innSelection == 1) { _innMageMenuOpen = false; _innSelection = 0; }
+            else if (key == ConsoleKey.Enter && _innSelection == 3) { _innVendor = null; _innMageMenuOpen = false; _innSelection = 0; }
+            else if (key == ConsoleKey.Enter) SetMessage(_innSelection == 0
+                ? "A pálcatöltést csak a party leader intézheti."
+                : "A varázstárgy-azonosítás még nem használható.");
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return null;
+        }
         if (key == ConsoleKey.Escape)
         { _innVendor = null; _innSelection = 0; Interlocked.Exchange(ref _redrawRequested, 1); return null; }
         if (vendor.Kind == InnVendorKind.Market &&
@@ -1130,77 +1151,61 @@ public sealed class CoopGuestScreen
 
     private void ApplyInnUi(GuestMapCell[,] grid, SessionSnapshot snapshot)
     {
-        if (snapshot.Phase != GameSessionPhase.Inn || snapshot.Inn is not { } inn) return;
-        var lines = new List<(string Text, ConsoleColor Color)>
+        if (snapshot.Phase != GameSessionPhase.Inn || snapshot.Inn is not { } inn)
         {
-            ("PÁLYAVÉGI FOGADÓ", ConsoleColor.Yellow),
-            ($"Közös arany: {inn.PartyGold} {ConsoleRenderer.MoneyIcon}", ConsoleColor.Yellow),
-            ("↑↓ választ  Enter belép/vásárol  Esc vissza  Tab karakterlap", ConsoleColor.Green),
-            (new string('─', 68), ConsoleColor.DarkYellow)
-        };
+            _innVendor = null;
+            _innMageMenuOpen = false;
+            _innRumorOpen = false;
+            _innSelection = 0;
+            return;
+        }
+        if (inn.LevelCompletion is { } completion)
+        {
+            DrawGuestOverlay(grid, ConsoleRenderer.BuildLevelCompletionLines(completion), ConsoleColor.Yellow, 100);
+            return;
+        }
+        List<(string Text, ConsoleColor Color)> lines;
         if (_innVendor is null)
         {
-            var entries = inn.Vendors.Select(vendor => vendor.Name).Concat([
-                "Pletykák", "Pihenés (csak host)", "Titkos raktár (csak host)",
-                "Továbbindulás (csak host)"]).ToArray();
-            _innSelection = Math.Clamp(_innSelection, 0, Math.Max(0, entries.Length - 1));
-            lines.AddRange(entries.Select((entry, index) =>
-                ($"{(index == _innSelection ? "▶" : " ")} {entry}",
-                    index > inn.Vendors.Count ? ConsoleColor.DarkGray :
-                    index == _innSelection ? ConsoleColor.White : ConsoleColor.Gray)));
+            var options = inn.MenuOptions ?? [];
+            _innSelection = Math.Clamp(_innSelection, 0, Math.Max(0, options.Count - 1));
+            lines = ConsoleRenderer.BuildInnMenuLines(inn.PartyCount, inn.PartyGold, options,
+                _innSelection, inn.ArtisanNotice, disableLeaderOnly: true).ToList();
         }
         else
         {
             var vendor = inn.Vendors.FirstOrDefault(candidate => candidate.Kind == _innVendor);
+            if (_innMageMenuOpen)
+            {
+                var mageOptions = new[]
+                {
+                    ($"{ConsoleRenderer.WandIcon} Kiürült varázspálcák feltöltése", "Teljes feltöltés a pálca eredeti árának kétharmadáért.", true),
+                    ("📜 Varázsportékák", "Egy véletlen varázspálca és egy véletlen tekercs, egyszeri készletről.", false),
+                    ("🔮 Varázstárgy azonosítása", "Az azonosítás szolgáltatása hamarosan elérhető lesz.", true),
+                    ("🚪 Vissza", "Visszatérés a fogadó főtermébe.", false)
+                };
+                lines = ConsoleRenderer.BuildWanderingMageMenuLines(inn.PartyGold, mageOptions,
+                    _innSelection, "A vándormágus köpenye alól halk, kékes fény szűrődik ki.").ToList();
+                DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, 96);
+                return;
+            }
             var own = snapshot.Party.FirstOrDefault(character => character.Inventory is not null);
             var sellOffers = vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell
                 ? GuestInnSellOffers(inn, own).ToArray()
                 : [];
-            lines.Add((vendor?.Kind == InnVendorKind.Market
-                ? $"KERESKEDŐ — {(_innMarketMode == InnMarketMode.Buy ? "VÉTEL" : "ELADÁS")}"
-                : vendor?.Name.ToUpperInvariant() ?? "KERESKEDŐ", ConsoleColor.Cyan));
-            if (vendor?.Kind == InnVendorKind.Market)
-                lines.Add(("←/→ vagy Tab: vétel–eladás", ConsoleColor.Green));
             var entryCount = vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell
-                ? sellOffers.Length
-                : vendor?.Offers.Count ?? 0;
-            if (entryCount == 0) lines.Add((_innMarketMode == InnMarketMode.Sell
-                ? "Nincs eladható tárgy a hátizsákodban."
-                : "A készlet elfogyott.", ConsoleColor.DarkYellow));
-            else
-            {
-                _innSelection = Math.Clamp(_innSelection, 0, entryCount - 1);
-                var start = Math.Clamp(_innSelection - 7, 0, Math.Max(0, entryCount - 16));
-                if (vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell)
-                    lines.AddRange(sellOffers.Skip(start).Take(16).Select((offer, index) =>
-                    {
-                        var absolute = start + index;
-                        return ($"{(absolute == _innSelection ? "▶" : " ")} {offer.Slot.Item!.Name,-34} {offer.Price,6} arany",
-                            absolute == _innSelection ? ConsoleColor.White : ConsoleColor.Gray);
-                    }));
-                else
-                    lines.AddRange(vendor!.Offers.Skip(start).Take(16).Select((offer, index) =>
-                {
-                    var absolute = start + index;
-                    return ($"{(absolute == _innSelection ? "▶" : " ")} {offer.Item.Name,-34} {offer.Price,6} arany",
-                        absolute == _innSelection ? ConsoleColor.White : ConsoleColor.Gray);
-                }));
-            }
+                ? sellOffers.Length : vendor?.Offers.Count ?? 0;
+            _innSelection = entryCount == 0 ? 0 : Math.Clamp(_innSelection, 0, entryCount - 1);
+            var displaySellOffers = sellOffers.Select(offer =>
+                (offer.Slot.Item!, offer.Price, own?.Name ?? string.Empty)).ToArray();
+            lines = ConsoleRenderer.BuildInnVendorLines(vendor!, _innMarketMode, displaySellOffers,
+                _innSelection, inn.PartyGold, own?.Name ?? "Vendég",
+                own?.Inventory?.Slots.Count(slot => slot.Kind == InventorySlotKind.Backpack && slot.Item is null) ?? 0,
+                vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell
+                    ? "Csak a saját hátizsákod tárgyai adhatók el."
+                    : "Válassz a fogadó kínálatából.").ToList();
         }
-        const int desiredWidth = 76;
-        var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
-        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
-        var top = Math.Max(0, (grid.GetLength(1) - lines.Count - 2) / 2);
-        DrawOverlayText(grid, left, top, "╔" + new string('═', width - 2) + "╗", ConsoleColor.Yellow);
-        var renderedRows = Math.Min(lines.Count, grid.GetLength(1) - top - 2);
-        for (var row = 0; row < renderedRows; row++)
-        {
-            var value = lines[row].Text.Length > width - 4 ? lines[row].Text[..(width - 4)] : lines[row].Text;
-            DrawOverlayText(grid, left, top + row + 1, "║" + new string(' ', width - 2) + "║", ConsoleColor.Yellow);
-            DrawOverlayText(grid, left + 2, top + row + 1, value.PadRight(width - 4), lines[row].Color);
-        }
-        DrawOverlayText(grid, left, top + renderedRows + 1, "╚" + new string('═', width - 2) + "╝",
-            ConsoleColor.Yellow);
+        DrawGuestOverlay(grid, lines, ConsoleColor.Yellow, _innVendor is null ? 100 : 110);
         if (_innRumorOpen) ApplyInnRumorUi(grid, inn);
     }
 
@@ -1209,21 +1214,8 @@ public sealed class CoopGuestScreen
         if (inn.Rumors.Count == 0) { _innRumorOpen = false; return; }
         _innRumorSelection = Math.Clamp(_innRumorSelection, 0, inn.Rumors.Count - 1);
         var rumor = inn.Rumors[_innRumorSelection];
-        const int textWidth = 68;
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            ("PLETYKÁK A VÁNDORCSILLAG FOGADÓBAN", ConsoleColor.Yellow),
-            (rumor.Title, rumor.Color),
-            (new string('─', textWidth), ConsoleColor.DarkMagenta)
-        };
-        foreach (var paragraph in rumor.Lines)
-        {
-            lines.AddRange(WrapMessage(paragraph, textWidth).Select(line => (line, ConsoleColor.Gray)));
-            lines.Add((string.Empty, ConsoleColor.Gray));
-        }
-        lines.Add(($"Pletyka {_innRumorSelection + 1}/{inn.Rumors.Count}   ←/→ vagy N: lapozás   Enter/Esc: vissza",
-            ConsoleColor.White));
-        const int desiredWidth = 76;
+        var lines = ConsoleRenderer.BuildInnRumorLines(rumor, _innRumorSelection, inn.Rumors.Count).ToList();
+        const int desiredWidth = 110;
         var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
         var maxRows = Math.Max(1, grid.GetLength(1) - 2);
         if (lines.Count > maxRows)

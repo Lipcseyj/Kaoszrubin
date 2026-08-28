@@ -658,16 +658,26 @@ static void SessionActivityCanTargetCharacter()
 
 static void InnSnapshotCarriesSharedRumors()
 {
+    var completionId = Guid.NewGuid();
     var snapshot = new InnSnapshot(3, 120, [],
         [new InnRumorSnapshot("Úti hír", ["Ugyanazt hallja a host és a vendég."], ConsoleColor.Yellow)],
         [new InnTransactionSnapshot(1, InnTransactionKind.Purchase, "Vendég", "Kard", 50, "Vendég")],
-        [new InnSellPriceSnapshot("W-TEST", 25)]);
+        [new InnSellPriceSnapshot("W-TEST", 25)],
+        [new InnMenuOptionSnapshot(InnMenuOptionKind.Rest, "Pihenés", "Közös pihenés", LeaderOnly: true),
+         new InnMenuOptionSnapshot(InnMenuOptionKind.Market, "Kereskedő", "Vétel és eladás", InnVendorKind.Market)],
+        "A kovácsmester ma jelen van.", 2, 7,
+        new LevelCompletionSnapshot(completionId, 2, 100,
+            [new LevelCompletionCharacterSnapshot("Host", ConsoleColor.Green, 200, 1, 2, 12, 15, 0, 0, false)],
+            [new LevelCompletionFallenSnapshot("Elesett", "Harcos")]));
     var restored = JsonSerializer.Deserialize<InnSnapshot>(JsonSerializer.Serialize(snapshot));
     Assert(restored is { Rumors.Count: 1 } && restored.Rumors[0].Title == "Úti hír" &&
            restored.Rumors[0].Lines.SequenceEqual(snapshot.Rumors[0].Lines) &&
            restored.Rumors[0].Color == ConsoleColor.Yellow && restored.Transactions is [{ ActorName: "Vendég" }] &&
-           restored.SellPrices is [{ Price: 25 }],
-        "A fogadói pletyka nem maradt meg a snapshot JSON round-trip során.");
+           restored.SellPrices is [{ Price: 25 }] && restored.MenuOptions is [{ LeaderOnly: true }, ..] &&
+           restored.MenuOptions[1].Vendor == InnVendorKind.Market && restored.PartyCount == 2 &&
+           restored.PartyFreeBackpackSlots == 7 && restored.LevelCompletion?.CompletionId == completionId &&
+           restored.LevelCompletion.FallenCharacters is [{ Name: "Elesett" }],
+        "A fogadó közös menü- vagy pályavégi állapota nem maradt meg a snapshot JSON round-trip során.");
 }
 
 static void SnapshotRequiresCurrentBattlePrompt()
