@@ -2299,7 +2299,7 @@ public sealed class Game
         var knightProtector = TryRollKnightProtector(member.Character);
         var result = _battleSystem.Resolve(member.Character, enemy, _ => { },
             () => ChooseNpcBattlePlayerAction(member, enemy, onSpellCast: () => spellsCast++),
-            knightProtectorName: knightProtector?.Name);
+            knightProtector: knightProtector);
         var knightProtectionText = result.Events.Any(message => message.Contains("közbelépett", StringComparison.Ordinal))
             ? $" Lovagi védelem: {knightProtector!.Name} közbelépett."
             : string.Empty;
@@ -2739,8 +2739,9 @@ public sealed class Game
     {
         var knight = TryRollKnightProtector(protectedCharacter);
         if (knight is null) return;
-        state.SetKnightProtection(knight.Name);
-        _renderer.DrawInventoryMessage($"🛡 {knight.Name} készen áll közbelépni: az első találat sebzése feleződik.",
+        state.SetKnightProtection(knight);
+        _renderer.DrawInventoryMessage($"🛡️ {knight.Name} készen áll közbelépni: a társ első találatát teljesen kivédi, " +
+                                       "de a sebzés harmadát ő kapja.",
             ConsoleColor.Cyan);
     }
 

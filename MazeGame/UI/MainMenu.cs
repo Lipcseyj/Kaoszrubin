@@ -740,7 +740,52 @@ public sealed class MainMenu
             Hotkey("V / F1–F8", "Saját körben varázslás; a választás csak használható varázslatnál jelenik meg."),
             Hotkey("T", "Pap/Lovag élőholt ellen: csatánként egyszer Halottűzés / Szent elűzés."),
             Text("Harci varázslási kudarc: max(0, 30 - Intelligencia - Ügyesség)%; a manna és az akció elvész."),
-            Text("A csata alatt a világ ideje megáll.")
+            Text("A fegyveres találat: 1d20 + Ügyesség + módosítók az ellenfél 11 + Gyorsaság értéke ellen. A természetes 1 mindig hibázik, a természetes 20 mindig talál és kritikus."),
+            Text("A csata alatt a világ ideje megáll."),
+            Blank(),
+            Section("OSZTÁLYTAKTIKÁK ÉS HARCI MÓDOSÍTÓK", ConsoleColor.DarkCyan),
+            Text("⚔️ HARCI ALAPOK — A Harcos, Barbár és Lovag 7/10/13 Erőnél +1/+2/+3 fegyveres találatot kap. A kétkezes fegyver az ellenfél páncéljának csak a felét számítja."),
+            Text("A tehetségfokozatok a 5., 15. és 25. karakterszinten választhatók. Az Alkalmazkodó ember az 1. fokozatot már a 4. szinten megkapja. Fokozatonként a felsorolt két tehetség egyikét lehet véglegesen választani."),
+            Blank(),
+            ColoredText("⚔️ HARCOS — TAKTIKUS", ConsoleColor.Red),
+            ColoredText("Az első saját kör előtt az egész csatára állást választ. Osztályjártasság: 1–4. szint +1; 5–9. +2; 10–14. +3; 15–20. +4 találat.", ConsoleColor.Yellow),
+            ColoredText("🎯 Pontos: +2 találat, sebzés ×0,75.  💥 Erőteljes: -1 találat, sebzés ×1,25 és fél páncél.  🛡️ Védekező: sebzés ×0,75 és +3 védelem.", ConsoleColor.Cyan),
+            Text("1. fokozat — 5. szint (Ember: 4.): Első csapás — +10 kezdeményezés | Robusztusság — +10 max HP."),
+            Text("2. fokozat — 15. szint: Fegyvermester — +1 fegyveres találat | Rendíthetetlen — minden elszenvedett találatból -2 sebzés."),
+            Text("3. fokozat — 25. szint: Acélvihar — találat után 35% eséllyel újabb támadás | Utolsó erőd — harconként egyszer 1 HP-n túléli a halálos csapást."),
+            Blank(),
+            ColoredText("🔥 BARBÁR — DÜH", ConsoleColor.DarkRed),
+            ColoredText("Amikor először legalább 5 sebzést kap, 3 saját akcióra Dühbe kerül: támadásonként +5–10 sebzés, de -2 védelem. Osztályjártasság: 5/10/15. szinttől +1/+2/+3 találat.", ConsoleColor.Yellow),
+            Text("1. fokozat — 5. szint (Ember: 4.): Vérszomj — fél HP alatt +3 sebzés | Vastag bőr — +8 max HP és +1 védelem."),
+            Text("2. fokozat — 15. szint: Őrjöngés — minden egymást követő találat +1 halmozódó sebzés | Fájdalomtűrés — a 3-nál kisebb beérkező sebzés elvész."),
+            Text("3. fokozat — 25. szint: Berserker düh — fél HP alatt körönként két támadás | Őserő — +20 max HP és +5 közelharci sebzés."),
+            Blank(),
+            ColoredText("🛡️ LOVAG — VÉDELMEZŐ", ConsoleColor.Blue),
+            ColoredText("Két mezőn belüli társ csatájában 75% eséllyel közbelép: a társ első találatának teljes sebzését kivédi, a lovag pedig annak felfelé kerekített harmadát kapja. Osztályjártasság: 5/10/15. szinttől +1/+2/+3 találat; élőholt ellen Szent elűzés.", ConsoleColor.Cyan),
+            ColoredText("Papi imákat használ, 2. szinten kapja az első imáját, legfeljebb 2. szintű imákat képes használni.", ConsoleColor.Cyan),
+            Text("1. fokozat — 5. szint (Ember: 4.): Pajzsfal — pajzzsal +2 védelem | Kihívás — az ellenfél első támadása automatikusan hibázik."),
+            Text("2. fokozat — 15. szint: Páncélmester — a páncéldobás legalább az átlag | Szent eskü — csatakezdéskor +10 HP."),
+            Text("3. fokozat — 25. szint: Őrangyal — egyszer kivédi a halálos sebzést és +25 HP | Legyőzhetetlen — +15 max HP és -4 elszenvedett sebzés."),
+            Blank(),
+            ColoredText("🗡️ TOLVAJ — RAVASZ MEGKÖZELÍTÉS", ConsoleColor.DarkYellow),
+            ColoredText("Az első saját kör előtt választ: 🗡️ Orvtámadás — első találat ×2 | 👁️ Megfigyelés — +2 találat | ☠️ Mérgezett penge — találatonként +1–4 méregsebzés.", ConsoleColor.Yellow),
+            Text("1. fokozat — 5. szint (Ember: 4.): Orvtámadás — az első találat ×2 | Kitérés — 15% eséllyel elkerüli a nem kritikus találatot."),
+            Text("2. fokozat — 15. szint: Méregkeverő — találatonként +1–6 méregsebzés | Árnyéklépés — sikeres kitérés után a következő támadás automatikusan talál."),
+            Text("3. fokozat — 25. szint: Halálos pontosság — természetes 18–20-nál ×3 sebzés | Mestertolvaj — dupla ládaarany és 25% ritkatárgy-esély."),
+            Blank(),
+            ColoredText("✝️ PAP — ISTENI SZOLGÁLAT", ConsoleColor.White),
+            ColoredText("Papi imákat használ, élőholt ellen csatánként egyszer Halottűzést végezhet. Az 1. tehetségfokozat megszerzésekor végleges specializációt is választ.", ConsoleColor.Cyan),
+            ColoredText("💚 Élet: minden gyógyítás +25% | 🛡️ Védelem: a védőimák +1 akcióig tartanak | ⚖️ Ítélet: minden papi sebző varázslat +20%.", ConsoleColor.Green),
+            Text("1. fokozat — 5. szint (Ember: 4.): Gyógyító kegyelem — gyógyítás ×1,25 | Áldott fegyver — élőholt ellen +2 találat és +2 sebzés."),
+            Text("2. fokozat — 15. szint: Szentély — 20% eséllyel elvész az ellenfél támadása | Hitforrás — +12 max manna és csatánként +5 manna."),
+            Text("3. fokozat — 25. szint: Feltámadás — pályánként egyszer teljes HP-val visszatér | Isteni ítélet — minden ötödik papi varázslat kétszeres és ingyenes."),
+            Blank(),
+            ColoredText("🔮 MÁGUS — ARKÁN MÁGIA", ConsoleColor.Magenta),
+            ColoredText("Mágusigéket használ; a mágikus találatot és a közös varázslási kudarcot a saját képességei módosítják. Az 1. tehetségfokozat megszerzésekor végleges specializációt is választ.", ConsoleColor.Cyan),
+            ColoredText("🔥 Elementalista: közvetlen arkán sebzés +20% | 🎭 Illuzionista: kontroll- és védőigék +1 akcióig tartanak | 💀 Nekromanta: a közvetlen varázssebzés 10%-a visszagyógyul.", ConsoleColor.Magenta),
+            Text("1. fokozat — 5. szint (Ember: 4.): Arkán fókusz — +2 mágikus találat | Mannatartalék — +15 max manna."),
+            Text("2. fokozat — 15. szint: Elemi mester — sebző varázslatok ×1,25 | Mágikus pajzs — a sebzés 25%-át manna nyeli el."),
+            Text("3. fokozat — 25. szint: Láncvarázslat — 30% eséllyel ingyen megismétlődik | Főmágus — +25 max manna és -2 mannaköltség.")
         };
         ShowScrollableHelp(source);
     }
@@ -750,6 +795,7 @@ public sealed class MainMenu
 
     private static HelpSourceLine Section(string text, ConsoleColor color) => new(text, color);
     private static HelpSourceLine Text(string text) => new(text, ConsoleColor.Gray);
+    private static HelpSourceLine ColoredText(string text, ConsoleColor color) => new(text, color);
     private static HelpSourceLine Hotkey(string key, string text) => new(text, ConsoleColor.Gray, key);
     private static HelpSourceLine Blank() => Text(string.Empty);
 

@@ -43,7 +43,7 @@ var tests = new (string Name, Action Run)[]
     ("A harci találat kiemeli a sebzést és a megmaradt HP-t", BattleHitHighlightsDamageAndHealth),
     ("A győzelmi üzenet nem ismétli meg az utolsó támadást", VictoryMessageIsConcise),
     ("A barbár öt sebzés után Dühbe gurul", BarbarianRageTriggersAfterFiveDamage),
-    ("A lovagi közbelépés felezi az első találat sebzését", KnightProtectionHalvesFirstHit),
+    ("A lovagi közbelépés kivédi a társ találatát és harmadolva átveszi", KnightProtectionTransfersThirdOfFirstHit),
     ("A csata megvárhatja a játékos hálózati akcióját", BattleCanWaitForPlayerAction),
     ("A támogatás a fő akció előtt lezárhatja a csatát", SupportCanFinishBattleBeforePlayerAction),
     ("A régi Resolve API az állapotgépet hajtja", ResolveUsesStateMachineAdapter),
@@ -396,22 +396,33 @@ static void PhysicalClassesChooseBattleTactic()
 static void BarbarianRageTriggersAfterFiveDamage()
 {
     var system = CreateBattleSystem(72);
-    var barbarian = CreateCharacter("Barbár", vitality: 500, characterClassId: CharacterClassIds.Barbár);
+    var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
+    var barbarianClass = new CharacterClassDefinition(CharacterClassIds.Barbár, "Barbár",
+        PrimaryAbilities.Zero, false, 1.0);
+    var barbarian = new LiveCharacter("Barbár", race, barbarianClass,
+        new PrimaryAbilities(5, 100, 5, 5), 500, 0, 1, 0);
     var state = system.StartBattle(barbarian, CreateEnemy(1000, 20)).State;
     for (var step = 0; step < 100 && !state.IsBarbarianRaging; step++)
         system.Advance(state);
     Assert(state.IsBarbarianRaging, "A barbár legalább 5 tényleges sebzés után sem került Dühbe.");
+    var rageLogs = new List<string>();
+    for (var step = 0; step < 6 && state.IsBarbarianRaging; step++)
+        rageLogs.AddRange(system.Advance(state).Entries.Select(entry => entry.Message));
+    Assert(rageLogs.Any(log => Enumerable.Range(5, 6).Any(bonus =>
+            log.Contains($"🔥 Düh +{bonus}", StringComparison.Ordinal))),
+        "A barbár Düh támadása nem kapott 5–10 közötti sebzésbónuszt.");
 }
 
-static void KnightProtectionHalvesFirstHit()
+static void KnightProtectionTransfersThirdOfFirstHit()
 {
     var unprotectedSystem = CreateBattleSystem(73);
     var protectedSystem = CreateBattleSystem(73);
     var unprotected = CreateCharacter("Védtelen", vitality: 500, characterClassId: CharacterClassIds.Pap);
     var protectedCharacter = CreateCharacter("Védett", vitality: 500, characterClassId: CharacterClassIds.Pap);
+    var protector = CreateCharacter("Őrszem", vitality: 500, characterClassId: CharacterClassIds.Lovag);
     var unprotectedState = unprotectedSystem.StartBattle(unprotected, CreateEnemy(1000, 20)).State;
     var protectedState = protectedSystem.StartBattle(protectedCharacter, CreateEnemy(1000, 20)).State;
-    protectedState.SetKnightProtection("Őrszem");
+    protectedState.SetKnightProtection(protector);
     var protectedEntries = new List<BattleLogEntry>();
     for (var step = 0; step < 100 && unprotected.CurrentVitality == 500; step++)
     {
@@ -419,9 +430,10 @@ static void KnightProtectionHalvesFirstHit()
         protectedEntries.AddRange(protectedSystem.Advance(protectedState).Entries);
     }
     var fullDamage = 500 - unprotected.CurrentVitality;
-    var reducedDamage = 500 - protectedCharacter.CurrentVitality;
-    Assert(fullDamage > 0 && reducedDamage == fullDamage / 2,
-        $"A lovagi védelem nem felezte a sebzést: {fullDamage} helyett {reducedDamage} érkezett.");
+    var protectedDamage = 500 - protectedCharacter.CurrentVitality;
+    var protectorDamage = 500 - protector.CurrentVitality;
+    Assert(fullDamage > 0 && protectedDamage == 0 && protectorDamage == (fullDamage + 2) / 3,
+        $"A lovagi védelem hibásan osztotta el a sebzést: társ {protectedDamage}, lovag {protectorDamage}, eredeti {fullDamage}.");
     Assert(protectedEntries.Any(entry => entry.Message.Contains("Őrszem közbelépett", StringComparison.Ordinal)),
         "A lovagi közbelépés nem került a harci eseménynaplóba.");
 }

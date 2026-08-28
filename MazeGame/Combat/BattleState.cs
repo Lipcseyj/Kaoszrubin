@@ -64,9 +64,9 @@ public sealed class BattleState
         return true;
     }
 
-    public void SetKnightProtection(string knightName)
+    public void SetKnightProtection(LiveCharacter knight)
     {
-        Context.KnightProtectorName = knightName;
+        Context.KnightProtector = knight;
         Context.KnightProtectionAvailable = true;
     }
 
@@ -109,5 +109,5 @@ internal sealed class BattleRuntimeContext
     public int BarbarianRageActionsRemaining { get; set; }
     public bool BarbarianRageTriggered { get; set; }
     public bool KnightProtectionAvailable { get; set; }
-    public string? KnightProtectorName { get; set; }
+    public LiveCharacter? KnightProtector { get; set; }
 }

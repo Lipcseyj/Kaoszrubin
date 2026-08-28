@@ -19,13 +19,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     public BattleResult Resolve(LiveCharacter player, Enemy enemy, Action<BattleLogEntry> onRound,
         Func<BattlePlayerAction?>? choosePlayerAction = null, Func<int>? partyMemberDamage = null,
-        string? knightProtectorName = null)
+        LiveCharacter? knightProtector = null)
     {
         var started = StartBattle(player, enemy);
         foreach (var entry in started.Entries) onRound(entry);
         var state = started.State;
-        if (!string.IsNullOrWhiteSpace(knightProtectorName))
-            state.SetKnightProtection(knightProtectorName);
+        if (knightProtector is not null)
+            state.SetKnightProtection(knightProtector);
         if (state.RequiresTacticSelection)
         {
             var tactics = player.CharacterClass.Id == CharacterClassIds.Harcos
@@ -294,7 +294,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             perkBonus += context.ConsecutivePlayerHits;
             if (context.ConsecutivePlayerHits > 0) notes.Add($"Őrjöngés +{context.ConsecutivePlayerHits}");
         }
-        if (context.BarbarianRageActionsRemaining > 0) { perkBonus += 3; notes.Add("Düh +3"); }
+        if (context.BarbarianRageActionsRemaining > 0)
+        {
+            var rageBonus = Roll(new ValueRange(5, 10));
+            perkBonus += rageBonus;
+            notes.Add($"🔥 Düh +{rageBonus}");
+        }
         var armor = (defender.Armor ?? 0) + MonsterAbilityValue(defender, MonsterAbilityEffect.ArmorBonus);
         var armorPiercing = weapon?.IsTwoHanded == true || context.Tactic == BattleTactic.FighterPowerful;
         var effectiveArmor = armorPiercing ? (armor + 1) / 2 : armor;
@@ -522,9 +527,15 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (damage > 0 && context.KnightProtectionAvailable)
         {
             context.KnightProtectionAvailable = false;
-            var prevented = (damage + 1) / 2;
-            damage -= prevented;
-            notes.Add($"🛡 {context.KnightProtectorName} közbelépett: -{prevented} sebzés");
+            var protector = context.KnightProtector;
+            if (protector is not null && protector.IsAlive)
+            {
+                var transferredDamage = Math.Max(1, (damage + 2) / 3);
+                protector.ReceiveDamage(transferredDamage);
+                notes.Add($"🛡️ {protector.Name} közbelépett: a teljes {damage} sebzést kivédte, " +
+                          $"és 💥 {transferredDamage} sebzést kapott (❤️ {protector.CurrentVitality}/{protector.MaximumVitality})");
+                damage = 0;
+            }
         }
         string WithNotes(string message) => string.Join(". ", notes.Append(message));
 
@@ -569,7 +580,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         {
             context.BarbarianRageTriggered = true;
             context.BarbarianRageActionsRemaining = 3;
-            notes.Add("🔥 Düh: 3 akcióig +3 sebzés és -2 védelem");
+            notes.Add("🔥 Düh: 3 akcióig +5–10 sebzés és -2 védelem");
         }
         return string.Join(". ", notes);
     }
