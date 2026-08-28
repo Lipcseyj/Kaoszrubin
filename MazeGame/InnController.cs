@@ -496,7 +496,7 @@ internal sealed class InnController
 
         var fixedExtras = includePremiumSupplies
             ? CreateSecretStashSupplies()
-            : new[] { "T001", "T001", "T001", "T001", "T002", "T002", "T002", "T002" };
+            : new[] { "T001", "T001", "T001", "T001", "T004", "T005", "T004", "T005", "T002", "T002", "T002", "T002", "T002", "T002", "T002", "T002" };
 
         foreach (var itemId in fixedExtras)
         {
