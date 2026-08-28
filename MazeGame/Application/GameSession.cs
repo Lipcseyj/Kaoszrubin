@@ -210,6 +210,7 @@ public sealed class GameSession
             if (string.IsNullOrWhiteSpace(context.LevelName)) throw new ArgumentException("A pályanév nem lehet üres.", nameof(context));
             SynchronizeParty();
             ValidateSnapshotBattle(context.Battle);
+            var partyGold = _party.Leader!.Gold;
 
             var party = _party.Members.Select(character => new SessionCharacterSnapshot(
                 character.Id,
@@ -223,7 +224,7 @@ public sealed class GameSession
                 character.MaximumMana,
                 character.FoodLevel,
                 character.WaterLevel,
-                character.Gold,
+                partyGold,
                 character.IsAlive,
                 context.CharacterPositions.TryGetValue(character.Id, out var position) ? position : null,
                 character.Statuses.Select(status => status.Id).ToArray(),
@@ -231,7 +232,7 @@ public sealed class GameSession
             var controls = _party.Members.Select(character => _controls[character.Id]).ToArray();
             return new SessionSnapshot(SessionProtocol.Version, ++_snapshotSequence, _eventSequence, Phase,
                 HostPlayerId, _party.Leader!.Id, context.MazeLevel, context.LevelName, party, controls, context.Battle,
-                context.World);
+                context.World, PartyGold: partyGold);
         }
     }
 

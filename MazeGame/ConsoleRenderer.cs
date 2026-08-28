@@ -550,7 +550,7 @@ public sealed class ConsoleRenderer
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnVendorLines(
         InnVendorSnapshot vendor, InnMarketMode mode,
         IReadOnlyList<(InventoryItemSnapshot Item, int Price, string OwnerName)> sellOffers,
-        int selectedIndex, int partyGold, string buyerName, int freeBackpackSlots, string message)
+        int selectedIndex, int partyGold, int freeBackpackSlots, string message)
     {
         var buying = vendor.Kind != InnVendorKind.Market || mode == InnMarketMode.Buy;
         var entryCount = buying ? vendor.Offers.Count : sellOffers.Count;
@@ -574,7 +574,7 @@ public sealed class ConsoleRenderer
         else
             lines.Add(("Csak vásárlás — a kínálat és az árak a fogadóba érkezéskor rögzültek.",
                 ConsoleColor.DarkYellow));
-        lines.Add(($"{MoneyIcon} {buyerName} aranya: {partyGold}     🎒 Szabad hátizsákhely: {freeBackpackSlots}",
+        lines.Add(($"{MoneyIcon} Közös arany: {partyGold}     🎒 Szabad hátizsákhely: {freeBackpackSlots}",
             ConsoleColor.Green));
         lines.Add((new string('─', 92), ConsoleColor.DarkMagenta));
         for (var row = 0; row < InnMarketPageSize; row++)
@@ -760,7 +760,7 @@ public sealed class ConsoleRenderer
         var sales = sellOffers.Select(offer => (ToInventoryItemSnapshot(offer.Item), offer.Price,
             offer.Owner.Name)).ToArray();
         DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, mode, sales, selectedIndex,
-            leader.Gold, leader.Name, freeBackpackSlots, message));
+            leader.Gold, freeBackpackSlots, message));
     }
 
     public void DrawInnSecretStashScreen(LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
@@ -806,7 +806,7 @@ public sealed class ConsoleRenderer
         var vendor = new InnVendorSnapshot(kind, title, stock.Select((offer, index) =>
             new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item), offer.Price)).ToArray());
         DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, InnMarketMode.Buy, [], selectedIndex,
-            leader.Gold, leader.Name, freeBackpackSlots, message));
+            leader.Gold, freeBackpackSlots, message));
     }
 
     private static InventoryItemSnapshot ToInventoryItemSnapshot(IItemDefinition item) => new(item.Id, item.Name,

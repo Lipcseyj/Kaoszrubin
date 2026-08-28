@@ -599,6 +599,8 @@ static void BattleTacticCommandIsAccepted()
 static void SessionSnapshotRoundTripsThroughJson()
 {
     var (session, leader, companion) = CreateSession();
+    leader.SetGold(777);
+    companion.SetGold(999);
     var positions = new Dictionary<CharacterId, Position>
     {
         [leader.Id] = new Position(2, 2),
@@ -617,6 +619,7 @@ static void SessionSnapshotRoundTripsThroughJson()
            restored.Activities is [{ Kind: SessionActivityKind.Spell }] &&
            restored.Sounds is [{ Sequence: 1, Effect: SoundEffect.OffensiveSpell,
                ListenerCharacterIds: [{ } listener] }] && listener == companion.Id &&
+           restored.PartyGold == 777 && restored.Party.All(character => character.Gold == 777) &&
            restored.Sounds[0].IsAudibleTo(companion.Id) && !restored.Sounds[0].IsAudibleTo(leader.Id) &&
            restored.Party.Single(character => character.CharacterId == companion.Id).Position == new Position(3, 2),
         "A session snapshot JSON round-trip közben megváltozott.");

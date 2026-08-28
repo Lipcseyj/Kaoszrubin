@@ -1199,7 +1199,7 @@ public sealed class CoopGuestScreen
             var displaySellOffers = sellOffers.Select(offer =>
                 (offer.Slot.Item!, offer.Price, own?.Name ?? string.Empty)).ToArray();
             lines = ConsoleRenderer.BuildInnVendorLines(vendor!, _innMarketMode, displaySellOffers,
-                _innSelection, inn.PartyGold, own?.Name ?? "Vendég",
+                _innSelection, inn.PartyGold,
                 own?.Inventory?.Slots.Count(slot => slot.Kind == InventorySlotKind.Backpack && slot.Item is null) ?? 0,
                 vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell
                     ? "Csak a saját hátizsákod tárgyai adhatók el."

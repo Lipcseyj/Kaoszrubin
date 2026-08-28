@@ -215,8 +215,10 @@ public sealed class Game
             LevelUpPrompt = _activeLevelUpPrompt,
             Activities = _sessionActivities.ToArray(),
             Sounds = _sessionSounds.ToArray(),
+            PartyGold = SelectedCharacter.Gold,
             Party = snapshot.Party.Select(character => character with
             {
+                Gold = SelectedCharacter.Gold,
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
                     _gameData.ExperienceByLevel),
                 SpellInfo = SpellcastingRules.TryGetSchool(characters[character.CharacterId].CharacterClass.Id, out _)
@@ -1089,7 +1091,7 @@ public sealed class Game
         var rewardMultiplier = jackpot ? rules.ChestJackpotMultiplier : 1;
         if (character.HasPerk(PerkIds.ThiefMasterThief)) rewardMultiplier *= 2;
         var goldAmount = chest.GoldAmount * rewardMultiplier;
-        character.AddGold(goldAmount);
+        SelectedCharacter.AddGold(goldAmount);
         var masterThiefLoot = RollMasterThiefChestLoot(character);
         _maze.RemoveTreasureChest(chest);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
@@ -1234,9 +1236,15 @@ public sealed class Game
 
     private ConsoleKeyInfo ReadInnKey()
     {
+        var initialRevision = _innController.Revision;
         while (!Console.KeyAvailable)
         {
             ProcessSessionCommands();
+            if (_innController.Revision != initialRevision)
+            {
+                _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                return new ConsoleKeyInfo('\0', InnController.StateChangedKey, false, false, false);
+            }
             if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
                 _activeCoopHost.TryPublish(CreateSessionSnapshot());
             Thread.Sleep(20);
@@ -1511,7 +1519,7 @@ public sealed class Game
         {
             var maximumGold = Math.Max(1, enemy.StrengthTier * rules.GoldPerStrengthTier);
             var gold = _random.Next(1, maximumGold + 1);
-            character.AddGold(gold);
+            SelectedCharacter.AddGold(gold);
             messages.Add($"{ConsoleRenderer.MoneyIcon} {gold} arany");
         }
         if (equipmentDefinition is not null && _random.Next(100) < equipmentChance &&

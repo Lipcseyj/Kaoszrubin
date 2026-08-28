@@ -9,6 +9,7 @@ namespace MazeGame;
 
 internal sealed class InnController
 {
+    internal const ConsoleKey StateChangedKey = ConsoleKey.F24;
     private const int SecretStashLevelAdvance = 4;
     private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002",
         "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020", "T023", "T024"];
@@ -37,6 +38,8 @@ internal sealed class InnController
     private string _artisanNotice = string.Empty;
     private IReadOnlyList<InnMenuOptionSnapshot> _menuOptions = [];
     private LevelCompletionSnapshot? _levelCompletion;
+
+    internal long Revision => _revision;
 
     public InnController(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
         ConsoleRenderer renderer, Action<SoundEffect> playGlobalSound, Random random,
@@ -198,6 +201,7 @@ internal sealed class InnController
                 redraw = false;
             }
             var key = _readKey().Key;
+            if (key == StateChangedKey) { redraw = true; continue; }
             if (key == ConsoleKey.UpArrow)
             {
                 var previousIndex = selectedIndex;
@@ -296,6 +300,7 @@ internal sealed class InnController
             }
 
             var key = _readKey().Key;
+            if (key == StateChangedKey) { redraw = true; continue; }
             if (key == ConsoleKey.Escape) return;
             if (key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow or ConsoleKey.Tab)
             {
@@ -386,6 +391,7 @@ internal sealed class InnController
             }
 
             var key = _readKey().Key;
+            if (key == StateChangedKey) { redraw = true; continue; }
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow && entryCount > 0)
             {
@@ -563,6 +569,7 @@ internal sealed class InnController
                 redraw = false;
             }
             var key = _readKey().Key;
+            if (key == StateChangedKey) { redraw = true; continue; }
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow)
             {
@@ -629,6 +636,7 @@ internal sealed class InnController
                 redraw = false;
             }
             var key = _readKey().Key;
+            if (key == StateChangedKey) { redraw = true; continue; }
             if (key == ConsoleKey.Escape) return null;
             if (key == ConsoleKey.UpArrow)
             {
@@ -816,6 +824,7 @@ internal sealed class InnController
             }
 
             var key = _readKey().Key;
+            if (key == StateChangedKey) { redraw = true; continue; }
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow && entryCount > 0)
             {
@@ -908,6 +917,7 @@ internal sealed class InnController
         {
             _renderer.DrawWanderingMageMenu(_selectedCharacter, options, selectedIndex, message);
             var key = _readKey().Key;
+            if (key == StateChangedKey) continue;
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow) selectedIndex = (selectedIndex - 1 + options.Count) % options.Count;
             else if (key == ConsoleKey.DownArrow) selectedIndex = (selectedIndex + 1) % options.Count;
@@ -992,6 +1002,7 @@ internal sealed class InnController
                 redraw = false;
             }
             var key = _readKey().Key;
+            if (key == StateChangedKey) { redraw = true; continue; }
             if (key == ConsoleKey.Escape) return;
             if (key is ConsoleKey.UpArrow or ConsoleKey.DownArrow && stock.Count > 0)
             {

@@ -19,7 +19,7 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
     NarrativeSnapshot? Narrative = null, SpellPreparationSnapshot? SpellPreparation = null,
     PartyRestSnapshot? RestNotice = null, LevelUpPromptSnapshot? LevelUpPrompt = null,
     IReadOnlyList<SessionActivitySnapshot>? Activities = null,
-    IReadOnlyList<SessionSoundSnapshot>? Sounds = null);
+    IReadOnlyList<SessionSoundSnapshot>? Sounds = null, int PartyGold = 0);
 
 /// <summary>A null címzettlista közös hangot, a nem üres lista karakterhez kötött hallgatókat jelent.</summary>
 public sealed record SessionSoundSnapshot(long Sequence, SoundEffect Effect,
