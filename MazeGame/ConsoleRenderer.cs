@@ -54,7 +54,7 @@ public sealed class ConsoleRenderer
     private const int InnRecruitmentFrameBaseLineCount = 10;
     private const int InnReplacementFrameWidth = 90;
     private const int InnReplacementFirstMemberLine = 4;
-    private const int InnReplacementFrameBaseLineCount = 6;
+    private const int InnReplacementFrameBaseLineCount = 7;
     private const int InnRumorFrameWidth = 108;
     private const int InnRumorTextWidth = 100;
     private const int DetailNextLineOffset = 1;
@@ -634,7 +634,7 @@ public sealed class ConsoleRenderer
     }
 
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnRumorLines(
-        InnRumorSnapshot rumor, int selectedIndex, int rumorCount)
+        InnRumorSnapshot rumor, int selectedIndex, int rumorCount, string? notice = null)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
         {
@@ -648,6 +648,8 @@ public sealed class ConsoleRenderer
             foreach (var line in WrapText(paragraph, InnRumorTextWidth)) lines.Add((line, ConsoleColor.Gray));
             lines.Add((string.Empty, ConsoleColor.Gray));
         }
+        lines.Add((string.IsNullOrWhiteSpace(notice) ? string.Empty : ClipMarketText(notice, InnMarketTextWidth),
+            ConsoleColor.Yellow));
         lines.Add((new string('─', 92), ConsoleColor.DarkMagenta));
         lines.Add(($"Pletyka {selectedIndex + 1}/{rumorCount}   ←/→ vagy N: lapozás   Enter/Esc: vissza a fogadóba",
             ConsoleColor.White));
@@ -941,7 +943,7 @@ public sealed class ConsoleRenderer
     }
 
     public void DrawInnReplacementScreen(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable,
-        int selectedIndex)
+        int selectedIndex, string? notice = null)
     {
         ResetColorCache();
         Console.Clear();
@@ -958,6 +960,8 @@ public sealed class ConsoleRenderer
             lines.Add(($"{(index == selectedIndex ? "▶" : " ")} {member.Name,-13} {member.CharacterClass.Name,-10} L{member.Level,2}  HP {member.CurrentVitality}/{member.MaximumVitality}",
                 index == selectedIndex ? ConsoleColor.White : member.Color));
         }
+        lines.Add((string.IsNullOrWhiteSpace(notice) ? string.Empty : ClipMarketText(notice, InnMarketTextWidth),
+            ConsoleColor.Yellow));
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("↑/↓ választás   Enter végleges csere   Esc mégse", ConsoleColor.White));
         DrawCenteredFrame(InnReplacementFrameWidth, lines);
@@ -997,12 +1001,12 @@ public sealed class ConsoleRenderer
         UpdateCenteredFrameLines(InnReplacementFrameWidth, InnReplacementFrameBaseLineCount + replaceable.Count, updates);
     }
 
-    public void DrawInnRumorScreen(InnRumor rumor, int selectedIndex, int rumorCount)
+    public void DrawInnRumorScreen(InnRumor rumor, int selectedIndex, int rumorCount, string? notice = null)
     {
         ResetColorCache();
         Console.Clear();
         DrawCenteredFrame(InnRumorFrameWidth, BuildInnRumorLines(
-            new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color), selectedIndex, rumorCount));
+            new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color), selectedIndex, rumorCount, notice));
     }
 
     private static IEnumerable<string> WrapText(string text, int maximumWidth)

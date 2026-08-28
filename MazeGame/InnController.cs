@@ -29,6 +29,7 @@ internal sealed class InnController
     private readonly Dictionary<InnVendorKind, List<InnStockOffer>> _vendorStocks = [];
     private readonly List<InnRumor> _rumors = [];
     private readonly Queue<InnTransactionSnapshot> _transactions = new();
+    private readonly Queue<string> _pendingHostTransactionMessages = new();
     private readonly Dictionary<string, int> _buybackPrices = new(StringComparer.OrdinalIgnoreCase);
     private long _transactionSequence;
     private long _revision;
@@ -166,6 +167,7 @@ internal sealed class InnController
             _buybackPrices[item.Id] = Math.Max(1, item.BasePrice * _random.Next(40, 71) / 100);
         _rumors.Clear();
         _transactions.Clear();
+        _pendingHostTransactionMessages.Clear();
         var shownRumors = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < 4; index++)
             _rumors.Add(CreateUniqueInnRumor(completedLevel, shownRumors));
@@ -192,16 +194,23 @@ internal sealed class InnController
         options.Add(new(InnMenuOptionKind.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.", LeaderOnly: true));
         _menuOptions = options;
         var selectedIndex = 0;
+        var menuNotice = _artisanNotice;
         var redraw = true;
         while (true)
         {
             if (redraw)
             {
-                _renderer.DrawInnMenuScreen(_selectedCharacter, _characterRoster.Party.Members.Count, selectedIndex, options, _artisanNotice);
+                _renderer.DrawInnMenuScreen(_selectedCharacter, _characterRoster.Party.Members.Count, selectedIndex,
+                    options, menuNotice);
                 redraw = false;
             }
             var key = _readKey().Key;
-            if (key == StateChangedKey) { redraw = true; continue; }
+            if (key == StateChangedKey)
+            {
+                menuNotice = ConsumeHostTransactionMessages(menuNotice);
+                redraw = true;
+                continue;
+            }
             if (key == ConsoleKey.UpArrow)
             {
                 var previousIndex = selectedIndex;
@@ -300,7 +309,12 @@ internal sealed class InnController
             }
 
             var key = _readKey().Key;
-            if (key == StateChangedKey) { redraw = true; continue; }
+            if (key == StateChangedKey)
+            {
+                message = ConsumeHostTransactionMessages(message);
+                redraw = true;
+                continue;
+            }
             if (key == ConsoleKey.Escape) return;
             if (key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow or ConsoleKey.Tab)
             {
@@ -391,7 +405,12 @@ internal sealed class InnController
             }
 
             var key = _readKey().Key;
-            if (key == StateChangedKey) { redraw = true; continue; }
+            if (key == StateChangedKey)
+            {
+                message = ConsumeHostTransactionMessages(message);
+                redraw = true;
+                continue;
+            }
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow && entryCount > 0)
             {
@@ -569,7 +588,12 @@ internal sealed class InnController
                 redraw = false;
             }
             var key = _readKey().Key;
-            if (key == StateChangedKey) { redraw = true; continue; }
+            if (key == StateChangedKey)
+            {
+                message = ConsumeHostTransactionMessages(message);
+                redraw = true;
+                continue;
+            }
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow)
             {
@@ -627,16 +651,22 @@ internal sealed class InnController
     private int? ChoosePartyMemberToReplace(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable)
     {
         var selectedIndex = 0;
+        string? transactionNotice = null;
         var redraw = true;
         while (true)
         {
             if (redraw)
             {
-                _renderer.DrawInnReplacementScreen(recruit, replaceable, selectedIndex);
+                _renderer.DrawInnReplacementScreen(recruit, replaceable, selectedIndex, transactionNotice);
                 redraw = false;
             }
             var key = _readKey().Key;
-            if (key == StateChangedKey) { redraw = true; continue; }
+            if (key == StateChangedKey)
+            {
+                transactionNotice = ConsumeHostTransactionMessages(transactionNotice ?? string.Empty);
+                redraw = true;
+                continue;
+            }
             if (key == ConsoleKey.Escape) return null;
             if (key == ConsoleKey.UpArrow)
             {
@@ -657,11 +687,17 @@ internal sealed class InnController
     private void RunInnRumors()
     {
         var selectedIndex = 0;
+        string? transactionNotice = null;
         while (true)
         {
             if (_rumors.Count == 0) return;
-            _renderer.DrawInnRumorScreen(_rumors[selectedIndex], selectedIndex, _rumors.Count);
+            _renderer.DrawInnRumorScreen(_rumors[selectedIndex], selectedIndex, _rumors.Count, transactionNotice);
             var key = _readKey().Key;
+            if (key == StateChangedKey)
+            {
+                transactionNotice = ConsumeHostTransactionMessages(transactionNotice ?? string.Empty);
+                continue;
+            }
             if (key is ConsoleKey.Enter or ConsoleKey.Escape) return;
             if (key is ConsoleKey.N or ConsoleKey.RightArrow or ConsoleKey.DownArrow)
                 selectedIndex = (selectedIndex + 1) % _rumors.Count;
@@ -824,7 +860,12 @@ internal sealed class InnController
             }
 
             var key = _readKey().Key;
-            if (key == StateChangedKey) { redraw = true; continue; }
+            if (key == StateChangedKey)
+            {
+                message = ConsumeHostTransactionMessages(message);
+                redraw = true;
+                continue;
+            }
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow && entryCount > 0)
             {
@@ -917,7 +958,11 @@ internal sealed class InnController
         {
             _renderer.DrawWanderingMageMenu(_selectedCharacter, options, selectedIndex, message);
             var key = _readKey().Key;
-            if (key == StateChangedKey) continue;
+            if (key == StateChangedKey)
+            {
+                message = ConsumeHostTransactionMessages(message);
+                continue;
+            }
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow) selectedIndex = (selectedIndex - 1 + options.Count) % options.Count;
             else if (key == ConsoleKey.DownArrow) selectedIndex = (selectedIndex + 1) % options.Count;
@@ -945,6 +990,11 @@ internal sealed class InnController
             _renderer.DrawWandRechargeScreen(_selectedCharacter, wands.Select(wand =>
                 (wand.Character.Name, wand.Item.Name, WandRechargePrice(wand.Item), wand.Item.MaximumCharges)).ToList(), selectedIndex, message);
             var key = _readKey().Key;
+            if (key == StateChangedKey)
+            {
+                message = ConsumeHostTransactionMessages(message);
+                continue;
+            }
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.UpArrow && wands.Count > 0) selectedIndex = (selectedIndex - 1 + wands.Count) % wands.Count;
             else if (key == ConsoleKey.DownArrow && wands.Count > 0) selectedIndex = (selectedIndex + 1) % wands.Count;
@@ -1002,7 +1052,12 @@ internal sealed class InnController
                 redraw = false;
             }
             var key = _readKey().Key;
-            if (key == StateChangedKey) { redraw = true; continue; }
+            if (key == StateChangedKey)
+            {
+                message = ConsumeHostTransactionMessages(message);
+                redraw = true;
+                continue;
+            }
             if (key == ConsoleKey.Escape) return;
             if (key is ConsoleKey.UpArrow or ConsoleKey.DownArrow && stock.Count > 0)
             {
@@ -1037,7 +1092,18 @@ internal sealed class InnController
         _transactions.Enqueue(transaction);
         while (_transactions.Count > 8) _transactions.Dequeue();
         if (announceOnHost)
-            _renderer.DrawInventoryMessage(FormatTransaction(transaction), ConsoleColor.Yellow);
+        {
+            _pendingHostTransactionMessages.Enqueue(FormatTransaction(transaction));
+            while (_pendingHostTransactionMessages.Count > 8) _pendingHostTransactionMessages.Dequeue();
+        }
+    }
+
+    private string ConsumeHostTransactionMessages(string fallback)
+    {
+        if (_pendingHostTransactionMessages.Count == 0) return fallback;
+        var messages = new List<string>(_pendingHostTransactionMessages.Count);
+        while (_pendingHostTransactionMessages.TryDequeue(out var message)) messages.Add(message);
+        return string.Join("  •  ", messages);
     }
 
     private static string FormatTransaction(InnTransactionSnapshot transaction) => transaction.Kind switch
