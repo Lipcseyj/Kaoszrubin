@@ -7,7 +7,7 @@ namespace MazeGame.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 30;
+    public const int Version = 31;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -115,7 +115,11 @@ public sealed record KnownSpellSnapshot(string SpellId, string Name, int Level, 
 
 public sealed record BattleSnapshot(BattleId BattleId, long TurnId, int Round, bool IsPlayerTurn,
     CharacterId ActingCharacterId, SessionEnemySnapshot Enemy,
-    IReadOnlyList<BattleActionKind> AllowedActions, IReadOnlyList<BattleSpellOption>? SpellOptions = null);
+    IReadOnlyList<BattleActionKind> AllowedActions, IReadOnlyList<BattleSpellOption>? SpellOptions = null,
+    IReadOnlyList<BattleTacticOptionSnapshot>? TacticOptions = null);
+
+public sealed record BattleTacticOptionSnapshot(BattleActionKind Action, string Name, string Effect,
+    int? HitChancePercent = null);
 
 public sealed record BattleSpellOption(string SpellId, string Name, int Level, int ManaCost,
     SpellTargetType TargetType, int Range, int AreaRadius, int? CastingItemSlotIndex,

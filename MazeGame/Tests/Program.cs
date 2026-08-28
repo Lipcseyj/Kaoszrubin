@@ -36,6 +36,7 @@ var tests = new (string Name, Action Run)[]
     ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
+    ("A harcos taktikai találati esélyei a valódi képletet követik", FighterTacticHitChancesUseCombatFormula),
     ("Az ellenséges kezdeményezés az első saját körig késlelteti a taktikát", EnemyInitiativeDelaysTacticPrompt),
     ("A kezdeményezési napló előjeles 1d2 dobást mutat", InitiativeLogShowsSignedDie),
     ("Az éhség és szomjúság hatásai láthatók a harci naplóban", NeedStatusEffectsAreVisible),
@@ -688,6 +689,30 @@ static void InnSnapshotCarriesSharedRumors()
         "A fogadó közös menü- vagy pályavégi állapota nem maradt meg a snapshot JSON round-trip során.");
 }
 
+static void FighterTacticHitChancesUseCombatFormula()
+{
+    var system = CreateBattleSystem(1701);
+    var fighter = CreateCharacter("Harcos", characterClassId: CharacterClassIds.Harcos);
+    var enemy = CreateEnemy(100, 1, speed: 8);
+    var precise = system.EstimatePlayerHitChance(fighter, enemy, BattleTactic.FighterPrecise);
+    var powerful = system.EstimatePlayerHitChance(fighter, enemy, BattleTactic.FighterPowerful);
+    var defensive = system.EstimatePlayerHitChance(fighter, enemy, BattleTactic.FighterDefensive);
+    Assert(precise == defensive + 10 && defensive == powerful + 5,
+        $"A taktikai módosítók nem +2/0/-1 arányban változtatják az esélyt: {precise}/{defensive}/{powerful}%.");
+
+    var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
+    var fighterClass = new CharacterClassDefinition(CharacterClassIds.Harcos, "Harcos", PrimaryAbilities.Zero,
+        false, 1.0);
+    var nearlyCertain = new LiveCharacter("Biztos", race, fighterClass,
+        new PrimaryAbilities(5, 100, 5, 5), 20, 0, 1, 0);
+    var nearlyImpossible = new LiveCharacter("Esélytelen", race, fighterClass,
+        new PrimaryAbilities(5, -100, 5, 5), 20, 0, 1, 0);
+    Assert(system.EstimatePlayerHitChance(nearlyCertain, enemy, BattleTactic.FighterPrecise) == 95,
+        "A természetes 1 nem korlátozza 95%-ra a találati esélyt.");
+    Assert(system.EstimatePlayerHitChance(nearlyImpossible, enemy, BattleTactic.FighterPowerful) == 5,
+        "A természetes 20 nem biztosít legalább 5% találati esélyt.");
+}
+
 static void EnemyInitiativeDelaysTacticPrompt()
 {
     var system = CreateBattleSystem(710);
@@ -787,11 +812,13 @@ static void SnapshotRequiresCurrentBattlePrompt()
         new SessionEnemySnapshot("E-TEST", "Tesztellenfél", new Position(3, 2), 8, 10),
         [BattleActionKind.PhysicalAttack, BattleActionKind.TurnUndead],
         [new BattleSpellOption("S-TEST", "Tesztvarázs", 1, 3, SpellTargetType.Enemy, 5, 0,
-            null, null, 0, 0, [new Position(3, 2)])]);
+            null, null, 0, 0, [new Position(3, 2)])],
+        [new BattleTacticOptionSnapshot(BattleActionKind.FighterPrecise, "🎯 Pontos", "sebzés ×0,75", 55)]);
     var snapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "Tesztlabirintus",
         new Dictionary<CharacterId, Position> { [leader.Id] = new Position(2, 2) }, battle));
     Assert(snapshot.Battle?.BattleId == battleId && snapshot.Battle.AllowedActions.Count == 2 &&
-           snapshot.Battle.SpellOptions?.Single().ValidTargets.Single() == new Position(3, 2),
+           snapshot.Battle.SpellOptions?.Single().ValidTargets.Single() == new Position(3, 2) &&
+           snapshot.Battle.TacticOptions?.Single().HitChancePercent == 55,
         "Az aktív harci prompt nem került a snapshotba.");
 
     var stale = battle with { TurnId = 1 };

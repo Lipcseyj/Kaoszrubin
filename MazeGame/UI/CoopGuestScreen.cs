@@ -1088,8 +1088,9 @@ public sealed class CoopGuestScreen
                 ConsoleColor.Cyan, ConsoleColor.Black);
         else if (snapshot.Battle is { ActingCharacterId: var acting, AllowedActions: var actions } &&
                  acting == selected.CharacterId && actions.Any(IsBattleTacticAction))
-            footer[^1] = new GuestTextLine(actions.Contains(BattleActionKind.FighterPrecise)
-                    ? "Taktika: 1 Pontos  |  2 Erőteljes  |  3 Védekező"
+            footer[^1] = new GuestTextLine(actions.Contains(BattleActionKind.FighterPrecise) && snapshot.Battle.TacticOptions is { Count: > 0 } tactics
+                    ? "Taktika: " + string.Join(" | ", tactics.Select((option, index) =>
+                        $"{index + 1} {option.Name} {option.HitChancePercent}% ({option.Effect})"))
                     : "Taktika: 1 Orvtámadás  |  2 Megfigyelés  |  3 Mérgezett penge",
                 ConsoleColor.Yellow, ConsoleColor.Black);
         else if (snapshot.Battle is { ActingCharacterId: var enemyTurnActor, IsPlayerTurn: false,

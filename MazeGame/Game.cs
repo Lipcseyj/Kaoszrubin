@@ -200,7 +200,8 @@ public sealed class Game
                 GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy),
                 state.IsPlayerTurn
                     ? GetSpellOptions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy, inCombat: true)
-                    : null);
+                    : null,
+                GetBattleTacticOptions(state));
         }
         var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions,
             battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState)));
@@ -2623,8 +2624,10 @@ public sealed class Game
     {
         if (_activeBattleState?.IsAwaitingTacticSelection == true)
         {
-            _renderer.DrawInventoryMessage(SelectedCharacter.CharacterClass.Id == CharacterClassIds.Harcos
-                ? "Válassz harci állást: 1 — Pontos | 2 — Erőteljes | 3 — Védekező"
+            var options = GetBattleTacticOptions(_activeBattleState);
+            _renderer.DrawInventoryMessage(SelectedCharacter.CharacterClass.Id == CharacterClassIds.Harcos && options is not null
+                ? "Válassz harci állást: " + string.Join(" | ", options.Select((option, index) =>
+                    $"{index + 1} — {option.Name} {option.HitChancePercent}% ({option.Effect})"))
                 : "Válassz megközelítést: 1 — Orvtámadás | 2 — Megfigyelés | 3 — Mérgezett penge",
                 ConsoleColor.Yellow);
             return;
@@ -2766,14 +2769,29 @@ public sealed class Game
 
     private static string BattleTacticName(BattleTactic tactic) => tactic switch
     {
-        BattleTactic.FighterPrecise => "Pontos állás (+3 találat, -2 sebzés)",
-        BattleTactic.FighterPowerful => "Erőteljes állás (-2 találat, +4 sebzés)",
-        BattleTactic.FighterDefensive => "Védekező állás (-2 sebzés, +2 védelem)",
+        BattleTactic.FighterPrecise => "Pontos állás (+2 találat, ×0,75 sebzés)",
+        BattleTactic.FighterPowerful => "Erőteljes állás (-1 találat, ×1,25 sebzés, 50% páncéltörés)",
+        BattleTactic.FighterDefensive => "Védekező állás (×0,75 sebzés, +3 védelem)",
         BattleTactic.ThiefAmbush => "Orvtámadás (az első sikeres támadás dupla sebzés)",
         BattleTactic.ThiefObserve => "Megfigyelés (+2 találat)",
         BattleTactic.ThiefPoison => "Mérgezett penge (+1-4 sebzés találatonként)",
         _ => tactic.ToString()
     };
+
+    private IReadOnlyList<BattleTacticOptionSnapshot>? GetBattleTacticOptions(BattleState state)
+    {
+        if (!state.IsAwaitingTacticSelection) return null;
+        if (state.Player.CharacterClass.Id != CharacterClassIds.Harcos) return null;
+        return
+        [
+            new(BattleActionKind.FighterPrecise, "🎯 Pontos", "sebzés ×0,75",
+                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPrecise)),
+            new(BattleActionKind.FighterPowerful, "💥 Erőteljes", "sebzés ×1,25, fél páncél",
+                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPowerful)),
+            new(BattleActionKind.FighterDefensive, "🛡️ Védekező", "sebzés ×0,75, védelem +3",
+                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterDefensive))
+        ];
+    }
 
     private void RejectBattleAction(BattleActionCommand command, string message)
     {

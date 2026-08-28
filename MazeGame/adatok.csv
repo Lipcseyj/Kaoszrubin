@@ -429,7 +429,7 @@ K006,Manna
 Id,Név,Leírás,OsztályId,Fokozat
 PERK-C001-1A,Első csapás,+10 jár a kezdeményezéshez.,C001,1
 PERK-C001-1B,Robusztusság,+10 maximális HP.,C001,1
-PERK-C001-2A,Fegyvermester,+2 jár minden fegyveres találati próbához.,C001,2
+PERK-C001-2A,Fegyvermester,+1 jár minden fegyveres találati próbához.,C001,2
 PERK-C001-2B,Rendíthetetlen,Minden elszenvedett találat sebzése 2 ponttal csökken.,C001,2
 PERK-C001-3A,Acélvihar,Sikeres támadás után 35% eséllyel azonnal újra támad.,C001,3
 PERK-C001-3B,Utolsó erőd,Harcban egyszer 1 HP-n túléli a halálos csapást.,C001,3
