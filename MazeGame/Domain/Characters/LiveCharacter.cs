@@ -512,9 +512,11 @@ public sealed class LiveCharacter
     public void ReceiveDamage(int amount) => CurrentVitality = Math.Max(0, CurrentVitality - Math.Max(0, amount));
     public void RestoreVitality(int amount)
     {
-        var adjusted = ApplyRecoveryModifier(amount, status => status.VitalityRecoveryPercent);
+        var adjusted = PreviewVitalityRecovery(amount);
         CurrentVitality = Math.Min(MaximumVitality, CurrentVitality + adjusted);
     }
+    public int PreviewVitalityRecovery(int amount) =>
+        ApplyRecoveryModifier(amount, status => status.VitalityRecoveryPercent);
     public bool SpendMana(int amount)
     {
         if (amount < 0 || CurrentMana < amount) return false;

@@ -716,7 +716,7 @@ public sealed class MainMenu
             Text($"{ConsoleRenderer.WandIcon} A felszerelt pálcát minden kaszt használhatja 0 mannából; elsütésenként egy töltet fogy."),
             Blank(),
             Section("ÁLLAPOTOK", ConsoleColor.DarkYellow),
-            Text("🍖 Éhes: 30 vagy kevesebb élelemnél fizikai sebzés -2, a HP-gyógyulás 75%-os. Nulla élelemnél csatakezdéskor a max HP 5%-a elvész."),
+            Text("🍖 Éhes: 30 vagy kevesebb élelemnél minden saját fizikai támadás sebzése -2, a HP-gyógyulás 75%-os. Nulla élelemnél minden csata kezdetén a max HP 5%-a elvész."),
             Text("💧 Szomjas: 30 vagy kevesebb víznél kezdeményezés -3 és találat -1. Csatakezdéskor a max manna 5%-a elvész; nulla víznél a büntetések duplázódnak."),
             Text("☠️ Mérgezés: minden saját támadási kör végén 1–4 páncélt figyelmen kívül hagyó sebzés; 6 aktiválódás után elmúlik."),
             Text("🤒 Betegség: a maximális HP és manna 80%-ra, a visszatöltésük 50%-ra csökken. Nem múlik el magától."),

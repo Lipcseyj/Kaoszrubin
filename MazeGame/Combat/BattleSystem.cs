@@ -55,9 +55,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (statusCosts.VitalityLost > 0 || statusCosts.ManaLost > 0)
         {
             var costs = new List<string>();
-            if (statusCosts.VitalityLost > 0) costs.Add($"-{statusCosts.VitalityLost} HP");
-            if (statusCosts.ManaLost > 0) costs.Add($"-{statusCosts.ManaLost} manna");
-            entries.Add(new BattleLogEntry($"Állapothatás a csata kezdetén: {string.Join(", ", costs)}.", BattleLogKind.Information));
+            if (statusCosts.VitalityLost > 0)
+                costs.Add($"🍖 nulla élelem: ❤️ -{statusCosts.VitalityLost} HP");
+            if (statusCosts.ManaLost > 0)
+                costs.Add($"💧 szomjúság: 🔷 -{statusCosts.ManaLost} manna");
+            entries.Add(new BattleLogEntry($"Csatakezdő állapothatás — {string.Join("; ", costs)}.", BattleLogKind.Information));
         }
         var perkInitiativeBonus = player.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
         var magicInitiativeBonus = player.GetMagicItemBonus(MagicItemEffect.Initiative);
@@ -73,7 +75,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (spellInitiativeBonus > 0) initiativeNotes.Add($"áldás +{spellInitiativeBonus}");
         var perkText = initiativeNotes.Count > 0 ? $" [{string.Join(", ", initiativeNotes)}]" : string.Empty;
         var initiativeMessage = $"Kezdeményezés: {player.Name} Ügy {player.Abilities.Dexterity}{perkText}" +
-            (player.StatusInitiativePenalty > 0 ? $" - állapot {player.StatusInitiativePenalty}" : string.Empty) +
+            (player.StatusInitiativePenalty > 0
+                ? $" - {(player.HasStatus(CharacterStatusIds.Thirsty) ? "💧 szomjúság" : "állapot")} {player.StatusInitiativePenalty}"
+                : string.Empty) +
             $" {playerInitiative.ModifierText} = {playerInitiative.Total}; " +
             $"{enemy.Name} Gy {defender.Speed ?? 1}" + (enemyInitiativeBonus > 0 ? $" + képesség {enemyInitiativeBonus}" : string.Empty) +
             $" {enemyInitiative.ModifierText} = {enemyInitiative.Total}. {(playerAttacks ? player.Name : enemy.Name)} kezd.";
@@ -270,10 +274,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var hit = HitRoll(player.Abilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
         var strengthHitText = strengthHitBonus > 0 ? $" [Erő-találat +{strengthHitBonus}]" : string.Empty;
+        var thirstHitText = player.StatusHitPenalty > 0 && player.HasStatus(CharacterStatusIds.Thirsty)
+            ? $" [💧 szomjúság -{player.StatusHitPenalty} találat]"
+            : string.Empty;
         if (!hit.Hit)
         {
             context.ConsecutivePlayerHits = 0;
-            return AttackResult.Miss($"találat: {hit.Description} → 💨.{strengthHitText}");
+            return AttackResult.Miss($"találat: {hit.Description}{thirstHitText} → 💨.{strengthHitText}");
         }
 
         var baseDamage = weapon?.Damage is { } range ? Roll(range) : Roll(new ValueRange(1, 2));
@@ -313,7 +320,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var damage = ApplyDefense(rawDamage * damageMultiplier, effectiveArmor);
         var statusDamagePenalty = player.StatusPhysicalDamagePenalty;
         damage = Math.Max(1, damage - statusDamagePenalty);
-        if (statusDamagePenalty > 0) notes.Add($"állapot -{statusDamagePenalty}");
+        if (statusDamagePenalty > 0)
+            notes.Add(player.HasStatus(CharacterStatusIds.Hungry)
+                ? $"🍖 éhség -{statusDamagePenalty} fizikai sebzés"
+                : $"állapot -{statusDamagePenalty} fizikai sebzés");
         if (player.HasPerk(PerkIds.ThiefPoisoner))
         {
             var poison = Roll(new ValueRange(1, 6));
@@ -334,7 +344,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             : $"páncél {armor}";
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
         return AttackResult.HitFor(damage,
-            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description} → 🎯;{strengthHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplier} - {armorText} = {damageText}.{noteText}",
+            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplier} - {armorText} = {damageText}.{noteText}",
             criticalMultiplier > 1);
     }
 

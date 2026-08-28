@@ -453,7 +453,7 @@ public sealed class Game
             if (caster.SpecializationId == ClassSpecializations.PriestLife) amount = (int)Math.Ceiling(amount * 1.25);
             var before = character.CurrentVitality;
             character.RestoreVitality(amount);
-            notes.Add($"{character.Name}: ❤️ +{character.CurrentVitality - before} HP");
+            notes.Add($"{character.Name}: {FormatHealingResult(character, amount, before)}");
         }
     }
 
@@ -1794,7 +1794,11 @@ public sealed class Game
         character.SetInventoryItem(InventorySlotKind.Backpack, command.BackpackIndex, null);
         character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry), _gameData.GetStatus(CharacterStatusIds.Thirsty));
         _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawInventoryMessage($"{character.Name} használta: {item.Name} — {result}.", ConsoleColor.Green);
+        var message = $"{character.Name} használta: {item.Name} — {result}.";
+        _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green, [character.Id]);
+        if (item.Effect == ConsumableEffect.Heal)
+            PlaySessionSound(SoundEffect.DefensiveSpell, [character.Id]);
     }
 
     private void ExecuteDropInventoryItem(DropInventoryItemCommand command)
@@ -1861,8 +1865,9 @@ public sealed class Game
         var waterBefore = character.WaterLevel;
         var vitalityBefore = character.CurrentVitality;
         character.RestoreWater(waterAmount);
-        if (character.IsAlive) character.RestoreVitality(_random.Next(5, 16));
-        return $"víz +{character.WaterLevel - waterBefore}, HP +{character.CurrentVitality - vitalityBefore}";
+        var healing = _random.Next(5, 16);
+        if (character.IsAlive) character.RestoreVitality(healing);
+        return $"víz +{character.WaterLevel - waterBefore}, {FormatHealingResult(character, healing, vitalityBefore)}";
     }
 
     private static bool IsInitiativeDrink(MiscItemDefinition item) =>
@@ -1883,7 +1888,21 @@ public sealed class Game
     {
         var before = character.CurrentVitality;
         character.RestoreVitality(amount);
-        return $"HP +{character.CurrentVitality - before}";
+        return FormatHealingResult(character, amount, before);
+    }
+
+    private static string FormatHealingResult(LiveCharacter character, int requestedAmount, int vitalityBefore)
+    {
+        var actual = character.CurrentVitality - vitalityBefore;
+        var adjusted = character.PreviewVitalityRecovery(requestedAmount);
+        var penalties = character.Statuses
+            .Where(status => status.VitalityRecoveryPercent < 100)
+            .Select(status => $"{status.Icon} {status.VitalityRecoveryPercent}%")
+            .ToArray();
+        var reduction = adjusted < requestedAmount && penalties.Length > 0
+            ? $" (állapotok csökkentették: {requestedAmount} → {adjusted}; {string.Join(" × ", penalties)})"
+            : string.Empty;
+        return $"❤️ +{actual} HP{reduction}";
     }
 
     private static string UseManaPotion(LiveCharacter character, int amount)
@@ -3328,7 +3347,7 @@ public sealed class Game
                 amount = (int)Math.Ceiling(amount * 1.25);
             var before = character.CurrentVitality;
             character.RestoreVitality(amount);
-            notes.Add($"{character.Name}: ❤️ +{character.CurrentVitality - before} HP");
+            notes.Add($"{character.Name}: {FormatHealingResult(character, amount, before)}");
         }
     }
 

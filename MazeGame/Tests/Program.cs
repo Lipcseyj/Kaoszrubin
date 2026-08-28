@@ -38,6 +38,7 @@ var tests = new (string Name, Action Run)[]
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
     ("Az ellenséges kezdeményezés az első saját körig késlelteti a taktikát", EnemyInitiativeDelaysTacticPrompt),
     ("A kezdeményezési napló előjeles 1d2 dobást mutat", InitiativeLogShowsSignedDie),
+    ("Az éhség és szomjúság hatásai láthatók a harci naplóban", NeedStatusEffectsAreVisible),
     ("A harci találat kiemeli a sebzést és a megmaradt HP-t", BattleHitHighlightsDamageAndHealth),
     ("A győzelmi üzenet nem ismétli meg az utolsó támadást", VictoryMessageIsConcise),
     ("A barbár öt sebzés után Dühbe gurul", BarbarianRageTriggersAfterFiveDamage),
@@ -708,6 +709,41 @@ static void InitiativeLogShowsSignedDie()
     Assert(message.Split("±1d2(", StringSplitOptions.None).Length == 3 &&
            !message.Contains(" +1d2(", StringComparison.Ordinal),
         "A kezdeményezési napló nem mindkét félnél ±1d2 formában mutatja a dobást.");
+}
+
+static void NeedStatusEffectsAreVisible()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
+    var priestClass = new CharacterClassDefinition(CharacterClassIds.Pap, "Pap", PrimaryAbilities.Zero, true, 1.0);
+    var player = new LiveCharacter("Éhező", race, priestClass, new PrimaryAbilities(5, 5, 5, 5),
+        200, 100, 1, 1);
+    player.ConsumeFood(100);
+    player.ConsumeWater(100);
+    player.AddStatus(data.GetStatus(CharacterStatusIds.Hungry));
+    player.AddStatus(data.GetStatus(CharacterStatusIds.Thirsty));
+    player.AddStatus(data.GetStatus(CharacterStatusIds.Diseased));
+    player.ReceiveDamage(100);
+
+    Assert(player.PreviewVitalityRecovery(100) == 37,
+        "Az éhség és betegség kombinált gyógyításcsökkentése hibás.");
+    var started = CreateBattleSystem(713).StartBattle(player, CreateEnemy(1000, 1));
+    var startLog = string.Join(" ", started.Entries.Select(entry => entry.Message));
+    Assert(startLog.Contains("🍖 nulla élelem: ❤️ -", StringComparison.Ordinal) &&
+           startLog.Contains("💧 szomjúság: 🔷 -", StringComparison.Ordinal) &&
+           startLog.Contains("💧 szomjúság 6", StringComparison.Ordinal),
+        "A csatakezdő szükséglethatások vagy a szomjúság kezdeményezés-büntetése nem látható.");
+
+    var attackLogs = new List<string>();
+    for (var index = 0; index < 100 && !started.State.IsCompleted; index++)
+    {
+        var entry = CreateBattleSystem(713 + index).Advance(started.State).Entries.Single().Message;
+        if (entry.Contains("Éhező támadja", StringComparison.Ordinal)) attackLogs.Add(entry);
+        if (attackLogs.Any(log => log.Contains("🍖 éhség -2 fizikai sebzés", StringComparison.Ordinal))) break;
+    }
+    Assert(attackLogs.Any(log => log.Contains("💧 szomjúság -2 találat", StringComparison.Ordinal)) &&
+           attackLogs.Any(log => log.Contains("🍖 éhség -2 fizikai sebzés", StringComparison.Ordinal)),
+        "A találat- vagy fizikai sebzésbüntetés oka nem látható a támadás naplójában.");
 }
 
 static void BattleHitHighlightsDamageAndHealth()
