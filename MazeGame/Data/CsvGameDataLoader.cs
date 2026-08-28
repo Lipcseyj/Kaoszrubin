@@ -36,6 +36,7 @@ public static class CsvGameDataLoader
         var characterNames = new List<CharacterNameDefinition>();
         var innNames = new List<string>();
         var innRumors = new List<InnRumorDefinition>();
+        var traps = new List<TrapDefinition>();
         var itemUpgrades = new List<ItemUpgradeDefinition>();
         var raceBonuses = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var classMinimums = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
@@ -68,7 +69,7 @@ public static class CsvGameDataLoader
             try
             {
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
-                    monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, itemUpgrades,
+                    monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps, itemUpgrades,
                     raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                     vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
             }
@@ -85,6 +86,8 @@ public static class CsvGameDataLoader
             throw new InvalidDataException("A #Fogadónevek fejezetnek legalább egy nevet kell tartalmaznia az adatok.csv fájlban.");
         if (innRumors.Count == 0)
             throw new InvalidDataException("A #Pletykák fejezetnek legalább egy pletykát kell tartalmaznia az adatok.csv fájlban.");
+        if (traps.Count == 0)
+            throw new InvalidDataException("A #Csapdák fejezetnek legalább egy csapdát kell tartalmaznia az adatok.csv fájlban.");
         ValidateUniqueIds(
             ("Fajok", races.Select(value => value.Id)),
             ("Osztályok", characterClasses.Select(value => value.Id)),
@@ -101,6 +104,7 @@ public static class CsvGameDataLoader
             ("Állapotok", statuses.Select(value => value.Id)),
             ("Karakternevek", characterNames.Select(value => value.Id)),
             ("Pletykák", innRumors.Select(value => value.Id)),
+            ("Csapdák", traps.Select(value => value.Id)),
             ("Tárgybővítések", itemUpgrades.Select(value => value.Id)));
         ValidateSpells(spells);
         ValidateSpellEffects(spells, spellEffects);
@@ -143,6 +147,7 @@ public static class CsvGameDataLoader
             CharacterNames = characterNames,
             InnNames = innNames,
             InnRumors = innRumors,
+            Traps = traps,
             MinimumVitalityByHealth = minimumVitalityByHealth,
             MinimumManaByIntelligence = minimumManaByIntelligence,
             ExperienceByLevel = experienceByLevel,
@@ -166,7 +171,7 @@ public static class CsvGameDataLoader
         ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
         ICollection<SpellEffectDefinition> spellEffects, ICollection<PerkDefinition> perks,
         ICollection<StatusDefinition> statuses, ICollection<CharacterNameDefinition> characterNames,
-        ICollection<string> innNames, ICollection<InnRumorDefinition> innRumors,
+        ICollection<string> innNames, ICollection<InnRumorDefinition> innRumors, ICollection<TrapDefinition> traps,
         ICollection<ItemUpgradeDefinition> itemUpgrades,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence, IDictionary<int, int> experienceByLevel,
@@ -296,6 +301,21 @@ public static class CsvGameDataLoader
                 if (string.IsNullOrWhiteSpace(rumorText))
                     throw new InvalidOperationException("A pletyka szövege nem lehet üres.");
                 innRumors.Add(new InnRumorDefinition(id, rumorText));
+                break;
+            case DataSection.Traps:
+                var symbolText = Cell(cells, 2);
+                if (string.IsNullOrWhiteSpace(symbolText))
+                    throw new InvalidOperationException($"A(z) '{id}' csapda jele hiányzik.");
+                var minimumDamage = Integer(cells, 7) ?? 0;
+                var maximumDamage = Integer(cells, 8) ?? 0;
+                if (minimumDamage < 0 || maximumDamage < minimumDamage)
+                    throw new InvalidOperationException($"A(z) '{id}' csapda sebzéstartománya érvénytelen.");
+                traps.Add(new TrapDefinition(id, name, Rune.GetRuneAt(symbolText, 0),
+                    Enum.TryParse<TrapEffect>(Cell(cells, 3), true, out var trapEffect) ? trapEffect
+                        : throw new InvalidOperationException($"A(z) '{id}' csapda hatása ismeretlen."),
+                    Math.Max(1, Integer(cells, 4) ?? 1), Math.Max(1, Integer(cells, 5) ?? 1),
+                    Math.Max(1, Integer(cells, 6) ?? 1), minimumDamage, maximumDamage,
+                    Math.Clamp(Integer(cells, 9) ?? 0, 0, 100), Cell(cells, 10)));
                 break;
             case DataSection.RaceAbilityBonuses:
                 raceBonuses[id] = PrimaryAbilitiesFrom(cells);
@@ -812,6 +832,7 @@ public static class CsvGameDataLoader
         "karakternevek" => DataSection.CharacterNames,
         "fogadonevek" => DataSection.InnNames,
         "pletykak" => DataSection.InnRumors,
+        "csapdak" => DataSection.Traps,
         "faji kepessegbonuszok" => DataSection.RaceAbilityBonuses,
         "osztaly kepessegminimumok" => DataSection.ClassAbilityMinimums,
         "ero talalati bonusz" => DataSection.StrengthHitBonuses,
@@ -856,6 +877,7 @@ public static class CsvGameDataLoader
         CharacterNames,
         InnNames,
         InnRumors,
+        Traps,
         RaceAbilityBonuses,
         ClassAbilityMinimums,
         StrengthHitBonuses,

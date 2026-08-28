@@ -2,6 +2,7 @@ using MazeGame;
 using MazeGame.Application;
 using MazeGame.Combat;
 using MazeGame.Data;
+using MazeGame.Domain;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
@@ -66,6 +67,7 @@ var tests = new (string Name, Action Run)[]
     ("A fogadónevek és hangulatpletykák CSV-ből töltődnek", InnNamesAndRumorsLoadFromCsv),
     ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
+    ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
     ("A world delta minden lényeges változást leír", WorldDeltaCapturesChanges),
     ("Eltérő pályák között nem készülhet delta", WorldDeltaRejectsDifferentWorld),
@@ -820,6 +822,34 @@ static void InnNamesAndRumorsLoadFromCsv()
            data.InnRumors.Single(rumor => rumor.Id == "PL001").Name.Contains(
                "Aki válaszol neki, azt többé nem látják.", StringComparison.Ordinal),
         "A hangulatpletykák vagy a szövegükben lévő vesszők nem megfelelően töltődtek be a CSV-ből.");
+    Assert(data.Traps.Count == 3 && data.GetTrap("TR001").Effect == TrapEffect.Damage &&
+           data.GetTrap("TR002").Effect == TrapEffect.Poison && data.GetTrap("TR003").Effect == TrapEffect.Alert,
+        "A csapdadefiníciók nem megfelelően töltődtek be a CSV-ből.");
+}
+
+static void TrapVisibilityFollowsDiscoveryState()
+{
+    var maze = new Maze(7, 7);
+    var position = new Position(3, 2);
+    maze.Carve(position);
+    var definition = new TrapDefinition("TR-TEST", "Tesztcsapda", new Rune('⌄'), TrapEffect.Damage,
+        1, 7, 7, 3, 7, 0, "Teszt.");
+    var trap = new MazeTrap(position, definition);
+    maze.AddTrap(trap);
+    var fog = new FogOfWar(maze.Width, maze.Height, 2);
+    fog.RevealFrom(maze, maze.Entrance);
+
+    var hidden = WorldSnapshotProjector.Create(maze, fog).RevealedCells.Single(cell => cell.Position == position);
+    Assert(hidden.TileCodePoint == Maze.Floor.Value,
+        "A rejtett csapda kiszivárgott a coop world snapshotba.");
+    trap.Detect();
+    var detected = WorldSnapshotProjector.Create(maze, fog).RevealedCells.Single(cell => cell.Position == position);
+    Assert(detected.TileCodePoint == definition.Symbol.Value && detected.ForegroundColor == ConsoleColor.Yellow,
+        "A felfedezett csapda nem jelent meg a coop world snapshotban.");
+    trap.Disarm();
+    var disarmed = WorldSnapshotProjector.Create(maze, fog).RevealedCells.Single(cell => cell.Position == position);
+    Assert(disarmed.TileCodePoint == new Rune('·').Value && disarmed.ForegroundColor == ConsoleColor.DarkGray,
+        "A hatástalanított csapda állapota nem replikálódott.");
 }
 
 static void FighterTacticHitChancesUseCombatFormula()

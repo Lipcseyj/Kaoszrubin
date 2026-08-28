@@ -109,6 +109,7 @@ public sealed class MazeSaveData
     public List<CorpseSaveData> Corpses { get; set; } = [];
     public List<PartyAvatarSaveData> PartyAvatars { get; set; } = [];
     public List<GroundPileSaveData> GroundPiles { get; set; } = [];
+    public List<TrapSaveData> Traps { get; set; } = [];
 }
 
 public sealed class FogSaveData
@@ -131,4 +132,6 @@ public sealed record CorpseSaveData(Position Position, string FormerName, int? P
     string? EnemyDefinitionId = null, bool IsSearched = false);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);
+public sealed record TrapSaveData(Position Position, string DefinitionId, TrapState State,
+    bool DetectionAttempted, int FailedDisarmAttempts);
 public sealed record SavedItemReference(string Category, string Id, int Charges = 0);

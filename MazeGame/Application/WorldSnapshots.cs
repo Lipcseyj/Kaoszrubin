@@ -50,7 +50,11 @@ public static class WorldSnapshotProjector
             if (!fogOfWar.IsRevealed(position)) continue;
             visible.Add(position);
             var tile = maze.Tiles[x, y];
-            var color = tile == maze.WallRune
+            var shownTrap = maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap ? trap : null;
+            if (shownTrap is not null) tile = shownTrap.Symbol;
+            var color = shownTrap is not null
+                ? shownTrap.State == TrapState.Detected ? ConsoleColor.Yellow : ConsoleColor.DarkGray
+                : tile == maze.WallRune
                 ? maze.WallColor
                 : tile == Maze.ExitMarker ? ConsoleColor.Green : ConsoleColor.Black;
             cells.Add(new WorldCellSnapshot(position, tile.Value, color));

@@ -30,6 +30,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<CharacterNameDefinition> CharacterNames { get; init; } = [];
     public IReadOnlyList<string> InnNames { get; init; } = [];
     public IReadOnlyList<InnRumorDefinition> InnRumors { get; init; } = [];
+    public IReadOnlyList<TrapDefinition> Traps { get; init; } = [];
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();
@@ -57,6 +58,7 @@ public sealed class GameDataCatalog
     public MiscItemDefinition GetItem(string id) => FindById(Items, id, "tárgy");
     public PerkDefinition GetPerk(string id) => FindById(Perks, id, "tehetség");
     public StatusDefinition GetStatus(string id) => FindById(Statuses, id, "állapot");
+    public TrapDefinition GetTrap(string id) => FindById(Traps, id, "csapda");
     public IReadOnlyList<CharacterNameDefinition> GetCharacterNames(string characterClassId) => CharacterNames.Where(name =>
         string.Equals(name.CharacterClassId, characterClassId, StringComparison.OrdinalIgnoreCase)).ToList();
     public IReadOnlyList<PerkDefinition> GetPerkChoices(string characterClassId, int tier)

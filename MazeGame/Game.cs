@@ -5,6 +5,7 @@ using MazeGame.Combat;
 using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Magic;
+using MazeGame.Domain;
 using MazeGame.UI;
 using static MazeGame.GameInput;
 using MainMenu = MazeGame.UI.MainMenu;
@@ -748,6 +749,7 @@ public sealed class Game
         _leaderTrail.Add(_player.Position);
         _nextPartyMoves.Clear();
         PlacePartyMembersNear(_player.Position);
+        PlaceTraps();
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, VisionRange);
         _fogOfWar.RevealFrom(_maze, _player.Position);
         foreach (var member in _maze.PartyMembers) _fogOfWar.RevealFrom(_maze, member.Position);
@@ -767,6 +769,130 @@ public sealed class Game
             ? $"Bejárhatósági önellenőrzés: OK, mind a(z) {report.TotalWalkableCount} padló-/ajtócella elérhető."
             : $"Bejárhatósági önellenőrzés: HIBA, {report.UnreachablePositions.Count}/{report.TotalWalkableCount} cella nem érhető el " +
               $"(pl. {report.UnreachablePositions[0].X},{report.UnreachablePositions[0].Y}).");
+    }
+
+    private void PlaceTraps()
+    {
+        var definitions = _gameData.Traps.Where(trap => trap.MinimumLevel <= _mazeLevel).ToArray();
+        if (definitions.Length == 0) return;
+        var desiredCount = Math.Clamp(2 + (_mazeLevel - 1) / 8, 2, 4);
+        var candidates = new List<Position>();
+        for (var y = 0; y < _maze.Height; y++)
+        for (var x = 0; x < _maze.Width; x++)
+        {
+            var position = new Position(x, y);
+            if (!_maze.IsWalkable(position) || position == _maze.Entrance || position == _maze.Exit ||
+                _maze.StartingRoom?.Contains(position) == true || _maze.GetObjectAt(position) is not null ||
+                Manhattan(position, _maze.Entrance) < 6 ||
+                _maze.Doors.Any(door => Manhattan(door.Position, position) <= 1)) continue;
+            candidates.Add(position);
+        }
+        var placed = new List<Position>();
+        foreach (var position in candidates.OrderBy(_ => _random.Next()))
+        {
+            if (placed.Any(existing => Manhattan(existing, position) < 3)) continue;
+            _maze.AddTrap(new MazeTrap(position, definitions[_random.Next(definitions.Length)]));
+            placed.Add(position);
+            if (placed.Count >= desiredCount) break;
+        }
+    }
+
+    /// <summary>A rejtett csapda egyszer kap passzív észlelési próbát. A felfedezett aktív csapda
+    /// megállítja a mozgást, amíg K-val hatástalanítják.</summary>
+    private bool CanEnterTrap(LiveCharacter character, Position destination)
+    {
+        var trap = _maze.GetTrapAt(destination);
+        if (trap is null || !trap.IsActive) return true;
+        if (trap.State == TrapState.Detected)
+        {
+            ShowTrapMessage($"⚠️ {trap.Definition.Name} zárja el az utat. A mellette álló karakter K-val megpróbálhatja hatástalanítani.",
+                ConsoleColor.Yellow, character);
+            return false;
+        }
+        if (!trap.DetectionAttempted)
+        {
+            trap.MarkDetectionAttempted();
+            var chance = TrapDetectionChance(character, trap.Definition);
+            if (_random.Next(100) < chance)
+            {
+                trap.Detect();
+                _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+                ShowTrapMessage($"👁️ {character.Name} időben felfedezte: {trap.Definition.Name} ({chance}% esély).",
+                    ConsoleColor.Cyan, character);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int TrapDetectionChance(LiveCharacter character, TrapDefinition definition) => Math.Clamp(
+        35 + (character.EffectiveAbilities.Intelligence + character.EffectiveAbilities.Dexterity) * 3 -
+        definition.DetectionDifficulty * 5 +
+        (CharacterClassRules.IsThief(character.CharacterClass.Id) ? 30 : 0), 15, 95);
+
+    private int TrapDisarmChance(LiveCharacter character, TrapDefinition definition) => Math.Clamp(
+        30 + character.EffectiveAbilities.Dexterity * 5 - definition.DisarmDifficulty * 6 +
+        (CharacterClassRules.IsThief(character.CharacterClass.Id) ? 30 : 0), 10, 95);
+
+    private bool TryDisarmAdjacentTrap(LiveCharacter character, Position position)
+    {
+        var traps = Directions.Select(direction => _maze.GetTrapAt(position + direction))
+            .Where(trap => trap is { State: TrapState.Detected }).Cast<MazeTrap>().ToArray();
+        if (traps.Length == 0) return false;
+        var trap = traps[0];
+        var chance = TrapDisarmChance(character, trap.Definition);
+        if (_random.Next(100) < chance)
+        {
+            trap.Disarm();
+            _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+            ShowTrapMessage($"🧰 {character.Name} hatástalanította: {trap.Definition.Name} ({chance}% esély).",
+                ConsoleColor.Green, character);
+            return true;
+        }
+        trap.RecordFailedDisarm();
+        ShowTrapMessage($"⚠️ {character.Name} nem tudta hatástalanítani: {trap.Definition.Name} ({chance}% esély)." +
+                        (trap.FailedDisarmAttempts == 1 ? " A csapda még nem sült el." : string.Empty),
+            ConsoleColor.DarkYellow, character);
+        if (trap.FailedDisarmAttempts >= 2 && _random.Next(2) == 0) ApplyTrap(character, trap);
+        return true;
+    }
+
+    private void TriggerTrapAt(LiveCharacter character, Position position)
+    {
+        if (_maze.GetTrapAt(position) is { IsActive: true } trap) ApplyTrap(character, trap);
+    }
+
+    private void ApplyTrap(LiveCharacter character, MazeTrap trap)
+    {
+        trap.Trigger();
+        var scaledDamage = trap.Definition.MaximumDamage == 0 ? 0 :
+            _random.Next(trap.Definition.MinimumDamage, trap.Definition.MaximumDamage + 1) + (_mazeLevel - 1) / 3;
+        var maximumAllowed = Math.Max(1, character.MaximumVitality / (_mazeLevel <= 4 ? 7 : 4));
+        var damage = Math.Min(Math.Min(scaledDamage, maximumAllowed), Math.Max(0, character.CurrentVitality - 1));
+        character.ReceiveDamage(damage);
+        var extra = string.Empty;
+        if (trap.Definition.Effect == TrapEffect.Poison && character.IsAlive &&
+            _random.Next(100) < trap.Definition.StatusChancePercent)
+        {
+            character.AddStatus(_gameData.GetStatus(CharacterStatusIds.Poisoned));
+            extra = " Megmérgeződött.";
+        }
+        else if (trap.Definition.Effect == TrapEffect.Alert)
+        {
+            foreach (var enemy in _maze.Enemies.Where(enemy => Manhattan(enemy.Position, trap.Position) <= 12))
+                enemy.ConfigureMovement(enemy.MovementProfile, enemy.PatrolDirection, EnemyPursuitState.Pursuing);
+            extra = " A közeli szörnyek felfigyeltek a zajra.";
+        }
+        _renderer.RefreshCharacterSheet(character);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        ShowTrapMessage($"💥 Elsült: {trap.Definition.Name}. {character.Name} {damage} sebzést szenvedett.{extra}",
+            ConsoleColor.Red, character);
+    }
+
+    private void ShowTrapMessage(string message, ConsoleColor color, LiveCharacter character)
+    {
+        _renderer.DrawInventoryMessage(message, color);
+        RecordSessionActivity(SessionActivityKind.System, message, color, [character.Id]);
     }
 
     private void ShowInGameHelp()
@@ -1070,6 +1196,7 @@ public sealed class Game
 
         // Prevent moving into a party member avatar even in developer mode
         if (_maze.GetObjectAt(targetPosition) is PartyMemberAvatar) return;
+        if (!CanEnterTrap(SelectedCharacter, targetPosition)) return;
 
         var moved = _player.TryMove(direction, _maze);
         if (!moved)
@@ -1097,6 +1224,7 @@ public sealed class Game
         CheckBossDiscoveryAt(newlyRevealed);
         PlayCharacterStepSound(SelectedCharacter);
         CollectTreasureChest(SelectedCharacter, _player.Position, shareLootWithParty: true);
+        TriggerTrapAt(SelectedCharacter, _player.Position);
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
     }
@@ -1112,6 +1240,7 @@ public sealed class Game
             StartBattle(member, enemy);
             return;
         }
+        if (!CanEnterTrap(member.Character, destination)) return;
         if (!_maze.TryMovePartyMember(member, destination, _player.Position, allowTreasureChest: true)) return;
         member.Character.RegisterExplorationStep();
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
@@ -1119,6 +1248,7 @@ public sealed class Game
         PlayCharacterStepSound(member.Character);
         CheckBossDiscoveryAt(newlyRevealed);
         CollectTreasureChest(member.Character, member.Position, shareLootWithParty: false);
+        TriggerTrapAt(member.Character, member.Position);
     }
 
     private void CollectTreasureChest(LiveCharacter character, Position position, bool shareLootWithParty)
@@ -1433,7 +1563,8 @@ public sealed class Game
                     character, command.TargetDoorPosition);
                 break;
             case CharacterAction.SearchCurrentPosition:
-                TrySearchCurrentCell(character, position.Value, shareLootWithParty: isLeader);
+                if (!TryDisarmAdjacentTrap(character, position.Value))
+                    TrySearchCurrentCell(character, position.Value, shareLootWithParty: isLeader);
                 break;
         }
     }
@@ -2202,11 +2333,13 @@ public sealed class Game
             if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member)) continue;
             var previous = member.Position;
             var next = ChoosePartyMemberStep(member);
-            if (next is null || !_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
+            if (next is null || !CanEnterTrap(member.Character, next.Value) ||
+                !_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
             member.Character.RegisterExplorationStep();
             var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
             _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
             CheckBossDiscoveryAt(newlyRevealed);
+            TriggerTrapAt(member.Character, member.Position);
             if (CanActivelyAttack(member)) TryResolveAdjacentNpcBattle(member);
         }
     }
@@ -2259,12 +2392,14 @@ public sealed class Game
                    ?? FollowLeaderTrail(member, minimumLag: 1);
         if (next is null) return;
         var previous = member.Position;
-        if (!_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
+        if (!CanEnterTrap(member.Character, next.Value) ||
+            !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
         member.Character.RegisterExplorationStep();
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed,
             _player.Position);
         CheckBossDiscoveryAt(newlyRevealed);
+        TriggerTrapAt(member.Character, member.Position);
     }
 
     private void MovePartyMemberAwayFromLeader(PartyMemberAvatar member)
@@ -2279,10 +2414,12 @@ public sealed class Game
         var next = FindNextStep(member, [target.Position]);
         if (next is null) return;
         var previous = member.Position;
-        if (!_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
+        if (!CanEnterTrap(member.Character, next.Value) ||
+            !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
         member.Character.RegisterExplorationStep();
         var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
+        TriggerTrapAt(member.Character, member.Position);
     }
 
     private static bool CanActivelyAttack(PartyMemberAvatar member) =>

@@ -2211,6 +2211,9 @@ public sealed class ConsoleRenderer
         }
         if (!fogOfWar.IsVisible(position))
             return new MapCellVisual(FogSymbol, ConsoleColor.Black, ConsoleColor.Black);
+        if (maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap)
+            return new MapCellVisual(trap.Symbol, trap.State == TrapState.Detected
+                ? ConsoleColor.Yellow : ConsoleColor.DarkGray, ConsoleColor.Black);
         return new MapCellVisual(maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y],
             GetForegroundColor(maze, position), ConsoleColor.Black);
     }
@@ -2267,6 +2270,8 @@ public sealed class ConsoleRenderer
     /// </summary>
     private static ConsoleColor GetForegroundColor(Maze maze, Position position)
     {
+        if (maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap)
+            return trap.State == TrapState.Detected ? ConsoleColor.Yellow : ConsoleColor.DarkGray;
         var mapObject = maze.GetObjectAt(position);
         if (mapObject is TreasureChest) return ConsoleColor.Yellow;
         if (mapObject is Enemy enemy) return enemy.Definition.StrengthTier switch

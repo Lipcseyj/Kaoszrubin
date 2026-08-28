@@ -17,6 +17,7 @@ public sealed class Maze
     private readonly List<Corpse> _corpses = [];
     private readonly List<PartyMemberAvatar> _partyMembers = [];
     private readonly List<GroundItemPile> _groundItemPiles = [];
+    private readonly List<MazeTrap> _traps = [];
     private readonly Dictionary<Position, MazeDoor> _doors = [];
 
     public WorldId Id { get; } = WorldId.New();
@@ -26,6 +27,7 @@ public sealed class Maze
     public IReadOnlyList<Corpse> Corpses => _corpses;
     public IReadOnlyList<PartyMemberAvatar> PartyMembers => _partyMembers;
     public IReadOnlyList<GroundItemPile> GroundItemPiles => _groundItemPiles;
+    public IReadOnlyList<MazeTrap> Traps => _traps;
     public IReadOnlyCollection<MazeDoor> Doors => _doors.Values;
     public Room? StartingRoom { get; private set; }
     public int Width { get; }
@@ -176,6 +178,15 @@ public sealed class Maze
     public Enemy? GetEnemyAt(Position position) => _enemies.FirstOrDefault(enemy => enemy.Position == position);
     public PartyMemberAvatar? GetPartyMemberAt(Position position) => _partyMembers.FirstOrDefault(member => member.Position == position);
     public TreasureChest? GetTreasureChestAt(Position position) => _treasureChests.FirstOrDefault(chest => chest.Position == position);
+    public MazeTrap? GetTrapAt(Position position) => _traps.FirstOrDefault(trap => trap.Position == position);
+
+    public void AddTrap(MazeTrap trap)
+    {
+        if (!IsWalkable(trap.Position) || trap.Position == Entrance || trap.Position == Exit ||
+            GetObjectAt(trap.Position) is not null || GetTrapAt(trap.Position) is not null)
+            throw new ArgumentException("Csapda csak üres, járható mezőre helyezhető.", nameof(trap));
+        _traps.Add(trap);
+    }
 
     public bool TryMoveEnemy(Enemy enemy, Position destination)
     {

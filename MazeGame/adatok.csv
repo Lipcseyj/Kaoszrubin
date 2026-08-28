@@ -947,3 +947,9 @@ PL047,A fogadó mögötti sikátorban néha egy fekete macska ül, nyakában ara
 PL048,Egy kereskedő szerint a Káoszrubin nem is egyetlen kő, hanem egy nagyobb drágakő széttört darabja. Amikor ezt elmesélte, két csuklyás alak azonnal elhagyta a fogadót.
 PL049,Azt mondják, valahol a mélységben egy fekete sárkány olyan kincshalmon alszik, amelyből egyetlen arany is gazdaggá tenne egy embert. Azt már kevesebben mesélik, hányan próbálták megszerezni.
 PL050,Egy őrült öreg szerint egyszer eljön egy kalandozó, aki megtalálja a Káoszrubint és eldönti vele a világ sorsát. A fogadós szerint ugyanezt minden új vendégnek elmondja egy korsó sörért.
+
+#Csapdák
+Id,Név,Jel,Hatás,MinimumSzint,ÉszlelésiNehézség,HatástalanításiNehézség,MinimumSebzés,MaximumSebzés,Állapotesély,Leírás
+TR001,Tüskés verem,⌄,Damage,1,7,7,3,7,0,Éles tüskék nyílnak fel a padlóból.
+TR002,Mérgezett tű,†,Poison,3,8,9,1,4,35,A falból mérgezett tű repül elő.
+TR003,Riasztórúna,◎,Alert,4,9,8,0,0,100,A felizzó rúna magára vonja a közeli lények figyelmét.

@@ -49,7 +49,9 @@ internal sealed class GameStateMapper
                 CharacterIndex(member.Character))).ToList(),
             GroundPiles = maze.GroundItemPiles.Select(pile => new GroundPileSaveData(pile.Position,
                 pile.Entries.Select(entry => new SavedItemReference(entry.Item.Category.ToString(), entry.Item.Id,
-                    entry.Charges)).ToList())).ToList()
+                    entry.Charges)).ToList())).ToList(),
+            Traps = maze.Traps.Select(trap => new TrapSaveData(trap.Position, trap.Definition.Id, trap.State,
+                trap.DetectionAttempted, trap.FailedDisarmAttempts)).ToList()
         };
         for (var y = 0; y < maze.Height; y++)
         for (var x = 0; x < maze.Width; x++) mazeData.TileCodePoints.Add(maze.Tiles[x, y].Value);
@@ -134,6 +136,9 @@ internal sealed class GameStateMapper
         }
         foreach (var pile in state.Maze.GroundPiles)
             foreach (var item in pile.Items) maze.DropItem(pile.Position, ResolveSavedItem(item), item.Charges);
+        foreach (var trap in state.Maze.Traps)
+            maze.AddTrap(new MazeTrap(trap.Position, _gameData.GetTrap(trap.DefinitionId), trap.State,
+                trap.DetectionAttempted, trap.FailedDisarmAttempts));
 
         var player = new Player(state.PlayerPosition, _selectedCharacter);
         var fogOfWar = new FogOfWar(maze.Width, maze.Height, VisionRange);
