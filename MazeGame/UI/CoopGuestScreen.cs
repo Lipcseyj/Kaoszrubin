@@ -16,7 +16,9 @@ public sealed class CoopGuestScreen
     private readonly SoundEffects _soundEffects;
     private int _redrawRequested = 1;
     private const int MessageLineCount = ConsoleRenderer.MessageLogLineCount;
+    private const int MessageBufferLineCount = ConsoleRenderer.MessageLogBufferLineCount;
     private readonly Queue<GuestTextLine> _messageLog = new();
+    private int _messageLogScrollOffset;
     private bool _inventoryOpen;
     private int _inventorySelection;
     private InventorySlotAddress? _inventorySource;
@@ -124,6 +126,11 @@ public sealed class CoopGuestScreen
                 if (Console.KeyAvailable)
                 {
                     var key = Console.ReadKey(intercept: true);
+                    if (key.Key is ConsoleKey.PageUp or ConsoleKey.PageDown)
+                    {
+                        ScrollMessageLog(key.Key == ConsoleKey.PageUp);
+                        continue;
+                    }
                     if (GameInput.IsHelpShortcut(key))
                     {
                         var playerId = client.PlayerId!.Value;
@@ -1058,11 +1065,16 @@ public sealed class CoopGuestScreen
         }
 
         var messages = _messageLog.ToArray();
+        var messageStart = Math.Max(0, messages.Length - MessageLineCount - _messageLogScrollOffset);
+        var messageEnd = messages.Length - _messageLogScrollOffset;
         var footer = new GuestTextLine[MessageLineCount];
         for (var index = 0; index < footer.Length; index++)
-            footer[index] = index < messages.Length
-                ? messages[index]
+        {
+            var messageIndex = messageStart + index;
+            footer[index] = messageIndex < messages.Length && messageIndex < messageEnd
+                ? messages[messageIndex]
                 : new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
+        }
         if (_targetedBattleSpell is { } targeted && _spellTargetCursor is { } cursor)
             footer[^1] = new GuestTextLine($"╳ {targeted.Name} — {ConsoleRenderer.SpellTargetName(targeted.TargetType)}, " +
                 $"táv {targeted.Range}{(targeted.AreaRadius > 0 ? $", sugár {targeted.AreaRadius}" : string.Empty)} | " +
@@ -1511,7 +1523,17 @@ public sealed class CoopGuestScreen
     {
         foreach (var line in WrapMessage(message, Math.Max(1, SafeWindowWidth() - CharacterSheetPanel.Width - 8)))
             _messageLog.Enqueue(new GuestTextLine(line, color, ConsoleColor.Black));
-        while (_messageLog.Count > MessageLineCount) _messageLog.Dequeue();
+        while (_messageLog.Count > MessageBufferLineCount) _messageLog.Dequeue();
+        _messageLogScrollOffset = 0;
+        Interlocked.Exchange(ref _redrawRequested, 1);
+    }
+
+    private void ScrollMessageLog(bool towardOlderMessages)
+    {
+        var maximumOffset = Math.Max(0, _messageLog.Count - MessageLineCount);
+        _messageLogScrollOffset = towardOlderMessages
+            ? Math.Min(maximumOffset, _messageLogScrollOffset + MessageLineCount)
+            : Math.Max(0, _messageLogScrollOffset - MessageLineCount);
         Interlocked.Exchange(ref _redrawRequested, 1);
     }
 

@@ -489,6 +489,11 @@ public sealed class Game
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);
+                    if (keyInfo.Key is ConsoleKey.PageUp or ConsoleKey.PageDown)
+                    {
+                        _renderer.ScrollMessageLog(keyInfo.Key == ConsoleKey.PageUp);
+                        continue;
+                    }
                     if (_activeBattleState is not null)
                     {
                         HandleLocalBattleInput(keyInfo);

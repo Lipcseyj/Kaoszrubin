@@ -1634,8 +1634,9 @@ static void CompactPartyStatusShowsResources()
 
 static void WindowFrameCatalogIsResizableAndConfigured()
 {
-    Assert(ConsoleRenderer.MessageLogLineCount == 7 && ConsoleRenderer.ScreenRowCount == 52,
-        "Az 1080p-s fő játékfelület nem 7 logsorral, összesen 52 sorra van méretezve.");
+    Assert(ConsoleRenderer.MessageLogLineCount == 7 && ConsoleRenderer.MessageLogBufferLineCount == 21 &&
+           ConsoleRenderer.ScreenRowCount == 52,
+        "Az 1080p-s fő játékfelület nem 7 látható és 21 tárolt logsorral, összesen 52 sorra van méretezve.");
     foreach (var style in Enum.GetValues<WindowFrameStyle>())
     {
         Assert(WindowFrameCatalog.Horizontal(style, 52).Length == 52,

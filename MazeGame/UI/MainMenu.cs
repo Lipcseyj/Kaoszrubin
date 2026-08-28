@@ -691,6 +691,7 @@ public sealed class MainMenu
             Hotkey("V", "Memorizált varázslatok megnyitása Mágussal vagy Pappal."),
             Hotkey("F1–F8", "Gyorsvarázslatok elsütése."),
             Hotkey("SHIFT+F1", "A súgó megnyitása."),
+            Hotkey("PGUP / PGDN", "A 21 soros eseménynapló lapozása 7 soronként."),
             Hotkey("F9", "A teljes játékállás mentése a mentések mappába."),
             Hotkey("K", "Az aktuális mező átkutatása, tetem és földi tárgyak felvétele."),
             Hotkey("N", "A melletted levő ajtó kinyitása."),

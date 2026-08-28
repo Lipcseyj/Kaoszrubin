@@ -19,6 +19,7 @@ public sealed class ConsoleRenderer
     public const int PlayfieldWidth = 170;
     public const int PlayfieldHeight = 44;
     public const int MessageLogLineCount = 7;
+    public const int MessageLogBufferLineCount = MessageLogLineCount * 3;
     public const int ScreenRowCount = PlayfieldHeight + MessageLogLineCount + 1;
     public static string MoneyIcon { get; } = IsWindows11OrLater() ? "🪙" : "💰";
     public static string WandIcon { get; } = IsWindows11OrLater() ? "🪄" : "✨";
@@ -132,6 +133,7 @@ public sealed class ConsoleRenderer
     private const int MessagePanelLeft = 2;
     private const int FirstMessageLineOffset = 1;
     private readonly Queue<MessageLogLine> _messageLog = new();
+    private int _messageLogScrollOffset;
     private readonly GameDataCatalog _gameData;
     private readonly Party _party;
     private int _mazeLevel;
@@ -285,9 +287,9 @@ public sealed class ConsoleRenderer
     /// </summary>
     public void DrawInitialState(Maze maze, Player player, FogOfWar fogOfWar, int mazeLevel)
     {
-        EnsureConsoleBufferHeight();
         ResetColorCache();
         _messageLog.Clear();
+        _messageLogScrollOffset = 0;
         _mazeLevel = mazeLevel;
         _battleActive = false;
         _battleEnemy = null;
@@ -1693,6 +1695,15 @@ public sealed class ConsoleRenderer
     public void DrawInventoryMessage(string message, ConsoleColor color = ConsoleColor.Cyan) => DrawBattleMessage(message, color);
     public void DrawNpcBattleSummary(string message, ConsoleColor color) => DrawBattleMessage(message, color);
 
+    public void ScrollMessageLog(bool towardOlderMessages)
+    {
+        var maximumOffset = Math.Max(0, _messageLog.Count - MessageLineCount);
+        _messageLogScrollOffset = towardOlderMessages
+            ? Math.Min(maximumOffset, _messageLogScrollOffset + MessageLineCount)
+            : Math.Max(0, _messageLogScrollOffset - MessageLineCount);
+        RenderMessageLog();
+    }
+
     public void DrawSpellTargetCursor(Maze maze, FogOfWar fogOfWar, Position? previousPosition,
         Position position, bool valid, string prompt)
     {
@@ -1847,12 +1858,22 @@ public sealed class ConsoleRenderer
     private void DrawBattleMessage(string message, ConsoleColor color = ConsoleColor.Gray)
     {
         foreach (var line in WrapMessage(message)) _messageLog.Enqueue(new MessageLogLine(line, color));
-        while (_messageLog.Count > MessageLineCount) _messageLog.Dequeue();
+        while (_messageLog.Count > MessageLogBufferLineCount) _messageLog.Dequeue();
+        _messageLogScrollOffset = 0;
+        RenderMessageLog();
+    }
 
+    private void RenderMessageLog()
+    {
         var messages = _messageLog.ToArray();
+        var start = Math.Max(0, messages.Length - MessageLineCount - _messageLogScrollOffset);
+        var end = messages.Length - _messageLogScrollOffset;
         for (var index = 0; index < MessageLineCount; index++)
         {
-            var messageLine = index < messages.Length ? messages[index] : new MessageLogLine(string.Empty, ConsoleColor.Gray);
+            var messageIndex = start + index;
+            var messageLine = messageIndex < messages.Length && messageIndex < end
+                ? messages[messageIndex]
+                : new MessageLogLine(string.Empty, ConsoleColor.Gray);
             SetColors(messageLine.Color, ConsoleColor.Black);
             var text = messageLine.Text;
             WriteAt(MessagePanelLeft, BottomBorderY + FirstMessageLineOffset + index, text.PadRight(MessageWidth));
@@ -2108,22 +2129,6 @@ public sealed class ConsoleRenderer
         if (text.Length > bufferWidth - x) text = text[..(bufferWidth - x)];
         Console.SetCursorPosition(x, y);
         Console.Write(text);
-    }
-
-    private static void EnsureConsoleBufferHeight()
-    {
-        try
-        {
-            if (Console.BufferHeight >= ScreenRowCount) return;
-            Console.SetBufferSize(200, Math.Max(ScreenRowCount, Console.WindowHeight));
-        }
-        catch (Exception exception) when (exception is IOException or ArgumentOutOfRangeException or
-                                          PlatformNotSupportedException or System.Security.SecurityException)
-        {
-            Debug.WriteLine($"Nem sikerült a konzol bufferméretét {ScreenRowCount} sorra állítani: {exception.GetType().Name} - {exception.Message}");
-            // Egyes terminálhostok a bufferméretet nem engedik programból állítani.
-            // A koordinátás rajzolás ilyenkor a tényleges buffermérethez igazodva biztonságosan levág.
-        }
     }
 
     /// <summary>
