@@ -650,7 +650,7 @@ public sealed class Game
             }
             _activeCoopHost = null;
             Console.CursorVisible = true;
-            Console.SetCursorPosition(0, ConsoleRenderer.PlayfieldHeight + 5);
+            Console.SetCursorPosition(0, ConsoleRenderer.ScreenRowCount - 1);
         }
     }
 

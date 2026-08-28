@@ -15,7 +15,7 @@ public sealed class CoopGuestScreen
     private readonly GameDataCatalog _gameData;
     private readonly SoundEffects _soundEffects;
     private int _redrawRequested = 1;
-    private const int MessageLineCount = 5;
+    private const int MessageLineCount = ConsoleRenderer.MessageLogLineCount;
     private readonly Queue<GuestTextLine> _messageLog = new();
     private bool _inventoryOpen;
     private int _inventorySelection;

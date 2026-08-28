@@ -17,13 +17,15 @@ public sealed class ConsoleRenderer
 {
     public const int PlayfieldWidth = 170;
     public const int PlayfieldHeight = 44;
+    public const int MessageLogLineCount = 7;
+    public const int ScreenRowCount = PlayfieldHeight + MessageLogLineCount + 1;
     public static string MoneyIcon { get; } = IsWindows11OrLater() ? "🪙" : "💰";
     public static string WandIcon { get; } = IsWindows11OrLater() ? "🪄" : "✨";
     public static string DamageReductionIcon { get; } = IsWindows11OrLater() ? "🪨" : "💥🛡️";
     private const int RightBorderX = PlayfieldWidth;
     private const int BottomBorderY = PlayfieldHeight;
     private static readonly Rune FogSymbol = new('░');
-    private const int MessageLineCount = 5;
+    private const int MessageLineCount = MessageLogLineCount;
     private const int MessageWidth = 164;
     private const int PicturePanelHeight = 5;
     private const int PicturePanelBottom = BottomBorderY + MessageLineCount;
