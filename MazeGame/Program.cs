@@ -5,6 +5,8 @@ using MazeGame;
 using MazeGame.Application;
 using System.Reflection;
 
+SystemHelpers.EnsureWindowsTerminal();
+
 Console.OutputEncoding = Encoding.UTF8;
 Console.InputEncoding = Encoding.UTF8;
 
@@ -22,3 +24,4 @@ var gameSaveDirectory = Path.Combine(AppContext.BaseDirectory, "mentések");
 var applicationVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
 var catalogHash = CatalogFingerprint.ComputeFile(dataPath);
 new MazeGame.UI.MainMenu(gameData, savePath, gameSaveDirectory, applicationVersion, catalogHash).Run();
+

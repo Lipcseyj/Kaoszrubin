@@ -6,6 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Káoszrubin.csproj" />
+    <ProjectReference Include="..\Kaoszrubin.csproj" />
   </ItemGroup>
 </Project>

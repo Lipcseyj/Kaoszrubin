@@ -59,7 +59,7 @@ public static class CharacterSheetPanel
         var vitalityPercent = Percent(currentVitality, maximumVitality);
         var manaPercent = Percent(currentMana, maximumMana);
         var vitality = $" ❤️{vitalityPercent}%";
-        var mana = maximumMana > 0 ? $" 🔷{manaPercent}%" : " 🔷—";
+        var mana = maximumMana > 0 ? $" 🔷{manaPercent}%" : string.Empty;
         var maximumNameLength = Width - prefix.Length - vitality.Length - mana.Length;
         return new PartyStatusLine(prefix + Shorten(name, maximumNameLength), identityColor,
             vitality, vitalityPercent <= 25 ? ConsoleColor.Red :

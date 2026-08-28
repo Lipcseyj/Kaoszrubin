@@ -1622,6 +1622,14 @@ static void CompactPartyStatusShowsResources()
         "A party státusz nem százalékosan mutatja a HP-t és a manát.");
     Assert(status.VitalityColor == ConsoleColor.Red && status.ManaColor == ConsoleColor.Cyan,
         "A party státusz erőforrásszínei nem követik a százalékos küszöböket.");
+
+    var fighter = CreateCharacter("Hosszú Harcos", vitality: 40,
+        characterClassId: CharacterClassIds.Harcos);
+    var fighterStatus = CharacterSheetPanel.BuildPartyStatus(fighter, false);
+    Assert(string.IsNullOrEmpty(fighterStatus.Mana) &&
+           !fighterStatus.Text.Contains("🔷", StringComparison.Ordinal) &&
+           fighterStatus.Identity.Contains("Hosszú Harcos", StringComparison.Ordinal),
+        "A manát nem használó karakter party státusza helyet foglal a manna számára.");
 }
 
 static void WindowFrameCatalogIsResizableAndConfigured()
