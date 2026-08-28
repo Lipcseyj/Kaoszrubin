@@ -26,7 +26,7 @@ public sealed class ConsoleRenderer
     public static string DamageReductionIcon { get; } = IsWindows11OrLater() ? "🪨" : "💥🛡️";
     private const int RightBorderX = PlayfieldWidth;
     private const int BottomBorderY = PlayfieldHeight;
-    private static readonly Rune FogSymbol = new('░');
+    private static readonly Rune FogSymbol = new('█');
     private const int MessageLineCount = MessageLogLineCount;
     private const int MessageWidth = 164;
     private const int PicturePanelHeight = 5;
@@ -2209,7 +2209,7 @@ public sealed class ConsoleRenderer
                 character.Color, ConsoleColor.Black);
         }
         if (!fogOfWar.IsVisible(position))
-            return new MapCellVisual(FogSymbol, ConsoleColor.DarkGray, ConsoleColor.DarkBlue);
+            return new MapCellVisual(FogSymbol, ConsoleColor.DarkGray, ConsoleColor.Black);
         return new MapCellVisual(maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y],
             GetForegroundColor(maze, position), ConsoleColor.Black);
     }
