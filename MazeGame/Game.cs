@@ -164,6 +164,8 @@ public sealed class Game
     private readonly Queue<SessionActivitySnapshot> _sessionActivities = new();
     private long _sessionActivitySequence;
     private readonly Queue<SessionSoundSnapshot> _sessionSounds = new();
+    private readonly HashSet<PlayerId> _helpPausePlayers = [];
+    private DateTime? _helpPauseStartedUtc;
     private long _sessionSoundSequence;
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
@@ -615,6 +617,14 @@ public sealed class Game
                 ProcessSessionCommands();
                 ContinueDisconnectedRemoteBattleAsNpc();
 
+                if (_helpPausePlayers.Count > 0)
+                {
+                    if (coopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                        coopHost.TryPublish(CreateSessionSnapshot());
+                    Thread.Sleep(20);
+                    continue;
+                }
+
                 if (!_battleStarted) MoveEnemies();
 
                 if (!_battleStarted) MovePartyMembers();
@@ -748,7 +758,24 @@ public sealed class Game
 
     private void ShowInGameHelp()
     {
-        MainMenu.ShowHelp();
+        var synchronizeCoopPause = _activeCoopHost is not null;
+        if (synchronizeCoopPause)
+        {
+            SetHelpVisibility(_session.HostPlayerId, SelectedCharacter.Id, true);
+            _activeCoopHost!.TryPublish(CreateSessionSnapshot());
+        }
+        try
+        {
+            MainMenu.ShowHelp();
+        }
+        finally
+        {
+            if (synchronizeCoopPause)
+            {
+                SetHelpVisibility(_session.HostPlayerId, SelectedCharacter.Id, false);
+                _activeCoopHost!.TryPublish(CreateSessionSnapshot());
+            }
+        }
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
     }
@@ -1154,6 +1181,16 @@ public sealed class Game
     {
         while (_session.TryReadCommand(out var command))
         {
+            if (command is SetHelpVisibilityCommand helpVisibility)
+            {
+                SetHelpVisibility(helpVisibility.SenderId, helpVisibility.CharacterId, helpVisibility.IsOpen);
+                continue;
+            }
+            if (_helpPausePlayers.Count > 0)
+            {
+                _session.RejectExecutedCommand(command, "A játék szünetel, amíg egy játékos a súgót olvassa.");
+                continue;
+            }
             switch (command)
             {
                 case MoveCharacterCommand move when move.CharacterId == SelectedCharacter.Id:
@@ -2447,6 +2484,15 @@ public sealed class Game
     {
         if (_activeBattleState is null || _activeBattleState.IsCompleted) return;
         if (_activeBattleState.PlayerCharacterId != SelectedCharacter.Id) return;
+        if (IsHelpShortcut(key))
+        {
+            var helpEnemy = _activeBattleState.Enemy;
+            ShowInGameHelp();
+            _renderer.DrawBattleStarted(helpEnemy);
+            _renderer.RefreshBattleStatusRows();
+            DrawBattleActionPrompt(helpEnemy);
+            return;
+        }
         if (!_activeBattleState.IsPlayerTurn)
         {
             if (key.Key == ConsoleKey.Spacebar)
@@ -2460,14 +2506,6 @@ public sealed class Game
         {
             _saveAfterBattle = true;
             _renderer.DrawInventoryMessage("Mentés kérve: a csata lezárása után automatikusan elkészül.", ConsoleColor.Yellow);
-            return;
-        }
-        if (IsHelpShortcut(key))
-        {
-            ShowInGameHelp();
-            _renderer.DrawBattleStarted(enemy);
-            _renderer.RefreshBattleStatusRows();
-            DrawBattleActionPrompt(enemy);
             return;
         }
         if (_activeBattleState.IsAwaitingTacticSelection && key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 or
@@ -3875,6 +3913,35 @@ public sealed class Game
             _renderer.DrawCompanionDeath(battleCharacter.Name);
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         }
+    }
+
+    private void SetHelpVisibility(PlayerId playerId, CharacterId characterId, bool isOpen)
+    {
+        var characterName = CharacterRoster.Party.Members
+            .FirstOrDefault(character => character.Id == characterId)?.Name ?? "Egy játékos";
+        if (isOpen)
+        {
+            if (!_helpPausePlayers.Add(playerId)) return;
+            _helpPauseStartedUtc ??= DateTime.UtcNow;
+            var message = $"⏸ {characterName} megnyitotta a súgót. A közös játék szünetel.";
+            RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow);
+            if (playerId != _session.HostPlayerId)
+                _renderer.DrawInventoryMessage(message, ConsoleColor.Yellow);
+            return;
+        }
+
+        if (!_helpPausePlayers.Remove(playerId)) return;
+        var resumedMessage = $"▶ {characterName} bezárta a súgót.";
+        RecordSessionActivity(SessionActivityKind.System, resumedMessage, ConsoleColor.Green);
+        if (playerId != _session.HostPlayerId)
+            _renderer.DrawInventoryMessage(resumedMessage, ConsoleColor.Green);
+        if (_helpPausePlayers.Count > 0 || _helpPauseStartedUtc is not { } pauseStarted) return;
+
+        var pauseDuration = DateTime.UtcNow - pauseStarted;
+        _helpPauseStartedUtc = null;
+        _nextNeedsDrain += pauseDuration;
+        foreach (var characterIdKey in _nextEnemyMoves.Keys.ToArray())
+            _nextEnemyMoves[characterIdKey] += pauseDuration;
     }
 
     private void DrainNeeds()

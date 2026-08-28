@@ -675,47 +675,84 @@ public sealed class MainMenu
 
     public static void ShowHelp()
     {
-        var source = new (string Text, ConsoleColor Color)[]
+        var source = new HelpSourceLine[]
         {
-            ("LABIRINTUS", ConsoleColor.Green),
-            ("Nyilak: mozgás | Esc: visszatérés a főmenübe megerősítéssel", ConsoleColor.Gray),
-            ("Tab: térkép/karakterlap | Karakterlap: fel/le kijelölés, bal/jobb partitagváltás", ConsoleColor.Gray),
-            ("Karakterlap: Space - tárgy mozgatása | D - ledobás | I - részletek | Enter - használat", ConsoleColor.Gray),
-            ("Partitárs kijelölve: Del - végleges kirúgás megerősítéssel", ConsoleColor.Gray),
-            ("Mágus/Pap: V - memorizált varázslatok | F1-F8 - gyorsvarázslatok", ConsoleColor.Gray),
-            ("V alatt: 📜 tekercs 0 mannás és egyszeri (mágus: mágusige vagy papi ima; pap/lovag: papi ima).", ConsoleColor.Gray),
-            ($"Felszerelt {ConsoleRenderer.WandIcon} pálca: minden kaszt használhatja 0 mannából; elsütésenként egy töltet fogy.", ConsoleColor.Gray),
-            ("Varázslatlista: fel/le, Enter - elsütés, bal/jobb - partitag varázslóváltás, F1-F8 - gyorshely, Esc - vissza", ConsoleColor.Gray),
-            ("Célzás: nyilak - célkereszt | Tab - következő érvényes cél | Enter - megerősítés | Esc - mégse", ConsoleColor.Gray),
-            ("Shift+F1: súgó | F9: teljes játékállás mentése a mentések mappába", ConsoleColor.Gray),
-            ("K: az aktuális mező átkutatása, tetem és földi tárgyak felvétele", ConsoleColor.Gray),
-            ("Ajtó mellett: N - nyitás | Z - nyitott ajtó becsukása, csukott ajtó kulcsra zárása", ConsoleColor.Gray),
-            ("P: pihenés (pályánként egyszer, ellenségmentes és kulcsra zárt szobában)", ConsoleColor.Gray),
-            ("Partiparancs: H - helyben maradás | Shift+H - szoros gyülekező | M - 10 másodperces szétszóródás", ConsoleColor.Gray),
-            ("Ládára lépés: arany felvétele | Kijárat (⌂): következő labirintusszint", ConsoleColor.Gray),
-            (string.Empty, ConsoleColor.Gray),
-            ("BUFFOK ÉS IDŐTARTAM", ConsoleColor.Magenta),
-            ("Akció: csatában a karakter saját köre; térképen ugyanazon karakter minden 10. sikeres lépése.", ConsoleColor.Gray),
-            ("A partitagok saját akciószámlálót használnak. Az Isteni ítélet megduplázza a papi buff időtartamát.", ConsoleColor.Gray),
-            ("👻 Láthatatlanság: 3 akció; támadásig célpontvédelem, az első támadásra +5 találat.", ConsoleColor.Gray),
-            ("🛡️ Védelem: Arkán páncél +5/5; Áldás +1/4; Szent pajzs +5/4; Isteni védelem +3/4 akció.", ConsoleColor.Gray),
-            ($"{ConsoleRenderer.DamageReductionIcon} Sebzéscsökkentés: Kőbőr 50%/4; Isteni védelem 25%/4 akció. 🩸🚫 Kőbőr: vérzésvédelem/4.", ConsoleColor.Gray),
-            ("🎯 Találat: Áldás +1/4; Bátorság imája +2/5; Mézsör/Fűszeres bor +1/10 akció.", ConsoleColor.Gray),
-            ("⚔️✨ Sebzés: Bátorság imája +2/5 akció. ⚡ Kezdeményezés: Áldás +2/4; Bátorság +3/5; ital +2/10.", ConsoleColor.Gray),
-            ("✝️🛡️ Gonosz elleni védelem: +4 védelem, 30% csökkentés és állapotvédelem 5 akcióig.", ConsoleColor.Gray),
-            ("👼 Őrangyal: 5 akcióig kivédi az első halálos csapást és gyógyít; aktiváláskor elfogy.", ConsoleColor.Gray),
-            ("⛪ Szentély: 50% sebzéscsökkentés és állapotvédelem 4 akcióig; saját támadáskor megszűnik.", ConsoleColor.Gray),
-            (string.Empty, ConsoleColor.Gray),
-            ("CSATA", ConsoleColor.Red),
-            ("Saját kör: Space - fegyver | V/F1-F8 - varázslás; választás csak használható varázslatnál jelenik meg.", ConsoleColor.Gray),
-            ("Pap/Lovag élőholt ellen: T - csatánként egyszer Halottűzés / Szent elűzés.", ConsoleColor.Gray),
-            ("Harci varázslási kudarc: max(0, 30 - Intelligencia - Ügyesség)%; a manna és az akció elvész.", ConsoleColor.Gray),
-            ("A csata alatt a világ ideje megáll.", ConsoleColor.Gray)
+            Section("LABIRINTUS ÉS VEZÉRLÉS", ConsoleColor.Green),
+            Hotkey("NYILAK", "Mozgás a labirintusban."),
+            Hotkey("ESC", "Visszatérés a főmenübe, megerősítéssel."),
+            Hotkey("TAB", "Váltás a térkép és a karakterlap között."),
+            Hotkey("↑ / ↓", "Kijelölés mozgatása a karakterlapon."),
+            Hotkey("← / →", "Partitagváltás a karakterlapon."),
+            Hotkey("SPACE", "A kijelölt tárgy mozgatása."),
+            Hotkey("D", "A kijelölt tárgy ledobása."),
+            Hotkey("I", "A kijelölt tárgy részletei."),
+            Hotkey("ENTER", "A kijelölt tárgy használata."),
+            Hotkey("DEL", "A kijelölt partitárs végleges kirúgása, megerősítéssel."),
+            Hotkey("V", "Memorizált varázslatok megnyitása Mágussal vagy Pappal."),
+            Hotkey("F1–F8", "Gyorsvarázslatok elsütése."),
+            Hotkey("SHIFT+F1", "A súgó megnyitása."),
+            Hotkey("F9", "A teljes játékállás mentése a mentések mappába."),
+            Hotkey("K", "Az aktuális mező átkutatása, tetem és földi tárgyak felvétele."),
+            Hotkey("N", "A melletted levő ajtó kinyitása."),
+            Hotkey("Z", "Nyitott ajtó becsukása, csukott ajtó kulcsra zárása."),
+            Hotkey("P", "Pihenés pályánként egyszer, ellenségmentes és kulcsra zárt szobában."),
+            Hotkey("H", "Partitárs helyben maradása."),
+            Hotkey("SHIFT+H", "Szoros gyülekező partiparancs."),
+            Hotkey("M", "A partitársak 10 másodperces szétszóródása."),
+            Hotkey("LÁDÁRA LÉPÉS", "Az arany felvétele."),
+            Hotkey("KIJÁRAT (⌂)", "Továbbjutás a következő labirintusszintre."),
+            Blank(),
+            Section("VARÁZSLATOK", ConsoleColor.Cyan),
+            Hotkey("V: ↑ / ↓", "Varázslat kijelölése."),
+            Hotkey("V: ENTER", "A kijelölt varázslat elsütése."),
+            Hotkey("V: ← / →", "Partitag varázslóváltása."),
+            Hotkey("V: F1–F8", "A kijelölt varázslat gyorshelyének beállítása."),
+            Hotkey("V: ESC", "Visszalépés."),
+            Hotkey("CÉLZÁS: NYILAK", "A célkereszt mozgatása."),
+            Hotkey("CÉLZÁS: TAB", "Ugrás a következő érvényes célra."),
+            Hotkey("CÉLZÁS: ENTER", "A célpont megerősítése."),
+            Hotkey("CÉLZÁS: ESC", "Célzás megszakítása."),
+            Text("📜 A tekercs 0 mannás és egyszer használható (mágus: mágusige vagy papi ima; pap/lovag: papi ima)."),
+            Text($"{ConsoleRenderer.WandIcon} A felszerelt pálcát minden kaszt használhatja 0 mannából; elsütésenként egy töltet fogy."),
+            Blank(),
+            Section("ÁLLAPOTOK", ConsoleColor.DarkYellow),
+            Text("🍖 Éhes: 30 vagy kevesebb élelemnél fizikai sebzés -2, a HP-gyógyulás 75%-os. Nulla élelemnél csatakezdéskor a max HP 5%-a elvész."),
+            Text("💧 Szomjas: 30 vagy kevesebb víznél kezdeményezés -3 és találat -1. Csatakezdéskor a max manna 5%-a elvész; nulla víznél a büntetések duplázódnak."),
+            Text("☠️ Mérgezés: minden saját támadási kör végén 1–4 páncélt figyelmen kívül hagyó sebzés; 6 aktiválódás után elmúlik."),
+            Text("🤒 Betegség: a maximális HP és manna 80%-ra, a visszatöltésük 50%-ra csökken. Nem múlik el magától."),
+            Text("🩸 Vérzés: minden saját támadási kör végén 1–3 páncélt figyelmen kívül hagyó sebzés; 4 aktiválódás után elmúlik."),
+            Blank(),
+            Section("BUFFOK ÉS IDŐTARTAM", ConsoleColor.Magenta),
+            Text("Akció: csatában a karakter saját köre; térképen ugyanazon karakter minden 10. sikeres lépése."),
+            Text("A partitagok saját akciószámlálót használnak. Az Isteni ítélet megduplázza a papi buff időtartamát."),
+            Text("👻 Láthatatlanság: 3 akció; támadásig célpontvédelem, az első támadásra +5 találat."),
+            Text("🛡️ Védelem: Arkán páncél +5/5; Áldás +1/4; Szent pajzs +5/4; Isteni védelem +3/4 akció."),
+            Text($"{ConsoleRenderer.DamageReductionIcon} Sebzéscsökkentés: Kőbőr 50%/4; Isteni védelem 25%/4 akció. 🩸🚫 Kőbőr: vérzésvédelem/4."),
+            Text("🎯 Találat: Áldás +1/4; Bátorság imája +2/5; Mézsör/Fűszeres bor +1/10 akció."),
+            Text("⚔️✨ Sebzés: Bátorság imája +2/5 akció. ⚡ Kezdeményezés: Áldás +2/4; Bátorság +3/5; ital +2/10."),
+            Text("✝️🛡️ Gonosz elleni védelem: +4 védelem, 30% csökkentés és állapotvédelem 5 akcióig."),
+            Text("👼 Őrangyal: 5 akcióig kivédi az első halálos csapást és gyógyít; aktiváláskor elfogy."),
+            Text("⛪ Szentély: 50% sebzéscsökkentés és állapotvédelem 4 akcióig; saját támadáskor megszűnik."),
+            Blank(),
+            Section("CSATA", ConsoleColor.Red),
+            Hotkey("SPACE", "Saját körben támadás fegyverrel."),
+            Hotkey("V / F1–F8", "Saját körben varázslás; a választás csak használható varázslatnál jelenik meg."),
+            Hotkey("T", "Pap/Lovag élőholt ellen: csatánként egyszer Halottűzés / Szent elűzés."),
+            Text("Harci varázslási kudarc: max(0, 30 - Intelligencia - Ügyesség)%; a manna és az akció elvész."),
+            Text("A csata alatt a világ ideje megáll.")
         };
         ShowScrollableHelp(source);
     }
 
-    private static void ShowScrollableHelp(IReadOnlyList<(string Text, ConsoleColor Color)> source)
+    private sealed record HelpSourceLine(string Text, ConsoleColor Color, string? Key = null);
+    private sealed record HelpRenderLine(string? Key, string Text, ConsoleColor Color);
+
+    private static HelpSourceLine Section(string text, ConsoleColor color) => new(text, color);
+    private static HelpSourceLine Text(string text) => new(text, ConsoleColor.Gray);
+    private static HelpSourceLine Hotkey(string key, string text) => new(text, ConsoleColor.Gray, key);
+    private static HelpSourceLine Blank() => Text(string.Empty);
+
+    private static void ShowScrollableHelp(IReadOnlyList<HelpSourceLine> source)
     {
         var offset = 0;
         while (true)
@@ -724,8 +761,8 @@ public sealed class MainMenu
             var height = Math.Max(8, Console.WindowHeight - 4);
             var contentWidth = width - 4;
             var style = WindowFrameConfiguration.For(FramedWindow.Help);
-            var lines = source.SelectMany(entry => WrapHelpText(entry.Text, contentWidth)
-                .Select(text => (text, entry.Color))).ToArray();
+            var keyColumnWidth = Math.Min(20, Math.Max(12, contentWidth / 3));
+            var lines = source.SelectMany(entry => WrapHelpLine(entry, contentWidth, keyColumnWidth)).ToArray();
             var pageSize = Math.Max(1, height - 5);
             offset = Math.Clamp(offset, 0, Math.Max(0, lines.Length - pageSize));
             var left = Math.Max(0, (Console.WindowWidth - width) / 2);
@@ -745,8 +782,20 @@ public sealed class MainMenu
             WriteAt(left + 2, top + 1, "◆ SÚGÓ ◆", ConsoleColor.Yellow, contentWidth);
             for (var row = 0; row < pageSize; row++)
             {
-                var line = offset + row < lines.Length ? lines[offset + row] : (string.Empty, ConsoleColor.Gray);
-                WriteAt(left + 2, top + row + 2, line.Item1, line.Item2, contentWidth);
+                var line = offset + row < lines.Length
+                    ? lines[offset + row]
+                    : new HelpRenderLine(null, string.Empty, ConsoleColor.Gray);
+                if (line.Key is not null)
+                {
+                    WriteAt(left + 2, top + row + 2, PadRightDisplay(line.Key, keyColumnWidth),
+                        ConsoleColor.Yellow, keyColumnWidth);
+                    WriteAt(left + 2 + keyColumnWidth, top + row + 2, line.Text, line.Color,
+                        contentWidth - keyColumnWidth);
+                }
+                else
+                {
+                    WriteAt(left + 2, top + row + 2, line.Text, line.Color, contentWidth);
+                }
             }
             var status = $" ↑↓ görget  PgUp/PgDn lapoz  Home/End  Esc/Enter vissza  {offset + 1}-{Math.Min(lines.Length, offset + pageSize)}/{lines.Length} ";
             WriteAt(left + 2, top + height - 2, TruncateByDisplayWidth(status, width - 4), ConsoleColor.DarkYellow, width - 4);
@@ -765,6 +814,20 @@ public sealed class MainMenu
                 case ConsoleKey.Enter: return;
             }
         }
+    }
+
+    private static IEnumerable<HelpRenderLine> WrapHelpLine(
+        HelpSourceLine entry, int contentWidth, int keyColumnWidth)
+    {
+        if (entry.Key is null)
+        {
+            return WrapHelpText(entry.Text, contentWidth)
+                .Select(text => new HelpRenderLine(null, text, entry.Color));
+        }
+
+        var descriptionWidth = Math.Max(1, contentWidth - keyColumnWidth);
+        return WrapHelpText(entry.Text, descriptionWidth)
+            .Select((text, index) => new HelpRenderLine(index == 0 ? entry.Key : string.Empty, text, entry.Color));
     }
 
     private static IEnumerable<string> WrapHelpText(string text, int width)

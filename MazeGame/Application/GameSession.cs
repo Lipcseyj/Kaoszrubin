@@ -343,6 +343,11 @@ public sealed class GameSession
             control.AssignedPlayerId != command.SenderId || control.ConnectionState != PlayerConnectionState.Connected ||
             control.ControllerKind == CharacterControllerKind.Npc)
             return Fail("A játékos nem irányíthatja ezt a karaktert.", out reason);
+        if (command is SetHelpVisibilityCommand)
+        {
+            reason = string.Empty;
+            return true;
+        }
         if (command is CharacterActionCommand characterAction)
         {
             if (!Enum.IsDefined(characterAction.Action))

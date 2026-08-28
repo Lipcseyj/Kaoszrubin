@@ -124,6 +124,23 @@ public sealed class CoopGuestScreen
                 if (Console.KeyAvailable)
                 {
                     var key = Console.ReadKey(intercept: true);
+                    if (GameInput.IsHelpShortcut(key))
+                    {
+                        var playerId = client.PlayerId!.Value;
+                        await client.SendCommandAsync(new SetHelpVisibilityCommand(playerId,
+                            client.NextCommandId(), selected.CharacterId, true), cancellationToken);
+                        try
+                        {
+                            MainMenu.ShowHelp();
+                        }
+                        finally
+                        {
+                            await client.SendCommandAsync(new SetHelpVisibilityCommand(playerId,
+                                client.NextCommandId(), selected.CharacterId, false), cancellationToken);
+                        }
+                        Interlocked.Exchange(ref _redrawRequested, 1);
+                        continue;
+                    }
                     if (key.Key == ConsoleKey.Escape && client.CurrentSnapshot?.Phase != GameSessionPhase.Inn &&
                         client.CurrentSnapshot?.Narrative is null &&
                         client.CurrentSnapshot?.SpellPreparation is null &&

@@ -1306,6 +1306,9 @@ static void ProtocolCodecRoundTripsCommand()
     var sale = new InnSaleCommand(PlayerId.New(), 9, CharacterId.New(), 4, 7, 2);
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(sale)) is InnSaleCommand decodedSale &&
            decodedSale == sale, "A JSON wire codec megváltoztatta a fogadói eladást.");
+    var helpVisibility = new SetHelpVisibilityCommand(PlayerId.New(), 10, CharacterId.New(), true);
+    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(helpVisibility)) is SetHelpVisibilityCommand decodedHelp &&
+           decodedHelp == helpVisibility, "A JSON wire codec megváltoztatta a súgó láthatósági parancsát.");
     var characterState = new CharacterStateSync(PlayerId.New(), CharacterId.New(), "character-json",
         CharacterSyncReason.CharacterDied);
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(characterState)) is CharacterStateSync decodedState &&

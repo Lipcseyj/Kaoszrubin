@@ -38,6 +38,9 @@ public sealed record CharacterControlState(CharacterId CharacterId, CharacterCon
 
 public abstract record GameCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId);
 
+public sealed record SetHelpVisibilityCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    bool IsOpen) : GameCommand(SenderId, CommandId, CharacterId);
+
 public sealed record MoveCharacterCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     Direction Direction) : GameCommand(SenderId, CommandId, CharacterId);
 
