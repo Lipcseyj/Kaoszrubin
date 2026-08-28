@@ -263,8 +263,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var invisibilityBonus = player.SpellEffectValue(ActiveSpellEffectType.Invisibility);
         var strengthHitBonus = StrengthHitBonus(player);
         var classHitBonus = ClassHitBonus(player);
+        var retaliation = context.KnightRetaliationReady;
+        context.KnightRetaliationReady = false;
         var hitBonus = PlayerHitBonus(player, context.Tactic, weapon is not null, invisibilityBonus,
-            strengthHitBonus, blessedWeaponBonus);
+            strengthHitBonus, blessedWeaponBonus) + (retaliation ? 2 : 0);
         var hit = HitRoll(player.Abilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
         var strengthHitText = strengthHitBonus > 0 ? $" [Erő-találat +{strengthHitBonus}]" : string.Empty;
@@ -296,23 +298,37 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         }
         if (context.BarbarianRageActionsRemaining > 0)
         {
-            var rageBonus = Roll(new ValueRange(5, 10));
+            var rageRange = player.HasClassFeatureUpgrade(ClassFeatureUpgrades.BarbarianWildRage)
+                ? new ValueRange(7, 12)
+                : player.HasClassFeatureUpgrade(ClassFeatureUpgrades.BarbarianEnduringRage)
+                    ? new ValueRange(4, 7)
+                    : new ValueRange(5, 10);
+            var rageBonus = Roll(rageRange);
             perkBonus += rageBonus;
             notes.Add($"🔥 Düh +{rageBonus}");
         }
+        if (retaliation) { perkBonus += 4; notes.Add("⚔️ Megtorlás: +2 találat, +4 sebzés"); }
         var armor = (defender.Armor ?? 0) + MonsterAbilityValue(defender, MonsterAbilityEffect.ArmorBonus);
+        var powerfulMastery = context.Tactic == BattleTactic.FighterPowerful &&
+                              player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful);
         var armorPiercing = weapon?.IsTwoHanded == true || context.Tactic == BattleTactic.FighterPowerful;
-        var effectiveArmor = armorPiercing ? (armor + 1) / 2 : armor;
-        var damageMultiplier = 1;
-        if (context.AmbushAvailable) { damageMultiplier *= 2; context.AmbushAvailable = false; notes.Add("Orvtámadás ×2"); }
+        var effectiveArmor = powerfulMastery ? (armor + 3) / 4 : armorPiercing ? (armor + 1) / 2 : armor;
+        var damageMultiplierPercent = 100;
+        if (context.AmbushAvailable)
+        {
+            damageMultiplierPercent = player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefAmbush) ? 250 : 200;
+            context.AmbushAvailable = false;
+            notes.Add($"Orvtámadás ×{damageMultiplierPercent / 100d:0.##}");
+        }
         var criticalMultiplier = player.HasPerk(PerkIds.ThiefDeadlyAccuracy) && hit.NaturalRoll >= 18
             ? 3
-            : hit.NaturalRoll == 20 ? 2 : 1;
+            : hit.NaturalRoll == 20 || context.Tactic == BattleTactic.ThiefObserve && hit.NaturalRoll == 19 &&
+              player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve) ? 2 : 1;
         if (criticalMultiplier > 1)
             notes.Add(criticalMultiplier == 3 ? "💥 KRITIKUS — Halálos pontosság ×3" : "💥 KRITIKUS TALÁLAT ×2");
-        damageMultiplier *= criticalMultiplier;
+        damageMultiplierPercent *= criticalMultiplier;
         var rawDamage = baseDamage + abilityBonus + randomBonus + perkBonus;
-        var damage = ApplyDefense(rawDamage * damageMultiplier, effectiveArmor);
+        var damage = ApplyDefense((rawDamage * damageMultiplierPercent + 99) / 100, effectiveArmor);
         var statusDamagePenalty = player.StatusPhysicalDamagePenalty;
         damage = Math.Max(1, damage - statusDamagePenalty);
         if (statusDamagePenalty > 0)
@@ -322,16 +338,17 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         switch (context.Tactic)
         {
             case BattleTactic.FighterPrecise:
-                damage = Math.Max(1, damage * 75 / 100);
-                notes.Add("Pontos: +2 találat, ×0,75 sebzés");
+                var precisePercent = player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? 85 : 75;
+                damage = Math.Max(1, damage * precisePercent / 100);
+                notes.Add($"Pontos: +2 találat, ×0,{precisePercent} sebzés");
                 break;
             case BattleTactic.FighterPowerful:
                 damage = Math.Max(1, (damage * 125 + 99) / 100);
-                notes.Add("Erőteljes: -1 találat, ×1,25 sebzés, 50% páncéltörés");
+                notes.Add($"Erőteljes: -1 találat, ×1,25 sebzés, {(powerfulMastery ? 75 : 50)}% páncéltörés");
                 break;
             case BattleTactic.FighterDefensive:
                 damage = Math.Max(1, damage * 75 / 100);
-                notes.Add("Védekező: ×0,75 sebzés, +3 védelem");
+                notes.Add($"Védekező: ×0,75 sebzés, +{(player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)} védelem");
                 break;
         }
         if (player.HasPerk(PerkIds.ThiefPoisoner))
@@ -342,9 +359,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         }
         if (context.Tactic == BattleTactic.ThiefPoison)
         {
-            var poison = Roll(new ValueRange(1, 4));
+            var poison = Roll(player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefPoison)
+                ? new ValueRange(2, 6) : new ValueRange(1, 4));
             damage += poison;
             notes.Add($"Mérgezett penge +{poison}");
+        }
+        if (context.BarbarianRageActionsRemaining > 0 &&
+            player.HasClassFeatureUpgrade(ClassFeatureUpgrades.BarbarianBloodRage))
+        {
+            var before = player.CurrentVitality;
+            player.RestoreVitality(Roll(new ValueRange(1, 3)));
+            var restored = player.CurrentVitality - before;
+            if (restored > 0) notes.Add($"❤️‍🔥 Vérdüh +{restored} HP");
         }
         context.ConsecutivePlayerHits++;
         var noteText = notes.Count == 0 ? string.Empty : $" [{string.Join(", ", notes)}]";
@@ -354,7 +380,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             : $"páncél {armor}";
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
         return AttackResult.HitFor(damage,
-            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplier} - {armorText} = {damageText}.{noteText}",
+            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplierPercent / 100d:0.##} - {armorText} = {damageText}.{noteText}",
             criticalMultiplier > 1);
     }
 
@@ -426,8 +452,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             ? defender.ActiveSpellEffects.Where(effect => effect.Type == ActiveSpellEffectType.ProtectionFromEvil).ToList()
             : [];
         var evilWardDefense = evilWard.Sum(effect => ParseInt(effect.Parameter));
-        var tacticDefense = context.Tactic == BattleTactic.FighterDefensive ? 3 : 0;
-        var rageDefensePenalty = context.BarbarianRageActionsRemaining > 0 ? 2 : 0;
+        var tacticDefense = context.Tactic == BattleTactic.FighterDefensive
+            ? defender.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3
+            : 0;
+        var rageDefensePenalty = context.BarbarianRageActionsRemaining > 0
+            ? defender.HasClassFeatureUpgrade(ClassFeatureUpgrades.BarbarianWildRage) ? 3 : 2
+            : 0;
         var perkDefense = (defender.HasPerk(PerkIds.BarbarianThickSkin) ? 1 : 0) +
                           (shieldEquipped && defender.HasPerk(PerkIds.KnightShieldWall) ? 2 : 0) +
                           defender.GetMagicItemBonus(MagicItemEffect.Defense) +
@@ -530,8 +560,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             var protector = context.KnightProtector;
             if (protector is not null && protector.IsAlive)
             {
-                var transferredDamage = Math.Max(1, (damage + 2) / 3);
+                var divisor = protector.HasClassFeatureUpgrade(ClassFeatureUpgrades.KnightMarbleWall) ? 4 : 3;
+                var transferredDamage = Math.Max(1, (damage + divisor - 1) / divisor);
                 protector.ReceiveDamage(transferredDamage);
+                if (protector.HasClassFeatureUpgrade(ClassFeatureUpgrades.KnightRetaliation))
+                    protector.ReadyKnightRetaliation();
                 notes.Add($"🛡️ {protector.Name} közbelépett: a teljes {damage} sebzést kivédte, " +
                           $"és 💥 {transferredDamage} sebzést kapott (❤️ {protector.CurrentVitality}/{protector.MaximumVitality})");
                 damage = 0;
@@ -579,8 +612,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             !context.BarbarianRageTriggered)
         {
             context.BarbarianRageTriggered = true;
-            context.BarbarianRageActionsRemaining = 3;
-            notes.Add("🔥 Düh: 3 akcióig +5–10 sebzés és -2 védelem");
+            context.BarbarianRageActionsRemaining = player.HasClassFeatureUpgrade(ClassFeatureUpgrades.BarbarianEnduringRage) ? 5 : 3;
+            var rageText = player.HasClassFeatureUpgrade(ClassFeatureUpgrades.BarbarianWildRage)
+                ? "+7–12 sebzés és -3 védelem"
+                : player.HasClassFeatureUpgrade(ClassFeatureUpgrades.BarbarianEnduringRage)
+                    ? "+4–7 sebzés és -2 védelem"
+                    : "+5–10 sebzés és -2 védelem";
+            notes.Add($"🔥 Düh: {context.BarbarianRageActionsRemaining} akcióig {rageText}");
         }
         return string.Join(". ", notes);
     }

@@ -96,6 +96,7 @@ internal sealed class BattleRuntimeContext
         LastFortressAvailable = player.HasPerk(PerkIds.FighterLastFortress);
         AmbushAvailable = player.HasPerk(PerkIds.ThiefAmbush);
         RequiresTacticSelection = player.CharacterClass.Id is CharacterClassIds.Harcos or CharacterClassIds.Tolvaj;
+        KnightRetaliationReady = player.ConsumeKnightRetaliation();
     }
 
     public bool ChallengeAvailable { get; set; }
@@ -107,6 +108,7 @@ internal sealed class BattleRuntimeContext
     public bool RequiresTacticSelection { get; }
     public BattleTactic? Tactic { get; set; }
     public int BarbarianRageActionsRemaining { get; set; }
+    public bool KnightRetaliationReady { get; set; }
     public bool BarbarianRageTriggered { get; set; }
     public bool KnightProtectionAvailable { get; set; }
     public LiveCharacter? KnightProtector { get; set; }

@@ -14,6 +14,7 @@ public sealed class LiveCharacter
     private readonly IItemDefinition?[] _backpack = new IItemDefinition?[MaximumBackpackItemCount];
     private readonly int[] _backpackItemCharges = new int[MaximumBackpackItemCount];
     private readonly List<PerkDefinition> _perks = [];
+    private readonly List<ClassFeatureUpgradeDefinition> _classFeatureUpgrades = [];
     private readonly List<StatusDefinition> _statuses = [];
     private readonly List<SpellDefinition> _knownSpells = [];
     private readonly List<SpellDefinition> _memorizedSpells = [];
@@ -69,6 +70,7 @@ public sealed class LiveCharacter
     public int DivineSpellCycle => _divineSpellCycle;
     public bool WasResurrectedThisLevel { get; private set; }
     public bool WasRelentlessUsedThisLevel { get; private set; }
+    public bool KnightRetaliationReady { get; private set; }
     public string? SpecializationId { get; private set; }
     public ClassSpecializationDefinition? Specialization => ClassSpecializations.Find(SpecializationId);
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
@@ -77,6 +79,7 @@ public sealed class LiveCharacter
     public IReadOnlyList<int> MagicItemCharges => _magicItemCharges;
     public IReadOnlyList<IItemDefinition?> Backpack => _backpack;
     public IReadOnlyList<PerkDefinition> Perks => _perks;
+    public IReadOnlyList<ClassFeatureUpgradeDefinition> ClassFeatureUpgrades => _classFeatureUpgrades;
     public IReadOnlyList<StatusDefinition> Statuses => _statuses;
     public IReadOnlyList<SpellDefinition> KnownSpells => _knownSpells;
     public IReadOnlyList<SpellDefinition> MemorizedSpells => _memorizedSpells;
@@ -86,6 +89,26 @@ public sealed class LiveCharacter
     public int ExplorationStepsTowardSpellAction => _explorationStepsTowardSpellAction;
     public bool IsSpellcaster => SpellcastingRules.TryGetSchool(CharacterClass.Id, out _);
     public bool CanCastSpells => IsAlive && SpellcastingRules.HasRequiredFocus(this);
+    public bool HasClassFeatureUpgrade(string id) => _classFeatureUpgrades.Any(upgrade =>
+        string.Equals(upgrade.Id, id, StringComparison.OrdinalIgnoreCase));
+
+    public bool ChooseClassFeatureUpgrade(string id)
+    {
+        var upgrade = global::MazeGame.Domain.Characters.ClassFeatureUpgrades.Find(id);
+        if (upgrade is null || upgrade.CharacterClassId != CharacterClass.Id ||
+            _classFeatureUpgrades.Count >= 2 || HasClassFeatureUpgrade(id)) return false;
+        _classFeatureUpgrades.Add(upgrade);
+        return true;
+    }
+
+    public void ReadyKnightRetaliation() => KnightRetaliationReady = true;
+    public bool ConsumeKnightRetaliation()
+    {
+        var ready = KnightRetaliationReady;
+        KnightRetaliationReady = false;
+        return ready;
+    }
+    public void RestoreKnightRetaliation(bool ready) => KnightRetaliationReady = ready;
     public int MemorizationCapacity => SpellcastingRules.MemorizationCapacity(this);
     public const int MaximumMagicItemCount = 3;
     public const int MaximumBackpackItemCount = 10;

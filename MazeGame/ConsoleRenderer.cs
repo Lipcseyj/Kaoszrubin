@@ -1112,6 +1112,49 @@ public sealed class ConsoleRenderer
         }
     }
 
+    public ClassFeatureUpgradeDefinition DrawClassFeatureUpgradeChoice(LiveCharacter character,
+        IReadOnlyList<ClassFeatureUpgradeDefinition> choices, int milestone)
+    {
+        if (choices.Count == 0) throw new ArgumentException("Nincs választható osztályképesség-fejlesztés.", nameof(choices));
+        var selectedIndex = 0;
+        while (true)
+        {
+            ResetColorCache();
+            Console.Clear();
+            var lines = new List<(string Text, ConsoleColor Color)>
+            {
+                ("🌟  OSZTÁLYKÉPESSÉG FEJLESZTÉSE  🌟", ConsoleColor.Yellow),
+                (string.Empty, ConsoleColor.Gray),
+                ($"{character.Name} — {character.CharacterClass.Name} — {milestone}. szint", ConsoleColor.Cyan),
+                ("A választás végleges; a 20. szinten egy másik fejlesztés választható.", ConsoleColor.Red),
+                (string.Empty, ConsoleColor.Gray)
+            };
+            foreach (var (choice, index) in choices.Select((choice, index) => (choice, index)))
+            {
+                lines.Add(($"{(index == selectedIndex ? "▶" : " ")} {choice.Name}",
+                    index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray));
+                lines.Add(($"    {choice.Description}",
+                    index == selectedIndex ? ConsoleColor.White : ConsoleColor.DarkGray));
+                lines.Add((string.Empty, ConsoleColor.Gray));
+            }
+            lines.Add(("Nyilak: választás   Enter: véglegesítés", ConsoleColor.Green));
+            DrawCenteredFrame(82, lines);
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow:
+                case ConsoleKey.LeftArrow:
+                    selectedIndex = (selectedIndex - 1 + choices.Count) % choices.Count;
+                    break;
+                case ConsoleKey.DownArrow:
+                case ConsoleKey.RightArrow:
+                    selectedIndex = (selectedIndex + 1) % choices.Count;
+                    break;
+                case ConsoleKey.Enter:
+                    return choices[selectedIndex];
+            }
+        }
+    }
+
     public SpellDefinition DrawSpellLearningScreen(LiveCharacter character,
         IReadOnlyList<SpellDefinition> choices, int learnedNumber, int learnedTotal)
     {

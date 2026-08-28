@@ -6,7 +6,8 @@ namespace MazeGame.Application;
 /// <summary>A karakterlap megjelenítéséhez szükséges, doménobjektumoktól leválasztott adatok.</summary>
 public sealed record CharacterSheetSnapshot(string RaceName, string CharacterClassName, int Experience,
     int? NextLevelExperience, PrimaryAbilities Abilities, IReadOnlyList<string> PerkNames,
-    IReadOnlyList<string> StatusIcons, bool UsesMana, ConsoleColor Color);
+    IReadOnlyList<string> StatusIcons, bool UsesMana, ConsoleColor Color,
+    IReadOnlyList<string>? ClassFeatureUpgradeNames = null);
 
 public static class SpellInfoSnapshotProjector
 {
@@ -47,6 +48,7 @@ public static class CharacterSheetSnapshotProjector
             character.Experience, character.GetNextLevelExperience(experienceByLevel), character.Abilities,
             character.Perks.Select(perk => perk.Name)
                 .Concat(character.Specialization is { } specialization ? [$"{specialization.Name} specializáció"] : [])
-                .ToArray(), icons, character.UsesMana, character.Color);
+                .ToArray(), icons, character.UsesMana, character.Color,
+            character.ClassFeatureUpgrades.Select(upgrade => upgrade.Name).ToArray());
     }
 }

@@ -2671,7 +2671,7 @@ public sealed class Game
             case BattleActionKind.ThiefPoison:
                 if (_activeBattleState.TryChooseTactic(ToBattleTactic(command.Action)))
                 {
-                    _renderer.DrawInventoryMessage($"Harci taktika: {BattleTacticName(_activeBattleState.Tactic!.Value)}.", ConsoleColor.Cyan);
+                    _renderer.DrawInventoryMessage($"Harci taktika: {BattleTacticName(_activeBattleState.Tactic!.Value, battleCharacter)}.", ConsoleColor.Cyan);
                     ContinueActiveBattle();
                 }
                 else RejectBattleAction(command, "Ez a harci taktika most nem választható.");
@@ -2754,7 +2754,8 @@ public sealed class Game
                             Chebyshev(entry.Position, protectedPosition) <= 2)
             .OrderBy(entry => Chebyshev(entry.Position, protectedPosition))
             .Select(entry => entry.Character).FirstOrDefault();
-        return knight is not null && _random.Next(100) < 75 ? knight : null;
+        var chance = knight?.HasClassFeatureUpgrade(ClassFeatureUpgrades.KnightBodyguard) == true ? 90 : 75;
+        return knight is not null && _random.Next(100) < chance ? knight : null;
     }
 
     private static BattleTactic ToBattleTactic(BattleActionKind action) => action switch
@@ -2768,11 +2769,11 @@ public sealed class Game
         _ => throw new ArgumentOutOfRangeException(nameof(action))
     };
 
-    private static string BattleTacticName(BattleTactic tactic) => tactic switch
+    private static string BattleTacticName(BattleTactic tactic, LiveCharacter character) => tactic switch
     {
-        BattleTactic.FighterPrecise => "Pontos állás (+2 találat, ×0,75 sebzés)",
-        BattleTactic.FighterPowerful => "Erőteljes állás (-1 találat, ×1,25 sebzés, 50% páncéltörés)",
-        BattleTactic.FighterDefensive => "Védekező állás (×0,75 sebzés, +3 védelem)",
+        BattleTactic.FighterPrecise => $"Pontos állás (+2 találat, ×{(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? "0,85" : "0,75")} sebzés)",
+        BattleTactic.FighterPowerful => $"Erőteljes állás (-1 találat, ×1,25 sebzés, {(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) ? 75 : 50)}% páncéltörés)",
+        BattleTactic.FighterDefensive => $"Védekező állás (×0,75 sebzés, +{(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)} védelem)",
         BattleTactic.ThiefAmbush => "Orvtámadás (az első sikeres támadás dupla sebzés)",
         BattleTactic.ThiefObserve => "Megfigyelés (+2 találat)",
         BattleTactic.ThiefPoison => "Mérgezett penge (+1-4 sebzés találatonként)",
@@ -2785,11 +2786,14 @@ public sealed class Game
         if (state.Player.CharacterClass.Id != CharacterClassIds.Harcos) return null;
         return
         [
-            new(BattleActionKind.FighterPrecise, "🎯 Pontos", "sebzés ×0,75",
+            new(BattleActionKind.FighterPrecise, "🎯 Pontos",
+                $"sebzés ×{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? "0,85" : "0,75")}",
                 _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPrecise)),
-            new(BattleActionKind.FighterPowerful, "💥 Erőteljes", "sebzés ×1,25, fél páncél",
+            new(BattleActionKind.FighterPowerful, "💥 Erőteljes",
+                $"sebzés ×1,25, {(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) ? "negyed" : "fél")} páncél",
                 _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPowerful)),
-            new(BattleActionKind.FighterDefensive, "🛡️ Védekező", "sebzés ×0,75, védelem +3",
+            new(BattleActionKind.FighterDefensive, "🛡️ Védekező",
+                $"sebzés ×0,75, védelem +{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)}",
                 _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterDefensive))
         ];
     }
@@ -3203,9 +3207,24 @@ public sealed class Game
         if (actualDamage > 0 && caster.SpecializationId == ClassSpecializations.MageNecromancer)
         {
             var before = caster.CurrentVitality;
-            caster.RestoreVitality(Math.Max(1, (int)Math.Ceiling(actualDamage * 0.10)));
+            var lifeStealPercent = caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.MageLifeHarvest) ? 15 : 10;
+            caster.RestoreVitality(Math.Max(1, (int)Math.Ceiling(actualDamage * lifeStealPercent / 100d)));
             var restored = caster.CurrentVitality - before;
             if (restored > 0) notes.Add($"💀 Nekromancia: ❤️ +{restored} HP");
+        }
+        else if (actualDamage > 0 && caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.MageLifeHarvest))
+        {
+            var before = caster.CurrentVitality;
+            caster.RestoreVitality(Math.Max(1, (int)Math.Ceiling(actualDamage * 0.15)));
+            var restored = caster.CurrentVitality - before;
+            if (restored > 0) notes.Add($"💀 Életaratás: ❤️ +{restored} HP");
+        }
+        if (actualDamage > 0 && caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.PriestMercifulJudgment))
+        {
+            var before = caster.CurrentVitality;
+            caster.RestoreVitality(Math.Max(1, (int)Math.Ceiling(actualDamage * 0.10)));
+            var restored = caster.CurrentVitality - before;
+            if (restored > 0) notes.Add($"⚖️ Irgalmas ítélet: ❤️ +{restored} HP");
         }
         if (damage.Values.Any(value => value > 0)) caster.BreakInvisibility();
         if (!inCombat) _renderer.RefreshCharacterSheet(caster);
@@ -3271,6 +3290,8 @@ public sealed class Game
             rolled = (int)Math.Ceiling(rolled * 1.20);
         if (caster.SpecializationId == ClassSpecializations.MageElementalist && spell.School == SpellSchool.Arcane)
             rolled = (int)Math.Ceiling(rolled * 1.20);
+        if (caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.MageRagingElements) && spell.School == SpellSchool.Arcane)
+            rolled = (int)Math.Ceiling(rolled * 1.15);
         if (IsHolyEffect(effect) && IsUnholy(enemy.Definition))
         {
             rolled = (int)Math.Ceiling(rolled * 1.5);
@@ -3381,6 +3402,8 @@ public sealed class Game
                 amount = (int)Math.Ceiling(amount * 1.25);
             if (caster.SpecializationId == ClassSpecializations.PriestLife)
                 amount = (int)Math.Ceiling(amount * 1.25);
+            if (caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.PriestOverflowingLife))
+                amount = (int)Math.Ceiling(amount * 1.15);
             var before = character.CurrentVitality;
             character.RestoreVitality(amount);
             notes.Add($"{character.Name}: {FormatHealingResult(character, amount, before)}");
@@ -3452,7 +3475,23 @@ public sealed class Game
                                SpellEffectType.Invisibility or SpellEffectType.DefenseBonus or
                                SpellEffectType.PhysicalReduction or SpellEffectType.BleedingImmunity or
                                SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate;
-        return duration > 0 && (priestProtection || mageIllusion) ? duration + 1 : duration;
+        var bonusDuration = 0;
+        if (duration > 0 && priestProtection) bonusDuration++;
+        if (duration > 0 && mageIllusion) bonusDuration++;
+        if (duration > 0 && caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.PriestSteadfastProtection) &&
+            spell.School == SpellSchool.Divine && effect.Type is
+                SpellEffectType.DefenseBonus or SpellEffectType.PhysicalReduction or
+                SpellEffectType.BleedingImmunity or SpellEffectType.HitBonus or
+                SpellEffectType.DamageBonus or SpellEffectType.InitiativeBonus or
+                SpellEffectType.ProtectionFromEvil or SpellEffectType.GuardianAngel or SpellEffectType.Sanctuary)
+            bonusDuration++;
+        if (duration > 0 && caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.MagePerfectIllusion) &&
+            spell.School == SpellSchool.Arcane && effect.Type is
+                SpellEffectType.Invisibility or SpellEffectType.DefenseBonus or
+                SpellEffectType.PhysicalReduction or SpellEffectType.BleedingImmunity or
+                SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate)
+            bonusDuration++;
+        return duration + bonusDuration;
     }
     private static IReadOnlyList<string> ParseEffectParameters(string? parameter) =>
         string.IsNullOrWhiteSpace(parameter)
@@ -4321,6 +4360,7 @@ public sealed class Game
         foreach (var perk in selectedPerks)
             if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
         if (ShouldChooseSpecialization(character, offers)) ResolveLocalSpecialization(character);
+        ResolveLocalClassFeatureUpgrades(character, result);
         ResolveSpellLearning(character, result);
     }
 
@@ -4339,6 +4379,7 @@ public sealed class Game
             if (offer.Tier == 1) ResolveRemoteSpecialization(character, result);
         }
         if (ShouldChooseSpecialization(character, offers)) ResolveRemoteSpecialization(character, result);
+        ResolveRemoteClassFeatureUpgrades(character, result);
         ResolveRemoteSpellLearning(character, result);
     }
 
@@ -4362,6 +4403,44 @@ public sealed class Game
         var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.SpecializationChoice,
             projected, "Válassz végleges papi vagy mágusi specializációt.");
         character.ChooseSpecialization(choices.FirstOrDefault(choice => choice.Id == selectedId)?.Id ?? choices[0].Id);
+    }
+
+    private static IEnumerable<int> PendingClassFeatureMilestones(LiveCharacter character, LevelUpResult result)
+    {
+        var acquired = character.ClassFeatureUpgrades.Count;
+        foreach (var milestone in new[] { 10, 20 })
+        {
+            if (result.CurrentLevel < milestone || acquired >= milestone / 10) continue;
+            acquired++;
+            yield return milestone;
+        }
+    }
+
+    private void ResolveLocalClassFeatureUpgrades(LiveCharacter character, LevelUpResult result)
+    {
+        foreach (var milestone in PendingClassFeatureMilestones(character, result).ToArray())
+        {
+            var choices = ClassFeatureUpgrades.ForClass(character.CharacterClass.Id)
+                .Where(choice => !character.HasClassFeatureUpgrade(choice.Id)).ToArray();
+            if (choices.Length == 0) return;
+            character.ChooseClassFeatureUpgrade(
+                _renderer.DrawClassFeatureUpgradeChoice(character, choices, milestone).Id);
+        }
+    }
+
+    private void ResolveRemoteClassFeatureUpgrades(LiveCharacter character, LevelUpResult result)
+    {
+        foreach (var milestone in PendingClassFeatureMilestones(character, result).ToArray())
+        {
+            var choices = ClassFeatureUpgrades.ForClass(character.CharacterClass.Id)
+                .Where(choice => !character.HasClassFeatureUpgrade(choice.Id)).ToArray();
+            if (choices.Length == 0) return;
+            var projected = choices.Select(choice =>
+                new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray();
+            var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.ClassFeatureChoice,
+                projected, $"{milestone}. szint — válassz végleges osztályképesség-fejlesztést.");
+            character.ChooseClassFeatureUpgrade(choices.FirstOrDefault(choice => choice.Id == selectedId)?.Id ?? choices[0].Id);
+        }
     }
 
     private void ResolveRemoteSpellLearning(LiveCharacter character, LevelUpResult result)

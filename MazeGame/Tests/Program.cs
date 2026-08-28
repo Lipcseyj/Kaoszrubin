@@ -33,6 +33,7 @@ var tests = new (string Name, Action Run)[]
     ("Harc közben nem futhat felfedezési parancs", ExplorationCommandIsRejectedDuringBattle),
     ("A CharacterId mentés után is stabil", CharacterIdSurvivesSerialization),
     ("Az osztályspecializáció mentés után is megmarad", ClassSpecializationSurvivesSerialization),
+    ("A 10. és 20. szintű osztályfejlesztések mentődnek és megjelennek", ClassFeatureUpgradesPersistAndAppearOnSheet),
     ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
@@ -411,6 +412,38 @@ static void BarbarianRageTriggersAfterFiveDamage()
     Assert(rageLogs.Any(log => Enumerable.Range(5, 6).Any(bonus =>
             log.Contains($"🔥 Düh +{bonus}", StringComparison.Ordinal))),
         "A barbár Düh támadása nem kapott 5–10 közötti sebzésbónuszt.");
+}
+
+static void ClassFeatureUpgradesPersistAndAppearOnSheet()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    foreach (var characterClass in data.CharacterClasses)
+        Assert(ClassFeatureUpgrades.ForClass(characterClass.Id).Count == 3,
+            $"{characterClass.Name} nem pontosan három osztályfejlesztést kapott.");
+
+    var race = data.GetRace("R001");
+    var fighterClass = data.CharacterClasses.Single(characterClass => characterClass.Id == CharacterClassIds.Harcos);
+    var character = new LiveCharacter("Fejlesztett", race, fighterClass,
+        new PrimaryAbilities(7, 8, 9, 10), 40, 0, 1, 0);
+    Assert(character.ChooseClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) &&
+           character.ChooseClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) &&
+           !character.ChooseClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) &&
+           !character.ChooseClassFeatureUpgrade(ClassFeatureUpgrades.BarbarianWildRage),
+        "Az osztályfejlesztések darabszám- vagy osztálykorlátozása hibás.");
+
+    var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-upgrade-save.json"), data);
+    var restored = service.DeserializeCharacter(service.SerializeCharacter(character));
+    Assert(restored.ClassFeatureUpgrades.Select(upgrade => upgrade.Id).SequenceEqual(
+            new[] { ClassFeatureUpgrades.FighterPrecise, ClassFeatureUpgrades.FighterDefensive }),
+        "Az osztályfejlesztések elvesztek a mentési kör után.");
+
+    var lines = CharacterSheetPanel.Build(restored, data.ExperienceByLevel, 1, 0, 12);
+    Assert(lines.Single(line => line.Row == 7).Text.Contains("💪7", StringComparison.Ordinal) &&
+           lines.Single(line => line.Row == 7).Text.Contains("🧠10", StringComparison.Ordinal) &&
+           lines.Single(line => line.Row == 8).Text == "OSZTÁLYFEJLESZTÉSEK" &&
+           lines.Single(line => line.Row == 9).Text.Contains("Kimért pontosság", StringComparison.Ordinal) &&
+           lines.Single(line => line.Row == 10).Text.Contains("Áthatolhatatlan", StringComparison.Ordinal),
+        "A tömör képességsor vagy az osztályfejlesztések karakterlap-blokkja hibás.");
 }
 
 static void KnightProtectionTransfersThirdOfFirstHit()

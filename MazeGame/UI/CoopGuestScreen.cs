@@ -1326,6 +1326,7 @@ public sealed class CoopGuestScreen
             {
                 LevelUpPromptKind.PerkChoice => "🌟⚔️🌟  TEHETSÉGVÁLASZTÁS  🌟⚔️🌟",
                 LevelUpPromptKind.SpecializationChoice => "✨  SPECIALIZÁCIÓ  ✨",
+                LevelUpPromptKind.ClassFeatureChoice => "🌟  OSZTÁLYKÉPESSÉG FEJLESZTÉSE  🌟",
                 LevelUpPromptKind.SpellChoice => "📖  ÚJ VARÁZSLAT TANULÁSA",
                 _ => "✨🏆✨  SZINTLÉPÉS!  ✨🏆✨"
             }, prompt.Kind == LevelUpPromptKind.Summary ? ConsoleColor.Yellow : ConsoleColor.Magenta),
