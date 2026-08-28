@@ -46,24 +46,55 @@ public static class CsvGameDataLoader
         int? baseLevelCompletionExperience = null;
         var section = DataSection.None;
 
-        foreach (var rawLine in ReadLinesWithFallbackEncoding(filePath))
+        var sourceLines = ReadLinesWithFallbackEncoding(filePath).ToArray();
+        for (var lineIndex = 0; lineIndex < sourceLines.Length; lineIndex++)
         {
+            var rawLine = sourceLines[lineIndex];
+            var lineNumber = lineIndex + 1;
             var cells = rawLine.Split(',').Select(cell => cell.Trim()).ToArray();
             if (cells.All(string.IsNullOrEmpty)) continue;
 
-            if (TryReadSection(cells, out var parsedSection))
+            if (TryReadSection(cells, lineNumber, out var parsedSection))
             {
                 section = parsedSection;
                 continue;
             }
 
             if (IsHeaderRow(cells[0])) continue;
-            AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
-                monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, itemUpgrades,
-                raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
-                vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
+            if (section == DataSection.None)
+                throw new InvalidDataException($"Az adatok.csv {lineNumber}. sora nem tartozik ismert fejezethez: '{rawLine}'.");
+            try
+            {
+                AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
+                    monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, itemUpgrades,
+                    raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
+                    vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
+            }
+            catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException or ArgumentException)
+            {
+                throw new InvalidDataException($"Hiba az adatok.csv {lineNumber}. sorában, a(z) '{section}' fejezetben: {exception.Message}", exception);
+            }
         }
 
+        ValidateRequiredCoreData(races, characterClasses, enemies, abilities, raceBonuses, classMinimums,
+            startingEquipmentByClass, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
+            vitalityGrowthByHealth, manaGrowthByIntelligence);
+        ValidateUniqueIds(
+            ("Fajok", races.Select(value => value.Id)),
+            ("Osztályok", characterClasses.Select(value => value.Id)),
+            ("Ellenségek", enemies.Select(value => value.Id)),
+            ("Szörnyképességek", monsterAbilities.Select(value => value.Id)),
+            ("Fegyvertípus", weaponTypes.Select(value => value.Id)),
+            ("Fegyverek", weapons.Select(value => value.Id)),
+            ("Páncélok", armors.Select(value => value.Id)),
+            ("Képességek", abilities.Select(value => value.Id)),
+            ("Tárgyak", items.Select(value => value.Id)),
+            ("Varázstárgyak", magicItems.Select(value => value.Id)),
+            ("Varázslatok", spells.Select(value => value.Id)),
+            ("Tehetségek", perks.Select(value => value.Id)),
+            ("Állapotok", statuses.Select(value => value.Id)),
+            ("Karakternevek", characterNames.Select(value => value.Id)),
+            ("Tárgybővítések", itemUpgrades.Select(value => value.Id)));
         ValidateSpells(spells);
         ValidateSpellEffects(spells, spellEffects);
         ValidateMagicItems(magicItems, spells);
@@ -312,9 +343,10 @@ public static class CsvGameDataLoader
 
     private static ItemRarity ParseRarity(string[] cells, int index) => Normalize(Cell(cells, index)) switch
     {
+        "" or "sima" or "normal" => ItemRarity.Normal,
         "varazs" or "magic" => ItemRarity.Magic,
         "legendas" or "legendary" => ItemRarity.Legendary,
-        _ => ItemRarity.Normal
+        _ => throw new InvalidOperationException($"Ismeretlen tárgyritkaság: '{Cell(cells, index)}'.")
     };
 
     private static ItemRarity RequiredItemRarity(string[] cells, int index, string id, string fieldName)
@@ -325,19 +357,97 @@ public static class CsvGameDataLoader
         return ParseRarity(cells, index);
     }
 
-    private static ConsumableEffect ParseConsumableEffect(string[] cells, int index) =>
-        Enum.TryParse<ConsumableEffect>(Cell(cells, index), true, out var effect) ? effect : ConsumableEffect.None;
+    private static ConsumableEffect ParseConsumableEffect(string[] cells, int index)
+    {
+        var value = Cell(cells, index);
+        if (string.IsNullOrWhiteSpace(value)) return ConsumableEffect.None;
+        return Enum.TryParse<ConsumableEffect>(value, true, out var effect)
+            ? effect
+            : throw new InvalidOperationException($"Ismeretlen fogyaszthatótárgy-hatás: '{value}'.");
+    }
+
+    private static void ValidateRequiredCoreData(IReadOnlyCollection<RaceDefinition> races,
+        IReadOnlyCollection<CharacterClassDefinition> characterClasses,
+        IReadOnlyCollection<EnemyDefinition> enemies, IReadOnlyCollection<AbilityDefinition> abilities,
+        IReadOnlyDictionary<string, PrimaryAbilities> raceBonuses,
+        IReadOnlyDictionary<string, PrimaryAbilities> classMinimums,
+        IReadOnlyDictionary<string, StartingEquipmentDefinition> startingEquipmentByClass,
+        IReadOnlyDictionary<int, int> minimumVitalityByHealth,
+        IReadOnlyDictionary<int, int> minimumManaByIntelligence,
+        IReadOnlyDictionary<int, int> experienceByLevel,
+        IReadOnlyDictionary<int, ValueRange> vitalityGrowthByHealth,
+        IReadOnlyDictionary<int, ValueRange> manaGrowthByIntelligence)
+    {
+        if (races.Count == 0) throw new InvalidDataException("A #Fajok fejezet üres vagy hiányzik.");
+        if (characterClasses.Count == 0) throw new InvalidDataException("Az #Osztályok fejezet üres vagy hiányzik.");
+        if (enemies.Count == 0) throw new InvalidDataException("Az #Ellenségek fejezet üres vagy hiányzik.");
+        if (abilities.Count == 0) throw new InvalidDataException("A #Képességek fejezet üres vagy hiányzik.");
+
+        ValidateReferences("#Faji képességbónuszok", races.Select(race => race.Id), raceBonuses.Keys);
+        ValidateReferences("#Osztály képességminimumok", characterClasses.Select(value => value.Id), classMinimums.Keys);
+        ValidateReferences("#Osztály kezdőfelszerelés", characterClasses.Select(value => value.Id),
+            startingEquipmentByClass.Keys);
+        ValidateThresholds("#Egészség által adott életerő minimum", minimumVitalityByHealth.Keys, 1, 13);
+        ValidateThresholds("#Intelligencia által adott manna minimum", minimumManaByIntelligence.Keys, 1, 13);
+        ValidateThresholds("#Szintlépés életerő növekedés", vitalityGrowthByHealth.Keys, 1, 13);
+        ValidateThresholds("#Szintlépés manna növekedés", manaGrowthByIntelligence.Keys, 1, 13);
+        ValidateThresholds("#Szintlépések", experienceByLevel.Keys, 1, 30);
+    }
+
+    private static void ValidateReferences(string section, IEnumerable<string> expectedIds,
+        IEnumerable<string> actualIds)
+    {
+        var expected = expectedIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var actual = actualIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missing = expected.Except(actual, StringComparer.OrdinalIgnoreCase).Order().ToArray();
+        var unknown = actual.Except(expected, StringComparer.OrdinalIgnoreCase).Order().ToArray();
+        if (missing.Length > 0)
+            throw new InvalidDataException($"A(z) {section} fejezetből hiányzó azonosítók: {string.Join(", ", missing)}.");
+        if (unknown.Length > 0)
+            throw new InvalidDataException($"A(z) {section} fejezet ismeretlen azonosítói: {string.Join(", ", unknown)}.");
+    }
+
+    private static void ValidateThresholds(string section, IEnumerable<int> actualKeys, int minimum, int maximum)
+    {
+        var expected = Enumerable.Range(minimum, maximum - minimum + 1).ToHashSet();
+        var actual = actualKeys.ToHashSet();
+        var missing = expected.Except(actual).Order().ToArray();
+        var extra = actual.Except(expected).Order().ToArray();
+        if (missing.Length > 0)
+            throw new InvalidDataException($"A(z) {section} fejezetből hiányzó értékek: {string.Join(", ", missing)}.");
+        if (extra.Length > 0)
+            throw new InvalidDataException($"A(z) {section} fejezet tartományon kívüli értékei: {string.Join(", ", extra)}.");
+    }
+
+    private static void ValidateUniqueIds(params (string Section, IEnumerable<string> Ids)[] catalogs)
+    {
+        foreach (var (section, ids) in catalogs)
+        {
+            var duplicates = ids.Where(id => !string.IsNullOrWhiteSpace(id))
+                .GroupBy(id => id, StringComparer.OrdinalIgnoreCase)
+                .Where(group => group.Count() > 1).Select(group => group.Key).Order().ToArray();
+            if (duplicates.Length > 0)
+                throw new InvalidDataException($"A(z) #{section} fejezetben ismétlődő azonosítók vannak: {string.Join(", ", duplicates)}.");
+        }
+    }
 
     private static MagicItemKind ParseMagicItemKind(string[] cells, int index) => Normalize(Cell(cells, index)) switch
     {
         "amulett" => MagicItemKind.Amulet,
         "varazspalca" => MagicItemKind.Wand,
         "varazstekercs" => MagicItemKind.Scroll,
-        _ => MagicItemKind.Ring
+        "gyuru" or "varazsgyuru" => MagicItemKind.Ring,
+        _ => throw new InvalidOperationException($"Ismeretlen varázstárgytípus: '{Cell(cells, index)}'.")
     };
 
-    private static MagicItemEffect ParseMagicItemEffect(string[] cells, int index) =>
-        Enum.TryParse<MagicItemEffect>(Cell(cells, index), true, out var effect) ? effect : MagicItemEffect.None;
+    private static MagicItemEffect ParseMagicItemEffect(string[] cells, int index)
+    {
+        var value = Cell(cells, index);
+        if (string.IsNullOrWhiteSpace(value)) return MagicItemEffect.None;
+        return Enum.TryParse<MagicItemEffect>(value, true, out var effect)
+            ? effect
+            : throw new InvalidOperationException($"Ismeretlen varázstárgyhatás: '{value}'.");
+    }
 
     private static IReadOnlySet<string> MagicItemAllowedClasses(string[] cells, int mageOnlyIndex, MagicItemKind kind, string? spellId) => kind switch
     {
@@ -444,7 +554,8 @@ public static class CsvGameDataLoader
 
     private static RaceTraits ParseRaceTraits(string value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return RaceTraits.None;
+        if (string.IsNullOrWhiteSpace(value))
+            throw new InvalidDataException("A faj Tulajdonság mezője nem lehet üres.");
         var result = RaceTraits.None;
         foreach (var name in value.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
@@ -456,7 +567,9 @@ public static class CsvGameDataLoader
     }
 
     private static MonsterAbilityEffect ParseMonsterAbilityEffect(string[] cells, int index) =>
-        Enum.TryParse<MonsterAbilityEffect>(Cell(cells, index), true, out var effect) ? effect : MonsterAbilityEffect.Trait;
+        Enum.TryParse<MonsterAbilityEffect>(Cell(cells, index), true, out var effect)
+            ? effect
+            : throw new InvalidOperationException($"Ismeretlen szörnyképesség-hatás: '{Cell(cells, index)}'.");
 
     private static void ValidateEnemies(IEnumerable<EnemyDefinition> enemies,
         IReadOnlyCollection<MonsterAbilityDefinition> monsterAbilities)
@@ -632,12 +745,14 @@ public static class CsvGameDataLoader
         ranges[ability] = range;
     }
 
-    private static bool TryReadSection(string[] cells, out DataSection section)
+    private static bool TryReadSection(string[] cells, int lineNumber, out DataSection section)
     {
         var sectionCell = cells[0];
         if (sectionCell.StartsWith('#'))
         {
             section = ParseSection(sectionCell[1..]);
+            if (section == DataSection.None)
+                throw new InvalidDataException($"Ismeretlen fejezetcím az adatok.csv {lineNumber}. sorában: '{sectionCell}'.");
             return true;
         }
 

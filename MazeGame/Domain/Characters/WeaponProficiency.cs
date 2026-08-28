@@ -38,7 +38,7 @@ public static class WeaponFamilies
         {
             "W001" => Dagger,
             "W002" or "W003" or "W004" or "W009" => Sword,
-            "W010" => Axe,
+            "W010" or "W017" => Axe,
             "W005" or "W006" or "W007" or "W008" or "W013" => Blunt,
             "W011" or "W012" => Polearm,
             "W014" or "W015" or "W016" => Shield,

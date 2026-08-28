@@ -14,128 +14,62 @@ C004,Tolvaj,0.85
 C005,Pap,1
 C006,Mágus,1.1
 
-#Karakternevek
-Id,Név,OsztályId
-NAME-C001-01,Aldric,C001
-NAME-C001-02,Borin,C001
-NAME-C001-03,Cedrik,C001
-NAME-C001-04,Doran,C001
-NAME-C001-05,Eryk,C001
-NAME-C001-06,Falk,C001
-NAME-C001-07,Garen,C001
-NAME-C001-08,Hadur,C001
-NAME-C001-09,Ivor,C001
-NAME-C001-10,Csonttörő,C001
-NAME-C001-11,Bran,C001
-NAME-C001-12,Hordóhas,C001
-NAME-C001-13,Sigurd,C001
-NAME-C001-14,Orven,C001
-NAME-C001-15,Roderik,C001
-NAME-C001-16,Sigor,C001
-NAME-C001-17,Félszemű Grok,C001
-NAME-C001-18,Ulrik,C001
-NAME-C001-19,Viktor,C001
-NAME-C001-20,Zord Valeric,C001
-NAME-C002-01,Arak,C002
-NAME-C002-02,Balgor,C002
-NAME-C002-03,Crag,C002
-NAME-C002-04,Draven,C002
-NAME-C002-05,Einar,C002
-NAME-C002-06,Fenrir,C002
-NAME-C002-07,Grom,C002
-NAME-C002-08,Hroth,C002
-NAME-C002-09,Kargan,C002
-NAME-C002-10,Logen,C002
-NAME-C002-11,Mork,C002
-NAME-C002-12,Nergal,C002
-NAME-C002-13,Ormog,C002
-NAME-C002-14,Ragnar,C002
-NAME-C002-15,Skarn,C002
-NAME-C002-16,Thorg,C002
-NAME-C002-17,Ulfar,C002
-NAME-C002-18,Varg,C002
-NAME-C002-19,Wotan,C002
-NAME-C002-20,Yngvar,C002
-NAME-C003-01,Sir Arthur,C003
-NAME-C003-02,Sir Balduin,C003
-NAME-C003-03,Sir Conrad,C003
-NAME-C003-04,Sir Rodrix,C003
-NAME-C003-05,Sir Emeric,C003
-NAME-C003-06,Sir Fülöp,C003
-NAME-C003-07,Sir Godrik,C003
-NAME-C003-08,Sir Henrik,C003
-NAME-C003-09,Sir Imre,C003
-NAME-C003-10,Sir János,C003
-NAME-C003-11,Sir Kelemen,C003
-NAME-C003-12,Sir Lancelor,C003
-NAME-C003-13,Sir Miklós,C003
-NAME-C003-14,Sir Norbert,C003
-NAME-C003-15,Sir Oszkár,C003
-NAME-C003-16,Sir Percival,C003
-NAME-C003-17,Sir Roland,C003
-NAME-C003-18,Sir Sebestyén,C003
-NAME-C003-19,Sir Tristan,C003
-NAME-C003-20,Sir Vilmos,C003
-NAME-C004-01,Árnyék,C004
-NAME-C004-02,Bicska,C004
-NAME-C004-03,Cinkos,C004
-NAME-C004-04,Daren,C004
-NAME-C004-05,Enzo,C004
-NAME-C004-06,Fürge,C004
-NAME-C004-07,Gubanc,C004
-NAME-C004-08,Holló,C004
-NAME-C004-09,Iskra,C004
-NAME-C004-10,Jinx,C004
-NAME-C004-11,Karmos,C004
-NAME-C004-12,Lopak,C004
-NAME-C004-13,Mester,C004
-NAME-C004-14,Nesztor,C004
-NAME-C004-15,Osonó,C004
-NAME-C004-16,Penge,C004
-NAME-C004-17,Ravasz,C004
-NAME-C004-18,Surranó,C004
-NAME-C004-19,Villám,C004
-NAME-C004-20,Zsebes,C004
-NAME-C005-01,Ábel,C005
-NAME-C005-02,Benedek,C005
-NAME-C005-03,Celes,C005
-NAME-C005-04,Dávid,C005
-NAME-C005-05,Eliás,C005
-NAME-C005-06,Ferenc,C005
-NAME-C005-07,Gábor,C005
-NAME-C005-08,Hilár,C005
-NAME-C005-09,Illés,C005
-NAME-C005-10,József,C005
-NAME-C005-11,Kadosa,C005
-NAME-C005-12,Lukács,C005
-NAME-C005-13,Máté,C005
-NAME-C005-14,Noé,C005
-NAME-C005-15,Olivér,C005
-NAME-C005-16,Pál,C005
-NAME-C005-17,Rafael,C005
-NAME-C005-18,Simon,C005
-NAME-C005-19,Tamás,C005
-NAME-C005-20,Zakariás,C005
-NAME-C006-01,Alatar,C006
-NAME-C006-02,Balthor,C006
-NAME-C006-03,Cirion,C006
-NAME-C006-04,Darius,C006
-NAME-C006-05,Elminster,C006
-NAME-C006-06,Faelar,C006
-NAME-C006-07,Gandren,C006
-NAME-C006-08,Hekate,C006
-NAME-C006-09,Idris,C006
-NAME-C006-10,Jorvan,C006
-NAME-C006-11,Kael,C006
-NAME-C006-12,Lorcan,C006
-NAME-C006-13,Merlin,C006
-NAME-C006-14,Nymor,C006
-NAME-C006-15,Orin,C006
-NAME-C006-16,Prospero,C006
-NAME-C006-17,Quorin,C006
-NAME-C006-18,Radagast,C006
-NAME-C006-19,Szibilla,C006
-NAME-C006-20,Theron,C006
+#Faji képességbónuszok
+FajId,Erő,Ügyesség,Egészség,Intelligencia
+R001,0,0,0,0
+R002,1,-1,2,-2
+R003,-2,2,-2,2
+R004,2,-1,1,-2
+
+#Osztály képességminimumok
+OsztályId,Erő,Ügyesség,Egészség,Intelligencia
+C001,7,2,8,2
+C002,9,3,6,1
+C003,7,2,6,4
+C004,3,7,4,4
+C005,5,3,5,6
+C006,1,3,2,8
+
+#Osztály kezdőfelszerelés
+OsztályId,Fegyver1Id,Fegyver2Id,PáncélId,VarázstárgyId,HátizsákId,HátizsákId
+C001,W004,,A002,,T001,T002,T001,T002,T011,T011
+C002,W010,,A002,,T001,T002,T001,T002,T011,T011
+C003,W004,W014,A004,,T001,T002,T001,T002,T011,T011
+C005,W005,,A001,,T001,T002,T001,T002,T011,T011
+C004,W001,,A002,,T001,T002,T001,T002,T011,T011
+C006,W001,,A001,,T001,T002,T001,T002,T011,T011
+
+#Egészség által adott életerő minimum
+Egészség,Életerő
+1,15
+2,20
+3,25
+4,30
+5,35
+6,40
+7,50
+8,60
+9,70
+10,85
+11,100
+12,110
+13,120
+
+#Intelligencia által adott manna minimum
+Intelligencia,Manna
+1,15
+2,20
+3,25
+4,30
+5,35
+6,40
+7,50
+8,60
+9,70
+10,85
+11,100
+12,110
+13,120
 
 #Szintlépések
 Szint,XP értél
@@ -170,9 +104,6 @@ Szint,XP értél
 29,	2155000
 30,	2425000
 
-#Base XP pálya végén
-300
-
 #Szintlépés életerő növekedés
 Egészség,Növekedés
 1,1-3
@@ -205,69 +136,17 @@ Intelligencia,Növekedés
 12,6-8
 13,7-10
 
-#Ellenségek
-Id,Név,Kinézet,Erő,HP,Páncél,Gyorsaság,XP érték,Erősség,Képesség1Id,Képesség2Id
-E001,Óriáspatkány,r,2,20,0,5,100,1,MA003,
-E002,Kobold,k,3,30,1,6,150,1,MA006,
-E003,Goblin,g,4,45,2,6,200,1,,
-E004,Csontváz,I,5,80,3,3,250,1,MA001,MA007
-E005,Farkas,w,4,55,1,8,300,1,MA006,MA004
-E006,Zombi,z,5,100,2,2,330,1,MA001,MA003
-E007,Ork,o,7,120,4,5,400,2,MA005,
-E008,Hobgoblin,h,8,150,5,5,450,2,MA007,MA005
-E009,Óriáspók,s,6,90,3,7,470,2,MA002,MA006
-E010,Gnoll,n,9,170,4,6,600,2,MA004,MA005
-E011,Lidércfarkas,W,10,220,5,9,700,2,MA001,MA006
-E012,Ogre,O,12,320,5,3,900,3,MA005,MA007
-E013,Troll,T,14,500,6,4,1000,3,MA008,MA007
-E014,Minotaurusz,M,15,650,7,5,1200,3,MA005,MA006
-E015,Múmia,m,12,400,7,3,1400,3,MA001,MA003
-E016,Medúza,μ,13,450,6,6,1500,3,MA002,MA006
-E017,Kiméra,C,16,800,7,7,2000,4,MA005,MA007
-E018,Beholder,B,17,1000,8,4,2800,4,MA006,MA005
-E019,Vámpír,V,15,750,7,8,3000,4,MA001,MA003
-E020,Vérfarkas,L,16,850,6,9,3200,4,MA004,MA006
-E021,Vörös sárkány,D,18,1500,9,7,5000,5,MA007,MA005
-E022,Lich,l,17,1200,8,5,4000,5,MA001,MA007
-E023,Démonlovag,♞,18,1800,9,6,5000,5,MA010,MA004
-E024,Balor démon,♛,19,2500,10,8,7500,5,MA010,MA005
-E025,Fekete sárkány,Ð,20,2000,10,8,10000,5,MA007,MA002
-E026,Óriásdenevér,b,3,35,0,9,160,1,MA006,MA009
-E027,Savanyálka,a,4,65,2,2,230,1,MA002,MA007
-E028,Útonálló,u,5,70,2,6,260,1,MA004,
-E029,Barlangi gyík,j,4,60,2,7,240,1,MA006,
-E030,Pestishordozó patkány,p,3,55,1,6,280,1,MA003,MA002
-E031,Bugbear,q,9,190,5,5,650,2,MA005,MA007
-E032,Hárpia,H,8,160,3,9,680,2,MA009,MA004
-E033,Ghoul,G,9,210,4,7,720,2,MA001,MA003
-E034,Ifjú baziliszkusz,β,10,240,6,4,780,2,MA002,MA007
-E035,Ork sámán,ó,8,180,3,6,750,2,MA006,MA003
-E036,Ettin,E,15,720,8,3,1700,3,MA005,MA007
-E037,Wight,Ŵ,13,560,7,6,1650,3,MA001,MA003
-E038,Wyvern,Y,14,620,6,9,1850,3,MA002,MA009
-E039,Kőgólem,K,16,900,10,2,2100,3,MA007,MA005
-E040,Éji banya,ñ,13,520,6,8,1900,3,MA003,MA006
-E041,Fagyóriás,F,18,1300,10,5,3800,4,MA005,MA007
-E042,Halállovag,†,17,1150,11,6,4000,4,MA001,MA007
-E043,Hidra,Ξ,18,1450,8,7,4300,4,MA002,MA005
-E044,Csontsárkány,δ,19,1600,11,6,4800,4,MA001,MA007
-E045,Démonpók,§,17,1050,8,10,4200,4,MA002,MA004
-E046,Ősvámpír,Ƿ,20,1900,11,10,8500,5,MA001,MA006
-E047,Pokolfejedelem,Φ,22,2800,13,7,11000,5,MA010,MA005
-E048,Vén beholder,Θ,21,2400,12,8,10500,5,MA006,MA005
-E049,Drakolich,Ł,23,3200,14,7,14000,5,MA001,MA007
-E050,Káoszsárkány,Ж,24,3600,13,10,16000,5,MA002,MA003
-E051,Patkányember,&,7,105,4,7,600,2,MA003,
-
-#Zsákmány paraméterek
-Id,Érték
-KulcsEsély,10
-AranyEsély,40
-AranyTierSzorzó,10
-TolvajEsélySzorzó,130
-IntelligenciaPontBónusz,1
-LádaFőnyereményEsély,10
-LádaFőnyereménySzorzó,3
+#Erő találati bónusz
+OsztályId,MinimumErő,Bónusz
+C001,7,1
+C001,10,2
+C001,13,3
+C002,7,1
+C002,10,2
+C002,13,3
+C003,7,1
+C003,10,2
+C003,13,3
 
 #Ajtópróba paraméterek
 Id,Érték
@@ -276,145 +155,8 @@ Id,Érték
 VízMinimum,1
 VízMaximum,2
 
-#Szörny zsákmány
-SzörnyId,FelszerelésEsély,Fegyver,Páncél,Varázstárgy,MinRitkaság,MaxRitkaság,MaxMágikusErő,MaxÁr
-E002,25,igen,igen,nem,Sima,Sima,0,70
-E003,40,igen,igen,nem,Sima,Sima,0,100
-E004,15,igen,igen,nem,Sima,Sima,0,250
-E006,8,igen,igen,nem,Sima,Sima,0,100
-E007,45,igen,igen,nem,Sima,Sima,0,250
-E008,55,igen,igen,nem,Sima,Varázs,1,450
-E010,40,igen,igen,nem,Sima,Sima,0,250
-E012,40,igen,igen,nem,Sima,Varázs,1,700
-E013,15,igen,igen,nem,Sima,Varázs,1,700
-E014,50,igen,igen,nem,Sima,Varázs,1,1200
-E015,35,nem,igen,igen,Varázs,Varázs,3,2500
-E016,45,igen,igen,igen,Varázs,Varázs,3,3000
-E017,30,nem,igen,igen,Varázs,Varázs,4,4500
-E018,65,nem,nem,igen,Varázs,Legendás,7,12000
-E019,70,igen,igen,igen,Varázs,Legendás,7,12000
-E020,25,igen,igen,nem,Sima,Varázs,2,2000
-E021,90,igen,igen,igen,Varázs,Legendás,9,22000
-E022,90,igen,igen,igen,Varázs,Legendás,9,22000
-E023,85,igen,igen,igen,Varázs,Legendás,9,22000
-E024,90,igen,igen,igen,Varázs,Legendás,10,28000
-E025,95,igen,igen,igen,Varázs,Legendás,10,30000
-E028,50,igen,igen,nem,Sima,Varázs,1,450
-E031,50,igen,igen,nem,Sima,Varázs,2,700
-E033,10,igen,igen,nem,Sima,Sima,0,100
-E035,60,igen,igen,igen,Sima,Varázs,3,3000
-E036,45,igen,igen,nem,Sima,Varázs,2,1500
-E037,50,igen,igen,igen,Varázs,Varázs,5,6000
-E038,20,nem,igen,igen,Varázs,Varázs,3,3500
-E039,25,nem,igen,igen,Varázs,Varázs,5,6000
-E040,65,igen,nem,igen,Varázs,Legendás,7,12000
-E041,65,igen,igen,nem,Varázs,Legendás,7,12000
-E042,85,igen,igen,igen,Varázs,Legendás,9,22000
-E043,25,nem,igen,igen,Varázs,Varázs,5,7000
-E044,80,igen,igen,igen,Varázs,Legendás,9,22000
-E045,25,nem,igen,igen,Varázs,Varázs,5,7000
-E046,95,igen,igen,igen,Varázs,Legendás,10,30000
-E047,100,igen,igen,igen,Varázs,Legendás,12,40000
-E048,95,nem,nem,igen,Varázs,Legendás,12,40000
-E049,100,igen,igen,igen,Varázs,Legendás,12,40000
-E050,100,igen,igen,igen,Varázs,Legendás,12,40000
-E051,65,igen,igen,igen,Sima,Varázs,2,900
-
-#Szörnyképességek
-Id,Név,Hatás,AktiválásiEsély,Érték,Leírás
-MA001,Élőholt,Trait,100,0,Élőholt lény amelyre később külön szent és nekrotikus szabályok vonatkozhatnak.
-MA002,Mérges támadás,Poison,25,0,Sikeres találat után 25 százalék eséllyel mérgezést okoz.
-MA003,Fertőzéshordozó,Disease,20,0,Sikeres találat után 20 százalék eséllyel betegséget terjeszt.
-MA004,Vérontó,Bleeding,25,0,Sikeres találat után 25 százalék eséllyel vérzést okoz.
-MA005,Zúzócsapás,ExtraDamage,25,6,Sikeres találatkor 25 százalék eséllyel további 6 sebzést okoz.
-MA006,Villámgyors,InitiativeBonus,100,2,A szörny 2 pont bónuszt kap a kezdeményezéséhez.
-MA007,Vastag bőr,ArmorBonus,100,2,A szörny 2 pont állandó páncélbónuszt kap.
-MA008,Regeneráció,Trait,100,5,A regenerációs hatás későbbi körönkénti gyógyítás számára fenntartott tulajdonság.
-MA009,Repülő,Trait,100,0,A repülés későbbi mozgási és terepszabályok számára fenntartott tulajdonság.
-MA010,Démoni,Trait,100,0,Démoni lény amelyet a szent varázslatok és a gonosz elleni védelem külön célpontként kezelnek.
-
-#Fegyverek
-Id,Név,Típus,Sebzés,MinimumErő,Kétkezes,Tolvaj,Pap,Mágus,Jellemzés,Ár,Kategória,AlapId,MágikusErő
-W001,tőr,WT002,2-5,1,nem,igen,nem,igen,Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.,35
-W002,rövid kard,WT002,3-7,3,nem,igen,nem,nem,Fordulékony egykezes kard amely szűk helyen is jól használható.,70
-W003,katana,WT002,5-10,4,igen,igen,nem,nem,Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.,420
-W004,hosszú kard,WT001,5-11,5,nem,igen,nem,nem,Megbízható acélkard erőteljes vágásokhoz és szúrásokhoz.,180
-W005,bunkó,WT001,3-6,3,nem,igen,igen,nem,Egyszerű nehéz ütőfegyver amelyhez több erő kell mint ügyesség.,25
-W006,buzogány,WT001,4-9,5,nem,nem,igen,nem,Vasfejű zúzófegyver amely súlyos csapásokat mér az ellenfélre.,110
-W007,láncos buzogány,WT001,5-11,6,nem,nem,igen,nem,Láncon forgó tüskés fej kiszámíthatatlan és veszélyes ívvel.,210
-W008,csatacsillag,WT001,6-12,7,nem,nem,igen,nem,Nehéz tüskés fegyver amely pusztító lendületet gyűjt támadáskor.,320
-W009,pallos,WT001,8-16,9,igen,nem,nem,nem,Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.,550
-W010,csatabárd,WT001,6-13,7,nem,nem,nem,nem,Széles pengéjű bárd erős és könyörtelen vágásokhoz.,280
-W011,lándzsa,WT001,5-12,5,igen,nem,nem,nem,Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.,160
-W012,alabárd,WT001,7-15,8,igen,nem,nem,nem,Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.,480
-W013,csatakalapács,WT001,7-14,8,igen,nem,igen,nem,Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.,450
-W014,fapajzs,WT003,1-2,3,nem,igen,igen,nem,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.,85
-W015,vaspajzs,WT003,2-3,6,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.,120
-W016,acélpajzs,WT003,2-5,10,nem,nem,igen,nem,Masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.,250
-LW001,Hajnalpenge,WT001,9-17,6,nem,nem,igen,nem,A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.,6500,Legendás,W004,3
-LW002,Éjcsók,WT002,7-14,1,nem,igen,nem,igen,Fekete tőr amely hangtalanul találja meg a páncél réseit.,5200,Legendás,W001,4
-LW003,Vérivó,WT002,10-19,4,igen,igen,nem,nem,Bíbor katana amely minden győzelemmel sötétebben fénylik.,7800,Legendás,W003,4
-LW004,Viharpallos,WT001,14-27,10,igen,nem,nem,nem,Mennydörgéstől vibráló pallos amely viharfelhőket hasít ketté.,11000,Legendás,W009,5
-LW005,Mennydörgő,WT001,13-25,9,igen,nem,igen,nem,Ősi csatakalapács amelynek ütését távoli égzengés követi.,9800,Legendás,W013,5
-LW006,Sárkányölő,WT001,12-23,6,igen,nem,nem,nem,Hosszú lándzsa pikkelyek áttörésére kovácsolt ezüstheggyel.,8500,Legendás,W011,4
-LW007,Árnyékél,WT002,9-18,3,nem,igen,nem,igen,Alkonyati rövid kard amely elmosódik gyors mozdulat közben.,6900,Legendás,W002,4
-LW008,Napbuzogány,WT001,11-22,7,nem,nem,igen,nem,Aranyszínű buzogány amely szent fénnyel perzseli a gonoszt.,7600,Legendás,W006,5
-LW009,Világdaraboló,WT001,14-26,8,nem,nem,nem,nem,Óriások kovácsolta csatabárd amely követ és acélt egyaránt hasít.,10500,Legendás,W010,4
-LW010,Fagykarom,WT001,11-21,6,nem,igen,nem,nem,Jégkék hosszú kard amely dércsíkot hagy minden vágás után.,7200,Legendás,W004,4
-LW011,Pokollánc,WT001,12-23,7,nem,nem,igen,nem,Lángoló láncos buzogány amely kiszámíthatatlan tűzíveket rajzol.,8800,Legendás,W007,5
-LW012,Csillaghullás,WT001,13-24,8,nem,nem,igen,nem,Meteoritvasból készült csatacsillag vakító szikrákkal.,9300,Legendás,W008,5
-LW013,Őrzők pajzsa,WT003,6-12,9,nem,nem,igen,nem,Rúnás pajzs amely ősi őrszemek erejét hordozza.,7000,Legendás,W015,6
-LW014,Tölgykirály pajzsa,WT003,7-13,6,nem,igen,igen,nem,Élő szentfából nőtt pajzs amely soha nem reped meg.,7400,Legendás,W014,5
-LW015,Lélekarató,WT001,15-29,9,igen,nem,nem,nem,Fekete alabárd amely hideg suttogással várja következő áldozatát.,12000,Legendás,W012,6
-LW016,Titánöklű,WT001,10-20,5,nem,nem,igen,nem,Sűrű csillagfémből öntött bunkó felfoghatatlan súllyal.,6800,Legendás,W005,3
-LW017,Ezüsthold,WT002,12-22,7,igen,igen,nem,igen,Holdfényben kovácsolt katana amely kékes félholdakat rajzol.,9000,Legendás,W003,5
-LW018,Mélységszúró,WT002,10-18,4,nem,igen,nem,igen,Tengermélyi kristályból csiszolt tőr nyugtalanító kék ragyogással.,7100,Legendás,W001,5
-LW019,Főnixlándzsa,WT001,14-25,7,igen,nem,igen,nem,Újjászülető lánggal égő lándzsa amelynek hegye sosem hűl ki.,10200,Legendás,W011,6
-LW020,Koronatörő,WT001,16-30,11,igen,nem,nem,nem,Királyok bukását megélt pallos aranyrepedésekkel a pengéjén.,13500,Legendás,W009,7
-
-#Fegyvertípus
-Id,Név
-WT001,Erő
-WT002,Ügyesség
-WT003,Védelem
-
-#Páncélok
-Id,Név,Védelem,Barbár,Tolvaj,Pap,Mágus,Jellemzés,Ár,Kategória,AlapId,MágikusErő
-A001,kámzsa,1-2,igen,igen,igen,igen,Vastag szövetből készült csuklyás ruházat a kisebb sérülések ellen.,20
-A002,bőrvért,2-3,igen,igen,igen,nem,Könnyű edzett bőrpáncél amely szabad mozgást biztosít.,100
-A003,láncing,3-4,igen,nem,igen,nem,Összefűzött fémkarikákból készült hajlékony vértezet.,250
-A004,pikkelypáncél,2-5,igen,nem,igen,nem,Egymásra simuló fémpikkelyekből álló változó védelmű páncél.,350
-A005,mellvért,6-7,igen,nem,igen,nem,Formázott acéllemez amely erősen védi a törzset.,700
-A006,teljes vértezet,8-10,nem,nem,igen,nem,Nehéz lemezpáncél amely tetőtől talpig óvja viselőjét.,1300
-A007,mitril láncing,7-8,igen,igen,igen,nem,Rendkívül könnyű és erős mitrilkarikákból font ritka vértezet.,2200
-A008,mitril mellvért,8-9,igen,nem,igen,nem,Könnyedén viselhető mitril lemez kiváló törzsvédelemmel.,3500
-A009,mitril teljes vértezet,12-15,nem,nem,igen,nem,Mesteri mitril páncélzat amely páratlan védelmet nyújt.,6500
-LA001,Csillagköpeny,5-8,igen,igen,igen,igen,Éjszakai égboltot idéző kámzsa apró mozgó csillagokkal.,4800,Legendás,A001,5
-LA002,Árnyékjáró vértje,6-9,igen,igen,nem,igen,Füstként simuló bőrvért amely elnyeli a léptek zaját.,6200,Legendás,A002,5
-LA003,Sárkánypikkely,10-15,igen,nem,igen,nem,Ősi vörös sárkány pikkelyeiből illesztett forró páncél.,9000,Legendás,A004,6
-LA004,Naplovag vértje,13-17,nem,nem,igen,nem,Ragyogó mellvért amely hajnalban arany fénnyel telik meg.,10800,Legendás,A005,6
-LA005,Éjfekete láncing,9-13,igen,igen,igen,nem,Fényt nem tükröző láncing az árnyak bajnokainak.,8400,Legendás,A003,5
-LA006,Hegykirály vértezete,16-22,nem,nem,igen,nem,Törp királyok gránitrúnás teljes vértezete.,14500,Legendás,A006,7
-LA007,Holdszövött láncing,14-18,igen,igen,igen,igen,Súlytalan mitrilkarikákból szőtt ezüstös láncing.,13200,Legendás,A007,7
-LA008,Hajnalpajzs mellvért,16-20,igen,nem,igen,nem,Fehér mitril mellvért napkorong alakú mellrésszel.,15500,Legendás,A008,7
-LA009,Istenek bástyája,22-30,nem,nem,igen,nem,Legendák szerint égi kovácsok készítették az első hősnek.,24000,Legendás,A009,10
-LA010,Főnixvért,12-18,igen,nem,igen,igen,Parázsló pikkelypáncél amely melegséggel öleli körül viselőjét.,11500,Legendás,A004,7
-LA011,Leviatán páncélja,18-24,nem,nem,igen,nem,Mélységi szörny csontlemezeiből készült teljes vértezet.,17200,Legendás,A006,8
-LA012,Erdőszív vértje,8-12,igen,igen,igen,igen,Élő indákkal átszőtt bőrvért amely együtt lélegzik viselőjével.,7600,Legendás,A002,6
-LA013,Mennydörgés mellvértje,15-20,igen,nem,igen,nem,Viharfelhők színében játszó mellvért villámrúnákkal.,13800,Legendás,A005,7
-LA014,Szent ereklyevért,18-23,nem,nem,igen,nem,Szentek neveivel vésett mitril mellvért tiszta aurával.,16800,Legendás,A008,9
-LA015,Árnyékkámzsa,7-11,igen,igen,igen,igen,Sötét csuklya amely alatt a viselő arca köddé válik.,5900,Legendás,A001,6
-LA016,Titán láncinge,14-19,igen,nem,igen,nem,Hatalmas szemű mégis könnyű láncing egy letűnt óriásbirodalomból.,12800,Legendás,A003,6
-LA017,Démonőr vértezete,20-27,nem,nem,igen,nem,Obszidián teljes vért izzó vörös illesztésekkel.,19500,Legendás,A006,9
-LA018,Ezüstsárkány lánca,15-21,igen,igen,igen,igen,Fagyos fényű mitril láncing ezüstsárkány-rúnákkal.,14900,Legendás,A007,8
-LA019,Időjáró köpenye,10-15,igen,igen,igen,igen,Kámzsa amelynek szálai között lassabban peregnek a porszemek.,9800,Legendás,A001,9
-LA020,Világpajzs vértezete,25-34,nem,nem,igen,nem,A világ mélyének érceiből kovácsolt áthatolhatatlan mitril vért.,28000,Legendás,A009,12
-
-#Tárgybővítések
-Id,NévUtótag,HarciBónusz,ÁrSzorzó,MágikusErő
-PLUS1,+1,1,2.0,1
-PLUS2,+2,2,4.0,2
-PLUS3,+3,3,7.0,3
+#Base XP pálya végén
+300
 
 #Képességek
 Id,Név
@@ -429,7 +171,7 @@ K006,Manna
 Id,Név,Leírás,OsztályId,Fokozat
 PERK-C001-1A,Első csapás,+10 jár a kezdeményezéshez.,C001,1
 PERK-C001-1B,Robusztusság,+10 maximális HP.,C001,1
-PERK-C001-2A,Fegyvermester,+1 jár minden fegyveres találati próbához.,C001,2
+PERK-C001-2A,Fegyvermester,+2 jár minden fegyveres találati próbához.,C001,2
 PERK-C001-2B,Rendíthetetlen,Minden elszenvedett találat sebzése 2 ponttal csökken.,C001,2
 PERK-C001-3A,Acélvihar,Sikeres támadás után 35% eséllyel azonnal újra támad.,C001,3
 PERK-C001-3B,Utolsó erőd,Harcban egyszer 1 HP-n túléli a halálos csapást.,C001,3
@@ -455,7 +197,7 @@ PERK-C005-1A,Gyógyító kegyelem,Minden gyógyítás további 25% HP-t állít 
 PERK-C005-1B,Áldott fegyver,+2 találat és +2 sebzés élőholt ellenfelek ellen.,C005,1
 PERK-C005-2A,Szentély,20% eséllyel az ellenfél elveszíti a támadását.,C005,2
 PERK-C005-2B,Hitforrás,+12 maximális manna és csatánként 5 manna visszatöltés.,C005,2
-PERK-C005-3A,Feltámadás,Pályánként egyszer teljes HP-val visszatérhet a halálból.,C005,3
+PERK-C005-3A,Feltámadás,Naponta egyszer teljes HP-val visszatérhet a halálból.,C005,3
 PERK-C005-3B,Isteni ítélet,Minden ötödik papi varázslat kétszeres hatású és nem fogyaszt mannát.,C005,3
 PERK-C006-1A,Arkán fókusz,+2 jár a mágikus találati próbákhoz.,C006,1
 PERK-C006-1B,Mannatartalék,+15 maximális manna.,C006,1
@@ -558,6 +300,211 @@ PS009,Szent csapás tekercse,Varázstekercs,Varázs,900,1,P009,None,0,igen,Egyet
 PS010,Isteni védelem tekercse,Varázstekercs,Varázs,1200,1,P010,None,0,igen,Egyetlen Isteni védelem papi varázslat mágusok által is használható másolata.,6
 PS011,Szent ítélet tekercse,Varázstekercs,Legendás,1900,1,P011,None,0,igen,Egyetlen Szent ítélet papi varázslat mágusok által is használható legendás másolata.,8
 PS012,Isteni csoda tekercse,Varázstekercs,Legendás,4000,1,P012,None,0,igen,Egyetlen Isteni csoda papi varázslat mágusok által is használható legendás másolata.,12
+
+#Fegyvertípus
+Id,Név
+WT001,Erő
+WT002,Ügyesség
+WT003,Védelem
+
+#Fegyverek
+Id,Név,Típus,Sebzés,MinimumErő,Kétkezes,Tolvaj,Pap,Mágus,Jellemzés,Ár,Kategória,AlapId,MágikusErő
+W001,tőr,WT002,2-5,1,nem,igen,nem,igen,Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.,35
+W002,rövid kard,WT002,3-7,3,nem,igen,nem,nem,Fordulékony egykezes kard amely szűk helyen is jól használható.,70
+W003,katana,WT002,5-10,4,igen,igen,nem,nem,Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.,420
+W004,hosszú kard,WT001,5-11,5,nem,igen,nem,nem,Megbízható acélkard erőteljes vágásokhoz és szúrásokhoz.,180
+W005,bunkó,WT001,3-6,3,nem,igen,igen,nem,Egyszerű nehéz ütőfegyver amelyhez több erő kell mint ügyesség.,25
+W006,buzogány,WT001,4-9,5,nem,nem,igen,nem,Vasfejű zúzófegyver amely súlyos csapásokat mér az ellenfélre.,110
+W007,láncos buzogány,WT001,5-11,6,nem,nem,igen,nem,Láncon forgó tüskés fej kiszámíthatatlan és veszélyes ívvel.,210
+W008,csatacsillag,WT001,6-12,7,nem,nem,igen,nem,Nehéz tüskés fegyver amely pusztító lendületet gyűjt támadáskor.,320
+W009,pallos,WT001,8-16,9,igen,nem,nem,nem,Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.,550
+W010,csatabárd,WT001,6-13,7,nem,nem,nem,nem,Széles pengéjű egykezes harci fejsze erős és könyörtelen vágásokhoz.,280
+W011,lándzsa,WT001,5-12,5,igen,nem,nem,nem,Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.,160
+W012,alabárd,WT001,7-15,8,igen,nem,nem,nem,Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.,480
+W013,csatakalapács,WT001,7-14,8,igen,nem,igen,nem,Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.,450
+W014,fapajzs,WT003,1-2,3,nem,igen,igen,nem,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.,85
+W015,vaspajzs,WT003,2-3,6,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.,120
+W016,acélpajzs,WT003,2-5,10,nem,nem,igen,nem,Masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.,250
+W017,nagybalta,WT001,6-20,9,igen,nem,nem,nem,Kétkezes könyörtelen csatabárd.,500
+LW001,Hajnalpenge,WT001,9-17,6,nem,nem,igen,nem,A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.,6500,Legendás,W004,3
+LW002,Éjcsók,WT002,7-14,1,nem,igen,nem,igen,Fekete tőr amely hangtalanul találja meg a páncél réseit.,5200,Legendás,W001,4
+LW003,Vérivó,WT002,10-19,4,igen,igen,nem,nem,Bíbor katana amely minden győzelemmel sötétebben fénylik.,7800,Legendás,W003,4
+LW004,Viharpallos,WT001,14-27,10,igen,nem,nem,nem,Mennydörgéstől vibráló pallos amely viharfelhőket hasít ketté.,11000,Legendás,W009,5
+LW005,Mennydörgő,WT001,13-25,9,igen,nem,igen,nem,Ősi csatakalapács amelynek ütését távoli égzengés követi.,9800,Legendás,W013,5
+LW006,Sárkányölő,WT001,12-23,6,igen,nem,nem,nem,Hosszú lándzsa pikkelyek áttörésére kovácsolt ezüstheggyel.,8500,Legendás,W011,4
+LW007,Árnyékél,WT002,9-18,3,nem,igen,nem,igen,Alkonyati rövid kard amely elmosódik gyors mozdulat közben.,6900,Legendás,W002,4
+LW008,Napbuzogány,WT001,11-22,7,nem,nem,igen,nem,Aranyszínű buzogány amely szent fénnyel perzseli a gonoszt.,7600,Legendás,W006,5
+LW009,Világdaraboló,WT001,14-26,8,nem,nem,nem,nem,Óriások kovácsolta csatabárd amely követ és acélt egyaránt hasít.,10500,Legendás,W010,4
+LW010,Fagykarom,WT001,11-21,6,nem,igen,nem,nem,Jégkék hosszú kard amely dércsíkot hagy minden vágás után.,7200,Legendás,W004,4
+LW011,Pokollánc,WT001,12-23,7,nem,nem,igen,nem,Lángoló láncos buzogány amely kiszámíthatatlan tűzíveket rajzol.,8800,Legendás,W007,5
+LW012,Csillaghullás,WT001,13-24,8,nem,nem,igen,nem,Meteoritvasból készült csatacsillag vakító szikrákkal.,9300,Legendás,W008,5
+LW013,Őrzők pajzsa,WT003,6-12,9,nem,nem,igen,nem,Rúnás pajzs amely ősi őrszemek erejét hordozza.,7000,Legendás,W015,6
+LW014,Tölgykirály pajzsa,WT003,7-13,6,nem,igen,igen,nem,Élő szentfából nőtt pajzs amely soha nem reped meg.,7400,Legendás,W014,5
+LW015,Lélekarató,WT001,15-29,9,igen,nem,nem,nem,Fekete alabárd amely hideg suttogással várja következő áldozatát.,12000,Legendás,W012,6
+LW016,Titánöklű,WT001,10-20,5,nem,nem,igen,nem,Sűrű csillagfémből öntött bunkó felfoghatatlan súllyal.,6800,Legendás,W005,3
+LW017,Ezüsthold,WT002,12-22,7,igen,igen,nem,igen,Holdfényben kovácsolt katana amely kékes félholdakat rajzol.,9000,Legendás,W003,5
+LW018,Mélységszúró,WT002,10-18,4,nem,igen,nem,igen,Tengermélyi kristályból csiszolt tőr nyugtalanító kék ragyogással.,7100,Legendás,W001,5
+LW019,Főnixlándzsa,WT001,14-25,7,igen,nem,igen,nem,Újjászülető lánggal égő lándzsa amelynek hegye sosem hűl ki.,10200,Legendás,W011,6
+LW020,Koronatörő,WT001,16-30,11,igen,nem,nem,nem,Királyok bukását megélt pallos aranyrepedésekkel a pengéjén.,13500,Legendás,W009,7
+
+#Páncélok
+Id,Név,Védelem,Barbár,Tolvaj,Pap,Mágus,Jellemzés,Ár,Kategória,AlapId,MágikusErő
+A001,kámzsa,1-2,igen,igen,igen,igen,Vastag szövetből készült csuklyás ruházat a kisebb sérülések ellen.,20
+A002,bőrvért,2-3,igen,igen,igen,nem,Könnyű edzett bőrpáncél amely szabad mozgást biztosít.,100
+A003,láncing,3-4,igen,nem,igen,nem,Összefűzött fémkarikákból készült hajlékony vértezet.,250
+A004,pikkelypáncél,2-5,igen,nem,igen,nem,Egymásra simuló fémpikkelyekből álló változó védelmű páncél.,350
+A005,mellvért,6-7,igen,nem,igen,nem,Formázott acéllemez amely erősen védi a törzset.,700
+A006,teljes vértezet,8-10,nem,nem,igen,nem,Nehéz lemezpáncél amely tetőtől talpig óvja viselőjét.,1300
+A007,mitril láncing,7-8,igen,igen,igen,nem,Rendkívül könnyű és erős mitrilkarikákból font ritka vértezet.,2200
+A008,mitril mellvért,8-9,igen,nem,igen,nem,Könnyedén viselhető mitril lemez kiváló törzsvédelemmel.,3500
+A009,mitril teljes vértezet,12-15,nem,nem,igen,nem,Mesteri mitril páncélzat amely páratlan védelmet nyújt.,6500
+LA001,Csillagköpeny,5-8,igen,igen,igen,igen,Éjszakai égboltot idéző kámzsa apró mozgó csillagokkal.,4800,Legendás,A001,5
+LA002,Árnyékjáró vértje,6-9,igen,igen,nem,igen,Füstként simuló bőrvért amely elnyeli a léptek zaját.,6200,Legendás,A002,5
+LA003,Sárkánypikkely,10-15,igen,nem,igen,nem,Ősi vörös sárkány pikkelyeiből illesztett forró páncél.,9000,Legendás,A004,6
+LA004,Naplovag vértje,13-17,nem,nem,igen,nem,Ragyogó mellvért amely hajnalban arany fénnyel telik meg.,10800,Legendás,A005,6
+LA005,Éjfekete láncing,9-13,igen,igen,igen,nem,Fényt nem tükröző láncing az árnyak bajnokainak.,8400,Legendás,A003,5
+LA006,Hegykirály vértezete,16-22,nem,nem,igen,nem,Törp királyok gránitrúnás teljes vértezete.,14500,Legendás,A006,7
+LA007,Holdszövött láncing,14-18,igen,igen,igen,igen,Súlytalan mitrilkarikákból szőtt ezüstös láncing.,13200,Legendás,A007,7
+LA008,Hajnalpajzs mellvért,16-20,igen,nem,igen,nem,Fehér mitril mellvért napkorong alakú mellrésszel.,15500,Legendás,A008,7
+LA009,Istenek bástyája,22-30,nem,nem,igen,nem,Legendák szerint égi kovácsok készítették az első hősnek.,24000,Legendás,A009,10
+LA010,Főnixvért,12-18,igen,nem,igen,igen,Parázsló pikkelypáncél amely melegséggel öleli körül viselőjét.,11500,Legendás,A004,7
+LA011,Leviatán páncélja,18-24,nem,nem,igen,nem,Mélységi szörny csontlemezeiből készült teljes vértezet.,17200,Legendás,A006,8
+LA012,Erdőszív vértje,8-12,igen,igen,igen,igen,Élő indákkal átszőtt bőrvért amely együtt lélegzik viselőjével.,7600,Legendás,A002,6
+LA013,Mennydörgés mellvértje,15-20,igen,nem,igen,nem,Viharfelhők színében játszó mellvért villámrúnákkal.,13800,Legendás,A005,7
+LA014,Szent ereklyevért,18-23,nem,nem,igen,nem,Szentek neveivel vésett mitril mellvért tiszta aurával.,16800,Legendás,A008,9
+LA015,Árnyékkámzsa,7-11,igen,igen,igen,igen,Sötét csuklya amely alatt a viselő arca köddé válik.,5900,Legendás,A001,6
+LA016,Titán láncinge,14-19,igen,nem,igen,nem,Hatalmas szemű mégis könnyű láncing egy letűnt óriásbirodalomból.,12800,Legendás,A003,6
+LA017,Démonőr vértezete,20-27,nem,nem,igen,nem,Obszidián teljes vért izzó vörös illesztésekkel.,19500,Legendás,A006,9
+LA018,Ezüstsárkány lánca,15-21,igen,igen,igen,igen,Fagyos fényű mitril láncing ezüstsárkány-rúnákkal.,14900,Legendás,A007,8
+LA019,Időjáró köpenye,10-15,igen,igen,igen,igen,Kámzsa amelynek szálai között lassabban peregnek a porszemek.,9800,Legendás,A001,9
+LA020,Világpajzs vértezete,25-34,nem,nem,igen,nem,A világ mélyének érceiből kovácsolt áthatolhatatlan mitril vért.,28000,Legendás,A009,12
+
+#Tárgybővítések
+Id,NévUtótag,HarciBónusz,ÁrSzorzó,MágikusErő
+PLUS1,+1,1,2.0,1
+PLUS2,+2,2,4.0,2
+PLUS3,+3,3,7.0,3
+
+#Ellenségek
+Id,Név,Kinézet,Erő,HP,Páncél,Gyorsaság,XP érték,Erősség,Képesség1Id,Képesség2Id
+E001,Óriáspatkány,r,2,20,0,5,100,1,MA003,
+E002,Kobold,k,3,30,1,6,150,1,MA006,
+E003,Goblin,g,4,45,2,6,200,1,,
+E004,Csontváz,I,5,80,3,3,250,1,MA001,MA007
+E005,Farkas,w,4,55,1,8,300,1,MA006,MA004
+E006,Zombi,z,5,100,2,2,330,1,MA001,MA003
+E007,Ork,o,7,120,4,5,400,2,MA005,
+E008,Hobgoblin,h,8,150,5,5,450,2,MA007,MA005
+E009,Óriáspók,s,6,90,3,7,470,2,MA002,MA006
+E010,Gnoll,n,9,170,4,6,600,2,MA004,MA005
+E011,Lidércfarkas,W,10,220,5,9,700,2,MA001,MA006
+E012,Ogre,O,12,320,5,3,900,3,MA005,MA007
+E013,Troll,T,14,500,6,4,1000,3,MA008,MA007
+E014,Minotaurusz,M,15,650,7,5,1200,3,MA005,MA006
+E015,Múmia,m,12,400,7,3,1400,3,MA001,MA003
+E016,Medúza,Ƶ,13,450,6,6,1500,3,MA002,MA006
+E017,Kiméra,C,16,800,7,7,2000,4,MA005,MA007
+E018,Beholder,B,17,1000,8,4,2800,4,MA006,MA005
+E019,Vámpír,V,15,750,7,8,3000,4,MA001,MA003
+E020,Vérfarkas,L,16,850,6,9,3200,4,MA004,MA006
+E021,Vörös sárkány,D,18,1500,9,7,5000,5,MA007,MA005
+E022,Lich,l,17,1200,8,5,4000,5,MA001,MA007
+E023,Démonlovag,Ŧ,18,1800,9,6,5000,5,MA010,MA004
+E024,Balor démon,Ψ,19,2500,10,8,7500,5,MA010,MA005
+E025,Fekete sárkány,Ð,20,2000,10,8,10000,5,MA007,MA002
+E026,Óriásdenevér,b,3,35,0,9,160,1,MA006,MA009
+E027,Savanyálka,ξ,4,65,2,2,230,1,MA002,MA007
+E028,Útonálló,u,5,70,2,6,260,1,MA004,
+E029,Barlangi gyík,j,4,60,2,7,240,1,MA006,
+E030,Pestishordozó patkány,p,3,55,1,6,280,1,MA003,MA002
+E031,Bugbear,q,9,190,5,5,650,2,MA005,MA007
+E032,Hárpia,H,8,160,3,9,680,2,MA009,MA004
+E033,Ghoul,G,9,210,4,7,720,2,MA001,MA003
+E034,Ifjú baziliszkusz,β,10,240,6,4,780,2,MA002,MA007
+E035,Ork sámán,ó,8,180,3,6,750,2,MA006,MA003
+E036,Ettin,E,15,720,8,3,1700,3,MA005,MA007
+E037,Wight,Ŵ,13,560,7,6,1650,3,MA001,MA003
+E038,Wyvern,Y,14,620,6,9,1850,3,MA002,MA009
+E039,Kőgólem,K,16,900,10,2,2100,3,MA007,MA005
+E040,Éji banya,ñ,13,520,6,8,1900,3,MA003,MA006
+E041,Fagyóriás,F,18,1300,10,5,3800,4,MA005,MA007
+E042,Halállovag,†,17,1150,11,6,4000,4,MA001,MA007
+E043,Hidra,Ξ,18,1450,8,7,4300,4,MA002,MA005
+E044,Csontsárkány,δ,19,1600,11,6,4800,4,MA001,MA007
+E045,Démonpók,§,17,1050,8,10,4200,4,MA002,MA004
+E046,Ősvámpír,Ƿ,20,1900,11,10,8500,5,MA001,MA006
+E047,Pokolfejedelem,Φ,22,2800,13,7,11000,5,MA010,MA005
+E048,Vén beholder,Θ,21,2400,12,8,10500,5,MA006,MA005
+E049,Drakolich,Ł,23,3200,14,7,14000,5,MA001,MA007
+E050,Káoszsárkány,Ж,24,3600,13,10,16000,5,MA002,MA003
+E051,Patkányember,Ʒ,7,105,4,7,600,2,MA003,
+
+#Szörnyképességek
+Id,Név,Hatás,AktiválásiEsély,Érték,Leírás
+MA001,Élőholt,Trait,100,0,Élőholt lény amelyre később külön szent és nekrotikus szabályok vonatkozhatnak.
+MA002,Mérges támadás,Poison,25,0,Sikeres találat után 25 százalék eséllyel mérgezést okoz.
+MA003,Fertőzéshordozó,Disease,20,0,Sikeres találat után 20 százalék eséllyel betegséget terjeszt.
+MA004,Vérontó,Bleeding,25,0,Sikeres találat után 25 százalék eséllyel vérzést okoz.
+MA005,Zúzócsapás,ExtraDamage,25,6,Sikeres találatkor 25 százalék eséllyel további 6 sebzést okoz.
+MA006,Villámgyors,InitiativeBonus,100,2,A szörny 2 pont bónuszt kap a kezdeményezéséhez.
+MA007,Vastag bőr,ArmorBonus,100,2,A szörny 2 pont állandó páncélbónuszt kap.
+MA008,Regeneráció,Trait,100,5,A regenerációs hatás későbbi körönkénti gyógyítás számára fenntartott tulajdonság.
+MA009,Repülő,Trait,100,0,A repülés későbbi mozgási és terepszabályok számára fenntartott tulajdonság.
+MA010,Démoni,Trait,100,0,Démoni lény amelyet a szent varázslatok és a gonosz elleni védelem külön célpontként kezelnek.
+
+#Zsákmány paraméterek
+Id,Érték
+KulcsEsély,10
+AranyEsély,40
+AranyTierSzorzó,10
+TolvajEsélySzorzó,130
+IntelligenciaPontBónusz,1
+LádaFőnyereményEsély,10
+LádaFőnyereménySzorzó,3
+
+#Szörny zsákmány
+SzörnyId,FelszerelésEsély,Fegyver,Páncél,Varázstárgy,MinRitkaság,MaxRitkaság,MaxMágikusErő,MaxÁr
+E002,25,igen,igen,nem,Sima,Sima,0,70
+E003,40,igen,igen,nem,Sima,Sima,0,100
+E004,15,igen,igen,nem,Sima,Sima,0,250
+E006,8,igen,igen,nem,Sima,Sima,0,100
+E007,45,igen,igen,nem,Sima,Sima,0,250
+E008,55,igen,igen,nem,Sima,Varázs,1,450
+E010,40,igen,igen,nem,Sima,Sima,0,250
+E012,40,igen,igen,nem,Sima,Varázs,1,700
+E013,15,igen,igen,nem,Sima,Varázs,1,700
+E014,50,igen,igen,nem,Sima,Varázs,1,1200
+E015,35,nem,igen,igen,Varázs,Varázs,3,2500
+E016,45,igen,igen,igen,Varázs,Varázs,3,3000
+E017,30,nem,igen,igen,Varázs,Varázs,4,4500
+E018,65,nem,nem,igen,Varázs,Legendás,7,12000
+E019,70,igen,igen,igen,Varázs,Legendás,7,12000
+E020,25,igen,igen,nem,Sima,Varázs,2,2000
+E021,90,igen,igen,igen,Varázs,Legendás,9,22000
+E022,90,igen,igen,igen,Varázs,Legendás,9,22000
+E023,85,igen,igen,igen,Varázs,Legendás,9,22000
+E024,90,igen,igen,igen,Varázs,Legendás,10,28000
+E025,95,igen,igen,igen,Varázs,Legendás,10,30000
+E028,50,igen,igen,nem,Sima,Varázs,1,450
+E031,50,igen,igen,nem,Sima,Varázs,2,700
+E033,10,igen,igen,nem,Sima,Sima,0,100
+E035,60,igen,igen,igen,Sima,Varázs,3,3000
+E036,45,igen,igen,nem,Sima,Varázs,2,1500
+E037,50,igen,igen,igen,Varázs,Varázs,5,6000
+E038,20,nem,igen,igen,Varázs,Varázs,3,3500
+E039,25,nem,igen,igen,Varázs,Varázs,5,6000
+E040,65,igen,nem,igen,Varázs,Legendás,7,12000
+E041,65,igen,igen,nem,Varázs,Legendás,7,12000
+E042,85,igen,igen,igen,Varázs,Legendás,9,22000
+E043,25,nem,igen,igen,Varázs,Varázs,5,7000
+E044,80,igen,igen,igen,Varázs,Legendás,9,22000
+E045,25,nem,igen,igen,Varázs,Varázs,5,7000
+E046,95,igen,igen,igen,Varázs,Legendás,10,30000
+E047,100,igen,igen,igen,Varázs,Legendás,12,40000
+E048,95,nem,nem,igen,Varázs,Legendás,12,40000
+E049,100,igen,igen,igen,Varázs,Legendás,12,40000
+E050,100,igen,igen,igen,Varázs,Legendás,12,40000
+E051,65,igen,igen,igen,Sima,Varázs,2,900
 
 #Varázslatok
 Id,Név,Szint,Manna,Leírás,Célzás,Hatótáv,Terület,Látóvonal,HasználatiMód
@@ -668,71 +615,245 @@ P018,Isteni harag,5,46,Hatalmas területi szent sebzést okoz minden ellenségne
 P019,Szentély,5,38,Négy akcióra felére csökkenti a közeli part tagokat érő sebzést és állapotvédelmet ad.,Self,0,3,nem,Both
 P020,Igazi feltámasztás,5,50,Egy elesett társat teljes HP-val fél mannával és negatív állapotok nélkül hoz vissza.,Corpse,8,0,igen,Both
 
-#Faji képességbónuszok
-FajId,Erő,Ügyesség,Egészség,Intelligencia
-R001,0,0,0,0
-R002,1,-1,2,-1
-R003,-1,2,-1,1
-R004,2,-1,1,-2
-
-#Osztály képességminimumok
-OsztályId,Erő,Ügyesség,Egészség,Intelligencia
-C001,7,2,8,2
-C002,9,3,6,1
-C003,7,2,6,4
-C004,3,7,4,4
-C005,5,3,5,6
-C006,1,3,2,8
-
-#Erő találati bónusz
-OsztályId,MinimumErő,Bónusz
-C001,7,1
-C001,10,2
-C001,13,3
-C002,7,1
-C002,10,2
-C002,13,3
-C003,7,1
-C003,10,2
-C003,13,3
-
-#Osztály kezdőfelszerelés
-OsztályId,Fegyver1Id,Fegyver2Id,PáncélId,VarázstárgyId,HátizsákId,HátizsákId
-C001,W004,,A002,,T001,T002,T011,T011
-C002,W010,,A002,,T001,T002,T011,T011
-C003,W004,W014,A004,,T001,T002,T011,T011
-C005,W005,,A001,,T001,T002,T011,T011
-C004,W001,,A002,,T001,T002,T011,T011
-C006,W001,,A001,,T001,T002,T011,T011
-
-#Egészség által adott életerő minimum
-Egészség,Életerő
-1,15
-2,20
-3,25
-4,30
-5,35
-6,40
-7,50
-8,60
-9,70
-10,85
-11,100
-12,110
-13,120
-
-#Intelligencia által adott manna minimum
-Intelligencia,Manna
-1,15
-2,20
-3,25
-4,30
-5,35
-6,40
-7,50
-8,60
-9,70
-10,85
-11,100
-12,110
-13,120
+#Karakternevek
+Id,Név,OsztályId
+NAME-C001-01,Aldric,C001
+NAME-C001-02,Borin,C001
+NAME-C001-03,Cedrik,C001
+NAME-C001-04,Doran,C001
+NAME-C001-05,Eryk,C001
+NAME-C001-06,Falk,C001
+NAME-C001-07,Garen,C001
+NAME-C001-08,Hadur,C001
+NAME-C001-09,Ivor,C001
+NAME-C001-10,Csonttörő,C001
+NAME-C001-11,Bran,C001
+NAME-C001-12,Hordóhas,C001
+NAME-C001-13,Sigurd,C001
+NAME-C001-14,Orven,C001
+NAME-C001-15,Roderik,C001
+NAME-C001-16,Sigor,C001
+NAME-C001-17,Félszemű Grok,C001
+NAME-C001-18,Ulrik,C001
+NAME-C001-19,Viktor,C001
+NAME-C001-20,Zord Valeric,C001
+NAME-C001-21,Arven,C001
+NAME-C001-22,Baldric,C001
+NAME-C001-23,Cormak,C001
+NAME-C001-24,Drakar,C001
+NAME-C001-25,Edric,C001
+NAME-C001-26,Fendrel,C001
+NAME-C001-27,Garrick,C001
+NAME-C001-28,Haldor,C001
+NAME-C001-29,Jorik,C001
+NAME-C001-30,Keldran,C001
+NAME-C001-31,Leoric,C001
+NAME-C001-32,Mardek,C001
+NAME-C001-33,Norric,C001
+NAME-C001-34,Odran,C001
+NAME-C001-35,Raegar,C001
+NAME-C001-36,Stenrik,C001
+NAME-C001-37,Torvald,C001
+NAME-C001-38,Valdor,C001
+NAME-C001-39,Wulric,C001
+NAME-C001-40,Zarek,C001
+NAME-C002-01,Arak,C002
+NAME-C002-02,Balgor,C002
+NAME-C002-03,Crag,C002
+NAME-C002-04,Draven,C002
+NAME-C002-05,Einar,C002
+NAME-C002-06,Fenrir,C002
+NAME-C002-07,Grom,C002
+NAME-C002-08,Hroth,C002
+NAME-C002-09,Kargan,C002
+NAME-C002-10,Logen,C002
+NAME-C002-11,Mork,C002
+NAME-C002-12,Nergal,C002
+NAME-C002-13,Ormog,C002
+NAME-C002-14,Ragnar,C002
+NAME-C002-15,Skarn,C002
+NAME-C002-16,Thorg,C002
+NAME-C002-17,Ulfar,C002
+NAME-C002-18,Varg,C002
+NAME-C002-19,Wotan,C002
+NAME-C002-20,Yngvar,C002
+NAME-C002-21,Arngor,C002
+NAME-C002-22,Brokgar,C002
+NAME-C002-23,Cromm,C002
+NAME-C002-24,Drogar,C002
+NAME-C002-25,Ergath,C002
+NAME-C002-26,Grimnar,C002
+NAME-C002-27,Harkun,C002
+NAME-C002-28,Kragor,C002
+NAME-C002-29,Magnar,C002
+NAME-C002-30,Norgath,C002
+NAME-C002-31,Olgrom,C002
+NAME-C002-32,Ragthor,C002
+NAME-C002-33,Skorri,C002
+NAME-C002-34,Thrak,C002
+NAME-C002-35,Urgath,C002
+NAME-C002-36,Vigmar,C002
+NAME-C002-37,Wulgar,C002
+NAME-C002-38,Yorgrim,C002
+NAME-C002-39,Zargan,C002
+NAME-C002-40,Bjornar,C002
+NAME-C003-01,Sir Arthur,C003
+NAME-C003-02,Sir Balduin,C003
+NAME-C003-03,Sir Conrad,C003
+NAME-C003-04,Sir Rodrix,C003
+NAME-C003-05,Sir Emeric,C003
+NAME-C003-06,Sir Fülöp,C003
+NAME-C003-07,Sir Godrik,C003
+NAME-C003-08,Sir Henrik,C003
+NAME-C003-09,Sir Imre,C003
+NAME-C003-10,Sir János,C003
+NAME-C003-11,Sir Kelemen,C003
+NAME-C003-12,Sir Lancelor,C003
+NAME-C003-13,Sir Miklós,C003
+NAME-C003-14,Sir Norbert,C003
+NAME-C003-15,Sir Oszkár,C003
+NAME-C003-16,Sir Percival,C003
+NAME-C003-17,Sir Roland,C003
+NAME-C003-18,Sir Sebestyén,C003
+NAME-C003-19,Sir Tristan,C003
+NAME-C003-20,Sir Vilmos,C003
+NAME-C003-21,Sir Alaric,C003
+NAME-C003-22,Sir Berengar,C003
+NAME-C003-23,Sir Corvin,C003
+NAME-C003-24,Sir Dorian,C003
+NAME-C003-25,Sir Edric,C003
+NAME-C003-26,Sir Falken,C003
+NAME-C003-27,Sir Galen,C003
+NAME-C003-28,Sir Hadrian,C003
+NAME-C003-29,Sir Ivar,C003
+NAME-C003-30,Sir Jareth,C003
+NAME-C003-31,Sir Kaedor,C003
+NAME-C003-32,Sir Lucan,C003
+NAME-C003-33,Sir Merek,C003
+NAME-C003-34,Sir Owyn,C003
+NAME-C003-35,Sir Roderan,C003
+NAME-C003-36,Sir Talric,C003
+NAME-C003-37,Sir Ulric,C003
+NAME-C003-38,Sir Valen,C003
+NAME-C003-39,Sir Wulfric,C003
+NAME-C003-40,Sir Yorven,C003
+NAME-C004-01,Árnyék,C004
+NAME-C004-02,Bicska,C004
+NAME-C004-03,Cinkos,C004
+NAME-C004-04,Daren,C004
+NAME-C004-05,Enzo,C004
+NAME-C004-06,Fürge,C004
+NAME-C004-07,Gubanc,C004
+NAME-C004-08,Holló,C004
+NAME-C004-09,Iskra,C004
+NAME-C004-10,Jinx,C004
+NAME-C004-11,Karmos,C004
+NAME-C004-12,Lopak,C004
+NAME-C004-13,Mester,C004
+NAME-C004-14,Nesztor,C004
+NAME-C004-15,Osonó,C004
+NAME-C004-16,Penge,C004
+NAME-C004-17,Ravasz,C004
+NAME-C004-18,Surranó,C004
+NAME-C004-19,Villám,C004
+NAME-C004-20,Zsebes,C004
+NAME-C004-21,Ash,C004
+NAME-C004-22,Blackfin,C004
+NAME-C004-23,Crow,C004
+NAME-C004-24,Dusk,C004
+NAME-C004-25,Flick,C004
+NAME-C004-26,Gloom,C004
+NAME-C004-27,Hex,C004
+NAME-C004-28,Knave,C004
+NAME-C004-29,Nox,C004
+NAME-C004-30,Ratkin,C004
+NAME-C004-31,Rook,C004
+NAME-C004-32,Shade,C004
+NAME-C004-33,Silk,C004
+NAME-C004-34,Slynn,C004
+NAME-C004-35,Snare,C004
+NAME-C004-36,Thorn,C004
+NAME-C004-37,Vex,C004
+NAME-C004-38,Whisper,C004
+NAME-C004-39,Wraith,C004
+NAME-C004-40,Zyn,C004
+NAME-C005-01,Ábel,C005
+NAME-C005-02,Benedek,C005
+NAME-C005-03,Celes,C005
+NAME-C005-04,Dávid,C005
+NAME-C005-05,Eliás,C005
+NAME-C005-06,Ferenc,C005
+NAME-C005-07,Gábor,C005
+NAME-C005-08,Hilár,C005
+NAME-C005-09,Illés,C005
+NAME-C005-10,József,C005
+NAME-C005-11,Kadosa,C005
+NAME-C005-12,Lukács,C005
+NAME-C005-13,Máté,C005
+NAME-C005-14,Noé,C005
+NAME-C005-15,Olivér,C005
+NAME-C005-16,Pál,C005
+NAME-C005-17,Rafael,C005
+NAME-C005-18,Simon,C005
+NAME-C005-19,Tamás,C005
+NAME-C005-20,Zakariás,C005
+NAME-C005-21,Amoniel,C005
+NAME-C005-22,Bereniel,C005
+NAME-C005-23,Cassiel,C005
+NAME-C005-24,Daeron,C005
+NAME-C005-25,Elandor,C005
+NAME-C005-26,Farael,C005
+NAME-C005-27,Gabriel,C005
+NAME-C005-28,Helion,C005
+NAME-C005-29,Ithriel,C005
+NAME-C005-30,Jeriel,C005
+NAME-C005-31,Kaelis,C005
+NAME-C005-32,Lorian,C005
+NAME-C005-33,Malach,C005
+NAME-C005-34,Nathar,C005
+NAME-C005-35,Oriel,C005
+NAME-C005-36,Phaeron,C005
+NAME-C005-37,Seraphel,C005
+NAME-C005-38,Tiriel,C005
+NAME-C005-39,Uriel,C005
+NAME-C005-40,Valiel,C005
+NAME-C006-01,Alatar,C006
+NAME-C006-02,Balthor,C006
+NAME-C006-03,Cirion,C006
+NAME-C006-04,Darius,C006
+NAME-C006-05,Elminster,C006
+NAME-C006-06,Faelar,C006
+NAME-C006-07,Gandren,C006
+NAME-C006-08,Hekate,C006
+NAME-C006-09,Idris,C006
+NAME-C006-10,Jorvan,C006
+NAME-C006-11,Kael,C006
+NAME-C006-12,Lorcan,C006
+NAME-C006-13,Merlin,C006
+NAME-C006-14,Nymor,C006
+NAME-C006-15,Orin,C006
+NAME-C006-16,Prospero,C006
+NAME-C006-17,Quorin,C006
+NAME-C006-18,Radagast,C006
+NAME-C006-19,Szibilla,C006
+NAME-C006-20,Theron,C006
+NAME-C006-21,Aetheron,C006
+NAME-C006-22,Belthazar,C006
+NAME-C006-23,Cyrian,C006
+NAME-C006-24,Draziel,C006
+NAME-C006-25,Eldrin,C006
+NAME-C006-26,Fizran,C006
+NAME-C006-27,Galdor,C006
+NAME-C006-28,Hexaris,C006
+NAME-C006-29,Iskander,C006
+NAME-C006-30,Jareth,C006
+NAME-C006-31,Keldris,C006
+NAME-C006-32,Lazarin,C006
+NAME-C006-33,Mordren,C006
+NAME-C006-34,Nethros,C006
+NAME-C006-35,Oberon,C006
+NAME-C006-36,Pyrrion,C006
+NAME-C006-37,Quintar,C006
+NAME-C006-38,Raziel,C006
+NAME-C006-39,Solanar,C006
+NAME-C006-40,Veyron,C006

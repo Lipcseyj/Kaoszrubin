@@ -28,6 +28,8 @@ var tests = new (string Name, Action Run)[]
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
+    ("Az ismeretlen CSV-fejezet sorszámos hibát ad", UnknownCsvSectionIsRejectedWithLineNumber),
+    ("A hiányzó kötelező CSV-mező sorszámos hibát ad", MissingRequiredCsvFieldIsRejectedWithLineNumber),
     ("Az alkalmazkodó ember választott képességbónuszt kap", AdaptableRaceGainsChosenAbility),
     ("A duplikált parancs elutasításra kerül", DuplicateCommandIsRejected),
     ("Harc közben nem futhat felfedezési parancs", ExplorationCommandIsRejectedDuringBattle),
@@ -1823,6 +1825,44 @@ static void RaceTraitsAreLoadedFromData()
     Assert(catalog.GetRace("R002").HasTrait(RaceTraits.Resilient), "A törp Rendíthetetlen tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R003").HasTrait(RaceTraits.KeenSenses), "Az elf Éles érzékek tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R004").HasTrait(RaceTraits.Relentless), "A félork Könyörtelen tulajdonsága hiányzik.");
+}
+
+static void UnknownCsvSectionIsRejectedWithLineNumber()
+{
+    var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var invalid = source.Replace("#Képességek", "#Elgépelt képességek", StringComparison.Ordinal);
+    AssertCsvLoadFails(invalid, "Ismeretlen fejezetcím", "sorában");
+}
+
+static void MissingRequiredCsvFieldIsRejectedWithLineNumber()
+{
+    var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var invalid = source.Replace("R001,Ember,Adaptable", "R001,Ember", StringComparison.Ordinal);
+    AssertCsvLoadFails(invalid, "Tulajdonság", "sorában");
+}
+
+static void AssertCsvLoadFails(string content, params string[] expectedMessageParts)
+{
+    var path = Path.Combine(Path.GetTempPath(), $"kaoszrubin-invalid-{Guid.NewGuid():N}.csv");
+    try
+    {
+        File.WriteAllText(path, content, new UTF8Encoding(false));
+        try
+        {
+            CsvGameDataLoader.Load(path);
+            throw new InvalidOperationException("A hibás CSV betöltése nem dobott kivételt.");
+        }
+        catch (InvalidDataException exception)
+        {
+            Assert(expectedMessageParts.All(part => exception.Message.Contains(part,
+                    StringComparison.OrdinalIgnoreCase)),
+                $"A CSV-hibaüzenet nem elég részletes: {exception.Message}");
+        }
+    }
+    finally
+    {
+        if (File.Exists(path)) File.Delete(path);
+    }
 }
 
 static void AdaptableRaceGainsChosenAbility()

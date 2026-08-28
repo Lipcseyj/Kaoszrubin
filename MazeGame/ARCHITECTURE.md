@@ -916,3 +916,50 @@ Fontos állapotélettartamok:
 - Mind a húsz mágusvarázslat működik; a húsz papi varázslat egyedi gyógyító, tisztító, feltámasztó és szent harci hatásai még nincsenek implementálva.
 - Az élelem és víz csökken és fogyóeszközökkel visszatölthető; az alacsony és nulla szükségletszintek állapot- és csatakezdő büntetéseket okoznak, de a labirintusban csatán kívül nem sebeznek közvetlenül.
 - A teljes pályaállapot menthető és visszatölthető, de a mentési séma jelenleg egyetlen, `1`-es verziót támogat.
+
+
+## Adatbővítés
+
+A fegyvereknél és páncéloknál általában elég egy szabályosan kitöltött, egyedi azonosítójú CSV-sor. Ezután automatikusan:
+- betöltődnek a katalógusba;
+- menthetők és coopban továbbíthatók;
+- bekerülhetnek a normál kereskedő kínálatába;
+- eladhatók;
+- megjelennek a megfelelő véletlen tárgykészletekben;
+- szörnyzsákmányként is eshetnek, ha beleférnek az adott szörny #Szörny zsákmány korlátaiba.
+
+#### Fegyvereknél bővíteni kell a WeaponProficiency.cs -ben a ForWeapon-t
+
+A sima tárgyaknál is elegendő a CSV-sor, ha valamelyik már létező általános hatást használják, például:
+- Food
+- Water
+- Heal
+- RestoreMana
+- CurePoison
+- CureDisease
+- StopBleeding
+- None
+Új, eddig nem létező hatástípushoz viszont kódmódosítás kell. Néhány tárgy jelenleg azonosító alapján különleges: kulcs, gyógytea, mézsör és fűszeres bor. Hasonló egyedi működésű új tárgyhoz szintén kód kell.
+A varázstárgyaknál a meglévő típusokkal és hatásokkal elég lehet a CSV. Új MagicItemKind, új passzív hatás vagy teljesen új működés esetén kódot is kell írni. A varázslathoz kötött pálcának vagy tekercsnek természetesen érvényes varázslatazonosítóra kell hivatkoznia.
+A szörnyeknél a CSV-sor önmagában csak betölti a definíciót. Attól még a szörny nem jelenik meg a pályán, mert a pályák ellenféltalálkozásai jelenleg a MazeLevelConfiguration kódjában vannak felsorolva. Tehát egy új normál szörnyhöz legalább:
+1. Új sor kell a #Ellenségek szakaszba.
+2. Be kell tenni valamelyik pálya szoba- vagy folyosótalálkozásai közé.
+3. Ha felszerelést is dobhat, kell hozzá #Szörny zsákmány sor.
+4. Ha képessége van, létező #Szörnyképességek-azonosítót kell megadni, vagy új képességsort kell felvenni.
+További opcionális szörnyteendők:
+- Saját portréhoz bejegyzés kell az AsciiPortraits kódba; enélkül a ??? alapértelmezett portrét kapja.
+- A MonsterIds konstans nem kötelező a betöltéshez, de érdemes felvenni, ha kódból hivatkozunk rá.
+- Új bossnál már több kódmódosítás kell: bosslista, pályakonfiguráció, történeti jelenet, kulcs- és kampánylogika.
+- Új képességhatás csak akkor pusztán CSV-s, ha a hatástípus már létezik a kódban.
+Röviden: új hagyományos tárgynál többnyire elég a CSV; új szörnynél a CSV mellett a pályakonfigurációba is be kell tenni, különben soha nem fog kisorsolódni.
+
+### Ha a csv-ben áthelyezek egy fejezetet máshová be fog töltődni?
+
+Igen. Az adatok.csv teljes szekciói sorrendtől függetlenül betöltődnek, mert a hivatkozások ellenőrzése csak a teljes fájl beolvasása után történik.
+Feltételek:
+- A szekció fejlécét is mozgasd, például #Fegyverek.
+- A hozzá tartozó oszlopfejléc és minden adatsor maradjon alatta.
+- Ne kerüljön közéjük másik #Szekció, mert attól kezdve a sorok már ahhoz tartoznak.
+- Az azonosítók maradjanak egyediek, a hivatkozások pedig létezzenek.
+- A CSV-mezők sorrendjét ne változtasd meg önmagában.
+Fontos: a játék a futási mappába másolt adatok.csv-t olvassa. Módosítás után újra kell fordítani vagy kézzel frissíteni például a bin/Debug/net10.0/adatok.csv fájlt. Ha a régi bináris mellett régi másolat marad, a változás nem látszik.
