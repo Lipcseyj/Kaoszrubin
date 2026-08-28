@@ -4361,6 +4361,7 @@ public sealed class Game
             if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
         if (ShouldChooseSpecialization(character, offers)) ResolveLocalSpecialization(character);
         ResolveLocalClassFeatureUpgrades(character, result);
+        ResolveLocalAbilityIncreases(character, result);
         ResolveSpellLearning(character, result);
     }
 
@@ -4380,6 +4381,7 @@ public sealed class Game
         }
         if (ShouldChooseSpecialization(character, offers)) ResolveRemoteSpecialization(character, result);
         ResolveRemoteClassFeatureUpgrades(character, result);
+        ResolveRemoteAbilityIncreases(character, result);
         ResolveRemoteSpellLearning(character, result);
     }
 
@@ -4441,6 +4443,71 @@ public sealed class Game
                 projected, $"{milestone}. szint — válassz végleges osztályképesség-fejlesztést.");
             character.ChooseClassFeatureUpgrade(choices.FirstOrDefault(choice => choice.Id == selectedId)?.Id ?? choices[0].Id);
         }
+    }
+
+    private static IReadOnlyList<(string Id, string Name, string Description)> AbilityIncreaseChoices(
+        LiveCharacter character)
+    {
+        var choices = new List<(string, string, string)>();
+        if (character.Abilities.Strength < 13)
+            choices.Add(("STR", $"💪 Erő: {character.Abilities.Strength} → {character.Abilities.Strength + 1}",
+                "Növeli a közelharci sebzést, és a harci osztályok találati bónuszát is elérheti."));
+        if (character.Abilities.Dexterity < 13)
+            choices.Add(("DEX", $"🏹 Ügyesség: {character.Abilities.Dexterity} → {character.Abilities.Dexterity + 1}",
+                "Javítja a fegyveres találatot, a kezdeményezést és az ellenséges támadások elleni védelmet."));
+        if (character.Abilities.Health < 13)
+            choices.Add(("HEA", $"❤️ Egészség: {character.Abilities.Health} → {character.Abilities.Health + 1}",
+                "Azonnal növelheti az alap HP-t, és a következő szintlépések HP-növekedését is javítja."));
+        if (character.Abilities.Intelligence < 13)
+            choices.Add(("INT", $"🧠 Intelligencia: {character.Abilities.Intelligence} → {character.Abilities.Intelligence + 1}",
+                "Erősíti a varázslatokat, csökkenti a kudarcot, és azonnal növelheti az alap mannát is."));
+        return choices;
+    }
+
+    private void ResolveLocalAbilityIncreases(LiveCharacter character, LevelUpResult result)
+    {
+        var earned = result.CurrentLevel / 3;
+        while (character.AbilityIncreasesClaimed < earned)
+        {
+            var choices = AbilityIncreaseChoices(character);
+            if (choices.Count == 0) { character.ClaimUnspendableAbilityIncrease(); continue; }
+            var milestone = (character.AbilityIncreasesClaimed + 1) * 3;
+            ApplyAbilityIncrease(character, _renderer.DrawAbilityIncreaseChoice(character, choices, milestone));
+        }
+    }
+
+    private void ResolveRemoteAbilityIncreases(LiveCharacter character, LevelUpResult result)
+    {
+        var earned = result.CurrentLevel / 3;
+        while (character.AbilityIncreasesClaimed < earned)
+        {
+            var choices = AbilityIncreaseChoices(character);
+            if (choices.Count == 0) { character.ClaimUnspendableAbilityIncrease(); continue; }
+            var milestone = (character.AbilityIncreasesClaimed + 1) * 3;
+            var projected = choices.Select(choice =>
+                new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray();
+            var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.AbilityChoice,
+                projected, $"{milestone}. szint — növelj meg egy képességet 1 ponttal (maximum 13).");
+            ApplyAbilityIncrease(character,
+                choices.FirstOrDefault(choice => choice.Id == selectedId).Id ?? choices[0].Id);
+        }
+    }
+
+    private bool ApplyAbilityIncrease(LiveCharacter character, string abilityId)
+    {
+        var oldVitalityBase = _gameData.GetMinimumVitality(character.Abilities.Health);
+        var oldManaBase = character.UsesMana
+            ? CharacterClassRules.AdjustStartingMana(character.CharacterClass.Id,
+                _gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
+            : 0;
+        if (!character.TryIncreaseAbility(abilityId)) return false;
+        var newVitalityBase = _gameData.GetMinimumVitality(character.Abilities.Health);
+        var newManaBase = character.UsesMana
+            ? CharacterClassRules.AdjustStartingMana(character.CharacterClass.Id,
+                _gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
+            : 0;
+        character.ApplyAbilityResourceIncrease(newVitalityBase - oldVitalityBase, newManaBase - oldManaBase);
+        return true;
     }
 
     private void ResolveRemoteSpellLearning(LiveCharacter character, LevelUpResult result)

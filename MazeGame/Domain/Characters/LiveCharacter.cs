@@ -51,7 +51,7 @@ public sealed class LiveCharacter
     public NpcBehavior? NpcBehavior { get; private set; }
     public RaceDefinition Race { get; }
     public CharacterClassDefinition CharacterClass { get; }
-    public PrimaryAbilities Abilities { get; }
+    public PrimaryAbilities Abilities { get; private set; }
     public int MaximumVitality => ApplyMaximumResourceModifier(_maximumVitality, status => status.MaximumVitalityPercent);
     public int UnmodifiedMaximumVitality => _maximumVitality;
     public int CurrentVitality { get; private set; }
@@ -67,6 +67,7 @@ public sealed class LiveCharacter
     public int Gold { get; private set; }
     public int Level { get; private set; } = 1;
     public int Experience { get; private set; }
+    public int AbilityIncreasesClaimed { get; private set; }
     public int DivineSpellCycle => _divineSpellCycle;
     public bool WasResurrectedThisLevel { get; private set; }
     public bool WasRelentlessUsedThisLevel { get; private set; }
@@ -99,6 +100,34 @@ public sealed class LiveCharacter
             _classFeatureUpgrades.Count >= 2 || HasClassFeatureUpgrade(id)) return false;
         _classFeatureUpgrades.Add(upgrade);
         return true;
+    }
+
+    public bool TryIncreaseAbility(string abilityId)
+    {
+        var increased = abilityId switch
+        {
+            "STR" when Abilities.Strength < 13 => Abilities with { Strength = Abilities.Strength + 1 },
+            "DEX" when Abilities.Dexterity < 13 => Abilities with { Dexterity = Abilities.Dexterity + 1 },
+            "HEA" when Abilities.Health < 13 => Abilities with { Health = Abilities.Health + 1 },
+            "INT" when Abilities.Intelligence < 13 => Abilities with { Intelligence = Abilities.Intelligence + 1 },
+            _ => (PrimaryAbilities?)null
+        };
+        if (increased is null) return false;
+        Abilities = increased.Value;
+        AbilityIncreasesClaimed++;
+        return true;
+    }
+
+    public void RestoreAbilityIncreasesClaimed(int claimed) => AbilityIncreasesClaimed = Math.Max(0, claimed);
+    public void ClaimUnspendableAbilityIncrease() => AbilityIncreasesClaimed++;
+    public void ApplyAbilityResourceIncrease(int vitality, int mana)
+    {
+        var vitalityIncrease = Math.Max(0, vitality);
+        var manaIncrease = UsesMana ? Math.Max(0, mana) : 0;
+        _maximumVitality += vitalityIncrease;
+        CurrentVitality = Math.Min(MaximumVitality, CurrentVitality + vitalityIncrease);
+        _maximumMana += manaIncrease;
+        CurrentMana = Math.Min(MaximumMana, CurrentMana + manaIncrease);
     }
 
     public void ReadyKnightRetaliation() => KnightRetaliationReady = true;

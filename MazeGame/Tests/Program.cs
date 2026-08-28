@@ -34,6 +34,7 @@ var tests = new (string Name, Action Run)[]
     ("A CharacterId mentés után is stabil", CharacterIdSurvivesSerialization),
     ("Az osztályspecializáció mentés után is megmarad", ClassSpecializationSurvivesSerialization),
     ("A 10. és 20. szintű osztályfejlesztések mentődnek és megjelennek", ClassFeatureUpgradesPersistAndAppearOnSheet),
+    ("A képességpontok 13-nál megállnak és mentődnek", AbilityIncreasesAreCappedAndPersisted),
     ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
@@ -444,6 +445,29 @@ static void ClassFeatureUpgradesPersistAndAppearOnSheet()
            lines.Single(line => line.Row == 9).Text.Contains("Kimért pontosság", StringComparison.Ordinal) &&
            lines.Single(line => line.Row == 10).Text.Contains("Áthatolhatatlan", StringComparison.Ordinal),
         "A tömör képességsor vagy az osztályfejlesztések karakterlap-blokkja hibás.");
+}
+
+static void AbilityIncreasesAreCappedAndPersisted()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var character = new LiveCharacter("Képességes", data.GetRace("R001"),
+        data.CharacterClasses.Single(characterClass => characterClass.Id == CharacterClassIds.Harcos),
+        new PrimaryAbilities(12, 13, 8, 9), data.GetMinimumVitality(8) + 1, 0, 1, 0);
+    Assert(character.TryIncreaseAbility("STR") && character.Abilities.Strength == 13,
+        "Az Erő képességpontja nem növelte 13-ra az értéket.");
+    Assert(!character.TryIncreaseAbility("STR") && !character.TryIncreaseAbility("DEX") &&
+           character.Abilities.Strength == 13 && character.Abilities.Dexterity == 13,
+        "A képességpont túllépte a 13-as maximumot.");
+    var oldVitalityBase = data.GetMinimumVitality(character.Abilities.Health);
+    Assert(character.TryIncreaseAbility("HEA") && character.AbilityIncreasesClaimed == 2,
+        "A képességpontok elköltött számlálója hibás.");
+    character.ApplyAbilityResourceIncrease(data.GetMinimumVitality(character.Abilities.Health) - oldVitalityBase, 0);
+
+    var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-ability-save.json"), data);
+    var restored = service.DeserializeCharacter(service.SerializeCharacter(character));
+    Assert(restored.Abilities == character.Abilities && restored.AbilityIncreasesClaimed == 2 &&
+           restored.MaximumVitality == character.MaximumVitality,
+        "A képességnövelések vagy az elköltött pontok száma elveszett a mentési kör után.");
 }
 
 static void KnightProtectionTransfersThirdOfFirstHit()

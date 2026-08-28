@@ -93,6 +93,7 @@ public sealed class CharacterSaveService
         character.SetNeedLevels(saved.FoodLevel ?? 100, saved.WaterLevel ?? 100);
         character.SetGold(saved.Gold ?? 0);
         character.SetProgress(saved.Level ?? 1, saved.Experience ?? 0);
+        character.RestoreAbilityIncreasesClaimed(saved.AbilityIncreasesClaimed ?? 0);
         character.SetNpcBehavior(saved.NpcBehavior);
         character.RestoreDivineSpellCycle(saved.DivineSpellCycle ?? 0);
         character.RestoreLevelResurrection(saved.WasResurrectedThisLevel ?? false);
@@ -181,6 +182,7 @@ public sealed class CharacterSaveService
         Gold = character.Gold,
         Level = character.Level,
         Experience = character.Experience,
+        AbilityIncreasesClaimed = character.AbilityIncreasesClaimed,
         DivineSpellCycle = character.DivineSpellCycle,
         WasResurrectedThisLevel = character.WasResurrectedThisLevel,
         WasRelentlessUsedThisLevel = character.WasRelentlessUsedThisLevel,
@@ -259,6 +261,7 @@ public sealed class CharacterSaveService
         public int? Gold { get; init; }
         public int? Level { get; init; }
         public int? Experience { get; init; }
+        public int? AbilityIncreasesClaimed { get; init; }
         public int? DivineSpellCycle { get; init; }
         public bool? WasResurrectedThisLevel { get; init; }
         public bool? WasRelentlessUsedThisLevel { get; init; }

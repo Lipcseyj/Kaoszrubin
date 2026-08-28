@@ -1155,6 +1155,49 @@ public sealed class ConsoleRenderer
         }
     }
 
+    public string DrawAbilityIncreaseChoice(LiveCharacter character,
+        IReadOnlyList<(string Id, string Name, string Description)> choices, int milestone)
+    {
+        if (choices.Count == 0) throw new ArgumentException("Nincs növelhető képesség.", nameof(choices));
+        var selectedIndex = 0;
+        while (true)
+        {
+            ResetColorCache();
+            Console.Clear();
+            var lines = new List<(string Text, ConsoleColor Color)>
+            {
+                ("💪🏹❤️🧠  KÉPESSÉGPONT  💪🏹❤️🧠", ConsoleColor.Yellow),
+                (string.Empty, ConsoleColor.Gray),
+                ($"{character.Name} — {milestone}. szint", ConsoleColor.Cyan),
+                ("Növelj meg egy képességet 1 ponttal! Maximum: 13.", ConsoleColor.Green),
+                (string.Empty, ConsoleColor.Gray)
+            };
+            foreach (var (choice, index) in choices.Select((choice, index) => (choice, index)))
+            {
+                lines.Add(($"{(index == selectedIndex ? "▶" : " ")} {choice.Name}",
+                    index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray));
+                lines.Add(($"    {choice.Description}",
+                    index == selectedIndex ? ConsoleColor.White : ConsoleColor.DarkGray));
+                lines.Add((string.Empty, ConsoleColor.Gray));
+            }
+            lines.Add(("Nyilak: választás   Enter: növelés", ConsoleColor.Green));
+            DrawCenteredFrame(78, lines);
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow:
+                case ConsoleKey.LeftArrow:
+                    selectedIndex = (selectedIndex - 1 + choices.Count) % choices.Count;
+                    break;
+                case ConsoleKey.DownArrow:
+                case ConsoleKey.RightArrow:
+                    selectedIndex = (selectedIndex + 1) % choices.Count;
+                    break;
+                case ConsoleKey.Enter:
+                    return choices[selectedIndex].Id;
+            }
+        }
+    }
+
     public SpellDefinition DrawSpellLearningScreen(LiveCharacter character,
         IReadOnlyList<SpellDefinition> choices, int learnedNumber, int learnedTotal)
     {
