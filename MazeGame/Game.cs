@@ -3787,6 +3787,8 @@ public sealed class Game
             var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
+            RecordSessionActivity(SessionActivityKind.Battle,
+                ConsoleRenderer.FormatBattleResultMessage(result, enemy), ConsoleColor.Green);
             _renderer.DrawBattleResult(result, enemy);
             _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
             _renderer.DrawExperienceDistribution(FormatExperienceAwards(experienceAwards),
@@ -3835,6 +3837,8 @@ public sealed class Game
             var experienceAwards = DistributeExperience(battleCharacter, enemy.Definition.ExperienceReward);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
+            RecordSessionActivity(SessionActivityKind.Battle,
+                ConsoleRenderer.FormatBattleResultMessage(result, enemy), ConsoleColor.Green);
             _renderer.DrawNpcBattleSummary(
                 $"{battleCharacter.Name} távoli csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
                 $"{FormatExperienceAwards(experienceAwards)}; 🍖💧 -{needLoss}.", ConsoleColor.Green);

@@ -390,11 +390,12 @@ public sealed class ConsoleRenderer
         _battleEnemy = null;
         DrawPicturePanel();
         WriteSheetLine(RightSheetBattleHintLine, string.Empty, ConsoleColor.DarkCyan);
-        var lastEvent = result.Events.LastOrDefault() ?? "";
-        DrawBattleMessage(result.PlayerWon
-            ? $"Győzelem {result.Rounds} kör után! {lastEvent}"
-            : $"Elestél {result.Rounds} kör után. {lastEvent}");
+        DrawBattleMessage(FormatBattleResultMessage(result, enemy));
     }
+
+    public static string FormatBattleResultMessage(BattleResult result, Enemy enemy) => result.PlayerWon
+        ? $"GYŐZELEM 🏆: {enemy.Name} elesett."
+        : $"Elestél {result.Rounds} kör után. {result.Events.LastOrDefault() ?? string.Empty}";
 
     /// <summary>
     /// Játék vége képernyő: középre rajzolt keret és szöveg, majd várakozás billentyűleütésre.

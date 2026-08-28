@@ -129,7 +129,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 var statusTicks = player.ApplyTurnEndStatusEffects(_random);
                 var statusText = statusTicks.Count == 0 ? string.Empty :
                     $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
-                message = $"{state.Round}. kör — {playerAction.Message} {enemy.Name} HP: {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
+                message = $"{state.Round}. kör — {playerAction.Message} {enemy.Name} ❤️ {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
                 kind = playerAction.Kind;
             }
             else
@@ -154,7 +154,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 var statusTicks = player.ApplyTurnEndStatusEffects(_random);
                 var statusText = statusTicks.Count == 0 ? string.Empty :
                     $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
-                message = $"{state.Round}. kör — {player.Name} támadja {enemy.Name}-t. {string.Join(" ", messages)} {enemy.Name} HP: {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
+                message = $"{state.Round}. kör — {player.Name} támadja {enemy.Name}-t. {string.Join(" ", messages)} {enemy.Name} ❤️ {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
                 kind = criticalHit ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack;
             }
         }
@@ -178,7 +178,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             {
                 var attack = EnemyAttack(defender, player, context, enemy.EffectiveSpeed);
                 var survival = attack.Hit ? ApplyEnemyDamage(player, attack.Damage, context) : string.Empty;
-                message = $"{state.Round}. kör — {enemy.Name} támadja {player.Name}-t. {attack.Message} {survival} {player.Name} HP: {player.CurrentVitality}/{player.MaximumVitality}.{effectText}";
+                message = $"{state.Round}. kör — {enemy.Name} támadja {player.Name}-t. {attack.Message} {survival} {player.Name} ❤️ {player.CurrentVitality}/{player.MaximumVitality}.{effectText}";
                 kind = attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack;
             }
         }
@@ -332,8 +332,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var armorText = weapon?.IsTwoHanded == true
             ? $"páncél {armor} → {effectiveArmor} (⚒️ páncéltörés)"
             : $"páncél {armor}";
+        var damageText = damage > 0 ? $"💥 {damage}" : "0";
         return AttackResult.HitFor(damage,
-            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description} → 🎯;{strengthHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplier} - {armorText} = {damage}.{noteText}",
+            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description} → 🎯;{strengthHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplier} - {armorText} = {damageText}.{noteText}",
             criticalMultiplier > 1);
     }
 
@@ -394,8 +395,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var manaShieldText = absorbed == 0 ? string.Empty : $" - mannapajzs {absorbed}";
         var monsterBonusText = monsterBonusDamage == 0 ? string.Empty : $" + szörnyképesség {monsterBonusDamage}";
         var statusText = ApplyMonsterStatusAbilities(attacker, defender);
+        var damageText = damage > 0 ? $"💥 {damage}" : "0";
         return AttackResult.HitFor(damage,
-            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description} → 🎯; sebzés: (Erő {strength} + dobás {randomDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damage}.{statusText}",
+            $"{(criticalMultiplier > 1 ? "💥 KRITIKUS TALÁLAT! " : string.Empty)}találat: {hit.Description} → 🎯; sebzés: (Erő {strength} + dobás {randomDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damageText}.{statusText}",
             criticalMultiplier > 1);
     }
 

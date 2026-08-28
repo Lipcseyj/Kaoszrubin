@@ -38,6 +38,8 @@ var tests = new (string Name, Action Run)[]
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
     ("Az ellenséges kezdeményezés az első saját körig késlelteti a taktikát", EnemyInitiativeDelaysTacticPrompt),
     ("A kezdeményezési napló előjeles 1d2 dobást mutat", InitiativeLogShowsSignedDie),
+    ("A harci találat kiemeli a sebzést és a megmaradt HP-t", BattleHitHighlightsDamageAndHealth),
+    ("A győzelmi üzenet nem ismétli meg az utolsó támadást", VictoryMessageIsConcise),
     ("A barbár öt sebzés után Dühbe gurul", BarbarianRageTriggersAfterFiveDamage),
     ("A lovagi közbelépés felezi az első találat sebzését", KnightProtectionHalvesFirstHit),
     ("A csata megvárhatja a játékos hálózati akcióját", BattleCanWaitForPlayerAction),
@@ -706,6 +708,37 @@ static void InitiativeLogShowsSignedDie()
     Assert(message.Split("±1d2(", StringSplitOptions.None).Length == 3 &&
            !message.Contains(" +1d2(", StringComparison.Ordinal),
         "A kezdeményezési napló nem mindkét félnél ±1d2 formában mutatja a dobást.");
+}
+
+static void BattleHitHighlightsDamageAndHealth()
+{
+    var system = CreateBattleSystem(712);
+    var player = CreateCharacter("Sebző", vitality: 500, characterClassId: CharacterClassIds.Pap);
+    var state = system.StartBattle(player, CreateEnemy(1000, 1)).State;
+    string? playerHit = null;
+    string? enemyHit = null;
+    for (var index = 0; index < 100 && (playerHit is null || enemyHit is null) && !state.IsCompleted; index++)
+    {
+        var entry = system.Advance(state).Entries.Single().Message;
+        if (entry.Contains("Sebző támadja", StringComparison.Ordinal) && entry.Contains("→ 🎯", StringComparison.Ordinal))
+            playerHit = entry;
+        if (entry.Contains("támadja Sebző", StringComparison.Ordinal) && entry.Contains("→ 🎯", StringComparison.Ordinal))
+            enemyHit = entry;
+    }
+    Assert(playerHit?.Contains("= 💥 ", StringComparison.Ordinal) == true &&
+           playerHit.Contains("Tesztellenfél ❤️ ", StringComparison.Ordinal) &&
+           enemyHit?.Contains("= 💥 ", StringComparison.Ordinal) == true &&
+           enemyHit.Contains("Sebző ❤️ ", StringComparison.Ordinal),
+        "A sikeres támadásból hiányzik a sebzés- vagy a megmaradt HP ikonja.");
+}
+
+static void VictoryMessageIsConcise()
+{
+    var enemy = CreateEnemy(1, 1);
+    var result = new BattleResult(true, 7, ["7. kör — hosszú és redundáns utolsó támadás."]);
+    Assert(ConsoleRenderer.FormatBattleResultMessage(result, enemy) ==
+           "GYŐZELEM 🏆: Tesztellenfél elesett.",
+        "A győzelmi üzenet továbbra is megismétli az utolsó támadás részleteit.");
 }
 
 static void SnapshotRequiresCurrentBattlePrompt()
