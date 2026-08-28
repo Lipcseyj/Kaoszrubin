@@ -34,6 +34,7 @@ public static class CsvGameDataLoader
         var perks = new List<PerkDefinition>();
         var statuses = new List<StatusDefinition>();
         var characterNames = new List<CharacterNameDefinition>();
+        var innNames = new List<string>();
         var itemUpgrades = new List<ItemUpgradeDefinition>();
         var raceBonuses = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var classMinimums = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
@@ -66,7 +67,7 @@ public static class CsvGameDataLoader
             try
             {
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
-                    monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, itemUpgrades,
+                    monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, innNames, itemUpgrades,
                     raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                     vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
             }
@@ -79,6 +80,8 @@ public static class CsvGameDataLoader
         ValidateRequiredCoreData(races, characterClasses, enemies, abilities, raceBonuses, classMinimums,
             startingEquipmentByClass, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
             vitalityGrowthByHealth, manaGrowthByIntelligence);
+        if (innNames.Count == 0)
+            throw new InvalidDataException("A #Fogadónevek fejezetnek legalább egy nevet kell tartalmaznia az adatok.csv fájlban.");
         ValidateUniqueIds(
             ("Fajok", races.Select(value => value.Id)),
             ("Osztályok", characterClasses.Select(value => value.Id)),
@@ -134,6 +137,7 @@ public static class CsvGameDataLoader
             Perks = perks,
             Statuses = statuses,
             CharacterNames = characterNames,
+            InnNames = innNames,
             MinimumVitalityByHealth = minimumVitalityByHealth,
             MinimumManaByIntelligence = minimumManaByIntelligence,
             ExperienceByLevel = experienceByLevel,
@@ -156,7 +160,8 @@ public static class CsvGameDataLoader
         ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities, ICollection<MiscItemDefinition> items,
         ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
         ICollection<SpellEffectDefinition> spellEffects, ICollection<PerkDefinition> perks,
-        ICollection<StatusDefinition> statuses, ICollection<CharacterNameDefinition> characterNames, ICollection<ItemUpgradeDefinition> itemUpgrades,
+        ICollection<StatusDefinition> statuses, ICollection<CharacterNameDefinition> characterNames,
+        ICollection<string> innNames, ICollection<ItemUpgradeDefinition> itemUpgrades,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence, IDictionary<int, int> experienceByLevel,
         IDictionary<int, ValueRange> vitalityGrowthByHealth, IDictionary<int, ValueRange> manaGrowthByIntelligence,
@@ -272,6 +277,13 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.CharacterNames:
                 characterNames.Add(new CharacterNameDefinition(id, name, Cell(cells, 2)));
+                break;
+            case DataSection.InnNames:
+                if (string.IsNullOrWhiteSpace(name))
+                    throw new InvalidOperationException("A fogadó neve nem lehet üres.");
+                if (innNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"A(z) '{name}' fogadónév duplikált.");
+                innNames.Add(name);
                 break;
             case DataSection.RaceAbilityBonuses:
                 raceBonuses[id] = PrimaryAbilitiesFrom(cells);
@@ -786,6 +798,7 @@ public static class CsvGameDataLoader
         "tehetsegek" => DataSection.Perks,
         "allapotok" => DataSection.Statuses,
         "karakternevek" => DataSection.CharacterNames,
+        "fogadonevek" => DataSection.InnNames,
         "faji kepessegbonuszok" => DataSection.RaceAbilityBonuses,
         "osztaly kepessegminimumok" => DataSection.ClassAbilityMinimums,
         "ero talalati bonusz" => DataSection.StrengthHitBonuses,
@@ -828,6 +841,7 @@ public static class CsvGameDataLoader
         Perks,
         Statuses,
         CharacterNames,
+        InnNames,
         RaceAbilityBonuses,
         ClassAbilityMinimums,
         StrengthHitBonuses,

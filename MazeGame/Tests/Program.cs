@@ -63,6 +63,7 @@ var tests = new (string Name, Action Run)[]
     ("A session snapshot JSON-on körbeírható", SessionSnapshotRoundTripsThroughJson),
     ("A session-aktivitás karakterhez címezhető", SessionActivityCanTargetCharacter),
     ("A fogadó snapshotja közös pletykákat továbbít", InnSnapshotCarriesSharedRumors),
+    ("A fogadónevek CSV-ből töltődnek és a szinttel együtt megjelennek", InnNamesLoadAndRenderWithLevel),
     ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
@@ -796,7 +797,7 @@ static void InnSnapshotCarriesSharedRumors()
         "A kovácsmester ma jelen van.", 2, 7,
         new LevelCompletionSnapshot(completionId, 2, 100,
             [new LevelCompletionCharacterSnapshot("Host", ConsoleColor.Green, 200, 1, 2, 12, 15, 0, 0, false)],
-            [new LevelCompletionFallenSnapshot("Elesett", "Harcos")]));
+            [new LevelCompletionFallenSnapshot("Elesett", "Harcos")]), "A Törött Kard", 2);
     var restored = JsonSerializer.Deserialize<InnSnapshot>(JsonSerializer.Serialize(snapshot));
     Assert(restored is { Rumors.Count: 1 } && restored.Rumors[0].Title == "Úti hír" &&
            restored.Rumors[0].Lines.SequenceEqual(snapshot.Rumors[0].Lines) &&
@@ -804,8 +805,17 @@ static void InnSnapshotCarriesSharedRumors()
            restored.SellPrices is [{ Price: 25 }] && restored.MenuOptions is [{ LeaderOnly: true }, ..] &&
            restored.MenuOptions[1].Vendor == InnVendorKind.Market && restored.PartyCount == 2 &&
            restored.PartyFreeBackpackSlots == 7 && restored.LevelCompletion?.CompletionId == completionId &&
-           restored.LevelCompletion.FallenCharacters is [{ Name: "Elesett" }],
+           restored.LevelCompletion.FallenCharacters is [{ Name: "Elesett" }] &&
+           restored.InnName == "A Törött Kard" && restored.MazeLevel == 2,
         "A fogadó közös menü- vagy pályavégi állapota nem maradt meg a snapshot JSON round-trip során.");
+}
+
+static void InnNamesLoadAndRenderWithLevel()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    Assert(data.InnNames.Count == 26 && data.InnNames.Contains("A Törött Kard") &&
+           data.InnNames.Contains("A Vándor Pihenője"),
+        "A fogadónév-halmaz nem megfelelően töltődött be a CSV-ből.");
 }
 
 static void FighterTacticHitChancesUseCombatFormula()

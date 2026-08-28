@@ -1201,7 +1201,7 @@ public sealed class CoopGuestScreen
             var options = inn.MenuOptions ?? [];
             _innSelection = Math.Clamp(_innSelection, 0, Math.Max(0, options.Count - 1));
             lines = ConsoleRenderer.BuildInnMenuLines(inn.PartyCount, inn.PartyGold, options,
-                _innSelection, inn.ArtisanNotice, disableLeaderOnly: true).ToList();
+                _innSelection, inn.ArtisanNotice, disableLeaderOnly: true, inn.InnName, inn.MazeLevel).ToList();
         }
         else
         {

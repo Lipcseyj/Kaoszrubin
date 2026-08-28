@@ -529,11 +529,11 @@ public sealed class ConsoleRenderer
 
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnMenuLines(int partyCount,
         int partyGold, IReadOnlyList<InnMenuOptionSnapshot> options, int selectedIndex, string artisanNotice,
-        bool disableLeaderOnly)
+        bool disableLeaderOnly, string innName = "Vándorcsillag", int mazeLevel = 1)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
         {
-            ("🏰🍺  A VÁNDORCSILLAG FOGADÓ  🍺🏰", ConsoleColor.Yellow),
+            ($"🏰🍺  {innName} fogadója, {mazeLevel}. szint  🍺🏰", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
             ($"Parti: {partyCount}/{Party.MaximumSize} fő     {MoneyIcon} Arany: {partyGold}", ConsoleColor.Cyan),
             (ClipMarketText(artisanNotice, InnMenuFrameWidth - 6), ConsoleColor.DarkYellow),
@@ -673,12 +673,12 @@ public sealed class ConsoleRenderer
     };
 
     public void DrawInnMenuScreen(LiveCharacter leader, int partyCount, int selectedIndex,
-        IReadOnlyList<InnMenuOptionSnapshot> options, string artisanNotice)
+        IReadOnlyList<InnMenuOptionSnapshot> options, string artisanNotice, string innName, int mazeLevel)
     {
         ResetColorCache();
         Console.Clear();
         DrawCenteredFrame(InnMenuFrameWidth, BuildInnMenuLines(partyCount, leader.Gold, options,
-            selectedIndex, artisanNotice, disableLeaderOnly: false));
+            selectedIndex, artisanNotice, disableLeaderOnly: false, innName, mazeLevel));
     }
 
     public void UpdateInnMenuSelection(IReadOnlyList<InnMenuOptionSnapshot> options,

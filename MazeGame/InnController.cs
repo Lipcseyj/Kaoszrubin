@@ -31,6 +31,7 @@ internal sealed class InnController
     private readonly Queue<InnTransactionSnapshot> _transactions = new();
     private readonly Queue<string> _pendingHostTransactionMessages = new();
     private readonly Dictionary<string, int> _buybackPrices = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _usedInnNames = new(StringComparer.OrdinalIgnoreCase);
     private long _transactionSequence;
     private long _revision;
     private bool _active;
@@ -39,6 +40,8 @@ internal sealed class InnController
     private string _artisanNotice = string.Empty;
     private IReadOnlyList<InnMenuOptionSnapshot> _menuOptions = [];
     private LevelCompletionSnapshot? _levelCompletion;
+    private string _innName = string.Empty;
+    private int _innLevel;
 
     internal long Revision => _revision;
 
@@ -74,7 +77,7 @@ internal sealed class InnController
             _buybackPrices.Select(pair => new InnSellPriceSnapshot(pair.Key, pair.Value)).ToArray(),
             _menuOptions, _artisanNotice, _characterRoster.Party.Members.Count,
             _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)),
-            _levelCompletion);
+            _levelCompletion, _innName, _innLevel);
     }
 
     public bool TryPurchase(InnVendorKind vendor, int offerIndex, long expectedRevision,
@@ -137,6 +140,15 @@ internal sealed class InnController
 
     public void Run(int completedLevel)
     {
+        var availableInnNames = _gameData.InnNames.Where(name => !_usedInnNames.Contains(name)).ToArray();
+        if (availableInnNames.Length == 0)
+        {
+            _usedInnNames.Clear();
+            availableInnNames = _gameData.InnNames.ToArray();
+        }
+        _innName = availableInnNames[_random.Next(availableInnNames.Length)];
+        _usedInnNames.Add(_innName);
+        _innLevel = completedLevel;
         _hasRestedAtInn = false;
         _secretStashAccessCost = _random.Next(50, 101) + completedLevel * 50;
         var completion = CompleteLevelAtInn(completedLevel);
@@ -201,7 +213,7 @@ internal sealed class InnController
             if (redraw)
             {
                 _renderer.DrawInnMenuScreen(_selectedCharacter, _characterRoster.Party.Members.Count, selectedIndex,
-                    options, menuNotice);
+                    options, menuNotice, _innName, _innLevel);
                 redraw = false;
             }
             var key = _readKey().Key;
