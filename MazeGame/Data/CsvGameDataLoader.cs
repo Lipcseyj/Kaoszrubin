@@ -113,6 +113,7 @@ public static class CsvGameDataLoader
         ValidateStatuses(statuses);
         ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
         ValidateMonsterLoot(enemies, monsterLoot);
+        ValidateTrapConfigurations(traps);
         var lootRules = CreateLootRules(lootRuleValues);
         var doorAttemptRules = CreateDoorAttemptRules(doorAttemptRuleValues);
 
@@ -408,6 +409,22 @@ public static class CsvGameDataLoader
         return Enum.TryParse<ConsumableEffect>(value, true, out var effect)
             ? effect
             : throw new InvalidOperationException($"Ismeretlen fogyaszthatótárgy-hatás: '{value}'.");
+    }
+
+    private static void ValidateTrapConfigurations(IReadOnlyCollection<TrapDefinition> traps)
+    {
+        var knownIds = traps.Select(trap => trap.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        for (var level = 1; level <= MazeLevelConfigurations.FinalLevel; level++)
+        {
+            var configuration = MazeLevelConfigurations.Get(level);
+            if (configuration.TrapCount.Minimum < 0 ||
+                configuration.TrapCount.Maximum < configuration.TrapCount.Minimum)
+                throw new InvalidOperationException($"A(z) {level}. szint csapdadarabszáma érvénytelen.");
+            var unknown = configuration.TrapIds.FirstOrDefault(id => !knownIds.Contains(id));
+            if (unknown is not null)
+                throw new InvalidOperationException(
+                    $"A(z) {level}. szint ismeretlen csapdára hivatkozik: '{unknown}'.");
+        }
     }
 
     private static void ValidateRequiredCoreData(IReadOnlyCollection<RaceDefinition> races,

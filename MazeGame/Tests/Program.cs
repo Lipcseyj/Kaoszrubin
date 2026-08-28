@@ -68,6 +68,7 @@ var tests = new (string Name, Action Run)[]
     ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
     ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
+    ("A csapdakészlet és darabszám a labirintusszinttel nehezedik", TrapConfigurationScalesByMazeLevel),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
     ("A world delta minden lényeges változást leír", WorldDeltaCapturesChanges),
     ("Eltérő pályák között nem készülhet delta", WorldDeltaRejectsDifferentWorld),
@@ -822,9 +823,25 @@ static void InnNamesAndRumorsLoadFromCsv()
            data.InnRumors.Single(rumor => rumor.Id == "PL001").Name.Contains(
                "Aki válaszol neki, azt többé nem látják.", StringComparison.Ordinal),
         "A hangulatpletykák vagy a szövegükben lévő vesszők nem megfelelően töltődtek be a CSV-ből.");
-    Assert(data.Traps.Count == 3 && data.GetTrap("TR001").Effect == TrapEffect.Damage &&
-           data.GetTrap("TR002").Effect == TrapEffect.Poison && data.GetTrap("TR003").Effect == TrapEffect.Alert,
+    Assert(data.Traps.Count == 7 && data.GetTrap("TR001").Effect == TrapEffect.Damage &&
+           data.GetTrap("TR002").Effect == TrapEffect.Poison && data.GetTrap("TR003").Effect == TrapEffect.Alert &&
+           data.GetTrap("TR007").MinimumLevel == 18 && data.GetTrap("TR007").DisarmDifficulty == 15,
         "A csapdadefiníciók nem megfelelően töltődtek be a CSV-ből.");
+}
+
+static void TrapConfigurationScalesByMazeLevel()
+{
+    var first = MazeLevelConfigurations.Get(1);
+    var middle = MazeLevelConfigurations.Get(10);
+    var final = MazeLevelConfigurations.Get(MazeLevelConfigurations.FinalLevel);
+    Assert(first.TrapCount == new IntRange(1, 2) && first.TrapIds.SequenceEqual(["TR001"]),
+        "Az első szint csapdakonfigurációja nem kezdőbarát.");
+    Assert(middle.TrapCount == new IntRange(3, 5) && middle.TrapIds.Contains("TR005") &&
+           !middle.TrapIds.Contains("TR006"),
+        "A középső szintek csapdakonfigurációja nem megfelelően nehezedik.");
+    Assert(final.TrapCount == new IntRange(4, 6) && final.TrapIds.Contains("TR007") &&
+           !final.TrapIds.Contains("TR001"),
+        "A végső szintek nem a legnehezebb csapdakészletet használják.");
 }
 
 static void TrapVisibilityFollowsDiscoveryState()

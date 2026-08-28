@@ -967,8 +967,11 @@ Feltételek:
 Fontos: a játék a futási mappába másolt adatok.csv-t olvassa. Módosítás után újra kell fordítani vagy kézzel frissíteni például a bin/Debug/net10.0/adatok.csv fájlt. Ha a régi bináris mellett régi másolat marad, a változás nem látszik.
 ## Csapdák
 
-A `#Csapdák` CSV-fejezet definiálja a tüskés, mérgező és riasztó csapdákat. Egy pályán
-ritkán, a kezdőtértől, kijárattól, ajtóktól és egymástól távol jelennek meg. A mezőre lépés előtt
+A `#Csapdák` CSV-fejezet definiálja a csapdatípusok hatását és nehézségét. A
+`MazeLevelConfigurations` `TrapCount` és `TrapIds` mezői adják meg szintenként a darabszámot és a
+használható készletet. Az 1–2. szint 1–2 egyszerű csapdával indul, majd hat nehézségi sávon keresztüll
+a 18–21. szint 4–6 fejlett csapdájáig nő a veszély. A csapdák a kezdőtértől, kijárattól,
+ajtóktól és egymástól távol jelennek meg. A mezőre lépés előtt
 automatikus Észlelés-próba történik Intelligenciából és Ügyességből; a Tolvaj +30 bónuszt kap.
 A felfedezett csapda `K`-val, Ügyesség-próbával hatástalanítható. Az első kudarc biztonságos,
 a további kudarcok 50%-os elsülési kockázatot hordoznak. A közvetlen csapdasebzés nem lehet halálos,

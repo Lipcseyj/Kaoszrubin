@@ -65,6 +65,8 @@ public sealed class MazeLevelConfiguration
     public required IntRange RoomSize { get; init; }
     public required IntRange TreasureChestCount { get; init; }
     public required IntRange TreasureGold { get; init; }
+    public IntRange TrapCount { get; set; } = new(0, 0);
+    public IReadOnlyList<string> TrapIds { get; set; } = [];
     public required IReadOnlyList<EnemyEncounterConfiguration> RoomEncounters { get; init; }
     public required IReadOnlyList<EnemyEncounterConfiguration> CorridorEncounters { get; init; }
 
@@ -85,6 +87,12 @@ public sealed class MazeLevelConfiguration
 public static class MazeLevelConfigurations
 {
     public const int FinalLevel = 21;
+    private static readonly string[] BasicTraps = ["TR001"];
+    private static readonly string[] EarlyTraps = ["TR001", "TR002", "TR003"];
+    private static readonly string[] MidTraps = ["TR001", "TR002", "TR003", "TR004"];
+    private static readonly string[] AdvancedTraps = ["TR002", "TR003", "TR004", "TR005"];
+    private static readonly string[] DeadlyTraps = ["TR003", "TR004", "TR005", "TR006"];
+    private static readonly string[] ChaosTraps = ["TR004", "TR005", "TR006", "TR007"];
 
     private static readonly IReadOnlyDictionary<int, MazeLevelConfiguration> Configurations =
         new Dictionary<int, MazeLevelConfiguration>
@@ -590,7 +598,7 @@ public static class MazeLevelConfigurations
 
     public static MazeLevelConfiguration Get(int level)
     {
-        if (Configurations.TryGetValue(level, out var configuration)) return configuration;
+        if (Configurations.TryGetValue(level, out var configuration)) return ConfigureTraps(configuration);
         var increase = level - 11;
         var tier = Math.Clamp(4 + increase / 3, 4, 5);
         var (leader, follower, peer) = tier switch
@@ -598,7 +606,7 @@ public static class MazeLevelConfigurations
             4 => (MonsterIds.Beholder, MonsterIds.Ogre, MonsterIds.Kiméra),
             _ => (MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, MonsterIds.Ősvámpír)
         };
-        return new MazeLevelConfiguration
+        return ConfigureTraps(new MazeLevelConfiguration
         {
             Level = level,
             Name = $"A mélység {level}. szintje",
@@ -620,6 +628,20 @@ public static class MazeLevelConfigurations
                 Encounters.Solo(follower, Amount.Few, EnemyMovementProfile.Patrol),
                 Encounters.Solo(peer, Amount.Few)
             ]
+        });
+    }
+
+    private static MazeLevelConfiguration ConfigureTraps(MazeLevelConfiguration configuration)
+    {
+        (configuration.TrapCount, configuration.TrapIds) = configuration.Level switch
+        {
+            <= 2 => (new IntRange(1, 2), BasicTraps),
+            <= 6 => (new IntRange(2, 3), EarlyTraps),
+            <= 9 => (new IntRange(3, 4), MidTraps),
+            <= 13 => (new IntRange(3, 5), AdvancedTraps),
+            <= 17 => (new IntRange(4, 5), DeadlyTraps),
+            _ => (new IntRange(4, 6), ChaosTraps)
         };
+        return configuration;
     }
 }

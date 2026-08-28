@@ -749,7 +749,7 @@ public sealed class Game
         _leaderTrail.Add(_player.Position);
         _nextPartyMoves.Clear();
         PlacePartyMembersNear(_player.Position);
-        PlaceTraps();
+        PlaceTraps(configuration);
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, VisionRange);
         _fogOfWar.RevealFrom(_maze, _player.Position);
         foreach (var member in _maze.PartyMembers) _fogOfWar.RevealFrom(_maze, member.Position);
@@ -771,11 +771,12 @@ public sealed class Game
               $"(pl. {report.UnreachablePositions[0].X},{report.UnreachablePositions[0].Y}).");
     }
 
-    private void PlaceTraps()
+    private void PlaceTraps(MazeLevelConfiguration configuration)
     {
-        var definitions = _gameData.Traps.Where(trap => trap.MinimumLevel <= _mazeLevel).ToArray();
+        var definitions = configuration.TrapIds.Select(_gameData.GetTrap)
+            .Where(trap => trap.MinimumLevel <= _mazeLevel).ToArray();
         if (definitions.Length == 0) return;
-        var desiredCount = Math.Clamp(2 + (_mazeLevel - 1) / 8, 2, 4);
+        var desiredCount = configuration.TrapCount.Roll(_random);
         var candidates = new List<Position>();
         for (var y = 0; y < _maze.Height; y++)
         for (var x = 0; x < _maze.Width; x++)
