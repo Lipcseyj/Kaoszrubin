@@ -668,8 +668,8 @@ public sealed class ConsoleRenderer
     {
         ItemCategory.Weapon => "⚔️",
         ItemCategory.Armor => "🛡️",
-        ItemCategory.MagicItem => "✨",
-        _ => "🎒"
+        ItemCategory.MagicItem => "🔮",
+        _ => "📦"
     };
 
     public void DrawInnMenuScreen(LiveCharacter leader, int partyCount, int selectedIndex,
@@ -1032,13 +1032,7 @@ public sealed class ConsoleRenderer
         yield return remaining;
     }
 
-    private static string ItemCategoryIcon(IItemDefinition item) => item.Category switch
-    {
-        ItemCategory.Weapon => "⚔️",
-        ItemCategory.Armor => "🛡️",
-        ItemCategory.MagicItem => "🔮",
-        _ => "📦"
-    };
+    private static string ItemCategoryIcon(IItemDefinition item) => ItemCategoryIcon(item.Category);
 
     private static ConsoleColor ItemRarityColor(ItemRarity rarity) => rarity switch
     {
