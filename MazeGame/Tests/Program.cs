@@ -82,6 +82,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég nem rajzol újra puszta snapshot-sorszám változásra", GuestRedrawIgnoresReplicationSequences),
     ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories),
     ("Az inventory transfer atomi és megőrzi a töltetet", InventoryTransferIsAtomicAndPreservesCharges),
+    ("A képességnövelő varázstárgyak minden kasztnál 13-ig hatnak", AbilityMagicItemsAreUniversalAndCapped),
     ("Az elavult inventory-revízió elutasításra kerül", StaleInventoryRevisionIsRejected),
     ("A vendég nem mozgathat tárgyat más karakterhez", RemoteInventoryTransferCannotCrossCharacters),
     ("A használat, eldobás és pickup command alakja validált", InventoryActionCommandsAreValidated),
@@ -1825,6 +1826,48 @@ static void RaceTraitsAreLoadedFromData()
     Assert(catalog.GetRace("R002").HasTrait(RaceTraits.Resilient), "A törp Rendíthetetlen tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R003").HasTrait(RaceTraits.KeenSenses), "Az elf Éles érzékek tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R004").HasTrait(RaceTraits.Relentless), "A félork Könyörtelen tulajdonsága hiányzik.");
+}
+
+static void AbilityMagicItemsAreUniversalAndCapped()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var expected = new Dictionary<string, (MagicItemEffect Effect, int Value, int Price)>
+    {
+        ["M017"] = (MagicItemEffect.Strength, 1, 1200),
+        ["M018"] = (MagicItemEffect.Strength, 2, 3000),
+        ["M019"] = (MagicItemEffect.Dexterity, 1, 1200),
+        ["M020"] = (MagicItemEffect.Dexterity, 2, 3000),
+        ["M021"] = (MagicItemEffect.Health, 1, 1200),
+        ["M022"] = (MagicItemEffect.Health, 2, 3000),
+        ["M023"] = (MagicItemEffect.Intelligence, 1, 1200),
+        ["M024"] = (MagicItemEffect.Intelligence, 2, 3000)
+    };
+    foreach (var (id, definition) in expected)
+    {
+        var item = data.GetMagicItem(id);
+        Assert(item.Effect == definition.Effect && item.EffectValue == definition.Value &&
+               item.BasePrice == definition.Price &&
+               data.CharacterClasses.All(characterClass => item.CanBeEquippedBy(characterClass.Id)),
+            $"A(z) {id} képességtárgy adatai vagy kasztengedélyei hibásak.");
+    }
+
+    var race = data.GetRace("R001");
+    var characterClass = data.CharacterClasses.First();
+    var character = new LiveCharacter("Ékszerteszt", race, characterClass,
+        new PrimaryAbilities(12, 12, 12, 12), 100, 100, 1, 1);
+    Assert(character.AddMagicItem(data.GetMagicItem("M018")) &&
+           character.AddMagicItem(data.GetMagicItem("M019")) &&
+           character.AddMagicItem(data.GetMagicItem("M022")),
+        "A képességtárgyak nem voltak felszerelhetők.");
+    Assert(character.EffectiveAbilities == new PrimaryAbilities(13, 13, 13, 12) &&
+           character.Abilities == new PrimaryAbilities(12, 12, 12, 12),
+        "A felszerelt képességbónusz átlépte a 13-at vagy módosította az alapértéket.");
+    var snapshot = CharacterSheetSnapshotProjector.Create(character, data.ExperienceByLevel);
+    Assert(snapshot.Abilities == character.EffectiveAbilities,
+        "A karakterlap és a coop snapshot nem az effektív képességeket mutatja.");
+    Assert(character.SetInventoryItem(InventorySlotKind.MagicItem, 0, null) &&
+           character.EffectiveAbilities.Strength == 12 && character.Abilities.Strength == 12,
+        "A varázstárgy levétele után nem szűnt meg a képességbónusz.");
 }
 
 static void UnknownCsvSectionIsRejectedWithLineNumber()

@@ -74,7 +74,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var magicInitiativeBonus = player.GetMagicItemBonus(MagicItemEffect.Initiative);
         var spellInitiativeBonus = player.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus);
         var initiativeBonus = perkInitiativeBonus + magicInitiativeBonus + spellInitiativeBonus + proficiencyInitiativeBonus;
-        var playerInitiative = RollInitiative(player.Abilities.Dexterity + initiativeBonus - player.StatusInitiativePenalty);
+        var playerInitiative = RollInitiative(player.EffectiveAbilities.Dexterity + initiativeBonus - player.StatusInitiativePenalty);
         var enemyInitiativeBonus = MonsterAbilityValue(defender, MonsterAbilityEffect.InitiativeBonus);
         var enemyInitiative = RollInitiative(enemy.EffectiveSpeed + enemyInitiativeBonus);
         var playerAttacks = playerInitiative.Total >= enemyInitiative.Total;
@@ -85,7 +85,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (proficiencyInitiativeBonus > 0)
             initiativeNotes.Add($"{WeaponFamilies.Find(initiativeFamily!)!.Icon} jártasság +{proficiencyInitiativeBonus}");
         var perkText = initiativeNotes.Count > 0 ? $" [{string.Join(", ", initiativeNotes)}]" : string.Empty;
-        var initiativeMessage = $"Kezdeményezés: {player.Name} Ügy {player.Abilities.Dexterity}{perkText}" +
+        var initiativeMessage = $"Kezdeményezés: {player.Name} Ügy {player.EffectiveAbilities.Dexterity}{perkText}" +
             (player.StatusInitiativePenalty > 0
                 ? $" - {(player.HasStatus(CharacterStatusIds.Thirsty) ? "💧 szomjúság" : "állapot")} {player.StatusInitiativePenalty}"
                 : string.Empty) +
@@ -281,7 +281,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var hitBonus = PlayerHitBonus(player, context.Tactic, weapon is not null, invisibilityBonus,
             strengthHitBonus, blessedWeaponBonus) + (retaliation ? 2 : 0) +
                        (weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0);
-        var hit = HitRoll(player.Abilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
+        var hit = HitRoll(player.EffectiveAbilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
         var strengthHitText = strengthHitBonus > 0 ? $" [Erő-találat +{strengthHitBonus}]" : string.Empty;
         var classHitText = classHitBonus > 0 ? $" [Osztályjártasság +{classHitBonus}]" : string.Empty;
@@ -296,7 +296,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
         var baseDamage = weapon?.Damage is { } range ? Roll(range) : Roll(new ValueRange(1, 2));
         var usesDexterity = weapon is not null && string.Equals(weapon.WeaponTypeId, DexterityWeaponTypeId, StringComparison.OrdinalIgnoreCase);
-        var ability = usesDexterity ? player.Abilities.Dexterity : player.Abilities.Strength;
+        var ability = usesDexterity ? player.EffectiveAbilities.Dexterity : player.EffectiveAbilities.Strength;
         var abilityBonus = AbilityDamageBonus(ability);
         var randomBonus = Roll(new ValueRange(0, 2));
         var perkBonus = player.GetMagicItemBonus(MagicItemEffect.Damage) + blessedWeaponBonus +
@@ -443,7 +443,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                      player.WeaponProficiencyRankFor(WeaponFamilies.Sword) is not null ? 1 : 0);
         var target = 11 + enemy.EffectiveSpeed;
         var successfulRolls = Enumerable.Range(1, 20).Count(roll =>
-            roll != 1 && (roll == 20 || roll + player.Abilities.Dexterity + bonus >= target));
+            roll != 1 && (roll == 20 || roll + player.EffectiveAbilities.Dexterity + bonus >= target));
         return successfulRolls * 5;
     }
 
@@ -472,7 +472,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     private int StrengthHitBonus(LiveCharacter character) => _strengthHitBonuses
         .Where(bonus => string.Equals(bonus.CharacterClassId, character.CharacterClass.Id,
-            StringComparison.OrdinalIgnoreCase) && bonus.MinimumStrength <= character.Abilities.Strength)
+            StringComparison.OrdinalIgnoreCase) && bonus.MinimumStrength <= character.EffectiveAbilities.Strength)
         .OrderByDescending(bonus => bonus.MinimumStrength)
         .Select(bonus => bonus.Bonus)
         .FirstOrDefault();
@@ -482,7 +482,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (context.ChallengeAvailable) { context.ChallengeAvailable = false; return AttackResult.Miss("💨 Kihívás: az első támadás automatikusan elhibázza."); }
         if (defender.HasPerk(PerkIds.PriestSanctuary) && _random.NextDouble() < 0.20) return AttackResult.Miss("💨 Szentély: az ellenfél elveszíti a támadását.");
         if (defender.HasSpellEffect(ActiveSpellEffectType.Invisibility)) return AttackResult.Miss("💨 Láthatatlanság: az ellenfél nem talál célpontot.");
-        var hit = HitRoll(attackerSpeed, defender.Abilities.Dexterity, 0, false);
+        var hit = HitRoll(attackerSpeed, defender.EffectiveAbilities.Dexterity, 0, false);
         if (!hit.Hit) return AttackResult.Miss($"találat: {hit.Description} → 💨.");
         var criticalMultiplier = hit.NaturalRoll == 20 ? 2 : 1;
         if (criticalMultiplier == 1 && defender.HasPerk(PerkIds.ThiefEvasion) && _random.NextDouble() < 0.15)

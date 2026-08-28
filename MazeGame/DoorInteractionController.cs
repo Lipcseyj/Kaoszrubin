@@ -61,19 +61,19 @@ internal sealed class DoorInteractionController
 
         if (isThief)
         {
-            var chance = LockpickChance(lockHandler.Abilities.Dexterity);
+            var chance = LockpickChance(lockHandler.EffectiveAbilities.Dexterity);
             var roll = _random.Next(1, 101);
             if (roll <= chance)
             {
                 maze.SetDoorState(door, DoorState.Open);
                 RefreshAfterDoorChanged(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter,
                     $"{(assistingThief is null ? string.Empty : lockHandler.Name + " előrelép. ")}Zárnyitás sikerült: " +
-                    $"Ügy {lockHandler.Abilities.Dexterity}, esély {chance}%, dobás {roll}." + costMessage,
+                    $"Ügy {lockHandler.EffectiveAbilities.Dexterity}, esély {chance}%, dobás {roll}." + costMessage,
                     ConsoleColor.Green);
                 return;
             }
             _renderer.DrawDoorMessage($"{(assistingThief is null ? string.Empty : lockHandler.Name + ": ")}Zárnyitás sikertelen: " +
-                $"Ügy {lockHandler.Abilities.Dexterity}, esély {chance}%, dobás {roll}." + costMessage,
+                $"Ügy {lockHandler.EffectiveAbilities.Dexterity}, esély {chance}%, dobás {roll}." + costMessage,
                 ConsoleColor.Red);
             if (assistingThief is not null && !_renderer.DrawDoorSmashChoice(selectedCharacter, lockHandler,
                     maze, fogOfWar, actorPosition))
@@ -86,12 +86,12 @@ internal sealed class DoorInteractionController
 
         var strengthRoll = _random.Next(1, 21);
         var racialStrengthBonus = selectedCharacter.Race.HasTrait(RaceTraits.Relentless) ? 2 : 0;
-        var effectiveStrength = selectedCharacter.Abilities.Strength + racialStrengthBonus;
+        var effectiveStrength = selectedCharacter.EffectiveAbilities.Strength + racialStrengthBonus;
         if (strengthRoll <= effectiveStrength)
         {
             maze.SetDoorState(door, DoorState.Smashed);
             RefreshAfterDoorChanged(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter,
-                $"Erőpróba sikerült: 1d20({strengthRoll}) ≤ Erő {selectedCharacter.Abilities.Strength}" +
+                $"Erőpróba sikerült: 1d20({strengthRoll}) ≤ Erő {selectedCharacter.EffectiveAbilities.Strength}" +
                 (racialStrengthBonus > 0 ? $" + faji bónusz {racialStrengthBonus}" : string.Empty) +
                 ". Az ajtó bezúzva!" + costMessage,
                 ConsoleColor.Green);
@@ -100,7 +100,7 @@ internal sealed class DoorInteractionController
         {
             _renderer.RefreshCharacterSheet(selectedCharacter);
             _renderer.DrawDoorMessage(
-                $"Erőpróba sikertelen: 1d20({strengthRoll}) > Erő {selectedCharacter.Abilities.Strength}" +
+                $"Erőpróba sikertelen: 1d20({strengthRoll}) > Erő {selectedCharacter.EffectiveAbilities.Strength}" +
                 (racialStrengthBonus > 0 ? $" + faji bónusz {racialStrengthBonus}" : string.Empty) +
                 ". Az ajtó zárva marad." + costMessage,
                 ConsoleColor.Red);
@@ -175,7 +175,7 @@ internal sealed class DoorInteractionController
         maze.PartyMembers.Where(member => member.Character.IsAlive &&
                 CharacterClassRules.IsThief(member.Character.CharacterClass.Id) &&
                 Chebyshev(member.Position, leaderPosition) <= 2)
-            .OrderByDescending(member => member.Character.Abilities.Dexterity)
+            .OrderByDescending(member => member.Character.EffectiveAbilities.Dexterity)
             .FirstOrDefault();
 
     private static int Chebyshev(Position first, Position second) =>

@@ -54,6 +54,7 @@ public sealed class LiveCharacter
     public RaceDefinition Race { get; }
     public CharacterClassDefinition CharacterClass { get; }
     public PrimaryAbilities Abilities { get; private set; }
+    public PrimaryAbilities EffectiveAbilities => ApplyMagicAbilityBonuses(Abilities, _magicItems);
     public int MaximumVitality => ApplyMaximumResourceModifier(_maximumVitality, status => status.MaximumVitalityPercent);
     public int UnmodifiedMaximumVitality => _maximumVitality;
     public int CurrentVitality { get; private set; }
@@ -416,8 +417,9 @@ public sealed class LiveCharacter
             }
         }
 
+        var effectiveAbilities = ApplyMagicAbilityBonuses(Abilities, magicItems);
         if (weapons.Any(weapon => weapon is not null &&
-                !weapon.CanBeEquippedBy(CharacterClass.Id, Abilities.Strength))) return false;
+                !weapon.CanBeEquippedBy(CharacterClass.Id, effectiveAbilities.Strength))) return false;
         if (armor is not null && !armor.CanBeEquippedBy(CharacterClass.Id)) return false;
         if (magicItems.Any(item => item is not null && !item.CanBeEquippedBy(CharacterClass.Id))) return false;
         if (weapons[1]?.IsTwoHanded == true) return false;
@@ -508,6 +510,20 @@ public sealed class LiveCharacter
     public int GetMagicItemBonus(MagicItemEffect effect) => _magicItems
         .Where(item => item?.Effect == effect)
         .Sum(item => item!.EffectValue);
+
+    private static PrimaryAbilities ApplyMagicAbilityBonuses(PrimaryAbilities abilities,
+        IEnumerable<MagicItemDefinition?> magicItems)
+    {
+        var equipped = magicItems.Where(item => item is not null).Cast<MagicItemDefinition>().ToArray();
+        if (equipped.All(item => item.Effect is not (MagicItemEffect.Strength or MagicItemEffect.Dexterity or
+                MagicItemEffect.Health or MagicItemEffect.Intelligence))) return abilities;
+        return (abilities + new PrimaryAbilities(
+            equipped.Where(item => item.Effect == MagicItemEffect.Strength).Sum(item => item.EffectValue),
+            equipped.Where(item => item.Effect == MagicItemEffect.Dexterity).Sum(item => item.EffectValue),
+            equipped.Where(item => item.Effect == MagicItemEffect.Health).Sum(item => item.EffectValue),
+            equipped.Where(item => item.Effect == MagicItemEffect.Intelligence).Sum(item => item.EffectValue)))
+            .Clamp(1, 13);
+    }
 
     /// <summary>Egyszer, közvetlenül a tehetség kiválasztásakor alkalmazandó erőforrásbónusz.</summary>
     public void ApplyPerkAcquisitionBonus(PerkDefinition perk)

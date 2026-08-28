@@ -109,6 +109,8 @@ public static class ItemInspectionFormatter
         MagicItemEffect.Initiative => "kezdeményezés", MagicItemEffect.Hit => "találati próba",
         MagicItemEffect.Damage => "sebzés", MagicItemEffect.Defense => "védelem",
         MagicItemEffect.BattleHeal => "csata eleji HP", MagicItemEffect.BattleMana => "csata eleji manna",
+        MagicItemEffect.Strength => "Erő", MagicItemEffect.Dexterity => "Ügyesség",
+        MagicItemEffect.Health => "Egészség", MagicItemEffect.Intelligence => "Intelligencia",
         _ => "varázslattároló"
     };
 }

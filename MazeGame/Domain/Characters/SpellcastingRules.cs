@@ -76,7 +76,7 @@ public static class SpellcastingRules
 
     public static int MemorizationCapacity(LiveCharacter character) =>
         TryGetSchool(character.CharacterClass.Id, out _)
-            ? 2 + character.Abilities.Intelligence / 3 + character.Level / 5
+            ? 2 + character.EffectiveAbilities.Intelligence / 3 + character.Level / 5
             : 0;
 
     public static int MaximumSpellLevel(int characterLevel) => characterLevel switch

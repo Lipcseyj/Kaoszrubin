@@ -942,7 +942,7 @@ public sealed class ConsoleRenderer
         var weaponNames = shown.WeaponSlots.Where(item => item is not null).Select(item => item!.Name).ToList();
         var weapons = weaponNames.Count == 0 ? "nincs" : string.Join(", ", weaponNames);
         lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
-        lines.Add(($"Erő {shown.Abilities.Strength}  Ügy {shown.Abilities.Dexterity}  Egész {shown.Abilities.Health}  Int {shown.Abilities.Intelligence}", ConsoleColor.Cyan));
+        lines.Add(($"Erő {shown.EffectiveAbilities.Strength}  Ügy {shown.EffectiveAbilities.Dexterity}  Egész {shown.EffectiveAbilities.Health}  Int {shown.EffectiveAbilities.Intelligence}", ConsoleColor.Cyan));
         lines.Add(($"Fegyver: {weapons}  |  Páncél: {shown.Armor?.Name ?? "nincs"}", ConsoleColor.Gray));
         lines.Add(($"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
         lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
@@ -992,7 +992,7 @@ public sealed class ConsoleRenderer
         var weaponNames = shown.WeaponSlots.Where(item => item is not null).Select(item => item!.Name).ToList();
         var weapons = weaponNames.Count == 0 ? "nincs" : string.Join(", ", weaponNames);
         var detailStart = InnRecruitmentDetailStartOffset + candidates.Count;
-        updates.Add((detailStart, $"Erő {shown.Abilities.Strength}  Ügy {shown.Abilities.Dexterity}  Egész {shown.Abilities.Health}  Int {shown.Abilities.Intelligence}", ConsoleColor.Cyan));
+        updates.Add((detailStart, $"Erő {shown.EffectiveAbilities.Strength}  Ügy {shown.EffectiveAbilities.Dexterity}  Egész {shown.EffectiveAbilities.Health}  Int {shown.EffectiveAbilities.Intelligence}", ConsoleColor.Cyan));
         updates.Add((detailStart + DetailNextLineOffset, $"Fegyver: {weapons}  |  Páncél: {shown.Armor?.Name ?? "nincs"}", ConsoleColor.Gray));
         updates.Add((detailStart + DetailSecondLineOffset, $"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
         UpdateCenteredFrameLines(InnRecruitmentFrameWidth, InnRecruitmentFrameBaseLineCount + candidates.Count, updates);

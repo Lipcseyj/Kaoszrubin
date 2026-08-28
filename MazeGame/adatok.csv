@@ -259,6 +259,14 @@ M013,Fürgeség amulettje,Amulett,Varázs,1050,0,,Initiative,3,nem,Szárnyas med
 M014,Élet amulettje,Amulett,Varázs,1300,0,,BattleHeal,8,nem,Zöld kristály amely minden csata kezdetén gyógyító energiát ad.,3
 M015,Mannaforrás amulettje,Amulett,Varázs,1450,0,,BattleMana,8,nem,Kék kristálymedál amely csata elején mannát állít helyre.,4
 M016,Vadász amulettje,Amulett,Varázs,1550,0,,Hit,2,nem,Agancs alakú amulett amely segít megtalálni az ellenfél gyenge pontját.,4
+M017,Erő rubingyűrűje,Varázsgyűrű,Varázs,1200,0,,Strength,1,nem,Rubinnal foglalt gyűrű amely egy ponttal növeli viselője Erejét legfeljebb 13-ig.,3
+M018,Titánerő amulettje,Amulett,Varázs,3000,0,,Strength,2,nem,Súlyos ércmedál amely két ponttal növeli viselője Erejét legfeljebb 13-ig.,6
+M019,Fürgeség zafírgyűrűje,Varázsgyűrű,Varázs,1200,0,,Dexterity,1,nem,Kék zafírgyűrű amely egy ponttal növeli viselője Ügyességét legfeljebb 13-ig.,3
+M020,Macskalépés amulettje,Amulett,Varázs,3000,0,,Dexterity,2,nem,Könnyű ezüstmedál amely két ponttal növeli viselője Ügyességét legfeljebb 13-ig.,6
+M021,Életerő smaragdgyűrűje,Varázsgyűrű,Varázs,1200,0,,Health,1,nem,Smaragddal díszített gyűrű amely egy ponttal növeli viselője Egészségét legfeljebb 13-ig.,3
+M022,Életfa amulettje,Amulett,Varázs,3000,0,,Health,2,nem,Életfarúnás medál amely két ponttal növeli viselője Egészségét legfeljebb 13-ig.,6
+M023,Értelem ametisztgyűrűje,Varázsgyűrű,Varázs,1200,0,,Intelligence,1,nem,Ametiszttel foglalt gyűrű amely egy ponttal növeli viselője Intelligenciáját legfeljebb 13-ig.,3
+M024,Bölcsesség amulettje,Amulett,Varázs,3000,0,,Intelligence,2,nem,Lila kristálymedál amely két ponttal növeli viselője Intelligenciáját legfeljebb 13-ig.,6
 LMI-R001,Tűzúr gyűrűje,Varázsgyűrű,Legendás,12000,0,,Damage,5,nem,Olvadt aranyból készült gyűrű örökké izzó rubinnal.,7
 LMI-R002,Az Idő gyűrűje,Varázsgyűrű,Legendás,14500,0,,Initiative,8,nem,Ősi gyűrű amely egy szívdobbanással a világ elé helyezi viselőjét.,9
 LMI-R003,Végzetpecsét,Varázsgyűrű,Legendás,15500,0,,Hit,5,nem,Fekete pecsétgyűrű amely kijelöli az elkerülhetetlen találat helyét.,9

@@ -366,7 +366,7 @@ public sealed class Game
     private bool ShouldUseOffensiveSupportSpell(LiveCharacter fighter, Enemy enemy)
     {
         var enemyCombatAbilities = (enemy.Definition.Strength ?? 0) + (enemy.Definition.Speed ?? 0);
-        var fighterCombatAbilities = fighter.Abilities.Strength + fighter.Abilities.Dexterity;
+        var fighterCombatAbilities = fighter.EffectiveAbilities.Strength + fighter.EffectiveAbilities.Dexterity;
         return fighter.CurrentVitality * 2 <= fighter.MaximumVitality ||
                enemy.Definition.IsBoss || enemy.Definition.StrengthTier >= 5 ||
                enemyCombatAbilities > fighterCombatAbilities;
@@ -428,7 +428,7 @@ public sealed class Game
             multiplier = multiplier * 125 / 100;
         character.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type,
             effect.Value, AdjustedDuration(caster, spell, effect, divineJudgment), effect.Dice,
-            (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier), true,
+            (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier), true,
             multiplier, effect.Parameter));
     }
 
@@ -447,7 +447,7 @@ public sealed class Game
             var amount = fullHealing
                 ? character.MaximumVitality
                 : (effect.Dice?.Roll(_random) ?? 0) +
-                  (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier) +
+                  (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier) +
                   caster.Level * effect.LevelMultiplier + effect.Value;
             if (!fullHealing && divineJudgment) amount *= 2;
             if (caster.HasPerk(PerkIds.PriestHealingGrace)) amount = (int)Math.Ceiling(amount * 1.25);
@@ -988,7 +988,7 @@ public sealed class Game
             character.RestoreVitality(_random.Next(1, 11));
             character.SetCurrentResources(character.CurrentVitality, character.MaximumMana);
             var cured = new List<string>();
-            var cureChance = Math.Clamp(30 + character.Abilities.Health * 2, 0, 100);
+            var cureChance = Math.Clamp(30 + character.EffectiveAbilities.Health * 2, 0, 100);
             foreach (var (statusId, name) in new[]
                      {
                          (CharacterStatusIds.Diseased, "betegség"),
@@ -1596,7 +1596,7 @@ public sealed class Game
         if (CharacterClassRules.IsThief(character.CharacterClass.Id))
             chance = chance * _gameData.LootRules.ThiefChanceMultiplierPercent / 100;
         if (character.Race.HasTrait(RaceTraits.KeenSenses)) chance += 15;
-        chance += character.Abilities.Intelligence * _gameData.LootRules.IntelligenceChanceBonusPerPoint;
+        chance += character.EffectiveAbilities.Intelligence * _gameData.LootRules.IntelligenceChanceBonusPerPoint;
         return Math.Clamp(chance, 0, 100);
     }
 
@@ -1981,6 +1981,10 @@ public sealed class Game
         Domain.Magic.MagicItemEffect.Defense => "védelem",
         Domain.Magic.MagicItemEffect.BattleHeal => "csata eleji HP",
         Domain.Magic.MagicItemEffect.BattleMana => "csata eleji manna",
+        Domain.Magic.MagicItemEffect.Strength => "Erő",
+        Domain.Magic.MagicItemEffect.Dexterity => "Ügyesség",
+        Domain.Magic.MagicItemEffect.Health => "Egészség",
+        Domain.Magic.MagicItemEffect.Intelligence => "Intelligencia",
         _ => "varázslattároló"
     };
 
@@ -2916,7 +2920,7 @@ public sealed class Game
     {
         _turnUndeadUsedThisBattle.Add(character);
         var priest = character.CharacterClass.Id == CharacterClassIds.Pap;
-        var ability = priest ? character.Abilities.Intelligence : character.Abilities.Strength;
+        var ability = priest ? character.EffectiveAbilities.Intelligence : character.EffectiveAbilities.Strength;
         var levelBonus = priest ? character.Level / 2 : character.Level / 3;
         var roll = _random.Next(1, 21);
         var total = roll + ability + levelBonus;
@@ -2968,7 +2972,8 @@ public sealed class Game
 
         if (inCombat)
         {
-            var failureChance = Math.Clamp(30 - caster.Abilities.Intelligence - caster.Abilities.Dexterity, 0, 100);
+            var failureChance = Math.Clamp(30 - caster.EffectiveAbilities.Intelligence -
+                caster.EffectiveAbilities.Dexterity, 0, 100);
             var roll = _random.Next(1, 101);
             if (roll <= failureChance)
                 return new SpellCastAttempt(true,
@@ -3292,7 +3297,7 @@ public sealed class Game
             return 0;
         }
         var rolled = (effect.Dice?.Roll(_random) ?? 0) +
-                     (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier) +
+                     (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier) +
                      caster.Level * effect.LevelMultiplier + effect.Value;
         if (caster.HasPerk(PerkIds.MageElementalMaster)) rolled = (int)Math.Ceiling(rolled * 1.25);
         if (caster.SpecializationId == ClassSpecializations.PriestJudgment && spell.School == SpellSchool.Divine)
@@ -3329,7 +3334,7 @@ public sealed class Game
         if (effect.Resolution == SpellResolution.Attack)
         {
             var roll = _random.Next(1, 21);
-            var bonus = caster.Abilities.Intelligence +
+            var bonus = caster.EffectiveAbilities.Intelligence +
                         (caster.HasPerk(PerkIds.MageArcaneFocus) ? 2 : 0) +
                         caster.GetMagicItemBonus(MagicItemEffect.Hit) +
                         caster.SpellEffectValue(ActiveSpellEffectType.Invisibility) +
@@ -3339,7 +3344,7 @@ public sealed class Game
         }
         else
         {
-            var dc = 10 + caster.Abilities.Intelligence / 2 + spell.Level;
+            var dc = 10 + caster.EffectiveAbilities.Intelligence / 2 + spell.Level;
             var roll = _random.Next(1, 21) + enemy.EffectiveSpeed;
             var saved = roll >= dc;
             result = new SpellResolutionResult(!saved || effect.Resolution == SpellResolution.SaveHalf,
@@ -3360,7 +3365,7 @@ public sealed class Game
             if (!resolution.Applies || _random.Next(100) >= effect.ChancePercent) continue;
             enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type, effect.Value,
                 AdjustedDuration(caster, spell, effect, divineJudgment),
-                effect.Dice, (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier),
+                effect.Dice, (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier),
                 false, effect.Dice is not null && caster.HasPerk(PerkIds.MageElementalMaster) ? 125 : 100));
             notes.Add($"{enemy.Name}: {TimedEffectName(type)} ({AdjustedDuration(caster, spell, effect, divineJudgment)} akció)");
         }
@@ -3385,7 +3390,7 @@ public sealed class Game
             multiplier = multiplier * 125 / 100;
         character.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type,
             effect.Value, AdjustedDuration(caster, spell, effect, divineJudgment), effect.Dice,
-            (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier), true,
+            (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier), true,
             multiplier, effect.Parameter));
     }
 
@@ -3404,7 +3409,7 @@ public sealed class Game
             var amount = fullHealing
                 ? character.MaximumVitality
                 : (effect.Dice?.Roll(_random) ?? 0) +
-                  (int)Math.Round(caster.Abilities.Intelligence * effect.IntelligenceMultiplier) +
+                  (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier) +
                   caster.Level * effect.LevelMultiplier + effect.Value;
             if (!fullHealing && divineJudgment) amount *= 2;
             if (caster.HasPerk(PerkIds.PriestHealingGrace))

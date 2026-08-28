@@ -96,8 +96,8 @@ public static class MazeLevelConfigurations
                 Level = 1,
                 RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 5),
-                TreasureChestCount = Amount.Few.Range(),
-                TreasureGold = new(20, 100),
+                TreasureChestCount = new(2, 2),
+                TreasureGold = new(40, 100),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Óriáspatkány, Amount.Several, Amount.TwoThree),
@@ -124,7 +124,7 @@ public static class MazeLevelConfigurations
                     Encounters.Same(MonsterIds.Óriáspatkány, Amount.Few, Amount.TwoThree),
                     Encounters.Same(MonsterIds.Csontváz, Amount.One, Amount.One),
                     Encounters.LeaderGroup(MonsterIds.Patkányember, MonsterIds.Óriáspatkány, Amount.One, Amount.TwoThree)
-],
+                ],
                 CorridorEncounters =
                 [
                     Encounters.Solo(MonsterIds.Óriáspatkány, Amount.Pack),
