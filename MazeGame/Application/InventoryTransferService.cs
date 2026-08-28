@@ -43,13 +43,40 @@ public static class InventoryTransferService
         var sourceItem = source.GetInventoryItem(command.SourceKind, command.SourceIndex);
         if (sourceItem is null) return Fail("A forrásslot üres.", out plan, out error);
         var sourceCharges = source.GetInventoryItemCharges(command.SourceKind, command.SourceIndex);
+        var sourceQuantity = source.GetInventoryItemQuantity(command.SourceKind, command.SourceIndex);
         var displaced = destination.GetInventoryItem(command.DestinationKind, command.DestinationIndex);
         var displacedCharges = destination.GetInventoryItemCharges(command.DestinationKind, command.DestinationIndex);
+        var displacedQuantity = destination.GetInventoryItemQuantity(command.DestinationKind, command.DestinationIndex);
         var changes = new Dictionary<LiveCharacter, List<InventorySlotChange>>();
-        AddChange(changes, source,
-            new InventorySlotChange(command.SourceKind, command.SourceIndex, displaced, displacedCharges));
-        AddChange(changes, destination,
-            new InventorySlotChange(command.DestinationKind, command.DestinationIndex, sourceItem, sourceCharges));
+
+        var compatibleStack = command.DestinationKind == InventorySlotKind.Backpack && displaced is not null &&
+            string.Equals(sourceItem.Id, displaced.Id, StringComparison.OrdinalIgnoreCase) &&
+            sourceCharges == displacedCharges && displacedQuantity < LiveCharacter.MaximumBackpackStackSize;
+        if (compatibleStack)
+        {
+            var moved = Math.Min(sourceQuantity, LiveCharacter.MaximumBackpackStackSize - displacedQuantity);
+            AddChange(changes, source, new InventorySlotChange(command.SourceKind, command.SourceIndex,
+                sourceQuantity == moved ? null : sourceItem, sourceCharges, sourceQuantity - moved));
+            AddChange(changes, destination, new InventorySlotChange(command.DestinationKind,
+                command.DestinationIndex, displaced, displacedCharges, displacedQuantity + moved));
+        }
+        else if (command.SourceKind == InventorySlotKind.Backpack && sourceQuantity > 1 &&
+                 command.DestinationKind != InventorySlotKind.Backpack)
+        {
+            if (displaced is not null)
+                return Fail("Kötegből csak üres felszereléshelyre tehető egy tárgy.", out plan, out error);
+            AddChange(changes, source, new InventorySlotChange(command.SourceKind, command.SourceIndex,
+                sourceItem, sourceCharges, sourceQuantity - 1));
+            AddChange(changes, destination, new InventorySlotChange(command.DestinationKind,
+                command.DestinationIndex, sourceItem, sourceCharges, 1));
+        }
+        else
+        {
+            AddChange(changes, source, new InventorySlotChange(command.SourceKind, command.SourceIndex,
+                displaced, displacedCharges, displacedQuantity));
+            AddChange(changes, destination, new InventorySlotChange(command.DestinationKind,
+                command.DestinationIndex, sourceItem, sourceCharges, sourceQuantity));
+        }
         if (changes.Any(entry => !entry.Key.CanApplyInventoryChanges(entry.Value.ToArray())))
             return Fail("A tárgyak nem helyezhetők el a megadott slotokban.", out plan, out error);
 

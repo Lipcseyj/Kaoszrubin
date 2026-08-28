@@ -466,8 +466,6 @@ public sealed class GameSession
             return Fail("Az inventory azóta megváltozott; friss snapshot szükséges.", out reason);
         if (requireItem && character.GetInventoryItem(kind, index) is null)
             return Fail("A kijelölt inventory-slot üres.", out reason);
-        if (!requireItem && character.GetInventoryItem(kind, index) is not null)
-            return Fail("A cél inventory-slot nem üres.", out reason);
         reason = string.Empty;
         return true;
     }

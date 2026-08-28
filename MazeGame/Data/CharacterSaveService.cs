@@ -148,7 +148,7 @@ public sealed class CharacterSaveService
             {
                 if (SpellcastingRules.IsSpellcastingFocusId(item.Id) || SpellcastingRules.IsLegacyStartingFocusId(item.Id)) continue;
                 character.ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.Backpack, index + backpackOffset,
-                    ResolveItem(item), item.Charges));
+                    ResolveItem(item), item.Charges, item.Quantity));
             }
         foreach (var perkId in saved.PerkIds)
         {
@@ -205,7 +205,9 @@ public sealed class CharacterSaveService
         MagicItemIds = character.MagicItems.Select(item => item?.Id).ToList(),
         MagicItemCharges = character.MagicItemCharges.ToList(),
         BackpackItems = character.Backpack.Select((item, index) => item is null ? null :
-            new ItemSaveData(item.GetType().Name, item.Id, Charges: character.GetInventoryItemCharges(InventorySlotKind.Backpack, index))).ToList(),
+            new ItemSaveData(item.GetType().Name, item.Id,
+                Charges: character.GetInventoryItemCharges(InventorySlotKind.Backpack, index),
+                Quantity: character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index))).ToList(),
         PerkIds = character.Perks.Select(perk => perk.Id).ToList(),
         AppliedPerkBonusIds = character.Perks.Select(perk => perk.Id).ToList(),
         StatusIds = character.Statuses.Select(status => status.Id).ToList(),
@@ -295,7 +297,8 @@ public sealed class CharacterSaveService
         public List<ActiveSpellEffect> ActiveSpellEffects { get; init; } = [];
     }
 
-    private sealed record ItemSaveData(string Type, string Id, string? Name = null, int? Charges = null);
+    private sealed record ItemSaveData(string Type, string Id, string? Name = null, int? Charges = null,
+        int Quantity = 1);
     private sealed record StatusSaveData(string Id, int? RemainingActivations);
     private sealed record WeaponProficiencySaveData(string FamilyId, int Rank);
 }

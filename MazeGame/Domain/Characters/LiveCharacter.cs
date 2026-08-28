@@ -13,6 +13,7 @@ public sealed class LiveCharacter
     private readonly int[] _magicItemCharges = new int[MaximumMagicItemCount];
     private readonly IItemDefinition?[] _backpack = new IItemDefinition?[MaximumBackpackItemCount];
     private readonly int[] _backpackItemCharges = new int[MaximumBackpackItemCount];
+    private readonly int[] _backpackItemQuantities = new int[MaximumBackpackItemCount];
     private readonly List<PerkDefinition> _perks = [];
     private readonly List<ClassFeatureUpgradeDefinition> _classFeatureUpgrades = [];
     private readonly List<WeaponProficiencyState> _weaponProficiencies = [];
@@ -164,7 +165,8 @@ public sealed class LiveCharacter
     public void RestoreKnightRetaliation(bool ready) => KnightRetaliationReady = ready;
     public int MemorizationCapacity => SpellcastingRules.MemorizationCapacity(this);
     public const int MaximumMagicItemCount = 3;
-    public const int MaximumBackpackItemCount = 10;
+    public const int MaximumBackpackItemCount = 12;
+    public const int MaximumBackpackStackSize = 9;
     public const int MaximumQuickSpellCount = 8;
 
     public void SetNpcBehavior(NpcBehavior? behavior) => NpcBehavior = behavior;
@@ -310,16 +312,38 @@ public sealed class LiveCharacter
 
     public bool AddToBackpack(IItemDefinition item)
     {
+        var charges = InitialCharges(item, null);
+        var stackIndex = Enumerable.Range(0, _backpack.Length).FirstOrDefault(index =>
+            _backpack[index] is { } existing &&
+            string.Equals(existing.Id, item.Id, StringComparison.OrdinalIgnoreCase) &&
+            _backpackItemCharges[index] == charges && _backpackItemQuantities[index] < MaximumBackpackStackSize,
+            -1);
+        if (stackIndex >= 0)
+        {
+            ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.Backpack, stackIndex, item, charges,
+                _backpackItemQuantities[stackIndex] + 1));
+            return true;
+        }
         var index = Array.FindIndex(_backpack, existing => existing is null);
         if (index < 0) return false;
         return SetInventoryItem(InventorySlotKind.Backpack, index, item);
+    }
+
+    public bool CanAddToBackpack(IItemDefinition item)
+    {
+        var charges = InitialCharges(item, null);
+        return _backpack.Any(existing => existing is null) || _backpack.Select((existing, index) => (existing, index))
+            .Any(entry => entry.existing is not null &&
+                string.Equals(entry.existing.Id, item.Id, StringComparison.OrdinalIgnoreCase) &&
+                _backpackItemCharges[entry.index] == charges &&
+                _backpackItemQuantities[entry.index] < MaximumBackpackStackSize);
     }
 
     public bool RemoveFromBackpack(string itemId)
     {
         var index = Array.FindIndex(_backpack, item => item is not null && string.Equals(item.Id, itemId, StringComparison.OrdinalIgnoreCase));
         if (index < 0) return false;
-        return SetInventoryItem(InventorySlotKind.Backpack, index, null);
+        return RemoveOneInventoryItem(InventorySlotKind.Backpack, index);
     }
 
     public IItemDefinition? GetInventoryItem(InventorySlotKind kind, int index) => kind switch
@@ -337,6 +361,22 @@ public sealed class LiveCharacter
         InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount => _backpackItemCharges[index],
         _ => 0
     };
+
+    public int GetInventoryItemQuantity(InventorySlotKind kind, int index) => kind switch
+    {
+        InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount =>
+            _backpack[index] is null ? 0 : Math.Max(1, _backpackItemQuantities[index]),
+        _ => GetInventoryItem(kind, index) is null ? 0 : 1
+    };
+
+    public bool RemoveOneInventoryItem(InventorySlotKind kind, int index)
+    {
+        var item = GetInventoryItem(kind, index);
+        if (item is null) return false;
+        var quantity = GetInventoryItemQuantity(kind, index);
+        return SetInventoryItem(kind, index, quantity > 1 ? item : null,
+            GetInventoryItemCharges(kind, index), quantity > 1 ? quantity - 1 : 0);
+    }
 
     public static bool CanPlaceInventoryItem(InventorySlotKind kind, IItemDefinition item) => kind switch
     {
@@ -356,6 +396,8 @@ public sealed class LiveCharacter
         {
             if (!IsValidSpellcastingFocusChange(change)) return false;
             if (change.Item is not null && !CanPlaceInventoryItem(change.Kind, change.Item)) return false;
+            if (change.Kind == InventorySlotKind.Backpack && change.Item is not null &&
+                change.Quantity is < 1 or > MaximumBackpackStackSize) return false;
             switch (change.Kind)
             {
                 case InventorySlotKind.Weapon when change.Index is >= 0 and < 2:
@@ -394,8 +436,11 @@ public sealed class LiveCharacter
     }
 
     public bool SetInventoryItem(InventorySlotKind kind, int index, IItemDefinition? item)
+        => SetInventoryItem(kind, index, item, null, item is null ? 0 : 1);
+
+    public bool SetInventoryItem(InventorySlotKind kind, int index, IItemDefinition? item, int? charges, int quantity)
     {
-        var change = new InventorySlotChange(kind, index, item);
+        var change = new InventorySlotChange(kind, index, item, charges, quantity);
         if (!CanApplyInventoryChanges(change)) return false;
         ApplyInventoryChangesUnchecked(change);
         InventoryRevision++;
@@ -411,7 +456,7 @@ public sealed class LiveCharacter
 
     private void ApplyInventoryChangesUnchecked(InventorySlotChange change)
     {
-        var (kind, index, item, _) = change;
+        var (kind, index, item, _, _) = change;
         switch (kind)
         {
             case InventorySlotKind.Weapon when index is >= 0 and < 2:
@@ -427,6 +472,8 @@ public sealed class LiveCharacter
             case InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount:
                 _backpack[index] = item;
                 _backpackItemCharges[index] = InitialCharges(item, change.Charges);
+                _backpackItemQuantities[index] = item is null ? 0 : Math.Clamp(change.Quantity ?? 1, 1,
+                    MaximumBackpackStackSize);
                 break;
         }
     }
@@ -686,7 +733,8 @@ public sealed class LiveCharacter
     }
 }
 
-public readonly record struct InventorySlotChange(InventorySlotKind Kind, int Index, IItemDefinition? Item, int? Charges = null);
+public readonly record struct InventorySlotChange(InventorySlotKind Kind, int Index, IItemDefinition? Item,
+    int? Charges = null, int? Quantity = null);
 
 public sealed record LevelUpBonus(int Level, int Vitality, int Mana);
 

@@ -955,7 +955,7 @@ public sealed class CoopGuestScreen
         for (var y = 0; y < mapHeight; y++)
             for (var x = 0; x < mapWidth; x++)
                 grid[x, y] = y < world.Height
-                    ? new GuestMapCell("█", ConsoleColor.DarkGray)
+                    ? new GuestMapCell("█", ConsoleColor.Black)
                     : new GuestMapCell(" ", ConsoleColor.Gray);
         foreach (var cell in world.RevealedCells)
             Put(grid, cell.Position, char.ConvertFromUtf32(cell.TileCodePoint), cell.ForegroundColor,

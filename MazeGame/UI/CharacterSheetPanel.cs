@@ -153,8 +153,8 @@ public static class CharacterSheetPanel
             lines.Add(new(23 + index, $"{index + 1}: {ItemName(magicItems[index].Item)}", ConsoleColor.Gray,
                 new InventorySlotAddress(InventorySlotKind.MagicItem, index)));
 
-        var backpack = Slots(inventory, InventorySlotKind.Backpack, 10);
-        lines.Add(new(26, $"HÁTIZSÁK {backpack.Count(slot => slot.Item is not null)}/10", ConsoleColor.DarkCyan));
+        var backpack = Slots(inventory, InventorySlotKind.Backpack, LiveCharacter.MaximumBackpackItemCount);
+        lines.Add(new(26, $"HÁTIZSÁK {backpack.Count(slot => slot.Item is not null)}/{LiveCharacter.MaximumBackpackItemCount}", ConsoleColor.DarkCyan));
         for (var index = 0; index < backpack.Count; index++)
             lines.Add(new(27 + index, $"{index + 1}: {ItemName(backpack[index].Item)}", ConsoleColor.Gray,
                 new InventorySlotAddress(InventorySlotKind.Backpack, index)));
@@ -166,7 +166,8 @@ public static class CharacterSheetPanel
 
     private static string ItemName(InventoryItemSnapshot? item) => item is null
         ? "üres"
-        : item.MaximumCharges > 0 ? $"{item.Name} ({item.Charges}/{item.MaximumCharges})" : item.Name;
+        : (item.MaximumCharges > 0 ? $"{item.Name} ({item.Charges}/{item.MaximumCharges})" : item.Name) +
+          (item.Quantity > 1 ? $" ×{item.Quantity}" : string.Empty);
 
     private static string ResourceIcons(string icon, int level) =>
         string.Concat(Enumerable.Repeat(icon, level / ResourceIconStep));

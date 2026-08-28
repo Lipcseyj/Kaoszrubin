@@ -1811,7 +1811,7 @@ public sealed class Game
         if (string.IsNullOrEmpty(result)) used = false;
         if (!used) { _renderer.DrawInventoryMessage("A tárgy hatására most nincs szükség vagy nem alkalmazható.", ConsoleColor.DarkYellow); return; }
 
-        character.SetInventoryItem(InventorySlotKind.Backpack, command.BackpackIndex, null);
+        character.RemoveOneInventoryItem(InventorySlotKind.Backpack, command.BackpackIndex);
         character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry), _gameData.GetStatus(CharacterStatusIds.Thirsty));
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         var message = $"{character.Name} használta: {item.Name} — {result}.";
@@ -1829,7 +1829,7 @@ public sealed class Game
         if (item is null || SpellcastingRules.IsSpellcastingFocus(item)) return;
         var charges = character.GetInventoryItemCharges(command.SlotKind, command.SlotIndex);
         var position = GetCharacterWorldPosition(character);
-        if (position is null || !character.SetInventoryItem(command.SlotKind, command.SlotIndex, null)) return;
+        if (position is null || !character.RemoveOneInventoryItem(command.SlotKind, command.SlotIndex)) return;
         _maze.DropItem(position.Value, item, charges);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
@@ -1845,12 +1845,19 @@ public sealed class Game
         if (character is null || pile is null || position != pile.Position ||
             character.InventoryRevision != command.ExpectedInventoryRevision ||
             pile.Revision != command.ExpectedGroundPileRevision || command.GroundItemIndex < 0 ||
-            command.GroundItemIndex >= pile.Entries.Count ||
-            character.GetInventoryItem(InventorySlotKind.Backpack, command.DestinationBackpackIndex) is not null)
+            command.GroundItemIndex >= pile.Entries.Count)
             return;
         var entry = pile.Entries[command.GroundItemIndex];
+        var destinationItem = character.GetInventoryItem(InventorySlotKind.Backpack,
+            command.DestinationBackpackIndex);
+        var destinationQuantity = character.GetInventoryItemQuantity(InventorySlotKind.Backpack,
+            command.DestinationBackpackIndex);
+        if (destinationItem is not null && (!string.Equals(destinationItem.Id, entry.Item.Id,
+                StringComparison.OrdinalIgnoreCase) ||
+            character.GetInventoryItemCharges(InventorySlotKind.Backpack, command.DestinationBackpackIndex) !=
+            entry.Charges || destinationQuantity >= LiveCharacter.MaximumBackpackStackSize)) return;
         var change = new InventorySlotChange(InventorySlotKind.Backpack, command.DestinationBackpackIndex,
-            entry.Item, entry.Charges);
+            entry.Item, entry.Charges, destinationQuantity + 1);
         if (!character.CanApplyInventoryChanges(change) ||
             !pile.TryTake(command.GroundItemIndex, command.ExpectedGroundPileRevision, out _)) return;
         character.ApplyInventoryChanges(change);

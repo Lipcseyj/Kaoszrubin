@@ -84,12 +84,12 @@ internal sealed class InnController
         if (expectedRevision != _revision) { message = "A készlet időközben megváltozott; válassz újra."; return false; }
         if (!_vendorStocks.TryGetValue(vendor, out var stock)) { message = "Ez a kereskedő most nincs jelen."; return false; }
         if (offerIndex < 0 || offerIndex >= stock.Count) { message = "Az ajánlat már nem érhető el."; return false; }
-        var backpackIndex = recipient.Backpack.ToList().FindIndex(item => item is null);
-        if (backpackIndex < 0) { message = $"{recipient.Name} hátizsákja tele van."; return false; }
         var offer = stock[offerIndex];
+        if (!recipient.CanAddToBackpack(offer.Item))
+        { message = $"{recipient.Name} hátizsákja tele van."; return false; }
         if (!_selectedCharacter.SpendGold(offer.Price))
         { message = $"Nincs elég közös arany: még {offer.Price - _selectedCharacter.Gold} hiányzik."; return false; }
-        recipient.SetInventoryItem(InventorySlotKind.Backpack, backpackIndex, offer.Item);
+        recipient.AddToBackpack(offer.Item);
         stock.RemoveAt(offerIndex);
         _revision++;
         message = $"Megvetted: {offer.Item.Name} ({offer.Price} arany).";
@@ -110,7 +110,7 @@ internal sealed class InnController
         { message = "A kijelölt hátizsákhely üres vagy érvénytelen."; return false; }
         if (!_buybackPrices.TryGetValue(item.Id, out var price))
         { message = "Ezt a tárgyat a kereskedő nem veszi meg."; return false; }
-        if (!seller.SetInventoryItem(InventorySlotKind.Backpack, backpackIndex, null))
+        if (!seller.RemoveOneInventoryItem(InventorySlotKind.Backpack, backpackIndex))
         { message = "Az eladás most nem hajtható végre."; return false; }
         _selectedCharacter.AddGold(price);
         _revision++;
@@ -348,7 +348,7 @@ internal sealed class InnController
                 if (stock.Count == 0) { selectedIndex = 0; continue; }
                 selectedIndex = Math.Clamp(selectedIndex, 0, stock.Count - 1);
                 var offer = stock[selectedIndex];
-                var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
+                var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
                 if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
                 if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; continue; }
                 recipient.AddToBackpack(offer.Item);
@@ -361,7 +361,7 @@ internal sealed class InnController
             else
             {
                 var offer = sellOffers[selectedIndex];
-                if (!offer.Owner.SetInventoryItem(InventorySlotKind.Backpack, offer.BackpackIndex, null))
+                if (!offer.Owner.RemoveOneInventoryItem(InventorySlotKind.Backpack, offer.BackpackIndex))
                 { message = "Az üzlet most nem hajtható végre."; continue; }
                 _selectedCharacter.AddGold(offer.Price);
                 _revision++;
@@ -432,7 +432,7 @@ internal sealed class InnController
             redraw = true;
 
             var offer = stock[selectedIndex];
-            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
+            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
             if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; continue; }
             recipient.AddToBackpack(offer.Item);
@@ -888,7 +888,7 @@ internal sealed class InnController
             if (stock.Count == 0) { selectedIndex = 0; continue; }
             selectedIndex = Math.Clamp(selectedIndex, 0, stock.Count - 1);
             var offer = stock[selectedIndex];
-            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
+            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
             if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; continue; }
             recipient.AddToBackpack(offer.Item);
@@ -1002,12 +1002,28 @@ internal sealed class InnController
             {
                 var wand = wands[selectedIndex];
                 var price = WandRechargePrice(wand.Item);
+                var quantity = wand.Character.GetInventoryItemQuantity(wand.Kind, wand.Index);
+                var splitIndex = quantity > 1 && wand.Kind == InventorySlotKind.Backpack
+                    ? wand.Character.Backpack.ToList().FindIndex(item => item is null)
+                    : -1;
+                if (quantity > 1 && splitIndex < 0)
+                {
+                    message = "🎒 A kötegből feltöltött pálcának külön üres hátizsákhely kell.";
+                    continue;
+                }
                 if (!_selectedCharacter.SpendGold(price))
                 {
                     message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {price - _selectedCharacter.Gold} hiányzik.";
                     continue;
                 }
-                wand.Character.ApplyInventoryChanges(new InventorySlotChange(wand.Kind, wand.Index, wand.Item, wand.Item.MaximumCharges));
+                if (quantity > 1)
+                    wand.Character.ApplyInventoryChanges(
+                        new InventorySlotChange(wand.Kind, wand.Index, wand.Item, 0, quantity - 1),
+                        new InventorySlotChange(InventorySlotKind.Backpack, splitIndex, wand.Item,
+                            wand.Item.MaximumCharges, 1));
+                else
+                    wand.Character.ApplyInventoryChanges(new InventorySlotChange(wand.Kind, wand.Index, wand.Item,
+                        wand.Item.MaximumCharges, 1));
                 message = $"✅ {wand.Character.Name} {wand.Item.Name} pálcája feltöltve: {wand.Item.MaximumCharges}/{wand.Item.MaximumCharges} töltet ({price} arany).";
             }
         }
@@ -1071,7 +1087,7 @@ internal sealed class InnController
             if (key != ConsoleKey.Enter || stock.Count == 0) continue;
             selectedIndex = Math.Clamp(selectedIndex, 0, stock.Count - 1);
             var offer = stock[selectedIndex];
-            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.Backpack.Any(item => item is null));
+            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; redraw = true; continue; }
             if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; redraw = true; continue; }
             recipient.AddToBackpack(offer.Item);

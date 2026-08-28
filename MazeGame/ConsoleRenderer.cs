@@ -124,7 +124,7 @@ public sealed class ConsoleRenderer
     private const int CharacterSheetBackpackStartLine = 27;
     private const int CharacterSheetPartyMembersStartLine = 41;
     private const int CharacterSheetMaximumMagicItems = 3;
-    private const int CharacterSheetBackpackSlots = 10;
+    private const int CharacterSheetBackpackSlots = 12;
     private const int CharacterSheetPartyMemberRows = 4;
     private const int CharacterSheetReservedMessageLine = 39;
     private const int CharacterSheetControlsLine = 40;
@@ -598,7 +598,8 @@ public sealed class ConsoleRenderer
             else
             {
                 var offer = sellOffers[index];
-                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {offer.Item.Name,-22} {offer.OwnerName,-13} ajánlat {offer.Price,5} {MoneyIcon}",
+                var itemName = offer.Item.Name + (offer.Item.Quantity > 1 ? $" ×{offer.Item.Quantity}" : string.Empty);
+                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {itemName,-22} {offer.OwnerName,-13} ajánlat {offer.Price,5} {MoneyIcon}",
                     selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
             }
         }
@@ -766,8 +767,10 @@ public sealed class ConsoleRenderer
         Console.Clear();
         var vendor = new InnVendorSnapshot(InnVendorKind.Market, "Kereskedő", stock.Select((offer, index) =>
             new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item), offer.Price)).ToArray());
-        var sales = sellOffers.Select(offer => (ToInventoryItemSnapshot(offer.Item), offer.Price,
-            offer.Owner.Name)).ToArray();
+        var sales = sellOffers.Select(offer => (ToInventoryItemSnapshot(offer.Item) with
+            {
+                Quantity = offer.Owner.GetInventoryItemQuantity(InventorySlotKind.Backpack, offer.BackpackIndex)
+            }, offer.Price, offer.Owner.Name)).ToArray();
         DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, mode, sales, selectedIndex,
             leader.Gold, freeBackpackSlots, message));
     }
@@ -1571,8 +1574,12 @@ public sealed class ConsoleRenderer
     private string InnStockLine(InnStockOffer offer, bool selected) =>
         $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} {MoneyIcon}";
 
-    private string InnSellLine(InnSellOffer offer, bool selected) =>
-        $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} {MoneyIcon}";
+    private string InnSellLine(InnSellOffer offer, bool selected)
+    {
+        var quantity = offer.Owner.GetInventoryItemQuantity(InventorySlotKind.Backpack, offer.BackpackIndex);
+        var itemName = offer.Item.Name + (quantity > 1 ? $" ×{quantity}" : string.Empty);
+        return $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {itemName,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} {MoneyIcon}";
+    }
 
     private static string InnRecruitLine(LiveCharacter candidate, int price, bool selected)
     {
@@ -2209,7 +2216,7 @@ public sealed class ConsoleRenderer
                 character.Color, ConsoleColor.Black);
         }
         if (!fogOfWar.IsVisible(position))
-            return new MapCellVisual(FogSymbol, ConsoleColor.DarkGray, ConsoleColor.Black);
+            return new MapCellVisual(FogSymbol, ConsoleColor.Black, ConsoleColor.Black);
         return new MapCellVisual(maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y],
             GetForegroundColor(maze, position), ConsoleColor.Black);
     }

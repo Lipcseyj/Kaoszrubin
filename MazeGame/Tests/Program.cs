@@ -72,6 +72,7 @@ var tests = new (string Name, Action Run)[]
     ("A kliens store teljes snapshotot és régi baseline-ról érkező deltát alkalmaz", ClientStoreAppliesReplicationFrames),
     ("Hiányzó delta-baseline esetén a kliens resyncet kér", ClientStoreRequestsResyncForMissingBaseline),
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
+    ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
     ("A kompakt party státusz HP-t és manát százalékosan mutat", CompactPartyStatusShowsResources),
     ("Az ablakkeret-katalógus méretezhető és konfigurálható", WindowFrameCatalogIsResizableAndConfigured),
@@ -1208,7 +1209,7 @@ static void InventorySnapshotHasSlotsAndRevision()
     var ration = new MiscItemDefinition("I-FOOD", "Útravaló", "Tesztélelem", 2, ConsumableEffect.Food, 10);
     Assert(character.AddToBackpack(ration), "A teszttárgy nem került a hátizsákba.");
     var first = InventorySnapshotProjector.Create(character);
-    Assert(first.Revision == 1 && first.Slots.Count == 16 &&
+    Assert(first.Revision == 1 && first.Slots.Count == 18 &&
            first.Slots.Single(slot => slot.Kind == InventorySlotKind.Backpack && slot.Index == 0)
                .Item?.DefinitionId == ration.Id,
         "Az inventory snapshot slotjai vagy revíziója hibás.");
@@ -1217,6 +1218,26 @@ static void InventorySnapshotHasSlotsAndRevision()
     Assert(second.Revision == first.Revision + 1 &&
            second.Slots.Single(slot => slot.Kind == InventorySlotKind.Backpack && slot.Index == 0).Item is null,
         "Az inventory mutáció nem növelte pontosan egyszer a revíziót.");
+}
+
+static void BackpackStacksIdenticalItemsUpToNine()
+{
+    var character = CreateCharacter("Kötegteszt");
+    var ration = new MiscItemDefinition("I-STACK", "Útravaló", "Tesztélelem", 2,
+        ConsumableEffect.Food, 10);
+    for (var count = 0; count < 10; count++)
+        Assert(character.AddToBackpack(ration), "Az azonos tárgy nem fért be a hátizsákba.");
+    Assert(character.Backpack.Count == 12 &&
+           character.GetInventoryItemQuantity(InventorySlotKind.Backpack, 0) == 9 &&
+           character.GetInventoryItemQuantity(InventorySlotKind.Backpack, 1) == 1,
+        "A hátizsák nem kilences kötegre és új slotra bontotta a tíz azonos tárgyat.");
+    Assert(character.RemoveOneInventoryItem(InventorySlotKind.Backpack, 0) &&
+           character.GetInventoryItemQuantity(InventorySlotKind.Backpack, 0) == 8,
+        "Egy tárgy elvétele nem pontosan eggyel csökkentette a köteget.");
+    var snapshot = InventorySnapshotProjector.Create(character);
+    Assert(snapshot.Slots.Single(slot => slot.Kind == InventorySlotKind.Backpack && slot.Index == 0)
+               .Item?.Quantity == 8,
+        "A coop inventory snapshot nem továbbította a köteg darabszámát.");
 }
 
 static void CharacterSheetLayoutIsShared()

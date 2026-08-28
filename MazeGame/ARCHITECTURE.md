@@ -372,7 +372,7 @@ Térképfókuszban három partiparancs írhatja felül a profilok mozgását:
 
 Minden társ ugyanazzal az ötmezős és falak/ajtók által takart látótérszámítással hívja a `FogOfWar.RevealFrom` műveletet. A társ induló környezete azonnal láthatóvá válik és minden sikeres NPC-lépés csak az újonnan felfedett valamint az elhagyott/elfoglalt térképcellákat rajzolja újra.
 
-A karakterlap a jobb panel legfelső sorában kezdődik, ezért nem hagy kihasználatlan üres sort a fejléc felett. A faj és osztály alatt a megszerzett tehetségek két sorban jelennek meg; a neveket a renderer a két sor között osztja el és szükség esetén soronként egyenletesen rövidíti. A tíz hátizsáksor alatt három sort tart fenn a társaknak. Minden sor a karakter saját színével mutatja az osztály kezdőbetűjét, a nevet, a szintet és az aktuális/maximális HP-t. A vezető nem ismétlődik meg ezekben a sorokban.
+A karakterlap a jobb panel legfelső sorában kezdődik, ezért nem hagy kihasználatlan üres sort a fejléc felett. A faj és osztály alatt a megszerzett tehetségek két sorban jelennek meg; a neveket a renderer a két sor között osztja el és szükség esetén soronként egyenletesen rövidíti. A tizenkét hátizsáksor alatt három sort tart fenn a társaknak. Minden sor a karakter saját színével mutatja az osztály kezdőbetűjét, a nevet, a szintet és az aktuális/maximális HP-t. A vezető nem ismétlődik meg ezekben a sorokban.
 
 A `Tab` vált a térkép- és karakterlapfókusz között. Karakterlapfókuszban a `KARAKTERLAP` cím zöld hátteret kap, a fel/le nyilak pedig minden felszereléshely, varázstárgyhely, hátizsákhely és partitárs között léptetik az aktív kijelölést; az üres helyek is célpontok. A kiválasztott sor DarkCyan hátteret kap, miközben megtartja saját előtérszínét; a renderer a logikai kategória és index alapján karakterenként külön megőrzi az utolsó kijelölést. Lépéskor csak a választható tárgy- és partisorok rajzolódnak újra, a teljes karakterlap és térkép nem.
 
@@ -382,7 +382,7 @@ Az `Esc` a térkép- és karakterlapfókuszból is megerősítést kér, mielőt
 
 Karakterlapfókuszban a bal/jobb nyíl körkörösen vált a parti tagjainak teljes karakterlapja és inventoryja között. A három rögzített társsor mindig ugyanazokat a társakat mutatja; az éppen megtekintett társ sora `▶` jelölést kap. A vezető lapjának megtekintésekor nincs nyíl a társsorokban. A megtekintett lap nem változtatja meg a térképen irányított vezetőt.
 
-Az inventory rögzített helyekből áll: két fegyverhely, egy páncélhely, három varázstárgyhely és tíz hátizsákhely. Minden `IItemDefinition` kategóriája fegyver, páncél, varázstárgy vagy általános tárgy. A felszereléshelyek csak a saját kategóriájukat fogadják el, a hátizsák bármelyiket. A `Space` kiemeli a kijelölt tárgyat, majd ugyanazon vagy másik partitag érvényes helyére teszi; foglalt cél esetén a két tárgy helyet cserél, ha a teljes csere után mindkét felszerelés érvényes. A fókusz elhagyása visszateszi a még kézben tartott tárgyat, így az nem veszhet el.
+Az inventory rögzített helyekből áll: két fegyverhely, egy páncélhely, három varázstárgyhely és tizenkét hátizsákhely. A hátizsák az azonos definíciójú és azonos töltetállapotú tárgyakat helyenként legfeljebb kilences kötegbe vonja össze. Használat, eladás, eldobás és kulcsfelhasználás egy darabot fogyaszt. Minden `IItemDefinition` kategóriája fegyver, páncél, varázstárgy vagy általános tárgy. A felszereléshelyek csak a saját kategóriájukat fogadják el, a hátizsák bármelyiket. A `Space` kiemeli a kijelölt tárgyat, majd ugyanazon vagy másik partitag érvényes helyére teszi; azonos kötegek összeolvadnak, kötegből felszerelésre egy darab kerül. Foglalt cél esetén a tárgyak helyet cserélnek, ha a teljes csere után mindkét felszerelés érvényes. A fókusz elhagyása visszateszi a még kézben tartott tárgyat, így az nem veszhet el.
 
 A fegyverek és páncélok ritkasága `Normal`, `Magic` vagy `Legendary`, a felületen Sima, Varázs és Legendás néven jelenik meg. A CSV-ben minden kézzel felvett felszerelés külön `Kategória`, opcionális `AlapId` és `MágikusErő` mezőt kap. A mágikus erő már adatként, menthető tárgydefiníció részeként rendelkezésre áll; a jelenlegi csatában a mágikus `+N` felszerelések megnövelt sebzés-/védelmi tartománya aktív, az általános mágikus-erő mechanika a későbbi varázsrendszer bővítési pontja.
 
@@ -414,7 +414,7 @@ A `SpellId` határozza meg a varázstárgyhoz kötött varázslatot. Ha használ
 Alapműködés
 Minden karakternek:
 - 3 felszerelt varázstárgyhelye van;
-- 10 hátizsákhelye van;
+- 12 hátizsákhelye van, helyenként legfeljebb 9 azonos tárggyal;
 - csak a felszerelt varázstárgyak fejtenek ki hatást;
 - a hátizsákban lévő varázstárgy passzív bónuszt sem ad, és onnan pálca vagy tekercs sem süthető el.
 A tárgyakat a karakterlapon, Space segítségével lehet mozgatni a hátizsák, a varázstárgyhelyek és a partitagok között. A kasztkorlátozást felszereléskor ellenőrzi a játék.
