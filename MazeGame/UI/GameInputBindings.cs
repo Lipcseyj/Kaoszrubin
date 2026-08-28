@@ -33,6 +33,7 @@ public static class GameInputBindings
         ConsoleKey.G => Application.LeaderAction.ToggleRegrouping,
         ConsoleKey.H => Application.LeaderAction.ToggleHoldPosition,
         ConsoleKey.M => Application.LeaderAction.ScatterParty,
+        ConsoleKey.T => Application.LeaderAction.ToggleAttackMode,
         ConsoleKey.P => Application.LeaderAction.Rest,
         ConsoleKey.Enter when canActivateExit => Application.LeaderAction.ActivateExit,
         _ => null

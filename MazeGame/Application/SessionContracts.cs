@@ -59,6 +59,7 @@ public enum LeaderAction
     ToggleRegrouping,
     ToggleHoldPosition,
     ScatterParty,
+    ToggleAttackMode,
     Rest,
     ActivateExit
 }

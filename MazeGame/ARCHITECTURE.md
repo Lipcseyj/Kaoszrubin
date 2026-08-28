@@ -978,3 +978,12 @@ a további kudarcok 50%-os elsülési kockázatot hordoznak. A közvetlen csapda
 az első négy pályán nagyjából 15%, később 25% max-HP korláttal működik. A csapdaállapot
 mentődik; rejtett csapda nem kerül a coop snapshotba, a felfedezett/elsült/hatástalanított cella viszont
 a szokásos world deltán át replikálódik.
+## Partiparancsok
+
+A leader felfedezés közben három, egymást kizáró tartós NPC-parancsot adhat: `H` Megállj,
+`G` Gyülekező és `T` Támadás. Egy mód bekapcsolása megszakítja a másik kettőt és az ideiglenes
+szétszóródást. A Megállj minden automatikus NPC-mozgást leállít; a Gyülekező a saját
+viselkedési profil és az ellenségkeresés elé helyezi a leader melletti felzárkózást, majd ott tartja a
+társakat; a Támadás ideiglenesen minden nem játékos által irányított társat agresszív profilként
+kezeli. Kikapcsoláskor az eredeti egyéni profiljuk visszaáll. A parancsállapot mentődik, a változások
+közös session-aktivitásként a coop klienseken is megjelennek.

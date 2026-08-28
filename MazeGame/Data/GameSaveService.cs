@@ -84,6 +84,7 @@ public sealed class GameSaveData
     public List<Position> LeaderTrail { get; set; } = [];
     public bool PartyHoldingPosition { get; set; }
     public bool PartyRegrouping { get; set; }
+    public bool PartyAttackMode { get; set; }
     public bool HasRestedThisLevel { get; set; }
     public int ScatterRemainingMilliseconds { get; set; }
     public int NeedsDrainRemainingMilliseconds { get; set; }

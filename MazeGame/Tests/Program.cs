@@ -288,6 +288,8 @@ static void HostAndGuestUseSharedInputBindings()
         "Az N/Z/K karakterakciók nincsenek a közös keymapben.");
     Assert(GameInputBindings.LeaderAction(ConsoleKey.P, false) == LeaderAction.Rest &&
            GameInputBindings.LeaderAction(ConsoleKey.G, false) == LeaderAction.ToggleRegrouping &&
+           GameInputBindings.LeaderAction(ConsoleKey.H, false) == LeaderAction.ToggleHoldPosition &&
+           GameInputBindings.LeaderAction(ConsoleKey.T, false) == LeaderAction.ToggleAttackMode &&
            GameInputBindings.LeaderAction(ConsoleKey.Enter, false) is null &&
            GameInputBindings.LeaderAction(ConsoleKey.Enter, true) == LeaderAction.ActivateExit,
         "A leader-only billentyűkiosztás hibás.");
@@ -1566,10 +1568,15 @@ static void ProtocolCodecRoundTripsCommand()
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(characterAction)) is CharacterActionCommand decodedAction &&
            decodedAction == characterAction,
         "A JSON wire codec megváltoztatta a karakterhez kötött akciót.");
-    var sale = new InnSaleCommand(PlayerId.New(), 9, CharacterId.New(), 4, 7, 2);
+    var attackOrder = new LeaderActionCommand(PlayerId.New(), 9, CharacterId.New(),
+        LeaderAction.ToggleAttackMode);
+    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(attackOrder)) is LeaderActionCommand decodedOrder &&
+           decodedOrder == attackOrder,
+        "A JSON wire codec megváltoztatta a Támadás leader-parancsot.");
+    var sale = new InnSaleCommand(PlayerId.New(), 10, CharacterId.New(), 4, 7, 2);
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(sale)) is InnSaleCommand decodedSale &&
            decodedSale == sale, "A JSON wire codec megváltoztatta a fogadói eladást.");
-    var helpVisibility = new SetHelpVisibilityCommand(PlayerId.New(), 10, CharacterId.New(), true);
+    var helpVisibility = new SetHelpVisibilityCommand(PlayerId.New(), 11, CharacterId.New(), true);
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(helpVisibility)) is SetHelpVisibilityCommand decodedHelp &&
            decodedHelp == helpVisibility, "A JSON wire codec megváltoztatta a súgó láthatósági parancsát.");
     var characterState = new CharacterStateSync(PlayerId.New(), CharacterId.New(), "character-json",

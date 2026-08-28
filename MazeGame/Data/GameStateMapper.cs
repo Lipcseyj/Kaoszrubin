@@ -21,7 +21,8 @@ internal sealed class GameStateMapper
 
     public GameSaveData Create(int mazeLevel, Maze maze, Player player, FogOfWar fogOfWar,
         Direction leaderFacing, IReadOnlyList<Position> leaderTrail, bool partyHoldingPosition,
-        bool partyRegrouping, bool hasRestedThisLevel, DateTime? partyScatterUntil, DateTime nextNeedsDrain,
+        bool partyRegrouping, bool partyAttackMode, bool hasRestedThisLevel, DateTime? partyScatterUntil,
+        DateTime nextNeedsDrain,
         IReadOnlyDictionary<Enemy, DateTime> nextEnemyMoves, IReadOnlyCollection<string> collectedBossKeyIds,
         IReadOnlyCollection<string> seenBossIds)
     {
@@ -67,6 +68,7 @@ internal sealed class GameStateMapper
             LeaderTrail = leaderTrail.ToList(),
             PartyHoldingPosition = partyHoldingPosition,
             PartyRegrouping = partyRegrouping,
+            PartyAttackMode = partyAttackMode,
             HasRestedThisLevel = hasRestedThisLevel,
             ScatterRemainingMilliseconds = partyScatterUntil is { } scatter
                 ? Math.Max(0, (int)(scatter - now).TotalMilliseconds) : 0,
@@ -157,6 +159,7 @@ internal sealed class GameStateMapper
             state.LeaderTrail.Count > 0 ? state.LeaderTrail.ToList() : [state.PlayerPosition],
             state.PartyHoldingPosition,
             state.PartyRegrouping,
+            state.PartyAttackMode,
             state.HasRestedThisLevel,
             state.ScatterRemainingMilliseconds > 0 ? now + TimeSpan.FromMilliseconds(state.ScatterRemainingMilliseconds) : null,
             now + TimeSpan.FromMilliseconds(Math.Max(0, state.NeedsDrainRemainingMilliseconds)),
@@ -178,5 +181,6 @@ internal sealed class GameStateMapper
 
 internal sealed record RestoredGameState(int MazeLevel, Maze Maze, Player Player, FogOfWar FogOfWar,
     Direction LeaderFacing, IReadOnlyList<Position> LeaderTrail, bool PartyHoldingPosition,
-    bool PartyRegrouping, bool HasRestedThisLevel, DateTime? PartyScatterUntil, DateTime NextNeedsDrain,
+    bool PartyRegrouping, bool PartyAttackMode, bool HasRestedThisLevel, DateTime? PartyScatterUntil,
+    DateTime NextNeedsDrain,
     IReadOnlyDictionary<Enemy, DateTime> NextEnemyMoves);

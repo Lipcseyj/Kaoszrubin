@@ -158,6 +158,7 @@ public sealed class Game
     private readonly List<Position> _leaderTrail = [];
     private bool _partyHoldingPosition;
     private bool _partyRegrouping;
+    private bool _partyAttackMode;
     private bool _saveAfterBattle;
     private bool _timeStopUsedThisBattle;
     private readonly HashSet<LiveCharacter> _turnUndeadUsedThisBattle = [];
@@ -1019,7 +1020,7 @@ public sealed class Game
     private GameSaveData CreateGameSaveData()
     {
         var state = _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
-            _leaderTrail, _partyHoldingPosition, _partyRegrouping, _hasRestedThisLevel, _partyScatterUntil,
+            _leaderTrail, _partyHoldingPosition, _partyRegrouping, _partyAttackMode, _hasRestedThisLevel, _partyScatterUntil,
             _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
         state.IsCoopGame = _activeCoopHost is not null;
         state.RemoteCharacterIds = _session.CharacterControls
@@ -1059,6 +1060,7 @@ public sealed class Game
         _leaderTrail.AddRange(restored.LeaderTrail);
         _partyHoldingPosition = restored.PartyHoldingPosition;
         _partyRegrouping = restored.PartyRegrouping;
+        _partyAttackMode = restored.PartyAttackMode;
         _hasRestedThisLevel = restored.HasRestedThisLevel;
         _partyScatterUntil = restored.PartyScatterUntil;
         _nextNeedsDrain = restored.NextNeedsDrain;
@@ -1537,6 +1539,9 @@ public sealed class Game
                 break;
             case LeaderAction.ScatterParty:
                 ScatterPartyTemporarily();
+                break;
+            case LeaderAction.ToggleAttackMode:
+                TogglePartyAttackMode();
                 break;
             case LeaderAction.Rest:
                 TryRestParty();
@@ -2347,17 +2352,19 @@ public sealed class Game
 
     private void TogglePartyHoldPosition()
     {
-        if (_partyRegrouping)
-        {
-            _renderer.DrawDeveloperMessage("Partiparancs: előbb kapcsold ki a szoros gyülekezőt Shift+H-val.");
-            return;
-        }
         _partyHoldingPosition = !_partyHoldingPosition;
+        if (_partyHoldingPosition)
+        {
+            _partyRegrouping = false;
+            _partyAttackMode = false;
+            _partyScatterUntil = null;
+        }
         if (!_partyHoldingPosition)
             foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
-        _renderer.DrawDeveloperMessage(_partyHoldingPosition
-            ? "Partiparancs: minden társ tartsa a helyét."
-            : "Partiparancs: a társak folytatják korábbi viselkedésüket.");
+        AnnouncePartyCommand(_partyHoldingPosition
+            ? "✋ MEGÁLLJ: minden NPC társ azonnal tartja a helyét; a Támadás és Gyülekező kikapcsolt."
+            : "✋ A Megállj parancs kikapcsolt; az NPC társak folytatják saját viselkedésüket.",
+            _partyHoldingPosition ? ConsoleColor.Yellow : ConsoleColor.Gray);
     }
 
     private void TogglePartyRegrouping()
@@ -2366,29 +2373,52 @@ public sealed class Game
         if (_partyRegrouping)
         {
             _partyHoldingPosition = false;
+            _partyAttackMode = false;
             _partyScatterUntil = null;
         }
         foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
-        _renderer.DrawDeveloperMessage(_partyRegrouping
-            ? "Partiparancs: szoros gyülekező; minden társ a vezér mellé zárkózik és ott marad."
-            : "Partiparancs: a szoros gyülekező véget ért; a társak folytatják korábbi viselkedésüket.");
+        AnnouncePartyCommand(_partyRegrouping
+            ? "🛡️ GYÜLEKEZŐ: minden NPC társ harc keresése nélkül a vezér mellé zárkózik és ott marad; a Támadás és Megállj kikapcsolt."
+            : "🛡️ A Gyülekező kikapcsolt; az NPC társak folytatják saját viselkedésüket.",
+            _partyRegrouping ? ConsoleColor.Cyan : ConsoleColor.Gray);
+    }
+
+    private void TogglePartyAttackMode()
+    {
+        _partyAttackMode = !_partyAttackMode;
+        if (_partyAttackMode)
+        {
+            _partyHoldingPosition = false;
+            _partyRegrouping = false;
+            _partyScatterUntil = null;
+        }
+        foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
+        AnnouncePartyCommand(_partyAttackMode
+            ? "⚔️ TÁMADÁS: minden NPC társ agresszívan keresi és támadja az ellenfeleket a parancs kikapcsolásáig."
+            : "⚔️ A Támadás kikapcsolt; az NPC társak visszatértek saját viselkedésükhöz.",
+            _partyAttackMode ? ConsoleColor.Red : ConsoleColor.Gray);
+    }
+
+    private void AnnouncePartyCommand(string message, ConsoleColor color)
+    {
+        _renderer.DrawDeveloperMessage(message);
+        RecordSessionActivity(SessionActivityKind.System, message, color);
     }
 
     private void ScatterPartyTemporarily()
     {
-        if (_partyRegrouping)
-        {
-            _renderer.DrawDeveloperMessage("Partiparancs: előbb kapcsold ki a szoros gyülekezőt Shift+H-val.");
-            return;
-        }
+        _partyHoldingPosition = false;
+        _partyRegrouping = false;
+        _partyAttackMode = false;
         _partyScatterUntil = DateTime.UtcNow + TimeSpan.FromSeconds(10);
         foreach (var member in _maze.PartyMembers)
             _nextPartyMoves[member] = DateTime.UtcNow + TimeSpan.FromMilliseconds(_random.Next(0, 100));
-        _renderer.DrawDeveloperMessage("Partiparancs: szétszóródás 10 másodpercig; a társak 10 mező távolságra húzódnak.");
+        AnnouncePartyCommand("Partiparancs: szétszóródás 10 másodpercig; a Támadás, Gyülekező és Megállj kikapcsolt.", ConsoleColor.Magenta);
     }
 
     private void MovePartyMemberTowardLeader(PartyMemberAvatar member)
     {
+        if (Manhattan(member.Position, _player.Position) <= 1) return;
         var next = FindNextStep(member, FreeNeighborsOf(_player.Position))
                    ?? FollowLeaderTrail(member, minimumLag: 1);
         if (next is null) return;
@@ -2423,7 +2453,7 @@ public sealed class Game
         TriggerTrapAt(member.Character, member.Position);
     }
 
-    private static bool CanActivelyAttack(PartyMemberAvatar member) =>
+    private bool CanActivelyAttack(PartyMemberAvatar member) => _partyAttackMode ||
         member.Character.NpcBehavior is NpcBehavior.Defensive or NpcBehavior.Aggressive;
 
     private bool TryResolveAdjacentNpcBattle(PartyMemberAvatar member)
@@ -2517,7 +2547,8 @@ public sealed class Game
 
     private Position? ChoosePartyMemberStep(PartyMemberAvatar member)
     {
-        var behavior = member.Character.NpcBehavior ?? NpcBehavior.Defensive;
+        var behavior = _partyAttackMode ? NpcBehavior.Aggressive :
+            member.Character.NpcBehavior ?? NpcBehavior.Defensive;
         var visibleEnemy = _maze.Enemies
             .Where(enemy => FogOfWar.CanSee(_maze, member.Position, enemy.Position, VisionRange))
             .OrderBy(enemy => Manhattan(member.Position, enemy.Position))
