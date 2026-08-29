@@ -2225,12 +2225,23 @@ public sealed class Game
                 if (enemy.CurrentHitPoints <= 0) continue;
             }
             if (spellTick.SkipAction) continue;
-            if (enemy.PursuitState == EnemyPursuitState.Undecided &&
-                FogOfWar.CanSee(_maze, enemy.Position, _player.Position, VisionRange))
-                ResolveEnemyPursuit(enemy);
+            var pursuitTarget = FindEnemyPursuitTarget(enemy);
+            if (enemy.PursuitState == EnemyPursuitState.Pursuing &&
+                enemy.PursuitTargetCharacterId is null && pursuitTarget is not null)
+                enemy.ResolvePursuit(true, pursuitTarget.Value.Character.Id);
+            if (enemy.PursuitState == EnemyPursuitState.Pursuing && pursuitTarget is null)
+            {
+                enemy.ResetPursuit();
+                pursuitTarget = FindEnemyPursuitTarget(enemy);
+            }
+            if (enemy.PursuitState == EnemyPursuitState.Undecided && pursuitTarget is not null)
+            {
+                ResolveEnemyPursuit(enemy, pursuitTarget.Value.Character.Id);
+                pursuitTarget = FindEnemyPursuitTarget(enemy);
+            }
 
-            Direction? direction = enemy.PursuitState == EnemyPursuitState.Pursuing
-                ? FindEnemyStepToward(enemy, _player.Position)
+            Direction? direction = enemy.PursuitState == EnemyPursuitState.Pursuing && pursuitTarget is not null
+                ? FindEnemyStepToward(enemy, pursuitTarget.Value.Position)
                 : enemy.MovementProfile switch
                 {
                     EnemyMovementProfile.Stationary => null,
@@ -2251,7 +2262,21 @@ public sealed class Game
         }
     }
 
-    private void ResolveEnemyPursuit(Enemy observer)
+    private (LiveCharacter Character, Position Position)? FindEnemyPursuitTarget(Enemy enemy)
+    {
+        var livingParty = LivingPartyWithPositions().ToArray();
+        if (enemy.PursuitTargetCharacterId is { } targetId)
+        {
+            foreach (var candidate in livingParty)
+                if (candidate.Character.Id == targetId) return candidate;
+            return null;
+        }
+
+        return EnemyTargeting.ChooseNearestVisible(enemy.Position, livingParty,
+            position => FogOfWar.CanSee(_maze, enemy.Position, position, VisionRange), _random);
+    }
+
+    private void ResolveEnemyPursuit(Enemy observer, CharacterId targetCharacterId)
     {
         var pursue = _random.Next(100) < 60;
         var group = observer.GroupId is null
@@ -2259,7 +2284,7 @@ public sealed class Game
             : _maze.Enemies.Where(enemy => string.Equals(enemy.GroupId, observer.GroupId,
                 StringComparison.Ordinal)).ToList();
         foreach (var enemy in group.Where(enemy => enemy.PursuitState == EnemyPursuitState.Undecided))
-            enemy.ResolvePursuit(pursue);
+            enemy.ResolvePursuit(pursue, targetCharacterId);
     }
 
     private void InitializeEnemyMoveSchedule(DateTime from)

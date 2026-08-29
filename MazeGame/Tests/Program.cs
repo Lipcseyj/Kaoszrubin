@@ -70,6 +70,7 @@ var tests = new (string Name, Action Run)[]
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
     ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
     ("A csapdakészlet és darabszám a labirintusszinttel nehezedik", TrapConfigurationScalesByMazeLevel),
+    ("Az ellenség a legközelebbi látható csapattagot célozza", EnemyTargetsNearestVisiblePartyMember),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
     ("A world delta minden lényeges változást leír", WorldDeltaCapturesChanges),
     ("Eltérő pályák között nem készülhet delta", WorldDeltaRejectsDifferentWorld),
@@ -844,12 +845,12 @@ static void TrapConfigurationScalesByMazeLevel()
     var first = MazeLevelConfigurations.Get(1);
     var middle = MazeLevelConfigurations.Get(10);
     var final = MazeLevelConfigurations.Get(MazeLevelConfigurations.FinalLevel);
-    Assert(first.TrapCount == new IntRange(1, 2) && first.TrapIds.SequenceEqual(["TR001"]),
+    Assert(first.TrapCount == new IntRange(2, 5) && first.TrapIds.SequenceEqual(["TR001"]),
         "Az első szint csapdakonfigurációja nem kezdőbarát.");
-    Assert(middle.TrapCount == new IntRange(3, 5) && middle.TrapIds.Contains("TR005") &&
+    Assert(middle.TrapCount == new IntRange(3, 6) && middle.TrapIds.Contains("TR005") &&
            !middle.TrapIds.Contains("TR006"),
         "A középső szintek csapdakonfigurációja nem megfelelően nehezedik.");
-    Assert(final.TrapCount == new IntRange(4, 6) && final.TrapIds.Contains("TR007") &&
+    Assert(final.TrapCount == new IntRange(4, 8) && final.TrapIds.Contains("TR007") &&
            !final.TrapIds.Contains("TR001"),
         "A végső szintek nem a legnehezebb csapdakészletet használják.");
 }
@@ -877,6 +878,28 @@ static void TrapVisibilityFollowsDiscoveryState()
     var disarmed = WorldSnapshotProjector.Create(maze, fog).RevealedCells.Single(cell => cell.Position == position);
     Assert(disarmed.TileCodePoint == new Rune('·').Value && disarmed.ForegroundColor == ConsoleColor.DarkGray,
         "A hatástalanított csapda állapota nem replikálódott.");
+}
+
+static void EnemyTargetsNearestVisiblePartyMember()
+{
+    var host = CreateCharacter("Host");
+    var guest = CreateCharacter("Vendég");
+    var npc = CreateCharacter("NPC");
+    var candidates = new[]
+    {
+        (host, new Position(8, 8)),
+        (guest, new Position(3, 2)),
+        (npc, new Position(4, 2))
+    };
+    var target = EnemyTargeting.ChooseNearestVisible(new Position(2, 2), candidates,
+        position => position != new Position(3, 2), new Random(1));
+    Assert(target?.Character == npc,
+        "Az ellenség nem a legközelebbi látható NPC-/vendégpozíciót választotta a host helyett.");
+
+    target = EnemyTargeting.ChooseNearestVisible(new Position(2, 2), candidates,
+        _ => true, new Random(1));
+    Assert(target?.Character == guest,
+        "Az ellenség figyelmen kívül hagyta a hostnál közelebbi vendégkaraktert.");
 }
 
 static void FighterTacticHitChancesUseCombatFormula()

@@ -1,4 +1,5 @@
 using System.Text;
+using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Magic;
 
@@ -16,6 +17,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public EnemyMovementProfile MovementProfile { get; private set; } = EnemyMovementProfile.Wander;
     public Direction PatrolDirection { get; private set; } = Direction.Right;
     public EnemyPursuitState PursuitState { get; private set; } = EnemyPursuitState.Undecided;
+    public CharacterId? PursuitTargetCharacterId { get; private set; }
     public string? GroupId { get; private set; }
     public EnemyGroupRole GroupRole { get; private set; } = EnemyGroupRole.Member;
     private readonly List<ActiveSpellEffect> _activeSpellEffects = [];
@@ -73,11 +75,13 @@ public abstract class Enemy(Position position) : WorldObject(position)
         _ => "✨ Varázshatás"
     };
     public void ConfigureMovement(EnemyMovementProfile profile, Direction patrolDirection,
-        EnemyPursuitState pursuitState = EnemyPursuitState.Undecided)
+        EnemyPursuitState pursuitState = EnemyPursuitState.Undecided,
+        CharacterId? pursuitTargetCharacterId = null)
     {
         MovementProfile = profile;
         PatrolDirection = patrolDirection;
         PursuitState = pursuitState;
+        PursuitTargetCharacterId = pursuitTargetCharacterId;
     }
     public void ReversePatrolDirection() => PatrolDirection = PatrolDirection switch
     {
@@ -87,9 +91,17 @@ public abstract class Enemy(Position position) : WorldObject(position)
         Direction.Right => Direction.Left,
         _ => Direction.Right
     };
-    public void ResolvePursuit(bool pursue) => PursuitState = pursue
-        ? EnemyPursuitState.Pursuing
-        : EnemyPursuitState.Declined;
+    public void ResolvePursuit(bool pursue, CharacterId? targetCharacterId = null)
+    {
+        PursuitState = pursue ? EnemyPursuitState.Pursuing : EnemyPursuitState.Declined;
+        PursuitTargetCharacterId = pursue ? targetCharacterId : null;
+    }
+
+    public void ResetPursuit()
+    {
+        PursuitState = EnemyPursuitState.Undecided;
+        PursuitTargetCharacterId = null;
+    }
     public void ConfigureGroup(string? groupId, EnemyGroupRole role = EnemyGroupRole.Member)
     {
         GroupId = string.IsNullOrWhiteSpace(groupId) ? null : groupId;

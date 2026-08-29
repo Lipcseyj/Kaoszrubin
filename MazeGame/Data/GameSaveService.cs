@@ -128,7 +128,8 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     int NextMoveRemainingMilliseconds = -1,
     string? GroupId = null,
     EnemyGroupRole GroupRole = EnemyGroupRole.Member,
-    List<ActiveSpellEffect>? ActiveSpellEffects = null);
+    List<ActiveSpellEffect>? ActiveSpellEffects = null,
+    CharacterId? PursuitTargetCharacterId = null);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex);
