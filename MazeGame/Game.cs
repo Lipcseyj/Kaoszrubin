@@ -4560,7 +4560,10 @@ public sealed class Game
         {
             var choices = offer.Choices.Select(perk => new LevelUpChoiceSnapshot(perk.Id, perk.Name, perk.Description)).ToArray();
             var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.PerkChoice, choices,
-                $"{offer.Tier}. tehetségfokozat — a nem választott tehetség végleg elveszik.");
+                $"{offer.Tier}. tehetségfokozat — a nem választott tehetség végleg elveszik.",
+                [new($"{character.Name} — {character.CharacterClass.Name} — {offer.Tier}. fokozat", ConsoleColor.Cyan),
+                 new($"A tehetség a {offer.TriggerLevel}. szint elérésekor vált elérhetővé.", ConsoleColor.DarkCyan),
+                 new("A nem választott tehetség végleg elveszik ennél a karakternél.", ConsoleColor.Red)]);
             var perk = offer.Choices.FirstOrDefault(candidate => candidate.Id == selectedId) ?? offer.Choices[0];
             if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
             if (offer.Tier == 1) ResolveRemoteSpecialization(character, result);
@@ -4590,7 +4593,9 @@ public sealed class Game
         if (choices.Count == 0) return;
         var projected = choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray();
         var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.SpecializationChoice,
-            projected, "Válassz végleges papi vagy mágusi specializációt.");
+            projected, "Válassz végleges papi vagy mágusi specializációt.",
+            [new($"{character.Name} — {character.CharacterClass.Name}", ConsoleColor.Cyan),
+             new("Ez a választás végleges.", ConsoleColor.Red)]);
         character.ChooseSpecialization(choices.FirstOrDefault(choice => choice.Id == selectedId)?.Id ?? choices[0].Id);
     }
 
@@ -4627,7 +4632,9 @@ public sealed class Game
             var projected = choices.Select(choice =>
                 new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray();
             var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.ClassFeatureChoice,
-                projected, $"{milestone}. szint — válassz végleges osztályképesség-fejlesztést.");
+                projected, $"{milestone}. szint — válassz végleges osztályképesség-fejlesztést.",
+                [new($"{character.Name} — {character.CharacterClass.Name} — {milestone}. szint", ConsoleColor.Cyan),
+                 new("A választás végleges; a 20. szinten egy másik fejlesztés választható.", ConsoleColor.Red)]);
             character.ChooseClassFeatureUpgrade(choices.FirstOrDefault(choice => choice.Id == selectedId)?.Id ?? choices[0].Id);
         }
     }
@@ -4674,7 +4681,9 @@ public sealed class Game
             var projected = choices.Select(choice =>
                 new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray();
             var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.AbilityChoice,
-                projected, $"{milestone}. szint — növelj meg egy képességet 1 ponttal (maximum 13).");
+                projected, $"{milestone}. szint — növelj meg egy képességet 1 ponttal (maximum 13).",
+                [new($"{character.Name} — {milestone}. szint", ConsoleColor.Cyan),
+                 new("Növelj meg egy képességet 1 ponttal! Maximum: 13.", ConsoleColor.Green)]);
             ApplyAbilityIncrease(character,
                 choices.FirstOrDefault(choice => choice.Id == selectedId).Id ?? choices[0].Id);
         }
@@ -4740,7 +4749,9 @@ public sealed class Game
             var projected = choices.Select(choice =>
                 new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray();
             var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.WeaponProficiencyChoice,
-                projected, $"{milestone}. szint — válassz fegyverjártassági fejlesztést.");
+                projected, $"{milestone}. szint — válassz fegyverjártassági fejlesztést.",
+                [new($"{character.Name} — {(milestone == 1 ? "karakteralkotás" : $"{milestone}. szint")}", ConsoleColor.Cyan),
+                 new("Legfeljebb két fegyvercsalád tanulható; egy család Jártas, majd Mester lehet.", ConsoleColor.Green)]);
             character.TryAdvanceWeaponProficiency(
                 choices.FirstOrDefault(choice => choice.Id == selectedId).Id ?? choices[0].Id);
         }
@@ -4774,13 +4785,14 @@ public sealed class Game
     }
 
     private string? WaitForRemoteLevelUpChoice(LiveCharacter character, LevelUpResult result,
-        LevelUpPromptKind kind, IReadOnlyList<LevelUpChoiceSnapshot> choices, string message)
+        LevelUpPromptKind kind, IReadOnlyList<LevelUpChoiceSnapshot> choices, string message,
+        IReadOnlyList<LevelUpTextLineSnapshot>? contextLines = null)
     {
         var previousPhase = _session.Phase;
         _activeLevelUpPrompt = new LevelUpPromptSnapshot(Guid.NewGuid(), character.Id, character.Name, kind,
             result.PreviousLevel, result.CurrentLevel, result.VitalityGained, result.ManaGained, choices, message,
             result.Bonuses.Select(bonus =>
-                new LevelUpBonusSnapshot(bonus.Level, bonus.Vitality, bonus.Mana)).ToArray());
+                new LevelUpBonusSnapshot(bonus.Level, bonus.Vitality, bonus.Mana)).ToArray(), contextLines);
         _levelUpResponse = null;
         _levelUpPromptCompleted = false;
         _session.SetPhase(GameSessionPhase.Paused);

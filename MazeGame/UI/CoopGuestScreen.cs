@@ -1353,20 +1353,17 @@ public sealed class CoopGuestScreen
                 prompt.Bonuses ?? [], prompt.VitalityGained, prompt.ManaGained, details?.UsesMana == true,
                 own.CurrentVitality, own.MaximumVitality, own.CurrentMana, own.MaximumMana, prompt.Message).ToList();
         }
+        else if (LevelUpWindow.UsesSwordFrame(prompt.Kind))
+        {
+            _levelUpSelection = Math.Clamp(_levelUpSelection, 0, Math.Max(0, prompt.Choices.Count - 1));
+            lines = LevelUpWindow.BuildChoice(prompt.Kind, prompt.ContextLines ?? [], prompt.Choices,
+                _levelUpSelection).ToList();
+        }
         else
         {
             lines = new List<(string Text, ConsoleColor Color)>
             {
-                (prompt.Kind switch
-                {
-                    LevelUpPromptKind.PerkChoice => "🌟⚔️🌟  TEHETSÉGVÁLASZTÁS  🌟⚔️🌟",
-                    LevelUpPromptKind.SpecializationChoice => "✨  SPECIALIZÁCIÓ  ✨",
-                    LevelUpPromptKind.ClassFeatureChoice => "🌟  OSZTÁLYKÉPESSÉG FEJLESZTÉSE  🌟",
-                    LevelUpPromptKind.AbilityChoice => "💪🏹❤️🧠  KÉPESSÉGPONT  💪🏹❤️🧠",
-                    LevelUpPromptKind.WeaponProficiencyChoice => "⚔️  FEGYVERJÁRTASSÁG  ⚔️",
-                    LevelUpPromptKind.SpellChoice => "📖  ÚJ VARÁZSLAT TANULÁSA",
-                    _ => throw new ArgumentOutOfRangeException()
-                }, ConsoleColor.Magenta),
+                ("📖  ÚJ VARÁZSLAT TANULÁSA", ConsoleColor.Magenta),
                 (string.Empty, ConsoleColor.Gray),
                 ($"{prompt.CharacterName}: {prompt.PreviousLevel}. szint → {prompt.CurrentLevel}. szint", ConsoleColor.Cyan),
                 (prompt.Message, ConsoleColor.DarkCyan),
@@ -1383,33 +1380,49 @@ public sealed class CoopGuestScreen
             }
             lines.Add(("Nyilak: választás   Enter: véglegesítés", ConsoleColor.Green));
         }
-        DrawGuestOverlay(grid, lines, ConsoleColor.Yellow,
-            prompt.Kind == LevelUpPromptKind.Summary ? LevelUpWindow.Width : 76, FramedWindow.LevelUp);
+        var framedWindow = prompt.Kind == LevelUpPromptKind.Summary
+            ? FramedWindow.LevelUp
+            : LevelUpWindow.UsesSwordFrame(prompt.Kind) ? FramedWindow.LevelUpChoice : (FramedWindow?)null;
+        var width = prompt.Kind == LevelUpPromptKind.Summary
+            ? LevelUpWindow.Width
+            : LevelUpWindow.UsesSwordFrame(prompt.Kind) ? LevelUpWindow.ChoiceWidth(prompt.Kind) : 76;
+        DrawGuestOverlay(grid, lines, ConsoleColor.Yellow, width, framedWindow);
     }
 
     private static void DrawGuestOverlay(GuestMapCell[,] grid, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
         ConsoleColor borderColor, int desiredWidth, FramedWindow? framedWindow = null)
     {
         var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
-        var maximumRows = Math.Max(1, grid.GetLength(1) - 2);
-        var visible = lines.Take(maximumRows).ToArray();
-        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
-        var top = Math.Max(0, (grid.GetLength(1) - visible.Length - 2) / 2);
         var style = framedWindow is { } window
             ? WindowFrameConfiguration.For(window)
             : WindowFrameStyle.Double;
-        DrawOverlayText(grid, left, top, WindowFrameCatalog.Horizontal(style, width), borderColor);
+        var topAdornment = WindowFrameCatalog.Adornment(style, width);
+        var bottomAdornment = WindowFrameCatalog.Adornment(style, width, bottom: true);
+        var adornmentRows = topAdornment is null ? 0 : 2;
+        var contentPadding = WindowFrameCatalog.ContentPadding(style);
+        var contentWidth = Math.Max(0, width - contentPadding * 2);
+        var maximumRows = Math.Max(1, grid.GetLength(1) - 2 - adornmentRows);
+        var visible = lines.Take(maximumRows).ToArray();
+        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
+        var top = Math.Max(0, (grid.GetLength(1) - visible.Length - 2 - adornmentRows) / 2);
+        var frameTop = topAdornment is null ? top : top + 1;
+        if (topAdornment is not null) DrawOverlayText(grid, left, top, topAdornment, borderColor);
+        DrawOverlayText(grid, left, frameTop, WindowFrameCatalog.Horizontal(style, width), borderColor);
         for (var row = 0; row < visible.Length; row++)
         {
             var sides = WindowFrameCatalog.Sides(style, row, visible.Length);
-            var value = visible[row].Text.Length > width - 4 ? visible[row].Text[..(width - 4)] : visible[row].Text;
-            DrawOverlayText(grid, left, top + row + 1,
+            var value = visible[row].Text.Length > contentWidth ? visible[row].Text[..contentWidth] : visible[row].Text;
+            DrawOverlayText(grid, left, frameTop + row + 1,
                 sides.Left + new string(' ', width - sides.Left.Length - sides.Right.Length) + sides.Right,
                 borderColor);
-            DrawOverlayText(grid, left + 2, top + row + 1, value.PadRight(width - 4), visible[row].Color);
+            DrawOverlayText(grid, left + contentPadding, frameTop + row + 1,
+                value.PadRight(contentWidth), visible[row].Color);
         }
-        DrawOverlayText(grid, left, top + visible.Length + 1,
+        var frameBottom = frameTop + visible.Length + 1;
+        DrawOverlayText(grid, left, frameBottom,
             WindowFrameCatalog.Horizontal(style, width, bottom: true), borderColor);
+        if (bottomAdornment is not null)
+            DrawOverlayText(grid, left, frameBottom + 1, bottomAdornment, borderColor);
     }
 
     private void ApplyBattleSpellUi(GuestMapCell[,] grid, SessionSnapshot snapshot,

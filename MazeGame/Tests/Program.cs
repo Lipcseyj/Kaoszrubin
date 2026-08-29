@@ -1883,12 +1883,18 @@ static void WindowFrameCatalogIsResizableAndConfigured()
            WindowFrameCatalog.Sides(WindowFrameStyle.Scroll2, 0, 3) == new WindowFrameRow(" )", "( ") &&
            WindowFrameCatalog.Sides(WindowFrameStyle.Scroll2, 1, 3) == new WindowFrameRow("( ", " )"),
         "A scroll2 keretsablon nem az előírt váltakozó tekercsformát adja.");
+    Assert(WindowFrameCatalog.Adornment(WindowFrameStyle.Sword, 12) == "   ▲    ▲   " &&
+           WindowFrameCatalog.Horizontal(WindowFrameStyle.Sword, 12) == "═══╪════╪═══" &&
+           WindowFrameCatalog.Sides(WindowFrameStyle.Sword, 0, 3) == new WindowFrameRow("   │", "│   ") &&
+           WindowFrameCatalog.Adornment(WindowFrameStyle.Sword, 12, bottom: true) == "   ▼    ▼   ",
+        "A sword keretsablon kardjai és függőleges élei nem igazodnak egymáshoz.");
     Assert(WindowFrameConfiguration.For(FramedWindow.MainMenu) == WindowFrameStyle.Ruby &&
            WindowFrameConfiguration.For(FramedWindow.Help) == WindowFrameStyle.Ruby &&
            WindowFrameConfiguration.For(FramedWindow.SpellSelector) == WindowFrameStyle.Magic &&
            WindowFrameConfiguration.For(FramedWindow.CreaturePortrait) == WindowFrameStyle.Stone &&
            WindowFrameConfiguration.For(FramedWindow.Storyline) == WindowFrameStyle.Stone &&
-           WindowFrameConfiguration.For(FramedWindow.LevelUp) == WindowFrameStyle.Scroll2,
+           WindowFrameConfiguration.For(FramedWindow.LevelUp) == WindowFrameStyle.Scroll2 &&
+           WindowFrameConfiguration.For(FramedWindow.LevelUpChoice) == WindowFrameStyle.Sword,
         "Az első körös ablak–keret alapbeállítások hibásak.");
 }
 

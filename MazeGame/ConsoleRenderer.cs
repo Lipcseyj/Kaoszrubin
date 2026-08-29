@@ -70,7 +70,6 @@ public sealed class ConsoleRenderer
     private const int SpellPreparationFrameWidth = 92;
     private const int SpellCastingOverlayFrameWidth = 76;
     private const int MaximumVisibleSpellCount = 12;
-    private const int PerkChoiceFrameWidth = 112;
     private const int RightSheetX = 172;
     private const int RightSheetWidth = 27;
     private const int RightSheetBattleHintLine = 42;
@@ -1074,24 +1073,13 @@ public sealed class ConsoleRenderer
         {
             ResetColorCache();
             Console.Clear();
-            var lines = new List<(string Text, ConsoleColor Color)>
-            {
-                ("✨  SPECIALIZÁCIÓ  ✨", ConsoleColor.Yellow),
-                (string.Empty, ConsoleColor.Gray),
-                ($"{character.Name} — {character.CharacterClass.Name}", ConsoleColor.Cyan),
-                ("Ez a választás végleges.", ConsoleColor.Red),
-                (string.Empty, ConsoleColor.Gray)
-            };
-            foreach (var (choice, index) in choices.Select((choice, index) => (choice, index)))
-            {
-                lines.Add(($"{(index == selectedIndex ? "▶" : " ")} {choice.Name}",
-                    index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray));
-                lines.Add(($"    {choice.Description}",
-                    index == selectedIndex ? ConsoleColor.White : ConsoleColor.DarkGray));
-                lines.Add((string.Empty, ConsoleColor.Gray));
-            }
-            lines.Add(("Nyilak: választás   Enter: véglegesítés", ConsoleColor.Green));
-            DrawCenteredFrame(76, lines);
+            var lines = LevelUpWindow.BuildChoice(LevelUpPromptKind.SpecializationChoice,
+                [new($"{character.Name} — {character.CharacterClass.Name}", ConsoleColor.Cyan),
+                 new("Ez a választás végleges.", ConsoleColor.Red)],
+                choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray(),
+                selectedIndex);
+            DrawCenteredFrame(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.SpecializationChoice), lines,
+                FramedWindow.LevelUpChoice);
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow:
@@ -1117,24 +1105,13 @@ public sealed class ConsoleRenderer
         {
             ResetColorCache();
             Console.Clear();
-            var lines = new List<(string Text, ConsoleColor Color)>
-            {
-                ("🌟  OSZTÁLYKÉPESSÉG FEJLESZTÉSE  🌟", ConsoleColor.Yellow),
-                (string.Empty, ConsoleColor.Gray),
-                ($"{character.Name} — {character.CharacterClass.Name} — {milestone}. szint", ConsoleColor.Cyan),
-                ("A választás végleges; a 20. szinten egy másik fejlesztés választható.", ConsoleColor.Red),
-                (string.Empty, ConsoleColor.Gray)
-            };
-            foreach (var (choice, index) in choices.Select((choice, index) => (choice, index)))
-            {
-                lines.Add(($"{(index == selectedIndex ? "▶" : " ")} {choice.Name}",
-                    index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray));
-                lines.Add(($"    {choice.Description}",
-                    index == selectedIndex ? ConsoleColor.White : ConsoleColor.DarkGray));
-                lines.Add((string.Empty, ConsoleColor.Gray));
-            }
-            lines.Add(("Nyilak: választás   Enter: véglegesítés", ConsoleColor.Green));
-            DrawCenteredFrame(82, lines);
+            var lines = LevelUpWindow.BuildChoice(LevelUpPromptKind.ClassFeatureChoice,
+                [new($"{character.Name} — {character.CharacterClass.Name} — {milestone}. szint", ConsoleColor.Cyan),
+                 new("A választás végleges; a 20. szinten egy másik fejlesztés választható.", ConsoleColor.Red)],
+                choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray(),
+                selectedIndex);
+            DrawCenteredFrame(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.ClassFeatureChoice), lines,
+                FramedWindow.LevelUpChoice);
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow:
@@ -1160,24 +1137,13 @@ public sealed class ConsoleRenderer
         {
             ResetColorCache();
             Console.Clear();
-            var lines = new List<(string Text, ConsoleColor Color)>
-            {
-                ("💪🏹❤️🧠  KÉPESSÉGPONT  💪🏹❤️🧠", ConsoleColor.Yellow),
-                (string.Empty, ConsoleColor.Gray),
-                ($"{character.Name} — {milestone}. szint", ConsoleColor.Cyan),
-                ("Növelj meg egy képességet 1 ponttal! Maximum: 13.", ConsoleColor.Green),
-                (string.Empty, ConsoleColor.Gray)
-            };
-            foreach (var (choice, index) in choices.Select((choice, index) => (choice, index)))
-            {
-                lines.Add(($"{(index == selectedIndex ? "▶" : " ")} {choice.Name}",
-                    index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray));
-                lines.Add(($"    {choice.Description}",
-                    index == selectedIndex ? ConsoleColor.White : ConsoleColor.DarkGray));
-                lines.Add((string.Empty, ConsoleColor.Gray));
-            }
-            lines.Add(("Nyilak: választás   Enter: növelés", ConsoleColor.Green));
-            DrawCenteredFrame(78, lines);
+            var lines = LevelUpWindow.BuildChoice(LevelUpPromptKind.AbilityChoice,
+                [new($"{character.Name} — {milestone}. szint", ConsoleColor.Cyan),
+                 new("Növelj meg egy képességet 1 ponttal! Maximum: 13.", ConsoleColor.Green)],
+                choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray(),
+                selectedIndex);
+            DrawCenteredFrame(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.AbilityChoice), lines,
+                FramedWindow.LevelUpChoice);
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow:
@@ -1203,24 +1169,13 @@ public sealed class ConsoleRenderer
         {
             ResetColorCache();
             Console.Clear();
-            var lines = new List<(string Text, ConsoleColor Color)>
-            {
-                ("⚔️  FEGYVERJÁRTASSÁG  ⚔️", ConsoleColor.Yellow),
-                (string.Empty, ConsoleColor.Gray),
-                ($"{character.Name} — {(milestone == 1 ? "karakteralkotás" : $"{milestone}. szint")}", ConsoleColor.Cyan),
-                ("Legfeljebb két fegyvercsalád tanulható; egy család Jártas, majd Mester lehet.", ConsoleColor.Green),
-                (string.Empty, ConsoleColor.Gray)
-            };
-            foreach (var (choice, index) in choices.Select((choice, index) => (choice, index)))
-            {
-                lines.Add(($"{(index == selectedIndex ? "▶" : " ")} {choice.Name}",
-                    index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray));
-                lines.Add(($"    {choice.Description}",
-                    index == selectedIndex ? ConsoleColor.White : ConsoleColor.DarkGray));
-                lines.Add((string.Empty, ConsoleColor.Gray));
-            }
-            lines.Add(("Nyilak: választás   Enter: véglegesítés", ConsoleColor.Green));
-            DrawCenteredFrame(86, lines);
+            var lines = LevelUpWindow.BuildChoice(LevelUpPromptKind.WeaponProficiencyChoice,
+                [new($"{character.Name} — {(milestone == 1 ? "karakteralkotás" : $"{milestone}. szint")}", ConsoleColor.Cyan),
+                 new("Legfeljebb két fegyvercsalád tanulható; egy család Jártas, majd Mester lehet.", ConsoleColor.Green)],
+                choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray(),
+                selectedIndex);
+            DrawCenteredFrame(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.WeaponProficiencyChoice), lines,
+                FramedWindow.LevelUpChoice);
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow:
@@ -1482,25 +1437,14 @@ public sealed class ConsoleRenderer
         {
             ResetColorCache();
             Console.Clear();
-            var first = offer.Choices[0];
-            var second = offer.Choices[1];
-            var lines = new List<(string Text, ConsoleColor Color)>
-            {
-                ("🌟⚔️🌟  TEHETSÉGVÁLASZTÁS  🌟⚔️🌟", ConsoleColor.Yellow),
-                (string.Empty, ConsoleColor.Gray),
-                ($"{character.Name} — {character.CharacterClass.Name} — {offer.Tier}. fokozat", ConsoleColor.Cyan),
-                ($"A tehetség a {offer.TriggerLevel}. szint elérésekor vált elérhetővé.", ConsoleColor.DarkCyan),
-                ("A nem választott tehetség végleg elveszik ennél a karakternél.", ConsoleColor.Red),
-                (string.Empty, ConsoleColor.Gray),
-                ($"{(selectedIndex == 0 ? "▶" : " ")}  🟥 {first.Name}", selectedIndex == 0 ? ConsoleColor.Yellow : ConsoleColor.Gray),
-                ($"     {first.Description}", selectedIndex == 0 ? ConsoleColor.White : ConsoleColor.DarkGray),
-                (string.Empty, ConsoleColor.Gray),
-                ($"{(selectedIndex == 1 ? "▶" : " ")}  🟦 {second.Name}", selectedIndex == 1 ? ConsoleColor.Yellow : ConsoleColor.Gray),
-                ($"     {second.Description}", selectedIndex == 1 ? ConsoleColor.White : ConsoleColor.DarkGray),
-                (string.Empty, ConsoleColor.Gray),
-                ("⬅️  Bal/jobb vagy fel/le: választás     ✅ Enter: véglegesítés", ConsoleColor.Green)
-            };
-            DrawCenteredFrame(PerkChoiceFrameWidth, lines);
+            var lines = LevelUpWindow.BuildChoice(LevelUpPromptKind.PerkChoice,
+                [new($"{character.Name} — {character.CharacterClass.Name} — {offer.Tier}. fokozat", ConsoleColor.Cyan),
+                 new($"A tehetség a {offer.TriggerLevel}. szint elérésekor vált elérhetővé.", ConsoleColor.DarkCyan),
+                 new("A nem választott tehetség végleg elveszik ennél a karakternél.", ConsoleColor.Red)],
+                offer.Choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray(),
+                selectedIndex);
+            DrawCenteredFrame(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.PerkChoice), lines,
+                FramedWindow.LevelUpChoice);
 
             switch (Console.ReadKey(intercept: true).Key)
             {
@@ -1525,33 +1469,42 @@ public sealed class ConsoleRenderer
     private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
         FramedWindow? framedWindow = null)
     {
-        var contentWidth = frameWidth - CenteredFrameHorizontalPadding * FrameBorderWidth;
-
         var left = Math.Max(0, (Console.WindowWidth - frameWidth) / FrameBorderWidth);
-        var top = Math.Max(MinimumCenteredFrameTop, (Console.WindowHeight - lines.Count - FrameBorderWidth) / FrameBorderWidth);
         var style = framedWindow is { } window
             ? WindowFrameConfiguration.For(window)
             : WindowFrameStyle.Double;
-        SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-        WriteAt(left, top, WindowFrameCatalog.Horizontal(style, frameWidth));
+        var topAdornment = WindowFrameCatalog.Adornment(style, frameWidth);
+        var bottomAdornment = WindowFrameCatalog.Adornment(style, frameWidth, bottom: true);
+        var adornmentRows = topAdornment is null ? 0 : 2;
+        var top = Math.Max(MinimumCenteredFrameTop,
+            (Console.WindowHeight - lines.Count - FrameBorderWidth - adornmentRows) / FrameBorderWidth);
+        var contentPadding = WindowFrameCatalog.ContentPadding(style);
+        var contentWidth = frameWidth - contentPadding * FrameBorderWidth;
+        var frameTop = topAdornment is null ? top : top + 1;
+        var borderColor = style == WindowFrameStyle.Sword ? ConsoleColor.Yellow : ConsoleColor.Magenta;
+        SetColors(borderColor, ConsoleColor.Black);
+        if (topAdornment is not null) WriteAt(left, top, topAdornment);
+        WriteAt(left, frameTop, WindowFrameCatalog.Horizontal(style, frameWidth));
         for (var index = 0; index < lines.Count; index++)
         {
             var sides = WindowFrameCatalog.Sides(style, index, lines.Count);
-            SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-            WriteAt(left, top + index + 1, sides.Left);
+            SetColors(borderColor, ConsoleColor.Black);
+            WriteAt(left, frameTop + index + 1, sides.Left);
             SetColors(ConsoleColor.Gray, ConsoleColor.Black);
-            WriteAt(left + sides.Left.Length, top + index + 1,
+            WriteAt(left + sides.Left.Length, frameTop + index + 1,
                 new string(' ', frameWidth - sides.Left.Length - sides.Right.Length));
             SetColors(lines[index].Color, ConsoleColor.Black);
             var text = lines[index].Text.Length <= contentWidth
                 ? lines[index].Text
                 : lines[index].Text[..contentWidth];
-            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1, text.PadRight(contentWidth));
-            SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-            WriteAt(left + frameWidth - sides.Right.Length, top + index + 1, sides.Right);
+            WriteAt(left + contentPadding, frameTop + index + 1, text.PadRight(contentWidth));
+            SetColors(borderColor, ConsoleColor.Black);
+            WriteAt(left + frameWidth - sides.Right.Length, frameTop + index + 1, sides.Right);
         }
-        SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-        WriteAt(left, top + lines.Count + 1, WindowFrameCatalog.Horizontal(style, frameWidth, bottom: true));
+        SetColors(borderColor, ConsoleColor.Black);
+        var frameBottom = frameTop + lines.Count + 1;
+        WriteAt(left, frameBottom, WindowFrameCatalog.Horizontal(style, frameWidth, bottom: true));
+        if (bottomAdornment is not null) WriteAt(left, frameBottom + 1, bottomAdornment);
     }
 
     private static int InnMarketPageStart(int entryCount, int selectedIndex)
