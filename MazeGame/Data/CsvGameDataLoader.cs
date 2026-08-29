@@ -311,12 +311,17 @@ public static class CsvGameDataLoader
                 var maximumDamage = Integer(cells, 8) ?? 0;
                 if (minimumDamage < 0 || maximumDamage < minimumDamage)
                     throw new InvalidOperationException($"A(z) '{id}' csapda sebzéstartománya érvénytelen.");
+                var detectionExperience = Integer(cells, 10) ?? -1;
+                var disarmExperience = Integer(cells, 11) ?? -1;
+                if (detectionExperience < 0 || disarmExperience < 0)
+                    throw new InvalidOperationException($"A(z) '{id}' csapda XP-jutalma hiányzik vagy érvénytelen.");
                 traps.Add(new TrapDefinition(id, name, Rune.GetRuneAt(symbolText, 0),
                     Enum.TryParse<TrapEffect>(Cell(cells, 3), true, out var trapEffect) ? trapEffect
                         : throw new InvalidOperationException($"A(z) '{id}' csapda hatása ismeretlen."),
                     Math.Max(1, Integer(cells, 4) ?? 1), Math.Max(1, Integer(cells, 5) ?? 1),
                     Math.Max(1, Integer(cells, 6) ?? 1), minimumDamage, maximumDamage,
-                    Math.Clamp(Integer(cells, 9) ?? 0, 0, 100), Cell(cells, 10)));
+                    Math.Clamp(Integer(cells, 9) ?? 0, 0, 100), detectionExperience, disarmExperience,
+                    Cell(cells, 12)));
                 break;
             case DataSection.RaceAbilityBonuses:
                 raceBonuses[id] = PrimaryAbilitiesFrom(cells);

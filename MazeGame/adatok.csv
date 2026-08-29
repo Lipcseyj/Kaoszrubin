@@ -949,11 +949,11 @@ PL049,Azt mondják, valahol a mélységben egy fekete sárkány olyan kincshalmo
 PL050,Egy őrült öreg szerint egyszer eljön egy kalandozó, aki megtalálja a Káoszrubint és eldönti vele a világ sorsát. A fogadós szerint ugyanezt minden új vendégnek elmondja egy korsó sörért.
 
 #Csapdák
-Id,Név,Jel,Hatás,MinimumSzint,ÉszlelésiNehézség,HatástalanításiNehézség,MinimumSebzés,MaximumSebzés,Állapotesély,Leírás
-TR001,Tüskés verem,⌄,Damage,1,7,7,3,7,0,Éles tüskék nyílnak fel a padlóból.
-TR002,Mérgezett tű,†,Poison,3,8,9,1,4,35,A falból mérgezett tű repül elő.
-TR003,Riasztórúna,◎,Alert,4,9,8,0,0,100,A felizzó rúna magára vonja a közeli lények figyelmét.
-TR004,Ingapengék,╳,Damage,7,10,11,7,12,0,A falakból egymást keresztező rozsdás pengék csapnak ki.
-TR005,Dögvészfelhő,≋,Poison,10,11,12,4,8,60,Fojtó zöld gáz tör elő a repedt padlólapok alól.
-TR006,Káoszpecsét,✹,Alert,14,13,13,4,9,100,A felhasadó pecsét energiakitörése megsebzi az áldozatot és odahívja a közeli szörnyeket.
-TR007,Lélektű,♦,Poison,18,15,15,8,14,75,Árnyékból formált tű sebzi meg a testet és mérgezi meg a lelket.
+Id,Név,Jel,Hatás,MinimumSzint,ÉszlelésiNehézség,HatástalanításiNehézség,MinimumSebzés,MaximumSebzés,Állapotesély,ÉszlelésiXP,HatástalanításiXP,Leírás
+TR001,Tüskés verem,⌄,Damage,1,7,7,3,7,0,25,75,Éles tüskék nyílnak fel a padlóból.
+TR002,Mérgezett tű,†,Poison,3,8,9,1,4,35,40,120,A falból mérgezett tű repül elő.
+TR003,Riasztórúna,◎,Alert,4,9,8,0,0,100,40,120,A felizzó rúna magára vonja a közeli lények figyelmét.
+TR004,Ingapengék,╳,Damage,7,10,11,7,12,0,60,180,A falakból egymást keresztező rozsdás pengék csapnak ki.
+TR005,Dögvészfelhő,≋,Poison,10,11,12,4,8,60,90,270,Fojtó zöld gáz tör elő a repedt padlólapok alól.
+TR006,Káoszpecsét,✹,Alert,14,13,13,4,9,100,135,405,A felhasadó pecsét energiakitörése megsebzi az áldozatot és odahívja a közeli szörnyeket.
+TR007,Lélektű,♦,Poison,18,15,15,8,14,75,200,600,Árnyékból formált tű sebzi meg a testet és mérgezi meg a lelket.

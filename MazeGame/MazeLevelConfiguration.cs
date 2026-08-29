@@ -635,12 +635,12 @@ public static class MazeLevelConfigurations
     {
         (configuration.TrapCount, configuration.TrapIds) = configuration.Level switch
         {
-            <= 2 => (new IntRange(1, 2), BasicTraps),
-            <= 6 => (new IntRange(2, 3), EarlyTraps),
-            <= 9 => (new IntRange(3, 4), MidTraps),
-            <= 13 => (new IntRange(3, 5), AdvancedTraps),
-            <= 17 => (new IntRange(4, 5), DeadlyTraps),
-            _ => (new IntRange(4, 6), ChaosTraps)
+            <= 2 => (new IntRange(2, 5), BasicTraps),
+            <= 6 => (new IntRange(3, 5), EarlyTraps),
+            <= 9 => (new IntRange(3, 6), MidTraps),
+            <= 13 => (new IntRange(3, 6), AdvancedTraps),
+            <= 17 => (new IntRange(4, 6), DeadlyTraps),
+            _ => (new IntRange(4, 8), ChaosTraps)
         };
         return configuration;
     }

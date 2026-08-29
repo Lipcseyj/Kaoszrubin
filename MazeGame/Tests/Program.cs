@@ -830,8 +830,12 @@ static void InnNamesAndRumorsLoadFromCsv()
                "Aki válaszol neki, azt többé nem látják.", StringComparison.Ordinal),
         "A hangulatpletykák vagy a szövegükben lévő vesszők nem megfelelően töltődtek be a CSV-ből.");
     Assert(data.Traps.Count == 7 && data.GetTrap("TR001").Effect == TrapEffect.Damage &&
+           data.GetTrap("TR001").DetectionExperience == 25 &&
+           data.GetTrap("TR001").DisarmExperience == 75 &&
            data.GetTrap("TR002").Effect == TrapEffect.Poison && data.GetTrap("TR003").Effect == TrapEffect.Alert &&
-           data.GetTrap("TR007").MinimumLevel == 18 && data.GetTrap("TR007").DisarmDifficulty == 15,
+           data.GetTrap("TR007").MinimumLevel == 18 && data.GetTrap("TR007").DisarmDifficulty == 15 &&
+           data.GetTrap("TR007").DetectionExperience == 200 &&
+           data.GetTrap("TR007").DisarmExperience == 600,
         "A csapdadefiníciók nem megfelelően töltődtek be a CSV-ből.");
 }
 
@@ -856,7 +860,7 @@ static void TrapVisibilityFollowsDiscoveryState()
     var position = new Position(3, 2);
     maze.Carve(position);
     var definition = new TrapDefinition("TR-TEST", "Tesztcsapda", new Rune('⌄'), TrapEffect.Damage,
-        1, 7, 7, 3, 7, 0, "Teszt.");
+        1, 7, 7, 3, 7, 0, 25, 75, "Teszt.");
     var trap = new MazeTrap(position, definition);
     maze.AddTrap(trap);
     var fog = new FogOfWar(maze.Width, maze.Height, 2);

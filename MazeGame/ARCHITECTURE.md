@@ -967,7 +967,8 @@ Feltételek:
 Fontos: a játék a futási mappába másolt adatok.csv-t olvassa. Módosítás után újra kell fordítani vagy kézzel frissíteni például a bin/Debug/net10.0/adatok.csv fájlt. Ha a régi bináris mellett régi másolat marad, a változás nem látszik.
 ## Csapdák
 
-A `#Csapdák` CSV-fejezet definiálja a csapdatípusok hatását és nehézségét. A
+A `#Csapdák` CSV-fejezet definiálja a csapdatípusok hatását, nehézségét, valamint a sikeres
+észlelésért és hatástalanításért közvetlenül a próbát végző karakternek járó XP-t. A
 `MazeLevelConfigurations` `TrapCount` és `TrapIds` mezői adják meg szintenként a darabszámot és a
 használható készletet. Az 1–2. szint 1–2 egyszerű csapdával indul, majd hat nehézségi sávon keresztüll
 a 18–21. szint 4–6 fejlett csapdájáig nő a veszély. A csapdák a kezdőtértől, kijárattól,

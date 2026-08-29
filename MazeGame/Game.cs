@@ -824,8 +824,9 @@ public sealed class Game
             {
                 trap.Detect();
                 _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-                ShowTrapMessage($"👁️ {character.Name} időben felfedezte: {trap.Definition.Name} ({chance}% esély).",
-                    ConsoleColor.Cyan, character);
+                RewardTrapSuccess(character, trap.Definition.DetectionExperience,
+                    $"👁️ {character.Name} időben felfedezte: {trap.Definition.Name} ({chance}% esély).",
+                    ConsoleColor.Cyan);
                 return false;
             }
         }
@@ -852,8 +853,9 @@ public sealed class Game
         {
             trap.Disarm();
             _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-            ShowTrapMessage($"🧰 {character.Name} hatástalanította: {trap.Definition.Name} ({chance}% esély).",
-                ConsoleColor.Green, character);
+            RewardTrapSuccess(character, trap.Definition.DisarmExperience,
+                $"🧰 {character.Name} hatástalanította: {trap.Definition.Name} ({chance}% esély).",
+                ConsoleColor.Green);
             return true;
         }
         trap.RecordFailedDisarm();
@@ -900,6 +902,19 @@ public sealed class Game
     {
         _renderer.DrawInventoryMessage(message, color);
         RecordSessionActivity(SessionActivityKind.System, message, color, [character.Id]);
+    }
+
+    private void RewardTrapSuccess(LiveCharacter character, int experience, string message, ConsoleColor color)
+    {
+        var award = AwardExperience(character, experience);
+        var levelText = award.Result.LeveledUp
+            ? $" Szint: {award.Result.PreviousLevel}→{award.Result.CurrentLevel}."
+            : string.Empty;
+        ShowTrapMessage($"{message} +{award.Result.GainedExperience} XP.{levelText}", color, character);
+        _renderer.RefreshCharacterSheet(character);
+        if (!award.Result.LeveledUp || !character.IsAlive) return;
+        ResolvePerkOffers(character, award.Result);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
     }
 
     private void ShowInGameHelp()
