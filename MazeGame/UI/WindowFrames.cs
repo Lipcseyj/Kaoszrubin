@@ -1,8 +1,8 @@
 namespace MazeGame.UI;
 
-public enum WindowFrameStyle { Single, Double, Scroll, Ruby, Stone, Magic }
+public enum WindowFrameStyle { Single, Double, Scroll, Scroll2, Ruby, Stone, Magic }
 
-public enum FramedWindow { MainMenu, Help, SpellSelector, CreaturePortrait, Storyline }
+public enum FramedWindow { MainMenu, Help, SpellSelector, CreaturePortrait, Storyline, LevelUp }
 
 /// <summary>Az egyes képernyők kerete itt cserélhető, a rajzolókód módosítása nélkül.</summary>
 public static class WindowFrameConfiguration
@@ -14,7 +14,8 @@ public static class WindowFrameConfiguration
             [FramedWindow.Help] = WindowFrameStyle.Ruby,
             [FramedWindow.SpellSelector] = WindowFrameStyle.Magic,
             [FramedWindow.CreaturePortrait] = WindowFrameStyle.Stone,
-            [FramedWindow.Storyline] = WindowFrameStyle.Stone
+            [FramedWindow.Storyline] = WindowFrameStyle.Stone,
+            [FramedWindow.LevelUp] = WindowFrameStyle.Scroll2
         };
 
     public static WindowFrameStyle For(FramedWindow window) => Styles[window];
@@ -33,6 +34,8 @@ public static class WindowFrameCatalog
             WindowFrameStyle.Single => (bottom ? "└" : "┌") + new string('─', width - 2) + (bottom ? "┘" : "┐"),
             WindowFrameStyle.Double => (bottom ? "╚" : "╔") + new string('═', width - 2) + (bottom ? "╝" : "╗"),
             WindowFrameStyle.Scroll => "@)" + new string('=', Math.Max(0, width - 4)) + "(@",
+            WindowFrameStyle.Scroll2 => (bottom ? "╰" : "╭") + new string('≈', width - 2) +
+                                        (bottom ? "╯" : "╮"),
             WindowFrameStyle.Ruby => Ornament(width, "◆▓▒░", "░▒▓◆", '─'),
             WindowFrameStyle.Stone => Ornament(width, "█▓▒░ ", " ░▒▓█", '─'),
             WindowFrameStyle.Magic => MagicHorizontal(width),
@@ -48,11 +51,17 @@ public static class WindowFrameCatalog
             WindowFrameStyle.Single or WindowFrameStyle.Magic => "│",
             WindowFrameStyle.Double => "║",
             WindowFrameStyle.Scroll => " |",
+            WindowFrameStyle.Scroll2 => contentRow % 2 == 0 ? " )" : "( ",
             WindowFrameStyle.Ruby => distance == 0 ? "▓" : distance == 1 ? "▒" : "│",
             WindowFrameStyle.Stone => distance == 0 ? "▓" : "▒",
             _ => "│"
         };
-        var right = style == WindowFrameStyle.Scroll ? "| " : side;
+        var right = style switch
+        {
+            WindowFrameStyle.Scroll => "| ",
+            WindowFrameStyle.Scroll2 => contentRow % 2 == 0 ? "( " : " )",
+            _ => side
+        };
         return new WindowFrameRow(side, right);
     }
 

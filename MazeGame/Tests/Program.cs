@@ -1878,11 +1878,17 @@ static void WindowFrameCatalogIsResizableAndConfigured()
         Assert(WindowFrameCatalog.Horizontal(style, 27, bottom: true).Length == 27,
             $"A(z) {style} keret alsó sora nem tartja a kért szélességet.");
     }
+    Assert(WindowFrameCatalog.Horizontal(WindowFrameStyle.Scroll2, 6) == "╭≈≈≈≈╮" &&
+           WindowFrameCatalog.Horizontal(WindowFrameStyle.Scroll2, 6, bottom: true) == "╰≈≈≈≈╯" &&
+           WindowFrameCatalog.Sides(WindowFrameStyle.Scroll2, 0, 3) == new WindowFrameRow(" )", "( ") &&
+           WindowFrameCatalog.Sides(WindowFrameStyle.Scroll2, 1, 3) == new WindowFrameRow("( ", " )"),
+        "A scroll2 keretsablon nem az előírt váltakozó tekercsformát adja.");
     Assert(WindowFrameConfiguration.For(FramedWindow.MainMenu) == WindowFrameStyle.Ruby &&
            WindowFrameConfiguration.For(FramedWindow.Help) == WindowFrameStyle.Ruby &&
            WindowFrameConfiguration.For(FramedWindow.SpellSelector) == WindowFrameStyle.Magic &&
            WindowFrameConfiguration.For(FramedWindow.CreaturePortrait) == WindowFrameStyle.Stone &&
-           WindowFrameConfiguration.For(FramedWindow.Storyline) == WindowFrameStyle.Stone,
+           WindowFrameConfiguration.For(FramedWindow.Storyline) == WindowFrameStyle.Stone &&
+           WindowFrameConfiguration.For(FramedWindow.LevelUp) == WindowFrameStyle.Scroll2,
         "Az első körös ablak–keret alapbeállítások hibásak.");
 }
 

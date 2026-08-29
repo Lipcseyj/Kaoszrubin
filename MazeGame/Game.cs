@@ -4553,7 +4553,9 @@ public sealed class Game
         IReadOnlyList<PerkOffer> offers)
     {
         WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.Summary, [],
-            $"{result.PreviousLevel}. szint → {result.CurrentLevel}. szint");
+            offers.Count > 0
+                ? "🌠 Új TEHETSÉG ébred benned! Nyomj meg egy billentyűt... 🌠"
+                : "🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟");
         foreach (var offer in offers)
         {
             var choices = offer.Choices.Select(perk => new LevelUpChoiceSnapshot(perk.Id, perk.Name, perk.Description)).ToArray();
@@ -4776,7 +4778,9 @@ public sealed class Game
     {
         var previousPhase = _session.Phase;
         _activeLevelUpPrompt = new LevelUpPromptSnapshot(Guid.NewGuid(), character.Id, character.Name, kind,
-            result.PreviousLevel, result.CurrentLevel, result.VitalityGained, result.ManaGained, choices, message);
+            result.PreviousLevel, result.CurrentLevel, result.VitalityGained, result.ManaGained, choices, message,
+            result.Bonuses.Select(bonus =>
+                new LevelUpBonusSnapshot(bonus.Level, bonus.Vitality, bonus.Mana)).ToArray());
         _levelUpResponse = null;
         _levelUpPromptCompleted = false;
         _session.SetPhase(GameSessionPhase.Paused);

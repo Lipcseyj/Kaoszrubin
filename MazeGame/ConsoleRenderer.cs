@@ -70,7 +70,6 @@ public sealed class ConsoleRenderer
     private const int SpellPreparationFrameWidth = 92;
     private const int SpellCastingOverlayFrameWidth = 76;
     private const int MaximumVisibleSpellCount = 12;
-    private const int LevelUpSummaryFrameWidth = 88;
     private const int PerkChoiceFrameWidth = 112;
     private const int RightSheetX = 172;
     private const int RightSheetWidth = 27;
@@ -1460,30 +1459,15 @@ public sealed class ConsoleRenderer
     {
         ResetColorCache();
         Console.Clear();
-        var detailLines = result.Bonuses.Select(bonus => character.UsesMana
-            ? $"⭐ {bonus.Level}. szint:  ❤️ +{bonus.Vitality} HP     🔷 +{bonus.Mana} manna"
-            : $"⭐ {bonus.Level}. szint:  ❤️ +{bonus.Vitality} HP").ToList();
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            ("✨🏆✨  SZINTLÉPÉS!  ✨🏆✨", ConsoleColor.Yellow),
-            (string.Empty, ConsoleColor.Gray),
-            ($"⚔️  {character.Name} új ereje felébredt!", ConsoleColor.Cyan),
-            ($"📜  {result.PreviousLevel}. szint  ➜  {result.CurrentLevel}. szint", ConsoleColor.Magenta),
-            (string.Empty, ConsoleColor.Gray)
-        };
-        lines.AddRange(detailLines.Select(line => (line, ConsoleColor.Green)));
-        lines.Add((string.Empty, ConsoleColor.Gray));
-        lines.Add((character.UsesMana
-            ? $"💖 Összes növekedés: +{result.VitalityGained} HP   💠 +{result.ManaGained} manna"
-            : $"💖 Összes növekedés: +{result.VitalityGained} HP", ConsoleColor.White));
-        lines.Add(($"🛡️  Jelenlegi értékek: {character.CurrentVitality}/{character.MaximumVitality} HP" +
-            (character.UsesMana ? $"   {character.CurrentMana}/{character.MaximumMana} manna" : string.Empty), ConsoleColor.Cyan));
-        lines.Add((string.Empty, ConsoleColor.Gray));
-        lines.Add((hasPerkOffer
-            ? "🌠 Új TEHETSÉG ébred benned! Nyomj meg egy billentyűt... 🌠"
-            : "🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟", ConsoleColor.Yellow));
+        var lines = LevelUpWindow.BuildSummary(character.Name, result.PreviousLevel, result.CurrentLevel,
+            result.Bonuses.Select(bonus => new LevelUpBonusSnapshot(bonus.Level, bonus.Vitality, bonus.Mana)).ToArray(),
+            result.VitalityGained, result.ManaGained, character.UsesMana, character.CurrentVitality,
+            character.MaximumVitality, character.CurrentMana, character.MaximumMana,
+            hasPerkOffer
+                ? "🌠 Új TEHETSÉG ébred benned! Nyomj meg egy billentyűt... 🌠"
+                : "🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟");
 
-        DrawCenteredFrame(LevelUpSummaryFrameWidth, lines);
+        DrawCenteredFrame(LevelUpWindow.Width, lines, FramedWindow.LevelUp);
         if (hasPerkOffer) Console.ReadKey(intercept: true);
     }
 
@@ -1538,26 +1522,36 @@ public sealed class ConsoleRenderer
     /// Rajzol egy középre igazított keretet megadott szélességgel és sorokkal.
     /// Belső szöveg- és színbeállításokat kezel.
     /// </summary>
-    private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines)
+    private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
+        FramedWindow? framedWindow = null)
     {
         var contentWidth = frameWidth - CenteredFrameHorizontalPadding * FrameBorderWidth;
 
         var left = Math.Max(0, (Console.WindowWidth - frameWidth) / FrameBorderWidth);
         var top = Math.Max(MinimumCenteredFrameTop, (Console.WindowHeight - lines.Count - FrameBorderWidth) / FrameBorderWidth);
+        var style = framedWindow is { } window
+            ? WindowFrameConfiguration.For(window)
+            : WindowFrameStyle.Double;
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-        WriteAt(left, top, "╔" + new string('═', frameWidth - FrameBorderWidth) + "╗");
+        WriteAt(left, top, WindowFrameCatalog.Horizontal(style, frameWidth));
         for (var index = 0; index < lines.Count; index++)
         {
+            var sides = WindowFrameCatalog.Sides(style, index, lines.Count);
             SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-            WriteAt(left, top + index + 1, "║");
+            WriteAt(left, top + index + 1, sides.Left);
+            SetColors(ConsoleColor.Gray, ConsoleColor.Black);
+            WriteAt(left + sides.Left.Length, top + index + 1,
+                new string(' ', frameWidth - sides.Left.Length - sides.Right.Length));
             SetColors(lines[index].Color, ConsoleColor.Black);
-            var text = lines[index].Text;
-            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1, text.PadRight(Math.Max(0, contentWidth - text.Length)));
+            var text = lines[index].Text.Length <= contentWidth
+                ? lines[index].Text
+                : lines[index].Text[..contentWidth];
+            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1, text.PadRight(contentWidth));
             SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-            WriteAt(left + frameWidth - 1, top + index + 1, "║");
+            WriteAt(left + frameWidth - sides.Right.Length, top + index + 1, sides.Right);
         }
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
-        WriteAt(left, top + lines.Count + 1, "╚" + new string('═', frameWidth - FrameBorderWidth) + "╝");
+        WriteAt(left, top + lines.Count + 1, WindowFrameCatalog.Horizontal(style, frameWidth, bottom: true));
     }
 
     private static int InnMarketPageStart(int entryCount, int selectedIndex)

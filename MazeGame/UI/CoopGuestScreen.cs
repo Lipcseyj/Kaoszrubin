@@ -439,7 +439,6 @@ public sealed class CoopGuestScreen
         { _levelUpPromptId = prompt.PromptId; _levelUpSelection = 0; }
         if (prompt.Kind == LevelUpPromptKind.Summary)
         {
-            if (key != ConsoleKey.Enter) return null;
             return new ResolveLevelUpPromptCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                 prompt.PromptId, null);
         }
@@ -1346,29 +1345,33 @@ public sealed class CoopGuestScreen
         if (snapshot.LevelUpPrompt is not { } prompt || own?.CharacterId != prompt.CharacterId) return;
         if (_levelUpPromptId != prompt.PromptId)
         { _levelUpPromptId = prompt.PromptId; _levelUpSelection = 0; }
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            (prompt.Kind switch
-            {
-                LevelUpPromptKind.PerkChoice => "🌟⚔️🌟  TEHETSÉGVÁLASZTÁS  🌟⚔️🌟",
-                LevelUpPromptKind.SpecializationChoice => "✨  SPECIALIZÁCIÓ  ✨",
-                LevelUpPromptKind.ClassFeatureChoice => "🌟  OSZTÁLYKÉPESSÉG FEJLESZTÉSE  🌟",
-                LevelUpPromptKind.AbilityChoice => "💪🏹❤️🧠  KÉPESSÉGPONT  💪🏹❤️🧠",
-                LevelUpPromptKind.WeaponProficiencyChoice => "⚔️  FEGYVERJÁRTASSÁG  ⚔️",
-                LevelUpPromptKind.SpellChoice => "📖  ÚJ VARÁZSLAT TANULÁSA",
-                _ => "✨🏆✨  SZINTLÉPÉS!  ✨🏆✨"
-            }, prompt.Kind == LevelUpPromptKind.Summary ? ConsoleColor.Yellow : ConsoleColor.Magenta),
-            (string.Empty, ConsoleColor.Gray),
-            ($"{prompt.CharacterName}: {prompt.PreviousLevel}. szint → {prompt.CurrentLevel}. szint", ConsoleColor.Cyan),
-            ($"Növekedés: +{prompt.VitalityGained} HP" +
-                (own.CharacterSheet?.UsesMana == true ? $", +{prompt.ManaGained} manna" : string.Empty), ConsoleColor.Green),
-            (prompt.Message, ConsoleColor.DarkCyan),
-            (string.Empty, ConsoleColor.Gray)
-        };
+        List<(string Text, ConsoleColor Color)> lines;
         if (prompt.Kind == LevelUpPromptKind.Summary)
-            lines.Add(("Enter: tovább", ConsoleColor.Green));
+        {
+            var details = own.CharacterSheet;
+            lines = LevelUpWindow.BuildSummary(prompt.CharacterName, prompt.PreviousLevel, prompt.CurrentLevel,
+                prompt.Bonuses ?? [], prompt.VitalityGained, prompt.ManaGained, details?.UsesMana == true,
+                own.CurrentVitality, own.MaximumVitality, own.CurrentMana, own.MaximumMana, prompt.Message).ToList();
+        }
         else
         {
+            lines = new List<(string Text, ConsoleColor Color)>
+            {
+                (prompt.Kind switch
+                {
+                    LevelUpPromptKind.PerkChoice => "🌟⚔️🌟  TEHETSÉGVÁLASZTÁS  🌟⚔️🌟",
+                    LevelUpPromptKind.SpecializationChoice => "✨  SPECIALIZÁCIÓ  ✨",
+                    LevelUpPromptKind.ClassFeatureChoice => "🌟  OSZTÁLYKÉPESSÉG FEJLESZTÉSE  🌟",
+                    LevelUpPromptKind.AbilityChoice => "💪🏹❤️🧠  KÉPESSÉGPONT  💪🏹❤️🧠",
+                    LevelUpPromptKind.WeaponProficiencyChoice => "⚔️  FEGYVERJÁRTASSÁG  ⚔️",
+                    LevelUpPromptKind.SpellChoice => "📖  ÚJ VARÁZSLAT TANULÁSA",
+                    _ => throw new ArgumentOutOfRangeException()
+                }, ConsoleColor.Magenta),
+                (string.Empty, ConsoleColor.Gray),
+                ($"{prompt.CharacterName}: {prompt.PreviousLevel}. szint → {prompt.CurrentLevel}. szint", ConsoleColor.Cyan),
+                (prompt.Message, ConsoleColor.DarkCyan),
+                (string.Empty, ConsoleColor.Gray)
+            };
             _levelUpSelection = Math.Clamp(_levelUpSelection, 0, Math.Max(0, prompt.Choices.Count - 1));
             foreach (var (choice, index) in prompt.Choices.Select((choice, index) => (choice, index)))
             {
@@ -1380,7 +1383,8 @@ public sealed class CoopGuestScreen
             }
             lines.Add(("Nyilak: választás   Enter: véglegesítés", ConsoleColor.Green));
         }
-        DrawGuestOverlay(grid, lines, ConsoleColor.Yellow, 76);
+        DrawGuestOverlay(grid, lines, ConsoleColor.Yellow,
+            prompt.Kind == LevelUpPromptKind.Summary ? LevelUpWindow.Width : 76, FramedWindow.LevelUp);
     }
 
     private static void DrawGuestOverlay(GuestMapCell[,] grid, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
