@@ -34,9 +34,6 @@ public static class CharacterClassRules
         _ => Math.Max(0, mana)
     };
 
-    public static int AdjustManaGrowth(string characterClassId, int manaGrowth) =>
-        characterClassId == CharacterClassIds.Lovag ? ScaleMana(manaGrowth, 50) : Math.Max(0, manaGrowth);
-
     private static int ScaleMana(int mana, int percentage) => mana <= 0
         ? 0
         : Math.Max(1, (int)Math.Round(mana * percentage / 100.0, MidpointRounding.AwayFromZero));

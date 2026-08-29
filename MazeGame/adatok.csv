@@ -136,6 +136,15 @@ Intelligencia,Növekedés
 12,6-8
 13,7-10
 
+#Osztály erőforrás-növekedés
+OsztályId,ÉleterőMódosító,MannaMódosító,MannaSzázalék
+C001,1,0,0
+C002,2,0,0
+C003,1,0,50
+C004,0,0,0
+C005,0,0,100
+C006,-1,1,100
+
 #Erő találati bónusz
 OsztályId,MinimumErő,Bónusz
 C001,7,1

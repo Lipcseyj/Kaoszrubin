@@ -690,7 +690,8 @@ public sealed class LiveCharacter
     public void SetGold(int gold) => Gold = Math.Max(0, gold);
 
     public LevelUpResult AddExperience(int amount, IReadOnlyDictionary<int, int> experienceByLevel,
-        ValueRange vitalityGrowth, ValueRange manaGrowth, Random random)
+        ValueRange vitalityGrowth, ValueRange manaGrowth,
+        CharacterResourceGrowthDefinition classGrowth, Random random)
     {
         var awardedExperience = Math.Max(0, amount);
         Experience += awardedExperience;
@@ -699,10 +700,10 @@ public sealed class LiveCharacter
         while (experienceByLevel.ContainsKey(Level + 1) && Experience >= GetRequiredExperience(Level + 1, experienceByLevel))
         {
             Level++;
-            var vitality = random.Next(vitalityGrowth.Minimum, vitalityGrowth.Maximum + 1);
+            var vitality = classGrowth.AdjustVitality(
+                random.Next(vitalityGrowth.Minimum, vitalityGrowth.Maximum + 1));
             var mana = UsesMana
-                ? CharacterClassRules.AdjustManaGrowth(CharacterClass.Id,
-                    random.Next(manaGrowth.Minimum, manaGrowth.Maximum + 1))
+                ? classGrowth.AdjustMana(random.Next(manaGrowth.Minimum, manaGrowth.Maximum + 1))
                 : 0;
             _maximumVitality += vitality;
             CurrentVitality += vitality;

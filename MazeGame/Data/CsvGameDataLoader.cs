@@ -50,6 +50,7 @@ public static class CsvGameDataLoader
         var vitalityGrowthByHealth = new Dictionary<int, ValueRange>();
         var manaGrowthByIntelligence = new Dictionary<int, ValueRange>();
         var startingEquipmentByClass = new Dictionary<string, StartingEquipmentDefinition>(StringComparer.OrdinalIgnoreCase);
+        var characterResourceGrowthByClass = new Dictionary<string, CharacterResourceGrowthDefinition>(StringComparer.OrdinalIgnoreCase);
         int? baseLevelCompletionExperience = null;
         var section = DataSection.None;
 
@@ -76,7 +77,8 @@ public static class CsvGameDataLoader
                     monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps,
                     npcs, npcEncounters, npcDialogues, npcQuests, itemUpgrades,
                     raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
-                    vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
+                    vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass,
+                    characterResourceGrowthByClass, ref baseLevelCompletionExperience);
             }
             catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException or ArgumentException)
             {
@@ -87,6 +89,7 @@ public static class CsvGameDataLoader
         ValidateRequiredCoreData(races, characterClasses, enemies, abilities, raceBonuses, classMinimums,
             startingEquipmentByClass, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
             vitalityGrowthByHealth, manaGrowthByIntelligence);
+        ValidateCharacterResourceGrowth(characterClasses, characterResourceGrowthByClass);
         if (innNames.Count == 0)
             throw new InvalidDataException("A #Fogadónevek fejezetnek legalább egy nevet kell tartalmaznia az adatok.csv fájlban.");
         if (innRumors.Count == 0)
@@ -169,6 +172,7 @@ public static class CsvGameDataLoader
             VitalityGrowthByHealth = vitalityGrowthByHealth,
             ManaGrowthByIntelligence = manaGrowthByIntelligence,
             StartingEquipmentByClass = startingEquipmentByClass,
+            CharacterResourceGrowthByClass = characterResourceGrowthByClass,
             BaseLevelCompletionExperience = baseLevelCompletionExperience is >= 0
                 ? baseLevelCompletionExperience.Value
                 : throw new InvalidOperationException("A #Base XP pálya végén értékének nemnegatív egész számnak kell lennie az adatok.csv fájlban.")
@@ -194,6 +198,7 @@ public static class CsvGameDataLoader
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence, IDictionary<int, int> experienceByLevel,
         IDictionary<int, ValueRange> vitalityGrowthByHealth, IDictionary<int, ValueRange> manaGrowthByIntelligence,
         IDictionary<string, StartingEquipmentDefinition> startingEquipmentByClass,
+        IDictionary<string, CharacterResourceGrowthDefinition> characterResourceGrowthByClass,
         ref int? baseLevelCompletionExperience)
     {
         var id = Cell(cells, 0);
@@ -310,6 +315,11 @@ public static class CsvGameDataLoader
                 npcs.Add(new NpcDefinition(id, name, Cell(cells, 2),
                     EnumValue<NpcDisposition>(cells, 3), EnumValue<NpcWorldBehavior>(cells, 4),
                     IsYes(cells, 5), IsYes(cells, 6)));
+                break;
+            case DataSection.CharacterResourceGrowth:
+                characterResourceGrowthByClass[id] = new CharacterResourceGrowthDefinition(id,
+                    Integer(cells, 1) ?? 0, Integer(cells, 2) ?? 0,
+                    Integer(cells, 3) ?? 100);
                 break;
             case DataSection.NpcEncounters:
                 npcEncounters.Add(new NpcEncounterDefinition(id, Cell(cells, 1),
@@ -495,6 +505,23 @@ public static class CsvGameDataLoader
         foreach (var quest in quests)
             if (quest.Type == NpcQuestType.Kill ? !enemyIds.Contains(quest.TargetId) : !itemIds.Contains(quest.TargetId))
                 throw new InvalidDataException($"A(z) '{quest.Id}' küldetés célpontja nem található: '{quest.TargetId}'.");
+    }
+
+    private static void ValidateCharacterResourceGrowth(
+        IReadOnlyCollection<CharacterClassDefinition> characterClasses,
+        IReadOnlyDictionary<string, CharacterResourceGrowthDefinition> growthByClass)
+    {
+        foreach (var characterClass in characterClasses)
+            if (!growthByClass.ContainsKey(characterClass.Id))
+                throw new InvalidDataException(
+                    $"A #Osztály erőforrás-növekedés fejezetből hiányzik a(z) '{characterClass.Id}' osztály.");
+        foreach (var growth in growthByClass.Values)
+        {
+            if (growth.ManaPercentage is < 0 or > 200)
+                throw new InvalidDataException($"A(z) '{growth.Id}' osztály mannaszázaléka 0 és 200 közé kell essen.");
+            if (growth.VitalityModifier is < -20 or > 20 || growth.ManaModifier is < -20 or > 20)
+                throw new InvalidDataException($"A(z) '{growth.Id}' osztály erőforrás-módosítója -20 és 20 közé kell essen.");
+        }
     }
 
     private static void ValidateRequiredCoreData(IReadOnlyCollection<RaceDefinition> races,
@@ -936,6 +963,7 @@ public static class CsvGameDataLoader
         "zsakmany parameterek" => DataSection.LootRules,
         "ajtoproba parameterek" => DataSection.DoorAttemptRules,
         "osztaly kezdofelszereles" => DataSection.StartingEquipment,
+        "osztaly eroforras-novekedes" => DataSection.CharacterResourceGrowth,
         "egeszseg altal adott eletero minimum" => DataSection.VitalityByHealth,
         "intelligencia altal adott manna minimum" => DataSection.ManaByIntelligence,
         "szintlepesek" => DataSection.LevelExperience,
@@ -985,6 +1013,7 @@ public static class CsvGameDataLoader
         LootRules,
         DoorAttemptRules,
         StartingEquipment,
+        CharacterResourceGrowth,
         VitalityByHealth,
         ManaByIntelligence,
         LevelExperience,

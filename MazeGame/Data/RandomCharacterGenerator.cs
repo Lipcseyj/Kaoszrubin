@@ -141,7 +141,8 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             if (needed <= 0) break;
             var result = character.AddExperience(needed, _gameData.ExperienceByLevel,
                 _gameData.GetVitalityGrowth(character.Abilities.Health),
-                _gameData.GetManaGrowth(character.Abilities.Intelligence), _random);
+                _gameData.GetManaGrowth(character.Abilities.Intelligence),
+                _gameData.GetCharacterResourceGrowth(character.CharacterClass.Id), _random);
             SpellcastingRules.LearnAutomaticSpells(character, _gameData, result.Bonuses, _random);
         }
     }

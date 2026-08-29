@@ -30,6 +30,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
+    ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
     ("Az ismeretlen CSV-fejezet sorszámos hibát ad", UnknownCsvSectionIsRejectedWithLineNumber),
     ("A hiányzó kötelező CSV-mező sorszámos hibát ad", MissingRequiredCsvFieldIsRejectedWithLineNumber),
@@ -2047,6 +2048,20 @@ static void RaceTraitsAreLoadedFromData()
     Assert(catalog.GetRace("R002").HasTrait(RaceTraits.Resilient), "A törp Rendíthetetlen tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R003").HasTrait(RaceTraits.KeenSenses), "Az elf Éles érzékek tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R004").HasTrait(RaceTraits.Relentless), "A félork Könyörtelen tulajdonsága hiányzik.");
+}
+
+static void ClassResourceGrowthLoadsFromCsv()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    Assert(catalog.GetCharacterResourceGrowth(CharacterClassIds.Barbár).AdjustVitality(5) == 7 &&
+           catalog.GetCharacterResourceGrowth(CharacterClassIds.Harcos).AdjustVitality(5) == 6 &&
+           catalog.GetCharacterResourceGrowth(CharacterClassIds.Tolvaj).AdjustVitality(5) == 5 &&
+           catalog.GetCharacterResourceGrowth(CharacterClassIds.Mágus).AdjustVitality(1) == 1,
+        "A barbár/harcos/tolvaj/mágus HP-növekedési módosítója hibás.");
+    Assert(catalog.GetCharacterResourceGrowth(CharacterClassIds.Mágus).AdjustMana(5) == 6 &&
+           catalog.GetCharacterResourceGrowth(CharacterClassIds.Pap).AdjustMana(5) == 5 &&
+           catalog.GetCharacterResourceGrowth(CharacterClassIds.Lovag).AdjustMana(5) == 3,
+        "A mágus/pap/lovag mannanövekedési módosítója hibás.");
 }
 
 static void NpcDefinitionsLoadFromCsv()

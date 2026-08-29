@@ -11,6 +11,8 @@ public sealed class GameDataCatalog
 {
     public IReadOnlyList<RaceDefinition> Races { get; init; } = [];
     public IReadOnlyList<CharacterClassDefinition> CharacterClasses { get; init; } = [];
+    public IReadOnlyDictionary<string, CharacterResourceGrowthDefinition> CharacterResourceGrowthByClass { get; init; }
+        = new Dictionary<string, CharacterResourceGrowthDefinition>();
     public IReadOnlyList<EnemyDefinition> Enemies { get; init; } = [];
     public IReadOnlyList<MonsterAbilityDefinition> MonsterAbilities { get; init; } = [];
     public IReadOnlyList<StrengthHitBonusDefinition> StrengthHitBonuses { get; init; } = [];
@@ -50,6 +52,10 @@ public sealed class GameDataCatalog
     public WeaponTypeDefinition GetWeaponType(string id) => FindById(WeaponTypes, id, "fegyvertípus");
     public RaceDefinition GetRace(string id) => FindById(Races, id, "faj");
     public CharacterClassDefinition GetCharacterClass(string id) => FindById(CharacterClasses, id, "osztály");
+    public CharacterResourceGrowthDefinition GetCharacterResourceGrowth(string characterClassId) =>
+        CharacterResourceGrowthByClass.TryGetValue(characterClassId, out var growth) ? growth :
+            throw new InvalidOperationException(
+                $"A(z) '{characterClassId}' osztály erőforrás-növekedése nem található az adatok.csv fájlban.");
     public WeaponDefinition GetWeapon(string id) => FindById(Weapons, id, "fegyver");
     public ArmorDefinition GetArmor(string id) => FindById(Armors, id, "páncél");
     public MagicItemDefinition GetMagicItem(string id) => FindById(MagicItems, id, "varázstárgy");

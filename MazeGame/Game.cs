@@ -4858,6 +4858,7 @@ public sealed class Game
         _gameData.ExperienceByLevel,
         _gameData.GetVitalityGrowth(SelectedCharacter.Abilities.Health),
         _gameData.GetManaGrowth(SelectedCharacter.Abilities.Intelligence),
+        _gameData.GetCharacterResourceGrowth(SelectedCharacter.CharacterClass.Id),
         _random);
 
     private IReadOnlyList<ExperienceAward> DistributeExperience(LiveCharacter winner, int totalExperience)
@@ -4894,7 +4895,8 @@ public sealed class Game
     private ExperienceAward AwardExperience(LiveCharacter character, int amount) => new(character,
         character.AddExperience(amount, _gameData.ExperienceByLevel,
             _gameData.GetVitalityGrowth(character.Abilities.Health),
-            _gameData.GetManaGrowth(character.Abilities.Intelligence), _random));
+            _gameData.GetManaGrowth(character.Abilities.Intelligence),
+            _gameData.GetCharacterResourceGrowth(character.CharacterClass.Id), _random));
 
     private LevelUpResult AwardExperienceResult(LiveCharacter character, int amount) =>
         AwardExperience(character, amount).Result;
