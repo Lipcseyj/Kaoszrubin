@@ -255,11 +255,12 @@ public sealed class ConsoleRenderer
     }
 
     public void ShowStoryOverlay(string title, string subtitle, IReadOnlyList<string> paragraphs,
-        Maze maze, FogOfWar fogOfWar, Position playerPosition)
+        Maze maze, FogOfWar fogOfWar, Position playerPosition,
+        NarrativeKind kind = NarrativeKind.CampaignIntroduction, BossPresentationSnapshot? boss = null)
     {
         _spellCastingOverlaySnapshot = null;
         var lines = NarrativeWindow.Build(title, subtitle, paragraphs,
-            "❖  Nyomj Entert a történet folytatásához...  ❖");
+            "❖  Nyomj Entert a történet folytatásához...  ❖", kind: kind, boss: boss);
         DrawSpellCastingOverlay(NarrativeWindow.Width, lines, maze, fogOfWar, playerPosition,
             FramedWindow.Storyline);
     }

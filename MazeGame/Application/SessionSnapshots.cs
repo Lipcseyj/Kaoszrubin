@@ -7,7 +7,7 @@ namespace MazeGame.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 39;
+    public const int Version = 40;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -62,7 +62,11 @@ public sealed record SpellPreparationSnapshot(Guid PromptId, CharacterId Charact
 public enum NarrativeKind { CampaignIntroduction, BossIntroduction, TwelveKeys, CampaignFinale }
 
 public sealed record NarrativeSnapshot(Guid NarrativeId, NarrativeKind Kind, string Title, string Subtitle,
-    IReadOnlyList<string> Paragraphs, IReadOnlyList<PlayerId> AcknowledgedPlayerIds);
+    IReadOnlyList<string> Paragraphs, IReadOnlyList<PlayerId> AcknowledgedPlayerIds,
+    BossPresentationSnapshot? Boss = null);
+
+public sealed record BossPresentationSnapshot(string Name, string Appearance, int StrengthTier,
+    string Reward);
 
 public enum InnVendorKind { Market, Witcher, Blacksmith, Armorer, WanderingMage }
 

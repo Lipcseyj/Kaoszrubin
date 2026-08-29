@@ -1,3 +1,5 @@
+using MazeGame.Application;
+
 namespace MazeGame.UI;
 
 /// <summary>A host és a coop vendég közös történetiablak-tartalma.</summary>
@@ -7,9 +9,20 @@ public static class NarrativeWindow
     public const int TextWidth = 100;
 
     public static IReadOnlyList<(string Text, ConsoleColor Color)> Build(string title, string subtitle,
-        IReadOnlyList<string> paragraphs, string footer, ConsoleColor footerColor = ConsoleColor.Green)
+        IReadOnlyList<string> paragraphs, string footer, ConsoleColor footerColor = ConsoleColor.Green,
+        NarrativeKind kind = NarrativeKind.CampaignIntroduction, BossPresentationSnapshot? boss = null)
     {
-        var lines = new List<(string Text, ConsoleColor Color)>
+        var lines = kind == NarrativeKind.BossIntroduction && boss is not null
+            ? new List<(string Text, ConsoleColor Color)>
+            {
+                ("⚔️👑  BOSS KÖZELEG  👑⚔️", ConsoleColor.Red),
+                (subtitle, ConsoleColor.Magenta),
+                ($"{boss.Appearance}  {boss.Name}", ConsoleColor.Yellow),
+                ($"Erősség: {boss.StrengthTier}/5     Jutalom: {boss.Reward}", ConsoleColor.Cyan),
+                (new string('─', TextWidth), ConsoleColor.DarkMagenta),
+                (string.Empty, ConsoleColor.Gray)
+            }
+            : new List<(string Text, ConsoleColor Color)>
         {
             ($"✦═━─  {title}  ─━═✦", ConsoleColor.Yellow),
             (subtitle, ConsoleColor.Magenta),
@@ -18,7 +31,9 @@ public static class NarrativeWindow
         };
         foreach (var paragraph in paragraphs)
         {
-            lines.AddRange(Wrap(paragraph, TextWidth).Select(line => (line, ConsoleColor.White)));
+            lines.AddRange(Wrap(paragraph, TextWidth - (kind == NarrativeKind.BossIntroduction ? 2 : 0))
+                .Select(line => (kind == NarrativeKind.BossIntroduction ? $"„{line}”" : line,
+                    ConsoleColor.White)));
             lines.Add((string.Empty, ConsoleColor.Gray));
         }
         lines.Add((footer, footerColor));

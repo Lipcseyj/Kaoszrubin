@@ -1115,17 +1115,6 @@ public sealed class CoopGuestScreen
                 $"╳ Ajtó kiválasztása ({(doorAction == CharacterAction.OpenDoor ? "nyitás" : "bezárás/zárás")})" +
                 " — nyilak/Tab, Enter: kész, Esc: mégse",
                 ConsoleColor.Cyan, ConsoleColor.Black);
-        else if (snapshot.Battle is { ActingCharacterId: var acting, AllowedActions: var actions } &&
-                 acting == selected.CharacterId && actions.Any(IsBattleTacticAction))
-            footer[^1] = new GuestTextLine(actions.Contains(BattleActionKind.FighterPrecise) && snapshot.Battle.TacticOptions is { Count: > 0 } tactics
-                    ? "Taktika: " + string.Join(" | ", tactics.Select((option, index) =>
-                        $"{index + 1} {option.Name} {option.HitChancePercent}% ({option.Effect})"))
-                    : "Taktika: 1 Orvtámadás  |  2 Megfigyelés  |  3 Mérgezett penge",
-                ConsoleColor.Yellow, ConsoleColor.Black);
-        else if (snapshot.Battle is { ActingCharacterId: var enemyTurnActor, IsPlayerTurn: false,
-                     AllowedActions: var enemyTurnActions } && enemyTurnActor == selected.CharacterId &&
-                 enemyTurnActions.Contains(BattleActionKind.AdvanceEnemyTurn))
-            footer[^1] = new GuestTextLine("Space — ellenfél köre", ConsoleColor.Yellow, ConsoleColor.Black);
 
         return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, grid, panel,
             partyStatuses, footer);
@@ -1154,10 +1143,6 @@ public sealed class CoopGuestScreen
             };
         return option > 0 && battle.AllowedActions.Contains(action);
     }
-
-    private static bool IsBattleTacticAction(BattleActionKind action) => action is
-        BattleActionKind.FighterPrecise or BattleActionKind.FighterPowerful or BattleActionKind.FighterDefensive or
-        BattleActionKind.ThiefAmbush or BattleActionKind.ThiefObserve or BattleActionKind.ThiefPoison;
 
     private void ApplyInnUi(GuestMapCell[,] grid, SessionSnapshot snapshot)
     {
@@ -1248,7 +1233,7 @@ public sealed class CoopGuestScreen
             acknowledged
                 ? "❖  Várakozás a másik játékosra…  ❖"
                 : "❖  Nyomj Entert a történet folytatásához...  ❖",
-            acknowledged ? ConsoleColor.DarkCyan : ConsoleColor.Green).ToList();
+            acknowledged ? ConsoleColor.DarkCyan : ConsoleColor.Green, narrative.Kind, narrative.Boss).ToList();
         const int desiredWidth = NarrativeWindow.Width;
         var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
         var maxContentRows = Math.Max(1, grid.GetLength(1) - 2);

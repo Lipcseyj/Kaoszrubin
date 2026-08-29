@@ -161,6 +161,8 @@ public sealed class Game
     private bool _partyAttackMode;
     private bool _saveAfterBattle;
     private bool _timeStopUsedThisBattle;
+    private bool _battleTacticHintLogged;
+    private bool _battleActionHintLogged;
     private readonly HashSet<LiveCharacter> _turnUndeadUsedThisBattle = [];
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
     private readonly Queue<SessionActivitySnapshot> _sessionActivities = new();
@@ -1488,13 +1490,13 @@ public sealed class Game
     }
 
     private void ShowSynchronizedNarrative(NarrativeKind kind, string title, string subtitle,
-        IReadOnlyList<string> paragraphs)
+        IReadOnlyList<string> paragraphs, BossPresentationSnapshot? boss = null)
     {
         var previousPhase = _session.Phase;
         _narrativeAcknowledgements.Clear();
-        _activeNarrative = new NarrativeSnapshot(Guid.NewGuid(), kind, title, subtitle, paragraphs, []);
+        _activeNarrative = new NarrativeSnapshot(Guid.NewGuid(), kind, title, subtitle, paragraphs, [], boss);
         _session.SetPhase(GameSessionPhase.Paused);
-        _renderer.ShowStoryOverlay(title, subtitle, paragraphs, _maze, _fogOfWar, _player.Position);
+        _renderer.ShowStoryOverlay(title, subtitle, paragraphs, _maze, _fogOfWar, _player.Position, kind, boss);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
         while (true)
         {
@@ -2804,23 +2806,30 @@ public sealed class Game
 
     private void DrawBattleActionPrompt(Enemy enemy)
     {
-        if (_activeBattleState?.IsAwaitingTacticSelection == true)
+        if (_activeBattleState is not { } state) return;
+        PublishBattleControlHintOnce(state, enemy);
+    }
+
+    private void PublishBattleControlHintOnce(BattleState state, Enemy enemy)
+    {
+        string? message = null;
+        if (state.IsAwaitingTacticSelection && !_battleTacticHintLogged)
         {
-            var options = GetBattleTacticOptions(_activeBattleState);
-            _renderer.DrawInventoryMessage(SelectedCharacter.CharacterClass.Id == CharacterClassIds.Harcos && options is not null
-                ? "Válassz harci állást: " + string.Join(" | ", options.Select((option, index) =>
-                    $"{index + 1} — {option.Name} {option.HitChancePercent}% ({option.Effect})"))
-                : "Válassz megközelítést: 1 — Orvtámadás | 2 — Megfigyelés | 3 — Mérgezett penge",
-                ConsoleColor.Yellow);
-            return;
+            _battleTacticHintLogged = true;
+            message = BattlePromptText.Tactic(state.Player.CharacterClass.Id, GetBattleTacticOptions(state));
         }
-        var canTurnUndead = CanTurnUndead(SelectedCharacter, enemy) &&
-                            !_turnUndeadUsedThisBattle.Contains(SelectedCharacter);
-        _renderer.DrawInventoryMessage("Akció: Space — fegyveres támadás" +
-            (HasUsableCombatSpell(SelectedCharacter, _player.Position, enemy)
-                ? " | V — varázslat | F1-F8 — gyorsvarázslat"
-                : string.Empty) +
-            (canTurnUndead ? " | T — halottűzés" : string.Empty), ConsoleColor.Yellow);
+        else if (state.IsPlayerTurn && !state.IsAwaitingTacticSelection && !_battleActionHintLogged)
+        {
+            _battleActionHintLogged = true;
+            var character = state.Player;
+            var position = GetCasterPosition(character);
+            message = BattlePromptText.PlayerAction(HasUsableCombatSpell(character, position, enemy),
+                CanTurnUndead(character, enemy) && !_turnUndeadUsedThisBattle.Contains(character));
+        }
+        if (message is null) return;
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow, [state.PlayerCharacterId]);
+        if (state.Player == SelectedCharacter)
+            _renderer.DrawInventoryMessage(message, ConsoleColor.Yellow);
     }
 
     private static BattleActionKind TacticActionFor(string characterClassId, int option) =>
@@ -3965,12 +3974,10 @@ public sealed class Game
             var narrative = BossNarratives.GetValueOrDefault(boss.Definition.Id)
                 ?? new BossNarrative("Ismeretlen fejezet",
                     [$"Én vagyok {boss.Name}. E folyosók titkait nem osztom meg veletek."]);
-            var paragraphs = new[]
-            {
-                $"{boss.Definition.Appearance}  {boss.Name} — Erősség: {boss.Definition.StrengthTier}/5; jutalom: Aranykulcs."
-            }.Concat(narrative.Speech).ToArray();
             ShowSynchronizedNarrative(NarrativeKind.BossIntroduction, "BOSS KÖZELEG",
-                narrative.ChapterTitle, paragraphs);
+                narrative.ChapterTitle, narrative.Speech,
+                new BossPresentationSnapshot(boss.Name, boss.Definition.Appearance,
+                    boss.Definition.StrengthTier, "🔑 Aranykulcs"));
         }
     }
 
@@ -4000,6 +4007,8 @@ public sealed class Game
         if (_battleStarted) return;
         CheckBossDiscovery([enemy]);
         _timeStopUsedThisBattle = false;
+        _battleTacticHintLogged = false;
+        _battleActionHintLogged = false;
         _turnUndeadUsedThisBattle.Clear();
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
         _battleStarted = true;
@@ -4029,8 +4038,9 @@ public sealed class Game
                 var battleCharacter = state.Player;
                 _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
                     GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
-                if (battleCharacter == SelectedCharacter) DrawBattleActionPrompt(state.Enemy);
-                else _renderer.DrawInventoryMessage($"Várakozás {battleCharacter.Name} harci taktikájára.", ConsoleColor.Yellow);
+                PublishBattleControlHintOnce(state, state.Enemy);
+                if (battleCharacter != SelectedCharacter)
+                    _renderer.DrawInventoryMessage($"Várakozás {battleCharacter.Name} harci taktikájára.", ConsoleColor.Yellow);
                 return;
             }
             if (state.IsPlayerTurn)
@@ -4041,9 +4051,8 @@ public sealed class Game
                 {
                     _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
                         GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
-                    if (battleCharacter == SelectedCharacter)
-                        DrawBattleActionPrompt(state.Enemy);
-                    else
+                    PublishBattleControlHintOnce(state, state.Enemy);
+                    if (battleCharacter != SelectedCharacter)
                         _renderer.DrawInventoryMessage($"Globális szünet: várakozás {battleCharacter.Name} " +
                             "távoli harci akciójára.", ConsoleColor.Yellow);
                     return;

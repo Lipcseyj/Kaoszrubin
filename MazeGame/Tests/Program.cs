@@ -82,6 +82,7 @@ var tests = new (string Name, Action Run)[]
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
     ("A host és a vendég közös varázslat-UI modelleket használ", SpellUiModelsAreShared),
     ("A vendég tárgyvizsgálata nem vágja le a sebzésértéket", GuestItemInspectionKeepsDamageValue),
+    ("A boss-ablak és a harci promptok közös UI-modellt használnak", BossAndBattlePromptsAreShared),
     ("A kompakt party státusz HP-t és manát százalékosan mutat", CompactPartyStatusShowsResources),
     ("Az ablakkeret-katalógus méretezhető és konfigurálható", WindowFrameCatalogIsResizableAndConfigured),
     ("A vendég snapshot kasztbetűt és karakterszínt őriz", GuestAvatarUsesClassGlyphAndCharacterColor),
@@ -1948,6 +1949,27 @@ static void GuestItemInspectionKeepsDamageValue()
     Assert(lines.All(line => line.Length <= 48) &&
            string.Join(' ', lines).Contains($"sebzés: {weapon.Damage}", StringComparison.Ordinal),
         "A vendég tényleges panelszélességű tördelése levágta a fegyver sebzésértékét.");
+}
+
+static void BossAndBattlePromptsAreShared()
+{
+    var boss = new BossPresentationSnapshot("Káoszúr", "🐉 Fekete sárkány", 5, "🔑 Aranykulcs");
+    var lines = NarrativeWindow.Build("BOSS KÖZELEG", "X. fejezet", ["Nincs menekvés."],
+        "❖  Tovább  ❖", kind: NarrativeKind.BossIntroduction, boss: boss);
+    Assert(lines[0] == ("⚔️👑  BOSS KÖZELEG  👑⚔️", ConsoleColor.Red) &&
+           lines.Any(line => line.Text.Contains("Káoszúr", StringComparison.Ordinal)) &&
+           lines.Any(line => line.Text.Contains("Erősség: 5/5", StringComparison.Ordinal) &&
+                             line.Text.Contains("Aranykulcs", StringComparison.Ordinal)),
+        "A közös boss-ablak elvesztette a boss azonosságát, erősségét vagy jutalmát.");
+
+    var tactics = new[]
+    {
+        new BattleTacticOptionSnapshot(BattleActionKind.FighterPrecise, "🎯 Pontos", "sebzés ×0,75", 65)
+    };
+    Assert(BattlePromptText.Tactic(CharacterClassIds.Harcos, tactics).Contains("65%", StringComparison.Ordinal) &&
+           BattlePromptText.EnemyTurn == "Space — ellenfél köre" &&
+           BattlePromptText.PlayerAction(true, true).Contains("halottűzés", StringComparison.Ordinal),
+        "A közös harci prompt elvesztette a taktikai esélyt vagy valamelyik vezérlést.");
 }
 
 static void AbilityMagicItemsAreUniversalAndCapped()
