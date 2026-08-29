@@ -145,6 +145,9 @@ public sealed class CoopGuestScreen
                             await client.SendCommandAsync(new SetHelpVisibilityCommand(playerId,
                                 client.NextCommandId(), selected.CharacterId, false), cancellationToken);
                         }
+                        // A súgó közvetlenül a konzolra rajzol, ezért a gyorsítótárazott játék-frame
+                        // már nem tükrözi a képernyő tényleges tartalmát. Kényszerítsünk teljes újrarajzolást.
+                        _lastFrame = null;
                         Interlocked.Exchange(ref _redrawRequested, 1);
                         continue;
                     }
