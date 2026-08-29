@@ -426,7 +426,7 @@ public sealed class CharacterCreationScreen
     };
 
     private static string FormatAbilities(PrimaryAbilities abilities) =>
-        $"💪 {abilities.Strength}  🏹 {abilities.Dexterity}  ❤️ {abilities.Health}  🧠 {abilities.Intelligence}";
+        $"💪 {abilities.Strength}  🏹 {abilities.Dexterity}  💖 {abilities.Health}  🧠 {abilities.Intelligence}";
 
     private static void DrawFrame(string title, int requestedHeight)
     {

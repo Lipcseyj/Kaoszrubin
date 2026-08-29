@@ -98,35 +98,33 @@ public static class CharacterSheetPanel
             "Az inventory-projekció hiányzik a session snapshotból.", nameof(character));
         var lines = new List<CharacterSheetPanelLine>
         {
-            new(0, $"KARAKTERLAP - {character.Name}", ConsoleColor.Yellow),
-            new(1, $"{details.RaceName} {details.CharacterClassName}" + (isPartyLeader ? "  👑 VEZÉR" : string.Empty),
+            new(0, $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}", ConsoleColor.Green),
+            new(1, $"KARAKTERLAP - {character.Name}", ConsoleColor.Yellow),
+            new(2, $"{details.RaceName} {details.CharacterClassName}" + (isPartyLeader ? "  👑 VEZÉR" : string.Empty),
                 isPartyLeader ? ConsoleColor.Yellow : ConsoleColor.White)
         };
-        var perkRows = CompactRows("Teh", details.PerkNames, 2);
-        lines.Add(new(2, perkRows[0], ConsoleColor.Magenta));
-        lines.Add(new(3, perkRows[1], ConsoleColor.Magenta));
-        var statusIcons = details.StatusIcons
-            .Select(icon => icon == "🪨" ? ConsoleRenderer.DamageReductionIcon : icon).ToArray();
-        lines.Add(new(4, statusIcons.Length == 0 ? "Áll: nincs" : $"Áll: {string.Join(' ', statusIcons)}",
-            details.StatusIcons.Count == 0 ? ConsoleColor.DarkGray : ConsoleColor.Magenta));
-        lines.Add(new(5, $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}", ConsoleColor.Green));
-        lines.Add(new(6, details.NextLevelExperience is { } next
+        lines.Add(new(3, details.NextLevelExperience is { } next
             ? $"Szint: {character.Level}  XP: {details.Experience}/{next}"
             : $"Szint: {character.Level}  XP: MAX", ConsoleColor.Cyan));
-        lines.Add(new(7, $"💪{details.Abilities.Strength} 🏹{details.Abilities.Dexterity} ❤️{details.Abilities.Health} 🧠{details.Abilities.Intelligence} 👁️{details.VisionRange}", ConsoleColor.White));
-        lines.Add(new(8, "OSZTÁLYFEJLESZTÉSEK", ConsoleColor.DarkCyan));
-        var upgrades = details.ClassFeatureUpgradeNames ?? [];
-        lines.Add(new(9, upgrades.Count > 0 ? Shorten($"L10: {upgrades[0]}", Width) : "L10: —", upgrades.Count > 0 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
-        lines.Add(new(10, upgrades.Count > 1 ? Shorten($"L20: {upgrades[1]}", Width) : "L20: —", upgrades.Count > 1 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
-        var proficiencies = details.WeaponProficiencyNames ?? [];
-        lines.Add(new(11, proficiencies.Count > 0 ? $"Fegyver: {string.Join(' ', proficiencies)}" : "Fegyver: —",
-            proficiencies.Count > 0 ? ConsoleColor.Yellow : ConsoleColor.DarkGray));
-        lines.Add(new(12, $"❤️{character.CurrentVitality}/{character.MaximumVitality}" +
+        lines.Add(new(4, $"💪{details.Abilities.Strength} 🏹{details.Abilities.Dexterity} 💖{details.Abilities.Health} 🧠{details.Abilities.Intelligence} 👁️{details.VisionRange}", ConsoleColor.White));
+        lines.Add(new(5, $"❤️{character.CurrentVitality}/{character.MaximumVitality}" +
             (details.UsesMana ? $"  🔷{character.CurrentMana}/{character.MaximumMana}" : string.Empty),
             details.UsesMana ? ConsoleColor.Cyan : ConsoleColor.Red));
-        lines.Add(new(13, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow));
-        lines.Add(new(14, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan));
-        lines.Add(new(15, $"Arany: {character.Gold} {ConsoleRenderer.MoneyIcon}", ConsoleColor.Yellow));
+        lines.Add(new(6, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow));
+        lines.Add(new(7, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan));
+        var statusIcons = details.StatusIcons
+            .Select(icon => icon == "🪨" ? ConsoleRenderer.DamageReductionIcon : icon).ToArray();
+        lines.Add(new(8, statusIcons.Length == 0 ? "Áll: nincs" : $"Áll: {string.Join(' ', statusIcons)}",
+            details.StatusIcons.Count == 0 ? ConsoleColor.DarkGray : ConsoleColor.Magenta));
+        lines.Add(new(9, $"Arany: {character.Gold} {ConsoleRenderer.MoneyIcon}", ConsoleColor.Yellow));
+        var proficiencies = details.WeaponProficiencyNames ?? [];
+        lines.Add(new(10, proficiencies.Count > 0 ? $"Fegyver: {string.Join(' ', proficiencies)}" : "Fegyver: —",
+            proficiencies.Count > 0 ? ConsoleColor.Yellow : ConsoleColor.DarkGray));
+        lines.Add(new(11, CompactRows("Teh", details.PerkNames, 1)[0], ConsoleColor.Magenta));
+        lines.Add(new(13, "OSZTÁLYFEJLESZTÉSEK", ConsoleColor.DarkCyan));
+        var upgrades = details.ClassFeatureUpgradeNames ?? [];
+        lines.Add(new(14, upgrades.Count > 0 ? Shorten($"L10: {upgrades[0]}", Width) : "L10: —", upgrades.Count > 0 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
+        lines.Add(new(15, upgrades.Count > 1 ? Shorten($"L20: {upgrades[1]}", Width) : "L20: —", upgrades.Count > 1 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
         lines.Add(new(17, "FEGYVEREK", ConsoleColor.Yellow));
         AddInventoryLines(lines, inventory);
         return lines;

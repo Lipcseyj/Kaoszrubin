@@ -500,11 +500,12 @@ static void ClassFeatureUpgradesPersistAndAppearOnSheet()
         "Az osztályfejlesztések elvesztek a mentési kör után.");
 
     var lines = CharacterSheetPanel.Build(restored, data.ExperienceByLevel, 1, 0, 12);
-    Assert(lines.Single(line => line.Row == 7).Text.Contains("💪7", StringComparison.Ordinal) &&
-           lines.Single(line => line.Row == 7).Text.Contains("🧠10", StringComparison.Ordinal) &&
-           lines.Single(line => line.Row == 8).Text == "OSZTÁLYFEJLESZTÉSEK" &&
-           lines.Single(line => line.Row == 9).Text.Contains("Kimért pontosság", StringComparison.Ordinal) &&
-           lines.Single(line => line.Row == 10).Text.Contains("Áthatolhatatlan", StringComparison.Ordinal),
+    Assert(lines.Single(line => line.Row == 4).Text.Contains("💪7", StringComparison.Ordinal) &&
+           lines.Single(line => line.Row == 4).Text.Contains("💖9", StringComparison.Ordinal) &&
+           lines.Single(line => line.Row == 4).Text.Contains("🧠10", StringComparison.Ordinal) &&
+           lines.Single(line => line.Row == 13).Text == "OSZTÁLYFEJLESZTÉSEK" &&
+           lines.Single(line => line.Row == 14).Text.Contains("Kimért pontosság", StringComparison.Ordinal) &&
+           lines.Single(line => line.Row == 15).Text.Contains("Áthatolhatatlan", StringComparison.Ordinal),
         "A tömör képességsor vagy az osztályfejlesztések karakterlap-blokkja hibás.");
 }
 
@@ -563,10 +564,10 @@ static void WeaponProficienciesAreLimitedEffectiveAndPersisted()
            restored.WeaponProficiencyRankFor(WeaponFamilies.Shield) == WeaponProficiencyRank.Master,
         "A fegyverjártasságok elvesztek a mentési kör után.");
     var lines = CharacterSheetPanel.Build(restored, data.ExperienceByLevel, 1, 0, 12);
-    Assert(lines.Single(line => line.Row == 11).Text.Contains("⚔️M", StringComparison.Ordinal) &&
-           lines.Single(line => line.Row == 11).Text.Contains("🛡️M", StringComparison.Ordinal) &&
-           lines.Single(line => line.Row == 12).Text.Contains("❤️", StringComparison.Ordinal) &&
-           !lines.Single(line => line.Row == 12).Text.Contains("🔷", StringComparison.Ordinal),
+    Assert(lines.Single(line => line.Row == 10).Text.Contains("⚔️M", StringComparison.Ordinal) &&
+           lines.Single(line => line.Row == 10).Text.Contains("🛡️M", StringComparison.Ordinal) &&
+           lines.Single(line => line.Row == 5).Text.Contains("❤️", StringComparison.Ordinal) &&
+           !lines.Single(line => line.Row == 5).Text.Contains("🔷", StringComparison.Ordinal),
         "A fegyverjártasság- vagy az összevont erőforrássor hibás a karakterlapon.");
     var inspection = ItemInspectionFormatter.Format(sword, data, weaponProficiencies:
         restored.WeaponProficiencies.ToDictionary(proficiency => proficiency.FamilyId,
@@ -1448,16 +1449,17 @@ static void CharacterSheetLayoutIsShared()
     var guestLines = CharacterSheetPanel.Build(snapshot, 3, 1, 4);
     Assert(hostLines.SequenceEqual(guestLines),
         "A doménkarakterből és a hálózati snapshotból felépített karakterlap eltér.");
-    var abilityLine = hostLines.Single(line => line.Row == 7).Text;
-    Assert(abilityLine.Contains("👁️5", StringComparison.Ordinal) && abilityLine.Length <= CharacterSheetPanel.Width,
+    var abilityLine = hostLines.Single(line => line.Row == 4).Text;
+    Assert(abilityLine.Contains("💖", StringComparison.Ordinal) &&
+           abilityLine.Contains("👁️5", StringComparison.Ordinal) && abilityLine.Length <= CharacterSheetPanel.Width,
         $"A karakterlap képességsora nem mutatja szabályosan a látótávot: '{abilityLine}'.");
     var restored = JsonSerializer.Deserialize<SessionCharacterSnapshot>(JsonSerializer.Serialize(snapshot));
     Assert(restored is not null && CharacterSheetPanel.Build(restored, 3, 1, 4).SequenceEqual(hostLines),
         "A közös karakterlap read modelje nem élte túl a JSON wire-körutat.");
     var hostLeaderLine = CharacterSheetPanel.Build(character, experienceByLevel, 3, 1, 4, true)
-        .Single(line => line.Row == 1);
+        .Single(line => line.Row == 2);
     var guestLeaderLine = CharacterSheetPanel.Build(snapshot, 3, 1, 4, true)
-        .Single(line => line.Row == 1);
+        .Single(line => line.Row == 2);
     Assert(hostLeaderLine == guestLeaderLine && hostLeaderLine.Text.Contains("👑 VEZÉR", StringComparison.Ordinal) &&
            hostLeaderLine.Color == ConsoleColor.Yellow,
         "A host és a vendég karakterlapján nem azonos a feltűnő vezérjelzés.");
