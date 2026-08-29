@@ -4393,6 +4393,13 @@ public sealed class Game
         _session.SetPhase(GameSessionPhase.Battle);
         PlaySessionSound(SoundEffect.BattleStart);
         _renderer.DrawBattleStarted(enemy);
+        if (battleCharacter != SelectedCharacter)
+        {
+            _renderer.DrawInventoryMessage(
+                $"🎮 Most {battleCharacter.Name} csatázik; a döntéseinél időnként várni kell rá.",
+                ConsoleColor.Yellow);
+            PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
+        }
         var started = _battleSystem.StartBattle(battleCharacter, enemy);
         _activeBattleState = started.State;
         TryAssignKnightProtection(_activeBattleState, battleCharacter);
@@ -4417,12 +4424,6 @@ public sealed class Game
                 _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
                     GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
                 PublishBattleControlHintOnce(state, state.Enemy);
-                if (battleCharacter != SelectedCharacter)
-                {
-                    _renderer.DrawInventoryMessage(
-                        $"⌛ Várakozás {battleCharacter.Name} harci taktikájára... ⌛", ConsoleColor.Yellow);
-                    PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
-                }
                 return;
             }
             if (state.IsPlayerTurn)
@@ -4434,12 +4435,6 @@ public sealed class Game
                     _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
                         GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
                     PublishBattleControlHintOnce(state, state.Enemy);
-                    if (battleCharacter != SelectedCharacter)
-                    {
-                        _renderer.DrawInventoryMessage(
-                            $"⌛ Várakozás {battleCharacter.Name} harci akciójára... ⌛", ConsoleColor.Yellow);
-                        PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
-                    }
                     return;
                 }
                 var supportStep = _battleSystem.Advance(state, supportDamage: _pendingBattleSupportDamage);
