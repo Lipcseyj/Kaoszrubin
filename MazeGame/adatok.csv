@@ -529,22 +529,55 @@ S001,Mágikus lövedék,1,6,Biztosan célba találó arkán lövedék amely a va
 S002,Fagyasztó érintés,1,5,Fagyos közelharci varázslat amely megsebzi és lelassítja az ellenfelet.,Enemy,1,0,igen,Both
 S003,Égő kéz,1,8,Rövid lángtölcsér amely több ellenfelet megsebezhet és lángra lobbanthat.,Direction,2,1,igen,Both
 S005,Lángoló nyíl,1,7,Nagy hatótávú tűznyíl amely találatkor égést okoz.,Enemy,8,0,igen,Both
+S021,Erőpajzs,1,6,Sűrű arkán mező amely rövid időre megerősíti a mágus védelmét.,Self,0,0,nem,Both
 S004,Villámcsapás,2,12,Egyetlen célpontba vezetett nagy erejű villámcsapás.,Enemy,6,0,igen,Both
 S006,Láthatatlanság,2,11,Egy partitag eltűnik az ellenfelek szeme elől amíg támadást nem indít.,PartyMember,6,0,igen,Both
 S013,Arkán páncél,2,10,Mágikus védőréteg amely ideiglenesen növeli a varázsló védelmét.,Self,0,0,nem,Both
 S014,Lassítás,2,12,Megzavarja az ellenfél időérzékét és minden második akcióját elveheti.,Enemy,8,0,igen,Both
+S022,Jégbilincs,2,11,Fagyos bilincsek lassítják az ellenfelet és megakasztják minden második mozdulatát.,Enemy,8,0,igen,Both
 S007,Tűzgolyó,3,18,Nagy területen robbanó tűzgömb amely égő sebeket hagy maga után.,Area,8,2,igen,Both
 S008,Jégvihar,3,18,Fagyos vihar amely megsebzi és több körre lelassítja az ellenfeleket.,Area,8,2,igen,Both
 S010,Teleportáció,3,14,A varázsló egy már felfedezett szabad mezőre teleportál.,Cell,8,0,nem,Both
 S015,Mágia szétoszlatása,3,16,Megszünteti a célterületen működő ideiglenes mágikus hatásokat.,Area,6,1,igen,Both
+S023,Hasadó villám,3,18,Egy villámív több egymáshoz közeli ellenfélen is végigfut.,Enemy,8,0,igen,Both
 S009,Villámvihar,4,26,Tartós villámvihar amely a kezdeti csapás után tovább sebzi az ellenfeleket.,Area,8,2,igen,Both
 S011,Meteorzápor,4,30,Meteorok pusztítják el a célterületet és égő talajt hagynak hátra.,Area,10,3,igen,Both
 S016,Láncvillám,4,28,A villám az első célpontról legfeljebb három közeli ellenfélre ugrik.,Enemy,8,0,igen,Both
 S017,Kőbőr,4,24,Egy partitag kőkemény bőrt kap amely felezi a fizikai sérülést és megakadályozza a vérzést.,PartyMember,6,0,igen,Both
+S024,Harci gyorsítás,4,25,Felgyorsítja a teljes partit és pontosabbá teszi a támadásaikat.,Party,0,0,nem,Both
 S012,Időmegállítás,5,42,A mágus rövid időre megállítja környezetét és két további akciót kap.,Self,0,0,nem,Combat
 S018,Dezintegráció,5,40,Elsöprő sugár amely súlyosan sebzi és a legyengült ellenfelet elpusztíthatja.,Enemy,8,0,igen,Both
 S019,Dimenziókapu,5,32,A teljes élő parti egy távoli felfedezett területre teleportál.,Cell,10,0,nem,Both
 S020,Arkán kataklizma,5,50,Hatalmas területi pusztítás amely véletlen elemi utóhatást kelt.,Area,10,4,igen,Both
+S025,Lélekvihar,5,44,Sötét arkán vihar tépi az ellenfeleket és még több akción át pusztítja őket.,Area,9,3,igen,Both
+
+#Papi varázslatok
+Id,Név,Szint,Manna,Leírás,Célzás,Hatótáv,Terület,Látóvonal,HasználatiMód
+P001,Gyógyító érintés,1,5,Érintéssel gyógyít 2d8 plusz Intelligencia plusz karakterszint HP-t.,PartyMember,1,0,igen,Both
+P002,Szent fény,1,6,Szent fényt lő egy ellenfélre amely élőholt és démoni célpont ellen másfélszeres sebzést okoz.,Enemy,8,0,igen,Both
+P003,Áldás,1,8,Négy akcióra találatot védelmet és kezdeményezést ad minden élő part tagnak.,Party,0,0,nem,Both
+P006,Méregűzés,1,5,Eltávolítja a Mérgezés állapotot egy élő part tagjáról.,PartyMember,6,0,igen,Both
+P021,Étel és ital teremtése,1,6,Mennyei útravalót és tiszta vizet teremt amely az egész parti szükségleteit enyhíti.,Party,0,0,nem,Exploration
+P004,Szent pajzs,2,10,Négy akcióra öt pont védelmet ad egy élő part tagnak.,PartyMember,6,0,igen,Both
+P005,Gyógyítás,2,11,Hat mezőről nagy mennyiségű életerőt állít vissza egy élő part tagnak.,PartyMember,6,0,igen,Both
+P007,Védelem a gonosztól,2,12,Öt akcióra védelmet és sebzéscsökkentést ad élőholt vagy démoni támadó ellen.,PartyMember,6,0,igen,Both
+P013,Betegségűzés,2,10,Eltávolítja a Betegség állapotot és visszaállítja a normál erőforrásmaximumokat.,PartyMember,6,0,igen,Both
+P022,Remény imája,2,12,Szelíd isteni erő gyógyítja egyszerre a teljes élő partit.,Party,0,0,nem,Both
+P009,Szent csapás,3,17,Súlyos szent sebzést okoz és rontott ellenpróbánál elveszi a következő ellenséges akciót.,Enemy,8,0,igen,Both
+P010,Isteni védelem,3,18,Négy akcióra védelmet és huszonöt százalék fizikai sebzéscsökkentést ad a teljes partinak.,Party,0,0,nem,Both
+P014,Megtisztítás,3,15,Eltávolítja a Mérgezés Betegség és Vérzés állapotot majd gyógyítja a célpontot.,PartyMember,6,0,igen,Both
+P015,Bátorság imája,3,14,Öt akcióra találatot fizikai sebzést és kezdeményezést ad a teljes partinak.,Party,0,0,nem,Both
+P023,Szent fegyver,3,16,Áldott erő teszi pontosabbá és pusztítóbbá a teljes parti fegyvereit.,Party,0,0,nem,Both
+P008,Feltámasztás,4,30,Egy elesett társat huszonöt százalék HP-val és nulla mannával hoz vissza.,Corpse,6,0,igen,Both
+P011,Szent ítélet,4,28,Nagy szent sebzést okoz és rontott ellenpróbánál eltávolítja a pozitív varázshatásokat.,Enemy,8,0,igen,Both
+P016,Őrangyal,4,26,Öt akcióig kivédi a célpont első halálos csapását majd gyógyítja őt.,PartyMember,6,0,igen,Both
+P017,Tömeges gyógyítás,4,30,Minden élő part tagnak egyszerre nagy mennyiségű életerőt állít vissza.,Party,0,0,nem,Both
+P024,Égi bástya,4,27,Mennyei oltalom növeli a teljes parti védelmét és csökkenti a fizikai sérüléseket.,Party,0,0,nem,Both
+P012,Isteni csoda,5,45,Maximumra gyógyítja és minden súlyos állapottól megtisztítja a teljes élő partit.,Party,0,0,nem,Both
+P018,Isteni harag,5,46,Hatalmas területi szent sebzést okoz minden ellenségnek de a partit nem sebzi.,Area,8,3,igen,Both
+P019,Szentély,5,38,Négy akcióra felére csökkenti a közeli part tagokat érő sebzést és állapotvédelmet ad.,Self,0,3,nem,Both
+P020,Igazi feltámasztás,5,50,Egy elesett társat teljes HP-val fél mannával és negatív állapotok nélkül hoz vissza.,Corpse,8,0,igen,Both
+P025,Mennyei tűz,5,45,Tiszta égi láng borítja el az ellenségeket és tovább perzseli őket.,Area,9,3,igen,Both
 
 #Varázshatások
 Id,VarázslatId,Sorrend,Típus,Kocka,IntSzorzó,SzintSzorzó,Érték,Időtartam,Esély,Ellenpróba,Paraméter,Leírás
@@ -555,17 +588,21 @@ FX-S003-1,S003,1,Damage,3d6,1,1,0,0,100,SaveHalf,,Területi tűzsebzés mentőre
 FX-S003-2,S003,2,Burning,1d4,0,0,0,2,100,SaveNegates,,Sikertelen mentőnél két akcióig égést okoz.
 FX-S005-1,S005,1,Damage,3d6,1,1,0,0,100,Attack,,Mágikus támadással okozott tűzsebzés.
 FX-S005-2,S005,2,Burning,1d4,0,0,0,2,100,Attack,,Találatkor két akcióig égést okoz.
+FX-S021-1,S021,1,DefenseBonus,,0,0,3,3,100,Auto,,Három akcióra három pont védelmet ad.
 FX-S004-1,S004,1,Damage,5d8,2,3,0,0,100,Attack,,Nagy erejű egycélpontos villámsebzés.
 FX-S006-1,S006,1,Invisibility,,0,0,5,3,100,Auto,,Közvetlen célzás elleni védelem és plusz öt az első támadáshoz.
 FX-S013-1,S013,1,DefenseBonus,,0,0,5,5,100,Auto,,Öt akcióig öt pont mágikus védelmet ad.
 FX-S014-1,S014,1,SpeedPenalty,,0,0,4,3,100,SaveNegates,,Három akcióig négy ponttal csökkenti a Gyorsaságot.
 FX-S014-2,S014,2,SkipAlternate,,0,0,1,3,100,SaveNegates,,Minden második ellenséges akció kimarad.
+FX-S022-1,S022,1,SpeedPenalty,,0,0,5,3,100,SaveNegates,,Három akcióig öt ponttal csökkenti a Gyorsaságot.
+FX-S022-2,S022,2,SkipAlternate,,0,0,1,2,100,SaveNegates,,Minden második ellenséges akció kimarad.
 FX-S007-1,S007,1,Damage,8d8,3,5,0,0,100,SaveHalf,,Nagy területi tűzsebzés mentőre felezve.
 FX-S007-2,S007,2,Burning,1d6,0,0,0,2,100,SaveNegates,,Sikertelen mentőnél két akcióig égést okoz.
 FX-S008-1,S008,1,Damage,6d8,3,5,0,0,100,SaveHalf,,Területi fagysebzés mentőre felezve.
 FX-S008-2,S008,2,SpeedPenalty,,0,0,4,3,100,SaveNegates,,Három akcióig jeges lassítást okoz.
 FX-S010-1,S010,1,TeleportSelf,,0,0,0,0,100,Auto,,A varázslót a célmezőre teleportálja.
 FX-S015-1,S015,1,Dispel,,0,0,0,0,100,Auto,,Eltávolítja az ideiglenes mágikus hatásokat.
+FX-S023-1,S023,1,ChainDamage,8d8,3,5,0,0,100,SaveHalf,100|70|40,Legfeljebb két további célpontra ugró villámsebzés.
 FX-S009-1,S009,1,Damage,10d10,4,8,0,0,100,SaveHalf,,A villámvihar kezdeti területi sebzése.
 FX-S009-2,S009,2,Storm,3d10,1,0,0,3,100,SaveNegates,,Három ellenséges akcióig további villámsebzést okoz.
 FX-S011-1,S011,1,Damage,14d10,4,10,0,0,100,SaveHalf,,A meteorzápor nagy területi sebzése.
@@ -573,22 +610,28 @@ FX-S011-2,S011,2,Burning,2d8,0,0,0,2,100,SaveNegates,,Két ellenséges akcióig 
 FX-S016-1,S016,1,ChainDamage,12d8,4,8,0,0,100,SaveHalf,100|75|50|25,Legfeljebb három további célpontra ugró villámsebzés.
 FX-S017-1,S017,1,PhysicalReduction,,0,0,50,4,100,Auto,,Négy akcióig ötven százalékkal csökkenti a fizikai sebzést.
 FX-S017-2,S017,2,BleedingImmunity,,0,0,1,4,100,Auto,,Négy akcióig megakadályozza a vérzés felkerülését.
+FX-S024-1,S024,1,InitiativeBonus,,0,0,5,5,100,Auto,,Öt akcióra öt pont kezdeményezést ad a teljes partinak.
+FX-S024-2,S024,2,HitBonus,,0,0,2,5,100,Auto,,Öt akcióra két pont találati bónuszt ad a teljes partinak.
 FX-S012-1,S012,1,ExtraActions,,0,0,2,0,100,Auto,,Két azonnali további játékosakciót ad.
 FX-S018-1,S018,1,Damage,30d12,6,20,0,0,100,Attack,,Rendkívül nagy egycélpontos mágikus sebzés.
 FX-S018-2,S018,2,Execute,,0,0,25,0,100,Attack,,A huszonöt százalék HP-n álló nem főellenfelet elpusztítja.
 FX-S019-1,S019,1,TeleportParty,,0,0,0,0,100,Auto,,A teljes élő partit a célmező köré teleportálja.
 FX-S020-1,S020,1,Damage,24d12,6,20,0,0,100,SaveHalf,,Hatalmas területi arkán sebzés mentőre felezve.
 FX-S020-2,S020,2,RandomElement,4d10,0,0,4,3,30,SaveNegates,Fire|Frost|Lightning,Véletlen tűz fagy vagy villám utóhatást okoz.
+FX-S025-1,S025,1,Damage,18d10,5,14,0,0,100,SaveHalf,,Nagy területi arkán sebzés mentőre felezve.
+FX-S025-2,S025,2,Storm,3d10,1,0,0,3,100,SaveNegates,,Három ellenséges akcióig további arkán sebzést okoz.
 FX-P001-1,P001,1,Heal,2d8,1,1,0,0,100,Auto,,Érintéssel helyreállított életerő.
 FX-P002-1,P002,1,Damage,2d6,1,1,0,0,100,Attack,Holy50,Szent sebzés élőholt és démoni célpont ellen másfélszeres erővel.
 FX-P003-1,P003,1,HitBonus,,0,0,1,4,100,Auto,,Négy akcióra találati bónuszt ad a teljes partinak.
 FX-P003-2,P003,2,DefenseBonus,,0,0,1,4,100,Auto,,Négy akcióra védelmi bónuszt ad a teljes partinak.
 FX-P003-3,P003,3,InitiativeBonus,,0,0,2,4,100,Auto,,Négy akcióra kezdeményezési bónuszt ad a teljes partinak.
 FX-P006-1,P006,1,CureStatus,,0,0,0,0,100,Auto,STATUS003,Eltávolítja a Mérgezés állapotot.
+FX-P021-1,P021,1,RestoreNeeds,,0,0,35,0,100,Auto,,Harmincöt élelem- és vízpontot teremt minden élő partitagnak.
 FX-P004-1,P004,1,DefenseBonus,,0,0,5,4,100,Auto,,Négy akcióra öt pont védelmet ad.
 FX-P005-1,P005,1,Heal,5d8,2,2,0,0,100,Auto,,Nagy erejű távolsági gyógyítás.
 FX-P007-1,P007,1,ProtectionFromEvil,,0,0,30,5,100,Auto,4,Öt akcióra négy védelmet és harminc százalék csökkentést ad élőholt és démoni támadó ellen.
 FX-P013-1,P013,1,CureStatus,,0,0,0,0,100,Auto,STATUS004,Eltávolítja a Betegség állapotot.
+FX-P022-1,P022,1,Heal,3d8,1,1,0,0,100,Auto,,A teljes élő partit mérsékelten gyógyítja.
 FX-P009-1,P009,1,Damage,8d8,2,4,0,0,100,SaveHalf,Holy50,Szent sebzés ellenpróbára felezve és gonosz lény ellen másfélszeres erővel.
 FX-P009-2,P009,2,SkipAlternate,,0,0,1,1,100,SaveNegates,Next,Rontott ellenpróbánál a célpont következő akciója kimarad.
 FX-P010-1,P010,1,DefenseBonus,,0,0,3,4,100,Auto,,Négy akcióra három pont védelmet ad a teljes partinak.
@@ -598,39 +641,22 @@ FX-P014-2,P014,2,Heal,3d8,1,0,0,0,100,Auto,,A megtisztítás után életerőt is
 FX-P015-1,P015,1,HitBonus,,0,0,2,5,100,Auto,,Öt akcióra két pont találati bónuszt ad a teljes partinak.
 FX-P015-2,P015,2,DamageBonus,,0,0,2,5,100,Auto,,Öt akcióra két pont fizikai sebzést ad a teljes partinak.
 FX-P015-3,P015,3,InitiativeBonus,,0,0,3,5,100,Auto,,Öt akcióra három pont kezdeményezést ad a teljes partinak.
+FX-P023-1,P023,1,HitBonus,,0,0,3,5,100,Auto,,Öt akcióra három pont találati bónuszt ad a teljes partinak.
+FX-P023-2,P023,2,DamageBonus,,0,0,3,5,100,Auto,,Öt akcióra három pont fizikai sebzést ad a teljes partinak.
 FX-P008-1,P008,1,Resurrect,,0,0,25,0,100,Auto,0|STATUS003|STATUS005,Huszonöt százalék HP-val és nulla mannával visszahoz egy elesett társat.
 FX-P011-1,P011,1,Damage,14d10,4,8,0,0,100,SaveHalf,Holy50,Nagy erejű szent sebzés élőholt és démoni célpont ellen másfélszeres erővel.
 FX-P011-2,P011,2,DispelBeneficial,,0,0,0,0,100,SaveNegates,,Rontott ellenpróbánál eltávolítja a célpont pozitív varázshatásait.
 FX-P016-1,P016,1,GuardianAngel,4d8,1,0,0,5,100,Auto,,Az első halálos csapást kivédi majd életerőt állít vissza.
 FX-P017-1,P017,1,Heal,5d8,2,3,0,0,100,Auto,,A teljes élő partit egyszerre gyógyítja.
+FX-P024-1,P024,1,DefenseBonus,,0,0,5,5,100,Auto,,Öt akcióra öt pont védelmet ad a teljes partinak.
+FX-P024-2,P024,2,PhysicalReduction,,0,0,35,5,100,Auto,,Öt akcióra harmincöt százalékkal csökkenti a fizikai sebzést.
 FX-P012-1,P012,1,CureStatus,,0,0,0,0,100,Auto,STATUS003|STATUS004|STATUS005,Minden élő part tagjáról eltávolítja a súlyos állapotokat.
 FX-P012-2,P012,2,Heal,,0,0,0,0,100,Auto,Full,Minden élő partitag életerejét maximumra tölti.
 FX-P018-1,P018,1,Damage,18d10,5,12,0,0,100,SaveHalf,Holy50,Hatalmas területi szent sebzés amely a partit nem érinti.
 FX-P019-1,P019,1,Sanctuary,,0,0,50,4,100,Auto,,A Pap közelében álló társakat védi amíg nem támadnak.
 FX-P020-1,P020,1,Resurrect,,0,0,100,0,100,Auto,50|STATUS003|STATUS004|STATUS005,Teljes HP-val fél mannával és megtisztítva hoz vissza egy elesett társat.
-
-#Papi varázslatok
-Id,Név,Szint,Manna,Leírás,Célzás,Hatótáv,Terület,Látóvonal,HasználatiMód
-P001,Gyógyító érintés,1,5,Érintéssel gyógyít 2d8 plusz Intelligencia plusz karakterszint HP-t.,PartyMember,1,0,igen,Both
-P002,Szent fény,1,6,Szent fényt lő egy ellenfélre amely élőholt és démoni célpont ellen másfélszeres sebzést okoz.,Enemy,8,0,igen,Both
-P003,Áldás,1,8,Négy akcióra találatot védelmet és kezdeményezést ad minden élő part tagnak.,Party,0,0,nem,Both
-P006,Méregűzés,1,5,Eltávolítja a Mérgezés állapotot egy élő part tagjáról.,PartyMember,6,0,igen,Both
-P004,Szent pajzs,2,10,Négy akcióra öt pont védelmet ad egy élő part tagnak.,PartyMember,6,0,igen,Both
-P005,Gyógyítás,2,11,Hat mezőről nagy mennyiségű életerőt állít vissza egy élő part tagnak.,PartyMember,6,0,igen,Both
-P007,Védelem a gonosztól,2,12,Öt akcióra védelmet és sebzéscsökkentést ad élőholt vagy démoni támadó ellen.,PartyMember,6,0,igen,Both
-P013,Betegségűzés,2,10,Eltávolítja a Betegség állapotot és visszaállítja a normál erőforrásmaximumokat.,PartyMember,6,0,igen,Both
-P009,Szent csapás,3,17,Súlyos szent sebzést okoz és rontott ellenpróbánál elveszi a következő ellenséges akciót.,Enemy,8,0,igen,Both
-P010,Isteni védelem,3,18,Négy akcióra védelmet és huszonöt százalék fizikai sebzéscsökkentést ad a teljes partinak.,Party,0,0,nem,Both
-P014,Megtisztítás,3,15,Eltávolítja a Mérgezés Betegség és Vérzés állapotot majd gyógyítja a célpontot.,PartyMember,6,0,igen,Both
-P015,Bátorság imája,3,14,Öt akcióra találatot fizikai sebzést és kezdeményezést ad a teljes partinak.,Party,0,0,nem,Both
-P008,Feltámasztás,4,30,Egy elesett társat huszonöt százalék HP-val és nulla mannával hoz vissza.,Corpse,6,0,igen,Both
-P011,Szent ítélet,4,28,Nagy szent sebzést okoz és rontott ellenpróbánál eltávolítja a pozitív varázshatásokat.,Enemy,8,0,igen,Both
-P016,Őrangyal,4,26,Öt akcióig kivédi a célpont első halálos csapását majd gyógyítja őt.,PartyMember,6,0,igen,Both
-P017,Tömeges gyógyítás,4,30,Minden élő part tagnak egyszerre nagy mennyiségű életerőt állít vissza.,Party,0,0,nem,Both
-P012,Isteni csoda,5,45,Maximumra gyógyítja és minden súlyos állapottól megtisztítja a teljes élő partit.,Party,0,0,nem,Both
-P018,Isteni harag,5,46,Hatalmas területi szent sebzést okoz minden ellenségnek de a partit nem sebzi.,Area,8,3,igen,Both
-P019,Szentély,5,38,Négy akcióra felére csökkenti a közeli part tagokat érő sebzést és állapotvédelmet ad.,Self,0,3,nem,Both
-P020,Igazi feltámasztás,5,50,Egy elesett társat teljes HP-val fél mannával és negatív állapotok nélkül hoz vissza.,Corpse,8,0,igen,Both
+FX-P025-1,P025,1,Damage,20d10,5,14,0,0,100,SaveHalf,Holy50,Hatalmas területi szent sebzés élőholt és démoni célpont ellen másfélszeres erővel.
+FX-P025-2,P025,2,Burning,2d8,0,0,0,3,100,SaveNegates,,Három ellenséges akcióig égi lánggal perzsel.
 
 #Karakternevek
 Id,Név,OsztályId

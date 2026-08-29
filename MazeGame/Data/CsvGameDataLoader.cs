@@ -669,13 +669,13 @@ public static class CsvGameDataLoader
         foreach (var school in Enum.GetValues<SpellSchool>())
         {
             var schoolSpells = spells.Where(spell => spell.School == school).ToList();
-            if (schoolSpells.Count != 20)
-                throw new InvalidOperationException($"A(z) {school} iskolához pontosan 20 varázslat szükséges; jelenleg {schoolSpells.Count} található.");
+            if (schoolSpells.Count != 25)
+                throw new InvalidOperationException($"A(z) {school} iskolához pontosan 25 varázslat szükséges; jelenleg {schoolSpells.Count} található.");
             for (var level = 1; level <= 5; level++)
             {
                 var count = schoolSpells.Count(spell => spell.Level == level);
-                if (count != 4)
-                    throw new InvalidOperationException($"A(z) {school} iskola {level}. szintjén pontosan 4 varázslat szükséges; jelenleg {count} található.");
+                if (count != 5)
+                    throw new InvalidOperationException($"A(z) {school} iskola {level}. szintjén pontosan 5 varázslat szükséges; jelenleg {count} található.");
             }
         }
     }

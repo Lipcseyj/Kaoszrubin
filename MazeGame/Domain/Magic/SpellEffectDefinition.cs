@@ -29,7 +29,8 @@ public enum SpellEffectType
     GuardianAngel,
     Sanctuary,
     Resurrect,
-    DispelBeneficial
+    DispelBeneficial,
+    RestoreNeeds
 }
 
 public enum SpellResolution

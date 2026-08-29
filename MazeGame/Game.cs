@@ -3760,6 +3760,9 @@ public sealed class Game
                         notes.Add($"{enemy.Name}: {removed} pozitív varázshatás szétoszlatva");
                     }
                     break;
+                case SpellEffectType.RestoreNeeds:
+                    ApplyNeedRestoration(characterTargets, effect, divineJudgment, notes);
+                    break;
             }
         }
 
@@ -4331,8 +4334,25 @@ public sealed class Game
         {
             SpellEffectType.Heal => character.CurrentVitality < character.MaximumVitality,
             SpellEffectType.CureStatus => ParseEffectParameters(effect.Parameter).Any(character.HasStatus),
+            SpellEffectType.RestoreNeeds => character.FoodLevel < 100 || character.WaterLevel < 100,
             _ => true
         });
+    }
+
+    private void ApplyNeedRestoration(IEnumerable<LiveCharacter> characters, SpellEffectDefinition effect,
+        bool divineJudgment, ICollection<string> notes)
+    {
+        var amount = effect.Value * (divineJudgment ? 2 : 1);
+        foreach (var character in characters.Where(character => character.IsAlive))
+        {
+            var foodBefore = character.FoodLevel;
+            var waterBefore = character.WaterLevel;
+            character.RestoreFood(amount);
+            character.RestoreWater(amount);
+            character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
+                _gameData.GetStatus(CharacterStatusIds.Thirsty));
+            notes.Add($"{character.Name}: 🍖+{character.FoodLevel - foodBefore} 💧+{character.WaterLevel - waterBefore}");
+        }
     }
 
     private string DescribeSpellTarget(LiveCharacter caster, SpellDefinition spell, Position position, Enemy? currentEnemy) => spell.TargetType switch

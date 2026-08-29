@@ -30,6 +30,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
+    ("Mindkét varázsiskola minden szintjén öt varázslat van", SpellSchoolsHaveFiveSpellsPerLevel),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
     ("Az ismeretlen CSV-fejezet sorszámos hibát ad", UnknownCsvSectionIsRejectedWithLineNumber),
@@ -2050,6 +2051,21 @@ static void RaceTraitsAreLoadedFromData()
     Assert(catalog.GetRace("R002").HasTrait(RaceTraits.Resilient), "A törp Rendíthetetlen tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R003").HasTrait(RaceTraits.KeenSenses), "Az elf Éles érzékek tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R004").HasTrait(RaceTraits.Relentless), "A félork Könyörtelen tulajdonsága hiányzik.");
+}
+
+static void SpellSchoolsHaveFiveSpellsPerLevel()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    foreach (var school in Enum.GetValues<SpellSchool>())
+        for (var level = 1; level <= 5; level++)
+            Assert(catalog.GetSpells(school, level).Count == 5,
+                $"A(z) {school} iskola {level}. szintjén nincs pontosan öt varázslat.");
+
+    var creation = catalog.GetSpell("P021");
+    Assert(creation.Name == "Étel és ital teremtése" && creation.Level == 1 &&
+           creation.UsageMode == SpellUsageMode.Exploration &&
+           catalog.GetSpellEffects(creation.Id).Single() is { Type: SpellEffectType.RestoreNeeds, Value: 35 },
+        "Az első szintű Étel és ital teremtése varázslat adatai vagy hatása hibás.");
 }
 
 static void InventoryStackSplitIsAtomicAndRequiresSpace()
