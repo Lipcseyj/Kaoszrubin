@@ -7,7 +7,7 @@ namespace MazeGame.UI;
 public readonly record struct InventorySlotAddress(InventorySlotKind Kind, int Index);
 
 public sealed record CharacterSheetPanelLine(int Row, string Text, ConsoleColor Color,
-    InventorySlotAddress? InventorySlot = null);
+    InventorySlotAddress? InventorySlot = null, ConsoleColor Background = ConsoleColor.Black);
 
 public sealed record PartyStatusLine(string Identity, ConsoleColor IdentityColor,
     string Vitality, ConsoleColor VitalityColor, string Mana, ConsoleColor ManaColor)

@@ -80,6 +80,7 @@ var tests = new (string Name, Action Run)[]
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
     ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
+    ("A host és a vendég közös varázslat-UI modelleket használ", SpellUiModelsAreShared),
     ("A kompakt party státusz HP-t és manát százalékosan mutat", CompactPartyStatusShowsResources),
     ("Az ablakkeret-katalógus méretezhető és konfigurálható", WindowFrameCatalogIsResizableAndConfigured),
     ("A vendég snapshot kasztbetűt és karakterszínt őriz", GuestAvatarUsesClassGlyphAndCharacterColor),
@@ -1915,6 +1916,25 @@ static void RaceTraitsAreLoadedFromData()
     Assert(catalog.GetRace("R002").HasTrait(RaceTraits.Resilient), "A törp Rendíthetetlen tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R003").HasTrait(RaceTraits.KeenSenses), "Az elf Éles érzékek tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R004").HasTrait(RaceTraits.Relentless), "A félork Könyörtelen tulajdonsága hiányzik.");
+}
+
+static void SpellUiModelsAreShared()
+{
+    var spell = new KnownSpellSnapshot("spell-test", "Próbaláng", 2, 7, SpellTargetType.Enemy,
+        "Egy próbaként használt varázslat.", true, 0);
+    var infoLines = SpellInfoPanel.Build("Rubin", CharacterClassIds.Mágus, 6,
+        new SpellInfoSnapshot("Kristálygömb", 3, [spell]), 0);
+    Assert(infoLines.Any(line => line.Row == 5 && line.Text.Contains("[M][F1]", StringComparison.Ordinal)) &&
+           infoLines.Any(line => line.Row == 43 && line.Text == "Következő feloldás: L10") &&
+           infoLines.Single(line => line.Row == 5).Background == ConsoleColor.DarkCyan,
+        "A közös varázslatinformációs panel elvesztette a gyorshelyet, feloldást vagy kijelölést.");
+
+    var selectorLines = SpellSelectorWindow.Build("Rubin", 5, 12, true,
+        [new SpellSelectorOption("Próbaláng", 2, 7, SpellTargetType.Enemy, "F1", false)], 0, 0);
+    Assert(selectorLines[0].Text == "⚔️ HARCI VARÁZSLÁS" &&
+           selectorLines.Any(line => line.Text.Contains("[F1] L2", StringComparison.Ordinal) &&
+                                     line.Color == ConsoleColor.DarkRed),
+        "A közös varázslatválasztó elvesztette a harci címet, gyorshelyet vagy mannafigyelmeztetést.");
 }
 
 static void AbilityMagicItemsAreUniversalAndCapped()

@@ -1267,43 +1267,29 @@ public sealed class ConsoleRenderer
             var switchDirection = 0;
             while (true)
             {
-                var firstVisibleIndex = spells.Count == 0 ? 0 : Math.Clamp(selectedIndex - MaximumVisibleSpellCount / FrameBorderWidth, 0,
-                    Math.Max(0, spells.Count - MaximumVisibleSpellCount));
-                var visibleSpells = spells.Skip(firstVisibleIndex).Take(MaximumVisibleSpellCount).ToList();
-                var switchHint = casters.Count > 1 ? "  ◄► váltás" : string.Empty;
-                var casterHint = casters.Count > 1 ? $"   ({casterIndex + 1}/{casters.Count})" : string.Empty;
-                var lines = new List<(string Text, ConsoleColor Color)>
+                var firstVisibleIndex = spells.Count == 0 ? 0 : Math.Clamp(
+                    selectedIndex - SpellSelectorWindow.PageSize / FrameBorderWidth, 0,
+                    Math.Max(0, spells.Count - SpellSelectorWindow.PageSize));
+                var projected = spells.Select(spell =>
                 {
-                    (inCombat ? "⚔️ HARCI VARÁZSLÁS" : "🔮 VARÁZSLÁS", ConsoleColor.Magenta),
-                    ($"{character.Name}  ◆ {character.CurrentMana}/{character.MaximumMana} manna{casterHint}", ConsoleColor.Cyan),
-                    ("↑↓ választ  Enter célzás  Esc bezár" + switchHint, ConsoleColor.Green),
-                    ("────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
-                };
-                if (spells.Count == 0)
-                    lines.Add(("Ebben a helyzetben nincs használható memorizált vagy tekercses varázslata.", ConsoleColor.DarkYellow));
-                else
-                {
-                    lines.AddRange(visibleSpells.Select((spell, visibleIndex) =>
+                    var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
+                        string.Equals(candidate?.Id, spell.Spell.Id, StringComparison.OrdinalIgnoreCase));
+                    var quick = spell.CastingItem?.Kind switch
                     {
-                        var index = firstVisibleIndex + visibleIndex;
-                        var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
-                            string.Equals(candidate?.Id, spell.Spell.Id, StringComparison.OrdinalIgnoreCase));
-                        var quick = spell.CastingItem?.Kind switch
-                        {
-                            MagicItemKind.Scroll => "📜",
-                            MagicItemKind.Wand => $"{WandIcon}{character.MagicItemCharges[spell.SlotIndex!.Value]}",
-                            _ => quickIndex >= 0 ? $"F{quickIndex + 1}" : "--"
-                        };
-                        var manaCost = spell.CastingItem is null ? SpellcastingRules.EffectiveManaCost(character, spell.Spell) : 0;
-                        var text = $"{(index == selectedIndex ? "▶" : " ")} [{quick}] L{spell.Spell.Level}  {spell.Spell.Name,-24} {manaCost}M  {SpellTargetName(spell.Spell.TargetType)}";
-                        var color = character.CurrentMana < manaCost ? ConsoleColor.DarkRed :
-                            index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray;
-                        return (text, color);
-                    }));
-                    if (spells.Count > MaximumVisibleSpellCount)
-                        lines.Add(($"{firstVisibleIndex + 1}–{firstVisibleIndex + visibleSpells.Count} / {spells.Count}", ConsoleColor.DarkCyan));
-                }
-                DrawSpellCastingOverlay(SpellCastingOverlayFrameWidth, lines, maze, fogOfWar, playerPosition,
+                        MagicItemKind.Scroll => "📜",
+                        MagicItemKind.Wand => $"{WandIcon}{character.MagicItemCharges[spell.SlotIndex!.Value]}",
+                        _ => quickIndex >= 0 ? $"F{quickIndex + 1}" : "--"
+                    };
+                    var manaCost = spell.CastingItem is null
+                        ? SpellcastingRules.EffectiveManaCost(character, spell.Spell)
+                        : 0;
+                    return new SpellSelectorOption(spell.Spell.Name, spell.Spell.Level, manaCost,
+                        spell.Spell.TargetType, quick, character.CurrentMana >= manaCost);
+                }).ToArray();
+                var lines = SpellSelectorWindow.Build(character.Name, character.CurrentMana,
+                    character.MaximumMana, inCombat, projected, selectedIndex, firstVisibleIndex,
+                    casterIndex, casters.Count);
+                DrawSpellCastingOverlay(SpellSelectorWindow.Width, lines, maze, fogOfWar, playerPosition,
                     FramedWindow.SpellSelector);
                 var key = Console.ReadKey(intercept: true);
                 if (key.Key == ConsoleKey.F1 && (key.Modifiers & ConsoleModifiers.Shift) != 0)
@@ -1602,86 +1588,10 @@ public sealed class ConsoleRenderer
         _spellInfoCharacter = character;
         _selectedSpellInfoIndex = selectedIndex;
         for (var line = CharacterSheetHeaderLine; line <= PicturePanelBottom; line++) WriteSheetLine(line, string.Empty, ConsoleColor.Gray);
-
-        WriteSheetLine(CharacterSheetHeaderLine, $"VARÁZSLATOK - {character.Name}", ConsoleColor.Yellow,
-            _characterSheetFocused ? ConsoleColor.Green : ConsoleColor.Black);
-        WriteSheetLine(CharacterSheetRaceClassLine, SpellcastingRules.HasRequiredFocus(character)
-            ? $"Fókusz: {character.Backpack[0]!.Name}"
-            : "Fókusz: HIÁNYZIK", SpellcastingRules.HasRequiredFocus(character) ? ConsoleColor.Cyan : ConsoleColor.Red);
-        WriteSheetLine(CharacterSheetFirstPerkLine, $"Memória: {character.MemorizedSpells.Count}/{character.MemorizationCapacity}", ConsoleColor.Magenta);
-        WriteSheetLine(CharacterSheetSecondPerkLine, "[M] memorizált  [F#] gyors", ConsoleColor.DarkCyan);
-        WriteSheetLine(CharacterSheetStatusLine, "ISMERT VARÁZSLATOK", ConsoleColor.White);
-
-        for (var index = 0; index < SpellInfoKnownSpellRows; index++)
-        {
-            if (index >= spells.Count) { WriteSheetLine(SpellInfoKnownSpellStartLine + index, string.Empty, ConsoleColor.Gray); continue; }
-            var spell = spells[index];
-            var memorized = character.MemorizedSpells.Any(candidate =>
-                string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
-            var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
-                string.Equals(candidate?.Id, spell.Id, StringComparison.OrdinalIgnoreCase));
-            var marker = index == selectedIndex ? ">" : " ";
-            WriteSheetLine(SpellInfoKnownSpellStartLine + index, $"{marker}[{(memorized ? "M" : " ")}]{(quickIndex >= 0 ? $"[F{quickIndex + FirstItemNumber}]" : "    ")} {spell.Level}. {spell.Name}",
-                index == selectedIndex ? ConsoleColor.Yellow : memorized ? ConsoleColor.Cyan : ConsoleColor.Gray,
-                index == selectedIndex ? ConsoleColor.DarkCyan : ConsoleColor.Black);
-        }
-
-        if (spells.Count > 0)
-        {
-            var selected = spells[selectedIndex];
-            WriteSheetLine(SpellInfoSelectedSpellHeadingLine, "KIJELÖLT VARÁZSLAT", ConsoleColor.White);
-            WriteSheetLine(SpellInfoSelectedSpellNameLine, selected.Name, ConsoleColor.Yellow);
-            var manaCost = SpellcastingRules.EffectiveManaCost(character, selected);
-            WriteSheetLine(SpellInfoSelectedSpellSummaryLine, $"Szint: {selected.Level} | Manna: {manaCost} | Cél: {SpellTargetName(selected.TargetType)}", ConsoleColor.Blue);
-            var quickIndex = character.QuickSpells.ToList().FindIndex(spell => spell?.Id == selected.Id);
-            WriteSheetLine(SpellInfoSelectedSpellStateLine, character.MemorizedSpells.Any(spell => spell.Id == selected.Id)
-                ? $"Állapot: memorizált{(quickIndex >= 0 ? $", F{quickIndex + FirstItemNumber}" : string.Empty)}"
-                : "Állapot: csak ismert", ConsoleColor.Magenta);
-            var descriptionLines = WrapText(selected.Description, SpellInfoDescriptionWidth).Take(SpellInfoDescriptionRows).ToList();
-            for (var index = 0; index < SpellInfoDescriptionRows; index++)
-                WriteSheetLine(SpellInfoDescriptionStartLine + index, index < descriptionLines.Count ? descriptionLines[index] : string.Empty, ConsoleColor.Gray);
-        }
-
-        bool isPaladin = false;
-        var unlockLevels = new[]
-        {
-            FirstSpellUnlockLevel,
-            SecondSpellUnlockLevel,
-            ThirdSpellUnlockLevel,
-            FourthSpellUnlockLevel,
-            FifthSpellUnlockLevel
-        };
-        if (character.CharacterClass.Id == CharacterClassIds.Lovag)
-        {
-            isPaladin = true;
-            unlockLevels = new[]
-            {
-                FirstSpellUnlockLevel,
-                SecondPaladinSpellUnlockLevel,
-                UnavailableSpellUnlockLevel,
-                UnavailableSpellUnlockLevel,
-                UnavailableSpellUnlockLevel
-            };
-        }
-
-        WriteSheetLine(SpellInfoLevelsHeadingLine, "VARÁZSLATSZINTEK", ConsoleColor.White);
-        for (var spellLevel = FirstItemNumber; spellLevel <= SpellLevelCount; spellLevel++)
-        {
-            if (isPaladin && spellLevel > PaladinSpellLevelCount) continue;
-            var requiredLevel = unlockLevels[spellLevel - FirstItemNumber];
-            var unlocked = character.Level >= requiredLevel;
-            WriteSheetLine(SpellInfoLevelsHeadingLine + spellLevel,
-                $"{spellLevel}. szint: L{requiredLevel} {(unlocked ? "feloldva" : $"még {requiredLevel - character.Level}")}",
-                unlocked ? ConsoleColor.Green : ConsoleColor.DarkYellow);
-        }
-        if (isPaladin && character.Level >= SecondPaladinSpellUnlockLevel) { }
-        else
-        {
-            var nextUnlock = unlockLevels.FirstOrDefault(level => level > character.Level);
-            WriteSheetLine(SpellInfoNextUnlockLine, nextUnlock == 0 ? "Minden szint feloldva." : $"Következő feloldás: L{nextUnlock}", ConsoleColor.Cyan);
-        }
-        WriteSheetLine(SpellInfoControlsLine, "Fel/le: böngészés | F1-F8: gyorshely", ConsoleColor.Green);
-        WriteSheetLine(SpellInfoCloseControlsLine, "Enter: elsütés | Esc: vissza", ConsoleColor.DarkYellow);
+        var info = SpellInfoSnapshotProjector.Create(character);
+        foreach (var line in SpellInfoPanel.Build(character.Name, character.CharacterClass.Id, character.Level,
+                     info, selectedIndex, _characterSheetFocused))
+            WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
     }
 
     public bool IsSpellInfoPageOpen => _spellInfoCharacter is not null;

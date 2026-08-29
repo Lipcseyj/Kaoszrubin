@@ -1021,7 +1021,8 @@ public sealed class CoopGuestScreen
         ApplySpellPreparationUi(grid, snapshot, own);
         ApplyLevelUpUi(grid, snapshot, own);
         var panelLines = _spellInfoOpen && own?.SpellInfo is not null
-            ? BuildSpellInfoPanel(own).ToDictionary(line => line.Row)
+            ? SpellInfoPanel.Build(own.Name, own.CharacterClassId, own.Level, own.SpellInfo,
+                _spellInfoSelection, focused: _inventoryOpen).ToDictionary(line => line.Row)
             : own?.CharacterSheet is not null && own.Inventory is not null
                 ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount,
                     snapshot.BossKeyCount, own.CharacterId == snapshot.LeaderCharacterId)
@@ -1042,7 +1043,7 @@ public sealed class CoopGuestScreen
                 panel[y] = new GuestTextLine(marker + line.Text, line.Color,
                     line.InventorySlot is not null && line.InventorySlot == selectedSlot
                         ? ConsoleColor.DarkCyan
-                        : ConsoleColor.Black);
+                        : line.Background);
             }
             else
                 panel[y] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
@@ -1155,55 +1156,6 @@ public sealed class CoopGuestScreen
     private static bool IsBattleTacticAction(BattleActionKind action) => action is
         BattleActionKind.FighterPrecise or BattleActionKind.FighterPowerful or BattleActionKind.FighterDefensive or
         BattleActionKind.ThiefAmbush or BattleActionKind.ThiefObserve or BattleActionKind.ThiefPoison;
-
-    private IReadOnlyList<CharacterSheetPanelLine> BuildSpellInfoPanel(SessionCharacterSnapshot character)
-    {
-        var info = character.SpellInfo!;
-        var spells = info.KnownSpells;
-        _spellInfoSelection = spells.Count == 0 ? 0 : Math.Clamp(_spellInfoSelection, 0, spells.Count - 1);
-        var lines = new List<CharacterSheetPanelLine>
-        {
-            new(0, $"VARÁZSLATOK - {character.Name}", ConsoleColor.Yellow),
-            new(1, $"Fókusz: {info.FocusName}", info.FocusName == "HIÁNYZIK" ? ConsoleColor.Red : ConsoleColor.Cyan),
-            new(2, $"Memória: {spells.Count(spell => spell.IsMemorized)}/{info.MemorizationCapacity}", ConsoleColor.Magenta),
-            new(3, "[M] mem. [F#] gyors", ConsoleColor.DarkCyan),
-            new(4, "ISMERT VARÁZSLATOK", ConsoleColor.White)
-        };
-        var start = Math.Clamp(_spellInfoSelection - 9, 0, Math.Max(0, spells.Count - 20));
-        for (var row = 0; row < 20; row++)
-        {
-            var index = start + row;
-            if (index >= spells.Count) { lines.Add(new(5 + row, string.Empty, ConsoleColor.Gray)); continue; }
-            var spell = spells[index];
-            var quick = spell.QuickSlot is { } slot ? $"F{slot + 1}" : "  ";
-            lines.Add(new CharacterSheetPanelLine(5 + row,
-                $"{(index == _spellInfoSelection ? ">" : " ")}[{(spell.IsMemorized ? "M" : " ")}][{quick}] {spell.Level}. {spell.Name}",
-                index == _spellInfoSelection ? ConsoleColor.Yellow :
-                    spell.IsMemorized ? ConsoleColor.Cyan : ConsoleColor.Gray));
-        }
-        if (spells.Count > 0)
-        {
-            var selected = spells[_spellInfoSelection];
-            lines.Add(new(26, "KIJELÖLT VARÁZSLAT", ConsoleColor.White));
-            lines.Add(new(27, selected.Name, ConsoleColor.Yellow));
-            lines.Add(new(28, $"L{selected.Level} {selected.ManaCost}M {ConsoleRenderer.SpellTargetName(selected.TargetType)}", ConsoleColor.Blue));
-            lines.Add(new(29, selected.IsMemorized
-                ? $"Memorizált{(selected.QuickSlot is { } slot ? $", F{slot + 1}" : string.Empty)}"
-                : "Csak ismert", ConsoleColor.Magenta));
-            var description = WrapMessage(selected.Description, CharacterSheetPanel.Width).Take(5).ToArray();
-            for (var row = 0; row < 5; row++)
-                lines.Add(new(30 + row, row < description.Length ? description[row] : string.Empty, ConsoleColor.Gray));
-        }
-        lines.Add(new(36, "VARÁZSLATSZINTEK", ConsoleColor.White));
-        var unlocks = character.CharacterClassId == CharacterClassIds.Lovag ? new[] { 1, 8 } : new[] { 1, 5, 10, 15, 20 };
-        for (var index = 0; index < unlocks.Length; index++)
-            lines.Add(new(37 + index, $"{index + 1}. szint: L{unlocks[index]} " +
-                (character.Level >= unlocks[index] ? "feloldva" : $"még {unlocks[index] - character.Level}"),
-                character.Level >= unlocks[index] ? ConsoleColor.Green : ConsoleColor.DarkYellow));
-        lines.Add(new(45, "Fel/le | F1-F8 gyors", ConsoleColor.Green));
-        lines.Add(new(46, "Enter elsüt | Esc vissza", ConsoleColor.DarkYellow));
-        return lines;
-    }
 
     private void ApplyInnUi(GuestMapCell[,] grid, SessionSnapshot snapshot)
     {
@@ -1420,37 +1372,20 @@ public sealed class CoopGuestScreen
         if (!_battleSpellMenuOpen || own is null) return;
         var options = CurrentSpellOptions(snapshot, own.CharacterId);
         _battleSpellSelection = options.Count == 0 ? 0 : Math.Clamp(_battleSpellSelection, 0, options.Count - 1);
-        var visibleStart = options.Count == 0 ? 0 : Math.Clamp(_battleSpellSelection - 6, 0,
-            Math.Max(0, options.Count - 12));
-        var visible = options.Skip(visibleStart).Take(12).ToArray();
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            (_spellCastingInBattle ? "⚔ HARCI VARÁZSLÁS" : "🔮 VARÁZSLÁS", ConsoleColor.Magenta),
-            ($"{own?.Name}  ◆ {own?.CurrentMana}/{own?.MaximumMana} manna", ConsoleColor.Cyan),
-            ("↑↓ választ  Enter célzás  Esc bezár", ConsoleColor.Green),
-            (new string('─', 68), ConsoleColor.DarkMagenta)
-        };
-        if (options.Count == 0)
-            lines.Add(("Ebben a helyzetben nincs használható memorizált vagy tárgyban tárolt varázslat.",
-                ConsoleColor.DarkYellow));
-        else
-            lines.AddRange(visible.Select((spell, index) =>
+        var visibleStart = options.Count == 0 ? 0 : Math.Clamp(
+            _battleSpellSelection - SpellSelectorWindow.PageSize / 2, 0,
+            Math.Max(0, options.Count - SpellSelectorWindow.PageSize));
+        var projected = options.Select(spell => new SpellSelectorOption(spell.Name, spell.Level, spell.ManaCost,
+            spell.TargetType, spell.CastingItemKind switch
             {
-                var absoluteIndex = visibleStart + index;
-                var quick = spell.CastingItemKind switch
-                {
-                    MagicItemKind.Scroll => "📜",
-                    MagicItemKind.Wand => $"{ConsoleRenderer.WandIcon}{spell.Charges}",
-                    _ => spell.QuickSlot is { } slot ? $"F{slot + 1}" : "--"
-                };
-                var text = $"{(absoluteIndex == _battleSpellSelection ? "▶" : " ")} [{quick}] L{spell.Level}  " +
-                           $"{spell.Name,-24} {spell.ManaCost}M  {ConsoleRenderer.SpellTargetName(spell.TargetType)}";
-                var color = (own?.CurrentMana ?? 0) < spell.ManaCost ? ConsoleColor.DarkRed :
-                    absoluteIndex == _battleSpellSelection ? ConsoleColor.Yellow : ConsoleColor.Gray;
-                return (text, color);
-            }));
-
-        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, 76, FramedWindow.SpellSelector);
+                MagicItemKind.Scroll => "📜",
+                MagicItemKind.Wand => $"{ConsoleRenderer.WandIcon}{spell.Charges}",
+                _ => spell.QuickSlot is { } slot ? $"F{slot + 1}" : "--"
+            }, own.CurrentMana >= spell.ManaCost)).ToArray();
+        var lines = SpellSelectorWindow.Build(own.Name, own.CurrentMana, own.MaximumMana,
+            _spellCastingInBattle, projected, _battleSpellSelection, visibleStart);
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, SpellSelectorWindow.Width,
+            FramedWindow.SpellSelector);
     }
 
     private static void DrawOverlayText(GuestMapCell[,] grid, int x, int y, string text, ConsoleColor color)
