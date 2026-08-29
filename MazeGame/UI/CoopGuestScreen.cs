@@ -1325,19 +1325,10 @@ public sealed class CoopGuestScreen
         }
         var spells = preparation.Spells;
         _spellPreparationCursor = spells.Count == 0 ? 0 : Math.Clamp(_spellPreparationCursor, 0, spells.Count - 1);
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            ("🧠✨  VARÁZSLATOK MEMORIZÁLÁSA", ConsoleColor.Magenta),
-            ($"{preparation.CharacterName} — kapacitás: {_preparedSpellIds.Count}/{preparation.Capacity}", ConsoleColor.Cyan),
-            ("Fel/le: mozgás   Space: ki/be   Enter: kész", ConsoleColor.Green),
-            (new string('─', 64), ConsoleColor.DarkMagenta)
-        };
-        if (spells.Count == 0) lines.Add(("Nincs ismert varázslat. Enter: kész.", ConsoleColor.DarkYellow));
-        else lines.AddRange(spells.Select((spell, index) =>
-            ($"{(index == _spellPreparationCursor ? "▶" : " ")} [{(_preparedSpellIds.Contains(spell.SpellId) ? "X" : " ")}]  " +
-             $"{spell.Level}. szint — {spell.Name}",
-                index == _spellPreparationCursor ? ConsoleColor.Yellow : ConsoleColor.Gray)));
-        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, 72);
+        var lines = MagicProgressionWindow.BuildPreparation(preparation.CharacterName, _preparedSpellIds.Count,
+            preparation.Capacity, spells, _preparedSpellIds, _spellPreparationCursor);
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, MagicProgressionWindow.PreparationWidth,
+            FramedWindow.SpellPreparation);
     }
 
     private void ApplyLevelUpUi(GuestMapCell[,] grid, SessionSnapshot snapshot, SessionCharacterSnapshot? own)
@@ -1361,31 +1352,17 @@ public sealed class CoopGuestScreen
         }
         else
         {
-            lines = new List<(string Text, ConsoleColor Color)>
-            {
-                ("📖  ÚJ VARÁZSLAT TANULÁSA", ConsoleColor.Magenta),
-                (string.Empty, ConsoleColor.Gray),
-                ($"{prompt.CharacterName}: {prompt.PreviousLevel}. szint → {prompt.CurrentLevel}. szint", ConsoleColor.Cyan),
-                (prompt.Message, ConsoleColor.DarkCyan),
-                (string.Empty, ConsoleColor.Gray)
-            };
             _levelUpSelection = Math.Clamp(_levelUpSelection, 0, Math.Max(0, prompt.Choices.Count - 1));
-            foreach (var (choice, index) in prompt.Choices.Select((choice, index) => (choice, index)))
-            {
-                lines.Add(($"{(index == _levelUpSelection ? "▶" : " ")} {choice.Name}",
-                    index == _levelUpSelection ? ConsoleColor.Yellow : ConsoleColor.Gray));
-                lines.AddRange(WrapMessage(choice.Description, 62).Take(3).Select(description =>
-                    ($"    {description}", index == _levelUpSelection ? ConsoleColor.White : ConsoleColor.DarkGray)));
-                lines.Add((string.Empty, ConsoleColor.Gray));
-            }
-            lines.Add(("Nyilak: választás   Enter: véglegesítés", ConsoleColor.Green));
+            lines = MagicProgressionWindow.BuildLearning(prompt.CharacterName, prompt.Message, prompt.Choices,
+                _levelUpSelection).ToList();
         }
         var framedWindow = prompt.Kind == LevelUpPromptKind.Summary
             ? FramedWindow.LevelUp
-            : LevelUpWindow.UsesSwordFrame(prompt.Kind) ? FramedWindow.LevelUpChoice : (FramedWindow?)null;
+            : LevelUpWindow.UsesSwordFrame(prompt.Kind) ? FramedWindow.LevelUpChoice : FramedWindow.SpellLearning;
         var width = prompt.Kind == LevelUpPromptKind.Summary
             ? LevelUpWindow.Width
-            : LevelUpWindow.UsesSwordFrame(prompt.Kind) ? LevelUpWindow.ChoiceWidth(prompt.Kind) : 76;
+            : LevelUpWindow.UsesSwordFrame(prompt.Kind) ? LevelUpWindow.ChoiceWidth(prompt.Kind) :
+                MagicProgressionWindow.LearningWidth;
         DrawGuestOverlay(grid, lines, ConsoleColor.Yellow, width, framedWindow);
     }
 

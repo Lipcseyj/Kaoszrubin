@@ -1,8 +1,12 @@
 namespace MazeGame.UI;
 
-public enum WindowFrameStyle { Single, Double, Scroll, Scroll2, Sword, Ruby, Stone, Magic }
+public enum WindowFrameStyle { Single, Double, Scroll, Scroll2, Sword, Ruby, Stone, Magic, Magic2 }
 
-public enum FramedWindow { MainMenu, Help, SpellSelector, CreaturePortrait, Storyline, LevelUp, LevelUpChoice }
+public enum FramedWindow
+{
+    MainMenu, Help, SpellSelector, CreaturePortrait, Storyline, LevelUp, LevelUpChoice,
+    SpellLearning, SpellPreparation
+}
 
 /// <summary>Az egyes képernyők kerete itt cserélhető, a rajzolókód módosítása nélkül.</summary>
 public static class WindowFrameConfiguration
@@ -16,7 +20,9 @@ public static class WindowFrameConfiguration
             [FramedWindow.CreaturePortrait] = WindowFrameStyle.Stone,
             [FramedWindow.Storyline] = WindowFrameStyle.Stone,
             [FramedWindow.LevelUp] = WindowFrameStyle.Scroll2,
-            [FramedWindow.LevelUpChoice] = WindowFrameStyle.Sword
+            [FramedWindow.LevelUpChoice] = WindowFrameStyle.Sword,
+            [FramedWindow.SpellLearning] = WindowFrameStyle.Magic2,
+            [FramedWindow.SpellPreparation] = WindowFrameStyle.Magic2
         };
 
     public static WindowFrameStyle For(FramedWindow window) => Styles[window];
@@ -41,6 +47,7 @@ public static class WindowFrameCatalog
             WindowFrameStyle.Ruby => Ornament(width, "◆▓▒░", "░▒▓◆", '─'),
             WindowFrameStyle.Stone => Ornament(width, "█▓▒░ ", " ░▒▓█", '─'),
             WindowFrameStyle.Magic => MagicHorizontal(width),
+            WindowFrameStyle.Magic2 => Magic2Horizontal(width),
             _ => throw new ArgumentOutOfRangeException(nameof(style))
         };
     }
@@ -50,7 +57,7 @@ public static class WindowFrameCatalog
         var distance = Math.Min(contentRow, Math.Max(0, contentRows - contentRow - 1));
         var side = style switch
         {
-            WindowFrameStyle.Single or WindowFrameStyle.Magic => "│",
+            WindowFrameStyle.Single or WindowFrameStyle.Magic or WindowFrameStyle.Magic2 => "│",
             WindowFrameStyle.Double => "║",
             WindowFrameStyle.Scroll => " |",
             WindowFrameStyle.Scroll2 => contentRow % 2 == 0 ? " )" : "( ",
@@ -92,5 +99,17 @@ public static class WindowFrameCatalog
         var third = fill - first - second;
         return left + new string('─', first) + diamond + new string('─', second) + diamond +
                new string('─', third) + right;
+    }
+
+    private static string Magic2Horizontal(int width)
+    {
+        const string left = "· ✦ ";
+        const string diamond = " ◆ ";
+        const string right = " ✦ ·";
+        var fill = Math.Max(0, width - left.Length - right.Length - diamond.Length * 2);
+        var outer = fill / 3;
+        var middle = fill - outer * 2;
+        return left + new string('─', outer) + diamond + new string('─', middle) + diamond +
+               new string('─', outer) + right;
     }
 }

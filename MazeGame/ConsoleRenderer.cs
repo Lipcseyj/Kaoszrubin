@@ -66,8 +66,6 @@ public sealed class ConsoleRenderer
     private const int TruncationEllipsisReserve = 1;
     private const int FirstItemNumber = 1;
     private const int SecondItemNumber = 2;
-    private const int SpellLearningFrameWidth = 88;
-    private const int SpellPreparationFrameWidth = 92;
     private const int SpellCastingOverlayFrameWidth = 76;
     private const int MaximumVisibleSpellCount = 12;
     private const int RightSheetX = 172;
@@ -1200,18 +1198,11 @@ public sealed class ConsoleRenderer
         {
             ResetColorCache();
             Console.Clear();
-            var lines = new List<(string Text, ConsoleColor Color)>
-            {
-                ("📖  ÚJ VARÁZSLAT TANULÁSA", ConsoleColor.Magenta),
-                (string.Empty, ConsoleColor.Gray),
-                ($"{character.Name} — {learnedNumber}/{learnedTotal}. új varázslat", ConsoleColor.Cyan),
-                ("Fel/le: választás     Enter: megtanulás", ConsoleColor.Green),
-                (string.Empty, ConsoleColor.Gray)
-            };
-            lines.AddRange(choices.Select((spell, index) =>
-                ($"{(index == selectedIndex ? "▶" : " ")}  {spell.Level}. szint — {spell.Name}",
-                    index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray)));
-            DrawCenteredFrame(SpellLearningFrameWidth, lines);
+            var projected = choices.Select(spell => new LevelUpChoiceSnapshot(spell.Id,
+                $"{spell.Level}. szint — {spell.Name}", spell.Description)).ToArray();
+            var lines = MagicProgressionWindow.BuildLearning(character.Name,
+                $"{learnedNumber}/{learnedTotal}. új varázslat", projected, selectedIndex);
+            DrawCenteredFrame(MagicProgressionWindow.LearningWidth, lines, FramedWindow.SpellLearning);
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow: selectedIndex = (selectedIndex - 1 + choices.Count) % choices.Count; break;
@@ -1231,18 +1222,10 @@ public sealed class ConsoleRenderer
         {
             ResetColorCache();
             Console.Clear();
-            var lines = new List<(string Text, ConsoleColor Color)>
-            {
-                ("🧠✨  VARÁZSLATOK MEMORIZÁLÁSA", ConsoleColor.Magenta),
-                (string.Empty, ConsoleColor.Gray),
-                ($"{character.Name} — kapacitás: {selected.Count}/{character.MemorizationCapacity}", ConsoleColor.Cyan),
-                ("Fel/le: mozgás   Space: ki/be   Enter: kész", ConsoleColor.Green),
-                (string.Empty, ConsoleColor.Gray)
-            };
-            lines.AddRange(spells.Select((spell, index) =>
-                ($"{(index == cursor ? "▶" : " ")} [{(selected.Contains(spell.Id) ? "X" : " ")}]  {spell.Level}. szint — {spell.Name}",
-                    index == cursor ? ConsoleColor.Yellow : ConsoleColor.Gray)));
-            DrawCenteredFrame(SpellPreparationFrameWidth, lines);
+            var projected = SpellInfoSnapshotProjector.Create(character).KnownSpells;
+            var lines = MagicProgressionWindow.BuildPreparation(character.Name, selected.Count,
+                character.MemorizationCapacity, projected, selected, cursor);
+            DrawCenteredFrame(MagicProgressionWindow.PreparationWidth, lines, FramedWindow.SpellPreparation);
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow: cursor = (cursor - 1 + spells.Count) % spells.Count; break;

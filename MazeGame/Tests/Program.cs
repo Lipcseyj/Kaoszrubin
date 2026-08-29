@@ -1888,13 +1888,21 @@ static void WindowFrameCatalogIsResizableAndConfigured()
            WindowFrameCatalog.Sides(WindowFrameStyle.Sword, 0, 3) == new WindowFrameRow("   │", "│   ") &&
            WindowFrameCatalog.Adornment(WindowFrameStyle.Sword, 12, bottom: true) == "   ▼    ▼   ",
         "A sword keretsablon kardjai és függőleges élei nem igazodnak egymáshoz.");
+    Assert(WindowFrameCatalog.Horizontal(WindowFrameStyle.Magic2, 37) ==
+           "· ✦ ─────── ◆ ───────── ◆ ─────── ✦ ·" &&
+           WindowFrameCatalog.Horizontal(WindowFrameStyle.Magic2, 37, bottom: true) ==
+           "· ✦ ─────── ◆ ───────── ◆ ─────── ✦ ·" &&
+           WindowFrameCatalog.Sides(WindowFrameStyle.Magic2, 0, 3) == new WindowFrameRow("│", "│"),
+        "A magic2 keretsablon nem az előírt szimmetrikus mágikus díszsort adja.");
     Assert(WindowFrameConfiguration.For(FramedWindow.MainMenu) == WindowFrameStyle.Ruby &&
            WindowFrameConfiguration.For(FramedWindow.Help) == WindowFrameStyle.Ruby &&
            WindowFrameConfiguration.For(FramedWindow.SpellSelector) == WindowFrameStyle.Magic &&
            WindowFrameConfiguration.For(FramedWindow.CreaturePortrait) == WindowFrameStyle.Stone &&
            WindowFrameConfiguration.For(FramedWindow.Storyline) == WindowFrameStyle.Stone &&
            WindowFrameConfiguration.For(FramedWindow.LevelUp) == WindowFrameStyle.Scroll2 &&
-           WindowFrameConfiguration.For(FramedWindow.LevelUpChoice) == WindowFrameStyle.Sword,
+           WindowFrameConfiguration.For(FramedWindow.LevelUpChoice) == WindowFrameStyle.Sword &&
+           WindowFrameConfiguration.For(FramedWindow.SpellLearning) == WindowFrameStyle.Magic2 &&
+           WindowFrameConfiguration.For(FramedWindow.SpellPreparation) == WindowFrameStyle.Magic2,
         "Az első körös ablak–keret alapbeállítások hibásak.");
 }
 
