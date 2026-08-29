@@ -258,20 +258,9 @@ public sealed class ConsoleRenderer
         Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
         _spellCastingOverlaySnapshot = null;
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            ($"✦═━─  {title}  ─━═✦", ConsoleColor.Yellow),
-            (subtitle, ConsoleColor.Magenta),
-            ("────────────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta),
-            (string.Empty, ConsoleColor.Gray)
-        };
-        foreach (var paragraph in paragraphs)
-        {
-            lines.AddRange(WrapText(paragraph, InnRumorTextWidth).Select(line => (line, ConsoleColor.White)));
-            lines.Add((string.Empty, ConsoleColor.Gray));
-        }
-        lines.Add(("❖  Nyomj Entert a történet folytatásához...  ❖", ConsoleColor.Green));
-        DrawSpellCastingOverlay(InnRumorFrameWidth, lines, maze, fogOfWar, playerPosition,
+        var lines = NarrativeWindow.Build(title, subtitle, paragraphs,
+            "❖  Nyomj Entert a történet folytatásához...  ❖");
+        DrawSpellCastingOverlay(NarrativeWindow.Width, lines, maze, fogOfWar, playerPosition,
             FramedWindow.Storyline);
     }
 

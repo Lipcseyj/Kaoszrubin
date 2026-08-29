@@ -20,6 +20,7 @@ public sealed class CoopGuestScreen
     private const int MessageBufferLineCount = ConsoleRenderer.MessageLogBufferLineCount;
     private readonly Queue<GuestTextLine> _messageLog = new();
     private int _messageLogScrollOffset;
+    private int _messageLineWidth = 80;
     private bool _inventoryOpen;
     private int _inventorySelection;
     private InventorySlotAddress? _inventorySource;
@@ -976,6 +977,7 @@ public sealed class CoopGuestScreen
         var windowHeight = SafeWindowHeight();
         var mapWidth = Math.Min(world.Width, Math.Max(1, windowWidth - CharacterSheetPanel.Width - 4));
         var mapHeight = Math.Min(world.Height, Math.Max(1, windowHeight - MessageLineCount - 1));
+        _messageLineWidth = Math.Max(1, mapWidth - 4);
         var grid = new GuestMapCell[mapWidth, mapHeight];
         for (var y = 0; y < mapHeight; y++)
             for (var x = 0; x < mapWidth; x++)
@@ -1242,23 +1244,12 @@ public sealed class CoopGuestScreen
     {
         if (snapshot.Narrative is not { } narrative) return;
         var acknowledged = playerId is not null && narrative.AcknowledgedPlayerIds.Contains(playerId.Value);
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            ($"✦═━─  {narrative.Title}  ─━═✦", ConsoleColor.Yellow),
-            (narrative.Subtitle, ConsoleColor.Magenta),
-            (new string('─', 68), ConsoleColor.DarkMagenta),
-            (string.Empty, ConsoleColor.Gray)
-        };
-        foreach (var paragraph in narrative.Paragraphs)
-        {
-            lines.AddRange(WrapMessage(paragraph, 68).Select(line => (line, ConsoleColor.White)));
-            lines.Add((string.Empty, ConsoleColor.Gray));
-        }
-        lines.Add(acknowledged
-            ? ("Várakozás a másik játékosra…", ConsoleColor.DarkCyan)
-            : ("Nyomj Entert a történet folytatásához…", ConsoleColor.Green));
-
-        const int desiredWidth = 76;
+        var lines = NarrativeWindow.Build(narrative.Title, narrative.Subtitle, narrative.Paragraphs,
+            acknowledged
+                ? "❖  Várakozás a másik játékosra…  ❖"
+                : "❖  Nyomj Entert a történet folytatásához...  ❖",
+            acknowledged ? ConsoleColor.DarkCyan : ConsoleColor.Green).ToList();
+        const int desiredWidth = NarrativeWindow.Width;
         var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
         var maxContentRows = Math.Max(1, grid.GetLength(1) - 2);
         if (lines.Count > maxContentRows)
@@ -1493,7 +1484,7 @@ public sealed class CoopGuestScreen
 
     private void SetMessage(string message, ConsoleColor color = ConsoleColor.DarkYellow)
     {
-        foreach (var line in WrapMessage(message, Math.Max(1, SafeWindowWidth() - CharacterSheetPanel.Width - 8)))
+        foreach (var line in MessageTextLayout.Wrap(message, _messageLineWidth))
             _messageLog.Enqueue(new GuestTextLine(line, color, ConsoleColor.Black));
         while (_messageLog.Count > MessageBufferLineCount) _messageLog.Dequeue();
         _messageLogScrollOffset = 0;
@@ -1534,18 +1525,6 @@ public sealed class CoopGuestScreen
         var canvas = text.PadRight(canvasWidth);
         var leftPadding = Math.Max(0, (interiorWidth - canvasWidth) / 2);
         return (new string(' ', leftPadding) + canvas).PadRight(interiorWidth);
-    }
-
-    private static IEnumerable<string> WrapMessage(string message, int width)
-    {
-        while (message.Length > width)
-        {
-            var splitAt = message.LastIndexOf(' ', width);
-            if (splitAt <= 0) splitAt = width;
-            yield return message[..splitAt];
-            message = message[splitAt..].TrimStart();
-        }
-        yield return message;
     }
 
     private static bool TrySetCursorPosition(int x, int y)

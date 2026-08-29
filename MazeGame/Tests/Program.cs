@@ -81,6 +81,7 @@ var tests = new (string Name, Action Run)[]
     ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
     ("A host és a vendég közös varázslat-UI modelleket használ", SpellUiModelsAreShared),
+    ("A vendég tárgyvizsgálata nem vágja le a sebzésértéket", GuestItemInspectionKeepsDamageValue),
     ("A kompakt party státusz HP-t és manát százalékosan mutat", CompactPartyStatusShowsResources),
     ("Az ablakkeret-katalógus méretezhető és konfigurálható", WindowFrameCatalogIsResizableAndConfigured),
     ("A vendég snapshot kasztbetűt és karakterszínt őriz", GuestAvatarUsesClassGlyphAndCharacterColor),
@@ -1935,6 +1936,18 @@ static void SpellUiModelsAreShared()
            selectorLines.Any(line => line.Text.Contains("[F1] L2", StringComparison.Ordinal) &&
                                      line.Color == ConsoleColor.DarkRed),
         "A közös varázslatválasztó elvesztette a harci címet, gyorshelyet vagy mannafigyelmeztetést.");
+}
+
+static void GuestItemInspectionKeepsDamageValue()
+{
+    var dataPath = Path.Combine(AppContext.BaseDirectory, "adatok.csv");
+    var data = CsvGameDataLoader.Load(dataPath);
+    var weapon = data.Weapons.First(candidate => candidate.Damage is not null);
+    var inspection = ItemInspectionFormatter.Format(weapon, data);
+    var lines = MessageTextLayout.Wrap(inspection.Text, 48).ToArray();
+    Assert(lines.All(line => line.Length <= 48) &&
+           string.Join(' ', lines).Contains($"sebzés: {weapon.Damage}", StringComparison.Ordinal),
+        "A vendég tényleges panelszélességű tördelése levágta a fegyver sebzésértékét.");
 }
 
 static void AbilityMagicItemsAreUniversalAndCapped()
