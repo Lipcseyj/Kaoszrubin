@@ -396,7 +396,7 @@ public sealed class ConsoleRenderer
         var mana = manaLost > 0 ? $"🔷-{manaLost}" : string.Empty;
         var statuses = string.Concat(gainedStatusIcons.Where(icon => !string.IsNullOrWhiteSpace(icon)));
         return $"GYŐZELEM 🏆: {enemy.Name} elesett. ⌛{result.Rounds}{vitality}{mana}{statuses}" +
-               $"🍖 -{needLoss}, 💧 -{needLoss}";
+               $"🍖-{needLoss}💧-{needLoss}";
     }
 
     /// <summary>

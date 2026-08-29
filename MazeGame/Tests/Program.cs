@@ -1295,10 +1295,10 @@ static void VictorySummaryIsCompact()
     var enemy = CreateEnemy(1, 1);
     var result = new BattleResult(true, 4, []);
     Assert(ConsoleRenderer.FormatBattleVictorySummary(result, enemy, 11, 8, ["🤒"], 4) ==
-           "GYŐZELEM 🏆: Tesztellenfél elesett. ⌛4❤️-11🔷-8🤒🍖 -4, 💧 -4",
+           "GYŐZELEM 🏆: Tesztellenfél elesett. ⌛4❤️-11🔷-8🤒🍖-4💧-4",
         "A győzelmi összegzés nem a várt kompakt formátumot használja.");
     Assert(ConsoleRenderer.FormatBattleVictorySummary(result, enemy, 0, 0, [], 2) ==
-           "GYŐZELEM 🏆: Tesztellenfél elesett. ⌛4🍖 -2, 💧 -2",
+           "GYŐZELEM 🏆: Tesztellenfél elesett. ⌛4🍖-2💧-2",
         "A nulla HP-/manaveszteséget nem szabad megjeleníteni.");
 }
 
