@@ -94,19 +94,18 @@ public sealed class ConsoleRenderer
     private const int SecondPaladinSpellUnlockLevel = 8;
     private const int UnavailableSpellUnlockLevel = 99;
     private const int CharacterSheetPerkRows = 2;
-    private const int CharacterSheetHeaderLine = 0;
+    private const int CharacterSheetHeaderLine = 1;
     private const int CharacterSheetRaceClassLine = 1;
     private const int CharacterSheetFirstPerkLine = 2;
     private const int CharacterSheetSecondPerkLine = 3;
-    private const int CharacterSheetStatusLine = 4;
+    private const int CharacterSheetStatusLine = 8;
     private const int CharacterSheetLevelLine = 5;
     private const int CharacterSheetExperienceLine = 6;
     private const int CharacterSheetStrengthLine = 7;
     private const int CharacterSheetDexterityLine = 8;
     private const int CharacterSheetHealthLine = 9;
     private const int CharacterSheetIntelligenceLine = 10;
-    private const int CharacterSheetVitalityLine = 11;
-    private const int CharacterSheetManaLine = 12;
+    private const int CharacterSheetVitalityLine = 5;
     private const int CharacterSheetFoodLine = 13;
     private const int CharacterSheetWaterLine = 14;
     private const int CharacterSheetGoldLine = 15;
@@ -1798,10 +1797,9 @@ public sealed class ConsoleRenderer
                 ? "Áll: nincs"
                 : $"Áll: {string.Join(' ', statusIcons)}",
             statusIcons.Count > 0 ? ConsoleColor.Magenta : ConsoleColor.DarkGray);
-        WriteSheetLine(CharacterSheetVitalityLine, $"HP: {character.CurrentVitality}/{character.MaximumVitality}", ConsoleColor.Red);
-        WriteSheetLine(CharacterSheetManaLine, character.UsesMana
-            ? $"Manna: {character.CurrentMana}/{character.MaximumMana}"
-            : "Manna: nincs", ConsoleColor.Blue);
+        WriteSheetLine(CharacterSheetVitalityLine, $"❤️{character.CurrentVitality}/{character.MaximumVitality}" +
+            (character.UsesMana ? $"  🔷{character.CurrentMana}/{character.MaximumMana}" : string.Empty),
+            character.UsesMana ? ConsoleColor.Cyan : ConsoleColor.Red);
     }
 
     private void DrawCharacterSheetHeader(LiveCharacter character) => WriteSheetLine(
