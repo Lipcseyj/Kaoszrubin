@@ -1455,6 +1455,31 @@ public sealed class ConsoleRenderer
         if (bottomAdornment is not null) WriteAt(left, frameBottom + 1, bottomAdornment);
     }
 
+    public bool DrawWorldNpcRecruitment(WorldNpc npc)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var mana = npc.Character.UsesMana ? $"   🔷 {npc.Character.CurrentMana}/{npc.Character.MaximumMana}" : string.Empty;
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🤝 TALÁLKOZÁS", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ($"{npc.Character.Name} — {npc.Character.Race.Name} {npc.Character.CharacterClass.Name}", npc.Character.Color),
+            ($"Szint {npc.Character.Level}   ❤️ {npc.Character.CurrentVitality}/{npc.Character.MaximumVitality}{mana}", ConsoleColor.Gray),
+            (string.Empty, ConsoleColor.Gray),
+            ($"„{npc.Dialogue}”", ConsoleColor.White),
+            (string.Empty, ConsoleColor.Gray),
+            (npc.Recruitable ? "Enter: csatlakozzon ingyen   Esc: most nem" : "Esc: távozás", ConsoleColor.Yellow)
+        };
+        DrawCenteredFrame(72, lines, FramedWindow.Inn);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Enter && npc.Recruitable) return true;
+            if (key == ConsoleKey.Escape) return false;
+        }
+    }
+
     public void DrawRestSummaryScreen(PartyRestSnapshot rest, string footer, ConsoleColor footerColor)
     {
         ResetColorCache();
@@ -2045,6 +2070,8 @@ public sealed class ConsoleRenderer
         if (maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap)
             return new MapCellVisual(trap.Symbol, trap.State == TrapState.Detected
                 ? ConsoleColor.Yellow : ConsoleColor.DarkGray, ConsoleColor.Black);
+        if (maze.GetWorldNpcAt(position) is { } npc)
+            return new MapCellVisual(npc.Symbol, ConsoleColor.White, npc.Character.Color);
         return new MapCellVisual(maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y],
             GetForegroundColor(maze, position), ConsoleColor.Black);
     }
@@ -2117,6 +2144,7 @@ public sealed class ConsoleRenderer
         if (mapObject is Corpse) return ConsoleColor.DarkRed;
         if (mapObject is GroundItemPile) return ConsoleColor.Cyan;
         if (mapObject is PartyMemberAvatar partyMember) return partyMember.Character.Color;
+        if (mapObject is WorldNpc) return ConsoleColor.White;
         if (maze.GetDoorAt(position) is { } door) return door.State switch
         {
             DoorState.Locked => ConsoleColor.Red,

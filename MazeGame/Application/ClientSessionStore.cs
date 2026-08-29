@@ -163,26 +163,32 @@ public static class WorldDeltaReducer
         var chests = baseline.Chests.ToDictionary(entity => entity.EntityId);
         var corpses = baseline.Corpses.ToDictionary(entity => entity.EntityId);
         var piles = baseline.GroundPiles.ToDictionary(entity => entity.EntityId);
-        foreach (var id in delta.RemovedEntityIds) RemoveEntity(id, enemies, chests, corpses, piles);
+        var npcs = (baseline.Npcs ?? []).ToDictionary(entity => entity.EntityId);
+        foreach (var id in delta.RemovedEntityIds) RemoveEntity(id, enemies, chests, corpses, piles, npcs);
         foreach (var enemy in delta.EnemyUpserts)
         {
-            RemoveEntity(enemy.EntityId, enemies, chests, corpses, piles);
+            RemoveEntity(enemy.EntityId, enemies, chests, corpses, piles, npcs);
             enemies[enemy.EntityId] = enemy;
         }
         foreach (var chest in delta.ChestUpserts)
         {
-            RemoveEntity(chest.EntityId, enemies, chests, corpses, piles);
+            RemoveEntity(chest.EntityId, enemies, chests, corpses, piles, npcs);
             chests[chest.EntityId] = chest;
         }
         foreach (var corpse in delta.CorpseUpserts)
         {
-            RemoveEntity(corpse.EntityId, enemies, chests, corpses, piles);
+            RemoveEntity(corpse.EntityId, enemies, chests, corpses, piles, npcs);
             corpses[corpse.EntityId] = corpse;
         }
         foreach (var pile in delta.GroundPileUpserts)
         {
-            RemoveEntity(pile.EntityId, enemies, chests, corpses, piles);
+            RemoveEntity(pile.EntityId, enemies, chests, corpses, piles, npcs);
             piles[pile.EntityId] = pile;
+        }
+        foreach (var npc in delta.NpcUpserts ?? [])
+        {
+            RemoveEntity(npc.EntityId, enemies, chests, corpses, piles, npcs);
+            npcs[npc.EntityId] = npc;
         }
 
         return baseline with
@@ -198,6 +204,8 @@ public static class WorldDeltaReducer
             Corpses = corpses.Values.OrderBy(entity => entity.Position.Y).ThenBy(entity => entity.Position.X)
                 .ThenBy(entity => entity.EntityId.Value).ToArray(),
             GroundPiles = piles.Values.OrderBy(entity => entity.Position.Y).ThenBy(entity => entity.Position.X)
+                .ThenBy(entity => entity.EntityId.Value).ToArray(),
+            Npcs = npcs.Values.OrderBy(entity => entity.Position.Y).ThenBy(entity => entity.Position.X)
                 .ThenBy(entity => entity.EntityId.Value).ToArray()
         };
     }
@@ -206,11 +214,13 @@ public static class WorldDeltaReducer
         Dictionary<WorldEntityId, WorldEnemySnapshot> enemies,
         Dictionary<WorldEntityId, WorldChestSnapshot> chests,
         Dictionary<WorldEntityId, WorldCorpseSnapshot> corpses,
-        Dictionary<WorldEntityId, WorldGroundPileSnapshot> piles)
+        Dictionary<WorldEntityId, WorldGroundPileSnapshot> piles,
+        Dictionary<WorldEntityId, WorldNpcSnapshot> npcs)
     {
         enemies.Remove(id);
         chests.Remove(id);
         corpses.Remove(id);
         piles.Remove(id);
+        npcs.Remove(id);
     }
 }

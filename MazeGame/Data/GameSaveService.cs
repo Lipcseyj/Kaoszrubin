@@ -74,7 +74,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -90,6 +90,7 @@ public static class GameSaveFormat
                 1 => MigrateVersion1To2(state),
                 2 => MigrateVersion2To3(state),
                 3 => MigrateVersion3To4(state),
+                4 => MigrateVersion4To5(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -115,6 +116,13 @@ public static class GameSaveFormat
     {
         // A régi, már üldöző ellenfelek a betöltéskor az új alapértelmezett memóriát kapják.
         state.Version = 4;
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion4To5(GameSaveData state)
+    {
+        // Az 5-ös formátum a pályán várakozó NPC-ket vezeti be; régi mentésben a lista üres.
+        state.Version = 5;
         return state;
     }
 }
@@ -165,6 +173,7 @@ public sealed class MazeSaveData
     public List<EnemySaveData> Enemies { get; set; } = [];
     public List<CorpseSaveData> Corpses { get; set; } = [];
     public List<PartyAvatarSaveData> PartyAvatars { get; set; } = [];
+    public List<WorldNpcSaveData> Npcs { get; set; } = [];
     public List<GroundPileSaveData> GroundPiles { get; set; } = [];
     public List<TrapSaveData> Traps { get; set; } = [];
 }
@@ -190,6 +199,8 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex);
+public sealed record WorldNpcSaveData(Position Position, string DefinitionId, int CharacterIndex,
+    NpcDisposition Disposition, bool Recruitable, bool IsQuestNpc, string Dialogue, WorldNpcState State);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);
 public sealed record TrapSaveData(Position Position, string DefinitionId, TrapState State,
     bool DetectionAttempted, int FailedDisarmAttempts);

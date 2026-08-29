@@ -1001,6 +1001,9 @@ public sealed class CoopGuestScreen
         foreach (var pile in world.GroundPiles)
             Put(grid, pile.Position, char.ConvertFromUtf32(pile.SymbolCodePoint), pile.ForegroundColor,
                 pile.BackgroundColor);
+        foreach (var npc in world.Npcs ?? [])
+            Put(grid, npc.Position, char.ConvertFromUtf32(npc.SymbolCodePoint), npc.ForegroundColor,
+                npc.BackgroundColor);
         foreach (var character in snapshot.Party.Where(character => character.Position is not null))
             Put(grid, character.Position!.Value, CharacterSheetPanel.CharacterClassGlyph(character.CharacterClassId),
                 character.Color);

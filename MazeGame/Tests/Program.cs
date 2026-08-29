@@ -1120,11 +1120,18 @@ static void WorldSnapshotOnlyContainsRevealedState()
     var maze = new Maze(7, 7);
     var visibleEnemy = CreateEnemyAt(new Position(3, 2), "E-VISIBLE", "r");
     var hiddenEnemy = CreateEnemyAt(new Position(4, 5), "E-HIDDEN");
-    foreach (var position in new[] { visibleEnemy.Position, hiddenEnemy.Position, new Position(1, 2) })
+    var visibleNpc = new WorldNpc(new Position(1, 1), "NPC-VISIBLE", CreateCharacter("Segítő"),
+        NpcDisposition.Friendly, true, false, "Veletek tartok.");
+    var hiddenNpc = new WorldNpc(new Position(5, 4), "NPC-HIDDEN", CreateCharacter("Rejtett"),
+        NpcDisposition.Neutral, false, true, "Titok.");
+    foreach (var position in new[] { visibleEnemy.Position, hiddenEnemy.Position, new Position(1, 2),
+                 visibleNpc.Position, hiddenNpc.Position })
         maze.Carve(position);
     maze.AddEnemy(visibleEnemy);
     maze.AddEnemy(hiddenEnemy);
     maze.AddTreasureChest(new TreasureChest(new Position(1, 2), 99));
+    maze.AddWorldNpc(visibleNpc);
+    maze.AddWorldNpc(hiddenNpc);
     maze.PlaceDoor(new Position(2, 3), DoorState.Closed);
     var fog = new FogOfWar(maze.Width, maze.Height, 1);
     fog.RevealFrom(maze, maze.Entrance);
@@ -1135,6 +1142,8 @@ static void WorldSnapshotOnlyContainsRevealedState()
         "A world snapshot rejtett ellenfelet is publikált, vagy kihagyta a láthatót.");
     Assert(world.Chests.Count == 1 && world.Doors.Count == 1,
         "A felfedett statikus entitások hiányoznak a world snapshotból.");
+    Assert(world.Npcs?.Single().EntityId == visibleNpc.Id && world.Npcs.Single().Name == "Segítő",
+        "A world snapshot rejtett NPC-t publikált, vagy kihagyta a láthatót.");
     Assert(world.Chests.Single().SymbolCodePoint == new Rune('▣').Value &&
            world.Chests.Single().ForegroundColor == ConsoleColor.Yellow,
         "A world snapshot nem őrizte meg a láda hostoldali megjelenését.");

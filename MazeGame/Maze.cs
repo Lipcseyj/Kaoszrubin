@@ -16,6 +16,7 @@ public sealed class Maze
     private readonly List<Enemy> _enemies = [];
     private readonly List<Corpse> _corpses = [];
     private readonly List<PartyMemberAvatar> _partyMembers = [];
+    private readonly List<WorldNpc> _worldNpcs = [];
     private readonly List<GroundItemPile> _groundItemPiles = [];
     private readonly List<MazeTrap> _traps = [];
     private readonly Dictionary<Position, MazeDoor> _doors = [];
@@ -26,6 +27,7 @@ public sealed class Maze
     public IReadOnlyList<Enemy> Enemies => _enemies;
     public IReadOnlyList<Corpse> Corpses => _corpses;
     public IReadOnlyList<PartyMemberAvatar> PartyMembers => _partyMembers;
+    public IReadOnlyList<WorldNpc> WorldNpcs => _worldNpcs;
     public IReadOnlyList<GroundItemPile> GroundItemPiles => _groundItemPiles;
     public IReadOnlyList<MazeTrap> Traps => _traps;
     public IReadOnlyCollection<MazeDoor> Doors => _doors.Values;
@@ -143,6 +145,14 @@ public sealed class Maze
 
     public bool RemovePartyMember(PartyMemberAvatar member) => _partyMembers.Remove(member);
 
+    public void AddWorldNpc(WorldNpc npc)
+    {
+        EnsureObjectPositionIsFree(npc.Position);
+        _worldNpcs.Add(npc);
+    }
+
+    public bool RemoveWorldNpc(WorldNpc npc) => _worldNpcs.Remove(npc);
+
     public void ReplaceEnemyWithCorpse(Enemy enemy)
     {
         if (!_enemies.Remove(enemy)) throw new ArgumentException("Az ellenfél nem a labirintus része.", nameof(enemy));
@@ -159,6 +169,7 @@ public sealed class Maze
         _treasureChests.FirstOrDefault(chest => chest.Position == position) as WorldObject ??
         _enemies.FirstOrDefault(enemy => enemy.Position == position) as WorldObject ??
         _partyMembers.FirstOrDefault(member => member.Position == position) as WorldObject ??
+        _worldNpcs.FirstOrDefault(npc => npc.Position == position) as WorldObject ??
         _corpses.FirstOrDefault(corpse => corpse.Position == position) as WorldObject ??
         _groundItemPiles.FirstOrDefault(pile => pile.Position == position) as WorldObject;
 
@@ -177,6 +188,7 @@ public sealed class Maze
 
     public Enemy? GetEnemyAt(Position position) => _enemies.FirstOrDefault(enemy => enemy.Position == position);
     public PartyMemberAvatar? GetPartyMemberAt(Position position) => _partyMembers.FirstOrDefault(member => member.Position == position);
+    public WorldNpc? GetWorldNpcAt(Position position) => _worldNpcs.FirstOrDefault(npc => npc.Position == position);
     public TreasureChest? GetTreasureChestAt(Position position) => _treasureChests.FirstOrDefault(chest => chest.Position == position);
     public MazeTrap? GetTrapAt(Position position) => _traps.FirstOrDefault(trap => trap.Position == position);
 

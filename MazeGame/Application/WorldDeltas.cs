@@ -7,12 +7,12 @@ public sealed record WorldDelta(long FromSnapshotSequence, long ToSnapshotSequen
     IReadOnlyList<WorldDoorSnapshot> DoorUpserts, IReadOnlyList<Position> RemovedDoorPositions,
     IReadOnlyList<WorldEnemySnapshot> EnemyUpserts, IReadOnlyList<WorldChestSnapshot> ChestUpserts,
     IReadOnlyList<WorldCorpseSnapshot> CorpseUpserts, IReadOnlyList<WorldGroundPileSnapshot> GroundPileUpserts,
-    IReadOnlyList<WorldEntityId> RemovedEntityIds)
+    IReadOnlyList<WorldEntityId> RemovedEntityIds, IReadOnlyList<WorldNpcSnapshot>? NpcUpserts = null)
 {
     public bool IsEmpty => RevealedEntrance is null && RevealedExit is null &&
         RevealedOrChangedCells.Count == 0 && DoorUpserts.Count == 0 && RemovedDoorPositions.Count == 0 &&
         EnemyUpserts.Count == 0 && ChestUpserts.Count == 0 && CorpseUpserts.Count == 0 &&
-        GroundPileUpserts.Count == 0 && RemovedEntityIds.Count == 0;
+        GroundPileUpserts.Count == 0 && RemovedEntityIds.Count == 0 && (NpcUpserts?.Count ?? 0) == 0;
 }
 
 public static class WorldDeltaProjector
@@ -52,6 +52,7 @@ public static class WorldDeltaProjector
         var corpseChanges = Upserts(previous.Corpses, current.Corpses, corpse => corpse.EntityId).ToArray();
         var pileChanges = Upserts(previous.GroundPiles, current.GroundPiles, pile => pile.EntityId,
             GroundPileEquals).ToArray();
+        var npcChanges = Upserts(previous.Npcs ?? [], current.Npcs ?? [], npc => npc.EntityId).ToArray();
         var previousEntities = EntityIds(previous).ToHashSet();
         var currentEntities = EntityIds(current).ToHashSet();
 
@@ -59,7 +60,7 @@ public static class WorldDeltaProjector
             previous.Entrance is null ? current.Entrance : null,
             previous.Exit is null ? current.Exit : null,
             changedCells, doorChanges, removedDoors, enemyChanges, chestChanges, corpseChanges, pileChanges,
-            previousEntities.Where(id => !currentEntities.Contains(id)).ToArray());
+            previousEntities.Where(id => !currentEntities.Contains(id)).ToArray(), npcChanges);
     }
 
     private static IEnumerable<T> Upserts<T, TKey>(IEnumerable<T> previous, IEnumerable<T> current,
@@ -74,7 +75,8 @@ public static class WorldDeltaProjector
         snapshot.Enemies.Select(enemy => enemy.EntityId)
             .Concat(snapshot.Chests.Select(chest => chest.EntityId))
             .Concat(snapshot.Corpses.Select(corpse => corpse.EntityId))
-            .Concat(snapshot.GroundPiles.Select(pile => pile.EntityId));
+            .Concat(snapshot.GroundPiles.Select(pile => pile.EntityId))
+            .Concat((snapshot.Npcs ?? []).Select(npc => npc.EntityId));
 
     private static bool EnemyEquals(WorldEnemySnapshot first, WorldEnemySnapshot second) =>
         first.EntityId == second.EntityId && first.DefinitionId == second.DefinitionId && first.Name == second.Name &&

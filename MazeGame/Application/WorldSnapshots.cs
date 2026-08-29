@@ -7,7 +7,8 @@ namespace MazeGame.Application;
 public sealed record WorldSnapshot(WorldId WorldId, int Width, int Height, Position? Entrance, Position? Exit,
     IReadOnlyList<WorldCellSnapshot> RevealedCells, IReadOnlyList<WorldDoorSnapshot> Doors,
     IReadOnlyList<WorldEnemySnapshot> Enemies, IReadOnlyList<WorldChestSnapshot> Chests,
-    IReadOnlyList<WorldCorpseSnapshot> Corpses, IReadOnlyList<WorldGroundPileSnapshot> GroundPiles);
+    IReadOnlyList<WorldCorpseSnapshot> Corpses, IReadOnlyList<WorldGroundPileSnapshot> GroundPiles,
+    IReadOnlyList<WorldNpcSnapshot>? Npcs = null);
 
 public sealed record WorldCellSnapshot(Position Position, int TileCodePoint,
     ConsoleColor ForegroundColor = ConsoleColor.Black, ConsoleColor BackgroundColor = ConsoleColor.Black);
@@ -33,6 +34,10 @@ public sealed record WorldGroundPileSnapshot(WorldEntityId EntityId, Position Po
 
 public sealed record WorldItemSnapshot(string Category, string DefinitionId, string Name, int Charges,
     int MaximumCharges);
+
+public sealed record WorldNpcSnapshot(WorldEntityId EntityId, string DefinitionId, string Name,
+    Position Position, string Disposition, bool Recruitable, bool IsQuestNpc, int SymbolCodePoint,
+    ConsoleColor ForegroundColor = ConsoleColor.White, ConsoleColor BackgroundColor = ConsoleColor.Black);
 
 public static class WorldSnapshotProjector
 {
@@ -100,10 +105,14 @@ public static class WorldSnapshotProjector
                 new WorldItemSnapshot(entry.Item.Category.ToString(), entry.Item.Id, entry.Item.Name, entry.Charges,
                     entry.Item is Domain.Magic.MagicItemDefinition magic ? magic.MaximumCharges : 0)).ToArray(),
                 pile.Symbol.Value)).ToArray();
+        var npcs = maze.WorldNpcs.Where(npc => IsVisible(npc.Position)).Select(npc =>
+            new WorldNpcSnapshot(npc.Id, npc.DefinitionId, npc.Character.Name, npc.Position,
+                npc.Disposition.ToString(), npc.Recruitable, npc.IsQuestNpc, npc.Symbol.Value,
+                ConsoleColor.White, npc.Character.Color)).ToArray();
 
         return new WorldSnapshot(maze.Id, maze.Width, maze.Height,
             IsVisible(maze.Entrance) ? maze.Entrance : null,
             IsVisible(maze.Exit) ? maze.Exit : null,
-            cells, doors, enemies, chests, corpses, groundPiles);
+            cells, doors, enemies, chests, corpses, groundPiles, npcs);
     }
 }

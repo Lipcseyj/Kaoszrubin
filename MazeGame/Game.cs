@@ -761,6 +761,7 @@ public sealed class Game
         _nextPartyMoves.Clear();
         PlacePartyMembersNear(_player.Position);
         PlaceTraps(configuration);
+        PlaceFirstSinglePlayerCompanion();
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
         RevealFor(SelectedCharacter, _player.Position);
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
@@ -816,6 +817,43 @@ public sealed class Game
             placed.Add(position);
             if (placed.Count >= desiredCount) break;
         }
+    }
+
+    private void PlaceFirstSinglePlayerCompanion()
+    {
+        if (_activeCoopHost is not null || _mazeLevel != 1 || CharacterRoster.Party.Members.Count != 1 ||
+            _maze.WorldNpcs.Count != 0) return;
+
+        var preferredClassIds = SelectedCharacter.CharacterClass.Id switch
+        {
+            CharacterClassIds.Harcos or CharacterClassIds.Barbár => new[] { CharacterClassIds.Pap, CharacterClassIds.Tolvaj },
+            CharacterClassIds.Lovag => new[] { CharacterClassIds.Mágus, CharacterClassIds.Tolvaj },
+            CharacterClassIds.Tolvaj => new[] { CharacterClassIds.Harcos, CharacterClassIds.Lovag },
+            CharacterClassIds.Pap => new[] { CharacterClassIds.Harcos, CharacterClassIds.Barbár },
+            CharacterClassIds.Mágus => new[] { CharacterClassIds.Lovag, CharacterClassIds.Harcos },
+            _ => new[] { CharacterClassIds.Harcos }
+        };
+        var characterClass = _gameData.GetCharacterClass(preferredClassIds[_random.Next(preferredClassIds.Length)]);
+        var recruit = new RandomCharacterGenerator(_gameData, _random).CreateRecruit(characterClass,
+            SelectedCharacter.Level, CharacterRoster.Characters.Select(character => character.Name).ToArray());
+
+        var candidates = new List<Position>();
+        for (var y = 0; y < _maze.Height; y++)
+        for (var x = 0; x < _maze.Width; x++)
+        {
+            var position = new Position(x, y);
+            var distance = Manhattan(position, _maze.Entrance);
+            if (!_maze.IsWalkable(position) || position == _maze.Exit || _maze.GetObjectAt(position) is not null ||
+                _maze.GetTrapAt(position) is not null || distance < 6 || distance > 14) continue;
+            candidates.Add(position);
+        }
+        if (candidates.Count == 0) return;
+
+        CharacterRoster.Add(recruit);
+        var spawnPosition = candidates[_random.Next(candidates.Count)];
+        _maze.AddWorldNpc(new WorldNpc(spawnPosition, "NPC-FIRST-COMPANION", recruit, NpcDisposition.Friendly,
+            recruitable: true, isQuestNpc: false,
+            "Elvesztem ebben az átkozott labirintusban. Együtt talán kijutunk — veletek tartok, fizetség nélkül."));
     }
 
     /// <summary>A rejtett csapda egyszer kap passzív észlelési próbát. A felfedezett aktív csapda
@@ -1230,6 +1268,11 @@ public sealed class Game
 
         // Prevent moving into a party member avatar even in developer mode
         if (_maze.GetObjectAt(targetPosition) is PartyMemberAvatar) return;
+        if (_maze.GetWorldNpcAt(targetPosition) is { } npc)
+        {
+            EncounterWorldNpc(npc);
+            return;
+        }
         if (!CanEnterTrap(SelectedCharacter, targetPosition)) return;
 
         var moved = _player.TryMove(direction, _maze);
@@ -1479,6 +1522,28 @@ public sealed class Game
         }
         _narrativeAcknowledgements.Add(command.SenderId);
         PlaySessionSound(SoundEffect.Waiting, [command.CharacterId]);
+    }
+
+    private void EncounterWorldNpc(WorldNpc npc)
+    {
+        var joins = _renderer.DrawWorldNpcRecruitment(npc);
+        if (joins && CharacterRoster.Party.Add(npc.Character))
+        {
+            _maze.RemoveWorldNpc(npc);
+            var avatar = new PartyMemberAvatar(npc.Position, npc.Character);
+            _maze.AddPartyMember(avatar);
+            _nextPartyMoves[avatar] = DateTime.UtcNow;
+            RevealFor(npc.Character, avatar.Position);
+            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            _renderer.DrawInventoryMessage($"🤝 {npc.Character.Name} ingyen csatlakozott a partihoz.", ConsoleColor.Green);
+            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+            return;
+        }
+
+        npc.Decline();
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.DrawInventoryMessage(joins ? "A parti megtelt; előbb helyet kell felszabadítani."
+            : $"{npc.Character.Name} egyelőre itt marad.", ConsoleColor.Yellow);
     }
 
     private void ExecuteRestAcknowledgement(AcknowledgeRestCommand command)
