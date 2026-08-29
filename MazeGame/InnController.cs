@@ -13,6 +13,7 @@ internal sealed class InnController
     private const int SecretStashLevelAdvance = 4;
     private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002",
         "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020", "T023", "T024"];
+    private static readonly HashSet<string> DiscountedBuybackItemIds = ["W001", "W005", "A001", "A002"];
     private static readonly HashSet<string> WitcherOnlyItemIds = ["T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020"];
 
     private readonly GameDataCatalog _gameData;
@@ -177,6 +178,8 @@ internal sealed class InnController
         _buybackPrices.Clear();
         foreach (var item in AllTradableItems())
             _buybackPrices[item.Id] = Math.Max(1, item.BasePrice * _random.Next(40, 71) / 100);
+        foreach (var item in AllGameItems().Where(item => DiscountedBuybackItemIds.Contains(item.Id)))
+            _buybackPrices[item.Id] = Math.Max(1, item.BasePrice * _random.Next(20, 36) / 100);
         _rumors.Clear();
         _transactions.Clear();
         _pendingHostTransactionMessages.Clear();
@@ -802,8 +805,10 @@ internal sealed class InnController
         return new InnRumor($"Szörnypletyka: {enemy.Name}", lines, ConsoleColor.Cyan);
     }
 
-    private IReadOnlyList<IItemDefinition> AllTradableItems() => _gameData.Items.Cast<IItemDefinition>()
-        .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems)
+    private IReadOnlyList<IItemDefinition> AllGameItems() => _gameData.Items.Cast<IItemDefinition>()
+        .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems).ToList();
+
+    private IReadOnlyList<IItemDefinition> AllTradableItems() => AllGameItems()
         .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item))
         .Where(item => !MerchantExcludedItemIds.Contains(item.Id)).ToList();
 
