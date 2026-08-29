@@ -14,20 +14,17 @@
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.11" />
 		<None Update="adatok.csv" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="Sounds\**\*.wav" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="Kepek\**\*.png" CopyToOutputDirectory="PreserveNewest" />
 		<Compile Remove="Tests\**\*.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<None Remove="Start.bat" />
-		<None Remove="UI\dragon.png" />
 		<None Remove="UI\Mainscreen.txt" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<Content Include="Start.bat">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="UI\dragon.png">
 		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="UI\Mainscreen.txt">

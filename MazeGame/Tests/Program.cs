@@ -71,6 +71,7 @@ var tests = new (string Name, Action Run)[]
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
     ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
     ("A csapdakészlet és darabszám a labirintusszinttel nehezedik", TrapConfigurationScalesByMazeLevel),
+    ("A pályanevekből szabályos képfájlnév készül", LevelImageFileNamesAreNormalized),
     ("Az ellenség a legközelebbi látható csapattagot célozza", EnemyTargetsNearestVisiblePartyMember),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
     ("A world delta minden lényeges változást leír", WorldDeltaCapturesChanges),
@@ -869,6 +870,15 @@ static void TrapConfigurationScalesByMazeLevel()
     Assert(final.TrapCount == new IntRange(4, 8) && final.TrapIds.Contains("TR007") &&
            !final.TrapIds.Contains("TR001"),
         "A végső szintek nem a legnehezebb csapdakészletet használják.");
+}
+
+static void LevelImageFileNamesAreNormalized()
+{
+    Assert(ImageViewer.FileNameForLevel("Patkányjáratok") == "patkanyjaratok.png" &&
+           ImageViewer.FileNameForLevel("A holtak katakombái") == "aholtakkatakombai.png" &&
+           ImageViewer.FileNameForLevel("A démoni sík: Vértrónus") == "ademonisikvertronus.png" &&
+           ImageViewer.FileNameForLevel("A Káoszrubin rejtekhelye") == "akaoszrubinrejtekhelye.png",
+        "A pályakép fájlneve nem kisbetűs, egybeírt és ékezetmentes.");
 }
 
 static void TrapVisibilityFollowsDiscoveryState()

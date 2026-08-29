@@ -485,9 +485,10 @@ public sealed class Game
         Console.CursorVisible = false;
         if (_loadedState is null)
         {
-            StartNewMaze();
+            StartNewMaze(showLevelImage: false);
             ShowSynchronizedNarrative(NarrativeKind.CampaignIntroduction, "A KÁOSZRUBIN KRÓNIKÁJA",
                 "I. fejezet — A tizenkét aranykulcs", CampaignIntroduction);
+            ShowLevelImage();
         }
         else RestoreGame(_loadedState);
         if (_loadedState is null) _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
@@ -733,7 +734,7 @@ public sealed class Game
             $"{character.Name}, a {character.CharacterClass.Name.ToLowerInvariant()} rendíthetetlen társként járta végig a Káoszlabirintust; neve méltán került a birodalom legnagyobb hősei közé."
     };
 
-    private void StartNewMaze()
+    private void StartNewMaze(bool showLevelImage = true)
     {
         _session.SetPhase(GameSessionPhase.Exploration);
         _session.SynchronizeParty();
@@ -768,7 +769,16 @@ public sealed class Game
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         CheckBossDiscovery(_maze.Enemies.Where(enemy => _fogOfWar.IsRevealed(enemy.Position)));
         PlaySessionSound(SoundEffect.LevelStart);
+        if (showLevelImage) ShowLevelImage();
         LogMazeAccessibilityCheck();
+    }
+
+    private void ShowLevelImage()
+    {
+        var fileName = ImageViewer.FileNameForLevel(_maze.LevelName);
+        var path = Path.Combine(AppContext.BaseDirectory, "Kepek", fileName);
+        if (!ImageViewer.Show(path))
+            _renderer.DrawDeveloperMessage($"Pályakép még nem található: {fileName}");
     }
 
     private void LogMazeAccessibilityCheck()

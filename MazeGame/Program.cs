@@ -12,11 +12,6 @@ Console.InputEncoding = Encoding.UTF8;
 
 Console.ForegroundColor = ConsoleColor.Magenta;
 
-//ImageViewer.Show(Path.Combine(AppContext.BaseDirectory, "UI\\dragon.png"));
-//Console.ReadKey();
-//ImageViewer.Close();
-//Console.ReadKey();
-
 var dataPath = Path.Combine(AppContext.BaseDirectory, "adatok.csv");
 var gameData = CsvGameDataLoader.Load(dataPath);
 var savePath = Path.Combine(AppContext.BaseDirectory, "karakterek.json");
