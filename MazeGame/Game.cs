@@ -1191,11 +1191,8 @@ public sealed class Game
             character.MemorizedSpells.Select(spell => spell.Id).ToArray());
         _spellPreparationCompleted = false;
         _session.SetPhase(GameSessionPhase.Paused);
-        Console.Clear();
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("=== VÁRAKOZÁS A COOP JÁTÉKOSRA ===");
-        Console.ResetColor();
-        Console.WriteLine($"{character.Name} a memorizált varázslatait választja.");
+        _renderer.DrawInventoryMessage(
+            $"⌛ Várakozás {character.Name} varázsmemorizálására... ⌛", ConsoleColor.Yellow);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
         while (!_spellPreparationCompleted)
         {
@@ -4159,7 +4156,8 @@ public sealed class Game
                     GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
                 PublishBattleControlHintOnce(state, state.Enemy);
                 if (battleCharacter != SelectedCharacter)
-                    _renderer.DrawInventoryMessage($"Várakozás {battleCharacter.Name} harci taktikájára.", ConsoleColor.Yellow);
+                    _renderer.DrawInventoryMessage(
+                        $"⌛ Várakozás {battleCharacter.Name} harci taktikájára... ⌛", ConsoleColor.Yellow);
                 return;
             }
             if (state.IsPlayerTurn)
@@ -4172,8 +4170,8 @@ public sealed class Game
                         GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
                     PublishBattleControlHintOnce(state, state.Enemy);
                     if (battleCharacter != SelectedCharacter)
-                        _renderer.DrawInventoryMessage($"Globális szünet: várakozás {battleCharacter.Name} " +
-                            "távoli harci akciójára.", ConsoleColor.Yellow);
+                        _renderer.DrawInventoryMessage(
+                            $"⌛ Várakozás {battleCharacter.Name} harci akciójára... ⌛", ConsoleColor.Yellow);
                     return;
                 }
                 var supportStep = _battleSystem.Advance(state, supportDamage: _pendingBattleSupportDamage);
@@ -4933,11 +4931,8 @@ public sealed class Game
         _levelUpResponse = null;
         _levelUpPromptCompleted = false;
         _session.SetPhase(GameSessionPhase.Paused);
-        Console.Clear();
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("=== VÁRAKOZÁS A COOP JÁTÉKOS SZINTLÉPÉSÉRE ===");
-        Console.ResetColor();
-        Console.WriteLine($"{character.Name} a saját szintlépési döntését végzi.");
+        _renderer.DrawInventoryMessage(
+            $"⌛ Várakozás {character.Name} szintlépési döntésére... ⌛", ConsoleColor.Yellow);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
         while (!_levelUpPromptCompleted)
         {
