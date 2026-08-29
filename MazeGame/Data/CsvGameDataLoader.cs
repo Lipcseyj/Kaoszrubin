@@ -196,7 +196,7 @@ public static class CsvGameDataLoader
                 enemies.Add(new EnemyDefinition(id, name, Cell(cells, 2), Integer(cells, 3), Integer(cells, 4),
                     Integer(cells, 5), Integer(cells, 6), Integer(cells, 7) ?? 0, Integer(cells, 8) ?? 1,
                     cells.Skip(9).Take(2).Where(abilityId => !string.IsNullOrWhiteSpace(abilityId)).ToList(),
-                    MonsterIds.Bosses.Contains(id)));
+                    MonsterIds.Bosses.Contains(id), Integer(cells, 11) ?? 5));
                 break;
             case DataSection.MonsterAbilities:
                 monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),
@@ -645,6 +645,8 @@ public static class CsvGameDataLoader
         {
             if (enemy.StrengthTier is < 1 or > 5)
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny erősségi szintje csak 1 és 5 közötti lehet.");
+            if (enemy.VisionRange is < 1 or > 8)
+                throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny látótávja csak 1 és 8 közötti lehet.");
             if (enemy.AbilityIds.Count > 2)
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny legfeljebb két képességgel rendelkezhet.");
             foreach (var abilityId in enemy.AbilityIds.Where(abilityId => !abilityIds.Contains(abilityId)))

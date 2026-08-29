@@ -3,6 +3,18 @@ namespace MazeGame.Domain.Characters;
 /// <summary>Az osztályok CSV-n kívüli alapvető játékszabályai.</summary>
 public static class CharacterClassRules
 {
+    public const int BaseVisionRange = 5;
+    public const int MaximumVisionRange = 8;
+
+    public static int VisionRange(LiveCharacter character)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+        var range = BaseVisionRange;
+        if (IsThief(character.CharacterClass.Id)) range += 2;
+        if (character.Race.HasTrait(RaceTraits.KeenSenses)) range++;
+        return Math.Clamp(range, 2, MaximumVisionRange);
+    }
+
     public static bool IsMartial(string characterClassId) => characterClassId is
         CharacterClassIds.Harcos or CharacterClassIds.Barbár or CharacterClassIds.Lovag;
     private static readonly HashSet<string> NonManaClassIds = new(StringComparer.OrdinalIgnoreCase)

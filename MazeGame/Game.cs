@@ -117,7 +117,6 @@ public sealed class Game
     private const int MinimumPartyMoveDelayMilliseconds = 250;
     private const int MaximumPartyMoveDelayMilliseconds = 300;
     private const int CatchUpMoveDelayMilliseconds = 90;
-    private const int VisionRange = 5;
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
@@ -762,9 +761,9 @@ public sealed class Game
         _nextPartyMoves.Clear();
         PlacePartyMembersNear(_player.Position);
         PlaceTraps(configuration);
-        _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, VisionRange);
-        _fogOfWar.RevealFrom(_maze, _player.Position);
-        foreach (var member in _maze.PartyMembers) _fogOfWar.RevealFrom(_maze, member.Position);
+        _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
+        RevealFor(SelectedCharacter, _player.Position);
+        foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
         _battleStarted = false;
         _gameOver = false;
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
@@ -1253,7 +1252,7 @@ public sealed class Game
         if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
 
-        var newlyRevealed = _fogOfWar.RevealFrom(_maze, _player.Position);
+        var newlyRevealed = RevealFor(SelectedCharacter, _player.Position);
         var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit;
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
         CheckBossDiscoveryAt(newlyRevealed);
@@ -1278,7 +1277,7 @@ public sealed class Game
         if (!CanEnterTrap(member.Character, destination)) return;
         if (!_maze.TryMovePartyMember(member, destination, _player.Position, allowTreasureChest: true)) return;
         member.Character.RegisterExplorationStep();
-        var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
+        var newlyRevealed = RevealFor(member.Character, member.Position);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
         PlayCharacterStepSound(member.Character);
         CheckBossDiscoveryAt(newlyRevealed);
@@ -2385,12 +2384,24 @@ public sealed class Game
         if (enemy.PursuitTargetCharacterId is { } targetId)
         {
             foreach (var candidate in livingParty)
-                if (candidate.Character.Id == targetId) return candidate;
+                if (candidate.Character.Id == targetId)
+                {
+                    if (FogOfWar.CanSee(_maze, enemy.Position, candidate.Position,
+                            enemy.Definition.VisionRange))
+                    {
+                        enemy.RefreshPursuitMemory();
+                        return candidate;
+                    }
+                    if (enemy.TryRememberPursuitTarget()) return candidate;
+                    enemy.ResetPursuit();
+                    return null;
+                }
+            enemy.ResetPursuit();
             return null;
         }
 
         return EnemyTargeting.ChooseNearestVisible(enemy.Position, livingParty,
-            position => FogOfWar.CanSee(_maze, enemy.Position, position, VisionRange), _random);
+            position => FogOfWar.CanSee(_maze, enemy.Position, position, enemy.Definition.VisionRange), _random);
     }
 
     private void ResolveEnemyPursuit(Enemy observer, CharacterId targetCharacterId)
@@ -2504,7 +2515,7 @@ public sealed class Game
             if (next is null || !CanEnterTrap(member.Character, next.Value) ||
                 !_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
             member.Character.RegisterExplorationStep();
-            var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
+            var newlyRevealed = RevealFor(member.Character, member.Position);
             _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
             CheckBossDiscoveryAt(newlyRevealed);
             TriggerTrapAt(member.Character, member.Position);
@@ -2588,7 +2599,7 @@ public sealed class Game
         if (!CanEnterTrap(member.Character, next.Value) ||
             !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
         member.Character.RegisterExplorationStep();
-        var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
+        var newlyRevealed = RevealFor(member.Character, member.Position);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed,
             _player.Position);
         CheckBossDiscoveryAt(newlyRevealed);
@@ -2610,7 +2621,7 @@ public sealed class Game
         if (!CanEnterTrap(member.Character, next.Value) ||
             !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
         member.Character.RegisterExplorationStep();
-        var newlyRevealed = _fogOfWar.RevealFrom(_maze, member.Position);
+        var newlyRevealed = RevealFor(member.Character, member.Position);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
         TriggerTrapAt(member.Character, member.Position);
     }
@@ -2712,7 +2723,8 @@ public sealed class Game
         var behavior = _partyAttackMode ? NpcBehavior.Aggressive :
             member.Character.NpcBehavior ?? NpcBehavior.Defensive;
         var visibleEnemy = _maze.Enemies
-            .Where(enemy => FogOfWar.CanSee(_maze, member.Position, enemy.Position, VisionRange))
+            .Where(enemy => FogOfWar.CanSee(_maze, member.Position, enemy.Position,
+                CharacterClassRules.VisionRange(member.Character)))
             .OrderBy(enemy => Manhattan(member.Position, enemy.Position))
             .FirstOrDefault();
 
@@ -3795,7 +3807,7 @@ public sealed class Game
         var avatar = new PartyMemberAvatar(revivalPosition.Value, corpse.Character);
         _maze.AddPartyMember(avatar);
         ScheduleNextPartyMove(avatar, DateTime.UtcNow);
-        _fogOfWar.RevealFrom(_maze, avatar.Position);
+        RevealFor(avatar.Character, avatar.Position);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         return $"✨ {corpse.Character.Name} visszatért {corpse.Character.CurrentVitality} HP-val" +
@@ -3933,7 +3945,7 @@ public sealed class Game
         _player.TeleportTo(target);
         _leaderTrail.Clear();
         _leaderTrail.Add(target);
-        _fogOfWar.RevealFrom(_maze, target);
+        RevealFor(SelectedCharacter, target);
         if (!inCombat) _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, target);
         return true;
     }
@@ -3946,7 +3958,7 @@ public sealed class Game
         foreach (var pair in _maze.PartyMembers.Zip(positions))
         {
             pair.First.MoveTo(pair.Second);
-            _fogOfWar.RevealFrom(_maze, pair.Second);
+            RevealFor(pair.First.Character, pair.Second);
             moved++;
         }
         if (!inCombat) _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, target);
@@ -4115,6 +4127,9 @@ public sealed class Game
 
     private static int Chebyshev(Position first, Position second) =>
         Math.Max(Math.Abs(first.X - second.X), Math.Abs(first.Y - second.Y));
+
+    private IReadOnlyList<Position> RevealFor(LiveCharacter character, Position position) =>
+        _fogOfWar.RevealFrom(_maze, position, CharacterClassRules.VisionRange(character));
 
     private void CheckBossDiscoveryAt(IEnumerable<Position> positions)
     {
@@ -4535,7 +4550,7 @@ public sealed class Game
         _player.TeleportTo(destination.Value);
         _leaderTrail.Clear();
         _leaderTrail.Add(destination.Value);
-        _fogOfWar.RevealFrom(_maze, destination.Value);
+        RevealFor(SelectedCharacter, destination.Value);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, destination.Value);
         _renderer.DrawDeveloperMessage("Fejlesztői mód: a partyvezér a kijárat mellé teleportált.");
     }
@@ -4574,7 +4589,7 @@ public sealed class Game
             added.Add(member);
         }
         PlacePartyMembersNear(_player.Position);
-        foreach (var member in _maze.PartyMembers) _fogOfWar.RevealFrom(_maze, member.Position);
+        foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawDeveloperMessage($"Fejlesztői mód: {setName} osztályszett hozzáadva: " +
@@ -4594,7 +4609,7 @@ public sealed class Game
         CharacterRoster.Add(member);
         CharacterRoster.Party.Add(member);
         PlacePartyMembersNear(_player.Position);
-        foreach (var avatar in _maze.PartyMembers) _fogOfWar.RevealFrom(_maze, avatar.Position);
+        foreach (var avatar in _maze.PartyMembers) RevealFor(avatar.Character, avatar.Position);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawDeveloperMessage($"Fejlesztői mód: {member.Name} ({member.CharacterClass.Name}) 1. szinten csatlakozott. Profil: {NpcBehaviorName(member.NpcBehavior)}.");

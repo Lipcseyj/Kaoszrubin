@@ -11,6 +11,7 @@ public enum EnemyGroupRole { Member, Leader }
 
 public abstract class Enemy(Position position) : WorldObject(position)
 {
+    public const int DefaultPursuitMemoryMoves = 3;
     public abstract EnemyDefinition Definition { get; }
     public string Name => Definition.Name;
     public int CurrentHitPoints { get; private set; }
@@ -18,6 +19,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public Direction PatrolDirection { get; private set; } = Direction.Right;
     public EnemyPursuitState PursuitState { get; private set; } = EnemyPursuitState.Undecided;
     public CharacterId? PursuitTargetCharacterId { get; private set; }
+    public int PursuitMemoryRemainingMoves { get; private set; }
     public string? GroupId { get; private set; }
     public EnemyGroupRole GroupRole { get; private set; } = EnemyGroupRole.Member;
     private readonly List<ActiveSpellEffect> _activeSpellEffects = [];
@@ -76,12 +78,15 @@ public abstract class Enemy(Position position) : WorldObject(position)
     };
     public void ConfigureMovement(EnemyMovementProfile profile, Direction patrolDirection,
         EnemyPursuitState pursuitState = EnemyPursuitState.Undecided,
-        CharacterId? pursuitTargetCharacterId = null)
+        CharacterId? pursuitTargetCharacterId = null, int pursuitMemoryRemainingMoves = -1)
     {
         MovementProfile = profile;
         PatrolDirection = patrolDirection;
         PursuitState = pursuitState;
         PursuitTargetCharacterId = pursuitTargetCharacterId;
+        PursuitMemoryRemainingMoves = pursuitTargetCharacterId is null ? 0 : pursuitMemoryRemainingMoves >= 0
+            ? pursuitMemoryRemainingMoves
+            : DefaultPursuitMemoryMoves;
     }
     public void ReversePatrolDirection() => PatrolDirection = PatrolDirection switch
     {
@@ -95,12 +100,23 @@ public abstract class Enemy(Position position) : WorldObject(position)
     {
         PursuitState = pursue ? EnemyPursuitState.Pursuing : EnemyPursuitState.Declined;
         PursuitTargetCharacterId = pursue ? targetCharacterId : null;
+        PursuitMemoryRemainingMoves = pursue && targetCharacterId is not null ? DefaultPursuitMemoryMoves : 0;
+    }
+
+    public void RefreshPursuitMemory() => PursuitMemoryRemainingMoves = DefaultPursuitMemoryMoves;
+
+    public bool TryRememberPursuitTarget()
+    {
+        if (PursuitMemoryRemainingMoves <= 0) return false;
+        PursuitMemoryRemainingMoves--;
+        return true;
     }
 
     public void ResetPursuit()
     {
         PursuitState = EnemyPursuitState.Undecided;
         PursuitTargetCharacterId = null;
+        PursuitMemoryRemainingMoves = 0;
     }
     public void ConfigureGroup(string? groupId, EnemyGroupRole role = EnemyGroupRole.Member)
     {

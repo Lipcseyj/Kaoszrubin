@@ -21,14 +21,16 @@ public sealed class FogOfWar
 
     public bool IsVisible(Position position) => IsDeveloperRevealActive || IsRevealed(position);
 
-    public IReadOnlyList<Position> RevealFrom(Maze maze, Position origin)
+    public IReadOnlyList<Position> RevealFrom(Maze maze, Position origin, int? visionRange = null)
     {
+        var effectiveRange = visionRange ?? VisionRange;
+        if (effectiveRange < 0) throw new ArgumentOutOfRangeException(nameof(visionRange));
         var newlyRevealed = new List<Position>();
-        for (var y = origin.Y - VisionRange; y <= origin.Y + VisionRange; y++)
-        for (var x = origin.X - VisionRange; x <= origin.X + VisionRange; x++)
+        for (var y = origin.Y - effectiveRange; y <= origin.Y + effectiveRange; y++)
+        for (var x = origin.X - effectiveRange; x <= origin.X + effectiveRange; x++)
         {
             var target = new Position(x, y);
-            if (!maze.IsInside(target) || Math.Max(Math.Abs(x - origin.X), Math.Abs(y - origin.Y)) > VisionRange) continue;
+            if (!maze.IsInside(target) || Math.Max(Math.Abs(x - origin.X), Math.Abs(y - origin.Y)) > effectiveRange) continue;
             if (!HasLineOfSight(maze, origin, target) || _revealed[x, y]) continue;
             _revealed[x, y] = true;
             newlyRevealed.Add(target);

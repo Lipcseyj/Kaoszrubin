@@ -73,6 +73,10 @@ var tests = new (string Name, Action Run)[]
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
     ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
     ("A csapdakészlet és darabszám a labirintusszinttel nehezedik", TrapConfigurationScalesByMazeLevel),
+    ("A karakter kasztja és faja módosítja a látótávot", CharacterVisionRangeUsesClassAndRace),
+    ("A szörnyek látótávja CSV-ből érkezik", EnemyVisionRangesLoadFromCsv),
+    ("A felfedés változó látótávot és látóvonalat használ", FogRevealUsesVariableRangeAndLineOfSight),
+    ("Az üldözési memória három elvesztett látási lépésig tart", PursuitMemoryLastsThreeMoves),
     ("A pályanevekből szabályos képfájlnév készül", LevelImageFileNamesAreNormalized),
     ("Az ellenség a legközelebbi látható csapattagot célozza", EnemyTargetsNearestVisiblePartyMember),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
@@ -356,7 +360,7 @@ static void CharacterIdSurvivesSerialization()
 
 static void LegacyGameSavesMigrateToCurrentVersion()
 {
-    foreach (var version in new[] { 1, 2 })
+    foreach (var version in new[] { 1, 2, 3 })
     {
         var state = new GameSaveData { Version = version, MazeLevel = 6 };
         var migrated = GameSaveFormat.MigrateToCurrent(state);
@@ -2184,6 +2188,69 @@ static void AdaptableRaceGainsChosenAbility()
     Assert(PerkProgressionRules.TriggerLevel(race, 1) == 4 &&
            PerkProgressionRules.TriggerLevel(race, 2) == 15,
         "Az Alkalmazkodó ember tehetségszintjei hibásak.");
+}
+
+static void CharacterVisionRangeUsesClassAndRace()
+{
+    var abilities = new PrimaryAbilities(5, 5, 5, 5);
+    var human = new RaceDefinition("R-HUMAN", "Ember", PrimaryAbilities.Zero);
+    var elf = new RaceDefinition("R-ELF", "Elf", PrimaryAbilities.Zero, RaceTraits.KeenSenses);
+    var fighterClass = new CharacterClassDefinition(CharacterClassIds.Harcos, "Harcos", PrimaryAbilities.Zero,
+        false, 1.0);
+    var thiefClass = new CharacterClassDefinition(CharacterClassIds.Tolvaj, "Tolvaj", PrimaryAbilities.Zero,
+        false, 1.0);
+    var fighter = new LiveCharacter("Harcos", human, fighterClass, abilities, 20, 0, 1, 0);
+    var thief = new LiveCharacter("Tolvaj", human, thiefClass, abilities, 20, 0, 1, 0);
+    var elfThief = new LiveCharacter("Elf tolvaj", elf, thiefClass, abilities, 20, 0, 1, 0);
+    Assert(CharacterClassRules.VisionRange(fighter) == 5 &&
+           CharacterClassRules.VisionRange(thief) == 7 &&
+           CharacterClassRules.VisionRange(elfThief) == 8,
+        "A karakter 5/7/8-as alap-, tolvaj- vagy elf látótávja hibás.");
+}
+
+static void EnemyVisionRangesLoadFromCsv()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    Assert(data.GetEnemy("E001").VisionRange == 3 && data.GetEnemy("E003").VisionRange == 4 &&
+           data.GetEnemy("E019").VisionRange == 7 && data.GetEnemy("E050").VisionRange == 8,
+        "A patkány, goblin, vámpír vagy káoszsárkány CSV-látótávja hibás.");
+}
+
+static void FogRevealUsesVariableRangeAndLineOfSight()
+{
+    var maze = new Maze(12, 5);
+    for (var x = 2; x <= 10; x++) maze.Carve(new Position(x, 2));
+    var origin = maze.Entrance;
+    var normalFog = new FogOfWar(maze.Width, maze.Height, 5);
+    normalFog.RevealFrom(maze, origin, 5);
+    var far = new Position(9, 2);
+    Assert(!normalFog.IsRevealed(far), "Az ötrácsos látótáv túl messzire fedett fel.");
+
+    var scoutFog = new FogOfWar(maze.Width, maze.Height, 5);
+    scoutFog.RevealFrom(maze, origin, 8);
+    Assert(scoutFog.IsRevealed(far), "A nyolcrácsos látótáv nem fedte fel a távoli folyosót.");
+
+    maze.PlaceDoor(new Position(4, 2), DoorState.Closed);
+    var blockedFog = new FogOfWar(maze.Width, maze.Height, 5);
+    blockedFog.RevealFrom(maze, origin, 8);
+    Assert(!blockedFog.IsRevealed(new Position(5, 2)), "A zárt ajtó mögé átlátott a felfedés.");
+}
+
+static void PursuitMemoryLastsThreeMoves()
+{
+    var enemy = CreateEnemy(10, 1);
+    var target = CharacterId.New();
+    enemy.ResolvePursuit(true, target);
+    Assert(enemy.PursuitMemoryRemainingMoves == 3 && enemy.TryRememberPursuitTarget() &&
+           enemy.TryRememberPursuitTarget() && enemy.TryRememberPursuitTarget() &&
+           !enemy.TryRememberPursuitTarget() && enemy.PursuitMemoryRemainingMoves == 0,
+        "Az ellenfél üldözési memóriája nem pontosan három lépésig tart.");
+
+    var saved = new EnemySaveData(enemy.Position, enemy.Definition.Id, enemy.CurrentHitPoints,
+        PursuitTargetCharacterId: target, PursuitMemoryRemainingMoves: 2);
+    var restored = JsonSerializer.Deserialize<EnemySaveData>(JsonSerializer.Serialize(saved));
+    Assert(restored?.PursuitMemoryRemainingMoves == 2,
+        "Az üldözési memória nem élte túl a mentési JSON-körutat.");
 }
 
 static BattleSystem CreateBattleSystem(int seed) => new(new Random(seed),

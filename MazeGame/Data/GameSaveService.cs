@@ -74,7 +74,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -89,6 +89,7 @@ public static class GameSaveFormat
             {
                 1 => MigrateVersion1To2(state),
                 2 => MigrateVersion2To3(state),
+                3 => MigrateVersion3To4(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -107,6 +108,13 @@ public static class GameSaveFormat
     {
         // A 3-as verzió vezeti be a kötelező, soros migrációs rendszert. Adatséma nem változott.
         state.Version = 3;
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion3To4(GameSaveData state)
+    {
+        // A régi, már üldöző ellenfelek a betöltéskor az új alapértelmezett memóriát kapják.
+        state.Version = 4;
         return state;
     }
 }
@@ -177,7 +185,8 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     string? GroupId = null,
     EnemyGroupRole GroupRole = EnemyGroupRole.Member,
     List<ActiveSpellEffect>? ActiveSpellEffects = null,
-    CharacterId? PursuitTargetCharacterId = null);
+    CharacterId? PursuitTargetCharacterId = null,
+    int PursuitMemoryRemainingMoves = -1);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex);
