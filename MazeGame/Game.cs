@@ -163,6 +163,9 @@ public sealed class Game
     private bool _timeStopUsedThisBattle;
     private bool _battleTacticHintLogged;
     private bool _battleActionHintLogged;
+    private int _battleStartingVitality;
+    private int _battleStartingMana;
+    private HashSet<string> _battleStartingStatusIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<LiveCharacter> _turnUndeadUsedThisBattle = [];
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
     private readonly Queue<SessionActivitySnapshot> _sessionActivities = new();
@@ -4010,6 +4013,10 @@ public sealed class Game
         _battleTacticHintLogged = false;
         _battleActionHintLogged = false;
         _turnUndeadUsedThisBattle.Clear();
+        _battleStartingVitality = battleCharacter.CurrentVitality;
+        _battleStartingMana = battleCharacter.CurrentMana;
+        _battleStartingStatusIds = battleCharacter.Statuses.Select(status => status.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
         _battleStarted = true;
         _session.SetPhase(GameSessionPhase.Battle);
@@ -4096,9 +4103,15 @@ public sealed class Game
         _session.EndBattle(state.Id);
         _activeBattleState = null;
         _pendingBattleSupportDamage = 0;
+        var vitalityLost = Math.Max(0, _battleStartingVitality - battleCharacter.CurrentVitality);
+        var manaLost = Math.Max(0, _battleStartingMana - battleCharacter.CurrentMana);
+        var gainedStatusIcons = battleCharacter.Statuses
+            .Where(status => !_battleStartingStatusIds.Contains(status.Id))
+            .Select(status => status.Icon)
+            .ToArray();
         if (battleCharacter != SelectedCharacter)
         {
-            FinishRemoteBattle(state, result, battleCharacter, enemy);
+            FinishRemoteBattle(state, result, battleCharacter, enemy, vitalityLost, manaLost, gainedStatusIcons);
             return;
         }
         var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);
@@ -4111,10 +4124,11 @@ public sealed class Game
             var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
+            var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,
+                manaLost, gainedStatusIcons, needLoss);
             RecordSessionActivity(SessionActivityKind.Battle,
-                ConsoleRenderer.FormatBattleResultMessage(result, enemy), ConsoleColor.Green);
-            _renderer.DrawBattleResult(result, enemy);
-            _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
+                victoryMessage, ConsoleColor.Green);
+            _renderer.DrawBattleResult(result, enemy, victoryMessage);
             _renderer.DrawExperienceDistribution(FormatExperienceAwards(experienceAwards),
                 experienceAwards.Any(award => award.Result.LeveledUp));
             _renderer.RefreshCharacterSheet(SelectedCharacter);
@@ -4149,11 +4163,10 @@ public sealed class Game
     }
 
     private void FinishRemoteBattle(BattleState state, BattleResult result, LiveCharacter battleCharacter,
-        Enemy enemy)
+        Enemy enemy, int vitalityLost, int manaLost, IReadOnlyList<string> gainedStatusIcons)
     {
         var needLoss = DrainNeedsAfterBattle(battleCharacter, enemy.Definition.StrengthTier);
         var companionDied = !result.PlayerWon;
-        _renderer.DrawBattleResult(result, enemy);
         if (result.PlayerWon)
         {
             AwardBossKey(enemy);
@@ -4161,17 +4174,20 @@ public sealed class Game
             var experienceAwards = DistributeExperience(battleCharacter, enemy.Definition.ExperienceReward);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
+            var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,
+                manaLost, gainedStatusIcons, needLoss);
             RecordSessionActivity(SessionActivityKind.Battle,
-                ConsoleRenderer.FormatBattleResultMessage(result, enemy), ConsoleColor.Green);
+                victoryMessage, ConsoleColor.Green);
+            _renderer.DrawBattleResult(result, enemy, victoryMessage);
             _renderer.DrawNpcBattleSummary(
-                $"{battleCharacter.Name} távoli csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
-                $"{FormatExperienceAwards(experienceAwards)}; 🍖💧 -{needLoss}.", ConsoleColor.Green);
+                $"{battleCharacter.Name}: {FormatExperienceAwards(experienceAwards)}.", ConsoleColor.Green);
             var levelUps = experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive).ToList();
             // Az első vertical slice-ban a perk-/varázsválasztás még a host konzolján történik.
             foreach (var award in levelUps) ResolvePerkOffers(award.Character, award.Result);
         }
         else
         {
+            _renderer.DrawBattleResult(result, enemy);
             PlaySessionSound(SoundEffect.Defeat);
             var member = _maze.PartyMembers.FirstOrDefault(candidate => candidate.Character == battleCharacter);
             if (member is not null)

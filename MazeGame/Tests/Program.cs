@@ -48,6 +48,7 @@ var tests = new (string Name, Action Run)[]
     ("Az éhség és szomjúság hatásai láthatók a harci naplóban", NeedStatusEffectsAreVisible),
     ("A harci találat kiemeli a sebzést és a megmaradt HP-t", BattleHitHighlightsDamageAndHealth),
     ("A győzelmi üzenet nem ismétli meg az utolsó támadást", VictoryMessageIsConcise),
+    ("A győzelmi összegzés egyetlen kompakt sor", VictorySummaryIsCompact),
     ("A barbár öt sebzés után Dühbe gurul", BarbarianRageTriggersAfterFiveDamage),
     ("A lovagi közbelépés kivédi a társ találatát és harmadolva átveszi", KnightProtectionTransfersThirdOfFirstHit),
     ("A csata megvárhatja a játékos hálózati akcióját", BattleCanWaitForPlayerAction),
@@ -1287,6 +1288,18 @@ static void InventorySnapshotHasSlotsAndRevision()
     Assert(second.Revision == first.Revision + 1 &&
            second.Slots.Single(slot => slot.Kind == InventorySlotKind.Backpack && slot.Index == 0).Item is null,
         "Az inventory mutáció nem növelte pontosan egyszer a revíziót.");
+}
+
+static void VictorySummaryIsCompact()
+{
+    var enemy = CreateEnemy(1, 1);
+    var result = new BattleResult(true, 4, []);
+    Assert(ConsoleRenderer.FormatBattleVictorySummary(result, enemy, 11, 8, ["🤒"], 4) ==
+           "GYŐZELEM 🏆: Tesztellenfél elesett. ⌛4❤️-11🔷-8🤒🍖 -4, 💧 -4",
+        "A győzelmi összegzés nem a várt kompakt formátumot használja.");
+    Assert(ConsoleRenderer.FormatBattleVictorySummary(result, enemy, 0, 0, [], 2) ==
+           "GYŐZELEM 🏆: Tesztellenfél elesett. ⌛4🍖 -2, 💧 -2",
+        "A nulla HP-/manaveszteséget nem szabad megjeleníteni.");
 }
 
 static void BackpackStacksIdenticalItemsUpToNine()

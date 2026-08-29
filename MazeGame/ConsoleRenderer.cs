@@ -376,18 +376,28 @@ public sealed class ConsoleRenderer
     /// <summary>
     /// Csata eredményének megjelenítése: visszaáll a nem-csata állapotra és kiírja az összegző üzenetet.
     /// </summary>
-    public void DrawBattleResult(BattleResult result, Enemy enemy)
+    public void DrawBattleResult(BattleResult result, Enemy enemy, string? message = null)
     {
         _battleActive = false;
         _battleEnemy = null;
         DrawPicturePanel();
         WriteSheetLine(RightSheetBattleHintLine, string.Empty, ConsoleColor.DarkCyan);
-        DrawBattleMessage(FormatBattleResultMessage(result, enemy));
+        DrawBattleMessage(message ?? FormatBattleResultMessage(result, enemy));
     }
 
     public static string FormatBattleResultMessage(BattleResult result, Enemy enemy) => result.PlayerWon
         ? $"GYŐZELEM 🏆: {enemy.Name} elesett."
         : $"Elestél {result.Rounds} kör után. {result.Events.LastOrDefault() ?? string.Empty}";
+
+    public static string FormatBattleVictorySummary(BattleResult result, Enemy enemy, int vitalityLost,
+        int manaLost, IEnumerable<string> gainedStatusIcons, int needLoss)
+    {
+        var vitality = vitalityLost > 0 ? $"❤️-{vitalityLost}" : string.Empty;
+        var mana = manaLost > 0 ? $"🔷-{manaLost}" : string.Empty;
+        var statuses = string.Concat(gainedStatusIcons.Where(icon => !string.IsNullOrWhiteSpace(icon)));
+        return $"GYŐZELEM 🏆: {enemy.Name} elesett. ⌛{result.Rounds}{vitality}{mana}{statuses}" +
+               $"🍖 -{needLoss}, 💧 -{needLoss}";
+    }
 
     /// <summary>
     /// Játék vége képernyő: középre rajzolt keret és szöveg, majd várakozás billentyűleütésre.
