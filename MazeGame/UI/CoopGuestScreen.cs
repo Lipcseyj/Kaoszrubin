@@ -4,6 +4,7 @@ using MazeGame.Domain.Characters;
 using MazeGame.Domain.Inventory;
 using MazeGame.Domain.Magic;
 using MazeGame.Transport.SignalR;
+using System.Globalization;
 
 namespace MazeGame.UI;
 
@@ -1216,7 +1217,8 @@ public sealed class CoopGuestScreen
         }
         if (inn.LevelCompletion is { } completion)
         {
-            DrawGuestOverlay(grid, ConsoleRenderer.BuildLevelCompletionLines(completion), ConsoleColor.Yellow, 100);
+            DrawGuestOverlay(grid, ConsoleRenderer.BuildLevelCompletionLines(completion), ConsoleColor.Magenta,
+                ConsoleRenderer.LevelCompletionFrameWidth, FramedWindow.Inn);
             return;
         }
         List<(string Text, ConsoleColor Color)> lines;
@@ -1241,7 +1243,8 @@ public sealed class CoopGuestScreen
                 };
                 lines = ConsoleRenderer.BuildWanderingMageMenuLines(inn.PartyGold, mageOptions,
                     _innSelection, "A vándormágus köpenye alól halk, kékes fény szűrődik ki.").ToList();
-                DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, 96);
+                DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, ConsoleRenderer.InnMenuFrameWidth,
+                    FramedWindow.Inn);
                 return;
             }
             var own = snapshot.Party.FirstOrDefault(character => character.Inventory is not null);
@@ -1260,7 +1263,9 @@ public sealed class CoopGuestScreen
                     ? "Csak a saját hátizsákod tárgyai adhatók el."
                     : "Válassz a fogadó kínálatából.").ToList();
         }
-        DrawGuestOverlay(grid, lines, ConsoleColor.Yellow, _innVendor is null ? 100 : 110);
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta,
+            _innVendor is null ? ConsoleRenderer.InnMenuFrameWidth : ConsoleRenderer.InnMarketFrameWidth,
+            FramedWindow.Inn);
         if (_innRumorOpen) ApplyInnRumorUi(grid, inn);
     }
 
@@ -1270,7 +1275,7 @@ public sealed class CoopGuestScreen
         _innRumorSelection = Math.Clamp(_innRumorSelection, 0, inn.Rumors.Count - 1);
         var rumor = inn.Rumors[_innRumorSelection];
         var lines = ConsoleRenderer.BuildInnRumorLines(rumor, _innRumorSelection, inn.Rumors.Count).ToList();
-        const int desiredWidth = 110;
+        const int desiredWidth = ConsoleRenderer.InnRumorFrameWidth;
         var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
         var maxRows = Math.Max(1, grid.GetLength(1) - 2);
         if (lines.Count > maxRows)
@@ -1278,7 +1283,7 @@ public sealed class CoopGuestScreen
             var footer = lines[^1];
             lines = lines.Take(Math.Max(0, maxRows - 1)).Append(footer).ToList();
         }
-        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, width);
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, width, FramedWindow.Inn);
     }
 
     private void ApplyNarrativeUi(GuestMapCell[,] grid, SessionSnapshot snapshot, PlayerId? playerId)
@@ -1450,9 +1455,16 @@ public sealed class CoopGuestScreen
 
     private static void DrawOverlayText(GuestMapCell[,] grid, int x, int y, string text, ConsoleColor color)
     {
-        foreach (var rune in text.EnumerateRunes())
+        var elements = StringInfo.GetTextElementEnumerator(text);
+        while (elements.MoveNext())
         {
-            Put(grid, new Position(x++, y), rune.ToString(), color);
+            var element = elements.GetTextElement();
+            var displayWidth = element.EnumerateRunes().Any(rune =>
+                rune.Value > char.MaxValue || rune.Value is 0xFE0F or 0x200D) ? 2 : 1;
+            Put(grid, new Position(x, y), element, color);
+            if (displayWidth == 2 && x + 1 < grid.GetLength(0) && y >= 0 && y < grid.GetLength(1))
+                grid[x + 1, y] = new GuestMapCell(string.Empty, color, ConsoleColor.Black, IsContinuation: true);
+            x += displayWidth;
             if (x >= grid.GetLength(0)) break;
         }
     }
@@ -1468,7 +1480,8 @@ public sealed class CoopGuestScreen
         for (var y = 0; y < frame.MapHeight; y++)
         {
             for (var x = 0; x < frame.MapWidth; x++)
-                if (fullRedraw || previous!.Map[x, y] != frame.Map[x, y])
+                if (!frame.Map[x, y].IsContinuation &&
+                    (fullRedraw || previous!.Map[x, y] != frame.Map[x, y]))
                     WriteMapCell(x, mapTop + y, frame.Map[x, y]);
         }
 
@@ -1641,7 +1654,7 @@ public sealed class CoopGuestScreen
     }
 
     private readonly record struct GuestMapCell(string Glyph, ConsoleColor Color,
-        ConsoleColor Background = ConsoleColor.Black);
+        ConsoleColor Background = ConsoleColor.Black, bool IsContinuation = false);
     private readonly record struct GuestTextLine(string Text, ConsoleColor Foreground, ConsoleColor Background);
     private sealed record GuestRenderFrame(WorldId WorldId, int WindowWidth, int WindowHeight, int MapWidth,
         int MapHeight, GuestMapCell[,] Map, GuestTextLine[] Panel, PartyStatusLine?[] PartyStatuses,

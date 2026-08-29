@@ -38,8 +38,8 @@ public sealed class ConsoleRenderer
     private const int GameOverFrameWidth = 96;
     private const int GameOverFrameHeight = 11;
     private const int GameOverMinimumTop = 2;
-    private const int LevelCompletionFrameWidth = 112;
-    private const int InnMenuFrameWidth = 90;
+    internal const int LevelCompletionFrameWidth = 112;
+    internal const int InnMenuFrameWidth = 90;
     private const int InnMenuFirstOptionLabelLine = 5;
     private const int InnMenuFirstOptionDescriptionLine = 6;
     private const int InnMenuOptionLineStride = 2;
@@ -47,7 +47,7 @@ public sealed class ConsoleRenderer
     private const int InnConfirmationFrameWidth = 90;
     private const int InnRestFrameWidth = 100;
     private const int InnRestUnavailableFrameWidth = 90;
-    private const int InnMarketFrameWidth = 110;
+    internal const int InnMarketFrameWidth = 110;
     private const int InnRecruitmentFrameWidth = 100;
     private const int InnMarketPageSize = 22;
     private const int InnMarketTextWidth = 104;
@@ -59,7 +59,7 @@ public sealed class ConsoleRenderer
     private const int InnReplacementFrameWidth = 90;
     private const int InnReplacementFirstMemberLine = 4;
     private const int InnReplacementFrameBaseLineCount = 7;
-    private const int InnRumorFrameWidth = 108;
+    internal const int InnRumorFrameWidth = 108;
     private const int InnRumorTextWidth = 100;
     private const int DetailNextLineOffset = 1;
     private const int DetailSecondLineOffset = 2;
@@ -481,7 +481,7 @@ public sealed class ConsoleRenderer
     {
         ResetColorCache();
         Console.Clear();
-        DrawCenteredFrame(LevelCompletionFrameWidth, BuildLevelCompletionLines(completion));
+        DrawCenteredFrame(LevelCompletionFrameWidth, BuildLevelCompletionLines(completion), FramedWindow.Inn);
     }
 
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildLevelCompletionLines(
@@ -674,7 +674,7 @@ public sealed class ConsoleRenderer
         ResetColorCache();
         Console.Clear();
         DrawCenteredFrame(InnMenuFrameWidth, BuildInnMenuLines(partyCount, leader.Gold, options,
-            selectedIndex, artisanNotice, disableLeaderOnly: false, innName, mazeLevel));
+            selectedIndex, artisanNotice, disableLeaderOnly: false, innName, mazeLevel), FramedWindow.Inn);
     }
 
     public void UpdateInnMenuSelection(IReadOnlyList<InnMenuOptionSnapshot> options,
@@ -689,7 +689,8 @@ public sealed class ConsoleRenderer
             updates.Add((InnMenuFirstOptionDescriptionLine + index * InnMenuOptionLineStride, $"     {options[index].Description}",
                 selected ? ConsoleColor.White : ConsoleColor.DarkGray));
         }
-        UpdateCenteredFrameLines(InnMenuFrameWidth, InnMenuFrameBaseLineCount + options.Count * InnMenuOptionLineStride, updates);
+        UpdateCenteredFrameLines(InnMenuFrameWidth, InnMenuFrameBaseLineCount + options.Count * InnMenuOptionLineStride,
+            updates, FramedWindow.Inn);
     }
 
     public bool ConfirmInnSecretStashAccess(int cost)
@@ -705,7 +706,7 @@ public sealed class ConsoleRenderer
             (string.Empty, ConsoleColor.Gray),
             ("Enter: igen   Esc: mégsem", ConsoleColor.Green)
         };
-        DrawCenteredFrame(InnConfirmationFrameWidth, lines);
+        DrawCenteredFrame(InnConfirmationFrameWidth, lines, FramedWindow.Inn);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
@@ -734,7 +735,7 @@ public sealed class ConsoleRenderer
         }
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("Nyomj Entert a folytatáshoz...", ConsoleColor.Yellow));
-        DrawCenteredFrame(InnRestFrameWidth, lines);
+        DrawCenteredFrame(InnRestFrameWidth, lines, FramedWindow.Inn);
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
@@ -751,7 +752,7 @@ public sealed class ConsoleRenderer
             (string.Empty, ConsoleColor.Gray),
             ("Nyomj Entert a folytatáshoz...", ConsoleColor.Yellow)
         };
-        DrawCenteredFrame(InnRestUnavailableFrameWidth, lines);
+        DrawCenteredFrame(InnRestUnavailableFrameWidth, lines, FramedWindow.Inn);
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
@@ -768,7 +769,7 @@ public sealed class ConsoleRenderer
                 Quantity = offer.Owner.GetInventoryItemQuantity(InventorySlotKind.Backpack, offer.BackpackIndex)
             }, offer.Price, offer.Owner.Name)).ToArray();
         DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, mode, sales, selectedIndex,
-            leader.Gold, freeBackpackSlots, message));
+            leader.Gold, freeBackpackSlots, message), FramedWindow.Inn);
     }
 
     public void DrawInnSecretStashScreen(LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
@@ -800,7 +801,7 @@ public sealed class ConsoleRenderer
         lines.Add((selectedItem is null ? "Nincs több megvásárolható portéka." : ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
         lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
         lines.Add(("↑/↓ választás   Enter vásárlás   Esc vissza a fogadóba", ConsoleColor.White));
-        DrawCenteredFrame(InnMarketFrameWidth, lines);
+        DrawCenteredFrame(InnMarketFrameWidth, lines, FramedWindow.Inn);
     }
 
     public void DrawInnSpecialistScreen(string title, LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
@@ -814,7 +815,7 @@ public sealed class ConsoleRenderer
         var vendor = new InnVendorSnapshot(kind, title, stock.Select((offer, index) =>
             new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item), offer.Price)).ToArray());
         DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, InnMarketMode.Buy, [], selectedIndex,
-            leader.Gold, freeBackpackSlots, message));
+            leader.Gold, freeBackpackSlots, message), FramedWindow.Inn);
     }
 
     private static InventoryItemSnapshot ToInventoryItemSnapshot(IItemDefinition item) => new(item.Id, item.Name,
@@ -829,7 +830,7 @@ public sealed class ConsoleRenderer
         Console.Clear();
         DrawCenteredFrame(InnMenuFrameWidth, BuildWanderingMageMenuLines(leader.Gold,
             options.Select(option => (option.Label, option.Description, Disabled: false)).ToArray(),
-            selectedIndex, message));
+            selectedIndex, message), FramedWindow.Inn);
     }
 
     public void DrawWandRechargeScreen(LiveCharacter leader,
@@ -856,7 +857,7 @@ public sealed class ConsoleRenderer
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add((ClipMarketText(message, InnMarketFrameWidth - 6), ConsoleColor.Magenta));
         lines.Add(("↑/↓ választás   Enter feltöltés   Esc vissza", ConsoleColor.Green));
-        DrawCenteredFrame(InnMenuFrameWidth, lines);
+        DrawCenteredFrame(InnMenuFrameWidth, lines, FramedWindow.Inn);
     }
 
     public void UpdateInnMarketSelection(InnMarketMode mode, IReadOnlyList<InnStockOffer> stock,
@@ -886,7 +887,7 @@ public sealed class ConsoleRenderer
         }
         var selectedItem = mode == InnMarketMode.Buy ? stock[selectedIndex].Item : sellOffers[selectedIndex].Item;
         updates.Add((InnMarketSelectedItemDetailLine, ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
-        UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates);
+        UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates, FramedWindow.Inn);
     }
 
     public void UpdateInnBuyOnlySelection(IReadOnlyList<InnStockOffer> stock, int previousIndex, int selectedIndex)
@@ -909,7 +910,7 @@ public sealed class ConsoleRenderer
                 updates.Add((InnMenuFirstOptionLabelLine + row, string.Empty, ConsoleColor.Gray));
         }
         updates.Add((InnMarketSelectedItemDetailLine, ClipMarketText($"ℹ️ {stock[selectedIndex].Item.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
-        UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates);
+        UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates, FramedWindow.Inn);
     }
 
     public void DrawInnRecruitmentScreen(IReadOnlyList<LiveCharacter> candidates,
@@ -945,7 +946,7 @@ public sealed class ConsoleRenderer
         lines.Add((party.Count >= Party.MaximumSize
             ? "↑/↓ választás   Enter felvétel és társ lecserélése   Esc vissza a fogadóba"
             : "↑/↓ választás   Enter felvétel   Esc vissza a fogadóba", ConsoleColor.White));
-        DrawCenteredFrame(InnRecruitmentFrameWidth, lines);
+        DrawCenteredFrame(InnRecruitmentFrameWidth, lines, FramedWindow.Inn);
     }
 
     public void DrawInnReplacementScreen(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable,
@@ -970,7 +971,7 @@ public sealed class ConsoleRenderer
             ConsoleColor.Yellow));
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("↑/↓ választás   Enter végleges csere   Esc mégse", ConsoleColor.White));
-        DrawCenteredFrame(InnReplacementFrameWidth, lines);
+        DrawCenteredFrame(InnReplacementFrameWidth, lines, FramedWindow.Inn);
     }
 
     public void UpdateInnRecruitmentSelection(IReadOnlyList<LiveCharacter> candidates,
@@ -991,7 +992,8 @@ public sealed class ConsoleRenderer
         updates.Add((detailStart, $"Erő {shown.EffectiveAbilities.Strength}  Ügy {shown.EffectiveAbilities.Dexterity}  Egész {shown.EffectiveAbilities.Health}  Int {shown.EffectiveAbilities.Intelligence}", ConsoleColor.Cyan));
         updates.Add((detailStart + DetailNextLineOffset, $"Fegyver: {weapons}  |  Páncél: {shown.Armor?.Name ?? "nincs"}", ConsoleColor.Gray));
         updates.Add((detailStart + DetailSecondLineOffset, $"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
-        UpdateCenteredFrameLines(InnRecruitmentFrameWidth, InnRecruitmentFrameBaseLineCount + candidates.Count, updates);
+        UpdateCenteredFrameLines(InnRecruitmentFrameWidth, InnRecruitmentFrameBaseLineCount + candidates.Count,
+            updates, FramedWindow.Inn);
     }
 
     public void UpdateInnReplacementSelection(IReadOnlyList<LiveCharacter> replaceable,
@@ -1004,7 +1006,8 @@ public sealed class ConsoleRenderer
             var selected = index == selectedIndex;
             updates.Add((InnReplacementFirstMemberLine + index, InnReplacementLine(member, selected), selected ? ConsoleColor.White : member.Color));
         }
-        UpdateCenteredFrameLines(InnReplacementFrameWidth, InnReplacementFrameBaseLineCount + replaceable.Count, updates);
+        UpdateCenteredFrameLines(InnReplacementFrameWidth, InnReplacementFrameBaseLineCount + replaceable.Count,
+            updates, FramedWindow.Inn);
     }
 
     public void DrawInnRumorScreen(InnRumor rumor, int selectedIndex, int rumorCount, string? notice = null)
@@ -1012,7 +1015,8 @@ public sealed class ConsoleRenderer
         ResetColorCache();
         Console.Clear();
         DrawCenteredFrame(InnRumorFrameWidth, BuildInnRumorLines(
-            new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color), selectedIndex, rumorCount, notice));
+            new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color), selectedIndex, rumorCount, notice),
+            FramedWindow.Inn);
     }
 
     private static IEnumerable<string> WrapText(string text, int maximumWidth)
@@ -1516,16 +1520,20 @@ public sealed class ConsoleRenderer
         $"{(selected ? "▶" : " ")} {member.Name,-13} {member.CharacterClass.Name,-10} L{member.Level,2}  HP {member.CurrentVitality}/{member.MaximumVitality}";
 
     private void UpdateCenteredFrameLines(int frameWidth, int lineCount,
-        IEnumerable<(int Index, string Text, ConsoleColor Color)> updates)
+        IEnumerable<(int Index, string Text, ConsoleColor Color)> updates, FramedWindow? framedWindow = null)
     {
-        var contentWidth = frameWidth - CenteredFrameHorizontalPadding * FrameBorderWidth;
+        var style = framedWindow is { } window
+            ? WindowFrameConfiguration.For(window)
+            : WindowFrameStyle.Double;
+        var contentPadding = WindowFrameCatalog.ContentPadding(style);
+        var contentWidth = frameWidth - contentPadding * FrameBorderWidth;
         var left = Math.Max(0, (Console.WindowWidth - frameWidth) / FrameBorderWidth);
         var top = Math.Max(MinimumCenteredFrameTop, (Console.WindowHeight - lineCount - FrameBorderWidth) / FrameBorderWidth);
         foreach (var (index, text, color) in updates)
         {
             SetColors(color, ConsoleColor.Black);
-            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1, new string(' ', contentWidth));
-            WriteAt(left + CenteredFrameHorizontalPadding, top + index + 1, text);
+            WriteAt(left + contentPadding, top + index + 1, new string(' ', contentWidth));
+            WriteAt(left + contentPadding, top + index + 1, text);
         }
     }
 

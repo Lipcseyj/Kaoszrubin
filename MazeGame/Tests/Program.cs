@@ -1902,7 +1902,8 @@ static void WindowFrameCatalogIsResizableAndConfigured()
            WindowFrameConfiguration.For(FramedWindow.LevelUp) == WindowFrameStyle.Scroll2 &&
            WindowFrameConfiguration.For(FramedWindow.LevelUpChoice) == WindowFrameStyle.Sword &&
            WindowFrameConfiguration.For(FramedWindow.SpellLearning) == WindowFrameStyle.Magic2 &&
-           WindowFrameConfiguration.For(FramedWindow.SpellPreparation) == WindowFrameStyle.Magic2,
+           WindowFrameConfiguration.For(FramedWindow.SpellPreparation) == WindowFrameStyle.Magic2 &&
+           WindowFrameConfiguration.For(FramedWindow.Inn) == WindowFrameStyle.Ruby,
         "Az első körös ablak–keret alapbeállítások hibásak.");
 }
 
