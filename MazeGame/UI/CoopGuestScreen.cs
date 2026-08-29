@@ -156,7 +156,11 @@ public sealed class CoopGuestScreen
                         client.CurrentSnapshot?.SpellPreparation is null &&
                         client.CurrentSnapshot?.LevelUpPrompt is null &&
                         !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null &&
-                        _doorTargetAction is null) break;
+                        _doorTargetAction is null)
+                    {
+                        if (ConfirmReturnToMainMenu(client, selected)) break;
+                        continue;
+                    }
                     await HandleInputAsync(client, selected.CharacterId, key.Key, cancellationToken);
                 }
                 await Task.Delay(20, cancellationToken);
@@ -169,6 +173,24 @@ public sealed class CoopGuestScreen
         {
             Console.CursorVisible = true;
             await client.DisconnectAsync(CancellationToken.None);
+        }
+    }
+
+    private bool ConfirmReturnToMainMenu(CoopSignalRClient client, CoopCharacterOption selected)
+    {
+        SetMessage(
+            "⚠️ Visszatérsz a főmenübe? A legutóbbi mentés óta történt változások elvesznek. I/Y: igen | N/Esc: maradok",
+            ConsoleColor.Red);
+        Draw(client, selected);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key is ConsoleKey.I or ConsoleKey.Y) return true;
+            if (key is not (ConsoleKey.N or ConsoleKey.Escape)) continue;
+
+            SetMessage("A játék folytatódik.", ConsoleColor.Cyan);
+            Draw(client, selected);
+            return false;
         }
     }
 
