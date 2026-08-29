@@ -102,6 +102,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég nem rajzol újra puszta snapshot-sorszám változásra", GuestRedrawIgnoresReplicationSequences),
     ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories),
     ("Az inventory transfer atomi és megőrzi a töltetet", InventoryTransferIsAtomicAndPreservesCharges),
+    ("A hátizsákköteg felezése atomi és tele hátizsáknál figyelmeztet", InventoryStackSplitIsAtomicAndRequiresSpace),
     ("A képességnövelő varázstárgyak minden kasztnál 13-ig hatnak", AbilityMagicItemsAreUniversalAndCapped),
     ("Az elavult inventory-revízió elutasításra kerül", StaleInventoryRevisionIsRejected),
     ("A vendég nem mozgathat tárgyat más karakterhez", RemoteInventoryTransferCannotCrossCharacters),
@@ -296,6 +297,7 @@ static void HostAndGuestUseSharedInputBindings()
     Assert(GameInputBindings.InventoryAction(ConsoleKey.Enter) == InventoryInputAction.Use &&
            GameInputBindings.InventoryAction(ConsoleKey.D) == InventoryInputAction.Drop &&
            GameInputBindings.InventoryAction(ConsoleKey.Spacebar) == InventoryInputAction.MoveItem &&
+           GameInputBindings.InventoryAction(ConsoleKey.F) == InventoryInputAction.SplitStack &&
            GameInputBindings.InventoryAction(ConsoleKey.I) == InventoryInputAction.Inspect,
         "Az inventory közös billentyűkiosztása eltér a host vezérlésétől.");
     Assert(GameInputBindings.CharacterAction(ConsoleKey.N) == CharacterAction.OpenDoor &&
@@ -2048,6 +2050,36 @@ static void RaceTraitsAreLoadedFromData()
     Assert(catalog.GetRace("R002").HasTrait(RaceTraits.Resilient), "A törp Rendíthetetlen tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R003").HasTrait(RaceTraits.KeenSenses), "Az elf Éles érzékek tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R004").HasTrait(RaceTraits.Relentless), "A félork Könyörtelen tulajdonsága hiányzik.");
+}
+
+static void InventoryStackSplitIsAtomicAndRequiresSpace()
+{
+    var party = new Party();
+    var character = CreateCharacter("StackSplit");
+    party.SetLeader(character);
+    var item = new MiscItemDefinition("I-STACK", "Dobókés", "Teszt", 1);
+    for (var index = 0; index < 5; index++)
+        Assert(character.AddToBackpack(item), "A tesztköteg nem fért a hátizsákba.");
+    var revision = character.InventoryRevision;
+    var command = new SplitInventoryStackCommand(PlayerId.New(), 1, character.Id, revision, 0);
+
+    Assert(InventoryStackService.TryExecute(party, command, out var result, out var error), error);
+    Assert(character.GetInventoryItemQuantity(InventorySlotKind.Backpack, 0) == 3 &&
+           character.GetInventoryItemQuantity(InventorySlotKind.Backpack, result.DestinationIndex) == 2 &&
+           character.InventoryRevision == revision + 1,
+        "Az 5 darabos köteg nem atomi 3+2 kötegre vált szét.");
+
+    for (var index = 0; index < LiveCharacter.MaximumBackpackItemCount; index++)
+    {
+        if (character.GetInventoryItem(InventorySlotKind.Backpack, index) is not null) continue;
+        Assert(character.SetInventoryItem(InventorySlotKind.Backpack, index,
+            new MiscItemDefinition($"I-FILL-{index}", $"Töltelék {index}", "Teszt", 1)),
+            "A tele hátizsák tesztjének előkészítése sikertelen.");
+    }
+    var fullCommand = command with { CommandId = 2, ExpectedInventoryRevision = character.InventoryRevision };
+    Assert(!InventoryStackService.TryExecute(party, fullCommand, out _, out error) &&
+           error.Contains("nincs üres hely", StringComparison.OrdinalIgnoreCase),
+        "A tele hátizsák felezése nem adott egyértelmű figyelmeztetést.");
 }
 
 static void ClassResourceGrowthLoadsFromCsv()

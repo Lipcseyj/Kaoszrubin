@@ -330,6 +330,8 @@ public sealed class GameSession
             return ValidateUseInventoryItem(useItem, out reason);
         if (command is DropInventoryItemCommand dropItem)
             return ValidateDropInventoryItem(dropItem, out reason);
+        if (command is SplitInventoryStackCommand splitStack)
+            return ValidateSplitInventoryStack(splitStack, out reason);
         if (command is PickUpGroundItemCommand pickUpItem)
         {
             if (pickUpItem.GroundPileId.Value == Guid.Empty || pickUpItem.ExpectedGroundPileRevision <= 0 ||
@@ -502,6 +504,14 @@ public sealed class GameSession
             return Fail("A karakterhez kötött varázsfókusz nem dobható el.", out reason);
         reason = string.Empty;
         return true;
+    }
+
+    private bool ValidateSplitInventoryStack(SplitInventoryStackCommand command, out string reason)
+    {
+        if (!ValidateInventorySlotCommand(command.SenderId, command.CharacterId,
+                command.ExpectedInventoryRevision, InventorySlotKind.Backpack, command.BackpackIndex,
+                allowInn: true, requireItem: true, out reason)) return false;
+        return InventoryStackService.Validate(_party, command, out reason);
     }
 
     private void SetControl(CharacterControlState control)

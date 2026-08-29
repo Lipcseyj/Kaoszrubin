@@ -2,7 +2,7 @@ using MazeGame.Application;
 
 namespace MazeGame.UI;
 
-public enum InventoryInputAction { MoveUp, MoveDown, Inspect, Drop, Use, MoveItem }
+public enum InventoryInputAction { MoveUp, MoveDown, Inspect, Drop, Use, MoveItem, SplitStack }
 
 /// <summary>A host és a coop vendég közös, kontextusfüggő billentyűkiosztása.</summary>
 public static class GameInputBindings
@@ -17,6 +17,7 @@ public static class GameInputBindings
         ConsoleKey.D => InventoryInputAction.Drop,
         ConsoleKey.Enter => InventoryInputAction.Use,
         ConsoleKey.Spacebar => InventoryInputAction.MoveItem,
+        ConsoleKey.F => InventoryInputAction.SplitStack,
         _ => null
     };
 

@@ -839,6 +839,20 @@ public sealed class CoopGuestScreen
                 else
                     SetMessage("Az üres slot nem dobható el.");
                 break;
+            case InventoryInputAction.SplitStack when slots.Count > 0:
+                var splitSlot = slots[_inventorySelection];
+                if (_inventorySource is not null)
+                    SetMessage("Előbb fejezd be vagy szakítsd meg a tárgy mozgatását.");
+                else if (splitSlot.Kind != InventorySlotKind.Backpack)
+                    SetMessage("Hátizsákban levő köteget jelölj ki a felezéshez.");
+                else if (splitSlot.Item is null || splitSlot.Item.Quantity < 2)
+                    SetMessage("A kijelölt tárgy nem több darabos köteg.");
+                else if (!slots.Any(slot => slot.Kind == InventorySlotKind.Backpack && slot.Item is null))
+                    SetMessage("A hátizsákban nincs üres hely a köteg felezéséhez.");
+                else
+                    command = new SplitInventoryStackCommand(client.PlayerId!.Value, client.NextCommandId(),
+                        characterId, inventory.Revision, splitSlot.Index);
+                break;
             case InventoryInputAction.Inspect when slots.Count > 0:
                 var inspectSlot = slots[_inventorySelection];
                 if (inspectSlot.Item is null)

@@ -566,6 +566,7 @@ public sealed class Game
                             case InventoryInputAction.Inspect: InspectSelectedInventoryItem(); break;
                             case InventoryInputAction.Use: UseSelectedInventoryItem(); break;
                             case InventoryInputAction.MoveItem: GrabOrPlaceInventoryItem(); break;
+                            case InventoryInputAction.SplitStack: SplitSelectedInventoryStack(); break;
                             default:
                                 if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
                                 else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
@@ -1489,6 +1490,9 @@ public sealed class Game
                     break;
                 case DropInventoryItemCommand dropItem:
                     ExecuteDropInventoryItem(dropItem);
+                    break;
+                case SplitInventoryStackCommand splitStack:
+                    ExecuteSplitInventoryStack(splitStack);
                     break;
                 case PickUpGroundItemCommand pickUpItem:
                     ExecutePickUpGroundItem(pickUpItem);
@@ -2501,6 +2505,48 @@ public sealed class Game
         if (_heldInventoryItem is not { } held) return;
         _heldInventoryItem = null;
         _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} áthelyezése megszakítva.", ConsoleColor.DarkYellow);
+    }
+
+    private void SplitSelectedInventoryStack()
+    {
+        if (_heldInventoryItem is not null)
+        {
+            _renderer.DrawInventoryMessage("Előbb fejezd be vagy szakítsd meg a kézben tartott tárgy mozgatását.",
+                ConsoleColor.DarkYellow);
+            return;
+        }
+        var slot = _renderer.GetSelectedInventorySlot();
+        if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
+        {
+            _renderer.DrawInventoryMessage("Hátizsákban levő köteget jelölj ki a felezéshez.",
+                ConsoleColor.DarkYellow);
+            return;
+        }
+        var selected = slot.Value;
+        var commandId = _localCommandId + 1;
+        var command = new SplitInventoryStackCommand(_session.HostPlayerId, commandId,
+            selected.Character.Id, selected.Character.InventoryRevision, selected.Index);
+        if (!InventoryStackService.Validate(CharacterRoster.Party, command, out var error))
+        {
+            _renderer.DrawInventoryMessage(error, ConsoleColor.Red);
+            return;
+        }
+        if (!_session.Submit(command)) return;
+        _localCommandId = commandId;
+    }
+
+    private void ExecuteSplitInventoryStack(SplitInventoryStackCommand command)
+    {
+        if (!InventoryStackService.TryExecute(CharacterRoster.Party, command, out var result, out var error))
+        {
+            _renderer.DrawInventoryMessage(error, ConsoleColor.Red);
+            return;
+        }
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawInventoryMessage(
+            $"Köteg megfelezve: {result.ItemName} ({result.RemainingQuantity}+{result.NewQuantity}).",
+            ConsoleColor.Green);
+        PlaySessionSound(SoundEffect.Item, [command.CharacterId]);
     }
 
     private void ExecuteInventoryTransfer(InventoryTransferCommand command)

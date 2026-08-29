@@ -687,6 +687,7 @@ public sealed class MainMenu
             Hotkey("↑ / ↓", "Kijelölés mozgatása a karakterlapon."),
             Hotkey("← / →", "Partitagváltás a karakterlapon."),
             Hotkey("SPACE", "A kijelölt tárgy mozgatása."),
+            Hotkey("F", "A kijelölt több darabos hátizsákköteg kettéosztása egy üres hátizsákhelyre."),
             Hotkey("D", "A kijelölt tárgy ledobása."),
             Hotkey("I", "A kijelölt tárgy részletei."),
             Hotkey("ENTER", "A kijelölt tárgy használata."),
