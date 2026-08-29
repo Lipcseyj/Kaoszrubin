@@ -113,7 +113,7 @@ public static class CharacterSheetPanel
         lines.Add(new(6, details.NextLevelExperience is { } next
             ? $"Szint: {character.Level}  XP: {details.Experience}/{next}"
             : $"Szint: {character.Level}  XP: MAX", ConsoleColor.Cyan));
-        lines.Add(new(7, $"💪{details.Abilities.Strength} 🏹{details.Abilities.Dexterity} ❤️{details.Abilities.Health} 🧠{details.Abilities.Intelligence}", ConsoleColor.White));
+        lines.Add(new(7, $"💪{details.Abilities.Strength} 🏹{details.Abilities.Dexterity} ❤️{details.Abilities.Health} 🧠{details.Abilities.Intelligence} 👁️{details.VisionRange}", ConsoleColor.White));
         lines.Add(new(8, "OSZTÁLYFEJLESZTÉSEK", ConsoleColor.DarkCyan));
         var upgrades = details.ClassFeatureUpgradeNames ?? [];
         lines.Add(new(9, upgrades.Count > 0 ? Shorten($"L10: {upgrades[0]}", Width) : "L10: —", upgrades.Count > 0 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));

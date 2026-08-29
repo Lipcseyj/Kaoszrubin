@@ -1431,6 +1431,9 @@ static void CharacterSheetLayoutIsShared()
     var guestLines = CharacterSheetPanel.Build(snapshot, 3, 1, 4);
     Assert(hostLines.SequenceEqual(guestLines),
         "A doménkarakterből és a hálózati snapshotból felépített karakterlap eltér.");
+    var abilityLine = hostLines.Single(line => line.Row == 7).Text;
+    Assert(abilityLine.Contains("👁️5", StringComparison.Ordinal) && abilityLine.Length <= CharacterSheetPanel.Width,
+        $"A karakterlap képességsora nem mutatja szabályosan a látótávot: '{abilityLine}'.");
     var restored = JsonSerializer.Deserialize<SessionCharacterSnapshot>(JsonSerializer.Serialize(snapshot));
     Assert(restored is not null && CharacterSheetPanel.Build(restored, 3, 1, 4).SequenceEqual(hostLines),
         "A közös karakterlap read modelje nem élte túl a JSON wire-körutat.");

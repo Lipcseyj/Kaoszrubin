@@ -9,7 +9,8 @@ public sealed record CharacterSheetSnapshot(string RaceName, string CharacterCla
     IReadOnlyList<string> StatusIcons, bool UsesMana, ConsoleColor Color,
     IReadOnlyList<string>? ClassFeatureUpgradeNames = null,
     IReadOnlyList<string>? WeaponProficiencyNames = null,
-    IReadOnlyDictionary<string, int>? WeaponProficiencyRanks = null);
+    IReadOnlyDictionary<string, int>? WeaponProficiencyRanks = null,
+    int VisionRange = CharacterClassRules.BaseVisionRange);
 
 public static class SpellInfoSnapshotProjector
 {
@@ -58,6 +59,7 @@ public static class CharacterSheetSnapshotProjector
                 return $"{family.Icon}{(proficiency.Rank == WeaponProficiencyRank.Master ? "M" : "J")}";
             }).ToArray(),
             character.WeaponProficiencies.ToDictionary(proficiency => proficiency.FamilyId,
-                proficiency => (int)proficiency.Rank, StringComparer.OrdinalIgnoreCase));
+                proficiency => (int)proficiency.Rank, StringComparer.OrdinalIgnoreCase),
+            CharacterClassRules.VisionRange(character));
     }
 }

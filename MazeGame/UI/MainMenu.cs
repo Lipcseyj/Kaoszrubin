@@ -777,6 +777,7 @@ public sealed class MainMenu
             Text("3. fokozat — 25. szint: Őrangyal — egyszer kivédi a halálos sebzést és +25 HP | Legyőzhetetlen — +15 max HP és -4 elszenvedett sebzés."),
             Blank(),
             ColoredText("🗡️ TOLVAJ — RAVASZ MEGKÖZELÍTÉS", ConsoleColor.DarkYellow),
+            ColoredText("👁️ FELDERÍTŐ — Alap látótávja 7 az átlagos 5 helyett; elf tolvajként 8. A nagyobb látótávval messzebbről fedi fel a közös térképet és észleli az ellenfeleket.", ConsoleColor.Cyan),
             ColoredText("Az első saját kör előtt választ: 🗡️ Orvtámadás — első találat ×2 | 👁️ Megfigyelés — +2 találat | ☠️ Mérgezett penge — találatonként +1–4 méregsebzés.", ConsoleColor.Yellow),
             ColoredText("🌟 10./20. szint: Halálos rajtaütés — Orvtámadás ×2,5 | Gyenge pont — Megfigyelésnél a természetes 19 is kritikus | Erős méreg — +2–6 sebzés.", ConsoleColor.DarkCyan),
             Text("1. fokozat — 5. szint (Ember: 4.): Orvtámadás — az első találat ×2 | Kitérés — 15% eséllyel elkerüli a nem kritikus találatot."),

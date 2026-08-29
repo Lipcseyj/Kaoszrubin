@@ -391,7 +391,7 @@ public sealed class CharacterCreationScreen
     {
         RaceTraits.Adaptable => "Alkalmazkodó: választott képesség +1, első tehetség a 4. szinten",
         RaceTraits.Resilient => "Rendíthetetlen: 50% mérgezés- és betegség-ellenállás",
-        RaceTraits.KeenSenses => "Éles érzékek: +15% keresési esély",
+        RaceTraits.KeenSenses => "Éles érzékek: +15% keresési esély, 👁️ látótáv +1",
         RaceTraits.Relentless => "Könyörtelen: +2 ajtóbetörés, pályánként egyszer 1 HP-n túlél",
         _ => "nincs különleges tulajdonság"
     };
