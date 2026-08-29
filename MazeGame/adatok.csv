@@ -989,8 +989,8 @@ NPCD011,NPC004,4,7,Egy régi történethez keresek bizonyítékot a mélyben.
 NPCD012,NPC004,8,10,Rólatok még nagy éneket írhatok. Szívesen veletek tartanék.
 
 #NPC küldetések
-Id,NpcId,Típus,CélId,Darabszám,Cím,Leírás
-NPCQ001,NPC001,Collect,T011,3,Gyógyító készlet,Gyűjts össze három kis gyógyitalt a füvesasszonynak.
-NPCQ002,NPC002,Kill,E003,4,Goblinvadászat,Ölj meg négy goblint a szörnyvadász megbízásából.
-NPCQ003,NPC003,Collect,T001,5,Útravaló a mélybe,Szerezz öt útravalót a kincskereső következő útjához.
-NPCQ004,NPC004,Kill,E004,3,A csontok éneke,Győzz le három csontvázat a dalnok balladájához.
+Id,NpcId,Típus,CélId,Darabszám,XP,Cím,Leírás
+NPCQ001,NPC001,Collect,T011,3,180,Gyógyító készlet,Gyűjts össze három kis gyógyitalt a füvesasszonynak.
+NPCQ002,NPC002,Kill,E003,4,260,Goblinvadászat,Ölj meg négy goblint a szörnyvadász megbízásából.
+NPCQ003,NPC003,Collect,T001,5,320,Útravaló a mélybe,Szerezz öt útravalót a kincskereső következő útjához.
+NPCQ004,NPC004,Kill,E004,3,480,A csontok éneke,Győzz le három csontvázat a dalnok balladájához.

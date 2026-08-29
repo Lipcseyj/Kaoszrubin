@@ -322,7 +322,8 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.NpcQuests:
                 npcQuests.Add(new NpcQuestDefinition(id, Cell(cells, 1), EnumValue<NpcQuestType>(cells, 2),
-                    Cell(cells, 3), Math.Max(1, Integer(cells, 4) ?? 1), Cell(cells, 5), Cell(cells, 6)));
+                    Cell(cells, 3), Math.Max(1, Integer(cells, 4) ?? 1),
+                    Math.Max(0, Integer(cells, 5) ?? 0), Cell(cells, 6), Cell(cells, 7)));
                 break;
             case DataSection.InnNames:
                 if (string.IsNullOrWhiteSpace(name))

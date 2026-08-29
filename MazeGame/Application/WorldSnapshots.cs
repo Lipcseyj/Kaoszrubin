@@ -38,7 +38,8 @@ public sealed record WorldItemSnapshot(string Category, string DefinitionId, str
 public sealed record WorldNpcSnapshot(WorldEntityId EntityId, string DefinitionId, string Name,
     Position Position, string Disposition, bool Recruitable, bool IsQuestNpc, int SymbolCodePoint,
     ConsoleColor ForegroundColor = ConsoleColor.White, ConsoleColor BackgroundColor = ConsoleColor.Black,
-    int Friendliness = 5, string Behavior = "Guarded", IReadOnlyList<string>? QuestIds = null);
+    int Friendliness = 5, string Behavior = "Guarded", IReadOnlyList<string>? QuestIds = null,
+    IReadOnlyList<NpcQuestProgress>? Quests = null);
 
 public static class WorldSnapshotProjector
 {
@@ -110,7 +111,7 @@ public static class WorldSnapshotProjector
             new WorldNpcSnapshot(npc.Id, npc.DefinitionId, npc.Character.Name, npc.Position,
                 npc.Disposition.ToString(), npc.Recruitable, npc.IsQuestNpc, npc.Symbol.Value,
                 ConsoleColor.White, npc.Character.Color, npc.Friendliness, npc.Behavior.ToString(),
-                npc.QuestIds)).ToArray();
+                npc.QuestIds, npc.Quests)).ToArray();
 
         return new WorldSnapshot(maze.Id, maze.Width, maze.Height,
             IsVisible(maze.Entrance) ? maze.Entrance : null,

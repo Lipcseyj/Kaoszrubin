@@ -2051,8 +2051,16 @@ static void NpcDefinitionsLoadFromCsv()
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 2,
         "Az NPC-párbeszédek vagy a Collect/Kill küldetések hibásan töltődtek.");
     Assert(catalog.GetNpc("NPC001") is { Disposition: NpcDisposition.Neutral, Unique: false } &&
-           catalog.GetNpcQuests("NPC002").Single().TargetId == "E003",
+           catalog.GetNpcQuests("NPC002").Single() is { TargetId: "E003", ExperienceReward: 260 },
         "A semleges nem egyedi NPC vagy a hozzá kapcsolt küldetés hibás.");
+
+    var npc = new WorldNpc(new Position(1, 1), "NPC002", CreateCharacter("Küldetésadó"),
+        NpcDisposition.Neutral, false, true, "Próba", questIds: ["NPCQ002"]);
+    Assert(npc.ActivateQuest("NPCQ002") && npc.AddQuestProgress("NPCQ002", 3, 4) &&
+           npc.Quests.Single() is { State: NpcQuestState.Active, Progress: 3 } &&
+           npc.AddQuestProgress("NPCQ002", 1, 4) && npc.CompleteQuest("NPCQ002") &&
+           npc.Quests.Single().State == NpcQuestState.Completed,
+        "Az NPC-küldetés felvétele, haladása vagy egyszeri lezárása hibás.");
 }
 
 static void SpellUiModelsAreShared()

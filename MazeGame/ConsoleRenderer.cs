@@ -1472,13 +1472,13 @@ public sealed class ConsoleRenderer
             (string.Empty, ConsoleColor.Gray),
             ($"„{npc.Dialogue}”", ConsoleColor.White),
             (string.Empty, ConsoleColor.Gray),
-            (npc.Recruitable ? "Enter: csatlakozzon ingyen   Esc: most nem" : "Esc: távozás", ConsoleColor.Yellow)
+            (npc.CanJoin ? "Enter: csatlakozzon ingyen   Esc: most nem" : "Esc: távozás", ConsoleColor.Yellow)
         };
         DrawCenteredFrame(72, lines, FramedWindow.Inn);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
-            if (key == ConsoleKey.Enter && npc.Recruitable) return true;
+            if (key == ConsoleKey.Enter && npc.CanJoin) return true;
             if (key == ConsoleKey.Escape) return false;
         }
     }

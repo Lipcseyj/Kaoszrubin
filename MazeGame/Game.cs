@@ -1582,6 +1582,7 @@ public sealed class Game
     private void EncounterWorldNpc(WorldNpc npc)
     {
         var joins = _renderer.DrawWorldNpcRecruitment(npc);
+        ProcessNpcQuests(npc);
         if (joins && CharacterRoster.Party.Add(npc.Character))
         {
             _maze.RemoveWorldNpc(npc);
@@ -1599,6 +1600,77 @@ public sealed class Game
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.DrawInventoryMessage(joins ? "A parti megtelt; előbb helyet kell felszabadítani."
             : $"{npc.Character.Name} egyelőre itt marad.", ConsoleColor.Yellow);
+    }
+
+    private void ProcessNpcQuests(WorldNpc npc)
+    {
+        foreach (var progress in npc.Quests.Where(quest => quest.State != NpcQuestState.Completed).ToArray())
+        {
+            var quest = _gameData.NpcQuests.First(value =>
+                string.Equals(value.Id, progress.QuestId, StringComparison.OrdinalIgnoreCase));
+            if (progress.State == NpcQuestState.Offered)
+            {
+                npc.ActivateQuest(quest.Id);
+                _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description}", ConsoleColor.Cyan);
+            }
+
+            var current = npc.Quests.First(value => string.Equals(value.QuestId, quest.Id,
+                StringComparison.OrdinalIgnoreCase));
+            if (quest.Type == NpcQuestType.Collect)
+            {
+                var available = CountPartyBackpackItems(quest.TargetId);
+                if (available < quest.RequiredCount)
+                {
+                    _renderer.DrawInventoryMessage(
+                        $"📜 {quest.Title}: {available}/{quest.RequiredCount}", ConsoleColor.DarkYellow);
+                    continue;
+                }
+                RemovePartyBackpackItems(quest.TargetId, quest.RequiredCount);
+                npc.AddQuestProgress(quest.Id, quest.RequiredCount, quest.RequiredCount);
+            }
+            else if (current.Progress < quest.RequiredCount)
+            {
+                _renderer.DrawInventoryMessage(
+                    $"📜 {quest.Title}: {current.Progress}/{quest.RequiredCount}", ConsoleColor.DarkYellow);
+                continue;
+            }
+
+            if (!npc.CompleteQuest(quest.Id)) continue;
+            var awards = DistributeExperience(SelectedCharacter, quest.ExperienceReward);
+            foreach (var award in awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive))
+                ResolvePerkOffers(award.Character, award.Result);
+            _renderer.DrawInventoryMessage(
+                $"✅ Küldetés teljesítve: {quest.Title}. XP: {FormatExperienceAwards(awards)}.", ConsoleColor.Green);
+        }
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+    }
+
+    private int CountPartyBackpackItems(string itemId) => CharacterRoster.Party.Members.Sum(character =>
+        Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
+            .Where(index => string.Equals(character.Backpack[index]?.Id, itemId, StringComparison.OrdinalIgnoreCase))
+            .Sum(index => character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index)));
+
+    private void RemovePartyBackpackItems(string itemId, int count)
+    {
+        var remaining = count;
+        foreach (var character in CharacterRoster.Party.Members)
+        for (var index = 0; index < LiveCharacter.MaximumBackpackItemCount && remaining > 0; index++)
+            while (remaining > 0 && string.Equals(character.Backpack[index]?.Id, itemId,
+                       StringComparison.OrdinalIgnoreCase) &&
+                   character.RemoveOneInventoryItem(InventorySlotKind.Backpack, index)) remaining--;
+    }
+
+    private void RegisterNpcQuestKill(string enemyDefinitionId)
+    {
+        foreach (var npc in _maze.WorldNpcs)
+        foreach (var progress in npc.Quests.Where(value => value.State == NpcQuestState.Active).ToArray())
+        {
+            var quest = _gameData.NpcQuests.FirstOrDefault(value => string.Equals(value.Id, progress.QuestId,
+                StringComparison.OrdinalIgnoreCase));
+            if (quest is { Type: NpcQuestType.Kill } &&
+                string.Equals(quest.TargetId, enemyDefinitionId, StringComparison.OrdinalIgnoreCase))
+                npc.AddQuestProgress(quest.Id, 1, quest.RequiredCount);
+        }
     }
 
     private void ExecuteRestAcknowledgement(AcknowledgeRestCommand command)
@@ -2792,6 +2864,7 @@ public sealed class Game
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
             levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive));
             var experienceResult = experienceAwards.First(award => award.Character == member.Character).Result;
+            RegisterNpcQuestKill(enemy.Definition.Id);
             _maze.ReplaceEnemyWithCorpse(enemy);
             var levelText = experienceResult.LeveledUp
                 ? $" Szint: {experienceResult.PreviousLevel}→{experienceResult.CurrentLevel}; +{experienceResult.VitalityGained} max HP" +
@@ -4043,6 +4116,7 @@ public sealed class Game
         enemy.ReceiveSpellDamage(amount);
         if (enemy.CurrentHitPoints > 0) return;
         PlaySessionSound(SoundEffect.MonsterKilledBySpell);
+        RegisterNpcQuestKill(enemy.Definition.Id);
         _maze.ReplaceEnemyWithCorpse(enemy);
         _nextEnemyMoves.Remove(enemy);
         var awards = DistributeExperience(caster, enemy.Definition.ExperienceReward);
@@ -4431,6 +4505,7 @@ public sealed class Game
             AwardBossKey(enemy);
             PlayBattleVictorySound();
             var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
+            RegisterNpcQuestKill(enemy.Definition.Id);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,
@@ -4481,6 +4556,7 @@ public sealed class Game
             AwardBossKey(enemy);
             PlayBattleVictorySound();
             var experienceAwards = DistributeExperience(battleCharacter, enemy.Definition.ExperienceReward);
+            RegisterNpcQuestKill(enemy.Definition.Id);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,
