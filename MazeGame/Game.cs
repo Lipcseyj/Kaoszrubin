@@ -2838,7 +2838,7 @@ public sealed class Game
         _turnUndeadUsedThisBattle.Clear();
         PlaySessionSound(SoundEffect.BattleStart);
         var startingNpcHp = member.Character.CurrentVitality;
-        var startingEnemyHp = enemy.CurrentHitPoints;
+        var startingNpcMana = member.Character.CurrentMana;
         var startingStatusIds = member.Character.Statuses.Select(status => status.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var spellsCast = 0;
@@ -2846,16 +2846,12 @@ public sealed class Game
         var result = _battleSystem.Resolve(member.Character, enemy, _ => { },
             () => ChooseNpcBattlePlayerAction(member, enemy, onSpellCast: () => spellsCast++),
             knightProtector: knightProtector);
-        var knightProtectionText = result.Events.Any(message => message.Contains("közbelépett", StringComparison.Ordinal))
-            ? $" Lovagi védelem: {knightProtector!.Name} közbelépett."
-            : string.Empty;
         var needLoss = DrainNeedsAfterBattle(member.Character, enemy.Definition.StrengthTier);
-        var newStatusText = member.Character.Statuses
+        var gainedStatusIcons = member.Character.Statuses
             .Where(status => !startingStatusIds.Contains(status.Id))
-            .Select(status => $"{status.Icon} {status.Name}")
-            .ToList() is { Count: > 0 } newStatuses
-            ? $" Új állapot: {string.Join(", ", newStatuses)}."
-            : string.Empty;
+            .Select(status => status.Icon).ToArray();
+        var vitalityLost = Math.Max(0, startingNpcHp - member.Character.CurrentVitality);
+        var manaLost = Math.Max(0, startingNpcMana - member.Character.CurrentMana);
         var levelUps = new List<ExperienceAward>();
         if (result.PlayerWon)
         {
@@ -2863,18 +2859,10 @@ public sealed class Game
             PlayBattleVictorySound();
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
             levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive));
-            var experienceResult = experienceAwards.First(award => award.Character == member.Character).Result;
             RegisterNpcQuestKill(enemy.Definition.Id);
             _maze.ReplaceEnemyWithCorpse(enemy);
-            var levelText = experienceResult.LeveledUp
-                ? $" Szint: {experienceResult.PreviousLevel}→{experienceResult.CurrentLevel}; +{experienceResult.VitalityGained} max HP" +
-                  (experienceResult.ManaGained > 0 ? $"; +{experienceResult.ManaGained} max manna." : ".")
-                : string.Empty;
-            var spellText = spellsCast > 0 ? $"📜 {spellsCast}; " : string.Empty;
-            var summary = $"{member.Character.Name} automatikus csatában legyőzte {enemy.Name} ellenfelet {result.Rounds} kör alatt. " +
-                $"HP: {startingNpcHp}→{member.Character.CurrentVitality}; ellenfél HP: {startingEnemyHp}→0; " +
-                $"{spellText}XP: {FormatExperienceAwards(experienceAwards)}.{levelText} " +
-                $"🍖💧 -{needLoss}.{newStatusText}{knightProtectionText}";
+            var summary = ConsoleRenderer.FormatAutoBattleVictorySummary(result, member.Character.Name, enemy,
+                vitalityLost, manaLost, gainedStatusIcons, needLoss, spellsCast, enemy.Definition.ExperienceReward);
             _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Green);
             RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Green);
         }
@@ -2883,10 +2871,8 @@ public sealed class Game
             PlaySessionSound(SoundEffect.MemberKilled);
             _maze.ReplacePartyMemberWithCorpse(member);
             _nextPartyMoves.Remove(member);
-            var spellText = spellsCast > 0 ? $" 📜 {spellsCast};" : string.Empty;
-            var summary = $"{member.Character.Name} elesett a(z) {enemy.Name} elleni automatikus csatában " +
-                $"{result.Rounds} kör után. HP: {startingNpcHp}→0; ellenfél HP: {startingEnemyHp}→" +
-                $"{enemy.CurrentHitPoints};{spellText} 🍖💧 -{needLoss}.{newStatusText}{knightProtectionText}";
+            var summary = ConsoleRenderer.FormatAutoBattleDefeatSummary(result, member.Character.Name, enemy,
+                startingNpcHp, manaLost, gainedStatusIcons, needLoss, spellsCast);
             _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Red);
             RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Red);
         }

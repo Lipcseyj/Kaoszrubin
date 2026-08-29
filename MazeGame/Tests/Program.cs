@@ -1404,6 +1404,13 @@ static void VictorySummaryIsCompact()
     Assert(ConsoleRenderer.FormatBattleVictorySummary(result, enemy, 0, 0, [], 2) ==
            "GYŐZELEM 🏆: Tesztellenfél elesett. ⌛4🍖-2💧-2",
         "A nulla HP-/manaveszteséget nem szabad megjeleníteni.");
+    Assert(ConsoleRenderer.FormatAutoBattleVictorySummary(result, "Borin", enemy, 11, 8, ["🤒"], 4, 2, 120) ==
+           "AUTOCSATA 🏆: Borin → Tesztellenfél elesett. ⌛4❤️-11🔷-8🤒🍖-4💧-4📜2✨120XP",
+        "A győztes autocsata összegzése nem kompakt vagy nem nevezi meg a harcoló társat.");
+    Assert(ConsoleRenderer.FormatAutoBattleDefeatSummary(result with { PlayerWon = false }, "Borin", enemy,
+               20, 3, [], 4, 0) ==
+           "AUTOCSATA 💀: Borin elesett → Tesztellenfél. ⌛4❤️-20🔷-3🍖-4💧-4👹1HP",
+        "A vesztes autocsata összegzése nem kompakt vagy nem mutatja az ellenfél megmaradt HP-ját.");
 }
 
 static void BackpackStacksIdenticalItemsUpToNine()

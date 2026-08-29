@@ -399,6 +399,28 @@ public sealed class ConsoleRenderer
                $"🍖-{needLoss}💧-{needLoss}";
     }
 
+    public static string FormatAutoBattleVictorySummary(BattleResult result, string fighterName, Enemy enemy,
+        int vitalityLost, int manaLost, IEnumerable<string> gainedStatusIcons, int needLoss,
+        int spellsCast, int experience)
+    {
+        var vitality = vitalityLost > 0 ? $"❤️-{vitalityLost}" : string.Empty;
+        var mana = manaLost > 0 ? $"🔷-{manaLost}" : string.Empty;
+        var statuses = string.Concat(gainedStatusIcons.Where(icon => !string.IsNullOrWhiteSpace(icon)));
+        var spells = spellsCast > 0 ? $"📜{spellsCast}" : string.Empty;
+        return $"AUTOCSATA 🏆: {fighterName} → {enemy.Name} elesett. ⌛{result.Rounds}{vitality}{mana}{statuses}" +
+               $"🍖-{needLoss}💧-{needLoss}{spells}✨{experience}XP";
+    }
+
+    public static string FormatAutoBattleDefeatSummary(BattleResult result, string fighterName, Enemy enemy,
+        int vitalityLost, int manaLost, IEnumerable<string> gainedStatusIcons, int needLoss, int spellsCast)
+    {
+        var mana = manaLost > 0 ? $"🔷-{manaLost}" : string.Empty;
+        var statuses = string.Concat(gainedStatusIcons.Where(icon => !string.IsNullOrWhiteSpace(icon)));
+        var spells = spellsCast > 0 ? $"📜{spellsCast}" : string.Empty;
+        return $"AUTOCSATA 💀: {fighterName} elesett → {enemy.Name}. ⌛{result.Rounds}❤️-{vitalityLost}{mana}{statuses}" +
+               $"🍖-{needLoss}💧-{needLoss}{spells}👹{enemy.CurrentHitPoints}HP";
+    }
+
     /// <summary>
     /// Játék vége képernyő: középre rajzolt keret és szöveg, majd várakozás billentyűleütésre.
     /// </summary>
