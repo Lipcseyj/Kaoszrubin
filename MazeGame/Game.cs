@@ -183,6 +183,7 @@ public sealed class Game
     private bool _developerPhasing;
     private readonly HashSet<string> _collectedBossKeyIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _seenBossIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<WorldEntityId> _spottedEnemyIds = [];
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
     public GameSession Session => _session;
@@ -739,6 +740,7 @@ public sealed class Game
         _session.SetPhase(GameSessionPhase.Exploration);
         _session.SynchronizeParty();
         _hasRestedThisLevel = false;
+        _spottedEnemyIds.Clear();
         foreach (var character in CharacterRoster.Party.Members)
         {
             character.ResetLevelResurrection();
@@ -1203,6 +1205,7 @@ public sealed class Game
         _session.SetPhase(GameSessionPhase.Paused);
         _renderer.DrawInventoryMessage(
             $"⌛ Várakozás {character.Name} varázsmemorizálására... ⌛", ConsoleColor.Yellow);
+        PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
         while (!_spellPreparationCompleted)
         {
@@ -1306,7 +1309,7 @@ public sealed class Game
         _renderer.DrawInventoryMessage(message, jackpot ? ConsoleColor.Magenta : ConsoleColor.Yellow);
         RecordSessionActivity(SessionActivityKind.System, message,
             jackpot ? ConsoleColor.Magenta : ConsoleColor.Yellow, [character.Id]);
-        PlaySessionSound(SoundEffect.Chest, [character.Id]);
+        PlaySessionSound(jackpot ? SoundEffect.Chest2 : SoundEffect.Chest, [character.Id]);
 
         if (masterThiefLoot is null) return;
         if (TryStoreSearchedLoot(character, masterThiefLoot, shareLootWithParty, out var owner))
@@ -1475,6 +1478,7 @@ public sealed class Game
             return;
         }
         _narrativeAcknowledgements.Add(command.SenderId);
+        PlaySessionSound(SoundEffect.Waiting, [command.CharacterId]);
     }
 
     private void ExecuteRestAcknowledgement(AcknowledgeRestCommand command)
@@ -1490,6 +1494,8 @@ public sealed class Game
     private void AcknowledgeRest(PlayerId playerId, CharacterId characterId)
     {
         if (!_restAcknowledgements.Add(playerId)) return;
+        if (_session.ConnectedHumanPlayerIds.Any(other => other != playerId))
+            PlaySessionSound(SoundEffect.Waiting, [characterId]);
         var characterName = CharacterRoster.Party.Members
             .FirstOrDefault(character => character.Id == characterId)?.Name ?? "Egy játékos";
         var message = $"✓ {characterName} bezárta a pihenési összegzőt.";
@@ -1555,7 +1561,11 @@ public sealed class Game
         {
             ProcessSessionCommands();
             if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.Enter)
+            {
                 _narrativeAcknowledgements.Add(_session.HostPlayerId);
+                if (_session.ConnectedHumanPlayerIds.Any(player => player != _session.HostPlayerId))
+                    PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
+            }
             var required = _session.ConnectedHumanPlayerIds;
             if (required.All(_narrativeAcknowledgements.Contains)) break;
             if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
@@ -2071,6 +2081,7 @@ public sealed class Game
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         var pileCount = _maze.GetGroundItemPileAt(position.Value)?.Items.Count ?? 1;
         _renderer.DrawInventoryMessage($"Ledobtad: {item.Name}. A mezőn {pileCount} tárgy van.", ConsoleColor.Cyan);
+        PlaySessionSound(SoundEffect.Item, [character.Id]);
     }
 
     private void ExecutePickUpGroundItem(PickUpGroundItemCommand command)
@@ -2101,6 +2112,7 @@ public sealed class Game
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.DrawInventoryMessage($"Felvetted: {entry.Item.Name}.", ConsoleColor.Green);
+        PlaySessionSound(SoundEffect.Item, [character.Id]);
     }
 
     private Position? GetCharacterWorldPosition(LiveCharacter character)
@@ -2286,6 +2298,7 @@ public sealed class Game
         _renderer.DrawInventoryMessage(result.DisplacedItemName is null
             ? $"Áthelyezted: {result.SourceItemName}."
             : $"Felcserélted: {result.SourceItemName} ↔ {result.DisplacedItemName}.", ConsoleColor.Green);
+        PlaySessionSound(SoundEffect.Item, [command.CharacterId]);
     }
 
     private void MoveEnemies()
@@ -2619,7 +2632,7 @@ public sealed class Game
         if (result.PlayerWon)
         {
             AwardBossKey(enemy);
-            PlaySessionSound(SoundEffect.Victory);
+            PlayBattleVictorySound();
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
             levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive));
             var experienceResult = experienceAwards.First(award => award.Character == member.Character).Result;
@@ -2638,7 +2651,7 @@ public sealed class Game
         }
         else
         {
-            PlaySessionSound(SoundEffect.Defeat);
+            PlaySessionSound(SoundEffect.MemberKilled);
             _maze.ReplacePartyMemberWithCorpse(member);
             _nextPartyMoves.Remove(member);
             var spellText = spellsCast > 0 ? $" 📜 {spellsCast};" : string.Empty;
@@ -3045,7 +3058,7 @@ public sealed class Game
             return;
         }
         ResolveActiveBattleAction(new BattlePlayerAction(attempt.Message, attempt.Kind,
-            attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions));
+            attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions), spellCanKillEnemy: attempt.DamageToCurrentEnemy > 0);
     }
 
     private void TryAssignKnightProtection(BattleState state, LiveCharacter protectedCharacter)
@@ -3872,6 +3885,7 @@ public sealed class Game
     {
         enemy.ReceiveSpellDamage(amount);
         if (enemy.CurrentHitPoints > 0) return;
+        PlaySessionSound(SoundEffect.MonsterKilledBySpell);
         _maze.ReplaceEnemyWithCorpse(enemy);
         _nextEnemyMoves.Remove(enemy);
         var awards = DistributeExperience(caster, enemy.Definition.ExperienceReward);
@@ -4086,7 +4100,11 @@ public sealed class Game
 
     private void CheckBossDiscovery(IEnumerable<Enemy> enemies)
     {
-        var discovered = enemies.Where(enemy => enemy.Definition.IsBoss &&
+        var visibleEnemies = enemies.DistinctBy(enemy => enemy.Id).ToList();
+        var newlySpotted = visibleEnemies.Where(enemy => _spottedEnemyIds.Add(enemy.Id)).ToList();
+        if (newlySpotted.Count > 0)
+            PlaySessionSound(SoundEffect.MonsterSpotted);
+        var discovered = visibleEnemies.Where(enemy => enemy.Definition.IsBoss &&
                 !_seenBossIds.Contains(enemy.Definition.Id))
             .DistinctBy(enemy => enemy.Definition.Id, StringComparer.OrdinalIgnoreCase).ToList();
         if (discovered.Count == 0) return;
@@ -4166,8 +4184,11 @@ public sealed class Game
                     GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
                 PublishBattleControlHintOnce(state, state.Enemy);
                 if (battleCharacter != SelectedCharacter)
+                {
                     _renderer.DrawInventoryMessage(
                         $"⌛ Várakozás {battleCharacter.Name} harci taktikájára... ⌛", ConsoleColor.Yellow);
+                    PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
+                }
                 return;
             }
             if (state.IsPlayerTurn)
@@ -4180,8 +4201,11 @@ public sealed class Game
                         GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
                     PublishBattleControlHintOnce(state, state.Enemy);
                     if (battleCharacter != SelectedCharacter)
+                    {
                         _renderer.DrawInventoryMessage(
                             $"⌛ Várakozás {battleCharacter.Name} harci akciójára... ⌛", ConsoleColor.Yellow);
+                        PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
+                    }
                     return;
                 }
                 var supportStep = _battleSystem.Advance(state, supportDamage: _pendingBattleSupportDamage);
@@ -4197,11 +4221,13 @@ public sealed class Game
         if (_activeBattleState is { IsCompleted: true }) FinishActiveBattle();
     }
 
-    private void ResolveActiveBattleAction(BattlePlayerAction? action)
+    private void ResolveActiveBattleAction(BattlePlayerAction? action, bool spellCanKillEnemy = false)
     {
         if (_activeBattleState is not { IsCompleted: false, IsPlayerTurn: true } state) return;
         var step = _battleSystem.Advance(state, action, _pendingBattleSupportDamage);
         _pendingBattleSupportDamage = 0;
+        if (spellCanKillEnemy && step.Result is { PlayerWon: true })
+            PlaySessionSound(SoundEffect.MonsterKilledBySpell);
         PresentBattleEntries(step.Entries);
         ContinueActiveBattle();
     }
@@ -4211,6 +4237,9 @@ public sealed class Game
         if (_activeBattleState is not { IsCompleted: false, IsPlayerTurn: false } state) return;
         var supportDamage = TryPartyMembersActInBattle(state.Player, state.Enemy);
         var step = _battleSystem.Advance(state, supportDamage: supportDamage);
+        if (step.Result is { PlayerWon: true } && step.Entries.Any(entry =>
+                entry.Message.Contains("elbukik a varázshatásoktól", StringComparison.OrdinalIgnoreCase)))
+            PlaySessionSound(SoundEffect.MonsterKilledBySpell);
         PresentBattleEntries(step.Entries);
         ContinueActiveBattle();
     }
@@ -4240,7 +4269,7 @@ public sealed class Game
         if (result.PlayerWon)
         {
             AwardBossKey(enemy);
-            PlaySessionSound(SoundEffect.Victory);
+            PlayBattleVictorySound();
             var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
@@ -4274,7 +4303,7 @@ public sealed class Game
         }
 
         _renderer.DrawBattleResult(result, enemy);
-        PlaySessionSound(SoundEffect.Defeat);
+        PlaySessionSound(SoundEffect.MemberKilled);
         _saveAfterBattle = false;
         _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
         _renderer.DrawGameOver(SelectedCharacter.Name);
@@ -4290,7 +4319,7 @@ public sealed class Game
         if (result.PlayerWon)
         {
             AwardBossKey(enemy);
-            PlaySessionSound(SoundEffect.Victory);
+            PlayBattleVictorySound();
             var experienceAwards = DistributeExperience(battleCharacter, enemy.Definition.ExperienceReward);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
@@ -4308,7 +4337,7 @@ public sealed class Game
         else
         {
             _renderer.DrawBattleResult(result, enemy);
-            PlaySessionSound(SoundEffect.Defeat);
+            PlaySessionSound(SoundEffect.MemberKilled);
             var member = _maze.PartyMembers.FirstOrDefault(candidate => candidate.Character == battleCharacter);
             if (member is not null)
             {
@@ -4397,12 +4426,17 @@ public sealed class Game
     private void PlayBattleRoundSound(BattleLogEntry entry)
     {
         if (entry.Kind is not (BattleLogKind.PlayerAttack or BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)) return;
-        var listeners = _activeBattleState is { } battle
+        var battle = _activeBattleState;
+        var listeners = battle is not null
             ? new[] { battle.PlayerCharacterId, SelectedCharacter.Id }.Distinct().ToArray()
             : [SelectedCharacter.Id];
-        PlaySessionSound(entry.Message.Contains("💨", StringComparison.Ordinal)
-            ? SoundEffect.Miss
-            : SoundEffect.Hit, listeners);
+        var missed = entry.Message.Contains("💨", StringComparison.Ordinal);
+        var enemyHitPlayer = !missed && battle is not null &&
+            entry.Message.Contains($"{battle.Enemy.Name} támadja {battle.Player.Name}", StringComparison.Ordinal);
+        if (enemyHitPlayer)
+            PlaySessionSound(SoundEffect.PlayerGotHit, [battle!.PlayerCharacterId]);
+        else
+            PlaySessionSound(missed ? SoundEffect.Miss : SoundEffect.Hit, listeners);
     }
 
     private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries)
@@ -4433,6 +4467,9 @@ public sealed class Game
             case 1: PlaySessionSound(SoundEffect.Step2, [character.Id]); break;
         }
     }
+
+    private void PlayBattleVictorySound() =>
+        PlaySessionSound(_random.Next(2) == 0 ? SoundEffect.Victory : SoundEffect.Victory2);
 
     private void PlaySessionSound(SoundEffect effect, IReadOnlyCollection<CharacterId>? listeners = null)
     {
@@ -4686,7 +4723,11 @@ public sealed class Game
         }
         var selectedPerks = _renderer.DrawLevelUpScreen(character, result, offers);
         foreach (var perk in selectedPerks)
-            if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
+            if (character.AddPerk(perk))
+            {
+                character.ApplyPerkAcquisitionBonus(perk);
+                PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
+            }
         if (ShouldChooseSpecialization(character, offers)) ResolveLocalSpecialization(character);
         ResolveLocalClassFeatureUpgrades(character, result);
         ResolveLocalAbilityIncreases(character, result);
@@ -4710,7 +4751,11 @@ public sealed class Game
                  new($"A tehetség a {offer.TriggerLevel}. szint elérésekor vált elérhetővé.", ConsoleColor.DarkCyan),
                  new("A nem választott tehetség végleg elveszik ennél a karakternél.", ConsoleColor.Red)]);
             var perk = offer.Choices.FirstOrDefault(candidate => candidate.Id == selectedId) ?? offer.Choices[0];
-            if (character.AddPerk(perk)) character.ApplyPerkAcquisitionBonus(perk);
+            if (character.AddPerk(perk))
+            {
+                character.ApplyPerkAcquisitionBonus(perk);
+                PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
+            }
             if (offer.Tier == 1) ResolveRemoteSpecialization(character, result);
         }
         if (ShouldChooseSpecialization(character, offers)) ResolveRemoteSpecialization(character, result);
@@ -4848,6 +4893,7 @@ public sealed class Game
                 _gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
             : 0;
         character.ApplyAbilityResourceIncrease(newVitalityBase - oldVitalityBase, newManaBase - oldManaBase);
+        PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
         return true;
     }
 
@@ -4878,8 +4924,9 @@ public sealed class Game
             var choices = WeaponProficiencyChoices(character);
             if (choices.Count == 0) return;
             var milestone = NextWeaponProficiencyMilestone(character);
-            character.TryAdvanceWeaponProficiency(
-                _renderer.DrawWeaponProficiencyChoice(character, choices, milestone));
+            if (character.TryAdvanceWeaponProficiency(
+                    _renderer.DrawWeaponProficiencyChoice(character, choices, milestone)))
+                PlaySessionSound(SoundEffect.NewWeaponProficiency, [character.Id]);
         }
     }
 
@@ -4897,8 +4944,9 @@ public sealed class Game
                 projected, $"{milestone}. szint — válassz fegyverjártassági fejlesztést.",
                 [new($"{character.Name} — {(milestone == 1 ? "karakteralkotás" : $"{milestone}. szint")}", ConsoleColor.Cyan),
                  new("Legfeljebb két fegyvercsalád tanulható; egy család Jártas, majd Mester lehet.", ConsoleColor.Green)]);
-            character.TryAdvanceWeaponProficiency(
-                choices.FirstOrDefault(choice => choice.Id == selectedId).Id ?? choices[0].Id);
+            if (character.TryAdvanceWeaponProficiency(
+                    choices.FirstOrDefault(choice => choice.Id == selectedId).Id ?? choices[0].Id))
+                PlaySessionSound(SoundEffect.NewWeaponProficiency, [character.Id]);
         }
     }
 
@@ -4925,7 +4973,8 @@ public sealed class Game
                 $"{spell.Level}. szint — {spell.Name}", spell.Description)).ToArray();
             var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.SpellChoice,
                 projected, $"{learnedNumber}/{learningCount}. új varázslat");
-            character.LearnSpell(choices.FirstOrDefault(spell => spell.Id == selectedId) ?? choices[0]);
+            if (character.LearnSpell(choices.FirstOrDefault(spell => spell.Id == selectedId) ?? choices[0]))
+                PlaySessionSound(SoundEffect.NewSpellUnlocked, [character.Id]);
         }
     }
 
@@ -4943,6 +4992,7 @@ public sealed class Game
         _session.SetPhase(GameSessionPhase.Paused);
         _renderer.DrawInventoryMessage(
             $"⌛ Várakozás {character.Name} szintlépési döntésére... ⌛", ConsoleColor.Yellow);
+        PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
         while (!_levelUpPromptCompleted)
         {
@@ -4986,8 +5036,9 @@ public sealed class Game
             if (choices.Count > 0)
             {
                 learnedNumber++;
-                character.LearnSpell(_renderer.DrawSpellLearningScreen(character, choices,
-                    learnedNumber, learningCount));
+                if (character.LearnSpell(_renderer.DrawSpellLearningScreen(character, choices,
+                        learnedNumber, learningCount)))
+                    PlaySessionSound(SoundEffect.NewSpellUnlocked, [character.Id]);
             }
         }
     }

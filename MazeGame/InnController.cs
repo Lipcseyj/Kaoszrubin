@@ -1123,6 +1123,7 @@ internal sealed class InnController
     {
         var transaction = new InnTransactionSnapshot(++_transactionSequence, kind, actorName, itemName, price,
             inventoryOwnerName);
+        _playGlobalSound(SoundEffect.Item);
         _transactions.Enqueue(transaction);
         while (_transactions.Count > 8) _transactions.Dequeue();
         if (announceOnHost)

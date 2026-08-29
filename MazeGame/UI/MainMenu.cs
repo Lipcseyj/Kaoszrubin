@@ -16,6 +16,7 @@ public sealed class MainMenu
     private readonly string _applicationVersion;
     private readonly string _catalogHash;
     private readonly Random _random = new();
+    private readonly SoundEffects _soundEffects;
 
     private const int SideMenuWidth = 52;
     private const int SideMenuLeft = 142;
@@ -84,12 +85,14 @@ public sealed class MainMenu
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
         _characterRoster = _characterSaveService.Load();
+        _soundEffects = new SoundEffects();
     }
 
     public void Run()
     {
         while (true)
         {
+            _soundEffects.Play(SoundEffect.MainMenu);
             DrawMainMenu();
 
             switch (Console.ReadKey(intercept: true).Key)

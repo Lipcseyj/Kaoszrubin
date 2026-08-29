@@ -12,7 +12,8 @@ public enum SoundEffect
     Hit,
     Miss,
     Victory,
-    Defeat,
+    Victory2,
+    MemberKilled,
     LevelStart,
     LevelComplete,
     Rest,
@@ -20,7 +21,19 @@ public enum SoundEffect
     DoorOpen,
     DoorClose,
     OffensiveSpell,
-    DefensiveSpell
+    DefensiveSpell,
+    Chest2,
+    Item,
+    MainMenu,
+    MonsterKilledBySpell,
+    MonsterSpotted,
+    NewSkill,
+    NewSpellUnlocked,
+    NewWeaponProficiency,
+    PlayerGotHit,
+    Waiting,
+    EndSequence,
+    MusicTrack
 }
 
 public sealed class SoundEffects
@@ -34,7 +47,8 @@ public sealed class SoundEffects
             [SoundEffect.Hit] = (700, 70),
             [SoundEffect.Miss] = (250, 70),
             [SoundEffect.Victory] = (880, 320),
-            [SoundEffect.Defeat] = (120, 360),
+            [SoundEffect.Victory2] = (900, 320),
+            [SoundEffect.MemberKilled] = (120, 360),
             [SoundEffect.LevelStart] = (520, 220),
             [SoundEffect.LevelComplete] = (780, 260),
             [SoundEffect.Rest] = (360, 240),
@@ -42,7 +56,19 @@ public sealed class SoundEffects
             [SoundEffect.DoorOpen] = (280, 110),
             [SoundEffect.DoorClose] = (200, 90),
             [SoundEffect.OffensiveSpell] = (1100, 170),
-            [SoundEffect.DefensiveSpell] = (640, 190)
+            [SoundEffect.DefensiveSpell] = (640, 190),
+            [SoundEffect.Chest2] = (1100, 180),
+            [SoundEffect.Item] = (520, 120),
+            [SoundEffect.MainMenu] = (440, 500),
+            [SoundEffect.MonsterKilledBySpell] = (900, 250),
+            [SoundEffect.MonsterSpotted] = (620, 180),
+            [SoundEffect.NewSkill] = (760, 220),
+            [SoundEffect.NewSpellUnlocked] = (980, 260),
+            [SoundEffect.NewWeaponProficiency] = (680, 240),
+            [SoundEffect.PlayerGotHit] = (160, 180),
+            [SoundEffect.Waiting] = (420, 200),
+            [SoundEffect.EndSequence] = (440, 500),
+            [SoundEffect.MusicTrack] = (440, 500)
         };
     private readonly string _soundsDirectory = Path.Combine(AppContext.BaseDirectory, "Sounds");
     private readonly Dictionary<SoundEffect, DateTime> _lastPlayed = [];
@@ -167,6 +193,15 @@ public sealed class SoundEffects
         SoundEffect.DoorClose => "door-close",
         SoundEffect.OffensiveSpell => "offensive-spell",
         SoundEffect.DefensiveSpell => "defensive-spell",
+        SoundEffect.MonsterKilledBySpell => "monsterkilledbyspell",
+        SoundEffect.MonsterSpotted => "monsterspotted",
+        SoundEffect.NewSpellUnlocked => "newspellunlocked",
+        SoundEffect.NewWeaponProficiency => "newweaponproficiency",
+        SoundEffect.PlayerGotHit => "playergothit",
+        SoundEffect.MemberKilled => "memberkilled",
+        SoundEffect.MainMenu => "mainmenu",
+        SoundEffect.EndSequence => "endsequence",
+        SoundEffect.MusicTrack => "musictrack",
         _ => effect.ToString().ToLowerInvariant()
     };
 
