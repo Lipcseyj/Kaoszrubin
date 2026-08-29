@@ -3,6 +3,7 @@ using System.Text;
 using MazeGame.Application;
 using MazeGame.Combat;
 using MazeGame.Data;
+using MazeGame.Domain;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Combat;
 using MazeGame.Domain.Inventory;
@@ -1462,10 +1463,12 @@ public sealed class ConsoleRenderer
         var mana = npc.Character.UsesMana ? $"   🔷 {npc.Character.CurrentMana}/{npc.Character.MaximumMana}" : string.Empty;
         var lines = new List<(string Text, ConsoleColor Color)>
         {
-            ("🤝 TALÁLKOZÁS", ConsoleColor.Yellow),
+            (npc.Disposition == NpcDisposition.Friendly ? "🤝 BARÁTSÁGOS TALÁLKOZÁS" : "👁 SEMLEGES TALÁLKOZÁS", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
             ($"{npc.Character.Name} — {npc.Character.Race.Name} {npc.Character.CharacterClass.Name}", npc.Character.Color),
             ($"Szint {npc.Character.Level}   ❤️ {npc.Character.CurrentVitality}/{npc.Character.MaximumVitality}{mana}", ConsoleColor.Gray),
+            ($"Viszony: {npc.Friendliness}/10   Viselkedés: {NpcBehaviorName(npc.Behavior)}", ConsoleColor.Cyan),
+            (npc.QuestIds.Count > 0 ? $"📜 Küldetésajánlat: {npc.QuestIds.Count}" : string.Empty, ConsoleColor.DarkYellow),
             (string.Empty, ConsoleColor.Gray),
             ($"„{npc.Dialogue}”", ConsoleColor.White),
             (string.Empty, ConsoleColor.Gray),
@@ -1479,6 +1482,15 @@ public sealed class ConsoleRenderer
             if (key == ConsoleKey.Escape) return false;
         }
     }
+
+    private static string NpcBehaviorName(NpcWorldBehavior behavior) => behavior switch
+    {
+        NpcWorldBehavior.Friendly => "barátságos",
+        NpcWorldBehavior.Guarded => "óvatos",
+        NpcWorldBehavior.Opportunistic => "érdekvezérelt",
+        NpcWorldBehavior.Aggressive => "agresszív",
+        _ => behavior.ToString()
+    };
 
     public void DrawRestSummaryScreen(PartyRestSnapshot rest, string footer, ConsoleColor footerColor)
     {

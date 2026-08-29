@@ -1,5 +1,6 @@
 using System.Text;
 using MazeGame.Domain.Characters;
+using MazeGame.Domain;
 
 namespace MazeGame;
 
@@ -9,7 +10,8 @@ public enum WorldNpcState { Available, Declined }
 /// <summary>A pályán megszólítható, még nem partitagnak számító karakter.</summary>
 public sealed class WorldNpc(Position position, string definitionId, LiveCharacter character,
     NpcDisposition disposition, bool recruitable, bool isQuestNpc, string dialogue,
-    WorldNpcState state = WorldNpcState.Available) : WorldObject(position)
+    WorldNpcState state = WorldNpcState.Available, int friendliness = 5,
+    NpcWorldBehavior behavior = NpcWorldBehavior.Guarded, IReadOnlyList<string>? questIds = null) : WorldObject(position)
 {
     public string DefinitionId { get; } = definitionId;
     public LiveCharacter Character { get; } = character;
@@ -18,6 +20,9 @@ public sealed class WorldNpc(Position position, string definitionId, LiveCharact
     public bool IsQuestNpc { get; } = isQuestNpc;
     public string Dialogue { get; } = dialogue;
     public WorldNpcState State { get; private set; } = state;
+    public int Friendliness { get; private set; } = Math.Clamp(friendliness, 0, 10);
+    public NpcWorldBehavior Behavior { get; } = behavior;
+    public IReadOnlyList<string> QuestIds { get; } = questIds ?? [];
     public override Rune Symbol { get; } = Rune.GetRuneAt(character.CharacterClass.Name.ToUpperInvariant(), 0);
 
     public void Decline() => State = WorldNpcState.Declined;

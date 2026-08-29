@@ -37,6 +37,10 @@ public static class CsvGameDataLoader
         var innNames = new List<string>();
         var innRumors = new List<InnRumorDefinition>();
         var traps = new List<TrapDefinition>();
+        var npcs = new List<NpcDefinition>();
+        var npcEncounters = new List<NpcEncounterDefinition>();
+        var npcDialogues = new List<NpcDialogueDefinition>();
+        var npcQuests = new List<NpcQuestDefinition>();
         var itemUpgrades = new List<ItemUpgradeDefinition>();
         var raceBonuses = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var classMinimums = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
@@ -69,7 +73,8 @@ public static class CsvGameDataLoader
             try
             {
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
-                    monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps, itemUpgrades,
+                    monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps,
+                    npcs, npcEncounters, npcDialogues, npcQuests, itemUpgrades,
                     raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                     vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass, ref baseLevelCompletionExperience);
             }
@@ -105,6 +110,10 @@ public static class CsvGameDataLoader
             ("Karakternevek", characterNames.Select(value => value.Id)),
             ("Pletykák", innRumors.Select(value => value.Id)),
             ("Csapdák", traps.Select(value => value.Id)),
+            ("NPC-k", npcs.Select(value => value.Id)),
+            ("NPC találkozások", npcEncounters.Select(value => value.Id)),
+            ("NPC párbeszédek", npcDialogues.Select(value => value.Id)),
+            ("NPC küldetések", npcQuests.Select(value => value.Id)),
             ("Tárgybővítések", itemUpgrades.Select(value => value.Id)));
         ValidateSpells(spells);
         ValidateSpellEffects(spells, spellEffects);
@@ -114,6 +123,7 @@ public static class CsvGameDataLoader
         ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
         ValidateMonsterLoot(enemies, monsterLoot);
         ValidateTrapConfigurations(traps);
+        ValidateNpcData(npcs, npcEncounters, npcDialogues, npcQuests, characterClasses, enemies, items);
         var lootRules = CreateLootRules(lootRuleValues);
         var doorAttemptRules = CreateDoorAttemptRules(doorAttemptRuleValues);
 
@@ -149,6 +159,10 @@ public static class CsvGameDataLoader
             InnNames = innNames,
             InnRumors = innRumors,
             Traps = traps,
+            Npcs = npcs,
+            NpcEncounters = npcEncounters,
+            NpcDialogues = npcDialogues,
+            NpcQuests = npcQuests,
             MinimumVitalityByHealth = minimumVitalityByHealth,
             MinimumManaByIntelligence = minimumManaByIntelligence,
             ExperienceByLevel = experienceByLevel,
@@ -173,6 +187,8 @@ public static class CsvGameDataLoader
         ICollection<SpellEffectDefinition> spellEffects, ICollection<PerkDefinition> perks,
         ICollection<StatusDefinition> statuses, ICollection<CharacterNameDefinition> characterNames,
         ICollection<string> innNames, ICollection<InnRumorDefinition> innRumors, ICollection<TrapDefinition> traps,
+        ICollection<NpcDefinition> npcs, ICollection<NpcEncounterDefinition> npcEncounters,
+        ICollection<NpcDialogueDefinition> npcDialogues, ICollection<NpcQuestDefinition> npcQuests,
         ICollection<ItemUpgradeDefinition> itemUpgrades,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence, IDictionary<int, int> experienceByLevel,
@@ -289,6 +305,24 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.CharacterNames:
                 characterNames.Add(new CharacterNameDefinition(id, name, Cell(cells, 2)));
+                break;
+            case DataSection.Npcs:
+                npcs.Add(new NpcDefinition(id, name, Cell(cells, 2),
+                    EnumValue<NpcDisposition>(cells, 3), EnumValue<NpcWorldBehavior>(cells, 4),
+                    IsYes(cells, 5), IsYes(cells, 6)));
+                break;
+            case DataSection.NpcEncounters:
+                npcEncounters.Add(new NpcEncounterDefinition(id, Cell(cells, 1),
+                    Integer(cells, 2) ?? 1, Integer(cells, 3) ?? 6, Integer(cells, 4) ?? 14));
+                break;
+            case DataSection.NpcDialogues:
+                npcDialogues.Add(new NpcDialogueDefinition(id, Cell(cells, 1),
+                    Math.Clamp(Integer(cells, 2) ?? 0, 0, 10), Math.Clamp(Integer(cells, 3) ?? 10, 0, 10),
+                    Cell(cells, 4)));
+                break;
+            case DataSection.NpcQuests:
+                npcQuests.Add(new NpcQuestDefinition(id, Cell(cells, 1), EnumValue<NpcQuestType>(cells, 2),
+                    Cell(cells, 3), Math.Max(1, Integer(cells, 4) ?? 1), Cell(cells, 5), Cell(cells, 6)));
                 break;
             case DataSection.InnNames:
                 if (string.IsNullOrWhiteSpace(name))
@@ -430,6 +464,36 @@ public static class CsvGameDataLoader
                 throw new InvalidOperationException(
                     $"A(z) {level}. szint ismeretlen csapdára hivatkozik: '{unknown}'.");
         }
+    }
+
+    private static void ValidateNpcData(IReadOnlyCollection<NpcDefinition> npcs,
+        IReadOnlyCollection<NpcEncounterDefinition> encounters,
+        IReadOnlyCollection<NpcDialogueDefinition> dialogues, IReadOnlyCollection<NpcQuestDefinition> quests,
+        IReadOnlyCollection<CharacterClassDefinition> classes, IReadOnlyCollection<EnemyDefinition> enemies,
+        IReadOnlyCollection<MiscItemDefinition> items)
+    {
+        var npcIds = npcs.Select(npc => npc.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var classIds = classes.Select(characterClass => characterClass.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var npc in npcs)
+            if (!classIds.Contains(npc.CharacterClassId))
+                throw new InvalidDataException($"A(z) '{npc.Id}' NPC ismeretlen kasztra hivatkozik: '{npc.CharacterClassId}'.");
+        foreach (var reference in encounters.Select(value => (value.Id, value.NpcId))
+                     .Concat(dialogues.Select(value => (value.Id, value.NpcId)))
+                     .Concat(quests.Select(value => (value.Id, value.NpcId))))
+            if (!npcIds.Contains(reference.NpcId))
+                throw new InvalidDataException($"A(z) '{reference.Id}' bejegyzés ismeretlen NPC-re hivatkozik: '{reference.NpcId}'.");
+        foreach (var encounter in encounters)
+            if (encounter.MazeLevel is < 1 or > MazeLevelConfigurations.FinalLevel ||
+                encounter.MinimumDistance < 1 || encounter.MaximumDistance < encounter.MinimumDistance)
+                throw new InvalidDataException($"A(z) '{encounter.Id}' NPC-találkozás pálya- vagy távolságadata érvénytelen.");
+        foreach (var dialogue in dialogues)
+            if (dialogue.MinimumFriendliness > dialogue.MaximumFriendliness)
+                throw new InvalidDataException($"A(z) '{dialogue.Id}' NPC-párbeszéd viszonytartománya érvénytelen.");
+        var enemyIds = enemies.Select(enemy => enemy.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var itemIds = items.Select(item => item.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var quest in quests)
+            if (quest.Type == NpcQuestType.Kill ? !enemyIds.Contains(quest.TargetId) : !itemIds.Contains(quest.TargetId))
+                throw new InvalidDataException($"A(z) '{quest.Id}' küldetés célpontja nem található: '{quest.TargetId}'.");
     }
 
     private static void ValidateRequiredCoreData(IReadOnlyCollection<RaceDefinition> races,
@@ -788,6 +852,9 @@ public static class CsvGameDataLoader
     private static string Cell(string[] cells, int index) => index < cells.Length ? cells[index] : string.Empty;
     private static string? EmptyAsNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
     private static int? Integer(string[] cells, int index) => int.TryParse(Cell(cells, index), CultureInfo.InvariantCulture, out var value) ? value : null;
+    private static T EnumValue<T>(string[] cells, int index) where T : struct, Enum =>
+        Enum.TryParse<T>(Cell(cells, index), ignoreCase: true, out var value) ? value :
+            throw new InvalidDataException($"Érvénytelen {typeof(T).Name} érték: '{Cell(cells, index)}'.");
     private static double? Double(string[] cells, int index) => double.TryParse(Cell(cells, index), CultureInfo.InvariantCulture, out var value) ? value : null;
     private static ValueRange? ValueRangeFrom(string[] cells, int index)
     {
@@ -857,6 +924,10 @@ public static class CsvGameDataLoader
         "fogadonevek" => DataSection.InnNames,
         "pletykak" => DataSection.InnRumors,
         "csapdak" => DataSection.Traps,
+        "npc-k" => DataSection.Npcs,
+        "npc talalkozasok" => DataSection.NpcEncounters,
+        "npc parbeszedek" => DataSection.NpcDialogues,
+        "npc kuldetesek" => DataSection.NpcQuests,
         "faji kepessegbonuszok" => DataSection.RaceAbilityBonuses,
         "osztaly kepessegminimumok" => DataSection.ClassAbilityMinimums,
         "ero talalati bonusz" => DataSection.StrengthHitBonuses,
@@ -902,6 +973,10 @@ public static class CsvGameDataLoader
         InnNames,
         InnRumors,
         Traps,
+        Npcs,
+        NpcEncounters,
+        NpcDialogues,
+        NpcQuests,
         RaceAbilityBonuses,
         ClassAbilityMinimums,
         StrengthHitBonuses,

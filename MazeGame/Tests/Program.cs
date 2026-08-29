@@ -30,6 +30,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
+    ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
     ("Az ismeretlen CSV-fejezet sorszámos hibát ad", UnknownCsvSectionIsRejectedWithLineNumber),
     ("A hiányzó kötelező CSV-mező sorszámos hibát ad", MissingRequiredCsvFieldIsRejectedWithLineNumber),
     ("Az alkalmazkodó ember választott képességbónuszt kap", AdaptableRaceGainsChosenAbility),
@@ -2037,6 +2038,21 @@ static void RaceTraitsAreLoadedFromData()
     Assert(catalog.GetRace("R002").HasTrait(RaceTraits.Resilient), "A törp Rendíthetetlen tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R003").HasTrait(RaceTraits.KeenSenses), "Az elf Éles érzékek tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R004").HasTrait(RaceTraits.Relentless), "A félork Könyörtelen tulajdonsága hiányzik.");
+}
+
+static void NpcDefinitionsLoadFromCsv()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    Assert(catalog.Npcs.Count == 4 && catalog.NpcEncounters.Count == 5 &&
+           catalog.NpcEncounters.All(encounter => encounter.MazeLevel is >= 1 and <= 8),
+        "Az NPC-definíciók vagy az első nyolc pálya öt találkozása hiányzik.");
+    Assert(catalog.NpcDialogues.Count == 12 && catalog.NpcQuests.Count == 4 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 2 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 2,
+        "Az NPC-párbeszédek vagy a Collect/Kill küldetések hibásan töltődtek.");
+    Assert(catalog.GetNpc("NPC001") is { Disposition: NpcDisposition.Neutral, Unique: false } &&
+           catalog.GetNpcQuests("NPC002").Single().TargetId == "E003",
+        "A semleges nem egyedi NPC vagy a hozzá kapcsolt küldetés hibás.");
 }
 
 static void SpellUiModelsAreShared()

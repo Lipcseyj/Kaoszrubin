@@ -31,6 +31,10 @@ public sealed class GameDataCatalog
     public IReadOnlyList<string> InnNames { get; init; } = [];
     public IReadOnlyList<InnRumorDefinition> InnRumors { get; init; } = [];
     public IReadOnlyList<TrapDefinition> Traps { get; init; } = [];
+    public IReadOnlyList<NpcDefinition> Npcs { get; init; } = [];
+    public IReadOnlyList<NpcEncounterDefinition> NpcEncounters { get; init; } = [];
+    public IReadOnlyList<NpcDialogueDefinition> NpcDialogues { get; init; } = [];
+    public IReadOnlyList<NpcQuestDefinition> NpcQuests { get; init; } = [];
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();
@@ -59,6 +63,11 @@ public sealed class GameDataCatalog
     public PerkDefinition GetPerk(string id) => FindById(Perks, id, "tehetség");
     public StatusDefinition GetStatus(string id) => FindById(Statuses, id, "állapot");
     public TrapDefinition GetTrap(string id) => FindById(Traps, id, "csapda");
+    public NpcDefinition GetNpc(string id) => FindById(Npcs, id, "NPC");
+    public IReadOnlyList<NpcDialogueDefinition> GetNpcDialogues(string npcId) => NpcDialogues
+        .Where(dialogue => string.Equals(dialogue.NpcId, npcId, StringComparison.OrdinalIgnoreCase)).ToArray();
+    public IReadOnlyList<NpcQuestDefinition> GetNpcQuests(string npcId) => NpcQuests
+        .Where(quest => string.Equals(quest.NpcId, npcId, StringComparison.OrdinalIgnoreCase)).ToArray();
     public IReadOnlyList<CharacterNameDefinition> GetCharacterNames(string characterClassId) => CharacterNames.Where(name =>
         string.Equals(name.CharacterClassId, characterClassId, StringComparison.OrdinalIgnoreCase)).ToList();
     public IReadOnlyList<PerkDefinition> GetPerkChoices(string characterClassId, int tier)

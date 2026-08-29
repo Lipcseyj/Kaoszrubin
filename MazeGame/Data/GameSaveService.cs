@@ -74,7 +74,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -91,6 +91,7 @@ public static class GameSaveFormat
                 2 => MigrateVersion2To3(state),
                 3 => MigrateVersion3To4(state),
                 4 => MigrateVersion4To5(state),
+                5 => MigrateVersion5To6(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -123,6 +124,13 @@ public static class GameSaveFormat
     {
         // Az 5-ös formátum a pályán várakozó NPC-ket vezeti be; régi mentésben a lista üres.
         state.Version = 5;
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion5To6(GameSaveData state)
+    {
+        // A 6-os formátum példányonkénti NPC-viszonyt, viselkedést és küldetéskapcsolatot ment.
+        state.Version = 6;
         return state;
     }
 }
@@ -200,7 +208,9 @@ public sealed record CorpseSaveData(Position Position, string FormerName, int? P
     string? EnemyDefinitionId = null, bool IsSearched = false);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex);
 public sealed record WorldNpcSaveData(Position Position, string DefinitionId, int CharacterIndex,
-    NpcDisposition Disposition, bool Recruitable, bool IsQuestNpc, string Dialogue, WorldNpcState State);
+    NpcDisposition Disposition, bool Recruitable, bool IsQuestNpc, string Dialogue, WorldNpcState State,
+    int Friendliness = 5, Domain.NpcWorldBehavior Behavior = Domain.NpcWorldBehavior.Guarded,
+    List<string>? QuestIds = null);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);
 public sealed record TrapSaveData(Position Position, string DefinitionId, TrapState State,
     bool DetectionAttempted, int FailedDisarmAttempts);

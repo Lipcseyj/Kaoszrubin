@@ -957,3 +957,40 @@ TR004,Ingapengék,╳,Damage,7,10,11,7,12,0,60,180,A falakból egymást kereszte
 TR005,Dögvészfelhő,≋,Poison,10,11,12,4,8,60,90,270,Fojtó zöld gáz tör elő a repedt padlólapok alól.
 TR006,Káoszpecsét,✹,Alert,14,13,13,4,9,100,135,405,A felhasadó pecsét energiakitörése megsebzi az áldozatot és odahívja a közeli szörnyeket.
 TR007,Lélektű,♦,Poison,18,15,15,8,14,75,200,600,Árnyékból formált tű sebzi meg a testet és mérgezi meg a lelket.
+
+#NPC-k
+Id,Név,OsztályId,Viszony,Viselkedés,Toborozható,Egyedi
+NPC001,Vándor füvesasszony,C005,Neutral,Guarded,nem,nem
+NPC002,Szörnyvadász,C001,Neutral,Aggressive,nem,nem
+NPC003,Kincskereső,C004,Neutral,Opportunistic,nem,nem
+NPC004,Vándor dalnok,C006,Friendly,Friendly,igen,nem
+
+#NPC találkozások
+Id,NpcId,Pályaszint,MinimumTávolság,MaximumTávolság
+NPCE001,NPC001,2,6,14
+NPCE002,NPC002,3,7,16
+NPCE003,NPC003,5,8,18
+NPCE004,NPC001,7,8,18
+NPCE005,NPC004,8,7,16
+
+#NPC párbeszédek
+Id,NpcId,MinimumBarátságosság,MaximumBarátságosság,Szöveg
+NPCD001,NPC001,0,3,Ne nyúlj a csomagjaimhoz. Nem bízom idegenekben.
+NPCD002,NPC001,4,7,Ritka hozzávalókat keresek. Talán segíthetnénk egymásnak.
+NPCD003,NPC001,8,10,Jó szándékot látok bennetek. Hallgassátok meg a kérésemet.
+NPCD004,NPC002,0,3,Egy rossz mozdulat és ti lesztek a következő trófeáim.
+NPCD005,NPC002,4,7,Ha tényleg tudtok harcolni bizonyítsátok be a szörnyeken.
+NPCD006,NPC002,8,10,Láttam már gyengébb csapatot túlélni. Talán számíthatunk egymásra.
+NPCD007,NPC003,0,3,Amit találok az az enyém. Ezt jobb ha megjegyzitek.
+NPCD008,NPC003,4,7,Üzletet ajánlok. Hozzatok valamit és mind jól járunk.
+NPCD009,NPC003,8,10,Megbízhatónak tűntök. Megosztok veletek egy nyomot.
+NPCD010,NPC004,0,3,Nehéz közönség vagytok. Egyelőre megtartom magamnak a dalaimat.
+NPCD011,NPC004,4,7,Egy régi történethez keresek bizonyítékot a mélyben.
+NPCD012,NPC004,8,10,Rólatok még nagy éneket írhatok. Szívesen veletek tartanék.
+
+#NPC küldetések
+Id,NpcId,Típus,CélId,Darabszám,Cím,Leírás
+NPCQ001,NPC001,Collect,T011,3,Gyógyító készlet,Gyűjts össze három kis gyógyitalt a füvesasszonynak.
+NPCQ002,NPC002,Kill,E003,4,Goblinvadászat,Ölj meg négy goblint a szörnyvadász megbízásából.
+NPCQ003,NPC003,Collect,T001,5,Útravaló a mélybe,Szerezz öt útravalót a kincskereső következő útjához.
+NPCQ004,NPC004,Kill,E004,3,A csontok éneke,Győzz le három csontvázat a dalnok balladájához.

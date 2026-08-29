@@ -51,7 +51,7 @@ internal sealed class GameStateMapper
                 CharacterIndex(member.Character))).ToList(),
             Npcs = maze.WorldNpcs.Select(npc => new WorldNpcSaveData(npc.Position, npc.DefinitionId,
                 CharacterIndex(npc.Character), npc.Disposition, npc.Recruitable, npc.IsQuestNpc,
-                npc.Dialogue, npc.State)).ToList(),
+                npc.Dialogue, npc.State, npc.Friendliness, npc.Behavior, npc.QuestIds.ToList())).ToList(),
             GroundPiles = maze.GroundItemPiles.Select(pile => new GroundPileSaveData(pile.Position,
                 pile.Entries.Select(entry => new SavedItemReference(entry.Item.Category.ToString(), entry.Item.Id,
                     entry.Charges)).ToList())).ToList(),
@@ -136,7 +136,7 @@ internal sealed class GameStateMapper
             if (npc.CharacterIndex >= 0 && npc.CharacterIndex < _characterRoster.Characters.Count)
                 maze.AddWorldNpc(new WorldNpc(npc.Position, npc.DefinitionId,
                     _characterRoster.Characters[npc.CharacterIndex], npc.Disposition, npc.Recruitable,
-                    npc.IsQuestNpc, npc.Dialogue, npc.State));
+                    npc.IsQuestNpc, npc.Dialogue, npc.State, npc.Friendliness, npc.Behavior, npc.QuestIds));
         foreach (var corpse in state.Maze.Corpses)
         {
             var restored = corpse.PartyCharacterIndex is >= 0 and var characterIndex && characterIndex < _characterRoster.Characters.Count

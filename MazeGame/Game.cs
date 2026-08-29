@@ -762,6 +762,7 @@ public sealed class Game
         PlacePartyMembersNear(_player.Position);
         PlaceTraps(configuration);
         PlaceFirstSinglePlayerCompanion();
+        PlaceConfiguredWorldNpcs();
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
         RevealFor(SelectedCharacter, _player.Position);
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
@@ -834,8 +835,8 @@ public sealed class Game
             _ => new[] { CharacterClassIds.Harcos }
         };
         var characterClass = _gameData.GetCharacterClass(preferredClassIds[_random.Next(preferredClassIds.Length)]);
-        var recruit = new RandomCharacterGenerator(_gameData, _random).CreateRecruit(characterClass,
-            SelectedCharacter.Level, CharacterRoster.Characters.Select(character => character.Name).ToArray());
+        var recruit = new RandomCharacterGenerator(_gameData, _random).CreateLevelOne(characterClass,
+            CharacterRoster.Characters.Select(character => character.Name).ToArray());
 
         var candidates = new List<Position>();
         for (var y = 0; y < _maze.Height; y++)
@@ -853,7 +854,61 @@ public sealed class Game
         var spawnPosition = candidates[_random.Next(candidates.Count)];
         _maze.AddWorldNpc(new WorldNpc(spawnPosition, "NPC-FIRST-COMPANION", recruit, NpcDisposition.Friendly,
             recruitable: true, isQuestNpc: false,
-            "Elvesztem ebben az átkozott labirintusban. Együtt talán kijutunk — veletek tartok, fizetség nélkül."));
+            "Elvesztem ebben az átkozott labirintusban. Együtt talán kijutunk — veletek tartok, fizetség nélkül.",
+            friendliness: 10, behavior: NpcWorldBehavior.Friendly));
+    }
+
+    private void PlaceConfiguredWorldNpcs()
+    {
+        foreach (var encounter in _gameData.NpcEncounters.Where(value => value.MazeLevel == _mazeLevel))
+        {
+            var definition = _gameData.GetNpc(encounter.NpcId);
+            if (definition.Unique && CharacterRoster.Characters.Any(character =>
+                    string.Equals(character.Name, definition.Name, StringComparison.OrdinalIgnoreCase))) continue;
+            var candidates = new List<Position>();
+            for (var y = 0; y < _maze.Height; y++)
+            for (var x = 0; x < _maze.Width; x++)
+            {
+                var position = new Position(x, y);
+                var distance = Manhattan(position, _maze.Entrance);
+                if (!_maze.IsWalkable(position) || position == _maze.Exit || _maze.GetObjectAt(position) is not null ||
+                    _maze.GetTrapAt(position) is not null || _maze.GetDoorAt(position) is not null ||
+                    distance < encounter.MinimumDistance || distance > encounter.MaximumDistance) continue;
+                candidates.Add(position);
+            }
+            if (candidates.Count == 0) continue;
+
+            var recruit = new RandomCharacterGenerator(_gameData, _random).CreateRecruit(
+                _gameData.GetCharacterClass(definition.CharacterClassId), SelectedCharacter.Level,
+                CharacterRoster.Characters.Select(character => character.Name).ToArray());
+            CharacterRoster.Add(recruit);
+            var friendliness = RollNpcFriendliness(definition);
+            var dialogue = _gameData.GetNpcDialogues(definition.Id)
+                .Where(value => friendliness >= value.MinimumFriendliness && friendliness <= value.MaximumFriendliness)
+                .OrderBy(_ => _random.Next()).FirstOrDefault()?.Text ?? "Az idegen óvatosan végigmér benneteket.";
+            var questIds = _gameData.GetNpcQuests(definition.Id).Select(quest => quest.Id).ToArray();
+            _maze.AddWorldNpc(new WorldNpc(candidates[_random.Next(candidates.Count)], definition.Id, recruit,
+                definition.Disposition, definition.Recruitable, questIds.Length > 0, dialogue,
+                friendliness: friendliness, behavior: definition.Behavior, questIds: questIds));
+        }
+    }
+
+    private int RollNpcFriendliness(NpcDefinition definition)
+    {
+        var baseValue = definition.Disposition switch
+        {
+            NpcDisposition.Friendly => _random.Next(7, 10),
+            NpcDisposition.Neutral => _random.Next(3, 8),
+            _ => _random.Next(0, 4)
+        };
+        var modifier = definition.Behavior switch
+        {
+            NpcWorldBehavior.Friendly => 1,
+            NpcWorldBehavior.Guarded => -1,
+            NpcWorldBehavior.Aggressive => -2,
+            _ => 0
+        };
+        return Math.Clamp(baseValue + modifier, 0, 10);
     }
 
     /// <summary>A rejtett csapda egyszer kap passzív észlelési próbát. A felfedezett aktív csapda

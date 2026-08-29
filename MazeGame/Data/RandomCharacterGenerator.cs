@@ -58,7 +58,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         throw new InvalidOperationException("A jelenlegi játékadatokból nem generálható véletlen partitárs.");
     }
 
-    private LiveCharacter CreateLevelOne(CharacterClassDefinition characterClass, IReadOnlyCollection<string> usedNames)
+    public LiveCharacter CreateLevelOne(CharacterClassDefinition characterClass, IReadOnlyCollection<string> usedNames)
     {
         for (var attempt = 0; attempt < 2_000; attempt++)
         {
