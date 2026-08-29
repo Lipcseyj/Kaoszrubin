@@ -36,6 +36,8 @@ var tests = new (string Name, Action Run)[]
     ("A duplikált parancs elutasításra kerül", DuplicateCommandIsRejected),
     ("Harc közben nem futhat felfedezési parancs", ExplorationCommandIsRejectedDuringBattle),
     ("A CharacterId mentés után is stabil", CharacterIdSurvivesSerialization),
+    ("A régi játékmentések az aktuális formátumra migrálódnak", LegacyGameSavesMigrateToCurrentVersion),
+    ("Az ismeretlen és verzió nélküli játékmentések elutasításra kerülnek", InvalidGameSaveVersionsAreRejected),
     ("Az osztályspecializáció mentés után is megmarad", ClassSpecializationSurvivesSerialization),
     ("A 10. és 20. szintű osztályfejlesztések mentődnek és megjelennek", ClassFeatureUpgradesPersistAndAppearOnSheet),
     ("A képességpontok 13-nál megállnak és mentődnek", AbilityIncreasesAreCappedAndPersisted),
@@ -350,6 +352,41 @@ static void CharacterIdSurvivesSerialization()
     var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-character-save.json"), data);
     var restored = service.Deserialize(service.Serialize(roster));
     Assert(restored.SelectedCharacter?.Id == character.Id, "A karakter stabil azonosítója megváltozott mentéskor.");
+}
+
+static void LegacyGameSavesMigrateToCurrentVersion()
+{
+    foreach (var version in new[] { 1, 2 })
+    {
+        var state = new GameSaveData { Version = version, MazeLevel = 6 };
+        var migrated = GameSaveFormat.MigrateToCurrent(state);
+        Assert(ReferenceEquals(state, migrated) && migrated.Version == GameSaveFormat.CurrentVersion &&
+               migrated.MazeLevel == 6,
+            $"A(z) {version}. mentésverzió migrációja hibás vagy megváltoztatta a pályaszintet.");
+    }
+}
+
+static void InvalidGameSaveVersionsAreRejected()
+{
+    try
+    {
+        GameSaveFormat.MigrateToCurrent(new GameSaveData { Version = GameSaveFormat.CurrentVersion + 1 });
+        throw new InvalidOperationException("A jövőbeli mentésverzió betöltődött.");
+    }
+    catch (InvalidOperationException exception)
+    {
+        Assert(exception.Message.Contains("Nem támogatott mentésverzió", StringComparison.Ordinal),
+            $"A jövőbeli mentésverzió hibaüzenete pontatlan: {exception.Message}");
+    }
+
+    try
+    {
+        JsonSerializer.Deserialize<GameSaveData>("{}");
+        throw new InvalidOperationException("A verzió nélküli mentés betöltődött.");
+    }
+    catch (JsonException)
+    {
+    }
 }
 
 static void ClassSpecializationSurvivesSerialization()

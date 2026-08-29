@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Magic;
 
@@ -20,7 +21,7 @@ public sealed class GameSaveService
     public string Save(GameSaveData state, CharacterRoster roster)
     {
         Directory.CreateDirectory(_saveDirectory);
-        state.Version = 2;
+        state.Version = GameSaveFormat.CurrentVersion;
         state.SavedAt = DateTimeOffset.Now;
         state.RosterJson = _characterSaveService.Serialize(roster);
         var safeName = string.Concat(state.MainCharacterName.Select(character =>
@@ -33,10 +34,7 @@ public sealed class GameSaveService
 
     public LoadedGameSave Load(string path)
     {
-        var state = JsonSerializer.Deserialize<GameSaveData>(File.ReadAllText(path), JsonOptions)
-            ?? throw new InvalidOperationException("A mentés üres vagy sérült.");
-        if (state.Version is not (1 or 2))
-            throw new InvalidOperationException($"Nem támogatott mentésverzió: {state.Version}.");
+        var state = DeserializeAndMigrate(File.ReadAllText(path));
         if (string.IsNullOrWhiteSpace(state.RosterJson)) throw new InvalidOperationException("A mentés nem tartalmaz karakteradatokat.");
         var roster = _characterSaveService.Deserialize(state.RosterJson);
         if (roster.SelectedCharacter is null) throw new InvalidOperationException("A mentés nem tartalmaz érvényes főkaraktert.");
@@ -51,17 +49,66 @@ public sealed class GameSaveService
         {
             try
             {
-                var state = JsonSerializer.Deserialize<GameSaveData>(File.ReadAllText(path), JsonOptions);
-                if (state is not null) results.Add(new GameSaveInfo(path, state.MainCharacterName, state.MazeLevel,
+                var state = DeserializeAndMigrate(File.ReadAllText(path));
+                results.Add(new GameSaveInfo(path, state.MainCharacterName, state.MazeLevel,
                     state.SavedAt, state.IsCoopGame));
             }
-            catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException) { }
+            catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException or
+                                                   InvalidOperationException) { }
         }
         return results;
     }
 
     public string SerializeCharacter(LiveCharacter character) =>
         _characterSaveService.SerializeCharacter(character);
+
+    private static GameSaveData DeserializeAndMigrate(string json)
+    {
+        var state = JsonSerializer.Deserialize<GameSaveData>(json, JsonOptions)
+            ?? throw new InvalidOperationException("A mentés üres vagy sérült.");
+        return GameSaveFormat.MigrateToCurrent(state);
+    }
+}
+
+/// <summary>A teljes játékmentés formátumának verziózása és soros migrációja.</summary>
+public static class GameSaveFormat
+{
+    public const int OldestSupportedVersion = 1;
+    public const int CurrentVersion = 3;
+
+    public static GameSaveData MigrateToCurrent(GameSaveData state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        if (state.Version < OldestSupportedVersion || state.Version > CurrentVersion)
+            throw new InvalidOperationException(
+                $"Nem támogatott mentésverzió: {state.Version}. Támogatott: {OldestSupportedVersion}–{CurrentVersion}.");
+
+        while (state.Version < CurrentVersion)
+        {
+            state = state.Version switch
+            {
+                1 => MigrateVersion1To2(state),
+                2 => MigrateVersion2To3(state),
+                _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
+            };
+        }
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion1To2(GameSaveData state)
+    {
+        // A 2-es formátum coop- és bossadatokat adott hozzá. A DTO alapértékei pontosan
+        // a régi egyjátékos mentések jelentését őrzik, ezért csak a verziót kell előreléptetni.
+        state.Version = 2;
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion2To3(GameSaveData state)
+    {
+        // A 3-as verzió vezeti be a kötelező, soros migrációs rendszert. Adatséma nem változott.
+        state.Version = 3;
+        return state;
+    }
 }
 
 public sealed record LoadedGameSave(string Path, CharacterRoster Roster, GameSaveData State);
@@ -70,7 +117,8 @@ public sealed record GameSaveInfo(string Path, string MainCharacterName, int Maz
 
 public sealed class GameSaveData
 {
-    public int Version { get; set; } = 2;
+    [JsonRequired]
+    public int Version { get; set; } = GameSaveFormat.CurrentVersion;
     public DateTimeOffset SavedAt { get; set; }
     public string MainCharacterName { get; set; } = string.Empty;
     public string RosterJson { get; set; } = string.Empty;

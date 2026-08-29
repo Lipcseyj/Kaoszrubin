@@ -955,7 +955,7 @@ További opcionális szörnyteendők:
 - Új képességhatás csak akkor pusztán CSV-s, ha a hatástípus már létezik a kódban.
 Röviden: új hagyományos tárgynál többnyire elég a CSV; új szörnynél a CSV mellett a pályakonfigurációba is be kell tenni, különben soha nem fog kisorsolódni.
 
-### Ha a csv-ben áthelyezek egy fejezetet máshová be fog töltődni?
+### Ha a csv-ben áthelyezek egy fejezetet máshová, be fog töltődni?
 
 Igen. Az adatok.csv teljes szekciói sorrendtől függetlenül betöltődnek, mert a hivatkozások ellenőrzése csak a teljes fájl beolvasása után történik.
 Feltételek:
@@ -965,6 +965,83 @@ Feltételek:
 - Az azonosítók maradjanak egyediek, a hivatkozások pedig létezzenek.
 - A CSV-mezők sorrendjét ne változtasd meg önmagában.
 Fontos: a játék a futási mappába másolt adatok.csv-t olvassa. Módosítás után újra kell fordítani vagy kézzel frissíteni például a bin/Debug/net10.0/adatok.csv fájlt. Ha a régi bináris mellett régi másolat marad, a változás nem látszik.
+
+### Ha beszúrok egy pályát, mondjuk 6.-nak mire kell figyelnem hogy minden rendben legyen?
+
+Ha egy új pályát valóban beszúrsz 6.-nak — tehát a jelenlegi 6–21. pálya eggyel hátrébb csúszik — ezekre kell figyelni:
+1. Pályakonfiguráció
+A [MazeLevelConfiguration.cs](C:\\Dev\\Kaoszrubin\\MazeGame\\MazeLevelConfiguration.cs) fájlban:
+- készíts új [6] konfigurációt;
+- a jelenlegi [6]–[21] kulcsokat és a bennük lévő Level értékeket növeld eggyel;
+- a végső pálya így [22], ezért:public const int FinalLevel = 22;
+- állítsd be az új pálya:
+  - nevét;
+  - faljelét és színét;
+  - folyosószélesség-esélyét;
+  - szoba- és ládaszámát;
+  - szobaméretét;
+  - aranymennyiségét;
+  - szobai és folyosói ellenfeleit;
+  - ellenfelek mozgásprofilját.
+Az ellenfél-ID-knak létezniük kell az adatok.csv-ben.
+2. Csapdák
+A csapdák automatikusan a Level alapján járnak, de a beszúrás megváltoztatja a kategóriahatárokat:
+- 1–2: alap
+- 3–6: korai
+- 7–9: közepes
+- 10–13: fejlett
+- 14–17: halálos
+- 18-tól: káosz
+Dönteni kell, hogy ezek kampánypozíciók vagy nehézségi szintek. Beszúrás után például a régi 6. pálya már a 7–9-es csapdakészletet kapná. Ha ezt nem akarod, a határokat is eggyel el kell tolni.
+3. Pályakép
+A kép kerüljön a MazeGame\Kepek könyvtárba. A fájlnév a pályanévből automatikusan készül:
+- kisbetűs;
+- ékezet nélküli;
+- szóköz és írásjel nélkül;
+- .png.
+Például:
+Az Elveszett Erőd → azelveszetterod.png
+A hiányzó kép nem akadályozza a játékot.
+4. Nehézség és fogadói kínálat
+Több rendszer közvetlenül a pályasorszámból számol:
+- pályavégi XP: Base XP × teljesített pálya;
+- fogadói áruk minősége és mennyisége;
+- mágikus tárgyak ereje;
+- titkos készlet;
+- vajákos és más szolgáltatások elérhetősége;
+- pletykák által vizsgált közeli pályák;
+- csapdák nehézsége.
+Ezért a régi 6–21. pályák eggyel erősebb gazdasági és jutalmazási sávba kerülnek. Ez technikailag működik, de balanszszempontból érdemes tudatosan eldönteni.
+5. Bossok és aranykulcsok
+Ha az új pályán:
+- nincs boss: a tizenkét kulcsos történet változatlan maradhat;
+- már ismert boss szerepel: ugyanazért a boss-ID-ért másodszor nem jár kulcs;
+- új boss kerül be: az adatok.csv bossjelölése és a MonsterIds.Bosses készlet miatt már 13 kulcs lehet szükséges.
+Az utóbbi esetben át kell írni a „tizenkét kulcs”, „tizenkét zár” és kapcsolódó történeti szövegeket is. Ha meg akarjuk tartani a tizenkét kulcsot, az új pálya főellenfele ne legyen kulcsot adó boss.
+6. Mentések kompatibilitása
+Ez a legfontosabb veszély. A mentés jelenleg sorszámmal tárolja a pályaszintet. Egy régi mentésben szereplő MazeLevel = 6 az új verzióban már az újonnan beszúrt pályát jelentené.
+Ráadásul ha a játékos éppen a régi 6. pályán mentett:
+- a már legenerált térképe még a régi pálya marad;
+- a kijelzett szint továbbra is 6;
+- kijutás után a játék az új 7. konfigurációra lép.
+Ezért beszúrás előtt érdemes mentésmigrációt készíteni: a régi verziójú mentésekben minden MazeLevel >= 6 értékhez hozzáadni egyet. Ehhez célszerű mentésformátum-verziót is bevezetni, különben nem lehet biztosan tudni, hogy egy mentést már átszámoztunk-e.
+7. Történeti szövegek
+A finálé jelenleg konkrétan „huszonegy” szintről beszél. Ha 22 pálya lesz, legalább ezeket át kell írni:
+- „huszonegy halálos szint”
+- „a Káosz huszonegy megtört törvénye”
+A fejezetek számozását csak akkor kell módosítani, ha az új pálya saját történeti fejezetet vagy bossbemutatót kap.
+8. Ellenőrzés
+A beszúrás után érdemes automatikusan ellenőrizni:
+- minden 1–22. konfiguráció létezik;
+- a dictionary-kulcs és a belső Level mindig azonos;
+- minden hivatkozott ellenfél és csapda létezik;
+- a végső pálya valóban a Káoszrubin rejtekhelye;
+- a kép neve helyesen képződik;
+- új és régi mentés is betölthető;
+- fogadó után pontosan a következő pálya indul;
+- coop snapshotban mindkét fél ugyanazt a pályaszintet és nevet kapja.
+Röviden: maga a pályakonfiguráció beszúrása egyszerű. A két kényes rész a mentések migrációja és a sorszámfüggő balansz. Ha majd megadod az új pálya nevét, ellenfeleit és paramétereit, ezt a teljes átszámozással és mentésmigrációval együtt biztonságosan meg tudom csinálni.
+
 ## Csapdák
 
 A `#Csapdák` CSV-fejezet definiálja a csapdatípusok hatását, nehézségét, valamint a sikeres
