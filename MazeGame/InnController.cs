@@ -287,19 +287,21 @@ internal sealed class InnController
             _renderer.DrawInnRestUnavailableScreen();
             return;
         }
-        var summaries = new List<(LiveCharacter Character, int HealedAmount)>();
+        var summaries = new List<CharacterRestSnapshot>();
         foreach (var character in _characterRoster.Party.Members.Where(character => character.IsAlive))
         {
-            var before = character.CurrentVitality;
+            var beforeVitality = character.CurrentVitality;
+            var beforeMana = character.CurrentMana;
             character.RestoreVitality(_random.Next(20, 41));
             character.SetCurrentResources(character.CurrentVitality, character.MaximumMana);
             character.ClearTemporarySpellEffects();
-            summaries.Add((character, character.CurrentVitality - before));
+            summaries.Add(new CharacterRestSnapshot(character.Id, character.Name, character.Color,
+                character.CurrentVitality - beforeVitality, character.CurrentMana - beforeMana,
+                character.CurrentVitality, character.MaximumVitality, character.CurrentMana, character.MaximumMana,
+                character.UsesMana, []));
         }
         _hasRestedAtInn = true;
-        _reportRest(new PartyRestSnapshot(Guid.NewGuid(), true, summaries.Select(summary =>
-            new CharacterRestSnapshot(summary.Character.Id, summary.Character.Name, summary.HealedAmount, [])).ToArray()));
-        _renderer.DrawInnRestScreen(summaries);
+        _reportRest(new PartyRestSnapshot(Guid.NewGuid(), true, summaries, []));
         _playGlobalSound(SoundEffect.Rest);
         _preparePartySpells();
     }

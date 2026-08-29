@@ -45,7 +45,6 @@ public sealed class ConsoleRenderer
     private const int InnMenuOptionLineStride = 2;
     private const int InnMenuFrameBaseLineCount = 7;
     private const int InnConfirmationFrameWidth = 90;
-    private const int InnRestFrameWidth = 100;
     private const int InnRestUnavailableFrameWidth = 90;
     internal const int InnMarketFrameWidth = 110;
     private const int InnRecruitmentFrameWidth = 100;
@@ -713,30 +712,6 @@ public sealed class ConsoleRenderer
             if (key == ConsoleKey.Enter) return true;
             if (key == ConsoleKey.Escape) return false;
         }
-    }
-
-    public void DrawInnRestScreen(IReadOnlyList<(LiveCharacter Character, int HealedAmount)> summaries)
-    {
-        ResetColorCache();
-        Console.Clear();
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            ("🛏️💤  A PARTI PIHEN A FOGADÓBAN  💤🛏️", ConsoleColor.Yellow),
-            (string.Empty, ConsoleColor.Gray),
-            ("A parti kényelmes ágyakba dől, és nagyjából 8 órát alszik.", ConsoleColor.Cyan),
-            ("🕯️🛌 ...zzz...🛌 🌙 🛌...zzz... 🛌🕯️", ConsoleColor.DarkCyan),
-            (string.Empty, ConsoleColor.Gray),
-            ("💤 Regenerálódás ébredéskor:", ConsoleColor.Green)
-        };
-        foreach (var (character, healedAmount) in summaries)
-        {
-            var manaText = character.UsesMana ? $"   🔷 manna: {character.CurrentMana}/{character.MaximumMana} (teljesen feltöltve)" : string.Empty;
-            lines.Add(($"❤️ {character.Name,-13} +{healedAmount} HP ({character.CurrentVitality}/{character.MaximumVitality}){manaText}", character.Color));
-        }
-        lines.Add((string.Empty, ConsoleColor.Gray));
-        lines.Add(("Nyomj Entert a folytatáshoz...", ConsoleColor.Yellow));
-        DrawCenteredFrame(InnRestFrameWidth, lines, FramedWindow.Inn);
-        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
     public void DrawInnRestUnavailableScreen()
@@ -1478,6 +1453,14 @@ public sealed class ConsoleRenderer
         var frameBottom = frameTop + lines.Count + 1;
         WriteAt(left, frameBottom, WindowFrameCatalog.Horizontal(style, frameWidth, bottom: true));
         if (bottomAdornment is not null) WriteAt(left, frameBottom + 1, bottomAdornment);
+    }
+
+    public void DrawRestSummaryScreen(PartyRestSnapshot rest, string footer, ConsoleColor footerColor)
+    {
+        ResetColorCache();
+        Console.Clear();
+        DrawCenteredFrame(RestSummaryWindow.Width, RestSummaryWindow.Build(rest, footer, footerColor),
+            FramedWindow.Inn);
     }
 
     private static int InnMarketPageStart(int entryCount, int selectedIndex)

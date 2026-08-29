@@ -395,6 +395,13 @@ public sealed class GameSession
             reason = string.Empty;
             return true;
         }
+        if (command is AcknowledgeRestCommand restAcknowledgement)
+        {
+            if (Phase != GameSessionPhase.Paused || restAcknowledgement.RestId == Guid.Empty)
+                return Fail("Nincs nyugtázható pihenési összegző.", out reason);
+            reason = string.Empty;
+            return true;
+        }
         if (command is AssignQuickSpellCommand quickSpell)
         {
             if (Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn) ||

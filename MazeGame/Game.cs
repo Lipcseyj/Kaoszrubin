@@ -139,6 +139,8 @@ public sealed class Game
     private SpellPreparationSnapshot? _activeSpellPreparation;
     private bool _spellPreparationCompleted;
     private PartyRestSnapshot? _latestRestNotice;
+    private readonly HashSet<PlayerId> _restAcknowledgements = [];
+    private readonly List<string> _hostRestAcknowledgementMessages = [];
     private LevelUpPromptSnapshot? _activeLevelUpPrompt;
     private string? _levelUpResponse;
     private bool _levelUpPromptCompleted;
@@ -221,7 +223,8 @@ public sealed class Game
             Narrative = _activeNarrative is null ? null : _activeNarrative with
             { AcknowledgedPlayerIds = _narrativeAcknowledgements.ToArray() },
             SpellPreparation = _activeSpellPreparation,
-            RestNotice = _latestRestNotice,
+            RestNotice = _latestRestNotice is null ? null : _latestRestNotice with
+            { AcknowledgedPlayerIds = _restAcknowledgements.ToArray() },
             LevelUpPrompt = _activeLevelUpPrompt,
             Activities = _sessionActivities.ToArray(),
             Sounds = _sessionSounds.ToArray(),
@@ -259,7 +262,7 @@ public sealed class Game
         _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer,
             effect => PlaySessionSound(effect),
             _random, AwardExperienceResult, ResolvePerkOffers, PreparePartySpells, ReadInnKey,
-            notice => _latestRestNotice = notice);
+            ShowSynchronizedRest);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
     }
@@ -1129,11 +1132,11 @@ public sealed class Game
             return;
         }
 
-        var summaries = new List<string>();
         var restResults = new List<CharacterRestSnapshot>();
         foreach (var character in livingParty)
         {
-            var before = character.CurrentVitality;
+            var beforeVitality = character.CurrentVitality;
+            var beforeMana = character.CurrentMana;
             character.RestoreVitality(_random.Next(1, 11));
             character.SetCurrentResources(character.CurrentVitality, character.MaximumMana);
             var cured = new List<string>();
@@ -1145,25 +1148,24 @@ public sealed class Game
                          (CharacterStatusIds.Bleeding, "vérzés")
                      })
                 if (character.HasStatus(statusId) && _random.Next(100) < cureChance && character.RemoveStatus(statusId))
-                    cured.Add(name);
+                    cured.Add($"{_gameData.GetStatus(statusId).Icon} {name}");
             character.ConsumeFood(10);
             character.ConsumeWater(10);
             character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
                 _gameData.GetStatus(CharacterStatusIds.Thirsty));
-            summaries.Add($"{character.Name}: +{character.CurrentVitality - before} HP" +
-                (cured.Count > 0 ? $", elmúlt: {string.Join(", ", cured)}" : string.Empty));
-            restResults.Add(new CharacterRestSnapshot(character.Id, character.Name,
-                character.CurrentVitality - before, cured));
+            restResults.Add(new CharacterRestSnapshot(character.Id, character.Name, character.Color,
+                character.CurrentVitality - beforeVitality, character.CurrentMana - beforeMana,
+                character.CurrentVitality, character.MaximumVitality, character.CurrentMana, character.MaximumMana,
+                character.UsesMana, cured));
         }
         _hasRestedThisLevel = true;
-        _latestRestNotice = new PartyRestSnapshot(Guid.NewGuid(), false, restResults);
+        ShowSynchronizedRest(new PartyRestSnapshot(Guid.NewGuid(), false, restResults, []));
         PreparePartySpells();
         foreach (var door in roomDoors) _maze.SetDoorState(door, DoorState.Closed);
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        _renderer.DrawDeveloperMessage("A parti kipihente magát. " + string.Join("; ", summaries));
         PlaySessionSound(SoundEffect.Rest);
     }
 
@@ -1398,6 +1400,9 @@ public sealed class Game
                 case AcknowledgeNarrativeCommand acknowledgement:
                     ExecuteNarrativeAcknowledgement(acknowledgement);
                     break;
+                case AcknowledgeRestCommand restAcknowledgement:
+                    ExecuteRestAcknowledgement(restAcknowledgement);
+                    break;
                 case AssignQuickSpellCommand quickSpell:
                     ExecuteAssignQuickSpell(quickSpell);
                     break;
@@ -1463,6 +1468,29 @@ public sealed class Game
             return;
         }
         _narrativeAcknowledgements.Add(command.SenderId);
+    }
+
+    private void ExecuteRestAcknowledgement(AcknowledgeRestCommand command)
+    {
+        if (_latestRestNotice?.RestId != command.RestId)
+        {
+            _session.RejectExecutedCommand(command, "Ez a pihenési összegző már nem aktív.");
+            return;
+        }
+        AcknowledgeRest(command.SenderId, command.CharacterId);
+    }
+
+    private void AcknowledgeRest(PlayerId playerId, CharacterId characterId)
+    {
+        if (!_restAcknowledgements.Add(playerId)) return;
+        var characterName = CharacterRoster.Party.Members
+            .FirstOrDefault(character => character.Id == characterId)?.Name ?? "Egy játékos";
+        var message = $"✓ {characterName} bezárta a pihenési összegzőt.";
+        var otherCharacters = _session.CharacterControls
+            .Where(control => control.AssignedPlayerId != playerId && control.AssignedPlayerId is not null)
+            .Select(control => control.CharacterId).ToArray();
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.DarkCyan, otherCharacters);
+        if (playerId != _session.HostPlayerId) _hostRestAcknowledgementMessages.Add(message);
     }
 
     private void ExecuteAssignQuickSpell(AssignQuickSpellCommand command)
@@ -1532,6 +1560,50 @@ public sealed class Game
         _narrativeAcknowledgements.Clear();
         _session.SetPhase(previousPhase);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+    }
+
+    private void ShowSynchronizedRest(PartyRestSnapshot rest)
+    {
+        var previousPhase = _session.Phase;
+        _restAcknowledgements.Clear();
+        _hostRestAcknowledgementMessages.Clear();
+        _latestRestNotice = rest;
+        _session.SetPhase(GameSessionPhase.Paused);
+        DrawRestSummaryForHost();
+        var renderedAcknowledgementCount = _restAcknowledgements.Count;
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        while (true)
+        {
+            ProcessSessionCommands();
+            if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.Enter)
+                AcknowledgeRest(_session.HostPlayerId, SelectedCharacter.Id);
+            var required = _session.ConnectedHumanPlayerIds;
+            if (required.All(_restAcknowledgements.Contains)) break;
+            if (_restAcknowledgements.Count != renderedAcknowledgementCount)
+            {
+                DrawRestSummaryForHost();
+                renderedAcknowledgementCount = _restAcknowledgements.Count;
+            }
+            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            Thread.Sleep(20);
+        }
+        _latestRestNotice = null;
+        _restAcknowledgements.Clear();
+        _session.SetPhase(previousPhase);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        foreach (var message in _hostRestAcknowledgementMessages)
+            _renderer.DrawInventoryMessage(message, ConsoleColor.DarkCyan);
+        _hostRestAcknowledgementMessages.Clear();
+    }
+
+    private void DrawRestSummaryForHost()
+    {
+        if (_latestRestNotice is not { } rest) return;
+        var acknowledged = _restAcknowledgements.Contains(_session.HostPlayerId);
+        _renderer.DrawRestSummaryScreen(rest,
+            acknowledged ? "❖  Várakozás a másik játékosra…  ❖" : "❖  Nyomj Entert a folytatáshoz...  ❖",
+            acknowledged ? ConsoleColor.DarkCyan : ConsoleColor.Green);
     }
 
     private void ContinueDisconnectedRemoteBattleAsNpc()

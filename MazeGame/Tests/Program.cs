@@ -24,6 +24,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég saját karakterével fogadói vásárlást küldhet", RemotePlayerCanPurchaseAtInn),
     ("A vendég saját hátizsákjából fogadói eladást küldhet", RemotePlayerCanSellAtInn),
     ("A vendég nyugtázhatja a közös történeti ablakot", RemotePlayerCanAcknowledgeNarrative),
+    ("A vendég nyugtázhatja a közös pihenési összegzőt", RemotePlayerCanAcknowledgeRest),
     ("A vendég elküldheti a saját memorizált varázslatait", RemotePlayerCanPrepareSpells),
     ("A vendég válaszolhat a saját szintlépési promptjára", RemotePlayerCanResolveLevelUpPrompt),
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
@@ -83,6 +84,7 @@ var tests = new (string Name, Action Run)[]
     ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
     ("A host és a vendég közös varázslat-UI modelleket használ", SpellUiModelsAreShared),
+    ("A host és a vendég közös pihenési összegzőt használ", RestSummaryUiIsShared),
     ("A vendég tárgyvizsgálata nem vágja le a sebzésértéket", GuestItemInspectionKeepsDamageValue),
     ("A boss-ablak és a harci promptok közös UI-modellt használnak", BossAndBattlePromptsAreShared),
     ("A kompakt party státusz HP-t és manát százalékosan mutat", CompactPartyStatusShowsResources),
@@ -818,6 +820,20 @@ static void InnSnapshotCarriesSharedRumors()
            restored.LevelCompletion.FallenCharacters is [{ Name: "Elesett" }] &&
            restored.InnName == "A Törött Kard" && restored.MazeLevel == 2,
         "A fogadó közös menü- vagy pályavégi állapota nem maradt meg a snapshot JSON round-trip során.");
+}
+
+static void RemotePlayerCanAcknowledgeRest()
+{
+    var (session, _, companion) = CreateSession();
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var assignmentError), assignmentError);
+    session.SetPhase(GameSessionPhase.Paused);
+    var command = new AcknowledgeRestCommand(remote, 1, companion.Id, Guid.NewGuid());
+    session.Submit(command);
+    Assert(session.TryReadCommand(out var accepted) && accepted == command,
+        "A session elutasította a vendég pihenési nyugtázását.");
+    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(command)) is AcknowledgeRestCommand decoded &&
+           decoded == command, "A pihenési nyugtázás nem írható körbe a hálózati protokollon.");
 }
 
 static void InnNamesAndRumorsLoadFromCsv()
@@ -1977,6 +1993,22 @@ static void SpellUiModelsAreShared()
            selectorLines.Any(line => line.Text.Contains("[F1] L2", StringComparison.Ordinal) &&
                                      line.Color == ConsoleColor.DarkRed),
         "A közös varázslatválasztó elvesztette a harci címet, gyorshelyet vagy mannafigyelmeztetést.");
+}
+
+static void RestSummaryUiIsShared()
+{
+    var characterId = CharacterId.New();
+    var rest = new PartyRestSnapshot(Guid.NewGuid(), false,
+        [new CharacterRestSnapshot(characterId, "Rubin", ConsoleColor.Cyan,
+            7, 12, 28, 35, 20, 20, true, ["🤒 betegség", "🩸 vérzés"])], []);
+    var lines = RestSummaryWindow.Build(rest, "❖  Nyomj Entert a folytatáshoz...  ❖");
+    Assert(WindowFrameConfiguration.For(FramedWindow.Inn) == WindowFrameStyle.Ruby &&
+           lines.Any(line => line.Text.Contains("❤️ Rubin", StringComparison.Ordinal) &&
+                             line.Text.Contains("+7", StringComparison.Ordinal) &&
+                             line.Text.Contains("🔷+12", StringComparison.Ordinal)) &&
+           lines.Any(line => line.Text.Contains("🤒 betegség", StringComparison.Ordinal) &&
+                             line.Text.Contains("🩸 vérzés", StringComparison.Ordinal)),
+        "A közös Ruby pihenési összegzőből hiányzik a HP, manna vagy megszűnt állapot.");
 }
 
 static void GuestItemInspectionKeepsDamageValue()

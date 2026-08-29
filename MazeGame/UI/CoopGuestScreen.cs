@@ -41,12 +41,12 @@ public sealed class CoopGuestScreen
     private bool _sessionSoundsInitialized;
     private int _deathStateSynchronized;
     private Guid? _acknowledgedNarrativeId;
+    private Guid? _acknowledgedRestId;
     private bool _spellInfoOpen;
     private int _spellInfoSelection;
     private Guid? _spellPreparationPromptId;
     private int _spellPreparationCursor;
     private readonly HashSet<string> _preparedSpellIds = new(StringComparer.OrdinalIgnoreCase);
-    private Guid? _lastRestNoticeId;
     private Guid? _levelUpPromptId;
     private int _levelUpSelection;
     private CharacterAction? _doorTargetAction;
@@ -155,6 +155,7 @@ public sealed class CoopGuestScreen
                     }
                     if (key.Key == ConsoleKey.Escape && client.CurrentSnapshot?.Phase != GameSessionPhase.Inn &&
                         client.CurrentSnapshot?.Narrative is null &&
+                        client.CurrentSnapshot?.RestNotice is null &&
                         client.CurrentSnapshot?.SpellPreparation is null &&
                         client.CurrentSnapshot?.LevelUpPrompt is null &&
                         !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null &&
@@ -247,14 +248,22 @@ public sealed class CoopGuestScreen
         }
         _levelUpPromptId = null;
         SynchronizeSpellUi(snapshot, characterId);
-        if (snapshot.Narrative is { } narrative)
+        if (snapshot.RestNotice is { } rest)
+        {
+            if (key != ConsoleKey.Enter || _acknowledgedRestId == rest.RestId) return;
+            _acknowledgedRestId = rest.RestId;
+            command = new AcknowledgeRestCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                rest.RestId);
+        }
+        else _acknowledgedRestId = null;
+        if (command is null && snapshot.Narrative is { } narrative)
         {
             if (key != ConsoleKey.Enter || _acknowledgedNarrativeId == narrative.NarrativeId) return;
             _acknowledgedNarrativeId = narrative.NarrativeId;
             command = new AcknowledgeNarrativeCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                 narrative.NarrativeId);
         }
-        else _acknowledgedNarrativeId = null;
+        else if (snapshot.Narrative is null) _acknowledgedNarrativeId = null;
         if (command is null && _spellInfoOpen)
         {
             command = HandleSpellInfoInput(client, characterId, snapshot, key);
@@ -869,7 +878,6 @@ public sealed class CoopGuestScreen
         var snapshot = client.CurrentSnapshot;
         if (snapshot is not null)
         {
-            SynchronizeRestNotice(snapshot, selected.CharacterId);
             SynchronizeInnTransactions(snapshot);
             SynchronizeSessionSounds(snapshot, selected.CharacterId);
             SynchronizeSessionActivities(snapshot, selected.CharacterId);
@@ -899,19 +907,6 @@ public sealed class CoopGuestScreen
         var frame = BuildFrame(client, selected, snapshot, world);
         RenderFrame(frame, _lastFrame);
         _lastFrame = frame;
-    }
-
-    private void SynchronizeRestNotice(SessionSnapshot snapshot, CharacterId characterId)
-    {
-        if (snapshot.RestNotice is not { } notice || notice.RestId == _lastRestNoticeId) return;
-        _lastRestNoticeId = notice.RestId;
-        var own = notice.Characters.FirstOrDefault(result => result.CharacterId == characterId);
-        if (own is null) return;
-        var statusText = own.RemovedNegativeStatuses.Count > 0
-            ? $" Megszűnt: {string.Join(", ", own.RemovedNegativeStatuses)}."
-            : " Negatív állapot nem szűnt meg.";
-        SetMessage($"{(notice.AtInn ? "Fogadói" : "Tábori")} pihenés: {own.CharacterName} " +
-                   $"+{own.HealedAmount} HP.{statusText}", ConsoleColor.Green);
     }
 
     private void SynchronizeInnTransactions(SessionSnapshot snapshot)
@@ -1019,6 +1014,7 @@ public sealed class CoopGuestScreen
         var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == selected.CharacterId);
         ApplyBattleSpellUi(grid, snapshot, own);
         ApplyInnUi(grid, snapshot);
+        ApplyRestSummaryUi(grid, snapshot, client.PlayerId);
         ApplyNarrativeUi(grid, snapshot, client.PlayerId);
         ApplySpellPreparationUi(grid, snapshot, own);
         ApplyLevelUpUi(grid, snapshot, own);
@@ -1243,6 +1239,16 @@ public sealed class CoopGuestScreen
             lines = lines.Take(maxContentRows - 1).Append(footer).ToList();
         }
         DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, width, FramedWindow.Storyline);
+    }
+
+    private static void ApplyRestSummaryUi(GuestMapCell[,] grid, SessionSnapshot snapshot, PlayerId? playerId)
+    {
+        if (snapshot.RestNotice is not { } rest) return;
+        var acknowledged = playerId is not null && rest.AcknowledgedPlayerIds.Contains(playerId.Value);
+        var lines = RestSummaryWindow.Build(rest,
+            acknowledged ? "❖  Várakozás a másik játékosra…  ❖" : "❖  Nyomj Entert a folytatáshoz...  ❖",
+            acknowledged ? ConsoleColor.DarkCyan : ConsoleColor.Green);
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, RestSummaryWindow.Width, FramedWindow.Inn);
     }
 
     private void ApplySpellPreparationUi(GuestMapCell[,] grid, SessionSnapshot snapshot,
