@@ -164,7 +164,7 @@ public sealed class CoopGuestScreen
                         if (ConfirmReturnToMainMenu(client, selected)) break;
                         continue;
                     }
-                    await HandleInputAsync(client, selected.CharacterId, key.Key, cancellationToken);
+                    await HandleInputAsync(client, selected, key.Key, cancellationToken);
                 }
                 await Task.Delay(20, cancellationToken);
             }
@@ -197,9 +197,10 @@ public sealed class CoopGuestScreen
         }
     }
 
-    private async Task HandleInputAsync(CoopSignalRClient client, CharacterId characterId, ConsoleKey key,
+    private async Task HandleInputAsync(CoopSignalRClient client, CoopCharacterOption selected, ConsoleKey key,
         CancellationToken cancellationToken)
     {
+        var characterId = selected.CharacterId;
         if (client.State != CoopClientConnectionState.Connected) return;
         GameCommand? command = null;
         var snapshot = client.CurrentSnapshot;
@@ -285,7 +286,7 @@ public sealed class CoopGuestScreen
         if (command is not null) { }
         else if (_doorTargetAction is not null)
         {
-            command = HandleDoorTargetInput(client, characterId, snapshot, key);
+            command = HandleDoorTargetInput(client, selected, snapshot, key);
             if (command is null) return;
         }
         else if (_targetedBattleSpell is not null)
@@ -383,8 +384,10 @@ public sealed class CoopGuestScreen
                     Interlocked.Exchange(ref _redrawRequested, 1);
                     return;
                 }
+                var target = doors.Length == 1 ? doors[0] : (Position?)null;
+                var useKey = GetGuestThiefKeyChoice(client, selected, snapshot, action, target);
                 command = new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-                    action, doors.Length == 1 ? doors[0] : null);
+                    action, target, useKey);
             }
             else
                 command = new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
@@ -405,9 +408,10 @@ public sealed class CoopGuestScreen
         }
     }
 
-    private GameCommand? HandleDoorTargetInput(CoopSignalRClient client, CharacterId characterId,
+    private GameCommand? HandleDoorTargetInput(CoopSignalRClient client, CoopCharacterOption selected,
         SessionSnapshot snapshot, ConsoleKey key)
     {
+        var characterId = selected.CharacterId;
         if (_doorTargetAction is not { } action || _doorTargetCandidates.Count == 0)
         { ClearDoorTargeting(); return null; }
         _doorTargetSelection = Math.Clamp(_doorTargetSelection, 0, _doorTargetCandidates.Count - 1);
@@ -416,8 +420,9 @@ public sealed class CoopGuestScreen
         {
             var target = _doorTargetCandidates[_doorTargetSelection];
             ClearDoorTargeting();
+            var useKey = GetGuestThiefKeyChoice(client, selected, snapshot, action, target);
             return new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-                action, target);
+                action, target, useKey);
         }
         if (key == ConsoleKey.Tab)
             _doorTargetSelection = (_doorTargetSelection + 1) % _doorTargetCandidates.Count;
@@ -1239,6 +1244,34 @@ public sealed class CoopGuestScreen
             lines = lines.Take(maxContentRows - 1).Append(footer).ToList();
         }
         DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, width, FramedWindow.Storyline);
+    }
+
+    private bool? GetGuestThiefKeyChoice(CoopSignalRClient client, CoopCharacterOption selected,
+        SessionSnapshot snapshot, CharacterAction action, Position? targetDoorPosition)
+    {
+        var character = snapshot.Party.FirstOrDefault(candidate => candidate.CharacterId == selected.CharacterId);
+        var door = targetDoorPosition is { } target
+            ? snapshot.World?.Doors.FirstOrDefault(candidate => candidate.Position == target)
+            : null;
+        var hasKey = character?.Inventory?.Slots.Any(slot => slot.Kind == InventorySlotKind.Backpack &&
+            string.Equals(slot.Item?.DefinitionId, MiscItemIds.Key, StringComparison.OrdinalIgnoreCase)) == true;
+        if (character is null || !CharacterClassRules.IsThief(character.CharacterClassId) || !hasKey || door is null ||
+            action switch
+            {
+                CharacterAction.OpenDoor => door.State != DoorState.Locked,
+                CharacterAction.CloseOrLockDoor => door.State != DoorState.Closed,
+                _ => true
+            }) return null;
+
+        SetMessage("🔑 Felhasználjuk a kulcsot? I/Y/Enter: igen | N/Esc: nem, jöjjön a tolvajpróba",
+            ConsoleColor.Yellow);
+        Draw(client, selected);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key is ConsoleKey.I or ConsoleKey.Y or ConsoleKey.Enter) return true;
+            if (key is ConsoleKey.N or ConsoleKey.Escape) return false;
+        }
     }
 
     private static void ApplyRestSummaryUi(GuestMapCell[,] grid, SessionSnapshot snapshot, PlayerId? playerId)

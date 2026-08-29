@@ -355,6 +355,8 @@ public sealed class GameSession
             if (characterAction.Action == CharacterAction.SearchCurrentPosition &&
                 characterAction.TargetDoorPosition is not null)
                 return Fail("A keresési akció nem kaphat ajtócélpontot.", out reason);
+            if (characterAction.Action == CharacterAction.SearchCurrentPosition && characterAction.UseKey is not null)
+                return Fail("A keresési akció nem kaphat kulcsválasztást.", out reason);
         }
         if (command is LeaderActionCommand leaderAction && !Enum.IsDefined(leaderAction.Action))
             return Fail("Ismeretlen leader-akció.", out reason);

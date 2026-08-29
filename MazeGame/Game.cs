@@ -1342,8 +1342,9 @@ public sealed class Game
                     if (targetDoor is null) return;
                 }
             }
+            var useKey = GetLocalThiefKeyChoice(characterAction, targetDoor);
             command = new CharacterActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
-                characterAction, targetDoor);
+                characterAction, targetDoor, useKey);
         }
         else
         {
@@ -1671,11 +1672,11 @@ public sealed class Game
         {
             case CharacterAction.OpenDoor:
                 _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
-                    character, allowPartyAssistanceAndPrompts: isLeader, command.TargetDoorPosition);
+                    character, allowPartyAssistanceAndPrompts: isLeader, command.TargetDoorPosition, command.UseKey);
                 break;
             case CharacterAction.CloseOrLockDoor:
                 _doorInteractions.TryCloseOrLockAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
-                    character, command.TargetDoorPosition);
+                    character, command.TargetDoorPosition, command.UseKey);
                 break;
             case CharacterAction.SearchCurrentPosition:
                 if (!TryDisarmAdjacentTrap(character, position.Value))
@@ -1689,6 +1690,30 @@ public sealed class Game
             .Select(direction => position + direction)
             .Where(candidate => _maze.GetDoorAt(candidate) is not null)
             .ToArray();
+
+    private bool? GetLocalThiefKeyChoice(CharacterAction action, Position? targetDoorPosition)
+    {
+        if (!CharacterClassRules.IsThief(SelectedCharacter.CharacterClass.Id) ||
+            !SelectedCharacter.Backpack.Any(item =>
+                string.Equals(item?.Id, MiscItemIds.Key, StringComparison.OrdinalIgnoreCase)) ||
+            targetDoorPosition is not { } target || _maze.GetDoorAt(target) is not { } door ||
+            action switch
+            {
+                CharacterAction.OpenDoor => door.State != DoorState.Locked,
+                CharacterAction.CloseOrLockDoor => door.State != DoorState.Closed,
+                _ => true
+            }) return null;
+
+        _renderer.DrawDoorMessage(
+            "🔑 Felhasználjuk a kulcsot? I/Y/Enter: igen | N/Esc: nem, jöjjön a tolvajpróba",
+            ConsoleColor.Yellow);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key is ConsoleKey.I or ConsoleKey.Y or ConsoleKey.Enter) return true;
+            if (key is ConsoleKey.N or ConsoleKey.Escape) return false;
+        }
+    }
 
     private Position? SelectDoorTarget(IReadOnlyList<Position> doors, CharacterAction action)
     {

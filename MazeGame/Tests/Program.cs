@@ -1670,9 +1670,9 @@ static void ProtocolCodecRoundTripsCommand()
     Assert(restored is BattleActionCommand decoded && decoded == command,
         "A JSON wire codec megváltoztatta a battle commandot.");
     var characterAction = new CharacterActionCommand(PlayerId.New(), 8, CharacterId.New(),
-        CharacterAction.CloseOrLockDoor, new Position(7, 9));
+        CharacterAction.CloseOrLockDoor, new Position(7, 9), UseKey: false);
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(characterAction)) is CharacterActionCommand decodedAction &&
-           decodedAction == characterAction,
+           decodedAction == characterAction && decodedAction.UseKey == false,
         "A JSON wire codec megváltoztatta a karakterhez kötött akciót.");
     var attackOrder = new LeaderActionCommand(PlayerId.New(), 9, CharacterId.New(),
         LeaderAction.ToggleAttackMode);
