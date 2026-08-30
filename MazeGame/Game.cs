@@ -145,6 +145,7 @@ public sealed class Game
     private bool _levelUpPromptCompleted;
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
+    private readonly BackgroundMusicPlayer _backgroundMusic;
     private readonly GameSession _session;
     private long _localCommandId;
     private BattleState? _activeBattleState;
@@ -257,6 +258,7 @@ public sealed class Game
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
         _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
+        _backgroundMusic = new BackgroundMusicPlayer(message => _renderer.DrawDeveloperMessage(message));
         _doorInteractions = new DoorInteractionController(gameData, _renderer,
             (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random);
         _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer,
@@ -661,6 +663,7 @@ public sealed class Game
         }
         finally
         {
+            _backgroundMusic.Dispose();
             if (_activeCoopHost is not null)
             {
                 PublishRemoteCharacterStates(CharacterSyncReason.SessionEnded);
@@ -773,6 +776,8 @@ public sealed class Game
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         CheckBossDiscovery(_maze.Enemies.Where(enemy => _fogOfWar.IsRevealed(enemy.Position)));
         PlaySessionSound(SoundEffect.LevelStart);
+        if (_mazeLevel == 1)
+            _backgroundMusic.Play(Path.Combine(AppContext.BaseDirectory, "Zene", "zene1.mp3"));
         if (showLevelImage) ShowLevelImage();
         LogMazeAccessibilityCheck();
     }
