@@ -21,6 +21,9 @@ internal static class GameInput
     public static bool IsHelpShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.F1 && (keyInfo.Modifiers & ConsoleModifiers.Shift) != 0;
 
+    public static bool IsSettingsShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.F2 && (keyInfo.Modifiers & ConsoleModifiers.Shift) != 0;
+
     public static bool TryGetQuickSpellIndex(ConsoleKeyInfo keyInfo, out int slotIndex)
     {
         slotIndex = keyInfo.Key switch

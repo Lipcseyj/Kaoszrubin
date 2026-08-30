@@ -16,6 +16,7 @@ public sealed class CoopGuestScreen
     private readonly GameDataCatalog _gameData;
     private readonly SoundEffects _soundEffects;
     private readonly BackgroundMusicPlayer _backgroundMusic;
+    private readonly MusicSettingsService _musicSettings;
     private int _redrawRequested = 1;
     private const int MessageLineCount = ConsoleRenderer.MessageLogLineCount;
     private const int MessageBufferLineCount = ConsoleRenderer.MessageLogBufferLineCount;
@@ -55,13 +56,16 @@ public sealed class CoopGuestScreen
     private int _doorTargetSelection;
     private GuestRenderFrame? _lastFrame;
 
-    public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData)
+    public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData,
+        MusicSettingsService? musicSettings = null)
     {
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
         _gameData = gameData ?? throw new ArgumentNullException(nameof(gameData));
         _soundEffects = new SoundEffects(message => SetMessage(message, ConsoleColor.DarkYellow));
-        _backgroundMusic = new BackgroundMusicPlayer(message => SetMessage(message, ConsoleColor.DarkYellow));
+        _musicSettings = musicSettings ?? new MusicSettingsService();
+        _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
+            message => SetMessage(message, ConsoleColor.DarkYellow));
     }
 
     public async Task RunAsync(string hostUrl, string displayName, LiveCharacter localCharacter,
@@ -133,6 +137,13 @@ public sealed class CoopGuestScreen
                     if (key.Key is ConsoleKey.PageUp or ConsoleKey.PageDown)
                     {
                         ScrollMessageLog(key.Key == ConsoleKey.PageUp);
+                        continue;
+                    }
+                    if (GameInput.IsSettingsShortcut(key))
+                    {
+                        SettingsScreen.Show(_musicSettings, _backgroundMusic.ApplySettings);
+                        _lastFrame = null;
+                        Interlocked.Exchange(ref _redrawRequested, 1);
                         continue;
                     }
                     if (GameInput.IsHelpShortcut(key))

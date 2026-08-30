@@ -146,6 +146,7 @@ public sealed class Game
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
     private readonly BackgroundMusicPlayer _backgroundMusic;
+    private readonly MusicSettingsService _musicSettings;
     private readonly GameSession _session;
     private long _localCommandId;
     private BattleState? _activeBattleState;
@@ -246,7 +247,8 @@ public sealed class Game
     }
 
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
-        GameSaveService gameSaveService, GameSaveData? loadedState = null, GameSession? session = null)
+        GameSaveService gameSaveService, GameSaveData? loadedState = null, GameSession? session = null,
+        MusicSettingsService? musicSettings = null)
     {
         CharacterRoster = characterRoster;
         SelectedCharacter = selectedCharacter;
@@ -258,7 +260,9 @@ public sealed class Game
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
         _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
-        _backgroundMusic = new BackgroundMusicPlayer(message => _renderer.DrawDeveloperMessage(message));
+        _musicSettings = musicSettings ?? new MusicSettingsService();
+        _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
+            message => _renderer.DrawDeveloperMessage(message));
         _doorInteractions = new DoorInteractionController(gameData, _renderer,
             (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random);
         _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer,
@@ -506,6 +510,13 @@ public sealed class Game
                     if (keyInfo.Key is ConsoleKey.PageUp or ConsoleKey.PageDown)
                     {
                         _renderer.ScrollMessageLog(keyInfo.Key == ConsoleKey.PageUp);
+                        continue;
+                    }
+                    if (GameInput.IsSettingsShortcut(keyInfo))
+                    {
+                        SettingsScreen.Show(_musicSettings, _backgroundMusic.ApplySettings);
+                        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+                        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
                     if (_activeBattleState is not null)

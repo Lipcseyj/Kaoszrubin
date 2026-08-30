@@ -17,6 +17,7 @@ public sealed class MainMenu
     private readonly string _catalogHash;
     private readonly Random _random = new();
     private readonly SoundEffects _soundEffects;
+    private readonly MusicSettingsService _musicSettings = new();
 
     private const int SideMenuWidth = 52;
     private const int SideMenuLeft = 142;
@@ -130,6 +131,10 @@ public sealed class MainMenu
                 case ConsoleKey.NumPad7:
                     JoinGame();
                     break;
+                case ConsoleKey.D8:
+                case ConsoleKey.NumPad8:
+                    SettingsScreen.Show(_musicSettings);
+                    break;
                 case ConsoleKey.Escape:
                     Console.Clear();
                     return;
@@ -202,7 +207,8 @@ public sealed class MainMenu
             return;
         }
 
-        new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService).Run();
+        new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService,
+            musicSettings: _musicSettings).Run();
     }
 
     private void StartHostedGame()
@@ -212,7 +218,8 @@ public sealed class MainMenu
         {
             // A coop lobby a leaderből indul; a távoli játékos a saját karakterével tölti fel a következő helyet.
             _characterRoster.Party.SetLeader(selectedCharacter);
-            var game = new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService);
+            var game = new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService,
+                musicSettings: _musicSettings);
             var host = CoopHostRuntime.StartAsync(game.Session, _applicationVersion, _catalogHash,
                     _characterSaveService.DeserializeCharacter, character => _characterRoster.Add(character))
                 .GetAwaiter().GetResult();
@@ -267,7 +274,7 @@ public sealed class MainMenu
         if (string.IsNullOrWhiteSpace(hostUrl)) hostUrl = "http://localhost:5127";
         try
         {
-            new CoopGuestScreen(_applicationVersion, _catalogHash, _gameData)
+            new CoopGuestScreen(_applicationVersion, _catalogHash, _gameData, _musicSettings)
                 .RunAsync(hostUrl, character.Name, character, _characterSaveService.SerializeCharacter(character),
                     PersistGuestCharacterState)
                 .GetAwaiter().GetResult();
@@ -305,7 +312,8 @@ public sealed class MainMenu
         if (reservedGuid == Guid.Empty || reservedCharacter is null || reservedCharacter == leader)
             throw new InvalidOperationException("A coop mentés nem tartalmaz érvényes vendégkarakter-slotot.");
 
-        var game = new Game(_gameData, _characterRoster, leader, _gameSaveService, loaded.State);
+        var game = new Game(_gameData, _characterRoster, leader, _gameSaveService, loaded.State,
+            musicSettings: _musicSettings);
         var host = CoopHostRuntime.StartAsync(game.Session, _applicationVersion, _catalogHash,
                 _characterSaveService.DeserializeCharacter, character => _characterRoster.Add(character),
                 reservedRemoteCharacterId: reservedId)
@@ -566,7 +574,7 @@ public sealed class MainMenu
                         {
                             _characterRoster = loaded.Roster;
                             new Game(_gameData, _characterRoster, _characterRoster.SelectedCharacter!,
-                                _gameSaveService, loaded.State).Run();
+                                _gameSaveService, loaded.State, musicSettings: _musicSettings).Run();
                         }
                         return;
                     }
@@ -695,6 +703,7 @@ public sealed class MainMenu
             Hotkey("V", "Memorizált varázslatok megnyitása Mágussal, Pappal vagy Lovaggal."),
             Hotkey("F1–F8", "Gyorsvarázslatok elsütése."),
             Hotkey("SHIFT+F1", "A súgó megnyitása."),
+            Hotkey("SHIFT+F2", "A zene beállításainak megnyitása."),
             Hotkey("PGUP / PGDN", "A 21 soros eseménynapló lapozása 7 soronként."),
             Hotkey("F9", "A teljes játékállás mentése a mentések mappába."),
             Hotkey("K", "Felfedezett szomszédos csapda hatástalanítása; egyébként az aktuális mező átkutatása."),
@@ -948,6 +957,7 @@ public sealed class MainMenu
             $"5) Játék betöltése ({_gameSaveService.List().Count})",
             "6) Coop játék hostolása",
             "7) Csatlakozás coop játékhoz",
+            "8) Beállítások",
             string.Empty,
             "Esc) Kilépés"
         };
@@ -1031,6 +1041,7 @@ public sealed class MainMenu
         if (line.StartsWith("2)", StringComparison.Ordinal)) return ConsoleColor.Green;
         if (line.StartsWith("3)", StringComparison.Ordinal)) return ConsoleColor.Cyan;
         if (line.StartsWith("4)", StringComparison.Ordinal)) return ConsoleColor.Blue;
+        if (line.StartsWith("8)", StringComparison.Ordinal)) return ConsoleColor.Cyan;
         if (line.Contains("COOP", StringComparison.OrdinalIgnoreCase) ||
             line.Contains("host", StringComparison.OrdinalIgnoreCase) ||
             line.Contains("Csatlakozás", StringComparison.OrdinalIgnoreCase)) return ConsoleColor.DarkYellow;
