@@ -2269,7 +2269,15 @@ public sealed class ConsoleRenderer
                 ? ConsoleColor.Yellow : ConsoleColor.DarkGray, ConsoleColor.Black);
         if (maze.GetWorldNpcAt(position) is { } npc)
             return new MapCellVisual(npc.Symbol, ConsoleColor.White, npc.Character.Color);
-        return new MapCellVisual(maze.GetObjectAt(position)?.Symbol ?? maze.Tiles[position.X, position.Y],
+        var mapObject = maze.GetObjectAt(position);
+        if (mapObject is Enemy && !fogOfWar.IsCurrentlyVisible(position))
+            return fogOfWar.HasEnemyMemoryAt(position)
+                ? new MapCellVisual(new Rune('?'), ConsoleColor.DarkGray, ConsoleColor.Black)
+                : new MapCellVisual(maze.Tiles[position.X, position.Y], GetTerrainForegroundColor(maze, position),
+                    ConsoleColor.Black);
+        if (mapObject is null && fogOfWar.HasEnemyMemoryAt(position))
+            return new MapCellVisual(new Rune('?'), ConsoleColor.DarkGray, ConsoleColor.Black);
+        return new MapCellVisual(mapObject?.Symbol ?? maze.Tiles[position.X, position.Y],
             GetForegroundColor(maze, position), ConsoleColor.Black);
     }
 
@@ -2358,6 +2366,14 @@ public sealed class ConsoleRenderer
             _ => ConsoleColor.Black
         };
     }
+
+    private static ConsoleColor GetTerrainForegroundColor(Maze maze, Position position) =>
+        maze.Tiles[position.X, position.Y] switch
+        {
+            var tile when tile == maze.WallRune => maze.WallColor,
+            var tile when tile == Maze.ExitMarker => ConsoleColor.Green,
+            _ => ConsoleColor.Black
+        };
 
     /// <summary>
     /// Egy Rune kiírása: beállítja a kívánt előtér- és háttérszínt és kiírja a Rune stringjét.

@@ -164,6 +164,7 @@ public static class WorldDeltaReducer
         var corpses = baseline.Corpses.ToDictionary(entity => entity.EntityId);
         var piles = baseline.GroundPiles.ToDictionary(entity => entity.EntityId);
         var npcs = (baseline.Npcs ?? []).ToDictionary(entity => entity.EntityId);
+        var memories = (baseline.LastKnownEnemies ?? []).ToDictionary(memory => memory.EntityId);
         foreach (var id in delta.RemovedEntityIds) RemoveEntity(id, enemies, chests, corpses, piles, npcs);
         foreach (var enemy in delta.EnemyUpserts)
         {
@@ -190,6 +191,8 @@ public static class WorldDeltaReducer
             RemoveEntity(npc.EntityId, enemies, chests, corpses, piles, npcs);
             npcs[npc.EntityId] = npc;
         }
+        foreach (var id in delta.RemovedLastKnownEnemyIds ?? []) memories.Remove(id);
+        foreach (var memory in delta.LastKnownEnemyUpserts ?? []) memories[memory.EntityId] = memory;
 
         return baseline with
         {
@@ -206,7 +209,9 @@ public static class WorldDeltaReducer
             GroundPiles = piles.Values.OrderBy(entity => entity.Position.Y).ThenBy(entity => entity.Position.X)
                 .ThenBy(entity => entity.EntityId.Value).ToArray(),
             Npcs = npcs.Values.OrderBy(entity => entity.Position.Y).ThenBy(entity => entity.Position.X)
-                .ThenBy(entity => entity.EntityId.Value).ToArray()
+                .ThenBy(entity => entity.EntityId.Value).ToArray(),
+            LastKnownEnemies = memories.Values.OrderBy(memory => memory.Position.Y)
+                .ThenBy(memory => memory.Position.X).ToArray()
         };
     }
 

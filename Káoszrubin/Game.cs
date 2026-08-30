@@ -1300,6 +1300,7 @@ public sealed class Game
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _battleStarted = false;
         _gameOver = false;
+        RevealFor(SelectedCharacter, _player.Position);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.DrawDeveloperMessage($"Mentés betöltve: {state.MainCharacterName}, {_mazeLevel}. pálya.");
         _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, _fogOfWar.IsRevealed(_maze.Exit));
@@ -1458,7 +1459,7 @@ public sealed class Game
         if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
 
-        var newlyRevealed = RevealFor(SelectedCharacter, _player.Position);
+        var newlyRevealed = RevealFor(SelectedCharacter, _player.Position, advanceEnemyMemory: true);
         var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit;
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
         CheckBossDiscoveryAt(newlyRevealed);
@@ -1483,7 +1484,7 @@ public sealed class Game
         if (!CanEnterTrap(member.Character, destination)) return;
         if (!_maze.TryMovePartyMember(member, destination, _player.Position, allowTreasureChest: true)) return;
         member.Character.RegisterExplorationStep();
-        var newlyRevealed = RevealFor(member.Character, member.Position);
+        var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
         PlayCharacterStepSound(member.Character);
         CheckBossDiscoveryAt(newlyRevealed);
@@ -3138,6 +3139,7 @@ public sealed class Game
             return true;
         }
         if (!_maze.TryMoveEnemy(enemy, destination)) return false;
+        RevealFor(SelectedCharacter, _player.Position);
         _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
         if (enemy.Position == _player.Position) StartBattle(enemy);
         return true;
@@ -3210,7 +3212,7 @@ public sealed class Game
             if (next is null || !CanEnterTrap(member.Character, next.Value) ||
                 !_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
             member.Character.RegisterExplorationStep();
-            var newlyRevealed = RevealFor(member.Character, member.Position);
+            var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
             _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
             CheckBossDiscoveryAt(newlyRevealed);
             TriggerTrapAt(member.Character, member.Position);
@@ -3294,7 +3296,7 @@ public sealed class Game
         if (!CanEnterTrap(member.Character, next.Value) ||
             !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
         member.Character.RegisterExplorationStep();
-        var newlyRevealed = RevealFor(member.Character, member.Position);
+        var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed,
             _player.Position);
         CheckBossDiscoveryAt(newlyRevealed);
@@ -3316,7 +3318,7 @@ public sealed class Game
         if (!CanEnterTrap(member.Character, next.Value) ||
             !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
         member.Character.RegisterExplorationStep();
-        var newlyRevealed = RevealFor(member.Character, member.Position);
+        var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
         TriggerTrapAt(member.Character, member.Position);
     }
@@ -4839,11 +4841,13 @@ public sealed class Game
     private static int Chebyshev(Position first, Position second) =>
         Math.Max(Math.Abs(first.X - second.X), Math.Abs(first.Y - second.Y));
 
-    private IReadOnlyList<Position> RevealFor(LiveCharacter character, Position position)
+    private IReadOnlyList<Position> RevealFor(LiveCharacter character, Position position,
+        bool advanceEnemyMemory = false)
     {
         var exitWasRevealed = _fogOfWar.IsRevealed(_maze.Exit);
-        var revealed = _fogOfWar.RevealFrom(_maze, position,
-            CharacterClassRules.VisionRange(character, CurrentLevelVisionModifier));
+        var sources = LivingPartyWithPositions().Select(entry => (entry.Position,
+            CharacterClassRules.VisionRange(entry.Character, CurrentLevelVisionModifier))).ToArray();
+        var revealed = _fogOfWar.UpdatePartyVisibility(_maze, sources, advanceEnemyMemory);
         if (_fogOfWar.IsRevealed(_maze.Exit))
         {
             _backgroundMusic.MarkExitDiscovered();

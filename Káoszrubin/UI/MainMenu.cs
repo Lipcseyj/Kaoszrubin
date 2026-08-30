@@ -93,7 +93,8 @@ public sealed class MainMenu
     {
         while (true)
         {
-            _soundEffects.Play(SoundEffect.MainMenu);
+            if (_musicSettings.Settings.Enabled)
+                _soundEffects.Play(SoundEffect.MainMenu);
             DrawMainMenu();
 
             switch (Console.ReadKey(intercept: true).Key)

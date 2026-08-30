@@ -77,6 +77,7 @@ var tests = new (string Name, Action Run)[]
     ("A fogadónevek és hangulatpletykák CSV-ből töltődnek", InnNamesAndRumorsLoadFromCsv),
     ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
+    ("A közös látótér elrejti és rövid ideig megjegyzi az eltűnt szörnyet", PartyVisionTracksLastKnownEnemy),
     ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
     ("A csapdakészlet és darabszám a labirintusszinttel nehezedik", TrapConfigurationScalesByMazeLevel),
     ("A karakter kasztja, faja és átmeneti hatásai módosítják a látótávot", CharacterVisionRangeUsesClassRaceAndEffects),
@@ -1425,6 +1426,31 @@ static void InventorySnapshotHasSlotsAndRevision()
     Assert(second.Revision == first.Revision + 1 &&
            second.Slots.Single(slot => slot.Kind == InventorySlotKind.Backpack && slot.Index == 0).Item is null,
         "Az inventory mutáció nem növelte pontosan egyszer a revíziót.");
+}
+
+static void PartyVisionTracksLastKnownEnemy()
+{
+    var maze = new Maze(15, 9);
+    for (var x = 2; x <= 8; x++) maze.Carve(new Position(x, 2));
+    maze.Carve(new Position(2, 6));
+    var enemy = CreateEnemyAt(new Position(7, 2), "E-MEMORY");
+    maze.AddEnemy(enemy);
+    var fog = new FogOfWar(maze.Width, maze.Height, 5);
+    fog.UpdatePartyVisibility(maze, [(maze.Entrance, 3)], advanceEnemyMemory: false);
+    Assert(WorldSnapshotProjector.Create(maze, fog).Enemies.Single().EntityId == enemy.Id,
+        "A partitag által látott szörny nem jelent meg a közös world snapshotban.");
+
+    fog.UpdatePartyVisibility(maze, [(new Position(2, 6), 1)], advanceEnemyMemory: true);
+    var hidden = WorldSnapshotProjector.Create(maze, fog);
+    Assert(hidden.Enemies.Count == 0 && hidden.LastKnownEnemies is
+               [{ EntityId: var rememberedId, Position: var rememberedPosition, RemainingPartyMoves: 3 }] &&
+           rememberedId == enemy.Id && rememberedPosition == enemy.Position,
+        "A látótérből kikerült szörny nem tűnt el, vagy nem maradt meg az utolsó ismert helye.");
+
+    for (var step = 0; step < 3; step++)
+        fog.UpdatePartyVisibility(maze, [(new Position(2, 6), 1)], advanceEnemyMemory: true);
+    Assert(fog.EnemyMemories.Count == 0,
+        "Az utolsó ismert szörnyhely három partimozgás után sem tűnt el.");
 }
 
 static void VictorySummaryIsCompact()

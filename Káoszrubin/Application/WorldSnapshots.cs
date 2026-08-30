@@ -8,7 +8,8 @@ public sealed record WorldSnapshot(WorldId WorldId, int Width, int Height, Posit
     IReadOnlyList<WorldCellSnapshot> RevealedCells, IReadOnlyList<WorldDoorSnapshot> Doors,
     IReadOnlyList<WorldEnemySnapshot> Enemies, IReadOnlyList<WorldChestSnapshot> Chests,
     IReadOnlyList<WorldCorpseSnapshot> Corpses, IReadOnlyList<WorldGroundPileSnapshot> GroundPiles,
-    IReadOnlyList<WorldNpcSnapshot>? Npcs = null);
+    IReadOnlyList<WorldNpcSnapshot>? Npcs = null,
+    IReadOnlyList<WorldLastKnownEnemySnapshot>? LastKnownEnemies = null);
 
 public sealed record WorldCellSnapshot(Position Position, int TileCodePoint,
     ConsoleColor ForegroundColor = ConsoleColor.Black, ConsoleColor BackgroundColor = ConsoleColor.Black);
@@ -20,6 +21,9 @@ public sealed record WorldEnemySnapshot(WorldEntityId EntityId, string Definitio
     Position Position, int CurrentHitPoints, int MaximumHitPoints, string? GroupId,
     EnemyGroupRole GroupRole, IReadOnlyList<string> ActiveEffectTypes, ConsoleColor Color = ConsoleColor.Red,
     int SymbolCodePoint = 'e');
+
+public sealed record WorldLastKnownEnemySnapshot(WorldEntityId EntityId, Position Position,
+    int RemainingPartyMoves);
 
 public sealed record WorldChestSnapshot(WorldEntityId EntityId, Position Position, int SymbolCodePoint = '▣',
     ConsoleColor ForegroundColor = ConsoleColor.Yellow, ConsoleColor BackgroundColor = ConsoleColor.Black);
@@ -67,6 +71,8 @@ public static class WorldSnapshotProjector
             cells.Add(new WorldCellSnapshot(position, tile.Value, color));
         }
         bool IsVisible(Position position) => visible.Contains(position);
+        bool IsCurrentlyVisible(Position position) => fogOfWar.IsCurrentlyVisible(position,
+            includeDeveloperReveal: false);
 
         var doors = maze.Doors.Where(door => IsVisible(door.Position))
             .Select(door => new WorldDoorSnapshot(door.Position, door.State, door.Symbol.Value,
@@ -78,7 +84,7 @@ public static class WorldSnapshotProjector
                     DoorState.Smashed => ConsoleColor.DarkGray,
                     _ => ConsoleColor.Gray
                 })).ToArray();
-        var enemies = maze.Enemies.Where(enemy => IsVisible(enemy.Position)).Select(enemy =>
+        var enemies = maze.Enemies.Where(enemy => IsCurrentlyVisible(enemy.Position)).Select(enemy =>
         {
             var hitPoints = activeBattle is { IsCompleted: false } battle && battle.Enemy == enemy
                 ? battle.CurrentEnemyHitPoints
@@ -119,6 +125,8 @@ public static class WorldSnapshotProjector
         return new WorldSnapshot(maze.Id, maze.Width, maze.Height,
             IsVisible(maze.Entrance) ? maze.Entrance : null,
             IsVisible(maze.Exit) ? maze.Exit : null,
-            cells, doors, enemies, chests, corpses, groundPiles, npcs);
+            cells, doors, enemies, chests, corpses, groundPiles, npcs,
+            fogOfWar.EnemyMemories.Select(memory => new WorldLastKnownEnemySnapshot(memory.Key,
+                memory.Value.Position, memory.Value.RemainingPartyMoves)).ToArray());
     }
 }

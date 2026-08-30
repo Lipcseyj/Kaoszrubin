@@ -7,12 +7,15 @@ public sealed record WorldDelta(long FromSnapshotSequence, long ToSnapshotSequen
     IReadOnlyList<WorldDoorSnapshot> DoorUpserts, IReadOnlyList<Position> RemovedDoorPositions,
     IReadOnlyList<WorldEnemySnapshot> EnemyUpserts, IReadOnlyList<WorldChestSnapshot> ChestUpserts,
     IReadOnlyList<WorldCorpseSnapshot> CorpseUpserts, IReadOnlyList<WorldGroundPileSnapshot> GroundPileUpserts,
-    IReadOnlyList<WorldEntityId> RemovedEntityIds, IReadOnlyList<WorldNpcSnapshot>? NpcUpserts = null)
+    IReadOnlyList<WorldEntityId> RemovedEntityIds, IReadOnlyList<WorldNpcSnapshot>? NpcUpserts = null,
+    IReadOnlyList<WorldLastKnownEnemySnapshot>? LastKnownEnemyUpserts = null,
+    IReadOnlyList<WorldEntityId>? RemovedLastKnownEnemyIds = null)
 {
     public bool IsEmpty => RevealedEntrance is null && RevealedExit is null &&
         RevealedOrChangedCells.Count == 0 && DoorUpserts.Count == 0 && RemovedDoorPositions.Count == 0 &&
         EnemyUpserts.Count == 0 && ChestUpserts.Count == 0 && CorpseUpserts.Count == 0 &&
-        GroundPileUpserts.Count == 0 && RemovedEntityIds.Count == 0 && (NpcUpserts?.Count ?? 0) == 0;
+        GroundPileUpserts.Count == 0 && RemovedEntityIds.Count == 0 && (NpcUpserts?.Count ?? 0) == 0 &&
+        (LastKnownEnemyUpserts?.Count ?? 0) == 0 && (RemovedLastKnownEnemyIds?.Count ?? 0) == 0;
 }
 
 public static class WorldDeltaProjector
@@ -53,6 +56,11 @@ public static class WorldDeltaProjector
         var pileChanges = Upserts(previous.GroundPiles, current.GroundPiles, pile => pile.EntityId,
             GroundPileEquals).ToArray();
         var npcChanges = Upserts(previous.Npcs ?? [], current.Npcs ?? [], npc => npc.EntityId).ToArray();
+        var memoryChanges = Upserts(previous.LastKnownEnemies ?? [], current.LastKnownEnemies ?? [],
+            memory => memory.EntityId).ToArray();
+        var currentMemoryIds = (current.LastKnownEnemies ?? []).Select(memory => memory.EntityId).ToHashSet();
+        var removedMemoryIds = (previous.LastKnownEnemies ?? []).Select(memory => memory.EntityId)
+            .Where(id => !currentMemoryIds.Contains(id)).ToArray();
         var previousEntities = EntityIds(previous).ToHashSet();
         var currentEntities = EntityIds(current).ToHashSet();
 
@@ -60,7 +68,8 @@ public static class WorldDeltaProjector
             previous.Entrance is null ? current.Entrance : null,
             previous.Exit is null ? current.Exit : null,
             changedCells, doorChanges, removedDoors, enemyChanges, chestChanges, corpseChanges, pileChanges,
-            previousEntities.Where(id => !currentEntities.Contains(id)).ToArray(), npcChanges);
+            previousEntities.Where(id => !currentEntities.Contains(id)).ToArray(), npcChanges,
+            memoryChanges, removedMemoryIds);
     }
 
     private static IEnumerable<T> Upserts<T, TKey>(IEnumerable<T> previous, IEnumerable<T> current,

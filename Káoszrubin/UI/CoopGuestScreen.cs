@@ -1098,6 +1098,8 @@ public sealed class CoopGuestScreen
         foreach (var door in world.Doors)
             Put(grid, door.Position, char.ConvertFromUtf32(door.SymbolCodePoint), door.ForegroundColor,
                 door.BackgroundColor);
+        foreach (var memory in world.LastKnownEnemies ?? [])
+            Put(grid, memory.Position, "?", ConsoleColor.DarkGray);
         foreach (var enemy in world.Enemies)
             Put(grid, enemy.Position, char.ConvertFromUtf32(enemy.SymbolCodePoint), enemy.Color);
         foreach (var chest in world.Chests)
