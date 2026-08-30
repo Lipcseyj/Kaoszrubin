@@ -23,6 +23,22 @@ public static class CharacterClassRules
         environmentModifier,
         1, MaximumModifiedVisionRange);
 
+    public static int HearingRange(LiveCharacter character)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+        var range = 4;
+        if (IsThief(character.CharacterClass.Id)) range += 2;
+        if (character.Race.HasTrait(RaceTraits.KeenSenses)) range += 2;
+        return range;
+    }
+
+    public static int DetectionBonus(LiveCharacter character)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+        return (IsThief(character.CharacterClass.Id) ? 1 : 0) +
+               (character.Race.HasTrait(RaceTraits.KeenSenses) ? 1 : 0);
+    }
+
     public static bool IsMartial(string characterClassId) => characterClassId is
         CharacterClassIds.Harcos or CharacterClassIds.Barbár or CharacterClassIds.Lovag;
     private static readonly HashSet<string> NonManaClassIds = new(StringComparer.OrdinalIgnoreCase)

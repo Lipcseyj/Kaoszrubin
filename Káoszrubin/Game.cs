@@ -4854,8 +4854,10 @@ public sealed class Game
         bool advanceEnemyMemory = false)
     {
         var exitWasRevealed = _fogOfWar.IsRevealed(_maze.Exit);
-        var sources = LivingPartyWithPositions().Select(entry => (entry.Position,
-            CharacterClassRules.VisionRange(entry.Character, CurrentLevelVisionModifier))).ToArray();
+        var sources = LivingPartyWithPositions().Select(entry => new PartyPerceptionSource(entry.Position,
+            CharacterClassRules.VisionRange(entry.Character, CurrentLevelVisionModifier),
+            CharacterClassRules.HearingRange(entry.Character),
+            CharacterClassRules.DetectionBonus(entry.Character))).ToArray();
         var revealed = _fogOfWar.UpdatePartyVisibility(_maze, sources, advanceEnemyMemory);
         if (_fogOfWar.IsRevealed(_maze.Exit))
         {
@@ -4876,7 +4878,8 @@ public sealed class Game
 
     private void CheckBossDiscovery(IEnumerable<Enemy> enemies)
     {
-        var visibleEnemies = enemies.DistinctBy(enemy => enemy.Id).ToList();
+        var visibleEnemies = enemies.Where(enemy => _fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position))
+            .DistinctBy(enemy => enemy.Id).ToList();
         var newlySpotted = visibleEnemies.Where(enemy => _spottedEnemyIds.Add(enemy.Id)).ToList();
         if (newlySpotted.Count > 0)
             PlaySessionSound(SoundEffect.MonsterSpotted);

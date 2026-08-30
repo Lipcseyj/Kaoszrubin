@@ -23,7 +23,7 @@ public sealed record WorldEnemySnapshot(WorldEntityId EntityId, string Definitio
     int SymbolCodePoint = 'e');
 
 public sealed record WorldLastKnownEnemySnapshot(WorldEntityId EntityId, Position Position,
-    int RemainingPartyMoves);
+    int RemainingPartyMoves, bool IsSoundCue = false);
 
 public sealed record WorldChestSnapshot(WorldEntityId EntityId, Position Position, int SymbolCodePoint = '▣',
     ConsoleColor ForegroundColor = ConsoleColor.Yellow, ConsoleColor BackgroundColor = ConsoleColor.Black);
@@ -71,9 +71,6 @@ public static class WorldSnapshotProjector
             cells.Add(new WorldCellSnapshot(position, tile.Value, color));
         }
         bool IsVisible(Position position) => visible.Contains(position);
-        bool IsCurrentlyVisible(Position position) => fogOfWar.IsCurrentlyVisible(position,
-            includeDeveloperReveal: false);
-
         var doors = maze.Doors.Where(door => IsVisible(door.Position))
             .Select(door => new WorldDoorSnapshot(door.Position, door.State, door.Symbol.Value,
                 door.State switch
@@ -84,7 +81,7 @@ public static class WorldSnapshotProjector
                     DoorState.Smashed => ConsoleColor.DarkGray,
                     _ => ConsoleColor.Gray
                 })).ToArray();
-        var enemies = maze.Enemies.Where(enemy => IsCurrentlyVisible(enemy.Position)).Select(enemy =>
+        var enemies = maze.Enemies.Where(enemy => fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position)).Select(enemy =>
         {
             var hitPoints = activeBattle is { IsCompleted: false } battle && battle.Enemy == enemy
                 ? battle.CurrentEnemyHitPoints
@@ -127,6 +124,6 @@ public static class WorldSnapshotProjector
             IsVisible(maze.Exit) ? maze.Exit : null,
             cells, doors, enemies, chests, corpses, groundPiles, npcs,
             fogOfWar.EnemyMemories.Select(memory => new WorldLastKnownEnemySnapshot(memory.Key,
-                memory.Value.Position, memory.Value.RemainingPartyMoves)).ToArray());
+                memory.Value.Position, memory.Value.RemainingPartyMoves, memory.Value.IsSoundCue)).ToArray());
     }
 }

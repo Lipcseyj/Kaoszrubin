@@ -2285,20 +2285,24 @@ public sealed class ConsoleRenderer
                 character.Color, ConsoleColor.Black);
         }
         if (!fogOfWar.IsVisible(position))
-            return new MapCellVisual(FogSymbol, ConsoleColor.Black, ConsoleColor.Black);
+            return fogOfWar.EnemyMemoryAt(position) is { IsSoundCue: true }
+                ? new MapCellVisual(new Rune('?'), ConsoleColor.DarkYellow, ConsoleColor.Black)
+                : new MapCellVisual(FogSymbol, ConsoleColor.Black, ConsoleColor.Black);
         if (maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap)
             return new MapCellVisual(trap.Symbol, trap.State == TrapState.Detected
                 ? ConsoleColor.Yellow : ConsoleColor.DarkGray, ConsoleColor.Black);
         if (maze.GetWorldNpcAt(position) is { } npc)
             return new MapCellVisual(npc.Symbol, ConsoleColor.White, npc.Character.Color);
         var mapObject = maze.GetObjectAt(position);
-        if (mapObject is Enemy && !fogOfWar.IsCurrentlyVisible(position))
-            return fogOfWar.HasEnemyMemoryAt(position)
-                ? new MapCellVisual(new Rune('?'), ConsoleColor.DarkGray, ConsoleColor.Black)
+        if (mapObject is Enemy enemy && !fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position))
+            return fogOfWar.EnemyMemoryAt(position) is { } hiddenMemory
+                ? new MapCellVisual(new Rune('?'), hiddenMemory.IsSoundCue ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray,
+                    ConsoleColor.Black)
                 : new MapCellVisual(maze.Tiles[position.X, position.Y], GetTerrainForegroundColor(maze, position),
                     ConsoleColor.Black);
-        if (mapObject is null && fogOfWar.HasEnemyMemoryAt(position))
-            return new MapCellVisual(new Rune('?'), ConsoleColor.DarkGray, ConsoleColor.Black);
+        if (mapObject is null && fogOfWar.EnemyMemoryAt(position) is { } memory)
+            return new MapCellVisual(new Rune('?'), memory.IsSoundCue ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray,
+                ConsoleColor.Black);
         return new MapCellVisual(mapObject?.Symbol ?? maze.Tiles[position.X, position.Y],
             GetForegroundColor(maze, position), ConsoleColor.Black);
     }

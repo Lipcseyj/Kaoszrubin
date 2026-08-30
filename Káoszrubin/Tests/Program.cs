@@ -79,6 +79,7 @@ var tests = new (string Name, Action Run)[]
     ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
     ("A közös látótér elrejti és rövid ideig megjegyzi az eltűnt szörnyet", PartyVisionTracksLastKnownEnemy),
+    ("A közös észlelés felfedi a lopakodót és pontatlan hangjelet ad", PartyPerceptionDetectsStealthAndSound),
     ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
     ("A csapdakészlet és darabszám a labirintusszinttel nehezedik", TrapConfigurationScalesByMazeLevel),
     ("A karakter kasztja, faja és átmeneti hatásai módosítják a látótávot", CharacterVisionRangeUsesClassRaceAndEffects),
@@ -1483,6 +1484,49 @@ static void PartyVisionTracksLastKnownEnemy()
         "Az utolsó ismert szörnyhely három partimozgás után sem tűnt el.");
 }
 
+static void PartyPerceptionDetectsStealthAndSound()
+{
+    var maze = new Maze(11, 7);
+    var origin = new Position(2, 3);
+    var enemyPosition = new Position(8, 3);
+    for (var x = 1; x <= 9; x++)
+        for (var y = 2; y <= 4; y++) maze.Carve(new Position(x, y));
+    var stealthy = new ConfiguredEnemy(enemyPosition,
+        new EnemyDefinition("E-STEALTH", "Árnyjáró", "a", 1, 10, 0, 1, 10, 1, [],
+            VisionRange: 5, Stealth: 2, Noise: 0));
+    maze.AddEnemy(stealthy);
+    var fog = new FogOfWar(maze.Width, maze.Height, 5);
+
+    fog.UpdatePartyVisibility(maze, [new PartyPerceptionSource(origin, 4, 0, 0)], false);
+    Assert(WorldSnapshotProjector.Create(maze, fog).Enemies.Count == 0,
+        "A lopakodó ellenfél felderítési próba nélkül kiszivárgott.");
+    stealthy.MoveTo(new Position(7, 3));
+    fog.UpdatePartyVisibility(maze, [new PartyPerceptionSource(origin, 4, 0, 0)], false);
+    Assert(WorldSnapshotProjector.Create(maze, fog).Enemies.Single().EntityId == stealthy.Id,
+        "A lopakodó ellenfél mozgása nem fedte fel átmenetileg.");
+    fog.UpdatePartyVisibility(maze, [new PartyPerceptionSource(origin, 4, 0, 0)], false);
+    Assert(WorldSnapshotProjector.Create(maze, fog).Enemies.Count == 0,
+        "A lopakodó ellenfél nem tudott újra elrejtőzni a mozgása után.");
+    fog.UpdatePartyVisibility(maze, [new PartyPerceptionSource(origin, 4, 0, 2)], false);
+    Assert(WorldSnapshotProjector.Create(maze, fog).Enemies.Single().EntityId == stealthy.Id,
+        "A jobb közös észlelés nem fedte fel a lopakodó ellenfelet.");
+
+    var noisyMaze = new Maze(11, 7);
+    for (var x = 1; x <= 9; x++)
+        for (var y = 2; y <= 4; y++) noisyMaze.Carve(new Position(x, y));
+    var noisy = new ConfiguredEnemy(enemyPosition,
+        new EnemyDefinition("E-NOISY", "Csörtető", "c", 1, 10, 0, 1, 10, 1, [],
+            VisionRange: 5, Stealth: 0, Noise: 4));
+    noisyMaze.AddEnemy(noisy);
+    var hearingFog = new FogOfWar(noisyMaze.Width, noisyMaze.Height, 1);
+    hearingFog.UpdatePartyVisibility(noisyMaze,
+        [new PartyPerceptionSource(origin, 1, 4, 0)], false);
+    var heard = WorldSnapshotProjector.Create(noisyMaze, hearingFog);
+    Assert(heard.Enemies.Count == 0 && heard.LastKnownEnemies is
+               [{ IsSoundCue: true, Position: var heardPosition }] && heardPosition != enemyPosition,
+        "A hallott ellenfél hangjele pontos helyet vagy teljes szörnyadatot árult el.");
+}
+
 static void VictorySummaryIsCompact()
 {
     var enemy = CreateEnemy(1, 1);
@@ -2585,7 +2629,9 @@ static void CharacterVisionRangeUsesClassRaceAndEffects()
 static void EnemyVisionRangesLoadFromCsv()
 {
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
-    Assert(data.GetEnemy("E001").VisionRange == 3 && data.GetEnemy("E003").VisionRange == 4 &&
+    Assert(data.GetEnemy("E001").VisionRange == 3 && data.GetEnemy("E001").Stealth == 1 &&
+           data.GetEnemy("E026").Noise == 4 && data.GetEnemy("E045").Stealth == 3 &&
+           data.GetEnemy("E003").VisionRange == 4 &&
            data.GetEnemy("E019").VisionRange == 7 && data.GetEnemy("E050").VisionRange == 8,
         "A patkány, goblin, vámpír vagy káoszsárkány CSV-látótávja hibás.");
 }

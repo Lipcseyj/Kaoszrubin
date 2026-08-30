@@ -218,7 +218,8 @@ public static class CsvGameDataLoader
                 enemies.Add(new EnemyDefinition(id, name, Cell(cells, 2), Integer(cells, 3), Integer(cells, 4),
                     Integer(cells, 5), Integer(cells, 6), Integer(cells, 7) ?? 0, Integer(cells, 8) ?? 1,
                     cells.Skip(9).Take(2).Where(abilityId => !string.IsNullOrWhiteSpace(abilityId)).ToList(),
-                    MonsterIds.Bosses.Contains(id), Integer(cells, 11) ?? 5));
+                    MonsterIds.Bosses.Contains(id), Integer(cells, 11) ?? 5,
+                    Math.Clamp(Integer(cells, 12) ?? 0, 0, 3), Math.Clamp(Integer(cells, 13) ?? 2, 0, 4)));
                 break;
             case DataSection.MonsterAbilities:
                 monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),

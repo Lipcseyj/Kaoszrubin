@@ -25,6 +25,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     private readonly List<ActiveSpellEffect> _activeSpellEffects = [];
     private int _spellActionCounter;
     public IReadOnlyList<ActiveSpellEffect> ActiveSpellEffects => _activeSpellEffects;
+    public bool IsPerceptiblyActive { get; private set; }
 
     protected void InitializeHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
     public void SetCurrentHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
@@ -124,7 +125,13 @@ public abstract class Enemy(Position position) : WorldObject(position)
         GroupRole = role;
     }
 
-    public void MoveTo(Position position) => Position = position;
+    public void MoveTo(Position position)
+    {
+        Position = position;
+        IsPerceptiblyActive = true;
+    }
+
+    public void ClearPerceptibleActivity() => IsPerceptiblyActive = false;
 }
 
 /// <summary>CSV-definícióból létrehozott, saját megjelenésű ellenfél.</summary>

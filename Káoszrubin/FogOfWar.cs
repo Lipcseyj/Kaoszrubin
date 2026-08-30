@@ -11,6 +11,7 @@ public sealed class FogOfWar
     private readonly bool[,] _currentlyVisible;
     private readonly Dictionary<WorldEntityId, EnemySightMemory> _enemyMemories = [];
     private Dictionary<WorldEntityId, Position> _visibleEnemyPositions = [];
+    private bool _hasPartyPerceptionState;
     public int VisionRange { get; }
     public bool IsDeveloperRevealActive { get; private set; }
 
@@ -33,6 +34,9 @@ public sealed class FogOfWar
         position.Y >= 0 && position.Y < _currentlyVisible.GetLength(1) &&
         _currentlyVisible[position.X, position.Y];
     public IReadOnlyDictionary<WorldEntityId, EnemySightMemory> EnemyMemories => _enemyMemories;
+    public bool IsEnemyVisible(WorldEntityId id, Position position) => _hasPartyPerceptionState
+        ? _visibleEnemyPositions.ContainsKey(id)
+        : IsCurrentlyVisible(position, includeDeveloperReveal: false);
 
     public IReadOnlyList<Position> RevealFrom(Maze maze, Position origin, int? visionRange = null)
     {
@@ -56,11 +60,21 @@ public sealed class FogOfWar
 
     public IReadOnlyList<Position> UpdatePartyVisibility(Maze maze,
         IEnumerable<(Position Origin, int Range)> sources, bool advanceEnemyMemory)
+        => UpdatePartyVisibility(maze, sources.Select(source =>
+            new PartyPerceptionSource(source.Origin, source.Range, 0, 0)), advanceEnemyMemory);
+
+    public IReadOnlyList<Position> UpdatePartyVisibility(Maze maze,
+        IEnumerable<PartyPerceptionSource> sources, bool advanceEnemyMemory)
     {
+        var perceptionSources = sources.ToArray();
+        _hasPartyPerceptionState = true;
         var previousVisible = (bool[,])_currentlyVisible.Clone();
         var previousMemoryPositions = _enemyMemories.Values.Select(memory => memory.Position).ToHashSet();
         Array.Clear(_currentlyVisible);
-        foreach (var (origin, range) in sources)
+        foreach (var source in perceptionSources)
+        {
+            var origin = source.Origin;
+            var range = source.VisionRange;
             for (var y = origin.Y - range; y <= origin.Y + range; y++)
             for (var x = origin.X - range * HorizontalCellsPerVisionUnit;
                  x <= origin.X + range * HorizontalCellsPerVisionUnit; x++)
@@ -71,6 +85,7 @@ public sealed class FogOfWar
                 _currentlyVisible[x, y] = true;
                 _revealed[x, y] = true;
             }
+        }
 
         if (advanceEnemyMemory)
             foreach (var (id, memory) in _enemyMemories.ToArray())
@@ -78,15 +93,23 @@ public sealed class FogOfWar
                 else _enemyMemories[id] = memory with { RemainingPartyMoves = memory.RemainingPartyMoves - 1 };
 
         var livingEnemyIds = maze.Enemies.Select(enemy => enemy.Id).ToHashSet();
-        var nowVisible = maze.Enemies.Where(enemy => IsCurrentlyVisible(enemy.Position))
+        var nowVisible = maze.Enemies.Where(enemy => perceptionSources.Any(source =>
+                CanDetectEnemy(maze, source, enemy)))
             .ToDictionary(enemy => enemy.Id, enemy => enemy.Position);
         foreach (var (id, position) in _visibleEnemyPositions)
             if (!nowVisible.ContainsKey(id) && livingEnemyIds.Contains(id))
                 _enemyMemories[id] = new EnemySightMemory(position, 3);
         foreach (var id in nowVisible.Keys) _enemyMemories.Remove(id);
+        foreach (var enemy in maze.Enemies.Where(enemy => !nowVisible.ContainsKey(enemy.Id) &&
+                     (!_enemyMemories.TryGetValue(enemy.Id, out var memory) || memory.IsSoundCue)))
+        {
+            if (!perceptionSources.Any(source => CanHearEnemy(source, enemy))) continue;
+            _enemyMemories[enemy.Id] = new EnemySightMemory(ApproximateSoundPosition(maze, enemy), 2, true);
+        }
         foreach (var id in _enemyMemories.Keys.Where(id => !livingEnemyIds.Contains(id)).ToArray())
             _enemyMemories.Remove(id);
         _visibleEnemyPositions = nowVisible;
+        foreach (var enemy in maze.Enemies) enemy.ClearPerceptibleActivity();
 
         var changed = new List<Position>();
         for (var y = 0; y < maze.Height; y++)
@@ -99,6 +122,45 @@ public sealed class FogOfWar
     }
 
     public bool HasEnemyMemoryAt(Position position) => _enemyMemories.Values.Any(memory => memory.Position == position);
+    public EnemySightMemory? EnemyMemoryAt(Position position) =>
+        _enemyMemories.Values.FirstOrDefault(memory => memory.Position == position);
+
+    private bool CanDetectEnemy(Maze maze, PartyPerceptionSource source, Enemy enemy)
+    {
+        var effectiveStealth = enemy.IsPerceptiblyActive
+            ? 0
+            : Math.Max(0, enemy.Definition.Stealth - source.DetectionBonus);
+        var detectionRange = Math.Max(1, source.VisionRange - effectiveStealth);
+        return IsCurrentlyVisible(enemy.Position, includeDeveloperReveal: false) &&
+               CanSee(maze, source.Origin, enemy.Position, detectionRange);
+    }
+
+    private static bool CanHearEnemy(PartyPerceptionSource source, Enemy enemy)
+    {
+        if (enemy.Definition.Noise <= 0 ||
+            !IsWithinVisionRange(source.Origin, enemy.Position, source.HearingRange + enemy.Definition.Noise))
+            return false;
+        if (enemy.Definition.Noise >= 4) return true;
+        var roll = (HashCode.Combine(enemy.Id.Value, enemy.Position, source.Origin) & int.MaxValue) % 100;
+        return roll < enemy.Definition.Noise * 25;
+    }
+
+    private static Position ApproximateSoundPosition(Maze maze, Enemy enemy)
+    {
+        var offsets = new[]
+        {
+            new Position(-2, 0), new Position(2, 0), new Position(0, -1), new Position(0, 1),
+            new Position(-1, -1), new Position(1, 1), new Position(-1, 1), new Position(1, -1)
+        };
+        var start = (enemy.Id.Value.GetHashCode() & int.MaxValue) % offsets.Length;
+        for (var index = 0; index < offsets.Length; index++)
+        {
+            var offset = offsets[(start + index) % offsets.Length];
+            var candidate = new Position(enemy.Position.X + offset.X, enemy.Position.Y + offset.Y);
+            if (maze.IsInside(candidate) && maze.IsWalkable(candidate)) return candidate;
+        }
+        return enemy.Position;
+    }
 
     public static bool CanSee(Maze maze, Position origin, Position target, int range) =>
         IsWithinVisionRange(origin, target, range) &&
@@ -201,4 +263,5 @@ public sealed class FogOfWar
 
 }
 
-public sealed record EnemySightMemory(Position Position, int RemainingPartyMoves);
+public sealed record PartyPerceptionSource(Position Origin, int VisionRange, int HearingRange, int DetectionBonus);
+public sealed record EnemySightMemory(Position Position, int RemainingPartyMoves, bool IsSoundCue = false);
