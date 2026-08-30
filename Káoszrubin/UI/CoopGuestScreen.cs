@@ -1131,6 +1131,7 @@ public sealed class CoopGuestScreen
             (_inventoryOpen ? _displayedCharacterId ?? selected.CharacterId : selected.CharacterId));
         ApplyBattleSpellUi(grid, snapshot, own);
         ApplyInnUi(grid, snapshot);
+        ApplyInnDepartureUi(grid, snapshot);
         ApplyRestSummaryUi(grid, snapshot, client.PlayerId);
         ApplyNarrativeUi(grid, snapshot, client.PlayerId);
         ApplySpellPreparationUi(grid, snapshot, own);
@@ -1363,6 +1364,19 @@ public sealed class CoopGuestScreen
             lines = lines.Take(maxContentRows - 1).Append(footer).ToList();
         }
         DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, width, FramedWindow.Storyline);
+    }
+
+    private static void ApplyInnDepartureUi(GuestMapCell[,] grid, SessionSnapshot snapshot)
+    {
+        if (snapshot.InnDeparture is not { } departure) return;
+        IReadOnlyList<(string Text, ConsoleColor Color)> lines =
+        [
+            ("", ConsoleColor.Gray),
+            (departure.Message, ConsoleColor.White),
+            ("", ConsoleColor.Gray),
+            ("Készül a következő pálya…", ConsoleColor.DarkCyan)
+        ];
+        DrawGuestOverlay(grid, lines, ConsoleColor.DarkGray, 62, FramedWindow.Storyline);
     }
 
     private async Task ShowAndAcknowledgeLevelImageAsync(CoopSignalRClient client,

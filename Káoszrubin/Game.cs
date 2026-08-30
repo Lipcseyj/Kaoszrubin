@@ -138,6 +138,7 @@ public sealed class Game
     private readonly HashSet<PlayerId> _narrativeAcknowledgements = [];
     private LevelImageSnapshot? _activeLevelImage;
     private readonly HashSet<PlayerId> _levelImageAcknowledgements = [];
+    private InnDepartureSnapshot? _activeInnDeparture;
     private SpellPreparationSnapshot? _activeSpellPreparation;
     private bool _spellPreparationCompleted;
     private PartyRestSnapshot? _latestRestNotice;
@@ -244,6 +245,7 @@ public sealed class Game
             GoldenKeyCount = _collectedBossKeyIds.Count,
             BossKeyCount = MonsterIds.Bosses.Count,
             Inn = _innController.CreateSnapshot(),
+            InnDeparture = _activeInnDeparture,
             Narrative = _activeNarrative is null ? null : _activeNarrative with
             { AcknowledgedPlayerIds = _narrativeAcknowledgements.ToArray() },
             LevelImage = _activeLevelImage is null ? null : _activeLevelImage with
@@ -833,6 +835,7 @@ public sealed class Game
         CheckBossDiscovery(_maze.Enemies.Where(enemy => _fogOfWar.IsRevealed(enemy.Position)));
         PlaySessionSound(SoundEffect.LevelStart);
         _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, _fogOfWar.IsRevealed(_maze.Exit));
+        _activeInnDeparture = null;
         if (showLevelImage) ShowLevelImage();
         LogMazeAccessibilityCheck();
     }
@@ -2282,6 +2285,9 @@ public sealed class Game
         _backgroundMusic.EnterInn();
         _session.SetPhase(GameSessionPhase.Inn);
         _innController.Run(completedLevel);
+        _activeInnDeparture = new InnDepartureSnapshot("A csapat szedelőzködik, és elhagyjátok a fogadót.");
+        _session.SetPhase(GameSessionPhase.Paused);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
         _mazeLevel++;
         StartNewMaze();
     }

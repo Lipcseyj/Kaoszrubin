@@ -7,7 +7,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 51;
+    public const int Version = 52;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -16,6 +16,7 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
     string LevelName, IReadOnlyList<SessionCharacterSnapshot> Party,
     IReadOnlyList<CharacterControlState> CharacterControls, BattleSnapshot? Battle, WorldSnapshot? World = null,
     int GoldenKeyCount = 0, int BossKeyCount = 0, InnSnapshot? Inn = null,
+    InnDepartureSnapshot? InnDeparture = null,
     NarrativeSnapshot? Narrative = null, LevelImageSnapshot? LevelImage = null,
     SpellPreparationSnapshot? SpellPreparation = null,
     PartyRestSnapshot? RestNotice = null, LevelUpPromptSnapshot? LevelUpPrompt = null,
@@ -77,6 +78,8 @@ public sealed record NarrativeSnapshot(Guid NarrativeId, NarrativeKind Kind, str
 
 public sealed record LevelImageSnapshot(Guid ImageId, string LevelName, string FileName,
     IReadOnlyList<PlayerId> AcknowledgedPlayerIds);
+
+public sealed record InnDepartureSnapshot(string Message);
 
 public sealed record BossPresentationSnapshot(string Name, string Appearance, int StrengthTier,
     string Reward);

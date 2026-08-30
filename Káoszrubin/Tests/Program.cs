@@ -816,7 +816,8 @@ static void SessionSnapshotRoundTripsThroughJson()
             "A host térképi varázslatot használt.", ConsoleColor.Magenta)],
         Sounds = [new SessionSoundSnapshot(1, SoundEffect.OffensiveSpell, [companion.Id])],
         LevelImage = new LevelImageSnapshot(Guid.NewGuid(), "Tesztlabirintus", "teszt.png",
-            [session.HostPlayerId])
+            [session.HostPlayerId]),
+        InnDeparture = new InnDepartureSnapshot("A csapat elhagyja a fogadót.")
     };
     var json = JsonSerializer.Serialize(snapshot);
     var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
@@ -824,6 +825,7 @@ static void SessionSnapshotRoundTripsThroughJson()
            restored.Phase == GameSessionPhase.Exploration && restored.Party.Count == 2 &&
            restored.Activities is [{ Kind: SessionActivityKind.Spell }] &&
            restored.LevelImage is { FileName: "teszt.png", AcknowledgedPlayerIds.Count: 1 } &&
+           restored.InnDeparture is { Message: "A csapat elhagyja a fogadót." } &&
            restored.Sounds is [{ Sequence: 1, Effect: SoundEffect.OffensiveSpell,
                ListenerCharacterIds: [{ } listener] }] && listener == companion.Id &&
            restored.PartyGold == 777 && restored.Party.All(character => character.Gold == 777) &&
