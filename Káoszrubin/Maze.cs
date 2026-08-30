@@ -204,7 +204,8 @@ public sealed class Maze
     {
         if (!IsWalkable(destination) || destination == Entrance || destination == Exit) return false;
         var occupant = GetObjectAt(destination);
-        if (occupant is not null && occupant != enemy && occupant is not (GroundItemPile or Corpse)) return false;
+        if (occupant is not null && occupant != enemy && occupant is not (GroundItemPile or Corpse) &&
+            !IsPassableNeutralNpc(occupant)) return false;
 
         enemy.MoveTo(destination);
         return true;
@@ -216,10 +217,13 @@ public sealed class Maze
         if (!IsWalkable(destination) || destination == leaderPosition) return false;
         var occupant = GetObjectAt(destination);
         if (occupant is not null && occupant != member && occupant is not (GroundItemPile or Corpse) &&
-            !(allowTreasureChest && occupant is TreasureChest)) return false;
+            !(allowTreasureChest && occupant is TreasureChest) && !IsPassableNeutralNpc(occupant)) return false;
         member.MoveTo(destination);
         return true;
     }
+
+    public static bool IsPassableNeutralNpc(WorldObject? occupant) =>
+        occupant is WorldNpc { Disposition: NpcDisposition.Neutral };
 
     private void EnsureObjectPositionIsFree(Position position)
     {

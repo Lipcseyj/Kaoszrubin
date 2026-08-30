@@ -11,7 +11,8 @@ public sealed record CharacterSheetPanelLine(int Row, string Text, ConsoleColor 
     string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White);
 
 public sealed record PartyStatusLine(string Identity, ConsoleColor IdentityColor,
-    string Vitality, ConsoleColor VitalityColor, string Mana, ConsoleColor ManaColor)
+    string Vitality, ConsoleColor VitalityColor, string Mana, ConsoleColor ManaColor,
+    int InvertedNameStart = -1)
 {
     public string Text => Identity + Vitality + Mana;
 }
@@ -75,12 +76,13 @@ public static class CharacterSheetPanel
         bool isDisplayed, bool isLeader)
     {
         var marker = isDisplayed ? "▶ " : "  ";
-        var prefix = $"{marker}{(isLeader ? "👑" : string.Empty)}{CharacterClassGlyph(classId)} ";
+        var prefix = $"{marker}{CharacterClassGlyph(classId)} ";
         if (!isAlive)
         {
             const string dead = " 💀";
             return new PartyStatusLine(prefix + Shorten(name, Width - prefix.Length - dead.Length),
-                identityColor, dead, ConsoleColor.DarkRed, string.Empty, ConsoleColor.DarkGray);
+                identityColor, dead, ConsoleColor.DarkRed, string.Empty, ConsoleColor.DarkGray,
+                isLeader ? prefix.Length : -1);
         }
 
         var vitalityPercent = Percent(currentVitality, maximumVitality);
@@ -92,7 +94,8 @@ public static class CharacterSheetPanel
             vitality, vitalityPercent <= 25 ? ConsoleColor.Red :
             vitalityPercent <= 50 ? ConsoleColor.Yellow : ConsoleColor.Green,
             mana, maximumMana <= 0 || currentMana <= 0 ? ConsoleColor.DarkGray :
-            manaPercent <= 50 ? ConsoleColor.Blue : ConsoleColor.Cyan);
+            manaPercent <= 50 ? ConsoleColor.Blue : ConsoleColor.Cyan,
+            isLeader ? prefix.Length : -1);
     }
 
     private static int Percent(int current, int maximum) => maximum <= 0

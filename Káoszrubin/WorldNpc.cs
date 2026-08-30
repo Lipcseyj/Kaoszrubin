@@ -7,6 +7,7 @@ namespace KaoszRubin;
 public enum NpcDisposition { Friendly, Neutral, Hostile }
 public enum WorldNpcState { Available, Declined, Following }
 public enum NpcQuestState { Offered, Active, Completed }
+public enum WorldNpcInteractionResult { Leave, Join, Continue }
 public sealed record NpcQuestProgress(string QuestId, NpcQuestState State = NpcQuestState.Offered, int Progress = 0);
 
 /// <summary>A pályán megszólítható, még nem partitagnak számító karakter.</summary>

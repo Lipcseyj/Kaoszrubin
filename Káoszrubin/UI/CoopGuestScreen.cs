@@ -1674,9 +1674,25 @@ public sealed class CoopGuestScreen
         WriteAt(x, y, new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black),
             CharacterSheetPanel.Width);
         if (status is null || !TrySetCursorPosition(x, y)) return;
+        if (status.InvertedNameStart >= 0)
+        {
+            var prefix = status.Identity[..status.InvertedNameStart];
+            var name = status.Identity[status.InvertedNameStart..];
+            Console.ForegroundColor = status.IdentityColor;
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.Write(prefix);
+            Console.ForegroundColor = ConsoleColor.Black;
+            Console.BackgroundColor = status.IdentityColor;
+            Console.Write(name);
+        }
+        else
+        {
+            Console.ForegroundColor = status.IdentityColor;
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.Write(status.Identity);
+        }
         foreach (var (text, color) in new[]
                  {
-                     (status.Identity, status.IdentityColor),
                      (status.Vitality, status.VitalityColor),
                      (status.Mana, status.ManaColor)
                  })

@@ -1434,8 +1434,7 @@ public sealed class Game
         }
         if (_maze.GetWorldNpcAt(targetPosition) is { } npc)
         {
-            EncounterWorldNpc(npc);
-            return;
+            if (!EncounterWorldNpc(npc)) return;
         }
         if (!CanEnterTrap(SelectedCharacter, targetPosition)) return;
 
@@ -1711,17 +1710,22 @@ public sealed class Game
         AcknowledgeLevelImage(command.SenderId, command.CharacterId);
     }
 
-    private void EncounterWorldNpc(WorldNpc npc)
+    private bool EncounterWorldNpc(WorldNpc npc)
     {
         if (string.Equals(npc.DefinitionId, FirstUniqueWorldNpcId, StringComparison.OrdinalIgnoreCase))
         {
             ConverseWithFirstUniqueNpc(npc);
-            return;
+            return false;
         }
         var questDefinitions = _gameData.GetNpcQuests(npc.DefinitionId);
-        var joins = _renderer.DrawWorldNpcRecruitment(npc, questDefinitions);
+        var result = _renderer.DrawWorldNpcRecruitment(npc, questDefinitions);
         ProcessNpcQuests(npc);
-        if (joins && CharacterRoster.Party.Add(npc.Character))
+        if (result == WorldNpcInteractionResult.Continue)
+        {
+            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            return true;
+        }
+        if (result == WorldNpcInteractionResult.Join && CharacterRoster.Party.Add(npc.Character))
         {
             _maze.RemoveWorldNpc(npc);
             var avatar = new PartyMemberAvatar(npc.Position, npc.Character);
@@ -1731,13 +1735,14 @@ public sealed class Game
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
             _renderer.DrawInventoryMessage($"🤝 {npc.Character.Name} ingyen csatlakozott a partihoz.", ConsoleColor.Green);
             _activeCoopHost?.TryPublish(CreateSessionSnapshot());
-            return;
+            return false;
         }
 
         npc.Decline();
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        _renderer.DrawInventoryMessage(joins ? "A parti megtelt; előbb helyet kell felszabadítani."
+        _renderer.DrawInventoryMessage(result == WorldNpcInteractionResult.Join ? "A parti megtelt; előbb helyet kell felszabadítani."
             : $"{npc.Character.Name} egyelőre itt marad.", ConsoleColor.Yellow);
+        return false;
     }
 
     private void ConverseWithFirstUniqueNpc(WorldNpc npc)
@@ -3173,7 +3178,9 @@ public sealed class Game
     {
         if (position == target) return _maze.IsWalkable(position);
         if (!_maze.IsWalkable(position) || position == _maze.Entrance || position == _maze.Exit) return false;
-        return _maze.GetObjectAt(position) is null or GroundItemPile or Corpse or PartyMemberAvatar;
+        var occupant = _maze.GetObjectAt(position);
+        return occupant is null or GroundItemPile or Corpse or PartyMemberAvatar ||
+               Maze.IsPassableNeutralNpc(occupant);
     }
 
     private void MovePartyMembers()
@@ -3534,13 +3541,15 @@ public sealed class Game
     private IEnumerable<Position> FreeNeighborsOf(Position origin) => Directions
         .Select(direction => origin + direction)
         .Where(position => _maze.IsWalkable(position) && position != _player.Position &&
-                           (_maze.GetObjectAt(position) is null or GroundItemPile or Corpse));
+                           (_maze.GetObjectAt(position) is null or GroundItemPile or Corpse ||
+                            Maze.IsPassableNeutralNpc(_maze.GetObjectAt(position))));
 
     private bool CanPartyTraverse(PartyMemberAvatar member, Position position)
     {
         if (!_maze.IsWalkable(position) || position == _player.Position) return false;
         var occupant = _maze.GetObjectAt(position);
-        return occupant is null or GroundItemPile or Corpse || occupant == member;
+        return occupant is null or GroundItemPile or Corpse || occupant == member ||
+               Maze.IsPassableNeutralNpc(occupant);
     }
 
     private int CountWalkableNeighbors(Position position) => Directions.Count(direction => _maze.IsWalkable(position + direction));

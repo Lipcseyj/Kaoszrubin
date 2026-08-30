@@ -1481,7 +1481,8 @@ public sealed class ConsoleRenderer
         if (bottomAdornment is not null) WriteAt(left, frameBottom + 1, bottomAdornment);
     }
 
-    public bool DrawWorldNpcRecruitment(WorldNpc npc, IReadOnlyList<NpcQuestDefinition> questDefinitions)
+    public WorldNpcInteractionResult DrawWorldNpcRecruitment(WorldNpc npc,
+        IReadOnlyList<NpcQuestDefinition> questDefinitions)
     {
         ResetColorCache();
         Console.Clear();
@@ -1511,13 +1512,18 @@ public sealed class ConsoleRenderer
                 ? ConsoleColor.Green : ConsoleColor.DarkYellow));
         }
         lines.Add((string.Empty, ConsoleColor.Gray));
-        lines.Add((npc.CanJoin ? "Enter: csatlakozzon ingyen   Esc: most nem" : "Esc: távozás", ConsoleColor.Yellow));
+        var actions = npc.CanJoin ? "Enter: csatlakozzon ingyen   " : string.Empty;
+        if (npc.Disposition == NpcDisposition.Neutral) actions += "T: továbbhaladás   ";
+        actions += npc.CanJoin ? "Esc: most nem" : "Esc: távozás";
+        lines.Add((actions, ConsoleColor.Yellow));
         DrawCenteredFrame(72, lines, FramedWindow.Inn);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
-            if (key == ConsoleKey.Enter && npc.CanJoin) return true;
-            if (key == ConsoleKey.Escape) return false;
+            if (key == ConsoleKey.Enter && npc.CanJoin) return WorldNpcInteractionResult.Join;
+            if (key == ConsoleKey.T && npc.Disposition == NpcDisposition.Neutral)
+                return WorldNpcInteractionResult.Continue;
+            if (key == ConsoleKey.Escape) return WorldNpcInteractionResult.Leave;
         }
     }
 
@@ -2075,9 +2081,25 @@ public sealed class ConsoleRenderer
     {
         WriteSheetLine(y, string.Empty, ConsoleColor.Gray, background);
         var x = RightSheetX;
+        if (status.InvertedNameStart >= 0)
+        {
+            var prefix = status.Identity[..status.InvertedNameStart];
+            var name = status.Identity[status.InvertedNameStart..];
+            SetColors(status.IdentityColor, background);
+            WriteAt(x, y, prefix);
+            x += prefix.Length;
+            SetColors(ConsoleColor.Black, status.IdentityColor);
+            WriteAt(x, y, name);
+            x += name.Length;
+        }
+        else
+        {
+            SetColors(status.IdentityColor, background);
+            WriteAt(x, y, status.Identity);
+            x += status.Identity.Length;
+        }
         foreach (var (text, color) in new[]
                  {
-                     (status.Identity, status.IdentityColor),
                      (status.Vitality, status.VitalityColor),
                      (status.Mana, status.ManaColor)
                  })

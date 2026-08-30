@@ -18,6 +18,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
     ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),
     ("Az emberi vendég ráléphet a kincsesláda mezőjére", RemotePlayerCanStepOntoTreasureChest),
+    ("A semleges NPC nem állja el a mozgó szereplők útját", NeutralWorldNpcIsPassable),
     ("A vendég visszaveheti a coop mentésben foglalt karakterét", RemotePlayerCanReclaimSavedCharacter),
     ("A vendég saját ajtó- és keresési akciót küldhet", RemotePlayerCanIssueCharacterAction),
     ("A vendég térképről varázslási parancsot küldhet", RemotePlayerCanCastExplorationSpell),
@@ -892,6 +893,35 @@ static void InnSnapshotCarriesSharedRumors()
            restored.LevelCompletion.FallenCharacters is [{ Name: "Elesett" }] &&
            restored.InnName == "A Törött Kard" && restored.MazeLevel == 2,
         "A fogadó közös menü- vagy pályavégi állapota nem maradt meg a snapshot JSON round-trip során.");
+}
+
+static void NeutralWorldNpcIsPassable()
+{
+    static (Maze Maze, Position Start, Position NpcPosition) CreateMazeWithNeutralNpc()
+    {
+        var maze = new Maze(7, 7);
+        var start = new Position(2, 3);
+        var npcPosition = new Position(3, 3);
+        maze.Carve(start);
+        maze.Carve(npcPosition);
+        maze.AddWorldNpc(new WorldNpc(npcPosition, "NPC-PASSABLE", CreateCharacter("Semleges"),
+            NpcDisposition.Neutral, false, false, "Utad engedem."));
+        return (maze, start, npcPosition);
+    }
+
+    var enemySetup = CreateMazeWithNeutralNpc();
+    var enemy = CreateEnemyAt(enemySetup.Start, "PASSABLE-ENEMY");
+    enemySetup.Maze.AddEnemy(enemy);
+    Assert(enemySetup.Maze.TryMoveEnemy(enemy, enemySetup.NpcPosition) &&
+           enemy.Position == enemySetup.NpcPosition,
+        "A szörnyet blokkolta a semleges NPC.");
+
+    var partySetup = CreateMazeWithNeutralNpc();
+    var member = new PartyMemberAvatar(partySetup.Start, CreateCharacter("Mozgó NPC"));
+    partySetup.Maze.AddPartyMember(member);
+    Assert(partySetup.Maze.TryMovePartyMember(member, partySetup.NpcPosition, partySetup.Maze.Entrance) &&
+           member.Position == partySetup.NpcPosition,
+        "A mozgó partitársat blokkolta a semleges NPC.");
 }
 
 static void RemotePlayerCanAcknowledgeRest()
@@ -2069,8 +2099,8 @@ static void CompactPartyStatusShowsResources()
     mage.SetCurrentResources(10, 12);
     var status = CharacterSheetPanel.BuildPartyStatus(mage, true, isLeader: true);
     Assert(status.Text.Length <= CharacterSheetPanel.Width, "A party státusz túllóg a jobb panelen.");
-    Assert(status.Identity.Contains("👑", StringComparison.Ordinal),
-        "A leader koronája hiányzik a party státuszból.");
+    Assert(!status.Identity.Contains("👑", StringComparison.Ordinal) && status.InvertedNameStart >= 0,
+        "A vezér neve nem inverz jelölést kapott a party státuszban.");
     Assert(status.Text.Contains("❤️25%", StringComparison.Ordinal) &&
            status.Text.Contains("🔷60%", StringComparison.Ordinal),
         "A party státusz nem százalékosan mutatja a HP-t és a manát.");
