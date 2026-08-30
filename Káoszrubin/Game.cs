@@ -239,7 +239,8 @@ public sealed class Game
             positions.GetValueOrDefault(character.Id), character.Statuses.Select(status => status.Id).ToArray(),
             Inventory: InventorySnapshotProjector.Create(character),
             CharacterSheet: CharacterSheetSnapshotProjector.Create(character,
-                _gameData.ExperienceByLevel), Color: character.Color, IsTemporaryFollower: true)).ToArray();
+                _gameData.ExperienceByLevel, CurrentLevelVisionModifier), Color: character.Color,
+            IsTemporaryFollower: true)).ToArray();
         return snapshot with
         {
             GoldenKeyCount = _collectedBossKeyIds.Count,
@@ -262,7 +263,7 @@ public sealed class Game
             {
                 Gold = SelectedCharacter.Gold,
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
-                    _gameData.ExperienceByLevel),
+                    _gameData.ExperienceByLevel, CurrentLevelVisionModifier),
                 SpellInfo = SpellcastingRules.TryGetSchool(characters[character.CharacterId].CharacterClass.Id, out _)
                     ? SpellInfoSnapshotProjector.Create(characters[character.CharacterId]) : null,
                 ExplorationSpellOptions = snapshot.Phase == GameSessionPhase.Exploration &&
@@ -832,6 +833,12 @@ public sealed class Game
         _gameOver = false;
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        if (configuration.VisionModifier < 0)
+        {
+            var darknessMessage = $"🌑 Extra sötét pálya: minden karakter látótávja {configuration.VisionModifier}.";
+            _renderer.DrawInventoryMessage(darknessMessage, ConsoleColor.DarkRed);
+            RecordSessionActivity(SessionActivityKind.System, darknessMessage, ConsoleColor.DarkRed);
+        }
         CheckBossDiscovery(_maze.Enemies.Where(enemy => _fogOfWar.IsRevealed(enemy.Position)));
         PlaySessionSound(SoundEffect.LevelStart);
         _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, _fogOfWar.IsRevealed(_maze.Exit));
@@ -1072,9 +1079,16 @@ public sealed class Game
                 enemy.ConfigureMovement(enemy.MovementProfile, enemy.PatrolDirection, EnemyPursuitState.Pursuing);
             extra = " A közeli szörnyek felfigyeltek a zajra.";
         }
+        else if (trap.Definition.Effect == TrapEffect.Darkness && character.IsAlive)
+        {
+            character.ApplySpellEffect(new ActiveSpellEffect(trap.Definition.Id,
+                ActiveSpellEffectType.VisionBonus, -2, 6));
+            extra = " A koromfelhő 6 akcióra 2-vel csökkentette a látótávját.";
+        }
         _renderer.RefreshCharacterSheet(character);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        ShowTrapMessage($"💥 Elsült: {trap.Definition.Name}. {character.Name} {damage} sebzést szenvedett.{extra}",
+        var damageText = damage > 0 ? $" {character.Name} {damage} sebzést szenvedett." : string.Empty;
+        ShowTrapMessage($"💥 Elsült: {trap.Definition.Name}.{damageText}{extra}",
             ConsoleColor.Red, character);
     }
 
@@ -2637,6 +2651,7 @@ public sealed class Game
                 ConsumableEffect.CurePoison when character.RemoveStatus(CharacterStatusIds.Poisoned) => "a mérgezés megszűnt",
                 ConsumableEffect.CureDisease when character.RemoveStatus(CharacterStatusIds.Diseased) => "a betegség megszűnt",
                 ConsumableEffect.StopBleeding when character.RemoveStatus(CharacterStatusIds.Bleeding) => "a vérzés elállt",
+                ConsumableEffect.Vision when character.IsAlive => UseVisionItem(character, item),
                 _ => string.Empty
             };
         if (string.IsNullOrEmpty(result)) used = false;
@@ -2744,6 +2759,14 @@ public sealed class Game
         return $"víz +{character.WaterLevel - waterBefore}, +2 kezdeményezés és +1 találat 10 akcióig";
     }
 
+    private string UseVisionItem(LiveCharacter character, MiscItemDefinition item)
+    {
+        character.ApplySpellEffect(new ActiveSpellEffect(item.Id, ActiveSpellEffectType.VisionBonus,
+            item.EffectValue, 12, Beneficial: true));
+        if (GetCharacterWorldPosition(character) is { } position) RevealFor(character, position);
+        return $"látótáv +{item.EffectValue} 12 akcióig";
+    }
+
     private static string UseHealing(LiveCharacter character, int amount)
     {
         var before = character.CurrentVitality;
@@ -2795,6 +2818,7 @@ public sealed class Game
         ConsumableEffect.CurePoison => "mérgezés gyógyítása",
         ConsumableEffect.CureDisease => "betegség gyógyítása",
         ConsumableEffect.StopBleeding => "vérzés elállítása",
+        ConsumableEffect.Vision => "látótáv",
         _ => "nincs"
     };
 
@@ -3383,7 +3407,7 @@ public sealed class Game
             member.Character.NpcBehavior ?? NpcBehavior.Defensive;
         var visibleEnemy = _maze.Enemies
             .Where(enemy => FogOfWar.CanSee(_maze, member.Position, enemy.Position,
-                CharacterClassRules.VisionRange(member.Character)))
+                CharacterClassRules.VisionRange(member.Character, CurrentLevelVisionModifier)))
             .OrderBy(enemy => Manhattan(member.Position, enemy.Position))
             .FirstOrDefault();
 
@@ -4818,7 +4842,8 @@ public sealed class Game
     private IReadOnlyList<Position> RevealFor(LiveCharacter character, Position position)
     {
         var exitWasRevealed = _fogOfWar.IsRevealed(_maze.Exit);
-        var revealed = _fogOfWar.RevealFrom(_maze, position, CharacterClassRules.VisionRange(character));
+        var revealed = _fogOfWar.RevealFrom(_maze, position,
+            CharacterClassRules.VisionRange(character, CurrentLevelVisionModifier));
         if (_fogOfWar.IsRevealed(_maze.Exit))
         {
             _backgroundMusic.MarkExitDiscovered();
@@ -4826,6 +4851,8 @@ public sealed class Game
         }
         return revealed;
     }
+
+    private int CurrentLevelVisionModifier => MazeLevelConfigurations.Get(_mazeLevel).VisionModifier;
 
     private void CheckBossDiscoveryAt(IEnumerable<Position> positions)
     {

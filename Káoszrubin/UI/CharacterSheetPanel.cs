@@ -111,7 +111,8 @@ public static class CharacterSheetPanel
             character.CurrentMana, character.MaximumMana, character.FoodLevel, character.WaterLevel,
             character.Gold, character.IsAlive, null, character.Statuses.Select(status => status.Id).ToArray(),
             InventorySnapshotProjector.Create(character),
-            CharacterSheetSnapshotProjector.Create(character, experienceByLevel),
+            CharacterSheetSnapshotProjector.Create(character, experienceByLevel,
+                MazeLevelConfigurations.Get(mazeLevel).VisionModifier),
             IsTemporaryFollower: isTemporaryFollower);
         return Build(snapshot, mazeLevel, goldenKeyCount, bossCount, isPartyLeader);
     }

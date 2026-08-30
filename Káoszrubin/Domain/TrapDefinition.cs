@@ -2,7 +2,7 @@ using System.Text;
 
 namespace KaoszRubin.Domain;
 
-public enum TrapEffect { Damage, Poison, Alert }
+public enum TrapEffect { Damage, Poison, Alert, Darkness }
 
 /// <summary>CSV-ből betöltött csapdatípus.</summary>
 public sealed record TrapDefinition(string Id, string Name, Rune Symbol, TrapEffect Effect,

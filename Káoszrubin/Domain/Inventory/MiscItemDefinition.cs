@@ -18,7 +18,8 @@ public enum ConsumableEffect
     RestoreMana,
     CurePoison,
     CureDisease,
-    StopBleeding
+    StopBleeding,
+    Vision
 }
 
 public static class MiscItemIds
@@ -27,4 +28,5 @@ public static class MiscItemIds
     public const string HerbalTea = "T020";
     public const string Mead = "T023";
     public const string SpicedWine = "T024";
+    public const string Torch = "T025";
 }

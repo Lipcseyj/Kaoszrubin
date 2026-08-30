@@ -67,6 +67,7 @@ public sealed class MazeLevelConfiguration
     public required IntRange TreasureGold { get; init; }
     public IntRange TrapCount { get; set; } = new(0, 0);
     public IReadOnlyList<string> TrapIds { get; set; } = [];
+    public int VisionModifier { get; set; }
     public required IReadOnlyList<EnemyEncounterConfiguration> RoomEncounters { get; init; }
     public required IReadOnlyList<EnemyEncounterConfiguration> CorridorEncounters { get; init; }
 
@@ -89,10 +90,10 @@ public static class MazeLevelConfigurations
     public const int FinalLevel = 21;
     private static readonly string[] BasicTraps = ["TR001"];
     private static readonly string[] EarlyTraps = ["TR001", "TR002", "TR003"];
-    private static readonly string[] MidTraps = ["TR001", "TR002", "TR003", "TR004"];
-    private static readonly string[] AdvancedTraps = ["TR002", "TR003", "TR004", "TR005"];
-    private static readonly string[] DeadlyTraps = ["TR003", "TR004", "TR005", "TR006"];
-    private static readonly string[] ChaosTraps = ["TR004", "TR005", "TR006", "TR007"];
+    private static readonly string[] MidTraps = ["TR001", "TR002", "TR003", "TR004", "TR008"];
+    private static readonly string[] AdvancedTraps = ["TR002", "TR003", "TR004", "TR005", "TR008"];
+    private static readonly string[] DeadlyTraps = ["TR003", "TR004", "TR005", "TR006", "TR008"];
+    private static readonly string[] ChaosTraps = ["TR004", "TR005", "TR006", "TR007", "TR008"];
 
     private static readonly IReadOnlyDictionary<int, MazeLevelConfiguration> Configurations =
         new Dictionary<int, MazeLevelConfiguration>
@@ -633,6 +634,12 @@ public static class MazeLevelConfigurations
 
     private static MazeLevelConfiguration ConfigureTraps(MazeLevelConfiguration configuration)
     {
+        configuration.VisionModifier = configuration.Level switch
+        {
+            5 or 12 => -1,
+            9 or 13 or 17 or 20 => -2,
+            _ => 0
+        };
         (configuration.TrapCount, configuration.TrapIds) = configuration.Level switch
         {
             <= 2 => (new IntRange(2, 5), BasicTraps),

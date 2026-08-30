@@ -1930,6 +1930,7 @@ public sealed class ConsoleRenderer
                 ActiveSpellEffectType.ProtectionFromEvil => "✝️🛡️",
                 ActiveSpellEffectType.GuardianAngel => "👼",
                 ActiveSpellEffectType.Sanctuary => "⛪",
+                ActiveSpellEffectType.VisionBonus when effect.Value < 0 => "🌑",
                 ActiveSpellEffectType.VisionBonus => "🔆",
                 _ => "✨"
             })).ToList();

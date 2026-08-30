@@ -249,6 +249,7 @@ T021,Varázskönyv,A mágus ismert és memorizált varázslatait tartalmazó sze
 T022,Szent szimbólum,A pap hitét és ismert imáit összpontosító személyes szent jelkép.,1,None,0
 T023,Mézsör,Édes mézes ital amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40
 T024,Fűszeres bor,Melengető bor amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40
+T025,Fáklya,Olajos fáklya amely tizenkét akcióra kettővel növeli a hordozó látótávját.,24,Vision,2
 
 #Varázstárgyak
 Id,Név,Típus,Kategória,Ár,Töltet,VarázslatId,Hatás,Érték,CsakMágus,Jellemzés,MágikusErő
@@ -994,6 +995,7 @@ TR004,Ingapengék,╳,Damage,7,10,11,7,12,0,60,180,A falakból egymást kereszte
 TR005,Dögvészfelhő,≋,Poison,10,11,12,4,8,60,90,270,Fojtó zöld gáz tör elő a repedt padlólapok alól.
 TR006,Káoszpecsét,✹,Alert,14,13,13,4,9,100,135,405,A felhasadó pecsét energiakitörése megsebzi az áldozatot és odahívja a közeli szörnyeket.
 TR007,Lélektű,♦,Poison,18,15,15,8,14,75,200,600,Árnyékból formált tű sebzi meg a testet és mérgezi meg a lelket.
+TR008,Koromfelhő,☁,Darkness,5,9,9,0,0,100,50,150,Sűrű fekete korom borítja el az áldozat látását.
 
 #NPC-k
 Id,Név,OsztályId,Viszony,Viselkedés,Toborozható,Egyedi,FajId

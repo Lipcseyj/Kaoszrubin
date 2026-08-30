@@ -517,7 +517,7 @@ internal sealed class InnController
 
         var fixedExtras = includePremiumSupplies
             ? CreateSecretStashSupplies()
-            : new[] { "T001", "T001", "T001", "T001", "T004", "T005", "T004", "T005", "T002", "T002", "T002", "T002", "T002", "T002", "T002", "T002" };
+            : new[] { "T001", "T001", "T001", "T001", "T004", "T005", "T004", "T005", "T002", "T002", "T002", "T002", "T002", "T002", "T002", "T002", "T025", "T025" };
 
         foreach (var itemId in fixedExtras)
         {
@@ -764,6 +764,9 @@ internal sealed class InnController
             $"Terep: {configuration.RoomCount.Minimum}–{configuration.RoomCount.Maximum} szoba, " +
             $"{configuration.RoomSize.Minimum}–{configuration.RoomSize.Maximum} mezős oldalakkal; {corridorText}.",
             $"A falazat jele és színe: {wall}.",
+            configuration.VisionModifier < 0
+                ? $"A mélység itt szokatlanul sötét: a látótáv {configuration.VisionModifier} módosítást kap. Vigyetek fényforrást."
+                : "A környéken szokványosak a fényviszonyok.",
             $"Várható ellenfelek: {string.Join(", ", enemyNames)}.",
             leaders.Count == 0
                 ? "Külön vezéralakú szörnycsoportról nem érkezett biztos hír."

@@ -18,8 +18,9 @@ public static class CharacterClassRules
         return Math.Clamp(range, 2, MaximumVisionRange);
     }
 
-    public static int VisionRange(LiveCharacter character) => Math.Clamp(
-        NaturalVisionRange(character) + character.SpellEffectValue(ActiveSpellEffectType.VisionBonus),
+    public static int VisionRange(LiveCharacter character, int environmentModifier = 0) => Math.Clamp(
+        NaturalVisionRange(character) + character.SpellEffectValue(ActiveSpellEffectType.VisionBonus) +
+        environmentModifier,
         1, MaximumModifiedVisionRange);
 
     public static bool IsMartial(string characterClassId) => characterClassId is

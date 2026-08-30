@@ -29,7 +29,7 @@ public static class SpellInfoSnapshotProjector
 public static class CharacterSheetSnapshotProjector
 {
     public static CharacterSheetSnapshot Create(LiveCharacter character,
-        IReadOnlyDictionary<int, int> experienceByLevel)
+        IReadOnlyDictionary<int, int> experienceByLevel, int environmentVisionModifier = 0)
     {
         ArgumentNullException.ThrowIfNull(character);
         ArgumentNullException.ThrowIfNull(experienceByLevel);
@@ -46,6 +46,7 @@ public static class CharacterSheetSnapshotProjector
                 ActiveSpellEffectType.ProtectionFromEvil => "✝️🛡️",
                 ActiveSpellEffectType.GuardianAngel => "👼",
                 ActiveSpellEffectType.Sanctuary => "⛪",
+                ActiveSpellEffectType.VisionBonus when effect.Value < 0 => "🌑",
                 ActiveSpellEffectType.VisionBonus => "🔆",
                 _ => "✨"
             })).ToArray();
@@ -62,6 +63,7 @@ public static class CharacterSheetSnapshotProjector
             }).ToArray(),
             character.WeaponProficiencies.ToDictionary(proficiency => proficiency.FamilyId,
                 proficiency => (int)proficiency.Rank, StringComparer.OrdinalIgnoreCase),
-            CharacterClassRules.VisionRange(character), CharacterClassRules.NaturalVisionRange(character));
+            CharacterClassRules.VisionRange(character, environmentVisionModifier),
+            CharacterClassRules.NaturalVisionRange(character));
     }
 }

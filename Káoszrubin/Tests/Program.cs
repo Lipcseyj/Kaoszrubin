@@ -917,13 +917,15 @@ static void InnNamesAndRumorsLoadFromCsv()
            data.InnRumors.Single(rumor => rumor.Id == "PL001").Name.Contains(
                "Aki válaszol neki, azt többé nem látják.", StringComparison.Ordinal),
         "A hangulatpletykák vagy a szövegükben lévő vesszők nem megfelelően töltődtek be a CSV-ből.");
-    Assert(data.Traps.Count == 7 && data.GetTrap("TR001").Effect == TrapEffect.Damage &&
+    Assert(data.Traps.Count == 8 && data.GetTrap("TR001").Effect == TrapEffect.Damage &&
            data.GetTrap("TR001").DetectionExperience == 25 &&
            data.GetTrap("TR001").DisarmExperience == 75 &&
            data.GetTrap("TR002").Effect == TrapEffect.Poison && data.GetTrap("TR003").Effect == TrapEffect.Alert &&
            data.GetTrap("TR007").MinimumLevel == 18 && data.GetTrap("TR007").DisarmDifficulty == 15 &&
            data.GetTrap("TR007").DetectionExperience == 200 &&
-           data.GetTrap("TR007").DisarmExperience == 600,
+           data.GetTrap("TR007").DisarmExperience == 600 &&
+           data.GetTrap("TR008").Effect == TrapEffect.Darkness &&
+           data.GetItem(MiscItemIds.Torch) is { Effect: ConsumableEffect.Vision, EffectValue: 2 },
         "A csapdadefiníciók nem megfelelően töltődtek be a CSV-ből.");
 }
 
@@ -935,11 +937,14 @@ static void TrapConfigurationScalesByMazeLevel()
     Assert(first.TrapCount == new IntRange(2, 5) && first.TrapIds.SequenceEqual(["TR001"]),
         "Az első szint csapdakonfigurációja nem kezdőbarát.");
     Assert(middle.TrapCount == new IntRange(3, 6) && middle.TrapIds.Contains("TR005") &&
-           !middle.TrapIds.Contains("TR006"),
+           middle.TrapIds.Contains("TR008") && !middle.TrapIds.Contains("TR006"),
         "A középső szintek csapdakonfigurációja nem megfelelően nehezedik.");
     Assert(final.TrapCount == new IntRange(4, 8) && final.TrapIds.Contains("TR007") &&
            !final.TrapIds.Contains("TR001"),
         "A végső szintek nem a legnehezebb csapdakészletet használják.");
+    Assert(first.VisionModifier == 0 && MazeLevelConfigurations.Get(5).VisionModifier == -1 &&
+           MazeLevelConfigurations.Get(9).VisionModifier == -2,
+        "Az extra sötét pályák látótávmódosítója hibás.");
 }
 
 static void LevelImageFileNamesAreNormalized()
@@ -2497,6 +2502,12 @@ static void CharacterVisionRangeUsesClassRaceAndEffects()
            CharacterClassRules.VisionRange(thief) == 7 &&
            CharacterClassRules.VisionRange(elfThief) == 8,
         "A karakter 5/7/8-as alap-, tolvaj- vagy elf látótávja hibás.");
+
+    var darkLevelLine = CharacterSheetPanel.Build(fighter, new Dictionary<int, int> { [2] = 100 },
+        9, 0, 12).Single(line => line.Row == 4);
+    Assert(CharacterClassRules.VisionRange(fighter, -2) == 3 && darkLevelLine.ColoredSuffix == "3" &&
+           darkLevelLine.ColoredSuffixColor == ConsoleColor.Red,
+        "Az extra sötét pálya nem csökkenti vagy nem pirosítja a látótávot.");
 
     fighter.ApplySpellEffect(new ActiveSpellEffect("LIGHT", ActiveSpellEffectType.VisionBonus, 2, 12, Beneficial: true));
     Assert(CharacterClassRules.NaturalVisionRange(fighter) == 5 &&
