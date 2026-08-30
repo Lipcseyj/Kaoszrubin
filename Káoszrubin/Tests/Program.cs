@@ -104,13 +104,13 @@ var tests = new (string Name, Action Run)[]
     ("Az ablakkeret-katalógus méretezhető és konfigurálható", WindowFrameCatalogIsResizableAndConfigured),
     ("A vendég snapshot kasztbetűt és karakterszínt őriz", GuestAvatarUsesClassGlyphAndCharacterColor),
     ("A vendég nem rajzol újra puszta snapshot-sorszám változásra", GuestRedrawIgnoresReplicationSequences),
-    ("A vendég csak saját inventory read modelt kap", ReplicationPublisherRedactsOtherInventories),
+    ("A vendég a teljes party inventory read modeljét megkapja", ReplicationPublisherSharesPartyInventories),
     ("Az inventory transfer atomi és megőrzi a töltetet", InventoryTransferIsAtomicAndPreservesCharges),
     ("A hátizsákköteg felezése atomi és tele hátizsáknál figyelmeztet", InventoryStackSplitIsAtomicAndRequiresSpace),
     ("Az elfogyasztható köteg egyenletesen és veszteségmentesen oszlik szét", ConsumableStackDistributesEvenly),
     ("A képességnövelő varázstárgyak minden kasztnál 13-ig hatnak", AbilityMagicItemsAreUniversalAndCapped),
     ("Az elavult inventory-revízió elutasításra kerül", StaleInventoryRevisionIsRejected),
-    ("A vendég nem mozgathat tárgyat más karakterhez", RemoteInventoryTransferCannotCrossCharacters),
+    ("A vendég hátizsákok között mozgathat, felszerelést nem", RemoteInventoryTransferCanCrossBackpacksOnly),
     ("A használat, eldobás és pickup command alakja validált", InventoryActionCommandsAreValidated),
     ("Nem fogyasztható tárgy használata elutasításra kerül", NonConsumableUseIsRejected),
     ("A földi loot megőrzi a töltetet és revíziózott", GroundPilePreservesChargesAndRevision),
@@ -1526,7 +1526,7 @@ static void GuestRedrawIgnoresReplicationSequences()
         "A render fingerprint valódi látható állapotváltozást nem érzékelt.");
 }
 
-static void ReplicationPublisherRedactsOtherInventories()
+static void ReplicationPublisherSharesPartyInventories()
 {
     var (session, leader, companion) = CreateSession();
     var remote = session.RegisterRemotePlayer();
@@ -1558,12 +1558,10 @@ static void ReplicationPublisherRedactsOtherInventories()
 
     Assert(hostFrame.Session.Party.All(character => character.Inventory is not null),
         "A host nem kapta meg a teljes parti inventory read modelt.");
-    Assert(guestFrame.Session.Party.Single(character => character.CharacterId == companion.Id).Inventory is not null &&
-           guestFrame.Session.Party.Single(character => character.CharacterId == leader.Id).Inventory is null,
-        "A vendég más karakter inventoryját is megkapta, vagy a sajátját sem kapta meg.");
-    Assert(guestFrame.Session.Party.Single(character => character.CharacterId == companion.Id).CharacterSheet is not null &&
-           guestFrame.Session.Party.Single(character => character.CharacterId == leader.Id).CharacterSheet is null,
-        "A vendég más karakter teljes karakterlapját is megkapta, vagy a sajátját sem kapta meg.");
+    Assert(guestFrame.Session.Party.All(character => character.Inventory is not null),
+        "A vendég nem kapta meg a party hátizsákok közötti mozgatáshoz szükséges inventory read modelleket.");
+    Assert(guestFrame.Session.Party.All(character => character.CharacterSheet is not null),
+        "A vendég nem kapta meg a lapozható party-karakterlapokat.");
 }
 
 static void InventoryTransferIsAtomicAndPreservesCharges()
@@ -1604,7 +1602,7 @@ static void StaleInventoryRevisionIsRejected()
         "Az elavult inventory-revíziójú command átjutott.");
 }
 
-static void RemoteInventoryTransferCannotCrossCharacters()
+static void RemoteInventoryTransferCanCrossBackpacksOnly()
 {
     var (session, leader, companion) = CreateSession();
     var remote = session.RegisterRemotePlayer();
@@ -1613,7 +1611,17 @@ static void RemoteInventoryTransferCannotCrossCharacters()
     var command = new InventoryTransferCommand(remote, 1, companion.Id, companion.InventoryRevision,
         InventorySlotKind.Backpack, 0, leader.Id, leader.InventoryRevision, InventorySlotKind.Backpack, 1);
     session.Submit(command);
-    Assert(!session.TryReadCommand(out _), "A vendég másik karakterhez mozgathatott tárgyat.");
+    Assert(session.TryReadCommand(out var accepted) && accepted == command,
+        "A vendég nem mozgathatott tárgyat a saját és a host hátizsákja között.");
+    var weapon = new WeaponDefinition("W-REMOTE", "Vendégfegyver", "Kard", new ValueRange(1, 4), 0, false,
+        new HashSet<string> { companion.CharacterClass.Id }, "Teszt", 1);
+    Assert(companion.SetInventoryItem(InventorySlotKind.Weapon, 0, weapon),
+        "A vendég felszereléskorlátozási tesztje nem készíthető elő.");
+    var forbidden = new InventoryTransferCommand(remote, 2, companion.Id, companion.InventoryRevision,
+        InventorySlotKind.Weapon, 0, leader.Id, leader.InventoryRevision, InventorySlotKind.Backpack, 2);
+    session.Submit(forbidden);
+    Assert(!session.TryReadCommand(out _),
+        "A vendég másik karakterhez felszerelést is mozgathatott.");
 }
 
 static void InventoryActionCommandsAreValidated()

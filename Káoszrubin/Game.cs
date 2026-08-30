@@ -2900,6 +2900,28 @@ public sealed class Game
         _renderer.DrawInventoryMessage(result.DisplacedItemName is null
             ? $"Áthelyezted: {result.SourceItemName}."
             : $"Felcserélted: {result.SourceItemName} ↔ {result.DisplacedItemName}.", ConsoleColor.Green);
+        if (command.SenderId != _session.HostPlayerId && CharacterRoster.Party.Leader is { } leader)
+        {
+            var guestCharacter = _session.CharacterControls
+                .Where(control => control.AssignedPlayerId == command.SenderId &&
+                                  control.ConnectionState == PlayerConnectionState.Connected)
+                .Select(control => CharacterRoster.Party.Members.FirstOrDefault(character =>
+                    character.Id == control.CharacterId))
+                .FirstOrDefault(character => character is not null);
+            string? hostTransferMessage = null;
+            if (command.DestinationCharacterId == leader.Id && command.CharacterId != leader.Id)
+                hostTransferMessage = $"{guestCharacter?.Name ?? "A vendég"} átadta a hostnak: " +
+                                      $"{result.SourceItemName}.";
+            else if (command.CharacterId == leader.Id && command.DestinationCharacterId != leader.Id)
+                hostTransferMessage = $"{guestCharacter?.Name ?? "A vendég"} elvette a hosttól: " +
+                                      $"{result.SourceItemName}.";
+            if (hostTransferMessage is not null)
+            {
+                _renderer.DrawInventoryMessage(hostTransferMessage, ConsoleColor.Yellow);
+                RecordSessionActivity(SessionActivityKind.System, hostTransferMessage, ConsoleColor.Yellow,
+                    [leader.Id]);
+            }
+        }
         PlaySessionSound(SoundEffect.Item, [command.CharacterId]);
     }
 

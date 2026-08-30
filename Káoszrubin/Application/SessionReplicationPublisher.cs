@@ -131,8 +131,7 @@ public sealed class SessionReplicationPublisher
             Party = snapshot.Party.Select(character => controlledCharacters.Contains(character.CharacterId) ||
                                                    character.IsTemporaryFollower
                 ? character
-                : character with { Inventory = null, CharacterSheet = null, ExplorationSpellOptions = null,
-                    SpellInfo = null }).ToArray()
+                : character with { ExplorationSpellOptions = null, SpellInfo = null }).ToArray()
         };
     }
 

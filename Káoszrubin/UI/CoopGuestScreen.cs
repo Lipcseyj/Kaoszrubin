@@ -27,6 +27,8 @@ public sealed class CoopGuestScreen
     private int _inventorySelection;
     private CharacterId? _displayedCharacterId;
     private InventorySlotAddress? _inventorySource;
+    private CharacterId? _inventorySourceCharacterId;
+    private long _inventorySourceRevision;
     private bool _battleSpellMenuOpen;
     private int _battleSpellSelection;
     private BattleSpellOption? _targetedBattleSpell;
@@ -804,8 +806,7 @@ public sealed class CoopGuestScreen
     private async Task HandleInventoryInputAsync(CoopSignalRClient client, CharacterId characterId,
         SessionSnapshot snapshot, ConsoleKey key, CancellationToken cancellationToken)
     {
-        var sheetCharacters = snapshot.Party.Where(character =>
-            character.CharacterId == characterId || character.IsTemporaryFollower).ToArray();
+        var sheetCharacters = snapshot.Party.ToArray();
         if (key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow && sheetCharacters.Length > 0)
         {
             var currentIndex = Array.FindIndex(sheetCharacters, character =>
@@ -815,7 +816,6 @@ public sealed class CoopGuestScreen
             _displayedCharacterId = sheetCharacters[(currentIndex + direction + sheetCharacters.Length) %
                                                      sheetCharacters.Length].CharacterId;
             _inventorySelection = 0;
-            _inventorySource = null;
             Interlocked.Exchange(ref _redrawRequested, 1);
             return;
         }
@@ -835,6 +835,7 @@ public sealed class CoopGuestScreen
             return;
         }
         var slots = inventory.Slots;
+        var isControlledCharacter = own!.CharacterId == characterId;
         _inventorySelection = Math.Clamp(_inventorySelection, 0, Math.Max(0, slots.Count - 1));
         GameCommand? command = null;
         if (GameInputBindings.IsCharacterSheetToggle(key))
@@ -856,16 +857,38 @@ public sealed class CoopGuestScreen
                 {
                     if (selected.Item is null)
                         SetMessage("Először egy tárgyat tartalmazó forrásslotot jelölj ki.");
+                    else if (!isControlledCharacter && selected.Kind != InventorySlotKind.Backpack)
+                        SetMessage("Másik partitag felszerelését nem mozgathatod.");
                     else
+                    {
                         _inventorySource = new InventorySlotAddress(selected.Kind, selected.Index);
+                        _inventorySourceCharacterId = own.CharacterId;
+                        _inventorySourceRevision = inventory.Revision;
+                    }
                 }
                 else
                 {
+                    if (_inventorySourceCharacterId != own.CharacterId &&
+                        (_inventorySource.Value.Kind != InventorySlotKind.Backpack ||
+                         selected.Kind != InventorySlotKind.Backpack))
+                    {
+                        SetMessage("Karakterek között csak hátizsákból hátizsákba mozgathatsz tárgyat.");
+                        break;
+                    }
                     command = new InventoryTransferCommand(client.PlayerId!.Value, client.NextCommandId(),
-                        characterId, inventory.Revision, _inventorySource.Value.Kind, _inventorySource.Value.Index,
-                        characterId, inventory.Revision, selected.Kind, selected.Index);
+                        _inventorySourceCharacterId!.Value, _inventorySourceRevision,
+                        _inventorySource.Value.Kind, _inventorySource.Value.Index,
+                        own.CharacterId, inventory.Revision, selected.Kind, selected.Index);
                     _inventorySource = null;
+                    _inventorySourceCharacterId = null;
+                    _inventorySourceRevision = 0;
                 }
+                break;
+            case InventoryInputAction.Use when !isControlledCharacter:
+            case InventoryInputAction.Drop when !isControlledCharacter:
+            case InventoryInputAction.SplitStack when !isControlledCharacter:
+            case InventoryInputAction.DistributeStack when !isControlledCharacter:
+                SetMessage("Másik partitag inventoryjában csak a Space mozgatás használható.");
                 break;
             case InventoryInputAction.Use when slots.Count > 0:
                 var useSlot = slots[_inventorySelection];
@@ -949,6 +972,8 @@ public sealed class CoopGuestScreen
         _inventoryOpen = false;
         _spellInfoOpen = false;
         _inventorySource = null;
+        _inventorySourceCharacterId = null;
+        _inventorySourceRevision = 0;
         _displayedCharacterId = null;
         Interlocked.Exchange(ref _redrawRequested, 1);
     }
@@ -1128,7 +1153,8 @@ public sealed class CoopGuestScreen
         {
             if (panelLines.TryGetValue(y, out var line))
             {
-                var marker = line.InventorySlot is not null && line.InventorySlot == _inventorySource ? "*" : " ";
+                var marker = line.InventorySlot is not null && line.InventorySlot == _inventorySource &&
+                             own?.CharacterId == _inventorySourceCharacterId ? "*" : " ";
                 panel[y] = new GuestTextLine(marker + line.Text, line.Color,
                     line.InventorySlot is not null && line.InventorySlot == selectedSlot
                         ? ConsoleColor.DarkCyan
@@ -1146,7 +1172,9 @@ public sealed class CoopGuestScreen
             {
                 panel[41 + index] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
                 partyStatuses[41 + index] = CharacterSheetPanel.BuildPartyStatus(member,
-                    member.CharacterId == selected.CharacterId,
+                    member.CharacterId == (_inventoryOpen
+                        ? _displayedCharacterId ?? selected.CharacterId
+                        : selected.CharacterId),
                     member.CharacterId == snapshot.LeaderCharacterId);
             }
         }

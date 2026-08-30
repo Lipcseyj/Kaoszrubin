@@ -452,10 +452,19 @@ public sealed class GameSession
         var destination = _party.Members.FirstOrDefault(character => character.Id == command.DestinationCharacterId);
         if (source is null || destination is null)
             return Fail("Az inventory-command egyik karaktere nem tagja a partinak.", out reason);
-        if (command.SenderId != HostPlayerId &&
-            (!CanPlayerManageInventory(command.SenderId, source.Id) ||
-             !CanPlayerManageInventory(command.SenderId, destination.Id)))
-            return Fail("A vendég csak a saját karakterének inventoryját kezelheti.", out reason);
+        if (command.SenderId != HostPlayerId)
+        {
+            var controlsPartyCharacter = _controls.Values.Any(control =>
+                control.AssignedPlayerId == command.SenderId &&
+                control.ControllerKind == CharacterControllerKind.RemotePlayer &&
+                control.ConnectionState == PlayerConnectionState.Connected);
+            if (!controlsPartyCharacter)
+                return Fail("A vendég nem irányít aktív partykaraktert.", out reason);
+            if (source.Id != destination.Id &&
+                (command.SourceKind != InventorySlotKind.Backpack ||
+                 command.DestinationKind != InventorySlotKind.Backpack))
+                return Fail("A vendég karakterek között csak hátizsáktárgyat mozgathat.", out reason);
+        }
         return InventoryTransferService.Validate(_party, command, out reason);
     }
 
