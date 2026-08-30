@@ -46,8 +46,15 @@ public sealed class BackgroundMusicPlayer : IDisposable
     {
         if (_activeMazeLevel == mazeLevel) return;
         _activeMazeLevel = mazeLevel;
-        if (BackgroundMusicCatalog.PathForMazeLevel(mazeLevel) is { } path) Play(path);
-        else Stop();
+        if (BackgroundMusicCatalog.RandomTrackPath() is { } path)
+        {
+            Play(path);
+        }
+        else
+        {
+            Stop();
+            _reportFailure?.Invoke("A Zene mappában nem található lejátszható MP3-fájl.");
+        }
     }
 
     public void Stop()
@@ -70,9 +77,12 @@ public sealed class BackgroundMusicPlayer : IDisposable
 
 public static class BackgroundMusicCatalog
 {
-    public static string? PathForMazeLevel(int mazeLevel) => mazeLevel switch
+    public static string? RandomTrackPath()
     {
-        1 => Path.Combine(AppContext.BaseDirectory, "Zene", "zene1.mp3"),
-        _ => null
-    };
+        string directory = Path.Combine(AppContext.BaseDirectory, "Zene");
+        if (!Directory.Exists(directory)) return null;
+
+        string[] tracks = Directory.GetFiles(directory, "*.mp3", SearchOption.TopDirectoryOnly);
+        return tracks.Length == 0 ? null : tracks[Random.Shared.Next(tracks.Length)];
+    }
 }
