@@ -4197,6 +4197,13 @@ public sealed class Game
                 case SpellEffectType.RestoreNeeds:
                     ApplyNeedRestoration(characterTargets, effect, divineJudgment, notes);
                     break;
+                case SpellEffectType.VisionBonus:
+                    ApplyCharacterEffects(caster, characterTargets, effect, spell,
+                        ActiveSpellEffectType.VisionBonus, divineJudgment);
+                    foreach (var characterTarget in characterTargets)
+                        RevealFor(characterTarget, GetCasterPosition(characterTarget));
+                    notes.Add($"👁️ +{effect.Value} látótáv {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
+                    break;
             }
         }
 

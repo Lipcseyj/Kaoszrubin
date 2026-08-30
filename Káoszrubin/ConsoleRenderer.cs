@@ -1899,11 +1899,20 @@ public sealed class ConsoleRenderer
             if (line.Row == CharacterSheetVitalityLine)
                 DrawCharacterResourceLine(line.Row, CharacterSheetPanel.BuildResourceLine(character));
             else
-                WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
+                WriteCharacterSheetPanelLine(line);
         DrawSelectableCharacterSheetRows(character);
         WriteSheetLine(CharacterSheetReservedMessageLine, string.Empty, ConsoleColor.DarkGray);
         WriteSheetLine(CharacterSheetControlsLine, string.Empty, ConsoleColor.DarkGray);
         DrawPicturePanel();
+    }
+
+    private void WriteCharacterSheetPanelLine(CharacterSheetPanelLine line)
+    {
+        if (string.IsNullOrEmpty(line.ColoredSuffix))
+            WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
+        else
+            WriteSheetLine(line.Row, line.Text, line.Color, line.Background,
+                line.ColoredSuffix, line.ColoredSuffixColor);
     }
 
     private void DrawBattleStatusRows(LiveCharacter character)
@@ -1921,6 +1930,7 @@ public sealed class ConsoleRenderer
                 ActiveSpellEffectType.ProtectionFromEvil => "✝️🛡️",
                 ActiveSpellEffectType.GuardianAngel => "👼",
                 ActiveSpellEffectType.Sanctuary => "⛪",
+                ActiveSpellEffectType.VisionBonus => "🔆",
                 _ => "✨"
             })).ToList();
         WriteSheetLine(CharacterSheetStatusLine, statusIcons.Count == 0

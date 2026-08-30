@@ -31,7 +31,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
-    ("Mindkét varázsiskola minden szintjén öt varázslat van", SpellSchoolsHaveFiveSpellsPerLevel),
+    ("A mágus első szintjén a Fényvarázslat a hatodik varázslat", SpellSchoolsIncludeMageLightSpell),
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
@@ -79,7 +79,7 @@ var tests = new (string Name, Action Run)[]
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
     ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
     ("A csapdakészlet és darabszám a labirintusszinttel nehezedik", TrapConfigurationScalesByMazeLevel),
-    ("A karakter kasztja és faja módosítja a látótávot", CharacterVisionRangeUsesClassAndRace),
+    ("A karakter kasztja, faja és átmeneti hatásai módosítják a látótávot", CharacterVisionRangeUsesClassRaceAndEffects),
     ("A szörnyek látótávja CSV-ből érkezik", EnemyVisionRangesLoadFromCsv),
     ("A felfedés változó látótávot és látóvonalat használ", FogRevealUsesVariableRangeAndLineOfSight),
     ("Az üldözési memória három elvesztett látási lépésig tart", PursuitMemoryLastsThreeMoves),
@@ -1476,10 +1476,12 @@ static void CharacterSheetLayoutIsShared()
     var guestLines = CharacterSheetPanel.Build(snapshot, 3, 1, 4);
     Assert(hostLines.SequenceEqual(guestLines),
         "A doménkarakterből és a hálózati snapshotból felépített karakterlap eltér.");
-    var abilityLine = hostLines.Single(line => line.Row == 4).Text;
-    Assert(abilityLine.Contains("💖", StringComparison.Ordinal) &&
-           abilityLine.Contains("👁️5", StringComparison.Ordinal) && abilityLine.Length <= CharacterSheetPanel.Width,
-        $"A karakterlap képességsora nem mutatja szabályosan a látótávot: '{abilityLine}'.");
+    var abilityLine = hostLines.Single(line => line.Row == 4);
+    Assert(abilityLine.Text.Contains("💖", StringComparison.Ordinal) &&
+           abilityLine.Text.EndsWith("👁️", StringComparison.Ordinal) && abilityLine.ColoredSuffix == "5" &&
+           abilityLine.ColoredSuffixColor == ConsoleColor.White &&
+           abilityLine.Text.Length + abilityLine.ColoredSuffix.Length <= CharacterSheetPanel.Width,
+        $"A karakterlap képességsora nem mutatja szabályosan a látótávot: '{abilityLine.Text}{abilityLine.ColoredSuffix}'.");
     var restored = JsonSerializer.Deserialize<SessionCharacterSnapshot>(JsonSerializer.Serialize(snapshot));
     Assert(restored is not null && CharacterSheetPanel.Build(restored, 3, 1, 4).SequenceEqual(hostLines),
         "A közös karakterlap read modelje nem élte túl a JSON wire-körutat.");
@@ -2124,13 +2126,21 @@ static void CharacterSheetColorsHealthAndManaSeparately()
         "A fél HP alatti érték nem piros, vagy a manna nem maradt külön színű.");
 }
 
-static void SpellSchoolsHaveFiveSpellsPerLevel()
+static void SpellSchoolsIncludeMageLightSpell()
 {
     var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
     foreach (var school in Enum.GetValues<SpellSchool>())
         for (var level = 1; level <= 5; level++)
-            Assert(catalog.GetSpells(school, level).Count == 5,
-                $"A(z) {school} iskola {level}. szintjén nincs pontosan öt varázslat.");
+            Assert(catalog.GetSpells(school, level).Count ==
+                   (school == SpellSchool.Arcane && level == 1 ? 6 : 5),
+                $"A(z) {school} iskola {level}. szintjén hibás a varázslatok száma.");
+
+    var light = catalog.GetSpell("S026");
+    Assert(light.Name == "Fényvarázslat" && light.Level == 1 &&
+           light.UsageMode == SpellUsageMode.Exploration && light.TargetType == SpellTargetType.Self &&
+           catalog.GetSpellEffects(light.Id).Single() is
+               { Type: SpellEffectType.VisionBonus, Value: 2, Duration: 12 },
+        "A Fényvarázslat adatai vagy látótávhatása hibás.");
 
     var creation = catalog.GetSpell("P021");
     Assert(creation.Name == "Étel és ital teremtése" && creation.Level == 1 &&
@@ -2471,7 +2481,7 @@ static void AdaptableRaceGainsChosenAbility()
         "Az Alkalmazkodó ember tehetségszintjei hibásak.");
 }
 
-static void CharacterVisionRangeUsesClassAndRace()
+static void CharacterVisionRangeUsesClassRaceAndEffects()
 {
     var abilities = new PrimaryAbilities(5, 5, 5, 5);
     var human = new RaceDefinition("R-HUMAN", "Ember", PrimaryAbilities.Zero);
@@ -2487,6 +2497,22 @@ static void CharacterVisionRangeUsesClassAndRace()
            CharacterClassRules.VisionRange(thief) == 7 &&
            CharacterClassRules.VisionRange(elfThief) == 8,
         "A karakter 5/7/8-as alap-, tolvaj- vagy elf látótávja hibás.");
+
+    fighter.ApplySpellEffect(new ActiveSpellEffect("LIGHT", ActiveSpellEffectType.VisionBonus, 2, 12, Beneficial: true));
+    Assert(CharacterClassRules.NaturalVisionRange(fighter) == 5 &&
+           CharacterClassRules.VisionRange(fighter) == 7,
+        "A pozitív látótávhatás nem különül el a természetes látótávtól.");
+    var increasedLine = CharacterSheetPanel.Build(fighter, new Dictionary<int, int> { [2] = 100 },
+        1, 0, 12).Single(line => line.Row == 4);
+    Assert(increasedLine.ColoredSuffix == "7" && increasedLine.ColoredSuffixColor == ConsoleColor.Green,
+        "A növelt látótáv száma nem zöld a karakterlapon.");
+
+    fighter.ApplySpellEffect(new ActiveSpellEffect("DARKNESS", ActiveSpellEffectType.VisionBonus, -4, 12));
+    var decreasedLine = CharacterSheetPanel.Build(fighter, new Dictionary<int, int> { [2] = 100 },
+        1, 0, 12).Single(line => line.Row == 4);
+    Assert(CharacterClassRules.VisionRange(fighter) == 3 && decreasedLine.ColoredSuffix == "3" &&
+           decreasedLine.ColoredSuffixColor == ConsoleColor.Red,
+        "A csökkentett látótáv értéke vagy piros kijelzése hibás.");
 }
 
 static void EnemyVisionRangesLoadFromCsv()

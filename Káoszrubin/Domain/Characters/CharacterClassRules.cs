@@ -1,3 +1,5 @@
+using KaoszRubin.Domain.Magic;
+
 namespace KaoszRubin.Domain.Characters;
 
 /// <summary>Az osztályok CSV-n kívüli alapvető játékszabályai.</summary>
@@ -5,8 +7,9 @@ public static class CharacterClassRules
 {
     public const int BaseVisionRange = 5;
     public const int MaximumVisionRange = 8;
+    public const int MaximumModifiedVisionRange = 10;
 
-    public static int VisionRange(LiveCharacter character)
+    public static int NaturalVisionRange(LiveCharacter character)
     {
         ArgumentNullException.ThrowIfNull(character);
         var range = BaseVisionRange;
@@ -14,6 +17,10 @@ public static class CharacterClassRules
         if (character.Race.HasTrait(RaceTraits.KeenSenses)) range++;
         return Math.Clamp(range, 2, MaximumVisionRange);
     }
+
+    public static int VisionRange(LiveCharacter character) => Math.Clamp(
+        NaturalVisionRange(character) + character.SpellEffectValue(ActiveSpellEffectType.VisionBonus),
+        1, MaximumModifiedVisionRange);
 
     public static bool IsMartial(string characterClassId) => characterClassId is
         CharacterClassIds.Harcos or CharacterClassIds.Barbár or CharacterClassIds.Lovag;

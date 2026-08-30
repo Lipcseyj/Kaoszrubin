@@ -530,6 +530,7 @@ S002,Fagyasztó érintés,1,5,Fagyos közelharci varázslat amely megsebzi és l
 S003,Égő kéz,1,8,Rövid lángtölcsér amely több ellenfelet megsebezhet és lángra lobbanthat.,Direction,2,1,igen,Both
 S005,Lángoló nyíl,1,7,Nagy hatótávú tűznyíl amely találatkor égést okoz.,Enemy,8,0,igen,Both
 S021,Erőpajzs,1,6,Sűrű arkán mező amely rövid időre megerősíti a mágus védelmét.,Self,0,0,nem,Both
+S026,Fényvarázslat,1,6,Arkán fény veszi körül a mágust és messzebbre tárja fel előtte a labirintust.,Self,0,0,nem,Exploration
 S004,Villámcsapás,2,12,Egyetlen célpontba vezetett nagy erejű villámcsapás.,Enemy,6,0,igen,Both
 S006,Láthatatlanság,2,11,Egy partitag eltűnik az ellenfelek szeme elől amíg támadást nem indít.,PartyMember,6,0,igen,Both
 S013,Arkán páncél,2,10,Mágikus védőréteg amely ideiglenesen növeli a varázsló védelmét.,Self,0,0,nem,Both
@@ -589,6 +590,7 @@ FX-S003-2,S003,2,Burning,1d4,0,0,0,2,100,SaveNegates,,Sikertelen mentőnél két
 FX-S005-1,S005,1,Damage,3d6,1,1,0,0,100,Attack,,Mágikus támadással okozott tűzsebzés.
 FX-S005-2,S005,2,Burning,1d4,0,0,0,2,100,Attack,,Találatkor két akcióig égést okoz.
 FX-S021-1,S021,1,DefenseBonus,,0,0,3,3,100,Auto,,Három akcióra három pont védelmet ad.
+FX-S026-1,S026,1,VisionBonus,,0,0,2,12,100,Auto,,Tizenkét akcióra kettővel növeli a látótávot.
 FX-S004-1,S004,1,Damage,5d8,2,3,0,0,100,Attack,,Nagy erejű egycélpontos villámsebzés.
 FX-S006-1,S006,1,Invisibility,,0,0,5,3,100,Auto,,Közvetlen célzás elleni védelem és plusz öt az első támadáshoz.
 FX-S013-1,S013,1,DefenseBonus,,0,0,5,5,100,Auto,,Öt akcióig öt pont mágikus védelmet ad.

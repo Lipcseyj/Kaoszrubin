@@ -1164,7 +1164,7 @@ public sealed class CoopGuestScreen
                 panel[y] = new GuestTextLine(marker + line.Text, line.Color,
                     line.InventorySlot is not null && line.InventorySlot == selectedSlot
                         ? ConsoleColor.DarkCyan
-                        : line.Background);
+                        : line.Background, line.ColoredSuffix, line.ColoredSuffixColor);
             }
             else
                 panel[y] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
@@ -1652,7 +1652,19 @@ public sealed class CoopGuestScreen
         if (!TrySetCursorPosition(x, y)) return;
         Console.ForegroundColor = line.Foreground;
         Console.BackgroundColor = line.Background;
-        Console.Write(FitConsoleLine(line.Text, width));
+        if (string.IsNullOrEmpty(line.ColoredSuffix))
+        {
+            Console.Write(FitConsoleLine(line.Text, width));
+            return;
+        }
+        var suffix = line.ColoredSuffix[..Math.Min(line.ColoredSuffix.Length, width)];
+        var leftWidth = Math.Max(0, width - suffix.Length);
+        var left = line.Text.Length <= leftWidth ? line.Text : line.Text[..leftWidth];
+        Console.Write(left);
+        Console.ForegroundColor = line.ColoredSuffixColor;
+        Console.Write(suffix);
+        Console.ForegroundColor = line.Foreground;
+        Console.Write(new string(' ', Math.Max(0, width - left.Length - suffix.Length)));
     }
 
     private static void WritePartyStatusAt(int x, int y, PartyStatusLine? status)
@@ -1779,7 +1791,8 @@ public sealed class CoopGuestScreen
 
     private readonly record struct GuestMapCell(string Glyph, ConsoleColor Color,
         ConsoleColor Background = ConsoleColor.Black, bool IsContinuation = false);
-    private readonly record struct GuestTextLine(string Text, ConsoleColor Foreground, ConsoleColor Background);
+    private readonly record struct GuestTextLine(string Text, ConsoleColor Foreground, ConsoleColor Background,
+        string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White);
     private sealed record GuestRenderFrame(WorldId WorldId, int WindowWidth, int WindowHeight, int MapWidth,
         int MapHeight, GuestMapCell[,] Map, GuestTextLine[] Panel, PartyStatusLine?[] PartyStatuses,
         GuestTextLine[] Footers, CharacterResourceLine? ResourceLine);

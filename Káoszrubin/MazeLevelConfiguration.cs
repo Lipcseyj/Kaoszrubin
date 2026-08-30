@@ -567,7 +567,7 @@ public static class MazeLevelConfigurations
             [21] = new()
             {
                 Level = 21,
-                Name = "A Káoszrubin rejtekhelye",
+                Name = "A káosz trónja",
                 DoubleWidthCorridorChance = 0.86,
                 WallRune = new('▓'),
                 WallColor = ConsoleColor.Magenta,

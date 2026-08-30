@@ -30,7 +30,8 @@ public enum SpellEffectType
     Sanctuary,
     Resurrect,
     DispelBeneficial,
-    RestoreNeeds
+    RestoreNeeds,
+    VisionBonus
 }
 
 public enum SpellResolution
@@ -85,7 +86,8 @@ public enum ActiveSpellEffectType
     ProtectionFromEvil,
     GuardianAngel,
     Sanctuary,
-    SkipNext
+    SkipNext,
+    VisionBonus
 }
 
 public sealed record ActiveSpellEffect(string SourceSpellId, ActiveSpellEffectType Type, int Value,

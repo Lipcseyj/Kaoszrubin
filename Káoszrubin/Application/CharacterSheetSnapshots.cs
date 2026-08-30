@@ -10,7 +10,8 @@ public sealed record CharacterSheetSnapshot(string RaceName, string CharacterCla
     IReadOnlyList<string>? ClassFeatureUpgradeNames = null,
     IReadOnlyList<string>? WeaponProficiencyNames = null,
     IReadOnlyDictionary<string, int>? WeaponProficiencyRanks = null,
-    int VisionRange = CharacterClassRules.BaseVisionRange);
+    int VisionRange = CharacterClassRules.BaseVisionRange,
+    int NaturalVisionRange = CharacterClassRules.BaseVisionRange);
 
 public static class SpellInfoSnapshotProjector
 {
@@ -45,6 +46,7 @@ public static class CharacterSheetSnapshotProjector
                 ActiveSpellEffectType.ProtectionFromEvil => "✝️🛡️",
                 ActiveSpellEffectType.GuardianAngel => "👼",
                 ActiveSpellEffectType.Sanctuary => "⛪",
+                ActiveSpellEffectType.VisionBonus => "🔆",
                 _ => "✨"
             })).ToArray();
         return new CharacterSheetSnapshot(character.Race.Name, character.CharacterClass.Name,
@@ -60,6 +62,6 @@ public static class CharacterSheetSnapshotProjector
             }).ToArray(),
             character.WeaponProficiencies.ToDictionary(proficiency => proficiency.FamilyId,
                 proficiency => (int)proficiency.Rank, StringComparer.OrdinalIgnoreCase),
-            CharacterClassRules.VisionRange(character));
+            CharacterClassRules.VisionRange(character), CharacterClassRules.NaturalVisionRange(character));
     }
 }

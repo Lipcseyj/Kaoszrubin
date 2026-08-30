@@ -7,7 +7,8 @@ namespace KaoszRubin.UI;
 public readonly record struct InventorySlotAddress(InventorySlotKind Kind, int Index);
 
 public sealed record CharacterSheetPanelLine(int Row, string Text, ConsoleColor Color,
-    InventorySlotAddress? InventorySlot = null, ConsoleColor Background = ConsoleColor.Black);
+    InventorySlotAddress? InventorySlot = null, ConsoleColor Background = ConsoleColor.Black,
+    string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White);
 
 public sealed record PartyStatusLine(string Identity, ConsoleColor IdentityColor,
     string Vitality, ConsoleColor VitalityColor, string Mana, ConsoleColor ManaColor)
@@ -136,7 +137,10 @@ public static class CharacterSheetPanel
         lines.Add(new(3, details.NextLevelExperience is { } next
             ? $"Szint: {character.Level}  XP: {details.Experience}/{next}"
             : $"Szint: {character.Level}  XP: MAX", ConsoleColor.Cyan));
-        lines.Add(new(4, $"💪{details.Abilities.Strength} 🏹{details.Abilities.Dexterity} 💖{details.Abilities.Health} 🧠{details.Abilities.Intelligence} 👁️{details.VisionRange}", ConsoleColor.White));
+        var visionColor = details.VisionRange < details.NaturalVisionRange ? ConsoleColor.Red :
+            details.VisionRange > details.NaturalVisionRange ? ConsoleColor.Green : ConsoleColor.White;
+        lines.Add(new(4, $"💪{details.Abilities.Strength} 🏹{details.Abilities.Dexterity} 💖{details.Abilities.Health} 🧠{details.Abilities.Intelligence} 👁️",
+            ConsoleColor.White, ColoredSuffix: details.VisionRange.ToString(), ColoredSuffixColor: visionColor));
         lines.Add(new(5, $"❤️{character.CurrentVitality}/{character.MaximumVitality}" +
             (details.UsesMana ? $"  🔷{character.CurrentMana}/{character.MaximumMana}" : string.Empty),
             details.UsesMana ? ConsoleColor.Cyan : ConsoleColor.Red));
