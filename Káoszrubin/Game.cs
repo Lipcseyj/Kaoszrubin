@@ -312,7 +312,7 @@ public sealed class Game
 
         // Emergency heal: any ally under 35% HP, within the spell's range of the caster
         var healThresholdPercent = 35;
-        var allies = CharacterRoster.Party.Members.Where(c => c.IsAlive).ToList();
+        var allies = CharacterRoster.Party.Members.Append(caster).Distinct().Where(c => c.IsAlive).ToList();
         var lowest = allies.OrderBy(c => (double)c.CurrentVitality / c.MaximumVitality).FirstOrDefault();
         if (lowest is not null && (double)lowest.CurrentVitality / lowest.MaximumVitality * 100 <= healThresholdPercent)
         {
@@ -433,7 +433,7 @@ public sealed class Game
         var manaReservePercent = 20;
         var manaReserve = Math.Max(0, caster.MaximumMana * manaReservePercent / 100);
         var healThresholdPercent = 50; // more generous during exploration
-        var allies = CharacterRoster.Party.Members.Where(c => c.IsAlive).ToList();
+        var allies = CharacterRoster.Party.Members.Append(caster).Distinct().Where(c => c.IsAlive).ToList();
         var lowest = allies.OrderBy(c => (double)c.CurrentVitality / c.MaximumVitality).FirstOrDefault();
         if (lowest is not null && (double)lowest.CurrentVitality / lowest.MaximumVitality * 100 <= healThresholdPercent)
         {

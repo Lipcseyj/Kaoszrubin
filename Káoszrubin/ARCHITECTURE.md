@@ -337,6 +337,8 @@ A periódusos fogyás külön-külön lefut a parti minden élő tagjára és az
 
 A gépi vezérlésű partitag és követő a percenkénti szükségletcsökkenés, illetve saját csata után a normál Éhes vagy Szomjas állapotnál véletlenül 1–3 megfelelő adagot próbál elfogyasztani a saját hátizsákjából. Minden adag előtt újraértékeli a hiányt, és kihagyja azt a tárgyat, amely 100 fölött 15 pontnál több élelmet vagy vizet pazarolna. Sérüléskor ugyanígy 1–3 gyógyitalt használhat, de csak legfeljebb 15 HP túltöltéssel; ezt és a panaszidőzítőket a játék másodpercenként egyszer ellenőrzi, nem minden NPC-mozgásnál és főciklus-iterációban. A fogyasztás, az elfogyott készlet és a nulla szükségletszint a közös naplóba kerül. Nulla élelem/víz, illetve fél HP alatti állapot és gyógyital hiánya esetén karakterenként és problémánként véletlen 2–3 percenként ismétlődő panasz jelenik meg; a probléma megszűnése törli az időzítőt.
 
+Az ideiglenes követő varázshasználó saját magát is felveszi az automatikus gyógyítás lehetséges célpontjai közé. Harcban 35%, felfedezéskor 50% HP alatt választható, és a valódi party tagjaival együtt mindig a legalacsonyabb HP-arányú elérhető célpontot gyógyítja. A szokásos memorizálási, hatótáv-, mannaköltség- és 20%-os mannatartalék-szabályok változatlanok; harcban 10% HP alatti vészhelyzet felülírhatja a tartalékot.
+
 Minden csata után kizárólag a ténylegesen harcoló karakter élelem- és vízszintje csökken, ugyanazzal a dobott értékkel:
 
 ```text
