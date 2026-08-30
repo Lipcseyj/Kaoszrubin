@@ -74,7 +74,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 7;
+    public const int CurrentVersion = 8;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -93,6 +93,7 @@ public static class GameSaveFormat
                 4 => MigrateVersion4To5(state),
                 5 => MigrateVersion5To6(state),
                 6 => MigrateVersion6To7(state),
+                7 => MigrateVersion7To8(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -139,6 +140,13 @@ public static class GameSaveFormat
     {
         // A 7-es formátum az NPC-küldetések állapotát és haladását őrzi.
         state.Version = 7;
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion7To8(GameSaveData state)
+    {
+        // A 8-as formátum az egyetlen ideiglenes követőt és az egyedi NPC beszélgetési állapotát menti.
+        state.Version = 8;
         return state;
     }
 }
@@ -214,11 +222,12 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     int PursuitMemoryRemainingMoves = -1);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false);
-public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex);
+public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex,
+    WorldNpcSaveData? TemporaryFollower = null);
 public sealed record WorldNpcSaveData(Position Position, string DefinitionId, int CharacterIndex,
     NpcDisposition Disposition, bool Recruitable, bool IsQuestNpc, string Dialogue, WorldNpcState State,
     int Friendliness = 5, Domain.NpcWorldBehavior Behavior = Domain.NpcWorldBehavior.Guarded,
-    List<string>? QuestIds = null, List<NpcQuestProgress>? Quests = null);
+    List<string>? QuestIds = null, List<NpcQuestProgress>? Quests = null, int ConversationStage = 0);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);
 public sealed record TrapSaveData(Position Position, string DefinitionId, TrapState State,
     bool DetectionAttempted, int FailedDisarmAttempts);

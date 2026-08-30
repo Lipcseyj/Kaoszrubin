@@ -5,7 +5,7 @@ using MazeGame.Domain;
 namespace MazeGame;
 
 public enum NpcDisposition { Friendly, Neutral, Hostile }
-public enum WorldNpcState { Available, Declined }
+public enum WorldNpcState { Available, Declined, Following }
 public enum NpcQuestState { Offered, Active, Completed }
 public sealed record NpcQuestProgress(string QuestId, NpcQuestState State = NpcQuestState.Offered, int Progress = 0);
 
@@ -27,12 +27,18 @@ public sealed class WorldNpc(Position position, string definitionId, LiveCharact
     public WorldNpcState State { get; private set; } = state;
     public int Friendliness { get; private set; } = Math.Clamp(friendliness, 0, 10);
     public NpcWorldBehavior Behavior { get; } = behavior;
+    public int ConversationStage { get; private set; }
     public IReadOnlyList<string> QuestIds => _quests.Keys.ToArray();
     public IReadOnlyList<NpcQuestProgress> Quests => _quests.Values.ToArray();
     public bool CanJoin => Recruitable && _quests.Values.All(quest => quest.State == NpcQuestState.Completed);
     public override Rune Symbol { get; } = Rune.GetRuneAt(character.CharacterClass.Name.ToUpperInvariant(), 0);
 
     public void Decline() => State = WorldNpcState.Declined;
+    public void BeginFollowing() => State = WorldNpcState.Following;
+    public void MoveTo(Position position) => Position = position;
+    public void AdjustFriendliness(int amount) => Friendliness = Math.Clamp(Friendliness + amount, 0, 10);
+    public void AdvanceConversation() => ConversationStage++;
+    public void RestoreConversationStage(int stage) => ConversationStage = Math.Max(0, stage);
     public bool ActivateQuest(string questId)
     {
         if (!_quests.TryGetValue(questId, out var quest) || quest.State != NpcQuestState.Offered) return false;

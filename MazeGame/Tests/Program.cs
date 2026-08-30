@@ -2162,22 +2162,26 @@ static void ClassResourceGrowthLoadsFromCsv()
 static void NpcDefinitionsLoadFromCsv()
 {
     var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
-    Assert(catalog.Npcs.Count == 19 && catalog.NpcEncounters.Count == 27 &&
+    Assert(catalog.Npcs.Count == 20 && catalog.NpcEncounters.Count == 28 &&
            Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
         "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-    Assert(catalog.NpcDialogues.Count == 69 && catalog.NpcQuests.Count == 33 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 6 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 15 &&
+    Assert(catalog.NpcDialogues.Count == 72 && catalog.NpcQuests.Count == 36 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 7 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 16 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Explore) == 5 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Disarm) == 3 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.OpenChest) == 4,
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.OpenChest) == 4 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Escort) == 1,
         "Az NPC-párbeszédek vagy a küldetéstípusok hibásan töltődtek.");
     Assert(catalog.GetNpc("NPC001") is { Disposition: NpcDisposition.Neutral, Unique: false } &&
            catalog.GetNpcQuests("NPC002").Any(quest =>
                quest is { TargetId: "E003", ExperienceReward: 260 }) &&
            catalog.GetNpcQuests("NPC001").Any(quest => quest is
                { Id: "NPCQ001", RewardItemId: "T018", RewardItemCount: 2, RandomRewardCount: 0 }) &&
+           catalog.GetNpc("NPC020") is { Unique: true, Recruitable: true, RaceId: "R003" } &&
+           catalog.GetNpcQuests("NPC020").Select(quest => quest.Type).ToHashSet().SetEquals(
+               [NpcQuestType.Escort, NpcQuestType.Collect, NpcQuestType.Kill]) &&
            catalog.NpcQuests.All(quest => quest.RandomRewardCount > 0 || quest.RewardItemCount > 0),
         "A semleges nem egyedi NPC vagy a hozzá kapcsolt küldetés hibás.");
 
@@ -2188,6 +2192,18 @@ static void NpcDefinitionsLoadFromCsv()
            npc.AddQuestProgress("NPCQ002", 1, 4) && npc.CompleteQuest("NPCQ002") &&
            npc.Quests.Single().State == NpcQuestState.Completed,
         "Az NPC-küldetés felvétele, haladása vagy egyszeri lezárása hibás.");
+
+    npc.AdjustFriendliness(20);
+    npc.BeginFollowing();
+    npc.AdvanceConversation();
+    var follower = new PartyMemberAvatar(new Position(1, 1), npc.Character, npc);
+    follower.MoveTo(new Position(2, 1));
+    Assert(npc.Friendliness == 10 && npc.State == WorldNpcState.Following &&
+           npc.ConversationStage == 1 && follower.IsTemporaryFollower && npc.Position == follower.Position,
+        "Az egyedi NPC viszonya vagy az ideiglenes követő pozíciója hibás.");
+    follower.MakePermanent();
+    Assert(!follower.IsTemporaryFollower,
+        "Az ideiglenes követő nem alakítható végleges partitaggá.");
 }
 
 static void SpellUiModelsAreShared()

@@ -107,7 +107,10 @@ public static class WorldSnapshotProjector
                 new WorldItemSnapshot(entry.Item.Category.ToString(), entry.Item.Id, entry.Item.Name, entry.Charges,
                     entry.Item is Domain.Magic.MagicItemDefinition magic ? magic.MaximumCharges : 0)).ToArray(),
                 pile.Symbol.Value)).ToArray();
-        var npcs = maze.WorldNpcs.Where(npc => IsVisible(npc.Position)).Select(npc =>
+        var worldNpcs = maze.WorldNpcs.Concat(maze.PartyMembers
+            .Where(member => member.TemporaryFollower is not null)
+            .Select(member => member.TemporaryFollower!));
+        var npcs = worldNpcs.Where(npc => IsVisible(npc.Position)).Select(npc =>
             new WorldNpcSnapshot(npc.Id, npc.DefinitionId, npc.Character.Name, npc.Position,
                 npc.Disposition.ToString(), npc.Recruitable, npc.IsQuestNpc, npc.Symbol.Value,
                 ConsoleColor.White, npc.Character.Color, npc.Friendliness, npc.Behavior.ToString(),

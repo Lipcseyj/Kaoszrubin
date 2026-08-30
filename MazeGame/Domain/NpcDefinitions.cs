@@ -3,10 +3,11 @@ using MazeGame.Domain.Characters;
 namespace MazeGame.Domain;
 
 public enum NpcWorldBehavior { Friendly, Guarded, Opportunistic, Aggressive }
-public enum NpcQuestType { Collect, Kill, Explore, Disarm, OpenChest }
+public enum NpcQuestType { Collect, Kill, Explore, Disarm, OpenChest, Escort }
 
 public sealed record NpcDefinition(string Id, string Name, string CharacterClassId,
-    NpcDisposition Disposition, NpcWorldBehavior Behavior, bool Recruitable, bool Unique) : IGameDefinition;
+    NpcDisposition Disposition, NpcWorldBehavior Behavior, bool Recruitable, bool Unique,
+    string? RaceId = null) : IGameDefinition;
 
 public sealed record NpcEncounterDefinition(string Id, string NpcId, int MazeLevel,
     int MinimumDistance, int MaximumDistance) : IGameDefinition

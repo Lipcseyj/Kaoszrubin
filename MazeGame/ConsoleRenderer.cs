@@ -14,6 +14,7 @@ namespace MazeGame;
 
 public sealed record SpellCastSelection(SpellDefinition Spell, LiveCharacter Caster,
     MagicItemDefinition? CastingItem = null, int? CastingItemSlotIndex = null);
+public sealed record UniqueNpcConversationResult(int FriendlinessChange, bool FollowRequested, int ChoiceIndex);
 
 public sealed class ConsoleRenderer
 {
@@ -1514,6 +1515,89 @@ public sealed class ConsoleRenderer
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Enter && npc.CanJoin) return true;
             if (key == ConsoleKey.Escape) return false;
+        }
+    }
+
+    public UniqueNpcConversationResult DrawUniqueNpcConversation(WorldNpc npc)
+    {
+        if (npc.ConversationStage >= 3)
+        {
+            DrawCenteredFrame(78,
+            [
+                ("🌿 ELIRA EZÜSTÁG", ConsoleColor.Yellow),
+                ($"Elf Tolvaj   Viszony: {npc.Friendliness}/10", ConsoleColor.Cyan),
+                (string.Empty, ConsoleColor.Gray),
+                ("„Most már a kijáratra figyeljünk. A többit odakint eldöntjük.”", ConsoleColor.White),
+                (string.Empty, ConsoleColor.Gray),
+                ("Enter: tovább", ConsoleColor.Yellow)
+            ], FramedWindow.Inn);
+            while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
+            return new UniqueNpcConversationResult(0, false, -1);
+        }
+        var (prompt, answers) = npc.ConversationStage switch
+        {
+            0 => ("Elira a falnak támaszkodik. A bokáján friss kötés sötétlik.", new[]
+            {
+                ("1) Segítünk. Senkit nem hagyunk itt.", 2, true),
+                ("2) Velünk jöhetsz ha hasznossá teszed magad.", 1, true),
+                ("3) A saját bajodból egyedül is kimászhatsz.", -2, false)
+            }),
+            1 => ("Miért kockáztatnátok értem bármit is?", new[]
+            {
+                ("1) Mert senki sem érdemli meg hogy itt pusztuljon.", 2, true),
+                ("2) Egy jó felderítő mindannyiunk túlélési esélyét növeli.", 1, true),
+                ("3) Ne értsd félre. Csak szemmel akarunk tartani.", -1, true)
+            }),
+            _ => ("Ha kijutunk innen mi lesz velünk odakint?", new[]
+            {
+                ("1) Nem a származás hanem a tettek tesznek társsá.", 2, false),
+                ("2) Az elfeknek össze kell tartaniuk.", 2, false),
+                ("3) Ne várj többet egy ideiglenes szövetségnél.", -2, false)
+            })
+        };
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🌿 ELIRA EZÜSTÁG", ConsoleColor.Yellow),
+            ($"Elf Tolvaj   Viszony: {npc.Friendliness}/10", ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray),
+            ($"„{prompt}”", ConsoleColor.White),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        lines.AddRange(answers.Select(answer => (answer.Item1, ConsoleColor.Yellow)));
+        DrawCenteredFrame(78, lines, FramedWindow.Inn);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            var index = key switch
+            {
+                ConsoleKey.D1 or ConsoleKey.NumPad1 => 0,
+                ConsoleKey.D2 or ConsoleKey.NumPad2 => 1,
+                ConsoleKey.D3 or ConsoleKey.NumPad3 => 2,
+                _ => -1
+            };
+            if (index >= 0) return new UniqueNpcConversationResult(answers[index].Item2, answers[index].Item3, index);
+        }
+    }
+
+    public bool ConfirmUniqueNpcPermanentJoin(WorldNpc npc, bool partyHasRoom)
+    {
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🤝 EGY ÚJ ÚT KEZDETE", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ($"Elira viszonya: {npc.Friendliness}/10", ConsoleColor.Cyan),
+            (partyHasRoom
+                ? "„Nem csak a kijáratig akarok veletek tartani. Befogadtok?”"
+                : "Elira csatlakozna de a négyfős parti megtelt.", ConsoleColor.White),
+            (string.Empty, ConsoleColor.Gray),
+            (partyHasRoom ? "Enter: végleges csatlakozás   Esc: búcsú" : "Enter: búcsú", ConsoleColor.Yellow)
+        };
+        DrawCenteredFrame(78, lines, FramedWindow.Inn);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Enter) return partyHasRoom;
+            if (key == ConsoleKey.Escape && partyHasRoom) return false;
         }
     }
 

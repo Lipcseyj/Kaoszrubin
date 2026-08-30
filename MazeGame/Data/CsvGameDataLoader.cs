@@ -126,7 +126,7 @@ public static class CsvGameDataLoader
         ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
         ValidateMonsterLoot(enemies, monsterLoot);
         ValidateTrapConfigurations(traps);
-        ValidateNpcData(npcs, npcEncounters, npcDialogues, npcQuests, characterClasses, enemies,
+        ValidateNpcData(npcs, npcEncounters, npcDialogues, npcQuests, races, characterClasses, enemies,
             items, weapons, armors, magicItems);
         var lootRules = CreateLootRules(lootRuleValues);
         var doorAttemptRules = CreateDoorAttemptRules(doorAttemptRuleValues);
@@ -315,7 +315,7 @@ public static class CsvGameDataLoader
             case DataSection.Npcs:
                 npcs.Add(new NpcDefinition(id, name, Cell(cells, 2),
                     EnumValue<NpcDisposition>(cells, 3), EnumValue<NpcWorldBehavior>(cells, 4),
-                    IsYes(cells, 5), IsYes(cells, 6)));
+                    IsYes(cells, 5), IsYes(cells, 6), EmptyAsNull(Cell(cells, 7))));
                 break;
             case DataSection.CharacterResourceGrowth:
                 characterResourceGrowthByClass[id] = new CharacterResourceGrowthDefinition(id,
@@ -483,15 +483,21 @@ public static class CsvGameDataLoader
     private static void ValidateNpcData(IReadOnlyCollection<NpcDefinition> npcs,
         IReadOnlyCollection<NpcEncounterDefinition> encounters,
         IReadOnlyCollection<NpcDialogueDefinition> dialogues, IReadOnlyCollection<NpcQuestDefinition> quests,
-        IReadOnlyCollection<CharacterClassDefinition> classes, IReadOnlyCollection<EnemyDefinition> enemies,
+        IReadOnlyCollection<RaceDefinition> races, IReadOnlyCollection<CharacterClassDefinition> classes,
+        IReadOnlyCollection<EnemyDefinition> enemies,
         IReadOnlyCollection<MiscItemDefinition> items, IReadOnlyCollection<WeaponDefinition> weapons,
         IReadOnlyCollection<ArmorDefinition> armors, IReadOnlyCollection<MagicItemDefinition> magicItems)
     {
         var npcIds = npcs.Select(npc => npc.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var classIds = classes.Select(characterClass => characterClass.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var raceIds = races.Select(race => race.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var npc in npcs)
+        {
             if (!classIds.Contains(npc.CharacterClassId))
                 throw new InvalidDataException($"A(z) '{npc.Id}' NPC ismeretlen kasztra hivatkozik: '{npc.CharacterClassId}'.");
+            if (npc.RaceId is { } raceId && !raceIds.Contains(raceId))
+                throw new InvalidDataException($"A(z) '{npc.Id}' NPC ismeretlen fajra hivatkozik: '{raceId}'.");
+        }
         foreach (var reference in encounters.Select(value => (value.Id, value.NpcId))
                      .Concat(dialogues.Select(value => (value.Id, value.NpcId)))
                      .Concat(quests.Select(value => (value.Id, value.NpcId))))
@@ -515,6 +521,7 @@ public static class CsvGameDataLoader
                 NpcQuestType.Kill => enemyIds.Contains(quest.TargetId),
                 NpcQuestType.Collect => itemIds.Contains(quest.TargetId),
                 NpcQuestType.Explore => string.Equals(quest.TargetId, "EXIT", StringComparison.OrdinalIgnoreCase),
+                NpcQuestType.Escort => string.Equals(quest.TargetId, "EXIT", StringComparison.OrdinalIgnoreCase),
                 NpcQuestType.Disarm or NpcQuestType.OpenChest =>
                     string.Equals(quest.TargetId, "ANY", StringComparison.OrdinalIgnoreCase),
                 _ => false

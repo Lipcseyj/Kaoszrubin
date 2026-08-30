@@ -4,3 +4,6 @@ obj/
 .vscode/
 *.user
 *.suo
+Zene/*.mp3
+Zene/**/*.mp3
+!Zene/zene1.mp3

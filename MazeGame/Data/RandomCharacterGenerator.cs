@@ -108,6 +108,30 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         throw new InvalidOperationException($"A(z) {characterClass.Name} osztályhoz nem sikerült érvényes zsoldost generálni.");
     }
 
+    public LiveCharacter CreateUniqueRecruit(string name, RaceDefinition race,
+        CharacterClassDefinition characterClass, int leaderLevel)
+    {
+        for (var attempt = 0; attempt < 2_000; attempt++)
+        {
+            var adaptableAbilityBonus = RandomAdaptableAbilityBonus(race);
+            var rolledAbilities = RollAbilities();
+            var finalAbilities = (rolledAbilities + race.AbilityBonuses + adaptableAbilityBonus).Clamp(1, 13);
+            if (!finalAbilities.MeetsMinimum(characterClass.MinimumAbilities)) continue;
+            var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
+                _random.Next(1, 16), _random.Next(1, 16), _gameData,
+                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)], adaptableAbilityBonus);
+            character.SetNpcBehavior(BehaviorFor(characterClass.Id));
+            SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
+            RaiseToLevel(character, Math.Max(1, leaderLevel));
+            AddRandomPerks(character);
+            AddRandomWeaponProficiencies(character);
+            ImproveRecruitEquipment(character);
+            FillRecruitBackpack(character);
+            return character;
+        }
+        throw new InvalidOperationException($"A(z) {name} egyedi NPC nem generálható a megadott fajjal és kaszttal.");
+    }
+
     private NpcBehavior BehaviorFor(string characterClassId) => characterClassId.ToUpperInvariant() switch
     {
         CharacterClassIds.Harcos => _random.Next(2) == 0 ? NpcBehavior.Defensive : NpcBehavior.Aggressive,

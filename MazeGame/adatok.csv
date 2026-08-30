@@ -994,7 +994,7 @@ TR006,Káoszpecsét,✹,Alert,14,13,13,4,9,100,135,405,A felhasadó pecsét ener
 TR007,Lélektű,♦,Poison,18,15,15,8,14,75,200,600,Árnyékból formált tű sebzi meg a testet és mérgezi meg a lelket.
 
 #NPC-k
-Id,Név,OsztályId,Viszony,Viselkedés,Toborozható,Egyedi
+Id,Név,OsztályId,Viszony,Viselkedés,Toborozható,Egyedi,FajId
 NPC001,Vándor füvesasszony,C005,Neutral,Guarded,nem,nem
 NPC002,Szörnyvadász,C001,Neutral,Aggressive,nem,nem
 NPC003,Kincskereső,C004,Neutral,Opportunistic,nem,nem
@@ -1014,6 +1014,7 @@ NPC016,Éji menekült,C004,Neutral,Guarded,nem,nem
 NPC017,Láncait vesztett démonvadász,C003,Neutral,Aggressive,nem,nem
 NPC018,Káoszzarándok,C005,Neutral,Guarded,nem,nem
 NPC019,Óriásvadász,C001,Neutral,Aggressive,nem,nem
+NPC020,Elira Ezüstág,C004,Neutral,Guarded,igen,igen,R003
 
 #NPC találkozások
 Id,NpcId,Pályaszint,MinimumTávolság,MaximumTávolság
@@ -1044,6 +1045,7 @@ NPCE024,NPC017,18,10,22
 NPCE025,NPC017,19,10,22
 NPCE026,NPC018,20,10,23
 NPCE027,NPC018,21,10,23
+NPCE028,NPC020,2,8,18
 
 #NPC párbeszédek
 Id,NpcId,MinimumBarátságosság,MaximumBarátságosság,Szöveg
@@ -1116,6 +1118,9 @@ NPCD066,NPC018,8,10,A Rubin útja megnyílt előttetek. Most már csak az szám�
 NPCD067,NPC019,0,3,Aki nem bírja el a saját fegyverét ne induljon óriásra.
 NPCD068,NPC019,4,7,Az ogrék erősek de minden ütés előtt ugyanoda néznek. Ezt használjátok ki.
 NPCD069,NPC019,8,10,Jó vadászat volt. A hegy sokáig emlékezni fog a zuhanásukra.
+NPCD070,NPC020,0,3,Ha a patkányok nem végeznek velem a bizalmatlanságotok fog.
+NPCD071,NPC020,4,7,A nevem Elira. Kijuttattok innen vagy itt hagytok a járatoknak?
+NPCD072,NPC020,8,10,Rég nem bíztam senkiben ennyire. Talán az utam nem ér véget a kijáratnál.
 
 #NPC küldetések
 Id,NpcId,Típus,CélId,Darabszám,XP,Cím,Leírás,FixJutalomId,FixJutalomDarab,VéletlenJutalomDarab
@@ -1152,3 +1157,6 @@ NPCQ030,NPC017,Kill,E023,4,1840,A pokol lovagjai,Győzz le négy démonlovagot �
 NPCQ031,NPC018,Explore,EXIT,1,2200,A lehetetlen ösvény,Fedezd fel a kijáratot a káosz szívében és térj vissza.,,,3
 NPCQ032,NPC018,OpenChest,ANY,3,2100,A Rubin visszhangjai,Nyiss ki három ládát amelyekben a Káoszrubin energiája visszhangzik.,,,3
 NPCQ033,NPC019,Kill,E012,3,820,Nagyvad,Győzz le három ogrét az óriásvadász megbízásából.
+NPCQ034,NPC020,Escort,EXIT,1,420,Ezüstág kimenekítése,Kísérd el Elirát élve a pálya kijáratáig.,T017,2,1
+NPCQ035,NPC020,Collect,T019,1,160,Elszakadt kötés,Adj Elirának egy tiszta kötést hogy a sérült bokája bírja az utat.,T011,2,0
+NPCQ036,NPC020,Kill,E001,4,240,A nyomunkban,Győzz le négy óriáspatkányt amelyek Elira vérnyomát követik.,,,1

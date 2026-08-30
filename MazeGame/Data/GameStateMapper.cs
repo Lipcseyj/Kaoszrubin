@@ -48,11 +48,9 @@ internal sealed class GameStateMapper
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false)).ToList(),
             PartyAvatars = maze.PartyMembers.Select(member => new PartyAvatarSaveData(member.Position,
-                CharacterIndex(member.Character))).ToList(),
-            Npcs = maze.WorldNpcs.Select(npc => new WorldNpcSaveData(npc.Position, npc.DefinitionId,
-                CharacterIndex(npc.Character), npc.Disposition, npc.Recruitable, npc.IsQuestNpc,
-                npc.Dialogue, npc.State, npc.Friendliness, npc.Behavior, npc.QuestIds.ToList(),
-                npc.Quests.ToList())).ToList(),
+                CharacterIndex(member.Character), member.TemporaryFollower is { } follower
+                    ? SaveWorldNpc(follower) : null)).ToList(),
+            Npcs = maze.WorldNpcs.Select(SaveWorldNpc).ToList(),
             GroundPiles = maze.GroundItemPiles.Select(pile => new GroundPileSaveData(pile.Position,
                 pile.Entries.Select(entry => new SavedItemReference(entry.Item.Category.ToString(), entry.Item.Id,
                     entry.Charges)).ToList())).ToList(),
@@ -132,15 +130,16 @@ internal sealed class GameStateMapper
         }
         foreach (var avatar in state.Maze.PartyAvatars)
             if (avatar.CharacterIndex >= 0 && avatar.CharacterIndex < _characterRoster.Characters.Count)
-                maze.AddPartyMember(new PartyMemberAvatar(avatar.Position, _characterRoster.Characters[avatar.CharacterIndex]));
+            {
+                WorldNpc? follower = avatar.TemporaryFollower is { } savedFollower
+                    ? RestoreWorldNpc(savedFollower) : null;
+                maze.AddPartyMember(new PartyMemberAvatar(avatar.Position,
+                    _characterRoster.Characters[avatar.CharacterIndex], follower));
+            }
         foreach (var npc in state.Maze.Npcs ?? [])
             if (npc.CharacterIndex >= 0 && npc.CharacterIndex < _characterRoster.Characters.Count)
             {
-                var restoredNpc = new WorldNpc(npc.Position, npc.DefinitionId,
-                    _characterRoster.Characters[npc.CharacterIndex], npc.Disposition, npc.Recruitable,
-                    npc.IsQuestNpc, npc.Dialogue, npc.State, npc.Friendliness, npc.Behavior, npc.QuestIds);
-                restoredNpc.RestoreQuests(npc.Quests ?? []);
-                maze.AddWorldNpc(restoredNpc);
+                maze.AddWorldNpc(RestoreWorldNpc(npc));
             }
         foreach (var corpse in state.Maze.Corpses)
         {
@@ -183,6 +182,21 @@ internal sealed class GameStateMapper
 
     private int CharacterIndex(LiveCharacter character) => Enumerable.Range(0, _characterRoster.Characters.Count)
         .First(index => _characterRoster.Characters[index] == character);
+
+    private WorldNpcSaveData SaveWorldNpc(WorldNpc npc) => new(npc.Position, npc.DefinitionId,
+        CharacterIndex(npc.Character), npc.Disposition, npc.Recruitable, npc.IsQuestNpc,
+        npc.Dialogue, npc.State, npc.Friendliness, npc.Behavior, npc.QuestIds.ToList(),
+        npc.Quests.ToList(), npc.ConversationStage);
+
+    private WorldNpc RestoreWorldNpc(WorldNpcSaveData saved)
+    {
+        var restored = new WorldNpc(saved.Position, saved.DefinitionId,
+            _characterRoster.Characters[saved.CharacterIndex], saved.Disposition, saved.Recruitable,
+            saved.IsQuestNpc, saved.Dialogue, saved.State, saved.Friendliness, saved.Behavior, saved.QuestIds);
+        restored.RestoreQuests(saved.Quests ?? []);
+        restored.RestoreConversationStage(saved.ConversationStage);
+        return restored;
+    }
 
     private IItemDefinition ResolveSavedItem(SavedItemReference item) => item.Category switch
     {

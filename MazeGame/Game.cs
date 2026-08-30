@@ -15,6 +15,7 @@ namespace MazeGame;
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
 public sealed class Game
 {
+    private const string FirstUniqueWorldNpcId = "NPC020";
     private static readonly IReadOnlyList<string> CampaignIntroduction =
     [
         "Az Aranykor hajnalán négy ősi elementálmágus őrizte a világ egyensúlyát: Pyranthos, a Lángok Atyja; Nymara, a Mélytengerek Asszonya; Goram, a Hegyek Szíve; és Zephyriel, az Ég Vándora. Együtt alkották meg a Káoszrubint, amelyben tűz, víz, föld és szél ereje egyetlen, lüktető drágakővé forrt.",
@@ -894,11 +895,14 @@ public sealed class Game
             }
             if (candidates.Count == 0) continue;
 
-            var recruit = new RandomCharacterGenerator(_gameData, _random).CreateRecruit(
-                _gameData.GetCharacterClass(definition.CharacterClassId), SelectedCharacter.Level,
-                CharacterRoster.Characters.Select(character => character.Name).ToArray());
+            var generator = new RandomCharacterGenerator(_gameData, _random);
+            var recruit = definition.Unique && definition.RaceId is { } raceId
+                ? generator.CreateUniqueRecruit(definition.Name, _gameData.GetRace(raceId),
+                    _gameData.GetCharacterClass(definition.CharacterClassId), SelectedCharacter.Level)
+                : generator.CreateRecruit(_gameData.GetCharacterClass(definition.CharacterClassId),
+                    SelectedCharacter.Level, CharacterRoster.Characters.Select(character => character.Name).ToArray());
             CharacterRoster.Add(recruit);
-            var friendliness = RollNpcFriendliness(definition);
+            var friendliness = definition.Unique ? 4 : RollNpcFriendliness(definition);
             var dialogue = _gameData.GetNpcDialogues(definition.Id)
                 .Where(value => friendliness >= value.MinimumFriendliness && friendliness <= value.MaximumFriendliness)
                 .OrderBy(_ => _random.Next()).FirstOrDefault()?.Text ?? "Az idegen óvatosan végigmér benneteket.";
@@ -1339,8 +1343,12 @@ public sealed class Game
         var previousPosition = _player.Position;
         var targetPosition = previousPosition + direction;
 
-        // Prevent moving into a party member avatar even in developer mode
-        if (_maze.GetObjectAt(targetPosition) is PartyMemberAvatar) return;
+        // Az ideiglenes követővel ismét a térképen rálépési kísérlettel lehet beszélni.
+        if (_maze.GetObjectAt(targetPosition) is PartyMemberAvatar partyAvatar)
+        {
+            if (partyAvatar.TemporaryFollower is { } follower) ConverseWithFirstUniqueNpc(follower);
+            return;
+        }
         if (_maze.GetWorldNpcAt(targetPosition) is { } npc)
         {
             EncounterWorldNpc(npc);
@@ -1603,6 +1611,11 @@ public sealed class Game
 
     private void EncounterWorldNpc(WorldNpc npc)
     {
+        if (string.Equals(npc.DefinitionId, FirstUniqueWorldNpcId, StringComparison.OrdinalIgnoreCase))
+        {
+            ConverseWithFirstUniqueNpc(npc);
+            return;
+        }
         var questDefinitions = _gameData.GetNpcQuests(npc.DefinitionId);
         var joins = _renderer.DrawWorldNpcRecruitment(npc, questDefinitions);
         ProcessNpcQuests(npc);
@@ -1623,6 +1636,61 @@ public sealed class Game
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.DrawInventoryMessage(joins ? "A parti megtelt; előbb helyet kell felszabadítani."
             : $"{npc.Character.Name} egyelőre itt marad.", ConsoleColor.Yellow);
+    }
+
+    private void ConverseWithFirstUniqueNpc(WorldNpc npc)
+    {
+        if (npc.ConversationStage == 0)
+        {
+            var sameRaceMembers = CharacterRoster.Party.Members.Count(character =>
+                string.Equals(character.Race.Id, npc.Character.Race.Id, StringComparison.OrdinalIgnoreCase));
+            var affinity = string.Equals(SelectedCharacter.Race.Id, npc.Character.Race.Id,
+                StringComparison.OrdinalIgnoreCase) ? 2 : sameRaceMembers > 0 ? 1 : 0;
+            if (affinity > 0)
+            {
+                npc.AdjustFriendliness(affinity);
+                _renderer.DrawInventoryMessage($"🌿 Faji rokonszenv: Elira viszonya +{affinity}.", ConsoleColor.Green);
+            }
+        }
+
+        var result = _renderer.DrawUniqueNpcConversation(npc);
+        var friendlinessChange = result.FriendlinessChange;
+        if (npc.ConversationStage == 2 && result.ChoiceIndex == 1 &&
+            !CharacterRoster.Party.Members.Any(character => string.Equals(character.Race.Id,
+                npc.Character.Race.Id, StringComparison.OrdinalIgnoreCase))) friendlinessChange = -1;
+        npc.AdjustFriendliness(friendlinessChange);
+        if (result.ChoiceIndex >= 0) npc.AdvanceConversation();
+        if (result.FollowRequested && npc.State != WorldNpcState.Following)
+            BeginTemporaryFollowing(npc);
+        if (npc.State == WorldNpcState.Following) ProcessNpcQuests(npc);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.DrawInventoryMessage($"🌿 Elira viszonya: {npc.Friendliness}/10.",
+            friendlinessChange >= 0 ? ConsoleColor.Green : ConsoleColor.DarkYellow);
+    }
+
+    private void BeginTemporaryFollowing(WorldNpc npc)
+    {
+        if (_maze.PartyMembers.Any(member => member.IsTemporaryFollower))
+        {
+            _renderer.DrawInventoryMessage("Már van egy ideiglenes követőtök.", ConsoleColor.DarkYellow);
+            return;
+        }
+        if (!_maze.RemoveWorldNpc(npc)) return;
+        npc.BeginFollowing();
+        foreach (var quest in npc.Quests.Where(progress => progress.State == NpcQuestState.Offered).ToArray())
+        {
+            npc.ActivateQuest(quest.QuestId);
+            var definition = _gameData.NpcQuests.First(value =>
+                string.Equals(value.Id, quest.QuestId, StringComparison.OrdinalIgnoreCase));
+            _renderer.DrawInventoryMessage($"📜 Elira küldetése: {definition.Title} — {definition.Description} " +
+                $"Jutalom: {definition.ExperienceReward} XP{DescribeNpcQuestItemRewards(definition)}.",
+                ConsoleColor.Cyan);
+        }
+        var avatar = new PartyMemberAvatar(npc.Position, npc.Character, npc);
+        _maze.AddPartyMember(avatar);
+        _nextPartyMoves[avatar] = DateTime.UtcNow;
+        _renderer.DrawInventoryMessage("🌿 Elira ideiglenes követőként csatlakozott. Nem foglal partyhelyet.",
+            ConsoleColor.Cyan);
     }
 
     private void ProcessNpcQuests(WorldNpc npc)
@@ -1660,6 +1728,8 @@ public sealed class Game
             }
 
             if (!npc.CompleteQuest(quest.Id)) continue;
+            if (string.Equals(npc.DefinitionId, FirstUniqueWorldNpcId, StringComparison.OrdinalIgnoreCase))
+                npc.AdjustFriendliness(1);
             var awards = DistributeExperience(SelectedCharacter, quest.ExperienceReward);
             foreach (var award in awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive))
                 ResolvePerkOffers(award.Character, award.Result);
@@ -1743,7 +1813,10 @@ public sealed class Game
 
     private void RegisterNpcQuestProgress(NpcQuestType type, string targetId, int amount = 1)
     {
-        foreach (var npc in _maze.WorldNpcs)
+        var questNpcs = _maze.WorldNpcs.Concat(_maze.PartyMembers
+            .Where(member => member.TemporaryFollower is not null)
+            .Select(member => member.TemporaryFollower!));
+        foreach (var npc in questNpcs)
         foreach (var progress in npc.Quests.Where(value => value.State == NpcQuestState.Active).ToArray())
         {
             var quest = _gameData.NpcQuests.FirstOrDefault(value => string.Equals(value.Id, progress.QuestId,
@@ -2030,6 +2103,14 @@ public sealed class Game
     private void ActivateExit()
     {
         if (_player.Position != _maze.Exit) return;
+        if (_maze.PartyMembers.FirstOrDefault(member => member.IsTemporaryFollower) is { } escort &&
+            Manhattan(escort.Position, _player.Position) > 3)
+        {
+            _renderer.DrawInventoryMessage("🌿 Elira túl messze van a kijárattól. Várjátok meg vagy hívjátok magatokhoz Gyülekező paranccsal.",
+                ConsoleColor.Yellow);
+            return;
+        }
+        ResolveTemporaryFollowerAtExit();
         if (_mazeLevel == MazeLevelConfigurations.FinalLevel)
         {
             CompleteCampaign();
@@ -2042,6 +2123,43 @@ public sealed class Game
         _innController.Run(completedLevel);
         _mazeLevel++;
         StartNewMaze();
+    }
+
+    private void ResolveTemporaryFollowerAtExit()
+    {
+        var avatar = _maze.PartyMembers.FirstOrDefault(member => member.TemporaryFollower is not null);
+        if (avatar?.TemporaryFollower is not { } follower) return;
+        foreach (var progress in follower.Quests.Where(value => value.State == NpcQuestState.Active).ToArray())
+        {
+            var quest = _gameData.NpcQuests.FirstOrDefault(value =>
+                string.Equals(value.Id, progress.QuestId, StringComparison.OrdinalIgnoreCase));
+            if (quest is { Type: NpcQuestType.Escort })
+                follower.AddQuestProgress(quest.Id, 1, quest.RequiredCount);
+        }
+        ProcessNpcQuests(follower);
+        follower.AdjustFriendliness(2);
+
+        var joined = false;
+        if (follower.Friendliness >= 10)
+        {
+            var hasRoom = CharacterRoster.Party.Members.Count < Party.MaximumSize;
+            joined = _renderer.ConfirmUniqueNpcPermanentJoin(follower, hasRoom) &&
+                     CharacterRoster.Party.Add(follower.Character);
+        }
+        if (joined)
+        {
+            avatar.MakePermanent();
+            _renderer.DrawInventoryMessage("🤝 Elira Ezüstág végleg csatlakozott a partihoz.", ConsoleColor.Green);
+            return;
+        }
+
+        _maze.RemovePartyMember(avatar);
+        _nextPartyMoves.Remove(avatar);
+        CharacterRoster.Remove(follower.Character);
+        _renderer.DrawInventoryMessage(follower.Friendliness >= 10
+            ? "🌿 Elira hálásan elbúcsúzott."
+            : $"🌿 Elira kijutott de még nem bízik eléggé a végleges csatlakozáshoz ({follower.Friendliness}/10).",
+            ConsoleColor.Cyan);
     }
 
     private void DropSelectedInventoryItem()
