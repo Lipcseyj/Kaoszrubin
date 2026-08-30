@@ -166,6 +166,17 @@ public sealed class CoopGuestScreen
                         Interlocked.Exchange(ref _redrawRequested, 1);
                         continue;
                     }
+                    if (key.Key == ConsoleKey.Q &&
+                        client.CurrentSnapshot is { Phase: GameSessionPhase.Exploration or GameSessionPhase.Inn } questSnapshot &&
+                        questSnapshot.Narrative is null && questSnapshot.RestNotice is null &&
+                        questSnapshot.SpellPreparation is null && questSnapshot.LevelUpPrompt is null &&
+                        !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null)
+                    {
+                        QuestJournalWindow.Show(questSnapshot.QuestJournal ?? []);
+                        _lastFrame = null;
+                        Interlocked.Exchange(ref _redrawRequested, 1);
+                        continue;
+                    }
                     if (key.Key == ConsoleKey.Escape && client.CurrentSnapshot?.Phase != GameSessionPhase.Inn &&
                         client.CurrentSnapshot?.Narrative is null &&
                         client.CurrentSnapshot?.RestNotice is null &&

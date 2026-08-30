@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MazeGame.Application;
 using MazeGame.Domain.Characters;
 using MazeGame.Domain.Magic;
 
@@ -74,7 +75,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 8;
+    public const int CurrentVersion = 9;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -94,6 +95,7 @@ public static class GameSaveFormat
                 5 => MigrateVersion5To6(state),
                 6 => MigrateVersion6To7(state),
                 7 => MigrateVersion7To8(state),
+                8 => MigrateVersion8To9(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -149,6 +151,13 @@ public static class GameSaveFormat
         state.Version = 8;
         return state;
     }
+
+    private static GameSaveData MigrateVersion8To9(GameSaveData state)
+    {
+        // A 9-es formátum a pályákon átívelő parti-küldetésnaplót őrzi.
+        state.Version = 9;
+        return state;
+    }
 }
 
 public sealed record LoadedGameSave(string Path, CharacterRoster Roster, GameSaveData State);
@@ -179,7 +188,11 @@ public sealed class GameSaveData
     public int EnemyMoveRemainingMilliseconds { get; set; }
     public MazeSaveData Maze { get; set; } = new();
     public FogSaveData Fog { get; set; } = new();
+    public List<QuestJournalSaveData> QuestJournal { get; set; } = [];
 }
+
+public sealed record QuestJournalSaveData(string QuestId, QuestJournalStatus Status,
+    int Progress, int ExperienceReward);
 
 public sealed class MazeSaveData
 {

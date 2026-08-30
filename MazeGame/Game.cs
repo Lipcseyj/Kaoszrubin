@@ -175,6 +175,8 @@ public sealed class Game
     private readonly Queue<SessionActivitySnapshot> _sessionActivities = new();
     private long _sessionActivitySequence;
     private readonly Queue<SessionSoundSnapshot> _sessionSounds = new();
+    private readonly Dictionary<string, QuestJournalEntrySnapshot> _questJournal =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<PlayerId> _helpPausePlayers = [];
     private DateTime? _helpPauseStartedUtc;
     private long _sessionSoundSequence;
@@ -233,6 +235,7 @@ public sealed class Game
             Activities = _sessionActivities.ToArray(),
             Sounds = _sessionSounds.ToArray(),
             PartyGold = SelectedCharacter.Gold,
+            QuestJournal = OrderedQuestJournal(),
             Party = snapshot.Party.Select(character => character with
             {
                 Gold = SelectedCharacter.Gold,
@@ -534,6 +537,11 @@ public sealed class Game
                     if (IsSaveGameShortcut(keyInfo))
                     {
                         SaveGame();
+                        continue;
+                    }
+                    if (keyInfo.Key == ConsoleKey.Q)
+                    {
+                        ShowQuestJournal();
                         continue;
                     }
                     if (_renderer.IsSpellInfoPageOpen)
@@ -1176,6 +1184,8 @@ public sealed class Game
         var state = _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
             _leaderTrail, _partyHoldingPosition, _partyRegrouping, _partyAttackMode, _hasRestedThisLevel, _partyScatterUntil,
             _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
+        state.QuestJournal = _questJournal.Values.Select(entry => new QuestJournalSaveData(entry.QuestId,
+            entry.Status, entry.Progress, entry.ExperienceReward)).ToList();
         state.IsCoopGame = _activeCoopHost is not null;
         state.RemoteCharacterIds = _session.CharacterControls
             .Where(control => control.AssignedPlayerId is not null &&
@@ -1205,8 +1215,22 @@ public sealed class Game
         _collectedBossKeyIds.UnionWith(state.CollectedBossKeyIds ?? []);
         _seenBossIds.Clear();
         _seenBossIds.UnionWith(state.SeenBossIds ?? []);
+        _questJournal.Clear();
+        foreach (var saved in state.QuestJournal ?? [])
+            if (_gameData.NpcQuests.FirstOrDefault(quest => string.Equals(quest.Id, saved.QuestId,
+                    StringComparison.OrdinalIgnoreCase)) is { } quest)
+                _questJournal[quest.Id] = CreateQuestJournalEntry(quest, saved.Status, saved.Progress,
+                    saved.ExperienceReward);
         _renderer.SetGoldenKeyCount(_collectedBossKeyIds.Count);
         _maze = restored.Maze;
+        if (_questJournal.Count == 0)
+            foreach (var npc in _maze.WorldNpcs.Concat(_maze.PartyMembers
+                         .Where(member => member.TemporaryFollower is not null)
+                         .Select(member => member.TemporaryFollower!)))
+            foreach (var progress in npc.Quests.Where(progress => progress.State != NpcQuestState.Offered))
+                if (_gameData.NpcQuests.FirstOrDefault(quest => string.Equals(quest.Id, progress.QuestId,
+                        StringComparison.OrdinalIgnoreCase)) is { } quest)
+                    SynchronizeQuestJournal(npc, quest);
         _player = restored.Player;
         _fogOfWar = restored.FogOfWar;
         _leaderFacing = restored.LeaderFacing;
@@ -1601,7 +1625,10 @@ public sealed class Game
                 _activeCoopHost.TryPublish(CreateSessionSnapshot());
             Thread.Sleep(20);
         }
-        return Console.ReadKey(intercept: true);
+        var key = Console.ReadKey(intercept: true);
+        if (key.Key != ConsoleKey.Q) return key;
+        ShowQuestJournal();
+        return new ConsoleKeyInfo('\0', InnController.StateChangedKey, false, false, false);
     }
 
     private void ExecuteNarrativeAcknowledgement(AcknowledgeNarrativeCommand command)
@@ -1688,13 +1715,12 @@ public sealed class Game
             npc.ActivateQuest(quest.QuestId);
             var definition = _gameData.NpcQuests.First(value =>
                 string.Equals(value.Id, quest.QuestId, StringComparison.OrdinalIgnoreCase));
-            _renderer.DrawInventoryMessage($"📜 Elira küldetése: {definition.Title} — {definition.Description} " +
-                $"Jutalom: {definition.ExperienceReward} XP{DescribeNpcQuestItemRewards(definition)}.",
-                ConsoleColor.Cyan);
+            SynchronizeQuestJournal(npc, definition);
         }
         var avatar = new PartyMemberAvatar(npc.Position, npc.Character, npc);
         _maze.AddPartyMember(avatar);
         _nextPartyMoves[avatar] = DateTime.UtcNow;
+        _renderer.DrawUniqueNpcQuestOffer(npc, _gameData.GetNpcQuests(npc.DefinitionId));
         _renderer.DrawInventoryMessage("🌿 Elira ideiglenes követőként csatlakozott. Nem foglal partyhelyet.",
             ConsoleColor.Cyan);
     }
@@ -1708,6 +1734,7 @@ public sealed class Game
             if (progress.State == NpcQuestState.Offered)
             {
                 npc.ActivateQuest(quest.Id);
+                SynchronizeQuestJournal(npc, quest);
                 _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description} " +
                     $"Jutalom: {quest.ExperienceReward} XP{DescribeNpcQuestItemRewards(quest)}.", ConsoleColor.Cyan);
             }
@@ -1721,6 +1748,7 @@ public sealed class Game
                 {
                     _renderer.DrawInventoryMessage(
                         $"📜 {quest.Title}: {available}/{quest.RequiredCount}", ConsoleColor.DarkYellow);
+                    SynchronizeQuestJournal(npc, quest, available);
                     continue;
                 }
                 RemovePartyBackpackItems(quest.TargetId, quest.RequiredCount);
@@ -1728,12 +1756,14 @@ public sealed class Game
             }
             else if (current.Progress < quest.RequiredCount)
             {
+                SynchronizeQuestJournal(npc, quest);
                 _renderer.DrawInventoryMessage(
                     $"📜 {quest.Title}: {current.Progress}/{quest.RequiredCount}", ConsoleColor.DarkYellow);
                 continue;
             }
 
             if (!npc.CompleteQuest(quest.Id)) continue;
+            SynchronizeQuestJournal(npc, quest);
             if (string.Equals(npc.DefinitionId, FirstUniqueWorldNpcId, StringComparison.OrdinalIgnoreCase))
                 npc.AdjustFriendliness(1);
             var awards = DistributeExperience(SelectedCharacter, quest.ExperienceReward);
@@ -1746,6 +1776,34 @@ public sealed class Game
         }
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
     }
+
+    private void ShowQuestJournal()
+    {
+        QuestJournalWindow.Show(OrderedQuestJournal());
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+    }
+
+    private IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal() => _questJournal.Values
+        .OrderBy(entry => entry.Status)
+        .ThenBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase)
+        .ToArray();
+
+    private void SynchronizeQuestJournal(WorldNpc npc, NpcQuestDefinition quest, int? visibleProgress = null)
+    {
+        var progress = npc.Quests.First(value => string.Equals(value.QuestId, quest.Id,
+            StringComparison.OrdinalIgnoreCase));
+        if (progress.State == NpcQuestState.Offered) return;
+        var status = progress.State == NpcQuestState.Completed
+            ? QuestJournalStatus.Completed : QuestJournalStatus.Active;
+        _questJournal[quest.Id] = CreateQuestJournalEntry(quest, status,
+            visibleProgress ?? progress.Progress, quest.ExperienceReward);
+    }
+
+    private QuestJournalEntrySnapshot CreateQuestJournalEntry(NpcQuestDefinition quest,
+        QuestJournalStatus status, int progress, int experienceReward) =>
+        new(quest.Id, quest.Title, quest.Description, _gameData.GetNpc(quest.NpcId).Name, status,
+            Math.Clamp(progress, 0, quest.RequiredCount), quest.RequiredCount, experienceReward);
 
     private string GrantNpcQuestItems(NpcQuestDefinition quest)
     {
@@ -1828,7 +1886,10 @@ public sealed class Game
             var quest = _gameData.NpcQuests.FirstOrDefault(value => string.Equals(value.Id, progress.QuestId,
                 StringComparison.OrdinalIgnoreCase));
             if (quest?.Type == type && string.Equals(quest.TargetId, targetId, StringComparison.OrdinalIgnoreCase))
+            {
                 npc.AddQuestProgress(quest.Id, amount, quest.RequiredCount);
+                SynchronizeQuestJournal(npc, quest);
+            }
         }
     }
 
@@ -2140,7 +2201,10 @@ public sealed class Game
             var quest = _gameData.NpcQuests.FirstOrDefault(value =>
                 string.Equals(value.Id, progress.QuestId, StringComparison.OrdinalIgnoreCase));
             if (quest is { Type: NpcQuestType.Escort })
+            {
                 follower.AddQuestProgress(quest.Id, 1, quest.RequiredCount);
+                SynchronizeQuestJournal(follower, quest);
+            }
         }
         ProcessNpcQuests(follower);
         follower.AdjustFriendliness(2);

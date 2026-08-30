@@ -34,6 +34,7 @@ var tests = new (string Name, Action Run)[]
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
+    ("A közös küldetésnapló elkülöníti az aktív és teljesített küldetéseket", QuestJournalBuildsSharedHistory),
     ("Az ismeretlen CSV-fejezet sorszámos hibát ad", UnknownCsvSectionIsRejectedWithLineNumber),
     ("A hiányzó kötelező CSV-mező sorszámos hibát ad", MissingRequiredCsvFieldIsRejectedWithLineNumber),
     ("Az alkalmazkodó ember választott képességbónuszt kap", AdaptableRaceGainsChosenAbility),
@@ -2204,6 +2205,21 @@ static void NpcDefinitionsLoadFromCsv()
     follower.MakePermanent();
     Assert(!follower.IsTemporaryFollower,
         "Az ideiglenes követő nem alakítható végleges partitaggá.");
+}
+
+static void QuestJournalBuildsSharedHistory()
+{
+    var entries = new QuestJournalEntrySnapshot[]
+    {
+        new("Q-A", "Folyamatban", "Tedd meg.", "Elira", QuestJournalStatus.Active, 2, 4, 240),
+        new("Q-B", "Befejezve", "Megtetted.", "Elira", QuestJournalStatus.Completed, 1, 1, 420)
+    };
+    var lines = QuestJournalWindow.Build(entries);
+    Assert(WindowFrameConfiguration.For(FramedWindow.QuestOffer) == WindowFrameStyle.Stone &&
+           WindowFrameConfiguration.For(FramedWindow.QuestJournal) == WindowFrameStyle.Scroll2 &&
+           lines.Any(line => line.Text.Contains("Folyamatban — 2/4  Elira (240 XP)", StringComparison.Ordinal)) &&
+           lines.Any(line => line.Text.Contains("Befejezve — Elira (+420 XP)", StringComparison.Ordinal)),
+        "A küldetésnapló kerete vagy aktív/teljesített tartalma hibás.");
 }
 
 static void SpellUiModelsAreShared()

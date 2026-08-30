@@ -1579,6 +1579,31 @@ public sealed class ConsoleRenderer
         }
     }
 
+    public void DrawUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<NpcQuestDefinition> quests)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🌿 ELIRA KÉRÉSE", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ("„Köszönöm. Már azt hittem, a labirintusban maradok örökre.”", ConsoleColor.White),
+            ("„Ha valóban kijuttattok, három dologban kérem a segítségeteket:”", ConsoleColor.White),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        foreach (var quest in quests)
+        {
+            lines.Add(($"📜 {quest.Title} ({quest.ExperienceReward} XP)", ConsoleColor.Cyan));
+            lines.Add(($"   {quest.Description}", ConsoleColor.Gray));
+        }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("„Nem felejtem el, amit értem tesztek.”", ConsoleColor.White));
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("Enter: tovább", ConsoleColor.Yellow));
+        DrawCenteredFrame(88, lines, FramedWindow.QuestOffer);
+        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
+    }
+
     public bool ConfirmUniqueNpcPermanentJoin(WorldNpc npc, bool partyHasRoom)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
