@@ -14,6 +14,26 @@ public static class ImageViewer
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(IntPtr windowHandle);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr windowHandle, IntPtr processId);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool AttachThreadInput(uint sourceThreadId, uint targetThreadId, bool attach);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool BringWindowToTop(IntPtr windowHandle);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetFocus(IntPtr windowHandle);
+
     public static string FileNameForLevel(string levelName)
     {
         var normalized = levelName.Normalize(NormalizationForm.FormD);
@@ -57,10 +77,23 @@ public static class ImageViewer
                 pictureBox.MouseDown += (_, _) => _form.Close();
                 _form.Shown += (_, _) =>
                 {
-                    _form.BringToFront();
-                    _form.Activate();
-                    _form.Focus();
-                    SetForegroundWindow(_form.Handle);
+                    // A konzol és a külön STA UI-szál között a Windows időnként megtagadja az egyszerű
+                    // SetForegroundWindow hívást. A message loop első körében, ideiglenesen összekapcsolt
+                    // input queue-val aktiváljuk az ablakot, majd rövid ideig újrapróbáljuk, ha szükséges.
+                    _form.BeginInvoke(() => FocusViewerWindow(_form));
+                    var focusRetry = new System.Windows.Forms.Timer { Interval = 100 };
+                    var attempts = 0;
+                    focusRetry.Tick += (_, _) =>
+                    {
+                        if (_form is null || _form.IsDisposed || _form.ContainsFocus || ++attempts >= 5)
+                        {
+                            focusRetry.Stop();
+                            focusRetry.Dispose();
+                            return;
+                        }
+                        FocusViewerWindow(_form);
+                    };
+                    focusRetry.Start();
                 };
                 ready.Set();
                 System.Windows.Forms.Application.Run(_form);
@@ -79,6 +112,30 @@ public static class ImageViewer
         if (failure is not null || _form is null) return false;
         thread.Join();
         return true;
+    }
+
+    private static void FocusViewerWindow(Form form)
+    {
+        if (form.IsDisposed || !form.IsHandleCreated) return;
+        var foreground = GetForegroundWindow();
+        var foregroundThreadId = foreground == IntPtr.Zero
+            ? 0
+            : GetWindowThreadProcessId(foreground, IntPtr.Zero);
+        var viewerThreadId = GetCurrentThreadId();
+        var attached = foregroundThreadId != 0 && foregroundThreadId != viewerThreadId &&
+                       AttachThreadInput(viewerThreadId, foregroundThreadId, true);
+        try
+        {
+            form.TopMost = true;
+            BringWindowToTop(form.Handle);
+            form.Activate();
+            SetForegroundWindow(form.Handle);
+            SetFocus(form.Handle);
+        }
+        finally
+        {
+            if (attached) AttachThreadInput(viewerThreadId, foregroundThreadId, false);
+        }
     }
 
     public static void Close()
