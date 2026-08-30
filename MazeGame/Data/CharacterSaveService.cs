@@ -117,7 +117,9 @@ public sealed class CharacterSaveService
             var memorizedIds = saved.MemorizedSpellIds.Count > 0
                 ? saved.MemorizedSpellIds
                 : knownSpells.Take(SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)).Select(spell => spell.Id).ToList();
-            character.SetMemorizedSpells(knownSpells.Where(spell => memorizedIds.Contains(spell.Id, StringComparer.OrdinalIgnoreCase)));
+            character.SetMemorizedSpells(knownSpells
+                .Where(spell => memorizedIds.Contains(spell.Id, StringComparer.OrdinalIgnoreCase))
+                .Take(character.MemorizationCapacity));
             if (saved.QuickSpellIds.Count > 0)
                 for (var index = 0; index < Math.Min(LiveCharacter.MaximumQuickSpellCount, saved.QuickSpellIds.Count); index++)
                     character.AssignQuickSpell(index, saved.QuickSpellIds[index] is { } spellId

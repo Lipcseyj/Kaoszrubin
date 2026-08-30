@@ -31,6 +31,7 @@ var tests = new (string Name, Action Run)[]
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
     ("Mindkét varázsiskola minden szintjén öt varázslat van", SpellSchoolsHaveFiveSpellsPerLevel),
+    ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
     ("Az ismeretlen CSV-fejezet sorszámos hibát ad", UnknownCsvSectionIsRejectedWithLineNumber),
@@ -2066,6 +2067,31 @@ static void SpellSchoolsHaveFiveSpellsPerLevel()
            creation.UsageMode == SpellUsageMode.Exploration &&
            catalog.GetSpellEffects(creation.Id).Single() is { Type: SpellEffectType.RestoreNeeds, Value: 35 },
         "Az első szintű Étel és ital teremtése varázslat adatai vagy hatása hibás.");
+}
+
+static void SpellMemorizationCapacityUsesClassFormula()
+{
+    static LiveCharacter Caster(string classId, int level)
+    {
+        var race = new RaceDefinition("R-MEM", "Teszt", PrimaryAbilities.Zero);
+        var characterClass = new CharacterClassDefinition(classId, classId, PrimaryAbilities.Zero, true, 1.0);
+        var character = new LiveCharacter("Memória", race, characterClass,
+            new PrimaryAbilities(5, 5, 5, 8), 20, 20, 1, 1);
+        character.SetProgress(level, 0);
+        return character;
+    }
+
+    Assert(Caster(CharacterClassIds.Mágus, 1).MemorizationCapacity == 4 &&
+           Caster(CharacterClassIds.Mágus, 30).MemorizationCapacity == 10,
+        "A mágus memóriaképlete hibás.");
+    Assert(Caster(CharacterClassIds.Pap, 1).MemorizationCapacity == 4 &&
+           Caster(CharacterClassIds.Pap, 30).MemorizationCapacity == 10,
+        "A pap memóriaképlete hibás.");
+    Assert(Caster(CharacterClassIds.Lovag, 1).MemorizationCapacity == 2 &&
+           Caster(CharacterClassIds.Lovag, 10).MemorizationCapacity == 3 &&
+           Caster(CharacterClassIds.Lovag, 20).MemorizationCapacity == 4 &&
+           Caster(CharacterClassIds.Lovag, 30).MemorizationCapacity == 4,
+        "A lovag memóriaképlete vagy négyhelyes korlátja hibás.");
 }
 
 static void InventoryStackSplitIsAtomicAndRequiresSpace()

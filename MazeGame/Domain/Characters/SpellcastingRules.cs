@@ -74,10 +74,14 @@ public static class SpellcastingRules
         RequiredFocusItemId(character.CharacterClass.Id) is not { } focusId ||
         character.SetInventoryItem(InventorySlotKind.Backpack, 0, gameData.GetItem(focusId));
 
-    public static int MemorizationCapacity(LiveCharacter character) =>
-        TryGetSchool(character.CharacterClass.Id, out _)
-            ? 2 + character.EffectiveAbilities.Intelligence / 3 + character.Level / 5
-            : 0;
+    public static int MemorizationCapacity(LiveCharacter character) => character.CharacterClass.Id.ToUpperInvariant() switch
+    {
+        CharacterClassIds.Mágus => 2 + character.EffectiveAbilities.Intelligence / 3 + character.Level / 5,
+        CharacterClassIds.Pap => 2 + character.EffectiveAbilities.Intelligence / 4 + character.Level / 5,
+        CharacterClassIds.Lovag => Math.Min(4,
+            1 + character.EffectiveAbilities.Intelligence / 5 + character.Level / 10),
+        _ => 0
+    };
 
     public static int MaximumSpellLevel(int characterLevel) => characterLevel switch
     {
