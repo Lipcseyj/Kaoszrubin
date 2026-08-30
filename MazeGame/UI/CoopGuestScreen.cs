@@ -911,7 +911,9 @@ public sealed class CoopGuestScreen
         var snapshot = client.CurrentSnapshot;
         if (snapshot is not null)
         {
-            _backgroundMusic.SynchronizeMazeLevel(snapshot.MazeLevel);
+            _backgroundMusic.SynchronizeMazeLevel(snapshot.MazeLevel,
+                exitDiscovered: snapshot.World?.Exit is not null,
+                inInn: snapshot.Phase == GameSessionPhase.Inn);
             SynchronizeInnTransactions(snapshot);
             SynchronizeSessionSounds(snapshot, selected.CharacterId);
             SynchronizeSessionActivities(snapshot, selected.CharacterId);

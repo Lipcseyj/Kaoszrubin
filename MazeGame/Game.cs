@@ -787,7 +787,7 @@ public sealed class Game
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         CheckBossDiscovery(_maze.Enemies.Where(enemy => _fogOfWar.IsRevealed(enemy.Position)));
         PlaySessionSound(SoundEffect.LevelStart);
-        _backgroundMusic.SynchronizeMazeLevel(_mazeLevel);
+        _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, _fogOfWar.IsRevealed(_maze.Exit));
         if (showLevelImage) ShowLevelImage();
         LogMazeAccessibilityCheck();
     }
@@ -1215,7 +1215,7 @@ public sealed class Game
         _gameOver = false;
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.DrawDeveloperMessage($"Mentés betöltve: {state.MainCharacterName}, {_mazeLevel}. pálya.");
-        _backgroundMusic.SynchronizeMazeLevel(_mazeLevel);
+        _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, _fogOfWar.IsRevealed(_maze.Exit));
     }
 
     private void TryRestParty()
@@ -1977,6 +1977,7 @@ public sealed class Game
         }
         var completedLevel = _mazeLevel;
         PlaySessionSound(SoundEffect.LevelComplete);
+        _backgroundMusic.EnterInn();
         _session.SetPhase(GameSessionPhase.Inn);
         _innController.Run(completedLevel);
         _mazeLevel++;
@@ -4390,8 +4391,12 @@ public sealed class Game
     private static int Chebyshev(Position first, Position second) =>
         Math.Max(Math.Abs(first.X - second.X), Math.Abs(first.Y - second.Y));
 
-    private IReadOnlyList<Position> RevealFor(LiveCharacter character, Position position) =>
-        _fogOfWar.RevealFrom(_maze, position, CharacterClassRules.VisionRange(character));
+    private IReadOnlyList<Position> RevealFor(LiveCharacter character, Position position)
+    {
+        var revealed = _fogOfWar.RevealFrom(_maze, position, CharacterClassRules.VisionRange(character));
+        if (_fogOfWar.IsRevealed(_maze.Exit)) _backgroundMusic.MarkExitDiscovered();
+        return revealed;
+    }
 
     private void CheckBossDiscoveryAt(IEnumerable<Position> positions)
     {
@@ -4810,6 +4815,9 @@ public sealed class Game
         _leaderTrail.Clear();
         _leaderTrail.Add(destination.Value);
         RevealFor(SelectedCharacter, destination.Value);
+        // A fejlesztői teleport közvetlenül is jelzi a kijárat elérését; ne függjön
+        // attól, hogy az általános látómező-frissítés új cellának számította-e a kijáratot.
+        _backgroundMusic.MarkExitDiscovered();
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, destination.Value);
         _renderer.DrawDeveloperMessage("Fejlesztői mód: a partyvezér a kijárat mellé teleportált.");
     }
