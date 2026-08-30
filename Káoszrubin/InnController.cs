@@ -9,6 +9,7 @@ namespace KaoszRubin;
 
 internal sealed class InnController
 {
+    public enum DepartureChoice { NextLevel, ReturnExpedition }
     internal const ConsoleKey StateChangedKey = ConsoleKey.F24;
     private const int SecretStashLevelAdvance = 4;
     private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002",
@@ -139,8 +140,16 @@ internal sealed class InnController
         _ => vendor.ToString()
     };
 
-    public void Run(int completedLevel)
+    public DepartureChoice Run(int completedLevel, string? expeditionReason = null, bool resume = false)
     {
+        if (resume)
+        {
+            _active = true;
+            _menuOptions = (_menuOptions ?? []).Where(option => option.Kind != InnMenuOptionKind.ReturnExpedition)
+                .ToArray();
+            _revision++;
+            return RunMenuLoop(completedLevel);
+        }
         var availableInnNames = _gameData.InnNames.Where(name => !_usedInnNames.Contains(name)).ToArray();
         if (availableInnNames.Length == 0)
         {
@@ -189,6 +198,10 @@ internal sealed class InnController
             selectedRumors.Add(CreateUniqueInnRumor(completedLevel, shownRumors));
         foreach (var definition in _gameData.InnRumors.OrderBy(_ => _random.Next()).Take(2))
             selectedRumors.Add(new InnRumor("Fogadói szóbeszéd", [definition.Name], ConsoleColor.Gray));
+        if (expeditionReason?.Contains("szóbeszéd", StringComparison.OrdinalIgnoreCase) == true)
+            selectedRumors.Add(new InnRumor("🗺️ Nyom az előző pályáról",
+                ["Egy zilált vándor új mozgásról beszél a már elhagyott járatokban. Nem a teljes szörnyhorda tért vissza, de valami érdemes lehet még odalent."],
+                ConsoleColor.Yellow));
         foreach (var rumor in selectedRumors.OrderBy(_ => _random.Next())) _rumors.Add(rumor);
         _revision++;
         var presentVisitors = new List<string>();
@@ -210,8 +223,17 @@ internal sealed class InnController
         if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka és varázstárgy-azonosítás.", InnVendorKind.WanderingMage));
         options.Add(new(InnMenuOptionKind.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása.", LeaderOnly: true));
         options.Add(new(InnMenuOptionKind.Rumors, "👂 Pletykák", "Helyi szóbeszédek, hírek a következő pályáról és a környékbeli szörnyekről."));
+        if (!string.IsNullOrWhiteSpace(expeditionReason))
+            options.Add(new(InnMenuOptionKind.ReturnExpedition, "🗺️ Visszatérő expedíció",
+                expeditionReason, LeaderOnly: true));
         options.Add(new(InnMenuOptionKind.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.", LeaderOnly: true));
         _menuOptions = options;
+        return RunMenuLoop(completedLevel);
+    }
+
+    private DepartureChoice RunMenuLoop(int completedLevel)
+    {
+        var options = (_menuOptions ?? []).ToList();
         var selectedIndex = 0;
         var menuNotice = _artisanNotice;
         var redraw = true;
@@ -253,12 +275,20 @@ internal sealed class InnController
                 case InnMenuOptionKind.Market: RunInnMarket(completedLevel); break;
                 case InnMenuOptionKind.Witcher: RunWitcherMarket(completedLevel); break;
                 case InnMenuOptionKind.SecretStash: RunInnSecretStash(completedLevel); break;
-                case InnMenuOptionKind.Blacksmith: RunSpecialistMarket("🔨 KOVÁCSMESTER", blacksmithStock); break;
-                case InnMenuOptionKind.Armorer: RunSpecialistMarket("🛡️ PÁNCÉLMÍVES", armorerStock); break;
-                case InnMenuOptionKind.WanderingMage: RunWanderingMage(wanderingMageStock); break;
+                case InnMenuOptionKind.Blacksmith: RunSpecialistMarket("🔨 KOVÁCSMESTER",
+                    _vendorStocks.GetValueOrDefault(InnVendorKind.Blacksmith) ?? []); break;
+                case InnMenuOptionKind.Armorer: RunSpecialistMarket("🛡️ PÁNCÉLMÍVES",
+                    _vendorStocks.GetValueOrDefault(InnVendorKind.Armorer) ?? []); break;
+                case InnMenuOptionKind.WanderingMage: RunWanderingMage(
+                    _vendorStocks.GetValueOrDefault(InnVendorKind.WanderingMage) ?? []); break;
                 case InnMenuOptionKind.Recruit: RunInnRecruitment(); break;
                 case InnMenuOptionKind.Rumors: RunInnRumors(); break;
-                case InnMenuOptionKind.Leave: _active = false; return;
+                case InnMenuOptionKind.ReturnExpedition:
+                    _active = false;
+                    return DepartureChoice.ReturnExpedition;
+                case InnMenuOptionKind.Leave:
+                    _active = false;
+                    return DepartureChoice.NextLevel;
             }
         }
     }

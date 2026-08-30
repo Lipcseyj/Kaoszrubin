@@ -19,6 +19,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),
     ("Az emberi vendég ráléphet a kincsesláda mezőjére", RemotePlayerCanStepOntoTreasureChest),
     ("A semleges NPC nem állja el a mozgó szereplők útját", NeutralWorldNpcIsPassable),
+    ("A visszatérő expedíció harminc százalékos szörnyállományt céloz", ReturnExpeditionPopulationIsLimited),
     ("A vendég visszaveheti a coop mentésben foglalt karakterét", RemotePlayerCanReclaimSavedCharacter),
     ("A vendég saját ajtó- és keresési akciót küldhet", RemotePlayerCanIssueCharacterAction),
     ("A vendég térképről varázslási parancsot küldhet", RemotePlayerCanCastExplorationSpell),
@@ -923,6 +924,16 @@ static void NeutralWorldNpcIsPassable()
     Assert(partySetup.Maze.TryMovePartyMember(member, partySetup.NpcPosition, partySetup.Maze.Entrance) &&
            member.Position == partySetup.NpcPosition,
         "A mozgó partitársat blokkolta a semleges NPC.");
+}
+
+static void ReturnExpeditionPopulationIsLimited()
+{
+    Assert(ReturnExpeditionRules.TargetNormalEnemyCount(10) == 3 &&
+           ReturnExpeditionRules.TargetNormalEnemyCount(11) == 4 &&
+           ReturnExpeditionRules.TargetNormalEnemyCount(1) == 1 &&
+           ReturnExpeditionRules.AdditionalEnemiesNeeded(10, 1) == 2 &&
+           ReturnExpeditionRules.AdditionalEnemiesNeeded(10, 4) == 0,
+        "A visszatérő expedíció nem az eredeti normál szörnyállomány 30%-ára tölt vissza.");
 }
 
 static void RemotePlayerCanAcknowledgeRest()

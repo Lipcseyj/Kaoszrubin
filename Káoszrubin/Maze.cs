@@ -137,6 +137,8 @@ public sealed class Maze
         _enemies.Add(enemy);
     }
 
+    public bool RemoveEnemy(Enemy enemy) => _enemies.Remove(enemy);
+
     public void AddPartyMember(PartyMemberAvatar member)
     {
         EnsureObjectPositionIsFree(member.Position);

@@ -195,6 +195,8 @@ public sealed class Game
     private readonly HashSet<string> _collectedBossKeyIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _seenBossIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<WorldEntityId> _spottedEnemyIds = [];
+    private readonly List<ExpeditionEnemyTemplate> _levelEnemyTemplates = [];
+    private bool _isReturnExpedition;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
     public GameSession Session => _session;
@@ -826,6 +828,7 @@ public sealed class Game
         PlaceTraps(configuration);
         PlaceFirstSinglePlayerCompanion();
         PlaceConfiguredWorldNpcs();
+        CaptureExpeditionEnemyTemplates();
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
         RevealFor(SelectedCharacter, _player.Position);
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
@@ -1215,6 +1218,13 @@ public sealed class Game
     private void SaveGame()
     {
         CancelHeldInventoryItem();
+        if (_isReturnExpedition)
+        {
+            _renderer.DrawInventoryMessage(
+                "A visszatérő expedíció közben nem menthetsz. Érd el a régi kijáratot és térj vissza a fogadóba.",
+                ConsoleColor.DarkYellow);
+            return;
+        }
         try
         {
             var path = _gameSaveService.Save(CreateGameSaveData(), CharacterRoster);
@@ -1275,6 +1285,7 @@ public sealed class Game
                     saved.ExperienceReward);
         _renderer.SetGoldenKeyCount(_collectedBossKeyIds.Count);
         _maze = restored.Maze;
+        CaptureExpeditionEnemyTemplates();
         if (_questJournal.Count == 0)
             foreach (var npc in _maze.WorldNpcs.Concat(_maze.PartyMembers
                          .Where(member => member.TemporaryFollower is not null)
@@ -2347,6 +2358,11 @@ public sealed class Game
     private void ActivateExit()
     {
         if (_player.Position != _maze.Exit) return;
+        if (_isReturnExpedition)
+        {
+            ReturnFromExpeditionToInn();
+            return;
+        }
         if (_maze.PartyMembers.FirstOrDefault(member => member.IsTemporaryFollower) is { } escort &&
             Manhattan(escort.Position, _player.Position) > 3)
         {
@@ -2364,12 +2380,146 @@ public sealed class Game
         PlaySessionSound(SoundEffect.LevelComplete);
         _backgroundMusic.EnterInn();
         _session.SetPhase(GameSessionPhase.Inn);
-        _innController.Run(completedLevel);
+        var expeditionReason = ReturnExpeditionReason(completedLevel);
+        var departure = _innController.Run(completedLevel, expeditionReason);
+        if (departure == InnController.DepartureChoice.ReturnExpedition)
+        {
+            BeginReturnExpedition();
+            return;
+        }
         _activeInnDeparture = new InnDepartureSnapshot("A csapat szedelőzködik, és elhagyjátok a fogadót.");
         _session.SetPhase(GameSessionPhase.Paused);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
         _mazeLevel++;
         StartNewMaze();
+    }
+
+    private string? ReturnExpeditionReason(int completedLevel)
+    {
+        var activeQuestIds = _questJournal.Values.Where(entry => entry.Status == QuestJournalStatus.Active)
+            .Select(entry => entry.QuestId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var quest = _gameData.NpcQuests.FirstOrDefault(candidate => activeQuestIds.Contains(candidate.Id) &&
+            _gameData.NpcEncounters.Any(encounter => encounter.MazeLevel == completedLevel &&
+                string.Equals(encounter.NpcId, candidate.NpcId, StringComparison.OrdinalIgnoreCase)));
+        if (quest is not null)
+            return $"Aktív küldetés maradt hátra: {quest.Title}. A régi kijárat visszahoz ugyanebbe a fogadóba.";
+        return _random.Next(100) < 35
+            ? "Egy fogadói szóbeszéd új nyomot jelzett az előző pályán. A régi kijárat visszahoz ugyanebbe a fogadóba."
+            : null;
+    }
+
+    private void BeginReturnExpedition()
+    {
+        _isReturnExpedition = true;
+        _session.SetPhase(GameSessionPhase.Exploration);
+        _session.SynchronizeParty();
+        foreach (var boss in _maze.Enemies.Where(enemy => enemy.Definition.IsBoss).ToArray())
+        {
+            _maze.RemoveEnemy(boss);
+            _nextEnemyMoves.Remove(boss);
+        }
+        ReplenishExpeditionEnemies();
+        RepositionPartyAtEntrance();
+        foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive))
+        {
+            character.ConsumeFood(ReturnExpeditionRules.TravelNeedCost);
+            character.ConsumeWater(ReturnExpeditionRules.TravelNeedCost);
+            character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
+                _gameData.GetStatus(CharacterStatusIds.Thirsty));
+        }
+        _spottedEnemyIds.Clear();
+        _battleStarted = false;
+        _hasRestedThisLevel = true;
+        InitializeEnemyMoveSchedule(DateTime.UtcNow);
+        RevealFor(SelectedCharacter, _player.Position);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        var message = "🗺️ Visszatérő expedíció: a felderített térkép megmaradt, a vidéket csak kisebb szörnyjárőrök népesítették be újra. 🍖-3 💧-3";
+        _renderer.DrawInventoryMessage(message, ConsoleColor.Cyan);
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Cyan);
+        _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, _fogOfWar.IsRevealed(_maze.Exit));
+        _activeInnDeparture = null;
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+    }
+
+    private void ReturnFromExpeditionToInn()
+    {
+        _isReturnExpedition = false;
+        PlaySessionSound(SoundEffect.LevelComplete);
+        _backgroundMusic.EnterInn();
+        _session.SetPhase(GameSessionPhase.Inn);
+        _innController.Run(_mazeLevel, resume: true);
+        _activeInnDeparture = new InnDepartureSnapshot("A csapat szedelőzködik, és elhagyjátok a fogadót.");
+        _session.SetPhase(GameSessionPhase.Paused);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        _mazeLevel++;
+        StartNewMaze();
+    }
+
+    private void CaptureExpeditionEnemyTemplates()
+    {
+        _levelEnemyTemplates.Clear();
+        _levelEnemyTemplates.AddRange(_maze.Enemies.Where(enemy => !enemy.Definition.IsBoss).Select(enemy =>
+            new ExpeditionEnemyTemplate(enemy.Definition.Id, enemy.Position, enemy.MovementProfile,
+                enemy.PatrolDirection, enemy.GroupId, enemy.GroupRole)));
+        _levelEnemyTemplates.AddRange(_maze.Corpses.OfType<MonsterCorpse>()
+            .Where(corpse => !_gameData.GetEnemy(corpse.EnemyDefinitionId).IsBoss)
+            .Select(corpse => new ExpeditionEnemyTemplate(corpse.EnemyDefinitionId, corpse.Position,
+                EnemyMovementProfile.Wander, Direction.Right, null, EnemyGroupRole.Member)));
+    }
+
+    private void ReplenishExpeditionEnemies()
+    {
+        var currentNormalCount = _maze.Enemies.Count(enemy => !enemy.Definition.IsBoss);
+        var needed = ReturnExpeditionRules.AdditionalEnemiesNeeded(_levelEnemyTemplates.Count,
+            currentNormalCount);
+        var candidates = _levelEnemyTemplates.OrderBy(_ => _random.Next()).ToList();
+        foreach (var template in candidates)
+        {
+            if (needed <= 0) break;
+            var position = FindExpeditionSpawnPosition(template.Position);
+            if (position is null) continue;
+            var enemy = new ConfiguredEnemy(position.Value, _gameData.GetEnemy(template.DefinitionId));
+            enemy.ConfigureMovement(template.MovementProfile, template.PatrolDirection);
+            enemy.ConfigureGroup(template.GroupId, template.GroupRole);
+            _maze.AddEnemy(enemy);
+            needed--;
+        }
+    }
+
+    private Position? FindExpeditionSpawnPosition(Position preferred)
+    {
+        var positions = new List<Position> { preferred };
+        for (var radius = 1; radius <= 5; radius++)
+            for (var y = preferred.Y - radius; y <= preferred.Y + radius; y++)
+                for (var x = preferred.X - radius; x <= preferred.X + radius; x++)
+                    if (Math.Max(Math.Abs(x - preferred.X), Math.Abs(y - preferred.Y)) == radius)
+                        positions.Add(new Position(x, y));
+        return positions.Where(position => _maze.IsInside(position) && _maze.IsWalkable(position) &&
+                position != _maze.Entrance && position != _maze.Exit && _maze.GetObjectAt(position) is null &&
+                _maze.GetDoorAt(position) is null && _maze.GetTrapAt(position) is null)
+            .Select(position => (Position?)position).FirstOrDefault();
+    }
+
+    private void RepositionPartyAtEntrance()
+    {
+        var oldAvatars = _maze.PartyMembers.Where(member => member.Character.IsAlive)
+            .Select(member => (member.Character, member.TemporaryFollower)).ToList();
+        foreach (var member in _maze.PartyMembers.ToArray()) _maze.RemovePartyMember(member);
+        _player.TeleportTo(_maze.Entrance);
+        _leaderTrail.Clear();
+        _leaderTrail.Add(_player.Position);
+        _nextPartyMoves.Clear();
+        foreach (var character in CharacterRoster.Party.Members.Where(character => character != SelectedCharacter &&
+                     character.IsAlive && oldAvatars.All(entry => entry.Character != character)))
+            oldAvatars.Add((character, null));
+        var positions = FindNearbyFreePositions(_player.Position).Take(oldAvatars.Count).ToArray();
+        for (var index = 0; index < Math.Min(oldAvatars.Count, positions.Length); index++)
+        {
+            var avatar = new PartyMemberAvatar(positions[index], oldAvatars[index].Character,
+                oldAvatars[index].TemporaryFollower);
+            _maze.AddPartyMember(avatar);
+            _nextPartyMoves[avatar] = DateTime.UtcNow;
+        }
     }
 
     private void ResolveTemporaryFollowerAtExit()
@@ -2465,7 +2615,7 @@ public sealed class Game
     {
         var enemy = _gameData.GetEnemy(corpse.EnemyDefinitionId);
         var rules = _gameData.LootRules;
-        var keyChance = AdjustedSearchChance(character, rules.KeyChancePercent);
+        var keyChance = _isReturnExpedition ? 0 : AdjustedSearchChance(character, rules.KeyChancePercent);
         var goldChance = AdjustedSearchChance(character, rules.GoldChancePercent);
         var equipmentDefinition = _gameData.GetMonsterLoot(enemy.Id);
         var equipmentChance = equipmentDefinition is null
@@ -5656,6 +5806,8 @@ public sealed class Game
     }
 
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source, long SourceRevision);
+    private sealed record ExpeditionEnemyTemplate(string DefinitionId, Position Position,
+        EnemyMovementProfile MovementProfile, Direction PatrolDirection, string? GroupId, EnemyGroupRole GroupRole);
     private sealed record DeveloperUniqueNpcTarget(NpcDefinition Definition, int MazeLevel);
     private sealed record SpellCastAttempt(bool ConsumesTurn, string Message, BattleLogKind Kind,
         int DamageToCurrentEnemy = 0, int ExtraPlayerActions = 0);
