@@ -1601,7 +1601,8 @@ public sealed class Game
 
     private void EncounterWorldNpc(WorldNpc npc)
     {
-        var joins = _renderer.DrawWorldNpcRecruitment(npc);
+        var questDefinitions = _gameData.GetNpcQuests(npc.DefinitionId);
+        var joins = _renderer.DrawWorldNpcRecruitment(npc, questDefinitions);
         ProcessNpcQuests(npc);
         if (joins && CharacterRoster.Party.Add(npc.Character))
         {

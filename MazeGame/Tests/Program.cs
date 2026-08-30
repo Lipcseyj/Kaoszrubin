@@ -2162,15 +2162,16 @@ static void ClassResourceGrowthLoadsFromCsv()
 static void NpcDefinitionsLoadFromCsv()
 {
     var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
-    Assert(catalog.Npcs.Count == 4 && catalog.NpcEncounters.Count == 5 &&
+    Assert(catalog.Npcs.Count == 11 && catalog.NpcEncounters.Count == 14 &&
            catalog.NpcEncounters.All(encounter => encounter.MazeLevel is >= 1 and <= 8),
-        "Az NPC-definíciók vagy az első nyolc pálya öt találkozása hiányzik.");
-    Assert(catalog.NpcDialogues.Count == 12 && catalog.NpcQuests.Count == 4 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 2 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 2,
+        "Az NPC-definíciók vagy az első nyolc pálya találkozásai hiányoznak.");
+    Assert(catalog.NpcDialogues.Count == 45 && catalog.NpcQuests.Count == 18 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 6 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 12,
         "Az NPC-párbeszédek vagy a Collect/Kill küldetések hibásan töltődtek.");
     Assert(catalog.GetNpc("NPC001") is { Disposition: NpcDisposition.Neutral, Unique: false } &&
-           catalog.GetNpcQuests("NPC002").Single() is { TargetId: "E003", ExperienceReward: 260 },
+           catalog.GetNpcQuests("NPC002").Any(quest =>
+               quest is { TargetId: "E003", ExperienceReward: 260 }),
         "A semleges nem egyedi NPC vagy a hozzá kapcsolt küldetés hibás.");
 
     var npc = new WorldNpc(new Position(1, 1), "NPC002", CreateCharacter("Küldetésadó"),

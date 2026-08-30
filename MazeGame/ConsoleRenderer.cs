@@ -1477,7 +1477,7 @@ public sealed class ConsoleRenderer
         if (bottomAdornment is not null) WriteAt(left, frameBottom + 1, bottomAdornment);
     }
 
-    public bool DrawWorldNpcRecruitment(WorldNpc npc)
+    public bool DrawWorldNpcRecruitment(WorldNpc npc, IReadOnlyList<NpcQuestDefinition> questDefinitions)
     {
         ResetColorCache();
         Console.Clear();
@@ -1489,12 +1489,25 @@ public sealed class ConsoleRenderer
             ($"{npc.Character.Name} — {npc.Character.Race.Name} {npc.Character.CharacterClass.Name}", npc.Character.Color),
             ($"Szint {npc.Character.Level}   ❤️ {npc.Character.CurrentVitality}/{npc.Character.MaximumVitality}{mana}", ConsoleColor.Gray),
             ($"Viszony: {npc.Friendliness}/10   Viselkedés: {NpcBehaviorName(npc.Behavior)}", ConsoleColor.Cyan),
-            (npc.QuestIds.Count > 0 ? $"📜 Küldetésajánlat: {npc.QuestIds.Count}" : string.Empty, ConsoleColor.DarkYellow),
+            (npc.QuestIds.Count > 0 ? $"📜 Küldetések: {npc.QuestIds.Count}" : string.Empty, ConsoleColor.DarkYellow),
             (string.Empty, ConsoleColor.Gray),
             ($"„{npc.Dialogue}”", ConsoleColor.White),
-            (string.Empty, ConsoleColor.Gray),
-            (npc.CanJoin ? "Enter: csatlakozzon ingyen   Esc: most nem" : "Esc: távozás", ConsoleColor.Yellow)
         };
+        foreach (var quest in questDefinitions)
+        {
+            var progress = npc.Quests.FirstOrDefault(value =>
+                string.Equals(value.QuestId, quest.Id, StringComparison.OrdinalIgnoreCase));
+            var status = progress?.State switch
+            {
+                NpcQuestState.Active => $"{progress.Progress}/{quest.RequiredCount}",
+                NpcQuestState.Completed => "teljesítve",
+                _ => "új"
+            };
+            lines.Add(($"  📜 {quest.Title} [{status}]", progress?.State == NpcQuestState.Completed
+                ? ConsoleColor.Green : ConsoleColor.DarkYellow));
+        }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add((npc.CanJoin ? "Enter: csatlakozzon ingyen   Esc: most nem" : "Esc: távozás", ConsoleColor.Yellow));
         DrawCenteredFrame(72, lines, FramedWindow.Inn);
         while (true)
         {

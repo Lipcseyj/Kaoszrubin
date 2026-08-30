@@ -999,6 +999,13 @@ NPC001,Vándor füvesasszony,C005,Neutral,Guarded,nem,nem
 NPC002,Szörnyvadász,C001,Neutral,Aggressive,nem,nem
 NPC003,Kincskereső,C004,Neutral,Opportunistic,nem,nem
 NPC004,Vándor dalnok,C006,Friendly,Friendly,igen,nem
+NPC005,Patkányvadász,C004,Neutral,Guarded,nem,nem
+NPC006,Kobold szökevény,C004,Neutral,Opportunistic,nem,nem
+NPC007,Sebesült határőr,C003,Neutral,Guarded,nem,nem
+NPC008,Halottlátó remete,C005,Neutral,Guarded,nem,nem
+NPC009,Ork dezertőr,C002,Neutral,Aggressive,nem,nem
+NPC010,Barlangi alkimista,C006,Neutral,Opportunistic,nem,nem
+NPC011,Hadifogoly felderítő,C001,Neutral,Guarded,nem,nem
 
 #NPC találkozások
 Id,NpcId,Pályaszint,MinimumTávolság,MaximumTávolság
@@ -1007,6 +1014,15 @@ NPCE002,NPC002,3,7,16
 NPCE003,NPC003,5,8,18
 NPCE004,NPC001,7,8,18
 NPCE005,NPC004,8,7,16
+NPCE006,NPC005,1,6,14
+NPCE007,NPC006,2,7,16
+NPCE008,NPC007,3,7,17
+NPCE009,NPC007,4,8,18
+NPCE010,NPC008,5,8,18
+NPCE011,NPC009,6,9,20
+NPCE012,NPC010,7,8,19
+NPCE013,NPC009,8,9,20
+NPCE014,NPC011,8,8,18
 
 #NPC párbeszédek
 Id,NpcId,MinimumBarátságosság,MaximumBarátságosság,Szöveg
@@ -1022,6 +1038,39 @@ NPCD009,NPC003,8,10,Megbízhatónak tűntök. Megosztok veletek egy nyomot.
 NPCD010,NPC004,0,3,Nehéz közönség vagytok. Egyelőre megtartom magamnak a dalaimat.
 NPCD011,NPC004,4,7,Egy régi történethez keresek bizonyítékot a mélyben.
 NPCD012,NPC004,8,10,Rólatok még nagy éneket írhatok. Szívesen veletek tartanék.
+NPCD013,NPC001,0,3,A barlang levegője keserű. Ha közelebb jöttök legalább ne lélegezzetek rám.
+NPCD014,NPC001,4,7,A vörös kupakú fiolákból kifogytam. Sebesülteknek tartogatom őket.
+NPCD015,NPC001,8,10,A jó orvosság fél győzelem. A másik fele az hogy életben eljussatok hozzám.
+NPCD016,NPC002,0,3,A fegyveretek hangosabb a lépteiteknél. Így csak a saját sírotokat találjátok meg.
+NPCD017,NPC002,4,7,A bestiák nyomai frissek. Ha levadásszátok őket talán még hasznotokra is lehetek.
+NPCD018,NPC002,8,10,Nem sokan térnek vissza onnan ahová ti tartotok. Bizonyítsátok hogy kivételek vagytok.
+NPCD019,NPC003,0,3,A térképem nem eladó és a kincsem sem közös. Maradjunk ennyiben.
+NPCD020,NPC003,4,7,A legjobb útvonal mindig ott kezdődik ahol mások már visszafordultak.
+NPCD021,NPC003,8,10,Találtam egy jelet a köveken. Segítsetek az útravalóval és elmondom merre mutat.
+NPCD022,NPC004,0,3,Ebből a találkozásból egyelőre legfeljebb gyászdal születne.
+NPCD023,NPC004,4,7,A csontok különös ritmust vernek amikor széthullanak. Hallanom kell még néhányszor.
+NPCD024,NPC004,8,10,Ha túléljük ezt a mélységet a nevetek minden fogadóban énekelni fogják.
+NPCD025,NPC005,0,3,Ne zavarjatok. Egy patkánycsalád nyomát követem és nálatok jobb a szaglásuk.
+NPCD026,NPC005,4,7,Ezek a dögök már a felszíni pincékbe is feljárnak. Valakinek ritkítania kell őket.
+NPCD027,NPC005,8,10,Tiszta munka és gyors penge. Talán mégsem vagytok teljesen reménytelenek.
+NPCD028,NPC006,0,3,Nem megyek vissza közéjük. Inkább próbáljatok meg ti.
+NPCD029,NPC006,4,7,A koboldok nem hősök. Csak sokan vannak és mindig a sötétből jönnek.
+NPCD030,NPC006,8,10,Ismerem a járataikat. Ti elintézitek az őröket én pedig megmutatom a rövid utat.
+NPCD031,NPC007,0,3,A címerem összetört de az esküm nem. Ne adjatok okot hogy rátok emeljem a kardom.
+NPCD032,NPC007,4,7,A goblinok rajtaütöttek az őrjáratomon. Az adósságomat vérrel fizetem vissza.
+NPCD033,NPC007,8,10,Ha megtisztítjátok az utat a társaim halála nem volt hiábavaló.
+NPCD034,NPC008,0,3,Túl hangosan éltek. A holtak már messziről hallják a szíveteket.
+NPCD035,NPC008,4,7,A csontok emlékeznek azokra akik felébresztették őket. Segítsetek újra elcsendesíteni a sírokat.
+NPCD036,NPC008,8,10,A nyugtalan lelkek már nem tőletek félnek. Ez jó jel.
+NPCD037,NPC009,0,3,Az ork nem árul el senkit. Én csak hamarabb választottam oldalt.
+NPCD038,NPC009,4,7,A hadúr minden gyengét a csarnokok elé küld meghalni. Ideje visszaküldeni neki az üzenetet.
+NPCD039,NPC009,8,10,Jól harcoltok. Az én törzsemben ezt többre tartanák bármilyen eskünél.
+NPCD040,NPC010,0,3,Egy rossz mozdulat és mindannyian gombává változunk. Ti talán hamarabb.
+NPCD041,NPC010,4,7,A pókméreg kiváló alapanyag ha az ember túléli a begyűjtését.
+NPCD042,NPC010,8,10,A tudomány hálátlan mesterség. Szerencsére én nem vagyok az.
+NPCD043,NPC011,0,3,Ha a táborból jöttetek végezzetek gyorsan. Ha nem akkor oldozzatok el.
+NPCD044,NPC011,4,7,Napok óta számolom az őrjáratokat. A bugbearek váltáskor maradnak a legkevesebben.
+NPCD045,NPC011,8,10,Kinyitottátok előttem az utat. Most én mutatom meg nektek hol fáj legjobban az ork seregnek.
 
 #NPC küldetések
 Id,NpcId,Típus,CélId,Darabszám,XP,Cím,Leírás
@@ -1029,3 +1078,17 @@ NPCQ001,NPC001,Collect,T011,3,180,Gyógyító készlet,Gyűjts össze három kis
 NPCQ002,NPC002,Kill,E003,4,260,Goblinvadászat,Ölj meg négy goblint a szörnyvadász megbízásából.
 NPCQ003,NPC003,Collect,T001,5,320,Útravaló a mélybe,Szerezz öt útravalót a kincskereső következő útjához.
 NPCQ004,NPC004,Kill,E004,3,480,A csontok éneke,Győzz le három csontvázat a dalnok balladájához.
+NPCQ005,NPC001,Collect,T019,2,220,Tiszta kötések,Vigyél két kötést a füvesasszonynak a sebesültek ellátásához.
+NPCQ006,NPC002,Kill,E003,6,360,Vérdíj a zöldfülűekre,Győzz le hat goblint és bizonyítsd a szörnyvadásznak hogy értesz a mesterséghez.
+NPCQ007,NPC003,Collect,T003,2,300,A lezárt út,Szerezz két kulcsot a kincskeresőnek egy lezárt mellékjárathoz.
+NPCQ008,NPC004,Collect,T023,1,240,A dalnok hangja,Vigyél egy mézsört a dalnoknak hogy visszatérjen a hangja.
+NPCQ009,NPC005,Kill,E001,5,160,A járatok megtisztítása,Ölj meg öt óriáspatkányt a patkányvadász megbízásából.
+NPCQ010,NPC006,Kill,E002,4,220,Nincs visszaút,Győzz le négy koboldot hogy a szökevény üldözői ne érhessék utol.
+NPCQ011,NPC007,Kill,E003,5,300,Az elveszett őrjárat,Ölj meg öt goblint a határőr elesett társaiért.
+NPCQ012,NPC008,Kill,E004,5,440,Csend a sírokban,Győzz le öt csontvázat hogy a katakombák halottai megnyugodhassanak.
+NPCQ013,NPC008,Kill,E006,3,390,A nyugtalan testek,Pusztíts el három zombit a remete szertartásához.
+NPCQ014,NPC009,Kill,E007,5,560,Törött agyar,Győzz le öt orkot és gyengítsd meg a dezertőr egykori törzsét.
+NPCQ015,NPC009,Kill,E008,3,620,A hadúr testőrei,Győzz le három hobgoblint az ork hadúr elitjéből.
+NPCQ016,NPC010,Kill,E009,4,540,Méregmirigyek,Győzz le négy óriáspókot az alkimista kísérleteihez.
+NPCQ017,NPC010,Collect,T017,2,420,Biztos ellenszer,Vigyél két ellenmérget a barlangi alkimistának összehasonlító mintának.
+NPCQ018,NPC011,Kill,E031,2,680,A tábor szemei,Győzz le két bugbeart és vakítsd meg az ork tábor felderítőit.
