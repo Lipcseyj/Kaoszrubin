@@ -1670,6 +1670,22 @@ public sealed class Game
 
     private ConsoleKeyInfo ReadInnKey()
     {
+        var key = ReadInnKeyCore();
+        if (key.Key == ConsoleKey.Q)
+        {
+            ShowQuestJournal();
+            return new ConsoleKeyInfo('\0', InnController.StateChangedKey, false, false, false);
+        }
+        if (GameInputBindings.IsCharacterSheetToggle(key.Key))
+        {
+            ManageCharacterSheetAtInn();
+            return new ConsoleKeyInfo('\0', InnController.StateChangedKey, false, false, false);
+        }
+        return key;
+    }
+
+    private ConsoleKeyInfo ReadInnKeyCore()
+    {
         var initialRevision = _innController.Revision;
         while (!Console.KeyAvailable)
         {
@@ -1683,10 +1699,54 @@ public sealed class Game
                 _activeCoopHost.TryPublish(CreateSessionSnapshot());
             Thread.Sleep(20);
         }
-        var key = Console.ReadKey(intercept: true);
-        if (key.Key != ConsoleKey.Q) return key;
-        ShowQuestJournal();
-        return new ConsoleKeyInfo('\0', InnController.StateChangedKey, false, false, false);
+        return Console.ReadKey(intercept: true);
+    }
+
+    private void ManageCharacterSheetAtInn()
+    {
+        CancelHeldInventoryItem();
+        _characterSheetFocused = true;
+        _renderer.DrawInnCharacterSheet(SelectedCharacter);
+        while (true)
+        {
+            var keyInfo = ReadInnKeyCore();
+            if (keyInfo.Key == InnController.StateChangedKey)
+            {
+                _renderer.RefreshCharacterSheet(SelectedCharacter);
+                continue;
+            }
+            if (GameInputBindings.IsCharacterSheetToggle(keyInfo.Key) || keyInfo.Key == ConsoleKey.Escape)
+            {
+                CancelHeldInventoryItem();
+                _characterSheetFocused = false;
+                _renderer.SetCharacterSheetFocused(false);
+                return;
+            }
+            if (keyInfo.Key == ConsoleKey.Q)
+            {
+                ShowQuestJournal();
+                _renderer.DrawInnCharacterSheet(SelectedCharacter);
+                continue;
+            }
+            switch (GameInputBindings.InventoryAction(keyInfo.Key))
+            {
+                case InventoryInputAction.MoveUp: _renderer.MoveCharacterSheetSelection(-1); break;
+                case InventoryInputAction.MoveDown: _renderer.MoveCharacterSheetSelection(1); break;
+                case InventoryInputAction.Inspect: InspectSelectedInventoryItem(); break;
+                case InventoryInputAction.Use: UseSelectedInventoryItem(); break;
+                case InventoryInputAction.MoveItem: GrabOrPlaceInventoryItem(); break;
+                case InventoryInputAction.SplitStack: SplitSelectedInventoryStack(); break;
+                case InventoryInputAction.DistributeStack: DistributeSelectedInventoryStack(); break;
+                case InventoryInputAction.Drop:
+                    _renderer.DrawInventoryMessage("A fogadóban nem dobhatsz tárgyat a földre.", ConsoleColor.DarkYellow);
+                    break;
+                default:
+                    if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
+                    else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
+                    else if (keyInfo.Key == ConsoleKey.Delete) DismissSelectedPartyMember();
+                    break;
+            }
+        }
     }
 
     private void ExecuteNarrativeAcknowledgement(AcknowledgeNarrativeCommand command)

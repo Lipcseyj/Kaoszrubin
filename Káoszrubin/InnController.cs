@@ -337,7 +337,7 @@ internal sealed class InnController
                 continue;
             }
             if (key == ConsoleKey.Escape) return;
-            if (key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow or ConsoleKey.Tab)
+            if (key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow)
             {
                 mode = mode == InnMarketMode.Buy ? InnMarketMode.Sell : InnMarketMode.Buy;
                 selectedIndex = 0;

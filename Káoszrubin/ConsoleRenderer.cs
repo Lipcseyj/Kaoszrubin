@@ -570,8 +570,8 @@ public sealed class ConsoleRenderer
                 ? ConsoleColor.DarkGray : selected ? ConsoleColor.White : ConsoleColor.DarkGray));
         }
         lines.Add((string.Empty, ConsoleColor.Gray));
-        lines.Add((disableLeaderOnly ? "↑/↓ választás   Enter belépés   Szürke: csak a party leader használhatja"
-            : "↑/↓ választás   Enter belépés", ConsoleColor.Green));
+        lines.Add((disableLeaderOnly ? "↑/↓ választás   Enter belépés   Tab karakterlap   Szürke: csak a leader"
+            : "↑/↓ választás   Enter belépés   Tab karakterlap", ConsoleColor.Green));
         return lines;
     }
 
@@ -633,8 +633,8 @@ public sealed class ConsoleRenderer
             : ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
         lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
         lines.Add((usesMarketLayout
-            ? "↑/↓ választás   ←/→ vétel–eladás   Enter üzlet   Esc vissza a fogadóba"
-            : "↑/↓ választás   Enter vásárlás   Esc vissza a fogadóba", ConsoleColor.White));
+            ? "↑/↓ választás   ←/→ vétel–eladás   Enter üzlet   Tab karakterlap   Esc vissza"
+            : "↑/↓ választás   Enter vásárlás   Tab karakterlap   Esc vissza", ConsoleColor.White));
         return lines;
     }
 
@@ -700,6 +700,18 @@ public sealed class ConsoleRenderer
         Console.Clear();
         DrawCenteredFrame(InnMenuFrameWidth, BuildInnMenuLines(partyCount, leader.Gold, options,
             selectedIndex, artisanNotice, disableLeaderOnly: false, innName, mazeLevel), FramedWindow.Inn);
+    }
+
+    public void DrawInnCharacterSheet(LiveCharacter character)
+    {
+        ResetColorCache();
+        Console.Clear();
+        DrawFrame();
+        if (_displayedCharacter is null || !SheetCharacters().Contains(_displayedCharacter))
+            _displayedCharacter = character;
+        DrawCharacterSheet(_displayedCharacter);
+        SetCharacterSheetFocused(true);
+        DrawBattleMessage("Fogadói karakterlap — Tab: vissza a fogadóba | ↑/↓: választás | ←/→: karakter");
     }
 
     public void UpdateInnMenuSelection(IReadOnlyList<InnMenuOptionSnapshot> options,

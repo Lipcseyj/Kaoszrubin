@@ -578,8 +578,7 @@ public sealed class CoopGuestScreen
         SessionSnapshot snapshot, InnSnapshot inn, ConsoleKey key)
     {
         if (inn.LevelCompletion is not null) return null;
-        if (GameInputBindings.IsCharacterSheetToggle(key) &&
-            !(_innVendor == InnVendorKind.Market && key == ConsoleKey.Tab))
+        if (GameInputBindings.IsCharacterSheetToggle(key))
         {
             _inventoryOpen = true;
             _inventorySelection = 0;
@@ -649,7 +648,7 @@ public sealed class CoopGuestScreen
         if (key == ConsoleKey.Escape)
         { _innVendor = null; _innSelection = 0; Interlocked.Exchange(ref _redrawRequested, 1); return null; }
         if (vendor.Kind == InnVendorKind.Market &&
-            key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow or ConsoleKey.Tab)
+            key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow)
         {
             _innMarketMode = _innMarketMode == InnMarketMode.Buy ? InnMarketMode.Sell : InnMarketMode.Buy;
             _innSelection = 0;
@@ -1117,6 +1116,10 @@ public sealed class CoopGuestScreen
         foreach (var character in snapshot.Party.Where(character => character.Position is not null))
             Put(grid, character.Position!.Value, CharacterSheetPanel.CharacterClassGlyph(character.CharacterClassId),
                 character.Color);
+        if (snapshot.Phase == GameSessionPhase.Inn)
+            for (var y = 0; y < grid.GetLength(1); y++)
+                for (var x = 0; x < grid.GetLength(0); x++)
+                    grid[x, y] = new GuestMapCell(" ", ConsoleColor.Gray, ConsoleColor.Black);
         if (_doorTargetAction is not null && _doorTargetCandidates.Count > 0)
         {
             _doorTargetSelection = Math.Clamp(_doorTargetSelection, 0, _doorTargetCandidates.Count - 1);
@@ -1390,6 +1393,7 @@ public sealed class CoopGuestScreen
             _acknowledgedLevelImageId = null;
             return;
         }
+        if (_inventoryOpen) return;
         if (client.PlayerId is not { } playerId || image.AcknowledgedPlayerIds.Contains(playerId) ||
             _acknowledgedLevelImageId == image.ImageId) return;
 
