@@ -903,6 +903,16 @@ public sealed class CoopGuestScreen
                     command = new SplitInventoryStackCommand(client.PlayerId!.Value, client.NextCommandId(),
                         characterId, inventory.Revision, splitSlot.Index);
                 break;
+            case InventoryInputAction.DistributeStack when slots.Count > 0:
+                var distributeSlot = slots[_inventorySelection];
+                if (_inventorySource is not null)
+                    SetMessage("Előbb fejezd be vagy szakítsd meg a tárgy mozgatását.");
+                else if (distributeSlot.Kind != InventorySlotKind.Backpack || distributeSlot.Item is null)
+                    SetMessage("Elfogyasztható hátizsáktárgyat jelölj ki a szétosztáshoz.");
+                else
+                    command = new DistributeInventoryStackCommand(client.PlayerId!.Value, client.NextCommandId(),
+                        characterId, inventory.Revision, distributeSlot.Index);
+                break;
             case InventoryInputAction.Inspect when slots.Count > 0:
                 var inspectSlot = slots[_inventorySelection];
                 if (inspectSlot.Item is null)

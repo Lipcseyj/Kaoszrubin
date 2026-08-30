@@ -2,7 +2,7 @@ using KaoszRubin.Application;
 
 namespace KaoszRubin.UI;
 
-public enum InventoryInputAction { MoveUp, MoveDown, Inspect, Drop, Use, MoveItem, SplitStack }
+public enum InventoryInputAction { MoveUp, MoveDown, Inspect, Drop, Use, MoveItem, SplitStack, DistributeStack }
 
 /// <summary>A host és a coop vendég közös, kontextusfüggő billentyűkiosztása.</summary>
 public static class GameInputBindings
@@ -18,6 +18,7 @@ public static class GameInputBindings
         ConsoleKey.Enter => InventoryInputAction.Use,
         ConsoleKey.Spacebar => InventoryInputAction.MoveItem,
         ConsoleKey.F => InventoryInputAction.SplitStack,
+        ConsoleKey.S => InventoryInputAction.DistributeStack,
         _ => null
     };
 

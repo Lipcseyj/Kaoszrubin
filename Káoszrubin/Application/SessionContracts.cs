@@ -87,6 +87,10 @@ public sealed record SplitInventoryStackCommand(PlayerId SenderId, long CommandI
     long ExpectedInventoryRevision, int BackpackIndex)
     : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record DistributeInventoryStackCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    long ExpectedInventoryRevision, int BackpackIndex)
+    : GameCommand(SenderId, CommandId, CharacterId);
+
 public sealed record PickUpGroundItemCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     long ExpectedInventoryRevision, WorldEntityId GroundPileId, long ExpectedGroundPileRevision,
     int GroundItemIndex, int DestinationBackpackIndex)
