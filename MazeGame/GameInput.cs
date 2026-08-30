@@ -54,6 +54,10 @@ internal static class GameInput
         keyInfo.Key == ConsoleKey.E &&
         HasControlShift(keyInfo);
 
+    public static bool IsTeleportToNextUniqueNpcShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.N &&
+        HasControlAlt(keyInfo);
+
     public static bool IsLevelUpShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.S &&
         HasControlAlt(keyInfo);

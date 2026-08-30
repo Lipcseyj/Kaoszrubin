@@ -12,6 +12,7 @@ Az alábbi rejtett gyorsbillentyűk közvetlenül be vannak kötve a játék fő
 - `Ctrl+Alt+X`: a szabad partihelyek feltöltése Barbár–Tolvaj–Pap sorrendben;
 - `Ctrl+Shift+Í`: egy véletlen osztályú, első szintű NPC hozzáadása, ha van szabad partihely;
 - `Ctrl+Shift+I`: a falakon való áthaladás be- és kikapcsolása.
+- `Ctrl+Alt+N`: teleport a következő egyedi npc-hez.
 
 A két rögzített osztályszett magasabb szintű, véletlenül generált karakterei három felszerelt varázstárgyat és pontosan egy kulcsot kapnak. A kulcs számára telt hátizsáknál az utolsó véletlen tárgy helye szabadul fel. A Mágus, Pap és Lovag egy pálcát, egy számukra használható tekercset és egy passzív gyűrűt vagy amulettet visel. A Harcos, Barbár és Tolvaj tekercs helyett egy második pálcát kap, így a tekercsek normál kasztkorlátozása változatlan marad.
 

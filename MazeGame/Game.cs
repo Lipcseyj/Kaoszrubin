@@ -183,6 +183,7 @@ public sealed class Game
     private int _mazeLevel = 1;
     private bool _hasRestedThisLevel;
     private bool _developerPhasing;
+    private int _lastDeveloperUniqueNpcIndex = -1;
     private readonly HashSet<string> _collectedBossKeyIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _seenBossIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<WorldEntityId> _spottedEnemyIds = [];
@@ -608,6 +609,11 @@ public sealed class Game
                     {
                         TeleportLeaderNearExit();
                         _player.Character.AddGold(1000);
+                        continue;
+                    }
+                    if (IsTeleportToNextUniqueNpcShortcut(keyInfo))
+                    {
+                        TeleportLeaderToNextUniqueNpc();
                         continue;
                     }
                     if (IsLevelUpShortcut(keyInfo))
@@ -5005,6 +5011,109 @@ public sealed class Game
         _renderer.DrawDeveloperMessage("Fejlesztői mód: a partyvezér a kijárat mellé teleportált.");
     }
 
+    private void TeleportLeaderToNextUniqueNpc()
+    {
+        var targets = _gameData.NpcEncounters
+            .Where(encounter => _gameData.GetNpc(encounter.NpcId).Unique)
+            .GroupBy(encounter => encounter.NpcId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderBy(encounter => encounter.MazeLevel).First())
+            .OrderBy(encounter => encounter.MazeLevel)
+            .ThenBy(encounter => encounter.NpcId, StringComparer.OrdinalIgnoreCase)
+            .Select(encounter => new DeveloperUniqueNpcTarget(_gameData.GetNpc(encounter.NpcId),
+                encounter.MazeLevel))
+            .ToArray();
+        if (targets.Length == 0)
+        {
+            _renderer.DrawDeveloperMessage("Fejlesztői mód: nincs pályához rendelt egyedi NPC.");
+            return;
+        }
+
+        _lastDeveloperUniqueNpcIndex = (_lastDeveloperUniqueNpcIndex + 1) % targets.Length;
+        var target = targets[_lastDeveloperUniqueNpcIndex];
+        if (!TryFindUniqueNpcPosition(target.Definition, out var npcPosition))
+        {
+            RemoveStaleUniqueNpcCharacter(target.Definition);
+            _mazeLevel = target.MazeLevel;
+            StartNewMaze(showLevelImage: false);
+            if (!TryFindUniqueNpcPosition(target.Definition, out npcPosition))
+            {
+                _renderer.DrawDeveloperMessage($"Fejlesztői mód: {target.Definition.Name} nem helyezhető el a(z) " +
+                    $"{target.MazeLevel}. pályán.");
+                return;
+            }
+        }
+
+        Position? destination = Directions
+            .Select(direction => npcPosition + direction)
+            .Where(IsFreeDeveloperTeleportDestination)
+            .OrderBy(position => Manhattan(position, _player.Position))
+            .Select(position => (Position?)position)
+            .FirstOrDefault();
+        destination ??= FindNearbyFreePositions(npcPosition)
+            .Where(position => _maze.GetTrapAt(position) is null && _maze.GetDoorAt(position) is null)
+            .Select(position => (Position?)position)
+            .FirstOrDefault();
+        if (destination is null)
+        {
+            _renderer.DrawDeveloperMessage($"Fejlesztői mód: nincs szabad mező {target.Definition.Name} mellett.");
+            return;
+        }
+
+        _player.TeleportTo(destination.Value);
+        _leaderTrail.Clear();
+        _leaderTrail.Add(destination.Value);
+        RevealFor(SelectedCharacter, destination.Value);
+        RevealFor(SelectedCharacter, npcPosition);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, destination.Value);
+        _renderer.DrawDeveloperMessage($"Fejlesztői mód: egyedi NPC " +
+            $"{_lastDeveloperUniqueNpcIndex + 1}/{targets.Length} — {target.Definition.Name}, " +
+            $"{_mazeLevel}. pálya.");
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+    }
+
+    private bool TryFindUniqueNpcPosition(NpcDefinition definition, out Position position)
+    {
+        var worldNpc = _maze.WorldNpcs.FirstOrDefault(npc =>
+            string.Equals(npc.DefinitionId, definition.Id, StringComparison.OrdinalIgnoreCase));
+        if (worldNpc is not null)
+        {
+            position = worldNpc.Position;
+            return true;
+        }
+
+        var avatar = _maze.PartyMembers.FirstOrDefault(member =>
+            string.Equals(member.TemporaryFollower?.DefinitionId, definition.Id,
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(member.Character.Name, definition.Name, StringComparison.OrdinalIgnoreCase));
+        if (avatar is not null)
+        {
+            position = avatar.Position;
+            return true;
+        }
+
+        if (string.Equals(SelectedCharacter.Name, definition.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            position = _player.Position;
+            return true;
+        }
+
+        position = default;
+        return false;
+    }
+
+    private void RemoveStaleUniqueNpcCharacter(NpcDefinition definition)
+    {
+        var partyMembers = CharacterRoster.Party.Members.ToHashSet();
+        foreach (var character in CharacterRoster.Characters.Where(character =>
+                     !partyMembers.Contains(character) &&
+                     string.Equals(character.Name, definition.Name, StringComparison.OrdinalIgnoreCase)).ToArray())
+            CharacterRoster.Remove(character);
+    }
+
+    private bool IsFreeDeveloperTeleportDestination(Position position) =>
+        _maze.IsWalkable(position) && _maze.GetObjectAt(position) is null &&
+        _maze.GetTrapAt(position) is null && _maze.GetDoorAt(position) is null;
+
     private void ToggleDeveloperPhasing()
     {
         _developerPhasing = !_developerPhasing;
@@ -5014,6 +5123,7 @@ public sealed class Game
     }
 
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source, long SourceRevision);
+    private sealed record DeveloperUniqueNpcTarget(NpcDefinition Definition, int MazeLevel);
     private sealed record SpellCastAttempt(bool ConsumesTurn, string Message, BattleLogKind Kind,
         int DamageToCurrentEnemy = 0, int ExtraPlayerActions = 0);
     private sealed record SpellExecutionResult(int DamageToCurrentEnemy, int ExtraPlayerActions, string Summary);
