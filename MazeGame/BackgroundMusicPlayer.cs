@@ -9,6 +9,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
     private WaveOut? _output;
     private AudioFileReader? _reader;
     private MemoryStream? _compressedAudio;
+    private int? _activeMazeLevel;
 
     public BackgroundMusicPlayer(Action<string>? reportFailure = null)
     {
@@ -40,6 +41,15 @@ public sealed class BackgroundMusicPlayer : IDisposable
         }
     }
 
+    /// <summary>A host és a vendég közös pályazene-váltása; azonos snapshotok nem indítják újra a számot.</summary>
+    public void SynchronizeMazeLevel(int mazeLevel)
+    {
+        if (_activeMazeLevel == mazeLevel) return;
+        _activeMazeLevel = mazeLevel;
+        if (BackgroundMusicCatalog.PathForMazeLevel(mazeLevel) is { } path) Play(path);
+        else Stop();
+    }
+
     public void Stop()
     {
         _output?.Stop();
@@ -56,4 +66,13 @@ public sealed class BackgroundMusicPlayer : IDisposable
         Stop();
         GC.SuppressFinalize(this);
     }
+}
+
+public static class BackgroundMusicCatalog
+{
+    public static string? PathForMazeLevel(int mazeLevel) => mazeLevel switch
+    {
+        1 => Path.Combine(AppContext.BaseDirectory, "Zene", "zene1.mp3"),
+        _ => null
+    };
 }

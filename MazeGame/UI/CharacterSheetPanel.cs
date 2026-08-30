@@ -15,6 +15,12 @@ public sealed record PartyStatusLine(string Identity, ConsoleColor IdentityColor
     public string Text => Identity + Vitality + Mana;
 }
 
+public sealed record CharacterResourceLine(string Vitality, ConsoleColor VitalityColor,
+    string Mana, ConsoleColor ManaColor)
+{
+    public string Text => Vitality + Mana;
+}
+
 /// <summary>A host és a vendég azonos karakterlap- és inventory-sorelrendezése.</summary>
 public static class CharacterSheetPanel
 {
@@ -42,6 +48,26 @@ public static class CharacterSheetPanel
         BuildPartyStatus(character.Name, character.CharacterClassId, character.CurrentVitality,
             character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
             character.Color, isDisplayed, isLeader);
+
+    public static CharacterResourceLine BuildResourceLine(LiveCharacter character) =>
+        BuildResourceLine(character.CurrentVitality, character.MaximumVitality,
+            character.CurrentMana, character.MaximumMana, character.UsesMana);
+
+    public static CharacterResourceLine BuildResourceLine(SessionCharacterSnapshot character) =>
+        BuildResourceLine(character.CurrentVitality, character.MaximumVitality,
+            character.CurrentMana, character.MaximumMana, character.CharacterSheet?.UsesMana == true);
+
+    private static CharacterResourceLine BuildResourceLine(int currentVitality, int maximumVitality,
+        int currentMana, int maximumMana, bool usesMana)
+    {
+        var vitality = $"❤️{currentVitality}/{maximumVitality}";
+        var mana = usesMana ? $"  🔷{currentMana}/{maximumMana}" : string.Empty;
+        return new CharacterResourceLine(vitality,
+            maximumVitality > 0 && currentVitality * 2 < maximumVitality
+                ? ConsoleColor.Red
+                : ConsoleColor.Green,
+            mana, !usesMana || currentMana <= 0 ? ConsoleColor.DarkGray : ConsoleColor.Cyan);
+    }
 
     private static PartyStatusLine BuildPartyStatus(string name, string classId, int currentVitality,
         int maximumVitality, int currentMana, int maximumMana, bool isAlive, ConsoleColor identityColor,

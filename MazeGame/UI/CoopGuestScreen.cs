@@ -15,6 +15,7 @@ public sealed class CoopGuestScreen
     private readonly string _catalogHash;
     private readonly GameDataCatalog _gameData;
     private readonly SoundEffects _soundEffects;
+    private readonly BackgroundMusicPlayer _backgroundMusic;
     private int _redrawRequested = 1;
     private const int MessageLineCount = ConsoleRenderer.MessageLogLineCount;
     private const int MessageBufferLineCount = ConsoleRenderer.MessageLogBufferLineCount;
@@ -60,6 +61,7 @@ public sealed class CoopGuestScreen
         _catalogHash = catalogHash;
         _gameData = gameData ?? throw new ArgumentNullException(nameof(gameData));
         _soundEffects = new SoundEffects(message => SetMessage(message, ConsoleColor.DarkYellow));
+        _backgroundMusic = new BackgroundMusicPlayer(message => SetMessage(message, ConsoleColor.DarkYellow));
     }
 
     public async Task RunAsync(string hostUrl, string displayName, LiveCharacter localCharacter,
@@ -174,6 +176,7 @@ public sealed class CoopGuestScreen
         }
         finally
         {
+            _backgroundMusic.Dispose();
             Console.CursorVisible = true;
             await client.DisconnectAsync(CancellationToken.None);
         }
@@ -897,6 +900,7 @@ public sealed class CoopGuestScreen
         var snapshot = client.CurrentSnapshot;
         if (snapshot is not null)
         {
+            _backgroundMusic.SynchronizeMazeLevel(snapshot.MazeLevel);
             SynchronizeInnTransactions(snapshot);
             SynchronizeSessionSounds(snapshot, selected.CharacterId);
             SynchronizeSessionActivities(snapshot, selected.CharacterId);
@@ -1055,6 +1059,9 @@ public sealed class CoopGuestScreen
         var panelHeight = mapHeight + MessageLineCount + 1;
         var panel = new GuestTextLine[panelHeight];
         var partyStatuses = new PartyStatusLine?[panelHeight];
+        var resourceLine = !_spellInfoOpen && own?.CharacterSheet is not null
+            ? CharacterSheetPanel.BuildResourceLine(own)
+            : null;
         for (var y = 0; y < panelHeight; y++)
         {
             if (panelLines.TryGetValue(y, out var line))
@@ -1135,7 +1142,7 @@ public sealed class CoopGuestScreen
                 ConsoleColor.Cyan, ConsoleColor.Black);
 
         return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, grid, panel,
-            partyStatuses, footer);
+            partyStatuses, footer, resourceLine);
     }
 
     private static bool TryGetBattleTacticAction(BattleSnapshot battle, ConsoleKey key,
@@ -1464,6 +1471,10 @@ public sealed class CoopGuestScreen
                 WriteAt(frame.MapWidth + 3, row, frame.Panel[row], CharacterSheetPanel.Width);
         }
 
+        if (frame.ResourceLine is { } resources &&
+            (fullRedraw || previous!.ResourceLine != resources || previous.Panel[5] != frame.Panel[5]))
+            WriteCharacterResourceAt(frame.MapWidth + 3, 5, resources);
+
         for (var row = 0; row < frame.PartyStatuses.Length; row++)
         {
             var status = frame.PartyStatuses[row];
@@ -1519,6 +1530,25 @@ public sealed class CoopGuestScreen
         {
             Console.ForegroundColor = color;
             Console.BackgroundColor = ConsoleColor.Black;
+            Console.Write(text);
+        }
+    }
+
+    private static void WriteCharacterResourceAt(int x, int y, CharacterResourceLine resources)
+    {
+        WriteAt(x, y, new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black),
+            CharacterSheetPanel.Width);
+        if (!TrySetCursorPosition(x, y)) return;
+        Console.ForegroundColor = ConsoleColor.Gray;
+        Console.BackgroundColor = ConsoleColor.Black;
+        Console.Write(' ');
+        foreach (var (text, color) in new[]
+                 {
+                     (resources.Vitality, resources.VitalityColor),
+                     (resources.Mana, resources.ManaColor)
+                 })
+        {
+            Console.ForegroundColor = color;
             Console.Write(text);
         }
     }
@@ -1613,5 +1643,5 @@ public sealed class CoopGuestScreen
     private readonly record struct GuestTextLine(string Text, ConsoleColor Foreground, ConsoleColor Background);
     private sealed record GuestRenderFrame(WorldId WorldId, int WindowWidth, int WindowHeight, int MapWidth,
         int MapHeight, GuestMapCell[,] Map, GuestTextLine[] Panel, PartyStatusLine?[] PartyStatuses,
-        GuestTextLine[] Footers);
+        GuestTextLine[] Footers, CharacterResourceLine? ResourceLine);
 }

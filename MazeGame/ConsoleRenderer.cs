@@ -1769,7 +1769,10 @@ public sealed class ConsoleRenderer
             _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader);
         DrawCharacterSheetHeader(character);
         foreach (var line in panelLines.Where(line => line.Row != CharacterSheetHeaderLine && line.InventorySlot is null))
-            WriteSheetLine(line.Row, line.Text, line.Color);
+            if (line.Row == CharacterSheetVitalityLine)
+                DrawCharacterResourceLine(line.Row, CharacterSheetPanel.BuildResourceLine(character));
+            else
+                WriteSheetLine(line.Row, line.Text, line.Color);
         DrawSelectableCharacterSheetRows(character);
         WriteSheetLine(CharacterSheetReservedMessageLine, string.Empty, ConsoleColor.DarkGray);
         WriteSheetLine(CharacterSheetControlsLine, string.Empty, ConsoleColor.DarkGray);
@@ -1797,9 +1800,7 @@ public sealed class ConsoleRenderer
                 ? "Áll: nincs"
                 : $"Áll: {string.Join(' ', statusIcons)}",
             statusIcons.Count > 0 ? ConsoleColor.Magenta : ConsoleColor.DarkGray);
-        WriteSheetLine(CharacterSheetVitalityLine, $"❤️{character.CurrentVitality}/{character.MaximumVitality}" +
-            (character.UsesMana ? $"  🔷{character.CurrentMana}/{character.MaximumMana}" : string.Empty),
-            character.UsesMana ? ConsoleColor.Cyan : ConsoleColor.Red);
+        DrawCharacterResourceLine(CharacterSheetVitalityLine, CharacterSheetPanel.BuildResourceLine(character));
     }
 
     private void DrawCharacterSheetHeader(LiveCharacter character) => WriteSheetLine(
@@ -1934,6 +1935,22 @@ public sealed class ConsoleRenderer
                  })
         {
             SetColors(color, background);
+            WriteAt(x, y, text);
+            x += text.Length;
+        }
+    }
+
+    private void DrawCharacterResourceLine(int y, CharacterResourceLine resources)
+    {
+        WriteSheetLine(y, string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
+        var x = RightSheetX;
+        foreach (var (text, color) in new[]
+                 {
+                     (resources.Vitality, resources.VitalityColor),
+                     (resources.Mana, resources.ManaColor)
+                 })
+        {
+            SetColors(color, ConsoleColor.Black);
             WriteAt(x, y, text);
             x += text.Length;
         }

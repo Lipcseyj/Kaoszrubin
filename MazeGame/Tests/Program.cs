@@ -94,6 +94,7 @@ var tests = new (string Name, Action Run)[]
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
     ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
+    ("A karakterlap külön színezi az alacsony HP-t és a mannát", CharacterSheetColorsHealthAndManaSeparately),
     ("A host és a vendég közös varázslat-UI modelleket használ", SpellUiModelsAreShared),
     ("A host és a vendég közös pihenési összegzőt használ", RestSummaryUiIsShared),
     ("A vendég tárgyvizsgálata nem vágja le a sebzésértéket", GuestItemInspectionKeepsDamageValue),
@@ -2052,6 +2053,26 @@ static void RaceTraitsAreLoadedFromData()
     Assert(catalog.GetRace("R002").HasTrait(RaceTraits.Resilient), "A törp Rendíthetetlen tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R003").HasTrait(RaceTraits.KeenSenses), "Az elf Éles érzékek tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R004").HasTrait(RaceTraits.Relentless), "A félork Könyörtelen tulajdonsága hiányzik.");
+}
+
+static void CharacterSheetColorsHealthAndManaSeparately()
+{
+    var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
+    var mageClass = new CharacterClassDefinition(CharacterClassIds.Mágus, "Mágus", PrimaryAbilities.Zero,
+        true, 1.0);
+    var mage = new LiveCharacter("Színpróba", race, mageClass, new PrimaryAbilities(5, 5, 5, 8),
+        20, 20, 1, 1);
+
+    var full = CharacterSheetPanel.BuildResourceLine(mage);
+    Assert(full.VitalityColor == ConsoleColor.Green && full.ManaColor == ConsoleColor.Cyan,
+        "A teljes HP vagy a manna színe hibás.");
+    mage.SetCurrentResources(10, 10);
+    Assert(CharacterSheetPanel.BuildResourceLine(mage).VitalityColor == ConsoleColor.Green,
+        "A pontosan fél HP tévesen piros.");
+    mage.SetCurrentResources(9, 10);
+    var low = CharacterSheetPanel.BuildResourceLine(mage);
+    Assert(low.VitalityColor == ConsoleColor.Red && low.ManaColor == ConsoleColor.Cyan,
+        "A fél HP alatti érték nem piros, vagy a manna nem maradt külön színű.");
 }
 
 static void SpellSchoolsHaveFiveSpellsPerLevel()

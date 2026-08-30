@@ -776,8 +776,7 @@ public sealed class Game
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         CheckBossDiscovery(_maze.Enemies.Where(enemy => _fogOfWar.IsRevealed(enemy.Position)));
         PlaySessionSound(SoundEffect.LevelStart);
-        if (_mazeLevel == 1)
-            _backgroundMusic.Play(Path.Combine(AppContext.BaseDirectory, "Zene", "zene1.mp3"));
+        _backgroundMusic.SynchronizeMazeLevel(_mazeLevel);
         if (showLevelImage) ShowLevelImage();
         LogMazeAccessibilityCheck();
     }
@@ -1205,6 +1204,7 @@ public sealed class Game
         _gameOver = false;
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.DrawDeveloperMessage($"Mentés betöltve: {state.MainCharacterName}, {_mazeLevel}. pálya.");
+        _backgroundMusic.SynchronizeMazeLevel(_mazeLevel);
     }
 
     private void TryRestParty()
