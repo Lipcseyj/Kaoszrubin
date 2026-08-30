@@ -103,14 +103,15 @@ public static class CharacterSheetPanel
 
     public static IReadOnlyList<CharacterSheetPanelLine> Build(LiveCharacter character,
         IReadOnlyDictionary<int, int> experienceByLevel, int mazeLevel, int goldenKeyCount, int bossCount,
-        bool isPartyLeader = false)
+        bool isPartyLeader = false, bool isTemporaryFollower = false)
     {
         var snapshot = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
             character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
             character.CurrentMana, character.MaximumMana, character.FoodLevel, character.WaterLevel,
             character.Gold, character.IsAlive, null, character.Statuses.Select(status => status.Id).ToArray(),
             InventorySnapshotProjector.Create(character),
-            CharacterSheetSnapshotProjector.Create(character, experienceByLevel));
+            CharacterSheetSnapshotProjector.Create(character, experienceByLevel),
+            IsTemporaryFollower: isTemporaryFollower);
         return Build(snapshot, mazeLevel, goldenKeyCount, bossCount, isPartyLeader);
     }
 
@@ -126,8 +127,11 @@ public static class CharacterSheetPanel
         {
             new(0, $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}", ConsoleColor.Green),
             new(1, $"KARAKTERLAP - {character.Name}", ConsoleColor.Yellow),
-            new(2, $"{details.RaceName} {details.CharacterClassName}" + (isPartyLeader ? "  👑 VEZÉR" : string.Empty),
-                isPartyLeader ? ConsoleColor.Yellow : ConsoleColor.White)
+            new(2, $"{details.RaceName} {details.CharacterClassName}" +
+                   (isPartyLeader ? "  👑 VEZÉR" : character.IsTemporaryFollower ? "  👤 KÖVETŐ" : string.Empty),
+                character.IsTemporaryFollower ? ConsoleColor.Black :
+                isPartyLeader ? ConsoleColor.Yellow : ConsoleColor.White,
+                Background: character.IsTemporaryFollower ? ConsoleColor.Yellow : ConsoleColor.Black)
         };
         lines.Add(new(3, details.NextLevelExperience is { } next
             ? $"Szint: {character.Level}  XP: {details.Experience}/{next}"

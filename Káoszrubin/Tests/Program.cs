@@ -1470,6 +1470,16 @@ static void CharacterSheetLayoutIsShared()
     Assert(hostLeaderLine == guestLeaderLine && hostLeaderLine.Text.Contains("👑 VEZÉR", StringComparison.Ordinal) &&
            hostLeaderLine.Color == ConsoleColor.Yellow,
         "A host és a vendég karakterlapján nem azonos a feltűnő vezérjelzés.");
+    var followerSnapshot = snapshot with { IsTemporaryFollower = true };
+    var hostFollowerLine = CharacterSheetPanel.Build(character, experienceByLevel, 3, 1, 4,
+        isTemporaryFollower: true).Single(line => line.Row == 2);
+    var guestFollowerLine = CharacterSheetPanel.Build(followerSnapshot, 3, 1, 4)
+        .Single(line => line.Row == 2);
+    Assert(hostFollowerLine == guestFollowerLine &&
+           hostFollowerLine.Text.Contains("👤 KÖVETŐ", StringComparison.Ordinal) &&
+           hostFollowerLine.Color == ConsoleColor.Black &&
+           hostFollowerLine.Background == ConsoleColor.Yellow,
+        "A host és a vendég karakterlapján nem azonos a követőjelzés szövege vagy színe.");
 }
 
 static void GuestAvatarUsesClassGlyphAndCharacterColor()

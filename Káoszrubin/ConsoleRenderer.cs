@@ -1892,13 +1892,14 @@ public sealed class ConsoleRenderer
     {
         _displayedCharacter = character;
         var panelLines = CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
-            _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader);
+            _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader,
+            IsTemporaryFollower(character));
         DrawCharacterSheetHeader(character);
         foreach (var line in panelLines.Where(line => line.Row != CharacterSheetHeaderLine && line.InventorySlot is null))
             if (line.Row == CharacterSheetVitalityLine)
                 DrawCharacterResourceLine(line.Row, CharacterSheetPanel.BuildResourceLine(character));
             else
-                WriteSheetLine(line.Row, line.Text, line.Color);
+                WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
         DrawSelectableCharacterSheetRows(character);
         WriteSheetLine(CharacterSheetReservedMessageLine, string.Empty, ConsoleColor.DarkGray);
         WriteSheetLine(CharacterSheetControlsLine, string.Empty, ConsoleColor.DarkGray);
@@ -1940,7 +1941,8 @@ public sealed class ConsoleRenderer
         if (_activeSheetSelection is null || entries.All(entry => entry.Key != _activeSheetSelection))
             _activeSheetSelection = entries.FirstOrDefault()?.Key;
         foreach (var line in CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
-                     _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader)
+                     _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader,
+                     IsTemporaryFollower(character))
                  .Where(line => line.InventorySlot is not null))
         {
             var slot = line.InventorySlot!.Value;
