@@ -401,6 +401,13 @@ public sealed class GameSession
             reason = string.Empty;
             return true;
         }
+        if (command is AcknowledgeLevelImageCommand imageAcknowledgement)
+        {
+            if (Phase != GameSessionPhase.Paused || imageAcknowledgement.ImageId == Guid.Empty)
+                return Fail("Nincs nyugtázható pályakép.", out reason);
+            reason = string.Empty;
+            return true;
+        }
         if (command is AcknowledgeRestCommand restAcknowledgement)
         {
             if (Phase != GameSessionPhase.Paused || restAcknowledgement.RestId == Guid.Empty)

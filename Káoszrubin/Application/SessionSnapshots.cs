@@ -7,7 +7,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 50;
+    public const int Version = 51;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -16,7 +16,8 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
     string LevelName, IReadOnlyList<SessionCharacterSnapshot> Party,
     IReadOnlyList<CharacterControlState> CharacterControls, BattleSnapshot? Battle, WorldSnapshot? World = null,
     int GoldenKeyCount = 0, int BossKeyCount = 0, InnSnapshot? Inn = null,
-    NarrativeSnapshot? Narrative = null, SpellPreparationSnapshot? SpellPreparation = null,
+    NarrativeSnapshot? Narrative = null, LevelImageSnapshot? LevelImage = null,
+    SpellPreparationSnapshot? SpellPreparation = null,
     PartyRestSnapshot? RestNotice = null, LevelUpPromptSnapshot? LevelUpPrompt = null,
     IReadOnlyList<SessionActivitySnapshot>? Activities = null,
     IReadOnlyList<SessionSoundSnapshot>? Sounds = null, int PartyGold = 0,
@@ -73,6 +74,9 @@ public enum NarrativeKind { CampaignIntroduction, BossIntroduction, TwelveKeys, 
 public sealed record NarrativeSnapshot(Guid NarrativeId, NarrativeKind Kind, string Title, string Subtitle,
     IReadOnlyList<string> Paragraphs, IReadOnlyList<PlayerId> AcknowledgedPlayerIds,
     BossPresentationSnapshot? Boss = null);
+
+public sealed record LevelImageSnapshot(Guid ImageId, string LevelName, string FileName,
+    IReadOnlyList<PlayerId> AcknowledgedPlayerIds);
 
 public sealed record BossPresentationSnapshot(string Name, string Appearance, int StrengthTier,
     string Reward);

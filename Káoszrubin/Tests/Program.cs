@@ -24,6 +24,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég saját karakterével fogadói vásárlást küldhet", RemotePlayerCanPurchaseAtInn),
     ("A vendég saját hátizsákjából fogadói eladást küldhet", RemotePlayerCanSellAtInn),
     ("A vendég nyugtázhatja a közös történeti ablakot", RemotePlayerCanAcknowledgeNarrative),
+    ("A vendég nyugtázhatja a közös pályaképet", RemotePlayerCanAcknowledgeLevelImage),
     ("A vendég nyugtázhatja a közös pihenési összegzőt", RemotePlayerCanAcknowledgeRest),
     ("A vendég elküldheti a saját memorizált varázslatait", RemotePlayerCanPrepareSpells),
     ("A vendég válaszolhat a saját szintlépési promptjára", RemotePlayerCanResolveLevelUpPrompt),
@@ -378,6 +379,18 @@ static void LegacyGameSavesMigrateToCurrentVersion()
                migrated.MazeLevel == 6,
             $"A(z) {version}. mentésverzió migrációja hibás vagy megváltoztatta a pályaszintet.");
     }
+}
+
+static void RemotePlayerCanAcknowledgeLevelImage()
+{
+    var (session, _, companion) = CreateSession();
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var assignmentError), assignmentError);
+    session.SetPhase(GameSessionPhase.Paused);
+    var command = new AcknowledgeLevelImageCommand(remote, 1, companion.Id, Guid.NewGuid());
+    session.Submit(command);
+    Assert(session.TryReadCommand(out var accepted) && accepted == command,
+        "A session elutasította a vendég pályakép-nyugtázását.");
 }
 
 static void InvalidGameSaveVersionsAreRejected()
@@ -801,13 +814,16 @@ static void SessionSnapshotRoundTripsThroughJson()
     {
         Activities = [new SessionActivitySnapshot(1, SessionActivityKind.Spell,
             "A host térképi varázslatot használt.", ConsoleColor.Magenta)],
-        Sounds = [new SessionSoundSnapshot(1, SoundEffect.OffensiveSpell, [companion.Id])]
+        Sounds = [new SessionSoundSnapshot(1, SoundEffect.OffensiveSpell, [companion.Id])],
+        LevelImage = new LevelImageSnapshot(Guid.NewGuid(), "Tesztlabirintus", "teszt.png",
+            [session.HostPlayerId])
     };
     var json = JsonSerializer.Serialize(snapshot);
     var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
     Assert(restored is not null && restored.ProtocolVersion == SessionProtocol.Version &&
            restored.Phase == GameSessionPhase.Exploration && restored.Party.Count == 2 &&
            restored.Activities is [{ Kind: SessionActivityKind.Spell }] &&
+           restored.LevelImage is { FileName: "teszt.png", AcknowledgedPlayerIds.Count: 1 } &&
            restored.Sounds is [{ Sequence: 1, Effect: SoundEffect.OffensiveSpell,
                ListenerCharacterIds: [{ } listener] }] && listener == companion.Id &&
            restored.PartyGold == 777 && restored.Party.All(character => character.Gold == 777) &&
@@ -1742,6 +1758,12 @@ static void ProtocolCodecRoundTripsCommand()
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(distribution)) is
                DistributeInventoryStackCommand decodedDistribution && decodedDistribution == distribution,
         "A JSON wire codec megváltoztatta az inventory-szétosztási parancsot.");
+    var imageAcknowledgement = new AcknowledgeLevelImageCommand(PlayerId.New(), 13, CharacterId.New(),
+        Guid.NewGuid());
+    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(imageAcknowledgement)) is
+               AcknowledgeLevelImageCommand decodedImageAcknowledgement &&
+           decodedImageAcknowledgement == imageAcknowledgement,
+        "A JSON wire codec megváltoztatta a pályakép-nyugtázást.");
     var characterState = new CharacterStateSync(PlayerId.New(), CharacterId.New(), "character-json",
         CharacterSyncReason.CharacterDied);
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(characterState)) is CharacterStateSync decodedState &&

@@ -131,6 +131,9 @@ public sealed record InnSaleCommand(PlayerId SenderId, long CommandId, Character
 public sealed record AcknowledgeNarrativeCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     Guid NarrativeId) : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record AcknowledgeLevelImageCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    Guid ImageId) : GameCommand(SenderId, CommandId, CharacterId);
+
 public sealed record AcknowledgeRestCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     Guid RestId) : GameCommand(SenderId, CommandId, CharacterId);
 

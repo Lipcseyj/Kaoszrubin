@@ -46,6 +46,7 @@ public sealed class CoopGuestScreen
     private bool _sessionSoundsInitialized;
     private int _deathStateSynchronized;
     private Guid? _acknowledgedNarrativeId;
+    private Guid? _acknowledgedLevelImageId;
     private Guid? _acknowledgedRestId;
     private bool _spellInfoOpen;
     private int _spellInfoSelection;
@@ -125,6 +126,7 @@ public sealed class CoopGuestScreen
             while (!cancellationToken.IsCancellationRequested &&
                    client.State is not (CoopClientConnectionState.Disconnected or CoopClientConnectionState.Faulted))
             {
+                await ShowAndAcknowledgeLevelImageAsync(client, selected, cancellationToken);
                 if (Interlocked.Exchange(ref _redrawRequested, 0) != 0)
                     Draw(client, selected);
                 if (Volatile.Read(ref _deathStateSynchronized) != 0 &&
@@ -172,6 +174,7 @@ public sealed class CoopGuestScreen
                     if (key.Key == ConsoleKey.Q &&
                         client.CurrentSnapshot is { Phase: GameSessionPhase.Exploration or GameSessionPhase.Inn } questSnapshot &&
                         questSnapshot.Narrative is null && questSnapshot.RestNotice is null &&
+                        questSnapshot.LevelImage is null &&
                         questSnapshot.SpellPreparation is null && questSnapshot.LevelUpPrompt is null &&
                         !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null)
                     {
@@ -182,6 +185,7 @@ public sealed class CoopGuestScreen
                     }
                     if (key.Key == ConsoleKey.Escape && client.CurrentSnapshot?.Phase != GameSessionPhase.Inn &&
                         client.CurrentSnapshot?.Narrative is null &&
+                        client.CurrentSnapshot?.LevelImage is null &&
                         client.CurrentSnapshot?.RestNotice is null &&
                         client.CurrentSnapshot?.SpellPreparation is null &&
                         client.CurrentSnapshot?.LevelUpPrompt is null &&
@@ -233,6 +237,7 @@ public sealed class CoopGuestScreen
         GameCommand? command = null;
         var snapshot = client.CurrentSnapshot;
         if (snapshot is null) return;
+        if (snapshot.LevelImage is not null) return;
         var ownsCharacter = snapshot.CharacterControls.Any(control =>
             control.CharacterId == characterId && control.AssignedPlayerId == client.PlayerId &&
             control.ConnectionState == PlayerConnectionState.Connected);
@@ -1358,6 +1363,36 @@ public sealed class CoopGuestScreen
             lines = lines.Take(maxContentRows - 1).Append(footer).ToList();
         }
         DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, width, FramedWindow.Storyline);
+    }
+
+    private async Task ShowAndAcknowledgeLevelImageAsync(CoopSignalRClient client,
+        CoopCharacterOption selected, CancellationToken cancellationToken)
+    {
+        var image = client.CurrentSnapshot?.LevelImage;
+        if (image is null)
+        {
+            _acknowledgedLevelImageId = null;
+            return;
+        }
+        if (client.PlayerId is not { } playerId || image.AcknowledgedPlayerIds.Contains(playerId) ||
+            _acknowledgedLevelImageId == image.ImageId) return;
+
+        _acknowledgedLevelImageId = image.ImageId;
+        var path = Path.Combine(AppContext.BaseDirectory, "Kepek", image.FileName);
+        if (!ImageViewer.Show(path))
+            SetMessage($"Pályakép még nem található: {image.FileName}", ConsoleColor.Yellow);
+        try
+        {
+            await client.SendCommandAsync(new AcknowledgeLevelImageCommand(playerId, client.NextCommandId(),
+                selected.CharacterId, image.ImageId), cancellationToken);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
+        {
+            _acknowledgedLevelImageId = null;
+            SetMessage(exception.Message, ConsoleColor.Red);
+        }
+        _lastFrame = null;
+        Interlocked.Exchange(ref _redrawRequested, 1);
     }
 
     private bool? GetGuestThiefKeyChoice(CoopSignalRClient client, CoopCharacterOption selected,

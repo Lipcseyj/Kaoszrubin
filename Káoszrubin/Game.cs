@@ -136,6 +136,8 @@ public sealed class Game
     private ICoopHostLoop? _activeCoopHost;
     private NarrativeSnapshot? _activeNarrative;
     private readonly HashSet<PlayerId> _narrativeAcknowledgements = [];
+    private LevelImageSnapshot? _activeLevelImage;
+    private readonly HashSet<PlayerId> _levelImageAcknowledgements = [];
     private SpellPreparationSnapshot? _activeSpellPreparation;
     private bool _spellPreparationCompleted;
     private PartyRestSnapshot? _latestRestNotice;
@@ -244,6 +246,8 @@ public sealed class Game
             Inn = _innController.CreateSnapshot(),
             Narrative = _activeNarrative is null ? null : _activeNarrative with
             { AcknowledgedPlayerIds = _narrativeAcknowledgements.ToArray() },
+            LevelImage = _activeLevelImage is null ? null : _activeLevelImage with
+            { AcknowledgedPlayerIds = _levelImageAcknowledgements.ToArray() },
             SpellPreparation = _activeSpellPreparation,
             RestNotice = _latestRestNotice is null ? null : _latestRestNotice with
             { AcknowledgedPlayerIds = _restAcknowledgements.ToArray() },
@@ -837,6 +841,11 @@ public sealed class Game
     {
         var fileName = ImageViewer.FileNameForLevel(_maze.LevelName);
         var path = Path.Combine(AppContext.BaseDirectory, "Kepek", fileName);
+        if (_activeCoopHost is not null)
+        {
+            ShowSynchronizedLevelImage(fileName, path);
+            return;
+        }
         if (!ImageViewer.Show(path))
             _renderer.DrawDeveloperMessage($"Pályakép még nem található: {fileName}");
     }
@@ -1597,6 +1606,9 @@ public sealed class Game
                 case AcknowledgeNarrativeCommand acknowledgement:
                     ExecuteNarrativeAcknowledgement(acknowledgement);
                     break;
+                case AcknowledgeLevelImageCommand imageAcknowledgement:
+                    ExecuteLevelImageAcknowledgement(imageAcknowledgement);
+                    break;
                 case AcknowledgeRestCommand restAcknowledgement:
                     ExecuteRestAcknowledgement(restAcknowledgement);
                     break;
@@ -1669,6 +1681,16 @@ public sealed class Game
         }
         _narrativeAcknowledgements.Add(command.SenderId);
         PlaySessionSound(SoundEffect.Waiting, [command.CharacterId]);
+    }
+
+    private void ExecuteLevelImageAcknowledgement(AcknowledgeLevelImageCommand command)
+    {
+        if (_activeLevelImage?.ImageId != command.ImageId)
+        {
+            _session.RejectExecutedCommand(command, "Ez a pályakép már nem aktív.");
+            return;
+        }
+        AcknowledgeLevelImage(command.SenderId, command.CharacterId);
     }
 
     private void EncounterWorldNpc(WorldNpc npc)
@@ -2018,6 +2040,49 @@ public sealed class Game
         _narrativeAcknowledgements.Clear();
         _session.SetPhase(previousPhase);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+    }
+
+    private void ShowSynchronizedLevelImage(string fileName, string path)
+    {
+        var previousPhase = _session.Phase;
+        _levelImageAcknowledgements.Clear();
+        _activeLevelImage = new LevelImageSnapshot(Guid.NewGuid(), _maze.LevelName, fileName, []);
+        _session.SetPhase(GameSessionPhase.Paused);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+
+        if (!ImageViewer.Show(path))
+            _renderer.DrawDeveloperMessage($"Pályakép még nem található: {fileName}");
+        AcknowledgeLevelImage(_session.HostPlayerId, SelectedCharacter.Id);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+
+        while (true)
+        {
+            ProcessSessionCommands();
+            if (_session.ConnectedHumanPlayerIds.All(_levelImageAcknowledgements.Contains)) break;
+            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            Thread.Sleep(20);
+        }
+
+        _activeLevelImage = null;
+        _levelImageAcknowledgements.Clear();
+        _session.SetPhase(previousPhase);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+    }
+
+    private void AcknowledgeLevelImage(PlayerId playerId, CharacterId characterId)
+    {
+        if (!_levelImageAcknowledgements.Add(playerId)) return;
+        var characterName = CharacterRoster.Party.Members
+            .FirstOrDefault(character => character.Id == characterId)?.Name ?? "Egy játékos";
+        var message = $"👤 {characterName} készen áll a játékra.";
+        var otherCharacters = _session.CharacterControls
+            .Where(control => control.AssignedPlayerId != playerId && control.AssignedPlayerId is not null &&
+                              control.ConnectionState == PlayerConnectionState.Connected)
+            .Select(control => control.CharacterId).ToArray();
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green, otherCharacters);
+        if (playerId != _session.HostPlayerId)
+            _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
     }
 
     private void ShowSynchronizedRest(PartyRestSnapshot rest)
