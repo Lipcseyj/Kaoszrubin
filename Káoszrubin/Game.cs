@@ -220,7 +220,20 @@ public sealed class Game
         }
         var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions,
             battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState)));
-        var characters = CharacterRoster.Party.Members.ToDictionary(character => character.Id);
+        var followers = _maze.PartyMembers
+            .Where(member => member.IsTemporaryFollower)
+            .Select(member => member.Character)
+            .Distinct()
+            .ToArray();
+        var characters = CharacterRoster.Party.Members.Concat(followers).ToDictionary(character => character.Id);
+        var followerSnapshots = followers.Select(character => new SessionCharacterSnapshot(
+            character.Id, character.Name, character.Race.Id, character.CharacterClass.Id, character.Level,
+            character.CurrentVitality, character.MaximumVitality, character.CurrentMana, character.MaximumMana,
+            character.FoodLevel, character.WaterLevel, SelectedCharacter.Gold, character.IsAlive,
+            positions.GetValueOrDefault(character.Id), character.Statuses.Select(status => status.Id).ToArray(),
+            Inventory: InventorySnapshotProjector.Create(character),
+            CharacterSheet: CharacterSheetSnapshotProjector.Create(character,
+                _gameData.ExperienceByLevel), Color: character.Color, IsTemporaryFollower: true)).ToArray();
         return snapshot with
         {
             GoldenKeyCount = _collectedBossKeyIds.Count,
@@ -247,7 +260,7 @@ public sealed class Game
                                           positions.TryGetValue(character.CharacterId, out var characterPosition)
                     ? GetSpellOptions(characters[character.CharacterId], characterPosition, null, inCombat: false)
                     : null
-            }).ToArray()
+            }).Concat(followerSnapshots).ToArray()
         };
     }
 
@@ -262,7 +275,10 @@ public sealed class Game
         _gameStateMapper = new GameStateMapper(gameData, characterRoster, selectedCharacter);
         _loadedState = loadedState;
         _session = session ?? new GameSession(characterRoster.Party, selectedCharacter);
-        _renderer = new ConsoleRenderer(gameData, characterRoster.Party);
+        _renderer = new ConsoleRenderer(gameData, characterRoster.Party, () => _maze?.PartyMembers
+            .Where(member => member.IsTemporaryFollower)
+            .Select(member => member.Character)
+            .ToArray() ?? []);
         _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
         _musicSettings = musicSettings ?? new MusicSettingsService();

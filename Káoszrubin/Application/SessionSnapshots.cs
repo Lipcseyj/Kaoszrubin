@@ -123,7 +123,7 @@ public sealed record SessionCharacterSnapshot(CharacterId CharacterId, string Na
     IReadOnlyList<string> StatusIds, CharacterInventorySnapshot? Inventory,
     CharacterSheetSnapshot? CharacterSheet = null, ConsoleColor Color = ConsoleColor.Gray,
     IReadOnlyList<BattleSpellOption>? ExplorationSpellOptions = null,
-    SpellInfoSnapshot? SpellInfo = null);
+    SpellInfoSnapshot? SpellInfo = null, bool IsTemporaryFollower = false);
 
 public sealed record SpellInfoSnapshot(string FocusName, int MemorizationCapacity,
     IReadOnlyList<KnownSpellSnapshot> KnownSpells);

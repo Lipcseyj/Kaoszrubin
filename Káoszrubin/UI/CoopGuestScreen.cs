@@ -25,6 +25,7 @@ public sealed class CoopGuestScreen
     private int _messageLineWidth = 80;
     private bool _inventoryOpen;
     private int _inventorySelection;
+    private CharacterId? _displayedCharacterId;
     private InventorySlotAddress? _inventorySource;
     private bool _battleSpellMenuOpen;
     private int _battleSpellSelection;
@@ -389,6 +390,7 @@ public sealed class CoopGuestScreen
             _inventoryOpen = true;
             _inventorySelection = 0;
             _inventorySource = null;
+            _displayedCharacterId = characterId;
             Interlocked.Exchange(ref _redrawRequested, 1);
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && GameInputBindings.CharacterAction(key) is { } action)
@@ -802,11 +804,34 @@ public sealed class CoopGuestScreen
     private async Task HandleInventoryInputAsync(CoopSignalRClient client, CharacterId characterId,
         SessionSnapshot snapshot, ConsoleKey key, CancellationToken cancellationToken)
     {
-        var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == characterId);
+        var sheetCharacters = snapshot.Party.Where(character =>
+            character.CharacterId == characterId || character.IsTemporaryFollower).ToArray();
+        if (key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow && sheetCharacters.Length > 0)
+        {
+            var currentIndex = Array.FindIndex(sheetCharacters, character =>
+                character.CharacterId == (_displayedCharacterId ?? characterId));
+            if (currentIndex < 0) currentIndex = 0;
+            var direction = key == ConsoleKey.LeftArrow ? -1 : 1;
+            _displayedCharacterId = sheetCharacters[(currentIndex + direction + sheetCharacters.Length) %
+                                                     sheetCharacters.Length].CharacterId;
+            _inventorySelection = 0;
+            _inventorySource = null;
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return;
+        }
+        var own = snapshot.Party.FirstOrDefault(character =>
+            character.CharacterId == (_displayedCharacterId ?? characterId));
+        if (own?.IsTemporaryFollower == true)
+        {
+            if (GameInputBindings.IsCharacterSheetToggle(key)) CloseInventory();
+            else SetMessage("A követő NPC inventoryja csak megtekinthető.", ConsoleColor.DarkYellow);
+            return;
+        }
         var inventory = own?.Inventory;
         if (inventory is null)
         {
-            CloseInventory();
+            if (GameInputBindings.IsCharacterSheetToggle(key)) CloseInventory();
+            else SetMessage("A követő NPC inventoryja nem módosítható.", ConsoleColor.DarkYellow);
             return;
         }
         var slots = inventory.Slots;
@@ -914,6 +939,7 @@ public sealed class CoopGuestScreen
         _inventoryOpen = false;
         _spellInfoOpen = false;
         _inventorySource = null;
+        _displayedCharacterId = null;
         Interlocked.Exchange(ref _redrawRequested, 1);
     }
 
@@ -1061,7 +1087,8 @@ public sealed class CoopGuestScreen
         var stillControlled = snapshot.CharacterControls.Any(control =>
             control.CharacterId == selected.CharacterId && control.AssignedPlayerId == client.PlayerId &&
             control.ConnectionState == PlayerConnectionState.Connected);
-        var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == selected.CharacterId);
+        var own = snapshot.Party.FirstOrDefault(character => character.CharacterId ==
+            (_inventoryOpen ? _displayedCharacterId ?? selected.CharacterId : selected.CharacterId));
         ApplyBattleSpellUi(grid, snapshot, own);
         ApplyInnUi(grid, snapshot);
         ApplyRestSummaryUi(grid, snapshot, client.PlayerId);
@@ -1076,7 +1103,8 @@ public sealed class CoopGuestScreen
                     snapshot.BossKeyCount, own.CharacterId == snapshot.LeaderCharacterId)
                     .ToDictionary(line => line.Row)
                 : [];
-        var selectedSlot = _inventoryOpen && own?.Inventory is { Slots.Count: > 0 } inventory
+        var selectedSlot = _inventoryOpen && own is { IsTemporaryFollower: false,
+            Inventory.Slots.Count: > 0 } && own.Inventory is { } inventory
             ? new InventorySlotAddress(inventory.Slots[Math.Clamp(_inventorySelection, 0, inventory.Slots.Count - 1)].Kind,
                 inventory.Slots[Math.Clamp(_inventorySelection, 0, inventory.Slots.Count - 1)].Index)
             : (InventorySlotAddress?)null;

@@ -1,14 +1,14 @@
-using MazeGame;
-using MazeGame.Application;
-using MazeGame.Combat;
-using MazeGame.Data;
-using MazeGame.Domain;
-using MazeGame.Domain.Characters;
-using MazeGame.Domain.Combat;
-using MazeGame.Domain.Inventory;
-using MazeGame.Domain.Magic;
-using MazeGame.Transport.SignalR;
-using MazeGame.UI;
+using KaoszRubin;
+using KaoszRubin.Application;
+using KaoszRubin.Combat;
+using KaoszRubin.Data;
+using KaoszRubin.Domain;
+using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Combat;
+using KaoszRubin.Domain.Inventory;
+using KaoszRubin.Domain.Magic;
+using KaoszRubin.Transport.SignalR;
+using KaoszRubin.UI;
 using System.Text.Json;
 using System.Text;
 

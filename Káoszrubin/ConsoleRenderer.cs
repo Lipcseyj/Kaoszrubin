@@ -132,6 +132,7 @@ public sealed class ConsoleRenderer
     private int _messageLogScrollOffset;
     private readonly GameDataCatalog _gameData;
     private readonly Party _party;
+    private readonly Func<IReadOnlyList<LiveCharacter>> _temporaryFollowers;
     private int _mazeLevel;
     private int _goldenKeyCount;
     private bool _battleActive;
@@ -146,10 +147,12 @@ public sealed class ConsoleRenderer
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
 
-    public ConsoleRenderer(GameDataCatalog gameData, Party party)
+    public ConsoleRenderer(GameDataCatalog gameData, Party party,
+        Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null)
     {
         _gameData = gameData;
         _party = party;
+        _temporaryFollowers = temporaryFollowers ?? (() => []);
     }
 
     private static bool IsWindows11OrLater()
@@ -1703,7 +1706,7 @@ public sealed class ConsoleRenderer
             DrawSpellInfoPage(_spellInfoCharacter, _selectedSpellInfoIndex);
             return;
         }
-        var characterToDraw = _displayedCharacter is not null && _party.Members.Contains(_displayedCharacter)
+        var characterToDraw = _displayedCharacter is not null && SheetCharacters().Contains(_displayedCharacter)
             ? _displayedCharacter
             : character;
         DrawCharacterSheet(characterToDraw);
@@ -1734,12 +1737,13 @@ public sealed class ConsoleRenderer
 
     public void MoveDisplayedPartyMember(int direction)
     {
-        if (_displayedCharacter is null || direction == 0 || _party.Members.Count == 0) return;
+        var characters = SheetCharacters();
+        if (_displayedCharacter is null || direction == 0 || characters.Count == 0) return;
         if (_activeSheetSelection is { } active) _lastSheetSelections[_displayedCharacter] = active;
-        var currentIndex = Enumerable.Range(0, _party.Members.Count)
-            .FirstOrDefault(index => _party.Members[index] == _displayedCharacter);
-        var nextIndex = (currentIndex + direction + _party.Members.Count) % _party.Members.Count;
-        _displayedCharacter = _party.Members[nextIndex];
+        var currentIndex = characters.IndexOf(_displayedCharacter);
+        if (currentIndex < 0) currentIndex = 0;
+        var nextIndex = (currentIndex + direction + characters.Count) % characters.Count;
+        _displayedCharacter = characters[nextIndex];
         _activeSheetSelection = _lastSheetSelections.GetValueOrDefault(_displayedCharacter);
         DrawCharacterSheet(_displayedCharacter);
     }
@@ -1975,6 +1979,7 @@ public sealed class ConsoleRenderer
     private List<SheetSelectionEntry> BuildSheetSelections(LiveCharacter character)
     {
         var entries = new List<SheetSelectionEntry>();
+        if (IsTemporaryFollower(character)) return entries;
         for (var index = 0; index < character.WeaponSlots.Count; index++)
             entries.Add(new(new(SheetSelectionKind.Weapon, index)));
         entries.Add(new(new(SheetSelectionKind.Armor, 0)));
@@ -1984,6 +1989,14 @@ public sealed class ConsoleRenderer
         for (var index = 0; index < partyMemberCount; index++) entries.Add(new(new(SheetSelectionKind.PartyMember, index)));
         return entries;
     }
+
+    private List<LiveCharacter> SheetCharacters() => _party.Members
+        .Concat(_temporaryFollowers())
+        .Distinct()
+        .ToList();
+
+    private bool IsTemporaryFollower(LiveCharacter character) =>
+        !_party.Members.Contains(character) && _temporaryFollowers().Contains(character);
 
     private ConsoleColor SelectionBackground(SheetSelectionKey key) =>
         _activeSheetSelection == key ? ConsoleColor.DarkCyan : ConsoleColor.Black;

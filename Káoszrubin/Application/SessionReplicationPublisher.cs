@@ -128,7 +128,8 @@ public sealed class SessionReplicationPublisher
                 ? preparation : null,
             LevelUpPrompt = snapshot.LevelUpPrompt is { } levelUp &&
                             controlledCharacters.Contains(levelUp.CharacterId) ? levelUp : null,
-            Party = snapshot.Party.Select(character => controlledCharacters.Contains(character.CharacterId)
+            Party = snapshot.Party.Select(character => controlledCharacters.Contains(character.CharacterId) ||
+                                                   character.IsTemporaryFollower
                 ? character
                 : character with { Inventory = null, CharacterSheet = null, ExplorationSpellOptions = null,
                     SpellInfo = null }).ToArray()
