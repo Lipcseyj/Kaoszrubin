@@ -503,8 +503,19 @@ public static class CsvGameDataLoader
         var enemyIds = enemies.Select(enemy => enemy.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var itemIds = items.Select(item => item.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var quest in quests)
-            if (quest.Type == NpcQuestType.Kill ? !enemyIds.Contains(quest.TargetId) : !itemIds.Contains(quest.TargetId))
+        {
+            var targetIsValid = quest.Type switch
+            {
+                NpcQuestType.Kill => enemyIds.Contains(quest.TargetId),
+                NpcQuestType.Collect => itemIds.Contains(quest.TargetId),
+                NpcQuestType.Explore => string.Equals(quest.TargetId, "EXIT", StringComparison.OrdinalIgnoreCase),
+                NpcQuestType.Disarm or NpcQuestType.OpenChest =>
+                    string.Equals(quest.TargetId, "ANY", StringComparison.OrdinalIgnoreCase),
+                _ => false
+            };
+            if (!targetIsValid)
                 throw new InvalidDataException($"A(z) '{quest.Id}' küldetés célpontja nem található: '{quest.TargetId}'.");
+        }
     }
 
     private static void ValidateCharacterResourceGrowth(

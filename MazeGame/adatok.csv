@@ -1006,6 +1006,14 @@ NPC008,Halottlátó remete,C005,Neutral,Guarded,nem,nem
 NPC009,Ork dezertőr,C002,Neutral,Aggressive,nem,nem
 NPC010,Barlangi alkimista,C006,Neutral,Opportunistic,nem,nem
 NPC011,Hadifogoly felderítő,C001,Neutral,Guarded,nem,nem
+NPC012,Sírok őrzője,C005,Neutral,Guarded,nem,nem
+NPC013,Sárkánykutató,C006,Neutral,Opportunistic,nem,nem
+NPC014,Mocsári révész,C004,Neutral,Guarded,nem,nem
+NPC015,Kristálymérnök,C006,Neutral,Opportunistic,nem,nem
+NPC016,Éji menekült,C004,Neutral,Guarded,nem,nem
+NPC017,Láncait vesztett démonvadász,C003,Neutral,Aggressive,nem,nem
+NPC018,Káoszzarándok,C005,Neutral,Guarded,nem,nem
+NPC019,Óriásvadász,C001,Neutral,Aggressive,nem,nem
 
 #NPC találkozások
 Id,NpcId,Pályaszint,MinimumTávolság,MaximumTávolság
@@ -1023,6 +1031,19 @@ NPCE011,NPC009,6,9,20
 NPCE012,NPC010,7,8,19
 NPCE013,NPC009,8,9,20
 NPCE014,NPC011,8,8,18
+NPCE015,NPC012,9,8,19
+NPCE016,NPC019,10,9,21
+NPCE017,NPC013,11,9,21
+NPCE018,NPC014,12,8,20
+NPCE019,NPC015,13,9,21
+NPCE020,NPC015,14,9,21
+NPCE021,NPC016,15,9,21
+NPCE022,NPC016,16,9,21
+NPCE023,NPC013,17,9,22
+NPCE024,NPC017,18,10,22
+NPCE025,NPC017,19,10,22
+NPCE026,NPC018,20,10,23
+NPCE027,NPC018,21,10,23
 
 #NPC párbeszédek
 Id,NpcId,MinimumBarátságosság,MaximumBarátságosság,Szöveg
@@ -1071,6 +1092,30 @@ NPCD042,NPC010,8,10,A tudomány hálátlan mesterség. Szerencsére én nem vagy
 NPCD043,NPC011,0,3,Ha a táborból jöttetek végezzetek gyorsan. Ha nem akkor oldozzatok el.
 NPCD044,NPC011,4,7,Napok óta számolom az őrjáratokat. A bugbearek váltáskor maradnak a legkevesebben.
 NPCD045,NPC011,8,10,Kinyitottátok előttem az utat. Most én mutatom meg nektek hol fáj legjobban az ork seregnek.
+NPCD046,NPC012,0,3,A sírok nem üresek. Csak türelmesebbek nálatok.
+NPCD047,NPC012,4,7,Elvesztettem a szent jeleket a folyosókon. A kijárat közelében talán még áll egy.
+NPCD048,NPC012,8,10,A holtak csendje követ benneteket. Ez ritka áldás ezen a helyen.
+NPCD049,NPC013,0,3,Ha pikkelyt kerestek rossz helyen jártok. Ha sárkányt akkor még rosszabban.
+NPCD050,NPC013,4,7,A kincsesládák zárain gyakran ugyanaz a jel van mint a sárkánycsontokon.
+NPCD051,NPC013,8,10,Ti megnyitjátok az utat én pedig elolvasom amit a hamu megőrzött.
+NPCD052,NPC014,0,3,A mocsár mindenkit átenged. Csak nem ugyanabban az alakban.
+NPCD053,NPC014,4,7,Ismerem a száraz köveket. Találjátok meg a túloldalt és beszélhetünk az árról.
+NPCD054,NPC014,8,10,A láp elfogadta a lépteiteket. Engem még sosem tisztelt meg ennyire.
+NPCD055,NPC015,0,3,Ne érjetek a kristályokhoz. Némelyik még emlékszik az utolsó kézre.
+NPCD056,NPC015,4,7,A csapdák és a ládák ugyanannak a mérnöknek a munkái. A hibái is.
+NPCD057,NPC015,8,10,A törésvonalak már kirajzolják az utat. Csak követni kell őket.
+NPCD058,NPC016,0,3,Az éjszaka mögöttem jön. Ne álljatok közénk.
+NPCD059,NPC016,4,7,A kijáratot keresem mielőtt a vár urai újra megérzik a véremet.
+NPCD060,NPC016,8,10,Nem hittem hogy megérem a következő hajnalt. Talán mégis van olyan.
+NPCD061,NPC017,0,3,A láncaimat eltörtem. Aki újra rám akarja tenni az elveszíti a kezét.
+NPCD062,NPC017,4,7,A démonok neveit a sebeimből tanultam meg. Segítsetek kitörölni közülük néhányat.
+NPCD063,NPC017,8,10,A pokol is vérezhet. Most már ti is láttátok.
+NPCD064,NPC018,0,3,A káosz nem ellenség és nem barát. Tükör amely rosszkor néz vissza.
+NPCD065,NPC018,4,7,A rejtekhely kapuja nem ott lesz ahol látjátok. Keressétek azt amit a térkép tagad.
+NPCD066,NPC018,8,10,A Rubin útja megnyílt előttetek. Most már csak az számít kik érkeznek meg a végére.
+NPCD067,NPC019,0,3,Aki nem bírja el a saját fegyverét ne induljon óriásra.
+NPCD068,NPC019,4,7,Az ogrék erősek de minden ütés előtt ugyanoda néznek. Ezt használjátok ki.
+NPCD069,NPC019,8,10,Jó vadászat volt. A hegy sokáig emlékezni fog a zuhanásukra.
 
 #NPC küldetések
 Id,NpcId,Típus,CélId,Darabszám,XP,Cím,Leírás
@@ -1092,3 +1137,18 @@ NPCQ015,NPC009,Kill,E008,3,620,A hadúr testőrei,Győzz le három hobgoblint az
 NPCQ016,NPC010,Kill,E009,4,540,Méregmirigyek,Győzz le négy óriáspókot az alkimista kísérleteihez.
 NPCQ017,NPC010,Collect,T017,2,420,Biztos ellenszer,Vigyél két ellenmérget a barlangi alkimistának összehasonlító mintának.
 NPCQ018,NPC011,Kill,E031,2,680,A tábor szemei,Győzz le két bugbeart és vakítsd meg az ork tábor felderítőit.
+NPCQ019,NPC012,Explore,EXIT,1,720,Az elveszett sírjel,Fedezd fel a kijáratot és térj vissza a sírok őrzőjéhez.
+NPCQ020,NPC012,Disarm,ANY,2,760,Megszentségtelenített pecsétek,Hatástalaníts két csapdát hogy a sírok útja újra biztonságos legyen.
+NPCQ021,NPC013,OpenChest,ANY,2,880,A pikkelyes zárak,Nyiss ki két kincsesládát a sárkánykutató feljegyzéseihez.
+NPCQ022,NPC013,Explore,EXIT,1,940,A hamu útja,Fedezd fel a kijáratot és jelentsd a sárkánykutatónak.
+NPCQ023,NPC014,Explore,EXIT,1,980,Száraz út a lápban,Találd meg a kijáratot a mocsári révész számára.
+NPCQ024,NPC014,Disarm,ANY,2,1040,Elsüllyedt kelepcék,Hatástalaníts két csapdát a mocsár járható ösvényein.
+NPCQ025,NPC015,OpenChest,ANY,3,1180,A kristályzár titka,Nyiss ki három kincsesládát a kristálymérnök kutatásához.
+NPCQ026,NPC015,Disarm,ANY,2,1240,A hibás szerkezetek,Hatástalaníts két csapdát és mutasd meg a szerkezetüket a mérnöknek.
+NPCQ027,NPC016,Explore,EXIT,1,1380,Menekülés az örökéjből,Fedezd fel a kijáratot és térj vissza az éji menekülthöz.
+NPCQ028,NPC016,OpenChest,ANY,2,1320,Elkobzott örökség,Nyiss ki két ládát amelyekben a menekült elkobzott holmija lehet.
+NPCQ029,NPC017,Kill,E045,3,1680,A hálók felégetése,Győzz le három démonpókot a démonvadász oldalán.
+NPCQ030,NPC017,Kill,E023,4,1840,A pokol lovagjai,Győzz le négy démonlovagot és gyengítsd meg a Vértrónust.
+NPCQ031,NPC018,Explore,EXIT,1,2200,A lehetetlen ösvény,Fedezd fel a kijáratot a káosz szívében és térj vissza.
+NPCQ032,NPC018,OpenChest,ANY,3,2100,A Rubin visszhangjai,Nyiss ki három ládát amelyekben a Káoszrubin energiája visszhangzik.
+NPCQ033,NPC019,Kill,E012,3,820,Nagyvad,Győzz le három ogrét az óriásvadász megbízásából.

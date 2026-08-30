@@ -3,7 +3,7 @@ using MazeGame.Domain.Characters;
 namespace MazeGame.Domain;
 
 public enum NpcWorldBehavior { Friendly, Guarded, Opportunistic, Aggressive }
-public enum NpcQuestType { Collect, Kill }
+public enum NpcQuestType { Collect, Kill, Explore, Disarm, OpenChest }
 
 public sealed record NpcDefinition(string Id, string Name, string CharacterClassId,
     NpcDisposition Disposition, NpcWorldBehavior Behavior, bool Recruitable, bool Unique) : IGameDefinition;

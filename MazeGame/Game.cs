@@ -975,6 +975,7 @@ public sealed class Game
         if (_random.Next(100) < chance)
         {
             trap.Disarm();
+            RegisterNpcQuestProgress(NpcQuestType.Disarm, "ANY");
             _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
             RewardTrapSuccess(character, trap.Definition.DisarmExperience,
                 $"🧰 {character.Name} hatástalanította: {trap.Definition.Name} ({chance}% esély).",
@@ -1413,6 +1414,7 @@ public sealed class Game
         SelectedCharacter.AddGold(goldAmount);
         var masterThiefLoot = RollMasterThiefChestLoot(character);
         _maze.RemoveTreasureChest(chest);
+        RegisterNpcQuestProgress(NpcQuestType.OpenChest, "ANY");
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         if (character == SelectedCharacter)
@@ -1681,16 +1683,18 @@ public sealed class Game
                    character.RemoveOneInventoryItem(InventorySlotKind.Backpack, index)) remaining--;
     }
 
-    private void RegisterNpcQuestKill(string enemyDefinitionId)
+    private void RegisterNpcQuestKill(string enemyDefinitionId) =>
+        RegisterNpcQuestProgress(NpcQuestType.Kill, enemyDefinitionId);
+
+    private void RegisterNpcQuestProgress(NpcQuestType type, string targetId, int amount = 1)
     {
         foreach (var npc in _maze.WorldNpcs)
         foreach (var progress in npc.Quests.Where(value => value.State == NpcQuestState.Active).ToArray())
         {
             var quest = _gameData.NpcQuests.FirstOrDefault(value => string.Equals(value.Id, progress.QuestId,
                 StringComparison.OrdinalIgnoreCase));
-            if (quest is { Type: NpcQuestType.Kill } &&
-                string.Equals(quest.TargetId, enemyDefinitionId, StringComparison.OrdinalIgnoreCase))
-                npc.AddQuestProgress(quest.Id, 1, quest.RequiredCount);
+            if (quest?.Type == type && string.Equals(quest.TargetId, targetId, StringComparison.OrdinalIgnoreCase))
+                npc.AddQuestProgress(quest.Id, amount, quest.RequiredCount);
         }
     }
 
@@ -4394,8 +4398,13 @@ public sealed class Game
 
     private IReadOnlyList<Position> RevealFor(LiveCharacter character, Position position)
     {
+        var exitWasRevealed = _fogOfWar.IsRevealed(_maze.Exit);
         var revealed = _fogOfWar.RevealFrom(_maze, position, CharacterClassRules.VisionRange(character));
-        if (_fogOfWar.IsRevealed(_maze.Exit)) _backgroundMusic.MarkExitDiscovered();
+        if (_fogOfWar.IsRevealed(_maze.Exit))
+        {
+            _backgroundMusic.MarkExitDiscovered();
+            if (!exitWasRevealed) RegisterNpcQuestProgress(NpcQuestType.Explore, "EXIT");
+        }
         return revealed;
     }
 

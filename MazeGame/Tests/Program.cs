@@ -2162,13 +2162,17 @@ static void ClassResourceGrowthLoadsFromCsv()
 static void NpcDefinitionsLoadFromCsv()
 {
     var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
-    Assert(catalog.Npcs.Count == 11 && catalog.NpcEncounters.Count == 14 &&
-           catalog.NpcEncounters.All(encounter => encounter.MazeLevel is >= 1 and <= 8),
-        "Az NPC-definíciók vagy az első nyolc pálya találkozásai hiányoznak.");
-    Assert(catalog.NpcDialogues.Count == 45 && catalog.NpcQuests.Count == 18 &&
+    Assert(catalog.Npcs.Count == 19 && catalog.NpcEncounters.Count == 27 &&
+           Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
+               catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
+        "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
+    Assert(catalog.NpcDialogues.Count == 69 && catalog.NpcQuests.Count == 33 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 6 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 12,
-        "Az NPC-párbeszédek vagy a Collect/Kill küldetések hibásan töltődtek.");
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 15 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Explore) == 5 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Disarm) == 3 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.OpenChest) == 4,
+        "Az NPC-párbeszédek vagy a küldetéstípusok hibásan töltődtek.");
     Assert(catalog.GetNpc("NPC001") is { Disposition: NpcDisposition.Neutral, Unique: false } &&
            catalog.GetNpcQuests("NPC002").Any(quest =>
                quest is { TargetId: "E003", ExperienceReward: 260 }),
