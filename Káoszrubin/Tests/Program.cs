@@ -2536,17 +2536,23 @@ static void EnemyVisionRangesLoadFromCsv()
 
 static void FogRevealUsesVariableRangeAndLineOfSight()
 {
-    var maze = new Maze(12, 5);
-    for (var x = 2; x <= 10; x++) maze.Carve(new Position(x, 2));
+    var maze = new Maze(22, 13);
+    for (var x = 2; x <= 20; x++) maze.Carve(new Position(x, 2));
+    for (var y = 2; y <= 11; y++) maze.Carve(new Position(2, y));
     var origin = maze.Entrance;
     var normalFog = new FogOfWar(maze.Width, maze.Height, 5);
     normalFog.RevealFrom(maze, origin, 5);
-    var far = new Position(9, 2);
-    Assert(!normalFog.IsRevealed(far), "Az ötrácsos látótáv túl messzire fedett fel.");
+    var horizontallyFar = new Position(13, 2);
+    var verticallyFar = new Position(2, 8);
+    Assert(!normalFog.IsRevealed(horizontallyFar) && !normalFog.IsRevealed(verticallyFar),
+        "Az ötrácsos látótáv túl messzire fedett fel.");
 
     var scoutFog = new FogOfWar(maze.Width, maze.Height, 5);
     scoutFog.RevealFrom(maze, origin, 8);
-    Assert(scoutFog.IsRevealed(far), "A nyolcrácsos látótáv nem fedte fel a távoli folyosót.");
+    Assert(scoutFog.IsRevealed(horizontallyFar) && scoutFog.IsRevealed(verticallyFar) &&
+           FogOfWar.IsWithinVisionRange(origin, new Position(18, 2), 8) &&
+           !FogOfWar.IsWithinVisionRange(origin, new Position(19, 2), 8),
+        "A nyolcas látótáv nem alkalmazza a vízszintes 2:1 képarány-korrekciót.");
 
     maze.PlaceDoor(new Position(4, 2), DoorState.Closed);
     var blockedFog = new FogOfWar(maze.Width, maze.Height, 5);

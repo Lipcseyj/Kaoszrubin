@@ -4,6 +4,9 @@ namespace KaoszRubin;
 public sealed class FogOfWar
 {
     private const int MaximumBridgedFogGapLength = 3;
+    // A konzol karaktercellája hozzávetőleg kétszer olyan magas, mint széles. A képarány
+    // korrekció nélkül az azonos rácstávolság vízszintesen feleakkorának látszana.
+    public const int HorizontalCellsPerVisionUnit = 2;
     private readonly bool[,] _revealed;
     public int VisionRange { get; }
     public bool IsDeveloperRevealActive { get; private set; }
@@ -27,10 +30,11 @@ public sealed class FogOfWar
         if (effectiveRange < 0) throw new ArgumentOutOfRangeException(nameof(visionRange));
         var newlyRevealed = new List<Position>();
         for (var y = origin.Y - effectiveRange; y <= origin.Y + effectiveRange; y++)
-        for (var x = origin.X - effectiveRange; x <= origin.X + effectiveRange; x++)
+        for (var x = origin.X - effectiveRange * HorizontalCellsPerVisionUnit;
+             x <= origin.X + effectiveRange * HorizontalCellsPerVisionUnit; x++)
         {
             var target = new Position(x, y);
-            if (!maze.IsInside(target) || Math.Max(Math.Abs(x - origin.X), Math.Abs(y - origin.Y)) > effectiveRange) continue;
+            if (!maze.IsInside(target) || !IsWithinVisionRange(origin, target, effectiveRange)) continue;
             if (!HasLineOfSight(maze, origin, target) || _revealed[x, y]) continue;
             _revealed[x, y] = true;
             newlyRevealed.Add(target);
@@ -40,8 +44,16 @@ public sealed class FogOfWar
     }
 
     public static bool CanSee(Maze maze, Position origin, Position target, int range) =>
-        Math.Max(Math.Abs(target.X - origin.X), Math.Abs(target.Y - origin.Y)) <= range &&
+        IsWithinVisionRange(origin, target, range) &&
         HasLineOfSight(maze, origin, target);
+
+    public static bool IsWithinVisionRange(Position origin, Position target, int range)
+    {
+        if (range < 0) return false;
+        var horizontalUnits = (Math.Abs(target.X - origin.X) + HorizontalCellsPerVisionUnit - 1) /
+                              HorizontalCellsPerVisionUnit;
+        return Math.Max(horizontalUnits, Math.Abs(target.Y - origin.Y)) <= range;
+    }
 
     /// <summary>Fejlesztői módban ideiglenesen felfedi, majd visszakapcsolva újra elfedi a térképet.</summary>
     public bool ToggleDeveloperReveal()
