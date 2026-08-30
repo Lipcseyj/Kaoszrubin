@@ -157,6 +157,7 @@ public sealed class Game
     private bool _characterSheetFocused;
     private HeldInventoryItem? _heldInventoryItem;
     private DateTime _nextNeedsDrain;
+    private DateTime _nextNpcSelfCareCheck;
     private readonly Dictionary<Enemy, DateTime> _nextEnemyMoves = [];
     private readonly Dictionary<PartyMemberAvatar, DateTime> _nextPartyMoves = [];
     private readonly List<Position> _leaderTrail = [];
@@ -699,7 +700,11 @@ public sealed class Game
                     _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
                 }
 
-                if (!_battleStarted) ProcessNpcComplaints(DateTime.UtcNow);
+                if (!_battleStarted && DateTime.UtcNow >= _nextNpcSelfCareCheck)
+                {
+                    ProcessNpcSelfCare(DateTime.UtcNow);
+                    _nextNpcSelfCareCheck = DateTime.UtcNow + TimeSpan.FromSeconds(1);
+                }
 
                 if (coopHost?.ShouldPublish(DateTime.UtcNow) == true)
                     coopHost.TryPublish(CreateSessionSnapshot());
@@ -3021,7 +3026,6 @@ public sealed class Game
             if (_nextPartyMoves.GetValueOrDefault(member) > now) continue;
             ScheduleNextPartyMove(member, now);
             // Allow NPCs to cast simple exploration spells (heals/cures) before moving
-            TryNpcUseConsumables(member.Character);
             TryNpcCastExplorationSpell(member);
             if (isScattering)
             {
@@ -5137,6 +5141,19 @@ public sealed class Game
                 character.CurrentVitality * 2 < character.MaximumVitality && !HasHealingPotion(character),
                 $"{character.Name}: Súlyosan megsérültem, és nincs gyógyitalom!", now);
         }
+    }
+
+    private void ProcessNpcSelfCare(DateTime now)
+    {
+        foreach (var character in _maze.PartyMembers.Select(member => member.Character).Distinct()
+                     .Where(IsAutonomousNpc))
+        {
+            if (character.IsAlive && character.CurrentVitality < character.MaximumVitality)
+                TryNpcConsumeHealingPotions(character);
+            if (character.CurrentVitality * 2 >= character.MaximumVitality || HasHealingPotion(character))
+                ClearNpcShortage(character, NpcComplaintKind.Injured);
+        }
+        ProcessNpcComplaints(now);
     }
 
     private void ProcessNpcComplaint(LiveCharacter character, NpcComplaintKind kind, bool active,
