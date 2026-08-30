@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using System.Text;
 
 namespace MazeGame;
@@ -38,6 +37,10 @@ public enum SoundEffect
 
 public sealed class SoundEffects
 {
+    // A cache az első SoundEffects példány létrehozásakor, még a főmenü hangja előtt egyszer töltődik be,
+    // és az összes későbbi host/vendég lejátszó ugyanazokat a memóriablokkokat használja.
+    private static readonly string SoundsDirectory = Path.Combine(AppContext.BaseDirectory, "Sounds");
+    private static readonly IReadOnlyDictionary<SoundEffect, CachedWav> WavCache = LoadWavCache();
     private static readonly IReadOnlyDictionary<SoundEffect, (int Frequency, int Duration)> ToneSettings =
         new Dictionary<SoundEffect, (int, int)>
         {
@@ -70,7 +73,6 @@ public sealed class SoundEffects
             [SoundEffect.EndSequence] = (440, 500),
             [SoundEffect.MusicTrack] = (440, 500)
         };
-    private readonly string _soundsDirectory = Path.Combine(AppContext.BaseDirectory, "Sounds");
     private readonly Dictionary<SoundEffect, DateTime> _lastPlayed = [];
     private readonly object _sync = new();
     private readonly Action<string>? _reportFailure;
@@ -83,7 +85,8 @@ public sealed class SoundEffects
     public void Play(SoundEffect effect)
     {
         if (!TryReservePlayback(effect)) return;
-        _ = Task.Run(() => PlayCore(effect, waitForCompletion: false));
+        // SND_ASYNC azonnal visszatér; cache mellett nincs fájl-I/O, ezért nincs szükség külön thread-pool feladatra.
+        PlayCore(effect, waitForCompletion: false);
     }
 
     /// <summary>Harci visszajelzés, amelyet a következő naplósor előtt teljesen lejátszunk.</summary>
@@ -112,13 +115,13 @@ public sealed class SoundEffects
         try
         {
             if (!OperatingSystem.IsWindows()) return;
-            Directory.CreateDirectory(_soundsDirectory);
-            var name = ToFileName(effect);
-            var mp3Path = Path.Combine(_soundsDirectory, name + ".mp3");
-            var wavPath = Path.Combine(_soundsDirectory, name + ".wav");
-            if (File.Exists(mp3Path)) PlayMp3(mp3Path, ToneSettings[effect].Duration, waitForCompletion);
-            else if (!PlaySound(wavPath, IntPtr.Zero, SoundFilename | (waitForCompletion ? 0 : SoundAsync)))
-                _reportFailure?.Invoke($"Hangeffekt nem indítható: {wavPath}");
+            if (!WavCache.TryGetValue(effect, out var cached))
+            {
+                _reportFailure?.Invoke($"Hangeffekt nem található a memóriacache-ben: {ToFileName(effect)}.wav");
+                return;
+            }
+            if (!PlaySoundMemory(cached.Pointer, IntPtr.Zero, SoundMemory | (waitForCompletion ? 0 : SoundAsync)))
+                _reportFailure?.Invoke($"Hangeffekt nem indítható memóriából: {ToFileName(effect)}.wav");
         }
         catch (Exception exception)
         {
@@ -126,37 +129,16 @@ public sealed class SoundEffects
         }
     }
 
-    [SupportedOSPlatform("windows")]
-    private void PlayMp3(string path, int fallbackDuration, bool waitForCompletion)
+    private static IReadOnlyDictionary<SoundEffect, CachedWav> LoadWavCache()
     {
-        // Use mciSendString to play MP3s instead of automating Windows Media Player via COM.
-        // Using the COM-based Windows Media Player control caused RCW lifetime issues
-        // when the player was accessed from managed threads. mciSendString avoids COM
-        // RCW lifetime management and is sufficient for short sound effects.
-        void PlayCore()
+        var cache = new Dictionary<SoundEffect, CachedWav>();
+        foreach (var effect in Enum.GetValues<SoundEffect>())
         {
-            try
-            {
-                var alias = "snd" + Guid.NewGuid().ToString("N");
-                var openCmd = $"open \"{path}\" type mpegvideo alias {alias}";
-                mciSendString(openCmd, null, 0, IntPtr.Zero);
-                mciSendString($"play {alias}", null, 0, IntPtr.Zero);
-                Thread.Sleep(Math.Max(1_000, fallbackDuration * 4));
-                mciSendString($"stop {alias}", null, 0, IntPtr.Zero);
-                mciSendString($"close {alias}", null, 0, IntPtr.Zero);
-            }
-            catch (Exception exception)
-            {
-                _reportFailure?.Invoke($"MP3 lejátszási hiba: {exception.Message}");
-            }
+            var path = Path.Combine(SoundsDirectory, ToFileName(effect) + ".wav");
+            if (File.Exists(path)) cache[effect] = new CachedWav(File.ReadAllBytes(path));
         }
-
-        if (waitForCompletion) PlayCore();
-        else _ = Task.Run(PlayCore);
+        return cache;
     }
-
-    [DllImport("winmm.dll", CharSet = CharSet.Auto)]
-    private static extern int mciSendString(string command, StringBuilder? returnValue, int returnLength, IntPtr winHandle);
 
     private static void GenerateFallbackWav(string path, (int Frequency, int Duration) settings)
     {
@@ -206,8 +188,23 @@ public sealed class SoundEffects
     };
 
     private const uint SoundAsync = 0x0001;
-    private const uint SoundFilename = 0x00020000;
+    private const uint SoundMemory = 0x0004;
 
-    [DllImport("winmm.dll", CharSet = CharSet.Auto, SetLastError = true)]
-    private static extern bool PlaySound(string soundName, IntPtr module, uint flags);
+    [DllImport("winmm.dll", EntryPoint = "PlaySoundW", SetLastError = true)]
+    private static extern bool PlaySoundMemory(IntPtr soundData, IntPtr module, uint flags);
+
+    private sealed class CachedWav
+    {
+        // SND_ASYNC mellett a mutatónak a teljes lejátszás alatt stabilnak kell maradnia.
+        // A statikus cache élettartama a folyamatéval azonos, ezért a rögzítés nem okoz dangling pointert.
+        private readonly GCHandle _handle;
+
+        public CachedWav(byte[] data)
+        {
+            _handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+            Pointer = _handle.AddrOfPinnedObject();
+        }
+
+        public IntPtr Pointer { get; }
+    }
 }
