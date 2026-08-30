@@ -21,7 +21,8 @@ public sealed record NpcDialogueDefinition(string Id, string NpcId, int MinimumF
 }
 
 public sealed record NpcQuestDefinition(string Id, string NpcId, NpcQuestType Type, string TargetId,
-    int RequiredCount, int ExperienceReward, string Title, string Description) : IGameDefinition
+    int RequiredCount, int ExperienceReward, string Title, string Description,
+    string? RewardItemId = null, int RewardItemCount = 0, int RandomRewardCount = 1) : IGameDefinition
 {
     public string Name => Title;
 }

@@ -126,7 +126,8 @@ public static class CsvGameDataLoader
         ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
         ValidateMonsterLoot(enemies, monsterLoot);
         ValidateTrapConfigurations(traps);
-        ValidateNpcData(npcs, npcEncounters, npcDialogues, npcQuests, characterClasses, enemies, items);
+        ValidateNpcData(npcs, npcEncounters, npcDialogues, npcQuests, characterClasses, enemies,
+            items, weapons, armors, magicItems);
         var lootRules = CreateLootRules(lootRuleValues);
         var doorAttemptRules = CreateDoorAttemptRules(doorAttemptRuleValues);
 
@@ -333,7 +334,9 @@ public static class CsvGameDataLoader
             case DataSection.NpcQuests:
                 npcQuests.Add(new NpcQuestDefinition(id, Cell(cells, 1), EnumValue<NpcQuestType>(cells, 2),
                     Cell(cells, 3), Math.Max(1, Integer(cells, 4) ?? 1),
-                    Math.Max(0, Integer(cells, 5) ?? 0), Cell(cells, 6), Cell(cells, 7)));
+                    Math.Max(0, Integer(cells, 5) ?? 0), Cell(cells, 6), Cell(cells, 7),
+                    EmptyAsNull(Cell(cells, 8)), Math.Max(0, Integer(cells, 9) ?? 0),
+                    Math.Clamp(Integer(cells, 10) ?? 1, 0, 5)));
                 break;
             case DataSection.InnNames:
                 if (string.IsNullOrWhiteSpace(name))
@@ -481,7 +484,8 @@ public static class CsvGameDataLoader
         IReadOnlyCollection<NpcEncounterDefinition> encounters,
         IReadOnlyCollection<NpcDialogueDefinition> dialogues, IReadOnlyCollection<NpcQuestDefinition> quests,
         IReadOnlyCollection<CharacterClassDefinition> classes, IReadOnlyCollection<EnemyDefinition> enemies,
-        IReadOnlyCollection<MiscItemDefinition> items)
+        IReadOnlyCollection<MiscItemDefinition> items, IReadOnlyCollection<WeaponDefinition> weapons,
+        IReadOnlyCollection<ArmorDefinition> armors, IReadOnlyCollection<MagicItemDefinition> magicItems)
     {
         var npcIds = npcs.Select(npc => npc.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var classIds = classes.Select(characterClass => characterClass.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -502,6 +506,8 @@ public static class CsvGameDataLoader
                 throw new InvalidDataException($"A(z) '{dialogue.Id}' NPC-párbeszéd viszonytartománya érvénytelen.");
         var enemyIds = enemies.Select(enemy => enemy.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var itemIds = items.Select(item => item.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var rewardItemIds = itemIds.Concat(weapons.Select(item => item.Id)).Concat(armors.Select(item => item.Id))
+            .Concat(magicItems.Select(item => item.Id)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var quest in quests)
         {
             var targetIsValid = quest.Type switch
@@ -515,6 +521,10 @@ public static class CsvGameDataLoader
             };
             if (!targetIsValid)
                 throw new InvalidDataException($"A(z) '{quest.Id}' küldetés célpontja nem található: '{quest.TargetId}'.");
+            if (quest.RewardItemId is { } rewardItemId && !rewardItemIds.Contains(rewardItemId))
+                throw new InvalidDataException($"A(z) '{quest.Id}' küldetés jutalomtárgya nem található: '{rewardItemId}'.");
+            if (quest.RewardItemId is null && quest.RewardItemCount != 0)
+                throw new InvalidDataException($"A(z) '{quest.Id}' küldetés jutalomdarabszámához nincs tárgy megadva.");
         }
     }
 

@@ -1118,8 +1118,8 @@ NPCD068,NPC019,4,7,Az ogrék erősek de minden ütés előtt ugyanoda néznek. E
 NPCD069,NPC019,8,10,Jó vadászat volt. A hegy sokáig emlékezni fog a zuhanásukra.
 
 #NPC küldetések
-Id,NpcId,Típus,CélId,Darabszám,XP,Cím,Leírás
-NPCQ001,NPC001,Collect,T011,3,180,Gyógyító készlet,Gyűjts össze három kis gyógyitalt a füvesasszonynak.
+Id,NpcId,Típus,CélId,Darabszám,XP,Cím,Leírás,FixJutalomId,FixJutalomDarab,VéletlenJutalomDarab
+NPCQ001,NPC001,Collect,T011,3,180,Gyógyító készlet,Gyűjts össze három kis gyógyitalt a füvesasszonynak.,T018,2,0
 NPCQ002,NPC002,Kill,E003,4,260,Goblinvadászat,Ölj meg négy goblint a szörnyvadász megbízásából.
 NPCQ003,NPC003,Collect,T001,5,320,Útravaló a mélybe,Szerezz öt útravalót a kincskereső következő útjához.
 NPCQ004,NPC004,Kill,E004,3,480,A csontok éneke,Győzz le három csontvázat a dalnok balladájához.
@@ -1142,13 +1142,13 @@ NPCQ020,NPC012,Disarm,ANY,2,760,Megszentségtelenített pecsétek,Hatástalanít
 NPCQ021,NPC013,OpenChest,ANY,2,880,A pikkelyes zárak,Nyiss ki két kincsesládát a sárkánykutató feljegyzéseihez.
 NPCQ022,NPC013,Explore,EXIT,1,940,A hamu útja,Fedezd fel a kijáratot és jelentsd a sárkánykutatónak.
 NPCQ023,NPC014,Explore,EXIT,1,980,Száraz út a lápban,Találd meg a kijáratot a mocsári révész számára.
-NPCQ024,NPC014,Disarm,ANY,2,1040,Elsüllyedt kelepcék,Hatástalaníts két csapdát a mocsár járható ösvényein.
-NPCQ025,NPC015,OpenChest,ANY,3,1180,A kristályzár titka,Nyiss ki három kincsesládát a kristálymérnök kutatásához.
-NPCQ026,NPC015,Disarm,ANY,2,1240,A hibás szerkezetek,Hatástalaníts két csapdát és mutasd meg a szerkezetüket a mérnöknek.
-NPCQ027,NPC016,Explore,EXIT,1,1380,Menekülés az örökéjből,Fedezd fel a kijáratot és térj vissza az éji menekülthöz.
-NPCQ028,NPC016,OpenChest,ANY,2,1320,Elkobzott örökség,Nyiss ki két ládát amelyekben a menekült elkobzott holmija lehet.
-NPCQ029,NPC017,Kill,E045,3,1680,A hálók felégetése,Győzz le három démonpókot a démonvadász oldalán.
-NPCQ030,NPC017,Kill,E023,4,1840,A pokol lovagjai,Győzz le négy démonlovagot és gyengítsd meg a Vértrónust.
-NPCQ031,NPC018,Explore,EXIT,1,2200,A lehetetlen ösvény,Fedezd fel a kijáratot a káosz szívében és térj vissza.
-NPCQ032,NPC018,OpenChest,ANY,3,2100,A Rubin visszhangjai,Nyiss ki három ládát amelyekben a Káoszrubin energiája visszhangzik.
+NPCQ024,NPC014,Disarm,ANY,2,1040,Elsüllyedt kelepcék,Hatástalaníts két csapdát a mocsár járható ösvényein.,,,2
+NPCQ025,NPC015,OpenChest,ANY,3,1180,A kristályzár titka,Nyiss ki három kincsesládát a kristálymérnök kutatásához.,,,2
+NPCQ026,NPC015,Disarm,ANY,2,1240,A hibás szerkezetek,Hatástalaníts két csapdát és mutasd meg a szerkezetüket a mérnöknek.,,,2
+NPCQ027,NPC016,Explore,EXIT,1,1380,Menekülés az örökéjből,Fedezd fel a kijáratot és térj vissza az éji menekülthöz.,,,2
+NPCQ028,NPC016,OpenChest,ANY,2,1320,Elkobzott örökség,Nyiss ki két ládát amelyekben a menekült elkobzott holmija lehet.,,,2
+NPCQ029,NPC017,Kill,E045,3,1680,A hálók felégetése,Győzz le három démonpókot a démonvadász oldalán.,,,2
+NPCQ030,NPC017,Kill,E023,4,1840,A pokol lovagjai,Győzz le négy démonlovagot és gyengítsd meg a Vértrónust.,,,2
+NPCQ031,NPC018,Explore,EXIT,1,2200,A lehetetlen ösvény,Fedezd fel a kijáratot a káosz szívében és térj vissza.,,,3
+NPCQ032,NPC018,OpenChest,ANY,3,2100,A Rubin visszhangjai,Nyiss ki három ládát amelyekben a Káoszrubin energiája visszhangzik.,,,3
 NPCQ033,NPC019,Kill,E012,3,820,Nagyvad,Győzz le három ogrét az óriásvadász megbízásából.

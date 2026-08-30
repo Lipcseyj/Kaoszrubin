@@ -1634,7 +1634,8 @@ public sealed class Game
             if (progress.State == NpcQuestState.Offered)
             {
                 npc.ActivateQuest(quest.Id);
-                _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description}", ConsoleColor.Cyan);
+                _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description} " +
+                    $"Jutalom: {quest.ExperienceReward} XP{DescribeNpcQuestItemRewards(quest)}.", ConsoleColor.Cyan);
             }
 
             var current = npc.Quests.First(value => string.Equals(value.QuestId, quest.Id,
@@ -1662,11 +1663,65 @@ public sealed class Game
             var awards = DistributeExperience(SelectedCharacter, quest.ExperienceReward);
             foreach (var award in awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive))
                 ResolvePerkOffers(award.Character, award.Result);
+            var itemRewards = GrantNpcQuestItems(quest);
             _renderer.DrawInventoryMessage(
-                $"✅ Küldetés teljesítve: {quest.Title}. XP: {FormatExperienceAwards(awards)}.", ConsoleColor.Green);
+                $"✅ Küldetés teljesítve: {quest.Title}. XP: {FormatExperienceAwards(awards)}." +
+                (itemRewards.Length > 0 ? $" 🎁 {itemRewards}" : string.Empty), ConsoleColor.Green);
         }
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
     }
+
+    private string GrantNpcQuestItems(NpcQuestDefinition quest)
+    {
+        var rewards = new List<IItemDefinition>();
+        if (quest.RewardItemId is { } fixedItemId)
+        {
+            var fixedItem = FindQuestRewardItem(fixedItemId);
+            for (var count = 0; count < quest.RewardItemCount; count++) rewards.Add(fixedItem);
+        }
+        for (var count = 0; count < quest.RandomRewardCount; count++)
+            if (RollQuestReward(quest.ExperienceReward) is { } reward) rewards.Add(reward);
+        if (rewards.Count == 0) return string.Empty;
+
+        var dropped = 0;
+        foreach (var reward in rewards)
+        {
+            if (TryStoreLootInParty(reward, out _)) continue;
+            _maze.DropItem(_player.Position, reward);
+            dropped++;
+        }
+        PlaySessionSound(SoundEffect.Item);
+        var summary = string.Join(", ", rewards.GroupBy(item => item.Name)
+            .Select(group => $"{group.Key} ×{group.Count()}"));
+        return dropped == 0 ? summary : $"{summary} ({dropped} a földön)";
+    }
+
+    private string DescribeNpcQuestItemRewards(NpcQuestDefinition quest)
+    {
+        var parts = new List<string>();
+        if (quest.RewardItemId is { } fixedItemId)
+            parts.Add($"{FindQuestRewardItem(fixedItemId).Name} ×{quest.RewardItemCount}");
+        if (quest.RandomRewardCount > 0) parts.Add($"{quest.RandomRewardCount} véletlen tárgy");
+        return parts.Count == 0 ? string.Empty : " + " + string.Join(" + ", parts);
+    }
+
+    private IItemDefinition? RollQuestReward(int experienceReward)
+    {
+        var maximumRarity = experienceReward >= 2000 ? ItemRarity.Legendary :
+            experienceReward >= 800 ? ItemRarity.Magic : ItemRarity.Normal;
+        var maximumPrice = Math.Max(80, experienceReward * 2);
+        var maximumMagicPower = Math.Max(0, experienceReward / 300);
+        var candidates = QuestRewardItems().Where(item => item.Rarity <= maximumRarity &&
+            item.BasePrice <= maximumPrice && item.MagicPower <= maximumMagicPower).ToArray();
+        return candidates.Length == 0 ? null : candidates[_random.Next(candidates.Length)];
+    }
+
+    private IItemDefinition FindQuestRewardItem(string itemId) => QuestRewardItems()
+        .First(item => string.Equals(item.Id, itemId, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<IItemDefinition> QuestRewardItems() => _gameData.Items.Cast<IItemDefinition>()
+        .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems)
+        .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item));
 
     private int CountPartyBackpackItems(string itemId) => CharacterRoster.Party.Members.Sum(character =>
         Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)

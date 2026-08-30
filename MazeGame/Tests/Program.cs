@@ -2175,7 +2175,10 @@ static void NpcDefinitionsLoadFromCsv()
         "Az NPC-párbeszédek vagy a küldetéstípusok hibásan töltődtek.");
     Assert(catalog.GetNpc("NPC001") is { Disposition: NpcDisposition.Neutral, Unique: false } &&
            catalog.GetNpcQuests("NPC002").Any(quest =>
-               quest is { TargetId: "E003", ExperienceReward: 260 }),
+               quest is { TargetId: "E003", ExperienceReward: 260 }) &&
+           catalog.GetNpcQuests("NPC001").Any(quest => quest is
+               { Id: "NPCQ001", RewardItemId: "T018", RewardItemCount: 2, RandomRewardCount: 0 }) &&
+           catalog.NpcQuests.All(quest => quest.RandomRewardCount > 0 || quest.RewardItemCount > 0),
         "A semleges nem egyedi NPC vagy a hozzá kapcsolt küldetés hibás.");
 
     var npc = new WorldNpc(new Position(1, 1), "NPC002", CreateCharacter("Küldetésadó"),
