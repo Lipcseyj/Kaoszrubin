@@ -333,7 +333,9 @@ vízvesztés    = 2
                +1, ha a HP a maximum fele alatt van
 ```
 
-A periódusos fogyás külön-külön lefut a parti minden élő tagjára, az adott karakter saját maximális és aktuális HP-ja alapján. A halott társak szükségletei már nem változnak.
+A periódusos fogyás külön-külön lefut a parti minden élő tagjára és az ideiglenes követőkre, az adott karakter saját maximális és aktuális HP-ja alapján. A halott társak és követők szükségletei már nem változnak.
+
+A gépi vezérlésű partitag és követő a normál Éhes vagy Szomjas állapot megjelenésekor véletlenül 1–3 megfelelő adagot próbál elfogyasztani a saját hátizsákjából. Minden adag előtt újraértékeli a hiányt, és kihagyja azt a tárgyat, amely 100 fölött 15 pontnál több élelmet vagy vizet pazarolna. Sérüléskor ugyanígy 1–3 gyógyitalt használhat, de csak legfeljebb 15 HP túltöltéssel. A fogyasztás, az elfogyott készlet és a nulla szükségletszint a közös naplóba kerül. Nulla élelem/víz, illetve fél HP alatti állapot és használható gyógyital hiánya esetén karakterenként és problémánként véletlen 2–3 percenként ismétlődő panasz jelenik meg; a probléma megszűnése törli az időzítőt.
 
 Minden csata után kizárólag a ténylegesen harcoló karakter élelem- és vízszintje csökken, ugyanazzal a dobott értékkel:
 

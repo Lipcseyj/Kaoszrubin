@@ -171,6 +171,8 @@ public sealed class Game
     private int _battleStartingMana;
     private HashSet<string> _battleStartingStatusIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<LiveCharacter> _turnUndeadUsedThisBattle = [];
+    private readonly Dictionary<(CharacterId CharacterId, NpcComplaintKind Kind), DateTime> _nextNpcComplaints = [];
+    private readonly HashSet<(CharacterId CharacterId, NpcComplaintKind Kind)> _reportedNpcShortages = [];
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
     private readonly Queue<SessionActivitySnapshot> _sessionActivities = new();
     private long _sessionActivitySequence;
@@ -696,6 +698,8 @@ public sealed class Game
                     DrainNeeds();
                     _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
                 }
+
+                if (!_battleStarted) ProcessNpcComplaints(DateTime.UtcNow);
 
                 if (coopHost?.ShouldPublish(DateTime.UtcNow) == true)
                     coopHost.TryPublish(CreateSessionSnapshot());
@@ -3017,6 +3021,7 @@ public sealed class Game
             if (_nextPartyMoves.GetValueOrDefault(member) > now) continue;
             ScheduleNextPartyMove(member, now);
             // Allow NPCs to cast simple exploration spells (heals/cures) before moving
+            TryNpcUseConsumables(member.Character);
             TryNpcCastExplorationSpell(member);
             if (isScattering)
             {
@@ -3174,6 +3179,7 @@ public sealed class Game
             () => ChooseNpcBattlePlayerAction(member, enemy, onSpellCast: () => spellsCast++),
             knightProtector: knightProtector);
         var needLoss = DrainNeedsAfterBattle(member.Character, enemy.Definition.StrengthTier);
+        TryNpcUseConsumables(member.Character);
         var gainedStatusIcons = member.Character.Statuses
             .Where(status => !startingStatusIds.Contains(status.Id))
             .Select(status => status.Icon).ToArray();
@@ -4972,8 +4978,13 @@ public sealed class Game
     {
         var hungry = _gameData.GetStatus(CharacterStatusIds.Hungry);
         var thirsty = _gameData.GetStatus(CharacterStatusIds.Thirsty);
-        foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive))
+        var followers = _maze.PartyMembers.Where(member => member.IsTemporaryFollower)
+            .Select(member => member.Character);
+        foreach (var character in CharacterRoster.Party.Members.Concat(followers).Distinct()
+                     .Where(character => character.IsAlive))
         {
+            var foodBefore = character.FoodLevel;
+            var waterBefore = character.WaterLevel;
             var foodLoss = 2 + character.MaximumVitality / 60;
             character.ConsumeFood(foodLoss);
             var waterLoss = 2;
@@ -4981,19 +4992,191 @@ public sealed class Game
             if (character.CurrentVitality * 2 < character.MaximumVitality) waterLoss++;
             character.ConsumeWater(waterLoss);
             character.SynchronizeNeedStatuses(hungry, thirsty);
+            if (IsAutonomousNpc(character))
+            {
+                LogNewZeroNeed(character, NpcComplaintKind.Hunger, foodBefore, character.FoodLevel);
+                LogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
+                TryNpcUseConsumables(character);
+            }
         }
         _renderer.RefreshCharacterSheet(SelectedCharacter);
     }
 
     private int DrainNeedsAfterBattle(LiveCharacter character, int monsterTier)
     {
+        var foodBefore = character.FoodLevel;
+        var waterBefore = character.WaterLevel;
         var loss = _random.Next(1, 6) + Math.Clamp(monsterTier, 1, 5);
         character.ConsumeFood(loss);
         character.ConsumeWater(loss);
         character.SynchronizeNeedStatuses(
             _gameData.GetStatus(CharacterStatusIds.Hungry),
             _gameData.GetStatus(CharacterStatusIds.Thirsty));
+        if (IsAutonomousNpc(character))
+        {
+            LogNewZeroNeed(character, NpcComplaintKind.Hunger, foodBefore, character.FoodLevel);
+            LogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
+        }
         return loss;
+    }
+
+    private bool IsAutonomousNpc(LiveCharacter character) =>
+        character != SelectedCharacter && !_session.IsHumanControlled(character.Id) &&
+        _maze.PartyMembers.Any(member => member.Character == character);
+
+    private void TryNpcUseConsumables(LiveCharacter character)
+    {
+        if (!character.IsAlive || !IsAutonomousNpc(character)) return;
+        if (character.HasStatus(CharacterStatusIds.Hungry))
+            TryNpcConsumeNeedItems(character, ConsumableEffect.Food, NpcComplaintKind.Hunger);
+        else ClearNpcShortage(character, NpcComplaintKind.Hunger);
+        if (character.HasStatus(CharacterStatusIds.Thirsty))
+            TryNpcConsumeNeedItems(character, ConsumableEffect.Water, NpcComplaintKind.Thirst);
+        else ClearNpcShortage(character, NpcComplaintKind.Thirst);
+        if (character.CurrentVitality < character.MaximumVitality)
+            TryNpcConsumeHealingPotions(character);
+        if (character.CurrentVitality * 2 >= character.MaximumVitality || HasHealingPotion(character))
+            ClearNpcShortage(character, NpcComplaintKind.Injured);
+        character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
+            _gameData.GetStatus(CharacterStatusIds.Thirsty));
+    }
+
+    private void TryNpcConsumeNeedItems(LiveCharacter character, ConsumableEffect effect, NpcComplaintKind kind)
+    {
+        var desiredServings = _random.Next(1, 4);
+        var consumed = new List<string>();
+        for (var serving = 0; serving < desiredServings; serving++)
+        {
+            var current = effect == ConsumableEffect.Food ? character.FoodLevel : character.WaterLevel;
+            if (current >= 100) break;
+            var candidates = BackpackConsumables(character, effect)
+                .Where(entry => Math.Max(0, current + entry.Item.EffectValue - 100) <= 15)
+                .ToArray();
+            if (candidates.Length == 0) break;
+            var selected = candidates[_random.Next(candidates.Length)];
+            if (!character.RemoveOneInventoryItem(InventorySlotKind.Backpack, selected.Index)) break;
+            if (effect == ConsumableEffect.Food) character.RestoreFood(selected.Item.EffectValue);
+            else if (string.Equals(selected.Item.Id, MiscItemIds.HerbalTea, StringComparison.OrdinalIgnoreCase))
+                UseHerbalTea(character, selected.Item.EffectValue);
+            else if (IsInitiativeDrink(selected.Item)) UseInitiativeDrink(character, selected.Item);
+            else character.RestoreWater(selected.Item.EffectValue);
+            consumed.Add(selected.Item.Name);
+        }
+        if (consumed.Count > 0)
+        {
+            ClearNpcShortage(character, kind);
+            var level = effect == ConsumableEffect.Food ? character.FoodLevel : character.WaterLevel;
+            var action = effect == ConsumableEffect.Food ? "evett" : "ivott";
+            LogNpcAutomation(character, $"{character.Name} {action}: {string.Join(", ", consumed)}. " +
+                $"{(effect == ConsumableEffect.Food ? "🍖" : "💧")} {level}/100.", ConsoleColor.Cyan);
+            return;
+        }
+        ReportNpcShortageOnce(character, kind, effect == ConsumableEffect.Food
+            ? $"{character.Name} éhes, de nincs pazarlás nélkül elfogyasztható étele."
+            : $"{character.Name} szomjas, de nincs pazarlás nélkül elfogyasztható itala.");
+    }
+
+    private void TryNpcConsumeHealingPotions(LiveCharacter character)
+    {
+        var desiredServings = _random.Next(1, 4);
+        var consumed = new List<string>();
+        for (var serving = 0; serving < desiredServings; serving++)
+        {
+            var missingVitality = character.MaximumVitality - character.CurrentVitality;
+            if (missingVitality <= 0) break;
+            var candidates = BackpackConsumables(character, ConsumableEffect.Heal)
+                .Where(entry => Math.Max(0, character.PreviewVitalityRecovery(entry.Item.EffectValue) - missingVitality) <= 15)
+                .ToArray();
+            if (candidates.Length == 0) break;
+            var selected = candidates[_random.Next(candidates.Length)];
+            if (!character.RemoveOneInventoryItem(InventorySlotKind.Backpack, selected.Index)) break;
+            character.RestoreVitality(selected.Item.EffectValue);
+            consumed.Add(selected.Item.Name);
+        }
+        if (consumed.Count > 0)
+        {
+            ClearNpcShortage(character, NpcComplaintKind.Injured);
+            LogNpcAutomation(character, $"{character.Name} gyógyitalt ivott: {string.Join(", ", consumed)}. " +
+                $"❤️ {character.CurrentVitality}/{character.MaximumVitality}.", ConsoleColor.Green);
+        }
+        else if (character.CurrentVitality * 2 < character.MaximumVitality && !HasHealingPotion(character))
+            ReportNpcShortageOnce(character, NpcComplaintKind.Injured,
+                $"{character.Name} súlyosan sérült, de nincs használható gyógyitala.");
+    }
+
+    private static IEnumerable<(int Index, MiscItemDefinition Item)> BackpackConsumables(
+        LiveCharacter character, ConsumableEffect effect) => Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
+        .Select(index => (Index: index,
+            Item: character.GetInventoryItem(InventorySlotKind.Backpack, index) as MiscItemDefinition))
+        .Where(entry => entry.Item?.Effect == effect)
+        .Select(entry => (entry.Index, entry.Item!));
+
+    private static bool HasHealingPotion(LiveCharacter character) =>
+        BackpackConsumables(character, ConsumableEffect.Heal).Any();
+
+    private void LogNewZeroNeed(LiveCharacter character, NpcComplaintKind kind, int previous, int current)
+    {
+        if (previous <= 0 || current > 0) return;
+        var message = kind == NpcComplaintKind.Hunger
+            ? $"{character.Name} élelemszintje nullára csökkent. Nagyon éhes!"
+            : $"{character.Name} vízszintje nullára csökkent. Nagyon szomjas!";
+        LogNpcAutomation(character, message, ConsoleColor.Red);
+        ScheduleNpcComplaint(character, kind, DateTime.UtcNow);
+    }
+
+    private void ProcessNpcComplaints(DateTime now)
+    {
+        foreach (var character in _maze.PartyMembers.Select(member => member.Character).Distinct()
+                     .Where(IsAutonomousNpc))
+        {
+            ProcessNpcComplaint(character, NpcComplaintKind.Hunger, character.FoodLevel == 0,
+                $"{character.Name}: Nagyon éhes vagyok, elfogyott az élelmem!", now);
+            ProcessNpcComplaint(character, NpcComplaintKind.Thirst, character.WaterLevel == 0,
+                $"{character.Name}: Nagyon szomjas vagyok, nincs mit innom!", now);
+            ProcessNpcComplaint(character, NpcComplaintKind.Injured,
+                character.CurrentVitality * 2 < character.MaximumVitality && !HasHealingPotion(character),
+                $"{character.Name}: Súlyosan megsérültem, és nincs gyógyitalom!", now);
+        }
+    }
+
+    private void ProcessNpcComplaint(LiveCharacter character, NpcComplaintKind kind, bool active,
+        string message, DateTime now)
+    {
+        var key = (character.Id, kind);
+        if (!active)
+        {
+            _nextNpcComplaints.Remove(key);
+            return;
+        }
+        if (!_nextNpcComplaints.TryGetValue(key, out var next))
+        {
+            ScheduleNpcComplaint(character, kind, now);
+            return;
+        }
+        if (now < next) return;
+        LogNpcAutomation(character, message, ConsoleColor.DarkYellow);
+        ScheduleNpcComplaint(character, kind, now);
+    }
+
+    private void ScheduleNpcComplaint(LiveCharacter character, NpcComplaintKind kind, DateTime from) =>
+        _nextNpcComplaints[(character.Id, kind)] = from + TimeSpan.FromSeconds(_random.Next(120, 181));
+
+    private void ReportNpcShortageOnce(LiveCharacter character, NpcComplaintKind kind, string message)
+    {
+        if (!_reportedNpcShortages.Add((character.Id, kind))) return;
+        LogNpcAutomation(character, message, ConsoleColor.DarkYellow);
+    }
+
+    private void ClearNpcShortage(LiveCharacter character, NpcComplaintKind kind)
+    {
+        _reportedNpcShortages.Remove((character.Id, kind));
+        _nextNpcComplaints.Remove((character.Id, kind));
+    }
+
+    private void LogNpcAutomation(LiveCharacter character, string message, ConsoleColor color)
+    {
+        _renderer.DrawInventoryMessage(message, color);
+        RecordSessionActivity(SessionActivityKind.System, message, color);
     }
 
     private void PlayBattleRoundSound(BattleLogEntry entry)
@@ -5726,6 +5909,8 @@ public sealed class Game
     }
 
     private sealed record ExperienceAward(LiveCharacter Character, LevelUpResult Result);
+
+    private enum NpcComplaintKind { Hunger, Thirst, Injured }
 
     private sealed record BossNarrative(string ChapterTitle, IReadOnlyList<string> Speech);
 
