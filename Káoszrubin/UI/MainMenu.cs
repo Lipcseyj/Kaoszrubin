@@ -717,7 +717,7 @@ public sealed class MainMenu
             Hotkey("R", "A kijelölt karakter részletes karakterinformációi."),
             Hotkey("F", "A kijelölt több darabos hátizsákköteg kettéosztása egy üres hátizsákhelyre."),
             Hotkey("S", "A kijelölt több darabos hátizsákköteg szétosztása a csapattagokkal."),
-            Hotkey("K", "A kijelölt több darabos hátizsákköteg szétosztása a követővel."),
+            Hotkey("K", "A kijelölt elfogyasztható hátizsákköteg kisebb felének átadása a követő NPC-nek."),
             Hotkey("D", "A kijelölt tárgy ledobása."),
             Hotkey("I", "A kijelölt tárgy részletei."),
             Hotkey("ENTER", "A kijelölt tárgy használata."),

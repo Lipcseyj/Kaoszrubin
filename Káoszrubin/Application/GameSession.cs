@@ -334,6 +334,8 @@ public sealed class GameSession
             return ValidateSplitInventoryStack(splitStack, out reason);
         if (command is DistributeInventoryStackCommand distributeStack)
             return ValidateDistributeInventoryStack(distributeStack, out reason);
+        if (command is GiveFollowerStackCommand giveFollowerStack)
+            return ValidateGiveFollowerStack(giveFollowerStack, out reason);
         if (command is PickUpGroundItemCommand pickUpItem)
         {
             if (pickUpItem.GroundPileId.Value == Guid.Empty || pickUpItem.ExpectedGroundPileRevision <= 0 ||
@@ -538,6 +540,37 @@ public sealed class GameSession
                 command.ExpectedInventoryRevision, InventorySlotKind.Backpack, command.BackpackIndex,
                 allowInn: true, requireItem: true, out reason)) return false;
         return InventoryStackService.Validate(_party, command, out reason);
+    }
+
+    private bool ValidateGiveFollowerStack(GiveFollowerStackCommand command, out string reason)
+    {
+        if (Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn))
+            return Fail("Inventory csak felfedezés vagy fogadó közben módosítható.", out reason);
+        var source = _party.Members.FirstOrDefault(member => member.Id == command.CharacterId);
+        if (source is null) return Fail("A forráskarakter nem tagja a partinak.", out reason);
+        if (command.SenderId != HostPlayerId && !_controls.Values.Any(control =>
+                control.AssignedPlayerId == command.SenderId &&
+                control.ControllerKind == CharacterControllerKind.RemotePlayer &&
+                control.ConnectionState == PlayerConnectionState.Connected))
+            return Fail("A vendég nem irányít aktív partykaraktert.", out reason);
+        if (command.FollowerCharacterId == command.CharacterId || command.ExpectedFollowerInventoryRevision < 0)
+            return Fail("A követő hivatkozása érvénytelen.", out reason);
+        if (!ValidateInventorySlotCommand(command.SenderId == HostPlayerId ? HostPlayerId : command.SenderId,
+                command.CharacterId, command.ExpectedInventoryRevision, InventorySlotKind.Backpack,
+                command.BackpackIndex, allowInn: true, requireItem: true, out reason))
+        {
+            // A vendég másik partitag hátizsákját is kezelheti, ahogy a Space-es átadásnál.
+            if (command.SenderId == HostPlayerId || source.InventoryRevision != command.ExpectedInventoryRevision ||
+                command.BackpackIndex is < 0 or >= LiveCharacter.MaximumBackpackItemCount ||
+                source.GetInventoryItem(InventorySlotKind.Backpack, command.BackpackIndex) is null) return false;
+        }
+        if (source.GetInventoryItem(InventorySlotKind.Backpack, command.BackpackIndex) is not
+            MiscItemDefinition { Effect: not ConsumableEffect.None })
+            return Fail("Csak elfogyasztható tárgy adható a követőnek.", out reason);
+        if (source.GetInventoryItemQuantity(InventorySlotKind.Backpack, command.BackpackIndex) < 2)
+            return Fail("Legalább két darab kell az átadáshoz.", out reason);
+        reason = string.Empty;
+        return true;
     }
 
     private void SetControl(CharacterControlState control)

@@ -91,6 +91,10 @@ public sealed record DistributeInventoryStackCommand(PlayerId SenderId, long Com
     long ExpectedInventoryRevision, int BackpackIndex)
     : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record GiveFollowerStackCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    long ExpectedInventoryRevision, int BackpackIndex, CharacterId FollowerCharacterId,
+    long ExpectedFollowerInventoryRevision) : GameCommand(SenderId, CommandId, CharacterId);
+
 public sealed record PickUpGroundItemCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     long ExpectedInventoryRevision, WorldEntityId GroundPileId, long ExpectedGroundPileRevision,
     int GroundItemIndex, int DestinationBackpackIndex)

@@ -124,6 +124,7 @@ var tests = new (string Name, Action Run)[]
     ("Az inventory transfer atomi és megőrzi a töltetet", InventoryTransferIsAtomicAndPreservesCharges),
     ("A hátizsákköteg felezése atomi és tele hátizsáknál figyelmeztet", InventoryStackSplitIsAtomicAndRequiresSpace),
     ("Az elfogyasztható köteg egyenletesen és veszteségmentesen oszlik szét", ConsumableStackDistributesEvenly),
+    ("Az elfogyasztható köteg fele átadható a követőnek", ConsumableStackHalfTransfersToFollower),
     ("A képességnövelő varázstárgyak minden kasztnál 13-ig hatnak", AbilityMagicItemsAreUniversalAndCapped),
     ("Az elavult inventory-revízió elutasításra kerül", StaleInventoryRevisionIsRejected),
     ("A vendég hátizsákok között mozgathat, felszerelést nem", RemoteInventoryTransferCanCrossBackpacksOnly),
@@ -320,6 +321,7 @@ static void HostAndGuestUseSharedInputBindings()
            GameInputBindings.InventoryAction(ConsoleKey.Spacebar) == InventoryInputAction.MoveItem &&
            GameInputBindings.InventoryAction(ConsoleKey.F) == InventoryInputAction.SplitStack &&
            GameInputBindings.InventoryAction(ConsoleKey.S) == InventoryInputAction.DistributeStack &&
+           GameInputBindings.InventoryAction(ConsoleKey.K) == InventoryInputAction.GiveFollowerStack &&
            GameInputBindings.InventoryAction(ConsoleKey.I) == InventoryInputAction.Inspect,
         "Az inventory közös billentyűkiosztása eltér a host vezérlésétől.");
     Assert(GameInputBindings.CharacterAction(ConsoleKey.N) == CharacterAction.OpenDoor &&
@@ -1928,6 +1930,11 @@ static void ProtocolCodecRoundTripsCommand()
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(distribution)) is
                DistributeInventoryStackCommand decodedDistribution && decodedDistribution == distribution,
         "A JSON wire codec megváltoztatta az inventory-szétosztási parancsot.");
+    var followerTransfer = new GiveFollowerStackCommand(PlayerId.New(), 13, CharacterId.New(), 4, 2,
+        CharacterId.New(), 7);
+    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(followerTransfer)) is
+               GiveFollowerStackCommand decodedFollowerTransfer && decodedFollowerTransfer == followerTransfer,
+        "A JSON wire codec megváltoztatta a követőnek átadási parancsot.");
     var imageAcknowledgement = new AcknowledgeLevelImageCommand(PlayerId.New(), 13, CharacterId.New(),
         Guid.NewGuid());
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(imageAcknowledgement)) is
@@ -2406,6 +2413,35 @@ static void ConsumableStackDistributesEvenly()
     Assert(!InventoryDistributionService.TryExecute(party, invalid, out _, out error) &&
            error.Contains("elfogyasztható", StringComparison.OrdinalIgnoreCase),
         "A szétosztás elfogadott egy nem elfogyasztható tárgyat.");
+}
+
+static void ConsumableStackHalfTransfersToFollower()
+{
+    var source = CreateCharacter("Átadó");
+    var follower = CreateCharacter("Követő");
+    var ration = new MiscItemDefinition("I-FOLLOWER-GIFT", "Útravaló", "Teszt", 1,
+        ConsumableEffect.Food, 25);
+    for (var index = 0; index < 5; index++)
+        Assert(source.AddToBackpack(ration), "A követőnek szánt tesztköteg nem fért el.");
+    Assert(follower.AddToBackpack(ration), "A követő célstackje nem hozható létre.");
+    var command = new GiveFollowerStackCommand(PlayerId.New(), 1, source.Id, source.InventoryRevision, 0,
+        follower.Id, follower.InventoryRevision);
+    Assert(FollowerStackTransferService.TryExecute(source, follower, command, out var result, out var error), error);
+    Assert(source.GetInventoryItemQuantity(InventorySlotKind.Backpack, 0) == 3 &&
+           follower.GetInventoryItemQuantity(InventorySlotKind.Backpack, 0) == 3 &&
+           result.TransferredQuantity == 2 && result.RemainingQuantity == 3,
+        "Az ötdarabos köteg kisebb fele nem 3/2 arányban került a követőhöz vagy nem stackelődött.");
+
+    var trinket = new MiscItemDefinition("I-FOLLOWER-NONCONSUMABLE", "Dísztárgy", "Teszt", 1);
+    Assert(source.AddToBackpack(trinket) && source.AddToBackpack(trinket),
+        "A nem fogyasztható tesztköteg nem fért el.");
+    var trinketIndex = Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
+        .Single(index => source.GetInventoryItem(InventorySlotKind.Backpack, index)?.Id == trinket.Id);
+    var invalid = command with { CommandId = 2, ExpectedInventoryRevision = source.InventoryRevision,
+        BackpackIndex = trinketIndex, ExpectedFollowerInventoryRevision = follower.InventoryRevision };
+    Assert(!FollowerStackTransferService.TryExecute(source, follower, invalid, out _, out error) &&
+           error.Contains("elfogyasztható", StringComparison.OrdinalIgnoreCase),
+        "A követőnek átadás elfogadott egy nem fogyasztható tárgyat.");
 }
 
 static void ClassResourceGrowthLoadsFromCsv()

@@ -654,6 +654,7 @@ public sealed class Game
                             case InventoryInputAction.SplitStack: SplitSelectedInventoryStack(); break;
                             case InventoryInputAction.DistributeStack: DistributeSelectedInventoryStack(); break;
                             case InventoryInputAction.CharacterDetails: ShowCharacterDetails(); break;
+                            case InventoryInputAction.GiveFollowerStack: GiveSelectedStackToFollower(); break;
                             default:
                                 if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
                                 else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
@@ -1924,6 +1925,9 @@ public sealed class Game
                 case DistributeInventoryStackCommand distributeStack:
                     ExecuteDistributeInventoryStack(distributeStack);
                     break;
+                case GiveFollowerStackCommand giveFollowerStack:
+                    ExecuteGiveFollowerStack(giveFollowerStack);
+                    break;
                 case PickUpGroundItemCommand pickUpItem:
                     ExecutePickUpGroundItem(pickUpItem);
                     break;
@@ -2057,6 +2061,7 @@ public sealed class Game
                 case InventoryInputAction.SplitStack: SplitSelectedInventoryStack(); break;
                 case InventoryInputAction.DistributeStack: DistributeSelectedInventoryStack(); break;
                 case InventoryInputAction.CharacterDetails: ShowCharacterDetails(); _renderer.DrawInnCharacterSheet(SelectedCharacter); break;
+                case InventoryInputAction.GiveFollowerStack: GiveSelectedStackToFollower(); break;
                 case InventoryInputAction.Drop:
                     _renderer.DrawInventoryMessage("A fogadóban nem dobhatsz tárgyat a földre.", ConsoleColor.DarkYellow);
                     break;
@@ -3739,6 +3744,54 @@ public sealed class Game
             $"A forráshelyen maradt: {result.RemainingSourceQuantity} db.", ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.System,
             $"{result.ItemName} szétosztva a partyban ({result.DistributedQuantity} db).", ConsoleColor.Green);
+        PlaySessionSound(SoundEffect.Item);
+    }
+
+    private void GiveSelectedStackToFollower()
+    {
+        if (_heldInventoryItem is not null)
+        {
+            _renderer.DrawInventoryMessage("Előbb fejezd be vagy szakítsd meg a tárgy mozgatását.", ConsoleColor.DarkYellow);
+            return;
+        }
+        var slot = _renderer.GetSelectedInventorySlot();
+        if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
+        {
+            _renderer.DrawInventoryMessage("Elfogyasztható hátizsákköteget jelölj ki az átadáshoz.", ConsoleColor.DarkYellow);
+            return;
+        }
+        var follower = _maze.PartyMembers.FirstOrDefault(member => member.IsTemporaryFollower && member.Character.IsAlive)
+            ?.Character;
+        if (follower is null)
+        {
+            _renderer.DrawInventoryMessage("Nincs aktív követő NPC, akinek átadhatnád.", ConsoleColor.DarkYellow);
+            return;
+        }
+        var selected = slot.Value;
+        var commandId = _localCommandId + 1;
+        var command = new GiveFollowerStackCommand(_session.HostPlayerId, commandId, selected.Character.Id,
+            selected.Character.InventoryRevision, selected.Index, follower.Id, follower.InventoryRevision);
+        if (!_session.Submit(command)) return;
+        _localCommandId = commandId;
+    }
+
+    private void ExecuteGiveFollowerStack(GiveFollowerStackCommand command)
+    {
+        var source = CharacterRoster.Party.Members.FirstOrDefault(character => character.Id == command.CharacterId);
+        var follower = _maze.PartyMembers.FirstOrDefault(member => member.IsTemporaryFollower &&
+            member.Character.Id == command.FollowerCharacterId)?.Character;
+        var error = "A követő már nincs a csapattal.";
+        if (source is null || follower is null || !FollowerStackTransferService.TryExecute(source, follower, command,
+                out var result, out error))
+        {
+            _renderer.DrawInventoryMessage(error, ConsoleColor.Red);
+            return;
+        }
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        var message = $"{result.FollowerName} kapott: {result.ItemName} ×{result.TransferredQuantity}; " +
+                      $"a forrásnál maradt: {result.RemainingQuantity}.";
+        _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green);
         PlaySessionSound(SoundEffect.Item);
     }
 

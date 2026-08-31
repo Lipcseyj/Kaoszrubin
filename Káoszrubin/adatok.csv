@@ -1030,8 +1030,8 @@ NPC021,Sir Roderic,C003,Neutral,Guarded,igen,igen,R001,RODERIC_OATH
 
 #Egyedi NPC karakterlap
 NpcId,Szint,Erő,Ügyesség,Egészség,Intelligencia,Alkalmazkodó,ÉleterőBónusz,MannaBónusz,Szín,HarciViselkedés,SpecializációId,TehetségId-k,Fegyver1Id,Fegyver2Id,PáncélId,VarázstárgyId-k,HátizsákId-k,FegyverjártasságId-k
-NPC020,2,5,7,6,5,,8,1,Green,Scout,,,W002,,A002,,T011|T001|T002,
-NPC021,7,9,5,9,6,STR,12,1,DarkCyan,Aggressive,,PERK-C003-1B|PERK-NPC021-OATHBLADE|PERK-C003-2B|PERK-C003-3A,RW001,,RA001,,T011|T011|T012|T012|T001|T001|T002|T002,SWORD|SWORD
+NPC020,3,5,8,6,5,,8,1,Green,Scout,,,W002,,A002,,T011|T001|T002,
+NPC021,7,9,5,9,6,STR,20,1,DarkCyan,Aggressive,,PERK-C003-1B|PERK-NPC021-OATHBLADE|PERK-C003-2B|PERK-C003-3A,RW001,,RA001,,T011|T011|T012|T012|T001|T001|T002|T002,SWORD|SWORD
 
 #NPC találkozások
 Id,NpcId,Pályaszint,MinimumTávolság,MaximumTávolság,QuestRoomId

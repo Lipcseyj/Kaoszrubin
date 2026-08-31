@@ -966,6 +966,25 @@ public sealed class CoopGuestScreen
                     command = new DistributeInventoryStackCommand(client.PlayerId!.Value, client.NextCommandId(),
                         characterId, inventory.Revision, distributeSlot.Index);
                 break;
+            case InventoryInputAction.GiveFollowerStack when slots.Count > 0:
+                var giveSlot = slots[_inventorySelection];
+                var follower = snapshot.Party.FirstOrDefault(candidate => candidate.IsTemporaryFollower && candidate.IsAlive);
+                if (_inventorySource is not null)
+                    SetMessage("Előbb fejezd be vagy szakítsd meg a tárgy mozgatását.");
+                else if (giveSlot.Kind != InventorySlotKind.Backpack || giveSlot.Item is null)
+                    SetMessage("Elfogyasztható hátizsákköteget jelölj ki az átadáshoz.");
+                else if (giveSlot.Item.Category != ItemCategory.Miscellaneous ||
+                         _gameData.GetItem(giveSlot.Item.DefinitionId).Effect == ConsumableEffect.None)
+                    SetMessage("Csak elfogyasztható tárgy adható a követőnek.");
+                else if (giveSlot.Item.Quantity < 2)
+                    SetMessage("Legalább két darab kell az átadáshoz.");
+                else if (follower?.Inventory is null)
+                    SetMessage("Nincs aktív követő NPC, akinek átadhatnád.");
+                else
+                    command = new GiveFollowerStackCommand(client.PlayerId!.Value, client.NextCommandId(),
+                        own.CharacterId, inventory.Revision, giveSlot.Index, follower.CharacterId,
+                        follower.Inventory.Revision);
+                break;
             case InventoryInputAction.Inspect when slots.Count > 0:
                 var inspectSlot = slots[_inventorySelection];
                 if (inspectSlot.Item is null)
