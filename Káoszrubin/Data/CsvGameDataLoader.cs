@@ -41,6 +41,8 @@ public static class CsvGameDataLoader
         var npcEncounters = new List<NpcEncounterDefinition>();
         var npcDialogues = new List<NpcDialogueDefinition>();
         var npcQuests = new List<NpcQuestDefinition>();
+        var partySituations = new List<PartySituationDefinition>();
+        var partyRemarks = new List<PartyRemarkDefinition>();
         var itemUpgrades = new List<ItemUpgradeDefinition>();
         var raceBonuses = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var classMinimums = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
@@ -59,7 +61,7 @@ public static class CsvGameDataLoader
         {
             var rawLine = sourceLines[lineIndex];
             var lineNumber = lineIndex + 1;
-            var cells = rawLine.Split(',').Select(cell => cell.Trim()).ToArray();
+            var cells = ParseCsvLine(rawLine);
             if (cells.All(string.IsNullOrEmpty)) continue;
 
             if (TryReadSection(cells, lineNumber, out var parsedSection))
@@ -75,7 +77,7 @@ public static class CsvGameDataLoader
             {
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
                     monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps,
-                    npcs, npcEncounters, npcDialogues, npcQuests, itemUpgrades,
+                    npcs, npcEncounters, npcDialogues, npcQuests, partySituations, partyRemarks, itemUpgrades,
                     raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                     vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass,
                     characterResourceGrowthByClass, ref baseLevelCompletionExperience);
@@ -117,6 +119,8 @@ public static class CsvGameDataLoader
             ("NPC találkozások", npcEncounters.Select(value => value.Id)),
             ("NPC párbeszédek", npcDialogues.Select(value => value.Id)),
             ("NPC küldetések", npcQuests.Select(value => value.Id)),
+            ("Szituációk", partySituations.Select(value => value.Id)),
+            ("Parti megjegyzések", partyRemarks.Select(value => value.Id)),
             ("Tárgybővítések", itemUpgrades.Select(value => value.Id)));
         ValidateSpells(spells);
         ValidateSpellEffects(spells, spellEffects);
@@ -128,6 +132,7 @@ public static class CsvGameDataLoader
         ValidateTrapConfigurations(traps);
         ValidateNpcData(npcs, npcEncounters, npcDialogues, npcQuests, races, characterClasses, enemies,
             items, weapons, armors, magicItems);
+        ValidatePartyRemarks(partySituations, partyRemarks, races, characterClasses);
         var lootRules = CreateLootRules(lootRuleValues);
         var doorAttemptRules = CreateDoorAttemptRules(doorAttemptRuleValues);
 
@@ -167,6 +172,8 @@ public static class CsvGameDataLoader
             NpcEncounters = npcEncounters,
             NpcDialogues = npcDialogues,
             NpcQuests = npcQuests,
+            PartySituations = partySituations,
+            PartyRemarks = partyRemarks,
             MinimumVitalityByHealth = minimumVitalityByHealth,
             MinimumManaByIntelligence = minimumManaByIntelligence,
             ExperienceByLevel = experienceByLevel,
@@ -194,6 +201,8 @@ public static class CsvGameDataLoader
         ICollection<string> innNames, ICollection<InnRumorDefinition> innRumors, ICollection<TrapDefinition> traps,
         ICollection<NpcDefinition> npcs, ICollection<NpcEncounterDefinition> npcEncounters,
         ICollection<NpcDialogueDefinition> npcDialogues, ICollection<NpcQuestDefinition> npcQuests,
+        ICollection<PartySituationDefinition> partySituations,
+        ICollection<PartyRemarkDefinition> partyRemarks,
         ICollection<ItemUpgradeDefinition> itemUpgrades,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence, IDictionary<int, int> experienceByLevel,
@@ -338,6 +347,13 @@ public static class CsvGameDataLoader
                     Math.Max(0, Integer(cells, 5) ?? 0), Cell(cells, 6), Cell(cells, 7),
                     EmptyAsNull(Cell(cells, 8)), Math.Max(0, Integer(cells, 9) ?? 0),
                     Math.Clamp(Integer(cells, 10) ?? 1, 0, 5)));
+                break;
+            case DataSection.PartySituations:
+                partySituations.Add(new PartySituationDefinition(id, name));
+                break;
+            case DataSection.PartyRemarks:
+                partyRemarks.Add(new PartyRemarkDefinition(id, Cell(cells, 1), Cell(cells, 2),
+                    Cell(cells, 3), Cell(cells, 4)));
                 break;
             case DataSection.InnNames:
                 if (string.IsNullOrWhiteSpace(name))
@@ -534,6 +550,41 @@ public static class CsvGameDataLoader
             if (quest.RewardItemId is null && quest.RewardItemCount != 0)
                 throw new InvalidDataException($"A(z) '{quest.Id}' küldetés jutalomdarabszámához nincs tárgy megadva.");
         }
+    }
+
+    private static void ValidatePartyRemarks(IReadOnlyCollection<PartySituationDefinition> situations,
+        IReadOnlyCollection<PartyRemarkDefinition> remarks, IReadOnlyCollection<RaceDefinition> races,
+        IReadOnlyCollection<CharacterClassDefinition> classes)
+    {
+        var situationIds = situations.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var raceIds = races.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var classIds = classes.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var required in new[]
+                 {
+                     PartySituationIds.EnemySpotted, PartySituationIds.BattleStarted, PartySituationIds.BattleWon,
+                     PartySituationIds.PartyMemberDied, PartySituationIds.Hungry, PartySituationIds.Injured,
+                     PartySituationIds.TreasureChestFound, PartySituationIds.Resting, PartySituationIds.Thirsty
+                 })
+            if (!situationIds.Contains(required))
+                throw new InvalidDataException($"A #Szituációk fejezetből hiányzik a(z) '{required}' szituáció.");
+        foreach (var remark in remarks)
+        {
+            if (!situationIds.Contains(remark.SituationId))
+                throw new InvalidDataException($"A(z) '{remark.Id}' megjegyzés ismeretlen szituációra hivatkozik.");
+            if (!raceIds.Contains(remark.RaceId) || !classIds.Contains(remark.CharacterClassId))
+                throw new InvalidDataException($"A(z) '{remark.Id}' megjegyzés ismeretlen fajra vagy osztályra hivatkozik.");
+            if (string.IsNullOrWhiteSpace(remark.Text))
+                throw new InvalidDataException($"A(z) '{remark.Id}' megjegyzés szövege nem lehet üres.");
+        }
+        foreach (var situation in situations)
+        foreach (var race in races)
+        foreach (var characterClass in classes)
+            if (!remarks.Any(remark =>
+                    string.Equals(remark.SituationId, situation.Id, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(remark.RaceId, race.Id, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(remark.CharacterClassId, characterClass.Id, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException($"A(z) '{situation.Id}' szituációhoz nincs megjegyzés a(z) " +
+                                               $"'{race.Id}' faj és '{characterClass.Id}' osztály párosához.");
     }
 
     private static void ValidateCharacterResourceGrowth(
@@ -906,8 +957,39 @@ public static class CsvGameDataLoader
         }
     }
 
+    private static string[] ParseCsvLine(string line)
+    {
+        var cells = new List<string>();
+        var cell = new StringBuilder();
+        var quoted = false;
+        for (var index = 0; index < line.Length; index++)
+        {
+            var character = line[index];
+            if (character == '"')
+            {
+                if (quoted && index + 1 < line.Length && line[index + 1] == '"')
+                {
+                    cell.Append('"');
+                    index++;
+                }
+                else quoted = !quoted;
+                continue;
+            }
+            if (character == ',' && !quoted)
+            {
+                cells.Add(cell.ToString().Trim());
+                cell.Clear();
+                continue;
+            }
+            cell.Append(character);
+        }
+        if (quoted) throw new InvalidDataException("Lezáratlan idézőjeles CSV-mező.");
+        cells.Add(cell.ToString().Trim());
+        return cells.ToArray();
+    }
+
     private static bool IsHeaderRow(string value) => Normalize(value) is "id" or "fajid" or "osztalyid" or
-        "szornyid" or "egeszseg" or "intelligencia" or "szint";
+        "szornyid" or "szituacioid" or "egeszseg" or "intelligencia" or "szint";
     private static string Cell(string[] cells, int index) => index < cells.Length ? cells[index] : string.Empty;
     private static string? EmptyAsNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
     private static int? Integer(string[] cells, int index) => int.TryParse(Cell(cells, index), CultureInfo.InvariantCulture, out var value) ? value : null;
@@ -987,6 +1069,8 @@ public static class CsvGameDataLoader
         "npc talalkozasok" => DataSection.NpcEncounters,
         "npc parbeszedek" => DataSection.NpcDialogues,
         "npc kuldetesek" => DataSection.NpcQuests,
+        "szituaciok" => DataSection.PartySituations,
+        "parti megjegyzesek" => DataSection.PartyRemarks,
         "faji kepessegbonuszok" => DataSection.RaceAbilityBonuses,
         "osztaly kepessegminimumok" => DataSection.ClassAbilityMinimums,
         "ero talalati bonusz" => DataSection.StrengthHitBonuses,
@@ -1037,6 +1121,8 @@ public static class CsvGameDataLoader
         NpcEncounters,
         NpcDialogues,
         NpcQuests,
+        PartySituations,
+        PartyRemarks,
         RaceAbilityBonuses,
         ClassAbilityMinimums,
         StrengthHitBonuses,

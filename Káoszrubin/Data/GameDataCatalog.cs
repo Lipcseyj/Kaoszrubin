@@ -37,6 +37,8 @@ public sealed class GameDataCatalog
     public IReadOnlyList<NpcEncounterDefinition> NpcEncounters { get; init; } = [];
     public IReadOnlyList<NpcDialogueDefinition> NpcDialogues { get; init; } = [];
     public IReadOnlyList<NpcQuestDefinition> NpcQuests { get; init; } = [];
+    public IReadOnlyList<PartySituationDefinition> PartySituations { get; init; } = [];
+    public IReadOnlyList<PartyRemarkDefinition> PartyRemarks { get; init; } = [];
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();
@@ -74,6 +76,12 @@ public sealed class GameDataCatalog
         .Where(dialogue => string.Equals(dialogue.NpcId, npcId, StringComparison.OrdinalIgnoreCase)).ToArray();
     public IReadOnlyList<NpcQuestDefinition> GetNpcQuests(string npcId) => NpcQuests
         .Where(quest => string.Equals(quest.NpcId, npcId, StringComparison.OrdinalIgnoreCase)).ToArray();
+    public IReadOnlyList<PartyRemarkDefinition> GetPartyRemarks(string situationId, LiveCharacter character) =>
+        PartyRemarks.Where(remark =>
+            string.Equals(remark.SituationId, situationId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(remark.RaceId, character.Race.Id, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(remark.CharacterClassId, character.CharacterClass.Id,
+                StringComparison.OrdinalIgnoreCase)).ToArray();
     public IReadOnlyList<CharacterNameDefinition> GetCharacterNames(string characterClassId) => CharacterNames.Where(name =>
         string.Equals(name.CharacterClassId, characterClassId, StringComparison.OrdinalIgnoreCase)).ToList();
     public IReadOnlyList<PerkDefinition> GetPerkChoices(string characterClassId, int tier)

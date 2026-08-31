@@ -37,6 +37,8 @@ var tests = new (string Name, Action Run)[]
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
+    ("A parti megjegyzései CSV-ből, teljes idézőjeles szöveggel töltődnek", PartyRemarksLoadFromCsv),
+    ("A parti megjegyzéseinek esélyei és beszélőszámai követik a szabályt", PartyRemarkProbabilitiesFollowRules),
     ("A world-NPC generálás kizárja a fehér karakterszínt", WorldNpcGenerationExcludesWhiteColor),
     ("Az ideiglenes követő megtartja a world-NPC inverz térképszíneit", TemporaryFollowerKeepsWorldNpcMapColors),
     ("A hosszú NPC-párbeszéd az ablakon belül sortörést kap", NpcDialogueWrapsInsideRecruitmentWindow),
@@ -2420,6 +2422,43 @@ static void NpcDefinitionsLoadFromCsv()
     follower.MakePermanent();
     Assert(!follower.IsTemporaryFollower,
         "Az ideiglenes követő nem alakítható végleges partitaggá.");
+}
+
+static void PartyRemarksLoadFromCsv()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var combinations = catalog.Races.SelectMany(race => catalog.CharacterClasses.Select(characterClass =>
+        (RaceId: race.Id, ClassId: characterClass.Id))).ToArray();
+
+    Assert(catalog.PartySituations.Count == 9 && catalog.PartyRemarks.Count == 648 &&
+           combinations.All(pair => catalog.PartyRemarks.Count(remark =>
+               remark.SituationId == PartySituationIds.Thirsty && remark.RaceId == pair.RaceId &&
+               remark.CharacterClassId == pair.ClassId) == 3),
+        "A kilenc szituáció vagy a faj–osztály páronkénti három szomjúsági megjegyzés hiányzik.");
+    Assert(catalog.PartyRemarks.Single(remark => remark.Id == "PM001").Text.Contains(
+               "Maradjatok mögöttem, felmérem", StringComparison.Ordinal) &&
+           catalog.PartyRemarks.Single(remark => remark.Id == "PM648").Text.Contains(
+               "a víz még nagyobb", StringComparison.Ordinal),
+        "Az idézőjeles, vesszőt tartalmazó megjegyzésszöveg csonkolódott.");
+}
+
+static void PartyRemarkProbabilitiesFollowRules()
+{
+    Assert(PartyCommentarySelector.ShouldComment(0) && PartyCommentarySelector.ShouldComment(49) &&
+           !PartyCommentarySelector.ShouldComment(50) && !PartyCommentarySelector.ShouldComment(99),
+        "A szituációs kommentár esélye nem pontosan 50 százalék.");
+    Assert(PartyCommentarySelector.SpeakerCount(4, 0) == 1 &&
+           PartyCommentarySelector.SpeakerCount(4, 49) == 1 &&
+           PartyCommentarySelector.SpeakerCount(4, 50) == 2 &&
+           PartyCommentarySelector.SpeakerCount(4, 74) == 2 &&
+           PartyCommentarySelector.SpeakerCount(4, 75) == 3 &&
+           PartyCommentarySelector.SpeakerCount(2, 99) == 2,
+        "A beszélők 50/25/25 százalékos eloszlása vagy partilétszám-korlátja hibás.");
+    var speaker = CreateCharacter("Kommentelő");
+    Assert(PartyCommentarySelector.Format(speaker, "Próba.") == "[Kommentelő] Próba." &&
+           PartyCommentarySelector.Format(speaker, "Éhes vagyok.", "17") ==
+           "[Kommentelő](17) Éhes vagyok.",
+        "A parti megjegyzésének név- vagy állapotszint-formátuma hibás.");
 }
 
 static void WorldNpcGenerationExcludesWhiteColor()

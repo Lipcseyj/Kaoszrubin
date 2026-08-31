@@ -195,6 +195,7 @@ public sealed class Game
     private readonly HashSet<string> _collectedBossKeyIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _seenBossIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<WorldEntityId> _spottedEnemyIds = [];
+    private readonly HashSet<WorldEntityId> _spottedChestIds = [];
     private readonly List<ExpeditionEnemyTemplate> _levelEnemyTemplates = [];
     private bool _isReturnExpedition;
     public CharacterRoster CharacterRoster { get; }
@@ -805,6 +806,7 @@ public sealed class Game
         _session.SynchronizeParty();
         _hasRestedThisLevel = false;
         _spottedEnemyIds.Clear();
+        _spottedChestIds.Clear();
         foreach (var character in CharacterRoster.Party.Members)
         {
             character.ResetLevelResurrection();
@@ -1380,6 +1382,7 @@ public sealed class Game
         }
         _hasRestedThisLevel = true;
         ShowSynchronizedRest(new PartyRestSnapshot(Guid.NewGuid(), false, restResults, []));
+        TryLogPartyComments(PartySituationIds.Resting);
         PreparePartySpells();
         foreach (var door in roomDoors) _maze.SetDoorState(door, DoorState.Closed);
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
@@ -2428,6 +2431,7 @@ public sealed class Game
                 _gameData.GetStatus(CharacterStatusIds.Thirsty));
         }
         _spottedEnemyIds.Clear();
+        _spottedChestIds.Clear();
         _battleStarted = false;
         _hasRestedThisLevel = true;
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
@@ -3537,6 +3541,7 @@ public sealed class Game
         member.Character.RegisterExplorationStep();
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
+        CheckBossDiscoveryAt(newlyRevealed);
         TriggerTrapAt(member.Character, member.Position);
     }
 
@@ -3559,6 +3564,7 @@ public sealed class Game
         _session.SetPhase(GameSessionPhase.Battle);
         _turnUndeadUsedThisBattle.Clear();
         PlaySessionSound(SoundEffect.BattleStart);
+        TryLogPartyComments(PartySituationIds.BattleStarted);
         var startingNpcHp = member.Character.CurrentVitality;
         var startingNpcMana = member.Character.CurrentMana;
         var startingStatusIds = member.Character.Statuses.Select(status => status.Id)
@@ -3588,6 +3594,7 @@ public sealed class Game
                 vitalityLost, manaLost, gainedStatusIcons, needLoss, spellsCast, enemy.Definition.ExperienceReward);
             _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Green);
             RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Green);
+            TryLogPartyComments(PartySituationIds.BattleWon);
         }
         else
         {
@@ -3598,6 +3605,7 @@ public sealed class Game
                 startingNpcHp, manaLost, gainedStatusIcons, needLoss, spellsCast);
             _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Red);
             RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Red);
+            TryLogPartyComments(PartySituationIds.PartyMemberDied);
         }
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
@@ -5082,8 +5090,14 @@ public sealed class Game
     private void CheckBossDiscoveryAt(IEnumerable<Position> positions)
     {
         var revealed = positions.ToHashSet();
-        if (revealed.Count == 0) return;
-        CheckBossDiscovery(_maze.Enemies.Where(enemy => revealed.Contains(enemy.Position)));
+        if (revealed.Count > 0)
+        {
+            var newlySpottedChests = _maze.TreasureChests
+                .Where(chest => revealed.Contains(chest.Position) && _spottedChestIds.Add(chest.Id)).ToArray();
+            if (newlySpottedChests.Length > 0)
+                TryLogPartyComments(PartySituationIds.TreasureChestFound);
+        }
+        CheckBossDiscovery(_maze.Enemies);
     }
 
     private void CheckBossDiscovery(IEnumerable<Enemy> enemies)
@@ -5092,7 +5106,10 @@ public sealed class Game
             .DistinctBy(enemy => enemy.Id).ToList();
         var newlySpotted = visibleEnemies.Where(enemy => _spottedEnemyIds.Add(enemy.Id)).ToList();
         if (newlySpotted.Count > 0)
+        {
             PlaySessionSound(SoundEffect.MonsterSpotted);
+            TryLogPartyComments(PartySituationIds.EnemySpotted);
+        }
         var discovered = visibleEnemies.Where(enemy => enemy.Definition.IsBoss &&
                 !_seenBossIds.Contains(enemy.Definition.Id))
             .DistinctBy(enemy => enemy.Definition.Id, StringComparer.OrdinalIgnoreCase).ToList();
@@ -5148,6 +5165,7 @@ public sealed class Game
         _session.SetPhase(GameSessionPhase.Battle);
         PlaySessionSound(SoundEffect.BattleStart);
         _renderer.DrawBattleStarted(enemy);
+        TryLogPartyComments(PartySituationIds.BattleStarted);
         if (battleCharacter != SelectedCharacter)
         {
             _renderer.DrawInventoryMessage(
@@ -5265,6 +5283,7 @@ public sealed class Game
             _renderer.DrawBattleResult(result, enemy, victoryMessage);
             _renderer.DrawExperienceDistribution(FormatExperienceAwards(experienceAwards),
                 experienceAwards.Any(award => award.Result.LeveledUp));
+            TryLogPartyComments(PartySituationIds.BattleWon);
             _renderer.RefreshCharacterSheet(SelectedCharacter);
             var levelUps = _pendingLevelUps.ToList();
             _pendingLevelUps.Clear();
@@ -5289,6 +5308,7 @@ public sealed class Game
 
         _renderer.DrawBattleResult(result, enemy);
         PlaySessionSound(SoundEffect.MemberKilled);
+        TryLogPartyComments(PartySituationIds.PartyMemberDied);
         _saveAfterBattle = false;
         _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
         _renderer.DrawGameOver(SelectedCharacter.Name);
@@ -5316,6 +5336,7 @@ public sealed class Game
             _renderer.DrawBattleResult(result, enemy, victoryMessage);
             _renderer.DrawNpcBattleSummary(
                 $"{battleCharacter.Name}: {FormatExperienceAwards(experienceAwards)}.", ConsoleColor.Green);
+            TryLogPartyComments(PartySituationIds.BattleWon);
             var levelUps = experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive).ToList();
             // Az első vertical slice-ban a perk-/varázsválasztás még a host konzolján történik.
             foreach (var award in levelUps) ResolvePerkOffers(award.Character, award.Result);
@@ -5336,6 +5357,7 @@ public sealed class Game
             _renderer.DrawNpcBattleSummary(
                 $"{battleCharacter.Name} elesett a(z) {enemy.Name} elleni távoli csatában {result.Rounds} kör után. " +
                 $"A vendég visszatér a főmenübe; 🍖💧 -{needLoss}.", ConsoleColor.Red);
+            TryLogPartyComments(PartySituationIds.PartyMemberDied);
         }
 
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
@@ -5429,6 +5451,7 @@ public sealed class Game
 
     private bool IsAutonomousNpc(LiveCharacter character) =>
         character != SelectedCharacter && !_session.IsHumanControlled(character.Id) &&
+        CharacterRoster.Party.Members.Contains(character) &&
         _maze.PartyMembers.Any(member => member.Character == character);
 
     private void TryNpcUseConsumables(LiveCharacter character)
@@ -5478,9 +5501,7 @@ public sealed class Game
                 $"{(effect == ConsumableEffect.Food ? "🍖" : "💧")} {level}/100.", ConsoleColor.Cyan);
             return;
         }
-        ReportNpcShortageOnce(character, kind, effect == ConsumableEffect.Food
-            ? $"{character.Name} éhes, de nincs pazarlás nélkül elfogyasztható étele."
-            : $"{character.Name} szomjas, de nincs pazarlás nélkül elfogyasztható itala.");
+        RegisterNpcShortage(character, kind);
     }
 
     private void TryNpcConsumeHealingPotions(LiveCharacter character)
@@ -5507,8 +5528,7 @@ public sealed class Game
                 $"❤️ {character.CurrentVitality}/{character.MaximumVitality}.", ConsoleColor.Green);
         }
         else if (character.CurrentVitality * 2 < character.MaximumVitality && !HasHealingPotion(character))
-            ReportNpcShortageOnce(character, NpcComplaintKind.Injured,
-                $"{character.Name} súlyosan sérült, de nincs használható gyógyitala.");
+            RegisterNpcShortage(character, NpcComplaintKind.Injured);
     }
 
     private static IEnumerable<(int Index, MiscItemDefinition Item)> BackpackConsumables(
@@ -5524,10 +5544,6 @@ public sealed class Game
     private void LogNewZeroNeed(LiveCharacter character, NpcComplaintKind kind, int previous, int current)
     {
         if (previous <= 0 || current > 0) return;
-        var message = kind == NpcComplaintKind.Hunger
-            ? $"{character.Name} élelemszintje nullára csökkent. Nagyon éhes!"
-            : $"{character.Name} vízszintje nullára csökkent. Nagyon szomjas!";
-        LogNpcAutomation(character, message, ConsoleColor.Red);
         ScheduleNpcComplaint(character, kind, DateTime.UtcNow);
     }
 
@@ -5536,13 +5552,10 @@ public sealed class Game
         foreach (var character in _maze.PartyMembers.Select(member => member.Character).Distinct()
                      .Where(IsAutonomousNpc))
         {
-            ProcessNpcComplaint(character, NpcComplaintKind.Hunger, character.FoodLevel == 0,
-                $"{character.Name}: Nagyon éhes vagyok, elfogyott az élelmem!", now);
-            ProcessNpcComplaint(character, NpcComplaintKind.Thirst, character.WaterLevel == 0,
-                $"{character.Name}: Nagyon szomjas vagyok, nincs mit innom!", now);
+            ProcessNpcComplaint(character, NpcComplaintKind.Hunger, character.FoodLevel == 0, now);
+            ProcessNpcComplaint(character, NpcComplaintKind.Thirst, character.WaterLevel == 0, now);
             ProcessNpcComplaint(character, NpcComplaintKind.Injured,
-                character.CurrentVitality * 2 < character.MaximumVitality && !HasHealingPotion(character),
-                $"{character.Name}: Súlyosan megsérültem, és nincs gyógyitalom!", now);
+                character.CurrentVitality * 2 < character.MaximumVitality && !HasHealingPotion(character), now);
         }
     }
 
@@ -5559,8 +5572,7 @@ public sealed class Game
         ProcessNpcComplaints(now);
     }
 
-    private void ProcessNpcComplaint(LiveCharacter character, NpcComplaintKind kind, bool active,
-        string message, DateTime now)
+    private void ProcessNpcComplaint(LiveCharacter character, NpcComplaintKind kind, bool active, DateTime now)
     {
         var key = (character.Id, kind);
         if (!active)
@@ -5574,17 +5586,17 @@ public sealed class Game
             return;
         }
         if (now < next) return;
-        LogNpcAutomation(character, message, ConsoleColor.DarkYellow);
+        LogScheduledPartyComment(character, kind);
         ScheduleNpcComplaint(character, kind, now);
     }
 
     private void ScheduleNpcComplaint(LiveCharacter character, NpcComplaintKind kind, DateTime from) =>
         _nextNpcComplaints[(character.Id, kind)] = from + TimeSpan.FromSeconds(_random.Next(120, 181));
 
-    private void ReportNpcShortageOnce(LiveCharacter character, NpcComplaintKind kind, string message)
+    private void RegisterNpcShortage(LiveCharacter character, NpcComplaintKind kind)
     {
         if (!_reportedNpcShortages.Add((character.Id, kind))) return;
-        LogNpcAutomation(character, message, ConsoleColor.DarkYellow);
+        ScheduleNpcComplaint(character, kind, DateTime.UtcNow);
     }
 
     private void ClearNpcShortage(LiveCharacter character, NpcComplaintKind kind)
@@ -5597,6 +5609,39 @@ public sealed class Game
     {
         _renderer.DrawInventoryMessage(message, color);
         RecordSessionActivity(SessionActivityKind.System, message, color);
+    }
+
+    private void TryLogPartyComments(string situationId)
+    {
+        foreach (var selection in PartyCommentarySelector.Select(_gameData, situationId,
+                     CharacterRoster.Party.Members, _random))
+            LogPartyComment(selection.Speaker, selection.Remark.Text);
+    }
+
+    private void LogScheduledPartyComment(LiveCharacter character, NpcComplaintKind kind)
+    {
+        var situationId = kind switch
+        {
+            NpcComplaintKind.Hunger => PartySituationIds.Hungry,
+            NpcComplaintKind.Thirst => PartySituationIds.Thirsty,
+            _ => PartySituationIds.Injured
+        };
+        if (PartyCommentarySelector.SelectFor(_gameData, situationId, character, _random) is not { } selection)
+            return;
+        var level = kind switch
+        {
+            NpcComplaintKind.Hunger => character.FoodLevel.ToString(),
+            NpcComplaintKind.Thirst => character.WaterLevel.ToString(),
+            _ => $"{character.CurrentVitality}/{character.MaximumVitality}"
+        };
+        LogPartyComment(character, selection.Remark.Text, level);
+    }
+
+    private void LogPartyComment(LiveCharacter speaker, string comment, string? level = null)
+    {
+        var message = PartyCommentarySelector.Format(speaker, comment, level);
+        _renderer.DrawInventoryMessage(message, speaker.Color);
+        RecordSessionActivity(SessionActivityKind.System, message, speaker.Color);
     }
 
     private void PlayBattleRoundSound(BattleLogEntry entry)
