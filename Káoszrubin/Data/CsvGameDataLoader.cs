@@ -378,7 +378,8 @@ public static class CsvGameDataLoader
             case DataSection.NpcStoryChoices:
                 npcStoryChoices.Add(new NpcStoryChoiceDefinition(id, Cell(cells, 1), Cell(cells, 2),
                     Cell(cells, 3), Math.Max(1, Integer(cells, 4) ?? 1), Cell(cells, 5),
-                    Integer(cells, 6) ?? 0, Cell(cells, 7)));
+                    Integer(cells, 6) ?? 0, Cell(cells, 7), Cell(cells, 8),
+                    EnumValue<NpcStoryAction>(cells, 9), EmptyAsNull(Cell(cells, 10)), IsYes(cells, 11)));
                 break;
             case DataSection.PartySituations:
                 partySituations.Add(new PartySituationDefinition(id, name));
@@ -619,6 +620,21 @@ public static class CsvGameDataLoader
                 string.IsNullOrWhiteSpace(choice.Prompt) || string.IsNullOrWhiteSpace(choice.Text) ||
                 string.IsNullOrWhiteSpace(choice.NextStateId))
                 throw new InvalidDataException($"A(z) '{choice.Id}' történeti választás érvénytelen.");
+        var questIds = quests.Select(quest => quest.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var choice in storyChoices)
+        {
+            if (choice.ContinueConversation && !storyChoices.Any(candidate =>
+                    string.Equals(candidate.StoryId, choice.StoryId, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(candidate.StateId, choice.NextStateId, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException(
+                    $"A(z) '{choice.Id}' folytatódó történeti választása hiányzó csomópontra mutat: '{choice.NextStateId}'.");
+            if (choice.Action == NpcStoryAction.ActivateQuest &&
+                (choice.ActionParameter is null || !questIds.Contains(choice.ActionParameter)) ||
+                choice.Action == NpcStoryAction.TravelToLocation &&
+                !string.Equals(choice.ActionParameter, QuestLocationConfigurations.RodericMalrec,
+                    StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"A(z) '{choice.Id}' történeti hatása érvénytelen.");
+        }
         var enemyIds = enemies.Select(enemy => enemy.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var itemIds = items.Select(item => item.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var rewardItemIds = itemIds.Concat(weapons.Select(item => item.Id)).Concat(armors.Select(item => item.Id))

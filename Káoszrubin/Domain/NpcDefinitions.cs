@@ -32,10 +32,14 @@ public sealed record NpcDialogueDefinition(string Id, string NpcId, int MinimumF
 }
 
 public sealed record NpcStoryChoiceDefinition(string Id, string StoryId, string StateId, string Prompt,
-    int Order, string Text, int FriendlinessChange, string NextStateId) : IGameDefinition
+    int Order, string Text, int FriendlinessChange, string NextStateId,
+    string Response = "", NpcStoryAction Action = NpcStoryAction.None,
+    string? ActionParameter = null, bool ContinueConversation = false) : IGameDefinition
 {
     public string Name => Id;
 }
+
+public enum NpcStoryAction { None, ActivateQuest, BeginFollowing, TravelToLocation, RequestPermanentJoin }
 
 public sealed record NpcQuestDefinition(string Id, string NpcId, NpcQuestType Type, string TargetId,
     int RequiredCount, int ExperienceReward, string Title, string Description,

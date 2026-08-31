@@ -1620,18 +1620,32 @@ public sealed class ConsoleRenderer
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
-    public int DrawUniqueNpcStoryChoice(WorldNpc npc, string prompt, IReadOnlyList<string> choices)
+    public int DrawUniqueNpcStoryChoice(WorldNpc npc, string prompt, IReadOnlyList<string> choices,
+        IReadOnlyList<string>? transcript = null)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ($"⚜ {npc.Character.Name.ToUpperInvariant()}", ConsoleColor.Yellow),
             ($"{npc.Character.Race.Name} {npc.Character.CharacterClass.Name}   Viszony: {npc.Friendliness}/10",
                 ConsoleColor.Cyan),
-            (string.Empty, ConsoleColor.Gray),
-            ($"„{prompt}”", ConsoleColor.White),
             (string.Empty, ConsoleColor.Gray)
         };
-        lines.AddRange(choices.Select((choice, index) => ($"{index + 1}) {choice}", ConsoleColor.Yellow)));
+        if (transcript is { Count: > 0 })
+        {
+            lines.AddRange(transcript.TakeLast(8)
+                .SelectMany(line => MessageTextLayout.Wrap(line, 82))
+                .Select(line => (line, ConsoleColor.Gray)));
+            lines.Add((string.Empty, ConsoleColor.Gray));
+        }
+        lines.AddRange(prompt.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .SelectMany(line => MessageTextLayout.Wrap($"„{line}”", 82))
+            .Select(line => (line, ConsoleColor.White)));
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        foreach (var (choice, index) in choices.Select((choice, index) => (choice, index)))
+        {
+            var wrapped = MessageTextLayout.Wrap($"{index + 1}) {choice}", 82).ToArray();
+            lines.AddRange(wrapped.Select(line => (line, ConsoleColor.Yellow)));
+        }
         DrawCenteredFrame(88, lines, FramedWindow.Inn);
         while (true)
         {
@@ -1640,6 +1654,25 @@ public sealed class ConsoleRenderer
                 key >= ConsoleKey.NumPad1 && key <= ConsoleKey.NumPad9 ? key - ConsoleKey.NumPad1 : -1;
             if (index >= 0 && index < choices.Count) return index;
         }
+    }
+
+    public void DrawUniqueNpcStoryResponse(WorldNpc npc, IReadOnlyList<string> transcript)
+    {
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ($"⚜ {npc.Character.Name.ToUpperInvariant()}", ConsoleColor.Yellow),
+            ($"{npc.Character.Race.Name} {npc.Character.CharacterClass.Name}   Viszony: {npc.Friendliness}/10",
+                ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        foreach (var line in transcript.TakeLast(12))
+            lines.AddRange(MessageTextLayout.Wrap(line, 82).Select(part => (part,
+                line.StartsWith("Te:", StringComparison.OrdinalIgnoreCase)
+                    ? ConsoleColor.Yellow : ConsoleColor.White)));
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("Enter: tovább", ConsoleColor.Yellow));
+        DrawCenteredFrame(88, lines, FramedWindow.Inn);
+        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
     public void DrawGenericUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<NpcQuestDefinition> quests)

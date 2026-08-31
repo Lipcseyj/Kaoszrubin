@@ -251,6 +251,7 @@ T023,Mézsör,Édes mézes ital amely 40 vizet valamint 10 akcióra +2 kezdemén
 T024,Fűszeres bor,Melengető bor amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40
 T025,Fáklya,Olajos fáklya amely tizenkét akcióra kettővel növeli a hordozó látótávját.,24,Vision,2
 T026,Elesett lovag jelvénye,Megfakult rendjel Roderic egykori bajtársainak címerével.,1,None,0
+T027,Az Ezüst Eskü pecsétje,Az Ezüst Eskü Rendjének ősi nagypecsétje. Egy kard előtt álló ezüst pajzs díszíti.,1,None,0
 
 #Varázstárgyak
 Id,Név,Típus,Kategória,Ár,Töltet,VarázslatId,Hatás,Érték,CsakMágus,Jellemzés,MágikusErő
@@ -1138,13 +1139,27 @@ NPCD072,NPC020,8,10,Rég nem bíztam senkiben ennyire. Talán az utam nem ér v�
 NPCD073,NPC021,0,10,Álljatok meg. A holtak nyugalmát nem zavarhatják meg újabb sírrablók.
 
 #NPC történeti választások
-Id,TörténetId,ÁllapotId,Mondat,Sorrend,Válasz,ViszonyVáltozás,KövetkezőÁllapotId
-NSC001,RODERIC_OATH,INITIAL,Álljatok meg. Mi dolgotok van a bajtársaim sírjai között?,1,Nem sírrablók vagyunk. Segíteni akarunk.,2,INSIGNIAS_ACTIVE
-NSC002,RODERIC_OATH,INITIAL,Álljatok meg. Mi dolgotok van a bajtársaim sírjai között?,2,Mondd el mivel bizonyíthatjuk a szándékainkat.,1,INSIGNIAS_ACTIVE
-NSC003,RODERIC_OATH,INITIAL,Álljatok meg. Mi dolgotok van a bajtársaim sírjai között?,3,Állj félre lovag. Nem tartozunk neked magyarázattal.,-2,INITIAL
-NSC004,RODERIC_OATH,CONFESSION,Az én parancsom vitte őket a halálba. Én maradtam életben ők pedig itt őrzik a hibámat.,1,Nem egyedül kell tovább cipelned ezt a terhet.,2,FOLLOWING
-NSC005,RODERIC_OATH,CONFESSION,Az én parancsom vitte őket a halálba. Én maradtam életben ők pedig itt őrzik a hibámat.,2,A múltat nem változtathatod meg de még harcolhatsz értük.,1,FOLLOWING
-NSC006,RODERIC_OATH,CONFESSION,Az én parancsom vitte őket a halálba. Én maradtam életben ők pedig itt őrzik a hibámat.,3,A bűntudatod nem a mi ügyünk. A kardodra van szükségünk.,-1,FOLLOWING
+Id,TörténetId,ÁllapotId,Mondat,Sorrend,Válasz,ViszonyVáltozás,KövetkezőÁllapotId,Reakció,Hatás,HatásParaméter,Folytatás
+NSC001,RODERIC_OATH,INITIAL,Roderic: Állj! Még egy lépés és úgy veszlek benneteket mint a többi sírrablót.,1,Nem sírokat fosztogatni jöttünk.,2,INTRODUCTION,Roderic: Ezt mondaná egy sírrabló is.|Te: És mit mondana az aki tényleg nem sírrabló?|Roderic: Valószínűleg pontosan ezt. Egy pont nektek.,None,,Igen
+NSC002,RODERIC_OATH,INITIAL,Roderic: Állj! Még egy lépés és úgy veszlek benneteket mint a többi sírrablót.,2,Tedd el a kardod. Nem akarunk harcolni veled.,1,INTRODUCTION,Roderic: Ezekben a járatokban mindenki ezt mondja amíg elég közel nem kerül.|Te: Akkor maradjunk ilyen távol.|Roderic: Meglepően bölcs javaslat.,None,,Igen
+NSC003,RODERIC_OATH,INITIAL,Roderic: Állj! Még egy lépés és úgy veszlek benneteket mint a többi sírrablót.,3,Ha meg akartunk volna ölni nem beszélgetnénk.,-2,INTRODUCTION,Roderic: Ha én meg akarnálak ölni te sem beszélgetnél. Egyikünk se legyen túlságosan büszke.,None,,Igen
+NSC004,RODERIC_OATH,INTRODUCTION,Roderic: Roderic Várnok vagyok. Az Ezüst Eskü Rendjének lovagja.,1,Nem látom a társaidat.,1,INSIGNIA_OFFER,Roderic: Nincsenek. Nyolcan érkeztünk ide és a holtak sorra elragadták őket. Attól tartok ez nem jelenti azt hogy nyugszanak is.,None,,Igen
+NSC005,RODERIC_OATH,INTRODUCTION,Roderic: Roderic Várnok vagyok. Az Ezüst Eskü Rendjének lovagja.,2,Mit keresel egyedül a katakombákban?,1,INSIGNIA_OFFER,Roderic: Befejezek valamit. Ha megbízom bennetek talán egyszer azt is elmondom hogy mit.,None,,Igen
+NSC006,RODERIC_OATH,INSIGNIA_OFFER,Roderic: Három társam maradt a belső járatokban. Harlan. Edwyn. Tomas. A testük már nem az övék de a rend jelvényein ott a nevük.,1,Visszahozzuk a három jelvényt.,1,INSIGNIAS_ACTIVE,Roderic: Azok nem kincsek. Odafent családok várják hogy egyszer elmondjam nekik mi történt. Ne kelljen a nevüket is itt hagynom rothadni.,ActivateQuest,NPCQ037,Nem
+NSC007,RODERIC_OATH,CONFESSION,Roderic: Harlan. Edwyn. Tomas. Köszönöm hogy visszahoztátok a nevüket.,1,Miért nem mentél értük te magad?,0,GUILT,Roderic: Mert én zártam rájuk a kaput.|Te: Mi?|Roderic: Malrec parancsára lezártam a nyugati kaput. Hárman még a másik oldalon voltak. Ha várok talán átjutnak. Talán velük együtt még ötven halott is.,None,,Igen
+NSC008,RODERIC_OATH,GUILT,Roderic: Parancsot teljesítettem. Ezt mondogatom magamnak én is. Érdekes módon éjszakánként nem segít.,1,Nem egyedül kell tovább cipelned ezt a terhet.,2,FOLLOWING,Roderic: Most én is megyek. A csata nehezen hazudik. Ott majd kiderül hogy valóban számíthatunk-e egymásra.,BeginFollowing,,Nem
+NSC009,RODERIC_OATH,GUILT,Roderic: Parancsot teljesítettem. Ezt mondogatom magamnak én is. Érdekes módon éjszakánként nem segít.,2,A múltat nem változtathatod meg de még harcolhatsz értük.,1,FOLLOWING,Roderic: Akkor mellettetek harcolok. Harcoltam már olyan ember mellett akit tíz perc alatt jobban megismertem mint másokat tíz év alatt.,BeginFollowing,,Nem
+NSC010,RODERIC_OATH,GUILT,Roderic: Parancsot teljesítettem. Ezt mondogatom magamnak én is. Érdekes módon éjszakánként nem segít.,3,A bűntudatod nem a mi ügyünk. A kardodra van szükségünk.,-1,FOLLOWING,Roderic: Legalább őszinték vagytok. Megkapjátok a kardomat egy időre. A bizalmamat még nem.,BeginFollowing,,Nem
+NSC011,RODERIC_OATH,TRUSTED,Roderic: Nem rossz. Tőlem ez komoly dicséretnek számít. Most már tudom hogy számíthatok rátok.,1,Akkor mondd el miért maradtál a katakombákban.,1,MALREC_STORY,Roderic: Sir Malrec nem halt meg a többiekkel. Utolsóként a belső szentélyben maradt. Vörös fényt láttam és hallottam a kiáltását. Nem mentem vissza mert féltem attól amit odalent találok.,None,,Igen
+NSC012,RODERIC_OATH,MALREC_STORY,Roderic: Ismerek egy lezárt utat a sírkápolnájához. Ez nem a ti harcotok.,1,Akkor keressük meg együtt.,2,MALREC_APPROACH,Roderic: Már egy ideje veletek harcolok. Ideje megszoknom hogy ez fordítva is működik. Jöjjetek.,TravelToLocation,RODERIC_MALREC_CHAPEL,Nem
+NSC013,RODERIC_OATH,MALREC_STORY,Roderic: Ismerek egy lezárt utat a sírkápolnájához. Ez nem a ti harcotok.,2,Most már a mi harcunk is.,1,MALREC_APPROACH,Roderic: Kezdem érteni miért vagytok még életben. Induljunk.,TravelToLocation,RODERIC_MALREC_CHAPEL,Nem
+NSC014,RODERIC_OATH,MALREC_APPROACH,Malrec: Roderic. Még mindig menekülsz?|Roderic: Te meghaltál.|Malrec: Mind meghaltunk. Csak te voltál túl gyáva hozzá. Hallottad őket amikor bezártad a kaput.,1,A kapu lezárása mások életét menthette meg.,1,MALREC_FIGHT,Malrec: Milyen kényelmes magyarázat.|Roderic: Talán. De most nem magyarázkodni jöttem.,None,,Nem
+NSC015,RODERIC_OATH,MALREC_APPROACH,Malrec: Roderic. Még mindig menekülsz?|Roderic: Te meghaltál.|Malrec: Mind meghaltunk. Csak te voltál túl gyáva hozzá. Hallottad őket amikor bezártad a kaput.,2,Roderic hibázott de visszajött.,2,MALREC_FIGHT,Malrec: És ettől megbocsátanak neki a halottak?|Te: Nem. De helyrehozhatja amit lehet.|Roderic: Pontosan ezt fogom tenni.,None,,Nem
+NSC016,RODERIC_OATH,MALREC_APPROACH,Malrec: Roderic. Még mindig menekülsz?|Roderic: Te meghaltál.|Malrec: Mind meghaltunk. Csak te voltál túl gyáva hozzá. Hallottad őket amikor bezártad a kaput.,3,Túl sokat beszélsz egy halotthoz képest.,0,MALREC_FIGHT,Malrec: Te pedig túl bátran beszélsz ahhoz képest hogy mindjárt közénk tartozol.|Roderic: Vigyázz. Kezdem megkedvelni ezt a társaságot.,None,,Nem
+NSC017,RODERIC_OATH,MALREC_DEFEATED,Roderic: Malrecnél volt az Ezüst Eskü nagypecsétje. Amíg ez létezik a rend sem tekinthető teljesen halottnak.,1,Tartsd meg. Most már te vagy az Ezüst Eskü.,2,JOIN_ACCEPTED,Roderic: Nem tudom hogy méltó vagyok-e rá.|Te: Majd útközben eldöntöd. Velünk.|Roderic: Ha ez meghívás akkor elfogadom.,RequestPermanentJoin,,Nem
+NSC018,RODERIC_OATH,MALREC_DEFEATED,Roderic: Malrecnél volt az Ezüst Eskü nagypecsétje. Amíg ez létezik a rend sem tekinthető teljesen halottnak.,2,A rend meghalt. Te nem. Gyere velünk.,2,JOIN_ACCEPTED,Roderic: Fogalmatok sincs hová tart az utatok.|Te: Nekünk sincs.|Roderic: Remek. Mindig is szerettem a jól átgondolt haditerveket.,RequestPermanentJoin,,Nem
+NSC019,RODERIC_OATH,MALREC_DEFEATED,Roderic: Malrecnél volt az Ezüst Eskü nagypecsétje. Amíg ez létezik a rend sem tekinthető teljesen halottnak.,3,Mennyit érhet ez a pecsét?,-2,SECOND_CHANCE,Roderic: Többet mint gondolod. Nem aranyban. Azt hittem végre megértettétek.,None,,Nem
+NSC020,RODERIC_OATH,SECOND_CHANCE,Roderic: Hallgatlak.,1,Rossz tréfa volt. Sajnálom.,2,JOIN_ACCEPTED,Roderic: Ezt nehezebb kimondani mint azt hogy mennyit ér. Talán még nincs minden veszve. Ha az ajánlat áll akkor veletek tartok.,RequestPermanentJoin,,Nem
 
 #NPC küldetések
 Id,NpcId,Típus,CélId,Darabszám,XP,Cím,Leírás,FixJutalomId,FixJutalomDarab,VéletlenJutalomDarab,SzükségesTörténetÁllapot
@@ -1186,7 +1201,7 @@ NPCQ035,NPC020,Collect,T019,1,160,Elszakadt kötés,Adj Elirának egy tiszta kö
 NPCQ036,NPC020,Kill,E001,4,240,A nyomunkban,Győzz le négy óriáspatkányt amelyek Elira vérnyomát követik.,,,1
 NPCQ037,NPC021,Collect,T026,3,500,Az elesettek jelvényei,Szerezd vissza Roderic három elesett bajtársának jelvényét.,,,1
 NPCQ038,NPC021,KillWithFollower,MA001,3,650,Közös pengepróba,Győzzetek le három élőholt ellenfelet miközben Roderic veletek harcol.,,,1
-NPCQ039,NPC021,Kill,E053,1,1200,Az esküszegő lovag,Győzzétek le Sir Malrecet Roderic oldalán a bukott lovag sírkápolnájában.,,,1,TRUSTED
+NPCQ039,NPC021,Kill,E053,1,1200,Az esküszegő lovag,Győzzétek le Sir Malrecet Roderic oldalán a bukott lovag sírkápolnájában.,T027,1,1,TRUSTED
 
 #Szituációk
 Id,Név

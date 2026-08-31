@@ -106,22 +106,27 @@ public static class QuestLocationConfigurations
             Name = "Sir Malrec sírkápolnája",
             DoubleWidthCorridorChance = 0.55,
             WallRune = new('▓'),
-            WallColor = ConsoleColor.DarkGray,
+            WallColor = ConsoleColor.DarkMagenta,
             RoomCount = new(6, 8),
             RoomSize = new(4, 7),
             TreasureChestCount = new(1, 2),
             TreasureGold = new(180, 360),
             BossRoomIds = ["MALREC_CHAMBER"],
-            QuestRoomEnemyEncounters = [new("MALREC_CHAMBER", MonsterIds.SirMalrec, 1)],
+            QuestRoomEnemyEncounters =
+            [
+                new("MALREC_CHAMBER", MonsterIds.SirMalrec, 1),
+                new("MALREC_CHAMBER", MonsterIds.CsontvázLovag, 4)
+            ],
             RoomEncounters =
             [
                 Encounters.Same(MonsterIds.Csontváz, Amount.Few, Amount.Few),
-                Encounters.Same(MonsterIds.Zombi, Amount.One, Amount.TwoThree)
+                Encounters.Same(MonsterIds.Zombi, Amount.Few, Amount.TwoThree)
             ],
             CorridorEncounters =
             [
-                Encounters.Solo(MonsterIds.Csontváz, Amount.Few),
-                Encounters.Solo(MonsterIds.Zombi, Amount.Few)
+                Encounters.Solo(MonsterIds.Csontváz, Amount.Several),
+                Encounters.Solo(MonsterIds.Zombi, Amount.Several),
+                Encounters.Solo(MonsterIds.CsontvázLovag, Amount.Several, EnemyMovementProfile.Patrol)
             ]
         },
         _ => throw new KeyNotFoundException($"Ismeretlen küldetéshelyszín: {id}")

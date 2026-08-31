@@ -2388,7 +2388,7 @@ static void NpcDefinitionsLoadFromCsv()
            Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
         "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 6 &&
+    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 20 &&
            catalog.NpcQuests.Count == 39 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 8 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 17 &&
@@ -2468,14 +2468,34 @@ static void RodericMalrecQuestLocationIsConfigured()
 {
     var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
     var configuration = QuestLocationConfigurations.Get(QuestLocationConfigurations.RodericMalrec);
-    var encounter = configuration.QuestRoomEnemyEncounters.Single();
+    var malrecEncounter = configuration.QuestRoomEnemyEncounters.Single(value =>
+        value.EnemyId == MonsterIds.SirMalrec);
+    var guards = configuration.QuestRoomEnemyEncounters.Single(value =>
+        value.EnemyId == MonsterIds.CsontvázLovag);
     var quest = catalog.NpcQuests.Single(value => value.Id == "NPCQ039");
     Assert(configuration.Level == 5 && configuration.BossRoomIds.SequenceEqual(["MALREC_CHAMBER"]) &&
-           encounter is { RoomId: "MALREC_CHAMBER", EnemyId: "E053", Count: 1 } &&
+           malrecEncounter is { RoomId: "MALREC_CHAMBER", EnemyId: "E053", Count: 1 } &&
+           guards is { RoomId: "MALREC_CHAMBER", EnemyId: "E052", Count: 4,
+               GuaranteedItemId: null } &&
            catalog.GetEnemy(MonsterIds.SirMalrec) is
                { Rank: EnemyRank.MiniBoss, IsBoss: false, HitPoints: 420, Armor: 9 } &&
            quest is { Type: NpcQuestType.Kill, TargetId: "E053", RequiredStoryStateId: "TRUSTED" },
         "Sir Malrec rangja, küldetése vagy az 5-ös nehézségű küldetéshelyszíne hibás.");
+    Assert(quest is { RewardItemId: "T027", RewardItemCount: 1 } &&
+           catalog.GetItem(MiscItemIds.SilverOathSeal).BasePrice == 1 &&
+           SpellcastingRules.IsRestrictedFromTradingAndGeneration(
+               catalog.GetItem(MiscItemIds.SilverOathSeal)),
+        "Az Ezüst Eskü nagypecsétje nem történeti jutalomtárgyként szerepel.");
+
+    var initialChoices = catalog.GetNpcStoryChoices("RODERIC_OATH", "INITIAL");
+    var trustedChoices = catalog.GetNpcStoryChoices("RODERIC_OATH", "TRUSTED");
+    var finalChoices = catalog.GetNpcStoryChoices("RODERIC_OATH", "MALREC_DEFEATED");
+    Assert(initialChoices.Count == 3 && initialChoices.All(value => value.ContinueConversation) &&
+           trustedChoices.Single() is { NextStateId: "MALREC_STORY", ContinueConversation: true } &&
+           finalChoices.Count == 3 && finalChoices.Count(value =>
+               value.Action == NpcStoryAction.RequestPermanentJoin) == 2 &&
+           finalChoices.Single(value => value.NextStateId == "SECOND_CHANCE").Action == NpcStoryAction.None,
+        "Roderic többforduló párbeszédgráfja vagy második csatlakozási esélye hibás.");
 
     var maze = new MazeGenerator(configuration.CreateGenerationSettings(new Random(17)), [], [])
         .Create(55, 31);
