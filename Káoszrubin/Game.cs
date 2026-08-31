@@ -1741,17 +1741,8 @@ public sealed class Game
         var previousPosition = _player.Position;
         var targetPosition = previousPosition + direction;
 
-        // Az ideiglenes követővel ismét a térképen rálépési kísérlettel lehet beszélni.
-        if (_maze.GetObjectAt(targetPosition) is PartyMemberAvatar partyAvatar)
-        {
-            if (partyAvatar.TemporaryFollower is { } follower)
-            {
-                if (string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase))
-                    ConverseWithRoderic(follower);
-                else ConverseWithFirstUniqueNpc(follower);
-            }
-            return;
-        }
+        // A társak és a követők továbbra sem átjárhatók, de az ütközés nem indít párbeszédet.
+        if (_maze.GetObjectAt(targetPosition) is PartyMemberAvatar) return;
         if (_maze.GetWorldNpcAt(targetPosition) is { } npc)
         {
             if (!EncounterWorldNpc(npc)) return;
@@ -2097,6 +2088,7 @@ public sealed class Game
 
     private bool EncounterWorldNpc(WorldNpc npc)
     {
+        if (!npc.CanStartConversation) return false;
         var definition = _gameData.GetNpc(npc.DefinitionId);
         if (definition.Unique && string.Equals(definition.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))
         {

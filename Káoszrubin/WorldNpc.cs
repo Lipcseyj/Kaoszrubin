@@ -27,6 +27,7 @@ public sealed class WorldNpc(Position position, string definitionId, LiveCharact
     public bool IsQuestNpc { get; } = isQuestNpc;
     public string Dialogue { get; } = dialogue;
     public WorldNpcState State { get; private set; } = state;
+    public bool CanStartConversation => State != WorldNpcState.Following;
     public int Friendliness { get; private set; } = Math.Clamp(friendliness, 0, 10);
     public NpcWorldBehavior Behavior { get; } = behavior;
     public string? StoryId { get; } = storyId;

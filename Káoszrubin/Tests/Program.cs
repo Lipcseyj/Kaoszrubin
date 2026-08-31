@@ -2511,10 +2511,10 @@ static void NpcDefinitionsLoadFromCsv()
     npc.AdvanceConversation();
     var follower = new PartyMemberAvatar(new Position(1, 1), npc.Character, npc);
     follower.MoveTo(new Position(2, 1));
-    Assert(npc.Friendliness == 10 && npc.State == WorldNpcState.Following &&
+    Assert(npc.Friendliness == 10 && npc.State == WorldNpcState.Following && !npc.CanStartConversation &&
            npc.ConversationStage == 1 && npc.StoryStateId == "TEST_STATE" && follower.IsTemporaryFollower &&
            npc.Position == follower.Position,
-        "Az egyedi NPC viszonya vagy az ideiglenes követő pozíciója hibás.");
+        "Az egyedi NPC viszonya, követőállapota vagy párbeszédtiltása hibás.");
     follower.MakePermanent();
     Assert(!follower.IsTemporaryFollower,
         "Az ideiglenes követő nem alakítható végleges partitaggá.");
