@@ -49,7 +49,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             var name = ChooseName(characterClass.Id, usedNames);
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
                 _random.Next(1, 16), _random.Next(1, 16), _gameData,
-                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)], adaptableAbilityBonus);
+                RandomCharacterColor(), adaptableAbilityBonus);
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
             AddRandomWeaponProficiencies(character);
             SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
@@ -69,7 +69,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             if (!finalAbilities.MeetsMinimum(characterClass.MinimumAbilities)) continue;
             var character = LiveCharacterFactory.Create(ChooseName(characterClass.Id, usedNames), race, characterClass,
                 rolledAbilities, _random.Next(1, 16), _random.Next(1, 16), _gameData,
-                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)], adaptableAbilityBonus);
+                RandomCharacterColor(), adaptableAbilityBonus);
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
             AddRandomWeaponProficiencies(character);
             SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
@@ -78,9 +78,10 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         throw new InvalidOperationException($"A(z) {characterClass.Name} osztályhoz nem sikerült fejlesztői karaktert generálni.");
     }
 
-    /// <summary>A fogadóban egy előre kiválasztott osztályú, a vezér szintjéhez igazított zsoldost készít.</summary>
+    /// <summary>Egy előre kiválasztott osztályú, a vezér szintjéhez igazított NPC-t készít.
+    /// Fehér karakterszín csak a közvetlen fogadói toborzáshoz engedélyezhető.</summary>
     public LiveCharacter CreateRecruit(CharacterClassDefinition characterClass, int leaderLevel,
-        IReadOnlyCollection<string> usedNames)
+        IReadOnlyCollection<string> usedNames, bool allowWhiteColor = false)
     {
         for (var attempt = 0; attempt < 2_000; attempt++)
         {
@@ -92,7 +93,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
 
             var character = LiveCharacterFactory.Create(ChooseName(characterClass.Id, usedNames), race,
                 characterClass, rolledAbilities, _random.Next(1, 16), _random.Next(1, 16), _gameData,
-                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)], adaptableAbilityBonus);
+                RandomCharacterColor(allowWhiteColor), adaptableAbilityBonus);
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
             SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
             var maximumLevel = Math.Max(1, _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(1).Max());
@@ -119,7 +120,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             if (!finalAbilities.MeetsMinimum(characterClass.MinimumAbilities)) continue;
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
                 _random.Next(1, 16), _random.Next(1, 16), _gameData,
-                CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)], adaptableAbilityBonus);
+                RandomCharacterColor(), adaptableAbilityBonus);
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
             SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
             RaiseToLevel(character, Math.Max(1, leaderLevel));
@@ -141,6 +142,12 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         CharacterClassIds.Pap or CharacterClassIds.Mágus => NpcBehavior.Cautious,
         _ => NpcBehavior.Defensive
     };
+
+    private ConsoleColor RandomCharacterColor(bool allowWhiteColor = false)
+    {
+        var colors = allowWhiteColor ? CharacterColors.Selectable : CharacterColors.WorldNpcSelectable;
+        return colors[_random.Next(colors.Count)];
+    }
 
     private string ChooseName(string characterClassId, IReadOnlyCollection<string> usedNames)
     {

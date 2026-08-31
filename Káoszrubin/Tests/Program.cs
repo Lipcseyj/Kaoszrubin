@@ -37,6 +37,9 @@ var tests = new (string Name, Action Run)[]
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
+    ("A world-NPC generálás kizárja a fehér karakterszínt", WorldNpcGenerationExcludesWhiteColor),
+    ("Az ideiglenes követő megtartja a world-NPC inverz térképszíneit", TemporaryFollowerKeepsWorldNpcMapColors),
+    ("A hosszú NPC-párbeszéd az ablakon belül sortörést kap", NpcDialogueWrapsInsideRecruitmentWindow),
     ("A közös küldetésnapló elkülöníti az aktív és teljesített küldetéseket", QuestJournalBuildsSharedHistory),
     ("Az ismeretlen CSV-fejezet sorszámos hibát ad", UnknownCsvSectionIsRejectedWithLineNumber),
     ("A hiányzó kötelező CSV-mező sorszámos hibát ad", MissingRequiredCsvFieldIsRejectedWithLineNumber),
@@ -2417,6 +2420,49 @@ static void NpcDefinitionsLoadFromCsv()
     follower.MakePermanent();
     Assert(!follower.IsTemporaryFollower,
         "Az ideiglenes követő nem alakítható végleges partitaggá.");
+}
+
+static void WorldNpcGenerationExcludesWhiteColor()
+{
+    Assert(CharacterColors.Selectable.Contains(ConsoleColor.White) &&
+           !CharacterColors.WorldNpcSelectable.Contains(ConsoleColor.White) &&
+           CharacterColors.WorldNpcSelectable.Count == CharacterColors.Selectable.Count - 1,
+        "A world-NPC színpaletta nem pontosan a fehér karakterszínt zárja ki.");
+
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var generator = new RandomCharacterGenerator(catalog, new Random(7281));
+    var characterClass = catalog.GetCharacterClass(CharacterClassIds.Harcos);
+    var recruits = Enumerable.Range(0, 30)
+        .Select(index => generator.CreateRecruit(characterClass, 5, [$"WorldNpc{index}"]))
+        .ToArray();
+    Assert(recruits.All(recruit => recruit.Color != ConsoleColor.White),
+        "A world-NPC generátor fehér karakterszínt választott.");
+}
+
+static void TemporaryFollowerKeepsWorldNpcMapColors()
+{
+    var character = CreateCharacter("Elira");
+    var npc = new WorldNpc(new Position(1, 1), "NPC020", character,
+        NpcDisposition.Neutral, true, true, "Próba");
+    var follower = new PartyMemberAvatar(npc.Position, character, npc);
+
+    Assert(follower.ForegroundColor == ConsoleColor.White && follower.BackgroundColor == character.Color,
+        "Az ideiglenes követő nem a world-NPC inverz térképszíneit kapta.");
+    follower.MakePermanent();
+    Assert(follower.ForegroundColor == character.Color && follower.BackgroundColor == ConsoleColor.Black,
+        "A végleges partitaggá vált követő nem kapta vissza a normál térképszíneit.");
+}
+
+static void NpcDialogueWrapsInsideRecruitmentWindow()
+{
+    var dialogue = "„A csontok emlékeznek azokra akik felébresztették őket. " +
+                   "Segítsetek újra elcsendesíteni a sírokat.”";
+    var lines = MessageTextLayout.Wrap(dialogue, ConsoleRenderer.WorldNpcRecruitmentTextWidth).ToArray();
+
+    Assert(lines.Length > 1 && lines.All(line =>
+               line.Length <= ConsoleRenderer.WorldNpcRecruitmentTextWidth) &&
+           string.Join(' ', lines).Replace("  ", " ", StringComparison.Ordinal) == dialogue,
+        "A hosszú NPC-párbeszéd kilóg a találkozási ablakból vagy szöveg veszett el.");
 }
 
 static void QuestJournalBuildsSharedHistory()

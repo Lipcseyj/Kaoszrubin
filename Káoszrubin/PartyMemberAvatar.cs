@@ -10,6 +10,8 @@ public sealed class PartyMemberAvatar(Position position, LiveCharacter character
     public LiveCharacter Character { get; } = character;
     public WorldNpc? TemporaryFollower { get; private set; } = temporaryFollower;
     public bool IsTemporaryFollower => TemporaryFollower is not null;
+    public ConsoleColor ForegroundColor => IsTemporaryFollower ? ConsoleColor.White : Character.Color;
+    public ConsoleColor BackgroundColor => IsTemporaryFollower ? Character.Color : ConsoleColor.Black;
     public override Rune Symbol { get; } = Rune.GetRuneAt(character.CharacterClass.Name.ToUpperInvariant(), 0);
     public void MoveTo(Position position)
     {

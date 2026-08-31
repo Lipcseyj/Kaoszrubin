@@ -1070,3 +1070,28 @@ viselkedési profil és az ellenségkeresés elé helyezi a leader melletti felz
 társakat; a Támadás ideiglenesen minden nem játékos által irányított társat agresszív profilként
 kezeli. Kikapcsoláskor az eredeti egyéni profiljuk visszaáll. A parancsállapot mentődik, a változások
 közös session-aktivitásként a coop klienseken is megjelennek.
+
+## Az NPC-generálás jelenlegi útvonalai:
+Felhasználás	Hívott metódus	Színpaletta
+Első pályán megjelenő ingyenes társ	CreateLevelOne(characterClass, usedNames)	Fehér nélkül
+Hagyományos, nem egyedi world-NPC	CreateRecruit(characterClass, leaderLevel, usedNames)	Fehér nélkül
+Egyedi world-NPC, például Elira	CreateUniqueRecruit(name, race, characterClass, leaderLevel)	Fehér nélkül
+Fogadói zsoldos	CreateRecruit(..., allowWhiteColor: true)	Fehér is lehet
+Fejlesztői osztályszett	CreateDevelopmentCharacter(characterClass, usedNames)	Fehér nélkül
+Fejlesztői véletlen első szintű NPC	CreateLevelOne(usedNames)	Fehér nélkül
+
+
+A konkrét hívási helyek:
+- Első pályás társ: [Game.cs](C:\\Users\\lipcs\\source\\repos\\Lipcseyj\\Kaoszrubin\\Káoszrubin\\Game.cs)
+- Konfigurált world-NPC-k: [Game.cs](C:\\Users\\lipcs\\source\\repos\\Lipcseyj\\Kaoszrubin\\Káoszrubin\\Game.cs)
+- Fogadói zsoldosok: [InnController.cs](C:\\Users\\lipcs\\source\\repos\\Lipcseyj\\Kaoszrubin\\Káoszrubin\\InnController.cs)
+- Fejlesztői NPC-k: [Game.cs](C:\\Users\\lipcs\\source\\repos\\Lipcseyj\\Kaoszrubin\\Káoszrubin\\Game.cs) és [Game.cs](C:\\Users\\lipcs\\source\\repos\\Lipcseyj\\Kaoszrubin\\Káoszrubin\\Game.cs)
+A RandomCharacterGenerator publikus generáló metódusai:
+- Create(usedNames) – teljesen véletlen, magasabb szintű karakter; jelenleg nincs éles hívási helye.
+- CreateDevelopmentCharacter(...)
+- CreateLevelOne(usedNames)
+- CreateLevelOne(characterClass, usedNames)
+- CreateRecruit(...)
+- CreateUniqueRecruit(...)
+Mindegyik végül a LiveCharacterFactory.Create(...) metódussal hozza létre a karaktert. A színt a generátoron belüli RandomCharacterColor() választja; 
+csak a fogadó ad át allowWhiteColor: true értéket. [RandomCharacterGenerator.cs](C:\\Users\\lipcs\\source\\repos\\Lipcseyj\\Kaoszrubin\\Káoszrubin\\Data\\RandomCharacterGenerator.cs)

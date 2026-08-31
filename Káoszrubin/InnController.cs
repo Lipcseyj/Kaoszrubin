@@ -618,7 +618,7 @@ internal sealed class InnController
         foreach (var characterClass in classes)
         {
             var candidate = generator.CreateRecruit(characterClass, _selectedCharacter.Level,
-                usedNames.Concat(candidates.Select(character => character.Name)).ToList());
+                usedNames.Concat(candidates.Select(character => character.Name)).ToList(), allowWhiteColor: true);
             candidates.Add(candidate);
         }
         var recruitmentPrices = candidates.ToDictionary(candidate => candidate,

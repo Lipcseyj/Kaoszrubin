@@ -8,6 +8,8 @@ public static class CharacterColors
         ConsoleColor.Red, ConsoleColor.Blue, ConsoleColor.White, ConsoleColor.DarkCyan,
         ConsoleColor.DarkGreen, ConsoleColor.DarkYellow, ConsoleColor.DarkMagenta, ConsoleColor.DarkRed
     ];
+    public static IReadOnlyList<ConsoleColor> WorldNpcSelectable { get; } = Selectable
+        .Where(color => color != ConsoleColor.White).ToArray();
 
     public static string NameOf(ConsoleColor color) => color switch
     {

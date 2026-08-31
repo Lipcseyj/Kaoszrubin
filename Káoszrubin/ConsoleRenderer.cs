@@ -62,6 +62,9 @@ public sealed class ConsoleRenderer
     private const int InnReplacementFrameBaseLineCount = 7;
     internal const int InnRumorFrameWidth = 108;
     private const int InnRumorTextWidth = 100;
+    internal const int WorldNpcRecruitmentFrameWidth = 72;
+    public const int WorldNpcRecruitmentTextWidth = WorldNpcRecruitmentFrameWidth -
+                                                      CenteredFrameHorizontalPadding * FrameBorderWidth;
     private const int DetailNextLineOffset = 1;
     private const int DetailSecondLineOffset = 2;
     private const int TruncationEllipsisReserve = 1;
@@ -1508,8 +1511,9 @@ public sealed class ConsoleRenderer
             ($"Viszony: {npc.Friendliness}/10   Viselkedés: {NpcBehaviorName(npc.Behavior)}", ConsoleColor.Cyan),
             (npc.QuestIds.Count > 0 ? $"📜 Küldetések: {npc.QuestIds.Count}" : string.Empty, ConsoleColor.DarkYellow),
             (string.Empty, ConsoleColor.Gray),
-            ($"„{npc.Dialogue}”", ConsoleColor.White),
         };
+        lines.AddRange(MessageTextLayout.Wrap($"„{npc.Dialogue}”", WorldNpcRecruitmentTextWidth)
+            .Select(line => (line, ConsoleColor.White)));
         foreach (var quest in questDefinitions)
         {
             var progress = npc.Quests.FirstOrDefault(value =>
@@ -1528,7 +1532,7 @@ public sealed class ConsoleRenderer
         if (npc.Disposition == NpcDisposition.Neutral) actions += "T: továbbhaladás   ";
         actions += npc.CanJoin ? "Esc: most nem" : "Esc: távozás";
         lines.Add((actions, ConsoleColor.Yellow));
-        DrawCenteredFrame(72, lines, FramedWindow.Inn);
+        DrawCenteredFrame(WorldNpcRecruitmentFrameWidth, lines, FramedWindow.Inn);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
@@ -2306,6 +2310,8 @@ public sealed class ConsoleRenderer
         if (maze.GetWorldNpcAt(position) is { } npc)
             return new MapCellVisual(npc.Symbol, ConsoleColor.White, npc.Character.Color);
         var mapObject = maze.GetObjectAt(position);
+        if (mapObject is PartyMemberAvatar partyMember)
+            return new MapCellVisual(partyMember.Symbol, partyMember.ForegroundColor, partyMember.BackgroundColor);
         if (mapObject is Enemy enemy && !fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position))
             return fogOfWar.EnemyMemoryAt(position) is { } hiddenMemory
                 ? new MapCellVisual(new Rune('?'), hiddenMemory.IsSoundCue ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray,
