@@ -37,6 +37,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<UniqueNpcCharacterDefinition> UniqueNpcCharacters { get; init; } = [];
     public IReadOnlyList<NpcEncounterDefinition> NpcEncounters { get; init; } = [];
     public IReadOnlyList<NpcDialogueDefinition> NpcDialogues { get; init; } = [];
+    public IReadOnlyList<NpcStoryChoiceDefinition> NpcStoryChoices { get; init; } = [];
     public IReadOnlyList<NpcQuestDefinition> NpcQuests { get; init; } = [];
     public IReadOnlyList<PartySituationDefinition> PartySituations { get; init; } = [];
     public IReadOnlyList<PartyRemarkDefinition> PartyRemarks { get; init; } = [];
@@ -77,6 +78,11 @@ public sealed class GameDataCatalog
         string.Equals(value.NpcId, npcId, StringComparison.OrdinalIgnoreCase));
     public IReadOnlyList<NpcDialogueDefinition> GetNpcDialogues(string npcId) => NpcDialogues
         .Where(dialogue => string.Equals(dialogue.NpcId, npcId, StringComparison.OrdinalIgnoreCase)).ToArray();
+    public IReadOnlyList<NpcStoryChoiceDefinition> GetNpcStoryChoices(string storyId, string stateId) =>
+        NpcStoryChoices.Where(choice =>
+                string.Equals(choice.StoryId, storyId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(choice.StateId, stateId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(choice => choice.Order).ToArray();
     public IReadOnlyList<NpcQuestDefinition> GetNpcQuests(string npcId) => NpcQuests
         .Where(quest => string.Equals(quest.NpcId, npcId, StringComparison.OrdinalIgnoreCase)).ToArray();
     public IReadOnlyList<PartyRemarkDefinition> GetPartyRemarks(string situationId, LiveCharacter character) =>

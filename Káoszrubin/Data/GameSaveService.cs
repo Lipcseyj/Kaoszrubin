@@ -75,7 +75,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 10;
+    public const int CurrentVersion = 11;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -97,6 +97,7 @@ public static class GameSaveFormat
                 7 => MigrateVersion7To8(state),
                 8 => MigrateVersion8To9(state),
                 9 => MigrateVersion9To10(state),
+                10 => MigrateVersion10To11(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -165,6 +166,13 @@ public static class GameSaveFormat
         // A 10-es formátum menthető szobaszerepeket és tartalomazonosítókat vezet be.
         // A régi szobák alapértelmezetten normál szobák maradnak.
         state.Version = 10;
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion10To11(GameSaveData state)
+    {
+        // A 11-es formátum az ellenfélpéldányhoz kötött garantált questzsákmányt menti.
+        state.Version = 11;
         return state;
     }
 }
@@ -241,9 +249,10 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     EnemyGroupRole GroupRole = EnemyGroupRole.Member,
     List<ActiveSpellEffect>? ActiveSpellEffects = null,
     CharacterId? PursuitTargetCharacterId = null,
-    int PursuitMemoryRemainingMoves = -1);
+    int PursuitMemoryRemainingMoves = -1,
+    List<string>? GuaranteedLootIds = null);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
-    string? EnemyDefinitionId = null, bool IsSearched = false);
+    string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex,
     WorldNpcSaveData? TemporaryFollower = null);
 public sealed record WorldNpcSaveData(Position Position, string DefinitionId, int CharacterIndex,

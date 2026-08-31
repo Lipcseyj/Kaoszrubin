@@ -250,6 +250,7 @@ T022,Szent szimbólum,A pap hitét és ismert imáit összpontosító személyes
 T023,Mézsör,Édes mézes ital amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40
 T024,Fűszeres bor,Melengető bor amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40
 T025,Fáklya,Olajos fáklya amely tizenkét akcióra kettővel növeli a hordozó látótávját.,24,Vision,2
+T026,Elesett lovag jelvénye,Megfakult rendjel Roderic egykori bajtársainak címerével.,1,None,0
 
 #Varázstárgyak
 Id,Név,Típus,Kategória,Ár,Töltet,VarázslatId,Hatás,Érték,CsakMágus,Jellemzés,MágikusErő
@@ -456,6 +457,7 @@ E048,Vén beholder,Θ,21,2400,12,8,10500,5,MA006,MA005,8
 E049,Drakolich,Ł,23,3200,14,7,14000,5,MA001,MA007,8
 E050,Káoszsárkány,Ж,24,3600,13,10,16000,5,MA002,MA003,8
 E051,Patkányember,Ʒ,7,105,4,7,600,2,MA003,,5
+E052,Csontváz lovag,ǂ,6,105,5,3,330,2,MA001,MA007,4
 
 #Szörnyképességek
 Id,Név,Hatás,AktiválásiEsély,Érték,Leírás
@@ -1134,6 +1136,15 @@ NPCD071,NPC020,4,7,A nevem Elira. Kijuttattok innen vagy itt hagytok a járatokn
 NPCD072,NPC020,8,10,Rég nem bíztam senkiben ennyire. Talán az utam nem ér véget a kijáratnál.
 NPCD073,NPC021,0,10,Álljatok meg. A holtak nyugalmát nem zavarhatják meg újabb sírrablók.
 
+#NPC történeti választások
+Id,TörténetId,ÁllapotId,Mondat,Sorrend,Válasz,ViszonyVáltozás,KövetkezőÁllapotId
+NSC001,RODERIC_OATH,INITIAL,Álljatok meg. Mi dolgotok van a bajtársaim sírjai között?,1,Nem sírrablók vagyunk. Segíteni akarunk.,2,INSIGNIAS_ACTIVE
+NSC002,RODERIC_OATH,INITIAL,Álljatok meg. Mi dolgotok van a bajtársaim sírjai között?,2,Mondd el mivel bizonyíthatjuk a szándékainkat.,1,INSIGNIAS_ACTIVE
+NSC003,RODERIC_OATH,INITIAL,Álljatok meg. Mi dolgotok van a bajtársaim sírjai között?,3,Állj félre lovag. Nem tartozunk neked magyarázattal.,-2,INITIAL
+NSC004,RODERIC_OATH,CONFESSION,Az én parancsom vitte őket a halálba. Én maradtam életben ők pedig itt őrzik a hibámat.,1,Nem egyedül kell tovább cipelned ezt a terhet.,2,FOLLOWING
+NSC005,RODERIC_OATH,CONFESSION,Az én parancsom vitte őket a halálba. Én maradtam életben ők pedig itt őrzik a hibámat.,2,A múltat nem változtathatod meg de még harcolhatsz értük.,1,FOLLOWING
+NSC006,RODERIC_OATH,CONFESSION,Az én parancsom vitte őket a halálba. Én maradtam életben ők pedig itt őrzik a hibámat.,3,A bűntudatod nem a mi ügyünk. A kardodra van szükségünk.,-1,FOLLOWING
+
 #NPC küldetések
 Id,NpcId,Típus,CélId,Darabszám,XP,Cím,Leírás,FixJutalomId,FixJutalomDarab,VéletlenJutalomDarab
 NPCQ001,NPC001,Collect,T011,3,180,Gyógyító készlet,Gyűjts össze három kis gyógyitalt a füvesasszonynak.,T018,2,0
@@ -1172,6 +1183,8 @@ NPCQ033,NPC019,Kill,E012,3,820,Nagyvad,Győzz le három ogrét az óriásvadász
 NPCQ034,NPC020,Escort,EXIT,1,420,Ezüstág kimenekítése,Kísérd el Elirát élve a pálya kijáratáig.,T017,2,1
 NPCQ035,NPC020,Collect,T019,1,160,Elszakadt kötés,Adj Elirának egy tiszta kötést hogy a sérült bokája bírja az utat.,T011,2,0
 NPCQ036,NPC020,Kill,E001,4,240,A nyomunkban,Győzz le négy óriáspatkányt amelyek Elira vérnyomát követik.,,,1
+NPCQ037,NPC021,Collect,T026,3,500,Az elesettek jelvényei,Szerezd vissza Roderic három elesett bajtársának jelvényét.,,,1
+NPCQ038,NPC021,KillWithFollower,MA001,3,650,Közös pengepróba,Győzzetek le három élőholt ellenfelet miközben Roderic veletek harcol.,,,1
 
 #Szituációk
 Id,Név

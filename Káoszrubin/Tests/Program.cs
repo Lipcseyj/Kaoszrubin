@@ -38,6 +38,7 @@ var tests = new (string Name, Action Run)[]
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
     ("A quest roomok kizárják a véletlen térképtartalmat", QuestRoomsReserveTheirContent),
+    ("A három Skeleton Knight példányhoz kötött jelvényt őriz", RodericInsigniaGuardiansAreConfigured),
     ("Roderic rögzített egyedi karakterlapból készül", RodericUsesDefinedCharacterBuild),
     ("A parti megjegyzései CSV-ből, teljes idézőjeles szöveggel töltődnek", PartyRemarksLoadFromCsv),
     ("A parti megjegyzéseinek esélyei és beszélőszámai követik a szabályt", PartyRemarkProbabilitiesFollowRules),
@@ -2386,9 +2387,11 @@ static void NpcDefinitionsLoadFromCsv()
            Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
         "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcQuests.Count == 36 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 7 &&
+    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 6 &&
+           catalog.NpcQuests.Count == 38 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 8 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 16 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.KillWithFollower) == 1 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Explore) == 5 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Disarm) == 3 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.OpenChest) == 4 &&
@@ -2402,6 +2405,8 @@ static void NpcDefinitionsLoadFromCsv()
            catalog.GetNpc("NPC020") is { Unique: true, Recruitable: true, RaceId: "R003" } &&
            catalog.GetNpc("NPC021") is { Unique: true, RaceId: "R001", StoryId: "RODERIC_OATH" } &&
            catalog.NpcEncounters.Single(encounter => encounter.NpcId == "NPC021").QuestRoomId == "RODERIC_MEETING" &&
+           catalog.GetNpcStoryChoices("RODERIC_OATH", "INITIAL") is
+               [{ FriendlinessChange: 2 }, { FriendlinessChange: 1 }, { FriendlinessChange: -2 }] &&
            catalog.GetNpcQuests("NPC020").Select(quest => quest.Type).ToHashSet().SetEquals(
                [NpcQuestType.Escort, NpcQuestType.Collect, NpcQuestType.Kill]) &&
            catalog.NpcQuests.All(quest => quest.RandomRewardCount > 0 || quest.RewardItemCount > 0),
@@ -2416,16 +2421,46 @@ static void NpcDefinitionsLoadFromCsv()
         "Az NPC-küldetés felvétele, haladása vagy egyszeri lezárása hibás.");
 
     npc.AdjustFriendliness(20);
+    npc.SetStoryState("TEST_STATE");
     npc.BeginFollowing();
     npc.AdvanceConversation();
     var follower = new PartyMemberAvatar(new Position(1, 1), npc.Character, npc);
     follower.MoveTo(new Position(2, 1));
     Assert(npc.Friendliness == 10 && npc.State == WorldNpcState.Following &&
-           npc.ConversationStage == 1 && follower.IsTemporaryFollower && npc.Position == follower.Position,
+           npc.ConversationStage == 1 && npc.StoryStateId == "TEST_STATE" && follower.IsTemporaryFollower &&
+           npc.Position == follower.Position,
         "Az egyedi NPC viszonya vagy az ideiglenes követő pozíciója hibás.");
     follower.MakePermanent();
     Assert(!follower.IsTemporaryFollower,
         "Az ideiglenes követő nem alakítható végleges partitaggá.");
+}
+
+static void RodericInsigniaGuardiansAreConfigured()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var encounter = MazeLevelConfigurations.Get(5).QuestRoomEnemyEncounters.Single();
+    Assert(encounter is { RoomId: "RODERIC_INSIGNIA", EnemyId: "E052", Count: 3,
+               GuaranteedItemId: "T026" } &&
+           catalog.GetEnemy(MonsterIds.CsontvázLovag) is { Strength: 6, HitPoints: 105, Armor: 5 } &&
+           catalog.GetItem(MiscItemIds.FallenKnightInsignia).BasePrice == 1 &&
+           SpellcastingRules.IsRestrictedFromTradingAndGeneration(
+               catalog.GetItem(MiscItemIds.FallenKnightInsignia)),
+        "A jelvényes terem, a Skeleton Knight vagy a questtárgy adatai hibásak.");
+
+    var maze = new Maze(7, 7);
+    maze.Carve(new Position(3, 3));
+    var enemy = new ConfiguredEnemy(new Position(3, 3), catalog.GetEnemy(MonsterIds.CsontvázLovag));
+    enemy.ConfigureGuaranteedLoot([MiscItemIds.FallenKnightInsignia]);
+    maze.AddEnemy(enemy);
+    maze.ReplaceEnemyWithCorpse(enemy);
+    var corpse = maze.Corpses.OfType<MonsterCorpse>().Single();
+    Assert(corpse.GuaranteedLootIds.SequenceEqual([MiscItemIds.FallenKnightInsignia]),
+        "A példányhoz kötött jelvény nem került át a Skeleton Knight tetemére.");
+    var restored = JsonSerializer.Deserialize<CorpseSaveData>(JsonSerializer.Serialize(new CorpseSaveData(
+        corpse.Position, corpse.FormerName, null, corpse.EnemyDefinitionId, corpse.IsSearched,
+        corpse.GuaranteedLootIds.ToList())));
+    Assert(restored?.GuaranteedLootIds?.SequenceEqual([MiscItemIds.FallenKnightInsignia]) == true,
+        "A garantált jelvény nem élte túl a mentési JSON-körutat.");
 }
 
 static void QuestRoomsReserveTheirContent()
@@ -2487,16 +2522,17 @@ static void PartyRemarksLoadFromCsv()
 
 static void PartyRemarkProbabilitiesFollowRules()
 {
-    Assert(PartyCommentarySelector.ShouldComment(0) && PartyCommentarySelector.ShouldComment(49) &&
-           !PartyCommentarySelector.ShouldComment(50) && !PartyCommentarySelector.ShouldComment(99),
-        "A szituációs kommentár esélye nem pontosan 50 százalék.");
+    Assert(PartyCommentarySelector.ShouldComment(0) && PartyCommentarySelector.ShouldComment(39) &&
+           !PartyCommentarySelector.ShouldComment(40) && !PartyCommentarySelector.ShouldComment(99),
+        "A szituációs kommentár esélye nem pontosan 40 százalék.");
     Assert(PartyCommentarySelector.SpeakerCount(4, 0) == 1 &&
            PartyCommentarySelector.SpeakerCount(4, 49) == 1 &&
-           PartyCommentarySelector.SpeakerCount(4, 50) == 2 &&
-           PartyCommentarySelector.SpeakerCount(4, 74) == 2 &&
-           PartyCommentarySelector.SpeakerCount(4, 75) == 3 &&
+           PartyCommentarySelector.SpeakerCount(4, 59) == 1 &&
+           PartyCommentarySelector.SpeakerCount(4, 60) == 2 &&
+           PartyCommentarySelector.SpeakerCount(4, 79) == 2 &&
+           PartyCommentarySelector.SpeakerCount(4, 80) == 3 &&
            PartyCommentarySelector.SpeakerCount(2, 99) == 2,
-        "A beszélők 50/25/25 százalékos eloszlása vagy partilétszám-korlátja hibás.");
+        "A beszélők 60/20/20 százalékos eloszlása vagy partilétszám-korlátja hibás.");
     var speaker = CreateCharacter("Kommentelő");
     Assert(PartyCommentarySelector.Format(speaker, "Próba.") == "[Kommentelő] Próba." &&
            PartyCommentarySelector.Format(speaker, "Éhes vagyok.", "17") ==

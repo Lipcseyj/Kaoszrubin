@@ -32,6 +32,8 @@ public sealed record EnemyEncounterConfiguration(IntRange GroupCount,
 public sealed record ResolvedEnemyGroupMember(EnemyDefinition Definition, IntRange Count, EnemyGroupRole Role);
 public sealed record ResolvedEnemyEncounter(IntRange GroupCount,
     IReadOnlyList<ResolvedEnemyGroupMember> Members, EnemyMovementProfile? MovementProfile);
+public sealed record QuestRoomEnemyEncounterConfiguration(string RoomId, string EnemyId, int Count,
+    string? GuaranteedItemId = null);
 
 public static class Encounters
 {
@@ -69,6 +71,7 @@ public sealed class MazeLevelConfiguration
     public IReadOnlyList<string> TrapIds { get; set; } = [];
     public int VisionModifier { get; set; }
     public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
+    public IReadOnlyList<QuestRoomEnemyEncounterConfiguration> QuestRoomEnemyEncounters { get; init; } = [];
     public required IReadOnlyList<EnemyEncounterConfiguration> RoomEncounters { get; init; }
     public required IReadOnlyList<EnemyEncounterConfiguration> CorridorEncounters { get; init; }
 
@@ -201,6 +204,11 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = Amount.Several.Range(),
                 TreasureGold = new(240, 480),
                 QuestRoomIds = ["RODERIC_MEETING", "RODERIC_INSIGNIA"],
+                QuestRoomEnemyEncounters =
+                [
+                    new("RODERIC_INSIGNIA", MonsterIds.CsontvázLovag, 3,
+                        Domain.Inventory.MiscItemIds.FallenKnightInsignia)
+                ],
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Csontváz, Amount.Several, Amount.Several),

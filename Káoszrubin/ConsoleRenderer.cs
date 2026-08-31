@@ -1620,6 +1620,46 @@ public sealed class ConsoleRenderer
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
+    public int DrawUniqueNpcStoryChoice(WorldNpc npc, string prompt, IReadOnlyList<string> choices)
+    {
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ($"⚜ {npc.Character.Name.ToUpperInvariant()}", ConsoleColor.Yellow),
+            ($"{npc.Character.Race.Name} {npc.Character.CharacterClass.Name}   Viszony: {npc.Friendliness}/10",
+                ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray),
+            ($"„{prompt}”", ConsoleColor.White),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        lines.AddRange(choices.Select((choice, index) => ($"{index + 1}) {choice}", ConsoleColor.Yellow)));
+        DrawCenteredFrame(88, lines, FramedWindow.Inn);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            var index = key >= ConsoleKey.D1 && key <= ConsoleKey.D9 ? key - ConsoleKey.D1 :
+                key >= ConsoleKey.NumPad1 && key <= ConsoleKey.NumPad9 ? key - ConsoleKey.NumPad1 : -1;
+            if (index >= 0 && index < choices.Count) return index;
+        }
+    }
+
+    public void DrawGenericUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<NpcQuestDefinition> quests)
+    {
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ($"📜 {npc.Character.Name.ToUpperInvariant()} KÉRÉSE", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        foreach (var quest in quests)
+        {
+            lines.Add(($"📜 {quest.Title} ({quest.ExperienceReward} XP)", ConsoleColor.Cyan));
+            lines.Add(($"   {quest.Description}", ConsoleColor.Gray));
+        }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("Enter: tovább", ConsoleColor.Yellow));
+        DrawCenteredFrame(88, lines, FramedWindow.QuestOffer);
+        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
+    }
+
     public void DrawUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<NpcQuestDefinition> quests)
     {
         ResetColorCache();

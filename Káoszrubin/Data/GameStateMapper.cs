@@ -43,10 +43,12 @@ internal sealed class GameStateMapper
                 enemy.CurrentHitPoints, enemy.MovementProfile, enemy.PatrolDirection, enemy.PursuitState,
                 Math.Max(0, (int)(nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds),
                 enemy.GroupId, enemy.GroupRole, enemy.ActiveSpellEffects.ToList(),
-                enemy.PursuitTargetCharacterId, enemy.PursuitMemoryRemainingMoves)).ToList(),
+                enemy.PursuitTargetCharacterId, enemy.PursuitMemoryRemainingMoves,
+                enemy.GuaranteedLootIds.ToList())).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
-                (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false)).ToList(),
+                (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
+                (corpse as MonsterCorpse)?.GuaranteedLootIds.ToList())).ToList(),
             PartyAvatars = maze.PartyMembers.Select(member => new PartyAvatarSaveData(member.Position,
                 CharacterIndex(member.Character), member.TemporaryFollower is { } follower
                     ? SaveWorldNpc(follower) : null)).ToList(),
@@ -121,6 +123,7 @@ internal sealed class GameStateMapper
             enemy.ConfigureMovement(savedEnemy.MovementProfile, savedEnemy.PatrolDirection, savedEnemy.PursuitState,
                 savedEnemy.PursuitTargetCharacterId, savedEnemy.PursuitMemoryRemainingMoves);
             enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
+            enemy.ConfigureGuaranteedLoot(savedEnemy.GuaranteedLootIds ?? []);
             foreach (var effect in savedEnemy.ActiveSpellEffects ?? []) enemy.RestoreSpellEffect(effect);
             maze.AddEnemy(enemy);
             var remaining = savedEnemy.NextMoveRemainingMilliseconds >= 0
@@ -146,7 +149,8 @@ internal sealed class GameStateMapper
             var restored = corpse.PartyCharacterIndex is >= 0 and var characterIndex && characterIndex < _characterRoster.Characters.Count
                 ? new PartyMemberCorpse(corpse.Position, _characterRoster.Characters[characterIndex])
                 : corpse.EnemyDefinitionId is { Length: > 0 } enemyDefinitionId
-                    ? new MonsterCorpse(corpse.Position, corpse.FormerName, enemyDefinitionId, corpse.IsSearched)
+                    ? new MonsterCorpse(corpse.Position, corpse.FormerName, enemyDefinitionId, corpse.IsSearched,
+                        corpse.GuaranteedLootIds)
                     : new Corpse(corpse.Position, corpse.FormerName);
             maze.AddCorpse(restored);
         }

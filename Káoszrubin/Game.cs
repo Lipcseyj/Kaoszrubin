@@ -16,6 +16,9 @@ namespace KaoszRubin;
 public sealed class Game
 {
     private const string EliraStoryId = "ELIRA_RESCUE";
+    private const string RodericStoryId = "RODERIC_OATH";
+    private const string RodericInsigniaQuestId = "NPCQ037";
+    private const string RodericSharedBattleQuestId = "NPCQ038";
     private static readonly IReadOnlyList<string> CampaignIntroduction =
     [
         "Az Aranykor hajnalán négy ősi elementálmágus őrizte a világ egyensúlyát: Pyranthos, a Lángok Atyja; Nymara, a Mélytengerek Asszonya; Goram, a Hegyek Szíve; és Zephyriel, az Ég Vándora. Együtt alkották meg a Káoszrubint, amelyben tűz, víz, föld és szél ereje egyetlen, lüktető drágakővé forrt.",
@@ -197,6 +200,7 @@ public sealed class Game
     private readonly HashSet<WorldEntityId> _spottedEnemyIds = [];
     private readonly HashSet<WorldEntityId> _spottedChestIds = [];
     private readonly List<ExpeditionEnemyTemplate> _levelEnemyTemplates = [];
+    private readonly List<WorldNpc> _temporaryFollowersEnteringNextMaze = [];
     private bool _isReturnExpedition;
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
@@ -827,9 +831,11 @@ public sealed class Game
         _leaderTrail.Add(_player.Position);
         _nextPartyMoves.Clear();
         PlacePartyMembersNear(_player.Position);
+        PlaceCarriedTemporaryFollowersNear(_player.Position);
         PlaceTraps(configuration);
         PlaceFirstSinglePlayerCompanion();
         PlaceConfiguredWorldNpcs();
+        PlaceQuestRoomEnemies(configuration);
         CaptureExpeditionEnemyTemplates();
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
         RevealFor(SelectedCharacter, _player.Position);
@@ -983,6 +989,31 @@ public sealed class Game
                 definition.Disposition, definition.Recruitable, questIds.Length > 0, dialogue,
                 friendliness: friendliness, behavior: definition.Behavior, questIds: questIds,
                 storyId: definition.StoryId));
+        }
+    }
+
+    private void PlaceQuestRoomEnemies(MazeLevelConfiguration configuration)
+    {
+        foreach (var encounter in configuration.QuestRoomEnemyEncounters)
+        {
+            var room = _maze.GetRoomByContentId(encounter.RoomId) ??
+                throw new InvalidOperationException($"A quest room nem található: '{encounter.RoomId}'.");
+            var center = new Position(room.TopLeft.X + room.Width / 2, room.TopLeft.Y + room.Height / 2);
+            var positions = room.InteriorPositions().Where(position => _maze.IsWalkable(position) &&
+                    _maze.GetObjectAt(position) is null && _maze.GetTrapAt(position) is null &&
+                    _maze.Doors.All(door => Manhattan(door.Position, position) > 1))
+                .OrderBy(position => Manhattan(position, center)).Take(encounter.Count).ToArray();
+            if (positions.Length < encounter.Count)
+                throw new InvalidOperationException($"A(z) '{encounter.RoomId}' quest roomban nincs hely " +
+                                                    $"{encounter.Count} ellenfélnek.");
+            foreach (var position in positions)
+            {
+                var enemy = new ConfiguredEnemy(position, _gameData.GetEnemy(encounter.EnemyId));
+                enemy.ConfigureMovement(EnemyMovementProfile.Stationary, Direction.Right);
+                enemy.ConfigureGroup($"QUEST:{encounter.RoomId}");
+                if (encounter.GuaranteedItemId is { } itemId) enemy.ConfigureGuaranteedLoot([itemId]);
+                _maze.AddEnemy(enemy);
+            }
         }
     }
 
@@ -1801,6 +1832,11 @@ public sealed class Game
             ConverseWithFirstUniqueNpc(npc);
             return false;
         }
+        if (definition.Unique && string.Equals(definition.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase))
+        {
+            ConverseWithRoderic(npc);
+            return false;
+        }
         if (definition.Unique)
         {
             _renderer.DrawUniqueNpcIntroduction(npc);
@@ -1833,6 +1869,67 @@ public sealed class Game
         _renderer.DrawInventoryMessage(result == WorldNpcInteractionResult.Join ? "A parti megtelt; előbb helyet kell felszabadítani."
             : $"{npc.Character.Name} egyelőre itt marad.", ConsoleColor.Yellow);
         return false;
+    }
+
+    private void ConverseWithRoderic(WorldNpc npc)
+    {
+        if (string.Equals(npc.StoryStateId, "INITIAL", StringComparison.OrdinalIgnoreCase))
+        {
+            var choice = ResolveStoryChoice(npc);
+            if (string.Equals(npc.StoryStateId, "INSIGNIAS_ACTIVE", StringComparison.OrdinalIgnoreCase))
+            {
+                ActivateNpcQuest(npc, RodericInsigniaQuestId);
+            }
+            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            _renderer.DrawInventoryMessage($"⚜ Roderic viszonya: {npc.Friendliness}/10.",
+                choice.FriendlinessChange >= 0 ? ConsoleColor.Green : ConsoleColor.DarkYellow);
+            return;
+        }
+
+        if (string.Equals(npc.StoryStateId, "INSIGNIAS_ACTIVE", StringComparison.OrdinalIgnoreCase))
+        {
+            var count = CountPartyBackpackItems(MiscItemIds.FallenKnightInsignia);
+            if (count < 3)
+            {
+                _renderer.DrawUniqueNpcStoryChoice(npc,
+                    $"Három jelvényt keressetek. Eddig {count}/3 került elő.", ["Folytatjuk a keresést."]);
+                _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+                return;
+            }
+
+            ProcessNpcQuests(npc, activateOffered: false);
+            npc.SetStoryState("CONFESSION");
+            ResolveStoryChoice(npc);
+            BeginTemporaryFollowing(npc);
+            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            return;
+        }
+
+        _renderer.DrawUniqueNpcIntroduction(npc);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+    }
+
+    private NpcStoryChoiceDefinition ResolveStoryChoice(WorldNpc npc)
+    {
+        var choices = _gameData.GetNpcStoryChoices(npc.StoryId ?? string.Empty, npc.StoryStateId);
+        if (choices.Count == 0)
+            throw new InvalidOperationException($"Nincs történeti választás: {npc.StoryId}/{npc.StoryStateId}.");
+        var index = _renderer.DrawUniqueNpcStoryChoice(npc, choices[0].Prompt,
+            choices.Select(choice => choice.Text).ToArray());
+        var selected = choices[index];
+        npc.AdjustFriendliness(selected.FriendlinessChange);
+        npc.SetStoryState(selected.NextStateId);
+        return selected;
+    }
+
+    private void ActivateNpcQuest(WorldNpc npc, string questId)
+    {
+        if (!npc.ActivateQuest(questId)) return;
+        var quest = _gameData.NpcQuests.First(value =>
+            string.Equals(value.Id, questId, StringComparison.OrdinalIgnoreCase));
+        SynchronizeQuestJournal(npc, quest);
+        _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description} " +
+            $"Jutalom: {quest.ExperienceReward} XP.", ConsoleColor.Cyan);
     }
 
     private void ConverseWithFirstUniqueNpc(WorldNpc npc)
@@ -1874,22 +1971,27 @@ public sealed class Game
         }
         if (!_maze.RemoveWorldNpc(npc)) return;
         npc.BeginFollowing();
+        var newlyActivated = new List<NpcQuestDefinition>();
         foreach (var quest in npc.Quests.Where(progress => progress.State == NpcQuestState.Offered).ToArray())
         {
             npc.ActivateQuest(quest.QuestId);
             var definition = _gameData.NpcQuests.First(value =>
                 string.Equals(value.Id, quest.QuestId, StringComparison.OrdinalIgnoreCase));
             SynchronizeQuestJournal(npc, definition);
+            newlyActivated.Add(definition);
         }
         var avatar = new PartyMemberAvatar(npc.Position, npc.Character, npc);
         _maze.AddPartyMember(avatar);
         _nextPartyMoves[avatar] = DateTime.UtcNow;
-        _renderer.DrawUniqueNpcQuestOffer(npc, _gameData.GetNpcQuests(npc.DefinitionId));
+        if (string.Equals(npc.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))
+            _renderer.DrawUniqueNpcQuestOffer(npc, _gameData.GetNpcQuests(npc.DefinitionId));
+        else if (newlyActivated.Count > 0)
+            _renderer.DrawGenericUniqueNpcQuestOffer(npc, newlyActivated);
         _renderer.DrawInventoryMessage($"🌿 {npc.Character.Name} ideiglenes követőként csatlakozott. Nem foglal partyhelyet.",
             ConsoleColor.Cyan);
     }
 
-    private void ProcessNpcQuests(WorldNpc npc)
+    private void ProcessNpcQuests(WorldNpc npc, bool activateOffered = true)
     {
         foreach (var progress in npc.Quests.Where(quest => quest.State != NpcQuestState.Completed).ToArray())
         {
@@ -1897,6 +1999,7 @@ public sealed class Game
                 string.Equals(value.Id, progress.QuestId, StringComparison.OrdinalIgnoreCase));
             if (progress.State == NpcQuestState.Offered)
             {
+                if (!activateOffered) continue;
                 npc.ActivateQuest(quest.Id);
                 SynchronizeQuestJournal(npc, quest);
                 _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description} " +
@@ -2036,8 +2139,37 @@ public sealed class Game
                    character.RemoveOneInventoryItem(InventorySlotKind.Backpack, index)) remaining--;
     }
 
-    private void RegisterNpcQuestKill(string enemyDefinitionId) =>
+    private void RegisterNpcQuestKill(Enemy defeatedEnemy)
+    {
+        var enemyDefinitionId = defeatedEnemy.Definition.Id;
         RegisterNpcQuestProgress(NpcQuestType.Kill, enemyDefinitionId);
+        var enemy = defeatedEnemy.Definition;
+        foreach (var avatar in _maze.PartyMembers.Where(member => member.TemporaryFollower is not null &&
+                     member.Character.IsAlive && Manhattan(member.Position, defeatedEnemy.Position) <= 6))
+        {
+            var npc = avatar.TemporaryFollower!;
+            foreach (var progress in npc.Quests.Where(value => value.State == NpcQuestState.Active).ToArray())
+            {
+                var quest = _gameData.NpcQuests.First(value =>
+                    string.Equals(value.Id, progress.QuestId, StringComparison.OrdinalIgnoreCase));
+                if (quest.Type != NpcQuestType.KillWithFollower ||
+                    !enemy.AbilityIds.Contains(quest.TargetId, StringComparer.OrdinalIgnoreCase)) continue;
+                npc.AddQuestProgress(quest.Id, 1, quest.RequiredCount);
+                SynchronizeQuestJournal(npc, quest);
+                var updated = npc.Quests.First(value =>
+                    string.Equals(value.QuestId, quest.Id, StringComparison.OrdinalIgnoreCase));
+                if (updated.Progress < quest.RequiredCount) continue;
+                ProcessNpcQuests(npc, activateOffered: false);
+                if (string.Equals(npc.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(quest.Id, RodericSharedBattleQuestId, StringComparison.OrdinalIgnoreCase))
+                {
+                    npc.SetStoryState("TRUSTED");
+                    _renderer.DrawInventoryMessage("⚜ Roderic most először valódi bajtársakként tekint rátok.",
+                        ConsoleColor.Cyan);
+                }
+            }
+        }
+    }
 
     private void RegisterNpcQuestProgress(NpcQuestType type, string targetId, int amount = 1)
     {
@@ -2409,6 +2541,7 @@ public sealed class Game
         _activeInnDeparture = new InnDepartureSnapshot("A csapat szedelőzködik, és elhagyjátok a fogadót.");
         _session.SetPhase(GameSessionPhase.Paused);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        CarryPersistentTemporaryFollowers();
         _mazeLevel++;
         StartNewMaze();
     }
@@ -2471,6 +2604,7 @@ public sealed class Game
         _activeInnDeparture = new InnDepartureSnapshot("A csapat szedelőzködik, és elhagyjátok a fogadót.");
         _session.SetPhase(GameSessionPhase.Paused);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        CarryPersistentTemporaryFollowers();
         _mazeLevel++;
         StartNewMaze();
     }
@@ -2478,18 +2612,21 @@ public sealed class Game
     private void CaptureExpeditionEnemyTemplates()
     {
         _levelEnemyTemplates.Clear();
-        _levelEnemyTemplates.AddRange(_maze.Enemies.Where(enemy => !enemy.Definition.IsBoss).Select(enemy =>
+        _levelEnemyTemplates.AddRange(_maze.Enemies.Where(enemy => !enemy.Definition.IsBoss &&
+            enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) != true).Select(enemy =>
             new ExpeditionEnemyTemplate(enemy.Definition.Id, enemy.Position, enemy.MovementProfile,
                 enemy.PatrolDirection, enemy.GroupId, enemy.GroupRole)));
         _levelEnemyTemplates.AddRange(_maze.Corpses.OfType<MonsterCorpse>()
-            .Where(corpse => !_gameData.GetEnemy(corpse.EnemyDefinitionId).IsBoss)
+            .Where(corpse => !_gameData.GetEnemy(corpse.EnemyDefinitionId).IsBoss &&
+                             corpse.GuaranteedLootIds.Count == 0)
             .Select(corpse => new ExpeditionEnemyTemplate(corpse.EnemyDefinitionId, corpse.Position,
                 EnemyMovementProfile.Wander, Direction.Right, null, EnemyGroupRole.Member)));
     }
 
     private void ReplenishExpeditionEnemies()
     {
-        var currentNormalCount = _maze.Enemies.Count(enemy => !enemy.Definition.IsBoss);
+        var currentNormalCount = _maze.Enemies.Count(enemy => !enemy.Definition.IsBoss &&
+            enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) != true);
         var needed = ReturnExpeditionRules.AdditionalEnemiesNeeded(_levelEnemyTemplates.Count,
             currentNormalCount);
         var candidates = _levelEnemyTemplates.OrderBy(_ => _random.Next()).ToList();
@@ -2546,6 +2683,7 @@ public sealed class Game
     {
         var avatar = _maze.PartyMembers.FirstOrDefault(member => member.TemporaryFollower is not null);
         if (avatar?.TemporaryFollower is not { } follower) return;
+        if (string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase)) return;
         foreach (var progress in follower.Quests.Where(value => value.State == NpcQuestState.Active).ToArray())
         {
             var quest = _gameData.NpcQuests.FirstOrDefault(value =>
@@ -2644,7 +2782,7 @@ public sealed class Game
         messages.Add($"esélyek: 🔑 {keyChance}%, {ConsoleRenderer.MoneyIcon} {goldChance}%" +
                      (equipmentDefinition is null ? string.Empty : $", 🎁 {equipmentChance}%"));
 
-        var foundItems = new List<IItemDefinition>();
+        var foundItems = corpse.GuaranteedLootIds.Select(_gameData.GetItem).Cast<IItemDefinition>().ToList();
         if (_random.Next(100) < keyChance) foundItems.Add(_gameData.GetItem(MiscItemIds.Key));
         if (_random.Next(100) < goldChance)
         {
@@ -3604,7 +3742,7 @@ public sealed class Game
             PlayBattleVictorySound();
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
             levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive));
-            RegisterNpcQuestKill(enemy.Definition.Id);
+            RegisterNpcQuestKill(enemy);
             _maze.ReplaceEnemyWithCorpse(enemy);
             var summary = ConsoleRenderer.FormatAutoBattleVictorySummary(result, member.Character.Name, enemy,
                 vitalityLost, manaLost, gainedStatusIcons, needLoss, spellsCast, enemy.Definition.ExperienceReward);
@@ -4861,7 +4999,7 @@ public sealed class Game
         enemy.ReceiveSpellDamage(amount);
         if (enemy.CurrentHitPoints > 0) return;
         PlaySessionSound(SoundEffect.MonsterKilledBySpell);
-        RegisterNpcQuestKill(enemy.Definition.Id);
+        RegisterNpcQuestKill(enemy);
         _maze.ReplaceEnemyWithCorpse(enemy);
         _nextEnemyMoves.Remove(enemy);
         var awards = DistributeExperience(caster, enemy.Definition.ExperienceReward);
@@ -5116,6 +5254,33 @@ public sealed class Game
         CheckBossDiscovery(_maze.Enemies);
     }
 
+    private void CarryPersistentTemporaryFollowers()
+    {
+        _temporaryFollowersEnteringNextMaze.Clear();
+        foreach (var avatar in _maze.PartyMembers.Where(member => member.TemporaryFollower is { } follower &&
+                     string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            _temporaryFollowersEnteringNextMaze.Add(avatar.TemporaryFollower!);
+            _maze.RemovePartyMember(avatar);
+            _nextPartyMoves.Remove(avatar);
+        }
+    }
+
+    private void PlaceCarriedTemporaryFollowersNear(Position leaderPosition)
+    {
+        if (_temporaryFollowersEnteringNextMaze.Count == 0) return;
+        var positions = FindNearbyFreePositions(leaderPosition).Take(_temporaryFollowersEnteringNextMaze.Count).ToArray();
+        for (var index = 0; index < Math.Min(positions.Length, _temporaryFollowersEnteringNextMaze.Count); index++)
+        {
+            var follower = _temporaryFollowersEnteringNextMaze[index];
+            follower.MoveTo(positions[index]);
+            var avatar = new PartyMemberAvatar(positions[index], follower.Character, follower);
+            _maze.AddPartyMember(avatar);
+            _nextPartyMoves[avatar] = DateTime.UtcNow;
+        }
+        _temporaryFollowersEnteringNextMaze.Clear();
+    }
+
     private void CheckBossDiscovery(IEnumerable<Enemy> enemies)
     {
         var visibleEnemies = enemies.Where(enemy => _fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position))
@@ -5289,7 +5454,7 @@ public sealed class Game
             AwardBossKey(enemy);
             PlayBattleVictorySound();
             var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
-            RegisterNpcQuestKill(enemy.Definition.Id);
+            RegisterNpcQuestKill(enemy);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,
@@ -5342,7 +5507,7 @@ public sealed class Game
             AwardBossKey(enemy);
             PlayBattleVictorySound();
             var experienceAwards = DistributeExperience(battleCharacter, enemy.Definition.ExperienceReward);
-            RegisterNpcQuestKill(enemy.Definition.Id);
+            RegisterNpcQuestKill(enemy);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,

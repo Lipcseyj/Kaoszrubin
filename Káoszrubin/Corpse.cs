@@ -11,9 +11,10 @@ public class Corpse(Position position, string formerName) : WorldObject(position
 
 /// <summary>Egy szörny egyszer átkutatható teteme, amely őrzi az eredeti definíció azonosítóját.</summary>
 public sealed class MonsterCorpse(Position position, string formerName, string enemyDefinitionId,
-    bool isSearched = false) : Corpse(position, formerName)
+    bool isSearched = false, IReadOnlyList<string>? guaranteedLootIds = null) : Corpse(position, formerName)
 {
     public string EnemyDefinitionId { get; } = enemyDefinitionId;
     public bool IsSearched { get; private set; } = isSearched;
+    public IReadOnlyList<string> GuaranteedLootIds { get; } = guaranteedLootIds ?? [];
     public void MarkSearched() => IsSearched = true;
 }

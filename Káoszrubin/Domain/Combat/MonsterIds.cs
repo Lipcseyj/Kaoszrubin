@@ -53,6 +53,7 @@ public static class MonsterIds
     public const string Drakolich = "E049";
     public const string Káoszsárkány = "E050";
     public const string Patkányember = "E051";
+    public const string CsontvázLovag = "E052";
 
     public static IReadOnlySet<string> Bosses { get; } = new HashSet<string>(
     [

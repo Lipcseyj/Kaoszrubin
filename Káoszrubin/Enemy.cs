@@ -26,6 +26,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
     private int _spellActionCounter;
     public IReadOnlyList<ActiveSpellEffect> ActiveSpellEffects => _activeSpellEffects;
     public bool IsPerceptiblyActive { get; private set; }
+    public IReadOnlyList<string> GuaranteedLootIds => _guaranteedLootIds;
+    private readonly List<string> _guaranteedLootIds = [];
 
     protected void InitializeHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
     public void SetCurrentHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
@@ -123,6 +125,11 @@ public abstract class Enemy(Position position) : WorldObject(position)
     {
         GroupId = string.IsNullOrWhiteSpace(groupId) ? null : groupId;
         GroupRole = role;
+    }
+    public void ConfigureGuaranteedLoot(IEnumerable<string> itemIds)
+    {
+        _guaranteedLootIds.Clear();
+        _guaranteedLootIds.AddRange(itemIds.Where(id => !string.IsNullOrWhiteSpace(id)));
     }
 
     public void MoveTo(Position position)

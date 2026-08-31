@@ -29,4 +29,11 @@ public static class MiscItemIds
     public const string Mead = "T023";
     public const string SpicedWine = "T024";
     public const string Torch = "T025";
+    public const string FallenKnightInsignia = "T026";
+}
+
+public static class QuestItemIds
+{
+    public static bool Contains(string itemId) =>
+        string.Equals(itemId, MiscItemIds.FallenKnightInsignia, StringComparison.OrdinalIgnoreCase);
 }

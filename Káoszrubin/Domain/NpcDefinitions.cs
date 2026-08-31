@@ -3,7 +3,7 @@ using KaoszRubin.Domain.Characters;
 namespace KaoszRubin.Domain;
 
 public enum NpcWorldBehavior { Friendly, Guarded, Opportunistic, Aggressive }
-public enum NpcQuestType { Collect, Kill, Explore, Disarm, OpenChest, Escort }
+public enum NpcQuestType { Collect, Kill, KillWithFollower, Explore, Disarm, OpenChest, Escort }
 
 public sealed record NpcDefinition(string Id, string Name, string CharacterClassId,
     NpcDisposition Disposition, NpcWorldBehavior Behavior, bool Recruitable, bool Unique,
@@ -27,6 +27,12 @@ public sealed record NpcEncounterDefinition(string Id, string NpcId, int MazeLev
 
 public sealed record NpcDialogueDefinition(string Id, string NpcId, int MinimumFriendliness,
     int MaximumFriendliness, string Text) : IGameDefinition
+{
+    public string Name => Id;
+}
+
+public sealed record NpcStoryChoiceDefinition(string Id, string StoryId, string StateId, string Prompt,
+    int Order, string Text, int FriendlinessChange, string NextStateId) : IGameDefinition
 {
     public string Name => Id;
 }
