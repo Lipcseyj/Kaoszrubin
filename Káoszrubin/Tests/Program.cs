@@ -2388,7 +2388,7 @@ static void NpcDefinitionsLoadFromCsv()
            Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
         "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 20 &&
+    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 25 &&
            catalog.NpcQuests.Count == 39 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 8 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 17 &&
@@ -2492,6 +2492,13 @@ static void RodericMalrecQuestLocationIsConfigured()
     var finalChoices = catalog.GetNpcStoryChoices("RODERIC_OATH", "MALREC_DEFEATED");
     Assert(initialChoices.Count == 3 && initialChoices.All(value => value.ContinueConversation) &&
            trustedChoices.Single() is { NextStateId: "MALREC_STORY", ContinueConversation: true } &&
+           catalog.GetNpcStoryChoices("RODERIC_OATH", "MALREC_STORY").All(value =>
+               value.NextStateId == "CACHE_DECISION" && value.ContinueConversation) &&
+           catalog.GetNpcStoryChoices("RODERIC_OATH", "CACHE_DECISION").Count == 3 &&
+           catalog.GetNpcStoryChoices("RODERIC_OATH", "CACHE_DECISION").Count(value =>
+               value.Action == NpcStoryAction.GrantEmergencySupplies) == 2 &&
+           catalog.GetNpcStoryChoices("RODERIC_OATH", "CACHE_BLOCKED").Single().Action ==
+               NpcStoryAction.GrantEmergencySupplies &&
            finalChoices.Count == 3 && finalChoices.Count(value =>
                value.Action == NpcStoryAction.RequestPermanentJoin) == 2 &&
            finalChoices.Single(value => value.NextStateId == "SECOND_CHANCE").Action == NpcStoryAction.None,
@@ -2545,16 +2552,56 @@ static void RodericUsesDefinedCharacterBuild()
 {
     var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
     var first = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"));
-    var second = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"));
-    Assert(first.Name == "Sir Roderic" && first.Level == 5 && first.Color == ConsoleColor.DarkCyan &&
+    var repeated = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"));
+    var scaled = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"), 9);
+    Assert(first.Name == "Sir Roderic" && first.Level == 7 && scaled.Level == 9 &&
+           first.Color == ConsoleColor.DarkCyan && first.NpcBehavior == NpcBehavior.Aggressive &&
            first.Abilities == new PrimaryAbilities(10, 5, 9, 6) &&
-           first.Perks.Select(perk => perk.Id).SequenceEqual(["PERK-C003-1A"]) &&
-           first.WeaponSlots[0]?.Id == "W004" && first.WeaponSlots[1]?.Id == "W015" &&
-           first.Armor?.Id == "A005" && first.Color != ConsoleColor.White,
+           first.Perks.Select(perk => perk.Id).SequenceEqual(["PERK-C003-1B", PerkIds.RodericOathblade]) &&
+           first.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master &&
+           first.WeaponSlots[0] is { Id: CharacterBoundItemRules.RodericGreatswordId,
+               Rarity: ItemRarity.Magic, MagicPower: 1, BaseWeaponId: "W009" } &&
+           first.WeaponSlots[1] is null &&
+           first.Armor is { Id: CharacterBoundItemRules.RodericPlateArmorId,
+               Rarity: ItemRarity.Magic, MagicPower: 1, BaseArmorId: "A006" } &&
+           first.Color != ConsoleColor.White,
         "Roderic karakterlapja nem a CSV-ben rögzített buildet használja.");
-    Assert(first.Abilities == second.Abilities && first.MaximumVitality == second.MaximumVitality &&
-           first.WeaponSlots.Select(item => item?.Id).SequenceEqual(second.WeaponSlots.Select(item => item?.Id)),
+    Assert(first.Abilities == repeated.Abilities && first.MaximumVitality == repeated.MaximumVitality &&
+           first.WeaponSlots.Select(item => item?.Id).SequenceEqual(repeated.WeaponSlots.Select(item => item?.Id)),
         "Roderic újbóli létrehozása nem determinisztikus.");
+
+    var outsider = CreateCharacter("Ereklyepróba");
+    Assert(!outsider.SetInventoryItem(InventorySlotKind.Backpack, 0, first.WeaponSlots[0]) &&
+           !outsider.SetInventoryItem(InventorySlotKind.Armor, 0, first.Armor) &&
+           SpellcastingRules.IsRestrictedFromTradingAndGeneration(first.WeaponSlots[0]!) &&
+           SpellcastingRules.IsRestrictedFromTradingAndGeneration(first.Armor!),
+        "Roderic családi ereklyéit más karakter használhatja vagy kereskedelmi lootként kaphatja.");
+
+    var recipient = CreateCharacter("Ellátmány");
+    var bundle = new[]
+    {
+        new InventoryBundleEntry(catalog.GetItem("T012"), 4),
+        new InventoryBundleEntry(catalog.GetItem("T004"), 2),
+        new InventoryBundleEntry(catalog.GetItem("T006"), 2),
+        new InventoryBundleEntry(catalog.GetItem("T002"), 4)
+    };
+    Assert(InventoryBundleGrantService.TryGrant([recipient], bundle, out var lacking) && lacking.Count == 0 &&
+           CountBackpack(recipient, "T012") == 4 && CountBackpack(recipient, "T004") == 2 &&
+           CountBackpack(recipient, "T006") == 2 && CountBackpack(recipient, "T002") == 4,
+        "Az Ezüst Eskü vésztartaléka nem a kért mennyiséget osztotta ki.");
+
+    var fullRecipient = CreateCharacter("Telezsák");
+    for (var index = 0; index < LiveCharacter.MaximumBackpackItemCount; index++)
+        Assert(fullRecipient.AddToBackpack(new MiscItemDefinition($"FULL-{index}", $"Tárgy {index}", "Teszt", 1)),
+            "A tele hátizsákos előfeltétel nem jött létre.");
+    Assert(!InventoryBundleGrantService.TryGrant([recipient, fullRecipient], bundle, out lacking) &&
+           lacking.SequenceEqual([fullRecipient.Name]) && CountBackpack(recipient, "T012") == 4,
+        "A vésztartalék részlegesen kiosztódott annak ellenére hogy egy partitag hátizsákja tele volt.");
+
+    static int CountBackpack(LiveCharacter character, string itemId) =>
+        Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
+            .Where(index => string.Equals(character.Backpack[index]?.Id, itemId, StringComparison.OrdinalIgnoreCase))
+            .Sum(index => character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index));
 }
 
 static void PartyRemarksLoadFromCsv()

@@ -40,6 +40,7 @@ public static class PerkIds
     public const string KnightHolyOath = "PERK-C003-2B";
     public const string KnightGuardianAngel = "PERK-C003-3A";
     public const string KnightInvincible = "PERK-C003-3B";
+    public const string RodericOathblade = "PERK-NPC021-OATHBLADE";
     public const string ThiefAmbush = "PERK-C004-1A";
     public const string ThiefEvasion = "PERK-C004-1B";
     public const string ThiefPoisoner = "PERK-C004-2A";

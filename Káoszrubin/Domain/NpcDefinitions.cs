@@ -13,7 +13,8 @@ public sealed record UniqueNpcCharacterDefinition(string NpcId, int Level, Prima
     PrimaryAbilities AdaptableAbilityBonus, int VitalityBonus, int ManaBonus, ConsoleColor Color,
     NpcBehavior Behavior, string? SpecializationId, IReadOnlyList<string> PerkIds,
     string? FirstWeaponId, string? SecondWeaponId, string? ArmorId,
-    IReadOnlyList<string> MagicItemIds, IReadOnlyList<string> BackpackItemIds) : IGameDefinition
+    IReadOnlyList<string> MagicItemIds, IReadOnlyList<string> BackpackItemIds,
+    IReadOnlyList<string> WeaponProficiencyIds) : IGameDefinition
 {
     public string Id => NpcId;
     public string Name => NpcId;
@@ -39,7 +40,15 @@ public sealed record NpcStoryChoiceDefinition(string Id, string StoryId, string 
     public string Name => Id;
 }
 
-public enum NpcStoryAction { None, ActivateQuest, BeginFollowing, TravelToLocation, RequestPermanentJoin }
+public enum NpcStoryAction
+{
+    None,
+    ActivateQuest,
+    BeginFollowing,
+    TravelToLocation,
+    RequestPermanentJoin,
+    GrantEmergencySupplies
+}
 
 public sealed record NpcQuestDefinition(string Id, string NpcId, NpcQuestType Type, string TargetId,
     int RequiredCount, int ExperienceReward, string Title, string Description,

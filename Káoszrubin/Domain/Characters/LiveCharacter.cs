@@ -396,6 +396,7 @@ public sealed class LiveCharacter
         foreach (var change in changes)
         {
             if (!IsValidSpellcastingFocusChange(change)) return false;
+            if (!CharacterBoundItemRules.CanBeHeldBy(this, change.Item)) return false;
             if (change.Item is not null && !CanPlaceInventoryItem(change.Kind, change.Item)) return false;
             if (change.Kind == InventorySlotKind.Backpack && change.Item is not null &&
                 change.Quantity is < 1 or > MaximumBackpackStackSize) return false;

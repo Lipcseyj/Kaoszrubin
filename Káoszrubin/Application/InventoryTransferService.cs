@@ -48,6 +48,9 @@ public static class InventoryTransferService
         var displacedCharges = destination.GetInventoryItemCharges(command.DestinationKind, command.DestinationIndex);
         var displacedQuantity = destination.GetInventoryItemQuantity(command.DestinationKind, command.DestinationIndex);
         var changes = new Dictionary<LiveCharacter, List<InventorySlotChange>>();
+        if (!CharacterBoundItemRules.CanBeHeldBy(destination, sourceItem) ||
+            !CharacterBoundItemRules.CanBeHeldBy(source, displaced))
+            return Fail("A családi ereklyét csak a jogos tulajdonosa használhatja.", out plan, out error);
 
         var compatibleStack = command.DestinationKind == InventorySlotKind.Backpack && displaced is not null &&
             string.Equals(sourceItem.Id, displaced.Id, StringComparison.OrdinalIgnoreCase) &&

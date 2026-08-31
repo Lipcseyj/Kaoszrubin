@@ -351,7 +351,8 @@ public static class CsvGameDataLoader
                     EnumValue<ConsoleColor>(cells, 9), EnumValue<NpcBehavior>(cells, 10),
                     EmptyAsNull(Cell(cells, 11)), SplitIds(Cell(cells, 12)),
                     EmptyAsNull(Cell(cells, 13)), EmptyAsNull(Cell(cells, 14)),
-                    EmptyAsNull(Cell(cells, 15)), SplitIds(Cell(cells, 16)), SplitIds(Cell(cells, 17))));
+                    EmptyAsNull(Cell(cells, 15)), SplitIds(Cell(cells, 16)), SplitIds(Cell(cells, 17)),
+                    SplitIds(Cell(cells, 18))));
                 break;
             case DataSection.CharacterResourceGrowth:
                 characterResourceGrowthByClass[id] = new CharacterResourceGrowthDefinition(id,
@@ -591,7 +592,8 @@ public static class CsvGameDataLoader
                 build.ArmorId is { } armor && !buildArmorIds.Contains(armor) ||
                 build.MagicItemIds.Any(value => !buildMagicItemIds.Contains(value)) ||
                 build.BackpackItemIds.Any(value => !buildItemIds.Contains(value)) ||
-                build.PerkIds.Any(value => !buildPerkIds.Contains(value)))
+                build.PerkIds.Any(value => !buildPerkIds.Contains(value)) ||
+                build.WeaponProficiencyIds.Any(value => WeaponFamilies.Find(value) is null))
                 throw new InvalidDataException($"A(z) '{build.NpcId}' egyedi karakterlap ismeretlen felszerelésre vagy tehetségre hivatkozik.");
         }
         var missingBuild = npcs.FirstOrDefault(npc => npc.Unique &&

@@ -196,6 +196,7 @@ PERK-C003-2A,Páncélmester,A viselt páncél védelmi dobása mindig legalább 
 PERK-C003-2B,Szent eskü,Minden csata elején visszanyer 10 HP-t.,C003,2
 PERK-C003-3A,Őrangyal,Harcban egyszer teljesen kivédi a halálos sebzést és 25 HP-t gyógyul.,C003,3
 PERK-C003-3B,Legyőzhetetlen,+15 maximális HP és minden sebzés 4 ponttal csökken.,C003,3
+PERK-NPC021-OATHBLADE,Esküpenge,Roderic a Várnok örökpengével +1 találatot és +2 sebzést kap.,C003,0
 PERK-C004-1A,Orvtámadás,A csata első sikeres támadása dupla sebzést okoz.,C004,1
 PERK-C004-1B,Kitérés,15% eséllyel teljesen elkerüli a találatot.,C004,1
 PERK-C004-2A,Méregkeverő,A fegyveres találatok további 1-6 mérgező sebzést okoznak.,C004,2
@@ -346,6 +347,7 @@ W014,fapajzs,WT003,1-2,3,nem,igen,igen,nem,Könnyű pajzs amely kevés védelem�
 W015,vaspajzs,WT003,2-3,6,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.,120
 W016,acélpajzs,WT003,2-5,10,nem,nem,igen,nem,Masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.,250
 W017,nagybalta,WT001,6-20,9,igen,nem,nem,nem,Kétkezes könyörtelen csatabárd.,500
+RW001,Várnok örökpenge,WT001,9-17,9,igen,nem,nem,nem,A Várnok család ezüsttel futtatott pallosa. Roderic esküjéhez kötött +1 ereklye amelyet más nem használhat.,1600,Magic,W009,1
 LW001,Hajnalpenge,WT001,9-17,6,nem,nem,igen,nem,A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.,6500,Legendás,W004,3
 LW002,Éjcsók,WT002,7-14,1,nem,igen,nem,igen,Fekete tőr amely hangtalanul találja meg a páncél réseit.,5200,Legendás,W001,4
 LW003,Vérivó,WT002,10-19,4,igen,igen,nem,nem,Bíbor katana amely minden győzelemmel sötétebben fénylik.,7800,Legendás,W003,4
@@ -378,6 +380,7 @@ A006,teljes vértezet,8-10,nem,nem,igen,nem,Nehéz lemezpáncél amely tetőtől
 A007,mitril láncing,7-8,igen,igen,igen,nem,Rendkívül könnyű és erős mitrilkarikákból font ritka vértezet.,2200
 A008,mitril mellvért,8-9,igen,nem,igen,nem,Könnyedén viselhető mitril lemez kiváló törzsvédelemmel.,3500
 A009,mitril teljes vértezet,12-15,nem,nem,igen,nem,Mesteri mitril páncélzat amely páratlan védelmet nyújt.,6500
+RA001,Várnok vértezete,9-11,nem,nem,igen,nem,A Várnok család teljes lemezvértje. Roderic örökségéhez kötött +1 ereklye amelyet más nem viselhet.,3100,Magic,A006,1
 LA001,Csillagköpeny,5-8,igen,igen,igen,igen,Éjszakai égboltot idéző kámzsa apró mozgó csillagokkal.,4800,Legendás,A001,5
 LA002,Árnyékjáró vértje,6-9,igen,igen,nem,igen,Füstként simuló bőrvért amely elnyeli a léptek zaját.,6200,Legendás,A002,5
 LA003,Sárkánypikkely,10-15,igen,nem,igen,nem,Ősi vörös sárkány pikkelyeiből illesztett forró páncél.,9000,Legendás,A004,6
@@ -1026,9 +1029,9 @@ NPC020,Elira Ezüstág,C004,Neutral,Guarded,igen,igen,R003,ELIRA_RESCUE
 NPC021,Sir Roderic,C003,Neutral,Guarded,igen,igen,R001,RODERIC_OATH
 
 #Egyedi NPC karakterlap
-NpcId,Szint,Erő,Ügyesség,Egészség,Intelligencia,Alkalmazkodó,ÉleterőBónusz,MannaBónusz,Szín,HarciViselkedés,SpecializációId,TehetségId-k,Fegyver1Id,Fegyver2Id,PáncélId,VarázstárgyId-k,HátizsákId-k
-NPC020,2,5,7,6,5,,8,1,Green,Scout,,,W002,,A002,,T011|T001|T002
-NPC021,5,9,5,9,6,STR,12,1,DarkCyan,Defensive,,PERK-C003-1A,W004,W015,A005,,T011|T011|T001|T002
+NpcId,Szint,Erő,Ügyesség,Egészség,Intelligencia,Alkalmazkodó,ÉleterőBónusz,MannaBónusz,Szín,HarciViselkedés,SpecializációId,TehetségId-k,Fegyver1Id,Fegyver2Id,PáncélId,VarázstárgyId-k,HátizsákId-k,FegyverjártasságId-k
+NPC020,2,5,7,6,5,,8,1,Green,Scout,,,W002,,A002,,T011|T001|T002,
+NPC021,7,9,5,9,6,STR,12,1,DarkCyan,Aggressive,,PERK-C003-1B|PERK-NPC021-OATHBLADE,RW001,,RA001,,T011|T011|T012|T012|T001|T001|T002|T002,SWORD|SWORD
 
 #NPC találkozások
 Id,NpcId,Pályaszint,MinimumTávolság,MaximumTávolság,QuestRoomId
@@ -1151,8 +1154,13 @@ NSC008,RODERIC_OATH,GUILT,Roderic: Parancsot teljesítettem. Ezt mondogatom maga
 NSC009,RODERIC_OATH,GUILT,Roderic: Parancsot teljesítettem. Ezt mondogatom magamnak én is. Érdekes módon éjszakánként nem segít.,2,A múltat nem változtathatod meg de még harcolhatsz értük.,1,FOLLOWING,Roderic: Akkor mellettetek harcolok. Harcoltam már olyan ember mellett akit tíz perc alatt jobban megismertem mint másokat tíz év alatt.,BeginFollowing,,Nem
 NSC010,RODERIC_OATH,GUILT,Roderic: Parancsot teljesítettem. Ezt mondogatom magamnak én is. Érdekes módon éjszakánként nem segít.,3,A bűntudatod nem a mi ügyünk. A kardodra van szükségünk.,-1,FOLLOWING,Roderic: Legalább őszinték vagytok. Megkapjátok a kardomat egy időre. A bizalmamat még nem.,BeginFollowing,,Nem
 NSC011,RODERIC_OATH,TRUSTED,Roderic: Nem rossz. Tőlem ez komoly dicséretnek számít. Most már tudom hogy számíthatok rátok.,1,Akkor mondd el miért maradtál a katakombákban.,1,MALREC_STORY,Roderic: Sir Malrec nem halt meg a többiekkel. Utolsóként a belső szentélyben maradt. Vörös fényt láttam és hallottam a kiáltását. Nem mentem vissza mert féltem attól amit odalent találok.,None,,Igen
-NSC012,RODERIC_OATH,MALREC_STORY,Roderic: Ismerek egy lezárt utat a sírkápolnájához. Ez nem a ti harcotok.,1,Akkor keressük meg együtt.,2,MALREC_APPROACH,Roderic: Már egy ideje veletek harcolok. Ideje megszoknom hogy ez fordítva is működik. Jöjjetek.,TravelToLocation,RODERIC_MALREC_CHAPEL,Nem
-NSC013,RODERIC_OATH,MALREC_STORY,Roderic: Ismerek egy lezárt utat a sírkápolnájához. Ez nem a ti harcotok.,2,Most már a mi harcunk is.,1,MALREC_APPROACH,Roderic: Kezdem érteni miért vagytok még életben. Induljunk.,TravelToLocation,RODERIC_MALREC_CHAPEL,Nem
+NSC012,RODERIC_OATH,MALREC_STORY,Roderic: Ismerek egy lezárt utat a sírkápolnájához. Ez nem a ti harcotok.,1,Akkor keressük meg együtt.,2,CACHE_DECISION,Roderic: Már egy ideje veletek harcolok. Ideje megszoknom hogy ez fordítva is működik.|Roderic: Van még valami. A rend vésztartalék-ládája. Malrec parancsa nélkül tilos volt felnyitni és ilyen parancsot sosem kaptam.,None,,Igen
+NSC013,RODERIC_OATH,MALREC_STORY,Roderic: Ismerek egy lezárt utat a sírkápolnájához. Ez nem a ti harcotok.,2,Most már a mi harcunk is.,1,CACHE_DECISION,Roderic: Kezdem érteni miért vagytok még életben.|Roderic: Eszembe jutott az Ezüst Eskü vésztartaléka. De nincs parancsom a láda felnyitására.,None,,Igen
+NSC021,RODERIC_OATH,CACHE_DECISION,Roderic: A készlet a rendé. Egy lovag nem írhatja felül a parancsnokát csak azért mert szüksége van valamire.,1,A parancs célja az volt hogy a rend lovagjai túléljék a végső harcot. Mi most értük is harcolunk.,2,MALREC_APPROACH,Roderic: Nem a parancsot töröm meg hanem beteljesítem a célját. Igazatok van. Nyissuk fel a ládát.,GrantEmergencySupplies,,Nem
+NSC022,RODERIC_OATH,CACHE_DECISION,Roderic: A készlet a rendé. Egy lovag nem írhatja felül a parancsnokát csak azért mert szüksége van valamire.,2,Te vagy az Ezüst Eskü utolsó szolgálatban álló lovagja. A döntés és a felelősség most a tiéd.,1,MALREC_APPROACH,Roderic: Ezt a rangot sosem kértem. De a felelősséget nem hagyhatom egy halottra. Felnyitom.,GrantEmergencySupplies,,Nem
+NSC023,RODERIC_OATH,CACHE_DECISION,Roderic: A készlet a rendé. Egy lovag nem írhatja felül a parancsnokát csak azért mert szüksége van valamire.,3,A halottaknak már úgysem kell. Vegyük el.,-2,CACHE_RECONSIDER,Roderic: Akkor még mindig nem értitek. Nem a holtak ételéről beszélek hanem egy esküről.,None,,Igen
+NSC024,RODERIC_OATH,CACHE_RECONSIDER,Roderic: Ha felnyitom tudnom kell hogy nem fosztogatásból teszem.,1,Igazad van. Azért kell hogy élve eljussunk Malrechez és befejezzük amit a rend elkezdett.,2,MALREC_APPROACH,Roderic: Ez már olyan indok amelyet a társaim előtt is vállalnék. A vésztartalék a küldetést szolgálja. Nyissuk ki.,GrantEmergencySupplies,,Nem
+NSC025,RODERIC_OATH,CACHE_BLOCKED,Roderic: A láda nyitva áll de addig nem osztom ki hiányosan a készletet amíg mindenkinek nincs helye.,1,Most már mindenki előkészítette a hátizsákját.,0,MALREC_APPROACH,Roderic: Akkor fejenként osszuk el. Ami ránk vár ahhoz minden adagra szükségünk lehet.,GrantEmergencySupplies,,Nem
 NSC014,RODERIC_OATH,MALREC_APPROACH,Malrec: Roderic. Még mindig menekülsz?|Roderic: Te meghaltál.|Malrec: Mind meghaltunk. Csak te voltál túl gyáva hozzá. Hallottad őket amikor bezártad a kaput.,1,A kapu lezárása mások életét menthette meg.,1,MALREC_FIGHT,Malrec: Milyen kényelmes magyarázat.|Roderic: Talán. De most nem magyarázkodni jöttem.,None,,Nem
 NSC015,RODERIC_OATH,MALREC_APPROACH,Malrec: Roderic. Még mindig menekülsz?|Roderic: Te meghaltál.|Malrec: Mind meghaltunk. Csak te voltál túl gyáva hozzá. Hallottad őket amikor bezártad a kaput.,2,Roderic hibázott de visszajött.,2,MALREC_FIGHT,Malrec: És ettől megbocsátanak neki a halottak?|Te: Nem. De helyrehozhatja amit lehet.|Roderic: Pontosan ezt fogom tenni.,None,,Nem
 NSC016,RODERIC_OATH,MALREC_APPROACH,Malrec: Roderic. Még mindig menekülsz?|Roderic: Te meghaltál.|Malrec: Mind meghaltunk. Csak te voltál túl gyáva hozzá. Hallottad őket amikor bezártad a kaput.,3,Túl sokat beszélsz egy halotthoz képest.,0,MALREC_FIGHT,Malrec: Te pedig túl bátran beszélsz ahhoz képest hogy mindjárt közénk tartozol.|Roderic: Vigyázz. Kezdem megkedvelni ezt a társaságot.,None,,Nem

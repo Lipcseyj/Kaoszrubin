@@ -64,7 +64,8 @@ public static class SpellcastingRules
         string.Equals(itemIdOrName, "Tanonc pálcája", StringComparison.OrdinalIgnoreCase);
 
     public static bool IsRestrictedFromTradingAndGeneration(IItemDefinition item) =>
-        IsSpellcastingFocus(item) || IsLegacyStartingFocus(item) || QuestItemIds.Contains(item.Id);
+        IsSpellcastingFocus(item) || IsLegacyStartingFocus(item) || QuestItemIds.Contains(item.Id) ||
+        CharacterBoundItemRules.IsBound(item);
 
     public static bool HasRequiredFocus(LiveCharacter character) =>
         RequiredFocusItemId(character.CharacterClass.Id) is { } requiredId &&

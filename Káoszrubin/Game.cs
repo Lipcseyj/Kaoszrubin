@@ -958,6 +958,12 @@ public sealed class Game
         .FirstOrDefault(follower => follower is not null &&
             string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase));
 
+    private int RodericTargetLevel()
+    {
+        var requested = SelectedCharacter.Level >= 7 ? SelectedCharacter.Level + 2 : 7;
+        return Math.Min(requested, _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(requested).Max());
+    }
+
     private void RestoreSuspendedCampaign()
     {
         var suspended = _suspendedCampaignState ??
@@ -1162,7 +1168,10 @@ public sealed class Game
 
             var generator = new RandomCharacterGenerator(_gameData, _random);
             var recruit = definition.Unique && _gameData.GetUniqueNpcCharacter(definition.Id) is not null
-                ? new UniqueNpcCharacterFactory(_gameData).Create(definition)
+                ? new UniqueNpcCharacterFactory(_gameData).Create(definition,
+                    string.Equals(definition.Id, "NPC021", StringComparison.OrdinalIgnoreCase)
+                        ? RodericTargetLevel()
+                        : null)
                 : definition.Unique && definition.RaceId is { } raceId
                     ? generator.CreateUniqueRecruit(definition.Name, _gameData.GetRace(raceId),
                         _gameData.GetCharacterClass(definition.CharacterClassId), SelectedCharacter.Level)
@@ -2115,6 +2124,8 @@ public sealed class Game
             RunStoryConversation(npc);
             if (string.Equals(npc.StoryStateId, "JOIN_ACCEPTED", StringComparison.OrdinalIgnoreCase))
                 TryFinalizeRodericPermanentJoin();
+            if (string.Equals(npc.StoryStateId, "MALREC_APPROACH", StringComparison.OrdinalIgnoreCase))
+                _pendingRodericExpedition = true;
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
             return;
         }
@@ -2161,6 +2172,9 @@ public sealed class Game
             case NpcStoryAction.BeginFollowing:
                 BeginTemporaryFollowing(npc);
                 return;
+            case NpcStoryAction.GrantEmergencySupplies:
+                GrantRodericEmergencySupplies(npc);
+                return;
             default:
                 throw new InvalidOperationException($"Hiányos NPC-történeti hatás: {choice.Id}/{choice.Action}.");
         }
@@ -2174,6 +2188,29 @@ public sealed class Game
         SynchronizeQuestJournal(npc, quest);
         _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description} " +
             $"Jutalom: {quest.ExperienceReward} XP.", ConsoleColor.Cyan);
+    }
+
+    private void GrantRodericEmergencySupplies(WorldNpc npc)
+    {
+        var bundle = new[]
+        {
+            new InventoryBundleEntry(_gameData.GetItem("T012"), 4),
+            new InventoryBundleEntry(_gameData.GetItem("T004"), 2),
+            new InventoryBundleEntry(_gameData.GetItem("T006"), 2),
+            new InventoryBundleEntry(_gameData.GetItem("T002"), 4)
+        };
+        if (!InventoryBundleGrantService.TryGrant(CharacterRoster.Party.Members, bundle, out var lackingSpace))
+        {
+            npc.SetStoryState("CACHE_BLOCKED");
+            _renderer.DrawInventoryMessage(
+                $"Az Ezüst Eskü készlete érintetlen maradt. Előbb hátizsákhely kell: {string.Join(", ", lackingSpace)}.",
+                ConsoleColor.DarkYellow);
+            return;
+        }
+
+        _renderer.DrawInventoryMessage(
+            $"🗝 Az Ezüst Eskü vésztartaléka kiosztva {CharacterRoster.Party.Members.Count} partitag között: " +
+            "fejenként 4 gyógyital, 2 kenyér, 2 füstölt hús és 4 bőrkulacs.", ConsoleColor.Green);
     }
 
     private void ConverseWithFirstUniqueNpc(WorldNpc npc)
@@ -2990,6 +3027,8 @@ public sealed class Game
         if (item is null) { _renderer.DrawInventoryMessage("A kijelölt hely üres.", ConsoleColor.DarkYellow); return; }
         if (SpellcastingRules.IsSpellcastingFocus(item))
         { _renderer.DrawInventoryMessage($"A(z) {item.Name} a karakterhez kötött varázsfókusz, ezért nem dobható el.", ConsoleColor.Red); return; }
+        if (CharacterBoundItemRules.IsBound(item))
+        { _renderer.DrawInventoryMessage($"A(z) {item.Name} családi ereklye, ezért nem dobható el.", ConsoleColor.Red); return; }
         var commandId = _localCommandId + 1;
         if (!_session.Submit(new DropInventoryItemCommand(_session.HostPlayerId, commandId,
                 slot.Value.Character.Id, slot.Value.Character.InventoryRevision, slot.Value.Kind, slot.Value.Index))) return;
@@ -3309,7 +3348,7 @@ public sealed class Game
         var character = CharacterRoster.Party.Members.FirstOrDefault(member => member.Id == command.CharacterId);
         if (character is null || character.InventoryRevision != command.ExpectedInventoryRevision) return;
         var item = character.GetInventoryItem(command.SlotKind, command.SlotIndex);
-        if (item is null || SpellcastingRules.IsSpellcastingFocus(item)) return;
+        if (item is null || SpellcastingRules.IsSpellcastingFocus(item) || CharacterBoundItemRules.IsBound(item)) return;
         var charges = character.GetInventoryItemCharges(command.SlotKind, command.SlotIndex);
         var position = GetCharacterWorldPosition(character);
         if (position is null || !character.RemoveOneInventoryItem(command.SlotKind, command.SlotIndex)) return;

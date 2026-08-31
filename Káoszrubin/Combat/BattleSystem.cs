@@ -1,5 +1,6 @@
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Combat;
+using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Magic;
 
 namespace KaoszRubin.Combat;
@@ -276,11 +277,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var classHitBonus = ClassHitBonus(player);
         var weaponFamily = WeaponFamilies.ForWeapon(weapon);
         var weaponRank = player.WeaponProficiencyRankFor(weaponFamily);
+        var oathbladeBonus = UsesRodericOathblade(player, weapon) ? 1 : 0;
         var retaliation = context.KnightRetaliationReady;
         context.KnightRetaliationReady = false;
         var hitBonus = PlayerHitBonus(player, context.Tactic, weapon is not null, invisibilityBonus,
             strengthHitBonus, blessedWeaponBonus) + (retaliation ? 2 : 0) +
                        (weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0);
+        hitBonus += oathbladeBonus;
         var hit = HitRoll(player.EffectiveAbilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
         var strengthHitText = strengthHitBonus > 0 ? $" [Erő-találat +{strengthHitBonus}]" : string.Empty;
@@ -302,6 +305,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var perkBonus = player.GetMagicItemBonus(MagicItemEffect.Damage) + blessedWeaponBonus +
                         player.SpellEffectValue(ActiveSpellEffectType.DamageBonus);
         var notes = new List<string>();
+        if (oathbladeBonus > 0)
+        {
+            perkBonus += 2;
+            notes.Add("Esküpenge +1 találat és +2 sebzés");
+        }
         if (weaponFamily == WeaponFamilies.Sword && weaponRank is not null)
             notes.Add("⚔️ Kardjártasság +1 találat");
         if (weaponFamily == WeaponFamilies.Dagger && weaponRank is not null)
@@ -440,7 +448,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             player.SpellEffectValue(ActiveSpellEffectType.Invisibility), StrengthHitBonus(player), blessedWeaponBonus) -
                     player.StatusHitPenalty +
                     (WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Sword &&
-                     player.WeaponProficiencyRankFor(WeaponFamilies.Sword) is not null ? 1 : 0);
+                     player.WeaponProficiencyRankFor(WeaponFamilies.Sword) is not null ? 1 : 0) +
+                    (UsesRodericOathblade(player, weapon) ? 1 : 0);
         var target = 11 + enemy.EffectiveSpeed;
         var successfulRolls = Enumerable.Range(1, 20).Count(roll =>
             roll != 1 && (roll == 20 || roll + player.EffectiveAbilities.Dexterity + bonus >= target));
@@ -462,6 +471,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                strengthHitBonus + player.SpellEffectValue(ActiveSpellEffectType.HitBonus) +
                ClassHitBonus(player) + tacticHitBonus;
     }
+
+    private static bool UsesRodericOathblade(LiveCharacter player, WeaponDefinition? weapon) =>
+        player.HasPerk(PerkIds.RodericOathblade) && weapon is not null &&
+        string.Equals(weapon.Id, CharacterBoundItemRules.RodericGreatswordId,
+            StringComparison.OrdinalIgnoreCase);
 
     private static int ClassHitBonus(LiveCharacter player) => player.CharacterClass.Id switch
     {

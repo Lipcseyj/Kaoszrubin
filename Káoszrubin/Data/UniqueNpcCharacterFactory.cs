@@ -7,7 +7,7 @@ namespace KaoszRubin.Data;
 /// <summary>CSV-ben rögzített, újrageneráláskor is azonos felépítésű egyedi NPC-t készít.</summary>
 public sealed class UniqueNpcCharacterFactory(GameDataCatalog data)
 {
-    public LiveCharacter Create(NpcDefinition npc)
+    public LiveCharacter Create(NpcDefinition npc, int? targetLevel = null)
     {
         var build = data.GetUniqueNpcCharacter(npc.Id) ??
             throw new InvalidOperationException($"A(z) '{npc.Id}' egyedi NPC-hez nincs karakterlap.");
@@ -19,7 +19,8 @@ public sealed class UniqueNpcCharacterFactory(GameDataCatalog data)
             data.GetCharacterClass(npc.CharacterClassId), build.RolledAbilities,
             build.VitalityBonus, build.ManaBonus, data, build.Color, build.AdaptableAbilityBonus);
         character.SetNpcBehavior(build.Behavior);
-        new RandomCharacterGenerator(data, random).RaiseToLevel(character, build.Level);
+        new RandomCharacterGenerator(data, random).RaiseToLevel(character,
+            Math.Max(build.Level, targetLevel ?? build.Level));
 
         ClearGeneratedEquipment(character);
         if (build.SpecializationId is { } specializationId && !character.ChooseSpecialization(specializationId))
@@ -31,6 +32,9 @@ public sealed class UniqueNpcCharacterFactory(GameDataCatalog data)
                 throw new InvalidOperationException($"{npc.Name} tehetsége nem adható hozzá: '{perkId}'.");
             character.ApplyPerkAcquisitionBonus(perk);
         }
+        foreach (var familyId in build.WeaponProficiencyIds)
+            if (!character.TryAdvanceWeaponProficiency(familyId))
+                throw new InvalidOperationException($"{npc.Name} fegyverjártassága nem adható hozzá: '{familyId}'.");
 
         Equip(character, build.FirstWeaponId, build.SecondWeaponId, build.ArmorId);
         foreach (var itemId in build.MagicItemIds)
