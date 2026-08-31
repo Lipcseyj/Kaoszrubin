@@ -1,8 +1,13 @@
 namespace KaoszRubin;
 
+public enum RoomPurpose { Normal, Starting, Quest, Boss }
+
 /// <summary>Egy ajtóval kapcsolódó téglalap alakú szoba belső területe.</summary>
-public sealed record Room(Position TopLeft, int Width, int Height)
+public sealed record Room(Position TopLeft, int Width, int Height,
+    RoomPurpose Purpose = RoomPurpose.Normal, string? ContentId = null)
 {
+    public bool AllowsRandomContent => Purpose == RoomPurpose.Normal;
+
     public bool Contains(Position position) =>
         position.X >= TopLeft.X && position.X < TopLeft.X + Width &&
         position.Y >= TopLeft.Y && position.Y < TopLeft.Y + Height;

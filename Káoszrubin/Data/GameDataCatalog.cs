@@ -34,6 +34,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<InnRumorDefinition> InnRumors { get; init; } = [];
     public IReadOnlyList<TrapDefinition> Traps { get; init; } = [];
     public IReadOnlyList<NpcDefinition> Npcs { get; init; } = [];
+    public IReadOnlyList<UniqueNpcCharacterDefinition> UniqueNpcCharacters { get; init; } = [];
     public IReadOnlyList<NpcEncounterDefinition> NpcEncounters { get; init; } = [];
     public IReadOnlyList<NpcDialogueDefinition> NpcDialogues { get; init; } = [];
     public IReadOnlyList<NpcQuestDefinition> NpcQuests { get; init; } = [];
@@ -72,6 +73,8 @@ public sealed class GameDataCatalog
     public StatusDefinition GetStatus(string id) => FindById(Statuses, id, "állapot");
     public TrapDefinition GetTrap(string id) => FindById(Traps, id, "csapda");
     public NpcDefinition GetNpc(string id) => FindById(Npcs, id, "NPC");
+    public UniqueNpcCharacterDefinition? GetUniqueNpcCharacter(string npcId) => UniqueNpcCharacters.FirstOrDefault(value =>
+        string.Equals(value.NpcId, npcId, StringComparison.OrdinalIgnoreCase));
     public IReadOnlyList<NpcDialogueDefinition> GetNpcDialogues(string npcId) => NpcDialogues
         .Where(dialogue => string.Equals(dialogue.NpcId, npcId, StringComparison.OrdinalIgnoreCase)).ToArray();
     public IReadOnlyList<NpcQuestDefinition> GetNpcQuests(string npcId) => NpcQuests

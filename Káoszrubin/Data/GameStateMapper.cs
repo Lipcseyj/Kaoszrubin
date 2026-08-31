@@ -186,13 +186,14 @@ internal sealed class GameStateMapper
     private WorldNpcSaveData SaveWorldNpc(WorldNpc npc) => new(npc.Position, npc.DefinitionId,
         CharacterIndex(npc.Character), npc.Disposition, npc.Recruitable, npc.IsQuestNpc,
         npc.Dialogue, npc.State, npc.Friendliness, npc.Behavior, npc.QuestIds.ToList(),
-        npc.Quests.ToList(), npc.ConversationStage);
+        npc.Quests.ToList(), npc.ConversationStage, npc.StoryId, npc.StoryStateId);
 
     private WorldNpc RestoreWorldNpc(WorldNpcSaveData saved)
     {
         var restored = new WorldNpc(saved.Position, saved.DefinitionId,
             _characterRoster.Characters[saved.CharacterIndex], saved.Disposition, saved.Recruitable,
-            saved.IsQuestNpc, saved.Dialogue, saved.State, saved.Friendliness, saved.Behavior, saved.QuestIds);
+            saved.IsQuestNpc, saved.Dialogue, saved.State, saved.Friendliness, saved.Behavior, saved.QuestIds,
+            saved.StoryId, saved.StoryStateId);
         restored.RestoreQuests(saved.Quests ?? []);
         restored.RestoreConversationStage(saved.ConversationStage);
         return restored;

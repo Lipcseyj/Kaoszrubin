@@ -113,11 +113,23 @@ public sealed class Maze
 
     public void AddRoom(Room room) => _rooms.Add(room);
 
+    public Room? GetRoomByContentId(string contentId) => _rooms.FirstOrDefault(room =>
+        string.Equals(room.ContentId, contentId, StringComparison.OrdinalIgnoreCase));
+
+    public void AssignRoomPurpose(Room room, RoomPurpose purpose, string? contentId = null)
+    {
+        var index = _rooms.IndexOf(room);
+        if (index < 0) throw new ArgumentException("A szoba nem a labirintus része.", nameof(room));
+        if (purpose is RoomPurpose.Quest or RoomPurpose.Boss && string.IsNullOrWhiteSpace(contentId))
+            throw new ArgumentException("A különleges szobának tartalomazonosító szükséges.", nameof(contentId));
+        _rooms[index] = room with { Purpose = purpose, ContentId = contentId };
+    }
+
     public void SetStartingRoom(Room room)
     {
         if (!room.Contains(Entrance)) throw new ArgumentException("A kezdőteremnek tartalmaznia kell a bejáratot.", nameof(room));
-        StartingRoom = room;
-        _rooms.Insert(0, room);
+        StartingRoom = room with { Purpose = RoomPurpose.Starting, ContentId = null };
+        _rooms.Insert(0, StartingRoom);
     }
 
     public void AddTreasureChest(TreasureChest chest)

@@ -164,7 +164,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         RaiseToLevel(character, targetLevel);
     }
 
-    private void RaiseToLevel(LiveCharacter character, int targetLevel)
+    internal void RaiseToLevel(LiveCharacter character, int targetLevel)
     {
         while (character.Level < targetLevel)
         {

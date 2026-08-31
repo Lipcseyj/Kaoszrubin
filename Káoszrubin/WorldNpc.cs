@@ -14,7 +14,8 @@ public sealed record NpcQuestProgress(string QuestId, NpcQuestState State = NpcQ
 public sealed class WorldNpc(Position position, string definitionId, LiveCharacter character,
     NpcDisposition disposition, bool recruitable, bool isQuestNpc, string dialogue,
     WorldNpcState state = WorldNpcState.Available, int friendliness = 5,
-    NpcWorldBehavior behavior = NpcWorldBehavior.Guarded, IReadOnlyList<string>? questIds = null) : WorldObject(position)
+    NpcWorldBehavior behavior = NpcWorldBehavior.Guarded, IReadOnlyList<string>? questIds = null,
+    string? storyId = null, string storyStateId = "INITIAL") : WorldObject(position)
 {
     private readonly Dictionary<string, NpcQuestProgress> _quests = (questIds ?? [])
         .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -28,6 +29,8 @@ public sealed class WorldNpc(Position position, string definitionId, LiveCharact
     public WorldNpcState State { get; private set; } = state;
     public int Friendliness { get; private set; } = Math.Clamp(friendliness, 0, 10);
     public NpcWorldBehavior Behavior { get; } = behavior;
+    public string? StoryId { get; } = storyId;
+    public string StoryStateId { get; private set; } = string.IsNullOrWhiteSpace(storyStateId) ? "INITIAL" : storyStateId;
     public int ConversationStage { get; private set; }
     public IReadOnlyList<string> QuestIds => _quests.Keys.ToArray();
     public IReadOnlyList<NpcQuestProgress> Quests => _quests.Values.ToArray();
@@ -40,6 +43,11 @@ public sealed class WorldNpc(Position position, string definitionId, LiveCharact
     public void AdjustFriendliness(int amount) => Friendliness = Math.Clamp(Friendliness + amount, 0, 10);
     public void AdvanceConversation() => ConversationStage++;
     public void RestoreConversationStage(int stage) => ConversationStage = Math.Max(0, stage);
+    public void SetStoryState(string storyStateId)
+    {
+        if (string.IsNullOrWhiteSpace(storyStateId)) throw new ArgumentException("A történeti állapot nem lehet üres.", nameof(storyStateId));
+        StoryStateId = storyStateId;
+    }
     public bool ActivateQuest(string questId)
     {
         if (!_quests.TryGetValue(questId, out var quest) || quest.State != NpcQuestState.Offered) return false;

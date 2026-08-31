@@ -36,6 +36,7 @@ public sealed class MazeGenerator
         maze.PlaceExit(ToMazePosition(new Position(gridWidth - 1, gridHeight - 1)));
         // Végső biztosíték: ha bármi mégis leválasztott maradt, a legkevesebb faláttöréssel visszaköti a hálózathoz.
         maze.EnsureFullAccessibility(RollDoorState);
+        AssignSpecialRooms(maze);
         PlaceMapObjects(maze);
         return maze;
     }
@@ -150,14 +151,16 @@ public sealed class MazeGenerator
 
     private void PlaceMapObjects(Maze maze)
     {
-        PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze).Where(position => maze.StartingRoom?.Contains(position) != true), position => new TreasureChest(position, _settings.TreasureGoldRange.Roll(_random)), maze.AddTreasureChest);
+        PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze).Where(position =>
+            maze.Rooms.FirstOrDefault(room => room.Contains(position))?.AllowsRandomContent == true),
+            position => new TreasureChest(position, _settings.TreasureGoldRange.Roll(_random)), maze.AddTreasureChest);
         PlaceRoomEncounters(maze);
         PlaceCorridorEncounters(maze);
     }
 
     private void PlaceRoomEncounters(Maze maze)
     {
-        var rooms = maze.Rooms.Where(room => room != maze.StartingRoom).OrderBy(_ => _random.Next()).ToList();
+        var rooms = maze.Rooms.Where(room => room.AllowsRandomContent).OrderBy(_ => _random.Next()).ToList();
         var encounters = ExpandEncounters(_roomEncounters)
             .OrderByDescending(encounter => encounter.Members.Any(member => member.Role == EnemyGroupRole.Leader))
             .ThenBy(_ => _random.Next()).ToList();
@@ -174,6 +177,18 @@ public sealed class MazeGenerator
                 .Take(members.Count).ToList();
             PlaceGroup(maze, encounter, members, positions);
         }
+    }
+
+    private void AssignSpecialRooms(Maze maze)
+    {
+        var available = maze.Rooms.Where(room => room.AllowsRandomContent)
+            .OrderByDescending(room => Manhattan(
+                new Position(room.TopLeft.X + room.Width / 2, room.TopLeft.Y + room.Height / 2), maze.Entrance))
+            .ThenBy(_ => _random.Next()).ToList();
+        if (available.Count < _settings.QuestRoomIds.Count)
+            throw new InvalidOperationException("Nincs elég szoba a kötelező küldetésszobák elhelyezéséhez.");
+        for (var index = 0; index < _settings.QuestRoomIds.Count; index++)
+            maze.AssignRoomPurpose(available[index], RoomPurpose.Quest, _settings.QuestRoomIds[index]);
     }
 
     private void PlaceCorridorEncounters(Maze maze)

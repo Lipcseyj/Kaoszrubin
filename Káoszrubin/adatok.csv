@@ -998,7 +998,7 @@ TR007,Lélektű,♦,Poison,18,15,15,8,14,75,200,600,Árnyékból formált tű se
 TR008,Koromfelhő,☁,Darkness,5,9,9,0,0,100,50,150,Sűrű fekete korom borítja el az áldozat látását.
 
 #NPC-k
-Id,Név,OsztályId,Viszony,Viselkedés,Toborozható,Egyedi,FajId
+Id,Név,OsztályId,Viszony,Viselkedés,Toborozható,Egyedi,FajId,TörténetId
 NPC001,Vándor füvesasszony,C005,Neutral,Guarded,nem,nem
 NPC002,Szörnyvadász,C001,Neutral,Aggressive,nem,nem
 NPC003,Kincskereső,C004,Neutral,Opportunistic,nem,nem
@@ -1018,10 +1018,16 @@ NPC016,Éji menekült,C004,Neutral,Guarded,nem,nem
 NPC017,Láncait vesztett démonvadász,C003,Neutral,Aggressive,nem,nem
 NPC018,Káoszzarándok,C005,Neutral,Guarded,nem,nem
 NPC019,Óriásvadász,C001,Neutral,Aggressive,nem,nem
-NPC020,Elira Ezüstág,C004,Neutral,Guarded,igen,igen,R003
+NPC020,Elira Ezüstág,C004,Neutral,Guarded,igen,igen,R003,ELIRA_RESCUE
+NPC021,Sir Roderic,C003,Neutral,Guarded,igen,igen,R001,RODERIC_OATH
+
+#Egyedi NPC karakterlap
+NpcId,Szint,Erő,Ügyesség,Egészség,Intelligencia,Alkalmazkodó,ÉleterőBónusz,MannaBónusz,Szín,HarciViselkedés,SpecializációId,TehetségId-k,Fegyver1Id,Fegyver2Id,PáncélId,VarázstárgyId-k,HátizsákId-k
+NPC020,2,5,7,6,5,,8,1,Green,Scout,,,W002,,A002,,T011|T001|T002
+NPC021,5,9,5,9,6,STR,12,1,DarkCyan,Defensive,,PERK-C003-1A,W004,W015,A005,,T011|T011|T001|T002
 
 #NPC találkozások
-Id,NpcId,Pályaszint,MinimumTávolság,MaximumTávolság
+Id,NpcId,Pályaszint,MinimumTávolság,MaximumTávolság,QuestRoomId
 NPCE001,NPC001,2,6,14
 NPCE002,NPC002,3,7,16
 NPCE003,NPC003,5,8,18
@@ -1050,6 +1056,7 @@ NPCE025,NPC017,19,10,22
 NPCE026,NPC018,20,10,23
 NPCE027,NPC018,21,10,23
 NPCE028,NPC020,2,8,18
+NPCE029,NPC021,5,1,50,RODERIC_MEETING
 
 #NPC párbeszédek
 Id,NpcId,MinimumBarátságosság,MaximumBarátságosság,Szöveg
@@ -1125,6 +1132,7 @@ NPCD069,NPC019,8,10,Jó vadászat volt. A hegy sokáig emlékezni fog a zuhanás
 NPCD070,NPC020,0,3,Ha a patkányok nem végeznek velem a bizalmatlanságotok fog.
 NPCD071,NPC020,4,7,A nevem Elira. Kijuttattok innen vagy itt hagytok a járatoknak?
 NPCD072,NPC020,8,10,Rég nem bíztam senkiben ennyire. Talán az utam nem ér véget a kijáratnál.
+NPCD073,NPC021,0,10,Álljatok meg. A holtak nyugalmát nem zavarhatják meg újabb sírrablók.
 
 #NPC küldetések
 Id,NpcId,Típus,CélId,Darabszám,XP,Cím,Leírás,FixJutalomId,FixJutalomDarab,VéletlenJutalomDarab

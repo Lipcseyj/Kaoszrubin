@@ -7,10 +7,20 @@ public enum NpcQuestType { Collect, Kill, Explore, Disarm, OpenChest, Escort }
 
 public sealed record NpcDefinition(string Id, string Name, string CharacterClassId,
     NpcDisposition Disposition, NpcWorldBehavior Behavior, bool Recruitable, bool Unique,
-    string? RaceId = null) : IGameDefinition;
+    string? RaceId = null, string? StoryId = null) : IGameDefinition;
+
+public sealed record UniqueNpcCharacterDefinition(string NpcId, int Level, PrimaryAbilities RolledAbilities,
+    PrimaryAbilities AdaptableAbilityBonus, int VitalityBonus, int ManaBonus, ConsoleColor Color,
+    NpcBehavior Behavior, string? SpecializationId, IReadOnlyList<string> PerkIds,
+    string? FirstWeaponId, string? SecondWeaponId, string? ArmorId,
+    IReadOnlyList<string> MagicItemIds, IReadOnlyList<string> BackpackItemIds) : IGameDefinition
+{
+    public string Id => NpcId;
+    public string Name => NpcId;
+}
 
 public sealed record NpcEncounterDefinition(string Id, string NpcId, int MazeLevel,
-    int MinimumDistance, int MaximumDistance) : IGameDefinition
+    int MinimumDistance, int MaximumDistance, string? QuestRoomId = null) : IGameDefinition
 {
     public string Name => Id;
 }

@@ -37,6 +37,8 @@ var tests = new (string Name, Action Run)[]
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
+    ("A quest roomok kizárják a véletlen térképtartalmat", QuestRoomsReserveTheirContent),
+    ("Roderic rögzített egyedi karakterlapból készül", RodericUsesDefinedCharacterBuild),
     ("A parti megjegyzései CSV-ből, teljes idézőjeles szöveggel töltődnek", PartyRemarksLoadFromCsv),
     ("A parti megjegyzéseinek esélyei és beszélőszámai követik a szabályt", PartyRemarkProbabilitiesFollowRules),
     ("A world-NPC generálás kizárja a fehér karakterszínt", WorldNpcGenerationExcludesWhiteColor),
@@ -2380,11 +2382,11 @@ static void ClassResourceGrowthLoadsFromCsv()
 static void NpcDefinitionsLoadFromCsv()
 {
     var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
-    Assert(catalog.Npcs.Count == 20 && catalog.NpcEncounters.Count == 28 &&
+    Assert(catalog.Npcs.Count == 21 && catalog.NpcEncounters.Count == 29 &&
            Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
         "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-    Assert(catalog.NpcDialogues.Count == 72 && catalog.NpcQuests.Count == 36 &&
+    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcQuests.Count == 36 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 7 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 16 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Explore) == 5 &&
@@ -2398,6 +2400,8 @@ static void NpcDefinitionsLoadFromCsv()
            catalog.GetNpcQuests("NPC001").Any(quest => quest is
                { Id: "NPCQ001", RewardItemId: "T018", RewardItemCount: 2, RandomRewardCount: 0 }) &&
            catalog.GetNpc("NPC020") is { Unique: true, Recruitable: true, RaceId: "R003" } &&
+           catalog.GetNpc("NPC021") is { Unique: true, RaceId: "R001", StoryId: "RODERIC_OATH" } &&
+           catalog.NpcEncounters.Single(encounter => encounter.NpcId == "NPC021").QuestRoomId == "RODERIC_MEETING" &&
            catalog.GetNpcQuests("NPC020").Select(quest => quest.Type).ToHashSet().SetEquals(
                [NpcQuestType.Escort, NpcQuestType.Collect, NpcQuestType.Kill]) &&
            catalog.NpcQuests.All(quest => quest.RandomRewardCount > 0 || quest.RewardItemCount > 0),
@@ -2422,6 +2426,45 @@ static void NpcDefinitionsLoadFromCsv()
     follower.MakePermanent();
     Assert(!follower.IsTemporaryFollower,
         "Az ideiglenes követő nem alakítható végleges partitaggá.");
+}
+
+static void QuestRoomsReserveTheirContent()
+{
+    var settings = new MazeGenerationSettings
+    {
+        RoomCount = 8,
+        MinimumRoomSize = 4,
+        MaximumRoomSize = 6,
+        TreasureChestCount = 20,
+        QuestRoomIds = ["RODERIC_MEETING", "RODERIC_INSIGNIA"]
+    };
+    var maze = new MazeGenerator(settings, [], []).Create(55, 31);
+    var questRooms = maze.Rooms.Where(room => room.Purpose == RoomPurpose.Quest).ToArray();
+    Assert(questRooms.Length == 2 && questRooms.Select(room => room.ContentId).ToHashSet().SetEquals(
+               ["RODERIC_MEETING", "RODERIC_INSIGNIA"]),
+        "A két Roderic-quest room nem jött létre stabil tartalomazonosítóval.");
+    Assert(questRooms.All(room => maze.TreasureChests.All(chest => !room.Contains(chest.Position)) &&
+                                  maze.Enemies.All(enemy => !room.Contains(enemy.Position))),
+        "Véletlen kincs vagy ellenfél került egy quest roomba.");
+    var restored = JsonSerializer.Deserialize<Room>(JsonSerializer.Serialize(questRooms[0]));
+    Assert(restored is { Purpose: RoomPurpose.Quest, ContentId: not null },
+        "A quest room szerepe vagy azonosítója nem menthető.");
+}
+
+static void RodericUsesDefinedCharacterBuild()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var first = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"));
+    var second = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"));
+    Assert(first.Name == "Sir Roderic" && first.Level == 5 && first.Color == ConsoleColor.DarkCyan &&
+           first.Abilities == new PrimaryAbilities(10, 5, 9, 6) &&
+           first.Perks.Select(perk => perk.Id).SequenceEqual(["PERK-C003-1A"]) &&
+           first.WeaponSlots[0]?.Id == "W004" && first.WeaponSlots[1]?.Id == "W015" &&
+           first.Armor?.Id == "A005" && first.Color != ConsoleColor.White,
+        "Roderic karakterlapja nem a CSV-ben rögzített buildet használja.");
+    Assert(first.Abilities == second.Abilities && first.MaximumVitality == second.MaximumVitality &&
+           first.WeaponSlots.Select(item => item?.Id).SequenceEqual(second.WeaponSlots.Select(item => item?.Id)),
+        "Roderic újbóli létrehozása nem determinisztikus.");
 }
 
 static void PartyRemarksLoadFromCsv()

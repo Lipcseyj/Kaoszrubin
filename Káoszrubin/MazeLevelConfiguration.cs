@@ -68,6 +68,7 @@ public sealed class MazeLevelConfiguration
     public IntRange TrapCount { get; set; } = new(0, 0);
     public IReadOnlyList<string> TrapIds { get; set; } = [];
     public int VisionModifier { get; set; }
+    public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
     public required IReadOnlyList<EnemyEncounterConfiguration> RoomEncounters { get; init; }
     public required IReadOnlyList<EnemyEncounterConfiguration> CorridorEncounters { get; init; }
 
@@ -81,7 +82,8 @@ public sealed class MazeLevelConfiguration
         TreasureGoldRange = TreasureGold,
         WallRune = WallRune,
         WallColor = WallColor,
-        LevelName = Name
+        LevelName = Name,
+        QuestRoomIds = QuestRoomIds
     };
 }
 
@@ -198,6 +200,7 @@ public static class MazeLevelConfigurations
                 RoomSize = new(4, 7),
                 TreasureChestCount = Amount.Several.Range(),
                 TreasureGold = new(240, 480),
+                QuestRoomIds = ["RODERIC_MEETING", "RODERIC_INSIGNIA"],
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Csontváz, Amount.Several, Amount.Several),

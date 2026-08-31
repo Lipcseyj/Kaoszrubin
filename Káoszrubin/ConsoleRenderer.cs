@@ -1604,6 +1604,22 @@ public sealed class ConsoleRenderer
         }
     }
 
+    public void DrawUniqueNpcIntroduction(WorldNpc npc)
+    {
+        var title = $"⚜ {npc.Character.Name.ToUpperInvariant()}";
+        DrawCenteredFrame(78,
+        [
+            (title, ConsoleColor.Yellow),
+            ($"{npc.Character.Race.Name} {npc.Character.CharacterClass.Name}   Viszony: {npc.Friendliness}/10",
+                ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray),
+            ($"„{npc.Dialogue}”", ConsoleColor.White),
+            (string.Empty, ConsoleColor.Gray),
+            ("Enter: tovább", ConsoleColor.Yellow)
+        ], FramedWindow.Inn);
+        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
+    }
+
     public void DrawUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<NpcQuestDefinition> quests)
     {
         ResetColorCache();
@@ -1635,10 +1651,10 @@ public sealed class ConsoleRenderer
         {
             ("🤝 EGY ÚJ ÚT KEZDETE", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
-            ($"Elira viszonya: {npc.Friendliness}/10", ConsoleColor.Cyan),
+            ($"{npc.Character.Name} viszonya: {npc.Friendliness}/10", ConsoleColor.Cyan),
             (partyHasRoom
                 ? "„Nem csak a kijáratig akarok veletek tartani. Befogadtok?”"
-                : "Elira csatlakozna de a négyfős parti megtelt.", ConsoleColor.White),
+                : $"{npc.Character.Name} csatlakozna de a négyfős parti megtelt.", ConsoleColor.White),
             (string.Empty, ConsoleColor.Gray),
             (partyHasRoom ? "Enter: végleges csatlakozás   Esc: búcsú" : "Enter: búcsú", ConsoleColor.Yellow)
         };

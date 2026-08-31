@@ -38,6 +38,7 @@ public static class CsvGameDataLoader
         var innRumors = new List<InnRumorDefinition>();
         var traps = new List<TrapDefinition>();
         var npcs = new List<NpcDefinition>();
+        var uniqueNpcCharacters = new List<UniqueNpcCharacterDefinition>();
         var npcEncounters = new List<NpcEncounterDefinition>();
         var npcDialogues = new List<NpcDialogueDefinition>();
         var npcQuests = new List<NpcQuestDefinition>();
@@ -77,7 +78,7 @@ public static class CsvGameDataLoader
             {
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
                     monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps,
-                    npcs, npcEncounters, npcDialogues, npcQuests, partySituations, partyRemarks, itemUpgrades,
+                    npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcQuests, partySituations, partyRemarks, itemUpgrades,
                     raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                     vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass,
                     characterResourceGrowthByClass, ref baseLevelCompletionExperience);
@@ -116,6 +117,7 @@ public static class CsvGameDataLoader
             ("Pletykák", innRumors.Select(value => value.Id)),
             ("Csapdák", traps.Select(value => value.Id)),
             ("NPC-k", npcs.Select(value => value.Id)),
+            ("Egyedi NPC karakterlapok", uniqueNpcCharacters.Select(value => value.Id)),
             ("NPC találkozások", npcEncounters.Select(value => value.Id)),
             ("NPC párbeszédek", npcDialogues.Select(value => value.Id)),
             ("NPC küldetések", npcQuests.Select(value => value.Id)),
@@ -130,8 +132,8 @@ public static class CsvGameDataLoader
         ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
         ValidateMonsterLoot(enemies, monsterLoot);
         ValidateTrapConfigurations(traps);
-        ValidateNpcData(npcs, npcEncounters, npcDialogues, npcQuests, races, characterClasses, enemies,
-            items, weapons, armors, magicItems);
+        ValidateNpcData(npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcQuests, races, characterClasses,
+            enemies, items, weapons, armors, magicItems, perks);
         ValidatePartyRemarks(partySituations, partyRemarks, races, characterClasses);
         var lootRules = CreateLootRules(lootRuleValues);
         var doorAttemptRules = CreateDoorAttemptRules(doorAttemptRuleValues);
@@ -169,6 +171,7 @@ public static class CsvGameDataLoader
             InnRumors = innRumors,
             Traps = traps,
             Npcs = npcs,
+            UniqueNpcCharacters = uniqueNpcCharacters,
             NpcEncounters = npcEncounters,
             NpcDialogues = npcDialogues,
             NpcQuests = npcQuests,
@@ -199,7 +202,8 @@ public static class CsvGameDataLoader
         ICollection<SpellEffectDefinition> spellEffects, ICollection<PerkDefinition> perks,
         ICollection<StatusDefinition> statuses, ICollection<CharacterNameDefinition> characterNames,
         ICollection<string> innNames, ICollection<InnRumorDefinition> innRumors, ICollection<TrapDefinition> traps,
-        ICollection<NpcDefinition> npcs, ICollection<NpcEncounterDefinition> npcEncounters,
+        ICollection<NpcDefinition> npcs, ICollection<UniqueNpcCharacterDefinition> uniqueNpcCharacters,
+        ICollection<NpcEncounterDefinition> npcEncounters,
         ICollection<NpcDialogueDefinition> npcDialogues, ICollection<NpcQuestDefinition> npcQuests,
         ICollection<PartySituationDefinition> partySituations,
         ICollection<PartyRemarkDefinition> partyRemarks,
@@ -325,7 +329,20 @@ public static class CsvGameDataLoader
             case DataSection.Npcs:
                 npcs.Add(new NpcDefinition(id, name, Cell(cells, 2),
                     EnumValue<NpcDisposition>(cells, 3), EnumValue<NpcWorldBehavior>(cells, 4),
-                    IsYes(cells, 5), IsYes(cells, 6), EmptyAsNull(Cell(cells, 7))));
+                    IsYes(cells, 5), IsYes(cells, 6), EmptyAsNull(Cell(cells, 7)), EmptyAsNull(Cell(cells, 8))));
+                break;
+            case DataSection.UniqueNpcCharacters:
+                uniqueNpcCharacters.Add(new UniqueNpcCharacterDefinition(id,
+                    Math.Max(1, Integer(cells, 1) ?? 1),
+                    new PrimaryAbilities(Integer(cells, 2) ?? 1, Integer(cells, 3) ?? 1,
+                        Integer(cells, 4) ?? 1, Integer(cells, 5) ?? 1),
+                    AdaptableAbilityBonus(Cell(cells, 6)),
+                    Math.Clamp(Integer(cells, 7) ?? 1, 1, 15),
+                    Math.Clamp(Integer(cells, 8) ?? 1, 1, 15),
+                    EnumValue<ConsoleColor>(cells, 9), EnumValue<NpcBehavior>(cells, 10),
+                    EmptyAsNull(Cell(cells, 11)), SplitIds(Cell(cells, 12)),
+                    EmptyAsNull(Cell(cells, 13)), EmptyAsNull(Cell(cells, 14)),
+                    EmptyAsNull(Cell(cells, 15)), SplitIds(Cell(cells, 16)), SplitIds(Cell(cells, 17))));
                 break;
             case DataSection.CharacterResourceGrowth:
                 characterResourceGrowthByClass[id] = new CharacterResourceGrowthDefinition(id,
@@ -334,7 +351,8 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.NpcEncounters:
                 npcEncounters.Add(new NpcEncounterDefinition(id, Cell(cells, 1),
-                    Integer(cells, 2) ?? 1, Integer(cells, 3) ?? 6, Integer(cells, 4) ?? 14));
+                    Integer(cells, 2) ?? 1, Integer(cells, 3) ?? 6, Integer(cells, 4) ?? 14,
+                    EmptyAsNull(Cell(cells, 5))));
                 break;
             case DataSection.NpcDialogues:
                 npcDialogues.Add(new NpcDialogueDefinition(id, Cell(cells, 1),
@@ -498,12 +516,14 @@ public static class CsvGameDataLoader
     }
 
     private static void ValidateNpcData(IReadOnlyCollection<NpcDefinition> npcs,
+        IReadOnlyCollection<UniqueNpcCharacterDefinition> uniqueNpcCharacters,
         IReadOnlyCollection<NpcEncounterDefinition> encounters,
         IReadOnlyCollection<NpcDialogueDefinition> dialogues, IReadOnlyCollection<NpcQuestDefinition> quests,
         IReadOnlyCollection<RaceDefinition> races, IReadOnlyCollection<CharacterClassDefinition> classes,
         IReadOnlyCollection<EnemyDefinition> enemies,
         IReadOnlyCollection<MiscItemDefinition> items, IReadOnlyCollection<WeaponDefinition> weapons,
-        IReadOnlyCollection<ArmorDefinition> armors, IReadOnlyCollection<MagicItemDefinition> magicItems)
+        IReadOnlyCollection<ArmorDefinition> armors, IReadOnlyCollection<MagicItemDefinition> magicItems,
+        IReadOnlyCollection<PerkDefinition> perks)
     {
         var npcIds = npcs.Select(npc => npc.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var classIds = classes.Select(characterClass => characterClass.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -515,15 +535,44 @@ public static class CsvGameDataLoader
             if (npc.RaceId is { } raceId && !raceIds.Contains(raceId))
                 throw new InvalidDataException($"A(z) '{npc.Id}' NPC ismeretlen fajra hivatkozik: '{raceId}'.");
         }
+        var buildWeaponIds = weapons.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var buildArmorIds = armors.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var buildMagicItemIds = magicItems.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var buildItemIds = items.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var buildPerkIds = perks.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var build in uniqueNpcCharacters)
+        {
+            var npc = npcs.FirstOrDefault(value => string.Equals(value.Id, build.NpcId, StringComparison.OrdinalIgnoreCase));
+            if (npc is null || !npc.Unique || npc.RaceId is null)
+                throw new InvalidDataException($"A(z) '{build.NpcId}' karakterlaphoz fajt tartalmazó egyedi NPC szükséges.");
+            if (build.Color == ConsoleColor.White)
+                throw new InvalidDataException($"A(z) '{build.NpcId}' egyedi world-NPC karakterszíne nem lehet fehér.");
+            if (build.FirstWeaponId is { } first && !buildWeaponIds.Contains(first) ||
+                build.SecondWeaponId is { } second && !buildWeaponIds.Contains(second) ||
+                build.ArmorId is { } armor && !buildArmorIds.Contains(armor) ||
+                build.MagicItemIds.Any(value => !buildMagicItemIds.Contains(value)) ||
+                build.BackpackItemIds.Any(value => !buildItemIds.Contains(value)) ||
+                build.PerkIds.Any(value => !buildPerkIds.Contains(value)))
+                throw new InvalidDataException($"A(z) '{build.NpcId}' egyedi karakterlap ismeretlen felszerelésre vagy tehetségre hivatkozik.");
+        }
+        var missingBuild = npcs.FirstOrDefault(npc => npc.Unique &&
+            uniqueNpcCharacters.All(build => !string.Equals(build.NpcId, npc.Id, StringComparison.OrdinalIgnoreCase)));
+        if (missingBuild is not null)
+            throw new InvalidDataException($"A(z) '{missingBuild.Id}' egyedi NPC-hez hiányzik a #Egyedi NPC karakterlap bejegyzés.");
         foreach (var reference in encounters.Select(value => (value.Id, value.NpcId))
                      .Concat(dialogues.Select(value => (value.Id, value.NpcId)))
                      .Concat(quests.Select(value => (value.Id, value.NpcId))))
             if (!npcIds.Contains(reference.NpcId))
                 throw new InvalidDataException($"A(z) '{reference.Id}' bejegyzés ismeretlen NPC-re hivatkozik: '{reference.NpcId}'.");
         foreach (var encounter in encounters)
+        {
             if (encounter.MazeLevel is < 1 or > MazeLevelConfigurations.FinalLevel ||
                 encounter.MinimumDistance < 1 || encounter.MaximumDistance < encounter.MinimumDistance)
                 throw new InvalidDataException($"A(z) '{encounter.Id}' NPC-találkozás pálya- vagy távolságadata érvénytelen.");
+            if (encounter.QuestRoomId is { } questRoomId && !MazeLevelConfigurations.Get(encounter.MazeLevel)
+                    .QuestRoomIds.Contains(questRoomId, StringComparer.OrdinalIgnoreCase))
+                throw new InvalidDataException($"A(z) '{encounter.Id}' NPC-találkozás ismeretlen quest roomra hivatkozik: '{questRoomId}'.");
+        }
         foreach (var dialogue in dialogues)
             if (dialogue.MinimumFriendliness > dialogue.MaximumFriendliness)
                 throw new InvalidDataException($"A(z) '{dialogue.Id}' NPC-párbeszéd viszonytartománya érvénytelen.");
@@ -988,10 +1037,23 @@ public static class CsvGameDataLoader
         return cells.ToArray();
     }
 
-    private static bool IsHeaderRow(string value) => Normalize(value) is "id" or "fajid" or "osztalyid" or
+    private static bool IsHeaderRow(string value) => Normalize(value) is "id" or "npcid" or "fajid" or "osztalyid" or
         "szornyid" or "szituacioid" or "egeszseg" or "intelligencia" or "szint";
     private static string Cell(string[] cells, int index) => index < cells.Length ? cells[index] : string.Empty;
     private static string? EmptyAsNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static IReadOnlyList<string> SplitIds(string value) => value.Split('|',
+        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static PrimaryAbilities AdaptableAbilityBonus(string abilityId) => abilityId.Trim().ToUpperInvariant() switch
+    {
+        "" => PrimaryAbilities.Zero,
+        "STR" => new PrimaryAbilities(1, 0, 0, 0),
+        "DEX" => new PrimaryAbilities(0, 1, 0, 0),
+        "HEA" => new PrimaryAbilities(0, 0, 1, 0),
+        "INT" => new PrimaryAbilities(0, 0, 0, 1),
+        _ => throw new InvalidOperationException($"Ismeretlen alkalmazkodó képesség: '{abilityId}'.")
+    };
     private static int? Integer(string[] cells, int index) => int.TryParse(Cell(cells, index), CultureInfo.InvariantCulture, out var value) ? value : null;
     private static T EnumValue<T>(string[] cells, int index) where T : struct, Enum =>
         Enum.TryParse<T>(Cell(cells, index), ignoreCase: true, out var value) ? value :
@@ -1066,6 +1128,7 @@ public static class CsvGameDataLoader
         "pletykak" => DataSection.InnRumors,
         "csapdak" => DataSection.Traps,
         "npc-k" => DataSection.Npcs,
+        "egyedi npc karakterlap" => DataSection.UniqueNpcCharacters,
         "npc talalkozasok" => DataSection.NpcEncounters,
         "npc parbeszedek" => DataSection.NpcDialogues,
         "npc kuldetesek" => DataSection.NpcQuests,
@@ -1118,6 +1181,7 @@ public static class CsvGameDataLoader
         InnRumors,
         Traps,
         Npcs,
+        UniqueNpcCharacters,
         NpcEncounters,
         NpcDialogues,
         NpcQuests,

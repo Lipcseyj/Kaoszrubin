@@ -75,7 +75,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 9;
+    public const int CurrentVersion = 10;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -96,6 +96,7 @@ public static class GameSaveFormat
                 6 => MigrateVersion6To7(state),
                 7 => MigrateVersion7To8(state),
                 8 => MigrateVersion8To9(state),
+                9 => MigrateVersion9To10(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -156,6 +157,14 @@ public static class GameSaveFormat
     {
         // A 9-es formátum a pályákon átívelő parti-küldetésnaplót őrzi.
         state.Version = 9;
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion9To10(GameSaveData state)
+    {
+        // A 10-es formátum menthető szobaszerepeket és tartalomazonosítókat vezet be.
+        // A régi szobák alapértelmezetten normál szobák maradnak.
+        state.Version = 10;
         return state;
     }
 }
@@ -240,7 +249,8 @@ public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex,
 public sealed record WorldNpcSaveData(Position Position, string DefinitionId, int CharacterIndex,
     NpcDisposition Disposition, bool Recruitable, bool IsQuestNpc, string Dialogue, WorldNpcState State,
     int Friendliness = 5, Domain.NpcWorldBehavior Behavior = Domain.NpcWorldBehavior.Guarded,
-    List<string>? QuestIds = null, List<NpcQuestProgress>? Quests = null, int ConversationStage = 0);
+    List<string>? QuestIds = null, List<NpcQuestProgress>? Quests = null, int ConversationStage = 0,
+    string? StoryId = null, string StoryStateId = "INITIAL");
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);
 public sealed record TrapSaveData(Position Position, string DefinitionId, TrapState State,
     bool DetectionAttempted, int FailedDisarmAttempts);
