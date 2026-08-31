@@ -70,7 +70,7 @@ public sealed record CharacterRestSnapshot(CharacterId CharacterId, string Chara
 public sealed record SpellPreparationSnapshot(Guid PromptId, CharacterId CharacterId, string CharacterName,
     int Capacity, IReadOnlyList<KnownSpellSnapshot> Spells, IReadOnlyList<string> SelectedSpellIds);
 
-public enum NarrativeKind { CampaignIntroduction, BossIntroduction, TwelveKeys, CampaignFinale }
+public enum NarrativeKind { CampaignIntroduction, BossIntroduction, TwelveKeys, CampaignFinale, QuestTransition }
 
 public sealed record NarrativeSnapshot(Guid NarrativeId, NarrativeKind Kind, string Title, string Subtitle,
     IReadOnlyList<string> Paragraphs, IReadOnlyList<PlayerId> AcknowledgedPlayerIds,

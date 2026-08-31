@@ -19,6 +19,7 @@ public sealed class Game
     private const string RodericStoryId = "RODERIC_OATH";
     private const string RodericInsigniaQuestId = "NPCQ037";
     private const string RodericSharedBattleQuestId = "NPCQ038";
+    private const string RodericMalrecQuestId = "NPCQ039";
     private static readonly IReadOnlyList<string> CampaignIntroduction =
     [
         "Az Aranykor hajnalán négy ősi elementálmágus őrizte a világ egyensúlyát: Pyranthos, a Lángok Atyja; Nymara, a Mélytengerek Asszonya; Goram, a Hegyek Szíve; és Zephyriel, az Ég Vándora. Együtt alkották meg a Káoszrubint, amelyben tűz, víz, föld és szél ereje egyetlen, lüktető drágakővé forrt.",
@@ -114,6 +115,12 @@ public sealed class Game
                 "Tudom, miért jöttetek. Aurelios azt mondta, meg kell előznötök Vhar-Zult. Vhar-Zul azt hiszi, ti nyitjátok ki neki az utat. Mindketten igazat mondanak, és mindketten hazudnak. A Káoszrubin nem engedelmeskedik annak, aki megtalálja — átformálja őt arra, amire a világ leginkább vágyik vagy amitől legjobban retteg.",
                 "Kulcsom az utolsó a tizenkettőből. Ha elveszitek, feltárul Zephyriel huszonegy szintből álló belső útja. Ott már nem őrzők várnak, hanem egy ősmágus emlékei, széthullott törvények és Vhar-Zul közeledő serege.",
                 "Évszázadok óta őrzöm ezt a lakatot, és bevallom: rettenetesen unatkozom. Mutassátok meg, Kulcshordozók, hogy a csillagok valóban benneteket láttak — vagy csak egy különösen kegyetlen tréfát játszottak velem."
+            ]),
+            [MonsterIds.SirMalrec] = new("Roderic krónikája — A megtört eskü",
+            [
+                "Roderic. Még mindig mások pajzsa mögé bújsz, hogy ne kelljen látnod a saját kudarcodat?",
+                "Az eskünk velünk halt. Én csak kimondtam azt, amit te azóta sem mersz: a holtaknak nem tartozunk hűséggel.",
+                "Gyertek hát. Hadd lássam, vajon az új bajtársaid tovább kitartanak-e melletted, mint a régiek."
             ])
         };
     private const int ZombieSpeed = 2;
@@ -192,6 +199,12 @@ public sealed class Game
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private int _mazeLevel = 1;
+    private AdventureLocationKind _locationKind = AdventureLocationKind.Campaign;
+    private string _locationId = string.Empty;
+    private int _difficultyLevel = 1;
+    private GameSaveData? _suspendedCampaignState;
+    private bool _pendingRodericExpedition;
+    private bool _pendingRodericReturn;
     private bool _hasRestedThisLevel;
     private bool _developerPhasing;
     private int _lastDeveloperUniqueNpcIndex = -1;
@@ -231,7 +244,7 @@ public sealed class Game
                     : null,
                 GetBattleTacticOptions(state));
         }
-        var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_mazeLevel, _maze.LevelName, positions,
+        var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_difficultyLevel, _maze.LevelName, positions,
             battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState)));
         var followers = _maze.PartyMembers
             .Where(member => member.IsTemporaryFollower)
@@ -553,7 +566,7 @@ public sealed class Game
                     if (GameInput.IsSettingsShortcut(keyInfo))
                     {
                         SettingsScreen.Show(_musicSettings, _backgroundMusic.ApplySettings);
-                        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+                        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
@@ -697,6 +710,8 @@ public sealed class Game
                 ProcessSessionCommands();
                 ContinueDisconnectedRemoteBattleAsNpc();
 
+                if (!_battleStarted && ProcessPendingRodericTransition()) continue;
+
                 if (_helpPausePlayers.Count > 0)
                 {
                     if (coopHost?.ShouldPublish(DateTime.UtcNow) == true)
@@ -806,6 +821,10 @@ public sealed class Game
 
     private void StartNewMaze(bool showLevelImage = true)
     {
+        _locationKind = AdventureLocationKind.Campaign;
+        _locationId = $"CAMPAIGN_{_mazeLevel:00}";
+        _difficultyLevel = _mazeLevel;
+        _suspendedCampaignState = null;
         _session.SetPhase(GameSessionPhase.Exploration);
         _session.SynchronizeParty();
         _hasRestedThisLevel = false;
@@ -858,6 +877,149 @@ public sealed class Game
         LogMazeAccessibilityCheck();
     }
 
+    private void StartRodericQuestLocation()
+    {
+        var follower = FindRodericFollower() ??
+            throw new InvalidOperationException("Roderic nélkül nem indítható el Sir Malrec küldetéshelyszíne.");
+        _suspendedCampaignState = CreateGameSaveData();
+        ActivateNpcQuest(follower, RodericMalrecQuestId);
+        CarryPersistentTemporaryFollowers();
+
+        _locationKind = AdventureLocationKind.Quest;
+        _locationId = QuestLocationConfigurations.RodericMalrec;
+        var configuration = QuestLocationConfigurations.Get(_locationId);
+        _difficultyLevel = configuration.Level;
+        _session.SetPhase(GameSessionPhase.Exploration);
+        _session.SynchronizeParty();
+        _hasRestedThisLevel = false;
+        _spottedEnemyIds.Clear();
+        _spottedChestIds.Clear();
+
+        ResolvedEnemyEncounter ResolveEncounter(EnemyEncounterConfiguration encounter) => new(
+            encounter.GroupCount,
+            encounter.Members.Select(member => new ResolvedEnemyGroupMember(
+                _gameData.GetEnemy(member.EnemyId), member.Count, member.Role)).ToList(),
+            encounter.MovementProfile);
+        _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
+            configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
+            configuration.CorridorEncounters.Select(ResolveEncounter).ToList());
+        _maze = _generator.Create(MazeWidth, MazeHeight);
+        _player = new Player(_maze.Entrance, SelectedCharacter);
+        _leaderTrail.Clear();
+        _leaderTrail.Add(_player.Position);
+        _nextPartyMoves.Clear();
+        PlacePartyMembersNear(_player.Position);
+        PlaceCarriedTemporaryFollowersNear(_player.Position);
+        PlaceTraps(configuration);
+        PlaceQuestRoomEnemies(configuration);
+        CaptureExpeditionEnemyTemplates();
+        _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
+        RevealFor(SelectedCharacter, _player.Position);
+        foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
+        _battleStarted = false;
+        InitializeEnemyMoveSchedule(DateTime.UtcNow);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
+        _renderer.DrawInventoryMessage(
+            "⚔ Küldetéshelyszín: Sir Malrec sírkápolnája (5. nehézség). A katakombák állapota megmaradt.",
+            ConsoleColor.Cyan);
+        _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, _fogOfWar.IsRevealed(_maze.Exit));
+        LogMazeAccessibilityCheck();
+    }
+
+    private bool ProcessPendingRodericTransition()
+    {
+        if (_pendingRodericExpedition)
+        {
+            _pendingRodericExpedition = false;
+            ShowSynchronizedNarrative(NarrativeKind.QuestTransition, "RODERIC ESKÜJE",
+                "Az esküszegő nyomában",
+                [
+                    "A harmadik közös győzelem után Roderic leereszti a kardját. Most először nem idegenekként, hanem bajtársakként néz rátok.",
+                    "„Van még egy név, amelyet nem mertem kimondani: Sir Malrec. Megszegte az eskünket, és a halál sem oldotta fel alóla. Ismerek egy lezárt utat a sírkápolnájához. Jöjjetek velem.”"
+                ]);
+            StartRodericQuestLocation();
+            return true;
+        }
+        if (!_pendingRodericReturn) return false;
+        _pendingRodericReturn = false;
+        ShowSynchronizedNarrative(NarrativeKind.QuestTransition, "AZ ESKÜSZEGŐ BUKÁSA",
+            "Visszatérés a katakombákba",
+            [
+                "Sir Malrec páncélja üresen roskad a kőre. Roderic sokáig hallgat, majd letérdel egykori bajtársa mellé.",
+                "„A múltat nem változtathatom meg. De többé nem hagyom, hogy helyettem döntsön.” A lovag visszavezet benneteket ugyanahhoz a pillanathoz, amelyben elhagytátok a katakombákat."
+            ]);
+        RestoreSuspendedCampaign();
+        return true;
+    }
+
+    private WorldNpc? FindRodericFollower() => _maze.PartyMembers
+        .Select(member => member.TemporaryFollower)
+        .FirstOrDefault(follower => follower is not null &&
+            string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase));
+
+    private void RestoreSuspendedCampaign()
+    {
+        var suspended = _suspendedCampaignState ??
+            throw new InvalidOperationException("A felfüggesztett katakombapálya nem található.");
+        if (FindRodericFollower() is { } currentRoderic)
+        {
+            for (var index = 0; index < suspended.Maze.PartyAvatars.Count; index++)
+            {
+                var avatar = suspended.Maze.PartyAvatars[index];
+                if (avatar.TemporaryFollower is not { } saved ||
+                    !string.Equals(saved.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase)) continue;
+                suspended.Maze.PartyAvatars[index] = avatar with
+                {
+                    TemporaryFollower = saved with
+                    {
+                        Disposition = currentRoderic.Disposition,
+                        State = currentRoderic.State,
+                        Friendliness = currentRoderic.Friendliness,
+                        Behavior = currentRoderic.Behavior,
+                        QuestIds = currentRoderic.QuestIds.ToList(),
+                        Quests = currentRoderic.Quests.ToList(),
+                        ConversationStage = currentRoderic.ConversationStage,
+                        StoryStateId = currentRoderic.StoryStateId
+                    }
+                };
+                break;
+            }
+        }
+
+        var restored = _gameStateMapper.Restore(suspended);
+        _mazeLevel = restored.MazeLevel;
+        _locationKind = AdventureLocationKind.Campaign;
+        _locationId = string.IsNullOrWhiteSpace(suspended.LocationId)
+            ? $"CAMPAIGN_{_mazeLevel:00}" : suspended.LocationId;
+        _difficultyLevel = suspended.DifficultyLevel > 0 ? suspended.DifficultyLevel : _mazeLevel;
+        _suspendedCampaignState = null;
+        _maze = restored.Maze;
+        _player = restored.Player;
+        _fogOfWar = restored.FogOfWar;
+        _leaderFacing = restored.LeaderFacing;
+        _leaderTrail.Clear();
+        _leaderTrail.AddRange(restored.LeaderTrail);
+        _partyHoldingPosition = restored.PartyHoldingPosition;
+        _partyRegrouping = restored.PartyRegrouping;
+        _partyAttackMode = restored.PartyAttackMode;
+        _hasRestedThisLevel = restored.HasRestedThisLevel;
+        _partyScatterUntil = restored.PartyScatterUntil;
+        _nextNeedsDrain = restored.NextNeedsDrain;
+        _nextEnemyMoves.Clear();
+        foreach (var enemyMove in restored.NextEnemyMoves) _nextEnemyMoves[enemyMove.Key] = enemyMove.Value;
+        _nextPartyMoves.Clear();
+        foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
+        _spottedEnemyIds.Clear();
+        _spottedChestIds.Clear();
+        CaptureExpeditionEnemyTemplates();
+        _battleStarted = false;
+        _session.SetPhase(GameSessionPhase.Exploration);
+        RevealFor(SelectedCharacter, _player.Position);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
+        _renderer.DrawInventoryMessage("↩ Visszatértetek a katakombák ugyanazon pontjára.", ConsoleColor.Cyan);
+        _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, _fogOfWar.IsRevealed(_maze.Exit));
+    }
+
     private void ShowLevelImage()
     {
         var fileName = ImageViewer.FileNameForLevel(_maze.LevelName);
@@ -883,7 +1045,7 @@ public sealed class Game
     private void PlaceTraps(MazeLevelConfiguration configuration)
     {
         var definitions = configuration.TrapIds.Select(_gameData.GetTrap)
-            .Where(trap => trap.MinimumLevel <= _mazeLevel).ToArray();
+            .Where(trap => trap.MinimumLevel <= _difficultyLevel).ToArray();
         if (definitions.Length == 0) return;
         var desiredCount = configuration.TrapCount.Roll(_random);
         var candidates = new List<Position>();
@@ -1107,8 +1269,8 @@ public sealed class Game
     {
         trap.Trigger();
         var scaledDamage = trap.Definition.MaximumDamage == 0 ? 0 :
-            _random.Next(trap.Definition.MinimumDamage, trap.Definition.MaximumDamage + 1) + (_mazeLevel - 1) / 3;
-        var maximumAllowed = Math.Max(1, character.MaximumVitality / (_mazeLevel <= 4 ? 7 : 4));
+            _random.Next(trap.Definition.MinimumDamage, trap.Definition.MaximumDamage + 1) + (_difficultyLevel - 1) / 3;
+        var maximumAllowed = Math.Max(1, character.MaximumVitality / (_difficultyLevel <= 4 ? 7 : 4));
         var damage = Math.Min(Math.Min(scaledDamage, maximumAllowed), Math.Max(0, character.CurrentVitality - 1));
         character.ReceiveDamage(damage);
         var extra = string.Empty;
@@ -1290,6 +1452,10 @@ public sealed class Game
             _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
         state.QuestJournal = _questJournal.Values.Select(entry => new QuestJournalSaveData(entry.QuestId,
             entry.Status, entry.Progress, entry.ExperienceReward)).ToList();
+        state.LocationKind = _locationKind;
+        state.LocationId = _locationId;
+        state.DifficultyLevel = _difficultyLevel;
+        state.SuspendedCampaign = _suspendedCampaignState;
         state.IsCoopGame = _activeCoopHost is not null;
         state.RemoteCharacterIds = _session.CharacterControls
             .Where(control => control.AssignedPlayerId is not null &&
@@ -1315,6 +1481,11 @@ public sealed class Game
     {
         var restored = _gameStateMapper.Restore(state);
         _mazeLevel = restored.MazeLevel;
+        _locationKind = state.LocationKind;
+        _locationId = string.IsNullOrWhiteSpace(state.LocationId)
+            ? $"CAMPAIGN_{_mazeLevel:00}" : state.LocationId;
+        _difficultyLevel = state.DifficultyLevel > 0 ? state.DifficultyLevel : _mazeLevel;
+        _suspendedCampaignState = state.SuspendedCampaign;
         _collectedBossKeyIds.Clear();
         _collectedBossKeyIds.UnionWith(state.CollectedBossKeyIds ?? []);
         _seenBossIds.Clear();
@@ -1354,9 +1525,21 @@ public sealed class Game
         _battleStarted = false;
         _gameOver = false;
         RevealFor(SelectedCharacter, _player.Position);
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        _renderer.DrawDeveloperMessage($"Mentés betöltve: {state.MainCharacterName}, {_mazeLevel}. pálya.");
-        _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, _fogOfWar.IsRevealed(_maze.Exit));
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
+        _renderer.DrawDeveloperMessage(_locationKind == AdventureLocationKind.Quest
+            ? $"Mentés betöltve: {state.MainCharacterName}, {_maze.LevelName} ({_difficultyLevel}. nehézség)."
+            : $"Mentés betöltve: {state.MainCharacterName}, {_mazeLevel}. pálya.");
+        _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, _fogOfWar.IsRevealed(_maze.Exit));
+        if (_locationKind == AdventureLocationKind.Quest &&
+            string.Equals(_locationId, QuestLocationConfigurations.RodericMalrec, StringComparison.OrdinalIgnoreCase) &&
+            FindRodericFollower() is { StoryStateId: "MALREC_DEFEATED" })
+            _pendingRodericReturn = true;
+        else if (_locationKind == AdventureLocationKind.Campaign && _suspendedCampaignState is null &&
+                 FindRodericFollower() is { StoryStateId: "TRUSTED" } roderic &&
+                 roderic.Quests.Any(progress =>
+                     string.Equals(progress.QuestId, RodericMalrecQuestId, StringComparison.OrdinalIgnoreCase) &&
+                     progress.State == NpcQuestState.Offered))
+            _pendingRodericExpedition = true;
     }
 
     private void TryRestParty()
@@ -1974,9 +2157,11 @@ public sealed class Game
         var newlyActivated = new List<NpcQuestDefinition>();
         foreach (var quest in npc.Quests.Where(progress => progress.State == NpcQuestState.Offered).ToArray())
         {
-            npc.ActivateQuest(quest.QuestId);
             var definition = _gameData.NpcQuests.First(value =>
                 string.Equals(value.Id, quest.QuestId, StringComparison.OrdinalIgnoreCase));
+            if (definition.RequiredStoryStateId is { } requiredState &&
+                !string.Equals(requiredState, npc.StoryStateId, StringComparison.OrdinalIgnoreCase)) continue;
+            npc.ActivateQuest(quest.QuestId);
             SynchronizeQuestJournal(npc, definition);
             newlyActivated.Add(definition);
         }
@@ -2000,6 +2185,8 @@ public sealed class Game
             if (progress.State == NpcQuestState.Offered)
             {
                 if (!activateOffered) continue;
+                if (quest.RequiredStoryStateId is { } requiredState &&
+                    !string.Equals(requiredState, npc.StoryStateId, StringComparison.OrdinalIgnoreCase)) continue;
                 npc.ActivateQuest(quest.Id);
                 SynchronizeQuestJournal(npc, quest);
                 _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description} " +
@@ -2166,9 +2353,16 @@ public sealed class Game
                     npc.SetStoryState("TRUSTED");
                     _renderer.DrawInventoryMessage("⚜ Roderic most először valódi bajtársakként tekint rátok.",
                         ConsoleColor.Cyan);
+                    _pendingRodericExpedition = true;
                 }
             }
         }
+
+        if (!string.Equals(enemyDefinitionId, MonsterIds.SirMalrec, StringComparison.OrdinalIgnoreCase)) return;
+        if (FindRodericFollower() is not { } roderic) return;
+        ProcessNpcQuests(roderic, activateOffered: false);
+        roderic.SetStoryState("MALREC_DEFEATED");
+        _pendingRodericReturn = true;
     }
 
     private void RegisterNpcQuestProgress(NpcQuestType type, string targetId, int amount = 1)
@@ -2509,6 +2703,13 @@ public sealed class Game
     private void ActivateExit()
     {
         if (_player.Position != _maze.Exit) return;
+        if (_locationKind == AdventureLocationKind.Quest)
+        {
+            _renderer.DrawInventoryMessage(
+                "A sírkápolnából csak Roderic vezethet vissza. Előbb győzzétek le Sir Malrecet.",
+                ConsoleColor.DarkYellow);
+            return;
+        }
         if (_isReturnExpedition)
         {
             ReturnFromExpeditionToInn();
@@ -3752,14 +3953,24 @@ public sealed class Game
         }
         else
         {
-            PlaySessionSound(SoundEffect.MemberKilled);
-            _maze.ReplacePartyMemberWithCorpse(member);
-            _nextPartyMoves.Remove(member);
+            var questCriticalRoderic = IsQuestCriticalRoderic(member);
+            if (questCriticalRoderic)
+                member.Character.RestoreVitality(Math.Max(1, member.Character.MaximumVitality / 3));
+            else
+            {
+                PlaySessionSound(SoundEffect.MemberKilled);
+                _maze.ReplacePartyMemberWithCorpse(member);
+                _nextPartyMoves.Remove(member);
+            }
             var summary = ConsoleRenderer.FormatAutoBattleDefeatSummary(result, member.Character.Name, enemy,
-                startingNpcHp, manaLost, gainedStatusIcons, needLoss, spellsCast);
-            _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Red);
-            RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Red);
-            TryLogPartyComments(PartySituationIds.PartyMemberDied);
+                startingNpcHp, manaLost, gainedStatusIcons, needLoss, spellsCast) +
+                (questCriticalRoderic
+                    ? " Roderic eszméletét vesztette, de a küldetés idejére talpra állt; a harcot újra megpróbálhatjátok."
+                    : string.Empty);
+            _renderer.DrawNpcBattleSummary(summary, questCriticalRoderic ? ConsoleColor.DarkYellow : ConsoleColor.Red);
+            RecordSessionActivity(SessionActivityKind.Battle, summary,
+                questCriticalRoderic ? ConsoleColor.DarkYellow : ConsoleColor.Red);
+            if (!questCriticalRoderic) TryLogPartyComments(PartySituationIds.PartyMemberDied);
         }
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
@@ -3771,6 +3982,10 @@ public sealed class Game
         }
         _session.SetPhase(GameSessionPhase.Exploration);
     }
+
+    private bool IsQuestCriticalRoderic(PartyMemberAvatar member) =>
+        _locationKind == AdventureLocationKind.Quest && member.TemporaryFollower is { } follower &&
+        string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase);
 
     private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from)
     {
@@ -5239,7 +5454,9 @@ public sealed class Game
         return revealed;
     }
 
-    private int CurrentLevelVisionModifier => MazeLevelConfigurations.Get(_mazeLevel).VisionModifier;
+    private int CurrentLevelVisionModifier => _locationKind == AdventureLocationKind.Quest
+        ? QuestLocationConfigurations.Get(_locationId).VisionModifier
+        : MazeLevelConfigurations.Get(_mazeLevel).VisionModifier;
 
     private void CheckBossDiscoveryAt(IEnumerable<Position> positions)
     {
@@ -5291,7 +5508,8 @@ public sealed class Game
             PlaySessionSound(SoundEffect.MonsterSpotted);
             TryLogPartyComments(PartySituationIds.EnemySpotted);
         }
-        var discovered = visibleEnemies.Where(enemy => enemy.Definition.IsBoss &&
+        var discovered = visibleEnemies.Where(enemy =>
+                (enemy.Definition.IsBoss || enemy.Definition.Rank == EnemyRank.MiniBoss) &&
                 !_seenBossIds.Contains(enemy.Definition.Id))
             .DistinctBy(enemy => enemy.Definition.Id, StringComparer.OrdinalIgnoreCase).ToList();
         if (discovered.Count == 0) return;
@@ -5301,10 +5519,12 @@ public sealed class Game
             var narrative = BossNarratives.GetValueOrDefault(boss.Definition.Id)
                 ?? new BossNarrative("Ismeretlen fejezet",
                     [$"Én vagyok {boss.Name}. E folyosók titkait nem osztom meg veletek."]);
-            ShowSynchronizedNarrative(NarrativeKind.BossIntroduction, "BOSS KÖZELEG",
+            var isMiniBoss = boss.Definition.Rank == EnemyRank.MiniBoss;
+            ShowSynchronizedNarrative(NarrativeKind.BossIntroduction,
+                isMiniBoss ? "MINIBOSS KÖZELEG" : "BOSS KÖZELEG",
                 narrative.ChapterTitle, narrative.Speech,
                 new BossPresentationSnapshot(boss.Name, boss.Definition.Appearance,
-                    boss.Definition.StrengthTier, "🔑 Aranykulcs"));
+                    boss.Definition.StrengthTier, isMiniBoss ? "⚔ Nincs aranykulcs" : "🔑 Aranykulcs"));
         }
     }
 

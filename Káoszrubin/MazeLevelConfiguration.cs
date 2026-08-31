@@ -71,6 +71,7 @@ public sealed class MazeLevelConfiguration
     public IReadOnlyList<string> TrapIds { get; set; } = [];
     public int VisionModifier { get; set; }
     public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
+    public IReadOnlyList<string> BossRoomIds { get; init; } = [];
     public IReadOnlyList<QuestRoomEnemyEncounterConfiguration> QuestRoomEnemyEncounters { get; init; } = [];
     public required IReadOnlyList<EnemyEncounterConfiguration> RoomEncounters { get; init; }
     public required IReadOnlyList<EnemyEncounterConfiguration> CorridorEncounters { get; init; }
@@ -86,7 +87,44 @@ public sealed class MazeLevelConfiguration
         WallRune = WallRune,
         WallColor = WallColor,
         LevelName = Name,
-        QuestRoomIds = QuestRoomIds
+        QuestRoomIds = QuestRoomIds,
+        BossRoomIds = BossRoomIds
+    };
+}
+
+public static class QuestLocationConfigurations
+{
+    public const string RodericMalrec = "RODERIC_MALREC_CHAPEL";
+
+    public static IReadOnlyList<MazeLevelConfiguration> All => [Get(RodericMalrec)];
+
+    public static MazeLevelConfiguration Get(string id) => id switch
+    {
+        RodericMalrec => new MazeLevelConfiguration
+        {
+            Level = 5,
+            Name = "Sir Malrec sírkápolnája",
+            DoubleWidthCorridorChance = 0.55,
+            WallRune = new('▓'),
+            WallColor = ConsoleColor.DarkGray,
+            RoomCount = new(6, 8),
+            RoomSize = new(4, 7),
+            TreasureChestCount = new(1, 2),
+            TreasureGold = new(180, 360),
+            BossRoomIds = ["MALREC_CHAMBER"],
+            QuestRoomEnemyEncounters = [new("MALREC_CHAMBER", MonsterIds.SirMalrec, 1)],
+            RoomEncounters =
+            [
+                Encounters.Same(MonsterIds.Csontváz, Amount.Few, Amount.Few),
+                Encounters.Same(MonsterIds.Zombi, Amount.One, Amount.TwoThree)
+            ],
+            CorridorEncounters =
+            [
+                Encounters.Solo(MonsterIds.Csontváz, Amount.Few),
+                Encounters.Solo(MonsterIds.Zombi, Amount.Few)
+            ]
+        },
+        _ => throw new KeyNotFoundException($"Ismeretlen küldetéshelyszín: {id}")
     };
 }
 

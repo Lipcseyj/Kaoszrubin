@@ -185,10 +185,13 @@ public sealed class MazeGenerator
             .OrderByDescending(room => Manhattan(
                 new Position(room.TopLeft.X + room.Width / 2, room.TopLeft.Y + room.Height / 2), maze.Entrance))
             .ThenBy(_ => _random.Next()).ToList();
-        if (available.Count < _settings.QuestRoomIds.Count)
+        if (available.Count < _settings.QuestRoomIds.Count + _settings.BossRoomIds.Count)
             throw new InvalidOperationException("Nincs elég szoba a kötelező küldetésszobák elhelyezéséhez.");
         for (var index = 0; index < _settings.QuestRoomIds.Count; index++)
             maze.AssignRoomPurpose(available[index], RoomPurpose.Quest, _settings.QuestRoomIds[index]);
+        for (var index = 0; index < _settings.BossRoomIds.Count; index++)
+            maze.AssignRoomPurpose(available[_settings.QuestRoomIds.Count + index], RoomPurpose.Boss,
+                _settings.BossRoomIds[index]);
     }
 
     private void PlaceCorridorEncounters(Maze maze)

@@ -75,7 +75,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 11;
+    public const int CurrentVersion = 12;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -98,6 +98,7 @@ public static class GameSaveFormat
                 8 => MigrateVersion8To9(state),
                 9 => MigrateVersion9To10(state),
                 10 => MigrateVersion10To11(state),
+                11 => MigrateVersion11To12(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -175,6 +176,14 @@ public static class GameSaveFormat
         state.Version = 11;
         return state;
     }
+
+    private static GameSaveData MigrateVersion11To12(GameSaveData state)
+    {
+        // A 12-es formátum a kampánytól független küldetéshelyszínt és a
+        // mögötte felfüggesztett kampánypályát vezeti be.
+        state.Version = 12;
+        return state;
+    }
 }
 
 public sealed record LoadedGameSave(string Path, CharacterRoster Roster, GameSaveData State);
@@ -189,6 +198,10 @@ public sealed class GameSaveData
     public string MainCharacterName { get; set; } = string.Empty;
     public string RosterJson { get; set; } = string.Empty;
     public int MazeLevel { get; set; } = 1;
+    public AdventureLocationKind LocationKind { get; set; } = AdventureLocationKind.Campaign;
+    public string LocationId { get; set; } = string.Empty;
+    public int DifficultyLevel { get; set; }
+    public GameSaveData? SuspendedCampaign { get; set; }
     public List<string> CollectedBossKeyIds { get; set; } = [];
     public List<string> SeenBossIds { get; set; } = [];
     public bool IsCoopGame { get; set; }
@@ -207,6 +220,8 @@ public sealed class GameSaveData
     public FogSaveData Fog { get; set; } = new();
     public List<QuestJournalSaveData> QuestJournal { get; set; } = [];
 }
+
+public enum AdventureLocationKind { Campaign, Quest }
 
 public sealed record QuestJournalSaveData(string QuestId, QuestJournalStatus Status,
     int Progress, int ExperienceReward);

@@ -239,7 +239,9 @@ public static class CsvGameDataLoader
                     Integer(cells, 5), Integer(cells, 6), Integer(cells, 7) ?? 0, Integer(cells, 8) ?? 1,
                     cells.Skip(9).Take(2).Where(abilityId => !string.IsNullOrWhiteSpace(abilityId)).ToList(),
                     MonsterIds.Bosses.Contains(id), Integer(cells, 11) ?? 5,
-                    Math.Clamp(Integer(cells, 12) ?? 0, 0, 3), Math.Clamp(Integer(cells, 13) ?? 2, 0, 4)));
+                    Math.Clamp(Integer(cells, 12) ?? 0, 0, 3), Math.Clamp(Integer(cells, 13) ?? 2, 0, 4),
+                    MonsterIds.Bosses.Contains(id) ? EnemyRank.Boss :
+                    MonsterIds.MiniBosses.Contains(id) ? EnemyRank.MiniBoss : EnemyRank.Normal));
                 break;
             case DataSection.MonsterAbilities:
                 monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),
@@ -371,7 +373,7 @@ public static class CsvGameDataLoader
                     Cell(cells, 3), Math.Max(1, Integer(cells, 4) ?? 1),
                     Math.Max(0, Integer(cells, 5) ?? 0), Cell(cells, 6), Cell(cells, 7),
                     EmptyAsNull(Cell(cells, 8)), Math.Max(0, Integer(cells, 9) ?? 0),
-                    Math.Clamp(Integer(cells, 10) ?? 1, 0, 5)));
+                    Math.Clamp(Integer(cells, 10) ?? 1, 0, 5), EmptyAsNull(Cell(cells, 11))));
                 break;
             case DataSection.NpcStoryChoices:
                 npcStoryChoices.Add(new NpcStoryChoiceDefinition(id, Cell(cells, 1), Cell(cells, 2),
@@ -533,12 +535,17 @@ public static class CsvGameDataLoader
         var enemyIds = enemies.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var itemIds = items.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         for (var level = 1; level <= MazeLevelConfigurations.FinalLevel; level++)
-        foreach (var encounter in MazeLevelConfigurations.Get(level).QuestRoomEnemyEncounters)
+            Validate(MazeLevelConfigurations.Get(level), $"{level}. pálya");
+        foreach (var configuration in QuestLocationConfigurations.All)
+            Validate(configuration, $"'{configuration.Name}' küldetéshelyszín");
+
+        void Validate(MazeLevelConfiguration configuration, string location)
         {
-            if (!MazeLevelConfigurations.Get(level).QuestRoomIds.Contains(encounter.RoomId,
+            foreach (var encounter in configuration.QuestRoomEnemyEncounters)
+            if (!configuration.QuestRoomIds.Concat(configuration.BossRoomIds).Contains(encounter.RoomId,
                     StringComparer.OrdinalIgnoreCase) || !enemyIds.Contains(encounter.EnemyId) || encounter.Count < 1 ||
                 encounter.GuaranteedItemId is { } itemId && !itemIds.Contains(itemId))
-                throw new InvalidDataException($"A(z) {level}. pálya quest room ellenfél-konfigurációja érvénytelen.");
+                throw new InvalidDataException($"A(z) {location} quest room ellenfél-konfigurációja érvénytelen.");
         }
     }
 

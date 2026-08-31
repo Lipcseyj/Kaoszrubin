@@ -39,6 +39,7 @@ var tests = new (string Name, Action Run)[]
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
     ("A quest roomok kizárják a véletlen térképtartalmat", QuestRoomsReserveTheirContent),
     ("A három Skeleton Knight példányhoz kötött jelvényt őriz", RodericInsigniaGuardiansAreConfigured),
+    ("Sir Malrec önálló 5-ös küldetéshelyszínen vár", RodericMalrecQuestLocationIsConfigured),
     ("Roderic rögzített egyedi karakterlapból készül", RodericUsesDefinedCharacterBuild),
     ("A parti megjegyzései CSV-ből, teljes idézőjeles szöveggel töltődnek", PartyRemarksLoadFromCsv),
     ("A parti megjegyzéseinek esélyei és beszélőszámai követik a szabályt", PartyRemarkProbabilitiesFollowRules),
@@ -2388,9 +2389,9 @@ static void NpcDefinitionsLoadFromCsv()
                catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
         "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
     Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 6 &&
-           catalog.NpcQuests.Count == 38 &&
+           catalog.NpcQuests.Count == 39 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 8 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 16 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 17 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.KillWithFollower) == 1 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Explore) == 5 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Disarm) == 3 &&
@@ -2461,6 +2462,40 @@ static void RodericInsigniaGuardiansAreConfigured()
         corpse.GuaranteedLootIds.ToList())));
     Assert(restored?.GuaranteedLootIds?.SequenceEqual([MiscItemIds.FallenKnightInsignia]) == true,
         "A garantált jelvény nem élte túl a mentési JSON-körutat.");
+}
+
+static void RodericMalrecQuestLocationIsConfigured()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var configuration = QuestLocationConfigurations.Get(QuestLocationConfigurations.RodericMalrec);
+    var encounter = configuration.QuestRoomEnemyEncounters.Single();
+    var quest = catalog.NpcQuests.Single(value => value.Id == "NPCQ039");
+    Assert(configuration.Level == 5 && configuration.BossRoomIds.SequenceEqual(["MALREC_CHAMBER"]) &&
+           encounter is { RoomId: "MALREC_CHAMBER", EnemyId: "E053", Count: 1 } &&
+           catalog.GetEnemy(MonsterIds.SirMalrec) is
+               { Rank: EnemyRank.MiniBoss, IsBoss: false, HitPoints: 420, Armor: 9 } &&
+           quest is { Type: NpcQuestType.Kill, TargetId: "E053", RequiredStoryStateId: "TRUSTED" },
+        "Sir Malrec rangja, küldetése vagy az 5-ös nehézségű küldetéshelyszíne hibás.");
+
+    var maze = new MazeGenerator(configuration.CreateGenerationSettings(new Random(17)), [], [])
+        .Create(55, 31);
+    Assert(maze.Rooms.SingleOrDefault(room => room.ContentId == "MALREC_CHAMBER") is
+               { Purpose: RoomPurpose.Boss },
+        "Sir Malrec szobája nem elkülönített boss roomként jött létre.");
+
+    var suspended = new GameSaveData { MazeLevel = 5, LocationId = "CAMPAIGN_05" };
+    var active = new GameSaveData
+    {
+        MazeLevel = 5,
+        LocationKind = AdventureLocationKind.Quest,
+        LocationId = QuestLocationConfigurations.RodericMalrec,
+        DifficultyLevel = 5,
+        SuspendedCampaign = suspended
+    };
+    var restored = JsonSerializer.Deserialize<GameSaveData>(JsonSerializer.Serialize(active));
+    Assert(restored is { LocationKind: AdventureLocationKind.Quest, DifficultyLevel: 5,
+               SuspendedCampaign.LocationId: "CAMPAIGN_05" },
+        "A küldetéshelyszín vagy a felfüggesztett kampánypálya nem menthető.");
 }
 
 static void QuestRoomsReserveTheirContent()

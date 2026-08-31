@@ -458,6 +458,7 @@ E049,Drakolich,Ł,23,3200,14,7,14000,5,MA001,MA007,8
 E050,Káoszsárkány,Ж,24,3600,13,10,16000,5,MA002,MA003,8
 E051,Patkányember,Ʒ,7,105,4,7,600,2,MA003,,5
 E052,Csontváz lovag,ǂ,6,105,5,3,330,2,MA001,MA007,4
+E053,Sir Malrec az Esküszegő,‡,11,420,9,5,1800,4,MA001,MA005,6,1,3
 
 #Szörnyképességek
 Id,Név,Hatás,AktiválásiEsély,Érték,Leírás
@@ -1146,7 +1147,7 @@ NSC005,RODERIC_OATH,CONFESSION,Az én parancsom vitte őket a halálba. Én mara
 NSC006,RODERIC_OATH,CONFESSION,Az én parancsom vitte őket a halálba. Én maradtam életben ők pedig itt őrzik a hibámat.,3,A bűntudatod nem a mi ügyünk. A kardodra van szükségünk.,-1,FOLLOWING
 
 #NPC küldetések
-Id,NpcId,Típus,CélId,Darabszám,XP,Cím,Leírás,FixJutalomId,FixJutalomDarab,VéletlenJutalomDarab
+Id,NpcId,Típus,CélId,Darabszám,XP,Cím,Leírás,FixJutalomId,FixJutalomDarab,VéletlenJutalomDarab,SzükségesTörténetÁllapot
 NPCQ001,NPC001,Collect,T011,3,180,Gyógyító készlet,Gyűjts össze három kis gyógyitalt a füvesasszonynak.,T018,2,0
 NPCQ002,NPC002,Kill,E003,4,260,Goblinvadászat,Ölj meg négy goblint a szörnyvadász megbízásából.
 NPCQ003,NPC003,Collect,T001,5,320,Útravaló a mélybe,Szerezz öt útravalót a kincskereső következő útjához.
@@ -1185,6 +1186,7 @@ NPCQ035,NPC020,Collect,T019,1,160,Elszakadt kötés,Adj Elirának egy tiszta kö
 NPCQ036,NPC020,Kill,E001,4,240,A nyomunkban,Győzz le négy óriáspatkányt amelyek Elira vérnyomát követik.,,,1
 NPCQ037,NPC021,Collect,T026,3,500,Az elesettek jelvényei,Szerezd vissza Roderic három elesett bajtársának jelvényét.,,,1
 NPCQ038,NPC021,KillWithFollower,MA001,3,650,Közös pengepróba,Győzzetek le három élőholt ellenfelet miközben Roderic veletek harcol.,,,1
+NPCQ039,NPC021,Kill,E053,1,1200,Az esküszegő lovag,Győzzétek le Sir Malrecet Roderic oldalán a bukott lovag sírkápolnájában.,,,1,TRUSTED
 
 #Szituációk
 Id,Név

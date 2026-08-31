@@ -14,4 +14,5 @@ public sealed class MazeGenerationSettings
     public ConsoleColor WallColor { get; init; } = ConsoleColor.DarkGray;
     public string LevelName { get; init; } = "Labirintus";
     public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
+    public IReadOnlyList<string> BossRoomIds { get; init; } = [];
 }

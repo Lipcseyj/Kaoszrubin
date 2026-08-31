@@ -39,7 +39,8 @@ public sealed record NpcStoryChoiceDefinition(string Id, string StoryId, string 
 
 public sealed record NpcQuestDefinition(string Id, string NpcId, NpcQuestType Type, string TargetId,
     int RequiredCount, int ExperienceReward, string Title, string Description,
-    string? RewardItemId = null, int RewardItemCount = 0, int RandomRewardCount = 1) : IGameDefinition
+    string? RewardItemId = null, int RewardItemCount = 0, int RandomRewardCount = 1,
+    string? RequiredStoryStateId = null) : IGameDefinition
 {
     public string Name => Title;
 }
