@@ -37,6 +37,7 @@ var tests = new (string Name, Action Run)[]
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
+    ("Elira és Roderic ad-hoc beszélgetései egyszer használható szálakat alkotnak", AdHocFollowerConversationsAreConfigured),
     ("A quest roomok kizárják a véletlen térképtartalmat", QuestRoomsReserveTheirContent),
     ("A három Skeleton Knight példányhoz kötött jelvényt őriz", RodericInsigniaGuardiansAreConfigured),
     ("Sir Malrec önálló 5-ös küldetéshelyszínen vár", RodericMalrecQuestLocationIsConfigured),
@@ -410,6 +411,18 @@ static void LegacyGameSavesMigrateToCurrentVersion()
                migrated.MazeLevel == 6,
             $"A(z) {version}. mentésverzió migrációja hibás vagy megváltoztatta a pályaszintet.");
     }
+
+    var current = new GameSaveData
+    {
+        UsedAdHocConversationIds = ["ELIRA_RESCUE:ADHOC_1_START"],
+        LastAdHocConversationUtc = new DateTimeOffset(2026, 8, 31, 12, 0, 0, TimeSpan.Zero),
+        AdHocConversationMazeLevel = 4
+    };
+    var restored = JsonSerializer.Deserialize<GameSaveData>(JsonSerializer.Serialize(current));
+    Assert(restored is { UsedAdHocConversationIds: ["ELIRA_RESCUE:ADHOC_1_START"],
+               AdHocConversationMazeLevel: 4 } &&
+           restored.LastAdHocConversationUtc == current.LastAdHocConversationUtc,
+        "Az egyszer már elindított ad-hoc párbeszéd vagy a korlátozásai elvesztek mentéskor.");
 }
 
 static void RemotePlayerCanAcknowledgeLevelImage()
@@ -848,7 +861,9 @@ static void SessionSnapshotRoundTripsThroughJson()
         Sounds = [new SessionSoundSnapshot(1, SoundEffect.OffensiveSpell, [companion.Id])],
         LevelImage = new LevelImageSnapshot(Guid.NewGuid(), "Tesztlabirintus", "teszt.png",
             [session.HostPlayerId]),
-        InnDeparture = new InnDepartureSnapshot("A csapat elhagyja a fogadót.")
+        InnDeparture = new InnDepartureSnapshot("A csapat elhagyja a fogadót."),
+        AdHocConversation = new AdHocConversationSnapshot(Guid.NewGuid(), "Elira", "Elf", "Tolvaj",
+            ["Elira: Emlékszem az erdőre."], "Hiányzik az otthonod?", ["Igen.", "Beszélj másról."])
     };
     var json = JsonSerializer.Serialize(snapshot);
     var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
@@ -857,6 +872,7 @@ static void SessionSnapshotRoundTripsThroughJson()
            restored.Activities is [{ Kind: SessionActivityKind.Spell }] &&
            restored.LevelImage is { FileName: "teszt.png", AcknowledgedPlayerIds.Count: 1 } &&
            restored.InnDeparture is { Message: "A csapat elhagyja a fogadót." } &&
+           restored.AdHocConversation is { CharacterName: "Elira", Choices.Count: 2 } &&
            restored.Sounds is [{ Sequence: 1, Effect: SoundEffect.OffensiveSpell,
                ListenerCharacterIds: [{ } listener] }] && listener == companion.Id &&
            restored.PartyGold == 777 && restored.Party.All(character => character.Gold == 777) &&
@@ -2472,7 +2488,7 @@ static void NpcDefinitionsLoadFromCsv()
            Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
         "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 30 &&
+    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 70 &&
            catalog.NpcQuests.Count == 40 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 8 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 18 &&
@@ -2518,6 +2534,32 @@ static void NpcDefinitionsLoadFromCsv()
     follower.MakePermanent();
     Assert(!follower.IsTemporaryFollower,
         "Az ideiglenes követő nem alakítható végleges partitaggá.");
+}
+
+static void AdHocFollowerConversationsAreConfigured()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    foreach (var storyId in new[] { "ELIRA_RESCUE", "RODERIC_OATH" })
+    {
+        for (var index = 1; index <= 5; index++)
+        {
+            var startState = $"ADHOC_{index}_START";
+            var followupState = $"ADHOC_{index}_FOLLOWUP";
+            var start = catalog.GetNpcStoryChoices(storyId, startState);
+            var followup = catalog.GetNpcStoryChoices(storyId, followupState);
+            Assert(start.Count == 2 && start.All(choice => choice.ContinueConversation &&
+                       choice.NextStateId == followupState) &&
+                   followup.Count == 2 && followup.All(choice => !choice.ContinueConversation),
+                $"A(z) {storyId}/{startState} ad-hoc beszélgetésszál szerkezete hibás.");
+        }
+    }
+
+    var snapshot = new AdHocConversationSnapshot(Guid.NewGuid(), "Roderic", "Ember", "Lovag",
+        ["Roderic: Az esküm még köt."], "Bízol bennünk?", ["Igen.", "Még nem."]);
+    var window = AdHocConversationWindow.Build(snapshot);
+    Assert(window.Any(line => line.Text.Contains("1) Igen.", StringComparison.Ordinal)) &&
+           window.Any(line => line.Text.Contains("host választja", StringComparison.OrdinalIgnoreCase)),
+        "A vendég ad-hoc párbeszédablaka nem mutatja a két választ vagy a host vezérlését.");
 }
 
 static void RodericInsigniaGuardiansAreConfigured()

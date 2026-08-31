@@ -248,6 +248,11 @@ public sealed class CoopGuestScreen
             if (_inventoryOpen) CloseInventory();
             return;
         }
+        if (snapshot.AdHocConversation is not null)
+        {
+            if (_inventoryOpen) CloseInventory();
+            return;
+        }
         if (_inventoryOpen && snapshot.Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn))
             CloseInventory();
         if (snapshot.Phase != GameSessionPhase.Inn)
@@ -1187,6 +1192,7 @@ public sealed class CoopGuestScreen
         ApplySpellPreparationUi(grid, snapshot, own);
         ApplyLevelUpUi(grid, snapshot, own);
         ApplyCharacterDetailsUi(grid, own);
+        ApplyAdHocConversationUi(grid, snapshot.AdHocConversation);
         var panelLines = _spellInfoOpen && own?.SpellInfo is not null
             ? SpellInfoPanel.Build(own.Name, own.CharacterClassId, own.Level, own.SpellInfo,
                 _spellInfoSelection, focused: _inventoryOpen).ToDictionary(line => line.Row)
@@ -1761,6 +1767,14 @@ public sealed class CoopGuestScreen
         _characterDetailsOffset = Math.Clamp(_characterDetailsOffset, 0, Math.Max(0, allLines.Count - pageSize));
         DrawGuestOverlay(grid, CharacterDetailsWindow.Page(allLines, _characterDetailsOffset, pageSize),
             ConsoleColor.Magenta, CharacterDetailsWindow.Width, FramedWindow.CharacterDetails);
+    }
+
+    private static void ApplyAdHocConversationUi(GuestMapCell[,] grid,
+        AdHocConversationSnapshot? conversation)
+    {
+        if (conversation is null) return;
+        DrawGuestOverlay(grid, AdHocConversationWindow.Build(conversation), ConsoleColor.Magenta,
+            AdHocConversationWindow.Width, FramedWindow.Storyline);
     }
 
     private static void WriteCharacterResourceAt(int x, int y, CharacterResourceLine resources)

@@ -75,7 +75,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 12;
+    public const int CurrentVersion = 13;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -99,6 +99,7 @@ public static class GameSaveFormat
                 9 => MigrateVersion9To10(state),
                 10 => MigrateVersion10To11(state),
                 11 => MigrateVersion11To12(state),
+                12 => MigrateVersion12To13(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -184,6 +185,13 @@ public static class GameSaveFormat
         state.Version = 12;
         return state;
     }
+
+    private static GameSaveData MigrateVersion12To13(GameSaveData state)
+    {
+        // A 13-as formátum a már lejátszott követői ad-hoc beszélgetéseket és cooldownjukat őrzi.
+        state.Version = 13;
+        return state;
+    }
 }
 
 public sealed record LoadedGameSave(string Path, CharacterRoster Roster, GameSaveData State);
@@ -219,6 +227,9 @@ public sealed class GameSaveData
     public MazeSaveData Maze { get; set; } = new();
     public FogSaveData Fog { get; set; } = new();
     public List<QuestJournalSaveData> QuestJournal { get; set; } = [];
+    public List<string> UsedAdHocConversationIds { get; set; } = [];
+    public DateTimeOffset? LastAdHocConversationUtc { get; set; }
+    public int AdHocConversationMazeLevel { get; set; } = -1;
 }
 
 public enum AdventureLocationKind { Campaign, Quest }

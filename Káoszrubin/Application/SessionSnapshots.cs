@@ -7,7 +7,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 58;
+    public const int Version = 59;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -22,7 +22,8 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
     PartyRestSnapshot? RestNotice = null, LevelUpPromptSnapshot? LevelUpPrompt = null,
     IReadOnlyList<SessionActivitySnapshot>? Activities = null,
     IReadOnlyList<SessionSoundSnapshot>? Sounds = null, int PartyGold = 0,
-    IReadOnlyList<QuestJournalEntrySnapshot>? QuestJournal = null);
+    IReadOnlyList<QuestJournalEntrySnapshot>? QuestJournal = null,
+    AdHocConversationSnapshot? AdHocConversation = null);
 
 public enum QuestJournalStatus { Active, Completed }
 
@@ -75,6 +76,10 @@ public enum NarrativeKind { CampaignIntroduction, BossIntroduction, TwelveKeys, 
 public sealed record NarrativeSnapshot(Guid NarrativeId, NarrativeKind Kind, string Title, string Subtitle,
     IReadOnlyList<string> Paragraphs, IReadOnlyList<PlayerId> AcknowledgedPlayerIds,
     BossPresentationSnapshot? Boss = null);
+
+public sealed record AdHocConversationSnapshot(Guid ConversationId, string CharacterName, string RaceName,
+    string CharacterClassName, IReadOnlyList<string> Transcript, string Prompt,
+    IReadOnlyList<string> Choices);
 
 public sealed record LevelImageSnapshot(Guid ImageId, string LevelName, string FileName,
     IReadOnlyList<PlayerId> AcknowledgedPlayerIds);

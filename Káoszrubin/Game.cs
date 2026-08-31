@@ -147,6 +147,11 @@ public sealed class Game
     private readonly InnController _innController;
     private ICoopHostLoop? _activeCoopHost;
     private NarrativeSnapshot? _activeNarrative;
+    private AdHocConversationSnapshot? _activeAdHocConversation;
+    private readonly HashSet<string> _usedAdHocConversationIds = new(StringComparer.OrdinalIgnoreCase);
+    private DateTime _lastAdHocConversationUtc = DateTime.MinValue;
+    private DateTime _nextAdHocConversationCheckUtc = DateTime.MinValue;
+    private int _adHocConversationMazeLevel = -1;
     private readonly HashSet<PlayerId> _narrativeAcknowledgements = [];
     private LevelImageSnapshot? _activeLevelImage;
     private readonly HashSet<PlayerId> _levelImageAcknowledgements = [];
@@ -281,6 +286,7 @@ public sealed class Game
             Sounds = _sessionSounds.ToArray(),
             PartyGold = SelectedCharacter.Gold,
             QuestJournal = OrderedQuestJournal(),
+            AdHocConversation = _activeAdHocConversation,
             Party = snapshot.Party.Select(character => character with
             {
                 Gold = SelectedCharacter.Gold,
@@ -565,6 +571,7 @@ public sealed class Game
         }
         else RestoreGame(_loadedState);
         if (_loadedState is null) _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
+        _nextAdHocConversationCheckUtc = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         if (coopHost is not null)
             _renderer.DrawDeveloperMessage($"Coop host aktív: {coopHost.ConnectionHint}");
         try
@@ -741,6 +748,13 @@ public sealed class Game
                 if (!_battleStarted) MoveEnemies();
 
                 if (!_battleStarted) MovePartyMembers();
+
+                if (!_battleStarted && DateTime.UtcNow >= _nextAdHocConversationCheckUtc)
+                {
+                    var now = DateTime.UtcNow;
+                    _nextAdHocConversationCheckUtc = now + TimeSpan.FromMinutes(1);
+                    TryStartAdHocFollowerConversation(now);
+                }
 
                 if (!_battleStarted && DateTime.UtcNow >= _nextNeedsDrain)
                 {
@@ -1531,6 +1545,10 @@ public sealed class Game
         state.DifficultyLevel = _difficultyLevel;
         state.SuspendedCampaign = _suspendedCampaignState;
         state.IsCoopGame = _activeCoopHost is not null;
+        state.UsedAdHocConversationIds = _usedAdHocConversationIds.ToList();
+        state.LastAdHocConversationUtc = _lastAdHocConversationUtc == DateTime.MinValue
+            ? null : new DateTimeOffset(_lastAdHocConversationUtc, TimeSpan.Zero);
+        state.AdHocConversationMazeLevel = _adHocConversationMazeLevel;
         state.RemoteCharacterIds = _session.CharacterControls
             .Where(control => control.AssignedPlayerId is not null &&
                               control.AssignedPlayerId != _session.HostPlayerId)
@@ -1564,6 +1582,10 @@ public sealed class Game
         _collectedBossKeyIds.UnionWith(state.CollectedBossKeyIds ?? []);
         _seenBossIds.Clear();
         _seenBossIds.UnionWith(state.SeenBossIds ?? []);
+        _usedAdHocConversationIds.Clear();
+        _usedAdHocConversationIds.UnionWith(state.UsedAdHocConversationIds ?? []);
+        _lastAdHocConversationUtc = state.LastAdHocConversationUtc?.UtcDateTime ?? DateTime.MinValue;
+        _adHocConversationMazeLevel = state.AdHocConversationMazeLevel;
         _questJournal.Clear();
         foreach (var saved in state.QuestJournal ?? [])
             if (_gameData.NpcQuests.FirstOrDefault(quest => string.Equals(quest.Id, saved.QuestId,
@@ -3737,6 +3759,110 @@ public sealed class Game
         RecordSessionActivity(SessionActivityKind.System,
             $"{result.ItemName} szétosztva a partyban ({result.DistributedQuantity} db).", ConsoleColor.Green);
         PlaySessionSound(SoundEffect.Item);
+    }
+
+    private bool TryStartAdHocFollowerConversation(DateTime now)
+    {
+        if (_session.Phase != GameSessionPhase.Exploration || _characterSheetFocused ||
+            _activeBattleState is not null || _activeNarrative is not null ||
+            _adHocConversationMazeLevel == _mazeLevel ||
+            now - _lastAdHocConversationUtc < TimeSpan.FromHours(1) ||
+            _maze.Enemies.Any(enemy => _fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position)) ||
+            _random.Next(100) >= 15) return false;
+
+        var candidates = GetAdHocConversationCandidates().OrderBy(_ => _random.Next()).ToArray();
+        foreach (var npc in candidates)
+        {
+            var starts = Enumerable.Range(1, 5).Select(index => $"ADHOC_{index}_START")
+                .Where(state => !_usedAdHocConversationIds.Contains(AdHocConversationId(npc, state)) &&
+                                _gameData.GetNpcStoryChoices(npc.StoryId!, state, npc.Friendliness).Count == 2)
+                .OrderBy(_ => _random.Next()).ToArray();
+            if (starts.Length == 0) continue;
+            var state = starts[0];
+            _usedAdHocConversationIds.Add(AdHocConversationId(npc, state));
+            _lastAdHocConversationUtc = now;
+            _adHocConversationMazeLevel = _mazeLevel;
+            RunAdHocFollowerConversation(npc, state);
+            return true;
+        }
+        return false;
+    }
+
+    private IReadOnlyList<WorldNpc> GetAdHocConversationCandidates()
+    {
+        var candidates = _maze.PartyMembers
+            .Where(member => member.TemporaryFollower is { } follower && IsAdHocConversationStory(follower.StoryId))
+            .Select(member => member.TemporaryFollower!)
+            .Where(npc => npc.Character.IsAlive)
+            .ToList();
+        var temporaryCharacterIds = candidates.Select(npc => npc.Character.Id).ToHashSet();
+        var definitions = _gameData.Npcs.Where(definition => IsAdHocConversationStory(definition.StoryId))
+            .ToDictionary(definition => definition.Name, StringComparer.OrdinalIgnoreCase);
+        foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive &&
+                     !temporaryCharacterIds.Contains(character.Id)))
+        {
+            if (!definitions.TryGetValue(character.Name, out var definition)) continue;
+            var position = character == SelectedCharacter
+                ? _player.Position
+                : _maze.PartyMembers.FirstOrDefault(member => member.Character == character)?.Position ??
+                  _player.Position;
+            candidates.Add(new WorldNpc(position, definition.Id, character, definition.Disposition,
+                definition.Recruitable, false, string.Empty, friendliness: 10, behavior: definition.Behavior,
+                storyId: definition.StoryId));
+        }
+        return candidates;
+    }
+
+    private static bool IsAdHocConversationStory(string? storyId) =>
+        string.Equals(storyId, EliraStoryId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(storyId, RodericStoryId, StringComparison.OrdinalIgnoreCase);
+
+    private static string AdHocConversationId(WorldNpc npc, string startState) =>
+        $"{npc.StoryId}:{startState}";
+
+    private void RunAdHocFollowerConversation(WorldNpc npc, string startState)
+    {
+        var previousPhase = _session.Phase;
+        var conversationId = Guid.NewGuid();
+        var transcript = new List<string>();
+        var state = startState;
+        _session.SetPhase(GameSessionPhase.Paused);
+        try
+        {
+            while (true)
+            {
+                var choices = _gameData.GetNpcStoryChoices(npc.StoryId!, state, npc.Friendliness);
+                if (choices.Count != 2) return;
+                _activeAdHocConversation = new AdHocConversationSnapshot(conversationId, npc.Character.Name,
+                    npc.Character.Race.Name, npc.Character.CharacterClass.Name, transcript.ToArray(),
+                    choices[0].Prompt, choices.Select(choice => choice.Text).ToArray());
+                _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                var index = _renderer.DrawUniqueNpcStoryChoice(npc, choices[0].Prompt,
+                    choices.Select(choice => choice.Text).ToArray(), transcript);
+                var selected = choices[index];
+                transcript.Add($"Te: {selected.Text}");
+                transcript.AddRange(selected.Response.Split('|',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+                if (selected.ContinueConversation)
+                {
+                    state = selected.NextStateId;
+                    continue;
+                }
+                _activeAdHocConversation = new AdHocConversationSnapshot(conversationId, npc.Character.Name,
+                    npc.Character.Race.Name, npc.Character.CharacterClass.Name, transcript.ToArray(), string.Empty, []);
+                _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                _renderer.DrawUniqueNpcStoryResponse(npc, transcript);
+                return;
+            }
+        }
+        finally
+        {
+            _activeAdHocConversation = null;
+            _session.SetPhase(previousPhase);
+            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
+            _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+        }
     }
 
     private void GiveSelectedStackToFollower()
