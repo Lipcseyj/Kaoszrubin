@@ -56,6 +56,7 @@ var tests = new (string Name, Action Run)[]
     ("A CharacterId mentés után is stabil", CharacterIdSurvivesSerialization),
     ("Az ölési statisztika és az NPC csatlakozási helye menthető", CharacterHistorySurvivesSerialization),
     ("A régi játékmentések az aktuális formátumra migrálódnak", LegacyGameSavesMigrateToCurrentVersion),
+    ("A mentésszerkesztő biztonsági másolattal írja felül az állást", SaveEditorOverwritesWithBackup),
     ("Az ismeretlen és verzió nélküli játékmentések elutasításra kerülnek", InvalidGameSaveVersionsAreRejected),
     ("Az osztályspecializáció mentés után is megmarad", ClassSpecializationSurvivesSerialization),
     ("A 10. és 20. szintű osztályfejlesztések mentődnek és megjelennek", ClassFeatureUpgradesPersistAndAppearOnSheet),
@@ -423,6 +424,48 @@ static void LegacyGameSavesMigrateToCurrentVersion()
                AdHocConversationMazeLevel: 4 } &&
            restored.LastAdHocConversationUtc == current.LastAdHocConversationUtc,
         "Az egyszer már elindított ad-hoc párbeszéd vagy a korlátozásai elvesztek mentéskor.");
+}
+
+static void SaveEditorOverwritesWithBackup()
+{
+    var directory = Path.Combine(Path.GetTempPath(), $"kaoszrubin-save-editor-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(directory);
+    try
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+        var characterService = new CharacterSaveService(Path.Combine(directory, "characters.json"), data);
+        var saveService = new GameSaveService(directory, characterService);
+        var roster = new CharacterRoster();
+        var leader = CreateCharacter("Szerkesztett");
+        leader.SetGold(125);
+        roster.Add(leader);
+        roster.Select(leader);
+        roster.Party.SetLeader(leader);
+        var path = saveService.Save(new GameSaveData { MainCharacterName = leader.Name }, roster);
+        var loaded = saveService.Load(path);
+        loaded.Roster.SelectedCharacter!.SetGold(999);
+        Assert(InventoryBundleGrantService.TryGrant([loaded.Roster.SelectedCharacter],
+                [new InventoryBundleEntry(data.GetItem("T001"), 9),
+                 new InventoryBundleEntry(data.GetItem("T002"), 9)], out _),
+            "A szerkesztő tesztellátmánya nem fért el.");
+        var backup = saveService.Overwrite(loaded);
+        var restored = saveService.Load(path);
+        Assert(File.Exists(backup) && backup.EndsWith(".bak", StringComparison.OrdinalIgnoreCase) &&
+               restored.State.Version == GameSaveFormat.CurrentVersion &&
+               restored.Roster.SelectedCharacter is { Gold: 999 } selected &&
+               CountBackpack(selected, "T001") == 9 && CountBackpack(selected, "T002") == 9,
+            "A szerkesztett mentés, a két kilences köteg vagy a biztonsági másolat hibás.");
+    }
+    finally
+    {
+        Directory.Delete(directory, recursive: true);
+    }
+
+    static int CountBackpack(LiveCharacter character, string itemId) =>
+        Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
+            .Where(index => string.Equals(character.Backpack[index]?.Id, itemId,
+                StringComparison.OrdinalIgnoreCase))
+            .Sum(index => character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index));
 }
 
 static void RemotePlayerCanAcknowledgeLevelImage()

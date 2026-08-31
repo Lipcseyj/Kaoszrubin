@@ -1,6 +1,7 @@
 using KaoszRubin.Data;
 using KaoszRubin.Application;
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Transport.SignalR;
 using System.Text.Json;
 
@@ -135,6 +136,10 @@ public sealed class MainMenu
                 case ConsoleKey.D8:
                 case ConsoleKey.NumPad8:
                     SettingsScreen.Show(_musicSettings);
+                    break;
+                case ConsoleKey.D9:
+                case ConsoleKey.NumPad9:
+                    EditSavedGame();
                     break;
                 case ConsoleKey.Escape:
                     Console.Clear();
@@ -593,6 +598,157 @@ public sealed class MainMenu
         }
     }
 
+    private void EditSavedGame()
+    {
+        var saves = _gameSaveService.List();
+        if (saves.Count == 0)
+        {
+            DrawMainBackdrop();
+            DrawSidePanel("MENTÉSSZERKESZTŐ", ["Nincs szerkeszthető játékállás.", string.Empty,
+                "Bármely billentyű: vissza"]);
+            Console.ReadKey(intercept: true);
+            return;
+        }
+        var selectedIndex = 0;
+        while (true)
+        {
+            DrawMainBackdrop();
+            var lines = new List<string> { "↑↓ választ  Enter szerkeszt  Esc vissza", string.Empty };
+            var maximumVisibleSaves = Math.Max(1, (Console.WindowHeight - SideMenuTop - 6) / 2);
+            var firstVisible = Math.Clamp(selectedIndex - maximumVisibleSaves / 2, 0,
+                Math.Max(0, saves.Count - maximumVisibleSaves));
+            var lastVisible = Math.Min(saves.Count, firstVisible + maximumVisibleSaves);
+            for (var index = firstVisible; index < lastVisible; index++)
+            {
+                var save = saves[index];
+                lines.Add($"{(index == selectedIndex ? ">" : " ")} {save.MainCharacterName} — {save.MazeLevel}. pálya");
+                lines.Add($"  {save.SavedAt:yyyy-MM-dd HH:mm}");
+            }
+            DrawSidePanel("MENTÉSSZERKESZTŐ", lines);
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow:
+                    selectedIndex = (selectedIndex - 1 + saves.Count) % saves.Count;
+                    break;
+                case ConsoleKey.DownArrow:
+                    selectedIndex = (selectedIndex + 1) % saves.Count;
+                    break;
+                case ConsoleKey.Enter:
+                    try { RunSaveEditor(_gameSaveService.Load(saves[selectedIndex].Path)); }
+                    catch (Exception exception) when (exception is IOException or JsonException or InvalidOperationException or
+                                                       UnauthorizedAccessException)
+                    {
+                        DrawMainBackdrop();
+                        DrawSidePanel("SZERKESZTÉSI HIBA", [exception.Message, string.Empty, "Bármely billentyű: vissza"]);
+                        Console.ReadKey(intercept: true);
+                    }
+                    return;
+                case ConsoleKey.Escape:
+                    return;
+            }
+        }
+    }
+
+    private void RunSaveEditor(LoadedGameSave loaded)
+    {
+        var party = loaded.Roster.Party.Members;
+        if (party.Count == 0) throw new InvalidOperationException("A mentésben nincs szerkeszthető partitag.");
+        var selectedIndex = 0;
+        var changed = false;
+        var message = string.Empty;
+        while (true)
+        {
+            var selected = party[selectedIndex];
+            DrawMainBackdrop();
+            var lines = new List<string>
+            {
+                $"Mentés: {loaded.State.MainCharacterName}",
+                $"Arany: {loaded.Roster.SelectedCharacter!.Gold}", string.Empty,
+                "↑↓ célpartitag", "G arany átírása",
+                "U +9 útravaló", "B +9 bőrkulacs", string.Empty
+            };
+            for (var index = 0; index < party.Count; index++)
+            {
+                var member = party[index];
+                lines.Add($"{(index == selectedIndex ? ">" : " ")} {member.Name}");
+                lines.Add($"  Út:{CountBackpackItem(member, "T001")}  Kulacs:{CountBackpackItem(member, "T002")}");
+            }
+            lines.Add(string.Empty);
+            if (!string.IsNullOrEmpty(message)) lines.Add(message);
+            lines.Add("S mentés  Esc elvetés");
+            DrawSidePanel("FAPADOS MENTÉSSZERKESZTŐ", lines);
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow:
+                    selectedIndex = (selectedIndex - 1 + party.Count) % party.Count;
+                    message = string.Empty;
+                    break;
+                case ConsoleKey.DownArrow:
+                    selectedIndex = (selectedIndex + 1) % party.Count;
+                    message = string.Empty;
+                    break;
+                case ConsoleKey.G:
+                    var gold = ReadNonNegativeNumber("ÚJ ARANYÖSSZEG");
+                    if (gold is not null)
+                    {
+                        loaded.Roster.SelectedCharacter!.SetGold(gold.Value);
+                        changed = true;
+                        message = $"Arany beállítva: {gold}";
+                    }
+                    else message = "Érvénytelen aranyösszeg.";
+                    break;
+                case ConsoleKey.U:
+                    changed |= TryAddEditorStack(selected, "T001", out message);
+                    break;
+                case ConsoleKey.B:
+                    changed |= TryAddEditorStack(selected, "T002", out message);
+                    break;
+                case ConsoleKey.S:
+                    if (!changed) { message = "Nincs mentendő változás."; break; }
+                    var backup = _gameSaveService.Overwrite(loaded);
+                    DrawMainBackdrop();
+                    DrawSidePanel("MENTÉS FRISSÍTVE", ["A változtatások elmentve.", string.Empty,
+                        "Biztonsági másolat:", Path.GetFileName(backup), string.Empty, "Bármely billentyű: vissza"]);
+                    Console.ReadKey(intercept: true);
+                    return;
+                case ConsoleKey.Escape:
+                    return;
+            }
+        }
+    }
+
+    private bool TryAddEditorStack(LiveCharacter character, string itemId, out string message)
+    {
+        var item = _gameData.GetItem(itemId);
+        if (!InventoryBundleGrantService.TryGrant([character],
+                [new InventoryBundleEntry(item, LiveCharacter.MaximumBackpackStackSize)], out _))
+        {
+            message = $"{character.Name} hátizsákjában nincs hely.";
+            return false;
+        }
+        message = $"{character.Name}: +9 {item.Name}.";
+        return true;
+    }
+
+    private static int CountBackpackItem(LiveCharacter character, string itemId) =>
+        Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
+            .Where(index => string.Equals(character.Backpack[index]?.Id, itemId, StringComparison.OrdinalIgnoreCase))
+            .Sum(index => character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index));
+
+    private int? ReadNonNegativeNumber(string title)
+    {
+        DrawMainBackdrop();
+        DrawSidePanel(title, ["Adj meg egy 0 vagy nagyobb egész számot:", string.Empty, "> "]);
+        var left = Math.Min(SideMenuLeft + 4, Math.Max(0, Console.WindowWidth - SideMenuWidth + 3));
+        var top = Math.Min(SideMenuTop + 4, Math.Max(0, Console.WindowHeight - 1));
+        Console.SetCursorPosition(left, top);
+        string? input;
+        Console.CursorVisible = true;
+        try { input = Console.ReadLine(); }
+        finally { Console.CursorVisible = false; }
+        return int.TryParse(input, out var value) && value >= 0 ? value : null;
+    }
+
     private void QuickStart()
     {
         try
@@ -967,6 +1123,7 @@ public sealed class MainMenu
             "6) Coop játék hostolása",
             "7) Csatlakozás coop játékhoz",
             "8) Beállítások",
+            "9) Mentés szerkesztése",
             string.Empty,
             "Esc) Kilépés"
         };

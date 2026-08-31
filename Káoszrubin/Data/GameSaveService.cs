@@ -42,6 +42,28 @@ public sealed class GameSaveService
         return new LoadedGameSave(path, roster, state);
     }
 
+    public string Overwrite(LoadedGameSave loaded)
+    {
+        ArgumentNullException.ThrowIfNull(loaded);
+        var path = Path.GetFullPath(loaded.Path);
+        if (!File.Exists(path)) throw new FileNotFoundException("A szerkesztendő mentés nem található.", path);
+        loaded.State.Version = GameSaveFormat.CurrentVersion;
+        loaded.State.RosterJson = _characterSaveService.Serialize(loaded.Roster);
+        var backupPath = path + $".pre-edit-{DateTime.Now:yyyyMMdd_HHmmss_fff}.bak";
+        var temporaryPath = path + $".{Guid.NewGuid():N}.tmp";
+        File.Copy(path, backupPath, overwrite: false);
+        try
+        {
+            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(loaded.State, JsonOptions));
+            File.Move(temporaryPath, path, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+        }
+        return backupPath;
+    }
+
     public IReadOnlyList<GameSaveInfo> List()
     {
         if (!Directory.Exists(_saveDirectory)) return [];
