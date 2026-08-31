@@ -20,20 +20,23 @@ public sealed class ConsoleRenderer
 {
     public const int PlayfieldWidth = 170;
     public const int PlayfieldHeight = 44;
-    public const int MessageLogLineCount = 7;
-    public const int MessageLogBufferLineCount = MessageLogLineCount * 3;
-    public const int ScreenRowCount = PlayfieldHeight + MessageLogLineCount + 1;
+    public const int StandardMessageLogLineCount = 7;
+    public const int TallDisplayExtraMessageLines = 4;
+    public const int TallDisplayMinimumPixelHeight = 1200;
+    public static int MessageLogLineCount { get; } = MessageLogLineCountForMonitorHeight(CurrentMonitorPixelHeight());
+    public static int MessageLogBufferLineCount => MessageLogLineCount * 3;
+    public static int ScreenRowCount => PlayfieldHeight + MessageLogLineCount + 1;
     public static string MoneyIcon { get; } = IsWindows11OrLater() ? "🪙" : "💰";
     public static string WandIcon { get; } = IsWindows11OrLater() ? "🪄" : "✨";
     public static string DamageReductionIcon { get; } = IsWindows11OrLater() ? "🪨" : "💥🛡️";
     private const int RightBorderX = PlayfieldWidth;
     private const int BottomBorderY = PlayfieldHeight;
     private static readonly Rune FogSymbol = new('█');
-    private const int MessageLineCount = MessageLogLineCount;
+    private static int MessageLineCount => MessageLogLineCount;
     private const int MessageWidth = 164;
     private const int PicturePanelHeight = 5;
-    private const int PicturePanelBottom = BottomBorderY + MessageLineCount;
-    private const int PicturePanelTop = PicturePanelBottom - PicturePanelHeight - 1;
+    private static int PicturePanelBottom => BottomBorderY + MessageLineCount;
+    private static int PicturePanelTop => PicturePanelBottom - PicturePanelHeight - 1;
     private const int CenteredFrameHorizontalPadding = 2;
     private const int FrameBorderWidth = 2;
     private const int MinimumCenteredFrameTop = 1;
@@ -164,6 +167,27 @@ public sealed class ConsoleRenderer
     {
         var version = Environment.OSVersion.Version;
         return OperatingSystem.IsWindows() && version.Major >= 10 && version.Build >= 22000;
+    }
+
+    public static int MessageLogLineCountForMonitorHeight(int pixelHeight) =>
+        StandardMessageLogLineCount + (pixelHeight >= TallDisplayMinimumPixelHeight
+            ? TallDisplayExtraMessageLines
+            : 0);
+
+    private static int CurrentMonitorPixelHeight()
+    {
+        try
+        {
+            var windowHandle = Process.GetCurrentProcess().MainWindowHandle;
+            var screen = windowHandle != IntPtr.Zero
+                ? System.Windows.Forms.Screen.FromHandle(windowHandle)
+                : System.Windows.Forms.Screen.PrimaryScreen;
+            return screen?.Bounds.Height ?? 1080;
+        }
+        catch
+        {
+            return 1080;
+        }
     }
 
     public void SetGoldenKeyCount(int count) => _goldenKeyCount = Math.Clamp(count, 0, MonsterIds.Bosses.Count);

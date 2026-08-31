@@ -18,8 +18,8 @@ public sealed class CoopGuestScreen
     private readonly BackgroundMusicPlayer _backgroundMusic;
     private readonly MusicSettingsService _musicSettings;
     private int _redrawRequested = 1;
-    private const int MessageLineCount = ConsoleRenderer.MessageLogLineCount;
-    private const int MessageBufferLineCount = ConsoleRenderer.MessageLogBufferLineCount;
+    private static int MessageLineCount => ConsoleRenderer.MessageLogLineCount;
+    private static int MessageBufferLineCount => ConsoleRenderer.MessageLogBufferLineCount;
     private readonly Queue<GuestTextLine> _messageLog = new();
     private int _messageLogScrollOffset;
     private int _messageLineWidth = 80;

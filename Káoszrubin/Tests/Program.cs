@@ -2253,9 +2253,14 @@ static void CompactPartyStatusShowsResources()
 
 static void WindowFrameCatalogIsResizableAndConfigured()
 {
-    Assert(ConsoleRenderer.MessageLogLineCount == 7 && ConsoleRenderer.MessageLogBufferLineCount == 21 &&
-           ConsoleRenderer.ScreenRowCount == 52,
-        "Az 1080p-s fő játékfelület nem 7 látható és 21 tárolt logsorral, összesen 52 sorra van méretezve.");
+    Assert(ConsoleRenderer.MessageLogLineCountForMonitorHeight(1080) == 7 &&
+           ConsoleRenderer.MessageLogLineCountForMonitorHeight(1199) == 7 &&
+           ConsoleRenderer.MessageLogLineCountForMonitorHeight(1200) == 11 &&
+           ConsoleRenderer.MessageLogLineCountForMonitorHeight(2160) == 11 &&
+           ConsoleRenderer.MessageLogBufferLineCount == ConsoleRenderer.MessageLogLineCount * 3 &&
+           ConsoleRenderer.ScreenRowCount == ConsoleRenderer.PlayfieldHeight +
+               ConsoleRenderer.MessageLogLineCount + 1,
+        "A fő játékfelület 1200p-s négy extra logsora vagy a hozzá igazodó magassága hibás.");
     foreach (var style in Enum.GetValues<WindowFrameStyle>())
     {
         Assert(WindowFrameCatalog.Horizontal(style, 52).Length == 52,
