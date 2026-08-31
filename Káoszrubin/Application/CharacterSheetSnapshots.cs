@@ -13,7 +13,8 @@ public sealed record CharacterSheetSnapshot(string RaceName, string CharacterCla
     int VisionRange = CharacterClassRules.BaseVisionRange,
     int NaturalVisionRange = CharacterClassRules.BaseVisionRange,
     IReadOnlyList<VisionModifierSnapshot>? VisionModifiers = null,
-    int HearingRange = 4, int DetectionBonus = 0);
+    int HearingRange = 4, int DetectionBonus = 0,
+    IReadOnlyList<string>? DetailedWeaponProficiencyNames = null);
 
 public sealed record VisionModifierSnapshot(string Name, int Value);
 public sealed record MonsterKillSnapshot(string EnemyDefinitionId, int Count);
@@ -72,7 +73,8 @@ public static class CharacterSheetSnapshotProjector
                 proficiency => (int)proficiency.Rank, StringComparer.OrdinalIgnoreCase),
             CharacterClassRules.VisionRange(character, environmentVisionModifier),
             CharacterClassRules.NaturalVisionRange(character), BuildVisionModifiers(character, environmentVisionModifier),
-            CharacterClassRules.HearingRange(character), CharacterClassRules.DetectionBonus(character));
+            CharacterClassRules.HearingRange(character), CharacterClassRules.DetectionBonus(character),
+            character.WeaponProficiencies.Select(FormatDetailedWeaponProficiency).ToArray());
     }
 
     private static IReadOnlyList<VisionModifierSnapshot> BuildVisionModifiers(LiveCharacter character,
@@ -86,5 +88,13 @@ public static class CharacterSheetSnapshotProjector
             .Select(effect => new VisionModifierSnapshot(effect.SourceSpellId, effect.Value)));
         if (environmentVisionModifier != 0) result.Add(new("Pálya/környezet", environmentVisionModifier));
         return result;
+    }
+
+    private static string FormatDetailedWeaponProficiency(WeaponProficiencyState proficiency)
+    {
+        var family = WeaponFamilies.Find(proficiency.FamilyId)!;
+        return proficiency.Rank == WeaponProficiencyRank.Master
+            ? $"{family.Icon} {family.Name} — Mesterfok: {family.TrainedDescription} {family.MasterDescription}"
+            : $"{family.Icon} {family.Name} — Jártas: {family.TrainedDescription}";
     }
 }

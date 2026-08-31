@@ -1654,6 +1654,10 @@ static void CharacterDetailsAreShared()
     character.SetNpcBehavior(NpcBehavior.Defensive);
     character.SetNpcJoinOrigin(3, "A Rézcsengő");
     character.RecordMonsterKill(data.Enemies[0].Id, 2);
+    var visionItem = data.GetItem(MiscItemIds.Torch);
+    character.ApplySpellEffect(new ActiveSpellEffect(visionItem.Id, ActiveSpellEffectType.VisionBonus, 2, 12));
+    Assert(character.TryAdvanceWeaponProficiency(WeaponFamilies.Dagger),
+        "A részletes karakterlap fegyverjártassági tesztje nem készíthető elő.");
     var sheet = CharacterSheetSnapshotProjector.Create(character, data.ExperienceByLevel, -2);
     var snapshot = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
         character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
@@ -1667,6 +1671,9 @@ static void CharacterDetailsAreShared()
         "Az R billentyű vagy a stone keret nincs bekötve.");
     Assert(lines.Any(line => line.Text.Contains("Tolvaj osztály", StringComparison.Ordinal)) &&
            lines.Any(line => line.Text.Contains("Pálya/környezet", StringComparison.Ordinal) && line.Color == ConsoleColor.Red) &&
+           lines.Any(line => line.Text.Contains(visionItem.Name, StringComparison.Ordinal) &&
+                             !line.Text.Contains(visionItem.Id, StringComparison.Ordinal)) &&
+           lines.Any(line => line.Text.Contains("🗡️ Tőr — Jártas", StringComparison.Ordinal)) &&
            lines.Any(line => line.Text.Contains("A Rézcsengő", StringComparison.Ordinal)) &&
            lines.Any(line => line.Text.Contains(data.Enemies[0].Name, StringComparison.Ordinal) && line.Text.Contains("2", StringComparison.Ordinal)),
         "A közös részletes karakterlapból hiányzik egy látás-, NPC- vagy ölési adat.");

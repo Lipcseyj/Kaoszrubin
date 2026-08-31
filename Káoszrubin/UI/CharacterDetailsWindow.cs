@@ -35,7 +35,8 @@ public static class CharacterDetailsWindow
 
         AddSection(lines, "TEHETSÉGEK ÉS ÁLLAPOTOK", sheet.PerkNames, "Nincs tehetség.");
         AddSection(lines, "OSZTÁLYFEJLESZTÉSEK", sheet.ClassFeatureUpgradeNames ?? [], "Nincs osztályfejlesztés.");
-        AddSection(lines, "FEGYVERJÁRTASSÁGOK", sheet.WeaponProficiencyNames ?? [], "Nincs fegyverjártasság.");
+        AddSection(lines, "FEGYVERJÁRTASSÁGOK", sheet.DetailedWeaponProficiencyNames ??
+            sheet.WeaponProficiencyNames ?? [], "Nincs fegyverjártasság.");
         AddSection(lines, "ÁLLAPOTJELZŐK", sheet.StatusIcons, "Nincs aktív állapot.");
         if (character.SpellInfo is { } spellInfo)
         {
@@ -111,12 +112,33 @@ public static class CharacterDetailsWindow
     {
         lines.Add((string.Empty, ConsoleColor.Gray)); lines.Add((title, ConsoleColor.Cyan));
         var items = values.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray();
-        lines.AddRange(items.Length == 0 ? [("  — " + empty, ConsoleColor.DarkGray)] :
-            items.Select(value => ($"  • {value}", ConsoleColor.White)));
+        if (items.Length == 0) lines.Add(("  — " + empty, ConsoleColor.DarkGray));
+        else foreach (var item in items) AddWrapped(lines, $"  • {item}", ConsoleColor.White);
     }
 
-    private static string ResolveVisionName(string name, GameDataCatalog data) =>
-        data.Spells.FirstOrDefault(spell => string.Equals(spell.Id, name, StringComparison.OrdinalIgnoreCase))?.Name ?? name;
+    private static void AddWrapped(ICollection<(string Text, ConsoleColor Color)> lines, string text,
+        ConsoleColor color)
+    {
+        const int maximumLength = 74;
+        var remaining = text;
+        while (remaining.Length > maximumLength)
+        {
+            var split = remaining.LastIndexOf(' ', maximumLength);
+            if (split < 8) split = maximumLength;
+            lines.Add((remaining[..split], color));
+            remaining = "      " + remaining[split..].TrimStart();
+        }
+        lines.Add((remaining, color));
+    }
+
+    private static string ResolveVisionName(string id, GameDataCatalog data) =>
+        data.Spells.FirstOrDefault(value => SameId(value.Id, id))?.Name ??
+        data.Items.FirstOrDefault(value => SameId(value.Id, id))?.Name ??
+        data.MagicItems.FirstOrDefault(value => SameId(value.Id, id))?.Name ??
+        data.Weapons.FirstOrDefault(value => SameId(value.Id, id))?.Name ??
+        data.Armors.FirstOrDefault(value => SameId(value.Id, id))?.Name ?? id;
+    private static bool SameId(string left, string right) =>
+        string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
     private static string SlotName(InventorySlotKind kind, int index) => kind switch
     { InventorySlotKind.Weapon => $"Fegyver {index + 1}", InventorySlotKind.Armor => "Páncél",
       InventorySlotKind.MagicItem => $"Varázstárgy {index + 1}", _ => $"Hátizsák {index + 1}" };
