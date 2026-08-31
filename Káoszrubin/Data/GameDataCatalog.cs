@@ -86,6 +86,9 @@ public sealed class GameDataCatalog
                 string.Equals(choice.StoryId, storyId, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(choice.StateId, stateId, StringComparison.OrdinalIgnoreCase))
             .OrderBy(choice => choice.Order).ToArray();
+    public IReadOnlyList<NpcStoryChoiceDefinition> GetNpcStoryChoices(string storyId, string stateId,
+        int friendliness) => GetNpcStoryChoices(storyId, stateId)
+        .Where(choice => choice.IsAvailableAt(friendliness)).ToArray();
     public IReadOnlyList<NpcQuestDefinition> GetNpcQuests(string npcId) => NpcQuests
         .Where(quest => string.Equals(quest.NpcId, npcId, StringComparison.OrdinalIgnoreCase)).ToArray();
     public IReadOnlyList<PartyRemarkDefinition> GetPartyRemarks(string situationId, LiveCharacter character)

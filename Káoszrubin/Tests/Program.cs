@@ -2388,7 +2388,7 @@ static void NpcDefinitionsLoadFromCsv()
            Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
         "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 27 &&
+    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 30 &&
            catalog.NpcQuests.Count == 40 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 8 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 18 &&
@@ -2407,7 +2407,7 @@ static void NpcDefinitionsLoadFromCsv()
            catalog.GetNpc("NPC021") is { Unique: true, RaceId: "R001", StoryId: "RODERIC_OATH" } &&
            catalog.NpcEncounters.Single(encounter => encounter.NpcId == "NPC021").QuestRoomId == "RODERIC_MEETING" &&
            catalog.GetNpcStoryChoices("RODERIC_OATH", "INITIAL") is
-               [{ FriendlinessChange: 2 }, { FriendlinessChange: 1 }, { FriendlinessChange: -2 }] &&
+               [{ FriendlinessChange: 2 }, { FriendlinessChange: 0 }, { FriendlinessChange: -3 }] &&
            catalog.GetNpcQuests("NPC020").Select(quest => quest.Type).ToHashSet().SetEquals(
                [NpcQuestType.Escort, NpcQuestType.Collect, NpcQuestType.Kill]) &&
            catalog.NpcQuests.All(quest => quest.RandomRewardCount > 0 || quest.RewardItemCount > 0),
@@ -2496,6 +2496,8 @@ static void RodericMalrecQuestLocationIsConfigured()
     var initialChoices = catalog.GetNpcStoryChoices("RODERIC_OATH", "INITIAL");
     var trustedChoices = catalog.GetNpcStoryChoices("RODERIC_OATH", "TRUSTED");
     var finalChoices = catalog.GetNpcStoryChoices("RODERIC_OATH", "MALREC_DEFEATED");
+    var lowTrustVerdict = catalog.GetNpcStoryChoices("RODERIC_OATH", "JOIN_VERDICT", 7);
+    var highTrustVerdict = catalog.GetNpcStoryChoices("RODERIC_OATH", "JOIN_VERDICT", 8);
     Assert(initialChoices.Count == 3 && initialChoices.All(value => value.ContinueConversation) &&
            trustedChoices.Single() is { NextStateId: "MALREC_STORY", ContinueConversation: true } &&
            catalog.GetNpcStoryChoices("RODERIC_OATH", "MALREC_STORY").All(value =>
@@ -2505,9 +2507,14 @@ static void RodericMalrecQuestLocationIsConfigured()
                value.Action == NpcStoryAction.GrantEmergencySupplies) == 2 &&
            catalog.GetNpcStoryChoices("RODERIC_OATH", "CACHE_BLOCKED").Single().Action ==
                NpcStoryAction.GrantEmergencySupplies &&
-           finalChoices.Count == 3 && finalChoices.Count(value =>
-               value.Action == NpcStoryAction.RequestPermanentJoin) == 2 &&
-           finalChoices.Single(value => value.NextStateId == "SECOND_CHANCE").Action == NpcStoryAction.None,
+           finalChoices.Count == 3 && finalChoices.All(value => value.ContinueConversation) &&
+           catalog.GetNpcStoryChoices("RODERIC_OATH", "SECOND_CHANCE").Count == 2 &&
+           catalog.GetNpcStoryChoices("RODERIC_OATH", "SECOND_CHANCE").Any(value =>
+               value.NextStateId == "OATH_BROKEN" && value.FriendlinessChange == -3) &&
+           lowTrustVerdict.Single() is { NextStateId: "JOIN_REFUSED",
+               MaximumFriendliness: 7 } &&
+           highTrustVerdict.Single() is { NextStateId: "JOIN_ACCEPTED",
+               MinimumFriendliness: 8, Action: NpcStoryAction.RequestPermanentJoin },
         "Roderic többforduló párbeszédgráfja vagy második csatlakozási esélye hibás.");
 
     var maze = new MazeGenerator(configuration.CreateGenerationSettings(new Random(17)), [], [])

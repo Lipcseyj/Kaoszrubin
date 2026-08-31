@@ -35,9 +35,12 @@ public sealed record NpcDialogueDefinition(string Id, string NpcId, int MinimumF
 public sealed record NpcStoryChoiceDefinition(string Id, string StoryId, string StateId, string Prompt,
     int Order, string Text, int FriendlinessChange, string NextStateId,
     string Response = "", NpcStoryAction Action = NpcStoryAction.None,
-    string? ActionParameter = null, bool ContinueConversation = false) : IGameDefinition
+    string? ActionParameter = null, bool ContinueConversation = false,
+    int MinimumFriendliness = 0, int MaximumFriendliness = 10) : IGameDefinition
 {
     public string Name => Id;
+    public bool IsAvailableAt(int friendliness) =>
+        friendliness >= MinimumFriendliness && friendliness <= MaximumFriendliness;
 }
 
 public enum NpcStoryAction

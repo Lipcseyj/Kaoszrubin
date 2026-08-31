@@ -380,7 +380,9 @@ public static class CsvGameDataLoader
                 npcStoryChoices.Add(new NpcStoryChoiceDefinition(id, Cell(cells, 1), Cell(cells, 2),
                     Cell(cells, 3), Math.Max(1, Integer(cells, 4) ?? 1), Cell(cells, 5),
                     Integer(cells, 6) ?? 0, Cell(cells, 7), Cell(cells, 8),
-                    EnumValue<NpcStoryAction>(cells, 9), EmptyAsNull(Cell(cells, 10)), IsYes(cells, 11)));
+                    EnumValue<NpcStoryAction>(cells, 9), EmptyAsNull(Cell(cells, 10)), IsYes(cells, 11),
+                    Math.Clamp(Integer(cells, 12) ?? 0, 0, 10),
+                    Math.Clamp(Integer(cells, 13) ?? 10, 0, 10)));
                 break;
             case DataSection.PartySituations:
                 partySituations.Add(new PartySituationDefinition(id, name));
@@ -620,7 +622,8 @@ public static class CsvGameDataLoader
         foreach (var choice in storyChoices)
             if (!storyIds.Contains(choice.StoryId) || string.IsNullOrWhiteSpace(choice.StateId) ||
                 string.IsNullOrWhiteSpace(choice.Prompt) || string.IsNullOrWhiteSpace(choice.Text) ||
-                string.IsNullOrWhiteSpace(choice.NextStateId))
+                string.IsNullOrWhiteSpace(choice.NextStateId) ||
+                choice.MinimumFriendliness > choice.MaximumFriendliness)
                 throw new InvalidDataException($"A(z) '{choice.Id}' történeti választás érvénytelen.");
         var questIds = quests.Select(quest => quest.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var choice in storyChoices)

@@ -21,6 +21,7 @@ public sealed class Game
     private const string RodericInsigniaQuestId = "NPCQ037";
     private const string RodericSharedBattleQuestId = "NPCQ038";
     private const string RodericMalrecQuestId = "NPCQ039";
+    private const int RodericPermanentJoinFriendliness = 8;
     private static readonly IReadOnlyList<string> CampaignIntroduction =
     [
         "Az Aranykor hajnalán négy ősi elementálmágus őrizte a világ egyensúlyát: Pyranthos, a Lángok Atyja; Nymara, a Mélytengerek Asszonya; Goram, a Hegyek Szíve; és Zephyriel, az Ég Vándora. Együtt alkották meg a Káoszrubint, amelyben tűz, víz, föld és szél ereje egyetlen, lüktető drágakővé forrt.",
@@ -950,6 +951,7 @@ public sealed class Game
                 "„A múltat nem változtathatom meg. De többé nem hagyom, hogy helyettem döntsön.” A lovag visszavezet benneteket ugyanahhoz a pillanathoz, amelyben elhagytátok a katakombákat."
             ]);
         RestoreSuspendedCampaign();
+        if (ResolveFailedRodericOath()) return true;
         TryFinalizeRodericPermanentJoin();
         return true;
     }
@@ -958,6 +960,25 @@ public sealed class Game
         .Select(member => member.TemporaryFollower)
         .FirstOrDefault(follower => follower is not null &&
             string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase));
+
+    private bool ResolveFailedRodericOath()
+    {
+        var avatar = _maze.PartyMembers.FirstOrDefault(member => member.TemporaryFollower is { } follower &&
+            string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(follower.StoryStateId, "JOIN_REFUSED", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(follower.StoryStateId, "OATH_BROKEN", StringComparison.OrdinalIgnoreCase)));
+        if (avatar?.TemporaryFollower is not { } roderic) return false;
+        _maze.RemovePartyMember(avatar);
+        _nextPartyMoves.Remove(avatar);
+        CharacterRoster.Remove(roderic.Character);
+        _session.SynchronizeParty();
+        _renderer.DrawInventoryMessage(
+            $"⚜ Roderic külön úton távozott. A viszonyotok {roderic.Friendliness}/10 volt; " +
+            $"a végleges csatlakozáshoz legalább {RodericPermanentJoinFriendliness}/10 kellett volna.",
+            ConsoleColor.DarkYellow);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        return true;
+    }
 
     private int RodericTargetLevel()
     {
@@ -2142,7 +2163,8 @@ public sealed class Game
             return;
         }
 
-        if (_gameData.GetNpcStoryChoices(npc.StoryId ?? string.Empty, npc.StoryStateId).Count > 0)
+        if (_gameData.GetNpcStoryChoices(npc.StoryId ?? string.Empty, npc.StoryStateId,
+                npc.Friendliness).Count > 0)
         {
             RunStoryConversation(npc);
             if (string.Equals(npc.StoryStateId, "JOIN_ACCEPTED", StringComparison.OrdinalIgnoreCase))
@@ -2161,7 +2183,8 @@ public sealed class Game
         var transcript = new List<string>();
         while (true)
         {
-            var choices = _gameData.GetNpcStoryChoices(npc.StoryId ?? string.Empty, npc.StoryStateId);
+            var choices = _gameData.GetNpcStoryChoices(npc.StoryId ?? string.Empty, npc.StoryStateId,
+                npc.Friendliness);
             if (choices.Count == 0) return;
             var index = _renderer.DrawUniqueNpcStoryChoice(npc, choices[0].Prompt,
                 choices.Select(choice => choice.Text).ToArray(), transcript);
@@ -2454,7 +2477,14 @@ public sealed class Game
     private void RegisterNpcQuestKill(Enemy defeatedEnemy)
     {
         var enemyDefinitionId = defeatedEnemy.Definition.Id;
-        RegisterNpcQuestProgress(NpcQuestType.Kill, enemyDefinitionId);
+        var isMalrec = string.Equals(enemyDefinitionId, MonsterIds.SirMalrec,
+            StringComparison.OrdinalIgnoreCase);
+        var rodericAtConfrontation = isMalrec &&
+            FindRodericFollower() is { StoryStateId: "MALREC_FIGHT" } witness
+                ? witness
+                : null;
+        if (!isMalrec || rodericAtConfrontation is not null)
+            RegisterNpcQuestProgress(NpcQuestType.Kill, enemyDefinitionId);
         var enemy = defeatedEnemy.Definition;
         foreach (var avatar in _maze.PartyMembers.Where(member => member.TemporaryFollower is not null &&
                      member.Character.IsAlive && Manhattan(member.Position, defeatedEnemy.Position) <= 6))
@@ -2483,10 +2513,9 @@ public sealed class Game
             }
         }
 
-        if (!string.Equals(enemyDefinitionId, MonsterIds.SirMalrec, StringComparison.OrdinalIgnoreCase)) return;
-        if (FindRodericFollower() is not { } roderic) return;
-        ProcessNpcQuests(roderic, activateOffered: false);
-        roderic.SetStoryState("MALREC_DEFEATED");
+        if (!isMalrec || rodericAtConfrontation is null) return;
+        ProcessNpcQuests(rodericAtConfrontation, activateOffered: false);
+        rodericAtConfrontation.SetStoryState("MALREC_DEFEATED");
         _pendingRodericReturn = true;
     }
 
@@ -5649,6 +5678,7 @@ public sealed class Game
                 FindRodericFollower() is { } roderic &&
                 string.Equals(roderic.StoryStateId, "MALREC_APPROACH", StringComparison.OrdinalIgnoreCase))
             {
+                StageRodericForMalrecEncounter(boss, roderic);
                 RunStoryConversation(roderic);
                 _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
                 continue;
@@ -5663,6 +5693,25 @@ public sealed class Game
                 new BossPresentationSnapshot(boss.Name, boss.Definition.Appearance,
                     boss.Definition.StrengthTier, isMiniBoss ? "⚔ Nincs aranykulcs" : "🔑 Aranykulcs"));
         }
+    }
+
+    private void StageRodericForMalrecEncounter(Enemy malrec, WorldNpc roderic)
+    {
+        var avatar = _maze.PartyMembers.FirstOrDefault(member => member.TemporaryFollower == roderic);
+        if (avatar is null || Manhattan(avatar.Position, malrec.Position) <= 3) return;
+        var candidates = FindNearbyFreePositions(malrec.Position)
+            .Where(position => _maze.GetTrapAt(position) is null && _maze.GetDoorAt(position) is null)
+            .Take(24)
+            .ToArray();
+        var destination = candidates
+            .Where(position => Manhattan(position, malrec.Position) is >= 2 and <= 3)
+            .OrderBy(position => Manhattan(position, _player.Position))
+            .Select(position => (Position?)position)
+            .FirstOrDefault();
+        destination ??= candidates.Select(position => (Position?)position).FirstOrDefault();
+        if (destination is null) return;
+        avatar.MoveTo(destination.Value);
+        _nextPartyMoves[avatar] = DateTime.UtcNow;
     }
 
     private void AwardBossKey(Enemy enemy)
