@@ -17,6 +17,7 @@ public sealed class Game
 {
     private const string EliraStoryId = "ELIRA_RESCUE";
     private const string RodericStoryId = "RODERIC_OATH";
+    private const string RodericGraveRespectQuestId = "NPCQ040";
     private const string RodericInsigniaQuestId = "NPCQ037";
     private const string RodericSharedBattleQuestId = "NPCQ038";
     private const string RodericMalrecQuestId = "NPCQ039";
@@ -2101,6 +2102,28 @@ public sealed class Game
 
     private void ConverseWithRoderic(WorldNpc npc)
     {
+        if (string.Equals(npc.StoryStateId, "PROOF_ACTIVE", StringComparison.OrdinalIgnoreCase))
+        {
+            var quest = _gameData.NpcQuests.Single(value =>
+                string.Equals(value.Id, RodericGraveRespectQuestId, StringComparison.OrdinalIgnoreCase));
+            var progress = npc.Quests.Single(value =>
+                string.Equals(value.QuestId, quest.Id, StringComparison.OrdinalIgnoreCase));
+            if (progress.Progress < quest.RequiredCount)
+            {
+                _renderer.DrawUniqueNpcStoryChoice(npc,
+                    $"Négy feltámasztott csontváz járja a közeli kriptákat. Eddig {progress.Progress}/4 bukott el.",
+                    ["A sírokhoz nem nyúlunk. Visszatérünk ha végeztünk."]);
+                _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+                return;
+            }
+
+            ProcessNpcQuests(npc, activateOffered: false);
+            npc.SetStoryState("PROOF_COMPLETE");
+            RunStoryConversation(npc);
+            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            return;
+        }
+
         if (string.Equals(npc.StoryStateId, "INSIGNIAS_ACTIVE", StringComparison.OrdinalIgnoreCase))
         {
             var count = CountPartyBackpackItems(MiscItemIds.FallenKnightInsignia);
@@ -2170,7 +2193,11 @@ public sealed class Game
                 ActivateNpcQuest(npc, questId);
                 return;
             case NpcStoryAction.BeginFollowing:
-                BeginTemporaryFollowing(npc);
+                if (!BeginTemporaryFollowing(npc))
+                {
+                    npc.SetStoryState(choice.StateId);
+                    npc.AdjustFriendliness(-choice.FriendlinessChange);
+                }
                 return;
             case NpcStoryAction.GrantEmergencySupplies:
                 GrantRodericEmergencySupplies(npc);
@@ -2243,14 +2270,14 @@ public sealed class Game
             friendlinessChange >= 0 ? ConsoleColor.Green : ConsoleColor.DarkYellow);
     }
 
-    private void BeginTemporaryFollowing(WorldNpc npc)
+    private bool BeginTemporaryFollowing(WorldNpc npc)
     {
         if (_maze.PartyMembers.Any(member => member.IsTemporaryFollower))
         {
             _renderer.DrawInventoryMessage("Már van egy ideiglenes követőtök.", ConsoleColor.DarkYellow);
-            return;
+            return false;
         }
-        if (!_maze.RemoveWorldNpc(npc)) return;
+        if (!_maze.RemoveWorldNpc(npc)) return false;
         npc.BeginFollowing();
         var newlyActivated = new List<NpcQuestDefinition>();
         foreach (var quest in npc.Quests.Where(progress => progress.State == NpcQuestState.Offered).ToArray())
@@ -2272,6 +2299,7 @@ public sealed class Game
             _renderer.DrawGenericUniqueNpcQuestOffer(npc, newlyActivated);
         _renderer.DrawInventoryMessage($"🌿 {npc.Character.Name} ideiglenes követőként csatlakozott. Nem foglal partyhelyet.",
             ConsoleColor.Cyan);
+        return true;
     }
 
     private void ProcessNpcQuests(WorldNpc npc, bool activateOffered = true)
@@ -2402,8 +2430,7 @@ public sealed class Game
         return candidates.Length == 0 ? null : candidates[_random.Next(candidates.Length)];
     }
 
-    private IItemDefinition FindQuestRewardItem(string itemId) => QuestRewardItems()
-        .First(item => string.Equals(item.Id, itemId, StringComparison.OrdinalIgnoreCase));
+    private IItemDefinition FindQuestRewardItem(string itemId) => _gameData.GetItemDefinition(itemId);
 
     private IEnumerable<IItemDefinition> QuestRewardItems() => _gameData.Items.Cast<IItemDefinition>()
         .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems)
@@ -4066,7 +4093,7 @@ public sealed class Game
             var summary = ConsoleRenderer.FormatAutoBattleDefeatSummary(result, member.Character.Name, enemy,
                 startingNpcHp, manaLost, gainedStatusIcons, needLoss, spellsCast) +
                 (questCriticalRoderic
-                    ? " Roderic eszméletét vesztette, de a küldetés idejére talpra állt; a harcot újra megpróbálhatjátok."
+                    ? " Roderic eszméletét vesztette, de az Ezüst Esküre hivatkozva ismét talpra állt; a harcot újra megpróbálhatjátok."
                     : string.Empty);
             _renderer.DrawNpcBattleSummary(summary, questCriticalRoderic ? ConsoleColor.DarkYellow : ConsoleColor.Red);
             RecordSessionActivity(SessionActivityKind.Battle, summary,
@@ -4085,8 +4112,9 @@ public sealed class Game
     }
 
     private bool IsQuestCriticalRoderic(PartyMemberAvatar member) =>
-        _locationKind == AdventureLocationKind.Quest && member.TemporaryFollower is { } follower &&
-        string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase);
+        member.TemporaryFollower is { } follower &&
+        string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(follower.StoryStateId, "JOINED", StringComparison.OrdinalIgnoreCase);
 
     private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from)
     {
@@ -6126,6 +6154,11 @@ public sealed class Game
         foreach (var selection in PartyCommentarySelector.Select(_gameData, situationId,
                      CharacterRoster.Party.Members, _random))
             LogPartyComment(selection.Speaker, selection.Remark.Text);
+        var follower = _maze.PartyMembers.FirstOrDefault(member => member.IsTemporaryFollower &&
+            member.Character.IsAlive && _gameData.GetTemporaryFollowerRemarks(situationId, member.Character).Count > 0);
+        if (follower is null || !PartyCommentarySelector.ShouldComment(_random.Next(100))) return;
+        var remarks = _gameData.GetTemporaryFollowerRemarks(situationId, follower.Character);
+        LogPartyComment(follower.Character, remarks[_random.Next(remarks.Count)].Text);
     }
 
     private void LogScheduledPartyComment(LiveCharacter character, NpcComplaintKind kind)
@@ -6136,8 +6169,12 @@ public sealed class Game
             NpcComplaintKind.Thirst => PartySituationIds.Thirsty,
             _ => PartySituationIds.Injured
         };
-        if (PartyCommentarySelector.SelectFor(_gameData, situationId, character, _random) is not { } selection)
-            return;
+        PartyCommentSelection? selection;
+        if (_maze.PartyMembers.Any(member => member.IsTemporaryFollower && member.Character == character) &&
+            _gameData.GetTemporaryFollowerRemarks(situationId, character) is { Count: > 0 } followerRemarks)
+            selection = new PartyCommentSelection(character, followerRemarks[_random.Next(followerRemarks.Count)]);
+        else selection = PartyCommentarySelector.SelectFor(_gameData, situationId, character, _random);
+        if (selection is null) return;
         var level = kind switch
         {
             NpcComplaintKind.Hunger => character.FoodLevel.ToString(),

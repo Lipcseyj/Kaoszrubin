@@ -387,7 +387,7 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.PartyRemarks:
                 partyRemarks.Add(new PartyRemarkDefinition(id, Cell(cells, 1), Cell(cells, 2),
-                    Cell(cells, 3), Cell(cells, 4)));
+                    Cell(cells, 3), Cell(cells, 4), EmptyAsNull(Cell(cells, 5)), IsYes(cells, 6)));
                 break;
             case DataSection.InnNames:
                 if (string.IsNullOrWhiteSpace(name))
@@ -683,8 +683,13 @@ public static class CsvGameDataLoader
         {
             if (!situationIds.Contains(remark.SituationId))
                 throw new InvalidDataException($"A(z) '{remark.Id}' megjegyzés ismeretlen szituációra hivatkozik.");
-            if (!raceIds.Contains(remark.RaceId) || !classIds.Contains(remark.CharacterClassId))
+            if (remark.CharacterName is null &&
+                (!raceIds.Contains(remark.RaceId) || !classIds.Contains(remark.CharacterClassId)))
                 throw new InvalidDataException($"A(z) '{remark.Id}' megjegyzés ismeretlen fajra vagy osztályra hivatkozik.");
+            if (remark.CharacterName is not null &&
+                (string.IsNullOrWhiteSpace(remark.CharacterName) || remark.RaceId.Length > 0 ||
+                 remark.CharacterClassId.Length > 0))
+                throw new InvalidDataException($"A(z) '{remark.Id}' egyedi megjegyzés karakterneve vagy üres faj-/osztálymezője hibás.");
             if (string.IsNullOrWhiteSpace(remark.Text))
                 throw new InvalidDataException($"A(z) '{remark.Id}' megjegyzés szövege nem lehet üres.");
         }
@@ -692,6 +697,7 @@ public static class CsvGameDataLoader
         foreach (var race in races)
         foreach (var characterClass in classes)
             if (!remarks.Any(remark =>
+                    remark.CharacterName is null &&
                     string.Equals(remark.SituationId, situation.Id, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(remark.RaceId, race.Id, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(remark.CharacterClassId, characterClass.Id, StringComparison.OrdinalIgnoreCase)))

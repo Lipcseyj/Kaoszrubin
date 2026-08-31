@@ -70,6 +70,9 @@ public sealed class GameDataCatalog
         .Where(effect => string.Equals(effect.SpellId, spellId, StringComparison.OrdinalIgnoreCase))
         .OrderBy(effect => effect.Order).ToList();
     public MiscItemDefinition GetItem(string id) => FindById(Items, id, "tárgy");
+    public IItemDefinition GetItemDefinition(string id) => FindById(
+        Items.Cast<IItemDefinition>().Concat(Weapons).Concat(Armors).Concat(MagicItems).ToArray(),
+        id, "tárgy");
     public PerkDefinition GetPerk(string id) => FindById(Perks, id, "tehetség");
     public StatusDefinition GetStatus(string id) => FindById(Statuses, id, "állapot");
     public TrapDefinition GetTrap(string id) => FindById(Traps, id, "csapda");
@@ -85,12 +88,21 @@ public sealed class GameDataCatalog
             .OrderBy(choice => choice.Order).ToArray();
     public IReadOnlyList<NpcQuestDefinition> GetNpcQuests(string npcId) => NpcQuests
         .Where(quest => string.Equals(quest.NpcId, npcId, StringComparison.OrdinalIgnoreCase)).ToArray();
-    public IReadOnlyList<PartyRemarkDefinition> GetPartyRemarks(string situationId, LiveCharacter character) =>
-        PartyRemarks.Where(remark =>
+    public IReadOnlyList<PartyRemarkDefinition> GetPartyRemarks(string situationId, LiveCharacter character)
+    {
+        var unique = PartyRemarks.Where(remark => !remark.TemporaryFollower &&
+            string.Equals(remark.SituationId, situationId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(remark.CharacterName, character.Name, StringComparison.OrdinalIgnoreCase)).ToArray();
+        return unique.Length > 0 ? unique : PartyRemarks.Where(remark => remark.CharacterName is null &&
             string.Equals(remark.SituationId, situationId, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(remark.RaceId, character.Race.Id, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(remark.CharacterClassId, character.CharacterClass.Id,
                 StringComparison.OrdinalIgnoreCase)).ToArray();
+    }
+    public IReadOnlyList<PartyRemarkDefinition> GetTemporaryFollowerRemarks(string situationId,
+        LiveCharacter character) => PartyRemarks.Where(remark => remark.TemporaryFollower &&
+            string.Equals(remark.SituationId, situationId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(remark.CharacterName, character.Name, StringComparison.OrdinalIgnoreCase)).ToArray();
     public IReadOnlyList<CharacterNameDefinition> GetCharacterNames(string characterClassId) => CharacterNames.Where(name =>
         string.Equals(name.CharacterClassId, characterClassId, StringComparison.OrdinalIgnoreCase)).ToList();
     public IReadOnlyList<PerkDefinition> GetPerkChoices(string characterClassId, int tier)

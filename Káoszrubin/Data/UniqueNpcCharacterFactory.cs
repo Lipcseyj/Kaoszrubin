@@ -28,6 +28,8 @@ public sealed class UniqueNpcCharacterFactory(GameDataCatalog data)
         foreach (var perkId in build.PerkIds)
         {
             var perk = data.GetPerk(perkId);
+            if (perk.Tier > 0 && character.Level < PerkProgressionRules.TriggerLevel(character.Race, perk.Tier))
+                continue;
             if (!character.AddPerk(perk))
                 throw new InvalidOperationException($"{npc.Name} tehetsége nem adható hozzá: '{perkId}'.");
             character.ApplyPerkAcquisitionBonus(perk);
@@ -35,6 +37,7 @@ public sealed class UniqueNpcCharacterFactory(GameDataCatalog data)
         foreach (var familyId in build.WeaponProficiencyIds)
             if (!character.TryAdvanceWeaponProficiency(familyId))
                 throw new InvalidOperationException($"{npc.Name} fegyverjártassága nem adható hozzá: '{familyId}'.");
+        ApplyNpcLevelProgression(character, npc.Id);
 
         Equip(character, build.FirstWeaponId, build.SecondWeaponId, build.ArmorId);
         foreach (var itemId in build.MagicItemIds)
@@ -44,6 +47,32 @@ public sealed class UniqueNpcCharacterFactory(GameDataCatalog data)
             if (!character.AddToBackpack(data.GetItem(itemId)))
                 throw new InvalidOperationException($"{npc.Name} hátizsákja megtelt: '{itemId}'.");
         return character;
+    }
+
+    private void ApplyNpcLevelProgression(LiveCharacter character, string npcId)
+    {
+        var earnedAbilityIncreases = character.Level / 3;
+        while (character.AbilityIncreasesClaimed < earnedAbilityIncreases)
+        {
+            var abilityId = character.Abilities.Strength < 13 ? "STR" :
+                character.Abilities.Health < 13 ? "HEA" :
+                character.Abilities.Dexterity < 13 ? "DEX" : "INT";
+            var oldVitalityBase = data.GetMinimumVitality(character.Abilities.Health);
+            var oldManaBase = character.UsesMana ? data.GetMinimumMana(character.Abilities.Intelligence) : 0;
+            if (!character.TryIncreaseAbility(abilityId))
+            {
+                character.ClaimUnspendableAbilityIncrease();
+                continue;
+            }
+            var newVitalityBase = data.GetMinimumVitality(character.Abilities.Health);
+            var newManaBase = character.UsesMana ? data.GetMinimumMana(character.Abilities.Intelligence) : 0;
+            character.ApplyAbilityResourceIncrease(newVitalityBase - oldVitalityBase,
+                newManaBase - oldManaBase);
+        }
+
+        if (!string.Equals(npcId, "NPC021", StringComparison.OrdinalIgnoreCase)) return;
+        if (character.Level >= 10) character.ChooseClassFeatureUpgrade(ClassFeatureUpgrades.KnightRetaliation);
+        if (character.Level >= 20) character.ChooseClassFeatureUpgrade(ClassFeatureUpgrades.KnightBodyguard);
     }
 
     private void Equip(LiveCharacter character, string? firstWeaponId, string? secondWeaponId, string? armorId)

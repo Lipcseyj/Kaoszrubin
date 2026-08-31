@@ -16,7 +16,8 @@ public static class PartySituationIds
 public sealed record PartySituationDefinition(string Id, string Name) : IGameDefinition;
 
 public sealed record PartyRemarkDefinition(string SituationId, string Id, string RaceId,
-    string CharacterClassId, string Text) : IGameDefinition
+    string CharacterClassId, string Text, string? CharacterName = null,
+    bool TemporaryFollower = false) : IGameDefinition
 {
     public string Name => Id;
 }

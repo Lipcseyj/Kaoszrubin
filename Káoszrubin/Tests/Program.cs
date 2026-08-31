@@ -2388,10 +2388,10 @@ static void NpcDefinitionsLoadFromCsv()
            Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
         "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 25 &&
-           catalog.NpcQuests.Count == 39 &&
+    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 27 &&
+           catalog.NpcQuests.Count == 40 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 8 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 17 &&
+           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 18 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.KillWithFollower) == 1 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Explore) == 5 &&
            catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Disarm) == 3 &&
@@ -2473,6 +2473,7 @@ static void RodericMalrecQuestLocationIsConfigured()
     var guards = configuration.QuestRoomEnemyEncounters.Single(value =>
         value.EnemyId == MonsterIds.CsontvázLovag);
     var quest = catalog.NpcQuests.Single(value => value.Id == "NPCQ039");
+    var proofQuest = catalog.NpcQuests.Single(value => value.Id == "NPCQ040");
     Assert(configuration.Level == 5 && configuration.BossRoomIds.SequenceEqual(["MALREC_CHAMBER"]) &&
            malrecEncounter is { RoomId: "MALREC_CHAMBER", EnemyId: "E053", Count: 1 } &&
            guards is { RoomId: "MALREC_CHAMBER", EnemyId: "E052", Count: 4,
@@ -2482,6 +2483,11 @@ static void RodericMalrecQuestLocationIsConfigured()
            quest is { Type: NpcQuestType.Kill, TargetId: "E053", RequiredStoryStateId: "TRUSTED" },
         "Sir Malrec rangja, küldetése vagy az 5-ös nehézségű küldetéshelyszíne hibás.");
     Assert(quest is { RewardItemId: "T027", RewardItemCount: 1 } &&
+           proofQuest is { Type: NpcQuestType.Kill, TargetId: "E004", RequiredCount: 4 } &&
+           catalog.GetNpcStoryChoices("RODERIC_OATH", "PROOF_OFFER").Single() is
+               { Action: NpcStoryAction.ActivateQuest, ActionParameter: "NPCQ040",
+                   NextStateId: "PROOF_ACTIVE" } &&
+           catalog.GetItemDefinition(MiscItemIds.SilverOathSeal).Id == MiscItemIds.SilverOathSeal &&
            catalog.GetItem(MiscItemIds.SilverOathSeal).BasePrice == 1 &&
            SpellcastingRules.IsRestrictedFromTradingAndGeneration(
                catalog.GetItem(MiscItemIds.SilverOathSeal)),
@@ -2554,9 +2560,12 @@ static void RodericUsesDefinedCharacterBuild()
     var first = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"));
     var repeated = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"));
     var scaled = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"), 9);
+    var veteran = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"), 15);
     Assert(first.Name == "Sir Roderic" && first.Level == 7 && scaled.Level == 9 &&
            first.Color == ConsoleColor.DarkCyan && first.NpcBehavior == NpcBehavior.Aggressive &&
-           first.Abilities == new PrimaryAbilities(10, 5, 9, 6) &&
+           first.Abilities == new PrimaryAbilities(12, 5, 9, 6) &&
+           scaled.Abilities.Strength == 13 && veteran.HasPerk(PerkIds.KnightHolyOath) &&
+           veteran.HasClassFeatureUpgrade(ClassFeatureUpgrades.KnightRetaliation) &&
            first.Perks.Select(perk => perk.Id).SequenceEqual(["PERK-C003-1B", PerkIds.RodericOathblade]) &&
            first.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master &&
            first.WeaponSlots[0] is { Id: CharacterBoundItemRules.RodericGreatswordId,
@@ -2610,11 +2619,18 @@ static void PartyRemarksLoadFromCsv()
     var combinations = catalog.Races.SelectMany(race => catalog.CharacterClasses.Select(characterClass =>
         (RaceId: race.Id, ClassId: characterClass.Id))).ToArray();
 
-    Assert(catalog.PartySituations.Count == 9 && catalog.PartyRemarks.Count == 648 &&
+    Assert(catalog.PartySituations.Count == 9 && catalog.PartyRemarks.Count == 702 &&
            combinations.All(pair => catalog.PartyRemarks.Count(remark =>
                remark.SituationId == PartySituationIds.Thirsty && remark.RaceId == pair.RaceId &&
                remark.CharacterClassId == pair.ClassId) == 3),
         "A kilenc szituáció vagy a faj–osztály páronkénti három szomjúsági megjegyzés hiányzik.");
+    Assert(catalog.PartyRemarks.Count(remark => remark.CharacterName == "Sir Roderic" &&
+               remark.TemporaryFollower) == 27 &&
+           catalog.PartyRemarks.Count(remark => remark.CharacterName == "Sir Roderic" &&
+               !remark.TemporaryFollower) == 27 &&
+           catalog.PartyRemarks.Count(remark => remark.CharacterName == "Sir Roderic" &&
+               remark.Text.Contains("Ezüst Eskü", StringComparison.Ordinal)) >= 18,
+        "Roderic követői vagy végleges partitagként használt egyedi megjegyzései hiányoznak.");
     Assert(catalog.PartyRemarks.Single(remark => remark.Id == "PM001").Text.Contains(
                "Maradjatok mögöttem, felmérem", StringComparison.Ordinal) &&
            catalog.PartyRemarks.Single(remark => remark.Id == "PM648").Text.Contains(

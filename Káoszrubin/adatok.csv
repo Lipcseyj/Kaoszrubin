@@ -1031,7 +1031,7 @@ NPC021,Sir Roderic,C003,Neutral,Guarded,igen,igen,R001,RODERIC_OATH
 #Egyedi NPC karakterlap
 NpcId,Szint,Erő,Ügyesség,Egészség,Intelligencia,Alkalmazkodó,ÉleterőBónusz,MannaBónusz,Szín,HarciViselkedés,SpecializációId,TehetségId-k,Fegyver1Id,Fegyver2Id,PáncélId,VarázstárgyId-k,HátizsákId-k,FegyverjártasságId-k
 NPC020,2,5,7,6,5,,8,1,Green,Scout,,,W002,,A002,,T011|T001|T002,
-NPC021,7,9,5,9,6,STR,12,1,DarkCyan,Aggressive,,PERK-C003-1B|PERK-NPC021-OATHBLADE,RW001,,RA001,,T011|T011|T012|T012|T001|T001|T002|T002,SWORD|SWORD
+NPC021,7,9,5,9,6,STR,12,1,DarkCyan,Aggressive,,PERK-C003-1B|PERK-NPC021-OATHBLADE|PERK-C003-2B|PERK-C003-3A,RW001,,RA001,,T011|T011|T012|T012|T001|T001|T002|T002,SWORD|SWORD
 
 #NPC találkozások
 Id,NpcId,Pályaszint,MinimumTávolság,MaximumTávolság,QuestRoomId
@@ -1146,8 +1146,10 @@ Id,TörténetId,ÁllapotId,Mondat,Sorrend,Válasz,ViszonyVáltozás,Következő�
 NSC001,RODERIC_OATH,INITIAL,Roderic: Állj! Még egy lépés és úgy veszlek benneteket mint a többi sírrablót.,1,Nem sírokat fosztogatni jöttünk.,2,INTRODUCTION,Roderic: Ezt mondaná egy sírrabló is.|Te: És mit mondana az aki tényleg nem sírrabló?|Roderic: Valószínűleg pontosan ezt. Egy pont nektek.,None,,Igen
 NSC002,RODERIC_OATH,INITIAL,Roderic: Állj! Még egy lépés és úgy veszlek benneteket mint a többi sírrablót.,2,Tedd el a kardod. Nem akarunk harcolni veled.,1,INTRODUCTION,Roderic: Ezekben a járatokban mindenki ezt mondja amíg elég közel nem kerül.|Te: Akkor maradjunk ilyen távol.|Roderic: Meglepően bölcs javaslat.,None,,Igen
 NSC003,RODERIC_OATH,INITIAL,Roderic: Állj! Még egy lépés és úgy veszlek benneteket mint a többi sírrablót.,3,Ha meg akartunk volna ölni nem beszélgetnénk.,-2,INTRODUCTION,Roderic: Ha én meg akarnálak ölni te sem beszélgetnél. Egyikünk se legyen túlságosan büszke.,None,,Igen
-NSC004,RODERIC_OATH,INTRODUCTION,Roderic: Roderic Várnok vagyok. Az Ezüst Eskü Rendjének lovagja.,1,Nem látom a társaidat.,1,INSIGNIA_OFFER,Roderic: Nincsenek. Nyolcan érkeztünk ide és a holtak sorra elragadták őket. Attól tartok ez nem jelenti azt hogy nyugszanak is.,None,,Igen
-NSC005,RODERIC_OATH,INTRODUCTION,Roderic: Roderic Várnok vagyok. Az Ezüst Eskü Rendjének lovagja.,2,Mit keresel egyedül a katakombákban?,1,INSIGNIA_OFFER,Roderic: Befejezek valamit. Ha megbízom bennetek talán egyszer azt is elmondom hogy mit.,None,,Igen
+NSC004,RODERIC_OATH,INTRODUCTION,Roderic: Roderic Várnok vagyok. Az Ezüst Eskü Rendjének lovagja.,1,Nem látom a társaidat.,1,PROOF_OFFER,Roderic: Nincsenek. Nyolcan érkeztünk ide és a holtak sorra elragadták őket. Mielőtt többet mondok tudnom kell hogyan bántok ezzel a hellyel.,None,,Igen
+NSC005,RODERIC_OATH,INTRODUCTION,Roderic: Roderic Várnok vagyok. Az Ezüst Eskü Rendjének lovagja.,2,Mit keresel egyedül a katakombákban?,1,PROOF_OFFER,Roderic: Befejezek valamit. De előbb tettekkel mutassátok meg hogy nem a sírok kincseiért jöttetek.,None,,Igen
+NSC026,RODERIC_OATH,PROOF_OFFER,Roderic: Négy feltámasztott csontváz járja a közeli kriptákat. Pusztítsátok el őket de a sírokat és az áldozati tárgyakat hagyjátok érintetlenül.,1,Megtisztítjuk a járatot. A holtak nem prédák és a sírjuk nem kincsesláda.,2,PROOF_ACTIVE,Roderic: Az Ezüst Esküre mondom ha így is cselekedtek talán valóban félreismertelek benneteket.,ActivateQuest,NPCQ040,Nem
+NSC027,RODERIC_OATH,PROOF_COMPLETE,Roderic: A négy csontváz elbukott és egyetlen sírt sem dúltatok fel.,1,Ahogy ígértük. Most már elhiszed hogy nem vagyunk sírrablók?,2,INSIGNIA_OFFER,Roderic: Elhiszem hogy a szavatok ér valamit. Ne ragadtassátok el magatokat ez tőlem már majdnem bizalom.|Roderic: Három társam maradt a belső járatokban. Harlan. Edwyn. Tomas. A testük már nem az övék de a rend jelvényein ott a nevük.,None,,Igen
 NSC006,RODERIC_OATH,INSIGNIA_OFFER,Roderic: Három társam maradt a belső járatokban. Harlan. Edwyn. Tomas. A testük már nem az övék de a rend jelvényein ott a nevük.,1,Visszahozzuk a három jelvényt.,1,INSIGNIAS_ACTIVE,Roderic: Azok nem kincsek. Odafent családok várják hogy egyszer elmondjam nekik mi történt. Ne kelljen a nevüket is itt hagynom rothadni.,ActivateQuest,NPCQ037,Nem
 NSC007,RODERIC_OATH,CONFESSION,Roderic: Harlan. Edwyn. Tomas. Köszönöm hogy visszahoztátok a nevüket.,1,Miért nem mentél értük te magad?,0,GUILT,Roderic: Mert én zártam rájuk a kaput.|Te: Mi?|Roderic: Malrec parancsára lezártam a nyugati kaput. Hárman még a másik oldalon voltak. Ha várok talán átjutnak. Talán velük együtt még ötven halott is.,None,,Igen
 NSC008,RODERIC_OATH,GUILT,Roderic: Parancsot teljesítettem. Ezt mondogatom magamnak én is. Érdekes módon éjszakánként nem segít.,1,Nem egyedül kell tovább cipelned ezt a terhet.,2,FOLLOWING,Roderic: Most én is megyek. A csata nehezen hazudik. Ott majd kiderül hogy valóban számíthatunk-e egymásra.,BeginFollowing,,Nem
@@ -1210,6 +1212,7 @@ NPCQ036,NPC020,Kill,E001,4,240,A nyomunkban,Győzz le négy óriáspatkányt ame
 NPCQ037,NPC021,Collect,T026,3,500,Az elesettek jelvényei,Szerezd vissza Roderic három elesett bajtársának jelvényét.,,,1
 NPCQ038,NPC021,KillWithFollower,MA001,3,650,Közös pengepróba,Győzzetek le három élőholt ellenfelet miközben Roderic veletek harcol.,,,1
 NPCQ039,NPC021,Kill,E053,1,1200,Az esküszegő lovag,Győzzétek le Sir Malrecet Roderic oldalán a bukott lovag sírkápolnájában.,T027,1,1,TRUSTED
+NPCQ040,NPC021,Kill,E004,4,520,A holtak nem prédák,Győzz le négy csontvázat és hagyd érintetlenül a katakombák sírjait.,,,1
 
 #Szituációk
 Id,Név
@@ -1224,7 +1227,7 @@ S008,Pihenés
 S009,Szomjas állapot jelzése
 
 #Parti megjegyzések
-SzituációId,Id,FajId,OsztályId,Megjegyzés
+SzituációId,Id,FajId,OsztályId,Megjegyzés,KarakterNév,IdeiglenesKövető
 S001,PM001,R001,C001,"Mozgást látok előttünk. Maradjunk észnél. Maradjatok mögöttem, felmérem, hogyan mozog."
 S001,PM002,R001,C001,"Ott valami nem stimmel. Készüljünk fel, mielőtt közelebb ér. Ha ránk jön, én fogom fel az első rohamot."
 S001,PM003,R001,C001,"Ellenség a közelben. Nézzük meg, mivel van dolgunk. Figyeljétek a fegyverét és a lábmunkáját; abból sok minden kiderül."
@@ -1873,3 +1876,57 @@ S009,PM645,R004,C005,"Vízre van szükségem. A kitartás sem jelenti azt, hogy 
 S009,PM646,R004,C005,"A szomjúság figyelmeztet. Hallgassunk rá, mielőtt büntetni kezd."
 S009,PM647,R004,C006,"Kiszáradtam. Ilyen torokkal még a legegyszerűbb igét is nehéz kimondani."
 S009,PM648,R004,C006,"Innivalót kérek. A tudás hatalom, de most a víz még nagyobb."
+S001,RPF001,,,"Mozgás előttünk. Az Ezüst Esküre mondom jobb lesz rendezni a sorokat.",Sir Roderic,Igen
+S001,RPF002,,,"Ellenség a közelben. Maradjatok mögöttem amíg felmérem az erejét.",Sir Roderic,Igen
+S001,RPF003,,,"Valami figyel bennünket. Az Ezüst Eskü lovagjai ilyenkor nem fordítottak hátat.",Sir Roderic,Igen
+S002,RPF004,,,"Fegyvert! Az Ezüst Esküre mondom ma nem visznek el közülünk senkit.",Sir Roderic,Igen
+S002,RPF005,,,"Tartsátok a rendet és ne üldözzétek őket külön-külön. Együtt erősebbek vagyunk.",Sir Roderic,Igen
+S002,RPF006,,,"Mögém! A pallosomé az első szó a többit rátok bízom.",Sir Roderic,Igen
+S003,RPF007,,,"Az Ezüst Esküre mondom ez tiszta munka volt. Tőlem ez dicséret.",Sir Roderic,Igen
+S003,RPF008,,,"Mindenki egyben? Akkor ezt a győzelmet valóban közösen szereztük.",Sir Roderic,Igen
+S003,RPF009,,,"Nem rossz. Kezdem megszokni hogy mellettetek a csata után is marad aki válaszol.",Sir Roderic,Igen
+S004,RPF010,,,"Az Ezüst Esküre mondom nem hagyjuk itt a nevét és nem felejtjük el az áldozatát.",Sir Roderic,Igen
+S004,RPF011,,,"Még egy név amelyet magunkkal kell vinnünk. Ezúttal nem futok el a súlya elől.",Sir Roderic,Igen
+S004,RPF012,,,"Zárjátok a sort. Meggyászoljuk ha már biztonságban vannak azok akikért elesett.",Sir Roderic,Igen
+S005,RPF013,,,"Az Ezüst Esküre mondom üres gyomorral még a legjobb lovag is rosszul céloz.",Sir Roderic,Igen
+S005,RPF014,,,"Ennem kellene. A becsület sok mindenre elég de menetelni nem lehet rajta.",Sir Roderic,Igen
+S005,RPF015,,,"Ha van kenyér osszuk el most. Malrecig nem gyengeségből kell eljutnunk.",Sir Roderic,Igen
+S006,RPF016,,,"Még állok. Az Ezüst Esküre mondom ennél több kell ahhoz hogy térdre kényszerítsenek.",Sir Roderic,Igen
+S006,RPF017,,,"A vért felfogta a javát de ezt a sebet már nem volna bölcs figyelmen kívül hagyni.",Sir Roderic,Igen
+S006,RPF018,,,"Ne aggódjatok értem csak tartsátok a vonalat. Egy gyógyitalt azért elfogadok.",Sir Roderic,Igen
+S007,RPF019,,,"Láda. Az Ezüst Esküre mondom előbb nézzük meg nincs-e csapda a zár alatt.",Sir Roderic,Igen
+S007,RPF020,,,"A kincs nem teszi tisztességessé a megszerzését. Nyissuk ki de maradjunk éberek.",Sir Roderic,Igen
+S007,RPF021,,,"Remélem ezért nem kell újabb nevet felvésnünk egy emléktáblára.",Sir Roderic,Igen
+S008,RPF022,,,"Pihenjetek. Az Ezüst Esküre mondom az első őrséget én állom.",Sir Roderic,Igen
+S008,RPF023,,,"Aludjatok amíg lehet. Én akkor pihenek ha már biztosan nem akarnak megenni bennünket.",Sir Roderic,Igen
+S008,RPF024,,,"Egy rövid pihenő nem gyávaság. A kimerült harcos csak könnyebb célpont.",Sir Roderic,Igen
+S009,RPF025,,,"Vízre van szükségem. Az Ezüst Esküre mondom a páncélban minden korty kétszer annyit ér.",Sir Roderic,Igen
+S009,RPF026,,,"A kulacsom kiürült. Igyunk mielőtt a szomjúság dönt helyettünk a következő harcban.",Sir Roderic,Igen
+S009,RPF027,,,"Kellene egy korty. A fogadalom szilárd de a torkom ettől még kiszárad.",Sir Roderic,Igen
+S001,RPP001,,,"Mozgás előttünk. Az Ezüst Esküre mondom senki ne szakadjon el a csapattól.",Sir Roderic,Nem
+S001,RPP002,,,"Ellenség. Már nem kell egyedül felmérnem mert tudom hogy számíthatok rátok.",Sir Roderic,Nem
+S001,RPP003,,,"Álljunk össze. Aki egyikünkre támad annak mindannyiunkkal lesz dolga.",Sir Roderic,Nem
+S002,RPP004,,,"Fegyvert társaim! Az Ezüst Esküre mondom együtt törjük át a soraikat.",Sir Roderic,Nem
+S002,RPP005,,,"Mellettem maradjatok. A pallos utat nyit ti pedig gondoskodjatok róla hogy ne záruljon be.",Sir Roderic,Nem
+S002,RPP006,,,"Ezek rossz csapatot választottak. Mutassuk meg nekik mennyire.",Sir Roderic,Nem
+S003,RPP007,,,"Az Ezüst Esküre mondom büszke vagyok rátok. Ezt ne kelljen túl gyakran megismételnem.",Sir Roderic,Nem
+S003,RPP008,,,"Mindenki egyben? Jó. Már tudom milyen érzés úgy győzni hogy van kivel továbbindulni.",Sir Roderic,Nem
+S003,RPP009,,,"Szép munka társaim. Malrec óta tudom hogy az ilyen győzelmek többet érnek a dicsőségnél.",Sir Roderic,Nem
+S004,RPP010,,,"Az Ezüst Esküre mondom a neve velünk marad. Senkit sem hagyunk névtelenül a sötétben.",Sir Roderic,Nem
+S004,RPP011,,,"Nem tudtam megmenteni. De többé nem fordítom el a tekintetem attól amit elvesztettünk.",Sir Roderic,Nem
+S004,RPP012,,,"Társunk volt. Befejezzük helyette is azt amiért velünk tartott.",Sir Roderic,Nem
+S005,RPP013,,,"Ennünk kell. Az Ezüst Esküre mondom a hősi éhhalál még mindig csak éhhalál.",Sir Roderic,Nem
+S005,RPP014,,,"Van még kenyér? A teljes vértezet meglepően rossz hely az üres gyomornak.",Sir Roderic,Nem
+S005,RPP015,,,"Álljunk meg egy adagra. A következő ellenfél nem lesz gyengébb attól hogy mi éhesebbek vagyunk.",Sir Roderic,Nem
+S006,RPP016,,,"Az Ezüst Esküre mondom még harcképes vagyok de most már jól jönne egy gyógyital.",Sir Roderic,Nem
+S006,RPP017,,,"A vért tart de én sem vagyok vasból. Ezt a sebet kezelni kell.",Sir Roderic,Nem
+S006,RPP018,,,"Még állok társaim. Csak ne engedjétek hogy ugyanoda még egyszer eltaláljanak.",Sir Roderic,Nem
+S007,RPP019,,,"Az Ezüst Esküre mondom ha megint három rézpénzért kockáztatjuk az életünket én zárom vissza.",Sir Roderic,Nem
+S007,RPP020,,,"Vizsgáljuk meg a ládát. A mohóság rossz tanácsadó a csapdák pedig figyelmes hallgatók.",Sir Roderic,Nem
+S007,RPP021,,,"Nyissuk ki. Ha átok van benne legalább együtt hoztuk meg a rossz döntést.",Sir Roderic,Nem
+S008,RPP022,,,"Pihenjetek társaim. Az Ezüst Esküre mondom ma éjjel én őrzöm az álmotokat.",Sir Roderic,Nem
+S008,RPP023,,,"Én kezdem az őrséget. Már nem azért maradok ébren mert félek a múlttól.",Sir Roderic,Nem
+S008,RPP024,,,"Aludjatok. Ha valami közeledik előbb velem kell megbeszélnie.",Sir Roderic,Nem
+S009,RPP025,,,"Vizet kérek. Az Ezüst Esküre mondom kiszáradva még az eskü szavait is nehéz kimondani.",Sir Roderic,Nem
+S009,RPP026,,,"Igyunk társaim. A fegyelem nem azt jelenti hogy figyelmen kívül hagyjuk a testünk jelzéseit.",Sir Roderic,Nem
+S009,RPP027,,,"A kulacsom üres. Töltsük fel mielőtt a következő ütközetben vesszük észre.",Sir Roderic,Nem
