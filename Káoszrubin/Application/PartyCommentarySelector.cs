@@ -8,6 +8,8 @@ public sealed record PartyCommentSelection(LiveCharacter Speaker, PartyRemarkDef
 
 public static class PartyCommentarySelector
 {
+    private const string DwarfRaceId = "R002";
+
     public static string Format(LiveCharacter speaker, string comment, string? level = null) =>
         $"[{speaker.Name}]" + (level is null ? " " : $"({level}) ") + comment;
 
@@ -21,19 +23,35 @@ public static class PartyCommentarySelector
             _ => 3
         });
 
+    public static int SpeakerWeight(string situationId, LiveCharacter character) =>
+        !string.Equals(character.Race.Id, DwarfRaceId, StringComparison.OrdinalIgnoreCase) ? 100 :
+        IsCombatSituation(situationId) ? 140 : 120;
+
     public static IReadOnlyList<PartyCommentSelection> Select(GameDataCatalog data, string situationId,
         IReadOnlyCollection<LiveCharacter> partyMembers, Random random)
     {
         if (!ShouldComment(random.Next(100))) return [];
         var eligible = partyMembers.Where(character => character.IsAlive &&
                 data.GetPartyRemarks(situationId, character).Count > 0)
-            .OrderBy(_ => random.Next()).ToArray();
-        var count = SpeakerCount(eligible.Length, random.Next(100));
-        return eligible.Take(count).Select(speaker =>
+            .ToList();
+        var count = SpeakerCount(eligible.Count, random.Next(100));
+        var selected = new List<PartyCommentSelection>(count);
+        while (selected.Count < count)
         {
+            var totalWeight = eligible.Sum(character => SpeakerWeight(situationId, character));
+            var roll = random.Next(totalWeight);
+            var speakerIndex = 0;
+            for (; speakerIndex < eligible.Count - 1; speakerIndex++)
+            {
+                roll -= SpeakerWeight(situationId, eligible[speakerIndex]);
+                if (roll < 0) break;
+            }
+            var speaker = eligible[speakerIndex];
+            eligible.RemoveAt(speakerIndex);
             var remarks = data.GetPartyRemarks(situationId, speaker);
-            return new PartyCommentSelection(speaker, remarks[random.Next(remarks.Count)]);
-        }).ToArray();
+            selected.Add(new PartyCommentSelection(speaker, remarks[random.Next(remarks.Count)]));
+        }
+        return selected;
     }
 
     public static PartyCommentSelection? SelectFor(GameDataCatalog data, string situationId,
@@ -42,4 +60,8 @@ public static class PartyCommentarySelector
         var remarks = data.GetPartyRemarks(situationId, speaker);
         return remarks.Count == 0 ? null : new PartyCommentSelection(speaker, remarks[random.Next(remarks.Count)]);
     }
+
+    private static bool IsCombatSituation(string situationId) => situationId is
+        PartySituationIds.EnemySpotted or PartySituationIds.BattleStarted or PartySituationIds.BattleWon or
+        PartySituationIds.PartyMemberDied;
 }

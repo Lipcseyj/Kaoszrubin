@@ -2752,11 +2752,19 @@ static void PartyRemarksLoadFromCsv()
     var combinations = catalog.Races.SelectMany(race => catalog.CharacterClasses.Select(characterClass =>
         (RaceId: race.Id, ClassId: characterClass.Id))).ToArray();
 
-    Assert(catalog.PartySituations.Count == 9 && catalog.PartyRemarks.Count == 702 &&
+    Assert(catalog.PartySituations.Count == 9 && catalog.PartyRemarks.Count == 729 &&
            combinations.All(pair => catalog.PartyRemarks.Count(remark =>
                remark.SituationId == PartySituationIds.Thirsty && remark.RaceId == pair.RaceId &&
-               remark.CharacterClassId == pair.ClassId) == 3),
+               remark.CharacterClassId == pair.ClassId) ==
+               (pair.RaceId == "R002" && pair.ClassId == CharacterClassIds.Harcos ? 6 : 3)),
         "A kilenc szituáció vagy a faj–osztály páronkénti három szomjúsági megjegyzés hiányzik.");
+    var dwarfFighterRemarks = catalog.PartyRemarks.Where(remark => remark.RaceId == "R002" &&
+        remark.CharacterClassId == CharacterClassIds.Harcos).ToArray();
+    Assert(catalog.PartySituations.All(situation => dwarfFighterRemarks.Count(remark =>
+               remark.SituationId == situation.Id) == 6) &&
+           new[] { "üllő", "tárna", "szakáll", "pöröly", "lakoma", "győzel" }.All(topic =>
+               dwarfFighterRemarks.Any(remark => remark.Text.Contains(topic, StringComparison.OrdinalIgnoreCase))),
+        "A törpe harcosok megduplázott vagy tematikus megjegyzései hiányoznak.");
     Assert(catalog.PartyRemarks.Count(remark => remark.CharacterName == "Sir Roderic" &&
                remark.TemporaryFollower) == 27 &&
            catalog.PartyRemarks.Count(remark => remark.CharacterName == "Sir Roderic" &&
@@ -2784,6 +2792,17 @@ static void PartyRemarkProbabilitiesFollowRules()
            PartyCommentarySelector.SpeakerCount(4, 80) == 3 &&
            PartyCommentarySelector.SpeakerCount(2, 99) == 2,
         "A beszélők 60/20/20 százalékos eloszlása vagy partilétszám-korlátja hibás.");
+    var dwarf = new LiveCharacter("Törpe", new RaceDefinition("R002", "Törpe", PrimaryAbilities.Zero),
+        new CharacterClassDefinition(CharacterClassIds.Harcos, "Harcos", PrimaryAbilities.Zero, false, 1.0),
+        new PrimaryAbilities(5, 5, 5, 5), 20, 0, 1, 0);
+    Assert(PartyCommentarySelector.SpeakerWeight(PartySituationIds.Resting, dwarf) == 120 &&
+           PartyCommentarySelector.SpeakerWeight(PartySituationIds.EnemySpotted, dwarf) == 140 &&
+           PartyCommentarySelector.SpeakerWeight(PartySituationIds.BattleStarted, dwarf) == 140 &&
+           PartyCommentarySelector.SpeakerWeight(PartySituationIds.BattleWon, dwarf) == 140 &&
+           PartyCommentarySelector.SpeakerWeight(PartySituationIds.PartyMemberDied, dwarf) == 140 &&
+           PartyCommentarySelector.SpeakerWeight(PartySituationIds.BattleStarted,
+               CreateCharacter("Ember")) == 100,
+        "A törpe beszélők 20/40 százalékos súlytöbblete hibás.");
     var speaker = CreateCharacter("Kommentelő");
     Assert(PartyCommentarySelector.Format(speaker, "Próba.") == "[Kommentelő] Próba." &&
            PartyCommentarySelector.Format(speaker, "Éhes vagyok.", "17") ==
