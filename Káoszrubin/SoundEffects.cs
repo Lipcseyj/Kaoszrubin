@@ -7,6 +7,9 @@ public enum SoundEffect
 {
     Step1,
     Step2,
+    Step3,
+    Step4,
+    Step5,
     BattleStart,
     Hit,
     Miss,
@@ -41,38 +44,6 @@ public sealed class SoundEffects
     // és az összes későbbi host/vendég lejátszó ugyanazokat a memóriablokkokat használja.
     private static readonly string SoundsDirectory = Path.Combine(AppContext.BaseDirectory, "Sounds");
     private static readonly IReadOnlyDictionary<SoundEffect, CachedWav> WavCache = LoadWavCache();
-    private static readonly IReadOnlyDictionary<SoundEffect, (int Frequency, int Duration)> ToneSettings =
-        new Dictionary<SoundEffect, (int, int)>
-        {
-            [SoundEffect.Step1] = (180, 55),
-            [SoundEffect.Step2] = (200, 55),
-            [SoundEffect.BattleStart] = (330, 220),
-            [SoundEffect.Hit] = (700, 70),
-            [SoundEffect.Miss] = (250, 70),
-            [SoundEffect.Victory] = (880, 320),
-            [SoundEffect.Victory2] = (900, 320),
-            [SoundEffect.MemberKilled] = (120, 360),
-            [SoundEffect.LevelStart] = (520, 220),
-            [SoundEffect.LevelComplete] = (780, 260),
-            [SoundEffect.Rest] = (360, 240),
-            [SoundEffect.Chest] = (980, 140),
-            [SoundEffect.DoorOpen] = (280, 110),
-            [SoundEffect.DoorClose] = (200, 90),
-            [SoundEffect.OffensiveSpell] = (1100, 170),
-            [SoundEffect.DefensiveSpell] = (640, 190),
-            [SoundEffect.Chest2] = (1100, 180),
-            [SoundEffect.Item] = (520, 120),
-            [SoundEffect.MainMenu] = (440, 500),
-            [SoundEffect.MonsterKilledBySpell] = (900, 250),
-            [SoundEffect.MonsterSpotted] = (620, 180),
-            [SoundEffect.NewSkill] = (760, 220),
-            [SoundEffect.NewSpellUnlocked] = (980, 260),
-            [SoundEffect.NewWeaponProficiency] = (680, 240),
-            [SoundEffect.PlayerGotHit] = (160, 180),
-            [SoundEffect.Waiting] = (420, 200),
-            [SoundEffect.EndSequence] = (440, 500),
-            [SoundEffect.MusicTrack] = (440, 500)
-        };
     private readonly Dictionary<SoundEffect, DateTime> _lastPlayed = [];
     private readonly object _sync = new();
     private readonly Action<string>? _reportFailure;

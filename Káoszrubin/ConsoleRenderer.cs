@@ -141,6 +141,8 @@ public sealed class ConsoleRenderer
     private bool _battleActive;
     private Enemy? _battleEnemy;
     private LiveCharacter? _displayedCharacter;
+    public LiveCharacter DisplayedCharacter => _displayedCharacter ?? _party.Leader
+        ?? throw new InvalidOperationException("Nincs megjeleníthető karakter.");
     private bool _characterSheetFocused;
     private LiveCharacter? _spellInfoCharacter;
     private int _selectedSpellInfoIndex;

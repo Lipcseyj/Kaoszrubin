@@ -11,7 +11,14 @@ public sealed record CharacterSheetSnapshot(string RaceName, string CharacterCla
     IReadOnlyList<string>? WeaponProficiencyNames = null,
     IReadOnlyDictionary<string, int>? WeaponProficiencyRanks = null,
     int VisionRange = CharacterClassRules.BaseVisionRange,
-    int NaturalVisionRange = CharacterClassRules.BaseVisionRange);
+    int NaturalVisionRange = CharacterClassRules.BaseVisionRange,
+    IReadOnlyList<VisionModifierSnapshot>? VisionModifiers = null,
+    int HearingRange = 4, int DetectionBonus = 0);
+
+public sealed record VisionModifierSnapshot(string Name, int Value);
+public sealed record MonsterKillSnapshot(string EnemyDefinitionId, int Count);
+public sealed record CharacterHistorySnapshot(IReadOnlyList<MonsterKillSnapshot> MonsterKills,
+    int? NpcJoinedMazeLevel = null, string? NpcJoinedLocation = null, string? NpcBehavior = null);
 
 public static class SpellInfoSnapshotProjector
 {
@@ -64,6 +71,20 @@ public static class CharacterSheetSnapshotProjector
             character.WeaponProficiencies.ToDictionary(proficiency => proficiency.FamilyId,
                 proficiency => (int)proficiency.Rank, StringComparer.OrdinalIgnoreCase),
             CharacterClassRules.VisionRange(character, environmentVisionModifier),
-            CharacterClassRules.NaturalVisionRange(character));
+            CharacterClassRules.NaturalVisionRange(character), BuildVisionModifiers(character, environmentVisionModifier),
+            CharacterClassRules.HearingRange(character), CharacterClassRules.DetectionBonus(character));
+    }
+
+    private static IReadOnlyList<VisionModifierSnapshot> BuildVisionModifiers(LiveCharacter character,
+        int environmentVisionModifier)
+    {
+        var result = new List<VisionModifierSnapshot> { new("Alap látótáv", CharacterClassRules.BaseVisionRange) };
+        if (CharacterClassRules.IsThief(character.CharacterClass.Id)) result.Add(new("Tolvaj osztály", 2));
+        if (character.Race.HasTrait(RaceTraits.KeenSenses)) result.Add(new("Éles érzékek", 1));
+        result.AddRange(character.ActiveSpellEffects
+            .Where(effect => effect.Type == ActiveSpellEffectType.VisionBonus)
+            .Select(effect => new VisionModifierSnapshot(effect.SourceSpellId, effect.Value)));
+        if (environmentVisionModifier != 0) result.Add(new("Pálya/környezet", environmentVisionModifier));
+        return result;
     }
 }

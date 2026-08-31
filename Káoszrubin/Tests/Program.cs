@@ -53,6 +53,7 @@ var tests = new (string Name, Action Run)[]
     ("A duplikált parancs elutasításra kerül", DuplicateCommandIsRejected),
     ("Harc közben nem futhat felfedezési parancs", ExplorationCommandIsRejectedDuringBattle),
     ("A CharacterId mentés után is stabil", CharacterIdSurvivesSerialization),
+    ("Az ölési statisztika és az NPC csatlakozási helye menthető", CharacterHistorySurvivesSerialization),
     ("A régi játékmentések az aktuális formátumra migrálódnak", LegacyGameSavesMigrateToCurrentVersion),
     ("Az ismeretlen és verzió nélküli játékmentések elutasításra kerülnek", InvalidGameSaveVersionsAreRejected),
     ("Az osztályspecializáció mentés után is megmarad", ClassSpecializationSurvivesSerialization),
@@ -109,6 +110,7 @@ var tests = new (string Name, Action Run)[]
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
     ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
+    ("A részletes karakterlap közösen mutatja a látásmódosítókat és ölési statisztikát", CharacterDetailsAreShared),
     ("A karakterlap külön színezi az alacsony HP-t és a mannát", CharacterSheetColorsHealthAndManaSeparately),
     ("A host és a vendég közös varázslat-UI modelleket használ", SpellUiModelsAreShared),
     ("A host és a vendég közös pihenési összegzőt használ", RestSummaryUiIsShared),
@@ -380,6 +382,20 @@ static void CharacterIdSurvivesSerialization()
     var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-character-save.json"), data);
     var restored = service.Deserialize(service.Serialize(roster));
     Assert(restored.SelectedCharacter?.Id == character.Id, "A karakter stabil azonosítója megváltozott mentéskor.");
+}
+
+static void CharacterHistorySurvivesSerialization()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var character = CreateCharacter("Krónikás");
+    character.SetNpcBehavior(NpcBehavior.Defensive);
+    character.SetNpcJoinOrigin(4, "A Kormos Griff");
+    character.RecordMonsterKill(data.Enemies[0].Id, 3);
+    var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-history-save.json"), data);
+    var restored = service.DeserializeCharacter(service.SerializeCharacter(character));
+    Assert(restored.NpcJoinedMazeLevel == 4 && restored.NpcJoinedLocation == "A Kormos Griff" &&
+           restored.MonsterKills.GetValueOrDefault(data.Enemies[0].Id) == 3,
+        "A karakter történeti adatai nem élték túl a mentési körutat.");
 }
 
 static void LegacyGameSavesMigrateToCurrentVersion()
@@ -1627,6 +1643,31 @@ static void CharacterSheetLayoutIsShared()
            hostFollowerLine.Color == ConsoleColor.Black &&
            hostFollowerLine.Background == ConsoleColor.Yellow,
         "A host és a vendég karakterlapján nem azonos a követőjelzés szövege vagy színe.");
+}
+
+static void CharacterDetailsAreShared()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var character = CreateCharacter("Dosszié", characterClassId: CharacterClassIds.Tolvaj);
+    character.SetNpcBehavior(NpcBehavior.Defensive);
+    character.SetNpcJoinOrigin(3, "A Rézcsengő");
+    character.RecordMonsterKill(data.Enemies[0].Id, 2);
+    var sheet = CharacterSheetSnapshotProjector.Create(character, data.ExperienceByLevel, -2);
+    var snapshot = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
+        character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
+        character.CurrentMana, character.MaximumMana, character.FoodLevel, character.WaterLevel, character.Gold,
+        character.IsAlive, null, [], InventorySnapshotProjector.Create(character), sheet, character.Color,
+        History: new CharacterHistorySnapshot([new MonsterKillSnapshot(data.Enemies[0].Id, 2)], 3,
+            "A Rézcsengő", NpcBehavior.Defensive.ToString()));
+    var lines = CharacterDetailsWindow.Build(snapshot, data);
+    Assert(GameInputBindings.InventoryAction(ConsoleKey.R) == InventoryInputAction.CharacterDetails &&
+           WindowFrameConfiguration.For(FramedWindow.CharacterDetails) == WindowFrameStyle.Stone,
+        "Az R billentyű vagy a stone keret nincs bekötve.");
+    Assert(lines.Any(line => line.Text.Contains("Tolvaj osztály", StringComparison.Ordinal)) &&
+           lines.Any(line => line.Text.Contains("Pálya/környezet", StringComparison.Ordinal) && line.Color == ConsoleColor.Red) &&
+           lines.Any(line => line.Text.Contains("A Rézcsengő", StringComparison.Ordinal)) &&
+           lines.Any(line => line.Text.Contains(data.Enemies[0].Name, StringComparison.Ordinal) && line.Text.Contains("2", StringComparison.Ordinal)),
+        "A közös részletes karakterlapból hiányzik egy látás-, NPC- vagy ölési adat.");
 }
 
 static void GuestAvatarUsesClassGlyphAndCharacterColor()

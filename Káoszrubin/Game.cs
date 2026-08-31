@@ -262,7 +262,7 @@ public sealed class Game
             Inventory: InventorySnapshotProjector.Create(character),
             CharacterSheet: CharacterSheetSnapshotProjector.Create(character,
                 _gameData.ExperienceByLevel, CurrentLevelVisionModifier), Color: character.Color,
-            IsTemporaryFollower: true)).ToArray();
+            IsTemporaryFollower: true, History: CreateCharacterHistory(character))).ToArray();
         return snapshot with
         {
             GoldenKeyCount = _collectedBossKeyIds.Count,
@@ -286,6 +286,7 @@ public sealed class Game
                 Gold = SelectedCharacter.Gold,
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
                     _gameData.ExperienceByLevel, CurrentLevelVisionModifier),
+                History = CreateCharacterHistory(characters[character.CharacterId]),
                 SpellInfo = SpellcastingRules.TryGetSchool(characters[character.CharacterId].CharacterClass.Id, out _)
                     ? SpellInfoSnapshotProjector.Create(characters[character.CharacterId]) : null,
                 ExplorationSpellOptions = snapshot.Phase == GameSessionPhase.Exploration &&
@@ -295,6 +296,19 @@ public sealed class Game
             }).Concat(followerSnapshots).ToArray()
         };
     }
+
+    private static CharacterHistorySnapshot CreateCharacterHistory(LiveCharacter character) => new(
+        character.MonsterKills.Select(pair => new MonsterKillSnapshot(pair.Key, pair.Value)).ToArray(),
+        character.NpcJoinedMazeLevel, character.NpcJoinedLocation, character.NpcBehavior?.ToString());
+
+    private SessionCharacterSnapshot CreateCharacterDetailsSnapshot(LiveCharacter character) => new(
+        character.Id, character.Name, character.Race.Id, character.CharacterClass.Id, character.Level,
+        character.CurrentVitality, character.MaximumVitality, character.CurrentMana, character.MaximumMana,
+        character.FoodLevel, character.WaterLevel, SelectedCharacter.Gold, character.IsAlive, null,
+        character.Statuses.Select(status => status.Id).ToArray(), InventorySnapshotProjector.Create(character),
+        CharacterSheetSnapshotProjector.Create(character, _gameData.ExperienceByLevel, CurrentLevelVisionModifier),
+        character.Color, SpellInfo: character.IsSpellcaster ? SpellInfoSnapshotProjector.Create(character) : null,
+        History: CreateCharacterHistory(character));
 
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
         GameSaveService gameSaveService, GameSaveData? loadedState = null, GameSession? session = null,
@@ -639,6 +653,7 @@ public sealed class Game
                             case InventoryInputAction.MoveItem: GrabOrPlaceInventoryItem(); break;
                             case InventoryInputAction.SplitStack: SplitSelectedInventoryStack(); break;
                             case InventoryInputAction.DistributeStack: DistributeSelectedInventoryStack(); break;
+                            case InventoryInputAction.CharacterDetails: ShowCharacterDetails(); break;
                             default:
                                 if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
                                 else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
@@ -2041,6 +2056,7 @@ public sealed class Game
                 case InventoryInputAction.MoveItem: GrabOrPlaceInventoryItem(); break;
                 case InventoryInputAction.SplitStack: SplitSelectedInventoryStack(); break;
                 case InventoryInputAction.DistributeStack: DistributeSelectedInventoryStack(); break;
+                case InventoryInputAction.CharacterDetails: ShowCharacterDetails(); _renderer.DrawInnCharacterSheet(SelectedCharacter); break;
                 case InventoryInputAction.Drop:
                     _renderer.DrawInventoryMessage("A fogadóban nem dobhatsz tárgyat a földre.", ConsoleColor.DarkYellow);
                     break;
@@ -2103,6 +2119,7 @@ public sealed class Game
         }
         if (result == WorldNpcInteractionResult.Join && CharacterRoster.Party.Add(npc.Character))
         {
+            npc.Character.SetNpcJoinOrigin(_mazeLevel, "A pályán csatlakozott");
             _maze.RemoveWorldNpc(npc);
             var avatar = new PartyMemberAvatar(npc.Position, npc.Character);
             _maze.AddPartyMember(avatar);
@@ -2383,6 +2400,14 @@ public sealed class Game
     private void ShowQuestJournal()
     {
         QuestJournalWindow.Show(OrderedQuestJournal());
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+    }
+
+    private void ShowCharacterDetails()
+    {
+        CharacterDetailsWindow.Show(CreateCharacterDetailsSnapshot(_renderer.DisplayedCharacter), _gameData);
+        if (_session.Phase == GameSessionPhase.Inn) return;
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
     }
@@ -3061,6 +3086,7 @@ public sealed class Game
         }
         if (joined)
         {
+            follower.Character.SetNpcJoinOrigin(_mazeLevel, "A pálya kijáratánál csatlakozott");
             avatar.MakePermanent();
             _renderer.DrawInventoryMessage($"🤝 {follower.Character.Name} végleg csatlakozott a partihoz.", ConsoleColor.Green);
             return;
@@ -4101,6 +4127,7 @@ public sealed class Game
             var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
             levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive));
             RegisterNpcQuestKill(enemy);
+            member.Character.RecordMonsterKill(enemy.Definition.Id);
             _maze.ReplaceEnemyWithCorpse(enemy);
             var summary = ConsoleRenderer.FormatAutoBattleVictorySummary(result, member.Character.Name, enemy,
                 vitalityLost, manaLost, gainedStatusIcons, needLoss, spellsCast, enemy.Definition.ExperienceReward);
@@ -5373,6 +5400,7 @@ public sealed class Game
         if (enemy.CurrentHitPoints > 0) return;
         PlaySessionSound(SoundEffect.MonsterKilledBySpell);
         RegisterNpcQuestKill(enemy);
+        caster.RecordMonsterKill(enemy.Definition.Id);
         _maze.ReplaceEnemyWithCorpse(enemy);
         _nextEnemyMoves.Remove(enemy);
         var awards = DistributeExperience(caster, enemy.Definition.ExperienceReward);
@@ -5861,6 +5889,7 @@ public sealed class Game
             PlayBattleVictorySound();
             var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
             RegisterNpcQuestKill(enemy);
+            SelectedCharacter.RecordMonsterKill(enemy.Definition.Id);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,
@@ -5914,6 +5943,7 @@ public sealed class Game
             PlayBattleVictorySound();
             var experienceAwards = DistributeExperience(battleCharacter, enemy.Definition.ExperienceReward);
             RegisterNpcQuestKill(enemy);
+            battleCharacter.RecordMonsterKill(enemy.Definition.Id);
             _maze.ReplaceEnemyWithCorpse(enemy);
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
             var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,
@@ -6278,10 +6308,13 @@ public sealed class Game
 
     private void PlayCharacterStepSound(LiveCharacter character)
     {
-        switch (_random.Next(5))
+        switch (_random.Next(20))
         {
             case 0: PlaySessionSound(SoundEffect.Step1, [character.Id]); break;
             case 1: PlaySessionSound(SoundEffect.Step2, [character.Id]); break;
+            case 2: PlaySessionSound(SoundEffect.Step3, [character.Id]); break;
+            case 3: PlaySessionSound(SoundEffect.Step4, [character.Id]); break;
+            case 4: PlaySessionSound(SoundEffect.Step5, [character.Id]); break;
         }
     }
 

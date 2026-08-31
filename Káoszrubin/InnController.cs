@@ -687,6 +687,7 @@ internal sealed class InnController
             _selectedCharacter.SpendGold(price);
             _characterRoster.Add(recruit);
             _characterRoster.Party.Add(recruit);
+            recruit.SetNpcJoinOrigin(_innLevel, _innName);
             candidates.RemoveAt(selectedIndex);
             recruitmentPrices.Remove(recruit);
             message = replaced is null

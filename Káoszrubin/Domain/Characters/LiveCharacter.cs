@@ -22,6 +22,7 @@ public sealed class LiveCharacter
     private readonly List<SpellDefinition> _memorizedSpells = [];
     private readonly SpellDefinition?[] _quickSpells = new SpellDefinition?[MaximumQuickSpellCount];
     private readonly List<ActiveSpellEffect> _activeSpellEffects = [];
+    private readonly Dictionary<string, int> _monsterKills = new(StringComparer.OrdinalIgnoreCase);
     private int _explorationStepsTowardSpellAction;
     private readonly Dictionary<string, int?> _statusDurations = new(StringComparer.OrdinalIgnoreCase);
     private int _maximumVitality;
@@ -91,6 +92,9 @@ public sealed class LiveCharacter
     public IReadOnlyList<SpellDefinition> MemorizedSpells => _memorizedSpells;
     public IReadOnlyList<SpellDefinition?> QuickSpells => _quickSpells;
     public IReadOnlyList<ActiveSpellEffect> ActiveSpellEffects => _activeSpellEffects;
+    public IReadOnlyDictionary<string, int> MonsterKills => _monsterKills;
+    public int? NpcJoinedMazeLevel { get; private set; }
+    public string? NpcJoinedLocation { get; private set; }
     public long InventoryRevision { get; private set; }
     public int ExplorationStepsTowardSpellAction => _explorationStepsTowardSpellAction;
     public bool IsSpellcaster => SpellcastingRules.TryGetSchool(CharacterClass.Id, out _);
@@ -171,6 +175,19 @@ public sealed class LiveCharacter
     public const int MaximumQuickSpellCount = 8;
 
     public void SetNpcBehavior(NpcBehavior? behavior) => NpcBehavior = behavior;
+
+    public void RecordMonsterKill(string enemyDefinitionId, int count = 1)
+    {
+        if (string.IsNullOrWhiteSpace(enemyDefinitionId) || count <= 0) return;
+        _monsterKills[enemyDefinitionId] = _monsterKills.GetValueOrDefault(enemyDefinitionId) + count;
+    }
+
+    public void SetNpcJoinOrigin(int mazeLevel, string location)
+    {
+        if (NpcJoinedMazeLevel is not null || mazeLevel <= 0 || string.IsNullOrWhiteSpace(location)) return;
+        NpcJoinedMazeLevel = mazeLevel;
+        NpcJoinedLocation = location.Trim();
+    }
 
     public bool LearnSpell(SpellDefinition spell)
     {

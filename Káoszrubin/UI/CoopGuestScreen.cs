@@ -25,6 +25,8 @@ public sealed class CoopGuestScreen
     private int _messageLineWidth = 80;
     private bool _inventoryOpen;
     private int _inventorySelection;
+    private bool _characterDetailsOpen;
+    private int _characterDetailsOffset;
     private CharacterId? _displayedCharacterId;
     private InventorySlotAddress? _inventorySource;
     private CharacterId? _inventorySourceCharacterId;
@@ -298,6 +300,25 @@ public sealed class CoopGuestScreen
                 narrative.NarrativeId);
         }
         else if (snapshot.Narrative is null) _acknowledgedNarrativeId = null;
+        if (_characterDetailsOpen)
+        {
+            if (key is ConsoleKey.R or ConsoleKey.Escape or ConsoleKey.Enter)
+                _characterDetailsOpen = false;
+            else
+            {
+                var pageSize = Math.Max(4, ConsoleRenderer.PlayfieldHeight - 8);
+                _characterDetailsOffset = key switch
+                {
+                    ConsoleKey.UpArrow => _characterDetailsOffset - 1,
+                    ConsoleKey.DownArrow => _characterDetailsOffset + 1,
+                    ConsoleKey.PageUp => _characterDetailsOffset - pageSize,
+                    ConsoleKey.PageDown => _characterDetailsOffset + pageSize,
+                    _ => _characterDetailsOffset
+                };
+            }
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return;
+        }
         if (command is null && _spellInfoOpen)
         {
             command = HandleSpellInfoInput(client, characterId, snapshot, key);
@@ -849,6 +870,11 @@ public sealed class CoopGuestScreen
         }
         switch (GameInputBindings.InventoryAction(key))
         {
+            case InventoryInputAction.CharacterDetails:
+                _characterDetailsOpen = true;
+                _characterDetailsOffset = 0;
+                Interlocked.Exchange(ref _redrawRequested, 1);
+                break;
             case InventoryInputAction.MoveUp when slots.Count > 0:
                 _inventorySelection = (_inventorySelection - 1 + slots.Count) % slots.Count;
                 break;
@@ -1141,6 +1167,7 @@ public sealed class CoopGuestScreen
         ApplyNarrativeUi(grid, snapshot, client.PlayerId);
         ApplySpellPreparationUi(grid, snapshot, own);
         ApplyLevelUpUi(grid, snapshot, own);
+        ApplyCharacterDetailsUi(grid, own);
         var panelLines = _spellInfoOpen && own?.SpellInfo is not null
             ? SpellInfoPanel.Build(own.Name, own.CharacterClassId, own.Level, own.SpellInfo,
                 _spellInfoSelection, focused: _inventoryOpen).ToDictionary(line => line.Row)
@@ -1705,6 +1732,16 @@ public sealed class CoopGuestScreen
             Console.BackgroundColor = ConsoleColor.Black;
             Console.Write(text);
         }
+    }
+
+    private void ApplyCharacterDetailsUi(GuestMapCell[,] grid, SessionCharacterSnapshot? character)
+    {
+        if (!_characterDetailsOpen || character?.CharacterSheet is null) return;
+        var allLines = CharacterDetailsWindow.Build(character, _gameData);
+        var pageSize = Math.Max(4, grid.GetLength(1) - 8);
+        _characterDetailsOffset = Math.Clamp(_characterDetailsOffset, 0, Math.Max(0, allLines.Count - pageSize));
+        DrawGuestOverlay(grid, CharacterDetailsWindow.Page(allLines, _characterDetailsOffset, pageSize),
+            ConsoleColor.Magenta, CharacterDetailsWindow.Width, FramedWindow.CharacterDetails);
     }
 
     private static void WriteCharacterResourceAt(int x, int y, CharacterResourceLine resources)
