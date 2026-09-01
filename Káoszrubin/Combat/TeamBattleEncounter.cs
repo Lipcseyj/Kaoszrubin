@@ -37,7 +37,8 @@ public sealed class TeamBattleEncounter
         WorldEntityId initiatingEnemyId,
         bool enemyStrikesFirst = false,
         int radius = TacticalDistance.DefaultBattleRadius,
-        int openingCycles = 1)
+        int openingCycles = 1,
+        PartyFormationSnapshot? formation = null)
     {
         var characterList = characters.ToList();
         var enemyList = enemies.ToList();
@@ -49,6 +50,7 @@ public sealed class TeamBattleEncounter
         Id = BattleId.New();
         InitiatingCharacterId = initiatingCharacterId;
         InitiatingEnemyId = initiatingEnemyId;
+        Formation = formation?.State == PartyFormationState.Locked ? formation : null;
         var tacticalParticipants = new List<TacticalBattleParticipant>();
         foreach (var participant in characterList)
         {
@@ -82,6 +84,8 @@ public sealed class TeamBattleEncounter
     public BattleId Id { get; }
     public CharacterId InitiatingCharacterId { get; }
     public WorldEntityId InitiatingEnemyId { get; }
+    public PartyFormationSnapshot? Formation { get; private set; }
+    public bool HasActiveFormation => Formation is { State: PartyFormationState.Locked };
     public TacticalBattleState Turns { get; }
     public int ActionNumber { get; private set; }
     public IReadOnlyCollection<LiveCharacter> Characters => _characters.Values;
@@ -103,6 +107,121 @@ public sealed class TeamBattleEncounter
     public LiveCharacter? CharacterFor(CombatantId id) => _characters.GetValueOrDefault(id);
     public Enemy? EnemyFor(CombatantId id) => _enemies.GetValueOrDefault(id);
     public bool ContainsEnemy(Enemy enemy) => _enemies.ContainsKey(CombatantId.ForEnemy(enemy.Id));
+
+    public FormationSlot? FormationSlotFor(LiveCharacter character)
+    {
+        if (Formation is not { } formation) return null;
+        for (var index = 0; index < formation.Slots.Count; index++)
+            if (formation.Slots[index] == character.Id) return (FormationSlot)index;
+        return null;
+    }
+
+    public bool IsFrontRow(LiveCharacter character) => FormationSlotFor(character) is
+        FormationSlot.FrontLeft or FormationSlot.FrontRight;
+
+    public bool IsRearRow(LiveCharacter character) => FormationSlotFor(character) is
+        FormationSlot.RearLeft or FormationSlot.RearRight;
+
+    public LiveCharacter? RearPartnerOf(LiveCharacter character) => FormationSlotFor(character) switch
+    {
+        FormationSlot.FrontLeft => CharacterInSlot(FormationSlot.RearLeft),
+        FormationSlot.FrontRight => CharacterInSlot(FormationSlot.RearRight),
+        _ => null
+    };
+
+    public LiveCharacter? FrontPartnerOf(LiveCharacter character) => FormationSlotFor(character) switch
+    {
+        FormationSlot.RearLeft => CharacterInSlot(FormationSlot.FrontLeft),
+        FormationSlot.RearRight => CharacterInSlot(FormationSlot.FrontRight),
+        _ => null
+    };
+
+    public bool IsProtectedRearTarget(LiveCharacter character, Position attackerPosition)
+    {
+        if (!HasActiveFormation || !character.IsAlive || !IsRearRow(character) ||
+            FrontPartnerOf(character) is not { IsAlive: true } protector || Formation is not { } formation)
+            return false;
+        var rearPosition = Turns.Find(CombatantId.ForCharacter(character.Id))?.Position;
+        if (rearPosition is null || Turns.Find(CombatantId.ForCharacter(protector.Id)) is null) return false;
+        var forward = formation.Facing switch
+        {
+            Direction.Up => new Position(0, -1),
+            Direction.Right => new Position(1, 0),
+            Direction.Down => new Position(0, 1),
+            _ => new Position(-1, 0)
+        };
+        var attackerDelta = new Position(attackerPosition.X - rearPosition.Value.X,
+            attackerPosition.Y - rearPosition.Value.Y);
+        return attackerDelta.X * forward.X + attackerDelta.Y * forward.Y > 0;
+    }
+
+    public IReadOnlyList<Enemy> RearFormationEnemiesInReach(LiveCharacter character)
+    {
+        if (!IsRearRow(character) ||
+            !character.WeaponSlots.Any(weapon => WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Polearm) ||
+            FrontPartnerOf(character) is not { IsAlive: true } front)
+            return [];
+        return EngagedEnemies(front);
+    }
+
+    public IReadOnlyDictionary<LiveCharacter, Position> FormationDestinations(Direction direction)
+    {
+        if (!HasActiveFormation) return new Dictionary<LiveCharacter, Position>();
+        return _characters.Values.Where(character => character.IsAlive && FormationSlotFor(character) is not null)
+            .ToDictionary(character => character,
+                character => Turns.Find(CombatantId.ForCharacter(character.Id))!.Position + direction);
+    }
+
+    public bool PreservesEngagements(IReadOnlyDictionary<LiveCharacter, Position> destinations) =>
+        _engagements.All(pair =>
+        {
+            var character = _characters.Values.FirstOrDefault(value => value.Id == pair.CharacterId);
+            var enemy = _enemies.Values.FirstOrDefault(value => value.Id == pair.EnemyId);
+            return character is null || enemy is null || !character.IsAlive || enemy.CurrentHitPoints <= 0 ||
+                   !destinations.TryGetValue(character, out var destination) ||
+                   TacticalDistance.IsMeleeAdjacent(destination, enemy.Position);
+        });
+
+    public void UpdateFormationPositions(IReadOnlyDictionary<LiveCharacter, Position> destinations)
+    {
+        foreach (var (character, position) in destinations) UpdatePosition(character, position);
+    }
+
+    public bool TrySwapToRear(LiveCharacter front, out LiveCharacter? rear,
+        out Position frontPosition, out Position rearPosition, out int transferredEngagements)
+    {
+        rear = RearPartnerOf(front);
+        frontPosition = default;
+        rearPosition = default;
+        transferredEngagements = 0;
+        if (!HasActiveFormation || rear is not { IsAlive: true } || Formation is not { } formation) return false;
+        var frontParticipant = Turns.Find(CombatantId.ForCharacter(front.Id));
+        var rearParticipant = Turns.Find(CombatantId.ForCharacter(rear.Id));
+        if (frontParticipant is null || rearParticipant is null) return false;
+        frontPosition = frontParticipant.Position;
+        rearPosition = rearParticipant.Position;
+        var slots = formation.Slots.ToArray();
+        var frontIndex = Array.IndexOf(slots, front.Id);
+        var rearIndex = Array.IndexOf(slots, rear.Id);
+        if (frontIndex < 0 || rearIndex < 0) return false;
+        (slots[frontIndex], slots[rearIndex]) = (slots[rearIndex], slots[frontIndex]);
+        Formation = PartyFormationRules.WithSlots(formation, slots) with { State = PartyFormationState.Locked };
+        UpdatePosition(front, rearPosition);
+        UpdatePosition(rear, frontPosition);
+
+        var transferred = _engagements.Where(pair => pair.CharacterId == front.Id).ToArray();
+        foreach (var engagement in transferred)
+        {
+            _engagements.Remove(engagement);
+            _engagements.Add((rear.Id, engagement.EnemyId));
+        }
+        transferredEngagements = transferred.Length;
+        return true;
+    }
+
+    private LiveCharacter? CharacterInSlot(FormationSlot slot) => Formation?.CharacterAt(slot) is { } id
+        ? _characters.Values.FirstOrDefault(character => character.Id == id)
+        : null;
 
     public bool TryAddEnemy(TeamEnemyParticipant participant)
     {

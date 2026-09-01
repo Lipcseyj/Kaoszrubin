@@ -322,7 +322,7 @@ public sealed class Game
         var current = battle.Current;
         var actingCharacter = battle.CurrentCharacter;
         var focusEnemy = battle.CurrentEnemy ?? battle.SelectedTargetEnemy() ?? (actingCharacter is null ? null :
-            AdjacentTeamEnemies(battle, actingCharacter).OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault()) ??
+            ReachableTeamEnemies(battle, actingCharacter).OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault()) ??
             battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
                 .OrderBy(enemy => TacticalDistance.Between(current.Position, enemy.Position)).First();
         var actingCharacterId = actingCharacter?.Id ?? SelectedCharacter.Id;
@@ -353,7 +353,9 @@ public sealed class Game
             allowed, spellOptions,
             actingCharacter is null ? null : GetTeamBattleTacticOptions(battle, actingCharacter, focusEnemy),
             battle.Turns.Cycle, participants,
-            actingCharacter is null ? null : GetBattleItemOptions(actingCharacter));
+            actingCharacter is null ? null : GetBattleItemOptions(actingCharacter),
+            actingCharacter is null ? null : ReachableTeamEnemies(battle, actingCharacter)
+                .Select(enemy => enemy.Id).ToArray());
     }
 
     private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(LiveCharacter character) =>
@@ -5080,8 +5082,20 @@ public sealed class Game
         if (key.Key == ConsoleKey.Spacebar && allowed.Contains(BattleActionKind.PhysicalAttack))
         {
             var targetEnemy = battle.SelectedTargetEnemy() ??
-                              AdjacentTeamEnemies(battle, character).OrderBy(value => value.CurrentHitPoints).First();
+                              ReachableTeamEnemies(battle, character).OrderBy(value => value.CurrentHitPoints).First();
             SubmitLocalBattleCommand(BattleActionKind.PhysicalAttack, targetEnemyId: targetEnemy.Id);
+            return;
+        }
+        if (key.Key == ConsoleKey.H && allowed.Contains(BattleActionKind.SwapToRear))
+        {
+            SubmitLocalBattleCommand(BattleActionKind.SwapToRear);
+            return;
+        }
+        if (TryGetDirection(key.Key, out var formationDirection) &&
+            allowed.Contains(BattleActionKind.MoveFormation))
+        {
+            SubmitLocalBattleCommand(BattleActionKind.MoveFormation,
+                target: GetCasterPosition(character) + formationDirection);
             return;
         }
         if (TryGetDirection(key.Key, out var direction) && allowed.Contains(BattleActionKind.Move))
@@ -6515,7 +6529,7 @@ public sealed class Game
 
         _activeTeamBattle = new TeamBattleEncounter(initiatingEnemy.Position,
             characterParticipants, enemyParticipants, initiatingCharacter.Id, initiatingEnemy.Id,
-            enemyStrikesFirst);
+            enemyStrikesFirst, formation: ActiveBattleFormation());
         var protectionMessages = new List<string>();
         foreach (var protectedParticipant in characterParticipants)
         {
@@ -6551,9 +6565,22 @@ public sealed class Game
         var startMessage = $"⚔️ CSAPATHARC — {characterParticipants.Count} baráti és " +
                            $"{enemyParticipants.Count} ellenséges résztvevő. " +
                            $"Nyitó ütésváltás: {openingFirst} → {openingSecond}. Utána kezdeményezés: {queue}.";
+        if (_activeTeamBattle.HasActiveFormation)
+            startMessage += " 🛡️ A zárt alakzat első sora elölről védi a hátsó sort.";
         _renderer.DrawInventoryMessage(startMessage, ConsoleColor.Yellow);
         RecordSessionActivity(SessionActivityKind.Battle, startMessage, ConsoleColor.Yellow);
         ContinueTeamBattle();
+    }
+
+    private PartyFormationSnapshot? ActiveBattleFormation()
+    {
+        if (_formation.State != PartyFormationState.Locked) return null;
+        var expected = PartyFormationRules.Positions(_formation, SelectedCharacter.Id, _player.Position);
+        return expected.All(pair => CharacterRoster.Party.Members.FirstOrDefault(character =>
+                    character.Id == pair.Key) is not { IsAlive: true } character ||
+                GetCasterPosition(character) == pair.Value)
+            ? _formation
+            : null;
     }
 
     private void ContinueTeamBattle()
@@ -6694,7 +6721,7 @@ public sealed class Game
                 var selectedEnemy = command.TargetEnemyId is { } selectedId
                     ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == selectedId)
                     : null;
-                if (selectedEnemy is null || !AdjacentTeamEnemies(battle, character).Contains(selectedEnemy) ||
+                if (selectedEnemy is null || !ReachableTeamEnemies(battle, character).Contains(selectedEnemy) ||
                     !battle.TrySelectTarget(selectedEnemy))
                 {
                     RejectTeamBattleAction(command, "A választott ellenfél nem elérhető célpont.");
@@ -6722,9 +6749,9 @@ public sealed class Game
                 var target = command.TargetEnemyId is { } targetId
                     ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == targetId)
                     : battle.SelectedTargetEnemy() ??
-                      AdjacentTeamEnemies(battle, character).OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault();
+                      ReachableTeamEnemies(battle, character).OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault();
                 if (target is null || target.CurrentHitPoints <= 0 ||
-                    !TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), target.Position))
+                    !ReachableTeamEnemies(battle, character).Contains(target))
                 {
                     RejectTeamBattleAction(command, "A választott ellenfél nincs közelharci távolságban.");
                     return;
@@ -6735,6 +6762,21 @@ public sealed class Game
                 if (!TryExecuteTeamCharacterMove(battle, character, destination, out var movementError))
                 {
                     RejectTeamBattleAction(command, movementError);
+                    return;
+                }
+                break;
+            case BattleActionKind.MoveFormation when command.Target is { } formationDestination:
+                if (!TryExecuteTeamFormationMove(battle, character, formationDestination,
+                        out var formationMovementError))
+                {
+                    RejectTeamBattleAction(command, formationMovementError);
+                    return;
+                }
+                break;
+            case BattleActionKind.SwapToRear:
+                if (!TryExecuteSwapToRear(battle, character, out var swapError))
+                {
+                    RejectTeamBattleAction(command, swapError);
                     return;
                 }
                 break;
@@ -6880,10 +6922,14 @@ public sealed class Game
 
     private void ExecuteTeamAiCharacterTurn(TeamBattleEncounter battle, LiveCharacter character)
     {
-        var adjacent = AdjacentTeamEnemies(battle, character).FirstOrDefault();
-        if (adjacent is not null)
+        if (battle.IsFrontRow(character) && character.CurrentVitality * 3 <= character.MaximumVitality &&
+            battle.RearPartnerOf(character) is { IsAlive: true } &&
+            TryExecuteSwapToRear(battle, character, out _))
+            return;
+        var reachable = ReachableTeamEnemies(battle, character).FirstOrDefault();
+        if (reachable is not null)
         {
-            ResolveTeamCharacterAttack(battle, character, adjacent);
+            ResolveTeamCharacterAttack(battle, character, reachable);
             return;
         }
         if (battle.IsEngaged(character))
@@ -6893,13 +6939,22 @@ public sealed class Game
             AdvanceTeamBattleTurn(battle);
             return;
         }
+        if (battle.HasActiveFormation && battle.FormationSlotFor(character) is not null)
+        {
+            var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+            PresentBattleEntries([new BattleLogEntry(
+                $"{character.Name} tartja a helyét az alakzatban.{statusText}", BattleLogKind.Information)]);
+            AdvanceTeamBattleTurn(battle);
+            return;
+        }
         var target = ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
         MoveTeamCharacterToward(battle, character, target.Position);
     }
 
     private void ResolveTeamCharacterAttack(TeamBattleEncounter battle, LiveCharacter character, Enemy enemy)
     {
-        battle.Engage(character, enemy);
+        if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position))
+            battle.Engage(character, enemy);
         var entry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character), enemy);
         PresentBattleEntries([entry]);
         if (enemy.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, enemy, character);
@@ -6913,7 +6968,7 @@ public sealed class Game
             (double)character.CurrentVitality / Math.Max(1, character.MaximumVitality)).FirstOrDefault();
         if (adjacent is null)
         {
-            var target = battle.Characters.Where(character => character.IsAlive)
+            var target = TeamEnemyTargets(battle, enemy)
                 .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))
                 .First();
             MoveTeamEnemyToward(battle, enemy, GetCasterPosition(target));
@@ -7070,20 +7125,30 @@ public sealed class Game
             return character.CharacterClass.Id == CharacterClassIds.Harcos
                 ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
                 : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
+        var reachable = ReachableTeamEnemies(battle, character).ToArray();
         var adjacent = AdjacentTeamEnemies(battle, character).ToArray();
         if (battle.Turns.Cycle == 1 && character.Id == battle.InitiatingCharacterId)
-            return adjacent.Length > 0 ? [BattleActionKind.PhysicalAttack] : [BattleActionKind.Move];
+            return reachable.Length > 0 ? [BattleActionKind.PhysicalAttack] :
+                battle.HasActiveFormation && character == SelectedCharacter
+                    ? [BattleActionKind.MoveFormation]
+                    : [BattleActionKind.Move];
         var actions = new List<BattleActionKind>();
-        if (adjacent.Length > 0)
+        if (reachable.Length > 0)
         {
             actions.Add(BattleActionKind.PhysicalAttack);
-            if (adjacent.Length > 1) actions.Add(BattleActionKind.SelectTarget);
+            if (reachable.Length > 1) actions.Add(BattleActionKind.SelectTarget);
             if (CanTurnUndead(character, focusEnemy) && !_turnUndeadUsedThisBattle.Contains(character))
                 actions.Add(BattleActionKind.TurnUndead);
         }
+        if (battle.HasActiveFormation && battle.IsFrontRow(character) &&
+            battle.RearPartnerOf(character) is { IsAlive: true })
+            actions.Add(BattleActionKind.SwapToRear);
+        if (battle.HasActiveFormation && character == SelectedCharacter)
+            actions.Add(BattleActionKind.MoveFormation);
         if (!battle.IsEngaged(character))
         {
-            actions.Add(BattleActionKind.Move);
+            if (!battle.HasActiveFormation || battle.FormationSlotFor(character) is null)
+                actions.Add(BattleActionKind.Move);
             if (GetBattleItemOptions(character).Count > 0) actions.Add(BattleActionKind.UseItem);
             if (HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy))
                 actions.Add(BattleActionKind.CastSpell);
@@ -7120,6 +7185,8 @@ public sealed class Game
                 actions.Contains(BattleActionKind.PhysicalAttack) ? "Space — támadás" : null,
                 actions.Contains(BattleActionKind.SelectTarget) ? "Tab — célpont" : null,
                 actions.Contains(BattleActionKind.Move) ? "nyilak — mozgás" : null,
+                actions.Contains(BattleActionKind.MoveFormation) ? "nyilak — alakzatmozgatás" : null,
+                actions.Contains(BattleActionKind.SwapToRear) ? "H — Hátra!" : null,
                 actions.Contains(BattleActionKind.UseItem) ? "U — tárgy használata" : null,
                 actions.Contains(BattleActionKind.CastSpell) ? "V/F1-F8 — varázslat" : null,
                 actions.Contains(BattleActionKind.TurnUndead) ? "T — halottűzés" : null,
@@ -7137,9 +7204,25 @@ public sealed class Game
             TacticalDistance.IsMeleeAdjacent(position, enemy.Position));
     }
 
+    private IEnumerable<Enemy> ReachableTeamEnemies(TeamBattleEncounter battle, LiveCharacter character)
+    {
+        var adjacent = AdjacentTeamEnemies(battle, character).ToArray();
+        return adjacent.Concat(battle.RearFormationEnemiesInReach(character))
+            .Where(enemy => enemy.CurrentHitPoints > 0)
+            .DistinctBy(enemy => enemy.Id);
+    }
+
     private IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy) =>
         battle.Characters.Where(character => character.IsAlive &&
-            TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position));
+            TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position) &&
+            !battle.IsProtectedRearTarget(character, enemy.Position));
+
+    private IEnumerable<LiveCharacter> TeamEnemyTargets(TeamBattleEncounter battle, Enemy enemy)
+    {
+        var exposed = battle.Characters.Where(character => character.IsAlive &&
+            !battle.IsProtectedRearTarget(character, enemy.Position)).ToArray();
+        return exposed.Length > 0 ? exposed : battle.Characters.Where(character => character.IsAlive);
+    }
 
     private static IEnumerable<Position> TeamMeleePositions(Position center)
     {
@@ -7154,7 +7237,7 @@ public sealed class Game
         if (battle.CharacterFor(current.Id) is { } character)
         {
             var enemy = battle.SelectedTargetEnemy() ??
-                        AdjacentTeamEnemies(battle, character).OrderBy(candidate => candidate.CurrentHitPoints)
+                        ReachableTeamEnemies(battle, character).OrderBy(candidate => candidate.CurrentHitPoints)
                 .FirstOrDefault() ?? battle.Enemies.Where(candidate => candidate.CurrentHitPoints > 0)
                 .OrderBy(candidate => TacticalDistance.Between(current.Position, candidate.Position)).FirstOrDefault();
             return enemy is null ? null : CombatantId.ForEnemy(enemy.Id);
@@ -7162,14 +7245,14 @@ public sealed class Game
         if (battle.EnemyFor(current.Id) is not { } actingEnemy) return null;
         var target = AdjacentTeamCharacters(battle, actingEnemy)
             .OrderBy(candidate => (double)candidate.CurrentVitality / Math.Max(1, candidate.MaximumVitality))
-            .FirstOrDefault() ?? battle.Characters.Where(candidate => candidate.IsAlive)
+            .FirstOrDefault() ?? TeamEnemyTargets(battle, actingEnemy)
             .OrderBy(candidate => TacticalDistance.Between(current.Position, GetCasterPosition(candidate))).FirstOrDefault();
         return target is null ? null : CombatantId.ForCharacter(target.Id);
     }
 
     private Enemy? NextTeamBattleTarget(TeamBattleEncounter battle, LiveCharacter character)
     {
-        var targets = AdjacentTeamEnemies(battle, character).OrderBy(enemy => enemy.Position.Y)
+        var targets = ReachableTeamEnemies(battle, character).OrderBy(enemy => enemy.Position.Y)
             .ThenBy(enemy => enemy.Position.X).ThenBy(enemy => enemy.Id.ToString(), StringComparer.Ordinal).ToArray();
         if (targets.Length == 0) return null;
         var currentTargetId = battle.SelectedTargetEnemyId ??
@@ -7189,7 +7272,7 @@ public sealed class Game
     {
         if (AdjacentTeamCharacters(battle, enemy).Any()) return true;
         if (battle.IsEngaged(enemy)) return false;
-        var target = battle.Characters.Where(character => character.IsAlive)
+        var target = TeamEnemyTargets(battle, enemy)
             .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))
             .First();
         var goals = TeamMeleePositions(GetCasterPosition(target))
@@ -7231,6 +7314,115 @@ public sealed class Game
             PresentBattleEntries([new BattleLogEntry($"{enemy.Name} {steps.Length} mezőt közeledik.",
                 BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
+    }
+
+    private bool TryExecuteTeamFormationMove(TeamBattleEncounter battle, LiveCharacter character,
+        Position target, out string error)
+    {
+        if (character != SelectedCharacter || !battle.HasActiveFormation)
+        {
+            error = "Az alakzatot csak a vezér mozgathatja.";
+            return false;
+        }
+        var origin = GetCasterPosition(character);
+        var deltaX = target.X - origin.X;
+        var deltaY = target.Y - origin.Y;
+        if (Math.Abs(deltaX) + Math.Abs(deltaY) != 1)
+        {
+            error = "Az alakzat egy akcióval pontosan egy mezőt mozoghat.";
+            return false;
+        }
+        var direction = deltaX switch
+        {
+            < 0 => Direction.Left,
+            > 0 => Direction.Right,
+            _ => deltaY < 0 ? Direction.Up : Direction.Down
+        };
+        var destinations = battle.FormationDestinations(direction);
+        if (destinations.Count == 0)
+        {
+            error = "Nincs mozgatható harci alakzat.";
+            return false;
+        }
+        if (!battle.PreservesEngagements(destinations))
+        {
+            error = "Az alakzat lépése szétszakítaná a fennálló lekötést.";
+            return false;
+        }
+        var movingIds = destinations.Keys.Select(value => CombatantId.ForCharacter(value.Id)).ToHashSet();
+        var movingAvatars = destinations.Keys.Select(value =>
+                _maze.PartyMembers.FirstOrDefault(member => member.Character == value))
+            .Where(member => member is not null).ToHashSet();
+        foreach (var destination in destinations.Values)
+        {
+            if (!_maze.IsWalkable(destination) || _maze.GetEnemyAt(destination) is not null ||
+                battle.Turns.Participants.Any(participant => !movingIds.Contains(participant.Id) &&
+                    participant.State is TacticalParticipantState.Active or TacticalParticipantState.Approaching &&
+                    participant.Position == destination))
+            {
+                error = "Az alakzat egyik célmezője foglalt vagy nem járható.";
+                return false;
+            }
+            var occupant = _maze.GetObjectAt(destination);
+            if (occupant is null or GroundItemPile or Corpse || Maze.IsPassableNeutralNpc(occupant) ||
+                occupant is PartyMemberAvatar avatar && movingAvatars.Contains(avatar)) continue;
+            error = "Az alakzat egyik célmezőjét tereptárgy vagy másik lény foglalja el.";
+            return false;
+        }
+
+        var previous = destinations.Keys.ToDictionary(value => value, GetCasterPosition);
+        foreach (var (member, destination) in destinations)
+        {
+            if (member == SelectedCharacter) _player.TeleportTo(destination);
+            else _maze.PartyMembers.First(avatar => avatar.Character == member).MoveTo(destination);
+        }
+        battle.UpdateFormationPositions(destinations);
+        foreach (var (member, destination) in destinations)
+        {
+            var revealed = RevealFor(member, destination);
+            if (member == SelectedCharacter)
+                _renderer.DrawMovement(_maze, _fogOfWar, previous[member], destination, revealed, hasWon: false);
+            else
+                _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous[member], destination, revealed,
+                    _player.Position);
+        }
+        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        PresentBattleEntries([new BattleLogEntry($"{character.Name} egy mezővel mozgatja az egész alakzatot.{statusText}",
+            BattleLogKind.Information)]);
+        AdvanceTeamBattleTurn(battle);
+        error = string.Empty;
+        return true;
+    }
+
+    private bool TryExecuteSwapToRear(TeamBattleEncounter battle, LiveCharacter character, out string error)
+    {
+        if (!battle.TrySwapToRear(character, out var rear, out var frontPosition, out var rearPosition,
+                out var transferredEngagements) || rear is null)
+        {
+            error = "A Hátra! akcióhoz élő társ szükséges közvetlenül a karakter mögött.";
+            return false;
+        }
+        MoveBattleCharacterTo(character, rearPosition);
+        MoveBattleCharacterTo(rear, frontPosition);
+        _formation = battle.Formation!;
+        _renderer.SetFormationStatus(_formation);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        var transferText = transferredEngagements == 0
+            ? string.Empty
+            : $" {rear.Name} {transferredEngagements} lekötést átvett.";
+        PresentBattleEntries([new BattleLogEntry(
+            $"Hátra! {character.Name} helyet cserél {rear.Name} karakterrel.{transferText}{statusText}",
+            BattleLogKind.Information)]);
+        AdvanceTeamBattleTurn(battle);
+        error = string.Empty;
+        return true;
+    }
+
+    private void MoveBattleCharacterTo(LiveCharacter character, Position position)
+    {
+        if (character == SelectedCharacter) _player.TeleportTo(position);
+        else _maze.PartyMembers.First(member => member.Character == character).MoveTo(position);
     }
 
     private bool TryExecuteTeamCharacterMove(TeamBattleEncounter battle, LiveCharacter character, Position target,

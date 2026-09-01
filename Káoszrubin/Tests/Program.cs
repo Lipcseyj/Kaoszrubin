@@ -72,6 +72,10 @@ var tests = new (string Name, Action Run)[]
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
     ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
+    ("A zárt alakzat első sora védi a mögötte álló társat", TeamBattleFormationProtectsRearRow),
+    ("A hátsó sor szálfegyverrel eléri az első társ lekötött ellenfelét", TeamBattleRearPolearmReachUsesFrontEngagement),
+    ("A Hátra! helycsere átadja az első sori lekötéseket", TeamBattleSwapToRearTransfersEngagements),
+    ("Az alakzat csak a fennálló lekötéseket megtartva mozdulhat", TeamBattleFormationMovementPreservesEngagements),
     ("A csapatharc célpontja akcióvesztés nélkül váltható", TeamBattleTargetCanBeChanged),
     ("A harcba hívott erősítés a következő körben lép be", TeamBattleReinforcementJoinsNextCycle),
     ("A coop session validálja a csapatharcos mozgást és tárgyhasználatot", TeamBattleCommandsAreValidated),
@@ -3342,6 +3346,80 @@ static void TeamBattleEngagementLastsUntilEnemyDeath()
         "A karaktert a legyőzött ellenfél továbbra is lekötve tartja.");
 }
 
+static void TeamBattleFormationProtectsRearRow()
+{
+    var (encounter, front, rear, _) = CreateFormationEncounter();
+    Assert(encounter.HasActiveFormation && encounter.IsFrontRow(front) && encounter.IsRearRow(rear) &&
+           encounter.RearPartnerOf(front) == rear && encounter.FrontPartnerOf(rear) == front,
+        "A harc nem őrizte meg az alakzat sorait és oszloppárját.");
+    Assert(encounter.IsProtectedRearTarget(rear, new Position(3, 2)) &&
+           !encounter.IsProtectedRearTarget(rear, new Position(2, 4)) &&
+           !encounter.IsProtectedRearTarget(rear, new Position(3, 5)),
+        "Az első sor nem csak az alakzat eleje felől védi a hátsó társat.");
+}
+
+static void TeamBattleRearPolearmReachUsesFrontEngagement()
+{
+    var (encounter, front, rear, enemy) = CreateFormationEncounter();
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    Assert(rear.EquipWeapon(0, data.GetWeapon("W011")),
+        "A hátsó sori tesztkarakter nem tudta felszerelni a szálfegyvert.");
+    encounter.Engage(front, enemy);
+
+    Assert(encounter.RearFormationEnemiesInReach(rear).SequenceEqual([enemy]),
+        "A hátsó sori szálfegyver nem érte el az előtte álló társ lekötött ellenfelét.");
+}
+
+static void TeamBattleSwapToRearTransfersEngagements()
+{
+    var (encounter, front, rear, enemy) = CreateFormationEncounter();
+    encounter.Engage(front, enemy);
+
+    Assert(encounter.TrySwapToRear(front, out var swappedRear, out var oldFrontPosition,
+               out var oldRearPosition, out var transferred) && swappedRear == rear && transferred == 1,
+        "A Hátra! nem hajtotta végre az első és hátsó társ helycseréjét.");
+    Assert(encounter.FormationSlotFor(front) == FormationSlot.RearLeft &&
+           encounter.FormationSlotFor(rear) == FormationSlot.FrontLeft &&
+           encounter.Turns.Find(CombatantId.ForCharacter(front.Id))?.Position == oldRearPosition &&
+           encounter.Turns.Find(CombatantId.ForCharacter(rear.Id))?.Position == oldFrontPosition &&
+           !encounter.IsEngaged(front) && encounter.IsEngaged(rear),
+        "A Hátra! nem cserélte fel atomian a slotokat, pozíciókat és lekötéseket.");
+}
+
+static void TeamBattleFormationMovementPreservesEngagements()
+{
+    var (encounter, front, _, enemy) = CreateFormationEncounter();
+    encounter.Engage(front, enemy);
+    var sideways = encounter.FormationDestinations(Direction.Right);
+    var backward = encounter.FormationDestinations(Direction.Down);
+
+    Assert(sideways.Count == 2 && encounter.PreservesEngagements(sideways) &&
+           !encounter.PreservesEngagements(backward),
+        "Az alakzatmozgás nem a fennálló közelharci lekötés megtartását követeli meg.");
+}
+
+static (TeamBattleEncounter Encounter, LiveCharacter Front, LiveCharacter Rear, ConfiguredEnemy Enemy)
+    CreateFormationEncounter()
+{
+    var system = CreateBattleSystem(1705);
+    var front = CreateCharacter("Első sor");
+    var rear = CreateCharacter("Hátsó sor");
+    var enemy = CreateEnemyAt(new Position(3, 2), "E-FORMATION");
+    var frontPreparation = system.PrepareTeamCharacter(front);
+    var rearPreparation = system.PrepareTeamCharacter(rear);
+    var formation = new PartyFormationSnapshot(front.Id, null, rear.Id, null,
+        Direction.Up, PartyFormationState.Locked);
+    var encounter = new TeamBattleEncounter(new Position(3, 3),
+        [
+            new TeamCharacterParticipant(front, new Position(3, 3), TacticalParticipantKind.PartyMember,
+                frontPreparation.Initiative, 3, 1, frontPreparation.Runtime),
+            new TeamCharacterParticipant(rear, new Position(3, 4), TacticalParticipantKind.PartyMember,
+                rearPreparation.Initiative, 3, 1, rearPreparation.Runtime)
+        ],
+        [new TeamEnemyParticipant(enemy, 5, 2, 1)], front.Id, enemy.Id, formation: formation);
+    return (encounter, front, rear, enemy);
+}
+
 static void TeamBattleTargetCanBeChanged()
 {
     var system = CreateBattleSystem(1703);
@@ -3410,6 +3488,18 @@ static void TeamBattleCommandsAreValidated()
         BattleActionKind.Retreat);
     Assert(session.Submit(retreat) && session.TryReadCommand(out var acceptedRetreat) && acceptedRetreat == retreat,
         "A visszavonulási parancsot elutasította a session.");
+
+    session.SetBattlePrompt(battleId, 4, leader.Id,
+        [BattleActionKind.MoveFormation, BattleActionKind.SwapToRear]);
+    var formationMove = new BattleActionCommand(session.HostPlayerId, 5, leader.Id, battleId, 4,
+        BattleActionKind.MoveFormation, Target: new Position(5, 3));
+    Assert(session.Submit(formationMove) && session.TryReadCommand(out var acceptedFormationMove) &&
+           acceptedFormationMove == formationMove,
+        "Az alakzatmozgatási parancsot elutasította a session.");
+    var swap = new BattleActionCommand(session.HostPlayerId, 6, leader.Id, battleId, 4,
+        BattleActionKind.SwapToRear);
+    Assert(session.Submit(swap) && session.TryReadCommand(out var acceptedSwap) && acceptedSwap == swap,
+        "A Hátra! parancsot elutasította a session.");
 }
 
 static void EquipmentWeightAffectsMobility()

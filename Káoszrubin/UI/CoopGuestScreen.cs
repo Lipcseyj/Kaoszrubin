@@ -394,6 +394,15 @@ public sealed class CoopGuestScreen
                 if (command is null) return;
             }
             else if (TryGetDirection(key, out var battleDirection) &&
+                     battle.AllowedActions.Contains(BattleActionKind.MoveFormation))
+            {
+                var participant = battle.Participants?.FirstOrDefault(value =>
+                    value.Id == CombatantId.ForCharacter(characterId));
+                var target = (participant?.Position ?? new Position(0, 0)) + battleDirection;
+                command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                    battle.BattleId, battle.TurnId, BattleActionKind.MoveFormation, Target: target);
+            }
+            else if (TryGetDirection(key, out battleDirection) &&
                      battle.AllowedActions.Contains(BattleActionKind.Move))
             {
                 var participant = battle.Participants?.FirstOrDefault(value =>
@@ -424,6 +433,8 @@ public sealed class CoopGuestScreen
                         BattleActionKind.TurnUndead,
                     ConsoleKey.R when battle.AllowedActions.Contains(BattleActionKind.Retreat) =>
                         BattleActionKind.Retreat,
+                    ConsoleKey.H when battle.AllowedActions.Contains(BattleActionKind.SwapToRear) =>
+                        BattleActionKind.SwapToRear,
                     _ => (BattleActionKind?)null
                 };
                 if (action is not null)
@@ -1830,10 +1841,13 @@ public sealed class CoopGuestScreen
         var actor = battle.Participants?.FirstOrDefault(participant =>
             participant.Id == CombatantId.ForCharacter(characterId));
         if (actor is null) return null;
+        var validTargetIds = (battle.ValidTargetEnemyIds ?? []).ToHashSet();
         var targets = (battle.Participants ?? []).Where(participant =>
                 participant.Side == BattleSide.Hostile && participant.EnemyId is not null &&
                 participant.CurrentVitality > 0 &&
-                TacticalDistance.IsMeleeAdjacent(actor.Position, participant.Position))
+                (validTargetIds.Count == 0
+                    ? TacticalDistance.IsMeleeAdjacent(actor.Position, participant.Position)
+                    : validTargetIds.Contains(participant.EnemyId.Value)))
             .OrderBy(participant => participant.Position.Y).ThenBy(participant => participant.Position.X)
             .ThenBy(participant => participant.Id.Value, StringComparer.Ordinal).ToArray();
         if (targets.Length == 0) return null;

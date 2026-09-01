@@ -603,6 +603,7 @@ public sealed class GameSession
     private static bool HasValidBattleActionShape(BattleActionCommand command) => command.Action switch
     {
         BattleActionKind.AdvanceEnemyTurn or BattleActionKind.Retreat or
+        BattleActionKind.SwapToRear or
         BattleActionKind.FighterPrecise or BattleActionKind.FighterPowerful or
         BattleActionKind.FighterDefensive or BattleActionKind.ThiefAmbush or
         BattleActionKind.ThiefObserve or BattleActionKind.ThiefPoison =>
@@ -612,7 +613,7 @@ public sealed class GameSession
                                          command.TargetEnemyId is not null && command.SpellId is null &&
                                          command.CastingItemSlotIndex is null && command.Target is null &&
                                          command.BackpackIndex is null,
-        BattleActionKind.Move => command.Target is not null && command.SpellId is null &&
+        BattleActionKind.Move or BattleActionKind.MoveFormation => command.Target is not null && command.SpellId is null &&
                                  command.CastingItemSlotIndex is null && command.TargetEnemyId is null &&
                                  command.BackpackIndex is null,
         BattleActionKind.PhysicalAttack => command.SpellId is null && command.CastingItemSlotIndex is null &&
