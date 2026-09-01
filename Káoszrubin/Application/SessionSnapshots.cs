@@ -7,7 +7,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 62;
+    public const int Version = 63;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -23,7 +23,8 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
     IReadOnlyList<SessionActivitySnapshot>? Activities = null,
     IReadOnlyList<SessionSoundSnapshot>? Sounds = null, int PartyGold = 0,
     IReadOnlyList<QuestJournalEntrySnapshot>? QuestJournal = null,
-    AdHocConversationSnapshot? AdHocConversation = null);
+    AdHocConversationSnapshot? AdHocConversation = null,
+    PartyFormationSnapshot? Formation = null);
 
 public enum QuestJournalStatus { Active, Completed }
 

@@ -130,6 +130,7 @@ public sealed class ConsoleRenderer
     private const int CharacterSheetPartyMemberRows = 4;
     private const int CharacterSheetReservedMessageLine = 39;
     private const int CharacterSheetControlsLine = 40;
+    private PartyFormationSnapshot? _formation;
     private const int ResourceIconStep = 10;
     private const int PortraitInteriorWidth = 25;
     private const int MessagePanelLeft = 2;
@@ -192,6 +193,32 @@ public sealed class ConsoleRenderer
     }
 
     public void SetGoldenKeyCount(int count) => _goldenKeyCount = Math.Clamp(count, 0, MonsterIds.Bosses.Count);
+
+    public void SetFormationStatus(PartyFormationSnapshot formation)
+    {
+        _formation = formation;
+        if (_displayedCharacter is not null)
+            WriteSheetLine(CharacterSheetControlsLine, FormationStatusText(formation),
+                formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
+    }
+
+    public static string FormationStatusText(PartyFormationSnapshot formation)
+    {
+        var arrow = formation.Facing switch
+        {
+            Direction.Up => "↑",
+            Direction.Right => "→",
+            Direction.Down => "↓",
+            _ => "←"
+        };
+        var state = formation.State switch
+        {
+            PartyFormationState.Assembling => "összeáll",
+            PartyFormationState.Locked => "zárt",
+            _ => "feloszlatva"
+        };
+        return $"ALAKZAT {arrow}  {state}";
+    }
 
     public bool DrawThiefKeyChoice(LiveCharacter thief, Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
@@ -2062,7 +2089,8 @@ public sealed class ConsoleRenderer
                 WriteCharacterSheetPanelLine(line);
         DrawSelectableCharacterSheetRows(character);
         WriteSheetLine(CharacterSheetReservedMessageLine, string.Empty, ConsoleColor.DarkGray);
-        WriteSheetLine(CharacterSheetControlsLine, string.Empty, ConsoleColor.DarkGray);
+        WriteSheetLine(CharacterSheetControlsLine, _formation is null ? string.Empty : FormationStatusText(_formation),
+            _formation?.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
         DrawPicturePanel();
     }
 

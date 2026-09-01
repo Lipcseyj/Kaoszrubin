@@ -34,6 +34,7 @@ public static class GameInputBindings
 
     public static LeaderAction? LeaderAction(ConsoleKey key, bool canActivateExit) => key switch
     {
+        ConsoleKey.A => Application.LeaderAction.ToggleFormation,
         ConsoleKey.G => Application.LeaderAction.ToggleRegrouping,
         ConsoleKey.H => Application.LeaderAction.ToggleHoldPosition,
         ConsoleKey.M => Application.LeaderAction.ScatterParty,

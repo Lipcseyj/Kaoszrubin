@@ -25,6 +25,7 @@ public sealed class GameSession
     private CharacterId? _actingBattleCharacterId;
     private IReadOnlySet<BattleActionKind> _allowedBattleActions = new HashSet<BattleActionKind>();
     private GameSessionPhase _phase = GameSessionPhase.Exploration;
+    private bool _formationMovementLocked;
 
     public GameSession(Party party, LiveCharacter leader, PlayerId? hostPlayerId = null)
     {
@@ -73,6 +74,11 @@ public sealed class GameSession
         lock (_stateGate) return _controls.TryGetValue(characterId, out var control) &&
             control.ControllerKind is CharacterControllerKind.HostPlayer or CharacterControllerKind.RemotePlayer &&
             control.ConnectionState == PlayerConnectionState.Connected;
+    }
+
+    public void SetFormationMovementLocked(bool locked)
+    {
+        lock (_stateGate) _formationMovementLocked = locked;
     }
 
     public IReadOnlyList<CoopCharacterOption> GetAvailableRemoteCharacters()
@@ -354,6 +360,9 @@ public sealed class GameSession
             reason = string.Empty;
             return true;
         }
+        if (command is MoveCharacterCommand && _formationMovementLocked &&
+            control.ControllerKind == CharacterControllerKind.RemotePlayer)
+            return Fail("Zart alakzatban csak a party-leader adhat mozgasparancsot.", out reason);
         if (command is CharacterActionCommand characterAction)
         {
             if (!Enum.IsDefined(characterAction.Action))

@@ -65,6 +65,8 @@ var tests = new (string Name, Action Run)[]
     ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A taktikai távolság követi a konzolcellák kettő az egyhez arányát", TacticalDistanceUsesConsoleAspectRatio),
+    ("A 2x2-es alakzat minden irányban a vezér slotjához igazodik", PartyFormationPositionsFollowFacing),
+    ("Zárt alakzatból a coop vendég nem léphet ki", LockedFormationRejectsRemoteMovement),
     ("A csapatharcban az átlós ellenfél is közelharci távolságban van", DiagonalEnemyIsMeleeAdjacent),
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
@@ -434,6 +436,10 @@ static void LegacyGameSavesMigrateToCurrentVersion()
                AdHocConversationMazeLevel: 4 } &&
            restored.LastAdHocConversationUtc == current.LastAdHocConversationUtc,
         "Az egyszer már elindított ad-hoc párbeszéd vagy a korlátozásai elvesztek mentéskor.");
+
+    var old = GameSaveFormat.MigrateToCurrent(new GameSaveData { Version = 13 });
+    Assert(old.Formation is { State: PartyFormationState.Disbanded },
+        "A 13-as mentés nem kapott biztonságosan feloszlatott alap-alakzatot.");
 }
 
 static void SaveEditorOverwritesWithBackup()
@@ -916,7 +922,9 @@ static void SessionSnapshotRoundTripsThroughJson()
             [session.HostPlayerId]),
         InnDeparture = new InnDepartureSnapshot("A csapat elhagyja a fogadót."),
         AdHocConversation = new AdHocConversationSnapshot(Guid.NewGuid(), "Elira", "Elf", "Tolvaj",
-            ["Elira: Emlékszem az erdőre."], "Hiányzik az otthonod?", ["Igen.", "Beszélj másról."])
+            ["Elira: Emlékszem az erdőre."], "Hiányzik az otthonod?", ["Igen.", "Beszélj másról."]),
+        Formation = PartyFormationRules.CreateDefault([leader.Id, companion.Id], leader.Id,
+            Direction.Down, PartyFormationState.Locked)
     };
     var json = JsonSerializer.Serialize(snapshot);
     var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
@@ -926,6 +934,7 @@ static void SessionSnapshotRoundTripsThroughJson()
            restored.LevelImage is { FileName: "teszt.png", AcknowledgedPlayerIds.Count: 1 } &&
            restored.InnDeparture is { Message: "A csapat elhagyja a fogadót." } &&
            restored.AdHocConversation is { CharacterName: "Elira", Choices.Count: 2 } &&
+           restored.Formation is { Facing: Direction.Down, State: PartyFormationState.Locked } &&
            restored.Sounds is [{ Sequence: 1, Effect: SoundEffect.OffensiveSpell,
                ListenerCharacterIds: [{ } listener] }] && listener == companion.Id &&
            restored.PartyGold == 777 && restored.Party.All(character => character.Gold == 777) &&
@@ -3180,6 +3189,44 @@ static void PursuitMemoryLastsThreeMoves()
     var restored = JsonSerializer.Deserialize<EnemySaveData>(JsonSerializer.Serialize(saved));
     Assert(restored?.PursuitMemoryRemainingMoves == 2,
         "Az üldözési memória nem élte túl a mentési JSON-körutat.");
+}
+
+static void PartyFormationPositionsFollowFacing()
+{
+    var leader = CreateCharacter("Alakzatvezer");
+    var right = CreateCharacter("Jobbszel");
+    var rearLeft = CreateCharacter("Hatso bal");
+    var rearRight = CreateCharacter("Hatso jobb");
+    var formation = new PartyFormationSnapshot(leader.Id, right.Id, rearLeft.Id, rearRight.Id,
+        Direction.Up, PartyFormationState.Locked);
+    var up = PartyFormationRules.Positions(formation, leader.Id, new Position(10, 10));
+    var turned = PartyFormationRules.Rotate(formation, clockwise: true);
+    var facingRight = PartyFormationRules.Positions(turned, leader.Id, new Position(10, 10));
+    Assert(up[leader.Id] == new Position(10, 10) && up[right.Id] == new Position(11, 10) &&
+           up[rearLeft.Id] == new Position(10, 11) && up[rearRight.Id] == new Position(11, 11) &&
+           facingRight[leader.Id] == new Position(10, 10) &&
+           facingRight[right.Id] == new Position(10, 11) &&
+           facingRight[rearLeft.Id] == new Position(9, 10) &&
+           facingRight[rearRight.Id] == new Position(9, 11),
+        "Az alakzat slotjai nem fordultak el helyesen a vezér körül.");
+}
+
+static void LockedFormationRejectsRemoteMovement()
+{
+    var (session, _, companion) = CreateSession();
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var error), error);
+    session.SetFormationMovementLocked(true);
+    var rejectedEvents = CollectEvents(session);
+    session.Submit(new MoveCharacterCommand(remote, 1, companion.Id, Direction.Right));
+    Assert(!session.TryReadCommand(out _) && rejectedEvents.OfType<GameCommandRejectedEvent>().Any(entry =>
+               entry.Reason.Contains("alakzat", StringComparison.OrdinalIgnoreCase)),
+        "A zart alakzatbol erkezo vendegmozgas atjutott a host validaciojan.");
+    session.SetFormationMovementLocked(false);
+    var move = new MoveCharacterCommand(remote, 2, companion.Id, Direction.Right);
+    session.Submit(move);
+    Assert(session.TryReadCommand(out var accepted) && accepted == move,
+        "Feloszlatott alakzat utan sem kapta vissza a vendeg a mozgast.");
 }
 
 static void TacticalDistanceUsesConsoleAspectRatio()

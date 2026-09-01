@@ -97,7 +97,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 13;
+    public const int CurrentVersion = 14;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -122,6 +122,7 @@ public static class GameSaveFormat
                 10 => MigrateVersion10To11(state),
                 11 => MigrateVersion11To12(state),
                 12 => MigrateVersion12To13(state),
+                13 => MigrateVersion13To14(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -214,6 +215,14 @@ public static class GameSaveFormat
         state.Version = 13;
         return state;
     }
+
+    private static GameSaveData MigrateVersion13To14(GameSaveData state)
+    {
+        // A 14-es formatum a negyhelyes, iranyitott party-alakzatot orzi.
+        state.Formation ??= PartyFormationRules.CreateDefault([], default);
+        state.Version = 14;
+        return state;
+    }
 }
 
 public sealed record LoadedGameSave(string Path, CharacterRoster Roster, GameSaveData State);
@@ -238,6 +247,7 @@ public sealed class GameSaveData
     public List<Guid> RemoteCharacterIds { get; set; } = [];
     public Position PlayerPosition { get; set; }
     public Direction LeaderFacing { get; set; } = Direction.Right;
+    public PartyFormationSnapshot? Formation { get; set; }
     public List<Position> LeaderTrail { get; set; } = [];
     public bool PartyHoldingPosition { get; set; }
     public bool PartyRegrouping { get; set; }

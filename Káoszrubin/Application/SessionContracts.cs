@@ -57,6 +57,9 @@ public sealed record CharacterActionCommand(PlayerId SenderId, long CommandId, C
 
 public enum LeaderAction
 {
+    ToggleFormation,
+    RotateFormationLeft,
+    RotateFormationRight,
     ToggleRegrouping,
     ToggleHoldPosition,
     ScatterParty,

@@ -1286,6 +1286,11 @@ public sealed class CoopGuestScreen
         if (!stillControlled && panel.Length > 41)
             panel[41] = new GuestTextLine("Megfigyelő mód", ConsoleColor.DarkYellow, ConsoleColor.Black);
 
+        if (!_spellInfoOpen && snapshot.Formation is { } formation && panel.Length > 40)
+            panel[40] = new GuestTextLine(ConsoleRenderer.FormationStatusText(formation),
+                formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan,
+                ConsoleColor.Black);
+
         if (!_spellInfoOpen)
         {
             var portrait = snapshot.Battle is { Enemy: { } battleEnemy }
