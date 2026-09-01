@@ -435,6 +435,8 @@ public sealed class CoopGuestScreen
                         BattleActionKind.Retreat,
                     ConsoleKey.H when battle.AllowedActions.Contains(BattleActionKind.SwapToRear) =>
                         BattleActionKind.SwapToRear,
+                    ConsoleKey.P when battle.AllowedActions.Contains(BattleActionKind.Pass) =>
+                        BattleActionKind.Pass,
                     _ => (BattleActionKind?)null
                 };
                 if (action is not null)
@@ -473,8 +475,7 @@ public sealed class CoopGuestScreen
         {
             if (action is CharacterAction.OpenDoor or CharacterAction.CloseOrLockDoor)
             {
-                var origins = DoorInteractionOrigins(snapshot, characterId,
-                    includeFormation: action == CharacterAction.OpenDoor);
+                var origins = DoorInteractionOrigins(snapshot, characterId, includeFormation: true);
                 var doors = origins.Count > 0 && snapshot.World is { } world
                     ? world.Doors.Select(door => door.Position)
                         .Where(candidate => origins.Any(origin => Manhattan(candidate, origin) == 1))

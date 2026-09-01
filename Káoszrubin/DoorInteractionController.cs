@@ -40,7 +40,8 @@ internal sealed class DoorInteractionController
         var assistingThief = !allowPartyAssistanceAndPrompts || CharacterClassRules.IsThief(selectedCharacter.CharacterClass.Id)
             ? null
             : FindNearbyNpcThief(maze, actorPosition);
-        var lockHandler = assistingThief?.Character ?? selectedCharacter;
+        var lockHandler = DoorInteractionRules.SelectLockHandler(selectedCharacter,
+            assistingThief?.Character, useKeyChoice);
         var isThief = CharacterClassRules.IsThief(lockHandler.CharacterClass.Id);
         var hasKey = lockHandler.Backpack.Any(item =>
             string.Equals(item?.Id, MiscItemIds.Key, StringComparison.OrdinalIgnoreCase));
@@ -51,7 +52,7 @@ internal sealed class DoorInteractionController
         {
             maze.SetDoorState(door, DoorState.Open);
             RefreshAfterDoorChanged(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter,
-                assistingThief is null
+                lockHandler == selectedCharacter
                     ? "A kulcs kinyitotta a zárat és eltört a használat során."
                     : $"{lockHandler.Name} kulcsa kinyitotta a zárat és eltört a használat során.",
                 ConsoleColor.Green);

@@ -68,6 +68,7 @@ var tests = new (string Name, Action Run)[]
     ("A taktikai távolság követi a konzolcellák kettő az egyhez arányát", TacticalDistanceUsesConsoleAspectRatio),
     ("A 2x2-es alakzat minden irányban a vezér slotjához igazodik", PartyFormationPositionsFollowFacing),
     ("Zárt alakzatban minden slot pozíciója ajtó-interakciós eredőpont", LockedFormationSharesDoorInteractionOrigins),
+    ("Az aktív karakter kulcsa elsőbbséget kap az alakzatos segítő tolvajjal szemben", FormationDoorKeyOwnerTakesPriority),
     ("Zárt alakzatból a coop vendég nem léphet ki", LockedFormationRejectsRemoteMovement),
     ("A csapatharcban az átlós ellenfél is közelharci távolságban van", DiagonalEnemyIsMeleeAdjacent),
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
@@ -79,7 +80,7 @@ var tests = new (string Name, Action Run)[]
     ("Az alakzat csak a fennálló lekötéseket megtartva mozdulhat", TeamBattleFormationMovementPreservesEngagements),
     ("A csapatharc célpontja akcióvesztés nélkül váltható", TeamBattleTargetCanBeChanged),
     ("A harcba hívott erősítés a következő körben lép be", TeamBattleReinforcementJoinsNextCycle),
-    ("A coop session validálja a csapatharcos mozgást és tárgyhasználatot", TeamBattleCommandsAreValidated),
+    ("A coop session validálja a csapatharcos mozgást, tárgyhasználatot és passzt", TeamBattleCommandsAreValidated),
     ("A fenyegetésbecslés felismeri az elszigetelt gyenge ellenfelet", EncounterThreatAssessmentRecognizesSafeFight),
     ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
@@ -3239,6 +3240,21 @@ static void LockedFormationSharesDoorInteractionOrigins()
         "Az ajtó-interakció hatósugara nem csak zárt alakzatban terjed ki a többi slot pozíciójára.");
 }
 
+static void FormationDoorKeyOwnerTakesPriority()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var actor = CreateCharacter("Kulcsos");
+    var thief = CreateCharacter("Segítő", characterClassId: CharacterClassIds.Tolvaj);
+    Assert(actor.AddToBackpack(data.GetItem(MiscItemIds.Key)),
+        "A tesztkarakter nem kapta meg a kulcsot.");
+
+    Assert(DoorInteractionRules.SelectLockHandler(actor, thief, useKeyChoice: null) == actor,
+        "A segítő tolvaj elvette az aktív nem tolvaj karakter kulcshasználatát.");
+    Assert(DoorInteractionRules.SelectLockHandler(CreateCharacter("Kulcstalan"), thief,
+               useKeyChoice: null) == thief,
+        "Kulcs hiányában nem a közeli segítő tolvaj kapta meg a zár kezelését.");
+}
+
 static void FormationAssemblySwapsFriendlyAvatars()
 {
     var maze = new Maze(7, 7);
@@ -3513,7 +3529,7 @@ static void TeamBattleCommandsAreValidated()
         "A visszavonulási parancsot elutasította a session.");
 
     session.SetBattlePrompt(battleId, 4, leader.Id,
-        [BattleActionKind.MoveFormation, BattleActionKind.SwapToRear]);
+        [BattleActionKind.MoveFormation, BattleActionKind.SwapToRear, BattleActionKind.Pass]);
     var formationMove = new BattleActionCommand(session.HostPlayerId, 5, leader.Id, battleId, 4,
         BattleActionKind.MoveFormation, Target: new Position(5, 3));
     Assert(session.Submit(formationMove) && session.TryReadCommand(out var acceptedFormationMove) &&
@@ -3523,6 +3539,14 @@ static void TeamBattleCommandsAreValidated()
         BattleActionKind.SwapToRear);
     Assert(session.Submit(swap) && session.TryReadCommand(out var acceptedSwap) && acceptedSwap == swap,
         "A Hátra! parancsot elutasította a session.");
+    var pass = new BattleActionCommand(session.HostPlayerId, 7, leader.Id, battleId, 4,
+        BattleActionKind.Pass);
+    Assert(session.Submit(pass) && session.TryReadCommand(out var acceptedPass) && acceptedPass == pass,
+        "A passz parancsot elutasította a session.");
+    var malformedPass = pass with { CommandId = 8, Target = new Position(9, 9) };
+    session.Submit(malformedPass);
+    Assert(!session.TryReadCommand(out _),
+        "A célponttal meghamisított passz parancs átjutott a session-validáción.");
 }
 
 static void EquipmentWeightAffectsMobility()

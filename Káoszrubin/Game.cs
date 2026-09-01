@@ -1997,8 +1997,7 @@ public sealed class Game
             Position? targetDoor = null;
             if (characterAction is CharacterAction.OpenDoor or CharacterAction.CloseOrLockDoor)
             {
-                var doors = AdjacentDoorPositions(SelectedCharacter, _player.Position,
-                    includeFormation: characterAction == CharacterAction.OpenDoor);
+                var doors = AdjacentDoorPositions(SelectedCharacter, _player.Position, includeFormation: true);
                 if (doors.Count == 1) targetDoor = doors[0];
                 else if (doors.Count > 1)
                 {
@@ -3146,7 +3145,7 @@ public sealed class Game
     private (Position Origin, Position? Target) ResolveDoorInteraction(LiveCharacter character,
         Position actorPosition, CharacterAction action, Position? requestedTarget)
     {
-        var includeFormation = action == CharacterAction.OpenDoor;
+        var includeFormation = action is CharacterAction.OpenDoor or CharacterAction.CloseOrLockDoor;
         var candidates = AdjacentDoorPositions(character, actorPosition, includeFormation);
         var target = requestedTarget ?? (candidates.Count == 1 ? candidates[0] : null);
         if (target is not { } targetPosition || !candidates.Contains(targetPosition))
@@ -5108,6 +5107,11 @@ public sealed class Game
             SubmitLocalBattleCommand(BattleActionKind.Retreat);
             return;
         }
+        if (key.Key == ConsoleKey.P && allowed.Contains(BattleActionKind.Pass))
+        {
+            SubmitLocalBattleCommand(BattleActionKind.Pass);
+            return;
+        }
         if (key.Key == ConsoleKey.Spacebar && allowed.Contains(BattleActionKind.PhysicalAttack))
         {
             var targetEnemy = battle.SelectedTargetEnemy() ??
@@ -6809,6 +6813,13 @@ public sealed class Game
                     return;
                 }
                 break;
+            case BattleActionKind.Pass:
+                var passStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                PresentBattleEntries([new BattleLogEntry(
+                    $"{character.Name} kivár és nem cselekszik ebben a körben.{passStatus}",
+                    BattleLogKind.Information)]);
+                AdvanceTeamBattleTurn(battle);
+                break;
             case BattleActionKind.Retreat:
                 ExecuteTeamRetreat(battle, character);
                 return;
@@ -7157,11 +7168,11 @@ public sealed class Game
         var reachable = ReachableTeamEnemies(battle, character).ToArray();
         var adjacent = AdjacentTeamEnemies(battle, character).ToArray();
         if (battle.Turns.Cycle == 1 && character.Id == battle.InitiatingCharacterId)
-            return reachable.Length > 0 ? [BattleActionKind.PhysicalAttack] :
+            return reachable.Length > 0 ? [BattleActionKind.PhysicalAttack, BattleActionKind.Pass] :
                 battle.HasActiveFormation && character == SelectedCharacter
-                    ? [BattleActionKind.MoveFormation]
-                    : [BattleActionKind.Move];
-        var actions = new List<BattleActionKind>();
+                    ? [BattleActionKind.MoveFormation, BattleActionKind.Pass]
+                    : [BattleActionKind.Move, BattleActionKind.Pass];
+        var actions = new List<BattleActionKind> { BattleActionKind.Pass };
         if (reachable.Length > 0)
         {
             actions.Add(BattleActionKind.PhysicalAttack);
@@ -7219,7 +7230,8 @@ public sealed class Game
                 actions.Contains(BattleActionKind.UseItem) ? "U — tárgy használata" : null,
                 actions.Contains(BattleActionKind.CastSpell) ? "V/F1-F8 — varázslat" : null,
                 actions.Contains(BattleActionKind.TurnUndead) ? "T — halottűzés" : null,
-                actions.Contains(BattleActionKind.Retreat) ? "R — visszavonulás" : null
+                actions.Contains(BattleActionKind.Retreat) ? "R — visszavonulás" : null,
+                actions.Contains(BattleActionKind.Pass) ? "P — passz" : null
             }.Where(option => option is not null));
         message = $"{battle.Turns.Cycle}. kör, {character.Name} ({battle.Current.MovementAllowance} mozgás) — {message}";
         RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow, [character.Id]);

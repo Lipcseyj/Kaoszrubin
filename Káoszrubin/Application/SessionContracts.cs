@@ -108,6 +108,7 @@ public enum BattleActionKind
     Move,
     MoveFormation,
     SwapToRear,
+    Pass,
     SelectTarget,
     PhysicalAttack,
     AdvanceEnemyTurn,
