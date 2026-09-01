@@ -115,3 +115,30 @@ internal sealed class BattleRuntimeContext
     public bool KnightProtectionAvailable { get; set; }
     public LiveCharacter? KnightProtector { get; set; }
 }
+
+/// <summary>Egy karakter csapatharcon belüli, a teljes összecsapás alatt megőrzött harci állapota.</summary>
+public sealed class TeamCharacterBattleRuntime
+{
+    internal TeamCharacterBattleRuntime(LiveCharacter character) => Context = new BattleRuntimeContext(character);
+    internal BattleRuntimeContext Context { get; }
+    public BattleTactic? Tactic => Context.Tactic;
+    public bool RequiresTacticSelection => Context.RequiresTacticSelection && Context.Tactic is null;
+
+    public bool TryChooseTactic(LiveCharacter character, BattleTactic tactic)
+    {
+        if (!RequiresTacticSelection) return false;
+        var valid = character.CharacterClass.Id switch
+        {
+            CharacterClassIds.Harcos => tactic is BattleTactic.FighterPrecise or BattleTactic.FighterPowerful or BattleTactic.FighterDefensive,
+            CharacterClassIds.Tolvaj => tactic is BattleTactic.ThiefAmbush or BattleTactic.ThiefObserve or BattleTactic.ThiefPoison,
+            _ => false
+        };
+        if (!valid) return false;
+        Context.Tactic = tactic;
+        Context.AmbushAvailable |= tactic == BattleTactic.ThiefAmbush;
+        return true;
+    }
+}
+
+public sealed record TeamCombatantPreparation(TeamCharacterBattleRuntime Runtime, int Initiative,
+    IReadOnlyList<BattleLogEntry> Entries);

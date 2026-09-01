@@ -102,9 +102,11 @@ public sealed record PickUpGroundItemCommand(PlayerId SenderId, long CommandId, 
 
 public enum BattleActionKind
 {
+    Move,
     PhysicalAttack,
     AdvanceEnemyTurn,
     CastSpell,
+    UseItem,
     TurnUndead,
     FighterPrecise,
     FighterPowerful,
@@ -117,7 +119,8 @@ public enum BattleActionKind
 /// <summary>A kliens választása, nem kész sebzés- vagy dobáseredmény.</summary>
 public sealed record BattleActionCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     BattleId BattleId, long TurnId, BattleActionKind Action, string? SpellId = null,
-    int? CastingItemSlotIndex = null, Position? Target = null)
+    int? CastingItemSlotIndex = null, Position? Target = null,
+    WorldEntityId? TargetEnemyId = null, int? BackpackIndex = null)
     : GameCommand(SenderId, CommandId, CharacterId);
 
 public sealed record CastExplorationSpellCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,

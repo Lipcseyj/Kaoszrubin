@@ -105,6 +105,133 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return new BattleStartResult(state, entries);
     }
 
+    public TeamCombatantPreparation PrepareTeamCharacter(LiveCharacter character)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+        var entries = new List<BattleLogEntry>();
+        var runtime = new TeamCharacterBattleRuntime(character);
+        ApplyBattleStartPerks(character, entries.Add);
+        var statusCosts = character.ApplyBattleStartStatusEffects();
+        if (statusCosts.VitalityLost > 0 || statusCosts.ManaLost > 0)
+        {
+            var costs = new List<string>();
+            if (statusCosts.VitalityLost > 0) costs.Add($"🍖 nulla élelem: ❤️ -{statusCosts.VitalityLost} HP");
+            if (statusCosts.ManaLost > 0) costs.Add($"💧 szomjúság: 🔷 -{statusCosts.ManaLost} manna");
+            entries.Add(new BattleLogEntry($"{character.Name} csatakezdő állapothatása — {string.Join("; ", costs)}.",
+                BattleLogKind.Information));
+        }
+
+        var weapon = character.WeaponSlots.FirstOrDefault(item =>
+            item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
+        var family = WeaponFamilies.ForWeapon(weapon);
+        var proficiencyBonus = family switch
+        {
+            WeaponFamilies.Dagger when character.WeaponProficiencyRankFor(family) is not null => 2,
+            WeaponFamilies.Polearm when character.WeaponProficiencyRankFor(family) is not null => 3,
+            _ => 0
+        };
+        var mobility = CharacterMobilityRules.Evaluate(character);
+        var perkBonus = character.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
+        var totalBase = mobility.InitiativeBase + perkBonus + proficiencyBonus +
+                        character.GetMagicItemBonus(MagicItemEffect.Initiative) +
+                        character.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus) -
+                        character.StatusInitiativePenalty;
+        var roll = RollInitiative(totalBase);
+        entries.Add(new BattleLogEntry(
+            $"⚡ {character.Name} kezdeményezése: {totalBase} {roll.ModifierText} = {roll.Total}.",
+            BattleLogKind.Information));
+        return new TeamCombatantPreparation(runtime, roll.Total, entries);
+    }
+
+    public int RollTeamEnemyInitiative(Enemy enemy)
+    {
+        ArgumentNullException.ThrowIfNull(enemy);
+        return RollInitiative(enemy.EffectiveSpeed +
+            MonsterAbilityValue(enemy.Definition, MonsterAbilityEffect.InitiativeBonus)).Total;
+    }
+
+    public void BeginTeamCharacterTurn(LiveCharacter character)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+        character.AdvanceSpellEffects();
+    }
+
+    public string FinishTeamCharacterAction(LiveCharacter character, TeamCharacterBattleRuntime runtime)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+        ArgumentNullException.ThrowIfNull(runtime);
+        var ticks = character.ApplyTurnEndStatusEffects(_random);
+        if (runtime.Context.BarbarianRageActionsRemaining > 0)
+            runtime.Context.BarbarianRageActionsRemaining--;
+        return ticks.Count == 0 ? string.Empty :
+            $" Állapothatások: {string.Join(", ", ticks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" +
+                (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
+    }
+
+    public BattleLogEntry ResolveTeamCharacterAttack(LiveCharacter attacker,
+        TeamCharacterBattleRuntime runtime, Enemy defender, int actionNumber)
+    {
+        ArgumentNullException.ThrowIfNull(attacker);
+        ArgumentNullException.ThrowIfNull(runtime);
+        ArgumentNullException.ThrowIfNull(defender);
+        var definition = defender.Definition with { HitPoints = defender.CurrentHitPoints };
+        var count = attacker.HasPerk(PerkIds.BarbarianBerserkerRage) &&
+                    attacker.CurrentVitality * 2 < attacker.MaximumVitality ? 2 : 1;
+        var messages = new List<string>();
+        var critical = false;
+        for (var index = 0; index < count && definition.HitPoints is > 0; index++)
+        {
+            var attack = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed);
+            critical |= attack.Critical;
+            definition = ApplyAttack(definition, attack);
+            messages.Add(attack.Message);
+            if (index == 0 && attack.Hit && definition.HitPoints is > 0 &&
+                attacker.HasPerk(PerkIds.FighterSteelStorm) && _random.NextDouble() < 0.35)
+            {
+                var extra = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed);
+                critical |= extra.Critical;
+                definition = ApplyAttack(definition, extra);
+                messages.Add($"Acélvihar: {extra.Message}");
+            }
+        }
+        defender.SetCurrentHitPoints(definition.HitPoints ?? 0);
+        var statusText = FinishTeamCharacterAction(attacker, runtime);
+        return new BattleLogEntry(
+            $"{actionNumber}. akció — {attacker.Name} támadja {defender.Name}-t. {string.Join(" ", messages)} " +
+            $"{defender.Name} ❤️ {defender.CurrentHitPoints}/{defender.Definition.HitPoints}.{statusText}",
+            critical ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack);
+    }
+
+    public BattleLogEntry ResolveTeamEnemyAction(Enemy attacker, LiveCharacter defender,
+        TeamCharacterBattleRuntime defenderRuntime, int actionNumber)
+    {
+        ArgumentNullException.ThrowIfNull(attacker);
+        ArgumentNullException.ThrowIfNull(defender);
+        ArgumentNullException.ThrowIfNull(defenderRuntime);
+        var spellTick = attacker.AdvanceSpellEffects(_random);
+        if (spellTick.Damage > 0) attacker.ReceiveSpellDamage(spellTick.Damage);
+        var effectText = spellTick.Notes.Count == 0 ? string.Empty : $" {string.Join(", ", spellTick.Notes)}.";
+        if (attacker.CurrentHitPoints <= 0)
+            return new BattleLogEntry($"{actionNumber}. akció — {attacker.Name} elbukik a varázshatásoktól.{effectText}",
+                BattleLogKind.PlayerAttack);
+        if (spellTick.SkipAction)
+            return new BattleLogEntry($"{actionNumber}. akció — {attacker.Name} varázshatás miatt kihagyja az akcióját.{effectText}",
+                BattleLogKind.Information);
+
+        var attack = EnemyAttack(attacker.Definition, defender, defenderRuntime.Context, attacker.EffectiveSpeed);
+        var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : string.Empty;
+        return new BattleLogEntry(
+            $"{actionNumber}. akció — {attacker.Name} támadja {defender.Name}-t. {attack.Message} {survival} " +
+            $"{defender.Name} ❤️ {defender.CurrentVitality}/{defender.MaximumVitality}.{effectText}",
+            attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack);
+    }
+
+    public void SetTeamKnightProtection(TeamCharacterBattleRuntime runtime, LiveCharacter knight)
+    {
+        runtime.Context.KnightProtector = knight;
+        runtime.Context.KnightProtectionAvailable = true;
+    }
+
     /// <summary>
     /// Pontosan egy harci akciót old fel. Játékoskörben a null akció fizikai támadás; ellenfélkörben
     /// játékosakció nem adható. A supportDamage ugyanúgy az akció előtt érvényesül, mint a régi ciklusban.

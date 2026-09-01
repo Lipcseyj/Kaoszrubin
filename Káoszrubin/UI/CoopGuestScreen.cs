@@ -1,4 +1,5 @@
 using KaoszRubin.Application;
+using KaoszRubin.Combat;
 using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Inventory;
@@ -371,8 +372,7 @@ public sealed class CoopGuestScreen
                 command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                     battle.BattleId, battle.TurnId, tacticAction);
             }
-            else
-            if (key == ConsoleKey.V && battle.AllowedActions.Contains(BattleActionKind.CastSpell))
+            else if (key == ConsoleKey.V && battle.AllowedActions.Contains(BattleActionKind.CastSpell))
             {
                 _battleSpellMenuOpen = true;
                 _spellCastingInBattle = true;
@@ -380,25 +380,46 @@ public sealed class CoopGuestScreen
                 Interlocked.Exchange(ref _redrawRequested, 1);
                 return;
             }
-            if (TryGetFunctionKeyIndex(key, out var quickSlot) &&
+            else if (TryGetFunctionKeyIndex(key, out var quickSlot) &&
                 battle.SpellOptions?.FirstOrDefault(option => option.QuickSlot == quickSlot) is { } quickSpell)
             {
                 command = BeginSpellTargeting(client, characterId, snapshot, quickSpell);
                 if (command is null) return;
             }
+            else if (TryGetDirection(key, out var battleDirection) &&
+                     battle.AllowedActions.Contains(BattleActionKind.Move))
+            {
+                var participant = battle.Participants?.FirstOrDefault(value =>
+                    value.Id == CombatantId.ForCharacter(characterId));
+                var target = participant?.Position ?? snapshot.Party
+                    .FirstOrDefault(value => value.CharacterId == characterId)?.Position ?? new Position(0, 0);
+                var movement = participant?.MovementAllowance ?? 1;
+                for (var step = 0; step < movement; step++) target += battleDirection;
+                command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                    battle.BattleId, battle.TurnId, BattleActionKind.Move, Target: target);
+            }
+            else if (key == ConsoleKey.U && battle.AllowedActions.Contains(BattleActionKind.UseItem) &&
+                     battle.ItemOptions?.FirstOrDefault() is { } item)
+            {
+                command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                    battle.BattleId, battle.TurnId, BattleActionKind.UseItem, BackpackIndex: item.BackpackIndex);
+            }
             else
             {
-            var action = key switch
-            {
-                ConsoleKey.Spacebar when battle.AllowedActions.Contains(BattleActionKind.AdvanceEnemyTurn) =>
-                    BattleActionKind.AdvanceEnemyTurn,
-                ConsoleKey.Spacebar => BattleActionKind.PhysicalAttack,
-                ConsoleKey.T => BattleActionKind.TurnUndead,
-                _ => (BattleActionKind?)null
-            };
-            if (action is not null)
-                command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-                    battle.BattleId, battle.TurnId, action.Value);
+                var targetEnemyId = battle.Enemy.EntityId;
+                var action = key switch
+                {
+                    ConsoleKey.Spacebar when battle.AllowedActions.Contains(BattleActionKind.AdvanceEnemyTurn) =>
+                        BattleActionKind.AdvanceEnemyTurn,
+                    ConsoleKey.Spacebar when battle.AllowedActions.Contains(BattleActionKind.PhysicalAttack) =>
+                        BattleActionKind.PhysicalAttack,
+                    ConsoleKey.T when battle.AllowedActions.Contains(BattleActionKind.TurnUndead) =>
+                        BattleActionKind.TurnUndead,
+                    _ => (BattleActionKind?)null
+                };
+                if (action is not null)
+                    command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                        battle.BattleId, battle.TurnId, action.Value, TargetEnemyId: targetEnemyId);
             }
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && key == ConsoleKey.V)
@@ -1281,6 +1302,15 @@ public sealed class CoopGuestScreen
             footer[index] = messageIndex < messages.Length && messageIndex < messageEnd
                 ? messages[messageIndex]
                 : new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
+        }
+        if (snapshot.Battle is { Participants.Count: > 0 } activeBattle)
+        {
+            var queue = string.Join(" › ", activeBattle.Participants
+                .OrderByDescending(participant => participant.Initiative)
+                .Take(6)
+                .Select(participant => (participant.IsCurrent ? "▶" : string.Empty) + participant.Name));
+            footer[0] = new GuestTextLine($"⚡ {activeBattle.Cycle}. kör: {queue}",
+                ConsoleColor.Yellow, ConsoleColor.Black);
         }
         if (_targetedBattleSpell is { } targeted && _spellTargetCursor is { } cursor)
             footer[^1] = new GuestTextLine($"╳ {targeted.Name} — {ConsoleRenderer.SpellTargetName(targeted.TargetType)}, " +

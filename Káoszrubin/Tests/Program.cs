@@ -66,6 +66,8 @@ var tests = new (string Name, Action Run)[]
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A taktikai távolság követi a konzolcellák kettő az egyhez arányát", TacticalDistanceUsesConsoleAspectRatio),
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
+    ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
+    ("A coop session validálja a csapatharcos mozgást és tárgyhasználatot", TeamBattleCommandsAreValidated),
     ("A fenyegetésbecslés felismeri az elszigetelt gyenge ellenfelet", EncounterThreatAssessmentRecognizesSafeFight),
     ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
@@ -3199,8 +3201,10 @@ static void TacticalBattleStateOrdersEligibleParticipants()
     Assert(state.InitiativeOrder.Select(value => value.Id).SequenceEqual([first.Id, second.Id]) &&
            state.IsInsideBattleArea(new Position(20, 10)),
         "A nyitószakaszban nem csak az azonnal jogosult résztvevők kerültek sorra.");
-    state.AdvanceCycle();
-    state.AdvanceCycle();
+    Assert(state.StartTurns().Id == first.Id && state.AdvanceTurn().Id == second.Id &&
+           state.AdvanceTurn().Id == first.Id && state.AdvanceTurn().Id == second.Id &&
+           state.AdvanceTurn().Id == late.Id,
+        "Az első két ciklus nem kizárólag a kezdeményező párost léptette.");
     Assert(state.InitiativeOrder.Select(value => value.Id).SequenceEqual([late.Id, first.Id, second.Id]),
         "A harmadik körben nem lépett be vagy nem kezdeményezés szerint rendeződött a távoli résztvevő.");
 }
@@ -3217,6 +3221,38 @@ static void EncounterThreatAssessmentRecognizesSafeFight()
     Assert(safe.IsOverwhelminglySafe && safe.HostileToFriendlyRatio <= 0.25 &&
            !dangerous.IsOverwhelminglySafe && dangerous.HostilePower > safe.HostilePower,
         "A fenyegetésbecslés nem különíti el a jelentéktelen ellenfelet a bosstól.");
+}
+
+static void TeamBattleAttackUsesExistingCombatRules()
+{
+    var system = CreateBattleSystem(1701);
+    var fighter = CreateCharacter("Csapatharcos", 30);
+    var preparation = system.PrepareTeamCharacter(fighter);
+    Assert(preparation.Runtime.TryChooseTactic(fighter, BattleTactic.FighterPrecise),
+        "A harcos nem tudta kiválasztani a meglévő pontos taktikát.");
+    var enemy = CreateEnemy(30, 2, 1);
+    system.BeginTeamCharacterTurn(fighter);
+    var entry = system.ResolveTeamCharacterAttack(fighter, preparation.Runtime, enemy, 1);
+    Assert(entry.Message.Contains(fighter.Name, StringComparison.Ordinal) &&
+           entry.Message.Contains(enemy.Name, StringComparison.Ordinal) && enemy.CurrentHitPoints <= 30,
+        "A csapatharcos támadás nem a meglévő találat/sebzés naplóformátumot és HP-kezelést használja.");
+}
+
+static void TeamBattleCommandsAreValidated()
+{
+    var (session, leader, _) = CreateSession();
+    var battleId = BattleId.New();
+    session.SetBattlePrompt(battleId, 1, leader.Id, [BattleActionKind.Move]);
+    var move = new BattleActionCommand(session.HostPlayerId, 1, leader.Id, battleId, 1,
+        BattleActionKind.Move, Target: new Position(4, 3));
+    Assert(session.Submit(move) && session.TryReadCommand(out var acceptedMove) && acceptedMove == move,
+        "A szemantikus csapatharcos mozgási parancsot elutasította a session.");
+
+    session.SetBattlePrompt(battleId, 2, leader.Id, [BattleActionKind.UseItem]);
+    var use = new BattleActionCommand(session.HostPlayerId, 2, leader.Id, battleId, 2,
+        BattleActionKind.UseItem, BackpackIndex: 3);
+    Assert(session.Submit(use) && session.TryReadCommand(out var acceptedUse) && acceptedUse == use,
+        "A csapatharcos tárgyhasználati parancsot elutasította a session.");
 }
 
 static void EquipmentWeightAffectsMobility()

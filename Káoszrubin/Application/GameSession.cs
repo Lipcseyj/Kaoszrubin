@@ -593,13 +593,23 @@ public sealed class GameSession
 
     private static bool HasValidBattleActionShape(BattleActionCommand command) => command.Action switch
     {
-        BattleActionKind.PhysicalAttack or BattleActionKind.AdvanceEnemyTurn or BattleActionKind.TurnUndead or
+        BattleActionKind.AdvanceEnemyTurn or BattleActionKind.TurnUndead or
         BattleActionKind.FighterPrecise or BattleActionKind.FighterPowerful or
         BattleActionKind.FighterDefensive or BattleActionKind.ThiefAmbush or
         BattleActionKind.ThiefObserve or BattleActionKind.ThiefPoison =>
-            command.SpellId is null && command.CastingItemSlotIndex is null && command.Target is null,
+            command.SpellId is null && command.CastingItemSlotIndex is null && command.Target is null &&
+            command.TargetEnemyId is null && command.BackpackIndex is null,
+        BattleActionKind.Move => command.Target is not null && command.SpellId is null &&
+                                 command.CastingItemSlotIndex is null && command.TargetEnemyId is null &&
+                                 command.BackpackIndex is null,
+        BattleActionKind.PhysicalAttack => command.SpellId is null && command.CastingItemSlotIndex is null &&
+                                           command.Target is null && command.BackpackIndex is null,
+        BattleActionKind.UseItem => command.BackpackIndex is >= 0 and < LiveCharacter.MaximumBackpackItemCount &&
+                                    command.SpellId is null && command.CastingItemSlotIndex is null &&
+                                    command.Target is null && command.TargetEnemyId is null,
         BattleActionKind.CastSpell => !string.IsNullOrWhiteSpace(command.SpellId) && command.Target is not null &&
-                                      command.CastingItemSlotIndex is null or >= 0 and < LiveCharacter.MaximumMagicItemCount,
+                                      command.CastingItemSlotIndex is null or >= 0 and < LiveCharacter.MaximumMagicItemCount &&
+                                      command.BackpackIndex is null,
         _ => false
     };
 

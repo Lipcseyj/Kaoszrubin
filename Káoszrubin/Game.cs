@@ -172,6 +172,8 @@ public sealed class Game
     private readonly GameSession _session;
     private long _localCommandId;
     private BattleState? _activeBattleState;
+    private TeamBattleEncounter? _activeTeamBattle;
+    private long _preparedTeamBattleTurnId;
     private int _pendingBattleSupportDamage;
     private bool _battleStarted;
     private bool _gameOver;
@@ -228,6 +230,7 @@ public sealed class Game
     public LiveCharacter SelectedCharacter { get; }
     public GameSession Session => _session;
     public BattleState? ActiveBattle => _activeBattleState;
+    public TeamBattleEncounter? ActiveTeamBattle => _activeTeamBattle;
 
     public SessionSnapshot CreateSessionSnapshot()
     {
@@ -240,7 +243,11 @@ public sealed class Game
         foreach (var member in _maze.PartyMembers) positions[member.Character.Id] = member.Position;
 
         BattleSnapshot? battle = null;
-        if (_activeBattleState is { IsCompleted: false } state)
+        if (_activeTeamBattle is { IsCompleted: false } teamBattle)
+        {
+            battle = CreateTeamBattleSnapshot(teamBattle);
+        }
+        else if (_activeBattleState is { IsCompleted: false } state)
         {
             var battleCharacter = state.Player;
             battle = new BattleSnapshot(state.Id, state.TurnId, state.Round, state.IsPlayerTurn,
@@ -254,7 +261,9 @@ public sealed class Game
                 GetBattleTacticOptions(state));
         }
         var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_difficultyLevel, _maze.LevelName, positions,
-            battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState)));
+            battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState,
+                _activeTeamBattle?.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
+                    .Select(enemy => enemy.Id).ToHashSet())));
         var followers = _maze.PartyMembers
             .Where(member => member.IsTemporaryFollower)
             .Select(member => member.Character)
@@ -304,6 +313,69 @@ public sealed class Game
             }).Concat(followerSnapshots).ToArray()
         };
     }
+
+    private BattleSnapshot CreateTeamBattleSnapshot(TeamBattleEncounter battle)
+    {
+        var current = battle.Current;
+        var actingCharacter = battle.CurrentCharacter;
+        var focusEnemy = battle.CurrentEnemy ?? (actingCharacter is null ? null :
+            AdjacentTeamEnemies(battle, actingCharacter).FirstOrDefault()) ??
+            battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
+                .OrderBy(enemy => TacticalDistance.Between(current.Position, enemy.Position)).First();
+        var actingCharacterId = actingCharacter?.Id ?? SelectedCharacter.Id;
+        var allowed = actingCharacter is null
+            ? new[] { BattleActionKind.AdvanceEnemyTurn }
+            : GetTeamAllowedBattleActions(battle, actingCharacter, focusEnemy);
+        var spellOptions = actingCharacter is not null && allowed.Contains(BattleActionKind.CastSpell)
+            ? GetSpellOptions(actingCharacter, GetCasterPosition(actingCharacter), focusEnemy, inCombat: true)
+            : null;
+        var participants = battle.Turns.Participants.Select(participant =>
+        {
+            var character = battle.CharacterFor(participant.Id);
+            var enemy = battle.EnemyFor(participant.Id);
+            return new TacticalBattleParticipantSnapshot(participant.Id,
+                character?.Name ?? enemy?.Name ?? participant.Id.Value,
+                participant.Side, participant.Kind, participant.Position, participant.InitiativeBase,
+                participant.MovementAllowance, participant.EligibleFromCycle, participant.State,
+                character?.CurrentVitality ?? enemy?.CurrentHitPoints ?? 0,
+                character?.MaximumVitality ?? enemy?.Definition.HitPoints ?? 0,
+                participant.Id == current.Id);
+        }).OrderByDescending(participant => participant.Initiative).ToArray();
+        return new BattleSnapshot(battle.Id, battle.Turns.TurnId, battle.ActionNumber,
+            actingCharacter is not null, actingCharacterId,
+            new SessionEnemySnapshot(focusEnemy.Definition.Id, focusEnemy.Name, focusEnemy.Position,
+                focusEnemy.CurrentHitPoints, focusEnemy.Definition.HitPoints ?? focusEnemy.CurrentHitPoints,
+                focusEnemy.Id),
+            allowed, spellOptions,
+            actingCharacter is null ? null : GetTeamBattleTacticOptions(battle, actingCharacter, focusEnemy),
+            battle.Turns.Cycle, participants,
+            actingCharacter is null ? null : GetBattleItemOptions(actingCharacter));
+    }
+
+    private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(LiveCharacter character) =>
+        Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
+            .Select(index => (Index: index, Item: character.GetInventoryItem(InventorySlotKind.Backpack, index),
+                Quantity: character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index)))
+            .Where(entry => entry.Item is MiscItemDefinition item && entry.Quantity > 0 &&
+                            IsTeamBattleItemUseful(character, item))
+            .Select(entry => new BattleItemOptionSnapshot(entry.Index, entry.Item!.Id, entry.Item.Name, entry.Quantity))
+            .ToArray();
+
+    private static bool IsTeamBattleItemUseful(LiveCharacter character, MiscItemDefinition item) =>
+        item.Id == MiscItemIds.HerbalTea
+            ? character.WaterLevel < 100 || character.CurrentVitality < character.MaximumVitality
+            : IsInitiativeDrink(item) || item.Effect switch
+            {
+                ConsumableEffect.Food => character.FoodLevel < 100,
+                ConsumableEffect.Water => character.WaterLevel < 100,
+                ConsumableEffect.Heal => character.CurrentVitality < character.MaximumVitality,
+                ConsumableEffect.RestoreMana => character.UsesMana && character.CurrentMana < character.MaximumMana,
+                ConsumableEffect.CurePoison => character.HasStatus(CharacterStatusIds.Poisoned),
+                ConsumableEffect.CureDisease => character.HasStatus(CharacterStatusIds.Diseased),
+                ConsumableEffect.StopBleeding => character.HasStatus(CharacterStatusIds.Bleeding),
+                ConsumableEffect.Vision => true,
+                _ => false
+            };
 
     private static CharacterHistorySnapshot CreateCharacterHistory(LiveCharacter character) => new(
         character.MonsterKills.Select(pair => new MonsterKillSnapshot(pair.Key, pair.Value)).ToArray(),
@@ -595,7 +667,7 @@ public sealed class Game
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
-                    if (_activeBattleState is not null)
+                    if (_activeBattleState is not null || _activeTeamBattle is not null)
                     {
                         HandleLocalBattleInput(keyInfo);
                         continue;
@@ -1768,6 +1840,11 @@ public sealed class Game
 
         // A társak és a követők továbbra sem átjárhatók, de az ütközés nem indít párbeszédet.
         if (_maze.GetObjectAt(targetPosition) is PartyMemberAvatar) return;
+        if (_maze.GetEnemyAt(targetPosition) is { } encounteredEnemy)
+        {
+            StartBattle(encounteredEnemy);
+            return;
+        }
         if (_maze.GetWorldNpcAt(targetPosition) is { } npc)
         {
             if (!EncounterWorldNpc(npc)) return;
@@ -2774,6 +2851,13 @@ public sealed class Game
 
     private void ContinueDisconnectedRemoteBattleAsNpc()
     {
+        if (_activeTeamBattle is { IsCompleted: false } teamBattle &&
+            teamBattle.CurrentCharacter is { } teamCharacter &&
+            !_session.IsHumanControlled(teamCharacter.Id))
+        {
+            ContinueTeamBattle();
+            return;
+        }
         if (_activeBattleState is not { IsCompleted: false } state ||
             state.PlayerCharacterId == SelectedCharacter.Id ||
             _session.IsHumanControlled(state.PlayerCharacterId)) return;
@@ -3770,7 +3854,7 @@ public sealed class Game
     private bool TryStartAdHocFollowerConversation(DateTime now)
     {
         if (_session.Phase != GameSessionPhase.Exploration || _characterSheetFocused ||
-            _activeBattleState is not null || _activeNarrative is not null ||
+            _activeBattleState is not null || _activeTeamBattle is not null || _activeNarrative is not null ||
             _adHocConversationMazeLevel == _mazeLevel ||
             now - _lastAdHocConversationUtc < TimeSpan.FromHours(1) ||
             _maze.Enemies.Any(enemy => _fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position)) ||
@@ -4066,16 +4150,17 @@ public sealed class Game
         var destination = previousPosition + direction;
         if (_maze.GetPartyMemberAt(destination) is { } encounteredMember)
         {
-            if (_session.IsHumanControlled(encounteredMember.Character.Id))
-                StartBattle(encounteredMember, enemy);
-            else
-                ResolveNpcBattle(encounteredMember, enemy);
+            StartBattle(encounteredMember, enemy);
+            return true;
+        }
+        if (destination == _player.Position)
+        {
+            StartBattle(enemy);
             return true;
         }
         if (!_maze.TryMoveEnemy(enemy, destination)) return false;
         RevealFor(SelectedCharacter, _player.Position);
         _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
-        if (enemy.Position == _player.Position) StartBattle(enemy);
         return true;
     }
 
@@ -4142,7 +4227,11 @@ public sealed class Game
                 MovePartyMemberTowardLeader(member);
                 continue;
             }
-            if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member)) continue;
+            if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member))
+            {
+                if (_battleStarted) return;
+                continue;
+            }
             var previous = member.Position;
             var next = ChoosePartyMemberStep(member);
             if (next is null || !CanEnterTrap(member.Character, next.Value) ||
@@ -4152,7 +4241,7 @@ public sealed class Game
             _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
             CheckBossDiscoveryAt(newlyRevealed);
             TriggerTrapAt(member.Character, member.Position);
-            if (CanActivelyAttack(member)) TryResolveAdjacentNpcBattle(member);
+            if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member) && _battleStarted) return;
         }
     }
 
@@ -4268,7 +4357,7 @@ public sealed class Game
         var enemy = Directions.Select(direction => _maze.GetEnemyAt(member.Position + direction))
             .FirstOrDefault(candidate => candidate is not null);
         if (enemy is null) return false;
-        ResolveNpcBattle(member, enemy);
+        StartBattle(member, enemy);
         return true;
     }
 
@@ -4530,6 +4619,11 @@ public sealed class Game
 
     private void HandleLocalBattleInput(ConsoleKeyInfo key)
     {
+        if (_activeTeamBattle is { } teamBattle)
+        {
+            HandleLocalTeamBattleInput(teamBattle, key);
+            return;
+        }
         if (_activeBattleState is null || _activeBattleState.IsCompleted) return;
         if (_activeBattleState.PlayerCharacterId != SelectedCharacter.Id) return;
         if (IsHelpShortcut(key))
@@ -4621,13 +4715,104 @@ public sealed class Game
         SubmitLocalBattleCommand(BattleActionKind.CastSpell, spell.Id, castingItemSlotIndex, target);
     }
 
-    private void SubmitLocalBattleCommand(BattleActionKind action, string? spellId = null,
-        int? castingItemSlotIndex = null, Position? target = null)
+    private void HandleLocalTeamBattleInput(TeamBattleEncounter battle, ConsoleKeyInfo key)
     {
-        if (_activeBattleState is null) return;
+        if (battle.IsCompleted) return;
+        if (IsHelpShortcut(key))
+        {
+            ShowInGameHelp();
+            _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+            ContinueTeamBattle();
+            return;
+        }
+        if (IsSaveGameShortcut(key))
+        {
+            _saveAfterBattle = true;
+            _renderer.DrawInventoryMessage("Mentés kérve: a csapatharc lezárása után elkészül.", ConsoleColor.Yellow);
+            return;
+        }
+        if (battle.CurrentEnemy is not null)
+        {
+            if (key.Key == ConsoleKey.Spacebar)
+                SubmitLocalBattleCommand(BattleActionKind.AdvanceEnemyTurn);
+            return;
+        }
+        if (battle.CurrentCharacter is not { } character || character != SelectedCharacter) return;
+        var enemy = ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
+        var allowed = GetTeamAllowedBattleActions(battle, character, enemy);
+        if (battle.RuntimeFor(character).RequiresTacticSelection && key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 or
+                ConsoleKey.D2 or ConsoleKey.NumPad2 or ConsoleKey.D3 or ConsoleKey.NumPad3)
+        {
+            var option = key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 ? 1 :
+                key.Key is ConsoleKey.D2 or ConsoleKey.NumPad2 ? 2 : 3;
+            SubmitLocalBattleCommand(TacticActionFor(character.CharacterClass.Id, option));
+            return;
+        }
+        if (key.Key == ConsoleKey.Spacebar && allowed.Contains(BattleActionKind.PhysicalAttack))
+        {
+            var targetEnemy = AdjacentTeamEnemies(battle, character).OrderBy(value => value.CurrentHitPoints).First();
+            SubmitLocalBattleCommand(BattleActionKind.PhysicalAttack, targetEnemyId: targetEnemy.Id);
+            return;
+        }
+        if (TryGetDirection(key.Key, out var direction) && allowed.Contains(BattleActionKind.Move))
+        {
+            var target = GetCasterPosition(character);
+            for (var step = 0; step < battle.Current.MovementAllowance; step++) target += direction;
+            SubmitLocalBattleCommand(BattleActionKind.Move, target: target);
+            return;
+        }
+        if (key.Key == ConsoleKey.U && allowed.Contains(BattleActionKind.UseItem) &&
+            GetBattleItemOptions(character).FirstOrDefault() is { } item)
+        {
+            SubmitLocalBattleCommand(BattleActionKind.UseItem, backpackIndex: item.BackpackIndex);
+            return;
+        }
+        if (key.Key == ConsoleKey.T && allowed.Contains(BattleActionKind.TurnUndead))
+        {
+            SubmitLocalBattleCommand(BattleActionKind.TurnUndead,
+                targetEnemyId: AdjacentTeamEnemies(battle, character).First().Id);
+            return;
+        }
+
+        SpellDefinition? spell = null;
+        MagicItemDefinition? castingItem = null;
+        int? castingItemSlotIndex = null;
+        if (key.Key == ConsoleKey.V && allowed.Contains(BattleActionKind.CastSpell))
+        {
+            var selection = _renderer.DrawSpellCastingScreen([character], 0, inCombat: true, _maze, _fogOfWar,
+                _ => GetCasterPosition(character), () => { });
+            _renderer.RestoreSpellCastingOverlay();
+            spell = selection?.Spell;
+            castingItem = selection?.CastingItem;
+            castingItemSlotIndex = selection?.CastingItemSlotIndex;
+        }
+        else if (TryGetQuickSpellIndex(key, out var slotIndex) && allowed.Contains(BattleActionKind.CastSpell))
+            spell = character.QuickSpells[slotIndex];
+        if (spell is null) return;
+        var validation = ValidateSpellCast(character, GetCasterPosition(character), spell, inCombat: true,
+            enemy, castingItem, castingItemSlotIndex);
+        if (validation is not null)
+        {
+            _renderer.DrawInventoryMessage(validation.Message, ConsoleColor.Red);
+            return;
+        }
+        var targetPosition = SelectSpellTarget(character, GetCasterPosition(character), spell, enemy);
+        if (targetPosition is null) return;
+        SubmitLocalBattleCommand(BattleActionKind.CastSpell, spell.Id, castingItemSlotIndex,
+            targetPosition, enemy.Id);
+    }
+
+    private void SubmitLocalBattleCommand(BattleActionKind action, string? spellId = null,
+        int? castingItemSlotIndex = null, Position? target = null,
+        WorldEntityId? targetEnemyId = null, int? backpackIndex = null)
+    {
+        var battleId = _activeTeamBattle?.Id ?? _activeBattleState?.Id;
+        var turnId = _activeTeamBattle?.Turns.TurnId ?? _activeBattleState?.TurnId;
+        if (battleId is null || turnId is null) return;
         var commandId = _localCommandId + 1;
         if (_session.Submit(new BattleActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
-                _activeBattleState.Id, _activeBattleState.TurnId, action, spellId, castingItemSlotIndex, target)))
+                battleId.Value, turnId.Value, action, spellId, castingItemSlotIndex, target,
+                targetEnemyId, backpackIndex)))
             _localCommandId = commandId;
     }
 
@@ -4676,6 +4861,11 @@ public sealed class Game
 
     private void ExecuteBattleAction(BattleActionCommand command)
     {
+        if (_activeTeamBattle is { } teamBattle)
+        {
+            ExecuteTeamBattleAction(teamBattle, command);
+            return;
+        }
         if (_activeBattleState is null || command.BattleId != _activeBattleState.Id ||
             command.TurnId != _activeBattleState.TurnId || command.CharacterId != _activeBattleState.PlayerCharacterId) return;
         var battleCharacter = _activeBattleState.Player;
@@ -5947,10 +6137,690 @@ public sealed class Game
     }
 
     private void StartBattle(Enemy enemy)
-        => StartInteractiveBattle(SelectedCharacter, enemy);
+        => StartTeamBattle(SelectedCharacter, enemy);
 
     private void StartBattle(PartyMemberAvatar member, Enemy enemy)
-        => StartInteractiveBattle(member.Character, enemy);
+        => StartTeamBattle(member.Character, enemy);
+
+    private void StartTeamBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy)
+    {
+        if (_battleStarted || !initiatingCharacter.IsAlive || initiatingEnemy.CurrentHitPoints <= 0) return;
+        CheckBossDiscovery([initiatingEnemy]);
+        _timeStopUsedThisBattle = false;
+        _battleTacticHintLogged = false;
+        _battleActionHintLogged = false;
+        _turnUndeadUsedThisBattle.Clear();
+        _pendingLevelUps.Clear();
+        if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
+
+        var characterParticipants = new List<TeamCharacterParticipant>();
+        var preparationEntries = new List<BattleLogEntry>();
+        foreach (var (character, position) in LivingPartyWithPositions().DistinctBy(entry => entry.Character.Id))
+        {
+            var preparation = _battleSystem.PrepareTeamCharacter(character);
+            preparationEntries.AddRange(preparation.Entries);
+            var avatar = _maze.PartyMembers.FirstOrDefault(member => member.Character == character);
+            var kind = avatar?.IsTemporaryFollower == true
+                ? TacticalParticipantKind.Follower
+                : TacticalParticipantKind.PartyMember;
+            characterParticipants.Add(new TeamCharacterParticipant(character, position, kind,
+                preparation.Initiative, CharacterMobilityRules.Evaluate(character).CombatMovementAllowance,
+                character == initiatingCharacter ? 1 : 3, preparation.Runtime));
+        }
+
+        var enemyParticipants = _maze.Enemies
+            .Where(enemy => enemy.CurrentHitPoints > 0 &&
+                            TacticalDistance.IsWithin(initiatingEnemy.Position, enemy.Position))
+            .DistinctBy(enemy => enemy.Id)
+            .Select(enemy => new TeamEnemyParticipant(enemy, _battleSystem.RollTeamEnemyInitiative(enemy),
+                Math.Clamp((enemy.EffectiveSpeed + 1) / 2, 1, 6), enemy == initiatingEnemy ? 1 : 3))
+            .ToList();
+        if (enemyParticipants.All(value => value.Enemy != initiatingEnemy))
+            enemyParticipants.Add(new TeamEnemyParticipant(initiatingEnemy,
+                _battleSystem.RollTeamEnemyInitiative(initiatingEnemy),
+                Math.Clamp((initiatingEnemy.EffectiveSpeed + 1) / 2, 1, 6), 1));
+
+        _activeTeamBattle = new TeamBattleEncounter(initiatingEnemy.Position,
+            characterParticipants, enemyParticipants, initiatingCharacter.Id, initiatingEnemy.Id);
+        var protectionMessages = new List<string>();
+        foreach (var protectedParticipant in characterParticipants)
+        {
+            var knight = TryRollKnightProtector(protectedParticipant.Character);
+            if (knight is null) continue;
+            _battleSystem.SetTeamKnightProtection(protectedParticipant.Runtime, knight);
+            protectionMessages.Add($"🛡️ {knight.Name} készen áll közbelépni {protectedParticipant.Character.Name} védelmében: " +
+                                   "az első találatot teljesen kivédi, de a sebzés harmadát ő kapja.");
+        }
+        _activeTeamBattle.Turns.StartTurns();
+        _preparedTeamBattleTurnId = 0;
+        _battleStarted = true;
+        _session.SetPhase(GameSessionPhase.Battle);
+        PlaySessionSound(SoundEffect.BattleStart);
+        _renderer.DrawBattleStarted(initiatingEnemy);
+        TryLogPartyComments(PartySituationIds.BattleStarted);
+        PresentBattleEntries(preparationEntries);
+        foreach (var protectionMessage in protectionMessages)
+        {
+            _renderer.DrawInventoryMessage(protectionMessage, ConsoleColor.Cyan);
+            RecordSessionActivity(SessionActivityKind.Battle, protectionMessage, ConsoleColor.Cyan);
+        }
+        var queue = string.Join(" → ", _activeTeamBattle.Turns.Participants
+            .OrderByDescending(participant => participant.InitiativeBase)
+            .Select(participant =>
+            {
+                var name = _activeTeamBattle.CharacterFor(participant.Id)?.Name ??
+                           _activeTeamBattle.EnemyFor(participant.Id)?.Name ?? participant.Id.Value;
+                return $"{name} {participant.InitiativeBase}" +
+                       (participant.EligibleFromCycle > 1 ? $" (belép: {participant.EligibleFromCycle}. kör)" : string.Empty);
+            }));
+        var startMessage = $"⚔️ CSAPATHARC — {characterParticipants.Count} baráti és " +
+                           $"{enemyParticipants.Count} ellenséges résztvevő. Kezdeményezés: {queue}.";
+        _renderer.DrawInventoryMessage(startMessage, ConsoleColor.Yellow);
+        RecordSessionActivity(SessionActivityKind.Battle, startMessage, ConsoleColor.Yellow);
+        ContinueTeamBattle();
+    }
+
+    private void ContinueTeamBattle()
+    {
+        while (_activeTeamBattle is { } battle)
+        {
+            SynchronizeTeamBattleDefeats(battle);
+            if (!SelectedCharacter.IsAlive)
+            {
+                FinishTeamBattle(battle, forceDefeat: true);
+                return;
+            }
+            if (battle.IsCompleted)
+            {
+                FinishTeamBattle(battle);
+                return;
+            }
+
+            var current = battle.Current;
+            if (battle.CurrentCharacter is { } character)
+            {
+                if (!character.IsAlive)
+                {
+                    battle.MarkDefeated(character);
+                    AdvanceTeamBattleTurn(battle);
+                    continue;
+                }
+                if (_preparedTeamBattleTurnId != battle.Turns.TurnId)
+                {
+                    _battleSystem.BeginTeamCharacterTurn(character);
+                    _preparedTeamBattleTurnId = battle.Turns.TurnId;
+                }
+                var runtime = battle.RuntimeFor(character);
+                if (runtime.RequiresTacticSelection)
+                {
+                    if (_session.IsHumanControlled(character.Id))
+                    {
+                        var enemy = ClosestLivingTeamEnemy(battle, current.Position);
+                        var actions = GetTeamAllowedBattleActions(battle, character, enemy);
+                        _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, character.Id, actions);
+                        PublishTeamBattlePrompt(character, enemy, actions, battle);
+                        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                        return;
+                    }
+                    ChooseTeamAiTactic(character, runtime);
+                    continue;
+                }
+                if (_session.IsHumanControlled(character.Id))
+                {
+                    var enemy = ClosestLivingTeamEnemy(battle, current.Position);
+                    var actions = GetTeamAllowedBattleActions(battle, character, enemy);
+                    _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, character.Id, actions);
+                    PublishTeamBattlePrompt(character, enemy, actions, battle);
+                    _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                    return;
+                }
+                ExecuteTeamAiCharacterTurn(battle, character);
+                continue;
+            }
+
+            if (battle.CurrentEnemy is { CurrentHitPoints: > 0 } enemyActor)
+            {
+                _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, SelectedCharacter.Id,
+                    [BattleActionKind.AdvanceEnemyTurn]);
+                var message = $"{battle.Turns.Cycle}. kör — {enemyActor.Name} következik. Space: ellenfél akciója.";
+                RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.DarkYellow,
+                    [SelectedCharacter.Id]);
+                if (_session.CharacterControls.FirstOrDefault(control =>
+                        control.CharacterId == SelectedCharacter.Id)?.AssignedPlayerId == _session.HostPlayerId)
+                    _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
+                _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                return;
+            }
+
+            AdvanceTeamBattleTurn(battle);
+        }
+    }
+
+    private void ExecuteTeamBattleAction(TeamBattleEncounter battle, BattleActionCommand command)
+    {
+        if (command.BattleId != battle.Id || command.TurnId != battle.Turns.TurnId) return;
+        if (battle.CurrentEnemy is { } enemyActor)
+        {
+            if (command.Action != BattleActionKind.AdvanceEnemyTurn || command.CharacterId != SelectedCharacter.Id)
+            {
+                RejectTeamBattleAction(command, "Most egy ellenfél következik.");
+                return;
+            }
+            ExecuteTeamEnemyTurn(battle, enemyActor);
+            ContinueTeamBattle();
+            return;
+        }
+        if (battle.CurrentCharacter is not { } character || character.Id != command.CharacterId)
+        {
+            RejectTeamBattleAction(command, "Nem ez a karakter van soron.");
+            return;
+        }
+        var focusEnemy = ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
+        var allowed = GetTeamAllowedBattleActions(battle, character, focusEnemy);
+        if (!allowed.Contains(command.Action))
+        {
+            RejectTeamBattleAction(command, "Ez az akció most nem használható.");
+            return;
+        }
+        switch (command.Action)
+        {
+            case BattleActionKind.FighterPrecise:
+            case BattleActionKind.FighterPowerful:
+            case BattleActionKind.FighterDefensive:
+            case BattleActionKind.ThiefAmbush:
+            case BattleActionKind.ThiefObserve:
+            case BattleActionKind.ThiefPoison:
+                var tactic = ToBattleTactic(command.Action);
+                if (!battle.RuntimeFor(character).TryChooseTactic(character, tactic))
+                {
+                    RejectTeamBattleAction(command, "Ez a harci taktika most nem választható.");
+                    return;
+                }
+                var tacticMessage = $"{character.Name} harci taktikája: {BattleTacticName(tactic, character)}.";
+                _renderer.DrawInventoryMessage(tacticMessage, ConsoleColor.Cyan);
+                RecordSessionActivity(SessionActivityKind.Battle, tacticMessage, ConsoleColor.Cyan);
+                break;
+            case BattleActionKind.PhysicalAttack:
+                var target = command.TargetEnemyId is { } targetId
+                    ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == targetId)
+                    : AdjacentTeamEnemies(battle, character).OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault();
+                if (target is null || target.CurrentHitPoints <= 0 ||
+                    Manhattan(GetCasterPosition(character), target.Position) > 1)
+                {
+                    RejectTeamBattleAction(command, "A választott ellenfél nincs közelharci távolságban.");
+                    return;
+                }
+                ResolveTeamCharacterAttack(battle, character, target);
+                break;
+            case BattleActionKind.Move when command.Target is { } destination:
+                ExecuteTeamCharacterMove(battle, character, destination);
+                break;
+            case BattleActionKind.UseItem when command.BackpackIndex is { } backpackIndex:
+                if (!TryUseTeamBattleItem(character, backpackIndex, out var itemMessage))
+                {
+                    RejectTeamBattleAction(command, itemMessage);
+                    return;
+                }
+                itemMessage = $"{battle.ActionNumber + 1}. akció — {itemMessage}" +
+                    _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                PresentBattleEntries([new BattleLogEntry(itemMessage, BattleLogKind.Information)]);
+                AdvanceTeamBattleTurn(battle);
+                break;
+            case BattleActionKind.TurnUndead:
+                var undead = command.TargetEnemyId is { } undeadId
+                    ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == undeadId)
+                    : AdjacentTeamEnemies(battle, character).FirstOrDefault(CanTarget);
+                if (undead is null || !CanTurnUndead(character, undead))
+                {
+                    RejectTeamBattleAction(command, "Nincs elűzhető élőholt a közelben.");
+                    return;
+                }
+                var turning = ResolveTurnUndead(character, undead);
+                if (turning.DamageToEnemy > 0) undead.ReceiveSpellDamage(turning.DamageToEnemy);
+                var turnMessage = $"{battle.ActionNumber + 1}. akció — {turning.Message}" +
+                    _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                PresentBattleEntries([new BattleLogEntry(turnMessage, turning.Kind)]);
+                if (undead.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, undead, character);
+                AdvanceTeamBattleTurn(battle);
+                break;
+            case BattleActionKind.CastSpell:
+                ExecuteTeamSpellBattleAction(battle, character, command);
+                break;
+        }
+        ContinueTeamBattle();
+
+        bool CanTarget(Enemy candidate) => CanTurnUndead(character, candidate);
+    }
+
+    private void ExecuteTeamSpellBattleAction(TeamBattleEncounter battle, LiveCharacter character,
+        BattleActionCommand command)
+    {
+        if (command.SpellId is null || command.Target is null) return;
+        var spell = _gameData.Spells.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, command.SpellId, StringComparison.OrdinalIgnoreCase));
+        if (spell is null)
+        {
+            RejectTeamBattleAction(command, "Ismeretlen varázslat.");
+            return;
+        }
+        MagicItemDefinition? castingItem = null;
+        if (command.CastingItemSlotIndex is { } slot)
+            castingItem = character.MagicItems.ElementAtOrDefault(slot);
+        var currentEnemy = command.TargetEnemyId is { } enemyId
+            ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == enemyId && enemy.CurrentHitPoints > 0)
+            : null;
+        currentEnemy ??= battle.Enemies.FirstOrDefault(enemy =>
+            enemy.Position == command.Target && enemy.CurrentHitPoints > 0);
+        currentEnemy ??= ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
+        var attempt = TryCastSpell(character, GetCasterPosition(character), spell, inCombat: true,
+            currentEnemy, castingItem, command.CastingItemSlotIndex, command.Target);
+        if (attempt is null || !attempt.ConsumesTurn)
+        {
+            RejectTeamBattleAction(command, attempt?.Message ?? "A varázslat célpontja érvénytelen.");
+            return;
+        }
+        if (attempt.DamageToCurrentEnemy > 0) currentEnemy.ReceiveSpellDamage(attempt.DamageToCurrentEnemy);
+        battle.GrantExtraActions(attempt.ExtraPlayerActions);
+        var message = $"{battle.ActionNumber + 1}. akció — {attempt.Message}" +
+                      _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        PresentBattleEntries([new BattleLogEntry(message, attempt.Kind)]);
+        SynchronizeTeamBattleDefeats(battle);
+        AdvanceTeamBattleTurn(battle);
+    }
+
+    private bool TryUseTeamBattleItem(LiveCharacter character, int backpackIndex, out string message)
+    {
+        if (backpackIndex is < 0 or >= LiveCharacter.MaximumBackpackItemCount ||
+            character.GetInventoryItem(InventorySlotKind.Backpack, backpackIndex) is not MiscItemDefinition item ||
+            item.Effect == ConsumableEffect.None)
+        {
+            message = "A választott hátizsákhelyen nincs használható tárgy.";
+            return false;
+        }
+        var result = item.Id == MiscItemIds.HerbalTea &&
+                     (character.WaterLevel < 100 || character.CurrentVitality < character.MaximumVitality)
+            ? UseHerbalTea(character, item.EffectValue)
+            : IsInitiativeDrink(item) ? UseInitiativeDrink(character, item)
+            : item.Effect switch
+            {
+                ConsumableEffect.Food when character.FoodLevel < 100 => UseFood(character, item.EffectValue),
+                ConsumableEffect.Water when character.WaterLevel < 100 => UseWater(character, item.EffectValue),
+                ConsumableEffect.Heal when character.CurrentVitality < character.MaximumVitality => UseHealing(character, item.EffectValue),
+                ConsumableEffect.RestoreMana when character.UsesMana && character.CurrentMana < character.MaximumMana => UseManaPotion(character, item.EffectValue),
+                ConsumableEffect.CurePoison when character.RemoveStatus(CharacterStatusIds.Poisoned) => "a mérgezés megszűnt",
+                ConsumableEffect.CureDisease when character.RemoveStatus(CharacterStatusIds.Diseased) => "a betegség megszűnt",
+                ConsumableEffect.StopBleeding when character.RemoveStatus(CharacterStatusIds.Bleeding) => "a vérzés elállt",
+                ConsumableEffect.Vision => UseVisionItem(character, item),
+                _ => string.Empty
+            };
+        if (string.IsNullOrEmpty(result))
+        {
+            message = "A tárgy hatására most nincs szükség vagy nem alkalmazható.";
+            return false;
+        }
+        character.RemoveOneInventoryItem(InventorySlotKind.Backpack, backpackIndex);
+        character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
+            _gameData.GetStatus(CharacterStatusIds.Thirsty));
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        message = $"{character.Name} használta: {item.Name} — {result}.";
+        PlaySessionSound(item.Effect == ConsumableEffect.Heal ? SoundEffect.DefensiveSpell : SoundEffect.Item,
+            [character.Id]);
+        return true;
+    }
+
+    private void RejectTeamBattleAction(BattleActionCommand command, string message)
+    {
+        _session.RejectExecutedCommand(command, message);
+        _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
+        if (_activeTeamBattle is { IsCompleted: false } battle && battle.CurrentCharacter is { } character)
+        {
+            var enemy = ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
+            _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, character.Id,
+                GetTeamAllowedBattleActions(battle, character, enemy));
+        }
+    }
+
+    private void ChooseTeamAiTactic(LiveCharacter character, TeamCharacterBattleRuntime runtime)
+    {
+        var choices = character.CharacterClass.Id == CharacterClassIds.Harcos
+            ? new[] { BattleTactic.FighterPrecise, BattleTactic.FighterPowerful, BattleTactic.FighterDefensive }
+            : new[] { BattleTactic.ThiefAmbush, BattleTactic.ThiefObserve, BattleTactic.ThiefPoison };
+        var tactic = choices[_random.Next(choices.Length)];
+        runtime.TryChooseTactic(character, tactic);
+        var message = $"{character.Name} harci taktikája: {BattleTacticName(tactic, character)}.";
+        _renderer.DrawInventoryMessage(message, ConsoleColor.Cyan);
+        RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Cyan);
+    }
+
+    private void ExecuteTeamAiCharacterTurn(TeamBattleEncounter battle, LiveCharacter character)
+    {
+        var adjacent = AdjacentTeamEnemies(battle, character).FirstOrDefault();
+        if (adjacent is not null)
+        {
+            ResolveTeamCharacterAttack(battle, character, adjacent);
+            return;
+        }
+        var target = ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
+        MoveTeamCharacterToward(battle, character, target.Position);
+    }
+
+    private void ResolveTeamCharacterAttack(TeamBattleEncounter battle, LiveCharacter character, Enemy enemy)
+    {
+        var entry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character), enemy,
+            battle.ActionNumber + 1);
+        PresentBattleEntries([entry]);
+        if (enemy.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, enemy, character);
+        if (!character.IsAlive) ResolveTeamCharacterDefeat(battle, character);
+        AdvanceTeamBattleTurn(battle);
+    }
+
+    private void ExecuteTeamEnemyTurn(TeamBattleEncounter battle, Enemy enemy)
+    {
+        var adjacent = AdjacentTeamCharacters(battle, enemy).OrderBy(character =>
+            (double)character.CurrentVitality / Math.Max(1, character.MaximumVitality)).FirstOrDefault();
+        if (adjacent is null)
+        {
+            var target = battle.Characters.Where(character => character.IsAlive)
+                .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))
+                .First();
+            MoveTeamEnemyToward(battle, enemy, GetCasterPosition(target));
+            return;
+        }
+        var entry = _battleSystem.ResolveTeamEnemyAction(enemy, adjacent, battle.RuntimeFor(adjacent),
+            battle.ActionNumber + 1);
+        PresentBattleEntries([entry]);
+        if (enemy.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, enemy, null);
+        if (!adjacent.IsAlive) ResolveTeamCharacterDefeat(battle, adjacent);
+        AdvanceTeamBattleTurn(battle);
+    }
+
+    private void AdvanceTeamBattleTurn(TeamBattleEncounter battle)
+    {
+        if (battle.IsCompleted) return;
+        battle.AdvanceTurn();
+        _preparedTeamBattleTurnId = 0;
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+    }
+
+    private IReadOnlyList<BattleActionKind> GetTeamAllowedBattleActions(TeamBattleEncounter battle,
+        LiveCharacter character, Enemy focusEnemy)
+    {
+        var runtime = battle.RuntimeFor(character);
+        if (runtime.RequiresTacticSelection)
+            return character.CharacterClass.Id == CharacterClassIds.Harcos
+                ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
+                : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
+        var adjacent = AdjacentTeamEnemies(battle, character).ToArray();
+        var actions = new List<BattleActionKind>();
+        if (adjacent.Length > 0)
+        {
+            actions.Add(BattleActionKind.PhysicalAttack);
+            if (CanTurnUndead(character, focusEnemy) && !_turnUndeadUsedThisBattle.Contains(character))
+                actions.Add(BattleActionKind.TurnUndead);
+        }
+        else
+        {
+            actions.Add(BattleActionKind.Move);
+            if (GetBattleItemOptions(character).Count > 0) actions.Add(BattleActionKind.UseItem);
+            if (HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy))
+                actions.Add(BattleActionKind.CastSpell);
+        }
+        return actions;
+    }
+
+    private IReadOnlyList<BattleTacticOptionSnapshot>? GetTeamBattleTacticOptions(TeamBattleEncounter battle,
+        LiveCharacter character, Enemy enemy)
+    {
+        if (!battle.RuntimeFor(character).RequiresTacticSelection ||
+            character.CharacterClass.Id != CharacterClassIds.Harcos) return null;
+        return
+        [
+            new(BattleActionKind.FighterPrecise, "🎯 Pontos", "nagyobb találati esély, kisebb sebzés",
+                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPrecise)),
+            new(BattleActionKind.FighterPowerful, "💥 Erőteljes", "páncéltörés és nagyobb sebzés",
+                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPowerful)),
+            new(BattleActionKind.FighterDefensive, "🛡️ Védekező", "nagyobb védelem, kisebb sebzés",
+                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterDefensive))
+        ];
+    }
+
+    private void PublishTeamBattlePrompt(LiveCharacter character, Enemy enemy,
+        IReadOnlyList<BattleActionKind> actions, TeamBattleEncounter battle)
+    {
+        var message = battle.RuntimeFor(character).RequiresTacticSelection
+            ? BattlePromptText.Tactic(character.CharacterClass.Id,
+                GetTeamBattleTacticOptions(battle, character, enemy))
+            : actions.Contains(BattleActionKind.PhysicalAttack)
+                ? "Akció: Space — támadás" +
+                  (actions.Contains(BattleActionKind.CastSpell) ? " | V/F1-F8 — varázslat" : string.Empty) +
+                  (actions.Contains(BattleActionKind.TurnUndead) ? " | T — halottűzés" : string.Empty)
+                : "Akció: nyilak — mozgás" +
+                  (actions.Contains(BattleActionKind.UseItem) ? " | U — tárgy használata" : string.Empty) +
+                  (actions.Contains(BattleActionKind.CastSpell) ? " | V/F1-F8 — varázslat" : string.Empty);
+        message = $"{battle.Turns.Cycle}. kör, {character.Name} ({battle.Current.MovementAllowance} mozgás) — {message}";
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow, [character.Id]);
+        if (character == SelectedCharacter) _renderer.DrawInventoryMessage(message, ConsoleColor.Yellow);
+    }
+
+    private IEnumerable<Enemy> AdjacentTeamEnemies(TeamBattleEncounter battle, LiveCharacter character)
+    {
+        var position = GetCasterPosition(character);
+        return battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 &&
+            Manhattan(position, enemy.Position) <= 1);
+    }
+
+    private IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy) =>
+        battle.Characters.Where(character => character.IsAlive &&
+            Manhattan(GetCasterPosition(character), enemy.Position) <= 1);
+
+    private Enemy ClosestLivingTeamEnemy(TeamBattleEncounter battle, Position origin) =>
+        battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
+            .OrderBy(enemy => TacticalDistance.Between(origin, enemy.Position))
+            .ThenBy(enemy => enemy.CurrentHitPoints).First();
+
+    private void MoveTeamCharacterToward(TeamBattleEncounter battle, LiveCharacter character, Position target)
+    {
+        var goals = Directions.Select(direction => target + direction)
+            .Where(position => CanTeamBattleEnter(battle, position, CombatantId.ForCharacter(character.Id)))
+            .ToArray();
+        var path = FindTeamBattlePath(battle, GetCasterPosition(character), goals,
+            CombatantId.ForCharacter(character.Id));
+        CompleteTeamCharacterMovement(battle, character, path);
+    }
+
+    private void MoveTeamEnemyToward(TeamBattleEncounter battle, Enemy enemy, Position target)
+    {
+        var goals = Directions.Select(direction => target + direction)
+            .Where(position => CanTeamBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)))
+            .ToArray();
+        var path = FindTeamBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id));
+        var steps = path.Take(battle.Current.MovementAllowance).ToArray();
+        if (steps.Length > 0)
+        {
+            enemy.MoveTo(steps[^1]);
+            battle.UpdatePosition(enemy);
+        }
+        var message = steps.Length > 0
+            ? $"{battle.ActionNumber + 1}. akció — {enemy.Name} {steps.Length} mezőt közeledik."
+            : $"{battle.ActionNumber + 1}. akció — {enemy.Name} nem talál járható utat.";
+        PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
+        AdvanceTeamBattleTurn(battle);
+    }
+
+    private void ExecuteTeamCharacterMove(TeamBattleEncounter battle, LiveCharacter character, Position target)
+    {
+        if (AdjacentTeamEnemies(battle, character).Any()) return;
+        var path = FindTeamBattlePath(battle, GetCasterPosition(character), [target],
+            CombatantId.ForCharacter(character.Id));
+        CompleteTeamCharacterMovement(battle, character, path);
+    }
+
+    private void CompleteTeamCharacterMovement(TeamBattleEncounter battle, LiveCharacter character,
+        IReadOnlyList<Position> path)
+    {
+        var steps = path.Take(battle.Current.MovementAllowance).ToArray();
+        if (steps.Length > 0)
+        {
+            var destination = steps[^1];
+            if (character == SelectedCharacter) _player.TeleportTo(destination);
+            else _maze.PartyMembers.First(member => member.Character == character).MoveTo(destination);
+            battle.UpdatePosition(character, destination);
+            RevealFor(character, destination);
+        }
+        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        var message = steps.Length > 0
+            ? $"{battle.ActionNumber + 1}. akció — {character.Name} {steps.Length} mezőt mozog.{statusText}"
+            : $"{battle.ActionNumber + 1}. akció — {character.Name} nem talál járható utat.{statusText}";
+        PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
+        AdvanceTeamBattleTurn(battle);
+    }
+
+    private IReadOnlyList<Position> FindTeamBattlePath(TeamBattleEncounter battle, Position origin,
+        IReadOnlyCollection<Position> goals, CombatantId actorId)
+    {
+        if (goals.Count == 0) return [];
+        var goalSet = goals.ToHashSet();
+        var queue = new Queue<Position>();
+        var previous = new Dictionary<Position, Position> { [origin] = origin };
+        queue.Enqueue(origin);
+        Position? found = goalSet.Contains(origin) ? origin : null;
+        while (queue.Count > 0 && found is null)
+        {
+            var current = queue.Dequeue();
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (previous.ContainsKey(next) || !CanTeamBattleEnter(battle, next, actorId)) continue;
+                previous[next] = current;
+                if (goalSet.Contains(next)) { found = next; break; }
+                queue.Enqueue(next);
+            }
+        }
+        if (found is null || found == origin) return [];
+        var path = new List<Position>();
+        for (var current = found.Value; current != origin; current = previous[current]) path.Add(current);
+        path.Reverse();
+        return path;
+    }
+
+    private bool CanTeamBattleEnter(TeamBattleEncounter battle, Position position, CombatantId actorId)
+    {
+        if (!_maze.IsWalkable(position)) return false;
+        if (battle.Turns.Participants.Any(participant => participant.Id != actorId &&
+                participant.State is TacticalParticipantState.Active or TacticalParticipantState.Approaching &&
+                participant.Position == position)) return false;
+        var occupant = _maze.GetObjectAt(position);
+        var actorCharacter = battle.CharacterFor(actorId);
+        var actorEnemy = battle.EnemyFor(actorId);
+        return occupant is null or GroundItemPile or Corpse || occupant == actorEnemy ||
+               occupant is PartyMemberAvatar member && member.Character == actorCharacter ||
+               Maze.IsPassableNeutralNpc(occupant);
+    }
+
+    private void SynchronizeTeamBattleDefeats(TeamBattleEncounter battle)
+    {
+        foreach (var enemy in battle.Enemies.Where(enemy => enemy.CurrentHitPoints <= 0).ToArray())
+            ResolveTeamEnemyDefeat(battle, enemy, null);
+        foreach (var character in battle.Characters.Where(character => !character.IsAlive).ToArray())
+            ResolveTeamCharacterDefeat(battle, character);
+    }
+
+    private void ResolveTeamEnemyDefeat(TeamBattleEncounter battle, Enemy enemy, LiveCharacter? killer)
+    {
+        if (!battle.TryResolveDeath(enemy)) return;
+        battle.MarkDefeated(enemy);
+        if (!_maze.Enemies.Contains(enemy)) return;
+        AwardBossKey(enemy);
+        RegisterNpcQuestKill(enemy);
+        var credited = killer ?? battle.Characters.FirstOrDefault(character => character.IsAlive);
+        if (credited is not null)
+        {
+            credited.RecordMonsterKill(enemy.Definition.Id);
+            var awards = DistributeExperience(credited, enemy.Definition.ExperienceReward);
+            _pendingLevelUps.AddRange(awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive)
+                .Select(award => (award.Character, award.Result)));
+        }
+        _maze.ReplaceEnemyWithCorpse(enemy);
+        _nextEnemyMoves.Remove(enemy);
+        var message = $"☠ {enemy.Name} elesett. +{enemy.Definition.ExperienceReward} XP kerül szétosztásra.";
+        _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+        RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);
+    }
+
+    private void ResolveTeamCharacterDefeat(TeamBattleEncounter battle, LiveCharacter character)
+    {
+        var avatar = _maze.PartyMembers.FirstOrDefault(member => member.Character == character);
+        if (avatar is not null && IsQuestCriticalRoderic(avatar))
+        {
+            character.RestoreVitality(Math.Max(1, character.MaximumVitality / 3));
+            var message = $"{character.Name} eszméletét veszti, de az Ezüst Eskü erejével ismét talpra áll.";
+            _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
+            return;
+        }
+        if (!battle.TryResolveDeath(character)) return;
+        battle.MarkDefeated(character);
+        if (avatar is not null)
+        {
+            _maze.ReplacePartyMemberWithCorpse(avatar);
+            _nextPartyMoves.Remove(avatar);
+        }
+        if (character != SelectedCharacter)
+        {
+            _activeCoopHost?.TryPublishCharacterState(character.Id,
+                _gameSaveService.SerializeCharacter(character), CharacterSyncReason.CharacterDied);
+            _session.ReleaseCharacterControl(character.Id);
+        }
+        var messageText = $"☠ {character.Name} elesett a csapatharcban.";
+        _renderer.DrawInventoryMessage(messageText, ConsoleColor.Red);
+        RecordSessionActivity(SessionActivityKind.Battle, messageText, ConsoleColor.Red);
+        PlaySessionSound(SoundEffect.MemberKilled);
+        TryLogPartyComments(PartySituationIds.PartyMemberDied);
+    }
+
+    private void FinishTeamBattle(TeamBattleEncounter battle, bool forceDefeat = false)
+    {
+        _session.EndBattle(battle.Id);
+        var victory = !forceDefeat && battle.HostileSideDefeated && !battle.FriendlySideDefeated;
+        _activeTeamBattle = null;
+        _preparedTeamBattleTurnId = 0;
+        _battleStarted = false;
+        if (!victory)
+        {
+            _saveAfterBattle = false;
+            _renderer.DrawGameOver(SelectedCharacter.Name);
+            _gameOver = true;
+            _session.SetPhase(GameSessionPhase.GameOver);
+            return;
+        }
+
+        PlayBattleVictorySound();
+        var maximumThreat = battle.Enemies.Select(enemy => enemy.Definition.StrengthTier).DefaultIfEmpty(1).Max();
+        foreach (var character in battle.Characters.Where(character => character.IsAlive))
+        {
+            DrainNeedsAfterBattle(character, maximumThreat);
+            if (character != SelectedCharacter) TryNpcUseConsumables(character);
+        }
+        var message = $"🏆 CSAPATHARC GYŐZELEM — {battle.ActionNumber + 1} akció, " +
+                      $"{battle.Enemies.Count} legyőzött ellenfél.";
+        _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+        RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);
+        TryLogPartyComments(PartySituationIds.BattleWon);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        foreach (var (character, result) in _pendingLevelUps.ToArray())
+            ResolvePerkOffers(character, result);
+        _pendingLevelUps.Clear();
+        if (_saveAfterBattle)
+        {
+            _saveAfterBattle = false;
+            SaveGame();
+        }
+        InitializeEnemyMoveSchedule(DateTime.UtcNow);
+        foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
+        _session.SetPhase(GameSessionPhase.Exploration);
+        _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+    }
 
     private void StartInteractiveBattle(LiveCharacter battleCharacter, Enemy enemy)
     {

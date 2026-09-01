@@ -47,7 +47,8 @@ public sealed record WorldNpcSnapshot(WorldEntityId EntityId, string DefinitionI
 
 public static class WorldSnapshotProjector
 {
-    public static WorldSnapshot Create(Maze maze, FogOfWar fogOfWar, BattleState? activeBattle = null)
+    public static WorldSnapshot Create(Maze maze, FogOfWar fogOfWar, BattleState? activeBattle = null,
+        IReadOnlySet<WorldEntityId>? forcedVisibleEnemies = null)
     {
         ArgumentNullException.ThrowIfNull(maze);
         ArgumentNullException.ThrowIfNull(fogOfWar);
@@ -81,7 +82,8 @@ public static class WorldSnapshotProjector
                     DoorState.Smashed => ConsoleColor.DarkGray,
                     _ => ConsoleColor.Gray
                 })).ToArray();
-        var enemies = maze.Enemies.Where(enemy => fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position)).Select(enemy =>
+        var enemies = maze.Enemies.Where(enemy => fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position) ||
+                                                  forcedVisibleEnemies?.Contains(enemy.Id) == true).Select(enemy =>
         {
             var hitPoints = activeBattle is { IsCompleted: false } battle && battle.Enemy == enemy
                 ? battle.CurrentEnemyHitPoints

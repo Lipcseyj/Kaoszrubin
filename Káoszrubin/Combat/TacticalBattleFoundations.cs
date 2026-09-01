@@ -50,7 +50,8 @@ public sealed record TacticalBattleParticipant(
     int EligibleFromCycle = 1,
     TacticalParticipantState State = TacticalParticipantState.Active)
 {
-    public bool CanActIn(int cycle) => State == TacticalParticipantState.Active && cycle >= EligibleFromCycle;
+    public bool CanActIn(int cycle) => State is TacticalParticipantState.Active or TacticalParticipantState.Approaching &&
+                                       cycle >= EligibleFromCycle;
 }
 
 public enum TacticalActionKind
@@ -79,6 +80,8 @@ public sealed record TacticalBattleAction(
 public sealed class TacticalBattleState
 {
     private readonly Dictionary<CombatantId, TacticalBattleParticipant> _participants;
+    private IReadOnlyList<CombatantId> _cycleOrder = [];
+    private int _turnIndex = -1;
 
     public TacticalBattleState(BattleId id, Position center,
         IEnumerable<TacticalBattleParticipant> participants,
@@ -109,7 +112,12 @@ public sealed class TacticalBattleState
     public int Radius { get; }
     public int OpeningCycles { get; }
     public int Cycle { get; private set; } = 1;
+    public long TurnId { get; private set; } = 1;
+    public bool HasStarted => _turnIndex >= 0;
     public IReadOnlyCollection<TacticalBattleParticipant> Participants => _participants.Values;
+    public TacticalBattleParticipant? CurrentParticipant => HasStarted && _turnIndex < _cycleOrder.Count
+        ? _participants.GetValueOrDefault(_cycleOrder[_turnIndex])
+        : null;
 
     public IReadOnlyList<TacticalBattleParticipant> InitiativeOrder => _participants.Values
         .Where(participant => participant.CanActIn(Cycle))
@@ -119,7 +127,69 @@ public sealed class TacticalBattleState
 
     public bool IsInsideBattleArea(Position position) => TacticalDistance.IsWithin(Center, position, Radius);
 
-    public void AdvanceCycle() => Cycle++;
+    public TacticalBattleParticipant StartTurns()
+    {
+        if (HasStarted) throw new InvalidOperationException("A csapatharc körsorrendje már elindult.");
+        BuildCycleOrder();
+        return ActivateCurrent();
+    }
+
+    public TacticalBattleParticipant AdvanceTurn()
+    {
+        if (!HasStarted) return StartTurns();
+        TurnId++;
+        while (true)
+        {
+            _turnIndex++;
+            if (_turnIndex >= _cycleOrder.Count)
+            {
+                Cycle++;
+                BuildCycleOrder();
+            }
+            if (CurrentParticipant?.CanActIn(Cycle) == true) break;
+        }
+        return ActivateCurrent();
+    }
+
+    public TacticalBattleParticipant RepeatCurrentTurn()
+    {
+        if (!HasStarted) return StartTurns();
+        TurnId++;
+        return ActivateCurrent();
+    }
+
+    public bool TryUpdatePosition(CombatantId id, Position position)
+    {
+        if (!_participants.TryGetValue(id, out var participant)) return false;
+        _participants[id] = participant with { Position = position };
+        return true;
+    }
+
+    public bool TrySetState(CombatantId id, TacticalParticipantState state)
+    {
+        if (!_participants.TryGetValue(id, out var participant)) return false;
+        _participants[id] = participant with { State = state };
+        return true;
+    }
+
+    public TacticalBattleParticipant? Find(CombatantId id) => _participants.GetValueOrDefault(id);
+
+    private void BuildCycleOrder()
+    {
+        _cycleOrder = InitiativeOrder.Select(participant => participant.Id).ToArray();
+        _turnIndex = 0;
+        if (_cycleOrder.Count == 0)
+            throw new InvalidOperationException($"A(z) {Cycle}. ciklusban nincs cselekvőképes résztvevő.");
+    }
+
+    private TacticalBattleParticipant ActivateCurrent()
+    {
+        var current = CurrentParticipant ?? throw new InvalidOperationException("Nincs cselekvőképes résztvevő.");
+        if (current.State != TacticalParticipantState.Approaching) return current;
+        current = current with { State = TacticalParticipantState.Active };
+        _participants[current.Id] = current;
+        return current;
+    }
 }
 
 public sealed record EncounterThreatAssessment(

@@ -7,7 +7,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 59;
+    public const int Version = 60;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -148,7 +148,16 @@ public sealed record KnownSpellSnapshot(string SpellId, string Name, int Level, 
 public sealed record BattleSnapshot(BattleId BattleId, long TurnId, int Round, bool IsPlayerTurn,
     CharacterId ActingCharacterId, SessionEnemySnapshot Enemy,
     IReadOnlyList<BattleActionKind> AllowedActions, IReadOnlyList<BattleSpellOption>? SpellOptions = null,
-    IReadOnlyList<BattleTacticOptionSnapshot>? TacticOptions = null);
+    IReadOnlyList<BattleTacticOptionSnapshot>? TacticOptions = null,
+    int Cycle = 1, IReadOnlyList<TacticalBattleParticipantSnapshot>? Participants = null,
+    IReadOnlyList<BattleItemOptionSnapshot>? ItemOptions = null);
+
+public sealed record TacticalBattleParticipantSnapshot(CombatantId Id, string Name, BattleSide Side,
+    TacticalParticipantKind Kind, Position Position, int Initiative, int MovementAllowance,
+    int EligibleFromCycle, TacticalParticipantState State, int CurrentVitality, int MaximumVitality,
+    bool IsCurrent);
+
+public sealed record BattleItemOptionSnapshot(int BackpackIndex, string DefinitionId, string Name, int Quantity);
 
 public sealed record BattleTacticOptionSnapshot(BattleActionKind Action, string Name, string Effect,
     int? HitChancePercent = null);
@@ -158,7 +167,7 @@ public sealed record BattleSpellOption(string SpellId, string Name, int Level, i
     MagicItemKind? CastingItemKind, int Charges, int? QuickSlot, IReadOnlyList<Position> ValidTargets);
 
 public sealed record SessionEnemySnapshot(string DefinitionId, string Name, Position Position,
-    int CurrentHitPoints, int MaximumHitPoints);
+    int CurrentHitPoints, int MaximumHitPoints, WorldEntityId? EntityId = null);
 
 /// <summary>Host-oldali projekciós input; nem része a hálózaton fogadott parancsoknak.</summary>
 public sealed record SessionSnapshotContext(int MazeLevel, string LevelName,
