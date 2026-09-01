@@ -254,9 +254,9 @@ public static class MazeLevelConfigurations
                 ],
                 RoomEncounters =
                 [
-                    Encounters.Same(MonsterIds.Csontváz, Amount.Several, Amount.Several),
+                    Encounters.Same(MonsterIds.Csontváz, Amount.Several, Amount.TwoThree),
                     Encounters.Mixed(MonsterIds.Zombi, Amount.Several, MonsterIds.Csontváz, Amount.Few, Amount.Few),
-                    Encounters.LeaderGroup(MonsterIds.Ghoul, MonsterIds.Csontváz, Amount.One, Amount.Pack)
+                    Encounters.LeaderGroup(MonsterIds.Ghoul, MonsterIds.Csontváz, Amount.One, Amount.Several)
                 ],
                 CorridorEncounters =
                 [

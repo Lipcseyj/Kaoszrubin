@@ -64,6 +64,10 @@ var tests = new (string Name, Action Run)[]
     ("A fegyverjártasság két családra korlátozott, hat és menthető", WeaponProficienciesAreLimitedEffectiveAndPersisted),
     ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
+    ("A taktikai távolság követi a konzolcellák kettő az egyhez arányát", TacticalDistanceUsesConsoleAspectRatio),
+    ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
+    ("A fenyegetésbecslés felismeri az elszigetelt gyenge ellenfelet", EncounterThreatAssessmentRecognizesSafeFight),
+    ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
     ("A harcos taktikai találati esélyei a valódi képletet követik", FighterTacticHitChancesUseCombatFormula),
     ("Az ellenséges kezdeményezés az első saját körig késlelteti a taktikát", EnemyInitiativeDelaysTacticPrompt),
@@ -3170,6 +3174,77 @@ static void PursuitMemoryLastsThreeMoves()
     var restored = JsonSerializer.Deserialize<EnemySaveData>(JsonSerializer.Serialize(saved));
     Assert(restored?.PursuitMemoryRemainingMoves == 2,
         "Az üldözési memória nem élte túl a mentési JSON-körutat.");
+}
+
+static void TacticalDistanceUsesConsoleAspectRatio()
+{
+    var origin = new Position(10, 10);
+    Assert(TacticalDistance.Between(origin, new Position(20, 10)) == 5 &&
+           TacticalDistance.Between(origin, new Position(10, 15)) == 5 &&
+           TacticalDistance.IsWithin(origin, new Position(18, 11), 5) &&
+           !TacticalDistance.IsWithin(origin, new Position(20, 11), 5),
+        "A taktikai távolság nem azonos léptékben kezeli a vízszintes és függőleges irányt.");
+}
+
+static void TacticalBattleStateOrdersEligibleParticipants()
+{
+    var first = new TacticalBattleParticipant(new CombatantId("character:first"), BattleSide.Friendly,
+        TacticalParticipantKind.PartyMember, new Position(10, 10), 8, 3);
+    var second = new TacticalBattleParticipant(new CombatantId("enemy:first"), BattleSide.Hostile,
+        TacticalParticipantKind.Enemy, new Position(11, 10), 6, 2);
+    var late = new TacticalBattleParticipant(new CombatantId("character:late"), BattleSide.Friendly,
+        TacticalParticipantKind.PartyMember, new Position(20, 10), 12, 5, EligibleFromCycle: 3);
+    var state = new TacticalBattleState(BattleId.New(), new Position(10, 10), [first, second, late]);
+
+    Assert(state.InitiativeOrder.Select(value => value.Id).SequenceEqual([first.Id, second.Id]) &&
+           state.IsInsideBattleArea(new Position(20, 10)),
+        "A nyitószakaszban nem csak az azonnal jogosult résztvevők kerültek sorra.");
+    state.AdvanceCycle();
+    state.AdvanceCycle();
+    Assert(state.InitiativeOrder.Select(value => value.Id).SequenceEqual([late.Id, first.Id, second.Id]),
+        "A harmadik körben nem lépett be vagy nem kezdeményezés szerint rendeződött a távoli résztvevő.");
+}
+
+static void EncounterThreatAssessmentRecognizesSafeFight()
+{
+    var party = Enumerable.Range(0, 4).Select(index => CreateCharacter($"Hős{index}", 30)).ToArray();
+    var weakEnemy = new EnemyDefinition("E-WEAK", "Gyenge ellenfél", "e", 1, 2, 0, 1,
+        1, 1, []);
+    var boss = weakEnemy with { HitPoints = 100, Strength = 12, Armor = 8, Speed = 8,
+        StrengthTier = 10, Rank = EnemyRank.Boss };
+    var safe = EncounterThreatEvaluator.Assess(party, [weakEnemy]);
+    var dangerous = EncounterThreatEvaluator.Assess(party, [boss]);
+    Assert(safe.IsOverwhelminglySafe && safe.HostileToFriendlyRatio <= 0.25 &&
+           !dangerous.IsOverwhelminglySafe && dangerous.HostilePower > safe.HostilePower,
+        "A fenyegetésbecslés nem különíti el a jelentéktelen ellenfelet a bosstól.");
+}
+
+static void EquipmentWeightAffectsMobility()
+{
+    var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { CharacterClassIds.Harcos };
+    var race = new RaceDefinition("R-TEST", "Ember", PrimaryAbilities.Zero);
+    var fighterClass = new CharacterClassDefinition(CharacterClassIds.Harcos, "Harcos",
+        PrimaryAbilities.Zero, false, 1.0);
+    var character = new LiveCharacter("Teherpróba", race, fighterClass,
+        new PrimaryAbilities(8, 7, 5, 5), 30, 0, 1, 0);
+    var light = CharacterMobilityRules.Evaluate(character);
+    var weapon = new WeaponDefinition("W-HEAVY", "Nehéz fegyver", "WT001", new ValueRange(2, 4),
+        1, false, allowed, "", 1, Weight: 8);
+    var shield = weapon with { Id = "W-SHIELD", Name = "Nehéz pajzs" };
+    var armor = new ArmorDefinition("A-HEAVY", "Nehéz vért", new ValueRange(2, 4), allowed,
+        "", 1, Weight: 10);
+    Assert(character.EquipWeapon(0, weapon) && character.EquipWeapon(1, shield) && character.EquipArmor(armor),
+        "A tesztfelszerelés nem volt felvehető.");
+    var heavy = CharacterMobilityRules.Evaluate(character);
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+
+    Assert(light.Encumbrance == EncumbranceLevel.Light && heavy.EquippedWeight == 26 &&
+           heavy.Encumbrance == EncumbranceLevel.Heavy &&
+           heavy.InitiativeBase < light.InitiativeBase &&
+           heavy.CombatMovementAllowance < light.CombatMovementAllowance &&
+           data.GetWeapon("W001").Weight == 1 && data.GetWeapon("W009").Weight == 7 &&
+           data.GetArmor("A006").Weight == 12,
+        "A súlyadatok vagy a leterheltségi mozgásprofil hibás.");
 }
 
 static BattleSystem CreateBattleSystem(int seed) => new(new Random(seed),

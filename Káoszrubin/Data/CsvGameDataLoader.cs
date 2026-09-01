@@ -256,13 +256,15 @@ public static class CsvGameDataLoader
                     AllowedClasses(cells, (CharacterClassIds.Harcos, null), (CharacterClassIds.Barbár, null), (CharacterClassIds.Lovag, null),
                         (CharacterClassIds.Tolvaj, 6), (CharacterClassIds.Pap, 7), (CharacterClassIds.Mágus, 8)),
                     Cell(cells, 9), RequiredPrice(cells, 10, id), ParseRarity(cells, 11),
-                    EmptyAsNull(Cell(cells, 12)), Integer(cells, 13) ?? 0));
+                    EmptyAsNull(Cell(cells, 12)), Integer(cells, 13) ?? 0,
+                    PositiveWeight(cells, 14, id, "fegyver")));
                 break;
             case DataSection.Armors:
                 armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),
                     AllowedClasses(cells, (CharacterClassIds.Harcos, null), (CharacterClassIds.Lovag, null), (CharacterClassIds.Barbár, 3),
                         (CharacterClassIds.Tolvaj, 4), (CharacterClassIds.Pap, 5), (CharacterClassIds.Mágus, 6)), Cell(cells, 7), RequiredPrice(cells, 8, id),
-                    ParseRarity(cells, 9), EmptyAsNull(Cell(cells, 10)), Integer(cells, 11) ?? 0));
+                    ParseRarity(cells, 9), EmptyAsNull(Cell(cells, 10)), Integer(cells, 11) ?? 0,
+                    PositiveWeight(cells, 12, id, "páncél")));
                 break;
             case DataSection.Abilities:
                 abilities.Add(new AbilityDefinition(id, name));
@@ -485,6 +487,14 @@ public static class CsvGameDataLoader
     private static int RequiredPrice(string[] cells, int index, string id) => Integer(cells, index) is > 0 and var price
         ? price
         : throw new InvalidOperationException($"A(z) '{id}' tárgy ára hiányzik vagy nem pozitív az adatok.csv fájlban.");
+
+    private static int PositiveWeight(string[] cells, int index, string id, string itemType)
+    {
+        if (string.IsNullOrWhiteSpace(Cell(cells, index))) return 1;
+        return Integer(cells, index) is > 0 and var weight
+            ? weight
+            : throw new InvalidOperationException($"A(z) '{id}' {itemType} súlya pozitív egész szám legyen.");
+    }
 
     private static int RequiredWeaponStrength(string[] cells, int index, string id) =>
         Integer(cells, index) is >= 1 and <= 13 and var strength

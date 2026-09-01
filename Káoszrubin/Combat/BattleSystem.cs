@@ -74,8 +74,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var perkInitiativeBonus = player.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
         var magicInitiativeBonus = player.GetMagicItemBonus(MagicItemEffect.Initiative);
         var spellInitiativeBonus = player.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus);
+        var mobility = CharacterMobilityRules.Evaluate(player);
         var initiativeBonus = perkInitiativeBonus + magicInitiativeBonus + spellInitiativeBonus + proficiencyInitiativeBonus;
-        var playerInitiative = RollInitiative(player.EffectiveAbilities.Dexterity + initiativeBonus - player.StatusInitiativePenalty);
+        var playerInitiative = RollInitiative(mobility.InitiativeBase + initiativeBonus - player.StatusInitiativePenalty);
         var enemyInitiativeBonus = MonsterAbilityValue(defender, MonsterAbilityEffect.InitiativeBonus);
         var enemyInitiative = RollInitiative(enemy.EffectiveSpeed + enemyInitiativeBonus);
         var playerAttacks = playerInitiative.Total >= enemyInitiative.Total;
@@ -86,7 +87,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (proficiencyInitiativeBonus > 0)
             initiativeNotes.Add($"{WeaponFamilies.Find(initiativeFamily!)!.Icon} jártasság +{proficiencyInitiativeBonus}");
         var perkText = initiativeNotes.Count > 0 ? $" [{string.Join(", ", initiativeNotes)}]" : string.Empty;
-        var initiativeMessage = $"Kezdeményezés: {player.Name} Ügy {player.EffectiveAbilities.Dexterity}{perkText}" +
+        var loadText = mobility.EncumbranceInitiativePenalty > 0
+            ? $" - felszerelés {mobility.EncumbranceInitiativePenalty} ({mobility.EquippedWeight}/{mobility.CarryingCapacity})"
+            : string.Empty;
+        var initiativeMessage = $"Kezdeményezés: {player.Name} Ügy {player.EffectiveAbilities.Dexterity}" +
+            (mobility.ClassInitiativeModifier > 0 ? $" + osztály {mobility.ClassInitiativeModifier}" : string.Empty) +
+            loadText + perkText +
             (player.StatusInitiativePenalty > 0
                 ? $" - {(player.HasStatus(CharacterStatusIds.Thirsty) ? "💧 szomjúság" : "állapot")} {player.StatusInitiativePenalty}"
                 : string.Empty) +

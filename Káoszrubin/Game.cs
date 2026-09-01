@@ -130,6 +130,7 @@ public sealed class Game
     private const int MinimumPartyMoveDelayMilliseconds = 250;
     private const int MaximumPartyMoveDelayMilliseconds = 300;
     private const int CatchUpMoveDelayMilliseconds = 90;
+    private const int ControlledMoveDelayMilliseconds = 85;
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
@@ -180,6 +181,7 @@ public sealed class Game
     private DateTime _nextNpcSelfCareCheck;
     private readonly Dictionary<Enemy, DateTime> _nextEnemyMoves = [];
     private readonly Dictionary<PartyMemberAvatar, DateTime> _nextPartyMoves = [];
+    private readonly Dictionary<CharacterId, DateTime> _nextControlledMoves = [];
     private readonly List<Position> _leaderTrail = [];
     private bool _partyHoldingPosition;
     private bool _partyRegrouping;
@@ -1760,6 +1762,7 @@ public sealed class Game
 
     private void MovePlayer(Direction direction)
     {
+        if (!CanControlledCharacterMove(SelectedCharacter)) return;
         var previousPosition = _player.Position;
         var targetPosition = previousPosition + direction;
 
@@ -1787,6 +1790,7 @@ public sealed class Game
             }
         }
         SelectedCharacter.RegisterExplorationStep();
+        ScheduleNextControlledMove(SelectedCharacter);
         _leaderFacing = direction;
         if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
@@ -1806,6 +1810,7 @@ public sealed class Game
     {
         var member = _maze.PartyMembers.FirstOrDefault(candidate => candidate.Character.Id == command.CharacterId);
         if (member is null || !member.Character.IsAlive) return;
+        if (!CanControlledCharacterMove(member.Character)) return;
         var previous = member.Position;
         var destination = previous + command.Direction;
         if (_maze.GetEnemyAt(destination) is { } enemy)
@@ -1816,6 +1821,7 @@ public sealed class Game
         if (!CanEnterTrap(member.Character, destination)) return;
         if (!_maze.TryMovePartyMember(member, destination, _player.Position, allowTreasureChest: true)) return;
         member.Character.RegisterExplorationStep();
+        ScheduleNextControlledMove(member.Character);
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
         PlayCharacterStepSound(member.Character);
@@ -4350,7 +4356,19 @@ public sealed class Game
             distance >= 5 ? 130 : MinimumPartyMoveDelayMilliseconds;
         var maximumDelay = distance >= 8 ? CatchUpMoveDelayMilliseconds + 30 :
             distance >= 5 ? 170 : MaximumPartyMoveDelayMilliseconds;
+        (minimumDelay, maximumDelay) = CharacterMobilityRules.ScaleExplorationDelay(member.Character,
+            minimumDelay, maximumDelay);
         _nextPartyMoves[member] = from + TimeSpan.FromMilliseconds(_random.Next(minimumDelay, maximumDelay + 1));
+    }
+
+    private bool CanControlledCharacterMove(LiveCharacter character) =>
+        _nextControlledMoves.GetValueOrDefault(character.Id) <= DateTime.UtcNow;
+
+    private void ScheduleNextControlledMove(LiveCharacter character)
+    {
+        var delay = Math.Max(35, (int)Math.Round(ControlledMoveDelayMilliseconds *
+            CharacterMobilityRules.Evaluate(character).ExplorationDelayMultiplier));
+        _nextControlledMoves[character.Id] = DateTime.UtcNow + TimeSpan.FromMilliseconds(delay);
     }
 
     private Position? ChoosePartyMemberStep(PartyMemberAvatar member)

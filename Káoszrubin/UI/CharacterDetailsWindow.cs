@@ -24,6 +24,8 @@ public static class CharacterDetailsWindow
             ($"❤️ HP {character.CurrentVitality}/{character.MaximumVitality}   🔷 Mana {character.CurrentMana}/{character.MaximumMana}", ConsoleColor.White),
             ($"🍖 Étel {character.FoodLevel}/100   💧 Ital {character.WaterLevel}/100", ConsoleColor.White),
             ($"Erő {sheet.Abilities.Strength}  Ügyesség {sheet.Abilities.Dexterity}  Egészség {sheet.Abilities.Health}  Intelligencia {sheet.Abilities.Intelligence}", ConsoleColor.White),
+            ($"⚖ Felszerelés: {sheet.EquippedWeight}/{sheet.CarryingCapacity} súly — {sheet.Encumbrance} terhelés", LoadColor(sheet.Encumbrance)),
+            ($"⚡ Kezdeményezési alap: {sheet.InitiativeBase}  |  👣 Harci mozgás: {sheet.CombatMovementAllowance} mező", ConsoleColor.White),
             (string.Empty, ConsoleColor.Gray),
             ("LÁTÁS", ConsoleColor.Cyan),
             ($"👁 Tényleges látótáv: {sheet.VisionRange}  |  természetes: {sheet.NaturalVisionRange}", ConsoleColor.White)
@@ -139,6 +141,12 @@ public static class CharacterDetailsWindow
         data.Armors.FirstOrDefault(value => SameId(value.Id, id))?.Name ?? id;
     private static bool SameId(string left, string right) =>
         string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+    private static ConsoleColor LoadColor(string encumbrance) => encumbrance switch
+    {
+        "Nehéz" => ConsoleColor.Red,
+        "Közepes" => ConsoleColor.Yellow,
+        _ => ConsoleColor.Green
+    };
     private static string SlotName(InventorySlotKind kind, int index) => kind switch
     { InventorySlotKind.Weapon => $"Fegyver {index + 1}", InventorySlotKind.Armor => "Páncél",
       InventorySlotKind.MagicItem => $"Varázstárgy {index + 1}", _ => $"Hátizsák {index + 1}" };

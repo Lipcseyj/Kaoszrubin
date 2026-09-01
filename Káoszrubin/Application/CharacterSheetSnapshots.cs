@@ -14,7 +14,9 @@ public sealed record CharacterSheetSnapshot(string RaceName, string CharacterCla
     int NaturalVisionRange = CharacterClassRules.BaseVisionRange,
     IReadOnlyList<VisionModifierSnapshot>? VisionModifiers = null,
     int HearingRange = 4, int DetectionBonus = 0,
-    IReadOnlyList<string>? DetailedWeaponProficiencyNames = null);
+    IReadOnlyList<string>? DetailedWeaponProficiencyNames = null,
+    int EquippedWeight = 0, int CarryingCapacity = 0, string Encumbrance = "Könnyű",
+    int InitiativeBase = 0, int CombatMovementAllowance = CharacterMobilityRules.BaselineMovementAllowance);
 
 public sealed record VisionModifierSnapshot(string Name, int Value);
 public sealed record MonsterKillSnapshot(string EnemyDefinitionId, int Count);
@@ -58,6 +60,7 @@ public static class CharacterSheetSnapshotProjector
                 ActiveSpellEffectType.VisionBonus => "🔆",
                 _ => "✨"
             })).ToArray();
+        var mobility = CharacterMobilityRules.Evaluate(character);
         return new CharacterSheetSnapshot(character.Race.Name, character.CharacterClass.Name,
             character.Experience, character.GetNextLevelExperience(experienceByLevel), character.EffectiveAbilities,
             character.Perks.Select(perk => perk.Name)
@@ -74,8 +77,17 @@ public static class CharacterSheetSnapshotProjector
             CharacterClassRules.VisionRange(character, environmentVisionModifier),
             CharacterClassRules.NaturalVisionRange(character), BuildVisionModifiers(character, environmentVisionModifier),
             CharacterClassRules.HearingRange(character), CharacterClassRules.DetectionBonus(character),
-            character.WeaponProficiencies.Select(FormatDetailedWeaponProficiency).ToArray());
+            character.WeaponProficiencies.Select(FormatDetailedWeaponProficiency).ToArray(),
+            mobility.EquippedWeight, mobility.CarryingCapacity, EncumbranceName(mobility.Encumbrance),
+            mobility.InitiativeBase, mobility.CombatMovementAllowance);
     }
+
+    private static string EncumbranceName(EncumbranceLevel level) => level switch
+    {
+        EncumbranceLevel.Medium => "Közepes",
+        EncumbranceLevel.Heavy => "Nehéz",
+        _ => "Könnyű"
+    };
 
     private static IReadOnlyList<VisionModifierSnapshot> BuildVisionModifiers(LiveCharacter character,
         int environmentVisionModifier)
