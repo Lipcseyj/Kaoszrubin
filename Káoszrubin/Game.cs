@@ -1997,7 +1997,8 @@ public sealed class Game
             Position? targetDoor = null;
             if (characterAction is CharacterAction.OpenDoor or CharacterAction.CloseOrLockDoor)
             {
-                var doors = AdjacentDoorPositions(_player.Position);
+                var doors = AdjacentDoorPositions(SelectedCharacter, _player.Position,
+                    includeFormation: characterAction == CharacterAction.OpenDoor);
                 if (doors.Count == 1) targetDoor = doors[0];
                 else if (doors.Count > 1)
                 {
@@ -3104,15 +3105,17 @@ public sealed class Game
         var position = character is null ? null : GetCharacterWorldPosition(character);
         if (character is null || position is null || !character.IsAlive) return;
         var isLeader = character == SelectedCharacter;
+        var doorContext = ResolveDoorInteraction(character, position.Value, command.Action,
+            command.TargetDoorPosition);
         switch (command.Action)
         {
             case CharacterAction.OpenDoor:
-                _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
-                    character, allowPartyAssistanceAndPrompts: isLeader, command.TargetDoorPosition, command.UseKey);
+                _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, doorContext.Origin, _player.Position,
+                    character, allowPartyAssistanceAndPrompts: isLeader, doorContext.Target, command.UseKey);
                 break;
             case CharacterAction.CloseOrLockDoor:
-                _doorInteractions.TryCloseOrLockAdjacentDoor(_maze, _fogOfWar, position.Value, _player.Position,
-                    character, command.TargetDoorPosition, command.UseKey);
+                _doorInteractions.TryCloseOrLockAdjacentDoor(_maze, _fogOfWar, doorContext.Origin, _player.Position,
+                    character, doorContext.Target, command.UseKey);
                 break;
             case CharacterAction.SearchCurrentPosition:
                 if (!TryDisarmAdjacentTrap(character, position.Value))
@@ -3121,11 +3124,37 @@ public sealed class Game
         }
     }
 
-    private IReadOnlyList<Position> AdjacentDoorPositions(Position position) =>
-        Enum.GetValues<Direction>()
-            .Select(direction => position + direction)
+    private IReadOnlyList<Position> AdjacentDoorPositions(LiveCharacter character, Position position,
+        bool includeFormation) =>
+        DoorInteractionOrigins(character, position, includeFormation)
+            .SelectMany(origin => Enum.GetValues<Direction>().Select(direction => origin + direction))
             .Where(candidate => _maze.GetDoorAt(candidate) is not null)
+            .Distinct()
             .ToArray();
+
+    private IReadOnlyList<Position> DoorInteractionOrigins(LiveCharacter character, Position position,
+        bool includeFormation)
+    {
+        if (!includeFormation) return [position];
+        var partyPositions = CharacterRoster.Party.Members.Where(member => member.IsAlive)
+            .Select(member => (member.Id, Position: GetCharacterWorldPosition(member)))
+            .Where(entry => entry.Position is not null)
+            .ToDictionary(entry => entry.Id, entry => entry.Position!.Value);
+        return PartyFormationRules.InteractionOrigins(_formation, character.Id, position, partyPositions);
+    }
+
+    private (Position Origin, Position? Target) ResolveDoorInteraction(LiveCharacter character,
+        Position actorPosition, CharacterAction action, Position? requestedTarget)
+    {
+        var includeFormation = action == CharacterAction.OpenDoor;
+        var candidates = AdjacentDoorPositions(character, actorPosition, includeFormation);
+        var target = requestedTarget ?? (candidates.Count == 1 ? candidates[0] : null);
+        if (target is not { } targetPosition || !candidates.Contains(targetPosition))
+            return (actorPosition, requestedTarget);
+        var origin = DoorInteractionOrigins(character, actorPosition, includeFormation)
+            .First(position => Manhattan(position, targetPosition) == 1);
+        return (origin, targetPosition);
+    }
 
     private bool? GetLocalThiefKeyChoice(CharacterAction action, Position? targetDoorPosition)
     {

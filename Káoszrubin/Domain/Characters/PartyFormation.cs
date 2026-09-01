@@ -84,6 +84,20 @@ public static class PartyFormationRules
                 index => Add(anchorPosition, Subtract(Offset((FormationSlot)index, formation.Facing), anchorOffset)));
     }
 
+    public static IReadOnlyList<Position> InteractionOrigins(PartyFormationSnapshot formation,
+        CharacterId actorId, Position actorPosition, IReadOnlyDictionary<CharacterId, Position> partyPositions)
+    {
+        if (formation.State != PartyFormationState.Locked || !formation.Slots.Contains(actorId))
+            return [actorPosition];
+        return formation.Slots.Where(id => id is not null)
+            .Select(id => partyPositions.TryGetValue(id!.Value, out var position) ? (Position?)position : null)
+            .Where(position => position is not null)
+            .Select(position => position!.Value)
+            .Append(actorPosition)
+            .Distinct()
+            .ToArray();
+    }
+
     private static PartyFormationSnapshot FromSlots(IEnumerable<CharacterId?> slots, Direction facing,
         PartyFormationState state)
     {

@@ -473,11 +473,12 @@ public sealed class CoopGuestScreen
         {
             if (action is CharacterAction.OpenDoor or CharacterAction.CloseOrLockDoor)
             {
-                var ownPosition = snapshot.Party.FirstOrDefault(character => character.CharacterId == characterId)
-                    ?.Position;
-                var doors = ownPosition is { } position && snapshot.World is { } world
+                var origins = DoorInteractionOrigins(snapshot, characterId,
+                    includeFormation: action == CharacterAction.OpenDoor);
+                var doors = origins.Count > 0 && snapshot.World is { } world
                     ? world.Doors.Select(door => door.Position)
-                        .Where(candidate => Manhattan(candidate, position) == 1).ToArray()
+                        .Where(candidate => origins.Any(origin => Manhattan(candidate, origin) == 1))
+                        .Distinct().ToArray()
                     : [];
                 if (doors.Length > 1)
                 {
@@ -550,6 +551,18 @@ public sealed class CoopGuestScreen
 
     private static int Manhattan(Position first, Position second) =>
         Math.Abs(first.X - second.X) + Math.Abs(first.Y - second.Y);
+
+    private static IReadOnlyList<Position> DoorInteractionOrigins(SessionSnapshot snapshot, CharacterId actorId,
+        bool includeFormation)
+    {
+        var actorPosition = snapshot.Party.FirstOrDefault(character => character.CharacterId == actorId)?.Position;
+        if (actorPosition is not { } position) return [];
+        if (!includeFormation) return [position];
+        var partyPositions = snapshot.Party.Where(character => character.Position is not null)
+            .ToDictionary(character => character.CharacterId, character => character.Position!.Value);
+        return PartyFormationRules.InteractionOrigins(snapshot.Formation ??
+            PartyFormationRules.CreateDefault([actorId], actorId), actorId, position, partyPositions);
+    }
 
     private GameCommand? HandleLevelUpInput(CoopSignalRClient client, CharacterId characterId,
         LevelUpPromptSnapshot prompt, ConsoleKey key)

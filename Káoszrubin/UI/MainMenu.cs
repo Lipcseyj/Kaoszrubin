@@ -860,7 +860,7 @@ public sealed class MainMenu
             Hotkey("PGUP / PGDN", "A 21 soros eseménynapló lapozása 7 soronként."),
             Hotkey("F9", "A teljes játékállás mentése a mentések mappába."),
             Hotkey("K", "Felfedezett szomszédos csapda hatástalanítása; egyébként az aktuális mező átkutatása."),
-            Hotkey("N", "A melletted levő ajtó kinyitása."),
+            Hotkey("N", "A melletted levő ajtó kinyitása; zárt alakzatban bármelyik partitag melletti ajtó választható."),
             Hotkey("Z", "Nyitott ajtó becsukása, csukott ajtó kulcsra zárása."),
             Hotkey("P", "Pihenés pályánként egyszer, ellenségmentes és kulcsra zárt szobában."),
             Hotkey("LÁDÁRA LÉPÉS", "Az arany felvétele."),

@@ -67,6 +67,7 @@ var tests = new (string Name, Action Run)[]
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A taktikai távolság követi a konzolcellák kettő az egyhez arányát", TacticalDistanceUsesConsoleAspectRatio),
     ("A 2x2-es alakzat minden irányban a vezér slotjához igazodik", PartyFormationPositionsFollowFacing),
+    ("Zárt alakzatban minden slot pozíciója ajtó-interakciós eredőpont", LockedFormationSharesDoorInteractionOrigins),
     ("Zárt alakzatból a coop vendég nem léphet ki", LockedFormationRejectsRemoteMovement),
     ("A csapatharcban az átlós ellenfél is közelharci távolságban van", DiagonalEnemyIsMeleeAdjacent),
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
@@ -3214,6 +3215,28 @@ static void PartyFormationPositionsFollowFacing()
            facingRight[rearLeft.Id] == new Position(9, 10) &&
            facingRight[rearRight.Id] == new Position(9, 11),
         "Az alakzat slotjai nem fordultak el helyesen a vezér körül.");
+}
+
+static void LockedFormationSharesDoorInteractionOrigins()
+{
+    var leader = CreateCharacter("Ajtóvezér");
+    var rear = CreateCharacter("Ajtótárs");
+    var leaderPosition = new Position(5, 5);
+    var rearPosition = new Position(5, 6);
+    var positions = new Dictionary<CharacterId, Position>
+    {
+        [leader.Id] = leaderPosition,
+        [rear.Id] = rearPosition
+    };
+    var locked = new PartyFormationSnapshot(leader.Id, null, rear.Id, null,
+        Direction.Up, PartyFormationState.Locked);
+    var disbanded = locked with { State = PartyFormationState.Disbanded };
+
+    Assert(PartyFormationRules.InteractionOrigins(locked, leader.Id, leaderPosition, positions)
+               .ToHashSet().SetEquals([leaderPosition, rearPosition]) &&
+           PartyFormationRules.InteractionOrigins(disbanded, leader.Id, leaderPosition, positions)
+               .SequenceEqual([leaderPosition]),
+        "Az ajtó-interakció hatósugara nem csak zárt alakzatban terjed ki a többi slot pozíciójára.");
 }
 
 static void FormationAssemblySwapsFriendlyAvatars()
