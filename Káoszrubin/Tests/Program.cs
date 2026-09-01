@@ -69,6 +69,8 @@ var tests = new (string Name, Action Run)[]
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
     ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
+    ("A csapatharc célpontja akcióvesztés nélkül váltható", TeamBattleTargetCanBeChanged),
+    ("A harcba hívott erősítés a következő körben lép be", TeamBattleReinforcementJoinsNextCycle),
     ("A coop session validálja a csapatharcos mozgást és tárgyhasználatot", TeamBattleCommandsAreValidated),
     ("A fenyegetésbecslés felismeri az elszigetelt gyenge ellenfelet", EncounterThreatAssessmentRecognizesSafeFight),
     ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
@@ -3270,6 +3272,47 @@ static void TeamBattleEngagementLastsUntilEnemyDeath()
         "A karaktert a legyőzött ellenfél továbbra is lekötve tartja.");
 }
 
+static void TeamBattleTargetCanBeChanged()
+{
+    var system = CreateBattleSystem(1703);
+    var character = CreateCharacter("Célpontváltó");
+    var firstEnemy = CreateEnemy(20, 2);
+    var secondEnemy = CreateEnemy(20, 2);
+    var preparation = system.PrepareTeamCharacter(character);
+    var encounter = new TeamBattleEncounter(new Position(1, 1),
+        [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
+            preparation.Initiative, 3, 1, preparation.Runtime)],
+        [new TeamEnemyParticipant(firstEnemy, 5, 2, 1), new TeamEnemyParticipant(secondEnemy, 4, 2, 2)],
+        character.Id, firstEnemy.Id);
+    encounter.Turns.StartTurns();
+    var turnId = encounter.Turns.TurnId;
+    Assert(encounter.TrySelectTarget(secondEnemy) && encounter.SelectedTargetEnemy() == secondEnemy &&
+           encounter.Turns.TurnId == turnId,
+        "A célpontváltás előreléptette a körsorrendet vagy nem őrizte meg a célpontot.");
+}
+
+static void TeamBattleReinforcementJoinsNextCycle()
+{
+    var system = CreateBattleSystem(1704);
+    var character = CreateCharacter("Erősítéspróba");
+    var enemy = CreateEnemy(20, 2);
+    var reinforcement = CreateEnemy(20, 2);
+    var preparation = system.PrepareTeamCharacter(character);
+    var encounter = new TeamBattleEncounter(new Position(1, 1),
+        [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
+            preparation.Initiative, 3, 1, preparation.Runtime)],
+        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+    encounter.Turns.StartTurns();
+    Assert(encounter.TryAddEnemy(new TeamEnemyParticipant(reinforcement, 99, 3, 2)) &&
+           !encounter.Turns.InitiativeOrder.Any(participant =>
+               participant.Id == CombatantId.ForEnemy(reinforcement.Id)),
+        "Az erősítés már a nyitó ütésváltásba bekerült.");
+    encounter.AdvanceTurn();
+    var next = encounter.AdvanceTurn();
+    Assert(encounter.Turns.Cycle == 2 && next.Id == CombatantId.ForEnemy(reinforcement.Id),
+        "Az erősítés nem a következő kör kezdeményezési sorrendjébe került.");
+}
+
 static void TeamBattleCommandsAreValidated()
 {
     var (session, leader, _) = CreateSession();
@@ -3285,6 +3328,18 @@ static void TeamBattleCommandsAreValidated()
         BattleActionKind.UseItem, BackpackIndex: 3);
     Assert(session.Submit(use) && session.TryReadCommand(out var acceptedUse) && acceptedUse == use,
         "A csapatharcos tárgyhasználati parancsot elutasította a session.");
+
+    var enemyId = WorldEntityId.New();
+    session.SetBattlePrompt(battleId, 3, leader.Id,
+        [BattleActionKind.SelectTarget, BattleActionKind.Retreat]);
+    var select = new BattleActionCommand(session.HostPlayerId, 3, leader.Id, battleId, 3,
+        BattleActionKind.SelectTarget, TargetEnemyId: enemyId);
+    Assert(session.Submit(select) && session.TryReadCommand(out var acceptedSelect) && acceptedSelect == select,
+        "A célpontváltó parancsot elutasította a session.");
+    var retreat = new BattleActionCommand(session.HostPlayerId, 4, leader.Id, battleId, 3,
+        BattleActionKind.Retreat);
+    Assert(session.Submit(retreat) && session.TryReadCommand(out var acceptedRetreat) && acceptedRetreat == retreat,
+        "A visszavonulási parancsot elutasította a session.");
 }
 
 static void EquipmentWeightAffectsMobility()

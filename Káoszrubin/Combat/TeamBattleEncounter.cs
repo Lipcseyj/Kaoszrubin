@@ -28,6 +28,7 @@ public sealed class TeamBattleEncounter
     private readonly HashSet<CharacterId> _resolvedCharacterDeaths = [];
     private readonly HashSet<(CharacterId CharacterId, WorldEntityId EnemyId)> _engagements = [];
     private int _queuedExtraActions;
+    private int _reinforcementsCheckedThroughCycle;
 
     public TeamBattleEncounter(Position center,
         IEnumerable<TeamCharacterParticipant> characters,
@@ -91,6 +92,7 @@ public sealed class TeamBattleEncounter
     public TacticalBattleParticipant Current => Turns.CurrentParticipant ?? Turns.StartTurns();
     public LiveCharacter? CurrentCharacter => _characters.GetValueOrDefault(Current.Id);
     public Enemy? CurrentEnemy => _enemies.GetValueOrDefault(Current.Id);
+    public WorldEntityId? SelectedTargetEnemyId { get; private set; }
 
     public TeamCharacterBattleRuntime RuntimeFor(LiveCharacter character) =>
         _characterRuntimes[character.Id];
@@ -100,6 +102,37 @@ public sealed class TeamBattleEncounter
 
     public LiveCharacter? CharacterFor(CombatantId id) => _characters.GetValueOrDefault(id);
     public Enemy? EnemyFor(CombatantId id) => _enemies.GetValueOrDefault(id);
+    public bool ContainsEnemy(Enemy enemy) => _enemies.ContainsKey(CombatantId.ForEnemy(enemy.Id));
+
+    public bool TryAddEnemy(TeamEnemyParticipant participant)
+    {
+        var id = CombatantId.ForEnemy(participant.Enemy.Id);
+        if (_enemies.ContainsKey(id)) return false;
+        var tactical = new TacticalBattleParticipant(id, BattleSide.Hostile, TacticalParticipantKind.Enemy,
+            participant.Enemy.Position, participant.Initiative, participant.MovementAllowance,
+            participant.EligibleFromCycle, TacticalParticipantState.Approaching);
+        if (!Turns.TryAddParticipant(tactical)) return false;
+        _enemies.Add(id, participant.Enemy);
+        return true;
+    }
+
+    public bool BeginReinforcementCheckForCurrentCycle()
+    {
+        if (_reinforcementsCheckedThroughCycle >= Turns.Cycle) return false;
+        _reinforcementsCheckedThroughCycle = Turns.Cycle;
+        return true;
+    }
+
+    public bool TrySelectTarget(Enemy enemy)
+    {
+        if (!ContainsEnemy(enemy) || enemy.CurrentHitPoints <= 0) return false;
+        SelectedTargetEnemyId = enemy.Id;
+        return true;
+    }
+
+    public Enemy? SelectedTargetEnemy() => SelectedTargetEnemyId is { } id
+        ? _enemies.Values.FirstOrDefault(enemy => enemy.Id == id && enemy.CurrentHitPoints > 0)
+        : null;
 
     public void Engage(LiveCharacter character, Enemy enemy) => _engagements.Add((character.Id, enemy.Id));
 
@@ -111,9 +144,15 @@ public sealed class TeamBattleEncounter
         pair.EnemyId == enemy.Id &&
         _characters.Values.Any(character => character.Id == pair.CharacterId && character.IsAlive));
 
+    public IReadOnlyList<Enemy> EngagedEnemies(LiveCharacter character) => _engagements
+        .Where(pair => pair.CharacterId == character.Id)
+        .Select(pair => _enemies.Values.FirstOrDefault(enemy => enemy.Id == pair.EnemyId))
+        .Where(enemy => enemy is { CurrentHitPoints: > 0 }).Cast<Enemy>().ToArray();
+
     public TacticalBattleParticipant AdvanceTurn()
     {
         ActionNumber++;
+        SelectedTargetEnemyId = null;
         if (_queuedExtraActions > 0)
         {
             _queuedExtraActions--;
@@ -131,6 +170,9 @@ public sealed class TeamBattleEncounter
 
     public void MarkDefeated(Enemy enemy) =>
         Turns.TrySetState(CombatantId.ForEnemy(enemy.Id), TacticalParticipantState.Defeated);
+
+    public void MarkRetreated(LiveCharacter character) =>
+        Turns.TrySetState(CombatantId.ForCharacter(character.Id), TacticalParticipantState.Retreated);
 
     public void UpdatePosition(LiveCharacter character, Position position) =>
         Turns.TryUpdatePosition(CombatantId.ForCharacter(character.Id), position);

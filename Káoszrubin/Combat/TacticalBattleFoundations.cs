@@ -176,6 +176,13 @@ public sealed class TacticalBattleState
         return true;
     }
 
+    public bool TryAddParticipant(TacticalBattleParticipant participant)
+    {
+        if (string.IsNullOrWhiteSpace(participant.Id.Value) || _participants.ContainsKey(participant.Id)) return false;
+        _participants.Add(participant.Id, participant);
+        return true;
+    }
+
     public bool TrySetState(CombatantId id, TacticalParticipantState state)
     {
         if (!_participants.TryGetValue(id, out var participant)) return false;

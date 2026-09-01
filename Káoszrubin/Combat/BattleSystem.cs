@@ -226,6 +226,20 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack);
     }
 
+    public BattleLogEntry ResolveTeamOpportunityAttack(Enemy attacker, LiveCharacter defender,
+        TeamCharacterBattleRuntime defenderRuntime)
+    {
+        ArgumentNullException.ThrowIfNull(attacker);
+        ArgumentNullException.ThrowIfNull(defender);
+        ArgumentNullException.ThrowIfNull(defenderRuntime);
+        var attack = EnemyAttack(attacker.Definition, defender, defenderRuntime.Context, attacker.EffectiveSpeed);
+        var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : string.Empty;
+        return new BattleLogEntry(
+            $"↪️ Búcsútámadás: {attacker.Name} megtámadja {defender.Name}-t. {attack.Message} {survival} " +
+            $"{defender.Name} ❤️ {defender.CurrentVitality}/{defender.MaximumVitality}.",
+            attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack);
+    }
+
     public void SetTeamKnightProtection(TeamCharacterBattleRuntime runtime, LiveCharacter knight)
     {
         runtime.Context.KnightProtector = knight;

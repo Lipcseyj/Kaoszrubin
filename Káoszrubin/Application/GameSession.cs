@@ -593,12 +593,16 @@ public sealed class GameSession
 
     private static bool HasValidBattleActionShape(BattleActionCommand command) => command.Action switch
     {
-        BattleActionKind.AdvanceEnemyTurn or BattleActionKind.TurnUndead or
+        BattleActionKind.AdvanceEnemyTurn or BattleActionKind.Retreat or
         BattleActionKind.FighterPrecise or BattleActionKind.FighterPowerful or
         BattleActionKind.FighterDefensive or BattleActionKind.ThiefAmbush or
         BattleActionKind.ThiefObserve or BattleActionKind.ThiefPoison =>
             command.SpellId is null && command.CastingItemSlotIndex is null && command.Target is null &&
             command.TargetEnemyId is null && command.BackpackIndex is null,
+        BattleActionKind.SelectTarget or BattleActionKind.TurnUndead =>
+                                         command.TargetEnemyId is not null && command.SpellId is null &&
+                                         command.CastingItemSlotIndex is null && command.Target is null &&
+                                         command.BackpackIndex is null,
         BattleActionKind.Move => command.Target is not null && command.SpellId is null &&
                                  command.CastingItemSlotIndex is null && command.TargetEnemyId is null &&
                                  command.BackpackIndex is null,

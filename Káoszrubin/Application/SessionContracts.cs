@@ -103,10 +103,12 @@ public sealed record PickUpGroundItemCommand(PlayerId SenderId, long CommandId, 
 public enum BattleActionKind
 {
     Move,
+    SelectTarget,
     PhysicalAttack,
     AdvanceEnemyTurn,
     CastSpell,
     UseItem,
+    Retreat,
     TurnUndead,
     FighterPrecise,
     FighterPowerful,

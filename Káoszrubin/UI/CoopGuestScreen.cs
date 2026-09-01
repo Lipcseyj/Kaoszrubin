@@ -372,6 +372,13 @@ public sealed class CoopGuestScreen
                 command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                     battle.BattleId, battle.TurnId, tacticAction);
             }
+            else if (key == ConsoleKey.Tab && battle.AllowedActions.Contains(BattleActionKind.SelectTarget) &&
+                     NextBattleTarget(battle, characterId) is { } nextTarget)
+            {
+                command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                    battle.BattleId, battle.TurnId, BattleActionKind.SelectTarget,
+                    TargetEnemyId: nextTarget.EnemyId);
+            }
             else if (key == ConsoleKey.V && battle.AllowedActions.Contains(BattleActionKind.CastSpell))
             {
                 _battleSpellMenuOpen = true;
@@ -415,11 +422,15 @@ public sealed class CoopGuestScreen
                         BattleActionKind.PhysicalAttack,
                     ConsoleKey.T when battle.AllowedActions.Contains(BattleActionKind.TurnUndead) =>
                         BattleActionKind.TurnUndead,
+                    ConsoleKey.R when battle.AllowedActions.Contains(BattleActionKind.Retreat) =>
+                        BattleActionKind.Retreat,
                     _ => (BattleActionKind?)null
                 };
                 if (action is not null)
                     command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-                        battle.BattleId, battle.TurnId, action.Value, TargetEnemyId: targetEnemyId);
+                        battle.BattleId, battle.TurnId, action.Value,
+                        TargetEnemyId: action is BattleActionKind.PhysicalAttack or BattleActionKind.TurnUndead
+                            ? targetEnemyId : null);
             }
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && key == ConsoleKey.V)
@@ -1806,6 +1817,24 @@ public sealed class CoopGuestScreen
         _characterDetailsOffset = Math.Clamp(_characterDetailsOffset, 0, Math.Max(0, allLines.Count - pageSize));
         DrawGuestOverlay(grid, CharacterDetailsWindow.Page(allLines, _characterDetailsOffset, pageSize),
             ConsoleColor.Magenta, CharacterDetailsWindow.Width, FramedWindow.CharacterDetails);
+    }
+
+    private static TacticalBattleParticipantSnapshot? NextBattleTarget(BattleSnapshot battle,
+        CharacterId characterId)
+    {
+        var actor = battle.Participants?.FirstOrDefault(participant =>
+            participant.Id == CombatantId.ForCharacter(characterId));
+        if (actor is null) return null;
+        var targets = (battle.Participants ?? []).Where(participant =>
+                participant.Side == BattleSide.Hostile && participant.EnemyId is not null &&
+                participant.CurrentVitality > 0 &&
+                TacticalDistance.IsMeleeAdjacent(actor.Position, participant.Position))
+            .OrderBy(participant => participant.Position.Y).ThenBy(participant => participant.Position.X)
+            .ThenBy(participant => participant.Id.Value, StringComparer.Ordinal).ToArray();
+        if (targets.Length == 0) return null;
+        var selectedId = battle.Enemy.EntityId is { } enemyId ? CombatantId.ForEnemy(enemyId) : (CombatantId?)null;
+        var selectedIndex = selectedId is { } id ? Array.FindIndex(targets, target => target.Id == id) : -1;
+        return targets[(selectedIndex + 1) % targets.Length];
     }
 
     private static void ApplyAdHocConversationUi(GuestMapCell[,] grid,
