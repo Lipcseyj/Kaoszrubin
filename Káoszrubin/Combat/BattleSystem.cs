@@ -169,7 +169,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     }
 
     public BattleLogEntry ResolveTeamCharacterAttack(LiveCharacter attacker,
-        TeamCharacterBattleRuntime runtime, Enemy defender, int actionNumber)
+        TeamCharacterBattleRuntime runtime, Enemy defender)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -197,13 +197,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         defender.SetCurrentHitPoints(definition.HitPoints ?? 0);
         var statusText = FinishTeamCharacterAction(attacker, runtime);
         return new BattleLogEntry(
-            $"{actionNumber}. akció — {attacker.Name} támadja {defender.Name}-t. {string.Join(" ", messages)} " +
+            $"{attacker.Name} támadja {defender.Name}-t. {string.Join(" ", messages)} " +
             $"{defender.Name} ❤️ {defender.CurrentHitPoints}/{defender.Definition.HitPoints}.{statusText}",
             critical ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack);
     }
 
     public BattleLogEntry ResolveTeamEnemyAction(Enemy attacker, LiveCharacter defender,
-        TeamCharacterBattleRuntime defenderRuntime, int actionNumber)
+        TeamCharacterBattleRuntime defenderRuntime)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
@@ -212,16 +212,16 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (spellTick.Damage > 0) attacker.ReceiveSpellDamage(spellTick.Damage);
         var effectText = spellTick.Notes.Count == 0 ? string.Empty : $" {string.Join(", ", spellTick.Notes)}.";
         if (attacker.CurrentHitPoints <= 0)
-            return new BattleLogEntry($"{actionNumber}. akció — {attacker.Name} elbukik a varázshatásoktól.{effectText}",
+            return new BattleLogEntry($"{attacker.Name} elbukik a varázshatásoktól.{effectText}",
                 BattleLogKind.PlayerAttack);
         if (spellTick.SkipAction)
-            return new BattleLogEntry($"{actionNumber}. akció — {attacker.Name} varázshatás miatt kihagyja az akcióját.{effectText}",
+            return new BattleLogEntry($"{attacker.Name} varázshatás miatt kihagyja az akcióját.{effectText}",
                 BattleLogKind.Information);
 
         var attack = EnemyAttack(attacker.Definition, defender, defenderRuntime.Context, attacker.EffectiveSpeed);
         var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : string.Empty;
         return new BattleLogEntry(
-            $"{actionNumber}. akció — {attacker.Name} támadja {defender.Name}-t. {attack.Message} {survival} " +
+            $"{attacker.Name} támadja {defender.Name}-t. {attack.Message} {survival} " +
             $"{defender.Name} ❤️ {defender.CurrentVitality}/{defender.MaximumVitality}.{effectText}",
             attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack);
     }

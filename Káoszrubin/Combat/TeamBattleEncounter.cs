@@ -26,6 +26,7 @@ public sealed class TeamBattleEncounter
     private readonly Dictionary<CharacterId, (int Vitality, int Mana)> _startingResources = [];
     private readonly HashSet<WorldEntityId> _resolvedEnemyDeaths = [];
     private readonly HashSet<CharacterId> _resolvedCharacterDeaths = [];
+    private readonly HashSet<(CharacterId CharacterId, WorldEntityId EnemyId)> _engagements = [];
     private int _queuedExtraActions;
 
     public TeamBattleEncounter(Position center,
@@ -33,8 +34,9 @@ public sealed class TeamBattleEncounter
         IEnumerable<TeamEnemyParticipant> enemies,
         CharacterId initiatingCharacterId,
         WorldEntityId initiatingEnemyId,
+        bool enemyStrikesFirst = false,
         int radius = TacticalDistance.DefaultBattleRadius,
-        int openingCycles = 2)
+        int openingCycles = 1)
     {
         var characterList = characters.ToList();
         var enemyList = enemies.ToList();
@@ -68,7 +70,12 @@ public sealed class TeamBattleEncounter
                 participant.MovementAllowance, participant.EligibleFromCycle,
                 participant.EligibleFromCycle > 1 ? TacticalParticipantState.Approaching : TacticalParticipantState.Active));
         }
-        Turns = new TacticalBattleState(Id, center, tacticalParticipants, radius, openingCycles);
+        var initiatingCharacter = CombatantId.ForCharacter(initiatingCharacterId);
+        var initiatingEnemy = CombatantId.ForEnemy(initiatingEnemyId);
+        var openingOrder = enemyStrikesFirst
+            ? new[] { initiatingEnemy, initiatingCharacter }
+            : new[] { initiatingCharacter, initiatingEnemy };
+        Turns = new TacticalBattleState(Id, center, tacticalParticipants, radius, openingCycles, openingOrder);
     }
 
     public BattleId Id { get; }
@@ -93,6 +100,16 @@ public sealed class TeamBattleEncounter
 
     public LiveCharacter? CharacterFor(CombatantId id) => _characters.GetValueOrDefault(id);
     public Enemy? EnemyFor(CombatantId id) => _enemies.GetValueOrDefault(id);
+
+    public void Engage(LiveCharacter character, Enemy enemy) => _engagements.Add((character.Id, enemy.Id));
+
+    public bool IsEngaged(LiveCharacter character) => _engagements.Any(pair =>
+        pair.CharacterId == character.Id &&
+        _enemies.Values.Any(enemy => enemy.Id == pair.EnemyId && enemy.CurrentHitPoints > 0));
+
+    public bool IsEngaged(Enemy enemy) => _engagements.Any(pair =>
+        pair.EnemyId == enemy.Id &&
+        _characters.Values.Any(character => character.Id == pair.CharacterId && character.IsAlive));
 
     public TacticalBattleParticipant AdvanceTurn()
     {

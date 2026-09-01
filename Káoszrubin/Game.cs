@@ -4150,12 +4150,12 @@ public sealed class Game
         var destination = previousPosition + direction;
         if (_maze.GetPartyMemberAt(destination) is { } encounteredMember)
         {
-            StartBattle(encounteredMember, enemy);
+            StartBattle(encounteredMember, enemy, enemyStrikesFirst: true);
             return true;
         }
         if (destination == _player.Position)
         {
-            StartBattle(enemy);
+            StartBattle(enemy, enemyStrikesFirst: true);
             return true;
         }
         if (!_maze.TryMoveEnemy(enemy, destination)) return false;
@@ -6136,13 +6136,13 @@ public sealed class Game
                 "XIV. fejezet — A Rubin Útja", TwelveKeysStory);
     }
 
-    private void StartBattle(Enemy enemy)
-        => StartTeamBattle(SelectedCharacter, enemy);
+    private void StartBattle(Enemy enemy, bool enemyStrikesFirst = false)
+        => StartTeamBattle(SelectedCharacter, enemy, enemyStrikesFirst);
 
-    private void StartBattle(PartyMemberAvatar member, Enemy enemy)
-        => StartTeamBattle(member.Character, enemy);
+    private void StartBattle(PartyMemberAvatar member, Enemy enemy, bool enemyStrikesFirst = false)
+        => StartTeamBattle(member.Character, enemy, enemyStrikesFirst);
 
-    private void StartTeamBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy)
+    private void StartTeamBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy, bool enemyStrikesFirst)
     {
         if (_battleStarted || !initiatingCharacter.IsAlive || initiatingEnemy.CurrentHitPoints <= 0) return;
         CheckBossDiscovery([initiatingEnemy]);
@@ -6165,7 +6165,7 @@ public sealed class Game
                 : TacticalParticipantKind.PartyMember;
             characterParticipants.Add(new TeamCharacterParticipant(character, position, kind,
                 preparation.Initiative, CharacterMobilityRules.Evaluate(character).CombatMovementAllowance,
-                character == initiatingCharacter ? 1 : 3, preparation.Runtime));
+                character == initiatingCharacter ? 1 : 2, preparation.Runtime));
         }
 
         var enemyParticipants = _maze.Enemies
@@ -6173,7 +6173,7 @@ public sealed class Game
                             TacticalDistance.IsWithin(initiatingEnemy.Position, enemy.Position))
             .DistinctBy(enemy => enemy.Id)
             .Select(enemy => new TeamEnemyParticipant(enemy, _battleSystem.RollTeamEnemyInitiative(enemy),
-                Math.Clamp((enemy.EffectiveSpeed + 1) / 2, 1, 6), enemy == initiatingEnemy ? 1 : 3))
+                Math.Clamp((enemy.EffectiveSpeed + 1) / 2, 1, 6), enemy == initiatingEnemy ? 1 : 2))
             .ToList();
         if (enemyParticipants.All(value => value.Enemy != initiatingEnemy))
             enemyParticipants.Add(new TeamEnemyParticipant(initiatingEnemy,
@@ -6181,7 +6181,8 @@ public sealed class Game
                 Math.Clamp((initiatingEnemy.EffectiveSpeed + 1) / 2, 1, 6), 1));
 
         _activeTeamBattle = new TeamBattleEncounter(initiatingEnemy.Position,
-            characterParticipants, enemyParticipants, initiatingCharacter.Id, initiatingEnemy.Id);
+            characterParticipants, enemyParticipants, initiatingCharacter.Id, initiatingEnemy.Id,
+            enemyStrikesFirst);
         var protectionMessages = new List<string>();
         foreach (var protectedParticipant in characterParticipants)
         {
@@ -6211,10 +6212,13 @@ public sealed class Game
                 var name = _activeTeamBattle.CharacterFor(participant.Id)?.Name ??
                            _activeTeamBattle.EnemyFor(participant.Id)?.Name ?? participant.Id.Value;
                 return $"{name} {participant.InitiativeBase}" +
-                       (participant.EligibleFromCycle > 1 ? $" (belép: {participant.EligibleFromCycle}. kör)" : string.Empty);
+                       (participant.EligibleFromCycle > 1 ? " (az ütésváltás után)" : string.Empty);
             }));
+        var openingFirst = enemyStrikesFirst ? initiatingEnemy.Name : initiatingCharacter.Name;
+        var openingSecond = enemyStrikesFirst ? initiatingCharacter.Name : initiatingEnemy.Name;
         var startMessage = $"⚔️ CSAPATHARC — {characterParticipants.Count} baráti és " +
-                           $"{enemyParticipants.Count} ellenséges résztvevő. Kezdeményezés: {queue}.";
+                           $"{enemyParticipants.Count} ellenséges résztvevő. " +
+                           $"Nyitó ütésváltás: {openingFirst} → {openingSecond}. Utána kezdeményezés: {queue}.";
         _renderer.DrawInventoryMessage(startMessage, ConsoleColor.Yellow);
         RecordSessionActivity(SessionActivityKind.Battle, startMessage, ConsoleColor.Yellow);
         ContinueTeamBattle();
@@ -6280,9 +6284,15 @@ public sealed class Game
 
             if (battle.CurrentEnemy is { CurrentHitPoints: > 0 } enemyActor)
             {
+                if (!CanTeamEnemyActMeaningfully(battle, enemyActor))
+                {
+                    ExecuteTeamEnemyTurn(battle, enemyActor);
+                    continue;
+                }
                 _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, SelectedCharacter.Id,
                     [BattleActionKind.AdvanceEnemyTurn]);
-                var message = $"{battle.Turns.Cycle}. kör — {enemyActor.Name} következik. Space: ellenfél akciója.";
+                var message = $"{battle.Turns.Cycle}. kör — {enemyActor.Name} következik. " +
+                              "Space: végrehajtja a saját akcióját.";
                 RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.DarkYellow,
                     [SelectedCharacter.Id]);
                 if (_session.CharacterControls.FirstOrDefault(control =>
@@ -6345,7 +6355,7 @@ public sealed class Game
                     ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == targetId)
                     : AdjacentTeamEnemies(battle, character).OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault();
                 if (target is null || target.CurrentHitPoints <= 0 ||
-                    Manhattan(GetCasterPosition(character), target.Position) > 1)
+                    !TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), target.Position))
                 {
                     RejectTeamBattleAction(command, "A választott ellenfél nincs közelharci távolságban.");
                     return;
@@ -6353,7 +6363,11 @@ public sealed class Game
                 ResolveTeamCharacterAttack(battle, character, target);
                 break;
             case BattleActionKind.Move when command.Target is { } destination:
-                ExecuteTeamCharacterMove(battle, character, destination);
+                if (!TryExecuteTeamCharacterMove(battle, character, destination, out var movementError))
+                {
+                    RejectTeamBattleAction(command, movementError);
+                    return;
+                }
                 break;
             case BattleActionKind.UseItem when command.BackpackIndex is { } backpackIndex:
                 if (!TryUseTeamBattleItem(character, backpackIndex, out var itemMessage))
@@ -6361,7 +6375,7 @@ public sealed class Game
                     RejectTeamBattleAction(command, itemMessage);
                     return;
                 }
-                itemMessage = $"{battle.ActionNumber + 1}. akció — {itemMessage}" +
+                itemMessage +=
                     _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(itemMessage, BattleLogKind.Information)]);
                 AdvanceTeamBattleTurn(battle);
@@ -6377,7 +6391,7 @@ public sealed class Game
                 }
                 var turning = ResolveTurnUndead(character, undead);
                 if (turning.DamageToEnemy > 0) undead.ReceiveSpellDamage(turning.DamageToEnemy);
-                var turnMessage = $"{battle.ActionNumber + 1}. akció — {turning.Message}" +
+                var turnMessage = turning.Message +
                     _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(turnMessage, turning.Kind)]);
                 if (undead.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, undead, character);
@@ -6421,7 +6435,7 @@ public sealed class Game
         }
         if (attempt.DamageToCurrentEnemy > 0) currentEnemy.ReceiveSpellDamage(attempt.DamageToCurrentEnemy);
         battle.GrantExtraActions(attempt.ExtraPlayerActions);
-        var message = $"{battle.ActionNumber + 1}. akció — {attempt.Message}" +
+        var message = attempt.Message +
                       _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(message, attempt.Kind)]);
         SynchronizeTeamBattleDefeats(battle);
@@ -6500,14 +6514,21 @@ public sealed class Game
             ResolveTeamCharacterAttack(battle, character, adjacent);
             return;
         }
+        if (battle.IsEngaged(character))
+        {
+            PresentBattleEntries([new BattleLogEntry($"{character.Name} le van kötve, ezért nem tud mozogni.",
+                BattleLogKind.Information)]);
+            AdvanceTeamBattleTurn(battle);
+            return;
+        }
         var target = ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
         MoveTeamCharacterToward(battle, character, target.Position);
     }
 
     private void ResolveTeamCharacterAttack(TeamBattleEncounter battle, LiveCharacter character, Enemy enemy)
     {
-        var entry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character), enemy,
-            battle.ActionNumber + 1);
+        battle.Engage(character, enemy);
+        var entry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character), enemy);
         PresentBattleEntries([entry]);
         if (enemy.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, enemy, character);
         if (!character.IsAlive) ResolveTeamCharacterDefeat(battle, character);
@@ -6526,8 +6547,8 @@ public sealed class Game
             MoveTeamEnemyToward(battle, enemy, GetCasterPosition(target));
             return;
         }
-        var entry = _battleSystem.ResolveTeamEnemyAction(enemy, adjacent, battle.RuntimeFor(adjacent),
-            battle.ActionNumber + 1);
+        battle.Engage(adjacent, enemy);
+        var entry = _battleSystem.ResolveTeamEnemyAction(enemy, adjacent, battle.RuntimeFor(adjacent));
         PresentBattleEntries([entry]);
         if (enemy.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, enemy, null);
         if (!adjacent.IsAlive) ResolveTeamCharacterDefeat(battle, adjacent);
@@ -6551,6 +6572,8 @@ public sealed class Game
                 ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
                 : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
         var adjacent = AdjacentTeamEnemies(battle, character).ToArray();
+        if (battle.Turns.Cycle == 1 && character.Id == battle.InitiatingCharacterId)
+            return adjacent.Length > 0 ? [BattleActionKind.PhysicalAttack] : [BattleActionKind.Move];
         var actions = new List<BattleActionKind>();
         if (adjacent.Length > 0)
         {
@@ -6558,7 +6581,7 @@ public sealed class Game
             if (CanTurnUndead(character, focusEnemy) && !_turnUndeadUsedThisBattle.Contains(character))
                 actions.Add(BattleActionKind.TurnUndead);
         }
-        else
+        if (!battle.IsEngaged(character))
         {
             actions.Add(BattleActionKind.Move);
             if (GetBattleItemOptions(character).Count > 0) actions.Add(BattleActionKind.UseItem);
@@ -6590,13 +6613,14 @@ public sealed class Game
         var message = battle.RuntimeFor(character).RequiresTacticSelection
             ? BattlePromptText.Tactic(character.CharacterClass.Id,
                 GetTeamBattleTacticOptions(battle, character, enemy))
-            : actions.Contains(BattleActionKind.PhysicalAttack)
-                ? "Akció: Space — támadás" +
-                  (actions.Contains(BattleActionKind.CastSpell) ? " | V/F1-F8 — varázslat" : string.Empty) +
-                  (actions.Contains(BattleActionKind.TurnUndead) ? " | T — halottűzés" : string.Empty)
-                : "Akció: nyilak — mozgás" +
-                  (actions.Contains(BattleActionKind.UseItem) ? " | U — tárgy használata" : string.Empty) +
-                  (actions.Contains(BattleActionKind.CastSpell) ? " | V/F1-F8 — varázslat" : string.Empty);
+            : "Akció: " + string.Join(" | ", new[]
+            {
+                actions.Contains(BattleActionKind.PhysicalAttack) ? "Space — támadás" : null,
+                actions.Contains(BattleActionKind.Move) ? "nyilak — mozgás" : null,
+                actions.Contains(BattleActionKind.UseItem) ? "U — tárgy használata" : null,
+                actions.Contains(BattleActionKind.CastSpell) ? "V/F1-F8 — varázslat" : null,
+                actions.Contains(BattleActionKind.TurnUndead) ? "T — halottűzés" : null
+            }.Where(option => option is not null));
         message = $"{battle.Turns.Cycle}. kör, {character.Name} ({battle.Current.MovementAllowance} mozgás) — {message}";
         RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow, [character.Id]);
         if (character == SelectedCharacter) _renderer.DrawInventoryMessage(message, ConsoleColor.Yellow);
@@ -6606,12 +6630,33 @@ public sealed class Game
     {
         var position = GetCasterPosition(character);
         return battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 &&
-            Manhattan(position, enemy.Position) <= 1);
+            TacticalDistance.IsMeleeAdjacent(position, enemy.Position));
     }
 
     private IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy) =>
         battle.Characters.Where(character => character.IsAlive &&
-            Manhattan(GetCasterPosition(character), enemy.Position) <= 1);
+            TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position));
+
+    private static IEnumerable<Position> TeamMeleePositions(Position center)
+    {
+        for (var y = center.Y - 1; y <= center.Y + 1; y++)
+        for (var x = center.X - 1; x <= center.X + 1; x++)
+            if (x != center.X || y != center.Y)
+                yield return new Position(x, y);
+    }
+
+    private bool CanTeamEnemyActMeaningfully(TeamBattleEncounter battle, Enemy enemy)
+    {
+        if (AdjacentTeamCharacters(battle, enemy).Any()) return true;
+        if (battle.IsEngaged(enemy)) return false;
+        var target = battle.Characters.Where(character => character.IsAlive)
+            .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))
+            .First();
+        var goals = TeamMeleePositions(GetCasterPosition(target))
+            .Where(position => CanTeamBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)))
+            .ToArray();
+        return FindTeamBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id)).Count > 0;
+    }
 
     private Enemy ClosestLivingTeamEnemy(TeamBattleEncounter battle, Position origin) =>
         battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
@@ -6620,7 +6665,7 @@ public sealed class Game
 
     private void MoveTeamCharacterToward(TeamBattleEncounter battle, LiveCharacter character, Position target)
     {
-        var goals = Directions.Select(direction => target + direction)
+        var goals = TeamMeleePositions(target)
             .Where(position => CanTeamBattleEnter(battle, position, CombatantId.ForCharacter(character.Id)))
             .ToArray();
         var path = FindTeamBattlePath(battle, GetCasterPosition(character), goals,
@@ -6630,7 +6675,7 @@ public sealed class Game
 
     private void MoveTeamEnemyToward(TeamBattleEncounter battle, Enemy enemy, Position target)
     {
-        var goals = Directions.Select(direction => target + direction)
+        var goals = TeamMeleePositions(target)
             .Where(position => CanTeamBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)))
             .ToArray();
         var path = FindTeamBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id));
@@ -6641,18 +6686,51 @@ public sealed class Game
             battle.UpdatePosition(enemy);
         }
         var message = steps.Length > 0
-            ? $"{battle.ActionNumber + 1}. akció — {enemy.Name} {steps.Length} mezőt közeledik."
-            : $"{battle.ActionNumber + 1}. akció — {enemy.Name} nem talál járható utat.";
+            ? $"{enemy.Name} {steps.Length} mezőt közeledik."
+            : $"{enemy.Name} nem talál járható utat.";
         PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
     }
 
-    private void ExecuteTeamCharacterMove(TeamBattleEncounter battle, LiveCharacter character, Position target)
+    private bool TryExecuteTeamCharacterMove(TeamBattleEncounter battle, LiveCharacter character, Position target,
+        out string error)
     {
-        if (AdjacentTeamEnemies(battle, character).Any()) return;
-        var path = FindTeamBattlePath(battle, GetCasterPosition(character), [target],
-            CombatantId.ForCharacter(character.Id));
+        if (battle.IsEngaged(character))
+        {
+            error = $"{character.Name} le van kötve, ezért nem mozoghat.";
+            return false;
+        }
+        var path = FindStraightTeamBattlePath(battle, GetCasterPosition(character), target,
+            CombatantId.ForCharacter(character.Id), battle.Current.MovementAllowance);
+        if (path.Count == 0)
+        {
+            error = "Ebben az irányban nincs szabad, elérhető mező. Az akciód megmaradt.";
+            return false;
+        }
         CompleteTeamCharacterMovement(battle, character, path);
+        error = string.Empty;
+        return true;
+    }
+
+    private IReadOnlyList<Position> FindStraightTeamBattlePath(TeamBattleEncounter battle, Position origin,
+        Position target, CombatantId actorId, int maximumSteps)
+    {
+        var deltaX = target.X - origin.X;
+        var deltaY = target.Y - origin.Y;
+        if ((deltaX == 0) == (deltaY == 0)) return [];
+        var stepX = Math.Sign(deltaX);
+        var stepY = Math.Sign(deltaY);
+        var requestedSteps = Math.Abs(deltaX != 0 ? deltaX : deltaY);
+        var steps = new List<Position>();
+        var current = origin;
+        for (var index = 0; index < Math.Min(maximumSteps, requestedSteps); index++)
+        {
+            var next = new Position(current.X + stepX, current.Y + stepY);
+            if (!CanTeamBattleEnter(battle, next, actorId)) break;
+            steps.Add(next);
+            current = next;
+        }
+        return steps;
     }
 
     private void CompleteTeamCharacterMovement(TeamBattleEncounter battle, LiveCharacter character,
@@ -6669,8 +6747,8 @@ public sealed class Game
         }
         var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
         var message = steps.Length > 0
-            ? $"{battle.ActionNumber + 1}. akció — {character.Name} {steps.Length} mezőt mozog.{statusText}"
-            : $"{battle.ActionNumber + 1}. akció — {character.Name} nem talál járható utat.{statusText}";
+            ? $"{character.Name} {steps.Length} mezőt mozog.{statusText}"
+            : $"{character.Name} nem talál járható utat.{statusText}";
         PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
     }
@@ -6800,7 +6878,7 @@ public sealed class Game
             DrainNeedsAfterBattle(character, maximumThreat);
             if (character != SelectedCharacter) TryNpcUseConsumables(character);
         }
-        var message = $"🏆 CSAPATHARC GYŐZELEM — {battle.ActionNumber + 1} akció, " +
+        var message = $"🏆 CSAPATHARC GYŐZELEM — {battle.Turns.Cycle} kör, " +
                       $"{battle.Enemies.Count} legyőzött ellenfél.";
         _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);

@@ -25,6 +25,14 @@ public static class TacticalDistance
         if (radius < 0) throw new ArgumentOutOfRangeException(nameof(radius));
         return Between(origin, position) <= radius;
     }
+
+    /// <summary>A nyolc környező mező valamelyikén álló ellenfél közelharcban elérhető.</summary>
+    public static bool IsMeleeAdjacent(Position first, Position second)
+    {
+        var horizontal = Math.Abs(first.X - second.X);
+        var vertical = Math.Abs(first.Y - second.Y);
+        return horizontal <= 1 && vertical <= 1 && horizontal + vertical > 0;
+    }
 }
 
 public readonly record struct CombatantId(string Value)
@@ -80,12 +88,14 @@ public sealed record TacticalBattleAction(
 public sealed class TacticalBattleState
 {
     private readonly Dictionary<CombatantId, TacticalBattleParticipant> _participants;
+    private readonly IReadOnlyList<CombatantId> _openingOrder;
     private IReadOnlyList<CombatantId> _cycleOrder = [];
     private int _turnIndex = -1;
 
     public TacticalBattleState(BattleId id, Position center,
         IEnumerable<TacticalBattleParticipant> participants,
-        int radius = TacticalDistance.DefaultBattleRadius, int openingCycles = 2)
+        int radius = TacticalDistance.DefaultBattleRadius, int openingCycles = 1,
+        IReadOnlyList<CombatantId>? openingOrder = null)
     {
         if (radius <= 0) throw new ArgumentOutOfRangeException(nameof(radius));
         if (openingCycles < 0) throw new ArgumentOutOfRangeException(nameof(openingCycles));
@@ -95,6 +105,7 @@ public sealed class TacticalBattleState
         Center = center;
         Radius = radius;
         OpeningCycles = openingCycles;
+        _openingOrder = openingOrder ?? [];
         _participants = new Dictionary<CombatantId, TacticalBattleParticipant>();
         foreach (var participant in participants)
         {
@@ -176,7 +187,11 @@ public sealed class TacticalBattleState
 
     private void BuildCycleOrder()
     {
-        _cycleOrder = InitiativeOrder.Select(participant => participant.Id).ToArray();
+        var initiativeOrder = InitiativeOrder.Select(participant => participant.Id).ToArray();
+        _cycleOrder = Cycle == 1 && _openingOrder.Count > 0
+            ? _openingOrder.Where(id => initiativeOrder.Contains(id))
+                .Concat(initiativeOrder.Where(id => !_openingOrder.Contains(id))).ToArray()
+            : initiativeOrder;
         _turnIndex = 0;
         if (_cycleOrder.Count == 0)
             throw new InvalidOperationException($"A(z) {Cycle}. ciklusban nincs cselekvőképes résztvevő.");

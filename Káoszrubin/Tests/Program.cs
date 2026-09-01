@@ -65,8 +65,10 @@ var tests = new (string Name, Action Run)[]
     ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A taktikai távolság követi a konzolcellák kettő az egyhez arányát", TacticalDistanceUsesConsoleAspectRatio),
+    ("A csapatharcban az átlós ellenfél is közelharci távolságban van", DiagonalEnemyIsMeleeAdjacent),
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
+    ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
     ("A coop session validálja a csapatharcos mozgást és tárgyhasználatot", TeamBattleCommandsAreValidated),
     ("A fenyegetésbecslés felismeri az elszigetelt gyenge ellenfelet", EncounterThreatAssessmentRecognizesSafeFight),
     ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
@@ -3188,6 +3190,17 @@ static void TacticalDistanceUsesConsoleAspectRatio()
         "A taktikai távolság nem azonos léptékben kezeli a vízszintes és függőleges irányt.");
 }
 
+static void DiagonalEnemyIsMeleeAdjacent()
+{
+    var origin = new Position(10, 10);
+    Assert(TacticalDistance.IsMeleeAdjacent(origin, new Position(9, 9)) &&
+           TacticalDistance.IsMeleeAdjacent(origin, new Position(11, 11)) &&
+           TacticalDistance.IsMeleeAdjacent(origin, new Position(10, 11)) &&
+           !TacticalDistance.IsMeleeAdjacent(origin, origin) &&
+           !TacticalDistance.IsMeleeAdjacent(origin, new Position(12, 10)),
+        "A közelharci szomszédság nem pontosan a nyolc környező mezőt fogadja el.");
+}
+
 static void TacticalBattleStateOrdersEligibleParticipants()
 {
     var first = new TacticalBattleParticipant(new CombatantId("character:first"), BattleSide.Friendly,
@@ -3195,16 +3208,16 @@ static void TacticalBattleStateOrdersEligibleParticipants()
     var second = new TacticalBattleParticipant(new CombatantId("enemy:first"), BattleSide.Hostile,
         TacticalParticipantKind.Enemy, new Position(11, 10), 6, 2);
     var late = new TacticalBattleParticipant(new CombatantId("character:late"), BattleSide.Friendly,
-        TacticalParticipantKind.PartyMember, new Position(20, 10), 12, 5, EligibleFromCycle: 3);
-    var state = new TacticalBattleState(BattleId.New(), new Position(10, 10), [first, second, late]);
+        TacticalParticipantKind.PartyMember, new Position(20, 10), 12, 5, EligibleFromCycle: 2);
+    var state = new TacticalBattleState(BattleId.New(), new Position(10, 10), [first, second, late],
+        openingOrder: [second.Id, first.Id]);
 
     Assert(state.InitiativeOrder.Select(value => value.Id).SequenceEqual([first.Id, second.Id]) &&
            state.IsInsideBattleArea(new Position(20, 10)),
         "A nyitószakaszban nem csak az azonnal jogosult résztvevők kerültek sorra.");
-    Assert(state.StartTurns().Id == first.Id && state.AdvanceTurn().Id == second.Id &&
-           state.AdvanceTurn().Id == first.Id && state.AdvanceTurn().Id == second.Id &&
+    Assert(state.StartTurns().Id == second.Id && state.AdvanceTurn().Id == first.Id &&
            state.AdvanceTurn().Id == late.Id,
-        "Az első két ciklus nem kizárólag a kezdeményező párost léptette.");
+        "A nyitó ütésváltást nem azonnal követte a teljes kezdeményezési sor.");
     Assert(state.InitiativeOrder.Select(value => value.Id).SequenceEqual([late.Id, first.Id, second.Id]),
         "A harmadik körben nem lépett be vagy nem kezdeményezés szerint rendeződött a távoli résztvevő.");
 }
@@ -3232,10 +3245,29 @@ static void TeamBattleAttackUsesExistingCombatRules()
         "A harcos nem tudta kiválasztani a meglévő pontos taktikát.");
     var enemy = CreateEnemy(30, 2, 1);
     system.BeginTeamCharacterTurn(fighter);
-    var entry = system.ResolveTeamCharacterAttack(fighter, preparation.Runtime, enemy, 1);
+    var entry = system.ResolveTeamCharacterAttack(fighter, preparation.Runtime, enemy);
     Assert(entry.Message.Contains(fighter.Name, StringComparison.Ordinal) &&
-           entry.Message.Contains(enemy.Name, StringComparison.Ordinal) && enemy.CurrentHitPoints <= 30,
+           entry.Message.Contains(enemy.Name, StringComparison.Ordinal) &&
+           !entry.Message.Contains("1. akció", StringComparison.Ordinal) && enemy.CurrentHitPoints <= 30,
         "A csapatharcos támadás nem a meglévő találat/sebzés naplóformátumot és HP-kezelést használja.");
+}
+
+static void TeamBattleEngagementLastsUntilEnemyDeath()
+{
+    var system = CreateBattleSystem(1702);
+    var character = CreateCharacter("Lekötött hős");
+    var enemy = CreateEnemy(20, 2);
+    var preparation = system.PrepareTeamCharacter(character);
+    var encounter = new TeamBattleEncounter(new Position(1, 1),
+        [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
+            preparation.Initiative, 3, 1, preparation.Runtime)],
+        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+    encounter.Engage(character, enemy);
+    Assert(encounter.IsEngaged(character) && encounter.IsEngaged(enemy),
+        "A közelharci páros nem került lekötött állapotba.");
+    enemy.SetCurrentHitPoints(0);
+    Assert(!encounter.IsEngaged(character),
+        "A karaktert a legyőzött ellenfél továbbra is lekötve tartja.");
 }
 
 static void TeamBattleCommandsAreValidated()
