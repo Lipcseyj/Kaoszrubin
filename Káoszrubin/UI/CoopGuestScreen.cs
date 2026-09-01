@@ -1187,6 +1187,15 @@ public sealed class CoopGuestScreen
         foreach (var character in snapshot.Party.Where(character => character.Position is not null))
             Put(grid, character.Position!.Value, CharacterSheetPanel.CharacterClassGlyph(character.CharacterClassId),
                 character.Color);
+        foreach (var participant in (snapshot.Battle?.Participants ?? [])
+                     .Where(participant => participant.IsCurrent || participant.IsCurrentTarget))
+        {
+            var position = participant.Position;
+            if (position.X < 0 || position.X >= grid.GetLength(0) ||
+                position.Y < 0 || position.Y >= grid.GetLength(1)) continue;
+            var cell = grid[position.X, position.Y];
+            grid[position.X, position.Y] = cell with { Color = cell.Background, Background = cell.Color };
+        }
         if (snapshot.Phase == GameSessionPhase.Inn)
             for (var y = 0; y < grid.GetLength(1); y++)
                 for (var x = 0; x < grid.GetLength(0); x++)

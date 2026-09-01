@@ -329,6 +329,7 @@ public sealed class Game
         var spellOptions = actingCharacter is not null && allowed.Contains(BattleActionKind.CastSpell)
             ? GetSpellOptions(actingCharacter, GetCasterPosition(actingCharacter), focusEnemy, inCombat: true)
             : null;
+        var focusTargetId = TeamBattleFocusTarget(battle, current);
         var participants = battle.Turns.Participants.Select(participant =>
         {
             var character = battle.CharacterFor(participant.Id);
@@ -339,7 +340,7 @@ public sealed class Game
                 participant.MovementAllowance, participant.EligibleFromCycle, participant.State,
                 character?.CurrentVitality ?? enemy?.CurrentHitPoints ?? 0,
                 character?.MaximumVitality ?? enemy?.Definition.HitPoints ?? 0,
-                participant.Id == current.Id);
+                participant.Id == current.Id, participant.Id == focusTargetId);
         }).OrderByDescending(participant => participant.Initiative).ToArray();
         return new BattleSnapshot(battle.Id, battle.Turns.TurnId, battle.ActionNumber,
             actingCharacter is not null, actingCharacterId,
@@ -6211,8 +6212,7 @@ public sealed class Game
             {
                 var name = _activeTeamBattle.CharacterFor(participant.Id)?.Name ??
                            _activeTeamBattle.EnemyFor(participant.Id)?.Name ?? participant.Id.Value;
-                return $"{name} {participant.InitiativeBase}" +
-                       (participant.EligibleFromCycle > 1 ? " (az ütésváltás után)" : string.Empty);
+                return $"{name} {participant.InitiativeBase}";
             }));
         var openingFirst = enemyStrikesFirst ? initiatingEnemy.Name : initiatingCharacter.Name;
         var openingSecond = enemyStrikesFirst ? initiatingCharacter.Name : initiatingEnemy.Name;
@@ -6241,6 +6241,7 @@ public sealed class Game
             }
 
             var current = battle.Current;
+            UpdateTeamBattleFocus(battle, current);
             if (battle.CurrentCharacter is { } character)
             {
                 if (!character.IsAlive)
@@ -6560,7 +6561,6 @@ public sealed class Game
         if (battle.IsCompleted) return;
         battle.AdvanceTurn();
         _preparedTeamBattleTurnId = 0;
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
     }
 
     private IReadOnlyList<BattleActionKind> GetTeamAllowedBattleActions(TeamBattleEncounter battle,
@@ -6645,6 +6645,30 @@ public sealed class Game
                 yield return new Position(x, y);
     }
 
+    private CombatantId? TeamBattleFocusTarget(TeamBattleEncounter battle, TacticalBattleParticipant current)
+    {
+        if (battle.CharacterFor(current.Id) is { } character)
+        {
+            var enemy = AdjacentTeamEnemies(battle, character).OrderBy(candidate => candidate.CurrentHitPoints)
+                .FirstOrDefault() ?? battle.Enemies.Where(candidate => candidate.CurrentHitPoints > 0)
+                .OrderBy(candidate => TacticalDistance.Between(current.Position, candidate.Position)).FirstOrDefault();
+            return enemy is null ? null : CombatantId.ForEnemy(enemy.Id);
+        }
+        if (battle.EnemyFor(current.Id) is not { } actingEnemy) return null;
+        var target = AdjacentTeamCharacters(battle, actingEnemy)
+            .OrderBy(candidate => (double)candidate.CurrentVitality / Math.Max(1, candidate.MaximumVitality))
+            .FirstOrDefault() ?? battle.Characters.Where(candidate => candidate.IsAlive)
+            .OrderBy(candidate => TacticalDistance.Between(current.Position, GetCasterPosition(candidate))).FirstOrDefault();
+        return target is null ? null : CombatantId.ForCharacter(target.Id);
+    }
+
+    private void UpdateTeamBattleFocus(TeamBattleEncounter battle, TacticalBattleParticipant current)
+    {
+        var targetId = TeamBattleFocusTarget(battle, current);
+        var targetPosition = targetId is { } id ? battle.Turns.Find(id)?.Position : null;
+        _renderer.DrawTeamBattleFocus(_maze, _fogOfWar, _player.Position, current.Position, targetPosition);
+    }
+
     private bool CanTeamEnemyActMeaningfully(TeamBattleEncounter battle, Enemy enemy)
     {
         if (AdjacentTeamCharacters(battle, enemy).Any()) return true;
@@ -6680,15 +6704,16 @@ public sealed class Game
             .ToArray();
         var path = FindTeamBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id));
         var steps = path.Take(battle.Current.MovementAllowance).ToArray();
+        var previousPosition = enemy.Position;
         if (steps.Length > 0)
         {
             enemy.MoveTo(steps[^1]);
             battle.UpdatePosition(enemy);
+            _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
         }
-        var message = steps.Length > 0
-            ? $"{enemy.Name} {steps.Length} mezőt közeledik."
-            : $"{enemy.Name} nem talál járható utat.";
-        PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
+        if (steps.Length > 0)
+            PresentBattleEntries([new BattleLogEntry($"{enemy.Name} {steps.Length} mezőt közeledik.",
+                BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
     }
 
@@ -6739,11 +6764,17 @@ public sealed class Game
         var steps = path.Take(battle.Current.MovementAllowance).ToArray();
         if (steps.Length > 0)
         {
+            var previousPosition = GetCasterPosition(character);
             var destination = steps[^1];
             if (character == SelectedCharacter) _player.TeleportTo(destination);
             else _maze.PartyMembers.First(member => member.Character == character).MoveTo(destination);
             battle.UpdatePosition(character, destination);
-            RevealFor(character, destination);
+            var newlyRevealed = RevealFor(character, destination);
+            if (character == SelectedCharacter)
+                _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, destination, newlyRevealed, hasWon: false);
+            else
+                _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previousPosition, destination, newlyRevealed,
+                    _player.Position);
         }
         var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
         var message = steps.Length > 0

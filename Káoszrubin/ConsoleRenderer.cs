@@ -154,6 +154,7 @@ public sealed class ConsoleRenderer
     private readonly Dictionary<LiveCharacter, SheetSelectionKey> _lastSheetSelections = [];
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
+    private readonly HashSet<Position> _teamBattleFocusPositions = [];
 
     public ConsoleRenderer(GameDataCatalog gameData, Party party,
         Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null)
@@ -311,6 +312,7 @@ public sealed class ConsoleRenderer
         _mazeLevel = mazeLevel;
         _battleActive = false;
         _battleEnemy = null;
+        _teamBattleFocusPositions.Clear();
         _spellInfoCharacter = null;
         _spellCastingOverlaySnapshot = null;
         Console.Clear();
@@ -358,9 +360,30 @@ public sealed class ConsoleRenderer
     /// </summary>
     public void DrawMapVisibilityChanged(Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
+        _teamBattleFocusPositions.Clear();
         for (var y = 0; y < maze.Height; y++)
             for (var x = 0; x < maze.Width; x++) DrawMapCell(maze, fogOfWar, new Position(x, y));
         DrawPlayer(playerPosition);
+    }
+
+    /// <summary>Villogtatás nélkül, inverz színekkel jelöli az aktuális cselekvőt és célpontját.</summary>
+    public void DrawTeamBattleFocus(Maze maze, FogOfWar fogOfWar, Position playerPosition,
+        Position actorPosition, Position? targetPosition)
+    {
+        var focused = targetPosition is { } target
+            ? new HashSet<Position> { actorPosition, target }
+            : new HashSet<Position> { actorPosition };
+        foreach (var position in _teamBattleFocusPositions.Concat(focused).Distinct())
+        {
+            Console.SetCursorPosition(position.X, position.Y);
+            var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
+            if (focused.Contains(position))
+                WriteRuneWithColor(visual.Rune, visual.BackgroundColor, visual.ForegroundColor);
+            else
+                WriteRuneWithColor(visual.Rune, visual.ForegroundColor, visual.BackgroundColor);
+        }
+        _teamBattleFocusPositions.Clear();
+        _teamBattleFocusPositions.UnionWith(focused);
     }
 
     /// <summary>
