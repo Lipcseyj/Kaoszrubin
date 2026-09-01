@@ -4466,21 +4466,29 @@ public sealed class Game
             allInPlace = false;
             if (_nextPartyMoves.GetValueOrDefault(member) > now) continue;
             ScheduleNextPartyMove(member, now);
-            var next = FindNextStep(member, [target]);
+            var next = FindNextFormationAssemblyStep(member, target, targets);
             var previous = member.Position;
             if (next is { } nextPosition && _maze.GetEnemyAt(nextPosition) is { } enemy)
             {
                 StartBattle(member, enemy);
                 return;
             }
-            if (next is null || !CanEnterTrap(member.Character, next.Value) ||
-                !_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
+            if (next is null || !CanEnterTrap(member.Character, next.Value)) continue;
+            if (_maze.GetPartyMemberAt(next.Value) is { } blockingFriend && blockingFriend != member)
+            {
+                var blockerAtOwnTarget = targets.TryGetValue(blockingFriend.Character.Id, out var blockerTarget) &&
+                                         blockerTarget == blockingFriend.Position;
+                if (blockerAtOwnTarget || !_maze.TrySwapPartyMembers(member, blockingFriend, _player.Position))
+                    continue;
+                madeProgress = true;
+                RegisterFormationAssemblyMove(member, previous);
+                RegisterFormationAssemblyMove(blockingFriend, next.Value);
+                ScheduleNextPartyMove(blockingFriend, now);
+                continue;
+            }
+            if (!_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
             madeProgress = true;
-            member.Character.RegisterExplorationStep();
-            var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
-            _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed,
-                _player.Position);
-            TriggerTrapAt(member.Character, member.Position);
+            RegisterFormationAssemblyMove(member, previous);
         }
         allInPlace = allInPlace || targets.All(pair => pair.Key == SelectedCharacter.Id
             ? _player.Position == pair.Value
@@ -4503,6 +4511,56 @@ public sealed class Game
             _formationObstacleReported = true;
             _renderer.DrawDeveloperMessage("Az alakzat meg nem tud osszeallni: egy kijelolt hely nem erheto el.");
         }
+    }
+
+    private void RegisterFormationAssemblyMove(PartyMemberAvatar member, Position previous)
+    {
+        member.Character.RegisterExplorationStep();
+        var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
+        _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed,
+            _player.Position);
+        CheckBossDiscoveryAt(newlyRevealed);
+        TriggerTrapAt(member.Character, member.Position);
+    }
+
+    private Position? FindNextFormationAssemblyStep(PartyMemberAvatar member, Position target,
+        IReadOnlyDictionary<CharacterId, Position> formationTargets)
+    {
+        if (!CanFormationAssemblyTraverse(member, target, formationTargets) || member.Position == target)
+            return null;
+        var visited = new HashSet<Position> { member.Position };
+        var queue = new Queue<(Position Position, Position FirstStep)>();
+        foreach (var direction in Directions)
+        {
+            var next = member.Position + direction;
+            if (!CanFormationAssemblyTraverse(member, next, formationTargets) || !visited.Add(next)) continue;
+            queue.Enqueue((next, next));
+        }
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (current.Position == target) return current.FirstStep;
+            foreach (var direction in Directions)
+            {
+                var next = current.Position + direction;
+                if (!CanFormationAssemblyTraverse(member, next, formationTargets) || !visited.Add(next)) continue;
+                queue.Enqueue((next, current.FirstStep));
+            }
+        }
+        return null;
+    }
+
+    private bool CanFormationAssemblyTraverse(PartyMemberAvatar member, Position position,
+        IReadOnlyDictionary<CharacterId, Position> formationTargets)
+    {
+        if (!_maze.IsWalkable(position) || position == _player.Position || _maze.GetEnemyAt(position) is not null)
+            return false;
+        var occupant = _maze.GetObjectAt(position);
+        if (occupant is null or GroundItemPile or Corpse || occupant == member || Maze.IsPassableNeutralNpc(occupant))
+            return true;
+        if (occupant is not PartyMemberAvatar friend) return false;
+        return !formationTargets.TryGetValue(friend.Character.Id, out var friendTarget) ||
+               friendTarget != friend.Position;
     }
 
     private void TogglePartyHoldPosition()

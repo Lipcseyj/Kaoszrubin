@@ -19,6 +19,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),
     ("Az emberi vendég ráléphet a kincsesláda mezőjére", RemotePlayerCanStepOntoTreasureChest),
     ("A semleges NPC nem állja el a mozgó szereplők útját", NeutralWorldNpcIsPassable),
+    ("Alakzat-összeálláskor két barátságos avatar atomian helyet cserél", FormationAssemblySwapsFriendlyAvatars),
     ("A visszatérő expedíció harminc százalékos szörnyállományt céloz", ReturnExpeditionPopulationIsLimited),
     ("A vendég visszaveheti a coop mentésben foglalt karakterét", RemotePlayerCanReclaimSavedCharacter),
     ("A vendég saját ajtó- és keresési akciót küldhet", RemotePlayerCanIssueCharacterAction),
@@ -3209,6 +3210,28 @@ static void PartyFormationPositionsFollowFacing()
            facingRight[rearLeft.Id] == new Position(9, 10) &&
            facingRight[rearRight.Id] == new Position(9, 11),
         "Az alakzat slotjai nem fordultak el helyesen a vezér körül.");
+}
+
+static void FormationAssemblySwapsFriendlyAvatars()
+{
+    var maze = new Maze(7, 7);
+    var firstPosition = new Position(2, 3);
+    var secondPosition = new Position(3, 3);
+    maze.Carve(firstPosition);
+    maze.Carve(secondPosition);
+    var member = new PartyMemberAvatar(firstPosition, CreateCharacter("Alakzattag"));
+    var followerCharacter = CreateCharacter("Koveto");
+    var followerNpc = new WorldNpc(secondPosition, "NPC-SWAP", followerCharacter,
+        NpcDisposition.Friendly, false, false, string.Empty, WorldNpcState.Following);
+    var follower = new PartyMemberAvatar(secondPosition, followerCharacter, followerNpc);
+    maze.AddPartyMember(member);
+    maze.AddPartyMember(follower);
+
+    Assert(maze.TrySwapPartyMembers(member, follower, maze.Entrance) &&
+           member.Position == secondPosition && follower.Position == firstPosition &&
+           followerNpc.Position == firstPosition && maze.GetPartyMemberAt(firstPosition) == follower &&
+           maze.GetPartyMemberAt(secondPosition) == member,
+        "A baratsagos helycsere atfedest hagyott vagy nem mozgatta a koveto world-NPC allapotat.");
 }
 
 static void LockedFormationRejectsRemoteMovement()

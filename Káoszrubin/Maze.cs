@@ -237,6 +237,19 @@ public sealed class Maze
         return true;
     }
 
+    public bool TrySwapPartyMembers(PartyMemberAvatar first, PartyMemberAvatar second, Position leaderPosition)
+    {
+        if (first == second || !_partyMembers.Contains(first) || !_partyMembers.Contains(second) ||
+            first.Position == leaderPosition || second.Position == leaderPosition ||
+            Math.Abs(first.Position.X - second.Position.X) + Math.Abs(first.Position.Y - second.Position.Y) != 1)
+            return false;
+        var firstPosition = first.Position;
+        var secondPosition = second.Position;
+        first.MoveTo(secondPosition);
+        second.MoveTo(firstPosition);
+        return true;
+    }
+
     public static bool IsPassableNeutralNpc(WorldObject? occupant) =>
         occupant is WorldNpc { Disposition: NpcDisposition.Neutral };
 
