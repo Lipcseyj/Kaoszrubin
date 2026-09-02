@@ -122,7 +122,7 @@ var tests = new (string Name, Action Run)[]
     ("A karakter kasztja, faja és átmeneti hatásai módosítják a látótávot", CharacterVisionRangeUsesClassRaceAndEffects),
     ("A szörnyek látótávja CSV-ből érkezik", EnemyVisionRangesLoadFromCsv),
     ("A felfedés változó látótávot és látóvonalat használ", FogRevealUsesVariableRangeAndLineOfSight),
-    ("Az üldözési memória három elvesztett látási lépésig tart", PursuitMemoryLastsThreeMoves),
+    ("A szörnyek ébersége, felderítése és alvásképessége adatvezérelt", EnemyAwarenessAndSearchAreDataDriven),
     ("A pályanevekből szabályos képfájlnév készül", LevelImageFileNamesAreNormalized),
     ("Az ellenség a legközelebbi látható csapattagot célozza", EnemyTargetsNearestVisiblePartyMember),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
@@ -3189,21 +3189,50 @@ static void FogRevealUsesVariableRangeAndLineOfSight()
     Assert(!blockedFog.IsRevealed(new Position(5, 2)), "A zárt ajtó mögé átlátott a felfedés.");
 }
 
-static void PursuitMemoryLastsThreeMoves()
+static void EnemyAwarenessAndSearchAreDataDriven()
 {
-    var enemy = CreateEnemy(10, 1);
+    var definition = new EnemyDefinition("E-SLEEP", "Alvó őr", "e", 1, 10, 0, 1,
+        1, 1, Array.Empty<string>(), VisionRange: 6, CanSleep: true);
+    var enemy = new ConfiguredEnemy(new Position(4, 5), definition);
+    enemy.ConfigureMovement(EnemyMovementProfile.Stationary, Direction.Left);
+    enemy.ConfigureAwareness(EnemyAlertness.Sleeping, new Position(4, 5));
+    Assert(enemy.MovementProfile == EnemyMovementProfile.Stationary &&
+           enemy.Alertness == EnemyAlertness.Sleeping && enemy.EffectiveVisionRange == 1,
+        "Az alvó álló ellenfél profilja vagy csökkentett észlelése hibás.");
+
     var target = CharacterId.New();
-    enemy.ResolvePursuit(true, target);
-    Assert(enemy.PursuitMemoryRemainingMoves == 3 && enemy.TryRememberPursuitTarget() &&
-           enemy.TryRememberPursuitTarget() && enemy.TryRememberPursuitTarget() &&
-           !enemy.TryRememberPursuitTarget() && enemy.PursuitMemoryRemainingMoves == 0,
-        "Az ellenfél üldözési memóriája nem pontosan három lépésig tart.");
+    enemy.BeginPursuit(target, new Position(9, 5), 4);
+    enemy.RefreshKnownTarget(new Position(10, 5));
+    Assert(enemy.Alertness == EnemyAlertness.Alert && enemy.PursuitState == EnemyPursuitState.Pursuing &&
+           enemy.EffectiveVisionRange == 6 && enemy.ConsumeReactionDelay() &&
+           enemy.ReactionDelayMovesRemaining == 3,
+        "Az észlelés nem ébresztette fel késleltetve az álló ellenfelet.");
+    enemy.BeginSearch(1);
+    Assert(enemy.SearchRole == EnemySearchRole.Scout &&
+           enemy.SearchMovesRemaining == Enemy.MinimumSearchMoves,
+        "A felderítés nem tartja be a harminclépéses minimumot.");
+
+    var undead = new ConfiguredEnemy(new Position(1, 1), new EnemyDefinition(
+        "E-UNDEAD", "Élőholt", "u", 1, 10, 0, 1, 1, 1, [MonsterAbilityIds.Undead], CanSleep: false));
+    undead.ConfigureAwareness(EnemyAlertness.Sleeping);
+    Assert(undead.Alertness == EnemyAlertness.Alert,
+        "Az alvásra képtelen ellenfél alvó állapotba került.");
+
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    Assert(data.GetEnemy("E003").CanSleep && data.GetEnemy("E007").CanSleep &&
+           !data.GetEnemy("E004").CanSleep && !data.GetEnemy("E006").CanSleep,
+        "A goblin, ork vagy élőholt alvásképessége hibásan töltődött be a CSV-ből.");
 
     var saved = new EnemySaveData(enemy.Position, enemy.Definition.Id, enemy.CurrentHitPoints,
-        PursuitTargetCharacterId: target, PursuitMemoryRemainingMoves: 2);
+        Alertness: enemy.Alertness, SearchRole: enemy.SearchRole, HomePosition: enemy.HomePosition,
+        LastKnownTargetPosition: enemy.LastKnownTargetPosition,
+        ReactionDelayMovesRemaining: enemy.ReactionDelayMovesRemaining,
+        SearchMovesRemaining: enemy.SearchMovesRemaining);
     var restored = JsonSerializer.Deserialize<EnemySaveData>(JsonSerializer.Serialize(saved));
-    Assert(restored?.PursuitMemoryRemainingMoves == 2,
-        "Az üldözési memória nem élte túl a mentési JSON-körutat.");
+    Assert(restored?.SearchRole == EnemySearchRole.Scout &&
+           restored.SearchMovesRemaining == Enemy.MinimumSearchMoves &&
+           restored.HomePosition == new Position(4, 5),
+        "Az éberségi és felderítési állapot nem élte túl a mentési JSON-körutat.");
 }
 
 static void PartyFormationPositionsFollowFacing()

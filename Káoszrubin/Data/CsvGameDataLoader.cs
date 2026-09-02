@@ -241,7 +241,8 @@ public static class CsvGameDataLoader
                     MonsterIds.Bosses.Contains(id), Integer(cells, 11) ?? 5,
                     Math.Clamp(Integer(cells, 12) ?? 0, 0, 3), Math.Clamp(Integer(cells, 13) ?? 2, 0, 4),
                     MonsterIds.Bosses.Contains(id) ? EnemyRank.Boss :
-                    MonsterIds.MiniBosses.Contains(id) ? EnemyRank.MiniBoss : EnemyRank.Normal));
+                    MonsterIds.MiniBosses.Contains(id) ? EnemyRank.MiniBoss : EnemyRank.Normal,
+                    IsYes(cells, 14)));
                 break;
             case DataSection.MonsterAbilities:
                 monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),
@@ -954,6 +955,9 @@ public static class CsvGameDataLoader
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny látótávja csak 1 és 8 közötti lehet.");
             if (enemy.AbilityIds.Count > 2)
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny legfeljebb két képességgel rendelkezhet.");
+            if (enemy.CanSleep && enemy.AbilityIds.Contains(MonsterAbilityIds.Undead,
+                    StringComparer.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"A(z) '{enemy.Id}' élőholt szörny nem lehet alvásképes.");
             foreach (var abilityId in enemy.AbilityIds.Where(abilityId => !abilityIds.Contains(abilityId)))
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny ismeretlen képességre hivatkozik: '{abilityId}'.");
         }

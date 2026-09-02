@@ -97,7 +97,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 14;
+    public const int CurrentVersion = 15;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -123,6 +123,7 @@ public static class GameSaveFormat
                 11 => MigrateVersion11To12(state),
                 12 => MigrateVersion12To13(state),
                 13 => MigrateVersion13To14(state),
+                14 => MigrateVersion14To15(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -223,6 +224,13 @@ public static class GameSaveFormat
         state.Version = 14;
         return state;
     }
+
+    private static GameSaveData MigrateVersion14To15(GameSaveData state)
+    {
+        // A 15-os formátum az ellenfelek éberségét, keresését és hazatérési állapotát menti.
+        state.Version = 15;
+        return state;
+    }
 }
 
 public sealed record LoadedGameSave(string Path, CharacterRoster Roster, GameSaveData State);
@@ -308,7 +316,14 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     List<ActiveSpellEffect>? ActiveSpellEffects = null,
     CharacterId? PursuitTargetCharacterId = null,
     int PursuitMemoryRemainingMoves = -1,
-    List<string>? GuaranteedLootIds = null);
+    List<string>? GuaranteedLootIds = null,
+    EnemyAlertness Alertness = EnemyAlertness.Alert,
+    EnemySearchRole SearchRole = EnemySearchRole.None,
+    Position? HomePosition = null,
+    Position? LastKnownTargetPosition = null,
+    int ReactionDelayMovesRemaining = 0,
+    int SearchMovesRemaining = 0,
+    int ReturnDelayMovesRemaining = 0);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex,

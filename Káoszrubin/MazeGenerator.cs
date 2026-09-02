@@ -247,13 +247,45 @@ public sealed class MazeGenerator
         IReadOnlyList<Position> positions)
     {
         var groupId = Guid.NewGuid().ToString("N");
+        var placed = new List<ConfiguredEnemy>();
         for (var index = 0; index < members.Count; index++)
         {
             var member = members[index];
             var enemy = CreateEnemy(maze, positions[index], member.Definition, encounter.MovementProfile);
             enemy.ConfigureGroup(groupId, member.Role);
             maze.AddEnemy(enemy);
+            placed.Add(enemy);
         }
+        ConfigureGroupAlertness(maze, placed);
+    }
+
+    private void ConfigureGroupAlertness(Maze maze, IReadOnlyList<ConfiguredEnemy> group)
+    {
+        var isRoomGroup = group.Any(enemy => maze.Rooms.Any(room => room.Contains(enemy.Position)));
+        if (!isRoomGroup || group.All(enemy => !enemy.CanSleep))
+        {
+            foreach (var enemy in group) enemy.ConfigureAwareness(EnemyAlertness.Alert);
+            return;
+        }
+
+        var roll = _random.Next(100);
+        if (roll >= 55)
+        {
+            foreach (var enemy in group) enemy.ConfigureAwareness(EnemyAlertness.Alert);
+            return;
+        }
+        if (roll >= 25)
+        {
+            foreach (var enemy in group)
+                enemy.ConfigureAwareness(enemy.CanSleep ? EnemyAlertness.Drowsy : EnemyAlertness.Alert);
+            return;
+        }
+
+        var sentry = group.FirstOrDefault(enemy => enemy.GroupRole == EnemyGroupRole.Leader && enemy.CanSleep) ??
+                     group.FirstOrDefault(enemy => enemy.CanSleep);
+        foreach (var enemy in group)
+            enemy.ConfigureAwareness(!enemy.CanSleep ? EnemyAlertness.Alert : enemy == sentry
+                ? EnemyAlertness.Drowsy : EnemyAlertness.Sleeping);
     }
 
     private ConfiguredEnemy CreateEnemy(Maze maze, Position position, EnemyDefinition definition,

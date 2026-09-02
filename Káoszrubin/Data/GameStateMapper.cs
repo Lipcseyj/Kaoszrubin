@@ -44,7 +44,9 @@ internal sealed class GameStateMapper
                 Math.Max(0, (int)(nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds),
                 enemy.GroupId, enemy.GroupRole, enemy.ActiveSpellEffects.ToList(),
                 enemy.PursuitTargetCharacterId, enemy.PursuitMemoryRemainingMoves,
-                enemy.GuaranteedLootIds.ToList())).ToList(),
+                enemy.GuaranteedLootIds.ToList(), enemy.Alertness, enemy.SearchRole,
+                enemy.HomePosition, enemy.LastKnownTargetPosition, enemy.ReactionDelayMovesRemaining,
+                enemy.SearchMovesRemaining, enemy.ReturnDelayMovesRemaining)).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -122,6 +124,10 @@ internal sealed class GameStateMapper
             enemy.SetCurrentHitPoints(savedEnemy.CurrentHitPoints);
             enemy.ConfigureMovement(savedEnemy.MovementProfile, savedEnemy.PatrolDirection, savedEnemy.PursuitState,
                 savedEnemy.PursuitTargetCharacterId, savedEnemy.PursuitMemoryRemainingMoves);
+            enemy.ConfigureAwareness(savedEnemy.Alertness, savedEnemy.HomePosition,
+                savedEnemy.SearchRole, savedEnemy.LastKnownTargetPosition,
+                savedEnemy.ReactionDelayMovesRemaining, savedEnemy.SearchMovesRemaining,
+                savedEnemy.ReturnDelayMovesRemaining);
             enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
             enemy.ConfigureGuaranteedLoot(savedEnemy.GuaranteedLootIds ?? []);
             foreach (var effect in savedEnemy.ActiveSpellEffects ?? []) enemy.RestoreSpellEffect(effect);
