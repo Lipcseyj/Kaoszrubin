@@ -4,13 +4,18 @@ namespace KaoszRubin.Domain.Characters;
 
 public static class DoorInteractionRules
 {
-    public static LiveCharacter SelectLockHandler(LiveCharacter actor, LiveCharacter? assistingThief,
-        bool? useKeyChoice)
+    public static bool HasKey(LiveCharacter character) => character.Backpack.Any(item =>
+        string.Equals(item?.Id, MiscItemIds.Key, StringComparison.OrdinalIgnoreCase));
+
+    public static LiveCharacter? SelectKeyOwner(LiveCharacter actor, IEnumerable<LiveCharacter> availableOwners,
+        bool? useKeyChoice, CharacterId? requestedOwnerId = null)
     {
-        var actorHasKey = actor.Backpack.Any(item =>
-            string.Equals(item?.Id, MiscItemIds.Key, StringComparison.OrdinalIgnoreCase));
-        var actorUsesKey = actorHasKey &&
-                           (!CharacterClassRules.IsThief(actor.CharacterClass.Id) || useKeyChoice == true);
-        return actorUsesKey ? actor : assistingThief ?? actor;
+        if (useKeyChoice == false) return null;
+        var owners = availableOwners.Where(owner => owner.IsAlive && HasKey(owner))
+            .DistinctBy(owner => owner.Id).ToArray();
+        if (requestedOwnerId is { } requested)
+            return useKeyChoice == true ? owners.FirstOrDefault(owner => owner.Id == requested) : null;
+        if (CharacterClassRules.IsThief(actor.CharacterClass.Id) && useKeyChoice != true) return null;
+        return owners.FirstOrDefault(owner => owner == actor) ?? owners.FirstOrDefault();
     }
 }

@@ -68,7 +68,7 @@ var tests = new (string Name, Action Run)[]
     ("A taktikai távolság követi a konzolcellák kettő az egyhez arányát", TacticalDistanceUsesConsoleAspectRatio),
     ("A 2x2-es alakzat minden irányban a vezér slotjához igazodik", PartyFormationPositionsFollowFacing),
     ("Zárt alakzatban minden slot pozíciója ajtó-interakciós eredőpont", LockedFormationSharesDoorInteractionOrigins),
-    ("Az aktív karakter kulcsa elsőbbséget kap az alakzatos segítő tolvajjal szemben", FormationDoorKeyOwnerTakesPriority),
+    ("Az alakzatos zárnyitás a kiválasztott partitag kulcsát fogyasztja", FormationDoorKeyOwnerTakesPriority),
     ("Zárt alakzatból a coop vendég nem léphet ki", LockedFormationRejectsRemoteMovement),
     ("A csapatharcban az átlós ellenfél is közelharci távolságban van", DiagonalEnemyIsMeleeAdjacent),
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
@@ -2002,10 +2002,13 @@ static void ProtocolCodecRoundTripsCommand()
     var restored = CoopProtocolJson.Decode(CoopProtocolJson.Encode(command));
     Assert(restored is BattleActionCommand decoded && decoded == command,
         "A JSON wire codec megváltoztatta a battle commandot.");
+    var keyOwnerId = CharacterId.New();
     var characterAction = new CharacterActionCommand(PlayerId.New(), 8, CharacterId.New(),
-        CharacterAction.CloseOrLockDoor, new Position(7, 9), UseKey: false);
+        CharacterAction.CloseOrLockDoor, new Position(7, 9), UseKey: true,
+        KeyOwnerCharacterId: keyOwnerId);
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(characterAction)) is CharacterActionCommand decodedAction &&
-           decodedAction == characterAction && decodedAction.UseKey == false,
+           decodedAction == characterAction && decodedAction.UseKey == true &&
+           decodedAction.KeyOwnerCharacterId == keyOwnerId,
         "A JSON wire codec megváltoztatta a karakterhez kötött akciót.");
     var attackOrder = new LeaderActionCommand(PlayerId.New(), 9, CharacterId.New(),
         LeaderAction.ToggleAttackMode);
@@ -3243,16 +3246,23 @@ static void LockedFormationSharesDoorInteractionOrigins()
 static void FormationDoorKeyOwnerTakesPriority()
 {
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
-    var actor = CreateCharacter("Kulcsos");
-    var thief = CreateCharacter("Segítő", characterClassId: CharacterClassIds.Tolvaj);
-    Assert(actor.AddToBackpack(data.GetItem(MiscItemIds.Key)),
-        "A tesztkarakter nem kapta meg a kulcsot.");
+    var leader = CreateCharacter("Tolvajvezér", characterClassId: CharacterClassIds.Tolvaj);
+    var secondThief = CreateCharacter("Másik tolvaj", characterClassId: CharacterClassIds.Tolvaj);
+    var keyOwner = CreateCharacter("Kulcstartó");
+    var otherOwner = CreateCharacter("Másik kulcs");
+    Assert(secondThief.AddToBackpack(data.GetItem(MiscItemIds.Key)) &&
+           keyOwner.AddToBackpack(data.GetItem(MiscItemIds.Key)) &&
+           otherOwner.AddToBackpack(data.GetItem(MiscItemIds.Key)),
+        "A tesztparti nem kapta meg a három kulcsot.");
+    LiveCharacter[] owners = [leader, secondThief, keyOwner, otherOwner];
 
-    Assert(DoorInteractionRules.SelectLockHandler(actor, thief, useKeyChoice: null) == actor,
-        "A segítő tolvaj elvette az aktív nem tolvaj karakter kulcshasználatát.");
-    Assert(DoorInteractionRules.SelectLockHandler(CreateCharacter("Kulcstalan"), thief,
-               useKeyChoice: null) == thief,
-        "Kulcs hiányában nem a közeli segítő tolvaj kapta meg a zár kezelését.");
+    var selectedOwner = DoorInteractionRules.SelectKeyOwner(leader, owners, useKeyChoice: true, keyOwner.Id);
+    Assert(selectedOwner == keyOwner && selectedOwner.RemoveFromBackpack(MiscItemIds.Key) &&
+           !DoorInteractionRules.HasKey(keyOwner) && DoorInteractionRules.HasKey(secondThief) &&
+           DoorInteractionRules.HasKey(otherOwner),
+        "Az alakzatos zárnyitás nem pontosan a kiválasztott partitag kulcsát fogyasztotta el.");
+    Assert(DoorInteractionRules.SelectKeyOwner(leader, owners, useKeyChoice: false, otherOwner.Id) is null,
+        "A visszautasított kulcshasználat mégis kiválasztott egy kulcstulajdonost.");
 }
 
 static void FormationAssemblySwapsFriendlyAvatars()

@@ -490,9 +490,9 @@ public sealed class CoopGuestScreen
                     return;
                 }
                 var target = doors.Length == 1 ? doors[0] : (Position?)null;
-                var useKey = GetGuestThiefKeyChoice(client, selected, snapshot, action, target);
+                var keyChoice = GetGuestThiefKeyChoice(client, selected, snapshot, action, target);
                 command = new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-                    action, target, useKey);
+                    action, target, keyChoice.UseKey, keyChoice.KeyOwnerCharacterId);
             }
             else
                 command = new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
@@ -525,9 +525,9 @@ public sealed class CoopGuestScreen
         {
             var target = _doorTargetCandidates[_doorTargetSelection];
             ClearDoorTargeting();
-            var useKey = GetGuestThiefKeyChoice(client, selected, snapshot, action, target);
+            var keyChoice = GetGuestThiefKeyChoice(client, selected, snapshot, action, target);
             return new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-                action, target, useKey);
+                action, target, keyChoice.UseKey, keyChoice.KeyOwnerCharacterId);
         }
         if (key == ConsoleKey.Tab)
             _doorTargetSelection = (_doorTargetSelection + 1) % _doorTargetCandidates.Count;
@@ -1547,31 +1547,40 @@ public sealed class CoopGuestScreen
         Interlocked.Exchange(ref _redrawRequested, 1);
     }
 
-    private bool? GetGuestThiefKeyChoice(CoopSignalRClient client, CoopCharacterOption selected,
-        SessionSnapshot snapshot, CharacterAction action, Position? targetDoorPosition)
+    private (bool? UseKey, CharacterId? KeyOwnerCharacterId) GetGuestThiefKeyChoice(
+        CoopSignalRClient client, CoopCharacterOption selected, SessionSnapshot snapshot,
+        CharacterAction action, Position? targetDoorPosition)
     {
         var character = snapshot.Party.FirstOrDefault(candidate => candidate.CharacterId == selected.CharacterId);
         var door = targetDoorPosition is { } target
             ? snapshot.World?.Doors.FirstOrDefault(candidate => candidate.Position == target)
             : null;
-        var hasKey = character?.Inventory?.Slots.Any(slot => slot.Kind == InventorySlotKind.Backpack &&
-            string.Equals(slot.Item?.DefinitionId, MiscItemIds.Key, StringComparison.OrdinalIgnoreCase)) == true;
-        if (character is null || !CharacterClassRules.IsThief(character.CharacterClassId) || !hasKey || door is null ||
+        var availableOwners = snapshot.Formation is { State: PartyFormationState.Locked } formation &&
+                              formation.Slots.Contains(selected.CharacterId)
+            ? formation.Slots.Where(id => id is not null)
+                .Select(id => snapshot.Party.FirstOrDefault(candidate => candidate.CharacterId == id!.Value))
+                .Where(candidate => candidate is { IsAlive: true }).Cast<SessionCharacterSnapshot>().ToArray()
+            : character is null ? [] : [character];
+        var keyOwner = availableOwners.FirstOrDefault(candidate => candidate.Inventory?.Slots.Any(slot =>
+            slot.Kind == InventorySlotKind.Backpack &&
+            string.Equals(slot.Item?.DefinitionId, MiscItemIds.Key, StringComparison.OrdinalIgnoreCase)) == true);
+        if (character is null || !CharacterClassRules.IsThief(character.CharacterClassId) || keyOwner is null ||
+            door is null ||
             action switch
             {
                 CharacterAction.OpenDoor => door.State != DoorState.Locked,
                 CharacterAction.CloseOrLockDoor => door.State != DoorState.Closed,
                 _ => true
-            }) return null;
+            }) return (null, null);
 
-        SetMessage("🔑 Felhasználjuk a kulcsot? I/Y/Enter: igen | N/Esc: nem, jöjjön a tolvajpróba",
+        SetMessage($"🔑 {keyOwner.Name} kulcsát használjuk? I/Y/Enter: igen | N/Esc: nem, jöjjön a tolvajpróba",
             ConsoleColor.Yellow);
         Draw(client, selected);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
-            if (key is ConsoleKey.I or ConsoleKey.Y or ConsoleKey.Enter) return true;
-            if (key is ConsoleKey.N or ConsoleKey.Escape) return false;
+            if (key is ConsoleKey.I or ConsoleKey.Y or ConsoleKey.Enter) return (true, keyOwner.CharacterId);
+            if (key is ConsoleKey.N or ConsoleKey.Escape) return (false, null);
         }
     }
 

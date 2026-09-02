@@ -52,7 +52,8 @@ public enum CharacterAction
 }
 
 public sealed record CharacterActionCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
-    CharacterAction Action, Position? TargetDoorPosition = null, bool? UseKey = null)
+    CharacterAction Action, Position? TargetDoorPosition = null, bool? UseKey = null,
+    CharacterId? KeyOwnerCharacterId = null)
     : GameCommand(SenderId, CommandId, CharacterId);
 
 public enum LeaderAction

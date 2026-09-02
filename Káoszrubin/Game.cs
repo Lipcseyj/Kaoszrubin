@@ -2005,9 +2005,9 @@ public sealed class Game
                     if (targetDoor is null) return;
                 }
             }
-            var useKey = GetLocalThiefKeyChoice(characterAction, targetDoor);
+            var keyChoice = GetLocalThiefKeyChoice(characterAction, targetDoor);
             command = new CharacterActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
-                characterAction, targetDoor, useKey);
+                characterAction, targetDoor, keyChoice.UseKey, keyChoice.KeyOwnerCharacterId);
         }
         else
         {
@@ -3106,15 +3106,17 @@ public sealed class Game
         var isLeader = character == SelectedCharacter;
         var doorContext = ResolveDoorInteraction(character, position.Value, command.Action,
             command.TargetDoorPosition);
+        var keyOwners = DoorKeyOwners(character);
         switch (command.Action)
         {
             case CharacterAction.OpenDoor:
                 _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, doorContext.Origin, _player.Position,
-                    character, allowPartyAssistanceAndPrompts: isLeader, doorContext.Target, command.UseKey);
+                    character, allowPartyAssistanceAndPrompts: isLeader, doorContext.Target, command.UseKey,
+                    command.KeyOwnerCharacterId, keyOwners);
                 break;
             case CharacterAction.CloseOrLockDoor:
                 _doorInteractions.TryCloseOrLockAdjacentDoor(_maze, _fogOfWar, doorContext.Origin, _player.Position,
-                    character, doorContext.Target, command.UseKey);
+                    character, doorContext.Target, command.UseKey, command.KeyOwnerCharacterId, keyOwners);
                 break;
             case CharacterAction.SearchCurrentPosition:
                 if (!TryDisarmAdjacentTrap(character, position.Value))
@@ -3142,6 +3144,17 @@ public sealed class Game
         return PartyFormationRules.InteractionOrigins(_formation, character.Id, position, partyPositions);
     }
 
+    private IReadOnlyList<LiveCharacter> DoorKeyOwners(LiveCharacter character)
+    {
+        if (_formation.State != PartyFormationState.Locked || !_formation.Slots.Contains(character.Id))
+            return [character];
+        return _formation.Slots.Where(id => id is not null)
+            .Select(id => CharacterRoster.Party.Members.FirstOrDefault(member => member.Id == id!.Value))
+            .Where(member => member is { IsAlive: true })
+            .Cast<LiveCharacter>()
+            .ToArray();
+    }
+
     private (Position Origin, Position? Target) ResolveDoorInteraction(LiveCharacter character,
         Position actorPosition, CharacterAction action, Position? requestedTarget)
     {
@@ -3155,27 +3168,28 @@ public sealed class Game
         return (origin, targetPosition);
     }
 
-    private bool? GetLocalThiefKeyChoice(CharacterAction action, Position? targetDoorPosition)
+    private (bool? UseKey, CharacterId? KeyOwnerCharacterId) GetLocalThiefKeyChoice(
+        CharacterAction action, Position? targetDoorPosition)
     {
+        var keyOwner = DoorKeyOwners(SelectedCharacter).FirstOrDefault(DoorInteractionRules.HasKey);
         if (!CharacterClassRules.IsThief(SelectedCharacter.CharacterClass.Id) ||
-            !SelectedCharacter.Backpack.Any(item =>
-                string.Equals(item?.Id, MiscItemIds.Key, StringComparison.OrdinalIgnoreCase)) ||
+            keyOwner is null ||
             targetDoorPosition is not { } target || _maze.GetDoorAt(target) is not { } door ||
             action switch
             {
                 CharacterAction.OpenDoor => door.State != DoorState.Locked,
                 CharacterAction.CloseOrLockDoor => door.State != DoorState.Closed,
                 _ => true
-            }) return null;
+            }) return (null, null);
 
         _renderer.DrawDoorMessage(
-            "🔑 Felhasználjuk a kulcsot? I/Y/Enter: igen | N/Esc: nem, jöjjön a tolvajpróba",
+            $"🔑 {keyOwner.Name} kulcsát használjuk? I/Y/Enter: igen | N/Esc: nem, jöjjön a tolvajpróba",
             ConsoleColor.Yellow);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
-            if (key is ConsoleKey.I or ConsoleKey.Y or ConsoleKey.Enter) return true;
-            if (key is ConsoleKey.N or ConsoleKey.Escape) return false;
+            if (key is ConsoleKey.I or ConsoleKey.Y or ConsoleKey.Enter) return (true, keyOwner.Id);
+            if (key is ConsoleKey.N or ConsoleKey.Escape) return (false, null);
         }
     }
 
