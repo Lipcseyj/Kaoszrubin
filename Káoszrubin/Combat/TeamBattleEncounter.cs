@@ -25,17 +25,32 @@ public sealed record TeamBattleKill(
     string EnemyName,
     int AwardedExperience);
 
+public sealed record TeamBattleCharacterResult(
+    string Name,
+    int VitalityLost,
+    int ManaUsed,
+    bool Fell,
+    IReadOnlyList<string> GainedStatusIcons,
+    int SpellsCast);
+
 /// <summary>A játékvilág objektumait a tiszta taktikai körsorrendhez kapcsoló futásidejű összecsapás.</summary>
 public sealed class TeamBattleEncounter
 {
+    public const int InactiveCycleLimit = 2;
+
     private readonly Dictionary<CombatantId, LiveCharacter> _characters = [];
     private readonly Dictionary<CombatantId, Enemy> _enemies = [];
     private readonly Dictionary<CharacterId, TeamCharacterBattleRuntime> _characterRuntimes = [];
     private readonly Dictionary<CharacterId, (int Vitality, int Mana)> _startingResources = [];
+    private readonly Dictionary<CharacterId, HashSet<string>> _startingStatusIds = [];
+    private readonly Dictionary<CharacterId, List<string>> _gainedStatusIcons = [];
+    private readonly Dictionary<CharacterId, int> _spellCasts = [];
     private readonly HashSet<WorldEntityId> _resolvedEnemyDeaths = [];
     private readonly HashSet<CharacterId> _resolvedCharacterDeaths = [];
     private readonly HashSet<(CharacterId CharacterId, WorldEntityId EnemyId)> _engagements = [];
     private readonly HashSet<BattleSide> _activeSidesThisCycle = [];
+    private readonly Dictionary<BattleSide, int> _inactiveCycleStreaks = Enum.GetValues<BattleSide>()
+        .ToDictionary(side => side, _ => 0);
     private readonly List<TeamBattleKill> _kills = [];
     private int _queuedExtraActions;
     private int _reinforcementsCheckedThroughCycle;
@@ -69,6 +84,10 @@ public sealed class TeamBattleEncounter
             _characterRuntimes.Add(participant.Character.Id, participant.Runtime);
             _startingResources.Add(participant.Character.Id,
                 (participant.Character.CurrentVitality, participant.Character.CurrentMana));
+            _startingStatusIds.Add(participant.Character.Id, participant.Character.Statuses
+                .Select(status => status.Id).ToHashSet(StringComparer.OrdinalIgnoreCase));
+            _gainedStatusIcons.Add(participant.Character.Id, []);
+            _spellCasts.Add(participant.Character.Id, 0);
             tacticalParticipants.Add(new TacticalBattleParticipant(id, BattleSide.Friendly,
                 participant.Kind, participant.Position, participant.Initiative,
                 participant.MovementAllowance, participant.EligibleFromCycle,
@@ -115,6 +134,25 @@ public sealed class TeamBattleEncounter
 
     public (int Vitality, int Mana) StartingResourcesFor(LiveCharacter character) =>
         _startingResources[character.Id];
+
+    public TeamBattleCharacterResult ResultFor(LiveCharacter character)
+    {
+        CaptureNewStatuses();
+        var starting = StartingResourcesFor(character);
+        return new TeamBattleCharacterResult(character.Name,
+            Math.Max(0, starting.Vitality - character.CurrentVitality),
+            Math.Max(0, starting.Mana - character.CurrentMana), !character.IsAlive,
+            _gainedStatusIcons[character.Id].ToArray(), _spellCasts[character.Id]);
+    }
+
+    public void CaptureNewStatuses()
+    {
+        foreach (var character in _characters.Values)
+            foreach (var status in character.Statuses.Where(status =>
+                         !_startingStatusIds[character.Id].Contains(status.Id)))
+                if (!_gainedStatusIcons[character.Id].Contains(status.Icon, StringComparer.Ordinal))
+                    _gainedStatusIcons[character.Id].Add(status.Icon);
+    }
 
     public LiveCharacter? CharacterFor(CombatantId id) => _characters.GetValueOrDefault(id);
     public Enemy? EnemyFor(CombatantId id) => _enemies.GetValueOrDefault(id);
@@ -297,8 +335,15 @@ public sealed class TeamBattleEncounter
         var next = Turns.AdvanceTurn();
         if (Turns.Cycle > completedCycle)
         {
-            InactiveSidesLastCompletedCycle = Enum.GetValues<BattleSide>()
-                .Where(side => !_activeSidesThisCycle.Contains(side)).ToHashSet();
+            var inactiveAtLimit = new HashSet<BattleSide>();
+            foreach (var side in Enum.GetValues<BattleSide>())
+            {
+                _inactiveCycleStreaks[side] = _activeSidesThisCycle.Contains(side)
+                    ? 0
+                    : _inactiveCycleStreaks[side] + 1;
+                if (_inactiveCycleStreaks[side] >= InactiveCycleLimit) inactiveAtLimit.Add(side);
+            }
+            InactiveSidesLastCompletedCycle = inactiveAtLimit;
             _activeSidesThisCycle.Clear();
         }
         return next;
@@ -306,6 +351,8 @@ public sealed class TeamBattleEncounter
 
     public void RecordMovement(BattleSide side) => _activeSidesThisCycle.Add(side);
     public void RecordAttack(BattleSide side) => _activeSidesThisCycle.Add(side);
+    public void RecordSpellCast(LiveCharacter caster) => _spellCasts[caster.Id]++;
+    public void RecordCompletedFinalAction() => ActionNumber++;
     public void RecordKill(LiveCharacter killer, Enemy enemy, int awardedExperience) =>
         _kills.Add(new TeamBattleKill(killer.Id, killer.Name, enemy.Definition.Id, enemy.Name,
             Math.Max(0, awardedExperience)));

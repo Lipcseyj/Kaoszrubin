@@ -489,6 +489,42 @@ public sealed class ConsoleRenderer
         return $"Szerzett XP: {totalExperience}. {killText}";
     }
 
+    public static string FormatTeamBattleVictorySummary(bool automatic, int cycles, int actions,
+        IEnumerable<TeamBattleKill> kills)
+    {
+        var entries = kills.ToArray();
+        var experience = entries.Sum(entry => entry.AwardedExperience);
+        var killerText = string.Join("; ", entries
+            .GroupBy(entry => new { entry.KillerId, entry.KillerName })
+            .Select(killerGroup =>
+            {
+                var enemies = string.Join(", ", killerGroup
+                    .GroupBy(entry => new { entry.EnemyDefinitionId, entry.EnemyName })
+                    .Select(enemyGroup => $"{enemyGroup.Count()}× {enemyGroup.Key.EnemyName}"));
+                return $"{killerGroup.Key.KillerName} ☠ {killerGroup.Count()}: {enemies}";
+            }));
+        var automaticIcon = automatic ? "🤖" : string.Empty;
+        var result = $"🏆{automaticIcon} CSAPATHARC GYŐZELEM — ⌛{cycles} 🕧{actions} " +
+                     $"☠ {entries.Length} 🎖 {experience}.";
+        return string.IsNullOrEmpty(killerText) ? result : $"{result} {killerText}.";
+    }
+
+    public static string FormatTeamBattleResourceSummary(IEnumerable<TeamBattleCharacterResult> results,
+        int cycles)
+    {
+        var characters = results.Select(result =>
+        {
+            var fallen = result.Fell ? "💀" : string.Empty;
+            var mana = result.ManaUsed > 0 ? $"🔷-{result.ManaUsed}" : string.Empty;
+            var statuses = result.GainedStatusIcons.Count > 0
+                ? $" {string.Join(' ', result.GainedStatusIcons)}"
+                : string.Empty;
+            var spells = result.SpellsCast > 0 ? $" ✨{result.SpellsCast}" : string.Empty;
+            return $"{result.Name}: {fallen}❤️-{Math.Max(0, result.VitalityLost)}{mana}{statuses}{spells}";
+        });
+        return $"{string.Join("; ", characters)} Mindenki 🍖-{cycles} 💧-{cycles}";
+    }
+
     /// <summary>
     /// Játék vége képernyő: középre rajzolt keret és szöveg, majd várakozás billentyűleütésre.
     /// </summary>

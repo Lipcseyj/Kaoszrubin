@@ -98,6 +98,15 @@ public static class SpellcastingRules
             ? 0
             : Math.Max(1, spell.ManaCost - (character.HasPerk(PerkIds.MageArchmage) ? 2 : 0));
 
+    public static int CombatFailureChance(LiveCharacter caster, bool engaged)
+    {
+        var baseChance = Math.Clamp(30 - caster.EffectiveAbilities.Intelligence -
+            caster.EffectiveAbilities.Dexterity, 0, 100);
+        return engaged
+            ? Math.Clamp(baseChance + 15, 0, 100)
+            : baseChance / 2;
+    }
+
     public static IReadOnlyList<SpellDefinition> AvailableUnknownSpells(
         LiveCharacter character, GameDataCatalog gameData, int atCharacterLevel)
     {

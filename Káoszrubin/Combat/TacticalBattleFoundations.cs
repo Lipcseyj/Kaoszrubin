@@ -220,7 +220,7 @@ public sealed record EncounterThreatAssessment(
     double HostileToFriendlyRatio,
     bool IsOverwhelminglySafe)
 {
-    public const double DefaultQuickResolutionRatio = 0.75;
+    public const double DefaultQuickResolutionRatio = 1.0;
 }
 
 /// <summary>
@@ -313,12 +313,12 @@ public sealed record QuickCombatAssessment(
     int PredictedVitalityLoss,
     double PredictedInjuryRatio);
 
-/// <summary>A jelentéktelen ütközetek automatikus lejátszásának konzervatív kapuja.</summary>
+/// <summary>A legfeljebb három közönséges ellenfél elleni automatikus lejátszás kapuja.</summary>
 public static class QuickCombatRules
 {
     public const int MaximumEnemyCount = 3;
     public const double PredictedDamagePowerRatio = 0.15;
-    public const double MaximumPredictedInjuryRatio = 0.35;
+    public const double MaximumPredictedInjuryRatio = 0.60;
 
     public static QuickCombatAssessment Assess(IEnumerable<LiveCharacter> friendlies,
         IEnumerable<EnemyDefinition> hostiles,
@@ -350,9 +350,6 @@ public static class QuickCombatRules
         else if (injuryRatio > MaximumPredictedInjuryRatio)
             reason = $"A várható sérülés meghaladja a csapat életerejének " +
                      $"{MaximumPredictedInjuryRatio * 100:0}%-át.";
-        else if (party.Min(character => character.CurrentVitality) <= predictedLoss)
-            reason = "A becslés szerint egy csapattag eleshet.";
-
         return new QuickCombatAssessment(reason is null, reason ?? "Jelentéktelen, biztonságos ütközet.",
             threat, predictedLoss, injuryRatio);
     }

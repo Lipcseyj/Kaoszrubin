@@ -5644,12 +5644,13 @@ public sealed class Game
 
         if (inCombat)
         {
-            var failureChance = Math.Clamp(30 - caster.EffectiveAbilities.Intelligence -
-                caster.EffectiveAbilities.Dexterity, 0, 100);
+            var engaged = _activeTeamBattle?.IsEngaged(caster) == true;
+            var failureChance = SpellcastingRules.CombatFailureChance(caster, engaged);
             var roll = _random.Next(1, 101);
             if (roll <= failureChance)
                 return new SpellCastAttempt(true,
                     $"{caster.Name} varázslata meghiúsul: {spell.Name} — kockázat {failureChance}%, dobás {roll}. " +
+                    (engaged ? "Lekötés: +15%. " : string.Empty) +
                     (usingItem ? $"{CastingItemUseText(castingItem!)}; az akció elveszett." : $"-{manaCost} manna; az akció elveszett."),
                     BattleLogKind.Information);
         }
@@ -7071,6 +7072,7 @@ public sealed class Game
             RejectTeamBattleAction(command, attempt?.Message ?? "A varázslat célpontja érvénytelen.");
             return;
         }
+        battle.RecordSpellCast(character);
         if (IsOffensiveSpell(spell)) battle.RecordAttack(BattleSide.Friendly);
         if (attempt.DamageToCurrentEnemy > 0) currentEnemy.ReceiveSpellDamage(attempt.DamageToCurrentEnemy);
         battle.GrantExtraActions(attempt.ExtraPlayerActions);
@@ -7152,7 +7154,7 @@ public sealed class Game
             battle.RearPartnerOf(character) is { IsAlive: true } &&
             TryExecuteSwapToRear(battle, character, out _))
             return;
-        if (!battle.IsEngaged(character) && TryExecuteTeamAiSpell(battle, character)) return;
+        if (TryExecuteTeamAiSpell(battle, character)) return;
         var reachable = ReachableTeamEnemies(battle, character).FirstOrDefault();
         if (reachable is not null)
         {
@@ -7185,6 +7187,7 @@ public sealed class Game
         var attempt = TryCastSpell(caster, GetCasterPosition(caster), plan.Spell, inCombat: true,
             plan.Enemy, explicitTarget: plan.Target);
         if (attempt is not { ConsumesTurn: true }) return false;
+        battle.RecordSpellCast(caster);
         if (plan.Offensive)
         {
             battle.RecordAttack(BattleSide.Friendly);
@@ -7354,7 +7357,12 @@ public sealed class Game
 
     private void AdvanceTeamBattleTurn(TeamBattleEncounter battle)
     {
-        if (battle.IsCompleted) return;
+        battle.CaptureNewStatuses();
+        if (battle.IsCompleted)
+        {
+            battle.RecordCompletedFinalAction();
+            return;
+        }
         battle.AdvanceTurn();
         _preparedTeamBattleTurnId = 0;
     }
@@ -7471,6 +7479,8 @@ public sealed class Game
     private void FinishSuccessfulTeamRetreat(TeamBattleEncounter battle, int friendlySpeed, int hostileSpeed)
     {
         _session.EndBattle(battle.Id);
+        foreach (var character in battle.Characters.Where(character => character.IsAlive))
+            DrainNeedsAfterTeamBattle(character, battle.Turns.Cycle);
         _activeTeamBattle = null;
         _isQuickTeamBattle = false;
         _preparedTeamBattleTurnId = 0;
@@ -7499,10 +7509,16 @@ public sealed class Game
         var reachable = ReachableTeamEnemies(battle, character).ToArray();
         var adjacent = AdjacentTeamEnemies(battle, character).ToArray();
         if (battle.Turns.Cycle == 1 && character.Id == battle.InitiatingCharacterId)
-            return reachable.Length > 0 ? [BattleActionKind.PhysicalAttack, BattleActionKind.Pass] :
-                battle.HasActiveFormation && character == SelectedCharacter
-                    ? [BattleActionKind.MoveFormation, BattleActionKind.Pass]
-                    : [BattleActionKind.Move, BattleActionKind.Pass];
+        {
+            var openingActions = new List<BattleActionKind> { BattleActionKind.Pass };
+            if (reachable.Length > 0) openingActions.Insert(0, BattleActionKind.PhysicalAttack);
+            else if (battle.HasActiveFormation && character == SelectedCharacter)
+                openingActions.Insert(0, BattleActionKind.MoveFormation);
+            else openingActions.Insert(0, BattleActionKind.Move);
+            if (HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy))
+                openingActions.Insert(0, BattleActionKind.CastSpell);
+            return openingActions;
+        }
         var actions = new List<BattleActionKind> { BattleActionKind.Pass };
         if (reachable.Length > 0)
         {
@@ -7516,13 +7532,13 @@ public sealed class Game
             actions.Add(BattleActionKind.SwapToRear);
         if (battle.HasActiveFormation && character == SelectedCharacter)
             actions.Add(BattleActionKind.MoveFormation);
+        if (HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy))
+            actions.Add(BattleActionKind.CastSpell);
         if (!battle.IsEngaged(character))
         {
             if (!battle.HasActiveFormation || battle.FormationSlotFor(character) is null)
                 actions.Add(BattleActionKind.Move);
             if (GetBattleItemOptions(battle, character).Count > 0) actions.Add(BattleActionKind.UseItem);
-            if (HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy))
-                actions.Add(BattleActionKind.CastSpell);
         }
         if (character == SelectedCharacter && battle.Turns.Cycle > 1)
             actions.Add(BattleActionKind.Retreat);
@@ -7979,6 +7995,8 @@ public sealed class Game
     private void FinishTeamBattleStalemate(TeamBattleEncounter battle)
     {
         _session.EndBattle(battle.Id);
+        foreach (var character in battle.Characters.Where(character => character.IsAlive))
+            DrainNeedsAfterTeamBattle(character, battle.Turns.Cycle);
         var inactive = battle.InactiveSidesLastCompletedCycle;
         var sideName = inactive.Contains(BattleSide.Friendly) ? "a csapat" : "az ellenséges oldal";
         _activeTeamBattle = null;
@@ -7987,8 +8005,10 @@ public sealed class Game
         _battleStarted = false;
         _session.SetPhase(GameSessionPhase.Exploration);
         var message = inactive.Count == 2
-            ? "⚖️ Az összecsapás véget ér: egyik oldal sem mozdult vagy támadott egy teljes körön át."
-            : $"⚖️ Az összecsapás véget ér: {sideName} nem mozdult és nem támadott egy teljes körön át.";
+            ? $"⚖️ Az összecsapás véget ér: egyik oldal sem mozdult vagy támadott " +
+              $"{TeamBattleEncounter.InactiveCycleLimit} teljes körön át."
+            : $"⚖️ Az összecsapás véget ér: {sideName} nem mozdult és nem támadott " +
+              $"{TeamBattleEncounter.InactiveCycleLimit} teljes körön át.";
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.DarkYellow);
@@ -8011,17 +8031,9 @@ public sealed class Game
         _session.EndBattle(battle.Id);
         var victory = !forceDefeat && battle.HostileSideDefeated && !battle.FriendlySideDefeated;
         var wasQuickBattle = _isQuickTeamBattle;
-        var resourceSummary = wasQuickBattle
-            ? string.Join("; ", battle.Characters.Select(character =>
-            {
-                var starting = battle.StartingResourcesFor(character);
-                var vitalityLoss = Math.Max(0, starting.Vitality - character.CurrentVitality);
-                var manaLoss = Math.Max(0, starting.Mana - character.CurrentMana);
-                return character.IsAlive
-                    ? $"{character.Name}: -{vitalityLoss} HP, -{manaLoss} manna"
-                    : $"{character.Name}: elesett";
-            }))
-            : string.Empty;
+        var cycles = Math.Max(1, battle.Turns.Cycle);
+        var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
+        var resourceSummary = ConsoleRenderer.FormatTeamBattleResourceSummary(characterResults, cycles);
         _activeTeamBattle = null;
         _isQuickTeamBattle = false;
         _preparedTeamBattleTurnId = 0;
@@ -8036,27 +8048,18 @@ public sealed class Game
         }
 
         PlayBattleVictorySound();
-        var maximumThreat = battle.Enemies.Select(enemy => enemy.Definition.StrengthTier).DefaultIfEmpty(1).Max();
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
         {
-            DrainNeedsAfterBattle(character, maximumThreat);
+            DrainNeedsAfterTeamBattle(character, cycles);
             if (character != SelectedCharacter) TryNpcUseConsumables(character);
         }
-        var message = wasQuickBattle
-            ? $"⚡ GYORSHARC GYŐZELEM — {battle.Turns.Cycle} kör, " +
-              $"{battle.Enemies.Count} legyőzött ellenfél."
-            : $"🏆 CSAPATHARC GYŐZELEM — {battle.Turns.Cycle} kör, " +
-              $"{battle.Enemies.Count} legyőzött ellenfél.";
+        var message = ConsoleRenderer.FormatTeamBattleVictorySummary(wasQuickBattle, cycles,
+            battle.ActionNumber, battle.Kills);
         _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);
-        if (wasQuickBattle)
-        {
-            var details = $"{ConsoleRenderer.FormatQuickBattleKillSummary(battle.Kills)} " +
-                          $"Eredmény: {resourceSummary}. Automatikusan lejátszott események: " +
-                          $"{_quickBattleSuppressedEntryCount}.";
-            _renderer.DrawInventoryMessage(details, ConsoleColor.Cyan);
-            RecordSessionActivity(SessionActivityKind.Battle, details, ConsoleColor.Cyan);
-        }
+        var details = $"Eredmény: {resourceSummary}";
+        _renderer.DrawInventoryMessage(details, ConsoleColor.Cyan);
+        RecordSessionActivity(SessionActivityKind.Battle, details, ConsoleColor.Cyan);
         TryLogPartyComments(PartySituationIds.BattleWon);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
@@ -8376,6 +8379,21 @@ public sealed class Game
             LogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
         }
         return loss;
+    }
+
+    private void DrainNeedsAfterTeamBattle(LiveCharacter character, int cycles)
+    {
+        var foodBefore = character.FoodLevel;
+        var waterBefore = character.WaterLevel;
+        var loss = Math.Max(1, cycles);
+        character.ConsumeFood(loss);
+        character.ConsumeWater(loss);
+        character.SynchronizeNeedStatuses(
+            _gameData.GetStatus(CharacterStatusIds.Hungry),
+            _gameData.GetStatus(CharacterStatusIds.Thirsty));
+        if (!IsAutonomousNpc(character)) return;
+        LogNewZeroNeed(character, NpcComplaintKind.Hunger, foodBefore, character.FoodLevel);
+        LogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
     }
 
     private bool IsAutonomousNpc(LiveCharacter character) =>

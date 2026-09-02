@@ -73,7 +73,7 @@ var tests = new (string Name, Action Run)[]
     ("A csapatharcban az átlós ellenfél is közelharci távolságban van", DiagonalEnemyIsMeleeAdjacent),
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
     ("A zárt út mögötti ellenfél nem érkezhet meg néhány harci kör alatt", TacticalArrivalRequiresWalkableRoute),
-    ("A csapatharc felismeri a teljes körön át tétlen oldalt", TeamBattleDetectsInactiveSide),
+    ("A csapatharc két egymást követő tétlen kör után áll le", TeamBattleDetectsInactiveSide),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
     ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
     ("A zárt alakzat első sora védi a mögötte álló társat", TeamBattleFormationProtectsRearRow),
@@ -83,12 +83,14 @@ var tests = new (string Name, Action Run)[]
     ("Az alakzat csak a fennálló lekötéseket megtartva mozdulhat", TeamBattleFormationMovementPreservesEngagements),
     ("A csapatharc célpontja akcióvesztés nélkül váltható", TeamBattleTargetCanBeChanged),
     ("Az NPC varázslási szabálya tartalékolja a mannát és csak egycélú támadást választ", NpcSpellcastingPolicyPreservesMana),
+    ("A szabad és lekötött varázslás eltérően módosítja a harci hibakockázatot", EngagementAdjustsSpellFailureChance),
     ("A harcba hívott erősítés a következő körben lép be", TeamBattleReinforcementJoinsNextCycle),
     ("A coop session validálja a csapatharcos mozgást, tárgyhasználatot és passzt", TeamBattleCommandsAreValidated),
     ("A fenyegetésbecslés felismeri az elszigetelt gyenge ellenfelet", EncounterThreatAssessmentRecognizesSafeFight),
     ("A gyorsharc legfeljebb három jelentéktelen ellenfelet enged át", QuickCombatAllowsUpToThreeSafeEnemies),
     ("A gyorsharc beállítása normalizálható és menthető", QuickCombatSettingPersists),
     ("A gyorsharc összesítője ölőnként csoportosítja az ellenfeleket és az XP-t", QuickCombatSummaryListsKillsAndExperience),
+    ("A taktikai és gyorsharc összesítője kiírja a HP- és mannafogyást", TeamBattleSummaryListsResourceUse),
     ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
     ("A harcos taktikai találati esélyei a valódi képletet követik", FighterTacticHitChancesUseCombatFormula),
@@ -3411,8 +3413,15 @@ static void TeamBattleDetectsInactiveSide()
     encounter.AdvanceTurn();
     encounter.AdvanceTurn();
 
+    Assert(encounter.InactiveSidesLastCompletedCycle.Count == 0,
+        "A rendszer már az első tétlen kör után lezárná a csatát.");
+
+    encounter.RecordAttack(BattleSide.Friendly);
+    encounter.AdvanceTurn();
+    encounter.AdvanceTurn();
+
     Assert(encounter.InactiveSidesLastCompletedCycle.SetEquals([BattleSide.Hostile]),
-        "A rendszer nem azonosította a teljes körön át mozdulatlan és támadás nélküli oldalt.");
+        "A rendszer nem azonosította a két körön át mozdulatlan és támadás nélküli oldalt.");
 }
 
 static void EncounterThreatAssessmentRecognizesSafeFight()
@@ -3441,17 +3450,17 @@ static void QuickCombatAllowsUpToThreeSafeEnemies()
     var giantRatGroup = QuickCombatRules.Assess(party, [giantRat, giantRat, giantRat]);
     var fragileParty = party.ToArray();
     fragileParty[0].ReceiveDamage(29);
+    var injuredGroup = QuickCombatRules.Assess(fragileParty, [giantRat, giantRat, giantRat]);
 
-    Assert(safe.IsEligible && safeGroup.IsEligible && giantRatGroup.IsEligible &&
+    Assert(safe.IsEligible && safeGroup.IsEligible && giantRatGroup.IsEligible && injuredGroup.IsEligible &&
            safeGroup.PredictedInjuryRatio <= QuickCombatRules.MaximumPredictedInjuryRatio,
-        "Az egy-három jelentéktelen ellenfélből, köztük óriáspatkányokból álló csoport nem lett gyorsharcra alkalmas.");
+        "Az egy-három jelentéktelen ellenfélből álló csoport egy sérült csapattal sem lett gyorsharcra alkalmas.");
     Assert(!QuickCombatRules.Assess(party, [weak, weak, weak, weak]).IsEligible &&
            !QuickCombatRules.Assess(party, [weak with { Rank = EnemyRank.Elite }]).IsEligible &&
            !QuickCombatRules.Assess(party, [weak], hasAvailableReinforcements: true).IsEligible &&
            !QuickCombatRules.Assess(party, [weak], hasActiveFormation: true).IsEligible &&
            !QuickCombatRules.Assess(party, [weak], isQuestImportant: true).IsEligible &&
-           !QuickCombatRules.Assess(party, [weak], enemyStrikesFirst: true).IsEligible &&
-           !QuickCombatRules.Assess(fragileParty, [weak]).IsEligible,
+           !QuickCombatRules.Assess(party, [weak], enemyStrikesFirst: true).IsEligible,
         "A gyorsharc valamelyik taktikai vagy halálkockázatos helyzetet tévesen átengedte.");
 }
 
@@ -3492,6 +3501,44 @@ static void QuickCombatSummaryListsKillsAndExperience()
     Assert(summary == "Szerzett XP: 350. Iskra legyőzött 2 ellenfelet: 2× Óriáspatkány; " +
            "Yorgrim legyőzött 1 ellenfelet: 1× Kobold.",
         "A gyorsharc összesítője nem a tényleges ölőket, ellenféltípusokat és XP-t írta ki.");
+}
+
+static void TeamBattleSummaryListsResourceUse()
+{
+    var summary = ConsoleRenderer.FormatTeamBattleResourceSummary(
+    [
+        new TeamBattleCharacterResult("Iskra", 0, 0, false, ["🤒"], 0),
+        new TeamBattleCharacterResult("Yorgrim", 0, 0, false, ["🤒"], 0),
+        new TeamBattleCharacterResult("Fürge", 0, 0, false, [], 0),
+        new TeamBattleCharacterResult("Pál", 0, 20, false, [], 3)
+    ], 7);
+    Assert(summary == "Iskra: ❤️-0 🤒; Yorgrim: ❤️-0 🤒; Fürge: ❤️-0; " +
+           "Pál: ❤️-0🔷-20 ✨3 Mindenki 🍖-7 💧-7",
+        "A csapatharc erőforrás-összesítője nem személyenként és tömör emoji-formában jelenik meg.");
+
+    TeamBattleKill[] kills =
+    [
+        new(CharacterId.New(), "Iskra", "E001", "Óriáspatkány", 100),
+        new(CharacterId.New(), "Pál", "E001", "Óriáspatkány", 100),
+        new(CharacterId.New(), "Yorgrim", "E001", "Óriáspatkány", 100)
+    ];
+    var victorySummary = ConsoleRenderer.FormatTeamBattleVictorySummary(true, 7, 17, kills);
+    Assert(victorySummary ==
+           "🏆🤖 CSAPATHARC GYŐZELEM — ⌛7 🕧17 ☠ 3 🎖 300. " +
+           "Iskra ☠ 1: 1× Óriáspatkány; Pál ☠ 1: 1× Óriáspatkány; Yorgrim ☠ 1: 1× Óriáspatkány.",
+        $"Az autoharc győzelmi sora hibás: {victorySummary}");
+
+    var (encounter, front, _, _) = CreateFormationEncounter();
+    var poisoned = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"))
+        .GetStatus(CharacterStatusIds.Poisoned);
+    front.AddStatus(poisoned);
+    encounter.CaptureNewStatuses();
+    front.RemoveStatus(poisoned.Id);
+    encounter.RecordSpellCast(front);
+    encounter.RecordSpellCast(front);
+    var recorded = encounter.ResultFor(front);
+    Assert(recorded.GainedStatusIcons.SequenceEqual([poisoned.Icon]) && recorded.SpellsCast == 2,
+        "A csata közben megszűnt állapot vagy a karakter varázslatszáma elveszett az összesítőből.");
 }
 
 static void TeamBattleAttackUsesExistingCombatRules()
@@ -3673,6 +3720,18 @@ static void NpcSpellcastingPolicyPreservesMana()
            NpcSpellcastingPolicy.ActiveTypeFor(SpellEffectType.DefenseBonus) ==
            ActiveSpellEffectType.DefenseBonus,
         "Az NPC támadó- vagy buffvarázslat-besorolása hibás.");
+}
+
+static void EngagementAdjustsSpellFailureChance()
+{
+    var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
+    var mageClass = new CharacterClassDefinition(CharacterClassIds.Mágus, "Mágus", PrimaryAbilities.Zero,
+        true, 1.0);
+    var mage = new LiveCharacter("Lekötött", race, mageClass, new PrimaryAbilities(5, 5, 5, 5),
+        30, 30, 1, 0);
+    Assert(SpellcastingRules.CombatFailureChance(mage, engaged: false) == 10 &&
+           SpellcastingRules.CombatFailureChance(mage, engaged: true) == 35,
+        "A szabad varázslás nem felezi a régi hibakockázatot, vagy a lekötés nem ad hozzá 15 százalékot.");
 }
 
 static void TeamBattleReinforcementJoinsNextCycle()
