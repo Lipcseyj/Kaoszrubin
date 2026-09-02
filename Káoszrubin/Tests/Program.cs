@@ -77,6 +77,7 @@ var tests = new (string Name, Action Run)[]
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
     ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
     ("A zárt alakzat első sora védi a mögötte álló társat", TeamBattleFormationProtectsRearRow),
+    ("Harcban csak szabad hátsó sori karakter használhat CSV-ben engedélyezett italt", TeamBattleItemUseRequiresFreeRearPosition),
     ("A hátsó sor szálfegyverrel eléri az első társ lekötött ellenfelét", TeamBattleRearPolearmReachUsesFrontEngagement),
     ("A Hátra! helycsere átadja az első sori lekötéseket", TeamBattleSwapToRearTransfersEngagements),
     ("Az alakzat csak a fennálló lekötéseket megtartva mozdulhat", TeamBattleFormationMovementPreservesEngagements),
@@ -3536,6 +3537,27 @@ static void TeamBattleFormationProtectsRearRow()
            !encounter.IsProtectedRearTarget(rear, new Position(2, 4)) &&
            !encounter.IsProtectedRearTarget(rear, new Position(3, 5)),
         "Az első sor nem csak az alakzat eleje felől védi a hátsó társat.");
+}
+
+static void TeamBattleItemUseRequiresFreeRearPosition()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var combatItemIds = data.Items.Where(item => item.UsableInCombat).Select(item => item.Id).ToArray();
+    Assert(combatItemIds.SequenceEqual(["T011", "T012", "T013", "T014", "T015", "T016"]),
+        "Nem kizárólag a gyógy- és varázsitalok használhatók harcban a CSV szerint.");
+
+    var (encounter, front, rear, enemy) = CreateFormationEncounter();
+    var healingPotion = data.GetItem("T011");
+    var food = data.GetItem("T004");
+    Assert(!encounter.CanUseItem(front, healingPotion) && encounter.CanUseItem(rear, healingPotion) &&
+           !encounter.CanUseItem(rear, food),
+        "Az alakzat első és hátsó sorának tárgyhasználati szabálya hibás.");
+    encounter.Engage(rear, enemy);
+    Assert(!encounter.CanUseItem(rear, healingPotion),
+        "A lekötött hátsó sori karakter tárgyat használhatott.");
+    Assert(data.GetMagicItem("M004").Kind == MagicItemKind.Wand &&
+           data.GetMagicItem("M002").Kind == MagicItemKind.Scroll,
+        "A pálca vagy tekercs kikerült a külön varázslási tárgykategóriából.");
 }
 
 static void TeamBattleRearPolearmReachUsesFrontEngagement()

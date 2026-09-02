@@ -355,22 +355,25 @@ public sealed class Game
             allowed, spellOptions,
             actingCharacter is null ? null : GetTeamBattleTacticOptions(battle, actingCharacter, focusEnemy),
             battle.Turns.Cycle, participants,
-            actingCharacter is null ? null : GetBattleItemOptions(actingCharacter),
+            actingCharacter is null ? null : GetBattleItemOptions(battle, actingCharacter),
             actingCharacter is null ? null : ReachableTeamEnemies(battle, actingCharacter)
                 .Select(enemy => enemy.Id).ToArray());
     }
 
-    private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(LiveCharacter character) =>
+    private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(TeamBattleEncounter battle,
+        LiveCharacter character) =>
         Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
             .Select(index => (Index: index, Item: character.GetInventoryItem(InventorySlotKind.Backpack, index),
                 Quantity: character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index)))
             .Where(entry => entry.Item is MiscItemDefinition item && entry.Quantity > 0 &&
-                            IsTeamBattleItemUseful(character, item))
-            .Select(entry => new BattleItemOptionSnapshot(entry.Index, entry.Item!.Id, entry.Item.Name, entry.Quantity))
+                            battle.CanUseItem(character, item) && IsTeamBattleItemUseful(character, item))
+            .GroupBy(entry => entry.Item!.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new BattleItemOptionSnapshot(group.Min(entry => entry.Index), group.Key,
+                group.First().Item!.Name, group.Sum(entry => entry.Quantity)))
             .ToArray();
 
     private static bool IsTeamBattleItemUseful(LiveCharacter character, MiscItemDefinition item) =>
-        item.Id == MiscItemIds.HerbalTea
+        !item.UsableInCombat ? false : item.Id == MiscItemIds.HerbalTea
             ? character.WaterLevel < 100 || character.CurrentVitality < character.MaximumVitality
             : IsInitiativeDrink(item) || item.Effect switch
             {
@@ -5217,10 +5220,11 @@ public sealed class Game
             SubmitLocalBattleCommand(BattleActionKind.Move, target: target);
             return;
         }
-        if (key.Key == ConsoleKey.U && allowed.Contains(BattleActionKind.UseItem) &&
-            GetBattleItemOptions(character).FirstOrDefault() is { } item)
+        if (key.Key == ConsoleKey.U && allowed.Contains(BattleActionKind.UseItem))
         {
-            SubmitLocalBattleCommand(BattleActionKind.UseItem, backpackIndex: item.BackpackIndex);
+            var item = SelectTeamBattleItem(battle, character);
+            if (item is not null)
+                SubmitLocalBattleCommand(BattleActionKind.UseItem, backpackIndex: item.BackpackIndex);
             return;
         }
         if (key.Key == ConsoleKey.T && allowed.Contains(BattleActionKind.TurnUndead))
@@ -5259,6 +5263,26 @@ public sealed class Game
         if (targetPosition is null) return;
         SubmitLocalBattleCommand(BattleActionKind.CastSpell, spell.Id, castingItemSlotIndex,
             targetPosition, enemy.Id);
+    }
+
+    private BattleItemOptionSnapshot? SelectTeamBattleItem(TeamBattleEncounter battle,
+        LiveCharacter character)
+    {
+        var options = GetBattleItemOptions(battle, character).Take(9).ToArray();
+        if (options.Length == 0) return null;
+        _renderer.DrawInventoryMessage("Tárgyhasználat: " + string.Join(" | ", options.Select((item, index) =>
+            $"{index + 1} - {item.Name} ×{item.Quantity}")) + " | Esc - mégse", ConsoleColor.Cyan);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Escape)
+            {
+                _renderer.DrawInventoryMessage("Tárgyhasználat megszakítva.", ConsoleColor.DarkYellow);
+                return null;
+            }
+            if (key.KeyChar is >= '1' and <= '9' && key.KeyChar - '1' < options.Length)
+                return options[key.KeyChar - '1'];
+        }
     }
 
     private void SubmitLocalBattleCommand(BattleActionKind action, string? spellId = null,
@@ -6988,7 +7012,7 @@ public sealed class Game
                 ExecuteTeamRetreat(battle, character);
                 return;
             case BattleActionKind.UseItem when command.BackpackIndex is { } backpackIndex:
-                if (!TryUseTeamBattleItem(character, backpackIndex, out var itemMessage))
+                if (!TryUseTeamBattleItem(battle, character, backpackIndex, out var itemMessage))
                 {
                     RejectTeamBattleAction(command, itemMessage);
                     return;
@@ -7062,11 +7086,12 @@ public sealed class Game
         AdvanceTeamBattleTurn(battle);
     }
 
-    private bool TryUseTeamBattleItem(LiveCharacter character, int backpackIndex, out string message)
+    private bool TryUseTeamBattleItem(TeamBattleEncounter battle, LiveCharacter character,
+        int backpackIndex, out string message)
     {
         if (backpackIndex is < 0 or >= LiveCharacter.MaximumBackpackItemCount ||
             character.GetInventoryItem(InventorySlotKind.Backpack, backpackIndex) is not MiscItemDefinition item ||
-            item.Effect == ConsumableEffect.None)
+            item.Effect == ConsumableEffect.None || !battle.CanUseItem(character, item))
         {
             message = "A választott hátizsákhelyen nincs használható tárgy.";
             return false;
@@ -7359,7 +7384,7 @@ public sealed class Game
         {
             if (!battle.HasActiveFormation || battle.FormationSlotFor(character) is null)
                 actions.Add(BattleActionKind.Move);
-            if (GetBattleItemOptions(character).Count > 0) actions.Add(BattleActionKind.UseItem);
+            if (GetBattleItemOptions(battle, character).Count > 0) actions.Add(BattleActionKind.UseItem);
             if (HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy))
                 actions.Add(BattleActionKind.CastSpell);
         }

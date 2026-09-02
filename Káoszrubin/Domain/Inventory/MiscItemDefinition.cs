@@ -2,7 +2,8 @@ namespace KaoszRubin.Domain.Inventory;
 
 /// <summary>Általános, még részletes statisztika nélküli tárgy (például élelem vagy kulacs).</summary>
 public sealed record MiscItemDefinition(string Id, string Name, string Description, int BasePrice,
-    ConsumableEffect Effect = ConsumableEffect.None, int EffectValue = 0) : IItemDefinition
+    ConsumableEffect Effect = ConsumableEffect.None, int EffectValue = 0,
+    bool UsableInCombat = false) : IItemDefinition
 {
     public ItemCategory Category => ItemCategory.Miscellaneous;
     public ItemRarity Rarity => ItemRarity.Normal;

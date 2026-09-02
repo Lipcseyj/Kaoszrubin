@@ -945,6 +945,7 @@ public sealed class MainMenu
             Blank(),
             Section("CSATA", ConsoleColor.Red),
             Hotkey("SPACE", "Saját körben támadás fegyverrel."),
+            Hotkey("U", "Gyógy- vagy varázsital választása számgombbal; lekötve nem használható, zárt alakzatban csak a hátsó sorból."),
             Hotkey("V / F1–F8", "Saját körben varázslás; a választás csak használható varázslatnál jelenik meg."),
             Hotkey("T", "Pap/Lovag élőholt ellen: csatánként egyszer Halottűzés / Szent elűzés."),
             Text("Harci varázslási kudarc: max(0, 30 - Intelligencia - Ügyesség)%; a manna és az akció elvész."),

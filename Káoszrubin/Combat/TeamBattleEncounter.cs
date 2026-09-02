@@ -1,4 +1,5 @@
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Combat;
 
@@ -132,6 +133,10 @@ public sealed class TeamBattleEncounter
 
     public bool IsRearRow(LiveCharacter character) => FormationSlotFor(character) is
         FormationSlot.RearLeft or FormationSlot.RearRight;
+
+    public bool CanUseItem(LiveCharacter character, MiscItemDefinition item) =>
+        item.UsableInCombat && !IsEngaged(character) &&
+        (!HasActiveFormation || IsRearRow(character));
 
     public LiveCharacter? RearPartnerOf(LiveCharacter character) => FormationSlotFor(character) switch
     {

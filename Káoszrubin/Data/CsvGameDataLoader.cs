@@ -272,7 +272,7 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.Items:
                 items.Add(new MiscItemDefinition(id, name, Cell(cells, 2), RequiredPrice(cells, 3, id),
-                    ParseConsumableEffect(cells, 4), Integer(cells, 5) ?? 0));
+                    ParseConsumableEffect(cells, 4), Integer(cells, 5) ?? 0, IsYes(cells, 6)));
                 break;
             case DataSection.MagicItems:
                 magicItems.Add(new MagicItemDefinition(id, name,

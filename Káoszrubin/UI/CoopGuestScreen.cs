@@ -33,6 +33,7 @@ public sealed class CoopGuestScreen
     private CharacterId? _inventorySourceCharacterId;
     private long _inventorySourceRevision;
     private bool _battleSpellMenuOpen;
+    private bool _battleItemMenuOpen;
     private int _battleSpellSelection;
     private BattleSpellOption? _targetedBattleSpell;
     private Position? _spellTargetCursor;
@@ -179,7 +180,8 @@ public sealed class CoopGuestScreen
                         questSnapshot.Narrative is null && questSnapshot.RestNotice is null &&
                         questSnapshot.LevelImage is null &&
                         questSnapshot.SpellPreparation is null && questSnapshot.LevelUpPrompt is null &&
-                        !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null)
+                        !_inventoryOpen && !_battleSpellMenuOpen && !_battleItemMenuOpen &&
+                        _targetedBattleSpell is null)
                     {
                         QuestJournalWindow.Show(questSnapshot.QuestJournal ?? []);
                         _lastFrame = null;
@@ -192,7 +194,8 @@ public sealed class CoopGuestScreen
                         client.CurrentSnapshot?.RestNotice is null &&
                         client.CurrentSnapshot?.SpellPreparation is null &&
                         client.CurrentSnapshot?.LevelUpPrompt is null &&
-                        !_inventoryOpen && !_battleSpellMenuOpen && _targetedBattleSpell is null &&
+                        !_inventoryOpen && !_battleSpellMenuOpen && !_battleItemMenuOpen &&
+                        _targetedBattleSpell is null &&
                         _doorTargetAction is null)
                     {
                         if (ConfirmReturnToMainMenu(client, selected)) break;
@@ -343,6 +346,19 @@ public sealed class CoopGuestScreen
             }
             return;
         }
+        if (command is null && _battleItemMenuOpen)
+        {
+            command = HandleBattleItemMenuInput(client, characterId, snapshot, key);
+            if (command is not null)
+            {
+                try { await client.SendCommandAsync(command, cancellationToken); }
+                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
+                {
+                    SetMessage(exception.Message);
+                }
+            }
+            return;
+        }
         if (command is not null) { }
         else if (_doorTargetAction is not null)
         {
@@ -415,10 +431,11 @@ public sealed class CoopGuestScreen
                     battle.BattleId, battle.TurnId, BattleActionKind.Move, Target: target);
             }
             else if (key == ConsoleKey.U && battle.AllowedActions.Contains(BattleActionKind.UseItem) &&
-                     battle.ItemOptions?.FirstOrDefault() is { } item)
+                     battle.ItemOptions is { Count: > 0 })
             {
-                command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
-                    battle.BattleId, battle.TurnId, BattleActionKind.UseItem, BackpackIndex: item.BackpackIndex);
+                _battleItemMenuOpen = true;
+                Interlocked.Exchange(ref _redrawRequested, 1);
+                return;
             }
             else
             {
@@ -814,6 +831,41 @@ public sealed class CoopGuestScreen
         Interlocked.Exchange(ref _redrawRequested, 1);
         return null;
     }
+
+    private GameCommand? HandleBattleItemMenuInput(CoopSignalRClient client, CharacterId characterId,
+        SessionSnapshot snapshot, ConsoleKey key)
+    {
+        if (key == ConsoleKey.Escape)
+        {
+            _battleItemMenuOpen = false;
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return null;
+        }
+        var battle = snapshot.Battle;
+        var options = battle?.ItemOptions?.Take(9).ToArray() ?? [];
+        var option = NumberKey(key);
+        if (battle is null || battle.ActingCharacterId != characterId ||
+            option < 1 || option > options.Length) return null;
+        _battleItemMenuOpen = false;
+        Interlocked.Exchange(ref _redrawRequested, 1);
+        return new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+            battle.BattleId, battle.TurnId, BattleActionKind.UseItem,
+            BackpackIndex: options[option - 1].BackpackIndex);
+    }
+
+    private static int NumberKey(ConsoleKey key) => key switch
+    {
+        ConsoleKey.D1 or ConsoleKey.NumPad1 => 1,
+        ConsoleKey.D2 or ConsoleKey.NumPad2 => 2,
+        ConsoleKey.D3 or ConsoleKey.NumPad3 => 3,
+        ConsoleKey.D4 or ConsoleKey.NumPad4 => 4,
+        ConsoleKey.D5 or ConsoleKey.NumPad5 => 5,
+        ConsoleKey.D6 or ConsoleKey.NumPad6 => 6,
+        ConsoleKey.D7 or ConsoleKey.NumPad7 => 7,
+        ConsoleKey.D8 or ConsoleKey.NumPad8 => 8,
+        ConsoleKey.D9 or ConsoleKey.NumPad9 => 9,
+        _ => 0
+    };
 
     private GameCommand? HandleBattleSpellTargetInput(CoopSignalRClient client, CharacterId characterId,
         SessionSnapshot snapshot, ConsoleKey key)
@@ -1251,6 +1303,7 @@ public sealed class CoopGuestScreen
         var own = snapshot.Party.FirstOrDefault(character => character.CharacterId ==
             (_inventoryOpen ? _displayedCharacterId ?? selected.CharacterId : selected.CharacterId));
         ApplyBattleSpellUi(grid, snapshot, own);
+        ApplyBattleItemUi(grid, snapshot, own);
         ApplyInnUi(grid, snapshot);
         ApplyInnDepartureUi(grid, snapshot);
         ApplyRestSummaryUi(grid, snapshot, client.PlayerId);
@@ -1711,6 +1764,29 @@ public sealed class CoopGuestScreen
             _spellCastingInBattle, projected, _battleSpellSelection, visibleStart);
         DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, SpellSelectorWindow.Width,
             FramedWindow.SpellSelector);
+    }
+
+    private void ApplyBattleItemUi(GuestMapCell[,] grid, SessionSnapshot snapshot,
+        SessionCharacterSnapshot? own)
+    {
+        if (!_battleItemMenuOpen) return;
+        var battle = snapshot.Battle;
+        var options = battle?.ItemOptions?.Take(9).ToArray() ?? [];
+        if (battle is null || own is null || battle.ActingCharacterId != own.CharacterId || options.Length == 0)
+        {
+            _battleItemMenuOpen = false;
+            return;
+        }
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ($"TÁRGYHASZNÁLAT — {own.Name}", ConsoleColor.Yellow),
+            ("", ConsoleColor.Gray)
+        };
+        lines.AddRange(options.Select((item, index) =>
+            ($"{index + 1}. {item.Name} ×{item.Quantity}", ConsoleColor.Cyan)));
+        lines.Add(("", ConsoleColor.Gray));
+        lines.Add(("1–9 választ   Esc mégse", ConsoleColor.Green));
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, 58, FramedWindow.Inn);
     }
 
     private static void DrawOverlayText(GuestMapCell[,] grid, int x, int y, string text, ConsoleColor color)

@@ -225,34 +225,34 @@ STATUS004,Betegség,🤒,,0,0,0,0,0,80,80,50,50,0,0,1,A maximális HP és manna 
 STATUS005,Vérzés,🩸,4,1,3,0,0,0,100,100,100,100,0,0,1,Minden saját támadási kör végén 1-3 páncélt figyelmen kívül hagyó sebzés. Négy aktiválódás után elmúlik.
 
 #Tárgyak
-Id,Név,Jellemzés,Ár,Hatás,Érték
-T001,Útravaló,Egyszerű tartós élelem amely csillapítja az éhséget.,8,Food,25
-T002,Bőrkulacs,Vízzel töltött edény amely enyhíti a szomjúságot.,12,Water,35
-T003,Kulcs,Egyszer használatos kulcs amely garantáltan kinyit vagy bezár egy ajtózárat.,60,None,0
-T004,Kenyér,Friss cipó szerény de megbízható tápértékkel.,6,Food,20
-T005,Sajt,Érett kemény sajt amely sokáig eltartható.,14,Food,28
-T006,Füstölt hús,Nehéz füstölt húsadag hosszú utakra.,24,Food,45
-T007,Törplakoma,Rendkívül tápláló törp étel amely kis adagban is jóllakat.,45,Food,65
-T008,Fogadói lakoma,Gazdag hidegtál egy teljes napi éhség elűzésére.,70,Food,100
-T009,Aszalt gyümölcs,Édes könnyű élelem gyors erőgyűjtéshez.,12,Food,25
-T010,Mézes kalács,Fűszeres sütemény amely meglepően laktató.,20,Food,38
-T011,Kis gyógyital,Vörös ital amely kisebb sebeket azonnal összeforraszt.,35,Heal,20
-T012,Gyógyital,Erős vörös főzet komoly sérülések kezelésére.,90,Heal,50
-T013,Nagy gyógyital,Sűrű rubinszínű elixír amely súlyos sebeket is begyógyít.,220,Heal,120
-T014,Kis varázsital,Kék ital amely kevés mágikus energiát állít helyre.,40,RestoreMana,15
-T015,Varázsital,Fénylő kék főzet a kimerült varázshasználóknak.,110,RestoreMana,40
-T016,Nagy varázsital,Örvénylő azúr elixír jelentős manna visszanyerésére.,260,RestoreMana,90
-T017,Ellenméreg,Keserű zöld oldat amely megszünteti a mérgezést.,75,CurePoison,0
-T018,Gyógyfüves orvosság,Erős gyógynövénykeverék betegségek kezelésére.,90,CureDisease,0
-T019,Kötés,Tiszta vászon és vérzéscsillapító por friss sebekhez.,30,StopBleeding,0
-T020,Gyógytea,Meleg gyógynövénytea amely 60 vizet ad és 5–15 HP-t gyógyít.,36,Water,60
-T021,Varázskönyv,A mágus ismert és memorizált varázslatait tartalmazó személyes könyv.,1,None,0
-T022,Szent szimbólum,A pap hitét és ismert imáit összpontosító személyes szent jelkép.,1,None,0
-T023,Mézsör,Édes mézes ital amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40
-T024,Fűszeres bor,Melengető bor amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40
-T025,Fáklya,Olajos fáklya amely tizenkét akcióra kettővel növeli a hordozó látótávját.,24,Vision,2
-T026,Elesett lovag jelvénye,Megfakult rendjel Roderic egykori bajtársainak címerével.,1,None,0
-T027,Az Ezüst Eskü pecsétje,Az Ezüst Eskü Rendjének ősi nagypecsétje. Egy kard előtt álló ezüst pajzs díszíti.,1,None,0
+Id,Név,Jellemzés,Ár,Hatás,Érték,HarcbanHasználható
+T001,Útravaló,Egyszerű tartós élelem amely csillapítja az éhséget.,8,Food,25,nem
+T002,Bőrkulacs,Vízzel töltött edény amely enyhíti a szomjúságot.,12,Water,35,nem
+T003,Kulcs,Egyszer használatos kulcs amely garantáltan kinyit vagy bezár egy ajtózárat.,60,None,0,nem
+T004,Kenyér,Friss cipó szerény de megbízható tápértékkel.,6,Food,20,nem
+T005,Sajt,Érett kemény sajt amely sokáig eltartható.,14,Food,28,nem
+T006,Füstölt hús,Nehéz füstölt húsadag hosszú utakra.,24,Food,45,nem
+T007,Törplakoma,Rendkívül tápláló törp étel amely kis adagban is jóllakat.,45,Food,65,nem
+T008,Fogadói lakoma,Gazdag hidegtál egy teljes napi éhség elűzésére.,70,Food,100,nem
+T009,Aszalt gyümölcs,Édes könnyű élelem gyors erőgyűjtéshez.,12,Food,25,nem
+T010,Mézes kalács,Fűszeres sütemény amely meglepően laktató.,20,Food,38,nem
+T011,Kis gyógyital,Vörös ital amely kisebb sebeket azonnal összeforraszt.,35,Heal,20,igen
+T012,Gyógyital,Erős vörös főzet komoly sérülések kezelésére.,90,Heal,50,igen
+T013,Nagy gyógyital,Sűrű rubinszínű elixír amely súlyos sebeket is begyógyít.,220,Heal,120,igen
+T014,Kis varázsital,Kék ital amely kevés mágikus energiát állít helyre.,40,RestoreMana,15,igen
+T015,Varázsital,Fénylő kék főzet a kimerült varázshasználóknak.,110,RestoreMana,40,igen
+T016,Nagy varázsital,Örvénylő azúr elixír jelentős manna visszanyerésére.,260,RestoreMana,90,igen
+T017,Ellenméreg,Keserű zöld oldat amely megszünteti a mérgezést.,75,CurePoison,0,nem
+T018,Gyógyfüves orvosság,Erős gyógynövénykeverék betegségek kezelésére.,90,CureDisease,0,nem
+T019,Kötés,Tiszta vászon és vérzéscsillapító por friss sebekhez.,30,StopBleeding,0,nem
+T020,Gyógytea,Meleg gyógynövénytea amely 60 vizet ad és 5–15 HP-t gyógyít.,36,Water,60,nem
+T021,Varázskönyv,A mágus ismert és memorizált varázslatait tartalmazó személyes könyv.,1,None,0,nem
+T022,Szent szimbólum,A pap hitét és ismert imáit összpontosító személyes szent jelkép.,1,None,0,nem
+T023,Mézsör,Édes mézes ital amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40,nem
+T024,Fűszeres bor,Melengető bor amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40,nem
+T025,Fáklya,Olajos fáklya amely tizenkét akcióra kettővel növeli a hordozó látótávját.,24,Vision,2,nem
+T026,Elesett lovag jelvénye,Megfakult rendjel Roderic egykori bajtársainak címerével.,1,None,0,nem
+T027,Az Ezüst Eskü pecsétje,Az Ezüst Eskü Rendjének ősi nagypecsétje. Egy kard előtt álló ezüst pajzs díszíti.,1,None,0,nem
 
 #Varázstárgyak
 Id,Név,Típus,Kategória,Ár,Töltet,VarázslatId,Hatás,Érték,CsakMágus,Jellemzés,MágikusErő
