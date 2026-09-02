@@ -44,6 +44,8 @@ internal sealed class InnController
     private LevelCompletionSnapshot? _levelCompletion;
     private string _innName = string.Empty;
     private int _innLevel;
+    private List<LiveCharacter>? _recruitCandidates;
+    private Dictionary<LiveCharacter, int>? _recruitmentPrices;
 
     internal long Revision => _revision;
 
@@ -189,6 +191,29 @@ internal sealed class InnController
             _buybackPrices[item.Id] = Math.Max(1, item.BasePrice * _random.Next(40, 71) / 100);
         foreach (var item in AllGameItems().Where(item => DiscountedBuybackItemIds.Contains(item.Id)))
             _buybackPrices[item.Id] = Math.Max(1, item.BasePrice * _random.Next(20, 36) / 100);
+
+        // Build mercenary (recruitment) pool once when entering the inn
+        _recruitCandidates = new List<LiveCharacter>();
+        _recruitmentPrices = new Dictionary<LiveCharacter, int>();
+        {
+            var generator = new RandomCharacterGenerator(_gameData, _random);
+            var candidateCount = _random.Next(1, 4);
+            var classes = _gameData.CharacterClasses.OrderBy(_ => _random.Next()).Take(candidateCount).ToList();
+            var usedNames = _characterRoster.Characters.Select(character => character.Name).ToList();
+            foreach (var characterClass in classes)
+            {
+                var candidate = generator.CreateRecruit(characterClass, _selectedCharacter.Level,
+                    usedNames.Concat(_recruitCandidates.Select(character => character.Name)).ToList(), allowWhiteColor: true);
+                _recruitCandidates.Add(candidate);
+            }
+            foreach (var candidate in _recruitCandidates)
+            {
+                _recruitmentPrices[candidate] = candidate.Level < _selectedCharacter.Level
+                    ? 0
+                    : Math.Max(1, candidate.Level * 100 * _random.Next(50, 151) / 100);
+            }
+        }
+
         _rumors.Clear();
         _transactions.Clear();
         _pendingHostTransactionMessages.Clear();
@@ -610,18 +635,8 @@ internal sealed class InnController
 
     private void RunInnRecruitment()
     {
-        var generator = new RandomCharacterGenerator(_gameData, _random);
-        var candidateCount = _random.Next(1, 4);
-        var classes = _gameData.CharacterClasses.OrderBy(_ => _random.Next()).Take(candidateCount).ToList();
-        var usedNames = _characterRoster.Characters.Select(character => character.Name).ToList();
-        var candidates = new List<LiveCharacter>();
-        foreach (var characterClass in classes)
-        {
-            var candidate = generator.CreateRecruit(characterClass, _selectedCharacter.Level,
-                usedNames.Concat(candidates.Select(character => character.Name)).ToList(), allowWhiteColor: true);
-            candidates.Add(candidate);
-        }
-        var recruitmentPrices = candidates.ToDictionary(candidate => candidate,
+        var candidates = _recruitCandidates ?? new List<LiveCharacter>();
+        var recruitmentPrices = _recruitmentPrices ?? candidates.ToDictionary(candidate => candidate,
             candidate => candidate.Level < _selectedCharacter.Level
                 ? 0
                 : Math.Max(1, candidate.Level * 100 * _random.Next(50, 151) / 100));
