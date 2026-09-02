@@ -16,6 +16,13 @@ public static class SettingsScreen
 
             if (key.Key is ConsoleKey.Spacebar or ConsoleKey.M)
                 settings.Enabled = !settings.Enabled;
+            else if (key.Key is ConsoleKey.G)
+                settings.QuickCombat = settings.QuickCombat switch
+                {
+                    QuickCombatMode.Ask => QuickCombatMode.Automatic,
+                    QuickCombatMode.Automatic => QuickCombatMode.Never,
+                    _ => QuickCombatMode.Ask
+                };
             else if (key.Key is ConsoleKey.LeftArrow or ConsoleKey.DownArrow)
                 settings.VolumePercent = Math.Max(0, settings.VolumePercent - 5);
             else if (key.Key is ConsoleKey.RightArrow or ConsoleKey.UpArrow)
@@ -33,7 +40,7 @@ public static class SettingsScreen
     {
         Console.Clear();
         var left = Math.Max(0, (Console.WindowWidth - Width) / 2);
-        const int contentRows = 10;
+        const int contentRows = 12;
         var top = Math.Max(0, (Console.WindowHeight - contentRows - 2) / 2);
         var style = WindowFrameConfiguration.For(FramedWindow.Settings);
         var lines = new[]
@@ -43,9 +50,11 @@ public static class SettingsScreen
             $"Zene: {(settings.Enabled ? "BE" : "KI")}",
             $"Hangerő: {settings.VolumePercent}%",
             VolumeBar(settings.VolumePercent),
+            $"Gyorsharc: {QuickCombatModeName(settings.QuickCombat)}",
             string.Empty,
             "M / Space       Zene ki- és bekapcsolása",
             "← → / ↑ ↓      Hangerő módosítása",
+            "G               Gyorsharc módjának váltása",
             string.Empty,
             "Enter / Esc     Vissza"
         };
@@ -64,7 +73,7 @@ public static class SettingsScreen
             {
                 0 => ConsoleColor.Yellow,
                 2 => settings.Enabled ? ConsoleColor.Green : ConsoleColor.DarkRed,
-                3 or 4 => ConsoleColor.Cyan,
+                3 or 4 or 5 => ConsoleColor.Cyan,
                 _ => ConsoleColor.Gray
             };
             Console.Write(text.PadRight(interiorWidth - 2));
@@ -77,6 +86,13 @@ public static class SettingsScreen
 
     private static string VolumeBar(int volume) =>
         "[" + new string('■', volume / 5) + new string('·', 20 - volume / 5) + "]";
+
+    private static string QuickCombatModeName(QuickCombatMode mode) => mode switch
+    {
+        QuickCombatMode.Automatic => "AUTOMATIKUS",
+        QuickCombatMode.Never => "SOHA",
+        _ => "RÁKÉRDEZ"
+    };
 
     private static void WriteAt(int left, int top, string text)
     {

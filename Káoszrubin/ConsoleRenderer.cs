@@ -473,6 +473,22 @@ public sealed class ConsoleRenderer
                $"🍖-{needLoss}💧-{needLoss}{spells}👹{enemy.CurrentHitPoints}HP";
     }
 
+    public static string FormatQuickBattleKillSummary(IEnumerable<TeamBattleKill> kills)
+    {
+        var entries = kills.ToArray();
+        var totalExperience = entries.Sum(entry => entry.AwardedExperience);
+        var killers = entries.GroupBy(entry => new { entry.KillerId, entry.KillerName })
+            .Select(killerGroup =>
+            {
+                var enemies = string.Join(", ", killerGroup
+                    .GroupBy(entry => new { entry.EnemyDefinitionId, entry.EnemyName })
+                    .Select(enemyGroup => $"{enemyGroup.Count()}× {enemyGroup.Key.EnemyName}"));
+                return $"{killerGroup.Key.KillerName} legyőzött {killerGroup.Count()} ellenfelet: {enemies}";
+            });
+        var killText = entries.Length == 0 ? "Nincs jóváírt ölés." : string.Join("; ", killers) + ".";
+        return $"Szerzett XP: {totalExperience}. {killText}";
+    }
+
     /// <summary>
     /// Játék vége képernyő: középre rajzolt keret és szöveg, majd várakozás billentyűleütésre.
     /// </summary>

@@ -173,6 +173,8 @@ public sealed class Game
     private long _localCommandId;
     private BattleState? _activeBattleState;
     private TeamBattleEncounter? _activeTeamBattle;
+    private bool _isQuickTeamBattle;
+    private int _quickBattleSuppressedEntryCount;
     private long _preparedTeamBattleTurnId;
     private int _pendingBattleSupportDamage;
     private bool _battleStarted;
@@ -6562,9 +6564,11 @@ public sealed class Game
                 character == initiatingCharacter ? 1 : 2, preparation.Runtime));
         }
 
+        var friendlyPositions = characterParticipants.Select(value => value.Position).ToArray();
         var enemyParticipants = _maze.Enemies
             .Where(enemy => enemy.CurrentHitPoints > 0 &&
-                            TacticalDistance.IsWithin(initiatingEnemy.Position, enemy.Position))
+                            TacticalDistance.IsWithin(initiatingEnemy.Position, enemy.Position) &&
+                            (enemy == initiatingEnemy || CanEnemyReachBattleWithinCycles(enemy, friendlyPositions)))
             .DistinctBy(enemy => enemy.Id)
             .Select(enemy => new TeamEnemyParticipant(enemy, _battleSystem.RollTeamEnemyInitiative(enemy),
                 Math.Clamp((enemy.EffectiveSpeed + 1) / 2, 1, 6), enemy == initiatingEnemy ? 1 : 2))
@@ -6573,6 +6577,17 @@ public sealed class Game
             enemyParticipants.Add(new TeamEnemyParticipant(initiatingEnemy,
                 _battleSystem.RollTeamEnemyInitiative(initiatingEnemy),
                 Math.Clamp((initiatingEnemy.EffectiveSpeed + 1) / 2, 1, 6), 1));
+
+        var participantEnemies = enemyParticipants.Select(value => value.Enemy).ToArray();
+        var quickAssessment = QuickCombatRules.Assess(characterParticipants.Select(value => value.Character),
+            participantEnemies.Select(enemy => enemy.Definition),
+            hasAvailableReinforcements: HasAvailableTeamReinforcements(participantEnemies),
+            hasActiveFormation: _formation.State != PartyFormationState.Disbanded,
+            hasRemoteHumanControl: _session.ConnectedRemoteCharacterCount > 0,
+            isQuestImportant: participantEnemies.Any(IsQuestImportantEnemy),
+            enemyStrikesFirst: enemyStrikesFirst);
+        _isQuickTeamBattle = ShouldUseQuickCombat(quickAssessment);
+        _quickBattleSuppressedEntryCount = 0;
 
         _activeTeamBattle = new TeamBattleEncounter(initiatingEnemy.Position,
             characterParticipants, enemyParticipants, initiatingCharacter.Id, initiatingEnemy.Id,
@@ -6609,9 +6624,11 @@ public sealed class Game
             }));
         var openingFirst = enemyStrikesFirst ? initiatingEnemy.Name : initiatingCharacter.Name;
         var openingSecond = enemyStrikesFirst ? initiatingCharacter.Name : initiatingEnemy.Name;
-        var startMessage = $"⚔️ CSAPATHARC — {characterParticipants.Count} baráti és " +
-                           $"{enemyParticipants.Count} ellenséges résztvevő. " +
-                           $"Nyitó ütésváltás: {openingFirst} → {openingSecond}. Utána kezdeményezés: {queue}.";
+        var startMessage = _isQuickTeamBattle
+            ? $"⚡ GYORSHARC — {initiatingEnemy.Name} ellen. A csapatharc automatikusan lefut."
+            : $"⚔️ CSAPATHARC — {characterParticipants.Count} baráti és " +
+              $"{enemyParticipants.Count} ellenséges résztvevő. " +
+              $"Nyitó ütésváltás: {openingFirst} → {openingSecond}. Utána kezdeményezés: {queue}.";
         if (_activeTeamBattle.HasActiveFormation)
             startMessage += " 🛡️ A zárt alakzat első sora elölről védi a hátsó sort.";
         _renderer.DrawInventoryMessage(startMessage, ConsoleColor.Yellow);
@@ -6635,7 +6652,6 @@ public sealed class Game
         while (_activeTeamBattle is { } battle)
         {
             SynchronizeTeamBattleDefeats(battle);
-            TryCallTeamBattleReinforcements(battle);
             if (!SelectedCharacter.IsAlive)
             {
                 FinishTeamBattle(battle, forceDefeat: true);
@@ -6645,6 +6661,22 @@ public sealed class Game
             {
                 FinishTeamBattle(battle);
                 return;
+            }
+            if (battle.InactiveSidesLastCompletedCycle.Count > 0)
+            {
+                FinishTeamBattleStalemate(battle);
+                return;
+            }
+            var reinforcementsArrived = TryCallTeamBattleReinforcements(battle);
+            if (_isQuickTeamBattle && (reinforcementsArrived || battle.ActionNumber >= 200))
+            {
+                _isQuickTeamBattle = false;
+                var reason = reinforcementsArrived
+                    ? "Váratlan erősítés érkezett."
+                    : "Az automatikus szimuláció nem tudta gyorsan lezárni az ütközetet.";
+                var message = $"⚠️ {reason} A harc taktikai módban folytatódik.";
+                _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
+                RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.DarkYellow);
             }
 
             var current = battle.Current;
@@ -6665,7 +6697,7 @@ public sealed class Game
                 var runtime = battle.RuntimeFor(character);
                 if (runtime.RequiresTacticSelection)
                 {
-                    if (_session.IsHumanControlled(character.Id))
+                    if (!_isQuickTeamBattle && _session.IsHumanControlled(character.Id))
                     {
                         var enemy = ClosestLivingTeamEnemy(battle, current.Position);
                         var actions = GetTeamAllowedBattleActions(battle, character, enemy);
@@ -6677,7 +6709,7 @@ public sealed class Game
                     ChooseTeamAiTactic(character, runtime);
                     continue;
                 }
-                if (_session.IsHumanControlled(character.Id))
+                if (!_isQuickTeamBattle && _session.IsHumanControlled(character.Id))
                 {
                     var enemy = ClosestLivingTeamEnemy(battle, current.Position);
                     var actions = GetTeamAllowedBattleActions(battle, character, enemy);
@@ -6692,7 +6724,7 @@ public sealed class Game
 
             if (battle.CurrentEnemy is { CurrentHitPoints: > 0 } enemyActor)
             {
-                if (!CanTeamEnemyActMeaningfully(battle, enemyActor))
+                if (_isQuickTeamBattle || !CanTeamEnemyActMeaningfully(battle, enemyActor))
                 {
                     ExecuteTeamEnemyTurn(battle, enemyActor);
                     continue;
@@ -6714,19 +6746,21 @@ public sealed class Game
         }
     }
 
-    private void TryCallTeamBattleReinforcements(TeamBattleEncounter battle)
+    private bool TryCallTeamBattleReinforcements(TeamBattleEncounter battle)
     {
-        if (!battle.BeginReinforcementCheckForCurrentCycle()) return;
+        if (!battle.BeginReinforcementCheckForCurrentCycle()) return false;
         var activeGroups = battle.Enemies.Where(enemy => !string.IsNullOrWhiteSpace(enemy.GroupId))
             .Select(enemy => enemy.GroupId!).ToHashSet(StringComparer.Ordinal);
-        if (activeGroups.Count == 0) return;
+        if (activeGroups.Count == 0) return false;
         var callers = battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).ToArray();
+        var friendlyPositions = battle.Characters.Where(character => character.IsAlive)
+            .Select(GetCasterPosition).ToArray();
         var reinforcements = _maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 && !battle.ContainsEnemy(enemy) &&
                 enemy.GroupId is { Length: > 0 } groupId && activeGroups.Contains(groupId) &&
                 callers.Any(caller => TacticalDistance.IsWithin(caller.Position, enemy.Position,
-                    battle.Turns.Radius * 2)))
+                    battle.Turns.Radius * 2)) && CanEnemyReachBattleWithinCycles(enemy, friendlyPositions))
             .ToArray();
-        if (reinforcements.Length == 0) return;
+        if (reinforcements.Length == 0) return false;
         foreach (var enemy in reinforcements)
             battle.TryAddEnemy(new TeamEnemyParticipant(enemy, _battleSystem.RollTeamEnemyInitiative(enemy),
                 Math.Clamp((enemy.EffectiveSpeed + 1) / 2, 1, 6), battle.Turns.Cycle + 1));
@@ -6734,6 +6768,60 @@ public sealed class Game
                       $"a(z) {battle.Turns.Cycle + 1}. körben kapcsolódik be.";
         _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.DarkYellow);
+        return true;
+    }
+
+    private bool HasAvailableTeamReinforcements(IReadOnlyCollection<Enemy> participants)
+    {
+        var participantIds = participants.Select(enemy => enemy.Id).ToHashSet();
+        var groupIds = participants.Where(enemy => !string.IsNullOrWhiteSpace(enemy.GroupId))
+            .Select(enemy => enemy.GroupId!).ToHashSet(StringComparer.Ordinal);
+        if (groupIds.Count == 0) return false;
+        var friendlyPositions = LivingPartyWithPositions().Select(entry => entry.Position).ToArray();
+        return _maze.Enemies.Any(enemy => enemy.CurrentHitPoints > 0 && !participantIds.Contains(enemy.Id) &&
+            enemy.GroupId is { Length: > 0 } groupId && groupIds.Contains(groupId) &&
+            participants.Any(caller => TacticalDistance.IsWithin(caller.Position, enemy.Position,
+                TacticalDistance.DefaultBattleRadius * 2)) &&
+            CanEnemyReachBattleWithinCycles(enemy, friendlyPositions));
+    }
+
+    private bool CanEnemyReachBattleWithinCycles(Enemy enemy, IReadOnlyCollection<Position> friendlyPositions)
+    {
+        var movement = Math.Clamp((enemy.EffectiveSpeed + 1) / 2, 1, 6);
+        return TacticalArrivalRules.CanReachWithin(enemy.Position,
+            movement * TacticalArrivalRules.MaximumArrivalCycles,
+            position => CanPotentialBattleParticipantEnter(position),
+            position => friendlyPositions.Any(target => TacticalDistance.IsMeleeAdjacent(position, target)));
+    }
+
+    private bool CanPotentialBattleParticipantEnter(Position position)
+    {
+        if (!_maze.IsWalkable(position)) return false;
+        var occupant = _maze.GetObjectAt(position);
+        return occupant is null or GroundItemPile or Corpse or Enemy or PartyMemberAvatar ||
+               Maze.IsPassableNeutralNpc(occupant);
+    }
+
+    private static bool IsQuestImportantEnemy(Enemy enemy) =>
+        enemy.Definition.IsBoss || enemy.Definition.Rank is EnemyRank.MiniBoss or EnemyRank.Boss ||
+        enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) == true;
+
+    private bool ShouldUseQuickCombat(QuickCombatAssessment assessment)
+    {
+        if (!assessment.IsEligible || _musicSettings.Settings.QuickCombat == QuickCombatMode.Never) return false;
+        if (_musicSettings.Settings.QuickCombat == QuickCombatMode.Automatic) return true;
+
+        var injuryPercent = (int)Math.Ceiling(assessment.PredictedInjuryRatio * 100);
+        var message = $"⚡ Gyorsharc elérhető — becsült sérülés legfeljebb " +
+                      $"{assessment.PredictedVitalityLoss} HP ({injuryPercent}%). " +
+                      "I / Enter: gyorsharc, N / Esc: taktikai harc.";
+        _renderer.DrawInventoryMessage(message, ConsoleColor.Cyan);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key is ConsoleKey.I or ConsoleKey.Y or ConsoleKey.Enter) return true;
+            if (key is ConsoleKey.N or ConsoleKey.Escape) return false;
+        }
     }
 
     private void ExecuteTeamBattleAction(TeamBattleEncounter battle, BattleActionCommand command)
@@ -6858,6 +6946,7 @@ public sealed class Game
                     return;
                 }
                 var turning = ResolveTurnUndead(character, undead);
+                battle.RecordAttack(BattleSide.Friendly);
                 if (turning.DamageToEnemy > 0) undead.ReceiveSpellDamage(turning.DamageToEnemy);
                 var turnMessage = turning.Message +
                     _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
@@ -6901,12 +6990,13 @@ public sealed class Game
             RejectTeamBattleAction(command, attempt?.Message ?? "A varázslat célpontja érvénytelen.");
             return;
         }
+        if (IsOffensiveSpell(spell)) battle.RecordAttack(BattleSide.Friendly);
         if (attempt.DamageToCurrentEnemy > 0) currentEnemy.ReceiveSpellDamage(attempt.DamageToCurrentEnemy);
         battle.GrantExtraActions(attempt.ExtraPlayerActions);
         var message = attempt.Message +
                       _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(message, attempt.Kind)]);
-        SynchronizeTeamBattleDefeats(battle);
+        SynchronizeTeamBattleDefeats(battle, character);
         AdvanceTeamBattleTurn(battle);
     }
 
@@ -6970,7 +7060,7 @@ public sealed class Game
         var tactic = choices[_random.Next(choices.Length)];
         runtime.TryChooseTactic(character, tactic);
         var message = $"{character.Name} harci taktikája: {BattleTacticName(tactic, character)}.";
-        _renderer.DrawInventoryMessage(message, ConsoleColor.Cyan);
+        if (!_isQuickTeamBattle) _renderer.DrawInventoryMessage(message, ConsoleColor.Cyan);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Cyan);
     }
 
@@ -7007,6 +7097,7 @@ public sealed class Game
 
     private void ResolveTeamCharacterAttack(TeamBattleEncounter battle, LiveCharacter character, Enemy enemy)
     {
+        battle.RecordAttack(BattleSide.Friendly);
         if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position))
             battle.Engage(character, enemy);
         var entry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character), enemy);
@@ -7030,6 +7121,8 @@ public sealed class Game
         }
         battle.Engage(adjacent, enemy);
         var entry = _battleSystem.ResolveTeamEnemyAction(enemy, adjacent, battle.RuntimeFor(adjacent));
+        if (entry.Kind is BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)
+            battle.RecordAttack(BattleSide.Hostile);
         PresentBattleEntries([entry]);
         if (enemy.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, enemy, null);
         if (!adjacent.IsAlive) ResolveTeamCharacterDefeat(battle, adjacent);
@@ -7156,6 +7249,7 @@ public sealed class Game
     {
         _session.EndBattle(battle.Id);
         _activeTeamBattle = null;
+        _isQuickTeamBattle = false;
         _preparedTeamBattleTurnId = 0;
         _battleStarted = false;
         _saveAfterBattle = false;
@@ -7318,6 +7412,7 @@ public sealed class Game
 
     private void UpdateTeamBattleFocus(TeamBattleEncounter battle, TacticalBattleParticipant current)
     {
+        if (_isQuickTeamBattle) return;
         var targetId = TeamBattleFocusTarget(battle, current);
         var targetPosition = targetId is { } id ? battle.Turns.Find(id)?.Position : null;
         _renderer.DrawTeamBattleFocus(_maze, _fogOfWar, _player.Position, current.Position, targetPosition);
@@ -7361,9 +7456,11 @@ public sealed class Game
         var previousPosition = enemy.Position;
         if (steps.Length > 0)
         {
+            battle.RecordMovement(BattleSide.Hostile);
             enemy.MoveTo(steps[^1]);
             battle.UpdatePosition(enemy);
-            _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
+            if (!_isQuickTeamBattle)
+                _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
         }
         if (steps.Length > 0)
             PresentBattleEntries([new BattleLogEntry($"{enemy.Name} {steps.Length} mezőt közeledik.",
@@ -7432,6 +7529,7 @@ public sealed class Game
             else _maze.PartyMembers.First(avatar => avatar.Character == member).MoveTo(destination);
         }
         battle.UpdateFormationPositions(destinations);
+        battle.RecordMovement(BattleSide.Friendly);
         foreach (var (member, destination) in destinations)
         {
             var revealed = RevealFor(member, destination);
@@ -7459,6 +7557,7 @@ public sealed class Game
         }
         MoveBattleCharacterTo(character, rearPosition);
         MoveBattleCharacterTo(rear, frontPosition);
+        battle.RecordMovement(BattleSide.Friendly);
         _formation = battle.Formation!;
         _renderer.SetFormationStatus(_formation);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
@@ -7527,17 +7626,21 @@ public sealed class Game
         var steps = path.Take(battle.Current.MovementAllowance).ToArray();
         if (steps.Length > 0)
         {
+            battle.RecordMovement(BattleSide.Friendly);
             var previousPosition = GetCasterPosition(character);
             var destination = steps[^1];
             if (character == SelectedCharacter) _player.TeleportTo(destination);
             else _maze.PartyMembers.First(member => member.Character == character).MoveTo(destination);
             battle.UpdatePosition(character, destination);
             var newlyRevealed = RevealFor(character, destination);
-            if (character == SelectedCharacter)
-                _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, destination, newlyRevealed, hasWon: false);
-            else
-                _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previousPosition, destination, newlyRevealed,
-                    _player.Position);
+            if (!_isQuickTeamBattle)
+            {
+                if (character == SelectedCharacter)
+                    _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, destination, newlyRevealed, hasWon: false);
+                else
+                    _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previousPosition, destination, newlyRevealed,
+                        _player.Position);
+            }
         }
         var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
         var message = steps.Length > 0
@@ -7589,10 +7692,10 @@ public sealed class Game
                Maze.IsPassableNeutralNpc(occupant);
     }
 
-    private void SynchronizeTeamBattleDefeats(TeamBattleEncounter battle)
+    private void SynchronizeTeamBattleDefeats(TeamBattleEncounter battle, LiveCharacter? killer = null)
     {
         foreach (var enemy in battle.Enemies.Where(enemy => enemy.CurrentHitPoints <= 0).ToArray())
-            ResolveTeamEnemyDefeat(battle, enemy, null);
+            ResolveTeamEnemyDefeat(battle, enemy, killer);
         foreach (var character in battle.Characters.Where(character => !character.IsAlive).ToArray())
             ResolveTeamCharacterDefeat(battle, character);
     }
@@ -7609,13 +7712,14 @@ public sealed class Game
         {
             credited.RecordMonsterKill(enemy.Definition.Id);
             var awards = DistributeExperience(credited, enemy.Definition.ExperienceReward);
+            battle.RecordKill(credited, enemy, awards.Sum(award => award.Result.GainedExperience));
             _pendingLevelUps.AddRange(awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive)
                 .Select(award => (award.Character, award.Result)));
         }
         _maze.ReplaceEnemyWithCorpse(enemy);
         _nextEnemyMoves.Remove(enemy);
         var message = $"☠ {enemy.Name} elesett. +{enemy.Definition.ExperienceReward} XP kerül szétosztásra.";
-        _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+        if (!_isQuickTeamBattle) _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);
     }
 
@@ -7649,11 +7753,54 @@ public sealed class Game
         TryLogPartyComments(PartySituationIds.PartyMemberDied);
     }
 
+    private void FinishTeamBattleStalemate(TeamBattleEncounter battle)
+    {
+        _session.EndBattle(battle.Id);
+        var inactive = battle.InactiveSidesLastCompletedCycle;
+        var sideName = inactive.Contains(BattleSide.Friendly) ? "a csapat" : "az ellenséges oldal";
+        _activeTeamBattle = null;
+        _isQuickTeamBattle = false;
+        _preparedTeamBattleTurnId = 0;
+        _battleStarted = false;
+        _session.SetPhase(GameSessionPhase.Exploration);
+        var message = inactive.Count == 2
+            ? "⚖️ Az összecsapás véget ér: egyik oldal sem mozdult vagy támadott egy teljes körön át."
+            : $"⚖️ Az összecsapás véget ér: {sideName} nem mozdult és nem támadott egy teljes körön át.";
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
+        RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.DarkYellow);
+        foreach (var (character, result) in _pendingLevelUps.ToArray())
+            ResolvePerkOffers(character, result);
+        _pendingLevelUps.Clear();
+        if (_saveAfterBattle)
+        {
+            _saveAfterBattle = false;
+            SaveGame();
+        }
+        InitializeEnemyMoveSchedule(DateTime.UtcNow + TimeSpan.FromSeconds(2));
+        foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
+        _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+    }
+
     private void FinishTeamBattle(TeamBattleEncounter battle, bool forceDefeat = false)
     {
         _session.EndBattle(battle.Id);
         var victory = !forceDefeat && battle.HostileSideDefeated && !battle.FriendlySideDefeated;
+        var wasQuickBattle = _isQuickTeamBattle;
+        var resourceSummary = wasQuickBattle
+            ? string.Join("; ", battle.Characters.Select(character =>
+            {
+                var starting = battle.StartingResourcesFor(character);
+                var vitalityLoss = Math.Max(0, starting.Vitality - character.CurrentVitality);
+                var manaLoss = Math.Max(0, starting.Mana - character.CurrentMana);
+                return character.IsAlive
+                    ? $"{character.Name}: -{vitalityLoss} HP, -{manaLoss} manna"
+                    : $"{character.Name}: elesett";
+            }))
+            : string.Empty;
         _activeTeamBattle = null;
+        _isQuickTeamBattle = false;
         _preparedTeamBattleTurnId = 0;
         _battleStarted = false;
         if (!victory)
@@ -7672,10 +7819,21 @@ public sealed class Game
             DrainNeedsAfterBattle(character, maximumThreat);
             if (character != SelectedCharacter) TryNpcUseConsumables(character);
         }
-        var message = $"🏆 CSAPATHARC GYŐZELEM — {battle.Turns.Cycle} kör, " +
-                      $"{battle.Enemies.Count} legyőzött ellenfél.";
+        var message = wasQuickBattle
+            ? $"⚡ GYORSHARC GYŐZELEM — {battle.Turns.Cycle} kör, " +
+              $"{battle.Enemies.Count} legyőzött ellenfél."
+            : $"🏆 CSAPATHARC GYŐZELEM — {battle.Turns.Cycle} kör, " +
+              $"{battle.Enemies.Count} legyőzött ellenfél.";
         _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);
+        if (wasQuickBattle)
+        {
+            var details = $"{ConsoleRenderer.FormatQuickBattleKillSummary(battle.Kills)} " +
+                          $"Eredmény: {resourceSummary}. Automatikusan lejátszott események: " +
+                          $"{_quickBattleSuppressedEntryCount}.";
+            _renderer.DrawInventoryMessage(details, ConsoleColor.Cyan);
+            RecordSessionActivity(SessionActivityKind.Battle, details, ConsoleColor.Cyan);
+        }
         TryLogPartyComments(PartySituationIds.BattleWon);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
@@ -8221,6 +8379,12 @@ public sealed class Game
     {
         foreach (var entry in entries)
         {
+            if (_isQuickTeamBattle)
+            {
+                _quickBattleSuppressedEntryCount++;
+                RecordSessionActivity(SessionActivityKind.Battle, entry.Message, BattleEntryColor(entry.Kind));
+                continue;
+            }
             _renderer.DrawBattleRound(entry);
             RecordSessionActivity(SessionActivityKind.Battle, entry.Message, BattleEntryColor(entry.Kind));
             PlayBattleRoundSound(entry);

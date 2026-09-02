@@ -274,3 +274,84 @@ public static class EncounterThreatEvaluator
         return Math.Max(1, (int)Math.Ceiling(raw * rankMultiplier));
     }
 }
+
+public static class TacticalArrivalRules
+{
+    public const int MaximumArrivalCycles = 3;
+
+    public static bool CanReachWithin(Position origin, int maximumSteps,
+        Func<Position, bool> canEnter, Func<Position, bool> hasArrived)
+    {
+        if (maximumSteps < 0) throw new ArgumentOutOfRangeException(nameof(maximumSteps));
+        ArgumentNullException.ThrowIfNull(canEnter);
+        ArgumentNullException.ThrowIfNull(hasArrived);
+        if (hasArrived(origin)) return true;
+
+        var visited = new HashSet<Position> { origin };
+        var queue = new Queue<(Position Position, int Distance)>();
+        queue.Enqueue((origin, 0));
+        while (queue.Count > 0)
+        {
+            var (position, distance) = queue.Dequeue();
+            if (distance >= maximumSteps) continue;
+            foreach (var direction in Enum.GetValues<Direction>())
+            {
+                var next = position + direction;
+                if (!visited.Add(next) || !canEnter(next)) continue;
+                if (hasArrived(next)) return true;
+                queue.Enqueue((next, distance + 1));
+            }
+        }
+        return false;
+    }
+}
+
+public sealed record QuickCombatAssessment(
+    bool IsEligible,
+    string Reason,
+    EncounterThreatAssessment Threat,
+    int PredictedVitalityLoss,
+    double PredictedInjuryRatio);
+
+/// <summary>A jelentéktelen ütközetek automatikus lejátszásának konzervatív kapuja.</summary>
+public static class QuickCombatRules
+{
+    public const double MaximumPredictedInjuryRatio = 0.10;
+
+    public static QuickCombatAssessment Assess(IEnumerable<LiveCharacter> friendlies,
+        IEnumerable<EnemyDefinition> hostiles,
+        bool hasAvailableReinforcements = false,
+        bool hasActiveFormation = false,
+        bool hasRemoteHumanControl = false,
+        bool isQuestImportant = false,
+        bool enemyStrikesFirst = false)
+    {
+        ArgumentNullException.ThrowIfNull(friendlies);
+        ArgumentNullException.ThrowIfNull(hostiles);
+        var party = friendlies.Where(character => character.IsAlive).ToArray();
+        var enemies = hostiles.ToArray();
+        var threat = EncounterThreatEvaluator.Assess(party, enemies);
+        var totalVitality = party.Sum(character => character.CurrentVitality);
+        var predictedLoss = (int)Math.Ceiling(threat.HostilePower * 0.25);
+        var injuryRatio = totalVitality == 0 ? double.PositiveInfinity : (double)predictedLoss / totalVitality;
+
+        string? reason = null;
+        if (party.Length == 0) reason = "Nincs harcképes csapattag.";
+        else if (enemies.Length != 1) reason = "A gyorsharc csak elszigetelt ellenfélnél használható.";
+        else if (enemies.Any(enemy => enemy.IsBoss || enemy.Rank != EnemyRank.Normal))
+            reason = "Kiemelt ellenféllel szemben taktikai harc szükséges.";
+        else if (isQuestImportant) reason = "Küldetés szempontjából fontos ellenfél.";
+        else if (hasAvailableReinforcements) reason = "Az ellenfél erősítést hívhat.";
+        else if (hasActiveFormation) reason = "Az aktív alakzat taktikai döntést igényel.";
+        else if (hasRemoteHumanControl) reason = "Egy vendégjátékos is részt vesz a harcban.";
+        else if (enemyStrikesFirst) reason = "Az ellenséges rajtaütés túl kockázatos.";
+        else if (!threat.IsOverwhelminglySafe) reason = "Az ellenfél fenyegetési szintje túl magas.";
+        else if (injuryRatio > MaximumPredictedInjuryRatio)
+            reason = "A várható sérülés meghaladja a csapat életerejének 10%-át.";
+        else if (party.Min(character => character.CurrentVitality) <= predictedLoss)
+            reason = "A becslés szerint egy csapattag eleshet.";
+
+        return new QuickCombatAssessment(reason is null, reason ?? "Jelentéktelen, biztonságos ütközet.",
+            threat, predictedLoss, injuryRatio);
+    }
+}

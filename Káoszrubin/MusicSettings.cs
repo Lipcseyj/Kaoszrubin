@@ -2,12 +2,24 @@ using System.Text.Json;
 
 namespace KaoszRubin;
 
+public enum QuickCombatMode
+{
+    Ask,
+    Automatic,
+    Never
+}
+
 public sealed class MusicSettings
 {
     public bool Enabled { get; set; } = true;
     public int VolumePercent { get; set; } = 50;
+    public QuickCombatMode QuickCombat { get; set; } = QuickCombatMode.Ask;
 
-    public void Normalize() => VolumePercent = Math.Clamp(VolumePercent, 0, 100);
+    public void Normalize()
+    {
+        VolumePercent = Math.Clamp(VolumePercent, 0, 100);
+        if (!Enum.IsDefined(QuickCombat)) QuickCombat = QuickCombatMode.Ask;
+    }
 }
 
 public sealed class MusicSettingsService

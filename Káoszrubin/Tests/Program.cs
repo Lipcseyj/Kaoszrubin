@@ -72,6 +72,8 @@ var tests = new (string Name, Action Run)[]
     ("Zárt alakzatból a coop vendég nem léphet ki", LockedFormationRejectsRemoteMovement),
     ("A csapatharcban az átlós ellenfél is közelharci távolságban van", DiagonalEnemyIsMeleeAdjacent),
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
+    ("A zárt út mögötti ellenfél nem érkezhet meg néhány harci kör alatt", TacticalArrivalRequiresWalkableRoute),
+    ("A csapatharc felismeri a teljes körön át tétlen oldalt", TeamBattleDetectsInactiveSide),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
     ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
     ("A zárt alakzat első sora védi a mögötte álló társat", TeamBattleFormationProtectsRearRow),
@@ -82,6 +84,9 @@ var tests = new (string Name, Action Run)[]
     ("A harcba hívott erősítés a következő körben lép be", TeamBattleReinforcementJoinsNextCycle),
     ("A coop session validálja a csapatharcos mozgást, tárgyhasználatot és passzt", TeamBattleCommandsAreValidated),
     ("A fenyegetésbecslés felismeri az elszigetelt gyenge ellenfelet", EncounterThreatAssessmentRecognizesSafeFight),
+    ("A gyorsharc csak jelentéktelen, biztonságos ütközetet enged át", QuickCombatRequiresSafeIsolatedEncounter),
+    ("A gyorsharc beállítása normalizálható és menthető", QuickCombatSettingPersists),
+    ("A gyorsharc összesítője ölőnként csoportosítja az ellenfeleket és az XP-t", QuickCombatSummaryListsKillsAndExperience),
     ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
     ("A harcos taktikai találati esélyei a valódi képletet követik", FighterTacticHitChancesUseCombatFormula),
@@ -3347,6 +3352,38 @@ static void TacticalBattleStateOrdersEligibleParticipants()
         "A harmadik körben nem lépett be vagy nem kezdeményezés szerint rendeződött a távoli résztvevő.");
 }
 
+static void TacticalArrivalRequiresWalkableRoute()
+{
+    var origin = new Position(0, 0);
+    var closed = new Position(2, 0);
+    bool IsCorridorOpen(Position position) => position.Y == 0 && position.X is >= 0 and <= 4 && position != closed;
+    bool IsOpenCorridor(Position position) => position.Y == 0 && position.X is >= 0 and <= 4;
+    bool HasArrived(Position position) => position == new Position(4, 0);
+
+    Assert(!TacticalArrivalRules.CanReachWithin(origin, 6, IsCorridorOpen, HasArrived) &&
+           TacticalArrivalRules.CanReachWithin(origin, 6, IsOpenCorridor, HasArrived),
+        "A taktikai érkezés nem különítette el a zárt és a járható útvonalat.");
+}
+
+static void TeamBattleDetectsInactiveSide()
+{
+    var system = CreateBattleSystem(1710);
+    var character = CreateCharacter("Aktivitás");
+    var enemy = CreateEnemy(20, 2);
+    var preparation = system.PrepareTeamCharacter(character);
+    var encounter = new TeamBattleEncounter(new Position(1, 1),
+        [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
+            preparation.Initiative, 3, 1, preparation.Runtime)],
+        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+    encounter.Turns.StartTurns();
+    encounter.RecordAttack(BattleSide.Friendly);
+    encounter.AdvanceTurn();
+    encounter.AdvanceTurn();
+
+    Assert(encounter.InactiveSidesLastCompletedCycle.SetEquals([BattleSide.Hostile]),
+        "A rendszer nem azonosította a teljes körön át mozdulatlan és támadás nélküli oldalt.");
+}
+
 static void EncounterThreatAssessmentRecognizesSafeFight()
 {
     var party = Enumerable.Range(0, 4).Select(index => CreateCharacter($"Hős{index}", 30)).ToArray();
@@ -3359,6 +3396,67 @@ static void EncounterThreatAssessmentRecognizesSafeFight()
     Assert(safe.IsOverwhelminglySafe && safe.HostileToFriendlyRatio <= 0.25 &&
            !dangerous.IsOverwhelminglySafe && dangerous.HostilePower > safe.HostilePower,
         "A fenyegetésbecslés nem különíti el a jelentéktelen ellenfelet a bosstól.");
+}
+
+static void QuickCombatRequiresSafeIsolatedEncounter()
+{
+    var party = Enumerable.Range(0, 4).Select(index => CreateCharacter($"Gyorshős{index}", 30)).ToArray();
+    var weak = new EnemyDefinition("E-QUICK", "Jelentéktelen ellenfél", "e", 1, 2, 0, 1,
+        1, 1, []);
+    var safe = QuickCombatRules.Assess(party, [weak]);
+    var fragileParty = party.ToArray();
+    fragileParty[0].ReceiveDamage(29);
+
+    Assert(safe.IsEligible && safe.PredictedInjuryRatio <= QuickCombatRules.MaximumPredictedInjuryRatio,
+        "A jelentéktelen, elszigetelt ellenfél nem lett gyorsharcra alkalmas.");
+    Assert(!QuickCombatRules.Assess(party, [weak, weak]).IsEligible &&
+           !QuickCombatRules.Assess(party, [weak with { Rank = EnemyRank.Elite }]).IsEligible &&
+           !QuickCombatRules.Assess(party, [weak], hasAvailableReinforcements: true).IsEligible &&
+           !QuickCombatRules.Assess(party, [weak], hasActiveFormation: true).IsEligible &&
+           !QuickCombatRules.Assess(party, [weak], hasRemoteHumanControl: true).IsEligible &&
+           !QuickCombatRules.Assess(party, [weak], isQuestImportant: true).IsEligible &&
+           !QuickCombatRules.Assess(party, [weak], enemyStrikesFirst: true).IsEligible &&
+           !QuickCombatRules.Assess(fragileParty, [weak]).IsEligible,
+        "A gyorsharc valamelyik taktikai vagy halálkockázatos helyzetet tévesen átengedte.");
+}
+
+static void QuickCombatSettingPersists()
+{
+    var path = Path.Combine(Path.GetTempPath(), $"kaoszrubin-settings-{Guid.NewGuid():N}.json");
+    try
+    {
+        var service = new MusicSettingsService(path);
+        service.Settings.QuickCombat = QuickCombatMode.Automatic;
+        service.Save();
+        var loaded = new MusicSettingsService(path);
+        var invalid = new MusicSettings { QuickCombat = (QuickCombatMode)999, VolumePercent = 150 };
+        invalid.Normalize();
+
+        Assert(loaded.Settings.QuickCombat == QuickCombatMode.Automatic &&
+               invalid.QuickCombat == QuickCombatMode.Ask && invalid.VolumePercent == 100,
+            "A gyorsharc módja nem maradt meg vagy az érvénytelen beállítás nem normalizálódott.");
+    }
+    finally
+    {
+        if (File.Exists(path)) File.Delete(path);
+    }
+}
+
+static void QuickCombatSummaryListsKillsAndExperience()
+{
+    var iskra = CharacterId.New();
+    var yorgrim = CharacterId.New();
+    TeamBattleKill[] kills =
+    [
+        new(iskra, "Iskra", "E001", "Óriáspatkány", 100),
+        new(iskra, "Iskra", "E001", "Óriáspatkány", 100),
+        new(yorgrim, "Yorgrim", "E002", "Kobold", 150)
+    ];
+
+    var summary = ConsoleRenderer.FormatQuickBattleKillSummary(kills);
+    Assert(summary == "Szerzett XP: 350. Iskra legyőzött 2 ellenfelet: 2× Óriáspatkány; " +
+           "Yorgrim legyőzött 1 ellenfelet: 1× Kobold.",
+        "A gyorsharc összesítője nem a tényleges ölőket, ellenféltípusokat és XP-t írta ki.");
 }
 
 static void TeamBattleAttackUsesExistingCombatRules()

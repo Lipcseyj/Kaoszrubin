@@ -17,6 +17,13 @@ public sealed record TeamEnemyParticipant(
     int MovementAllowance,
     int EligibleFromCycle);
 
+public sealed record TeamBattleKill(
+    CharacterId KillerId,
+    string KillerName,
+    string EnemyDefinitionId,
+    string EnemyName,
+    int AwardedExperience);
+
 /// <summary>A játékvilág objektumait a tiszta taktikai körsorrendhez kapcsoló futásidejű összecsapás.</summary>
 public sealed class TeamBattleEncounter
 {
@@ -27,6 +34,8 @@ public sealed class TeamBattleEncounter
     private readonly HashSet<WorldEntityId> _resolvedEnemyDeaths = [];
     private readonly HashSet<CharacterId> _resolvedCharacterDeaths = [];
     private readonly HashSet<(CharacterId CharacterId, WorldEntityId EnemyId)> _engagements = [];
+    private readonly HashSet<BattleSide> _activeSidesThisCycle = [];
+    private readonly List<TeamBattleKill> _kills = [];
     private int _queuedExtraActions;
     private int _reinforcementsCheckedThroughCycle;
 
@@ -88,8 +97,10 @@ public sealed class TeamBattleEncounter
     public bool HasActiveFormation => Formation is { State: PartyFormationState.Locked };
     public TacticalBattleState Turns { get; }
     public int ActionNumber { get; private set; }
+    public IReadOnlySet<BattleSide> InactiveSidesLastCompletedCycle { get; private set; } = new HashSet<BattleSide>();
     public IReadOnlyCollection<LiveCharacter> Characters => _characters.Values;
     public IReadOnlyCollection<Enemy> Enemies => _enemies.Values;
+    public IReadOnlyList<TeamBattleKill> Kills => _kills;
     public bool FriendlySideDefeated => _characters.Values.All(character => !character.IsAlive);
     public bool HostileSideDefeated => _enemies.Values.All(enemy => enemy.CurrentHitPoints <= 0);
     public bool IsCompleted => FriendlySideDefeated || HostileSideDefeated;
@@ -277,8 +288,22 @@ public sealed class TeamBattleEncounter
             _queuedExtraActions--;
             return Turns.RepeatCurrentTurn();
         }
-        return Turns.AdvanceTurn();
+        var completedCycle = Turns.Cycle;
+        var next = Turns.AdvanceTurn();
+        if (Turns.Cycle > completedCycle)
+        {
+            InactiveSidesLastCompletedCycle = Enum.GetValues<BattleSide>()
+                .Where(side => !_activeSidesThisCycle.Contains(side)).ToHashSet();
+            _activeSidesThisCycle.Clear();
+        }
+        return next;
     }
+
+    public void RecordMovement(BattleSide side) => _activeSidesThisCycle.Add(side);
+    public void RecordAttack(BattleSide side) => _activeSidesThisCycle.Add(side);
+    public void RecordKill(LiveCharacter killer, Enemy enemy, int awardedExperience) =>
+        _kills.Add(new TeamBattleKill(killer.Id, killer.Name, enemy.Definition.Id, enemy.Name,
+            Math.Max(0, awardedExperience)));
 
     public void GrantExtraActions(int count) => _queuedExtraActions += Math.Max(0, count);
     public bool TryResolveDeath(Enemy enemy) => _resolvedEnemyDeaths.Add(enemy.Id);
