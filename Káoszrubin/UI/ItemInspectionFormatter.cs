@@ -1,3 +1,4 @@
+using KaoszRubin.Application;
 using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Combat;
@@ -7,12 +8,15 @@ using KaoszRubin.Domain.Magic;
 namespace KaoszRubin.UI;
 
 public readonly record struct ItemInspection(string Text, ConsoleColor Color);
+public readonly record struct ItemInspectionMobilityContext(SessionCharacterSnapshot Character,
+    InventorySlotKind SourceKind, int SourceIndex);
 
 /// <summary>A host és a vendég közös, katalógusalapú tárgyrészletezője.</summary>
 public static class ItemInspectionFormatter
 {
     public static ItemInspection Format(IItemDefinition item, GameDataCatalog gameData, int charges = 0,
-        IReadOnlyDictionary<string, int>? weaponProficiencies = null)
+        IReadOnlyDictionary<string, int>? weaponProficiencies = null,
+        ItemInspectionMobilityContext? mobilityContext = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(gameData);
@@ -22,12 +26,13 @@ public static class ItemInspectionFormatter
                 $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? gameData.GetWeaponType(typeId).Name : "nincs")} | " +
                 WeaponProficiencyText(weapon, weaponProficiencies) +
                 $"sebzés: {weapon.Damage?.ToString() ?? "nincs"} | minimum Erő: {weapon.MinimumStrength} | " +
+                $"súly: {weapon.Weight} | " +
                 $"{(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | " +
                 (weapon.IsTwoHanded
                     ? "⚒️ páncéltörő: az ellenfél páncéljának 50%-át figyelmen kívül hagyja | "
                     : string.Empty) + $"kasztok: {AllowedClassNames(weapon.AllowedClassIds, gameData)}",
             ArmorDefinition armor =>
-                $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"} | " +
+                $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"} | súly: {armor.Weight} | " +
                 $"kasztok: {AllowedClassNames(armor.AllowedClassIds, gameData)}",
             MagicItemDefinition magic =>
                 $"Varázstárgy | típus: {MagicItemKindName(magic.Kind)} | " +
@@ -46,10 +51,88 @@ public static class ItemInspectionFormatter
             _ => "Általános tárgy"
         };
         var description = string.IsNullOrWhiteSpace(item.Description) ? "Nincs jellemzés." : item.Description;
+        var mobility = mobilityContext is { } context
+            ? MobilityPreview(item, gameData, context)
+            : string.Empty;
         return new ItemInspection($"{item.Name} [{item.Id}] — {details}. Ritkaság: {RarityName(item.Rarity)}; " +
-            $"mágikus erő: {item.MagicPower}; alapár: {item.BasePrice} arany. Jellemzés: {description}",
+            $"mágikus erő: {item.MagicPower}; alapár: {item.BasePrice} arany. Jellemzés: {description}" + mobility,
             RarityColor(item.Rarity));
     }
+
+    private static string MobilityPreview(IItemDefinition item, GameDataCatalog gameData,
+        ItemInspectionMobilityContext context)
+    {
+        if (item is not (WeaponDefinition or ArmorDefinition) ||
+            context.Character.CharacterSheet is not { } sheet || context.Character.Inventory is not { } inventory)
+            return string.Empty;
+
+        var current = Profile(context.Character, sheet.EquippedWeight);
+        if (context.SourceKind == InventorySlotKind.Weapon && item is WeaponDefinition equippedWeapon)
+            return PreviewText("Levétellel", current,
+                Profile(context.Character, sheet.EquippedWeight - equippedWeapon.Weight));
+        if (context.SourceKind == InventorySlotKind.Armor && item is ArmorDefinition equippedArmor)
+            return PreviewText("Levétellel", current,
+                Profile(context.Character, sheet.EquippedWeight - equippedArmor.Weight));
+        if (context.SourceKind != InventorySlotKind.Backpack) return string.Empty;
+
+        if (item is ArmorDefinition armor)
+        {
+            if (!armor.CanBeEquippedBy(context.Character.CharacterClassId)) return string.Empty;
+            var worn = SlotDefinition(inventory, InventorySlotKind.Armor, 0, gameData) as ArmorDefinition;
+            return PreviewText("Felszerelve", current,
+                Profile(context.Character, sheet.EquippedWeight - (worn?.Weight ?? 0) + armor.Weight));
+        }
+
+        var weapon = (WeaponDefinition)item;
+        if (!weapon.CanBeEquippedBy(context.Character.CharacterClassId, sheet.Abilities.Strength)) return string.Empty;
+        var first = SlotDefinition(inventory, InventorySlotKind.Weapon, 0, gameData) as WeaponDefinition;
+        var second = SlotDefinition(inventory, InventorySlotKind.Weapon, 1, gameData) as WeaponDefinition;
+        var previews = new List<(string Label, CharacterMobilityProfile Profile)>();
+        if (!weapon.IsTwoHanded || second is null)
+            previews.Add(("1. helyre", Profile(context.Character,
+                sheet.EquippedWeight - (first?.Weight ?? 0) + weapon.Weight)));
+        if (!weapon.IsTwoHanded && first?.IsTwoHanded != true)
+            previews.Add(("2. helyre", Profile(context.Character,
+                sheet.EquippedWeight - (second?.Weight ?? 0) + weapon.Weight)));
+        if (previews.Count == 0) return string.Empty;
+        if (previews.Count == 1 || previews.Select(preview => preview.Profile).Distinct().Count() == 1)
+            return PreviewText("Felszerelve", current, previews[0].Profile);
+        return string.Concat(previews.Select(preview => PreviewText($"Felszerelve a {preview.Label}", current,
+            preview.Profile)));
+    }
+
+    private static CharacterMobilityProfile Profile(SessionCharacterSnapshot character, int weight)
+    {
+        var sheet = character.CharacterSheet!;
+        return CharacterMobilityRules.EvaluateEquipment(sheet.Abilities, character.CharacterClassId,
+            weight, sheet.HasArmorMaster);
+    }
+
+    private static IItemDefinition? SlotDefinition(CharacterInventorySnapshot inventory, InventorySlotKind kind,
+        int index, GameDataCatalog gameData)
+    {
+        var item = inventory.Slots.FirstOrDefault(slot => slot.Kind == kind && slot.Index == index)?.Item;
+        return item?.Category switch
+        {
+            ItemCategory.Weapon => gameData.GetWeapon(item.DefinitionId),
+            ItemCategory.Armor => gameData.GetArmor(item.DefinitionId),
+            _ => null
+        };
+    }
+
+    private static string PreviewText(string label, CharacterMobilityProfile before,
+        CharacterMobilityProfile after) =>
+        $" {label}: ⚔ ⚖ {before.EquippedWeight} → {after.EquippedWeight}; " +
+        $"{EncumbranceName(before.Encumbrance)} → {EncumbranceName(after.Encumbrance)}; " +
+        $"👣 {before.CombatMovementAllowance} → {after.CombatMovementAllowance}; " +
+        $"⚡ {before.InitiativeBase} → {after.InitiativeBase}.";
+
+    private static string EncumbranceName(EncumbranceLevel level) => level switch
+    {
+        EncumbranceLevel.Medium => "Közepes",
+        EncumbranceLevel.Heavy => "Nehéz",
+        _ => "Könnyű"
+    };
 
     private static string WeaponProficiencyText(WeaponDefinition weapon,
         IReadOnlyDictionary<string, int>? proficiencies)

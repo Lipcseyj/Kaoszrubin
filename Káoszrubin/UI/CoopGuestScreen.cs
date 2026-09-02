@@ -1113,7 +1113,9 @@ public sealed class CoopGuestScreen
                         _ => _gameData.GetItem(inspectSlot.Item.DefinitionId)
                     };
                     var inspection = ItemInspectionFormatter.Format(definition, _gameData, inspectSlot.Item.Charges,
-                        own?.CharacterSheet?.WeaponProficiencyRanks);
+                        own?.CharacterSheet?.WeaponProficiencyRanks,
+                        own is null ? null : new ItemInspectionMobilityContext(own,
+                            inspectSlot.Kind, inspectSlot.Index));
                     SetMessage(inspection.Text, inspection.Color);
                 }
                 break;

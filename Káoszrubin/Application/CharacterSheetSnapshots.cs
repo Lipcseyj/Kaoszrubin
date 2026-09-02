@@ -16,7 +16,8 @@ public sealed record CharacterSheetSnapshot(string RaceName, string CharacterCla
     int HearingRange = 4, int DetectionBonus = 0,
     IReadOnlyList<string>? DetailedWeaponProficiencyNames = null,
     int EquippedWeight = 0, int CarryingCapacity = 0, string Encumbrance = "Könnyű",
-    int InitiativeBase = 0, int CombatMovementAllowance = CharacterMobilityRules.BaselineMovementAllowance);
+    int InitiativeBase = 0, int CombatMovementAllowance = CharacterMobilityRules.BaselineMovementAllowance,
+    bool HasArmorMaster = false);
 
 public sealed record VisionModifierSnapshot(string Name, int Value);
 public sealed record MonsterKillSnapshot(string EnemyDefinitionId, int Count);
@@ -79,7 +80,8 @@ public static class CharacterSheetSnapshotProjector
             CharacterClassRules.HearingRange(character), CharacterClassRules.DetectionBonus(character),
             character.WeaponProficiencies.Select(FormatDetailedWeaponProficiency).ToArray(),
             mobility.EquippedWeight, mobility.CarryingCapacity, EncumbranceName(mobility.Encumbrance),
-            mobility.InitiativeBase, mobility.CombatMovementAllowance);
+            mobility.InitiativeBase, mobility.CombatMovementAllowance,
+            character.HasPerk(PerkIds.KnightArmorMaster));
     }
 
     private static string EncumbranceName(EncumbranceLevel level) => level switch

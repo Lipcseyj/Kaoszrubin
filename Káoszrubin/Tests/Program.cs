@@ -92,6 +92,7 @@ var tests = new (string Name, Action Run)[]
     ("A gyorsharc összesítője ölőnként csoportosítja az ellenfeleket és az XP-t", QuickCombatSummaryListsKillsAndExperience),
     ("A taktikai és gyorsharc összesítője kiírja a HP- és mannafogyást", TeamBattleSummaryListsResourceUse),
     ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
+    ("A karakterlap és a tárgyvizsgálat előre jelzi a harci terhelést", MobilityPreviewIsVisible),
     ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
     ("A harcos taktikai találati esélyei a valódi képletet követik", FighterTacticHitChancesUseCombatFormula),
     ("Az ellenséges kezdeményezés az első saját körig késlelteti a taktikát", EnemyInitiativeDelaysTacticPrompt),
@@ -3831,6 +3832,40 @@ static void EquipmentWeightAffectsMobility()
            data.GetWeapon("W001").Weight == 1 && data.GetWeapon("W009").Weight == 7 &&
            data.GetArmor("A006").Weight == 12,
         "A súlyadatok vagy a leterheltségi mozgásprofil hibás.");
+}
+
+static void MobilityPreviewIsVisible()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var race = new RaceDefinition("R-TEST", "Ember", PrimaryAbilities.Zero);
+    var fighterClass = new CharacterClassDefinition(CharacterClassIds.Harcos, "Harcos",
+        PrimaryAbilities.Zero, false, 1.0);
+    var character = new LiveCharacter("Előnézet", race, fighterClass,
+        new PrimaryAbilities(8, 7, 5, 5), 30, 0, 1, 0);
+    Assert(character.EquipWeapon(0, data.GetWeapon("W004")) &&
+           character.EquipArmor(data.GetArmor("A003")) &&
+           character.AddToBackpack(data.GetArmor("A006")),
+        "A mobilitási előnézet tesztfelszerelése nem volt előkészíthető.");
+
+    var snapshot = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
+        character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
+        character.CurrentMana, character.MaximumMana, character.FoodLevel, character.WaterLevel,
+        character.Gold, character.IsAlive, null, [], InventorySnapshotProjector.Create(character),
+        CharacterSheetSnapshotProjector.Create(character, data.ExperienceByLevel));
+    var panel = CharacterSheetPanel.Build(snapshot, 1, 0, 12);
+    var armorIndex = character.Backpack.ToList().FindIndex(item => item?.Id == "A006");
+    var inspection = ItemInspectionFormatter.Format(data.GetArmor("A006"), data,
+        mobilityContext: new ItemInspectionMobilityContext(snapshot, InventorySlotKind.Backpack, armorIndex));
+
+    var loadLine = panel.Single(line => line.Row == 17);
+    Assert(loadLine.Text + loadLine.ColoredSuffix == "FEGYVEREK ⚔⚖ 9  ⚡ 8" &&
+           panel.All(line => line.Row != 21) &&
+           inspection.Text.Contains("súly: 12", StringComparison.Ordinal) &&
+           inspection.Text.Contains("⚔⚖ 9 → 15", StringComparison.Ordinal) &&
+           inspection.Text.Contains("Könnyű → Közepes", StringComparison.Ordinal) &&
+           inspection.Text.Contains("👣 4 → 3", StringComparison.Ordinal) &&
+           inspection.Text.Contains("⚡ 8 → 7", StringComparison.Ordinal),
+        "A kompakt harci terhelés vagy a felszerelési előnézet hibás.");
 }
 
 static BattleSystem CreateBattleSystem(int seed) => new(new Random(seed),

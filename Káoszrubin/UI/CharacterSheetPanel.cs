@@ -163,13 +163,15 @@ public static class CharacterSheetPanel
         var upgrades = details.ClassFeatureUpgradeNames ?? [];
         lines.Add(new(14, upgrades.Count > 0 ? Shorten($"L10: {upgrades[0]}", Width) : "L10: —", upgrades.Count > 0 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
         lines.Add(new(15, upgrades.Count > 1 ? Shorten($"L20: {upgrades[1]}", Width) : "L20: —", upgrades.Count > 1 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
-        lines.Add(new(17, "FEGYVEREK", ConsoleColor.Yellow));
-        AddInventoryLines(lines, inventory);
+        lines.Add(new(17, "FEGYVEREK ", ConsoleColor.Yellow,
+            ColoredSuffix: $"⚔ ⚖ {details.EquippedWeight}  ⚡ {details.InitiativeBase}",
+            ColoredSuffixColor: EncumbranceColor(details.Encumbrance)));
+        AddInventoryLines(lines, inventory, details);
         return lines;
     }
 
     private static void AddInventoryLines(ICollection<CharacterSheetPanelLine> lines,
-        CharacterInventorySnapshot inventory)
+        CharacterInventorySnapshot inventory, CharacterSheetSnapshot details)
     {
         var weapons = Slots(inventory, InventorySlotKind.Weapon, 2);
         lines.Add(new(18, $"1: {ItemName(weapons[0].Item)}", ConsoleColor.Gray,
@@ -204,6 +206,13 @@ public static class CharacterSheetPanel
         ? "üres"
         : (item.MaximumCharges > 0 ? $"{item.Name} ({item.Charges}/{item.MaximumCharges})" : item.Name) +
           (item.Quantity > 1 ? $" ×{item.Quantity}" : string.Empty);
+
+    private static ConsoleColor EncumbranceColor(string encumbrance) => encumbrance switch
+    {
+        "Nehéz" => ConsoleColor.Red,
+        "Közepes" => ConsoleColor.Yellow,
+        _ => ConsoleColor.Green
+    };
 
     private static string ResourceIcons(string icon, int level) =>
         string.Concat(Enumerable.Repeat(icon, level / ResourceIconStep));

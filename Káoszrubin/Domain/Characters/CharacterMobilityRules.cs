@@ -25,10 +25,17 @@ public static class CharacterMobilityRules
         var abilities = character.EffectiveAbilities;
         var weight = character.WeaponSlots.Where(weapon => weapon is not null).Sum(weapon => weapon!.Weight) +
                      (character.Armor?.Weight ?? 0);
+        return EvaluateEquipment(abilities, character.CharacterClass.Id, weight,
+            character.HasPerk(PerkIds.KnightArmorMaster));
+    }
+
+    public static CharacterMobilityProfile EvaluateEquipment(PrimaryAbilities abilities, string characterClassId,
+        int equippedWeight, bool hasArmorMaster)
+    {
+        if (equippedWeight < 0) throw new ArgumentOutOfRangeException(nameof(equippedWeight));
         var capacity = Math.Max(6, abilities.Strength * 3);
-        var encumbrance = weight * 100 <= capacity * 50 ? EncumbranceLevel.Light :
-            weight * 100 <= capacity * 80 ? EncumbranceLevel.Medium : EncumbranceLevel.Heavy;
-        var armorMaster = character.HasPerk(PerkIds.KnightArmorMaster);
+        var encumbrance = equippedWeight * 100 <= capacity * 50 ? EncumbranceLevel.Light :
+            equippedWeight * 100 <= capacity * 80 ? EncumbranceLevel.Medium : EncumbranceLevel.Heavy;
         var initiativePenalty = encumbrance switch
         {
             EncumbranceLevel.Medium => 1,
@@ -41,18 +48,18 @@ public static class CharacterMobilityRules
             EncumbranceLevel.Heavy => 2,
             _ => 0
         };
-        if (armorMaster)
+        if (hasArmorMaster)
         {
             initiativePenalty = Math.Max(0, initiativePenalty - 1);
             movementPenalty = Math.Max(0, movementPenalty - 1);
         }
-        var classInitiative = character.CharacterClass.Id switch
+        var classInitiative = characterClassId switch
         {
             CharacterClassIds.Tolvaj => 2,
             CharacterClassIds.Harcos or CharacterClassIds.Barbár => 1,
             _ => 0
         };
-        var classMovement = character.CharacterClass.Id switch
+        var classMovement = characterClassId switch
         {
             CharacterClassIds.Tolvaj => 1,
             CharacterClassIds.Barbár => 1,
@@ -61,7 +68,7 @@ public static class CharacterMobilityRules
         var dexterityMovement = Math.DivRem(Math.Max(0, abilities.Dexterity - 4), 3, out _);
         var movement = Math.Clamp(BaselineMovementAllowance + dexterityMovement + classMovement -
                                   movementPenalty, 1, 6);
-        return new CharacterMobilityProfile(weight, capacity, encumbrance, initiativePenalty,
+        return new CharacterMobilityProfile(equippedWeight, capacity, encumbrance, initiativePenalty,
             classInitiative, abilities.Dexterity + classInitiative - initiativePenalty,
             movement, (double)BaselineMovementAllowance / movement);
     }

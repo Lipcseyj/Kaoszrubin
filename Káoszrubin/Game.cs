@@ -3646,7 +3646,11 @@ public sealed class Game
                 ? itemSlot.Character.GetInventoryItemCharges(itemSlot.Kind, itemSlot.Index)
                 : 0,
             slot?.Character.WeaponProficiencies.ToDictionary(proficiency => proficiency.FamilyId,
-                proficiency => (int)proficiency.Rank, StringComparer.OrdinalIgnoreCase));
+                proficiency => (int)proficiency.Rank, StringComparer.OrdinalIgnoreCase),
+            slot is { } previewSlot
+                ? new ItemInspectionMobilityContext(CreateCharacterDetailsSnapshot(previewSlot.Character),
+                    previewSlot.Kind, previewSlot.Index)
+                : null);
         _renderer.DrawInventoryMessage(inspection.Text, inspection.Color);
     }
 
