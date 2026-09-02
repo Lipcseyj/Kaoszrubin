@@ -130,7 +130,10 @@ public sealed class CoopGuestScreen
             while (!cancellationToken.IsCancellationRequested &&
                    client.State is not (CoopClientConnectionState.Disconnected or CoopClientConnectionState.Faulted))
             {
+#if !DEBUG
+
                 await ShowAndAcknowledgeLevelImageAsync(client, selected, cancellationToken);
+#endif
                 if (Interlocked.Exchange(ref _redrawRequested, 0) != 0)
                     Draw(client, selected);
                 if (Volatile.Read(ref _deathStateSynchronized) != 0 &&

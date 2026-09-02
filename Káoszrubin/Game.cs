@@ -1208,13 +1208,18 @@ public sealed class Game
     {
         var fileName = ImageViewer.FileNameForLevel(_maze.LevelName);
         var path = Path.Combine(AppContext.BaseDirectory, "Kepek", fileName);
+
+#if !DEBUG
         if (_activeCoopHost is not null)
         {
             ShowSynchronizedLevelImage(fileName, path);
             return;
         }
+
         if (!ImageViewer.Show(path))
             _renderer.DrawDeveloperMessage($"Pályakép még nem található: {fileName}");
+#endif
+
     }
 
     private void LogMazeAccessibilityCheck()
