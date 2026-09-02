@@ -6583,7 +6583,6 @@ public sealed class Game
             participantEnemies.Select(enemy => enemy.Definition),
             hasAvailableReinforcements: HasAvailableTeamReinforcements(participantEnemies),
             hasActiveFormation: _formation.State != PartyFormationState.Disbanded,
-            hasRemoteHumanControl: _session.ConnectedRemoteCharacterCount > 0,
             isQuestImportant: participantEnemies.Any(IsQuestImportantEnemy),
             enemyStrikesFirst: enemyStrikesFirst);
         _isQuickTeamBattle = ShouldUseQuickCombat(quickAssessment);

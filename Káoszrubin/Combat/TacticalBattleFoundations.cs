@@ -220,7 +220,7 @@ public sealed record EncounterThreatAssessment(
     double HostileToFriendlyRatio,
     bool IsOverwhelminglySafe)
 {
-    public const double DefaultQuickResolutionRatio = 0.25;
+    public const double DefaultQuickResolutionRatio = 0.75;
 }
 
 /// <summary>
@@ -316,13 +316,14 @@ public sealed record QuickCombatAssessment(
 /// <summary>A jelentéktelen ütközetek automatikus lejátszásának konzervatív kapuja.</summary>
 public static class QuickCombatRules
 {
-    public const double MaximumPredictedInjuryRatio = 0.10;
+    public const int MaximumEnemyCount = 3;
+    public const double PredictedDamagePowerRatio = 0.15;
+    public const double MaximumPredictedInjuryRatio = 0.35;
 
     public static QuickCombatAssessment Assess(IEnumerable<LiveCharacter> friendlies,
         IEnumerable<EnemyDefinition> hostiles,
         bool hasAvailableReinforcements = false,
         bool hasActiveFormation = false,
-        bool hasRemoteHumanControl = false,
         bool isQuestImportant = false,
         bool enemyStrikesFirst = false)
     {
@@ -332,22 +333,23 @@ public static class QuickCombatRules
         var enemies = hostiles.ToArray();
         var threat = EncounterThreatEvaluator.Assess(party, enemies);
         var totalVitality = party.Sum(character => character.CurrentVitality);
-        var predictedLoss = (int)Math.Ceiling(threat.HostilePower * 0.25);
+        var predictedLoss = (int)Math.Ceiling(threat.HostilePower * PredictedDamagePowerRatio);
         var injuryRatio = totalVitality == 0 ? double.PositiveInfinity : (double)predictedLoss / totalVitality;
 
         string? reason = null;
         if (party.Length == 0) reason = "Nincs harcképes csapattag.";
-        else if (enemies.Length != 1) reason = "A gyorsharc csak elszigetelt ellenfélnél használható.";
+        else if (enemies.Length is < 1 or > MaximumEnemyCount)
+            reason = $"A gyorsharc legfeljebb {MaximumEnemyCount} ellenfélnél használható.";
         else if (enemies.Any(enemy => enemy.IsBoss || enemy.Rank != EnemyRank.Normal))
             reason = "Kiemelt ellenféllel szemben taktikai harc szükséges.";
         else if (isQuestImportant) reason = "Küldetés szempontjából fontos ellenfél.";
         else if (hasAvailableReinforcements) reason = "Az ellenfél erősítést hívhat.";
         else if (hasActiveFormation) reason = "Az aktív alakzat taktikai döntést igényel.";
-        else if (hasRemoteHumanControl) reason = "Egy vendégjátékos is részt vesz a harcban.";
         else if (enemyStrikesFirst) reason = "Az ellenséges rajtaütés túl kockázatos.";
         else if (!threat.IsOverwhelminglySafe) reason = "Az ellenfél fenyegetési szintje túl magas.";
         else if (injuryRatio > MaximumPredictedInjuryRatio)
-            reason = "A várható sérülés meghaladja a csapat életerejének 10%-át.";
+            reason = $"A várható sérülés meghaladja a csapat életerejének " +
+                     $"{MaximumPredictedInjuryRatio * 100:0}%-át.";
         else if (party.Min(character => character.CurrentVitality) <= predictedLoss)
             reason = "A becslés szerint egy csapattag eleshet.";
 

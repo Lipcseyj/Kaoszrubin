@@ -84,7 +84,7 @@ var tests = new (string Name, Action Run)[]
     ("A harcba hívott erősítés a következő körben lép be", TeamBattleReinforcementJoinsNextCycle),
     ("A coop session validálja a csapatharcos mozgást, tárgyhasználatot és passzt", TeamBattleCommandsAreValidated),
     ("A fenyegetésbecslés felismeri az elszigetelt gyenge ellenfelet", EncounterThreatAssessmentRecognizesSafeFight),
-    ("A gyorsharc csak jelentéktelen, biztonságos ütközetet enged át", QuickCombatRequiresSafeIsolatedEncounter),
+    ("A gyorsharc legfeljebb három jelentéktelen ellenfelet enged át", QuickCombatAllowsUpToThreeSafeEnemies),
     ("A gyorsharc beállítása normalizálható és menthető", QuickCombatSettingPersists),
     ("A gyorsharc összesítője ölőnként csoportosítja az ellenfeleket és az XP-t", QuickCombatSummaryListsKillsAndExperience),
     ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
@@ -3398,22 +3398,26 @@ static void EncounterThreatAssessmentRecognizesSafeFight()
         "A fenyegetésbecslés nem különíti el a jelentéktelen ellenfelet a bosstól.");
 }
 
-static void QuickCombatRequiresSafeIsolatedEncounter()
+static void QuickCombatAllowsUpToThreeSafeEnemies()
 {
     var party = Enumerable.Range(0, 4).Select(index => CreateCharacter($"Gyorshős{index}", 30)).ToArray();
     var weak = new EnemyDefinition("E-QUICK", "Jelentéktelen ellenfél", "e", 1, 2, 0, 1,
         1, 1, []);
+    var giantRat = new EnemyDefinition("E001", "Óriáspatkány", "r", 2, 20, 0, 5,
+        100, 1, ["MA003"]);
     var safe = QuickCombatRules.Assess(party, [weak]);
+    var safeGroup = QuickCombatRules.Assess(party, [weak, weak, weak]);
+    var giantRatGroup = QuickCombatRules.Assess(party, [giantRat, giantRat, giantRat]);
     var fragileParty = party.ToArray();
     fragileParty[0].ReceiveDamage(29);
 
-    Assert(safe.IsEligible && safe.PredictedInjuryRatio <= QuickCombatRules.MaximumPredictedInjuryRatio,
-        "A jelentéktelen, elszigetelt ellenfél nem lett gyorsharcra alkalmas.");
-    Assert(!QuickCombatRules.Assess(party, [weak, weak]).IsEligible &&
+    Assert(safe.IsEligible && safeGroup.IsEligible && giantRatGroup.IsEligible &&
+           safeGroup.PredictedInjuryRatio <= QuickCombatRules.MaximumPredictedInjuryRatio,
+        "Az egy-három jelentéktelen ellenfélből, köztük óriáspatkányokból álló csoport nem lett gyorsharcra alkalmas.");
+    Assert(!QuickCombatRules.Assess(party, [weak, weak, weak, weak]).IsEligible &&
            !QuickCombatRules.Assess(party, [weak with { Rank = EnemyRank.Elite }]).IsEligible &&
            !QuickCombatRules.Assess(party, [weak], hasAvailableReinforcements: true).IsEligible &&
            !QuickCombatRules.Assess(party, [weak], hasActiveFormation: true).IsEligible &&
-           !QuickCombatRules.Assess(party, [weak], hasRemoteHumanControl: true).IsEligible &&
            !QuickCombatRules.Assess(party, [weak], isQuestImportant: true).IsEligible &&
            !QuickCombatRules.Assess(party, [weak], enemyStrikesFirst: true).IsEligible &&
            !QuickCombatRules.Assess(fragileParty, [weak]).IsEligible,
