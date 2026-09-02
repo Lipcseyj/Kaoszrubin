@@ -443,15 +443,10 @@ public sealed class Game
         if (CanTurnUndead(caster, enemy) && !_turnUndeadUsedThisBattle.Contains(caster))
             return ResolveTurnUndead(caster, enemy);
         if (!caster.IsSpellcaster || !caster.CanCastSpells) return null;
-        // Simple mana reserve policy (don't drop below 20% unless emergency)
-        var manaReservePercent = 20;
-        var manaReserve = Math.Max(0, caster.MaximumMana * manaReservePercent / 100);
-
         // Emergency heal: any ally under 35% HP, within the spell's range of the caster
-        var healThresholdPercent = 35;
         var allies = CharacterRoster.Party.Members.Append(caster).Distinct().Where(c => c.IsAlive).ToList();
         var lowest = allies.OrderBy(c => (double)c.CurrentVitality / c.MaximumVitality).FirstOrDefault();
-        if (lowest is not null && (double)lowest.CurrentVitality / lowest.MaximumVitality * 100 <= healThresholdPercent)
+        if (lowest is not null && NpcSpellcastingPolicy.NeedsHealing(lowest))
         {
             foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseInCombat))
             {
@@ -463,8 +458,8 @@ public sealed class Game
                 var reachable = allies.Where(c => Chebyshev(member.Position, GetCasterPosition(c)) <= range).ToList();
                 if (reachable.Count == 0) continue;
                 var target = reachable.OrderBy(c => (double)c.CurrentVitality / c.MaximumVitality).First();
-                var emergency = (double)target.CurrentVitality / target.MaximumVitality <= 0.10;
-                if (caster.CurrentMana - manaCost < manaReserve && !emergency) continue;
+                var emergency = NpcSpellcastingPolicy.IsEmergency(target);
+                if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost, emergency)) continue;
                 // Cast heal
                 var divine = caster.RecordDivineSpellCast(spell);
                 caster.SpendMana(manaCost);
@@ -519,8 +514,7 @@ public sealed class Game
             var effects = _gameData.GetSpellEffects(spell.Id);
             if (!effects.Any(e => e.Type == SpellEffectType.Damage)) continue;
             var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
-            if (caster.CurrentMana < manaCost) continue;
-            if (caster.CurrentMana - manaCost < manaReserve) continue;
+            if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost)) continue;
             if (!IsValidSpellTarget(member.Position, spell, enemy.Position, enemy)) continue;
             var divine = caster.RecordDivineSpellCast(spell);
             caster.SpendMana(manaCost);
@@ -5718,8 +5712,8 @@ public sealed class Game
         Position target, Enemy? currentEnemy) => spell.TargetType switch
         {
             SpellTargetType.Self => target == casterPosition && CanAffectCharacter(spell, caster),
-            SpellTargetType.Party => target == casterPosition &&
-                                     CharacterRoster.Party.Members.Any(character => character.IsAlive && CanAffectCharacter(spell, character)),
+            SpellTargetType.Party => target == casterPosition && LivingPartyWithPositions()
+                .Any(entry => CanAffectCharacter(spell, entry.Character)),
             _ => IsValidSpellTarget(casterPosition, spell, target, currentEnemy)
         };
 
@@ -5950,7 +5944,8 @@ public sealed class Game
     private IEnumerable<LiveCharacter> ResolveCharacterSpellTargets(LiveCharacter caster, SpellDefinition spell, Position target) => spell.TargetType switch
     {
         SpellTargetType.Self => [caster],
-        SpellTargetType.Party => CharacterRoster.Party.Members.Where(character => character.IsAlive),
+        SpellTargetType.Party => LivingPartyWithPositions().Select(entry => entry.Character)
+            .DistinctBy(character => character.Id),
         SpellTargetType.PartyMember when target == _player.Position => [SelectedCharacter],
         SpellTargetType.PartyMember => _maze.GetPartyMemberAt(target) is { } member ? [member.Character] : [],
         _ => []
@@ -6434,7 +6429,7 @@ public sealed class Game
     private bool HasValidSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Enemy? currentEnemy) => spell.TargetType switch
     {
         SpellTargetType.Self => CanAffectCharacter(spell, caster),
-        SpellTargetType.Party => CharacterRoster.Party.Members.Any(character => character.IsAlive && CanAffectCharacter(spell, character)),
+        SpellTargetType.Party => LivingPartyWithPositions().Any(entry => CanAffectCharacter(spell, entry.Character)),
         _ => GetValidSpellTargets(casterPosition, spell, currentEnemy).Any()
     };
 
@@ -7157,6 +7152,7 @@ public sealed class Game
             battle.RearPartnerOf(character) is { IsAlive: true } &&
             TryExecuteSwapToRear(battle, character, out _))
             return;
+        if (!battle.IsEngaged(character) && TryExecuteTeamAiSpell(battle, character)) return;
         var reachable = ReachableTeamEnemies(battle, character).FirstOrDefault();
         if (reachable is not null)
         {
@@ -7181,6 +7177,146 @@ public sealed class Game
         var target = ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
         MoveTeamCharacterToward(battle, character, target.Position);
     }
+
+    private bool TryExecuteTeamAiSpell(TeamBattleEncounter battle, LiveCharacter caster)
+    {
+        var plan = ChooseTeamAiSpell(battle, caster);
+        if (plan is null) return false;
+        var attempt = TryCastSpell(caster, GetCasterPosition(caster), plan.Spell, inCombat: true,
+            plan.Enemy, explicitTarget: plan.Target);
+        if (attempt is not { ConsumesTurn: true }) return false;
+        if (plan.Offensive)
+        {
+            battle.RecordAttack(BattleSide.Friendly);
+            if (attempt.DamageToCurrentEnemy > 0 && plan.Enemy is not null)
+                plan.Enemy.ReceiveSpellDamage(attempt.DamageToCurrentEnemy);
+        }
+        battle.GrantExtraActions(attempt.ExtraPlayerActions);
+        var message = attempt.Message +
+                      _battleSystem.FinishTeamCharacterAction(caster, battle.RuntimeFor(caster));
+        PresentBattleEntries([new BattleLogEntry(message, attempt.Kind)]);
+        SynchronizeTeamBattleDefeats(battle, caster);
+        AdvanceTeamBattleTurn(battle);
+        return true;
+    }
+
+    private NpcTeamSpellPlan? ChooseTeamAiSpell(TeamBattleEncounter battle, LiveCharacter caster)
+    {
+        if (!caster.IsSpellcaster || !caster.CanCastSpells ||
+            !SpellcastingRules.HasRequiredFocus(caster)) return null;
+        var casterPosition = GetCasterPosition(caster);
+        var spells = caster.MemorizedSpells.Where(spell => spell.CanUseInCombat)
+            .OrderBy(spell => SpellcastingRules.EffectiveManaCost(caster, spell))
+            .ThenBy(spell => spell.Level).ToArray();
+        var allies = battle.Characters.Where(character => character.IsAlive)
+            .OrderBy(character => VitalityRatio(character)).ToArray();
+        var enemies = OrderedNpcSpellTargets(battle, casterPosition).ToArray();
+        var currentEnemy = enemies.FirstOrDefault();
+
+        foreach (var spell in spells)
+        {
+            var effects = _gameData.GetSpellEffects(spell.Id);
+            if (!effects.Any(effect => effect.Type == SpellEffectType.Heal)) continue;
+            var wounded = allies.Where(NpcSpellcastingPolicy.NeedsHealing).ToArray();
+            if (wounded.Length == 0) break;
+            IEnumerable<LiveCharacter> targets = spell.TargetType switch
+            {
+                SpellTargetType.Self => wounded.Where(character => character == caster),
+                SpellTargetType.Party => [wounded[0]],
+                SpellTargetType.PartyMember => wounded,
+                _ => []
+            };
+            foreach (var target in targets)
+            {
+                var targetPosition = spell.TargetType is SpellTargetType.Self or SpellTargetType.Party
+                    ? casterPosition : GetCasterPosition(target);
+                var emergency = spell.TargetType == SpellTargetType.Party
+                    ? wounded.Any(NpcSpellcastingPolicy.IsEmergency)
+                    : NpcSpellcastingPolicy.IsEmergency(target);
+                var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+                if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost, emergency) ||
+                    ValidateSpellCast(caster, casterPosition, spell, true, currentEnemy,
+                        explicitTarget: targetPosition) is not null) continue;
+                return new NpcTeamSpellPlan(spell, targetPosition, currentEnemy, Offensive: false);
+            }
+        }
+
+        var vulnerableAlly = allies.FirstOrDefault();
+        var dangerousEnemy = vulnerableAlly is null ? null : enemies.FirstOrDefault(enemy =>
+            ShouldUseOffensiveSupportSpell(vulnerableAlly, enemy));
+        if (dangerousEnemy is null) return null;
+
+        if (battle.Turns.Cycle <= 2)
+            foreach (var spell in spells)
+            {
+                var effects = _gameData.GetSpellEffects(spell.Id);
+                if (effects.Any(effect => effect.Type == SpellEffectType.Heal) ||
+                    !effects.Any(effect => NpcSpellcastingPolicy.IsBuffEffect(effect.Type)) ||
+                    effects.Any(effect => effect.Type == SpellEffectType.ProtectionFromEvil) &&
+                    battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).All(enemy => !IsUnholy(enemy.Definition)))
+                    continue;
+                var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+                if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost)) continue;
+                var targetPosition = ChooseNpcBuffTarget(battle, caster, casterPosition, spell, effects, allies);
+                if (targetPosition is null || ValidateSpellCast(caster, casterPosition, spell, true,
+                        dangerousEnemy, explicitTarget: targetPosition) is not null) continue;
+                return new NpcTeamSpellPlan(spell, targetPosition.Value, dangerousEnemy, Offensive: false);
+            }
+
+        foreach (var spell in spells)
+        {
+            var effects = _gameData.GetSpellEffects(spell.Id);
+            if (!NpcSpellcastingPolicy.IsSingleTargetOffensive(spell, effects)) continue;
+            var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+            if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost)) continue;
+            foreach (var target in enemies.Where(enemy => ShouldUseOffensiveSupportSpell(vulnerableAlly!, enemy)))
+            {
+                if (ValidateSpellCast(caster, casterPosition, spell, true, target,
+                        explicitTarget: target.Position) is not null) continue;
+                return new NpcTeamSpellPlan(spell, target.Position, target, Offensive: true);
+            }
+        }
+        return null;
+    }
+
+    private Position? ChooseNpcBuffTarget(TeamBattleEncounter battle, LiveCharacter caster,
+        Position casterPosition, SpellDefinition spell, IReadOnlyList<SpellEffectDefinition> effects,
+        IReadOnlyList<LiveCharacter> allies)
+    {
+        bool NeedsBuff(LiveCharacter character) => effects
+            .Where(effect => NpcSpellcastingPolicy.IsBuffEffect(effect.Type))
+            .Select(effect => NpcSpellcastingPolicy.ActiveTypeFor(effect.Type))
+            .Any(type => type is { } activeType && !character.HasSpellEffect(activeType));
+
+        if (spell.TargetType == SpellTargetType.Self)
+            return NeedsBuff(caster) ? GetCasterPosition(caster) : null;
+        if (spell.TargetType == SpellTargetType.Party)
+        {
+            var missing = allies.Count(NeedsBuff);
+            return missing >= Math.Min(2, allies.Count) ? GetCasterPosition(caster) : null;
+        }
+        if (spell.TargetType != SpellTargetType.PartyMember) return null;
+        return allies.Where(NeedsBuff)
+            .OrderByDescending(character => battle.IsEngaged(character))
+            .ThenByDescending(battle.IsFrontRow)
+            .ThenBy(VitalityRatio)
+            .Where(character => IsValidExplicitSpellTarget(caster, casterPosition, spell,
+                GetCasterPosition(character), currentEnemy: null))
+            .Select(character => (Position?)GetCasterPosition(character)).FirstOrDefault();
+    }
+
+    private IEnumerable<Enemy> OrderedNpcSpellTargets(TeamBattleEncounter battle, Position casterPosition) =>
+        battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
+            .OrderByDescending(battle.IsEngaged)
+            .ThenBy(enemy => battle.Characters.Where(character => battle.EngagedEnemies(character).Contains(enemy))
+                .Select(VitalityRatio).DefaultIfEmpty(2d).Min())
+            .ThenByDescending(enemy => enemy.Definition.Rank)
+            .ThenByDescending(enemy => enemy.Definition.StrengthTier)
+            .ThenBy(enemy => enemy.CurrentHitPoints)
+            .ThenBy(enemy => TacticalDistance.Between(casterPosition, enemy.Position));
+
+    private static double VitalityRatio(LiveCharacter character) =>
+        (double)character.CurrentVitality / Math.Max(1, character.MaximumVitality);
 
     private void ResolveTeamCharacterAttack(TeamBattleEncounter battle, LiveCharacter character, Enemy enemy)
     {
@@ -8665,6 +8801,7 @@ public sealed class Game
     private sealed record ExpeditionEnemyTemplate(string DefinitionId, Position Position,
         EnemyMovementProfile MovementProfile, Direction PatrolDirection, string? GroupId, EnemyGroupRole GroupRole);
     private sealed record DeveloperUniqueNpcTarget(NpcDefinition Definition, int MazeLevel);
+    private sealed record NpcTeamSpellPlan(SpellDefinition Spell, Position Target, Enemy? Enemy, bool Offensive);
     private sealed record SpellCastAttempt(bool ConsumesTurn, string Message, BattleLogKind Kind,
         int DamageToCurrentEnemy = 0, int ExtraPlayerActions = 0);
     private sealed record SpellExecutionResult(int DamageToCurrentEnemy, int ExtraPlayerActions, string Summary);

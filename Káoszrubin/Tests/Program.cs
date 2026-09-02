@@ -82,6 +82,7 @@ var tests = new (string Name, Action Run)[]
     ("A Hátra! helycsere átadja az első sori lekötéseket", TeamBattleSwapToRearTransfersEngagements),
     ("Az alakzat csak a fennálló lekötéseket megtartva mozdulhat", TeamBattleFormationMovementPreservesEngagements),
     ("A csapatharc célpontja akcióvesztés nélkül váltható", TeamBattleTargetCanBeChanged),
+    ("Az NPC varázslási szabálya tartalékolja a mannát és csak egycélú támadást választ", NpcSpellcastingPolicyPreservesMana),
     ("A harcba hívott erősítés a következő körben lép be", TeamBattleReinforcementJoinsNextCycle),
     ("A coop session validálja a csapatharcos mozgást, tárgyhasználatot és passzt", TeamBattleCommandsAreValidated),
     ("A fenyegetésbecslés felismeri az elszigetelt gyenge ellenfelet", EncounterThreatAssessmentRecognizesSafeFight),
@@ -3639,6 +3640,39 @@ static void TeamBattleTargetCanBeChanged()
     Assert(encounter.TrySelectTarget(secondEnemy) && encounter.SelectedTargetEnemy() == secondEnemy &&
            encounter.Turns.TurnId == turnId,
         "A célpontváltás előreléptette a körsorrendet vagy nem őrizte meg a célpontot.");
+}
+
+static void NpcSpellcastingPolicyPreservesMana()
+{
+    var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
+    var mageClass = new CharacterClassDefinition(CharacterClassIds.Mágus, "Mágus", PrimaryAbilities.Zero,
+        true, 1.0);
+    var mage = new LiveCharacter("Taktikus", race, mageClass, new PrimaryAbilities(5, 5, 5, 5),
+        40, 20, 1, 0);
+    mage.SetCurrentResources(14, 8);
+
+    Assert(NpcSpellcastingPolicy.NeedsHealing(mage) && !NpcSpellcastingPolicy.IsEmergency(mage),
+        "Az NPC gyógyítási küszöbe nem 35 százalék.");
+    Assert(NpcSpellcastingPolicy.CanSpendMana(mage, 4) &&
+           !NpcSpellcastingPolicy.CanSpendMana(mage, 5) &&
+           NpcSpellcastingPolicy.CanSpendMana(mage, 5, emergency: true),
+        "Az NPC nem tartja meg a 20 százalékos mannatartalékot, vagy vészhelyzetben sem oldja fel.");
+    mage.SetCurrentResources(4, 8);
+    Assert(NpcSpellcastingPolicy.IsEmergency(mage),
+        "Az NPC nem ismeri fel a 10 százalékos gyógyítási vészhelyzetet.");
+
+    var bolt = new SpellDefinition("TEST-BOLT", "Próbalövedék", SpellSchool.Arcane, 1, 2, "",
+        SpellTargetType.Enemy, 6, 0, true, SpellUsageMode.Combat);
+    var blast = bolt with { Id = "TEST-BLAST", AreaRadius = 1 };
+    var damage = new SpellEffectDefinition("TEST-DAMAGE", bolt.Id, 1, SpellEffectType.Damage,
+        new DiceExpression(1, 4), 0, 0, 0, 0, 100, SpellResolution.Auto, null, "");
+    var chain = damage with { Id = "TEST-CHAIN", Type = SpellEffectType.ChainDamage };
+    Assert(NpcSpellcastingPolicy.IsSingleTargetOffensive(bolt, [damage]) &&
+           !NpcSpellcastingPolicy.IsSingleTargetOffensive(blast, [damage]) &&
+           !NpcSpellcastingPolicy.IsSingleTargetOffensive(bolt, [damage, chain]) &&
+           NpcSpellcastingPolicy.ActiveTypeFor(SpellEffectType.DefenseBonus) ==
+           ActiveSpellEffectType.DefenseBonus,
+        "Az NPC támadó- vagy buffvarázslat-besorolása hibás.");
 }
 
 static void TeamBattleReinforcementJoinsNextCycle()
