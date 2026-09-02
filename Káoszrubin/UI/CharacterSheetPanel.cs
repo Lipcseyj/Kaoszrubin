@@ -193,7 +193,7 @@ public static class CharacterSheetPanel
 
         var backpack = Slots(inventory, InventorySlotKind.Backpack, LiveCharacter.MaximumBackpackItemCount);
         lines.Add(new(26, $"HÁTIZSÁK {backpack.Count(slot => slot.Item is not null)}/{LiveCharacter.MaximumBackpackItemCount} " +
-            $"⚖ {details.CarriedWeight}/{details.CarryingCapacity}", EncumbranceColor(details.CarriedEncumbrance)));
+            $"⚖ {details.CarriedWeight:F1}/{details.CarryingCapacity}", EncumbranceColor(details.CarriedEncumbrance)));
         for (var index = 0; index < backpack.Count; index++)
             lines.Add(new(27 + index, $"{index + 1}: {ItemName(backpack[index].Item)}", ConsoleColor.Gray,
                 new InventorySlotAddress(InventorySlotKind.Backpack, index)));

@@ -25,7 +25,7 @@ public static class CharacterDetailsWindow
             ($"🍖 Étel {character.FoodLevel}/100   💧 Ital {character.WaterLevel}/100", ConsoleColor.White),
             ($"Erő {sheet.Abilities.Strength}  Ügyesség {sheet.Abilities.Dexterity}  Egészség {sheet.Abilities.Health}  Intelligencia {sheet.Abilities.Intelligence}", ConsoleColor.White),
             ($"⚔ ⚖ Harci terhelés: {sheet.EquippedWeight} súly — {sheet.Encumbrance}", LoadColor(sheet.Encumbrance)),
-            ($"🎒 Hordott súly: {sheet.CarriedWeight}/{sheet.CarryingCapacity} — {sheet.CarriedEncumbrance}", LoadColor(sheet.CarriedEncumbrance)),
+            ($"🎒 Hordott súly: {sheet.CarriedWeight:F2}/{sheet.CarryingCapacity} — {sheet.CarriedEncumbrance}", LoadColor(sheet.CarriedEncumbrance)),
             ($"⚡ Kezdeményezési alap: {sheet.InitiativeBase}  |  👣 Harci mozgás: {sheet.CombatMovementAllowance} mező", ConsoleColor.White),
             ($"🥾 Térképi mozgás: {sheet.ExplorationMovementAllowance}", ConsoleColor.White),
             (string.Empty, ConsoleColor.Gray),
