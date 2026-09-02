@@ -24,8 +24,10 @@ public static class CharacterDetailsWindow
             ($"❤️ HP {character.CurrentVitality}/{character.MaximumVitality}   🔷 Mana {character.CurrentMana}/{character.MaximumMana}", ConsoleColor.White),
             ($"🍖 Étel {character.FoodLevel}/100   💧 Ital {character.WaterLevel}/100", ConsoleColor.White),
             ($"Erő {sheet.Abilities.Strength}  Ügyesség {sheet.Abilities.Dexterity}  Egészség {sheet.Abilities.Health}  Intelligencia {sheet.Abilities.Intelligence}", ConsoleColor.White),
-            ($"⚖ Felszerelés: {sheet.EquippedWeight}/{sheet.CarryingCapacity} súly — {sheet.Encumbrance} terhelés", LoadColor(sheet.Encumbrance)),
+            ($"⚔ ⚖ Harci terhelés: {sheet.EquippedWeight} súly — {sheet.Encumbrance}", LoadColor(sheet.Encumbrance)),
+            ($"🎒 Hordott súly: {sheet.CarriedWeight}/{sheet.CarryingCapacity} — {sheet.CarriedEncumbrance}", LoadColor(sheet.CarriedEncumbrance)),
             ($"⚡ Kezdeményezési alap: {sheet.InitiativeBase}  |  👣 Harci mozgás: {sheet.CombatMovementAllowance} mező", ConsoleColor.White),
+            ($"🥾 Térképi mozgás: {sheet.ExplorationMovementAllowance}", ConsoleColor.White),
             (string.Empty, ConsoleColor.Gray),
             ("LÁTÁS", ConsoleColor.Cyan),
             ($"👁 Tényleges látótáv: {sheet.VisionRange}  |  természetes: {sheet.NaturalVisionRange}", ConsoleColor.White)

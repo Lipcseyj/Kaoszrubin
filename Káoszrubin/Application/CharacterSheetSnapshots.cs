@@ -15,9 +15,10 @@ public sealed record CharacterSheetSnapshot(string RaceName, string CharacterCla
     IReadOnlyList<VisionModifierSnapshot>? VisionModifiers = null,
     int HearingRange = 4, int DetectionBonus = 0,
     IReadOnlyList<string>? DetailedWeaponProficiencyNames = null,
-    int EquippedWeight = 0, int CarryingCapacity = 0, string Encumbrance = "Könnyű",
+    double EquippedWeight = 0, double CarryingCapacity = 0, string Encumbrance = "Könnyű",
     int InitiativeBase = 0, int CombatMovementAllowance = CharacterMobilityRules.BaselineMovementAllowance,
-    bool HasArmorMaster = false);
+    bool HasArmorMaster = false, double CarriedWeight = 0, string CarriedEncumbrance = "Könnyű",
+    int ExplorationMovementAllowance = CharacterMobilityRules.BaselineMovementAllowance);
 
 public sealed record VisionModifierSnapshot(string Name, int Value);
 public sealed record MonsterKillSnapshot(string EnemyDefinitionId, int Count);
@@ -81,7 +82,8 @@ public static class CharacterSheetSnapshotProjector
             character.WeaponProficiencies.Select(FormatDetailedWeaponProficiency).ToArray(),
             mobility.EquippedWeight, mobility.CarryingCapacity, EncumbranceName(mobility.Encumbrance),
             mobility.InitiativeBase, mobility.CombatMovementAllowance,
-            character.HasPerk(PerkIds.KnightArmorMaster));
+            character.HasPerk(PerkIds.KnightArmorMaster), mobility.CarriedWeight,
+            EncumbranceName(mobility.CarriedEncumbrance), mobility.ExplorationMovementAllowance);
     }
 
     private static string EncumbranceName(EncumbranceLevel level) => level switch

@@ -3830,7 +3830,8 @@ static void EquipmentWeightAffectsMobility()
            heavy.InitiativeBase < light.InitiativeBase &&
            heavy.CombatMovementAllowance < light.CombatMovementAllowance &&
            data.GetWeapon("W001").Weight == 1 && data.GetWeapon("W009").Weight == 7 &&
-           data.GetArmor("A006").Weight == 12,
+           data.GetArmor("A006").Weight == 12 && data.GetItem("T001").Weight == 1 &&
+           data.GetMagicItem("M001").Weight == 1,
         "A súlyadatok vagy a leterheltségi mozgásprofil hibás.");
 }
 
@@ -3846,6 +3847,9 @@ static void MobilityPreviewIsVisible()
            character.EquipArmor(data.GetArmor("A003")) &&
            character.AddToBackpack(data.GetArmor("A006")),
         "A mobilitási előnézet tesztfelszerelése nem volt előkészíthető.");
+    var supplies = new MiscItemDefinition("I-WEIGHT", "Teherpróba", "Teszt", 1, Weight: 2);
+    Assert(character.AddToBackpack(supplies) && character.AddToBackpack(supplies) &&
+           character.AddToBackpack(supplies), "A többdarabos súlyteszt nem volt előkészíthető.");
 
     var snapshot = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
         character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
@@ -3858,10 +3862,13 @@ static void MobilityPreviewIsVisible()
         mobilityContext: new ItemInspectionMobilityContext(snapshot, InventorySlotKind.Backpack, armorIndex));
 
     var loadLine = panel.Single(line => line.Row == 17);
-    Assert(loadLine.Text + loadLine.ColoredSuffix == "FEGYVEREK ⚔⚖ 9  ⚡ 8" &&
+    Assert(loadLine.Text + loadLine.ColoredSuffix == "FEGYVEREK ⚔ ⚖ 9  ⚡ 8" &&
            panel.All(line => line.Row != 21) &&
+           panel.Single(line => line.Row == 26).Text == "HÁTIZSÁK 2/12 ⚖ 27/24" &&
+           snapshot.CharacterSheet!.CarriedWeight == 27 &&
+           snapshot.CharacterSheet.ExplorationMovementAllowance == 2 &&
            inspection.Text.Contains("súly: 12", StringComparison.Ordinal) &&
-           inspection.Text.Contains("⚔⚖ 9 → 15", StringComparison.Ordinal) &&
+           inspection.Text.Contains("⚔ ⚖ 9 → 15", StringComparison.Ordinal) &&
            inspection.Text.Contains("Könnyű → Közepes", StringComparison.Ordinal) &&
            inspection.Text.Contains("👣 4 → 3", StringComparison.Ordinal) &&
            inspection.Text.Contains("⚡ 8 → 7", StringComparison.Ordinal),

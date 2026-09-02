@@ -10,6 +10,7 @@ public interface IItemDefinition : IGameDefinition
     int BasePrice { get; }
     ItemRarity Rarity { get; }
     int MagicPower { get; }
+    double Weight { get; }
 }
 
 public enum ItemCategory { Weapon, Armor, MagicItem, Miscellaneous }

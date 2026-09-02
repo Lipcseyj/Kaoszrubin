@@ -225,102 +225,102 @@ STATUS004,Betegség,🤒,,0,0,0,0,0,80,80,50,50,0,0,1,A maximális HP és manna 
 STATUS005,Vérzés,🩸,4,1,3,0,0,0,100,100,100,100,0,0,1,Minden saját támadási kör végén 1-3 páncélt figyelmen kívül hagyó sebzés. Négy aktiválódás után elmúlik.
 
 #Tárgyak
-Id,Név,Jellemzés,Ár,Hatás,Érték,HarcbanHasználható
-T001,Útravaló,Egyszerű tartós élelem amely csillapítja az éhséget.,8,Food,25,nem
-T002,Bőrkulacs,Vízzel töltött edény amely enyhíti a szomjúságot.,12,Water,35,nem
+Id,Név,Jellemzés,Ár,Hatás,Érték,HarcbanHasználható,Súly
+T001,Útravaló,Egyszerű tartós élelem amely csillapítja az éhséget.,8,Food,25,nem,0.2
+T002,Bőrkulacs,Vízzel töltött edény amely enyhíti a szomjúságot.,12,Water,35,nem,0.2
 T003,Kulcs,Egyszer használatos kulcs amely garantáltan kinyit vagy bezár egy ajtózárat.,60,None,0,nem
-T004,Kenyér,Friss cipó szerény de megbízható tápértékkel.,6,Food,20,nem
+T004,Kenyér,Friss cipó szerény de megbízható tápértékkel.,6,Food,20,nem,0.2
 T005,Sajt,Érett kemény sajt amely sokáig eltartható.,14,Food,28,nem
-T006,Füstölt hús,Nehéz füstölt húsadag hosszú utakra.,24,Food,45,nem
-T007,Törplakoma,Rendkívül tápláló törp étel amely kis adagban is jóllakat.,45,Food,65,nem
-T008,Fogadói lakoma,Gazdag hidegtál egy teljes napi éhség elűzésére.,70,Food,100,nem
+T006,Füstölt hús,Nehéz füstölt húsadag hosszú utakra.,24,Food,45,nem,0.2
+T007,Törplakoma,Rendkívül tápláló törp étel amely kis adagban is jóllakat.,45,Food,65,nem,0.3
+T008,Fogadói lakoma,Gazdag hidegtál egy teljes napi éhség elűzésére.,70,Food,100,nem,0.3
 T009,Aszalt gyümölcs,Édes könnyű élelem gyors erőgyűjtéshez.,12,Food,25,nem
 T010,Mézes kalács,Fűszeres sütemény amely meglepően laktató.,20,Food,38,nem
 T011,Kis gyógyital,Vörös ital amely kisebb sebeket azonnal összeforraszt.,35,Heal,20,igen
-T012,Gyógyital,Erős vörös főzet komoly sérülések kezelésére.,90,Heal,50,igen
-T013,Nagy gyógyital,Sűrű rubinszínű elixír amely súlyos sebeket is begyógyít.,220,Heal,120,igen
+T012,Gyógyital,Erős vörös főzet komoly sérülések kezelésére.,90,Heal,50,igen,0.2
+T013,Nagy gyógyital,Sűrű rubinszínű elixír amely súlyos sebeket is begyógyít.,220,Heal,120,igen,0.2
 T014,Kis varázsital,Kék ital amely kevés mágikus energiát állít helyre.,40,RestoreMana,15,igen
-T015,Varázsital,Fénylő kék főzet a kimerült varázshasználóknak.,110,RestoreMana,40,igen
-T016,Nagy varázsital,Örvénylő azúr elixír jelentős manna visszanyerésére.,260,RestoreMana,90,igen
+T015,Varázsital,Fénylő kék főzet a kimerült varázshasználóknak.,110,RestoreMana,40,igen,0.2
+T016,Nagy varázsital,Örvénylő azúr elixír jelentős manna visszanyerésére.,260,RestoreMana,90,igen,0.2
 T017,Ellenméreg,Keserű zöld oldat amely megszünteti a mérgezést.,75,CurePoison,0,nem
-T018,Gyógyfüves orvosság,Erős gyógynövénykeverék betegségek kezelésére.,90,CureDisease,0,nem
+T018,Gyógyfüves orvosság,Erős gyógynövénykeverék betegségek kezelésére.,90,CureDisease,0,nem,0.2
 T019,Kötés,Tiszta vászon és vérzéscsillapító por friss sebekhez.,30,StopBleeding,0,nem
 T020,Gyógytea,Meleg gyógynövénytea amely 60 vizet ad és 5–15 HP-t gyógyít.,36,Water,60,nem
-T021,Varázskönyv,A mágus ismert és memorizált varázslatait tartalmazó személyes könyv.,1,None,0,nem
-T022,Szent szimbólum,A pap hitét és ismert imáit összpontosító személyes szent jelkép.,1,None,0,nem
+T021,Varázskönyv,A mágus ismert és memorizált varázslatait tartalmazó személyes könyv.,1,None,0,nem,0.2
+T022,Szent szimbólum,A pap hitét és ismert imáit összpontosító személyes szent jelkép.,1,None,0,nem,0.2
 T023,Mézsör,Édes mézes ital amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40,nem
 T024,Fűszeres bor,Melengető bor amely 40 vizet valamint 10 akcióra +2 kezdeményezést és +1 találatot ad.,100,Water,40,nem
-T025,Fáklya,Olajos fáklya amely tizenkét akcióra kettővel növeli a hordozó látótávját.,24,Vision,2,nem
+T025,Fáklya,Olajos fáklya amely tizenkét akcióra kettővel növeli a hordozó látótávját.,24,Vision,2,nem,0.3
 T026,Elesett lovag jelvénye,Megfakult rendjel Roderic egykori bajtársainak címerével.,1,None,0,nem
 T027,Az Ezüst Eskü pecsétje,Az Ezüst Eskü Rendjének ősi nagypecsétje. Egy kard előtt álló ezüst pajzs díszíti.,1,None,0,nem
 
 #Varázstárgyak
-Id,Név,Típus,Kategória,Ár,Töltet,VarázslatId,Hatás,Érték,CsakMágus,Jellemzés,MágikusErő
+Id,Név,Típus,Kategória,Ár,Töltet,VarázslatId,Hatás,Érték,CsakMágus,Jellemzés,MágikusErő,Súly
 M001,Védelem gyűrűje,Varázsgyűrű,Varázs,650,0,,Defense,1,nem,Ezüstgyűrű amely láthatatlan pajzsot von viselője köré.,1
-M002,Mágikus lövedék tekercse,Varázstekercs,Varázs,180,1,S001,None,0,igen,Eldobható tekercs egyetlen Mágikus lövedék varázslattal.,1
-M003,Szent szimbólum,Amulett,Varázs,500,0,,BattleHeal,3,nem,Áldott jelkép amely minden csata elején enyhíti viselője sebeit.,2
-M004,Tanonc pálcája,Varázspálca,Varázs,900,3,S001,None,0,nem,Egyszerű varázspálca három Mágikus lövedék töltettel.,2
+M002,Mágikus lövedék tekercse,Varázstekercs,Varázs,180,1,S001,None,0,igen,Eldobható tekercs egyetlen Mágikus lövedék varázslattal.,1,0.2
+M003,Szent szimbólum,Amulett,Varázs,500,0,,BattleHeal,3,nem,Áldott jelkép amely minden csata elején enyhíti viselője sebeit.,2,0.2
+M004,Tanonc pálcája,Varázspálca,Varázs,900,3,S001,None,0,nem,Egyszerű varázspálca három Mágikus lövedék töltettel.,2,0.2
 M005,Pontosság gyűrűje,Varázsgyűrű,Varázs,800,0,,Hit,1,nem,A gyűrű finoman a célpont felé vezeti viselője kezét.,2
 M006,Erő gyűrűje,Varázsgyűrű,Varázs,950,0,,Damage,2,nem,Vörös kővel díszített gyűrű amely megerősíti a csapásokat.,2
 M007,Sietség gyűrűje,Varázsgyűrű,Varázs,1100,0,,Initiative,3,nem,Könnyű aranygyűrű amely felgyorsítja viselője reakcióit.,3
 M008,Őrszem gyűrűje,Varázsgyűrű,Varázs,1250,0,,Defense,2,nem,Kék pecsétgyűrű amely előre jelzi a közelgő ütéseket.,3
 M009,Harag gyűrűje,Varázsgyűrű,Varázs,1450,0,,Damage,3,nem,Sötétvas gyűrű amely fájdalmasabbá teszi a találatokat.,4
 M010,Sólyomszem gyűrűje,Varázsgyűrű,Varázs,1600,0,,Hit,2,nem,Éles látást és biztosabb találatot adó smaragdgyűrű.,4
-M011,Őrző amulett,Amulett,Varázs,750,0,,Defense,1,nem,Rúnás amulett amely tompítja a beérkező csapásokat.,2
-M012,Harcos amulett,Amulett,Varázs,900,0,,Damage,2,nem,Apró kardot formázó függő amely erőt ad a támadáshoz.,2
-M013,Fürgeség amulettje,Amulett,Varázs,1050,0,,Initiative,3,nem,Szárnyas medál amely gyorsabb reagálásra ösztönöz.,3
-M014,Élet amulettje,Amulett,Varázs,1300,0,,BattleHeal,8,nem,Zöld kristály amely minden csata kezdetén gyógyító energiát ad.,3
-M015,Mannaforrás amulettje,Amulett,Varázs,1450,0,,BattleMana,8,nem,Kék kristálymedál amely csata elején mannát állít helyre.,4
-M016,Vadász amulettje,Amulett,Varázs,1550,0,,Hit,2,nem,Agancs alakú amulett amely segít megtalálni az ellenfél gyenge pontját.,4
+M011,Őrző amulett,Amulett,Varázs,750,0,,Defense,1,nem,Rúnás amulett amely tompítja a beérkező csapásokat.,2,0.2
+M012,Harcos amulett,Amulett,Varázs,900,0,,Damage,2,nem,Apró kardot formázó függő amely erőt ad a támadáshoz.,2,0.2
+M013,Fürgeség amulettje,Amulett,Varázs,1050,0,,Initiative,3,nem,Szárnyas medál amely gyorsabb reagálásra ösztönöz.,3,0.2
+M014,Élet amulettje,Amulett,Varázs,1300,0,,BattleHeal,8,nem,Zöld kristály amely minden csata kezdetén gyógyító energiát ad.,3,0.2
+M015,Mannaforrás amulettje,Amulett,Varázs,1450,0,,BattleMana,8,nem,Kék kristálymedál amely csata elején mannát állít helyre.,4,0.2
+M016,Vadász amulettje,Amulett,Varázs,1550,0,,Hit,2,nem,Agancs alakú amulett amely segít megtalálni az ellenfél gyenge pontját.,4,0.2
 M017,Erő rubingyűrűje,Varázsgyűrű,Varázs,1200,0,,Strength,1,nem,Rubinnal foglalt gyűrű amely egy ponttal növeli viselője Erejét legfeljebb 13-ig.,3
-M018,Titánerő amulettje,Amulett,Varázs,3000,0,,Strength,2,nem,Súlyos ércmedál amely két ponttal növeli viselője Erejét legfeljebb 13-ig.,6
+M018,Titánerő amulettje,Amulett,Varázs,3000,0,,Strength,2,nem,Súlyos ércmedál amely két ponttal növeli viselője Erejét legfeljebb 13-ig.,6,0.2
 M019,Fürgeség zafírgyűrűje,Varázsgyűrű,Varázs,1200,0,,Dexterity,1,nem,Kék zafírgyűrű amely egy ponttal növeli viselője Ügyességét legfeljebb 13-ig.,3
-M020,Macskalépés amulettje,Amulett,Varázs,3000,0,,Dexterity,2,nem,Könnyű ezüstmedál amely két ponttal növeli viselője Ügyességét legfeljebb 13-ig.,6
+M020,Macskalépés amulettje,Amulett,Varázs,3000,0,,Dexterity,2,nem,Könnyű ezüstmedál amely két ponttal növeli viselője Ügyességét legfeljebb 13-ig.,6,0.2
 M021,Életerő smaragdgyűrűje,Varázsgyűrű,Varázs,1200,0,,Health,1,nem,Smaragddal díszített gyűrű amely egy ponttal növeli viselője Egészségét legfeljebb 13-ig.,3
-M022,Életfa amulettje,Amulett,Varázs,3000,0,,Health,2,nem,Életfarúnás medál amely két ponttal növeli viselője Egészségét legfeljebb 13-ig.,6
+M022,Életfa amulettje,Amulett,Varázs,3000,0,,Health,2,nem,Életfarúnás medál amely két ponttal növeli viselője Egészségét legfeljebb 13-ig.,6,0.2
 M023,Értelem ametisztgyűrűje,Varázsgyűrű,Varázs,1200,0,,Intelligence,1,nem,Ametiszttel foglalt gyűrű amely egy ponttal növeli viselője Intelligenciáját legfeljebb 13-ig.,3
-M024,Bölcsesség amulettje,Amulett,Varázs,3000,0,,Intelligence,2,nem,Lila kristálymedál amely két ponttal növeli viselője Intelligenciáját legfeljebb 13-ig.,6
+M024,Bölcsesség amulettje,Amulett,Varázs,3000,0,,Intelligence,2,nem,Lila kristálymedál amely két ponttal növeli viselője Intelligenciáját legfeljebb 13-ig.,6,0.2
 LMI-R001,Tűzúr gyűrűje,Varázsgyűrű,Legendás,12000,0,,Damage,5,nem,Olvadt aranyból készült gyűrű örökké izzó rubinnal.,7
 LMI-R002,Az Idő gyűrűje,Varázsgyűrű,Legendás,14500,0,,Initiative,8,nem,Ősi gyűrű amely egy szívdobbanással a világ elé helyezi viselőjét.,9
 LMI-R003,Végzetpecsét,Varázsgyűrű,Legendás,15500,0,,Hit,5,nem,Fekete pecsétgyűrű amely kijelöli az elkerülhetetlen találat helyét.,9
 LMI-R004,Aegis gyűrűje,Varázsgyűrű,Legendás,17000,0,,Defense,6,nem,Fehérarany gyűrű egy elveszett isteni pajzs szilánkjával.,10
 LMI-R005,Újjászületés köre,Varázsgyűrű,Legendás,19000,0,,BattleHeal,20,nem,Főnixtollat rejtő gyűrű amely minden csata előtt életet lehel viselőjébe.,11
-LMI-A001,Sárkányszív amulett,Amulett,Legendás,13500,0,,Damage,4,nem,Kristályba zárt sárkányszív lüktet benne tüzes erővel.,8
-LMI-A002,Isteni őrző,Amulett,Legendás,17500,0,,Defense,7,nem,Szárnyas amulett amely láthatatlan őrangyalt idéz viselője mellé.,10
-LMI-A003,Végtelen forrás,Amulett,Legendás,18500,0,,BattleMana,20,nem,Mélyén soha ki nem hunyó kék csillag táplálja a varázserőt.,11
-LMI-A004,Trollkirály szíve,Amulett,Legendás,16500,0,,BattleHeal,25,nem,Ősi zöld kő elképesztő regeneráló erővel.,10
-LMI-A005,Csillagvadász medálja,Amulett,Legendás,15000,0,,Hit,4,nem,Ezüst csillagtérkép amely megmutatja minden ellenfél végzetes pontját.,9
-MW001,Parázspálca,Varázspálca,Varázs,1200,5,S003,None,0,nem,Öt Égő kéz varázslatot tároló meleg tapintású pálca.,3
-MW002,Villámpálca,Varázspálca,Varázs,2400,4,S004,None,0,nem,Négy Villámcsapás töltetet hordozó rézveretes pálca.,5
-MW003,Lángnyíl pálcája,Varázspálca,Varázs,1900,6,S005,None,0,nem,Hat Lángoló nyíl varázslatot rejtő vörös pálca.,4
-MW004,Tűzgolyók pálcája,Varázspálca,Varázs,4200,5,S007,None,0,nem,Öt pusztító Tűzgolyó töltettel rendelkező obszidián pálca.,7
-MW005,Jégvihar pálcája,Varázspálca,Varázs,4800,4,S008,None,0,nem,Négy Jégvihar varázslatot őrző dérlepte pálca.,7
-MW006,Villámvihar pálcája,Varázspálca,Varázs,5600,3,S009,None,0,nem,Három Villámvihar töltetet tartalmazó veszélyesen vibráló pálca.,8
-MW007,Teleportáció pálcája,Varázspálca,Varázs,6200,5,S010,None,0,nem,Öt Teleportáció varázslatot tároló csavart kristálypálca.,9
-MW008,Lövedékzápor pálcája,Varázspálca,Varázs,2100,8,S001,None,0,nem,Nyolc Mágikus lövedék töltettel ellátott megbízható pálca.,4
-MS002,Fagyasztó érintés tekercse,Varázstekercs,Varázs,220,1,S002,None,0,igen,Egyetlen Fagyasztó érintés varázslatot tartalmazó tekercs.,1
-MS003,Égő kéz tekercse,Varázstekercs,Varázs,250,1,S003,None,0,igen,Egyetlen Égő kéz varázslatot tartalmazó tekercs.,1
-MS004,Villámcsapás tekercse,Varázstekercs,Varázs,380,1,S004,None,0,igen,Egyetlen Villámcsapás varázslatot tartalmazó tekercs.,2
-MS005,Lángoló nyíl tekercse,Varázstekercs,Varázs,330,1,S005,None,0,igen,Egyetlen Lángoló nyíl varázslatot tartalmazó tekercs.,2
-MS006,Láthatatlanság tekercse,Varázstekercs,Varázs,600,1,S006,None,0,igen,Egyetlen Láthatatlanság varázslatot tartalmazó tekercs.,3
-MS007,Tűzgolyó tekercse,Varázstekercs,Varázs,750,1,S007,None,0,igen,Egyetlen Tűzgolyó varázslatot tartalmazó tekercs.,4
-MS008,Jégvihar tekercse,Varázstekercs,Varázs,900,1,S008,None,0,igen,Egyetlen Jégvihar varázslatot tartalmazó tekercs.,5
-MS009,Villámvihar tekercse,Varázstekercs,Varázs,1100,1,S009,None,0,igen,Egyetlen Villámvihar varázslatot tartalmazó tekercs.,6
-MS010,Teleportáció tekercse,Varázstekercs,Varázs,1300,1,S010,None,0,igen,Egyetlen Teleportáció varázslatot tartalmazó tekercs.,7
-MS011,Meteorzápor tekercse,Varázstekercs,Varázs,1800,1,S011,None,0,igen,Egyetlen Meteorzápor varázslatot tartalmazó ritka tekercs.,9
-MS012,Időmegállítás tekercse,Varázstekercs,Legendás,3500,1,S012,None,0,igen,Egyetlen Időmegállítás varázslatot őrző legendás tekercs.,12
-PS001,Gyógyító érintés tekercse,Varázstekercs,Varázs,220,1,P001,None,0,igen,Egyetlen Gyógyító érintés papi varázslat mágusok által is használható másolata.,1
-PS002,Szent fény tekercse,Varázstekercs,Varázs,280,1,P002,None,0,igen,Egyetlen Szent fény papi varázslat mágusok által is használható másolata.,1
-PS003,Áldás tekercse,Varázstekercs,Varázs,320,1,P003,None,0,igen,Egyetlen Áldás papi varázslat mágusok által is használható másolata.,2
-PS004,Szent pajzs tekercse,Varázstekercs,Varázs,420,1,P004,None,0,igen,Egyetlen Szent pajzs papi varázslat mágusok által is használható másolata.,2
-PS005,Gyógyítás tekercse,Varázstekercs,Varázs,600,1,P005,None,0,igen,Egyetlen Gyógyítás papi varázslat mágusok által is használható másolata.,3
-PS006,Méregűzés tekercse,Varázstekercs,Varázs,500,1,P006,None,0,igen,Egyetlen Méregűzés papi varázslat mágusok által is használható másolata.,3
-PS007,Védelem a gonosztól tekercse,Varázstekercs,Varázs,700,1,P007,None,0,igen,Egyetlen Védelem a gonosztól papi varázslat mágusok által is használható másolata.,4
-PS008,Feltámasztás tekercse,Varázstekercs,Legendás,2500,1,P008,None,0,igen,Egyetlen Feltámasztás papi varázslat mágusok által is használható legendás másolata.,10
-PS009,Szent csapás tekercse,Varázstekercs,Varázs,900,1,P009,None,0,igen,Egyetlen Szent csapás papi varázslat mágusok által is használható másolata.,5
-PS010,Isteni védelem tekercse,Varázstekercs,Varázs,1200,1,P010,None,0,igen,Egyetlen Isteni védelem papi varázslat mágusok által is használható másolata.,6
-PS011,Szent ítélet tekercse,Varázstekercs,Legendás,1900,1,P011,None,0,igen,Egyetlen Szent ítélet papi varázslat mágusok által is használható legendás másolata.,8
-PS012,Isteni csoda tekercse,Varázstekercs,Legendás,4000,1,P012,None,0,igen,Egyetlen Isteni csoda papi varázslat mágusok által is használható legendás másolata.,12
+LMI-A001,Sárkányszív amulett,Amulett,Legendás,13500,0,,Damage,4,nem,Kristályba zárt sárkányszív lüktet benne tüzes erővel.,8,0.2
+LMI-A002,Isteni őrző,Amulett,Legendás,17500,0,,Defense,7,nem,Szárnyas amulett amely láthatatlan őrangyalt idéz viselője mellé.,10,0.2
+LMI-A003,Végtelen forrás,Amulett,Legendás,18500,0,,BattleMana,20,nem,Mélyén soha ki nem hunyó kék csillag táplálja a varázserőt.,11,0.2
+LMI-A004,Trollkirály szíve,Amulett,Legendás,16500,0,,BattleHeal,25,nem,Ősi zöld kő elképesztő regeneráló erővel.,10,0.2
+LMI-A005,Csillagvadász medálja,Amulett,Legendás,15000,0,,Hit,4,nem,Ezüst csillagtérkép amely megmutatja minden ellenfél végzetes pontját.,9,0.2
+MW001,Parázspálca,Varázspálca,Varázs,1200,5,S003,None,0,nem,Öt Égő kéz varázslatot tároló meleg tapintású pálca.,3,0.2
+MW002,Villámpálca,Varázspálca,Varázs,2400,4,S004,None,0,nem,Négy Villámcsapás töltetet hordozó rézveretes pálca.,5,0.2
+MW003,Lángnyíl pálcája,Varázspálca,Varázs,1900,6,S005,None,0,nem,Hat Lángoló nyíl varázslatot rejtő vörös pálca.,4,0.2
+MW004,Tűzgolyók pálcája,Varázspálca,Varázs,4200,5,S007,None,0,nem,Öt pusztító Tűzgolyó töltettel rendelkező obszidián pálca.,7,0.2
+MW005,Jégvihar pálcája,Varázspálca,Varázs,4800,4,S008,None,0,nem,Négy Jégvihar varázslatot őrző dérlepte pálca.,7,0.2
+MW006,Villámvihar pálcája,Varázspálca,Varázs,5600,3,S009,None,0,nem,Három Villámvihar töltetet tartalmazó veszélyesen vibráló pálca.,8,0.2
+MW007,Teleportáció pálcája,Varázspálca,Varázs,6200,5,S010,None,0,nem,Öt Teleportáció varázslatot tároló csavart kristálypálca.,9,0.2
+MW008,Lövedékzápor pálcája,Varázspálca,Varázs,2100,8,S001,None,0,nem,Nyolc Mágikus lövedék töltettel ellátott megbízható pálca.,4,0.2
+MS002,Fagyasztó érintés tekercse,Varázstekercs,Varázs,220,1,S002,None,0,igen,Egyetlen Fagyasztó érintés varázslatot tartalmazó tekercs.,1,0.2
+MS003,Égő kéz tekercse,Varázstekercs,Varázs,250,1,S003,None,0,igen,Egyetlen Égő kéz varázslatot tartalmazó tekercs.,1,0.2
+MS004,Villámcsapás tekercse,Varázstekercs,Varázs,380,1,S004,None,0,igen,Egyetlen Villámcsapás varázslatot tartalmazó tekercs.,2,0.2
+MS005,Lángoló nyíl tekercse,Varázstekercs,Varázs,330,1,S005,None,0,igen,Egyetlen Lángoló nyíl varázslatot tartalmazó tekercs.,2,0.2
+MS006,Láthatatlanság tekercse,Varázstekercs,Varázs,600,1,S006,None,0,igen,Egyetlen Láthatatlanság varázslatot tartalmazó tekercs.,3,0.2
+MS007,Tűzgolyó tekercse,Varázstekercs,Varázs,750,1,S007,None,0,igen,Egyetlen Tűzgolyó varázslatot tartalmazó tekercs.,4,0.2
+MS008,Jégvihar tekercse,Varázstekercs,Varázs,900,1,S008,None,0,igen,Egyetlen Jégvihar varázslatot tartalmazó tekercs.,5,0.2
+MS009,Villámvihar tekercse,Varázstekercs,Varázs,1100,1,S009,None,0,igen,Egyetlen Villámvihar varázslatot tartalmazó tekercs.,6,0.2
+MS010,Teleportáció tekercse,Varázstekercs,Varázs,1300,1,S010,None,0,igen,Egyetlen Teleportáció varázslatot tartalmazó tekercs.,7,0.2
+MS011,Meteorzápor tekercse,Varázstekercs,Varázs,1800,1,S011,None,0,igen,Egyetlen Meteorzápor varázslatot tartalmazó ritka tekercs.,9,0.2
+MS012,Időmegállítás tekercse,Varázstekercs,Legendás,3500,1,S012,None,0,igen,Egyetlen Időmegállítás varázslatot őrző legendás tekercs.,12,0.2
+PS001,Gyógyító érintés tekercse,Varázstekercs,Varázs,220,1,P001,None,0,igen,Egyetlen Gyógyító érintés papi varázslat mágusok által is használható másolata.,1,0.2
+PS002,Szent fény tekercse,Varázstekercs,Varázs,280,1,P002,None,0,igen,Egyetlen Szent fény papi varázslat mágusok által is használható másolata.,1,0.2
+PS003,Áldás tekercse,Varázstekercs,Varázs,320,1,P003,None,0,igen,Egyetlen Áldás papi varázslat mágusok által is használható másolata.,2,0.2
+PS004,Szent pajzs tekercse,Varázstekercs,Varázs,420,1,P004,None,0,igen,Egyetlen Szent pajzs papi varázslat mágusok által is használható másolata.,2,0.2
+PS005,Gyógyítás tekercse,Varázstekercs,Varázs,600,1,P005,None,0,igen,Egyetlen Gyógyítás papi varázslat mágusok által is használható másolata.,3,0.2
+PS006,Méregűzés tekercse,Varázstekercs,Varázs,500,1,P006,None,0,igen,Egyetlen Méregűzés papi varázslat mágusok által is használható másolata.,3,0.2
+PS007,Védelem a gonosztól tekercse,Varázstekercs,Varázs,700,1,P007,None,0,igen,Egyetlen Védelem a gonosztól papi varázslat mágusok által is használható másolata.,4,0.2
+PS008,Feltámasztás tekercse,Varázstekercs,Legendás,2500,1,P008,None,0,igen,Egyetlen Feltámasztás papi varázslat mágusok által is használható legendás másolata.,10,0.2
+PS009,Szent csapás tekercse,Varázstekercs,Varázs,900,1,P009,None,0,igen,Egyetlen Szent csapás papi varázslat mágusok által is használható másolata.,5,0.2
+PS010,Isteni védelem tekercse,Varázstekercs,Varázs,1200,1,P010,None,0,igen,Egyetlen Isteni védelem papi varázslat mágusok által is használható másolata.,6,0.2
+PS011,Szent ítélet tekercse,Varázstekercs,Legendás,1900,1,P011,None,0,igen,Egyetlen Szent ítélet papi varázslat mágusok által is használható legendás másolata.,8,0.2
+PS012,Isteni csoda tekercse,Varázstekercs,Legendás,4000,1,P012,None,0,igen,Egyetlen Isteni csoda papi varázslat mágusok által is használható legendás másolata.,12,0.2
 
 #Fegyvertípus
 Id,Név

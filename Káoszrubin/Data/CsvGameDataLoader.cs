@@ -272,13 +272,15 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.Items:
                 items.Add(new MiscItemDefinition(id, name, Cell(cells, 2), RequiredPrice(cells, 3, id),
-                    ParseConsumableEffect(cells, 4), Integer(cells, 5) ?? 0, IsYes(cells, 6)));
+                    ParseConsumableEffect(cells, 4), Integer(cells, 5) ?? 0, IsYes(cells, 6),
+                    PositiveWeight(cells, 7, id, "tárgy")));
                 break;
             case DataSection.MagicItems:
                 magicItems.Add(new MagicItemDefinition(id, name,
                     ParseMagicItemKind(cells, 2), ParseRarity(cells, 3), RequiredPrice(cells, 4, id),
                     Integer(cells, 5) ?? 0, EmptyAsNull(Cell(cells, 6)), ParseMagicItemEffect(cells, 7),
-                    Integer(cells, 8) ?? 0, MagicItemAllowedClasses(cells, 9, ParseMagicItemKind(cells, 2), EmptyAsNull(Cell(cells, 6))), Cell(cells, 10), Integer(cells, 11) ?? 0));
+                    Integer(cells, 8) ?? 0, MagicItemAllowedClasses(cells, 9, ParseMagicItemKind(cells, 2), EmptyAsNull(Cell(cells, 6))), Cell(cells, 10), Integer(cells, 11) ?? 0,
+                    PositiveWeight(cells, 12, id, "varázstárgy")));
                 break;
             case DataSection.ArcaneSpells:
                 spells.Add(new SpellDefinition(id, name, SpellSchool.Arcane, RequiredSpellLevel(cells, id),
@@ -489,12 +491,12 @@ public static class CsvGameDataLoader
         ? price
         : throw new InvalidOperationException($"A(z) '{id}' tárgy ára hiányzik vagy nem pozitív az adatok.csv fájlban.");
 
-    private static int PositiveWeight(string[] cells, int index, string id, string itemType)
+    private static double PositiveWeight(string[] cells, int index, string id, string itemType)
     {
-        if (string.IsNullOrWhiteSpace(Cell(cells, index))) return 1;
-        return Integer(cells, index) is > 0 and var weight
+        if (string.IsNullOrWhiteSpace(Cell(cells, index))) return 0.1;
+        return Double(cells, index) is > 0 and var weight
             ? weight
-            : throw new InvalidOperationException($"A(z) '{id}' {itemType} súlya pozitív egész szám legyen.");
+            : throw new InvalidOperationException($"A(z) '{id}' {itemType} súlya pozitív szám legyen.");
     }
 
     private static int RequiredWeaponStrength(string[] cells, int index, string id) =>

@@ -35,19 +35,20 @@ public static class ItemInspectionFormatter
                 $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"} | súly: {armor.Weight} | " +
                 $"kasztok: {AllowedClassNames(armor.AllowedClassIds, gameData)}",
             MagicItemDefinition magic =>
-                $"Varázstárgy | típus: {MagicItemKindName(magic.Kind)} | " +
+                $"Varázstárgy | típus: {MagicItemKindName(magic.Kind)} | súly: {magic.Weight} | " +
                 $"hatás: {MagicItemEffectName(magic.Effect)} {magic.EffectValue}" +
                 (magic.SpellId is null ? string.Empty : $" | varázslat: {gameData.GetSpell(magic.SpellId).Name}") +
                 (magic.MaximumCharges > 0 ? $" | töltet: {charges}/{magic.MaximumCharges}" : string.Empty) +
                 $" | kasztok: {AllowedClassNames(magic.AllowedClassIds, gameData)}",
             MiscItemDefinition misc when SpellcastingRules.IsSpellcastingFocus(misc) =>
-                "Karakterhez kötött varázsfókusz | nem mozgatható, nem dobható el és nem kereskedhető",
+                $"Karakterhez kötött varázsfókusz | súly: {misc.Weight} | nem mozgatható, nem dobható el és nem kereskedhető",
             MiscItemDefinition misc when misc.Id == MiscItemIds.HerbalTea =>
-                $"Használati tárgy | hatás: víz {misc.EffectValue}, HP 5–15",
+                $"Használati tárgy | súly: {misc.Weight} | hatás: víz {misc.EffectValue}, HP 5–15",
             MiscItemDefinition misc when misc.Id is MiscItemIds.Mead or MiscItemIds.SpicedWine =>
-                $"Használati tárgy | hatás: víz {misc.EffectValue}, +2 kezdeményezés és +1 találat 10 akcióig",
+                $"Használati tárgy | súly: {misc.Weight} | hatás: víz {misc.EffectValue}, +2 kezdeményezés és +1 találat 10 akcióig",
             MiscItemDefinition misc when misc.Effect != ConsumableEffect.None =>
-                $"Használati tárgy | hatás: {ConsumableEffectName(misc.Effect)} {misc.EffectValue}",
+                $"Használati tárgy | súly: {misc.Weight} | hatás: {ConsumableEffectName(misc.Effect)} {misc.EffectValue}",
+            MiscItemDefinition misc => $"Általános tárgy | súly: {misc.Weight}",
             _ => "Általános tárgy"
         };
         var description = string.IsNullOrWhiteSpace(item.Description) ? "Nincs jellemzés." : item.Description;
@@ -101,11 +102,11 @@ public static class ItemInspectionFormatter
             preview.Profile)));
     }
 
-    private static CharacterMobilityProfile Profile(SessionCharacterSnapshot character, int weight)
+    private static CharacterMobilityProfile Profile(SessionCharacterSnapshot character, double weight)
     {
         var sheet = character.CharacterSheet!;
         return CharacterMobilityRules.EvaluateEquipment(sheet.Abilities, character.CharacterClassId,
-            weight, sheet.HasArmorMaster);
+            weight, sheet.HasArmorMaster, Math.Max(sheet.CarriedWeight, sheet.EquippedWeight));
     }
 
     private static IItemDefinition? SlotDefinition(CharacterInventorySnapshot inventory, InventorySlotKind kind,

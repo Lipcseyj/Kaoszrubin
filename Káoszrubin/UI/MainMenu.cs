@@ -883,6 +883,7 @@ public sealed class MainMenu
             Hotkey("DEL", "A kijelölt partitárs végleges kirúgása, megerősítéssel."),
             Blank(),
             Text("⚔ ⚖ a viselt harci felszerelés súlya; ⚡ a dobás előtti kezdeményezési alap."),
+            Text("A HÁTIZSÁK melletti ⚖ a teljes hordott súlyt és az Erőből származó teherbírást mutatja; a hordott teher a térképi tempót lassítja."),
             Blank(),
             Section("PARTY TAKTIKÁK", ConsoleColor.Yellow),
             Text("A partiparancsok az AI által irányított NPC társak mozgását szabályozzák. Zárt alakzatban a vendég karakterét is a vezér közös mozgása irányítja."),
