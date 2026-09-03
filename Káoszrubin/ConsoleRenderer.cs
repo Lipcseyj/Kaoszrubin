@@ -156,6 +156,8 @@ public sealed class ConsoleRenderer
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
     private readonly HashSet<Position> _teamBattleFocusPositions = [];
+    private readonly BattleCommandPanel _battleCommandPanel = new(
+        ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', PlayfieldWidth));
 
     public ConsoleRenderer(GameDataCatalog gameData, Party party,
         Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null)
@@ -390,8 +392,16 @@ public sealed class ConsoleRenderer
     {
         _battleActive = true;
         _battleEnemy = enemy;
+        DrawBattleCommandPanel(string.Empty);
         DrawPicturePanel();
         DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
+    }
+
+    public void DrawBattleCommandPanel(string text)
+    {
+        var line = string.IsNullOrWhiteSpace(text) ? _battleCommandPanel.Close() : _battleCommandPanel.Open(text);
+        SetColors(_battleCommandPanel.Foreground, _battleCommandPanel.Background);
+        WriteAt(0, BattleCommandPanel.Row, line);
     }
     /// <summary>Kincs felvétele esetén rövid üzenet a battle/message panelre.</summary>
     public void DrawTreasureCollected(int goldAmount, bool jackpot, int jackpotChance, int rewardMultiplier) =>
@@ -421,8 +431,6 @@ public sealed class ConsoleRenderer
             _ => ConsoleColor.Cyan
         };
         DrawBattleMessage(entry.Message, color);
-        // A jobb oldali karakterlapon megjelenített sor: információ a vezérlésről.
-        WriteSheetLine(RightSheetBattleHintLine, "Space: tovább | saját kör: V/F1-F8", ConsoleColor.DarkYellow);
     }
 
     /// <summary>
@@ -433,6 +441,7 @@ public sealed class ConsoleRenderer
         _battleActive = false;
         _battleEnemy = null;
         DrawPicturePanel();
+        DrawBattleCommandPanel(string.Empty);
         WriteSheetLine(RightSheetBattleHintLine, string.Empty, ConsoleColor.DarkCyan);
         DrawBattleMessage(message ?? FormatBattleResultMessage(result, enemy));
     }

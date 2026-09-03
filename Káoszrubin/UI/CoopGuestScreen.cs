@@ -63,6 +63,8 @@ public sealed class CoopGuestScreen
     private IReadOnlyList<Position> _doorTargetCandidates = [];
     private int _doorTargetSelection;
     private GuestRenderFrame? _lastFrame;
+    private readonly BattleCommandPanel _battleCommandPanel = new(
+        ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', BattleCommandPanel.Width));
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData,
         GameSettingsService? musicSettings = null)
@@ -1411,15 +1413,14 @@ public sealed class CoopGuestScreen
                 ? messages[messageIndex]
                 : new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
         }
-        if (snapshot.Battle is { Participants.Count: > 0 } activeBattle)
-        {
-            var queue = string.Join(" › ", activeBattle.Participants
-                .OrderByDescending(participant => participant.Initiative)
-                .Take(6)
-                .Select(participant => (participant.IsCurrent ? "▶" : string.Empty) + participant.Name));
-            footer[0] = new GuestTextLine($"⚡ {activeBattle.Cycle}. kör: {queue}",
-                ConsoleColor.Yellow, ConsoleColor.Black);
-        }
+        var commandText = snapshot.Battle is { } battle
+            ? BattleCommandPanel.Format(battle.AllowedActions, battle.TacticOptions, !battle.IsPlayerTurn)
+            : string.Empty;
+        var commandLine = string.IsNullOrWhiteSpace(commandText)
+            ? _battleCommandPanel.Close()
+            : _battleCommandPanel.Open(commandText);
+        footer[0] = new GuestTextLine(commandLine, _battleCommandPanel.Foreground,
+            _battleCommandPanel.Background);
         if (_targetedBattleSpell is { } targeted && _spellTargetCursor is { } cursor)
             footer[^1] = new GuestTextLine($"╳ {targeted.Name} — {ConsoleRenderer.SpellTargetName(targeted.TargetType)}, " +
                 $"táv {targeted.Range}{(targeted.AreaRadius > 0 ? $", sugár {targeted.AreaRadius}" : string.Empty)} | " +
@@ -1826,9 +1827,8 @@ public sealed class CoopGuestScreen
                     WriteMapCell(x, mapTop + y, frame.Map[x, y]);
         }
 
-        if (fullRedraw)
-            WriteAt(0, frame.MapHeight, new GuestTextLine(new string('─', frame.MapWidth),
-                ConsoleColor.DarkCyan, ConsoleColor.Black), frame.MapWidth);
+        if (fullRedraw || previous!.Footers[0] != frame.Footers[0])
+            WriteAt(2, frame.MapHeight, frame.Footers[0], Math.Max(1, frame.MapWidth - 4));
 
         for (var row = 0; row < frame.Panel.Length; row++)
         {
@@ -1859,9 +1859,9 @@ public sealed class CoopGuestScreen
             WritePartyStatusAt(frame.MapWidth + 3, row, status);
         }
 
-        for (var row = 0; row < frame.Footers.Length; row++)
+        for (var row = 1; row < frame.Footers.Length; row++)
             if (fullRedraw || previous!.Footers[row] != frame.Footers[row])
-                WriteAt(2, frame.MapHeight + 1 + row, frame.Footers[row], Math.Max(1, frame.MapWidth - 4));
+                WriteAt(2, frame.MapHeight + row, frame.Footers[row], Math.Max(1, frame.MapWidth - 4));
 
         Console.ResetColor();
         TrySetCursorPosition(0, Math.Min(frame.WindowHeight - 1, frame.MapHeight + frame.Footers.Length));

@@ -104,8 +104,6 @@ public sealed class Game : ISessionCommandHandler
     private PartyCommandState _partyCommandState;
     private bool _saveAfterBattle;
     private bool _timeStopUsedThisBattle;
-    private bool _battleTacticHintLogged;
-    private bool _battleActionHintLogged;
     private int _battleStartingVitality;
     private int _battleStartingMana;
     private HashSet<string> _battleStartingStatusIds = new(StringComparer.OrdinalIgnoreCase);
@@ -4640,24 +4638,14 @@ public sealed class Game : ISessionCommandHandler
 
     private void PublishBattleControlHintOnce(BattleState state, Enemy enemy)
     {
-        string? message = null;
-        if (state.IsAwaitingTacticSelection && !_battleTacticHintLogged)
-        {
-            _battleTacticHintLogged = true;
-            message = BattlePromptText.Tactic(state.Player.CharacterClass.Id, GetBattleTacticOptions(state));
-        }
-        else if (state.IsPlayerTurn && !state.IsAwaitingTacticSelection && !_battleActionHintLogged)
-        {
-            _battleActionHintLogged = true;
-            var character = state.Player;
-            var position = GetCasterPosition(character);
-            message = BattlePromptText.PlayerAction(HasUsableCombatSpell(character, position, enemy),
-                CanTurnUndead(character, enemy) && !_turnUndeadUsedThisBattle.Contains(character));
-        }
-        if (message is null) return;
-        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow, [state.PlayerCharacterId]);
-        if (state.Player == SelectedCharacter)
-            _renderer.DrawInventoryMessage(message, ConsoleColor.Yellow);
+        var message = state.IsAwaitingTacticSelection
+            ? BattlePromptText.Tactic(state.Player.CharacterClass.Id, GetBattleTacticOptions(state))
+            : state.IsPlayerTurn
+                ? BattlePromptText.PlayerAction(
+                    HasUsableCombatSpell(state.Player, GetCasterPosition(state.Player), enemy),
+                    CanTurnUndead(state.Player, enemy) && !_turnUndeadUsedThisBattle.Contains(state.Player))
+                : BattlePromptText.EnemyTurn;
+        _renderer.DrawBattleCommandPanel(message);
     }
 
     private static BattleActionKind TacticActionFor(string characterClassId, int option) =>
@@ -5231,8 +5219,6 @@ public sealed class Game : ISessionCommandHandler
         if (_battleStarted || !initiatingCharacter.IsAlive || initiatingEnemy.CurrentHitPoints <= 0) return;
         CheckBossDiscovery([initiatingEnemy]);
         _timeStopUsedThisBattle = false;
-        _battleTacticHintLogged = false;
-        _battleActionHintLogged = false;
         _turnUndeadUsedThisBattle.Clear();
         _pendingLevelUps.Clear();
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
@@ -5418,13 +5404,7 @@ public sealed class Game : ISessionCommandHandler
                 }
                 _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, SelectedCharacter.Id,
                     [BattleActionKind.AdvanceEnemyTurn]);
-                var message = $"{battle.Turns.Cycle}. kör — {enemyActor.Name} következik. " +
-                              "Space: végrehajtja a saját akcióját.";
-                RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.DarkYellow,
-                    [SelectedCharacter.Id]);
-                if (_session.CharacterControls.FirstOrDefault(control =>
-                        control.CharacterId == SelectedCharacter.Id)?.AssignedPlayerId == _session.HostPlayerId)
-                    _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
+                _renderer.DrawBattleCommandPanel("Space: végrehajtja az ellenfél akcióját.");
                 _activeCoopHost?.TryPublish(CreateSessionSnapshot());
                 return;
             }
@@ -6087,25 +6067,11 @@ public sealed class Game : ISessionCommandHandler
     private void PublishTeamBattlePrompt(LiveCharacter character, Enemy enemy,
         IReadOnlyList<BattleActionKind> actions, TeamBattleEncounter battle)
     {
-        var message = battle.RuntimeFor(character).RequiresTacticSelection
-            ? BattlePromptText.Tactic(character.CharacterClass.Id,
-                GetTeamBattleTacticOptions(battle, character, enemy))
-            : "Akció: " + string.Join(" | ", new[]
-            {
-                actions.Contains(BattleActionKind.PhysicalAttack) ? "Space — támadás" : null,
-                actions.Contains(BattleActionKind.SelectTarget) ? "Tab — célpont" : null,
-                actions.Contains(BattleActionKind.Move) ? "nyilak — mozgás" : null,
-                actions.Contains(BattleActionKind.MoveFormation) ? "nyilak — alakzatmozgatás" : null,
-                actions.Contains(BattleActionKind.SwapToRear) ? "H — Hátra!" : null,
-                actions.Contains(BattleActionKind.UseItem) ? "U — tárgy használata" : null,
-                actions.Contains(BattleActionKind.CastSpell) ? "V/F1-F8 — varázslat" : null,
-                actions.Contains(BattleActionKind.TurnUndead) ? "T — halottűzés" : null,
-                actions.Contains(BattleActionKind.Retreat) ? "R — visszavonulás" : null,
-                actions.Contains(BattleActionKind.Pass) ? "P — passz" : null
-            }.Where(option => option is not null));
-        message = $"{battle.Turns.Cycle}. kör, {character.Name} ({battle.Current.MovementAllowance} mozgás) — {message}";
-        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow, [character.Id]);
-        if (character == SelectedCharacter) _renderer.DrawInventoryMessage(message, ConsoleColor.Yellow);
+        var message = BattleCommandPanel.Format(actions,
+            battle.RuntimeFor(character).RequiresTacticSelection
+                ? GetTeamBattleTacticOptions(battle, character, enemy)
+                : null);
+        _renderer.DrawBattleCommandPanel(message);
     }
 
     private IEnumerable<Enemy> AdjacentTeamEnemies(TeamBattleEncounter battle, LiveCharacter character) =>
@@ -6576,8 +6542,6 @@ public sealed class Game : ISessionCommandHandler
         if (_battleStarted) return;
         CheckBossDiscovery([enemy]);
         _timeStopUsedThisBattle = false;
-        _battleTacticHintLogged = false;
-        _battleActionHintLogged = false;
         _turnUndeadUsedThisBattle.Clear();
         _battleStartingVitality = battleCharacter.CurrentVitality;
         _battleStartingMana = battleCharacter.CurrentMana;
@@ -6641,6 +6605,7 @@ public sealed class Game : ISessionCommandHandler
 
             _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
                 [BattleActionKind.AdvanceEnemyTurn]);
+            _renderer.DrawBattleCommandPanel(BattlePromptText.EnemyTurn);
             return;
         }
         if (_activeBattleState is { IsCompleted: true }) FinishActiveBattle();
