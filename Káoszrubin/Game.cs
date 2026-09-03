@@ -78,6 +78,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly LootAndInventoryService _lootService;
     private readonly DungeonExpeditionCoordinator _expeditionCoordinator;
     private readonly SessionEventService _sessionEventService;
+    private readonly PartyCommandController _partyCommandController;
     private readonly SessionCommandDispatcher _commandDispatcher;
     private long _localCommandId;
     private BattleState? _activeBattleState;
@@ -99,6 +100,7 @@ public sealed class Game : ISessionCommandHandler
     private bool _partyHoldingPosition;
     private bool _partyRegrouping;
     private bool _partyAttackMode;
+    private PartyCommandState _partyCommandState;
     private bool _saveAfterBattle;
     private bool _timeStopUsedThisBattle;
     private bool _battleTacticHintLogged;
@@ -326,6 +328,8 @@ public sealed class Game : ISessionCommandHandler
         _lootService = new LootAndInventoryService(gameData, _random);
         _expeditionCoordinator = new DungeonExpeditionCoordinator(gameData, _random);
         _sessionEventService = new SessionEventService(_renderer, _soundEffects, _random);
+        _partyCommandController = new PartyCommandController(_random);
+        _partyCommandState = new PartyCommandState(false, false, false, null);
         _commandDispatcher = new SessionCommandDispatcher(_session, this, selectedCharacter.Id);
     }
 
@@ -4234,13 +4238,11 @@ public sealed class Game : ISessionCommandHandler
 
     private void TogglePartyHoldPosition()
     {
-        _partyHoldingPosition = !_partyHoldingPosition;
-        if (_partyHoldingPosition)
-        {
-            _partyRegrouping = false;
-            _partyAttackMode = false;
-            _partyScatterUntil = null;
-        }
+        _partyCommandState = _partyCommandController.ToggleHoldPosition(_partyCommandState);
+        _partyHoldingPosition = _partyCommandState.HoldingPosition;
+        _partyRegrouping = _partyCommandState.Regrouping;
+        _partyAttackMode = _partyCommandState.AttackMode;
+        _partyScatterUntil = _partyCommandState.ScatterUntil;
         if (!_partyHoldingPosition)
             foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
         AnnouncePartyCommand(_partyHoldingPosition
@@ -4251,13 +4253,11 @@ public sealed class Game : ISessionCommandHandler
 
     private void TogglePartyRegrouping()
     {
-        _partyRegrouping = !_partyRegrouping;
-        if (_partyRegrouping)
-        {
-            _partyHoldingPosition = false;
-            _partyAttackMode = false;
-            _partyScatterUntil = null;
-        }
+        _partyCommandState = _partyCommandController.ToggleRegrouping(_partyCommandState);
+        _partyHoldingPosition = _partyCommandState.HoldingPosition;
+        _partyRegrouping = _partyCommandState.Regrouping;
+        _partyAttackMode = _partyCommandState.AttackMode;
+        _partyScatterUntil = _partyCommandState.ScatterUntil;
         foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
         AnnouncePartyCommand(_partyRegrouping
             ? "🛡️ GYÜLEKEZŐ: minden NPC társ harc keresése nélkül a vezér mellé zárkózik és ott marad; a Támadás és Megállj kikapcsolt."
@@ -4267,13 +4267,11 @@ public sealed class Game : ISessionCommandHandler
 
     private void TogglePartyAttackMode()
     {
-        _partyAttackMode = !_partyAttackMode;
-        if (_partyAttackMode)
-        {
-            _partyHoldingPosition = false;
-            _partyRegrouping = false;
-            _partyScatterUntil = null;
-        }
+        _partyCommandState = _partyCommandController.ToggleAttackMode(_partyCommandState);
+        _partyHoldingPosition = _partyCommandState.HoldingPosition;
+        _partyRegrouping = _partyCommandState.Regrouping;
+        _partyAttackMode = _partyCommandState.AttackMode;
+        _partyScatterUntil = _partyCommandState.ScatterUntil;
         foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
         AnnouncePartyCommand(_partyAttackMode
             ? "⚔️ TÁMADÁS: minden NPC társ agresszívan keresi és támadja az ellenfeleket a parancs kikapcsolásáig."
@@ -4289,10 +4287,11 @@ public sealed class Game : ISessionCommandHandler
 
     private void ScatterPartyTemporarily()
     {
-        _partyHoldingPosition = false;
-        _partyRegrouping = false;
-        _partyAttackMode = false;
-        _partyScatterUntil = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        _partyCommandState = _partyCommandController.ScatterTemporarily(_partyCommandState, DateTime.UtcNow);
+        _partyHoldingPosition = _partyCommandState.HoldingPosition;
+        _partyRegrouping = _partyCommandState.Regrouping;
+        _partyAttackMode = _partyCommandState.AttackMode;
+        _partyScatterUntil = _partyCommandState.ScatterUntil;
         foreach (var member in _maze.PartyMembers)
             _nextPartyMoves[member] = DateTime.UtcNow + TimeSpan.FromMilliseconds(_random.Next(0, 100));
         AnnouncePartyCommand("Partiparancs: szétszóródás 10 másodpercig; a Támadás, Gyülekező és Megállj kikapcsolt.", ConsoleColor.Magenta);
