@@ -79,6 +79,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly DungeonExpeditionCoordinator _expeditionCoordinator;
     private readonly SessionEventService _sessionEventService;
     private readonly PartyCommandController _partyCommandController;
+    private readonly PartyAiController _partyAiController;
     private readonly SessionCommandDispatcher _commandDispatcher;
     private long _localCommandId;
     private BattleState? _activeBattleState;
@@ -329,6 +330,7 @@ public sealed class Game : ISessionCommandHandler
         _expeditionCoordinator = new DungeonExpeditionCoordinator(gameData, _random);
         _sessionEventService = new SessionEventService(_renderer, _soundEffects, _random);
         _partyCommandController = new PartyCommandController(_random);
+        _partyAiController = new PartyAiController(_random);
         _partyCommandState = new PartyCommandState(false, false, false, null);
         _commandDispatcher = new SessionCommandDispatcher(_session, this, selectedCharacter.Id);
     }
@@ -2777,8 +2779,8 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
         if (!CanControlledCharacterMove(SelectedCharacter)) return;
-        var rotated = PartyFormationRules.Rotate(_formation, clockwise);
-        var positions = PartyFormationRules.Positions(rotated, SelectedCharacter.Id, _player.Position);
+        var rotated = PartyFormationController.Rotate(_formation, clockwise);
+        var positions = PartyFormationController.Positions(rotated, SelectedCharacter.Id, _player.Position);
         if (!CanFormationOccupy(positions))
         {
             _renderer.DrawDeveloperMessage("Az alakzat itt nem tud 90 fokot fordulni: legalabb egy celmezo foglalt.");
@@ -2792,7 +2794,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void MoveLockedFormation(Direction direction)
     {
-        var current = PartyFormationRules.Positions(_formation, SelectedCharacter.Id, _player.Position);
+        var current = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
         var destinations = current.ToDictionary(pair => pair.Key, pair => pair.Value + direction);
         var enemyEntry = destinations.Select(pair => (pair.Key, Enemy: _maze.GetEnemyAt(pair.Value)))
             .FirstOrDefault(entry => entry.Enemy is not null);
@@ -2847,10 +2849,8 @@ public sealed class Game : ISessionCommandHandler
 
     private void ScheduleFormationMove()
     {
-        var slowestMultiplier = CharacterRoster.Party.Members.Where(member => member.IsAlive)
-            .Select(member => CharacterMobilityRules.Evaluate(member).ExplorationDelayMultiplier)
-            .DefaultIfEmpty(1).Max();
-        var delay = Math.Max(35, (int)Math.Round(ControlledMoveDelayMilliseconds * slowestMultiplier * 1.35));
+        var delay = PartyFormationController.CalculateMoveDelay(CharacterRoster.Party.Members,
+            ControlledMoveDelayMilliseconds);
         var next = DateTime.UtcNow + TimeSpan.FromMilliseconds(delay);
         foreach (var member in CharacterRoster.Party.Members) _nextControlledMoves[member.Id] = next;
     }
@@ -4162,43 +4162,28 @@ public sealed class Game : ISessionCommandHandler
 
     private void AdvanceFormationAssembly(DateTime now)
     {
-        var targets = PartyFormationRules.Positions(_formation, SelectedCharacter.Id, _player.Position);
-        var allInPlace = true;
-        var madeProgress = false;
-        foreach (var member in _maze.PartyMembers.Where(member => !member.IsTemporaryFollower).ToArray())
-        {
-            if (!targets.TryGetValue(member.Character.Id, out var target) || member.Position == target) continue;
-            allInPlace = false;
-            if (_nextPartyMoves.GetValueOrDefault(member) > now) continue;
-            ScheduleNextPartyMove(member, now);
-            var next = FindNextFormationAssemblyStep(member, target, targets);
-            var previous = member.Position;
-            if (next is { } nextPosition && _maze.GetEnemyAt(nextPosition) is { } enemy)
-            {
-                StartBattle(member, enemy);
-                return;
-            }
-            if (next is null || !CanEnterTrap(member.Character, next.Value)) continue;
-            if (_maze.GetPartyMemberAt(next.Value) is { } blockingFriend && blockingFriend != member)
-            {
-                var blockerAtOwnTarget = targets.TryGetValue(blockingFriend.Character.Id, out var blockerTarget) &&
-                                         blockerTarget == blockingFriend.Position;
-                if (blockerAtOwnTarget || !_maze.TrySwapPartyMembers(member, blockingFriend, _player.Position))
-                    continue;
-                madeProgress = true;
-                RegisterFormationAssemblyMove(member, previous);
-                RegisterFormationAssemblyMove(blockingFriend, next.Value);
-                ScheduleNextPartyMove(blockingFriend, now);
-                continue;
-            }
-            if (!_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
-            madeProgress = true;
-            RegisterFormationAssemblyMove(member, previous);
-        }
-        allInPlace = allInPlace || targets.All(pair => pair.Key == SelectedCharacter.Id
-            ? _player.Position == pair.Value
-            : FormationAvatar(pair.Key)?.Position == pair.Value);
-        if (allInPlace)
+        var targets = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
+        var result = PartyFormationAssemblyCoordinator.Advance(
+            now,
+            _maze,
+            _player,
+            SelectedCharacter.Id,
+            targets,
+            _maze.PartyMembers,
+            _nextPartyMoves,
+            FindNextFormationAssemblyStep,
+            (member, targetPosition) => CanEnterTrap(member.Character, targetPosition),
+            (member, position) => _maze.GetPartyMemberAt(position),
+            (member, nextPosition) => _maze.TryMovePartyMember(member, nextPosition, _player.Position),
+            (member, blockingFriend, position) => _maze.TrySwapPartyMembers(member, blockingFriend, _player.Position),
+            RegisterFormationAssemblyMove,
+            ScheduleNextPartyMove,
+            (member, nextPosition) => _maze.GetEnemyAt(nextPosition),
+            (member, enemy) => StartBattle(member, enemy),
+            FormationAvatar);
+
+        if (result.BattleStarted) return;
+        if (result.AllInPlace)
         {
             _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Locked);
             _renderer.SetFormationStatus(_formation);
@@ -4206,12 +4191,9 @@ public sealed class Game : ISessionCommandHandler
             _formationObstacleReported = false;
             AnnouncePartyCommand("Az alakzat osszeallt. Csak a vezer mozgathatja; Ctrl+bal/jobb: fordulas.",
                 ConsoleColor.Green);
+            return;
         }
-        else if (!madeProgress && !_formationObstacleReported &&
-                 targets.Values.Any(position => !_maze.IsWalkable(position) ||
-                     (_maze.GetObjectAt(position) is { } occupant && occupant is not PartyMemberAvatar &&
-                      occupant is not (GroundItemPile or Corpse or TreasureChest) &&
-                      !Maze.IsPassableNeutralNpc(occupant))))
+        if (!result.MadeProgress && !_formationObstacleReported && result.ObstacleReported)
         {
             _formationObstacleReported = true;
             _renderer.DrawDeveloperMessage("Az alakzat meg nem tud osszeallni: egy kijelolt hely nem erheto el.");
@@ -4335,44 +4317,25 @@ public sealed class Game : ISessionCommandHandler
         TriggerTrapAt(member.Character, member.Position);
     }
 
-    private bool CanActivelyAttack(PartyMemberAvatar member) => _partyAttackMode ||
-        member.Character.NpcBehavior is NpcBehavior.Defensive or NpcBehavior.Aggressive;
+    private bool CanActivelyAttack(PartyMemberAvatar member) =>
+        _partyAiController.CanActivelyAttack(_partyAttackMode, member);
 
-    private bool TryResolveAdjacentNpcBattle(PartyMemberAvatar member)
-    {
-        var enemy = Directions.Select(direction => _maze.GetEnemyAt(member.Position + direction))
-            .FirstOrDefault(candidate => candidate is not null);
-        if (enemy is null) return false;
-        StartBattle(member, enemy);
-        return true;
-    }
+    private bool TryResolveAdjacentNpcBattle(PartyMemberAvatar member) =>
+        _partyAiController.TryResolveAdjacentNpcBattle(_maze, member, (avatar, enemy) => StartBattle(avatar, enemy));
 
     private bool IsQuestCriticalRoderic(PartyMemberAvatar member) =>
         member.TemporaryFollower is { } follower &&
         string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase) &&
         !string.Equals(follower.StoryStateId, "JOINED", StringComparison.OrdinalIgnoreCase);
 
-    private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from)
-    {
-        var distance = Manhattan(member.Position, _player.Position);
-        var minimumDelay = distance >= 8 ? CatchUpMoveDelayMilliseconds :
-            distance >= 5 ? 130 : MinimumPartyMoveDelayMilliseconds;
-        var maximumDelay = distance >= 8 ? CatchUpMoveDelayMilliseconds + 30 :
-            distance >= 5 ? 170 : MaximumPartyMoveDelayMilliseconds;
-        (minimumDelay, maximumDelay) = CharacterMobilityRules.ScaleExplorationDelay(member.Character,
-            minimumDelay, maximumDelay);
-        _nextPartyMoves[member] = from + TimeSpan.FromMilliseconds(_random.Next(minimumDelay, maximumDelay + 1));
-    }
+    private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from) =>
+        _partyAiController.ScheduleNextPartyMove(member, from, _player, _nextPartyMoves);
 
     private bool CanControlledCharacterMove(LiveCharacter character) =>
-        _nextControlledMoves.GetValueOrDefault(character.Id) <= DateTime.UtcNow;
+        _partyAiController.CanControlledCharacterMove(character, _nextControlledMoves);
 
-    private void ScheduleNextControlledMove(LiveCharacter character)
-    {
-        var delay = Math.Max(35, (int)Math.Round(ControlledMoveDelayMilliseconds *
-            CharacterMobilityRules.Evaluate(character).ExplorationDelayMultiplier));
-        _nextControlledMoves[character.Id] = DateTime.UtcNow + TimeSpan.FromMilliseconds(delay);
-    }
+    private void ScheduleNextControlledMove(LiveCharacter character) =>
+        _partyAiController.ScheduleNextControlledMove(character, _nextControlledMoves);
 
     private Position? ChoosePartyMemberStep(PartyMemberAvatar member)
     {
@@ -5363,7 +5326,7 @@ public sealed class Game : ISessionCommandHandler
     private PartyFormationSnapshot? ActiveBattleFormation()
     {
         if (_formation.State != PartyFormationState.Locked) return null;
-        var expected = PartyFormationRules.Positions(_formation, SelectedCharacter.Id, _player.Position);
+        var expected = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
         return expected.All(pair => CharacterRoster.Party.Members.FirstOrDefault(character =>
                     character.Id == pair.Key) is not { IsAlive: true } character ||
                 GetCasterPosition(character) == pair.Value)

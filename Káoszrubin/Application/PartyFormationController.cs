@@ -21,6 +21,24 @@ public sealed class PartyFormationController
         return normalized;
     }
 
+    public static IReadOnlyDictionary<CharacterId, Position> Positions(
+        PartyFormationSnapshot formation,
+        CharacterId leaderId,
+        Position leaderPosition) =>
+        PartyFormationRules.Positions(formation, leaderId, leaderPosition);
+
+    public static PartyFormationSnapshot Rotate(PartyFormationSnapshot formation, bool clockwise) =>
+        PartyFormationRules.Rotate(formation, clockwise);
+
+    public static int CalculateMoveDelay(IEnumerable<LiveCharacter> members, int controlledMoveDelayMilliseconds = 85)
+    {
+        var slowestMultiplier = members.Where(member => member.IsAlive)
+            .Select(member => CharacterMobilityRules.Evaluate(member).ExplorationDelayMultiplier)
+            .DefaultIfEmpty(1)
+            .Max();
+        return Math.Max(35, (int)Math.Round(controlledMoveDelayMilliseconds * slowestMultiplier * 1.35));
+    }
+
     public static bool CanFormationOccupy(
         IReadOnlyDictionary<CharacterId, Position> positions,
         Maze maze,
