@@ -77,6 +77,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly DungeonTrapService _dungeonTrapService;
     private readonly LootAndInventoryService _lootService;
     private readonly DungeonExpeditionCoordinator _expeditionCoordinator;
+    private readonly SessionEventService _sessionEventService;
     private readonly SessionCommandDispatcher _commandDispatcher;
     private long _localCommandId;
     private BattleState? _activeBattleState;
@@ -109,14 +110,10 @@ public sealed class Game : ISessionCommandHandler
     private readonly Dictionary<(CharacterId CharacterId, NpcComplaintKind Kind), DateTime> _nextNpcComplaints = [];
     private readonly HashSet<(CharacterId CharacterId, NpcComplaintKind Kind)> _reportedNpcShortages = [];
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
-    private readonly Queue<SessionActivitySnapshot> _sessionActivities = new();
-    private long _sessionActivitySequence;
-    private readonly Queue<SessionSoundSnapshot> _sessionSounds = new();
     private readonly Dictionary<string, QuestJournalEntrySnapshot> _questJournal =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<PlayerId> _helpPausePlayers = [];
     private DateTime? _helpPauseStartedUtc;
-    private long _sessionSoundSequence;
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private PartyFormationSnapshot _formation;
@@ -205,8 +202,8 @@ public sealed class Game : ISessionCommandHandler
             RestNotice = _latestRestNotice is null ? null : _latestRestNotice with
             { AcknowledgedPlayerIds = _restAcknowledgements.ToArray() },
             LevelUpPrompt = _activeLevelUpPrompt,
-            Activities = _sessionActivities.ToArray(),
-            Sounds = _sessionSounds.ToArray(),
+            Activities = _sessionEventService.Activities,
+            Sounds = _sessionEventService.Sounds,
             PartyGold = SelectedCharacter.Gold,
             QuestJournal = OrderedQuestJournal(),
             AdHocConversation = _activeAdHocConversation,
@@ -328,6 +325,7 @@ public sealed class Game : ISessionCommandHandler
         _dungeonTrapService = new DungeonTrapService(gameData, _random);
         _lootService = new LootAndInventoryService(gameData, _random);
         _expeditionCoordinator = new DungeonExpeditionCoordinator(gameData, _random);
+        _sessionEventService = new SessionEventService(_renderer, _soundEffects, _random);
         _commandDispatcher = new SessionCommandDispatcher(_session, this, selectedCharacter.Id);
     }
 
@@ -7077,91 +7075,41 @@ public sealed class Game : ISessionCommandHandler
         LogPartyComment(character, selection.Remark.Text, level);
     }
 
-    private void LogPartyComment(LiveCharacter speaker, string comment, string? level = null)
-    {
-        var message = PartyCommentarySelector.Format(speaker, comment, level);
-        _renderer.DrawInventoryMessage(message, speaker.Color);
-        RecordSessionActivity(SessionActivityKind.System, message, speaker.Color);
-    }
+    private void LogPartyComment(LiveCharacter speaker, string comment, string? level = null) =>
+        _sessionEventService.LogPartyComment(speaker, comment, level);
 
-    private void PlayBattleRoundSound(BattleLogEntry entry)
-    {
-        if (entry.Kind is not (BattleLogKind.PlayerAttack or BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)) return;
-        var battle = _activeBattleState;
-        var listeners = battle is not null
-            ? new[] { battle.PlayerCharacterId, SelectedCharacter.Id }.Distinct().ToArray()
-            : [SelectedCharacter.Id];
-        var missed = entry.Message.Contains("💨", StringComparison.Ordinal);
-        var enemyHitPlayer = !missed && battle is not null &&
-            entry.Message.Contains($"{battle.Enemy.Name} támadja {battle.Player.Name}", StringComparison.Ordinal);
-        if (enemyHitPlayer)
-            PlaySessionSound(SoundEffect.PlayerGotHit, [battle!.PlayerCharacterId]);
-        else
-            PlaySessionSound(missed ? SoundEffect.Miss : SoundEffect.Hit, listeners);
-    }
+    private void PlayBattleRoundSound(BattleLogEntry entry) =>
+        _sessionEventService.PlayBattleRoundSound(entry, _activeBattleState, SelectedCharacter.Id);
 
     private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries)
     {
-        foreach (var entry in entries)
-        {
-            if (_isQuickTeamBattle)
-            {
-                _quickBattleSuppressedEntryCount++;
-                RecordSessionActivity(SessionActivityKind.Battle, entry.Message, BattleEntryColor(entry.Kind));
-                continue;
-            }
-            _renderer.DrawBattleRound(entry);
-            RecordSessionActivity(SessionActivityKind.Battle, entry.Message, BattleEntryColor(entry.Kind));
-            PlayBattleRoundSound(entry);
-            _renderer.RefreshBattleStatusRows();
-        }
+        _sessionEventService.PresentBattleEntries(
+            entries,
+            _isQuickTeamBattle,
+            entry => _renderer.DrawBattleRound(entry),
+            _ => _renderer.RefreshBattleStatusRows(),
+            _activeBattleState,
+            SelectedCharacter.Id,
+            _ => _quickBattleSuppressedEntryCount++);
     }
 
     private void RecordSessionActivity(SessionActivityKind kind, string message, ConsoleColor color,
-        IReadOnlyCollection<CharacterId>? listeners = null)
-    {
-        if (string.IsNullOrWhiteSpace(message)) return;
-        _sessionActivities.Enqueue(new SessionActivitySnapshot(++_sessionActivitySequence, kind, message, color,
-            listeners?.Distinct().ToArray()));
-        while (_sessionActivities.Count > 24) _sessionActivities.Dequeue();
-    }
+        IReadOnlyCollection<CharacterId>? listeners = null) =>
+        _sessionEventService.RecordSessionActivity(kind, message, color, listeners);
 
-    private void PlayCharacterStepSound(LiveCharacter character)
-    {
-        switch (_random.Next(20))
-        {
-            case 0: PlaySessionSound(SoundEffect.Step1, [character.Id]); break;
-            case 1: PlaySessionSound(SoundEffect.Step2, [character.Id]); break;
-            case 2: PlaySessionSound(SoundEffect.Step3, [character.Id]); break;
-            case 3: PlaySessionSound(SoundEffect.Step4, [character.Id]); break;
-            case 4: PlaySessionSound(SoundEffect.Step5, [character.Id]); break;
-        }
-    }
+    private void PlayCharacterStepSound(LiveCharacter character) =>
+        _sessionEventService.PlayCharacterStepSound(character, SelectedCharacter.Id);
 
     private void PlayBattleVictorySound() =>
-        PlaySessionSound(_random.Next(2) == 0 ? SoundEffect.Victory : SoundEffect.Victory2);
+        _sessionEventService.PlayBattleVictorySound(SelectedCharacter.Id);
 
-    private void PlaySessionSound(SoundEffect effect, IReadOnlyCollection<CharacterId>? listeners = null)
-    {
-        var listenerIds = listeners?.Distinct().ToArray();
-        RecordSessionSound(effect, listenerIds);
-        if (listenerIds is not null && !listenerIds.Contains(SelectedCharacter.Id)) return;
-        _soundEffects.Play(effect);
-    }
+    private void PlaySessionSound(SoundEffect effect, IReadOnlyCollection<CharacterId>? listeners = null) =>
+        _sessionEventService.PlaySessionSound(effect, listeners, SelectedCharacter.Id);
 
-    private void RecordSessionSound(SoundEffect effect, IReadOnlyList<CharacterId>? listenerCharacterIds)
-    {
-        _sessionSounds.Enqueue(new SessionSoundSnapshot(++_sessionSoundSequence, effect, listenerCharacterIds));
-        while (_sessionSounds.Count > 48) _sessionSounds.Dequeue();
-    }
+    private void RecordSessionSound(SoundEffect effect, IReadOnlyList<CharacterId>? listenerCharacterIds) =>
+        _sessionEventService.RecordSessionSound(effect, listenerCharacterIds);
 
-    private static ConsoleColor BattleEntryColor(BattleLogKind kind) => kind switch
-    {
-        BattleLogKind.PlayerAttack => ConsoleColor.Green,
-        BattleLogKind.EnemyAttack => ConsoleColor.Red,
-        BattleLogKind.CriticalHit => ConsoleColor.Yellow,
-        _ => ConsoleColor.Gray
-    };
+    private static ConsoleColor BattleEntryColor(BattleLogKind kind) => SessionEventService.BattleEntryColor(kind);
 
     private void TeleportLeaderNearExit()
     {
