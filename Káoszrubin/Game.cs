@@ -13,7 +13,7 @@ using MainMenu = KaoszRubin.UI.MainMenu;
 namespace KaoszRubin;
 
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
-public sealed class Game
+public sealed class Game : ISessionCommandHandler
 {
     private const string EliraStoryId = "ELIRA_RESCUE";
     private const string RodericStoryId = "RODERIC_OATH";
@@ -171,6 +171,14 @@ public sealed class Game
     private readonly MusicSettingsService _musicSettings;
     private readonly GameSession _session;
     private readonly SpellExecutionService _spellExecutionService;
+    private readonly SingleBattleCoordinator _singleBattleCoordinator;
+    private readonly TacticalTeamBattleCoordinator _teamBattleCoordinator;
+    private readonly NpcQuestCoordinator _npcQuestCoordinator;
+    private readonly StoryConversationCoordinator _storyConversationCoordinator;
+    private readonly CharacterProgressionService _progressionService;
+    private readonly PartySustenanceService _sustenanceService;
+    private readonly DungeonTrapService _dungeonTrapService;
+    private readonly SessionCommandDispatcher _commandDispatcher;
     private long _localCommandId;
     private BattleState? _activeBattleState;
     private TeamBattleEncounter? _activeTeamBattle;
@@ -362,32 +370,10 @@ public sealed class Game
     }
 
     private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(TeamBattleEncounter battle,
-        LiveCharacter character) =>
-        Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
-            .Select(index => (Index: index, Item: character.GetInventoryItem(InventorySlotKind.Backpack, index),
-                Quantity: character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index)))
-            .Where(entry => entry.Item is MiscItemDefinition item && entry.Quantity > 0 &&
-                            battle.CanUseItem(character, item) && IsTeamBattleItemUseful(character, item))
-            .GroupBy(entry => entry.Item!.Id, StringComparer.OrdinalIgnoreCase)
-            .Select(group => new BattleItemOptionSnapshot(group.Min(entry => entry.Index), group.Key,
-                group.First().Item!.Name, group.Sum(entry => entry.Quantity)))
-            .ToArray();
+        LiveCharacter character) => TacticalTeamBattleCoordinator.GetBattleItemOptions(battle, character);
 
     private static bool IsTeamBattleItemUseful(LiveCharacter character, MiscItemDefinition item) =>
-        !item.UsableInCombat ? false : item.Id == MiscItemIds.HerbalTea
-            ? character.WaterLevel < 100 || character.CurrentVitality < character.MaximumVitality
-            : IsInitiativeDrink(item) || item.Effect switch
-            {
-                ConsumableEffect.Food => character.FoodLevel < 100,
-                ConsumableEffect.Water => character.WaterLevel < 100,
-                ConsumableEffect.Heal => character.CurrentVitality < character.MaximumVitality,
-                ConsumableEffect.RestoreMana => character.UsesMana && character.CurrentMana < character.MaximumMana,
-                ConsumableEffect.CurePoison => character.HasStatus(CharacterStatusIds.Poisoned),
-                ConsumableEffect.CureDisease => character.HasStatus(CharacterStatusIds.Diseased),
-                ConsumableEffect.StopBleeding => character.HasStatus(CharacterStatusIds.Bleeding),
-                ConsumableEffect.Vision => true,
-                _ => false
-            };
+        TacticalTeamBattleCoordinator.IsTeamBattleItemUseful(character, item);
 
     private static CharacterHistorySnapshot CreateCharacterHistory(LiveCharacter character) => new(
         character.MonsterKills.Select(pair => new MonsterKillSnapshot(pair.Key, pair.Value)).ToArray(),
@@ -434,6 +420,14 @@ public sealed class Game
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
         _spellExecutionService = new SpellExecutionService(gameData, _random);
+        _singleBattleCoordinator = new SingleBattleCoordinator(gameData, _battleSystem, _spellExecutionService, _random);
+        _teamBattleCoordinator = new TacticalTeamBattleCoordinator(gameData, _battleSystem, _random);
+        _npcQuestCoordinator = new NpcQuestCoordinator(gameData);
+        _storyConversationCoordinator = new StoryConversationCoordinator(gameData, _random);
+        _progressionService = new CharacterProgressionService(gameData, _random);
+        _sustenanceService = new PartySustenanceService(gameData, _random);
+        _dungeonTrapService = new DungeonTrapService(gameData, _random);
+        _commandDispatcher = new SessionCommandDispatcher(_session, this, selectedCharacter.Id);
     }
 
     // NPC spellcasting for combat
@@ -1387,14 +1381,11 @@ public sealed class Game
         return true;
     }
 
-    private int TrapDetectionChance(LiveCharacter character, TrapDefinition definition) => Math.Clamp(
-        35 + (character.EffectiveAbilities.Intelligence + character.EffectiveAbilities.Dexterity) * 3 -
-        definition.DetectionDifficulty * 5 +
-        (CharacterClassRules.IsThief(character.CharacterClass.Id) ? 30 : 0), 15, 95);
+    private static int TrapDetectionChance(LiveCharacter character, TrapDefinition definition) =>
+        DungeonTrapService.TrapDetectionChance(character, definition);
 
-    private int TrapDisarmChance(LiveCharacter character, TrapDefinition definition) => Math.Clamp(
-        30 + character.EffectiveAbilities.Dexterity * 5 - definition.DisarmDifficulty * 6 +
-        (CharacterClassRules.IsThief(character.CharacterClass.Id) ? 30 : 0), 10, 95);
+    private static int TrapDisarmChance(LiveCharacter character, TrapDefinition definition) =>
+        DungeonTrapService.TrapDisarmChance(character, definition);
 
     private bool TryDisarmAdjacentTrap(LiveCharacter character, Position position)
     {
@@ -1426,39 +1417,15 @@ public sealed class Game
         if (_maze.GetTrapAt(position) is { IsActive: true } trap) ApplyTrap(character, trap);
     }
 
-    private void ApplyTrap(LiveCharacter character, MazeTrap trap)
-    {
-        trap.Trigger();
-        var scaledDamage = trap.Definition.MaximumDamage == 0 ? 0 :
-            _random.Next(trap.Definition.MinimumDamage, trap.Definition.MaximumDamage + 1) + (_difficultyLevel - 1) / 3;
-        var maximumAllowed = Math.Max(1, character.MaximumVitality / (_difficultyLevel <= 4 ? 7 : 4));
-        var damage = Math.Min(Math.Min(scaledDamage, maximumAllowed), Math.Max(0, character.CurrentVitality - 1));
-        character.ReceiveDamage(damage);
-        var extra = string.Empty;
-        if (trap.Definition.Effect == TrapEffect.Poison && character.IsAlive &&
-            _random.Next(100) < trap.Definition.StatusChancePercent)
-        {
-            character.AddStatus(_gameData.GetStatus(CharacterStatusIds.Poisoned));
-            extra = " Megmérgeződött.";
-        }
-        else if (trap.Definition.Effect == TrapEffect.Alert)
-        {
-            foreach (var enemy in _maze.Enemies.Where(enemy => Manhattan(enemy.Position, trap.Position) <= 12))
-                enemy.ConfigureMovement(enemy.MovementProfile, enemy.PatrolDirection, EnemyPursuitState.Pursuing);
-            extra = " A közeli szörnyek felfigyeltek a zajra.";
-        }
-        else if (trap.Definition.Effect == TrapEffect.Darkness && character.IsAlive)
-        {
-            character.ApplySpellEffect(new ActiveSpellEffect(trap.Definition.Id,
-                ActiveSpellEffectType.VisionBonus, -2, 6));
-            extra = " A koromfelhő 6 akcióra 2-vel csökkentette a látótávját.";
-        }
-        _renderer.RefreshCharacterSheet(character);
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        var damageText = damage > 0 ? $" {character.Name} {damage} sebzést szenvedett." : string.Empty;
-        ShowTrapMessage($"💥 Elsült: {trap.Definition.Name}.{damageText}{extra}",
-            ConsoleColor.Red, character);
-    }
+    private void ApplyTrap(LiveCharacter character, MazeTrap trap) =>
+        _dungeonTrapService.ApplyTrap(character, trap, _difficultyLevel, _maze,
+            (c, radius) =>
+            {
+                foreach (var enemy in _maze.Enemies.Where(enemy => Manhattan(enemy.Position, trap.Position) <= radius))
+                    enemy.ConfigureMovement(enemy.MovementProfile, enemy.PatrolDirection, EnemyPursuitState.Pursuing);
+            },
+            ShowTrapMessage, c => _renderer.RefreshCharacterSheet(c),
+            () => _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position));
 
     private void ShowTrapMessage(string message, ConsoleColor color, LiveCharacter character)
     {
@@ -1992,88 +1959,57 @@ public sealed class Game
         _localCommandId = commandId;
     }
 
-    private void ProcessSessionCommands()
-    {
-        while (_session.TryReadCommand(out var command))
-        {
-            if (command is SetHelpVisibilityCommand helpVisibility)
-            {
-                SetHelpVisibility(helpVisibility.SenderId, helpVisibility.CharacterId, helpVisibility.IsOpen);
-                continue;
-            }
-            if (_helpPausePlayers.Count > 0)
-            {
-                _session.RejectExecutedCommand(command, "A játék szünetel, amíg egy játékos a súgót olvassa.");
-                continue;
-            }
-            switch (command)
-            {
-                case MoveCharacterCommand move when move.CharacterId == SelectedCharacter.Id:
-                    MovePlayer(move.Direction);
-                    break;
-                case MoveCharacterCommand move:
-                    MoveRemotePartyMember(move);
-                    break;
-                case CharacterActionCommand characterAction:
-                    ExecuteCharacterAction(characterAction);
-                    break;
-                case LeaderActionCommand action:
-                    ExecuteLeaderAction(action.Action);
-                    break;
-                case InventoryTransferCommand inventoryTransfer:
-                    ExecuteInventoryTransfer(inventoryTransfer);
-                    break;
-                case UseInventoryItemCommand useItem:
-                    ExecuteUseInventoryItem(useItem);
-                    break;
-                case DropInventoryItemCommand dropItem:
-                    ExecuteDropInventoryItem(dropItem);
-                    break;
-                case SplitInventoryStackCommand splitStack:
-                    ExecuteSplitInventoryStack(splitStack);
-                    break;
-                case DistributeInventoryStackCommand distributeStack:
-                    ExecuteDistributeInventoryStack(distributeStack);
-                    break;
-                case GiveFollowerStackCommand giveFollowerStack:
-                    ExecuteGiveFollowerStack(giveFollowerStack);
-                    break;
-                case PickUpGroundItemCommand pickUpItem:
-                    ExecutePickUpGroundItem(pickUpItem);
-                    break;
-                case BattleActionCommand battleAction:
-                    ExecuteBattleAction(battleAction);
-                    break;
-                case CastExplorationSpellCommand castSpell:
-                    ExecuteExplorationSpell(castSpell);
-                    break;
-                case InnPurchaseCommand purchase:
-                    ExecuteInnPurchase(purchase);
-                    break;
-                case InnSaleCommand sale:
-                    ExecuteInnSale(sale);
-                    break;
-                case AcknowledgeNarrativeCommand acknowledgement:
-                    ExecuteNarrativeAcknowledgement(acknowledgement);
-                    break;
-                case AcknowledgeLevelImageCommand imageAcknowledgement:
-                    ExecuteLevelImageAcknowledgement(imageAcknowledgement);
-                    break;
-                case AcknowledgeRestCommand restAcknowledgement:
-                    ExecuteRestAcknowledgement(restAcknowledgement);
-                    break;
-                case AssignQuickSpellCommand quickSpell:
-                    ExecuteAssignQuickSpell(quickSpell);
-                    break;
-                case PrepareSpellsCommand preparation:
-                    ExecuteSpellPreparation(preparation);
-                    break;
-                case ResolveLevelUpPromptCommand levelUp:
-                    ExecuteLevelUpPrompt(levelUp);
-                    break;
-            }
-        }
-    }
+    private void ProcessSessionCommands() => _commandDispatcher.ProcessPendingCommands();
+
+    void ISessionCommandHandler.OnSetHelpVisibility(PlayerId senderId, CharacterId characterId, bool isOpen) =>
+        SetHelpVisibility(senderId, characterId, isOpen);
+
+    bool ISessionCommandHandler.IsPausedByHelp() => _helpPausePlayers.Count > 0;
+
+    void ISessionCommandHandler.OnMoveLeader(Direction direction) => MovePlayer(direction);
+
+    void ISessionCommandHandler.OnMoveRemoteMember(MoveCharacterCommand command) => MoveRemotePartyMember(command);
+
+    void ISessionCommandHandler.OnCharacterAction(CharacterActionCommand command) => ExecuteCharacterAction(command);
+
+    void ISessionCommandHandler.OnLeaderAction(LeaderAction action) => ExecuteLeaderAction(action);
+
+    void ISessionCommandHandler.OnInventoryTransfer(InventoryTransferCommand command) => ExecuteInventoryTransfer(command);
+
+    void ISessionCommandHandler.OnUseInventoryItem(UseInventoryItemCommand command) => ExecuteUseInventoryItem(command);
+
+    void ISessionCommandHandler.OnDropInventoryItem(DropInventoryItemCommand command) => ExecuteDropInventoryItem(command);
+
+    void ISessionCommandHandler.OnSplitInventoryStack(SplitInventoryStackCommand command) => ExecuteSplitInventoryStack(command);
+
+    void ISessionCommandHandler.OnDistributeInventoryStack(DistributeInventoryStackCommand command) =>
+        ExecuteDistributeInventoryStack(command);
+
+    void ISessionCommandHandler.OnGiveFollowerStack(GiveFollowerStackCommand command) => ExecuteGiveFollowerStack(command);
+
+    void ISessionCommandHandler.OnPickUpGroundItem(PickUpGroundItemCommand command) => ExecutePickUpGroundItem(command);
+
+    void ISessionCommandHandler.OnBattleAction(BattleActionCommand command) => ExecuteBattleAction(command);
+
+    void ISessionCommandHandler.OnCastExplorationSpell(CastExplorationSpellCommand command) => ExecuteExplorationSpell(command);
+
+    void ISessionCommandHandler.OnInnPurchase(InnPurchaseCommand command) => ExecuteInnPurchase(command);
+
+    void ISessionCommandHandler.OnInnSale(InnSaleCommand command) => ExecuteInnSale(command);
+
+    void ISessionCommandHandler.OnAcknowledgeNarrative(AcknowledgeNarrativeCommand command) =>
+        ExecuteNarrativeAcknowledgement(command);
+
+    void ISessionCommandHandler.OnAcknowledgeLevelImage(AcknowledgeLevelImageCommand command) =>
+        ExecuteLevelImageAcknowledgement(command);
+
+    void ISessionCommandHandler.OnAcknowledgeRest(AcknowledgeRestCommand command) => ExecuteRestAcknowledgement(command);
+
+    void ISessionCommandHandler.OnAssignQuickSpell(AssignQuickSpellCommand command) => ExecuteAssignQuickSpell(command);
+
+    void ISessionCommandHandler.OnPrepareSpells(PrepareSpellsCommand command) => ExecuteSpellPreparation(command);
+
+    void ISessionCommandHandler.OnResolveLevelUpPrompt(ResolveLevelUpPromptCommand command) => ExecuteLevelUpPrompt(command);
 
     private void ExecuteInnPurchase(InnPurchaseCommand command)
     {
@@ -2543,26 +2479,15 @@ public sealed class Game
         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
     }
 
-    private IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal() => _questJournal.Values
-        .OrderBy(entry => entry.Status)
-        .ThenBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase)
-        .ToArray();
+    private IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal() =>
+        NpcQuestCoordinator.OrderedQuestJournal(_questJournal.Values);
 
-    private void SynchronizeQuestJournal(WorldNpc npc, NpcQuestDefinition quest, int? visibleProgress = null)
-    {
-        var progress = npc.Quests.First(value => string.Equals(value.QuestId, quest.Id,
-            StringComparison.OrdinalIgnoreCase));
-        if (progress.State == NpcQuestState.Offered) return;
-        var status = progress.State == NpcQuestState.Completed
-            ? QuestJournalStatus.Completed : QuestJournalStatus.Active;
-        _questJournal[quest.Id] = CreateQuestJournalEntry(quest, status,
-            visibleProgress ?? progress.Progress, quest.ExperienceReward);
-    }
+    private void SynchronizeQuestJournal(WorldNpc npc, NpcQuestDefinition quest, int? visibleProgress = null) =>
+        _npcQuestCoordinator.SynchronizeQuestJournal(_questJournal, npc, quest, visibleProgress);
 
     private QuestJournalEntrySnapshot CreateQuestJournalEntry(NpcQuestDefinition quest,
         QuestJournalStatus status, int progress, int experienceReward) =>
-        new(quest.Id, quest.Title, quest.Description, _gameData.GetNpc(quest.NpcId).Name, status,
-            Math.Clamp(progress, 0, quest.RequiredCount), quest.RequiredCount, experienceReward);
+        _npcQuestCoordinator.CreateQuestJournalEntry(quest, status, progress, experienceReward);
 
     private string GrantNpcQuestItems(NpcQuestDefinition quest)
     {
@@ -4116,37 +4041,14 @@ public sealed class Game
         return false;
     }
 
-    private IReadOnlyList<WorldNpc> GetAdHocConversationCandidates()
-    {
-        var candidates = _maze.PartyMembers
-            .Where(member => member.TemporaryFollower is { } follower && IsAdHocConversationStory(follower.StoryId))
-            .Select(member => member.TemporaryFollower!)
-            .Where(npc => npc.Character.IsAlive)
-            .ToList();
-        var temporaryCharacterIds = candidates.Select(npc => npc.Character.Id).ToHashSet();
-        var definitions = _gameData.Npcs.Where(definition => IsAdHocConversationStory(definition.StoryId))
-            .ToDictionary(definition => definition.Name, StringComparer.OrdinalIgnoreCase);
-        foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive &&
-                     !temporaryCharacterIds.Contains(character.Id)))
-        {
-            if (!definitions.TryGetValue(character.Name, out var definition)) continue;
-            var position = character == SelectedCharacter
-                ? _player.Position
-                : _maze.PartyMembers.FirstOrDefault(member => member.Character == character)?.Position ??
-                  _player.Position;
-            candidates.Add(new WorldNpc(position, definition.Id, character, definition.Disposition,
-                definition.Recruitable, false, string.Empty, friendliness: 10, behavior: definition.Behavior,
-                storyId: definition.StoryId));
-        }
-        return candidates;
-    }
+    private IReadOnlyList<WorldNpc> GetAdHocConversationCandidates() =>
+        _storyConversationCoordinator.GetAdHocConversationCandidates(_maze, _player, CharacterRoster, SelectedCharacter);
 
     private static bool IsAdHocConversationStory(string? storyId) =>
-        string.Equals(storyId, EliraStoryId, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(storyId, RodericStoryId, StringComparison.OrdinalIgnoreCase);
+        StoryConversationCoordinator.IsAdHocConversationStory(storyId);
 
     private static string AdHocConversationId(WorldNpc npc, string startState) =>
-        $"{npc.StoryId}:{startState}";
+        StoryConversationCoordinator.AdHocConversationId(npc, startState);
 
     private void RunAdHocFollowerConversation(WorldNpc npc, string startState)
     {
@@ -4623,44 +4525,12 @@ public sealed class Game
     }
 
     private Position? FindNextFormationAssemblyStep(PartyMemberAvatar member, Position target,
-        IReadOnlyDictionary<CharacterId, Position> formationTargets)
-    {
-        if (!CanFormationAssemblyTraverse(member, target, formationTargets) || member.Position == target)
-            return null;
-        var visited = new HashSet<Position> { member.Position };
-        var queue = new Queue<(Position Position, Position FirstStep)>();
-        foreach (var direction in Directions)
-        {
-            var next = member.Position + direction;
-            if (!CanFormationAssemblyTraverse(member, next, formationTargets) || !visited.Add(next)) continue;
-            queue.Enqueue((next, next));
-        }
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (current.Position == target) return current.FirstStep;
-            foreach (var direction in Directions)
-            {
-                var next = current.Position + direction;
-                if (!CanFormationAssemblyTraverse(member, next, formationTargets) || !visited.Add(next)) continue;
-                queue.Enqueue((next, current.FirstStep));
-            }
-        }
-        return null;
-    }
+        IReadOnlyDictionary<CharacterId, Position> formationTargets) =>
+        PartyMovementController.FindNextFormationAssemblyStep(member, target, formationTargets, _maze, _player);
 
     private bool CanFormationAssemblyTraverse(PartyMemberAvatar member, Position position,
-        IReadOnlyDictionary<CharacterId, Position> formationTargets)
-    {
-        if (!_maze.IsWalkable(position) || position == _player.Position || _maze.GetEnemyAt(position) is not null)
-            return false;
-        var occupant = _maze.GetObjectAt(position);
-        if (occupant is null or GroundItemPile or Corpse || occupant == member || Maze.IsPassableNeutralNpc(occupant))
-            return true;
-        if (occupant is not PartyMemberAvatar friend) return false;
-        return !formationTargets.TryGetValue(friend.Character.Id, out var friendTarget) ||
-               friendTarget != friend.Position;
-    }
+        IReadOnlyDictionary<CharacterId, Position> formationTargets) =>
+        PartyMovementController.CanFormationAssemblyTraverse(member, position, formationTargets, _maze, _player);
 
     private void TogglePartyHoldPosition()
     {
@@ -4879,160 +4749,46 @@ public sealed class Game
 
     private Position? ChoosePartyMemberStep(PartyMemberAvatar member)
     {
-        var behavior = _partyAttackMode ? NpcBehavior.Aggressive :
-            member.Character.NpcBehavior ?? NpcBehavior.Defensive;
-        var visibleEnemy = _maze.Enemies
-            .Where(enemy => FogOfWar.CanSee(_maze, member.Position, enemy.Position,
-                CharacterClassRules.VisionRange(member.Character, CurrentLevelVisionModifier)))
-            .OrderBy(enemy => Manhattan(member.Position, enemy.Position))
-            .FirstOrDefault();
-
-        if (behavior == NpcBehavior.Aggressive && visibleEnemy is not null)
+        var effectiveMember = _partyAttackMode && member.Character.NpcBehavior != NpcBehavior.Aggressive
+            ? new PartyMemberAvatar(member.Position, member.Character, member.TemporaryFollower)
+            : member;
+        if (_partyAttackMode && member.Character.NpcBehavior != NpcBehavior.Aggressive)
         {
-            if (Manhattan(member.Position, visibleEnemy.Position) == 1) return null;
-            return FindNextStep(member, FreeNeighborsOf(visibleEnemy.Position));
+            var original = member.Character.NpcBehavior;
+            member.Character.SetNpcBehavior(NpcBehavior.Aggressive);
+            var step = PartyMovementController.ChoosePartyMemberStep(member, _maze, _player, _leaderFacing, _leaderTrail, CurrentLevelVisionModifier);
+            member.Character.SetNpcBehavior(original);
+            return step;
         }
-
-        if (behavior == NpcBehavior.Defensive && visibleEnemy is not null)
-        {
-            if (Manhattan(member.Position, visibleEnemy.Position) == 1) return null;
-            return FindNextStep(member, FreeNeighborsOf(visibleEnemy.Position));
-        }
-
-        if (behavior == NpcBehavior.Scout)
-        {
-            if (visibleEnemy is not null)
-                return FollowLeaderTrail(member, minimumLag: 2);
-            return ChooseForwardStep(member, maximumLeaderDistance: 10, maximumSearchDistance: 10, avoidNarrowFront: false)
-                ?? FollowLeaderTrail(member, minimumLag: 2);
-        }
-
-        if (behavior == NpcBehavior.Cautious)
-            return FollowLeaderTrail(member, minimumLag: 2);
-
-        if (behavior == NpcBehavior.Aggressive)
-            return ChooseForwardStep(member, maximumLeaderDistance: 3, maximumSearchDistance: 4, avoidNarrowFront: true)
-                ?? FollowLeaderTrail(member, minimumLag: 2);
-
-        return FollowLeaderTrail(member, minimumLag: 2);
+        return PartyMovementController.ChoosePartyMemberStep(member, _maze, _player, _leaderFacing, _leaderTrail, CurrentLevelVisionModifier);
     }
 
-    private Position? FollowLeaderTrail(PartyMemberAvatar member, int minimumLag)
-    {
-        if (_leaderTrail.Count == 0) return null;
-        var partyOrder = Enumerable.Range(0, _maze.PartyMembers.Count)
-            .FirstOrDefault(index => _maze.PartyMembers[index] == member);
-        var formationLag = Math.Min(1, partyOrder);
-        var targetIndex = Math.Max(0, _leaderTrail.Count - 1 - minimumLag - formationLag);
-        for (var index = targetIndex; index >= 0; index--)
-        {
-            var target = _leaderTrail[index];
-            if (target == member.Position) return null;
-            if (!CanPartyTraverse(member, target)) continue;
-            return FindNextStep(member, [target]);
-        }
-        return null;
-    }
+    private Position? FollowLeaderTrail(PartyMemberAvatar member, int minimumLag) =>
+        PartyMovementController.FollowLeaderTrail(member, minimumLag, _maze, _player, _leaderTrail);
 
-    private Position? ChooseForwardStep(PartyMemberAvatar member, int maximumLeaderDistance, int maximumSearchDistance, bool avoidNarrowFront)
-    {
-        var forward = DirectionOffset(_leaderFacing);
-        var reachable = FindReachablePositions(member, maximumSearchDistance)
-            .Where(entry => Manhattan(entry.Position, _player.Position) <= maximumLeaderDistance)
-            .Select(entry => new
-            {
-                entry.Position,
-                entry.Distance,
-                Progress = (entry.Position.X - _player.Position.X) * forward.X + (entry.Position.Y - _player.Position.Y) * forward.Y
-            })
-            .Where(entry => entry.Progress > 0)
-            .Where(entry => !avoidNarrowFront || CountWalkableNeighbors(entry.Position) >= 3)
-            .OrderByDescending(entry => entry.Progress)
-            .ThenBy(entry => entry.Distance)
-            .FirstOrDefault();
-        if (reachable is null) return null;
-        var step = FindNextStep(member, [reachable.Position]);
-        if (avoidNarrowFront && step is { } narrowStep && IsAheadOfLeader(narrowStep) && CountWalkableNeighbors(narrowStep) <= 2)
-            return null;
-        return step;
-    }
+    private Position? ChooseForwardStep(PartyMemberAvatar member, int maximumLeaderDistance, int maximumSearchDistance, bool avoidNarrowFront) =>
+        PartyMovementController.ChooseForwardStep(member, maximumLeaderDistance, maximumSearchDistance, avoidNarrowFront, _maze, _player, _leaderFacing);
 
-    private Position? FindNextStep(PartyMemberAvatar member, IEnumerable<Position> targetPositions)
-    {
-        var targets = targetPositions.Where(position => CanPartyTraverse(member, position)).ToHashSet();
-        if (targets.Count == 0 || targets.Contains(member.Position)) return null;
-        var visited = new HashSet<Position> { member.Position };
-        var queue = new Queue<(Position Position, Position FirstStep)>();
-        foreach (var direction in Directions)
-        {
-            var next = member.Position + direction;
-            if (!CanPartyTraverse(member, next) || !visited.Add(next)) continue;
-            queue.Enqueue((next, next));
-        }
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (targets.Contains(current.Position)) return current.FirstStep;
-            foreach (var direction in Directions)
-            {
-                var next = current.Position + direction;
-                if (!CanPartyTraverse(member, next) || !visited.Add(next)) continue;
-                queue.Enqueue((next, current.FirstStep));
-            }
-        }
-        return null;
-    }
+    private Position? FindNextStep(PartyMemberAvatar member, IEnumerable<Position> targetPositions) =>
+        PartyMovementController.FindNextStep(member, targetPositions, _maze, _player);
 
-    private IReadOnlyList<(Position Position, int Distance)> FindReachablePositions(PartyMemberAvatar member, int maximumDistance)
-    {
-        var result = new List<(Position, int)> { (member.Position, 0) };
-        var visited = new HashSet<Position> { member.Position };
-        var queue = new Queue<(Position Position, int Distance)>();
-        queue.Enqueue((member.Position, 0));
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (current.Distance >= maximumDistance) continue;
-            foreach (var direction in Directions)
-            {
-                var next = current.Position + direction;
-                if (!CanPartyTraverse(member, next) || !visited.Add(next)) continue;
-                var distance = current.Distance + 1;
-                result.Add((next, distance));
-                queue.Enqueue((next, distance));
-            }
-        }
-        return result;
-    }
+    private IReadOnlyList<(Position Position, int Distance)> FindReachablePositions(PartyMemberAvatar member, int maximumDistance) =>
+        PartyMovementController.FindReachablePositions(member, maximumDistance, _maze, _player);
 
-    private IEnumerable<Position> FreeNeighborsOf(Position origin) => Directions
-        .Select(direction => origin + direction)
-        .Where(position => _maze.IsWalkable(position) && position != _player.Position &&
-                           (_maze.GetObjectAt(position) is null or GroundItemPile or Corpse ||
-                            Maze.IsPassableNeutralNpc(_maze.GetObjectAt(position))));
+    private IEnumerable<Position> FreeNeighborsOf(Position origin) =>
+        PartyMovementController.FreeNeighborsOf(_maze, _player, origin);
 
-    private bool CanPartyTraverse(PartyMemberAvatar member, Position position)
-    {
-        if (!_maze.IsWalkable(position) || position == _player.Position) return false;
-        var occupant = _maze.GetObjectAt(position);
-        return occupant is null or GroundItemPile or Corpse || occupant == member ||
-               Maze.IsPassableNeutralNpc(occupant);
-    }
+    private bool CanPartyTraverse(PartyMemberAvatar member, Position position) =>
+        PartyMovementController.CanPartyTraverse(member, position, _maze, _player);
 
-    private int CountWalkableNeighbors(Position position) => Directions.Count(direction => _maze.IsWalkable(position + direction));
-    private bool IsAheadOfLeader(Position position)
-    {
-        var forward = DirectionOffset(_leaderFacing);
-        return (position.X - _player.Position.X) * forward.X + (position.Y - _player.Position.Y) * forward.Y > 0;
-    }
-    private static int Manhattan(Position first, Position second) => Math.Abs(first.X - second.X) + Math.Abs(first.Y - second.Y);
-    private static (int X, int Y) DirectionOffset(Direction direction) => direction switch
-    {
-        Direction.Up => (0, -1),
-        Direction.Down => (0, 1),
-        Direction.Left => (-1, 0),
-        _ => (1, 0)
-    };
+    private int CountWalkableNeighbors(Position position) =>
+        PartyMovementController.CountWalkableNeighbors(position, _maze);
+
+    private bool IsAheadOfLeader(Position position) =>
+        PartyMovementController.IsAheadOfLeader(position, _player.Position, _leaderFacing);
+
+    private static int Manhattan(Position first, Position second) => PartyMovementController.Manhattan(first, second);
+    private static (int X, int Y) DirectionOffset(Direction direction) => PartyMovementController.DirectionOffset(direction);
 
     private void HandleLocalBattleInput(ConsoleKeyInfo key)
     {
@@ -5413,68 +5169,21 @@ public sealed class Game
             attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions), spellCanKillEnemy: attempt.DamageToCurrentEnemy > 0);
     }
 
-    private void TryAssignKnightProtection(BattleState state, LiveCharacter protectedCharacter)
-    {
-        var knight = TryRollKnightProtector(protectedCharacter);
-        if (knight is null) return;
-        state.SetKnightProtection(knight);
-        _renderer.DrawInventoryMessage($"🛡️ {knight.Name} készen áll közbelépni: a társ első találatát teljesen kivédi, " +
-                                       "de a sebzés harmadát ő kapja.",
-            ConsoleColor.Cyan);
-    }
+    private void TryAssignKnightProtection(BattleState state, LiveCharacter protectedCharacter) =>
+        _singleBattleCoordinator.TryAssignKnightProtection(state, protectedCharacter, GetCasterPosition(protectedCharacter),
+            LivingPartyWithPositions(), (msg, color) => _renderer.DrawInventoryMessage(msg, color));
 
-    private LiveCharacter? TryRollKnightProtector(LiveCharacter protectedCharacter)
-    {
-        var protectedPosition = GetCasterPosition(protectedCharacter);
-        var knight = LivingPartyWithPositions()
-            .Where(entry => entry.Character != protectedCharacter && entry.Character.IsAlive &&
-                            entry.Character.CharacterClass.Id == CharacterClassIds.Lovag &&
-                            Chebyshev(entry.Position, protectedPosition) <= 2)
-            .OrderBy(entry => Chebyshev(entry.Position, protectedPosition))
-            .Select(entry => entry.Character).FirstOrDefault();
-        var chance = knight?.HasClassFeatureUpgrade(ClassFeatureUpgrades.KnightBodyguard) == true ? 90 : 75;
-        return knight is not null && _random.Next(100) < chance ? knight : null;
-    }
+    private LiveCharacter? TryRollKnightProtector(LiveCharacter protectedCharacter) =>
+        _singleBattleCoordinator.TryRollKnightProtector(protectedCharacter, GetCasterPosition(protectedCharacter),
+            LivingPartyWithPositions());
 
-    private static BattleTactic ToBattleTactic(BattleActionKind action) => action switch
-    {
-        BattleActionKind.FighterPrecise => BattleTactic.FighterPrecise,
-        BattleActionKind.FighterPowerful => BattleTactic.FighterPowerful,
-        BattleActionKind.FighterDefensive => BattleTactic.FighterDefensive,
-        BattleActionKind.ThiefAmbush => BattleTactic.ThiefAmbush,
-        BattleActionKind.ThiefObserve => BattleTactic.ThiefObserve,
-        BattleActionKind.ThiefPoison => BattleTactic.ThiefPoison,
-        _ => throw new ArgumentOutOfRangeException(nameof(action))
-    };
+    private static BattleTactic ToBattleTactic(BattleActionKind action) => SingleBattleCoordinator.ToBattleTactic(action);
 
-    private static string BattleTacticName(BattleTactic tactic, LiveCharacter character) => tactic switch
-    {
-        BattleTactic.FighterPrecise => $"Pontos állás (+2 találat, ×{(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? "0,85" : "0,75")} sebzés)",
-        BattleTactic.FighterPowerful => $"Erőteljes állás (-1 találat, ×1,25 sebzés, {(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) ? 75 : 50)}% páncéltörés)",
-        BattleTactic.FighterDefensive => $"Védekező állás (×0,75 sebzés, +{(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)} védelem)",
-        BattleTactic.ThiefAmbush => "Orvtámadás (az első sikeres támadás dupla sebzés)",
-        BattleTactic.ThiefObserve => "Megfigyelés (+2 találat)",
-        BattleTactic.ThiefPoison => "Mérgezett penge (+1-4 sebzés találatonként)",
-        _ => tactic.ToString()
-    };
+    private static string BattleTacticName(BattleTactic tactic, LiveCharacter character) =>
+        SingleBattleCoordinator.BattleTacticName(tactic, character);
 
-    private IReadOnlyList<BattleTacticOptionSnapshot>? GetBattleTacticOptions(BattleState state)
-    {
-        if (!state.IsAwaitingTacticSelection) return null;
-        if (state.Player.CharacterClass.Id != CharacterClassIds.Harcos) return null;
-        return
-        [
-            new(BattleActionKind.FighterPrecise, "🎯 Pontos",
-                $"sebzés ×{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? "0,85" : "0,75")}",
-                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPrecise)),
-            new(BattleActionKind.FighterPowerful, "💥 Erőteljes",
-                $"sebzés ×1,25, {(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) ? "negyed" : "fél")} páncél",
-                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPowerful)),
-            new(BattleActionKind.FighterDefensive, "🛡️ Védekező",
-                $"sebzés ×0,75, védelem +{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)}",
-                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterDefensive))
-        ];
-    }
+    private IReadOnlyList<BattleTacticOptionSnapshot>? GetBattleTacticOptions(BattleState state) =>
+        _singleBattleCoordinator.GetBattleTacticOptions(state);
 
     private void RejectBattleAction(BattleActionCommand command, string message)
     {
@@ -5490,53 +5199,15 @@ public sealed class Game
     }
 
     private IReadOnlyList<BattleActionKind> GetAllowedBattleActions(LiveCharacter character,
-        Position characterPosition, Enemy enemy)
-    {
-        if (_activeBattleState is { IsCompleted: false, IsPlayerTurn: false } enemyTurn &&
-            enemyTurn.PlayerCharacterId == character.Id)
-            return [BattleActionKind.AdvanceEnemyTurn];
-        if (_activeBattleState is { IsAwaitingTacticSelection: true } state && state.PlayerCharacterId == character.Id)
-            return character.CharacterClass.Id == CharacterClassIds.Harcos
-                ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
-                : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
-        var actions = new List<BattleActionKind> { BattleActionKind.PhysicalAttack };
-        if (HasUsableCombatSpell(character, characterPosition, enemy)) actions.Add(BattleActionKind.CastSpell);
-        if (CanTurnUndead(character, enemy) && !_turnUndeadUsedThisBattle.Contains(character))
-            actions.Add(BattleActionKind.TurnUndead);
-        return actions;
-    }
+        Position characterPosition, Enemy enemy) =>
+        _singleBattleCoordinator.GetAllowedBattleActions(_activeBattleState, character, characterPosition, enemy,
+            HasUsableCombatSpell(character, characterPosition, enemy), _turnUndeadUsedThisBattle);
 
     private IReadOnlyList<BattleSpellOption> GetSpellOptions(LiveCharacter character,
-        Position characterPosition, Enemy? enemy, bool inCombat)
-    {
-        return character.MemorizedSpells
-            .Where(spell => inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration)
-            .Select(spell => (Spell: spell, Item: (MagicItemDefinition?)null, Slot: (int?)null))
-            .Concat(character.MagicItems.Select((item, index) => (Item: item, Index: index))
-                .Where(entry => entry.Item?.Kind is MagicItemKind.Scroll or MagicItemKind.Wand &&
-                                entry.Item.SpellId is not null && character.MagicItemCharges[entry.Index] > 0)
-                .Select(entry => (Spell: _gameData.GetSpell(entry.Item!.SpellId!), Item: (MagicItemDefinition?)entry.Item,
-                    Slot: (int?)entry.Index))
-                .Where(entry => (inCombat ? entry.Spell.CanUseInCombat : entry.Spell.CanUseDuringExploration) &&
-                                SpellcastingRules.CanUseCastingItem(character, entry.Item!, entry.Spell)))
-            .OrderBy(entry => entry.Spell.Level).ThenBy(entry => entry.Spell.Name)
-            .ThenBy(entry => entry.Item is not null)
-            .Select(entry =>
-            {
-                var targets = entry.Spell.TargetType is SpellTargetType.Self or SpellTargetType.Party
-                    ? HasValidSpellTarget(character, characterPosition, entry.Spell, enemy)
-                        ? new[] { characterPosition }
-                        : []
-                    : GetValidSpellTargets(characterPosition, entry.Spell, enemy).Distinct().ToArray();
-                var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
-                    string.Equals(candidate?.Id, entry.Spell.Id, StringComparison.OrdinalIgnoreCase));
-                return new BattleSpellOption(entry.Spell.Id, entry.Spell.Name, entry.Spell.Level,
-                    entry.Item is null ? SpellcastingRules.EffectiveManaCost(character, entry.Spell) : 0,
-                    entry.Spell.TargetType, entry.Spell.Range, entry.Spell.AreaRadius, entry.Slot,
-                    entry.Item?.Kind, entry.Slot is { } slot ? character.MagicItemCharges[slot] : 0,
-                    entry.Item is null && quickIndex >= 0 ? quickIndex : null, targets);
-            }).ToArray();
-    }
+        Position characterPosition, Enemy? enemy, bool inCombat) =>
+        _singleBattleCoordinator.GetSpellOptions(character, characterPosition, enemy, inCombat,
+            (c, pos, sp, en) => HasValidSpellTarget(c, pos, sp, en),
+            (pos, sp, en) => GetValidSpellTargets(pos, sp, en));
 
     private void ExecuteExplorationSpell(CastExplorationSpellCommand command)
     {
@@ -5568,51 +5239,15 @@ public sealed class Game
     }
 
     private bool HasUsableCombatSpell(LiveCharacter character, Position characterPosition, Enemy enemy) =>
-        character.CanCastSpells && character.MemorizedSpells.Any(spell =>
-                spell.CanUseInCombat && SpellcastingRules.EffectiveManaCost(character, spell) <= character.CurrentMana &&
-                (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id).All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
-                HasValidSpellTarget(character, characterPosition, spell, enemy)) ||
-        EquippedCastingItems(character).Any(item =>
-            _gameData.GetSpell(item.SpellId!) is { } spell && spell.CanUseInCombat &&
-            (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id).All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
-            HasValidSpellTarget(character, characterPosition, spell, enemy));
+        _singleBattleCoordinator.HasUsableCombatSpell(character, characterPosition, enemy,
+            _timeStopUsedThisBattle, EquippedCastingItems(character),
+            (c, pos, sp, en) => HasValidSpellTarget(c, pos, sp, en));
 
     private static bool CanTurnUndead(LiveCharacter character, Enemy enemy) =>
-        character.CharacterClass.Id is CharacterClassIds.Pap or CharacterClassIds.Lovag &&
-        enemy.Definition.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase);
+        SingleBattleCoordinator.CanTurnUndead(character, enemy);
 
-    private BattlePlayerAction ResolveTurnUndead(LiveCharacter character, Enemy enemy)
-    {
-        _turnUndeadUsedThisBattle.Add(character);
-        var priest = character.CharacterClass.Id == CharacterClassIds.Pap;
-        var ability = priest ? character.EffectiveAbilities.Intelligence : character.EffectiveAbilities.Strength;
-        var levelBonus = priest ? character.Level / 2 : character.Level / 3;
-        var roll = _random.Next(1, 21);
-        var total = roll + ability + levelBonus;
-        var difficulty = 10 + enemy.Definition.StrengthTier * 2;
-        var abilityName = priest ? "Halottűzés" : "Szent elűzés";
-        if (total < difficulty)
-            return new BattlePlayerAction($"{character.Name} megkísérli: {abilityName}, de az élőholt ellenáll " +
-                $"({roll} + {ability} + {levelBonus} = {total}, cél {difficulty}).", BattleLogKind.Information);
-
-        if (priest && total >= difficulty + 10 && enemy.Definition.StrengthTier <= 2 && enemy.GroupRole != EnemyGroupRole.Leader)
-            return new BattlePlayerAction($"{character.Name} {abilityName} képessége szent fénnyel megsemmisíti {enemy.Name} ellenfelet " +
-                $"({total}, cél {difficulty}+10).", BattleLogKind.PlayerAttack, enemy.CurrentHitPoints);
-
-        if (priest)
-        {
-            enemy.ApplySpellEffect(new ActiveSpellEffect("TURN-UNDEAD", ActiveSpellEffectType.SkipNext, 0, 2));
-            return new BattlePlayerAction($"{character.Name} sikeresen használja: {abilityName}. {enemy.Name} két akciót kihagy " +
-                $"({total}, cél {difficulty}).", BattleLogKind.PlayerAttack);
-        }
-
-        var damage = _random.Next(1, 7) + character.Level / 2;
-        enemy.ApplySpellEffect(new ActiveSpellEffect("HOLY-TURNING", ActiveSpellEffectType.SkipNext, 0, 1));
-        character.ApplySpellEffect(new ActiveSpellEffect("HOLY-TURNING", ActiveSpellEffectType.DefenseBonus, 2, 2, Beneficial: true));
-        return new BattlePlayerAction($"{character.Name} sikeresen használja: {abilityName}. {enemy.Name} -{damage} HP, " +
-            "kihagyja következő akcióját; a Lovag +2 védelmet kap 2 akcióig " +
-            $"({total}, cél {difficulty}).", BattleLogKind.PlayerAttack, damage);
-    }
+    private BattlePlayerAction ResolveTurnUndead(LiveCharacter character, Enemy enemy) =>
+        _singleBattleCoordinator.ResolveTurnUndead(character, enemy, _turnUndeadUsedThisBattle);
 
     private SpellCastAttempt? TryCastSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
         bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null,
@@ -6264,9 +5899,7 @@ public sealed class Game
                Maze.IsPassableNeutralNpc(occupant);
     }
 
-    private static bool IsQuestImportantEnemy(Enemy enemy) =>
-        enemy.Definition.IsBoss || enemy.Definition.Rank is EnemyRank.MiniBoss or EnemyRank.Boss ||
-        enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) == true;
+    private static bool IsQuestImportantEnemy(Enemy enemy) => TacticalTeamBattleCoordinator.IsQuestImportantEnemy(enemy);
 
     private bool ShouldUseQuickCombat(QuickCombatAssessment assessment)
     {
@@ -6664,42 +6297,15 @@ public sealed class Game
 
     private Position? ChooseNpcBuffTarget(TeamBattleEncounter battle, LiveCharacter caster,
         Position casterPosition, SpellDefinition spell, IReadOnlyList<SpellEffectDefinition> effects,
-        IReadOnlyList<LiveCharacter> allies)
-    {
-        bool NeedsBuff(LiveCharacter character) => effects
-            .Where(effect => NpcSpellcastingPolicy.IsBuffEffect(effect.Type))
-            .Select(effect => NpcSpellcastingPolicy.ActiveTypeFor(effect.Type))
-            .Any(type => type is { } activeType && !character.HasSpellEffect(activeType));
-
-        if (spell.TargetType == SpellTargetType.Self)
-            return NeedsBuff(caster) ? GetCasterPosition(caster) : null;
-        if (spell.TargetType == SpellTargetType.Party)
-        {
-            var missing = allies.Count(NeedsBuff);
-            return missing >= Math.Min(2, allies.Count) ? GetCasterPosition(caster) : null;
-        }
-        if (spell.TargetType != SpellTargetType.PartyMember) return null;
-        return allies.Where(NeedsBuff)
-            .OrderByDescending(character => battle.IsEngaged(character))
-            .ThenByDescending(battle.IsFrontRow)
-            .ThenBy(VitalityRatio)
-            .Where(character => IsValidExplicitSpellTarget(caster, casterPosition, spell,
-                GetCasterPosition(character), currentEnemy: null))
-            .Select(character => (Position?)GetCasterPosition(character)).FirstOrDefault();
-    }
+        IReadOnlyList<LiveCharacter> allies) =>
+        _teamBattleCoordinator.ChooseNpcBuffTarget(battle, caster, casterPosition, spell, effects, allies,
+            GetCasterPosition, (c, pos, sp, tgt, en) => IsValidExplicitSpellTarget(c, pos, sp, tgt, en));
 
     private IEnumerable<Enemy> OrderedNpcSpellTargets(TeamBattleEncounter battle, Position casterPosition) =>
-        battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
-            .OrderByDescending(battle.IsEngaged)
-            .ThenBy(enemy => battle.Characters.Where(character => battle.EngagedEnemies(character).Contains(enemy))
-                .Select(VitalityRatio).DefaultIfEmpty(2d).Min())
-            .ThenByDescending(enemy => enemy.Definition.Rank)
-            .ThenByDescending(enemy => enemy.Definition.StrengthTier)
-            .ThenBy(enemy => enemy.CurrentHitPoints)
-            .ThenBy(enemy => TacticalDistance.Between(casterPosition, enemy.Position));
+        TacticalTeamBattleCoordinator.OrderedNpcSpellTargets(battle, casterPosition);
 
     private static double VitalityRatio(LiveCharacter character) =>
-        (double)character.CurrentVitality / Math.Max(1, character.MaximumVitality);
+        TacticalTeamBattleCoordinator.VitalityRatio(character);
 
     private void ResolveTeamCharacterAttack(TeamBattleEncounter battle, LiveCharacter character, Enemy enemy)
     {
@@ -6879,67 +6485,14 @@ public sealed class Game
     }
 
     private IReadOnlyList<BattleActionKind> GetTeamAllowedBattleActions(TeamBattleEncounter battle,
-        LiveCharacter character, Enemy focusEnemy)
-    {
-        var runtime = battle.RuntimeFor(character);
-        if (runtime.RequiresTacticSelection)
-            return character.CharacterClass.Id == CharacterClassIds.Harcos
-                ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
-                : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
-        var reachable = ReachableTeamEnemies(battle, character).ToArray();
-        var adjacent = AdjacentTeamEnemies(battle, character).ToArray();
-        if (battle.Turns.Cycle == 1 && character.Id == battle.InitiatingCharacterId)
-        {
-            var openingActions = new List<BattleActionKind> { BattleActionKind.Pass };
-            if (reachable.Length > 0) openingActions.Insert(0, BattleActionKind.PhysicalAttack);
-            else if (battle.HasActiveFormation && character == SelectedCharacter)
-                openingActions.Insert(0, BattleActionKind.MoveFormation);
-            else openingActions.Insert(0, BattleActionKind.Move);
-            if (HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy))
-                openingActions.Insert(0, BattleActionKind.CastSpell);
-            return openingActions;
-        }
-        var actions = new List<BattleActionKind> { BattleActionKind.Pass };
-        if (reachable.Length > 0)
-        {
-            actions.Add(BattleActionKind.PhysicalAttack);
-            if (reachable.Length > 1) actions.Add(BattleActionKind.SelectTarget);
-            if (CanTurnUndead(character, focusEnemy) && !_turnUndeadUsedThisBattle.Contains(character))
-                actions.Add(BattleActionKind.TurnUndead);
-        }
-        if (battle.HasActiveFormation && battle.IsFrontRow(character) &&
-            battle.RearPartnerOf(character) is { IsAlive: true })
-            actions.Add(BattleActionKind.SwapToRear);
-        if (battle.HasActiveFormation && character == SelectedCharacter)
-            actions.Add(BattleActionKind.MoveFormation);
-        if (HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy))
-            actions.Add(BattleActionKind.CastSpell);
-        if (!battle.IsEngaged(character))
-        {
-            if (!battle.HasActiveFormation || battle.FormationSlotFor(character) is null)
-                actions.Add(BattleActionKind.Move);
-            if (GetBattleItemOptions(battle, character).Count > 0) actions.Add(BattleActionKind.UseItem);
-        }
-        if (character == SelectedCharacter && battle.Turns.Cycle > 1)
-            actions.Add(BattleActionKind.Retreat);
-        return actions;
-    }
+        LiveCharacter character, Enemy focusEnemy) =>
+        _teamBattleCoordinator.GetTeamAllowedBattleActions(battle, character, focusEnemy, SelectedCharacter,
+            GetCasterPosition(character), HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy),
+            _turnUndeadUsedThisBattle);
 
     private IReadOnlyList<BattleTacticOptionSnapshot>? GetTeamBattleTacticOptions(TeamBattleEncounter battle,
-        LiveCharacter character, Enemy enemy)
-    {
-        if (!battle.RuntimeFor(character).RequiresTacticSelection ||
-            character.CharacterClass.Id != CharacterClassIds.Harcos) return null;
-        return
-        [
-            new(BattleActionKind.FighterPrecise, "🎯 Pontos", "nagyobb találati esély, kisebb sebzés",
-                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPrecise)),
-            new(BattleActionKind.FighterPowerful, "💥 Erőteljes", "páncéltörés és nagyobb sebzés",
-                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPowerful)),
-            new(BattleActionKind.FighterDefensive, "🛡️ Védekező", "nagyobb védelem, kisebb sebzés",
-                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterDefensive))
-        ];
-    }
+        LiveCharacter character, Enemy enemy) =>
+        _teamBattleCoordinator.GetTeamBattleTacticOptions(battle, character, enemy);
 
     private void PublishTeamBattlePrompt(LiveCharacter character, Enemy enemy,
         IReadOnlyList<BattleActionKind> actions, TeamBattleEncounter battle)
@@ -6965,40 +6518,20 @@ public sealed class Game
         if (character == SelectedCharacter) _renderer.DrawInventoryMessage(message, ConsoleColor.Yellow);
     }
 
-    private IEnumerable<Enemy> AdjacentTeamEnemies(TeamBattleEncounter battle, LiveCharacter character)
-    {
-        var position = GetCasterPosition(character);
-        return battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 &&
-            TacticalDistance.IsMeleeAdjacent(position, enemy.Position));
-    }
+    private IEnumerable<Enemy> AdjacentTeamEnemies(TeamBattleEncounter battle, LiveCharacter character) =>
+        TacticalTeamBattleCoordinator.AdjacentTeamEnemies(battle, character, GetCasterPosition(character));
 
-    private IEnumerable<Enemy> ReachableTeamEnemies(TeamBattleEncounter battle, LiveCharacter character)
-    {
-        var adjacent = AdjacentTeamEnemies(battle, character).ToArray();
-        return adjacent.Concat(battle.RearFormationEnemiesInReach(character))
-            .Where(enemy => enemy.CurrentHitPoints > 0)
-            .DistinctBy(enemy => enemy.Id);
-    }
+    private IEnumerable<Enemy> ReachableTeamEnemies(TeamBattleEncounter battle, LiveCharacter character) =>
+        TacticalTeamBattleCoordinator.ReachableTeamEnemies(battle, character, GetCasterPosition(character));
 
     private IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy) =>
-        battle.Characters.Where(character => character.IsAlive &&
-            TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position) &&
-            !battle.IsProtectedRearTarget(character, enemy.Position));
+        TacticalTeamBattleCoordinator.AdjacentTeamCharacters(battle, enemy, GetCasterPosition);
 
-    private IEnumerable<LiveCharacter> TeamEnemyTargets(TeamBattleEncounter battle, Enemy enemy)
-    {
-        var exposed = battle.Characters.Where(character => character.IsAlive &&
-            !battle.IsProtectedRearTarget(character, enemy.Position)).ToArray();
-        return exposed.Length > 0 ? exposed : battle.Characters.Where(character => character.IsAlive);
-    }
+    private IEnumerable<LiveCharacter> TeamEnemyTargets(TeamBattleEncounter battle, Enemy enemy) =>
+        TacticalTeamBattleCoordinator.TeamEnemyTargets(battle, enemy);
 
-    private static IEnumerable<Position> TeamMeleePositions(Position center)
-    {
-        for (var y = center.Y - 1; y <= center.Y + 1; y++)
-        for (var x = center.X - 1; x <= center.X + 1; x++)
-            if (x != center.X || y != center.Y)
-                yield return new Position(x, y);
-    }
+    private static IEnumerable<Position> TeamMeleePositions(Position center) =>
+        TacticalTeamBattleCoordinator.TeamMeleePositions(center);
 
     private CombatantId? TeamBattleFocusTarget(TeamBattleEncounter battle, TacticalBattleParticipant current)
     {
@@ -7018,16 +6551,8 @@ public sealed class Game
         return target is null ? null : CombatantId.ForCharacter(target.Id);
     }
 
-    private Enemy? NextTeamBattleTarget(TeamBattleEncounter battle, LiveCharacter character)
-    {
-        var targets = ReachableTeamEnemies(battle, character).OrderBy(enemy => enemy.Position.Y)
-            .ThenBy(enemy => enemy.Position.X).ThenBy(enemy => enemy.Id.ToString(), StringComparer.Ordinal).ToArray();
-        if (targets.Length == 0) return null;
-        var currentTargetId = battle.SelectedTargetEnemyId ??
-                              targets.OrderBy(enemy => enemy.CurrentHitPoints).First().Id;
-        var selectedIndex = Array.FindIndex(targets, enemy => enemy.Id == currentTargetId);
-        return targets[(selectedIndex + 1) % targets.Length];
-    }
+    private Enemy? NextTeamBattleTarget(TeamBattleEncounter battle, LiveCharacter character) =>
+        TacticalTeamBattleCoordinator.NextTeamBattleTarget(battle, character, GetCasterPosition(character));
 
     private void UpdateTeamBattleFocus(TeamBattleEncounter battle, TacticalBattleParticipant current)
     {
@@ -7051,9 +6576,7 @@ public sealed class Game
     }
 
     private Enemy ClosestLivingTeamEnemy(TeamBattleEncounter battle, Position origin) =>
-        battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
-            .OrderBy(enemy => TacticalDistance.Between(origin, enemy.Position))
-            .ThenBy(enemy => enemy.CurrentHitPoints).First();
+        TacticalTeamBattleCoordinator.ClosestLivingTeamEnemy(battle, origin);
 
     private void MoveTeamCharacterToward(TeamBattleEncounter battle, LiveCharacter character, Position target)
     {
@@ -7717,64 +7240,18 @@ public sealed class Game
 
     private void DrainNeeds()
     {
-        var hungry = _gameData.GetStatus(CharacterStatusIds.Hungry);
-        var thirsty = _gameData.GetStatus(CharacterStatusIds.Thirsty);
         var followers = _maze.PartyMembers.Where(member => member.IsTemporaryFollower)
             .Select(member => member.Character);
-        foreach (var character in CharacterRoster.Party.Members.Concat(followers).Distinct()
-                     .Where(character => character.IsAlive))
-        {
-            var foodBefore = character.FoodLevel;
-            var waterBefore = character.WaterLevel;
-            var foodLoss = 2 + character.MaximumVitality / 60;
-            character.ConsumeFood(foodLoss);
-            var waterLoss = 2;
-            if (character.CurrentVitality < character.MaximumVitality) waterLoss++;
-            if (character.CurrentVitality * 2 < character.MaximumVitality) waterLoss++;
-            character.ConsumeWater(waterLoss);
-            character.SynchronizeNeedStatuses(hungry, thirsty);
-            if (IsAutonomousNpc(character))
-            {
-                LogNewZeroNeed(character, NpcComplaintKind.Hunger, foodBefore, character.FoodLevel);
-                LogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
-                TryNpcUseConsumables(character);
-            }
-        }
+        var characters = CharacterRoster.Party.Members.Concat(followers).Distinct();
+        _sustenanceService.DrainNeeds(characters, IsAutonomousNpc, LogNewZeroNeed, TryNpcUseConsumables);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
     }
 
-    private int DrainNeedsAfterBattle(LiveCharacter character, int monsterTier)
-    {
-        var foodBefore = character.FoodLevel;
-        var waterBefore = character.WaterLevel;
-        var loss = _random.Next(1, 6) + Math.Clamp(monsterTier, 1, 5);
-        character.ConsumeFood(loss);
-        character.ConsumeWater(loss);
-        character.SynchronizeNeedStatuses(
-            _gameData.GetStatus(CharacterStatusIds.Hungry),
-            _gameData.GetStatus(CharacterStatusIds.Thirsty));
-        if (IsAutonomousNpc(character))
-        {
-            LogNewZeroNeed(character, NpcComplaintKind.Hunger, foodBefore, character.FoodLevel);
-            LogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
-        }
-        return loss;
-    }
+    private int DrainNeedsAfterBattle(LiveCharacter character, int monsterTier) =>
+        _sustenanceService.DrainNeedsAfterBattle(character, monsterTier, IsAutonomousNpc, LogNewZeroNeed);
 
-    private void DrainNeedsAfterTeamBattle(LiveCharacter character, int cycles)
-    {
-        var foodBefore = character.FoodLevel;
-        var waterBefore = character.WaterLevel;
-        var loss = Math.Max(1, cycles);
-        character.ConsumeFood(loss);
-        character.ConsumeWater(loss);
-        character.SynchronizeNeedStatuses(
-            _gameData.GetStatus(CharacterStatusIds.Hungry),
-            _gameData.GetStatus(CharacterStatusIds.Thirsty));
-        if (!IsAutonomousNpc(character)) return;
-        LogNewZeroNeed(character, NpcComplaintKind.Hunger, foodBefore, character.FoodLevel);
-        LogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
-    }
+    private void DrainNeedsAfterTeamBattle(LiveCharacter character, int cycles) =>
+        _sustenanceService.DrainNeedsAfterTeamBattle(character, cycles, IsAutonomousNpc, LogNewZeroNeed);
 
     private bool IsAutonomousNpc(LiveCharacter character) =>
         character != SelectedCharacter && !_session.IsHumanControlled(character.Id) &&
@@ -7859,14 +7336,11 @@ public sealed class Game
     }
 
     private static IEnumerable<(int Index, MiscItemDefinition Item)> BackpackConsumables(
-        LiveCharacter character, ConsumableEffect effect) => Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
-        .Select(index => (Index: index,
-            Item: character.GetInventoryItem(InventorySlotKind.Backpack, index) as MiscItemDefinition))
-        .Where(entry => entry.Item?.Effect == effect)
-        .Select(entry => (entry.Index, entry.Item!));
+        LiveCharacter character, ConsumableEffect effect) =>
+        PartySustenanceService.BackpackConsumables(character, effect);
 
     private static bool HasHealingPotion(LiveCharacter character) =>
-        BackpackConsumables(character, ConsumableEffect.Heal).Any();
+        PartySustenanceService.HasHealingPotion(character);
 
     private void LogNewZeroNeed(LiveCharacter character, NpcComplaintKind kind, int previous, int current)
     {
@@ -8316,24 +7790,8 @@ public sealed class Game
         _gameData.GetCharacterResourceGrowth(SelectedCharacter.CharacterClass.Id),
         _random);
 
-    private IReadOnlyList<ExperienceAward> DistributeExperience(LiveCharacter winner, int totalExperience)
-    {
-        var total = Math.Max(0, totalExperience);
-        var others = CharacterRoster.Party.Members
-            .Where(character => character != winner && character.IsAlive)
-            .ToList();
-        if (others.Count == 0)
-            return [AwardExperience(winner, total)];
-
-        var winnerShare = total * 60 / 100;
-        var remainder = total - winnerShare;
-        var sharedBase = remainder / others.Count;
-        var sharedRemainder = remainder % others.Count;
-        var awards = new List<ExperienceAward> { AwardExperience(winner, winnerShare) };
-        for (var index = 0; index < others.Count; index++)
-            awards.Add(AwardExperience(others[index], sharedBase + (index < sharedRemainder ? 1 : 0)));
-        return awards;
-    }
+    private IReadOnlyList<ExperienceAward> DistributeExperience(LiveCharacter winner, int totalExperience) =>
+        _progressionService.DistributeExperience(winner, totalExperience, CharacterRoster.Party.Members);
 
     private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002",
         // Witcher-only consumables (potions and medical supplies)
@@ -8347,18 +7805,14 @@ public sealed class Game
         .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item))
         .Where(item => !MerchantExcludedItemIds.Contains(item.Id)).ToList();
 
-    private ExperienceAward AwardExperience(LiveCharacter character, int amount) => new(character,
-        character.AddExperience(amount, _gameData.ExperienceByLevel,
-            _gameData.GetVitalityGrowth(character.Abilities.Health),
-            _gameData.GetManaGrowth(character.Abilities.Intelligence),
-            _gameData.GetCharacterResourceGrowth(character.CharacterClass.Id), _random));
+    private ExperienceAward AwardExperience(LiveCharacter character, int amount) =>
+        _progressionService.AwardExperience(character, amount);
 
     private LevelUpResult AwardExperienceResult(LiveCharacter character, int amount) =>
-        AwardExperience(character, amount).Result;
+        _progressionService.AwardExperienceResult(character, amount);
 
-    private static string FormatExperienceAwards(IEnumerable<ExperienceAward> awards) => string.Join("; ", awards.Select(award =>
-        $"{award.Character.Name} +{award.Result.GainedExperience}" +
-        (award.Result.LeveledUp ? $" (L{award.Result.PreviousLevel}→L{award.Result.CurrentLevel})" : string.Empty)));
+    private static string FormatExperienceAwards(IEnumerable<ExperienceAward> awards) =>
+        CharacterProgressionService.FormatExperienceAwards(awards);
 
     private void GrantPartyExperienceForDevelopment()
     {
@@ -8440,8 +7894,7 @@ public sealed class Game
     }
 
     private static bool ShouldChooseSpecialization(LiveCharacter character, IReadOnlyList<PerkOffer> offers) =>
-        character.SpecializationId is null && ClassSpecializations.ForClass(character.CharacterClass.Id).Count > 0 &&
-        (offers.Any(offer => offer.Tier == 1) || character.Perks.Any(perk => perk.Tier == 1));
+        CharacterProgressionService.ShouldChooseSpecialization(character, offers);
 
     private void ResolveLocalSpecialization(LiveCharacter character)
     {
@@ -8463,16 +7916,8 @@ public sealed class Game
         character.ChooseSpecialization(choices.FirstOrDefault(choice => choice.Id == selectedId)?.Id ?? choices[0].Id);
     }
 
-    private static IEnumerable<int> PendingClassFeatureMilestones(LiveCharacter character, LevelUpResult result)
-    {
-        var acquired = character.ClassFeatureUpgrades.Count;
-        foreach (var milestone in new[] { 10, 20 })
-        {
-            if (result.CurrentLevel < milestone || acquired >= milestone / 10) continue;
-            acquired++;
-            yield return milestone;
-        }
-    }
+    private static IEnumerable<int> PendingClassFeatureMilestones(LiveCharacter character, LevelUpResult result) =>
+        CharacterProgressionService.PendingClassFeatureMilestones(character, result);
 
     private void ResolveLocalClassFeatureUpgrades(LiveCharacter character, LevelUpResult result)
     {
@@ -8504,23 +7949,7 @@ public sealed class Game
     }
 
     private static IReadOnlyList<(string Id, string Name, string Description)> AbilityIncreaseChoices(
-        LiveCharacter character)
-    {
-        var choices = new List<(string, string, string)>();
-        if (character.Abilities.Strength < 13)
-            choices.Add(("STR", $"💪 Erő: {character.Abilities.Strength} → {character.Abilities.Strength + 1}",
-                "Növeli a közelharci sebzést, és a harci osztályok találati bónuszát is elérheti."));
-        if (character.Abilities.Dexterity < 13)
-            choices.Add(("DEX", $"🏹 Ügyesség: {character.Abilities.Dexterity} → {character.Abilities.Dexterity + 1}",
-                "Javítja a fegyveres találatot, a kezdeményezést és az ellenséges támadások elleni védelmet."));
-        if (character.Abilities.Health < 13)
-            choices.Add(("HEA", $"❤️ Egészség: {character.Abilities.Health} → {character.Abilities.Health + 1}",
-                "Azonnal növelheti az alap HP-t, és a következő szintlépések HP-növekedését is javítja."));
-        if (character.Abilities.Intelligence < 13)
-            choices.Add(("INT", $"🧠 Intelligencia: {character.Abilities.Intelligence} → {character.Abilities.Intelligence + 1}",
-                "Erősíti a varázslatokat, csökkenti a kudarcot, és azonnal növelheti az alap mannát is."));
-        return choices;
-    }
+        LiveCharacter character) => CharacterProgressionService.AbilityIncreaseChoices(character);
 
     private void ResolveLocalAbilityIncreases(LiveCharacter character, LevelUpResult result)
     {
@@ -8555,40 +7984,19 @@ public sealed class Game
 
     private bool ApplyAbilityIncrease(LiveCharacter character, string abilityId)
     {
-        var oldVitalityBase = _gameData.GetMinimumVitality(character.Abilities.Health);
-        var oldManaBase = character.UsesMana
-            ? CharacterClassRules.AdjustStartingMana(character.CharacterClass.Id,
-                _gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
-            : 0;
-        if (!character.TryIncreaseAbility(abilityId)) return false;
-        var newVitalityBase = _gameData.GetMinimumVitality(character.Abilities.Health);
-        var newManaBase = character.UsesMana
-            ? CharacterClassRules.AdjustStartingMana(character.CharacterClass.Id,
-                _gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
-            : 0;
-        character.ApplyAbilityResourceIncrease(newVitalityBase - oldVitalityBase, newManaBase - oldManaBase);
+        if (!_progressionService.ApplyAbilityIncrease(character, abilityId)) return false;
         PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
         return true;
     }
 
     private static int EarnedWeaponProficiencyAdvances(LiveCharacter character, int level) =>
-        WeaponProficiencyProgression.EarnedAdvances(character.CharacterClass.Id, level);
+        CharacterProgressionService.EarnedWeaponProficiencyAdvances(character, level);
 
     private IReadOnlyList<(string Id, string Name, string Description)> WeaponProficiencyChoices(
-        LiveCharacter character) => WeaponFamilies.AvailableFor(character.CharacterClass.Id, _gameData.Weapons)
-        .Where(family => character.WeaponProficiencyRankFor(family.Id) != WeaponProficiencyRank.Master &&
-                         (character.WeaponProficiencies.Count < 2 ||
-                          character.WeaponProficiencyRankFor(family.Id) is not null))
-        .Select(family => character.WeaponProficiencyRankFor(family.Id) is null
-            ? (family.Id, $"{family.Icon} {family.Name} — Jártas", family.TrainedDescription)
-            : (family.Id, $"{family.Icon} {family.Name} — Mester", family.MasterDescription))
-        .ToArray();
+        LiveCharacter character) => _progressionService.WeaponProficiencyChoices(character);
 
-    private static int NextWeaponProficiencyMilestone(LiveCharacter character)
-    {
-        var index = character.WeaponProficiencyAdvances;
-        return WeaponProficiencyProgression.MilestonesFor(character.CharacterClass.Id).ElementAtOrDefault(index);
-    }
+    private static int NextWeaponProficiencyMilestone(LiveCharacter character) =>
+        CharacterProgressionService.NextWeaponProficiencyMilestone(character);
 
     private void ResolveLocalWeaponProficiencies(LiveCharacter character, LevelUpResult result)
     {
@@ -8717,26 +8125,9 @@ public sealed class Game
         }
     }
 
-    private sealed record ExperienceAward(LiveCharacter Character, LevelUpResult Result);
-
-    private enum NpcComplaintKind { Hunger, Thirst, Injured }
-
     private sealed record BossNarrative(string ChapterTitle, IReadOnlyList<string> Speech);
 
-    private IReadOnlyList<PerkOffer> CreatePerkOffers(LiveCharacter character, LevelUpResult result)
-    {
-        var offers = new List<PerkOffer>();
-        for (var tier = 1; tier <= 3; tier++)
-        {
-            if (character.Perks.Any(perk => perk.Tier == tier)) continue;
-            var milestone = PerkProgressionRules.TriggerLevel(character.Race, tier);
-            if (result.CurrentLevel < milestone) continue;
-
-            // Régi mentésnél a következő szintlépés pótolja a már elhagyott, de ki nem választott tehetséget.
-            var triggerLevel = result.PreviousLevel < milestone ? milestone : result.CurrentLevel;
-            offers.Add(new PerkOffer(tier, triggerLevel, _gameData.GetPerkChoices(character.CharacterClass.Id, tier)));
-        }
-        return offers;
-    }
+    private IReadOnlyList<PerkOffer> CreatePerkOffers(LiveCharacter character, LevelUpResult result) =>
+        _progressionService.CreatePerkOffers(character, result);
 
 }
