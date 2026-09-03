@@ -157,7 +157,8 @@ public sealed class ConsoleRenderer
     private ConsoleColor? _currentBackgroundColor;
     private readonly HashSet<Position> _teamBattleFocusPositions = [];
     private readonly BattleCommandPanel _battleCommandPanel = new(
-        ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', PlayfieldWidth));
+        ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', PlayfieldWidth),
+        ConsoleColor.Cyan);
 
     public ConsoleRenderer(GameDataCatalog gameData, Party party,
         Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null)
@@ -399,9 +400,60 @@ public sealed class ConsoleRenderer
 
     public void DrawBattleCommandPanel(string text)
     {
-        var line = string.IsNullOrWhiteSpace(text) ? _battleCommandPanel.Close() : _battleCommandPanel.Open(text);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            _battleCommandPanel.Close();
+            SetColors(_battleCommandPanel.Foreground, _battleCommandPanel.Background);
+            WriteAt(0, BattleCommandPanel.Row, _battleCommandPanel.Line);
+            return;
+        }
+
+        // Parse and highlight hotkeys in the command text
+        var segments = BattleCommandPanel.ParseHotkeysPublic(text, _battleCommandPanel.HotkeyColor);
+        DrawBattleCommandPanelWithHighlighting(segments);
+    }
+
+    public void DrawBattleCommandPanelWithHighlighting(IReadOnlyList<TextSegment> segments)
+    {
+        _battleCommandPanel.OpenWithHighlighting(segments);
+
+        // Calculate center padding
+        var combinedText = string.Concat(segments.Select(s => s.Text));
+        var totalWidth = BattleCommandPanel.Width;
+        var textLength = combinedText.Length;
+
+        if (textLength > totalWidth)
+        {
+            // Text is too long, just render centered portion without padding
+            var truncated = combinedText[..totalWidth];
+            SetColors(_battleCommandPanel.Foreground, _battleCommandPanel.Background);
+            WriteAt(0, BattleCommandPanel.Row, truncated);
+            return;
+        }
+
+        var paddingNeeded = totalWidth - textLength;
+        var leftPadding = paddingNeeded / 2;
+        var rightPadding = paddingNeeded - leftPadding;
+
+        // Write left padding
         SetColors(_battleCommandPanel.Foreground, _battleCommandPanel.Background);
-        WriteAt(0, BattleCommandPanel.Row, line);
+        WriteAt(0, BattleCommandPanel.Row, new string(' ', leftPadding));
+
+        // Write segments starting after left padding
+        var column = leftPadding;
+        foreach (var segment in segments)
+        {
+            if (string.IsNullOrEmpty(segment.Text)) continue;
+
+            var segmentColor = segment.Color ?? _battleCommandPanel.Foreground;
+            SetColors(segmentColor, _battleCommandPanel.Background);
+            WriteAt(column, BattleCommandPanel.Row, segment.Text);
+            column += segment.Text.Length;
+        }
+
+        // Write right padding
+        SetColors(_battleCommandPanel.Foreground, _battleCommandPanel.Background);
+        WriteAt(column, BattleCommandPanel.Row, new string(' ', rightPadding));
     }
     /// <summary>Kincs felvétele esetén rövid üzenet a battle/message panelre.</summary>
     public void DrawTreasureCollected(int goldAmount, bool jackpot, int jackpotChance, int rewardMultiplier) =>

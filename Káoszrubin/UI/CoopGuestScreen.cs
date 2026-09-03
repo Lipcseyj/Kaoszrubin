@@ -64,7 +64,8 @@ public sealed class CoopGuestScreen
     private int _doorTargetSelection;
     private GuestRenderFrame? _lastFrame;
     private readonly BattleCommandPanel _battleCommandPanel = new(
-        ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', BattleCommandPanel.Width));
+        ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', BattleCommandPanel.Width),
+        ConsoleColor.Cyan);
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData,
         GameSettingsService? musicSettings = null)
