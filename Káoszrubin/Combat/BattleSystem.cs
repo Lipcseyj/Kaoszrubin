@@ -428,7 +428,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var retaliation = context.KnightRetaliationReady;
         context.KnightRetaliationReady = false;
         var hitBonus = PlayerHitBonus(player, context.Tactic, weapon is not null, invisibilityBonus,
-            strengthHitBonus, blessedWeaponBonus) + (retaliation ? 2 : 0) +
+            strengthHitBonus, blessedWeaponBonus) + (weapon?.MagicPower ?? 0) + (retaliation ? 2 : 0) +
                        (weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0);
         hitBonus += oathbladeBonus;
         var hit = HitRoll(player.EffectiveAbilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
@@ -502,13 +502,19 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             context.AmbushAvailable = false;
             notes.Add($"Orvtámadás ×{damageMultiplierPercent / 100d:0.##}");
         }
+        var criticalNaturalRollMinimum = weapon?.MagicPower switch
+        {
+            2 => 19,
+            >= 3 => 18,
+            _ => 20
+        };
         var criticalMultiplier = player.HasPerk(PerkIds.ThiefDeadlyAccuracy) && hit.NaturalRoll >= 18
             ? 3
             : weaponFamily == WeaponFamilies.Axe && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll == 20
                 ? 3
             : weaponFamily == WeaponFamilies.Dagger && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll >= 19
                 ? 2
-            : hit.NaturalRoll == 20 || context.Tactic == BattleTactic.ThiefObserve && hit.NaturalRoll == 19 &&
+            : hit.NaturalRoll >= criticalNaturalRollMinimum || context.Tactic == BattleTactic.ThiefObserve && hit.NaturalRoll == 19 &&
               player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve) ? 2 : 1;
         if (criticalMultiplier > 1)
             notes.Add(criticalMultiplier == 3
@@ -594,6 +600,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var bonus = PlayerHitBonus(player, tactic, weaponEquipped,
             player.SpellEffectValue(ActiveSpellEffectType.Invisibility), StrengthHitBonus(player), blessedWeaponBonus) -
                     player.StatusHitPenalty +
+                    (weapon?.MagicPower ?? 0) +
                     (WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Sword &&
                      player.WeaponProficiencyRankFor(WeaponFamilies.Sword) is not null ? 1 : 0) +
                     (UsesRodericOathblade(player, weapon) ? 1 : 0);
