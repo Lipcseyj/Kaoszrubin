@@ -2010,21 +2010,16 @@ public sealed class Game : ISessionCommandHandler
     {
         if (!npc.CanStartConversation) return false;
 
-        NpcDefinition definition = null;
-        if (npc.DefinitionId == "NPC-FIRST-COMPANION")
-        {
-            definition = new NpcDefinition(
+        var definition = npc.DefinitionId == "NPC-FIRST-COMPANION"
+            ? new NpcDefinition(
                 "NPC-FIRST-COMPANION",
                 npc.Character.Name,
                 "na",
                 NpcDisposition.Friendly,
                 NpcWorldBehavior.Friendly,
                 true,
-                false
-            );
-        }
-        else
-            definition = _gameData.GetNpc(npc.DefinitionId);
+                false)
+            : _gameData.GetNpc(npc.DefinitionId);
         if (definition.Unique && string.Equals(definition.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))
         {
             ConverseWithFirstUniqueNpc(npc);
