@@ -17,7 +17,7 @@ public sealed class CoopGuestScreen
     private readonly GameDataCatalog _gameData;
     private readonly SoundEffects _soundEffects;
     private readonly BackgroundMusicPlayer _backgroundMusic;
-    private readonly MusicSettingsService _musicSettings;
+    private readonly GameSettingsService _musicSettings;
     private int _redrawRequested = 1;
     private static int MessageLineCount => ConsoleRenderer.MessageLogLineCount;
     private static int MessageBufferLineCount => ConsoleRenderer.MessageLogBufferLineCount;
@@ -65,13 +65,13 @@ public sealed class CoopGuestScreen
     private GuestRenderFrame? _lastFrame;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData,
-        MusicSettingsService? musicSettings = null)
+        GameSettingsService? musicSettings = null)
     {
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
         _gameData = gameData ?? throw new ArgumentNullException(nameof(gameData));
         _soundEffects = new SoundEffects(message => SetMessage(message, ConsoleColor.DarkYellow));
-        _musicSettings = musicSettings ?? new MusicSettingsService();
+        _musicSettings = musicSettings ?? new GameSettingsService();
         _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
             message => SetMessage(message, ConsoleColor.DarkYellow));
     }

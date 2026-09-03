@@ -18,7 +18,7 @@ public sealed class MainMenu
     private readonly string _catalogHash;
     private readonly Random _random = new();
     private readonly SoundEffects _soundEffects;
-    private readonly MusicSettingsService _musicSettings = new();
+    private readonly GameSettingsService _musicSettings = new();
 
     private const int SideMenuWidth = 52;
     private const int SideMenuLeft = 142;

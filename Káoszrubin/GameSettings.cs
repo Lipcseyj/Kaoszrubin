@@ -9,7 +9,7 @@ public enum QuickCombatMode
     Never
 }
 
-public sealed class MusicSettings
+public sealed class GameSettings
 {
     public bool Enabled { get; set; } = true;
     public int VolumePercent { get; set; } = 50;
@@ -22,13 +22,13 @@ public sealed class MusicSettings
     }
 }
 
-public sealed class MusicSettingsService
+public sealed class GameSettingsService
 {
     private readonly string _path;
 
-    public MusicSettings Settings { get; }
+    public GameSettings Settings { get; }
 
-    public MusicSettingsService(string? path = null)
+    public GameSettingsService(string? path = null)
     {
         _path = path ?? Path.Combine(AppContext.BaseDirectory, "beallitasok.json");
         Settings = Load(_path);
@@ -50,17 +50,17 @@ public sealed class MusicSettingsService
         }
     }
 
-    private static MusicSettings Load(string path)
+    private static GameSettings Load(string path)
     {
         try
         {
-            var settings = JsonSerializer.Deserialize<MusicSettings>(File.ReadAllText(path)) ?? new MusicSettings();
+            var settings = JsonSerializer.Deserialize<GameSettings>(File.ReadAllText(path)) ?? new GameSettings();
             settings.Normalize();
             return settings;
         }
         catch (Exception)
         {
-            return new MusicSettings();
+            return new GameSettings();
         }
     }
 }

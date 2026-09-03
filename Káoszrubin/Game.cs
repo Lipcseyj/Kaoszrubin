@@ -65,7 +65,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
     private readonly BackgroundMusicPlayer _backgroundMusic;
-    private readonly MusicSettingsService _musicSettings;
+    private readonly GameSettingsService _musicSettings;
     private readonly GameSession _session;
     private readonly SpellExecutionService _spellExecutionService;
     private readonly SingleBattleCoordinator _singleBattleCoordinator;
@@ -289,7 +289,7 @@ public sealed class Game : ISessionCommandHandler
 
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
         GameSaveService gameSaveService, GameSaveData? loadedState = null, GameSession? session = null,
-        MusicSettingsService? musicSettings = null)
+        GameSettingsService? musicSettings = null)
     {
         CharacterRoster = characterRoster;
         SelectedCharacter = selectedCharacter;
@@ -307,7 +307,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.SetFormationStatus(_formation);
         _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
-        _musicSettings = musicSettings ?? new MusicSettingsService();
+        _musicSettings = musicSettings ?? new GameSettingsService();
         _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
             message => _renderer.DrawDeveloperMessage(message));
         _doorInteractions = new DoorInteractionController(gameData, _renderer,
