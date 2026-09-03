@@ -2313,9 +2313,26 @@ public sealed class ConsoleRenderer
                 ? messages[messageIndex]
                 : new MessageLogLine(string.Empty, ConsoleColor.Gray);
             SetColors(messageLine.Color, ConsoleColor.Black);
-            var text = messageLine.Text;
+            var text = ExpandTabs(messageLine.Text);
             WriteAt(MessagePanelLeft, BottomBorderY + FirstMessageLineOffset + index, text.PadRight(MessageWidth));
         }
+    }
+
+    private static string ExpandTabs(string text, int tabWidth = 18)
+    {
+        if (!text.Contains('\t')) return text;
+        var builder = new StringBuilder(text.Length + tabWidth);
+        foreach (var character in text)
+        {
+            if (character != '\t')
+            {
+                builder.Append(character);
+                continue;
+            }
+            var spaces = tabWidth - builder.Length % tabWidth;
+            builder.Append(' ', spaces);
+        }
+        return builder.ToString();
     }
 
     /// <summary>

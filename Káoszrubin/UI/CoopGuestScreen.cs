@@ -1904,12 +1904,13 @@ public sealed class CoopGuestScreen
         }
         if (string.IsNullOrEmpty(line.ColoredSuffix))
         {
-            Console.Write(FitConsoleLine(line.Text, width));
+            Console.Write(FitConsoleLine(ExpandTabs(line.Text), width));
             return;
         }
         var suffix = line.ColoredSuffix[..Math.Min(line.ColoredSuffix.Length, width)];
         var leftWidth = Math.Max(0, width - suffix.Length);
-        var left = line.Text.Length <= leftWidth ? line.Text : line.Text[..leftWidth];
+        var expandedText = ExpandTabs(line.Text);
+        var left = expandedText.Length <= leftWidth ? expandedText : expandedText[..leftWidth];
         Console.Write(left);
         Console.ForegroundColor = line.ColoredSuffixColor;
         Console.Write(suffix);
@@ -2092,6 +2093,23 @@ public sealed class CoopGuestScreen
     {
         if (text.Length > width) text = text[..width];
         return text.PadRight(width);
+    }
+
+    private static string ExpandTabs(string text, int tabWidth = 18)
+    {
+        if (!text.Contains('\t')) return text;
+        var builder = new System.Text.StringBuilder(text.Length + tabWidth);
+        foreach (var character in text)
+        {
+            if (character != '\t')
+            {
+                builder.Append(character);
+                continue;
+            }
+            var spaces = tabWidth - builder.Length % tabWidth;
+            builder.Append(' ', spaces);
+        }
+        return builder.ToString();
     }
 
     private readonly record struct GuestMapCell(string Glyph, ConsoleColor Color,
