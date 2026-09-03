@@ -39,7 +39,7 @@ public sealed class SessionEventService
             : [selectedCharacterId];
         var missed = entry.Message.Contains("💨", StringComparison.Ordinal);
         var enemyHitPlayer = !missed && battle is not null &&
-            entry.Message.Contains($"{battle.Enemy.Name} támadja {battle.Player.Name}", StringComparison.Ordinal);
+            entry.Message.Contains($"{battle.Enemy.Name} → {battle.Player.Name}", StringComparison.Ordinal);
         if (enemyHitPlayer && battle is not null)
             PlaySessionSound(SoundEffect.PlayerGotHit, [battle.PlayerCharacterId], selectedCharacterId);
         else

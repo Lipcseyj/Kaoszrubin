@@ -108,6 +108,7 @@ public sealed class Game : ISessionCommandHandler
     private int _battleStartingMana;
     private HashSet<string> _battleStartingStatusIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<LiveCharacter> _turnUndeadUsedThisBattle = [];
+    private readonly HashSet<CharacterId> _battleNoPathReported = [];
     private readonly Dictionary<(CharacterId CharacterId, NpcComplaintKind Kind), DateTime> _nextNpcComplaints = [];
     private readonly HashSet<(CharacterId CharacterId, NpcComplaintKind Kind)> _reportedNpcShortages = [];
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
@@ -5220,6 +5221,7 @@ public sealed class Game : ISessionCommandHandler
         CheckBossDiscovery([initiatingEnemy]);
         _timeStopUsedThisBattle = false;
         _turnUndeadUsedThisBattle.Clear();
+        _battleNoPathReported.Clear();
         _pendingLevelUps.Clear();
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
 
@@ -5583,7 +5585,7 @@ public sealed class Game : ISessionCommandHandler
             case BattleActionKind.Pass:
                 var passStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(
-                    $"{character.Name} kivár és nem cselekszik ebben a körben.{passStatus}",
+                    $"{character.Name} — Kivár.{passStatus}",
                     BattleLogKind.Information)]);
                 AdvanceTeamBattleTurn(battle);
                 break;
@@ -6324,6 +6326,7 @@ public sealed class Game : ISessionCommandHandler
         var steps = path.Take(battle.Current.MovementAllowance).ToArray();
         if (steps.Length > 0)
         {
+            _battleNoPathReported.Remove(character.Id);
             battle.RecordMovement(BattleSide.Friendly);
             var previousPosition = GetCasterPosition(character);
             var destination = steps[^1];
@@ -6344,7 +6347,8 @@ public sealed class Game : ISessionCommandHandler
         var message = steps.Length > 0
             ? $"{character.Name} {steps.Length} mezőt mozog.{statusText}"
             : $"{character.Name} nem talál járható utat.{statusText}";
-        PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
+        if (steps.Length > 0 || _battleNoPathReported.Add(character.Id) || !string.IsNullOrEmpty(statusText))
+            PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
     }
 
