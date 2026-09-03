@@ -5406,7 +5406,8 @@ public sealed class Game : ISessionCommandHandler
                 }
                 _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, SelectedCharacter.Id,
                     [BattleActionKind.AdvanceEnemyTurn]);
-                _renderer.DrawBattleCommandPanel("Space: végrehajtja az ellenfél akcióját.");
+                _renderer.DrawBattleCommandPanel(BattleCommandPanel.Format(
+                    [BattleActionKind.AdvanceEnemyTurn], enemyTurn: true));
                 _activeCoopHost?.TryPublish(CreateSessionSnapshot());
                 return;
             }
@@ -6457,6 +6458,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void FinishTeamBattleStalemate(TeamBattleEncounter battle)
     {
+        _renderer.DrawBattleCommandPanel(string.Empty);
         _session.EndBattle(battle.Id);
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
             DrainNeedsAfterTeamBattle(character, battle.Turns.Cycle);
@@ -6491,6 +6493,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void FinishTeamBattle(TeamBattleEncounter battle, bool forceDefeat = false)
     {
+        _renderer.DrawBattleCommandPanel(string.Empty);
         _session.EndBattle(battle.Id);
         var victory = !forceDefeat && battle.HostileSideDefeated && !battle.FriendlySideDefeated;
         var wasQuickBattle = _isQuickTeamBattle;

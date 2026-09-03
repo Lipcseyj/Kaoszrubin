@@ -11,6 +11,8 @@ public sealed class BattleCommandPanel
 {
     public const int Width = 170;
     public const int Row = 44;
+    private const string LeftDecoration = "♦▓▒ ";
+    private const string RightDecoration = " ▒▓♦";
     private readonly ConsoleColor _foreground;
     private readonly ConsoleColor _background;
     private readonly ConsoleColor _hotkeyColor;
@@ -64,10 +66,10 @@ public sealed class BattleCommandPanel
     public static string Format(IEnumerable<BattleActionKind> actions,
         IReadOnlyList<BattleTacticOptionSnapshot>? tactics = null, bool enemyTurn = false)
     {
-        if (enemyTurn) return "Space: végrehajtja az ellenfél akcióját.";
+        if (enemyTurn) return Decorate("Space: végrehajtja az ellenfél akcióját.");
         if (tactics is { Count: > 0 })
-            return "Taktika: " + string.Join(" | ", tactics.Select((tactic, index) =>
-                $"{index + 1}: {tactic.Name}"));
+            return Decorate("Taktika: " + string.Join(" | ", tactics.Select((tactic, index) =>
+                $"{index + 1}: {tactic.Name}")));
 
         var commands = new List<string>();
         if (actions.Contains(BattleActionKind.PhysicalAttack)) commands.Add("Space: támadás");
@@ -79,7 +81,7 @@ public sealed class BattleCommandPanel
         if (actions.Contains(BattleActionKind.TurnUndead)) commands.Add("T: halottűzés");
         if (actions.Contains(BattleActionKind.Retreat)) commands.Add("R: visszavonulás");
         if (actions.Contains(BattleActionKind.Pass)) commands.Add("P: passz");
-        return commands.Count == 0 ? string.Empty : "Akció: " + string.Join(" | ", commands);
+        return commands.Count == 0 ? string.Empty : Decorate("Akció: " + string.Join(" | ", commands));
     }
 
     /// <summary>
@@ -103,7 +105,6 @@ public sealed class BattleCommandPanel
     /// </summary>
     public static IReadOnlyList<TextSegment> ParseHotkeysPublic(string text, ConsoleColor? hotkeyColor)
     {
-        // Known hotkey prefixes that should be highlighted
         var knownHotkeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Space", "nyilak", "V", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
@@ -111,49 +112,53 @@ public sealed class BattleCommandPanel
         };
 
         var segments = new List<TextSegment>();
-        var pos = 0;
-
-        while (pos < text.Length)
+        void AddPlainText(string value)
         {
-            // Skip leading spaces and pipes
-            while (pos < text.Length && (text[pos] == ' ' || text[pos] == '|'))
-                pos++;
-
-            if (pos >= text.Length)
-                break;
-
-            var colonIndex = text.IndexOf(':', pos);
+            var start = 0;
+            while (start < value.Length)
+            {
+                var separator = value.IndexOf('|', start);
+                if (separator < 0)
+                {
+                    segments.Add(new TextSegment(value[start..]));
+                    return;
+                }
+                if (separator > start) segments.Add(new TextSegment(value[start..separator]));
+                segments.Add(new TextSegment("|", ConsoleColor.Red));
+                start = separator + 1;
+            }
+        }
+        var segmentStart = 0;
+        var searchStart = 0;
+        while (searchStart < text.Length)
+        {
+            var colonIndex = text.IndexOf(':', searchStart);
             if (colonIndex == -1)
-            {
-                // No more hotkeys, add remainder as normal text
-                if (pos < text.Length)
-                    segments.Add(new TextSegment(text[pos..], null));
                 break;
-            }
 
-            // Extract potential hotkey - everything from current position to the colon
-            var potentialHotkey = text[pos..colonIndex].Trim();
-            var hotkeyEndPos = colonIndex + 1;
-
-            // Check if this is a recognized hotkey
-            if (knownHotkeys.Contains(potentialHotkey))
+            var tokenStart = colonIndex - 1;
+            while (tokenStart >= 0 && text[tokenStart] != '|' && text[tokenStart] != ' ')
+                tokenStart--;
+            tokenStart++;
+            var potentialHotkey = text[tokenStart..colonIndex].Trim();
+            if (!knownHotkeys.Contains(potentialHotkey))
             {
-                // Extract and add hotkey with colon (preserving exact spacing)
-                var hotkey = text[pos..hotkeyEndPos];
-                segments.Add(new TextSegment(hotkey, hotkeyColor));
-            }
-            else
-            {
-                // Not a recognized hotkey, treat as regular text
-                var textSegment = text[pos..hotkeyEndPos];
-                segments.Add(new TextSegment(textSegment, null));
+                searchStart = colonIndex + 1;
+                continue;
             }
 
-            pos = hotkeyEndPos;
+            if (tokenStart > segmentStart)
+                AddPlainText(text[segmentStart..tokenStart]);
+            segments.Add(new TextSegment(text[tokenStart..(colonIndex + 1)], hotkeyColor));
+            segmentStart = colonIndex + 1;
+            searchStart = segmentStart;
         }
 
+        if (segmentStart < text.Length) AddPlainText(text[segmentStart..]);
         return segments;
     }
+
+    private static string Decorate(string text) => LeftDecoration + text + RightDecoration;
 
     /// <summary>
     /// Centers text within the panel width. If text exceeds width, it is truncated.

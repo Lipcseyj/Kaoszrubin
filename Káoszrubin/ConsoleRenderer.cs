@@ -403,7 +403,7 @@ public sealed class ConsoleRenderer
         if (string.IsNullOrWhiteSpace(text))
         {
             _battleCommandPanel.Close();
-            SetColors(_battleCommandPanel.Foreground, _battleCommandPanel.Background);
+            SetColors(ConsoleColor.DarkCyan, _battleCommandPanel.Background);
             WriteAt(0, BattleCommandPanel.Row, _battleCommandPanel.Line);
             return;
         }
