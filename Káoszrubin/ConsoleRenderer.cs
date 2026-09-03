@@ -873,19 +873,25 @@ public sealed class ConsoleRenderer
         _ => "📦"
     };
 
+    public void ClearInnMenuScreen()
+    {
+        for (var line = 10; line < 43; line++)
+        {
+            WriteAt(20, line, new string(' ', InnMarketFrameWidth));
+        }
+    }   
+
     public void DrawInnMenuScreen(LiveCharacter leader, int partyCount, int selectedIndex,
         IReadOnlyList<InnMenuOptionSnapshot> options, string artisanNotice, string innName, int mazeLevel)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         DrawCenteredFrame(InnMenuFrameWidth, BuildInnMenuLines(partyCount, leader.Gold, options,
             selectedIndex, artisanNotice, disableLeaderOnly: false, innName, mazeLevel), FramedWindow.Inn);
     }
 
     public void DrawInnCharacterSheet(LiveCharacter character)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         DrawFrame();
         if (_displayedCharacter is null || !SheetCharacters().Contains(_displayedCharacter))
             _displayedCharacter = character;
@@ -912,8 +918,7 @@ public sealed class ConsoleRenderer
 
     public bool ConfirmInnSecretStashAccess(int cost)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("🗝️🛒  A KERESKEDŐ TITKOS RAKTÁRA  🛒🗝️", ConsoleColor.Yellow),
@@ -934,8 +939,7 @@ public sealed class ConsoleRenderer
 
     public bool ConfirmInnFeast(int perPerson, int personCount, int totalCost)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("🍽️🍎🥩  LAKOMÁZÁS 🥩🍎🍽️", ConsoleColor.Yellow),
@@ -956,8 +960,7 @@ public sealed class ConsoleRenderer
 
     public void DrawInnRestUnavailableScreen()
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("🛏️  PIHENÉS  🛏️", ConsoleColor.Yellow),
@@ -975,8 +978,7 @@ public sealed class ConsoleRenderer
         IReadOnlyList<InnStockOffer> stock, IReadOnlyList<InnSellOffer> sellOffers,
         int selectedIndex, int freeBackpackSlots, string message)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         var vendor = new InnVendorSnapshot(InnVendorKind.Market, "Kereskedő", stock.Select((offer, index) =>
             new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item), offer.Price)).ToArray());
         var sales = sellOffers.Select(offer => (ToInventoryItemSnapshot(offer.Item) with
@@ -990,8 +992,7 @@ public sealed class ConsoleRenderer
     public void DrawInnSecretStashScreen(LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
         int selectedIndex, int freeBackpackSlots, string message)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         var entryCount = stock.Count;
         var pageStart = InnMarketPageStart(entryCount, selectedIndex);
         var lines = new List<(string Text, ConsoleColor Color)>
@@ -1022,8 +1023,7 @@ public sealed class ConsoleRenderer
     public void DrawInnSpecialistScreen(string title, LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
         int selectedIndex, int freeBackpackSlots, string message)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         var kind = title.Contains("KOVÁCS", StringComparison.OrdinalIgnoreCase) ? InnVendorKind.Blacksmith
             : title.Contains("PÁNCÉL", StringComparison.OrdinalIgnoreCase) ? InnVendorKind.Armorer
             : InnVendorKind.WanderingMage;
@@ -1041,8 +1041,7 @@ public sealed class ConsoleRenderer
     public void DrawWanderingMageMenu(LiveCharacter leader, IReadOnlyList<(string Label, string Description)> options,
         int selectedIndex, string message)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         DrawCenteredFrame(InnMenuFrameWidth, BuildWanderingMageMenuLines(leader.Gold,
             options.Select(option => (option.Label, option.Description, Disabled: false)).ToArray(),
             selectedIndex, message), FramedWindow.Inn);
@@ -1051,8 +1050,7 @@ public sealed class ConsoleRenderer
     public void DrawWandRechargeScreen(LiveCharacter leader,
         IReadOnlyList<(string Owner, string Item, int Price, int Charges)> wands, int selectedIndex, string message)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ($"{WandIcon}✨  VARÁZSPÁLCA-FELTÖLTÉS  ✨{WandIcon}", ConsoleColor.Magenta),
@@ -1130,8 +1128,7 @@ public sealed class ConsoleRenderer
 
     public void DrawFeastWindow(List<string> partyMembers, int totalCost)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("🥩🐟🍉🍺  POMPÁS LAKOMA!  \U0001f969🐟🍉🍺", ConsoleColor.Yellow),
@@ -1196,8 +1193,7 @@ public sealed class ConsoleRenderer
         IReadOnlyDictionary<LiveCharacter, int> prices, int selectedIndex,
         IReadOnlyList<LiveCharacter> party, int leaderGold, string message)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("🏰🍺  A VÁNDORCSILLAG FOGADÓ ZSOLDOSAI  ⚔️✨", ConsoleColor.Yellow),
@@ -1231,8 +1227,7 @@ public sealed class ConsoleRenderer
     public void DrawInnReplacementScreen(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable,
         int selectedIndex, string? notice = null)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("⚠️  A PARTI MEGTELT  ⚠️", ConsoleColor.Yellow),
@@ -1291,8 +1286,7 @@ public sealed class ConsoleRenderer
 
     public void DrawInnRumorScreen(InnRumor rumor, int selectedIndex, int rumorCount, string? notice = null)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         DrawCenteredFrame(InnRumorFrameWidth, BuildInnRumorLines(
             new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color), selectedIndex, rumorCount, notice),
             FramedWindow.Inn);
@@ -2250,7 +2244,7 @@ public sealed class ConsoleRenderer
     /// <summary>
     /// A jobb oldali függőleges keret és alja/határainek kirajzolása a teljes ablakhoz.
     /// </summary>
-    private void DrawFrame()
+    public void DrawFrame()
     {
         SetColors(ConsoleColor.DarkCyan, ConsoleColor.Black);
         for (var y = 0; y <= PicturePanelBottom; y++) WriteAt(RightBorderX, y, "│");
@@ -2397,7 +2391,7 @@ public sealed class ConsoleRenderer
     /// Battle/message panelre egy új bejegyzést ír: a hosszú üzeneteket megtöri, és
     /// az utolsó N (MessageLineCount) bejegyzést jeleníti meg a képernyő alsó részén.
     /// </summary>
-    private void DrawBattleMessage(string message, ConsoleColor color = ConsoleColor.Gray)
+    public void DrawBattleMessage(string message, ConsoleColor color = ConsoleColor.Gray)
     {
         foreach (var line in WrapMessage(message)) _messageLog.Enqueue(new MessageLogLine(line, color));
         while (_messageLog.Count > MessageLogBufferLineCount) _messageLog.Dequeue();

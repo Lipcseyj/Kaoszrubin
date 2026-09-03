@@ -386,9 +386,6 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return summary;
     }
 
-    public static string FormatRoundHeader(int round) =>
-        $"──── {round}. KÖR ────────────";
-
     private static void ApplyBattleStartPerks(LiveCharacter player, Action<BattleLogEntry> onRound)
     {
         if (player.HasPerk(PerkIds.KnightHolyOath))

@@ -1,9 +1,10 @@
+using KaoszRubin.Application;
 using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Magic;
-using KaoszRubin.Application;
+using System.Numerics;
 
 namespace KaoszRubin;
 
@@ -267,6 +268,11 @@ internal sealed class InnController
 
     private DepartureChoice RunMenuLoop(int completedLevel)
     {
+        Console.Clear();
+        _renderer.RefreshCharacterSheet(_selectedCharacter);
+        _renderer.DrawFrame();
+        _renderer.DrawBattleMessage($"Megérkeztél a fogadóba. Váltás az inventoryra: TAB");
+
         var options = (_menuOptions ?? []).ToList();
         var selectedIndex = 0;
         var menuNotice = _artisanNotice;
