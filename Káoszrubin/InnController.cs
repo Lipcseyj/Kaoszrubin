@@ -181,7 +181,7 @@ internal sealed class InnController
         var armorerStock = armorerPresent ? CreateSpecialistStock(completedLevel, ItemCategory.Armor) : [];
         var wanderingMageStock = wanderingMagePresent ? CreateWanderingMageStock() : [];
         _vendorStocks.Clear();
-        _vendorStocks[InnVendorKind.Market] = CreateInnStock(completedLevel).ToList();
+        _vendorStocks[InnVendorKind.Market] = CreateMerchantStock(completedLevel).ToList();
         _vendorStocks[InnVendorKind.Witcher] = CreateWitcherStock(completedLevel).ToList();
         if (blacksmithPresent) _vendorStocks[InnVendorKind.Blacksmith] = blacksmithStock;
         if (armorerPresent) _vendorStocks[InnVendorKind.Armorer] = armorerStock;
@@ -448,8 +448,8 @@ internal sealed class InnController
         }
     }
 
-    private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel) =>
-        CreateInnStock(completedLevel, completedLevel, 1.0, includePremiumStock: true,
+    private IReadOnlyList<InnStockOffer> CreateMerchantStock(int completedLevel) =>
+        CreateMerchantStock(completedLevel, completedLevel, 1.0, includePremiumStock: true,
             includeRandomLegendary: true, includePremiumSupplies: false);
 
     private void RunInnSecretStash(int completedLevel)
@@ -462,7 +462,7 @@ internal sealed class InnController
         if (!_renderer.ConfirmInnSecretStashAccess(_secretStashAccessCost)) return;
         _selectedCharacter.SpendGold(_secretStashAccessCost);
         var secretLevel = completedLevel + SecretStashLevelAdvance;
-        var stock = CreateInnStock(completedLevel, secretLevel, _random.Next(105, 121) / 100.0,
+        var stock = CreateMerchantStock(completedLevel, secretLevel, _random.Next(105, 121) / 100.0,
             includePremiumStock: false, includeRandomLegendary: false, includePremiumSupplies: true).ToList();
         AddSecretStashSpecialOffer(stock, completedLevel, secretLevel);
         stock.Sort((left, right) => left.Price.CompareTo(right.Price));
@@ -520,7 +520,7 @@ internal sealed class InnController
         }
     }
 
-    private IReadOnlyList<InnStockOffer> CreateInnStock(int completedLevel, int unlockLevel, double priceMultiplier,
+    private IReadOnlyList<InnStockOffer> CreateMerchantStock(int completedLevel, int unlockLevel, double priceMultiplier,
         bool includePremiumStock, bool includeRandomLegendary, bool includePremiumSupplies)
     {
         var allItems = AllTradableItems().Where(item => item.Rarity != ItemRarity.Legendary).OrderBy(item => item.BasePrice).ToList();
@@ -542,19 +542,19 @@ internal sealed class InnController
                 : [];
             var item = SelectWeightedStockItem(equipmentPool.Count > 0 ? equipmentPool : normalPool, unlockLevel);
             normalPool.Remove(item);
-            offers.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+            offers.Add(CreateMerchantStockOffer(item, priceMultiplier, completedLevel));
         }
         while (offers.Count < stockCount && premiumPool.Count > 0)
         {
             var item = SelectWeightedStockItem(premiumPool, unlockLevel);
             premiumPool.Remove(item);
-            offers.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+            offers.Add(CreateMerchantStockOffer(item, priceMultiplier, completedLevel));
         }
         while (offers.Count < stockCount && normalPool.Count > 0)
         {
             var item = SelectWeightedStockItem(normalPool, unlockLevel);
             normalPool.Remove(item);
-            offers.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+            offers.Add(CreateMerchantStockOffer(item, priceMultiplier, completedLevel));
         }
         var legendaryChance = Math.Min(0.08, 0.01 + unlockLevel * 0.005);
         if (includeRandomLegendary && _random.NextDouble() < legendaryChance)
@@ -578,7 +578,7 @@ internal sealed class InnController
         {
             var fixedItem = _gameData.Items.FirstOrDefault(i => string.Equals(i.Id, itemId, StringComparison.OrdinalIgnoreCase));
             if (fixedItem is null) continue;
-            offers.Add(CreateInnStockOffer(fixedItem, priceMultiplier, completedLevel));
+            offers.Add(CreateMerchantStockOffer(fixedItem, priceMultiplier, completedLevel));
         }
 
         return offers.OrderBy(offer => offer.Price).ToList();
@@ -602,7 +602,7 @@ internal sealed class InnController
         if (specialPool.Count == 0) return;
         if (stock.Count > 0) stock.Remove(stock.OrderBy(offer => offer.Price).First());
         var special = specialPool[_random.Next(specialPool.Count)];
-        stock.Add(CreateInnStockOffer(special, 1.0, completedLevel));
+        stock.Add(CreateMerchantStockOffer(special, 1.0, completedLevel));
     }
 
     private IItemDefinition SelectWeightedStockItem(IReadOnlyList<IItemDefinition> candidates, int unlockLevel)
@@ -617,7 +617,7 @@ internal sealed class InnController
         return candidates[^1];
     }
 
-    private InnStockOffer CreateInnStockOffer(IItemDefinition item, double priceMultiplier, int completedLevel)
+    private InnStockOffer CreateMerchantStockOffer(IItemDefinition item, double priceMultiplier, int completedLevel)
     {
         var expensiveProbability = Math.Min(0.80, 0.20 + 0.07 * (completedLevel - 1));
         var percentage = _random.NextDouble() < expensiveProbability ? _random.Next(105, 151) : _random.Next(85, 101);
@@ -881,14 +881,14 @@ internal sealed class InnController
         {
             var item = allowedItems.FirstOrDefault(i => string.Equals(i.Id, kv.Key, StringComparison.OrdinalIgnoreCase));
             if (item is null) continue;
-            for (var i = 0; i < kv.Value; i++) stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+            for (var i = 0; i < kv.Value; i++) stock.Add(CreateMerchantStockOffer(item, priceMultiplier, completedLevel));
         }
 
         var baseCount = Math.Min(allowedItems.Count * 3, Math.Max(8, 7 + completedLevel));
         while (stock.Count < baseCount)
         {
             var item = allowedItems[_random.Next(allowedItems.Count)];
-            stock.Add(CreateInnStockOffer(item, priceMultiplier, completedLevel));
+            stock.Add(CreateMerchantStockOffer(item, priceMultiplier, completedLevel));
         }
 
         AddWitcherExtraStock(allowedItems, stock, completedLevel, 3, "T012");
@@ -907,7 +907,7 @@ internal sealed class InnController
         for (var i = 0; i < extraCount; i++)
         {
             var item = allowedItems.FirstOrDefault(i => string.Equals(i.Id, itemId, StringComparison.OrdinalIgnoreCase));
-            if (item is not null) stock.Add(CreateInnStockOffer(item, 1.0, completedLevel));
+            if (item is not null) stock.Add(CreateMerchantStockOffer(item, 1.0, completedLevel));
         }
     }
 
