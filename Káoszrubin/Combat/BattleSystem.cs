@@ -265,12 +265,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var context = state.Context;
         var entries = new List<BattleLogEntry>();
         state.Round++;
+        entries.Add(new BattleLogEntry(FormatRoundHeader(state.Round), BattleLogKind.Information));
         if (supportDamage > 0)
         {
             defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - supportDamage) };
             if (defender.HitPoints <= 0)
             {
-                var finishMessage = $"{state.Round}. kör — a parti támogató varázslatai végeztek {enemy.Name}-vel.";
+                var finishMessage = $"✨ A parti támogató varázslatai végeztek {enemy.Name}-vel.";
                 state.Events.Add(finishMessage);
                 entries.Add(new BattleLogEntry(finishMessage, BattleLogKind.PlayerAttack));
                 state.Defender = defender;
@@ -292,7 +293,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 var statusTicks = player.ApplyTurnEndStatusEffects(_random);
                 var statusText = statusTicks.Count == 0 ? string.Empty :
                     $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
-                message = $"{state.Round}. kör — {playerAction.Message} {enemy.Name} ❤️ {defender.HitPoints}/{enemy.Definition.HitPoints}.{statusText}";
+                message = playerAction.Message + statusText;
                 kind = playerAction.Kind;
             }
             else
@@ -317,8 +318,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 var statusTicks = player.ApplyTurnEndStatusEffects(_random);
                 var statusText = statusTicks.Count == 0 ? string.Empty :
                     $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name} -{tick.Damage} HP" + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
-                message = $"{state.Round}. kör — {FormatAttackSummary(player.Name, enemy.Name, attacks,
-                    defender.HitPoints!.Value, enemy.Definition.HitPoints!.Value)}{statusText}";
+                message = FormatAttackSummary(player.Name, enemy.Name, attacks,
+                    defender.HitPoints!.Value, enemy.Definition.HitPoints!.Value) + statusText;
                 kind = criticalHit ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack;
             }
         }
@@ -330,19 +331,19 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             var effectText = spellTick.Notes.Count == 0 ? string.Empty : $" {string.Join(", ", spellTick.Notes)}.";
             if (defender.HitPoints <= 0)
             {
-                message = $"{state.Round}. kör — {enemy.Name} elbukik a varázshatásoktól.{effectText}";
+                message = $"{enemy.Name} elbukik a varázshatásoktól.{effectText}";
                 kind = BattleLogKind.PlayerAttack;
             }
             else if (spellTick.SkipAction)
             {
-                message = $"{state.Round}. kör — {enemy.Name} varázshatás miatt kihagyja az akcióját.{effectText}";
+                message = $"{enemy.Name} varázshatás miatt kihagyja az akcióját.{effectText}";
                 kind = BattleLogKind.Information;
             }
             else
             {
                 var attack = EnemyAttack(defender, player, context, enemy.EffectiveSpeed);
                 var survival = attack.Hit ? ApplyEnemyDamage(player, attack.Damage, context) : string.Empty;
-                message = $"{state.Round}. kör — {FormatAttackSummary(enemy.Name, player.Name, [attack],
+                message = $"{FormatAttackSummary(enemy.Name, player.Name, [attack],
                     player.CurrentVitality, player.MaximumVitality)} {survival}{effectText}";
                 kind = attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack;
             }
@@ -377,14 +378,17 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     {
         var successful = attacks.Where(attack => attack.Hit).ToArray();
         var critical = attacks.Any(attack => attack.Critical);
-        var outcome = successful.Length == 0 ? "HIBA" : critical ? "KRITIKUS!" : "TALÁLAT";
-        var summary = $"{attackerName} → {defenderName} {outcome}";
+        var outcome = successful.Length == 0
+            ? "💨 HIBA"
+            : critical ? "💥 KRITIKUS!" : "🎯 TALÁLAT";
+        var summary = $"{attackerName}\t→ {defenderName}\t{outcome}";
         if (successful.Length > 0)
-            summary += $" {successful.Sum(attack => attack.Damage)} sebzés " +
-                       $"{defenderName} ❤️ {currentHitPoints}/{maximumHitPoints}";
-        var details = string.Join(" ", attacks.Select(attack => attack.Message));
-        return $"{summary} | {details}";
+            summary += $"\t💥 {successful.Sum(attack => attack.Damage)}\t{defenderName} ❤️ {currentHitPoints}/{maximumHitPoints}";
+        return summary;
     }
+
+    public static string FormatRoundHeader(int round) =>
+        $"──── {round}. KÖR ────────────";
 
     private static void ApplyBattleStartPerks(LiveCharacter player, Action<BattleLogEntry> onRound)
     {

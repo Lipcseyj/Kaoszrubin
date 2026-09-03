@@ -82,12 +82,10 @@ public sealed class Game : ISessionCommandHandler
     private readonly PartyAiController _partyAiController;
     private readonly SessionCommandDispatcher _commandDispatcher;
     private long _localCommandId;
-    private BattleState? _activeBattleState;
     private TeamBattleEncounter? _activeTeamBattle;
     private bool _isQuickTeamBattle;
     private int _quickBattleSuppressedEntryCount;
     private long _preparedTeamBattleTurnId;
-    private int _pendingBattleSupportDamage;
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
@@ -104,11 +102,9 @@ public sealed class Game : ISessionCommandHandler
     private PartyCommandState _partyCommandState;
     private bool _saveAfterBattle;
     private bool _timeStopUsedThisBattle;
-    private int _battleStartingVitality;
-    private int _battleStartingMana;
-    private HashSet<string> _battleStartingStatusIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<LiveCharacter> _turnUndeadUsedThisBattle = [];
     private readonly HashSet<CharacterId> _battleNoPathReported = [];
+    private int _battleLogCycle = -1;
     private readonly Dictionary<(CharacterId CharacterId, NpcComplaintKind Kind), DateTime> _nextNpcComplaints = [];
     private readonly HashSet<(CharacterId CharacterId, NpcComplaintKind Kind)> _reportedNpcShortages = [];
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
@@ -140,7 +136,6 @@ public sealed class Game : ISessionCommandHandler
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
     public GameSession Session => _session;
-    public BattleState? ActiveBattle => _activeBattleState;
     public TeamBattleEncounter? ActiveTeamBattle => _activeTeamBattle;
 
     public SessionSnapshot CreateSessionSnapshot()
@@ -153,26 +148,11 @@ public sealed class Game : ISessionCommandHandler
         };
         foreach (var member in _maze.PartyMembers) positions[member.Character.Id] = member.Position;
 
-        BattleSnapshot? battle = null;
-        if (_activeTeamBattle is { IsCompleted: false } teamBattle)
-        {
-            battle = CreateTeamBattleSnapshot(teamBattle);
-        }
-        else if (_activeBattleState is { IsCompleted: false } state)
-        {
-            var battleCharacter = state.Player;
-            battle = new BattleSnapshot(state.Id, state.TurnId, state.Round, state.IsPlayerTurn,
-                state.PlayerCharacterId,
-                new SessionEnemySnapshot(state.EnemyDefinitionId, state.Enemy.Name, state.Enemy.Position,
-                    state.CurrentEnemyHitPoints, state.Enemy.Definition.HitPoints ?? state.CurrentEnemyHitPoints),
-                GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy),
-                state.IsPlayerTurn
-                    ? GetSpellOptions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy, inCombat: true)
-                    : null,
-                GetBattleTacticOptions(state));
-        }
-        var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_difficultyLevel, _maze.LevelName, positions,
-            battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState,
+        BattleSnapshot? battle = _activeTeamBattle is { IsCompleted: false } teamBattle
+            ? CreateTeamBattleSnapshot(teamBattle)
+            : null;
+        var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_difficultyLevel, _maze.LevelName,
+            positions, battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, null,
                 _activeTeamBattle?.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
                     .Select(enemy => enemy.Id).ToHashSet())));
         var followers = _maze.PartyMembers
@@ -420,7 +400,6 @@ public sealed class Game : ISessionCommandHandler
             caster.SpendMana(manaCost);
             var listeners = new List<CharacterId> { caster.Id };
             if (supportedFighter is not null) listeners.Add(supportedFighter.Id);
-            if (_activeBattleState is not null) listeners.Add(SelectedCharacter.Id);
             PlaySessionSound(SoundEffect.OffensiveSpell, listeners);
             var execution = ExecuteSpell(caster, member.Position, spell, enemy.Position, inCombat: true, enemy, divine);
             var message = $"{caster.Name} elsüti: {spell.Name} → {enemy.Name}. -{manaCost} manna. {execution.Summary}";
@@ -542,7 +521,7 @@ public sealed class Game : ISessionCommandHandler
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
-                    if (_activeBattleState is not null || _activeTeamBattle is not null)
+                    if (_activeTeamBattle is not null)
                     {
                         HandleLocalBattleInput(keyInfo);
                         continue;
@@ -2675,15 +2654,7 @@ public sealed class Game : ISessionCommandHandler
             ContinueTeamBattle();
             return;
         }
-        if (_activeBattleState is not { IsCompleted: false } state ||
-            state.PlayerCharacterId == SelectedCharacter.Id ||
-            _session.IsHumanControlled(state.PlayerCharacterId)) return;
-
-        _renderer.DrawInventoryMessage(
-            $"{state.Player.Name} kapcsolata megszakadt; az AI fegyveres támadással folytatja a csatát.",
-            ConsoleColor.DarkYellow);
-        if (state.IsPlayerTurn) ResolveActiveBattleAction(null);
-        else ResolveActiveEnemyTurn();
+        return;
     }
 
     private void ExecuteLeaderAction(LeaderAction action)
@@ -3720,7 +3691,7 @@ public sealed class Game : ISessionCommandHandler
     private bool TryStartAdHocFollowerConversation(DateTime now)
     {
         if (_session.Phase != GameSessionPhase.Exploration || _characterSheetFocused ||
-            _activeBattleState is not null || _activeTeamBattle is not null || _activeNarrative is not null ||
+            _activeTeamBattle is not null || _activeNarrative is not null ||
             _adHocConversationMazeLevel == _mazeLevel ||
             now - _lastAdHocConversationUtc < TimeSpan.FromHours(1) ||
             _maze.Enemies.Any(enemy => _fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position)) ||
@@ -4381,100 +4352,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void HandleLocalBattleInput(ConsoleKeyInfo key)
     {
-        if (_activeTeamBattle is { } teamBattle)
-        {
-            HandleLocalTeamBattleInput(teamBattle, key);
-            return;
-        }
-        if (_activeBattleState is null || _activeBattleState.IsCompleted) return;
-        if (_activeBattleState.PlayerCharacterId != SelectedCharacter.Id) return;
-        if (IsHelpShortcut(key))
-        {
-            var helpEnemy = _activeBattleState.Enemy;
-            ShowInGameHelp();
-            _renderer.DrawBattleStarted(helpEnemy);
-            _renderer.RefreshBattleStatusRows();
-            DrawBattleActionPrompt(helpEnemy);
-            return;
-        }
-        if (!_activeBattleState.IsPlayerTurn)
-        {
-            if (key.Key == ConsoleKey.Spacebar)
-                SubmitLocalBattleCommand(BattleActionKind.AdvanceEnemyTurn);
-            return;
-        }
-        var enemy = _activeBattleState.Enemy;
-        var canTurnUndead = CanTurnUndead(SelectedCharacter, enemy) &&
-                            !_turnUndeadUsedThisBattle.Contains(SelectedCharacter);
-        if (IsSaveGameShortcut(key))
-        {
-            _saveAfterBattle = true;
-            _renderer.DrawInventoryMessage("Mentés kérve: a csata lezárása után automatikusan elkészül.", ConsoleColor.Yellow);
-            return;
-        }
-        if (_activeBattleState.IsAwaitingTacticSelection && key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 or
-                ConsoleKey.D2 or ConsoleKey.NumPad2 or ConsoleKey.D3 or ConsoleKey.NumPad3)
-        {
-            var option = key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 ? 1 :
-                key.Key is ConsoleKey.D2 or ConsoleKey.NumPad2 ? 2 : 3;
-            SubmitLocalBattleCommand(TacticActionFor(SelectedCharacter.CharacterClass.Id, option));
-            return;
-        }
-        if (key.Key == ConsoleKey.Spacebar)
-        {
-            SubmitLocalBattleCommand(BattleActionKind.PhysicalAttack);
-            return;
-        }
-        if (key.Key == ConsoleKey.T && canTurnUndead)
-        {
-            SubmitLocalBattleCommand(BattleActionKind.TurnUndead);
-            return;
-        }
-
-        SpellDefinition? spell = null;
-        MagicItemDefinition? castingItem = null;
-        int? castingItemSlotIndex = null;
-        if (key.Key == ConsoleKey.V)
-        {
-            var selection = _renderer.DrawSpellCastingScreen([SelectedCharacter], 0, inCombat: true, _maze, _fogOfWar,
-                _ => _player.Position, () =>
-            {
-                ShowInGameHelp();
-                _renderer.DrawBattleStarted(enemy);
-                _renderer.RefreshBattleStatusRows();
-            });
-            _renderer.RestoreSpellCastingOverlay();
-            spell = selection?.Spell;
-            castingItem = selection?.CastingItem;
-            castingItemSlotIndex = selection?.CastingItemSlotIndex;
-        }
-        else if (TryGetQuickSpellIndex(key, out var slotIndex))
-            spell = SelectedCharacter.QuickSpells[slotIndex];
-        else
-            return;
-
-        if (spell is null)
-        {
-            if (key.Key != ConsoleKey.V)
-                _renderer.DrawInventoryMessage("Ez a varázslat-gyorshely üres.", ConsoleColor.DarkYellow);
-            DrawBattleActionPrompt(enemy);
-            return;
-        }
-        var validation = ValidateSpellCast(SelectedCharacter, _player.Position, spell, inCombat: true, enemy,
-            castingItem, castingItemSlotIndex);
-        if (validation is not null)
-        {
-            _renderer.DrawInventoryMessage(validation.Message, ConsoleColor.Red);
-            DrawBattleActionPrompt(enemy);
-            return;
-        }
-        var target = SelectSpellTarget(SelectedCharacter, _player.Position, spell, enemy);
-        if (target is null)
-        {
-            DrawBattleActionPrompt(enemy);
-            return;
-        }
-        SubmitLocalBattleCommand(BattleActionKind.CastSpell, spell.Id, castingItemSlotIndex, target);
+        if (_activeTeamBattle is { } teamBattle) HandleLocalTeamBattleInput(teamBattle, key);
     }
 
     private void HandleLocalTeamBattleInput(TeamBattleEncounter battle, ConsoleKeyInfo key)
@@ -4621,32 +4499,14 @@ public sealed class Game : ISessionCommandHandler
         int? castingItemSlotIndex = null, Position? target = null,
         WorldEntityId? targetEnemyId = null, int? backpackIndex = null)
     {
-        var battleId = _activeTeamBattle?.Id ?? _activeBattleState?.Id;
-        var turnId = _activeTeamBattle?.Turns.TurnId ?? _activeBattleState?.TurnId;
+        var battleId = _activeTeamBattle?.Id;
+        var turnId = _activeTeamBattle?.Turns.TurnId;
         if (battleId is null || turnId is null) return;
         var commandId = _localCommandId + 1;
         if (_session.Submit(new BattleActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
                 battleId.Value, turnId.Value, action, spellId, castingItemSlotIndex, target,
                 targetEnemyId, backpackIndex)))
             _localCommandId = commandId;
-    }
-
-    private void DrawBattleActionPrompt(Enemy enemy)
-    {
-        if (_activeBattleState is not { } state) return;
-        PublishBattleControlHintOnce(state, enemy);
-    }
-
-    private void PublishBattleControlHintOnce(BattleState state, Enemy enemy)
-    {
-        var message = state.IsAwaitingTacticSelection
-            ? BattlePromptText.Tactic(state.Player.CharacterClass.Id, GetBattleTacticOptions(state))
-            : state.IsPlayerTurn
-                ? BattlePromptText.PlayerAction(
-                    HasUsableCombatSpell(state.Player, GetCasterPosition(state.Player), enemy),
-                    CanTurnUndead(state.Player, enemy) && !_turnUndeadUsedThisBattle.Contains(state.Player))
-                : BattlePromptText.EnemyTurn;
-        _renderer.DrawBattleCommandPanel(message);
     }
 
     private static BattleActionKind TacticActionFor(string characterClassId, int option) =>
@@ -4666,91 +4526,8 @@ public sealed class Game : ISessionCommandHandler
 
     private void ExecuteBattleAction(BattleActionCommand command)
     {
-        if (_activeTeamBattle is { } teamBattle)
-        {
-            ExecuteTeamBattleAction(teamBattle, command);
-            return;
-        }
-        if (_activeBattleState is null || command.BattleId != _activeBattleState.Id ||
-            command.TurnId != _activeBattleState.TurnId || command.CharacterId != _activeBattleState.PlayerCharacterId) return;
-        var battleCharacter = _activeBattleState.Player;
-        switch (command.Action)
-        {
-            case BattleActionKind.FighterPrecise:
-            case BattleActionKind.FighterPowerful:
-            case BattleActionKind.FighterDefensive:
-            case BattleActionKind.ThiefAmbush:
-            case BattleActionKind.ThiefObserve:
-            case BattleActionKind.ThiefPoison:
-                if (_activeBattleState.TryChooseTactic(ToBattleTactic(command.Action)))
-                {
-                    _renderer.DrawInventoryMessage($"Harci taktika: {BattleTacticName(_activeBattleState.Tactic!.Value, battleCharacter)}.", ConsoleColor.Cyan);
-                    ContinueActiveBattle();
-                }
-                else RejectBattleAction(command, "Ez a harci taktika most nem választható.");
-                break;
-            case BattleActionKind.PhysicalAttack:
-                ResolveActiveBattleAction(null);
-                break;
-            case BattleActionKind.AdvanceEnemyTurn:
-                if (!_activeBattleState.IsPlayerTurn)
-                    ResolveActiveEnemyTurn();
-                else
-                    RejectBattleAction(command, "Az ellenfél körét most nem lehet léptetni.");
-                break;
-            case BattleActionKind.TurnUndead:
-                if (CanTurnUndead(battleCharacter, _activeBattleState.Enemy) &&
-                    !_turnUndeadUsedThisBattle.Contains(battleCharacter))
-                    ResolveActiveBattleAction(ResolveTurnUndead(battleCharacter, _activeBattleState.Enemy));
-                else
-                    RejectBattleAction(command, "A halottűzés ebben a körben nem használható.");
-                break;
-            case BattleActionKind.CastSpell:
-                ExecuteSpellBattleAction(command);
-                break;
-        }
+        if (_activeTeamBattle is { } teamBattle) ExecuteTeamBattleAction(teamBattle, command);
     }
-
-    private void ExecuteSpellBattleAction(BattleActionCommand command)
-    {
-        if (_activeBattleState is null || command.SpellId is null || command.Target is null) return;
-        var battleCharacter = _activeBattleState.Player;
-        var spell = _gameData.Spells.FirstOrDefault(candidate =>
-            string.Equals(candidate.Id, command.SpellId, StringComparison.OrdinalIgnoreCase));
-        if (spell is null)
-        {
-            RejectBattleAction(command, "Ismeretlen varázslat.");
-            return;
-        }
-        MagicItemDefinition? castingItem = null;
-        if (command.CastingItemSlotIndex is { } slot)
-        {
-            if (slot is < 0 or >= LiveCharacter.MaximumMagicItemCount)
-            {
-                RejectBattleAction(command, "Érvénytelen varázstárgy-hely.");
-                return;
-            }
-            castingItem = battleCharacter.MagicItems[slot];
-            if (castingItem is null)
-            {
-                RejectBattleAction(command, "A kiválasztott varázstárgy-hely üres.");
-                return;
-            }
-        }
-        var attempt = TryCastSpell(battleCharacter, GetCasterPosition(battleCharacter), spell, inCombat: true,
-            _activeBattleState.Enemy, castingItem, command.CastingItemSlotIndex, command.Target);
-        if (attempt is null || !attempt.ConsumesTurn)
-        {
-            RejectBattleAction(command, attempt?.Message ?? "A varázslat célpontja érvénytelen.");
-            return;
-        }
-        ResolveActiveBattleAction(new BattlePlayerAction(attempt.Message, attempt.Kind,
-            attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions), spellCanKillEnemy: attempt.DamageToCurrentEnemy > 0);
-    }
-
-    private void TryAssignKnightProtection(BattleState state, LiveCharacter protectedCharacter) =>
-        _singleBattleCoordinator.TryAssignKnightProtection(state, protectedCharacter, GetCasterPosition(protectedCharacter),
-            LivingPartyWithPositions(), (msg, color) => _renderer.DrawInventoryMessage(msg, color));
 
     private LiveCharacter? TryRollKnightProtector(LiveCharacter protectedCharacter) =>
         _singleBattleCoordinator.TryRollKnightProtector(protectedCharacter, GetCasterPosition(protectedCharacter),
@@ -4760,27 +4537,6 @@ public sealed class Game : ISessionCommandHandler
 
     private static string BattleTacticName(BattleTactic tactic, LiveCharacter character) =>
         SingleBattleCoordinator.BattleTacticName(tactic, character);
-
-    private IReadOnlyList<BattleTacticOptionSnapshot>? GetBattleTacticOptions(BattleState state) =>
-        _singleBattleCoordinator.GetBattleTacticOptions(state);
-
-    private void RejectBattleAction(BattleActionCommand command, string message)
-    {
-        _session.RejectExecutedCommand(command, message);
-        _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
-        if (_activeBattleState is { IsCompleted: false, IsPlayerTurn: true } state)
-        {
-            var battleCharacter = state.Player;
-            _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
-                GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
-            if (battleCharacter == SelectedCharacter) DrawBattleActionPrompt(state.Enemy);
-        }
-    }
-
-    private IReadOnlyList<BattleActionKind> GetAllowedBattleActions(LiveCharacter character,
-        Position characterPosition, Enemy enemy) =>
-        _singleBattleCoordinator.GetAllowedBattleActions(_activeBattleState, character, characterPosition, enemy,
-            HasUsableCombatSpell(character, characterPosition, enemy), _turnUndeadUsedThisBattle);
 
     private IReadOnlyList<BattleSpellOption> GetSpellOptions(LiveCharacter character,
         Position characterPosition, Enemy? enemy, bool inCombat) =>
@@ -5222,6 +4978,7 @@ public sealed class Game : ISessionCommandHandler
         _timeStopUsedThisBattle = false;
         _turnUndeadUsedThisBattle.Clear();
         _battleNoPathReported.Clear();
+        _battleLogCycle = -1;
         _pendingLevelUps.Clear();
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
 
@@ -5355,6 +5112,12 @@ public sealed class Game : ISessionCommandHandler
             }
 
             var current = battle.Current;
+            if (_battleLogCycle != battle.Turns.Cycle)
+            {
+                _battleLogCycle = battle.Turns.Cycle;
+                PresentBattleEntries([new BattleLogEntry(
+                    BattleSystem.FormatRoundHeader(battle.Turns.Cycle), BattleLogKind.Information)]);
+            }
             UpdateTeamBattleFocus(battle, current);
             if (battle.CurrentCharacter is { } character)
             {
@@ -5586,7 +5349,7 @@ public sealed class Game : ISessionCommandHandler
             case BattleActionKind.Pass:
                 var passStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(
-                    $"{character.Name} — Kivár.{passStatus}",
+                    $"{character.Name}\t⌛ Kivár.{passStatus}",
                     BattleLogKind.Information)]);
                 AdvanceTeamBattleTurn(battle);
                 break;
@@ -6346,8 +6109,8 @@ public sealed class Game : ISessionCommandHandler
         }
         var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
         var message = steps.Length > 0
-            ? $"{character.Name} {steps.Length} mezőt mozog.{statusText}"
-            : $"{character.Name} nem talál járható utat.{statusText}";
+            ? $"{character.Name}\t👣 {steps.Length} mezőt mozog{statusText}"
+            : $"{character.Name}\t⛔ Nincs járható út{statusText}";
         if (steps.Length > 0 || _battleNoPathReported.Add(character.Id) || !string.IsNullOrEmpty(statusText))
             PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
@@ -6542,233 +6305,6 @@ public sealed class Game : ISessionCommandHandler
         _session.SetPhase(GameSessionPhase.Exploration);
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
-    }
-
-    private void StartInteractiveBattle(LiveCharacter battleCharacter, Enemy enemy)
-    {
-        if (_battleStarted) return;
-        CheckBossDiscovery([enemy]);
-        _timeStopUsedThisBattle = false;
-        _turnUndeadUsedThisBattle.Clear();
-        _battleStartingVitality = battleCharacter.CurrentVitality;
-        _battleStartingMana = battleCharacter.CurrentMana;
-        _battleStartingStatusIds = battleCharacter.Statuses.Select(status => status.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
-        _battleStarted = true;
-        _session.SetPhase(GameSessionPhase.Battle);
-        PlaySessionSound(SoundEffect.BattleStart);
-        _renderer.DrawBattleStarted(enemy);
-        TryLogPartyComments(PartySituationIds.BattleStarted);
-        if (battleCharacter != SelectedCharacter)
-        {
-            _renderer.DrawInventoryMessage(
-                $"🎮 Most {battleCharacter.Name} csatázik; a döntéseinél időnként várni kell rá.",
-                ConsoleColor.Yellow);
-            PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
-        }
-        var started = _battleSystem.StartBattle(battleCharacter, enemy);
-        _activeBattleState = started.State;
-        TryAssignKnightProtection(_activeBattleState, battleCharacter);
-        PresentBattleEntries(started.Entries);
-        ContinueActiveBattle();
-    }
-
-    private void ContinueActiveBattle()
-    {
-        while (_activeBattleState is { IsCompleted: false } state)
-        {
-            if (state.IsOpeningEnemyTurn)
-            {
-                var openingSupportDamage = TryPartyMembersActInBattle(state.Player, state.Enemy);
-                var openingStep = _battleSystem.Advance(state, supportDamage: openingSupportDamage);
-                PresentBattleEntries(openingStep.Entries);
-                continue;
-            }
-            if (state.IsAwaitingTacticSelection)
-            {
-                var battleCharacter = state.Player;
-                _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
-                    GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
-                PublishBattleControlHintOnce(state, state.Enemy);
-                return;
-            }
-            if (state.IsPlayerTurn)
-            {
-                var battleCharacter = state.Player;
-                _pendingBattleSupportDamage = TryPartyMembersActInBattle(battleCharacter, state.Enemy);
-                if (_pendingBattleSupportDamage < state.CurrentEnemyHitPoints)
-                {
-                    _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
-                        GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
-                    PublishBattleControlHintOnce(state, state.Enemy);
-                    return;
-                }
-                var supportStep = _battleSystem.Advance(state, supportDamage: _pendingBattleSupportDamage);
-                _pendingBattleSupportDamage = 0;
-                PresentBattleEntries(supportStep.Entries);
-                continue;
-            }
-
-            _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
-                [BattleActionKind.AdvanceEnemyTurn]);
-            _renderer.DrawBattleCommandPanel(BattlePromptText.EnemyTurn);
-            return;
-        }
-        if (_activeBattleState is { IsCompleted: true }) FinishActiveBattle();
-    }
-
-    private void ResolveActiveBattleAction(BattlePlayerAction? action, bool spellCanKillEnemy = false)
-    {
-        if (_activeBattleState is not { IsCompleted: false, IsPlayerTurn: true } state) return;
-        var step = _battleSystem.Advance(state, action, _pendingBattleSupportDamage);
-        _pendingBattleSupportDamage = 0;
-        if (spellCanKillEnemy && step.Result is { PlayerWon: true })
-            PlaySessionSound(SoundEffect.MonsterKilledBySpell);
-        PresentBattleEntries(step.Entries);
-        ContinueActiveBattle();
-    }
-
-    private void ResolveActiveEnemyTurn()
-    {
-        if (_activeBattleState is not { IsCompleted: false, IsPlayerTurn: false } state) return;
-        var supportDamage = TryPartyMembersActInBattle(state.Player, state.Enemy);
-        var step = _battleSystem.Advance(state, supportDamage: supportDamage);
-        if (step.Result is { PlayerWon: true } && step.Entries.Any(entry =>
-                entry.Message.Contains("elbukik a varázshatásoktól", StringComparison.OrdinalIgnoreCase)))
-            PlaySessionSound(SoundEffect.MonsterKilledBySpell);
-        PresentBattleEntries(step.Entries);
-        ContinueActiveBattle();
-    }
-
-    private void FinishActiveBattle()
-    {
-        if (_activeBattleState is not { IsCompleted: true, Result: { } result } state) return;
-        var enemy = state.Enemy;
-        var battleCharacter = state.Player;
-        _session.EndBattle(state.Id);
-        _activeBattleState = null;
-        _pendingBattleSupportDamage = 0;
-        var vitalityLost = Math.Max(0, _battleStartingVitality - battleCharacter.CurrentVitality);
-        var manaLost = Math.Max(0, _battleStartingMana - battleCharacter.CurrentMana);
-        var gainedStatusIcons = battleCharacter.Statuses
-            .Where(status => !_battleStartingStatusIds.Contains(status.Id))
-            .Select(status => status.Icon)
-            .ToArray();
-        if (battleCharacter != SelectedCharacter)
-        {
-            FinishRemoteBattle(state, result, battleCharacter, enemy, vitalityLost, manaLost, gainedStatusIcons);
-            return;
-        }
-        var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
-
-        if (result.PlayerWon)
-        {
-            AwardBossKey(enemy);
-            PlayBattleVictorySound();
-            var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
-            RegisterNpcQuestKill(enemy);
-            SelectedCharacter.RecordMonsterKill(enemy.Definition.Id);
-            _maze.ReplaceEnemyWithCorpse(enemy);
-            _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
-            var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,
-                manaLost, gainedStatusIcons, needLoss);
-            RecordSessionActivity(SessionActivityKind.Battle,
-                victoryMessage, ConsoleColor.Green);
-            _renderer.DrawBattleResult(result, enemy, victoryMessage);
-            _renderer.DrawExperienceDistribution(FormatExperienceAwards(experienceAwards),
-                experienceAwards.Any(award => award.Result.LeveledUp));
-            TryLogPartyComments(PartySituationIds.BattleWon);
-            _renderer.RefreshCharacterSheet(SelectedCharacter);
-            var levelUps = _pendingLevelUps.ToList();
-            _pendingLevelUps.Clear();
-            levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive)
-                .Select(award => (award.Character, award.Result)));
-            if (levelUps.Count > 0)
-            {
-                foreach (var (character, levelUpResult) in levelUps) ResolvePerkOffers(character, levelUpResult);
-                _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-            }
-            if (_saveAfterBattle)
-            {
-                _saveAfterBattle = false;
-                SaveGame();
-            }
-            InitializeEnemyMoveSchedule(DateTime.UtcNow);
-            _battleStarted = false;
-            _session.SetPhase(GameSessionPhase.Exploration);
-            _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
-            return;
-        }
-
-        _renderer.DrawBattleResult(result, enemy);
-        PlaySessionSound(SoundEffect.MemberKilled);
-        TryLogPartyComments(PartySituationIds.PartyMemberDied);
-        _saveAfterBattle = false;
-        _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
-        _renderer.DrawGameOver(SelectedCharacter.Name);
-        _gameOver = true;
-        _session.SetPhase(GameSessionPhase.GameOver);
-    }
-
-    private void FinishRemoteBattle(BattleState state, BattleResult result, LiveCharacter battleCharacter,
-        Enemy enemy, int vitalityLost, int manaLost, IReadOnlyList<string> gainedStatusIcons)
-    {
-        var needLoss = DrainNeedsAfterBattle(battleCharacter, enemy.Definition.StrengthTier);
-        var companionDied = !result.PlayerWon;
-        if (result.PlayerWon)
-        {
-            AwardBossKey(enemy);
-            PlayBattleVictorySound();
-            var experienceAwards = DistributeExperience(battleCharacter, enemy.Definition.ExperienceReward);
-            RegisterNpcQuestKill(enemy);
-            battleCharacter.RecordMonsterKill(enemy.Definition.Id);
-            _maze.ReplaceEnemyWithCorpse(enemy);
-            _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
-            var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,
-                manaLost, gainedStatusIcons, needLoss);
-            RecordSessionActivity(SessionActivityKind.Battle,
-                victoryMessage, ConsoleColor.Green);
-            _renderer.DrawBattleResult(result, enemy, victoryMessage);
-            _renderer.DrawNpcBattleSummary(
-                $"{battleCharacter.Name}: {FormatExperienceAwards(experienceAwards)}.", ConsoleColor.Green);
-            TryLogPartyComments(PartySituationIds.BattleWon);
-            var levelUps = experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive).ToList();
-            // Az első vertical slice-ban a perk-/varázsválasztás még a host konzolján történik.
-            foreach (var award in levelUps) ResolvePerkOffers(award.Character, award.Result);
-        }
-        else
-        {
-            _renderer.DrawBattleResult(result, enemy);
-            PlaySessionSound(SoundEffect.MemberKilled);
-            var member = _maze.PartyMembers.FirstOrDefault(candidate => candidate.Character == battleCharacter);
-            if (member is not null)
-            {
-                _maze.ReplacePartyMemberWithCorpse(member);
-                _nextPartyMoves.Remove(member);
-            }
-            _activeCoopHost?.TryPublishCharacterState(battleCharacter.Id,
-                _gameSaveService.SerializeCharacter(battleCharacter), CharacterSyncReason.CharacterDied);
-            _session.ReleaseCharacterControl(battleCharacter.Id);
-            _renderer.DrawNpcBattleSummary(
-                $"{battleCharacter.Name} elesett a(z) {enemy.Name} elleni távoli csatában {result.Rounds} kör után. " +
-                $"A vendég visszatér a főmenübe; 🍖💧 -{needLoss}.", ConsoleColor.Red);
-            TryLogPartyComments(PartySituationIds.PartyMemberDied);
-        }
-
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
-        InitializeEnemyMoveSchedule(DateTime.UtcNow);
-        _battleStarted = false;
-        _session.SetPhase(GameSessionPhase.Exploration);
-        _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
-        if (companionDied)
-        {
-            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
-            _renderer.DrawCompanionDeath(battleCharacter.Name);
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        }
     }
 
     private void SetHelpVisibility(PlayerId playerId, CharacterId characterId, bool isOpen)
@@ -7012,9 +6548,6 @@ public sealed class Game : ISessionCommandHandler
     private void LogPartyComment(LiveCharacter speaker, string comment, string? level = null) =>
         _sessionEventService.LogPartyComment(speaker, comment, level);
 
-    private void PlayBattleRoundSound(BattleLogEntry entry) =>
-        _sessionEventService.PlayBattleRoundSound(entry, _activeBattleState, SelectedCharacter.Id);
-
     private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries)
     {
         _sessionEventService.PresentBattleEntries(
@@ -7022,7 +6555,7 @@ public sealed class Game : ISessionCommandHandler
             _isQuickTeamBattle,
             entry => _renderer.DrawBattleRound(entry),
             _ => _renderer.RefreshBattleStatusRows(),
-            _activeBattleState,
+            null,
             SelectedCharacter.Id,
             _ => _quickBattleSuppressedEntryCount++);
     }
