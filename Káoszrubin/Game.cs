@@ -22,109 +22,6 @@ public sealed class Game : ISessionCommandHandler
     private const string RodericSharedBattleQuestId = "NPCQ038";
     private const string RodericMalrecQuestId = "NPCQ039";
     private const int RodericPermanentJoinFriendliness = 8;
-    private static readonly IReadOnlyList<string> CampaignIntroduction =
-    [
-        "Az Aranykor hajnalán négy ősi elementálmágus őrizte a világ egyensúlyát: Pyranthos, a Lángok Atyja; Nymara, a Mélytengerek Asszonya; Goram, a Hegyek Szíve; és Zephyriel, az Ég Vándora. Együtt alkották meg a Káoszrubint, amelyben tűz, víz, föld és szél ereje egyetlen, lüktető drágakővé forrt.",
-        "A rubin hatalma azonban nagyobbnak bizonyult alkotói bölcsességénél. A négy szövetséges egymás ellen fordult, palotáik elégtek, tengereik felforrtak, hegyeik meghasadtak. A végső összecsapásban Zephyriel ragadta magához a követ, és mielőtt társai elérhették volna, egy másik dimenzióba rejtette: a folyton változó Káoszlabirintusba.",
-        "Zephyriel tizenkét aranylakatot kovácsolt a dimenzió kapujára. Mindegyikhez egyetlen aranykulcs tartozik, s azokat a labirintus legfélelmetesebb őrzőire bízta. Aki mind a tizenkettőt megszerzi, megnyithatja a Rubin Útját — és kezébe veheti azt a hatalmat, amely birodalmakat emelhet fel vagy törölhet el.",
-        "Most Vhar-Zul, a Sötét Úr is a Káoszrubint keresi. Árnyékhadseregei már áttörték a dimenzió peremét. Ha ő ér előbb a kőhöz, nem marad királyság, amely ellenállhatna neki.",
-        "Aurelios Máguskirály ezért hívatott benneteket a Csillagtoronyba. Jósai, a Csillagszeműek ugyanazt a jelet látták mind a hét éjszakai égen: tizenkét aranyfény között a ti alakotok állt. A jóslat szerint ti vagytok a Kulcshordozók — az egyetlenek, akik végigjárhatják a kaotikus szinteket anélkül, hogy a dimenzió elnyelné őket.",
-        "Nem indultok teljesen egyedül. Aurelios ügynököket küldött elétek: kereskedőket, mestereket, gyógyítókat és titkok tudóit. A Káoszlabirintus fogadóiban várnak majd rátok, ahol a világok közötti vihar rövid időre elcsendesedik.",
-        "Gyűjtsétek össze a tizenkét aranykulcsot. Előzzétek meg Vhar-Zult. Találjátok meg a Káoszrubint — és amikor eljön az idő, döntsétek el, méltó volt-e Aurelios bizalma."
-    ];
-
-    private static readonly IReadOnlyList<string> TwelveKeysStory =
-    [
-        "A tizenkettedik boss elbukik. Az utolsó aranykulcs a levegőbe emelkedik, és társai felelnek hívására: tizenkét fénypont kering körülöttetek, akár egy aranyból rajzolt csillagkép.",
-        "A kulcsok egyszerre fordulnak el láthatatlan zárakban. A Káoszlabirintus megrázkódik. Távoli falak omlanak le, eddig nem létező lépcsők nőnek ki a semmiből, és a mélységből olyan harangszó kondul, amelyet nem füllel, hanem a csontjaitokban hallotok.",
-        "Ekkor megjelenik előttetek Aurelios Máguskirály áttetsző képmása. „Beteljesítettétek a Csillagszeműek első jóslatát” — mondja. — „De a kulcsok csak a külső pecséteket törték fel. Zephyriel a Rubinhoz vezető utat huszonegy halálos szint mögé rejtette. Ami mögöttetek van, próba volt. Ami előttetek áll, háború.”",
-        "A látomás mögött egy másik alak is kirajzolódik: Vhar-Zul fekete koronája, majd két parázsló szem. A Sötét Úr nevetése végigviharzik a dimenzión. Ő is megérezte a zárak felnyílását — és most már pontosan tudja, merre vezet a Rubin Útja.",
-        "A tizenkét kulcs egyetlen ragyogó pecsétté olvad a parti előtt. A kapu túloldalán huszonegy új, brutális világ vár, mind közelebb a Káoszrubin lüktető fényéhez. A küldetés első célja teljesült. A valódi verseny most kezdődik."
-    ];
-
-    private static readonly IReadOnlyDictionary<string, BossNarrative> BossNarratives =
-        new Dictionary<string, BossNarrative>(StringComparer.OrdinalIgnoreCase)
-        {
-            [MonsterIds.Patkányember] = new("II. fejezet — A csatornák koronája",
-            [
-                "Rikkancs vagyok, a Patkányjáratok királya! Ne nevess a koronámon — tizenkét kanálból hajlítottam, és mindet becsületesen loptam.",
-                "Ezt a fényes kulcsot egy kék köpenyes, szélből szőtt ember dobta a fészkembe. Azt mondta, őrizzem, amíg a falak énekelni nem kezdenek. A falak sosem énekelnek. Csak a patkányok. Főleg éjjel.",
-                "Ha a csontzabáló Morghult keresitek, vigyetek neki sót. Utálja a sót. Én meg Morghult utálom, mert megette három unokatestvéremet — bár az egyik talán csak elköltözött."
-            ]),
-            [MonsterIds.Ghoul] = new("III. fejezet — Morghul lakomája",
-            [
-                "Morghulnak hívtak, amikor még emlékeztem a saját arcomra. Most a katakombák neveznek el minden éjjel újra, amikor a koporsófedelek alatt megfordulnak a holtak.",
-                "A kulcs nem étel. Megpróbáltam. Nem hús, nem csont, még csak nem is sikolt. De amikor a markomban tartom, tizenkét dobbanást hallok a föld mélyéről. A tizenkettedik után mindig hideg szél fúj végig a sírokon.",
-                "Grashka, az ork sámán azt állítja, tudja, milyen ajtót nyit. Hazudik. Grashka mindig hazudik. Egyszer azt mondta, a koponya nem levesestál. Ostoba ork."
-            ]),
-            [MonsterIds.OrkSámán] = new("IV. fejezet — Grashka füstjóslata",
-            [
-                "Én vagyok Grashka, a Vasagyar törzs füstlátója. A többiek azt hiszik, a szellemek beszélnek hozzám. Valójában többnyire a füst beszél, és annak is rettenetes a memóriája.",
-                "Az aranykulcsot álmomban kaptam egy négyarcú vihartól. Négy hang veszekedett benne: láng, hullám, kő és szél. A szél győzött, de úgy remegett, mint aki tudja, hogy egyszer visszajönnek érte.",
-                "Északon Hrold, a fagyóriás vár. Fél a vörös szárnyaktól, bár ezt sosem vallaná be. Ha találkoztok vele, mondjátok meg, hogy Grashka szerint a szakálla csak ráfagyott kecskeszőr."
-            ]),
-            [MonsterIds.Fagyóriás] = new("V. fejezet — Hrold dermedt esküje",
-            [
-                "Hrold Jégszakáll vagyok. Százhetven telet számoltam, aztán meguntam. Azóta a jégcsapokat számolom. Ez itt a négyszáznyolcvankétezredik. Vagy ugyanaz, mint tegnap.",
-                "A kulcsot egy vörös sárkány karmaiból téptem ki, amikor még fiatal és ostoba volt. Azóta nagyobb lett, én pedig bölcsebb: ma már tudom, hogy Azrakar nem felejt. A tüze néha még álmomban is megolvasztja a csarnok falát.",
-                "A kulcs belsejében kaput látok, a kapu mögött pedig egy vörös követ. Nem tudom, miért kell tizenkét kulcs egyetlen kapuhoz. Talán a kicsi népek ennyire félnek a huzattól."
-            ]),
-            [MonsterIds.VörösSárkány] = new("VI. fejezet — Azrakar parázstrónusa",
-            [
-                "Azrakar vagyok, az Első Parázs örököse. Láttam királyokat megöregedni, birodalmakat hamuvá válni, és Hroldot elfutni a saját megperzselt szakállával. Ezt a részt különösen szívesen láttam.",
-                "Tudom, hogy a kulcs pecsétet tör. Zephyriel, a szél ősmágusa maga bízta az elődeimre. Azt mondta, tizenkét őrző közül egy se értse az egész tervet. Bölcs óvatosság — vagy gyáva bizalmatlanság.",
-                "A mocsárban Sziszara, a hidra őrzi a következő kulcsot. Kilenc feje van, és mind a kilenc más történetet mesél arról, hogyan győzött le engem. Egyik sem igaz. A tizedik történet viszont talán az lenne."
-            ]),
-            [MonsterIds.Hidra] = new("VII. fejezet — Sziszara kilenc hangja",
-            [
-                "Sziszara vagyok. Én mondom ezt, nem a bal szélső fej. Az mindig hazudik. A jobb szélső szerint mindannyian Sziszara vagyunk, de ő egyszer egy követ is tojásnak nézett.",
-                "A kulcs a mocsár fenekéről került elő, egy szél nélküli vihar után. Ha közel tesszük a többi aranyhoz, énekel. Ha közel tesszük egy békához, a béka felrobban. Ezt fontosabb felfedezésnek tartom.",
-                "A kristálycsarnokban Xyrax figyel minden irányba. Ő látja a kulcsok közötti fonalakat. Mi nem szeretjük Xyraxot. Túl sok szeme van. Ezt kilenc fej teljes egyetértésben mondja."
-            ]),
-            [MonsterIds.VénBeholder] = new("VIII. fejezet — Xyrax ezer látomása",
-            [
-                "Xyrax vagyok, a Századik Tekintet. Egyik szemem a jelent látja, három a lehetséges jövőket, kettő a múlt hazugságait. A maradékot viszketésre használom.",
-                "Látom a tizenkét kulcs aranyfonalát. Nem ajtót nyitnak: helyet kényszerítenek a káoszra, hogy ajtóvá váljon. Mögötte a négy őserő egyetlen rubinban marja egymást, és huszonegy árnyék áll közte és a világotok között.",
-                "Ossyra, a csontsárkány még emlékszik Zephyriel hangjára. Fél saját ősétől, Nharaztól, a drakolichtól. Jogos félelem. Egy lehetséges jövőben Nharaz megeszi a lelkemet. Tizenhét másikban én eszem meg az övét."
-            ]),
-            [MonsterIds.Csontsárkány] = new("IX. fejezet — Ossyra csontemlékezete",
-            [
-                "Ossyra volt a nevem, amikor pikkely fedte e csontokat. Zephyriel akkor érkezett a dermedt mélységbe, amikor még az ég is fiatalabb volt. Nem parancsolt. Könyörgött, hogy őrizzem a kulcsot azoktól, akik a Rubint fegyverré tennék.",
-                "A halál nem oldotta fel az eskümet. Csak elvette belőle a meleget. Évszázadok óta hallom, ahogy a pecsétek egymást keresik a dimenzión át.",
-                "Nharaz, az első sárkányból lett drakolich azt hiszi, a Rubin visszaadhatja a húsát. Téved. A Rubin nem visszaad: átír. Ha eljuttok hozzá, ne higgyetek annak a hangnak, amelyen a halott anyátok szólít majd benneteket."
-            ]),
-            [MonsterIds.Ősvámpír] = new("X. fejezet — Velkhar örök éjszakája",
-            [
-                "Velkhar gróf vagyok, és már akkor untam ezt az erődöt, amikor dédapáitok még udvariasan kopogtak a kripták ajtaján. Mostanában csak Aurelios kémei jönnek. Udvariatlanok, de legalább friss vérük van.",
-                "Igen, ismerem a Máguskirály tervét. Emberei fogadóról fogadóra építették ki az útvonalatokat. Azt hiszik, nem vettem észre őket. Hagytam, hogy továbbmenjenek; kíváncsi voltam, valóban megérkeznek-e a csillagok kiválasztottjai.",
-                "Vhar-Zul is küldött követeket. Azt ígérte, nappaltalan világot ad nekem. Ostoba ajánlat — már van egy. A Drakolich viszont elfogadta az övét. Nharaz tudja, hogyan nyílik a belső út, és kinek a vére kell hozzá."
-            ]),
-            [MonsterIds.Drakolich] = new("XI. fejezet — Nharaz fekete evangéliuma",
-            [
-                "Nharaz vagyok, akit a sárkányok is ősüknek neveztek, mielőtt nevemet kivésték a csontjaikból. Ossyra figyelmeztetett rólam, igaz? Mindig szeretett történetekkel védekezni a valóság ellen.",
-                "A tizenkét kulcs a külső pecsét gyűrűjét bontja fel. Utána huszonegy szint következik, mindegyik Zephyriel egy-egy emlékéből és félelméből épült. Az út végén nem kincsesház áll, hanem a Káoszrubin börtöne.",
-                "Vhar-Zul megígérte, hogy a Rubin lángjával új testet ad nekem. Tudom, hogy hazudik. Én is hazudtam neki. A Balor, Ashkaroth azonban vakon szolgálja. Ha legyőzitek, a Sötét Úr végre személyesen is rátok figyel majd."
-            ]),
-            [MonsterIds.BalorDémon] = new("XII. fejezet — Ashkaroth vértrónusa",
-            [
-                "Ashkaroth vagyok, Vhar-Zul ostora és a Vértrónus ura. Nem véletlenül jutottatok idáig. Hagytuk, hogy összegyűjtsétek a kulcsokat, mert a pecséteket sem démon, sem árnyék nem törheti fel — csak azok, akiket a csillagok megjelöltek.",
-                "Ti nem Aurelios hősei vagytok. Ti vagytok a kulcs, amelyet mindkét király ugyanabba a zárba próbál illeszteni. Amint az utolsó aranydarab a helyére kerül, uram seregei meglátják a Rubin Útját.",
-                "A Káoszsárkány nem szolgál minket. Kael-Zhur még Vhar-Zult is gyűlöli, mert ismeri a Rubin valódi árát. Menjetek csak hozzá. Ha megöltök, a halálom lesz a jelzőtűz, amely odavezeti hozzátok a Sötét Urat."
-            ]),
-            [MonsterIds.Káoszsárkány] = new("XIII. fejezet — Kael-Zhur, az utolsó lakat",
-            [
-                "Kael-Zhur vagyok, a Káosz első lélegzete és Zephyriel utolsó bűne. Nem születtem. A Rubin álmodott meg engem, hogy legyen valami, amitől még a négy alkotója is félhet.",
-                "Tudom, miért jöttetek. Aurelios azt mondta, meg kell előznötök Vhar-Zult. Vhar-Zul azt hiszi, ti nyitjátok ki neki az utat. Mindketten igazat mondanak, és mindketten hazudnak. A Káoszrubin nem engedelmeskedik annak, aki megtalálja — átformálja őt arra, amire a világ leginkább vágyik vagy amitől legjobban retteg.",
-                "Kulcsom az utolsó a tizenkettőből. Ha elveszitek, feltárul Zephyriel huszonegy szintből álló belső útja. Ott már nem őrzők várnak, hanem egy ősmágus emlékei, széthullott törvények és Vhar-Zul közeledő serege.",
-                "Évszázadok óta őrzöm ezt a lakatot, és bevallom: rettenetesen unatkozom. Mutassátok meg, Kulcshordozók, hogy a csillagok valóban benneteket láttak — vagy csak egy különösen kegyetlen tréfát játszottak velem."
-            ]),
-            [MonsterIds.SirMalrec] = new("Roderic krónikája — A megtört eskü",
-            [
-                "Roderic. Még mindig mások pajzsa mögé bújsz, hogy ne kelljen látnod a saját kudarcodat?",
-                "Az eskünk velünk halt. Én csak kimondtam azt, amit te azóta sem mersz: a holtaknak nem tartozunk hűséggel.",
-                "Gyertek hát. Hadd lássam, vajon az új bajtársaid tovább kitartanak-e melletted, mint a régiek."
-            ])
-        };
     private const int ZombieSpeed = 2;
     private const int ZombieMoveIntervalMilliseconds = 700;
     private const int MinimumPartyMoveDelayMilliseconds = 250;
@@ -178,6 +75,8 @@ public sealed class Game : ISessionCommandHandler
     private readonly CharacterProgressionService _progressionService;
     private readonly PartySustenanceService _sustenanceService;
     private readonly DungeonTrapService _dungeonTrapService;
+    private readonly LootAndInventoryService _lootService;
+    private readonly DungeonExpeditionCoordinator _expeditionCoordinator;
     private readonly SessionCommandDispatcher _commandDispatcher;
     private long _localCommandId;
     private BattleState? _activeBattleState;
@@ -427,6 +326,8 @@ public sealed class Game : ISessionCommandHandler
         _progressionService = new CharacterProgressionService(gameData, _random);
         _sustenanceService = new PartySustenanceService(gameData, _random);
         _dungeonTrapService = new DungeonTrapService(gameData, _random);
+        _lootService = new LootAndInventoryService(gameData, _random);
+        _expeditionCoordinator = new DungeonExpeditionCoordinator(gameData, _random);
         _commandDispatcher = new SessionCommandDispatcher(_session, this, selectedCharacter.Id);
     }
 
@@ -611,7 +512,7 @@ public sealed class Game : ISessionCommandHandler
         {
             StartNewMaze(showLevelImage: false);
             ShowSynchronizedNarrative(NarrativeKind.CampaignIntroduction, "A KÁOSZRUBIN KRÓNIKÁJA",
-                "I. fejezet — A tizenkét aranykulcs", CampaignIntroduction);
+                "I. fejezet — A tizenkét aranykulcs", StoryNarratives.CampaignIntroduction);
             ShowLevelImage();
         }
         else RestoreGame(_loadedState);
@@ -858,48 +759,12 @@ public sealed class Game : ISessionCommandHandler
         PlaySessionSound(SoundEffect.LevelComplete);
         PlaySessionSound(SoundEffect.Victory);
         ShowSynchronizedNarrative(NarrativeKind.CampaignFinale, "GRATULÁLUNK, KULCSHORDOZÓK!",
-            "XV. fejezet — A csillagok választottai", CreateCampaignFinale());
+            "XV. fejezet — A csillagok választottai",
+            StoryNarratives.CreateCampaignFinale(CharacterRoster.Party.Members.Where(character => character.IsAlive), SelectedCharacter.Name));
         _gameOver = true;
         _session.SetPhase(GameSessionPhase.GameOver);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
     }
-
-    private IReadOnlyList<string> CreateCampaignFinale()
-    {
-        var paragraphs = new List<string>
-        {
-            "A Káoszrubin a rejtekhely legutolsó termében lebeg. Belsejében tűz, víz, föld és szél kergeti egymást, mintha a négy ősi elementálmágus vitája még mindig nem ért volna véget. Amikor megérintitek, a kő egyetlen szívdobbanásnyi időre elnémul — aztán bíbor fénye elnyeli a labirintust.",
-            "Nem zuhantok, mégis világok suhannak el mellettetek. A káosz huszonegy megtört törvénye egyetlen villanásba roskad, majd márvány érinti a lábatokat. Saját világotokban álltok, Aurelios Máguskirály tróntermében, a Káoszrubinnal együtt.",
-            "A Csillagszeműek teljes köre vár benneteket az aranykupola alatt. Már órákkal korábban meggyújtották a tizenkét csillaglámpást: megérezték, hogy közeledik a kiválasztott. Vhar-Zul árnyéka visszahúzódik az ólomüveg ablakokról, Aurelios pedig leszáll trónjáról, és király létére fejet hajt előttetek.",
-            "A királyi krónikás felnyitja az üresen hagyott aranylapokat. Nemcsak a Káoszrubin visszatérését jegyzi fel, hanem mindazok nevét is, akik élve járták végig az utat:"
-        };
-
-        paragraphs.AddRange(CharacterRoster.Party.Members.Where(character => character.IsAlive)
-            .Select(CreateSurvivorTribute));
-        paragraphs.Add(
-            $"Aurelios végül {SelectedCharacter.Name} kezére teszi a kezét. „A csillagok kiválasztottak benneteket, de nem a jóslat győzött helyettetek. Ti tettétek valóra. Mától nem alattvalóimként, hanem a birodalom megmentőiként álltok előttem.”");
-        paragraphs.Add(
-            "A tizenkét csillaglámpás egyszerre lobban fel, a tróntermet pedig harangzúgás és ujjongás tölti be. A Káoszrubin hazatért, Vhar-Zul terve meghiúsult, és a túlélők neve örökre felkerült az Aranykor új krónikájába. Gratulálunk — végigjártátok a Káoszlabirintust, és megnyertétek a játékot!");
-        return paragraphs;
-    }
-
-    private static string CreateSurvivorTribute(LiveCharacter character) => character.CharacterClass.Id switch
-    {
-        CharacterClassIds.Harcos =>
-            $"{character.Name}, a harcos erős keze sosem hagyta cserben társait. Ellenfelei rettegtek fegyverének súlyától, barátai pedig tudták, hogy mellette a legvadabb roham is megtörik.",
-        CharacterClassIds.Barbár =>
-            $"{character.Name}, a barbár fékezhetetlen bátorsága utat tört ott is, ahol más már csak a biztos halált látta. Haragja viharként söpört végig a szörnyeken, de társait mindvégig hűséges szívvel oltalmazta.",
-        CharacterClassIds.Lovag =>
-            $"{character.Name}, a lovag pajzsa élő várfalként állt a csapat előtt. Becsülete a legsötétebb síkokon sem homályosult el, és esküjét még a Káosz sem tudta megtörni.",
-        CharacterClassIds.Tolvaj =>
-            $"{character.Name}, a tolvaj ott talált ösvényt, ahol más csak zárakat, csapdákat és árnyakat látott. Éles szeme és gyors keze számtalanszor mentette meg a csapatot, gyakran még azelőtt, hogy társai észrevették volna a veszélyt.",
-        CharacterClassIds.Pap =>
-            $"{character.Name}, a pap hite fényt gyújtott a holtak és démonok birodalmában. Imái visszahívták társait a kétségbeesés pereméről, szent erejétől pedig még a sír nyughatatlan urai is meghátráltak.",
-        CharacterClassIds.Mágus =>
-            $"{character.Name}, a mágus tudása megszelídítette a labirintus vad erőit. Varázslatai csillagfényként hasították fel a sötétséget, és elméje olyan titkokat fejtett meg, amelyeket évszázadok óta senki sem mert megérinteni.",
-        _ =>
-            $"{character.Name}, a {character.CharacterClass.Name.ToLowerInvariant()} rendíthetetlen társként járta végig a Káoszlabirintust; neve méltán került a birodalom legnagyobb hősei közé."
-    };
 
     private void StartNewMaze(bool showLevelImage = true)
     {
@@ -2873,13 +2738,11 @@ public sealed class Game : ISessionCommandHandler
 
     private void NormalizeFormation()
     {
-        var previousSlots = _formation.Slots;
-        _formation = PartyFormationRules.Normalize(_formation,
+        _formation = PartyFormationController.Normalize(_formation,
             CharacterRoster.Party.Members.Where(member => member.IsAlive).Select(member => member.Id),
-            SelectedCharacter.Id);
-        if (_formation.State == PartyFormationState.Locked && !previousSlots.SequenceEqual(_formation.Slots))
+            SelectedCharacter.Id, out var transitionedToAssembling);
+        if (transitionedToAssembling)
         {
-            _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Assembling);
             _session.SetFormationMovementLocked(false);
             _formationObstacleReported = false;
         }
@@ -2951,21 +2814,8 @@ public sealed class Game : ISessionCommandHandler
         ScheduleFormationMove();
     }
 
-    private bool CanFormationOccupy(IReadOnlyDictionary<CharacterId, Position> positions)
-    {
-        if (positions.Values.Distinct().Count() != positions.Count) return false;
-        var ownAvatars = positions.Keys.Select(FormationAvatar).Where(avatar => avatar is not null).ToHashSet();
-        foreach (var position in positions.Values)
-        {
-            if (!_maze.IsWalkable(position) || _maze.GetEnemyAt(position) is not null) return false;
-            var occupant = _maze.GetObjectAt(position);
-            if (occupant is null or GroundItemPile or Corpse or TreasureChest || Maze.IsPassableNeutralNpc(occupant))
-                continue;
-            if (occupant is PartyMemberAvatar avatar && ownAvatars.Contains(avatar)) continue;
-            return false;
-        }
-        return true;
-    }
+    private bool CanFormationOccupy(IReadOnlyDictionary<CharacterId, Position> positions) =>
+        PartyFormationController.CanFormationOccupy(positions, _maze, FormationAvatar);
 
     private void ApplyFormationPositions(IReadOnlyDictionary<CharacterId, Position> positions, Direction facing)
     {
@@ -3257,53 +3107,14 @@ public sealed class Game : ISessionCommandHandler
         StartNewMaze();
     }
 
-    private void CaptureExpeditionEnemyTemplates()
-    {
-        _levelEnemyTemplates.Clear();
-        _levelEnemyTemplates.AddRange(_maze.Enemies.Where(enemy => !enemy.Definition.IsBoss &&
-            enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) != true).Select(enemy =>
-            new ExpeditionEnemyTemplate(enemy.Definition.Id, enemy.Position, enemy.MovementProfile,
-                enemy.PatrolDirection, enemy.GroupId, enemy.GroupRole)));
-        _levelEnemyTemplates.AddRange(_maze.Corpses.OfType<MonsterCorpse>()
-            .Where(corpse => !_gameData.GetEnemy(corpse.EnemyDefinitionId).IsBoss &&
-                             corpse.GuaranteedLootIds.Count == 0)
-            .Select(corpse => new ExpeditionEnemyTemplate(corpse.EnemyDefinitionId, corpse.Position,
-                EnemyMovementProfile.Wander, Direction.Right, null, EnemyGroupRole.Member)));
-    }
+    private void CaptureExpeditionEnemyTemplates() =>
+        DungeonExpeditionCoordinator.CaptureExpeditionEnemyTemplates(_levelEnemyTemplates, _maze, _gameData);
 
-    private void ReplenishExpeditionEnemies()
-    {
-        var currentNormalCount = _maze.Enemies.Count(enemy => !enemy.Definition.IsBoss &&
-            enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) != true);
-        var needed = ReturnExpeditionRules.AdditionalEnemiesNeeded(_levelEnemyTemplates.Count,
-            currentNormalCount);
-        var candidates = _levelEnemyTemplates.OrderBy(_ => _random.Next()).ToList();
-        foreach (var template in candidates)
-        {
-            if (needed <= 0) break;
-            var position = FindExpeditionSpawnPosition(template.Position);
-            if (position is null) continue;
-            var enemy = new ConfiguredEnemy(position.Value, _gameData.GetEnemy(template.DefinitionId));
-            enemy.ConfigureMovement(template.MovementProfile, template.PatrolDirection);
-            enemy.ConfigureGroup(template.GroupId, template.GroupRole);
-            _maze.AddEnemy(enemy);
-            needed--;
-        }
-    }
+    private void ReplenishExpeditionEnemies() =>
+        _expeditionCoordinator.ReplenishExpeditionEnemies(_levelEnemyTemplates, _maze);
 
-    private Position? FindExpeditionSpawnPosition(Position preferred)
-    {
-        var positions = new List<Position> { preferred };
-        for (var radius = 1; radius <= 5; radius++)
-            for (var y = preferred.Y - radius; y <= preferred.Y + radius; y++)
-                for (var x = preferred.X - radius; x <= preferred.X + radius; x++)
-                    if (Math.Max(Math.Abs(x - preferred.X), Math.Abs(y - preferred.Y)) == radius)
-                        positions.Add(new Position(x, y));
-        return positions.Where(position => _maze.IsInside(position) && _maze.IsWalkable(position) &&
-                position != _maze.Entrance && position != _maze.Exit && _maze.GetObjectAt(position) is null &&
-                _maze.GetDoorAt(position) is null && _maze.GetTrapAt(position) is null)
-            .Select(position => (Position?)position).FirstOrDefault();
-    }
+    private Position? FindExpeditionSpawnPosition(Position preferred) =>
+        DungeonExpeditionCoordinator.FindExpeditionSpawnPosition(_maze, preferred);
 
     private void RepositionPartyAtEntrance()
     {
@@ -3460,72 +3271,21 @@ public sealed class Game : ISessionCommandHandler
             messages.Add("a tetemnél nem találtál zsákmányt");
     }
 
-    private int AdjustedSearchChance(LiveCharacter character, int baseChance)
-    {
-        var chance = Math.Max(0, baseChance);
-        if (CharacterClassRules.IsThief(character.CharacterClass.Id))
-            chance = chance * _gameData.LootRules.ThiefChanceMultiplierPercent / 100;
-        if (character.Race.HasTrait(RaceTraits.KeenSenses)) chance += 15;
-        chance += character.EffectiveAbilities.Intelligence * _gameData.LootRules.IntelligenceChanceBonusPerPoint;
-        return Math.Clamp(chance, 0, 100);
-    }
+    private int AdjustedSearchChance(LiveCharacter character, int baseChance) =>
+        _lootService.AdjustedSearchChance(character, baseChance);
 
-    private IItemDefinition? RollEquipmentLoot(MonsterLootDefinition loot)
-    {
-        bool Eligible(IItemDefinition item) => item.Rarity >= loot.MinimumRarity &&
-            item.Rarity <= loot.MaximumRarity && item.MagicPower <= loot.MaximumMagicPower &&
-            item.BasePrice <= loot.MaximumBasePrice &&
-            !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item);
+    private IItemDefinition? RollEquipmentLoot(MonsterLootDefinition loot) =>
+        _lootService.RollEquipmentLoot(loot);
 
-        var categoryCandidates = new List<List<IItemDefinition>>();
-        if (loot.CanDropWeapon)
-            categoryCandidates.Add(_gameData.Weapons.Where(Eligible).Cast<IItemDefinition>().ToList());
-        if (loot.CanDropArmor)
-            categoryCandidates.Add(_gameData.Armors.Where(Eligible).Cast<IItemDefinition>().ToList());
-        if (loot.CanDropMagicItem)
-            categoryCandidates.Add(_gameData.MagicItems.Where(Eligible).Cast<IItemDefinition>().ToList());
-        categoryCandidates.RemoveAll(candidates => candidates.Count == 0);
-        if (categoryCandidates.Count == 0) return null;
-        var candidates = categoryCandidates[_random.Next(categoryCandidates.Count)];
-        return candidates[_random.Next(candidates.Count)];
-    }
+    private IItemDefinition? RollMasterThiefChestLoot(LiveCharacter character) =>
+        _lootService.RollMasterThiefChestLoot(character, AllTradableItems());
 
-    private IItemDefinition? RollMasterThiefChestLoot(LiveCharacter character)
-    {
-        if (!character.HasPerk(PerkIds.ThiefMasterThief) || _random.Next(100) >= 25) return null;
-        var candidates = AllTradableItems().Where(item => item.Rarity == ItemRarity.Magic).ToList();
-        return candidates.Count == 0 ? null : candidates[_random.Next(candidates.Count)];
-    }
-
-    private bool TryStoreLootInParty(IItemDefinition item, out string ownerName)
-    {
-        foreach (var character in new[] { SelectedCharacter }.Concat(CharacterRoster.Party.Members
-                     .Where(character => character != SelectedCharacter && character.IsAlive)))
-        {
-            if (!character.AddToBackpack(item)) continue;
-            ownerName = character.Name;
-            return true;
-        }
-        ownerName = string.Empty;
-        return false;
-    }
+    private bool TryStoreLootInParty(IItemDefinition item, out string ownerName) =>
+        LootAndInventoryService.TryStoreLootInParty(item, SelectedCharacter, CharacterRoster.Party.Members, out ownerName);
 
     private bool TryStoreSearchedLoot(LiveCharacter character, IItemDefinition item, bool shareLootWithParty,
-        out string ownerName)
-    {
-        var candidates = shareLootWithParty
-            ? new[] { character }.Concat(CharacterRoster.Party.Members.Where(candidate =>
-                candidate != character && candidate.IsAlive))
-            : [character];
-        foreach (var candidate in candidates)
-        {
-            if (!candidate.AddToBackpack(item)) continue;
-            ownerName = candidate.Name;
-            return true;
-        }
-        ownerName = string.Empty;
-        return false;
-    }
+        out string ownerName) =>
+        LootAndInventoryService.TryStoreSearchedLoot(character, item, shareLootWithParty, CharacterRoster.Party.Members, out ownerName);
 
     private void PickUpGroundItems(LiveCharacter character, Position position, bool shareLootWithParty,
         ICollection<string> messages)
@@ -3825,56 +3585,6 @@ public sealed class Game : ISessionCommandHandler
         return $"manna +{character.CurrentMana - before}";
     }
 
-    private static string ItemRarityName(ItemRarity rarity) => rarity switch
-    {
-        ItemRarity.Magic => "Varázs",
-        ItemRarity.Legendary => "Legendás",
-        _ => "Sima"
-    };
-
-    private static ConsoleColor RarityColor(ItemRarity rarity) => rarity switch
-    {
-        ItemRarity.Magic => ConsoleColor.Cyan,
-        ItemRarity.Legendary => ConsoleColor.Yellow,
-        _ => ConsoleColor.Gray
-    };
-
-    private static string ConsumableEffectName(ConsumableEffect effect) => effect switch
-    {
-        ConsumableEffect.Food => "élelem",
-        ConsumableEffect.Water => "víz",
-        ConsumableEffect.Heal => "HP",
-        ConsumableEffect.RestoreMana => "manna",
-        ConsumableEffect.CurePoison => "mérgezés gyógyítása",
-        ConsumableEffect.CureDisease => "betegség gyógyítása",
-        ConsumableEffect.StopBleeding => "vérzés elállítása",
-        ConsumableEffect.Vision => "látótáv",
-        _ => "nincs"
-    };
-
-    private static string MagicItemKindName(Domain.Magic.MagicItemKind kind) => kind switch
-    {
-        Domain.Magic.MagicItemKind.Amulet => "amulett",
-        Domain.Magic.MagicItemKind.Wand => "varázspálca",
-        Domain.Magic.MagicItemKind.Scroll => "varázstekercs",
-        _ => "varázsgyűrű"
-    };
-
-    private static string MagicItemEffectName(Domain.Magic.MagicItemEffect effect) => effect switch
-    {
-        Domain.Magic.MagicItemEffect.Initiative => "kezdeményezés",
-        Domain.Magic.MagicItemEffect.Hit => "találati próba",
-        Domain.Magic.MagicItemEffect.Damage => "sebzés",
-        Domain.Magic.MagicItemEffect.Defense => "védelem",
-        Domain.Magic.MagicItemEffect.BattleHeal => "csata eleji HP",
-        Domain.Magic.MagicItemEffect.BattleMana => "csata eleji manna",
-        Domain.Magic.MagicItemEffect.Strength => "Erő",
-        Domain.Magic.MagicItemEffect.Dexterity => "Ügyesség",
-        Domain.Magic.MagicItemEffect.Health => "Egészség",
-        Domain.Magic.MagicItemEffect.Intelligence => "Intelligencia",
-        _ => "varázslattároló"
-    };
-
     private static string NpcBehaviorName(NpcBehavior? behavior) => behavior switch
     {
         NpcBehavior.Defensive => "Defenzív",
@@ -3883,9 +3593,6 @@ public sealed class Game : ISessionCommandHandler
         NpcBehavior.Cautious => "Óvatos",
         _ => "inaktív"
     };
-
-    private string AllowedClassNames(IReadOnlySet<string> classIds) => string.Join(", ",
-        _gameData.CharacterClasses.Where(characterClass => classIds.Contains(characterClass.Id)).Select(characterClass => characterClass.Name));
 
     private void GrabOrPlaceInventoryItem()
     {
@@ -4646,78 +4353,6 @@ public sealed class Game : ISessionCommandHandler
         if (enemy is null) return false;
         StartBattle(member, enemy);
         return true;
-    }
-
-    private void ResolveNpcBattle(PartyMemberAvatar member, Enemy enemy)
-    {
-        if (_battleStarted || !member.Character.IsAlive || !_maze.Enemies.Contains(enemy)) return;
-        _battleStarted = true;
-        _session.SetPhase(GameSessionPhase.Battle);
-        _turnUndeadUsedThisBattle.Clear();
-        PlaySessionSound(SoundEffect.BattleStart);
-        TryLogPartyComments(PartySituationIds.BattleStarted);
-        var startingNpcHp = member.Character.CurrentVitality;
-        var startingNpcMana = member.Character.CurrentMana;
-        var startingStatusIds = member.Character.Statuses.Select(status => status.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var spellsCast = 0;
-        var knightProtector = TryRollKnightProtector(member.Character);
-        var result = _battleSystem.Resolve(member.Character, enemy, _ => { },
-            () => ChooseNpcBattlePlayerAction(member, enemy, onSpellCast: () => spellsCast++),
-            knightProtector: knightProtector);
-        var needLoss = DrainNeedsAfterBattle(member.Character, enemy.Definition.StrengthTier);
-        TryNpcUseConsumables(member.Character);
-        var gainedStatusIcons = member.Character.Statuses
-            .Where(status => !startingStatusIds.Contains(status.Id))
-            .Select(status => status.Icon).ToArray();
-        var vitalityLost = Math.Max(0, startingNpcHp - member.Character.CurrentVitality);
-        var manaLost = Math.Max(0, startingNpcMana - member.Character.CurrentMana);
-        var levelUps = new List<ExperienceAward>();
-        if (result.PlayerWon)
-        {
-            AwardBossKey(enemy);
-            PlayBattleVictorySound();
-            var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
-            levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive));
-            RegisterNpcQuestKill(enemy);
-            member.Character.RecordMonsterKill(enemy.Definition.Id);
-            _maze.ReplaceEnemyWithCorpse(enemy);
-            var summary = ConsoleRenderer.FormatAutoBattleVictorySummary(result, member.Character.Name, enemy,
-                vitalityLost, manaLost, gainedStatusIcons, needLoss, spellsCast, enemy.Definition.ExperienceReward);
-            _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Green);
-            RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Green);
-            TryLogPartyComments(PartySituationIds.BattleWon);
-        }
-        else
-        {
-            var questCriticalRoderic = IsQuestCriticalRoderic(member);
-            if (questCriticalRoderic)
-                member.Character.RestoreVitality(Math.Max(1, member.Character.MaximumVitality / 3));
-            else
-            {
-                PlaySessionSound(SoundEffect.MemberKilled);
-                _maze.ReplacePartyMemberWithCorpse(member);
-                _nextPartyMoves.Remove(member);
-            }
-            var summary = ConsoleRenderer.FormatAutoBattleDefeatSummary(result, member.Character.Name, enemy,
-                startingNpcHp, manaLost, gainedStatusIcons, needLoss, spellsCast) +
-                (questCriticalRoderic
-                    ? " Roderic eszméletét vesztette, de az Ezüst Esküre hivatkozva ismét talpra állt; a harcot újra megpróbálhatjátok."
-                    : string.Empty);
-            _renderer.DrawNpcBattleSummary(summary, questCriticalRoderic ? ConsoleColor.DarkYellow : ConsoleColor.Red);
-            RecordSessionActivity(SessionActivityKind.Battle, summary,
-                questCriticalRoderic ? ConsoleColor.DarkYellow : ConsoleColor.Red);
-            if (!questCriticalRoderic) TryLogPartyComments(PartySituationIds.PartyMemberDied);
-        }
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _battleStarted = false;
-        if (levelUps.Count > 0)
-        {
-            foreach (var award in levelUps) ResolvePerkOffers(award.Character, award.Result);
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        }
-        _session.SetPhase(GameSessionPhase.Exploration);
     }
 
     private bool IsQuestCriticalRoderic(PartyMemberAvatar member) =>
@@ -5584,7 +5219,7 @@ public sealed class Game : ISessionCommandHandler
                 _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
                 continue;
             }
-            var narrative = BossNarratives.GetValueOrDefault(boss.Definition.Id)
+            var narrative = StoryNarratives.BossNarratives.GetValueOrDefault(boss.Definition.Id)
                 ?? new BossNarrative("Ismeretlen fejezet",
                     [$"Én vagyok {boss.Name}. E folyosók titkait nem osztom meg veletek."]);
             var isMiniBoss = boss.Definition.Rank == EnemyRank.MiniBoss;
@@ -5627,7 +5262,7 @@ public sealed class Game : ISessionCommandHandler
             $"Kulcsok: {_collectedBossKeyIds.Count}/{MonsterIds.Bosses.Count}.{completed}", ConsoleColor.Yellow);
         if (_collectedBossKeyIds.Count == MonsterIds.Bosses.Count)
             ShowSynchronizedNarrative(NarrativeKind.TwelveKeys, "A TIZENKÉT ZÁR FELNYÍLIK",
-                "XIV. fejezet — A Rubin Útja", TwelveKeysStory);
+                "XIV. fejezet — A Rubin Útja", StoryNarratives.TwelveKeysStory);
     }
 
     private void StartBattle(Enemy enemy, bool enemyStrikesFirst = false)
@@ -7670,8 +7305,6 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source, long SourceRevision);
-    private sealed record ExpeditionEnemyTemplate(string DefinitionId, Position Position,
-        EnemyMovementProfile MovementProfile, Direction PatrolDirection, string? GroupId, EnemyGroupRole GroupRole);
     private sealed record DeveloperUniqueNpcTarget(NpcDefinition Definition, int MazeLevel);
     private sealed record NpcTeamSpellPlan(SpellDefinition Spell, Position Target, Enemy? Enemy, bool Offensive);
 
@@ -8124,8 +7757,6 @@ public sealed class Game : ISessionCommandHandler
             }
         }
     }
-
-    private sealed record BossNarrative(string ChapterTitle, IReadOnlyList<string> Speech);
 
     private IReadOnlyList<PerkOffer> CreatePerkOffers(LiveCharacter character, LevelUpResult result) =>
         _progressionService.CreatePerkOffers(character, result);
