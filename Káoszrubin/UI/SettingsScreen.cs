@@ -5,7 +5,7 @@ public static class SettingsScreen
 {
     private const int Width = 58;
 
-    public static void Show(MusicSettingsService settingsService, Action? applyMusicSettings = null)
+    public static void Show(GameSettingsService settingsService, Action? applyMusicSettings = null)
     {
         var settings = settingsService.Settings;
         while (true)
@@ -36,7 +36,7 @@ public static class SettingsScreen
         settingsService.Save();
     }
 
-    private static void Draw(MusicSettings settings)
+    private static void Draw(GameSettings settings)
     {
         Console.Clear();
         var left = Math.Max(0, (Console.WindowWidth - Width) / 2);

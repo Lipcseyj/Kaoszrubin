@@ -158,6 +158,9 @@ public sealed class ConsoleRenderer
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
     private readonly HashSet<Position> _teamBattleFocusPositions = [];
+    private readonly BattleCommandPanel _battleCommandPanel = new(
+        ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', PlayfieldWidth),
+        ConsoleColor.Cyan);
 
     public ConsoleRenderer(GameDataCatalog gameData, Party party,
         Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null)
@@ -392,8 +395,67 @@ public sealed class ConsoleRenderer
     {
         _battleActive = true;
         _battleEnemy = enemy;
+        DrawBattleCommandPanel(string.Empty);
         DrawPicturePanel();
         DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
+    }
+
+    public void DrawBattleCommandPanel(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            _battleCommandPanel.Close();
+            SetColors(ConsoleColor.DarkCyan, _battleCommandPanel.Background);
+            WriteAt(0, BattleCommandPanel.Row, _battleCommandPanel.Line);
+            return;
+        }
+
+        // Parse and highlight hotkeys in the command text
+        var segments = BattleCommandPanel.ParseHotkeysPublic(text, _battleCommandPanel.HotkeyColor);
+        DrawBattleCommandPanelWithHighlighting(segments);
+    }
+
+    public void DrawBattleCommandPanelWithHighlighting(IReadOnlyList<TextSegment> segments)
+    {
+        _battleCommandPanel.OpenWithHighlighting(segments);
+
+        // Calculate center padding
+        var combinedText = string.Concat(segments.Select(s => s.Text));
+        var totalWidth = BattleCommandPanel.Width;
+        var textLength = combinedText.Length;
+
+        if (textLength > totalWidth)
+        {
+            // Text is too long, just render centered portion without padding
+            var truncated = combinedText[..totalWidth];
+            SetColors(_battleCommandPanel.Foreground, _battleCommandPanel.Background);
+            WriteAt(0, BattleCommandPanel.Row, truncated);
+            return;
+        }
+
+        var paddingNeeded = totalWidth - textLength;
+        var leftPadding = paddingNeeded / 2;
+        var rightPadding = paddingNeeded - leftPadding;
+
+        // Write left padding
+        SetColors(_battleCommandPanel.Foreground, _battleCommandPanel.Background);
+        WriteAt(0, BattleCommandPanel.Row, new string(' ', leftPadding));
+
+        // Write segments starting after left padding
+        var column = leftPadding;
+        foreach (var segment in segments)
+        {
+            if (string.IsNullOrEmpty(segment.Text)) continue;
+
+            var segmentColor = segment.Color ?? _battleCommandPanel.Foreground;
+            SetColors(segmentColor, _battleCommandPanel.Background);
+            WriteAt(column, BattleCommandPanel.Row, segment.Text);
+            column += segment.Text.Length;
+        }
+
+        // Write right padding
+        SetColors(_battleCommandPanel.Foreground, _battleCommandPanel.Background);
+        WriteAt(column, BattleCommandPanel.Row, new string(' ', rightPadding));
     }
     /// <summary>Kincs felvétele esetén rövid üzenet a battle/message panelre.</summary>
     public void DrawTreasureCollected(int goldAmount, bool jackpot, int jackpotChance, int rewardMultiplier) =>
@@ -423,8 +485,6 @@ public sealed class ConsoleRenderer
             _ => ConsoleColor.Cyan
         };
         DrawBattleMessage(entry.Message, color);
-        // A jobb oldali karakterlapon megjelenített sor: információ a vezérlésről.
-        WriteSheetLine(RightSheetBattleHintLine, "Space: tovább | saját kör: V/F1-F8", ConsoleColor.DarkYellow);
     }
 
     /// <summary>
@@ -435,6 +495,7 @@ public sealed class ConsoleRenderer
         _battleActive = false;
         _battleEnemy = null;
         DrawPicturePanel();
+        DrawBattleCommandPanel(string.Empty);
         WriteSheetLine(RightSheetBattleHintLine, string.Empty, ConsoleColor.DarkCyan);
         DrawBattleMessage(message ?? FormatBattleResultMessage(result, enemy));
     }
@@ -2340,9 +2401,26 @@ public sealed class ConsoleRenderer
                 ? messages[messageIndex]
                 : new MessageLogLine(string.Empty, ConsoleColor.Gray);
             SetColors(messageLine.Color, ConsoleColor.Black);
-            var text = messageLine.Text;
+            var text = ExpandTabs(messageLine.Text);
             WriteAt(MessagePanelLeft, BottomBorderY + FirstMessageLineOffset + index, text.PadRight(MessageWidth));
         }
+    }
+
+    private static string ExpandTabs(string text, int tabWidth = 18)
+    {
+        if (!text.Contains('\t')) return text;
+        var builder = new StringBuilder(text.Length + tabWidth);
+        foreach (var character in text)
+        {
+            if (character != '\t')
+            {
+                builder.Append(character);
+                continue;
+            }
+            var spaces = tabWidth - builder.Length % tabWidth;
+            builder.Append(' ', spaces);
+        }
+        return builder.ToString();
     }
 
     /// <summary>

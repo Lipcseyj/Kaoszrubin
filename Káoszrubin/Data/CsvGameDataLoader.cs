@@ -1042,7 +1042,11 @@ public static class CsvGameDataLoader
                 Name = weapon.Name + " " + upgrade.NameSuffix,
                 Damage = Increase(weapon.Damage, upgrade.CombatBonus),
                 Description = $"{weapon.Description} Mágikus {upgrade.NameSuffix} változat.",
-                BasePrice = Math.Max(1, (int)Math.Ceiling(weapon.BasePrice * upgrade.PriceMultiplier) + 500),
+                // Calculate magical variant base price with tiered pricing premium
+                // Formula: (Base weapon price × upgrade multiplier, rounded up) + 500 gold per magic tier
+                // Example: Dagger (35) × 2.0 multiplier = ⌈70⌉ + 500 * 2 = 1070 gold for +2 dagger
+                // This ensures each magic tier adds at least 500 gold to the base cost, maintaining value hierarchy
+                BasePrice = Math.Max(1, (int)Math.Ceiling(weapon.BasePrice * upgrade.PriceMultiplier) + (500 * upgrade.MagicPower)),
                 Rarity = ItemRarity.Magic,
                 BaseWeaponId = weapon.Id,
                 MagicPower = upgrade.MagicPower

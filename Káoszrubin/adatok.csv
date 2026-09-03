@@ -138,9 +138,9 @@ Intelligencia,Növekedés
 
 #Osztály erőforrás-növekedés
 OsztályId,ÉleterőMódosító,MannaMódosító,MannaSzázalék
-C001,1,0,0
-C002,2,0,0
-C003,1,0,50
+C001,3,0,0
+C002,5,0,0
+C003,3,0,50
 C004,0,0,0
 C005,0,0,100
 C006,-1,1,100

@@ -25,6 +25,7 @@ public static class ItemInspectionFormatter
             WeaponDefinition weapon =>
                 $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? gameData.GetWeaponType(typeId).Name : "nincs")} | " +
                 WeaponProficiencyText(weapon, weaponProficiencies) +
+                WeaponMagicPowerText(weapon) +
                 $"sebzés: {weapon.Damage?.ToString() ?? "nincs"} | minimum Erő: {weapon.MinimumStrength} | " +
                 $"súly: {weapon.Weight} | " +
                 $"{(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | " +
@@ -158,6 +159,19 @@ public static class ItemInspectionFormatter
         var next = rank is null ? $" Következő fok: {family.TrainedDescription}"
             : rank == WeaponProficiencyRank.Trained ? $" Következő fok: {family.MasterDescription}" : string.Empty;
         return $"család: {family.Icon} {family.Name} | jártasság: {rankText} — {active}{next} | ";
+    }
+
+    private static string WeaponMagicPowerText(WeaponDefinition weapon)
+    {
+        if (weapon.MagicPower <= 0) return string.Empty;
+        var criticalText = weapon.MagicPower switch
+        {
+            2 => "+5% kritikus esély (természetes 19–20)",
+            >= 3 => "+10% kritikus esély (természetes 18–20)",
+            _ => string.Empty
+        };
+        return $"mágikus módosítók: +{weapon.MagicPower} minimum és maximum sebzés, +{weapon.MagicPower} találat" +
+               (criticalText.Length == 0 ? string.Empty : $", {criticalText}") + " | ";
     }
 
     private static string AllowedClassNames(IReadOnlySet<string> ids, GameDataCatalog gameData) => string.Join(", ",

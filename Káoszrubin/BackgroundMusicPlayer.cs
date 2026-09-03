@@ -7,7 +7,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
 {
     private readonly object _sync = new();
     private readonly Action<string>? _reportFailure;
-    private readonly MusicSettings _settings;
+    private readonly GameSettings _settings;
     private WaveOut? _output;
     private AudioFileReader? _reader;
     private MemoryStream? _compressedAudio;
@@ -18,7 +18,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
     private bool _isExitVolumeReduced;
     private bool _disposed;
 
-    public BackgroundMusicPlayer(MusicSettings settings, Action<string>? reportFailure = null)
+    public BackgroundMusicPlayer(GameSettings settings, Action<string>? reportFailure = null)
     {
         _settings = settings;
         _reportFailure = reportFailure;

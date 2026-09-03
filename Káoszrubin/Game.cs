@@ -13,7 +13,7 @@ using MainMenu = KaoszRubin.UI.MainMenu;
 namespace KaoszRubin;
 
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
-public sealed class Game
+public sealed class Game : ISessionCommandHandler
 {
     private const string EliraStoryId = "ELIRA_RESCUE";
     private const string RodericStoryId = "RODERIC_OATH";
@@ -22,109 +22,6 @@ public sealed class Game
     private const string RodericSharedBattleQuestId = "NPCQ038";
     private const string RodericMalrecQuestId = "NPCQ039";
     private const int RodericPermanentJoinFriendliness = 8;
-    private static readonly IReadOnlyList<string> CampaignIntroduction =
-    [
-        "Az Aranykor hajnalán négy ősi elementálmágus őrizte a világ egyensúlyát: Pyranthos, a Lángok Atyja; Nymara, a Mélytengerek Asszonya; Goram, a Hegyek Szíve; és Zephyriel, az Ég Vándora. Együtt alkották meg a Káoszrubint, amelyben tűz, víz, föld és szél ereje egyetlen, lüktető drágakővé forrt.",
-        "A rubin hatalma azonban nagyobbnak bizonyult alkotói bölcsességénél. A négy szövetséges egymás ellen fordult, palotáik elégtek, tengereik felforrtak, hegyeik meghasadtak. A végső összecsapásban Zephyriel ragadta magához a követ, és mielőtt társai elérhették volna, egy másik dimenzióba rejtette: a folyton változó Káoszlabirintusba.",
-        "Zephyriel tizenkét aranylakatot kovácsolt a dimenzió kapujára. Mindegyikhez egyetlen aranykulcs tartozik, s azokat a labirintus legfélelmetesebb őrzőire bízta. Aki mind a tizenkettőt megszerzi, megnyithatja a Rubin Útját — és kezébe veheti azt a hatalmat, amely birodalmakat emelhet fel vagy törölhet el.",
-        "Most Vhar-Zul, a Sötét Úr is a Káoszrubint keresi. Árnyékhadseregei már áttörték a dimenzió peremét. Ha ő ér előbb a kőhöz, nem marad királyság, amely ellenállhatna neki.",
-        "Aurelios Máguskirály ezért hívatott benneteket a Csillagtoronyba. Jósai, a Csillagszeműek ugyanazt a jelet látták mind a hét éjszakai égen: tizenkét aranyfény között a ti alakotok állt. A jóslat szerint ti vagytok a Kulcshordozók — az egyetlenek, akik végigjárhatják a kaotikus szinteket anélkül, hogy a dimenzió elnyelné őket.",
-        "Nem indultok teljesen egyedül. Aurelios ügynököket küldött elétek: kereskedőket, mestereket, gyógyítókat és titkok tudóit. A Káoszlabirintus fogadóiban várnak majd rátok, ahol a világok közötti vihar rövid időre elcsendesedik.",
-        "Gyűjtsétek össze a tizenkét aranykulcsot. Előzzétek meg Vhar-Zult. Találjátok meg a Káoszrubint — és amikor eljön az idő, döntsétek el, méltó volt-e Aurelios bizalma."
-    ];
-
-    private static readonly IReadOnlyList<string> TwelveKeysStory =
-    [
-        "A tizenkettedik boss elbukik. Az utolsó aranykulcs a levegőbe emelkedik, és társai felelnek hívására: tizenkét fénypont kering körülöttetek, akár egy aranyból rajzolt csillagkép.",
-        "A kulcsok egyszerre fordulnak el láthatatlan zárakban. A Káoszlabirintus megrázkódik. Távoli falak omlanak le, eddig nem létező lépcsők nőnek ki a semmiből, és a mélységből olyan harangszó kondul, amelyet nem füllel, hanem a csontjaitokban hallotok.",
-        "Ekkor megjelenik előttetek Aurelios Máguskirály áttetsző képmása. „Beteljesítettétek a Csillagszeműek első jóslatát” — mondja. — „De a kulcsok csak a külső pecséteket törték fel. Zephyriel a Rubinhoz vezető utat huszonegy halálos szint mögé rejtette. Ami mögöttetek van, próba volt. Ami előttetek áll, háború.”",
-        "A látomás mögött egy másik alak is kirajzolódik: Vhar-Zul fekete koronája, majd két parázsló szem. A Sötét Úr nevetése végigviharzik a dimenzión. Ő is megérezte a zárak felnyílását — és most már pontosan tudja, merre vezet a Rubin Útja.",
-        "A tizenkét kulcs egyetlen ragyogó pecsétté olvad a parti előtt. A kapu túloldalán huszonegy új, brutális világ vár, mind közelebb a Káoszrubin lüktető fényéhez. A küldetés első célja teljesült. A valódi verseny most kezdődik."
-    ];
-
-    private static readonly IReadOnlyDictionary<string, BossNarrative> BossNarratives =
-        new Dictionary<string, BossNarrative>(StringComparer.OrdinalIgnoreCase)
-        {
-            [MonsterIds.Patkányember] = new("II. fejezet — A csatornák koronája",
-            [
-                "Rikkancs vagyok, a Patkányjáratok királya! Ne nevess a koronámon — tizenkét kanálból hajlítottam, és mindet becsületesen loptam.",
-                "Ezt a fényes kulcsot egy kék köpenyes, szélből szőtt ember dobta a fészkembe. Azt mondta, őrizzem, amíg a falak énekelni nem kezdenek. A falak sosem énekelnek. Csak a patkányok. Főleg éjjel.",
-                "Ha a csontzabáló Morghult keresitek, vigyetek neki sót. Utálja a sót. Én meg Morghult utálom, mert megette három unokatestvéremet — bár az egyik talán csak elköltözött."
-            ]),
-            [MonsterIds.Ghoul] = new("III. fejezet — Morghul lakomája",
-            [
-                "Morghulnak hívtak, amikor még emlékeztem a saját arcomra. Most a katakombák neveznek el minden éjjel újra, amikor a koporsófedelek alatt megfordulnak a holtak.",
-                "A kulcs nem étel. Megpróbáltam. Nem hús, nem csont, még csak nem is sikolt. De amikor a markomban tartom, tizenkét dobbanást hallok a föld mélyéről. A tizenkettedik után mindig hideg szél fúj végig a sírokon.",
-                "Grashka, az ork sámán azt állítja, tudja, milyen ajtót nyit. Hazudik. Grashka mindig hazudik. Egyszer azt mondta, a koponya nem levesestál. Ostoba ork."
-            ]),
-            [MonsterIds.OrkSámán] = new("IV. fejezet — Grashka füstjóslata",
-            [
-                "Én vagyok Grashka, a Vasagyar törzs füstlátója. A többiek azt hiszik, a szellemek beszélnek hozzám. Valójában többnyire a füst beszél, és annak is rettenetes a memóriája.",
-                "Az aranykulcsot álmomban kaptam egy négyarcú vihartól. Négy hang veszekedett benne: láng, hullám, kő és szél. A szél győzött, de úgy remegett, mint aki tudja, hogy egyszer visszajönnek érte.",
-                "Északon Hrold, a fagyóriás vár. Fél a vörös szárnyaktól, bár ezt sosem vallaná be. Ha találkoztok vele, mondjátok meg, hogy Grashka szerint a szakálla csak ráfagyott kecskeszőr."
-            ]),
-            [MonsterIds.Fagyóriás] = new("V. fejezet — Hrold dermedt esküje",
-            [
-                "Hrold Jégszakáll vagyok. Százhetven telet számoltam, aztán meguntam. Azóta a jégcsapokat számolom. Ez itt a négyszáznyolcvankétezredik. Vagy ugyanaz, mint tegnap.",
-                "A kulcsot egy vörös sárkány karmaiból téptem ki, amikor még fiatal és ostoba volt. Azóta nagyobb lett, én pedig bölcsebb: ma már tudom, hogy Azrakar nem felejt. A tüze néha még álmomban is megolvasztja a csarnok falát.",
-                "A kulcs belsejében kaput látok, a kapu mögött pedig egy vörös követ. Nem tudom, miért kell tizenkét kulcs egyetlen kapuhoz. Talán a kicsi népek ennyire félnek a huzattól."
-            ]),
-            [MonsterIds.VörösSárkány] = new("VI. fejezet — Azrakar parázstrónusa",
-            [
-                "Azrakar vagyok, az Első Parázs örököse. Láttam királyokat megöregedni, birodalmakat hamuvá válni, és Hroldot elfutni a saját megperzselt szakállával. Ezt a részt különösen szívesen láttam.",
-                "Tudom, hogy a kulcs pecsétet tör. Zephyriel, a szél ősmágusa maga bízta az elődeimre. Azt mondta, tizenkét őrző közül egy se értse az egész tervet. Bölcs óvatosság — vagy gyáva bizalmatlanság.",
-                "A mocsárban Sziszara, a hidra őrzi a következő kulcsot. Kilenc feje van, és mind a kilenc más történetet mesél arról, hogyan győzött le engem. Egyik sem igaz. A tizedik történet viszont talán az lenne."
-            ]),
-            [MonsterIds.Hidra] = new("VII. fejezet — Sziszara kilenc hangja",
-            [
-                "Sziszara vagyok. Én mondom ezt, nem a bal szélső fej. Az mindig hazudik. A jobb szélső szerint mindannyian Sziszara vagyunk, de ő egyszer egy követ is tojásnak nézett.",
-                "A kulcs a mocsár fenekéről került elő, egy szél nélküli vihar után. Ha közel tesszük a többi aranyhoz, énekel. Ha közel tesszük egy békához, a béka felrobban. Ezt fontosabb felfedezésnek tartom.",
-                "A kristálycsarnokban Xyrax figyel minden irányba. Ő látja a kulcsok közötti fonalakat. Mi nem szeretjük Xyraxot. Túl sok szeme van. Ezt kilenc fej teljes egyetértésben mondja."
-            ]),
-            [MonsterIds.VénBeholder] = new("VIII. fejezet — Xyrax ezer látomása",
-            [
-                "Xyrax vagyok, a Századik Tekintet. Egyik szemem a jelent látja, három a lehetséges jövőket, kettő a múlt hazugságait. A maradékot viszketésre használom.",
-                "Látom a tizenkét kulcs aranyfonalát. Nem ajtót nyitnak: helyet kényszerítenek a káoszra, hogy ajtóvá váljon. Mögötte a négy őserő egyetlen rubinban marja egymást, és huszonegy árnyék áll közte és a világotok között.",
-                "Ossyra, a csontsárkány még emlékszik Zephyriel hangjára. Fél saját ősétől, Nharaztól, a drakolichtól. Jogos félelem. Egy lehetséges jövőben Nharaz megeszi a lelkemet. Tizenhét másikban én eszem meg az övét."
-            ]),
-            [MonsterIds.Csontsárkány] = new("IX. fejezet — Ossyra csontemlékezete",
-            [
-                "Ossyra volt a nevem, amikor pikkely fedte e csontokat. Zephyriel akkor érkezett a dermedt mélységbe, amikor még az ég is fiatalabb volt. Nem parancsolt. Könyörgött, hogy őrizzem a kulcsot azoktól, akik a Rubint fegyverré tennék.",
-                "A halál nem oldotta fel az eskümet. Csak elvette belőle a meleget. Évszázadok óta hallom, ahogy a pecsétek egymást keresik a dimenzión át.",
-                "Nharaz, az első sárkányból lett drakolich azt hiszi, a Rubin visszaadhatja a húsát. Téved. A Rubin nem visszaad: átír. Ha eljuttok hozzá, ne higgyetek annak a hangnak, amelyen a halott anyátok szólít majd benneteket."
-            ]),
-            [MonsterIds.Ősvámpír] = new("X. fejezet — Velkhar örök éjszakája",
-            [
-                "Velkhar gróf vagyok, és már akkor untam ezt az erődöt, amikor dédapáitok még udvariasan kopogtak a kripták ajtaján. Mostanában csak Aurelios kémei jönnek. Udvariatlanok, de legalább friss vérük van.",
-                "Igen, ismerem a Máguskirály tervét. Emberei fogadóról fogadóra építették ki az útvonalatokat. Azt hiszik, nem vettem észre őket. Hagytam, hogy továbbmenjenek; kíváncsi voltam, valóban megérkeznek-e a csillagok kiválasztottjai.",
-                "Vhar-Zul is küldött követeket. Azt ígérte, nappaltalan világot ad nekem. Ostoba ajánlat — már van egy. A Drakolich viszont elfogadta az övét. Nharaz tudja, hogyan nyílik a belső út, és kinek a vére kell hozzá."
-            ]),
-            [MonsterIds.Drakolich] = new("XI. fejezet — Nharaz fekete evangéliuma",
-            [
-                "Nharaz vagyok, akit a sárkányok is ősüknek neveztek, mielőtt nevemet kivésték a csontjaikból. Ossyra figyelmeztetett rólam, igaz? Mindig szeretett történetekkel védekezni a valóság ellen.",
-                "A tizenkét kulcs a külső pecsét gyűrűjét bontja fel. Utána huszonegy szint következik, mindegyik Zephyriel egy-egy emlékéből és félelméből épült. Az út végén nem kincsesház áll, hanem a Káoszrubin börtöne.",
-                "Vhar-Zul megígérte, hogy a Rubin lángjával új testet ad nekem. Tudom, hogy hazudik. Én is hazudtam neki. A Balor, Ashkaroth azonban vakon szolgálja. Ha legyőzitek, a Sötét Úr végre személyesen is rátok figyel majd."
-            ]),
-            [MonsterIds.BalorDémon] = new("XII. fejezet — Ashkaroth vértrónusa",
-            [
-                "Ashkaroth vagyok, Vhar-Zul ostora és a Vértrónus ura. Nem véletlenül jutottatok idáig. Hagytuk, hogy összegyűjtsétek a kulcsokat, mert a pecséteket sem démon, sem árnyék nem törheti fel — csak azok, akiket a csillagok megjelöltek.",
-                "Ti nem Aurelios hősei vagytok. Ti vagytok a kulcs, amelyet mindkét király ugyanabba a zárba próbál illeszteni. Amint az utolsó aranydarab a helyére kerül, uram seregei meglátják a Rubin Útját.",
-                "A Káoszsárkány nem szolgál minket. Kael-Zhur még Vhar-Zult is gyűlöli, mert ismeri a Rubin valódi árát. Menjetek csak hozzá. Ha megöltök, a halálom lesz a jelzőtűz, amely odavezeti hozzátok a Sötét Urat."
-            ]),
-            [MonsterIds.Káoszsárkány] = new("XIII. fejezet — Kael-Zhur, az utolsó lakat",
-            [
-                "Kael-Zhur vagyok, a Káosz első lélegzete és Zephyriel utolsó bűne. Nem születtem. A Rubin álmodott meg engem, hogy legyen valami, amitől még a négy alkotója is félhet.",
-                "Tudom, miért jöttetek. Aurelios azt mondta, meg kell előznötök Vhar-Zult. Vhar-Zul azt hiszi, ti nyitjátok ki neki az utat. Mindketten igazat mondanak, és mindketten hazudnak. A Káoszrubin nem engedelmeskedik annak, aki megtalálja — átformálja őt arra, amire a világ leginkább vágyik vagy amitől legjobban retteg.",
-                "Kulcsom az utolsó a tizenkettőből. Ha elveszitek, feltárul Zephyriel huszonegy szintből álló belső útja. Ott már nem őrzők várnak, hanem egy ősmágus emlékei, széthullott törvények és Vhar-Zul közeledő serege.",
-                "Évszázadok óta őrzöm ezt a lakatot, és bevallom: rettenetesen unatkozom. Mutassátok meg, Kulcshordozók, hogy a csillagok valóban benneteket láttak — vagy csak egy különösen kegyetlen tréfát játszottak velem."
-            ]),
-            [MonsterIds.SirMalrec] = new("Roderic krónikája — A megtört eskü",
-            [
-                "Roderic. Még mindig mások pajzsa mögé bújsz, hogy ne kelljen látnod a saját kudarcodat?",
-                "Az eskünk velünk halt. Én csak kimondtam azt, amit te azóta sem mersz: a holtaknak nem tartozunk hűséggel.",
-                "Gyertek hát. Hadd lássam, vajon az új bajtársaid tovább kitartanak-e melletted, mint a régiek."
-            ])
-        };
     private const int ZombieSpeed = 2;
     private const int ZombieMoveIntervalMilliseconds = 700;
     private const int MinimumPartyMoveDelayMilliseconds = 250;
@@ -168,15 +65,27 @@ public sealed class Game
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
     private readonly BackgroundMusicPlayer _backgroundMusic;
-    private readonly MusicSettingsService _musicSettings;
+    private readonly GameSettingsService _musicSettings;
     private readonly GameSession _session;
+    private readonly SpellExecutionService _spellExecutionService;
+    private readonly SingleBattleCoordinator _singleBattleCoordinator;
+    private readonly TacticalTeamBattleCoordinator _teamBattleCoordinator;
+    private readonly NpcQuestCoordinator _npcQuestCoordinator;
+    private readonly StoryConversationCoordinator _storyConversationCoordinator;
+    private readonly CharacterProgressionService _progressionService;
+    private readonly PartySustenanceService _sustenanceService;
+    private readonly DungeonTrapService _dungeonTrapService;
+    private readonly LootAndInventoryService _lootService;
+    private readonly DungeonExpeditionCoordinator _expeditionCoordinator;
+    private readonly SessionEventService _sessionEventService;
+    private readonly PartyCommandController _partyCommandController;
+    private readonly PartyAiController _partyAiController;
+    private readonly SessionCommandDispatcher _commandDispatcher;
     private long _localCommandId;
-    private BattleState? _activeBattleState;
     private TeamBattleEncounter? _activeTeamBattle;
     private bool _isQuickTeamBattle;
     private int _quickBattleSuppressedEntryCount;
     private long _preparedTeamBattleTurnId;
-    private int _pendingBattleSupportDamage;
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
@@ -190,25 +99,19 @@ public sealed class Game
     private bool _partyHoldingPosition;
     private bool _partyRegrouping;
     private bool _partyAttackMode;
+    private PartyCommandState _partyCommandState;
     private bool _saveAfterBattle;
     private bool _timeStopUsedThisBattle;
-    private bool _battleTacticHintLogged;
-    private bool _battleActionHintLogged;
-    private int _battleStartingVitality;
-    private int _battleStartingMana;
-    private HashSet<string> _battleStartingStatusIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<LiveCharacter> _turnUndeadUsedThisBattle = [];
+    private readonly HashSet<CharacterId> _battleNoPathReported = [];
+    private int _battleLogCycle = -1;
     private readonly Dictionary<(CharacterId CharacterId, NpcComplaintKind Kind), DateTime> _nextNpcComplaints = [];
     private readonly HashSet<(CharacterId CharacterId, NpcComplaintKind Kind)> _reportedNpcShortages = [];
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
-    private readonly Queue<SessionActivitySnapshot> _sessionActivities = new();
-    private long _sessionActivitySequence;
-    private readonly Queue<SessionSoundSnapshot> _sessionSounds = new();
     private readonly Dictionary<string, QuestJournalEntrySnapshot> _questJournal =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<PlayerId> _helpPausePlayers = [];
     private DateTime? _helpPauseStartedUtc;
-    private long _sessionSoundSequence;
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private PartyFormationSnapshot _formation;
@@ -233,7 +136,6 @@ public sealed class Game
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
     public GameSession Session => _session;
-    public BattleState? ActiveBattle => _activeBattleState;
     public TeamBattleEncounter? ActiveTeamBattle => _activeTeamBattle;
 
     public SessionSnapshot CreateSessionSnapshot()
@@ -246,26 +148,11 @@ public sealed class Game
         };
         foreach (var member in _maze.PartyMembers) positions[member.Character.Id] = member.Position;
 
-        BattleSnapshot? battle = null;
-        if (_activeTeamBattle is { IsCompleted: false } teamBattle)
-        {
-            battle = CreateTeamBattleSnapshot(teamBattle);
-        }
-        else if (_activeBattleState is { IsCompleted: false } state)
-        {
-            var battleCharacter = state.Player;
-            battle = new BattleSnapshot(state.Id, state.TurnId, state.Round, state.IsPlayerTurn,
-                state.PlayerCharacterId,
-                new SessionEnemySnapshot(state.EnemyDefinitionId, state.Enemy.Name, state.Enemy.Position,
-                    state.CurrentEnemyHitPoints, state.Enemy.Definition.HitPoints ?? state.CurrentEnemyHitPoints),
-                GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy),
-                state.IsPlayerTurn
-                    ? GetSpellOptions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy, inCombat: true)
-                    : null,
-                GetBattleTacticOptions(state));
-        }
-        var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_difficultyLevel, _maze.LevelName, positions,
-            battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, _activeBattleState,
+        BattleSnapshot? battle = _activeTeamBattle is { IsCompleted: false } teamBattle
+            ? CreateTeamBattleSnapshot(teamBattle)
+            : null;
+        var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_difficultyLevel, _maze.LevelName,
+            positions, battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, null,
                 _activeTeamBattle?.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
                     .Select(enemy => enemy.Id).ToHashSet())));
         var followers = _maze.PartyMembers
@@ -297,8 +184,8 @@ public sealed class Game
             RestNotice = _latestRestNotice is null ? null : _latestRestNotice with
             { AcknowledgedPlayerIds = _restAcknowledgements.ToArray() },
             LevelUpPrompt = _activeLevelUpPrompt,
-            Activities = _sessionActivities.ToArray(),
-            Sounds = _sessionSounds.ToArray(),
+            Activities = _sessionEventService.Activities,
+            Sounds = _sessionEventService.Sounds,
             PartyGold = SelectedCharacter.Gold,
             QuestJournal = OrderedQuestJournal(),
             AdHocConversation = _activeAdHocConversation,
@@ -361,32 +248,10 @@ public sealed class Game
     }
 
     private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(TeamBattleEncounter battle,
-        LiveCharacter character) =>
-        Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
-            .Select(index => (Index: index, Item: character.GetInventoryItem(InventorySlotKind.Backpack, index),
-                Quantity: character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index)))
-            .Where(entry => entry.Item is MiscItemDefinition item && entry.Quantity > 0 &&
-                            battle.CanUseItem(character, item) && IsTeamBattleItemUseful(character, item))
-            .GroupBy(entry => entry.Item!.Id, StringComparer.OrdinalIgnoreCase)
-            .Select(group => new BattleItemOptionSnapshot(group.Min(entry => entry.Index), group.Key,
-                group.First().Item!.Name, group.Sum(entry => entry.Quantity)))
-            .ToArray();
+        LiveCharacter character) => TacticalTeamBattleCoordinator.GetBattleItemOptions(battle, character);
 
     private static bool IsTeamBattleItemUseful(LiveCharacter character, MiscItemDefinition item) =>
-        !item.UsableInCombat ? false : item.Id == MiscItemIds.HerbalTea
-            ? character.WaterLevel < 100 || character.CurrentVitality < character.MaximumVitality
-            : IsInitiativeDrink(item) || item.Effect switch
-            {
-                ConsumableEffect.Food => character.FoodLevel < 100,
-                ConsumableEffect.Water => character.WaterLevel < 100,
-                ConsumableEffect.Heal => character.CurrentVitality < character.MaximumVitality,
-                ConsumableEffect.RestoreMana => character.UsesMana && character.CurrentMana < character.MaximumMana,
-                ConsumableEffect.CurePoison => character.HasStatus(CharacterStatusIds.Poisoned),
-                ConsumableEffect.CureDisease => character.HasStatus(CharacterStatusIds.Diseased),
-                ConsumableEffect.StopBleeding => character.HasStatus(CharacterStatusIds.Bleeding),
-                ConsumableEffect.Vision => true,
-                _ => false
-            };
+        TacticalTeamBattleCoordinator.IsTeamBattleItemUseful(character, item);
 
     private static CharacterHistorySnapshot CreateCharacterHistory(LiveCharacter character) => new(
         character.MonsterKills.Select(pair => new MonsterKillSnapshot(pair.Key, pair.Value)).ToArray(),
@@ -403,7 +268,7 @@ public sealed class Game
 
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
         GameSaveService gameSaveService, GameSaveData? loadedState = null, GameSession? session = null,
-        MusicSettingsService? musicSettings = null)
+        GameSettingsService? musicSettings = null)
     {
         CharacterRoster = characterRoster;
         SelectedCharacter = selectedCharacter;
@@ -421,7 +286,7 @@ public sealed class Game
         _renderer.SetFormationStatus(_formation);
         _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
-        _musicSettings = musicSettings ?? new MusicSettingsService();
+        _musicSettings = musicSettings ?? new GameSettingsService();
         _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
             message => _renderer.DrawDeveloperMessage(message));
         _doorInteractions = new DoorInteractionController(gameData, _renderer,
@@ -435,6 +300,21 @@ public sealed class Game
                 .ToArray() ?? []);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
+        _spellExecutionService = new SpellExecutionService(gameData, _random);
+        _singleBattleCoordinator = new SingleBattleCoordinator(gameData, _battleSystem, _spellExecutionService, _random);
+        _teamBattleCoordinator = new TacticalTeamBattleCoordinator(gameData, _battleSystem, _random);
+        _npcQuestCoordinator = new NpcQuestCoordinator(gameData);
+        _storyConversationCoordinator = new StoryConversationCoordinator(gameData, _random);
+        _progressionService = new CharacterProgressionService(gameData, _random);
+        _sustenanceService = new PartySustenanceService(gameData, _random);
+        _dungeonTrapService = new DungeonTrapService(gameData, _random);
+        _lootService = new LootAndInventoryService(gameData, _random);
+        _expeditionCoordinator = new DungeonExpeditionCoordinator(gameData, _random);
+        _sessionEventService = new SessionEventService(_renderer, _soundEffects, _random);
+        _partyCommandController = new PartyCommandController(_random);
+        _partyAiController = new PartyAiController(_random);
+        _partyCommandState = new PartyCommandState(false, false, false, null);
+        _commandDispatcher = new SessionCommandDispatcher(_session, this, selectedCharacter.Id);
     }
 
     // NPC spellcasting for combat
@@ -489,7 +369,7 @@ public sealed class Game
             if (caster.CurrentMana < manaCost) continue;
             var range = Math.Max(1, spell.Range);
             var candidates = CharacterRoster.Party.Members.Where(c => c.IsAlive &&
-                effects.SelectMany(e => ParseEffectParameters(e.Parameter)).Any(p => c.HasStatus(p)) &&
+                effects.SelectMany(e => SpellExecutionService.ParseEffectParameters(e.Parameter)).Any(p => c.HasStatus(p)) &&
                 Chebyshev(member.Position, GetCasterPosition(c)) <= range).ToList();
             if (!candidates.Any()) continue;
             var targetChar = candidates.First();
@@ -498,7 +378,7 @@ public sealed class Game
             PlaySessionSound(SoundEffect.DefensiveSpell, [caster.Id, targetChar.Id]);
             var notes = new List<string>();
             foreach (var effect in effects.Where(e => e.Type == SpellEffectType.CureStatus))
-                ApplyStatusCureForCaster(effect, new[] { targetChar }, notes);
+                ApplyStatusCureForCaster(effect, [targetChar], notes);
             var message = $"{caster.Name} elsüti: {spell.Name} → {targetChar.Name}. -{manaCost} manna. {string.Join("; ", notes)}";
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
             RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
@@ -523,7 +403,6 @@ public sealed class Game
             caster.SpendMana(manaCost);
             var listeners = new List<CharacterId> { caster.Id };
             if (supportedFighter is not null) listeners.Add(supportedFighter.Id);
-            if (_activeBattleState is not null) listeners.Add(SelectedCharacter.Id);
             PlaySessionSound(SoundEffect.OffensiveSpell, listeners);
             var execution = ExecuteSpell(caster, member.Position, spell, enemy.Position, inCombat: true, enemy, divine);
             var message = $"{caster.Name} elsüti: {spell.Name} → {enemy.Name}. -{manaCost} manna. {execution.Summary}";
@@ -595,53 +474,20 @@ public sealed class Game
     }
 
     private void ApplyCharacterEffectForCaster(LiveCharacter character, SpellEffectDefinition effect, SpellDefinition spell,
-        ActiveSpellEffectType type, bool divineJudgment, LiveCharacter caster)
-    {
-        var multiplier = divineJudgment ? 200 : 100;
-        if (type == ActiveSpellEffectType.GuardianAngel && caster.HasPerk(PerkIds.PriestHealingGrace))
-            multiplier = multiplier * 125 / 100;
-        character.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type,
-            effect.Value, AdjustedDuration(caster, spell, effect, divineJudgment), effect.Dice,
-            (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier), true,
-            multiplier, effect.Parameter));
-    }
+        ActiveSpellEffectType type, bool divineJudgment, LiveCharacter caster) =>
+        _spellExecutionService.ApplyCharacterEffect(caster, character, effect, spell, type, divineJudgment);
 
     private void ApplyCharacterEffectsForCaster(IEnumerable<LiveCharacter> characters, SpellEffectDefinition effect,
-        SpellDefinition spell, ActiveSpellEffectType type, bool divineJudgment, LiveCharacter caster)
-    {
-        foreach (var character in characters) ApplyCharacterEffectForCaster(character, effect, spell, type, divineJudgment, caster);
-    }
+        SpellDefinition spell, ActiveSpellEffectType type, bool divineJudgment, LiveCharacter caster) =>
+        _spellExecutionService.ApplyCharacterEffects(caster, characters, effect, spell, type, divineJudgment);
 
     private void ApplyHealingForCaster(SpellEffectDefinition effect, SpellDefinition spell,
-        IEnumerable<LiveCharacter> characters, bool divineJudgment, ICollection<string> notes, LiveCharacter caster)
-    {
-        foreach (var character in characters.Where(character => character.IsAlive))
-        {
-            var fullHealing = string.Equals(effect.Parameter, "Full", StringComparison.OrdinalIgnoreCase);
-            var amount = fullHealing
-                ? character.MaximumVitality
-                : (effect.Dice?.Roll(_random) ?? 0) +
-                  (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier) +
-                  caster.Level * effect.LevelMultiplier + effect.Value;
-            if (!fullHealing && divineJudgment) amount *= 2;
-            if (caster.HasPerk(PerkIds.PriestHealingGrace)) amount = (int)Math.Ceiling(amount * 1.25);
-            if (caster.SpecializationId == ClassSpecializations.PriestLife) amount = (int)Math.Ceiling(amount * 1.25);
-            var before = character.CurrentVitality;
-            character.RestoreVitality(amount);
-            notes.Add($"{character.Name}: {FormatHealingResult(character, amount, before)}");
-        }
-    }
+        IEnumerable<LiveCharacter> characters, bool divineJudgment, ICollection<string> notes, LiveCharacter caster) =>
+        _spellExecutionService.ApplyHealing(caster, effect, spell, characters, divineJudgment, notes);
 
     private void ApplyStatusCureForCaster(SpellEffectDefinition effect, IEnumerable<LiveCharacter> characters,
-        ICollection<string> notes)
-    {
-        var statusIds = ParseEffectParameters(effect.Parameter);
-        foreach (var character in characters)
-        {
-            var removed = statusIds.Where(character.RemoveStatus).Select(StatusName).ToList();
-            if (removed.Count > 0) notes.Add($"{character.Name}: ✨ megszűnt {string.Join(" és ", removed)}");
-        }
-    }
+        ICollection<string> notes) =>
+        _spellExecutionService.ApplyStatusCure(effect, characters, notes);
 
     public void Run(ICoopHostLoop? coopHost = null)
     {
@@ -651,7 +497,7 @@ public sealed class Game
         {
             StartNewMaze(showLevelImage: false);
             ShowSynchronizedNarrative(NarrativeKind.CampaignIntroduction, "A KÁOSZRUBIN KRÓNIKÁJA",
-                "I. fejezet — A tizenkét aranykulcs", CampaignIntroduction);
+                "I. fejezet — A tizenkét aranykulcs", StoryNarratives.CampaignIntroduction);
             ShowLevelImage();
         }
         else RestoreGame(_loadedState);
@@ -678,7 +524,7 @@ public sealed class Game
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
-                    if (_activeBattleState is not null || _activeTeamBattle is not null)
+                    if (_activeTeamBattle is not null)
                     {
                         HandleLocalBattleInput(keyInfo);
                         continue;
@@ -898,48 +744,12 @@ public sealed class Game
         PlaySessionSound(SoundEffect.LevelComplete);
         PlaySessionSound(SoundEffect.Victory);
         ShowSynchronizedNarrative(NarrativeKind.CampaignFinale, "GRATULÁLUNK, KULCSHORDOZÓK!",
-            "XV. fejezet — A csillagok választottai", CreateCampaignFinale());
+            "XV. fejezet — A csillagok választottai",
+            StoryNarratives.CreateCampaignFinale(CharacterRoster.Party.Members.Where(character => character.IsAlive), SelectedCharacter.Name));
         _gameOver = true;
         _session.SetPhase(GameSessionPhase.GameOver);
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
     }
-
-    private IReadOnlyList<string> CreateCampaignFinale()
-    {
-        var paragraphs = new List<string>
-        {
-            "A Káoszrubin a rejtekhely legutolsó termében lebeg. Belsejében tűz, víz, föld és szél kergeti egymást, mintha a négy ősi elementálmágus vitája még mindig nem ért volna véget. Amikor megérintitek, a kő egyetlen szívdobbanásnyi időre elnémul — aztán bíbor fénye elnyeli a labirintust.",
-            "Nem zuhantok, mégis világok suhannak el mellettetek. A káosz huszonegy megtört törvénye egyetlen villanásba roskad, majd márvány érinti a lábatokat. Saját világotokban álltok, Aurelios Máguskirály tróntermében, a Káoszrubinnal együtt.",
-            "A Csillagszeműek teljes köre vár benneteket az aranykupola alatt. Már órákkal korábban meggyújtották a tizenkét csillaglámpást: megérezték, hogy közeledik a kiválasztott. Vhar-Zul árnyéka visszahúzódik az ólomüveg ablakokról, Aurelios pedig leszáll trónjáról, és király létére fejet hajt előttetek.",
-            "A királyi krónikás felnyitja az üresen hagyott aranylapokat. Nemcsak a Káoszrubin visszatérését jegyzi fel, hanem mindazok nevét is, akik élve járták végig az utat:"
-        };
-
-        paragraphs.AddRange(CharacterRoster.Party.Members.Where(character => character.IsAlive)
-            .Select(CreateSurvivorTribute));
-        paragraphs.Add(
-            $"Aurelios végül {SelectedCharacter.Name} kezére teszi a kezét. „A csillagok kiválasztottak benneteket, de nem a jóslat győzött helyettetek. Ti tettétek valóra. Mától nem alattvalóimként, hanem a birodalom megmentőiként álltok előttem.”");
-        paragraphs.Add(
-            "A tizenkét csillaglámpás egyszerre lobban fel, a tróntermet pedig harangzúgás és ujjongás tölti be. A Káoszrubin hazatért, Vhar-Zul terve meghiúsult, és a túlélők neve örökre felkerült az Aranykor új krónikájába. Gratulálunk — végigjártátok a Káoszlabirintust, és megnyertétek a játékot!");
-        return paragraphs;
-    }
-
-    private static string CreateSurvivorTribute(LiveCharacter character) => character.CharacterClass.Id switch
-    {
-        CharacterClassIds.Harcos =>
-            $"{character.Name}, a harcos erős keze sosem hagyta cserben társait. Ellenfelei rettegtek fegyverének súlyától, barátai pedig tudták, hogy mellette a legvadabb roham is megtörik.",
-        CharacterClassIds.Barbár =>
-            $"{character.Name}, a barbár fékezhetetlen bátorsága utat tört ott is, ahol más már csak a biztos halált látta. Haragja viharként söpört végig a szörnyeken, de társait mindvégig hűséges szívvel oltalmazta.",
-        CharacterClassIds.Lovag =>
-            $"{character.Name}, a lovag pajzsa élő várfalként állt a csapat előtt. Becsülete a legsötétebb síkokon sem homályosult el, és esküjét még a Káosz sem tudta megtörni.",
-        CharacterClassIds.Tolvaj =>
-            $"{character.Name}, a tolvaj ott talált ösvényt, ahol más csak zárakat, csapdákat és árnyakat látott. Éles szeme és gyors keze számtalanszor mentette meg a csapatot, gyakran még azelőtt, hogy társai észrevették volna a veszélyt.",
-        CharacterClassIds.Pap =>
-            $"{character.Name}, a pap hite fényt gyújtott a holtak és démonok birodalmában. Imái visszahívták társait a kétségbeesés pereméről, szent erejétől pedig még a sír nyughatatlan urai is meghátráltak.",
-        CharacterClassIds.Mágus =>
-            $"{character.Name}, a mágus tudása megszelídítette a labirintus vad erőit. Varázslatai csillagfényként hasították fel a sötétséget, és elméje olyan titkokat fejtett meg, amelyeket évszázadok óta senki sem mert megérinteni.",
-        _ =>
-            $"{character.Name}, a {character.CharacterClass.Name.ToLowerInvariant()} rendíthetetlen társként járta végig a Káoszlabirintust; neve méltán került a birodalom legnagyobb hősei közé."
-    };
 
     private void StartNewMaze(bool showLevelImage = true)
     {
@@ -1209,10 +1019,10 @@ public sealed class Game
 
     private void ShowLevelImage()
     {
+#if !DEBUG
         var fileName = ImageViewer.FileNameForLevel(_maze.LevelName);
         var path = Path.Combine(AppContext.BaseDirectory, "Kepek", fileName);
 
-#if !DEBUG
         if (_activeCoopHost is not null)
         {
             ShowSynchronizedLevelImage(fileName, path);
@@ -1421,14 +1231,11 @@ public sealed class Game
         return true;
     }
 
-    private int TrapDetectionChance(LiveCharacter character, TrapDefinition definition) => Math.Clamp(
-        35 + (character.EffectiveAbilities.Intelligence + character.EffectiveAbilities.Dexterity) * 3 -
-        definition.DetectionDifficulty * 5 +
-        (CharacterClassRules.IsThief(character.CharacterClass.Id) ? 30 : 0), 15, 95);
+    private static int TrapDetectionChance(LiveCharacter character, TrapDefinition definition) =>
+        DungeonTrapService.TrapDetectionChance(character, definition);
 
-    private int TrapDisarmChance(LiveCharacter character, TrapDefinition definition) => Math.Clamp(
-        30 + character.EffectiveAbilities.Dexterity * 5 - definition.DisarmDifficulty * 6 +
-        (CharacterClassRules.IsThief(character.CharacterClass.Id) ? 30 : 0), 10, 95);
+    private static int TrapDisarmChance(LiveCharacter character, TrapDefinition definition) =>
+        DungeonTrapService.TrapDisarmChance(character, definition);
 
     private bool TryDisarmAdjacentTrap(LiveCharacter character, Position position)
     {
@@ -1460,39 +1267,15 @@ public sealed class Game
         if (_maze.GetTrapAt(position) is { IsActive: true } trap) ApplyTrap(character, trap);
     }
 
-    private void ApplyTrap(LiveCharacter character, MazeTrap trap)
-    {
-        trap.Trigger();
-        var scaledDamage = trap.Definition.MaximumDamage == 0 ? 0 :
-            _random.Next(trap.Definition.MinimumDamage, trap.Definition.MaximumDamage + 1) + (_difficultyLevel - 1) / 3;
-        var maximumAllowed = Math.Max(1, character.MaximumVitality / (_difficultyLevel <= 4 ? 7 : 4));
-        var damage = Math.Min(Math.Min(scaledDamage, maximumAllowed), Math.Max(0, character.CurrentVitality - 1));
-        character.ReceiveDamage(damage);
-        var extra = string.Empty;
-        if (trap.Definition.Effect == TrapEffect.Poison && character.IsAlive &&
-            _random.Next(100) < trap.Definition.StatusChancePercent)
-        {
-            character.AddStatus(_gameData.GetStatus(CharacterStatusIds.Poisoned));
-            extra = " Megmérgeződött.";
-        }
-        else if (trap.Definition.Effect == TrapEffect.Alert)
-        {
-            foreach (var enemy in _maze.Enemies.Where(enemy => Manhattan(enemy.Position, trap.Position) <= 12))
-                enemy.ConfigureMovement(enemy.MovementProfile, enemy.PatrolDirection, EnemyPursuitState.Pursuing);
-            extra = " A közeli szörnyek felfigyeltek a zajra.";
-        }
-        else if (trap.Definition.Effect == TrapEffect.Darkness && character.IsAlive)
-        {
-            character.ApplySpellEffect(new ActiveSpellEffect(trap.Definition.Id,
-                ActiveSpellEffectType.VisionBonus, -2, 6));
-            extra = " A koromfelhő 6 akcióra 2-vel csökkentette a látótávját.";
-        }
-        _renderer.RefreshCharacterSheet(character);
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        var damageText = damage > 0 ? $" {character.Name} {damage} sebzést szenvedett." : string.Empty;
-        ShowTrapMessage($"💥 Elsült: {trap.Definition.Name}.{damageText}{extra}",
-            ConsoleColor.Red, character);
-    }
+    private void ApplyTrap(LiveCharacter character, MazeTrap trap) =>
+        _dungeonTrapService.ApplyTrap(character, trap, _difficultyLevel, _maze,
+            (c, radius) =>
+            {
+                foreach (var enemy in _maze.Enemies.Where(enemy => Manhattan(enemy.Position, trap.Position) <= radius))
+                    enemy.ConfigureMovement(enemy.MovementProfile, enemy.PatrolDirection, EnemyPursuitState.Pursuing);
+            },
+            ShowTrapMessage, c => _renderer.RefreshCharacterSheet(c),
+            () => _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position));
 
     private void ShowTrapMessage(string message, ConsoleColor color, LiveCharacter character)
     {
@@ -2026,88 +1809,57 @@ public sealed class Game
         _localCommandId = commandId;
     }
 
-    private void ProcessSessionCommands()
-    {
-        while (_session.TryReadCommand(out var command))
-        {
-            if (command is SetHelpVisibilityCommand helpVisibility)
-            {
-                SetHelpVisibility(helpVisibility.SenderId, helpVisibility.CharacterId, helpVisibility.IsOpen);
-                continue;
-            }
-            if (_helpPausePlayers.Count > 0)
-            {
-                _session.RejectExecutedCommand(command, "A játék szünetel, amíg egy játékos a súgót olvassa.");
-                continue;
-            }
-            switch (command)
-            {
-                case MoveCharacterCommand move when move.CharacterId == SelectedCharacter.Id:
-                    MovePlayer(move.Direction);
-                    break;
-                case MoveCharacterCommand move:
-                    MoveRemotePartyMember(move);
-                    break;
-                case CharacterActionCommand characterAction:
-                    ExecuteCharacterAction(characterAction);
-                    break;
-                case LeaderActionCommand action:
-                    ExecuteLeaderAction(action.Action);
-                    break;
-                case InventoryTransferCommand inventoryTransfer:
-                    ExecuteInventoryTransfer(inventoryTransfer);
-                    break;
-                case UseInventoryItemCommand useItem:
-                    ExecuteUseInventoryItem(useItem);
-                    break;
-                case DropInventoryItemCommand dropItem:
-                    ExecuteDropInventoryItem(dropItem);
-                    break;
-                case SplitInventoryStackCommand splitStack:
-                    ExecuteSplitInventoryStack(splitStack);
-                    break;
-                case DistributeInventoryStackCommand distributeStack:
-                    ExecuteDistributeInventoryStack(distributeStack);
-                    break;
-                case GiveFollowerStackCommand giveFollowerStack:
-                    ExecuteGiveFollowerStack(giveFollowerStack);
-                    break;
-                case PickUpGroundItemCommand pickUpItem:
-                    ExecutePickUpGroundItem(pickUpItem);
-                    break;
-                case BattleActionCommand battleAction:
-                    ExecuteBattleAction(battleAction);
-                    break;
-                case CastExplorationSpellCommand castSpell:
-                    ExecuteExplorationSpell(castSpell);
-                    break;
-                case InnPurchaseCommand purchase:
-                    ExecuteInnPurchase(purchase);
-                    break;
-                case InnSaleCommand sale:
-                    ExecuteInnSale(sale);
-                    break;
-                case AcknowledgeNarrativeCommand acknowledgement:
-                    ExecuteNarrativeAcknowledgement(acknowledgement);
-                    break;
-                case AcknowledgeLevelImageCommand imageAcknowledgement:
-                    ExecuteLevelImageAcknowledgement(imageAcknowledgement);
-                    break;
-                case AcknowledgeRestCommand restAcknowledgement:
-                    ExecuteRestAcknowledgement(restAcknowledgement);
-                    break;
-                case AssignQuickSpellCommand quickSpell:
-                    ExecuteAssignQuickSpell(quickSpell);
-                    break;
-                case PrepareSpellsCommand preparation:
-                    ExecuteSpellPreparation(preparation);
-                    break;
-                case ResolveLevelUpPromptCommand levelUp:
-                    ExecuteLevelUpPrompt(levelUp);
-                    break;
-            }
-        }
-    }
+    private void ProcessSessionCommands() => _commandDispatcher.ProcessPendingCommands();
+
+    void ISessionCommandHandler.OnSetHelpVisibility(PlayerId senderId, CharacterId characterId, bool isOpen) =>
+        SetHelpVisibility(senderId, characterId, isOpen);
+
+    bool ISessionCommandHandler.IsPausedByHelp() => _helpPausePlayers.Count > 0;
+
+    void ISessionCommandHandler.OnMoveLeader(Direction direction) => MovePlayer(direction);
+
+    void ISessionCommandHandler.OnMoveRemoteMember(MoveCharacterCommand command) => MoveRemotePartyMember(command);
+
+    void ISessionCommandHandler.OnCharacterAction(CharacterActionCommand command) => ExecuteCharacterAction(command);
+
+    void ISessionCommandHandler.OnLeaderAction(LeaderAction action) => ExecuteLeaderAction(action);
+
+    void ISessionCommandHandler.OnInventoryTransfer(InventoryTransferCommand command) => ExecuteInventoryTransfer(command);
+
+    void ISessionCommandHandler.OnUseInventoryItem(UseInventoryItemCommand command) => ExecuteUseInventoryItem(command);
+
+    void ISessionCommandHandler.OnDropInventoryItem(DropInventoryItemCommand command) => ExecuteDropInventoryItem(command);
+
+    void ISessionCommandHandler.OnSplitInventoryStack(SplitInventoryStackCommand command) => ExecuteSplitInventoryStack(command);
+
+    void ISessionCommandHandler.OnDistributeInventoryStack(DistributeInventoryStackCommand command) =>
+        ExecuteDistributeInventoryStack(command);
+
+    void ISessionCommandHandler.OnGiveFollowerStack(GiveFollowerStackCommand command) => ExecuteGiveFollowerStack(command);
+
+    void ISessionCommandHandler.OnPickUpGroundItem(PickUpGroundItemCommand command) => ExecutePickUpGroundItem(command);
+
+    void ISessionCommandHandler.OnBattleAction(BattleActionCommand command) => ExecuteBattleAction(command);
+
+    void ISessionCommandHandler.OnCastExplorationSpell(CastExplorationSpellCommand command) => ExecuteExplorationSpell(command);
+
+    void ISessionCommandHandler.OnInnPurchase(InnPurchaseCommand command) => ExecuteInnPurchase(command);
+
+    void ISessionCommandHandler.OnInnSale(InnSaleCommand command) => ExecuteInnSale(command);
+
+    void ISessionCommandHandler.OnAcknowledgeNarrative(AcknowledgeNarrativeCommand command) =>
+        ExecuteNarrativeAcknowledgement(command);
+
+    void ISessionCommandHandler.OnAcknowledgeLevelImage(AcknowledgeLevelImageCommand command) =>
+        ExecuteLevelImageAcknowledgement(command);
+
+    void ISessionCommandHandler.OnAcknowledgeRest(AcknowledgeRestCommand command) => ExecuteRestAcknowledgement(command);
+
+    void ISessionCommandHandler.OnAssignQuickSpell(AssignQuickSpellCommand command) => ExecuteAssignQuickSpell(command);
+
+    void ISessionCommandHandler.OnPrepareSpells(PrepareSpellsCommand command) => ExecuteSpellPreparation(command);
+
+    void ISessionCommandHandler.OnResolveLevelUpPrompt(ResolveLevelUpPromptCommand command) => ExecuteLevelUpPrompt(command);
 
     private void ExecuteInnPurchase(InnPurchaseCommand command)
     {
@@ -2242,7 +1994,17 @@ public sealed class Game
     private bool EncounterWorldNpc(WorldNpc npc)
     {
         if (!npc.CanStartConversation) return false;
-        var definition = _gameData.GetNpc(npc.DefinitionId);
+
+        var definition = npc.DefinitionId == "NPC-FIRST-COMPANION"
+            ? new NpcDefinition(
+                "NPC-FIRST-COMPANION",
+                npc.Character.Name,
+                "na",
+                NpcDisposition.Friendly,
+                NpcWorldBehavior.Friendly,
+                true,
+                false)
+            : _gameData.GetNpc(npc.DefinitionId);
         if (definition.Unique && string.Equals(definition.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))
         {
             ConverseWithFirstUniqueNpc(npc);
@@ -2562,26 +2324,15 @@ public sealed class Game
         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
     }
 
-    private IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal() => _questJournal.Values
-        .OrderBy(entry => entry.Status)
-        .ThenBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase)
-        .ToArray();
+    private IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal() =>
+        NpcQuestCoordinator.OrderedQuestJournal(_questJournal.Values);
 
-    private void SynchronizeQuestJournal(WorldNpc npc, NpcQuestDefinition quest, int? visibleProgress = null)
-    {
-        var progress = npc.Quests.First(value => string.Equals(value.QuestId, quest.Id,
-            StringComparison.OrdinalIgnoreCase));
-        if (progress.State == NpcQuestState.Offered) return;
-        var status = progress.State == NpcQuestState.Completed
-            ? QuestJournalStatus.Completed : QuestJournalStatus.Active;
-        _questJournal[quest.Id] = CreateQuestJournalEntry(quest, status,
-            visibleProgress ?? progress.Progress, quest.ExperienceReward);
-    }
+    private void SynchronizeQuestJournal(WorldNpc npc, NpcQuestDefinition quest, int? visibleProgress = null) =>
+        _npcQuestCoordinator.SynchronizeQuestJournal(_questJournal, npc, quest, visibleProgress);
 
     private QuestJournalEntrySnapshot CreateQuestJournalEntry(NpcQuestDefinition quest,
         QuestJournalStatus status, int progress, int experienceReward) =>
-        new(quest.Id, quest.Title, quest.Description, _gameData.GetNpc(quest.NpcId).Name, status,
-            Math.Clamp(progress, 0, quest.RequiredCount), quest.RequiredCount, experienceReward);
+        _npcQuestCoordinator.CreateQuestJournalEntry(quest, status, progress, experienceReward);
 
     private string GrantNpcQuestItems(NpcQuestDefinition quest)
     {
@@ -2906,15 +2657,7 @@ public sealed class Game
             ContinueTeamBattle();
             return;
         }
-        if (_activeBattleState is not { IsCompleted: false } state ||
-            state.PlayerCharacterId == SelectedCharacter.Id ||
-            _session.IsHumanControlled(state.PlayerCharacterId)) return;
-
-        _renderer.DrawInventoryMessage(
-            $"{state.Player.Name} kapcsolata megszakadt; az AI fegyveres támadással folytatja a csatát.",
-            ConsoleColor.DarkYellow);
-        if (state.IsPlayerTurn) ResolveActiveBattleAction(null);
-        else ResolveActiveEnemyTurn();
+        return;
     }
 
     private void ExecuteLeaderAction(LeaderAction action)
@@ -2967,13 +2710,11 @@ public sealed class Game
 
     private void NormalizeFormation()
     {
-        var previousSlots = _formation.Slots;
-        _formation = PartyFormationRules.Normalize(_formation,
+        _formation = PartyFormationController.Normalize(_formation,
             CharacterRoster.Party.Members.Where(member => member.IsAlive).Select(member => member.Id),
-            SelectedCharacter.Id);
-        if (_formation.State == PartyFormationState.Locked && !previousSlots.SequenceEqual(_formation.Slots))
+            SelectedCharacter.Id, out var transitionedToAssembling);
+        if (transitionedToAssembling)
         {
-            _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Assembling);
             _session.SetFormationMovementLocked(false);
             _formationObstacleReported = false;
         }
@@ -3011,8 +2752,8 @@ public sealed class Game
             return;
         }
         if (!CanControlledCharacterMove(SelectedCharacter)) return;
-        var rotated = PartyFormationRules.Rotate(_formation, clockwise);
-        var positions = PartyFormationRules.Positions(rotated, SelectedCharacter.Id, _player.Position);
+        var rotated = PartyFormationController.Rotate(_formation, clockwise);
+        var positions = PartyFormationController.Positions(rotated, SelectedCharacter.Id, _player.Position);
         if (!CanFormationOccupy(positions))
         {
             _renderer.DrawDeveloperMessage("Az alakzat itt nem tud 90 fokot fordulni: legalabb egy celmezo foglalt.");
@@ -3026,7 +2767,7 @@ public sealed class Game
 
     private void MoveLockedFormation(Direction direction)
     {
-        var current = PartyFormationRules.Positions(_formation, SelectedCharacter.Id, _player.Position);
+        var current = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
         var destinations = current.ToDictionary(pair => pair.Key, pair => pair.Value + direction);
         var enemyEntry = destinations.Select(pair => (pair.Key, Enemy: _maze.GetEnemyAt(pair.Value)))
             .FirstOrDefault(entry => entry.Enemy is not null);
@@ -3045,21 +2786,8 @@ public sealed class Game
         ScheduleFormationMove();
     }
 
-    private bool CanFormationOccupy(IReadOnlyDictionary<CharacterId, Position> positions)
-    {
-        if (positions.Values.Distinct().Count() != positions.Count) return false;
-        var ownAvatars = positions.Keys.Select(FormationAvatar).Where(avatar => avatar is not null).ToHashSet();
-        foreach (var position in positions.Values)
-        {
-            if (!_maze.IsWalkable(position) || _maze.GetEnemyAt(position) is not null) return false;
-            var occupant = _maze.GetObjectAt(position);
-            if (occupant is null or GroundItemPile or Corpse or TreasureChest || Maze.IsPassableNeutralNpc(occupant))
-                continue;
-            if (occupant is PartyMemberAvatar avatar && ownAvatars.Contains(avatar)) continue;
-            return false;
-        }
-        return true;
-    }
+    private bool CanFormationOccupy(IReadOnlyDictionary<CharacterId, Position> positions) =>
+        PartyFormationController.CanFormationOccupy(positions, _maze, FormationAvatar);
 
     private void ApplyFormationPositions(IReadOnlyDictionary<CharacterId, Position> positions, Direction facing)
     {
@@ -3094,10 +2822,8 @@ public sealed class Game
 
     private void ScheduleFormationMove()
     {
-        var slowestMultiplier = CharacterRoster.Party.Members.Where(member => member.IsAlive)
-            .Select(member => CharacterMobilityRules.Evaluate(member).ExplorationDelayMultiplier)
-            .DefaultIfEmpty(1).Max();
-        var delay = Math.Max(35, (int)Math.Round(ControlledMoveDelayMilliseconds * slowestMultiplier * 1.35));
+        var delay = PartyFormationController.CalculateMoveDelay(CharacterRoster.Party.Members,
+            ControlledMoveDelayMilliseconds);
         var next = DateTime.UtcNow + TimeSpan.FromMilliseconds(delay);
         foreach (var member in CharacterRoster.Party.Members) _nextControlledMoves[member.Id] = next;
     }
@@ -3351,53 +3077,14 @@ public sealed class Game
         StartNewMaze();
     }
 
-    private void CaptureExpeditionEnemyTemplates()
-    {
-        _levelEnemyTemplates.Clear();
-        _levelEnemyTemplates.AddRange(_maze.Enemies.Where(enemy => !enemy.Definition.IsBoss &&
-            enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) != true).Select(enemy =>
-            new ExpeditionEnemyTemplate(enemy.Definition.Id, enemy.Position, enemy.MovementProfile,
-                enemy.PatrolDirection, enemy.GroupId, enemy.GroupRole)));
-        _levelEnemyTemplates.AddRange(_maze.Corpses.OfType<MonsterCorpse>()
-            .Where(corpse => !_gameData.GetEnemy(corpse.EnemyDefinitionId).IsBoss &&
-                             corpse.GuaranteedLootIds.Count == 0)
-            .Select(corpse => new ExpeditionEnemyTemplate(corpse.EnemyDefinitionId, corpse.Position,
-                EnemyMovementProfile.Wander, Direction.Right, null, EnemyGroupRole.Member)));
-    }
+    private void CaptureExpeditionEnemyTemplates() =>
+        DungeonExpeditionCoordinator.CaptureExpeditionEnemyTemplates(_levelEnemyTemplates, _maze, _gameData);
 
-    private void ReplenishExpeditionEnemies()
-    {
-        var currentNormalCount = _maze.Enemies.Count(enemy => !enemy.Definition.IsBoss &&
-            enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) != true);
-        var needed = ReturnExpeditionRules.AdditionalEnemiesNeeded(_levelEnemyTemplates.Count,
-            currentNormalCount);
-        var candidates = _levelEnemyTemplates.OrderBy(_ => _random.Next()).ToList();
-        foreach (var template in candidates)
-        {
-            if (needed <= 0) break;
-            var position = FindExpeditionSpawnPosition(template.Position);
-            if (position is null) continue;
-            var enemy = new ConfiguredEnemy(position.Value, _gameData.GetEnemy(template.DefinitionId));
-            enemy.ConfigureMovement(template.MovementProfile, template.PatrolDirection);
-            enemy.ConfigureGroup(template.GroupId, template.GroupRole);
-            _maze.AddEnemy(enemy);
-            needed--;
-        }
-    }
+    private void ReplenishExpeditionEnemies() =>
+        _expeditionCoordinator.ReplenishExpeditionEnemies(_levelEnemyTemplates, _maze);
 
-    private Position? FindExpeditionSpawnPosition(Position preferred)
-    {
-        var positions = new List<Position> { preferred };
-        for (var radius = 1; radius <= 5; radius++)
-            for (var y = preferred.Y - radius; y <= preferred.Y + radius; y++)
-                for (var x = preferred.X - radius; x <= preferred.X + radius; x++)
-                    if (Math.Max(Math.Abs(x - preferred.X), Math.Abs(y - preferred.Y)) == radius)
-                        positions.Add(new Position(x, y));
-        return positions.Where(position => _maze.IsInside(position) && _maze.IsWalkable(position) &&
-                position != _maze.Entrance && position != _maze.Exit && _maze.GetObjectAt(position) is null &&
-                _maze.GetDoorAt(position) is null && _maze.GetTrapAt(position) is null)
-            .Select(position => (Position?)position).FirstOrDefault();
-    }
+    private Position? FindExpeditionSpawnPosition(Position preferred) =>
+        DungeonExpeditionCoordinator.FindExpeditionSpawnPosition(_maze, preferred);
 
     private void RepositionPartyAtEntrance()
     {
@@ -3554,72 +3241,21 @@ public sealed class Game
             messages.Add("a tetemnél nem találtál zsákmányt");
     }
 
-    private int AdjustedSearchChance(LiveCharacter character, int baseChance)
-    {
-        var chance = Math.Max(0, baseChance);
-        if (CharacterClassRules.IsThief(character.CharacterClass.Id))
-            chance = chance * _gameData.LootRules.ThiefChanceMultiplierPercent / 100;
-        if (character.Race.HasTrait(RaceTraits.KeenSenses)) chance += 15;
-        chance += character.EffectiveAbilities.Intelligence * _gameData.LootRules.IntelligenceChanceBonusPerPoint;
-        return Math.Clamp(chance, 0, 100);
-    }
+    private int AdjustedSearchChance(LiveCharacter character, int baseChance) =>
+        _lootService.AdjustedSearchChance(character, baseChance);
 
-    private IItemDefinition? RollEquipmentLoot(MonsterLootDefinition loot)
-    {
-        bool Eligible(IItemDefinition item) => item.Rarity >= loot.MinimumRarity &&
-            item.Rarity <= loot.MaximumRarity && item.MagicPower <= loot.MaximumMagicPower &&
-            item.BasePrice <= loot.MaximumBasePrice &&
-            !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item);
+    private IItemDefinition? RollEquipmentLoot(MonsterLootDefinition loot) =>
+        _lootService.RollEquipmentLoot(loot);
 
-        var categoryCandidates = new List<List<IItemDefinition>>();
-        if (loot.CanDropWeapon)
-            categoryCandidates.Add(_gameData.Weapons.Where(Eligible).Cast<IItemDefinition>().ToList());
-        if (loot.CanDropArmor)
-            categoryCandidates.Add(_gameData.Armors.Where(Eligible).Cast<IItemDefinition>().ToList());
-        if (loot.CanDropMagicItem)
-            categoryCandidates.Add(_gameData.MagicItems.Where(Eligible).Cast<IItemDefinition>().ToList());
-        categoryCandidates.RemoveAll(candidates => candidates.Count == 0);
-        if (categoryCandidates.Count == 0) return null;
-        var candidates = categoryCandidates[_random.Next(categoryCandidates.Count)];
-        return candidates[_random.Next(candidates.Count)];
-    }
+    private IItemDefinition? RollMasterThiefChestLoot(LiveCharacter character) =>
+        _lootService.RollMasterThiefChestLoot(character, AllTradableItems());
 
-    private IItemDefinition? RollMasterThiefChestLoot(LiveCharacter character)
-    {
-        if (!character.HasPerk(PerkIds.ThiefMasterThief) || _random.Next(100) >= 25) return null;
-        var candidates = AllTradableItems().Where(item => item.Rarity == ItemRarity.Magic).ToList();
-        return candidates.Count == 0 ? null : candidates[_random.Next(candidates.Count)];
-    }
-
-    private bool TryStoreLootInParty(IItemDefinition item, out string ownerName)
-    {
-        foreach (var character in new[] { SelectedCharacter }.Concat(CharacterRoster.Party.Members
-                     .Where(character => character != SelectedCharacter && character.IsAlive)))
-        {
-            if (!character.AddToBackpack(item)) continue;
-            ownerName = character.Name;
-            return true;
-        }
-        ownerName = string.Empty;
-        return false;
-    }
+    private bool TryStoreLootInParty(IItemDefinition item, out string ownerName) =>
+        LootAndInventoryService.TryStoreLootInParty(item, SelectedCharacter, CharacterRoster.Party.Members, out ownerName);
 
     private bool TryStoreSearchedLoot(LiveCharacter character, IItemDefinition item, bool shareLootWithParty,
-        out string ownerName)
-    {
-        var candidates = shareLootWithParty
-            ? new[] { character }.Concat(CharacterRoster.Party.Members.Where(candidate =>
-                candidate != character && candidate.IsAlive))
-            : [character];
-        foreach (var candidate in candidates)
-        {
-            if (!candidate.AddToBackpack(item)) continue;
-            ownerName = candidate.Name;
-            return true;
-        }
-        ownerName = string.Empty;
-        return false;
-    }
+        out string ownerName) =>
+        LootAndInventoryService.TryStoreSearchedLoot(character, item, shareLootWithParty, CharacterRoster.Party.Members, out ownerName);
 
     private void PickUpGroundItems(LiveCharacter character, Position position, bool shareLootWithParty,
         ICollection<string> messages)
@@ -3919,56 +3555,6 @@ public sealed class Game
         return $"manna +{character.CurrentMana - before}";
     }
 
-    private static string ItemRarityName(ItemRarity rarity) => rarity switch
-    {
-        ItemRarity.Magic => "Varázs",
-        ItemRarity.Legendary => "Legendás",
-        _ => "Sima"
-    };
-
-    private static ConsoleColor RarityColor(ItemRarity rarity) => rarity switch
-    {
-        ItemRarity.Magic => ConsoleColor.Cyan,
-        ItemRarity.Legendary => ConsoleColor.Yellow,
-        _ => ConsoleColor.Gray
-    };
-
-    private static string ConsumableEffectName(ConsumableEffect effect) => effect switch
-    {
-        ConsumableEffect.Food => "élelem",
-        ConsumableEffect.Water => "víz",
-        ConsumableEffect.Heal => "HP",
-        ConsumableEffect.RestoreMana => "manna",
-        ConsumableEffect.CurePoison => "mérgezés gyógyítása",
-        ConsumableEffect.CureDisease => "betegség gyógyítása",
-        ConsumableEffect.StopBleeding => "vérzés elállítása",
-        ConsumableEffect.Vision => "látótáv",
-        _ => "nincs"
-    };
-
-    private static string MagicItemKindName(Domain.Magic.MagicItemKind kind) => kind switch
-    {
-        Domain.Magic.MagicItemKind.Amulet => "amulett",
-        Domain.Magic.MagicItemKind.Wand => "varázspálca",
-        Domain.Magic.MagicItemKind.Scroll => "varázstekercs",
-        _ => "varázsgyűrű"
-    };
-
-    private static string MagicItemEffectName(Domain.Magic.MagicItemEffect effect) => effect switch
-    {
-        Domain.Magic.MagicItemEffect.Initiative => "kezdeményezés",
-        Domain.Magic.MagicItemEffect.Hit => "találati próba",
-        Domain.Magic.MagicItemEffect.Damage => "sebzés",
-        Domain.Magic.MagicItemEffect.Defense => "védelem",
-        Domain.Magic.MagicItemEffect.BattleHeal => "csata eleji HP",
-        Domain.Magic.MagicItemEffect.BattleMana => "csata eleji manna",
-        Domain.Magic.MagicItemEffect.Strength => "Erő",
-        Domain.Magic.MagicItemEffect.Dexterity => "Ügyesség",
-        Domain.Magic.MagicItemEffect.Health => "Egészség",
-        Domain.Magic.MagicItemEffect.Intelligence => "Intelligencia",
-        _ => "varázslattároló"
-    };
-
     private static string NpcBehaviorName(NpcBehavior? behavior) => behavior switch
     {
         NpcBehavior.Defensive => "Defenzív",
@@ -3977,9 +3563,6 @@ public sealed class Game
         NpcBehavior.Cautious => "Óvatos",
         _ => "inaktív"
     };
-
-    private string AllowedClassNames(IReadOnlySet<string> classIds) => string.Join(", ",
-        _gameData.CharacterClasses.Where(characterClass => classIds.Contains(characterClass.Id)).Select(characterClass => characterClass.Name));
 
     private void GrabOrPlaceInventoryItem()
     {
@@ -4111,7 +3694,7 @@ public sealed class Game
     private bool TryStartAdHocFollowerConversation(DateTime now)
     {
         if (_session.Phase != GameSessionPhase.Exploration || _characterSheetFocused ||
-            _activeBattleState is not null || _activeTeamBattle is not null || _activeNarrative is not null ||
+            _activeTeamBattle is not null || _activeNarrative is not null ||
             _adHocConversationMazeLevel == _mazeLevel ||
             now - _lastAdHocConversationUtc < TimeSpan.FromHours(1) ||
             _maze.Enemies.Any(enemy => _fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position)) ||
@@ -4135,37 +3718,14 @@ public sealed class Game
         return false;
     }
 
-    private IReadOnlyList<WorldNpc> GetAdHocConversationCandidates()
-    {
-        var candidates = _maze.PartyMembers
-            .Where(member => member.TemporaryFollower is { } follower && IsAdHocConversationStory(follower.StoryId))
-            .Select(member => member.TemporaryFollower!)
-            .Where(npc => npc.Character.IsAlive)
-            .ToList();
-        var temporaryCharacterIds = candidates.Select(npc => npc.Character.Id).ToHashSet();
-        var definitions = _gameData.Npcs.Where(definition => IsAdHocConversationStory(definition.StoryId))
-            .ToDictionary(definition => definition.Name, StringComparer.OrdinalIgnoreCase);
-        foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive &&
-                     !temporaryCharacterIds.Contains(character.Id)))
-        {
-            if (!definitions.TryGetValue(character.Name, out var definition)) continue;
-            var position = character == SelectedCharacter
-                ? _player.Position
-                : _maze.PartyMembers.FirstOrDefault(member => member.Character == character)?.Position ??
-                  _player.Position;
-            candidates.Add(new WorldNpc(position, definition.Id, character, definition.Disposition,
-                definition.Recruitable, false, string.Empty, friendliness: 10, behavior: definition.Behavior,
-                storyId: definition.StoryId));
-        }
-        return candidates;
-    }
+    private IReadOnlyList<WorldNpc> GetAdHocConversationCandidates() =>
+        _storyConversationCoordinator.GetAdHocConversationCandidates(_maze, _player, CharacterRoster, SelectedCharacter);
 
     private static bool IsAdHocConversationStory(string? storyId) =>
-        string.Equals(storyId, EliraStoryId, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(storyId, RodericStoryId, StringComparison.OrdinalIgnoreCase);
+        StoryConversationCoordinator.IsAdHocConversationStory(storyId);
 
     private static string AdHocConversationId(WorldNpc npc, string startState) =>
-        $"{npc.StoryId}:{startState}";
+        StoryConversationCoordinator.AdHocConversationId(npc, startState);
 
     private void RunAdHocFollowerConversation(WorldNpc npc, string startState)
     {
@@ -4575,43 +4135,28 @@ public sealed class Game
 
     private void AdvanceFormationAssembly(DateTime now)
     {
-        var targets = PartyFormationRules.Positions(_formation, SelectedCharacter.Id, _player.Position);
-        var allInPlace = true;
-        var madeProgress = false;
-        foreach (var member in _maze.PartyMembers.Where(member => !member.IsTemporaryFollower).ToArray())
-        {
-            if (!targets.TryGetValue(member.Character.Id, out var target) || member.Position == target) continue;
-            allInPlace = false;
-            if (_nextPartyMoves.GetValueOrDefault(member) > now) continue;
-            ScheduleNextPartyMove(member, now);
-            var next = FindNextFormationAssemblyStep(member, target, targets);
-            var previous = member.Position;
-            if (next is { } nextPosition && _maze.GetEnemyAt(nextPosition) is { } enemy)
-            {
-                StartBattle(member, enemy);
-                return;
-            }
-            if (next is null || !CanEnterTrap(member.Character, next.Value)) continue;
-            if (_maze.GetPartyMemberAt(next.Value) is { } blockingFriend && blockingFriend != member)
-            {
-                var blockerAtOwnTarget = targets.TryGetValue(blockingFriend.Character.Id, out var blockerTarget) &&
-                                         blockerTarget == blockingFriend.Position;
-                if (blockerAtOwnTarget || !_maze.TrySwapPartyMembers(member, blockingFriend, _player.Position))
-                    continue;
-                madeProgress = true;
-                RegisterFormationAssemblyMove(member, previous);
-                RegisterFormationAssemblyMove(blockingFriend, next.Value);
-                ScheduleNextPartyMove(blockingFriend, now);
-                continue;
-            }
-            if (!_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
-            madeProgress = true;
-            RegisterFormationAssemblyMove(member, previous);
-        }
-        allInPlace = allInPlace || targets.All(pair => pair.Key == SelectedCharacter.Id
-            ? _player.Position == pair.Value
-            : FormationAvatar(pair.Key)?.Position == pair.Value);
-        if (allInPlace)
+        var targets = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
+        var result = PartyFormationAssemblyCoordinator.Advance(
+            now,
+            _maze,
+            _player,
+            SelectedCharacter.Id,
+            targets,
+            _maze.PartyMembers,
+            _nextPartyMoves,
+            FindNextFormationAssemblyStep,
+            (member, targetPosition) => CanEnterTrap(member.Character, targetPosition),
+            (member, position) => _maze.GetPartyMemberAt(position),
+            (member, nextPosition) => _maze.TryMovePartyMember(member, nextPosition, _player.Position),
+            (member, blockingFriend, position) => _maze.TrySwapPartyMembers(member, blockingFriend, _player.Position),
+            RegisterFormationAssemblyMove,
+            ScheduleNextPartyMove,
+            (member, nextPosition) => _maze.GetEnemyAt(nextPosition),
+            (member, enemy) => StartBattle(member, enemy),
+            FormationAvatar);
+
+        if (result.BattleStarted) return;
+        if (result.AllInPlace)
         {
             _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Locked);
             _renderer.SetFormationStatus(_formation);
@@ -4619,12 +4164,9 @@ public sealed class Game
             _formationObstacleReported = false;
             AnnouncePartyCommand("Az alakzat osszeallt. Csak a vezer mozgathatja; Ctrl+bal/jobb: fordulas.",
                 ConsoleColor.Green);
+            return;
         }
-        else if (!madeProgress && !_formationObstacleReported &&
-                 targets.Values.Any(position => !_maze.IsWalkable(position) ||
-                     (_maze.GetObjectAt(position) is { } occupant && occupant is not PartyMemberAvatar &&
-                      occupant is not (GroundItemPile or Corpse or TreasureChest) &&
-                      !Maze.IsPassableNeutralNpc(occupant))))
+        if (!result.MadeProgress && !_formationObstacleReported && result.ObstacleReported)
         {
             _formationObstacleReported = true;
             _renderer.DrawDeveloperMessage("Az alakzat meg nem tud osszeallni: egy kijelolt hely nem erheto el.");
@@ -4642,54 +4184,20 @@ public sealed class Game
     }
 
     private Position? FindNextFormationAssemblyStep(PartyMemberAvatar member, Position target,
-        IReadOnlyDictionary<CharacterId, Position> formationTargets)
-    {
-        if (!CanFormationAssemblyTraverse(member, target, formationTargets) || member.Position == target)
-            return null;
-        var visited = new HashSet<Position> { member.Position };
-        var queue = new Queue<(Position Position, Position FirstStep)>();
-        foreach (var direction in Directions)
-        {
-            var next = member.Position + direction;
-            if (!CanFormationAssemblyTraverse(member, next, formationTargets) || !visited.Add(next)) continue;
-            queue.Enqueue((next, next));
-        }
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (current.Position == target) return current.FirstStep;
-            foreach (var direction in Directions)
-            {
-                var next = current.Position + direction;
-                if (!CanFormationAssemblyTraverse(member, next, formationTargets) || !visited.Add(next)) continue;
-                queue.Enqueue((next, current.FirstStep));
-            }
-        }
-        return null;
-    }
+        IReadOnlyDictionary<CharacterId, Position> formationTargets) =>
+        PartyMovementController.FindNextFormationAssemblyStep(member, target, formationTargets, _maze, _player);
 
     private bool CanFormationAssemblyTraverse(PartyMemberAvatar member, Position position,
-        IReadOnlyDictionary<CharacterId, Position> formationTargets)
-    {
-        if (!_maze.IsWalkable(position) || position == _player.Position || _maze.GetEnemyAt(position) is not null)
-            return false;
-        var occupant = _maze.GetObjectAt(position);
-        if (occupant is null or GroundItemPile or Corpse || occupant == member || Maze.IsPassableNeutralNpc(occupant))
-            return true;
-        if (occupant is not PartyMemberAvatar friend) return false;
-        return !formationTargets.TryGetValue(friend.Character.Id, out var friendTarget) ||
-               friendTarget != friend.Position;
-    }
+        IReadOnlyDictionary<CharacterId, Position> formationTargets) =>
+        PartyMovementController.CanFormationAssemblyTraverse(member, position, formationTargets, _maze, _player);
 
     private void TogglePartyHoldPosition()
     {
-        _partyHoldingPosition = !_partyHoldingPosition;
-        if (_partyHoldingPosition)
-        {
-            _partyRegrouping = false;
-            _partyAttackMode = false;
-            _partyScatterUntil = null;
-        }
+        _partyCommandState = _partyCommandController.ToggleHoldPosition(_partyCommandState);
+        _partyHoldingPosition = _partyCommandState.HoldingPosition;
+        _partyRegrouping = _partyCommandState.Regrouping;
+        _partyAttackMode = _partyCommandState.AttackMode;
+        _partyScatterUntil = _partyCommandState.ScatterUntil;
         if (!_partyHoldingPosition)
             foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
         AnnouncePartyCommand(_partyHoldingPosition
@@ -4700,13 +4208,11 @@ public sealed class Game
 
     private void TogglePartyRegrouping()
     {
-        _partyRegrouping = !_partyRegrouping;
-        if (_partyRegrouping)
-        {
-            _partyHoldingPosition = false;
-            _partyAttackMode = false;
-            _partyScatterUntil = null;
-        }
+        _partyCommandState = _partyCommandController.ToggleRegrouping(_partyCommandState);
+        _partyHoldingPosition = _partyCommandState.HoldingPosition;
+        _partyRegrouping = _partyCommandState.Regrouping;
+        _partyAttackMode = _partyCommandState.AttackMode;
+        _partyScatterUntil = _partyCommandState.ScatterUntil;
         foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
         AnnouncePartyCommand(_partyRegrouping
             ? "🛡️ GYÜLEKEZŐ: minden NPC társ harc keresése nélkül a vezér mellé zárkózik és ott marad; a Támadás és Megállj kikapcsolt."
@@ -4716,13 +4222,11 @@ public sealed class Game
 
     private void TogglePartyAttackMode()
     {
-        _partyAttackMode = !_partyAttackMode;
-        if (_partyAttackMode)
-        {
-            _partyHoldingPosition = false;
-            _partyRegrouping = false;
-            _partyScatterUntil = null;
-        }
+        _partyCommandState = _partyCommandController.ToggleAttackMode(_partyCommandState);
+        _partyHoldingPosition = _partyCommandState.HoldingPosition;
+        _partyRegrouping = _partyCommandState.Regrouping;
+        _partyAttackMode = _partyCommandState.AttackMode;
+        _partyScatterUntil = _partyCommandState.ScatterUntil;
         foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
         AnnouncePartyCommand(_partyAttackMode
             ? "⚔️ TÁMADÁS: minden NPC társ agresszívan keresi és támadja az ellenfeleket a parancs kikapcsolásáig."
@@ -4738,10 +4242,11 @@ public sealed class Game
 
     private void ScatterPartyTemporarily()
     {
-        _partyHoldingPosition = false;
-        _partyRegrouping = false;
-        _partyAttackMode = false;
-        _partyScatterUntil = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        _partyCommandState = _partyCommandController.ScatterTemporarily(_partyCommandState, DateTime.UtcNow);
+        _partyHoldingPosition = _partyCommandState.HoldingPosition;
+        _partyRegrouping = _partyCommandState.Regrouping;
+        _partyAttackMode = _partyCommandState.AttackMode;
+        _partyScatterUntil = _partyCommandState.ScatterUntil;
         foreach (var member in _maze.PartyMembers)
             _nextPartyMoves[member] = DateTime.UtcNow + TimeSpan.FromMilliseconds(_random.Next(0, 100));
         AnnouncePartyCommand("Partiparancs: szétszóródás 10 másodpercig; a Támadás, Gyülekező és Megállj kikapcsolt.", ConsoleColor.Magenta);
@@ -4785,370 +4290,72 @@ public sealed class Game
         TriggerTrapAt(member.Character, member.Position);
     }
 
-    private bool CanActivelyAttack(PartyMemberAvatar member) => _partyAttackMode ||
-        member.Character.NpcBehavior is NpcBehavior.Defensive or NpcBehavior.Aggressive;
+    private bool CanActivelyAttack(PartyMemberAvatar member) =>
+        _partyAiController.CanActivelyAttack(_partyAttackMode, member);
 
-    private bool TryResolveAdjacentNpcBattle(PartyMemberAvatar member)
-    {
-        var enemy = Directions.Select(direction => _maze.GetEnemyAt(member.Position + direction))
-            .FirstOrDefault(candidate => candidate is not null);
-        if (enemy is null) return false;
-        StartBattle(member, enemy);
-        return true;
-    }
-
-    private void ResolveNpcBattle(PartyMemberAvatar member, Enemy enemy)
-    {
-        if (_battleStarted || !member.Character.IsAlive || !_maze.Enemies.Contains(enemy)) return;
-        _battleStarted = true;
-        _session.SetPhase(GameSessionPhase.Battle);
-        _turnUndeadUsedThisBattle.Clear();
-        PlaySessionSound(SoundEffect.BattleStart);
-        TryLogPartyComments(PartySituationIds.BattleStarted);
-        var startingNpcHp = member.Character.CurrentVitality;
-        var startingNpcMana = member.Character.CurrentMana;
-        var startingStatusIds = member.Character.Statuses.Select(status => status.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var spellsCast = 0;
-        var knightProtector = TryRollKnightProtector(member.Character);
-        var result = _battleSystem.Resolve(member.Character, enemy, _ => { },
-            () => ChooseNpcBattlePlayerAction(member, enemy, onSpellCast: () => spellsCast++),
-            knightProtector: knightProtector);
-        var needLoss = DrainNeedsAfterBattle(member.Character, enemy.Definition.StrengthTier);
-        TryNpcUseConsumables(member.Character);
-        var gainedStatusIcons = member.Character.Statuses
-            .Where(status => !startingStatusIds.Contains(status.Id))
-            .Select(status => status.Icon).ToArray();
-        var vitalityLost = Math.Max(0, startingNpcHp - member.Character.CurrentVitality);
-        var manaLost = Math.Max(0, startingNpcMana - member.Character.CurrentMana);
-        var levelUps = new List<ExperienceAward>();
-        if (result.PlayerWon)
-        {
-            AwardBossKey(enemy);
-            PlayBattleVictorySound();
-            var experienceAwards = DistributeExperience(member.Character, enemy.Definition.ExperienceReward);
-            levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive));
-            RegisterNpcQuestKill(enemy);
-            member.Character.RecordMonsterKill(enemy.Definition.Id);
-            _maze.ReplaceEnemyWithCorpse(enemy);
-            var summary = ConsoleRenderer.FormatAutoBattleVictorySummary(result, member.Character.Name, enemy,
-                vitalityLost, manaLost, gainedStatusIcons, needLoss, spellsCast, enemy.Definition.ExperienceReward);
-            _renderer.DrawNpcBattleSummary(summary, ConsoleColor.Green);
-            RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.Green);
-            TryLogPartyComments(PartySituationIds.BattleWon);
-        }
-        else
-        {
-            var questCriticalRoderic = IsQuestCriticalRoderic(member);
-            if (questCriticalRoderic)
-                member.Character.RestoreVitality(Math.Max(1, member.Character.MaximumVitality / 3));
-            else
-            {
-                PlaySessionSound(SoundEffect.MemberKilled);
-                _maze.ReplacePartyMemberWithCorpse(member);
-                _nextPartyMoves.Remove(member);
-            }
-            var summary = ConsoleRenderer.FormatAutoBattleDefeatSummary(result, member.Character.Name, enemy,
-                startingNpcHp, manaLost, gainedStatusIcons, needLoss, spellsCast) +
-                (questCriticalRoderic
-                    ? " Roderic eszméletét vesztette, de az Ezüst Esküre hivatkozva ismét talpra állt; a harcot újra megpróbálhatjátok."
-                    : string.Empty);
-            _renderer.DrawNpcBattleSummary(summary, questCriticalRoderic ? ConsoleColor.DarkYellow : ConsoleColor.Red);
-            RecordSessionActivity(SessionActivityKind.Battle, summary,
-                questCriticalRoderic ? ConsoleColor.DarkYellow : ConsoleColor.Red);
-            if (!questCriticalRoderic) TryLogPartyComments(PartySituationIds.PartyMemberDied);
-        }
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _battleStarted = false;
-        if (levelUps.Count > 0)
-        {
-            foreach (var award in levelUps) ResolvePerkOffers(award.Character, award.Result);
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        }
-        _session.SetPhase(GameSessionPhase.Exploration);
-    }
+    private bool TryResolveAdjacentNpcBattle(PartyMemberAvatar member) =>
+        _partyAiController.TryResolveAdjacentNpcBattle(_maze, member, (avatar, enemy) => StartBattle(avatar, enemy));
 
     private bool IsQuestCriticalRoderic(PartyMemberAvatar member) =>
         member.TemporaryFollower is { } follower &&
         string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase) &&
         !string.Equals(follower.StoryStateId, "JOINED", StringComparison.OrdinalIgnoreCase);
 
-    private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from)
-    {
-        var distance = Manhattan(member.Position, _player.Position);
-        var minimumDelay = distance >= 8 ? CatchUpMoveDelayMilliseconds :
-            distance >= 5 ? 130 : MinimumPartyMoveDelayMilliseconds;
-        var maximumDelay = distance >= 8 ? CatchUpMoveDelayMilliseconds + 30 :
-            distance >= 5 ? 170 : MaximumPartyMoveDelayMilliseconds;
-        (minimumDelay, maximumDelay) = CharacterMobilityRules.ScaleExplorationDelay(member.Character,
-            minimumDelay, maximumDelay);
-        _nextPartyMoves[member] = from + TimeSpan.FromMilliseconds(_random.Next(minimumDelay, maximumDelay + 1));
-    }
+    private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from) =>
+        _partyAiController.ScheduleNextPartyMove(member, from, _player, _nextPartyMoves);
 
     private bool CanControlledCharacterMove(LiveCharacter character) =>
-        _nextControlledMoves.GetValueOrDefault(character.Id) <= DateTime.UtcNow;
+        _partyAiController.CanControlledCharacterMove(character, _nextControlledMoves);
 
-    private void ScheduleNextControlledMove(LiveCharacter character)
-    {
-        var delay = Math.Max(35, (int)Math.Round(ControlledMoveDelayMilliseconds *
-            CharacterMobilityRules.Evaluate(character).ExplorationDelayMultiplier));
-        _nextControlledMoves[character.Id] = DateTime.UtcNow + TimeSpan.FromMilliseconds(delay);
-    }
+    private void ScheduleNextControlledMove(LiveCharacter character) =>
+        _partyAiController.ScheduleNextControlledMove(character, _nextControlledMoves);
 
     private Position? ChoosePartyMemberStep(PartyMemberAvatar member)
     {
-        var behavior = _partyAttackMode ? NpcBehavior.Aggressive :
-            member.Character.NpcBehavior ?? NpcBehavior.Defensive;
-        var visibleEnemy = _maze.Enemies
-            .Where(enemy => FogOfWar.CanSee(_maze, member.Position, enemy.Position,
-                CharacterClassRules.VisionRange(member.Character, CurrentLevelVisionModifier)))
-            .OrderBy(enemy => Manhattan(member.Position, enemy.Position))
-            .FirstOrDefault();
-
-        if (behavior == NpcBehavior.Aggressive && visibleEnemy is not null)
+        var effectiveMember = _partyAttackMode && member.Character.NpcBehavior != NpcBehavior.Aggressive
+            ? new PartyMemberAvatar(member.Position, member.Character, member.TemporaryFollower)
+            : member;
+        if (_partyAttackMode && member.Character.NpcBehavior != NpcBehavior.Aggressive)
         {
-            if (Manhattan(member.Position, visibleEnemy.Position) == 1) return null;
-            return FindNextStep(member, FreeNeighborsOf(visibleEnemy.Position));
+            var original = member.Character.NpcBehavior;
+            member.Character.SetNpcBehavior(NpcBehavior.Aggressive);
+            var step = PartyMovementController.ChoosePartyMemberStep(member, _maze, _player, _leaderFacing, _leaderTrail, CurrentLevelVisionModifier);
+            member.Character.SetNpcBehavior(original);
+            return step;
         }
-
-        if (behavior == NpcBehavior.Defensive && visibleEnemy is not null)
-        {
-            if (Manhattan(member.Position, visibleEnemy.Position) == 1) return null;
-            return FindNextStep(member, FreeNeighborsOf(visibleEnemy.Position));
-        }
-
-        if (behavior == NpcBehavior.Scout)
-        {
-            if (visibleEnemy is not null)
-                return FollowLeaderTrail(member, minimumLag: 2);
-            return ChooseForwardStep(member, maximumLeaderDistance: 10, maximumSearchDistance: 10, avoidNarrowFront: false)
-                ?? FollowLeaderTrail(member, minimumLag: 2);
-        }
-
-        if (behavior == NpcBehavior.Cautious)
-            return FollowLeaderTrail(member, minimumLag: 2);
-
-        if (behavior == NpcBehavior.Aggressive)
-            return ChooseForwardStep(member, maximumLeaderDistance: 3, maximumSearchDistance: 4, avoidNarrowFront: true)
-                ?? FollowLeaderTrail(member, minimumLag: 2);
-
-        return FollowLeaderTrail(member, minimumLag: 2);
+        return PartyMovementController.ChoosePartyMemberStep(member, _maze, _player, _leaderFacing, _leaderTrail, CurrentLevelVisionModifier);
     }
 
-    private Position? FollowLeaderTrail(PartyMemberAvatar member, int minimumLag)
-    {
-        if (_leaderTrail.Count == 0) return null;
-        var partyOrder = Enumerable.Range(0, _maze.PartyMembers.Count)
-            .FirstOrDefault(index => _maze.PartyMembers[index] == member);
-        var formationLag = Math.Min(1, partyOrder);
-        var targetIndex = Math.Max(0, _leaderTrail.Count - 1 - minimumLag - formationLag);
-        for (var index = targetIndex; index >= 0; index--)
-        {
-            var target = _leaderTrail[index];
-            if (target == member.Position) return null;
-            if (!CanPartyTraverse(member, target)) continue;
-            return FindNextStep(member, [target]);
-        }
-        return null;
-    }
+    private Position? FollowLeaderTrail(PartyMemberAvatar member, int minimumLag) =>
+        PartyMovementController.FollowLeaderTrail(member, minimumLag, _maze, _player, _leaderTrail);
 
-    private Position? ChooseForwardStep(PartyMemberAvatar member, int maximumLeaderDistance, int maximumSearchDistance, bool avoidNarrowFront)
-    {
-        var forward = DirectionOffset(_leaderFacing);
-        var reachable = FindReachablePositions(member, maximumSearchDistance)
-            .Where(entry => Manhattan(entry.Position, _player.Position) <= maximumLeaderDistance)
-            .Select(entry => new
-            {
-                entry.Position,
-                entry.Distance,
-                Progress = (entry.Position.X - _player.Position.X) * forward.X + (entry.Position.Y - _player.Position.Y) * forward.Y
-            })
-            .Where(entry => entry.Progress > 0)
-            .Where(entry => !avoidNarrowFront || CountWalkableNeighbors(entry.Position) >= 3)
-            .OrderByDescending(entry => entry.Progress)
-            .ThenBy(entry => entry.Distance)
-            .FirstOrDefault();
-        if (reachable is null) return null;
-        var step = FindNextStep(member, [reachable.Position]);
-        if (avoidNarrowFront && step is { } narrowStep && IsAheadOfLeader(narrowStep) && CountWalkableNeighbors(narrowStep) <= 2)
-            return null;
-        return step;
-    }
+    private Position? ChooseForwardStep(PartyMemberAvatar member, int maximumLeaderDistance, int maximumSearchDistance, bool avoidNarrowFront) =>
+        PartyMovementController.ChooseForwardStep(member, maximumLeaderDistance, maximumSearchDistance, avoidNarrowFront, _maze, _player, _leaderFacing);
 
-    private Position? FindNextStep(PartyMemberAvatar member, IEnumerable<Position> targetPositions)
-    {
-        var targets = targetPositions.Where(position => CanPartyTraverse(member, position)).ToHashSet();
-        if (targets.Count == 0 || targets.Contains(member.Position)) return null;
-        var visited = new HashSet<Position> { member.Position };
-        var queue = new Queue<(Position Position, Position FirstStep)>();
-        foreach (var direction in Directions)
-        {
-            var next = member.Position + direction;
-            if (!CanPartyTraverse(member, next) || !visited.Add(next)) continue;
-            queue.Enqueue((next, next));
-        }
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (targets.Contains(current.Position)) return current.FirstStep;
-            foreach (var direction in Directions)
-            {
-                var next = current.Position + direction;
-                if (!CanPartyTraverse(member, next) || !visited.Add(next)) continue;
-                queue.Enqueue((next, current.FirstStep));
-            }
-        }
-        return null;
-    }
+    private Position? FindNextStep(PartyMemberAvatar member, IEnumerable<Position> targetPositions) =>
+        PartyMovementController.FindNextStep(member, targetPositions, _maze, _player);
 
-    private IReadOnlyList<(Position Position, int Distance)> FindReachablePositions(PartyMemberAvatar member, int maximumDistance)
-    {
-        var result = new List<(Position, int)> { (member.Position, 0) };
-        var visited = new HashSet<Position> { member.Position };
-        var queue = new Queue<(Position Position, int Distance)>();
-        queue.Enqueue((member.Position, 0));
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (current.Distance >= maximumDistance) continue;
-            foreach (var direction in Directions)
-            {
-                var next = current.Position + direction;
-                if (!CanPartyTraverse(member, next) || !visited.Add(next)) continue;
-                var distance = current.Distance + 1;
-                result.Add((next, distance));
-                queue.Enqueue((next, distance));
-            }
-        }
-        return result;
-    }
+    private IReadOnlyList<(Position Position, int Distance)> FindReachablePositions(PartyMemberAvatar member, int maximumDistance) =>
+        PartyMovementController.FindReachablePositions(member, maximumDistance, _maze, _player);
 
-    private IEnumerable<Position> FreeNeighborsOf(Position origin) => Directions
-        .Select(direction => origin + direction)
-        .Where(position => _maze.IsWalkable(position) && position != _player.Position &&
-                           (_maze.GetObjectAt(position) is null or GroundItemPile or Corpse ||
-                            Maze.IsPassableNeutralNpc(_maze.GetObjectAt(position))));
+    private IEnumerable<Position> FreeNeighborsOf(Position origin) =>
+        PartyMovementController.FreeNeighborsOf(_maze, _player, origin);
 
-    private bool CanPartyTraverse(PartyMemberAvatar member, Position position)
-    {
-        if (!_maze.IsWalkable(position) || position == _player.Position) return false;
-        var occupant = _maze.GetObjectAt(position);
-        return occupant is null or GroundItemPile or Corpse || occupant == member ||
-               Maze.IsPassableNeutralNpc(occupant);
-    }
+    private bool CanPartyTraverse(PartyMemberAvatar member, Position position) =>
+        PartyMovementController.CanPartyTraverse(member, position, _maze, _player);
 
-    private int CountWalkableNeighbors(Position position) => Directions.Count(direction => _maze.IsWalkable(position + direction));
-    private bool IsAheadOfLeader(Position position)
-    {
-        var forward = DirectionOffset(_leaderFacing);
-        return (position.X - _player.Position.X) * forward.X + (position.Y - _player.Position.Y) * forward.Y > 0;
-    }
-    private static int Manhattan(Position first, Position second) => Math.Abs(first.X - second.X) + Math.Abs(first.Y - second.Y);
-    private static (int X, int Y) DirectionOffset(Direction direction) => direction switch
-    {
-        Direction.Up => (0, -1),
-        Direction.Down => (0, 1),
-        Direction.Left => (-1, 0),
-        _ => (1, 0)
-    };
+    private int CountWalkableNeighbors(Position position) =>
+        PartyMovementController.CountWalkableNeighbors(position, _maze);
+
+    private bool IsAheadOfLeader(Position position) =>
+        PartyMovementController.IsAheadOfLeader(position, _player.Position, _leaderFacing);
+
+    private static int Manhattan(Position first, Position second) => PartyMovementController.Manhattan(first, second);
+    private static (int X, int Y) DirectionOffset(Direction direction) => PartyMovementController.DirectionOffset(direction);
 
     private void HandleLocalBattleInput(ConsoleKeyInfo key)
     {
-        if (_activeTeamBattle is { } teamBattle)
-        {
-            HandleLocalTeamBattleInput(teamBattle, key);
-            return;
-        }
-        if (_activeBattleState is null || _activeBattleState.IsCompleted) return;
-        if (_activeBattleState.PlayerCharacterId != SelectedCharacter.Id) return;
-        if (IsHelpShortcut(key))
-        {
-            var helpEnemy = _activeBattleState.Enemy;
-            ShowInGameHelp();
-            _renderer.DrawBattleStarted(helpEnemy);
-            _renderer.RefreshBattleStatusRows();
-            DrawBattleActionPrompt(helpEnemy);
-            return;
-        }
-        if (!_activeBattleState.IsPlayerTurn)
-        {
-            if (key.Key == ConsoleKey.Spacebar)
-                SubmitLocalBattleCommand(BattleActionKind.AdvanceEnemyTurn);
-            return;
-        }
-        var enemy = _activeBattleState.Enemy;
-        var canTurnUndead = CanTurnUndead(SelectedCharacter, enemy) &&
-                            !_turnUndeadUsedThisBattle.Contains(SelectedCharacter);
-        if (IsSaveGameShortcut(key))
-        {
-            _saveAfterBattle = true;
-            _renderer.DrawInventoryMessage("Mentés kérve: a csata lezárása után automatikusan elkészül.", ConsoleColor.Yellow);
-            return;
-        }
-        if (_activeBattleState.IsAwaitingTacticSelection && key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 or
-                ConsoleKey.D2 or ConsoleKey.NumPad2 or ConsoleKey.D3 or ConsoleKey.NumPad3)
-        {
-            var option = key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 ? 1 :
-                key.Key is ConsoleKey.D2 or ConsoleKey.NumPad2 ? 2 : 3;
-            SubmitLocalBattleCommand(TacticActionFor(SelectedCharacter.CharacterClass.Id, option));
-            return;
-        }
-        if (key.Key == ConsoleKey.Spacebar)
-        {
-            SubmitLocalBattleCommand(BattleActionKind.PhysicalAttack);
-            return;
-        }
-        if (key.Key == ConsoleKey.T && canTurnUndead)
-        {
-            SubmitLocalBattleCommand(BattleActionKind.TurnUndead);
-            return;
-        }
-
-        SpellDefinition? spell = null;
-        MagicItemDefinition? castingItem = null;
-        int? castingItemSlotIndex = null;
-        if (key.Key == ConsoleKey.V)
-        {
-            var selection = _renderer.DrawSpellCastingScreen([SelectedCharacter], 0, inCombat: true, _maze, _fogOfWar,
-                _ => _player.Position, () =>
-            {
-                ShowInGameHelp();
-                _renderer.DrawBattleStarted(enemy);
-                _renderer.RefreshBattleStatusRows();
-            });
-            _renderer.RestoreSpellCastingOverlay();
-            spell = selection?.Spell;
-            castingItem = selection?.CastingItem;
-            castingItemSlotIndex = selection?.CastingItemSlotIndex;
-        }
-        else if (TryGetQuickSpellIndex(key, out var slotIndex))
-            spell = SelectedCharacter.QuickSpells[slotIndex];
-        else
-            return;
-
-        if (spell is null)
-        {
-            if (key.Key != ConsoleKey.V)
-                _renderer.DrawInventoryMessage("Ez a varázslat-gyorshely üres.", ConsoleColor.DarkYellow);
-            DrawBattleActionPrompt(enemy);
-            return;
-        }
-        var validation = ValidateSpellCast(SelectedCharacter, _player.Position, spell, inCombat: true, enemy,
-            castingItem, castingItemSlotIndex);
-        if (validation is not null)
-        {
-            _renderer.DrawInventoryMessage(validation.Message, ConsoleColor.Red);
-            DrawBattleActionPrompt(enemy);
-            return;
-        }
-        var target = SelectSpellTarget(SelectedCharacter, _player.Position, spell, enemy);
-        if (target is null)
-        {
-            DrawBattleActionPrompt(enemy);
-            return;
-        }
-        SubmitLocalBattleCommand(BattleActionKind.CastSpell, spell.Id, castingItemSlotIndex, target);
+        if (_activeTeamBattle is { } teamBattle) HandleLocalTeamBattleInput(teamBattle, key);
     }
 
     private void HandleLocalTeamBattleInput(TeamBattleEncounter battle, ConsoleKeyInfo key)
@@ -5295,42 +4502,14 @@ public sealed class Game
         int? castingItemSlotIndex = null, Position? target = null,
         WorldEntityId? targetEnemyId = null, int? backpackIndex = null)
     {
-        var battleId = _activeTeamBattle?.Id ?? _activeBattleState?.Id;
-        var turnId = _activeTeamBattle?.Turns.TurnId ?? _activeBattleState?.TurnId;
+        var battleId = _activeTeamBattle?.Id;
+        var turnId = _activeTeamBattle?.Turns.TurnId;
         if (battleId is null || turnId is null) return;
         var commandId = _localCommandId + 1;
         if (_session.Submit(new BattleActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
                 battleId.Value, turnId.Value, action, spellId, castingItemSlotIndex, target,
                 targetEnemyId, backpackIndex)))
             _localCommandId = commandId;
-    }
-
-    private void DrawBattleActionPrompt(Enemy enemy)
-    {
-        if (_activeBattleState is not { } state) return;
-        PublishBattleControlHintOnce(state, enemy);
-    }
-
-    private void PublishBattleControlHintOnce(BattleState state, Enemy enemy)
-    {
-        string? message = null;
-        if (state.IsAwaitingTacticSelection && !_battleTacticHintLogged)
-        {
-            _battleTacticHintLogged = true;
-            message = BattlePromptText.Tactic(state.Player.CharacterClass.Id, GetBattleTacticOptions(state));
-        }
-        else if (state.IsPlayerTurn && !state.IsAwaitingTacticSelection && !_battleActionHintLogged)
-        {
-            _battleActionHintLogged = true;
-            var character = state.Player;
-            var position = GetCasterPosition(character);
-            message = BattlePromptText.PlayerAction(HasUsableCombatSpell(character, position, enemy),
-                CanTurnUndead(character, enemy) && !_turnUndeadUsedThisBattle.Contains(character));
-        }
-        if (message is null) return;
-        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow, [state.PlayerCharacterId]);
-        if (state.Player == SelectedCharacter)
-            _renderer.DrawInventoryMessage(message, ConsoleColor.Yellow);
     }
 
     private static BattleActionKind TacticActionFor(string characterClassId, int option) =>
@@ -5350,212 +4529,23 @@ public sealed class Game
 
     private void ExecuteBattleAction(BattleActionCommand command)
     {
-        if (_activeTeamBattle is { } teamBattle)
-        {
-            ExecuteTeamBattleAction(teamBattle, command);
-            return;
-        }
-        if (_activeBattleState is null || command.BattleId != _activeBattleState.Id ||
-            command.TurnId != _activeBattleState.TurnId || command.CharacterId != _activeBattleState.PlayerCharacterId) return;
-        var battleCharacter = _activeBattleState.Player;
-        switch (command.Action)
-        {
-            case BattleActionKind.FighterPrecise:
-            case BattleActionKind.FighterPowerful:
-            case BattleActionKind.FighterDefensive:
-            case BattleActionKind.ThiefAmbush:
-            case BattleActionKind.ThiefObserve:
-            case BattleActionKind.ThiefPoison:
-                if (_activeBattleState.TryChooseTactic(ToBattleTactic(command.Action)))
-                {
-                    _renderer.DrawInventoryMessage($"Harci taktika: {BattleTacticName(_activeBattleState.Tactic!.Value, battleCharacter)}.", ConsoleColor.Cyan);
-                    ContinueActiveBattle();
-                }
-                else RejectBattleAction(command, "Ez a harci taktika most nem választható.");
-                break;
-            case BattleActionKind.PhysicalAttack:
-                ResolveActiveBattleAction(null);
-                break;
-            case BattleActionKind.AdvanceEnemyTurn:
-                if (!_activeBattleState.IsPlayerTurn)
-                    ResolveActiveEnemyTurn();
-                else
-                    RejectBattleAction(command, "Az ellenfél körét most nem lehet léptetni.");
-                break;
-            case BattleActionKind.TurnUndead:
-                if (CanTurnUndead(battleCharacter, _activeBattleState.Enemy) &&
-                    !_turnUndeadUsedThisBattle.Contains(battleCharacter))
-                    ResolveActiveBattleAction(ResolveTurnUndead(battleCharacter, _activeBattleState.Enemy));
-                else
-                    RejectBattleAction(command, "A halottűzés ebben a körben nem használható.");
-                break;
-            case BattleActionKind.CastSpell:
-                ExecuteSpellBattleAction(command);
-                break;
-        }
+        if (_activeTeamBattle is { } teamBattle) ExecuteTeamBattleAction(teamBattle, command);
     }
 
-    private void ExecuteSpellBattleAction(BattleActionCommand command)
-    {
-        if (_activeBattleState is null || command.SpellId is null || command.Target is null) return;
-        var battleCharacter = _activeBattleState.Player;
-        var spell = _gameData.Spells.FirstOrDefault(candidate =>
-            string.Equals(candidate.Id, command.SpellId, StringComparison.OrdinalIgnoreCase));
-        if (spell is null)
-        {
-            RejectBattleAction(command, "Ismeretlen varázslat.");
-            return;
-        }
-        MagicItemDefinition? castingItem = null;
-        if (command.CastingItemSlotIndex is { } slot)
-        {
-            if (slot is < 0 or >= LiveCharacter.MaximumMagicItemCount)
-            {
-                RejectBattleAction(command, "Érvénytelen varázstárgy-hely.");
-                return;
-            }
-            castingItem = battleCharacter.MagicItems[slot];
-            if (castingItem is null)
-            {
-                RejectBattleAction(command, "A kiválasztott varázstárgy-hely üres.");
-                return;
-            }
-        }
-        var attempt = TryCastSpell(battleCharacter, GetCasterPosition(battleCharacter), spell, inCombat: true,
-            _activeBattleState.Enemy, castingItem, command.CastingItemSlotIndex, command.Target);
-        if (attempt is null || !attempt.ConsumesTurn)
-        {
-            RejectBattleAction(command, attempt?.Message ?? "A varázslat célpontja érvénytelen.");
-            return;
-        }
-        ResolveActiveBattleAction(new BattlePlayerAction(attempt.Message, attempt.Kind,
-            attempt.DamageToCurrentEnemy, attempt.ExtraPlayerActions), spellCanKillEnemy: attempt.DamageToCurrentEnemy > 0);
-    }
+    private LiveCharacter? TryRollKnightProtector(LiveCharacter protectedCharacter) =>
+        _singleBattleCoordinator.TryRollKnightProtector(protectedCharacter, GetCasterPosition(protectedCharacter),
+            LivingPartyWithPositions());
 
-    private void TryAssignKnightProtection(BattleState state, LiveCharacter protectedCharacter)
-    {
-        var knight = TryRollKnightProtector(protectedCharacter);
-        if (knight is null) return;
-        state.SetKnightProtection(knight);
-        _renderer.DrawInventoryMessage($"🛡️ {knight.Name} készen áll közbelépni: a társ első találatát teljesen kivédi, " +
-                                       "de a sebzés harmadát ő kapja.",
-            ConsoleColor.Cyan);
-    }
+    private static BattleTactic ToBattleTactic(BattleActionKind action) => SingleBattleCoordinator.ToBattleTactic(action);
 
-    private LiveCharacter? TryRollKnightProtector(LiveCharacter protectedCharacter)
-    {
-        var protectedPosition = GetCasterPosition(protectedCharacter);
-        var knight = LivingPartyWithPositions()
-            .Where(entry => entry.Character != protectedCharacter && entry.Character.IsAlive &&
-                            entry.Character.CharacterClass.Id == CharacterClassIds.Lovag &&
-                            Chebyshev(entry.Position, protectedPosition) <= 2)
-            .OrderBy(entry => Chebyshev(entry.Position, protectedPosition))
-            .Select(entry => entry.Character).FirstOrDefault();
-        var chance = knight?.HasClassFeatureUpgrade(ClassFeatureUpgrades.KnightBodyguard) == true ? 90 : 75;
-        return knight is not null && _random.Next(100) < chance ? knight : null;
-    }
-
-    private static BattleTactic ToBattleTactic(BattleActionKind action) => action switch
-    {
-        BattleActionKind.FighterPrecise => BattleTactic.FighterPrecise,
-        BattleActionKind.FighterPowerful => BattleTactic.FighterPowerful,
-        BattleActionKind.FighterDefensive => BattleTactic.FighterDefensive,
-        BattleActionKind.ThiefAmbush => BattleTactic.ThiefAmbush,
-        BattleActionKind.ThiefObserve => BattleTactic.ThiefObserve,
-        BattleActionKind.ThiefPoison => BattleTactic.ThiefPoison,
-        _ => throw new ArgumentOutOfRangeException(nameof(action))
-    };
-
-    private static string BattleTacticName(BattleTactic tactic, LiveCharacter character) => tactic switch
-    {
-        BattleTactic.FighterPrecise => $"Pontos állás (+2 találat, ×{(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? "0,85" : "0,75")} sebzés)",
-        BattleTactic.FighterPowerful => $"Erőteljes állás (-1 találat, ×1,25 sebzés, {(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) ? 75 : 50)}% páncéltörés)",
-        BattleTactic.FighterDefensive => $"Védekező állás (×0,75 sebzés, +{(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)} védelem)",
-        BattleTactic.ThiefAmbush => "Orvtámadás (az első sikeres támadás dupla sebzés)",
-        BattleTactic.ThiefObserve => "Megfigyelés (+2 találat)",
-        BattleTactic.ThiefPoison => "Mérgezett penge (+1-4 sebzés találatonként)",
-        _ => tactic.ToString()
-    };
-
-    private IReadOnlyList<BattleTacticOptionSnapshot>? GetBattleTacticOptions(BattleState state)
-    {
-        if (!state.IsAwaitingTacticSelection) return null;
-        if (state.Player.CharacterClass.Id != CharacterClassIds.Harcos) return null;
-        return
-        [
-            new(BattleActionKind.FighterPrecise, "🎯 Pontos",
-                $"sebzés ×{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? "0,85" : "0,75")}",
-                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPrecise)),
-            new(BattleActionKind.FighterPowerful, "💥 Erőteljes",
-                $"sebzés ×1,25, {(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) ? "negyed" : "fél")} páncél",
-                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPowerful)),
-            new(BattleActionKind.FighterDefensive, "🛡️ Védekező",
-                $"sebzés ×0,75, védelem +{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)}",
-                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterDefensive))
-        ];
-    }
-
-    private void RejectBattleAction(BattleActionCommand command, string message)
-    {
-        _session.RejectExecutedCommand(command, message);
-        _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
-        if (_activeBattleState is { IsCompleted: false, IsPlayerTurn: true } state)
-        {
-            var battleCharacter = state.Player;
-            _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
-                GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
-            if (battleCharacter == SelectedCharacter) DrawBattleActionPrompt(state.Enemy);
-        }
-    }
-
-    private IReadOnlyList<BattleActionKind> GetAllowedBattleActions(LiveCharacter character,
-        Position characterPosition, Enemy enemy)
-    {
-        if (_activeBattleState is { IsCompleted: false, IsPlayerTurn: false } enemyTurn &&
-            enemyTurn.PlayerCharacterId == character.Id)
-            return [BattleActionKind.AdvanceEnemyTurn];
-        if (_activeBattleState is { IsAwaitingTacticSelection: true } state && state.PlayerCharacterId == character.Id)
-            return character.CharacterClass.Id == CharacterClassIds.Harcos
-                ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
-                : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
-        var actions = new List<BattleActionKind> { BattleActionKind.PhysicalAttack };
-        if (HasUsableCombatSpell(character, characterPosition, enemy)) actions.Add(BattleActionKind.CastSpell);
-        if (CanTurnUndead(character, enemy) && !_turnUndeadUsedThisBattle.Contains(character))
-            actions.Add(BattleActionKind.TurnUndead);
-        return actions;
-    }
+    private static string BattleTacticName(BattleTactic tactic, LiveCharacter character) =>
+        SingleBattleCoordinator.BattleTacticName(tactic, character);
 
     private IReadOnlyList<BattleSpellOption> GetSpellOptions(LiveCharacter character,
-        Position characterPosition, Enemy? enemy, bool inCombat)
-    {
-        return character.MemorizedSpells
-            .Where(spell => inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration)
-            .Select(spell => (Spell: spell, Item: (MagicItemDefinition?)null, Slot: (int?)null))
-            .Concat(character.MagicItems.Select((item, index) => (Item: item, Index: index))
-                .Where(entry => entry.Item?.Kind is MagicItemKind.Scroll or MagicItemKind.Wand &&
-                                entry.Item.SpellId is not null && character.MagicItemCharges[entry.Index] > 0)
-                .Select(entry => (Spell: _gameData.GetSpell(entry.Item!.SpellId!), Item: (MagicItemDefinition?)entry.Item,
-                    Slot: (int?)entry.Index))
-                .Where(entry => (inCombat ? entry.Spell.CanUseInCombat : entry.Spell.CanUseDuringExploration) &&
-                                SpellcastingRules.CanUseCastingItem(character, entry.Item!, entry.Spell)))
-            .OrderBy(entry => entry.Spell.Level).ThenBy(entry => entry.Spell.Name)
-            .ThenBy(entry => entry.Item is not null)
-            .Select(entry =>
-            {
-                var targets = entry.Spell.TargetType is SpellTargetType.Self or SpellTargetType.Party
-                    ? HasValidSpellTarget(character, characterPosition, entry.Spell, enemy)
-                        ? new[] { characterPosition }
-                        : []
-                    : GetValidSpellTargets(characterPosition, entry.Spell, enemy).Distinct().ToArray();
-                var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
-                    string.Equals(candidate?.Id, entry.Spell.Id, StringComparison.OrdinalIgnoreCase));
-                return new BattleSpellOption(entry.Spell.Id, entry.Spell.Name, entry.Spell.Level,
-                    entry.Item is null ? SpellcastingRules.EffectiveManaCost(character, entry.Spell) : 0,
-                    entry.Spell.TargetType, entry.Spell.Range, entry.Spell.AreaRadius, entry.Slot,
-                    entry.Item?.Kind, entry.Slot is { } slot ? character.MagicItemCharges[slot] : 0,
-                    entry.Item is null && quickIndex >= 0 ? quickIndex : null, targets);
-            }).ToArray();
-    }
+        Position characterPosition, Enemy? enemy, bool inCombat) =>
+        _singleBattleCoordinator.GetSpellOptions(character, characterPosition, enemy, inCombat,
+            (c, pos, sp, en) => HasValidSpellTarget(c, pos, sp, en),
+            (pos, sp, en) => GetValidSpellTargets(pos, sp, en));
 
     private void ExecuteExplorationSpell(CastExplorationSpellCommand command)
     {
@@ -5587,51 +4577,15 @@ public sealed class Game
     }
 
     private bool HasUsableCombatSpell(LiveCharacter character, Position characterPosition, Enemy enemy) =>
-        character.CanCastSpells && character.MemorizedSpells.Any(spell =>
-                spell.CanUseInCombat && SpellcastingRules.EffectiveManaCost(character, spell) <= character.CurrentMana &&
-                (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id).All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
-                HasValidSpellTarget(character, characterPosition, spell, enemy)) ||
-        EquippedCastingItems(character).Any(item =>
-            _gameData.GetSpell(item.SpellId!) is { } spell && spell.CanUseInCombat &&
-            (!_timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id).All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
-            HasValidSpellTarget(character, characterPosition, spell, enemy));
+        _singleBattleCoordinator.HasUsableCombatSpell(character, characterPosition, enemy,
+            _timeStopUsedThisBattle, EquippedCastingItems(character),
+            (c, pos, sp, en) => HasValidSpellTarget(c, pos, sp, en));
 
     private static bool CanTurnUndead(LiveCharacter character, Enemy enemy) =>
-        character.CharacterClass.Id is CharacterClassIds.Pap or CharacterClassIds.Lovag &&
-        enemy.Definition.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase);
+        SingleBattleCoordinator.CanTurnUndead(character, enemy);
 
-    private BattlePlayerAction ResolveTurnUndead(LiveCharacter character, Enemy enemy)
-    {
-        _turnUndeadUsedThisBattle.Add(character);
-        var priest = character.CharacterClass.Id == CharacterClassIds.Pap;
-        var ability = priest ? character.EffectiveAbilities.Intelligence : character.EffectiveAbilities.Strength;
-        var levelBonus = priest ? character.Level / 2 : character.Level / 3;
-        var roll = _random.Next(1, 21);
-        var total = roll + ability + levelBonus;
-        var difficulty = 10 + enemy.Definition.StrengthTier * 2;
-        var abilityName = priest ? "Halottűzés" : "Szent elűzés";
-        if (total < difficulty)
-            return new BattlePlayerAction($"{character.Name} megkísérli: {abilityName}, de az élőholt ellenáll " +
-                $"({roll} + {ability} + {levelBonus} = {total}, cél {difficulty}).", BattleLogKind.Information);
-
-        if (priest && total >= difficulty + 10 && enemy.Definition.StrengthTier <= 2 && enemy.GroupRole != EnemyGroupRole.Leader)
-            return new BattlePlayerAction($"{character.Name} {abilityName} képessége szent fénnyel megsemmisíti {enemy.Name} ellenfelet " +
-                $"({total}, cél {difficulty}+10).", BattleLogKind.PlayerAttack, enemy.CurrentHitPoints);
-
-        if (priest)
-        {
-            enemy.ApplySpellEffect(new ActiveSpellEffect("TURN-UNDEAD", ActiveSpellEffectType.SkipNext, 0, 2));
-            return new BattlePlayerAction($"{character.Name} sikeresen használja: {abilityName}. {enemy.Name} két akciót kihagy " +
-                $"({total}, cél {difficulty}).", BattleLogKind.PlayerAttack);
-        }
-
-        var damage = _random.Next(1, 7) + character.Level / 2;
-        enemy.ApplySpellEffect(new ActiveSpellEffect("HOLY-TURNING", ActiveSpellEffectType.SkipNext, 0, 1));
-        character.ApplySpellEffect(new ActiveSpellEffect("HOLY-TURNING", ActiveSpellEffectType.DefenseBonus, 2, 2, Beneficial: true));
-        return new BattlePlayerAction($"{character.Name} sikeresen használja: {abilityName}. {enemy.Name} -{damage} HP, " +
-            "kihagyja következő akcióját; a Lovag +2 védelmet kap 2 akcióig " +
-            $"({total}, cél {difficulty}).", BattleLogKind.PlayerAttack, damage);
-    }
+    private BattlePlayerAction ResolveTurnUndead(LiveCharacter character, Enemy enemy) =>
+        _singleBattleCoordinator.ResolveTurnUndead(character, enemy, _turnUndeadUsedThisBattle);
 
     private SpellCastAttempt? TryCastSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
         bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null,
@@ -5686,450 +4640,46 @@ public sealed class Game
             BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions);
     }
 
-    private SpellCastAttempt? ValidateSpellCast(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
-        bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null,
-        Position? explicitTarget = null)
-    {
-        if (!caster.IsAlive)
-            return new SpellCastAttempt(false, $"{caster.Name} nem képes varázsolni.", BattleLogKind.Information);
-        var usingItem = castingItem is not null;
-        var castingItemIndex = usingItem ? castingItemSlotIndex ?? -1 : -1;
-        if (usingItem && (castingItem!.Kind is not (MagicItemKind.Scroll or MagicItemKind.Wand) || castingItem.SpellId != spell.Id ||
-                castingItemIndex is < 0 or >= LiveCharacter.MaximumMagicItemCount ||
-                caster.MagicItems[castingItemIndex]?.Id != castingItem.Id || caster.MagicItemCharges[castingItemIndex] <= 0 ||
-                !SpellcastingRules.CanUseCastingItem(caster, castingItem, spell)))
-            return new SpellCastAttempt(false, "A kiválasztott tekercs vagy pálca nem használható.", BattleLogKind.Information);
-        if (!usingItem && !caster.IsSpellcaster)
-            return new SpellCastAttempt(false, "Ez az osztály nem használ varázslatokat.", BattleLogKind.Information);
-        if (!usingItem && !SpellcastingRules.HasRequiredFocus(caster))
-            return new SpellCastAttempt(false, "A varázsláshoz hiányzik a megfelelő fókusztárgy.", BattleLogKind.Information);
-        if (!usingItem && caster.MemorizedSpells.All(candidate =>
-                !string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))
-            return new SpellCastAttempt(false, $"A(z) {spell.Name} nincs memorizálva.", BattleLogKind.Information);
-        if (inCombat ? !spell.CanUseInCombat : !spell.CanUseDuringExploration)
-            return new SpellCastAttempt(false, $"A(z) {spell.Name} ebben a helyzetben nem használható.", BattleLogKind.Information);
-        if (inCombat && _timeStopUsedThisBattle && _gameData.GetSpellEffects(spell.Id)
-                .Any(effect => effect.Type == SpellEffectType.ExtraActions))
-            return new SpellCastAttempt(false, "Az Időmegállítás csatánként csak egyszer használható.", BattleLogKind.Information);
-        var manaCost = usingItem ? 0 : SpellcastingRules.EffectiveManaCost(caster, spell);
-        if (caster.CurrentMana < manaCost)
-            return new SpellCastAttempt(false, $"Nincs elég manna: {spell.Name} {manaCost} mannát igényel.", BattleLogKind.Information);
-        if (!HasValidSpellTarget(caster, casterPosition, spell, currentEnemy))
-            return new SpellCastAttempt(false, $"A(z) {spell.Name} számára nincs érvényes célpont.", BattleLogKind.Information);
-        if (explicitTarget is { } target && !IsValidExplicitSpellTarget(caster, casterPosition, spell, target, currentEnemy))
-            return new SpellCastAttempt(false, "A varázslat célpontja érvénytelen.", BattleLogKind.Information);
-        return null;
-    }
-
-    private bool IsValidExplicitSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
-        Position target, Enemy? currentEnemy) => spell.TargetType switch
-        {
-            SpellTargetType.Self => target == casterPosition && CanAffectCharacter(spell, caster),
-            SpellTargetType.Party => target == casterPosition && LivingPartyWithPositions()
-                .Any(entry => CanAffectCharacter(spell, entry.Character)),
-            _ => IsValidSpellTarget(casterPosition, spell, target, currentEnemy)
-        };
-
-    private static string CastingItemUseText(MagicItemDefinition item) => item.Kind == MagicItemKind.Scroll
-        ? "📜 A tekercs elhasználódott"
-        : $"{ConsoleRenderer.WandIcon} A pálca egy töltete elfogyott";
-
-    private SpellExecutionResult ExecuteSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Position target, bool inCombat,
-        Enemy? currentEnemy, bool divineJudgment)
-    {
-        var effects = _gameData.GetSpellEffects(spell.Id);
-        var targets = ResolveEnemySpellTargets(spell, target, currentEnemy, casterPosition).ToList();
-        var characterTargets = ResolveCharacterSpellTargets(caster, spell, target).ToList();
-        var damage = targets.ToDictionary(enemy => enemy, _ => 0);
-        var initialHitPoints = targets.ToDictionary(enemy => enemy, enemy => enemy.CurrentHitPoints);
-        var resolutionCache = new Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult>();
-        var notes = new List<string>();
-        var extraActions = 0;
-
-        foreach (var effect in effects)
-        {
-            switch (effect.Type)
-            {
-                case SpellEffectType.Damage:
-                    foreach (var enemy in targets)
-                        damage[enemy] += ResolveSpellDamage(caster, effect, spell, enemy, resolutionCache, notes, divineJudgment);
-                    break;
-                case SpellEffectType.ChainDamage:
-                    ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints, notes);
-                    break;
-                case SpellEffectType.Burning:
-                    ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.Burning, resolutionCache, notes, divineJudgment);
-                    break;
-                case SpellEffectType.Storm:
-                    ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.Storm, resolutionCache, notes, divineJudgment);
-                    break;
-                case SpellEffectType.SpeedPenalty:
-                    ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.SpeedPenalty, resolutionCache, notes, divineJudgment);
-                    break;
-                case SpellEffectType.SkipAlternate:
-                    ApplyEnemyTimedEffect(caster, effect, spell, targets,
-                        string.Equals(effect.Parameter, "Next", StringComparison.OrdinalIgnoreCase)
-                            ? ActiveSpellEffectType.SkipNext
-                            : ActiveSpellEffectType.SkipAlternate,
-                        resolutionCache, notes, divineJudgment);
-                    break;
-                case SpellEffectType.Invisibility:
-                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.Invisibility, divineJudgment);
-                    notes.Add($"láthatatlanság {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
-                    break;
-                case SpellEffectType.DefenseBonus:
-                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.DefenseBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
-                    break;
-                case SpellEffectType.PhysicalReduction:
-                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.PhysicalReduction, divineJudgment);
-                    notes.Add($"{effect.Value}% fizikai védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
-                    break;
-                case SpellEffectType.BleedingImmunity:
-                    foreach (var characterTarget in characterTargets)
-                    {
-                        ApplyCharacterEffect(caster, characterTarget, effect, spell, ActiveSpellEffectType.BleedingImmunity, divineJudgment);
-                        characterTarget.RemoveStatus(CharacterStatusIds.Bleeding);
-                    }
-                    notes.Add("vérzés megszüntetve és ideiglenesen kivédve");
-                    break;
-                case SpellEffectType.TeleportSelf:
-                    notes.Add(TeleportLeader(target, inCombat) ? "teleportáció sikeres" : "a célmező nem szabad");
-                    break;
-                case SpellEffectType.TeleportParty:
-                    notes.Add(TeleportLivingParty(target, inCombat));
-                    break;
-                case SpellEffectType.Dispel:
-                    notes.Add(DispelAt(target, spell.AreaRadius));
-                    break;
-                case SpellEffectType.ExtraActions:
-                    if (_timeStopUsedThisBattle && inCombat)
-                        notes.Add("az Időmegállítás ebben a csatában már nem ismételhető");
-                    else
-                    {
-                        extraActions += effect.Value;
-                        if (inCombat) _timeStopUsedThisBattle = true;
-                        notes.Add($"+{effect.Value} azonnali akció");
-                    }
-                    break;
-                case SpellEffectType.Execute:
-                    foreach (var enemy in targets)
-                    {
-                        var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, resolutionCache);
-                        if (!resolution.Applies || enemy.Definition.StrengthTier >= 5 ||
-                            initialHitPoints[enemy] * 100 > enemy.Definition.HitPoints * effect.Value) continue;
-                        damage[enemy] = Math.Max(damage[enemy], enemy.CurrentHitPoints);
-                        notes.Add($"💀 {enemy.Name}: megsemmisítés");
-                    }
-                    break;
-                case SpellEffectType.RandomElement:
-                    ApplyRandomElement(caster, effect, spell, targets, damage, resolutionCache, notes);
-                    break;
-                case SpellEffectType.Heal:
-                    ApplyHealing(caster, effect, spell, characterTargets, divineJudgment, notes);
-                    break;
-                case SpellEffectType.CureStatus:
-                    ApplyStatusCure(effect, characterTargets, notes);
-                    break;
-                case SpellEffectType.HitBonus:
-                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.HitBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} találat {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
-                    break;
-                case SpellEffectType.DamageBonus:
-                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.DamageBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} fizikai sebzés {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
-                    break;
-                case SpellEffectType.InitiativeBonus:
-                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.InitiativeBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} kezdeményezés {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
-                    break;
-                case SpellEffectType.ProtectionFromEvil:
-                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.ProtectionFromEvil, divineJudgment);
-                    notes.Add($"gonosz elleni védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
-                    break;
-                case SpellEffectType.GuardianAngel:
-                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.GuardianAngel, divineJudgment);
-                    notes.Add($"👼 Őrangyal {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
-                    break;
-                case SpellEffectType.Sanctuary:
-                    var sanctuaryTargets = LivingPartyWithPositions()
-                        .Where(entry => Chebyshev(entry.Position, casterPosition) <= Math.Max(0, spell.AreaRadius))
-                        .Select(entry => entry.Character).ToList();
-                    ApplyCharacterEffects(caster, sanctuaryTargets, effect, spell, ActiveSpellEffectType.Sanctuary, divineJudgment);
-                    notes.Add($"⛪ Szentély: {sanctuaryTargets.Count} karakter védett {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
-                    break;
-                case SpellEffectType.Resurrect:
-                    notes.Add(ResurrectPartyMember(target, effect));
-                    break;
-                case SpellEffectType.DispelBeneficial:
-                    foreach (var enemy in targets)
-                    {
-                        var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, resolutionCache);
-                        if (!resolution.Applies) continue;
-                        var removed = enemy.RemoveSpellEffects(active => active.Beneficial);
-                        notes.Add($"{enemy.Name}: {removed} pozitív varázshatás szétoszlatva");
-                    }
-                    break;
-                case SpellEffectType.RestoreNeeds:
-                    ApplyNeedRestoration(characterTargets, effect, divineJudgment, notes);
-                    break;
-                case SpellEffectType.VisionBonus:
-                    ApplyCharacterEffects(caster, characterTargets, effect, spell,
-                        ActiveSpellEffectType.VisionBonus, divineJudgment);
-                    foreach (var characterTarget in characterTargets)
-                        RevealFor(characterTarget, GetCasterPosition(characterTarget));
-                    notes.Add($"👁️ +{effect.Value} látótáv {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
-                    break;
-            }
-        }
-
-        var chainRepeated = caster.HasPerk(PerkIds.MageChainSpell) &&
-                            effects.Any(effect => effect.Type is SpellEffectType.Damage or SpellEffectType.ChainDamage) &&
-                            _random.Next(100) < 30;
-        if (chainRepeated)
-        {
-            foreach (var effect in effects.Where(effect => effect.Type == SpellEffectType.Damage))
-                foreach (var enemy in targets)
-                    damage[enemy] += ResolveSpellDamage(caster, effect, spell, enemy,
-                        new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes);
-            foreach (var effect in effects.Where(effect => effect.Type == SpellEffectType.ChainDamage))
-                ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints, notes);
-            notes.Add("🔁 Láncvarázs: a sebzés ingyen megismétlődött");
-        }
-
-        var currentDamage = 0;
-        var actualDamage = 0;
-        foreach (var entry in damage.Where(entry => entry.Value > 0))
-        {
-            if (inCombat && entry.Key == currentEnemy)
-            {
-                var inflicted = Math.Min(entry.Value, entry.Key.CurrentHitPoints);
-                currentDamage += inflicted;
-                actualDamage += inflicted;
-            }
-            else
-            {
-                actualDamage += Math.Min(entry.Value, entry.Key.CurrentHitPoints);
-                ApplyExplorationSpellDamage(caster, entry.Key, entry.Value, notes);
-            }
-        }
-        if (actualDamage > 0 && caster.SpecializationId == ClassSpecializations.MageNecromancer)
-        {
-            var before = caster.CurrentVitality;
-            var lifeStealPercent = caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.MageLifeHarvest) ? 15 : 10;
-            caster.RestoreVitality(Math.Max(1, (int)Math.Ceiling(actualDamage * lifeStealPercent / 100d)));
-            var restored = caster.CurrentVitality - before;
-            if (restored > 0) notes.Add($"💀 Nekromancia: ❤️ +{restored} HP");
-        }
-        else if (actualDamage > 0 && caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.MageLifeHarvest))
-        {
-            var before = caster.CurrentVitality;
-            caster.RestoreVitality(Math.Max(1, (int)Math.Ceiling(actualDamage * 0.15)));
-            var restored = caster.CurrentVitality - before;
-            if (restored > 0) notes.Add($"💀 Életaratás: ❤️ +{restored} HP");
-        }
-        if (actualDamage > 0 && caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.PriestMercifulJudgment))
-        {
-            var before = caster.CurrentVitality;
-            caster.RestoreVitality(Math.Max(1, (int)Math.Ceiling(actualDamage * 0.10)));
-            var restored = caster.CurrentVitality - before;
-            if (restored > 0) notes.Add($"⚖️ Irgalmas ítélet: ❤️ +{restored} HP");
-        }
-        if (damage.Values.Any(value => value > 0)) caster.BreakInvisibility();
-        if (!inCombat) _renderer.RefreshCharacterSheet(caster);
-        return new SpellExecutionResult(currentDamage, extraActions,
-            notes.Count == 0 ? "A varázslat nem talált érvényes célpontot." : string.Join("; ", notes.Distinct()));
-    }
-
-    private IEnumerable<Enemy> ResolveEnemySpellTargets(SpellDefinition spell, Position target, Enemy? currentEnemy, Position casterPosition)
-    {
-        var enemies = _maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0);
-        return spell.TargetType switch
-        {
-            SpellTargetType.Enemy => enemies.Where(enemy => enemy.Position == target)
-                .Concat(currentEnemy is not null && currentEnemy.Position == target ? [currentEnemy] : []).Distinct(),
-            SpellTargetType.Area => enemies.Where(enemy => Chebyshev(enemy.Position, target) <= spell.AreaRadius),
-            SpellTargetType.Direction => enemies.Where(enemy => IsInSpellCone(casterPosition, enemy.Position, target)),
-            _ => []
-        };
-    }
-
-    private IEnumerable<LiveCharacter> ResolveCharacterSpellTargets(LiveCharacter caster, SpellDefinition spell, Position target) => spell.TargetType switch
-    {
-        SpellTargetType.Self => [caster],
-        SpellTargetType.Party => LivingPartyWithPositions().Select(entry => entry.Character)
-            .DistinctBy(character => character.Id),
-        SpellTargetType.PartyMember when target == _player.Position => [SelectedCharacter],
-        SpellTargetType.PartyMember => _maze.GetPartyMemberAt(target) is { } member ? [member.Character] : [],
-        _ => []
-    };
-
     private IEnumerable<(LiveCharacter Character, Position Position)> LivingPartyWithPositions()
     {
-        if (SelectedCharacter.IsAlive) yield return (SelectedCharacter, _player.Position);
-        foreach (var member in _maze.PartyMembers.Where(member => member.Character.IsAlive))
-            yield return (member.Character, member.Position);
-    }
-
-    private static bool IsInSpellCone(Position casterPosition, Position position, Position selectedDirection)
-    {
-        var dx = selectedDirection.X - casterPosition.X;
-        var dy = selectedDirection.Y - casterPosition.Y;
-        var relativeX = position.X - casterPosition.X;
-        var relativeY = position.Y - casterPosition.Y;
-        var forward = relativeX * dx + relativeY * dy;
-        var lateral = Math.Abs(relativeX * dy - relativeY * dx);
-        return forward is >= 1 and <= 2 && lateral <= forward - 1;
-    }
-
-    private int ResolveSpellDamage(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell, Enemy enemy,
-        Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache, List<string> notes,
-        bool divineJudgment = false)
-    {
-        var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, cache);
-        if (!resolution.Applies)
+        if (SelectedCharacter.IsAlive && _player is not null) yield return (SelectedCharacter, _player.Position);
+        if (_maze is not null)
         {
-            notes.Add($"{enemy.Name}: a varázslat célt tévesztett ({resolution.Text})");
-            return 0;
-        }
-        var rolled = (effect.Dice?.Roll(_random) ?? 0) +
-                     (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier) +
-                     caster.Level * effect.LevelMultiplier + effect.Value;
-        if (caster.HasPerk(PerkIds.MageElementalMaster)) rolled = (int)Math.Ceiling(rolled * 1.25);
-        if (caster.SpecializationId == ClassSpecializations.PriestJudgment && spell.School == SpellSchool.Divine)
-            rolled = (int)Math.Ceiling(rolled * 1.20);
-        if (caster.SpecializationId == ClassSpecializations.MageElementalist && spell.School == SpellSchool.Arcane)
-            rolled = (int)Math.Ceiling(rolled * 1.20);
-        if (caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.MageRagingElements) && spell.School == SpellSchool.Arcane)
-            rolled = (int)Math.Ceiling(rolled * 1.15);
-        if (IsHolyEffect(effect) && IsUnholy(enemy.Definition))
-        {
-            rolled = (int)Math.Ceiling(rolled * 1.5);
-            notes.Add($"{enemy.Name}: ✨ szent sebezhetőség +50%");
-        }
-        if (divineJudgment) rolled *= 2;
-        if (resolution.Critical) rolled *= 2;
-        if (resolution.Half) rolled = Math.Max(1, rolled / 2);
-        notes.Add($"{enemy.Name}: -{rolled} HP ({resolution.Text})");
-        return rolled;
-    }
-
-    private SpellResolutionResult ResolveAgainstEnemy(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell, Enemy enemy,
-        Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache)
-    {
-        if (effect.Resolution == SpellResolution.Auto) return new SpellResolutionResult(true, false, false, "automatikus");
-        var cacheResolution = effect.Resolution == SpellResolution.SaveNegates
-            ? SpellResolution.SaveHalf
-            : effect.Resolution;
-        var key = (enemy, cacheResolution);
-        if (cache.TryGetValue(key, out var cached))
-            return effect.Resolution == SpellResolution.SaveNegates && cached.Half
-                ? cached with { Applies = false, Half = false }
-                : cached with { Half = effect.Resolution == SpellResolution.SaveHalf && cached.Half };
-        SpellResolutionResult result;
-        if (effect.Resolution == SpellResolution.Attack)
-        {
-            var roll = _random.Next(1, 21);
-            var bonus = caster.EffectiveAbilities.Intelligence +
-                        (caster.HasPerk(PerkIds.MageArcaneFocus) ? 2 : 0) +
-                        caster.GetMagicItemBonus(MagicItemEffect.Hit) +
-                        caster.SpellEffectValue(ActiveSpellEffectType.Invisibility) +
-                        caster.SpellEffectValue(ActiveSpellEffectType.HitBonus);
-            var hit = roll == 20 || roll != 1 && roll + bonus >= 11 + enemy.EffectiveSpeed;
-            result = new SpellResolutionResult(hit, false, roll == 20, hit ? $"mágikus támadás {roll + bonus}" : $"mellé {roll + bonus}");
-        }
-        else
-        {
-            var dc = 10 + caster.EffectiveAbilities.Intelligence / 2 + spell.Level;
-            var roll = _random.Next(1, 21) + enemy.EffectiveSpeed;
-            var saved = roll >= dc;
-            result = new SpellResolutionResult(!saved || effect.Resolution == SpellResolution.SaveHalf,
-                saved && effect.Resolution == SpellResolution.SaveHalf, false,
-                saved ? $"sikeres ellenpróba {roll}/{dc}" : $"rontott ellenpróba {roll}/{dc}");
-        }
-        cache[key] = result;
-        return result;
-    }
-
-    private void ApplyEnemyTimedEffect(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell, IEnumerable<Enemy> targets,
-        ActiveSpellEffectType type, Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache,
-        List<string> notes, bool divineJudgment = false)
-    {
-        foreach (var enemy in targets)
-        {
-            var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, cache);
-            if (!resolution.Applies || _random.Next(100) >= effect.ChancePercent) continue;
-            enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type, effect.Value,
-                AdjustedDuration(caster, spell, effect, divineJudgment),
-                effect.Dice, (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier),
-                false, effect.Dice is not null && caster.HasPerk(PerkIds.MageElementalMaster) ? 125 : 100));
-            notes.Add($"{enemy.Name}: {TimedEffectName(type)} ({AdjustedDuration(caster, spell, effect, divineJudgment)} akció)");
+            foreach (var member in _maze.PartyMembers.Where(member => member.Character.IsAlive))
+                yield return (member.Character, member.Position);
         }
     }
 
-    private static string TimedEffectName(ActiveSpellEffectType type) => type switch
-    {
-        ActiveSpellEffectType.Burning => "🔥 égés",
-        ActiveSpellEffectType.Storm => "⚡ vihar",
-        ActiveSpellEffectType.SpeedPenalty => "🐌 lassítás",
-        ActiveSpellEffectType.SkipAlternate => "⏳ minden második akció kimarad",
-        ActiveSpellEffectType.SkipNext => "⏳ következő akció kimarad",
-        ActiveSpellEffectType.Frost => "❄️ fagyás",
-        _ => "varázshatás"
-    };
+    private SpellCastAttempt? ValidateSpellCast(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
+        bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null,
+        Position? explicitTarget = null) =>
+        _spellExecutionService.ValidateSpellCast(caster, casterPosition, spell, inCombat, currentEnemy, castingItem,
+            castingItemSlotIndex, explicitTarget, _timeStopUsedThisBattle, LivingPartyWithPositions().ToArray(),
+            _maze, _fogOfWar, _player?.Position, SelectedCharacter);
 
-    private void ApplyCharacterEffect(LiveCharacter caster, LiveCharacter character, SpellEffectDefinition effect, SpellDefinition spell,
-        ActiveSpellEffectType type, bool divineJudgment = false)
-    {
-        var multiplier = divineJudgment ? 200 : 100;
-        if (type == ActiveSpellEffectType.GuardianAngel && caster.HasPerk(PerkIds.PriestHealingGrace))
-            multiplier = multiplier * 125 / 100;
-        character.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type,
-            effect.Value, AdjustedDuration(caster, spell, effect, divineJudgment), effect.Dice,
-            (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier), true,
-            multiplier, effect.Parameter));
-    }
+    private bool IsValidExplicitSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
+        Position target, Enemy? currentEnemy) =>
+        _spellExecutionService.IsValidExplicitSpellTarget(caster, casterPosition, spell, target, currentEnemy,
+            LivingPartyWithPositions().ToArray(), _maze, _fogOfWar, _player?.Position, SelectedCharacter);
 
-    private void ApplyCharacterEffects(LiveCharacter caster, IEnumerable<LiveCharacter> characters, SpellEffectDefinition effect,
-        SpellDefinition spell, ActiveSpellEffectType type, bool divineJudgment)
-    {
-        foreach (var character in characters) ApplyCharacterEffect(caster, character, effect, spell, type, divineJudgment);
-    }
+    private static string CastingItemUseText(MagicItemDefinition item) => SpellExecutionService.CastingItemUseText(item);
 
-    private void ApplyHealing(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell,
-        IEnumerable<LiveCharacter> characters, bool divineJudgment, ICollection<string> notes)
-    {
-        foreach (var character in characters.Where(character => character.IsAlive))
-        {
-            var fullHealing = string.Equals(effect.Parameter, "Full", StringComparison.OrdinalIgnoreCase);
-            var amount = fullHealing
-                ? character.MaximumVitality
-                : (effect.Dice?.Roll(_random) ?? 0) +
-                  (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier) +
-                  caster.Level * effect.LevelMultiplier + effect.Value;
-            if (!fullHealing && divineJudgment) amount *= 2;
-            if (caster.HasPerk(PerkIds.PriestHealingGrace))
-                amount = (int)Math.Ceiling(amount * 1.25);
-            if (caster.SpecializationId == ClassSpecializations.PriestLife)
-                amount = (int)Math.Ceiling(amount * 1.25);
-            if (caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.PriestOverflowingLife))
-                amount = (int)Math.Ceiling(amount * 1.15);
-            var before = character.CurrentVitality;
-            character.RestoreVitality(amount);
-            notes.Add($"{character.Name}: {FormatHealingResult(character, amount, before)}");
-        }
-    }
+    private SpellExecutionResult ExecuteSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Position target, bool inCombat,
+        Enemy? currentEnemy, bool divineJudgment) =>
+        _spellExecutionService.ExecuteSpell(caster, casterPosition, spell, target, inCombat, currentEnemy, divineJudgment,
+            ref _timeStopUsedThisBattle, LivingPartyWithPositions().ToArray(), _maze,
+            ApplyExplorationSpellDamage, TeleportLeader, TeleportLivingParty, ResurrectPartyMember,
+            c => _renderer.RefreshCharacterSheet(c));
 
-    private void ApplyStatusCure(SpellEffectDefinition effect, IEnumerable<LiveCharacter> characters,
-        ICollection<string> notes)
-    {
-        var statusIds = ParseEffectParameters(effect.Parameter);
-        foreach (var character in characters)
-        {
-            var removed = statusIds.Where(character.RemoveStatus).Select(StatusName).ToList();
-            if (removed.Count > 0) notes.Add($"{character.Name}: ✨ megszűnt {string.Join(" és ", removed)}");
-        }
-    }
+    private IEnumerable<Enemy> ResolveEnemySpellTargets(SpellDefinition spell, Position target, Enemy? currentEnemy, Position casterPosition) =>
+        _spellExecutionService.ResolveEnemySpellTargets(spell, target, currentEnemy, casterPosition, _maze);
+
+    private IEnumerable<LiveCharacter> ResolveCharacterSpellTargets(LiveCharacter caster, SpellDefinition spell, Position target) =>
+        _spellExecutionService.ResolveCharacterSpellTargets(caster, spell, target, LivingPartyWithPositions().ToArray(), _maze);
+
+    private bool IsOffensiveSpell(SpellDefinition spell) => _spellExecutionService.IsOffensiveSpell(spell);
+
+    private static bool IsUnholy(EnemyDefinition enemy) => SpellExecutionService.IsUnholy(enemy);
 
     private string ResurrectPartyMember(Position target, SpellEffectDefinition effect)
     {
@@ -6139,7 +4689,7 @@ public sealed class Game
         var revivalPosition = FindResurrectionPosition(corpse);
         if (revivalPosition is null) return "a tetem körül nincs szabad hely a visszatéréshez";
 
-        var parameters = ParseEffectParameters(effect.Parameter);
+        var parameters = SpellExecutionService.ParseEffectParameters(effect.Parameter);
         var manaPercent = parameters.Count > 0 && int.TryParse(parameters[0], out var parsedMana)
             ? Math.Clamp(parsedMana, 0, 100)
             : 0;
@@ -6160,109 +4710,8 @@ public sealed class Game
                (corpse.Character.UsesMana ? $" és {corpse.Character.CurrentMana} mannával" : string.Empty);
     }
 
-    private Position? FindResurrectionPosition(PartyMemberCorpse corpse)
-    {
-        bool CanUse(Position position) => position != _player.Position && position != _maze.Entrance &&
-            position != _maze.Exit && _maze.IsWalkable(position) &&
-            (_maze.GetObjectAt(position) is null || _maze.GetObjectAt(position) == corpse);
-        if (CanUse(corpse.Position)) return corpse.Position;
-        return FindNearbyTeleportPositions(corpse.Position).Where(CanUse).Select(position => (Position?)position).FirstOrDefault();
-    }
-
-    private static int AdjustedDuration(LiveCharacter caster, SpellDefinition spell,
-        SpellEffectDefinition effect, bool divineJudgment)
-    {
-        var duration = divineJudgment ? effect.Duration * 2 : effect.Duration;
-        var priestProtection = caster.SpecializationId == ClassSpecializations.PriestProtection &&
-                               spell.School == SpellSchool.Divine && effect.Type is
-                                   SpellEffectType.DefenseBonus or SpellEffectType.PhysicalReduction or
-                                   SpellEffectType.BleedingImmunity or SpellEffectType.HitBonus or
-                                   SpellEffectType.DamageBonus or SpellEffectType.InitiativeBonus or
-                                   SpellEffectType.ProtectionFromEvil or SpellEffectType.GuardianAngel or
-                                   SpellEffectType.Sanctuary;
-        var mageIllusion = caster.SpecializationId == ClassSpecializations.MageIllusionist &&
-                           spell.School == SpellSchool.Arcane && effect.Type is
-                               SpellEffectType.Invisibility or SpellEffectType.DefenseBonus or
-                               SpellEffectType.PhysicalReduction or SpellEffectType.BleedingImmunity or
-                               SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate;
-        var bonusDuration = 0;
-        if (duration > 0 && priestProtection) bonusDuration++;
-        if (duration > 0 && mageIllusion) bonusDuration++;
-        if (duration > 0 && caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.PriestSteadfastProtection) &&
-            spell.School == SpellSchool.Divine && effect.Type is
-                SpellEffectType.DefenseBonus or SpellEffectType.PhysicalReduction or
-                SpellEffectType.BleedingImmunity or SpellEffectType.HitBonus or
-                SpellEffectType.DamageBonus or SpellEffectType.InitiativeBonus or
-                SpellEffectType.ProtectionFromEvil or SpellEffectType.GuardianAngel or SpellEffectType.Sanctuary)
-            bonusDuration++;
-        if (duration > 0 && caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.MagePerfectIllusion) &&
-            spell.School == SpellSchool.Arcane && effect.Type is
-                SpellEffectType.Invisibility or SpellEffectType.DefenseBonus or
-                SpellEffectType.PhysicalReduction or SpellEffectType.BleedingImmunity or
-                SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate)
-            bonusDuration++;
-        return duration + bonusDuration;
-    }
-    private static IReadOnlyList<string> ParseEffectParameters(string? parameter) =>
-        string.IsNullOrWhiteSpace(parameter)
-            ? []
-            : parameter.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-    private string StatusName(string statusId) => _gameData.Statuses.FirstOrDefault(status =>
-        string.Equals(status.Id, statusId, StringComparison.OrdinalIgnoreCase))?.Name ?? statusId;
-    private static bool IsHolyEffect(SpellEffectDefinition effect) =>
-        string.Equals(effect.Parameter, "Holy50", StringComparison.OrdinalIgnoreCase);
-    private static bool IsUnholy(EnemyDefinition enemy) => enemy.AbilityIds.Any(abilityId =>
-        string.Equals(abilityId, MonsterAbilityIds.Undead, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(abilityId, MonsterAbilityIds.Demonic, StringComparison.OrdinalIgnoreCase));
-
-    private bool IsOffensiveSpell(SpellDefinition spell) => _gameData.GetSpellEffects(spell.Id).Any(effect =>
-        effect.Type is SpellEffectType.Damage or SpellEffectType.ChainDamage or SpellEffectType.Burning or
-            SpellEffectType.Storm or SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate or
-            SpellEffectType.Execute or SpellEffectType.RandomElement or SpellEffectType.DispelBeneficial);
-
-    private void ApplyChainDamage(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell, Position target,
-        Enemy? currentEnemy, Dictionary<Enemy, int> damage, Dictionary<Enemy, int> initialHitPoints, List<string> notes)
-    {
-        var candidates = _maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
-            .Concat(currentEnemy is null ? [] : [currentEnemy]).Distinct()
-            .OrderBy(enemy => enemy.Position == target ? 0 : Chebyshev(enemy.Position, target))
-            .Where(enemy => enemy.Position == target || Chebyshev(enemy.Position, target) <= 4).Take(4).ToList();
-        var multipliers = (effect.Parameter ?? "100|75|50|25").Split('|')
-            .Select(value => int.TryParse(value, out var parsed) ? parsed : 100).ToArray();
-        for (var index = 0; index < candidates.Count; index++)
-        {
-            var enemy = candidates[index];
-            if (!damage.ContainsKey(enemy)) damage[enemy] = 0;
-            if (!initialHitPoints.ContainsKey(enemy)) initialHitPoints[enemy] = enemy.CurrentHitPoints;
-            var baseDamage = ResolveSpellDamage(caster, effect, spell, enemy,
-                new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes);
-            damage[enemy] += baseDamage * multipliers[Math.Min(index, multipliers.Length - 1)] / 100;
-        }
-    }
-
-    private void ApplyRandomElement(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell, IEnumerable<Enemy> targets,
-        Dictionary<Enemy, int> damage, Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache,
-        List<string> notes)
-    {
-        var element = (effect.Parameter ?? "Fire|Frost|Lightning").Split('|')[_random.Next(3)];
-        foreach (var enemy in targets)
-        {
-            if (!ResolveAgainstEnemy(caster, effect, spell, enemy, cache).Applies) continue;
-            if (element.Equals("Fire", StringComparison.OrdinalIgnoreCase))
-            {
-                var fireDamage = effect.Dice?.Roll(_random) ?? 0;
-                if (caster.HasPerk(PerkIds.MageElementalMaster))
-                    fireDamage = (int)Math.Ceiling(fireDamage * 1.25);
-                damage[enemy] += fireDamage;
-                notes.Add($"{enemy.Name}: 🔥 -{fireDamage} HP");
-            }
-            else if (element.Equals("Frost", StringComparison.OrdinalIgnoreCase))
-                enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, ActiveSpellEffectType.Frost, effect.Value, effect.Duration));
-            else if (_random.Next(100) < effect.ChancePercent)
-                enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, ActiveSpellEffectType.SkipAlternate, 0, effect.Duration));
-        }
-        notes.Add($"🎲 véletlen elem: {element}");
-    }
+    private Position? FindResurrectionPosition(PartyMemberCorpse corpse) =>
+        SpellExecutionService.FindResurrectionPosition(_maze, _player?.Position, corpse);
 
     private void ApplyExplorationSpellDamage(LiveCharacter caster, Enemy enemy, int amount, List<string> notes)
     {
@@ -6301,7 +4750,7 @@ public sealed class Game
     private string TeleportLivingParty(Position target, bool inCombat)
     {
         if (!TeleportLeader(target, inCombat)) return "a dimenziókapu célmezője nem szabad";
-        var positions = FindNearbyTeleportPositions(target).Take(_maze.PartyMembers.Count).ToList();
+        var positions = SpellExecutionService.FindNearbyTeleportPositions(_maze, _player?.Position, target).Take(_maze.PartyMembers.Count).ToList();
         var moved = 0;
         foreach (var pair in _maze.PartyMembers.Zip(positions))
         {
@@ -6311,34 +4760,6 @@ public sealed class Game
         }
         if (!inCombat) _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, target);
         return $"dimenziókapu: a vezér és {moved} társ átkerült";
-    }
-
-    private IEnumerable<Position> FindNearbyTeleportPositions(Position origin)
-    {
-        var queue = new Queue<Position>();
-        var visited = new HashSet<Position> { origin };
-        queue.Enqueue(origin);
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            foreach (var direction in Directions)
-            {
-                var next = current + direction;
-                if (!visited.Add(next) || !_maze.IsWalkable(next)) continue;
-                queue.Enqueue(next);
-                if (next != _player.Position && _maze.GetObjectAt(next) is null) yield return next;
-            }
-        }
-    }
-
-    private string DispelAt(Position target, int radius)
-    {
-        var removed = _maze.Enemies.Where(enemy => Chebyshev(enemy.Position, target) <= radius)
-            .Sum(enemy => enemy.RemoveSpellEffects());
-        if (Chebyshev(_player.Position, target) <= radius) removed += SelectedCharacter.RemoveSpellEffects();
-        foreach (var member in _maze.PartyMembers.Where(member => Chebyshev(member.Position, target) <= radius))
-            removed += member.Character.RemoveSpellEffects();
-        return $"✨ szétoszlatott varázshatások: {removed}";
     }
 
     private Position? SelectSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Enemy? currentEnemy)
@@ -6392,100 +4813,20 @@ public sealed class Game
         }
     }
 
-    private IEnumerable<Position> GetValidSpellTargets(Position casterPosition, SpellDefinition spell, Enemy? currentEnemy)
-    {
-        IEnumerable<Position> possible = spell.TargetType switch
-        {
-            SpellTargetType.Enemy when currentEnemy is not null => [currentEnemy.Position],
-            SpellTargetType.Enemy => _maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).Select(enemy => enemy.Position),
-            SpellTargetType.PartyMember => new[] { _player.Position }.Concat(_maze.PartyMembers
-                .Where(member => member.Character.IsAlive).Select(member => member.Position)),
-            SpellTargetType.Corpse => _maze.Corpses.OfType<PartyMemberCorpse>().Select(corpse => corpse.Position),
-            SpellTargetType.Direction => Directions.Select(direction => casterPosition + direction),
-            SpellTargetType.Cell or SpellTargetType.Area =>
-                from y in Enumerable.Range(Math.Max(0, casterPosition.Y - spell.Range),
-                    Math.Min(_maze.Height - 1, casterPosition.Y + spell.Range) - Math.Max(0, casterPosition.Y - spell.Range) + 1)
-                from x in Enumerable.Range(Math.Max(0, casterPosition.X - spell.Range),
-                    Math.Min(_maze.Width - 1, casterPosition.X + spell.Range) - Math.Max(0, casterPosition.X - spell.Range) + 1)
-                select new Position(x, y),
-            _ => []
-        };
-        return possible.Where(position => IsValidSpellTarget(casterPosition, spell, position, currentEnemy));
-    }
+    private IEnumerable<Position> GetValidSpellTargets(Position casterPosition, SpellDefinition spell, Enemy? currentEnemy) =>
+        _spellExecutionService.GetValidSpellTargets(casterPosition, spell, currentEnemy, _maze, _fogOfWar, _player?.Position, SelectedCharacter);
 
-    private bool IsValidSpellTarget(Position casterPosition, SpellDefinition spell, Position position, Enemy? currentEnemy)
-    {
-        if (!_maze.IsInside(position) || !_fogOfWar.IsVisible(position)) return false;
-        var inRange = Chebyshev(casterPosition, position) <= Math.Max(1, spell.Range);
-        if (!inRange || spell.RequiresLineOfSight && !FogOfWar.CanSee(_maze, casterPosition, position, Math.Max(1, spell.Range))) return false;
-        return spell.TargetType switch
-        {
-            SpellTargetType.Enemy => currentEnemy is not null
-                ? currentEnemy.CurrentHitPoints > 0 && currentEnemy.Position == position
-                : _maze.GetEnemyAt(position)?.CurrentHitPoints > 0,
-            SpellTargetType.PartyMember => position == _player.Position && SelectedCharacter.IsAlive &&
-                                           CanAffectCharacter(spell, SelectedCharacter) ||
-                                           _maze.PartyMembers.Any(member => member.Position == position && member.Character.IsAlive &&
-                                               CanAffectCharacter(spell, member.Character)),
-            SpellTargetType.Corpse => _maze.Corpses.OfType<PartyMemberCorpse>().Any(corpse =>
-                corpse.Position == position && !corpse.Character.WasResurrectedThisLevel &&
-                FindResurrectionPosition(corpse) is not null),
-            SpellTargetType.Direction => Manhattan(casterPosition, position) == 1,
-            SpellTargetType.Cell when _gameData.GetSpellEffects(spell.Id).Any(effect =>
-                effect.Type is SpellEffectType.TeleportSelf or SpellEffectType.TeleportParty) =>
-                _maze.IsWalkable(position) && _maze.GetObjectAt(position) is null,
-            SpellTargetType.Cell or SpellTargetType.Area => true,
-            _ => false
-        };
-    }
+    private bool IsValidSpellTarget(Position casterPosition, SpellDefinition spell, Position position, Enemy? currentEnemy) =>
+        _spellExecutionService.IsValidSpellTarget(casterPosition, spell, position, currentEnemy, _maze, _fogOfWar, _player?.Position, SelectedCharacter);
 
-    private bool HasValidSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Enemy? currentEnemy) => spell.TargetType switch
-    {
-        SpellTargetType.Self => CanAffectCharacter(spell, caster),
-        SpellTargetType.Party => LivingPartyWithPositions().Any(entry => CanAffectCharacter(spell, entry.Character)),
-        _ => GetValidSpellTargets(casterPosition, spell, currentEnemy).Any()
-    };
+    private bool HasValidSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Enemy? currentEnemy) =>
+        _spellExecutionService.HasValidSpellTarget(caster, casterPosition, spell, currentEnemy, LivingPartyWithPositions().ToArray(), _maze, _fogOfWar, _player?.Position, SelectedCharacter);
 
-    private bool CanAffectCharacter(SpellDefinition spell, LiveCharacter character)
-    {
-        var effects = _gameData.GetSpellEffects(spell.Id);
-        return effects.Any(effect => effect.Type switch
-        {
-            SpellEffectType.Heal => character.CurrentVitality < character.MaximumVitality,
-            SpellEffectType.CureStatus => ParseEffectParameters(effect.Parameter).Any(character.HasStatus),
-            SpellEffectType.RestoreNeeds => character.FoodLevel < 100 || character.WaterLevel < 100,
-            _ => true
-        });
-    }
+    private bool CanAffectCharacter(SpellDefinition spell, LiveCharacter character) =>
+        _spellExecutionService.CanAffectCharacter(spell, character);
 
-    private void ApplyNeedRestoration(IEnumerable<LiveCharacter> characters, SpellEffectDefinition effect,
-        bool divineJudgment, ICollection<string> notes)
-    {
-        var amount = effect.Value * (divineJudgment ? 2 : 1);
-        foreach (var character in characters.Where(character => character.IsAlive))
-        {
-            var foodBefore = character.FoodLevel;
-            var waterBefore = character.WaterLevel;
-            character.RestoreFood(amount);
-            character.RestoreWater(amount);
-            character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
-                _gameData.GetStatus(CharacterStatusIds.Thirsty));
-            notes.Add($"{character.Name}: 🍖+{character.FoodLevel - foodBefore} 💧+{character.WaterLevel - waterBefore}");
-        }
-    }
-
-    private string DescribeSpellTarget(LiveCharacter caster, SpellDefinition spell, Position position, Enemy? currentEnemy) => spell.TargetType switch
-    {
-        SpellTargetType.Self => caster.Name,
-        SpellTargetType.Party => "az egész parti",
-        SpellTargetType.Enemy when currentEnemy is not null && currentEnemy.Position == position => currentEnemy.Name,
-        SpellTargetType.Enemy => _maze.GetEnemyAt(position)?.Name ?? $"({position.X},{position.Y})",
-        SpellTargetType.PartyMember when position == _player.Position => SelectedCharacter.Name,
-        SpellTargetType.PartyMember => _maze.PartyMembers.FirstOrDefault(member => member.Position == position)?.Character.Name ?? $"({position.X},{position.Y})",
-        SpellTargetType.Corpse => _maze.Corpses.OfType<PartyMemberCorpse>().FirstOrDefault(corpse => corpse.Position == position)?.Character.Name ?? $"({position.X},{position.Y})",
-        SpellTargetType.Direction => $"{DirectionName(_player.Position, position)} irány",
-        _ => $"({position.X},{position.Y})"
-    };
+    private string DescribeSpellTarget(LiveCharacter caster, SpellDefinition spell, Position position, Enemy? currentEnemy) =>
+        _spellExecutionService.DescribeSpellTarget(caster, spell, position, currentEnemy, _maze, _player?.Position, SelectedCharacter);
 
     private static string DirectionName(Position origin, Position position) => position.X < origin.X ? "bal" :
         position.X > origin.X ? "jobb" : position.Y < origin.Y ? "fel" : "le";
@@ -6581,7 +4922,7 @@ public sealed class Game
                 _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
                 continue;
             }
-            var narrative = BossNarratives.GetValueOrDefault(boss.Definition.Id)
+            var narrative = StoryNarratives.BossNarratives.GetValueOrDefault(boss.Definition.Id)
                 ?? new BossNarrative("Ismeretlen fejezet",
                     [$"Én vagyok {boss.Name}. E folyosók titkait nem osztom meg veletek."]);
             var isMiniBoss = boss.Definition.Rank == EnemyRank.MiniBoss;
@@ -6624,7 +4965,7 @@ public sealed class Game
             $"Kulcsok: {_collectedBossKeyIds.Count}/{MonsterIds.Bosses.Count}.{completed}", ConsoleColor.Yellow);
         if (_collectedBossKeyIds.Count == MonsterIds.Bosses.Count)
             ShowSynchronizedNarrative(NarrativeKind.TwelveKeys, "A TIZENKÉT ZÁR FELNYÍLIK",
-                "XIV. fejezet — A Rubin Útja", TwelveKeysStory);
+                "XIV. fejezet — A Rubin Útja", StoryNarratives.TwelveKeysStory);
     }
 
     private void StartBattle(Enemy enemy, bool enemyStrikesFirst = false)
@@ -6638,9 +4979,9 @@ public sealed class Game
         if (_battleStarted || !initiatingCharacter.IsAlive || initiatingEnemy.CurrentHitPoints <= 0) return;
         CheckBossDiscovery([initiatingEnemy]);
         _timeStopUsedThisBattle = false;
-        _battleTacticHintLogged = false;
-        _battleActionHintLogged = false;
         _turnUndeadUsedThisBattle.Clear();
+        _battleNoPathReported.Clear();
+        _battleLogCycle = -1;
         _pendingLevelUps.Clear();
         if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
 
@@ -6733,7 +5074,7 @@ public sealed class Game
     private PartyFormationSnapshot? ActiveBattleFormation()
     {
         if (_formation.State != PartyFormationState.Locked) return null;
-        var expected = PartyFormationRules.Positions(_formation, SelectedCharacter.Id, _player.Position);
+        var expected = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
         return expected.All(pair => CharacterRoster.Party.Members.FirstOrDefault(character =>
                     character.Id == pair.Key) is not { IsAlive: true } character ||
                 GetCasterPosition(character) == pair.Value)
@@ -6774,6 +5115,12 @@ public sealed class Game
             }
 
             var current = battle.Current;
+            if (_battleLogCycle != battle.Turns.Cycle)
+            {
+                _battleLogCycle = battle.Turns.Cycle;
+                PresentBattleEntries([new BattleLogEntry(
+                    BattleSystem.FormatRoundHeader(battle.Turns.Cycle), BattleLogKind.Information)]);
+            }
             UpdateTeamBattleFocus(battle, current);
             if (battle.CurrentCharacter is { } character)
             {
@@ -6825,13 +5172,8 @@ public sealed class Game
                 }
                 _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, SelectedCharacter.Id,
                     [BattleActionKind.AdvanceEnemyTurn]);
-                var message = $"{battle.Turns.Cycle}. kör — {enemyActor.Name} következik. " +
-                              "Space: végrehajtja a saját akcióját.";
-                RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.DarkYellow,
-                    [SelectedCharacter.Id]);
-                if (_session.CharacterControls.FirstOrDefault(control =>
-                        control.CharacterId == SelectedCharacter.Id)?.AssignedPlayerId == _session.HostPlayerId)
-                    _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
+                _renderer.DrawBattleCommandPanel(BattleCommandPanel.Format(
+                    [BattleActionKind.AdvanceEnemyTurn], enemyTurn: true));
                 _activeCoopHost?.TryPublish(CreateSessionSnapshot());
                 return;
             }
@@ -6896,9 +5238,7 @@ public sealed class Game
                Maze.IsPassableNeutralNpc(occupant);
     }
 
-    private static bool IsQuestImportantEnemy(Enemy enemy) =>
-        enemy.Definition.IsBoss || enemy.Definition.Rank is EnemyRank.MiniBoss or EnemyRank.Boss ||
-        enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) == true;
+    private static bool IsQuestImportantEnemy(Enemy enemy) => TacticalTeamBattleCoordinator.IsQuestImportantEnemy(enemy);
 
     private bool ShouldUseQuickCombat(QuickCombatAssessment assessment)
     {
@@ -7012,7 +5352,7 @@ public sealed class Game
             case BattleActionKind.Pass:
                 var passStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(
-                    $"{character.Name} kivár és nem cselekszik ebben a körben.{passStatus}",
+                    $"{character.Name}\t⌛ Kivár.{passStatus}",
                     BattleLogKind.Information)]);
                 AdvanceTeamBattleTurn(battle);
                 break;
@@ -7296,42 +5636,15 @@ public sealed class Game
 
     private Position? ChooseNpcBuffTarget(TeamBattleEncounter battle, LiveCharacter caster,
         Position casterPosition, SpellDefinition spell, IReadOnlyList<SpellEffectDefinition> effects,
-        IReadOnlyList<LiveCharacter> allies)
-    {
-        bool NeedsBuff(LiveCharacter character) => effects
-            .Where(effect => NpcSpellcastingPolicy.IsBuffEffect(effect.Type))
-            .Select(effect => NpcSpellcastingPolicy.ActiveTypeFor(effect.Type))
-            .Any(type => type is { } activeType && !character.HasSpellEffect(activeType));
-
-        if (spell.TargetType == SpellTargetType.Self)
-            return NeedsBuff(caster) ? GetCasterPosition(caster) : null;
-        if (spell.TargetType == SpellTargetType.Party)
-        {
-            var missing = allies.Count(NeedsBuff);
-            return missing >= Math.Min(2, allies.Count) ? GetCasterPosition(caster) : null;
-        }
-        if (spell.TargetType != SpellTargetType.PartyMember) return null;
-        return allies.Where(NeedsBuff)
-            .OrderByDescending(character => battle.IsEngaged(character))
-            .ThenByDescending(battle.IsFrontRow)
-            .ThenBy(VitalityRatio)
-            .Where(character => IsValidExplicitSpellTarget(caster, casterPosition, spell,
-                GetCasterPosition(character), currentEnemy: null))
-            .Select(character => (Position?)GetCasterPosition(character)).FirstOrDefault();
-    }
+        IReadOnlyList<LiveCharacter> allies) =>
+        _teamBattleCoordinator.ChooseNpcBuffTarget(battle, caster, casterPosition, spell, effects, allies,
+            GetCasterPosition, (c, pos, sp, tgt, en) => IsValidExplicitSpellTarget(c, pos, sp, tgt, en));
 
     private IEnumerable<Enemy> OrderedNpcSpellTargets(TeamBattleEncounter battle, Position casterPosition) =>
-        battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
-            .OrderByDescending(battle.IsEngaged)
-            .ThenBy(enemy => battle.Characters.Where(character => battle.EngagedEnemies(character).Contains(enemy))
-                .Select(VitalityRatio).DefaultIfEmpty(2d).Min())
-            .ThenByDescending(enemy => enemy.Definition.Rank)
-            .ThenByDescending(enemy => enemy.Definition.StrengthTier)
-            .ThenBy(enemy => enemy.CurrentHitPoints)
-            .ThenBy(enemy => TacticalDistance.Between(casterPosition, enemy.Position));
+        TacticalTeamBattleCoordinator.OrderedNpcSpellTargets(battle, casterPosition);
 
     private static double VitalityRatio(LiveCharacter character) =>
-        (double)character.CurrentVitality / Math.Max(1, character.MaximumVitality);
+        TacticalTeamBattleCoordinator.VitalityRatio(character);
 
     private void ResolveTeamCharacterAttack(TeamBattleEncounter battle, LiveCharacter character, Enemy enemy)
     {
@@ -7511,126 +5824,39 @@ public sealed class Game
     }
 
     private IReadOnlyList<BattleActionKind> GetTeamAllowedBattleActions(TeamBattleEncounter battle,
-        LiveCharacter character, Enemy focusEnemy)
-    {
-        var runtime = battle.RuntimeFor(character);
-        if (runtime.RequiresTacticSelection)
-            return character.CharacterClass.Id == CharacterClassIds.Harcos
-                ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
-                : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
-        var reachable = ReachableTeamEnemies(battle, character).ToArray();
-        var adjacent = AdjacentTeamEnemies(battle, character).ToArray();
-        if (battle.Turns.Cycle == 1 && character.Id == battle.InitiatingCharacterId)
-        {
-            var openingActions = new List<BattleActionKind> { BattleActionKind.Pass };
-            if (reachable.Length > 0) openingActions.Insert(0, BattleActionKind.PhysicalAttack);
-            else if (battle.HasActiveFormation && character == SelectedCharacter)
-                openingActions.Insert(0, BattleActionKind.MoveFormation);
-            else openingActions.Insert(0, BattleActionKind.Move);
-            if (HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy))
-                openingActions.Insert(0, BattleActionKind.CastSpell);
-            return openingActions;
-        }
-        var actions = new List<BattleActionKind> { BattleActionKind.Pass };
-        if (reachable.Length > 0)
-        {
-            actions.Add(BattleActionKind.PhysicalAttack);
-            if (reachable.Length > 1) actions.Add(BattleActionKind.SelectTarget);
-            if (CanTurnUndead(character, focusEnemy) && !_turnUndeadUsedThisBattle.Contains(character))
-                actions.Add(BattleActionKind.TurnUndead);
-        }
-        if (battle.HasActiveFormation && battle.IsFrontRow(character) &&
-            battle.RearPartnerOf(character) is { IsAlive: true })
-            actions.Add(BattleActionKind.SwapToRear);
-        if (battle.HasActiveFormation && character == SelectedCharacter)
-            actions.Add(BattleActionKind.MoveFormation);
-        if (HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy))
-            actions.Add(BattleActionKind.CastSpell);
-        if (!battle.IsEngaged(character))
-        {
-            if (!battle.HasActiveFormation || battle.FormationSlotFor(character) is null)
-                actions.Add(BattleActionKind.Move);
-            if (GetBattleItemOptions(battle, character).Count > 0) actions.Add(BattleActionKind.UseItem);
-        }
-        if (character == SelectedCharacter && battle.Turns.Cycle > 1)
-            actions.Add(BattleActionKind.Retreat);
-        return actions;
-    }
+        LiveCharacter character, Enemy focusEnemy) =>
+        _teamBattleCoordinator.GetTeamAllowedBattleActions(battle, character, focusEnemy, SelectedCharacter,
+            GetCasterPosition(character), HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy),
+            _turnUndeadUsedThisBattle);
 
     private IReadOnlyList<BattleTacticOptionSnapshot>? GetTeamBattleTacticOptions(TeamBattleEncounter battle,
-        LiveCharacter character, Enemy enemy)
-    {
-        if (!battle.RuntimeFor(character).RequiresTacticSelection ||
-            character.CharacterClass.Id != CharacterClassIds.Harcos) return null;
-        return
-        [
-            new(BattleActionKind.FighterPrecise, "🎯 Pontos", "nagyobb találati esély, kisebb sebzés",
-                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPrecise)),
-            new(BattleActionKind.FighterPowerful, "💥 Erőteljes", "páncéltörés és nagyobb sebzés",
-                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPowerful)),
-            new(BattleActionKind.FighterDefensive, "🛡️ Védekező", "nagyobb védelem, kisebb sebzés",
-                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterDefensive))
-        ];
-    }
+        LiveCharacter character, Enemy enemy) =>
+        _teamBattleCoordinator.GetTeamBattleTacticOptions(battle, character, enemy);
 
     private void PublishTeamBattlePrompt(LiveCharacter character, Enemy enemy,
         IReadOnlyList<BattleActionKind> actions, TeamBattleEncounter battle)
     {
-        var message = battle.RuntimeFor(character).RequiresTacticSelection
-            ? BattlePromptText.Tactic(character.CharacterClass.Id,
-                GetTeamBattleTacticOptions(battle, character, enemy))
-            : "Akció: " + string.Join(" | ", new[]
-            {
-                actions.Contains(BattleActionKind.PhysicalAttack) ? "Space — támadás" : null,
-                actions.Contains(BattleActionKind.SelectTarget) ? "Tab — célpont" : null,
-                actions.Contains(BattleActionKind.Move) ? "nyilak — mozgás" : null,
-                actions.Contains(BattleActionKind.MoveFormation) ? "nyilak — alakzatmozgatás" : null,
-                actions.Contains(BattleActionKind.SwapToRear) ? "H — Hátra!" : null,
-                actions.Contains(BattleActionKind.UseItem) ? "U — tárgy használata" : null,
-                actions.Contains(BattleActionKind.CastSpell) ? "V/F1-F8 — varázslat" : null,
-                actions.Contains(BattleActionKind.TurnUndead) ? "T — halottűzés" : null,
-                actions.Contains(BattleActionKind.Retreat) ? "R — visszavonulás" : null,
-                actions.Contains(BattleActionKind.Pass) ? "P — passz" : null
-            }.Where(option => option is not null));
-        message = $"{battle.Turns.Cycle}. kör, {character.Name} ({battle.Current.MovementAllowance} mozgás) — {message}";
-        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow, [character.Id]);
-        if (character == SelectedCharacter) _renderer.DrawInventoryMessage(message, ConsoleColor.Yellow);
+        var message = BattleCommandPanel.Format(actions,
+            battle.RuntimeFor(character).RequiresTacticSelection
+                ? GetTeamBattleTacticOptions(battle, character, enemy)
+                : null);
+        _renderer.DrawBattleCommandPanel(message);
     }
 
-    private IEnumerable<Enemy> AdjacentTeamEnemies(TeamBattleEncounter battle, LiveCharacter character)
-    {
-        var position = GetCasterPosition(character);
-        return battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 &&
-            TacticalDistance.IsMeleeAdjacent(position, enemy.Position));
-    }
+    private IEnumerable<Enemy> AdjacentTeamEnemies(TeamBattleEncounter battle, LiveCharacter character) =>
+        TacticalTeamBattleCoordinator.AdjacentTeamEnemies(battle, character, GetCasterPosition(character));
 
-    private IEnumerable<Enemy> ReachableTeamEnemies(TeamBattleEncounter battle, LiveCharacter character)
-    {
-        var adjacent = AdjacentTeamEnemies(battle, character).ToArray();
-        return adjacent.Concat(battle.RearFormationEnemiesInReach(character))
-            .Where(enemy => enemy.CurrentHitPoints > 0)
-            .DistinctBy(enemy => enemy.Id);
-    }
+    private IEnumerable<Enemy> ReachableTeamEnemies(TeamBattleEncounter battle, LiveCharacter character) =>
+        TacticalTeamBattleCoordinator.ReachableTeamEnemies(battle, character, GetCasterPosition(character));
 
     private IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy) =>
-        battle.Characters.Where(character => character.IsAlive &&
-            TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position) &&
-            !battle.IsProtectedRearTarget(character, enemy.Position));
+        TacticalTeamBattleCoordinator.AdjacentTeamCharacters(battle, enemy, GetCasterPosition);
 
-    private IEnumerable<LiveCharacter> TeamEnemyTargets(TeamBattleEncounter battle, Enemy enemy)
-    {
-        var exposed = battle.Characters.Where(character => character.IsAlive &&
-            !battle.IsProtectedRearTarget(character, enemy.Position)).ToArray();
-        return exposed.Length > 0 ? exposed : battle.Characters.Where(character => character.IsAlive);
-    }
+    private IEnumerable<LiveCharacter> TeamEnemyTargets(TeamBattleEncounter battle, Enemy enemy) =>
+        TacticalTeamBattleCoordinator.TeamEnemyTargets(battle, enemy);
 
-    private static IEnumerable<Position> TeamMeleePositions(Position center)
-    {
-        for (var y = center.Y - 1; y <= center.Y + 1; y++)
-        for (var x = center.X - 1; x <= center.X + 1; x++)
-            if (x != center.X || y != center.Y)
-                yield return new Position(x, y);
-    }
+    private static IEnumerable<Position> TeamMeleePositions(Position center) =>
+        TacticalTeamBattleCoordinator.TeamMeleePositions(center);
 
     private CombatantId? TeamBattleFocusTarget(TeamBattleEncounter battle, TacticalBattleParticipant current)
     {
@@ -7650,16 +5876,8 @@ public sealed class Game
         return target is null ? null : CombatantId.ForCharacter(target.Id);
     }
 
-    private Enemy? NextTeamBattleTarget(TeamBattleEncounter battle, LiveCharacter character)
-    {
-        var targets = ReachableTeamEnemies(battle, character).OrderBy(enemy => enemy.Position.Y)
-            .ThenBy(enemy => enemy.Position.X).ThenBy(enemy => enemy.Id.ToString(), StringComparer.Ordinal).ToArray();
-        if (targets.Length == 0) return null;
-        var currentTargetId = battle.SelectedTargetEnemyId ??
-                              targets.OrderBy(enemy => enemy.CurrentHitPoints).First().Id;
-        var selectedIndex = Array.FindIndex(targets, enemy => enemy.Id == currentTargetId);
-        return targets[(selectedIndex + 1) % targets.Length];
-    }
+    private Enemy? NextTeamBattleTarget(TeamBattleEncounter battle, LiveCharacter character) =>
+        TacticalTeamBattleCoordinator.NextTeamBattleTarget(battle, character, GetCasterPosition(character));
 
     private void UpdateTeamBattleFocus(TeamBattleEncounter battle, TacticalBattleParticipant current)
     {
@@ -7683,9 +5901,7 @@ public sealed class Game
     }
 
     private Enemy ClosestLivingTeamEnemy(TeamBattleEncounter battle, Position origin) =>
-        battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
-            .OrderBy(enemy => TacticalDistance.Between(origin, enemy.Position))
-            .ThenBy(enemy => enemy.CurrentHitPoints).First();
+        TacticalTeamBattleCoordinator.ClosestLivingTeamEnemy(battle, origin);
 
     private void MoveTeamCharacterToward(TeamBattleEncounter battle, LiveCharacter character, Position target)
     {
@@ -7877,6 +6093,7 @@ public sealed class Game
         var steps = path.Take(battle.Current.MovementAllowance).ToArray();
         if (steps.Length > 0)
         {
+            _battleNoPathReported.Remove(character.Id);
             battle.RecordMovement(BattleSide.Friendly);
             var previousPosition = GetCasterPosition(character);
             var destination = steps[^1];
@@ -7895,9 +6112,10 @@ public sealed class Game
         }
         var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
         var message = steps.Length > 0
-            ? $"{character.Name} {steps.Length} mezőt mozog.{statusText}"
-            : $"{character.Name} nem talál járható utat.{statusText}";
-        PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
+            ? $"{character.Name}\t👣 {steps.Length} mezőt mozog{statusText}"
+            : $"{character.Name}\t⛔ Nincs járható út{statusText}";
+        if (steps.Length > 0 || _battleNoPathReported.Add(character.Id) || !string.IsNullOrEmpty(statusText))
+            PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
     }
 
@@ -8006,6 +6224,7 @@ public sealed class Game
 
     private void FinishTeamBattleStalemate(TeamBattleEncounter battle)
     {
+        _renderer.DrawBattleCommandPanel(string.Empty);
         _session.EndBattle(battle.Id);
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
             DrainNeedsAfterTeamBattle(character, battle.Turns.Cycle);
@@ -8040,6 +6259,7 @@ public sealed class Game
 
     private void FinishTeamBattle(TeamBattleEncounter battle, bool forceDefeat = false)
     {
+        _renderer.DrawBattleCommandPanel(string.Empty);
         _session.EndBattle(battle.Id);
         var victory = !forceDefeat && battle.HostileSideDefeated && !battle.FriendlySideDefeated;
         var wasQuickBattle = _isQuickTeamBattle;
@@ -8090,234 +6310,6 @@ public sealed class Game
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
     }
 
-    private void StartInteractiveBattle(LiveCharacter battleCharacter, Enemy enemy)
-    {
-        if (_battleStarted) return;
-        CheckBossDiscovery([enemy]);
-        _timeStopUsedThisBattle = false;
-        _battleTacticHintLogged = false;
-        _battleActionHintLogged = false;
-        _turnUndeadUsedThisBattle.Clear();
-        _battleStartingVitality = battleCharacter.CurrentVitality;
-        _battleStartingMana = battleCharacter.CurrentMana;
-        _battleStartingStatusIds = battleCharacter.Statuses.Select(status => status.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
-        _battleStarted = true;
-        _session.SetPhase(GameSessionPhase.Battle);
-        PlaySessionSound(SoundEffect.BattleStart);
-        _renderer.DrawBattleStarted(enemy);
-        TryLogPartyComments(PartySituationIds.BattleStarted);
-        if (battleCharacter != SelectedCharacter)
-        {
-            _renderer.DrawInventoryMessage(
-                $"🎮 Most {battleCharacter.Name} csatázik; a döntéseinél időnként várni kell rá.",
-                ConsoleColor.Yellow);
-            PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
-        }
-        var started = _battleSystem.StartBattle(battleCharacter, enemy);
-        _activeBattleState = started.State;
-        TryAssignKnightProtection(_activeBattleState, battleCharacter);
-        PresentBattleEntries(started.Entries);
-        ContinueActiveBattle();
-    }
-
-    private void ContinueActiveBattle()
-    {
-        while (_activeBattleState is { IsCompleted: false } state)
-        {
-            if (state.IsOpeningEnemyTurn)
-            {
-                var openingSupportDamage = TryPartyMembersActInBattle(state.Player, state.Enemy);
-                var openingStep = _battleSystem.Advance(state, supportDamage: openingSupportDamage);
-                PresentBattleEntries(openingStep.Entries);
-                continue;
-            }
-            if (state.IsAwaitingTacticSelection)
-            {
-                var battleCharacter = state.Player;
-                _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
-                    GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
-                PublishBattleControlHintOnce(state, state.Enemy);
-                return;
-            }
-            if (state.IsPlayerTurn)
-            {
-                var battleCharacter = state.Player;
-                _pendingBattleSupportDamage = TryPartyMembersActInBattle(battleCharacter, state.Enemy);
-                if (_pendingBattleSupportDamage < state.CurrentEnemyHitPoints)
-                {
-                    _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
-                        GetAllowedBattleActions(battleCharacter, GetCasterPosition(battleCharacter), state.Enemy));
-                    PublishBattleControlHintOnce(state, state.Enemy);
-                    return;
-                }
-                var supportStep = _battleSystem.Advance(state, supportDamage: _pendingBattleSupportDamage);
-                _pendingBattleSupportDamage = 0;
-                PresentBattleEntries(supportStep.Entries);
-                continue;
-            }
-
-            _session.SetBattlePrompt(state.Id, state.TurnId, state.PlayerCharacterId,
-                [BattleActionKind.AdvanceEnemyTurn]);
-            return;
-        }
-        if (_activeBattleState is { IsCompleted: true }) FinishActiveBattle();
-    }
-
-    private void ResolveActiveBattleAction(BattlePlayerAction? action, bool spellCanKillEnemy = false)
-    {
-        if (_activeBattleState is not { IsCompleted: false, IsPlayerTurn: true } state) return;
-        var step = _battleSystem.Advance(state, action, _pendingBattleSupportDamage);
-        _pendingBattleSupportDamage = 0;
-        if (spellCanKillEnemy && step.Result is { PlayerWon: true })
-            PlaySessionSound(SoundEffect.MonsterKilledBySpell);
-        PresentBattleEntries(step.Entries);
-        ContinueActiveBattle();
-    }
-
-    private void ResolveActiveEnemyTurn()
-    {
-        if (_activeBattleState is not { IsCompleted: false, IsPlayerTurn: false } state) return;
-        var supportDamage = TryPartyMembersActInBattle(state.Player, state.Enemy);
-        var step = _battleSystem.Advance(state, supportDamage: supportDamage);
-        if (step.Result is { PlayerWon: true } && step.Entries.Any(entry =>
-                entry.Message.Contains("elbukik a varázshatásoktól", StringComparison.OrdinalIgnoreCase)))
-            PlaySessionSound(SoundEffect.MonsterKilledBySpell);
-        PresentBattleEntries(step.Entries);
-        ContinueActiveBattle();
-    }
-
-    private void FinishActiveBattle()
-    {
-        if (_activeBattleState is not { IsCompleted: true, Result: { } result } state) return;
-        var enemy = state.Enemy;
-        var battleCharacter = state.Player;
-        _session.EndBattle(state.Id);
-        _activeBattleState = null;
-        _pendingBattleSupportDamage = 0;
-        var vitalityLost = Math.Max(0, _battleStartingVitality - battleCharacter.CurrentVitality);
-        var manaLost = Math.Max(0, _battleStartingMana - battleCharacter.CurrentMana);
-        var gainedStatusIcons = battleCharacter.Statuses
-            .Where(status => !_battleStartingStatusIds.Contains(status.Id))
-            .Select(status => status.Icon)
-            .ToArray();
-        if (battleCharacter != SelectedCharacter)
-        {
-            FinishRemoteBattle(state, result, battleCharacter, enemy, vitalityLost, manaLost, gainedStatusIcons);
-            return;
-        }
-        var needLoss = DrainNeedsAfterBattle(SelectedCharacter, enemy.Definition.StrengthTier);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
-
-        if (result.PlayerWon)
-        {
-            AwardBossKey(enemy);
-            PlayBattleVictorySound();
-            var experienceAwards = DistributeExperience(SelectedCharacter, enemy.Definition.ExperienceReward);
-            RegisterNpcQuestKill(enemy);
-            SelectedCharacter.RecordMonsterKill(enemy.Definition.Id);
-            _maze.ReplaceEnemyWithCorpse(enemy);
-            _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
-            var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,
-                manaLost, gainedStatusIcons, needLoss);
-            RecordSessionActivity(SessionActivityKind.Battle,
-                victoryMessage, ConsoleColor.Green);
-            _renderer.DrawBattleResult(result, enemy, victoryMessage);
-            _renderer.DrawExperienceDistribution(FormatExperienceAwards(experienceAwards),
-                experienceAwards.Any(award => award.Result.LeveledUp));
-            TryLogPartyComments(PartySituationIds.BattleWon);
-            _renderer.RefreshCharacterSheet(SelectedCharacter);
-            var levelUps = _pendingLevelUps.ToList();
-            _pendingLevelUps.Clear();
-            levelUps.AddRange(experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive)
-                .Select(award => (award.Character, award.Result)));
-            if (levelUps.Count > 0)
-            {
-                foreach (var (character, levelUpResult) in levelUps) ResolvePerkOffers(character, levelUpResult);
-                _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-            }
-            if (_saveAfterBattle)
-            {
-                _saveAfterBattle = false;
-                SaveGame();
-            }
-            InitializeEnemyMoveSchedule(DateTime.UtcNow);
-            _battleStarted = false;
-            _session.SetPhase(GameSessionPhase.Exploration);
-            _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
-            return;
-        }
-
-        _renderer.DrawBattleResult(result, enemy);
-        PlaySessionSound(SoundEffect.MemberKilled);
-        TryLogPartyComments(PartySituationIds.PartyMemberDied);
-        _saveAfterBattle = false;
-        _renderer.DrawInventoryMessage($"A csata kifárasztott: 🍖 -{needLoss}, 💧 -{needLoss}.", ConsoleColor.DarkYellow);
-        _renderer.DrawGameOver(SelectedCharacter.Name);
-        _gameOver = true;
-        _session.SetPhase(GameSessionPhase.GameOver);
-    }
-
-    private void FinishRemoteBattle(BattleState state, BattleResult result, LiveCharacter battleCharacter,
-        Enemy enemy, int vitalityLost, int manaLost, IReadOnlyList<string> gainedStatusIcons)
-    {
-        var needLoss = DrainNeedsAfterBattle(battleCharacter, enemy.Definition.StrengthTier);
-        var companionDied = !result.PlayerWon;
-        if (result.PlayerWon)
-        {
-            AwardBossKey(enemy);
-            PlayBattleVictorySound();
-            var experienceAwards = DistributeExperience(battleCharacter, enemy.Definition.ExperienceReward);
-            RegisterNpcQuestKill(enemy);
-            battleCharacter.RecordMonsterKill(enemy.Definition.Id);
-            _maze.ReplaceEnemyWithCorpse(enemy);
-            _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
-            var victoryMessage = ConsoleRenderer.FormatBattleVictorySummary(result, enemy, vitalityLost,
-                manaLost, gainedStatusIcons, needLoss);
-            RecordSessionActivity(SessionActivityKind.Battle,
-                victoryMessage, ConsoleColor.Green);
-            _renderer.DrawBattleResult(result, enemy, victoryMessage);
-            _renderer.DrawNpcBattleSummary(
-                $"{battleCharacter.Name}: {FormatExperienceAwards(experienceAwards)}.", ConsoleColor.Green);
-            TryLogPartyComments(PartySituationIds.BattleWon);
-            var levelUps = experienceAwards.Where(award => award.Result.LeveledUp && award.Character.IsAlive).ToList();
-            // Az első vertical slice-ban a perk-/varázsválasztás még a host konzolján történik.
-            foreach (var award in levelUps) ResolvePerkOffers(award.Character, award.Result);
-        }
-        else
-        {
-            _renderer.DrawBattleResult(result, enemy);
-            PlaySessionSound(SoundEffect.MemberKilled);
-            var member = _maze.PartyMembers.FirstOrDefault(candidate => candidate.Character == battleCharacter);
-            if (member is not null)
-            {
-                _maze.ReplacePartyMemberWithCorpse(member);
-                _nextPartyMoves.Remove(member);
-            }
-            _activeCoopHost?.TryPublishCharacterState(battleCharacter.Id,
-                _gameSaveService.SerializeCharacter(battleCharacter), CharacterSyncReason.CharacterDied);
-            _session.ReleaseCharacterControl(battleCharacter.Id);
-            _renderer.DrawNpcBattleSummary(
-                $"{battleCharacter.Name} elesett a(z) {enemy.Name} elleni távoli csatában {result.Rounds} kör után. " +
-                $"A vendég visszatér a főmenübe; 🍖💧 -{needLoss}.", ConsoleColor.Red);
-            TryLogPartyComments(PartySituationIds.PartyMemberDied);
-        }
-
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
-        InitializeEnemyMoveSchedule(DateTime.UtcNow);
-        _battleStarted = false;
-        _session.SetPhase(GameSessionPhase.Exploration);
-        _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
-        if (companionDied)
-        {
-            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
-            _renderer.DrawCompanionDeath(battleCharacter.Name);
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        }
-    }
-
     private void SetHelpVisibility(PlayerId playerId, CharacterId characterId, bool isOpen)
     {
         var characterName = CharacterRoster.Party.Members
@@ -8349,64 +6341,18 @@ public sealed class Game
 
     private void DrainNeeds()
     {
-        var hungry = _gameData.GetStatus(CharacterStatusIds.Hungry);
-        var thirsty = _gameData.GetStatus(CharacterStatusIds.Thirsty);
         var followers = _maze.PartyMembers.Where(member => member.IsTemporaryFollower)
             .Select(member => member.Character);
-        foreach (var character in CharacterRoster.Party.Members.Concat(followers).Distinct()
-                     .Where(character => character.IsAlive))
-        {
-            var foodBefore = character.FoodLevel;
-            var waterBefore = character.WaterLevel;
-            var foodLoss = 2 + character.MaximumVitality / 60;
-            character.ConsumeFood(foodLoss);
-            var waterLoss = 2;
-            if (character.CurrentVitality < character.MaximumVitality) waterLoss++;
-            if (character.CurrentVitality * 2 < character.MaximumVitality) waterLoss++;
-            character.ConsumeWater(waterLoss);
-            character.SynchronizeNeedStatuses(hungry, thirsty);
-            if (IsAutonomousNpc(character))
-            {
-                LogNewZeroNeed(character, NpcComplaintKind.Hunger, foodBefore, character.FoodLevel);
-                LogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
-                TryNpcUseConsumables(character);
-            }
-        }
+        var characters = CharacterRoster.Party.Members.Concat(followers).Distinct();
+        _sustenanceService.DrainNeeds(characters, IsAutonomousNpc, LogNewZeroNeed, TryNpcUseConsumables);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
     }
 
-    private int DrainNeedsAfterBattle(LiveCharacter character, int monsterTier)
-    {
-        var foodBefore = character.FoodLevel;
-        var waterBefore = character.WaterLevel;
-        var loss = _random.Next(1, 6) + Math.Clamp(monsterTier, 1, 5);
-        character.ConsumeFood(loss);
-        character.ConsumeWater(loss);
-        character.SynchronizeNeedStatuses(
-            _gameData.GetStatus(CharacterStatusIds.Hungry),
-            _gameData.GetStatus(CharacterStatusIds.Thirsty));
-        if (IsAutonomousNpc(character))
-        {
-            LogNewZeroNeed(character, NpcComplaintKind.Hunger, foodBefore, character.FoodLevel);
-            LogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
-        }
-        return loss;
-    }
+    private int DrainNeedsAfterBattle(LiveCharacter character, int monsterTier) =>
+        _sustenanceService.DrainNeedsAfterBattle(character, monsterTier, IsAutonomousNpc, LogNewZeroNeed);
 
-    private void DrainNeedsAfterTeamBattle(LiveCharacter character, int cycles)
-    {
-        var foodBefore = character.FoodLevel;
-        var waterBefore = character.WaterLevel;
-        var loss = Math.Max(1, cycles);
-        character.ConsumeFood(loss);
-        character.ConsumeWater(loss);
-        character.SynchronizeNeedStatuses(
-            _gameData.GetStatus(CharacterStatusIds.Hungry),
-            _gameData.GetStatus(CharacterStatusIds.Thirsty));
-        if (!IsAutonomousNpc(character)) return;
-        LogNewZeroNeed(character, NpcComplaintKind.Hunger, foodBefore, character.FoodLevel);
-        LogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
-    }
+    private void DrainNeedsAfterTeamBattle(LiveCharacter character, int cycles) =>
+        _sustenanceService.DrainNeedsAfterTeamBattle(character, cycles, IsAutonomousNpc, LogNewZeroNeed);
 
     private bool IsAutonomousNpc(LiveCharacter character) =>
         character != SelectedCharacter && !_session.IsHumanControlled(character.Id) &&
@@ -8491,14 +6437,11 @@ public sealed class Game
     }
 
     private static IEnumerable<(int Index, MiscItemDefinition Item)> BackpackConsumables(
-        LiveCharacter character, ConsumableEffect effect) => Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
-        .Select(index => (Index: index,
-            Item: character.GetInventoryItem(InventorySlotKind.Backpack, index) as MiscItemDefinition))
-        .Where(entry => entry.Item?.Effect == effect)
-        .Select(entry => (entry.Index, entry.Item!));
+        LiveCharacter character, ConsumableEffect effect) =>
+        PartySustenanceService.BackpackConsumables(character, effect);
 
     private static bool HasHealingPotion(LiveCharacter character) =>
-        BackpackConsumables(character, ConsumableEffect.Heal).Any();
+        PartySustenanceService.HasHealingPotion(character);
 
     private void LogNewZeroNeed(LiveCharacter character, NpcComplaintKind kind, int previous, int current)
     {
@@ -8605,91 +6548,38 @@ public sealed class Game
         LogPartyComment(character, selection.Remark.Text, level);
     }
 
-    private void LogPartyComment(LiveCharacter speaker, string comment, string? level = null)
-    {
-        var message = PartyCommentarySelector.Format(speaker, comment, level);
-        _renderer.DrawInventoryMessage(message, speaker.Color);
-        RecordSessionActivity(SessionActivityKind.System, message, speaker.Color);
-    }
-
-    private void PlayBattleRoundSound(BattleLogEntry entry)
-    {
-        if (entry.Kind is not (BattleLogKind.PlayerAttack or BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)) return;
-        var battle = _activeBattleState;
-        var listeners = battle is not null
-            ? new[] { battle.PlayerCharacterId, SelectedCharacter.Id }.Distinct().ToArray()
-            : [SelectedCharacter.Id];
-        var missed = entry.Message.Contains("💨", StringComparison.Ordinal);
-        var enemyHitPlayer = !missed && battle is not null &&
-            entry.Message.Contains($"{battle.Enemy.Name} támadja {battle.Player.Name}", StringComparison.Ordinal);
-        if (enemyHitPlayer)
-            PlaySessionSound(SoundEffect.PlayerGotHit, [battle!.PlayerCharacterId]);
-        else
-            PlaySessionSound(missed ? SoundEffect.Miss : SoundEffect.Hit, listeners);
-    }
+    private void LogPartyComment(LiveCharacter speaker, string comment, string? level = null) =>
+        _sessionEventService.LogPartyComment(speaker, comment, level);
 
     private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries)
     {
-        foreach (var entry in entries)
-        {
-            if (_isQuickTeamBattle)
-            {
-                _quickBattleSuppressedEntryCount++;
-                RecordSessionActivity(SessionActivityKind.Battle, entry.Message, BattleEntryColor(entry.Kind));
-                continue;
-            }
-            _renderer.DrawBattleRound(entry);
-            RecordSessionActivity(SessionActivityKind.Battle, entry.Message, BattleEntryColor(entry.Kind));
-            PlayBattleRoundSound(entry);
-            _renderer.RefreshBattleStatusRows();
-        }
+        _sessionEventService.PresentBattleEntries(
+            entries,
+            _isQuickTeamBattle,
+            entry => _renderer.DrawBattleRound(entry),
+            _ => _renderer.RefreshBattleStatusRows(),
+            null,
+            SelectedCharacter.Id,
+            _ => _quickBattleSuppressedEntryCount++);
     }
 
     private void RecordSessionActivity(SessionActivityKind kind, string message, ConsoleColor color,
-        IReadOnlyCollection<CharacterId>? listeners = null)
-    {
-        if (string.IsNullOrWhiteSpace(message)) return;
-        _sessionActivities.Enqueue(new SessionActivitySnapshot(++_sessionActivitySequence, kind, message, color,
-            listeners?.Distinct().ToArray()));
-        while (_sessionActivities.Count > 24) _sessionActivities.Dequeue();
-    }
+        IReadOnlyCollection<CharacterId>? listeners = null) =>
+        _sessionEventService.RecordSessionActivity(kind, message, color, listeners);
 
-    private void PlayCharacterStepSound(LiveCharacter character)
-    {
-        switch (_random.Next(20))
-        {
-            case 0: PlaySessionSound(SoundEffect.Step1, [character.Id]); break;
-            case 1: PlaySessionSound(SoundEffect.Step2, [character.Id]); break;
-            case 2: PlaySessionSound(SoundEffect.Step3, [character.Id]); break;
-            case 3: PlaySessionSound(SoundEffect.Step4, [character.Id]); break;
-            case 4: PlaySessionSound(SoundEffect.Step5, [character.Id]); break;
-        }
-    }
+    private void PlayCharacterStepSound(LiveCharacter character) =>
+        _sessionEventService.PlayCharacterStepSound(character, SelectedCharacter.Id);
 
     private void PlayBattleVictorySound() =>
-        PlaySessionSound(_random.Next(2) == 0 ? SoundEffect.Victory : SoundEffect.Victory2);
+        _sessionEventService.PlayBattleVictorySound(SelectedCharacter.Id);
 
-    private void PlaySessionSound(SoundEffect effect, IReadOnlyCollection<CharacterId>? listeners = null)
-    {
-        var listenerIds = listeners?.Distinct().ToArray();
-        RecordSessionSound(effect, listenerIds);
-        if (listenerIds is not null && !listenerIds.Contains(SelectedCharacter.Id)) return;
-        _soundEffects.Play(effect);
-    }
+    private void PlaySessionSound(SoundEffect effect, IReadOnlyCollection<CharacterId>? listeners = null) =>
+        _sessionEventService.PlaySessionSound(effect, listeners, SelectedCharacter.Id);
 
-    private void RecordSessionSound(SoundEffect effect, IReadOnlyList<CharacterId>? listenerCharacterIds)
-    {
-        _sessionSounds.Enqueue(new SessionSoundSnapshot(++_sessionSoundSequence, effect, listenerCharacterIds));
-        while (_sessionSounds.Count > 48) _sessionSounds.Dequeue();
-    }
+    private void RecordSessionSound(SoundEffect effect, IReadOnlyList<CharacterId>? listenerCharacterIds) =>
+        _sessionEventService.RecordSessionSound(effect, listenerCharacterIds);
 
-    private static ConsoleColor BattleEntryColor(BattleLogKind kind) => kind switch
-    {
-        BattleLogKind.PlayerAttack => ConsoleColor.Green,
-        BattleLogKind.EnemyAttack => ConsoleColor.Red,
-        BattleLogKind.CriticalHit => ConsoleColor.Yellow,
-        _ => ConsoleColor.Gray
-    };
+    private static ConsoleColor BattleEntryColor(BattleLogKind kind) => SessionEventService.BattleEntryColor(kind);
 
     private void TeleportLeaderNearExit()
     {
@@ -8828,14 +6718,8 @@ public sealed class Game
     }
 
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source, long SourceRevision);
-    private sealed record ExpeditionEnemyTemplate(string DefinitionId, Position Position,
-        EnemyMovementProfile MovementProfile, Direction PatrolDirection, string? GroupId, EnemyGroupRole GroupRole);
     private sealed record DeveloperUniqueNpcTarget(NpcDefinition Definition, int MazeLevel);
     private sealed record NpcTeamSpellPlan(SpellDefinition Spell, Position Target, Enemy? Enemy, bool Offensive);
-    private sealed record SpellCastAttempt(bool ConsumesTurn, string Message, BattleLogKind Kind,
-        int DamageToCurrentEnemy = 0, int ExtraPlayerActions = 0);
-    private sealed record SpellExecutionResult(int DamageToCurrentEnemy, int ExtraPlayerActions, string Summary);
-    private sealed record SpellResolutionResult(bool Applies, bool Half, bool Critical, string Text);
 
     private void FillPartyForDevelopment(IReadOnlyList<string> characterClassIds, string setName)
     {
@@ -8952,24 +6836,8 @@ public sealed class Game
         _gameData.GetCharacterResourceGrowth(SelectedCharacter.CharacterClass.Id),
         _random);
 
-    private IReadOnlyList<ExperienceAward> DistributeExperience(LiveCharacter winner, int totalExperience)
-    {
-        var total = Math.Max(0, totalExperience);
-        var others = CharacterRoster.Party.Members
-            .Where(character => character != winner && character.IsAlive)
-            .ToList();
-        if (others.Count == 0)
-            return [AwardExperience(winner, total)];
-
-        var winnerShare = total * 60 / 100;
-        var remainder = total - winnerShare;
-        var sharedBase = remainder / others.Count;
-        var sharedRemainder = remainder % others.Count;
-        var awards = new List<ExperienceAward> { AwardExperience(winner, winnerShare) };
-        for (var index = 0; index < others.Count; index++)
-            awards.Add(AwardExperience(others[index], sharedBase + (index < sharedRemainder ? 1 : 0)));
-        return awards;
-    }
+    private IReadOnlyList<ExperienceAward> DistributeExperience(LiveCharacter winner, int totalExperience) =>
+        _progressionService.DistributeExperience(winner, totalExperience, CharacterRoster.Party.Members);
 
     private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002",
         // Witcher-only consumables (potions and medical supplies)
@@ -8983,18 +6851,14 @@ public sealed class Game
         .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item))
         .Where(item => !MerchantExcludedItemIds.Contains(item.Id)).ToList();
 
-    private ExperienceAward AwardExperience(LiveCharacter character, int amount) => new(character,
-        character.AddExperience(amount, _gameData.ExperienceByLevel,
-            _gameData.GetVitalityGrowth(character.Abilities.Health),
-            _gameData.GetManaGrowth(character.Abilities.Intelligence),
-            _gameData.GetCharacterResourceGrowth(character.CharacterClass.Id), _random));
+    private ExperienceAward AwardExperience(LiveCharacter character, int amount) =>
+        _progressionService.AwardExperience(character, amount);
 
     private LevelUpResult AwardExperienceResult(LiveCharacter character, int amount) =>
-        AwardExperience(character, amount).Result;
+        _progressionService.AwardExperienceResult(character, amount);
 
-    private static string FormatExperienceAwards(IEnumerable<ExperienceAward> awards) => string.Join("; ", awards.Select(award =>
-        $"{award.Character.Name} +{award.Result.GainedExperience}" +
-        (award.Result.LeveledUp ? $" (L{award.Result.PreviousLevel}→L{award.Result.CurrentLevel})" : string.Empty)));
+    private static string FormatExperienceAwards(IEnumerable<ExperienceAward> awards) =>
+        CharacterProgressionService.FormatExperienceAwards(awards);
 
     private void GrantPartyExperienceForDevelopment()
     {
@@ -9076,8 +6940,7 @@ public sealed class Game
     }
 
     private static bool ShouldChooseSpecialization(LiveCharacter character, IReadOnlyList<PerkOffer> offers) =>
-        character.SpecializationId is null && ClassSpecializations.ForClass(character.CharacterClass.Id).Count > 0 &&
-        (offers.Any(offer => offer.Tier == 1) || character.Perks.Any(perk => perk.Tier == 1));
+        CharacterProgressionService.ShouldChooseSpecialization(character, offers);
 
     private void ResolveLocalSpecialization(LiveCharacter character)
     {
@@ -9099,16 +6962,8 @@ public sealed class Game
         character.ChooseSpecialization(choices.FirstOrDefault(choice => choice.Id == selectedId)?.Id ?? choices[0].Id);
     }
 
-    private static IEnumerable<int> PendingClassFeatureMilestones(LiveCharacter character, LevelUpResult result)
-    {
-        var acquired = character.ClassFeatureUpgrades.Count;
-        foreach (var milestone in new[] { 10, 20 })
-        {
-            if (result.CurrentLevel < milestone || acquired >= milestone / 10) continue;
-            acquired++;
-            yield return milestone;
-        }
-    }
+    private static IEnumerable<int> PendingClassFeatureMilestones(LiveCharacter character, LevelUpResult result) =>
+        CharacterProgressionService.PendingClassFeatureMilestones(character, result);
 
     private void ResolveLocalClassFeatureUpgrades(LiveCharacter character, LevelUpResult result)
     {
@@ -9140,23 +6995,7 @@ public sealed class Game
     }
 
     private static IReadOnlyList<(string Id, string Name, string Description)> AbilityIncreaseChoices(
-        LiveCharacter character)
-    {
-        var choices = new List<(string, string, string)>();
-        if (character.Abilities.Strength < 13)
-            choices.Add(("STR", $"💪 Erő: {character.Abilities.Strength} → {character.Abilities.Strength + 1}",
-                "Növeli a közelharci sebzést, és a harci osztályok találati bónuszát is elérheti."));
-        if (character.Abilities.Dexterity < 13)
-            choices.Add(("DEX", $"🏹 Ügyesség: {character.Abilities.Dexterity} → {character.Abilities.Dexterity + 1}",
-                "Javítja a fegyveres találatot, a kezdeményezést és az ellenséges támadások elleni védelmet."));
-        if (character.Abilities.Health < 13)
-            choices.Add(("HEA", $"❤️ Egészség: {character.Abilities.Health} → {character.Abilities.Health + 1}",
-                "Azonnal növelheti az alap HP-t, és a következő szintlépések HP-növekedését is javítja."));
-        if (character.Abilities.Intelligence < 13)
-            choices.Add(("INT", $"🧠 Intelligencia: {character.Abilities.Intelligence} → {character.Abilities.Intelligence + 1}",
-                "Erősíti a varázslatokat, csökkenti a kudarcot, és azonnal növelheti az alap mannát is."));
-        return choices;
-    }
+        LiveCharacter character) => CharacterProgressionService.AbilityIncreaseChoices(character);
 
     private void ResolveLocalAbilityIncreases(LiveCharacter character, LevelUpResult result)
     {
@@ -9191,40 +7030,19 @@ public sealed class Game
 
     private bool ApplyAbilityIncrease(LiveCharacter character, string abilityId)
     {
-        var oldVitalityBase = _gameData.GetMinimumVitality(character.Abilities.Health);
-        var oldManaBase = character.UsesMana
-            ? CharacterClassRules.AdjustStartingMana(character.CharacterClass.Id,
-                _gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
-            : 0;
-        if (!character.TryIncreaseAbility(abilityId)) return false;
-        var newVitalityBase = _gameData.GetMinimumVitality(character.Abilities.Health);
-        var newManaBase = character.UsesMana
-            ? CharacterClassRules.AdjustStartingMana(character.CharacterClass.Id,
-                _gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
-            : 0;
-        character.ApplyAbilityResourceIncrease(newVitalityBase - oldVitalityBase, newManaBase - oldManaBase);
+        if (!_progressionService.ApplyAbilityIncrease(character, abilityId)) return false;
         PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
         return true;
     }
 
     private static int EarnedWeaponProficiencyAdvances(LiveCharacter character, int level) =>
-        WeaponProficiencyProgression.EarnedAdvances(character.CharacterClass.Id, level);
+        CharacterProgressionService.EarnedWeaponProficiencyAdvances(character, level);
 
     private IReadOnlyList<(string Id, string Name, string Description)> WeaponProficiencyChoices(
-        LiveCharacter character) => WeaponFamilies.AvailableFor(character.CharacterClass.Id, _gameData.Weapons)
-        .Where(family => character.WeaponProficiencyRankFor(family.Id) != WeaponProficiencyRank.Master &&
-                         (character.WeaponProficiencies.Count < 2 ||
-                          character.WeaponProficiencyRankFor(family.Id) is not null))
-        .Select(family => character.WeaponProficiencyRankFor(family.Id) is null
-            ? (family.Id, $"{family.Icon} {family.Name} — Jártas", family.TrainedDescription)
-            : (family.Id, $"{family.Icon} {family.Name} — Mester", family.MasterDescription))
-        .ToArray();
+        LiveCharacter character) => _progressionService.WeaponProficiencyChoices(character);
 
-    private static int NextWeaponProficiencyMilestone(LiveCharacter character)
-    {
-        var index = character.WeaponProficiencyAdvances;
-        return WeaponProficiencyProgression.MilestonesFor(character.CharacterClass.Id).ElementAtOrDefault(index);
-    }
+    private static int NextWeaponProficiencyMilestone(LiveCharacter character) =>
+        CharacterProgressionService.NextWeaponProficiencyMilestone(character);
 
     private void ResolveLocalWeaponProficiencies(LiveCharacter character, LevelUpResult result)
     {
@@ -9353,26 +7171,7 @@ public sealed class Game
         }
     }
 
-    private sealed record ExperienceAward(LiveCharacter Character, LevelUpResult Result);
-
-    private enum NpcComplaintKind { Hunger, Thirst, Injured }
-
-    private sealed record BossNarrative(string ChapterTitle, IReadOnlyList<string> Speech);
-
-    private IReadOnlyList<PerkOffer> CreatePerkOffers(LiveCharacter character, LevelUpResult result)
-    {
-        var offers = new List<PerkOffer>();
-        for (var tier = 1; tier <= 3; tier++)
-        {
-            if (character.Perks.Any(perk => perk.Tier == tier)) continue;
-            var milestone = PerkProgressionRules.TriggerLevel(character.Race, tier);
-            if (result.CurrentLevel < milestone) continue;
-
-            // Régi mentésnél a következő szintlépés pótolja a már elhagyott, de ki nem választott tehetséget.
-            var triggerLevel = result.PreviousLevel < milestone ? milestone : result.CurrentLevel;
-            offers.Add(new PerkOffer(tier, triggerLevel, _gameData.GetPerkChoices(character.CharacterClass.Id, tier)));
-        }
-        return offers;
-    }
+    private IReadOnlyList<PerkOffer> CreatePerkOffers(LiveCharacter character, LevelUpResult result) =>
+        _progressionService.CreatePerkOffers(character, result);
 
 }

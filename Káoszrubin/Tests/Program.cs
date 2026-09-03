@@ -3830,8 +3830,8 @@ static void EquipmentWeightAffectsMobility()
            heavy.InitiativeBase < light.InitiativeBase &&
            heavy.CombatMovementAllowance < light.CombatMovementAllowance &&
            data.GetWeapon("W001").Weight == 1 && data.GetWeapon("W009").Weight == 7 &&
-           data.GetArmor("A006").Weight == 12 && data.GetItem("T001").Weight == 1 &&
-           data.GetMagicItem("M001").Weight == 1,
+           data.GetArmor("A006").Weight == 12 && Math.Abs(data.GetItem("T001").Weight - 0.2) < 0.001 &&
+           Math.Abs(data.GetMagicItem("M001").Weight - 0.1) < 0.001,
         "A súlyadatok vagy a leterheltségi mozgásprofil hibás.");
 }
 
@@ -3864,7 +3864,7 @@ static void MobilityPreviewIsVisible()
     var loadLine = panel.Single(line => line.Row == 17);
     Assert(loadLine.Text + loadLine.ColoredSuffix == "FEGYVEREK ⚔ ⚖ 9  ⚡ 8" &&
            panel.All(line => line.Row != 21) &&
-           panel.Single(line => line.Row == 26).Text == "HÁTIZSÁK 2/12 ⚖ 27/24" &&
+           panel.Single(line => line.Row == 26).Text == $"HÁTIZSÁK 2/12 ⚖ {27.0:F1}/24" &&
            snapshot.CharacterSheet!.CarriedWeight == 27 &&
            snapshot.CharacterSheet.ExplorationMovementAllowance == 2 &&
            inspection.Text.Contains("súly: 12", StringComparison.Ordinal) &&

@@ -17,7 +17,7 @@ public sealed class CoopGuestScreen
     private readonly GameDataCatalog _gameData;
     private readonly SoundEffects _soundEffects;
     private readonly BackgroundMusicPlayer _backgroundMusic;
-    private readonly MusicSettingsService _musicSettings;
+    private readonly GameSettingsService _musicSettings;
     private int _redrawRequested = 1;
     private static int MessageLineCount => ConsoleRenderer.MessageLogLineCount;
     private static int MessageBufferLineCount => ConsoleRenderer.MessageLogBufferLineCount;
@@ -63,15 +63,18 @@ public sealed class CoopGuestScreen
     private IReadOnlyList<Position> _doorTargetCandidates = [];
     private int _doorTargetSelection;
     private GuestRenderFrame? _lastFrame;
+    private readonly BattleCommandPanel _battleCommandPanel = new(
+        ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', BattleCommandPanel.Width),
+        ConsoleColor.Cyan);
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData,
-        MusicSettingsService? musicSettings = null)
+        GameSettingsService? musicSettings = null)
     {
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
         _gameData = gameData ?? throw new ArgumentNullException(nameof(gameData));
         _soundEffects = new SoundEffects(message => SetMessage(message, ConsoleColor.DarkYellow));
-        _musicSettings = musicSettings ?? new MusicSettingsService();
+        _musicSettings = musicSettings ?? new GameSettingsService();
         _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
             message => SetMessage(message, ConsoleColor.DarkYellow));
     }
@@ -1411,15 +1414,15 @@ public sealed class CoopGuestScreen
                 ? messages[messageIndex]
                 : new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
         }
-        if (snapshot.Battle is { Participants.Count: > 0 } activeBattle)
-        {
-            var queue = string.Join(" › ", activeBattle.Participants
-                .OrderByDescending(participant => participant.Initiative)
-                .Take(6)
-                .Select(participant => (participant.IsCurrent ? "▶" : string.Empty) + participant.Name));
-            footer[0] = new GuestTextLine($"⚡ {activeBattle.Cycle}. kör: {queue}",
-                ConsoleColor.Yellow, ConsoleColor.Black);
-        }
+        var commandSegments = snapshot.Battle is { } battle
+            ? BattleCommandPanel.FormatWithHighlighting(battle.AllowedActions, battle.TacticOptions,
+                !battle.IsPlayerTurn, _battleCommandPanel.HotkeyColor)
+            : [];
+        var commandLine = commandSegments.Count == 0
+            ? _battleCommandPanel.Close()
+            : _battleCommandPanel.OpenWithHighlighting(commandSegments);
+        footer[0] = new GuestTextLine(commandLine, _battleCommandPanel.Foreground,
+            _battleCommandPanel.Background, Segments: commandSegments.Count == 0 ? null : commandSegments);
         if (_targetedBattleSpell is { } targeted && _spellTargetCursor is { } cursor)
             footer[^1] = new GuestTextLine($"╳ {targeted.Name} — {ConsoleRenderer.SpellTargetName(targeted.TargetType)}, " +
                 $"táv {targeted.Range}{(targeted.AreaRadius > 0 ? $", sugár {targeted.AreaRadius}" : string.Empty)} | " +
@@ -1826,9 +1829,8 @@ public sealed class CoopGuestScreen
                     WriteMapCell(x, mapTop + y, frame.Map[x, y]);
         }
 
-        if (fullRedraw)
-            WriteAt(0, frame.MapHeight, new GuestTextLine(new string('─', frame.MapWidth),
-                ConsoleColor.DarkCyan, ConsoleColor.Black), frame.MapWidth);
+        if (fullRedraw || previous!.Footers[0] != frame.Footers[0])
+            WriteAt(2, frame.MapHeight, frame.Footers[0], Math.Max(1, frame.MapWidth - 4));
 
         for (var row = 0; row < frame.Panel.Length; row++)
         {
@@ -1859,9 +1861,9 @@ public sealed class CoopGuestScreen
             WritePartyStatusAt(frame.MapWidth + 3, row, status);
         }
 
-        for (var row = 0; row < frame.Footers.Length; row++)
+        for (var row = 1; row < frame.Footers.Length; row++)
             if (fullRedraw || previous!.Footers[row] != frame.Footers[row])
-                WriteAt(2, frame.MapHeight + 1 + row, frame.Footers[row], Math.Max(1, frame.MapWidth - 4));
+                WriteAt(2, frame.MapHeight + row, frame.Footers[row], Math.Max(1, frame.MapWidth - 4));
 
         Console.ResetColor();
         TrySetCursorPosition(0, Math.Min(frame.WindowHeight - 1, frame.MapHeight + frame.Footers.Length));
@@ -1880,14 +1882,35 @@ public sealed class CoopGuestScreen
         if (!TrySetCursorPosition(x, y)) return;
         Console.ForegroundColor = line.Foreground;
         Console.BackgroundColor = line.Background;
+        if (line.Segments is { Count: > 0 })
+        {
+            var text = string.Concat(line.Segments.Select(segment => segment.Text));
+            if (text.Length > width) text = text[..width];
+            var leftPadding = Math.Max(0, (width - text.Length) / 2);
+            Console.Write(new string(' ', leftPadding));
+            var remaining = Math.Min(width - leftPadding, text.Length);
+            var offset = 0;
+            foreach (var segment in line.Segments)
+            {
+                if (offset >= remaining) break;
+                var segmentText = segment.Text[..Math.Min(segment.Text.Length, remaining - offset)];
+                Console.ForegroundColor = segment.Color ?? line.Foreground;
+                Console.Write(segmentText);
+                offset += segmentText.Length;
+            }
+            Console.ForegroundColor = line.Foreground;
+            Console.Write(new string(' ', Math.Max(0, width - leftPadding - offset)));
+            return;
+        }
         if (string.IsNullOrEmpty(line.ColoredSuffix))
         {
-            Console.Write(FitConsoleLine(line.Text, width));
+            Console.Write(FitConsoleLine(ExpandTabs(line.Text), width));
             return;
         }
         var suffix = line.ColoredSuffix[..Math.Min(line.ColoredSuffix.Length, width)];
         var leftWidth = Math.Max(0, width - suffix.Length);
-        var left = line.Text.Length <= leftWidth ? line.Text : line.Text[..leftWidth];
+        var expandedText = ExpandTabs(line.Text);
+        var left = expandedText.Length <= leftWidth ? expandedText : expandedText[..leftWidth];
         Console.Write(left);
         Console.ForegroundColor = line.ColoredSuffixColor;
         Console.Write(suffix);
@@ -2072,10 +2095,28 @@ public sealed class CoopGuestScreen
         return text.PadRight(width);
     }
 
+    private static string ExpandTabs(string text, int tabWidth = 18)
+    {
+        if (!text.Contains('\t')) return text;
+        var builder = new System.Text.StringBuilder(text.Length + tabWidth);
+        foreach (var character in text)
+        {
+            if (character != '\t')
+            {
+                builder.Append(character);
+                continue;
+            }
+            var spaces = tabWidth - builder.Length % tabWidth;
+            builder.Append(' ', spaces);
+        }
+        return builder.ToString();
+    }
+
     private readonly record struct GuestMapCell(string Glyph, ConsoleColor Color,
         ConsoleColor Background = ConsoleColor.Black, bool IsContinuation = false);
     private readonly record struct GuestTextLine(string Text, ConsoleColor Foreground, ConsoleColor Background,
-        string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White);
+        string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White,
+        IReadOnlyList<TextSegment>? Segments = null);
     private sealed record GuestRenderFrame(WorldId WorldId, int WindowWidth, int WindowHeight, int MapWidth,
         int MapHeight, GuestMapCell[,] Map, GuestTextLine[] Panel, PartyStatusLine?[] PartyStatuses,
         GuestTextLine[] Footers, CharacterResourceLine? ResourceLine);
