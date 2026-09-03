@@ -265,7 +265,6 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var context = state.Context;
         var entries = new List<BattleLogEntry>();
         state.Round++;
-        entries.Add(new BattleLogEntry(FormatRoundHeader(state.Round), BattleLogKind.Information));
         if (supportDamage > 0)
         {
             defender = defender with { HitPoints = Math.Max(0, defender.HitPoints!.Value - supportDamage) };
@@ -379,7 +378,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var successful = attacks.Where(attack => attack.Hit).ToArray();
         var critical = attacks.Any(attack => attack.Critical);
         var outcome = successful.Length == 0
-            ? "💨 HIBA"
+            ? "💨 MELLÉ"
             : critical ? "💥 KRITIKUS!" : "🎯 TALÁLAT";
         var summary = $"{attackerName}\t→ {defenderName}\t{outcome}";
         if (successful.Length > 0)

@@ -5118,8 +5118,7 @@ public sealed class Game : ISessionCommandHandler
             if (_battleLogCycle != battle.Turns.Cycle)
             {
                 _battleLogCycle = battle.Turns.Cycle;
-                PresentBattleEntries([new BattleLogEntry(
-                    BattleSystem.FormatRoundHeader(battle.Turns.Cycle), BattleLogKind.Information)]);
+                _renderer.SetBattleCommandPanelRound(battle.Turns.Cycle);
             }
             UpdateTeamBattleFocus(battle, current);
             if (battle.CurrentCharacter is { } character)

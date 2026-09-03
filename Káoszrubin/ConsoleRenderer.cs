@@ -161,6 +161,7 @@ public sealed class ConsoleRenderer
     private readonly BattleCommandPanel _battleCommandPanel = new(
         ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', PlayfieldWidth),
         ConsoleColor.Cyan);
+    private int? _battleCommandPanelRound;
 
     public ConsoleRenderer(GameDataCatalog gameData, Party party,
         Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null)
@@ -415,12 +416,27 @@ public sealed class ConsoleRenderer
         DrawBattleCommandPanelWithHighlighting(segments);
     }
 
+    public void SetBattleCommandPanelRound(int? round) => _battleCommandPanelRound = round;
+
     public void DrawBattleCommandPanelWithHighlighting(IReadOnlyList<TextSegment> segments)
     {
-        _battleCommandPanel.OpenWithHighlighting(segments);
+        // Prepare segments, optionally prepending the round header if present
+        List<TextSegment> segmentsToRender;
+        if (_battleCommandPanelRound is int round)
+        {
+            segmentsToRender = new List<TextSegment> { new TextSegment($"{round}. KÖR", ConsoleColor.Cyan) };
+            segmentsToRender.Add(new TextSegment(" "));
+            segmentsToRender.AddRange(segments);
+        }
+        else
+        {
+            segmentsToRender = segments.ToList();
+        }
+
+        _battleCommandPanel.OpenWithHighlighting(segmentsToRender);
 
         // Calculate center padding
-        var combinedText = string.Concat(segments.Select(s => s.Text));
+        var combinedText = string.Concat(segmentsToRender.Select(s => s.Text));
         var totalWidth = BattleCommandPanel.Width;
         var textLength = combinedText.Length;
 
@@ -443,7 +459,7 @@ public sealed class ConsoleRenderer
 
         // Write segments starting after left padding
         var column = leftPadding;
-        foreach (var segment in segments)
+        foreach (var segment in segmentsToRender)
         {
             if (string.IsNullOrEmpty(segment.Text)) continue;
 
