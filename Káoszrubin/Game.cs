@@ -1206,10 +1206,10 @@ public sealed class Game
 
     private void ShowLevelImage()
     {
+#if !DEBUG
         var fileName = ImageViewer.FileNameForLevel(_maze.LevelName);
         var path = Path.Combine(AppContext.BaseDirectory, "Kepek", fileName);
 
-#if !DEBUG
         if (_activeCoopHost is not null)
         {
             ShowSynchronizedLevelImage(fileName, path);
@@ -2239,7 +2239,22 @@ public sealed class Game
     private bool EncounterWorldNpc(WorldNpc npc)
     {
         if (!npc.CanStartConversation) return false;
-        var definition = _gameData.GetNpc(npc.DefinitionId);
+
+        NpcDefinition definition = null;
+        if (npc.DefinitionId == "NPC-FIRST-COMPANION")
+        {
+            definition = new NpcDefinition(
+                "NPC-FIRST-COMPANION",
+                npc.Character.Name,
+                "na",
+                NpcDisposition.Friendly,
+                NpcWorldBehavior.Friendly,
+                true,
+                false
+            );
+        }
+        else
+            definition = _gameData.GetNpc(npc.DefinitionId);
         if (definition.Unique && string.Equals(definition.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))
         {
             ConverseWithFirstUniqueNpc(npc);
