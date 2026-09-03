@@ -435,13 +435,20 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (invisibilityBonus > 0) player.BreakInvisibility();
         var strengthHitText = strengthHitBonus > 0 ? $" [Erő-találat +{strengthHitBonus}]" : string.Empty;
         var classHitText = classHitBonus > 0 ? $" [Osztályjártasság +{classHitBonus}]" : string.Empty;
+        var magicWeaponHitText = weapon?.MagicPower > 0 ? $" [Mágikus fegyver +{weapon.MagicPower} találat]" : string.Empty;
+        var magicWeaponCriticalText = weapon?.MagicPower switch
+        {
+            2 => " [Mágikus fegyver +5% kritikus esély, természetes 19–20]",
+            >= 3 => " [Mágikus fegyver +10% kritikus esély, természetes 18–20]",
+            _ => string.Empty
+        };
         var thirstHitText = player.StatusHitPenalty > 0 && player.HasStatus(CharacterStatusIds.Thirsty)
             ? $" [💧 szomjúság -{player.StatusHitPenalty} találat]"
             : string.Empty;
         if (!hit.Hit)
         {
             context.ConsecutivePlayerHits = 0;
-            return AttackResult.Miss($"találat: {hit.Description}{thirstHitText} → 💨.{strengthHitText}{classHitText}");
+            return AttackResult.Miss($"találat: {hit.Description}{thirstHitText}{magicWeaponHitText}{magicWeaponCriticalText} → 💨.{strengthHitText}{classHitText}");
         }
 
         var baseDamage = weapon?.Damage is { } range ? Roll(range) : Roll(new ValueRange(1, 2));
@@ -502,12 +509,19 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             context.AmbushAvailable = false;
             notes.Add($"Orvtámadás ×{damageMultiplierPercent / 100d:0.##}");
         }
-        var criticalNaturalRollMinimum = weapon?.MagicPower switch
+        var criticalChanceBonusPercent = weapon?.MagicPower switch
         {
-            2 => 19,
-            >= 3 => 18,
-            _ => 20
+            2 => 5,
+            >= 3 => 10,
+            _ => 0
         };
+        if (player.HasPerk(PerkIds.ThiefDeadlyAccuracy)) criticalChanceBonusPercent += 10;
+        if (weaponFamily == WeaponFamilies.Dagger && weaponRank == WeaponProficiencyRank.Master)
+            criticalChanceBonusPercent += 5;
+        if (context.Tactic == BattleTactic.ThiefObserve &&
+            player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve))
+            criticalChanceBonusPercent += 5;
+        var criticalNaturalRollMinimum = Math.Max(1, 20 - criticalChanceBonusPercent / 5);
         var criticalMultiplier = player.HasPerk(PerkIds.ThiefDeadlyAccuracy) && hit.NaturalRoll >= 18
             ? 3
             : weaponFamily == WeaponFamilies.Axe && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll == 20
@@ -523,6 +537,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                     ? "💥 KRITIKUS — Bárdmester ×3"
                     : "💥 KRITIKUS — Halálos pontosság ×3"
                 : "💥 KRITIKUS TALÁLAT ×2");
+        if (magicWeaponCriticalText.Length > 0)
+            notes.Add(magicWeaponCriticalText.Trim());
         damageMultiplierPercent *= criticalMultiplier;
         if (weaponFamily == WeaponFamilies.Polearm && weaponRank == WeaponProficiencyRank.Master &&
             context.PolearmMasterOpeningAvailable)
