@@ -12,6 +12,7 @@ internal sealed class InnController
     public enum DepartureChoice { NextLevel, ReturnExpedition }
     internal const ConsoleKey StateChangedKey = ConsoleKey.F24;
     private const int SecretStashLevelAdvance = 4;
+    private const int FeastBasePricePerPerson = 90;
     private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002",
         "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020", "T023", "T024"];
     private static readonly HashSet<string> DiscountedBuybackItemIds = ["W001", "W005", "A001", "A002"];
@@ -46,6 +47,7 @@ internal sealed class InnController
     private int _innLevel;
     private List<LiveCharacter>? _recruitCandidates;
     private Dictionary<LiveCharacter, int>? _recruitmentPrices;
+    private readonly Func<IReadOnlyList<LiveCharacter>> _temporaryFollowers;
 
     internal long Revision => _revision;
 
@@ -54,7 +56,8 @@ internal sealed class InnController
         Func<LiveCharacter, int, LevelUpResult> awardExperience,
         Action<LiveCharacter, LevelUpResult> resolvePerkOffers,
         Action preparePartySpells, Func<ConsoleKeyInfo>? readKey = null,
-        Action<PartyRestSnapshot>? reportRest = null)
+        Action<PartyRestSnapshot>? reportRest = null,
+        Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null)
     {
         _gameData = gameData;
         _characterRoster = characterRoster;
@@ -67,6 +70,7 @@ internal sealed class InnController
         _preparePartySpells = preparePartySpells;
         _readKey = readKey ?? (() => Console.ReadKey(intercept: true));
         _reportRest = reportRest ?? (_ => { });
+        _temporaryFollowers = temporaryFollowers ?? (() => []);
     }
 
     public InnSnapshot? CreateSnapshot()
@@ -141,6 +145,10 @@ internal sealed class InnController
         InnVendorKind.WanderingMage => "Vándormágus portéka",
         _ => vendor.ToString()
     };
+
+    // Returns a global modifier applied to inn service prices.
+    // TODO: Replace with actual game configuration or inn-level based modifier if available.
+    private double GetInnPriceModifier() => 1.0;
 
     public DepartureChoice Run(int completedLevel, string? expeditionReason = null, bool resume = false)
     {
@@ -241,6 +249,7 @@ internal sealed class InnController
             new(InnMenuOptionKind.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára.", LeaderOnly: true),
             new(InnMenuOptionKind.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása.", InnVendorKind.Market),
             new(InnMenuOptionKind.Witcher, "⚗️ Vajákos", "Gyógy- és varázsitalok, kötés és gyógyfüves készítmények.", InnVendorKind.Witcher),
+            new(InnMenuOptionKind.Feast, $"🍽️ Lakomázás ({(int)Math.Ceiling(FeastBasePricePerPerson * GetInnPriceModifier())} {ConsoleRenderer.MoneyIcon}/fő)", "Ellátmány feltöltése: élelem és víz minden partitag és követő számára.", LeaderOnly: true),
             new(InnMenuOptionKind.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} {ConsoleRenderer.MoneyIcon})", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött.", LeaderOnly: true)
         };
         if (blacksmithPresent) options.Add(new(InnMenuOptionKind.Blacksmith, "🔨 Kovácsmester", "Kizárólag fegyvereket kínál, csak vásárlásra.", InnVendorKind.Blacksmith));
@@ -307,6 +316,7 @@ internal sealed class InnController
                 case InnMenuOptionKind.WanderingMage: RunWanderingMage(
                     _vendorStocks.GetValueOrDefault(InnVendorKind.WanderingMage) ?? []); break;
                 case InnMenuOptionKind.Recruit: RunInnRecruitment(); break;
+                case InnMenuOptionKind.Feast: RunInnFeast(completedLevel); break;
                 case InnMenuOptionKind.Rumors: RunInnRumors(); break;
                 case InnMenuOptionKind.ReturnExpedition:
                     _active = false;
@@ -617,6 +627,10 @@ internal sealed class InnController
         return candidates[^1];
     }
 
+    /// <summary>
+    /// Randomly chooses whether an item is sold at a higher or lower percentage of its base price, 
+    /// with the chance of the higher price rising with dungeon level; then it applies a global multiplier and rounds to an integer (min 1).
+    /// </summary>
     private InnStockOffer CreateInnStockOffer(IItemDefinition item, double priceMultiplier, int completedLevel)
     {
         var expensiveProbability = Math.Min(0.80, 0.20 + 0.07 * (completedLevel - 1));
@@ -632,6 +646,40 @@ internal sealed class InnController
                 : new InnSellOffer(character, index, item, price)))
             .Where(offer => offer is not null).Cast<InnSellOffer>()
             .OrderBy(offer => offer.Price).ToList();
+
+    private void RunInnFeast(int completedLevel)
+    {
+        var perPerson = (int)Math.Ceiling(FeastBasePricePerPerson * GetInnPriceModifier());
+        var partyCount = _characterRoster.Party.Members.Count;
+        var followers = _temporaryFollowers();
+        var followerCount = followers?.Count ?? 0;
+        var personCount = partyCount + followerCount;
+        if (personCount == 0) { _renderer.DrawDeveloperMessage("Nincsenek személyek a partihoz."); return; }
+        var totalCost = perPerson * personCount;
+        if (_selectedCharacter.Gold < totalCost)
+        {
+            _renderer.DrawDeveloperMessage($"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {totalCost - _selectedCharacter.Gold} hiányzik a lakomához.");
+            return;
+        }
+        if (!_renderer.ConfirmInnFeast(perPerson, personCount, totalCost)) return;
+        _selectedCharacter.SpendGold(totalCost);
+        foreach (var c in _characterRoster.Party.Members)
+        {
+            c.RestoreFood(100);
+            c.RestoreWater(100);
+        }
+        if (followers is not null)
+            foreach (var f in followers)
+            {
+                f.RestoreFood(100);
+                f.RestoreWater(100);
+            }
+        _revision++;
+
+        _renderer.DrawFeastWindow(_characterRoster.Party.Members.Select(m => m.Name).ToList(), totalCost);
+        
+        RecordTransaction(InnTransactionKind.Service, _selectedCharacter.Name, "Lakomázás", totalCost, _selectedCharacter.Name, announceOnHost: true);
+    }
 
     private void RunInnRecruitment()
     {
@@ -1201,6 +1249,8 @@ internal sealed class InnController
                                        $"({transaction.Price} arany) → {transaction.InventoryOwnerName}",
         InnTransactionKind.Sale => $"🏰 {transaction.ActorName} eladta: {transaction.ItemName} " +
                                    $"({transaction.Price} arany) ← {transaction.InventoryOwnerName}",
+        InnTransactionKind.Service => $"🏰 {transaction.ActorName} fizetett: {transaction.ItemName} " +
+                                      $"({transaction.Price} arany)",
         _ => $"🏰 {transaction.ActorName}: {transaction.ItemName}"
     };
 

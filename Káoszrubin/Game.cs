@@ -429,7 +429,10 @@ public sealed class Game
         _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer,
             effect => PlaySessionSound(effect),
             _random, AwardExperienceResult, ResolvePerkOffers, PreparePartySpells, ReadInnKey,
-            ShowSynchronizedRest);
+            ShowSynchronizedRest, () => _maze?.PartyMembers
+                .Where(member => member.IsTemporaryFollower)
+                .Select(member => member.Character)
+                .ToArray() ?? []);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
     }

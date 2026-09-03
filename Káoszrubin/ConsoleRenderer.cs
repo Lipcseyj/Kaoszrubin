@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Text;
 using KaoszRubin.Application;
 using KaoszRubin.Combat;
 using KaoszRubin.Data;
@@ -9,6 +7,10 @@ using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Magic;
 using KaoszRubin.UI;
+using Microsoft.AspNetCore.Routing.Matching;
+using NAudio.CoreAudioApi;
+using System.Diagnostics;
+using System.Text;
 
 namespace KaoszRubin;
 
@@ -853,6 +855,28 @@ public sealed class ConsoleRenderer
         }
     }
 
+    public bool ConfirmInnFeast(int perPerson, int personCount, int totalCost)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🍽️🍎🥩  LAKOMÁZÁS 🥩🍎🍽️", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ($"A lakoma {perPerson} arany/fő lesz, összesen {totalCost} arany {personCount} személyre.", ConsoleColor.Cyan),
+            ("A díj nem jár vissza. Megfizeted?", ConsoleColor.DarkYellow),
+            (string.Empty, ConsoleColor.Gray),
+            ("Enter: igen   Esc: mégsem", ConsoleColor.Green)
+        };
+        DrawCenteredFrame(InnConfirmationFrameWidth, lines, FramedWindow.Inn);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Enter) return true;
+            if (key == ConsoleKey.Escape) return false;
+        }
+    }
+
     public void DrawInnRestUnavailableScreen()
     {
         ResetColorCache();
@@ -1025,6 +1049,70 @@ public sealed class ConsoleRenderer
         }
         updates.Add((InnMarketSelectedItemDetailLine, ClipMarketText($"ℹ️ {stock[selectedIndex].Item.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
         UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates, FramedWindow.Inn);
+    }
+
+    public void DrawFeastWindow(List<string> partyMembers, int totalCost)
+    {
+        ResetColorCache();
+        Console.Clear();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🥩🐟🍉🍺  POMPÁS LAKOMA!  \U0001f969🐟🍉🍺", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ($"Bár {totalCost} aranyba került, de megérte! ", ConsoleColor.Cyan),
+            ("A parti tagjai jóllakottan és kipihenten folytathatják a kalandot.", ConsoleColor.Green),
+            (string.Empty, ConsoleColor.Gray),
+        };
+
+        string[] vigadas =
+        {
+            "jóízűen falatozik, és elégedetten hátradől.",
+            "egy korsó itallal koccint a többiekkel.",
+            "akkorát harap a sültből, hogy még a fogadós is elismerően bólint.",
+            "vidáman meséli újra a legutóbbi csata legszebb pillanatait.",
+            "jókedvűen az asztalra csap, és még egy kört rendel.",
+            "elégedetten sóhajt: ilyen lakomáért érdemes volt túlélni a labirintust.",
+            "tele szájjal próbál pohárköszöntőt mondani, kevés sikerrel.",
+            "nevetve emeli magasba a korsóját a parti egészségére.",
+            "egy pillanatra teljesen megfeledkezik szörnyekről, csapdákról és küldetésekről.",
+            "versenyt eszik a többiekkel, és esze ágában sincs veszíteni.",
+            "jóllakottan vigyorog, miközben az utolsó falatokat is eltünteti.",
+            "hátradől, megsimogatja a hasát, és kijelenti: ez már döfi!",
+           "lelkesen nekilát a második tányérnak is.",
+            "elégedetten kortyol az italából, és azt mondja: ezért már megérte lejönni ide.",
+            "vidáman ugratja a többieket a legutóbbi csatában elkövetett baklövéseik miatt.",
+            "egy jókora falattal a szájában csak elégedetten hümmög.",
+            "megpróbál még egy adag sültet magához húzni, mielőtt más elérné.",
+            "koccint mindenkivel, aki hajlandó elég gyorsan felemelni a korsóját.",
+            "nagy lelkesedéssel dicséri a fogadós főztjét, majd rögtön repetát kér.",
+            "olyan jókedvre derül, hogy még egy régi ivódalt is elkezd énekelni.",
+            "elégedetten szemléli az üres tányérját, mint valami nagy győzelem bizonyítékát.",
+            "nevetve kijelenti, hogy a következő szörnyet akár desszertnek is megeszi.",
+            "kényelmesen hátradől, és pár percre hősi kalandor helyett elégedett vendéggé változik.",
+            "az utolsó morzsát is eltünteti, majd komolyan érdeklődik, maradt-e még valami."
+        };
+
+        ConsoleColor[] vigadasColors =
+        {
+            ConsoleColor.Yellow,
+            ConsoleColor.Cyan,
+            ConsoleColor.Green,
+            ConsoleColor.Magenta,
+            ConsoleColor.White,
+            ConsoleColor.Red
+        };
+
+        foreach (var member in partyMembers)
+        {
+            lines.Add(($"{member} {vigadas[Random.Shared.Next(vigadas.Length)]}", vigadasColors[Random.Shared.Next(vigadasColors.Length)]));
+        }
+
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("Nyomj Entert a folytatáshoz...", ConsoleColor.Yellow));
+
+        DrawCenteredFrame(InnRecruitmentFrameWidth, lines, FramedWindow.Inn);
+
+        while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
     public void DrawInnRecruitmentScreen(IReadOnlyList<LiveCharacter> candidates,
