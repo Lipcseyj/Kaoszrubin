@@ -2684,6 +2684,10 @@ public sealed class ConsoleRenderer
         }
         WriteSheetLine(PicturePanelBottom, WindowFrameCatalog.Horizontal(style, RightSheetWidth, bottom: true),
             ConsoleColor.DarkCyan);
+        if (_battleActingCharacter != null && _battleActingCharacter.NpcBehavior != null )
+        {
+            Thread.Sleep(700);
+        }
     }
 
     private static string CenterPanelText(string text, int canvasWidth, int interiorWidth = PortraitInteriorWidth)
