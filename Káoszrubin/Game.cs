@@ -15,6 +15,7 @@ namespace KaoszRubin;
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
 public sealed class Game : ISessionCommandHandler
 {
+    #region Fields and Properties
     private const string EliraStoryId = "ELIRA_RESCUE";
     private const string RodericStoryId = "RODERIC_OATH";
     private const string RodericGraveRespectQuestId = "NPCQ040";
@@ -133,6 +134,8 @@ public sealed class Game : ISessionCommandHandler
     private readonly List<ExpeditionEnemyTemplate> _levelEnemyTemplates = [];
     private readonly List<WorldNpc> _temporaryFollowersEnteringNextMaze = [];
     private bool _isReturnExpedition;
+#endregion
+
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
     public GameSession Session => _session;
@@ -438,6 +441,8 @@ public sealed class Game : ISessionCommandHandler
         return totalDamage;
     }
 
+    #region Spells
+
     // NPC spellcasting for exploration - simple heals/cures/buffs
     private void TryNpcCastExplorationSpell(PartyMemberAvatar member)
     {
@@ -489,6 +494,9 @@ public sealed class Game : ISessionCommandHandler
         ICollection<string> notes) =>
         _spellExecutionService.ApplyStatusCure(effect, characters, notes);
 
+#endregion
+
+    #region Initialization and Lifecycle
     public void Run(ICoopHostLoop? coopHost = null)
     {
         _activeCoopHost = coopHost;
@@ -815,7 +823,9 @@ public sealed class Game : ISessionCommandHandler
         LogMazeAccessibilityCheck();
     }
 
-    private void StartRodericQuestLocation()
+    #endregion
+
+        private void StartRodericQuestLocation()
     {
         var follower = FindRodericFollower() ??
             throw new InvalidOperationException("Roderic nélkül nem indítható el Sir Malrec küldetéshelyszíne.");
@@ -1298,6 +1308,8 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
     }
 
+    #region UI & Input
+
     private void ShowInGameHelp()
     {
         var synchronizeCoopPause = _activeCoopHost is not null;
@@ -1399,7 +1411,11 @@ public sealed class Game : ISessionCommandHandler
         ? _player.Position
         : _maze.PartyMembers.First(member => member.Character == character).Position;
 
-    private void SaveGame()
+#endregion
+
+    #region Saving & Loading
+
+            private void SaveGame()
     {
         CancelHeldInventoryItem();
         if (_isReturnExpedition)
@@ -1537,9 +1553,9 @@ public sealed class Game : ISessionCommandHandler
                      string.Equals(progress.QuestId, RodericMalrecQuestId, StringComparison.OrdinalIgnoreCase) &&
                      progress.State == NpcQuestState.Offered))
             _pendingRodericExpedition = true;
-    }
+    #endregion
 
-    private void TryRestParty()
+        private void TryRestParty()
     {
         if (_hasRestedThisLevel)
         {
@@ -1655,6 +1671,8 @@ public sealed class Game : ISessionCommandHandler
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
     }
 
+    #region Movement
+
     private void MovePlayer(Direction direction)
     {
         if (!CanControlledCharacterMove(SelectedCharacter)) return;
@@ -1735,7 +1753,9 @@ public sealed class Game : ISessionCommandHandler
         TriggerTrapAt(member.Character, member.Position);
     }
 
-    private void CollectTreasureChest(LiveCharacter character, Position position, bool shareLootWithParty)
+    #endregion
+
+        private void CollectTreasureChest(LiveCharacter character, Position position, bool shareLootWithParty)
     {
         var chest = _maze.GetTreasureChestAt(position);
         if (chest is null) return;
@@ -1811,6 +1831,8 @@ public sealed class Game : ISessionCommandHandler
         _localCommandId = commandId;
     }
 
+    #region Session & Networking
+
     private void ProcessSessionCommands() => _commandDispatcher.ProcessPendingCommands();
 
     void ISessionCommandHandler.OnSetHelpVisibility(PlayerId senderId, CharacterId characterId, bool isOpen) =>
@@ -1862,6 +1884,8 @@ public sealed class Game : ISessionCommandHandler
     void ISessionCommandHandler.OnPrepareSpells(PrepareSpellsCommand command) => ExecuteSpellPreparation(command);
 
     void ISessionCommandHandler.OnResolveLevelUpPrompt(ResolveLevelUpPromptCommand command) => ExecuteLevelUpPrompt(command);
+
+#endregion
 
     private void ExecuteInnPurchase(InnPurchaseCommand command)
     {
@@ -3258,6 +3282,8 @@ public sealed class Game : ISessionCommandHandler
     private bool TryStoreLootInParty(IItemDefinition item, out string ownerName) =>
         LootAndInventoryService.TryStoreLootInParty(item, SelectedCharacter, CharacterRoster.Party.Members, out ownerName);
 
+    #region Inventory & Loot
+
     private bool TryStoreSearchedLoot(LiveCharacter character, IItemDefinition item, bool shareLootWithParty,
         out string ownerName) =>
         LootAndInventoryService.TryStoreSearchedLoot(character, item, shareLootWithParty, CharacterRoster.Party.Members, out ownerName);
@@ -3860,6 +3886,8 @@ public sealed class Game : ISessionCommandHandler
         }
         PlaySessionSound(SoundEffect.Item, [command.CharacterId]);
     }
+
+#endregion
 
     private void MoveEnemies()
     {
@@ -4958,6 +4986,8 @@ public sealed class Game : ISessionCommandHandler
         _nextPartyMoves[avatar] = DateTime.UtcNow;
     }
 
+    #region Combat
+
     private void AwardBossKey(Enemy enemy)
     {
         if (!enemy.Definition.IsBoss || !_collectedBossKeyIds.Add(enemy.Definition.Id)) return;
@@ -5185,6 +5215,8 @@ public sealed class Game : ISessionCommandHandler
             AdvanceTeamBattleTurn(battle);
         }
     }
+
+#endregion
 
     private bool TryCallTeamBattleReinforcements(TeamBattleEncounter battle)
     {
