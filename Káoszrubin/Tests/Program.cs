@@ -3500,7 +3500,11 @@ static void BattleDetailsPanelPagesCalculation()
 
     Assert(first.Count == BattleDetailsPanel.Height && pages > 1 &&
            first.Any(line => line.Text.Contains("15%")) &&
-           first[0].Text.StartsWith("├") && first[^1].Text.Contains("−/+") &&
+           first[0].Text.StartsWith("├") && first[0].Text.Length == BattleDetailsPanel.ExtendedWidth &&
+           first[0].ExtendsToDivider && first[^1].ExtendsToDivider &&
+           first[^1].Text.EndsWith("┤") && first[^1].Text.Contains("−/+") &&
+           first[^1].Segments?.Any(segment => segment.Text == "−/+" &&
+               segment.Color == ConsoleColor.Yellow) == true &&
            last[^1].Text.Contains($"{pages}/{pages}"),
         "A csatarészlet panel mérete, kritikus esélye vagy lapozása hibás.");
 }

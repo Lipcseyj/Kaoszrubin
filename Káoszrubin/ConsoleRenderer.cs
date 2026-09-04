@@ -156,7 +156,10 @@ public sealed class ConsoleRenderer
         _battleDetails = details;
         if (_spellInfoCharacter is null)
             foreach (var line in BattleDetailsPanel.Build(details, _battleDetailsPage))
-                WriteCharacterSheetPanelLine(line);
+                if (line.ExtendsToDivider)
+                    WriteExtendedCharacterSheetLine(line);
+                else
+                    WriteCharacterSheetPanelLine(line);
     }
 
     public void PageBattleDetails(int direction)
@@ -2395,11 +2398,33 @@ public sealed class ConsoleRenderer
 
     private void WriteCharacterSheetPanelLine(CharacterSheetPanelLine line)
     {
+        // A csatarészlet elválasztója két oszloppal balra nyúlik (├─). Normál
+        // karakterlapsor visszaállításakor mindkét cellát felül kell írni, különben
+        // a vízszintes vonal az „Arany” és a többi sor előtt ott marad.
+        SetColors(ConsoleColor.DarkCyan, ConsoleColor.Black);
+        WriteAt(RightBorderX, line.Row, "│ ");
         if (string.IsNullOrEmpty(line.ColoredSuffix))
             WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
         else
             WriteSheetLine(line.Row, line.Text, line.Color, line.Background,
                 line.ColoredSuffix, line.ColoredSuffixColor);
+    }
+
+    private void WriteExtendedCharacterSheetLine(CharacterSheetPanelLine line)
+    {
+        var x = RightSheetX - 2;
+        var remaining = BattleDetailsPanel.ExtendedWidth;
+        SetColors(line.Color, line.Background);
+        Console.SetCursorPosition(x, line.Row);
+        foreach (var segment in line.Segments ?? [new TextSegment(line.Text, line.Color)])
+        {
+            if (remaining <= 0) break;
+            var text = segment.Text[..Math.Min(segment.Text.Length, remaining)];
+            SetColors(segment.Color ?? line.Color, line.Background);
+            Console.Write(text);
+            remaining -= text.Length;
+        }
+        if (remaining > 0) Console.Write(new string(' ', remaining));
     }
 
     private void DrawBattleStatusRows(LiveCharacter character)
@@ -2711,7 +2736,7 @@ public sealed class ConsoleRenderer
             ConsoleColor.DarkCyan);
         if (_battleActingCharacter != null && _battleActingCharacter.NpcBehavior != null )
         {
-            Thread.Sleep(700);
+            Thread.Sleep(500);
         }
     }
 

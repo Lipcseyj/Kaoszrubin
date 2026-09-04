@@ -8,7 +8,8 @@ public readonly record struct InventorySlotAddress(InventorySlotKind Kind, int I
 
 public sealed record CharacterSheetPanelLine(int Row, string Text, ConsoleColor Color,
     InventorySlotAddress? InventorySlot = null, ConsoleColor Background = ConsoleColor.Black,
-    string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White);
+    string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White,
+    bool ExtendsToDivider = false, IReadOnlyList<TextSegment>? Segments = null);
 
 public sealed record PartyStatusLine(string Identity, ConsoleColor IdentityColor,
     string Vitality, ConsoleColor VitalityColor, string Mana, ConsoleColor ManaColor,

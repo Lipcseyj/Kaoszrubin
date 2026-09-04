@@ -9,14 +9,17 @@ public static class BattleDetailsPanel
     public const int FirstRow = 9;
     public const int Height = 8;
     public const int ContentRows = 6;
+    public const int ExtendedWidth = CharacterSheetPanel.Width + 2;
 
     public static IReadOnlyList<CharacterSheetPanelLine> Build(BattleActionDetails? details, int page)
     {
         var pages = Pages(details);
         page = Normalize(page, pages.Count);
+        var header = FillSeparator("├─ ⚔ CSATARÉSZLET ");
         var lines = new List<CharacterSheetPanelLine>
         {
-            new(FirstRow, "├─ ⚔ CSATARÉSZLET ────────┤", ConsoleColor.DarkCyan)
+            new(FirstRow, header, ConsoleColor.DarkCyan, ExtendsToDivider: true,
+                Segments: [new(header, ConsoleColor.DarkCyan)])
         };
         for (var row = 0; row < ContentRows; row++)
         {
@@ -26,9 +29,20 @@ public static class BattleDetailsPanel
                 text.StartsWith("💥") ? ConsoleColor.Red :
                 text.StartsWith("🎯") ? ConsoleColor.Green : ConsoleColor.Gray));
         }
-        lines.Add(new(FirstRow + Height - 1, $"├─ −/+ Részletek {page + 1}/{pages.Count} ─┤", ConsoleColor.DarkCyan));
+        const string footerStart = "├─ ";
+        const string pagingKeys = "−/+";
+        var footerEnd = $" Részletek {page + 1}/{pages.Count} ";
+        footerEnd += new string('─', Math.Max(0,
+            ExtendedWidth - footerStart.Length - pagingKeys.Length - footerEnd.Length - 1)) + "┤";
+        lines.Add(new(FirstRow + Height - 1, footerStart + pagingKeys + footerEnd,
+            ConsoleColor.DarkCyan, ExtendsToDivider: true,
+            Segments: [new(footerStart, ConsoleColor.DarkCyan), new(pagingKeys, ConsoleColor.Yellow),
+                new(footerEnd, ConsoleColor.DarkCyan)]));
         return lines;
     }
+
+    private static string FillSeparator(string start) =>
+        start + new string('─', Math.Max(0, ExtendedWidth - start.Length - 1)) + "┤";
 
     public static int PageCount(BattleActionDetails? details) => Pages(details).Count;
     public static int Normalize(int page, int count) => (page % count + count) % count;

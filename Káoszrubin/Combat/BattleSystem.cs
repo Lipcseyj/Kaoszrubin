@@ -695,10 +695,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (bluntArmorIgnored > 0)
             armorText += $" → {effectiveArmor} (🔨 jártasság -{bluntArmorIgnored})";
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
-        calculation.Add($"💥 Fegyver: {weapon?.Name ?? "Puszta kéz"}; alap {baseDamage}");
-        calculation.Add($"💥 {(usesDexterity ? "Ügyesség" : "Erő")} {ability} → +{abilityBonus}; d3−1={randomBonus}");
-        calculation.Add($"💥 Nyers: {baseDamage}+{abilityBonus}+{randomBonus}+{perkBonus}={rawDamage}");
-        calculation.Add($"💥 Szorzó ×{damageMultiplierPercent / 100d:0.##}; felfelé kerekítve");
+        var damageAbilityName = usesDexterity ? "Ügyesség" : "Erő";
+        calculation.Add($"💥 Fegyver alapsebzése: {weapon?.Name ?? "Puszta kéz"} → {baseDamage}");
+        calculation.Add($"💥 {damageAbilityName}bónusz: {damageAbilityName} {ability} → +{abilityBonus}");
+        calculation.Add($"🎲 Véletlen sebzésbónusz (0–2): +{randomBonus}");
+        calculation.Add($"💥 Nyers sebzés: fegyver {baseDamage} + {damageAbilityName.ToLowerInvariant()} {abilityBonus} + véletlen {randomBonus} + egyéb {perkBonus} = {rawDamage}");
+        var multipliedDamage = rawDamage * damageMultiplierPercent / 100d;
+        var roundedMultipliedDamage = (rawDamage * damageMultiplierPercent + 99) / 100;
+        calculation.Add(damageMultiplierPercent == 100
+            ? $"💥 Sebzésszorzó: ×1 → {rawDamage}"
+            : multipliedDamage == roundedMultipliedDamage
+                ? $"💥 Sebzésszorzó: ×{damageMultiplierPercent / 100d:0.##} → {roundedMultipliedDamage}"
+                : $"💥 Sebzésszorzó: ×{damageMultiplierPercent / 100d:0.##}; {multipliedDamage:0.##} → {roundedMultipliedDamage} (felfelé kerekítve)");
         calculation.Add($"🛡️ {armorText}; effektív {effectiveArmor}");
         calculation.AddRange(notes);
         calculation.Add("💥 Páncél után min. 1; éhség után min. 1; majd taktika és méreg.");

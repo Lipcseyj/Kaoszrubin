@@ -1373,7 +1373,8 @@ public sealed class CoopGuestScreen
                 panel[y] = new GuestTextLine(marker + line.Text, line.Color,
                     line.InventorySlot is not null && line.InventorySlot == selectedSlot
                         ? ConsoleColor.DarkCyan
-                        : line.Background, line.ColoredSuffix, line.ColoredSuffixColor);
+                        : line.Background, line.ColoredSuffix, line.ColoredSuffixColor,
+                    line.Segments, line.ExtendsToDivider);
             }
             else
                 panel[y] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
@@ -1867,10 +1868,17 @@ public sealed class CoopGuestScreen
 
         for (var row = 0; row < frame.Panel.Length; row++)
         {
-            if (fullRedraw)
+            var dividerChanged = !fullRedraw &&
+                                 previous!.Panel[row].ExtendsToDivider != frame.Panel[row].ExtendsToDivider;
+            if (fullRedraw || dividerChanged)
                 WriteAt(frame.MapWidth, row, new GuestTextLine(" │ ", ConsoleColor.DarkCyan, ConsoleColor.Black), 3);
             if (fullRedraw || previous!.Panel[row] != frame.Panel[row])
-                WriteAt(frame.MapWidth + 3, row, frame.Panel[row], CharacterSheetPanel.Width);
+            {
+                if (frame.Panel[row].ExtendsToDivider)
+                    WriteAt(frame.MapWidth + 1, row, frame.Panel[row], BattleDetailsPanel.ExtendedWidth);
+                else
+                    WriteAt(frame.MapWidth + 3, row, frame.Panel[row], CharacterSheetPanel.Width);
+            }
         }
 
         if (frame.ResourceLine is { } resources &&
@@ -2149,7 +2157,7 @@ public sealed class CoopGuestScreen
         ConsoleColor Background = ConsoleColor.Black, bool IsContinuation = false);
     private readonly record struct GuestTextLine(string Text, ConsoleColor Foreground, ConsoleColor Background,
         string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White,
-        IReadOnlyList<TextSegment>? Segments = null);
+        IReadOnlyList<TextSegment>? Segments = null, bool ExtendsToDivider = false);
     private sealed record GuestRenderFrame(WorldId WorldId, int WindowWidth, int WindowHeight, int MapWidth,
         int MapHeight, GuestMapCell[,] Map, GuestTextLine[] Panel, PartyStatusLine?[] PartyStatuses,
         GuestTextLine[] Footers, CharacterResourceLine? ResourceLine);
