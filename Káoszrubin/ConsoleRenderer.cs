@@ -334,6 +334,17 @@ public sealed class ConsoleRenderer
         DrawPlayer(player.Position);
     }
 
+    public void RestoreAfterBattle()
+    {
+        _battleActive = false;
+        _battleEnemy = null;
+        _battleActingCharacter = null;
+        _teamBattleFocusPositions.Clear();
+        _spellInfoCharacter = null;
+        _spellCastingOverlaySnapshot = null;
+        DrawPicturePanel();
+    }
+
     /// <summary>
     /// Rajzolja a játékos mozgását: frissíti az újonnan felfedett mezőket,
     /// az előző pozíciót, és a jelenlegi játékos pozíciót.

@@ -6341,7 +6341,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         foreach (var (character, result) in _pendingLevelUps.ToArray())
             ResolvePerkOffers(character, result);
-        
+        _renderer.RestoreAfterBattle();
         _pendingLevelUps.Clear();
         if (_saveAfterBattle)
         {
