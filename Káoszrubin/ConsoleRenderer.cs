@@ -875,9 +875,12 @@ public sealed class ConsoleRenderer
 
     public void ClearInnMenuScreen()
     {
-        for (var line = 10; line < 43; line++)
+        var emptyLine = new string(' ', InnMarketFrameWidth + 30);
+
+        for (var line = 5; line < 43; line++)
         {
-            WriteAt(20, line, new string(' ', InnMarketFrameWidth));
+            Console.BackgroundColor = ConsoleColor.Blue;
+            WriteAt(15, line, emptyLine);
         }
     }   
 
@@ -892,12 +895,12 @@ public sealed class ConsoleRenderer
     public void DrawInnCharacterSheet(LiveCharacter character)
     {
         ClearInnMenuScreen();
-        DrawFrame();
+        DrawFrame(5);
         if (_displayedCharacter is null || !SheetCharacters().Contains(_displayedCharacter))
             _displayedCharacter = character;
         DrawCharacterSheet(_displayedCharacter);
         SetCharacterSheetFocused(true);
-        DrawBattleMessage("Fogadói karakterlap — Tab: vissza a fogadóba | ↑/↓: választás | ←/→: karakter");
+        DrawInnMessage("Fogadói karakterlap — Tab: vissza a fogadóba | ↑/↓: választás | ←/→: karakter");
     }
 
     public void UpdateInnMenuSelection(IReadOnlyList<InnMenuOptionSnapshot> options,
@@ -2244,11 +2247,11 @@ public sealed class ConsoleRenderer
     /// <summary>
     /// A jobb oldali függőleges keret és alja/határainek kirajzolása a teljes ablakhoz.
     /// </summary>
-    public void DrawFrame()
+    private void DrawFrame(int yOffset = 0)
     {
         SetColors(ConsoleColor.DarkCyan, ConsoleColor.Black);
         for (var y = 0; y <= PicturePanelBottom; y++) WriteAt(RightBorderX, y, "│");
-        Console.SetCursorPosition(0, BottomBorderY);
+        Console.SetCursorPosition(0, BottomBorderY + yOffset);
         Console.Write(new string('─', PlayfieldWidth));
         Console.Write('┤');
     }
@@ -2391,7 +2394,7 @@ public sealed class ConsoleRenderer
     /// Battle/message panelre egy új bejegyzést ír: a hosszú üzeneteket megtöri, és
     /// az utolsó N (MessageLineCount) bejegyzést jeleníti meg a képernyő alsó részén.
     /// </summary>
-    public void DrawBattleMessage(string message, ConsoleColor color = ConsoleColor.Gray)
+    private void DrawBattleMessage(string message, ConsoleColor color = ConsoleColor.Gray)
     {
         foreach (var line in WrapMessage(message)) _messageLog.Enqueue(new MessageLogLine(line, color));
         while (_messageLog.Count > MessageLogBufferLineCount) _messageLog.Dequeue();
@@ -2399,12 +2402,23 @@ public sealed class ConsoleRenderer
         RenderMessageLog();
     }
 
-    private void RenderMessageLog()
+    private void DrawInnMessage(string message, ConsoleColor color = ConsoleColor.Magenta)
+    {
+        foreach (var line in WrapMessage(message)) _messageLog.Enqueue(new MessageLogLine(line, color));
+        while (_messageLog.Count > MessageLogBufferLineCount) _messageLog.Dequeue();
+        _messageLogScrollOffset = 0;
+        RenderMessageLog(2);
+    }
+
+    private void RenderMessageLog(int displayedLines = 0)
     {
         var messages = _messageLog.ToArray();
-        var start = Math.Max(0, messages.Length - MessageLineCount - _messageLogScrollOffset);
+        var effectiveLineCount = displayedLines > 0 ? displayedLines : MessageLineCount;
+        var linesToSkip = MessageLineCount - effectiveLineCount;
+
+        var start = Math.Max(0, messages.Length - effectiveLineCount - _messageLogScrollOffset);
         var end = messages.Length - _messageLogScrollOffset;
-        for (var index = 0; index < MessageLineCount; index++)
+        for (var index = 0; index < effectiveLineCount; index++)
         {
             var messageIndex = start + index;
             var messageLine = messageIndex < messages.Length && messageIndex < end
@@ -2412,7 +2426,7 @@ public sealed class ConsoleRenderer
                 : new MessageLogLine(string.Empty, ConsoleColor.Gray);
             SetColors(messageLine.Color, ConsoleColor.Black);
             var text = ExpandTabs(messageLine.Text);
-            WriteAt(MessagePanelLeft, BottomBorderY + FirstMessageLineOffset + index, text.PadRight(MessageWidth));
+            WriteAt(MessagePanelLeft, BottomBorderY + FirstMessageLineOffset + linesToSkip + index, text.PadRight(MessageWidth));
         }
     }
 

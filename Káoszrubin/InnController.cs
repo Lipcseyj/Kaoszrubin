@@ -269,9 +269,7 @@ internal sealed class InnController
     private DepartureChoice RunMenuLoop(int completedLevel)
     {
         Console.Clear();
-        _renderer.RefreshCharacterSheet(_selectedCharacter);
-        _renderer.DrawFrame();
-        _renderer.DrawBattleMessage($"Megérkeztél a fogadóba. Váltás az inventoryra: TAB");
+        _renderer.DrawInnCharacterSheet(_selectedCharacter);
 
         var options = (_menuOptions ?? []).ToList();
         var selectedIndex = 0;
