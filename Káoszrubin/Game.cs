@@ -1601,6 +1601,7 @@ public sealed class Game : ISessionCommandHandler
                 character.UsesMana, cured));
         }
         _hasRestedThisLevel = true;
+        PlaySessionSound(SoundEffect.Rest);
         ShowSynchronizedRest(new PartyRestSnapshot(Guid.NewGuid(), false, restResults, []));
         TryLogPartyComments(PartySituationIds.Resting);
         PreparePartySpells();
@@ -1609,7 +1610,6 @@ public sealed class Game : ISessionCommandHandler
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        PlaySessionSound(SoundEffect.Rest);
     }
 
     private void PreparePartySpells()
@@ -6896,12 +6896,13 @@ public sealed class Game : ISessionCommandHandler
             ResolveRemoteLevelUp(character, result, offers);
             return;
         }
+        
+        PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
         var selectedPerks = _renderer.DrawLevelUpScreen(character, result, offers);
         foreach (var perk in selectedPerks)
             if (character.AddPerk(perk))
             {
                 character.ApplyPerkAcquisitionBonus(perk);
-                PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
             }
         if (ShouldChooseSpecialization(character, offers)) ResolveLocalSpecialization(character);
         ResolveLocalClassFeatureUpgrades(character, result);
@@ -6920,6 +6921,7 @@ public sealed class Game : ISessionCommandHandler
         foreach (var offer in offers)
         {
             var choices = offer.Choices.Select(perk => new LevelUpChoiceSnapshot(perk.Id, perk.Name, perk.Description)).ToArray();
+            PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
             var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.PerkChoice, choices,
                 $"{offer.Tier}. tehetségfokozat — a nem választott tehetség végleg elveszik.",
                 [new($"{character.Name} — {character.CharacterClass.Name} — {offer.Tier}. fokozat", ConsoleColor.Cyan),
@@ -6929,7 +6931,6 @@ public sealed class Game : ISessionCommandHandler
             if (character.AddPerk(perk))
             {
                 character.ApplyPerkAcquisitionBonus(perk);
-                PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
             }
             if (offer.Tier == 1) ResolveRemoteSpecialization(character, result);
         }
@@ -7048,20 +7049,20 @@ public sealed class Game : ISessionCommandHandler
     private void ResolveLocalWeaponProficiencies(LiveCharacter character, LevelUpResult result)
     {
         var earned = EarnedWeaponProficiencyAdvances(character, result.CurrentLevel);
+        PlaySessionSound(SoundEffect.NewWeaponProficiency, [character.Id]);
         while (character.WeaponProficiencyAdvances < earned)
         {
             var choices = WeaponProficiencyChoices(character);
             if (choices.Count == 0) return;
             var milestone = NextWeaponProficiencyMilestone(character);
-            if (character.TryAdvanceWeaponProficiency(
-                    _renderer.DrawWeaponProficiencyChoice(character, choices, milestone)))
-                PlaySessionSound(SoundEffect.NewWeaponProficiency, [character.Id]);
+            character.TryAdvanceWeaponProficiency(_renderer.DrawWeaponProficiencyChoice(character, choices, milestone));
         }
     }
 
     private void ResolveRemoteWeaponProficiencies(LiveCharacter character, LevelUpResult result)
     {
         var earned = EarnedWeaponProficiencyAdvances(character, result.CurrentLevel);
+        PlaySessionSound(SoundEffect.NewWeaponProficiency, [character.Id]);
         while (character.WeaponProficiencyAdvances < earned)
         {
             var choices = WeaponProficiencyChoices(character);
@@ -7073,9 +7074,7 @@ public sealed class Game : ISessionCommandHandler
                 projected, $"{milestone}. szint — válassz fegyverjártassági fejlesztést.",
                 [new($"{character.Name} — {(milestone == 1 ? "karakteralkotás" : $"{milestone}. szint")}", ConsoleColor.Cyan),
                  new("Legfeljebb két fegyvercsalád tanulható; egy család Jártas, majd Mester lehet.", ConsoleColor.Green)]);
-            if (character.TryAdvanceWeaponProficiency(
-                    choices.FirstOrDefault(choice => choice.Id == selectedId).Id ?? choices[0].Id))
-                PlaySessionSound(SoundEffect.NewWeaponProficiency, [character.Id]);
+            character.TryAdvanceWeaponProficiency(choices.FirstOrDefault(choice => choice.Id == selectedId).Id ?? choices[0].Id);
         }
     }
 
@@ -7100,10 +7099,10 @@ public sealed class Game : ISessionCommandHandler
             learnedNumber++;
             var projected = choices.Select(spell => new LevelUpChoiceSnapshot(spell.Id,
                 $"{spell.Level}. szint — {spell.Name}", spell.Description)).ToArray();
+            PlaySessionSound(SoundEffect.NewSpellUnlocked, [character.Id]);
             var selectedId = WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.SpellChoice,
                 projected, $"{learnedNumber}/{learningCount}. új varázslat");
-            if (character.LearnSpell(choices.FirstOrDefault(spell => spell.Id == selectedId) ?? choices[0]))
-                PlaySessionSound(SoundEffect.NewSpellUnlocked, [character.Id]);
+            character.LearnSpell(choices.FirstOrDefault(spell => spell.Id == selectedId) ?? choices[0]);
         }
     }
 
@@ -7165,9 +7164,8 @@ public sealed class Game : ISessionCommandHandler
             if (choices.Count > 0)
             {
                 learnedNumber++;
-                if (character.LearnSpell(_renderer.DrawSpellLearningScreen(character, choices,
-                        learnedNumber, learningCount)))
-                    PlaySessionSound(SoundEffect.NewSpellUnlocked, [character.Id]);
+                PlaySessionSound(SoundEffect.NewSpellUnlocked, [character.Id]);
+                character.LearnSpell(_renderer.DrawSpellLearningScreen(character, choices, learnedNumber, learningCount));
             }
         }
     }
