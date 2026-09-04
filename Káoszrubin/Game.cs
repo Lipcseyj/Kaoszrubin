@@ -88,6 +88,9 @@ public sealed class Game : ISessionCommandHandler
     private bool _isQuickTeamBattle;
     private int _quickBattleSuppressedEntryCount;
     private long _preparedTeamBattleTurnId;
+    private long _teamMovementTurnId = -1;
+    private int _teamMovementRemaining;
+    private int _teamMovementSteps;
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
@@ -233,7 +236,9 @@ public sealed class Game : ISessionCommandHandler
             return new TacticalBattleParticipantSnapshot(participant.Id,
                 character?.Name ?? enemy?.Name ?? participant.Id.Value,
                 participant.Side, participant.Kind, participant.Position, participant.InitiativeBase,
-                participant.MovementAllowance, participant.EligibleFromCycle, participant.State,
+                participant.Id == current.Id && _teamMovementTurnId == battle.Turns.TurnId
+                    ? _teamMovementRemaining : participant.MovementAllowance,
+                participant.EligibleFromCycle, participant.State,
                 character?.CurrentVitality ?? enemy?.CurrentHitPoints ?? 0,
                 character?.MaximumVitality ?? enemy?.Definition.HitPoints ?? 0,
                 participant.Id == current.Id, participant.Id == focusTargetId, enemy?.Id);
@@ -4450,7 +4455,8 @@ public sealed class Game : ISessionCommandHandler
             SubmitLocalBattleCommand(BattleActionKind.Retreat);
             return;
         }
-        if (key.Key == ConsoleKey.P && allowed.Contains(BattleActionKind.Pass))
+        if ((key.Key == ConsoleKey.P || key.Key == ConsoleKey.Spacebar && IsTeamMovementInProgress(battle)) &&
+            allowed.Contains(BattleActionKind.Pass))
         {
             SubmitLocalBattleCommand(BattleActionKind.Pass);
             return;
@@ -4476,9 +4482,7 @@ public sealed class Game : ISessionCommandHandler
         }
         if (TryGetDirection(key.Key, out var direction) && allowed.Contains(BattleActionKind.Move))
         {
-            var target = GetCasterPosition(character);
-            for (var step = 0; step < battle.Current.MovementAllowance; step++) target += direction;
-            SubmitLocalBattleCommand(BattleActionKind.Move, target: target);
+            SubmitLocalBattleCommand(BattleActionKind.Move, target: GetCasterPosition(character) + direction);
             return;
         }
         if (key.Key == ConsoleKey.U && allowed.Contains(BattleActionKind.UseItem))
@@ -5079,6 +5083,7 @@ public sealed class Game : ISessionCommandHandler
         _quickBattleSuppressedEntryCount = 0;
 
         _lastBattleActionDetails = null;
+        ResetTeamMovement();
         _activeTeamBattle = new TeamBattleEncounter(initiatingEnemy.Position,
             characterParticipants, enemyParticipants, initiatingCharacter.Id, initiatingEnemy.Id,
             enemyStrikesFirst, formation: ActiveBattleFormation());
@@ -5405,6 +5410,11 @@ public sealed class Game : ISessionCommandHandler
                 }
                 break;
             case BattleActionKind.Pass:
+                if (IsTeamMovementInProgress(battle))
+                {
+                    FinishTeamCharacterMovement(battle, character);
+                    break;
+                }
                 var passStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(
                     $"{character.Name}\t⌛ Kivár.{passStatus}",
@@ -5737,6 +5747,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void AdvanceTeamBattleTurn(TeamBattleEncounter battle)
     {
+        ResetTeamMovement();
         battle.CaptureNewStatuses();
         if (battle.IsCompleted)
         {
@@ -5861,6 +5872,7 @@ public sealed class Game : ISessionCommandHandler
         _session.EndBattle(battle.Id);
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
             DrainNeedsAfterTeamBattle(character, battle.Turns.Cycle);
+        ResetTeamMovement();
         _activeTeamBattle = null;
         _isQuickTeamBattle = false;
         _preparedTeamBattleTurnId = 0;
@@ -5879,10 +5891,13 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private IReadOnlyList<BattleActionKind> GetTeamAllowedBattleActions(TeamBattleEncounter battle,
-        LiveCharacter character, Enemy focusEnemy) =>
-        _teamBattleCoordinator.GetTeamAllowedBattleActions(battle, character, focusEnemy, SelectedCharacter,
+        LiveCharacter character, Enemy focusEnemy)
+    {
+        if (IsTeamMovementInProgress(battle)) return [BattleActionKind.Move, BattleActionKind.Pass];
+        return _teamBattleCoordinator.GetTeamAllowedBattleActions(battle, character, focusEnemy, SelectedCharacter,
             GetCasterPosition(character), HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy),
             _turnUndeadUsedThisBattle);
+    }
 
     private IReadOnlyList<BattleTacticOptionSnapshot>? GetTeamBattleTacticOptions(TeamBattleEncounter battle,
         LiveCharacter character, Enemy enemy) =>
@@ -6110,14 +6125,18 @@ public sealed class Game : ISessionCommandHandler
             error = $"{character.Name} le van kötve, ezért nem mozoghat.";
             return false;
         }
+        BeginTeamMovementIfNeeded(battle);
         var path = FindStraightTeamBattlePath(battle, GetCasterPosition(character), target,
-            CombatantId.ForCharacter(character.Id), battle.Current.MovementAllowance);
+            CombatantId.ForCharacter(character.Id), maximumSteps: 1);
         if (path.Count == 0)
         {
             error = "Ebben az irányban nincs szabad, elérhető mező. Az akciód megmaradt.";
             return false;
         }
-        CompleteTeamCharacterMovement(battle, character, path);
+        CompleteTeamCharacterMovement(battle, character, path, finishAction: false);
+        _teamMovementRemaining--;
+        _teamMovementSteps++;
+        if (_teamMovementRemaining <= 0) FinishTeamCharacterMovement(battle, character);
         error = string.Empty;
         return true;
     }
@@ -6144,7 +6163,7 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private void CompleteTeamCharacterMovement(TeamBattleEncounter battle, LiveCharacter character,
-        IReadOnlyList<Position> path)
+        IReadOnlyList<Position> path, bool finishAction = true)
     {
         var steps = path.Take(battle.Current.MovementAllowance).ToArray();
         if (steps.Length > 0)
@@ -6166,6 +6185,7 @@ public sealed class Game : ISessionCommandHandler
                         _player.Position);
             }
         }
+        if (!finishAction) return;
         var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
         var message = steps.Length > 0
             ? $"{character.Name}\t👣 {steps.Length} mezőt mozog{statusText}"
@@ -6173,6 +6193,33 @@ public sealed class Game : ISessionCommandHandler
         if (steps.Length > 0 || _battleNoPathReported.Add(character.Id) || !string.IsNullOrEmpty(statusText))
             PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
+    }
+
+    private bool IsTeamMovementInProgress(TeamBattleEncounter battle) =>
+        _teamMovementTurnId == battle.Turns.TurnId && _teamMovementSteps > 0;
+
+    private void BeginTeamMovementIfNeeded(TeamBattleEncounter battle)
+    {
+        if (_teamMovementTurnId == battle.Turns.TurnId) return;
+        _teamMovementTurnId = battle.Turns.TurnId;
+        _teamMovementRemaining = battle.Current.MovementAllowance;
+        _teamMovementSteps = 0;
+    }
+
+    private void FinishTeamCharacterMovement(TeamBattleEncounter battle, LiveCharacter character)
+    {
+        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        PresentBattleEntries([new BattleLogEntry(
+            $"{character.Name}\t👣 {_teamMovementSteps} mezőt mozog{statusText}", BattleLogKind.Information)]);
+        ResetTeamMovement();
+        AdvanceTeamBattleTurn(battle);
+    }
+
+    private void ResetTeamMovement()
+    {
+        _teamMovementTurnId = -1;
+        _teamMovementRemaining = 0;
+        _teamMovementSteps = 0;
     }
 
     private IReadOnlyList<Position> FindTeamBattlePath(TeamBattleEncounter battle, Position origin,
@@ -6286,6 +6333,7 @@ public sealed class Game : ISessionCommandHandler
             DrainNeedsAfterTeamBattle(character, battle.Turns.Cycle);
         var inactive = battle.InactiveSidesLastCompletedCycle;
         var sideName = inactive.Contains(BattleSide.Friendly) ? "a csapat" : "az ellenséges oldal";
+        ResetTeamMovement();
         _activeTeamBattle = null;
         _isQuickTeamBattle = false;
         _preparedTeamBattleTurnId = 0;
@@ -6323,6 +6371,7 @@ public sealed class Game : ISessionCommandHandler
         var cycles = Math.Max(1, battle.Turns.Cycle);
         var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
         var resourceSummary = ConsoleRenderer.FormatTeamBattleResourceSummary(characterResults, cycles);
+        ResetTeamMovement();
         _activeTeamBattle = null;
         _isQuickTeamBattle = false;
         _preparedTeamBattleTurnId = 0;

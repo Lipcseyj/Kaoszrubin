@@ -71,16 +71,20 @@ public sealed class BattleCommandPanel
             return Decorate("Taktika: " + string.Join(" | ", tactics.Select((tactic, index) =>
                 $"{index + 1}: {tactic.Name}")));
 
+        var actionSet = actions.ToHashSet();
+        if (actionSet.SetEquals([BattleActionKind.Move, BattleActionKind.Pass]))
+            return Decorate("Akció: nyilak: további lépés | Space/P: mozgás vége");
+
         var commands = new List<string>();
-        if (actions.Contains(BattleActionKind.PhysicalAttack)) commands.Add("Space: támadás");
-        if (actions.Contains(BattleActionKind.Move) || actions.Contains(BattleActionKind.MoveFormation))
+        if (actionSet.Contains(BattleActionKind.PhysicalAttack)) commands.Add("Space: támadás");
+        if (actionSet.Contains(BattleActionKind.Move) || actionSet.Contains(BattleActionKind.MoveFormation))
             commands.Add("nyilak: mozgás");
-        if (actions.Contains(BattleActionKind.CastSpell)) commands.Add("V/F1-F8: varázslat");
-        if (actions.Contains(BattleActionKind.SelectTarget)) commands.Add("Tab: célpont");
-        if (actions.Contains(BattleActionKind.UseItem)) commands.Add("U: tárgy");
-        if (actions.Contains(BattleActionKind.TurnUndead)) commands.Add("T: halottűzés");
-        if (actions.Contains(BattleActionKind.Retreat)) commands.Add("R: visszavonulás");
-        if (actions.Contains(BattleActionKind.Pass)) commands.Add("P: passz");
+        if (actionSet.Contains(BattleActionKind.CastSpell)) commands.Add("V/F1-F8: varázslat");
+        if (actionSet.Contains(BattleActionKind.SelectTarget)) commands.Add("Tab: célpont");
+        if (actionSet.Contains(BattleActionKind.UseItem)) commands.Add("U: tárgy");
+        if (actionSet.Contains(BattleActionKind.TurnUndead)) commands.Add("T: halottűzés");
+        if (actionSet.Contains(BattleActionKind.Retreat)) commands.Add("R: visszavonulás");
+        if (actionSet.Contains(BattleActionKind.Pass)) commands.Add("P: passz");
         return commands.Count == 0 ? string.Empty : Decorate("Akció: " + string.Join(" | ", commands));
     }
 
@@ -108,7 +112,7 @@ public sealed class BattleCommandPanel
         var knownHotkeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Space", "nyilak", "V", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
-            "Tab", "U", "T", "R", "P", "V/F1-F8", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+            "Tab", "U", "T", "R", "P", "Space/P", "V/F1-F8", "1", "2", "3", "4", "5", "6", "7", "8", "9"
         };
 
         var segments = new List<TextSegment>();

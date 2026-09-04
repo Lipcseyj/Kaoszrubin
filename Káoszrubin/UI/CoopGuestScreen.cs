@@ -441,8 +441,7 @@ public sealed class CoopGuestScreen
                     value.Id == CombatantId.ForCharacter(characterId));
                 var target = participant?.Position ?? snapshot.Party
                     .FirstOrDefault(value => value.CharacterId == characterId)?.Position ?? new Position(0, 0);
-                var movement = participant?.MovementAllowance ?? 1;
-                for (var step = 0; step < movement; step++) target += battleDirection;
+                target += battleDirection;
                 command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                     battle.BattleId, battle.TurnId, BattleActionKind.Move, Target: target);
             }
@@ -469,6 +468,9 @@ public sealed class CoopGuestScreen
                     ConsoleKey.H when battle.AllowedActions.Contains(BattleActionKind.SwapToRear) =>
                         BattleActionKind.SwapToRear,
                     ConsoleKey.P when battle.AllowedActions.Contains(BattleActionKind.Pass) =>
+                        BattleActionKind.Pass,
+                    ConsoleKey.Spacebar when battle.AllowedActions.Contains(BattleActionKind.Pass) &&
+                                              battle.AllowedActions.Contains(BattleActionKind.Move) =>
                         BattleActionKind.Pass,
                     _ => (BattleActionKind?)null
                 };
