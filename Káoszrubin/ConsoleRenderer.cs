@@ -146,6 +146,7 @@ public sealed class ConsoleRenderer
     private int _goldenKeyCount;
     private bool _battleActive;
     private Enemy? _battleEnemy;
+    private LiveCharacter? _battleActingCharacter;
     private LiveCharacter? _displayedCharacter;
     public LiveCharacter DisplayedCharacter => _displayedCharacter ?? _party.Leader
         ?? throw new InvalidOperationException("Nincs megjeleníthető karakter.");
@@ -321,6 +322,7 @@ public sealed class ConsoleRenderer
         _mazeLevel = mazeLevel;
         _battleActive = false;
         _battleEnemy = null;
+        _battleActingCharacter = null;
         _teamBattleFocusPositions.Clear();
         _spellInfoCharacter = null;
         _spellCastingOverlaySnapshot = null;
@@ -401,10 +403,20 @@ public sealed class ConsoleRenderer
     public void DrawBattleStarted(Enemy enemy)
     {
         _battleActive = true;
+        _battleActingCharacter = null;
         _battleEnemy = enemy;
         DrawBattleCommandPanel(string.Empty);
         DrawPicturePanel();
         DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
+    }
+
+    public void DrawTacticalBattleActor(LiveCharacter? character, Enemy? enemy)
+    {
+        if (character is null && enemy is null) return;
+        if (_battleActingCharacter == character && _battleEnemy == enemy) return;
+        _battleActingCharacter = character;
+        _battleEnemy = enemy;
+        DrawPicturePanel();
     }
 
     public void DrawBattleCommandPanel(string text)
@@ -515,6 +527,7 @@ public sealed class ConsoleRenderer
     public void DrawBattleResult(BattleResult result, Enemy enemy, string? message = null)
     {
         _battleActive = false;
+        _battleActingCharacter = null;
         _battleEnemy = null;
         DrawPicturePanel();
         DrawBattleCommandPanel(string.Empty);
@@ -2616,10 +2629,14 @@ public sealed class ConsoleRenderer
     /// </summary>
     private void DrawPicturePanel()
     {
-        var portrait = _battleActive && _battleEnemy is not null
+        var actingCharacter = _battleActive ? _battleActingCharacter : null;
+        var portrait = actingCharacter is not null
+            ? AsciiPortraits.ForCharacterClass(actingCharacter.CharacterClass.Id)
+            : _battleActive && _battleEnemy is not null
             ? AsciiPortraits.ForEnemy(_battleEnemy.Definition.Id)
             : AsciiPortraits.ForCharacterClass(_displayedCharacter?.CharacterClass.Id ?? "");
-        var color = _battleActive && _battleEnemy is not null
+        var color = actingCharacter is not null ? actingCharacter.Color
+            : _battleActive && _battleEnemy is not null
             ? _battleEnemy.Definition.StrengthTier switch
             {
                 1 => ConsoleColor.Green,

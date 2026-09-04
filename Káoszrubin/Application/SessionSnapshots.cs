@@ -7,7 +7,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 67;
+    public const int Version = 68;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -152,7 +152,7 @@ public sealed record BattleSnapshot(BattleId BattleId, long TurnId, int Round, b
     IReadOnlyList<BattleTacticOptionSnapshot>? TacticOptions = null,
     int Cycle = 1, IReadOnlyList<TacticalBattleParticipantSnapshot>? Participants = null,
     IReadOnlyList<BattleItemOptionSnapshot>? ItemOptions = null,
-    IReadOnlyList<WorldEntityId>? ValidTargetEnemyIds = null);
+    IReadOnlyList<WorldEntityId>? ValidTargetEnemyIds = null, bool IsQuickBattle = false);
 
 public sealed record TacticalBattleParticipantSnapshot(CombatantId Id, string Name, BattleSide Side,
     TacticalParticipantKind Kind, Position Position, int Initiative, int MovementAllowance,

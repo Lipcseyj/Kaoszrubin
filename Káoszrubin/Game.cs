@@ -247,7 +247,7 @@ public sealed class Game : ISessionCommandHandler
             battle.Turns.Cycle, participants,
             actingCharacter is null ? null : GetBattleItemOptions(battle, actingCharacter),
             actingCharacter is null ? null : ReachableTeamEnemies(battle, actingCharacter)
-                .Select(enemy => enemy.Id).ToArray());
+                .Select(enemy => enemy.Id).ToArray(), IsQuickBattle: _isQuickTeamBattle);
     }
 
     private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(TeamBattleEncounter battle,
@@ -1553,6 +1553,7 @@ public sealed class Game : ISessionCommandHandler
                      string.Equals(progress.QuestId, RodericMalrecQuestId, StringComparison.OrdinalIgnoreCase) &&
                      progress.State == NpcQuestState.Offered))
             _pendingRodericExpedition = true;
+    }
     #endregion
 
         private void TryRestParty()
@@ -5918,6 +5919,7 @@ public sealed class Game : ISessionCommandHandler
     private void UpdateTeamBattleFocus(TeamBattleEncounter battle, TacticalBattleParticipant current)
     {
         if (_isQuickTeamBattle) return;
+        _renderer.DrawTacticalBattleActor(battle.CharacterFor(current.Id), battle.EnemyFor(current.Id));
         var targetId = TeamBattleFocusTarget(battle, current);
         var targetPosition = targetId is { } id ? battle.Turns.Find(id)?.Position : null;
         _renderer.DrawTeamBattleFocus(_maze, _fogOfWar, _player.Position, current.Position, targetPosition);

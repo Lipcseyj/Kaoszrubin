@@ -1385,10 +1385,18 @@ public sealed class CoopGuestScreen
 
         if (!_spellInfoOpen)
         {
-            var portrait = snapshot.Battle is { Enemy: { } battleEnemy }
+            var currentActor = snapshot.Battle is { IsQuickBattle: false, Participants: { } participants }
+                ? participants.FirstOrDefault(participant => participant.IsCurrent) : null;
+            var actingCharacter = currentActor is { Side: BattleSide.Friendly }
+                ? snapshot.Party.FirstOrDefault(character =>
+                    CombatantId.ForCharacter(character.CharacterId) == currentActor.Id) : null;
+            var portrait = actingCharacter is not null
+                ? AsciiPortraits.ForCharacterClass(actingCharacter.CharacterClassId)
+                : snapshot.Battle is { Enemy: { } battleEnemy }
                 ? AsciiPortraits.ForEnemy(battleEnemy.DefinitionId)
                 : AsciiPortraits.ForCharacterClass(own?.CharacterClassId ?? string.Empty);
-            var portraitColor = snapshot.Battle is { Enemy: { } battleSnapshotEnemy }
+            var portraitColor = actingCharacter is not null ? actingCharacter.Color
+                : snapshot.Battle is { Enemy: { } battleSnapshotEnemy }
                 ? world.Enemies.FirstOrDefault(candidate => candidate.DefinitionId == battleSnapshotEnemy.DefinitionId)?.Color
                   ?? ConsoleColor.Red
                 : own?.Color ?? ConsoleColor.Cyan;
