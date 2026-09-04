@@ -40,6 +40,7 @@ public sealed class Game : ISessionCommandHandler
     private FogOfWar _fogOfWar = null!;
     private readonly Random _random = new();
     private readonly BattleSystem _battleSystem;
+    private BattleActionDetails? _lastBattleActionDetails;
     private readonly GameSaveService _gameSaveService;
     private readonly GameStateMapper _gameStateMapper;
     private readonly DoorInteractionController _doorInteractions;
@@ -247,7 +248,8 @@ public sealed class Game : ISessionCommandHandler
             battle.Turns.Cycle, participants,
             actingCharacter is null ? null : GetBattleItemOptions(battle, actingCharacter),
             actingCharacter is null ? null : ReachableTeamEnemies(battle, actingCharacter)
-                .Select(enemy => enemy.Id).ToArray(), IsQuickBattle: _isQuickTeamBattle);
+                .Select(enemy => enemy.Id).ToArray(), IsQuickBattle: _isQuickTeamBattle,
+            ActionDetails: _lastBattleActionDetails);
     }
 
     private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(TeamBattleEncounter battle,
@@ -522,6 +524,12 @@ public sealed class Game : ISessionCommandHandler
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);
+                    if (_activeTeamBattle is not null && !_isQuickTeamBattle &&
+                        GameInputBindings.BattleDetailsPageDirection(keyInfo) is var detailDirection && detailDirection != 0)
+                    {
+                        _renderer.PageBattleDetails(detailDirection);
+                        continue;
+                    }
                     if (keyInfo.Key is ConsoleKey.PageUp or ConsoleKey.PageDown)
                     {
                         _renderer.ScrollMessageLog(keyInfo.Key == ConsoleKey.PageUp);
@@ -4676,7 +4684,11 @@ public sealed class Game : ISessionCommandHandler
             $"{caster.Name} elsüti: {spell.Name} → {targetText}. " +
             (usingItem ? $"{CastingItemUseText(castingItem!)}; 0 manna." : $"-{manaCost} manna.") +
             $"{judgmentText} {execution.Summary}",
-            BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions);
+            BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions,
+            execution.Details is { } detail ? detail with
+            {
+                Calculation = detail.Calculation.Prepend(usingItem ? "🔷 Tárgyhasználat: 0 manna" : $"🔷 Mannaköltség: {manaCost}").ToArray()
+            } : null);
     }
 
     private IEnumerable<(LiveCharacter Character, Position Position)> LivingPartyWithPositions()
@@ -5065,6 +5077,7 @@ public sealed class Game : ISessionCommandHandler
         _isQuickTeamBattle = ShouldUseQuickCombat(quickAssessment);
         _quickBattleSuppressedEntryCount = 0;
 
+        _lastBattleActionDetails = null;
         _activeTeamBattle = new TeamBattleEncounter(initiatingEnemy.Position,
             characterParticipants, enemyParticipants, initiatingCharacter.Id, initiatingEnemy.Id,
             enemyStrikesFirst, formation: ActiveBattleFormation());
@@ -5472,7 +5485,7 @@ public sealed class Game : ISessionCommandHandler
         battle.GrantExtraActions(attempt.ExtraPlayerActions);
         var message = attempt.Message +
                       _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
-        PresentBattleEntries([new BattleLogEntry(message, attempt.Kind)]);
+        PresentBattleEntries([new BattleLogEntry(message, attempt.Kind, attempt.Details)]);
         SynchronizeTeamBattleDefeats(battle, character);
         AdvanceTeamBattleTurn(battle);
     }
@@ -6598,8 +6611,19 @@ public sealed class Game : ISessionCommandHandler
 
     private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries)
     {
+        var materialized = entries.ToArray();
+        if (_activeTeamBattle is not null && !_isQuickTeamBattle)
+        {
+            foreach (var entry in materialized)
+            {
+                _lastBattleActionDetails = entry.Details ?? new BattleActionDetails(Guid.NewGuid(),
+                    _activeTeamBattle.CurrentCharacter?.Name ?? _activeTeamBattle.CurrentEnemy?.Name ?? "Akció",
+                    "", ["✨ Akció eredménye", "🎲 Kritikus: nem alkalmazható"], [entry.Message]);
+                _renderer.DrawBattleDetails(_lastBattleActionDetails);
+            }
+        }
         _sessionEventService.PresentBattleEntries(
-            entries,
+            materialized,
             _isQuickTeamBattle,
             entry => _renderer.DrawBattleRound(entry),
             _ => _renderer.RefreshBattleStatusRows(),

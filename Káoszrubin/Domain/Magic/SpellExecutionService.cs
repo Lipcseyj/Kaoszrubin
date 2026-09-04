@@ -7,9 +7,10 @@ using KaoszRubin.Domain.Magic;
 namespace KaoszRubin.Domain.Magic;
 
 public sealed record SpellCastAttempt(bool ConsumesTurn, string Message, BattleLogKind Kind,
-    int DamageToCurrentEnemy = 0, int ExtraPlayerActions = 0);
+    int DamageToCurrentEnemy = 0, int ExtraPlayerActions = 0, BattleActionDetails? Details = null);
 
-public sealed record SpellExecutionResult(int DamageToCurrentEnemy, int ExtraPlayerActions, string Summary);
+public sealed record SpellExecutionResult(int DamageToCurrentEnemy, int ExtraPlayerActions, string Summary,
+    BattleActionDetails? Details = null);
 
 public sealed record SpellResolutionResult(bool Applies, bool Half, bool Critical, string Text);
 
@@ -17,6 +18,8 @@ public sealed class SpellExecutionService
 {
     private readonly GameDataCatalog _gameData;
     private readonly Random _random;
+    private readonly List<string> _calculation = [];
+    private bool _criticalOccurred;
 
     public SpellExecutionService(GameDataCatalog gameData, Random random)
     {
@@ -175,6 +178,10 @@ public sealed class SpellExecutionService
         Func<Position, SpellEffectDefinition, string> onResurrectPartyMember,
         Action<LiveCharacter>? onRefreshCharacterSheet = null)
     {
+        _calculation.Clear();
+        _criticalOccurred = false;
+        _calculation.Add($"✨ {spell.Name}; szint {spell.Level}");
+        _calculation.Add(divineJudgment ? "⚡ Isteni ítélet: ×2 hatás, ingyen" : "✨ Normál varázslat");
         var effects = _gameData.GetSpellEffects(spell.Id);
         var targets = ResolveEnemySpellTargets(spell, target, currentEnemy, casterPosition, maze).ToList();
         var characterTargets = ResolveCharacterSpellTargets(caster, spell, target, livingParty, maze).ToList();
@@ -374,7 +381,13 @@ public sealed class SpellExecutionService
         if (damage.Values.Any(value => value > 0)) caster.BreakInvisibility();
         if (!inCombat && onRefreshCharacterSheet is not null) onRefreshCharacterSheet(caster);
         return new SpellExecutionResult(currentDamage, extraActions,
-            notes.Count == 0 ? "A varázslat nem talált érvényes célpontot." : string.Join("; ", notes.Distinct()));
+            notes.Count == 0 ? "A varázslat nem talált érvényes célpontot." : string.Join("; ", notes.Distinct()),
+            new BattleActionDetails(Guid.NewGuid(), caster.Name, spell.Name,
+                [$"✨ {spell.Name}", $"💥 Összes sebzés: {damage.Values.Sum()}",
+                 effects.Any(effect => effect.Resolution == SpellResolution.Attack)
+                    ? $"🎲 Kritikus: 5% / cél — {(_criticalOccurred ? "KRITIKUS!" : "nem")}" :
+                      "🎲 Kritikus: nem alkalmazható"],
+                _calculation.Concat(notes).ToArray()));
     }
 
     public IEnumerable<Enemy> ResolveEnemySpellTargets(SpellDefinition spell, Position target, Enemy? currentEnemy,
@@ -422,24 +435,28 @@ public sealed class SpellExecutionService
             notes.Add($"{enemy.Name}: a varázslat célt tévesztett ({resolution.Text})");
             return 0;
         }
-        var rolled = (effect.Dice?.Roll(_random) ?? 0) +
+        var diceRoll = effect.Dice?.Roll(_random) ?? 0;
+        _calculation.Add($"💥 {enemy.Name}: dobás {diceRoll}; INT {caster.EffectiveAbilities.Intelligence} ×{effect.IntelligenceMultiplier}");
+        _calculation.Add($"💥 Szint {caster.Level} ×{effect.LevelMultiplier}; alap +{effect.Value}");
+        var rolled = diceRoll +
                      (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier) +
                      caster.Level * effect.LevelMultiplier + effect.Value;
-        if (caster.HasPerk(PerkIds.MageElementalMaster)) rolled = (int)Math.Ceiling(rolled * 1.25);
+        if (caster.HasPerk(PerkIds.MageElementalMaster)) { rolled = (int)Math.Ceiling(rolled * 1.25); _calculation.Add("💥 Elemi mester ×1,25 ↑"); }
         if (caster.SpecializationId == ClassSpecializations.PriestJudgment && spell.School == SpellSchool.Divine)
-            rolled = (int)Math.Ceiling(rolled * 1.20);
+            { rolled = (int)Math.Ceiling(rolled * 1.20); _calculation.Add("💥 Specializáció ×1,20 ↑"); }
         if (caster.SpecializationId == ClassSpecializations.MageElementalist && spell.School == SpellSchool.Arcane)
-            rolled = (int)Math.Ceiling(rolled * 1.20);
+            { rolled = (int)Math.Ceiling(rolled * 1.20); _calculation.Add("💥 Specializáció ×1,20 ↑"); }
         if (caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.MageRagingElements) && spell.School == SpellSchool.Arcane)
-            rolled = (int)Math.Ceiling(rolled * 1.15);
+            { rolled = (int)Math.Ceiling(rolled * 1.15); _calculation.Add("💥 Tomboló elemek ×1,15 ↑"); }
         if (IsHolyEffect(effect) && IsUnholy(enemy.Definition))
         {
             rolled = (int)Math.Ceiling(rolled * 1.5);
+            _calculation.Add("✨ Szent sebezhetőség ×1,50 ↑");
             notes.Add($"{enemy.Name}: ✨ szent sebezhetőség +50%");
         }
-        if (divineJudgment) rolled *= 2;
-        if (resolution.Critical) rolled *= 2;
-        if (resolution.Half) rolled = Math.Max(1, rolled / 2);
+        if (divineJudgment) { rolled *= 2; _calculation.Add("⚡ Isteni ítélet ×2"); }
+        if (resolution.Critical) { rolled *= 2; _calculation.Add("🎲 KRITIKUS ×2"); }
+        if (resolution.Half) { rolled = Math.Max(1, rolled / 2); _calculation.Add("🛡️ Sikeres mentő: felezés ↓, min. 1"); }
         notes.Add($"{enemy.Name}: -{rolled} HP ({resolution.Text})");
         return rolled;
     }
@@ -466,13 +483,20 @@ public sealed class SpellExecutionService
                         caster.GetMagicItemBonus(MagicItemEffect.Hit) +
                         caster.SpellEffectValue(ActiveSpellEffectType.Invisibility) +
                         caster.SpellEffectValue(ActiveSpellEffectType.HitBonus);
+            _calculation.Add($"🎯 {enemy.Name}: d20={roll}; INT {caster.EffectiveAbilities.Intelligence}");
+            _calculation.Add($"🎯 Arkán fókusz +{(caster.HasPerk(PerkIds.MageArcaneFocus) ? 2 : 0)}; tárgy +{caster.GetMagicItemBonus(MagicItemEffect.Hit)}");
+            _calculation.Add($"🎯 Láthatatlanság +{caster.SpellEffectValue(ActiveSpellEffectType.Invisibility)}; varázshatás +{caster.SpellEffectValue(ActiveSpellEffectType.HitBonus)}");
+            _calculation.Add($"🎯 {roll}+{bonus} vs 11+{enemy.EffectiveSpeed}");
+            _calculation.Add("🎲 Természetes 20: 5%, ×2; természetes 1: mellé");
             var hit = roll == 20 || roll != 1 && roll + bonus >= 11 + enemy.EffectiveSpeed;
+            if (roll == 20) _criticalOccurred = true;
             result = new SpellResolutionResult(hit, false, roll == 20, hit ? $"mágikus támadás {roll + bonus}" : $"mellé {roll + bonus}");
         }
         else
         {
             var dc = 10 + caster.EffectiveAbilities.Intelligence / 2 + spell.Level;
             var roll = _random.Next(1, 21) + enemy.EffectiveSpeed;
+            _calculation.Add($"🛡️ Mentő: d20+gyorsaság={roll}; cél 10+INT/2+szint={dc}");
             var saved = roll >= dc;
             result = new SpellResolutionResult(!saved || effect.Resolution == SpellResolution.SaveHalf,
                 saved && effect.Resolution == SpellResolution.SaveHalf, false,
@@ -534,20 +558,24 @@ public sealed class SpellExecutionService
         foreach (var character in characters.Where(character => character.IsAlive))
         {
             var fullHealing = string.Equals(effect.Parameter, "Full", StringComparison.OrdinalIgnoreCase);
+            var healingDice = fullHealing ? 0 : effect.Dice?.Roll(_random) ?? 0;
+            _calculation.Add(fullHealing ? "❤️ Teljes gyógyítás" :
+                $"❤️ Dobás {healingDice} + INT {caster.EffectiveAbilities.Intelligence}×{effect.IntelligenceMultiplier} + szint {caster.Level}×{effect.LevelMultiplier} +{effect.Value}");
             var amount = fullHealing
                 ? character.MaximumVitality
-                : (effect.Dice?.Roll(_random) ?? 0) +
+                : healingDice +
                   (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier) +
                   caster.Level * effect.LevelMultiplier + effect.Value;
-            if (!fullHealing && divineJudgment) amount *= 2;
+            if (!fullHealing && divineJudgment) { amount *= 2; _calculation.Add("⚡ Isteni ítélet ×2"); }
             if (caster.HasPerk(PerkIds.PriestHealingGrace))
-                amount = (int)Math.Ceiling(amount * 1.25);
+                { amount = (int)Math.Ceiling(amount * 1.25); _calculation.Add("❤️ Gyógyító kegy ×1,25 ↑"); }
             if (caster.SpecializationId == ClassSpecializations.PriestLife)
-                amount = (int)Math.Ceiling(amount * 1.25);
+                { amount = (int)Math.Ceiling(amount * 1.25); _calculation.Add("❤️ Élet specializáció ×1,25 ↑"); }
             if (caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.PriestOverflowingLife))
-                amount = (int)Math.Ceiling(amount * 1.15);
+                { amount = (int)Math.Ceiling(amount * 1.15); _calculation.Add("❤️ Túláradó élet ×1,15 ↑"); }
             var before = character.CurrentVitality;
             character.RestoreVitality(amount);
+            _calculation.Add($"❤️ {character.Name}: {amount} → tényleges {character.CurrentVitality - before}; túltöltés {Math.Max(0, amount - (character.CurrentVitality - before))}");
             notes.Add($"{character.Name}: {FormatHealingResult(character, amount, before)}");
         }
     }

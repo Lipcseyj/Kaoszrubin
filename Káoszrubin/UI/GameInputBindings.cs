@@ -7,6 +7,13 @@ public enum InventoryInputAction { MoveUp, MoveDown, Inspect, Drop, Use, MoveIte
 /// <summary>A host és a coop vendég közös, kontextusfüggő billentyűkiosztása.</summary>
 public static class GameInputBindings
 {
+    public static int BattleDetailsPageDirection(ConsoleKeyInfo key) => key.Key switch
+    {
+        ConsoleKey.Add => 1,
+        ConsoleKey.Subtract => -1,
+        _ => key.KeyChar switch { '+' => 1, '-' => -1, _ => 0 }
+    };
+
     public static bool IsCharacterSheetToggle(ConsoleKey key) => key == ConsoleKey.Tab;
 
     public static InventoryInputAction? InventoryAction(ConsoleKey key) => key switch

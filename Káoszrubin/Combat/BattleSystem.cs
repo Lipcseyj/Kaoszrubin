@@ -199,7 +199,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             return new BattleLogEntry(
                 $"{FormatAttackSummary(attacker.Name, defender.Name, attacks,
                     defender.CurrentHitPoints, defender.Definition.HitPoints ?? defender.CurrentHitPoints)}{statusText}",
-            critical ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack);
+            critical ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack,
+            DescribeAction(attacker.Name, defender.Name, attacks, statusText));
     }
 
     public BattleLogEntry ResolveTeamEnemyAction(Enemy attacker, LiveCharacter defender,
@@ -223,7 +224,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return new BattleLogEntry(
             $"{FormatAttackSummary(attacker.Name, defender.Name, [attack],
                 defender.CurrentVitality, defender.MaximumVitality)} {survival}{effectText}",
-            attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack);
+            attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack,
+            DescribeAction(attacker.Name, defender.Name, [attack], survival + effectText));
     }
 
     public BattleLogEntry ResolveTeamOpportunityAttack(Enemy attacker, LiveCharacter defender,
@@ -237,7 +239,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return new BattleLogEntry(
             $"↪️ {FormatAttackSummary(attacker.Name, defender.Name, [attack],
                 defender.CurrentVitality, defender.MaximumVitality)} {survival}",
-            attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack);
+            attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack,
+            DescribeAction(attacker.Name, defender.Name, [attack], survival));
     }
 
     public void SetTeamKnightProtection(TeamCharacterBattleRuntime runtime, LiveCharacter knight)
@@ -281,6 +284,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         }
         string message;
         BattleLogKind kind;
+        BattleActionDetails? actionDetails = null;
         if (state.IsPlayerTurn)
         {
             player.AdvanceSpellEffects();
@@ -320,6 +324,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 message = FormatAttackSummary(player.Name, enemy.Name, attacks,
                     defender.HitPoints!.Value, enemy.Definition.HitPoints!.Value) + statusText;
                 kind = criticalHit ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack;
+                actionDetails = DescribeAction(player.Name, enemy.Name, attacks, statusText);
             }
         }
         else
@@ -345,11 +350,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 message = $"{FormatAttackSummary(enemy.Name, player.Name, [attack],
                     player.CurrentVitality, player.MaximumVitality)} {survival}{effectText}";
                 kind = attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack;
+                actionDetails = DescribeAction(enemy.Name, player.Name, [attack], survival + effectText);
             }
         }
         state.Defender = defender;
         state.Events.Add(message);
-        entries.Add(new BattleLogEntry(message, kind));
+        entries.Add(new BattleLogEntry(message, kind, actionDetails));
         if (state.IsPlayerTurn && context.BarbarianRageActionsRemaining > 0)
             context.BarbarianRageActionsRemaining--;
         if (state.IsPlayerTurn && state.QueuedPlayerActions > 0)
@@ -384,6 +390,34 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (successful.Length > 0)
             summary += $"\t💥 {successful.Sum(attack => attack.Damage)}\t{defenderName} ❤️ {currentHitPoints}/{maximumHitPoints}";
         return summary;
+    }
+
+    private static BattleActionDetails DescribeAction(string actor, string target,
+        IReadOnlyList<AttackResult> attacks, string effects)
+    {
+        var summary = new List<string>
+        {
+            $"🎯 {attacks.Count(attack => attack.Hit)}/{attacks.Count} találat",
+            $"💥 Sebzés: {attacks.Sum(attack => attack.Damage)}",
+            $"🎲 Kritikus: {attacks.FirstOrDefault()?.Details?.CriticalChancePercent ?? 0:0.##}%" +
+                (attacks.Any(attack => attack.Critical) ? " KRITIKUS!" : " — nem")
+        };
+        var calculation = new List<string>();
+        for (var i = 0; i < attacks.Count; i++)
+        {
+            var attack = attacks[i];
+            calculation.Add($"⚔ {i + 1}. ütés: {(attack.Hit ? "talált" : "mellé")}");
+            if (attack.Details is { } detail)
+            {
+                calculation.Add($"🎯 {detail.Hit}");
+                calculation.Add($"🎲 {detail.CriticalChancePercent:0.##}%; kritikus ×{detail.CriticalMultiplier}");
+                calculation.AddRange(detail.Calculation);
+                calculation.Add($"💥 Végső sebzés: {detail.Damage}");
+            }
+            else calculation.Add(attack.Message);
+        }
+        if (!string.IsNullOrWhiteSpace(effects)) calculation.Add(effects);
+        return new(Guid.NewGuid(), actor, target, summary, calculation);
     }
 
     private static void ApplyBattleStartPerks(LiveCharacter player, Action<BattleLogEntry> onRound)
@@ -461,10 +495,71 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var thirstHitText = player.StatusHitPenalty > 0 && player.HasStatus(CharacterStatusIds.Thirsty)
             ? $" [💧 szomjúság -{player.StatusHitPenalty} találat]"
             : string.Empty;
+        var criticalChanceBonusPercent = weapon?.MagicPower switch
+        {
+            2 => 5,
+            >= 3 => 10,
+            _ => 0
+        };
+        if (player.HasPerk(PerkIds.ThiefDeadlyAccuracy)) criticalChanceBonusPercent += 10;
+        if (weaponFamily == WeaponFamilies.Dagger && weaponRank == WeaponProficiencyRank.Master)
+            criticalChanceBonusPercent += 5;
+        if (context.Tactic == BattleTactic.ThiefObserve &&
+            player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve))
+            criticalChanceBonusPercent += 5;
+        var criticalNaturalRollMinimum = Math.Max(1, 20 - criticalChanceBonusPercent / 5);
+        var criticalMultiplier = player.HasPerk(PerkIds.ThiefDeadlyAccuracy) && hit.NaturalRoll >= 18
+            ? 3
+            : weaponFamily == WeaponFamilies.Axe && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll == 20
+                ? 3
+            : weaponFamily == WeaponFamilies.Dagger && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll >= 19
+                ? 2
+            : hit.NaturalRoll >= criticalNaturalRollMinimum || context.Tactic == BattleTactic.ThiefObserve && hit.NaturalRoll == 19 &&
+              player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve) ? 2 : 1;
+        var calculation = new List<string>
+        {
+            $"🎯 d20={hit.NaturalRoll}; ügyesség {player.EffectiveAbilities.Dexterity}",
+            $"🎯 Cél: 11 + gyorsaság {defenderSpeed} = {11 + defenderSpeed}",
+            $"🎯 Összes módosító: {hitBonus - player.StatusHitPenalty:+#;-#;0}",
+            $"🎲 Kritikus alap 5%; bónusz +{criticalChanceBonusPercent}%",
+            $"🎲 Kritikus küszöb: {criticalNaturalRollMinimum}–20"
+        };
+        void Modifier(string name, int value) { if (value != 0) calculation.Add($"{name}: {value:+#;-#;0}"); }
+        Modifier("🎯 Erő", strengthHitBonus);
+        Modifier("🎯 Osztályjártasság", classHitBonus);
+        Modifier("🎯 Fegyvermester", weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 1 : 0);
+        Modifier("🎯 Varázstárgy", player.GetMagicItemBonus(MagicItemEffect.Hit));
+        Modifier("🎯 Varázshatás", player.SpellEffectValue(ActiveSpellEffectType.HitBonus));
+        Modifier("🎯 Láthatatlanság", invisibilityBonus);
+        Modifier("🎯 Áldott fegyver", blessedWeaponBonus);
+        Modifier("🎯 Mágikus fegyver", weapon?.MagicPower ?? 0);
+        Modifier("🎯 Kardjártasság", weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0);
+        Modifier("🎯 Esküpenge", oathbladeBonus);
+        Modifier("🎯 Megtorlás", retaliation ? 2 : 0);
+        Modifier("🎯 Taktika", context.Tactic is BattleTactic.FighterPrecise or BattleTactic.ThiefObserve ? 2 :
+            context.Tactic == BattleTactic.FighterPowerful ? -1 : 0);
+        Modifier(player.HasStatus(CharacterStatusIds.Thirsty) ? "💧 Szomjúság: találat" : "🎯 Állapotbüntetés",
+            -player.StatusHitPenalty);
+        Modifier("🎲 Mágikus fegyver (%)", weapon?.MagicPower >= 3 ? 10 : weapon?.MagicPower == 2 ? 5 : 0);
+        Modifier("🎲 Halálos pontosság (%)", player.HasPerk(PerkIds.ThiefDeadlyAccuracy) ? 10 : 0);
+        Modifier("🎲 Tőrmester (%)", weaponFamily == WeaponFamilies.Dagger && weaponRank == WeaponProficiencyRank.Master ? 5 : 0);
+        Modifier("🎲 Megfigyelés (%)", context.Tactic == BattleTactic.ThiefObserve &&
+            player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve) ? 5 : 0);
+        // Natural critical range is not sufficient: the attack must also hit.
+        var criticalChance = Enumerable.Range(1, 20).Count(roll =>
+            (forcedHit || roll != 1 && (roll == 20 || roll + player.EffectiveAbilities.Dexterity +
+                hitBonus - player.StatusHitPenalty >= 11 + defenderSpeed)) &&
+            roll >= criticalNaturalRollMinimum) * 5d;
+        calculation.Add($"🎲 Tényleges kritikus esély: {criticalChance:0.##}%");
+        AttackResult Detailed(AttackResult result) => result with
+        {
+            Details = new AttackDetails(hit.Description, result.Damage, criticalChance,
+                result.Critical ? criticalMultiplier : 1, calculation.ToArray())
+        };
         if (!hit.Hit)
         {
             context.ConsecutivePlayerHits = 0;
-            return AttackResult.Miss($"találat: {hit.Description}{thirstHitText}{magicWeaponHitText}{magicWeaponCriticalText} → 💨.{strengthHitText}{classHitText}");
+            return Detailed(AttackResult.Miss($"találat: {hit.Description}{thirstHitText}{magicWeaponHitText}{magicWeaponCriticalText} → 💨.{strengthHitText}{classHitText}"));
         }
 
         var baseDamage = weapon?.Damage is { } range ? Roll(range) : Roll(new ValueRange(1, 2));
@@ -475,6 +570,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var perkBonus = player.GetMagicItemBonus(MagicItemEffect.Damage) + blessedWeaponBonus +
                         player.SpellEffectValue(ActiveSpellEffectType.DamageBonus);
         var notes = new List<string>();
+        Modifier("💥 Varázstárgy", player.GetMagicItemBonus(MagicItemEffect.Damage));
+        Modifier("💥 Varázshatás", player.SpellEffectValue(ActiveSpellEffectType.DamageBonus));
         if (oathbladeBonus > 0)
         {
             perkBonus += 2;
@@ -525,27 +622,6 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             context.AmbushAvailable = false;
             notes.Add($"Orvtámadás ×{damageMultiplierPercent / 100d:0.##}");
         }
-        var criticalChanceBonusPercent = weapon?.MagicPower switch
-        {
-            2 => 5,
-            >= 3 => 10,
-            _ => 0
-        };
-        if (player.HasPerk(PerkIds.ThiefDeadlyAccuracy)) criticalChanceBonusPercent += 10;
-        if (weaponFamily == WeaponFamilies.Dagger && weaponRank == WeaponProficiencyRank.Master)
-            criticalChanceBonusPercent += 5;
-        if (context.Tactic == BattleTactic.ThiefObserve &&
-            player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve))
-            criticalChanceBonusPercent += 5;
-        var criticalNaturalRollMinimum = Math.Max(1, 20 - criticalChanceBonusPercent / 5);
-        var criticalMultiplier = player.HasPerk(PerkIds.ThiefDeadlyAccuracy) && hit.NaturalRoll >= 18
-            ? 3
-            : weaponFamily == WeaponFamilies.Axe && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll == 20
-                ? 3
-            : weaponFamily == WeaponFamilies.Dagger && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll >= 19
-                ? 2
-            : hit.NaturalRoll >= criticalNaturalRollMinimum || context.Tactic == BattleTactic.ThiefObserve && hit.NaturalRoll == 19 &&
-              player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve) ? 2 : 1;
         if (criticalMultiplier > 1)
             notes.Add(criticalMultiplier == 3
                 ? weaponFamily == WeaponFamilies.Axe && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll == 20 &&
@@ -566,6 +642,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var rawDamage = baseDamage + abilityBonus + randomBonus + perkBonus;
         var damage = ApplyDefense((rawDamage * damageMultiplierPercent + 99) / 100, effectiveArmor);
         var statusDamagePenalty = player.StatusPhysicalDamagePenalty;
+        Modifier(player.HasStatus(CharacterStatusIds.Hungry) ? "🍖 Éhség: fizikai sebzés" : "💥 Állapotbüntetés",
+            -statusDamagePenalty);
         damage = Math.Max(1, damage - statusDamagePenalty);
         if (statusDamagePenalty > 0)
             notes.Add(player.HasStatus(CharacterStatusIds.Hungry)
@@ -617,9 +695,16 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (bluntArmorIgnored > 0)
             armorText += $" → {effectiveArmor} (🔨 jártasság -{bluntArmorIgnored})";
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
-        return AttackResult.HitFor(damage,
+        calculation.Add($"💥 Fegyver: {weapon?.Name ?? "Puszta kéz"}; alap {baseDamage}");
+        calculation.Add($"💥 {(usesDexterity ? "Ügyesség" : "Erő")} {ability} → +{abilityBonus}; d3−1={randomBonus}");
+        calculation.Add($"💥 Nyers: {baseDamage}+{abilityBonus}+{randomBonus}+{perkBonus}={rawDamage}");
+        calculation.Add($"💥 Szorzó ×{damageMultiplierPercent / 100d:0.##}; felfelé kerekítve");
+        calculation.Add($"🛡️ {armorText}; effektív {effectiveArmor}");
+        calculation.AddRange(notes);
+        calculation.Add("💥 Páncél után min. 1; éhség után min. 1; majd taktika és méreg.");
+        return Detailed(AttackResult.HitFor(damage,
             $"találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplierPercent / 100d:0.##} - {armorText} = {damageText}.{noteText}",
-            criticalMultiplier > 1);
+            criticalMultiplier > 1));
     }
 
     public int EstimatePlayerHitChance(LiveCharacter player, Enemy enemy, BattleTactic tactic)
@@ -679,16 +764,30 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     private AttackResult EnemyAttack(EnemyDefinition attacker, LiveCharacter defender, BattleRuntimeContext context, int attackerSpeed)
     {
-        if (context.ChallengeAvailable) { context.ChallengeAvailable = false; return AttackResult.Miss("💨 Kihívás: az első támadás automatikusan elhibázza."); }
-        if (defender.HasPerk(PerkIds.PriestSanctuary) && _random.NextDouble() < 0.20) return AttackResult.Miss("💨 Szentély: az ellenfél elveszíti a támadását.");
-        if (defender.HasSpellEffect(ActiveSpellEffectType.Invisibility)) return AttackResult.Miss("💨 Láthatatlanság: az ellenfél nem talál célpontot.");
+        var calculation = new List<string>();
+        var criticalChance = 0d;
+        var hitDescription = "Automatikus elkerülés";
+        AttackResult Detailed(AttackResult result) => result with
+        {
+            Details = new AttackDetails(hitDescription, result.Damage, criticalChance,
+                result.Critical ? 2 : 1, calculation.Append(result.Message).ToArray())
+        };
+        void Modifier(string label, int value) { if (value != 0) calculation.Add($"{label}: {value:+#;-#;0}"); }
+        if (context.ChallengeAvailable) { context.ChallengeAvailable = false; return Detailed(AttackResult.Miss("💨 Kihívás: az első támadás automatikusan elhibázza.")); }
+        if (defender.HasPerk(PerkIds.PriestSanctuary) && _random.NextDouble() < 0.20) return Detailed(AttackResult.Miss("💨 Szentély: az ellenfél elveszíti a támadását."));
+        if (defender.HasSpellEffect(ActiveSpellEffectType.Invisibility)) return Detailed(AttackResult.Miss("💨 Láthatatlanság: az ellenfél nem talál célpontot."));
         var hit = HitRoll(attackerSpeed, defender.EffectiveAbilities.Dexterity, 0, false);
-        if (!hit.Hit) return AttackResult.Miss($"találat: {hit.Description} → 💨.");
+        criticalChance = 5;
+        hitDescription = hit.Description;
+        calculation.Add($"🎯 d20={hit.NaturalRoll}; gyorsaság {attackerSpeed}");
+        calculation.Add($"🎯 Cél: 11 + ügyesség {defender.EffectiveAbilities.Dexterity}");
+        calculation.Add("🎲 Kritikus: természetes 20, 5%, ×2");
+        if (!hit.Hit) return Detailed(AttackResult.Miss($"találat: {hit.Description} → 💨."));
         var criticalMultiplier = hit.NaturalRoll == 20 ? 2 : 1;
         if (criticalMultiplier == 1 && defender.HasPerk(PerkIds.ThiefEvasion) && _random.NextDouble() < 0.15)
         {
             context.ShadowStepReady = defender.HasPerk(PerkIds.ThiefShadowStep);
-            return AttackResult.Miss("💨 Kitérés: a találat elkerülve." + (context.ShadowStepReady ? " Árnyéklépés aktiválva." : string.Empty));
+            return Detailed(AttackResult.Miss("💨 Kitérés: a találat elkerülve." + (context.ShadowStepReady ? " Árnyéklépés aktiválva." : string.Empty)));
         }
 
         var strength = attacker.Strength ?? 1;
@@ -718,12 +817,34 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                           (defender.WeaponSlots.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
                            defender.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master ? 1 : 0) +
                           tacticDefense - rageDefensePenalty;
+        Modifier("🛡️ Vastag bőr", defender.HasPerk(PerkIds.BarbarianThickSkin) ? 1 : 0);
+        Modifier("🛡️ Pajzsfal", shieldEquipped && defender.HasPerk(PerkIds.KnightShieldWall) ? 2 : 0);
+        Modifier("🛡️ Varázstárgy", defender.GetMagicItemBonus(MagicItemEffect.Defense));
+        Modifier("🛡️ Varázshatás", defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus));
+        Modifier("🛡️ Gonosz elleni védelem", evilWardDefense);
+        Modifier("🛡️ Pajzsjártasság", shieldEquipped && shieldRank is not null ? 1 : 0);
+        Modifier("🛡️ Kardmester", defender.WeaponSlots.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
+            defender.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master ? 1 : 0);
+        Modifier("🛡️ Védekező taktika", tacticDefense);
+        Modifier("🛡️ Düh", -rageDefensePenalty);
+        if (shieldRank == WeaponProficiencyRank.Master && shieldEquipped)
+            calculation.Add($"🛡️ Pajzsmester: két dobás maximuma = {shield}");
+        if (defender.HasPerk(PerkIds.KnightArmorMaster))
+            calculation.Add($"🛡️ Páncélmester: legalább a felfelé kerekített átlag = {armor}");
+        Modifier("🛡️ Megtörhetetlen", defender.HasPerk(PerkIds.FighterUnbreakable) ? 2 : 0);
+        Modifier("🛡️ Legyőzhetetlen", defender.HasPerk(PerkIds.KnightInvincible) ? 4 : 0);
         var reduction = (defender.HasPerk(PerkIds.FighterUnbreakable) ? 2 : 0) + (defender.HasPerk(PerkIds.KnightInvincible) ? 4 : 0);
-        var monsterBonusDamage = RollMonsterBonusDamage(attacker);
+        var monsterBonusDamage = RollMonsterBonusDamage(attacker, calculation);
         var rawDamage = strength + randomDamage + monsterBonusDamage;
         var damage = Math.Max(0, ApplyDefense(rawDamage * criticalMultiplier, armor + shield + perkDefense) - reduction);
         var physicalReduction = Math.Clamp(defender.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction) +
             defender.SpellEffectValue(ActiveSpellEffectType.Sanctuary) + evilWard.Sum(effect => effect.Value), 0, 100);
+        Modifier("🛡️ Fizikai csökkentés (%)", defender.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction));
+        Modifier("🛡️ Szentély (%)", defender.SpellEffectValue(ActiveSpellEffectType.Sanctuary));
+        Modifier("🛡️ Gonosz elleni csökkentés (%)", evilWard.Sum(effect => effect.Value));
+        calculation.Add($"🛡️ Összes fizikai csökkentés: {physicalReduction}% (0–100%)");
+        if (defender.HasPerk(PerkIds.BarbarianPainTolerance) && damage * (100 - physicalReduction) / 100 < 3)
+            calculation.Add("🛡️ Fájdalomtűrés: 3 alatti sebzés → 0");
         if (physicalReduction > 0) damage = damage * (100 - physicalReduction) / 100;
         if (defender.HasPerk(PerkIds.BarbarianPainTolerance) && damage < 3) damage = 0;
         var absorbed = 0;
@@ -738,10 +859,14 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var manaShieldText = absorbed == 0 ? string.Empty : $" - mannapajzs {absorbed}";
         var monsterBonusText = monsterBonusDamage == 0 ? string.Empty : $" + szörnyképesség {monsterBonusDamage}";
         var statusText = ApplyMonsterStatusAbilities(attacker, defender);
+        calculation.Add($"💥 Erő {strength} + dobás {randomDamage} + szörnybónusz {monsterBonusDamage} = {rawDamage}");
+        calculation.Add($"💥 ×{criticalMultiplier} − páncél {armor} − pajzs {shield} − bónuszvédelem {perkDefense}");
+        calculation.Add($"💥 Minimum 1, majd fix csökkentés −{reduction}, majd −{physicalReduction}%, lefelé kerekítve");
+        if (absorbed > 0) calculation.Add($"🔷 Mannapajzs: −{absorbed} sebzés / manna");
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
-        return AttackResult.HitFor(damage,
+        return Detailed(AttackResult.HitFor(damage,
             $"találat: {hit.Description} → 🎯; sebzés: (Erő {strength} + dobás {randomDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damageText}.{statusText}",
-            criticalMultiplier > 1);
+            criticalMultiplier > 1));
     }
 
     private int MonsterAbilityValue(EnemyDefinition enemy, MonsterAbilityEffect effect) => enemy.AbilityIds
@@ -750,12 +875,20 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         .Where(ability => ability.Effect == effect)
         .Sum(ability => ability.Value);
 
-    private int RollMonsterBonusDamage(EnemyDefinition enemy) => enemy.AbilityIds
-        .Where(_monsterAbilities.ContainsKey)
-        .Select(abilityId => _monsterAbilities[abilityId])
-        .Where(ability => ability.Effect == MonsterAbilityEffect.ExtraDamage &&
-                          _random.Next(100) < ability.ChancePercent)
-        .Sum(ability => ability.Value);
+    private int RollMonsterBonusDamage(EnemyDefinition enemy, ICollection<string>? calculation = null)
+    {
+        var total = 0;
+        foreach (var ability in enemy.AbilityIds.Where(_monsterAbilities.ContainsKey)
+                     .Select(abilityId => _monsterAbilities[abilityId])
+                     .Where(ability => ability.Effect == MonsterAbilityEffect.ExtraDamage))
+        {
+            var roll = _random.Next(100);
+            if (roll >= ability.ChancePercent) continue;
+            total += ability.Value;
+            calculation?.Add($"💥 {ability.Name}: +{ability.Value} ({ability.ChancePercent}%, dobás {roll + 1})");
+        }
+        return total;
+    }
 
     private string ApplyMonsterStatusAbilities(EnemyDefinition enemy, LiveCharacter defender)
     {
@@ -906,7 +1039,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     private sealed record InitiativeRoll(int Total, string ModifierText);
     private sealed record HitRollResult(bool Hit, int NaturalRoll, string Description);
-    private sealed record AttackResult(bool Hit, int Damage, string Message, bool Critical)
+    private sealed record AttackResult(bool Hit, int Damage, string Message, bool Critical, AttackDetails? Details = null)
     {
         public static AttackResult Miss(string message) => new(false, 0, message, false);
         public static AttackResult HitFor(int damage, string message, bool critical = false) => new(true, damage, message, critical);
@@ -914,7 +1047,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 }
 
 public sealed record BattleResult(bool PlayerWon, int Rounds, IReadOnlyList<string> Events);
-public sealed record BattleLogEntry(string Message, BattleLogKind Kind);
+public sealed record BattleLogEntry(string Message, BattleLogKind Kind, BattleActionDetails? Details = null);
 public sealed record BattlePlayerAction(string Message, BattleLogKind Kind = BattleLogKind.PlayerAttack,
     int DamageToEnemy = 0, int ExtraPlayerActions = 0);
 public enum BattleLogKind { Information, PlayerAttack, EnemyAttack, CriticalHit }

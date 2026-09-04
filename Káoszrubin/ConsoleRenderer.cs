@@ -147,6 +147,24 @@ public sealed class ConsoleRenderer
     private bool _battleActive;
     private Enemy? _battleEnemy;
     private LiveCharacter? _battleActingCharacter;
+    private BattleActionDetails? _battleDetails;
+    private int _battleDetailsPage;
+
+    public void DrawBattleDetails(BattleActionDetails? details)
+    {
+        if (_battleDetails?.Id != details?.Id) _battleDetailsPage = 0;
+        _battleDetails = details;
+        if (_spellInfoCharacter is null)
+            foreach (var line in BattleDetailsPanel.Build(details, _battleDetailsPage))
+                WriteCharacterSheetPanelLine(line);
+    }
+
+    public void PageBattleDetails(int direction)
+    {
+        _battleDetailsPage = BattleDetailsPanel.Normalize(_battleDetailsPage + direction,
+            BattleDetailsPanel.PageCount(_battleDetails));
+        DrawBattleDetails(_battleDetails);
+    }
     private LiveCharacter? _displayedCharacter;
     public LiveCharacter DisplayedCharacter => _displayedCharacter ?? _party.Leader
         ?? throw new InvalidOperationException("Nincs megjeleníthető karakter.");
@@ -324,6 +342,8 @@ public sealed class ConsoleRenderer
         _battleEnemy = null;
         _battleActingCharacter = null;
         _teamBattleFocusPositions.Clear();
+        _battleDetails = null;
+        _battleDetailsPage = 0;
         _spellInfoCharacter = null;
         _spellCastingOverlaySnapshot = null;
         Console.Clear();
@@ -415,6 +435,8 @@ public sealed class ConsoleRenderer
     {
         _battleActive = true;
         _battleActingCharacter = null;
+        _battleDetails = null;
+        _battleDetailsPage = 0;
         _battleEnemy = enemy;
         DrawBattleCommandPanel(string.Empty);
         DrawPicturePanel();
@@ -539,6 +561,8 @@ public sealed class ConsoleRenderer
     {
         _battleActive = false;
         _battleActingCharacter = null;
+        _battleDetails = null;
+        _battleDetailsPage = 0;
         _battleEnemy = null;
         DrawPicturePanel();
         DrawBattleCommandPanel(string.Empty);
@@ -2361,6 +2385,7 @@ public sealed class ConsoleRenderer
             else
                 WriteCharacterSheetPanelLine(line);
         DrawSelectableCharacterSheetRows(character);
+        if (_battleActive && _battleDetails is not null) DrawBattleDetails(_battleDetails);
         WriteSheetLine(CharacterSheetReservedMessageLine, string.Empty, ConsoleColor.DarkGray);
         WriteSheetLine(CharacterSheetControlsLine, _formation is null ? string.Empty : FormationStatusText(_formation),
             _formation?.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);

@@ -63,6 +63,8 @@ public sealed class CoopGuestScreen
     private IReadOnlyList<Position> _doorTargetCandidates = [];
     private int _doorTargetSelection;
     private GuestRenderFrame? _lastFrame;
+    private Guid? _battleDetailsId;
+    private int _battleDetailsPage;
     private readonly BattleCommandPanel _battleCommandPanel = new(
         ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', BattleCommandPanel.Width),
         ConsoleColor.Cyan);
@@ -149,6 +151,14 @@ public sealed class CoopGuestScreen
                 if (Console.KeyAvailable)
                 {
                     var key = Console.ReadKey(intercept: true);
+                    if (client.CurrentSnapshot?.Battle is { IsQuickBattle: false } detailBattle &&
+                        GameInputBindings.BattleDetailsPageDirection(key) is var detailDirection && detailDirection != 0)
+                    {
+                        _battleDetailsPage = BattleDetailsPanel.Normalize(_battleDetailsPage + detailDirection,
+                            BattleDetailsPanel.PageCount(detailBattle.ActionDetails));
+                        Interlocked.Exchange(ref _redrawRequested, 1);
+                        continue;
+                    }
                     if (key.Key is ConsoleKey.PageUp or ConsoleKey.PageDown)
                     {
                         ScrollMessageLog(key.Key == ConsoleKey.PageUp);
@@ -1334,6 +1344,15 @@ public sealed class CoopGuestScreen
                     snapshot.BossKeyCount, own.CharacterId == snapshot.LeaderCharacterId)
                     .ToDictionary(line => line.Row)
                 : [];
+        var actionDetails = snapshot.Battle?.ActionDetails;
+        if (_battleDetailsId != actionDetails?.Id)
+        {
+            _battleDetailsId = actionDetails?.Id;
+            _battleDetailsPage = 0;
+        }
+        if (!_spellInfoOpen && snapshot.Battle is { IsQuickBattle: false })
+            foreach (var line in BattleDetailsPanel.Build(actionDetails, _battleDetailsPage))
+                panelLines[line.Row] = line;
         var selectedSlot = _inventoryOpen && own is { IsTemporaryFollower: false,
             Inventory.Slots.Count: > 0 } && own.Inventory is { } inventory
             ? new InventorySlotAddress(inventory.Slots[Math.Clamp(_inventorySelection, 0, inventory.Slots.Count - 1)].Kind,

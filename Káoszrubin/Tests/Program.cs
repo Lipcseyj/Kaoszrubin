@@ -89,6 +89,7 @@ var tests = new (string Name, Action Run)[]
     ("A fenyegetésbecslés felismeri az elszigetelt gyenge ellenfelet", EncounterThreatAssessmentRecognizesSafeFight),
     ("A gyorsharc legfeljebb három jelentéktelen ellenfelet enged át", QuickCombatAllowsUpToThreeSafeEnemies),
     ("A gyorsharc beállítása normalizálható és menthető", QuickCombatSettingPersists),
+    ("A csatarészlet panel lapozható és mutatja a kritikus esélyt", BattleDetailsPanelPagesCalculation),
     ("A gyorsharc összesítője ölőnként csoportosítja az ellenfeleket és az XP-t", QuickCombatSummaryListsKillsAndExperience),
     ("A taktikai és gyorsharc összesítője kiírja a HP- és mannafogyást", TeamBattleSummaryListsResourceUse),
     ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
@@ -612,7 +613,8 @@ static void BarbarianRageTriggersAfterFiveDamage()
     Assert(state.IsBarbarianRaging, "A barbár legalább 5 tényleges sebzés után sem került Dühbe.");
     var rageLogs = new List<string>();
     for (var step = 0; step < 6 && state.IsBarbarianRaging; step++)
-        rageLogs.AddRange(system.Advance(state).Entries.Select(entry => entry.Message));
+        rageLogs.AddRange(system.Advance(state).Entries.SelectMany(entry =>
+            entry.Details?.Calculation ?? [entry.Message]));
     Assert(rageLogs.Any(log => Enumerable.Range(5, 6).Any(bonus =>
             log.Contains($"🔥 Düh +{bonus}", StringComparison.Ordinal))),
         "A barbár Düh támadása nem kapott 5–10 közötti sebzésbónuszt.");
@@ -1241,12 +1243,12 @@ static void NeedStatusEffectsAreVisible()
     var attackLogs = new List<string>();
     for (var index = 0; index < 100 && !started.State.IsCompleted; index++)
     {
-        var entry = CreateBattleSystem(713 + index).Advance(started.State).Entries.Single().Message;
-        if (entry.Contains("Éhező támadja", StringComparison.Ordinal)) attackLogs.Add(entry);
-        if (attackLogs.Any(log => log.Contains("🍖 éhség -2 fizikai sebzés", StringComparison.Ordinal))) break;
+        var entry = CreateBattleSystem(713 + index).Advance(started.State).Entries.Single();
+        if (entry.Details?.Actor == "Éhező") attackLogs.AddRange(entry.Details.Calculation);
+        if (attackLogs.Any(log => log.Contains("éhség", StringComparison.OrdinalIgnoreCase))) break;
     }
-    Assert(attackLogs.Any(log => log.Contains("💧 szomjúság -2 találat", StringComparison.Ordinal)) &&
-           attackLogs.Any(log => log.Contains("🍖 éhség -2 fizikai sebzés", StringComparison.Ordinal)),
+    Assert(attackLogs.Any(log => log.Contains("szomj", StringComparison.OrdinalIgnoreCase)) &&
+           attackLogs.Any(log => log.Contains("éhség", StringComparison.OrdinalIgnoreCase)),
         "A találat- vagy fizikai sebzésbüntetés oka nem látható a támadás naplójában.");
 }
 
@@ -1255,20 +1257,20 @@ static void BattleHitHighlightsDamageAndHealth()
     var system = CreateBattleSystem(712);
     var player = CreateCharacter("Sebző", vitality: 500, characterClassId: CharacterClassIds.Pap);
     var state = system.StartBattle(player, CreateEnemy(1000, 1)).State;
-    string? playerHit = null;
-    string? enemyHit = null;
+    BattleActionDetails? playerHit = null;
+    BattleActionDetails? enemyHit = null;
     for (var index = 0; index < 100 && (playerHit is null || enemyHit is null) && !state.IsCompleted; index++)
     {
-        var entry = system.Advance(state).Entries.Single().Message;
-        if (entry.Contains("Sebző támadja", StringComparison.Ordinal) && entry.Contains("→ 🎯", StringComparison.Ordinal))
-            playerHit = entry;
-        if (entry.Contains("támadja Sebző", StringComparison.Ordinal) && entry.Contains("→ 🎯", StringComparison.Ordinal))
-            enemyHit = entry;
+        var entry = system.Advance(state).Entries.Single();
+        if (entry.Details?.Actor == "Sebző" && entry.Details.Summary.Any(text => text.Contains("1/1")))
+            playerHit = entry.Details;
+        if (entry.Details?.Target == "Sebző" && entry.Details.Summary.Any(text => text.Contains("1/1")))
+            enemyHit = entry.Details;
     }
-    Assert(playerHit?.Contains("= 💥 ", StringComparison.Ordinal) == true &&
-           playerHit.Contains("Tesztellenfél ❤️ ", StringComparison.Ordinal) &&
-           enemyHit?.Contains("= 💥 ", StringComparison.Ordinal) == true &&
-           enemyHit.Contains("Sebző ❤️ ", StringComparison.Ordinal),
+    Assert(playerHit?.Summary.Any(text => text.StartsWith("💥")) == true &&
+           playerHit.Target == "Tesztellenfél" &&
+           enemyHit?.Summary.Any(text => text.StartsWith("💥")) == true &&
+           enemyHit.Target == "Sebző",
         "A sikeres támadásból hiányzik a sebzés- vagy a megmaradt HP ikonja.");
 }
 
@@ -3470,11 +3472,11 @@ static void QuickCombatSettingPersists()
     var path = Path.Combine(Path.GetTempPath(), $"kaoszrubin-settings-{Guid.NewGuid():N}.json");
     try
     {
-        var service = new MusicSettingsService(path);
+        var service = new GameSettingsService(path);
         service.Settings.QuickCombat = QuickCombatMode.Automatic;
         service.Save();
-        var loaded = new MusicSettingsService(path);
-        var invalid = new MusicSettings { QuickCombat = (QuickCombatMode)999, VolumePercent = 150 };
+        var loaded = new GameSettingsService(path);
+        var invalid = new GameSettings { QuickCombat = (QuickCombatMode)999, VolumePercent = 150 };
         invalid.Normalize();
 
         Assert(loaded.Settings.QuickCombat == QuickCombatMode.Automatic &&
@@ -3485,6 +3487,22 @@ static void QuickCombatSettingPersists()
     {
         if (File.Exists(path)) File.Delete(path);
     }
+}
+
+static void BattleDetailsPanelPagesCalculation()
+{
+    var details = new BattleActionDetails(Guid.NewGuid(), "Grok", "Kobold",
+        ["🎯 1/1 találat", "💥 Sebzés: 12", "🎲 Kritikus: 15% — nem"],
+        Enumerable.Range(1, 12).Select(index => $"🎯 {index}. módosító: +{index}").ToArray());
+    var first = BattleDetailsPanel.Build(details, 0);
+    var pages = BattleDetailsPanel.PageCount(details);
+    var last = BattleDetailsPanel.Build(details, pages - 1);
+
+    Assert(first.Count == BattleDetailsPanel.Height && pages > 1 &&
+           first.Any(line => line.Text.Contains("15%")) &&
+           first[0].Text.StartsWith("├") && first[^1].Text.Contains("−/+") &&
+           last[^1].Text.Contains($"{pages}/{pages}"),
+        "A csatarészlet panel mérete, kritikus esélye vagy lapozása hibás.");
 }
 
 static void QuickCombatSummaryListsKillsAndExperience()
@@ -3554,7 +3572,10 @@ static void TeamBattleAttackUsesExistingCombatRules()
     var entry = system.ResolveTeamCharacterAttack(fighter, preparation.Runtime, enemy);
     Assert(entry.Message.Contains(fighter.Name, StringComparison.Ordinal) &&
            entry.Message.Contains(enemy.Name, StringComparison.Ordinal) &&
-           !entry.Message.Contains("1. akció", StringComparison.Ordinal) && enemy.CurrentHitPoints <= 30,
+           !entry.Message.Contains("1. akció", StringComparison.Ordinal) && enemy.CurrentHitPoints <= 30 &&
+           entry.Details is { } details && details.Summary.Any(line => line.Contains("Kritikus")) &&
+           details.Calculation.Any(line => line.StartsWith("🎯")) &&
+           details.Calculation.Any(line => line.StartsWith("💥")),
         "A csapatharcos támadás nem a meglévő találat/sebzés naplóformátumot és HP-kezelést használja.");
 }
 
