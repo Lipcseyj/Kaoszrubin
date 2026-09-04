@@ -56,6 +56,9 @@ public static class QuestJournalWindow
 
     public static void Show(IReadOnlyList<QuestJournalEntrySnapshot> entries)
     {
+    //    using var background = SaveCenteredFrameBackground(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.AbilityChoice), lines,
+    //FramedWindow.LevelUpChoice);
+
         var allLines = Build(entries);
         var offset = 0;
         while (true)

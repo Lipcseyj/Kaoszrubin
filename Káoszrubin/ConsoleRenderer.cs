@@ -1385,7 +1385,6 @@ public sealed class ConsoleRenderer
         DrawLevelUpSummary(character, result, perkOffers.Count > 0);
         if (perkOffers.Count == 0)
         {
-            Console.ReadKey(intercept: true);
             return selectedPerks;
         }
 
@@ -1402,12 +1401,13 @@ public sealed class ConsoleRenderer
         while (true)
         {
             ResetColorCache();
-            Console.Clear();
             var lines = LevelUpWindow.BuildChoice(LevelUpPromptKind.SpecializationChoice,
                 [new($"{character.Name} — {character.CharacterClass.Name}", ConsoleColor.Cyan),
                  new("Ez a választás végleges.", ConsoleColor.Red)],
                 choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray(),
                 selectedIndex);
+            using var background = SaveCenteredFrameBackground(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.SpecializationChoice), lines,
+                FramedWindow.LevelUpChoice);
             DrawCenteredFrame(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.SpecializationChoice), lines,
                 FramedWindow.LevelUpChoice);
             switch (Console.ReadKey(intercept: true).Key)
@@ -1434,12 +1434,13 @@ public sealed class ConsoleRenderer
         while (true)
         {
             ResetColorCache();
-            Console.Clear();
             var lines = LevelUpWindow.BuildChoice(LevelUpPromptKind.ClassFeatureChoice,
                 [new($"{character.Name} — {character.CharacterClass.Name} — {milestone}. szint", ConsoleColor.Cyan),
                  new("A választás végleges; a 20. szinten egy másik fejlesztés választható.", ConsoleColor.Red)],
                 choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray(),
                 selectedIndex);
+            using var background = SaveCenteredFrameBackground(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.ClassFeatureChoice), lines,
+                FramedWindow.LevelUpChoice);
             DrawCenteredFrame(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.ClassFeatureChoice), lines,
                 FramedWindow.LevelUpChoice);
             switch (Console.ReadKey(intercept: true).Key)
@@ -1466,12 +1467,13 @@ public sealed class ConsoleRenderer
         while (true)
         {
             ResetColorCache();
-            Console.Clear();
             var lines = LevelUpWindow.BuildChoice(LevelUpPromptKind.AbilityChoice,
                 [new($"{character.Name} — {milestone}. szint", ConsoleColor.Cyan),
                  new("Növelj meg egy képességet 1 ponttal! Maximum: 13.", ConsoleColor.Green)],
                 choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray(),
                 selectedIndex);
+            using var background = SaveCenteredFrameBackground(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.AbilityChoice), lines,
+                FramedWindow.LevelUpChoice);
             DrawCenteredFrame(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.AbilityChoice), lines,
                 FramedWindow.LevelUpChoice);
             switch (Console.ReadKey(intercept: true).Key)
@@ -1498,12 +1500,13 @@ public sealed class ConsoleRenderer
         while (true)
         {
             ResetColorCache();
-            Console.Clear();
             var lines = LevelUpWindow.BuildChoice(LevelUpPromptKind.WeaponProficiencyChoice,
                 [new($"{character.Name} — {(milestone == 1 ? "karakteralkotás" : $"{milestone}. szint")}", ConsoleColor.Cyan),
                  new("Legfeljebb két fegyvercsalád tanulható; egy család Jártas, majd Mester lehet.", ConsoleColor.Green)],
                 choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray(),
                 selectedIndex);
+            using var background = SaveCenteredFrameBackground(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.WeaponProficiencyChoice), lines,
+                FramedWindow.LevelUpChoice);
             DrawCenteredFrame(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.WeaponProficiencyChoice), lines,
                 FramedWindow.LevelUpChoice);
             switch (Console.ReadKey(intercept: true).Key)
@@ -1529,11 +1532,11 @@ public sealed class ConsoleRenderer
         while (true)
         {
             ResetColorCache();
-            Console.Clear();
             var projected = choices.Select(spell => new LevelUpChoiceSnapshot(spell.Id,
                 $"{spell.Level}. szint — {spell.Name}", spell.Description)).ToArray();
             var lines = MagicProgressionWindow.BuildLearning(character.Name,
                 $"{learnedNumber}/{learnedTotal}. új varázslat", projected, selectedIndex);
+            using var background = SaveCenteredFrameBackground(MagicProgressionWindow.LearningWidth, lines, FramedWindow.SpellLearning);
             DrawCenteredFrame(MagicProgressionWindow.LearningWidth, lines, FramedWindow.SpellLearning);
             switch (Console.ReadKey(intercept: true).Key)
             {
@@ -1553,10 +1556,10 @@ public sealed class ConsoleRenderer
         while (true)
         {
             ResetColorCache();
-            Console.Clear();
             var projected = SpellInfoSnapshotProjector.Create(character).KnownSpells;
             var lines = MagicProgressionWindow.BuildPreparation(character.Name, selected.Count,
                 character.MemorizationCapacity, projected, selected, cursor);
+            using var background = SaveCenteredFrameBackground(MagicProgressionWindow.PreparationWidth, lines, FramedWindow.SpellPreparation);
             DrawCenteredFrame(MagicProgressionWindow.PreparationWidth, lines, FramedWindow.SpellPreparation);
             switch (Console.ReadKey(intercept: true).Key)
             {
@@ -1714,7 +1717,6 @@ public sealed class ConsoleRenderer
     private void DrawLevelUpSummary(LiveCharacter character, LevelUpResult result, bool hasPerkOffer)
     {
         ResetColorCache();
-        Console.Clear();
         var lines = LevelUpWindow.BuildSummary(character.Name, result.PreviousLevel, result.CurrentLevel,
             result.Bonuses.Select(bonus => new LevelUpBonusSnapshot(bonus.Level, bonus.Vitality, bonus.Mana)).ToArray(),
             result.VitalityGained, result.ManaGained, character.UsesMana, character.CurrentVitality,
@@ -1723,8 +1725,9 @@ public sealed class ConsoleRenderer
                 ? "🌠 Új TEHETSÉG ébred benned! Nyomj meg egy billentyűt... 🌠"
                 : "🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟");
 
+        using var background = SaveCenteredFrameBackground(LevelUpWindow.Width, lines, FramedWindow.LevelUp);
         DrawCenteredFrame(LevelUpWindow.Width, lines, FramedWindow.LevelUp);
-        if (hasPerkOffer) Console.ReadKey(intercept: true);
+        Console.ReadKey(intercept: true);
     }
 
     /// <summary>
@@ -1737,13 +1740,14 @@ public sealed class ConsoleRenderer
         while (true)
         {
             ResetColorCache();
-            Console.Clear();
             var lines = LevelUpWindow.BuildChoice(LevelUpPromptKind.PerkChoice,
                 [new($"{character.Name} — {character.CharacterClass.Name} — {offer.Tier}. fokozat", ConsoleColor.Cyan),
                  new($"A tehetség a {offer.TriggerLevel}. szint elérésekor vált elérhetővé.", ConsoleColor.DarkCyan),
                  new("A nem választott tehetség végleg elveszik ennél a karakternél.", ConsoleColor.Red)],
                 offer.Choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray(),
                 selectedIndex);
+            using var background = SaveCenteredFrameBackground(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.PerkChoice), lines,
+                FramedWindow.LevelUpChoice);
             DrawCenteredFrame(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.PerkChoice), lines,
                 FramedWindow.LevelUpChoice);
 
@@ -1764,21 +1768,32 @@ public sealed class ConsoleRenderer
     }
 
     /// <summary>
-    /// Rajzol egy középre igazított keretet megadott szélességgel és sorokkal.
-    /// Belső szöveg- és színbeállításokat kezel.
+    /// Elmenti a középre igazított ablak által lefedett konzolcellákat, a díszítéssel együtt.
     /// </summary>
+    private BackgroundContentRestorer SaveCenteredFrameBackground(int frameWidth,
+        IReadOnlyList<(string Text, ConsoleColor Color)> lines, FramedWindow window)
+    {
+        var style = WindowFrameConfiguration.For(window);
+        var adornmentRows = WindowFrameCatalog.Adornment(style, frameWidth) is null ? 0 : 2;
+        var height = lines.Count + FrameBorderWidth + adornmentRows;
+        var (left, top) = CenteredFrameOrigin(frameWidth, height);
+        return new BackgroundContentRestorer(left, top, frameWidth, height, ResetColorCache);
+    }
+
+    private static (int Left, int Top) CenteredFrameOrigin(int width, int height) =>
+        (Math.Max(0, (Console.WindowWidth - width) / FrameBorderWidth),
+         Math.Max(MinimumCenteredFrameTop, (Console.WindowHeight - height) / FrameBorderWidth));
+
     private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
         FramedWindow? framedWindow = null)
     {
-        var left = Math.Max(0, (Console.WindowWidth - frameWidth) / FrameBorderWidth);
         var style = framedWindow is { } window
             ? WindowFrameConfiguration.For(window)
             : WindowFrameStyle.Double;
         var topAdornment = WindowFrameCatalog.Adornment(style, frameWidth);
         var bottomAdornment = WindowFrameCatalog.Adornment(style, frameWidth, bottom: true);
         var adornmentRows = topAdornment is null ? 0 : 2;
-        var top = Math.Max(MinimumCenteredFrameTop,
-            (Console.WindowHeight - lines.Count - FrameBorderWidth - adornmentRows) / FrameBorderWidth);
+        var (left, top) = CenteredFrameOrigin(frameWidth, lines.Count + FrameBorderWidth + adornmentRows);
         var contentPadding = WindowFrameCatalog.ContentPadding(style);
         var contentWidth = frameWidth - contentPadding * FrameBorderWidth;
         var frameTop = topAdornment is null ? top : top + 1;

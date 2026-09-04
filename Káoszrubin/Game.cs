@@ -647,6 +647,11 @@ public sealed class Game : ISessionCommandHandler
                         TriggerDeveloperLevelUp();
                         continue;
                     }
+                    if (IsLevelUpPartyShortcut(keyInfo))
+                    {
+                        GrantPartyExperienceForDevelopment();
+                        continue;
+                    }
                     if (IsFillPartySetYShortcut(keyInfo))
                     {
                         FillPartyForDevelopment([CharacterClassIds.Harcos, CharacterClassIds.Mágus, CharacterClassIds.Lovag], "Y");
@@ -1305,7 +1310,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.RefreshCharacterSheet(character);
         if (!award.Result.LeveledUp || !character.IsAlive) return;
         ResolvePerkOffers(character, award.Result);
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.RefreshCharacterSheet(character);
     }
 
     #region UI & Input
@@ -2330,7 +2335,7 @@ public sealed class Game : ISessionCommandHandler
             foreach (var award in leveledAwards)
                 ResolvePerkOffers(award.Character, award.Result);
             if (leveledAwards.Length > 0)
-                _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+                _renderer.RefreshCharacterSheet(SelectedCharacter);
             var itemRewards = GrantNpcQuestItems(quest);
             _renderer.DrawInventoryMessage(
                 $"✅ Küldetés teljesítve: {quest.Title}. XP: {FormatExperienceAwards(awards)}." +
@@ -4766,7 +4771,7 @@ public sealed class Game : ISessionCommandHandler
         else
         {
             foreach (var award in leveledAwards) ResolvePerkOffers(award.Character, award.Result);
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            _renderer.RefreshCharacterSheet(SelectedCharacter);
         }
     }
 
@@ -6336,7 +6341,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         foreach (var (character, result) in _pendingLevelUps.ToArray())
             ResolvePerkOffers(character, result);
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel); 
+        
         _pendingLevelUps.Clear();
         if (_saveAfterBattle)
         {
@@ -6906,7 +6911,6 @@ public sealed class Game : ISessionCommandHandler
             .Select(character => AwardExperience(character, 5000)).ToList();
         foreach (var award in awards.Where(award => award.Result.LeveledUp))
             ResolvePerkOffers(award.Character, award.Result);
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawDeveloperMessage($"Fejlesztői mód: 5000 XP minden partitagnak. {FormatExperienceAwards(awards)}");
     }
@@ -6922,7 +6926,7 @@ public sealed class Game : ISessionCommandHandler
 
         var result = AddExperience(neededExperience);
         ResolvePerkOffers(SelectedCharacter, result);
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
     }
 
     private void ResolvePerkOffers(LiveCharacter character, LevelUpResult result)

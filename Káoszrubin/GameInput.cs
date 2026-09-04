@@ -61,6 +61,10 @@ internal static class GameInput
     public static bool IsLevelUpShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.S &&
         HasControlAlt(keyInfo);
+    
+    public static bool IsLevelUpPartyShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.W &&
+        HasControlAlt(keyInfo);
 
     public static bool IsFillPartySetYShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.Y &&

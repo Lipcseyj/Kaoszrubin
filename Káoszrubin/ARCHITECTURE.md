@@ -8,6 +8,7 @@ Az alábbi rejtett gyorsbillentyűk közvetlenül be vannak kötve a játék fő
 - `Ctrl+Shift+R`: az aktuális futam következő, újonnan generált labirintusának indítása;
 - `Ctrl+Shift+E`: a partyvezér teleportálása a kijárathoz legközelebbi szabad mezőre;
 - `Ctrl+Alt+S`: a partyvezér azonnali felléptetése a következő szintre a hiányzó XP megadásával;
+- `Ctrl+Alt+W`: minden partitagnak +5000XP;
 - `Ctrl+Shift+Y`: a szabad partihelyek feltöltése Harcos–Mágus–Lovag sorrendben;
 - `Ctrl+Alt+X`: a szabad partihelyek feltöltése Barbár–Tolvaj–Pap sorrendben;
 - `Ctrl+Shift+Í`: egy véletlen osztályú, első szintű NPC hozzáadása, ha van szabad partihely;
