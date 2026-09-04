@@ -793,11 +793,17 @@ public sealed class CoopGuestScreen
     private static IEnumerable<(InventorySlotSnapshot Slot, int Price)> GuestInnSellOffers(InnSnapshot inn,
         SessionCharacterSnapshot? character)
     {
-        if (character?.Inventory is not { } inventory) yield break;
+        if (character?.Inventory is not { } inventory) return [];
         var prices = inn.SellPrices.ToDictionary(price => price.ItemDefinitionId, price => price.Price,
             StringComparer.OrdinalIgnoreCase);
-        foreach (var slot in inventory.Slots.Where(slot => slot.Kind == InventorySlotKind.Backpack && slot.Item is not null))
-            if (prices.TryGetValue(slot.Item!.DefinitionId, out var price)) yield return (slot, price);
+        return inventory.Slots
+            .Where(slot => slot.Kind == InventorySlotKind.Backpack && slot.Item is not null)
+            .Select(slot => prices.TryGetValue(slot.Item!.DefinitionId, out var price)
+                ? (Slot: slot, Price: price)
+                : ((InventorySlotSnapshot Slot, int Price)?)null)
+            .Where(entry => entry is not null)
+            .Select(entry => entry!.Value)
+            .OrderBy(entry => entry.Price);
     }
 
     private void SynchronizeSpellUi(SessionSnapshot snapshot, CharacterId characterId)
@@ -1312,7 +1318,7 @@ public sealed class CoopGuestScreen
             (_inventoryOpen ? _displayedCharacterId ?? selected.CharacterId : selected.CharacterId));
         ApplyBattleSpellUi(grid, snapshot, own);
         ApplyBattleItemUi(grid, snapshot, own);
-        ApplyInnUi(grid, snapshot);
+        ApplyInnUi(grid, snapshot, selected.CharacterId);
         ApplyInnDepartureUi(grid, snapshot);
         ApplyRestSummaryUi(grid, snapshot, client.PlayerId);
         ApplyNarrativeUi(grid, snapshot, client.PlayerId);
@@ -1463,7 +1469,7 @@ public sealed class CoopGuestScreen
         return option > 0 && battle.AllowedActions.Contains(action);
     }
 
-    private void ApplyInnUi(GuestMapCell[,] grid, SessionSnapshot snapshot)
+    private void ApplyInnUi(GuestMapCell[,] grid, SessionSnapshot snapshot, CharacterId characterId)
     {
         if (snapshot.Phase != GameSessionPhase.Inn || snapshot.Inn is not { } inn)
         {
@@ -1505,7 +1511,7 @@ public sealed class CoopGuestScreen
                     FramedWindow.Inn);
                 return;
             }
-            var own = snapshot.Party.FirstOrDefault(character => character.Inventory is not null);
+            var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == characterId);
             var sellOffers = vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell
                 ? GuestInnSellOffers(inn, own).ToArray()
                 : [];
