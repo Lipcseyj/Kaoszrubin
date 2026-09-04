@@ -27,6 +27,7 @@ public sealed record CharacterResourceLine(string Vitality, ConsoleColor Vitalit
 public static class CharacterSheetPanel
 {
     public const int Width = 27;
+    public static readonly string BlankLine = new(' ', Width);
     private const int ResourceIconStep = 10;
 
     /// <summary>
@@ -217,10 +218,12 @@ public static class CharacterSheetPanel
         lines.Add(new(10, proficiencies.Count > 0 ? $"Fegyver: {string.Join(' ', proficiencies)}" : "Fegyver: —",
             proficiencies.Count > 0 ? ConsoleColor.Yellow : ConsoleColor.DarkGray));
         lines.Add(new(11, CompactRows("Teh", details.PerkNames, 1)[0], ConsoleColor.Magenta));
+        lines.Add(new(12, BlankLine, ConsoleColor.Black));
         lines.Add(new(13, "OSZTÁLYFEJLESZTÉSEK", ConsoleColor.DarkCyan));
         var upgrades = details.ClassFeatureUpgradeNames ?? [];
         lines.Add(new(14, upgrades.Count > 0 ? Shorten($"L10: {upgrades[0]}", Width) : "L10: —", upgrades.Count > 0 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
         lines.Add(new(15, upgrades.Count > 1 ? Shorten($"L20: {upgrades[1]}", Width) : "L20: —", upgrades.Count > 1 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
+        lines.Add(new(16, BlankLine, ConsoleColor.Black));
         lines.Add(new(17, "FEGYVEREK ", ConsoleColor.Yellow,
             ColoredSuffix: $"⚔ ⚖ {details.EquippedWeight}  ⚡ {details.InitiativeBase}",
             ColoredSuffixColor: EncumbranceColor(details.Encumbrance)));

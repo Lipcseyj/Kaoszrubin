@@ -362,7 +362,7 @@ public sealed class ConsoleRenderer
         _teamBattleFocusPositions.Clear();
         _spellInfoCharacter = null;
         _spellCastingOverlaySnapshot = null;
-        DrawPicturePanel();
+        DrawCharacterSheet(DisplayedCharacter);
     }
 
     /// <summary>
