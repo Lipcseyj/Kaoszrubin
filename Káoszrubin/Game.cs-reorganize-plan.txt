@@ -1,0 +1,118 @@
+﻿Below are (A) a detailed mapping report I produced by scanning Game.cs and (B) a precise manual edit plan you can apply in your editor. The mapping lists each method I found and the region I recommend. For many entries I include the file line where the method declaration begins (so you can jump to it quickly in Visual Studio). If you want, I can apply the changes automatically; for now this is a manual plan you can follow.
+Notes
+•	Line numbers refer to Káoszrubin/Game.cs in your workspace (as scanned).
+•	Where I only give a start line, find the method end by searching the next method declaration or matching brace.
+•	Use Visual Studio's Go To Line (Ctrl+G) or Find (Ctrl+F) to jump to each start line or signature.
+•	The plan assumes you will create #region / #endregion blocks and move methods into them. Keep indentation consistent.
+A. Mapping report (method -> recommended region, with start line) (Only key/representative methods shown; this covers the main groups and the methods I located while scanning. Use the method names as search anchors.)
+1.	Fields & Properties
+•	Region label: // #region Fields and Properties
+•	Existing fields already at top of class (starts at line ~18). Keep these together.
+2.	Initialization & Lifecycle
+•	public Game(...) (constructor) — start ~line 272
+•	public void Run(ICoopHostLoop? coopHost = null) — start line 492–500
+•	private void CompleteCampaign() — start line 736
+•	private void StartNewMaze(bool showLevelImage = true) — start line 756
+•	private void StartRodericQuestLocation() — start line 818
+•	private void RestoreSuspendedCampaign() — start line 929
+•	private void ShowLevelImage() — start line 1022 (ShowLevelImage found at 1032 earlier)
+•	private void LogMazeAccessibilityCheck() — start line 1040
+3.	UI & Input (rendering, Help, UI helpers)
+•	private void ShowInGameHelp() — start line 1311
+•	private void AssignSelectedSpellQuickSlot(int slotIndex) — start line 1335
+•	private void CastSelectedSpellInfo() — start line 1349
+•	private void BeginExplorationSpellCasting(SpellDefinition? quickSpell = null) — start line 1352
+•	Other UI helpers (InspectSelectedInventoryItem, ReadInnKey, inventory/inn UI methods) — search names like InspectSelectedInventoryItem, ReadInnKey
+4.	Saving & Loading
+•	#region Saving & Loading
+•	private void SaveGame() — start line 1412
+•	private GameSaveData CreateGameSaveData() — start line 1438
+•	private void PublishRemoteCharacterStates(CharacterSyncReason reason) — start line 1452
+•	private void RestoreGame(GameSaveData state) — start line 1465
+5.	Session & Networking (explicit ISessionCommandHandler handlers)
+•	#region Session & Networking
+•	private void ProcessSessionCommands() => _commandDispatcher.ProcessPendingCommands(); — start line ~1814
+•	ISessionCommandHandler.OnSetHelpVisibility(...) — start ~1816
+•	ISessionCommandHandler.OnMoveLeader(Direction) — start ~1821
+•	All other OnX handlers — cluster at ~1816–1864
+•	ExecuteInnPurchase/ExecuteInnSale — start lines 1866/1879 (these are the server-side handlers called by the interface methods)
+6.	Movement & Party Movement
+•	#region Movement
+•	private void MovePlayer(Direction direction) — start line 1664 (MovePlayer found at 164? / 1664)
+•	private void MoveRemotePartyMember(MoveCharacterCommand command) — start line 1720
+•	private void MoveEnemies() — start line ~3890
+•	private void PlacePartyMembersNear(...) and related placement helpers — various around StartNewMaze (call sites near 776–804)
+•	private void CollectTreasureChest(LiveCharacter character, Position position, bool shareLootWithParty) — start line 1744
+7.	Inventory & Loot
+•	#region Inventory & Loot
+•	private bool TryStoreSearchedLoot(...) — start line 3275
+•	private void PickUpGroundItems(LiveCharacter character, Position position, bool shareLootWithParty, ICollection<string> messages) — start line 3279
+•	private void ExecuteUseInventoryItem(UseInventoryItemCommand command) — start line 3411
+•	private void ExecuteDropInventoryItem(DropInventoryItemCommand command) — start line 3449
+•	private void ExecutePickUpGroundItem(PickUpGroundItemCommand command) — start line 3466
+•	private void ExecuteInventoryTransfer(InventoryTransferCommand command) — start line 3854
+•	All follower / give / distribute inventory commands (GiveSelectedStackToFollower, ExecuteGiveFollowerStack etc.) — appear around 3806–3860
+8.	Combat / Team Battle / Battle helpers
+•	#region Combat
+•	private BattleSnapshot CreateTeamBattleSnapshot(TeamBattleEncounter battle) — start line ~209
+•	private void StartBattle(Enemy enemy, bool enemyStrikesFirst = false) — start line 4986
+•	private void StartBattle(PartyMemberAvatar member, Enemy enemy, bool enemyStrikesFirst = false) — 4989
+•	private void StartTeamBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy, bool enemyStrikesFirst) — 4992
+•	private PartyFormationSnapshot? ActiveBattleFormation() — 5089
+•	private void ContinueTeamBattle() — 5100
+•	Many battle flow methods: FinishTeamBattle, AdvanceTeamBattleTurn, ExecuteBattleAction, ExecuteTeamAiCharacterTurn, ExecuteTeamEnemyTurn, ExecuteTeamBattlePrompt handling etc. — search for "TeamBattle", "BattleAction", "ExecuteBattleAction", "FinishTeamBattle" later in file (they appear between ~5000–6000)
+9.	Spells & Magic
+•	#region Spells
+•	private void TryNpcCastExplorationSpell(PartyMemberAvatar member) — start line 444
+•	private void ApplyCharacterEffectForCaster(...) — start line 476
+•	private void ApplyCharacterEffectsForCaster(...) — 480
+•	private void ApplyHealingForCaster(...) — 484
+•	private void ApplyStatusCureForCaster(...) — 488
+•	private List<LiveCharacter> GetSpellcastingPartyMembers() — 1396
+•	private Position GetCasterPosition(LiveCharacter) — 1408
+10.	Traps & Hazard logic
+•	private void PlaceTraps(MazeLevelConfiguration configuration) — start line 1050
+•	private bool CanEnterTrap(LiveCharacter character, Position destination) — start ~1219
+•	private int TrapDetectionChance(...) — 1246
+•	private int TrapDisarmChance(...) — 1249
+•	private bool TryDisarmAdjacentTrap(...) — 1252
+•	private void TriggerTrapAt(LiveCharacter character, Position position) — 1267
+•	private void ApplyTrap(LiveCharacter character, MazeTrap trap) — 1272
+•	private void ShowTrapMessage(...) — 1282
+•	private void RewardTrapSuccess(...) — 1288
+11.	NPC / Narrative / Quests
+•	Methods around NPC encounters & conversations:
+•	private bool EncounterWorldNpc(WorldNpc npc) — start ~2020
+•	private void ConverseWithRoderic(WorldNpc npc) — ~2079
+•	private void RunStoryConversation(WorldNpc npc) — ~2136
+•	Run/acknowledge narrative, level image, ad-hoc conversation methods occur near 2000–2200
+12.	Misc / Helpers / Utilities
+•	Helper methods sprinkled across file, e.g.:
+•	private Position? GetCharacterWorldPosition(LiveCharacter character) — 3497
+•	private int AdjustedSearchChance(...) — 3263
+•	private IItemDefinition? RollEquipmentLoot(...) — 3266
+•	Many small helpers for audio, logging, recording activity etc.
+B. Manual edit plan (exact steps you can apply in the file) Follow these steps in order. Each step is atomic: add a small region and move a small, verified group of methods. After each step, build to check correctness.
+Preparation
+•	Create a local branch before editing: git checkout -b regionize/game-cs
+•	Open Káoszrubin/Game.cs in Visual Studio.
+Step 1 — Add Fields & Properties region header (no moves) 1.1. At top of the class (immediately after "public sealed class Game : ISessionCommandHandler"), insert: #region Fields and Properties 1.2. Find the place after the last field/property (search for the first public property: "public CharacterRoster CharacterRoster { get; }" at ~line 136) and insert: #endregion Purpose: groups the top block of private fields and public properties.
+Step 2 — Add Initialization & Lifecycle region and move Run/StartNewMaze/CompleteCampaign 2.1. Find the declaration "public void Run(ICoopHostLoop? coopHost = null)" (line ~492). Insert above it: #region Initialization & Lifecycle 2.2. Immediately after the last lifecycle method you want in this region (I recommend after StartNewMaze or ProcessPendingRodericTransition), insert: #endregion 2.3. Optionally cut/paste StartNewMaze/StartRodericQuestLocation/CompleteCampaign so they are contiguous under this region. When moving, select the entire method block (from its signature to its closing brace) and paste after Run.
+Step 3 — Add UI & Input region 3.1. Find "private void ShowInGameHelp()" (line ~1311). 3.2. Insert "#region UI & Input" above it. 3.3. Find the next logical end (I used the start of Saving & Loading at ~1414) and insert "#endregion" there. 3.4. Move UI helper methods that belong here (AssignSelectedSpellQuickSlot, CastSelectedSpellInfo, BeginExplorationSpellCasting, InspectSelectedInventoryItem, ReadInnKey, etc.) underneath this region (cut/paste).
+Step 4 — Add Spells region 4.1. Find TryNpcCastExplorationSpell / ApplyCharacterEffectForCaster / ApplyHealingForCaster (lines ~444–490). 4.2. Insert "#region Spells" above TryNpcCastExplorationSpell. 4.3. Insert "#endregion" after ApplyStatusCureForCaster. 4.4. Move other spell-related helpers (GetSpellcastingPartyMembers, GetCasterPosition) into this region.
+Step 5 — Add Saving & Loading region 5.1. Find SaveGame (line ~1412) and add "#region Saving & Loading" above it. 5.2. Add "#endregion" after RestoreGame (line ~1476). 5.3. Keep PublishRemoteCharacterStates and CreateGameSaveData in this region.
+Step 6 — Add Session & Networking region (ISessionCommandHandler handlers) 6.1. Find the block of explicit interface implementations (OnSetHelpVisibility ... OnResolveLevelUpPrompt) around lines ~1816–1864. 6.2. Wrap them in: #region Session & Networking ...handlers... #endregion 6.3. Keep ProcessSessionCommands inside this region.
+Step 7 — Add Movement region and move MovePlayer / MoveRemotePartyMember / CollectTreasureChest 7.1. Find "private void MovePlayer(Direction direction)" (line ~1664). 7.2. Insert "#region Movement" above it. 7.3. Cut and paste MoveRemotePartyMember and CollectTreasureChest so they are contiguous inside the Movement region. 7.4. Insert "#endregion" after these methods.
+Step 8 — Add Inventory & Loot region and move inventory methods 8.1. Find TryStoreSearchedLoot (line ~3275) or ExecuteUseInventoryItem (line ~3411). 8.2. Insert "#region Inventory & Loot" above the first of these. 8.3. Move these methods into the region: - TryStoreSearchedLoot, PickUpGroundItems, ExecuteUseInventoryItem, - ExecuteDropInventoryItem, ExecutePickUpGroundItem, - ExecuteInventoryTransfer, ExecuteGiveFollowerStack, ExecuteDistributeInventoryStack, - InspectSelectedInventoryItem, GiveSelectedStackToFollower, any inventory UIs. 8.4. Insert "#endregion" after the last inventory method.
+Step 9 — Add Combat region and move battle methods 9.1. Find the combat entrypoints and helpers (StartBattle, StartTeamBattle, CreateTeamBattleSnapshot, ContinueTeamBattle, AdvanceTeamBattleTurn, FinishTeamBattle etc.) starting around line ~4986 and stretching below. 9.2. Insert "#region Combat" above the first of them (AwardBossKey or StartBattle). 9.3. Move all team battle related methods so they are contiguous under this region. 9.4. Insert "#endregion" after the last battle helper.
+Step 10 — Add Spawning / Traps region 10.1. Wrap PlaceTraps, PlaceFirstSinglePlayerCompanion, PlaceConfiguredWorldNpcs, PlaceQuestRoomEnemies, trap helpers (CanEnterTrap, TrapDetectionChance, TriggerTrapAt, ApplyTrap) in: #region Traps & Environmental Hazards ... #endregion
+Step 11 — Add NPC / Narrative / Quests region 11.1. Group NPC conversation and quest methods (EncounterWorldNpc, ConverseWithRoderic, RunStoryConversation, ProcessNpcQuests, RunStoryConversation and acknowledgement handlers) in: #region Narrative & NPCs ... #endregion
+Step 12 — Add Helpers, Sound, and Misc regions 12.1. Create a final: #region Helpers & Utilities ...small helper methods (GetCharacterWorldPosition, AdjustedSearchChance, RollEquipmentLoot, etc.)... #endregion 12.2. Optionally add separate Sound & Music region for PlaySessionSound, _backgroundMusic handling if you prefer finer granularity.
+Validation steps (after each group or after every few edits)
+•	Build solution (Ctrl+Shift+B). Fix any syntax errors due to accidental text movement.
+•	If build errors reference missing braces or expression errors (CS1513 / CS1038 etc.), check unmatched #region/#endregion placement and method boundaries.
+•	Run tests or quick run to ensure runtime behavior unchanged.
+Cut/paste guidance (safe moves)
+•	In Visual Studio: place caret at method signature line, then use Shift+Ctrl+] or use brace matching to select the entire method block from signature to closing brace.
+•	Cut (Ctrl+X) and paste (Ctrl+V) into target region.
+•	After moving, run a single-file build to ensure no partial symbol missing (just build the solution).
