@@ -117,7 +117,7 @@ public sealed class ConsoleRenderer
     private const int CharacterSheetVitalityLine = 5;
     private const int CharacterSheetFoodLine = 13;
     private const int CharacterSheetWaterLine = 14;
-    private const int CharacterSheetGoldLine = 15;
+    private const int CharacterSheetGoldLine = 9;
     private const int CharacterSheetWeaponsHeadingLine = 17;
     private const int CharacterSheetFirstWeaponLine = 18;
     private const int CharacterSheetSecondWeaponLine = 19;
