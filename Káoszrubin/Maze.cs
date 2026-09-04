@@ -191,6 +191,11 @@ public sealed class Maze
     public GroundItemPile? GetGroundItemPileAt(Position position) =>
         _groundItemPiles.FirstOrDefault(pile => pile.Position == position);
     public Corpse? GetCorpseAt(Position position) => _corpses.FirstOrDefault(corpse => corpse.Position == position);
+    public IReadOnlyList<Corpse> GetCorpsesAt(Position position) =>
+        _corpses.Where(corpse => corpse.Position == position).ToArray();
+    public IReadOnlyList<MonsterCorpse> GetUnsearchedMonsterCorpsesAt(Position position) =>
+        _corpses.OfType<MonsterCorpse>()
+            .Where(corpse => corpse.Position == position && !corpse.IsSearched).ToArray();
     public bool RemoveGroundItemPile(GroundItemPile pile) => _groundItemPiles.Remove(pile);
 
     public void DropItem(Position position, Domain.Inventory.IItemDefinition item, int? charges = null)

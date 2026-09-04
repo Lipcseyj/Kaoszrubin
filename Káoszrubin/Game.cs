@@ -3211,35 +3211,36 @@ public sealed class Game : ISessionCommandHandler
 
     private bool TrySearchCurrentCell(LiveCharacter character, Position position, bool shareLootWithParty)
     {
-        var corpse = _maze.GetCorpseAt(position);
+        var corpses = _maze.GetCorpsesAt(position);
         var pile = _maze.GetGroundItemPileAt(position);
-        if (corpse is null && pile is null) return false;
-        if (corpse is MonsterCorpse { IsSearched: true } && pile is null) return false;
+        if (corpses.Count == 0 && pile is null) return false;
+        var unsearched = _maze.GetUnsearchedMonsterCorpsesAt(position);
+        if (unsearched.Count == 0 && pile is null && corpses.All(corpse => corpse is MonsterCorpse)) return false;
 
         var messages = new List<string>();
-        if (corpse is MonsterCorpse monsterCorpse)
+        foreach (var monsterCorpse in unsearched)
         {
-            if (monsterCorpse.IsSearched)
-                messages.Add($"{monsterCorpse.FormerName} tetemét már átkutattad");
-            else
-            {
-                monsterCorpse.MarkSearched();
-                SearchMonsterCorpse(monsterCorpse, character, position, shareLootWithParty, messages);
-            }
+            monsterCorpse.MarkSearched();
+            var corpseMessages = new List<string>();
+            SearchMonsterCorpse(monsterCorpse, character, position, shareLootWithParty, corpseMessages);
+            messages.Add($"† {monsterCorpse.FormerName}: {string.Join(", ", corpseMessages)}");
         }
-        else if (corpse is PartyMemberCorpse)
+        if (unsearched.Count == 0 && corpses.Any(corpse => corpse is PartyMemberCorpse))
             messages.Add("Az elesett társ testén nincs elvehető zsákmány");
-        else if (corpse is not null)
+        else if (unsearched.Count == 0 && corpses.Any(corpse => corpse is not MonsterCorpse))
             messages.Add("Ez a régi tetem már nem tartalmaz azonosítható zsákmányt");
 
         PickUpGroundItems(character, position, shareLootWithParty, messages);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        var resultMessage = "🔎 " + (messages.Count == 0
-            ? "A keresés nem hozott eredményt."
-            : string.Join("; ", messages) + ".");
-        _renderer.DrawInventoryMessage(resultMessage, ConsoleColor.Yellow);
-        RecordSessionActivity(SessionActivityKind.System, resultMessage, ConsoleColor.Yellow, [character.Id]);
+        string[] resultMessages = messages.Count == 0
+            ? ["🔎 A keresés nem hozott eredményt."]
+            : messages.Select(message => $"🔎 {message}.").ToArray();
+        foreach (var resultMessage in resultMessages)
+        {
+            _renderer.DrawInventoryMessage(resultMessage, ConsoleColor.Yellow);
+            RecordSessionActivity(SessionActivityKind.System, resultMessage, ConsoleColor.Yellow, [character.Id]);
+        }
         return true;
     }
 

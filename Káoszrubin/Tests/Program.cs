@@ -132,6 +132,7 @@ var tests = new (string Name, Action Run)[]
     ("A pályanevekből szabályos képfájlnév készül", LevelImageFileNamesAreNormalized),
     ("Az ellenség a legközelebbi látható csapattagot célozza", EnemyTargetsNearestVisiblePartyMember),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
+    ("Az azonos mezőn lévő holttestek egy halomba kerülnek", CorpsesStackOnOneCell),
     ("A world delta minden lényeges változást leír", WorldDeltaCapturesChanges),
     ("Eltérő pályák között nem készülhet delta", WorldDeltaRejectsDifferentWorld),
     ("A publisher teljes snapshot után ACK-alapú deltát küld", ReplicationPublisherUsesAcknowledgedBaseline),
@@ -1381,6 +1382,24 @@ static void WorldEntityIdSurvivesMovement()
     var entityId = enemy.Id;
     Assert(maze.TryMoveEnemy(enemy, destination), "A tesztellenfél nem tudott elmozdulni.");
     Assert(enemy.Id == entityId, "A world entity azonosítója mozgáskor megváltozott.");
+}
+
+static void CorpsesStackOnOneCell()
+{
+    var maze = new Maze(7, 7);
+    var position = new Position(3, 3);
+    var first = new MonsterCorpse(position, "Első", "E001");
+    var second = new MonsterCorpse(position, "Második", "E002");
+    maze.AddCorpse(first);
+    maze.AddCorpse(second);
+
+    var stack = maze.GetCorpsesAt(position);
+    Assert(stack.Count == 2 && stack.Contains(first) && stack.Contains(second) &&
+           maze.GetObjectAt(position) is Corpse,
+        "Az egy mezőre kerülő holttestek nem maradtak meg közös halomban.");
+    first.MarkSearched();
+    Assert(maze.GetUnsearchedMonsterCorpsesAt(position).SequenceEqual([second]),
+        "A keresés nem pontosan a halom még át nem kutatott holttesteit választja ki.");
 }
 
 static void WorldDeltaCapturesChanges()
