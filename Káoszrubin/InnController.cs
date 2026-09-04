@@ -147,9 +147,24 @@ internal sealed class InnController
         _ => vendor.ToString()
     };
 
-    // Returns a global modifier applied to inn service prices.
-    // TODO: Replace with actual game configuration or inn-level based modifier if available.
-    private double GetInnPriceModifier() => 1.0;
+    /// Randomly chooses whether an item is sold at a higher or lower percentage of its base price, 
+    /// with the chance of the higher price rising with dungeon level; then it applies an optional global multiplier and rounds to an integer (min 1).
+    private int ModifyPriceOfItem(IItemDefinition item, int completedLevel, double priceMultiplier = 0) => ModifyPriceOfItem(item.BasePrice, completedLevel, priceMultiplier);
+    private int ModifyPriceOfItem(int aPrice, int completedLevel, double priceMultiplier = 0)
+    {
+        if (priceMultiplier == 0)
+        {
+            var expensiveProbability = Math.Min(0.80, 0.20 + 0.07 * (completedLevel - 1));
+            var percentage = _random.NextDouble() < expensiveProbability ? _random.Next(105, 151) : _random.Next(85, 101);
+            return Math.Max(1, (int)Math.Round(aPrice * percentage / 100.0));
+        }
+        else
+        {
+            var expensiveProbability = Math.Min(0.80, 0.20 + 0.07 * (completedLevel - 1));
+            var percentage = _random.NextDouble() < expensiveProbability ? _random.Next(105, 151) : _random.Next(85, 101);
+            return Math.Max(1, (int)Math.Round(aPrice * percentage / 100.0 * priceMultiplier));
+        }
+    }
 
     public DepartureChoice Run(int completedLevel, string? expeditionReason = null, bool resume = false)
     {
@@ -250,7 +265,7 @@ internal sealed class InnController
             new(InnMenuOptionKind.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára.", LeaderOnly: true),
             new(InnMenuOptionKind.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása.", InnVendorKind.Market),
             new(InnMenuOptionKind.Witcher, "⚗️ Vajákos", "Gyógy- és varázsitalok, kötés és gyógyfüves készítmények.", InnVendorKind.Witcher),
-            new(InnMenuOptionKind.Feast, $"🍽️ Lakomázás ({(int)Math.Ceiling(FeastBasePricePerPerson * GetInnPriceModifier())} {ConsoleRenderer.MoneyIcon}/fő)", "Ellátmány feltöltése: élelem és víz minden partitag és követő számára.", LeaderOnly: true),
+            new(InnMenuOptionKind.Feast, $"🍽️ Lakomázás ({ModifyPriceOfItem(FeastBasePricePerPerson, completedLevel)} {ConsoleRenderer.MoneyIcon}/fő)", "Ellátmány feltöltése: élelem és víz minden partitag és követő számára.", LeaderOnly: true),
             new(InnMenuOptionKind.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} {ConsoleRenderer.MoneyIcon})", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött.", LeaderOnly: true)
         };
         if (blacksmithPresent) options.Add(new(InnMenuOptionKind.Blacksmith, "🔨 Kovácsmester", "Kizárólag fegyvereket kínál, csak vásárlásra.", InnVendorKind.Blacksmith));
@@ -637,9 +652,7 @@ internal sealed class InnController
     /// </summary>
     private InnStockOffer CreateMerchantStockOffer(IItemDefinition item, double priceMultiplier, int completedLevel)
     {
-        var expensiveProbability = Math.Min(0.80, 0.20 + 0.07 * (completedLevel - 1));
-        var percentage = _random.NextDouble() < expensiveProbability ? _random.Next(105, 151) : _random.Next(85, 101);
-        var price = Math.Max(1, (int)Math.Round(item.BasePrice * percentage / 100.0 * priceMultiplier));
+        var price = ModifyPriceOfItem(item, completedLevel, priceMultiplier);
         return new InnStockOffer(item, price);
     }
 
@@ -653,7 +666,7 @@ internal sealed class InnController
 
     private void RunInnFeast(int completedLevel)
     {
-        var perPerson = (int)Math.Ceiling(FeastBasePricePerPerson * GetInnPriceModifier());
+        var perPerson = ModifyPriceOfItem(FeastBasePricePerPerson, completedLevel);
         var partyCount = _characterRoster.Party.Members.Count;
         var followers = _temporaryFollowers();
         var followerCount = followers?.Count ?? 0;

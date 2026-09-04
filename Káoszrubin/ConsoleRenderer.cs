@@ -163,6 +163,8 @@ public sealed class ConsoleRenderer
         ConsoleColor.Cyan);
     private int? _battleCommandPanelRound;
 
+    #region Initialization and session state
+
     public ConsoleRenderer(GameDataCatalog gameData, Party party,
         Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null)
     {
@@ -225,6 +227,10 @@ public sealed class ConsoleRenderer
         };
         return $"ALAKZAT {arrow}  {state}";
     }
+
+    #endregion
+
+    #region Exploration and battle presentation
 
     public bool DrawDoorSmashChoice(LiveCharacter leader, LiveCharacter thief, Maze maze,
         FogOfWar fogOfWar, Position playerPosition)
@@ -688,6 +694,10 @@ public sealed class ConsoleRenderer
         Console.Clear();
         DrawCenteredFrame(LevelCompletionFrameWidth, BuildLevelCompletionLines(completion), FramedWindow.Inn);
     }
+
+    #endregion
+
+    #region Inn and commerce UI
 
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildLevelCompletionLines(
         LevelCompletionSnapshot completion)
@@ -1348,6 +1358,10 @@ public sealed class ConsoleRenderer
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
     public void DrawDoorMessage(string message, ConsoleColor color = ConsoleColor.DarkYellow) => DrawBattleMessage(message, color);
 
+    #endregion
+
+    #region Character progression and spell UI
+
     /// <summary>
     /// Szintlépés képernyő: összegzi a kapott bónuszokat, és ha vannak tehetség-ajánlatok,
     /// megjeleníti őket választásra.
@@ -1781,6 +1795,10 @@ public sealed class ConsoleRenderer
         if (bottomAdornment is not null) WriteAt(left, frameBottom + 1, bottomAdornment);
     }
 
+    #endregion
+
+    #region NPC interaction and story dialogs
+
     public WorldNpcInteractionResult DrawWorldNpcRecruitment(WorldNpc npc,
         IReadOnlyList<NpcQuestDefinition> questDefinitions)
     {
@@ -2034,6 +2052,10 @@ public sealed class ConsoleRenderer
         _ => behavior.ToString()
     };
 
+    #endregion
+
+    #region Inn helpers and incremental updates
+
     public void DrawRestSummaryScreen(PartyRestSnapshot rest, string footer, ConsoleColor footerColor)
     {
         ClearInnMenuScreen();
@@ -2083,6 +2105,10 @@ public sealed class ConsoleRenderer
             WriteAt(left + contentPadding, top + index + 1, text);
         }
     }
+
+    #endregion
+
+    #region Character sheet, inventory focus, and targeting UI
 
     /// <summary>
     /// Csata után frissíti a csatatér mezőjét (ha nem a játékos mezője volt) és a játékost.
@@ -2415,6 +2441,10 @@ public sealed class ConsoleRenderer
     private readonly record struct SheetSelectionKey(SheetSelectionKind Kind, int Index);
     private sealed record SheetSelectionEntry(SheetSelectionKey Key);
 
+    #endregion
+
+    #region Message log and text formatting
+
     /// <summary>
     /// Battle/message panelre egy új bejegyzést ír: a hosszú üzeneteket megtöri, és
     /// az utolsó N (MessageLineCount) bejegyzést jeleníti meg a képernyő alsó részén.
@@ -2575,6 +2605,10 @@ public sealed class ConsoleRenderer
         }
         return rows;
     }
+
+    #endregion
+
+    #region Low-level drawing and color helpers
 
     /// <summary>
     /// A jobb oldali kép-panel (ASCII portré) kirajzolása. A PicturePanelTop-ról indul,
@@ -2860,4 +2894,6 @@ public sealed class ConsoleRenderer
 
     private readonly record struct MapCellVisual(Rune Rune, ConsoleColor ForegroundColor, ConsoleColor BackgroundColor);
     private readonly record struct MapCellSnapshot(Position Position, Rune Rune, ConsoleColor ForegroundColor, ConsoleColor BackgroundColor);
+
+    #endregion
 }
