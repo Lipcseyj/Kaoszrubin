@@ -744,10 +744,15 @@ public sealed class ConsoleRenderer
         {
             var selected = index == selectedIndex;
             var disabled = disableLeaderOnly && options[index].LeaderOnly;
+            var descriptionColor = disabled
+                ? ConsoleColor.DarkGray
+                : selected ? ConsoleColor.White : ConsoleColor.DarkGray;
             lines.Add(($"{(selected ? "▶" : " ")} {options[index].Label}", disabled
                 ? ConsoleColor.DarkGray : selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
-            lines.Add(($"     {options[index].Description}", disabled
-                ? ConsoleColor.DarkGray : selected ? ConsoleColor.White : ConsoleColor.DarkGray));
+
+            var descriptionLines = SplitMenuDescriptionLines(options[index].Description);
+            foreach (var descriptionLine in descriptionLines)
+                lines.Add(($"     {descriptionLine}", descriptionColor));
         }
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add((disableLeaderOnly ? "↑/↓ választás   Enter belépés   Tab karakterlap   Szürke: csak a leader"
@@ -910,18 +915,34 @@ public sealed class ConsoleRenderer
     public void UpdateInnMenuSelection(IReadOnlyList<InnMenuOptionSnapshot> options,
         int previousIndex, int selectedIndex)
     {
+        var optionStartLines = new int[options.Count];
+        var line = InnMenuFirstOptionLabelLine;
+        for (var index = 0; index < options.Count; index++)
+        {
+            optionStartLines[index] = line;
+            line += 1 + SplitMenuDescriptionLines(options[index].Description).Length;
+        }
+
         var updates = new List<(int Index, string Text, ConsoleColor Color)>();
         foreach (var index in new[] { previousIndex, selectedIndex }.Distinct())
         {
             var selected = index == selectedIndex;
-            updates.Add((InnMenuFirstOptionLabelLine + index * InnMenuOptionLineStride, $"{(selected ? "▶" : " ")} {options[index].Label}",
+            var startLine = optionStartLines[index];
+            updates.Add((startLine, $"{(selected ? "▶" : " ")} {options[index].Label}",
                 selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
-            updates.Add((InnMenuFirstOptionDescriptionLine + index * InnMenuOptionLineStride, $"     {options[index].Description}",
-                selected ? ConsoleColor.White : ConsoleColor.DarkGray));
+
+            var descriptionLines = SplitMenuDescriptionLines(options[index].Description);
+            for (var row = 0; row < descriptionLines.Length; row++)
+                updates.Add((startLine + 1 + row, $"     {descriptionLines[row]}",
+                    selected ? ConsoleColor.White : ConsoleColor.DarkGray));
         }
-        UpdateCenteredFrameLines(InnMenuFrameWidth, InnMenuFrameBaseLineCount + options.Count * InnMenuOptionLineStride,
-            updates, FramedWindow.Inn);
+
+        var frameLineCount = line + 2;
+        UpdateCenteredFrameLines(InnMenuFrameWidth, frameLineCount, updates, FramedWindow.Inn);
     }
+
+    private static string[] SplitMenuDescriptionLines(string? description) =>
+        (description ?? string.Empty).Replace("\r", string.Empty).Split('\n');
 
     public bool ConfirmInnSecretStashAccess(int cost)
     {

@@ -496,8 +496,10 @@ public sealed class Game : ISessionCommandHandler
         if (_loadedState is null)
         {
             StartNewMaze(showLevelImage: false);
+#if !DEBUG
             ShowSynchronizedNarrative(NarrativeKind.CampaignIntroduction, "A KÁOSZRUBIN KRÓNIKÁJA",
                 "I. fejezet — A tizenkét aranykulcs", StoryNarratives.CampaignIntroduction);
+#endif
             ShowLevelImage();
         }
         else RestoreGame(_loadedState);
@@ -3022,9 +3024,9 @@ public sealed class Game : ISessionCommandHandler
             _gameData.NpcEncounters.Any(encounter => encounter.MazeLevel == completedLevel &&
                 string.Equals(encounter.NpcId, candidate.NpcId, StringComparison.OrdinalIgnoreCase)));
         if (quest is not null)
-            return $"Aktív küldetés maradt hátra: {quest.Title}. A régi kijárat visszahoz ugyanebbe a fogadóba.";
+            return $"Aktív küldetés maradt hátra: {quest.Title}. " + Environment.NewLine + " A régi kijárat visszahoz ugyanebbe a fogadóba.";
         return _random.Next(100) < 35
-            ? "Egy fogadói szóbeszéd új nyomot jelzett az előző pályán. A régi kijárat visszahoz ugyanebbe a fogadóba."
+            ? "Egy fogadói szóbeszéd új nyomot jelzett az előző pályán. " + Environment.NewLine + "A régi kijárat visszahoz ugyanebbe a fogadóba."
             : null;
     }
 

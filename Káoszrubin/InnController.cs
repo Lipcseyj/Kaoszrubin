@@ -234,7 +234,7 @@ internal sealed class InnController
             selectedRumors.Add(new InnRumor("Fogadói szóbeszéd", [definition.Name], ConsoleColor.Gray));
         if (expeditionReason?.Contains("szóbeszéd", StringComparison.OrdinalIgnoreCase) == true)
             selectedRumors.Add(new InnRumor("🗺️ Nyom az előző pályáról",
-                ["Egy zilált vándor új mozgásról beszél a már elhagyott járatokban. Nem a teljes szörnyhorda tért vissza, de valami érdemes lehet még odalent."],
+                ["Egy zilált vándor új mozgásról beszél a már elhagyott járatokban. " + Environment.NewLine + "Nem a teljes szörnyhorda tért vissza, de valami érdemes lehet még odalent."],
                 ConsoleColor.Yellow));
         foreach (var rumor in selectedRumors.OrderBy(_ => _random.Next())) _rumors.Add(rumor);
         _revision++;
@@ -258,10 +258,10 @@ internal sealed class InnController
         if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka és varázstárgy-azonosítás.", InnVendorKind.WanderingMage));
         options.Add(new(InnMenuOptionKind.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása.", LeaderOnly: true));
         options.Add(new(InnMenuOptionKind.Rumors, "👂 Pletykák", "Helyi szóbeszédek, hírek a következő pályáról és a környékbeli szörnyekről."));
+        options.Add(new(InnMenuOptionKind.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.", LeaderOnly: true));
         if (!string.IsNullOrWhiteSpace(expeditionReason))
             options.Add(new(InnMenuOptionKind.ReturnExpedition, "🗺️ Visszatérő expedíció",
                 expeditionReason, LeaderOnly: true));
-        options.Add(new(InnMenuOptionKind.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.", LeaderOnly: true));
         _menuOptions = options;
         return RunMenuLoop(completedLevel);
     }
