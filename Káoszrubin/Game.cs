@@ -2301,8 +2301,11 @@ public sealed class Game : ISessionCommandHandler
             if (_gameData.GetNpc(npc.DefinitionId).Unique)
                 npc.AdjustFriendliness(1);
             var awards = DistributeExperience(SelectedCharacter, quest.ExperienceReward);
-            foreach (var award in awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive))
+            var leveledAwards = awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive).ToArray();
+            foreach (var award in leveledAwards)
                 ResolvePerkOffers(award.Character, award.Result);
+            if (leveledAwards.Length > 0)
+                _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
             var itemRewards = GrantNpcQuestItems(quest);
             _renderer.DrawInventoryMessage(
                 $"✅ Küldetés teljesítve: {quest.Title}. XP: {FormatExperienceAwards(awards)}." +
@@ -6246,6 +6249,7 @@ public sealed class Game : ISessionCommandHandler
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.DarkYellow);
         foreach (var (character, result) in _pendingLevelUps.ToArray())
             ResolvePerkOffers(character, result);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _pendingLevelUps.Clear();
         if (_saveAfterBattle)
         {
@@ -6298,6 +6302,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         foreach (var (character, result) in _pendingLevelUps.ToArray())
             ResolvePerkOffers(character, result);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel); 
         _pendingLevelUps.Clear();
         if (_saveAfterBattle)
         {
