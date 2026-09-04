@@ -2570,6 +2570,7 @@ public sealed class ConsoleRenderer
                 : new MessageLogLine(string.Empty, ConsoleColor.Gray);
             SetColors(messageLine.Color, ConsoleColor.Black);
             var text = ExpandTabs(messageLine.Text);
+            if (text.Length > MessageWidth) text = text[..MessageWidth];
             WriteAt(MessagePanelLeft, BottomBorderY + FirstMessageLineOffset + linesToSkip + index, text.PadRight(MessageWidth));
         }
     }

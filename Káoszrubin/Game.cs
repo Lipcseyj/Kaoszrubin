@@ -5087,8 +5087,7 @@ public sealed class Game : ISessionCommandHandler
             var knight = TryRollKnightProtector(protectedParticipant.Character);
             if (knight is null) continue;
             _battleSystem.SetTeamKnightProtection(protectedParticipant.Runtime, knight);
-            protectionMessages.Add($"🛡️ {knight.Name} készen áll közbelépni {protectedParticipant.Character.Name} védelmében: " +
-                                   "az első találatot teljesen kivédi, de a sebzés harmadát ő kapja.");
+            protectionMessages.Add($"🛡️ {knight.Name} védi {protectedParticipant.Character.Name} első találatát.");
         }
         _activeTeamBattle.Turns.StartTurns();
         _preparedTeamBattleTurnId = 0;

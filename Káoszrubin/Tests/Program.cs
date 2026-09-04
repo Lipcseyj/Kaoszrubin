@@ -742,8 +742,14 @@ static void KnightProtectionTransfersThirdOfFirstHit()
     var protectorDamage = 500 - protector.CurrentVitality;
     Assert(fullDamage > 0 && protectedDamage == 0 && protectorDamage == (fullDamage + 2) / 3,
         $"A lovagi védelem hibásan osztotta el a sebzést: társ {protectedDamage}, lovag {protectorDamage}, eredeti {fullDamage}.");
-    Assert(protectedEntries.Any(entry => entry.Message.Contains("Őrszem közbelépett", StringComparison.Ordinal)),
-        "A lovagi közbelépés nem került a harci eseménynaplóba.");
+    var protection = protectedEntries.FirstOrDefault(entry =>
+        entry.Message.Contains("🛡️ Őrszem közbelépett", StringComparison.Ordinal));
+    Assert(protection is not null &&
+           !protection.Message.Contains("teljes", StringComparison.OrdinalIgnoreCase) &&
+           protection.Details?.Calculation.Any(line =>
+               line.Contains("teljes", StringComparison.OrdinalIgnoreCase) &&
+               line.Contains("harmada", StringComparison.OrdinalIgnoreCase)) == true,
+        "A lovagi közbelépés rövid naplója vagy részletes paneladata hibás.");
 }
 
 static void BattleCanWaitForPlayerAction()

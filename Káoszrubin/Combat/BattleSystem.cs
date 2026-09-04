@@ -220,12 +220,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 BattleLogKind.Information);
 
         var attack = EnemyAttack(attacker.Definition, defender, defenderRuntime.Context, attacker.EffectiveSpeed);
-        var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : string.Empty;
+        var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
         return new BattleLogEntry(
             $"{FormatAttackSummary(attacker.Name, defender.Name, [attack],
-                defender.CurrentVitality, defender.MaximumVitality)} {survival}{effectText}",
+                defender.CurrentVitality, defender.MaximumVitality)} {survival.ShortLog}{effectText}",
             attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack,
-            DescribeAction(attacker.Name, defender.Name, [attack], survival + effectText));
+            DescribeAction(attacker.Name, defender.Name, [attack], survival.Details + effectText));
     }
 
     public BattleLogEntry ResolveTeamOpportunityAttack(Enemy attacker, LiveCharacter defender,
@@ -235,12 +235,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         ArgumentNullException.ThrowIfNull(defender);
         ArgumentNullException.ThrowIfNull(defenderRuntime);
         var attack = EnemyAttack(attacker.Definition, defender, defenderRuntime.Context, attacker.EffectiveSpeed);
-        var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : string.Empty;
+        var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
         return new BattleLogEntry(
             $"↪️ {FormatAttackSummary(attacker.Name, defender.Name, [attack],
-                defender.CurrentVitality, defender.MaximumVitality)} {survival}",
+                defender.CurrentVitality, defender.MaximumVitality)} {survival.ShortLog}",
             attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack,
-            DescribeAction(attacker.Name, defender.Name, [attack], survival));
+            DescribeAction(attacker.Name, defender.Name, [attack], survival.Details));
     }
 
     public void SetTeamKnightProtection(TeamCharacterBattleRuntime runtime, LiveCharacter knight)
@@ -346,11 +346,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             else
             {
                 var attack = EnemyAttack(defender, player, context, enemy.EffectiveSpeed);
-                var survival = attack.Hit ? ApplyEnemyDamage(player, attack.Damage, context) : string.Empty;
+                var survival = attack.Hit ? ApplyEnemyDamage(player, attack.Damage, context) : DamageApplicationResult.Empty;
                 message = $"{FormatAttackSummary(enemy.Name, player.Name, [attack],
-                    player.CurrentVitality, player.MaximumVitality)} {survival}{effectText}";
+                    player.CurrentVitality, player.MaximumVitality)} {survival.ShortLog}{effectText}";
                 kind = attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack;
-                actionDetails = DescribeAction(enemy.Name, player.Name, [attack], survival + effectText);
+                actionDetails = DescribeAction(enemy.Name, player.Name, [attack], survival.Details + effectText);
             }
         }
         state.Defender = defender;
@@ -947,9 +947,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return defender.HasPerk(PerkIds.KnightArmorMaster) ? Math.Max(rolled, (int)Math.Ceiling((range.Minimum + range.Maximum) / 2.0)) : rolled;
     }
 
-    private string ApplyEnemyDamage(LiveCharacter player, int damage, BattleRuntimeContext context)
+    private DamageApplicationResult ApplyEnemyDamage(LiveCharacter player, int damage, BattleRuntimeContext context)
     {
-        var notes = new List<string>();
+        var shortNotes = new List<string>();
+        var details = new List<string>();
         if (damage > 0 && context.KnightProtectionAvailable)
         {
             context.KnightProtectionAvailable = false;
@@ -961,12 +962,16 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 protector.ReceiveDamage(transferredDamage);
                 if (protector.HasClassFeatureUpgrade(ClassFeatureUpgrades.KnightRetaliation))
                     protector.ReadyKnightRetaliation();
-                notes.Add($"🛡️ {protector.Name} közbelépett: a teljes {damage} sebzést kivédte, " +
-                          $"és 💥 {transferredDamage} sebzést kapott (❤️ {protector.CurrentVitality}/{protector.MaximumVitality})");
+                shortNotes.Add($"🛡️ {protector.Name} közbelépett");
+                details.Add($"🛡️ {protector.Name} közbelépett: a teljes {damage} sebzést kivédte, " +
+                            $"és 💥 {transferredDamage} sebzést kapott (❤️ {protector.CurrentVitality}/{protector.MaximumVitality})." +
+                            (divisor == 4 ? " Márványfal: a sebzés negyede." : " A sebzés harmada."));
                 damage = 0;
             }
         }
-        string WithNotes(string message) => string.Join(". ", notes.Append(message));
+        DamageApplicationResult Result(string shortMessage, string detail) =>
+            new(string.Join(". ", shortNotes.Append(shortMessage).Where(value => value.Length > 0)),
+                string.Join(". ", details.Append(detail).Where(value => value.Length > 0)));
 
         if (damage >= player.CurrentVitality && player.TakeSpellEffect(ActiveSpellEffectType.GuardianAngel) is { } angel)
         {
@@ -975,33 +980,33 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                           angel.DamageMultiplierPercent / 100;
             var beforeHealing = player.CurrentVitality;
             player.RestoreVitality(healing);
-            return WithNotes($"👼 Őrangyal: a halálos csapás kivédve és +{player.CurrentVitality - beforeHealing} HP.");
+            return Result($"👼 Őrangyal megóvta {player.Name}-t", $"👼 Őrangyal: a halálos csapás kivédve és +{player.CurrentVitality - beforeHealing} HP.");
         }
         if (damage >= player.CurrentVitality && context.GuardianAngelAvailable)
         {
             context.GuardianAngelAvailable = false;
             player.RestoreVitality(25);
-            return WithNotes("Őrangyal: a halálos csapás kivédve és +25 HP.");
+            return Result($"👼 Őrangyal megóvta {player.Name}-t", "👼 Őrangyal: a halálos csapás kivédve és +25 HP.");
         }
         if (damage >= player.CurrentVitality && context.LastFortressAvailable)
         {
             context.LastFortressAvailable = false;
             player.ReceiveDamage(Math.Max(0, player.CurrentVitality - 1));
-            return WithNotes("Utolsó erőd: 1 HP-n talpon marad.");
+            return Result($"🏰 {player.Name} talpon maradt", "🏰 Utolsó erőd: 1 HP-n talpon marad.");
         }
         if (damage >= player.CurrentVitality && player.Race.HasTrait(RaceTraits.Relentless) &&
             !player.WasRelentlessUsedThisLevel)
         {
             player.ReceiveDamage(Math.Max(0, player.CurrentVitality - 1));
             player.MarkRelentlessUsedThisLevel();
-            return WithNotes($"🔥 Könyörtelen: {player.Name} 1 HP-n túléli a halálos csapást.");
+            return Result($"🔥 {player.Name} túlélte a halálos csapást", $"🔥 Könyörtelen: {player.Name} 1 HP-n túléli a halálos csapást.");
         }
         if (damage >= player.CurrentVitality && player.HasPerk(PerkIds.PriestResurrection) &&
             !player.WasResurrectedThisLevel)
         {
             player.SetCurrentResources(player.MaximumVitality, player.CurrentMana);
             player.MarkResurrectedThisLevel();
-            return WithNotes($"✨ Feltámadás: {player.Name} teljes HP-val visszatér a halálból.");
+            return Result($"✨ {player.Name} feltámadt", $"✨ Feltámadás: {player.Name} teljes HP-val visszatér a halálból.");
         }
         player.ReceiveDamage(damage);
         if (damage >= 5 && player.CharacterClass.Id == CharacterClassIds.Barbár &&
@@ -1014,9 +1019,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 : player.HasClassFeatureUpgrade(ClassFeatureUpgrades.BarbarianEnduringRage)
                     ? "+4–7 sebzés és -2 védelem"
                     : "+5–10 sebzés és -2 védelem";
-            notes.Add($"🔥 Düh: {context.BarbarianRageActionsRemaining} akcióig {rageText}");
+            shortNotes.Add($"🔥 {player.Name} Dühbe gurult");
+            details.Add($"🔥 Düh: {context.BarbarianRageActionsRemaining} akcióig {rageText}");
         }
-        return string.Join(". ", notes);
+        return new(string.Join(". ", shortNotes), string.Join(". ", details));
     }
 
     private static bool IsUnholy(EnemyDefinition enemy) => enemy.AbilityIds.Any(abilityId =>
@@ -1044,6 +1050,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private static int AbilityDamageBonus(int ability) => Math.Max(0, (ability - 1) / 2);
     private int Roll(ValueRange range) => _random.Next(range.Minimum, range.Maximum + 1);
     private static int ApplyDefense(int rawDamage, int defense) => Math.Max(1, rawDamage - defense);
+
+    private sealed record DamageApplicationResult(string ShortLog, string Details)
+    {
+        public static DamageApplicationResult Empty { get; } = new(string.Empty, string.Empty);
+    }
 
     private sealed record InitiativeRoll(int Total, string ModifierText);
     private sealed record HitRollResult(bool Hit, int NaturalRoll, string Description);
