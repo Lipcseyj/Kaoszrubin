@@ -875,12 +875,11 @@ public sealed class ConsoleRenderer
 
     public void ClearInnMenuScreen()
     {
-        var emptyLine = new string(' ', InnMarketFrameWidth + 30);
+        var emptyLine = new string(' ', InnMarketFrameWidth + 35);
 
-        for (var line = 5; line < 43; line++)
+        for (var line = 8; line < 45; line++)
         {
-            Console.BackgroundColor = ConsoleColor.Blue;
-            WriteAt(15, line, emptyLine);
+            WriteAt(20, line, emptyLine);
         }
     }   
 
@@ -892,9 +891,14 @@ public sealed class ConsoleRenderer
             selectedIndex, artisanNotice, disableLeaderOnly: false, innName, mazeLevel), FramedWindow.Inn);
     }
 
+    public void UpdateGoldInCharacterSheet(LiveCharacter character)
+    {
+        var goldLine = CharacterSheetPanel.BuildGoldLine(character);
+        WriteSheetLine(CharacterSheetGoldLine, goldLine.Text, goldLine.Color, goldLine.Background);
+    }
+
     public void DrawInnCharacterSheet(LiveCharacter character)
     {
-        ClearInnMenuScreen();
         DrawFrame(5);
         if (_displayedCharacter is null || !SheetCharacters().Contains(_displayedCharacter))
             _displayedCharacter = character;
@@ -2011,8 +2015,7 @@ public sealed class ConsoleRenderer
 
     public void DrawRestSummaryScreen(PartyRestSnapshot rest, string footer, ConsoleColor footerColor)
     {
-        ResetColorCache();
-        Console.Clear();
+        ClearInnMenuScreen();
         DrawCenteredFrame(RestSummaryWindow.Width, RestSummaryWindow.Build(rest, footer, footerColor),
             FramedWindow.Inn);
     }
@@ -2277,6 +2280,7 @@ public sealed class ConsoleRenderer
             _formation?.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
         DrawPicturePanel();
     }
+
 
     private void WriteCharacterSheetPanelLine(CharacterSheetPanelLine line)
     {

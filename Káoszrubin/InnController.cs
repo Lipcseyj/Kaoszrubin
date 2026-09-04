@@ -21,7 +21,7 @@ internal sealed class InnController
 
     private readonly GameDataCatalog _gameData;
     private readonly CharacterRoster _characterRoster;
-    private readonly LiveCharacter _selectedCharacter;
+    private readonly LiveCharacter _partyLeader;
     private readonly ConsoleRenderer _renderer;
     private readonly Action<SoundEffect> _playGlobalSound;
     private readonly Random _random;
@@ -62,7 +62,7 @@ internal sealed class InnController
     {
         _gameData = gameData;
         _characterRoster = characterRoster;
-        _selectedCharacter = selectedCharacter;
+        _partyLeader = selectedCharacter;
         _renderer = renderer;
         _playGlobalSound = playGlobalSound;
         _random = random;
@@ -80,7 +80,7 @@ internal sealed class InnController
         var vendors = _vendorStocks.Select(pair => new InnVendorSnapshot(pair.Key, VendorName(pair.Key),
             pair.Value.Select((offer, index) => new InnOfferSnapshot(index, ToSnapshot(offer.Item), offer.Price)).ToArray()))
             .ToArray();
-        return new InnSnapshot(_revision, _selectedCharacter.Gold, vendors,
+        return new InnSnapshot(_revision, _partyLeader.Gold, vendors,
             _rumors.Select(rumor => new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color)).ToArray(),
             _transactions.ToArray(),
             _buybackPrices.Select(pair => new InnSellPriceSnapshot(pair.Key, pair.Value)).ToArray(),
@@ -99,8 +99,8 @@ internal sealed class InnController
         var offer = stock[offerIndex];
         if (!recipient.CanAddToBackpack(offer.Item))
         { message = $"{recipient.Name} hátizsákja tele van."; return false; }
-        if (!_selectedCharacter.SpendGold(offer.Price))
-        { message = $"Nincs elég közös arany: még {offer.Price - _selectedCharacter.Gold} hiányzik."; return false; }
+        if (!_partyLeader.SpendGold(offer.Price))
+        { message = $"Nincs elég közös arany: még {offer.Price - _partyLeader.Gold} hiányzik."; return false; }
         recipient.AddToBackpack(offer.Item);
         stock.RemoveAt(offerIndex);
         _revision++;
@@ -124,7 +124,7 @@ internal sealed class InnController
         { message = "Ezt a tárgyat a kereskedő nem veszi meg."; return false; }
         if (!seller.RemoveOneInventoryItem(InventorySlotKind.Backpack, backpackIndex))
         { message = "Az eladás most nem hajtható végre."; return false; }
-        _selectedCharacter.AddGold(price);
+        _partyLeader.AddGold(price);
         _revision++;
         message = $"Eladtad: {item.Name} ({price} arany).";
         RecordTransaction(InnTransactionKind.Sale, seller.Name, item.Name, price, seller.Name,
@@ -211,13 +211,13 @@ internal sealed class InnController
             var usedNames = _characterRoster.Characters.Select(character => character.Name).ToList();
             foreach (var characterClass in classes)
             {
-                var candidate = generator.CreateRecruit(characterClass, _selectedCharacter.Level,
+                var candidate = generator.CreateRecruit(characterClass, _partyLeader.Level,
                     usedNames.Concat(_recruitCandidates.Select(character => character.Name)).ToList(), allowWhiteColor: true);
                 _recruitCandidates.Add(candidate);
             }
             foreach (var candidate in _recruitCandidates)
             {
-                _recruitmentPrices[candidate] = candidate.Level < _selectedCharacter.Level
+                _recruitmentPrices[candidate] = candidate.Level < _partyLeader.Level
                     ? 0
                     : Math.Max(1, candidate.Level * 100 * _random.Next(50, 151) / 100);
             }
@@ -269,7 +269,7 @@ internal sealed class InnController
     private DepartureChoice RunMenuLoop(int completedLevel)
     {
         Console.Clear();
-        _renderer.DrawInnCharacterSheet(_selectedCharacter);
+        _renderer.DrawInnCharacterSheet(_partyLeader);
 
         var options = (_menuOptions ?? []).ToList();
         var selectedIndex = 0;
@@ -279,7 +279,7 @@ internal sealed class InnController
         {
             if (redraw)
             {
-                _renderer.DrawInnMenuScreen(_selectedCharacter, _characterRoster.Party.Members.Count, selectedIndex,
+                _renderer.DrawInnMenuScreen(_partyLeader, _characterRoster.Party.Members.Count, selectedIndex,
                     options, menuNotice, _innName, _innLevel);
                 redraw = false;
             }
@@ -393,7 +393,7 @@ internal sealed class InnController
             selectedIndex = entryCount == 0 ? 0 : Math.Clamp(selectedIndex, 0, entryCount - 1);
             if (redraw)
             {
-                _renderer.DrawInnMarketScreen(_selectedCharacter, mode, stock, sellOffers, selectedIndex,
+                _renderer.DrawInnMarketScreen(_partyLeader, mode, stock, sellOffers, selectedIndex,
                     _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
                 redraw = false;
             }
@@ -440,12 +440,12 @@ internal sealed class InnController
                 var offer = stock[selectedIndex];
                 var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
                 if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
-                if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; continue; }
+                if (!_partyLeader.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _partyLeader.Gold} hiányzik."; continue; }
                 recipient.AddToBackpack(offer.Item);
                 stock.RemoveAt(selectedIndex);
                 _revision++;
                 message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
-                RecordTransaction(InnTransactionKind.Purchase, _selectedCharacter.Name, offer.Item.Name,
+                RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, offer.Item.Name,
                     offer.Price, recipient.Name);
             }
             else
@@ -453,10 +453,10 @@ internal sealed class InnController
                 var offer = sellOffers[selectedIndex];
                 if (!offer.Owner.RemoveOneInventoryItem(InventorySlotKind.Backpack, offer.BackpackIndex))
                 { message = "Az üzlet most nem hajtható végre."; continue; }
-                _selectedCharacter.AddGold(offer.Price);
+                _partyLeader.AddGold(offer.Price);
                 _revision++;
                 message = $"✅ Eladtad: {offer.Item.Name} {offer.Price} aranyért ({offer.Owner.Name} hátizsákjából).";
-                RecordTransaction(InnTransactionKind.Sale, _selectedCharacter.Name, offer.Item.Name,
+                RecordTransaction(InnTransactionKind.Sale, _partyLeader.Name, offer.Item.Name,
                     offer.Price, offer.Owner.Name);
             }
         }
@@ -468,13 +468,13 @@ internal sealed class InnController
 
     private void RunInnSecretStash(int completedLevel)
     {
-        if (_selectedCharacter.Gold < _secretStashAccessCost)
+        if (_partyLeader.Gold < _secretStashAccessCost)
         {
-            _renderer.DrawDeveloperMessage($"🗝️ A kereskedő titkos készletéhez {_secretStashAccessCost} arany kell; még {_secretStashAccessCost - _selectedCharacter.Gold} hiányzik.");
+            _renderer.DrawDeveloperMessage($"🗝️ A kereskedő titkos készletéhez {_secretStashAccessCost} arany kell; még {_secretStashAccessCost - _partyLeader.Gold} hiányzik.");
             return;
         }
         if (!_renderer.ConfirmInnSecretStashAccess(_secretStashAccessCost)) return;
-        _selectedCharacter.SpendGold(_secretStashAccessCost);
+        _partyLeader.SpendGold(_secretStashAccessCost);
         var secretLevel = completedLevel + SecretStashLevelAdvance;
         var stock = CreateMerchantStock(completedLevel, secretLevel, _random.Next(105, 121) / 100.0,
             includePremiumStock: false, includeRandomLegendary: false, includePremiumSupplies: true).ToList();
@@ -489,7 +489,7 @@ internal sealed class InnController
             selectedIndex = entryCount == 0 ? 0 : Math.Clamp(selectedIndex, 0, entryCount - 1);
             if (redraw)
             {
-                _renderer.DrawInnSecretStashScreen(_selectedCharacter, stock, selectedIndex,
+                _renderer.DrawInnSecretStashScreen(_partyLeader, stock, selectedIndex,
                     _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
                 redraw = false;
             }
@@ -524,12 +524,12 @@ internal sealed class InnController
             var offer = stock[selectedIndex];
             var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
-            if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; continue; }
+            if (!_partyLeader.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _partyLeader.Gold} hiányzik."; continue; }
             recipient.AddToBackpack(offer.Item);
             stock.RemoveAt(selectedIndex);
             _revision++;
             message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
-            RecordTransaction(InnTransactionKind.Purchase, _selectedCharacter.Name, offer.Item.Name,
+            RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, offer.Item.Name,
                 offer.Price, recipient.Name);
         }
     }
@@ -660,13 +660,13 @@ internal sealed class InnController
         var personCount = partyCount + followerCount;
         if (personCount == 0) { _renderer.DrawDeveloperMessage("Nincsenek személyek a partihoz."); return; }
         var totalCost = perPerson * personCount;
-        if (_selectedCharacter.Gold < totalCost)
+        if (_partyLeader.Gold < totalCost)
         {
-            _renderer.DrawDeveloperMessage($"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {totalCost - _selectedCharacter.Gold} hiányzik a lakomához.");
+            _renderer.DrawDeveloperMessage($"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {totalCost - _partyLeader.Gold} hiányzik a lakomához.");
             return;
         }
         if (!_renderer.ConfirmInnFeast(perPerson, personCount, totalCost)) return;
-        _selectedCharacter.SpendGold(totalCost);
+        _partyLeader.SpendGold(totalCost);
         foreach (var c in _characterRoster.Party.Members)
         {
             c.RestoreFood(100);
@@ -682,14 +682,14 @@ internal sealed class InnController
 
         _renderer.DrawFeastWindow(_characterRoster.Party.Members.Select(m => m.Name).ToList(), totalCost);
         
-        RecordTransaction(InnTransactionKind.Service, _selectedCharacter.Name, "Lakomázás", totalCost, _selectedCharacter.Name, announceOnHost: true);
+        RecordTransaction(InnTransactionKind.Service, _partyLeader.Name, "Lakomázás", totalCost, _partyLeader.Name, announceOnHost: true);
     }
 
     private void RunInnRecruitment()
     {
         var candidates = _recruitCandidates ?? new List<LiveCharacter>();
         var recruitmentPrices = _recruitmentPrices ?? candidates.ToDictionary(candidate => candidate,
-            candidate => candidate.Level < _selectedCharacter.Level
+            candidate => candidate.Level < _partyLeader.Level
                 ? 0
                 : Math.Max(1, candidate.Level * 100 * _random.Next(50, 151) / 100));
 
@@ -702,7 +702,7 @@ internal sealed class InnController
             if (redraw)
             {
                 _renderer.DrawInnRecruitmentScreen(candidates, recruitmentPrices, selectedIndex,
-                    _characterRoster.Party.Members, _selectedCharacter.Gold, message);
+                    _characterRoster.Party.Members, _partyLeader.Gold, message);
                 redraw = false;
             }
             var key = _readKey().Key;
@@ -732,9 +732,9 @@ internal sealed class InnController
 
             var recruit = candidates[selectedIndex];
             var price = recruitmentPrices[recruit];
-            if (_selectedCharacter.Gold < price)
+            if (_partyLeader.Gold < price)
             {
-                message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: {price - _selectedCharacter.Gold} arany hiányzik {recruit.Name} felbérléséhez.";
+                message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: {price - _partyLeader.Gold} arany hiányzik {recruit.Name} felbérléséhez.";
                 continue;
             }
             LiveCharacter? replaced = null;
@@ -751,7 +751,7 @@ internal sealed class InnController
                 _characterRoster.Remove(replaced);
             }
 
-            _selectedCharacter.SpendGold(price);
+            _partyLeader.SpendGold(price);
             _characterRoster.Add(recruit);
             _characterRoster.Party.Add(recruit);
             recruit.SetNpcJoinOrigin(_innLevel, _innName);
@@ -978,7 +978,7 @@ internal sealed class InnController
             selectedIndex = entryCount == 0 ? 0 : Math.Clamp(selectedIndex, 0, entryCount - 1);
             if (redraw)
             {
-                _renderer.DrawInnMarketScreen(_selectedCharacter, mode, stock, sellOffers, selectedIndex,
+                _renderer.DrawInnMarketScreen(_partyLeader, mode, stock, sellOffers, selectedIndex,
                     _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
                 redraw = false;
             }
@@ -1014,12 +1014,12 @@ internal sealed class InnController
             var offer = stock[selectedIndex];
             var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
-            if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; continue; }
+            if (!_partyLeader.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _partyLeader.Gold} hiányzik."; continue; }
             recipient.AddToBackpack(offer.Item);
             stock.RemoveAt(selectedIndex);
             _revision++;
             message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
-            RecordTransaction(InnTransactionKind.Purchase, _selectedCharacter.Name, offer.Item.Name,
+            RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, offer.Item.Name,
                 offer.Price, recipient.Name);
         }
     }
@@ -1080,7 +1080,7 @@ internal sealed class InnController
         var message = "A vándormágus köpenye alól halk, kékes fény szűrődik ki.";
         while (true)
         {
-            _renderer.DrawWanderingMageMenu(_selectedCharacter, options, selectedIndex, message);
+            _renderer.DrawWanderingMageMenu(_partyLeader, options, selectedIndex, message);
             var key = _readKey().Key;
             if (key == StateChangedKey)
             {
@@ -1111,7 +1111,7 @@ internal sealed class InnController
         {
             var wands = EmptyWands().ToList();
             selectedIndex = wands.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, wands.Count - 1);
-            _renderer.DrawWandRechargeScreen(_selectedCharacter, wands.Select(wand =>
+            _renderer.DrawWandRechargeScreen(_partyLeader, wands.Select(wand =>
                 (wand.Character.Name, wand.Item.Name, WandRechargePrice(wand.Item), wand.Item.MaximumCharges)).ToList(), selectedIndex, message);
             var key = _readKey().Key;
             if (key == StateChangedKey)
@@ -1135,9 +1135,9 @@ internal sealed class InnController
                     message = "🎒 A kötegből feltöltött pálcának külön üres hátizsákhely kell.";
                     continue;
                 }
-                if (!_selectedCharacter.SpendGold(price))
+                if (!_partyLeader.SpendGold(price))
                 {
-                    message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {price - _selectedCharacter.Gold} hiányzik.";
+                    message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {price - _partyLeader.Gold} hiányzik.";
                     continue;
                 }
                 if (quantity > 1)
@@ -1187,7 +1187,7 @@ internal sealed class InnController
             selectedIndex = stock.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, stock.Count - 1);
             if (redraw)
             {
-                _renderer.DrawInnSpecialistScreen(title, _selectedCharacter, stock, selectedIndex,
+                _renderer.DrawInnSpecialistScreen(title, _partyLeader, stock, selectedIndex,
                     _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
                 redraw = false;
             }
@@ -1213,12 +1213,12 @@ internal sealed class InnController
             var offer = stock[selectedIndex];
             var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; redraw = true; continue; }
-            if (!_selectedCharacter.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _selectedCharacter.Gold} hiányzik."; redraw = true; continue; }
+            if (!_partyLeader.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _partyLeader.Gold} hiányzik."; redraw = true; continue; }
             recipient.AddToBackpack(offer.Item);
             stock.RemoveAt(selectedIndex);
             _revision++;
             message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
-            RecordTransaction(InnTransactionKind.Purchase, _selectedCharacter.Name, offer.Item.Name,
+            RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, offer.Item.Name,
                 offer.Price, recipient.Name);
             redraw = true;
         }
@@ -1227,6 +1227,7 @@ internal sealed class InnController
     private void RecordTransaction(InnTransactionKind kind, string actorName, string itemName, int price,
         string inventoryOwnerName, bool announceOnHost = false)
     {
+        _renderer.UpdateGoldInCharacterSheet(_partyLeader);
         var transaction = new InnTransactionSnapshot(++_transactionSequence, kind, actorName, itemName, price,
             inventoryOwnerName);
         _playGlobalSound(SoundEffect.Item);

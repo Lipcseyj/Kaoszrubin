@@ -29,6 +29,11 @@ public static class CharacterSheetPanel
     public const int Width = 27;
     private const int ResourceIconStep = 10;
 
+    /// <summary>
+    /// A karakterosztály azonosítóját egy rövid, egybetűs glyph-re alakítja,
+    /// amely a parti-státuszsor elején jelenik meg.
+    /// Ismeretlen osztály esetén "?" jelet ad vissza.
+    /// </summary>
     public static string CharacterClassGlyph(string characterClassId) => characterClassId switch
     {
         CharacterClassIds.Harcos => "H",
@@ -40,25 +45,54 @@ public static class CharacterSheetPanel
         _ => "?"
     };
 
+    public static CharacterSheetPanelLine BuildGoldLine(LiveCharacter character)
+    {
+        return new CharacterSheetPanelLine(9, $"Arany: {character.Gold} {ConsoleRenderer.MoneyIcon}", ConsoleColor.Yellow);
+
+    }
+
+    /// <summary>
+    /// Élő karakterből (domain objektumból) készít rövid parti-státusz sort.
+    /// A metódus a szükséges mezőket kinyeri, majd a közös, belső összeállító
+    /// metódusnak adja át a formázáshoz és színezéshez.
+    /// </summary>
     public static PartyStatusLine BuildPartyStatus(LiveCharacter character, bool isDisplayed, bool isLeader = false) =>
         BuildPartyStatus(character.Name, character.CharacterClass.Id, character.CurrentVitality,
             character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
             character.Color, isDisplayed, isLeader);
 
+    /// <summary>
+    /// Session snapshotból készít rövid parti-státusz sort.
+    /// Funkciója megegyezik az élő karakteres overloaddal, de hálózati/snapshot
+    /// adatszerkezetből dolgozik ugyanarra a megjelenítési modellre.
+    /// </summary>
     public static PartyStatusLine BuildPartyStatus(SessionCharacterSnapshot character, bool isDisplayed,
         bool isLeader = false) =>
         BuildPartyStatus(character.Name, character.CharacterClassId, character.CurrentVitality,
             character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
             character.Color, isDisplayed, isLeader);
 
+    /// <summary>
+    /// Élő karakter aktuális életerő/mána állapotából készít egy erőforrás-sort.
+    /// A tényleges formázást és színlogikát a belső overload végzi.
+    /// </summary>
     public static CharacterResourceLine BuildResourceLine(LiveCharacter character) =>
         BuildResourceLine(character.CurrentVitality, character.MaximumVitality,
             character.CurrentMana, character.MaximumMana, character.UsesMana);
 
+    /// <summary>
+    /// Snapshot karakterből készít erőforrás-sort (életerő és opcionális mána).
+    /// A mana megjelenítését a karakterlap-projekció UsesMana jelzője határozza meg.
+    /// </summary>
     public static CharacterResourceLine BuildResourceLine(SessionCharacterSnapshot character) =>
         BuildResourceLine(character.CurrentVitality, character.MaximumVitality,
             character.CurrentMana, character.MaximumMana, character.CharacterSheet?.UsesMana == true);
 
+    /// <summary>
+    /// A numerikus erőforrásértékekből állítja elő a megjelenítendő szöveget és színeket.
+    /// Az életerő színe kritikus tartományban pirosra vált, a mána pedig szürkített,
+    /// ha nem használ mágiát a karakter vagy elfogyott a mána.
+    /// </summary>
     private static CharacterResourceLine BuildResourceLine(int currentVitality, int maximumVitality,
         int currentMana, int maximumMana, bool usesMana)
     {
@@ -71,6 +105,11 @@ public static class CharacterSheetPanel
             mana, !usesMana || currentMana <= 0 ? ConsoleColor.DarkGray : ConsoleColor.Cyan);
     }
 
+    /// <summary>
+    /// A parti-listában megjelenő egy soros karakterstátuszt építi fel.
+    /// Kezeli a kijelölt marker, osztály-jel, névrövidítés, halott állapot,
+    /// valamint az életerő és mána százalékos megjelenítésének és színezésének logikáját.
+    /// </summary>
     private static PartyStatusLine BuildPartyStatus(string name, string classId, int currentVitality,
         int maximumVitality, int currentMana, int maximumMana, bool isAlive, ConsoleColor identityColor,
         bool isDisplayed, bool isLeader)
@@ -98,13 +137,27 @@ public static class CharacterSheetPanel
             isLeader ? prefix.Length : -1);
     }
 
+    /// <summary>
+    /// Biztonságosan százalékot számol két értékből.
+    /// Nullás vagy negatív maximum esetén 0-t ad, különben kerekít,
+    /// majd az eredményt 0 és 100 közé korlátozza.
+    /// </summary>
     private static int Percent(int current, int maximum) => maximum <= 0
         ? 0
         : Math.Clamp((int)Math.Round(current * 100d / maximum), 0, 100);
 
+    /// <summary>
+    /// A kapott szöveget legfeljebb a megadott hosszig vágja vissza.
+    /// A minimális visszaadott hossz 1 karakter, így a megjelenítés sosem lesz üres.
+    /// </summary>
     private static string Shorten(string value, int maximumLength) =>
         value[..Math.Min(value.Length, Math.Max(1, maximumLength))];
 
+    /// <summary>
+    /// Élő karakterből teljes karakterlap-panel sorlistát készít.
+    /// A metódus először snapshot/projekció objektumokat hoz létre, majd a
+    /// snapshot alapú Build overloadot hívja a tényleges panelsorok összeállítására.
+    /// </summary>
     public static IReadOnlyList<CharacterSheetPanelLine> Build(LiveCharacter character,
         IReadOnlyDictionary<int, int> experienceByLevel, int mazeLevel, int goldenKeyCount, int bossCount,
         bool isPartyLeader = false, bool isTemporaryFollower = false)
@@ -120,6 +173,11 @@ public static class CharacterSheetPanel
         return Build(snapshot, mazeLevel, goldenKeyCount, bossCount, isPartyLeader);
     }
 
+    /// <summary>
+    /// Session snapshot alapján felépíti a teljes karakterlap panel minden sorát,
+    /// beleértve az alapadatokat, statokat, erőforrásokat, állapotokat, osztályfejlesztéseket
+    /// és az inventory külön blokkjait fix sorpozíciókkal.
+    /// </summary>
     public static IReadOnlyList<CharacterSheetPanelLine> Build(SessionCharacterSnapshot character,
         int mazeLevel, int goldenKeyCount, int bossCount, bool isPartyLeader = false)
     {
@@ -170,6 +228,11 @@ public static class CharacterSheetPanel
         return lines;
     }
 
+    /// <summary>
+    /// Az inventory-hoz tartozó panelsorokat (fegyverek, páncél, varázstárgyak, hátizsák)
+    /// hozzáfűzi a meglévő sorlistához. Kezeli a kétkezes fegyver miatti tiltott második
+    /// fegyverhely megjelenítését és a terheltséghez tartozó színkódolást is.
+    /// </summary>
     private static void AddInventoryLines(ICollection<CharacterSheetPanelLine> lines,
         CharacterInventorySnapshot inventory, CharacterSheetSnapshot details)
     {
@@ -199,15 +262,28 @@ public static class CharacterSheetPanel
                 new InventorySlotAddress(InventorySlotKind.Backpack, index)));
     }
 
+    /// <summary>
+    /// Visszaadja egy adott típus (kind) meghatározott darabszámú slotjait index szerinti
+    /// sorrendben. Feltételezi, hogy minden keresett indexhez létezik megfelelő slot.
+    /// </summary>
     private static IReadOnlyList<InventorySlotSnapshot> Slots(CharacterInventorySnapshot inventory,
         InventorySlotKind kind, int count) => Enumerable.Range(0, count)
         .Select(index => inventory.Slots.First(slot => slot.Kind == kind && slot.Index == index)).ToArray();
 
+    /// <summary>
+    /// Egy inventory elem megjelenítendő nevét állítja elő.
+    /// Üres slot esetén "üres" szöveget ad, töltetes tárgynál megjeleníti a
+    /// töltetszámot, halmozható tárgynál pedig a darabszámot is.
+    /// </summary>
     private static string ItemName(InventoryItemSnapshot? item) => item is null
         ? "üres"
         : (item.MaximumCharges > 0 ? $"{item.Name} ({item.Charges}/{item.MaximumCharges})" : item.Name) +
           (item.Quantity > 1 ? $" ×{item.Quantity}" : string.Empty);
 
+    /// <summary>
+    /// A terheltségi kategória szövegét UI színre képezi le.
+    /// Nehéz terhelés: piros, közepes: sárga, minden más eset: zöld.
+    /// </summary>
     private static ConsoleColor EncumbranceColor(string encumbrance) => encumbrance switch
     {
         "Nehéz" => ConsoleColor.Red,
@@ -215,9 +291,18 @@ public static class CharacterSheetPanel
         _ => ConsoleColor.Green
     };
 
+    /// <summary>
+    /// Egy erőforrás-szintből (pl. éhség/szomjúság) ismételt ikonláncot készít.
+    /// Az ikonok darabszámát a ResourceIconStep osztással számolja.
+    /// </summary>
     private static string ResourceIcons(string icon, int level) =>
         string.Concat(Enumerable.Repeat(icon, level / ResourceIconStep));
 
+    /// <summary>
+    /// Több rövid szövegértéket (pl. perk nevek) tömörít fix számú sorba úgy,
+    /// hogy soronként egyenletesen ossza el őket, és a panel szélességébe
+    /// nem férő neveket levágja. Üres bemenetnél "nincs" jelzést ad.
+    /// </summary>
     private static IReadOnlyList<string> CompactRows(string prefix, IEnumerable<string> values, int rowCount)
     {
         var names = values.ToList();
