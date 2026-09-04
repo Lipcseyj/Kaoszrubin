@@ -185,10 +185,6 @@ public sealed class CoopGuestScreen
                             await client.SendCommandAsync(new SetHelpVisibilityCommand(playerId,
                                 client.NextCommandId(), selected.CharacterId, false), cancellationToken);
                         }
-                        // A súgó közvetlenül a konzolra rajzol, ezért a gyorsítótárazott játék-frame
-                        // már nem tükrözi a képernyő tényleges tartalmát. Kényszerítsünk teljes újrarajzolást.
-                        _lastFrame = null;
-                        Interlocked.Exchange(ref _redrawRequested, 1);
                         continue;
                     }
                     if (key.Key == ConsoleKey.Q &&
@@ -200,8 +196,6 @@ public sealed class CoopGuestScreen
                         _targetedBattleSpell is null)
                     {
                         QuestJournalWindow.Show(questSnapshot.QuestJournal ?? []);
-                        _lastFrame = null;
-                        Interlocked.Exchange(ref _redrawRequested, 1);
                         continue;
                     }
                     if (key.Key == ConsoleKey.Escape && client.CurrentSnapshot?.Phase != GameSessionPhase.Inn &&

@@ -91,9 +91,15 @@ public static class CharacterDetailsWindow
     {
         var allLines = Build(character, data);
         var offset = 0;
+        var pageSize = Math.Max(4, Console.WindowHeight - 8);
+        var visibleLineCount = Math.Min(allLines.Count, pageSize) + 2;
+        var width = Math.Min(Width, Math.Max(20, Console.WindowWidth));
+        var height = visibleLineCount + 2;
+        var left = Math.Max(0, (Console.WindowWidth - width) / 2);
+        var top = Math.Max(0, (Console.WindowHeight - height) / 2);
+        using var background = new BackgroundContentRestorer(left, top, width, height);
         while (true)
         {
-            var pageSize = Math.Max(4, Console.WindowHeight - 8);
             var maximumOffset = Math.Max(0, allLines.Count - pageSize);
             offset = Math.Clamp(offset, 0, maximumOffset);
             var page = allLines.Skip(offset).Take(pageSize).ToList();
@@ -155,7 +161,7 @@ public static class CharacterDetailsWindow
 
     private static void Draw(IReadOnlyList<(string Text, ConsoleColor Color)> lines)
     {
-        Console.Clear(); var width = Math.Min(Width, Math.Max(20, Console.WindowWidth));
+        var width = Math.Min(Width, Math.Max(20, Console.WindowWidth));
         var style = WindowFrameConfiguration.For(FramedWindow.CharacterDetails);
         var left = Math.Max(0, (Console.WindowWidth - width) / 2); var top = Math.Max(0, (Console.WindowHeight - lines.Count - 2) / 2);
         Write(left, top, WindowFrameCatalog.Horizontal(style, width), ConsoleColor.Magenta);

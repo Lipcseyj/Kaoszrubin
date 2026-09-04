@@ -1032,19 +1032,19 @@ public sealed class MainMenu
     private static void ShowScrollableHelp(IReadOnlyList<HelpSourceLine> source)
     {
         var offset = 0;
+        var width = Math.Max(30, Math.Min(122, Console.WindowWidth - 4));
+        var height = Math.Max(8, Console.WindowHeight - 4);
+        var contentWidth = width - 4;
+        var style = WindowFrameConfiguration.For(FramedWindow.Help);
+        var keyColumnWidth = Math.Min(20, Math.Max(12, contentWidth / 3));
+        var lines = source.SelectMany(entry => WrapHelpLine(entry, contentWidth, keyColumnWidth)).ToArray();
+        var pageSize = Math.Max(1, height - 5);
+        var left = Math.Max(0, (Console.WindowWidth - width) / 2);
+        var top = Math.Max(0, (Console.WindowHeight - height) / 2);
+        using var background = new BackgroundContentRestorer(left, top, width, height);
         while (true)
         {
-            var width = Math.Max(30, Math.Min(122, Console.WindowWidth - 4));
-            var height = Math.Max(8, Console.WindowHeight - 4);
-            var contentWidth = width - 4;
-            var style = WindowFrameConfiguration.For(FramedWindow.Help);
-            var keyColumnWidth = Math.Min(20, Math.Max(12, contentWidth / 3));
-            var lines = source.SelectMany(entry => WrapHelpLine(entry, contentWidth, keyColumnWidth)).ToArray();
-            var pageSize = Math.Max(1, height - 5);
             offset = Math.Clamp(offset, 0, Math.Max(0, lines.Length - pageSize));
-            var left = Math.Max(0, (Console.WindowWidth - width) / 2);
-            var top = Math.Max(0, (Console.WindowHeight - height) / 2);
-            ResetConsole();
             WriteAt(left, top, WindowFrameCatalog.Horizontal(style, width), ConsoleColor.Magenta, width);
             var interiorRows = height - 2;
             for (var row = 0; row < interiorRows; row++)

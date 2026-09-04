@@ -1348,8 +1348,6 @@ public sealed class Game : ISessionCommandHandler
                 _activeCoopHost!.TryPublish(CreateSessionSnapshot());
             }
         }
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
     }
 
     private void AssignSelectedSpellQuickSlot(int slotIndex)
@@ -1989,7 +1987,6 @@ public sealed class Game : ISessionCommandHandler
             if (keyInfo.Key == ConsoleKey.Q)
             {
                 ShowQuestJournal();
-                _renderer.DrawInnCharacterSheet(SelectedCharacter);
                 continue;
             }
             switch (GameInputBindings.InventoryAction(keyInfo.Key))
@@ -2001,7 +1998,7 @@ public sealed class Game : ISessionCommandHandler
                 case InventoryInputAction.MoveItem: GrabOrPlaceInventoryItem(); break;
                 case InventoryInputAction.SplitStack: SplitSelectedInventoryStack(); break;
                 case InventoryInputAction.DistributeStack: DistributeSelectedInventoryStack(); break;
-                case InventoryInputAction.CharacterDetails: ShowCharacterDetails(); _renderer.DrawInnCharacterSheet(SelectedCharacter); break;
+                case InventoryInputAction.CharacterDetails: ShowCharacterDetails(); break;
                 case InventoryInputAction.GiveFollowerStack: GiveSelectedStackToFollower(); break;
                 case InventoryInputAction.Drop:
                     _renderer.DrawInventoryMessage("A fogadóban nem dobhatsz tárgyat a földre.", ConsoleColor.DarkYellow);
@@ -2360,16 +2357,11 @@ public sealed class Game : ISessionCommandHandler
     private void ShowQuestJournal()
     {
         QuestJournalWindow.Show(OrderedQuestJournal());
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
     }
 
     private void ShowCharacterDetails()
     {
         CharacterDetailsWindow.Show(CreateCharacterDetailsSnapshot(_renderer.DisplayedCharacter), _gameData);
-        if (_session.Phase == GameSessionPhase.Inn) return;
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
-        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
     }
 
     private IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal() =>

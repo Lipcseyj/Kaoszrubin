@@ -56,15 +56,18 @@ public static class QuestJournalWindow
 
     public static void Show(IReadOnlyList<QuestJournalEntrySnapshot> entries)
     {
-    //    using var background = SaveCenteredFrameBackground(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.AbilityChoice), lines,
-    //FramedWindow.LevelUpChoice);
-
         var allLines = Build(entries);
         var offset = 0;
+        var pageSize = Math.Max(4, Console.WindowHeight - 8);
+        var maximumOffset = Math.Max(0, allLines.Count - pageSize);
+        var visibleLineCount = Math.Min(allLines.Count, pageSize) + (maximumOffset > 0 ? 2 : 1);
+        var width = Math.Min(Width, Math.Max(20, Console.WindowWidth));
+        var height = visibleLineCount + 2;
+        var left = Math.Max(0, (Console.WindowWidth - width) / 2);
+        var top = Math.Max(0, (Console.WindowHeight - height) / 2);
+        using var background = new BackgroundContentRestorer(left, top, width, height);
         while (true)
         {
-            var pageSize = Math.Max(4, Console.WindowHeight - 8);
-            var maximumOffset = Math.Max(0, allLines.Count - pageSize);
             offset = Math.Clamp(offset, 0, maximumOffset);
             var page = allLines.Skip(offset).Take(pageSize).ToList();
             page.Add((maximumOffset > 0
@@ -88,7 +91,6 @@ public static class QuestJournalWindow
 
     private static void Draw(IReadOnlyList<(string Text, ConsoleColor Color)> lines)
     {
-        Console.Clear();
         var width = Math.Min(Width, Math.Max(20, Console.WindowWidth));
         var style = WindowFrameConfiguration.For(FramedWindow.QuestJournal);
         var left = Math.Max(0, (Console.WindowWidth - width) / 2);
