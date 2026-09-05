@@ -62,7 +62,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 costs.Add($"💧 szomjúság: 🔷 -{statusCosts.ManaLost} manna");
             entries.Add(new BattleLogEntry($"Csatakezdő állapothatás — {string.Join("; ", costs)}.", BattleLogKind.Information));
         }
-        var attackWeapon = player.WeaponSlots.FirstOrDefault(item =>
+        var attackWeapon = player.ActiveWeapons.FirstOrDefault(item =>
             item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
         var initiativeFamily = WeaponFamilies.ForWeapon(attackWeapon);
         var proficiencyInitiativeBonus = initiativeFamily switch
@@ -121,7 +121,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 BattleLogKind.Information));
         }
 
-        var weapon = character.WeaponSlots.FirstOrDefault(item =>
+        var weapon = character.ActiveWeapons.FirstOrDefault(item =>
             item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
         var family = WeaponFamilies.ForWeapon(weapon);
         var proficiencyBonus = family switch
@@ -169,7 +169,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     }
 
     public BattleLogEntry ResolveTeamCharacterAttack(LiveCharacter attacker,
-        TeamCharacterBattleRuntime runtime, Enemy defender)
+        TeamCharacterBattleRuntime runtime, Enemy defender, bool finishAction = true)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -195,7 +195,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             }
         }
         defender.SetCurrentHitPoints(definition.HitPoints ?? 0);
-        var statusText = FinishTeamCharacterAction(attacker, runtime);
+        var statusText = finishAction ? FinishTeamCharacterAction(attacker, runtime) : string.Empty;
             return new BattleLogEntry(
                 $"{FormatAttackSummary(attacker.Name, defender.Name, attacks,
                     defender.CurrentHitPoints, defender.Definition.HitPoints ?? defender.CurrentHitPoints)}{statusText}",
@@ -465,7 +465,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         player.BreakSanctuary();
         var forcedHit = context.ShadowStepReady;
         context.ShadowStepReady = false;
-        var weapon = player.WeaponSlots.FirstOrDefault(item =>
+        var weapon = player.ActiveWeapons.FirstOrDefault(item =>
             item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
         var blessedWeaponBonus = player.HasPerk(PerkIds.PriestBlessedWeapon) &&
                                  defender.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase) ? 2 : 0;
@@ -603,7 +603,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             notes.Add($"🔥 Düh +{rageBonus}");
         }
         if (retaliation) { perkBonus += 4; notes.Add("⚔️ Megtorlás: +2 találat, +4 sebzés"); }
-        var armor = (defender.Armor ?? 0) + MonsterAbilityValue(defender, MonsterAbilityEffect.ArmorBonus);
+        var damageType = weapon?.DamageType ?? DamageType.Bludgeoning;
+        var typeDefense = defender.Resistances?.Against(damageType) ?? 0;
+        calculation.Add($"💥 Sebzéstípus: {damageType.Name()}; típusvédelem {typeDefense:+#;-#;0}");
+        var armor = Math.Max(0, (defender.Armor ?? 0) + MonsterAbilityValue(defender, MonsterAbilityEffect.ArmorBonus) + typeDefense);
         var powerfulMastery = context.Tactic == BattleTactic.FighterPowerful &&
                               player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful);
         var armorPiercing = weapon?.IsTwoHanded == true || context.Tactic == BattleTactic.FighterPowerful;
@@ -718,7 +721,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public int EstimatePlayerHitChance(LiveCharacter player, Enemy enemy, BattleTactic tactic)
     {
         var defender = enemy.Definition with { HitPoints = enemy.CurrentHitPoints };
-        var weapon = player.WeaponSlots.FirstOrDefault(item => item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
+        var weapon = player.ActiveWeapons.FirstOrDefault(item => item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
         var weaponEquipped = weapon is not null;
         var blessedWeaponBonus = player.HasPerk(PerkIds.PriestBlessedWeapon) &&
                                  defender.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase) ? 2 : 0;
@@ -799,13 +802,19 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         }
 
         var strength = attacker.Strength ?? 1;
-        var randomDamage = Roll(new ValueRange(1, Math.Max(2, strength)));
-        var armor = RollArmor(defender);
-        var shieldEquipped = defender.WeaponSlots.Any(item => item?.WeaponTypeId == DefenseWeaponTypeId);
-        var shield = defender.WeaponSlots.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } shieldRange ? Roll(shieldRange) : 0;
+        var enemyWeapon = attacker.Weapon;
+        var randomDamage = Roll(enemyWeapon?.Damage ?? new ValueRange(1, 2));
+        var strengthBonus = AbilityDamageBonus(strength);
+        var damageType = enemyWeapon?.DamageType ?? DamageType.Bludgeoning;
+        calculation.Add($"💥 Fegyver: {enemyWeapon?.Name ?? "Puszta kéz"}; {damageType.Name()}; alapsebzés {randomDamage}; erőbónusz {strengthBonus}");
+        var typeDefense = defender.Armor?.Resistances?.Against(damageType) ?? 0;
+        var armor = Math.Max(0, RollArmor(defender) + typeDefense);
+        calculation.Add($"🛡️ Típusvédelem: {typeDefense:+#;-#;0}");
+        var shieldEquipped = defender.ActiveWeapons.Any(item => item?.WeaponTypeId == DefenseWeaponTypeId);
+        var shield = defender.ActiveWeapons.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } shieldRange ? Roll(shieldRange) : 0;
         var shieldRank = defender.WeaponProficiencyRankFor(WeaponFamilies.Shield);
         if (shieldRank == WeaponProficiencyRank.Master && shieldEquipped &&
-            defender.WeaponSlots.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } masterShieldRange)
+            defender.ActiveWeapons.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } masterShieldRange)
             shield = Math.Max(shield, Roll(masterShieldRange));
         var evilWard = IsUnholy(attacker)
             ? defender.ActiveSpellEffects.Where(effect => effect.Type == ActiveSpellEffectType.ProtectionFromEvil).ToList()
@@ -822,7 +831,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                           defender.GetMagicItemBonus(MagicItemEffect.Defense) +
                           defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus) + evilWardDefense +
                           (shieldEquipped && shieldRank is not null ? 1 : 0) +
-                          (defender.WeaponSlots.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
+                          (defender.ActiveWeapons.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
                            defender.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master ? 1 : 0) +
                           tacticDefense - rageDefensePenalty;
         Modifier("🛡️ Vastag bőr", defender.HasPerk(PerkIds.BarbarianThickSkin) ? 1 : 0);
@@ -831,7 +840,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         Modifier("🛡️ Varázshatás", defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus));
         Modifier("🛡️ Gonosz elleni védelem", evilWardDefense);
         Modifier("🛡️ Pajzsjártasság", shieldEquipped && shieldRank is not null ? 1 : 0);
-        Modifier("🛡️ Kardmester", defender.WeaponSlots.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
+        Modifier("🛡️ Kardmester", defender.ActiveWeapons.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
             defender.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master ? 1 : 0);
         Modifier("🛡️ Védekező taktika", tacticDefense);
         Modifier("🛡️ Düh", -rageDefensePenalty);
@@ -843,7 +852,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         Modifier("🛡️ Legyőzhetetlen", defender.HasPerk(PerkIds.KnightInvincible) ? 4 : 0);
         var reduction = (defender.HasPerk(PerkIds.FighterUnbreakable) ? 2 : 0) + (defender.HasPerk(PerkIds.KnightInvincible) ? 4 : 0);
         var monsterBonusDamage = RollMonsterBonusDamage(attacker, calculation);
-        var rawDamage = strength + randomDamage + monsterBonusDamage;
+        var rawDamage = strengthBonus + randomDamage + monsterBonusDamage;
         var damage = Math.Max(0, ApplyDefense(rawDamage * criticalMultiplier, armor + shield + perkDefense) - reduction);
         var physicalReduction = Math.Clamp(defender.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction) +
             defender.SpellEffectValue(ActiveSpellEffectType.Sanctuary) + evilWard.Sum(effect => effect.Value), 0, 100);
@@ -867,13 +876,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var manaShieldText = absorbed == 0 ? string.Empty : $" - mannapajzs {absorbed}";
         var monsterBonusText = monsterBonusDamage == 0 ? string.Empty : $" + szörnyképesség {monsterBonusDamage}";
         var statusText = ApplyMonsterStatusAbilities(attacker, defender);
-        calculation.Add($"💥 Erő {strength} + dobás {randomDamage} + szörnybónusz {monsterBonusDamage} = {rawDamage}");
+        calculation.Add($"💥 Erőbónusz {strengthBonus} + fegyver {randomDamage} + szörnybónusz {monsterBonusDamage} = {rawDamage}");
         calculation.Add($"💥 ×{criticalMultiplier} − páncél {armor} − pajzs {shield} − bónuszvédelem {perkDefense}");
         calculation.Add($"💥 Minimum 1, majd fix csökkentés −{reduction}, majd −{physicalReduction}%, lefelé kerekítve");
         if (absorbed > 0) calculation.Add($"🔷 Mannapajzs: −{absorbed} sebzés / manna");
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
         return Detailed(AttackResult.HitFor(damage,
-            $"találat: {hit.Description} → 🎯; sebzés: (Erő {strength} + dobás {randomDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damageText}.{statusText}",
+            $"találat: {hit.Description} → 🎯; sebzés: (Erőbónusz {strengthBonus} + fegyver {randomDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damageText}.{statusText}",
             criticalMultiplier > 1));
     }
 

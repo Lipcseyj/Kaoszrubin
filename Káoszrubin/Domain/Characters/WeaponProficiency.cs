@@ -33,6 +33,7 @@ public static class WeaponFamilies
 
     public static string? ForWeapon(WeaponDefinition? weapon)
     {
+        if (weapon?.FamilyId is { Length: > 0 } family) return family;
         var id = weapon?.BaseWeaponId ?? weapon?.Id;
         return id switch
         {
@@ -48,7 +49,7 @@ public static class WeaponFamilies
 
     public static IReadOnlyList<WeaponFamilyDefinition> AvailableFor(string characterClassId,
         IEnumerable<WeaponDefinition> weapons) => weapons
-        .Where(weapon => weapon.AllowedClassIds.Contains(characterClassId))
+        .Where(weapon => weapon.FamilyId != "NATURAL" && weapon.AllowedClassIds.Contains(characterClassId))
         .Select(ForWeapon).Where(id => id is not null).Distinct(StringComparer.OrdinalIgnoreCase)
         .Select(id => Find(id!)!).OrderBy(family => family.Name).ToArray();
 }

@@ -1300,7 +1300,7 @@ public sealed class ConsoleRenderer
                 selected ? ConsoleColor.White : candidate.Color));
         }
         var shown = candidates[selectedIndex];
-        var weaponNames = shown.WeaponSlots.Where(item => item is not null).Select(item => item!.Name).ToList();
+        var weaponNames = shown.ActiveWeapons.Where(item => item is not null).Select(item => item!.Name).ToList();
         var weapons = weaponNames.Count == 0 ? "nincs" : string.Join(", ", weaponNames);
         lines.Add(("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta));
         lines.Add(($"Erő {shown.EffectiveAbilities.Strength}  Ügy {shown.EffectiveAbilities.Dexterity}  Egész {shown.EffectiveAbilities.Health}  Int {shown.EffectiveAbilities.Intelligence}", ConsoleColor.Cyan));
@@ -1349,7 +1349,7 @@ public sealed class ConsoleRenderer
                 selected ? ConsoleColor.White : candidate.Color));
         }
         var shown = candidates[selectedIndex];
-        var weaponNames = shown.WeaponSlots.Where(item => item is not null).Select(item => item!.Name).ToList();
+        var weaponNames = shown.ActiveWeapons.Where(item => item is not null).Select(item => item!.Name).ToList();
         var weapons = weaponNames.Count == 0 ? "nincs" : string.Join(", ", weaponNames);
         var detailStart = InnRecruitmentDetailStartOffset + candidates.Count;
         updates.Add((detailStart, $"Erő {shown.EffectiveAbilities.Strength}  Ügy {shown.EffectiveAbilities.Dexterity}  Egész {shown.EffectiveAbilities.Health}  Int {shown.EffectiveAbilities.Intelligence}", ConsoleColor.Cyan));
@@ -2710,7 +2710,7 @@ public sealed class ConsoleRenderer
         var portrait = actingCharacter is not null
             ? AsciiPortraits.ForCharacterClass(actingCharacter.CharacterClass.Id)
             : _battleActive && _battleEnemy is not null
-            ? AsciiPortraits.ForEnemy(_battleEnemy.Definition.Id)
+            ? AsciiPortraits.ForEnemy(_battleEnemy.Definition.BaseEnemyId ?? _battleEnemy.Definition.Id)
             : AsciiPortraits.ForCharacterClass(_displayedCharacter?.CharacterClass.Id ?? "");
         var color = actingCharacter is not null ? actingCharacter.Color
             : _battleActive && _battleEnemy is not null

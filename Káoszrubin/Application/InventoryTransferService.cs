@@ -42,6 +42,15 @@ public static class InventoryTransferService
 
         var sourceItem = source.GetInventoryItem(command.SourceKind, command.SourceIndex);
         if (sourceItem is null) return Fail("A forrásslot üres.", out plan, out error);
+        if (source == destination && command.SourceKind == InventorySlotKind.Weapon && command.SourceIndex == 2 &&
+            command.DestinationKind == InventorySlotKind.Weapon && command.DestinationIndex == 0)
+        {
+            if (source.ReserveWeaponSwapChanges() is not { } swapChanges)
+                return Fail("A fegyvercsere nem lehetséges; kétkezes fegyverhez a másik kéz tárgyának üres hátizsákhely kell.", out plan, out error);
+            plan = new InventoryTransferPlan(new() { [source] = swapChanges.ToList() }, sourceItem, source.WeaponSlots[0]);
+            error = string.Empty;
+            return true;
+        }
         var sourceCharges = source.GetInventoryItemCharges(command.SourceKind, command.SourceIndex);
         var sourceQuantity = source.GetInventoryItemQuantity(command.SourceKind, command.SourceIndex);
         var displaced = destination.GetInventoryItem(command.DestinationKind, command.DestinationIndex);
@@ -90,7 +99,7 @@ public static class InventoryTransferService
 
     public static bool IsValidSlotAddress(InventorySlotKind kind, int index) => kind switch
     {
-        InventorySlotKind.Weapon => index is >= 0 and < 2,
+        InventorySlotKind.Weapon => index is >= 0 and < 3,
         InventorySlotKind.Armor => index == 0,
         InventorySlotKind.MagicItem => index is >= 0 and < LiveCharacter.MaximumMagicItemCount,
         InventorySlotKind.Backpack => index is >= 0 and < LiveCharacter.MaximumBackpackItemCount,

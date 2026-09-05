@@ -46,6 +46,23 @@ public sealed class TacticalTeamBattleCoordinator
             .DistinctBy(enemy => enemy.Id);
     }
 
+    public static IReadOnlyList<Enemy> SweepTargets(TeamBattleEncounter battle, LiveCharacter character,
+        Position origin, Enemy primary)
+    {
+        var targets = new List<Enemy> { primary };
+        var maximum = Math.Clamp(character.AttackWeapon?.MaximumTargets ?? 1, 1, 3);
+        if (maximum == 1 || !TacticalDistance.IsMeleeAdjacent(origin, primary.Position)) return targets;
+        foreach (var enemy in battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 && enemy.Id != primary.Id)
+                     .OrderBy(enemy => enemy.Position.Y).ThenBy(enemy => enemy.Position.X))
+        {
+            if (!TacticalDistance.IsMeleeAdjacent(origin, enemy.Position) ||
+                !targets.All(target => TacticalDistance.IsMeleeAdjacent(target.Position, enemy.Position))) continue;
+            targets.Add(enemy);
+            if (targets.Count == maximum) break;
+        }
+        return targets;
+    }
+
     public static IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy,
         Func<LiveCharacter, Position> getCasterPosition) =>
         battle.Characters.Where(character => character.IsAlive &&
@@ -132,9 +149,11 @@ public sealed class TacticalTeamBattleCoordinator
             else openingActions.Insert(0, BattleActionKind.Move);
             if (hasUsableCombatSpell)
                 openingActions.Insert(0, BattleActionKind.CastSpell);
+            if (character.CanSwapReserveWeapon) openingActions.Add(BattleActionKind.SwapWeapon);
             return openingActions;
         }
         var actions = new List<BattleActionKind> { BattleActionKind.Pass };
+        if (character.CanSwapReserveWeapon) actions.Add(BattleActionKind.SwapWeapon);
         if (reachable.Length > 0)
         {
             actions.Add(BattleActionKind.PhysicalAttack);

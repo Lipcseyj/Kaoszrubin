@@ -250,7 +250,7 @@ public static class EncounterThreatEvaluator
     {
         ArgumentNullException.ThrowIfNull(character);
         if (!character.IsAlive) return 0;
-        var weapon = character.WeaponSlots.Where(value => value?.Damage is not null)
+        var weapon = character.ActiveWeapons.Where(value => value?.Damage is not null)
             .Select(value => value!.Damage!.Maximum).DefaultIfEmpty(2).Max();
         var armor = character.Armor?.Defense?.Maximum ?? 0;
         var abilities = character.EffectiveAbilities;

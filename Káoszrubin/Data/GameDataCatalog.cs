@@ -52,7 +52,9 @@ public sealed class GameDataCatalog
     public EnemyDefinition GetEnemy(string id) => FindById(Enemies, id, "ellenfél");
     public MonsterAbilityDefinition GetMonsterAbility(string id) => FindById(MonsterAbilities, id, "szörnyképesség");
     public MonsterLootDefinition? GetMonsterLoot(string enemyId) => MonsterLoot.FirstOrDefault(loot =>
-        string.Equals(loot.EnemyId, enemyId, StringComparison.OrdinalIgnoreCase));
+        string.Equals(loot.EnemyId, enemyId, StringComparison.OrdinalIgnoreCase)) ?? MonsterLoot.FirstOrDefault(loot =>
+        string.Equals(loot.EnemyId, Enemies.FirstOrDefault(enemy => enemy.Id == enemyId)?.BaseEnemyId,
+            StringComparison.OrdinalIgnoreCase));
     public WeaponTypeDefinition GetWeaponType(string id) => FindById(WeaponTypes, id, "fegyvertípus");
     public RaceDefinition GetRace(string id) => FindById(Races, id, "faj");
     public CharacterClassDefinition GetCharacterClass(string id) => FindById(CharacterClasses, id, "osztály");

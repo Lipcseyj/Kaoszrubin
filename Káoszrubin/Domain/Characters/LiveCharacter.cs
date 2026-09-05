@@ -8,7 +8,7 @@ namespace KaoszRubin.Domain.Characters;
 public sealed class LiveCharacter
 {
     public const int MaximumNameLength = 13;
-    private readonly WeaponDefinition?[] _weaponSlots = new WeaponDefinition?[2];
+    private readonly WeaponDefinition?[] _weaponSlots = new WeaponDefinition?[3];
     private readonly MagicItemDefinition?[] _magicItems = new MagicItemDefinition?[MaximumMagicItemCount];
     private readonly int[] _magicItemCharges = new int[MaximumMagicItemCount];
     private readonly IItemDefinition?[] _backpack = new IItemDefinition?[MaximumBackpackItemCount];
@@ -79,6 +79,34 @@ public sealed class LiveCharacter
     public string? SpecializationId { get; private set; }
     public ClassSpecializationDefinition? Specialization => ClassSpecializations.Find(SpecializationId);
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
+    public IEnumerable<WeaponDefinition?> ActiveWeapons => _weaponSlots.Take(2);
+    public WeaponDefinition? AttackWeapon => ActiveWeapons.FirstOrDefault(weapon => weapon is not null && weapon.WeaponTypeId != "WT003");
+    public bool CanSwapReserveWeapon => ReserveWeaponSwapChanges() is not null;
+
+    public InventorySlotChange[]? ReserveWeaponSwapChanges()
+    {
+        if (_weaponSlots[2] is null) return null;
+        var changes = new List<InventorySlotChange>
+        {
+            new(InventorySlotKind.Weapon, 0, _weaponSlots[2]),
+            new(InventorySlotKind.Weapon, 2, _weaponSlots[0])
+        };
+        if (_weaponSlots[2]!.IsTwoHanded && _weaponSlots[1] is { } offhand)
+        {
+            var empty = Array.FindIndex(_backpack, item => item is null);
+            if (empty < 0) return null;
+            changes.Add(new(InventorySlotKind.Backpack, empty, offhand));
+            changes.Add(new(InventorySlotKind.Weapon, 1, null));
+        }
+        return CanApplyInventoryChanges(changes.ToArray()) ? changes.ToArray() : null;
+    }
+
+    public bool TrySwapReserveWeapon()
+    {
+        if (ReserveWeaponSwapChanges() is not { } changes) return false;
+        ApplyInventoryChanges(changes);
+        return true;
+    }
     public ArmorDefinition? Armor { get; private set; }
     public IReadOnlyList<MagicItemDefinition?> MagicItems => _magicItems;
     public IReadOnlyList<int> MagicItemCharges => _magicItemCharges;
@@ -366,7 +394,7 @@ public sealed class LiveCharacter
 
     public IItemDefinition? GetInventoryItem(InventorySlotKind kind, int index) => kind switch
     {
-        InventorySlotKind.Weapon when index is >= 0 and < 2 => _weaponSlots[index],
+        InventorySlotKind.Weapon when index is >= 0 and < 3 => _weaponSlots[index],
         InventorySlotKind.Armor when index == 0 => Armor,
         InventorySlotKind.MagicItem when index is >= 0 and < MaximumMagicItemCount => _magicItems[index],
         InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount => _backpack[index],
@@ -419,7 +447,7 @@ public sealed class LiveCharacter
                 change.Quantity is < 1 or > MaximumBackpackStackSize) return false;
             switch (change.Kind)
             {
-                case InventorySlotKind.Weapon when change.Index is >= 0 and < 2:
+                case InventorySlotKind.Weapon when change.Index is >= 0 and < 3:
                     weapons[change.Index] = (WeaponDefinition?)change.Item;
                     break;
                 case InventorySlotKind.Armor when change.Index == 0:
@@ -479,7 +507,7 @@ public sealed class LiveCharacter
         var (kind, index, item, _, _) = change;
         switch (kind)
         {
-            case InventorySlotKind.Weapon when index is >= 0 and < 2:
+            case InventorySlotKind.Weapon when index is >= 0 and < 3:
                 _weaponSlots[index] = (WeaponDefinition?)item;
                 break;
             case InventorySlotKind.Armor when index == 0:

@@ -27,9 +27,9 @@ public static class CharacterMobilityRules
     {
         ArgumentNullException.ThrowIfNull(character);
         var abilities = character.EffectiveAbilities;
-        var weight = character.WeaponSlots.Where(weapon => weapon is not null).Sum(weapon => weapon!.Weight) +
+        var weight = character.ActiveWeapons.Where(weapon => weapon is not null).Sum(weapon => weapon!.Weight) +
                      (character.Armor?.Weight ?? 0);
-        var carriedWeight = weight + character.MagicItems.Where(item => item is not null).Sum(item => item!.Weight) +
+        var carriedWeight = weight + (character.WeaponSlots[2]?.Weight ?? 0) + character.MagicItems.Where(item => item is not null).Sum(item => item!.Weight) +
                             Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount).Sum(index =>
                                 (character.GetInventoryItem(InventorySlotKind.Backpack, index)?.Weight ?? 0) *
                                 character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index));

@@ -212,7 +212,7 @@ public sealed class TeamBattleEncounter
     public IReadOnlyList<Enemy> RearFormationEnemiesInReach(LiveCharacter character)
     {
         if (!IsRearRow(character) ||
-            !character.WeaponSlots.Any(weapon => WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Polearm) ||
+            character.AttackWeapon?.CanAttackFromRear != true ||
             FrontPartnerOf(character) is not { IsAlive: true } front)
             return [];
         return EngagedEnemies(front);

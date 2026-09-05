@@ -26,6 +26,8 @@ public static class ItemInspectionFormatter
                 $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? gameData.GetWeaponType(typeId).Name : "nincs")} | " +
                 WeaponProficiencyText(weapon, weaponProficiencies) +
                 WeaponMagicPowerText(weapon) +
+                $"sebzéstípus: {weapon.DamageType.Name()} | célpontok: {weapon.MaximumTargets} | " +
+                (weapon.CanAttackFromRear ? "hátsó sorból is használható | " : string.Empty) +
                 $"sebzés: {weapon.Damage?.ToString() ?? "nincs"} | minimum Erő: {weapon.MinimumStrength} | " +
                 $"súly: {weapon.Weight} | " +
                 $"{(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | " +
@@ -33,7 +35,7 @@ public static class ItemInspectionFormatter
                     ? "⚒️ páncéltörő: az ellenfél páncéljának 50%-át figyelmen kívül hagyja | "
                     : string.Empty) + $"kasztok: {AllowedClassNames(weapon.AllowedClassIds, gameData)}",
             ArmorDefinition armor =>
-                $"Páncél | védelem: {armor.Defense?.ToString() ?? "nincs"} | súly: {armor.Weight} | " +
+                $"Páncél | típusvédelem: {armor.Resistances ?? new DamageResistance()} | védelem: {armor.Defense?.ToString() ?? "nincs"} | súly: {armor.Weight} | " +
                 $"kasztok: {AllowedClassNames(armor.AllowedClassIds, gameData)}",
             MagicItemDefinition magic =>
                 $"Varázstárgy | típus: {MagicItemKindName(magic.Kind)} | súly: {magic.Weight} | " +
@@ -69,7 +71,7 @@ public static class ItemInspectionFormatter
             return string.Empty;
 
         var current = Profile(context.Character, sheet.EquippedWeight);
-        if (context.SourceKind == InventorySlotKind.Weapon && item is WeaponDefinition equippedWeapon)
+        if (context.SourceKind == InventorySlotKind.Weapon && context.SourceIndex < 2 && item is WeaponDefinition equippedWeapon)
             return PreviewText("Levétellel", current,
                 Profile(context.Character, sheet.EquippedWeight - equippedWeapon.Weight));
         if (context.SourceKind == InventorySlotKind.Armor && item is ArmorDefinition equippedArmor)

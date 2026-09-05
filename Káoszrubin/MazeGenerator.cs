@@ -12,13 +12,15 @@ public sealed class MazeGenerator
     private readonly MazeGenerationSettings _settings;
     private readonly IReadOnlyList<ResolvedEnemyEncounter> _roomEncounters;
     private readonly IReadOnlyList<ResolvedEnemyEncounter> _corridorEncounters;
+    private readonly IReadOnlyList<EnemyDefinition> _enemyDefinitions;
 
     public MazeGenerator(MazeGenerationSettings settings, IReadOnlyList<ResolvedEnemyEncounter> roomEncounters,
-        IReadOnlyList<ResolvedEnemyEncounter> corridorEncounters)
+        IReadOnlyList<ResolvedEnemyEncounter> corridorEncounters, IReadOnlyList<EnemyDefinition>? enemyDefinitions = null)
     {
         _settings = settings;
         _roomEncounters = roomEncounters;
         _corridorEncounters = corridorEncounters;
+        _enemyDefinitions = enemyDefinitions ?? [];
         ValidateSettings(_settings);
     }
 
@@ -291,6 +293,8 @@ public sealed class MazeGenerator
     private ConfiguredEnemy CreateEnemy(Maze maze, Position position, EnemyDefinition definition,
         EnemyMovementProfile? configuredProfile = null)
     {
+        var variants = _enemyDefinitions.Where(enemy => enemy.BaseEnemyId == definition.Id).Prepend(definition).ToArray();
+        if (variants.Length > 1) definition = variants[_random.Next(variants.Length)];
         var isInRoom = maze.Rooms.Any(room => room.Contains(position));
         var stationaryChance = isInRoom ? 80 : 10;
         var roll = _random.Next(100);

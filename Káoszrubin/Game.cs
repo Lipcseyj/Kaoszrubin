@@ -809,7 +809,7 @@ public sealed class Game : ISessionCommandHandler
             encounter.MovementProfile);
         _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
             configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
-            configuration.CorridorEncounters.Select(ResolveEncounter).ToList());
+            configuration.CorridorEncounters.Select(ResolveEncounter).ToList(), _gameData.Enemies);
         _maze = _generator.Create(MazeWidth, MazeHeight);
         _player = new Player(_maze.Entrance, SelectedCharacter);
         _leaderTrail.Clear();
@@ -874,7 +874,7 @@ public sealed class Game : ISessionCommandHandler
             encounter.MovementProfile);
         _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
             configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
-            configuration.CorridorEncounters.Select(ResolveEncounter).ToList());
+            configuration.CorridorEncounters.Select(ResolveEncounter).ToList(), _gameData.Enemies);
         _maze = _generator.Create(MazeWidth, MazeHeight);
         _player = new Player(_maze.Entrance, SelectedCharacter);
         _leaderTrail.Clear();
@@ -2444,7 +2444,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void RegisterNpcQuestKill(Enemy defeatedEnemy)
     {
-        var enemyDefinitionId = defeatedEnemy.Definition.Id;
+        var enemyDefinitionId = defeatedEnemy.Definition.BaseEnemyId ?? defeatedEnemy.Definition.Id;
         var isMalrec = string.Equals(enemyDefinitionId, MonsterIds.SirMalrec,
             StringComparison.OrdinalIgnoreCase);
         var rodericAtConfrontation = isMalrec &&
@@ -3417,6 +3417,15 @@ public sealed class Game : ISessionCommandHandler
     private void UseSelectedInventoryItem()
     {
         var slot = _renderer.GetSelectedInventorySlot();
+        if (slot is { } reserve && reserve.Kind == InventorySlotKind.Weapon && reserve.Index == 2)
+        {
+            var character = reserve.Character;
+            var swapCommandId = _localCommandId + 1;
+            if (_session.Submit(new InventoryTransferCommand(_session.HostPlayerId, swapCommandId, character.Id,
+                character.InventoryRevision, InventorySlotKind.Weapon, 2, character.Id,
+                character.InventoryRevision, InventorySlotKind.Weapon, 0))) _localCommandId = swapCommandId;
+            return;
+        }
         if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
         { _renderer.DrawInventoryMessage("Használható tárgyat a hátizsákban jelölj ki.", ConsoleColor.DarkYellow); return; }
         var selectedItem = slot.Value.Character.GetInventoryItem(slot.Value.Kind, slot.Value.Index);
@@ -4462,6 +4471,11 @@ public sealed class Game : ISessionCommandHandler
             SubmitLocalBattleCommand(BattleActionKind.PhysicalAttack, targetEnemyId: targetEnemy.Id);
             return;
         }
+        if (key.Key == ConsoleKey.C && allowed.Contains(BattleActionKind.SwapWeapon))
+        {
+            SubmitLocalBattleCommand(BattleActionKind.SwapWeapon);
+            return;
+        }
         if (key.Key == ConsoleKey.H && allowed.Contains(BattleActionKind.SwapToRear))
         {
             SubmitLocalBattleCommand(BattleActionKind.SwapToRear);
@@ -5418,6 +5432,16 @@ public sealed class Game : ISessionCommandHandler
                     return;
                 }
                 break;
+            case BattleActionKind.SwapWeapon:
+                if (!character.TrySwapReserveWeapon())
+                {
+                    RejectTeamBattleAction(command, "A tartalékfegyver most nem vehető kézbe.");
+                    return;
+                }
+                var weaponSwapStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                PresentBattleEntries([new BattleLogEntry($"{character.Name}: fegyvercsere → {character.AttackWeapon?.Name}.{weaponSwapStatus}", BattleLogKind.Information)]);
+                AdvanceTeamBattleTurn(battle);
+                break;
             case BattleActionKind.SwapToRear:
                 if (!TryExecuteSwapToRear(battle, character, out var swapError))
                 {
@@ -5732,9 +5756,17 @@ public sealed class Game : ISessionCommandHandler
         battle.RecordAttack(BattleSide.Friendly);
         if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position))
             battle.Engage(character, enemy);
-        var entry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character), enemy);
-        PresentBattleEntries([entry]);
-        if (enemy.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, enemy, character);
+        var targets = TacticalTeamBattleCoordinator.SweepTargets(battle, character, GetCasterPosition(character), enemy);
+        for (var index = 0; index < targets.Count; index++)
+        {
+            var target = targets[index];
+            if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), target.Position))
+                battle.Engage(character, target);
+            var entry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character), target,
+                finishAction: index == targets.Count - 1);
+            PresentBattleEntries([entry]);
+            if (target.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, target, character);
+        }
         if (!character.IsAlive) ResolveTeamCharacterDefeat(battle, character);
         AdvanceTeamBattleTurn(battle);
     }

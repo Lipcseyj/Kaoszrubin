@@ -467,6 +467,8 @@ public sealed class CoopGuestScreen
                         BattleActionKind.TurnUndead,
                     ConsoleKey.R when battle.AllowedActions.Contains(BattleActionKind.Retreat) =>
                         BattleActionKind.Retreat,
+                    ConsoleKey.C when battle.AllowedActions.Contains(BattleActionKind.SwapWeapon) =>
+                        BattleActionKind.SwapWeapon,
                     ConsoleKey.H when battle.AllowedActions.Contains(BattleActionKind.SwapToRear) =>
                         BattleActionKind.SwapToRear,
                     ConsoleKey.P when battle.AllowedActions.Contains(BattleActionKind.Pass) =>
@@ -1062,7 +1064,11 @@ public sealed class CoopGuestScreen
                 break;
             case InventoryInputAction.Use when slots.Count > 0:
                 var useSlot = slots[_inventorySelection];
-                if (useSlot.Kind == InventorySlotKind.Backpack && useSlot.Item is not null &&
+                if (useSlot.Kind == InventorySlotKind.Weapon && useSlot.Index == 2 && useSlot.Item is not null)
+                    command = new InventoryTransferCommand(client.PlayerId!.Value, client.NextCommandId(),
+                        characterId, inventory.Revision, InventorySlotKind.Weapon, 2,
+                        characterId, inventory.Revision, InventorySlotKind.Weapon, 0);
+                else if (useSlot.Kind == InventorySlotKind.Backpack && useSlot.Item is not null &&
                     SpellcastingRules.IsSpellcastingFocusId(useSlot.Item.DefinitionId))
                 {
                     _spellInfoOpen = true;
@@ -1417,7 +1423,7 @@ public sealed class CoopGuestScreen
             var portrait = actingCharacter is not null
                 ? AsciiPortraits.ForCharacterClass(actingCharacter.CharacterClassId)
                 : snapshot.Battle is { Enemy: { } battleEnemy }
-                ? AsciiPortraits.ForEnemy(battleEnemy.DefinitionId)
+                ? AsciiPortraits.ForEnemy(_gameData.Enemies.FirstOrDefault(enemy => enemy.Id == battleEnemy.DefinitionId)?.BaseEnemyId ?? battleEnemy.DefinitionId)
                 : AsciiPortraits.ForCharacterClass(own?.CharacterClassId ?? string.Empty);
             var portraitColor = actingCharacter is not null ? actingCharacter.Color
                 : snapshot.Battle is { Enemy: { } battleSnapshotEnemy }

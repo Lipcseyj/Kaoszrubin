@@ -14,6 +14,11 @@ using System.Text;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
+    ("A tartalékfegyver passzív és veszteség nélkül menthető, cserélhető", ReserveWeaponIsPassiveAndPersistent),
+    ("A kétkezes tartalékfegyver atomian elteszi a pajzsot", ReserveTwoHandedSwapStowsShield),
+    ("A sebzéstípusok és a szörnyfegyverek módosítják a valódi sebzést", PhysicalDamageUsesTypesAndWeapons),
+    ("A CSV új fegyverei adatvezéreltek és örökítik a harci tulajdonságokat", WeaponCsvPropertiesAreInherited),
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
     ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),
@@ -1608,7 +1613,7 @@ static void InventorySnapshotHasSlotsAndRevision()
     var ration = new MiscItemDefinition("I-FOOD", "Útravaló", "Tesztélelem", 2, ConsumableEffect.Food, 10);
     Assert(character.AddToBackpack(ration), "A teszttárgy nem került a hátizsákba.");
     var first = InventorySnapshotProjector.Create(character);
-    Assert(first.Revision == 1 && first.Slots.Count == 18 &&
+    Assert(first.Revision == 1 && first.Slots.Count == 19 &&
            first.Slots.Single(slot => slot.Kind == InventorySlotKind.Backpack && slot.Index == 0)
                .Item?.DefinitionId == ration.Id,
         "Az inventory snapshot slotjai vagy revíziója hibás.");
@@ -2584,8 +2589,8 @@ static void ConsumableStackHalfTransfersToFollower()
 static void ClassResourceGrowthLoadsFromCsv()
 {
     var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
-    Assert(catalog.GetCharacterResourceGrowth(CharacterClassIds.Barbár).AdjustVitality(5) == 7 &&
-           catalog.GetCharacterResourceGrowth(CharacterClassIds.Harcos).AdjustVitality(5) == 6 &&
+    Assert(catalog.GetCharacterResourceGrowth(CharacterClassIds.Barbár).AdjustVitality(5) == 10 &&
+           catalog.GetCharacterResourceGrowth(CharacterClassIds.Harcos).AdjustVitality(5) == 8 &&
            catalog.GetCharacterResourceGrowth(CharacterClassIds.Tolvaj).AdjustVitality(5) == 5 &&
            catalog.GetCharacterResourceGrowth(CharacterClassIds.Mágus).AdjustVitality(1) == 1,
         "A barbár/harcos/tolvaj/mágus HP-növekedési módosítója hibás.");
@@ -3928,7 +3933,7 @@ static void MobilityPreviewIsVisible()
 
     var loadLine = panel.Single(line => line.Row == 17);
     Assert(loadLine.Text + loadLine.ColoredSuffix == "FEGYVEREK ⚔ ⚖ 9  ⚡ 8" &&
-           panel.All(line => line.Row != 21) &&
+           panel.Single(line => line.Row == 21).InventorySlot?.Kind == InventorySlotKind.Armor &&
            panel.Single(line => line.Row == 26).Text == $"HÁTIZSÁK 2/12 ⚖ {27.0:F1}/24" &&
            snapshot.CharacterSheet!.CarriedWeight == 27 &&
            snapshot.CharacterSheet.ExplorationMovementAllowance == 2 &&
@@ -3962,4 +3967,120 @@ static List<GameSessionEvent> CollectEvents(GameSession session)
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+static void WeaponSweepRequiresMutualAdjacency()
+{
+    var (battle, front, _, primary) = CreateFormationEncounter();
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var weapon = data.GetWeapon("W009") with { MinimumStrength = 1 };
+    Assert(front.EquipWeapon(0, weapon), "A pallos nem szerelhető fel.");
+    var opposite = CreateEnemyAt(new Position(3, 4), "E-OPPOSITE");
+    var distant = CreateEnemyAt(new Position(3, 1), "E-DISTANT");
+    var side = CreateEnemyAt(new Position(4, 2), "E-SIDE");
+    foreach (var enemy in new[] { opposite, distant, side })
+        Assert(battle.TryAddEnemy(new(enemy, 1, 1, 1)), "Nem csatlakozott a célpont.");
+    Assert(TacticalTeamBattleCoordinator.SweepTargets(battle, front, new(3, 3), primary)
+        .SequenceEqual([primary, side]), "Távoli vagy átellenes célpont bekerült a csapásba.");
+    side.SetCurrentHitPoints(0);
+    Assert(TacticalTeamBattleCoordinator.SweepTargets(battle, front, new(3, 3), primary).Count == 1,
+        "A halott célpontot vagy az átellenes ellenfelet elérte a csapás.");
+    Assert(front.EquipWeapon(0, data.GetWeapon("W004")), "A kard nem szerelhető fel.");
+    side.SetCurrentHitPoints(10);
+    Assert(TacticalTeamBattleCoordinator.SweepTargets(battle, front, new(3, 3), primary).Count == 1,
+        "Az egycélpontos kard több ellenfelet ért el.");
+}
+
+static void ReserveWeaponIsPassiveAndPersistent()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var character = CreateCharacter("Tartalék");
+    Assert(character.EquipWeapon(0, data.GetWeapon("W001")), "Hiányzik a tőr.");
+    var weight = CharacterMobilityRules.Evaluate(character).EquippedWeight;
+    Assert(character.EquipWeapon(2, data.GetWeapon("W004")), "Hiányzik a tartalék kard.");
+    Assert(character.AttackWeapon?.Id == "W001" && character.ActiveWeapons.Count() == 2 &&
+        CharacterMobilityRules.Evaluate(character).EquippedWeight == weight && CharacterMobilityRules.Evaluate(character).CarriedWeight == weight + 3,
+        "A tartalék aktívvá vált vagy hibásan számít a súlyba.");
+    var revision = character.InventoryRevision;
+    Assert(character.TrySwapReserveWeapon() && character.InventoryRevision == revision + 1 &&
+        character.AttackWeapon?.Id == "W004" && character.WeaponSlots[2]?.Id == "W001", "Hibás csere.");
+    var roster = new CharacterRoster(); roster.Add(character); roster.Select(character);
+    var saves = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-reserve.json"), data);
+    var restored = saves.Deserialize(saves.Serialize(roster)).SelectedCharacter!;
+    Assert(restored.WeaponSlots.Select(value => value?.Id).SequenceEqual(character.WeaponSlots.Select(value => value?.Id)),
+        "A tartalék fegyver elveszett a mentésben.");
+}
+
+static void ReserveTwoHandedSwapStowsShield()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var character = CreateCharacter("Pajzsos");
+    Assert(character.EquipWeapon(0, data.GetWeapon("W004")) &&
+        character.EquipWeapon(1, data.GetWeapon("W014")) && character.EquipWeapon(2, data.GetWeapon("W011")), "Hibás előkészítés.");
+    for (var index = 0; index < LiveCharacter.MaximumBackpackItemCount; index++)
+        character.SetInventoryItem(InventorySlotKind.Backpack, index, data.GetItem("T001"));
+    var revision = character.InventoryRevision;
+    Assert(!character.TrySwapReserveWeapon() && character.InventoryRevision == revision && character.WeaponSlots[1]?.Id == "W014",
+        "Telt hátizsáknál részleges csere történt.");
+    character.SetInventoryItem(InventorySlotKind.Backpack, 3, null);
+    Assert(character.TrySwapReserveWeapon() && character.WeaponSlots[1] is null &&
+        character.Backpack[3]?.Id == "W014" && character.WeaponSlots[2]?.Id == "W004", "A pajzs nem került biztonságba.");
+}
+
+static void PhysicalDamageUsesTypesAndWeapons()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    int PlayerDamage(DamageType type)
+    {
+        var total = 0;
+        for (var seed = 0; seed < 30; seed++)
+        {
+            var system = CreateBattleSystem(seed);
+            var character = CreateCharacter("Támadó", 1000);
+            character.EquipWeapon(0, data.GetWeapon("W005") with { Damage = new(20, 20), DamageType = type });
+            var enemy = new ConfiguredEnemy(new(1, 1), new("E-TYPE", "Cél", "e", 1, 1000, 8, 1, 1, 1, [],
+                Resistances: new(4, 0, -4)));
+            system.ResolveTeamCharacterAttack(character, system.PrepareTeamCharacter(character).Runtime, enemy);
+            total += 1000 - enemy.CurrentHitPoints;
+        }
+        return total;
+    }
+    Assert(PlayerDamage(DamageType.Bludgeoning) > PlayerDamage(DamageType.Piercing) &&
+        PlayerDamage(DamageType.Piercing) > PlayerDamage(DamageType.Slashing), "A szörny típusvédelme nem számít.");
+    int EnemyDamage(int weaponDamage, DamageResistance resistance)
+    {
+        var total = 0;
+        for (var seed = 0; seed < 30; seed++)
+        {
+            var system = CreateBattleSystem(seed);
+            var target = CreateCharacter("Védő", 1000);
+            target.EquipArmor(data.GetArmor("A002") with { Defense = new(5, 5), Resistances = resistance });
+            var enemy = new ConfiguredEnemy(new(1, 1), data.GetEnemy("E003") with
+            { Weapon = data.GetWeapon("W005") with { Damage = new(weaponDamage, weaponDamage) } });
+            system.ResolveTeamEnemyAction(enemy, target, system.PrepareTeamCharacter(target).Runtime);
+            total += 1000 - target.CurrentVitality;
+        }
+        return total;
+    }
+    Assert(EnemyDamage(20, new()) > EnemyDamage(5, new()), "Az azonos erejű szörny fegyvere nem módosítja a sebzést.");
+    Assert(EnemyDamage(20, new(0, 0, -3)) > EnemyDamage(20, new(0, 0, 3)), "A páncél típusvédelme nem számít.");
+}
+
+static void WeaponCsvPropertiesAreInherited()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    Assert(data.Enemies.All(enemy => enemy.Weapon is not null && enemy.Weapon.Id == enemy.WeaponId), "Fegyver nélküli szörny.");
+    Assert(data.GetEnemy("E054").BaseEnemyId == "E003" && data.GetMonsterLoot("E054") == data.GetMonsterLoot("E003"),
+        "A fegyverváltozat elvesztette a faját vagy zsákmányát.");
+    Assert(data.GetWeapon("W009-PLUS1").MaximumTargets == 2 &&
+        data.GetWeapon("W011-PLUS1").CanAttackFromRear && data.GetArmor("A003-PLUS1").Resistances == data.GetArmor("A003").Resistances,
+        "A mágikus változat elvesztette a tulajdonságokat.");
+    var (battle, front, rear, enemy) = CreateFormationEncounter();
+    rear.EquipWeapon(0, data.GetWeapon("W011") with { Id = "CUSTOM-POLEARM", BaseWeaponId = null });
+    battle.Engage(front, enemy);
+    Assert(battle.RearFormationEnemiesInReach(rear).Count == 1, "Új azonosítóval nem működik a hátsó sor.");
+    rear.EquipWeapon(0, data.GetWeapon("W001")); rear.EquipWeapon(2, data.GetWeapon("W011"));
+    Assert(battle.RearFormationEnemiesInReach(rear).Count == 0, "A tartalék szálfegyver hátsó soros támadást adott.");
+    Assert(SpellcastingRules.IsRestrictedFromTradingAndGeneration(data.GetWeapon("WN001")) &&
+        !data.GetWeapon("WN001").CanBeEquippedBy(CharacterClassIds.Harcos, 13), "A természetes fegyver felszerelhető vagy árulható.");
 }

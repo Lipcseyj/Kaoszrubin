@@ -21,7 +21,7 @@ public static class InventorySnapshotProjector
     {
         ArgumentNullException.ThrowIfNull(character);
         var slots = new List<InventorySlotSnapshot>();
-        AddSlots(character, slots, InventorySlotKind.Weapon, 2);
+        AddSlots(character, slots, InventorySlotKind.Weapon, 3);
         AddSlots(character, slots, InventorySlotKind.Armor, 1);
         AddSlots(character, slots, InventorySlotKind.MagicItem, LiveCharacter.MaximumMagicItemCount);
         AddSlots(character, slots, InventorySlotKind.Backpack, LiveCharacter.MaximumBackpackItemCount);

@@ -122,7 +122,8 @@ public enum BattleActionKind
     FighterDefensive,
     ThiefAmbush,
     ThiefObserve,
-    ThiefPoison
+    ThiefPoison,
+    SwapWeapon
 }
 
 /// <summary>A kliens választása, nem kész sebzés- vagy dobáseredmény.</summary>

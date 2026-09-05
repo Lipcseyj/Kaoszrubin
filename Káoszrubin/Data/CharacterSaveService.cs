@@ -132,7 +132,7 @@ public sealed class CharacterSaveService
         foreach (var effect in saved.ActiveSpellEffects) character.RestoreSpellEffect(effect);
 
         var weaponIds = saved.WeaponIds.Count > 0 ? saved.WeaponIds : saved.WeaponNames;
-        for (var index = 0; index < Math.Min(2, weaponIds.Count); index++)
+        for (var index = 0; index < Math.Min(3, weaponIds.Count); index++)
             if (weaponIds[index] is { } weaponId) character.EquipWeapon(index, FindSavedDefinition(_gameData.Weapons, weaponId, saved.WeaponNames.ElementAtOrDefault(index), "fegyver"));
         if ((saved.ArmorId ?? saved.ArmorName) is { } armorId) character.EquipArmor(FindSavedDefinition(_gameData.Armors, armorId, saved.ArmorName, "páncél"));
         var magicItemIds = saved.MagicItemIds.Count > 0 ? saved.MagicItemIds : saved.MagicItemNames.Cast<string?>().ToList();
