@@ -2716,7 +2716,7 @@ public sealed class ConsoleRenderer
         var portrait = actingCharacter is not null
             ? AsciiPortraits.ForCharacterClass(actingCharacter.CharacterClass.Id)
             : _battleActive && _battleEnemy is not null
-            ? AsciiPortraits.ForEnemy(_battleEnemy.Definition.BaseEnemyId ?? _battleEnemy.Definition.Id)
+            ? AsciiPortraits.ForEnemy(_battleEnemy.Definition.Id)
             : AsciiPortraits.ForCharacterClass(_displayedCharacter?.CharacterClass.Id ?? "");
         var color = actingCharacter is not null ? actingCharacter.Color
             : _battleActive && _battleEnemy is not null

@@ -3937,15 +3937,17 @@ static void MobilityPreviewIsVisible()
     var loadLine = panel.Single(line => line.Row == 17);
     Assert(loadLine.Text + loadLine.ColoredSuffix == "FEGYVEREK ⚔ ⚖ 9  ⚡ 8" &&
            panel.Single(line => line.Row == 21).InventorySlot?.Kind == InventorySlotKind.Armor &&
-           panel.Single(line => line.Row == 26).Text == $"HÁTIZSÁK 2/12 ⚖ {27.0:F1}/24" &&
+           panel.Single(line => line.Row == 26).Text == $"HÁTIZSÁK 2/12 ⚖ {27.0:F1}/32" &&
            snapshot.CharacterSheet!.CarriedWeight == 27 &&
            snapshot.CharacterSheet.ExplorationMovementAllowance == 2 &&
            inspection.Text.Contains("súly: 12", StringComparison.Ordinal) &&
            inspection.Text.Contains("⚔ ⚖ 9 → 15", StringComparison.Ordinal) &&
-           inspection.Text.Contains("Könnyű → Közepes", StringComparison.Ordinal) &&
-           inspection.Text.Contains("👣 4 → 3", StringComparison.Ordinal) &&
-           inspection.Text.Contains("⚡ 8 → 7", StringComparison.Ordinal),
-        "A kompakt harci terhelés vagy a felszerelési előnézet hibás.");
+           inspection.Text.Contains("Könnyű → Könnyű", StringComparison.Ordinal) &&
+           inspection.Text.Contains("👣 4 → 4", StringComparison.Ordinal) &&
+           inspection.Text.Contains("⚡ 8 → 8", StringComparison.Ordinal),
+        $"A kompakt harci terhelés vagy a felszerelési előnézet hibás. Sor='{loadLine.Text + loadLine.ColoredSuffix}', " +
+        $"hátizsák='{panel.Single(line => line.Row == 26).Text}', súly={snapshot.CharacterSheet!.CarriedWeight}, " +
+        $"mozgás={snapshot.CharacterSheet.ExplorationMovementAllowance}, vizsgálat='{inspection.Text}'.");
 }
 
 static BattleSystem CreateBattleSystem(int seed) => new(new Random(seed),
@@ -4152,9 +4154,47 @@ static void PhysicalDamageUsesTypesAndWeapons()
 static void WeaponCsvPropertiesAreInherited()
 {
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
-    Assert(data.Enemies.All(enemy => enemy.Weapon is not null && enemy.Weapon.Id == enemy.WeaponId), "Fegyver nélküli szörny.");
-    Assert(data.GetEnemy("E054").BaseEnemyId == "E003" && data.GetMonsterLoot("E054") == data.GetMonsterLoot("E003"),
-        "A fegyverváltozat elvesztette a faját vagy zsákmányát.");
+    Assert(data.Enemies.All(enemy => enemy.Weapons is { Count: > 0 } &&
+            enemy.Weapons.Select(weapon => weapon.Id).SequenceEqual(enemy.WeaponIds ?? [])),
+        "Fegyver nélküli vagy hibás fegyverlistájú szörny.");
+    Assert(data.Enemies.All(enemy => enemy.Id is not ("E054" or "E055" or "E056" or "E057" or "E058" or "E059" or "E060")),
+        "A régi goblin- vagy orkvariáns megmaradt.");
+    var goblin = data.GetEnemy("E003");
+    var firstGoblin = new ConfiguredEnemy(new(1, 1), goblin, new Random(7));
+    var selectedGoblinWeapon = firstGoblin.Definition.Weapon ??
+                               throw new InvalidOperationException("A goblin nem választott fegyvert.");
+    var sameGoblin = new ConfiguredEnemy(new(1, 1), goblin, new Random(99), selectedGoblinWeapon.Id);
+    Assert(goblin.Name == "Goblin" && goblin.ChoosesWeapon && goblin.WeaponIds!.Count == 4 &&
+           firstGoblin.Name == $"Goblin ({selectedGoblinWeapon.Name})" &&
+           sameGoblin.Definition.Weapon?.Id == selectedGoblinWeapon.Id,
+        "A goblin példány nem választott és nem őrzött meg megjelenített fegyvert.");
+    var savedGoblin = JsonSerializer.Deserialize<EnemySaveData>(JsonSerializer.Serialize(new EnemySaveData(
+        firstGoblin.Position, firstGoblin.Definition.Id, firstGoblin.CurrentHitPoints,
+        SelectedWeaponId: selectedGoblinWeapon.Id)))!;
+    var restoredGoblin = new ConfiguredEnemy(savedGoblin.Position, goblin, new Random(99), savedGoblin.SelectedWeaponId);
+    Assert(restoredGoblin.Name == firstGoblin.Name,
+        "A példány fegyverválasztása nem élte túl a mentést.");
+    var dragon = data.GetEnemy("E021");
+    var dragonWeaponIds = dragon.WeaponIds ?? [];
+    var dragonWeapons = dragon.Weapons ?? [];
+    Assert(!dragon.ChoosesWeapon && dragonWeaponIds.SequenceEqual(["WN004", "WN005", "WN006"]) &&
+           dragonWeapons.Select(weapon => weapon.Name).SequenceEqual(["sárkányfogak", "farokcsapás", "tüzes lehelet"]),
+        "A sárkány természetes támadáslistája hibás.");
+    var dragonEnemy = new ConfiguredEnemy(new(1, 1), dragon, new Random(11));
+    var dragonSystem = CreateBattleSystem(11);
+    var defender = CreateCharacter("Sárkánycél", 10000);
+    var usedWeapons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    for (var attack = 0; attack < 100 && usedWeapons.Count < 3; attack++)
+    {
+        var entry = dragonSystem.ResolveTeamEnemyAction(dragonEnemy, defender,
+            dragonSystem.PrepareTeamCharacter(defender).Runtime);
+        foreach (var weapon in dragonWeapons)
+            if (entry.Details?.Calculation.Any(line => line.Contains($"Fegyver: {weapon.Name}",
+                    StringComparison.OrdinalIgnoreCase)) == true)
+                usedWeapons.Add(weapon.Id);
+    }
+    Assert(usedWeapons.SetEquals(dragonWeaponIds),
+        "A nem választó sárkány nem használta véletlenszerűen mindhárom támadását.");
     Assert(data.GetWeapon("W009-PLUS1").MaximumTargets == 2 &&
         data.GetWeapon("W011-PLUS1").CanAttackFromRear && data.GetArmor("A003-PLUS1").Resistances == data.GetArmor("A003").Resistances,
         "A mágikus változat elvesztette a tulajdonságokat.");

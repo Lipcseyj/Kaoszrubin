@@ -323,7 +323,8 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     Position? LastKnownTargetPosition = null,
     int ReactionDelayMovesRemaining = 0,
     int SearchMovesRemaining = 0,
-    int ReturnDelayMovesRemaining = 0);
+    int ReturnDelayMovesRemaining = 0,
+    string? SelectedWeaponId = null);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex,

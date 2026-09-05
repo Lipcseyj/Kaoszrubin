@@ -1,6 +1,6 @@
 namespace KaoszRubin.Domain.Combat;
 
-public enum DamageType { Slashing, Piercing, Bludgeoning }
+public enum DamageType { Slashing, Piercing, Bludgeoning, Fire }
 
 /// <summary>Signed armor adjustments: positive protects, negative exposes a weakness.</summary>
 public sealed record DamageResistance(int Slashing = 0, int Piercing = 0, int Bludgeoning = 0)
@@ -9,7 +9,8 @@ public sealed record DamageResistance(int Slashing = 0, int Piercing = 0, int Bl
     {
         DamageType.Slashing => Slashing,
         DamageType.Piercing => Piercing,
-        _ => Bludgeoning
+        DamageType.Bludgeoning => Bludgeoning,
+        _ => 0
     };
 
     public override string ToString() => $"vágás {Slashing:+#;-#;0}, szúrás {Piercing:+#;-#;0}, zúzás {Bludgeoning:+#;-#;0}";
@@ -21,6 +22,7 @@ public static class PhysicalDamage
     {
         DamageType.Slashing => "vágás",
         DamageType.Piercing => "szúrás",
-        _ => "zúzás"
+        DamageType.Bludgeoning => "zúzás",
+        _ => "tűz"
     };
 }

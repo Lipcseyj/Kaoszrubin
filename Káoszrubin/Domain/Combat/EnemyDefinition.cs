@@ -8,5 +8,6 @@ public enum EnemyRank { Normal, Elite, MiniBoss, Boss }
 public sealed record EnemyDefinition(string Id, string Name, string Appearance, int? Strength, int? HitPoints,
     int? Armor, int? Speed, int ExperienceReward, int StrengthTier, IReadOnlyList<string> AbilityIds,
     bool IsBoss = false, int VisionRange = 5, int Stealth = 0, int Noise = 2,
-    EnemyRank Rank = EnemyRank.Normal, bool CanSleep = true, string? WeaponId = null,
-    DamageResistance? Resistances = null, WeaponDefinition? Weapon = null, string? BaseEnemyId = null) : IGameDefinition;
+    EnemyRank Rank = EnemyRank.Normal, bool CanSleep = true, IReadOnlyList<string>? WeaponIds = null,
+    bool ChoosesWeapon = false, DamageResistance? Resistances = null,
+    IReadOnlyList<WeaponDefinition>? Weapons = null, WeaponDefinition? Weapon = null) : IGameDefinition;

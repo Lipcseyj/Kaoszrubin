@@ -133,13 +133,14 @@ public static class CsvGameDataLoader
         for (var index = 0; index < enemies.Count; index++)
         {
             var enemy = enemies[index];
-            if (enemy.BaseEnemyId is { } baseId && !enemies.Any(value => value.Id == baseId && value.BaseEnemyId is null))
-                throw new InvalidDataException($"Ismeretlen alap szörnytípus: {enemy.Id} / {baseId}");
-            var weapon = weapons.FirstOrDefault(value => value.Id == enemy.WeaponId)
-                ?? throw new InvalidDataException($"Ismeretlen szörnyfegyver: {enemy.Id} / {enemy.WeaponId}");
-            if (weapon.Damage is null || weapon.WeaponTypeId == "WT003")
-                throw new InvalidDataException($"Érvénytelen szörnyfegyver: {enemy.Id}");
-            enemies[index] = enemy with { Weapon = weapon };
+            var resolvedWeapons = (enemy.WeaponIds ?? []).Select(weaponId =>
+                    weapons.FirstOrDefault(value => value.Id == weaponId)
+                    ?? throw new InvalidDataException($"Ismeretlen szörnyfegyver: {enemy.Id} / {weaponId}"))
+                .ToArray();
+            if (resolvedWeapons.Length == 0 || resolvedWeapons.Any(weapon =>
+                    weapon.Damage is null || weapon.WeaponTypeId == "WT003"))
+                throw new InvalidDataException($"A(z) {enemy.Id} szörnynek legalább egy támadó fegyver kell.");
+            enemies[index] = enemy with { Weapons = resolvedWeapons };
         }
         ValidateEnemies(enemies, monsterAbilities);
         foreach (var weapon in weapons)
@@ -215,8 +216,12 @@ public static class CsvGameDataLoader
         "vágás" => DamageType.Slashing,
         "szúrás" => DamageType.Piercing,
         "zúzás" => DamageType.Bludgeoning,
+        "tűz" => DamageType.Fire,
         _ => throw new InvalidDataException($"Ismeretlen sebzéstípus: '{value}'.")
     };
+
+    private static IReadOnlyList<string> IdList(string value) => value.Split('|',
+        StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
     private static int WeaponMaximumTargets(string[] cells)
     {
@@ -271,7 +276,9 @@ public static class CsvGameDataLoader
                     Math.Clamp(Integer(cells, 12) ?? 0, 0, 3), Math.Clamp(Integer(cells, 13) ?? 2, 0, 4),
                     MonsterIds.Bosses.Contains(id) ? EnemyRank.Boss :
                     MonsterIds.MiniBosses.Contains(id) ? EnemyRank.MiniBoss : EnemyRank.Normal,
-                    IsYes(cells, 14), EmptyAsNull(Cell(cells, 15)), new DamageResistance(Integer(cells, 16) ?? 0, Integer(cells, 17) ?? 0, Integer(cells, 18) ?? 0), BaseEnemyId: EmptyAsNull(Cell(cells, 19))));
+                    IsYes(cells, 14), IdList(Cell(cells, 15)), IsYes(cells, 16),
+                    new DamageResistance(Integer(cells, 17) ?? 0, Integer(cells, 18) ?? 0,
+                        Integer(cells, 19) ?? 0)));
                 break;
             case DataSection.MonsterAbilities:
                 monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),

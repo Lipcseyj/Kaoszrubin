@@ -49,7 +49,7 @@ public sealed class DungeonExpeditionCoordinator
             if (needed <= 0) break;
             var position = FindExpeditionSpawnPosition(maze, template.Position);
             if (position is null) continue;
-            var enemy = new ConfiguredEnemy(position.Value, _gameData.GetEnemy(template.DefinitionId));
+            var enemy = new ConfiguredEnemy(position.Value, _gameData.GetEnemy(template.DefinitionId), _random);
             enemy.ConfigureMovement(template.MovementProfile, template.PatrolDirection);
             enemy.ConfigureGroup(template.GroupId, template.GroupRole);
             maze.AddEnemy(enemy);

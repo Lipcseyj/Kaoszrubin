@@ -16,7 +16,9 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public const int MinimumSearchMoves = 30;
     public const int MaximumSearchMoves = 120;
     public abstract EnemyDefinition Definition { get; }
-    public string Name => Definition.Name;
+    public string Name => Definition.ChoosesWeapon && Definition.Weapon is { } weapon
+        ? $"{Definition.Name} ({weapon.Name})"
+        : Definition.Name;
     public int CurrentHitPoints { get; private set; }
     public EnemyMovementProfile MovementProfile { get; private set; } = EnemyMovementProfile.Wander;
     public Direction PatrolDirection { get; private set; } = Direction.Right;
@@ -249,9 +251,21 @@ public abstract class Enemy(Position position) : WorldObject(position)
 /// <summary>CSV-definícióból létrehozott, saját megjelenésű ellenfél.</summary>
 public sealed class ConfiguredEnemy : Enemy
 {
-    public ConfiguredEnemy(Position position, EnemyDefinition definition) : base(position)
+    public ConfiguredEnemy(Position position, EnemyDefinition definition, Random? random = null,
+        string? selectedWeaponId = null) : base(position)
     {
-        Definition = definition;
+        var weapons = definition.Weapons ?? [];
+        var selectedWeapon = definition.Weapon;
+        if (definition.ChoosesWeapon && weapons.Count > 0)
+        {
+            if (selectedWeaponId is { Length: > 0 })
+                selectedWeapon = weapons.FirstOrDefault(weapon => string.Equals(weapon.Id, selectedWeaponId,
+                    StringComparison.OrdinalIgnoreCase));
+            else if (selectedWeapon is null)
+                selectedWeapon = weapons[(random ?? Random.Shared).Next(weapons.Count)];
+            selectedWeapon ??= weapons[0];
+        }
+        Definition = definition with { Weapon = selectedWeapon };
         Symbol = Rune.GetRuneAt(definition.Appearance, 0);
         InitializeHitPoints(definition.HitPoints ?? 0);
     }

@@ -809,7 +809,7 @@ public sealed class Game : ISessionCommandHandler
             encounter.MovementProfile);
         _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
             configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
-            configuration.CorridorEncounters.Select(ResolveEncounter).ToList(), _gameData.Enemies);
+            configuration.CorridorEncounters.Select(ResolveEncounter).ToList());
         _maze = _generator.Create(MazeWidth, MazeHeight);
         _player = new Player(_maze.Entrance, SelectedCharacter);
         _leaderTrail.Clear();
@@ -874,7 +874,7 @@ public sealed class Game : ISessionCommandHandler
             encounter.MovementProfile);
         _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
             configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
-            configuration.CorridorEncounters.Select(ResolveEncounter).ToList(), _gameData.Enemies);
+            configuration.CorridorEncounters.Select(ResolveEncounter).ToList());
         _maze = _generator.Create(MazeWidth, MazeHeight);
         _player = new Player(_maze.Entrance, SelectedCharacter);
         _leaderTrail.Clear();
@@ -1207,7 +1207,7 @@ public sealed class Game : ISessionCommandHandler
                                                     $"{encounter.Count} ellenfélnek.");
             foreach (var position in positions)
             {
-                var enemy = new ConfiguredEnemy(position, _gameData.GetEnemy(encounter.EnemyId));
+                var enemy = new ConfiguredEnemy(position, _gameData.GetEnemy(encounter.EnemyId), _random);
                 enemy.ConfigureMovement(EnemyMovementProfile.Stationary, Direction.Right);
                 enemy.ConfigureGroup($"QUEST:{encounter.RoomId}");
                 if (encounter.GuaranteedItemId is { } itemId) enemy.ConfigureGuaranteedLoot([itemId]);
@@ -2444,7 +2444,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void RegisterNpcQuestKill(Enemy defeatedEnemy)
     {
-        var enemyDefinitionId = defeatedEnemy.Definition.BaseEnemyId ?? defeatedEnemy.Definition.Id;
+        var enemyDefinitionId = defeatedEnemy.Definition.Id;
         var isMalrec = string.Equals(enemyDefinitionId, MonsterIds.SirMalrec,
             StringComparison.OrdinalIgnoreCase);
         var rodericAtConfrontation = isMalrec &&

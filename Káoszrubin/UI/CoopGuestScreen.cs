@@ -1423,7 +1423,7 @@ public sealed class CoopGuestScreen
             var portrait = actingCharacter is not null
                 ? AsciiPortraits.ForCharacterClass(actingCharacter.CharacterClassId)
                 : snapshot.Battle is { Enemy: { } battleEnemy }
-                ? AsciiPortraits.ForEnemy(_gameData.Enemies.FirstOrDefault(enemy => enemy.Id == battleEnemy.DefinitionId)?.BaseEnemyId ?? battleEnemy.DefinitionId)
+                ? AsciiPortraits.ForEnemy(battleEnemy.DefinitionId)
                 : AsciiPortraits.ForCharacterClass(own?.CharacterClassId ?? string.Empty);
             var portraitColor = actingCharacter is not null ? actingCharacter.Color
                 : snapshot.Battle is { Enemy: { } battleSnapshotEnemy }

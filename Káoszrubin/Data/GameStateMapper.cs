@@ -46,7 +46,8 @@ internal sealed class GameStateMapper
                 enemy.PursuitTargetCharacterId, enemy.PursuitMemoryRemainingMoves,
                 enemy.GuaranteedLootIds.ToList(), enemy.Alertness, enemy.SearchRole,
                 enemy.HomePosition, enemy.LastKnownTargetPosition, enemy.ReactionDelayMovesRemaining,
-                enemy.SearchMovesRemaining, enemy.ReturnDelayMovesRemaining)).ToList(),
+                enemy.SearchMovesRemaining, enemy.ReturnDelayMovesRemaining,
+                enemy.Definition.Weapon?.Id)).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -120,7 +121,8 @@ internal sealed class GameStateMapper
         var nextEnemyMoves = new Dictionary<Enemy, DateTime>();
         foreach (var savedEnemy in state.Maze.Enemies)
         {
-            var enemy = new ConfiguredEnemy(savedEnemy.Position, _gameData.GetEnemy(savedEnemy.DefinitionId));
+            var enemy = new ConfiguredEnemy(savedEnemy.Position, _gameData.GetEnemy(savedEnemy.DefinitionId),
+                selectedWeaponId: savedEnemy.SelectedWeaponId);
             enemy.SetCurrentHitPoints(savedEnemy.CurrentHitPoints);
             enemy.ConfigureMovement(savedEnemy.MovementProfile, savedEnemy.PatrolDirection, savedEnemy.PursuitState,
                 savedEnemy.PursuitTargetCharacterId, savedEnemy.PursuitMemoryRemainingMoves);

@@ -803,6 +803,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
         var strength = attacker.Strength ?? 1;
         var enemyWeapon = attacker.Weapon;
+        if (enemyWeapon is null && attacker.Weapons is { Count: > 0 } weapons)
+            enemyWeapon = weapons[_random.Next(weapons.Count)];
         var randomDamage = Roll(enemyWeapon?.Damage ?? new ValueRange(1, 2));
         var strengthBonus = AbilityDamageBonus(strength);
         var damageType = enemyWeapon?.DamageType ?? DamageType.Bludgeoning;
