@@ -42,8 +42,10 @@ public abstract class Enemy(Position position) : WorldObject(position)
     private readonly List<string> _guaranteedLootIds = [];
     private readonly Dictionary<string, int> _abilityCooldowns = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _weaponCooldowns = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _remainingAbilityCharges = new(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyDictionary<string, int> AbilityCooldowns => _abilityCooldowns;
     public IReadOnlyDictionary<string, int> WeaponCooldowns => _weaponCooldowns;
+    public IReadOnlyDictionary<string, int> RemainingAbilityCharges => _remainingAbilityCharges;
     public string? PreparedWeaponId { get; private set; }
     public IReadOnlyList<string> CarriedWeaponIds
     {
@@ -74,14 +76,32 @@ public abstract class Enemy(Position position) : WorldObject(position)
         string.Equals(PreparedWeaponId, weaponId, StringComparison.OrdinalIgnoreCase);
     public void PrepareWeapon(string weaponId) => PreparedWeaponId = weaponId;
     public void ClearPreparedWeapon() => PreparedWeaponId = null;
+    public void PrepareAbilityCharges(IEnumerable<MonsterAbilityDefinition> abilities)
+    {
+        _remainingAbilityCharges.Clear();
+        foreach (var ability in abilities.Where(ability => ability.ChargesPerBattle > 0))
+            _remainingAbilityCharges[ability.Id] = ability.ChargesPerBattle;
+    }
+    public bool HasAbilityCharge(MonsterAbilityDefinition ability) =>
+        ability.ChargesPerBattle <= 0 || _remainingAbilityCharges.GetValueOrDefault(ability.Id) > 0;
+    public void ConsumeAbilityCharge(MonsterAbilityDefinition ability)
+    {
+        if (ability.ChargesPerBattle <= 0) return;
+        var remaining = _remainingAbilityCharges.GetValueOrDefault(ability.Id);
+        if (remaining > 0) _remainingAbilityCharges[ability.Id] = remaining - 1;
+    }
     public void RestoreCombatCooldowns(IEnumerable<KeyValuePair<string, int>> abilityCooldowns,
-        IEnumerable<KeyValuePair<string, int>> weaponCooldowns, string? preparedWeaponId = null)
+        IEnumerable<KeyValuePair<string, int>> weaponCooldowns, string? preparedWeaponId = null,
+        IEnumerable<KeyValuePair<string, int>>? remainingAbilityCharges = null)
     {
         _abilityCooldowns.Clear();
         _weaponCooldowns.Clear();
         foreach (var item in abilityCooldowns.Where(item => item.Value > 0)) _abilityCooldowns[item.Key] = item.Value;
         foreach (var item in weaponCooldowns.Where(item => item.Value > 0)) _weaponCooldowns[item.Key] = item.Value;
         PreparedWeaponId = string.IsNullOrWhiteSpace(preparedWeaponId) ? null : preparedWeaponId;
+        _remainingAbilityCharges.Clear();
+        foreach (var item in remainingAbilityCharges?.Where(item => item.Value >= 0) ?? [])
+            _remainingAbilityCharges[item.Key] = item.Value;
     }
 
     public void AdvanceCombatCooldowns()

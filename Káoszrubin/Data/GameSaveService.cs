@@ -97,7 +97,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 17;
+    public const int CurrentVersion = 18;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -126,6 +126,7 @@ public static class GameSaveFormat
                 14 => MigrateVersion14To15(state),
                 15 => MigrateVersion15To16(state),
                 16 => MigrateVersion16To17(state),
+                17 => MigrateVersion17To18(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -247,6 +248,13 @@ public static class GameSaveFormat
         state.Version = 17;
         return state;
     }
+
+    private static GameSaveData MigrateVersion17To18(GameSaveData state)
+    {
+        // A 18-as formátum a csatánként korlátozott szörnyképességek maradék tölteteit menti.
+        state.Version = 18;
+        return state;
+    }
 }
 
 public sealed record LoadedGameSave(string Path, CharacterRoster Roster, GameSaveData State);
@@ -343,7 +351,8 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     string? SelectedWeaponId = null,
     Dictionary<string, int>? AbilityCooldowns = null,
     Dictionary<string, int>? WeaponCooldowns = null,
-    string? PreparedWeaponId = null);
+    string? PreparedWeaponId = null,
+    Dictionary<string, int>? RemainingAbilityCharges = null);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null,
     List<string>? CarriedWeaponIds = null);

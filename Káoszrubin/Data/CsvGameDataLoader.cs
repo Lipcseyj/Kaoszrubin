@@ -301,7 +301,8 @@ public static class CsvGameDataLoader
                     ParseMonsterAbilityTrigger(cells, 6), Math.Max(0, Integer(cells, 7) ?? 0),
                     Math.Clamp(Integer(cells, 8) ?? 1, 1, 8), Math.Clamp(Integer(cells, 9) ?? 1, 1, 4),
                     EmptyAsNull(Cell(cells, 10)), Math.Clamp(Integer(cells, 11) ?? 100, 0, 100),
-                    IdList(Cell(cells, 12)), ParseOptionalDamageType(Cell(cells, 13))));
+                    IdList(Cell(cells, 12)), ParseOptionalDamageType(Cell(cells, 13)),
+                    ParseMonsterAbilityComponents(Cell(cells, 14)), Math.Max(0, Integer(cells, 15) ?? 0)));
                 break;
             case DataSection.WeaponTypes:
                 weaponTypes.Add(new WeaponTypeDefinition(id, name));
@@ -1033,16 +1034,34 @@ public static class CsvGameDataLoader
     private static DamageType? ParseOptionalDamageType(string value) =>
         string.IsNullOrWhiteSpace(value) ? null : ParseDamageType(value);
 
-    private static int AbilityThreat(MonsterAbilityDefinition ability) => (ability.Effect switch
+    private static IReadOnlyList<MonsterAbilityComponent> ParseMonsterAbilityComponents(string value)
     {
-        MonsterAbilityEffect.ExtraDamage => Math.Max(1, ability.Value * ability.ChancePercent / 100),
+        if (string.IsNullOrWhiteSpace(value)) return [];
+        var result = new List<MonsterAbilityComponent>();
+        foreach (var encoded in value.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = encoded.Split(':', StringSplitOptions.TrimEntries);
+            if (!Enum.TryParse<MonsterAbilityEffect>(parts[0], true, out var effect))
+                throw new InvalidDataException($"Ismeretlen további szörnyképesség-hatás: '{parts[0]}'.");
+            var amount = parts.Length > 1 && int.TryParse(parts[1], out var parsedAmount) ? parsedAmount : 0;
+            var statusId = parts.Length > 2 ? EmptyAsNull(parts[2]) : null;
+            var damageType = parts.Length > 3 ? ParseOptionalDamageType(parts[3]) : null;
+            result.Add(new MonsterAbilityComponent(effect, amount, statusId, damageType));
+        }
+        return result;
+    }
+
+    private static int AbilityThreat(MonsterAbilityDefinition ability) => ability.Effects.Sum(component =>
+        (component.Effect switch
+    {
+        MonsterAbilityEffect.ExtraDamage => Math.Max(1, component.Value * ability.ChancePercent / 100),
         MonsterAbilityEffect.ApplyStatus or MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease or
             MonsterAbilityEffect.Bleeding => ability.Trigger == MonsterAbilityTrigger.Active ? 10 : 5,
-        MonsterAbilityEffect.Regeneration => Math.Max(2, ability.Value * 2),
-        MonsterAbilityEffect.ArmorBonus => ability.Value * 3,
-        MonsterAbilityEffect.InitiativeBonus => ability.Value * 2,
+        MonsterAbilityEffect.Regeneration => Math.Max(2, component.Value * 2),
+        MonsterAbilityEffect.ArmorBonus => component.Value * 3,
+        MonsterAbilityEffect.InitiativeBonus => component.Value * 2,
         _ => 1
-    }) * Math.Max(1, ability.MaximumTargets);
+    }) * Math.Max(1, ability.MaximumTargets));
 
     private static void ValidateEnemies(IEnumerable<EnemyDefinition> enemies,
         IReadOnlyCollection<MonsterAbilityDefinition> monsterAbilities)
@@ -1068,10 +1087,11 @@ public static class CsvGameDataLoader
         var weaponIds = weapons.Select(weapon => weapon.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var ability in abilities)
         {
-            if (ability.Effect == MonsterAbilityEffect.ApplyStatus &&
-                (ability.StatusId is null || !statusIds.Contains(ability.StatusId)))
-                throw new InvalidDataException($"A(z) '{ability.Id}' szörnyképesség ismeretlen állapotra hivatkozik: " +
-                                               $"'{ability.StatusId ?? "(üres)"}'.");
+            foreach (var component in ability.Effects.Where(component =>
+                         component.Effect == MonsterAbilityEffect.ApplyStatus))
+                if (component.StatusId is null || !statusIds.Contains(component.StatusId))
+                    throw new InvalidDataException($"A(z) '{ability.Id}' szörnyképesség ismeretlen állapotra hivatkozik: " +
+                                                   $"'{component.StatusId ?? "(üres)"}'.");
             var unknownWeapon = (ability.WeaponIds ?? []).FirstOrDefault(id => !weaponIds.Contains(id));
             if (unknownWeapon is not null)
                 throw new InvalidDataException($"A(z) '{ability.Id}' szörnyképesség ismeretlen fegyverre hivatkozik: " +

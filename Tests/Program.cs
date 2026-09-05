@@ -140,6 +140,8 @@ var tests = new (string Name, Action Run)[]
     ("A szörnyjellemzők és képességparaméterek külön töltődnek", MonsterTraitsAndAbilitiesAreDataDriven),
     ("A regeneráció és a leheletlehűlés példányonként működik", MonsterRegenerationAndBreathCooldownWork),
     ("A sebzés nélküli, időzített állapot is lejár", TimedNonDamageStatusExpires),
+    ("Az összetett szörnyképesség egy aktiválással sebez és állapotot okoz", CompositeMonsterAbilityAppliesAllEffects),
+    ("A szörnyképesség csak a CSV-ben kötött fegyverrel aktiválódik", MonsterAbilityRespectsWeaponBinding),
     ("A pályanevekből szabályos képfájlnév készül", LevelImageFileNamesAreNormalized),
     ("Az ellenség a legközelebbi látható csapattagot célozza", EnemyTargetsNearestVisiblePartyMember),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
@@ -3298,6 +3300,50 @@ static void TimedNonDamageStatusExpires()
     Assert(first.Count == 1 && first[0].Damage == 0 && !first[0].Expired &&
            second.Count == 1 && second[0].Expired && !character.HasStatus("STATUS006"),
         "A sebzés nélküli időzített állapot nem két saját akció után járt le.");
+}
+static void CompositeMonsterAbilityAppliesAllEffects()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var source = data.GetMonsterAbility("MA012");
+    var ability = source with { ChancePercent = 100 };
+    var definition = data.GetEnemy("E018") with { AbilityIds = ["MA012"] };
+    var enemy = new ConfiguredEnemy(new Position(1, 1), definition);
+    var target = CreateCharacter("Sugárcél", vitality: 100);
+    var battle = new BattleSystem(new Random(1), [ability], data.Statuses, data.StrengthHitBonuses);
+    var runtime = battle.PrepareTeamCharacter(target).Runtime;
+    battle.PrepareEnemyForBattle(enemy);
+
+    var before = target.CurrentVitality;
+    var result = battle.ResolveTeamEnemyAbility(enemy, target, runtime, ability);
+
+    Assert(target.HasStatus("STATUS006") && target.CurrentVitality == before - 4 &&
+           enemy.RemainingAbilityCharges.GetValueOrDefault("MA012") == 1 &&
+           result.Message.Contains("nekrotikus", StringComparison.OrdinalIgnoreCase) &&
+           result.Message.Contains("4 nekrotikus", StringComparison.Ordinal),
+        "Az összetett Bénító sugár nem alkalmazta együtt az állapotot, sebzést és töltetfogyást.");
+}
+
+static void MonsterAbilityRespectsWeaponBinding()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var poison = data.GetMonsterAbility("MA002") with { ChancePercent = 100, WeaponIds = ["WN018"] };
+    var dagger = data.GetWeapon("W001");
+    var fangs = data.GetWeapon("WN018");
+    var enemy = new ConfiguredEnemy(new Position(1, 1), new EnemyDefinition(
+        "E-BIND", "Kötési próba", "k", 1, 100, 0, 100, 1, 1, ["MA002"],
+        Weapons: [dagger, fangs]));
+    var target = CreateCharacter("Kötési cél", vitality: 500);
+    var battle = new BattleSystem(new Random(2), [poison], data.Statuses, data.StrengthHitBonuses);
+    var runtime = battle.PrepareTeamCharacter(target).Runtime;
+
+    for (var i = 0; i < 20; i++) battle.ResolveTeamEnemyAction(enemy, target, runtime, dagger);
+    Assert(!target.HasStatus(CharacterStatusIds.Poisoned),
+        "A mérgezés a hozzá nem kötött tőrrel is aktiválódott.");
+
+    for (var i = 0; i < 20 && !target.HasStatus(CharacterStatusIds.Poisoned); i++)
+        battle.ResolveTeamEnemyAction(enemy, target, runtime, fangs);
+    Assert(target.HasStatus(CharacterStatusIds.Poisoned),
+        "A mérgezés a hozzá kötött méregfogakkal sem aktiválódott.");
 }
 static void EnemyAwarenessAndSearchAreDataDriven()
 {

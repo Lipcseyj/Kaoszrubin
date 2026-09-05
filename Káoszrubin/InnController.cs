@@ -927,10 +927,17 @@ internal sealed class InnController
                 {
                     MonsterAbilityTrigger.Passive => $"állandó, érték {ability.Value}",
                     MonsterAbilityTrigger.TurnStart => $"kör elején, érték {ability.Value}",
-                    MonsterAbilityTrigger.Active => $"aktív, {ability.Range} mező, {ability.Cooldown} kör lehűlés",
+                    MonsterAbilityTrigger.Active => $"aktív, {ability.Range} mező, {ability.Cooldown} kör lehűlés" +
+                        (ability.ChargesPerBattle > 0 ? $", {ability.ChargesPerBattle} használat/csata" : string.Empty),
                     _ => $"találatkor {ability.ChancePercent}% esély, érték {ability.Value}"
                 };
-                lines.Add($"{ability.Name} — {activation}. {ability.Description}");
+                var extraEffects = ability.AdditionalEffects is { Count: > 0 }
+                    ? $" További hatások: {string.Join(", ", ability.AdditionalEffects.Select(effect =>
+                        effect.Effect == MonsterAbilityEffect.ExtraDamage
+                            ? $"{effect.Value} {effect.DamageType?.Name() ?? "sebzés"}"
+                            : effect.StatusId ?? effect.Effect.ToString()))}."
+                    : string.Empty;
+                lines.Add($"{ability.Name} — {activation}. {ability.Description}{extraEffects}");
             }
         lines.Add($"Mozgástempója a Gyorsasága alapján körülbelül {1400 / Math.Max(1, enemy.Speed ?? 2)} ms lépésenként.");
         return new InnRumor($"Szörnypletyka: {enemy.Name}", lines, ConsoleColor.Cyan);

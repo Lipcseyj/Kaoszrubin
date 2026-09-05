@@ -710,7 +710,7 @@ A térképi szörnyrúnák erősség szerinti színe:
 | 4 | piros |
 | 5 | magenta |
 
-A `MonsterAbilityDefinition` az alapadatokon túl aktiválási pontot (`Passive`, `OnHit`, `TurnStart`, `Active`), lehűlést, hatótávot, célpontszámot, állapotazonosítót, AI-súlyt, opcionális fegyverszűrőt és sebzéstípust tartalmaz. Jelenlegi hatások:
+A `MonsterAbilityDefinition` az alapadatokon túl aktiválási pontot (`Passive`, `OnHit`, `TurnStart`, `Active`), lehűlést, hatótávot, célpontszámot, állapotazonosítót, AI-súlyt, opcionális fegyverszűrőt, sebzéstípust és csatánkénti használati korlátot tartalmaz. A `TovábbiHatások` CSV-oszlopban `Hatás:Érték:ÁllapotId:Sebzéstípus` alakban, `|` jellel elválasztva több hatás rendelhető ugyanahhoz az aktiváláshoz; például az `ExtraDamage:4::nekrotikus` négy nekrotikus sebzést ad. Egyetlen sikeres aktiválási dobás után az elsődleges és az összes további hatás végrehajtódik. A `HasználatCsatánként` nulla értéke korlátlan használatot jelent. Jelenlegi hatások:
 
 - `Poison`, `Disease`, `Bleeding`: sikeres szörnytámadás után a CSV-s eséllyel hozzáadja a Mérgezés, Betegség vagy Vérzés karakterállapotot;
 - `ExtraDamage`: sikeres találatkor a megadott eséllyel hozzáadja a konfigurált extra sebzést;
@@ -721,9 +721,11 @@ A `MonsterAbilityDefinition` az alapadatokon túl aktiválási pontot (`Passive`
 
 Az Élőholt és Démoni jellemzőt a szent sebzés, a gonosz elleni védelem és az élőholtűzés használja. A régi `MA001`, `MA009` és `MA010` azonosítók mentés- és küldetés-kompatibilitási álnevek maradtak. A Repülő jellemző +1 taktikai mozgást ad; az útkeresés más aktív harcolók mezőjén is átvezetheti a repülőt, de csak szabad mezőn szállhat le.
 
-A Medúza Dermesztő tekintete, valamint a baziliszkuszok és beholderek Bénító sugara Kődermedtséget okozhat. A Lich, Drakolich, Balor és Vén beholder több célpontot érintő Rémületkeltést használhat. Mindegyik aktív képesség a CSV-ben beállított hatótávval, eséllyel, célpontszámmal, AI-súllyal és lehűléssel működik. A betöltő ellenőrzi a hivatkozott állapotokat, fegyvereket és az aktív képességek pozitív lehűlését.
+A Medúza Dermesztő tekintete, valamint a baziliszkuszok és beholderek Bénító sugara Kődermedtséget okozhat. A Bénító sugár emellett nekrotikus sebzést okoz és csatánként kétszer használható. A Lich, Drakolich, Balor és Vén beholder több célpontot érintő Rémületkeltést használhat, amely nekrotikus sebzést is okoz és csatánként egyszer süthető el. Mindegyik aktív képesség a CSV-ben beállított hatótávval, eséllyel, célpontszámmal, AI-súllyal, lehűléssel és használati korláttal működik. Többcélpontos használatkor a töltet és a lehűlés egyszer fogy el. A betöltő ellenőrzi a hivatkozott állapotokat, fegyvereket és az aktív képességek pozitív lehűlését.
 
-A többcélpontos, nem fizikai leheletfegyvereket a szörny egy teljes akcióval előkészíti, és ezt a harci napló előre jelzi. A következő saját körben elsüti a leheletet, majd három körös lehűlés kezdődik. Több elérhető célpontnál az AI előnyben részesíti a leheletet, egy célpontnál többnyire a normál fegyverei közül választ. Az alkalmi támadások nem használhatnak leheletet. A képesség- és fegyverlehűlések, valamint az előkészített fegyver szörnypéldányhoz kötöttek, a 17-es játékmentés részei.
+Az `OnHit` képességek `FegyverIds` mezője meghatározza, mely támadások válthatják ki a hatást; üres mező esetén bármely fegyver megfelel. Így például a wyvern fullánkja mérgezhet, a harapása azonban nem. Az MA002, MA003 és MA004 fegyverlistái a méreg, betegség és vérzés tényleges forrásaira vannak szűkítve.
+
+A többcélpontos, nem fizikai leheletfegyvereket a szörny egy teljes akcióval előkészíti, és ezt a harci napló előre jelzi. A következő saját körben elsüti a leheletet, majd három körös lehűlés kezdődik. Több elérhető célpontnál az AI előnyben részesíti a leheletet, egy célpontnál többnyire a normál fegyverei közül választ. Az alkalmi támadások nem használhatnak leheletet. A képesség- és fegyverlehűlések, valamint az előkészített fegyver szörnypéldányhoz kötöttek, a 17-es játékmentés részei. A megmaradt csatánkénti képességtölteteket a 18-as játékmentés őrzi meg.
 
 ### Szörnyzsákmány és keresés
 

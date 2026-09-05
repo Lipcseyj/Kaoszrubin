@@ -5109,6 +5109,7 @@ public sealed class Game : ISessionCommandHandler
                 EnemyMovementAllowance(initiatingEnemy), 1));
 
         var participantEnemies = enemyParticipants.Select(value => value.Enemy).ToArray();
+        foreach (var enemy in participantEnemies) _battleSystem.PrepareEnemyForBattle(enemy);
         var quickAssessment = QuickCombatRules.Assess(characterParticipants.Select(value => value.Character),
             participantEnemies.Select(enemy => enemy.Definition),
             hasAvailableReinforcements: HasAvailableTeamReinforcements(participantEnemies),
@@ -5294,8 +5295,11 @@ public sealed class Game : ISessionCommandHandler
             .ToArray();
         if (reinforcements.Length == 0) return false;
         foreach (var enemy in reinforcements)
+        {
+            _battleSystem.PrepareEnemyForBattle(enemy);
             battle.TryAddEnemy(new TeamEnemyParticipant(enemy, _battleSystem.RollTeamEnemyInitiative(enemy),
                 EnemyMovementAllowance(enemy), battle.Turns.Cycle + 1));
+        }
         var message = $"📯 Az ellenség erősítést hív: {reinforcements.Length} új harcos " +
                       $"a(z) {battle.Turns.Cycle + 1}. körben kapcsolódik be.";
         _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
@@ -5810,8 +5814,9 @@ public sealed class Game : ISessionCommandHandler
             var abilityTargets = livingTargets.Where(character =>
                     TacticalDistance.Between(enemy.Position, GetCasterPosition(character)) <= activeAbility.Range)
                 .Take(activeAbility.MaximumTargets).ToArray();
-            PresentBattleEntries(abilityTargets.Select(target =>
-                _battleSystem.ResolveTeamEnemyAbility(enemy, target, activeAbility)).ToArray());
+            PresentBattleEntries(abilityTargets.Select((target, index) =>
+                _battleSystem.ResolveTeamEnemyAbility(enemy, target, battle.RuntimeFor(target), activeAbility,
+                    consumeResources: index == 0)).ToArray());
             battle.RecordAttack(BattleSide.Hostile);
             foreach (var target in abilityTargets.Where(target => !target.IsAlive))
                 ResolveTeamCharacterDefeat(battle, target);

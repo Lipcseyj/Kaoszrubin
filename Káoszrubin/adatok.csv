@@ -495,17 +495,17 @@ E052,Csontváz lovag,ǂ,6,105,5,3,330,2,MA007,Undead,4,,,nem,W004|W006,igen,2,3,
 E053,Sir Malrec az Esküszegő,‡,11,420,9,5,1800,4,MA005,Undead,6,1,3,nem,W009,nem,0,0,0,0,0,0,0
 
 #Szörnyképességek
-Id,Név,Hatás,AktiválásiEsély,Érték,Leírás,Aktiválás,Lehűlés,Hatótáv,MaxCélpont,ÁllapotId,AI súly,FegyverIds,Sebzéstípus
-MA002,Mérges támadás,ApplyStatus,25,0,Sikeres találat után mérgezést okozhat.,OnHit,0,1,1,STATUS003,100,,
-MA003,Fertőzéshordozó,ApplyStatus,20,0,Sikeres találat után betegséget terjeszthet.,OnHit,0,1,1,STATUS004,100,,
-MA004,Vérontó,ApplyStatus,25,0,Sikeres találat után vérzést okozhat.,OnHit,0,1,1,STATUS005,100,,
-MA005,Zúzócsapás,ExtraDamage,25,6,Sikeres találatkor további zúzó sebzést okozhat.,OnHit,0,1,1,,100,,zúzás
-MA006,Villámgyors,InitiativeBonus,100,2,A szörny 2 pont bónuszt kap a kezdeményezéséhez.,Passive,0,1,1,,100,,
-MA007,Vastag bőr,ArmorBonus,100,2,A szörny 2 pont állandó páncélbónuszt kap.,Passive,0,1,1,,100,,
-MA008,Regeneráció,Regeneration,100,5,A szörny minden saját köre elején legfeljebb 5 HP-t gyógyul.,TurnStart,0,1,1,,100,,
-MA011,Dermesztő tekintet,ApplyStatus,70,0,A Medúza tekintete rövid időre kődermedtséget okozhat.,Active,3,3,1,STATUS006,45,,
-MA012,Bénító sugár,ApplyStatus,55,0,A mágikus tekintet megmerevíti az áldozat tagjait.,Active,3,4,1,STATUS006,50,,
-MA013,Rémületkeltés,ApplyStatus,60,0,A természetfeletti jelenlét rettegést kelt a közel állókban.,Active,4,3,2,STATUS007,35,,
+Id,Név,Hatás,AktiválásiEsély,Érték,Leírás,Aktiválás,Lehűlés,Hatótáv,MaxCélpont,ÁllapotId,AI súly,FegyverIds,Sebzéstípus,TovábbiHatások,HasználatCsatánként
+MA002,Mérges támadás,ApplyStatus,25,0,Sikeres találat után mérgezést okozhat.,OnHit,0,1,1,STATUS003,100,WN004|WN007|WN010|WN014|WN018|WN021|WN022|WN024,,,0
+MA003,Fertőzéshordozó,ApplyStatus,20,0,Sikeres találat után betegséget terjeszthet.,OnHit,0,1,1,STATUS004,100,W001|W002|W004|W005|W006|W018|WN001|WN002|WN003|WN004|WN007|WN019,,,0
+MA004,Vérontó,ApplyStatus,25,0,Sikeres találat után vérzést okozhat.,OnHit,0,1,1,STATUS005,100,W001|W002|W009|W010|WN002|WN007|WN008|WN012|WN024,,,0
+MA005,Zúzócsapás,ExtraDamage,25,6,Sikeres találatkor további zúzó sebzést okozhat.,OnHit,0,1,1,,100,,zúzás,,0
+MA006,Villámgyors,InitiativeBonus,100,2,A szörny 2 pont bónuszt kap a kezdeményezéséhez.,Passive,0,1,1,,100,,,,0
+MA007,Vastag bőr,ArmorBonus,100,2,A szörny 2 pont állandó páncélbónuszt kap.,Passive,0,1,1,,100,,,,0
+MA008,Regeneráció,Regeneration,100,5,A szörny minden saját köre elején legfeljebb 5 HP-t gyógyul.,TurnStart,0,1,1,,100,,,,0
+MA011,Dermesztő tekintet,ApplyStatus,70,0,A Medúza tekintete rövid időre kődermedtséget okozhat.,Active,3,3,1,STATUS006,45,,,,2
+MA012,Bénító sugár,ApplyStatus,55,0,A mágikus tekintet megmerevíti és sebzi az áldozatot.,Active,3,4,1,STATUS006,50,,,ExtraDamage:4::nekrotikus,2
+MA013,Rémületkeltés,ApplyStatus,60,0,A természetfeletti jelenlét rettegést és nekrotikus fájdalmat kelt.,Active,4,3,2,STATUS007,35,,,ExtraDamage:6::nekrotikus,1
 
 #Zsákmány paraméterek
 Id,Érték
