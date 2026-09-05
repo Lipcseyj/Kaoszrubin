@@ -75,8 +75,9 @@ public sealed class CoopGuestScreen
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
         _gameData = gameData ?? throw new ArgumentNullException(nameof(gameData));
-        _soundEffects = new SoundEffects(message => SetMessage(message, ConsoleColor.DarkYellow));
         _musicSettings = musicSettings ?? new GameSettingsService();
+        _soundEffects = new SoundEffects(_musicSettings.Settings,
+            message => SetMessage(message, ConsoleColor.DarkYellow));
         _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
             message => SetMessage(message, ConsoleColor.DarkYellow));
     }
@@ -166,7 +167,7 @@ public sealed class CoopGuestScreen
                     }
                     if (GameInput.IsSettingsShortcut(key))
                     {
-                        SettingsScreen.Show(_musicSettings, _backgroundMusic.ApplySettings);
+                        SettingsScreen.Show(_musicSettings, ApplyAudioSettings);
                         _lastFrame = null;
                         Interlocked.Exchange(ref _redrawRequested, 1);
                         continue;
@@ -222,9 +223,16 @@ public sealed class CoopGuestScreen
         finally
         {
             _backgroundMusic.Dispose();
+            _soundEffects.Dispose();
             Console.CursorVisible = true;
             await client.DisconnectAsync(CancellationToken.None);
         }
+    }
+
+    private void ApplyAudioSettings()
+    {
+        _backgroundMusic.ApplySettings();
+        _soundEffects.ApplySettings();
     }
 
     private bool ConfirmReturnToMainMenu(CoopSignalRClient client, CoopCharacterOption selected)

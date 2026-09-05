@@ -1,70 +1,57 @@
-using System.Runtime.InteropServices;
-using System.Text;
+using NAudio.Wave;
 
 namespace KaoszRubin;
 
 public enum SoundEffect
 {
-    Step1,
-    Step2,
-    Step3,
-    Step4,
-    Step5,
-    BattleStart,
-    Hit,
-    Miss,
-    Victory,
-    Victory2,
-    MemberKilled,
-    LevelStart,
-    LevelComplete,
-    Rest,
-    Chest,
-    DoorOpen,
-    DoorClose,
-    OffensiveSpell,
-    DefensiveSpell,
-    Chest2,
-    Item,
-    MainMenu,
-    MonsterKilledBySpell,
-    MonsterSpotted,
-    NewSkill,
-    NewSpellUnlocked,
-    NewWeaponProficiency,
-    PlayerGotHit,
-    Waiting,
-    EndSequence,
-    MusicTrack
+    Step1, Step2, Step3, Step4, Step5,
+    BattleStart, Hit, Miss, Victory, Victory2, MemberKilled, LevelStart, LevelComplete, Rest,
+    Chest, DoorOpen, DoorClose, OffensiveSpell, DefensiveSpell, Chest2, Item, MainMenu,
+    MonsterKilledBySpell, MonsterSpotted, NewSkill, NewSpellUnlocked, NewWeaponProficiency,
+    PlayerGotHit, Waiting, EndSequence, MusicTrack
 }
 
-public sealed class SoundEffects
+/// <summary>NAudio-alapú, egymással párhuzamosan is lejátszható WAV hangeffektek.</summary>
+public sealed class SoundEffects : IDisposable
 {
-    // A cache az első SoundEffects példány létrehozásakor, még a főmenü hangja előtt egyszer töltődik be,
-    // és az összes későbbi host/vendég lejátszó ugyanazokat a memóriablokkokat használja.
     private static readonly string SoundsDirectory = Path.Combine(AppContext.BaseDirectory, "Sounds");
-    private static readonly IReadOnlyDictionary<SoundEffect, CachedWav> WavCache = LoadWavCache();
+    private static readonly IReadOnlyDictionary<SoundEffect, byte[]> WavCache = LoadWavCache();
     private readonly Dictionary<SoundEffect, DateTime> _lastPlayed = [];
+    private readonly HashSet<ActivePlayback> _activePlaybacks = [];
     private readonly object _sync = new();
     private readonly Action<string>? _reportFailure;
+    private readonly GameSettings _settings;
+    private bool _disposed;
 
-    public SoundEffects(Action<string>? reportFailure = null)
+    public SoundEffects(GameSettings? settings = null, Action<string>? reportFailure = null)
     {
+        _settings = settings ?? new GameSettings();
         _reportFailure = reportFailure;
     }
 
     public void Play(SoundEffect effect)
     {
-        if (!TryReservePlayback(effect)) return;
-        // SND_ASYNC azonnal visszatér; cache mellett nincs fájl-I/O, ezért nincs szükség külön thread-pool feladatra.
-        PlayCore(effect, waitForCompletion: false);
+        if (TryReservePlayback(effect)) PlayCore(effect);
     }
 
-    /// <summary>Harci visszajelzés, amelyet a következő naplósor előtt teljesen lejátszunk.</summary>
     public void PlayAndWait(SoundEffect effect)
     {
         if (!TryReservePlayback(effect)) return;
-        PlayCore(effect, waitForCompletion: true);
+        using var completed = new ManualResetEventSlim();
+        if (PlayCore(effect, _ => completed.Set())) completed.Wait();
+    }
+
+    public void ApplySettings()
+    {
+        lock (_sync)
+        {
+            if (_disposed) return;
+            _settings.Normalize();
+            var volume = _settings.SoundEffectsVolumePercent / 100f;
+            foreach (var playback in _activePlaybacks) playback.Output.Volume = volume;
+            if (!_settings.SoundEffectsEnabled)
+                foreach (var playback in _activePlaybacks.ToArray()) playback.Output.Stop();
+        }
     }
 
     private bool TryReservePlayback(SoundEffect effect)
@@ -75,66 +62,62 @@ public sealed class SoundEffects
             : TimeSpan.FromMilliseconds(75);
         lock (_sync)
         {
+            if (_disposed || !_settings.SoundEffectsEnabled || _settings.SoundEffectsVolumePercent == 0) return false;
             if (_lastPlayed.TryGetValue(effect, out var lastPlayed) && now - lastPlayed < cooldown) return false;
             _lastPlayed[effect] = now;
             return true;
         }
     }
 
-    private void PlayCore(SoundEffect effect, bool waitForCompletion)
+    private bool PlayCore(SoundEffect effect, Action<StoppedEventArgs>? stopped = null)
     {
         try
         {
-            if (!OperatingSystem.IsWindows()) return;
-            if (!WavCache.TryGetValue(effect, out var cached))
+            if (!OperatingSystem.IsWindows()) return false;
+            if (!WavCache.TryGetValue(effect, out var wav))
             {
                 _reportFailure?.Invoke($"Hangeffekt nem található a memóriacache-ben: {ToFileName(effect)}.wav");
-                return;
+                return false;
             }
-            if (!PlaySoundMemory(cached.Pointer, IntPtr.Zero, SoundMemory | (waitForCompletion ? 0 : SoundAsync)))
-                _reportFailure?.Invoke($"Hangeffekt nem indítható memóriából: {ToFileName(effect)}.wav");
+            var playback = new ActivePlayback(wav, _settings.SoundEffectsVolumePercent / 100f);
+            playback.Output.PlaybackStopped += (_, args) => FinishPlayback(playback, args, stopped);
+            lock (_sync)
+            {
+                if (_disposed)
+                {
+                    playback.Dispose();
+                    return false;
+                }
+                _activePlaybacks.Add(playback);
+            }
+            playback.Output.Play();
+            return true;
         }
         catch (Exception exception)
         {
             _reportFailure?.Invoke($"Hangeffekt hiba: {exception.Message}");
+            return false;
         }
     }
 
-    private static IReadOnlyDictionary<SoundEffect, CachedWav> LoadWavCache()
+    private void FinishPlayback(ActivePlayback playback, StoppedEventArgs args, Action<StoppedEventArgs>? stopped)
     {
-        var cache = new Dictionary<SoundEffect, CachedWav>();
+        lock (_sync) _activePlaybacks.Remove(playback);
+        playback.Dispose();
+        if (args.Exception is not null)
+            _reportFailure?.Invoke($"A hangeffekt lejátszása megszakadt: {args.Exception.Message}");
+        stopped?.Invoke(args);
+    }
+
+    private static IReadOnlyDictionary<SoundEffect, byte[]> LoadWavCache()
+    {
+        var cache = new Dictionary<SoundEffect, byte[]>();
         foreach (var effect in Enum.GetValues<SoundEffect>())
         {
             var path = Path.Combine(SoundsDirectory, ToFileName(effect) + ".wav");
-            if (File.Exists(path)) cache[effect] = new CachedWav(File.ReadAllBytes(path));
+            if (File.Exists(path)) cache[effect] = File.ReadAllBytes(path);
         }
         return cache;
-    }
-
-    private static void GenerateFallbackWav(string path, (int Frequency, int Duration) settings)
-    {
-        const int sampleRate = 22_050;
-        var sampleCount = sampleRate * settings.Duration / 1000;
-        using var stream = File.Create(path);
-        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: false);
-        writer.Write(Encoding.ASCII.GetBytes("RIFF"));
-        writer.Write(36 + sampleCount * 2);
-        writer.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
-        writer.Write(16);
-        writer.Write((short)1);
-        writer.Write((short)1);
-        writer.Write(sampleRate);
-        writer.Write(sampleRate * 2);
-        writer.Write((short)2);
-        writer.Write((short)16);
-        writer.Write(Encoding.ASCII.GetBytes("data"));
-        writer.Write(sampleCount * 2);
-        for (var index = 0; index < sampleCount; index++)
-        {
-            var fade = 1.0 - (double)index / sampleCount;
-            var value = (short)(Math.Sin(2 * Math.PI * settings.Frequency * index / sampleRate) * 5000 * fade);
-            writer.Write(value);
-        }
     }
 
     private static string ToFileName(SoundEffect effect) => effect switch
@@ -158,24 +141,40 @@ public sealed class SoundEffects
         _ => effect.ToString().ToLowerInvariant()
     };
 
-    private const uint SoundAsync = 0x0001;
-    private const uint SoundMemory = 0x0004;
-
-    [DllImport("winmm.dll", EntryPoint = "PlaySoundW", SetLastError = true)]
-    private static extern bool PlaySoundMemory(IntPtr soundData, IntPtr module, uint flags);
-
-    private sealed class CachedWav
+    public void Dispose()
     {
-        // SND_ASYNC mellett a mutatónak a teljes lejátszás alatt stabilnak kell maradnia.
-        // A statikus cache élettartama a folyamatéval azonos, ezért a rögzítés nem okoz dangling pointert.
-        private readonly GCHandle _handle;
-
-        public CachedWav(byte[] data)
+        lock (_sync)
         {
-            _handle = GCHandle.Alloc(data, GCHandleType.Pinned);
-            Pointer = _handle.AddrOfPinnedObject();
+            if (_disposed) return;
+            _disposed = true;
+            foreach (var playback in _activePlaybacks.ToArray()) playback.Dispose();
+            _activePlaybacks.Clear();
+        }
+        GC.SuppressFinalize(this);
+    }
+
+    private sealed class ActivePlayback : IDisposable
+    {
+        private readonly MemoryStream _stream;
+        private readonly WaveFileReader _reader;
+        private int _disposed;
+
+        public ActivePlayback(byte[] wav, float volume)
+        {
+            _stream = new MemoryStream(wav, writable: false);
+            _reader = new WaveFileReader(_stream);
+            Output = new WaveOut { Volume = volume };
+            Output.Init(_reader);
         }
 
-        public IntPtr Pointer { get; }
+        public WaveOut Output { get; }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            Output.Dispose();
+            _reader.Dispose();
+            _stream.Dispose();
+        }
     }
 }

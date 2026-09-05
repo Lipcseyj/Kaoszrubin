@@ -3501,11 +3501,17 @@ static void QuickCombatSettingPersists()
         service.Settings.QuickCombat = QuickCombatMode.Automatic;
         service.Save();
         var loaded = new GameSettingsService(path);
-        var invalid = new GameSettings { QuickCombat = (QuickCombatMode)999, VolumePercent = 150 };
+        var invalid = new GameSettings
+        {
+            QuickCombat = (QuickCombatMode)999,
+            VolumePercent = 150,
+            SoundEffectsVolumePercent = -10
+        };
         invalid.Normalize();
 
         Assert(loaded.Settings.QuickCombat == QuickCombatMode.Automatic &&
-               invalid.QuickCombat == QuickCombatMode.Ask && invalid.VolumePercent == 100,
+               invalid.QuickCombat == QuickCombatMode.Ask && invalid.VolumePercent == 100 &&
+               invalid.SoundEffectsVolumePercent == 0,
             "A gyorsharc módja nem maradt meg vagy az érvénytelen beállítás nem normalizálódott.");
     }
     finally

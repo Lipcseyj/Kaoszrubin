@@ -5,7 +5,7 @@ public static class SettingsScreen
 {
     private const int Width = 58;
 
-    public static void Show(GameSettingsService settingsService, Action? applyMusicSettings = null)
+    public static void Show(GameSettingsService settingsService, Action? applyAudioSettings = null)
     {
         var settings = settingsService.Settings;
         while (true)
@@ -16,6 +16,8 @@ public static class SettingsScreen
 
             if (key.Key is ConsoleKey.Spacebar or ConsoleKey.M)
                 settings.Enabled = !settings.Enabled;
+            else if (key.Key is ConsoleKey.E)
+                settings.SoundEffectsEnabled = !settings.SoundEffectsEnabled;
             else if (key.Key is ConsoleKey.G)
                 settings.QuickCombat = settings.QuickCombat switch
                 {
@@ -27,10 +29,14 @@ public static class SettingsScreen
                 settings.VolumePercent = Math.Max(0, settings.VolumePercent - 5);
             else if (key.Key is ConsoleKey.RightArrow or ConsoleKey.UpArrow)
                 settings.VolumePercent = Math.Min(100, settings.VolumePercent + 5);
+            else if (key.Key is ConsoleKey.A)
+                settings.SoundEffectsVolumePercent = Math.Max(0, settings.SoundEffectsVolumePercent - 5);
+            else if (key.Key is ConsoleKey.D)
+                settings.SoundEffectsVolumePercent = Math.Min(100, settings.SoundEffectsVolumePercent + 5);
             else
                 continue;
 
-            applyMusicSettings?.Invoke();
+            applyAudioSettings?.Invoke();
         }
 
         settingsService.Save();
@@ -40,7 +46,7 @@ public static class SettingsScreen
     {
         Console.Clear();
         var left = Math.Max(0, (Console.WindowWidth - Width) / 2);
-        const int contentRows = 12;
+        const int contentRows = 17;
         var top = Math.Max(0, (Console.WindowHeight - contentRows - 2) / 2);
         var style = WindowFrameConfiguration.For(FramedWindow.Settings);
         var lines = new[]
@@ -50,10 +56,15 @@ public static class SettingsScreen
             $"Zene: {(settings.Enabled ? "BE" : "KI")}",
             $"Hangerő: {settings.VolumePercent}%",
             VolumeBar(settings.VolumePercent),
+            $"Hangeffektek: {(settings.SoundEffectsEnabled ? "BE" : "KI")}",
+            $"Effekthangerő: {settings.SoundEffectsVolumePercent}%",
+            VolumeBar(settings.SoundEffectsVolumePercent),
             $"Gyorsharc: {QuickCombatModeName(settings.QuickCombat)}",
             string.Empty,
             "M / Space       Zene ki- és bekapcsolása",
             "← → / ↑ ↓      Hangerő módosítása",
+            "E               Hangeffektek ki- és bekapcsolása",
+            "A / D           Effekthangerő módosítása",
             "G               Gyorsharc módjának váltása",
             string.Empty,
             "Enter / Esc     Vissza"
@@ -73,7 +84,8 @@ public static class SettingsScreen
             {
                 0 => ConsoleColor.Yellow,
                 2 => settings.Enabled ? ConsoleColor.Green : ConsoleColor.DarkRed,
-                3 or 4 or 5 => ConsoleColor.Cyan,
+                3 or 4 or 6 or 7 or 8 => ConsoleColor.Cyan,
+                5 => settings.SoundEffectsEnabled ? ConsoleColor.Green : ConsoleColor.DarkRed,
                 _ => ConsoleColor.Gray
             };
             Console.Write(text.PadRight(interiorWidth - 2));

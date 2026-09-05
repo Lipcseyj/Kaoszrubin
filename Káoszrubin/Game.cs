@@ -295,8 +295,9 @@ public sealed class Game : ISessionCommandHandler
             .ToArray() ?? []);
         _renderer.SetFormationStatus(_formation);
         _renderer.SetGoldenKeyCount(0);
-        _soundEffects = new SoundEffects(message => _renderer.DrawDeveloperMessage(message));
         _musicSettings = musicSettings ?? new GameSettingsService();
+        _soundEffects = new SoundEffects(_musicSettings.Settings,
+            message => _renderer.DrawDeveloperMessage(message));
         _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
             message => _renderer.DrawDeveloperMessage(message));
         _doorInteractions = new DoorInteractionController(gameData, _renderer,
@@ -542,7 +543,7 @@ public sealed class Game : ISessionCommandHandler
                     }
                     if (GameInput.IsSettingsShortcut(keyInfo))
                     {
-                        SettingsScreen.Show(_musicSettings, _backgroundMusic.ApplySettings);
+                        SettingsScreen.Show(_musicSettings, ApplyAudioSettings);
                         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
@@ -741,6 +742,7 @@ public sealed class Game : ISessionCommandHandler
         finally
         {
             _backgroundMusic.Dispose();
+            _soundEffects.Dispose();
             if (_activeCoopHost is not null)
             {
                 PublishRemoteCharacterStates(CharacterSyncReason.SessionEnded);
@@ -6685,6 +6687,12 @@ public sealed class Game : ISessionCommandHandler
 
     private void PlaySessionSound(SoundEffect effect, IReadOnlyCollection<CharacterId>? listeners = null) =>
         _sessionEventService.PlaySessionSound(effect, listeners, SelectedCharacter.Id);
+
+    private void ApplyAudioSettings()
+    {
+        _backgroundMusic.ApplySettings();
+        _soundEffects.ApplySettings();
+    }
 
     private void RecordSessionSound(SoundEffect effect, IReadOnlyList<CharacterId>? listenerCharacterIds) =>
         _sessionEventService.RecordSessionSound(effect, listenerCharacterIds);

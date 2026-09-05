@@ -87,15 +87,21 @@ public sealed class MainMenu
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
         _characterRoster = _characterSaveService.Load();
-        _soundEffects = new SoundEffects();
+        _soundEffects = new SoundEffects(_musicSettings.Settings);
     }
 
     public void Run()
     {
+        bool menuSoundPlayed = false;
+
         while (true)
         {
-            if (_musicSettings.Settings.Enabled)
+            if (!menuSoundPlayed)
+            {
                 _soundEffects.Play(SoundEffect.MainMenu);
+                menuSoundPlayed = true;
+            }   
+
             DrawMainMenu();
 
             switch (Console.ReadKey(intercept: true).Key)
@@ -135,7 +141,7 @@ public sealed class MainMenu
                     break;
                 case ConsoleKey.D8:
                 case ConsoleKey.NumPad8:
-                    SettingsScreen.Show(_musicSettings);
+                    SettingsScreen.Show(_musicSettings, _soundEffects.ApplySettings);
                     break;
                 case ConsoleKey.D9:
                 case ConsoleKey.NumPad9:
