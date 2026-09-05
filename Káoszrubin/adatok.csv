@@ -350,6 +350,7 @@ W017,nagybalta,WT001,6-20,9,igen,nem,nem,nem,Kétkezes könyörtelen csatabárd.
 W018,harci bot,WT001,3-8,2,igen,igen,igen,igen,Hosszú keményfa bot gyors ütésekhez és védekezéshez.,45,,,,2,zúzás,1,igen,STAFF
 W019,óriásdorong,WT001,7-16,10,igen,nem,nem,nem,Hatalmas fatörzsből durván kifaragott kétkezes zúzófegyver.,0,,,,8,zúzás,2,nem,BLUNT
 W020,tüzes ostor,WT001,8-17,8,nem,nem,nem,nem,Pokoli lánggal izzó ostor amely messziről is lecsap az áldozatra.,0,,,,4,tűz,1,igen,WHIP
+W021,varázsbot,WT001,10-22,2,nem,nem,nem,igen,Sötét fából készült bot amelynek vége egy sötét vörösen pulzáló ékkövet fog körbe.,0,,,,2,nekrotikus,1,igen,STAFF
 RW001,Várnok örökpenge,WT001,9-17,9,igen,nem,nem,nem,A Várnok család ezüsttel futtatott pallosa. Roderic esküjéhez kötött +1 ereklye amelyet más nem használhat.,1600,Magic,W009,1,7,vágás,2,nem,SWORD
 LW001,Hajnalpenge,WT001,9-17,6,nem,nem,igen,nem,A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.,6500,Legendás,W004,3,3,vágás,1,nem,SWORD
 LW002,Éjcsók,WT002,7-14,1,nem,igen,nem,igen,Fekete tőr amely hangtalanul találja meg a páncél réseit.,5200,Legendás,W001,4,1,szúrás,1,nem,DAGGER
@@ -408,26 +409,26 @@ A007,mitril láncing,7-8,igen,igen,igen,nem,Rendkívül könnyű és erős mitri
 A008,mitril mellvért,8-9,igen,nem,igen,nem,Könnyedén viselhető mitril lemez kiváló törzsvédelemmel.,3500,,,,6,3,1,-2,0,0,0,0
 A009,mitril teljes vértezet,12-15,nem,nem,igen,nem,Mesteri mitril páncélzat amely páratlan védelmet nyújt.,6500,,,,9,3,1,-2,0,0,0,0
 RA001,Várnok vértezete,9-11,nem,nem,igen,nem,A Várnok család teljes lemezvértje. Roderic örökségéhez kötött +1 ereklye amelyet más nem viselhet.,3100,Magic,A006,1,12,3,1,-1
-LA001,Csillagköpeny,5-8,igen,igen,igen,igen,Éjszakai égboltot idéző kámzsa apró mozgó csillagokkal.,4800,Legendás,A001,5,1,0,0,0,0,0,0,0
-LA002,Árnyékjáró vértje,6-9,igen,igen,nem,igen,Füstként simuló bőrvért amely elnyeli a léptek zaját.,6200,Legendás,A002,5,2,1,-1,0,0,0,0,0
-LA003,Sárkánypikkely,10-15,igen,nem,igen,nem,Ősi vörös sárkány pikkelyeiből illesztett forró páncél.,9000,Legendás,A004,6,8,2,0,-1,0,0,0,0
-LA004,Naplovag vértje,13-17,nem,nem,igen,nem,Ragyogó mellvért amely hajnalban arany fénnyel telik meg.,10800,Legendás,A005,6,9,3,1,-2,0,0,0,0
-LA005,Éjfekete láncing,9-13,igen,igen,igen,nem,Fényt nem tükröző láncing az árnyak bajnokainak.,8400,Legendás,A003,5,5,2,-1,-2,0,0,0,0
-LA006,Hegykirály vértezete,16-22,nem,nem,igen,nem,Törp királyok gránitrúnás teljes vértezete.,14500,Legendás,A006,7,12,3,1,-2,0,0,0,0
-LA007,Holdszövött láncing,14-18,igen,igen,igen,igen,Súlytalan mitrilkarikákból szőtt ezüstös láncing.,13200,Legendás,A007,7,3,2,-1,-2,0,0,0,0
-LA008,Hajnalpajzs mellvért,16-20,igen,nem,igen,nem,Fehér mitril mellvért napkorong alakú mellrésszel.,15500,Legendás,A008,7,6,3,1,-2,0,0,0,0
-LA009,Istenek bástyája,22-30,nem,nem,igen,nem,Legendák szerint égi kovácsok készítették az első hősnek.,24000,Legendás,A009,10,9,3,1,-2,0,0,0,0
-LA010,Főnixvért,12-18,igen,nem,igen,igen,Parázsló pikkelypáncél amely melegséggel öleli körül viselőjét.,11500,Legendás,A004,7,7,2,0,-1,0,0,0,0
-LA011,Leviatán páncélja,18-24,nem,nem,igen,nem,Mélységi szörny csontlemezeiből készült teljes vértezet.,17200,Legendás,A006,8,14,3,1,-2,0,0,0,0
-LA012,Erdőszív vértje,8-12,igen,igen,igen,igen,Élő indákkal átszőtt bőrvért amely együtt lélegzik viselőjével.,7600,Legendás,A002,6,2,1,-1,0,0,0,0,0
-LA013,Mennydörgés mellvértje,15-20,igen,nem,igen,nem,Viharfelhők színében játszó mellvért villámrúnákkal.,13800,Legendás,A005,7,9,3,1,-2,0,0,0,0
-LA014,Szent ereklyevért,18-23,nem,nem,igen,nem,Szentek neveivel vésett mitril mellvért tiszta aurával.,16800,Legendás,A008,9,6,3,1,-2,0,0,0,0
-LA015,Árnyékkámzsa,7-11,igen,igen,igen,igen,Sötét csuklya amely alatt a viselő arca köddé válik.,5900,Legendás,A001,6,1,0,0,0,0,0,0,0
-LA016,Titán láncinge,14-19,igen,nem,igen,nem,Hatalmas szemű mégis könnyű láncing egy letűnt óriásbirodalomból.,12800,Legendás,A003,6,8,2,-1,-2,0,0,0,0
-LA017,Démonőr vértezete,20-27,nem,nem,igen,nem,Obszidián teljes vért izzó vörös illesztésekkel.,19500,Legendás,A006,9,13,3,1,-2,0,0,0,0
-LA018,Ezüstsárkány lánca,15-21,igen,igen,igen,igen,Fagyos fényű mitril láncing ezüstsárkány-rúnákkal.,14900,Legendás,A007,8,,2,-1,-2,0,0,0,0
-LA019,Időjáró köpenye,10-15,igen,igen,igen,igen,Kámzsa amelynek szálai között lassabban peregnek a porszemek.,9800,Legendás,A001,9,,0,0,0,0,0,0,0
-LA020,Világpajzs vértezete,25-34,nem,nem,igen,nem,A világ mélyének érceiből kovácsolt áthatolhatatlan mitril vért.,28000,Legendás,A009,12,,3,1,-2,0,0,0,0
+LA001,Csillagköpeny,5-8,igen,igen,igen,igen,Éjszakai égboltot idéző kámzsa apró mozgó csillagokkal.,4800,Legendás,A001,5,1,0,0,0,0,0,2,4
+LA002,Árnyékjáró vértje,6-9,igen,igen,nem,igen,Füstként simuló bőrvért amely elnyeli a léptek zaját.,6200,Legendás,A002,5,2,1,-1,0,0,0,3,1
+LA003,Sárkánypikkely,10-15,igen,nem,igen,nem,Ősi vörös sárkány pikkelyeiből illesztett forró páncél.,9000,Legendás,A004,6,8,2,0,-1,6,0,0,0
+LA004,Naplovag vértje,13-17,nem,nem,igen,nem,Ragyogó mellvért amely hajnalban arany fénnyel telik meg.,10800,Legendás,A005,6,9,3,1,-2,3,0,4,0
+LA005,Éjfekete láncing,9-13,igen,igen,igen,nem,Fényt nem tükröző láncing az árnyak bajnokainak.,8400,Legendás,A003,5,5,2,-1,-2,0,0,5,0
+LA006,Hegykirály vértezete,16-22,nem,nem,igen,nem,Törp királyok gránitrúnás teljes vértezete.,14500,Legendás,A006,7,12,3,1,-2,2,4,0,0
+LA007,Holdszövött láncing,14-18,igen,igen,igen,igen,Súlytalan mitrilkarikákból szőtt ezüstös láncing.,13200,Legendás,A007,7,3,2,-1,-2,0,0,2,4
+LA008,Hajnalpajzs mellvért,16-20,igen,nem,igen,nem,Fehér mitril mellvért napkorong alakú mellrésszel.,15500,Legendás,A008,7,6,3,1,-2,2,0,5,0
+LA009,Istenek bástyája,22-30,nem,nem,igen,nem,Legendák szerint égi kovácsok készítették az első hősnek.,24000,Legendás,A009,10,9,3,1,-2,3,3,4,6
+LA010,Főnixvért,12-18,igen,nem,igen,igen,Parázsló pikkelypáncél amely melegséggel öleli körül viselőjét.,11500,Legendás,A004,7,7,2,0,-1,8,0,3,0
+LA011,Leviatán páncélja,18-24,nem,nem,igen,nem,Mélységi szörny csontlemezeiből készült teljes vértezet.,17200,Legendás,A006,8,14,3,1,-2,0,7,0,0
+LA012,Erdőszív vértje,8-12,igen,igen,igen,igen,Élő indákkal átszőtt bőrvért amely együtt lélegzik viselőjével.,7600,Legendás,A002,6,2,1,-1,0,0,5,2,0
+LA013,Mennydörgés mellvértje,15-20,igen,nem,igen,nem,Viharfelhők színében játszó mellvért villámrúnákkal.,13800,Legendás,A005,7,9,3,1,-2,2,0,0,3
+LA014,Szent ereklyevért,18-23,nem,nem,igen,nem,Szentek neveivel vésett mitril mellvért tiszta aurával.,16800,Legendás,A008,9,6,3,1,-2,0,0,8,3
+LA015,Árnyékkámzsa,7-11,igen,igen,igen,igen,Sötét csuklya amely alatt a viselő arca köddé válik.,5900,Legendás,A001,6,1,0,0,0,0,0,5,2
+LA016,Titán láncinge,14-19,igen,nem,igen,nem,Hatalmas szemű mégis könnyű láncing egy letűnt óriásbirodalomból.,12800,Legendás,A003,6,8,2,-1,-2,2,4,0,0
+LA017,Démonőr vértezete,20-27,nem,nem,igen,nem,Obszidián teljes vért izzó vörös illesztésekkel.,19500,Legendás,A006,9,13,3,1,-2,7,0,2,0
+LA018,Ezüstsárkány lánca,15-21,igen,igen,igen,igen,Fagyos fényű mitril láncing ezüstsárkány-rúnákkal.,14900,Legendás,A007,8,,2,-1,-2,3,3,0,2
+LA019,Időjáró köpenye,10-15,igen,igen,igen,igen,Kámzsa amelynek szálai között lassabban peregnek a porszemek.,9800,Legendás,A001,9,,0,0,0,0,0,0,7
+LA020,Világpajzs vértezete,25-34,nem,nem,igen,nem,A világ mélyének érceiből kovácsolt áthatolhatatlan mitril vért.,28000,Legendás,A009,12,,3,1,-2,4,4,4,9
 
 #Tárgybővítések
 Id,NévUtótag,HarciBónusz,ÁrSzorzó,MágikusErő
@@ -458,7 +459,7 @@ E018,Beholder,B,17,1000,8,4,2800,4,MA006,MA005,7,,,igen,WN011,nem,0,0,0,0,0,0,0
 E019,Vámpír,V,15,750,7,8,3000,4,MA001,MA003,7,2,1,nem,WN019|WN002,nem,0,0,0,0,0,0,0
 E020,Vérfarkas,L,16,850,6,9,3200,4,MA004,MA006,7,,,igen,WN012|WN007,nem,0,0,0,0,0,0,0
 E021,Vörös sárkány,D,18,1500,9,7,5000,5,MA007,MA005,7,,,igen,WN004|WN005|WN006,nem,0,0,0,0,0,0,0
-E022,Lich,l,17,1200,8,5,4000,5,MA001,MA007,7,,,nem,W018,nem,0,0,0,0,0,0,0
+E022,Lich,l,17,1200,8,5,4000,5,MA001,MA007,7,,,nem,W021,nem,0,0,0,0,0,0,0
 E023,Démonlovag,Ŧ,18,1800,9,6,5000,5,MA010,MA004,6,,,nem,W009|W013,igen,0,0,0,0,0,0,0
 E024,Balor démon,Ψ,19,2500,10,8,7500,5,MA010,MA005,7,,,nem,W009|W020,nem,0,0,0,0,0,0,0
 E025,Fekete sárkány,Ð,20,2000,10,8,10000,5,MA007,MA002,7,,,igen,WN004|WN005|WN015,nem,0,0,0,0,0,0,0

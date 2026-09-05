@@ -4212,6 +4212,15 @@ static void WeaponCsvPropertiesAreInherited()
     }
     Assert(usedWeapons.SetEquals(dragonWeaponIds),
         "A nem választó sárkány nem használta véletlenszerűen mindhárom támadását.");
+    var lich = data.GetEnemy("E022");
+    var lichEnemy = new ConfiguredEnemy(new(1, 1), lich);
+    var lichStaff = data.GetWeapon("W021");
+    Assert((lich.WeaponIds ?? []).SequenceEqual(["W021"]) &&
+           dragonSystem.SelectEnemyAttackWeapon(lichEnemy)?.Id == lichStaff.Id &&
+           lichStaff is { DamageType: DamageType.Necrotic, CanAttackFromRear: true, IsMonsterOnly: true } &&
+           !lichStaff.CanBeEquippedBy(CharacterClassIds.Mágus, 13) &&
+           SpellcastingRules.IsRestrictedFromTradingAndGeneration(lichStaff),
+        "A lich varázsbotja nem szörnykizárólagos nekrotikus távolsági fegyverként működik.");
     var breath = data.GetWeapon("WN006");
     var chaosBreath = data.GetWeapon("WN017");
     var targetSystem = CreateBattleSystem(21);
@@ -4244,4 +4253,14 @@ static void WeaponCsvPropertiesAreInherited()
         !data.GetWeapon("W019").CanBeEquippedBy(CharacterClassIds.Harcos, 13) &&
         WeaponFamilies.Find(WeaponFamilies.Staff) is not null,
         "A természetes vagy nulla árú szörnyfegyver felszerelhető/árulható, vagy hiányzik a botcsalád.");
+    var legendaryArmors = data.Armors.Where(armor => armor.Rarity == ItemRarity.Legendary).ToArray();
+    int StrongDistinctBaseTypes(Func<DamageResistance, int> resistance) => legendaryArmors
+        .Where(armor => armor.Resistances is { } values && resistance(values) >= 4)
+        .Select(armor => armor.BaseArmorId).Where(id => id is not null)
+        .Distinct(StringComparer.OrdinalIgnoreCase).Count();
+    Assert(StrongDistinctBaseTypes(values => values.Fire) >= 2 &&
+           StrongDistinctBaseTypes(values => values.Acid) >= 2 &&
+           StrongDistinctBaseTypes(values => values.Necrotic) >= 2 &&
+           StrongDistinctBaseTypes(values => values.Chaos) >= 2,
+        "Nincs mind a négy új sebzéstípushoz két erős, eltérő alaptípusú legendás páncél.");
 }
