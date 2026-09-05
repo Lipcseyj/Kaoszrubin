@@ -368,7 +368,6 @@ LW017,Ezüsthold,WT002,12-22,7,igen,igen,nem,igen,Holdfényben kovácsolt katana
 LW018,Mélységszúró,WT002,10-18,4,nem,igen,nem,igen,Tengermélyi kristályból csiszolt tőr nyugtalanító kék ragyogással.,7100,Legendás,W001,5,1,szúrás,1,nem,DAGGER
 LW019,Főnixlándzsa,WT001,14-25,7,igen,nem,igen,nem,Újjászülető lánggal égő lándzsa amelynek hegye sosem hűl ki.,10200,Legendás,W011,6,4,szúrás,1,igen,POLEARM
 LW020,Koronatörő,WT001,16-30,11,igen,nem,nem,nem,Királyok bukását megélt pallos aranyrepedésekkel a pengéjén.,13500,Legendás,W009,7,8,vágás,2,nem,SWORD
-
 WN001,fogak,WT001,2-6,1,nem,nem,nem,nem,Természetes harapás.,0,,,,1,szúrás,1,nem,NATURAL
 WN002,karmok,WT001,4-10,1,nem,nem,nem,nem,Természetes karmolás.,0,,,,1,vágás,1,nem,NATURAL
 WN003,ököl,WT001,5-12,1,nem,nem,nem,nem,Nehéz természetes ütés.,0,,,,1,zúzás,1,nem,NATURAL
