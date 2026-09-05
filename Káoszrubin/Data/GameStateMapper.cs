@@ -51,7 +51,7 @@ internal sealed class GameStateMapper
                 enemy.AbilityCooldowns.ToDictionary(item => item.Key, item => item.Value,
                     StringComparer.OrdinalIgnoreCase),
                 enemy.WeaponCooldowns.ToDictionary(item => item.Key, item => item.Value,
-                    StringComparer.OrdinalIgnoreCase))).ToList(),
+                    StringComparer.OrdinalIgnoreCase), enemy.PreparedWeaponId)).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -137,7 +137,8 @@ internal sealed class GameStateMapper
                 savedEnemy.ReturnDelayMovesRemaining);
             enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
             enemy.ConfigureGuaranteedLoot(savedEnemy.GuaranteedLootIds ?? []);
-            enemy.RestoreCombatCooldowns(savedEnemy.AbilityCooldowns ?? [], savedEnemy.WeaponCooldowns ?? []);
+            enemy.RestoreCombatCooldowns(savedEnemy.AbilityCooldowns ?? [], savedEnemy.WeaponCooldowns ?? [],
+                savedEnemy.PreparedWeaponId);
             foreach (var effect in savedEnemy.ActiveSpellEffects ?? []) enemy.RestoreSpellEffect(effect);
             maze.AddEnemy(enemy);
             var remaining = savedEnemy.NextMoveRemainingMilliseconds >= 0

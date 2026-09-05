@@ -5802,7 +5802,9 @@ public sealed class Game : ISessionCommandHandler
             .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character))).ToArray();
         var closestDistance = livingTargets.Length == 0 ? int.MaxValue :
             TacticalDistance.Between(enemy.Position, GetCasterPosition(livingTargets[0]));
-        var activeAbility = _battleSystem.SelectEnemyActiveAbility(enemy, closestDistance);
+        var activeAbility = enemy.PreparedWeaponId is null
+            ? _battleSystem.SelectEnemyActiveAbility(enemy, closestDistance)
+            : null;
         if (activeAbility is not null)
         {
             var abilityTargets = livingTargets.Where(character =>
@@ -5817,7 +5819,8 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
 
-        var attackWeapon = _battleSystem.SelectEnemyAttackWeapon(enemy);
+        var attackWeapon = _battleSystem.SelectEnemyAttackWeapon(enemy, weapon =>
+            TacticalTeamBattleCoordinator.EnemyAttackTargets(battle, enemy, weapon, GetCasterPosition).Count);
         var targets = TacticalTeamBattleCoordinator.EnemyAttackTargets(battle, enemy, attackWeapon,
             GetCasterPosition);
         if (targets.Count == 0)
@@ -5826,6 +5829,12 @@ public sealed class Game : ISessionCommandHandler
                 .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))
                 .First();
             MoveTeamEnemyToward(battle, enemy, GetCasterPosition(target));
+            return;
+        }
+        if (BattleSystem.IsTelegraphedWeapon(attackWeapon) && !enemy.IsWeaponPrepared(attackWeapon!.Id))
+        {
+            PresentBattleEntries([_battleSystem.PrepareEnemyWeapon(enemy, attackWeapon)]);
+            AdvanceTeamBattleTurn(battle);
             return;
         }
 
@@ -6098,7 +6107,10 @@ public sealed class Game : ISessionCommandHandler
             .Where(position => CanTeamBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)))
             .ToArray();
         var path = FindTeamBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id));
-        var steps = path.Take(battle.Current.MovementAllowance).ToArray();
+        var traversed = path.Take(battle.Current.MovementAllowance).ToArray();
+        var landingIndex = Array.FindLastIndex(traversed, position =>
+            CanTeamBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)));
+        var steps = landingIndex < 0 ? Array.Empty<Position>() : traversed.Take(landingIndex + 1).ToArray();
         var previousPosition = enemy.Position;
         if (steps.Length > 0)
         {
@@ -6345,7 +6357,8 @@ public sealed class Game : ISessionCommandHandler
             foreach (var direction in Directions)
             {
                 var next = current + direction;
-                if (previous.ContainsKey(next) || !CanTeamBattleEnter(battle, next, actorId)) continue;
+                if (previous.ContainsKey(next) ||
+                    !CanTeamBattleEnter(battle, next, actorId) && !CanFlyingEnemyTraverse(battle, next, actorId)) continue;
                 previous[next] = current;
                 if (goalSet.Contains(next)) { found = next; break; }
                 queue.Enqueue(next);
@@ -6370,6 +6383,16 @@ public sealed class Game : ISessionCommandHandler
         return occupant is null or GroundItemPile or Corpse || occupant == actorEnemy ||
                occupant is PartyMemberAvatar member && member.Character == actorCharacter ||
                Maze.IsPassableNeutralNpc(occupant);
+    }
+
+    private bool CanFlyingEnemyTraverse(TeamBattleEncounter battle, Position position, CombatantId actorId)
+    {
+        var enemy = battle.EnemyFor(actorId);
+        if (enemy is null || !enemy.Definition.HasTrait(EnemyTraits.Flying) || !_maze.IsWalkable(position))
+            return false;
+        return battle.Turns.Participants.Any(participant => participant.Id != actorId &&
+            participant.State is TacticalParticipantState.Active or TacticalParticipantState.Approaching &&
+            participant.Position == position);
     }
 
     private void SynchronizeTeamBattleDefeats(TeamBattleEncounter battle, LiveCharacter? killer = null)

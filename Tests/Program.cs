@@ -3254,7 +3254,10 @@ static void MonsterTraitsAndAbilitiesAreDataDriven()
            troll.AbilityIds.Contains("MA008") &&
            dragon.HasTrait(EnemyTraits.Flying) &&
            data.GetEnemy("E004").HasTrait(EnemyTraits.Undead) &&
-           !data.GetEnemy("E004").AbilityIds.Contains(MonsterAbilityIds.Undead),
+           !data.GetEnemy("E004").AbilityIds.Contains(MonsterAbilityIds.Undead) &&
+           data.GetEnemy("E018").AbilityIds.Contains("MA012") &&
+           data.GetEnemy("E022").AbilityIds.Contains("MA013") &&
+           data.GetMonsterAbility("MA013").MaximumTargets == 2,
         "A jellemzők és a paraméterezett képességek szétválasztása hibás.");
 }
 
@@ -3270,8 +3273,14 @@ static void MonsterRegenerationAndBreathCooldownWork()
 
     var dragon = new ConfiguredEnemy(new Position(1, 1), data.GetEnemy("E021"));
     var breath = data.GetWeapon("WN006");
+    var preparation = battle.PrepareEnemyWeapon(dragon, breath);
+    Assert(dragon.IsWeaponPrepared(breath.Id) &&
+           battle.SelectEnemyAttackWeapon(dragon)?.Id == breath.Id &&
+           preparation.Message.Contains("következő saját körében"),
+        "A lehelet előkészítése vagy előrejelzése hibás.");
     battle.MarkEnemyWeaponUsed(dragon, breath);
-    Assert(!dragon.IsWeaponReady(breath.Id), "A lehelet használata nem indította el a lehűlést.");
+    Assert(!dragon.IsWeaponPrepared(breath.Id) && !dragon.IsWeaponReady(breath.Id),
+        "A lehelet elsütése nem törölte az előkészítést vagy nem indította el a lehűlést.");
     battle.BeginEnemyTurn(dragon);
     battle.BeginEnemyTurn(dragon);
     Assert(!dragon.IsWeaponReady(breath.Id), "A lehelet túl korán vált újra használhatóvá.");

@@ -719,7 +719,11 @@ A `MonsterAbilityDefinition` az alapadatokon túl aktiválási pontot (`Passive`
 - `Regeneration`: minden saját kör elején a megadott HP-t visszatölti;
 - `ApplyStatus`: találatkor vagy aktív képességként a CSV-ben hivatkozott állapotot alkalmazza.
 
-Az Élőholt és Démoni jellemzőt a szent sebzés, a gonosz elleni védelem és az élőholtűzés használja. A régi `MA001`, `MA009` és `MA010` azonosítók mentés- és küldetés-kompatibilitási álnevek maradtak. A Repülő jellemző +1 taktikai mozgást ad. A Medúza Dermesztő tekintete három mezőről Kődermedtséget okozhat, majd három saját körig hűl. A többcélpontos, nem fizikai leheletfegyverek használat után szintén három saját körig hűlnek; a szörny AI közben másik rendelkezésre álló fegyvert választ. A képesség- és fegyverlehűlések szörnypéldányhoz kötöttek, a 16-os játékmentés részei.
+Az Élőholt és Démoni jellemzőt a szent sebzés, a gonosz elleni védelem és az élőholtűzés használja. A régi `MA001`, `MA009` és `MA010` azonosítók mentés- és küldetés-kompatibilitási álnevek maradtak. A Repülő jellemző +1 taktikai mozgást ad; az útkeresés más aktív harcolók mezőjén is átvezetheti a repülőt, de csak szabad mezőn szállhat le.
+
+A Medúza Dermesztő tekintete, valamint a baziliszkuszok és beholderek Bénító sugara Kődermedtséget okozhat. A Lich, Drakolich, Balor és Vén beholder több célpontot érintő Rémületkeltést használhat. Mindegyik aktív képesség a CSV-ben beállított hatótávval, eséllyel, célpontszámmal, AI-súllyal és lehűléssel működik. A betöltő ellenőrzi a hivatkozott állapotokat, fegyvereket és az aktív képességek pozitív lehűlését.
+
+A többcélpontos, nem fizikai leheletfegyvereket a szörny egy teljes akcióval előkészíti, és ezt a harci napló előre jelzi. A következő saját körben elsüti a leheletet, majd három körös lehűlés kezdődik. Több elérhető célpontnál az AI előnyben részesíti a leheletet, egy célpontnál többnyire a normál fegyverei közül választ. Az alkalmi támadások nem használhatnak leheletet. A képesség- és fegyverlehűlések, valamint az előkészített fegyver szörnypéldányhoz kötöttek, a 17-es játékmentés részei.
 
 ### Szörnyzsákmány és keresés
 

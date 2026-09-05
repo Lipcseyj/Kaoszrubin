@@ -44,6 +44,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     private readonly Dictionary<string, int> _weaponCooldowns = new(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyDictionary<string, int> AbilityCooldowns => _abilityCooldowns;
     public IReadOnlyDictionary<string, int> WeaponCooldowns => _weaponCooldowns;
+    public string? PreparedWeaponId { get; private set; }
     public IReadOnlyList<string> CarriedWeaponIds
     {
         get
@@ -69,13 +70,18 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public bool IsWeaponReady(string weaponId) => _weaponCooldowns.GetValueOrDefault(weaponId) <= 0;
     public void StartAbilityCooldown(string abilityId, int turns) => SetCooldown(_abilityCooldowns, abilityId, turns);
     public void StartWeaponCooldown(string weaponId, int turns) => SetCooldown(_weaponCooldowns, weaponId, turns);
+    public bool IsWeaponPrepared(string weaponId) =>
+        string.Equals(PreparedWeaponId, weaponId, StringComparison.OrdinalIgnoreCase);
+    public void PrepareWeapon(string weaponId) => PreparedWeaponId = weaponId;
+    public void ClearPreparedWeapon() => PreparedWeaponId = null;
     public void RestoreCombatCooldowns(IEnumerable<KeyValuePair<string, int>> abilityCooldowns,
-        IEnumerable<KeyValuePair<string, int>> weaponCooldowns)
+        IEnumerable<KeyValuePair<string, int>> weaponCooldowns, string? preparedWeaponId = null)
     {
         _abilityCooldowns.Clear();
         _weaponCooldowns.Clear();
         foreach (var item in abilityCooldowns.Where(item => item.Value > 0)) _abilityCooldowns[item.Key] = item.Value;
         foreach (var item in weaponCooldowns.Where(item => item.Value > 0)) _weaponCooldowns[item.Key] = item.Value;
+        PreparedWeaponId = string.IsNullOrWhiteSpace(preparedWeaponId) ? null : preparedWeaponId;
     }
 
     public void AdvanceCombatCooldowns()

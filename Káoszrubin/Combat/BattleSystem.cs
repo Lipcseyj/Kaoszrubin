@@ -207,10 +207,47 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public WeaponDefinition? SelectEnemyAttackWeapon(Enemy attacker)
     {
         ArgumentNullException.ThrowIfNull(attacker);
+        if (attacker.PreparedWeaponId is { } preparedId)
+        {
+            var prepared = (attacker.Definition.Weapons ?? []).FirstOrDefault(weapon =>
+                string.Equals(weapon.Id, preparedId, StringComparison.OrdinalIgnoreCase));
+            if (prepared is not null) return prepared;
+            attacker.ClearPreparedWeapon();
+        }
         if (attacker.Definition.Weapon is { } selectedWeapon)
             return attacker.IsWeaponReady(selectedWeapon.Id) ? selectedWeapon : null;
         var ready = (attacker.Definition.Weapons ?? []).Where(weapon => attacker.IsWeaponReady(weapon.Id)).ToArray();
         return ready.Length > 0 ? ready[_random.Next(ready.Length)] : null;
+    }
+
+    public WeaponDefinition? SelectEnemyAttackWeapon(Enemy attacker, Func<WeaponDefinition, int> targetCount)
+    {
+        ArgumentNullException.ThrowIfNull(targetCount);
+        if (attacker.PreparedWeaponId is not null) return SelectEnemyAttackWeapon(attacker);
+        if (attacker.Definition.Weapon is not null) return SelectEnemyAttackWeapon(attacker);
+        var ready = (attacker.Definition.Weapons ?? []).Where(weapon => attacker.IsWeaponReady(weapon.Id)).ToArray();
+        if (ready.Length == 0) return null;
+        var breaths = ready.Where(IsTelegraphedWeapon).Select(weapon => (Weapon: weapon, Targets: targetCount(weapon)))
+            .Where(candidate => candidate.Targets > 0).ToArray();
+        var groupBreath = breaths.Where(candidate => candidate.Targets >= 2)
+            .OrderByDescending(candidate => candidate.Targets)
+            .ThenByDescending(candidate => candidate.Weapon.Damage?.Maximum ?? 0).FirstOrDefault();
+        if (groupBreath.Weapon is not null) return groupBreath.Weapon;
+        if (breaths.Length > 0 && _random.Next(100) < 35)
+            return breaths[_random.Next(breaths.Length)].Weapon;
+        var ordinary = ready.Where(weapon => !IsTelegraphedWeapon(weapon) && targetCount(weapon) > 0).ToArray();
+        return ordinary.Length > 0 ? ordinary[_random.Next(ordinary.Length)] :
+            breaths.Length > 0 ? breaths[_random.Next(breaths.Length)].Weapon : ready[_random.Next(ready.Length)];
+    }
+
+    public static bool IsTelegraphedWeapon(WeaponDefinition? weapon) =>
+        weapon is { MaximumTargets: > 1 } && !weapon.DamageType.IsPhysical();
+
+    public BattleLogEntry PrepareEnemyWeapon(Enemy enemy, WeaponDefinition weapon)
+    {
+        enemy.PrepareWeapon(weapon.Id);
+        return new BattleLogEntry($"⚠️ {enemy.Name} előkészíti: {weapon.Name}. A következő saját körében elsüti!",
+            BattleLogKind.Information);
     }
 
     public EnemyTurnStartResult BeginEnemyTurn(Enemy enemy)
@@ -265,8 +302,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     public void MarkEnemyWeaponUsed(Enemy enemy, WeaponDefinition? weapon)
     {
-        if (weapon is { MaximumTargets: > 1 } && !weapon.DamageType.IsPhysical())
-            enemy.StartWeaponCooldown(weapon.Id, 3);
+        if (IsTelegraphedWeapon(weapon))
+        {
+            enemy.StartWeaponCooldown(weapon!.Id, 3);
+            enemy.ClearPreparedWeapon();
+        }
     }
 
     public BattleLogEntry ResolveTeamEnemyAction(Enemy attacker, LiveCharacter defender,
@@ -410,7 +450,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 message = $"{enemy.Name} varázshatás miatt kihagyja az akcióját.{effectText}";
                 kind = BattleLogKind.Information;
             }
-            else if (SelectEnemyActiveAbility(enemy, 1) is { } activeAbility)
+            else if (enemy.PreparedWeaponId is null && SelectEnemyActiveAbility(enemy, 1) is { } activeAbility)
             {
                 var activeEntry = ResolveTeamEnemyAbility(enemy, player, activeAbility);
                 message = activeEntry.Message + effectText;
@@ -420,14 +460,23 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             else
             {
                 var weapon = SelectEnemyAttackWeapon(enemy);
-                var attack = EnemyAttack(defender, player, context, enemy.EffectiveSpeed, weapon,
-                    allowWeaponFallback: false);
-                MarkEnemyWeaponUsed(enemy, weapon);
-                var survival = attack.Hit ? ApplyEnemyDamage(player, attack.Damage, context) : DamageApplicationResult.Empty;
-                message = $"{FormatAttackSummary(enemy.Name, player.Name, [attack],
-                    player.CurrentVitality, player.MaximumVitality)} {survival.ShortLog}{effectText}";
-                kind = attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack;
-                actionDetails = DescribeAction(enemy.Name, player.Name, [attack], survival.Details + effectText);
+                if (IsTelegraphedWeapon(weapon) && !enemy.IsWeaponPrepared(weapon!.Id))
+                {
+                    var preparation = PrepareEnemyWeapon(enemy, weapon);
+                    message = preparation.Message + effectText;
+                    kind = preparation.Kind;
+                }
+                else
+                {
+                    var attack = EnemyAttack(defender, player, context, enemy.EffectiveSpeed, weapon,
+                        allowWeaponFallback: false);
+                    MarkEnemyWeaponUsed(enemy, weapon);
+                    var survival = attack.Hit ? ApplyEnemyDamage(player, attack.Damage, context) : DamageApplicationResult.Empty;
+                    message = $"{FormatAttackSummary(enemy.Name, player.Name, [attack],
+                        player.CurrentVitality, player.MaximumVitality)} {survival.ShortLog}{effectText}";
+                    kind = attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack;
+                    actionDetails = DescribeAction(enemy.Name, player.Name, [attack], survival.Details + effectText);
+                }
             }
         }
         state.Defender = defender;

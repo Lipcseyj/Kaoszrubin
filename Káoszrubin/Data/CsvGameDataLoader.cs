@@ -157,6 +157,7 @@ public static class CsvGameDataLoader
                 WeaponFamilies.Find(family) is null)
                 throw new InvalidDataException($"Ismeretlen fegyvercsalád: {weapon.Id} / {family}");
         ValidateStatuses(statuses);
+        ValidateMonsterAbilities(monsterAbilities, statuses, weapons);
         ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
         ValidateMonsterLoot(enemies, monsterLoot);
         ValidateTrapConfigurations(traps);
@@ -1057,6 +1058,26 @@ public static class CsvGameDataLoader
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' élőholt szörny nem lehet alvásképes.");
             foreach (var abilityId in enemy.AbilityIds.Where(abilityId => !abilityIds.Contains(abilityId)))
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny ismeretlen képességre hivatkozik: '{abilityId}'.");
+        }
+    }
+
+    private static void ValidateMonsterAbilities(IEnumerable<MonsterAbilityDefinition> abilities,
+        IReadOnlyCollection<StatusDefinition> statuses, IReadOnlyCollection<WeaponDefinition> weapons)
+    {
+        var statusIds = statuses.Select(status => status.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var weaponIds = weapons.Select(weapon => weapon.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var ability in abilities)
+        {
+            if (ability.Effect == MonsterAbilityEffect.ApplyStatus &&
+                (ability.StatusId is null || !statusIds.Contains(ability.StatusId)))
+                throw new InvalidDataException($"A(z) '{ability.Id}' szörnyképesség ismeretlen állapotra hivatkozik: " +
+                                               $"'{ability.StatusId ?? "(üres)"}'.");
+            var unknownWeapon = (ability.WeaponIds ?? []).FirstOrDefault(id => !weaponIds.Contains(id));
+            if (unknownWeapon is not null)
+                throw new InvalidDataException($"A(z) '{ability.Id}' szörnyképesség ismeretlen fegyverre hivatkozik: " +
+                                               $"'{unknownWeapon}'.");
+            if (ability.Trigger == MonsterAbilityTrigger.Active && ability.Cooldown <= 0)
+                throw new InvalidDataException($"A(z) '{ability.Id}' aktív szörnyképességhez pozitív lehűlés szükséges.");
         }
     }
 
