@@ -1740,7 +1740,7 @@ public sealed class Game : ISessionCommandHandler
         var newlyRevealed = RevealFor(SelectedCharacter, _player.Position, advanceEnemyMemory: true);
         var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit;
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
-        CheckBossDiscoveryAt(newlyRevealed);
+        CheckBossDiscoveryAt(newlyRevealed, SelectedCharacter);
         PlayCharacterStepSound(SelectedCharacter);
         CollectTreasureChest(SelectedCharacter, _player.Position, shareLootWithParty: true);
         TriggerTrapAt(SelectedCharacter, _player.Position);
@@ -1767,7 +1767,7 @@ public sealed class Game : ISessionCommandHandler
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
         PlayCharacterStepSound(member.Character);
-        CheckBossDiscoveryAt(newlyRevealed);
+        CheckBossDiscoveryAt(newlyRevealed, member.Character);
         CollectTreasureChest(member.Character, member.Position, shareLootWithParty: false);
         TriggerTrapAt(member.Character, member.Position);
     }
@@ -2859,7 +2859,7 @@ public sealed class Game : ISessionCommandHandler
             CollectTreasureChest(entry.Avatar.Character, entry.Destination, shareLootWithParty: false);
             TriggerTrapAt(entry.Avatar.Character, entry.Destination);
         }
-        CheckBossDiscoveryAt(revealed);
+        CheckBossDiscoveryAt(revealed, SelectedCharacter);
     }
 
     private void ScheduleFormationMove()
@@ -4174,7 +4174,7 @@ public sealed class Game : ISessionCommandHandler
             member.Character.RegisterExplorationStep();
             var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
             _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
-            CheckBossDiscoveryAt(newlyRevealed);
+            CheckBossDiscoveryAt(newlyRevealed, member.Character);
             TriggerTrapAt(member.Character, member.Position);
             if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member) && _battleStarted) return;
         }
@@ -4226,7 +4226,7 @@ public sealed class Game : ISessionCommandHandler
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed,
             _player.Position);
-        CheckBossDiscoveryAt(newlyRevealed);
+        CheckBossDiscoveryAt(newlyRevealed, member.Character);
         TriggerTrapAt(member.Character, member.Position);
     }
 
@@ -4312,7 +4312,7 @@ public sealed class Game : ISessionCommandHandler
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed,
             _player.Position);
-        CheckBossDiscoveryAt(newlyRevealed);
+        CheckBossDiscoveryAt(newlyRevealed, member.Character);
         TriggerTrapAt(member.Character, member.Position);
     }
 
@@ -4333,7 +4333,7 @@ public sealed class Game : ISessionCommandHandler
         member.Character.RegisterExplorationStep();
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
-        CheckBossDiscoveryAt(newlyRevealed);
+        CheckBossDiscoveryAt(newlyRevealed, member.Character);
         TriggerTrapAt(member.Character, member.Position);
     }
 
@@ -4905,7 +4905,7 @@ public sealed class Game : ISessionCommandHandler
         ? QuestLocationConfigurations.Get(_locationId).VisionModifier
         : MazeLevelConfigurations.Get(_mazeLevel).VisionModifier;
 
-    private void CheckBossDiscoveryAt(IEnumerable<Position> positions)
+    private void CheckBossDiscoveryAt(IEnumerable<Position> positions, LiveCharacter discoverer)
     {
         var revealed = positions.ToHashSet();
         if (revealed.Count > 0)
@@ -4915,7 +4915,7 @@ public sealed class Game : ISessionCommandHandler
             if (newlySpottedChests.Length > 0)
                 TryLogPartyComments(PartySituationIds.TreasureChestFound);
         }
-        CheckBossDiscovery(_maze.Enemies);
+        CheckBossDiscovery(_maze.Enemies, discoverer);
     }
 
     private void CarryPersistentTemporaryFollowers()
@@ -4945,7 +4945,7 @@ public sealed class Game : ISessionCommandHandler
         _temporaryFollowersEnteringNextMaze.Clear();
     }
 
-    private void CheckBossDiscovery(IEnumerable<Enemy> enemies)
+    private void CheckBossDiscovery(IEnumerable<Enemy> enemies, LiveCharacter? discoverer = null)
     {
         var visibleEnemies = enemies.Where(enemy => _fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position))
             .DistinctBy(enemy => enemy.Id).ToList();
@@ -4953,6 +4953,7 @@ public sealed class Game : ISessionCommandHandler
         if (newlySpotted.Count > 0)
         {
             PlaySessionSound(SoundEffect.MonsterSpotted);
+            TryReportEnemyAlertness(discoverer, newlySpotted);
             TryLogPartyComments(PartySituationIds.EnemySpotted);
         }
         var discovered = visibleEnemies.Where(enemy =>
@@ -5003,6 +5004,27 @@ public sealed class Game : ISessionCommandHandler
         _nextPartyMoves[avatar] = DateTime.UtcNow;
     }
 
+    private void TryReportEnemyAlertness(LiveCharacter? discoverer, IReadOnlyCollection<Enemy> newlySpotted)
+    {
+        if (discoverer is null) return;
+        var chance = Math.Clamp(50 + CharacterClassRules.DetectionBonus(discoverer) * 10, 0, 100);
+        if (_random.Next(1, 101) > chance) return;
+
+        var observations = newlySpotted
+            .GroupBy(enemy => (enemy.Name, enemy.Alertness))
+            .Select(group => $"{(group.Count() > 1 ? $"{group.Count()}× " : string.Empty)}{group.Key.Name} — " +
+                             EnemyAlertnessName(group.Key.Alertness));
+        _sessionEventService.LogPartyComment(discoverer,
+            $"Felderítés: {string.Join("; ", observations)}.");
+    }
+
+    private static string EnemyAlertnessName(EnemyAlertness alertness) => alertness switch
+    {
+        EnemyAlertness.Sleeping => "alszik",
+        EnemyAlertness.Drowsy => "álmos",
+        _ => "éber"
+    };
+
     #region Combat
 
     private void AwardBossKey(Enemy enemy)
@@ -5029,7 +5051,7 @@ public sealed class Game : ISessionCommandHandler
     private void StartTeamBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy, bool enemyStrikesFirst)
     {
         if (_battleStarted || !initiatingCharacter.IsAlive || initiatingEnemy.CurrentHitPoints <= 0) return;
-        CheckBossDiscovery([initiatingEnemy]);
+        CheckBossDiscovery([initiatingEnemy], initiatingCharacter);
         _timeStopUsedThisBattle = false;
         _turnUndeadUsedThisBattle.Clear();
         _battleNoPathReported.Clear();
