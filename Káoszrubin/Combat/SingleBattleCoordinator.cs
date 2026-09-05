@@ -88,19 +88,31 @@ public sealed class SingleBattleCoordinator
     public IReadOnlyList<BattleTacticOptionSnapshot>? GetBattleTacticOptions(BattleState state)
     {
         if (!state.IsAwaitingTacticSelection) return null;
-        if (state.Player.CharacterClass.Id != CharacterClassIds.Harcos) return null;
-        return
-        [
-            new(BattleActionKind.FighterPrecise, "🎯 Pontos",
-                $"sebzés ×{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? "0,85" : "0,75")}",
-                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPrecise)),
-            new(BattleActionKind.FighterPowerful, "💥 Erőteljes",
-                $"sebzés ×1,25, {(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) ? "negyed" : "fél")} páncél",
-                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPowerful)),
-            new(BattleActionKind.FighterDefensive, "🛡️ Védekező",
-                $"sebzés ×0,75, védelem +{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)}",
-                _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterDefensive))
-        ];
+        return state.Player.CharacterClass.Id switch
+        {
+            CharacterClassIds.Harcos =>
+            [
+                new(BattleActionKind.FighterPrecise, "🎯 Pontos",
+                    $"sebzés ×{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? "0,85" : "0,75")}",
+                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPrecise)),
+                new(BattleActionKind.FighterPowerful, "💥 Erőteljes",
+                    $"sebzés ×1,25, {(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) ? "negyed" : "fél")} páncél",
+                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPowerful)),
+                new(BattleActionKind.FighterDefensive, "🛡️ Védekező",
+                    $"sebzés ×0,75, védelem +{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)}",
+                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterDefensive))
+            ],
+            CharacterClassIds.Tolvaj =>
+            [
+                new(BattleActionKind.ThiefAmbush, "🗡️ Orvtámadás", "első találat ×2 sebzés",
+                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.ThiefAmbush)),
+                new(BattleActionKind.ThiefObserve, "👁️ Megfigyelés", "+2 találat",
+                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.ThiefObserve)),
+                new(BattleActionKind.ThiefPoison, "☠️ Mérgezett penge", "+1–4 sebzés találatonként",
+                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.ThiefPoison))
+            ],
+            _ => null
+        };
     }
 
     public static BattleActionKind TacticActionFor(string characterClassId, int option) =>

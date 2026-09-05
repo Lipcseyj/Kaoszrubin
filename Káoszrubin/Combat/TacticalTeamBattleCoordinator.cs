@@ -163,17 +163,29 @@ public sealed class TacticalTeamBattleCoordinator
     public IReadOnlyList<BattleTacticOptionSnapshot>? GetTeamBattleTacticOptions(TeamBattleEncounter battle,
         LiveCharacter character, Enemy enemy)
     {
-        if (!battle.RuntimeFor(character).RequiresTacticSelection ||
-            character.CharacterClass.Id != CharacterClassIds.Harcos) return null;
-        return
-        [
-            new(BattleActionKind.FighterPrecise, "🎯 Pontos", "nagyobb találati esély, kisebb sebzés",
-                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPrecise)),
-            new(BattleActionKind.FighterPowerful, "💥 Erőteljes", "páncéltörés és nagyobb sebzés",
-                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPowerful)),
-            new(BattleActionKind.FighterDefensive, "🛡️ Védekező", "nagyobb védelem, kisebb sebzés",
-                _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterDefensive))
-        ];
+        if (!battle.RuntimeFor(character).RequiresTacticSelection) return null;
+        return character.CharacterClass.Id switch
+        {
+            CharacterClassIds.Harcos =>
+            [
+                new(BattleActionKind.FighterPrecise, "🎯 Pontos", "nagyobb találati esély, kisebb sebzés",
+                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPrecise)),
+                new(BattleActionKind.FighterPowerful, "💥 Erőteljes", "páncéltörés és nagyobb sebzés",
+                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPowerful)),
+                new(BattleActionKind.FighterDefensive, "🛡️ Védekező", "nagyobb védelem, kisebb sebzés",
+                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterDefensive))
+            ],
+            CharacterClassIds.Tolvaj =>
+            [
+                new(BattleActionKind.ThiefAmbush, "🗡️ Orvtámadás", "az első sikeres támadás dupla sebzés",
+                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.ThiefAmbush)),
+                new(BattleActionKind.ThiefObserve, "👁️ Megfigyelés", "+2 találat",
+                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.ThiefObserve)),
+                new(BattleActionKind.ThiefPoison, "☠️ Mérgezett penge", "+1–4 sebzés találatonként",
+                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.ThiefPoison))
+            ],
+            _ => null
+        };
     }
 
     public static double VitalityRatio(LiveCharacter character) =>

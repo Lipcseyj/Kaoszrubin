@@ -3044,7 +3044,16 @@ static void BossAndBattlePromptsAreShared()
     {
         new BattleTacticOptionSnapshot(BattleActionKind.FighterPrecise, "🎯 Pontos", "sebzés ×0,75", 65)
     };
+    var thiefTactics = new[]
+    {
+        new BattleTacticOptionSnapshot(BattleActionKind.ThiefAmbush, "🗡️ Orvtámadás", "első találat ×2", 60),
+        new BattleTacticOptionSnapshot(BattleActionKind.ThiefObserve, "👁️ Megfigyelés", "+2 találat", 70),
+        new BattleTacticOptionSnapshot(BattleActionKind.ThiefPoison, "☠️ Mérgezett penge", "+1–4 sebzés", 60)
+    };
     Assert(BattlePromptText.Tactic(CharacterClassIds.Harcos, tactics).Contains("65%", StringComparison.Ordinal) &&
+           BattlePromptText.Tactic(CharacterClassIds.Tolvaj, thiefTactics).Contains("Megfigyelés 70%", StringComparison.Ordinal) &&
+           BattleCommandPanel.Format(thiefTactics.Select(option => option.Action), thiefTactics)
+               .Contains("3: ☠️ Mérgezett penge", StringComparison.Ordinal) &&
            BattlePromptText.EnemyTurn == "Space — ellenfél köre" &&
            BattlePromptText.PlayerAction(true, true).Contains("halottűzés", StringComparison.Ordinal),
         "A közös harci prompt elvesztette a taktikai esélyt vagy valamelyik vezérlést.");

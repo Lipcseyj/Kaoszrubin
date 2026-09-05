@@ -11,8 +11,10 @@ public static class BattlePromptText
     public static string Tactic(string characterClassId,
         IReadOnlyList<BattleTacticOptionSnapshot>? options)
     {
-        if (characterClassId == CharacterClassIds.Harcos && options is { Count: > 0 })
-            return "Válassz harci állást: " + string.Join(" | ", options.Select((option, index) =>
+        if (options is { Count: > 0 })
+            return (characterClassId == CharacterClassIds.Harcos
+                    ? "Válassz harci állást: "
+                    : "Válassz megközelítést: ") + string.Join(" | ", options.Select((option, index) =>
                 $"{index + 1} — {option.Name} {option.HitChancePercent}% ({option.Effect})"));
         return "Válassz megközelítést: 1 — Orvtámadás | 2 — Megfigyelés | 3 — Mérgezett penge";
     }
