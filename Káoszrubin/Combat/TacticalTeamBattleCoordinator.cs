@@ -50,7 +50,7 @@ public sealed class TacticalTeamBattleCoordinator
         Position origin, Enemy primary)
     {
         var targets = new List<Enemy> { primary };
-        var maximum = Math.Clamp(character.AttackWeapon?.MaximumTargets ?? 1, 1, 3);
+        var maximum = Math.Clamp(character.AttackWeapon?.MaximumTargets ?? 1, 1, 4);
         if (maximum == 1 || !TacticalDistance.IsMeleeAdjacent(origin, primary.Position)) return targets;
         foreach (var enemy in battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 && enemy.Id != primary.Id)
                      .OrderBy(enemy => enemy.Position.Y).ThenBy(enemy => enemy.Position.X))
@@ -68,6 +68,45 @@ public sealed class TacticalTeamBattleCoordinator
         battle.Characters.Where(character => character.IsAlive &&
             TacticalDistance.IsMeleeAdjacent(getCasterPosition(character), enemy.Position) &&
             !battle.IsProtectedRearTarget(character, enemy.Position));
+
+    public static IReadOnlyList<LiveCharacter> EnemyAttackTargets(TeamBattleEncounter battle, Enemy enemy,
+        WeaponDefinition? weapon, Func<LiveCharacter, Position> getCharacterPosition)
+    {
+        var maximumRange = weapon?.CanAttackFromRear == true ? 2 : 1;
+        bool InRange(LiveCharacter character)
+        {
+            var position = getCharacterPosition(character);
+            return maximumRange == 1
+                ? TacticalDistance.IsMeleeAdjacent(enemy.Position, position)
+                : TacticalDistance.IsWithin(enemy.Position, position, maximumRange) && position != enemy.Position;
+        }
+
+        var directCandidates = TeamEnemyTargets(battle, enemy).Where(InRange)
+            .OrderBy(character => (double)character.CurrentVitality / Math.Max(1, character.MaximumVitality))
+            .ThenBy(character => TacticalDistance.Between(enemy.Position, getCharacterPosition(character)))
+            .ToArray();
+        if (directCandidates.Length == 0) return [];
+
+        var targets = new List<LiveCharacter> { directCandidates[0] };
+        var maximumTargets = Math.Clamp(weapon?.MaximumTargets ?? 1, 1, 4);
+        if (maximumTargets == 1) return targets;
+        var nearbyCandidates = battle.Characters.Where(character => character.IsAlive && character != targets[0])
+            .OrderBy(character => battle.IsProtectedRearTarget(character, enemy.Position))
+            .ThenBy(character => TacticalDistance.Between(getCharacterPosition(targets[0]),
+                getCharacterPosition(character)))
+            .ToArray();
+        foreach (var candidate in nearbyCandidates)
+        {
+            if (!targets.Any(target => AreNeighboringTargets(getCharacterPosition(target),
+                    getCharacterPosition(candidate)))) continue;
+            targets.Add(candidate);
+            if (targets.Count == maximumTargets) break;
+        }
+        return targets;
+    }
+
+    private static bool AreNeighboringTargets(Position first, Position second) =>
+        TacticalDistance.IsMeleeAdjacent(first, second) || TacticalDistance.Between(first, second) <= 1;
 
     public static IEnumerable<LiveCharacter> TeamEnemyTargets(TeamBattleEncounter battle, Enemy enemy)
     {

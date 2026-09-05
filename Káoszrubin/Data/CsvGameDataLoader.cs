@@ -144,7 +144,8 @@ public static class CsvGameDataLoader
         }
         ValidateEnemies(enemies, monsterAbilities);
         foreach (var weapon in weapons)
-            if (weapon.FamilyId is { } family && family != "NATURAL" && WeaponFamilies.Find(family) is null)
+            if (!weapon.IsMonsterOnly && weapon.FamilyId is { } family &&
+                WeaponFamilies.Find(family) is null)
                 throw new InvalidDataException($"Ismeretlen fegyvercsalád: {weapon.Id} / {family}");
         ValidateStatuses(statuses);
         ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
@@ -217,6 +218,9 @@ public static class CsvGameDataLoader
         "szúrás" => DamageType.Piercing,
         "zúzás" => DamageType.Bludgeoning,
         "tűz" => DamageType.Fire,
+        "sav" or "savas" => DamageType.Acid,
+        "nekrotikus" => DamageType.Necrotic,
+        "káosz" => DamageType.Chaos,
         _ => throw new InvalidDataException($"Ismeretlen sebzéstípus: '{value}'.")
     };
 
@@ -226,7 +230,7 @@ public static class CsvGameDataLoader
     private static int WeaponMaximumTargets(string[] cells)
     {
         var reach = Integer(cells, 16) ?? 1;
-        if (reach is < 1 or > 3) throw new InvalidDataException("A fegyver célpontszáma 1–3 lehet.");
+        if (reach is < 1 or > 4) throw new InvalidDataException("A fegyver célpontszáma 1–4 lehet.");
         return reach;
     }
 
@@ -278,7 +282,8 @@ public static class CsvGameDataLoader
                     MonsterIds.MiniBosses.Contains(id) ? EnemyRank.MiniBoss : EnemyRank.Normal,
                     IsYes(cells, 14), IdList(Cell(cells, 15)), IsYes(cells, 16),
                     new DamageResistance(Integer(cells, 17) ?? 0, Integer(cells, 18) ?? 0,
-                        Integer(cells, 19) ?? 0)));
+                        Integer(cells, 19) ?? 0, Integer(cells, 20) ?? 0, Integer(cells, 21) ?? 0,
+                        Integer(cells, 22) ?? 0, Integer(cells, 23) ?? 0)));
                 break;
             case DataSection.MonsterAbilities:
                 monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),
@@ -292,7 +297,7 @@ public static class CsvGameDataLoader
                     RequiredWeaponStrength(cells, 4, id), IsYes(cells, 5),
                     AllowedClasses(cells, (CharacterClassIds.Harcos, null), (CharacterClassIds.Barbár, null), (CharacterClassIds.Lovag, null),
                         (CharacterClassIds.Tolvaj, 6), (CharacterClassIds.Pap, 7), (CharacterClassIds.Mágus, 8)),
-                    Cell(cells, 9), Cell(cells, 18) == "NATURAL" ? 0 : RequiredPrice(cells, 10, id), ParseRarity(cells, 11),
+                    Cell(cells, 9), NonNegativeWeaponPrice(cells, 10, id), ParseRarity(cells, 11),
                     EmptyAsNull(Cell(cells, 12)), Integer(cells, 13) ?? 0,
                     PositiveWeight(cells, 14, id, "fegyver"), ParseDamageType(Cell(cells, 15)), WeaponMaximumTargets(cells), IsYes(cells, 17), EmptyAsNull(Cell(cells, 18))));
                 break;
@@ -301,7 +306,9 @@ public static class CsvGameDataLoader
                     AllowedClasses(cells, (CharacterClassIds.Harcos, null), (CharacterClassIds.Lovag, null), (CharacterClassIds.Barbár, 3),
                         (CharacterClassIds.Tolvaj, 4), (CharacterClassIds.Pap, 5), (CharacterClassIds.Mágus, 6)), Cell(cells, 7), RequiredPrice(cells, 8, id),
                     ParseRarity(cells, 9), EmptyAsNull(Cell(cells, 10)), Integer(cells, 11) ?? 0,
-                    PositiveWeight(cells, 12, id, "páncél"), new DamageResistance(Integer(cells, 13) ?? 0, Integer(cells, 14) ?? 0, Integer(cells, 15) ?? 0)));
+                    PositiveWeight(cells, 12, id, "páncél"), new DamageResistance(Integer(cells, 13) ?? 0,
+                        Integer(cells, 14) ?? 0, Integer(cells, 15) ?? 0, Integer(cells, 16) ?? 0,
+                        Integer(cells, 17) ?? 0, Integer(cells, 18) ?? 0, Integer(cells, 19) ?? 0)));
                 break;
             case DataSection.Abilities:
                 abilities.Add(new AbilityDefinition(id, name));
@@ -526,6 +533,12 @@ public static class CsvGameDataLoader
     private static int RequiredPrice(string[] cells, int index, string id) => Integer(cells, index) is > 0 and var price
         ? price
         : throw new InvalidOperationException($"A(z) '{id}' tárgy ára hiányzik vagy nem pozitív az adatok.csv fájlban.");
+
+    private static int NonNegativeWeaponPrice(string[] cells, int index, string id) =>
+        Integer(cells, index) is >= 0 and var price
+            ? price
+            : throw new InvalidOperationException(
+                $"A(z) '{id}' fegyver ára hiányzik vagy negatív az adatok.csv fájlban.");
 
     private static double PositiveWeight(string[] cells, int index, string id, string itemType)
     {
@@ -1070,7 +1083,8 @@ public static class CsvGameDataLoader
         IReadOnlyCollection<WeaponDefinition> weapons, IReadOnlyCollection<ItemUpgradeDefinition> upgrades)
     {
         var result = weapons.ToList();
-        foreach (var weapon in weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal && weapon.Id != "W005" && weapon.FamilyId != "NATURAL"))
+        foreach (var weapon in weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal &&
+                     weapon.Id != "W005" && !weapon.IsMonsterOnly))
         foreach (var upgrade in upgrades)
             result.Add(weapon with
             {

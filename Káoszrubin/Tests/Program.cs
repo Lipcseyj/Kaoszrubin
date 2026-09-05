@@ -695,7 +695,7 @@ static void WeaponProficienciesAreLimitedEffectiveAndPersisted()
     var sword = data.GetWeapon("W004");
     Assert(WeaponFamilies.ForWeapon(sword) == WeaponFamilies.Sword &&
            WeaponFamilies.ForWeapon(data.GetWeapon("LW004")) == WeaponFamilies.Sword &&
-           WeaponFamilies.All.Count == 6,
+           WeaponFamilies.All.Count == 7,
         "A normál vagy legendás fegyver családbesorolása hibás.");
     Assert(fighter.EquipWeapon(0, sword), "A tesztkarakter nem tudta felszerelni a hosszú kardot.");
     var system = CreateBattleSystem(2201);
@@ -3889,16 +3889,16 @@ static void EquipmentWeightAffectsMobility()
         new PrimaryAbilities(8, 7, 5, 5), 30, 0, 1, 0);
     var light = CharacterMobilityRules.Evaluate(character);
     var weapon = new WeaponDefinition("W-HEAVY", "Nehéz fegyver", "WT001", new ValueRange(2, 4),
-        1, false, allowed, "", 1, Weight: 8);
+        1, false, allowed, "", 1, Weight: 10);
     var shield = weapon with { Id = "W-SHIELD", Name = "Nehéz pajzs" };
     var armor = new ArmorDefinition("A-HEAVY", "Nehéz vért", new ValueRange(2, 4), allowed,
-        "", 1, Weight: 10);
+        "", 1, Weight: 14);
     Assert(character.EquipWeapon(0, weapon) && character.EquipWeapon(1, shield) && character.EquipArmor(armor),
         "A tesztfelszerelés nem volt felvehető.");
     var heavy = CharacterMobilityRules.Evaluate(character);
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
 
-    Assert(light.Encumbrance == EncumbranceLevel.Light && heavy.EquippedWeight == 26 &&
+    Assert(light.Encumbrance == EncumbranceLevel.Light && heavy.EquippedWeight == 34 &&
            heavy.Encumbrance == EncumbranceLevel.Heavy &&
            heavy.InitiativeBase < light.InitiativeBase &&
            heavy.CombatMovementAllowance < light.CombatMovementAllowance &&
@@ -3937,9 +3937,9 @@ static void MobilityPreviewIsVisible()
     var loadLine = panel.Single(line => line.Row == 17);
     Assert(loadLine.Text + loadLine.ColoredSuffix == "FEGYVEREK ⚔ ⚖ 9  ⚡ 8" &&
            panel.Single(line => line.Row == 21).InventorySlot?.Kind == InventorySlotKind.Armor &&
-           panel.Single(line => line.Row == 26).Text == $"HÁTIZSÁK 2/12 ⚖ {27.0:F1}/32" &&
+           panel.Single(line => line.Row == 26).Text == $"HÁTIZSÁK 2/12 ⚖ {27.0:F1}/40" &&
            snapshot.CharacterSheet!.CarriedWeight == 27 &&
-           snapshot.CharacterSheet.ExplorationMovementAllowance == 2 &&
+           snapshot.CharacterSheet.ExplorationMovementAllowance == 3 &&
            inspection.Text.Contains("súly: 12", StringComparison.Ordinal) &&
            inspection.Text.Contains("⚔ ⚖ 9 → 15", StringComparison.Ordinal) &&
            inspection.Text.Contains("Könnyű → Könnyű", StringComparison.Ordinal) &&
@@ -4115,7 +4115,7 @@ static void ReserveTwoHandedSwapStowsShield()
 static void PhysicalDamageUsesTypesAndWeapons()
 {
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
-    int PlayerDamage(DamageType type)
+    int PlayerDamage(DamageType type, DamageResistance? resistance = null)
     {
         var total = 0;
         for (var seed = 0; seed < 30; seed++)
@@ -4124,7 +4124,7 @@ static void PhysicalDamageUsesTypesAndWeapons()
             var character = CreateCharacter("Támadó", 1000);
             character.EquipWeapon(0, data.GetWeapon("W005") with { Damage = new(20, 20), DamageType = type });
             var enemy = new ConfiguredEnemy(new(1, 1), new("E-TYPE", "Cél", "e", 1, 1000, 8, 1, 1, 1, [],
-                Resistances: new(4, 0, -4)));
+                Resistances: resistance ?? new(4, 0, -4)));
             system.ResolveTeamCharacterAttack(character, system.PrepareTeamCharacter(character).Runtime, enemy);
             total += 1000 - enemy.CurrentHitPoints;
         }
@@ -4132,6 +4132,10 @@ static void PhysicalDamageUsesTypesAndWeapons()
     }
     Assert(PlayerDamage(DamageType.Bludgeoning) > PlayerDamage(DamageType.Piercing) &&
         PlayerDamage(DamageType.Piercing) > PlayerDamage(DamageType.Slashing), "A szörny típusvédelme nem számít.");
+    Assert(PlayerDamage(DamageType.Acid, new(Acid: -4)) > PlayerDamage(DamageType.Acid, new(Acid: 4)) &&
+           Enum.GetValues<DamageType>().Select(type => type.Name()).SequenceEqual(
+               ["vágás", "szúrás", "zúzás", "tűz", "sav", "nekrotikus", "káosz"]),
+        "Az elemi és természetfeletti sebzéstípusok vagy ellenállásaik hibásak.");
     int EnemyDamage(int weaponDamage, DamageResistance resistance)
     {
         var total = 0;
@@ -4164,7 +4168,7 @@ static void WeaponCsvPropertiesAreInherited()
     var selectedGoblinWeapon = firstGoblin.Definition.Weapon ??
                                throw new InvalidOperationException("A goblin nem választott fegyvert.");
     var sameGoblin = new ConfiguredEnemy(new(1, 1), goblin, new Random(99), selectedGoblinWeapon.Id);
-    Assert(goblin.Name == "Goblin" && goblin.ChoosesWeapon && goblin.WeaponIds!.Count == 4 &&
+    Assert(goblin.Name == "Goblin" && goblin.ChoosesWeapon && goblin.WeaponIds!.Count == 3 &&
            firstGoblin.Name == $"Goblin ({selectedGoblinWeapon.Name})" &&
            sameGoblin.Definition.Weapon?.Id == selectedGoblinWeapon.Id,
         "A goblin példány nem választott és nem őrzött meg megjelenített fegyvert.");
@@ -4174,6 +4178,19 @@ static void WeaponCsvPropertiesAreInherited()
     var restoredGoblin = new ConfiguredEnemy(savedGoblin.Position, goblin, new Random(99), savedGoblin.SelectedWeaponId);
     Assert(restoredGoblin.Name == firstGoblin.Name,
         "A példány fegyverválasztása nem élte túl a mentést.");
+    var zombie = data.GetEnemy("E006");
+    var zombieWeaponIds = zombie.WeaponIds ?? [];
+    var zombieEnemy = new ConfiguredEnemy(new(1, 1), zombie, new Random(4));
+    Assert(zombie.ChoosesWeapon && zombieWeaponIds.SequenceEqual(["WN003", "W005"]) &&
+           zombieEnemy.Definition.Weapon is { } zombieWeapon &&
+           zombieWeaponIds.Contains(zombieWeapon.Id) && zombieEnemy.Name.Contains($"({zombieWeapon.Name})"),
+        "A zombi nem választ egyszer az ököl és a bunkó közül.");
+    var minotaur = data.GetEnemy("E014");
+    var minotaurWeapons = minotaur.Weapons ?? [];
+    Assert(!minotaur.ChoosesWeapon && (minotaur.WeaponIds ?? []).SequenceEqual(["W017", "WN009"]) &&
+           minotaurWeapons.Any(weapon => weapon.IsMonsterOnly) &&
+           minotaurWeapons.Any(weapon => !weapon.IsMonsterOnly),
+        "A minotaurusz vegyes nagybalta–szarvöklelés listája hibás.");
     var dragon = data.GetEnemy("E021");
     var dragonWeaponIds = dragon.WeaponIds ?? [];
     var dragonWeapons = dragon.Weapons ?? [];
@@ -4195,6 +4212,22 @@ static void WeaponCsvPropertiesAreInherited()
     }
     Assert(usedWeapons.SetEquals(dragonWeaponIds),
         "A nem választó sárkány nem használta véletlenszerűen mindhárom támadását.");
+    var breath = data.GetWeapon("WN006");
+    var chaosBreath = data.GetWeapon("WN017");
+    var targetSystem = CreateBattleSystem(21);
+    var breathTargets = Enumerable.Range(0, 4).Select(index => CreateCharacter($"Leheletcél {index}", 100)).ToArray();
+    var targetPositions = new[] { new Position(3, 2), new Position(4, 3), new Position(3, 4), new Position(2, 3) };
+    var targetPreparations = breathTargets.Select(targetSystem.PrepareTeamCharacter).ToArray();
+    var breathEnemy = new ConfiguredEnemy(new(3, 3), data.GetEnemy("E050"));
+    var breathBattle = new TeamBattleEncounter(new(3, 3), breathTargets.Select((character, index) =>
+            new TeamCharacterParticipant(character, targetPositions[index], TacticalParticipantKind.PartyMember,
+                targetPreparations[index].Initiative, 3, 1, targetPreparations[index].Runtime)),
+        [new TeamEnemyParticipant(breathEnemy, 5, 2, 1)], breathTargets[0].Id, breathEnemy.Id);
+    Assert(TacticalTeamBattleCoordinator.EnemyAttackTargets(breathBattle, breathEnemy, breath,
+               character => targetPositions[Array.IndexOf(breathTargets, character)]).Count == 3 &&
+           TacticalTeamBattleCoordinator.EnemyAttackTargets(breathBattle, breathEnemy, chaosBreath,
+               character => targetPositions[Array.IndexOf(breathTargets, character)]).Count == 4,
+        "A leheletek CSV szerinti többcélú támadása nem érvényesül.");
     Assert(data.GetWeapon("W009-PLUS1").MaximumTargets == 2 &&
         data.GetWeapon("W011-PLUS1").CanAttackFromRear && data.GetArmor("A003-PLUS1").Resistances == data.GetArmor("A003").Resistances,
         "A mágikus változat elvesztette a tulajdonságokat.");
@@ -4205,5 +4238,10 @@ static void WeaponCsvPropertiesAreInherited()
     rear.EquipWeapon(0, data.GetWeapon("W001")); rear.EquipWeapon(2, data.GetWeapon("W011"));
     Assert(battle.RearFormationEnemiesInReach(rear).Count == 0, "A tartalék szálfegyver hátsó soros támadást adott.");
     Assert(SpellcastingRules.IsRestrictedFromTradingAndGeneration(data.GetWeapon("WN001")) &&
-        !data.GetWeapon("WN001").CanBeEquippedBy(CharacterClassIds.Harcos, 13), "A természetes fegyver felszerelhető vagy árulható.");
+        !data.GetWeapon("WN001").CanBeEquippedBy(CharacterClassIds.Harcos, 13) &&
+        SpellcastingRules.IsRestrictedFromTradingAndGeneration(data.GetWeapon("W019")) &&
+        SpellcastingRules.IsRestrictedFromTradingAndGeneration(data.GetWeapon("W020")) &&
+        !data.GetWeapon("W019").CanBeEquippedBy(CharacterClassIds.Harcos, 13) &&
+        WeaponFamilies.Find(WeaponFamilies.Staff) is not null,
+        "A természetes vagy nulla árú szörnyfegyver felszerelhető/árulható, vagy hiányzik a botcsalád.");
 }

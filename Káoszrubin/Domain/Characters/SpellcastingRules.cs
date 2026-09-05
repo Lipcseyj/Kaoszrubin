@@ -65,7 +65,7 @@ public static class SpellcastingRules
 
     public static bool IsRestrictedFromTradingAndGeneration(IItemDefinition item) =>
         IsSpellcastingFocus(item) || IsLegacyStartingFocus(item) || QuestItemIds.Contains(item.Id) ||
-        CharacterBoundItemRules.IsBound(item) || item is KaoszRubin.Domain.Combat.WeaponDefinition { FamilyId: "NATURAL" };
+        CharacterBoundItemRules.IsBound(item) || item is KaoszRubin.Domain.Combat.WeaponDefinition { IsMonsterOnly: true };
 
     public static bool HasRequiredFocus(LiveCharacter character) =>
         RequiredFocusItemId(character.CharacterClass.Id) is { } requiredId &&

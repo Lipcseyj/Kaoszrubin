@@ -17,6 +17,7 @@ public static class WeaponFamilies
     public const string Blunt = "BLUNT";
     public const string Polearm = "POLEARM";
     public const string Shield = "SHIELD";
+    public const string Staff = "STAFF";
 
     public static readonly IReadOnlyList<WeaponFamilyDefinition> All =
     [
@@ -25,7 +26,8 @@ public static class WeaponFamilies
         new(Axe, "Bárd", "🪓", "+2 fizikai sebzés.", "A természetes 20 háromszoros kritikus sebzés."),
         new(Blunt, "Zúzófegyver", "🔨", "Az ellenfél páncéljából 2 pontot figyelmen kívül hagy.", "Összesen 4 pont páncélt hagy figyelmen kívül."),
         new(Polearm, "Szálfegyver", "🔱", "+3 kezdeményezés.", "A csata első sikeres találata ×1,5 sebzés."),
-        new(Shield, "Pajzs", "🛡️", "Felszerelt pajzzsal +1 védelem.", "A pajzs védelmi dobását kétszer dobja, és a jobb eredmény számít.")
+        new(Shield, "Pajzs", "🛡️", "Felszerelt pajzzsal +1 védelem.", "A pajzs védelmi dobását kétszer dobja, és a jobb eredmény számít."),
+        new(Staff, "Harci bot", "🦯", "Felszerelt harci bottal +1 védelem.", "Felszerelt harci bottal összesen +2 védelem.")
     ];
 
     public static WeaponFamilyDefinition? Find(string id) => All.FirstOrDefault(family =>
@@ -43,13 +45,14 @@ public static class WeaponFamilies
             "W005" or "W006" or "W007" or "W008" or "W013" => Blunt,
             "W011" or "W012" => Polearm,
             "W014" or "W015" or "W016" => Shield,
+            "W018" => Staff,
             _ => null
         };
     }
 
     public static IReadOnlyList<WeaponFamilyDefinition> AvailableFor(string characterClassId,
         IEnumerable<WeaponDefinition> weapons) => weapons
-        .Where(weapon => weapon.FamilyId != "NATURAL" && weapon.AllowedClassIds.Contains(characterClassId))
+        .Where(weapon => !weapon.IsMonsterOnly && weapon.AllowedClassIds.Contains(characterClassId))
         .Select(ForWeapon).Where(id => id is not null).Distinct(StringComparer.OrdinalIgnoreCase)
         .Select(id => Find(id!)!).OrderBy(family => family.Name).ToArray();
 }

@@ -5774,9 +5774,10 @@ public sealed class Game : ISessionCommandHandler
 
     private void ExecuteTeamEnemyTurn(TeamBattleEncounter battle, Enemy enemy)
     {
-        var adjacent = AdjacentTeamCharacters(battle, enemy).OrderBy(character =>
-            (double)character.CurrentVitality / Math.Max(1, character.MaximumVitality)).FirstOrDefault();
-        if (adjacent is null)
+        var attackWeapon = _battleSystem.SelectEnemyAttackWeapon(enemy);
+        var targets = TacticalTeamBattleCoordinator.EnemyAttackTargets(battle, enemy, attackWeapon,
+            GetCasterPosition);
+        if (targets.Count == 0)
         {
             var target = TeamEnemyTargets(battle, enemy)
                 .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))
@@ -5784,13 +5785,23 @@ public sealed class Game : ISessionCommandHandler
             MoveTeamEnemyToward(battle, enemy, GetCasterPosition(target));
             return;
         }
-        battle.Engage(adjacent, enemy);
-        var entry = _battleSystem.ResolveTeamEnemyAction(enemy, adjacent, battle.RuntimeFor(adjacent));
-        if (entry.Kind is BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)
-            battle.RecordAttack(BattleSide.Hostile);
-        PresentBattleEntries([entry]);
+
+        var entries = new List<BattleLogEntry>();
+        for (var index = 0; index < targets.Count; index++)
+        {
+            var target = targets[index];
+            if (TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target)))
+                battle.Engage(target, enemy);
+            var entry = _battleSystem.ResolveTeamEnemyAction(enemy, target, battle.RuntimeFor(target),
+                attackWeapon, advanceAttackerEffects: index == 0);
+            entries.Add(entry);
+            if (entry.Kind is BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)
+                battle.RecordAttack(BattleSide.Hostile);
+            if (!target.IsAlive) ResolveTeamCharacterDefeat(battle, target);
+            if (enemy.CurrentHitPoints <= 0 || entry.Kind == BattleLogKind.Information) break;
+        }
+        PresentBattleEntries(entries);
         if (enemy.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, enemy, null);
-        if (!adjacent.IsAlive) ResolveTeamCharacterDefeat(battle, adjacent);
         AdvanceTeamBattleTurn(battle);
     }
 
@@ -6009,7 +6020,11 @@ public sealed class Game : ISessionCommandHandler
 
     private bool CanTeamEnemyActMeaningfully(TeamBattleEncounter battle, Enemy enemy)
     {
-        if (AdjacentTeamCharacters(battle, enemy).Any()) return true;
+        var possibleWeapons = enemy.Definition.Weapon is { } selected
+            ? new[] { selected }
+            : enemy.Definition.Weapons ?? [];
+        if (possibleWeapons.Any(weapon => TacticalTeamBattleCoordinator.EnemyAttackTargets(
+                battle, enemy, weapon, GetCasterPosition).Count > 0)) return true;
         if (battle.IsEngaged(enemy)) return false;
         var target = TeamEnemyTargets(battle, enemy)
             .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))

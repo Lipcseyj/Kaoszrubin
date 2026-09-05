@@ -203,23 +203,35 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             DescribeAction(attacker.Name, defender.Name, attacks, statusText));
     }
 
+    public WeaponDefinition? SelectEnemyAttackWeapon(Enemy attacker)
+    {
+        ArgumentNullException.ThrowIfNull(attacker);
+        return SelectEnemyAttackWeapon(attacker.Definition);
+    }
+
     public BattleLogEntry ResolveTeamEnemyAction(Enemy attacker, LiveCharacter defender,
-        TeamCharacterBattleRuntime defenderRuntime)
+        TeamCharacterBattleRuntime defenderRuntime, WeaponDefinition? attackWeapon = null,
+        bool advanceAttackerEffects = true)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
         ArgumentNullException.ThrowIfNull(defenderRuntime);
-        var spellTick = attacker.AdvanceSpellEffects(_random);
-        if (spellTick.Damage > 0) attacker.ReceiveSpellDamage(spellTick.Damage);
-        var effectText = spellTick.Notes.Count == 0 ? string.Empty : $" {string.Join(", ", spellTick.Notes)}.";
-        if (attacker.CurrentHitPoints <= 0)
-            return new BattleLogEntry($"{attacker.Name} elbukik a varázshatásoktól.{effectText}",
-                BattleLogKind.PlayerAttack);
-        if (spellTick.SkipAction)
-            return new BattleLogEntry($"{attacker.Name} varázshatás miatt kihagyja az akcióját.{effectText}",
-                BattleLogKind.Information);
+        var effectText = string.Empty;
+        if (advanceAttackerEffects)
+        {
+            var spellTick = attacker.AdvanceSpellEffects(_random);
+            if (spellTick.Damage > 0) attacker.ReceiveSpellDamage(spellTick.Damage);
+            effectText = spellTick.Notes.Count == 0 ? string.Empty : $" {string.Join(", ", spellTick.Notes)}.";
+            if (attacker.CurrentHitPoints <= 0)
+                return new BattleLogEntry($"{attacker.Name} elbukik a varázshatásoktól.{effectText}",
+                    BattleLogKind.PlayerAttack);
+            if (spellTick.SkipAction)
+                return new BattleLogEntry($"{attacker.Name} varázshatás miatt kihagyja az akcióját.{effectText}",
+                    BattleLogKind.Information);
+        }
 
-        var attack = EnemyAttack(attacker.Definition, defender, defenderRuntime.Context, attacker.EffectiveSpeed);
+        var attack = EnemyAttack(attacker.Definition, defender, defenderRuntime.Context, attacker.EffectiveSpeed,
+            attackWeapon);
         var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
         return new BattleLogEntry(
             $"{FormatAttackSummary(attacker.Name, defender.Name, [attack],
@@ -773,7 +785,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         .Select(bonus => bonus.Bonus)
         .FirstOrDefault();
 
-    private AttackResult EnemyAttack(EnemyDefinition attacker, LiveCharacter defender, BattleRuntimeContext context, int attackerSpeed)
+    private AttackResult EnemyAttack(EnemyDefinition attacker, LiveCharacter defender, BattleRuntimeContext context,
+        int attackerSpeed, WeaponDefinition? attackWeapon = null)
     {
         var calculation = new List<string>();
         var criticalChance = 0d;
@@ -802,9 +815,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         }
 
         var strength = attacker.Strength ?? 1;
-        var enemyWeapon = attacker.Weapon;
-        if (enemyWeapon is null && attacker.Weapons is { Count: > 0 } weapons)
-            enemyWeapon = weapons[_random.Next(weapons.Count)];
+        var enemyWeapon = attackWeapon ?? SelectEnemyAttackWeapon(attacker);
         var randomDamage = Roll(enemyWeapon?.Damage ?? new ValueRange(1, 2));
         var strengthBonus = AbilityDamageBonus(strength);
         var damageType = enemyWeapon?.DamageType ?? DamageType.Bludgeoning;
@@ -815,6 +826,15 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var shieldEquipped = defender.ActiveWeapons.Any(item => item?.WeaponTypeId == DefenseWeaponTypeId);
         var shield = defender.ActiveWeapons.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } shieldRange ? Roll(shieldRange) : 0;
         var shieldRank = defender.WeaponProficiencyRankFor(WeaponFamilies.Shield);
+        var staffEquipped = defender.ActiveWeapons.Any(item =>
+            WeaponFamilies.ForWeapon(item) == WeaponFamilies.Staff);
+        var staffRank = defender.WeaponProficiencyRankFor(WeaponFamilies.Staff);
+        var staffDefense = staffEquipped ? staffRank switch
+        {
+            WeaponProficiencyRank.Master => 2,
+            WeaponProficiencyRank.Trained => 1,
+            _ => 0
+        } : 0;
         if (shieldRank == WeaponProficiencyRank.Master && shieldEquipped &&
             defender.ActiveWeapons.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } masterShieldRange)
             shield = Math.Max(shield, Roll(masterShieldRange));
@@ -833,6 +853,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                           defender.GetMagicItemBonus(MagicItemEffect.Defense) +
                           defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus) + evilWardDefense +
                           (shieldEquipped && shieldRank is not null ? 1 : 0) +
+                          staffDefense +
                           (defender.ActiveWeapons.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
                            defender.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master ? 1 : 0) +
                           tacticDefense - rageDefensePenalty;
@@ -842,6 +863,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         Modifier("🛡️ Varázshatás", defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus));
         Modifier("🛡️ Gonosz elleni védelem", evilWardDefense);
         Modifier("🛡️ Pajzsjártasság", shieldEquipped && shieldRank is not null ? 1 : 0);
+        Modifier("🦯 Botjártasság", staffDefense);
         Modifier("🛡️ Kardmester", defender.ActiveWeapons.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
             defender.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master ? 1 : 0);
         Modifier("🛡️ Védekező taktika", tacticDefense);
@@ -856,15 +878,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var monsterBonusDamage = RollMonsterBonusDamage(attacker, calculation);
         var rawDamage = strengthBonus + randomDamage + monsterBonusDamage;
         var damage = Math.Max(0, ApplyDefense(rawDamage * criticalMultiplier, armor + shield + perkDefense) - reduction);
-        var physicalReduction = Math.Clamp(defender.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction) +
+        var physicalReduction = damageType.IsPhysical()
+            ? defender.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction)
+            : 0;
+        var percentageReduction = Math.Clamp(physicalReduction +
             defender.SpellEffectValue(ActiveSpellEffectType.Sanctuary) + evilWard.Sum(effect => effect.Value), 0, 100);
-        Modifier("🛡️ Fizikai csökkentés (%)", defender.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction));
+        Modifier("🛡️ Fizikai csökkentés (%)", physicalReduction);
         Modifier("🛡️ Szentély (%)", defender.SpellEffectValue(ActiveSpellEffectType.Sanctuary));
         Modifier("🛡️ Gonosz elleni csökkentés (%)", evilWard.Sum(effect => effect.Value));
-        calculation.Add($"🛡️ Összes fizikai csökkentés: {physicalReduction}% (0–100%)");
-        if (defender.HasPerk(PerkIds.BarbarianPainTolerance) && damage * (100 - physicalReduction) / 100 < 3)
+        calculation.Add($"🛡️ Összes sebzéscsökkentés: {percentageReduction}% (0–100%)");
+        if (defender.HasPerk(PerkIds.BarbarianPainTolerance) && damage * (100 - percentageReduction) / 100 < 3)
             calculation.Add("🛡️ Fájdalomtűrés: 3 alatti sebzés → 0");
-        if (physicalReduction > 0) damage = damage * (100 - physicalReduction) / 100;
+        if (percentageReduction > 0) damage = damage * (100 - percentageReduction) / 100;
         if (defender.HasPerk(PerkIds.BarbarianPainTolerance) && damage < 3) damage = 0;
         var absorbed = 0;
         if (damage > 0 && defender.HasPerk(PerkIds.MageMagicShield) && defender.CurrentMana > 0)
@@ -880,12 +905,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var statusText = ApplyMonsterStatusAbilities(attacker, defender);
         calculation.Add($"💥 Erőbónusz {strengthBonus} + fegyver {randomDamage} + szörnybónusz {monsterBonusDamage} = {rawDamage}");
         calculation.Add($"💥 ×{criticalMultiplier} − páncél {armor} − pajzs {shield} − bónuszvédelem {perkDefense}");
-        calculation.Add($"💥 Minimum 1, majd fix csökkentés −{reduction}, majd −{physicalReduction}%, lefelé kerekítve");
+        calculation.Add($"💥 Minimum 1, majd fix csökkentés −{reduction}, majd −{percentageReduction}%, lefelé kerekítve");
         if (absorbed > 0) calculation.Add($"🔷 Mannapajzs: −{absorbed} sebzés / manna");
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
         return Detailed(AttackResult.HitFor(damage,
             $"találat: {hit.Description} → 🎯; sebzés: (Erőbónusz {strengthBonus} + fegyver {randomDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damageText}.{statusText}",
             criticalMultiplier > 1));
+    }
+
+    private WeaponDefinition? SelectEnemyAttackWeapon(EnemyDefinition attacker)
+    {
+        if (attacker.Weapon is { } selectedWeapon) return selectedWeapon;
+        return attacker.Weapons is { Count: > 0 } weapons ? weapons[_random.Next(weapons.Count)] : null;
     }
 
     private int MonsterAbilityValue(EnemyDefinition enemy, MonsterAbilityEffect effect) => enemy.AbilityIds

@@ -9,6 +9,7 @@ public sealed record WeaponDefinition(string Id, string Name, string? WeaponType
     string? FamilyId = null) : IItemDefinition
 {
     public ItemCategory Category => ItemCategory.Weapon;
+    public bool IsMonsterOnly => BasePrice <= 0 || FamilyId == "NATURAL";
     public bool CanBeEquippedBy(string characterClassId, int strength) =>
-        FamilyId != "NATURAL" && AllowedClassIds.Contains(characterClassId) && strength >= MinimumStrength;
+        !IsMonsterOnly && AllowedClassIds.Contains(characterClassId) && strength >= MinimumStrength;
 }
