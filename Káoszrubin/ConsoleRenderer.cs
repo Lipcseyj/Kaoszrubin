@@ -920,7 +920,13 @@ public sealed class ConsoleRenderer
         };
         foreach (var paragraph in rumor.Lines)
         {
-            foreach (var line in WrapText(paragraph, InnRumorTextWidth)) lines.Add((line, ConsoleColor.Gray));
+            // A dinamikus pletykák egyetlen bejegyzésen belül is tartalmazhatnak sortörést.
+            // Ezeket külön keretsorként kell kirajzolni, különben a konzol maga lép új sorba,
+            // megkerülve a DrawCenteredFrame bal oldali keretét és behúzását.
+            foreach (var sourceLine in paragraph.Replace("\r\n", "\n", StringComparison.Ordinal)
+                         .Replace('\r', '\n').Split('\n'))
+                foreach (var line in WrapText(sourceLine, InnRumorTextWidth))
+                    lines.Add((line, ConsoleColor.Gray));
             lines.Add((string.Empty, ConsoleColor.Gray));
         }
         lines.Add((string.IsNullOrWhiteSpace(notice) ? string.Empty : ClipMarketText(notice, InnMarketTextWidth),

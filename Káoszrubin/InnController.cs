@@ -904,7 +904,7 @@ internal sealed class InnController
         {
             $"A(z) {selected.Level}. szint környékén látták. Jel a térképen: {enemy.Appearance}.",
             $"Erősség: {enemy.StrengthTier}/5; HP {enemy.HitPoints ?? 0}; Erő {enemy.Strength ?? 0}; " +
-            $"Sebezhetőség: {enemy.Resistances ?? new DamageResistance()}; " +
+            $"Ellenállás: {enemy.Resistances ?? new DamageResistance()}; " +
             $"Páncél {enemy.Armor ?? 0}; Gyorsaság {enemy.Speed ?? 0}; jutalom {enemy.ExperienceReward} XP."
         };
         if (abilities.Count == 0) lines.Add("Nincs ismert különleges képessége.");

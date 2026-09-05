@@ -14,6 +14,7 @@ using System.Text;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A többsoros fogadói pletyka minden sora a kereten belül marad", MultilineInnRumorStaysInsideFrame),
     ("A fejlesztői fegyvercsomag követi a kategóriákat és a hátizsák kapacitását", DevelopmentWeaponsRespectCapacity),
     ("A lovag harci fegyvercsere-parancsa átjut a session ellenőrzésén", KnightBattleWeaponSwapCommandIsAccepted),
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
@@ -3969,6 +3970,23 @@ static List<GameSessionEvent> CollectEvents(GameSession session)
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+static void MultilineInnRumorStaysInsideFrame()
+{
+    var rumor = new InnRumorSnapshot("🗺️ Nyom az előző pályáról",
+        ["Egy zilált vándor új mozgásról beszél a már elhagyott járatokban.\r\n" +
+         "Nem a teljes szörnyhorda tért vissza, de valami érdemes lehet még odalent."],
+        ConsoleColor.Yellow);
+    var method = typeof(ConsoleRenderer).GetMethod("BuildInnRumorLines",
+        System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+    var lines = (IReadOnlyList<(string Text, ConsoleColor Color)>)method.Invoke(null, [rumor, 2, 5, null])!;
+
+    Assert(lines.Any(line => line.Text.StartsWith("Egy zilált vándor", StringComparison.Ordinal)) &&
+           lines.Any(line => line.Text.StartsWith("Nem a teljes szörnyhorda", StringComparison.Ordinal)) &&
+           lines.All(line => !line.Text.Contains('\r') && !line.Text.Contains('\n') &&
+                             line.Text.Length <= 104),
+        "A beágyazott sortörés kijutott a keret rajzolásához átadott sorból.");
 }
 
 static void DevelopmentWeaponsRespectCapacity()
