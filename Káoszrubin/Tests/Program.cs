@@ -14,6 +14,8 @@ using System.Text;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A fejlesztői fegyvercsomag követi a kategóriákat és a hátizsák kapacitását", DevelopmentWeaponsRespectCapacity),
+    ("A lovag harci fegyvercsere-parancsa átjut a session ellenőrzésén", KnightBattleWeaponSwapCommandIsAccepted),
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
     ("A tartalékfegyver passzív és veszteség nélkül menthető, cserélhető", ReserveWeaponIsPassiveAndPersistent),
     ("A kétkezes tartalékfegyver atomian elteszi a pajzsot", ReserveTwoHandedSwapStowsShield),
@@ -3967,6 +3969,69 @@ static List<GameSessionEvent> CollectEvents(GameSession session)
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+static void DevelopmentWeaponsRespectCapacity()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var character = CreateCharacter("Tesztcsomag");
+    var granted = DevelopmentWeaponGrantService.Grant(character, data.Weapons, new Random(42));
+    Assert(granted.Count == 6 && granted.Select(weapon => weapon.Id).Distinct().Count() == 6 &&
+        granted.Count(weapon => weapon.Rarity == ItemRarity.Normal && !weapon.IsTwoHanded) == 2 &&
+        granted.Count(weapon => weapon.Rarity == ItemRarity.Normal && weapon.IsTwoHanded) == 2 &&
+        granted.Count(weapon => weapon.Rarity == ItemRarity.Magic) == 1 &&
+        granted.Count(weapon => weapon.Rarity == ItemRarity.Legendary) == 1 &&
+        granted.All(weapon => weapon.WeaponTypeId != "WT003" && !SpellcastingRules.IsRestrictedFromTradingAndGeneration(weapon)),
+        "A fejlesztői csomag összetétele hibás.");
+    Assert(character.Backpack.Count(item => item is WeaponDefinition) == 6 && character.WeaponSlots.All(item => item is null),
+        "A csomag nem a hátizsákba került.");
+    var limited = CreateCharacter("Kevéshely");
+    for (var index = 0; index < LiveCharacter.MaximumBackpackItemCount - 1; index++)
+        limited.SetInventoryItem(InventorySlotKind.Backpack, index, data.GetItem("T001"));
+    var partial = DevelopmentWeaponGrantService.Grant(limited, data.Weapons, new Random(42));
+    Assert(partial.Count == 1 && limited.Backpack.Take(11).All(item => item?.Id == "T001"),
+        "A részleges csomag felülírta a hátizsák tartalmát.");
+    var full = CreateCharacter("Telthátizsák");
+    for (var index = 0; index < LiveCharacter.MaximumBackpackItemCount; index++)
+        full.SetInventoryItem(InventorySlotKind.Backpack, index, data.GetItem("T001"));
+    var revision = full.InventoryRevision;
+    Assert(DevelopmentWeaponGrantService.Grant(full, data.Weapons, new Random(42)).Count == 0 && full.InventoryRevision == revision,
+        "A telt hátizsák módosult a sikertelen kiosztástól.");
+}
+
+static void KnightBattleWeaponSwapCommandIsAccepted()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var knight = new LiveCharacter("Tesztlovag", data.GetRace("R001"),
+        data.GetCharacterClass(CharacterClassIds.Lovag), new PrimaryAbilities(8, 5, 5, 5), 40, 0, 1, 0);
+    Assert(knight.EquipWeapon(0, data.GetWeapon("W004")) &&
+           knight.EquipWeapon(1, data.GetWeapon("W014")) &&
+           knight.EquipWeapon(2, data.GetWeapon("W010")), "A kard–pajzs–csatabárd felszerelés nem állítható be.");
+    var party = new Party(); party.SetLeader(knight);
+    var session = new GameSession(party, knight);
+    var system = CreateBattleSystem(42);
+    var preparation = system.PrepareTeamCharacter(knight);
+    var rat = new ConfiguredEnemy(new(3, 2), data.GetEnemy("E001"));
+    var battle = new TeamBattleEncounter(new(3, 3),
+        [new TeamCharacterParticipant(knight, new(3, 3), TacticalParticipantKind.PartyMember,
+            preparation.Initiative, 3, 1, preparation.Runtime)],
+        [new TeamEnemyParticipant(rat, 1, 1, 1)], knight.Id, rat.Id);
+    var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(42));
+    var allowed = coordinator.GetTeamAllowedBattleActions(battle, knight, rat, knight, new(3, 3), false, []);
+    Assert(allowed.Contains(BattleActionKind.SwapWeapon), "A panel nem kínálja fel a fegyvercserét.");
+    var battleId = BattleId.New();
+    session.SetBattlePrompt(battleId, 1, knight.Id, allowed);
+    var swap = new BattleActionCommand(session.HostPlayerId, 1, knight.Id, battleId, 1, BattleActionKind.SwapWeapon);
+    Assert(session.Submit(swap) && session.TryReadCommand(out var accepted) && accepted == swap,
+        "A panelen felkínált fegyvercsere-parancsot elutasította a session.");
+    Assert(knight.TrySwapReserveWeapon() && knight.WeaponSlots[0]?.Id == "W010" &&
+           knight.WeaponSlots[1]?.Id == "W014" && knight.WeaponSlots[2]?.Id == "W004",
+        "A kard és csatabárd cseréje nem őrizte meg a pajzsot.");
+    session.Submit(swap with { CommandId = 2, Target = new(9, 9) });
+    Assert(!session.TryReadCommand(out _), "A célpontot tartalmazó hibás fegyvercsere átjutott.");
+    session.SetBattlePrompt(battleId, 2, knight.Id, [BattleActionKind.Pass]);
+    session.Submit(swap with { CommandId = 3, TurnId = 2 });
+    Assert(!session.TryReadCommand(out _), "A fel nem kínált fegyvercsere átjutott.");
 }
 
 static void WeaponSweepRequiresMutualAdjacency()

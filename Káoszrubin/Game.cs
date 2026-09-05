@@ -5439,6 +5439,7 @@ public sealed class Game : ISessionCommandHandler
                     return;
                 }
                 var weaponSwapStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                _renderer.RefreshCharacterSheet(SelectedCharacter);
                 PresentBattleEntries([new BattleLogEntry($"{character.Name}: fegyvercsere → {character.AttackWeapon?.Name}.{weaponSwapStatus}", BattleLogKind.Information)]);
                 AdvanceTeamBattleTurn(battle);
                 break;
@@ -7038,8 +7039,11 @@ public sealed class Game : ISessionCommandHandler
             .Select(character => AwardExperience(character, 5000)).ToList();
         foreach (var award in awards.Where(award => award.Result.LeveledUp))
             ResolvePerkOffers(award.Character, award.Result);
+        var weaponGrants = CharacterRoster.Party.Members.Select(character =>
+            $"{character.Name}: {DevelopmentWeaponGrantService.Grant(character, _gameData.Weapons, _random).Count}/6 fegyver").ToList();
         _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawDeveloperMessage($"Fejlesztői mód: 5000 XP minden partitagnak. {FormatExperienceAwards(awards)}");
+        _renderer.DrawDeveloperMessage($"Fejlesztői mód: 5000 XP minden partitagnak. {FormatExperienceAwards(awards)} " +
+            string.Join("; ", weaponGrants));
     }
 
     private void TriggerDeveloperLevelUp()

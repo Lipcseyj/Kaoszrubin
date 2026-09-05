@@ -476,6 +476,7 @@ E057,Bunkós ork,o,7,120,4,5,400,2,MA005,,5,,,igen,W005,0,0,0,E007
 E058,Tőrös ork,o,7,120,4,5,400,2,MA005,,5,,,igen,W001,0,0,0,E007
 E059,Kardos ork,o,7,120,4,5,400,2,MA005,,5,,,igen,W004,0,0,0,E007
 E060,Buzogányos ork,o,7,120,4,5,400,2,MA005,,5,,,igen,W006,0,0,0,E007
+
 #Szörnyképességek
 Id,Név,Hatás,AktiválásiEsély,Érték,Leírás
 MA001,Élőholt,Trait,100,0,Élőholt lény amelyre később külön szent és nekrotikus szabályok vonatkozhatnak.
