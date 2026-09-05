@@ -40,6 +40,10 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public bool IsPerceptiblyActive { get; private set; }
     public IReadOnlyList<string> GuaranteedLootIds => _guaranteedLootIds;
     private readonly List<string> _guaranteedLootIds = [];
+    private readonly Dictionary<string, int> _abilityCooldowns = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _weaponCooldowns = new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, int> AbilityCooldowns => _abilityCooldowns;
+    public IReadOnlyDictionary<string, int> WeaponCooldowns => _weaponCooldowns;
     public IReadOnlyList<string> CarriedWeaponIds
     {
         get
@@ -54,6 +58,47 @@ public abstract class Enemy(Position position) : WorldObject(position)
     protected void InitializeHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
     public void SetCurrentHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
     public void ReceiveSpellDamage(int damage) => SetCurrentHitPoints(CurrentHitPoints - Math.Max(0, damage));
+    public int RestoreHitPoints(int amount)
+    {
+        var before = CurrentHitPoints;
+        CurrentHitPoints = Math.Min(Definition.HitPoints ?? CurrentHitPoints, CurrentHitPoints + Math.Max(0, amount));
+        return CurrentHitPoints - before;
+    }
+
+    public bool IsAbilityReady(string abilityId) => _abilityCooldowns.GetValueOrDefault(abilityId) <= 0;
+    public bool IsWeaponReady(string weaponId) => _weaponCooldowns.GetValueOrDefault(weaponId) <= 0;
+    public void StartAbilityCooldown(string abilityId, int turns) => SetCooldown(_abilityCooldowns, abilityId, turns);
+    public void StartWeaponCooldown(string weaponId, int turns) => SetCooldown(_weaponCooldowns, weaponId, turns);
+    public void RestoreCombatCooldowns(IEnumerable<KeyValuePair<string, int>> abilityCooldowns,
+        IEnumerable<KeyValuePair<string, int>> weaponCooldowns)
+    {
+        _abilityCooldowns.Clear();
+        _weaponCooldowns.Clear();
+        foreach (var item in abilityCooldowns.Where(item => item.Value > 0)) _abilityCooldowns[item.Key] = item.Value;
+        foreach (var item in weaponCooldowns.Where(item => item.Value > 0)) _weaponCooldowns[item.Key] = item.Value;
+    }
+
+    public void AdvanceCombatCooldowns()
+    {
+        AdvanceCooldowns(_abilityCooldowns);
+        AdvanceCooldowns(_weaponCooldowns);
+    }
+
+    private static void SetCooldown(IDictionary<string, int> cooldowns, string id, int turns)
+    {
+        if (turns > 0) cooldowns[id] = turns;
+        else cooldowns.Remove(id);
+    }
+
+    private static void AdvanceCooldowns(IDictionary<string, int> cooldowns)
+    {
+        foreach (var id in cooldowns.Keys.ToArray())
+        {
+            var remaining = cooldowns[id] - 1;
+            if (remaining <= 0) cooldowns.Remove(id);
+            else cooldowns[id] = remaining;
+        }
+    }
     public int EffectiveSpeed => Math.Max(0, (Definition.Speed ?? 1) -
         _activeSpellEffects.Where(effect => effect.Type is ActiveSpellEffectType.SpeedPenalty or ActiveSpellEffectType.Frost)
             .Sum(effect => effect.Value));

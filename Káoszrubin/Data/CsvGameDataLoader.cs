@@ -142,6 +142,15 @@ public static class CsvGameDataLoader
                 throw new InvalidDataException($"A(z) {enemy.Id} szörnynek legalább egy támadó fegyver kell.");
             enemies[index] = enemy with { Weapons = resolvedWeapons };
         }
+        var monsterAbilityById = monsterAbilities.ToDictionary(ability => ability.Id, StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < enemies.Count; index++)
+        {
+            var enemy = enemies[index];
+            var threat = enemy.AbilityIds.Where(monsterAbilityById.ContainsKey)
+                .Select(id => monsterAbilityById[id]).Sum(AbilityThreat);
+            if (enemy.HasTrait(EnemyTraits.Flying)) threat += 5;
+            enemies[index] = enemy with { AbilityThreat = threat };
+        }
         ValidateEnemies(enemies, monsterAbilities);
         foreach (var weapon in weapons)
             if (!weapon.IsMonsterOnly && weapon.FamilyId is { } family &&
@@ -275,7 +284,7 @@ public static class CsvGameDataLoader
             case DataSection.Enemies:
                 enemies.Add(new EnemyDefinition(id, name, Cell(cells, 2), Integer(cells, 3), Integer(cells, 4),
                     Integer(cells, 5), Integer(cells, 6), Integer(cells, 7) ?? 0, Integer(cells, 8) ?? 1,
-                    cells.Skip(9).Take(2).Where(abilityId => !string.IsNullOrWhiteSpace(abilityId)).ToList(),
+                    IdList(Cell(cells, 9)),
                     MonsterIds.Bosses.Contains(id), Integer(cells, 11) ?? 5,
                     Math.Clamp(Integer(cells, 12) ?? 0, 0, 3), Math.Clamp(Integer(cells, 13) ?? 2, 0, 4),
                     MonsterIds.Bosses.Contains(id) ? EnemyRank.Boss :
@@ -283,11 +292,15 @@ public static class CsvGameDataLoader
                     IsYes(cells, 14), IdList(Cell(cells, 15)), IsYes(cells, 16),
                     new DamageResistance(Integer(cells, 17) ?? 0, Integer(cells, 18) ?? 0,
                         Integer(cells, 19) ?? 0, Integer(cells, 20) ?? 0, Integer(cells, 21) ?? 0,
-                        Integer(cells, 22) ?? 0, Integer(cells, 23) ?? 0)));
+                        Integer(cells, 22) ?? 0, Integer(cells, 23) ?? 0), Traits: ParseEnemyTraits(Cell(cells, 10))));
                 break;
             case DataSection.MonsterAbilities:
                 monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),
-                    Math.Clamp(Integer(cells, 3) ?? 0, 0, 100), Integer(cells, 4) ?? 0, Cell(cells, 5)));
+                    Math.Clamp(Integer(cells, 3) ?? 0, 0, 100), Integer(cells, 4) ?? 0, Cell(cells, 5),
+                    ParseMonsterAbilityTrigger(cells, 6), Math.Max(0, Integer(cells, 7) ?? 0),
+                    Math.Clamp(Integer(cells, 8) ?? 1, 1, 8), Math.Clamp(Integer(cells, 9) ?? 1, 1, 4),
+                    EmptyAsNull(Cell(cells, 10)), Math.Clamp(Integer(cells, 11) ?? 100, 0, 100),
+                    IdList(Cell(cells, 12)), ParseOptionalDamageType(Cell(cells, 13))));
                 break;
             case DataSection.WeaponTypes:
                 weaponTypes.Add(new WeaponTypeDefinition(id, name));
@@ -712,7 +725,8 @@ public static class CsvGameDataLoader
             {
                 NpcQuestType.Kill => enemyIds.Contains(quest.TargetId),
                 NpcQuestType.KillWithFollower => monsterAbilities.Any(ability =>
-                    string.Equals(ability.Id, quest.TargetId, StringComparison.OrdinalIgnoreCase)),
+                        string.Equals(ability.Id, quest.TargetId, StringComparison.OrdinalIgnoreCase)) ||
+                    enemies.Any(enemy => enemy.MatchesAbilityOrLegacyTrait(quest.TargetId)),
                 NpcQuestType.Collect => itemIds.Contains(quest.TargetId),
                 NpcQuestType.Explore => string.Equals(quest.TargetId, "EXIT", StringComparison.OrdinalIgnoreCase),
                 NpcQuestType.Escort => string.Equals(quest.TargetId, "EXIT", StringComparison.OrdinalIgnoreCase),
@@ -994,6 +1008,41 @@ public static class CsvGameDataLoader
             ? effect
             : throw new InvalidOperationException($"Ismeretlen szörnyképesség-hatás: '{Cell(cells, index)}'.");
 
+    private static MonsterAbilityTrigger ParseMonsterAbilityTrigger(string[] cells, int index)
+    {
+        var value = Cell(cells, index);
+        if (string.IsNullOrWhiteSpace(value)) return MonsterAbilityTrigger.OnHit;
+        return Enum.TryParse<MonsterAbilityTrigger>(value, true, out var trigger)
+            ? trigger
+            : throw new InvalidOperationException($"Ismeretlen szörnyképesség-aktiválás: '{value}'.");
+    }
+
+    private static EnemyTraits ParseEnemyTraits(string value)
+    {
+        var result = EnemyTraits.None;
+        foreach (var name in IdList(value))
+        {
+            if (!Enum.TryParse<EnemyTraits>(name, true, out var trait) || trait == EnemyTraits.None)
+                throw new InvalidDataException($"Ismeretlen szörnyjellemző: '{name}'.");
+            result |= trait;
+        }
+        return result;
+    }
+
+    private static DamageType? ParseOptionalDamageType(string value) =>
+        string.IsNullOrWhiteSpace(value) ? null : ParseDamageType(value);
+
+    private static int AbilityThreat(MonsterAbilityDefinition ability) => (ability.Effect switch
+    {
+        MonsterAbilityEffect.ExtraDamage => Math.Max(1, ability.Value * ability.ChancePercent / 100),
+        MonsterAbilityEffect.ApplyStatus or MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease or
+            MonsterAbilityEffect.Bleeding => ability.Trigger == MonsterAbilityTrigger.Active ? 10 : 5,
+        MonsterAbilityEffect.Regeneration => Math.Max(2, ability.Value * 2),
+        MonsterAbilityEffect.ArmorBonus => ability.Value * 3,
+        MonsterAbilityEffect.InitiativeBonus => ability.Value * 2,
+        _ => 1
+    }) * Math.Max(1, ability.MaximumTargets);
+
     private static void ValidateEnemies(IEnumerable<EnemyDefinition> enemies,
         IReadOnlyCollection<MonsterAbilityDefinition> monsterAbilities)
     {
@@ -1004,10 +1053,7 @@ public static class CsvGameDataLoader
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny erősségi szintje csak 1 és 5 közötti lehet.");
             if (enemy.VisionRange is < 1 or > 8)
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny látótávja csak 1 és 8 közötti lehet.");
-            if (enemy.AbilityIds.Count > 2)
-                throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny legfeljebb két képességgel rendelkezhet.");
-            if (enemy.CanSleep && enemy.AbilityIds.Contains(MonsterAbilityIds.Undead,
-                    StringComparer.OrdinalIgnoreCase))
+            if (enemy.CanSleep && enemy.HasTrait(EnemyTraits.Undead))
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' élőholt szörny nem lehet alvásképes.");
             foreach (var abilityId in enemy.AbilityIds.Where(abilityId => !abilityIds.Contains(abilityId)))
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny ismeretlen képességre hivatkozik: '{abilityId}'.");

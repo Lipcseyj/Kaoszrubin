@@ -736,9 +736,8 @@ public sealed class SpellExecutionService
     public static bool IsHolyEffect(SpellEffectDefinition effect) =>
         string.Equals(effect.Parameter, "Holy50", StringComparison.OrdinalIgnoreCase);
 
-    public static bool IsUnholy(EnemyDefinition enemy) => enemy.AbilityIds.Any(abilityId =>
-        string.Equals(abilityId, MonsterAbilityIds.Undead, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(abilityId, MonsterAbilityIds.Demonic, StringComparison.OrdinalIgnoreCase));
+    public static bool IsUnholy(EnemyDefinition enemy) =>
+        enemy.HasTrait(EnemyTraits.Undead) || enemy.HasTrait(EnemyTraits.Demonic);
 
     private static string FormatHealingResult(LiveCharacter character, int amount, int before)
     {

@@ -630,10 +630,13 @@ public sealed class LiveCharacter
     public IReadOnlyList<StatusTickResult> ApplyTurnEndStatusEffects(Random random)
     {
         var results = new List<StatusTickResult>();
-        foreach (var status in _statuses.Where(status => status.PeriodicDamageMaximum > 0).ToList())
+        foreach (var status in _statuses.Where(status =>
+                     status.PeriodicDamageMaximum > 0 || _statusDurations.GetValueOrDefault(status.Id) is > 0).ToList())
         {
-            var damage = random.Next(status.PeriodicDamageMinimum, status.PeriodicDamageMaximum + 1);
-            ReceiveDamage(damage);
+            var damage = status.PeriodicDamageMaximum > 0
+                ? random.Next(status.PeriodicDamageMinimum, status.PeriodicDamageMaximum + 1)
+                : 0;
+            if (damage > 0) ReceiveDamage(damage);
             var remaining = _statusDurations.GetValueOrDefault(status.Id);
             var expired = remaining is > 0 && remaining.Value - 1 <= 0;
             if (remaining is > 0) _statusDurations[status.Id] = remaining.Value - 1;

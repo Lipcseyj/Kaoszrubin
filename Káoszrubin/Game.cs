@@ -2463,7 +2463,7 @@ public sealed class Game : ISessionCommandHandler
                 var quest = _gameData.NpcQuests.First(value =>
                     string.Equals(value.Id, progress.QuestId, StringComparison.OrdinalIgnoreCase));
                 if (quest.Type != NpcQuestType.KillWithFollower ||
-                    !enemy.AbilityIds.Contains(quest.TargetId, StringComparer.OrdinalIgnoreCase)) continue;
+                    !enemy.MatchesAbilityOrLegacyTrait(quest.TargetId)) continue;
                 npc.AddQuestProgress(quest.Id, 1, quest.RequiredCount);
                 SynchronizeQuestJournal(npc, quest);
                 var updated = npc.Quests.First(value =>
@@ -5101,12 +5101,12 @@ public sealed class Game : ISessionCommandHandler
                             (enemy == initiatingEnemy || CanEnemyReachBattleWithinCycles(enemy, friendlyPositions)))
             .DistinctBy(enemy => enemy.Id)
             .Select(enemy => new TeamEnemyParticipant(enemy, _battleSystem.RollTeamEnemyInitiative(enemy),
-                Math.Clamp((enemy.EffectiveSpeed + 1) / 2, 1, 6), enemy == initiatingEnemy ? 1 : 2))
+                EnemyMovementAllowance(enemy), enemy == initiatingEnemy ? 1 : 2))
             .ToList();
         if (enemyParticipants.All(value => value.Enemy != initiatingEnemy))
             enemyParticipants.Add(new TeamEnemyParticipant(initiatingEnemy,
                 _battleSystem.RollTeamEnemyInitiative(initiatingEnemy),
-                Math.Clamp((initiatingEnemy.EffectiveSpeed + 1) / 2, 1, 6), 1));
+                EnemyMovementAllowance(initiatingEnemy), 1));
 
         var participantEnemies = enemyParticipants.Select(value => value.Enemy).ToArray();
         var quickAssessment = QuickCombatRules.Assess(characterParticipants.Select(value => value.Character),
@@ -5295,7 +5295,7 @@ public sealed class Game : ISessionCommandHandler
         if (reinforcements.Length == 0) return false;
         foreach (var enemy in reinforcements)
             battle.TryAddEnemy(new TeamEnemyParticipant(enemy, _battleSystem.RollTeamEnemyInitiative(enemy),
-                Math.Clamp((enemy.EffectiveSpeed + 1) / 2, 1, 6), battle.Turns.Cycle + 1));
+                EnemyMovementAllowance(enemy), battle.Turns.Cycle + 1));
         var message = $"📯 Az ellenség erősítést hív: {reinforcements.Length} új harcos " +
                       $"a(z) {battle.Turns.Cycle + 1}. körben kapcsolódik be.";
         _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
@@ -5319,7 +5319,7 @@ public sealed class Game : ISessionCommandHandler
 
     private bool CanEnemyReachBattleWithinCycles(Enemy enemy, IReadOnlyCollection<Position> friendlyPositions)
     {
-        var movement = Math.Clamp((enemy.EffectiveSpeed + 1) / 2, 1, 6);
+        var movement = EnemyMovementAllowance(enemy);
         return TacticalArrivalRules.CanReachWithin(enemy.Position,
             movement * TacticalArrivalRules.MaximumArrivalCycles,
             position => CanPotentialBattleParticipantEnter(position),
@@ -5335,6 +5335,10 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private static bool IsQuestImportantEnemy(Enemy enemy) => TacticalTeamBattleCoordinator.IsQuestImportantEnemy(enemy);
+
+    private static int EnemyMovementAllowance(Enemy enemy) =>
+        Math.Clamp((enemy.EffectiveSpeed + 1) / 2 +
+                   (enemy.Definition.HasTrait(EnemyTraits.Flying) ? 1 : 0), 1, 7);
 
     private bool ShouldUseQuickCombat(QuickCombatAssessment assessment)
     {
@@ -5780,6 +5784,39 @@ public sealed class Game : ISessionCommandHandler
 
     private void ExecuteTeamEnemyTurn(TeamBattleEncounter battle, Enemy enemy)
     {
+        var turnStart = _battleSystem.BeginEnemyTurn(enemy);
+        if (turnStart.Entries.Count > 0) PresentBattleEntries(turnStart.Entries);
+        if (enemy.CurrentHitPoints <= 0)
+        {
+            ResolveTeamEnemyDefeat(battle, enemy, null);
+            AdvanceTeamBattleTurn(battle);
+            return;
+        }
+        if (!turnStart.CanAct)
+        {
+            AdvanceTeamBattleTurn(battle);
+            return;
+        }
+
+        var livingTargets = TeamEnemyTargets(battle, enemy)
+            .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character))).ToArray();
+        var closestDistance = livingTargets.Length == 0 ? int.MaxValue :
+            TacticalDistance.Between(enemy.Position, GetCasterPosition(livingTargets[0]));
+        var activeAbility = _battleSystem.SelectEnemyActiveAbility(enemy, closestDistance);
+        if (activeAbility is not null)
+        {
+            var abilityTargets = livingTargets.Where(character =>
+                    TacticalDistance.Between(enemy.Position, GetCasterPosition(character)) <= activeAbility.Range)
+                .Take(activeAbility.MaximumTargets).ToArray();
+            PresentBattleEntries(abilityTargets.Select(target =>
+                _battleSystem.ResolveTeamEnemyAbility(enemy, target, activeAbility)).ToArray());
+            battle.RecordAttack(BattleSide.Hostile);
+            foreach (var target in abilityTargets.Where(target => !target.IsAlive))
+                ResolveTeamCharacterDefeat(battle, target);
+            AdvanceTeamBattleTurn(battle);
+            return;
+        }
+
         var attackWeapon = _battleSystem.SelectEnemyAttackWeapon(enemy);
         var targets = TacticalTeamBattleCoordinator.EnemyAttackTargets(battle, enemy, attackWeapon,
             GetCasterPosition);
@@ -5806,6 +5843,7 @@ public sealed class Game : ISessionCommandHandler
             if (!target.IsAlive) ResolveTeamCharacterDefeat(battle, target);
             if (enemy.CurrentHitPoints <= 0 || entry.Kind == BattleLogKind.Information) break;
         }
+        _battleSystem.MarkEnemyWeaponUsed(enemy, attackWeapon);
         PresentBattleEntries(entries);
         if (enemy.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, enemy, null);
         AdvanceTeamBattleTurn(battle);
@@ -5860,7 +5898,7 @@ public sealed class Game : ISessionCommandHandler
             .Select(candidate => CharacterMobilityRules.Evaluate(candidate).CombatMovementAllowance)
             .DefaultIfEmpty(0).Min();
         var hostileSpeed = battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
-            .Select(enemy => Math.Clamp((enemy.EffectiveSpeed + 1) / 2, 1, 6)).DefaultIfEmpty(0).Max();
+            .Select(EnemyMovementAllowance).DefaultIfEmpty(0).Max();
         var fastEnough = friendlySpeed > hostileSpeed;
         Dictionary<LiveCharacter, Position> destinations = [];
         var hasSafeRoute = fastEnough && TryFindTeamRetreatDestinations(battle, out destinations);

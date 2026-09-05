@@ -907,13 +907,29 @@ internal sealed class InnController
             $"Ellenállás: {enemy.Resistances ?? new DamageResistance()}; " +
             $"Páncél {enemy.Armor ?? 0}; Gyorsaság {enemy.Speed ?? 0}; jutalom {enemy.ExperienceReward} XP."
         };
-        if (abilities.Count == 0) lines.Add("Nincs ismert különleges képessége.");
+        if (enemy.Traits != EnemyTraits.None)
+        {
+            var traits = Enum.GetValues<EnemyTraits>().Where(trait => trait != EnemyTraits.None && enemy.HasTrait(trait))
+                .Select(trait => trait switch
+                {
+                    EnemyTraits.Undead => "élőholt",
+                    EnemyTraits.Demonic => "démoni",
+                    EnemyTraits.Flying => "repülő",
+                    _ => trait.ToString()
+                });
+            lines.Add($"Jellemzők: {string.Join(", ", traits)}.");
+        }
+        if (abilities.Count == 0) lines.Add("Nincs ismert különleges harci képessége.");
         else
             foreach (var ability in abilities)
             {
-                var activation = ability.Effect == MonsterAbilityEffect.Trait
-                    ? "állandó tulajdonság"
-                    : $"{ability.ChancePercent}% aktiválási esély, érték {ability.Value}";
+                var activation = ability.Trigger switch
+                {
+                    MonsterAbilityTrigger.Passive => $"állandó, érték {ability.Value}",
+                    MonsterAbilityTrigger.TurnStart => $"kör elején, érték {ability.Value}",
+                    MonsterAbilityTrigger.Active => $"aktív, {ability.Range} mező, {ability.Cooldown} kör lehűlés",
+                    _ => $"találatkor {ability.ChancePercent}% esély, érték {ability.Value}"
+                };
                 lines.Add($"{ability.Name} — {activation}. {ability.Description}");
             }
         lines.Add($"Mozgástempója a Gyorsasága alapján körülbelül {1400 / Math.Max(1, enemy.Speed ?? 2)} ms lépésenként.");

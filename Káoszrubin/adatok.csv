@@ -223,6 +223,7 @@ STATUS002,Szomjas,💧,,0,0,0,3,1,100,100,100,100,0,5,2,A víz szintje 30 vagy k
 STATUS003,Mérgezés,☠️,6,1,4,0,0,0,100,100,100,100,0,0,1,Minden saját támadási kör végén 1-4 páncélt figyelmen kívül hagyó sebzés. Hat aktiválódás után elmúlik.
 STATUS004,Betegség,🤒,,0,0,0,0,0,80,80,50,50,0,0,1,A maximális HP és manna 80 százalékra csökken. A HP és manna visszatöltése 50 százalékos. Nem múlik el magától.
 STATUS005,Vérzés,🩸,4,1,3,0,0,0,100,100,100,100,0,0,1,Minden saját támadási kör végén 1-3 páncélt figyelmen kívül hagyó sebzés. Négy aktiválódás után elmúlik.
+STATUS006,Kődermedtség,🗿,2,0,0,3,0,3,100,100,100,100,0,0,1,A megkövülő test két saját akcióig 3 ponttal rontja a találatot és a fizikai sebzést.
 
 #Tárgyak
 Id,Név,Jellemzés,Ár,Hatás,Érték,HarcbanHasználható,Súly
@@ -437,73 +438,71 @@ PLUS2,+2,2,4.0,2
 PLUS3,+3,3,7.0,3
 
 #Ellenségek
-Id,Név,Kinézet,Erő,HP,Páncél,Gyorsaság,XP érték,Erősség,Képesség1Id,Képesség2Id,Látótáv,Lopakodás,Zaj,Alhat,FegyverIds,FegyvertVálaszt,VágásVédelem,SzúrásVédelem,ZúzásVédelem,TűzVédelem,SavVédelem,NekrotikusVédelem,KáoszVédelem
+Id,Név,Kinézet,Erő,HP,Páncél,Gyorsaság,XP érték,Erősség,KépességIds,Jellemzők,Látótáv,Lopakodás,Zaj,Alhat,FegyverIds,FegyvertVálaszt,VágásVédelem,SzúrásVédelem,ZúzásVédelem,TűzVédelem,SavVédelem,NekrotikusVédelem,KáoszVédelem
 E001,Óriáspatkány,r,2,20,0,5,100,1,MA003,,3,1,2,igen,WN001,nem,0,0,0,0,0,0,0
 E002,Kobold,k,3,30,1,6,150,1,MA006,,4,1,2,igen,W001|W005,igen,0,0,0,0,0,0,0
 E003,Goblin,g,4,45,2,6,200,1,,,4,,,igen,W001|W002|W005,igen,0,0,0,0,0,0,0
-E004,Csontváz,I,5,80,3,3,250,1,MA001,MA007,4,,,nem,W002|W004|W006,igen,2,3,-3,0,0,0,0
-E005,Farkas,w,4,55,1,8,300,1,MA006,MA004,6,1,3,igen,WN007,nem,0,0,0,0,0,0,0
-E006,Zombi,z,5,100,2,2,330,1,MA001,MA003,3,,,nem,WN003|W005,igen,0,0,0,0,0,0,0
+E004,Csontváz,I,5,80,3,3,250,1,MA007,Undead,4,,,nem,W002|W004|W006,igen,2,3,-3,0,0,0,0
+E005,Farkas,w,4,55,1,8,300,1,MA006|MA004,,6,1,3,igen,WN007,nem,0,0,0,0,0,0,0
+E006,Zombi,z,5,100,2,2,330,1,MA003,Undead,3,,,nem,WN003|W005,igen,0,0,0,0,0,0,0
 E007,Ork,o,7,120,4,5,400,2,MA005,,5,,,igen,W010|W004|W006,igen,0,0,0,0,0,0,0
-E008,Hobgoblin,h,8,150,5,5,450,2,MA007,MA005,5,,,igen,W004|W006|W011,igen,0,0,0,0,0,0,0
-E009,Óriáspók,s,6,90,3,7,470,2,MA002,MA006,5,2,1,igen,WN018,nem,0,0,0,0,0,0,0
-E010,Gnoll,n,9,170,4,6,600,2,MA004,MA005,6,,,igen,W006|W010,igen,0,0,0,0,0,0,0
-E011,Lidércfarkas,W,10,220,5,9,700,2,MA001,MA006,7,,,nem,WN023,nem,0,0,0,0,0,0,0
-E012,Ogre,O,12,320,5,3,900,3,MA005,MA007,4,,,igen,W019|WN003,nem,0,0,0,0,0,0,0
-E013,Troll,T,14,500,6,4,1000,3,MA008,MA007,5,,,igen,WN012|WN011,nem,0,0,0,0,0,0,0
-E014,Minotaurusz,M,15,650,7,5,1200,3,MA005,MA006,5,,,igen,W017|WN009,nem,0,0,0,0,0,0,0
-E015,Múmia,m,12,400,7,3,1400,3,MA001,MA003,4,,,nem,WN003,nem,0,0,0,0,0,0,0
-E016,Medúza,Ƶ,13,450,6,6,1500,3,MA002,MA006,6,,,igen,W001|WN021,nem,0,0,0,0,0,0,0
-E017,Kiméra,C,16,800,7,7,2000,4,MA005,MA007,6,,,igen,WN012|WN009|WN006,nem,0,0,0,0,0,0,0
-E018,Beholder,B,17,1000,8,4,2800,4,MA006,MA005,7,,,igen,WN011,nem,0,0,0,0,0,0,0
-E019,Vámpír,V,15,750,7,8,3000,4,MA001,MA003,7,2,1,nem,WN019|WN002,nem,0,0,0,0,0,0,0
-E020,Vérfarkas,L,16,850,6,9,3200,4,MA004,MA006,7,,,igen,WN012|WN007,nem,0,0,0,0,0,0,0
-E021,Vörös sárkány,D,18,1500,9,7,5000,5,MA007,MA005,7,,,igen,WN004|WN005|WN006,nem,0,0,0,0,0,0,0
-E022,Lich,l,17,1200,8,5,4000,5,MA001,MA007,7,,,nem,W021,nem,0,0,0,0,0,0,0
-E023,Démonlovag,Ŧ,18,1800,9,6,5000,5,MA010,MA004,6,,,nem,W009|W013,igen,0,0,0,0,0,0,0
-E024,Balor démon,Ψ,19,2500,10,8,7500,5,MA010,MA005,7,,,nem,W009|W020,nem,0,0,0,0,0,0,0
-E025,Fekete sárkány,Ð,20,2000,10,8,10000,5,MA007,MA002,7,,,igen,WN004|WN005|WN015,nem,0,0,0,0,0,0,0
-E026,Óriásdenevér,b,3,35,0,9,160,1,MA006,MA009,7,1,4,igen,WN007,nem,0,0,0,0,0,0,0
-E027,Savanyálka,ξ,4,65,2,2,230,1,MA002,MA007,2,,,nem,WN022,nem,-1,3,1,0,0,0,0
+E008,Hobgoblin,h,8,150,5,5,450,2,MA007|MA005,,5,,,igen,W004|W006|W011,igen,0,0,0,0,0,0,0
+E009,Óriáspók,s,6,90,3,7,470,2,MA002|MA006,,5,2,1,igen,WN018,nem,0,0,0,0,0,0,0
+E010,Gnoll,n,9,170,4,6,600,2,MA004|MA005,,6,,,igen,W006|W010,igen,0,0,0,0,0,0,0
+E011,Lidércfarkas,W,10,220,5,9,700,2,MA006,Undead,7,,,nem,WN023,nem,0,0,0,0,0,0,0
+E012,Ogre,O,12,320,5,3,900,3,MA005|MA007,,4,,,igen,W019|WN003,nem,0,0,0,0,0,0,0
+E013,Troll,T,14,500,6,4,1000,3,MA008|MA007,,5,,,igen,WN012|WN011,nem,0,0,0,0,0,0,0
+E014,Minotaurusz,M,15,650,7,5,1200,3,MA005|MA006,,5,,,igen,W017|WN009,nem,0,0,0,0,0,0,0
+E015,Múmia,m,12,400,7,3,1400,3,MA003,Undead,4,,,nem,WN003,nem,0,0,0,0,0,0,0
+E016,Medúza,Ƶ,13,450,6,6,1500,3,MA002|MA006|MA011,,6,,,igen,W001|WN021,nem,0,0,0,0,0,0,0
+E017,Kiméra,C,16,800,7,7,2000,4,MA005|MA007,,6,,,igen,WN012|WN009|WN006,nem,0,0,0,0,0,0,0
+E018,Beholder,B,17,1000,8,4,2800,4,MA006|MA005,,7,,,igen,WN011,nem,0,0,0,0,0,0,0
+E019,Vámpír,V,15,750,7,8,3000,4,MA003,Undead,7,2,1,nem,WN019|WN002,nem,0,0,0,0,0,0,0
+E020,Vérfarkas,L,16,850,6,9,3200,4,MA004|MA006,,7,,,igen,WN012|WN007,nem,0,0,0,0,0,0,0
+E021,Vörös sárkány,D,18,1500,9,7,5000,5,MA007|MA005,Flying,7,,,igen,WN004|WN005|WN006,nem,0,0,0,0,0,0,0
+E022,Lich,l,17,1200,8,5,4000,5,MA007,Undead,7,,,nem,W021,nem,0,0,0,0,0,0,0
+E023,Démonlovag,Ŧ,18,1800,9,6,5000,5,MA004,Demonic,6,,,nem,W009|W013,igen,0,0,0,0,0,0,0
+E024,Balor démon,Ψ,19,2500,10,8,7500,5,MA005,Demonic,7,,,nem,W009|W020,nem,0,0,0,0,0,0,0
+E025,Fekete sárkány,Ð,20,2000,10,8,10000,5,MA007|MA002,Flying,7,,,igen,WN004|WN005|WN015,nem,0,0,0,0,0,0,0
+E026,Óriásdenevér,b,3,35,0,9,160,1,MA006,Flying,7,1,4,igen,WN007,nem,0,0,0,0,0,0,0
+E027,Savanyálka,ξ,4,65,2,2,230,1,MA002|MA007,,2,,,nem,WN022,nem,-1,3,1,0,0,0,0
 E028,Útonálló,u,5,70,2,6,260,1,MA004,,5,2,1,igen,W002|W001|W005,igen,0,0,0,0,0,0,0
 E029,Barlangi gyík,j,4,60,2,7,240,1,MA006,,5,,,igen,WN011,nem,0,0,0,0,0,0,0
-E030,Pestishordozó patkány,p,3,55,1,6,280,1,MA003,MA002,3,,,igen,WN007,nem,0,0,0,0,0,0,0
-E031,Bugbear,q,9,190,5,5,650,2,MA005,MA007,5,,,igen,W005|W008|W010,igen,0,0,0,0,0,0,0
-E032,Hárpia,H,8,160,3,9,680,2,MA009,MA004,6,1,3,igen,WN002|WN008,nem,0,0,0,0,0,0,0
-E033,Ghoul,G,9,210,4,7,720,2,MA001,MA003,5,,,nem,WN002|WN007,nem,0,0,0,0,0,0,0
-E034,Ifjú baziliszkusz,β,10,240,6,4,780,2,MA002,MA007,5,,,igen,WN018,nem,0,0,0,0,0,0,0
-E035,Ork sámán,ó,8,180,3,6,750,2,MA006,MA003,6,,,igen,W018|W001,nem,0,0,0,0,0,0,0
-E036,Ettin,E,15,720,8,3,1700,3,MA005,MA007,5,,,igen,W008|W010,nem,0,0,0,0,0,0,0
-E037,Wight,Ŵ,13,560,7,6,1650,3,MA001,MA003,6,,,nem,W004|W006,igen,0,0,0,0,0,0,0
-E038,Wyvern,Y,14,620,6,9,1850,3,MA002,MA009,7,,,igen,WN011|WN010,nem,0,0,0,0,0,0,0
-E039,Kőgólem,K,16,900,10,2,2100,3,MA007,MA005,3,,,nem,WN020,nem,4,4,-4,0,0,0,0
-E040,Éji banya,ñ,13,520,6,8,1900,3,MA003,MA006,6,2,1,igen,WN002,nem,0,0,0,0,0,0,0
-E041,Fagyóriás,F,18,1300,10,5,3800,4,MA005,MA007,6,,,igen,W017|W013,igen,0,0,0,0,0,0,0
-E042,Halállovag,†,17,1150,11,6,4000,4,MA001,MA007,6,,,nem,W009|W013,igen,0,0,0,0,0,0,0
-E043,Hidra,Ξ,18,1450,8,7,4300,4,MA002,MA005,6,,,igen,WN014,nem,0,0,0,0,0,0,0
-E044,Csontsárkány,δ,19,1600,11,6,4800,4,MA001,MA007,7,,,nem,WN004|WN005|WN016,nem,2,3,-3,0,0,0,0
-E045,Démonpók,§,17,1050,8,10,4200,4,MA002,MA004,6,3,1,nem,WN024,nem,0,0,0,0,0,0,0
-E046,Ősvámpír,Ƿ,20,1900,11,10,8500,5,MA001,MA006,8,3,1,nem,WN019|WN012,nem,0,0,0,0,0,0,0
-E047,Pokolfejedelem,Φ,22,2800,13,7,11000,5,MA010,MA005,7,,,nem,W013|W017|W009,igen,0,0,0,0,0,0,0
-E048,Vén beholder,Θ,21,2400,12,8,10500,5,MA006,MA005,8,,,igen,WN011,nem,0,0,0,0,0,0,0
-E049,Drakolich,Ł,23,3200,14,7,14000,5,MA001,MA007,8,,,nem,WN004|WN005|WN016,nem,0,0,0,0,0,0,0
-E050,Káoszsárkány,Ж,24,3600,13,10,16000,5,MA002,MA003,8,,,igen,WN004|WN005|WN017,nem,0,0,0,0,0,0,0
+E030,Pestishordozó patkány,p,3,55,1,6,280,1,MA003|MA002,,3,,,igen,WN007,nem,0,0,0,0,0,0,0
+E031,Bugbear,q,9,190,5,5,650,2,MA005|MA007,,5,,,igen,W005|W008|W010,igen,0,0,0,0,0,0,0
+E032,Hárpia,H,8,160,3,9,680,2,MA004,Flying,6,1,3,igen,WN002|WN008,nem,0,0,0,0,0,0,0
+E033,Ghoul,G,9,210,4,7,720,2,MA003,Undead,5,,,nem,WN002|WN007,nem,0,0,0,0,0,0,0
+E034,Ifjú baziliszkusz,β,10,240,6,4,780,2,MA002|MA007,,5,,,igen,WN018,nem,0,0,0,0,0,0,0
+E035,Ork sámán,ó,8,180,3,6,750,2,MA006|MA003,,6,,,igen,W018|W001,nem,0,0,0,0,0,0,0
+E036,Ettin,E,15,720,8,3,1700,3,MA005|MA007,,5,,,igen,W008|W010,nem,0,0,0,0,0,0,0
+E037,Wight,Ŵ,13,560,7,6,1650,3,MA003,Undead,6,,,nem,W004|W006,igen,0,0,0,0,0,0,0
+E038,Wyvern,Y,14,620,6,9,1850,3,MA002,Flying,7,,,igen,WN011|WN010,nem,0,0,0,0,0,0,0
+E039,Kőgólem,K,16,900,10,2,2100,3,MA007|MA005,,3,,,nem,WN020,nem,4,4,-4,0,0,0,0
+E040,Éji banya,ñ,13,520,6,8,1900,3,MA003|MA006,,6,2,1,igen,WN002,nem,0,0,0,0,0,0,0
+E041,Fagyóriás,F,18,1300,10,5,3800,4,MA005|MA007,,6,,,igen,W017|W013,igen,0,0,0,0,0,0,0
+E042,Halállovag,†,17,1150,11,6,4000,4,MA007,Undead,6,,,nem,W009|W013,igen,0,0,0,0,0,0,0
+E043,Hidra,Ξ,18,1450,8,7,4300,4,MA002|MA005,,6,,,igen,WN014,nem,0,0,0,0,0,0,0
+E044,Csontsárkány,δ,19,1600,11,6,4800,4,MA007,Undead|Flying,7,,,nem,WN004|WN005|WN016,nem,2,3,-3,0,0,0,0
+E045,Démonpók,§,17,1050,8,10,4200,4,MA002|MA004,,6,3,1,nem,WN024,nem,0,0,0,0,0,0,0
+E046,Ősvámpír,Ƿ,20,1900,11,10,8500,5,MA006,Undead,8,3,1,nem,WN019|WN012,nem,0,0,0,0,0,0,0
+E047,Pokolfejedelem,Φ,22,2800,13,7,11000,5,MA005,Demonic,7,,,nem,W013|W017|W009,igen,0,0,0,0,0,0,0
+E048,Vén beholder,Θ,21,2400,12,8,10500,5,MA006|MA005,,8,,,igen,WN011,nem,0,0,0,0,0,0,0
+E049,Drakolich,Ł,23,3200,14,7,14000,5,MA007,Undead|Flying,8,,,nem,WN004|WN005|WN016,nem,0,0,0,0,0,0,0
+E050,Káoszsárkány,Ж,24,3600,13,10,16000,5,MA002|MA003,Flying,8,,,igen,WN004|WN005|WN017,nem,0,0,0,0,0,0,0
 E051,Patkányember,Ʒ,7,105,4,7,600,2,MA003,,5,,,igen,W001|W002|W005,igen,0,0,0,0,0,0,0
-E052,Csontváz lovag,ǂ,6,105,5,3,330,2,MA001,MA007,4,,,nem,W004|W006,igen,2,3,-3,0,0,0,0
-E053,Sir Malrec az Esküszegő,‡,11,420,9,5,1800,4,MA001,MA005,6,1,3,nem,W009,nem,0,0,0,0,0,0,0
+E052,Csontváz lovag,ǂ,6,105,5,3,330,2,MA007,Undead,4,,,nem,W004|W006,igen,2,3,-3,0,0,0,0
+E053,Sir Malrec az Esküszegő,‡,11,420,9,5,1800,4,MA005,Undead,6,1,3,nem,W009,nem,0,0,0,0,0,0,0
 
 #Szörnyképességek
-Id,Név,Hatás,AktiválásiEsély,Érték,Leírás
-MA001,Élőholt,Trait,100,0,Élőholt lény amelyre később külön szent és nekrotikus szabályok vonatkozhatnak.
-MA002,Mérges támadás,Poison,25,0,Sikeres találat után 25 százalék eséllyel mérgezést okoz.
-MA003,Fertőzéshordozó,Disease,20,0,Sikeres találat után 20 százalék eséllyel betegséget terjeszt.
-MA004,Vérontó,Bleeding,25,0,Sikeres találat után 25 százalék eséllyel vérzést okoz.
-MA005,Zúzócsapás,ExtraDamage,25,6,Sikeres találatkor 25 százalék eséllyel további 6 sebzést okoz.
-MA006,Villámgyors,InitiativeBonus,100,2,A szörny 2 pont bónuszt kap a kezdeményezéséhez.
-MA007,Vastag bőr,ArmorBonus,100,2,A szörny 2 pont állandó páncélbónuszt kap.
-MA008,Regeneráció,Trait,100,5,A regenerációs hatás későbbi körönkénti gyógyítás számára fenntartott tulajdonság.
-MA009,Repülő,Trait,100,0,A repülés későbbi mozgási és terepszabályok számára fenntartott tulajdonság.
-MA010,Démoni,Trait,100,0,Démoni lény amelyet a szent varázslatok és a gonosz elleni védelem külön célpontként kezelnek.
+Id,Név,Hatás,AktiválásiEsély,Érték,Leírás,Aktiválás,Lehűlés,Hatótáv,MaxCélpont,ÁllapotId,AI súly,FegyverIds,Sebzéstípus
+MA002,Mérges támadás,ApplyStatus,25,0,Sikeres találat után mérgezést okozhat.,OnHit,0,1,1,STATUS003,100,,
+MA003,Fertőzéshordozó,ApplyStatus,20,0,Sikeres találat után betegséget terjeszthet.,OnHit,0,1,1,STATUS004,100,,
+MA004,Vérontó,ApplyStatus,25,0,Sikeres találat után vérzést okozhat.,OnHit,0,1,1,STATUS005,100,,
+MA005,Zúzócsapás,ExtraDamage,25,6,Sikeres találatkor további zúzó sebzést okozhat.,OnHit,0,1,1,,100,,zúzás
+MA006,Villámgyors,InitiativeBonus,100,2,A szörny 2 pont bónuszt kap a kezdeményezéséhez.,Passive,0,1,1,,100,,
+MA007,Vastag bőr,ArmorBonus,100,2,A szörny 2 pont állandó páncélbónuszt kap.,Passive,0,1,1,,100,,
+MA008,Regeneráció,Regeneration,100,5,A szörny minden saját köre elején legfeljebb 5 HP-t gyógyul.,TurnStart,0,1,1,,100,,
+MA011,Dermesztő tekintet,ApplyStatus,70,0,A Medúza tekintete rövid időre kődermedtséget okozhat.,Active,3,3,1,STATUS006,45,,
 
 #Zsákmány paraméterek
 Id,Érték

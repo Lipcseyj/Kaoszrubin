@@ -28,7 +28,7 @@ public sealed class SingleBattleCoordinator
 
     public static bool CanTurnUndead(LiveCharacter character, Enemy enemy) =>
         character.CharacterClass.Id is CharacterClassIds.Pap or CharacterClassIds.Lovag &&
-        enemy.Definition.AbilityIds.Contains(MonsterAbilityIds.Undead, StringComparer.OrdinalIgnoreCase);
+        enemy.Definition.HasTrait(EnemyTraits.Undead);
 
     public BattlePlayerAction ResolveTurnUndead(LiveCharacter character, Enemy enemy, HashSet<LiveCharacter> turnUndeadUsedThisBattle)
     {

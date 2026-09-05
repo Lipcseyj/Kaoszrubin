@@ -137,6 +137,9 @@ var tests = new (string Name, Action Run)[]
     ("A szörnyek látótávja CSV-ből érkezik", EnemyVisionRangesLoadFromCsv),
     ("A felfedés változó látótávot és látóvonalat használ", FogRevealUsesVariableRangeAndLineOfSight),
     ("A szörnyek ébersége, felderítése és alvásképessége adatvezérelt", EnemyAwarenessAndSearchAreDataDriven),
+    ("A szörnyjellemzők és képességparaméterek külön töltődnek", MonsterTraitsAndAbilitiesAreDataDriven),
+    ("A regeneráció és a leheletlehűlés példányonként működik", MonsterRegenerationAndBreathCooldownWork),
+    ("A sebzés nélküli, időzített állapot is lejár", TimedNonDamageStatusExpires),
     ("A pályanevekből szabályos képfájlnév készül", LevelImageFileNamesAreNormalized),
     ("Az ellenség a legközelebbi látható csapattagot célozza", EnemyTargetsNearestVisiblePartyMember),
     ("A mozgó world entity azonosítója stabil", WorldEntityIdSurvivesMovement),
@@ -3238,6 +3241,55 @@ static void FogRevealUsesVariableRangeAndLineOfSight()
     Assert(!blockedFog.IsRevealed(new Position(5, 2)), "A zárt ajtó mögé átlátott a felfedés.");
 }
 
+static void MonsterTraitsAndAbilitiesAreDataDriven()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var medusa = data.GetEnemy(MonsterIds.Medúza);
+    var troll = data.GetEnemy("E013");
+    var dragon = data.GetEnemy("E021");
+    var gaze = data.GetMonsterAbility("MA011");
+    Assert(medusa.AbilityIds.Contains("MA011") &&
+           gaze.Trigger == MonsterAbilityTrigger.Active && gaze.Cooldown == 3 &&
+           gaze.Range == 3 && gaze.StatusId == "STATUS006" &&
+           troll.AbilityIds.Contains("MA008") &&
+           dragon.HasTrait(EnemyTraits.Flying) &&
+           data.GetEnemy("E004").HasTrait(EnemyTraits.Undead) &&
+           !data.GetEnemy("E004").AbilityIds.Contains(MonsterAbilityIds.Undead),
+        "A jellemzők és a paraméterezett képességek szétválasztása hibás.");
+}
+
+static void MonsterRegenerationAndBreathCooldownWork()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var troll = new ConfiguredEnemy(new Position(1, 1), data.GetEnemy("E013"));
+    troll.SetCurrentHitPoints(400);
+    var battle = new BattleSystem(new Random(7), data.MonsterAbilities, data.Statuses, data.StrengthHitBonuses);
+    var start = battle.BeginEnemyTurn(troll);
+    Assert(troll.CurrentHitPoints == 405 && start.Entries.Any(entry => entry.Message.Contains("regenerálódik")),
+        "A Troll kör eleji regenerációja nem működik.");
+
+    var dragon = new ConfiguredEnemy(new Position(1, 1), data.GetEnemy("E021"));
+    var breath = data.GetWeapon("WN006");
+    battle.MarkEnemyWeaponUsed(dragon, breath);
+    Assert(!dragon.IsWeaponReady(breath.Id), "A lehelet használata nem indította el a lehűlést.");
+    battle.BeginEnemyTurn(dragon);
+    battle.BeginEnemyTurn(dragon);
+    Assert(!dragon.IsWeaponReady(breath.Id), "A lehelet túl korán vált újra használhatóvá.");
+    battle.BeginEnemyTurn(dragon);
+    Assert(dragon.IsWeaponReady(breath.Id), "A lehelet nem vált használhatóvá három saját kör után.");
+}
+
+static void TimedNonDamageStatusExpires()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var character = CreateCharacter("Dermedt");
+    character.AddStatus(data.GetStatus("STATUS006"));
+    var first = character.ApplyTurnEndStatusEffects(new Random(1));
+    var second = character.ApplyTurnEndStatusEffects(new Random(1));
+    Assert(first.Count == 1 && first[0].Damage == 0 && !first[0].Expired &&
+           second.Count == 1 && second[0].Expired && !character.HasStatus("STATUS006"),
+        "A sebzés nélküli időzített állapot nem két saját akció után járt le.");
+}
 static void EnemyAwarenessAndSearchAreDataDriven()
 {
     var definition = new EnemyDefinition("E-SLEEP", "Alvó őr", "e", 1, 10, 0, 1,
@@ -4194,7 +4246,7 @@ static void WeaponCsvPropertiesAreInherited()
     minotaurCorpseMaze.ReplaceEnemyWithCorpse(minotaurForLoot);
     var minotaurCorpse = minotaurCorpseMaze.Corpses.OfType<MonsterCorpse>().Single();
     var lootService = new LootAndInventoryService(data, new Random(1));
-    Assert(data.LootRules.CarriedWeaponChancePercent == 70 &&
+    Assert(data.LootRules.CarriedWeaponChancePercent == 30 &&
            armedZombie.CarriedWeaponIds.SequenceEqual(["W005"]) &&
            unarmedZombie.CarriedWeaponIds.Count == 0 &&
            minotaurCorpse.CarriedWeaponIds.SequenceEqual(["W017"]) &&

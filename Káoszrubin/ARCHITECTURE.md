@@ -698,7 +698,7 @@ A kampány zárópályája a 21. szint, „A Káoszrubin rejtekhelye”. A 20. s
 
 ## Szörnyek erőssége és képességei
 
-Az `adatok.csv` `#Ellenségek` szekciója 50 szörnydefiníciót tartalmaz. Minden sor 1–5 közötti `Erősség` értéket és egy vagy két `#Szörnyképességek`-azonosítót tárol. A betöltő hibát jelez tartományon kívüli erősségnél, kettőnél több képességnél vagy ismeretlen képességhivatkozásnál. Az erősség nem módosítja automatikusan a statisztikákat: a HP, Erő, Páncél, Gyorsaság és XP továbbra is külön hangolható; a szint a pályagenerálás számára használható besorolás.
+Az `adatok.csv` `#Ellenségek` szekciója tetszőleges számú, `|` jellel elválasztott `KépességIds` értéket és külön `Jellemzők` mezőt tárol. A jelenlegi jellemzők az `Undead`, `Demonic` és `Flying`; ezek nem foglalnak képességhelyet. A betöltő hibát jelez tartományon kívüli erősségnél, ismeretlen képességnél vagy jellemzőnél. Az erősség nem módosítja automatikusan a statisztikákat: a HP, Erő, Páncél, Gyorsaság és XP továbbra is külön hangolható.
 
 A térképi szörnyrúnák erősség szerinti színe:
 
@@ -710,14 +710,16 @@ A térképi szörnyrúnák erősség szerinti színe:
 | 4 | piros |
 | 5 | magenta |
 
-A `MonsterAbilityDefinition` azonosítót, nevet, hatástípust, 0–100%-os aktiválási esélyt, értéket és leírást tartalmaz. Jelenlegi aktív hatások:
+A `MonsterAbilityDefinition` az alapadatokon túl aktiválási pontot (`Passive`, `OnHit`, `TurnStart`, `Active`), lehűlést, hatótávot, célpontszámot, állapotazonosítót, AI-súlyt, opcionális fegyverszűrőt és sebzéstípust tartalmaz. Jelenlegi hatások:
 
 - `Poison`, `Disease`, `Bleeding`: sikeres szörnytámadás után a CSV-s eséllyel hozzáadja a Mérgezés, Betegség vagy Vérzés karakterállapotot;
 - `ExtraDamage`: sikeres találatkor a megadott eséllyel hozzáadja a konfigurált extra sebzést;
 - `InitiativeBonus`: állandóan hozzáadódik a szörny kezdeményezéséhez;
-- `ArmorBonus`: állandóan hozzáadódik a szörny páncéljához.
+- `ArmorBonus`: állandóan hozzáadódik a szörny páncéljához;
+- `Regeneration`: minden saját kör elején a megadott HP-t visszatölti;
+- `ApplyStatus`: találatkor vagy aktív képességként a CSV-ben hivatkozott állapotot alkalmazza.
 
-A `Trait` hatású Élőholt, Regeneráció, Repülő és Démoni képesség már típusos adatként elérhető, de önmagában még nem hajt végre általános csata- vagy mozgáshatást. Az Élőholt (`MA001`) jelölést az Áldott fegyver tehetség már használja: papnál +2 találatot és +2 sebzést ad az ilyen ellenfelek ellen. A regeneráció körönkénti gyógyítása, a repülés terepszabálya és a démoni kategória további hatásai későbbi bővítések.
+Az Élőholt és Démoni jellemzőt a szent sebzés, a gonosz elleni védelem és az élőholtűzés használja. A régi `MA001`, `MA009` és `MA010` azonosítók mentés- és küldetés-kompatibilitási álnevek maradtak. A Repülő jellemző +1 taktikai mozgást ad. A Medúza Dermesztő tekintete három mezőről Kődermedtséget okozhat, majd három saját körig hűl. A többcélpontos, nem fizikai leheletfegyverek használat után szintén három saját körig hűlnek; a szörny AI közben másik rendelkezésre álló fegyvert választ. A képesség- és fegyverlehűlések szörnypéldányhoz kötöttek, a 16-os játékmentés részei.
 
 ### Szörnyzsákmány és keresés
 
@@ -737,7 +739,7 @@ Az esélyszámítás sorrendje `floor(alapesély × tolvajszorzó) + Intelligenc
 
 A `#Szörny zsákmány` szörnyenként beállítja az egy darab felszerelés alap-esélyét, az engedélyezett Fegyver/Páncél/Varázstárgy kategóriákat, a minimum és maximum ritkaságot, a maximális mágikus erőt és az alapár felső korlátját. A kategória és a megfelelő tárgy véletlen; személyes varázsfókusz nem sorsolható. A Goblin 40%-os alapeséllyel legfeljebb 100 arany értékű sima fegyvert vagy páncélt, a Fekete sárkány 95%-os alapeséllyel akár 10-es mágikus erejű, 30 000 aranyig terjedő Varázs vagy Legendás felszerelést adhat. A konfiguráció nélküli szörny kulcsot és aranyat továbbra is dobhat, felszerelést nem.
 
-A hordható fegyverrel harcoló humanoid ellenfelek saját fegyverére külön, alapból 70%-os keresési esély vonatkozik; ezt a `SajátFegyverEsély` zsákmányparaméter szabályozza, és ugyanúgy módosítja a kereső Intelligenciája, faja és Tolvaj osztálya. A fegyvert választó példány pontosan a generáláskor kiválasztott fegyvert hordja, ezért például az ököllel érkező Zombi nem dob bunkót. A fegyvert nem választó, de normál és természetes támadást vegyesen használó ellenfél minden hordható fegyvere jelölt lehet. Természetes és más szörnykizárólagos fegyver nem zsákmányolható. Sikertelen sajátfegyver-dobás után a régi általános felszerelésdobás még megtörténhet, de a két dobás együtt is legfeljebb egy véletlen felszerelést eredményez.
+A hordható fegyverrel harcoló humanoid ellenfelek saját fegyverére külön, jelenleg 30%-os keresési esély vonatkozik; ezt a `SajátFegyverEsély` zsákmányparaméter szabályozza, és ugyanúgy módosítja a kereső Intelligenciája, faja és Tolvaj osztálya. A fegyvert választó példány pontosan a generáláskor kiválasztott fegyvert hordja, ezért például az ököllel érkező Zombi nem dob bunkót. A fegyvert nem választó, de normál és természetes támadást vegyesen használó ellenfél minden hordható fegyvere jelölt lehet. Természetes és más szörnykizárólagos fegyver nem zsákmányolható. Sikertelen sajátfegyver-dobás után a régi általános felszerelésdobás még megtörténhet, de a két dobás együtt is legfeljebb egy véletlen felszerelést eredményez.
 
 A megtalált tárgyak sorban az élő party hátizsákjaiba kerülnek. Ha minden hátizsák tele van, `GroundItemPile` formájában a tetem mezőjén maradnak. Ugyanez a keresési művelet veszi fel a korábban kézzel ledobott tárgyakat is; az arany közvetlenül a partyvezérhez kerül.
 
