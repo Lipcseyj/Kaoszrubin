@@ -801,6 +801,7 @@ public sealed class MainMenu
             Blank(),
             Text("⚔ ⚖ a viselt harci felszerelés súlya; ⚡ a dobás előtti kezdeményezési alap."),
             Text("A HÁTIZSÁK melletti ⚖ a teljes hordott súlyt és az Erőből származó teherbírást mutatja; a hordott teher a térképi tempót lassítja."),
+            Text("A teherbírás számolása: Erő × 4 (minimum 6)"),
             Blank(),
             Section("PARTY TAKTIKÁK", ConsoleColor.Yellow),
             Text("A partiparancsok az AI által irányított NPC társak mozgását szabályozzák. Zárt alakzatban a vendég karakterét is a vezér közös mozgása irányítja."),

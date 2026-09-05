@@ -2455,7 +2455,7 @@ public sealed class ConsoleRenderer
 
     private void DrawCharacterSheetHeader(LiveCharacter character) => WriteSheetLine(
         CharacterSheetHeaderLine, "KARAKTERLAP", ConsoleColor.Yellow,
-        _characterSheetFocused ? ConsoleColor.Green : ConsoleColor.Black,
+        _characterSheetFocused ? ConsoleColor.DarkGreen : ConsoleColor.Black,
         " - " + character.Name, character.Color);
 
     private void DrawSelectableCharacterSheetRows(LiveCharacter character)

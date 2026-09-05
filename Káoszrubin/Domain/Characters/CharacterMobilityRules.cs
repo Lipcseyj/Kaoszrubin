@@ -43,7 +43,7 @@ public static class CharacterMobilityRules
         if (equippedWeight < 0) throw new ArgumentOutOfRangeException(nameof(equippedWeight));
         var totalWeight = carriedWeight ?? equippedWeight;
         if (totalWeight < equippedWeight) throw new ArgumentOutOfRangeException(nameof(carriedWeight));
-        var capacity = Math.Max(6, abilities.Strength * 3);
+        var capacity = Math.Max(6, abilities.Strength * 4);
         var encumbrance = EncumbranceFor(equippedWeight, capacity);
         var carriedEncumbrance = EncumbranceFor(totalWeight, capacity);
         var initiativePenalty = encumbrance switch
