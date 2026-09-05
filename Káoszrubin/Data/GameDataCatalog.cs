@@ -17,7 +17,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<MonsterAbilityDefinition> MonsterAbilities { get; init; } = [];
     public IReadOnlyList<StrengthHitBonusDefinition> StrengthHitBonuses { get; init; } = [];
     public IReadOnlyList<MonsterLootDefinition> MonsterLoot { get; init; } = [];
-    public LootRules LootRules { get; init; } = new(10, 40, 10, 130, 1, 10, 3);
+    public LootRules LootRules { get; init; } = new(10, 40, 10, 130, 1, 10, 3, 70);
     public DoorAttemptRules DoorAttemptRules { get; init; } = new(1, 2, 1, 2);
     public IReadOnlyList<WeaponTypeDefinition> WeaponTypes { get; init; } = [];
     public IReadOnlyList<WeaponDefinition> Weapons { get; init; } = [];

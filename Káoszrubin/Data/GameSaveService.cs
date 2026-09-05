@@ -326,7 +326,8 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     int ReturnDelayMovesRemaining = 0,
     string? SelectedWeaponId = null);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
-    string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null);
+    string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null,
+    List<string>? CarriedWeaponIds = null);
 public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex,
     WorldNpcSaveData? TemporaryFollower = null);
 public sealed record WorldNpcSaveData(Position Position, string DefinitionId, int CharacterIndex,

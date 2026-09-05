@@ -47,6 +47,13 @@ public sealed class LootAndInventoryService
         return candidates[_random.Next(candidates.Count)];
     }
 
+    public WeaponDefinition? RollCarriedWeapon(IReadOnlyList<string> weaponIds, int chancePercent)
+    {
+        var candidates = weaponIds.Select(_gameData.GetWeapon).Where(weapon => !weapon.IsMonsterOnly).ToArray();
+        if (candidates.Length == 0 || _random.Next(100) >= Math.Clamp(chancePercent, 0, 100)) return null;
+        return candidates[_random.Next(candidates.Length)];
+    }
+
     public IItemDefinition? RollMasterThiefChestLoot(LiveCharacter character, IEnumerable<IItemDefinition> allTradableItems)
     {
         if (!character.HasPerk(PerkIds.ThiefMasterThief) || _random.Next(100) >= 25) return null;

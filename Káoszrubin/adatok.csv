@@ -514,6 +514,7 @@ TolvajEsélySzorzó,130
 IntelligenciaPontBónusz,1
 LádaFőnyereményEsély,10
 LádaFőnyereménySzorzó,3
+SajátFegyverEsély,30
 
 #Szörny zsákmány
 SzörnyId,FelszerelésEsély,Fegyver,Páncél,Varázstárgy,MinRitkaság,MaxRitkaság,MaxMágikusErő,MaxÁr

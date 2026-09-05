@@ -1057,11 +1057,11 @@ public static class CsvGameDataLoader
         var rules = new LootRules(Required("KulcsEsély"), Required("AranyEsély"),
             Required("AranyTierSzorzó"), Required("TolvajEsélySzorzó"),
             Required("IntelligenciaPontBónusz"), Required("LádaFőnyereményEsély"),
-            Required("LádaFőnyereménySzorzó"));
+            Required("LádaFőnyereménySzorzó"), Required("SajátFegyverEsély"));
         if (rules.KeyChancePercent is < 0 or > 100 || rules.GoldChancePercent is < 0 or > 100 ||
             rules.GoldPerStrengthTier <= 0 || rules.ThiefChanceMultiplierPercent <= 0 ||
             rules.IntelligenceChanceBonusPerPoint < 0 || rules.ChestJackpotChancePercent is < 0 or > 100 ||
-            rules.ChestJackpotMultiplier < 1)
+            rules.ChestJackpotMultiplier < 1 || rules.CarriedWeaponChancePercent is < 0 or > 100)
             throw new InvalidOperationException("A #Zsákmány paraméterek értékei érvénytelenek.");
         return rules;
     }

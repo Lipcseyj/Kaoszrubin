@@ -51,7 +51,8 @@ internal sealed class GameStateMapper
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
-                (corpse as MonsterCorpse)?.GuaranteedLootIds.ToList())).ToList(),
+                (corpse as MonsterCorpse)?.GuaranteedLootIds.ToList(),
+                (corpse as MonsterCorpse)?.CarriedWeaponIds.ToList())).ToList(),
             PartyAvatars = maze.PartyMembers.Select(member => new PartyAvatarSaveData(member.Position,
                 CharacterIndex(member.Character), member.TemporaryFollower is { } follower
                     ? SaveWorldNpc(follower) : null)).ToList(),
@@ -158,7 +159,7 @@ internal sealed class GameStateMapper
                 ? new PartyMemberCorpse(corpse.Position, _characterRoster.Characters[characterIndex])
                 : corpse.EnemyDefinitionId is { Length: > 0 } enemyDefinitionId
                     ? new MonsterCorpse(corpse.Position, corpse.FormerName, enemyDefinitionId, corpse.IsSearched,
-                        corpse.GuaranteedLootIds)
+                        corpse.GuaranteedLootIds, corpse.CarriedWeaponIds)
                     : new Corpse(corpse.Position, corpse.FormerName);
             maze.AddCorpse(restored);
         }

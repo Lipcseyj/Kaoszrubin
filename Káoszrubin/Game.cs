@@ -3254,7 +3254,11 @@ public sealed class Game : ISessionCommandHandler
         var equipmentChance = equipmentDefinition is null
             ? 0
             : AdjustedSearchChance(character, equipmentDefinition.EquipmentChancePercent);
+        var carriedWeaponChance = corpse.CarriedWeaponIds.Count == 0
+            ? 0
+            : AdjustedSearchChance(character, rules.CarriedWeaponChancePercent);
         messages.Add($"esélyek: 🔑 {keyChance}%, {ConsoleRenderer.MoneyIcon} {goldChance}%" +
+                     (carriedWeaponChance == 0 ? string.Empty : $", ⚔ saját fegyver {carriedWeaponChance}%") +
                      (equipmentDefinition is null ? string.Empty : $", 🎁 {equipmentChance}%"));
 
         var foundItems = corpse.GuaranteedLootIds.Select(_gameData.GetItem).Cast<IItemDefinition>().ToList();
@@ -3266,8 +3270,10 @@ public sealed class Game : ISessionCommandHandler
             SelectedCharacter.AddGold(gold);
             messages.Add($"{ConsoleRenderer.MoneyIcon} {gold} arany");
         }
-        if (equipmentDefinition is not null && _random.Next(100) < equipmentChance &&
-            RollEquipmentLoot(equipmentDefinition) is { } equipment)
+        if (_lootService.RollCarriedWeapon(corpse.CarriedWeaponIds, carriedWeaponChance) is { } carriedWeapon)
+            foundItems.Add(carriedWeapon);
+        else if (equipmentDefinition is not null && _random.Next(100) < equipmentChance &&
+                 RollEquipmentLoot(equipmentDefinition) is { } equipment)
             foundItems.Add(equipment);
 
         foreach (var item in foundItems)

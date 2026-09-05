@@ -40,6 +40,16 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public bool IsPerceptiblyActive { get; private set; }
     public IReadOnlyList<string> GuaranteedLootIds => _guaranteedLootIds;
     private readonly List<string> _guaranteedLootIds = [];
+    public IReadOnlyList<string> CarriedWeaponIds
+    {
+        get
+        {
+            if (Definition.ChoosesWeapon)
+                return Definition.Weapon is { IsMonsterOnly: false } selected ? [selected.Id] : [];
+            return (Definition.Weapons ?? []).Where(weapon => !weapon.IsMonsterOnly)
+                .Select(weapon => weapon.Id).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+    }
 
     protected void InitializeHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);
     public void SetCurrentHitPoints(int hitPoints) => CurrentHitPoints = Math.Max(0, hitPoints);

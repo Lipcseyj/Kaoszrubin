@@ -171,7 +171,7 @@ public sealed class Maze
     {
         if (!_enemies.Remove(enemy)) throw new ArgumentException("Az ellenfél nem a labirintus része.", nameof(enemy));
         _corpses.Add(new MonsterCorpse(enemy.Position, enemy.Name, enemy.Definition.Id,
-            guaranteedLootIds: enemy.GuaranteedLootIds));
+            guaranteedLootIds: enemy.GuaranteedLootIds, carriedWeaponIds: enemy.CarriedWeaponIds));
     }
 
     public void ReplacePartyMemberWithCorpse(PartyMemberAvatar member)

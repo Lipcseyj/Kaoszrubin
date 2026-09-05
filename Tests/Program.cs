@@ -4185,6 +4185,22 @@ static void WeaponCsvPropertiesAreInherited()
            zombieEnemy.Definition.Weapon is { } zombieWeapon &&
            zombieWeaponIds.Contains(zombieWeapon.Id) && zombieEnemy.Name.Contains($"({zombieWeapon.Name})"),
         "A zombi nem választ egyszer az ököl és a bunkó közül.");
+    var armedZombie = new ConfiguredEnemy(new(1, 1), zombie, selectedWeaponId: "W005");
+    var unarmedZombie = new ConfiguredEnemy(new(1, 1), zombie, selectedWeaponId: "WN003");
+    var minotaurCorpseMaze = new Maze(7, 7);
+    var minotaurForLoot = new ConfiguredEnemy(new(3, 3), data.GetEnemy("E014"));
+    minotaurCorpseMaze.Carve(minotaurForLoot.Position);
+    minotaurCorpseMaze.AddEnemy(minotaurForLoot);
+    minotaurCorpseMaze.ReplaceEnemyWithCorpse(minotaurForLoot);
+    var minotaurCorpse = minotaurCorpseMaze.Corpses.OfType<MonsterCorpse>().Single();
+    var lootService = new LootAndInventoryService(data, new Random(1));
+    Assert(data.LootRules.CarriedWeaponChancePercent == 70 &&
+           armedZombie.CarriedWeaponIds.SequenceEqual(["W005"]) &&
+           unarmedZombie.CarriedWeaponIds.Count == 0 &&
+           minotaurCorpse.CarriedWeaponIds.SequenceEqual(["W017"]) &&
+           lootService.RollCarriedWeapon(minotaurCorpse.CarriedWeaponIds, 100)?.Id == "W017" &&
+           lootService.RollCarriedWeapon(["WN009"], 100) is null,
+        "A humanoid saját fegyverének emelt zsákmányesélye vagy a természetes fegyver kizárása hibás.");
     var minotaur = data.GetEnemy("E014");
     var minotaurWeapons = minotaur.Weapons ?? [];
     Assert(!minotaur.ChoosesWeapon && (minotaur.WeaponIds ?? []).SequenceEqual(["W017", "WN009"]) &&
