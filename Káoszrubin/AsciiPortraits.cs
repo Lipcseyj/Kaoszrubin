@@ -47,7 +47,7 @@ public static class AsciiPortraits
                 "     /__\\ ( )",
                 "     (••)--╂",
                 "    /|~~|  │",
-                "     /__\\ │")
+                "     /__\\  │")
         };
 
 

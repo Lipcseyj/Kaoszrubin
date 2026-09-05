@@ -148,52 +148,6 @@ public sealed class MainMenu
         }
     }
 
-    private void ShowCharacters()
-    {
-        if (_characterRoster.Characters.Count == 0)
-        {
-            ResetConsole();
-            Console.WriteLine("Még nincs generált karakter.");
-            Console.ReadKey(intercept: true);
-            return;
-        }
-
-        var selectedIndex = _characterRoster.SelectedCharacter is null
-            ? 0
-            : Enumerable.Range(0, _characterRoster.Characters.Count)
-                .FirstOrDefault(index => _characterRoster.Characters[index] == _characterRoster.SelectedCharacter);
-        while (true)
-        {
-            ResetConsole();
-            WriteLine("=== GENERÁLT KARAKTEREK ===", ConsoleColor.Yellow);
-            WriteLine("Fel/le: választás | Enter: kijelölés | Esc: vissza", ConsoleColor.DarkCyan);
-            Console.WriteLine();
-            for (var index = 0; index < _characterRoster.Characters.Count; index++)
-            {
-                var character = _characterRoster.Characters[index];
-                var marker = index == selectedIndex ? ">" : " ";
-                var isSelected = character == _characterRoster.SelectedCharacter ? " [aktív]" : string.Empty;
-                var deathMarker = character.IsAlive ? string.Empty : " [HALOTT]";
-                WriteLine($"{marker} {character.Name} — {character.Race.Name} {character.CharacterClass.Name}{isSelected}{deathMarker}", character.IsAlive ? (index == selectedIndex ? ConsoleColor.Cyan : ConsoleColor.Gray) : ConsoleColor.DarkRed);
-                WriteLine($"   HP {character.CurrentVitality}/{character.MaximumVitality}, Manna {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "nincs")}", character.IsAlive ? ConsoleColor.DarkGray : ConsoleColor.Red);
-            }
-
-            switch (Console.ReadKey(intercept: true).Key)
-            {
-                case ConsoleKey.UpArrow:
-                    selectedIndex = (selectedIndex - 1 + _characterRoster.Characters.Count) % _characterRoster.Characters.Count;
-                    break;
-                case ConsoleKey.DownArrow:
-                    selectedIndex = (selectedIndex + 1) % _characterRoster.Characters.Count;
-                    break;
-                case ConsoleKey.Enter:
-                    _characterRoster.Select(_characterRoster.Characters[selectedIndex]);
-                    return;
-                case ConsoleKey.Escape:
-                    return;
-            }
-        }
-    }
 
     private void StartGame()
     {
@@ -359,7 +313,8 @@ public sealed class MainMenu
             selectedIndex = _characterRoster.Characters.Count == 0 ? 0 :
                 Math.Clamp(selectedIndex, 0, _characterRoster.Characters.Count - 1);
             DrawCharacterManager(selectedIndex);
-            switch (Console.ReadKey(intercept: true).Key)
+            var readKeyInfo = Console.ReadKey(intercept: true);
+            switch (readKeyInfo.Key)
             {
                 case ConsoleKey.UpArrow when _characterRoster.Characters.Count > 0:
                     selectedIndex = (selectedIndex - 1 + _characterRoster.Characters.Count) % _characterRoster.Characters.Count;
@@ -379,15 +334,33 @@ public sealed class MainMenu
                     break;
                 case ConsoleKey.D when _characterRoster.Characters.Count > 0:
                 case ConsoleKey.Delete when _characterRoster.Characters.Count > 0:
-                    var character = _characterRoster.Characters[selectedIndex];
-                    var confirmationFrame = GetCharacterManagerFrame();
-                    WriteAt(confirmationFrame.Left + 4, confirmationFrame.Top + confirmationFrame.Height - 3,
-                        $"⚠ Biztosan törlöd: {character.Name}?  I/Y = igen", ConsoleColor.Red,
-                        confirmationFrame.Width - 8);
-                    if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
+                    if (HasShift(readKeyInfo))
                     {
-                        _characterRoster.Remove(character);
-                        SaveCharacters();
+                        var confirmationFrame = GetCharacterManagerFrame();
+                        WriteAt(confirmationFrame.Left + 4, confirmationFrame.Top + confirmationFrame.Height - 3,
+                            $"⚠ Biztosan törlöd AZ ÖSSZES KARAKTERT?  I/Y = igen", ConsoleColor.Red,
+                            confirmationFrame.Width - 8);
+                        if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
+                        {
+                            foreach (var character in _characterRoster.Characters.ToList())
+                            {
+                                _characterRoster.Remove(character);
+                            }
+                            SaveCharacters();
+                        }
+                    }
+                    else
+                    {
+                        var character = _characterRoster.Characters[selectedIndex];
+                        var confirmationFrame = GetCharacterManagerFrame();
+                        WriteAt(confirmationFrame.Left + 4, confirmationFrame.Top + confirmationFrame.Height - 3,
+                            $"⚠ Biztosan törlöd: {character.Name}?  I/Y = igen", ConsoleColor.Red,
+                            confirmationFrame.Width - 8);
+                        if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
+                        {
+                            _characterRoster.Remove(character);
+                            SaveCharacters();
+                        }
                     }
                     break;
                 case ConsoleKey.Escape:
@@ -395,6 +368,8 @@ public sealed class MainMenu
             }
         }
     }
+    private static bool HasShift(ConsoleKeyInfo keyInfo) =>
+    (keyInfo.Modifiers & (ConsoleModifiers.Shift)) == (ConsoleModifiers.Shift);
 
     private void DrawCharacterManager(int selectedIndex)
     {
@@ -403,7 +378,7 @@ public sealed class MainMenu
         DrawCharacterManagerFrame(frame);
         WriteAt(frame.Left + 4, frame.Top + 1, "👥 KARAKTEREK", ConsoleColor.Yellow, frame.Width - 8);
         WriteAt(frame.Left + 4, frame.Top + 3,
-            "↑/↓ választ   Enter aktív   N új hős   D/Del törlés   Esc főmenü",
+            "↑/↓ választ   Enter aktív   N új hős   D/Del törlés  Shift+Del mindegyik törlése   Esc főmenü",
             ConsoleColor.DarkCyan, frame.Width - 8);
         if (_characterRoster.Characters.Count == 0)
             WriteAt(frame.Left + 5, frame.Top + 7,
@@ -777,70 +752,6 @@ public sealed class MainMenu
         return candidates[_random.Next(candidates.Count)].Name;
     }
 
-    private void DeleteCharacter()
-    {
-        if (_characterRoster.Characters.Count == 0)
-        {
-            ResetConsole();
-            Console.WriteLine("Nincs törölhető karakter.");
-            Console.ReadKey(intercept: true);
-            return;
-        }
-
-        var selectedIndex = 0;
-        while (true)
-        {
-            ResetConsole();
-            WriteLine("=== KARAKTER TÖRLÉSE ===", ConsoleColor.Red);
-            WriteLine("Fel/le: választás | Enter: törlés | O: összes törlése | Esc: vissza", ConsoleColor.DarkCyan);
-            Console.WriteLine();
-            for (var index = 0; index < _characterRoster.Characters.Count; index++)
-            {
-                var character = _characterRoster.Characters[index];
-                var marker = index == selectedIndex ? ">" : " ";
-                var deathMarker = character.IsAlive ? string.Empty : " [HALOTT]";
-                WriteLine($"{marker} {character.Name} — {character.Race.Name} {character.CharacterClass.Name}{deathMarker}", character.IsAlive ? (index == selectedIndex ? ConsoleColor.Yellow : ConsoleColor.Gray) : ConsoleColor.DarkRed);
-            }
-
-            switch (Console.ReadKey(intercept: true).Key)
-            {
-                case ConsoleKey.O:
-                    WriteLine("\nBiztosan törlöd az ÖSSZES karaktert? (I / N)", ConsoleColor.Red);
-                    if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
-                    {
-                        _characterRoster.Clear();
-                        SaveCharacters();
-                        ResetConsole();
-                        WriteLine("Minden karakter törölve.", ConsoleColor.Green);
-                        Console.ReadKey(intercept: true);
-                        return;
-                    }
-                    break;
-                case ConsoleKey.UpArrow:
-                    selectedIndex = (selectedIndex - 1 + _characterRoster.Characters.Count) % _characterRoster.Characters.Count;
-                    break;
-                case ConsoleKey.DownArrow:
-                    selectedIndex = (selectedIndex + 1) % _characterRoster.Characters.Count;
-                    break;
-                case ConsoleKey.Enter:
-                    var character = _characterRoster.Characters[selectedIndex];
-                    WriteLine($"\nBiztosan törlöd: {character.Name}? (I / N)", ConsoleColor.Red);
-                    if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
-                    {
-                        _characterRoster.Remove(character);
-                        SaveCharacters();
-                        ResetConsole();
-                        WriteLine($"{character.Name} törölve.", ConsoleColor.Green);
-                        Console.ReadKey(intercept: true);
-                        return;
-                    }
-                    break;
-                case ConsoleKey.Escape:
-                    return;
-            }
-        }
-    }
-
     public static void ShowHelp()
     {
         var source = new HelpSourceLine[]
@@ -1136,10 +1047,11 @@ public sealed class MainMenu
             $"3) Karakterek ({_characterRoster.Characters.Count})",
             "4) Súgó",
             string.Empty,
-            "── JÁTÉKÁLLÁS ÉS COOP ──",
             $"5) Játék betöltése ({_gameSaveService.List().Count})",
+            string.Empty,
             "6) Coop játék hostolása",
             "7) Csatlakozás coop játékhoz",
+            string.Empty,
             "8) Beállítások",
             "9) Mentés szerkesztése",
             string.Empty,
@@ -1230,7 +1142,7 @@ public sealed class MainMenu
             line.Contains("host", StringComparison.OrdinalIgnoreCase) ||
             line.Contains("Csatlakozás", StringComparison.OrdinalIgnoreCase)) return ConsoleColor.DarkYellow;
         if (line.StartsWith("──", StringComparison.Ordinal)) return ConsoleColor.DarkMagenta;
-        if (line.StartsWith("Esc", StringComparison.Ordinal)) return ConsoleColor.DarkYellow;
+        if (line.StartsWith("Esc", StringComparison.Ordinal)) return ConsoleColor.DarkRed;
         return ConsoleColor.Gray;
     }
 }
