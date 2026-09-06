@@ -32,16 +32,20 @@ public static class CharacterMobilityRules
                      (character.Armor?.Weight ?? 0) +
                      (character.WeaponSlots[2]?.Weight ?? 0) +
                      character.MagicItems.Where(item => item is not null).Sum(item => item!.Weight);
+        weight += character.GetActiveCurseValue(ItemCurseEffect.CombatWeight);
         var carriedWeight = weight +
                             Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount).Sum(index =>
                                 (character.GetInventoryItem(InventorySlotKind.Backpack, index)?.Weight ?? 0) *
                                 character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index));
         return EvaluateEquipment(abilities, character.CharacterClass.Id, weight,
-            character.HasPerk(PerkIds.KnightArmorMaster), carriedWeight);
+            character.HasPerk(PerkIds.KnightArmorMaster), carriedWeight,
+            character.GetActiveCurseValue(ItemCurseEffect.InitiativePenalty),
+            character.GetActiveCurseValue(ItemCurseEffect.MovementPenalty));
     }
 
     public static CharacterMobilityProfile EvaluateEquipment(PrimaryAbilities abilities, string characterClassId,
-        double equippedWeight, bool hasArmorMaster, double? carriedWeight = null)
+        double equippedWeight, bool hasArmorMaster, double? carriedWeight = null,
+        int curseInitiativePenalty = 0, int curseMovementPenalty = 0)
     {
         if (equippedWeight < 0) throw new ArgumentOutOfRangeException(nameof(equippedWeight));
         var totalWeight = carriedWeight ?? equippedWeight;
@@ -81,14 +85,15 @@ public static class CharacterMobilityRules
         };
         var dexterityMovement = Math.DivRem(Math.Max(0, abilities.Dexterity - 4), 3, out _);
         var movement = Math.Clamp(BaselineMovementAllowance + dexterityMovement + classMovement -
-                                  movementPenalty, 1, 6);
+                                  movementPenalty - Math.Max(0, curseMovementPenalty), 1, 6);
         var additionalCarriedPenalty = Math.Max(0,
             MovementPenaltyFor(carriedEncumbrance) - MovementPenaltyFor(encumbrance));
         var explorationMovement = Math.Clamp(movement - additionalCarriedPenalty, 1, 6);
         return new CharacterMobilityProfile(equippedWeight, totalWeight, capacity, combatCapacity,
             encumbrance, carriedEncumbrance,
             initiativePenalty,
-            classInitiative, abilities.Dexterity + classInitiative - initiativePenalty,
+            classInitiative, abilities.Dexterity + classInitiative - initiativePenalty -
+                             Math.Max(0, curseInitiativePenalty),
             movement, explorationMovement, (double)BaselineMovementAllowance / explorationMovement);
     }
 

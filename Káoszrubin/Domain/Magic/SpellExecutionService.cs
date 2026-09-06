@@ -499,10 +499,13 @@ public sealed class SpellExecutionService
                         (caster.HasPerk(PerkIds.MageArcaneFocus) ? 2 : 0) +
                         caster.GetMagicItemBonus(MagicItemEffect.Hit) +
                         caster.SpellEffectValue(ActiveSpellEffectType.Invisibility) +
-                        caster.SpellEffectValue(ActiveSpellEffectType.HitBonus);
+                        caster.SpellEffectValue(ActiveSpellEffectType.HitBonus) -
+                        caster.GetActiveCurseValue(ItemCurseEffect.HitPenalty);
             _calculation.Add($"🎯 {enemy.Name}: d20={roll}; INT {caster.EffectiveAbilities.Intelligence}");
             _calculation.Add($"🎯 Arkán fókusz +{(caster.HasPerk(PerkIds.MageArcaneFocus) ? 2 : 0)}; tárgy +{caster.GetMagicItemBonus(MagicItemEffect.Hit)}");
             _calculation.Add($"🎯 Láthatatlanság +{caster.SpellEffectValue(ActiveSpellEffectType.Invisibility)}; varázshatás +{caster.SpellEffectValue(ActiveSpellEffectType.HitBonus)}");
+            if (caster.GetActiveCurseValue(ItemCurseEffect.HitPenalty) > 0)
+                _calculation.Add($"☠ Bizonytalan kéz -{caster.GetActiveCurseValue(ItemCurseEffect.HitPenalty)}");
             _calculation.Add($"🎯 {roll}+{bonus} vs 11+{enemy.EffectiveSpeed}");
             _calculation.Add("🎲 Természetes 20: 5%, ×2; természetes 1: mellé");
             var hit = roll == 20 || roll != 1 && roll + bonus >= 11 + enemy.EffectiveSpeed;

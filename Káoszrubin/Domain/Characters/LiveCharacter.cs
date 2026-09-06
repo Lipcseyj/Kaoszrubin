@@ -60,7 +60,18 @@ public sealed class LiveCharacter
     public RaceDefinition Race { get; }
     public CharacterClassDefinition CharacterClass { get; }
     public PrimaryAbilities Abilities { get; private set; }
-    public PrimaryAbilities EffectiveAbilities => ApplyMagicAbilityBonuses(Abilities, _magicItems);
+    public PrimaryAbilities EffectiveAbilities
+    {
+        get
+        {
+            var enhanced = ApplyMagicAbilityBonuses(Abilities, _magicItems);
+            return enhanced with
+            {
+                Health = Math.Max(1, enhanced.Health - GetActiveCurseValue(ItemCurseEffect.HealthPenalty)),
+                Intelligence = Math.Max(1, enhanced.Intelligence - GetActiveCurseValue(ItemCurseEffect.IntelligencePenalty))
+            };
+        }
+    }
     public int MaximumVitality => ApplyMaximumResourceModifier(_maximumVitality, status => status.MaximumVitalityPercent);
     public int UnmodifiedMaximumVitality => _maximumVitality;
     public int CurrentVitality { get; private set; }
@@ -377,7 +388,8 @@ public sealed class LiveCharacter
         return SetInventoryItem(InventorySlotKind.MagicItem, index, item);
     }
 
-    public bool AddToBackpack(IItemDefinition item, bool identified = true, Guid? instanceId = null)
+    public bool AddToBackpack(IItemDefinition item, bool identified = true, Guid? instanceId = null,
+        InventoryItemInstanceState? instanceState = null)
     {
         var charges = InitialCharges(item, null);
         var stackIndex = Enumerable.Range(0, _backpack.Length).FirstOrDefault(index =>
@@ -395,7 +407,7 @@ public sealed class LiveCharacter
         var index = Array.FindIndex(_backpack, existing => existing is null);
         if (index < 0) return false;
         return SetInventoryItem(InventorySlotKind.Backpack, index, item, charges, 1,
-            new InventoryItemInstanceState(instanceId ?? Guid.NewGuid(), identified));
+            instanceState ?? new InventoryItemInstanceState(instanceId ?? Guid.NewGuid(), identified));
     }
 
     public bool CanAddToBackpack(IItemDefinition item, bool identified = true)
@@ -462,6 +474,22 @@ public sealed class LiveCharacter
         return true;
     }
 
+    public int GetActiveCurseValue(ItemCurseEffect effect) => ActiveEquippedItemStates()
+        .Where(state => state.IsCurseActivated && state.BoundCharacterId == Id && state.CurseEffect == effect)
+        .Sum(state => state.CurseValue);
+
+    public bool HasActiveCurse => ActiveEquippedItemStates().Any(state =>
+        state.HasCurse && state.IsCurseActivated && state.BoundCharacterId == Id);
+
+    private IEnumerable<InventoryItemInstanceState> ActiveEquippedItemStates()
+    {
+        for (var index = 0; index < 2; index++)
+            if (_weaponItemStates[index] is { } state) yield return state;
+        if (_armorItemState is { } armorState) yield return armorState;
+        foreach (var state in _magicItemStates)
+            if (state is { } value) yield return value;
+    }
+
     public bool RemoveOneInventoryItem(InventorySlotKind kind, int index)
     {
         var item = GetInventoryItem(kind, index);
@@ -488,6 +516,12 @@ public sealed class LiveCharacter
         var magicItems = (MagicItemDefinition?[])_magicItems.Clone();
         foreach (var change in changes)
         {
+            var existingState = GetInventoryItemState(change.Kind, change.Index);
+            if (existingState is { IsCurseActivated: true, IsPurified: false } bound &&
+                bound.BoundCharacterId == Id &&
+                (change.Item is null || change.State?.InstanceId != bound.InstanceId)) return false;
+            if (change.State is { IsCurseActivated: true, IsPurified: false, BoundCharacterId: { } ownerId } &&
+                ownerId != Id) return false;
             if (!IsValidSpellcastingFocusChange(change)) return false;
             if (!CharacterBoundItemRules.CanBeHeldBy(this, change.Item)) return false;
             if (change.Item is not null && !CanPlaceInventoryItem(change.Kind, change.Item)) return false;
@@ -558,6 +592,9 @@ public sealed class LiveCharacter
         InventoryItemInstanceState? state = item is null
             ? null
             : change.State ?? InventoryItemInstanceState.Create();
+        if (item is not null && state is { HasCurse: true, IsCurseActivated: false } cursed &&
+            IsActiveEquipmentSlot(kind, index))
+            state = cursed with { IsCurseActivated = true, BoundCharacterId = Id };
         switch (kind)
         {
             case InventorySlotKind.Weapon when index is >= 0 and < 3:
@@ -582,6 +619,14 @@ public sealed class LiveCharacter
                 break;
         }
     }
+
+    private static bool IsActiveEquipmentSlot(InventorySlotKind kind, int index) => kind switch
+    {
+        InventorySlotKind.Weapon => index is 0 or 1,
+        InventorySlotKind.Armor => index == 0,
+        InventorySlotKind.MagicItem => index is >= 0 and < MaximumMagicItemCount,
+        _ => false
+    };
 
     private static int InitialCharges(IItemDefinition? item, int? charges) => item is MagicItemDefinition magic &&
         magic.Kind is MagicItemKind.Wand or MagicItemKind.Scroll

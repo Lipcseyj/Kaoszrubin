@@ -1181,7 +1181,11 @@ public sealed class CoopGuestScreen
                     var inspection = ItemInspectionFormatter.Format(definition, _gameData, inspectSlot.Item.Charges,
                         own?.CharacterSheet?.WeaponProficiencyRanks,
                         own is null ? null : new ItemInspectionMobilityContext(own,
-                            inspectSlot.Kind, inspectSlot.Index));
+                            inspectSlot.Kind, inspectSlot.Index),
+                        new InventoryItemInstanceState(inspectSlot.Item.InstanceId, inspectSlot.Item.IsIdentified,
+                            inspectSlot.Item.CurseId, inspectSlot.Item.CurseEffect, inspectSlot.Item.CurseValue,
+                            inspectSlot.Item.CurseStrength, inspectSlot.Item.IsCurseActivated,
+                            inspectSlot.Item.BoundCharacterId, inspectSlot.Item.IsPurified));
                     SetMessage(inspection.Text, inspection.Color);
                 }
                 break;

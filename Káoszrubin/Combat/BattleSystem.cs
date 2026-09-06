@@ -782,6 +782,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             context.Tactic == BattleTactic.FighterPowerful ? -1 : 0);
         Modifier(player.HasStatus(CharacterStatusIds.Thirsty) ? "💧 Szomjúság: találat" : "🎯 Állapotbüntetés",
             -player.StatusHitPenalty);
+        Modifier("☠ Bizonytalan kéz", -player.GetActiveCurseValue(ItemCurseEffect.HitPenalty));
         Modifier("🎲 Mágikus fegyver (%)", weapon?.MagicPower >= 3 ? 10 : weapon?.MagicPower == 2 ? 5 : 0);
         Modifier("🎲 Halálos pontosság (%)", player.HasPerk(PerkIds.ThiefDeadlyAccuracy) ? 10 : 0);
         Modifier("🎲 Tőrmester (%)", weaponFamily == WeaponFamilies.Dagger && weaponRank == WeaponProficiencyRank.Master ? 5 : 0);
@@ -1002,7 +1003,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return (weaponEquipped && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0) +
                player.GetMagicItemBonus(MagicItemEffect.Hit) + blessedWeaponBonus + invisibilityBonus +
                strengthHitBonus + player.SpellEffectValue(ActiveSpellEffectType.HitBonus) +
-               ClassHitBonus(player) + tacticHitBonus;
+               ClassHitBonus(player) + tacticHitBonus - player.GetActiveCurseValue(ItemCurseEffect.HitPenalty);
     }
 
     private static bool UsesRodericOathblade(LiveCharacter player, WeaponDefinition? weapon) =>
@@ -1101,6 +1102,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                           (defender.ActiveWeapons.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
                            defender.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master ? 1 : 0) +
                           tacticDefense - rageDefensePenalty;
+        var curseDefensePenalty = defender.GetActiveCurseValue(ItemCurseEffect.DefensePenalty);
+        perkDefense -= curseDefensePenalty;
         Modifier("🛡️ Vastag bőr", defender.HasPerk(PerkIds.BarbarianThickSkin) ? 1 : 0);
         Modifier("🛡️ Pajzsfal", shieldEquipped && defender.HasPerk(PerkIds.KnightShieldWall) ? 2 : 0);
         Modifier("🛡️ Varázstárgy", defender.GetMagicItemBonus(MagicItemEffect.Defense));
@@ -1113,6 +1116,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             defender.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master ? 1 : 0);
         Modifier("🛡️ Védekező taktika", tacticDefense);
         Modifier("🛡️ Düh", -rageDefensePenalty);
+        Modifier("☠ Repedt oltalom", -curseDefensePenalty);
         if (shieldRank == WeaponProficiencyRank.Master && shieldEquipped)
             calculation.Add($"🛡️ Pajzsmester: két dobás maximuma = {shield}");
         if (defender.HasPerk(PerkIds.KnightArmorMaster))

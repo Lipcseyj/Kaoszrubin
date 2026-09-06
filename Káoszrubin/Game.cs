@@ -1831,14 +1831,13 @@ public sealed class Game : ISessionCommandHandler
         PlaySessionSound(jackpot ? SoundEffect.Chest2 : SoundEffect.Chest, [character.Id]);
 
         if (masterThiefLoot is null) return;
-        var masterLootName = ItemIdentificationRules.DisplayName(masterThiefLoot,
-            !ItemIdentificationRules.RequiresIdentification(masterThiefLoot));
-        if (TryStoreSearchedLoot(character, masterThiefLoot, shareLootWithParty, out var owner))
+        var masterLootState = RollLootItemState(masterThiefLoot);
+        var masterLootName = ItemIdentificationRules.DisplayName(masterThiefLoot, masterLootState.IsIdentified);
+        if (TryStoreSearchedLoot(character, masterThiefLoot, shareLootWithParty, out var owner, masterLootState))
             message = $"🎁 Mestertolvaj: {masterLootName} → {owner} hátizsákja.";
         else
         {
-            _maze.DropItem(position, masterThiefLoot, state: InventoryItemInstanceState.Create(
-                !ItemIdentificationRules.RequiresIdentification(masterThiefLoot)));
+            _maze.DropItem(position, masterThiefLoot, state: masterLootState);
             message = $"🎁 Mestertolvaj: {masterLootName} a földön maradt, mert a hátizsák tele van.";
         }
         _renderer.DrawInventoryMessage(message, ConsoleColor.Magenta);
@@ -3415,16 +3414,15 @@ public sealed class Game : ISessionCommandHandler
 
         foreach (var item in foundItems)
         {
-            if (TryStoreSearchedLoot(character, item, shareLootWithParty, out var owner))
+            var itemState = RollLootItemState(item);
+            if (TryStoreSearchedLoot(character, item, shareLootWithParty, out var owner, itemState))
             {
-                var identified = !ItemIdentificationRules.RequiresIdentification(item);
-                messages.Add($"{ItemIdentificationRules.DisplayName(item, identified)} → {owner} hátizsákja");
+                messages.Add($"{ItemIdentificationRules.DisplayName(item, itemState.IsIdentified)} → {owner} hátizsákja");
             }
             else
             {
-                var identified = !ItemIdentificationRules.RequiresIdentification(item);
-                _maze.DropItem(position, item, state: InventoryItemInstanceState.Create(identified));
-                messages.Add($"{ItemIdentificationRules.DisplayName(item, identified)} a földön maradt (a hátizsákok tele vannak)");
+                _maze.DropItem(position, item, state: itemState);
+                messages.Add($"{ItemIdentificationRules.DisplayName(item, itemState.IsIdentified)} a földön maradt (a hátizsákok tele vannak)");
             }
         }
         if (foundItems.Count == 0 && messages.All(message => !message.StartsWith(ConsoleRenderer.MoneyIcon, StringComparison.Ordinal)))
@@ -3446,8 +3444,13 @@ public sealed class Game : ISessionCommandHandler
     #region Inventory & Loot
 
     private bool TryStoreSearchedLoot(LiveCharacter character, IItemDefinition item, bool shareLootWithParty,
-        out string ownerName) =>
-        LootAndInventoryService.TryStoreSearchedLoot(character, item, shareLootWithParty, CharacterRoster.Party.Members, out ownerName);
+        out string ownerName, InventoryItemInstanceState? state = null) =>
+        LootAndInventoryService.TryStoreSearchedLoot(character, item, shareLootWithParty,
+            CharacterRoster.Party.Members, out ownerName, state);
+
+    private InventoryItemInstanceState RollLootItemState(IItemDefinition item) =>
+        ItemIdentificationRules.CreateLootState(item, _gameData.ItemCurses, _random,
+            _mazeLevel == 9 ? 15 : 8);
 
     private void PickUpGroundItems(LiveCharacter character, Position position, bool shareLootWithParty,
         ICollection<string> messages)
@@ -3458,8 +3461,7 @@ public sealed class Game : ISessionCommandHandler
         foreach (var entry in pile.Entries.ToArray())
         {
             if (!LootAndInventoryService.TryStoreSearchedLoot(character, entry.Item, shareLootWithParty,
-                    CharacterRoster.Party.Members, out var owner, entry.State.IsIdentified,
-                    entry.State.InstanceId)) continue;
+                    CharacterRoster.Party.Members, out var owner, entry.State)) continue;
             pile.Remove(entry.Item);
             pickedUp.Add($"{ItemIdentificationRules.DisplayName(entry.Item, entry.State.IsIdentified)} → {owner}");
         }
@@ -3481,9 +3483,13 @@ public sealed class Game : ISessionCommandHandler
 
         if (slot is { } unknownSlot && !unknownSlot.Character.IsInventoryItemIdentified(unknownSlot.Kind, unknownSlot.Index))
         {
+            var unknownState = unknownSlot.Character.GetInventoryItemState(unknownSlot.Kind, unknownSlot.Index);
             _renderer.DrawInventoryMessage(
                 $"{ItemIdentificationRules.DisplayName(item, false)} — A pontos hatás, érték és töltet ismeretlen. " +
-                $"Érzékelhető aura: {ItemIdentificationRules.AuraStrength(item)}. A Vándormágus azonosíthatja.",
+                $"Érzékelhető aura: {ItemIdentificationRules.AuraStrength(item)}. " +
+                (unknownState?.IsCurseActivated == true
+                    ? "☠ Az átok aktiválódott és a tárgy a viselőjéhez kötődött. " : string.Empty) +
+                "A Vándormágus azonosíthatja.",
                 ConsoleColor.DarkCyan);
             return;
         }
@@ -3497,7 +3503,8 @@ public sealed class Game : ISessionCommandHandler
             slot is { } previewSlot
                 ? new ItemInspectionMobilityContext(CreateCharacterDetailsSnapshot(previewSlot.Character),
                     previewSlot.Kind, previewSlot.Index)
-                : null);
+                : null,
+            slot is { } stateSlot ? stateSlot.Character.GetInventoryItemState(stateSlot.Kind, stateSlot.Index) : null);
         _renderer.DrawInventoryMessage(inspection.Text, inspection.Color);
     }
 
@@ -4053,6 +4060,11 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawInventoryMessage(result.DisplacedItemName is null
             ? $"Áthelyezted: {result.SourceItemName}."
             : $"Felcserélted: {result.SourceItemName} ↔ {result.DisplacedItemName}.", ConsoleColor.Green);
+        foreach (var activation in result.CurseActivations ?? [])
+        {
+            _renderer.DrawInventoryMessage(activation, ConsoleColor.Red);
+            RecordSessionActivity(SessionActivityKind.System, activation, ConsoleColor.Red);
+        }
         if (command.SenderId != _session.HostPlayerId && CharacterRoster.Party.Leader is { } leader)
         {
             var guestCharacter = _session.CharacterControls

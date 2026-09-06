@@ -167,6 +167,7 @@ var tests = new (string Name, Action Run)[]
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
     ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("Az azonosítatlan varázstárgy példányállapota mentés és mozgatás közben megmarad", MagicItemIdentificationStatePersists),
+    ("Az átkozott tárgy aktiválódik, megköt és alkalmazza az adatvezérelt hátrányokat", CursedItemsActivateBindAndApplyEffects),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
     ("A részletes karakterlap közösen mutatja a látásmódosítókat és ölési statisztikát", CharacterDetailsAreShared),
     ("A karakterlap külön színezi az alacsony HP-t és a mannát", CharacterSheetColorsHealthAndManaSeparately),
@@ -2388,7 +2389,10 @@ static void MagicItemIdentificationStatePersists()
         new PrimaryAbilities(8, 8, 8, 8), 30, 0, 0, 0);
     var item = data.MagicItems.First(value => value.Rarity == ItemRarity.Magic);
     var instanceId = Guid.NewGuid();
-    Assert(character.AddToBackpack(item, identified: false, instanceId),
+    var curse = data.ItemCurses.First(value => value.CanAffect(item));
+    var statefulItem = new InventoryItemInstanceState(instanceId, false, curse.Id, curse.Effect,
+        curse.Value, curse.Strength);
+    Assert(character.AddToBackpack(item, identified: false, instanceId, statefulItem),
         "Az azonosítatlan tárgy nem került a hátizsákba.");
 
     var hidden = InventorySnapshotProjector.Create(character).Slots.Single(slot =>
@@ -2410,15 +2414,63 @@ static void MagicItemIdentificationStatePersists()
     var saves = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-identification-save.json"), data);
     var restored = saves.DeserializeCharacter(saves.SerializeCharacter(character));
     Assert(restored.GetInventoryItemState(InventorySlotKind.Backpack, 1)?.InstanceId == instanceId &&
-           !restored.IsInventoryItemIdentified(InventorySlotKind.Backpack, 1),
+           !restored.IsInventoryItemIdentified(InventorySlotKind.Backpack, 1) &&
+           restored.GetInventoryItemState(InventorySlotKind.Backpack, 1)?.CurseId == curse.Id,
         "A mentés nem őrizte meg az azonosítási állapotot.");
     Assert(restored.IdentifyInventoryItem(InventorySlotKind.Backpack, 1),
         "A tárgy nem volt azonosítható.");
     var revealed = InventorySnapshotProjector.Create(restored).Slots.Single(slot =>
         slot.Kind == InventorySlotKind.Backpack && slot.Index == 1).Item!;
-    Assert(revealed.IsIdentified && revealed.DefinitionId == item.Id && revealed.Name == item.Name &&
-           revealed.InstanceId == instanceId,
+    Assert(revealed.IsIdentified && revealed.DefinitionId == item.Id &&
+           revealed.Name.StartsWith(item.Name, StringComparison.Ordinal) &&
+           revealed.CurseId == curse.Id && revealed.InstanceId == instanceId,
         "Az azonosítás nem fedte fel a valódi tárgyat vagy lecserélte a példányazonosítót.");
+}
+
+static void CursedItemsActivateBindAndApplyEffects()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    Assert(data.ItemCurses.Count == 8 && data.ItemCurses.Select(curse => curse.Effect).Distinct().Count() == 8,
+        "A nyolc adatvezérelt átok nem töltődött be.");
+    var character = CreateCharacter("Átokpróba", characterClassId: CharacterClassIds.Mágus);
+    var item = new MagicItemDefinition("MI-CURSE", "Próbagyűrű", MagicItemKind.Ring, ItemRarity.Magic,
+        1000, 0, null, MagicItemEffect.None, 0, new HashSet<string> { CharacterClassIds.Mágus },
+        "Átokpróba", 3);
+    var curse = data.ItemCurses.First(value => value.Effect == ItemCurseEffect.ManaCost);
+    Assert(ItemIdentificationRules.CreateLootState(item, data.ItemCurses, new Random(1), 100).HasCurse,
+        "A garantált átokdobás nem rendelt kompatibilis átkot a varázstárgyhoz.");
+    var state = new InventoryItemInstanceState(Guid.NewGuid(), false, curse.Id, curse.Effect,
+        curse.Value, curse.Strength);
+    Assert(character.AddToBackpack(item, identified: false, state.InstanceId, state),
+        "Az átkozott példány nem került a hátizsákba.");
+    var party = new Party();
+    party.SetLeader(character);
+    var command = new InventoryTransferCommand(PlayerId.New(), 1, character.Id, character.InventoryRevision,
+        InventorySlotKind.Backpack, 0, character.Id, character.InventoryRevision,
+        InventorySlotKind.MagicItem, 0);
+    Assert(InventoryTransferService.TryExecute(party, command, out var result, out var error), error);
+    var activated = character.GetInventoryItemState(InventorySlotKind.MagicItem, 0);
+    Assert(activated is { IsCurseActivated: true, HasCurse: true } &&
+           activated.Value.BoundCharacterId == character.Id && result.CurseActivations?.Count == 1,
+        "A felszerelt átok nem aktiválódott vagy nem kötődött a viselőhöz.");
+
+    var remove = new InventoryTransferCommand(PlayerId.New(), 2, character.Id, character.InventoryRevision,
+        InventorySlotKind.MagicItem, 0, character.Id, character.InventoryRevision,
+        InventorySlotKind.Backpack, 1);
+    Assert(!InventoryTransferService.TryExecute(party, remove, out _, out _),
+        "Az aktív átkozott tárgy levehető volt.");
+    Assert(character.GetActiveCurseValue(ItemCurseEffect.ManaCost) == curse.Value,
+        "Az aktív átok értéke nem került be a karakter szabályaiba.");
+    var spell = data.Spells.First(value => value.ManaCost > 0);
+    Assert(SpellcastingRules.EffectiveManaCost(character, spell) == spell.ManaCost + curse.Value,
+        "A Manafaló nem növelte a varázslat mannaköltségét.");
+
+    Assert(character.IdentifyInventoryItem(InventorySlotKind.MagicItem, 0),
+        "Az aktív átkozott tárgy nem volt azonosítható.");
+    var snapshot = InventorySnapshotProjector.Create(character).Slots.Single(slot =>
+        slot.Kind == InventorySlotKind.MagicItem && slot.Index == 0).Item!;
+    Assert(snapshot.CurseId == curse.Id && snapshot.IsCurseActivated && snapshot.Name.Contains('☠'),
+        "Az azonosítás nem fedte fel az aktív átkot.");
 }
 
 static void CompactPartyStatusShowsResources()

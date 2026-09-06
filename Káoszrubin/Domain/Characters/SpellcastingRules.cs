@@ -96,7 +96,8 @@ public static class SpellcastingRules
     public static int EffectiveManaCost(LiveCharacter character, SpellDefinition spell) =>
         character.NextDivineSpellTriggersJudgment(spell)
             ? 0
-            : Math.Max(1, spell.ManaCost - (character.HasPerk(PerkIds.MageArchmage) ? 2 : 0));
+            : Math.Max(1, spell.ManaCost - (character.HasPerk(PerkIds.MageArchmage) ? 2 : 0) +
+                          character.GetActiveCurseValue(ItemCurseEffect.ManaCost));
 
     public static int CombatFailureChance(LiveCharacter caster, bool engaged)
     {

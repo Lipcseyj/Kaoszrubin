@@ -29,6 +29,7 @@ public static class CsvGameDataLoader
         var abilities = new List<AbilityDefinition>();
         var items = new List<MiscItemDefinition>();
         var magicItems = new List<MagicItemDefinition>();
+        var itemCurses = new List<ItemCurseDefinition>();
         var spells = new List<SpellDefinition>();
         var spellEffects = new List<SpellEffectDefinition>();
         var perks = new List<PerkDefinition>();
@@ -78,7 +79,7 @@ public static class CsvGameDataLoader
             try
             {
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
-                    monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps,
+                    monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, itemCurses, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps,
                     npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcStoryChoices, npcQuests,
                     partySituations, partyRemarks, itemUpgrades,
                     raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
@@ -112,6 +113,7 @@ public static class CsvGameDataLoader
             ("Képességek", abilities.Select(value => value.Id)),
             ("Tárgyak", items.Select(value => value.Id)),
             ("Varázstárgyak", magicItems.Select(value => value.Id)),
+            ("Tárgyátkok", itemCurses.Select(value => value.Id)),
             ("Varázslatok", spells.Select(value => value.Id)),
             ("Tehetségek", perks.Select(value => value.Id)),
             ("Állapotok", statuses.Select(value => value.Id)),
@@ -193,6 +195,7 @@ public static class CsvGameDataLoader
             Abilities = abilities,
             Items = items,
             MagicItems = magicItems,
+            ItemCurses = itemCurses,
             Spells = spells,
             SpellEffects = spellEffects,
             Perks = perks,
@@ -234,6 +237,18 @@ public static class CsvGameDataLoader
         _ => throw new InvalidDataException($"Ismeretlen sebzéstípus: '{value}'.")
     };
 
+    private static IReadOnlySet<ItemCategory> ParseCurseCategories(string value, string id)
+    {
+        var categories = value.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(category => Enum.TryParse<ItemCategory>(category, true, out var parsed)
+                ? parsed
+                : throw new InvalidDataException($"A(z) '{id}' átok ismeretlen tárgykategóriát használ: {category}."))
+            .ToHashSet();
+        if (categories.Count == 0)
+            throw new InvalidDataException($"A(z) '{id}' átokhoz legalább egy tárgykategória szükséges.");
+        return categories;
+    }
+
     private static IReadOnlyList<string> IdList(string value) => value.Split('|',
         StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
@@ -252,7 +267,8 @@ public static class CsvGameDataLoader
         IDictionary<string, int> doorAttemptRuleValues,
         ICollection<WeaponTypeDefinition> weaponTypes, ICollection<WeaponDefinition> weapons,
         ICollection<ArmorDefinition> armors, ICollection<AbilityDefinition> abilities, ICollection<MiscItemDefinition> items,
-        ICollection<MagicItemDefinition> magicItems, ICollection<SpellDefinition> spells,
+        ICollection<MagicItemDefinition> magicItems, ICollection<ItemCurseDefinition> itemCurses,
+        ICollection<SpellDefinition> spells,
         ICollection<SpellEffectDefinition> spellEffects, ICollection<PerkDefinition> perks,
         ICollection<StatusDefinition> statuses, ICollection<CharacterNameDefinition> characterNames,
         ICollection<string> innNames, ICollection<InnRumorDefinition> innRumors, ICollection<TrapDefinition> traps,
@@ -339,6 +355,12 @@ public static class CsvGameDataLoader
                     Integer(cells, 5) ?? 0, EmptyAsNull(Cell(cells, 6)), ParseMagicItemEffect(cells, 7),
                     Integer(cells, 8) ?? 0, MagicItemAllowedClasses(cells, 9, ParseMagicItemKind(cells, 2), EmptyAsNull(Cell(cells, 6))), Cell(cells, 10), Integer(cells, 11) ?? 0,
                     PositiveWeight(cells, 12, id, "varázstárgy")));
+                break;
+            case DataSection.ItemCurses:
+                itemCurses.Add(new ItemCurseDefinition(id, name,
+                    ParseRequiredEnum<ItemCurseEffect>(cells, 2, id, "átokhatás"),
+                    Math.Max(1, Integer(cells, 3) ?? 1), Math.Clamp(Integer(cells, 4) ?? 1, 1, 3),
+                    ParseCurseCategories(Cell(cells, 5), id), Cell(cells, 6), Cell(cells, 7), Cell(cells, 8)));
                 break;
             case DataSection.ArcaneSpells:
                 spells.Add(new SpellDefinition(id, name, SpellSchool.Arcane, RequiredSpellLevel(cells, id),
@@ -1347,6 +1369,7 @@ public static class CsvGameDataLoader
         "kepessegek" => DataSection.Abilities,
         "targyak" => DataSection.Items,
         "varazstargyak" => DataSection.MagicItems,
+        "targyatkok" => DataSection.ItemCurses,
         "varazslatok" => DataSection.ArcaneSpells,
         "papi varazslatok" => DataSection.DivineSpells,
         "varazshatasok" => DataSection.SpellEffects,
@@ -1401,6 +1424,7 @@ public static class CsvGameDataLoader
         Abilities,
         Items,
         MagicItems,
+        ItemCurses,
         ArcaneSpells,
         DivineSpells,
         SpellEffects,

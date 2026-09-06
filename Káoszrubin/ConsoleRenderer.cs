@@ -1094,8 +1094,11 @@ public sealed class ConsoleRenderer
             return (ToInventoryItemSnapshot(offer.Item) with
             {
                 DefinitionId = identified ? offer.Item.Id : string.Empty,
-                Name = ItemIdentificationRules.DisplayName(offer.Item, identified),
-                Description = identified ? offer.Item.Description : $"{ItemIdentificationRules.AuraStrength(offer.Item)} mágikus aura",
+                Name = ItemIdentificationRules.DisplayName(offer.Item, identified) +
+                       (identified && state?.HasCurse == true ? " ☠" : string.Empty),
+                Description = identified
+                    ? offer.Item.Description + (state?.HasCurse == true ? " ☠ A tárgy átkozott." : string.Empty)
+                    : $"{ItemIdentificationRules.AuraStrength(offer.Item)} mágikus aura",
                 BasePrice = identified ? offer.Item.BasePrice : 0,
                 MagicPower = identified ? offer.Item.MagicPower : 0,
                 Charges = identified ? offer.Owner.GetInventoryItemCharges(InventorySlotKind.Backpack, offer.BackpackIndex) : 0,
@@ -1103,7 +1106,14 @@ public sealed class ConsoleRenderer
                 Quantity = offer.Owner.GetInventoryItemQuantity(InventorySlotKind.Backpack, offer.BackpackIndex),
                 InstanceId = state?.InstanceId ?? Guid.Empty,
                 IsIdentified = identified,
-                UnidentifiedSellPrice = identified ? 0 : offer.Price
+                UnidentifiedSellPrice = identified ? 0 : offer.Price,
+                CurseId = identified ? state?.CurseId : null,
+                CurseEffect = identified ? state?.CurseEffect ?? ItemCurseEffect.None : ItemCurseEffect.None,
+                CurseValue = identified ? state?.CurseValue ?? 0 : 0,
+                CurseStrength = identified ? state?.CurseStrength ?? 0 : 0,
+                IsCurseActivated = state?.IsCurseActivated == true,
+                BoundCharacterId = state?.BoundCharacterId,
+                IsPurified = state?.IsPurified == true
             }, offer.Price, offer.Owner.Name);
         }).ToArray();
         DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, mode, sales, selectedIndex,

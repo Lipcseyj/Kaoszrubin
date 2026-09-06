@@ -324,6 +324,17 @@ PS010,Isteni védelem tekercse,Varázstekercs,Varázs,1200,1,P010,None,0,igen,Eg
 PS011,Szent ítélet tekercse,Varázstekercs,Legendás,1900,1,P011,None,0,igen,Egyetlen Szent ítélet papi varázslat mágusok által is használható legendás másolata.,8,0.2
 PS012,Isteni csoda tekercse,Varázstekercs,Legendás,4000,1,P012,None,0,igen,Egyetlen Isteni csoda papi varázslat mágusok által is használható legendás másolata.,12,0.2
 
+#Tárgyátkok
+Id,Név,Hatás,Érték,Erősség,Kategóriák,Leírás,Aktiválás,Feloldás
+CUR001,Bizonytalan kéz,HitPenalty,2,1,Weapon,A fegyver rossz pillanatban rántja félre viselője kezét és kettővel rontja a találati próbáit.,A markolat jeges szorítással a kezedhez tapad.,A fegyver engedelmesen elcsendesedik.
+CUR002,Repedt oltalom,DefensePenalty,2,1,Armor|MagicItem,A hamis védelem réseket nyit és kettővel csökkenti viselője védelmét.,A tárgy felszínén fekete repedések futnak végig.,A repedésekből eltűnik a sötét derengés.
+CUR003,Lomhaság,InitiativePenalty,3,2,Weapon|Armor|MagicItem,A tárgy hárommal csökkenti viselője kezdeményezését.,Ólmos hideg fut végig a tagjaidon.,A bénító hideg szertefoszlik.
+CUR004,Béklyó,MovementPenalty,1,2,Armor|MagicItem,A láthatatlan lánc eggyel csökkenti a taktikai és felfedezési mozgást.,Láthatatlan láncok csörrenése kíséri minden lépésed.,A láthatatlan bilincsek lehullanak rólad.
+CUR005,Ólomsúly,CombatWeight,5,2,Weapon|Armor|MagicItem,A tárgy öt súlyegységgel növeli a harci és hordott terhelést.,A tárgy hirtelen természetellenesen nehézzé válik.,A természetellenes súly eltűnik a tárgyból.
+CUR006,Manafaló,ManaCost,2,2,MagicItem,A tárgy minden saját varázslat mannaköltségét kettővel növeli.,A tárgy mohón rákapcsolódik a mágikus erődre.,A tárgy többé nem szívja el a varázserődet.
+CUR007,Hervadás,HealthPenalty,1,3,Armor|MagicItem,A tárgy eggyel csökkenti viselője effektív Egészségét.,A bőröd elszürkül ahol a tárgy hozzád ér.,Visszatér beléd az elapasztott életerő.
+CUR008,Elhomályosult elme,IntelligencePenalty,1,2,MagicItem,A tárgy eggyel csökkenti viselője effektív Intelligenciáját.,Idegen suttogás telepszik a gondolataid közé.,A suttogás elnémul és kitisztul az elméd.
+
 #Fegyvertípus
 Id,Név
 WT001,Erő

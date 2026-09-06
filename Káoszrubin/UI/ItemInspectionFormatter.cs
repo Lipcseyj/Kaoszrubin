@@ -16,12 +16,15 @@ public static class ItemInspectionFormatter
 {
     public static ItemInspection FormatUnidentified(InventoryItemSnapshot item) => new(
         $"{item.Name} — A tárgy pontos hatása, értéke és töltete azonosításig ismeretlen. " +
-        $"Érzékelhető aura: {item.Description}. A Vándormágus a fogadóban teljesen azonosíthatja.",
+        $"Érzékelhető aura: {item.Description}. " +
+        (item.IsCurseActivated ? "☠ Az átok aktiválódott és a tárgy a viselőjéhez kötődött. " : string.Empty) +
+        "A Vándormágus a fogadóban teljesen azonosíthatja.",
         ConsoleColor.DarkCyan);
 
     public static ItemInspection Format(IItemDefinition item, GameDataCatalog gameData, int charges = 0,
         IReadOnlyDictionary<string, int>? weaponProficiencies = null,
-        ItemInspectionMobilityContext? mobilityContext = null)
+        ItemInspectionMobilityContext? mobilityContext = null,
+        InventoryItemInstanceState? instanceState = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(gameData);
@@ -63,8 +66,14 @@ public static class ItemInspectionFormatter
         var mobility = mobilityContext is { } context
             ? MobilityPreview(item, gameData, context)
             : string.Empty;
+        var curse = instanceState is { HasCurse: true } cursed
+            ? gameData.GetItemCurse(cursed.CurseId!) is { } definition
+                ? $" ☠ Átok: {definition.Name} ({cursed.CurseStrength}/3) — {definition.Description}" +
+                  (cursed.IsCurseActivated ? " Az átok aktív és a tárgy a viselőjéhez kötődött." : " Az átok még nem aktiválódott.")
+                : string.Empty
+            : instanceState is { IsPurified: true } ? " ✨ Az átkot végleg megtörték." : string.Empty;
         return new ItemInspection($"{item.Name} [{item.Id}] — {details}. Ritkaság: {RarityName(item.Rarity)}; " +
-            $"mágikus erő: {item.MagicPower}; alapár: {item.BasePrice} arany. Jellemzés: {description}" + mobility,
+            $"mágikus erő: {item.MagicPower}; alapár: {item.BasePrice} arany. Jellemzés: {description}" + mobility + curse,
             RarityColor(item.Rarity));
     }
 

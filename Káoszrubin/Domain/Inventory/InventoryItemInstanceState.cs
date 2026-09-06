@@ -1,12 +1,19 @@
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Magic;
+using KaoszRubin.Domain.Characters;
 
 namespace KaoszRubin.Domain.Inventory;
 
 /// <summary>Egy konkrét inventorytárgy definíciótól független, menthető állapota.</summary>
-public readonly record struct InventoryItemInstanceState(Guid InstanceId, bool IsIdentified)
+public readonly record struct InventoryItemInstanceState(Guid InstanceId, bool IsIdentified,
+    string? CurseId = null, ItemCurseEffect CurseEffect = ItemCurseEffect.None, int CurseValue = 0,
+    int CurseStrength = 0, bool IsCurseActivated = false, CharacterId? BoundCharacterId = null,
+    bool IsPurified = false)
 {
     public static InventoryItemInstanceState Create(bool identified = true) => new(Guid.NewGuid(), identified);
+
+    public bool HasCurse => !IsPurified && !string.IsNullOrWhiteSpace(CurseId) &&
+                            CurseEffect != ItemCurseEffect.None && CurseValue > 0;
 }
 
 public static class ItemIdentificationRules
@@ -37,4 +44,17 @@ public static class ItemIdentificationRules
 
     public static int IdentificationPrice(IItemDefinition item) =>
         Math.Max(1, 20 + (int)Math.Ceiling(item.BasePrice * 0.08) + item.MagicPower * 15);
+
+    public static InventoryItemInstanceState CreateLootState(IItemDefinition item,
+        IReadOnlyList<ItemCurseDefinition> curses, Random random, int curseChancePercent)
+    {
+        var identified = !RequiresIdentification(item);
+        if (!RequiresIdentification(item) || random.Next(100) >= Math.Clamp(curseChancePercent, 0, 100))
+            return InventoryItemInstanceState.Create(identified);
+        var candidates = curses.Where(curse => curse.CanAffect(item)).ToArray();
+        if (candidates.Length == 0) return InventoryItemInstanceState.Create(identified);
+        var selected = candidates[random.Next(candidates.Length)];
+        return new InventoryItemInstanceState(Guid.NewGuid(), identified, selected.Id, selected.Effect,
+            selected.Value, selected.Strength);
+    }
 }

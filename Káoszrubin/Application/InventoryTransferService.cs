@@ -4,7 +4,8 @@ using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Application;
 
-public sealed record InventoryTransferResult(string SourceItemName, string? DisplacedItemName);
+public sealed record InventoryTransferResult(string SourceItemName, string? DisplacedItemName,
+    IReadOnlyList<string>? CurseActivations = null);
 
 /// <summary>Revízióellenőrzött, töltetmegőrző, atomi inventory-slotcsere.</summary>
 public static class InventoryTransferService
@@ -21,10 +22,16 @@ public static class InventoryTransferService
             return false;
         }
         foreach (var entry in plan.Changes) entry.Key.ApplyInventoryChanges(entry.Value.ToArray());
+        var activations = plan.Changes.SelectMany(entry => entry.Value
+            .Where(change => change.Item is not null &&
+                             change.State is { HasCurse: true, IsCurseActivated: false } &&
+                             IsActiveEquipmentSlot(change.Kind, change.Index))
+            .Select(_ => $"☠ {entry.Key.Name}: a tárgy átka aktiválódott és nem vehető le az átok megtöréséig."))
+            .ToArray();
         result = new InventoryTransferResult(
             ItemIdentificationRules.DisplayName(plan.SourceItem, plan.SourceIdentified),
             plan.DisplacedItem is null ? null :
-                ItemIdentificationRules.DisplayName(plan.DisplacedItem, plan.DisplacedIdentified));
+                ItemIdentificationRules.DisplayName(plan.DisplacedItem, plan.DisplacedIdentified), activations);
         return true;
     }
 
@@ -120,6 +127,14 @@ public static class InventoryTransferService
         InventorySlotKind.Armor => index == 0,
         InventorySlotKind.MagicItem => index is >= 0 and < LiveCharacter.MaximumMagicItemCount,
         InventorySlotKind.Backpack => index is >= 0 and < LiveCharacter.MaximumBackpackItemCount,
+        _ => false
+    };
+
+    private static bool IsActiveEquipmentSlot(InventorySlotKind kind, int index) => kind switch
+    {
+        InventorySlotKind.Weapon => index is 0 or 1,
+        InventorySlotKind.Armor => index == 0,
+        InventorySlotKind.MagicItem => index is >= 0 and < LiveCharacter.MaximumMagicItemCount,
         _ => false
     };
 

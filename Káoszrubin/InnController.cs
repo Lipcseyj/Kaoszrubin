@@ -1329,6 +1329,7 @@ internal sealed class InnController
             else if (key == ConsoleKey.Enter && items.Count > 0)
             {
                 var entry = items[selectedIndex];
+                var itemState = entry.Character.GetInventoryItemState(entry.Kind, entry.Index);
                 var price = ItemIdentificationRules.IdentificationPrice(entry.Item);
                 if (!_partyLeader.SpendGold(price))
                 {
@@ -1342,7 +1343,11 @@ internal sealed class InnController
                     continue;
                 }
                 _revision++;
-                message = $"✅ Azonosítva: {entry.Item.Name} — {entry.Item.Description}";
+                var curseText = itemState is { HasCurse: true } cursed
+                    ? $" ☠ ÁTOK: {_gameData.GetItemCurse(cursed.CurseId!).Name} — " +
+                      _gameData.GetItemCurse(cursed.CurseId!).Description
+                    : " ✨ Nem terheli átok.";
+                message = $"✅ Azonosítva: {entry.Item.Name} — {entry.Item.Description}.{curseText}";
                 RecordTransaction(InnTransactionKind.Service, _partyLeader.Name,
                     $"Azonosítás — {entry.Item.Name}", price, entry.Character.Name, announceOnHost: true);
             }

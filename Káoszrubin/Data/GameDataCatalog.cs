@@ -25,6 +25,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<AbilityDefinition> Abilities { get; init; } = [];
     public IReadOnlyList<MiscItemDefinition> Items { get; init; } = [];
     public IReadOnlyList<MagicItemDefinition> MagicItems { get; init; } = [];
+    public IReadOnlyList<ItemCurseDefinition> ItemCurses { get; init; } = [];
     public IReadOnlyList<SpellDefinition> Spells { get; init; } = [];
     public IReadOnlyList<SpellEffectDefinition> SpellEffects { get; init; } = [];
     public IReadOnlyList<PerkDefinition> Perks { get; init; } = [];
@@ -63,6 +64,7 @@ public sealed class GameDataCatalog
     public WeaponDefinition GetWeapon(string id) => FindById(Weapons, id, "fegyver");
     public ArmorDefinition GetArmor(string id) => FindById(Armors, id, "páncél");
     public MagicItemDefinition GetMagicItem(string id) => FindById(MagicItems, id, "varázstárgy");
+    public ItemCurseDefinition GetItemCurse(string id) => FindById(ItemCurses, id, "tárgyátok");
     public SpellDefinition GetSpell(string id) => FindById(Spells, id, "varázslat");
     public IReadOnlyList<SpellDefinition> GetSpells(SpellSchool school, int level) => Spells
         .Where(spell => spell.School == school && spell.Level == level).ToList();

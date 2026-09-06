@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using KaoszRubin.Application;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Magic;
+using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Data;
 
@@ -378,4 +379,6 @@ public sealed record GroundPileSaveData(Position Position, List<SavedItemReferen
 public sealed record TrapSaveData(Position Position, string DefinitionId, TrapState State,
     bool DetectionAttempted, int FailedDisarmAttempts);
 public sealed record SavedItemReference(string Category, string Id, int Charges = 0,
-    Guid? InstanceId = null, bool? IsIdentified = null);
+    Guid? InstanceId = null, bool? IsIdentified = null, string? CurseId = null,
+    ItemCurseEffect CurseEffect = ItemCurseEffect.None, int CurseValue = 0, int CurseStrength = 0,
+    bool IsCurseActivated = false, Guid? BoundCharacterId = null, bool IsPurified = false);
