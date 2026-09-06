@@ -851,6 +851,8 @@ public sealed class MainMenu
             Hotkey("PROFIL: ENTER / ESC", "A profil elfogadása és visszatérés az alakzatszerkesztőbe."),
             Text("„Támadó varázslatok csatánként”: ennyi támadó varázslatot enged a profil a teljes támadási küszöb alatt. „Alsó ellenfél-összerő” alatt nem használ támadó varázslatot. Az összerő az élő ellenfelek erősségi fokozatainak összege."),
             Text("„Teljes támadás összereje” elérésétől a csatánkénti támadóvarázslat-korlát nem érvényes. A gyógyítás és a hasznos erősítések ettől külön, a harci helyzet és a rendelkezésre álló manna szerint működnek."),
+            Text("Hátravonuló profilnál a varázshasználó 6 taktikai mezőnyi biztonságos távolságnál megáll. Ha bármely élő ellenfél repül, 8 mezőre próbál távolodni."),
+            Text("A hátsó sori Pap Halottűzéssel elérheti az előtte álló élő társ által lekötött élőholtat, akkor is, ha a felszerelt fegyvere onnan nem támadhatna."),
             Text("„Mana elfogyásakor”: Hátravonulás esetén a karakter biztonságos távolságot keres; Önbuff és közelharc esetén hasznos erősítést próbál alkalmazni, majd fegyverrel harcol."),
             Hotkey("PAP PROFIL: U", "Külön élőholt/démon profil szerkesztése. Ha a csatában van élőholt vagy démon ellenfél, ez a profil felülírja a Pap általános beállításait."),
             Text("Alapértékek: Mágus 2 varázslat, 8/16-os küszöb, hátravonulás; Pap 1 varázslat, 15/30, önbuff+közelharc; Pap élőholt/démon profil 5 varázslat, 5/15; Lovag 0 varázslat, 20/40, önbuff+közelharc."),

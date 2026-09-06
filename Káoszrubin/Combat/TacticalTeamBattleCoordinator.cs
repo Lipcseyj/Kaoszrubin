@@ -49,6 +49,10 @@ public sealed class TacticalTeamBattleCoordinator
             .OrderBy(enemy => TacticalDistance.Between(origin, enemy.Position))
             .ThenBy(enemy => enemy.CurrentHitPoints).First();
 
+    public static int PreferredSpellcasterRetreatDistance(IEnumerable<Enemy> livingEnemies) =>
+        livingEnemies.Any(enemy => enemy.CurrentHitPoints > 0 &&
+                                   enemy.Definition.HasTrait(EnemyTraits.Flying)) ? 8 : 6;
+
     public static IEnumerable<Enemy> AdjacentTeamEnemies(TeamBattleEncounter battle, LiveCharacter character, Position characterPosition) =>
         battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 &&
             TacticalDistance.IsMeleeAdjacent(characterPosition, enemy.Position));
@@ -294,6 +298,10 @@ public sealed class TacticalTeamBattleCoordinator
                 ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
                 : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
         var reachable = ReachableTeamEnemies(battle, character, characterPosition).ToArray();
+        var turnUndeadTargets = AdjacentTeamEnemies(battle, character, characterPosition)
+            .Concat(battle.RearFormationEngagedEnemies(character))
+            .Where(enemy => SingleBattleCoordinator.CanTurnUndead(character, enemy))
+            .DistinctBy(enemy => enemy.Id).ToArray();
         if (battle.Turns.Cycle == 1 && character.Id == battle.InitiatingCharacterId)
         {
             var openingActions = new List<BattleActionKind> { BattleActionKind.Pass };
@@ -303,6 +311,8 @@ public sealed class TacticalTeamBattleCoordinator
             else openingActions.Insert(0, BattleActionKind.Move);
             if (hasUsableCombatSpell)
                 openingActions.Insert(0, BattleActionKind.CastSpell);
+            if (turnUndeadTargets.Length > 0 && !turnUndeadUsedThisBattle.Contains(character))
+                openingActions.Insert(0, BattleActionKind.TurnUndead);
             if (character.CanSwapReserveWeapon) openingActions.Add(BattleActionKind.SwapWeapon);
             return openingActions;
         }
@@ -312,7 +322,7 @@ public sealed class TacticalTeamBattleCoordinator
         {
             actions.Add(BattleActionKind.PhysicalAttack);
             if (reachable.Length > 1) actions.Add(BattleActionKind.SelectTarget);
-            if (SingleBattleCoordinator.CanTurnUndead(character, focusEnemy) && !turnUndeadUsedThisBattle.Contains(character))
+            if (turnUndeadTargets.Length > 0 && !turnUndeadUsedThisBattle.Contains(character))
                 actions.Add(BattleActionKind.TurnUndead);
         }
         if (battle.HasActiveFormation && battle.IsFrontRow(character) &&

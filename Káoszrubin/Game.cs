@@ -4806,9 +4806,10 @@ public sealed class Game : ISessionCommandHandler
         }
         if (key.Key == ConsoleKey.T && allowed.Contains(BattleActionKind.TurnUndead))
         {
-            var undeadTarget = battle.SelectedTargetEnemy() is { } selected && CanTurnUndead(character, selected)
+            var targets = TurnUndeadTargets(battle, character).ToArray();
+            var undeadTarget = battle.SelectedTargetEnemy() is { } selected && targets.Contains(selected)
                 ? selected
-                : AdjacentTeamEnemies(battle, character).First(candidate => CanTurnUndead(character, candidate));
+                : targets.First();
             SubmitLocalBattleCommand(BattleActionKind.TurnUndead,
                 targetEnemyId: undeadTarget.Id);
             return;
@@ -5814,10 +5815,11 @@ public sealed class Game : ISessionCommandHandler
                 AdvanceTeamBattleTurn(battle);
                 break;
             case BattleActionKind.TurnUndead:
+                var turnUndeadTargets = TurnUndeadTargets(battle, character).ToArray();
                 var undead = command.TargetEnemyId is { } undeadId
-                    ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == undeadId)
-                    : AdjacentTeamEnemies(battle, character).FirstOrDefault(CanTarget);
-                if (undead is null || !CanTurnUndead(character, undead))
+                    ? turnUndeadTargets.FirstOrDefault(enemy => enemy.Id == undeadId)
+                    : turnUndeadTargets.FirstOrDefault();
+                if (undead is null)
                 {
                     RejectTeamBattleAction(command, "Nincs elűzhető élőholt a közelben.");
                     return;
@@ -5837,7 +5839,6 @@ public sealed class Game : ISessionCommandHandler
         }
         ContinueTeamBattle();
 
-        bool CanTarget(Enemy candidate) => CanTurnUndead(character, candidate);
     }
 
     private void ExecuteTeamSpellBattleAction(TeamBattleEncounter battle, LiveCharacter character,
@@ -5949,6 +5950,7 @@ public sealed class Game : ISessionCommandHandler
             battle.RearPartnerOf(character) is { IsAlive: true } &&
             TryExecuteSwapToRear(battle, character, out _))
             return;
+        if (TryExecuteTeamAiTurnUndead(battle, character)) return;
         if (TryExecuteTeamAiSpell(battle, character)) return;
         if (!battle.HasActiveFormation && !battle.IsEngaged(character) &&
             TryExecuteNpcSpellcasterPositioning(battle, character)) return;
@@ -5977,6 +5979,23 @@ public sealed class Game : ISessionCommandHandler
         MoveTeamCharacterToward(battle, character, target.Position);
     }
 
+    private bool TryExecuteTeamAiTurnUndead(TeamBattleEncounter battle, LiveCharacter character)
+    {
+        if (_turnUndeadUsedThisBattle.Contains(character)) return false;
+        var undead = TurnUndeadTargets(battle, character)
+            .OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault();
+        if (undead is null) return false;
+        var turning = ResolveTurnUndead(character, undead);
+        battle.RecordAttack(BattleSide.Friendly);
+        if (turning.DamageToEnemy > 0) undead.ReceiveSpellDamage(turning.DamageToEnemy);
+        var message = turning.Message +
+                      _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        PresentBattleEntries([new BattleLogEntry(message, turning.Kind)]);
+        if (undead.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, undead, character);
+        AdvanceTeamBattleTurn(battle);
+        return true;
+    }
+
     private bool TryExecuteNpcSpellcasterPositioning(TeamBattleEncounter battle, LiveCharacter caster)
     {
         if (!caster.IsSpellcaster || !caster.CanCastSpells ||
@@ -5997,8 +6016,16 @@ public sealed class Game : ISessionCommandHandler
         if (!hasSpendableMana)
         {
             if (tactics.ManaFallback == SpellcasterManaFallback.SelfBuffAndMelee) return false;
+            var preferredSafety = TacticalTeamBattleCoordinator.PreferredSpellcasterRetreatDistance(livingEnemies);
+            var currentSafety = livingEnemies.Length == 0 ? preferredSafety : livingEnemies.Min(enemy =>
+                TacticalDistance.Between(GetCasterPosition(caster), enemy.Position));
+            if (currentSafety >= preferredSafety)
+            {
+                FinishNpcSpellcasterPositioning(battle, caster, "biztonságos távolságot tart");
+                return true;
+            }
             return MoveNpcSpellcasterToBestPosition(battle, caster, livingEnemies, offensiveSpells,
-                seekLineOfSight: false);
+                seekLineOfSight: false, preferredSafety);
         }
 
         var origin = GetCasterPosition(caster);
@@ -6013,7 +6040,8 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private bool MoveNpcSpellcasterToBestPosition(TeamBattleEncounter battle, LiveCharacter caster,
-        IReadOnlyList<Enemy> enemies, IReadOnlyList<SpellDefinition> offensiveSpells, bool seekLineOfSight)
+        IReadOnlyList<Enemy> enemies, IReadOnlyList<SpellDefinition> offensiveSpells, bool seekLineOfSight,
+        int? preferredSafety = null)
     {
         var origin = GetCasterPosition(caster);
         var actorId = CombatantId.ForCharacter(caster.Id);
@@ -6032,9 +6060,13 @@ public sealed class Game : ISessionCommandHandler
             var safety = enemies.Count == 0 ? 0 : enemies.Min(enemy => TacticalDistance.Between(position, enemy.Position));
             candidates.Add((path, visibleTargets, safety));
         }
-        var selected = candidates.OrderByDescending(candidate => candidate.VisibleTargets)
-            .ThenByDescending(candidate => candidate.Safety)
-            .ThenBy(candidate => candidate.Path.Count).FirstOrDefault();
+        var selected = preferredSafety is { } safetyGoal
+            ? candidates.OrderByDescending(candidate => Math.Min(candidate.Safety, safetyGoal))
+                .ThenBy(candidate => candidate.Path.Count)
+                .ThenByDescending(candidate => candidate.VisibleTargets).FirstOrDefault()
+            : candidates.OrderByDescending(candidate => candidate.VisibleTargets)
+                .ThenByDescending(candidate => candidate.Safety)
+                .ThenBy(candidate => candidate.Path.Count).FirstOrDefault();
         if (selected.Path is not null)
         {
             CompleteTeamCharacterMovement(battle, caster, selected.Path);
@@ -6564,6 +6596,12 @@ public sealed class Game : ISessionCommandHandler
 
     private IEnumerable<Enemy> ReachableTeamEnemies(TeamBattleEncounter battle, LiveCharacter character) =>
         TacticalTeamBattleCoordinator.ReachableTeamEnemies(battle, character, GetCasterPosition(character));
+
+    private IEnumerable<Enemy> TurnUndeadTargets(TeamBattleEncounter battle, LiveCharacter character) =>
+        AdjacentTeamEnemies(battle, character)
+            .Concat(battle.RearFormationEngagedEnemies(character))
+            .Where(enemy => CanTurnUndead(character, enemy))
+            .DistinctBy(enemy => enemy.Id);
 
     private IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy) =>
         TacticalTeamBattleCoordinator.AdjacentTeamCharacters(battle, enemy, GetCasterPosition);

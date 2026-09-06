@@ -226,8 +226,15 @@ public sealed class TeamBattleEncounter
                                character.WeaponProficiencyRankFor(WeaponFamilies.Dagger) == WeaponProficiencyRank.Master);
         if (!IsRearRow(character) ||
             weapon?.CanAttackFromRear != true && !thiefRearStrike ||
-            FrontPartnerOf(character) is not { IsAlive: true } front)
+            FrontPartnerOf(character) is not { IsAlive: true })
             return [];
+        return RearFormationEngagedEnemies(character);
+    }
+
+    /// <summary>Az előtte álló élő társ által lekötött ellenfelek, a hátsó karakter fegyverétől függetlenül.</summary>
+    public IReadOnlyList<Enemy> RearFormationEngagedEnemies(LiveCharacter character)
+    {
+        if (!IsRearRow(character) || FrontPartnerOf(character) is not { IsAlive: true } front) return [];
         return EngagedEnemies(front);
     }
 

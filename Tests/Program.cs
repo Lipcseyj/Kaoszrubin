@@ -99,6 +99,8 @@ var tests = new (string Name, Action Run)[]
     ("A zárt alakzat első sora védi a mögötte álló társat", TeamBattleFormationProtectsRearRow),
     ("Harcban csak szabad hátsó sori karakter használhat CSV-ben engedélyezett italt", TeamBattleItemUseRequiresFreeRearPosition),
     ("A hátsó sor szálfegyverrel eléri az első társ lekötött ellenfelét", TeamBattleRearPolearmReachUsesFrontEngagement),
+    ("A hátsó sori pap elűzheti az első sor által lekötött élőholtat", RearPriestCanTurnFrontEngagedUndead),
+    ("A hátráló varázshasználó távolságcélja repülő ellenfélnél nagyobb", SpellcasterRetreatDistanceIsCapped),
     ("Az ellenfél nézésiránya oldal- és hátbatámadási bónuszt ad", TacticalAttackArcsUseEnemyFacing),
     ("A tolvaj tőrrel a zárt alakzat hátsó sorából is orvtámad", ThiefCanBackstabFromRearFormation),
     ("A Hátra! helycsere átadja az első sori lekötéseket", TeamBattleSwapToRearTransfersEngagements),
@@ -4365,6 +4367,49 @@ static List<GameSessionEvent> CollectEvents(GameSession session)
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+static void RearPriestCanTurnFrontEngagedUndead()
+{
+    var system = CreateBattleSystem(1706);
+    var front = CreateCharacter("Első sor", characterClassId: CharacterClassIds.Harcos);
+    var priest = CreateCharacter("Hátsó pap", characterClassId: CharacterClassIds.Pap);
+    var undead = CreateEnemyAt(new Position(3, 2), "E-REAR-UNDEAD");
+    var undeadDefinition = undead.Definition with { Traits = EnemyTraits.Undead };
+    undead = new ConfiguredEnemy(new Position(3, 2), undeadDefinition);
+    var frontPreparation = system.PrepareTeamCharacter(front);
+    var priestPreparation = system.PrepareTeamCharacter(priest);
+    var formation = new PartyFormationSnapshot(front.Id, null, priest.Id, null,
+        Direction.Up, PartyFormationState.Locked);
+    var battle = new TeamBattleEncounter(new Position(3, 3),
+        [
+            new TeamCharacterParticipant(front, new Position(3, 3), TacticalParticipantKind.PartyMember,
+                frontPreparation.Initiative, 3, 1, frontPreparation.Runtime),
+            new TeamCharacterParticipant(priest, new Position(3, 4), TacticalParticipantKind.PartyMember,
+                priestPreparation.Initiative, 3, 1, priestPreparation.Runtime)
+        ],
+        [new TeamEnemyParticipant(undead, 5, 2, 1)], front.Id, undead.Id, formation: formation);
+    battle.Engage(front, undead);
+    battle.Turns.StartTurns();
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1706));
+    var actions = coordinator.GetTeamAllowedBattleActions(battle, priest, undead, priest,
+        new Position(3, 4), false, []);
+
+    Assert(battle.RearFormationEngagedEnemies(priest).SequenceEqual([undead]) &&
+           SingleBattleCoordinator.CanTurnUndead(priest, undead) &&
+           actions.Contains(BattleActionKind.TurnUndead),
+        "A hátsó pap nem érte el Halottűzéssel az első sor által lekötött élőholtat.");
+}
+
+static void SpellcasterRetreatDistanceIsCapped()
+{
+    var ground = CreateEnemyAt(new Position(1, 1), "E-GROUND");
+    var flyingDefinition = ground.Definition with { Id = "E-FLYING", Traits = EnemyTraits.Flying };
+    var flying = new ConfiguredEnemy(new Position(2, 2), flyingDefinition);
+    Assert(TacticalTeamBattleCoordinator.PreferredSpellcasterRetreatDistance([ground]) == 6 &&
+           TacticalTeamBattleCoordinator.PreferredSpellcasterRetreatDistance([ground, flying]) == 8,
+        "A hátráló varázshasználó 6/8 mezős biztonsági távolsága hibás.");
 }
 
 static void TacticalAttackArcsUseEnemyFacing()
