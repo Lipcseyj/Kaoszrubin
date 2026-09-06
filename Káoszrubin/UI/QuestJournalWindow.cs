@@ -7,10 +7,11 @@ public static class QuestJournalWindow
 {
     public const int Width = 84;
     public sealed record FastTravelOption(string QuestId, string QuestTitle, string QuestGiverName, int NeedCost);
+    public sealed record Result(string? FastTravelQuestId = null, string? AbandonedQuestId = null);
     public readonly record struct RestorationRegion(int Left, int Top, int Width, int Height);
 
     public static IReadOnlyList<(string Text, ConsoleColor Color)> Build(
-        IReadOnlyList<QuestJournalEntrySnapshot> entries)
+        IReadOnlyList<QuestJournalEntrySnapshot> entries, string? selectedActiveQuestId = null)
     {
         var lines = new List<(string, ConsoleColor)>
         {
@@ -22,7 +23,9 @@ public static class QuestJournalWindow
         if (active.Length == 0) lines.Add(("  — Nincs aktív küldetés.", ConsoleColor.DarkGray));
         foreach (var entry in active)
         {
-            lines.Add(($"  ◇ {entry.Title} — {entry.Progress}/{entry.RequiredCount}  " +
+            var marker = string.Equals(entry.QuestId, selectedActiveQuestId, StringComparison.OrdinalIgnoreCase)
+                ? "▶" : "◇";
+            lines.Add(($"  {marker} {entry.Title} — {entry.Progress}/{entry.RequiredCount}  " +
                 $"{entry.QuestGiverName} ({entry.ExperienceReward} XP)",
                 ConsoleColor.Yellow));
             AddWrapped(lines, $"    {entry.Description}", ConsoleColor.Gray);
@@ -42,6 +45,15 @@ public static class QuestJournalWindow
             if (!string.IsNullOrWhiteSpace(entry.CompletionItemRewardSummary))
                 AddWrapped(lines, $"    Kapott tárgyak: {entry.CompletionItemRewardSummary}", ConsoleColor.Yellow);
         }
+
+        var abandoned = entries.Where(entry => entry.Status == QuestJournalStatus.Abandoned).ToArray();
+        if (abandoned.Length > 0)
+        {
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add(("FELADOTT KÜLDETÉSEK", ConsoleColor.DarkGray));
+            foreach (var entry in abandoned)
+                lines.Add(($"  × {entry.Title} — {entry.QuestGiverName}", ConsoleColor.DarkGray));
+        }
         return lines;
     }
 
@@ -60,11 +72,13 @@ public static class QuestJournalWindow
         lines.Add((remaining, color));
     }
 
-    public static string? Show(IReadOnlyList<QuestJournalEntrySnapshot> entries,
-        IReadOnlyList<FastTravelOption>? fastTravelOptions = null)
+    public static Result? Show(IReadOnlyList<QuestJournalEntrySnapshot> entries,
+        IReadOnlyList<FastTravelOption>? fastTravelOptions = null, bool allowAbandon = true)
     {
         var options = fastTravelOptions ?? [];
         var selectedOption = 0;
+        var selectedActiveQuest = 0;
+        var confirmingAbandon = false;
         var offset = 0;
         var restorationRegion = CalculateRestorationRegion(entries, options.Count,
             Console.WindowWidth, Console.WindowHeight);
@@ -72,7 +86,11 @@ public static class QuestJournalWindow
             restorationRegion.Width, restorationRegion.Height);
         while (true)
         {
-            var allLines = Build(entries).ToList();
+            var activeEntries = entries.Where(entry => entry.Status == QuestJournalStatus.Active).ToArray();
+            if (activeEntries.Length > 0)
+                selectedActiveQuest = Math.Clamp(selectedActiveQuest, 0, activeEntries.Length - 1);
+            var selectedQuestId = activeEntries.Length == 0 ? null : activeEntries[selectedActiveQuest].QuestId;
+            var allLines = Build(entries, selectedQuestId).ToList();
             if (options.Count > 0)
             {
                 allLines.Add((string.Empty, ConsoleColor.Gray));
@@ -95,11 +113,27 @@ public static class QuestJournalWindow
             if (maximumOffset > 0) page.Add(("Q / Enter / Esc: bezárás", ConsoleColor.DarkYellow));
             if (options.Count > 0)
                 page.Add(("←/→: küldetésválasztás, T: utazás, leadás és visszatérés", ConsoleColor.Cyan));
+            if (allowAbandon && activeEntries.Length > 0)
+                page.Add((confirmingAbandon
+                    ? $"⚠ Feladod: {activeEntries[selectedActiveQuest].Title}? I/Y: igen | N/Esc: mégsem"
+                    : "Tab: aktív küldetés választása | F: kijelölt küldetés feladása",
+                    confirmingAbandon ? ConsoleColor.Red : ConsoleColor.DarkYellow));
             Draw(page);
 
             var key = Console.ReadKey(intercept: true).Key;
+            if (confirmingAbandon)
+            {
+                if (key is ConsoleKey.I or ConsoleKey.Y)
+                    return new Result(AbandonedQuestId: activeEntries[selectedActiveQuest].QuestId);
+                if (key is ConsoleKey.N or ConsoleKey.Escape) confirmingAbandon = false;
+                continue;
+            }
             if (key is ConsoleKey.Q or ConsoleKey.Enter or ConsoleKey.Escape) return null;
-            if (key == ConsoleKey.T && options.Count > 0) return options[selectedOption].QuestId;
+            if (key == ConsoleKey.T && options.Count > 0)
+                return new Result(FastTravelQuestId: options[selectedOption].QuestId);
+            if (allowAbandon && key == ConsoleKey.Tab && activeEntries.Length > 0)
+                selectedActiveQuest = (selectedActiveQuest + 1) % activeEntries.Length;
+            if (allowAbandon && key == ConsoleKey.F && activeEntries.Length > 0) confirmingAbandon = true;
             if (key == ConsoleKey.LeftArrow && options.Count > 0)
                 selectedOption = (selectedOption + options.Count - 1) % options.Count;
             if (key == ConsoleKey.RightArrow && options.Count > 0)

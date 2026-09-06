@@ -229,7 +229,7 @@ public sealed class CoopGuestScreen
                         !_inventoryOpen && !_battleSpellMenuOpen && !_battleItemMenuOpen &&
                         _targetedBattleSpell is null)
                     {
-                        QuestJournalWindow.Show(questSnapshot.QuestJournal ?? []);
+                        QuestJournalWindow.Show(questSnapshot.QuestJournal ?? [], allowAbandon: false);
                         continue;
                     }
                     if (key.Key == ConsoleKey.Escape && client.CurrentSnapshot?.Phase != GameSessionPhase.Inn &&

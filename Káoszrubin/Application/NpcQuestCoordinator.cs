@@ -28,9 +28,18 @@ public sealed class NpcQuestCoordinator
         var progress = npc.Quests.First(value => string.Equals(value.QuestId, quest.Id,
             StringComparison.OrdinalIgnoreCase));
         if (progress.State == NpcQuestState.Offered) return;
-        var status = progress.State == NpcQuestState.Completed
-            ? QuestJournalStatus.Completed : QuestJournalStatus.Active;
         questJournal.TryGetValue(quest.Id, out var previous);
+        if (previous?.Status == QuestJournalStatus.Abandoned)
+        {
+            npc.AbandonQuest(quest.Id);
+            return;
+        }
+        var status = progress.State switch
+        {
+            NpcQuestState.Completed => QuestJournalStatus.Completed,
+            NpcQuestState.Abandoned => QuestJournalStatus.Abandoned,
+            _ => QuestJournalStatus.Active
+        };
         questJournal[quest.Id] = CreateQuestJournalEntry(quest, status,
             visibleProgress ?? progress.Progress, quest.ExperienceReward) with
         {

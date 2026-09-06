@@ -68,6 +68,7 @@ var tests = new (string Name, Action Run)[]
     ("Az ideiglenes követő megtartja a world-NPC inverz térképszíneit", TemporaryFollowerKeepsWorldNpcMapColors),
     ("A hosszú NPC-párbeszéd az ablakon belül sortörést kap", NpcDialogueWrapsInsideRecruitmentWindow),
     ("A közös küldetésnapló elkülöníti az aktív és teljesített küldetéseket", QuestJournalBuildsSharedHistory),
+    ("A feladott NPC-küldetés menthető és nem aktiválható újra", AbandonedNpcQuestRemainsResolved),
     ("Az ismeretlen CSV-fejezet sorszámos hibát ad", UnknownCsvSectionIsRejectedWithLineNumber),
     ("A hiányzó kötelező CSV-mező sorszámos hibát ad", MissingRequiredCsvFieldIsRejectedWithLineNumber),
     ("Az alkalmazkodó ember választott képességbónuszt kap", AdaptableRaceGainsChosenAbility),
@@ -3191,7 +3192,8 @@ static void QuestJournalBuildsSharedHistory()
     var entries = new QuestJournalEntrySnapshot[]
     {
         new("Q-A", "Folyamatban", "Tedd meg.", "Elira", QuestJournalStatus.Active, 2, 4, 240),
-        new("Q-B", "Befejezve", "Megtetted.", "Elira", QuestJournalStatus.Completed, 1, 1, 420)
+        new("Q-B", "Befejezve", "Megtetted.", "Elira", QuestJournalStatus.Completed, 1, 1, 420),
+        new("Q-C", "Feladva", "Nem folytatod.", "Elira", QuestJournalStatus.Abandoned, 1, 3, 180)
     };
     var lines = QuestJournalWindow.Build(entries);
     var restoration = QuestJournalWindow.CalculateRestorationRegion(entries, 0, 200, 50);
@@ -3200,8 +3202,27 @@ static void QuestJournalBuildsSharedHistory()
            restoration.Width == QuestJournalWindow.Width && restoration.Height < 50 &&
            restoration.Left > 0 && restoration.Left + restoration.Width < 200 &&
            lines.Any(line => line.Text.Contains("Folyamatban — 2/4  Elira (240 XP)", StringComparison.Ordinal)) &&
-           lines.Any(line => line.Text.Contains("Befejezve — Elira (+420 XP)", StringComparison.Ordinal)),
-        "A küldetésnapló kerete, háttérmentési területe vagy aktív/teljesített tartalma hibás.");
+           lines.Any(line => line.Text.Contains("Befejezve — Elira (+420 XP)", StringComparison.Ordinal)) &&
+           lines.Any(line => line.Text.Contains("× Feladva — Elira", StringComparison.Ordinal)),
+        "A küldetésnapló kerete vagy aktív/teljesített/feladott tartalma hibás.");
+}
+
+static void AbandonedNpcQuestRemainsResolved()
+{
+    var character = CreateCharacter("Elira-próba");
+    var npc = new WorldNpc(new Position(1, 1), "NPC020", character, NpcDisposition.Neutral,
+        true, true, "Próba", questIds: ["Q-ELIRA"], storyId: "ELIRA_RESCUE");
+    Assert(npc.ActivateQuest("Q-ELIRA") && npc.AbandonQuest("Q-ELIRA") &&
+           npc.Quests.Single().State == NpcQuestState.Abandoned && npc.CanJoin,
+        "A feladott küldetés nem maradt lezárt NPC-állapotban.");
+    Assert(!npc.AddQuestProgress("Q-ELIRA", 1, 3) && !npc.CompleteQuest("Q-ELIRA") &&
+           !npc.ActivateQuest("Q-ELIRA"),
+        "A feladott küldetés újra aktiválható vagy tovább teljesíthető volt.");
+
+    var saved = new QuestJournalSaveData("Q-ELIRA", QuestJournalStatus.Abandoned, 1, 180);
+    var restored = JsonSerializer.Deserialize<QuestJournalSaveData>(JsonSerializer.Serialize(saved));
+    Assert(restored?.Status == QuestJournalStatus.Abandoned && restored.Progress == 1,
+        "A feladott naplóállapot nem élte túl a mentési körutat.");
 }
 
 static void SpellUiModelsAreShared()

@@ -6,7 +6,7 @@ namespace KaoszRubin;
 
 public enum NpcDisposition { Friendly, Neutral, Hostile }
 public enum WorldNpcState { Available, Declined, Following }
-public enum NpcQuestState { Offered, Active, Completed }
+public enum NpcQuestState { Offered, Active, Completed, Abandoned }
 public enum WorldNpcInteractionResult { Leave, Join, Continue }
 public sealed record NpcQuestProgress(string QuestId, NpcQuestState State = NpcQuestState.Offered, int Progress = 0);
 
@@ -35,7 +35,8 @@ public sealed class WorldNpc(Position position, string definitionId, LiveCharact
     public int ConversationStage { get; private set; }
     public IReadOnlyList<string> QuestIds => _quests.Keys.ToArray();
     public IReadOnlyList<NpcQuestProgress> Quests => _quests.Values.ToArray();
-    public bool CanJoin => Recruitable && _quests.Values.All(quest => quest.State == NpcQuestState.Completed);
+    public bool CanJoin => Recruitable && _quests.Values.All(quest =>
+        quest.State is NpcQuestState.Completed or NpcQuestState.Abandoned);
     public override Rune Symbol { get; } = Rune.GetRuneAt(character.CharacterClass.Name.ToUpperInvariant(), 0);
 
     public void Decline() => State = WorldNpcState.Declined;
@@ -65,6 +66,12 @@ public sealed class WorldNpc(Position position, string definitionId, LiveCharact
     {
         if (!_quests.TryGetValue(questId, out var quest) || quest.State != NpcQuestState.Active) return false;
         _quests[questId] = quest with { State = NpcQuestState.Completed };
+        return true;
+    }
+    public bool AbandonQuest(string questId)
+    {
+        if (!_quests.TryGetValue(questId, out var quest) || quest.State != NpcQuestState.Active) return false;
+        _quests[questId] = quest with { State = NpcQuestState.Abandoned };
         return true;
     }
     public void RestoreQuests(IEnumerable<NpcQuestProgress> quests)

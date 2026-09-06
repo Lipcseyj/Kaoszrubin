@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 19;
+    public const int CurrentVersion = 20;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -129,6 +129,7 @@ public static class GameSaveFormat
                 16 => MigrateVersion16To17(state),
                 17 => MigrateVersion17To18(state),
                 18 => MigrateVersion18To19(state),
+                19 => MigrateVersion19To20(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -262,6 +263,13 @@ public static class GameSaveFormat
     {
         // A 19-es formátum Elira három fogadólátogatásig élő toborzási ajánlatát őrzi.
         state.Version = 19;
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion19To20(GameSaveData state)
+    {
+        // A 20-as formátum a feladott NPC-küldetéseket őrzi. A régi állapotértékek változatlanok.
+        state.Version = 20;
         return state;
     }
 }

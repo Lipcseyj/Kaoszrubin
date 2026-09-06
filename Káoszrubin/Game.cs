@@ -1617,6 +1617,10 @@ public sealed class Game : ISessionCommandHandler
                 if (_gameData.NpcQuests.FirstOrDefault(quest => string.Equals(quest.Id, progress.QuestId,
                         StringComparison.OrdinalIgnoreCase)) is { } quest)
                     SynchronizeQuestJournal(npc, quest);
+        foreach (var npc in CurrentQuestNpcs())
+        foreach (var progress in npc.Quests.Where(progress =>
+                     _questJournal.GetValueOrDefault(progress.QuestId)?.Status == QuestJournalStatus.Abandoned))
+            npc.AbandonQuest(progress.QuestId);
         _player = restored.Player;
         _fogOfWar = restored.FogOfWar;
         _leaderFacing = restored.LeaderFacing;
@@ -2400,7 +2404,8 @@ public sealed class Game : ISessionCommandHandler
 
     private void ProcessNpcQuests(WorldNpc npc, bool activateOffered = true)
     {
-        foreach (var progress in npc.Quests.Where(quest => quest.State != NpcQuestState.Completed).ToArray())
+        foreach (var progress in npc.Quests.Where(quest =>
+                     quest.State is NpcQuestState.Offered or NpcQuestState.Active).ToArray())
         {
             var quest = _gameData.NpcQuests.First(value =>
                 string.Equals(value.Id, progress.QuestId, StringComparison.OrdinalIgnoreCase));
@@ -2471,9 +2476,40 @@ public sealed class Game : ISessionCommandHandler
         var selectedQuestId = RunHostWindow("Küldetésnapló",
             "A vezető a küldetésnaplót kezeli…",
             () => QuestJournalWindow.Show(OrderedQuestJournal(), options));
-        if (selectedQuestId is { } questId)
+        if (selectedQuestId?.FastTravelQuestId is { } questId)
             CompleteQuestByFastTravel(questId, options);
+        else if (selectedQuestId?.AbandonedQuestId is { } abandonedQuestId)
+            AbandonQuest(abandonedQuestId, notify: true);
     }
+
+    private void AbandonQuest(string questId, bool notify)
+    {
+        if (!_questJournal.TryGetValue(questId, out var entry) || entry.Status != QuestJournalStatus.Active) return;
+        foreach (var npc in CurrentQuestNpcs()) npc.AbandonQuest(questId);
+        _questJournal[questId] = entry with { Status = QuestJournalStatus.Abandoned };
+        if (notify)
+        {
+            var message = $"× Küldetés feladva: {entry.Title}.";
+            _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
+            RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.DarkYellow);
+        }
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+    }
+
+    private void AbandonActiveQuestsFromNpc(string npcId)
+    {
+        var questIds = _gameData.NpcQuests.Where(quest =>
+                string.Equals(quest.NpcId, npcId, StringComparison.OrdinalIgnoreCase))
+            .Select(quest => quest.Id).ToArray();
+        foreach (var questId in questIds) AbandonQuest(questId, notify: false);
+    }
+
+    private IEnumerable<WorldNpc> CurrentQuestNpcs() =>
+        _maze.WorldNpcs
+            .Concat(_maze.PartyMembers.Where(member => member.TemporaryFollower is not null)
+                .Select(member => member.TemporaryFollower!))
+            .Concat(_temporaryFollowersEnteringNextMaze)
+            .Distinct();
 
     private IReadOnlyList<QuestJournalWindow.FastTravelOption> BuildQuestFastTravelOptions()
     {
@@ -5218,6 +5254,7 @@ public sealed class Game : ISessionCommandHandler
         if (_eliraWaitingAtInn is null) return [];
         if (_eliraInnVisitsRemaining <= 0)
         {
+            AbandonActiveQuestsFromNpc("NPC020");
             CharacterRoster.Remove(_eliraWaitingAtInn);
             _eliraWaitingAtInn = null;
             return [];
