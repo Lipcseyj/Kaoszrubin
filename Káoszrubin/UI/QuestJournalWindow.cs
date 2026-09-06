@@ -35,6 +35,10 @@ public static class QuestJournalWindow
             lines.Add(($"  ✅ {entry.Title} — {entry.QuestGiverName} (+{entry.ExperienceReward} XP)",
                 ConsoleColor.Green));
             AddWrapped(lines, $"    {entry.Description}", ConsoleColor.Gray);
+            if (!string.IsNullOrWhiteSpace(entry.CompletionExperienceSummary))
+                AddWrapped(lines, $"    Kapott XP: {entry.CompletionExperienceSummary}", ConsoleColor.Cyan);
+            if (!string.IsNullOrWhiteSpace(entry.CompletionItemRewardSummary))
+                AddWrapped(lines, $"    Kapott tárgyak: {entry.CompletionItemRewardSummary}", ConsoleColor.Yellow);
         }
         return lines;
     }

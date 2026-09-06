@@ -2350,9 +2350,18 @@ public sealed class Game : ISessionCommandHandler
             if (leveledAwards.Length > 0)
                 _renderer.RefreshCharacterSheet(SelectedCharacter);
             var itemRewards = GrantNpcQuestItems(quest);
+            var experienceSummary = FormatExperienceAwards(awards);
+            var completedEntry = _questJournal[quest.Id] with
+            {
+                CompletionExperienceSummary = experienceSummary,
+                CompletionItemRewardSummary = itemRewards.Length > 0 ? itemRewards : "nem volt tárgyjutalom"
+            };
+            _questJournal[quest.Id] = completedEntry;
             _renderer.DrawInventoryMessage(
-                $"✅ Küldetés teljesítve: {quest.Title}. XP: {FormatExperienceAwards(awards)}." +
+                $"✅ Küldetés teljesítve: {quest.Title}. XP: {experienceSummary}." +
                 (itemRewards.Length > 0 ? $" 🎁 {itemRewards}" : string.Empty), ConsoleColor.Green);
+            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+            QuestCompletionWindow.Show(completedEntry);
         }
         _activeCoopHost?.TryPublish(CreateSessionSnapshot());
     }

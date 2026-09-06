@@ -7,7 +7,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 69;
+    public const int Version = 70;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -30,7 +30,8 @@ public enum QuestJournalStatus { Active, Completed }
 
 public sealed record QuestJournalEntrySnapshot(string QuestId, string Title, string Description,
     string QuestGiverName, QuestJournalStatus Status, int Progress, int RequiredCount,
-    int ExperienceReward);
+    int ExperienceReward, string? CompletionExperienceSummary = null,
+    string? CompletionItemRewardSummary = null);
 
 /// <summary>A null címzettlista közös hangot, a nem üres lista karakterhez kötött hallgatókat jelent.</summary>
 public sealed record SessionSoundSnapshot(long Sequence, SoundEffect Effect,

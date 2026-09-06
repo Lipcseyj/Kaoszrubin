@@ -30,8 +30,13 @@ public sealed class NpcQuestCoordinator
         if (progress.State == NpcQuestState.Offered) return;
         var status = progress.State == NpcQuestState.Completed
             ? QuestJournalStatus.Completed : QuestJournalStatus.Active;
+        questJournal.TryGetValue(quest.Id, out var previous);
         questJournal[quest.Id] = CreateQuestJournalEntry(quest, status,
-            visibleProgress ?? progress.Progress, quest.ExperienceReward);
+            visibleProgress ?? progress.Progress, quest.ExperienceReward) with
+        {
+            CompletionExperienceSummary = previous?.CompletionExperienceSummary,
+            CompletionItemRewardSummary = previous?.CompletionItemRewardSummary
+        };
     }
 
     public QuestJournalEntrySnapshot CreateQuestJournalEntry(

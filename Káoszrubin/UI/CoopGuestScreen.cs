@@ -29,7 +29,9 @@ public sealed class CoopGuestScreen
     private bool _characterDetailsOpen;
     private int _characterDetailsOffset;
     private readonly HashSet<string> _knownQuestIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _completedQuestIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<QuestJournalEntrySnapshot> _newQuestOffers = [];
+    private readonly List<QuestJournalEntrySnapshot> _questCompletions = [];
     private bool _questJournalInitialized;
     private CharacterId? _displayedCharacterId;
     private InventorySlotAddress? _inventorySource;
@@ -330,6 +332,15 @@ public sealed class CoopGuestScreen
                 narrative.NarrativeId);
         }
         else if (snapshot.Narrative is null) _acknowledgedNarrativeId = null;
+        if (_questCompletions.Count > 0 && snapshot.RestNotice is null && snapshot.Narrative is null &&
+            snapshot.AdHocConversation is null && snapshot.SpellPreparation is null &&
+            snapshot.LevelUpPrompt is null)
+        {
+            if (key is ConsoleKey.Enter or ConsoleKey.Escape)
+                _questCompletions.RemoveAt(0);
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return;
+        }
         if (_newQuestOffers.Count > 0 && snapshot.RestNotice is null && snapshot.Narrative is null &&
             snapshot.AdHocConversation is null && snapshot.SpellPreparation is null &&
             snapshot.LevelUpPrompt is null)
@@ -1269,13 +1280,19 @@ public sealed class CoopGuestScreen
         if (!_questJournalInitialized)
         {
             _knownQuestIds.UnionWith(quests.Select(quest => quest.QuestId));
+            _completedQuestIds.UnionWith(quests.Where(quest => quest.Status == QuestJournalStatus.Completed)
+                .Select(quest => quest.QuestId));
             _questJournalInitialized = true;
             return;
         }
 
         foreach (var quest in quests)
+        {
             if (_knownQuestIds.Add(quest.QuestId) && quest.Status == QuestJournalStatus.Active)
                 _newQuestOffers.Add(quest);
+            if (quest.Status == QuestJournalStatus.Completed && _completedQuestIds.Add(quest.QuestId))
+                _questCompletions.Add(quest);
+        }
     }
 
     private void SynchronizeSessionSounds(SessionSnapshot snapshot, CharacterId localCharacterId)
@@ -1375,6 +1392,7 @@ public sealed class CoopGuestScreen
         ApplyCharacterDetailsUi(grid, own);
         ApplyAdHocConversationUi(grid, snapshot.AdHocConversation);
         ApplyQuestOfferUi(grid, snapshot);
+        ApplyQuestCompletionUi(grid, snapshot);
         var panelLines = _spellInfoOpen && own?.SpellInfo is not null
             ? SpellInfoPanel.Build(own.Name, own.CharacterClassId, own.Level, own.SpellInfo,
                 _spellInfoSelection, focused: _inventoryOpen).ToDictionary(line => line.Row)
@@ -2091,6 +2109,15 @@ public sealed class CoopGuestScreen
         }
         lines.Add(("Enter / Esc: tovább", ConsoleColor.Yellow));
         DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, 88, FramedWindow.QuestOffer);
+    }
+
+    private void ApplyQuestCompletionUi(GuestMapCell[,] grid, SessionSnapshot snapshot)
+    {
+        if (_questCompletions.Count == 0 || snapshot.RestNotice is not null || snapshot.Narrative is not null ||
+            snapshot.AdHocConversation is not null || snapshot.SpellPreparation is not null ||
+            snapshot.LevelUpPrompt is not null) return;
+        DrawGuestOverlay(grid, QuestCompletionWindow.Build(_questCompletions[0]), ConsoleColor.Magenta,
+            QuestCompletionWindow.Width, FramedWindow.QuestOffer);
     }
 
     private static void WriteCharacterResourceAt(int x, int y, CharacterResourceLine resources)
