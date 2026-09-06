@@ -160,7 +160,7 @@ public sealed class CoopGuestScreen
                         Interlocked.Exchange(ref _redrawRequested, 1);
                         continue;
                     }
-                    if (key.Key is ConsoleKey.PageUp or ConsoleKey.PageDown)
+                    if (!_characterDetailsOpen && key.Key is ConsoleKey.PageUp or ConsoleKey.PageDown)
                     {
                         ScrollMessageLog(key.Key == ConsoleKey.PageUp);
                         continue;
