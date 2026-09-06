@@ -81,7 +81,7 @@ public static class QuestJournalWindow
         var confirmingAbandon = false;
         var offset = 0;
         var restorationRegion = CalculateRestorationRegion(entries, options.Count,
-            Console.WindowWidth, Console.WindowHeight);
+            Console.WindowWidth, Console.WindowHeight, allowAbandon);
         using var background = new BackgroundContentRestorer(restorationRegion.Left, restorationRegion.Top,
             restorationRegion.Width, restorationRegion.Height);
         while (true)
@@ -151,14 +151,15 @@ public static class QuestJournalWindow
 
     public static RestorationRegion CalculateRestorationRegion(
         IReadOnlyList<QuestJournalEntrySnapshot> entries, int fastTravelOptionCount,
-        int windowWidth, int windowHeight)
+        int windowWidth, int windowHeight, bool allowAbandon = true)
     {
         var width = Math.Min(Width, Math.Max(20, windowWidth));
         var contentLineCount = Build(entries).Count +
                                (fastTravelOptionCount > 0 ? 2 + fastTravelOptionCount : 0);
         var pageSize = Math.Max(4, windowHeight - 8);
         var footerLineCount = (contentLineCount > pageSize ? 2 : 1) +
-                              (fastTravelOptionCount > 0 ? 1 : 0);
+                              (fastTravelOptionCount > 0 ? 1 : 0) +
+                              (allowAbandon && entries.Any(entry => entry.Status == QuestJournalStatus.Active) ? 1 : 0);
         var height = Math.Min(windowHeight, Math.Min(contentLineCount, pageSize) + footerLineCount + 2);
         return new RestorationRegion(Math.Max(0, (windowWidth - width) / 2),
             Math.Max(0, (windowHeight - height) / 2), width, height);

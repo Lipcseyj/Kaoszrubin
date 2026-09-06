@@ -260,6 +260,8 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
+                    Encounters.Solo(MonsterIds.CsontvázLovag, Amount.TwoThree, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.Csontváz, Amount.Several, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Zombi, Amount.Few),
                     Encounters.Mixed(MonsterIds.Zombi, Amount.Few, MonsterIds.Csontváz, Amount.Few, Amount.Few),
                 ]

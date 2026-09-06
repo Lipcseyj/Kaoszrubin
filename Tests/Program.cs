@@ -3199,9 +3199,12 @@ static void QuestJournalBuildsSharedHistory()
     };
     var lines = QuestJournalWindow.Build(entries);
     var restoration = QuestJournalWindow.CalculateRestorationRegion(entries, 0, 200, 50);
+    var readOnlyRestoration = QuestJournalWindow.CalculateRestorationRegion(entries, 0, 200, 50,
+        allowAbandon: false);
     Assert(WindowFrameConfiguration.For(FramedWindow.QuestOffer) == WindowFrameStyle.Stone &&
            WindowFrameConfiguration.For(FramedWindow.QuestJournal) == WindowFrameStyle.Scroll2 &&
            restoration.Width == QuestJournalWindow.Width && restoration.Height < 50 &&
+           restoration.Height == readOnlyRestoration.Height + 1 &&
            restoration.Left > 0 && restoration.Left + restoration.Width < 200 &&
            lines.Any(line => line.Text.Contains("Folyamatban — 2/4  Elira (240 XP)", StringComparison.Ordinal)) &&
            lines.Any(line => line.Text.Contains("Befejezve — Elira (+420 XP)", StringComparison.Ordinal)) &&
