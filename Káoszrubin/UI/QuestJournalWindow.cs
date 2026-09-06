@@ -6,6 +6,7 @@ namespace KaoszRubin.UI;
 public static class QuestJournalWindow
 {
     public const int Width = 84;
+    public sealed record FastTravelOption(string QuestId, string QuestTitle, string QuestGiverName, int NeedCost);
 
     public static IReadOnlyList<(string Text, ConsoleColor Color)> Build(
         IReadOnlyList<QuestJournalEntrySnapshot> entries)
@@ -58,30 +59,48 @@ public static class QuestJournalWindow
         lines.Add((remaining, color));
     }
 
-    public static void Show(IReadOnlyList<QuestJournalEntrySnapshot> entries)
+    public static string? Show(IReadOnlyList<QuestJournalEntrySnapshot> entries,
+        IReadOnlyList<FastTravelOption>? fastTravelOptions = null)
     {
-        var allLines = Build(entries);
+        var options = fastTravelOptions ?? [];
+        var selectedOption = 0;
         var offset = 0;
-        var pageSize = Math.Max(4, Console.WindowHeight - 8);
-        var maximumOffset = Math.Max(0, allLines.Count - pageSize);
-        var visibleLineCount = Math.Min(allLines.Count, pageSize) + (maximumOffset > 0 ? 2 : 1);
         var width = Math.Min(Width, Math.Max(20, Console.WindowWidth));
-        var height = visibleLineCount + 2;
-        var left = Math.Max(0, (Console.WindowWidth - width) / 2);
-        var top = Math.Max(0, (Console.WindowHeight - height) / 2);
-        using var background = new BackgroundContentRestorer(left, top, width, height);
+        using var background = new BackgroundContentRestorer(0, 0, Console.WindowWidth, Console.WindowHeight);
         while (true)
         {
+            var allLines = Build(entries).ToList();
+            if (options.Count > 0)
+            {
+                allLines.Add((string.Empty, ConsoleColor.Gray));
+                allLines.Add(("🗺️ GYORS UTAZÁSOS KÜLDETÉSLEADÁS", ConsoleColor.Cyan));
+                for (var index = 0; index < options.Count; index++)
+                {
+                    var option = options[index];
+                    allLines.Add(($"  {(index == selectedOption ? "▶" : " ")} {option.QuestTitle} — " +
+                        $"{option.QuestGiverName}  🍖-{option.NeedCost} 💧-{option.NeedCost}",
+                        index == selectedOption ? ConsoleColor.Yellow : ConsoleColor.DarkYellow));
+                }
+            }
+            var pageSize = Math.Max(4, Console.WindowHeight - 8);
+            var maximumOffset = Math.Max(0, allLines.Count - pageSize);
             offset = Math.Clamp(offset, 0, maximumOffset);
             var page = allLines.Skip(offset).Take(pageSize).ToList();
             page.Add((maximumOffset > 0
                 ? $"↑/↓, PgUp/PgDn: görgetés  {offset + 1}–{Math.Min(allLines.Count, offset + pageSize)}/{allLines.Count}"
                 : "Q / Enter / Esc: bezárás", ConsoleColor.DarkYellow));
             if (maximumOffset > 0) page.Add(("Q / Enter / Esc: bezárás", ConsoleColor.DarkYellow));
+            if (options.Count > 0)
+                page.Add(("←/→: küldetésválasztás, T: utazás, leadás és visszatérés", ConsoleColor.Cyan));
             Draw(page);
 
             var key = Console.ReadKey(intercept: true).Key;
-            if (key is ConsoleKey.Q or ConsoleKey.Enter or ConsoleKey.Escape) return;
+            if (key is ConsoleKey.Q or ConsoleKey.Enter or ConsoleKey.Escape) return null;
+            if (key == ConsoleKey.T && options.Count > 0) return options[selectedOption].QuestId;
+            if (key == ConsoleKey.LeftArrow && options.Count > 0)
+                selectedOption = (selectedOption + options.Count - 1) % options.Count;
+            if (key == ConsoleKey.RightArrow && options.Count > 0)
+                selectedOption = (selectedOption + 1) % options.Count;
             offset = key switch
             {
                 ConsoleKey.UpArrow => offset - 1,

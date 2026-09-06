@@ -2368,7 +2368,80 @@ public sealed class Game : ISessionCommandHandler
 
     private void ShowQuestJournal()
     {
-        QuestJournalWindow.Show(OrderedQuestJournal());
+        var options = BuildQuestFastTravelOptions();
+        if (QuestJournalWindow.Show(OrderedQuestJournal(), options) is { } questId)
+            CompleteQuestByFastTravel(questId, options);
+    }
+
+    private IReadOnlyList<QuestJournalWindow.FastTravelOption> BuildQuestFastTravelOptions()
+    {
+        var options = new List<QuestJournalWindow.FastTravelOption>();
+        foreach (var npc in _maze.WorldNpcs)
+        foreach (var progress in npc.Quests.Where(progress => progress.State == NpcQuestState.Active))
+        {
+            var quest = _gameData.NpcQuests.FirstOrDefault(candidate =>
+                string.Equals(candidate.Id, progress.QuestId, StringComparison.OrdinalIgnoreCase));
+            if (quest is null || !IsNpcQuestReadyForTurnIn(quest, progress)) continue;
+            var distance = FindQuestTravelDistance(_player.Position, npc.Position);
+            if (distance is null) continue;
+            var needCost = Math.Clamp((distance.Value * 2 + 19) / 20, 1, 15);
+            options.Add(new QuestJournalWindow.FastTravelOption(quest.Id, quest.Title,
+                npc.Character.Name, needCost));
+        }
+        return options;
+    }
+
+    private bool IsNpcQuestReadyForTurnIn(NpcQuestDefinition quest, NpcQuestProgress progress) =>
+        quest.Type == NpcQuestType.Collect
+            ? CountPartyBackpackItems(quest.TargetId) >= quest.RequiredCount
+            : progress.Progress >= quest.RequiredCount;
+
+    private int? FindQuestTravelDistance(Position origin, Position destination)
+    {
+        var distances = new Dictionary<Position, int> { [origin] = 0 };
+        var queue = new Queue<Position>();
+        queue.Enqueue(origin);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (current == destination) return distances[current];
+            foreach (var direction in Enum.GetValues<Direction>())
+            {
+                var next = current + direction;
+                if (distances.ContainsKey(next) || !_maze.IsInside(next) ||
+                    (!_maze.IsWalkable(next) && _maze.GetDoorAt(next) is null) ||
+                    !_fogOfWar.IsRevealed(next)) continue;
+                distances[next] = distances[current] + 1;
+                queue.Enqueue(next);
+            }
+        }
+        return null;
+    }
+
+    private void CompleteQuestByFastTravel(string questId,
+        IReadOnlyList<QuestJournalWindow.FastTravelOption> options)
+    {
+        var option = options.FirstOrDefault(candidate =>
+            string.Equals(candidate.QuestId, questId, StringComparison.OrdinalIgnoreCase));
+        var npc = _maze.WorldNpcs.FirstOrDefault(candidate => candidate.Quests.Any(progress =>
+            string.Equals(progress.QuestId, questId, StringComparison.OrdinalIgnoreCase) &&
+            progress.State == NpcQuestState.Active));
+        if (option is null || npc is null) return;
+
+        foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive))
+        {
+            character.ConsumeFood(option.NeedCost);
+            character.ConsumeWater(option.NeedCost);
+            character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
+                _gameData.GetStatus(CharacterStatusIds.Thirsty));
+        }
+        var travelMessage = $"🗺️ A csapat felkereste {npc.Character.Name} karaktert, majd visszatért. " +
+            $"🍖-{option.NeedCost} 💧-{option.NeedCost} minden élő csapattagnak.";
+        _renderer.DrawInventoryMessage(travelMessage, ConsoleColor.Cyan);
+        RecordSessionActivity(SessionActivityKind.System, travelMessage, ConsoleColor.Cyan);
+        ProcessNpcQuests(npc, activateOffered: false);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
     }
 
     private void ShowCharacterDetails()
