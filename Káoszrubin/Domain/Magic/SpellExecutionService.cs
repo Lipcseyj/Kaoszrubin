@@ -139,6 +139,8 @@ public sealed class SpellExecutionService
         {
             SpellEffectType.Heal => character.CurrentVitality < character.MaximumVitality,
             SpellEffectType.CureStatus => ParseEffectParameters(effect.Parameter).Any(character.HasStatus),
+            SpellEffectType.Dispel when string.Equals(effect.Parameter, "HarmfulOnly",
+                StringComparison.OrdinalIgnoreCase) => character.ActiveSpellEffects.Any(active => !active.Beneficial),
             SpellEffectType.RestoreNeeds => character.FoodLevel < 100 || character.WaterLevel < 100,
             _ => true
         });
@@ -161,7 +163,8 @@ public sealed class SpellExecutionService
     public bool IsOffensiveSpell(SpellDefinition spell) => _gameData.GetSpellEffects(spell.Id).Any(effect =>
         effect.Type is SpellEffectType.Damage or SpellEffectType.ChainDamage or SpellEffectType.Burning or
             SpellEffectType.Storm or SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate or
-            SpellEffectType.Execute or SpellEffectType.RandomElement or SpellEffectType.DispelBeneficial);
+            SpellEffectType.Execute or SpellEffectType.RandomElement or SpellEffectType.DispelBeneficial ||
+            effect.Type is SpellEffectType.HitBonus or SpellEffectType.VisionBonus && effect.Value < 0);
 
     public static string CastingItemUseText(MagicItemDefinition item) => item.Kind == MagicItemKind.Scroll
         ? "📜 A tekercs elhasználódott"
@@ -245,7 +248,7 @@ public sealed class SpellExecutionService
                     notes.Add(onTeleportLivingParty(target, inCombat));
                     break;
                 case SpellEffectType.Dispel:
-                    notes.Add(DispelAt(target, spell.AreaRadius, maze, livingParty));
+                    notes.Add(DispelAt(target, spell.AreaRadius, maze, livingParty, effect.Parameter));
                     break;
                 case SpellEffectType.ExtraActions:
                     if (timeStopUsedThisBattle && inCombat)
@@ -277,8 +280,14 @@ public sealed class SpellExecutionService
                     ApplyStatusCure(effect, characterTargets, notes);
                     break;
                 case SpellEffectType.HitBonus:
-                    ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.HitBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} találat {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
+                    if (effect.Value < 0 && targets.Count > 0)
+                        ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.HitBonus,
+                            resolutionCache, notes, divineJudgment);
+                    else
+                    {
+                        ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.HitBonus, divineJudgment);
+                        notes.Add($"+{effect.Value} találat {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
+                    }
                     break;
                 case SpellEffectType.DamageBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.DamageBonus, divineJudgment);
@@ -319,9 +328,15 @@ public sealed class SpellExecutionService
                     ApplyNeedRestoration(characterTargets, effect, divineJudgment, notes);
                     break;
                 case SpellEffectType.VisionBonus:
-                    ApplyCharacterEffects(caster, characterTargets, effect, spell,
-                        ActiveSpellEffectType.VisionBonus, divineJudgment);
-                    notes.Add($"👁️ +{effect.Value} látótáv {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
+                    if (effect.Value < 0 && targets.Count > 0)
+                        ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.VisionBonus,
+                            resolutionCache, notes, divineJudgment);
+                    else
+                    {
+                        ApplyCharacterEffects(caster, characterTargets, effect, spell,
+                            ActiveSpellEffectType.VisionBonus, divineJudgment);
+                        notes.Add($"👁️ +{effect.Value} látótáv {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
+                    }
                     break;
             }
         }
@@ -654,13 +669,17 @@ public sealed class SpellExecutionService
     }
 
     public string DispelAt(Position target, int radius, Maze maze,
-        IReadOnlyList<(LiveCharacter Character, Position Position)> livingParty)
+        IReadOnlyList<(LiveCharacter Character, Position Position)> livingParty, string? parameter = null)
     {
+        var harmfulOnly = string.Equals(parameter, "HarmfulOnly", StringComparison.OrdinalIgnoreCase);
+        bool Remove(ActiveSpellEffect effect) => !harmfulOnly || !effect.Beneficial;
         var removed = maze.Enemies.Where(enemy => Chebyshev(enemy.Position, target) <= radius)
-            .Sum(enemy => enemy.RemoveSpellEffects());
+            .Sum(enemy => enemy.RemoveSpellEffects(Remove));
         foreach (var member in livingParty.Where(member => Chebyshev(member.Position, target) <= radius))
-            removed += member.Character.RemoveSpellEffects();
-        return $"✨ szétoszlatott varázshatások: {removed}";
+            removed += member.Character.RemoveSpellEffects(Remove);
+        return harmfulOnly
+            ? $"✨ megtört káros varázshatások: {removed}"
+            : $"✨ szétoszlatott varázshatások: {removed}";
     }
 
     public static Position? FindResurrectionPosition(Maze maze, Position? playerPosition, PartyMemberCorpse corpse)
@@ -705,7 +724,8 @@ public sealed class SpellExecutionService
                            spell.School == SpellSchool.Arcane && effect.Type is
                                SpellEffectType.Invisibility or SpellEffectType.DefenseBonus or
                                SpellEffectType.PhysicalReduction or SpellEffectType.BleedingImmunity or
-                               SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate;
+                               SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate or
+                               SpellEffectType.HitBonus or SpellEffectType.VisionBonus;
         var bonusDuration = 0;
         if (duration > 0 && priestProtection) bonusDuration++;
         if (duration > 0 && mageIllusion) bonusDuration++;
@@ -720,7 +740,8 @@ public sealed class SpellExecutionService
             spell.School == SpellSchool.Arcane && effect.Type is
                 SpellEffectType.Invisibility or SpellEffectType.DefenseBonus or
                 SpellEffectType.PhysicalReduction or SpellEffectType.BleedingImmunity or
-                SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate)
+                SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate or
+                SpellEffectType.HitBonus or SpellEffectType.VisionBonus)
             bonusDuration++;
         return duration + bonusDuration;
     }

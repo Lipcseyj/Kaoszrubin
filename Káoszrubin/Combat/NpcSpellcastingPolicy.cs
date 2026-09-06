@@ -34,7 +34,8 @@ public static class NpcSpellcastingPolicy
     {
         var spellEffects = effects as IReadOnlyCollection<SpellEffectDefinition> ?? effects.ToArray();
         return spell.TargetType == SpellTargetType.Enemy && spell.AreaRadius == 0 &&
-               spellEffects.Any(effect => effect.Type == SpellEffectType.Damage) &&
+               spellEffects.Any(effect => effect.Type == SpellEffectType.Damage ||
+                   effect.Type is SpellEffectType.HitBonus or SpellEffectType.VisionBonus && effect.Value < 0) &&
                spellEffects.All(effect => effect.Type != SpellEffectType.ChainDamage);
     }
 

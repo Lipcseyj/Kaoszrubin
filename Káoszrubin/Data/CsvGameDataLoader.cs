@@ -948,15 +948,15 @@ public static class CsvGameDataLoader
         foreach (var school in Enum.GetValues<SpellSchool>())
         {
             var schoolSpells = spells.Where(spell => spell.School == school).ToList();
-            var expectedSchoolCount = school == SpellSchool.Arcane ? 28 : 28;
-            if (schoolSpells.Count != expectedSchoolCount)
-                throw new InvalidOperationException($"A(z) {school} iskolához pontosan {expectedSchoolCount} varázslat szükséges; jelenleg {schoolSpells.Count} található.");
+            const int minimumSchoolCount = 28;
+            if (schoolSpells.Count < minimumSchoolCount)
+                throw new InvalidOperationException($"A(z) {school} iskolához legalább {minimumSchoolCount} varázslat szükséges; jelenleg {schoolSpells.Count} található.");
             for (var level = 1; level <= 5; level++)
             {
                 var count = schoolSpells.Count(spell => spell.Level == level);
                 var expectedLevelCount = level <= 3 ? 6 : 5;
-                if (count != expectedLevelCount)
-                    throw new InvalidOperationException($"A(z) {school} iskola {level}. szintjén pontosan {expectedLevelCount} varázslat szükséges; jelenleg {count} található.");
+                if (count < expectedLevelCount)
+                    throw new InvalidOperationException($"A(z) {school} iskola {level}. szintjén legalább {expectedLevelCount} varázslat szükséges; jelenleg {count} található.");
             }
         }
     }

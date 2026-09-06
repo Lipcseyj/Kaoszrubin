@@ -377,16 +377,21 @@ public sealed class Game : ISessionCommandHandler
             }
         }
 
-        // Cure status if helpful, within the spell's range of the caster
+        // Káros állapot vagy mágikus debuff tisztítása, ha hasznos és hatótávon belül van.
         foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseInCombat))
         {
             var effects = _gameData.GetSpellEffects(spell.Id);
-            if (!effects.Any(e => e.Type == SpellEffectType.CureStatus)) continue;
+            var curesStatus = effects.Any(e => e.Type == SpellEffectType.CureStatus);
+            var breaksCurse = effects.Any(e => e.Type == SpellEffectType.Dispel &&
+                string.Equals(e.Parameter, "HarmfulOnly", StringComparison.OrdinalIgnoreCase));
+            if (!curesStatus && !breaksCurse) continue;
             var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
             if (caster.CurrentMana < manaCost) continue;
             var range = Math.Max(1, spell.Range);
             var candidates = CharacterRoster.Party.Members.Where(c => c.IsAlive &&
-                effects.SelectMany(e => SpellExecutionService.ParseEffectParameters(e.Parameter)).Any(p => c.HasStatus(p)) &&
+                (effects.Where(e => e.Type == SpellEffectType.CureStatus)
+                     .SelectMany(e => SpellExecutionService.ParseEffectParameters(e.Parameter)).Any(c.HasStatus) ||
+                 breaksCurse && c.ActiveSpellEffects.Any(active => !active.Beneficial)) &&
                 Chebyshev(member.Position, GetCasterPosition(c)) <= range).ToList();
             if (!candidates.Any()) continue;
             var targetChar = candidates.First();
@@ -396,6 +401,8 @@ public sealed class Game : ISessionCommandHandler
             var notes = new List<string>();
             foreach (var effect in effects.Where(e => e.Type == SpellEffectType.CureStatus))
                 ApplyStatusCureForCaster(effect, [targetChar], notes);
+            if (breaksCurse)
+                notes.Add($"{targetChar.RemoveSpellEffects(active => !active.Beneficial)} káros varázshatás megtörve");
             var message = $"{caster.Name} elsüti: {spell.Name} → {targetChar.Name}. -{manaCost} manna. {string.Join("; ", notes)}";
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
             RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
@@ -412,7 +419,7 @@ public sealed class Game : ISessionCommandHandler
         foreach (var spell in caster.MemorizedSpells.Where(s => s.CanUseInCombat && s.TargetType == SpellTargetType.Enemy))
         {
             var effects = _gameData.GetSpellEffects(spell.Id);
-            if (!effects.Any(e => e.Type == SpellEffectType.Damage)) continue;
+            if (!NpcSpellcastingPolicy.IsSingleTargetOffensive(spell, effects)) continue;
             var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
             if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost)) continue;
             if (!IsValidSpellTarget(member.Position, spell, enemy.Position, enemy)) continue;
@@ -5945,6 +5952,22 @@ public sealed class Game : ISessionCommandHandler
                     : NpcSpellcastingPolicy.IsEmergency(target);
                 var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
                 if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost, emergency) ||
+                    ValidateSpellCast(caster, casterPosition, spell, true, currentEnemy,
+                        explicitTarget: targetPosition) is not null) continue;
+                return new NpcTeamSpellPlan(spell, targetPosition, currentEnemy, Offensive: false);
+            }
+        }
+
+        foreach (var spell in spells)
+        {
+            var effects = _gameData.GetSpellEffects(spell.Id);
+            if (!effects.Any(effect => effect.Type is SpellEffectType.CureStatus or SpellEffectType.Dispel)) continue;
+            foreach (var ally in allies.Where(ally => _spellExecutionService.CanAffectCharacter(spell, ally)))
+            {
+                var targetPosition = spell.TargetType is SpellTargetType.Self or SpellTargetType.Party
+                    ? casterPosition : GetCasterPosition(ally);
+                var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+                if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost) ||
                     ValidateSpellCast(caster, casterPosition, spell, true, currentEnemy,
                         explicitTarget: targetPosition) is not null) continue;
                 return new NpcTeamSpellPlan(spell, targetPosition, currentEnemy, Offensive: false);

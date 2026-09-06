@@ -963,10 +963,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (context.ChallengeAvailable) { context.ChallengeAvailable = false; return Detailed(AttackResult.Miss("💨 Kihívás: az első támadás automatikusan elhibázza.")); }
         if (defender.HasPerk(PerkIds.PriestSanctuary) && _random.NextDouble() < 0.20) return Detailed(AttackResult.Miss("💨 Szentély: az ellenfél elveszíti a támadását."));
         if (defender.HasSpellEffect(ActiveSpellEffectType.Invisibility)) return Detailed(AttackResult.Miss("💨 Láthatatlanság: az ellenfél nem talál célpontot."));
-        var hit = HitRoll(attackerSpeed, defender.EffectiveAbilities.Dexterity, 0, false);
+        var spellHitModifier = attackerInstance?.SpellEffectValue(ActiveSpellEffectType.HitBonus) ?? 0;
+        var hit = HitRoll(attackerSpeed, defender.EffectiveAbilities.Dexterity, spellHitModifier, false);
         criticalChance = 5;
         hitDescription = hit.Description;
         calculation.Add($"🎯 d20={hit.NaturalRoll}; gyorsaság {attackerSpeed}");
+        Modifier("🎯 Varázshatás", spellHitModifier);
         calculation.Add($"🎯 Cél: 11 + ügyesség {defender.EffectiveAbilities.Dexterity}");
         calculation.Add("🎲 Kritikus: természetes 20, 5%, ×2");
         if (!hit.Hit) return Detailed(AttackResult.Miss($"találat: {hit.Description} → 💨."));

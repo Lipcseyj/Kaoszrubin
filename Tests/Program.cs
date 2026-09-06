@@ -45,6 +45,7 @@ var tests = new (string Name, Action Run)[]
     ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
     ("A mágus első szintjén a Fényvarázslat a hatodik varázslat", SpellSchoolsIncludeMageLightSpell),
     ("A buff varázslatok időtartama CSV-ből, harci körökben érkezik", SpellBuffDurationLoadsAsRounds),
+    ("Az öt új varázslat hatásai és célpontszabályai működnek", NewSpellEffectsAreSupported),
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
@@ -2477,8 +2478,7 @@ static void SpellSchoolsIncludeMageLightSpell()
     var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
     foreach (var school in Enum.GetValues<SpellSchool>())
         for (var level = 1; level <= 5; level++)
-            Assert(catalog.GetSpells(school, level).Count ==
-                   (school == SpellSchool.Arcane && level == 1 ? 6 : 5),
+            Assert(catalog.GetSpells(school, level).Count == (level <= 3 ? 6 : 5),
                 $"A(z) {school} iskola {level}. szintjén hibás a varázslatok száma.");
 
     var light = catalog.GetSpell("S026");
@@ -3300,6 +3300,36 @@ static void SpellBuffDurationLoadsAsRounds()
     var restored = JsonSerializer.Deserialize<ActiveSpellEffect>(json);
     Assert(json.Contains("RemainingActions", StringComparison.Ordinal) && restored?.RemainingRounds == 4,
         "A köralapú varázshatás nem kompatibilis a korábbi mentések RemainingActions mezőjével.");
+}
+
+static void NewSpellEffectsAreSupported()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    foreach (var id in new[] { "S027", "S028", "P026", "P027", "P028" })
+        Assert(catalog.GetSpellEffects(id).Count > 0, $"A(z) {id} varázslat hatásai hiányoznak.");
+
+    var enemy = new ConfiguredEnemy(new Position(3, 3), catalog.GetEnemy("E001"));
+    enemy.ApplySpellEffect(new ActiveSpellEffect("S027", ActiveSpellEffectType.HitBonus, -4, 4));
+    enemy.ApplySpellEffect(new ActiveSpellEffect("S027", ActiveSpellEffectType.VisionBonus, -3, 4));
+    Assert(enemy.SpellEffectValue(ActiveSpellEffectType.HitBonus) == -4 &&
+           enemy.EffectiveVisionRange == Math.Max(1, enemy.Definition.VisionRange - 3),
+        "A Vakítás nem rontja az ellenfél találatát és látótávját.");
+
+    var ally = CreateCharacter("Átok sújtott");
+    ally.ApplySpellEffect(new ActiveSpellEffect("P003", ActiveSpellEffectType.DefenseBonus, 2, 4,
+        Beneficial: true));
+    ally.ApplySpellEffect(new ActiveSpellEffect("S027", ActiveSpellEffectType.HitBonus, -4, 4));
+    var service = new SpellExecutionService(catalog, new Random(1));
+    var maze = new Maze(7, 7);
+    service.DispelAt(new Position(2, 2), 0, maze, [(ally, new Position(2, 2))], "HarmfulOnly");
+    Assert(ally.HasSpellEffect(ActiveSpellEffectType.DefenseBonus) &&
+           !ally.HasSpellEffect(ActiveSpellEffectType.HitBonus),
+        "Az Átoktörés a káros hatás helyett a hasznos buffot is eltávolította.");
+
+    Assert(service.IsOffensiveSpell(catalog.GetSpell("S027")) &&
+           service.IsOffensiveSpell(catalog.GetSpell("S028")) &&
+           service.IsOffensiveSpell(catalog.GetSpell("P028")),
+        "Az új támadó vagy kontrollvarázslatok nem minősülnek támadónak.");
 }
 
 static void MonsterRegenerationAndBreathCooldownWork()
@@ -4135,7 +4165,8 @@ static void MultilineInnRumorStaysInsideFrame()
         ConsoleColor.Yellow);
     var method = typeof(ConsoleRenderer).GetMethod("BuildInnRumorLines",
         System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
-    var lines = (IReadOnlyList<(string Text, ConsoleColor Color)>)method.Invoke(null, [rumor, 2, 5, null])!;
+    var lines = (IReadOnlyList<(string Text, ConsoleColor Color)>)method.Invoke(
+        null, [rumor, 2, 5, "Tesztfogadó", null])!;
 
     Assert(lines.Any(line => line.Text.StartsWith("Egy zilált vándor", StringComparison.Ordinal)) &&
            lines.Any(line => line.Text.StartsWith("Nem a teljes szörnyhorda", StringComparison.Ordinal)) &&

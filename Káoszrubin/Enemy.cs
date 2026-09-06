@@ -128,6 +128,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public int EffectiveSpeed => Math.Max(0, (Definition.Speed ?? 1) -
         _activeSpellEffects.Where(effect => effect.Type is ActiveSpellEffectType.SpeedPenalty or ActiveSpellEffectType.Frost)
             .Sum(effect => effect.Value));
+    public int SpellEffectValue(ActiveSpellEffectType type) => _activeSpellEffects
+        .Where(effect => effect.Type == type).Sum(effect => effect.Value);
 
     public void ApplySpellEffect(ActiveSpellEffect effect)
     {
@@ -224,12 +226,12 @@ public abstract class Enemy(Position position) : WorldObject(position)
 
     public bool CanSleep => Definition.CanSleep;
 
-    public int EffectiveVisionRange => Alertness switch
+    public int EffectiveVisionRange => Math.Max(1, (Alertness switch
     {
         EnemyAlertness.Sleeping => 1,
         EnemyAlertness.Drowsy => Math.Max(1, Definition.VisionRange / 2),
         _ => Definition.VisionRange
-    };
+    }) + SpellEffectValue(ActiveSpellEffectType.VisionBonus));
 
     public void ConfigureAwareness(EnemyAlertness alertness, Position? homePosition = null,
         EnemySearchRole searchRole = EnemySearchRole.None, Position? lastKnownTargetPosition = null,
