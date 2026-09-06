@@ -97,7 +97,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 18;
+    public const int CurrentVersion = 19;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -127,6 +127,7 @@ public static class GameSaveFormat
                 15 => MigrateVersion15To16(state),
                 16 => MigrateVersion16To17(state),
                 17 => MigrateVersion17To18(state),
+                18 => MigrateVersion18To19(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -255,6 +256,13 @@ public static class GameSaveFormat
         state.Version = 18;
         return state;
     }
+
+    private static GameSaveData MigrateVersion18To19(GameSaveData state)
+    {
+        // A 19-es formátum Elira három fogadólátogatásig élő toborzási ajánlatát őrzi.
+        state.Version = 19;
+        return state;
+    }
 }
 
 public sealed record LoadedGameSave(string Path, CharacterRoster Roster, GameSaveData State);
@@ -295,6 +303,8 @@ public sealed class GameSaveData
     public List<string> UsedAdHocConversationIds { get; set; } = [];
     public DateTimeOffset? LastAdHocConversationUtc { get; set; }
     public int AdHocConversationMazeLevel { get; set; } = -1;
+    public int? EliraInnCharacterIndex { get; set; }
+    public int EliraInnVisitsRemaining { get; set; }
 }
 
 public enum AdventureLocationKind { Campaign, Quest }

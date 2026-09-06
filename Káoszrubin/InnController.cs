@@ -49,6 +49,8 @@ internal sealed class InnController
     private List<LiveCharacter>? _recruitCandidates;
     private Dictionary<LiveCharacter, int>? _recruitmentPrices;
     private readonly Func<IReadOnlyList<LiveCharacter>> _temporaryFollowers;
+    private readonly Func<IReadOnlyList<LiveCharacter>> _specialRecruitCandidates;
+    private readonly Action<LiveCharacter> _specialRecruitAccepted;
 
     internal long Revision => _revision;
 
@@ -58,7 +60,9 @@ internal sealed class InnController
         Action<LiveCharacter, LevelUpResult> resolvePerkOffers,
         Action preparePartySpells, Func<ConsoleKeyInfo>? readKey = null,
         Action<PartyRestSnapshot>? reportRest = null,
-        Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null)
+        Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null,
+        Func<IReadOnlyList<LiveCharacter>>? specialRecruitCandidates = null,
+        Action<LiveCharacter>? specialRecruitAccepted = null)
     {
         _gameData = gameData;
         _characterRoster = characterRoster;
@@ -72,6 +76,8 @@ internal sealed class InnController
         _readKey = readKey ?? (() => Console.ReadKey(intercept: true));
         _reportRest = reportRest ?? (_ => { });
         _temporaryFollowers = temporaryFollowers ?? (() => []);
+        _specialRecruitCandidates = specialRecruitCandidates ?? (() => []);
+        _specialRecruitAccepted = specialRecruitAccepted ?? (_ => { });
     }
 
     public InnSnapshot? CreateSnapshot()
@@ -235,6 +241,12 @@ internal sealed class InnController
                 _recruitmentPrices[candidate] = candidate.Level < _partyLeader.Level
                     ? 0
                     : Math.Max(1, candidate.Level * 100 * _random.Next(50, 151) / 100);
+            }
+            foreach (var candidate in _specialRecruitCandidates().Where(candidate =>
+                         !_characterRoster.Party.Members.Contains(candidate) && !_recruitCandidates.Contains(candidate)))
+            {
+                _recruitCandidates.Add(candidate);
+                _recruitmentPrices[candidate] = 0;
             }
         }
 
@@ -765,9 +777,10 @@ internal sealed class InnController
             }
 
             _partyLeader.SpendGold(price);
-            _characterRoster.Add(recruit);
+            if (!_characterRoster.Characters.Contains(recruit)) _characterRoster.Add(recruit);
             _characterRoster.Party.Add(recruit);
             recruit.SetNpcJoinOrigin(_innLevel, _innName);
+            _specialRecruitAccepted(recruit);
             candidates.RemoveAt(selectedIndex);
             recruitmentPrices.Remove(recruit);
             message = replaced is null

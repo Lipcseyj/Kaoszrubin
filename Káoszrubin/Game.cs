@@ -139,6 +139,8 @@ public sealed class Game : ISessionCommandHandler
     private readonly HashSet<WorldEntityId> _spottedChestIds = [];
     private readonly List<ExpeditionEnemyTemplate> _levelEnemyTemplates = [];
     private readonly List<WorldNpc> _temporaryFollowersEnteringNextMaze = [];
+    private LiveCharacter? _eliraWaitingAtInn;
+    private int _eliraInnVisitsRemaining;
     private bool _isReturnExpedition;
 #endregion
 
@@ -312,7 +314,7 @@ public sealed class Game : ISessionCommandHandler
             ShowSynchronizedRest, () => _maze?.PartyMembers
                 .Where(member => member.IsTemporaryFollower)
                 .Select(member => member.Character)
-                .ToArray() ?? []);
+                .ToArray() ?? [], GetSpecialInnRecruitCandidates, SpecialInnRecruitAccepted);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
         _spellExecutionService = new SpellExecutionService(gameData, _random);
@@ -1486,6 +1488,10 @@ public sealed class Game : ISessionCommandHandler
             .Where(control => control.AssignedPlayerId is not null &&
                               control.AssignedPlayerId != _session.HostPlayerId)
             .Select(control => control.CharacterId.Value).ToList();
+        var waitingIndex = _eliraWaitingAtInn is null
+            ? -1 : CharacterRoster.Characters.ToList().IndexOf(_eliraWaitingAtInn);
+        state.EliraInnCharacterIndex = waitingIndex >= 0 ? waitingIndex : null;
+        state.EliraInnVisitsRemaining = state.EliraInnCharacterIndex is null ? 0 : _eliraInnVisitsRemaining;
         return state;
     }
 
@@ -1511,6 +1517,12 @@ public sealed class Game : ISessionCommandHandler
             ? $"CAMPAIGN_{_mazeLevel:00}" : state.LocationId;
         _difficultyLevel = state.DifficultyLevel > 0 ? state.DifficultyLevel : _mazeLevel;
         _suspendedCampaignState = state.SuspendedCampaign;
+        _eliraWaitingAtInn = state.EliraInnCharacterIndex is { } waitingIndex &&
+                             waitingIndex >= 0 && waitingIndex < CharacterRoster.Characters.Count
+            ? CharacterRoster.Characters[waitingIndex]
+            : null;
+        _eliraInnVisitsRemaining = _eliraWaitingAtInn is null
+            ? 0 : Math.Clamp(state.EliraInnVisitsRemaining, 0, 3);
         _collectedBossKeyIds.Clear();
         _collectedBossKeyIds.UnionWith(state.CollectedBossKeyIds ?? []);
         _seenBossIds.Clear();
@@ -3274,19 +3286,27 @@ public sealed class Game : ISessionCommandHandler
         ProcessNpcQuests(follower);
         follower.AdjustFriendliness(2);
 
-        var joined = false;
         if (follower.Friendliness >= 10)
         {
             var hasRoom = CharacterRoster.Party.Members.Count < Party.MaximumSize;
-            joined = _renderer.ConfirmUniqueNpcPermanentJoin(follower, hasRoom) &&
-                     CharacterRoster.Party.Add(follower.Character);
-        }
-        if (joined)
-        {
-            follower.Character.SetNpcJoinOrigin(_mazeLevel, "A pálya kijáratánál csatlakozott");
-            avatar.MakePermanent();
-            _renderer.DrawInventoryMessage($"🤝 {follower.Character.Name} végleg csatlakozott a partihoz.", ConsoleColor.Green);
-            return;
+            switch (_renderer.ChooseUniqueNpcDeparture(follower, hasRoom))
+            {
+                case UniqueNpcDepartureChoice.JoinParty when CharacterRoster.Party.Add(follower.Character):
+                    follower.Character.SetNpcJoinOrigin(_mazeLevel, "A pálya kijáratánál csatlakozott");
+                    avatar.MakePermanent();
+                    _renderer.DrawInventoryMessage($"🤝 {follower.Character.Name} végleg csatlakozott a partihoz.", ConsoleColor.Green);
+                    return;
+                case UniqueNpcDepartureChoice.RemainFollower:
+                    _renderer.DrawInventoryMessage($"🌿 {follower.Character.Name} egyelőre követőként marad veletek.", ConsoleColor.Cyan);
+                    return;
+                case UniqueNpcDepartureChoice.WaitAtInn:
+                    _maze.RemovePartyMember(avatar);
+                    _nextPartyMoves.Remove(avatar);
+                    _eliraWaitingAtInn = follower.Character;
+                    _eliraInnVisitsRemaining = 3;
+                    _renderer.DrawInventoryMessage($"🍺 {follower.Character.Name} a következő három fogadólátogatáskor vár rátok.", ConsoleColor.Yellow);
+                    return;
+            }
         }
 
         _maze.RemovePartyMember(avatar);
@@ -5048,12 +5068,33 @@ public sealed class Game : ISessionCommandHandler
     {
         _temporaryFollowersEnteringNextMaze.Clear();
         foreach (var avatar in _maze.PartyMembers.Where(member => member.TemporaryFollower is { } follower &&
-                     string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase)).ToArray())
+                     (string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(follower.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))).ToArray())
         {
             _temporaryFollowersEnteringNextMaze.Add(avatar.TemporaryFollower!);
             _maze.RemovePartyMember(avatar);
             _nextPartyMoves.Remove(avatar);
         }
+    }
+
+    private IReadOnlyList<LiveCharacter> GetSpecialInnRecruitCandidates()
+    {
+        if (_eliraWaitingAtInn is null) return [];
+        if (_eliraInnVisitsRemaining <= 0)
+        {
+            CharacterRoster.Remove(_eliraWaitingAtInn);
+            _eliraWaitingAtInn = null;
+            return [];
+        }
+        _eliraInnVisitsRemaining--;
+        return [_eliraWaitingAtInn];
+    }
+
+    private void SpecialInnRecruitAccepted(LiveCharacter recruit)
+    {
+        if (!ReferenceEquals(recruit, _eliraWaitingAtInn)) return;
+        _eliraWaitingAtInn = null;
+        _eliraInnVisitsRemaining = 0;
     }
 
     private void PlaceCarriedTemporaryFollowersNear(Position leaderPosition)

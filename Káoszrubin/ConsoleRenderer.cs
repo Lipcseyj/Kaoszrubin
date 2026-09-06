@@ -14,6 +14,8 @@ using System.Text;
 
 namespace KaoszRubin;
 
+public enum UniqueNpcDepartureChoice { JoinParty, RemainFollower, WaitAtInn }
+
 public sealed record SpellCastSelection(SpellDefinition Spell, LiveCharacter Caster,
     MagicItemDefinition? CastingItem = null, int? CastingItemSlotIndex = null);
 public sealed record UniqueNpcConversationResult(int FriendlinessChange, bool FollowRequested, int ChoiceIndex);
@@ -2102,7 +2104,7 @@ public sealed class ConsoleRenderer
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
-    public bool ConfirmUniqueNpcPermanentJoin(WorldNpc npc, bool partyHasRoom)
+    public UniqueNpcDepartureChoice ChooseUniqueNpcDeparture(WorldNpc npc, bool partyHasRoom)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
         {
@@ -2113,14 +2115,21 @@ public sealed class ConsoleRenderer
                 ? "„Nem csak a kijáratig akarok veletek tartani. Befogadtok?”"
                 : $"{npc.Character.Name} csatlakozna de a négyfős parti megtelt.", ConsoleColor.White),
             (string.Empty, ConsoleColor.Gray),
-            (partyHasRoom ? "Enter: végleges csatlakozás   Esc: búcsú" : "Enter: búcsú", ConsoleColor.Yellow)
+            (partyHasRoom ? "1: felvesszük a csapatba" : "1: felvesszük a csapatba (a parti megtelt)",
+                partyHasRoom ? ConsoleColor.Green : ConsoleColor.DarkGray),
+            ("2: egyelőre maradjon követő", ConsoleColor.Cyan),
+            ("3: várjon meg minket a fogadóban", ConsoleColor.Yellow)
         };
         DrawCenteredFrame(78, lines, FramedWindow.Inn);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
-            if (key == ConsoleKey.Enter) return partyHasRoom;
-            if (key == ConsoleKey.Escape && partyHasRoom) return false;
+            if (partyHasRoom && key is ConsoleKey.D1 or ConsoleKey.NumPad1)
+                return UniqueNpcDepartureChoice.JoinParty;
+            if (key is ConsoleKey.D2 or ConsoleKey.NumPad2 or ConsoleKey.Escape)
+                return UniqueNpcDepartureChoice.RemainFollower;
+            if (key is ConsoleKey.D3 or ConsoleKey.NumPad3)
+                return UniqueNpcDepartureChoice.WaitAtInn;
         }
     }
 

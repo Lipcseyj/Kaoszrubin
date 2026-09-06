@@ -449,7 +449,7 @@ static void CharacterHistorySurvivesSerialization()
 
 static void LegacyGameSavesMigrateToCurrentVersion()
 {
-    foreach (var version in new[] { 1, 2, 3 })
+    foreach (var version in new[] { 1, 2, 3, 18 })
     {
         var state = new GameSaveData { Version = version, MazeLevel = 6 };
         var migrated = GameSaveFormat.MigrateToCurrent(state);
@@ -462,12 +462,15 @@ static void LegacyGameSavesMigrateToCurrentVersion()
     {
         UsedAdHocConversationIds = ["ELIRA_RESCUE:ADHOC_1_START"],
         LastAdHocConversationUtc = new DateTimeOffset(2026, 8, 31, 12, 0, 0, TimeSpan.Zero),
-        AdHocConversationMazeLevel = 4
+        AdHocConversationMazeLevel = 4,
+        EliraInnCharacterIndex = 2,
+        EliraInnVisitsRemaining = 3
     };
     var restored = JsonSerializer.Deserialize<GameSaveData>(JsonSerializer.Serialize(current));
     Assert(restored is { UsedAdHocConversationIds: ["ELIRA_RESCUE:ADHOC_1_START"],
                AdHocConversationMazeLevel: 4 } &&
-           restored.LastAdHocConversationUtc == current.LastAdHocConversationUtc,
+           restored.LastAdHocConversationUtc == current.LastAdHocConversationUtc &&
+           restored.EliraInnCharacterIndex == 2 && restored.EliraInnVisitsRemaining == 3,
         "Az egyszer már elindított ad-hoc párbeszéd vagy a korlátozásai elvesztek mentéskor.");
 
     var old = GameSaveFormat.MigrateToCurrent(new GameSaveData { Version = 13 });
