@@ -1625,7 +1625,7 @@ public sealed class CoopGuestScreen
                 own?.Inventory?.Slots.Count(slot => slot.Kind == InventorySlotKind.Backpack && slot.Item is null) ?? 0,
                 vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell
                     ? "Csak a saját hátizsákod tárgyai adhatók el."
-                    : "Válassz a fogadó kínálatából.").ToList();
+                    : "Válassz a fogadó kínálatából.", inn.InnName).ToList();
         }
         DrawGuestOverlay(grid, lines, ConsoleColor.Magenta,
             _innVendor is null ? ConsoleRenderer.InnMenuFrameWidth : ConsoleRenderer.InnMarketFrameWidth,
@@ -1638,7 +1638,7 @@ public sealed class CoopGuestScreen
         if (inn.Rumors.Count == 0) { _innRumorOpen = false; return; }
         _innRumorSelection = Math.Clamp(_innRumorSelection, 0, inn.Rumors.Count - 1);
         var rumor = inn.Rumors[_innRumorSelection];
-        var lines = ConsoleRenderer.BuildInnRumorLines(rumor, _innRumorSelection, inn.Rumors.Count).ToList();
+        var lines = ConsoleRenderer.BuildInnRumorLines(rumor, _innRumorSelection, inn.Rumors.Count, inn.InnName).ToList();
         const int desiredWidth = ConsoleRenderer.InnRumorFrameWidth;
         var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
         var maxRows = Math.Max(1, grid.GetLength(1) - 2);

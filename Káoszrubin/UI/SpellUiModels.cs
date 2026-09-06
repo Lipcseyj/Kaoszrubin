@@ -102,8 +102,10 @@ public static class SpellSelectorWindow
             (new string('─', 68), ConsoleColor.DarkMagenta)
         };
         if (options.Count == 0)
-            lines.Add(("Ebben a helyzetben nincs használható memorizált vagy tárgyban tárolt varázslat.",
-                ConsoleColor.DarkYellow));
+        {
+            lines.Add(("Ebben a helyzetben nincs használható memorizált", ConsoleColor.DarkYellow));
+            lines.Add(("vagy tárgyban tárolt varázslat.", ConsoleColor.DarkYellow));
+        }
         else
         {
             lines.AddRange(visible.Select((spell, visibleIndex) =>

@@ -835,7 +835,7 @@ public sealed class ConsoleRenderer
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnVendorLines(
         InnVendorSnapshot vendor, InnMarketMode mode,
         IReadOnlyList<(InventoryItemSnapshot Item, int Price, string OwnerName)> sellOffers,
-        int selectedIndex, int partyGold, int freeBackpackSlots, string message)
+        int selectedIndex, int partyGold, int freeBackpackSlots, string message, string innName)
     {
         var buying = vendor.Kind != InnVendorKind.Market || mode == InnMarketMode.Buy;
         var entryCount = buying ? vendor.Offers.Count : sellOffers.Count;
@@ -845,7 +845,7 @@ public sealed class ConsoleRenderer
             InnVendorKind.Blacksmith => "🏰🍺  🔨 KOVÁCSMESTER  ✨",
             InnVendorKind.Armorer => "🏰🍺  🛡️ PÁNCÉLMÍVES  ✨",
             InnVendorKind.WanderingMage => "🏰🍺  🧙 VÁNDORMÁGUS PORTÉKÁI  ✨",
-            _ => "🏰🍺  A VÁNDORCSILLAG FOGADÓ KERESKEDŐJE  🛒✨"
+            _ => $"🏰🍺  {innName} FOGADÓ KERESKEDŐJE  🛒✨"
         };
         var lines = new List<(string Text, ConsoleColor Color)>
         {
@@ -920,11 +920,11 @@ public sealed class ConsoleRenderer
     }
 
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnRumorLines(
-        InnRumorSnapshot rumor, int selectedIndex, int rumorCount, string? notice = null)
+        InnRumorSnapshot rumor, int selectedIndex, int rumorCount, string innName, string? notice = null)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
         {
-            ("🏰🍺  PLETYKÁK A VÁNDORCSILLAG FOGADÓBAN  👂📜", ConsoleColor.Yellow),
+            ($"🏰🍺  PLETYKÁK {innName} FOGADÓBAN  👂📜", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
             (rumor.Title, rumor.Color),
             (new string('─', 92), ConsoleColor.DarkMagenta)
@@ -1082,7 +1082,7 @@ public sealed class ConsoleRenderer
 
     public void DrawInnMarketScreen(LiveCharacter leader, InnMarketMode mode,
         IReadOnlyList<InnStockOffer> stock, IReadOnlyList<InnSellOffer> sellOffers,
-        int selectedIndex, int freeBackpackSlots, string message)
+        int selectedIndex, int freeBackpackSlots, string message, string innName)
     {
         ClearInnMenuScreen();
         var vendor = new InnVendorSnapshot(InnVendorKind.Market, "Kereskedő", stock.Select((offer, index) =>
@@ -1092,7 +1092,7 @@ public sealed class ConsoleRenderer
                 Quantity = offer.Owner.GetInventoryItemQuantity(InventorySlotKind.Backpack, offer.BackpackIndex)
             }, offer.Price, offer.Owner.Name)).ToArray();
         DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, mode, sales, selectedIndex,
-            leader.Gold, freeBackpackSlots, message), FramedWindow.Inn);
+            leader.Gold, freeBackpackSlots, message, innName), FramedWindow.Inn);
     }
 
     public void DrawInnSecretStashScreen(LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
@@ -1127,7 +1127,7 @@ public sealed class ConsoleRenderer
     }
 
     public void DrawInnSpecialistScreen(string title, LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
-        int selectedIndex, int freeBackpackSlots, string message)
+        int selectedIndex, int freeBackpackSlots, string message, string innName)
     {
         ClearInnMenuScreen();
         var kind = title.Contains("KOVÁCS", StringComparison.OrdinalIgnoreCase) ? InnVendorKind.Blacksmith
@@ -1136,7 +1136,7 @@ public sealed class ConsoleRenderer
         var vendor = new InnVendorSnapshot(kind, title, stock.Select((offer, index) =>
             new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item), offer.Price)).ToArray());
         DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, InnMarketMode.Buy, [], selectedIndex,
-            leader.Gold, freeBackpackSlots, message), FramedWindow.Inn);
+            leader.Gold, freeBackpackSlots, message, innName), FramedWindow.Inn);
     }
 
     private static InventoryItemSnapshot ToInventoryItemSnapshot(IItemDefinition item) => new(item.Id, item.Name,
@@ -1297,12 +1297,12 @@ public sealed class ConsoleRenderer
 
     public void DrawInnRecruitmentScreen(IReadOnlyList<LiveCharacter> candidates,
         IReadOnlyDictionary<LiveCharacter, int> prices, int selectedIndex,
-        IReadOnlyList<LiveCharacter> party, int leaderGold, string message)
+        IReadOnlyList<LiveCharacter> party, int leaderGold, string message, string innName)
     {
         ClearInnMenuScreen();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
-            ("🏰🍺  A VÁNDORCSILLAG FOGADÓ ZSOLDOSAI  ⚔️✨", ConsoleColor.Yellow),
+            ($"🏰🍺  {innName} FOGADÓ ZSOLDOSAI  ⚔️✨", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
             ($"Parti: {party.Count}/{Party.MaximumSize} fő     {MoneyIcon} Arany: {leaderGold}", ConsoleColor.Cyan),
             ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
@@ -1390,11 +1390,11 @@ public sealed class ConsoleRenderer
             updates, FramedWindow.Inn);
     }
 
-    public void DrawInnRumorScreen(InnRumor rumor, int selectedIndex, int rumorCount, string? notice = null)
+    public void DrawInnRumorScreen(InnRumor rumor, int selectedIndex, int rumorCount, string innName, string? notice = null)
     {
         ClearInnMenuScreen();
         DrawCenteredFrame(InnRumorFrameWidth, BuildInnRumorLines(
-            new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color), selectedIndex, rumorCount, notice),
+            new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color), selectedIndex, rumorCount, innName, notice),
             FramedWindow.Inn);
     }
 

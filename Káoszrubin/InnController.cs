@@ -182,6 +182,7 @@ internal sealed class InnController
             _revision++;
             return RunMenuLoop(completedLevel);
         }
+
         var availableInnNames = _gameData.InnNames.Where(name => !_usedInnNames.Contains(name)).ToArray();
         if (availableInnNames.Length == 0)
         {
@@ -189,6 +190,7 @@ internal sealed class InnController
             availableInnNames = _gameData.InnNames.ToArray();
         }
         _innName = availableInnNames[_random.Next(availableInnNames.Length)];
+
         _usedInnNames.Add(_innName);
         _innLevel = completedLevel;
         _hasRestedAtInn = false;
@@ -421,7 +423,7 @@ internal sealed class InnController
             if (redraw)
             {
                 _renderer.DrawInnMarketScreen(_partyLeader, mode, stock, sellOffers, selectedIndex,
-                    _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
+                    _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message, _innName);
                 redraw = false;
             }
 
@@ -727,7 +729,7 @@ internal sealed class InnController
             if (redraw)
             {
                 _renderer.DrawInnRecruitmentScreen(candidates, recruitmentPrices, selectedIndex,
-                    _characterRoster.Party.Members, _partyLeader.Gold, message);
+                    _characterRoster.Party.Members, _partyLeader.Gold, message, _innName);
                 redraw = false;
             }
             var key = _readKey().Key;
@@ -836,7 +838,7 @@ internal sealed class InnController
         while (true)
         {
             if (_rumors.Count == 0) return;
-            _renderer.DrawInnRumorScreen(_rumors[selectedIndex], selectedIndex, _rumors.Count, transactionNotice);
+            _renderer.DrawInnRumorScreen(_rumors[selectedIndex], selectedIndex, _rumors.Count, _innName, transactionNotice);
             var key = _readKey().Key;
             if (key == StateChangedKey)
             {
@@ -1029,7 +1031,7 @@ internal sealed class InnController
             if (redraw)
             {
                 _renderer.DrawInnMarketScreen(_partyLeader, mode, stock, sellOffers, selectedIndex,
-                    _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
+                    _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message, _innName);
                 redraw = false;
             }
 
@@ -1241,7 +1243,7 @@ internal sealed class InnController
             if (redraw)
             {
                 _renderer.DrawInnSpecialistScreen(title, _partyLeader, stock, selectedIndex,
-                    _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message);
+                    _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)), message, _innName);
                 redraw = false;
             }
             var key = _readKey().Key;
