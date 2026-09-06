@@ -778,15 +778,18 @@ public sealed class CoopGuestScreen
         if (vendor is null) { _innVendor = null; _innSelection = 0; return null; }
         if (_innMageMenuOpen)
         {
-            const int mageOptionCount = 4;
+            const int mageOptionCount = 5;
             if (key == ConsoleKey.Escape) { _innVendor = null; _innMageMenuOpen = false; _innSelection = 0; }
             else if (key == ConsoleKey.UpArrow) _innSelection = (_innSelection - 1 + mageOptionCount) % mageOptionCount;
             else if (key == ConsoleKey.DownArrow) _innSelection = (_innSelection + 1) % mageOptionCount;
             else if (key == ConsoleKey.Enter && _innSelection == 1) { _innMageMenuOpen = false; _innSelection = 0; }
-            else if (key == ConsoleKey.Enter && _innSelection == 3) { _innVendor = null; _innMageMenuOpen = false; _innSelection = 0; }
-            else if (key == ConsoleKey.Enter) SetMessage(_innSelection == 0
-                ? "A pálcatöltést csak a party leader intézheti."
-                : "A varázstárgy-azonosítást csak a party leader intézheti.");
+            else if (key == ConsoleKey.Enter && _innSelection == 4) { _innVendor = null; _innMageMenuOpen = false; _innSelection = 0; }
+            else if (key == ConsoleKey.Enter) SetMessage(_innSelection switch
+            {
+                0 => "A pálcatöltést csak a party leader intézheti.",
+                2 => "A varázstárgy-azonosítást csak a party leader intézheti.",
+                _ => "A tárgyátok megtörését csak a party leader intézheti."
+            });
             Interlocked.Exchange(ref _redrawRequested, 1);
             return null;
         }
@@ -1618,6 +1621,7 @@ public sealed class CoopGuestScreen
                     ($"{ConsoleRenderer.WandIcon} Kiürült varázspálcák feltöltése", "Teljes feltöltés a pálca eredeti árának kétharmadáért.", true),
                     ("📜 Varázsportékák", "Egy véletlen varázspálca és egy véletlen tekercs, egyszeri készletről.", false),
                     ("🔮 Varázstárgy azonosítása", "A leader a Vándormágusnál az egész parti ismeretlen tárgyait azonosíthatja.", true),
+                    ("✨ Tárgyátok megtörése", "A leader azonosított átkozott tárgyat tisztíttathat meg és oldhat fel.", true),
                     ("🚪 Vissza", "Visszatérés a fogadó főtermébe.", false)
                 };
                 lines = ConsoleRenderer.BuildWanderingMageMenuLines(inn.PartyGold, mageOptions,

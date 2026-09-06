@@ -45,6 +45,10 @@ public static class ItemIdentificationRules
     public static int IdentificationPrice(IItemDefinition item) =>
         Math.Max(1, 20 + (int)Math.Ceiling(item.BasePrice * 0.08) + item.MagicPower * 15);
 
+    public static int CurseRemovalPrice(IItemDefinition item, InventoryItemInstanceState state) =>
+        Math.Max(1, 50 + (int)Math.Ceiling(item.BasePrice * 0.12) + item.MagicPower * 25 +
+                    Math.Max(1, state.CurseStrength) * 100);
+
     public static InventoryItemInstanceState CreateLootState(IItemDefinition item,
         IReadOnlyList<ItemCurseDefinition> curses, Random random, int curseChancePercent)
     {

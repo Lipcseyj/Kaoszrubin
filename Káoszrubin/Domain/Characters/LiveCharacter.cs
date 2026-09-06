@@ -481,13 +481,43 @@ public sealed class LiveCharacter
     public bool HasActiveCurse => ActiveEquippedItemStates().Any(state =>
         state.HasCurse && state.IsCurseActivated && state.BoundCharacterId == Id);
 
-    private IEnumerable<InventoryItemInstanceState> ActiveEquippedItemStates()
+    public bool PurifyInventoryItem(InventorySlotKind kind, int index)
+    {
+        var item = GetInventoryItem(kind, index);
+        var state = GetInventoryItemState(kind, index);
+        if (item is null || state is not { HasCurse: true } cursed) return false;
+        ApplyInventoryChanges(new InventorySlotChange(kind, index, item,
+            GetInventoryItemCharges(kind, index), GetInventoryItemQuantity(kind, index),
+            cursed with { IsPurified = true, IsCurseActivated = false, BoundCharacterId = null }));
+        return true;
+    }
+
+    public IItemDefinition? PurifyStrongestActiveCurse()
+    {
+        var cursed = ActiveEquippedItems()
+            .Where(entry => entry.State.HasCurse && entry.State.IsCurseActivated &&
+                            entry.State.BoundCharacterId == Id)
+            .OrderByDescending(entry => entry.State.CurseStrength)
+            .ThenBy(entry => entry.Kind)
+            .ThenBy(entry => entry.Index)
+            .FirstOrDefault();
+        return cursed.Item is not null && PurifyInventoryItem(cursed.Kind, cursed.Index) ? cursed.Item : null;
+    }
+
+    private IEnumerable<InventoryItemInstanceState> ActiveEquippedItemStates() =>
+        ActiveEquippedItems().Select(entry => entry.State);
+
+    private IEnumerable<(InventorySlotKind Kind, int Index, IItemDefinition Item,
+        InventoryItemInstanceState State)> ActiveEquippedItems()
     {
         for (var index = 0; index < 2; index++)
-            if (_weaponItemStates[index] is { } state) yield return state;
-        if (_armorItemState is { } armorState) yield return armorState;
-        foreach (var state in _magicItemStates)
-            if (state is { } value) yield return value;
+            if (_weaponSlots[index] is { } weapon && _weaponItemStates[index] is { } state)
+                yield return (InventorySlotKind.Weapon, index, weapon, state);
+        if (Armor is { } armor && _armorItemState is { } armorState)
+            yield return (InventorySlotKind.Armor, 0, armor, armorState);
+        for (var index = 0; index < _magicItems.Length; index++)
+            if (_magicItems[index] is { } item && _magicItemStates[index] is { } state)
+                yield return (InventorySlotKind.MagicItem, index, item, state);
     }
 
     public bool RemoveOneInventoryItem(InventorySlotKind kind, int index)

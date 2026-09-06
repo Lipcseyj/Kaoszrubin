@@ -326,6 +326,15 @@ public sealed class SpellExecutionService
                         notes.Add($"{enemy.Name}: {removed} pozitív varázshatás szétoszlatva");
                     }
                     break;
+                case SpellEffectType.BreakItemCurse:
+                    foreach (var characterTarget in characterTargets)
+                    {
+                        var purifiedItem = characterTarget.PurifyStrongestActiveCurse();
+                        notes.Add(purifiedItem is null
+                            ? $"{characterTarget.Name}: nincs aktív tárgyátok"
+                            : $"{characterTarget.Name}: ✨ megtört a(z) {purifiedItem.Name} átka");
+                    }
+                    break;
                 case SpellEffectType.RestoreNeeds:
                     ApplyNeedRestoration(characterTargets, effect, divineJudgment, notes);
                     break;

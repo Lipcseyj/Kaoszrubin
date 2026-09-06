@@ -168,6 +168,7 @@ var tests = new (string Name, Action Run)[]
     ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("Az azonosítatlan varázstárgy példányállapota mentés és mozgatás közben megmarad", MagicItemIdentificationStatePersists),
     ("Az átkozott tárgy aktiválódik, megköt és alkalmazza az adatvezérelt hátrányokat", CursedItemsActivateBindAndApplyEffects),
+    ("Az Átoktörés és a Vándormágus végleg megtisztítja és feloldja a tárgyat", ItemCursePurificationIsPermanent),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
     ("A részletes karakterlap közösen mutatja a látásmódosítókat és ölési statisztikát", CharacterDetailsAreShared),
     ("A karakterlap külön színezi az alacsony HP-t és a mannát", CharacterSheetColorsHealthAndManaSeparately),
@@ -2471,6 +2472,40 @@ static void CursedItemsActivateBindAndApplyEffects()
         slot.Kind == InventorySlotKind.MagicItem && slot.Index == 0).Item!;
     Assert(snapshot.CurseId == curse.Id && snapshot.IsCurseActivated && snapshot.Name.Contains('☠'),
         "Az azonosítás nem fedte fel az aktív átkot.");
+}
+
+static void ItemCursePurificationIsPermanent()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var character = CreateCharacter("Tisztító", characterClassId: CharacterClassIds.Mágus);
+    var item = new MagicItemDefinition("MI-PURIFY", "Próbagyűrű", MagicItemKind.Ring, ItemRarity.Magic,
+        1000, 0, null, MagicItemEffect.None, 0, new HashSet<string> { CharacterClassIds.Mágus },
+        "Átoktörési próba", 3);
+    var weak = data.ItemCurses.First(curse => curse.Strength == 1 && curse.CanAffect(item));
+    var strong = data.ItemCurses.First(curse => curse.Strength == 3 && curse.CanAffect(item));
+    var weakState = new InventoryItemInstanceState(Guid.NewGuid(), true, weak.Id, weak.Effect,
+        weak.Value, weak.Strength);
+    var strongState = new InventoryItemInstanceState(Guid.NewGuid(), true, strong.Id, strong.Effect,
+        strong.Value, strong.Strength);
+    Assert(character.SetInventoryItem(InventorySlotKind.MagicItem, 0, item, 0, 1, weakState) &&
+           character.SetInventoryItem(InventorySlotKind.MagicItem, 1, item, 0, 1, strongState),
+        "Az átkozott próbatárgyak nem voltak felszerelhetők.");
+
+    Assert(character.PurifyStrongestActiveCurse()?.Id == item.Id,
+        "Az Átoktörés nem a legerősebb aktív tárgyátkot választotta.");
+    var purified = character.GetInventoryItemState(InventorySlotKind.MagicItem, 1);
+    Assert(purified is { IsPurified: true, IsCurseActivated: false, BoundCharacterId: null } &&
+           !purified.Value.HasCurse && purified.Value.CurseId == strong.Id,
+        "A megtisztítás nem őrizte meg az átok előéletét vagy nem oldotta fel a kötést.");
+    Assert(character.SetInventoryItem(InventorySlotKind.MagicItem, 1, null, 0, 0),
+        "A megtisztított tárgy továbbra sem volt levehető.");
+    Assert(character.HasActiveCurse && character.PurifyInventoryItem(InventorySlotKind.MagicItem, 0) &&
+           !character.HasActiveCurse,
+        "A Vándormágus-jellegű célzott megtisztítás nem szüntette meg az aktív hátrányt.");
+    Assert(ItemIdentificationRules.CurseRemovalPrice(item, weakState) == 50 + 120 + 75 + 100,
+        "A Vándormágus átoktörési díja nem a dokumentált képletet követi.");
+    Assert(data.GetSpellEffects("P027").Any(effect => effect.Type == SpellEffectType.BreakItemCurse),
+        "Az Átoktörés varázslathoz nincs tárgyátok-tisztítás rendelve.");
 }
 
 static void CompactPartyStatusShowsResources()

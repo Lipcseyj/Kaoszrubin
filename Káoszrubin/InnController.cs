@@ -1207,6 +1207,7 @@ internal sealed class InnController
             ($"{ConsoleRenderer.WandIcon} Kiürült varázspálcák feltöltése", "Teljes feltöltés a pálca eredeti árának kétharmadáért."),
             ("📜 Varázsportékák", "Egy véletlen varázspálca és egy véletlen tekercs, egyszeri készletről."),
             ("🔮 Varázstárgy azonosítása", "Ismeretlen mágikus tárgyak teljes feltárása az értékükhöz és erejükhöz igazodó díjért."),
+            ("✨ Tárgyátok megtörése", "Azonosított átkozott tárgy végleges megtisztítása és kötésének feloldása."),
             ("🚪 Vissza", "Visszatérés a fogadó főtermébe.")
         };
         var selectedIndex = 0;
@@ -1230,7 +1231,8 @@ internal sealed class InnController
                     case 0: RunWandRecharging(); break;
                     case 1: RunSpecialistMarket("🧙 VÁNDORMÁGUS PORTÉKÁI", stock); break;
                     case 2: RunMagicItemIdentification(); break;
-                    case 3: return;
+                    case 3: RunCurseRemoval(); break;
+                    case 4: return;
                 }
             }
         }
@@ -1374,6 +1376,71 @@ internal sealed class InnController
         }
     }
 
+    private void RunCurseRemoval()
+    {
+        var selectedIndex = 0;
+        var message = "A megtisztítás végleges: megszünteti az átkot és feloldja a tárgy kötését.";
+        while (true)
+        {
+            var items = PurifiableItems().ToList();
+            selectedIndex = items.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, items.Count - 1);
+            _renderer.DrawCurseRemovalScreen(_partyLeader, items.Select(entry =>
+            {
+                var curse = _gameData.GetItemCurse(entry.State.CurseId!);
+                return (entry.Character.Name, entry.Item.Name, curse.Name, entry.State.CurseStrength,
+                    ItemIdentificationRules.CurseRemovalPrice(entry.Item, entry.State));
+            }).ToList(), selectedIndex, message);
+            var key = _readKey().Key;
+            if (key == StateChangedKey) { message = ConsumeHostTransactionMessages(message); continue; }
+            if (key == ConsoleKey.Escape) return;
+            if (key == ConsoleKey.UpArrow && items.Count > 0)
+                selectedIndex = (selectedIndex - 1 + items.Count) % items.Count;
+            else if (key == ConsoleKey.DownArrow && items.Count > 0)
+                selectedIndex = (selectedIndex + 1) % items.Count;
+            else if (key == ConsoleKey.Enter && items.Count > 0)
+            {
+                var entry = items[selectedIndex];
+                var price = ItemIdentificationRules.CurseRemovalPrice(entry.Item, entry.State);
+                if (!_partyLeader.SpendGold(price))
+                {
+                    message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {price - _partyLeader.Gold} hiányzik.";
+                    continue;
+                }
+                if (!entry.Character.PurifyInventoryItem(entry.Kind, entry.Index))
+                {
+                    _partyLeader.AddGold(price);
+                    message = "A tárgy állapota időközben megváltozott.";
+                    continue;
+                }
+                _revision++;
+                var curse = _gameData.GetItemCurse(entry.State.CurseId!);
+                message = $"✅ {curse.RemovalText} A(z) {entry.Item.Name} már biztonságosan levehető.";
+                RecordTransaction(InnTransactionKind.Service, _partyLeader.Name,
+                    $"Átoktörés — {entry.Item.Name}", price, entry.Character.Name, announceOnHost: true);
+            }
+        }
+    }
+
+    private IEnumerable<PurifiableItem> PurifiableItems()
+    {
+        foreach (var character in _characterRoster.Party.Members)
+        foreach (var kind in new[] { InventorySlotKind.Weapon, InventorySlotKind.Armor,
+                     InventorySlotKind.MagicItem, InventorySlotKind.Backpack })
+        {
+            var count = kind switch
+            {
+                InventorySlotKind.Weapon => 3,
+                InventorySlotKind.Armor => 1,
+                InventorySlotKind.MagicItem => LiveCharacter.MaximumMagicItemCount,
+                _ => LiveCharacter.MaximumBackpackItemCount
+            };
+            for (var index = 0; index < count; index++)
+                if (character.GetInventoryItem(kind, index) is { } item &&
+                    character.GetInventoryItemState(kind, index) is { HasCurse: true, IsIdentified: true } state)
+                    yield return new PurifiableItem(character, kind, index, item, state);
+        }
+    }
+
     private IReadOnlyList<InnSellPriceSnapshot> CreateSellPriceSnapshots()
     {
         var prices = _buybackPrices.Select(pair => new InnSellPriceSnapshot(pair.Key, pair.Value)).ToList();
@@ -1478,6 +1545,8 @@ internal sealed class InnController
 
     private sealed record RechargeableWand(LiveCharacter Character, InventorySlotKind Kind, int Index, MagicItemDefinition Item);
     private sealed record IdentifiableItem(LiveCharacter Character, InventorySlotKind Kind, int Index, IItemDefinition Item);
+    private sealed record PurifiableItem(LiveCharacter Character, InventorySlotKind Kind, int Index,
+        IItemDefinition Item, InventoryItemInstanceState State);
 
     private sealed record LevelCompletionOutcome(IReadOnlyList<LevelCompletionResult> Results,
         IReadOnlyList<LiveCharacter> FallenCharacters);

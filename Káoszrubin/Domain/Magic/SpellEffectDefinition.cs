@@ -32,7 +32,8 @@ public enum SpellEffectType
     Resurrect,
     DispelBeneficial,
     RestoreNeeds,
-    VisionBonus
+    VisionBonus,
+    BreakItemCurse
 }
 
 public enum SpellResolution

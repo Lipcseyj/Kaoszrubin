@@ -384,14 +384,16 @@ public sealed class Game : ISessionCommandHandler
             var curesStatus = effects.Any(e => e.Type == SpellEffectType.CureStatus);
             var breaksCurse = effects.Any(e => e.Type == SpellEffectType.Dispel &&
                 string.Equals(e.Parameter, "HarmfulOnly", StringComparison.OrdinalIgnoreCase));
-            if (!curesStatus && !breaksCurse) continue;
+            var breaksItemCurse = effects.Any(e => e.Type == SpellEffectType.BreakItemCurse);
+            if (!curesStatus && !breaksCurse && !breaksItemCurse) continue;
             var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
             if (caster.CurrentMana < manaCost) continue;
             var range = Math.Max(1, spell.Range);
             var candidates = CharacterRoster.Party.Members.Where(c => c.IsAlive &&
                 (effects.Where(e => e.Type == SpellEffectType.CureStatus)
                      .SelectMany(e => SpellExecutionService.ParseEffectParameters(e.Parameter)).Any(c.HasStatus) ||
-                 breaksCurse && c.ActiveSpellEffects.Any(active => !active.Beneficial)) &&
+                 breaksCurse && c.ActiveSpellEffects.Any(active => !active.Beneficial) ||
+                 breaksItemCurse && c.HasActiveCurse) &&
                 Chebyshev(member.Position, GetCasterPosition(c)) <= range).ToList();
             if (!candidates.Any()) continue;
             var targetChar = candidates.First();
@@ -403,6 +405,13 @@ public sealed class Game : ISessionCommandHandler
                 ApplyStatusCureForCaster(effect, [targetChar], notes);
             if (breaksCurse)
                 notes.Add($"{targetChar.RemoveSpellEffects(active => !active.Beneficial)} káros varázshatás megtörve");
+            if (breaksItemCurse)
+            {
+                var purifiedItem = targetChar.PurifyStrongestActiveCurse();
+                notes.Add(purifiedItem is null
+                    ? "nincs aktív tárgyátok"
+                    : $"✨ a(z) {purifiedItem.Name} átka megtört");
+            }
             var message = $"{caster.Name} elsüti: {spell.Name} → {targetChar.Name}. -{manaCost} manna. {string.Join("; ", notes)}";
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
             RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);

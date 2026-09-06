@@ -1231,6 +1231,33 @@ public sealed class ConsoleRenderer
         DrawCenteredFrame(InnMarketFrameWidth, lines, FramedWindow.Inn);
     }
 
+    public void DrawCurseRemovalScreen(LiveCharacter leader,
+        IReadOnlyList<(string Owner, string Item, string Curse, int Strength, int Price)> items,
+        int selectedIndex, string message)
+    {
+        ClearInnMenuScreen();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("✨☠  TÁRGYÁTOK MEGTÖRÉSE  ☠✨", ConsoleColor.Magenta),
+            ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}", ConsoleColor.Green),
+            ("Csak azonosított átok tisztítható meg; a szolgáltatás garantált és végleges.", ConsoleColor.DarkYellow),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        if (items.Count == 0) lines.Add(("Nincs azonosított átkozott tárgy a partinál.", ConsoleColor.DarkGray));
+        else
+            for (var index = 0; index < items.Count; index++)
+            {
+                var item = items[index];
+                var selected = index == selectedIndex;
+                lines.Add(($"{(selected ? "▶" : " ")} {item.Owner,-12} {item.Item,-25} ☠ {item.Curse,-20} {item.Strength}/3  {item.Price,5} {MoneyIcon}",
+                    selected ? ConsoleColor.White : ConsoleColor.DarkMagenta));
+            }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add((ClipMarketText(message, InnMarketFrameWidth - 6), ConsoleColor.Magenta));
+        lines.Add(("↑/↓ választás   Enter megtisztítás   Esc vissza", ConsoleColor.Green));
+        DrawCenteredFrame(InnMarketFrameWidth, lines, FramedWindow.Inn);
+    }
+
     public void UpdateInnMarketSelection(InnMarketMode mode, IReadOnlyList<InnStockOffer> stock,
         IReadOnlyList<InnSellOffer> sellOffers, int previousIndex, int selectedIndex)
     {

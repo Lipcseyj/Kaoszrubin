@@ -618,7 +618,7 @@ P005,Gyógyítás,2,11,Hat mezőről nagy mennyiségű életerőt állít vissza
 P007,Védelem a gonosztól,2,12,Öt körre védelmet és sebzéscsökkentést ad élőholt vagy démoni támadó ellen.,PartyMember,6,0,igen,Both
 P013,Betegségűzés,2,10,Eltávolítja a Betegség állapotot és visszaállítja a normál erőforrásmaximumokat.,PartyMember,6,0,igen,Both
 P022,Remény imája,2,12,Szelíd isteni erő gyógyítja egyszerre a teljes élő partit.,Party,0,0,nem,Both
-P027,Átoktörés,2,11,Isteni erő töri meg az egy partitagot sújtó káros mágikus hatásokat.,PartyMember,6,0,igen,Both
+P027,Átoktörés,2,11,Isteni erő töri meg az egy partitagot sújtó káros mágikus hatásokat és annak legerősebb aktív tárgyátkát.,PartyMember,6,0,igen,Both
 P009,Szent csapás,3,17,Súlyos szent sebzést okoz és rontott ellenpróbánál elveszi a következő ellenséges akciót.,Enemy,8,0,igen,Both
 P010,Isteni védelem,3,18,Négy körre védelmet és huszonöt százalék fizikai sebzéscsökkentést ad a teljes partinak.,Party,0,0,nem,Both
 P014,Megtisztítás,3,15,Eltávolítja a Mérgezés Betegség és Vérzés állapotot majd gyógyítja a célpontot.,PartyMember,6,0,igen,Both
@@ -722,6 +722,7 @@ FX-P025-2,P025,2,Burning,2d8,0,0,0,3,100,SaveNegates,,Három körig égi lángga
 FX-P026-1,P026,1,HitBonus,,0,0,2,4,100,Auto,,Négy körre két pont találati bónuszt ad a papnak.
 FX-P026-2,P026,2,DamageBonus,,0,0,2,4,100,Auto,,Négy körre két pont fizikai sebzést ad a papnak.
 FX-P027-1,P027,1,Dispel,,0,0,0,0,100,Auto,HarmfulOnly,Eltávolítja a célpontot sújtó ideiglenes káros mágikus hatásokat.
+FX-P027-2,P027,2,BreakItemCurse,,0,0,0,0,100,Auto,,Végleg megtöri a célpont legerősebb aktív tárgyátkát és feloldja a tárgy kötését.
 FX-P028-1,P028,1,Damage,6d8,2,3,0,0,100,SaveHalf,Holy50,Szent területi sebzés amely élőholt és démoni célpont ellen másfélszeres erővel hat.
 FX-P028-2,P028,2,SkipAlternate,,0,0,1,1,100,SaveNegates,Next,Sikertelen ellenpróbánál a célpont következő akciója kimarad.
 
