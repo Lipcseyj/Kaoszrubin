@@ -301,7 +301,8 @@ public sealed class Game : ISessionCommandHandler
         _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
             message => _renderer.DrawDeveloperMessage(message));
         _doorInteractions = new DoorInteractionController(gameData, _renderer,
-            (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random);
+            (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random,
+            (message, color, actor) => RecordSessionActivity(SessionActivityKind.System, message, color, [actor.Id]));
         _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer,
             effect => PlaySessionSound(effect),
             _random, AwardExperienceResult, ResolvePerkOffers, PreparePartySpells, ReadInnKey,

@@ -28,6 +28,9 @@ public sealed class CoopGuestScreen
     private int _inventorySelection;
     private bool _characterDetailsOpen;
     private int _characterDetailsOffset;
+    private readonly HashSet<string> _knownQuestIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<QuestJournalEntrySnapshot> _newQuestOffers = [];
+    private bool _questJournalInitialized;
     private CharacterId? _displayedCharacterId;
     private InventorySlotAddress? _inventorySource;
     private CharacterId? _inventorySourceCharacterId;
@@ -327,6 +330,15 @@ public sealed class CoopGuestScreen
                 narrative.NarrativeId);
         }
         else if (snapshot.Narrative is null) _acknowledgedNarrativeId = null;
+        if (_newQuestOffers.Count > 0 && snapshot.RestNotice is null && snapshot.Narrative is null &&
+            snapshot.AdHocConversation is null && snapshot.SpellPreparation is null &&
+            snapshot.LevelUpPrompt is null)
+        {
+            if (key is ConsoleKey.Enter or ConsoleKey.Escape)
+                _newQuestOffers.Clear();
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return;
+        }
         if (_characterDetailsOpen)
         {
             if (key is ConsoleKey.R or ConsoleKey.Escape or ConsoleKey.Enter)
@@ -1186,6 +1198,7 @@ public sealed class CoopGuestScreen
             SynchronizeInnTransactions(snapshot);
             SynchronizeSessionSounds(snapshot, selected.CharacterId);
             SynchronizeSessionActivities(snapshot, selected.CharacterId);
+            SynchronizeQuestOffers(snapshot);
         }
         if (snapshot?.World is not { } world)
         {
@@ -1248,6 +1261,21 @@ public sealed class CoopGuestScreen
             if (activity.IsVisibleTo(characterId)) SetMessage(prefix + activity.Message, activity.Color);
             _lastSessionActivitySequence = activity.Sequence;
         }
+    }
+
+    private void SynchronizeQuestOffers(SessionSnapshot snapshot)
+    {
+        var quests = snapshot.QuestJournal ?? [];
+        if (!_questJournalInitialized)
+        {
+            _knownQuestIds.UnionWith(quests.Select(quest => quest.QuestId));
+            _questJournalInitialized = true;
+            return;
+        }
+
+        foreach (var quest in quests)
+            if (_knownQuestIds.Add(quest.QuestId) && quest.Status == QuestJournalStatus.Active)
+                _newQuestOffers.Add(quest);
     }
 
     private void SynchronizeSessionSounds(SessionSnapshot snapshot, CharacterId localCharacterId)
@@ -1346,6 +1374,7 @@ public sealed class CoopGuestScreen
         ApplyLevelUpUi(grid, snapshot, own);
         ApplyCharacterDetailsUi(grid, own);
         ApplyAdHocConversationUi(grid, snapshot.AdHocConversation);
+        ApplyQuestOfferUi(grid, snapshot);
         var panelLines = _spellInfoOpen && own?.SpellInfo is not null
             ? SpellInfoPanel.Build(own.Name, own.CharacterClassId, own.Level, own.SpellInfo,
                 _spellInfoSelection, focused: _inventoryOpen).ToDictionary(line => line.Row)
@@ -2040,6 +2069,28 @@ public sealed class CoopGuestScreen
         if (conversation is null) return;
         DrawGuestOverlay(grid, AdHocConversationWindow.Build(conversation), ConsoleColor.Magenta,
             AdHocConversationWindow.Width, FramedWindow.Storyline);
+    }
+
+    private void ApplyQuestOfferUi(GuestMapCell[,] grid, SessionSnapshot snapshot)
+    {
+        if (_newQuestOffers.Count == 0 || snapshot.RestNotice is not null || snapshot.Narrative is not null ||
+            snapshot.AdHocConversation is not null || snapshot.SpellPreparation is not null ||
+            snapshot.LevelUpPrompt is not null) return;
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            (_newQuestOffers.Count == 1 ? "📜 ÚJ KÜLDETÉS" : "📜 ÚJ KÜLDETÉSEK", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        foreach (var quest in _newQuestOffers)
+        {
+            lines.Add(($"📜 {quest.Title} ({quest.ExperienceReward} XP)", ConsoleColor.Cyan));
+            lines.Add(($"   Megbízó: {quest.QuestGiverName}", ConsoleColor.DarkYellow));
+            lines.AddRange(MessageTextLayout.Wrap("   " + quest.Description, 78)
+                .Select(text => (text, ConsoleColor.White)));
+            lines.Add((string.Empty, ConsoleColor.Gray));
+        }
+        lines.Add(("Enter / Esc: tovább", ConsoleColor.Yellow));
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, 88, FramedWindow.QuestOffer);
     }
 
     private static void WriteCharacterResourceAt(int x, int y, CharacterResourceLine resources)
