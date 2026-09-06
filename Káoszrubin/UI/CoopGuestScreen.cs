@@ -135,18 +135,46 @@ public sealed class CoopGuestScreen
         if (control.CharacterId != localCharacter.Id)
             throw new InvalidOperationException("A host nem a kiválasztott helyi karaktert regisztrálta.");
 
-        Console.CursorVisible = false;
+        var previousViewport = default(TerminalViewport.Size);
+        try { Console.CursorVisible = false; }
+        catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception)) { }
         try
         {
             while (!cancellationToken.IsCancellationRequested &&
                    client.State is not (CoopClientConnectionState.Disconnected or CoopClientConnectionState.Faulted))
             {
+                if (!TerminalViewport.TryGetSize(out var viewport) ||
+                    !viewport.CanFit(ConsoleRenderer.PlayfieldWidth + 1, ConsoleRenderer.ScreenRowCount))
+                {
+                    TerminalViewport.DrawSizeWarning(viewport, ConsoleRenderer.PlayfieldWidth + 1,
+                        ConsoleRenderer.ScreenRowCount);
+                    previousViewport = default;
+                    _lastFrame = null;
+                    Interlocked.Exchange(ref _redrawRequested, 1);
+                    await Task.Delay(80, cancellationToken);
+                    continue;
+                }
+                if (viewport != previousViewport)
+                {
+                    previousViewport = viewport;
+                    _lastFrame = null;
+                    Interlocked.Exchange(ref _redrawRequested, 1);
+                }
 #if !DEBUG
 
                 await ShowAndAcknowledgeLevelImageAsync(client, selected, cancellationToken);
 #endif
                 if (Interlocked.Exchange(ref _redrawRequested, 0) != 0)
-                    Draw(client, selected);
+                {
+                    try { Draw(client, selected); }
+                    catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception))
+                    {
+                        previousViewport = default;
+                        _lastFrame = null;
+                        Interlocked.Exchange(ref _redrawRequested, 1);
+                        continue;
+                    }
+                }
                 if (Volatile.Read(ref _deathStateSynchronized) != 0 &&
                     client.CurrentSnapshot?.Party.FirstOrDefault(character =>
                         character.CharacterId == selected.CharacterId) is { IsAlive: false })
@@ -154,7 +182,7 @@ public sealed class CoopGuestScreen
                     ConsoleRenderer.DrawCoopGuestGameOver(selected.Name);
                     break;
                 }
-                if (Console.KeyAvailable)
+                if (IsKeyAvailable())
                 {
                     var key = Console.ReadKey(intercept: true);
                     if (client.CurrentSnapshot?.Battle is { IsQuickBattle: false } detailBattle &&
@@ -229,7 +257,8 @@ public sealed class CoopGuestScreen
         {
             _backgroundMusic.Dispose();
             _soundEffects.Dispose();
-            Console.CursorVisible = true;
+            try { Console.CursorVisible = true; }
+            catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception)) { }
             await client.DisconnectAsync(CancellationToken.None);
         }
     }
@@ -2227,6 +2256,12 @@ public sealed class CoopGuestScreen
         try { Console.SetCursorPosition(x, y); return true; }
         catch (ArgumentOutOfRangeException) { return false; }
         catch (IOException) { return false; }
+    }
+
+    private static bool IsKeyAvailable()
+    {
+        try { return Console.KeyAvailable; }
+        catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception)) { return false; }
     }
 
     private static int SafeWindowWidth()

@@ -532,7 +532,12 @@ public sealed class Game : ISessionCommandHandler
     public void Run(ICoopHostLoop? coopHost = null)
     {
         _activeCoopHost = coopHost;
-        Console.CursorVisible = false;
+        WaitForUsableTerminal(processSession: false);
+        var previousViewport = TerminalViewport.TryGetSize(out var initialViewport)
+            ? initialViewport
+            : default;
+        try { Console.CursorVisible = false; }
+        catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception)) { }
         if (_loadedState is null)
         {
             StartNewMaze(showLevelImage: false);
@@ -551,6 +556,15 @@ public sealed class Game : ISessionCommandHandler
         {
             while (!_gameOver)
             {
+                try
+                {
+                WaitForUsableTerminal(processSession: true);
+                if (TerminalViewport.TryGetSize(out var currentViewport) && currentViewport != previousViewport)
+                {
+                    previousViewport = currentViewport;
+                    _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
+                    _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+                }
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);
@@ -762,6 +776,14 @@ public sealed class Game : ISessionCommandHandler
                     coopHost.TryPublish(CreateSessionSnapshot());
 
                 Thread.Sleep(20);
+                }
+                catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception))
+                {
+                    // Az ablak átméretezése közben a konzol koordinátái egy pillanatra
+                    // érvénytelenné válhatnak. A következő ciklus stabil méretnél újrarajzol.
+                    previousViewport = default;
+                    Thread.Sleep(50);
+                }
             }
         }
         finally
@@ -774,15 +796,42 @@ public sealed class Game : ISessionCommandHandler
                 _activeCoopHost.TryPublish(CreateSessionSnapshot());
             }
             _activeCoopHost = null;
-            Console.CursorVisible = true;
+            try { Console.CursorVisible = true; }
+            catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception)) { }
             try
             {
                 Console.SetCursorPosition(0, Math.Min(ConsoleRenderer.ScreenRowCount - 1,
                     Math.Max(0, Console.BufferHeight - 1)));
             }
-            catch (IOException)
+            catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception))
             {
             }
+        }
+    }
+
+    private void WaitForUsableTerminal(bool processSession)
+    {
+        var minimumWidth = ConsoleRenderer.PlayfieldWidth + 1;
+        var minimumHeight = ConsoleRenderer.ScreenRowCount;
+        TerminalViewport.Size lastWarningSize = default;
+        var warningDrawn = false;
+        while (true)
+        {
+            if (TerminalViewport.TryGetSize(out var size) && size.CanFit(minimumWidth, minimumHeight)) return;
+
+            if (size != lastWarningSize || !warningDrawn)
+            {
+                TerminalViewport.DrawSizeWarning(size, minimumWidth, minimumHeight);
+                lastWarningSize = size;
+                warningDrawn = true;
+            }
+            if (processSession)
+            {
+                ProcessSessionCommands();
+                if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                    _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            }
+            Thread.Sleep(80);
         }
     }
 

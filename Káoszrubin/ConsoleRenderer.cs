@@ -3140,14 +3140,20 @@ public sealed class ConsoleRenderer
             bufferWidth = Console.BufferWidth;
             bufferHeight = Console.BufferHeight;
         }
-        catch (IOException)
+        catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception))
         {
             return;
         }
         if (x < 0 || y < 0 || x >= bufferWidth || y >= bufferHeight) return;
         if (text.Length > bufferWidth - x) text = text[..(bufferWidth - x)];
-        Console.SetCursorPosition(x, y);
-        Console.Write(text);
+        try
+        {
+            Console.SetCursorPosition(x, y);
+            Console.Write(text);
+        }
+        catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception))
+        {
+        }
     }
 
     /// <summary>

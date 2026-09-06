@@ -14,6 +14,7 @@ using System.Text;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A terminál méretőre pontosan a teljes játékképernyőt követeli meg", TerminalViewportRequiresCompleteGameScreen),
     ("A többsoros fogadói pletyka minden sora a kereten belül marad", MultilineInnRumorStaysInsideFrame),
     ("A fejlesztői fegyvercsomag követi a kategóriákat és a hátizsák kapacitását", DevelopmentWeaponsRespectCapacity),
     ("A lovag harci fegyvercsere-parancsa átjut a session ellenőrzésén", KnightBattleWeaponSwapCommandIsAccepted),
@@ -206,6 +207,18 @@ var tests = new (string Name, Action Run)[]
     ("Az in-memory transport végigviszi a coop protokollfolyamot", () =>
         InMemoryTransportRunsProtocolFlow().GetAwaiter().GetResult())
 };
+
+static void TerminalViewportRequiresCompleteGameScreen()
+{
+    var minimumWidth = ConsoleRenderer.PlayfieldWidth + 1;
+    var minimumHeight = ConsoleRenderer.ScreenRowCount;
+    Assert(!new TerminalViewport.Size(minimumWidth - 1, minimumHeight).CanFit(minimumWidth, minimumHeight),
+        "Egy hiányzó oszlopnál a játéknak várakoznia kell.");
+    Assert(!new TerminalViewport.Size(minimumWidth, minimumHeight - 1).CanFit(minimumWidth, minimumHeight),
+        "Egy hiányzó sornál a játéknak várakoznia kell.");
+    Assert(new TerminalViewport.Size(minimumWidth, minimumHeight).CanFit(minimumWidth, minimumHeight),
+        "A pontos minimális méretnek már használhatónak kell lennie.");
+}
 
 var failures = 0;
 foreach (var test in tests)
