@@ -280,6 +280,7 @@ public sealed class GameSaveData
     public Position PlayerPosition { get; set; }
     public Direction LeaderFacing { get; set; } = Direction.Right;
     public PartyFormationSnapshot? Formation { get; set; }
+    public List<NpcSpellcasterTacticsEntry> NpcSpellcasterTactics { get; set; } = [];
     public List<Position> LeaderTrail { get; set; } = [];
     public bool PartyHoldingPosition { get; set; }
     public bool PartyRegrouping { get; set; }

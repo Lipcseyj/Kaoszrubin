@@ -45,6 +45,7 @@ public sealed class TeamBattleEncounter
     private readonly Dictionary<CharacterId, HashSet<string>> _startingStatusIds = [];
     private readonly Dictionary<CharacterId, List<string>> _gainedStatusIcons = [];
     private readonly Dictionary<CharacterId, int> _spellCasts = [];
+    private readonly Dictionary<CharacterId, int> _offensiveSpellCasts = [];
     private readonly HashSet<WorldEntityId> _resolvedEnemyDeaths = [];
     private readonly HashSet<CharacterId> _resolvedCharacterDeaths = [];
     private readonly HashSet<(CharacterId CharacterId, WorldEntityId EnemyId)> _engagements = [];
@@ -88,6 +89,7 @@ public sealed class TeamBattleEncounter
                 .Select(status => status.Id).ToHashSet(StringComparer.OrdinalIgnoreCase));
             _gainedStatusIcons.Add(participant.Character.Id, []);
             _spellCasts.Add(participant.Character.Id, 0);
+            _offensiveSpellCasts.Add(participant.Character.Id, 0);
             tacticalParticipants.Add(new TacticalBattleParticipant(id, BattleSide.Friendly,
                 participant.Kind, participant.Position, participant.Initiative,
                 participant.MovementAllowance, participant.EligibleFromCycle,
@@ -352,6 +354,10 @@ public sealed class TeamBattleEncounter
     public void RecordMovement(BattleSide side) => _activeSidesThisCycle.Add(side);
     public void RecordAttack(BattleSide side) => _activeSidesThisCycle.Add(side);
     public void RecordSpellCast(LiveCharacter caster) => _spellCasts[caster.Id]++;
+
+    public int SpellCastsFor(LiveCharacter caster) => _spellCasts.GetValueOrDefault(caster.Id);
+    public void RecordOffensiveSpellCast(LiveCharacter caster) => _offensiveSpellCasts[caster.Id]++;
+    public int OffensiveSpellCastsFor(LiveCharacter caster) => _offensiveSpellCasts.GetValueOrDefault(caster.Id);
     public void RecordCompletedFinalAction() => ActionNumber++;
     public void RecordKill(LiveCharacter killer, Enemy enemy, int awardedExperience) =>
         _kills.Add(new TeamBattleKill(killer.Id, killer.Name, enemy.Definition.Id, enemy.Name,

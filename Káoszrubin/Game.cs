@@ -120,6 +120,7 @@ public sealed class Game : ISessionCommandHandler
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private PartyFormationSnapshot _formation;
+    private readonly Dictionary<CharacterId, NpcSpellcasterTactics> _npcSpellcasterTactics = [];
     private bool _formationObstacleReported;
     private int _mazeLevel = 1;
     private AdventureLocationKind _locationKind = AdventureLocationKind.Campaign;
@@ -1477,6 +1478,8 @@ public sealed class Game : ISessionCommandHandler
             ? null : new DateTimeOffset(_lastAdHocConversationUtc, TimeSpan.Zero);
         state.AdHocConversationMazeLevel = _adHocConversationMazeLevel;
         state.Formation = _formation;
+        state.NpcSpellcasterTactics = _npcSpellcasterTactics
+            .Select(pair => new NpcSpellcasterTacticsEntry(pair.Key, pair.Value.Normalize())).ToList();
         state.RemoteCharacterIds = _session.CharacterControls
             .Where(control => control.AssignedPlayerId is not null &&
                               control.AssignedPlayerId != _session.HostPlayerId)
@@ -1536,6 +1539,10 @@ public sealed class Game : ISessionCommandHandler
         _leaderFacing = restored.LeaderFacing;
         _formation = PartyFormationRules.Normalize(state.Formation,
             CharacterRoster.Party.Members.Select(member => member.Id), SelectedCharacter.Id);
+        _npcSpellcasterTactics.Clear();
+        foreach (var entry in state.NpcSpellcasterTactics ?? [])
+            if (CharacterRoster.Party.Members.Any(member => member.Id == entry.CharacterId && member.IsSpellcaster))
+                _npcSpellcasterTactics[entry.CharacterId] = entry.Tactics.Normalize();
         _renderer.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(_formation.State == PartyFormationState.Locked);
         _leaderTrail.Clear();
@@ -2822,9 +2829,11 @@ public sealed class Game : ISessionCommandHandler
     private void EditFormation()
     {
         NormalizeFormation();
-        var slots = FormationEditor.Edit(CharacterRoster.Party.Members.Where(member => member.IsAlive).ToArray(),
-            _formation);
-        _formation = PartyFormationRules.WithSlots(_formation, slots);
+        var result = FormationEditor.Edit(CharacterRoster.Party.Members.Where(member => member.IsAlive).ToArray(),
+            _formation, _npcSpellcasterTactics);
+        _formation = PartyFormationRules.WithSlots(_formation, result.Slots);
+        _npcSpellcasterTactics.Clear();
+        foreach (var pair in result.SpellcasterTactics) _npcSpellcasterTactics[pair.Key] = pair.Value.Normalize();
         _renderer.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
@@ -5711,6 +5720,8 @@ public sealed class Game : ISessionCommandHandler
             TryExecuteSwapToRear(battle, character, out _))
             return;
         if (TryExecuteTeamAiSpell(battle, character)) return;
+        if (!battle.HasActiveFormation && !battle.IsEngaged(character) &&
+            TryExecuteNpcSpellcasterPositioning(battle, character)) return;
         var reachable = ReachableTeamEnemies(battle, character).FirstOrDefault();
         if (reachable is not null)
         {
@@ -5736,6 +5747,82 @@ public sealed class Game : ISessionCommandHandler
         MoveTeamCharacterToward(battle, character, target.Position);
     }
 
+    private bool TryExecuteNpcSpellcasterPositioning(TeamBattleEncounter battle, LiveCharacter caster)
+    {
+        if (!caster.IsSpellcaster || !caster.CanCastSpells ||
+            caster.CharacterClass.Id == CharacterClassIds.Lovag) return false;
+        var configuredTactics = NpcTacticsFor(caster);
+        var livingEnemies = battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).ToArray();
+        var tactics = configuredTactics.EffectiveProfile(livingEnemies.Any(enemy => IsUnholy(enemy.Definition)));
+        var enemyStrength = livingEnemies.Sum(enemy => Math.Max(1, enemy.Definition.StrengthTier));
+        var withinCastingPlan = enemyStrength >= tactics.MinimumEnemyStrength &&
+            (enemyStrength >= tactics.FullOffenseEnemyStrength ||
+             battle.OffensiveSpellCastsFor(caster) < tactics.OffensiveSpellsPerBattle);
+        var offensiveSpells = caster.MemorizedSpells.Where(spell => spell.CanUseInCombat &&
+                NpcSpellcastingPolicy.IsSingleTargetOffensive(spell, _gameData.GetSpellEffects(spell.Id)))
+            .ToArray();
+        var hasSpendableMana = withinCastingPlan && offensiveSpells.Any(spell =>
+            NpcSpellcastingPolicy.CanSpendMana(caster, SpellcastingRules.EffectiveManaCost(caster, spell)));
+
+        if (!hasSpendableMana)
+        {
+            if (tactics.ManaFallback == SpellcasterManaFallback.SelfBuffAndMelee) return false;
+            return MoveNpcSpellcasterToBestPosition(battle, caster, livingEnemies, offensiveSpells,
+                seekLineOfSight: false);
+        }
+
+        var origin = GetCasterPosition(caster);
+        if (livingEnemies.Any(enemy => offensiveSpells.Any(spell =>
+                FogOfWar.CanSee(_maze, origin, enemy.Position, Math.Max(1, spell.Range)))))
+        {
+            FinishNpcSpellcasterPositioning(battle, caster, "megtartja a lővonalat");
+            return true;
+        }
+        return MoveNpcSpellcasterToBestPosition(battle, caster, livingEnemies, offensiveSpells,
+            seekLineOfSight: true);
+    }
+
+    private bool MoveNpcSpellcasterToBestPosition(TeamBattleEncounter battle, LiveCharacter caster,
+        IReadOnlyList<Enemy> enemies, IReadOnlyList<SpellDefinition> offensiveSpells, bool seekLineOfSight)
+    {
+        var origin = GetCasterPosition(caster);
+        var actorId = CombatantId.ForCharacter(caster.Id);
+        var candidates = new List<(IReadOnlyList<Position> Path, int VisibleTargets, int Safety)>();
+        var allowance = Math.Max(1, battle.Current.MovementAllowance);
+        for (var y = Math.Max(0, origin.Y - allowance); y <= Math.Min(_maze.Height - 1, origin.Y + allowance); y++)
+        for (var x = Math.Max(0, origin.X - allowance); x <= Math.Min(_maze.Width - 1, origin.X + allowance); x++)
+        {
+            var position = new Position(x, y);
+            if (position == origin || !CanTeamBattleEnter(battle, position, actorId)) continue;
+            var path = FindTeamBattlePath(battle, origin, [position], actorId);
+            if (path.Count == 0 || path.Count > battle.Current.MovementAllowance) continue;
+            var visibleTargets = enemies.Count(enemy => offensiveSpells.Any(spell =>
+                FogOfWar.CanSee(_maze, position, enemy.Position, Math.Max(1, spell.Range))));
+            if (seekLineOfSight && visibleTargets == 0) continue;
+            var safety = enemies.Count == 0 ? 0 : enemies.Min(enemy => TacticalDistance.Between(position, enemy.Position));
+            candidates.Add((path, visibleTargets, safety));
+        }
+        var selected = candidates.OrderByDescending(candidate => candidate.VisibleTargets)
+            .ThenByDescending(candidate => candidate.Safety)
+            .ThenBy(candidate => candidate.Path.Count).FirstOrDefault();
+        if (selected.Path is not null)
+        {
+            CompleteTeamCharacterMovement(battle, caster, selected.Path);
+            return true;
+        }
+        FinishNpcSpellcasterPositioning(battle, caster,
+            seekLineOfSight ? "nem talál elérhető lővonalat" : "biztonságos helyen marad");
+        return true;
+    }
+
+    private void FinishNpcSpellcasterPositioning(TeamBattleEncounter battle, LiveCharacter caster, string action)
+    {
+        var statusText = _battleSystem.FinishTeamCharacterAction(caster, battle.RuntimeFor(caster));
+        PresentBattleEntries([new BattleLogEntry($"{caster.Name} {action}.{statusText}",
+            BattleLogKind.Information)]);
+        AdvanceTeamBattleTurn(battle);
+    }
+
     private bool TryExecuteTeamAiSpell(TeamBattleEncounter battle, LiveCharacter caster)
     {
         var plan = ChooseTeamAiSpell(battle, caster);
@@ -5746,6 +5833,7 @@ public sealed class Game : ISessionCommandHandler
         battle.RecordSpellCast(caster);
         if (plan.Offensive)
         {
+            battle.RecordOffensiveSpellCast(caster);
             battle.RecordAttack(BattleSide.Friendly);
             if (attempt.DamageToCurrentEnemy > 0 && plan.Enemy is not null)
                 plan.Enemy.ReceiveSpellDamage(attempt.DamageToCurrentEnemy);
@@ -5771,6 +5859,14 @@ public sealed class Game : ISessionCommandHandler
             .OrderBy(character => VitalityRatio(character)).ToArray();
         var enemies = OrderedNpcSpellTargets(battle, casterPosition).ToArray();
         var currentEnemy = enemies.FirstOrDefault();
+        var livingEnemies = battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).ToArray();
+        var configuredTactics = NpcTacticsFor(caster);
+        var tactics = configuredTactics.EffectiveProfile(livingEnemies.Any(enemy => IsUnholy(enemy.Definition)));
+        var enemyStrength = livingEnemies
+            .Sum(enemy => Math.Max(1, enemy.Definition.StrengthTier));
+        var fullOffense = enemyStrength >= tactics.FullOffenseEnemyStrength;
+        var mayCastOffensively = enemyStrength >= tactics.MinimumEnemyStrength &&
+            (fullOffense || battle.OffensiveSpellCastsFor(caster) < tactics.OffensiveSpellsPerBattle);
 
         foreach (var spell in spells)
         {
@@ -5803,9 +5899,11 @@ public sealed class Game : ISessionCommandHandler
         var vulnerableAlly = allies.FirstOrDefault();
         var dangerousEnemy = vulnerableAlly is null ? null : enemies.FirstOrDefault(enemy =>
             ShouldUseOffensiveSupportSpell(vulnerableAlly, enemy));
+        dangerousEnemy ??= currentEnemy;
         if (dangerousEnemy is null) return null;
 
-        if (battle.Turns.Cycle <= 2)
+        if (battle.Turns.Cycle <= 2 ||
+            tactics.ManaFallback == SpellcasterManaFallback.SelfBuffAndMelee && !mayCastOffensively)
             foreach (var spell in spells)
             {
                 var effects = _gameData.GetSpellEffects(spell.Id);
@@ -5822,13 +5920,14 @@ public sealed class Game : ISessionCommandHandler
                 return new NpcTeamSpellPlan(spell, targetPosition.Value, dangerousEnemy, Offensive: false);
             }
 
+        if (mayCastOffensively)
         foreach (var spell in spells)
         {
             var effects = _gameData.GetSpellEffects(spell.Id);
             if (!NpcSpellcastingPolicy.IsSingleTargetOffensive(spell, effects)) continue;
             var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
             if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost)) continue;
-            foreach (var target in enemies.Where(enemy => ShouldUseOffensiveSupportSpell(vulnerableAlly!, enemy)))
+            foreach (var target in enemies)
             {
                 if (ValidateSpellCast(caster, casterPosition, spell, true, target,
                         explicitTarget: target.Position) is not null) continue;
@@ -5836,6 +5935,15 @@ public sealed class Game : ISessionCommandHandler
             }
         }
         return null;
+    }
+
+    private NpcSpellcasterTactics NpcTacticsFor(LiveCharacter caster)
+    {
+        var defaults = NpcSpellcasterTactics.DefaultFor(caster.CharacterClass.Id);
+        var configured = _npcSpellcasterTactics.GetValueOrDefault(caster.Id, defaults).Normalize();
+        return caster.CharacterClass.Id == CharacterClassIds.Pap && configured.UnholyProfile is null
+            ? configured with { UnholyProfile = defaults.UnholyProfile }
+            : configured;
     }
 
     private Position? ChooseNpcBuffTarget(TeamBattleEncounter battle, LiveCharacter caster,
