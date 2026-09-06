@@ -2134,6 +2134,40 @@ public sealed class ConsoleRenderer
         }
     }
 
+    public TacticalDisciplineDefinition DrawTacticalDisciplineChoice(LiveCharacter character,
+        IReadOnlyList<TacticalDisciplineDefinition> choices, int milestone)
+    {
+        if (choices.Count == 0) throw new ArgumentException("Nincs választható taktikai diszciplína.", nameof(choices));
+        var selectedIndex = 0;
+        while (true)
+        {
+            ResetColorCache();
+            var lines = LevelUpWindow.BuildChoice(LevelUpPromptKind.TacticalDisciplineChoice,
+                [new($"{character.Name} — {character.CharacterClass.Name} — {milestone}. szint", ConsoleColor.Cyan),
+                 new("Két különböző diszciplína tanulható: egy a 12., egy a 22. szinten.", ConsoleColor.Green)],
+                choices.Select(choice => new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray(),
+                selectedIndex);
+            using var background = SaveCenteredFrameBackground(
+                LevelUpWindow.ChoiceWidth(LevelUpPromptKind.TacticalDisciplineChoice), lines,
+                FramedWindow.LevelUpChoice);
+            DrawCenteredFrame(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.TacticalDisciplineChoice), lines,
+                FramedWindow.LevelUpChoice);
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow:
+                case ConsoleKey.LeftArrow:
+                    selectedIndex = (selectedIndex - 1 + choices.Count) % choices.Count;
+                    break;
+                case ConsoleKey.DownArrow:
+                case ConsoleKey.RightArrow:
+                    selectedIndex = (selectedIndex + 1) % choices.Count;
+                    break;
+                case ConsoleKey.Enter:
+                    return choices[selectedIndex];
+            }
+        }
+    }
+
     private static string NpcBehaviorName(NpcWorldBehavior behavior) => behavior switch
     {
         NpcWorldBehavior.Friendly => "barátságos",

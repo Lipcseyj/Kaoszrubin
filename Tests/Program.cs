@@ -19,6 +19,7 @@ var tests = new (string Name, Action Run)[]
     ("A lovag harci fegyvercsere-parancsa átjut a session ellenőrzésén", KnightBattleWeaponSwapCommandIsAccepted),
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
     ("A taktikai fegyverjártasságok módosítják a söprést, fedezetet és varázslást", TacticalWeaponMasteriesHaveDistinctRoles),
+    ("A taktikai diszciplínák a 12. és 22. szinten választhatók és menthetők", TacticalDisciplinesProgressAndPersist),
     ("A tartalékfegyver passzív és veszteség nélkül menthető, cserélhető", ReserveWeaponIsPassiveAndPersistent),
     ("A kétkezes tartalékfegyver atomian elteszi a pajzsot", ReserveTwoHandedSwapStowsShield),
     ("A sebzéstípusok és a szörnyfegyverek módosítják a valódi sebzést", PhysicalDamageUsesTypesAndWeapons),
@@ -4284,6 +4285,69 @@ static void TacticalWeaponMasteriesHaveDistinctRoles()
     Assert(milestones.Any(text => text.Contains("képességpont", StringComparison.OrdinalIgnoreCase)) &&
            milestones.Any(text => text.Contains("tehetség", StringComparison.OrdinalIgnoreCase)),
         "A szintlépési előnézetből hiányzik a következő fejlődés.");
+}
+
+static void TacticalDisciplinesProgressAndPersist()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var character = CreateCharacter("Diszciplína", characterClassId: CharacterClassIds.Harcos);
+    var firstMilestones = CharacterProgressionService.PendingTacticalDisciplineMilestones(character,
+        new LevelUpResult(0, 11, 12, [])).ToArray();
+    Assert(firstMilestones.SequenceEqual(new[] { 12 }) &&
+           CharacterProgressionService.TacticalDisciplineChoices(character).Count == 3,
+        "A 12. szint nem nyitotta meg az első diszciplínát.");
+    Assert(character.ChooseTacticalDiscipline(TacticalDisciplines.Skirmisher) &&
+           !character.ChooseTacticalDiscipline(TacticalDisciplines.Skirmisher),
+        "Ugyanaz a diszciplína többször kiválasztható.");
+    var secondMilestones = CharacterProgressionService.PendingTacticalDisciplineMilestones(character,
+        new LevelUpResult(0, 21, 22, [])).ToArray();
+    Assert(secondMilestones.SequenceEqual(new[] { 22 }) &&
+           character.ChooseTacticalDiscipline(TacticalDisciplines.Guardian) &&
+           !character.ChooseTacticalDiscipline(TacticalDisciplines.Finisher),
+        "A 22. szint vagy a kétdiszciplínás korlát hibás.");
+
+    var baseCharacter = CreateCharacter("Alap", characterClassId: CharacterClassIds.Harcos);
+    var baseInitiative = CreateBattleSystem(91).PrepareTeamCharacter(baseCharacter).Initiative;
+    var disciplineInitiative = CreateBattleSystem(91).PrepareTeamCharacter(character).Initiative;
+    Assert(disciplineInitiative == baseInitiative + 2,
+        "A Portyázó nem adott +2 csapatharcos kezdeményezést.");
+
+    var finisher = CreateCharacter("Kivégző", characterClassId: CharacterClassIds.Harcos);
+    var woundedEnemy = CreateEnemy(20, 1, speed: 8);
+    woundedEnemy.SetCurrentHitPoints(10);
+    var chanceWithoutDiscipline = CreateBattleSystem(17)
+        .EstimatePlayerHitChance(baseCharacter, woundedEnemy, BattleTactic.FighterPrecise);
+    Assert(finisher.ChooseTacticalDiscipline(TacticalDisciplines.Finisher),
+        "A Kivégző diszciplína nem választható.");
+    var chanceWithDiscipline = CreateBattleSystem(17)
+        .EstimatePlayerHitChance(finisher, woundedEnemy, BattleTactic.FighterPrecise);
+    Assert(chanceWithDiscipline == chanceWithoutDiscipline + 10,
+        "A Kivégző nem adott +2, azaz 10 százalékpontnyi találati előnyt a sebesült célpont ellen.");
+
+    var protectedAlly = CreateCharacter("Védett", characterClassId: CharacterClassIds.Harcos);
+    var guardian = CreateCharacter("Őrszem", characterClassId: CharacterClassIds.Harcos);
+    Assert(guardian.ChooseTacticalDiscipline(TacticalDisciplines.Guardian),
+        "A Bajtársi őrség nem választható.");
+    var protectedPreparation = CreateBattleSystem(22).PrepareTeamCharacter(protectedAlly);
+    var guardianPreparation = CreateBattleSystem(23).PrepareTeamCharacter(guardian);
+    var guardEnemy = CreateEnemy(20, 2);
+    var guardBattle = new TeamBattleEncounter(new(1, 1),
+        [new TeamCharacterParticipant(protectedAlly, new(1, 1), TacticalParticipantKind.PartyMember,
+             protectedPreparation.Initiative, 3, 1, protectedPreparation.Runtime),
+         new TeamCharacterParticipant(guardian, new(1, 2), TacticalParticipantKind.PartyMember,
+             guardianPreparation.Initiative, 3, 1, guardianPreparation.Runtime)],
+        [new TeamEnemyParticipant(guardEnemy, 1, 2, 1)], protectedAlly.Id, guardEnemy.Id);
+    Assert(TacticalTeamBattleCoordinator.AlliedGuardDefense(guardBattle, protectedAlly,
+               candidate => candidate == protectedAlly ? new(1, 1) : new(1, 2)) == 1,
+        "A Bajtársi őrség nem adott fedezetet a szomszédos társnak.");
+
+    var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-discipline-save.json"), data);
+    var restored = service.DeserializeCharacter(service.SerializeCharacter(character));
+    Assert(restored.TacticalDisciplines.Select(discipline => discipline.Id).SequenceEqual(
+            new[] { TacticalDisciplines.Skirmisher, TacticalDisciplines.Guardian }) &&
+           CharacterSheetSnapshotProjector.Create(restored, data.ExperienceByLevel).ClassFeatureUpgradeNames!
+               .Any(name => name.Contains("diszciplína", StringComparison.OrdinalIgnoreCase)),
+        "A diszciplínák elvesztek a mentésben vagy nem jelennek meg a karakterlapon.");
 }
 
 static void ReserveWeaponIsPassiveAndPersistent()

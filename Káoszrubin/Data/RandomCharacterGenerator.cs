@@ -17,6 +17,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         var character = CreateLevelOne(usedNames);
         RaiseToRandomLevel(character);
         AddRandomPerks(character);
+        AddRandomTacticalDisciplines(character);
         AddRandomWeaponProficiencies(character);
         FillRandomEquipment(character);
         return character;
@@ -28,6 +29,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         var character = CreateLevelOne(characterClass, usedNames);
         RaiseToRandomLevel(character);
         AddRandomPerks(character);
+        AddRandomTacticalDisciplines(character);
         AddRandomWeaponProficiencies(character);
         FillRandomEquipment(character);
         EquipDevelopmentMagicItems(character);
@@ -100,6 +102,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             var targetLevel = Math.Clamp(leaderLevel + _random.Next(-3, 4), 1, maximumLevel);
             RaiseToLevel(character, targetLevel);
             AddRandomPerks(character);
+            AddRandomTacticalDisciplines(character);
             AddRandomWeaponProficiencies(character);
             ImproveRecruitEquipment(character);
             FillRecruitBackpack(character);
@@ -125,6 +128,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
             RaiseToLevel(character, Math.Max(1, leaderLevel));
             AddRandomPerks(character);
+            AddRandomTacticalDisciplines(character);
             AddRandomWeaponProficiencies(character);
             ImproveRecruitEquipment(character);
             FillRecruitBackpack(character);
@@ -229,6 +233,18 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
                 if (specializations.Count > 0)
                     character.ChooseSpecialization(specializations[_random.Next(specializations.Count)].Id);
             }
+        }
+    }
+
+    private void AddRandomTacticalDisciplines(LiveCharacter character)
+    {
+        var earned = TacticalDisciplineProgression.EarnedChoices(character.Level);
+        while (character.TacticalDisciplines.Count < earned)
+        {
+            var choices = TacticalDisciplines.All
+                .Where(discipline => !character.HasTacticalDiscipline(discipline.Id)).ToArray();
+            if (choices.Length == 0) break;
+            character.ChooseTacticalDiscipline(choices[_random.Next(choices.Length)].Id);
         }
     }
 

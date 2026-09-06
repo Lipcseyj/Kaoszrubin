@@ -16,6 +16,7 @@ public sealed class LiveCharacter
     private readonly int[] _backpackItemQuantities = new int[MaximumBackpackItemCount];
     private readonly List<PerkDefinition> _perks = [];
     private readonly List<ClassFeatureUpgradeDefinition> _classFeatureUpgrades = [];
+    private readonly List<TacticalDisciplineDefinition> _tacticalDisciplines = [];
     private readonly List<WeaponProficiencyState> _weaponProficiencies = [];
     private readonly List<StatusDefinition> _statuses = [];
     private readonly List<SpellDefinition> _knownSpells = [];
@@ -113,6 +114,7 @@ public sealed class LiveCharacter
     public IReadOnlyList<IItemDefinition?> Backpack => _backpack;
     public IReadOnlyList<PerkDefinition> Perks => _perks;
     public IReadOnlyList<ClassFeatureUpgradeDefinition> ClassFeatureUpgrades => _classFeatureUpgrades;
+    public IReadOnlyList<TacticalDisciplineDefinition> TacticalDisciplines => _tacticalDisciplines;
     public IReadOnlyList<WeaponProficiencyState> WeaponProficiencies => _weaponProficiencies;
     public int WeaponProficiencyAdvances => _weaponProficiencies.Sum(proficiency => (int)proficiency.Rank);
     public IReadOnlyList<StatusDefinition> Statuses => _statuses;
@@ -129,6 +131,17 @@ public sealed class LiveCharacter
     public bool CanCastSpells => IsAlive && SpellcastingRules.HasRequiredFocus(this);
     public bool HasClassFeatureUpgrade(string id) => _classFeatureUpgrades.Any(upgrade =>
         string.Equals(upgrade.Id, id, StringComparison.OrdinalIgnoreCase));
+    public bool HasTacticalDiscipline(string id) => _tacticalDisciplines.Any(discipline =>
+        string.Equals(discipline.Id, id, StringComparison.OrdinalIgnoreCase));
+
+    public bool ChooseTacticalDiscipline(string id)
+    {
+        var discipline = global::KaoszRubin.Domain.Characters.TacticalDisciplines.Find(id);
+        if (discipline is null || _tacticalDisciplines.Count >= TacticalDisciplineProgression.Milestones.Count ||
+            HasTacticalDiscipline(id)) return false;
+        _tacticalDisciplines.Add(discipline);
+        return true;
+    }
 
     public bool ChooseClassFeatureUpgrade(string id)
     {

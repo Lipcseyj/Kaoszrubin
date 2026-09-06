@@ -133,13 +133,15 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         };
         var mobility = CharacterMobilityRules.Evaluate(character);
         var perkBonus = character.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
-        var totalBase = mobility.InitiativeBase + perkBonus + proficiencyBonus +
+        var disciplineBonus = character.HasTacticalDiscipline(TacticalDisciplines.Skirmisher) ? 2 : 0;
+        var totalBase = mobility.InitiativeBase + perkBonus + proficiencyBonus + disciplineBonus +
                         character.GetMagicItemBonus(MagicItemEffect.Initiative) +
                         character.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus) -
                         character.StatusInitiativePenalty;
         var roll = RollInitiative(totalBase);
         entries.Add(new BattleLogEntry(
-            $"⚡ {character.Name} kezdeményezése: {totalBase} {roll.ModifierText} = {roll.Total}.",
+            $"⚡ {character.Name} kezdeményezése: {totalBase} {roll.ModifierText} = {roll.Total}." +
+            (disciplineBonus > 0 ? " [🏃 Portyázó +2]" : string.Empty),
             BattleLogKind.Information));
         return new TeamCombatantPreparation(runtime, roll.Total, entries);
     }
@@ -192,7 +194,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var critical = false;
         for (var index = 0; index < count && definition.HitPoints is > 0; index++)
         {
-            var attack = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed);
+            var woundedTarget = defender.CurrentHitPoints * 2 <= Math.Max(1, defender.Definition.HitPoints ?? defender.CurrentHitPoints);
+            var attack = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed, woundedTarget);
             if (attack.Hit && damagePercent != 100)
             {
                 var scaledDamage = Math.Max(1, attack.Damage * Math.Clamp(damagePercent, 1, 100) / 100);
@@ -213,7 +216,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             if (index == 0 && attack.Hit && definition.HitPoints is > 0 &&
                 attacker.HasPerk(PerkIds.FighterSteelStorm) && _random.NextDouble() < 0.35)
             {
-                var extra = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed);
+                var extraWoundedTarget = definition.HitPoints.Value * 2 <=
+                                         Math.Max(1, defender.Definition.HitPoints ?? definition.HitPoints.Value);
+                var extra = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed,
+                    extraWoundedTarget);
                 critical |= extra.Critical;
                 definition = ApplyAttack(definition, extra);
                 attacks.Add(extra with { Message = $"Acélvihar: {extra.Message}" });
@@ -650,7 +656,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return new InitiativeRoll(speed + modifier, $"±1d2({modifier:+#;-#;0})");
     }
 
-    private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleRuntimeContext context, int defenderSpeed)
+    private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleRuntimeContext context,
+        int defenderSpeed, bool woundedTarget = false)
     {
         player.BreakSanctuary();
         var forcedHit = context.ShadowStepReady;
@@ -667,9 +674,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var oathbladeBonus = UsesRodericOathblade(player, weapon) ? 1 : 0;
         var retaliation = context.KnightRetaliationReady;
         context.KnightRetaliationReady = false;
+        var finisherBonus = woundedTarget && player.HasTacticalDiscipline(TacticalDisciplines.Finisher) ? 2 : 0;
         var hitBonus = PlayerHitBonus(player, context.Tactic, weapon is not null, invisibilityBonus,
             strengthHitBonus, blessedWeaponBonus) + (weapon?.MagicPower ?? 0) + (retaliation ? 2 : 0) +
-                       (weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0);
+                       (weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0) + finisherBonus;
         hitBonus += oathbladeBonus;
         var hit = HitRoll(player.EffectiveAbilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
@@ -726,6 +734,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         Modifier("🎯 Kardjártasság", weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0);
         Modifier("🎯 Esküpenge", oathbladeBonus);
         Modifier("🎯 Megtorlás", retaliation ? 2 : 0);
+        Modifier("🎯 Kivégző", finisherBonus);
         Modifier("🎯 Taktika", context.Tactic is BattleTactic.FighterPrecise or BattleTactic.ThiefObserve ? 2 :
             context.Tactic == BattleTactic.FighterPowerful ? -1 : 0);
         Modifier(player.HasStatus(CharacterStatusIds.Thirsty) ? "💧 Szomjúság: találat" : "🎯 Állapotbüntetés",
@@ -921,7 +930,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                     (weapon?.MagicPower ?? 0) +
                     (WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Sword &&
                      player.WeaponProficiencyRankFor(WeaponFamilies.Sword) is not null ? 1 : 0) +
-                    (UsesRodericOathblade(player, weapon) ? 1 : 0);
+                    (UsesRodericOathblade(player, weapon) ? 1 : 0) +
+                    (enemy.CurrentHitPoints * 2 <= Math.Max(1, enemy.Definition.HitPoints ?? enemy.CurrentHitPoints) &&
+                     player.HasTacticalDiscipline(TacticalDisciplines.Finisher) ? 2 : 0);
         var target = 11 + enemy.EffectiveSpeed;
         var successfulRolls = Enumerable.Range(1, 20).Count(roll =>
             roll != 1 && (roll == 20 || roll + player.EffectiveAbilities.Dexterity + bonus >= target));

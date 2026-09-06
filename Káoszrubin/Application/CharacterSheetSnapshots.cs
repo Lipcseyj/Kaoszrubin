@@ -69,7 +69,9 @@ public static class CharacterSheetSnapshotProjector
             character.Perks.Select(perk => perk.Name)
                 .Concat(character.Specialization is { } specialization ? [$"{specialization.Name} specializáció"] : [])
                 .ToArray(), icons, character.UsesMana, character.Color,
-            character.ClassFeatureUpgrades.Select(upgrade => upgrade.Name).ToArray(),
+            character.ClassFeatureUpgrades.Select(upgrade => upgrade.Name)
+                .Concat(character.TacticalDisciplines.Select(discipline => $"{discipline.Name} (diszciplína)"))
+                .ToArray(),
             character.WeaponProficiencies.Select(proficiency =>
             {
                 var family = WeaponFamilies.Find(proficiency.FamilyId)!;

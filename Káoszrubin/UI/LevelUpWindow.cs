@@ -10,13 +10,14 @@ public static class LevelUpWindow
     public static bool UsesSwordFrame(LevelUpPromptKind kind) => kind is
         LevelUpPromptKind.PerkChoice or LevelUpPromptKind.SpecializationChoice or
         LevelUpPromptKind.ClassFeatureChoice or LevelUpPromptKind.AbilityChoice or
-        LevelUpPromptKind.WeaponProficiencyChoice;
+        LevelUpPromptKind.WeaponProficiencyChoice or LevelUpPromptKind.TacticalDisciplineChoice;
 
     public static int ChoiceWidth(LevelUpPromptKind kind) => kind switch
     {
         LevelUpPromptKind.PerkChoice => 112,
         LevelUpPromptKind.SpecializationChoice => 76,
         LevelUpPromptKind.ClassFeatureChoice => 82,
+        LevelUpPromptKind.TacticalDisciplineChoice => 92,
         LevelUpPromptKind.AbilityChoice => 78,
         LevelUpPromptKind.WeaponProficiencyChoice => 86,
         _ => 76
@@ -34,6 +35,7 @@ public static class LevelUpWindow
                 LevelUpPromptKind.PerkChoice => "🌟⚔️🌟  TEHETSÉGVÁLASZTÁS  🌟⚔️🌟",
                 LevelUpPromptKind.SpecializationChoice => "✨  SPECIALIZÁCIÓ  ✨",
                 LevelUpPromptKind.ClassFeatureChoice => "🌟  OSZTÁLYKÉPESSÉG FEJLESZTÉSE  🌟",
+                LevelUpPromptKind.TacticalDisciplineChoice => "⚔️  TAKTIKAI DISZCIPLÍNA  ⚔️",
                 LevelUpPromptKind.AbilityChoice => "💪🏹❤️🧠  KÉPESSÉGPONT  💪🏹❤️🧠",
                 LevelUpPromptKind.WeaponProficiencyChoice => "⚔️  FEGYVERJÁRTASSÁG  ⚔️",
                 _ => throw new ArgumentOutOfRangeException(nameof(kind))

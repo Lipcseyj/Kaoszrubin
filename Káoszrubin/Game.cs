@@ -5243,8 +5243,10 @@ public sealed class Game : ISessionCommandHandler
             var kind = avatar?.IsTemporaryFollower == true
                 ? TacticalParticipantKind.Follower
                 : TacticalParticipantKind.PartyMember;
+            var disciplineMovement = character.HasTacticalDiscipline(TacticalDisciplines.Skirmisher) ? 1 : 0;
             characterParticipants.Add(new TeamCharacterParticipant(character, position, kind,
-                preparation.Initiative, CharacterMobilityRules.Evaluate(character).CombatMovementAllowance,
+                preparation.Initiative,
+                Math.Min(7, CharacterMobilityRules.Evaluate(character).CombatMovementAllowance + disciplineMovement),
                 character == initiatingCharacter ? 1 : 2, preparation.Runtime));
         }
 
@@ -7461,6 +7463,7 @@ public sealed class Game : ISessionCommandHandler
             }
         if (ShouldChooseSpecialization(character, offers)) ResolveLocalSpecialization(character);
         ResolveLocalClassFeatureUpgrades(character, result);
+        ResolveLocalTacticalDisciplines(character, result);
         ResolveLocalAbilityIncreases(character, result);
         ResolveLocalWeaponProficiencies(character, result);
         ResolveSpellLearning(character, result);
@@ -7493,6 +7496,7 @@ public sealed class Game : ISessionCommandHandler
         }
         if (ShouldChooseSpecialization(character, offers)) ResolveRemoteSpecialization(character, result);
         ResolveRemoteClassFeatureUpgrades(character, result);
+        ResolveRemoteTacticalDisciplines(character, result);
         ResolveRemoteAbilityIncreases(character, result);
         ResolveRemoteWeaponProficiencies(character, result);
         ResolveRemoteSpellLearning(character, result);
@@ -7550,6 +7554,37 @@ public sealed class Game : ISessionCommandHandler
                 [new($"{character.Name} — {character.CharacterClass.Name} — {milestone}. szint", ConsoleColor.Cyan),
                  new("A választás végleges; a 20. szinten egy másik fejlesztés választható.", ConsoleColor.Red)]);
             character.ChooseClassFeatureUpgrade(choices.FirstOrDefault(choice => choice.Id == selectedId)?.Id ?? choices[0].Id);
+        }
+    }
+
+    private void ResolveLocalTacticalDisciplines(LiveCharacter character, LevelUpResult result)
+    {
+        foreach (var milestone in CharacterProgressionService
+                     .PendingTacticalDisciplineMilestones(character, result).ToArray())
+        {
+            var choices = CharacterProgressionService.TacticalDisciplineChoices(character);
+            if (choices.Count == 0) return;
+            character.ChooseTacticalDiscipline(
+                _renderer.DrawTacticalDisciplineChoice(character, choices, milestone).Id);
+        }
+    }
+
+    private void ResolveRemoteTacticalDisciplines(LiveCharacter character, LevelUpResult result)
+    {
+        foreach (var milestone in CharacterProgressionService
+                     .PendingTacticalDisciplineMilestones(character, result).ToArray())
+        {
+            var choices = CharacterProgressionService.TacticalDisciplineChoices(character);
+            if (choices.Count == 0) return;
+            var projected = choices.Select(choice =>
+                new LevelUpChoiceSnapshot(choice.Id, choice.Name, choice.Description)).ToArray();
+            var selectedId = WaitForRemoteLevelUpChoice(character, result,
+                LevelUpPromptKind.TacticalDisciplineChoice, projected,
+                $"{milestone}. szint — válassz taktikai diszciplínát.",
+                [new($"{character.Name} — {character.CharacterClass.Name} — {milestone}. szint", ConsoleColor.Cyan),
+                 new("Két különböző diszciplína tanulható: egy a 12., egy a 22. szinten.", ConsoleColor.Green)]);
+            character.ChooseTacticalDiscipline(
+                choices.FirstOrDefault(choice => choice.Id == selectedId)?.Id ?? choices[0].Id);
         }
     }
 

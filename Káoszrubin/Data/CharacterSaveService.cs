@@ -105,6 +105,8 @@ public sealed class CharacterSaveService
         character.RestoreSpecialization(saved.SpecializationId);
         foreach (var upgradeId in saved.ClassFeatureUpgradeIds)
             character.ChooseClassFeatureUpgrade(upgradeId);
+        foreach (var disciplineId in saved.TacticalDisciplineIds)
+            character.ChooseTacticalDiscipline(disciplineId);
         foreach (var proficiency in saved.WeaponProficiencies)
             for (var rank = 0; rank < Math.Clamp(proficiency.Rank, 0, 2); rank++)
                 character.TryAdvanceWeaponProficiency(proficiency.FamilyId);
@@ -200,6 +202,7 @@ public sealed class CharacterSaveService
         KnightRetaliationReady = character.KnightRetaliationReady,
         SpecializationId = character.SpecializationId,
         ClassFeatureUpgradeIds = character.ClassFeatureUpgrades.Select(upgrade => upgrade.Id).ToList(),
+        TacticalDisciplineIds = character.TacticalDisciplines.Select(discipline => discipline.Id).ToList(),
         WeaponProficiencies = character.WeaponProficiencies.Select(proficiency =>
             new WeaponProficiencySaveData(proficiency.FamilyId, (int)proficiency.Rank)).ToList(),
         ExplorationStepsTowardSpellAction = character.ExplorationStepsTowardSpellAction,
@@ -286,6 +289,7 @@ public sealed class CharacterSaveService
         public bool? KnightRetaliationReady { get; init; }
         public string? SpecializationId { get; init; }
         public List<string> ClassFeatureUpgradeIds { get; init; } = [];
+        public List<string> TacticalDisciplineIds { get; init; } = [];
         public List<WeaponProficiencySaveData> WeaponProficiencies { get; init; } = [];
         public int? ExplorationStepsTowardSpellAction { get; init; }
         public int? LevelVitalityIncrease { get; init; }

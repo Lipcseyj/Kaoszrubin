@@ -78,10 +78,13 @@ public sealed class TacticalTeamBattleCoordinator
     }
 
     public static int AlliedGuardDefense(TeamBattleEncounter battle, LiveCharacter protectedCharacter,
-        Func<LiveCharacter, Position> getPosition) => battle.Characters
-        .Where(guardian => guardian != protectedCharacter && guardian.IsAlive &&
-            TacticalDistance.IsMeleeAdjacent(getPosition(guardian), getPosition(protectedCharacter)))
-        .Select(guardian =>
+        Func<LiveCharacter, Position> getPosition)
+    {
+        var adjacent = battle.Characters.Where(guardian => guardian != protectedCharacter && guardian.IsAlive &&
+            TacticalDistance.IsMeleeAdjacent(getPosition(guardian), getPosition(protectedCharacter))).ToArray();
+        if (adjacent.Length == 0) return 0;
+        var ownDisciplineDefense = protectedCharacter.HasTacticalDiscipline(TacticalDisciplines.Guardian) ? 1 : 0;
+        var suppliedDefense = adjacent.Select(guardian =>
         {
             var hasShield = guardian.ActiveWeapons.Any(weapon =>
                 WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Shield);
@@ -95,8 +98,11 @@ public sealed class TacticalTeamBattleCoordinator
                                  battle.RuntimeFor(guardian).Context.Tactic == BattleTactic.FighterDefensive
                 ? guardian.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 2 : 1
                 : 0;
-            return Math.Max(shieldDefense, fighterDefense);
+            var disciplineDefense = guardian.HasTacticalDiscipline(TacticalDisciplines.Guardian) ? 1 : 0;
+            return Math.Max(shieldDefense, fighterDefense) + disciplineDefense;
         }).DefaultIfEmpty(0).Max();
+        return ownDisciplineDefense + suppliedDefense;
+    }
 
     public static IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy,
         Func<LiveCharacter, Position> getCasterPosition) =>

@@ -137,6 +137,22 @@ public sealed class CharacterProgressionService
         return WeaponProficiencyProgression.MilestonesFor(character.CharacterClass.Id).ElementAtOrDefault(index);
     }
 
+    public static IEnumerable<int> PendingTacticalDisciplineMilestones(LiveCharacter character,
+        LevelUpResult result)
+    {
+        var acquired = character.TacticalDisciplines.Count;
+        foreach (var milestone in TacticalDisciplineProgression.Milestones)
+        {
+            if (result.CurrentLevel < milestone || acquired >= TacticalDisciplineProgression.EarnedChoices(milestone))
+                continue;
+            acquired++;
+            yield return milestone;
+        }
+    }
+
+    public static IReadOnlyList<TacticalDisciplineDefinition> TacticalDisciplineChoices(LiveCharacter character) =>
+        TacticalDisciplines.All.Where(discipline => !character.HasTacticalDiscipline(discipline.Id)).ToArray();
+
     public static IReadOnlyList<string> UpcomingMilestones(LiveCharacter character)
     {
         var milestones = new List<(int Level, string Text)>();
@@ -155,6 +171,11 @@ public sealed class CharacterProgressionService
         var classMilestone = character.ClassFeatureUpgrades.Count switch { 0 => 10, 1 => 20, _ => 0 };
         if (classMilestone > character.Level)
             milestones.Add((classMilestone, $"{classMilestone}. szint: osztályképesség-fejlesztés"));
+
+        var disciplineMilestone = TacticalDisciplineProgression.Milestones
+            .ElementAtOrDefault(character.TacticalDisciplines.Count);
+        if (disciplineMilestone > character.Level)
+            milestones.Add((disciplineMilestone, $"{disciplineMilestone}. szint: taktikai diszciplína"));
 
         var weaponMilestone = WeaponProficiencyProgression.MilestonesFor(character.CharacterClass.Id)
             .FirstOrDefault(level => level > character.Level);

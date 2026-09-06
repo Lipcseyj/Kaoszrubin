@@ -1,0 +1,28 @@
+namespace KaoszRubin.Domain.Characters;
+
+public sealed record TacticalDisciplineDefinition(string Id, string Name, string Description);
+
+/// <summary>Univerzális, csapatharcban érvényes fejlődési irányok.</summary>
+public static class TacticalDisciplines
+{
+    public const string Finisher = "DISC-FINISHER";
+    public const string Skirmisher = "DISC-SKIRMISHER";
+    public const string Guardian = "DISC-GUARDIAN";
+
+    public static readonly IReadOnlyList<TacticalDisciplineDefinition> All =
+    [
+        new(Finisher, "🎯 Kivégző", "A fél HP alá sebesült ellenfelek elleni fegyveres támadás +2 találatot kap."),
+        new(Skirmisher, "🏃 Portyázó", "Csapatharcban +2 kezdeményezést és +1 mező harci mozgást ad."),
+        new(Guardian, "🤝 Bajtársi őrség", "Szomszédos élő társ mellett +1 sajá védelmet ad, és +1 fedezetet nyújt a szomszédos társaknak.")
+    ];
+
+    public static TacticalDisciplineDefinition? Find(string id) => All.FirstOrDefault(definition =>
+        string.Equals(definition.Id, id, StringComparison.OrdinalIgnoreCase));
+}
+
+public static class TacticalDisciplineProgression
+{
+    public static readonly IReadOnlyList<int> Milestones = [12, 22];
+
+    public static int EarnedChoices(int level) => Milestones.Count(milestone => level >= milestone);
+}
