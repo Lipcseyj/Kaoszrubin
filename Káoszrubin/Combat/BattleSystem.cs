@@ -182,7 +182,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     public BattleLogEntry ResolveTeamCharacterAttack(LiveCharacter attacker,
         TeamCharacterBattleRuntime runtime, Enemy defender, bool finishAction = true,
-        int damagePercent = 100)
+        int damagePercent = 100, int positionalHitBonus = 0, string? positionalAdvantage = null,
+        bool tacticalBackstab = false)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -195,7 +196,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         for (var index = 0; index < count && definition.HitPoints is > 0; index++)
         {
             var woundedTarget = defender.CurrentHitPoints * 2 <= Math.Max(1, defender.Definition.HitPoints ?? defender.CurrentHitPoints);
-            var attack = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed, woundedTarget);
+            var attack = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed, woundedTarget,
+                positionalHitBonus, positionalAdvantage, tacticalBackstab);
             if (attack.Hit && damagePercent != 100)
             {
                 var scaledDamage = Math.Max(1, attack.Damage * Math.Clamp(damagePercent, 1, 100) / 100);
@@ -219,7 +221,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 var extraWoundedTarget = definition.HitPoints.Value * 2 <=
                                          Math.Max(1, defender.Definition.HitPoints ?? definition.HitPoints.Value);
                 var extra = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed,
-                    extraWoundedTarget);
+                    extraWoundedTarget, positionalHitBonus, positionalAdvantage, tacticalBackstab);
                 critical |= extra.Critical;
                 definition = ApplyAttack(definition, extra);
                 attacks.Add(extra with { Message = $"Acélvihar: {extra.Message}" });
@@ -657,7 +659,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     }
 
     private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleRuntimeContext context,
-        int defenderSpeed, bool woundedTarget = false)
+        int defenderSpeed, bool woundedTarget = false, int positionalHitBonus = 0,
+        string? positionalAdvantage = null, bool tacticalBackstab = false)
     {
         player.BreakSanctuary();
         var forcedHit = context.ShadowStepReady;
@@ -677,7 +680,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var finisherBonus = woundedTarget && player.HasTacticalDiscipline(TacticalDisciplines.Finisher) ? 2 : 0;
         var hitBonus = PlayerHitBonus(player, context.Tactic, weapon is not null, invisibilityBonus,
             strengthHitBonus, blessedWeaponBonus) + (weapon?.MagicPower ?? 0) + (retaliation ? 2 : 0) +
-                       (weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0) + finisherBonus;
+                       (weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0) + finisherBonus +
+                       Math.Max(0, positionalHitBonus);
         hitBonus += oathbladeBonus;
         var hit = HitRoll(player.EffectiveAbilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
@@ -692,6 +696,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         };
         var thirstHitText = player.StatusHitPenalty > 0 && player.HasStatus(CharacterStatusIds.Thirsty)
             ? $" [💧 szomjúság -{player.StatusHitPenalty} találat]"
+            : string.Empty;
+        var positionalHitText = positionalHitBonus > 0
+            ? $" [{positionalAdvantage ?? "Pozíció"} +{positionalHitBonus} találat]"
             : string.Empty;
         var criticalChanceBonusPercent = weapon?.MagicPower switch
         {
@@ -735,6 +742,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         Modifier("🎯 Esküpenge", oathbladeBonus);
         Modifier("🎯 Megtorlás", retaliation ? 2 : 0);
         Modifier("🎯 Kivégző", finisherBonus);
+        Modifier(string.IsNullOrWhiteSpace(positionalAdvantage) ? "🎯 Pozíció" : $"🎯 {positionalAdvantage}",
+            Math.Max(0, positionalHitBonus));
         Modifier("🎯 Taktika", context.Tactic is BattleTactic.FighterPrecise or BattleTactic.ThiefObserve ? 2 :
             context.Tactic == BattleTactic.FighterPowerful ? -1 : 0);
         Modifier(player.HasStatus(CharacterStatusIds.Thirsty) ? "💧 Szomjúság: találat" : "🎯 Állapotbüntetés",
@@ -758,7 +767,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (!hit.Hit)
         {
             context.ConsecutivePlayerHits = 0;
-            return Detailed(AttackResult.Miss($"találat: {hit.Description}{thirstHitText}{magicWeaponHitText}{magicWeaponCriticalText} → 💨.{strengthHitText}{classHitText}"));
+            return Detailed(AttackResult.Miss($"találat: {hit.Description}{thirstHitText}{magicWeaponHitText}{magicWeaponCriticalText} → 💨.{strengthHitText}{classHitText}{positionalHitText}"));
         }
 
         var baseDamage = weapon?.Damage is { } range ? Roll(range) : Roll(new ValueRange(1, 2));
@@ -818,11 +827,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         } : 0;
         var effectiveArmor = Math.Max(0, armorAfterPiercing - bluntArmorIgnored);
         var damageMultiplierPercent = 100;
-        if (context.AmbushAvailable)
+        if (context.AmbushAvailable || tacticalBackstab)
         {
             damageMultiplierPercent = player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefAmbush) ? 250 : 200;
             context.AmbushAvailable = false;
-            notes.Add($"Orvtámadás ×{damageMultiplierPercent / 100d:0.##}");
+            notes.Add($"{(tacticalBackstab ? "Hátbatámadás: " : string.Empty)}Orvtámadás ×{damageMultiplierPercent / 100d:0.##}");
         }
         if (criticalMultiplier > 1)
             notes.Add(criticalMultiplier == 3
@@ -913,7 +922,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         calculation.AddRange(notes);
         calculation.Add("💥 Páncél után min. 1; éhség után min. 1; majd taktika és méreg.");
         return Detailed(AttackResult.HitFor(damage,
-            $"találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplierPercent / 100d:0.##} - {armorText} = {damageText}.{noteText}",
+            $"találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText}{positionalHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplierPercent / 100d:0.##} - {armorText} = {damageText}.{noteText}",
             criticalMultiplier > 1));
     }
 

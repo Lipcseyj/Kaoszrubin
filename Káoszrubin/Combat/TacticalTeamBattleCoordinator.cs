@@ -9,6 +9,20 @@ using KaoszRubin.UI;
 
 namespace KaoszRubin.Combat;
 
+public enum TacticalAttackArc { Front, Flank, Rear }
+
+public sealed record TacticalAttackAdvantage(TacticalAttackArc Arc, int HitBonus)
+{
+    public static readonly TacticalAttackAdvantage Front = new(TacticalAttackArc.Front, 0);
+    public bool IsRear => Arc == TacticalAttackArc.Rear;
+    public string Name => Arc switch
+    {
+        TacticalAttackArc.Flank => "Oldalbatámadás",
+        TacticalAttackArc.Rear => "Hátbatámadás",
+        _ => string.Empty
+    };
+}
+
 public sealed class TacticalTeamBattleCoordinator
 {
     private readonly GameDataCatalog _gameData;
@@ -61,6 +75,29 @@ public sealed class TacticalTeamBattleCoordinator
             if (targets.Count == maximum) break;
         }
         return targets;
+    }
+
+    public static TacticalAttackAdvantage AttackAdvantage(TeamBattleEncounter battle,
+        LiveCharacter attacker, Enemy defender)
+    {
+        var attackerPosition = battle.PositionOf(attacker);
+        if (!TacticalDistance.IsMeleeAdjacent(attackerPosition, defender.Position))
+            return TacticalAttackAdvantage.Front;
+        var facingTarget = battle.EnemyFacingTarget(defender) ?? battle.Characters.FirstOrDefault(character =>
+            character != attacker && character.IsAlive && battle.EngagedEnemies(character).Contains(defender));
+        if (facingTarget is null || facingTarget == attacker) return TacticalAttackAdvantage.Front;
+        var facingPosition = battle.PositionOf(facingTarget);
+        var forwardX = Math.Sign(facingPosition.X - defender.Position.X);
+        var forwardY = Math.Sign(facingPosition.Y - defender.Position.Y);
+        var attackX = Math.Sign(attackerPosition.X - defender.Position.X);
+        var attackY = Math.Sign(attackerPosition.Y - defender.Position.Y);
+        if (forwardX == 0 && forwardY == 0 || attackX == 0 && attackY == 0)
+            return TacticalAttackAdvantage.Front;
+        if (attackX == -forwardX && attackY == -forwardY)
+            return new TacticalAttackAdvantage(TacticalAttackArc.Rear, 2);
+        if (attackX != forwardX || attackY != forwardY)
+            return new TacticalAttackAdvantage(TacticalAttackArc.Flank, 1);
+        return TacticalAttackAdvantage.Front;
     }
 
     public static int SweepDamagePercent(LiveCharacter character, TeamCharacterBattleRuntime runtime,
@@ -276,7 +313,7 @@ public sealed class TacticalTeamBattleCoordinator
             ],
             CharacterClassIds.Tolvaj =>
             [
-                new(BattleActionKind.ThiefAmbush, "🗡️ Orvtámadás", "az első sikeres támadás dupla sebzés",
+                new(BattleActionKind.ThiefAmbush, "🗡️ Orvtámadás", "első találat ×2; tőrrel hátsó sorból is, hátba kerülve ismételhető",
                     _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.ThiefAmbush)),
                 new(BattleActionKind.ThiefObserve, "👁️ Megfigyelés", "+2 találat",
                     _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.ThiefObserve)),

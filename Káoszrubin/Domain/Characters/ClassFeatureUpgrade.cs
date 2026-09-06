@@ -35,7 +35,7 @@ public static class ClassFeatureUpgrades
         new(KnightBodyguard, "🛡️ Testőr", "A Védelmező közbelépési esélye 75%-ról 90%-ra nő.", CharacterClassIds.Lovag),
         new(KnightMarbleWall, "🏰 Márványfal", "Közbelépéskor a lovag a kivédett sebzés harmada helyett a negyedét kapja.", CharacterClassIds.Lovag),
         new(KnightRetaliation, "⚔️ Megtorlás", "Közbelépés után a lovag következő támadása +2 találatot és +4 sebzést kap.", CharacterClassIds.Lovag),
-        new(ThiefAmbush, "🌑 Halálos rajtaütés", "Az Orvtámadás első találata ×2 helyett ×2,5 sebzést okoz.", CharacterClassIds.Tolvaj),
+        new(ThiefAmbush, "🌑 Halálos rajtaütés", "Az Orvtámadás ×2 helyett ×2,5 sebzést okoz; tőrrel bármely tolvajtaktikából eléri a zárt alakzat első sora által lekötött ellenfelet.", CharacterClassIds.Tolvaj),
         new(ThiefObserve, "👁️ Gyenge pont", "Megfigyelésnél a természetes 19 is kétszeres kritikus találat.", CharacterClassIds.Tolvaj),
         new(ThiefPoison, "☠️ Erős méreg", "A Mérgezett penge találatonként +2–6 méregsebzést okoz.", CharacterClassIds.Tolvaj),
         new(PriestOverflowingLife, "💚 Túláradó élet", "Minden HP-gyógyítás további 15%-kal erősebb.", CharacterClassIds.Pap),

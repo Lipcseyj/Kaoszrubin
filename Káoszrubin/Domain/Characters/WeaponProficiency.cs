@@ -21,7 +21,7 @@ public static class WeaponFamilies
 
     public static readonly IReadOnlyList<WeaponFamilyDefinition> All =
     [
-        new(Dagger, "Tőr", "🗡️", "+2 kezdeményezés és +1 sebzés.", "A természetes 19 is kritikus; sikeres taktikai találat után kilép a lekötésből."),
+        new(Dagger, "Tőr", "🗡️", "+2 kezdeményezés és +1 sebzés.", "A természetes 19 is kritikus; sikeres taktikai találat után kilép a lekötésből; tolvajként a zárt alakzat hátsó sorából is támadhatja az első társ lekötött ellenfelét."),
         new(Sword, "Kard", "⚔️", "+1 fegyveres találat.", "Felszerelt karddal +1 védelem."),
         new(Axe, "Bárd", "🪓", "+2 fizikai sebzés.", "A természetes 20 háromszoros kritikus; a söprés mellékcélpontjai teljes sebzést kapnak."),
         new(Blunt, "Zúzófegyver", "🔨", "Az ellenfél páncéljából 2 pontot figyelmen kívül hagy.", "Összesen 4 pont páncélt hagy figyelmen kívül; találattal megszakítja az előkészített szörnyfegyvert."),

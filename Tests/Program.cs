@@ -93,6 +93,8 @@ var tests = new (string Name, Action Run)[]
     ("A zárt alakzat első sora védi a mögötte álló társat", TeamBattleFormationProtectsRearRow),
     ("Harcban csak szabad hátsó sori karakter használhat CSV-ben engedélyezett italt", TeamBattleItemUseRequiresFreeRearPosition),
     ("A hátsó sor szálfegyverrel eléri az első társ lekötött ellenfelét", TeamBattleRearPolearmReachUsesFrontEngagement),
+    ("Az ellenfél nézésiránya oldal- és hátbatámadási bónuszt ad", TacticalAttackArcsUseEnemyFacing),
+    ("A tolvaj tőrrel a zárt alakzat hátsó sorából is orvtámad", ThiefCanBackstabFromRearFormation),
     ("A Hátra! helycsere átadja az első sori lekötéseket", TeamBattleSwapToRearTransfersEngagements),
     ("Az alakzat csak a fennálló lekötéseket megtartva mozdulhat", TeamBattleFormationMovementPreservesEngagements),
     ("A csapatharc célpontja akcióvesztés nélkül váltható", TeamBattleTargetCanBeChanged),
@@ -4158,6 +4160,68 @@ static List<GameSessionEvent> CollectEvents(GameSession session)
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+static void TacticalAttackArcsUseEnemyFacing()
+{
+    var system = CreateBattleSystem(1801);
+    var front = CreateCharacter("Szemből");
+    var flank = CreateCharacter("Oldalról");
+    var rear = CreateCharacter("Hátulról");
+    var enemy = CreateEnemyAt(new Position(3, 3), "E-FACING");
+    var frontPreparation = system.PrepareTeamCharacter(front);
+    var flankPreparation = system.PrepareTeamCharacter(flank);
+    var rearPreparation = system.PrepareTeamCharacter(rear);
+    var battle = new TeamBattleEncounter(new Position(3, 3),
+        [new TeamCharacterParticipant(front, new Position(3, 4), TacticalParticipantKind.PartyMember,
+             frontPreparation.Initiative, 3, 1, frontPreparation.Runtime),
+         new TeamCharacterParticipant(flank, new Position(4, 3), TacticalParticipantKind.PartyMember,
+             flankPreparation.Initiative, 3, 1, flankPreparation.Runtime),
+         new TeamCharacterParticipant(rear, new Position(3, 2), TacticalParticipantKind.PartyMember,
+             rearPreparation.Initiative, 3, 1, rearPreparation.Runtime)],
+        [new TeamEnemyParticipant(enemy, 5, 2, 1)], front.Id, enemy.Id);
+
+    Assert(TacticalTeamBattleCoordinator.AttackAdvantage(battle, front, enemy) ==
+               TacticalAttackAdvantage.Front &&
+           TacticalTeamBattleCoordinator.AttackAdvantage(battle, flank, enemy) is
+               { Arc: TacticalAttackArc.Flank, HitBonus: 1 } &&
+           TacticalTeamBattleCoordinator.AttackAdvantage(battle, rear, enemy) is
+               { Arc: TacticalAttackArc.Rear, HitBonus: 2 },
+        "A szemből, oldalról és hátulról támadó pozíciók felismerése hibás.");
+    battle.FaceEnemyToward(enemy, flank);
+    Assert(TacticalTeamBattleCoordinator.AttackAdvantage(battle, flank, enemy).Arc == TacticalAttackArc.Front,
+        "Az ellenfél nem fordult az új célpont felé.");
+}
+
+static void ThiefCanBackstabFromRearFormation()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var system = CreateBattleSystem(1802);
+    var front = CreateCharacter("Fedező", characterClassId: CharacterClassIds.Harcos);
+    var thief = CreateCharacter("Orvtámadó", characterClassId: CharacterClassIds.Tolvaj);
+    Assert(thief.EquipWeapon(0, data.GetWeapon("W001")), "A tolvaj nem tudta felszerelni a tőrt.");
+    var enemy = CreateEnemyAt(new Position(3, 2), "E-REAR-THIEF");
+    var frontPreparation = system.PrepareTeamCharacter(front);
+    var thiefPreparation = system.PrepareTeamCharacter(thief);
+    var formation = new PartyFormationSnapshot(front.Id, null, thief.Id, null,
+        Direction.Up, PartyFormationState.Locked);
+    var battle = new TeamBattleEncounter(new Position(3, 3),
+        [new TeamCharacterParticipant(front, new Position(3, 3), TacticalParticipantKind.PartyMember,
+             frontPreparation.Initiative, 3, 1, frontPreparation.Runtime),
+         new TeamCharacterParticipant(thief, new Position(3, 4), TacticalParticipantKind.PartyMember,
+             thiefPreparation.Initiative, 3, 1, thiefPreparation.Runtime)],
+        [new TeamEnemyParticipant(enemy, 5, 2, 1)], front.Id, enemy.Id, formation: formation);
+    battle.Engage(front, enemy);
+    Assert(battle.RearFormationEnemiesInReach(thief).Count == 0,
+        "A képesség nélküli hátsó sori tolvaj elérte az ellenfelet.");
+    Assert(thiefPreparation.Runtime.TryChooseTactic(thief, BattleTactic.ThiefAmbush) &&
+           battle.RearFormationEnemiesInReach(thief).SequenceEqual([enemy]),
+        "Az Orvtámadás nem nyitotta meg a hátsó sori tőrtámadást.");
+    var entry = system.ResolveTeamCharacterAttack(thief, thiefPreparation.Runtime, enemy,
+        tacticalBackstab: true);
+    Assert(entry.Details?.Calculation.Any(line => line.Contains("Hátbatámadás: Orvtámadás",
+               StringComparison.Ordinal)) == true,
+        "A hátsó sori tőrtámadás nem aktiválta az Orvtámadás sebzésszorzóját.");
 }
 
 static void MultilineInnRumorStaysInsideFrame()

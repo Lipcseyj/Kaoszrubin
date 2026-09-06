@@ -49,6 +49,7 @@ public sealed class TeamBattleEncounter
     private readonly HashSet<WorldEntityId> _resolvedEnemyDeaths = [];
     private readonly HashSet<CharacterId> _resolvedCharacterDeaths = [];
     private readonly HashSet<(CharacterId CharacterId, WorldEntityId EnemyId)> _engagements = [];
+    private readonly Dictionary<WorldEntityId, CharacterId> _enemyFacingTargets = [];
     private readonly HashSet<BattleSide> _activeSidesThisCycle = [];
     private readonly Dictionary<CombatantId, int> _spellEffectsAdvancedInCycle = [];
     private readonly Dictionary<BattleSide, int> _inactiveCycleStreaks = Enum.GetValues<BattleSide>()
@@ -104,6 +105,7 @@ public sealed class TeamBattleEncounter
                 TacticalParticipantKind.Enemy, participant.Enemy.Position, participant.Initiative,
                 participant.MovementAllowance, participant.EligibleFromCycle,
                 participant.EligibleFromCycle > 1 ? TacticalParticipantState.Approaching : TacticalParticipantState.Active));
+            _enemyFacingTargets[participant.Enemy.Id] = initiatingCharacterId;
         }
         var initiatingCharacter = CombatantId.ForCharacter(initiatingCharacterId);
         var initiatingEnemy = CombatantId.ForEnemy(initiatingEnemyId);
@@ -214,12 +216,29 @@ public sealed class TeamBattleEncounter
 
     public IReadOnlyList<Enemy> RearFormationEnemiesInReach(LiveCharacter character)
     {
+        var weapon = character.AttackWeapon;
+        var daggerFamily = WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Dagger;
+        var thiefRearStrike = character.CharacterClass.Id == CharacterClassIds.Tolvaj && daggerFamily &&
+                              (RuntimeFor(character).Tactic == BattleTactic.ThiefAmbush ||
+                               character.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefAmbush) ||
+                               character.WeaponProficiencyRankFor(WeaponFamilies.Dagger) == WeaponProficiencyRank.Master);
         if (!IsRearRow(character) ||
-            character.AttackWeapon?.CanAttackFromRear != true ||
+            weapon?.CanAttackFromRear != true && !thiefRearStrike ||
             FrontPartnerOf(character) is not { IsAlive: true } front)
             return [];
         return EngagedEnemies(front);
     }
+
+    public Position PositionOf(LiveCharacter character) =>
+        Turns.Find(CombatantId.ForCharacter(character.Id))?.Position ?? default;
+
+    public void FaceEnemyToward(Enemy enemy, LiveCharacter character) =>
+        _enemyFacingTargets[enemy.Id] = character.Id;
+
+    public LiveCharacter? EnemyFacingTarget(Enemy enemy) =>
+        _enemyFacingTargets.TryGetValue(enemy.Id, out var characterId)
+            ? _characters.Values.FirstOrDefault(character => character.Id == characterId && character.IsAlive)
+            : null;
 
     public IReadOnlyDictionary<LiveCharacter, Position> FormationDestinations(Direction direction)
     {
@@ -289,6 +308,7 @@ public sealed class TeamBattleEncounter
             participant.EligibleFromCycle, TacticalParticipantState.Approaching);
         if (!Turns.TryAddParticipant(tactical)) return false;
         _enemies.Add(id, participant.Enemy);
+        _enemyFacingTargets[participant.Enemy.Id] = InitiatingCharacterId;
         return true;
     }
 

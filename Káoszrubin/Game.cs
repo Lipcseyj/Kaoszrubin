@@ -6048,13 +6048,19 @@ public sealed class Game : ISessionCommandHandler
         for (var index = 0; index < targets.Count; index++)
         {
             var target = targets[index];
+            var rearFormationStrike = battle.RearFormationEnemiesInReach(character).Contains(target);
+            var advantage = TacticalTeamBattleCoordinator.AttackAdvantage(battle, character, target);
             if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), target.Position))
                 battle.Engage(character, target);
             var before = target.CurrentHitPoints;
             var damagePercent = TacticalTeamBattleCoordinator.SweepDamagePercent(character,
                 battle.RuntimeFor(character), secondaryTarget: index > 0);
             var entry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character), target,
-                finishAction: index == targets.Count - 1, damagePercent: damagePercent);
+                finishAction: index == targets.Count - 1, damagePercent: damagePercent,
+                positionalHitBonus: advantage.HitBonus, positionalAdvantage: advantage.Name,
+                tacticalBackstab: character.CharacterClass.Id == CharacterClassIds.Tolvaj &&
+                                   battle.RuntimeFor(character).Tactic == BattleTactic.ThiefAmbush &&
+                                   (advantage.IsRear || rearFormationStrike));
             landedHit |= target.CurrentHitPoints < before;
             if (target.CurrentHitPoints < before && target.PreparedWeaponId is not null &&
                 WeaponFamilies.ForWeapon(character.AttackWeapon) == WeaponFamilies.Blunt &&
@@ -6108,6 +6114,7 @@ public sealed class Game : ISessionCommandHandler
             var abilityTargets = livingTargets.Where(character =>
                     TacticalDistance.Between(enemy.Position, GetCasterPosition(character)) <= activeAbility.Range)
                 .Take(activeAbility.MaximumTargets).ToArray();
+            if (abilityTargets.Length > 0) battle.FaceEnemyToward(enemy, abilityTargets[0]);
             PresentBattleEntries(abilityTargets.Select((target, index) =>
                 _battleSystem.ResolveTeamEnemyAbility(enemy, target, battle.RuntimeFor(target), activeAbility,
                     consumeResources: index == 0)).ToArray());
@@ -6130,6 +6137,7 @@ public sealed class Game : ISessionCommandHandler
             MoveTeamEnemyToward(battle, enemy, GetCasterPosition(target));
             return;
         }
+        battle.FaceEnemyToward(enemy, targets[0]);
         if (BattleSystem.IsTelegraphedWeapon(attackWeapon) && !enemy.IsWeaponPrepared(attackWeapon!.Id))
         {
             PresentBattleEntries([_battleSystem.PrepareEnemyWeapon(enemy, attackWeapon)]);
