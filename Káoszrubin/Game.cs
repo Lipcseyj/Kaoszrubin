@@ -1253,7 +1253,7 @@ public sealed class Game : ISessionCommandHandler
             if (_random.Next(100) < chance)
             {
                 trap.Detect();
-                _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+                _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [trap.Position]);
                 RewardTrapSuccess(character, trap.Definition.DetectionExperience,
                     $"👁️ {character.Name} időben felfedezte: {trap.Definition.Name} ({chance}% esély).",
                     ConsoleColor.Cyan);
@@ -1280,7 +1280,7 @@ public sealed class Game : ISessionCommandHandler
         {
             trap.Disarm();
             RegisterNpcQuestProgress(NpcQuestType.Disarm, "ANY");
-            _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+            _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [trap.Position]);
             RewardTrapSuccess(character, trap.Definition.DisarmExperience,
                 $"🧰 {character.Name} hatástalanította: {trap.Definition.Name} ({chance}% esély).",
                 ConsoleColor.Green);
@@ -3232,7 +3232,7 @@ public sealed class Game : ISessionCommandHandler
 
         PickUpGroundItems(character, position, shareLootWithParty, messages);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position]);
         string[] resultMessages = messages.Count == 0
             ? ["🔎 A keresés nem hozott eredményt."]
             : messages.Select(message => $"🔎 {message}.").ToArray();
@@ -3499,7 +3499,7 @@ public sealed class Game : ISessionCommandHandler
         if (position is null || !character.RemoveOneInventoryItem(command.SlotKind, command.SlotIndex)) return;
         _maze.DropItem(position.Value, item, charges);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position.Value]);
         var pileCount = _maze.GetGroundItemPileAt(position.Value)?.Items.Count ?? 1;
         _renderer.DrawInventoryMessage($"Ledobtad: {item.Name}. A mezőn {pileCount} tárgy van.", ConsoleColor.Cyan);
         PlaySessionSound(SoundEffect.Item, [character.Id]);
@@ -3531,7 +3531,7 @@ public sealed class Game : ISessionCommandHandler
         character.ApplyInventoryChanges(change);
         if (pile.Entries.Count == 0) _maze.RemoveGroundItemPile(pile);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position.Value]);
         _renderer.DrawInventoryMessage($"Felvetted: {entry.Item.Name}.", ConsoleColor.Green);
         PlaySessionSound(SoundEffect.Item, [character.Id]);
     }

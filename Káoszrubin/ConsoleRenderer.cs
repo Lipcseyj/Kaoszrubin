@@ -411,6 +411,15 @@ public sealed class ConsoleRenderer
         DrawPlayer(playerPosition);
     }
 
+    /// <summary>Csak a megadott, lokálisan megváltozott térképcellákat és a játékost rajzolja újra.</summary>
+    public void DrawMapCellsChanged(Maze maze, FogOfWar fogOfWar, Position playerPosition,
+        IEnumerable<Position> changedPositions)
+    {
+        foreach (var position in changedPositions.Where(maze.IsInside).Distinct())
+            if (position != playerPosition) DrawMapCell(maze, fogOfWar, position);
+        DrawPlayer(playerPosition);
+    }
+
     /// <summary>Villogtatás nélkül, inverz színekkel jelöli az aktuális cselekvőt és célpontját.</summary>
     public void DrawTeamBattleFocus(Maze maze, FogOfWar fogOfWar, Position playerPosition,
         Position actorPosition, Position? targetPosition)
