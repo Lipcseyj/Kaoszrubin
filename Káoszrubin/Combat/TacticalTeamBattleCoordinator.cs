@@ -322,9 +322,9 @@ public sealed class TacticalTeamBattleCoordinator
         {
             actions.Add(BattleActionKind.PhysicalAttack);
             if (reachable.Length > 1) actions.Add(BattleActionKind.SelectTarget);
-            if (turnUndeadTargets.Length > 0 && !turnUndeadUsedThisBattle.Contains(character))
-                actions.Add(BattleActionKind.TurnUndead);
         }
+        if (turnUndeadTargets.Length > 0 && !turnUndeadUsedThisBattle.Contains(character))
+            actions.Add(BattleActionKind.TurnUndead);
         if (battle.HasActiveFormation && battle.IsFrontRow(character) &&
             battle.RearPartnerOf(character) is { IsAlive: true })
             actions.Add(BattleActionKind.SwapToRear);

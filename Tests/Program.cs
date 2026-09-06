@@ -4399,10 +4399,11 @@ static void RearPriestCanTurnFrontEngagedUndead()
     var actions = coordinator.GetTeamAllowedBattleActions(battle, priest, undead, priest,
         new Position(3, 4), false, []);
 
-    Assert(battle.RearFormationEngagedEnemies(priest).SequenceEqual([undead]) &&
+    Assert(TacticalTeamBattleCoordinator.ReachableTeamEnemies(battle, priest, new Position(3, 4)).Count() == 0 &&
+           battle.RearFormationEngagedEnemies(priest).SequenceEqual([undead]) &&
            SingleBattleCoordinator.CanTurnUndead(priest, undead) &&
            actions.Contains(BattleActionKind.TurnUndead),
-        "A hátsó pap nem érte el Halottűzéssel az első sor által lekötött élőholtat.");
+        "A fegyverével nem támadó hátsó pap nem érte el Halottűzéssel az első sor által lekötött élőholtat.");
 }
 
 static void SpellcasterRetreatDistanceIsCapped()
