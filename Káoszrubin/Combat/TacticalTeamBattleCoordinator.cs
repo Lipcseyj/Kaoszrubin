@@ -93,9 +93,10 @@ public sealed class TacticalTeamBattleCoordinator
         var attackY = Math.Sign(attackerPosition.Y - defender.Position.Y);
         if (forwardX == 0 && forwardY == 0 || attackX == 0 && attackY == 0)
             return TacticalAttackAdvantage.Front;
-        if (attackX == -forwardX && attackY == -forwardY)
+        var facingDotProduct = forwardX * attackX + forwardY * attackY;
+        if (facingDotProduct < 0)
             return new TacticalAttackAdvantage(TacticalAttackArc.Rear, 2);
-        if (attackX != forwardX || attackY != forwardY)
+        if (facingDotProduct == 0)
             return new TacticalAttackAdvantage(TacticalAttackArc.Flank, 1);
         return TacticalAttackAdvantage.Front;
     }

@@ -4165,29 +4165,43 @@ static void Assert(bool condition, string message)
 static void TacticalAttackArcsUseEnemyFacing()
 {
     var system = CreateBattleSystem(1801);
-    var front = CreateCharacter("Szemből");
-    var flank = CreateCharacter("Oldalról");
-    var rear = CreateCharacter("Hátulról");
+    var attackers = new[]
+    {
+        (Character: CreateCharacter("Bal elöl"), Position: new Position(2, 4), Arc: TacticalAttackArc.Front),
+        (Character: CreateCharacter("Elöl"), Position: new Position(3, 4), Arc: TacticalAttackArc.Front),
+        (Character: CreateCharacter("Jobb elöl"), Position: new Position(4, 4), Arc: TacticalAttackArc.Front),
+        (Character: CreateCharacter("Balról"), Position: new Position(2, 3), Arc: TacticalAttackArc.Flank),
+        (Character: CreateCharacter("Jobbról"), Position: new Position(4, 3), Arc: TacticalAttackArc.Flank),
+        (Character: CreateCharacter("Bal hátul"), Position: new Position(2, 2), Arc: TacticalAttackArc.Rear),
+        (Character: CreateCharacter("Hátul"), Position: new Position(3, 2), Arc: TacticalAttackArc.Rear),
+        (Character: CreateCharacter("Jobb hátul"), Position: new Position(4, 2), Arc: TacticalAttackArc.Rear)
+    };
     var enemy = CreateEnemyAt(new Position(3, 3), "E-FACING");
-    var frontPreparation = system.PrepareTeamCharacter(front);
-    var flankPreparation = system.PrepareTeamCharacter(flank);
-    var rearPreparation = system.PrepareTeamCharacter(rear);
+    var participants = attackers.Select(attacker =>
+    {
+        var preparation = system.PrepareTeamCharacter(attacker.Character);
+        return new TeamCharacterParticipant(attacker.Character, attacker.Position,
+            TacticalParticipantKind.PartyMember, preparation.Initiative, 3, 1, preparation.Runtime);
+    }).ToArray();
+    var front = attackers[1].Character;
     var battle = new TeamBattleEncounter(new Position(3, 3),
-        [new TeamCharacterParticipant(front, new Position(3, 4), TacticalParticipantKind.PartyMember,
-             frontPreparation.Initiative, 3, 1, frontPreparation.Runtime),
-         new TeamCharacterParticipant(flank, new Position(4, 3), TacticalParticipantKind.PartyMember,
-             flankPreparation.Initiative, 3, 1, flankPreparation.Runtime),
-         new TeamCharacterParticipant(rear, new Position(3, 2), TacticalParticipantKind.PartyMember,
-             rearPreparation.Initiative, 3, 1, rearPreparation.Runtime)],
+        participants,
         [new TeamEnemyParticipant(enemy, 5, 2, 1)], front.Id, enemy.Id);
 
-    Assert(TacticalTeamBattleCoordinator.AttackAdvantage(battle, front, enemy) ==
-               TacticalAttackAdvantage.Front &&
-           TacticalTeamBattleCoordinator.AttackAdvantage(battle, flank, enemy) is
-               { Arc: TacticalAttackArc.Flank, HitBonus: 1 } &&
-           TacticalTeamBattleCoordinator.AttackAdvantage(battle, rear, enemy) is
-               { Arc: TacticalAttackArc.Rear, HitBonus: 2 },
-        "A szemből, oldalról és hátulról támadó pozíciók felismerése hibás.");
+    foreach (var attacker in attackers)
+    {
+        var advantage = TacticalTeamBattleCoordinator.AttackAdvantage(battle, attacker.Character, enemy);
+        var expectedBonus = attacker.Arc switch
+        {
+            TacticalAttackArc.Flank => 1,
+            TacticalAttackArc.Rear => 2,
+            _ => 0
+        };
+        Assert(advantage.Arc == attacker.Arc && advantage.HitBonus == expectedBonus,
+            $"A(z) {attacker.Character.Name} pozíció {attacker.Arc} ívének felismerése hibás.");
+    }
+
+    var flank = attackers[4].Character;
     battle.FaceEnemyToward(enemy, flank);
     Assert(TacticalTeamBattleCoordinator.AttackAdvantage(battle, flank, enemy).Arc == TacticalAttackArc.Front,
         "Az ellenfél nem fordult az új célpont felé.");

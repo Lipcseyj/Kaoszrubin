@@ -938,7 +938,7 @@ public sealed class MainMenu
             Text("1. fokozat — 5. szint (Ember: 4.): Orvtámadás — az első találat ×2 | Kitérés — 15% eséllyel elkerüli a nem kritikus találatot."),
             Text("2. fokozat — 15. szint: Méregkeverő — találatonként +1–6 méregsebzés | Árnyéklépés — sikeres kitérés után a következő támadás automatikusan talál."),
             Text("3. fokozat — 25. szint: Halálos pontosság — természetes 18–20-nál ×3 sebzés | Mestertolvaj — dupla ládaarany és 25% ritkatárgy-esély."),
-            Text("⚔️ POZÍCIÓS TÁMADÁS — Az ellenfél az utoljára megtámadott vagy megcélzott partitag felé fordul. Más irányból oldalbatámadás +1, pontosan az ellentétes irányból hátbatámadás +2 fegyveres találatot ad minden kasztnak."),
+            Text("⚔️ POZÍCIÓS TÁMADÁS — Az ellenfél az utoljára megtámadott vagy megcélzott partitag felé fordul. Az előtte levő három mező szemből támad, a két közvetlen oldalsó mező oldalbatámadásként +1, a mögötte levő három mező hátbatámadásként +2 fegyveres találatot ad minden kasztnak."),
             Text("🗡️ A Tolvaj Orvtámadás taktikája hátbatámadáskor minden alkalommal aktiválja az orvtámadás szorzóját. Zárt alakzat hátsó sorából tőrrel elérheti az előtte álló társ lekötött ellenfelét, ha Orvtámadást választott, Halálos rajtaütést vagy tőrmesteri fokot szerzett."),
             Blank(),
             ColoredText("✝️ PAP — ISTENI SZOLGÁLAT", ConsoleColor.White),
