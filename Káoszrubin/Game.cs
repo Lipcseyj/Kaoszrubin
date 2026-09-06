@@ -123,6 +123,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly Dictionary<CharacterId, NpcSpellcasterTactics> _npcSpellcasterTactics = [];
     private bool _formationObstacleReported;
     private string? _leaderDecisionMessage;
+    private string? _leaderDecisionTitle;
     private int _mazeLevel = 1;
     private AdventureLocationKind _locationKind = AdventureLocationKind.Campaign;
     private string _locationId = string.Empty;
@@ -202,6 +203,7 @@ public sealed class Game : ISessionCommandHandler
             AdHocConversation = _activeAdHocConversation,
             Formation = _formation,
             LeaderDecisionMessage = _leaderDecisionMessage,
+            LeaderDecisionTitle = _leaderDecisionTitle,
             Party = snapshot.Party.Select(character => character with
             {
                 Gold = SelectedCharacter.Gold,
@@ -565,7 +567,8 @@ public sealed class Game : ISessionCommandHandler
                     }
                     if (GameInput.IsSettingsShortcut(keyInfo))
                     {
-                        SettingsScreen.Show(_musicSettings, ApplyAudioSettings);
+                        RunHostWindow("Beállítások", "A vezető a játék beállításait kezeli…",
+                            () => SettingsScreen.Show(_musicSettings, ApplyAudioSettings));
                         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
@@ -1362,7 +1365,7 @@ public sealed class Game : ISessionCommandHandler
         }
         try
         {
-            MainMenu.ShowHelp();
+            RunHostWindow("Súgó", "A vezető a súgót olvassa…", MainMenu.ShowHelp);
         }
         finally
         {
@@ -1695,7 +1698,9 @@ public sealed class Game : ISessionCommandHandler
                     ConnectionState: PlayerConnectionState.Connected, AssignedPlayerId: not null })
                 WaitForRemoteSpellPreparation(character);
             else
-                character.SetMemorizedSpells(_renderer.DrawSpellPreparationScreen(character));
+                RunHostWindow($"Varázsmemorizálás — {character.Name}",
+                    $"A vezető {character.Name} varázslatait készíti elő…",
+                    () => character.SetMemorizedSpells(_renderer.DrawSpellPreparationScreen(character)));
         }
     }
 
@@ -2079,7 +2084,12 @@ public sealed class Game : ISessionCommandHandler
     private bool EncounterWorldNpc(WorldNpc npc)
     {
         if (!npc.CanStartConversation) return false;
+        return RunHostWindow($"Beszélgetés — {npc.Character.Name}",
+            $"A vezető {npc.Character.Name} párbeszédét kezeli…", () => EncounterWorldNpcCore(npc));
+    }
 
+    private bool EncounterWorldNpcCore(WorldNpc npc)
+    {
         var definition = npc.DefinitionId == "NPC-FIRST-COMPANION"
             ? new NpcDefinition(
                 "NPC-FIRST-COMPANION",
@@ -2409,7 +2419,10 @@ public sealed class Game : ISessionCommandHandler
     private void ShowQuestJournal()
     {
         var options = BuildQuestFastTravelOptions();
-        if (QuestJournalWindow.Show(OrderedQuestJournal(), options) is { } questId)
+        var selectedQuestId = RunHostWindow("Küldetésnapló",
+            "A vezető a küldetésnaplót kezeli…",
+            () => QuestJournalWindow.Show(OrderedQuestJournal(), options));
+        if (selectedQuestId is { } questId)
             CompleteQuestByFastTravel(questId, options);
     }
 
@@ -2486,7 +2499,9 @@ public sealed class Game : ISessionCommandHandler
 
     private void ShowCharacterDetails()
     {
-        CharacterDetailsWindow.Show(CreateCharacterDetailsSnapshot(_renderer.DisplayedCharacter), _gameData);
+        RunHostWindow($"Karakterrészletek — {_renderer.DisplayedCharacter.Name}",
+            "A vezető a részletes karakterlapot olvassa…",
+            () => CharacterDetailsWindow.Show(CreateCharacterDetailsSnapshot(_renderer.DisplayedCharacter), _gameData));
     }
 
     private IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal() =>
@@ -2859,24 +2874,39 @@ public sealed class Game : ISessionCommandHandler
         }
     }
 
-    private void EditFormation()
+    private void RunHostWindow(string title, string message, Action action) =>
+        RunHostWindow(title, message, () => { action(); return true; });
+
+    private T RunHostWindow<T>(string title, string message, Func<T> action)
     {
-        NormalizeFormation();
         var previousPhase = _session.Phase;
-        _leaderDecisionMessage = "Várunk a vezető döntéseire…";
+        var previousTitle = _leaderDecisionTitle;
+        var previousMessage = _leaderDecisionMessage;
+        _leaderDecisionTitle = title;
+        _leaderDecisionMessage = message;
         _session.SetPhase(GameSessionPhase.Paused);
-        FormationEditor.Result result;
+        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
         try
         {
-            result = FormationEditor.Edit(
-                CharacterRoster.Party.Members.Where(member => member.IsAlive).ToArray(),
-                _formation, _npcSpellcasterTactics);
+            return action();
         }
         finally
         {
-            _leaderDecisionMessage = null;
+            _leaderDecisionTitle = previousTitle;
+            _leaderDecisionMessage = previousMessage;
             _session.SetPhase(previousPhase);
+            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
         }
+    }
+
+    private void EditFormation()
+    {
+        NormalizeFormation();
+        var result = RunHostWindow("Alakzatszerkesztő",
+            "Várunk a vezető alakzati döntéseire…",
+            () => FormationEditor.Edit(
+                CharacterRoster.Party.Members.Where(member => member.IsAlive).ToArray(),
+                _formation, _npcSpellcasterTactics));
         _formation = PartyFormationRules.WithSlots(_formation, result.Slots);
         _npcSpellcasterTactics.Clear();
         foreach (var pair in result.SpellcasterTactics) _npcSpellcasterTactics[pair.Key] = pair.Value.Normalize();
@@ -7594,19 +7624,21 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
         
-        PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
-        var selectedPerks = _renderer.DrawLevelUpScreen(character, result, offers);
-        foreach (var perk in selectedPerks)
-            if (character.AddPerk(perk))
+        RunHostWindow($"Szintlépés — {character.Name}",
+            $"A vezető {character.Name} szintlépési döntéseit kezeli…", () =>
             {
-                character.ApplyPerkAcquisitionBonus(perk);
-            }
-        if (ShouldChooseSpecialization(character, offers)) ResolveLocalSpecialization(character);
-        ResolveLocalClassFeatureUpgrades(character, result);
-        ResolveLocalTacticalDisciplines(character, result);
-        ResolveLocalAbilityIncreases(character, result);
-        ResolveLocalWeaponProficiencies(character, result);
-        ResolveSpellLearning(character, result);
+                PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
+                var selectedPerks = _renderer.DrawLevelUpScreen(character, result, offers);
+                foreach (var perk in selectedPerks)
+                    if (character.AddPerk(perk))
+                        character.ApplyPerkAcquisitionBonus(perk);
+                if (ShouldChooseSpecialization(character, offers)) ResolveLocalSpecialization(character);
+                ResolveLocalClassFeatureUpgrades(character, result);
+                ResolveLocalTacticalDisciplines(character, result);
+                ResolveLocalAbilityIncreases(character, result);
+                ResolveLocalWeaponProficiencies(character, result);
+                ResolveSpellLearning(character, result);
+            });
     }
 
     private void ResolveRemoteLevelUp(LiveCharacter character, LevelUpResult result,

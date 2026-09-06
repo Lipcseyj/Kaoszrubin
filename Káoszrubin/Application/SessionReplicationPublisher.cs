@@ -121,13 +121,29 @@ public sealed class SessionReplicationPublisher
             .Where(control => control.AssignedPlayerId == recipientPlayerId &&
                               control.ConnectionState == PlayerConnectionState.Connected)
             .Select(control => control.CharacterId).ToHashSet();
+        var ownsSpellPreparation = snapshot.SpellPreparation is { } preparation &&
+                                   controlledCharacters.Contains(preparation.CharacterId);
+        var ownsLevelUp = snapshot.LevelUpPrompt is { } levelUp &&
+                          controlledCharacters.Contains(levelUp.CharacterId);
+        var waitingTitle = snapshot.LeaderDecisionTitle;
+        var waitingMessage = snapshot.LeaderDecisionMessage;
+        if (string.IsNullOrWhiteSpace(waitingMessage) && snapshot.LevelUpPrompt is { } otherLevelUp && !ownsLevelUp)
+        {
+            waitingTitle = $"Szintlépés — {otherLevelUp.CharacterName}";
+            waitingMessage = $"Várunk {otherLevelUp.CharacterName} szintlépési döntéseire…";
+        }
+        else if (string.IsNullOrWhiteSpace(waitingMessage) &&
+                 snapshot.SpellPreparation is { } otherPreparation && !ownsSpellPreparation)
+        {
+            waitingTitle = $"Varázsmemorizálás — {otherPreparation.CharacterName}";
+            waitingMessage = $"Várunk {otherPreparation.CharacterName} varázslatválasztására…";
+        }
         return snapshot with
         {
-            SpellPreparation = snapshot.SpellPreparation is { } preparation &&
-                               controlledCharacters.Contains(preparation.CharacterId)
-                ? preparation : null,
-            LevelUpPrompt = snapshot.LevelUpPrompt is { } levelUp &&
-                            controlledCharacters.Contains(levelUp.CharacterId) ? levelUp : null,
+            SpellPreparation = ownsSpellPreparation ? snapshot.SpellPreparation : null,
+            LevelUpPrompt = ownsLevelUp ? snapshot.LevelUpPrompt : null,
+            LeaderDecisionTitle = waitingTitle,
+            LeaderDecisionMessage = waitingMessage,
             Party = snapshot.Party.Select(character => controlledCharacters.Contains(character.CharacterId) ||
                                                    character.IsTemporaryFollower
                 ? character

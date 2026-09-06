@@ -1576,16 +1576,19 @@ public sealed class CoopGuestScreen
     private static void ApplyLeaderDecisionUi(GuestMapCell[,] grid, SessionSnapshot snapshot)
     {
         if (string.IsNullOrWhiteSpace(snapshot.LeaderDecisionMessage)) return;
-        IReadOnlyList<(string Text, ConsoleColor Color)> lines =
+        DrawGuestOverlay(grid, BuildHostWindowWaitingLines(snapshot.LeaderDecisionTitle,
+            snapshot.LeaderDecisionMessage), ConsoleColor.DarkYellow, 68, FramedWindow.FormationEditor);
+    }
+
+    public static IReadOnlyList<(string Text, ConsoleColor Color)> BuildHostWindowWaitingLines(
+        string? title, string message) =>
         [
             ("", ConsoleColor.Gray),
-            ("♛  A vezető az alakzatot szerkeszti  ♛", ConsoleColor.Yellow),
+            ($"♛  {(!string.IsNullOrWhiteSpace(title) ? title : "Vezetői döntés")}  ♛", ConsoleColor.Yellow),
             ("", ConsoleColor.Gray),
-            (snapshot.LeaderDecisionMessage, ConsoleColor.Cyan),
+            (message, ConsoleColor.Cyan),
             ("", ConsoleColor.Gray)
         ];
-        DrawGuestOverlay(grid, lines, ConsoleColor.DarkYellow, 62, FramedWindow.FormationEditor);
-    }
 
     private void ApplyInnUi(GuestMapCell[,] grid, SessionSnapshot snapshot, CharacterId characterId)
     {

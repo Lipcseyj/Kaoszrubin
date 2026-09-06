@@ -46,6 +46,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég nyugtázhatja a közös pihenési összegzőt", RemotePlayerCanAcknowledgeRest),
     ("A vendég elküldheti a saját memorizált varázslatait", RemotePlayerCanPrepareSpells),
     ("A vendég válaszolhat a saját szintlépési promptjára", RemotePlayerCanResolveLevelUpPrompt),
+    ("A vendég értesítést kap a más által kezelt blokkoló ablakokról", GuestSeesOtherPlayersBlockingWindows),
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
@@ -981,7 +982,8 @@ static void SessionSnapshotRoundTripsThroughJson()
             ["Elira: Emlékszem az erdőre."], "Hiányzik az otthonod?", ["Igen.", "Beszélj másról."]),
         Formation = PartyFormationRules.CreateDefault([leader.Id, companion.Id], leader.Id,
             Direction.Down, PartyFormationState.Locked),
-        LeaderDecisionMessage = "Várunk a vezető döntéseire…"
+        LeaderDecisionMessage = "Várunk a vezető döntéseire…",
+        LeaderDecisionTitle = "Alakzatszerkesztő"
     };
     var json = JsonSerializer.Serialize(snapshot);
     var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
@@ -993,6 +995,7 @@ static void SessionSnapshotRoundTripsThroughJson()
            restored.AdHocConversation is { CharacterName: "Elira", Choices.Count: 2 } &&
            restored.Formation is { Facing: Direction.Down, State: PartyFormationState.Locked } &&
            restored.LeaderDecisionMessage == "Várunk a vezető döntéseire…" &&
+           restored.LeaderDecisionTitle == "Alakzatszerkesztő" &&
            restored.Sounds is [{ Sequence: 1, Effect: SoundEffect.OffensiveSpell,
                ListenerCharacterIds: [{ } listener] }] && listener == companion.Id &&
            restored.PartyGold == 777 && restored.Party.All(character => character.Gold == 777) &&
@@ -1021,6 +1024,35 @@ static void RemotePlayerCanStepOntoTreasureChest()
     Assert(maze.TryMovePartyMember(member, chestPosition, maze.Entrance, allowTreasureChest: true) &&
            member.Position == chestPosition && maze.GetTreasureChestAt(chestPosition) == chest,
         "Az ember által vezérelt vendéget a láda mezője blokkolta.");
+}
+
+static void GuestSeesOtherPlayersBlockingWindows()
+{
+    var (session, leader, companion) = CreateSession();
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var assignmentError), assignmentError);
+    var maze = new Maze(7, 7);
+    maze.Carve(maze.Entrance);
+    var fog = new FogOfWar(7, 7, 0);
+    fog.RevealFrom(maze, maze.Entrance);
+    var snapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "Várakozási próba",
+        new Dictionary<CharacterId, Position>
+        {
+            [leader.Id] = maze.Entrance,
+            [companion.Id] = maze.Entrance
+        }, World: WorldSnapshotProjector.Create(maze, fog))) with
+    {
+        Phase = GameSessionPhase.Paused,
+        LevelUpPrompt = new LevelUpPromptSnapshot(Guid.NewGuid(), leader.Id, leader.Name,
+            LevelUpPromptKind.PerkChoice, 1, 2, 5, 0, [], "Válassz tehetséget.")
+    };
+    var personalized = new SessionReplicationPublisher().CreateFrame(remote, snapshot).Session;
+    Assert(personalized.LevelUpPrompt is null &&
+           personalized.LeaderDecisionTitle == $"Szintlépés — {leader.Name}" &&
+           personalized.LeaderDecisionMessage?.Contains(leader.Name, StringComparison.Ordinal) == true &&
+           CoopGuestScreen.BuildHostWindowWaitingLines(personalized.LeaderDecisionTitle,
+               personalized.LeaderDecisionMessage).Any(line => line.Text.Contains("Szintlépés", StringComparison.Ordinal)),
+        "A más karakter szintlépési ablaka eltűnt a vendég elől várakozási értesítés nélkül.");
 }
 
 static void PartyMemberCanBeRestoredOnEntranceOrExit()
