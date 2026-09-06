@@ -1791,7 +1791,8 @@ public sealed class CoopGuestScreen
             var details = own.CharacterSheet;
             lines = LevelUpWindow.BuildSummary(prompt.CharacterName, prompt.PreviousLevel, prompt.CurrentLevel,
                 prompt.Bonuses ?? [], prompt.VitalityGained, prompt.ManaGained, details?.UsesMana == true,
-                own.CurrentVitality, own.MaximumVitality, own.CurrentMana, own.MaximumMana, prompt.Message).ToList();
+                own.CurrentVitality, own.MaximumVitality, own.CurrentMana, own.MaximumMana, prompt.Message,
+                prompt.ContextLines?.Select(line => line.Text).ToArray()).ToList();
         }
         else if (LevelUpWindow.UsesSwordFrame(prompt.Kind))
         {

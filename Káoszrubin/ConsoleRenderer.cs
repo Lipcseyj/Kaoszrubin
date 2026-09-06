@@ -1778,7 +1778,8 @@ public sealed class ConsoleRenderer
             character.MaximumVitality, character.CurrentMana, character.MaximumMana,
             hasPerkOffer
                 ? "🌠 Új TEHETSÉG ébred benned! Nyomj meg egy billentyűt... 🌠"
-                : "🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟");
+                : "🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟",
+            CharacterProgressionService.UpcomingMilestones(character));
 
         using var background = SaveCenteredFrameBackground(LevelUpWindow.Width, lines, FramedWindow.LevelUp);
         DrawCenteredFrame(LevelUpWindow.Width, lines, FramedWindow.LevelUp);

@@ -21,13 +21,13 @@ public static class WeaponFamilies
 
     public static readonly IReadOnlyList<WeaponFamilyDefinition> All =
     [
-        new(Dagger, "Tőr", "🗡️", "+2 kezdeményezés és +1 sebzés.", "A természetes 19 is kétszeres kritikus találat."),
+        new(Dagger, "Tőr", "🗡️", "+2 kezdeményezés és +1 sebzés.", "A természetes 19 is kritikus; sikeres taktikai találat után kilép a lekötésből."),
         new(Sword, "Kard", "⚔️", "+1 fegyveres találat.", "Felszerelt karddal +1 védelem."),
-        new(Axe, "Bárd", "🪓", "+2 fizikai sebzés.", "A természetes 20 háromszoros kritikus sebzés."),
-        new(Blunt, "Zúzófegyver", "🔨", "Az ellenfél páncéljából 2 pontot figyelmen kívül hagy.", "Összesen 4 pont páncélt hagy figyelmen kívül."),
+        new(Axe, "Bárd", "🪓", "+2 fizikai sebzés.", "A természetes 20 háromszoros kritikus; a söprés mellékcélpontjai teljes sebzést kapnak."),
+        new(Blunt, "Zúzófegyver", "🔨", "Az ellenfél páncéljából 2 pontot figyelmen kívül hagy.", "Összesen 4 pont páncélt hagy figyelmen kívül; találattal megszakítja az előkészített szörnyfegyvert."),
         new(Polearm, "Szálfegyver", "🔱", "+3 kezdeményezés.", "A csata első sikeres találata ×1,5 sebzés."),
-        new(Shield, "Pajzs", "🛡️", "Felszerelt pajzzsal +1 védelem.", "A pajzs védelmi dobását kétszer dobja, és a jobb eredmény számít."),
-        new(Staff, "Harci bot", "🦯", "Felszerelt harci bottal +1 védelem.", "Felszerelt harci bottal összesen +2 védelem.")
+        new(Shield, "Pajzs", "🛡️", "Felszerelt pajzzsal +1 védelem, és +1 társi fedezetet ad a szomszédnak.", "A pajzsdobás kétszer történik; a társi fedezet +2, lovagnál +3."),
+        new(Staff, "Harci bot", "🦯", "Felszerelve +1 védelem és -5% harci varázskudarc.", "Felszerelve összesen +2 védelem és -10% harci varázskudarc.")
     ];
 
     public static WeaponFamilyDefinition? Find(string id) => All.FirstOrDefault(family =>

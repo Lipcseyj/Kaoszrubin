@@ -30,7 +30,7 @@ public static class ClassFeatureUpgrades
         new(FighterPowerful, "💥 Zúzó lendület", "Az Erőteljes állás az ellenfél páncéljának 75%-át töri át.", CharacterClassIds.Harcos),
         new(FighterDefensive, "🛡️ Áthatolhatatlan állás", "A Védekező állás +3 helyett +4 védelmet ad.", CharacterClassIds.Harcos),
         new(BarbarianWildRage, "🩸 Vad düh", "A Düh +7–12 sebzést ad, de a védelem büntetése -3.", CharacterClassIds.Barbár),
-        new(BarbarianEnduringRage, "🔥 Kitartó düh", "A Düh 5 akcióig tart és akciónként +4–7 sebzést ad.", CharacterClassIds.Barbár),
+        new(BarbarianEnduringRage, "🔥 Kitartó düh", "A Düh 5 saját körig tart és támadásonként +4–7 sebzést ad.", CharacterClassIds.Barbár),
         new(BarbarianBloodRage, "❤️‍🔥 Vérdüh", "Minden dühös találat 1–3 HP-t visszatölt.", CharacterClassIds.Barbár),
         new(KnightBodyguard, "🛡️ Testőr", "A Védelmező közbelépési esélye 75%-ról 90%-ra nő.", CharacterClassIds.Lovag),
         new(KnightMarbleWall, "🏰 Márványfal", "Közbelépéskor a lovag a kivédett sebzés harmada helyett a negyedét kapja.", CharacterClassIds.Lovag),
@@ -39,10 +39,10 @@ public static class ClassFeatureUpgrades
         new(ThiefObserve, "👁️ Gyenge pont", "Megfigyelésnél a természetes 19 is kétszeres kritikus találat.", CharacterClassIds.Tolvaj),
         new(ThiefPoison, "☠️ Erős méreg", "A Mérgezett penge találatonként +2–6 méregsebzést okoz.", CharacterClassIds.Tolvaj),
         new(PriestOverflowingLife, "💚 Túláradó élet", "Minden HP-gyógyítás további 15%-kal erősebb.", CharacterClassIds.Pap),
-        new(PriestSteadfastProtection, "⛪ Rendíthetetlen oltalom", "A papi védővarázslatok további 1 akcióval tovább tartanak.", CharacterClassIds.Pap),
+        new(PriestSteadfastProtection, "⛪ Rendíthetetlen oltalom", "A papi védővarázslatok további 1 körrel tovább tartanak.", CharacterClassIds.Pap),
         new(PriestMercifulJudgment, "⚖️ Irgalmas ítélet", "A papi varázssebzés 10%-a visszagyógyítja a papot.", CharacterClassIds.Pap),
         new(MageRagingElements, "🌩️ Tomboló elemek", "A közvetlen arkán varázssebzés további 15%-kal nő.", CharacterClassIds.Mágus),
-        new(MagePerfectIllusion, "🎭 Tökéletes illúzió", "Az arkán kontroll- és védőhatások további 1 akcióval tovább tartanak.", CharacterClassIds.Mágus),
+        new(MagePerfectIllusion, "🎭 Tökéletes illúzió", "Az arkán kontroll- és védőhatások további 1 körrel tovább tartanak.", CharacterClassIds.Mágus),
         new(MageLifeHarvest, "💀 Életaratás", "A közvetlen varázssebzés 15%-a visszagyógyítja a mágust.", CharacterClassIds.Mágus)
     ];
 

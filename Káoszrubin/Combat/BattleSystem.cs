@@ -179,7 +179,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     }
 
     public BattleLogEntry ResolveTeamCharacterAttack(LiveCharacter attacker,
-        TeamCharacterBattleRuntime runtime, Enemy defender, bool finishAction = true)
+        TeamCharacterBattleRuntime runtime, Enemy defender, bool finishAction = true,
+        int damagePercent = 100)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -192,6 +193,20 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         for (var index = 0; index < count && definition.HitPoints is > 0; index++)
         {
             var attack = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed);
+            if (attack.Hit && damagePercent != 100)
+            {
+                var scaledDamage = Math.Max(1, attack.Damage * Math.Clamp(damagePercent, 1, 100) / 100);
+                attack = attack with
+                {
+                    Damage = scaledDamage,
+                    Message = $"{attack.Message} Söprési mellékcélpont: ×{damagePercent / 100d:0.##}.",
+                    Details = attack.Details is { } detail
+                        ? detail with { Damage = scaledDamage,
+                            Calculation = detail.Calculation.Append(
+                                $"🌀 Söprési mellékcélpont: ×{damagePercent / 100d:0.##}").ToArray() }
+                        : null
+                };
+            }
             critical |= attack.Critical;
             definition = ApplyAttack(definition, attack);
             attacks.Add(attack);
@@ -354,14 +369,15 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     public BattleLogEntry ResolveTeamEnemyAction(Enemy attacker, LiveCharacter defender,
         TeamCharacterBattleRuntime defenderRuntime, WeaponDefinition? attackWeapon = null,
-        bool advanceAttackerEffects = true)
+        bool advanceAttackerEffects = true, int alliedGuardDefense = 0)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
         ArgumentNullException.ThrowIfNull(defenderRuntime);
         attackWeapon ??= SelectEnemyAttackWeapon(attacker);
         var attack = EnemyAttack(attacker.Definition, defender, defenderRuntime.Context, attacker.EffectiveSpeed,
-            attackWeapon, allowWeaponFallback: false, attackerInstance: attacker);
+            attackWeapon, allowWeaponFallback: false, attackerInstance: attacker,
+            alliedGuardDefense: alliedGuardDefense);
         var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
         return new BattleLogEntry(
             $"{FormatAttackSummary(attacker.Name, defender.Name, [attack],
@@ -701,7 +717,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         void Modifier(string name, int value) { if (value != 0) calculation.Add($"{name}: {value:+#;-#;0}"); }
         Modifier("🎯 Erő", strengthHitBonus);
         Modifier("🎯 Osztályjártasság", classHitBonus);
-        Modifier("🎯 Fegyvermester", weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 1 : 0);
+        Modifier("🎯 Fegyvermester", weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0);
         Modifier("🎯 Varázstárgy", player.GetMagicItemBonus(MagicItemEffect.Hit));
         Modifier("🎯 Varázshatás", player.SpellEffectValue(ActiveSpellEffectType.HitBonus));
         Modifier("🎯 Láthatatlanság", invisibilityBonus);
@@ -922,7 +938,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             BattleTactic.ThiefObserve => 2,
             _ => 0
         };
-        return (weaponEquipped && player.HasPerk(PerkIds.FighterWeaponMaster) ? 1 : 0) +
+        return (weaponEquipped && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0) +
                player.GetMagicItemBonus(MagicItemEffect.Hit) + blessedWeaponBonus + invisibilityBonus +
                strengthHitBonus + player.SpellEffectValue(ActiveSpellEffectType.HitBonus) +
                ClassHitBonus(player) + tacticHitBonus;
@@ -949,7 +965,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     private AttackResult EnemyAttack(EnemyDefinition attacker, LiveCharacter defender, BattleRuntimeContext context,
         int attackerSpeed, WeaponDefinition? attackWeapon = null, bool allowWeaponFallback = true,
-        Enemy? attackerInstance = null)
+        Enemy? attackerInstance = null, int alliedGuardDefense = 0)
     {
         var calculation = new List<string>();
         var criticalChance = 0d;
@@ -1018,6 +1034,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                           (shieldEquipped && defender.HasPerk(PerkIds.KnightShieldWall) ? 2 : 0) +
                           defender.GetMagicItemBonus(MagicItemEffect.Defense) +
                           defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus) + evilWardDefense +
+                          Math.Max(0, alliedGuardDefense) +
                           (shieldEquipped && shieldRank is not null ? 1 : 0) +
                           staffDefense +
                           (defender.ActiveWeapons.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
@@ -1028,6 +1045,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         Modifier("🛡️ Varázstárgy", defender.GetMagicItemBonus(MagicItemEffect.Defense));
         Modifier("🛡️ Varázshatás", defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus));
         Modifier("🛡️ Gonosz elleni védelem", evilWardDefense);
+        Modifier("🛡️ Társi fedezet", Math.Max(0, alliedGuardDefense));
         Modifier("🛡️ Pajzsjártasság", shieldEquipped && shieldRank is not null ? 1 : 0);
         Modifier("🦯 Botjártasság", staffDefense);
         Modifier("🛡️ Kardmester", defender.ActiveWeapons.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&

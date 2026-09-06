@@ -136,4 +136,32 @@ public sealed class CharacterProgressionService
         var index = character.WeaponProficiencyAdvances;
         return WeaponProficiencyProgression.MilestonesFor(character.CharacterClass.Id).ElementAtOrDefault(index);
     }
+
+    public static IReadOnlyList<string> UpcomingMilestones(LiveCharacter character)
+    {
+        var milestones = new List<(int Level, string Text)>();
+        var abilityLevel = (character.AbilityIncreasesClaimed + 1) * 3;
+        if (abilityLevel > character.Level && AbilityIncreaseChoices(character).Count > 0)
+            milestones.Add((abilityLevel, $"{abilityLevel}. szint: képességpont"));
+
+        for (var tier = 1; tier <= 3; tier++)
+        {
+            if (character.Perks.Any(perk => perk.Tier == tier)) continue;
+            var level = PerkProgressionRules.TriggerLevel(character.Race, tier);
+            if (level > character.Level) milestones.Add((level, $"{level}. szint: {tier}. tehetségfokozat"));
+            break;
+        }
+
+        var classMilestone = character.ClassFeatureUpgrades.Count switch { 0 => 10, 1 => 20, _ => 0 };
+        if (classMilestone > character.Level)
+            milestones.Add((classMilestone, $"{classMilestone}. szint: osztályképesség-fejlesztés"));
+
+        var weaponMilestone = WeaponProficiencyProgression.MilestonesFor(character.CharacterClass.Id)
+            .FirstOrDefault(level => level > character.Level);
+        if (weaponMilestone > 0)
+            milestones.Add((weaponMilestone, $"{weaponMilestone}. szint: fegyverjártassági lépés"));
+
+        return milestones.OrderBy(entry => entry.Level).ThenBy(entry => entry.Text)
+            .Take(4).Select(entry => entry.Text).ToArray();
+    }
 }

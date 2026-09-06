@@ -66,7 +66,8 @@ public static class LevelUpWindow
     public static IReadOnlyList<(string Text, ConsoleColor Color)> BuildSummary(string characterName,
         int previousLevel, int currentLevel, IReadOnlyList<LevelUpBonusSnapshot> bonuses,
         int vitalityGained, int manaGained, bool usesMana, int currentVitality, int maximumVitality,
-        int currentMana, int maximumMana, string continueMessage)
+        int currentMana, int maximumMana, string continueMessage,
+        IReadOnlyList<string>? upcomingMilestones = null)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
         {
@@ -85,6 +86,12 @@ public static class LevelUpWindow
             : $"💖 Összes növekedés: +{vitalityGained} HP", ConsoleColor.White));
         lines.Add(($"🛡️  Jelenlegi értékek: {currentVitality}/{maximumVitality} HP" +
                    (usesMana ? $"   {currentMana}/{maximumMana} manna" : string.Empty), ConsoleColor.Cyan));
+        if (upcomingMilestones is { Count: > 0 })
+        {
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add(("🔭 Következő fejlődési mérföldkövek:", ConsoleColor.DarkCyan));
+            lines.AddRange(upcomingMilestones.Select(milestone => ($"   • {milestone}", ConsoleColor.Gray)));
+        }
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add((continueMessage, ConsoleColor.Yellow));
         return lines;

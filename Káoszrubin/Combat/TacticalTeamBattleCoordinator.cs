@@ -63,6 +63,41 @@ public sealed class TacticalTeamBattleCoordinator
         return targets;
     }
 
+    public static int SweepDamagePercent(LiveCharacter character, TeamCharacterBattleRuntime runtime,
+        bool secondaryTarget)
+    {
+        if (!secondaryTarget) return 100;
+        var family = WeaponFamilies.ForWeapon(character.AttackWeapon);
+        if (family == WeaponFamilies.Axe &&
+            character.WeaponProficiencyRankFor(family) == WeaponProficiencyRank.Master) return 100;
+        if (character.CharacterClass.Id == CharacterClassIds.Barbár &&
+            runtime.Context.BarbarianRageActionsRemaining > 0) return 100;
+        if (character.CharacterClass.Id == CharacterClassIds.Harcos &&
+            runtime.Context.Tactic == BattleTactic.FighterPowerful) return 100;
+        return 75;
+    }
+
+    public static int AlliedGuardDefense(TeamBattleEncounter battle, LiveCharacter protectedCharacter,
+        Func<LiveCharacter, Position> getPosition) => battle.Characters
+        .Where(guardian => guardian != protectedCharacter && guardian.IsAlive &&
+            TacticalDistance.IsMeleeAdjacent(getPosition(guardian), getPosition(protectedCharacter)))
+        .Select(guardian =>
+        {
+            var hasShield = guardian.ActiveWeapons.Any(weapon =>
+                WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Shield);
+            var shieldDefense = !hasShield ? 0 : guardian.WeaponProficiencyRankFor(WeaponFamilies.Shield) switch
+            {
+                WeaponProficiencyRank.Master => guardian.CharacterClass.Id == CharacterClassIds.Lovag ? 3 : 2,
+                WeaponProficiencyRank.Trained => guardian.CharacterClass.Id == CharacterClassIds.Lovag ? 2 : 1,
+                _ => guardian.CharacterClass.Id == CharacterClassIds.Lovag ? 1 : 0
+            };
+            var fighterDefense = guardian.CharacterClass.Id == CharacterClassIds.Harcos &&
+                                 battle.RuntimeFor(guardian).Context.Tactic == BattleTactic.FighterDefensive
+                ? guardian.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 2 : 1
+                : 0;
+            return Math.Max(shieldDefense, fighterDefense);
+        }).DefaultIfEmpty(0).Max();
+
     public static IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy,
         Func<LiveCharacter, Position> getCasterPosition) =>
         battle.Characters.Where(character => character.IsAlive &&

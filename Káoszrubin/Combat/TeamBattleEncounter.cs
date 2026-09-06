@@ -325,6 +325,9 @@ public sealed class TeamBattleEncounter
         .Select(pair => _enemies.Values.FirstOrDefault(enemy => enemy.Id == pair.EnemyId))
         .Where(enemy => enemy is { CurrentHitPoints: > 0 }).Cast<Enemy>().ToArray();
 
+    public int Disengage(LiveCharacter character) =>
+        _engagements.RemoveWhere(pair => pair.CharacterId == character.Id);
+
     public bool ShouldAdvanceSpellEffects(CombatantId combatantId)
     {
         if (_spellEffectsAdvancedInCycle.GetValueOrDefault(combatantId) == Turns.Cycle) return false;

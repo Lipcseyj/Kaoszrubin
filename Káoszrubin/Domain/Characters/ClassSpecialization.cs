@@ -15,10 +15,10 @@ public static class ClassSpecializations
     private static readonly IReadOnlyList<ClassSpecializationDefinition> Definitions =
     [
         new(PriestLife, "Élet", "+25% minden gyógyításra.", CharacterClassIds.Pap),
-        new(PriestProtection, "Védelem", "A védővarázslatok egy akcióval tovább tartanak.", CharacterClassIds.Pap),
+        new(PriestProtection, "Védelem", "A védővarázslatok egy körrel tovább tartanak.", CharacterClassIds.Pap),
         new(PriestJudgment, "Ítélet", "+20% minden papi sebző varázslatra.", CharacterClassIds.Pap),
         new(MageElementalist, "Elementalista", "+20% minden közvetlen arkán varázssebzésre.", CharacterClassIds.Mágus),
-        new(MageIllusionist, "Illuzionista", "A kontroll- és védővarázslatok egy akcióval tovább tartanak.", CharacterClassIds.Mágus),
+        new(MageIllusionist, "Illuzionista", "A kontroll- és védővarázslatok egy körrel tovább tartanak.", CharacterClassIds.Mágus),
         new(MageNecromancer, "Nekromanta", "A közvetlen varázssebzés 10%-a gyógyítja a mágust.", CharacterClassIds.Mágus)
     ];
 

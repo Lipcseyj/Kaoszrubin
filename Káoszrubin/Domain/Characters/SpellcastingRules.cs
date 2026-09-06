@@ -102,9 +102,18 @@ public static class SpellcastingRules
     {
         var baseChance = Math.Clamp(30 - caster.EffectiveAbilities.Intelligence -
             caster.EffectiveAbilities.Dexterity, 0, 100);
-        return engaged
+        var staffReduction = caster.ActiveWeapons.Any(weapon => WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Staff)
+            ? caster.WeaponProficiencyRankFor(WeaponFamilies.Staff) switch
+            {
+                WeaponProficiencyRank.Master => 10,
+                WeaponProficiencyRank.Trained => 5,
+                _ => 0
+            }
+            : 0;
+        var chance = engaged
             ? Math.Clamp(baseChance + 15, 0, 100)
             : baseChance / 2;
+        return Math.Max(0, chance - staffReduction);
     }
 
     public static IReadOnlyList<SpellDefinition> AvailableUnknownSpells(

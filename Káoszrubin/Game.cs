@@ -6042,16 +6042,36 @@ public sealed class Game : ISessionCommandHandler
         if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position))
             battle.Engage(character, enemy);
         var targets = TacticalTeamBattleCoordinator.SweepTargets(battle, character, GetCasterPosition(character), enemy);
+        var landedHit = false;
         for (var index = 0; index < targets.Count; index++)
         {
             var target = targets[index];
             if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), target.Position))
                 battle.Engage(character, target);
+            var before = target.CurrentHitPoints;
+            var damagePercent = TacticalTeamBattleCoordinator.SweepDamagePercent(character,
+                battle.RuntimeFor(character), secondaryTarget: index > 0);
             var entry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character), target,
-                finishAction: index == targets.Count - 1);
+                finishAction: index == targets.Count - 1, damagePercent: damagePercent);
+            landedHit |= target.CurrentHitPoints < before;
+            if (target.CurrentHitPoints < before && target.PreparedWeaponId is not null &&
+                WeaponFamilies.ForWeapon(character.AttackWeapon) == WeaponFamilies.Blunt &&
+                character.WeaponProficiencyRankFor(WeaponFamilies.Blunt) == WeaponProficiencyRank.Master)
+            {
+                var interrupted = target.PreparedWeaponId;
+                target.ClearPreparedWeapon();
+                PresentBattleEntries([new BattleLogEntry(
+                    $"🔨 {character.Name} zúzó csapása megszakítja {target.Name} előkészített fegyverét ({interrupted}).",
+                    BattleLogKind.Information)]);
+            }
             PresentBattleEntries([entry]);
             if (target.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, target, character);
         }
+        if (landedHit && WeaponFamilies.ForWeapon(character.AttackWeapon) == WeaponFamilies.Dagger &&
+            character.WeaponProficiencyRankFor(WeaponFamilies.Dagger) == WeaponProficiencyRank.Master &&
+            battle.Disengage(character) > 0)
+            PresentBattleEntries([new BattleLogEntry(
+                $"🗡️ {character.Name} tőrmesterként kicsúszik a lekötésből.", BattleLogKind.Information)]);
         if (!character.IsAlive) ResolveTeamCharacterDefeat(battle, character);
         AdvanceTeamBattleTurn(battle);
     }
@@ -6122,7 +6142,9 @@ public sealed class Game : ISessionCommandHandler
             if (TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target)))
                 battle.Engage(target, enemy);
             var entry = _battleSystem.ResolveTeamEnemyAction(enemy, target, battle.RuntimeFor(target),
-                attackWeapon, advanceAttackerEffects: index == 0);
+                attackWeapon, advanceAttackerEffects: index == 0,
+                alliedGuardDefense: TacticalTeamBattleCoordinator.AlliedGuardDefense(
+                    battle, target, GetCasterPosition));
             entries.Add(entry);
             if (entry.Kind is BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)
                 battle.RecordAttack(BattleSide.Hostile);
@@ -7450,7 +7472,9 @@ public sealed class Game : ISessionCommandHandler
         WaitForRemoteLevelUpChoice(character, result, LevelUpPromptKind.Summary, [],
             offers.Count > 0
                 ? "🌠 Új TEHETSÉG ébred benned! Nyomj meg egy billentyűt... 🌠"
-                : "🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟");
+                : "🌟 Nyomj meg egy billentyűt a kaland folytatásához! 🌟",
+            CharacterProgressionService.UpcomingMilestones(character)
+                .Select(text => new LevelUpTextLineSnapshot(text, ConsoleColor.DarkCyan)).ToArray());
         foreach (var offer in offers)
         {
             var choices = offer.Choices.Select(perk => new LevelUpChoiceSnapshot(perk.Id, perk.Name, perk.Description)).ToArray();

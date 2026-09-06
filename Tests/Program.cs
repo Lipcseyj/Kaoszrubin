@@ -18,6 +18,7 @@ var tests = new (string Name, Action Run)[]
     ("A fejlesztői fegyvercsomag követi a kategóriákat és a hátizsák kapacitását", DevelopmentWeaponsRespectCapacity),
     ("A lovag harci fegyvercsere-parancsa átjut a session ellenőrzésén", KnightBattleWeaponSwapCommandIsAccepted),
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
+    ("A taktikai fegyverjártasságok módosítják a söprést, fedezetet és varázslást", TacticalWeaponMasteriesHaveDistinctRoles),
     ("A tartalékfegyver passzív és veszteség nélkül menthető, cserélhető", ReserveWeaponIsPassiveAndPersistent),
     ("A kétkezes tartalékfegyver atomian elteszi a pajzsot", ReserveTwoHandedSwapStowsShield),
     ("A sebzéstípusok és a szörnyfegyverek módosítják a valódi sebzést", PhysicalDamageUsesTypesAndWeapons),
@@ -4258,6 +4259,31 @@ static void WeaponSweepRequiresMutualAdjacency()
     side.SetCurrentHitPoints(10);
     Assert(TacticalTeamBattleCoordinator.SweepTargets(battle, front, new(3, 3), primary).Count == 1,
         "Az egycélpontos kard több ellenfelet ért el.");
+}
+
+static void TacticalWeaponMasteriesHaveDistinctRoles()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var fighter = CreateCharacter("Taktikus", characterClassId: CharacterClassIds.Harcos);
+    var system = CreateBattleSystem(7);
+    var runtime = system.PrepareTeamCharacter(fighter).Runtime;
+    Assert(runtime.TryChooseTactic(fighter, BattleTactic.FighterPowerful) &&
+           TacticalTeamBattleCoordinator.SweepDamagePercent(fighter, runtime, true) == 100,
+        "Az Erőteljes állás nem ad teljes erejű söprést.");
+
+    var mage = CreateCharacter("Botharcos", characterClassId: CharacterClassIds.Mágus);
+    var staff = data.GetWeapon("W018") with { MinimumStrength = 1 };
+    Assert(mage.EquipWeapon(0, staff) && mage.TryAdvanceWeaponProficiency(WeaponFamilies.Staff) &&
+           mage.TryAdvanceWeaponProficiency(WeaponFamilies.Staff), "A botmester tesztfelszerelése hibás.");
+    var withoutStaff = CreateCharacter("Fókusz", characterClassId: CharacterClassIds.Mágus);
+    Assert(SpellcastingRules.CombatFailureChance(mage, true) ==
+           Math.Max(0, SpellcastingRules.CombatFailureChance(withoutStaff, true) - 10),
+        "A botmester nem csökkenti tíz százalékponttal a harci varázskudarcot.");
+
+    var milestones = CharacterProgressionService.UpcomingMilestones(fighter);
+    Assert(milestones.Any(text => text.Contains("képességpont", StringComparison.OrdinalIgnoreCase)) &&
+           milestones.Any(text => text.Contains("tehetség", StringComparison.OrdinalIgnoreCase)),
+        "A szintlépési előnézetből hiányzik a következő fejlődés.");
 }
 
 static void ReserveWeaponIsPassiveAndPersistent()
