@@ -1,4 +1,6 @@
 using KaoszRubin.Application;
+using System.Globalization;
+using System.Text;
 
 namespace KaoszRubin.UI;
 
@@ -165,18 +167,48 @@ public sealed class BattleCommandPanel
 
     private static string Decorate(string text) => LeftDecoration + text + RightDecoration;
 
+    public static int DisplayWidth(string text)
+    {
+        var width = 0;
+        var elements = StringInfo.GetTextElementEnumerator(text);
+        while (elements.MoveNext())
+        {
+            var element = elements.GetTextElement();
+            width += element.EnumerateRunes().Any(rune =>
+                rune.Value > char.MaxValue || rune.Value is 0xFE0F or 0x200D) ? 2 : 1;
+        }
+        return width;
+    }
+
+    public static string TruncateToDisplayWidth(string text, int maxWidth)
+    {
+        var result = new StringBuilder();
+        var width = 0;
+        var elements = StringInfo.GetTextElementEnumerator(text);
+        while (elements.MoveNext())
+        {
+            var element = elements.GetTextElement();
+            var elementWidth = DisplayWidth(element);
+            if (width + elementWidth > maxWidth) break;
+            result.Append(element);
+            width += elementWidth;
+        }
+        return result.ToString();
+    }
+
     /// <summary>
     /// Centers text within the panel width. If text exceeds width, it is truncated.
     /// </summary>
     private string FitCentered(string text)
     {
-        if (text.Length > Width)
-            text = text[..Width];
+        var displayWidth = DisplayWidth(text);
+        if (displayWidth > Width)
+            return TruncateToDisplayWidth(text, Width);
 
-        if (text.Length == Width)
+        if (displayWidth == Width)
             return text;
 
-        var padding = Width - text.Length;
+        var padding = Width - displayWidth;
         var leftPadding = padding / 2;
         var rightPadding = padding - leftPadding;
 

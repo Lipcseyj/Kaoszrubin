@@ -153,7 +153,9 @@ public sealed class Maze
 
     public void AddPartyMember(PartyMemberAvatar member)
     {
-        EnsureObjectPositionIsFree(member.Position);
+        // A partitárs játék közben szabályosan ráléphet a bejáratra vagy a kijáratra,
+        // ezért mentés visszatöltésekor ezeket a mezőket sem szabad elutasítani.
+        EnsureObjectPositionIsFree(member.Position, reserveEntranceAndExit: false);
         _partyMembers.Add(member);
     }
 
@@ -258,9 +260,11 @@ public sealed class Maze
     public static bool IsPassableNeutralNpc(WorldObject? occupant) =>
         occupant is WorldNpc { Disposition: NpcDisposition.Neutral };
 
-    private void EnsureObjectPositionIsFree(Position position)
+    private void EnsureObjectPositionIsFree(Position position, bool reserveEntranceAndExit = true)
     {
-        if (!IsWalkable(position) || position == Entrance || position == Exit || GetObjectAt(position) is not null)
+        if (!IsWalkable(position) ||
+            (reserveEntranceAndExit && (position == Entrance || position == Exit)) ||
+            GetObjectAt(position) is not null)
             throw new ArgumentException("Az objektum helyének üres, járható mezőnek kell lennie.", nameof(position));
     }
 

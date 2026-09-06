@@ -26,6 +26,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
     ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),
     ("Az emberi vendég ráléphet a kincsesláda mezőjére", RemotePlayerCanStepOntoTreasureChest),
+    ("A bejáraton vagy kijáraton mentett partitárs visszaállítható", PartyMemberCanBeRestoredOnEntranceOrExit),
     ("A semleges NPC nem állja el a mozgó szereplők útját", NeutralWorldNpcIsPassable),
     ("Alakzat-összeálláskor két barátságos avatar atomian helyet cserél", FormationAssemblySwapsFriendlyAvatars),
     ("A visszatérő expedíció harminc százalékos szörnyállományt céloz", ReturnExpeditionPopulationIsLimited),
@@ -1002,6 +1003,22 @@ static void RemotePlayerCanStepOntoTreasureChest()
     Assert(maze.TryMovePartyMember(member, chestPosition, maze.Entrance, allowTreasureChest: true) &&
            member.Position == chestPosition && maze.GetTreasureChestAt(chestPosition) == chest,
         "Az ember által vezérelt vendéget a láda mezője blokkolta.");
+}
+
+static void PartyMemberCanBeRestoredOnEntranceOrExit()
+{
+    var maze = new Maze(7, 7);
+    maze.Carve(maze.Entrance);
+    maze.Carve(maze.Exit);
+
+    var entranceMember = new PartyMemberAvatar(maze.Entrance, CreateCharacter("Bejárati társ"));
+    var exitMember = new PartyMemberAvatar(maze.Exit, CreateCharacter("Kijárati társ"));
+    maze.AddPartyMember(entranceMember);
+    maze.AddPartyMember(exitMember);
+
+    Assert(maze.GetPartyMemberAt(maze.Entrance) == entranceMember &&
+           maze.GetPartyMemberAt(maze.Exit) == exitMember,
+        "A mentésből visszaállított partitársat a bejárat vagy a kijárat elutasította.");
 }
 
 static void SessionActivityCanTargetCharacter()
@@ -3067,6 +3084,7 @@ static void BossAndBattlePromptsAreShared()
            BattlePromptText.Tactic(CharacterClassIds.Tolvaj, thiefTactics).Contains("Megfigyelés 70%", StringComparison.Ordinal) &&
            BattleCommandPanel.Format(thiefTactics.Select(option => option.Action), thiefTactics)
                .Contains("3: ☠️ Mérgezett penge", StringComparison.Ordinal) &&
+           BattleCommandPanel.DisplayWidth("🗡️ Orvtámadás | 👁️ Megfigyelés") == 30 &&
            BattlePromptText.EnemyTurn == "Space — ellenfél köre" &&
            BattlePromptText.PlayerAction(true, true).Contains("halottűzés", StringComparison.Ordinal),
         "A közös harci prompt elvesztette a taktikai esélyt vagy valamelyik vezérlést.");

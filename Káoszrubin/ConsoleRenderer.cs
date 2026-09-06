@@ -501,12 +501,12 @@ public sealed class ConsoleRenderer
         // Calculate center padding
         var combinedText = string.Concat(segmentsToRender.Select(s => s.Text));
         var totalWidth = BattleCommandPanel.Width;
-        var textLength = combinedText.Length;
+        var textLength = BattleCommandPanel.DisplayWidth(combinedText);
 
         if (textLength > totalWidth)
         {
             // Text is too long, just render centered portion without padding
-            var truncated = combinedText[..totalWidth];
+            var truncated = BattleCommandPanel.TruncateToDisplayWidth(combinedText, totalWidth);
             SetColors(_battleCommandPanel.Foreground, _battleCommandPanel.Background);
             WriteAt(0, BattleCommandPanel.Row, truncated);
             return;
@@ -529,7 +529,7 @@ public sealed class ConsoleRenderer
             var segmentColor = segment.Color ?? _battleCommandPanel.Foreground;
             SetColors(segmentColor, _battleCommandPanel.Background);
             WriteAt(column, BattleCommandPanel.Row, segment.Text);
-            column += segment.Text.Length;
+            column += BattleCommandPanel.DisplayWidth(segment.Text);
         }
 
         // Write right padding
