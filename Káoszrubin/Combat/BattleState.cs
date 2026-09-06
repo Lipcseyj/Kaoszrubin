@@ -40,6 +40,7 @@ public sealed class BattleState
     public bool IsPlayerTurn { get; internal set; }
     public bool IsCompleted { get; internal set; }
     public int Round { get; internal set; }
+    internal bool PlayerEffectsAdvancedThisRound { get; set; }
     public long TurnId { get; internal set; } = 1;
     public int CurrentEnemyHitPoints => Defender.HitPoints ?? 0;
     public BattleResult? Result { get; internal set; }

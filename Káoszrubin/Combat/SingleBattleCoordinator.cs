@@ -59,7 +59,7 @@ public sealed class SingleBattleCoordinator
         enemy.ApplySpellEffect(new ActiveSpellEffect("HOLY-TURNING", ActiveSpellEffectType.SkipNext, 0, 1));
         character.ApplySpellEffect(new ActiveSpellEffect("HOLY-TURNING", ActiveSpellEffectType.DefenseBonus, 2, 2, Beneficial: true));
         return new BattlePlayerAction($"{character.Name} sikeresen használja: {abilityName}. {enemy.Name} -{damage} HP, " +
-            "kihagyja következő akcióját; a Lovag +2 védelmet kap 2 akcióig " +
+            "kihagyja következő akcióját; a Lovag +2 védelmet kap 2 körig " +
             $"({total}, cél {difficulty}).", BattleLogKind.PlayerAttack, damage);
     }
 

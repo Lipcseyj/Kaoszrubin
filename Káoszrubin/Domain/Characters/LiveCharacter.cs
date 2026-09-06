@@ -288,10 +288,10 @@ public sealed class LiveCharacter
         for (var index = _activeSpellEffects.Count - 1; index >= 0; index--)
         {
             var effect = _activeSpellEffects[index];
-            if (effect.RemainingActions <= 0) continue;
-            var remaining = effect.RemainingActions - 1;
+            if (effect.RemainingRounds <= 0) continue;
+            var remaining = effect.RemainingRounds - 1;
             if (remaining == 0) _activeSpellEffects.RemoveAt(index);
-            else _activeSpellEffects[index] = effect with { RemainingActions = remaining };
+            else _activeSpellEffects[index] = effect with { RemainingRounds = remaining };
         }
     }
 

@@ -48,7 +48,7 @@ public static class ItemInspectionFormatter
             MiscItemDefinition misc when misc.Id == MiscItemIds.HerbalTea =>
                 $"Használati tárgy | súly: {misc.Weight} | hatás: víz {misc.EffectValue}, HP 5–15",
             MiscItemDefinition misc when misc.Id is MiscItemIds.Mead or MiscItemIds.SpicedWine =>
-                $"Használati tárgy | súly: {misc.Weight} | hatás: víz {misc.EffectValue}, +2 kezdeményezés és +1 találat 10 akcióig",
+                $"Használati tárgy | súly: {misc.Weight} | hatás: víz {misc.EffectValue}, +2 kezdeményezés és +1 találat 10 körig",
             MiscItemDefinition misc when misc.Effect != ConsumableEffect.None =>
                 $"Használati tárgy | súly: {misc.Weight} | hatás: {ConsumableEffectName(misc.Effect)} {misc.EffectValue}",
             MiscItemDefinition misc => $"Általános tárgy | súly: {misc.Weight}",

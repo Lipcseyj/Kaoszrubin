@@ -436,7 +436,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         BattleActionDetails? actionDetails = null;
         if (state.IsPlayerTurn)
         {
-            player.AdvanceSpellEffects();
+            if (!state.PlayerEffectsAdvancedThisRound)
+            {
+                player.AdvanceSpellEffects();
+                state.PlayerEffectsAdvancedThisRound = true;
+            }
             if (playerAction is not null)
             {
                 if (playerAction.DamageToEnemy > 0)
@@ -480,6 +484,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         {
             enemy.SetCurrentHitPoints(defender.HitPoints ?? 0);
             var turnStart = BeginEnemyTurn(enemy);
+            state.PlayerEffectsAdvancedThisRound = false;
             defender = defender with { HitPoints = enemy.CurrentHitPoints };
             var effectText = turnStart.Entries.Count == 0 ? string.Empty :
                 $" {string.Join(" ", turnStart.Entries.Select(entry => entry.Message))}";

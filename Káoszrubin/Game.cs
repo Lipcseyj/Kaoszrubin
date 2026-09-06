@@ -3702,7 +3702,7 @@ public sealed class Game : ISessionCommandHandler
             2, 10, Beneficial: true));
         character.ApplySpellEffect(new ActiveSpellEffect(item.Id, ActiveSpellEffectType.HitBonus,
             1, 10, Beneficial: true));
-        return $"víz +{character.WaterLevel - waterBefore}, +2 kezdeményezés és +1 találat 10 akcióig";
+        return $"víz +{character.WaterLevel - waterBefore}, +2 kezdeményezés és +1 találat 10 körig";
     }
 
     private string UseVisionItem(LiveCharacter character, MiscItemDefinition item)
@@ -3710,7 +3710,7 @@ public sealed class Game : ISessionCommandHandler
         character.ApplySpellEffect(new ActiveSpellEffect(item.Id, ActiveSpellEffectType.VisionBonus,
             item.EffectValue, 12, Beneficial: true));
         if (GetCharacterWorldPosition(character) is { } position) RevealFor(character, position);
-        return $"látótáv +{item.EffectValue} 12 akcióig";
+        return $"látótáv +{item.EffectValue} 12 körig";
     }
 
     private static string UseHealing(LiveCharacter character, int amount)
@@ -5374,7 +5374,8 @@ public sealed class Game : ISessionCommandHandler
                 }
                 if (_preparedTeamBattleTurnId != battle.Turns.TurnId)
                 {
-                    _battleSystem.BeginTeamCharacterTurn(character);
+                    if (battle.ShouldAdvanceSpellEffects(CombatantId.ForCharacter(character.Id)))
+                        _battleSystem.BeginTeamCharacterTurn(character);
                     _preparedTeamBattleTurnId = battle.Turns.TurnId;
                 }
                 var runtime = battle.RuntimeFor(character);
@@ -6034,7 +6035,9 @@ public sealed class Game : ISessionCommandHandler
 
     private void ExecuteTeamEnemyTurn(TeamBattleEncounter battle, Enemy enemy)
     {
-        var turnStart = _battleSystem.BeginEnemyTurn(enemy);
+        var turnStart = battle.ShouldAdvanceSpellEffects(CombatantId.ForEnemy(enemy.Id))
+            ? _battleSystem.BeginEnemyTurn(enemy)
+            : new EnemyTurnStartResult(true, []);
         if (turnStart.Entries.Count > 0) PresentBattleEntries(turnStart.Entries);
         if (enemy.CurrentHitPoints <= 0)
         {

@@ -57,7 +57,7 @@ public sealed class DungeonTrapService
         {
             character.ApplySpellEffect(new ActiveSpellEffect(trap.Definition.Id,
                 ActiveSpellEffectType.VisionBonus, -2, 6));
-            extra = " A koromfelhő 6 akcióra 2-vel csökkentette a látótávját.";
+            extra = " A koromfelhő 6 körre 2-vel csökkentette a látótávját.";
         }
         onRefreshCharacterSheet(character);
         onDrawMapVisibilityChanged();

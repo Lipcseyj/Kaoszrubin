@@ -1,4 +1,5 @@
 using KaoszRubin.Domain;
+using System.Text.Json.Serialization;
 
 namespace KaoszRubin.Domain.Magic;
 
@@ -91,7 +92,8 @@ public enum ActiveSpellEffectType
 }
 
 public sealed record ActiveSpellEffect(string SourceSpellId, ActiveSpellEffectType Type, int Value,
-    int RemainingActions, DiceExpression? PeriodicDamage = null, int IntelligenceBonus = 0,
+    [property: JsonPropertyName("RemainingActions")] int RemainingRounds,
+    DiceExpression? PeriodicDamage = null, int IntelligenceBonus = 0,
     bool Beneficial = false, int DamageMultiplierPercent = 100, string? Parameter = null);
 
 public sealed record SpellEffectTickResult(int Damage, bool SkipAction, IReadOnlyList<string> Notes);

@@ -50,6 +50,7 @@ public sealed class TeamBattleEncounter
     private readonly HashSet<CharacterId> _resolvedCharacterDeaths = [];
     private readonly HashSet<(CharacterId CharacterId, WorldEntityId EnemyId)> _engagements = [];
     private readonly HashSet<BattleSide> _activeSidesThisCycle = [];
+    private readonly Dictionary<CombatantId, int> _spellEffectsAdvancedInCycle = [];
     private readonly Dictionary<BattleSide, int> _inactiveCycleStreaks = Enum.GetValues<BattleSide>()
         .ToDictionary(side => side, _ => 0);
     private readonly List<TeamBattleKill> _kills = [];
@@ -323,6 +324,13 @@ public sealed class TeamBattleEncounter
         .Where(pair => pair.CharacterId == character.Id)
         .Select(pair => _enemies.Values.FirstOrDefault(enemy => enemy.Id == pair.EnemyId))
         .Where(enemy => enemy is { CurrentHitPoints: > 0 }).Cast<Enemy>().ToArray();
+
+    public bool ShouldAdvanceSpellEffects(CombatantId combatantId)
+    {
+        if (_spellEffectsAdvancedInCycle.GetValueOrDefault(combatantId) == Turns.Cycle) return false;
+        _spellEffectsAdvancedInCycle[combatantId] = Turns.Cycle;
+        return true;
+    }
 
     public TacticalBattleParticipant AdvanceTurn()
     {

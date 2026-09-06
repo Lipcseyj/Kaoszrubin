@@ -44,6 +44,7 @@ var tests = new (string Name, Action Run)[]
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
     ("A mágus első szintjén a Fényvarázslat a hatodik varázslat", SpellSchoolsIncludeMageLightSpell),
+    ("A buff varázslatok időtartama CSV-ből, harci körökben érkezik", SpellBuffDurationLoadsAsRounds),
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
@@ -3284,6 +3285,21 @@ static void MonsterTraitsAndAbilitiesAreDataDriven()
            data.GetEnemy("E022").AbilityIds.Contains("MA013") &&
            data.GetMonsterAbility("MA013").MaximumTargets == 2,
         "A jellemzők és a paraméterezett képességek szétválasztása hibás.");
+}
+
+static void SpellBuffDurationLoadsAsRounds()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var blessing = catalog.GetSpellEffects("P003");
+    Assert(blessing.Count == 3 && blessing.All(effect => effect.Duration == 4) &&
+           blessing.All(effect => effect.Description.Contains("kör", StringComparison.OrdinalIgnoreCase)),
+        "Az Áldás CSV-ben megadott négykörös időtartama vagy leírása nem töltődött be.");
+
+    var active = new ActiveSpellEffect("P003", ActiveSpellEffectType.HitBonus, 1, 4, Beneficial: true);
+    var json = JsonSerializer.Serialize(active);
+    var restored = JsonSerializer.Deserialize<ActiveSpellEffect>(json);
+    Assert(json.Contains("RemainingActions", StringComparison.Ordinal) && restored?.RemainingRounds == 4,
+        "A köralapú varázshatás nem kompatibilis a korábbi mentések RemainingActions mezőjével.");
 }
 
 static void MonsterRegenerationAndBreathCooldownWork()

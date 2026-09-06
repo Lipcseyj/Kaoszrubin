@@ -220,15 +220,15 @@ public sealed class SpellExecutionService
                     break;
                 case SpellEffectType.Invisibility:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.Invisibility, divineJudgment);
-                    notes.Add($"láthatatlanság {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
+                    notes.Add($"láthatatlanság {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
                 case SpellEffectType.DefenseBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.DefenseBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
+                    notes.Add($"+{effect.Value} védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
                 case SpellEffectType.PhysicalReduction:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.PhysicalReduction, divineJudgment);
-                    notes.Add($"{effect.Value}% fizikai védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
+                    notes.Add($"{effect.Value}% fizikai védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
                 case SpellEffectType.BleedingImmunity:
                     foreach (var characterTarget in characterTargets)
@@ -278,30 +278,30 @@ public sealed class SpellExecutionService
                     break;
                 case SpellEffectType.HitBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.HitBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} találat {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
+                    notes.Add($"+{effect.Value} találat {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
                 case SpellEffectType.DamageBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.DamageBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} fizikai sebzés {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
+                    notes.Add($"+{effect.Value} fizikai sebzés {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
                 case SpellEffectType.InitiativeBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.InitiativeBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} kezdeményezés {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
+                    notes.Add($"+{effect.Value} kezdeményezés {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
                 case SpellEffectType.ProtectionFromEvil:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.ProtectionFromEvil, divineJudgment);
-                    notes.Add($"gonosz elleni védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
+                    notes.Add($"gonosz elleni védelem {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
                 case SpellEffectType.GuardianAngel:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.GuardianAngel, divineJudgment);
-                    notes.Add($"👼 Őrangyal {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
+                    notes.Add($"👼 Őrangyal {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
                 case SpellEffectType.Sanctuary:
                     var sanctuaryTargets = livingParty
                         .Where(entry => Chebyshev(entry.Position, casterPosition) <= Math.Max(0, spell.AreaRadius))
                         .Select(entry => entry.Character).ToList();
                     ApplyCharacterEffects(caster, sanctuaryTargets, effect, spell, ActiveSpellEffectType.Sanctuary, divineJudgment);
-                    notes.Add($"⛪ Szentély: {sanctuaryTargets.Count} karakter védett {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
+                    notes.Add($"⛪ Szentély: {sanctuaryTargets.Count} karakter védett {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
                 case SpellEffectType.Resurrect:
                     notes.Add(onResurrectPartyMember(target, effect));
@@ -321,7 +321,7 @@ public sealed class SpellExecutionService
                 case SpellEffectType.VisionBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell,
                         ActiveSpellEffectType.VisionBonus, divineJudgment);
-                    notes.Add($"👁️ +{effect.Value} látótáv {AdjustedDuration(caster, spell, effect, divineJudgment)} akcióra");
+                    notes.Add($"👁️ +{effect.Value} látótáv {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
             }
         }
@@ -519,7 +519,7 @@ public sealed class SpellExecutionService
                 AdjustedDuration(caster, spell, effect, divineJudgment),
                 effect.Dice, (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier),
                 false, effect.Dice is not null && caster.HasPerk(PerkIds.MageElementalMaster) ? 125 : 100));
-            notes.Add($"{enemy.Name}: {TimedEffectName(type)} ({AdjustedDuration(caster, spell, effect, divineJudgment)} akció)");
+            notes.Add($"{enemy.Name}: {TimedEffectName(type)} ({AdjustedDuration(caster, spell, effect, divineJudgment)} kör)");
         }
     }
 
