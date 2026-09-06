@@ -977,7 +977,7 @@ public sealed class MainMenu
             ColoredText("🏃 Portyázó — Csapatharcban +2 kezdeményezést és +1 mező harci mozgást ad, legfeljebb 7 mezőig.", ConsoleColor.Green),
             ColoredText("🤝 Bajtársi őrség — Szomszédos élő társ mellett +1 sajá védelmet ad, és +1 fedezetet nyújt minden szomszédos társnak. Ez a pajzsos vagy harcos fedezettel összeadódik.", ConsoleColor.Cyan),
             ColoredText("⚔️ Kétfegyveres harc — Két egykezes tőrrel vagy karddal, minden érintett családból legalább Jártas fokon a főkéz után külön mellékkéz-dobást ad 60% sebzéssel. Az Orvtámadás csak a főkézre érvényes.", ConsoleColor.DarkYellow),
-            Text("A mellékkézbe képesség nélkül csak pajzs tehető. Tőr vagy kard csak aktív Kétfegyveres harccal és az összes érintett fegyvercsalád Jártas fokával szerelhető oda; más fegyver soha."),
+            Text("A mellékkézbe képesség nélkül csak pajzs tehető. A pajzs kizárólag véd, soha nem ad mellékkéz-támadást. Tőr vagy kard csak aktív Kétfegyveres harccal és az összes érintett fegyvercsalád Jártas fokával szerelhető oda; más fegyver soha."),
             Blank(),
             Section("ÁTKÉPZÉS", ConsoleColor.Magenta),
             Text("A fogadó Veterán kiképzőjénél a leader aranyért újraoszthatja egy partitag osztályképesség-fejlesztéseit, taktikai diszciplínáit vagy fegyverjártasságait."),

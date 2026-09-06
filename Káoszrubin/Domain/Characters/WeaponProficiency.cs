@@ -79,7 +79,8 @@ public static class DualWieldingRules
     {
         mainHand = character.WeaponSlots[0];
         offhand = character.WeaponSlots[1];
-        return offhand is not null && CanEquipOffhand(character, mainHand, offhand);
+        return offhand is not null && WeaponFamilies.ForWeapon(offhand) != WeaponFamilies.Shield &&
+               CanEquipOffhand(character, mainHand, offhand);
     }
 
     public static bool CanEquipOffhand(LiveCharacter character, WeaponDefinition? mainHand,

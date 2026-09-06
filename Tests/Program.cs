@@ -4586,6 +4586,12 @@ static void WeaponFamiliesUseDistinctAttackPatterns()
 static void DualWieldingRequiresDisciplineAndProficiencies()
 {
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var shieldBearer = CreateCharacter("Pajzsos", characterClassId: CharacterClassIds.Harcos);
+    Assert(shieldBearer.EquipWeapon(0, data.GetWeapon("W004")) &&
+           shieldBearer.EquipWeapon(1, data.GetWeapon("W014")) &&
+           !DualWieldingRules.TryGetWeapons(shieldBearer, out _, out _),
+        "A rendszer a pajzsot támadó mellékkéz-fegyvernek tekintette.");
+
     var fighter = CreateCharacter("Kétpengés", characterClassId: CharacterClassIds.Harcos);
     Assert(fighter.EquipWeapon(0, data.GetWeapon("W001")) &&
            fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Dagger) &&

@@ -289,7 +289,7 @@ internal sealed class InnController
         };
         if (blacksmithPresent) options.Add(new(InnMenuOptionKind.Blacksmith, "🔨 Kovácsmester", "Kizárólag fegyvereket kínál, csak vásárlásra.", InnVendorKind.Blacksmith));
         if (armorerPresent) options.Add(new(InnMenuOptionKind.Armorer, "🛡️ Páncélmíves", "Kizárólag páncélokat kínál, csak vásárlásra.", InnVendorKind.Armorer));
-        if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka és varázstárgy-azonosítás.", InnVendorKind.WanderingMage));
+        if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka, azonosítás és tárgyátkok megtörése.", InnVendorKind.WanderingMage));
         options.Add(new(InnMenuOptionKind.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása.", LeaderOnly: true));
         options.Add(new(InnMenuOptionKind.Retraining, "🏛️ Veterán kiképző",
             "Osztályképességek, taktikai diszciplínák vagy fegyverjártasságok fizetős újraosztása.",

@@ -526,7 +526,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                     }
                     criticalHit |= offhandAttack.Critical;
                     defender = ApplyAttack(defender, offhandAttack);
-                    attacks.Add(offhandAttack with { Message = $"⚔️ Mellékkéz — {offhandAttack.Message}" });
+                    attacks.Add(offhandAttack with { Message = $"🫲{offhandAttack.Message}" });
                 }
                 var statusTicks = player.ApplyTurnEndStatusEffects(_random);
                 var statusText = statusTicks.Count == 0 ? string.Empty :
