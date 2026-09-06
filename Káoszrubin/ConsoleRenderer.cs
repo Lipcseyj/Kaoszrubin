@@ -2560,6 +2560,20 @@ public sealed class ConsoleRenderer
         if (_displayedCharacter is not null) DrawSelectableCharacterSheetRows(_displayedCharacter);
     }
 
+    /// <summary>Fogadói üzlet után csak a látható arany- és tárgysorokat frissíti.</summary>
+    public void RefreshInnTransactionRows()
+    {
+        if (_displayedCharacter is null) return;
+        if (_displayedCharacter == _party.Leader) UpdateGoldInCharacterSheet(_displayedCharacter);
+        var panelLines = CharacterSheetPanel.Build(_displayedCharacter, _gameData.ExperienceByLevel, _mazeLevel,
+            _goldenKeyCount, MonsterIds.Bosses.Count, _displayedCharacter == _party.Leader,
+            IsTemporaryFollower(_displayedCharacter));
+        foreach (var heading in panelLines.Where(line => line.Row is CharacterSheetWeaponsHeadingLine or
+                     CharacterSheetMagicItemsHeadingLine or CharacterSheetBackpackHeadingLine))
+            WriteCharacterSheetPanelLine(heading);
+        DrawInventorySlotRows(_displayedCharacter, panelLines);
+    }
+
     /// <summary>Csata közben csak az állapot-, HP- és mannasorokat frissíti.</summary>
     public void RefreshBattleStatusRows()
     {
@@ -2707,10 +2721,15 @@ public sealed class ConsoleRenderer
         var entries = BuildSheetSelections(character);
         if (_activeSheetSelection is null || entries.All(entry => entry.Key != _activeSheetSelection))
             _activeSheetSelection = entries.FirstOrDefault()?.Key;
-        foreach (var line in CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
-                     _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader,
-                     IsTemporaryFollower(character))
-                 .Where(line => line.InventorySlot is not null))
+        var panelLines = CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
+            _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader, IsTemporaryFollower(character));
+        DrawInventorySlotRows(character, panelLines);
+        DrawPartyStatusRows(character);
+    }
+
+    private void DrawInventorySlotRows(LiveCharacter character, IEnumerable<CharacterSheetPanelLine> panelLines)
+    {
+        foreach (var line in panelLines.Where(line => line.InventorySlot is not null))
         {
             var slot = line.InventorySlot!.Value;
             var kind = slot.Kind switch
@@ -2724,7 +2743,6 @@ public sealed class ConsoleRenderer
             WriteSheetLine(line.Row, line.Text, line.Color,
                 SelectionBackground(new SheetSelectionKey(kind, slot.Index)));
         }
-        DrawPartyStatusRows(character);
     }
 
     private void DrawPartyStatusRows(LiveCharacter displayedCharacter)
