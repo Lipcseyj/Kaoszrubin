@@ -241,11 +241,11 @@ public static class CharacterSheetPanel
         CharacterInventorySnapshot inventory, CharacterSheetSnapshot details)
     {
         var weapons = Slots(inventory, InventorySlotKind.Weapon, 3);
-        lines.Add(new(18, $"1: {ItemName(weapons[0].Item)}", ConsoleColor.Gray,
+        lines.Add(new(18, $"1: Főkéz: {ItemName(weapons[0].Item)}", ConsoleColor.Gray,
             new InventorySlotAddress(InventorySlotKind.Weapon, 0)));
         lines.Add(new(19, weapons[0].Item?.IsTwoHanded == true
-                ? "2: ⛔ kétkezes fegyver"
-                : $"2: {ItemName(weapons[1].Item)}",
+                ? "2: Mellékkéz: ⛔ kétkezes fegyver"
+                : $"2: Mellékkéz/pajzs: {ItemName(weapons[1].Item)}",
             weapons[0].Item?.IsTwoHanded == true ? ConsoleColor.DarkGray : ConsoleColor.Gray,
             new InventorySlotAddress(InventorySlotKind.Weapon, 1)));
         lines.Add(new(20, $"3: Tartalék: {ItemName(weapons[2].Item)}", ConsoleColor.Gray,

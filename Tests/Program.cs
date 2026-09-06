@@ -19,7 +19,9 @@ var tests = new (string Name, Action Run)[]
     ("A lovag harci fegyvercsere-parancsa átjut a session ellenőrzésén", KnightBattleWeaponSwapCommandIsAccepted),
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
     ("A taktikai fegyverjártasságok módosítják a söprést, fedezetet és varázslást", TacticalWeaponMasteriesHaveDistinctRoles),
-    ("A taktikai diszciplínák a 12. és 22. szinten választhatók és menthetők", TacticalDisciplinesProgressAndPersist),
+    ("A többcélú fegyverek ívben, vonalban és kis területen hatnak", WeaponFamiliesUseDistinctAttackPatterns),
+    ("A kétfegyveres harc csak képzett tőr- és kardpárokkal működik", DualWieldingRequiresDisciplineAndProficiencies),
+    ("A taktikai diszciplínák a 8. és 18. szinten választhatók és menthetők", TacticalDisciplinesProgressAndPersist),
     ("A fogadói átképzés csoportonként őrzi meg a fejlődési lépéseket", ProgressionRetrainingPreservesAdvances),
     ("A tartalékfegyver passzív és veszteség nélkül menthető, cserélhető", ReserveWeaponIsPassiveAndPersistent),
     ("A kétkezes tartalékfegyver atomian elteszi a pajzsot", ReserveTwoHandedSwapStowsShield),
@@ -4360,10 +4362,131 @@ static void TacticalWeaponMasteriesHaveDistinctRoles()
            Math.Max(0, SpellcastingRules.CombatFailureChance(withoutStaff, true) - 10),
         "A botmester nem csökkenti tíz százalékponttal a harci varázskudarcot.");
 
+    var swordMaster = CreateCharacter("Kardőr", characterClassId: CharacterClassIds.Harcos);
+    var protectedAlly = CreateCharacter("Védett", characterClassId: CharacterClassIds.Harcos);
+    Assert(swordMaster.EquipWeapon(0, data.GetWeapon("W004")) &&
+           swordMaster.TryAdvanceWeaponProficiency(WeaponFamilies.Sword) &&
+           swordMaster.TryAdvanceWeaponProficiency(WeaponFamilies.Sword),
+        "A kardmester tesztfelszerelése hibás.");
+    var swordPreparation = system.PrepareTeamCharacter(swordMaster);
+    var allyPreparation = system.PrepareTeamCharacter(protectedAlly);
+    var guardEnemy = CreateEnemyAt(new Position(2, 1), "SWORD-GUARD");
+    var guardBattle = new TeamBattleEncounter(new Position(1, 1),
+        [new TeamCharacterParticipant(swordMaster, new Position(1, 1), TacticalParticipantKind.PartyMember,
+             swordPreparation.Initiative, 3, 1, swordPreparation.Runtime),
+         new TeamCharacterParticipant(protectedAlly, new Position(1, 2), TacticalParticipantKind.PartyMember,
+             allyPreparation.Initiative, 3, 1, allyPreparation.Runtime)],
+        [new TeamEnemyParticipant(guardEnemy, 1, 2, 1)], protectedAlly.Id, guardEnemy.Id);
+    Assert(TacticalTeamBattleCoordinator.AlliedGuardDefense(guardBattle, protectedAlly,
+               candidate => guardBattle.PositionOf(candidate)) == 1,
+        "A kardmester nem adott +1 fedezetet a szomszédos társának.");
+
     var milestones = CharacterProgressionService.UpcomingMilestones(fighter);
     Assert(milestones.Any(text => text.Contains("képességpont", StringComparison.OrdinalIgnoreCase)) &&
            milestones.Any(text => text.Contains("tehetség", StringComparison.OrdinalIgnoreCase)),
         "A szintlépési előnézetből hiányzik a következő fejlődés.");
+}
+
+static void WeaponFamiliesUseDistinctAttackPatterns()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+
+    IReadOnlyList<Enemy> Targets(string weaponId, Position secondaryPosition)
+    {
+        var character = CreateCharacter($"Minta-{weaponId}", characterClassId: CharacterClassIds.Harcos);
+        Assert(character.EquipWeapon(0, data.GetWeapon(weaponId) with { MinimumStrength = 1 }),
+            $"A(z) {weaponId} tesztfegyver nem szerelhető fel.");
+        var primary = CreateEnemyAt(new Position(3, 2), $"{weaponId}-PRIMARY");
+        var secondary = CreateEnemyAt(secondaryPosition, $"{weaponId}-SECONDARY");
+        var decoyPosition = weaponId == "W011" ? new Position(4, 2) : new Position(3, 4);
+        var decoy = CreateEnemyAt(decoyPosition, $"{weaponId}-DECOY");
+        var preparation = CreateBattleSystem(1803).PrepareTeamCharacter(character);
+        var battle = new TeamBattleEncounter(new Position(3, 3),
+            [new TeamCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
+                preparation.Initiative, 3, 1, preparation.Runtime)],
+            [new TeamEnemyParticipant(primary, 3, 2, 1), new TeamEnemyParticipant(secondary, 2, 2, 1),
+             new TeamEnemyParticipant(decoy, 1, 2, 1)], character.Id, primary.Id);
+        return TacticalTeamBattleCoordinator.SweepTargets(battle, character, new Position(3, 3), primary);
+    }
+
+    var polearmTargets = Targets("W011", new Position(3, 1));
+    Assert(polearmTargets.Count == 2 && polearmTargets[1].Position == new Position(3, 1) &&
+           TacticalTeamBattleCoordinator.AttackPattern(data.GetWeapon("W011")) == WeaponAttackPattern.Line,
+        "A szálfegyver nem egyenes vonalban érte el a cél mögötti mezőt.");
+    var axeTargets = Targets("W017", new Position(4, 2));
+    Assert(axeTargets.Count == 2 &&
+           TacticalTeamBattleCoordinator.AttackPattern(data.GetWeapon("W017")) == WeaponAttackPattern.Arc,
+        "A nagybalta nem ívesen söpört.");
+    var hammerTargets = Targets("W013", new Position(4, 2));
+    Assert(hammerTargets.Count == 2 &&
+           TacticalTeamBattleCoordinator.AttackPattern(data.GetWeapon("W013")) == WeaponAttackPattern.Compact,
+        "A kétkezes pöröly nem kis összefüggő területen hatott.");
+
+    var sentinel = CreateCharacter("Feltartóztató", characterClassId: CharacterClassIds.Harcos);
+    Assert(sentinel.EquipWeapon(0, data.GetWeapon("W011") with { MinimumStrength = 1 }) &&
+           sentinel.TryAdvanceWeaponProficiency(WeaponFamilies.Polearm) &&
+           sentinel.TryAdvanceWeaponProficiency(WeaponFamilies.Polearm),
+        "A szálfegyver-mester tesztkarakter nem állítható elő.");
+    var approaching = CreateEnemyAt(new Position(3, 1), "INTERCEPTED");
+    var sentinelPreparation = CreateBattleSystem(1805).PrepareTeamCharacter(sentinel);
+    var sentinelBattle = new TeamBattleEncounter(new Position(3, 3),
+        [new TeamCharacterParticipant(sentinel, new Position(3, 3), TacticalParticipantKind.PartyMember,
+            sentinelPreparation.Initiative, 3, 1, sentinelPreparation.Runtime)],
+        [new TeamEnemyParticipant(approaching, 1, 2, 1)], sentinel.Id, approaching.Id);
+    Assert(TacticalTeamBattleCoordinator.PolearmMasterControlling(sentinelBattle, new Position(3, 2)) == sentinel,
+        "A szálfegyver-mester nem tartotta ellenőrzés alatt a belépő mezőt.");
+
+    var stateEnemy = CreateEnemyAt(new Position(1, 1), "TACTICAL-STATE");
+    var stateCharacter = CreateCharacter("Állapotteszt");
+    var statePreparation = CreateBattleSystem(1804).PrepareTeamCharacter(stateCharacter);
+    var stateBattle = new TeamBattleEncounter(new Position(1, 2),
+        [new TeamCharacterParticipant(stateCharacter, new Position(1, 2), TacticalParticipantKind.PartyMember,
+            statePreparation.Initiative, 3, 1, statePreparation.Runtime)],
+        [new TeamEnemyParticipant(stateEnemy, 1, 2, 1)], stateCharacter.Id, stateEnemy.Id);
+    Assert(stateBattle.ApplyArmorShred(stateEnemy, 2) && stateBattle.EnemyArmorPenalty(stateEnemy) == 2 &&
+           !stateBattle.ApplyArmorShred(stateEnemy, 1) && stateBattle.StaggerEnemy(stateEnemy) &&
+           stateBattle.ConsumeEnemyStagger(stateEnemy) && !stateBattle.ConsumeEnemyStagger(stateEnemy),
+        "A páncélrepesztés vagy a megtorpanás harci állapota hibás.");
+}
+
+static void DualWieldingRequiresDisciplineAndProficiencies()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var fighter = CreateCharacter("Kétpengés", characterClassId: CharacterClassIds.Harcos);
+    Assert(fighter.EquipWeapon(0, data.GetWeapon("W001")) &&
+           fighter.EquipWeapon(1, data.GetWeapon("W001")) &&
+           fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Dagger),
+        "A két tőrös tesztfelszerelés nem állítható elő.");
+    Assert(!DualWieldingRules.TryGetWeapons(fighter, out _, out _) &&
+           fighter.ChooseTacticalDiscipline(TacticalDisciplines.DualWield) &&
+           DualWieldingRules.TryGetWeapons(fighter, out var main, out var offhand) &&
+           main?.Id == "W001" && offhand?.Id == "W001",
+        "A két tőr a diszciplína előtt működött, vagy utána sem aktiválódott.");
+
+    Assert(fighter.EquipWeapon(0, data.GetWeapon("W004")) &&
+           fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Sword) &&
+           DualWieldingRules.TryGetWeapons(fighter, out _, out _),
+        "A Jártas kard–tőr páros nem aktiválódott.");
+    Assert(fighter.EquipWeapon(1, data.GetWeapon("W005")) &&
+           !DualWieldingRules.TryGetWeapons(fighter, out _, out _),
+        "A nem támogatott zúzófegyveres páros kétfegyveres harcot kapott.");
+
+    Assert(fighter.EquipWeapon(1, data.GetWeapon("W001")), "A mellékkéz tőre nem szerelhető vissza.");
+    var system = CreateBattleSystem(1806);
+    var runtime = system.PrepareTeamCharacter(fighter).Runtime;
+    BattleLogEntry? entry = null;
+    for (var attempt = 0; attempt < 20; attempt++)
+    {
+        entry = system.ResolveTeamCharacterAttack(fighter, runtime, CreateEnemy(100, 0), finishAction: false,
+            damagePercent: DualWieldingRules.OffhandDamagePercent, attackWeapon: fighter.WeaponSlots[1],
+            allowTriggeredExtraAttacks: false, allowAmbush: false, damageScaleName: "Mellékkéz");
+        if (entry.Details?.Calculation.Any(line => line.Contains("Fegyver alapsebzése: tőr") &&
+                                                   line.Contains("tőr", StringComparison.OrdinalIgnoreCase)) == true)
+            break;
+    }
+    Assert(entry?.Details?.Calculation.Any(line => line.Contains("Fegyver alapsebzése: tőr") ||
+                                                   line.Contains("Mellékkéz")) == true,
+        "A külön mellékkéz-támadás nem a második fegyvert vagy a 60%-os skálázást használta.");
 }
 
 static void TacticalDisciplinesProgressAndPersist()
@@ -4371,19 +4494,19 @@ static void TacticalDisciplinesProgressAndPersist()
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
     var character = CreateCharacter("Diszciplína", characterClassId: CharacterClassIds.Harcos);
     var firstMilestones = CharacterProgressionService.PendingTacticalDisciplineMilestones(character,
-        new LevelUpResult(0, 11, 12, [])).ToArray();
-    Assert(firstMilestones.SequenceEqual(new[] { 12 }) &&
-           CharacterProgressionService.TacticalDisciplineChoices(character).Count == 3,
-        "A 12. szint nem nyitotta meg az első diszciplínát.");
+        new LevelUpResult(0, 7, 8, [])).ToArray();
+    Assert(firstMilestones.SequenceEqual(new[] { 8 }) &&
+           CharacterProgressionService.TacticalDisciplineChoices(character).Count == 4,
+        "A 8. szint nem nyitotta meg az első diszciplínát.");
     Assert(character.ChooseTacticalDiscipline(TacticalDisciplines.Skirmisher) &&
            !character.ChooseTacticalDiscipline(TacticalDisciplines.Skirmisher),
         "Ugyanaz a diszciplína többször kiválasztható.");
     var secondMilestones = CharacterProgressionService.PendingTacticalDisciplineMilestones(character,
-        new LevelUpResult(0, 21, 22, [])).ToArray();
-    Assert(secondMilestones.SequenceEqual(new[] { 22 }) &&
+        new LevelUpResult(0, 17, 18, [])).ToArray();
+    Assert(secondMilestones.SequenceEqual(new[] { 18 }) &&
            character.ChooseTacticalDiscipline(TacticalDisciplines.Guardian) &&
            !character.ChooseTacticalDiscipline(TacticalDisciplines.Finisher),
-        "A 22. szint vagy a kétdiszciplínás korlát hibás.");
+        "A 18. szint vagy a kétdiszciplínás korlát hibás.");
 
     var baseCharacter = CreateCharacter("Alap", characterClassId: CharacterClassIds.Harcos);
     var baseInitiative = CreateBattleSystem(91).PrepareTeamCharacter(baseCharacter).Initiative;

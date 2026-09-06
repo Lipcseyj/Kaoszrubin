@@ -183,13 +183,19 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public BattleLogEntry ResolveTeamCharacterAttack(LiveCharacter attacker,
         TeamCharacterBattleRuntime runtime, Enemy defender, bool finishAction = true,
         int damagePercent = 100, int positionalHitBonus = 0, string? positionalAdvantage = null,
-        bool tacticalBackstab = false)
+        bool tacticalBackstab = false, WeaponDefinition? attackWeapon = null,
+        bool allowTriggeredExtraAttacks = true, bool allowAmbush = true,
+        int armorPenalty = 0, string damageScaleName = "Söprési mellékcélpont")
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(defender);
-        var definition = defender.Definition with { HitPoints = defender.CurrentHitPoints };
-        var count = attacker.HasPerk(PerkIds.BarbarianBerserkerRage) &&
+        var definition = defender.Definition with
+        {
+            HitPoints = defender.CurrentHitPoints,
+            Armor = Math.Max(0, (defender.Definition.Armor ?? 0) - Math.Max(0, armorPenalty))
+        };
+        var count = allowTriggeredExtraAttacks && attacker.HasPerk(PerkIds.BarbarianBerserkerRage) &&
                     attacker.CurrentVitality * 2 < attacker.MaximumVitality ? 2 : 1;
         var attacks = new List<AttackResult>();
         var critical = false;
@@ -197,31 +203,32 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         {
             var woundedTarget = defender.CurrentHitPoints * 2 <= Math.Max(1, defender.Definition.HitPoints ?? defender.CurrentHitPoints);
             var attack = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed, woundedTarget,
-                positionalHitBonus, positionalAdvantage, tacticalBackstab);
+                positionalHitBonus, positionalAdvantage, tacticalBackstab, attackWeapon, allowAmbush);
             if (attack.Hit && damagePercent != 100)
             {
                 var scaledDamage = Math.Max(1, attack.Damage * Math.Clamp(damagePercent, 1, 100) / 100);
                 attack = attack with
                 {
                     Damage = scaledDamage,
-                    Message = $"{attack.Message} Söprési mellékcélpont: ×{damagePercent / 100d:0.##}.",
+                    Message = $"{attack.Message} {damageScaleName}: ×{damagePercent / 100d:0.##}.",
                     Details = attack.Details is { } detail
                         ? detail with { Damage = scaledDamage,
                             Calculation = detail.Calculation.Append(
-                                $"🌀 Söprési mellékcélpont: ×{damagePercent / 100d:0.##}").ToArray() }
+                                $"🌀 {damageScaleName}: ×{damagePercent / 100d:0.##}").ToArray() }
                         : null
                 };
             }
             critical |= attack.Critical;
             definition = ApplyAttack(definition, attack);
             attacks.Add(attack);
-            if (index == 0 && attack.Hit && definition.HitPoints is > 0 &&
+            if (allowTriggeredExtraAttacks && index == 0 && attack.Hit && definition.HitPoints is > 0 &&
                 attacker.HasPerk(PerkIds.FighterSteelStorm) && _random.NextDouble() < 0.35)
             {
                 var extraWoundedTarget = definition.HitPoints.Value * 2 <=
                                          Math.Max(1, defender.Definition.HitPoints ?? definition.HitPoints.Value);
                 var extra = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed,
-                    extraWoundedTarget, positionalHitBonus, positionalAdvantage, tacticalBackstab);
+                    extraWoundedTarget, positionalHitBonus, positionalAdvantage, tacticalBackstab,
+                    attackWeapon, allowAmbush);
                 critical |= extra.Critical;
                 definition = ApplyAttack(definition, extra);
                 attacks.Add(extra with { Message = $"Acélvihar: {extra.Message}" });
@@ -495,6 +502,32 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                         attacks.Add(extra with { Message = $"Acélvihar: {extra.Message}" });
                     }
                 }
+                if (defender.HitPoints is > 0 &&
+                    DualWieldingRules.TryGetWeapons(player, out _, out var offhand) && offhand is not null)
+                {
+                    var offhandAttack = PlayerAttack(player, defender, context, enemy.EffectiveSpeed,
+                        attackWeapon: offhand, allowAmbush: false);
+                    if (offhandAttack.Hit)
+                    {
+                        var scaledDamage = Math.Max(1, offhandAttack.Damage *
+                            DualWieldingRules.OffhandDamagePercent / 100);
+                        offhandAttack = offhandAttack with
+                        {
+                            Damage = scaledDamage,
+                            Message = $"{offhandAttack.Message} Mellékkéz: ×0,6.",
+                            Details = offhandAttack.Details is { } detail
+                                ? detail with
+                                {
+                                    Damage = scaledDamage,
+                                    Calculation = detail.Calculation.Append("⚔️ Mellékkéz: ×0,6").ToArray()
+                                }
+                                : null
+                        };
+                    }
+                    criticalHit |= offhandAttack.Critical;
+                    defender = ApplyAttack(defender, offhandAttack);
+                    attacks.Add(offhandAttack with { Message = $"⚔️ Mellékkéz — {offhandAttack.Message}" });
+                }
                 var statusTicks = player.ApplyTurnEndStatusEffects(_random);
                 var statusText = statusTicks.Count == 0 ? string.Empty :
                     $" Állapothatások: {string.Join(", ", statusTicks.Select(tick => $"{tick.Icon} {tick.Name}" + (tick.Damage > 0 ? $" -{tick.Damage} HP" : string.Empty) + (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
@@ -660,12 +693,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleRuntimeContext context,
         int defenderSpeed, bool woundedTarget = false, int positionalHitBonus = 0,
-        string? positionalAdvantage = null, bool tacticalBackstab = false)
+        string? positionalAdvantage = null, bool tacticalBackstab = false,
+        WeaponDefinition? attackWeapon = null, bool allowAmbush = true)
     {
         player.BreakSanctuary();
         var forcedHit = context.ShadowStepReady;
         context.ShadowStepReady = false;
-        var weapon = player.ActiveWeapons.FirstOrDefault(item =>
+        var weapon = attackWeapon ?? player.ActiveWeapons.FirstOrDefault(item =>
             item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
         var blessedWeaponBonus = player.HasPerk(PerkIds.PriestBlessedWeapon) &&
                                  defender.HasTrait(EnemyTraits.Undead) ? 2 : 0;
@@ -827,7 +861,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         } : 0;
         var effectiveArmor = Math.Max(0, armorAfterPiercing - bluntArmorIgnored);
         var damageMultiplierPercent = 100;
-        if (context.AmbushAvailable || tacticalBackstab)
+        if (allowAmbush && (context.AmbushAvailable || tacticalBackstab))
         {
             damageMultiplierPercent = player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefAmbush) ? 250 : 200;
             context.AmbushAvailable = false;

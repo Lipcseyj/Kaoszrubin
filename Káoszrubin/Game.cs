@@ -6043,8 +6043,9 @@ public sealed class Game : ISessionCommandHandler
         battle.RecordAttack(BattleSide.Friendly);
         if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position))
             battle.Engage(character, enemy);
+        var dualWielding = DualWieldingRules.TryGetWeapons(character, out var mainHand, out var offhand);
         var targets = TacticalTeamBattleCoordinator.SweepTargets(battle, character, GetCasterPosition(character), enemy);
-        var landedHit = false;
+        var positionalDaggerHit = false;
         for (var index = 0; index < targets.Count; index++)
         {
             var target = targets[index];
@@ -6056,32 +6057,89 @@ public sealed class Game : ISessionCommandHandler
             var damagePercent = TacticalTeamBattleCoordinator.SweepDamagePercent(character,
                 battle.RuntimeFor(character), secondaryTarget: index > 0);
             var entry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character), target,
-                finishAction: index == targets.Count - 1, damagePercent: damagePercent,
+                finishAction: !dualWielding && index == targets.Count - 1, damagePercent: damagePercent,
                 positionalHitBonus: advantage.HitBonus, positionalAdvantage: advantage.Name,
                 tacticalBackstab: character.CharacterClass.Id == CharacterClassIds.Tolvaj &&
                                    battle.RuntimeFor(character).Tactic == BattleTactic.ThiefAmbush &&
-                                   (advantage.IsRear || rearFormationStrike));
-            landedHit |= target.CurrentHitPoints < before;
-            if (target.CurrentHitPoints < before && target.PreparedWeaponId is not null &&
-                WeaponFamilies.ForWeapon(character.AttackWeapon) == WeaponFamilies.Blunt &&
-                character.WeaponProficiencyRankFor(WeaponFamilies.Blunt) == WeaponProficiencyRank.Master)
-            {
-                var interrupted = target.PreparedWeaponId;
-                target.ClearPreparedWeapon();
-                PresentBattleEntries([new BattleLogEntry(
-                    $"🔨 {character.Name} zúzó csapása megszakítja {target.Name} előkészített fegyverét ({interrupted}).",
-                    BattleLogKind.Information)]);
-            }
+                                   (advantage.IsRear || rearFormationStrike),
+                attackWeapon: dualWielding ? mainHand : null,
+                armorPenalty: battle.EnemyArmorPenalty(target));
+            var hit = target.CurrentHitPoints < before;
+            positionalDaggerHit |= hit && advantage.Arc != TacticalAttackArc.Front &&
+                                   WeaponFamilies.ForWeapon(dualWielding ? mainHand : character.AttackWeapon) ==
+                                   WeaponFamilies.Dagger;
+            if (hit) ApplyWeaponTacticalHitEffects(battle, character, target,
+                dualWielding ? mainHand : character.AttackWeapon, secondaryTarget: index > 0);
             PresentBattleEntries([entry]);
             if (target.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, target, character);
         }
-        if (landedHit && WeaponFamilies.ForWeapon(character.AttackWeapon) == WeaponFamilies.Dagger &&
+
+        if (dualWielding && offhand is not null)
+        {
+            var offhandTarget = enemy.CurrentHitPoints > 0 && ReachableTeamEnemies(battle, character).Contains(enemy)
+                ? enemy
+                : ReachableTeamEnemies(battle, character).OrderBy(target => target.CurrentHitPoints).FirstOrDefault();
+            if (offhandTarget is not null)
+            {
+                var advantage = TacticalTeamBattleCoordinator.AttackAdvantage(battle, character, offhandTarget);
+                if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), offhandTarget.Position))
+                    battle.Engage(character, offhandTarget);
+                var before = offhandTarget.CurrentHitPoints;
+                var offhandEntry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character),
+                    offhandTarget, finishAction: true, damagePercent: DualWieldingRules.OffhandDamagePercent,
+                    positionalHitBonus: advantage.HitBonus, positionalAdvantage: advantage.Name,
+                    attackWeapon: offhand, allowTriggeredExtraAttacks: false, allowAmbush: false,
+                    armorPenalty: battle.EnemyArmorPenalty(offhandTarget), damageScaleName: "Mellékkéz");
+                var offhandHit = offhandTarget.CurrentHitPoints < before;
+                positionalDaggerHit |= offhandHit && advantage.Arc != TacticalAttackArc.Front &&
+                                       WeaponFamilies.ForWeapon(offhand) == WeaponFamilies.Dagger;
+                PresentBattleEntries([offhandEntry with { Message = $"⚔️ Mellékkéz — {offhandEntry.Message}" }]);
+                if (offhandTarget.CurrentHitPoints <= 0)
+                    ResolveTeamEnemyDefeat(battle, offhandTarget, character);
+            }
+            else
+            {
+                var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                if (!string.IsNullOrEmpty(statusText))
+                    PresentBattleEntries([new BattleLogEntry($"{character.Name}:{statusText}",
+                        BattleLogKind.Information)]);
+            }
+        }
+
+        if (positionalDaggerHit &&
             character.WeaponProficiencyRankFor(WeaponFamilies.Dagger) == WeaponProficiencyRank.Master &&
             battle.Disengage(character) > 0)
             PresentBattleEntries([new BattleLogEntry(
-                $"🗡️ {character.Name} tőrmesterként kicsúszik a lekötésből.", BattleLogKind.Information)]);
+                $"🗡️ {character.Name} tőrmesterként az oldal-/hátbatámadás után kicsúszik a lekötésből.",
+                BattleLogKind.Information)]);
         if (!character.IsAlive) ResolveTeamCharacterDefeat(battle, character);
         AdvanceTeamBattleTurn(battle);
+    }
+
+    private void ApplyWeaponTacticalHitEffects(TeamBattleEncounter battle, LiveCharacter character,
+        Enemy target, WeaponDefinition? weapon, bool secondaryTarget)
+    {
+        var family = WeaponFamilies.ForWeapon(weapon);
+        if (family == WeaponFamilies.Axe && secondaryTarget &&
+            character.WeaponProficiencyRankFor(family) == WeaponProficiencyRank.Master &&
+            battle.ApplyArmorShred(target, 2))
+            PresentBattleEntries([new BattleLogEntry(
+                $"🪓 {character.Name} söprése megrepeszti {target.Name} páncélját: -2 páncél a csata végéig.",
+                BattleLogKind.Information)]);
+
+        if (family != WeaponFamilies.Blunt ||
+            character.WeaponProficiencyRankFor(family) != WeaponProficiencyRank.Master) return;
+        if (target.PreparedWeaponId is { } interrupted)
+        {
+            target.ClearPreparedWeapon();
+            PresentBattleEntries([new BattleLogEntry(
+                $"🔨 {character.Name} zúzó csapása megszakítja {target.Name} előkészített fegyverét ({interrupted}).",
+                BattleLogKind.Information)]);
+        }
+        else if (battle.StaggerEnemy(target))
+            PresentBattleEntries([new BattleLogEntry(
+                $"🔨 {character.Name} megtorpasztja {target.Name} ellenfelet; a következő közeledése elmarad.",
+                BattleLogKind.Information)]);
     }
 
     private void ExecuteTeamEnemyTurn(TeamBattleEncounter battle, Enemy enemy)
@@ -6412,11 +6470,27 @@ public sealed class Game : ISessionCommandHandler
 
     private void MoveTeamEnemyToward(TeamBattleEncounter battle, Enemy enemy, Position target)
     {
+        if (battle.ConsumeEnemyStagger(enemy))
+        {
+            PresentBattleEntries([new BattleLogEntry(
+                $"🔨 {enemy.Name} megtorpan, ezért ebben a körben nem tud közeledni.",
+                BattleLogKind.Information)]);
+            AdvanceTeamBattleTurn(battle);
+            return;
+        }
         var goals = TeamMeleePositions(target)
             .Where(position => CanTeamBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)))
             .ToArray();
         var path = FindTeamBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id));
         var traversed = path.Take(battle.Current.MovementAllowance).ToArray();
+        LiveCharacter? interceptor = null;
+        for (var index = 0; index < traversed.Length; index++)
+        {
+            interceptor = TacticalTeamBattleCoordinator.PolearmMasterControlling(battle, traversed[index]);
+            if (interceptor is null) continue;
+            traversed = traversed.Take(index + 1).ToArray();
+            break;
+        }
         var landingIndex = Array.FindLastIndex(traversed, position =>
             CanTeamBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)));
         var steps = landingIndex < 0 ? Array.Empty<Position>() : traversed.Take(landingIndex + 1).ToArray();
@@ -6432,6 +6506,14 @@ public sealed class Game : ISessionCommandHandler
         if (steps.Length > 0)
             PresentBattleEntries([new BattleLogEntry($"{enemy.Name} {steps.Length} mezőt közeledik.",
                 BattleLogKind.Information)]);
+        if (interceptor is not null && steps.Length > 0 &&
+            TacticalDistance.IsMeleeAdjacent(battle.PositionOf(interceptor), enemy.Position))
+        {
+            battle.Engage(interceptor, enemy);
+            PresentBattleEntries([new BattleLogEntry(
+                $"🔱 {interceptor.Name} szálfegyverrel feltartóztatja {enemy.Name} előrenyomulását.",
+                BattleLogKind.Information)]);
+        }
         AdvanceTeamBattleTurn(battle);
     }
 
@@ -7590,7 +7672,7 @@ public sealed class Game : ISessionCommandHandler
                 LevelUpPromptKind.TacticalDisciplineChoice, projected,
                 $"{milestone}. szint — válassz taktikai diszciplínát.",
                 [new($"{character.Name} — {character.CharacterClass.Name} — {milestone}. szint", ConsoleColor.Cyan),
-                 new("Két különböző diszciplína tanulható: egy a 12., egy a 22. szinten.", ConsoleColor.Green)]);
+                 new("Két különböző diszciplína tanulható: egy a 8., egy a 18. szinten.", ConsoleColor.Green)]);
             character.ChooseTacticalDiscipline(
                 choices.FirstOrDefault(choice => choice.Id == selectedId)?.Id ?? choices[0].Id);
         }

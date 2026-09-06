@@ -21,11 +21,11 @@ public static class WeaponFamilies
 
     public static readonly IReadOnlyList<WeaponFamilyDefinition> All =
     [
-        new(Dagger, "Tőr", "🗡️", "+2 kezdeményezés és +1 sebzés.", "A természetes 19 is kritikus; sikeres taktikai találat után kilép a lekötésből; tolvajként a zárt alakzat hátsó sorából is támadhatja az első társ lekötött ellenfelét."),
-        new(Sword, "Kard", "⚔️", "+1 fegyveres találat.", "Felszerelt karddal +1 védelem."),
-        new(Axe, "Bárd", "🪓", "+2 fizikai sebzés.", "A természetes 20 háromszoros kritikus; a söprés mellékcélpontjai teljes sebzést kapnak."),
-        new(Blunt, "Zúzófegyver", "🔨", "Az ellenfél páncéljából 2 pontot figyelmen kívül hagy.", "Összesen 4 pont páncélt hagy figyelmen kívül; találattal megszakítja az előkészített szörnyfegyvert."),
-        new(Polearm, "Szálfegyver", "🔱", "+3 kezdeményezés.", "A csata első sikeres találata ×1,5 sebzés."),
+        new(Dagger, "Tőr", "🗡️", "+2 kezdeményezés és +1 sebzés.", "A természetes 19 is kritikus; sikeres oldal- vagy hátbatámadás után kilép a lekötésből; tolvajként a zárt alakzat hátsó sorából is támadhatja az első társ lekötött ellenfelét."),
+        new(Sword, "Kard", "⚔️", "+1 fegyveres találat.", "Felszerelt karddal +1 védelem, és +1 fedezetet ad a szomszédos társaknak."),
+        new(Axe, "Bárd", "🪓", "+2 fizikai sebzés.", "A természetes 20 háromszoros kritikus; az íves söprés mellékcélpontjai teljes sebzést kapnak és -2 páncélt szenvednek a csata végéig."),
+        new(Blunt, "Zúzófegyver", "🔨", "Az ellenfél páncéljából 2 pontot figyelmen kívül hagy.", "Összesen 4 pont páncélt hagy figyelmen kívül; találattal megszakítja az előkészített szörnyfegyvert, máskülönben megtorpasztja a következő közeledését."),
+        new(Polearm, "Szálfegyver", "🔱", "+3 kezdeményezés; vonalban a cél mögötti ellenfelet is eléri.", "A csata első sikeres találata ×1,5 sebzés, és feltartóztatja a fegyver hatókörébe belépő ellenfelet."),
         new(Shield, "Pajzs", "🛡️", "Felszerelt pajzzsal +1 védelem, és +1 társi fedezetet ad a szomszédnak.", "A pajzsdobás kétszer történik; a társi fedezet +2, lovagnál +3."),
         new(Staff, "Harci bot", "🦯", "Felszerelve +1 védelem és -5% harci varázskudarc.", "Felszerelve összesen +2 védelem és -10% harci varázskudarc.")
     ];
@@ -67,4 +67,30 @@ public static class WeaponProficiencyProgression
 
     public static int EarnedAdvances(string characterClassId, int level) =>
         MilestonesFor(characterClassId).Count(milestone => level >= milestone);
+}
+
+public static class DualWieldingRules
+{
+    public const int OffhandDamagePercent = 60;
+
+    public static bool TryGetWeapons(LiveCharacter character, out WeaponDefinition? mainHand,
+        out WeaponDefinition? offhand)
+    {
+        mainHand = character.WeaponSlots[0];
+        offhand = character.WeaponSlots[1];
+        if (!character.HasTacticalDiscipline(TacticalDisciplines.DualWield) ||
+            mainHand is null || offhand is null || mainHand.IsTwoHanded || offhand.IsTwoHanded ||
+            !IsSupportedPair(mainHand, offhand)) return false;
+
+        var families = new[] { WeaponFamilies.ForWeapon(mainHand), WeaponFamilies.ForWeapon(offhand) };
+        return families.All(family => character.WeaponProficiencyRankFor(family) is not null);
+    }
+
+    public static bool IsSupportedPair(WeaponDefinition first, WeaponDefinition second)
+    {
+        var firstFamily = WeaponFamilies.ForWeapon(first);
+        var secondFamily = WeaponFamilies.ForWeapon(second);
+        return firstFamily is WeaponFamilies.Dagger or WeaponFamilies.Sword &&
+               secondFamily is WeaponFamilies.Dagger or WeaponFamilies.Sword;
+    }
 }

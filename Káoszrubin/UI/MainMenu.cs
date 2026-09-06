@@ -958,10 +958,11 @@ public sealed class MainMenu
             Text("3. fokozat — 25. szint: Láncvarázslat — 30% eséllyel ingyen megismétlődik | Főmágus — +25 max manna és -2 mannaköltség."),
             Blank(),
             Section("TAKTIKAI DISZCIPLÍNÁK", ConsoleColor.DarkCyan),
-            Text("A 12. és a 22. karakterszinten egy-egy különböző taktikai diszciplína választható. A diszciplínák minden kaszt számára elérhetők, csapatharcban működnek, és a választásuk végleges."),
+            Text("A 8. és a 18. karakterszinten egy-egy különböző taktikai diszciplína választható. A diszciplínák minden kaszt számára elérhetők, csapatharcban működnek, és a fogadói veterán kiképzőnél átképezhetők."),
             ColoredText("🎯 Kivégző — A fél HP-n vagy az alatt lévő ellenfelek elleni fegyveres támadás +2 találatot kap.", ConsoleColor.Yellow),
             ColoredText("🏃 Portyázó — Csapatharcban +2 kezdeményezést és +1 mező harci mozgást ad, legfeljebb 7 mezőig.", ConsoleColor.Green),
             ColoredText("🤝 Bajtársi őrség — Szomszédos élő társ mellett +1 sajá védelmet ad, és +1 fedezetet nyújt minden szomszédos társnak. Ez a pajzsos vagy harcos fedezettel összeadódik.", ConsoleColor.Cyan),
+            ColoredText("⚔️ Kétfegyveres harc — Két egykezes tőrrel vagy karddal, minden érintett családból legalább Jártas fokon a főkéz után külön mellékkéz-dobást ad 60% sebzéssel. Az Orvtámadás csak a főkézre érvényes.", ConsoleColor.DarkYellow),
             Blank(),
             Section("ÁTKÉPZÉS", ConsoleColor.Magenta),
             Text("A fogadó Veterán kiképzőjénél a leader aranyért újraoszthatja egy partitag osztályképesség-fejlesztéseit, taktikai diszciplínáit vagy fegyverjártasságait."),
@@ -971,14 +972,14 @@ public sealed class MainMenu
             Section("FEGYVERJÁRTASSÁGOK", ConsoleColor.Yellow),
             Text("A Harcos, Barbár és Lovag karakteralkotáskor, majd a 7., 17. és 27. szinten kap egy jártassági lépést. A Tolvaj, Pap és Mágus a 7. és 17. szinten kap lépést."),
             Text("Egy karakter legfeljebb két fegyvercsaládot tanulhat. Egy lépés új családban Jártas fokot nyit, vagy egy Jártas családot Mester fokra emel. A járatlan fegyver büntetés nélkül használható."),
-            ColoredText("🗡️ Tőr — Jártas: +2 kezdeményezés, +1 sebzés | Mester: természetes 19–20 esetén ×2 kritikus; sikeres taktikai találat után kilép a lekötésből; tolvajként hátsó sorból is tőrrel támad.", ConsoleColor.DarkYellow),
-            ColoredText("⚔️ Kard — Jártas: +1 találat | Mester: felszerelt karddal +1 védelem.", ConsoleColor.Cyan),
-            ColoredText("🪓 Bárd — Jártas: +2 sebzés | Mester: természetes 20 esetén ×3 kritikus; a söprés mellékcélpontjai teljes sebzést kapnak.", ConsoleColor.Red),
-            ColoredText("🔨 Zúzófegyver — Jártas: -2 ellenséges páncél | Mester: összesen -4 páncél, találattal megszakítja az előkészített szörnyfegyvert.", ConsoleColor.DarkYellow),
-            ColoredText("🔱 Szálfegyver — Jártas: +3 kezdeményezés | Mester: a csata első sikeres találata ×1,5 sebzés.", ConsoleColor.Green),
+            ColoredText("🗡️ Tőr — Jártas: +2 kezdeményezés, +1 sebzés | Mester: természetes 19–20 esetén ×2 kritikus; sikeres oldal- vagy hátbatámadás után kilép a lekötésből; tolvajként hátsó sorból is tőrrel támad.", ConsoleColor.DarkYellow),
+            ColoredText("⚔️ Kard — Jártas: +1 találat | Mester: felszerelt karddal +1 védelem és +1 fedezet minden szomszédos társnak.", ConsoleColor.Cyan),
+            ColoredText("🪓 Bárd — Jártas: +2 sebzés | Mester: természetes 20 esetén ×3 kritikus; az íves söprés mellékcélpontjai teljes sebzést kapnak és -2 páncélt szenvednek a csata végéig.", ConsoleColor.Red),
+            ColoredText("🔨 Zúzófegyver — Jártas: -2 ellenséges páncél | Mester: összesen -4 páncél; megszakítja az előkészített szörnyfegyvert, máskülönben az ellenfél következő közeledése elmarad.", ConsoleColor.DarkYellow),
+            ColoredText("🔱 Szálfegyver — Jártas: +3 kezdeményezés, vonalban a cél mögé is csap | Mester: az első sikeres találat ×1,5, és feltartóztatja a hatókörébe belépő ellenfelet.", ConsoleColor.Green),
             ColoredText("🛡️ Pajzs — Jártas: +1 védelem és társi fedezet | Mester: jobb pajzsdobás és erősebb fedezet; a lovag ebben különösen hatékony.", ConsoleColor.Blue),
             ColoredText("🦯 Harci bot — Jártas: +1 védelem, -5% harci varázskudarc | Mester: +2 védelem, -10% harci varázskudarc.", ConsoleColor.Magenta),
-            Text("A többcélú fegyver fő célpontja teljes, mellékcélpontjai alapból 75% sebzést kapnak. Bárdmester, dühöngő barbár vagy Erőteljes állású harcos teljes söprési sebzést okoz.")
+            Text("A többcélú fegyver fő célpontja teljes, mellékcélpontjai alapból 75% sebzést kapnak. A bárd ívben, a szálfegyver egyenes vonalban, a kétkezes zúzófegyver kis összefüggő területen hat. Bárdmester, dühöngő barbár vagy Erőteljes állású harcos teljes söprési sebzést okoz.")
         };
         ShowScrollableHelp(source);
     }

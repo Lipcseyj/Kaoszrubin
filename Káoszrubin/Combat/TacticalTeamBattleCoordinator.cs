@@ -10,6 +10,7 @@ using KaoszRubin.UI;
 namespace KaoszRubin.Combat;
 
 public enum TacticalAttackArc { Front, Flank, Rear }
+public enum WeaponAttackPattern { Single, Arc, Line, Compact }
 
 public sealed record TacticalAttackAdvantage(TacticalAttackArc Arc, int HitBonus)
 {
@@ -64,18 +65,48 @@ public sealed class TacticalTeamBattleCoordinator
         Position origin, Enemy primary)
     {
         var targets = new List<Enemy> { primary };
-        var maximum = Math.Clamp(character.AttackWeapon?.MaximumTargets ?? 1, 1, 4);
+        var weapon = character.AttackWeapon;
+        var maximum = Math.Clamp(weapon?.MaximumTargets ?? 1, 1, 4);
         if (maximum == 1 || !TacticalDistance.IsMeleeAdjacent(origin, primary.Position)) return targets;
+        var pattern = AttackPattern(weapon);
+        var directionX = Math.Sign(primary.Position.X - origin.X);
+        var directionY = Math.Sign(primary.Position.Y - origin.Y);
         foreach (var enemy in battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 && enemy.Id != primary.Id)
                      .OrderBy(enemy => enemy.Position.Y).ThenBy(enemy => enemy.Position.X))
         {
-            if (!TacticalDistance.IsMeleeAdjacent(origin, enemy.Position) ||
-                !targets.All(target => TacticalDistance.IsMeleeAdjacent(target.Position, enemy.Position))) continue;
+            var inPattern = pattern switch
+            {
+                WeaponAttackPattern.Line => enemy.Position == new Position(
+                    primary.Position.X + directionX, primary.Position.Y + directionY),
+                WeaponAttackPattern.Arc => TacticalDistance.IsMeleeAdjacent(origin, enemy.Position) &&
+                                           TacticalDistance.IsMeleeAdjacent(primary.Position, enemy.Position),
+                WeaponAttackPattern.Compact => TacticalDistance.IsMeleeAdjacent(origin, enemy.Position) &&
+                                               TacticalDistance.IsMeleeAdjacent(primary.Position, enemy.Position),
+                _ => false
+            };
+            if (!inPattern) continue;
             targets.Add(enemy);
             if (targets.Count == maximum) break;
         }
         return targets;
     }
+
+    public static WeaponAttackPattern AttackPattern(WeaponDefinition? weapon) =>
+        WeaponFamilies.ForWeapon(weapon) switch
+        {
+            WeaponFamilies.Polearm when weapon?.MaximumTargets > 1 => WeaponAttackPattern.Line,
+            WeaponFamilies.Axe when weapon?.MaximumTargets > 1 => WeaponAttackPattern.Arc,
+            WeaponFamilies.Blunt when weapon is { IsTwoHanded: true, MaximumTargets: > 1 } =>
+                WeaponAttackPattern.Compact,
+            WeaponFamilies.Sword when weapon?.MaximumTargets > 1 => WeaponAttackPattern.Arc,
+            _ => WeaponAttackPattern.Single
+        };
+
+    public static LiveCharacter? PolearmMasterControlling(TeamBattleEncounter battle, Position position) =>
+        battle.Characters.FirstOrDefault(character => character.IsAlive &&
+            character.ActiveWeapons.Any(weapon => WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Polearm) &&
+            character.WeaponProficiencyRankFor(WeaponFamilies.Polearm) == WeaponProficiencyRank.Master &&
+            TacticalDistance.IsMeleeAdjacent(battle.PositionOf(character), position));
 
     public static TacticalAttackAdvantage AttackAdvantage(TeamBattleEncounter battle,
         LiveCharacter attacker, Enemy defender)
@@ -136,8 +167,13 @@ public sealed class TacticalTeamBattleCoordinator
                                  battle.RuntimeFor(guardian).Context.Tactic == BattleTactic.FighterDefensive
                 ? guardian.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 2 : 1
                 : 0;
+            var swordGuard = guardian.ActiveWeapons.Any(weapon =>
+                                 WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Sword) &&
+                             guardian.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master
+                ? 1
+                : 0;
             var disciplineDefense = guardian.HasTacticalDiscipline(TacticalDisciplines.Guardian) ? 1 : 0;
-            return Math.Max(shieldDefense, fighterDefense) + disciplineDefense;
+            return Math.Max(Math.Max(shieldDefense, fighterDefense), swordGuard) + disciplineDefense;
         }).DefaultIfEmpty(0).Max();
         return ownDisciplineDefense + suppliedDefense;
     }

@@ -255,7 +255,17 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         var usableWeapons = _gameData.Weapons.Where(weapon =>
             weapon.CanBeEquippedBy(character.CharacterClass.Id, character.Abilities.Strength) &&
             IsEquipmentTierAvailable(weapon, maximumMagicPower, allowLegendary)).ToList();
-        if (usableWeapons.Count > 0)
+        var dualWeapons = character.HasTacticalDiscipline(TacticalDisciplines.DualWield)
+            ? usableWeapons.Where(weapon => !weapon.IsTwoHanded &&
+                WeaponFamilies.ForWeapon(weapon) is WeaponFamilies.Dagger or WeaponFamilies.Sword &&
+                character.WeaponProficiencyRankFor(WeaponFamilies.ForWeapon(weapon)) is not null).ToList()
+            : [];
+        if (dualWeapons.Count > 0)
+        {
+            character.EquipWeapon(0, dualWeapons[_random.Next(dualWeapons.Count)]);
+            character.EquipWeapon(1, dualWeapons[_random.Next(dualWeapons.Count)]);
+        }
+        else if (usableWeapons.Count > 0)
         {
             var firstWeapon = usableWeapons[_random.Next(usableWeapons.Count)];
             character.EquipWeapon(0, firstWeapon);

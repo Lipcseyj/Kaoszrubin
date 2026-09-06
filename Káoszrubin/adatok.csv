@@ -342,8 +342,8 @@ W007,láncos buzogány,WT001,5-11,6,nem,nem,igen,nem,Láncon forgó tüskés fej
 W008,csatacsillag,WT001,6-12,7,nem,nem,igen,nem,Nehéz tüskés fegyver amely pusztító lendületet gyűjt támadáskor.,320,,,,5,zúzás,1,nem,BLUNT
 W009,pallos,WT001,8-16,9,igen,nem,nem,nem,Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.,550,,,,7,vágás,2,nem,SWORD
 W010,csatabárd,WT001,6-13,7,nem,nem,nem,nem,Széles pengéjű egykezes harci fejsze erős és könyörtelen vágásokhoz.,280,,,,5,vágás,1,nem,AXE
-W011,lándzsa,WT001,5-12,5,igen,nem,nem,nem,Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.,160,,,,4,szúrás,1,igen,POLEARM
-W012,alabárd,WT001,7-15,8,igen,nem,nem,nem,Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.,480,,,,7,vágás,1,igen,POLEARM
+W011,lándzsa,WT001,5-12,5,igen,nem,nem,nem,Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.,160,,,,4,szúrás,2,igen,POLEARM
+W012,alabárd,WT001,7-15,8,igen,nem,nem,nem,Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.,480,,,,7,vágás,2,igen,POLEARM
 W013,kétkezes pöröly,WT001,7-14,8,igen,nem,igen,nem,Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.,450,,,,7,zúzás,2,nem,BLUNT
 W014,fapajzs,WT003,1-2,3,nem,igen,igen,nem,Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.,85,,,,3,zúzás,1,nem,SHIELD
 W015,vaspajzs,WT003,2-3,6,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.,120,,,,5,zúzás,1,nem,SHIELD
@@ -359,7 +359,7 @@ LW002,Éjcsók,WT002,7-14,1,nem,igen,nem,igen,Fekete tőr amely hangtalanul tal�
 LW003,Vérivó,WT002,10-19,4,igen,igen,nem,nem,Bíbor katana amely minden győzelemmel sötétebben fénylik.,7800,Legendás,W003,4,4,vágás,1,nem,SWORD
 LW004,Viharpallos,WT001,14-27,10,igen,nem,nem,nem,Mennydörgéstől vibráló pallos amely viharfelhőket hasít ketté.,11000,Legendás,W009,5,7,vágás,2,nem,SWORD
 LW005,Mennydörgő,WT001,13-25,9,igen,nem,igen,nem,Ősi csatakalapács amelynek ütését távoli égzengés követi.,9800,Legendás,W013,5,7,zúzás,2,nem,BLUNT
-LW006,Sárkányölő,WT001,12-23,6,igen,nem,nem,nem,Hosszú lándzsa pikkelyek áttörésére kovácsolt ezüstheggyel.,8500,Legendás,W011,4,4,szúrás,1,igen,POLEARM
+LW006,Sárkányölő,WT001,12-23,6,igen,nem,nem,nem,Hosszú lándzsa pikkelyek áttörésére kovácsolt ezüstheggyel.,8500,Legendás,W011,4,4,szúrás,2,igen,POLEARM
 LW007,Árnyékél,WT002,9-18,3,nem,igen,nem,igen,Alkonyati rövid kard amely elmosódik gyors mozdulat közben.,6900,Legendás,W002,4,2,vágás,1,nem,SWORD
 LW008,Napbuzogány,WT001,11-22,7,nem,nem,igen,nem,Aranyszínű buzogány amely szent fénnyel perzseli a gonoszt.,7600,Legendás,W006,5,4,zúzás,1,nem,BLUNT
 LW009,Világdaraboló,WT001,14-26,8,nem,nem,nem,nem,Óriások kovácsolta csatabárd amely követ és acélt egyaránt hasít.,10500,Legendás,W010,4,5,vágás,1,nem,AXE
@@ -368,11 +368,11 @@ LW011,Pokollánc,WT001,12-23,7,nem,nem,igen,nem,Lángoló láncos buzogány amel
 LW012,Csillaghullás,WT001,13-24,8,nem,nem,igen,nem,Meteoritvasból készült csatacsillag vakító szikrákkal.,9300,Legendás,W008,5,5,zúzás,1,nem,BLUNT
 LW013,Őrzők pajzsa,WT003,6-12,9,nem,nem,igen,nem,Rúnás pajzs amely ősi őrszemek erejét hordozza.,7000,Legendás,W015,6,5,zúzás,1,nem,SHIELD
 LW014,Tölgykirály pajzsa,WT003,7-13,6,nem,igen,igen,nem,Élő szentfából nőtt pajzs amely soha nem reped meg.,7400,Legendás,W014,5,3,zúzás,1,nem,SHIELD
-LW015,Lélekarató,WT001,15-29,9,igen,nem,nem,nem,Fekete alabárd amely hideg suttogással várja következő áldozatát.,12000,Legendás,W012,6,7,vágás,1,igen,POLEARM
+LW015,Lélekarató,WT001,15-29,9,igen,nem,nem,nem,Fekete alabárd amely hideg suttogással várja következő áldozatát.,12000,Legendás,W012,6,7,vágás,2,igen,POLEARM
 LW016,Titánöklű,WT001,10-20,5,nem,nem,igen,nem,Sűrű csillagfémből öntött bunkó felfoghatatlan súllyal.,6800,Legendás,W005,3,6,zúzás,1,nem,BLUNT
 LW017,Ezüsthold,WT002,12-22,7,igen,igen,nem,igen,Holdfényben kovácsolt katana amely kékes félholdakat rajzol.,9000,Legendás,W003,5,4,vágás,1,nem,SWORD
 LW018,Mélységszúró,WT002,10-18,4,nem,igen,nem,igen,Tengermélyi kristályból csiszolt tőr nyugtalanító kék ragyogással.,7100,Legendás,W001,5,1,szúrás,1,nem,DAGGER
-LW019,Főnixlándzsa,WT001,14-25,7,igen,nem,igen,nem,Újjászülető lánggal égő lándzsa amelynek hegye sosem hűl ki.,10200,Legendás,W011,6,4,szúrás,1,igen,POLEARM
+LW019,Főnixlándzsa,WT001,14-25,7,igen,nem,igen,nem,Újjászülető lánggal égő lándzsa amelynek hegye sosem hűl ki.,10200,Legendás,W011,6,4,szúrás,2,igen,POLEARM
 LW020,Koronatörő,WT001,16-30,11,igen,nem,nem,nem,Királyok bukását megélt pallos aranyrepedésekkel a pengéjén.,13500,Legendás,W009,7,8,vágás,2,nem,SWORD
 WN001,fogak,WT001,2-6,1,nem,nem,nem,nem,Természetes harapás.,0,,,,1,szúrás,1,nem,NATURAL
 WN002,karmok,WT001,4-10,1,nem,nem,nem,nem,Természetes karmolás.,0,,,,1,vágás,1,nem,NATURAL

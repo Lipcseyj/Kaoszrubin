@@ -50,6 +50,8 @@ public sealed class TeamBattleEncounter
     private readonly HashSet<CharacterId> _resolvedCharacterDeaths = [];
     private readonly HashSet<(CharacterId CharacterId, WorldEntityId EnemyId)> _engagements = [];
     private readonly Dictionary<WorldEntityId, CharacterId> _enemyFacingTargets = [];
+    private readonly Dictionary<WorldEntityId, int> _enemyArmorPenalties = [];
+    private readonly HashSet<WorldEntityId> _staggeredEnemies = [];
     private readonly HashSet<BattleSide> _activeSidesThisCycle = [];
     private readonly Dictionary<CombatantId, int> _spellEffectsAdvancedInCycle = [];
     private readonly Dictionary<BattleSide, int> _inactiveCycleStreaks = Enum.GetValues<BattleSide>()
@@ -239,6 +241,19 @@ public sealed class TeamBattleEncounter
         _enemyFacingTargets.TryGetValue(enemy.Id, out var characterId)
             ? _characters.Values.FirstOrDefault(character => character.Id == characterId && character.IsAlive)
             : null;
+
+    public int EnemyArmorPenalty(Enemy enemy) => _enemyArmorPenalties.GetValueOrDefault(enemy.Id);
+
+    public bool ApplyArmorShred(Enemy enemy, int amount)
+    {
+        if (enemy.CurrentHitPoints <= 0 || amount <= EnemyArmorPenalty(enemy)) return false;
+        _enemyArmorPenalties[enemy.Id] = amount;
+        return true;
+    }
+
+    public bool StaggerEnemy(Enemy enemy) => enemy.CurrentHitPoints > 0 && _staggeredEnemies.Add(enemy.Id);
+
+    public bool ConsumeEnemyStagger(Enemy enemy) => _staggeredEnemies.Remove(enemy.Id);
 
     public IReadOnlyDictionary<LiveCharacter, Position> FormationDestinations(Direction direction)
     {
