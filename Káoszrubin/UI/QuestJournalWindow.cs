@@ -7,6 +7,7 @@ public static class QuestJournalWindow
 {
     public const int Width = 84;
     public sealed record FastTravelOption(string QuestId, string QuestTitle, string QuestGiverName, int NeedCost);
+    public readonly record struct RestorationRegion(int Left, int Top, int Width, int Height);
 
     public static IReadOnlyList<(string Text, ConsoleColor Color)> Build(
         IReadOnlyList<QuestJournalEntrySnapshot> entries)
@@ -65,8 +66,10 @@ public static class QuestJournalWindow
         var options = fastTravelOptions ?? [];
         var selectedOption = 0;
         var offset = 0;
-        var width = Math.Min(Width, Math.Max(20, Console.WindowWidth));
-        using var background = new BackgroundContentRestorer(0, 0, Console.WindowWidth, Console.WindowHeight);
+        var restorationRegion = CalculateRestorationRegion(entries, options.Count,
+            Console.WindowWidth, Console.WindowHeight);
+        using var background = new BackgroundContentRestorer(restorationRegion.Left, restorationRegion.Top,
+            restorationRegion.Width, restorationRegion.Height);
         while (true)
         {
             var allLines = Build(entries).ToList();
@@ -112,6 +115,21 @@ public static class QuestJournalWindow
         }
     }
 
+    public static RestorationRegion CalculateRestorationRegion(
+        IReadOnlyList<QuestJournalEntrySnapshot> entries, int fastTravelOptionCount,
+        int windowWidth, int windowHeight)
+    {
+        var width = Math.Min(Width, Math.Max(20, windowWidth));
+        var contentLineCount = Build(entries).Count +
+                               (fastTravelOptionCount > 0 ? 2 + fastTravelOptionCount : 0);
+        var pageSize = Math.Max(4, windowHeight - 8);
+        var footerLineCount = (contentLineCount > pageSize ? 2 : 1) +
+                              (fastTravelOptionCount > 0 ? 1 : 0);
+        var height = Math.Min(windowHeight, Math.Min(contentLineCount, pageSize) + footerLineCount + 2);
+        return new RestorationRegion(Math.Max(0, (windowWidth - width) / 2),
+            Math.Max(0, (windowHeight - height) / 2), width, height);
+    }
+
     private static void Draw(IReadOnlyList<(string Text, ConsoleColor Color)> lines)
     {
         var width = Math.Min(Width, Math.Max(20, Console.WindowWidth));
@@ -123,10 +141,9 @@ public static class QuestJournalWindow
         {
             var sides = WindowFrameCatalog.Sides(style, index, lines.Count);
             var contentWidth = Math.Max(0, width - sides.Left.Length - sides.Right.Length - 2);
-            var text = lines[index].Text.Length <= contentWidth
-                ? lines[index].Text : lines[index].Text[..contentWidth];
+            var text = BattleCommandPanel.TruncateToDisplayWidth(lines[index].Text, contentWidth);
             Write(left, top + index + 1, sides.Left, ConsoleColor.Magenta);
-            Write(left + sides.Left.Length, top + index + 1, " " + text.PadRight(contentWidth) + " ",
+            Write(left + sides.Left.Length, top + index + 1, " " + PadRightDisplay(text, contentWidth) + " ",
                 lines[index].Color);
             Write(left + width - sides.Right.Length, top + index + 1, sides.Right, ConsoleColor.Magenta);
         }
@@ -140,7 +157,10 @@ public static class QuestJournalWindow
         if (top < 0 || top >= Console.WindowHeight || left >= Console.WindowWidth) return;
         Console.SetCursorPosition(Math.Max(0, left), top);
         Console.ForegroundColor = color;
-        Console.Write(text.Length <= Console.WindowWidth - Math.Max(0, left)
-            ? text : text[..Math.Max(0, Console.WindowWidth - Math.Max(0, left))]);
+        Console.Write(BattleCommandPanel.TruncateToDisplayWidth(text,
+            Math.Max(0, Console.WindowWidth - Math.Max(0, left))));
     }
+
+    private static string PadRightDisplay(string text, int width) => text +
+        new string(' ', Math.Max(0, width - BattleCommandPanel.DisplayWidth(text)));
 }

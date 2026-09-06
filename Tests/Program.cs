@@ -3149,11 +3149,14 @@ static void QuestJournalBuildsSharedHistory()
         new("Q-B", "Befejezve", "Megtetted.", "Elira", QuestJournalStatus.Completed, 1, 1, 420)
     };
     var lines = QuestJournalWindow.Build(entries);
+    var restoration = QuestJournalWindow.CalculateRestorationRegion(entries, 0, 200, 50);
     Assert(WindowFrameConfiguration.For(FramedWindow.QuestOffer) == WindowFrameStyle.Stone &&
            WindowFrameConfiguration.For(FramedWindow.QuestJournal) == WindowFrameStyle.Scroll2 &&
+           restoration.Width == QuestJournalWindow.Width && restoration.Height < 50 &&
+           restoration.Left > 0 && restoration.Left + restoration.Width < 200 &&
            lines.Any(line => line.Text.Contains("Folyamatban — 2/4  Elira (240 XP)", StringComparison.Ordinal)) &&
            lines.Any(line => line.Text.Contains("Befejezve — Elira (+420 XP)", StringComparison.Ordinal)),
-        "A küldetésnapló kerete vagy aktív/teljesített tartalma hibás.");
+        "A küldetésnapló kerete, háttérmentési területe vagy aktív/teljesített tartalma hibás.");
 }
 
 static void SpellUiModelsAreShared()
