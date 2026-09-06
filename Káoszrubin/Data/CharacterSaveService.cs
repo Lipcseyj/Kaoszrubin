@@ -134,8 +134,15 @@ public sealed class CharacterSaveService
         foreach (var effect in saved.ActiveSpellEffects) character.RestoreSpellEffect(effect);
 
         var weaponIds = saved.WeaponIds.Count > 0 ? saved.WeaponIds : saved.WeaponNames;
+        WeaponDefinition? displacedLegacyOffhand = null;
         for (var index = 0; index < Math.Min(3, weaponIds.Count); index++)
-            if (weaponIds[index] is { } weaponId) character.EquipWeapon(index, FindSavedDefinition(_gameData.Weapons, weaponId, saved.WeaponNames.ElementAtOrDefault(index), "fegyver"));
+            if (weaponIds[index] is { } weaponId)
+            {
+                var weapon = FindSavedDefinition(_gameData.Weapons, weaponId,
+                    saved.WeaponNames.ElementAtOrDefault(index), "fegyver");
+                if (!character.EquipWeapon(index, weapon) && index == 1)
+                    displacedLegacyOffhand = weapon;
+            }
         if ((saved.ArmorId ?? saved.ArmorName) is { } armorId) character.EquipArmor(FindSavedDefinition(_gameData.Armors, armorId, saved.ArmorName, "páncél"));
         var magicItemIds = saved.MagicItemIds.Count > 0 ? saved.MagicItemIds : saved.MagicItemNames.Cast<string?>().ToList();
         for (var index = 0; index < Math.Min(LiveCharacter.MaximumMagicItemCount, magicItemIds.Count); index++)
@@ -157,6 +164,16 @@ public sealed class CharacterSaveService
                 character.ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.Backpack, index + backpackOffset,
                     ResolveItem(item), item.Charges, item.Quantity));
             }
+        if (displacedLegacyOffhand is not null)
+        {
+            if (character.WeaponSlots[2] is null && character.EquipWeapon(2, displacedLegacyOffhand))
+            {
+                // A régi, már nem használható mellékkézfegyver veszteség nélkül a tartalékhelyre kerül.
+            }
+            else if (!character.AddToBackpack(displacedLegacyOffhand))
+                throw new InvalidDataException(
+                    $"A régi mentés érvénytelen mellékkézfegyvere ({displacedLegacyOffhand.Name}) nem helyezhető át: nincs szabad tartalék- vagy hátizsákhely.");
+        }
         foreach (var perkId in saved.PerkIds)
         {
             var perk = _gameData.GetPerk(perkId);

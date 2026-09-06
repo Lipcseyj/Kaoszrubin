@@ -353,6 +353,7 @@ W018,harci bot,WT001,3-8,2,igen,igen,igen,igen,Hosszú keményfa bot gyors üté
 W019,óriásdorong,WT001,7-16,10,igen,nem,nem,nem,Hatalmas fatörzsből durván kifaragott kétkezes zúzófegyver.,0,,,,8,zúzás,2,nem,BLUNT
 W020,tüzes ostor,WT001,8-17,8,nem,nem,nem,nem,Pokoli lánggal izzó ostor amely messziről is lecsap az áldozatra.,0,,,,4,tűz,1,igen,WHIP
 W021,varázsbot,WT001,10-22,2,nem,nem,nem,igen,Sötét fából készült bot amelynek vége egy sötét vörösen pulzáló ékkövet fog körbe.,0,,,,2,nekrotikus,1,igen,STAFF
+W022,elf tőr,WT002,3-6,1,nem,igen,nem,igen,Hosszabb hajlított pengéjű elf tőr. Két elf tőrt használva mindkettő +1 sebzést okoz.,90,,,,1,vágás,1,nem,DAGGER
 RW001,Várnok örökpenge,WT001,9-17,9,igen,nem,nem,nem,A Várnok család ezüsttel futtatott pallosa. Roderic esküjéhez kötött +1 ereklye amelyet más nem használhat.,1600,Magic,W009,1,7,vágás,2,nem,SWORD
 LW001,Hajnalpenge,WT001,9-17,6,nem,nem,igen,nem,A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.,6500,Legendás,W004,3,3,vágás,1,nem,SWORD
 LW002,Éjcsók,WT002,7-14,1,nem,igen,nem,igen,Fekete tőr amely hangtalanul találja meg a páncél réseit.,5200,Legendás,W001,4,1,szúrás,1,nem,DAGGER

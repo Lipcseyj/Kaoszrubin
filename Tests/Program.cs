@@ -21,6 +21,7 @@ var tests = new (string Name, Action Run)[]
     ("A taktikai fegyverjártasságok módosítják a söprést, fedezetet és varázslást", TacticalWeaponMasteriesHaveDistinctRoles),
     ("A többcélú fegyverek ívben, vonalban és kis területen hatnak", WeaponFamiliesUseDistinctAttackPatterns),
     ("A kétfegyveres harc csak képzett tőr- és kardpárokkal működik", DualWieldingRequiresDisciplineAndProficiencies),
+    ("Az elf tőr ügyességi vágófegyver és párban sebzésbónuszt ad", ElvenDaggersGainPairedDamage),
     ("A taktikai diszciplínák a 8. és 18. szinten választhatók és menthetők", TacticalDisciplinesProgressAndPersist),
     ("A fogadói átképzés csoportonként őrzi meg a fejlődési lépéseket", ProgressionRetrainingPreservesAdvances),
     ("A tartalékfegyver passzív és veszteség nélkül menthető, cserélhető", ReserveWeaponIsPassiveAndPersistent),
@@ -4073,7 +4074,10 @@ static void EquipmentWeightAffectsMobility()
     var light = CharacterMobilityRules.Evaluate(character);
     var weapon = new WeaponDefinition("W-HEAVY", "Nehéz fegyver", "WT001", new ValueRange(2, 4),
         1, false, allowed, "", 1, Weight: 10);
-    var shield = weapon with { Id = "W-SHIELD", Name = "Nehéz pajzs" };
+    var shield = weapon with
+    {
+        Id = "W-SHIELD", Name = "Nehéz pajzs", WeaponTypeId = "WT003", FamilyId = WeaponFamilies.Shield
+    };
     var reserve = weapon with { Id = "W-RESERVE", Name = "Nehéz tartalékfegyver" };
     var armor = new ArmorDefinition("A-HEAVY", "Nehéz vért", new ValueRange(2, 4), allowed,
         "", 1, Weight: 14);
@@ -4454,22 +4458,22 @@ static void DualWieldingRequiresDisciplineAndProficiencies()
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
     var fighter = CreateCharacter("Kétpengés", characterClassId: CharacterClassIds.Harcos);
     Assert(fighter.EquipWeapon(0, data.GetWeapon("W001")) &&
+           fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Dagger) &&
+           !fighter.EquipWeapon(1, data.GetWeapon("W001")),
+        "A mellékkéz képesség nélkül elfogadta a második tőrt.");
+    Assert(fighter.ChooseTacticalDiscipline(TacticalDisciplines.DualWield) &&
            fighter.EquipWeapon(1, data.GetWeapon("W001")) &&
-           fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Dagger),
-        "A két tőrös tesztfelszerelés nem állítható elő.");
-    Assert(!DualWieldingRules.TryGetWeapons(fighter, out _, out _) &&
-           fighter.ChooseTacticalDiscipline(TacticalDisciplines.DualWield) &&
            DualWieldingRules.TryGetWeapons(fighter, out var main, out var offhand) &&
            main?.Id == "W001" && offhand?.Id == "W001",
-        "A két tőr a diszciplína előtt működött, vagy utána sem aktiválódott.");
+        "A két tőr a diszciplína és a jártasság után sem aktiválódott.");
 
-    Assert(fighter.EquipWeapon(0, data.GetWeapon("W004")) &&
-           fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Sword) &&
+    Assert(fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Sword) &&
+           fighter.EquipWeapon(0, data.GetWeapon("W004")) &&
            DualWieldingRules.TryGetWeapons(fighter, out _, out _),
         "A Jártas kard–tőr páros nem aktiválódott.");
-    Assert(fighter.EquipWeapon(1, data.GetWeapon("W005")) &&
-           !DualWieldingRules.TryGetWeapons(fighter, out _, out _),
-        "A nem támogatott zúzófegyveres páros kétfegyveres harcot kapott.");
+    Assert(!fighter.EquipWeapon(1, data.GetWeapon("W005")) &&
+           fighter.WeaponSlots[1]?.Id == "W001",
+        "A mellékkéz elfogadta a nem támogatott zúzófegyvert.");
 
     Assert(fighter.EquipWeapon(1, data.GetWeapon("W001")), "A mellékkéz tőre nem szerelhető vissza.");
     var system = CreateBattleSystem(1806);
@@ -4487,6 +4491,35 @@ static void DualWieldingRequiresDisciplineAndProficiencies()
     Assert(entry?.Details?.Calculation.Any(line => line.Contains("Fegyver alapsebzése: tőr") ||
                                                    line.Contains("Mellékkéz")) == true,
         "A külön mellékkéz-támadás nem a második fegyvert vagy a 60%-os skálázást használta.");
+}
+
+static void ElvenDaggersGainPairedDamage()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var elvenDagger = data.GetWeapon(DualWieldingRules.ElvenDaggerId);
+    Assert(elvenDagger.WeaponTypeId == "WT002" && elvenDagger.Damage == new ValueRange(3, 6) &&
+           elvenDagger.DamageType == DamageType.Slashing &&
+           WeaponFamilies.ForWeapon(elvenDagger) == WeaponFamilies.Dagger,
+        "Az elf tőr nem a megadott ügyességi, vágó Tőr-profilt kapta.");
+
+    var fighter = CreateCharacter("Elfkések", characterClassId: CharacterClassIds.Harcos);
+    Assert(fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Dagger) &&
+           fighter.ChooseTacticalDiscipline(TacticalDisciplines.DualWield) &&
+           fighter.EquipWeapon(0, elvenDagger) && fighter.EquipWeapon(1, elvenDagger) &&
+           DualWieldingRules.HasPairedElvenDaggers(fighter),
+        "A páros elf tőr nem szerelhető fel aktív kétfegyveres harccal.");
+    var system = CreateBattleSystem(1807);
+    var runtime = system.PrepareTeamCharacter(fighter).Runtime;
+    BattleLogEntry? entry = null;
+    for (var attempt = 0; attempt < 20; attempt++)
+    {
+        entry = system.ResolveTeamCharacterAttack(fighter, runtime, CreateEnemy(100, 0), finishAction: false,
+            attackWeapon: elvenDagger, allowTriggeredExtraAttacks: false, allowAmbush: false);
+        if (entry.Details?.Calculation.Any(line => line.Contains("Páros elf tőr", StringComparison.OrdinalIgnoreCase)) == true)
+            break;
+    }
+    Assert(entry?.Details?.Calculation.Any(line => line.Contains("Páros elf tőr", StringComparison.OrdinalIgnoreCase)) == true,
+        "A két elf tőrrel végrehajtott találat nem kapott +1 sebzést.");
 }
 
 static void TacticalDisciplinesProgressAndPersist()

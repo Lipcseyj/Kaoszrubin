@@ -1,4 +1,5 @@
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Application;
@@ -60,6 +61,11 @@ public static class InventoryTransferService
         if (!CharacterBoundItemRules.CanBeHeldBy(destination, sourceItem) ||
             !CharacterBoundItemRules.CanBeHeldBy(source, displaced))
             return Fail("A családi ereklyét csak a jogos tulajdonosa használhatja.", out plan, out error);
+        if (command.DestinationKind == InventorySlotKind.Weapon && command.DestinationIndex == 1 &&
+            sourceItem is WeaponDefinition offhand &&
+            !DualWieldingRules.CanEquipOffhand(destination, destination.WeaponSlots[0], offhand))
+            return Fail("A mellékkézbe csak használható pajzs, illetve Kétfegyveres harccal és megfelelő jártassággal tőr vagy kard tehető.",
+                out plan, out error);
 
         var compatibleStack = command.DestinationKind == InventorySlotKind.Backpack && displaced is not null &&
             string.Equals(sourceItem.Id, displaced.Id, StringComparison.OrdinalIgnoreCase) &&

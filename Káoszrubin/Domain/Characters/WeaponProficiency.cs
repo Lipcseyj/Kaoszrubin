@@ -72,16 +72,22 @@ public static class WeaponProficiencyProgression
 public static class DualWieldingRules
 {
     public const int OffhandDamagePercent = 60;
+    public const string ElvenDaggerId = "W022";
 
     public static bool TryGetWeapons(LiveCharacter character, out WeaponDefinition? mainHand,
         out WeaponDefinition? offhand)
     {
         mainHand = character.WeaponSlots[0];
         offhand = character.WeaponSlots[1];
-        if (!character.HasTacticalDiscipline(TacticalDisciplines.DualWield) ||
-            mainHand is null || offhand is null || mainHand.IsTwoHanded || offhand.IsTwoHanded ||
-            !IsSupportedPair(mainHand, offhand)) return false;
+        return offhand is not null && CanEquipOffhand(character, mainHand, offhand);
+    }
 
+    public static bool CanEquipOffhand(LiveCharacter character, WeaponDefinition? mainHand,
+        WeaponDefinition offhand)
+    {
+        if (WeaponFamilies.ForWeapon(offhand) == WeaponFamilies.Shield) return true;
+        if (!character.HasTacticalDiscipline(TacticalDisciplines.DualWield) || mainHand is null ||
+            mainHand.IsTwoHanded || offhand.IsTwoHanded || !IsSupportedPair(mainHand, offhand)) return false;
         var families = new[] { WeaponFamilies.ForWeapon(mainHand), WeaponFamilies.ForWeapon(offhand) };
         return families.All(family => character.WeaponProficiencyRankFor(family) is not null);
     }
@@ -93,4 +99,9 @@ public static class DualWieldingRules
         return firstFamily is WeaponFamilies.Dagger or WeaponFamilies.Sword &&
                secondFamily is WeaponFamilies.Dagger or WeaponFamilies.Sword;
     }
+
+    public static bool HasPairedElvenDaggers(LiveCharacter character) =>
+        TryGetWeapons(character, out var mainHand, out var offhand) &&
+        string.Equals(mainHand?.Id, ElvenDaggerId, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(offhand?.Id, ElvenDaggerId, StringComparison.OrdinalIgnoreCase);
 }

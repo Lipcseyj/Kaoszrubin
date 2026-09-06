@@ -825,6 +825,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         { perkBonus += 1; notes.Add("🗡️ Tőrjártasság +1 sebzés"); }
         if (weaponFamily == WeaponFamilies.Axe && weaponRank is not null)
         { perkBonus += 2; notes.Add("🪓 Bárdjártasság +2 sebzés"); }
+        if (string.Equals(weapon?.Id, DualWieldingRules.ElvenDaggerId, StringComparison.OrdinalIgnoreCase) &&
+            DualWieldingRules.HasPairedElvenDaggers(player))
+        {
+            perkBonus++;
+            notes.Add("🧝 Páros elf tőr +1 sebzés");
+            Modifier("💥 Páros elf tőr", 1);
+        }
         if (blessedWeaponBonus > 0) notes.Add("Áldott fegyver +2");
         if (player.HasPerk(PerkIds.BarbarianBloodlust) && player.CurrentVitality * 2 < player.MaximumVitality) { perkBonus += 3; notes.Add("Vérszomj +3"); }
         if (player.HasPerk(PerkIds.BarbarianPrimalStrength)) { perkBonus += 5; notes.Add("Őserő +5"); }

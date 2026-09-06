@@ -486,7 +486,8 @@ public sealed class LiveCharacter
         if (armor is not null && !armor.CanBeEquippedBy(CharacterClass.Id)) return false;
         if (magicItems.Any(item => item is not null && !item.CanBeEquippedBy(CharacterClass.Id))) return false;
         if (weapons[1]?.IsTwoHanded == true) return false;
-        return weapons[0]?.IsTwoHanded != true || weapons[1] is null;
+        if (weapons[0]?.IsTwoHanded == true && weapons[1] is not null) return false;
+        return weapons[1] is not { } offhand || DualWieldingRules.CanEquipOffhand(this, weapons[0], offhand);
     }
 
     private bool IsValidSpellcastingFocusChange(InventorySlotChange change)
