@@ -45,6 +45,36 @@ public static class ItemIdentificationRules
     public static int IdentificationPrice(IItemDefinition item) =>
         Math.Max(1, 20 + (int)Math.Ceiling(item.BasePrice * 0.08) + item.MagicPower * 15);
 
+    /// <summary>
+    /// A frissen talált tárgy felismerésének esélye. A próba egyszer, a zsákmány létrejöttekor történik;
+    /// így a tárgy átadogatásával vagy újrafelvételével nem lehet korlátlanul újradobni.
+    /// </summary>
+    public static int MageIdentificationChance(LiveCharacter mage, IItemDefinition item) =>
+        mage.CharacterClass.Id == CharacterClassIds.Mágus
+            ? Math.Clamp(25 + mage.EffectiveAbilities.Intelligence * 5 - item.MagicPower * 10, 5, 95)
+            : 0;
+
+    public static MageIdentificationResult AttemptByBestMage(IItemDefinition item,
+        InventoryItemInstanceState state, IEnumerable<LiveCharacter> partyMembers, Random random)
+    {
+        ArgumentNullException.ThrowIfNull(random);
+        if (state.IsIdentified || !RequiresIdentification(item))
+            return new MageIdentificationResult(state, null, 0, 0, false, state.IsIdentified);
+
+        var mage = partyMembers
+            .Where(character => character.IsAlive && character.CharacterClass.Id == CharacterClassIds.Mágus)
+            .OrderByDescending(character => character.EffectiveAbilities.Intelligence)
+            .ThenByDescending(character => character.Level)
+            .FirstOrDefault();
+        if (mage is null) return new MageIdentificationResult(state, null, 0, 0, false, false);
+
+        var chance = MageIdentificationChance(mage, item);
+        var roll = random.Next(1, 101);
+        var success = roll <= chance;
+        return new MageIdentificationResult(success ? state with { IsIdentified = true } : state,
+            mage, chance, roll, true, success);
+    }
+
     public static int CurseRemovalPrice(IItemDefinition item, InventoryItemInstanceState state) =>
         Math.Max(1, 50 + (int)Math.Ceiling(item.BasePrice * 0.12) + item.MagicPower * 25 +
                     Math.Max(1, state.CurseStrength) * 100);
@@ -62,3 +92,6 @@ public static class ItemIdentificationRules
             selected.Value, selected.Strength);
     }
 }
+
+public readonly record struct MageIdentificationResult(InventoryItemInstanceState State, LiveCharacter? Mage,
+    int ChancePercent, int Roll, bool Attempted, bool Succeeded);

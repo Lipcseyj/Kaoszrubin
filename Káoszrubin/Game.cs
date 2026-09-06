@@ -1898,14 +1898,14 @@ public sealed class Game : ISessionCommandHandler
         PlaySessionSound(jackpot ? SoundEffect.Chest2 : SoundEffect.Chest, [character.Id]);
 
         if (masterThiefLoot is null) return;
-        var masterLootState = RollLootItemState(masterThiefLoot);
-        var masterLootName = ItemIdentificationRules.DisplayName(masterThiefLoot, masterLootState.IsIdentified);
-        if (TryStoreSearchedLoot(character, masterThiefLoot, shareLootWithParty, out var owner, masterLootState))
-            message = $"🎁 Mestertolvaj: {masterLootName} → {owner} hátizsákja.";
+        var masterIdentification = RollLootItemState(masterThiefLoot);
+        var masterLootName = ItemIdentificationRules.DisplayName(masterThiefLoot, masterIdentification.State.IsIdentified);
+        if (TryStoreSearchedLoot(character, masterThiefLoot, shareLootWithParty, out var owner, masterIdentification.State))
+            message = $"🎁 Mestertolvaj: {masterLootName} → {owner} hátizsákja.{FormatMageIdentification(masterIdentification)}";
         else
         {
-            _maze.DropItem(position, masterThiefLoot, state: masterLootState);
-            message = $"🎁 Mestertolvaj: {masterLootName} a földön maradt, mert a hátizsák tele van.";
+            _maze.DropItem(position, masterThiefLoot, state: masterIdentification.State);
+            message = $"🎁 Mestertolvaj: {masterLootName} a földön maradt, mert a hátizsák tele van.{FormatMageIdentification(masterIdentification)}";
         }
         _renderer.DrawInventoryMessage(message, ConsoleColor.Magenta);
         RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Magenta, [character.Id]);
@@ -3538,15 +3538,17 @@ public sealed class Game : ISessionCommandHandler
 
         foreach (var item in foundItems)
         {
-            var itemState = RollLootItemState(item);
-            if (TryStoreSearchedLoot(character, item, shareLootWithParty, out var owner, itemState))
+            var identification = RollLootItemState(item);
+            if (TryStoreSearchedLoot(character, item, shareLootWithParty, out var owner, identification.State))
             {
-                messages.Add($"{ItemIdentificationRules.DisplayName(item, itemState.IsIdentified)} → {owner} hátizsákja");
+                messages.Add($"{ItemIdentificationRules.DisplayName(item, identification.State.IsIdentified)} → {owner} hátizsákja" +
+                             FormatMageIdentification(identification));
             }
             else
             {
-                _maze.DropItem(position, item, state: itemState);
-                messages.Add($"{ItemIdentificationRules.DisplayName(item, itemState.IsIdentified)} a földön maradt (a hátizsákok tele vannak)");
+                _maze.DropItem(position, item, state: identification.State);
+                messages.Add($"{ItemIdentificationRules.DisplayName(item, identification.State.IsIdentified)} a földön maradt (a hátizsákok tele vannak)" +
+                             FormatMageIdentification(identification));
             }
         }
         if (foundItems.Count == 0 && messages.All(message => !message.StartsWith(ConsoleRenderer.MoneyIcon, StringComparison.Ordinal)))
@@ -3572,9 +3574,20 @@ public sealed class Game : ISessionCommandHandler
         LootAndInventoryService.TryStoreSearchedLoot(character, item, shareLootWithParty,
             CharacterRoster.Party.Members, out ownerName, state);
 
-    private InventoryItemInstanceState RollLootItemState(IItemDefinition item) =>
-        ItemIdentificationRules.CreateLootState(item, _gameData.ItemCurses, _random,
+    private MageIdentificationResult RollLootItemState(IItemDefinition item)
+    {
+        var state = ItemIdentificationRules.CreateLootState(item, _gameData.ItemCurses, _random,
             _mazeLevel == 9 ? 15 : 8);
+        return ItemIdentificationRules.AttemptByBestMage(item, state, CharacterRoster.Party.Members, _random);
+    }
+
+    private static string FormatMageIdentification(MageIdentificationResult result)
+    {
+        if (!result.Attempted || result.Mage is null) return string.Empty;
+        return result.Succeeded
+            ? $" 🔮 {result.Mage.Name} felismerte (dobás: {result.Roll}, esély: {result.ChancePercent}%)."
+            : $" 🔮 {result.Mage.Name} nem tudta azonosítani (dobás: {result.Roll}, esély: {result.ChancePercent}%).";
+    }
 
     private void PickUpGroundItems(LiveCharacter character, Position position, bool shareLootWithParty,
         ICollection<string> messages)

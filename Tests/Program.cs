@@ -172,6 +172,7 @@ var tests = new (string Name, Action Run)[]
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
     ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("Az azonosítatlan varázstárgy példányállapota mentés és mozgatás közben megmarad", MagicItemIdentificationStatePersists),
+    ("A legintelligensebb élő mágus egyszer megpróbálja azonosítani a friss zsákmányt", MageIdentifiesFreshMagicLoot),
     ("Az átkozott tárgy aktiválódik, megköt és alkalmazza az adatvezérelt hátrányokat", CursedItemsActivateBindAndApplyEffects),
     ("Az Átoktörés és a Vándormágus végleg megtisztítja és feloldja a tárgyat", ItemCursePurificationIsPermanent),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
@@ -2474,6 +2475,35 @@ static void MagicItemIdentificationStatePersists()
            revealed.Name.StartsWith(item.Name, StringComparison.Ordinal) &&
            revealed.CurseId == curse.Id && revealed.InstanceId == instanceId,
         "Az azonosítás nem fedte fel a valódi tárgyat vagy lecserélte a példányazonosítót.");
+}
+
+static void MageIdentifiesFreshMagicLoot()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var race = data.Races[0];
+    var mageClass = data.CharacterClasses.First(value => value.Id == CharacterClassIds.Mágus);
+    var weakerMage = new LiveCharacter("Tanonc", race, mageClass, new PrimaryAbilities(5, 5, 5, 7),
+        20, 30, 0, 0);
+    var strongerMage = new LiveCharacter("Tudós", race, mageClass, new PrimaryAbilities(5, 5, 5, 12),
+        20, 30, 0, 0);
+    var fighter = CreateCharacter("Harcos");
+    var item = data.MagicItems.Where(value => value.Rarity == ItemRarity.Magic)
+        .OrderBy(value => value.MagicPower).First();
+    var state = InventoryItemInstanceState.Create(identified: false);
+
+    var result = ItemIdentificationRules.AttemptByBestMage(item, state,
+        [fighter, weakerMage, strongerMage], new Random(1));
+
+    Assert(result.Attempted && result.Mage == strongerMage,
+        "Nem a legmagasabb effektív Intelligenciájú élő Mágus végezte a próbát.");
+    Assert(result.ChancePercent == ItemIdentificationRules.MageIdentificationChance(strongerMage, item) &&
+           result.Succeeded == (result.Roll <= result.ChancePercent) &&
+           result.State.IsIdentified == result.Succeeded && result.State.InstanceId == state.InstanceId,
+        "A mágusi azonosítás nem a dokumentált esély vagy dobás szerint módosította a példányállapotot.");
+
+    var withoutMage = ItemIdentificationRules.AttemptByBestMage(item, state, [fighter], new Random(1));
+    Assert(!withoutMage.Attempted && !withoutMage.State.IsIdentified,
+        "Mágus nélkül is történt automatikus tárgyazonosítás.");
 }
 
 static void CursedItemsActivateBindAndApplyEffects()
