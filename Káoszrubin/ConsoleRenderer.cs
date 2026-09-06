@@ -2134,6 +2134,112 @@ public sealed class ConsoleRenderer
         }
     }
 
+    public (LiveCharacter Character, ProgressionRetrainingKind Kind)? DrawProgressionRetrainingScreen(
+        IReadOnlyList<LiveCharacter> party, int partyGold)
+    {
+        var candidates = party.Where(character => character.ClassFeatureUpgrades.Count > 0 ||
+            character.TacticalDisciplines.Count > 0 || character.WeaponProficiencyAdvances > 0).ToArray();
+        if (candidates.Length == 0)
+        {
+            DrawDeveloperMessage("Még egyik partitag sem rendelkezik átképezhető fejlődési döntéssel.");
+            return null;
+        }
+
+        var characterIndex = 0;
+        var kindIndex = 0;
+        while (true)
+        {
+            var character = candidates[characterIndex];
+            var kinds = AvailableRetrainingKinds(character);
+            kindIndex = Math.Clamp(kindIndex, 0, kinds.Length - 1);
+            var lines = new List<(string Text, ConsoleColor Color)>
+            {
+                ("🏛️⚔️  A VETERÁN KIKÉPZŐ  ⚔️🏛️", ConsoleColor.Yellow),
+                (string.Empty, ConsoleColor.Gray),
+                ($"◀  {character.Name} — {character.CharacterClass.Name}, {character.Level}. szint  ▶", character.Color),
+                ($"{MoneyIcon} Közös arany: {partyGold}", ConsoleColor.Green),
+                ("Az átképzés egy teljes fejlődési csoportot oszt újra; megszerzett lépés nem vész el.", ConsoleColor.Cyan),
+                (string.Empty, ConsoleColor.Gray)
+            };
+            for (var index = 0; index < kinds.Length; index++)
+            {
+                var kind = kinds[index];
+                var selected = index == kindIndex;
+                var cost = ProgressionRetrainingRules.Cost(character, kind);
+                lines.Add(($"{(selected ? "▶" : " ")} {ProgressionRetrainingRules.Name(kind)} — {cost} {MoneyIcon}",
+                    selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
+                lines.Add(($"    {RetrainingSummary(character, kind)}",
+                    selected ? ConsoleColor.White : ConsoleColor.DarkGray));
+            }
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add(("←/→ karakter   ↑/↓ csoport   Enter átképzés   Esc vissza", ConsoleColor.Green));
+            ClearInnMenuScreen();
+            DrawCenteredFrame(InnMenuFrameWidth, lines, FramedWindow.Inn);
+
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Escape) return null;
+            if (key == ConsoleKey.LeftArrow)
+            {
+                characterIndex = (characterIndex - 1 + candidates.Length) % candidates.Length;
+                kindIndex = 0;
+                continue;
+            }
+            if (key == ConsoleKey.RightArrow)
+            {
+                characterIndex = (characterIndex + 1) % candidates.Length;
+                kindIndex = 0;
+                continue;
+            }
+            if (key == ConsoleKey.UpArrow) kindIndex = (kindIndex - 1 + kinds.Length) % kinds.Length;
+            else if (key == ConsoleKey.DownArrow) kindIndex = (kindIndex + 1) % kinds.Length;
+            else if (key == ConsoleKey.Enter)
+            {
+                var kind = kinds[kindIndex];
+                var cost = ProgressionRetrainingRules.Cost(character, kind);
+                if (partyGold < cost)
+                {
+                    DrawDeveloperMessage($"Nincs elég arany az átképzéshez: még {cost - partyGold} hiányzik.");
+                    continue;
+                }
+                var confirmation = new List<(string Text, ConsoleColor Color)>
+                {
+                    ("⚔️  ÁTKÉPZÉS MEGERŐSÍTÉSE", ConsoleColor.Yellow),
+                    (string.Empty, ConsoleColor.Gray),
+                    ($"{character.Name}: {ProgressionRetrainingRules.Name(kind)}", character.Color),
+                    ($"Költség: {cost} {MoneyIcon}. A jelenlegi választásokat azonnal újra kell osztani.", ConsoleColor.DarkYellow),
+                    (string.Empty, ConsoleColor.Gray),
+                    ("Enter: fizetés és átképzés   Esc: mégsem", ConsoleColor.Green)
+                };
+                ClearInnMenuScreen();
+                DrawCenteredFrame(InnConfirmationFrameWidth, confirmation, FramedWindow.Inn);
+                while (true)
+                {
+                    var confirmationKey = Console.ReadKey(intercept: true).Key;
+                    if (confirmationKey == ConsoleKey.Enter) return (character, kind);
+                    if (confirmationKey == ConsoleKey.Escape) break;
+                }
+            }
+        }
+    }
+
+    private static ProgressionRetrainingKind[] AvailableRetrainingKinds(LiveCharacter character) =>
+        Enum.GetValues<ProgressionRetrainingKind>().Where(kind => kind switch
+        {
+            ProgressionRetrainingKind.ClassFeatures => character.ClassFeatureUpgrades.Count > 0,
+            ProgressionRetrainingKind.TacticalDisciplines => character.TacticalDisciplines.Count > 0,
+            ProgressionRetrainingKind.WeaponProficiencies => character.WeaponProficiencyAdvances > 0,
+            _ => false
+        }).ToArray();
+
+    private static string RetrainingSummary(LiveCharacter character, ProgressionRetrainingKind kind) => kind switch
+    {
+        ProgressionRetrainingKind.ClassFeatures => string.Join(", ", character.ClassFeatureUpgrades.Select(value => value.Name)),
+        ProgressionRetrainingKind.TacticalDisciplines => string.Join(", ", character.TacticalDisciplines.Select(value => value.Name)),
+        ProgressionRetrainingKind.WeaponProficiencies => string.Join(", ", character.WeaponProficiencies.Select(value =>
+            $"{WeaponFamilies.Find(value.FamilyId)?.Name ?? value.FamilyId} ({(value.Rank == WeaponProficiencyRank.Master ? "Mester" : "Jártas")})")),
+        _ => string.Empty
+    };
+
     public TacticalDisciplineDefinition DrawTacticalDisciplineChoice(LiveCharacter character,
         IReadOnlyList<TacticalDisciplineDefinition> choices, int milestone)
     {

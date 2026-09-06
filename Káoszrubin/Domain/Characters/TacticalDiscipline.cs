@@ -26,3 +26,19 @@ public static class TacticalDisciplineProgression
 
     public static int EarnedChoices(int level) => Milestones.Count(milestone => level >= milestone);
 }
+
+public enum ProgressionRetrainingKind { ClassFeatures, TacticalDisciplines, WeaponProficiencies }
+
+public static class ProgressionRetrainingRules
+{
+    public static int Cost(LiveCharacter character, ProgressionRetrainingKind kind) =>
+        Math.Max(300, character.Level * (kind == ProgressionRetrainingKind.WeaponProficiencies ? 75 : 100));
+
+    public static string Name(ProgressionRetrainingKind kind) => kind switch
+    {
+        ProgressionRetrainingKind.ClassFeatures => "🌟 Osztályképességek",
+        ProgressionRetrainingKind.TacticalDisciplines => "⚔️ Taktikai diszciplínák",
+        ProgressionRetrainingKind.WeaponProficiencies => "🗡️ Fegyverjártasságok",
+        _ => kind.ToString()
+    };
+}

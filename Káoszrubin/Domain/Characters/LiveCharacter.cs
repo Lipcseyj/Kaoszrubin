@@ -152,6 +152,10 @@ public sealed class LiveCharacter
         return true;
     }
 
+    public void ResetClassFeatureUpgrades() => _classFeatureUpgrades.Clear();
+    public void ResetTacticalDisciplines() => _tacticalDisciplines.Clear();
+    public void ResetWeaponProficiencies() => _weaponProficiencies.Clear();
+
     public WeaponProficiencyRank? WeaponProficiencyRankFor(string? familyId) => familyId is null ? null :
         _weaponProficiencies.FirstOrDefault(proficiency =>
             string.Equals(proficiency.FamilyId, familyId, StringComparison.OrdinalIgnoreCase))?.Rank;

@@ -286,6 +286,9 @@ internal sealed class InnController
         if (armorerPresent) options.Add(new(InnMenuOptionKind.Armorer, "🛡️ Páncélmíves", "Kizárólag páncélokat kínál, csak vásárlásra.", InnVendorKind.Armorer));
         if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka és varázstárgy-azonosítás.", InnVendorKind.WanderingMage));
         options.Add(new(InnMenuOptionKind.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása.", LeaderOnly: true));
+        options.Add(new(InnMenuOptionKind.Retraining, "🏛️ Veterán kiképző",
+            "Osztályképességek, taktikai diszciplínák vagy fegyverjártasságok fizetős újraosztása.",
+            LeaderOnly: true));
         options.Add(new(InnMenuOptionKind.Rumors, "👂 Pletykák", "Helyi szóbeszédek, hírek a következő pályáról és a környékbeli szörnyekről."));
         options.Add(new(InnMenuOptionKind.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.", LeaderOnly: true));
         if (!string.IsNullOrWhiteSpace(expeditionReason))
@@ -349,6 +352,7 @@ internal sealed class InnController
                 case InnMenuOptionKind.WanderingMage: RunWanderingMage(
                     _vendorStocks.GetValueOrDefault(InnVendorKind.WanderingMage) ?? []); break;
                 case InnMenuOptionKind.Recruit: RunInnRecruitment(); break;
+                case InnMenuOptionKind.Retraining: RunInnRetraining(); break;
                 case InnMenuOptionKind.Feast: RunInnFeast(completedLevel); break;
                 case InnMenuOptionKind.Rumors: RunInnRumors(); break;
                 case InnMenuOptionKind.ReturnExpedition:
@@ -405,6 +409,68 @@ internal sealed class InnController
         _reportRest(new PartyRestSnapshot(Guid.NewGuid(), true, summaries, []));
         _playGlobalSound(SoundEffect.Rest);
         _preparePartySpells();
+    }
+
+    private void RunInnRetraining()
+    {
+        var selection = _renderer.DrawProgressionRetrainingScreen(_characterRoster.Party.Members,
+            _partyLeader.Gold);
+        if (selection is not { } chosen) return;
+        var cost = ProgressionRetrainingRules.Cost(chosen.Character, chosen.Kind);
+        if (!_partyLeader.SpendGold(cost)) return;
+
+        switch (chosen.Kind)
+        {
+            case ProgressionRetrainingKind.ClassFeatures:
+            {
+                var count = chosen.Character.ClassFeatureUpgrades.Count;
+                chosen.Character.ResetClassFeatureUpgrades();
+                for (var index = 0; index < count; index++)
+                {
+                    var choices = ClassFeatureUpgrades.ForClass(chosen.Character.CharacterClass.Id)
+                        .Where(choice => !chosen.Character.HasClassFeatureUpgrade(choice.Id)).ToArray();
+                    chosen.Character.ChooseClassFeatureUpgrade(_renderer.DrawClassFeatureUpgradeChoice(
+                        chosen.Character, choices, index == 0 ? 10 : 20).Id);
+                }
+                break;
+            }
+            case ProgressionRetrainingKind.TacticalDisciplines:
+            {
+                var count = chosen.Character.TacticalDisciplines.Count;
+                chosen.Character.ResetTacticalDisciplines();
+                for (var index = 0; index < count; index++)
+                {
+                    var choices = CharacterProgressionService.TacticalDisciplineChoices(chosen.Character);
+                    chosen.Character.ChooseTacticalDiscipline(_renderer.DrawTacticalDisciplineChoice(
+                        chosen.Character, choices,
+                        TacticalDisciplineProgression.Milestones[index]).Id);
+                }
+                break;
+            }
+            case ProgressionRetrainingKind.WeaponProficiencies:
+            {
+                var advances = chosen.Character.WeaponProficiencyAdvances;
+                chosen.Character.ResetWeaponProficiencies();
+                var progression = new CharacterProgressionService(_gameData, _random);
+                for (var index = 0; index < advances; index++)
+                {
+                    var choices = progression.WeaponProficiencyChoices(chosen.Character);
+                    if (choices.Count == 0) break;
+                    var milestone = WeaponProficiencyProgression.MilestonesFor(chosen.Character.CharacterClass.Id)
+                        .ElementAtOrDefault(index);
+                    chosen.Character.TryAdvanceWeaponProficiency(_renderer.DrawWeaponProficiencyChoice(
+                        chosen.Character, choices, milestone));
+                }
+                break;
+            }
+        }
+
+        _revision++;
+        RecordTransaction(InnTransactionKind.Service, chosen.Character.Name,
+            $"Átképzés — {ProgressionRetrainingRules.Name(chosen.Kind)}", cost, chosen.Character.Name,
+            announceOnHost: true);
+        _renderer.DrawDeveloperMessage(
+            $"✅ {chosen.Character.Name} átképzése befejeződött. A megszerzett fejlődési lépések száma változatlan maradt.");
     }
 
     private void RunInnMarket(int completedLevel)

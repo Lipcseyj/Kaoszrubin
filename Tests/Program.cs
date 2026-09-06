@@ -20,6 +20,7 @@ var tests = new (string Name, Action Run)[]
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
     ("A taktikai fegyverjártasságok módosítják a söprést, fedezetet és varázslást", TacticalWeaponMasteriesHaveDistinctRoles),
     ("A taktikai diszciplínák a 12. és 22. szinten választhatók és menthetők", TacticalDisciplinesProgressAndPersist),
+    ("A fogadói átképzés csoportonként őrzi meg a fejlődési lépéseket", ProgressionRetrainingPreservesAdvances),
     ("A tartalékfegyver passzív és veszteség nélkül menthető, cserélhető", ReserveWeaponIsPassiveAndPersistent),
     ("A kétkezes tartalékfegyver atomian elteszi a pajzsot", ReserveTwoHandedSwapStowsShield),
     ("A sebzéstípusok és a szörnyfegyverek módosítják a valódi sebzést", PhysicalDamageUsesTypesAndWeapons),
@@ -4348,6 +4349,42 @@ static void TacticalDisciplinesProgressAndPersist()
            CharacterSheetSnapshotProjector.Create(restored, data.ExperienceByLevel).ClassFeatureUpgradeNames!
                .Any(name => name.Contains("diszciplína", StringComparison.OrdinalIgnoreCase)),
         "A diszciplínák elvesztek a mentésben vagy nem jelennek meg a karakterlapon.");
+}
+
+static void ProgressionRetrainingPreservesAdvances()
+{
+    var character = CreateCharacter("Átképzett", characterClassId: CharacterClassIds.Harcos);
+    Assert(character.ChooseClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) &&
+           character.ChooseClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) &&
+           character.ChooseTacticalDiscipline(TacticalDisciplines.Finisher) &&
+           character.ChooseTacticalDiscipline(TacticalDisciplines.Guardian) &&
+           character.TryAdvanceWeaponProficiency(WeaponFamilies.Sword) &&
+           character.TryAdvanceWeaponProficiency(WeaponFamilies.Sword) &&
+           character.TryAdvanceWeaponProficiency(WeaponFamilies.Shield),
+        "Az átképzési teszt fejlődése nem állítható elő.");
+
+    var classCount = character.ClassFeatureUpgrades.Count;
+    var disciplineCount = character.TacticalDisciplines.Count;
+    var weaponAdvances = character.WeaponProficiencyAdvances;
+    character.ResetClassFeatureUpgrades();
+    Assert(character.ChooseClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) &&
+           character.ChooseClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) &&
+           character.ClassFeatureUpgrades.Count == classCount &&
+           character.TacticalDisciplines.Count == disciplineCount &&
+           character.WeaponProficiencyAdvances == weaponAdvances,
+        "Az osztályképesség-átképzés más csoportot módosított vagy lépést vesztett.");
+
+    character.ResetWeaponProficiencies();
+    Assert(character.TryAdvanceWeaponProficiency(WeaponFamilies.Axe) &&
+           character.TryAdvanceWeaponProficiency(WeaponFamilies.Axe) &&
+           character.TryAdvanceWeaponProficiency(WeaponFamilies.Blunt) &&
+           character.WeaponProficiencyAdvances == weaponAdvances,
+        "A fegyverjártasság-átképzés nem őrizte meg a lépések számát.");
+    Assert(ProgressionRetrainingRules.Cost(character,
+               ProgressionRetrainingKind.WeaponProficiencies) == 300 &&
+           ProgressionRetrainingRules.Cost(character,
+               ProgressionRetrainingKind.ClassFeatures) == 300,
+        "Az átképzés minimumdíja hibás.");
 }
 
 static void ReserveWeaponIsPassiveAndPersistent()
