@@ -101,6 +101,7 @@ public static class SpellcastingRules
 
     public static int CombatFailureChance(LiveCharacter caster, bool engaged)
     {
+        if (!engaged) return 0;
         var baseChance = Math.Clamp(30 - caster.EffectiveAbilities.Intelligence -
             caster.EffectiveAbilities.Dexterity, 0, 100);
         var staffReduction = caster.ActiveWeapons.Any(weapon => WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Staff)
@@ -111,9 +112,7 @@ public static class SpellcastingRules
                 _ => 0
             }
             : 0;
-        var chance = engaged
-            ? Math.Clamp(baseChance + 15, 0, 100)
-            : baseChance / 2;
+        var chance = Math.Clamp(baseChance + 15, 0, 100);
         return Math.Max(0, chance - staffReduction);
     }
 

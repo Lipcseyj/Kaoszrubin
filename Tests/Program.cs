@@ -4188,9 +4188,9 @@ static void EngagementAdjustsSpellFailureChance()
         true, 1.0);
     var mage = new LiveCharacter("Lekötött", race, mageClass, new PrimaryAbilities(5, 5, 5, 5),
         30, 30, 1, 0);
-    Assert(SpellcastingRules.CombatFailureChance(mage, engaged: false) == 10 &&
+    Assert(SpellcastingRules.CombatFailureChance(mage, engaged: false) == 0 &&
            SpellcastingRules.CombatFailureChance(mage, engaged: true) == 35,
-        "A szabad varázslás nem felezi a régi hibakockázatot, vagy a lekötés nem ad hozzá 15 százalékot.");
+        "A szabad varázslásnak hibakockázata van, vagy a lekötött varázslás képlete hibás.");
 }
 
 static void TeamBattleReinforcementJoinsNextCycle()
