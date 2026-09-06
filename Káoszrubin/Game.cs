@@ -122,6 +122,7 @@ public sealed class Game : ISessionCommandHandler
     private PartyFormationSnapshot _formation;
     private readonly Dictionary<CharacterId, NpcSpellcasterTactics> _npcSpellcasterTactics = [];
     private bool _formationObstacleReported;
+    private string? _leaderDecisionMessage;
     private int _mazeLevel = 1;
     private AdventureLocationKind _locationKind = AdventureLocationKind.Campaign;
     private string _locationId = string.Empty;
@@ -198,6 +199,7 @@ public sealed class Game : ISessionCommandHandler
             QuestJournal = OrderedQuestJournal(),
             AdHocConversation = _activeAdHocConversation,
             Formation = _formation,
+            LeaderDecisionMessage = _leaderDecisionMessage,
             Party = snapshot.Party.Select(character => character with
             {
                 Gold = SelectedCharacter.Gold,
@@ -2829,15 +2831,26 @@ public sealed class Game : ISessionCommandHandler
     private void EditFormation()
     {
         NormalizeFormation();
-        var result = FormationEditor.Edit(CharacterRoster.Party.Members.Where(member => member.IsAlive).ToArray(),
-            _formation, _npcSpellcasterTactics);
+        var previousPhase = _session.Phase;
+        _leaderDecisionMessage = "Várunk a vezető döntéseire…";
+        _session.SetPhase(GameSessionPhase.Paused);
+        FormationEditor.Result result;
+        try
+        {
+            result = FormationEditor.Edit(
+                CharacterRoster.Party.Members.Where(member => member.IsAlive).ToArray(),
+                _formation, _npcSpellcasterTactics);
+        }
+        finally
+        {
+            _leaderDecisionMessage = null;
+            _session.SetPhase(previousPhase);
+        }
         _formation = PartyFormationRules.WithSlots(_formation, result.Slots);
         _npcSpellcasterTactics.Clear();
         foreach (var pair in result.SpellcasterTactics) _npcSpellcasterTactics[pair.Key] = pair.Value.Normalize();
         _renderer.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
-        _renderer.SetCharacterSheetFocused(true);
         AnnouncePartyCommand("Az alakzat sorrendje elmentve. A terkepen A-val rendelheted el az osszeallast.",
             ConsoleColor.Cyan);
     }

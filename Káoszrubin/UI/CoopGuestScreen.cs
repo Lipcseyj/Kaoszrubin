@@ -1393,6 +1393,7 @@ public sealed class CoopGuestScreen
         ApplyAdHocConversationUi(grid, snapshot.AdHocConversation);
         ApplyQuestOfferUi(grid, snapshot);
         ApplyQuestCompletionUi(grid, snapshot);
+        ApplyLeaderDecisionUi(grid, snapshot);
         var panelLines = _spellInfoOpen && own?.SpellInfo is not null
             ? SpellInfoPanel.Build(own.Name, own.CharacterClassId, own.Level, own.SpellInfo,
                 _spellInfoSelection, focused: _inventoryOpen).ToDictionary(line => line.Row)
@@ -1552,6 +1553,20 @@ public sealed class CoopGuestScreen
                 _ => default
             };
         return option > 0 && battle.AllowedActions.Contains(action);
+    }
+
+    private static void ApplyLeaderDecisionUi(GuestMapCell[,] grid, SessionSnapshot snapshot)
+    {
+        if (string.IsNullOrWhiteSpace(snapshot.LeaderDecisionMessage)) return;
+        IReadOnlyList<(string Text, ConsoleColor Color)> lines =
+        [
+            ("", ConsoleColor.Gray),
+            ("♛  A vezető az alakzatot szerkeszti  ♛", ConsoleColor.Yellow),
+            ("", ConsoleColor.Gray),
+            (snapshot.LeaderDecisionMessage, ConsoleColor.Cyan),
+            ("", ConsoleColor.Gray)
+        ];
+        DrawGuestOverlay(grid, lines, ConsoleColor.DarkYellow, 62, FramedWindow.FormationEditor);
     }
 
     private void ApplyInnUi(GuestMapCell[,] grid, SessionSnapshot snapshot, CharacterId characterId)

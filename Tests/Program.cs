@@ -964,7 +964,8 @@ static void SessionSnapshotRoundTripsThroughJson()
         AdHocConversation = new AdHocConversationSnapshot(Guid.NewGuid(), "Elira", "Elf", "Tolvaj",
             ["Elira: Emlékszem az erdőre."], "Hiányzik az otthonod?", ["Igen.", "Beszélj másról."]),
         Formation = PartyFormationRules.CreateDefault([leader.Id, companion.Id], leader.Id,
-            Direction.Down, PartyFormationState.Locked)
+            Direction.Down, PartyFormationState.Locked),
+        LeaderDecisionMessage = "Várunk a vezető döntéseire…"
     };
     var json = JsonSerializer.Serialize(snapshot);
     var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
@@ -975,6 +976,7 @@ static void SessionSnapshotRoundTripsThroughJson()
            restored.InnDeparture is { Message: "A csapat elhagyja a fogadót." } &&
            restored.AdHocConversation is { CharacterName: "Elira", Choices.Count: 2 } &&
            restored.Formation is { Facing: Direction.Down, State: PartyFormationState.Locked } &&
+           restored.LeaderDecisionMessage == "Várunk a vezető döntéseire…" &&
            restored.Sounds is [{ Sequence: 1, Effect: SoundEffect.OffensiveSpell,
                ListenerCharacterIds: [{ } listener] }] && listener == companion.Id &&
            restored.PartyGold == 777 && restored.Party.All(character => character.Gold == 777) &&
