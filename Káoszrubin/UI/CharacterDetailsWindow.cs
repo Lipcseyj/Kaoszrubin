@@ -168,9 +168,10 @@ public static class CharacterDetailsWindow
         for (var index = 0; index < lines.Count; index++)
         {
             var sides = WindowFrameCatalog.Sides(style, index, lines.Count); var contentWidth = Math.Max(0, width - sides.Left.Length - sides.Right.Length - 2);
-            var text = lines[index].Text.Length <= contentWidth ? lines[index].Text : lines[index].Text[..contentWidth];
+            var text = BattleCommandPanel.TruncateToDisplayWidth(lines[index].Text, contentWidth);
             Write(left, top + index + 1, sides.Left, ConsoleColor.Magenta);
-            Write(left + sides.Left.Length, top + index + 1, " " + text.PadRight(contentWidth) + " ", lines[index].Color);
+            Write(left + sides.Left.Length, top + index + 1,
+                " " + PadRightDisplay(text, contentWidth) + " ", lines[index].Color);
             Write(left + width - sides.Right.Length, top + index + 1, sides.Right, ConsoleColor.Magenta);
         }
         Write(left, top + lines.Count + 1, WindowFrameCatalog.Horizontal(style, width, true), ConsoleColor.Magenta); Console.ResetColor();
@@ -180,6 +181,10 @@ public static class CharacterDetailsWindow
     {
         if (top < 0 || top >= Console.WindowHeight || left >= Console.WindowWidth) return;
         Console.SetCursorPosition(Math.Max(0, left), top); Console.ForegroundColor = color;
-        Console.Write(text.Length <= Console.WindowWidth - Math.Max(0, left) ? text : text[..Math.Max(0, Console.WindowWidth - Math.Max(0, left))]);
+        Console.Write(BattleCommandPanel.TruncateToDisplayWidth(text,
+            Math.Max(0, Console.WindowWidth - Math.Max(0, left))));
     }
+
+    private static string PadRightDisplay(string text, int width) => text +
+        new string(' ', Math.Max(0, width - BattleCommandPanel.DisplayWidth(text)));
 }
