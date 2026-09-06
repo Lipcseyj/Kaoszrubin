@@ -9,17 +9,18 @@ public sealed class GroundItemPile : WorldObject
 {
     private readonly List<GroundItemEntry> _entries = [];
 
-    public GroundItemPile(Position position, IItemDefinition firstItem, int? charges = null) : base(position) =>
-        Add(firstItem, charges);
+    public GroundItemPile(Position position, IItemDefinition firstItem, int? charges = null,
+        InventoryItemInstanceState? state = null) : base(position) => Add(firstItem, charges, state);
 
     public IReadOnlyList<GroundItemEntry> Entries => _entries;
     public IReadOnlyList<IItemDefinition> Items => _entries.Select(entry => entry.Item).ToArray();
     public long Revision { get; private set; }
     public override Rune Symbol => new('◆');
 
-    public void Add(IItemDefinition item, int? charges = null)
+    public void Add(IItemDefinition item, int? charges = null, InventoryItemInstanceState? state = null)
     {
-        _entries.Add(new GroundItemEntry(item, NormalizeCharges(item, charges)));
+        _entries.Add(new GroundItemEntry(item, NormalizeCharges(item, charges),
+            state ?? InventoryItemInstanceState.Create()));
         Revision++;
     }
 
@@ -52,4 +53,4 @@ public sealed class GroundItemPile : WorldObject
             : 0;
 }
 
-public sealed record GroundItemEntry(IItemDefinition Item, int Charges);
+public sealed record GroundItemEntry(IItemDefinition Item, int Charges, InventoryItemInstanceState State);

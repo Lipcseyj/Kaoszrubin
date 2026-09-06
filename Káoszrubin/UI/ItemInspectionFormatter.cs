@@ -14,6 +14,11 @@ public readonly record struct ItemInspectionMobilityContext(SessionCharacterSnap
 /// <summary>A host és a vendég közös, katalógusalapú tárgyrészletezője.</summary>
 public static class ItemInspectionFormatter
 {
+    public static ItemInspection FormatUnidentified(InventoryItemSnapshot item) => new(
+        $"{item.Name} — A tárgy pontos hatása, értéke és töltete azonosításig ismeretlen. " +
+        $"Érzékelhető aura: {item.Description}. A Vándormágus a fogadóban teljesen azonosíthatja.",
+        ConsoleColor.DarkCyan);
+
     public static ItemInspection Format(IItemDefinition item, GameDataCatalog gameData, int charges = 0,
         IReadOnlyDictionary<string, int>? weaponProficiencies = null,
         ItemInspectionMobilityContext? mobilityContext = null)

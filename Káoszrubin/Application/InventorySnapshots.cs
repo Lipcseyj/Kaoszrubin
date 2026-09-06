@@ -13,7 +13,8 @@ public sealed record InventorySlotSnapshot(InventorySlotKind Kind, int Index, In
 /// <summary>A slot hiteles tartalma; a részletes statisztikát a verzióazonos katalógusból kell feloldani.</summary>
 public sealed record InventoryItemSnapshot(string DefinitionId, string Name, ItemCategory Category,
     ItemRarity Rarity, int Charges, int MaximumCharges, bool IsTwoHanded = false,
-    string Description = "", int BasePrice = 0, int MagicPower = 0, int Quantity = 1);
+    string Description = "", int BasePrice = 0, int MagicPower = 0, int Quantity = 1,
+    Guid InstanceId = default, bool IsIdentified = true, int UnidentifiedSellPrice = 0);
 
 public static class InventorySnapshotProjector
 {
@@ -34,12 +35,22 @@ public static class InventorySnapshotProjector
         for (var index = 0; index < count; index++)
         {
             var item = character.GetInventoryItem(kind, index);
-            slots.Add(new InventorySlotSnapshot(kind, index, item is null ? null : new InventoryItemSnapshot(
-                item.Id, item.Name, item.Category, item.Rarity,
-                character.GetInventoryItemCharges(kind, index),
-                item is MagicItemDefinition magic ? magic.MaximumCharges : 0,
-                item is WeaponDefinition { IsTwoHanded: true }, item.Description, item.BasePrice, item.MagicPower,
-                character.GetInventoryItemQuantity(kind, index))));
+            var state = character.GetInventoryItemState(kind, index);
+            if (item is null) slots.Add(new InventorySlotSnapshot(kind, index, null));
+            else
+            {
+                var identified = state?.IsIdentified != false;
+                slots.Add(new InventorySlotSnapshot(kind, index, new InventoryItemSnapshot(
+                    identified ? item.Id : string.Empty,
+                    ItemIdentificationRules.DisplayName(item, identified), item.Category, item.Rarity,
+                    identified ? character.GetInventoryItemCharges(kind, index) : 0,
+                    identified && item is MagicItemDefinition magic ? magic.MaximumCharges : 0,
+                    item is WeaponDefinition { IsTwoHanded: true },
+                    identified ? item.Description : $"{ItemIdentificationRules.AuraStrength(item)} mágikus aura",
+                    identified ? item.BasePrice : 0, identified ? item.MagicPower : 0,
+                    character.GetInventoryItemQuantity(kind, index), state?.InstanceId ?? Guid.Empty, identified,
+                    identified ? 0 : Math.Max(1, item.BasePrice / 4))));
+            }
         }
     }
 }

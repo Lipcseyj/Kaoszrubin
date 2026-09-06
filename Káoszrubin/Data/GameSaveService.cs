@@ -377,4 +377,5 @@ public sealed record WorldNpcSaveData(Position Position, string DefinitionId, in
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);
 public sealed record TrapSaveData(Position Position, string DefinitionId, TrapState State,
     bool DetectionAttempted, int FailedDisarmAttempts);
-public sealed record SavedItemReference(string Category, string Id, int Charges = 0);
+public sealed record SavedItemReference(string Category, string Id, int Charges = 0,
+    Guid? InstanceId = null, bool? IsIdentified = null);

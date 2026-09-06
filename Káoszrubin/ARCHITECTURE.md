@@ -400,6 +400,10 @@ A CSV ezen felül húsz egyedi nevű Legendás fegyvert és húsz Legendás pán
 
 ### Varázstárgyak
 
+A véletlen világzsákmányként megszerzett `Magic` ritkaságú fegyver, páncél és varázstárgy konkrét példányazonosítót és `IsIdentified = false` állapotot kap. A fogadóban vásárolt, kezdő-, küldetés- és karakterhez kötött Legendás felszerelés azonosított. Az állapot a tárggyal együtt mozog az inventoryslotok, karakterek és földi tárgyhalmok között, bekerül a karakter- és játékmentésbe, a régi mentésekből hiányzó állapot pedig kompatibilitásból azonosított példányt jelent.
+
+Az azonosítatlan snapshot nem továbbítja a katalógusazonosítót, valódi nevet, leírást, árat, mágikus erőt vagy töltetet. Helyettük kategóriaalapú ismeretlen név és a mágikus erőből képzett gyenge/közepes/erős/rendkívüli aura látható. Ismeretlen pálca és tekercs nem kerül a varázsválasztóba; a passzív vagy felszerelési tárgy hatása azonosítás nélkül is működik. A Vándormágus garantált azonosításának ára `20 + ceil(alapár × 0,08) + mágikus erő × 15`. Azonosítatlan tárgy kereskedői ajánlata az alapár 25%-a, a coop kliens pedig csak ezt az ajánlatot és az álcázott példányt kapja meg.
+
 A `#Varázstárgyak` szekcióban nincs Sima ritkaság: minden definíció legalább Varázs, az egyedi ereklyék Legendás kategóriájúak. A `MagicItemDefinition` mezői: altípus, ritkaság, alapár, maximális töltet, opcionális varázslat-ID, passzív hatás és érték, kasztengedély, jellemzés és mágikus erő. Négy altípus létezik: `Ring`, `Amulet`, `Wand`, `Scroll`.
 
 A katalógus 57 varázstárgyat tartalmaz: 12 gyűrűt, 12 amulettet, 9 pálcát és 24 tekercset. A gyűrűk között pontosan öt, az amulettek között szintén öt egyedi Legendás darab van. A gyűrűk és amulettek felszerelve összeadódó passzív csatabónuszt adhatnak:

@@ -70,7 +70,7 @@ public sealed class LootAndInventoryService
         foreach (var character in new[] { selectedCharacter }.Concat(partyMembers
                      .Where(character => character != selectedCharacter && character.IsAlive)))
         {
-            if (!character.AddToBackpack(item)) continue;
+            if (!character.AddToBackpack(item, identified: true)) continue;
             ownerName = character.Name;
             return true;
         }
@@ -83,7 +83,9 @@ public sealed class LootAndInventoryService
         IItemDefinition item,
         bool shareLootWithParty,
         IEnumerable<LiveCharacter> partyMembers,
-        out string ownerName)
+        out string ownerName,
+        bool? identified = null,
+        Guid? instanceId = null)
     {
         var candidates = shareLootWithParty
             ? new[] { character }.Concat(partyMembers.Where(candidate =>
@@ -91,7 +93,8 @@ public sealed class LootAndInventoryService
             : [character];
         foreach (var candidate in candidates)
         {
-            if (!candidate.AddToBackpack(item)) continue;
+            var isIdentified = identified ?? !ItemIdentificationRules.RequiresIdentification(item);
+            if (!candidate.AddToBackpack(item, isIdentified, instanceId)) continue;
             ownerName = candidate.Name;
             return true;
         }

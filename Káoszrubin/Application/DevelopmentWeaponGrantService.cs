@@ -25,7 +25,7 @@ public static class DevelopmentWeaponGrantService
                 (twoHanded is null || weapon.IsTwoHanded == twoHanded.Value)).ToList();
             for (var index = 0; index < count; index++)
             {
-                var fitting = pool.Where(character.CanAddToBackpack).ToArray();
+                var fitting = pool.Where(weapon => character.CanAddToBackpack(weapon)).ToArray();
                 if (fitting.Length == 0) break;
                 var weapon = fitting[random.Next(fitting.Length)];
                 if (character.AddToBackpack(weapon)) granted.Add(weapon);

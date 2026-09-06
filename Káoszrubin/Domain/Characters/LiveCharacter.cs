@@ -9,11 +9,15 @@ public sealed class LiveCharacter
 {
     public const int MaximumNameLength = 13;
     private readonly WeaponDefinition?[] _weaponSlots = new WeaponDefinition?[3];
+    private readonly InventoryItemInstanceState?[] _weaponItemStates = new InventoryItemInstanceState?[3];
     private readonly MagicItemDefinition?[] _magicItems = new MagicItemDefinition?[MaximumMagicItemCount];
     private readonly int[] _magicItemCharges = new int[MaximumMagicItemCount];
+    private readonly InventoryItemInstanceState?[] _magicItemStates = new InventoryItemInstanceState?[MaximumMagicItemCount];
     private readonly IItemDefinition?[] _backpack = new IItemDefinition?[MaximumBackpackItemCount];
     private readonly int[] _backpackItemCharges = new int[MaximumBackpackItemCount];
     private readonly int[] _backpackItemQuantities = new int[MaximumBackpackItemCount];
+    private readonly InventoryItemInstanceState?[] _backpackItemStates = new InventoryItemInstanceState?[MaximumBackpackItemCount];
+    private InventoryItemInstanceState? _armorItemState;
     private readonly List<PerkDefinition> _perks = [];
     private readonly List<ClassFeatureUpgradeDefinition> _classFeatureUpgrades = [];
     private readonly List<TacticalDisciplineDefinition> _tacticalDisciplines = [];
@@ -89,14 +93,14 @@ public sealed class LiveCharacter
         if (_weaponSlots[2] is null) return null;
         var changes = new List<InventorySlotChange>
         {
-            new(InventorySlotKind.Weapon, 0, _weaponSlots[2]),
-            new(InventorySlotKind.Weapon, 2, _weaponSlots[0])
+            new(InventorySlotKind.Weapon, 0, _weaponSlots[2], State: _weaponItemStates[2]),
+            new(InventorySlotKind.Weapon, 2, _weaponSlots[0], State: _weaponItemStates[0])
         };
         if (_weaponSlots[2]!.IsTwoHanded && _weaponSlots[1] is { } offhand)
         {
             var empty = Array.FindIndex(_backpack, item => item is null);
             if (empty < 0) return null;
-            changes.Add(new(InventorySlotKind.Backpack, empty, offhand));
+            changes.Add(new(InventorySlotKind.Backpack, empty, offhand, State: _weaponItemStates[1]));
             changes.Add(new(InventorySlotKind.Weapon, 1, null));
         }
         return CanApplyInventoryChanges(changes.ToArray()) ? changes.ToArray() : null;
@@ -373,31 +377,34 @@ public sealed class LiveCharacter
         return SetInventoryItem(InventorySlotKind.MagicItem, index, item);
     }
 
-    public bool AddToBackpack(IItemDefinition item)
+    public bool AddToBackpack(IItemDefinition item, bool identified = true, Guid? instanceId = null)
     {
         var charges = InitialCharges(item, null);
         var stackIndex = Enumerable.Range(0, _backpack.Length).FirstOrDefault(index =>
             _backpack[index] is { } existing &&
             string.Equals(existing.Id, item.Id, StringComparison.OrdinalIgnoreCase) &&
+            identified && _backpackItemStates[index]?.IsIdentified == true &&
             _backpackItemCharges[index] == charges && _backpackItemQuantities[index] < MaximumBackpackStackSize,
             -1);
         if (stackIndex >= 0)
         {
             ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.Backpack, stackIndex, item, charges,
-                _backpackItemQuantities[stackIndex] + 1));
+                _backpackItemQuantities[stackIndex] + 1, _backpackItemStates[stackIndex]));
             return true;
         }
         var index = Array.FindIndex(_backpack, existing => existing is null);
         if (index < 0) return false;
-        return SetInventoryItem(InventorySlotKind.Backpack, index, item);
+        return SetInventoryItem(InventorySlotKind.Backpack, index, item, charges, 1,
+            new InventoryItemInstanceState(instanceId ?? Guid.NewGuid(), identified));
     }
 
-    public bool CanAddToBackpack(IItemDefinition item)
+    public bool CanAddToBackpack(IItemDefinition item, bool identified = true)
     {
         var charges = InitialCharges(item, null);
         return _backpack.Any(existing => existing is null) || _backpack.Select((existing, index) => (existing, index))
             .Any(entry => entry.existing is not null &&
                 string.Equals(entry.existing.Id, item.Id, StringComparison.OrdinalIgnoreCase) &&
+                identified && _backpackItemStates[entry.index]?.IsIdentified == true &&
                 _backpackItemCharges[entry.index] == charges &&
                 _backpackItemQuantities[entry.index] < MaximumBackpackStackSize);
     }
@@ -432,13 +439,37 @@ public sealed class LiveCharacter
         _ => GetInventoryItem(kind, index) is null ? 0 : 1
     };
 
+    public InventoryItemInstanceState? GetInventoryItemState(InventorySlotKind kind, int index) => kind switch
+    {
+        InventorySlotKind.Weapon when index is >= 0 and < 3 => _weaponItemStates[index],
+        InventorySlotKind.Armor when index == 0 => _armorItemState,
+        InventorySlotKind.MagicItem when index is >= 0 and < MaximumMagicItemCount => _magicItemStates[index],
+        InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount => _backpackItemStates[index],
+        _ => null
+    };
+
+    public bool IsInventoryItemIdentified(InventorySlotKind kind, int index) =>
+        GetInventoryItem(kind, index) is not null && GetInventoryItemState(kind, index)?.IsIdentified != false;
+
+    public bool IdentifyInventoryItem(InventorySlotKind kind, int index)
+    {
+        var item = GetInventoryItem(kind, index);
+        var state = GetInventoryItemState(kind, index);
+        if (item is null || state is null || state.Value.IsIdentified) return false;
+        ApplyInventoryChanges(new InventorySlotChange(kind, index, item,
+            GetInventoryItemCharges(kind, index), GetInventoryItemQuantity(kind, index),
+            state.Value with { IsIdentified = true }));
+        return true;
+    }
+
     public bool RemoveOneInventoryItem(InventorySlotKind kind, int index)
     {
         var item = GetInventoryItem(kind, index);
         if (item is null) return false;
         var quantity = GetInventoryItemQuantity(kind, index);
         return SetInventoryItem(kind, index, quantity > 1 ? item : null,
-            GetInventoryItemCharges(kind, index), quantity > 1 ? quantity - 1 : 0);
+            GetInventoryItemCharges(kind, index), quantity > 1 ? quantity - 1 : 0,
+            quantity > 1 ? GetInventoryItemState(kind, index) : null);
     }
 
     public static bool CanPlaceInventoryItem(InventorySlotKind kind, IItemDefinition item) => kind switch
@@ -504,9 +535,10 @@ public sealed class LiveCharacter
     public bool SetInventoryItem(InventorySlotKind kind, int index, IItemDefinition? item)
         => SetInventoryItem(kind, index, item, null, item is null ? 0 : 1);
 
-    public bool SetInventoryItem(InventorySlotKind kind, int index, IItemDefinition? item, int? charges, int quantity)
+    public bool SetInventoryItem(InventorySlotKind kind, int index, IItemDefinition? item, int? charges, int quantity,
+        InventoryItemInstanceState? state = null)
     {
-        var change = new InventorySlotChange(kind, index, item, charges, quantity);
+        var change = new InventorySlotChange(kind, index, item, charges, quantity, state);
         if (!CanApplyInventoryChanges(change)) return false;
         ApplyInventoryChangesUnchecked(change);
         InventoryRevision++;
@@ -522,24 +554,31 @@ public sealed class LiveCharacter
 
     private void ApplyInventoryChangesUnchecked(InventorySlotChange change)
     {
-        var (kind, index, item, _, _) = change;
+        var (kind, index, item, _, _, _) = change;
+        InventoryItemInstanceState? state = item is null
+            ? null
+            : change.State ?? InventoryItemInstanceState.Create();
         switch (kind)
         {
             case InventorySlotKind.Weapon when index is >= 0 and < 3:
                 _weaponSlots[index] = (WeaponDefinition?)item;
+                _weaponItemStates[index] = state;
                 break;
             case InventorySlotKind.Armor when index == 0:
                 Armor = (ArmorDefinition?)item;
+                _armorItemState = state;
                 break;
             case InventorySlotKind.MagicItem when index is >= 0 and < MaximumMagicItemCount:
                 _magicItems[index] = (MagicItemDefinition?)item;
                 _magicItemCharges[index] = InitialCharges(item, change.Charges);
+                _magicItemStates[index] = state;
                 break;
             case InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount:
                 _backpack[index] = item;
                 _backpackItemCharges[index] = InitialCharges(item, change.Charges);
                 _backpackItemQuantities[index] = item is null ? 0 : Math.Clamp(change.Quantity ?? 1, 1,
                     MaximumBackpackStackSize);
+                _backpackItemStates[index] = state;
                 break;
         }
     }
@@ -818,7 +857,7 @@ public sealed class LiveCharacter
 }
 
 public readonly record struct InventorySlotChange(InventorySlotKind Kind, int Index, IItemDefinition? Item,
-    int? Charges = null, int? Quantity = null);
+    int? Charges = null, int? Quantity = null, InventoryItemInstanceState? State = null);
 
 public sealed record LevelUpBonus(int Level, int Vitality, int Mana);
 

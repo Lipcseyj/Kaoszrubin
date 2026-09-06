@@ -37,7 +37,7 @@ public sealed record WorldGroundPileSnapshot(WorldEntityId EntityId, Position Po
     ConsoleColor ForegroundColor = ConsoleColor.Cyan, ConsoleColor BackgroundColor = ConsoleColor.Black);
 
 public sealed record WorldItemSnapshot(string Category, string DefinitionId, string Name, int Charges,
-    int MaximumCharges);
+    int MaximumCharges, Guid InstanceId = default, bool IsIdentified = true);
 
 public sealed record WorldNpcSnapshot(WorldEntityId EntityId, string DefinitionId, string Name,
     Position Position, string Disposition, bool Recruitable, bool IsQuestNpc, int SymbolCodePoint,
@@ -109,8 +109,13 @@ public static class WorldSnapshotProjector
                 (corpse as MonsterCorpse)?.IsSearched ?? false, corpse.Symbol.Value)).ToArray();
         var groundPiles = maze.GroundItemPiles.Where(pile => IsVisible(pile.Position)).Select(pile =>
             new WorldGroundPileSnapshot(pile.Id, pile.Position, pile.Revision, pile.Entries.Select(entry =>
-                new WorldItemSnapshot(entry.Item.Category.ToString(), entry.Item.Id, entry.Item.Name, entry.Charges,
-                    entry.Item is Domain.Magic.MagicItemDefinition magic ? magic.MaximumCharges : 0)).ToArray(),
+                new WorldItemSnapshot(entry.Item.Category.ToString(),
+                    entry.State.IsIdentified ? entry.Item.Id : string.Empty,
+                    Domain.Inventory.ItemIdentificationRules.DisplayName(entry.Item, entry.State.IsIdentified),
+                    entry.State.IsIdentified ? entry.Charges : 0,
+                    entry.State.IsIdentified && entry.Item is Domain.Magic.MagicItemDefinition magic
+                        ? magic.MaximumCharges : 0,
+                    entry.State.InstanceId, entry.State.IsIdentified)).ToArray(),
                 pile.Symbol.Value)).ToArray();
         var worldNpcs = maze.WorldNpcs.Concat(maze.PartyMembers
             .Where(member => member.TemporaryFollower is not null)

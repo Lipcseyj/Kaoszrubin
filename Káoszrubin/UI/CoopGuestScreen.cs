@@ -786,7 +786,7 @@ public sealed class CoopGuestScreen
             else if (key == ConsoleKey.Enter && _innSelection == 3) { _innVendor = null; _innMageMenuOpen = false; _innSelection = 0; }
             else if (key == ConsoleKey.Enter) SetMessage(_innSelection == 0
                 ? "A pálcatöltést csak a party leader intézheti."
-                : "A varázstárgy-azonosítás még nem használható.");
+                : "A varázstárgy-azonosítást csak a party leader intézheti.");
             Interlocked.Exchange(ref _redrawRequested, 1);
             return null;
         }
@@ -833,11 +833,16 @@ public sealed class CoopGuestScreen
         SessionCharacterSnapshot? character)
     {
         if (character?.Inventory is not { } inventory) return [];
-        var prices = inn.SellPrices.ToDictionary(price => price.ItemDefinitionId, price => price.Price,
+        var prices = inn.SellPrices.Where(price => price.InstanceId == Guid.Empty)
+            .ToDictionary(price => price.ItemDefinitionId, price => price.Price,
             StringComparer.OrdinalIgnoreCase);
+        var instancePrices = inn.SellPrices.Where(price => price.InstanceId != Guid.Empty)
+            .ToDictionary(price => price.InstanceId, price => price.Price);
         return inventory.Slots
             .Where(slot => slot.Kind == InventorySlotKind.Backpack && slot.Item is not null)
-            .Select(slot => prices.TryGetValue(slot.Item!.DefinitionId, out var price)
+            .Select(slot => (slot.Item!.IsIdentified
+                    ? prices.TryGetValue(slot.Item.DefinitionId, out var price)
+                    : instancePrices.TryGetValue(slot.Item.InstanceId, out price))
                 ? (Slot: slot, Price: price)
                 : ((InventorySlotSnapshot Slot, int Price)?)null)
             .Where(entry => entry is not null)
@@ -1160,6 +1165,12 @@ public sealed class CoopGuestScreen
                     SetMessage("A kijelölt helyen nincs megvizsgálható tárgy.");
                 else
                 {
+                    if (!inspectSlot.Item.IsIdentified)
+                    {
+                        var unknown = ItemInspectionFormatter.FormatUnidentified(inspectSlot.Item);
+                        SetMessage(unknown.Text, unknown.Color);
+                        break;
+                    }
                     IItemDefinition definition = inspectSlot.Item.Category switch
                     {
                         ItemCategory.Weapon => _gameData.GetWeapon(inspectSlot.Item.DefinitionId),
@@ -1602,7 +1613,7 @@ public sealed class CoopGuestScreen
                 {
                     ($"{ConsoleRenderer.WandIcon} Kiürült varázspálcák feltöltése", "Teljes feltöltés a pálca eredeti árának kétharmadáért.", true),
                     ("📜 Varázsportékák", "Egy véletlen varázspálca és egy véletlen tekercs, egyszeri készletről.", false),
-                    ("🔮 Varázstárgy azonosítása", "Az azonosítás szolgáltatása hamarosan elérhető lesz.", true),
+                    ("🔮 Varázstárgy azonosítása", "A leader a Vándormágusnál az egész parti ismeretlen tárgyait azonosíthatja.", true),
                     ("🚪 Vissza", "Visszatérés a fogadó főtermébe.", false)
                 };
                 lines = ConsoleRenderer.BuildWanderingMageMenuLines(inn.PartyGold, mageOptions,

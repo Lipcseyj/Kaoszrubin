@@ -166,6 +166,7 @@ var tests = new (string Name, Action Run)[]
     ("Hiányzó delta-baseline esetén a kliens resyncet kér", ClientStoreRequestsResyncForMissingBaseline),
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
     ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
+    ("Az azonosítatlan varázstárgy példányállapota mentés és mozgatás közben megmarad", MagicItemIdentificationStatePersists),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
     ("A részletes karakterlap közösen mutatja a látásmódosítókat és ölési statisztikát", CharacterDetailsAreShared),
     ("A karakterlap külön színezi az alacsony HP-t és a mannát", CharacterSheetColorsHealthAndManaSeparately),
@@ -2376,6 +2377,48 @@ static LiveCharacter CreateCharacter(string name, int vitality = 20,
     var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
     var characterClass = new CharacterClassDefinition(characterClassId, characterClassId, PrimaryAbilities.Zero, false, 1.0);
     return new LiveCharacter(name, race, characterClass, abilities, vitality, 0, 1, 0);
+}
+
+static void MagicItemIdentificationStatePersists()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var race = data.Races[0];
+    var characterClass = data.CharacterClasses.First(value => value.Id == CharacterClassIds.Harcos);
+    var character = new LiveCharacter("Azonosító", race, characterClass,
+        new PrimaryAbilities(8, 8, 8, 8), 30, 0, 0, 0);
+    var item = data.MagicItems.First(value => value.Rarity == ItemRarity.Magic);
+    var instanceId = Guid.NewGuid();
+    Assert(character.AddToBackpack(item, identified: false, instanceId),
+        "Az azonosítatlan tárgy nem került a hátizsákba.");
+
+    var hidden = InventorySnapshotProjector.Create(character).Slots.Single(slot =>
+        slot.Kind == InventorySlotKind.Backpack && slot.Index == 0).Item!;
+    Assert(!hidden.IsIdentified && hidden.InstanceId == instanceId && hidden.DefinitionId.Length == 0 &&
+           hidden.Name.Contains("Ismeretlen", StringComparison.OrdinalIgnoreCase) && hidden.BasePrice == 0 &&
+           hidden.MagicPower == 0 && hidden.MaximumCharges == 0,
+        "A snapshot kiszivárogtatta az azonosítatlan tárgy tulajdonságait.");
+
+    var charges = character.GetInventoryItemCharges(InventorySlotKind.Backpack, 0);
+    var state = character.GetInventoryItemState(InventorySlotKind.Backpack, 0);
+    character.ApplyInventoryChanges(
+        new InventorySlotChange(InventorySlotKind.Backpack, 0, null),
+        new InventorySlotChange(InventorySlotKind.Backpack, 1, item, charges, 1, state));
+    Assert(character.GetInventoryItemState(InventorySlotKind.Backpack, 1)?.InstanceId == instanceId &&
+           !character.IsInventoryItemIdentified(InventorySlotKind.Backpack, 1),
+        "A mozgatás nem őrizte meg a tárgypéldány állapotát.");
+
+    var saves = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-identification-save.json"), data);
+    var restored = saves.DeserializeCharacter(saves.SerializeCharacter(character));
+    Assert(restored.GetInventoryItemState(InventorySlotKind.Backpack, 1)?.InstanceId == instanceId &&
+           !restored.IsInventoryItemIdentified(InventorySlotKind.Backpack, 1),
+        "A mentés nem őrizte meg az azonosítási állapotot.");
+    Assert(restored.IdentifyInventoryItem(InventorySlotKind.Backpack, 1),
+        "A tárgy nem volt azonosítható.");
+    var revealed = InventorySnapshotProjector.Create(restored).Slots.Single(slot =>
+        slot.Kind == InventorySlotKind.Backpack && slot.Index == 1).Item!;
+    Assert(revealed.IsIdentified && revealed.DefinitionId == item.Id && revealed.Name == item.Name &&
+           revealed.InstanceId == instanceId,
+        "Az azonosítás nem fedte fel a valódi tárgyat vagy lecserélte a példányazonosítót.");
 }
 
 static void CompactPartyStatusShowsResources()

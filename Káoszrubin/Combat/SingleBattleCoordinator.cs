@@ -3,6 +3,7 @@ using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Magic;
+using KaoszRubin.Domain.Inventory;
 using KaoszRubin.UI;
 
 namespace KaoszRubin.Combat;
@@ -213,6 +214,7 @@ public sealed class SingleBattleCoordinator
             .Select(spell => (Spell: spell, Item: (MagicItemDefinition?)null, Slot: (int?)null))
             .Concat(character.MagicItems.Select((item, index) => (Item: item, Index: index))
                 .Where(entry => entry.Item?.Kind is MagicItemKind.Scroll or MagicItemKind.Wand &&
+                                character.IsInventoryItemIdentified(InventorySlotKind.MagicItem, entry.Index) &&
                                 entry.Item.SpellId is not null && character.MagicItemCharges[entry.Index] > 0)
                 .Select(entry => (Spell: _gameData.GetSpell(entry.Item!.SpellId!), Item: (MagicItemDefinition?)entry.Item,
                     Slot: (int?)entry.Index))

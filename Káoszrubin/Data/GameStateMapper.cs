@@ -65,7 +65,7 @@ internal sealed class GameStateMapper
             Npcs = maze.WorldNpcs.Select(SaveWorldNpc).ToList(),
             GroundPiles = maze.GroundItemPiles.Select(pile => new GroundPileSaveData(pile.Position,
                 pile.Entries.Select(entry => new SavedItemReference(entry.Item.Category.ToString(), entry.Item.Id,
-                    entry.Charges)).ToList())).ToList(),
+                    entry.Charges, entry.State.InstanceId, entry.State.IsIdentified)).ToList())).ToList(),
             Traps = maze.Traps.Select(trap => new TrapSaveData(trap.Position, trap.Definition.Id, trap.State,
                 trap.DetectionAttempted, trap.FailedDisarmAttempts)).ToList()
         };
@@ -172,7 +172,8 @@ internal sealed class GameStateMapper
             maze.AddCorpse(restored);
         }
         foreach (var pile in state.Maze.GroundPiles)
-            foreach (var item in pile.Items) maze.DropItem(pile.Position, ResolveSavedItem(item), item.Charges);
+            foreach (var item in pile.Items) maze.DropItem(pile.Position, ResolveSavedItem(item), item.Charges,
+                new InventoryItemInstanceState(item.InstanceId ?? Guid.NewGuid(), item.IsIdentified ?? true));
         foreach (var trap in state.Maze.Traps)
             maze.AddTrap(new MazeTrap(trap.Position, _gameData.GetTrap(trap.DefinitionId), trap.State,
                 trap.DetectionAttempted, trap.FailedDisarmAttempts));

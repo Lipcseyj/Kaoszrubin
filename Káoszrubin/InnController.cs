@@ -89,7 +89,7 @@ internal sealed class InnController
         return new InnSnapshot(_revision, _partyLeader.Gold, vendors,
             _rumors.Select(rumor => new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color)).ToArray(),
             _transactions.ToArray(),
-            _buybackPrices.Select(pair => new InnSellPriceSnapshot(pair.Key, pair.Value)).ToArray(),
+            CreateSellPriceSnapshots(),
             _menuOptions, _artisanNotice, _characterRoster.Party.Members.Count,
             _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)),
             _levelCompletion, _innName, _innLevel);
@@ -126,14 +126,19 @@ internal sealed class InnController
         { message = "Az inventory időközben megváltozott; válassz újra."; return false; }
         if (backpackIndex < 0 || backpackIndex >= seller.Backpack.Count || seller.Backpack[backpackIndex] is not { } item)
         { message = "A kijelölt hátizsákhely üres vagy érvénytelen."; return false; }
-        if (!_buybackPrices.TryGetValue(item.Id, out var price))
+        var state = seller.GetInventoryItemState(InventorySlotKind.Backpack, backpackIndex);
+        var identified = state?.IsIdentified != false;
+        if (!_buybackPrices.ContainsKey(item.Id))
         { message = "Ezt a tárgyat a kereskedő nem veszi meg."; return false; }
+        var price = identified ? _buybackPrices[item.Id] : Math.Max(1, item.BasePrice / 4);
+        if (price <= 0) { message = "Ezt a tárgyat a kereskedő nem veszi meg."; return false; }
         if (!seller.RemoveOneInventoryItem(InventorySlotKind.Backpack, backpackIndex))
         { message = "Az eladás most nem hajtható végre."; return false; }
         _partyLeader.AddGold(price);
         _revision++;
-        message = $"Eladtad: {item.Name} ({price} arany).";
-        RecordTransaction(InnTransactionKind.Sale, seller.Name, item.Name, price, seller.Name,
+        var displayName = ItemIdentificationRules.DisplayName(item, identified);
+        message = $"Eladtad: {displayName} ({price} arany).";
+        RecordTransaction(InnTransactionKind.Sale, seller.Name, displayName, price, seller.Name,
             announceOnHost: true);
         return true;
     }
@@ -546,12 +551,14 @@ internal sealed class InnController
             else
             {
                 var offer = sellOffers[selectedIndex];
+                var identified = offer.Owner.IsInventoryItemIdentified(InventorySlotKind.Backpack, offer.BackpackIndex);
+                var displayName = ItemIdentificationRules.DisplayName(offer.Item, identified);
                 if (!offer.Owner.RemoveOneInventoryItem(InventorySlotKind.Backpack, offer.BackpackIndex))
                 { message = "Az üzlet most nem hajtható végre."; continue; }
                 _partyLeader.AddGold(offer.Price);
                 _revision++;
-                message = $"✅ Eladtad: {offer.Item.Name} {offer.Price} aranyért ({offer.Owner.Name} hátizsákjából).";
-                RecordTransaction(InnTransactionKind.Sale, _partyLeader.Name, offer.Item.Name,
+                message = $"✅ Eladtad: {displayName} {offer.Price} aranyért ({offer.Owner.Name} hátizsákjából).";
+                RecordTransaction(InnTransactionKind.Sale, _partyLeader.Name, displayName,
                     offer.Price, offer.Owner.Name);
             }
         }
@@ -738,9 +745,14 @@ internal sealed class InnController
 
     private IReadOnlyList<InnSellOffer> CreateSellOffers(IReadOnlyDictionary<string, int> buybackPrices) =>
         _characterRoster.Party.Members.SelectMany(character => character.Backpack
-            .Select((item, index) => item is null || !buybackPrices.TryGetValue(item.Id, out var price)
-                ? null
-                : new InnSellOffer(character, index, item, price)))
+            .Select((item, index) =>
+            {
+                if (item is null) return null;
+                if (!buybackPrices.ContainsKey(item.Id)) return null;
+                var identified = character.IsInventoryItemIdentified(InventorySlotKind.Backpack, index);
+                var price = identified ? buybackPrices[item.Id] : Math.Max(1, item.BasePrice / 4);
+                return price <= 0 ? null : new InnSellOffer(character, index, item, price);
+            }))
             .Where(offer => offer is not null).Cast<InnSellOffer>()
             .OrderBy(offer => offer.Price).ToList();
 
@@ -1194,7 +1206,7 @@ internal sealed class InnController
         {
             ($"{ConsoleRenderer.WandIcon} Kiürült varázspálcák feltöltése", "Teljes feltöltés a pálca eredeti árának kétharmadáért."),
             ("📜 Varázsportékák", "Egy véletlen varázspálca és egy véletlen tekercs, egyszeri készletről."),
-            ("🔮 Varázstárgy azonosítása", "Az azonosítás szolgáltatása hamarosan elérhető lesz."),
+            ("🔮 Varázstárgy azonosítása", "Ismeretlen mágikus tárgyak teljes feltárása az értékükhöz és erejükhöz igazodó díjért."),
             ("🚪 Vissza", "Visszatérés a fogadó főtermébe.")
         };
         var selectedIndex = 0;
@@ -1217,7 +1229,7 @@ internal sealed class InnController
                 {
                     case 0: RunWandRecharging(); break;
                     case 1: RunSpecialistMarket("🧙 VÁNDORMÁGUS PORTÉKÁI", stock); break;
-                    case 2: message = "🔮 A varázstárgy-azonosítás még nem használható; a szolgáltatás helye már elő van készítve."; break;
+                    case 2: RunMagicItemIdentification(); break;
                     case 3: return;
                 }
             }
@@ -1262,13 +1274,17 @@ internal sealed class InnController
                     continue;
                 }
                 if (quantity > 1)
+                {
+                    var state = wand.Character.GetInventoryItemState(wand.Kind, wand.Index);
                     wand.Character.ApplyInventoryChanges(
-                        new InventorySlotChange(wand.Kind, wand.Index, wand.Item, 0, quantity - 1),
+                        new InventorySlotChange(wand.Kind, wand.Index, wand.Item, 0, quantity - 1, state),
                         new InventorySlotChange(InventorySlotKind.Backpack, splitIndex, wand.Item,
-                            wand.Item.MaximumCharges, 1));
+                            wand.Item.MaximumCharges, 1, InventoryItemInstanceState.Create()));
+                }
                 else
                     wand.Character.ApplyInventoryChanges(new InventorySlotChange(wand.Kind, wand.Index, wand.Item,
-                        wand.Item.MaximumCharges, 1));
+                        wand.Item.MaximumCharges, 1,
+                        wand.Character.GetInventoryItemState(wand.Kind, wand.Index)));
                 message = $"✅ {wand.Character.Name} {wand.Item.Name} pálcája feltöltve: {wand.Item.MaximumCharges}/{wand.Item.MaximumCharges} töltet ({price} arany).";
             }
         }
@@ -1279,16 +1295,91 @@ internal sealed class InnController
         foreach (var character in _characterRoster.Party.Members)
         {
             for (var index = 0; index < character.MagicItems.Count; index++)
-                if (character.MagicItems[index] is { Kind: MagicItemKind.Wand } equipped && character.MagicItemCharges[index] == 0)
+                if (character.MagicItems[index] is { Kind: MagicItemKind.Wand } equipped &&
+                    character.IsInventoryItemIdentified(InventorySlotKind.MagicItem, index) &&
+                    character.MagicItemCharges[index] == 0)
                     yield return new RechargeableWand(character, InventorySlotKind.MagicItem, index, equipped);
             for (var index = 0; index < character.Backpack.Count; index++)
                 if (character.Backpack[index] is MagicItemDefinition { Kind: MagicItemKind.Wand } packed &&
+                    character.IsInventoryItemIdentified(InventorySlotKind.Backpack, index) &&
                     character.GetInventoryItemCharges(InventorySlotKind.Backpack, index) == 0)
                     yield return new RechargeableWand(character, InventorySlotKind.Backpack, index, packed);
         }
     }
 
     private static int WandRechargePrice(MagicItemDefinition item) => Math.Max(1, (int)Math.Ceiling(item.BasePrice * 2 / 3.0));
+
+    private void RunMagicItemIdentification()
+    {
+        var selectedIndex = 0;
+        var message = "A szolgáltatás a tárgy minden mágikus tulajdonságát feltárja.";
+        while (true)
+        {
+            var items = IdentifiableItems().ToList();
+            selectedIndex = items.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, items.Count - 1);
+            _renderer.DrawMagicItemIdentificationScreen(_partyLeader, items.Select(entry =>
+                (entry.Character.Name, ItemIdentificationRules.DisplayName(entry.Item, false),
+                    ItemIdentificationRules.AuraStrength(entry.Item), ItemIdentificationRules.IdentificationPrice(entry.Item)))
+                .ToList(), selectedIndex, message);
+            var key = _readKey().Key;
+            if (key == StateChangedKey) { message = ConsumeHostTransactionMessages(message); continue; }
+            if (key == ConsoleKey.Escape) return;
+            if (key == ConsoleKey.UpArrow && items.Count > 0) selectedIndex = (selectedIndex - 1 + items.Count) % items.Count;
+            else if (key == ConsoleKey.DownArrow && items.Count > 0) selectedIndex = (selectedIndex + 1) % items.Count;
+            else if (key == ConsoleKey.Enter && items.Count > 0)
+            {
+                var entry = items[selectedIndex];
+                var price = ItemIdentificationRules.IdentificationPrice(entry.Item);
+                if (!_partyLeader.SpendGold(price))
+                {
+                    message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {price - _partyLeader.Gold} hiányzik.";
+                    continue;
+                }
+                if (!entry.Character.IdentifyInventoryItem(entry.Kind, entry.Index))
+                {
+                    _partyLeader.AddGold(price);
+                    message = "A tárgy állapota időközben megváltozott.";
+                    continue;
+                }
+                _revision++;
+                message = $"✅ Azonosítva: {entry.Item.Name} — {entry.Item.Description}";
+                RecordTransaction(InnTransactionKind.Service, _partyLeader.Name,
+                    $"Azonosítás — {entry.Item.Name}", price, entry.Character.Name, announceOnHost: true);
+            }
+        }
+    }
+
+    private IEnumerable<IdentifiableItem> IdentifiableItems()
+    {
+        foreach (var character in _characterRoster.Party.Members)
+        foreach (var kind in new[] { InventorySlotKind.Weapon, InventorySlotKind.Armor,
+                     InventorySlotKind.MagicItem, InventorySlotKind.Backpack })
+        {
+            var count = kind switch
+            {
+                InventorySlotKind.Weapon => 3,
+                InventorySlotKind.Armor => 1,
+                InventorySlotKind.MagicItem => LiveCharacter.MaximumMagicItemCount,
+                _ => LiveCharacter.MaximumBackpackItemCount
+            };
+            for (var index = 0; index < count; index++)
+                if (character.GetInventoryItem(kind, index) is { } item &&
+                    !character.IsInventoryItemIdentified(kind, index))
+                    yield return new IdentifiableItem(character, kind, index, item);
+        }
+    }
+
+    private IReadOnlyList<InnSellPriceSnapshot> CreateSellPriceSnapshots()
+    {
+        var prices = _buybackPrices.Select(pair => new InnSellPriceSnapshot(pair.Key, pair.Value)).ToList();
+        prices.AddRange(_characterRoster.Party.Members.SelectMany(character => character.Backpack
+            .Select((item, index) => (Character: character, Item: item, Index: index)))
+            .Where(entry => entry.Item is not null && _buybackPrices.ContainsKey(entry.Item.Id) &&
+                !entry.Character.IsInventoryItemIdentified(InventorySlotKind.Backpack, entry.Index))
+            .Select(entry => new InnSellPriceSnapshot(string.Empty, Math.Max(1, entry.Item!.BasePrice / 4),
+                entry.Character.GetInventoryItemState(InventorySlotKind.Backpack, entry.Index)?.InstanceId ?? Guid.Empty)));
+        return prices;
+    }
 
     private static string HungarianList(IReadOnlyList<string> items) => items.Count switch
     {
@@ -1381,6 +1472,7 @@ internal sealed class InnController
     };
 
     private sealed record RechargeableWand(LiveCharacter Character, InventorySlotKind Kind, int Index, MagicItemDefinition Item);
+    private sealed record IdentifiableItem(LiveCharacter Character, InventorySlotKind Kind, int Index, IItemDefinition Item);
 
     private sealed record LevelCompletionOutcome(IReadOnlyList<LevelCompletionResult> Results,
         IReadOnlyList<LiveCharacter> FallenCharacters);

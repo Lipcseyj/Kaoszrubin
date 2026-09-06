@@ -3,6 +3,7 @@ using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Magic;
+using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Domain.Magic;
 
@@ -42,6 +43,7 @@ public sealed class SpellExecutionService
         if (usingItem && (castingItem!.Kind is not (MagicItemKind.Scroll or MagicItemKind.Wand) || castingItem.SpellId != spell.Id ||
                 castingItemIndex is < 0 or >= LiveCharacter.MaximumMagicItemCount ||
                 caster.MagicItems[castingItemIndex]?.Id != castingItem.Id || caster.MagicItemCharges[castingItemIndex] <= 0 ||
+                !caster.IsInventoryItemIdentified(InventorySlotKind.MagicItem, castingItemIndex) ||
                 !SpellcastingRules.CanUseCastingItem(caster, castingItem, spell)))
             return new SpellCastAttempt(false, "A kiválasztott tekercs vagy pálca nem használható.", BattleLogKind.Information);
         if (!usingItem && !caster.IsSpellcaster)

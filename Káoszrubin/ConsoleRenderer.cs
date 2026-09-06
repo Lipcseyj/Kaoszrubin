@@ -1087,10 +1087,25 @@ public sealed class ConsoleRenderer
         ClearInnMenuScreen();
         var vendor = new InnVendorSnapshot(InnVendorKind.Market, "Kereskedő", stock.Select((offer, index) =>
             new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item), offer.Price)).ToArray());
-        var sales = sellOffers.Select(offer => (ToInventoryItemSnapshot(offer.Item) with
+        var sales = sellOffers.Select(offer =>
+        {
+            var identified = offer.Owner.IsInventoryItemIdentified(InventorySlotKind.Backpack, offer.BackpackIndex);
+            var state = offer.Owner.GetInventoryItemState(InventorySlotKind.Backpack, offer.BackpackIndex);
+            return (ToInventoryItemSnapshot(offer.Item) with
             {
-                Quantity = offer.Owner.GetInventoryItemQuantity(InventorySlotKind.Backpack, offer.BackpackIndex)
-            }, offer.Price, offer.Owner.Name)).ToArray();
+                DefinitionId = identified ? offer.Item.Id : string.Empty,
+                Name = ItemIdentificationRules.DisplayName(offer.Item, identified),
+                Description = identified ? offer.Item.Description : $"{ItemIdentificationRules.AuraStrength(offer.Item)} mágikus aura",
+                BasePrice = identified ? offer.Item.BasePrice : 0,
+                MagicPower = identified ? offer.Item.MagicPower : 0,
+                Charges = identified ? offer.Owner.GetInventoryItemCharges(InventorySlotKind.Backpack, offer.BackpackIndex) : 0,
+                MaximumCharges = identified && offer.Item is MagicItemDefinition magic ? magic.MaximumCharges : 0,
+                Quantity = offer.Owner.GetInventoryItemQuantity(InventorySlotKind.Backpack, offer.BackpackIndex),
+                InstanceId = state?.InstanceId ?? Guid.Empty,
+                IsIdentified = identified,
+                UnidentifiedSellPrice = identified ? 0 : offer.Price
+            }, offer.Price, offer.Owner.Name);
+        }).ToArray();
         DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, mode, sales, selectedIndex,
             leader.Gold, freeBackpackSlots, message, innName), FramedWindow.Inn);
     }
@@ -1177,6 +1192,33 @@ public sealed class ConsoleRenderer
         lines.Add((ClipMarketText(message, InnMarketFrameWidth - 6), ConsoleColor.Magenta));
         lines.Add(("↑/↓ választás   Enter feltöltés   Esc vissza", ConsoleColor.Green));
         DrawCenteredFrame(InnMenuFrameWidth, lines, FramedWindow.Inn);
+    }
+
+    public void DrawMagicItemIdentificationScreen(LiveCharacter leader,
+        IReadOnlyList<(string Owner, string Item, string Aura, int Price)> items,
+        int selectedIndex, string message)
+    {
+        ClearInnMenuScreen();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🔮✨  VARÁZSTÁRGY-AZONOSÍTÁS  ✨🔮", ConsoleColor.Magenta),
+            ($"{MoneyIcon} {leader.Name} aranya: {leader.Gold}", ConsoleColor.Green),
+            ("A pontos név, hatás, töltet és érték csak az azonosítás után válik ismertté.", ConsoleColor.DarkYellow),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        if (items.Count == 0) lines.Add(("Nincs azonosítatlan mágikus tárgy a partinál.", ConsoleColor.DarkGray));
+        else
+            for (var index = 0; index < items.Count; index++)
+            {
+                var item = items[index];
+                var selected = index == selectedIndex;
+                lines.Add(($"{(selected ? "▶" : " ")} {item.Owner,-13}  {item.Item,-34} {item.Aura,-11} aura  {item.Price,5} {MoneyIcon}",
+                    selected ? ConsoleColor.White : ConsoleColor.DarkCyan));
+            }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add((ClipMarketText(message, InnMarketFrameWidth - 6), ConsoleColor.Magenta));
+        lines.Add(("↑/↓ választás   Enter azonosítás   Esc vissza", ConsoleColor.Green));
+        DrawCenteredFrame(InnMarketFrameWidth, lines, FramedWindow.Inn);
     }
 
     public void UpdateInnMarketSelection(InnMarketMode mode, IReadOnlyList<InnStockOffer> stock,

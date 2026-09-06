@@ -1434,6 +1434,7 @@ public sealed class Game : ISessionCommandHandler
     private IEnumerable<MagicItemDefinition> EquippedCastingItems(LiveCharacter character) =>
         character.MagicItems.Select((item, index) => (Item: item, Index: index))
             .Where(entry => entry.Item?.Kind is MagicItemKind.Scroll or MagicItemKind.Wand &&
+                character.IsInventoryItemIdentified(InventorySlotKind.MagicItem, entry.Index) &&
                 entry.Item.SpellId is not null && character.MagicItemCharges[entry.Index] > 0)
             .Where(entry => SpellcastingRules.CanUseCastingItem(character, entry.Item!, _gameData.GetSpell(entry.Item!.SpellId!)))
             .Select(entry => entry.Item!);
@@ -1830,12 +1831,15 @@ public sealed class Game : ISessionCommandHandler
         PlaySessionSound(jackpot ? SoundEffect.Chest2 : SoundEffect.Chest, [character.Id]);
 
         if (masterThiefLoot is null) return;
+        var masterLootName = ItemIdentificationRules.DisplayName(masterThiefLoot,
+            !ItemIdentificationRules.RequiresIdentification(masterThiefLoot));
         if (TryStoreSearchedLoot(character, masterThiefLoot, shareLootWithParty, out var owner))
-            message = $"🎁 Mestertolvaj: {masterThiefLoot.Name} → {owner} hátizsákja.";
+            message = $"🎁 Mestertolvaj: {masterLootName} → {owner} hátizsákja.";
         else
         {
-            _maze.DropItem(position, masterThiefLoot);
-            message = $"🎁 Mestertolvaj: {masterThiefLoot.Name} a földön maradt, mert a hátizsák tele van.";
+            _maze.DropItem(position, masterThiefLoot, state: InventoryItemInstanceState.Create(
+                !ItemIdentificationRules.RequiresIdentification(masterThiefLoot)));
+            message = $"🎁 Mestertolvaj: {masterLootName} a földön maradt, mert a hátizsák tele van.";
         }
         _renderer.DrawInventoryMessage(message, ConsoleColor.Magenta);
         RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Magenta, [character.Id]);
@@ -3412,11 +3416,15 @@ public sealed class Game : ISessionCommandHandler
         foreach (var item in foundItems)
         {
             if (TryStoreSearchedLoot(character, item, shareLootWithParty, out var owner))
-                messages.Add($"{item.Name} → {owner} hátizsákja");
+            {
+                var identified = !ItemIdentificationRules.RequiresIdentification(item);
+                messages.Add($"{ItemIdentificationRules.DisplayName(item, identified)} → {owner} hátizsákja");
+            }
             else
             {
-                _maze.DropItem(position, item);
-                messages.Add($"{item.Name} a földön maradt (a hátizsákok tele vannak)");
+                var identified = !ItemIdentificationRules.RequiresIdentification(item);
+                _maze.DropItem(position, item, state: InventoryItemInstanceState.Create(identified));
+                messages.Add($"{ItemIdentificationRules.DisplayName(item, identified)} a földön maradt (a hátizsákok tele vannak)");
             }
         }
         if (foundItems.Count == 0 && messages.All(message => !message.StartsWith(ConsoleRenderer.MoneyIcon, StringComparison.Ordinal)))
@@ -3447,11 +3455,13 @@ public sealed class Game : ISessionCommandHandler
         var pile = _maze.GetGroundItemPileAt(position);
         if (pile is null) return;
         var pickedUp = new List<string>();
-        foreach (var item in pile.Items.ToArray())
+        foreach (var entry in pile.Entries.ToArray())
         {
-            if (!TryStoreSearchedLoot(character, item, shareLootWithParty, out var owner)) continue;
-            pile.Remove(item);
-            pickedUp.Add($"{item.Name} → {owner}");
+            if (!LootAndInventoryService.TryStoreSearchedLoot(character, entry.Item, shareLootWithParty,
+                    CharacterRoster.Party.Members, out var owner, entry.State.IsIdentified,
+                    entry.State.InstanceId)) continue;
+            pile.Remove(entry.Item);
+            pickedUp.Add($"{ItemIdentificationRules.DisplayName(entry.Item, entry.State.IsIdentified)} → {owner}");
         }
         if (pickedUp.Count > 0) messages.Add("felvéve: " + string.Join(", ", pickedUp));
         if (pile.Items.Count == 0) _maze.RemoveGroundItemPile(pile);
@@ -3468,6 +3478,15 @@ public sealed class Game : ISessionCommandHandler
         }
         var item = slot is { } selected ? selected.Character.GetInventoryItem(selected.Kind, selected.Index) : null;
         if (item is null) { _renderer.DrawInventoryMessage("A kijelölt helyen nincs megvizsgálható tárgy.", ConsoleColor.DarkYellow); return; }
+
+        if (slot is { } unknownSlot && !unknownSlot.Character.IsInventoryItemIdentified(unknownSlot.Kind, unknownSlot.Index))
+        {
+            _renderer.DrawInventoryMessage(
+                $"{ItemIdentificationRules.DisplayName(item, false)} — A pontos hatás, érték és töltet ismeretlen. " +
+                $"Érzékelhető aura: {ItemIdentificationRules.AuraStrength(item)}. A Vándormágus azonosíthatja.",
+                ConsoleColor.DarkCyan);
+            return;
+        }
 
         var inspection = ItemInspectionFormatter.Format(item, _gameData,
             slot is { } itemSlot
@@ -3627,13 +3646,19 @@ public sealed class Game : ISessionCommandHandler
         var item = character.GetInventoryItem(command.SlotKind, command.SlotIndex);
         if (item is null || SpellcastingRules.IsSpellcastingFocus(item) || CharacterBoundItemRules.IsBound(item)) return;
         var charges = character.GetInventoryItemCharges(command.SlotKind, command.SlotIndex);
+        var state = character.GetInventoryItemState(command.SlotKind, command.SlotIndex);
+        var quantity = character.GetInventoryItemQuantity(command.SlotKind, command.SlotIndex);
         var position = GetCharacterWorldPosition(character);
         if (position is null || !character.RemoveOneInventoryItem(command.SlotKind, command.SlotIndex)) return;
-        _maze.DropItem(position.Value, item, charges);
+        var droppedState = quantity > 1 && state is { } stackedState
+            ? stackedState with { InstanceId = Guid.NewGuid() }
+            : state;
+        _maze.DropItem(position.Value, item, charges, droppedState);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position.Value]);
         var pileCount = _maze.GetGroundItemPileAt(position.Value)?.Items.Count ?? 1;
-        _renderer.DrawInventoryMessage($"Ledobtad: {item.Name}. A mezőn {pileCount} tárgy van.", ConsoleColor.Cyan);
+        _renderer.DrawInventoryMessage($"Ledobtad: {ItemIdentificationRules.DisplayName(item, state?.IsIdentified != false)}. " +
+                                       $"A mezőn {pileCount} tárgy van.", ConsoleColor.Cyan);
         PlaySessionSound(SoundEffect.Item, [character.Id]);
     }
 
@@ -3652,19 +3677,23 @@ public sealed class Game : ISessionCommandHandler
             command.DestinationBackpackIndex);
         var destinationQuantity = character.GetInventoryItemQuantity(InventorySlotKind.Backpack,
             command.DestinationBackpackIndex);
+        var destinationState = character.GetInventoryItemState(InventorySlotKind.Backpack,
+            command.DestinationBackpackIndex);
         if (destinationItem is not null && (!string.Equals(destinationItem.Id, entry.Item.Id,
                 StringComparison.OrdinalIgnoreCase) ||
+            destinationState?.IsIdentified != true || !entry.State.IsIdentified ||
             character.GetInventoryItemCharges(InventorySlotKind.Backpack, command.DestinationBackpackIndex) !=
             entry.Charges || destinationQuantity >= LiveCharacter.MaximumBackpackStackSize)) return;
         var change = new InventorySlotChange(InventorySlotKind.Backpack, command.DestinationBackpackIndex,
-            entry.Item, entry.Charges, destinationQuantity + 1);
+            entry.Item, entry.Charges, destinationQuantity + 1,
+            destinationItem is null ? entry.State : destinationState);
         if (!character.CanApplyInventoryChanges(change) ||
             !pile.TryTake(command.GroundItemIndex, command.ExpectedGroundPileRevision, out _)) return;
         character.ApplyInventoryChanges(change);
         if (pile.Entries.Count == 0) _maze.RemoveGroundItemPile(pile);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position.Value]);
-        _renderer.DrawInventoryMessage($"Felvetted: {entry.Item.Name}.", ConsoleColor.Green);
+        _renderer.DrawInventoryMessage($"Felvetted: {ItemIdentificationRules.DisplayName(entry.Item, entry.State.IsIdentified)}.", ConsoleColor.Green);
         PlaySessionSound(SoundEffect.Item, [character.Id]);
     }
 

@@ -21,7 +21,10 @@ public static class InventoryTransferService
             return false;
         }
         foreach (var entry in plan.Changes) entry.Key.ApplyInventoryChanges(entry.Value.ToArray());
-        result = new InventoryTransferResult(plan.SourceItem.Name, plan.DisplacedItem?.Name);
+        result = new InventoryTransferResult(
+            ItemIdentificationRules.DisplayName(plan.SourceItem, plan.SourceIdentified),
+            plan.DisplacedItem is null ? null :
+                ItemIdentificationRules.DisplayName(plan.DisplacedItem, plan.DisplacedIdentified));
         return true;
     }
 
@@ -48,15 +51,19 @@ public static class InventoryTransferService
         {
             if (source.ReserveWeaponSwapChanges() is not { } swapChanges)
                 return Fail("A fegyvercsere nem lehetséges; kétkezes fegyverhez a másik kéz tárgyának üres hátizsákhely kell.", out plan, out error);
-            plan = new InventoryTransferPlan(new() { [source] = swapChanges.ToList() }, sourceItem, source.WeaponSlots[0]);
+            plan = new InventoryTransferPlan(new() { [source] = swapChanges.ToList() }, sourceItem,
+                source.WeaponSlots[0], source.IsInventoryItemIdentified(command.SourceKind, command.SourceIndex),
+                source.IsInventoryItemIdentified(InventorySlotKind.Weapon, 0));
             error = string.Empty;
             return true;
         }
         var sourceCharges = source.GetInventoryItemCharges(command.SourceKind, command.SourceIndex);
         var sourceQuantity = source.GetInventoryItemQuantity(command.SourceKind, command.SourceIndex);
+        var sourceState = source.GetInventoryItemState(command.SourceKind, command.SourceIndex);
         var displaced = destination.GetInventoryItem(command.DestinationKind, command.DestinationIndex);
         var displacedCharges = destination.GetInventoryItemCharges(command.DestinationKind, command.DestinationIndex);
         var displacedQuantity = destination.GetInventoryItemQuantity(command.DestinationKind, command.DestinationIndex);
+        var displacedState = destination.GetInventoryItemState(command.DestinationKind, command.DestinationIndex);
         var changes = new Dictionary<LiveCharacter, List<InventorySlotChange>>();
         if (!CharacterBoundItemRules.CanBeHeldBy(destination, sourceItem) ||
             !CharacterBoundItemRules.CanBeHeldBy(source, displaced))
@@ -69,14 +76,16 @@ public static class InventoryTransferService
 
         var compatibleStack = command.DestinationKind == InventorySlotKind.Backpack && displaced is not null &&
             string.Equals(sourceItem.Id, displaced.Id, StringComparison.OrdinalIgnoreCase) &&
+            sourceState?.IsIdentified == true && displacedState?.IsIdentified == true &&
             sourceCharges == displacedCharges && displacedQuantity < LiveCharacter.MaximumBackpackStackSize;
         if (compatibleStack)
         {
             var moved = Math.Min(sourceQuantity, LiveCharacter.MaximumBackpackStackSize - displacedQuantity);
             AddChange(changes, source, new InventorySlotChange(command.SourceKind, command.SourceIndex,
-                sourceQuantity == moved ? null : sourceItem, sourceCharges, sourceQuantity - moved));
+                sourceQuantity == moved ? null : sourceItem, sourceCharges, sourceQuantity - moved,
+                sourceQuantity == moved ? null : sourceState));
             AddChange(changes, destination, new InventorySlotChange(command.DestinationKind,
-                command.DestinationIndex, displaced, displacedCharges, displacedQuantity + moved));
+                command.DestinationIndex, displaced, displacedCharges, displacedQuantity + moved, displacedState));
         }
         else if (command.SourceKind == InventorySlotKind.Backpack && sourceQuantity > 1 &&
                  command.DestinationKind != InventorySlotKind.Backpack)
@@ -84,21 +93,23 @@ public static class InventoryTransferService
             if (displaced is not null)
                 return Fail("Kötegből csak üres felszereléshelyre tehető egy tárgy.", out plan, out error);
             AddChange(changes, source, new InventorySlotChange(command.SourceKind, command.SourceIndex,
-                sourceItem, sourceCharges, sourceQuantity - 1));
+                sourceItem, sourceCharges, sourceQuantity - 1, sourceState));
             AddChange(changes, destination, new InventorySlotChange(command.DestinationKind,
-                command.DestinationIndex, sourceItem, sourceCharges, 1));
+                command.DestinationIndex, sourceItem, sourceCharges, 1,
+                sourceState is { } state ? state with { InstanceId = Guid.NewGuid() } : null));
         }
         else
         {
             AddChange(changes, source, new InventorySlotChange(command.SourceKind, command.SourceIndex,
-                displaced, displacedCharges, displacedQuantity));
+                displaced, displacedCharges, displacedQuantity, displacedState));
             AddChange(changes, destination, new InventorySlotChange(command.DestinationKind,
-                command.DestinationIndex, sourceItem, sourceCharges, sourceQuantity));
+                command.DestinationIndex, sourceItem, sourceCharges, sourceQuantity, sourceState));
         }
         if (changes.Any(entry => !entry.Key.CanApplyInventoryChanges(entry.Value.ToArray())))
             return Fail("A tárgyak nem helyezhetők el a megadott slotokban.", out plan, out error);
 
-        plan = new InventoryTransferPlan(changes, sourceItem, displaced);
+        plan = new InventoryTransferPlan(changes, sourceItem, displaced,
+            sourceState?.IsIdentified != false, displacedState?.IsIdentified != false);
         error = string.Empty;
         return true;
     }
@@ -128,5 +139,6 @@ public static class InventoryTransferService
     }
 
     private sealed record InventoryTransferPlan(Dictionary<LiveCharacter, List<InventorySlotChange>> Changes,
-        IItemDefinition SourceItem, IItemDefinition? DisplacedItem);
+        IItemDefinition SourceItem, IItemDefinition? DisplacedItem, bool SourceIdentified,
+        bool DisplacedIdentified);
 }

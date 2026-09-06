@@ -134,16 +134,20 @@ public sealed class CharacterSaveService
         foreach (var effect in saved.ActiveSpellEffects) character.RestoreSpellEffect(effect);
 
         var weaponIds = saved.WeaponIds.Count > 0 ? saved.WeaponIds : saved.WeaponNames;
-        WeaponDefinition? displacedLegacyOffhand = null;
+        (WeaponDefinition Weapon, InventoryItemInstanceState? State)? displacedLegacyOffhand = null;
         for (var index = 0; index < Math.Min(3, weaponIds.Count); index++)
             if (weaponIds[index] is { } weaponId)
             {
                 var weapon = FindSavedDefinition(_gameData.Weapons, weaponId,
                     saved.WeaponNames.ElementAtOrDefault(index), "fegyver");
-                if (!character.EquipWeapon(index, weapon) && index == 1)
-                    displacedLegacyOffhand = weapon;
+                var state = RestoreItemState(saved.WeaponItemStates.ElementAtOrDefault(index));
+                if (!character.SetInventoryItem(InventorySlotKind.Weapon, index, weapon, null, 1, state) && index == 1)
+                    displacedLegacyOffhand = (weapon, state);
             }
-        if ((saved.ArmorId ?? saved.ArmorName) is { } armorId) character.EquipArmor(FindSavedDefinition(_gameData.Armors, armorId, saved.ArmorName, "páncél"));
+        if ((saved.ArmorId ?? saved.ArmorName) is { } armorId)
+            character.SetInventoryItem(InventorySlotKind.Armor, 0,
+                FindSavedDefinition(_gameData.Armors, armorId, saved.ArmorName, "páncél"), null, 1,
+                RestoreItemState(saved.ArmorItemState));
         var magicItemIds = saved.MagicItemIds.Count > 0 ? saved.MagicItemIds : saved.MagicItemNames.Cast<string?>().ToList();
         for (var index = 0; index < Math.Min(LiveCharacter.MaximumMagicItemCount, magicItemIds.Count); index++)
             if (magicItemIds[index] is { } magicItemId)
@@ -151,7 +155,8 @@ public sealed class CharacterSaveService
                 if (SpellcastingRules.IsLegacyStartingFocusId(magicItemId)) continue;
                 character.ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.MagicItem, index,
                     FindSavedDefinition(_gameData.MagicItems, magicItemId, saved.MagicItemNames.ElementAtOrDefault(index), "varázstárgy"),
-                    index < saved.MagicItemCharges.Count ? saved.MagicItemCharges[index] : null));
+                    index < saved.MagicItemCharges.Count ? saved.MagicItemCharges[index] : null, 1,
+                    RestoreItemState(saved.MagicItemStates.ElementAtOrDefault(index))));
             }
         var requiredFocusId = SpellcastingRules.RequiredFocusItemId(character.CharacterClass.Id);
         var savedHasFocus = requiredFocusId is not null && saved.BackpackItems.Any(item =>
@@ -162,17 +167,20 @@ public sealed class CharacterSaveService
             {
                 if (SpellcastingRules.IsSpellcastingFocusId(item.Id) || SpellcastingRules.IsLegacyStartingFocusId(item.Id)) continue;
                 character.ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.Backpack, index + backpackOffset,
-                    ResolveItem(item), item.Charges, item.Quantity));
+                    ResolveItem(item), item.Charges, item.Quantity, RestoreItemState(item.State)));
             }
         if (displacedLegacyOffhand is not null)
         {
-            if (character.WeaponSlots[2] is null && character.EquipWeapon(2, displacedLegacyOffhand))
+            if (character.WeaponSlots[2] is null && character.SetInventoryItem(InventorySlotKind.Weapon, 2,
+                    displacedLegacyOffhand.Value.Weapon, null, 1, displacedLegacyOffhand.Value.State))
             {
                 // A régi, már nem használható mellékkézfegyver veszteség nélkül a tartalékhelyre kerül.
             }
-            else if (!character.AddToBackpack(displacedLegacyOffhand))
+            else if (!character.AddToBackpack(displacedLegacyOffhand.Value.Weapon,
+                         displacedLegacyOffhand.Value.State?.IsIdentified ?? true,
+                         displacedLegacyOffhand.Value.State?.InstanceId))
                 throw new InvalidDataException(
-                    $"A régi mentés érvénytelen mellékkézfegyvere ({displacedLegacyOffhand.Name}) nem helyezhető át: nincs szabad tartalék- vagy hátizsákhely.");
+                    $"A régi mentés érvénytelen mellékkézfegyvere ({displacedLegacyOffhand.Value.Weapon.Name}) nem helyezhető át: nincs szabad tartalék- vagy hátizsákhely.");
         }
         foreach (var perkId in saved.PerkIds)
         {
@@ -229,13 +237,19 @@ public sealed class CharacterSaveService
                 _gameData.GetMinimumMana(character.Abilities.Intelligence) + character.ManaBonus)
             : 0,
         WeaponIds = character.WeaponSlots.Select(weapon => weapon?.Id).ToList(),
+        WeaponItemStates = Enumerable.Range(0, 3).Select(index =>
+            SaveItemState(character.GetInventoryItemState(InventorySlotKind.Weapon, index))).ToList(),
         ArmorId = character.Armor?.Id,
+        ArmorItemState = SaveItemState(character.GetInventoryItemState(InventorySlotKind.Armor, 0)),
         MagicItemIds = character.MagicItems.Select(item => item?.Id).ToList(),
         MagicItemCharges = character.MagicItemCharges.ToList(),
+        MagicItemStates = Enumerable.Range(0, LiveCharacter.MaximumMagicItemCount).Select(index =>
+            SaveItemState(character.GetInventoryItemState(InventorySlotKind.MagicItem, index))).ToList(),
         BackpackItems = character.Backpack.Select((item, index) => item is null ? null :
             new ItemSaveData(item.GetType().Name, item.Id,
                 Charges: character.GetInventoryItemCharges(InventorySlotKind.Backpack, index),
-                Quantity: character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index))).ToList(),
+                Quantity: character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index),
+                State: SaveItemState(character.GetInventoryItemState(InventorySlotKind.Backpack, index)))).ToList(),
         PerkIds = character.Perks.Select(perk => perk.Id).ToList(),
         AppliedPerkBonusIds = character.Perks.Select(perk => perk.Id).ToList(),
         StatusIds = character.Statuses.Select(status => status.Id).ToList(),
@@ -245,6 +259,15 @@ public sealed class CharacterSaveService
         QuickSpellIds = character.QuickSpells.Select(spell => spell?.Id).ToList(),
         ActiveSpellEffects = character.ActiveSpellEffects.ToList()
     };
+
+    private static ItemInstanceSaveData? SaveItemState(InventoryItemInstanceState? state) => state is { } value
+        ? new ItemInstanceSaveData(value.InstanceId, value.IsIdentified)
+        : null;
+
+    private static InventoryItemInstanceState RestoreItemState(ItemInstanceSaveData? state) => state is null
+        ? InventoryItemInstanceState.Create(identified: true)
+        : new InventoryItemInstanceState(state.InstanceId == Guid.Empty ? Guid.NewGuid() : state.InstanceId,
+            state.IsIdentified);
 
     private List<SpellDefinition> DefaultLegacySpells(LiveCharacter character)
     {
@@ -312,9 +335,12 @@ public sealed class CharacterSaveService
         public int? LevelVitalityIncrease { get; init; }
         public int? LevelManaIncrease { get; init; }
         public List<string?> WeaponIds { get; init; } = [];
+        public List<ItemInstanceSaveData?> WeaponItemStates { get; init; } = [];
         public string? ArmorId { get; init; }
+        public ItemInstanceSaveData? ArmorItemState { get; init; }
         public List<string?> MagicItemIds { get; init; } = [];
         public List<int> MagicItemCharges { get; init; } = [];
+        public List<ItemInstanceSaveData?> MagicItemStates { get; init; } = [];
         public List<string?> WeaponNames { get; init; } = [];
         public string? ArmorName { get; init; }
         public List<string> MagicItemNames { get; init; } = [];
@@ -330,7 +356,8 @@ public sealed class CharacterSaveService
     }
 
     private sealed record ItemSaveData(string Type, string Id, string? Name = null, int? Charges = null,
-        int Quantity = 1);
+        int Quantity = 1, ItemInstanceSaveData? State = null);
+    private sealed record ItemInstanceSaveData(Guid InstanceId, bool IsIdentified);
     private sealed record StatusSaveData(string Id, int? RemainingActivations);
     private sealed record WeaponProficiencySaveData(string FamilyId, int Rank);
     private sealed record MonsterKillSaveData(string EnemyDefinitionId, int Count);
