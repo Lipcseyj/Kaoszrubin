@@ -14,7 +14,7 @@ internal sealed class InnController
     internal const ConsoleKey StateChangedKey = ConsoleKey.F24;
     private const int SecretStashLevelAdvance = 4;
     private const int FeastBasePricePerPerson = 90;
-    private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002",
+    private static readonly HashSet<string> VendorStockExcludedItemIds = ["W001", "W005", "A001", "A002",
         "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020", "T023", "T024"];
     private static readonly HashSet<string> DiscountedBuybackItemIds = ["W001", "W005", "A001", "A002"];
     private static readonly HashSet<string> WitcherOnlyItemIds = ["T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020"];
@@ -948,7 +948,7 @@ internal sealed class InnController
 
     private IReadOnlyList<IItemDefinition> AllTradableItems() => AllGameItems()
         .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item))
-        .Where(item => !MerchantExcludedItemIds.Contains(item.Id)).ToList();
+        .Where(item => !VendorStockExcludedItemIds.Contains(item.Id)).ToList();
 
     private IReadOnlyList<InnStockOffer> CreateWitcherStock(int completedLevel)
     {
@@ -1070,6 +1070,9 @@ internal sealed class InnController
         var source = category == ItemCategory.Weapon
             ? _gameData.Weapons.Cast<IItemDefinition>()
             : _gameData.Armors.Cast<IItemDefinition>();
+        source = source
+            .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item))
+            .Where(item => !VendorStockExcludedItemIds.Contains(item.Id));
         var normalPool = source.Where(item => item.Rarity == ItemRarity.Normal).OrderBy(_ => _random.Next()).ToList();
         var magicPool = source.Where(item => item.Rarity == ItemRarity.Magic && item.MagicPower == magicPower)
             .OrderBy(_ => _random.Next()).ToList();
