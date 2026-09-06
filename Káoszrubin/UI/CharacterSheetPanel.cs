@@ -226,7 +226,7 @@ public static class CharacterSheetPanel
         lines.Add(new(15, upgrades.Count > 1 ? Shorten($"L20: {upgrades[1]}", Width) : "L20: —", upgrades.Count > 1 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
         lines.Add(new(16, BlankLine, ConsoleColor.Black));
         lines.Add(new(17, "FEGYVEREK ", ConsoleColor.Yellow,
-            ColoredSuffix: $"⚔ ⚖ {details.EquippedWeight}  ⚡ {details.InitiativeBase}",
+            ColoredSuffix: $"⚔ ⚖ {details.EquippedWeight}/{details.CombatCarryingCapacity:0.##}  ⚡ {details.InitiativeBase}",
             ColoredSuffixColor: EncumbranceColor(details.Encumbrance)));
         AddInventoryLines(lines, inventory, details);
         return lines;

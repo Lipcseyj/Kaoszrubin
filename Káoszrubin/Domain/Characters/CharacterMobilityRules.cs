@@ -9,6 +9,7 @@ public sealed record CharacterMobilityProfile(
     double EquippedWeight,
     double CarriedWeight,
     double CarryingCapacity,
+    double CombatCarryingCapacity,
     EncumbranceLevel Encumbrance,
     EncumbranceLevel CarriedEncumbrance,
     int EncumbranceInitiativePenalty,
@@ -28,8 +29,10 @@ public static class CharacterMobilityRules
         ArgumentNullException.ThrowIfNull(character);
         var abilities = character.EffectiveAbilities;
         var weight = character.ActiveWeapons.Where(weapon => weapon is not null).Sum(weapon => weapon!.Weight) +
-                     (character.Armor?.Weight ?? 0);
-        var carriedWeight = weight + (character.WeaponSlots[2]?.Weight ?? 0) + character.MagicItems.Where(item => item is not null).Sum(item => item!.Weight) +
+                     (character.Armor?.Weight ?? 0) +
+                     (character.WeaponSlots[2]?.Weight ?? 0) +
+                     character.MagicItems.Where(item => item is not null).Sum(item => item!.Weight);
+        var carriedWeight = weight +
                             Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount).Sum(index =>
                                 (character.GetInventoryItem(InventorySlotKind.Backpack, index)?.Weight ?? 0) *
                                 character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index));
@@ -43,8 +46,9 @@ public static class CharacterMobilityRules
         if (equippedWeight < 0) throw new ArgumentOutOfRangeException(nameof(equippedWeight));
         var totalWeight = carriedWeight ?? equippedWeight;
         if (totalWeight < equippedWeight) throw new ArgumentOutOfRangeException(nameof(carriedWeight));
-        var capacity = Math.Max(6, abilities.Strength * 4) + abilities.Health + 3;
-        var encumbrance = EncumbranceFor(equippedWeight, capacity);
+        var capacity = 5 + Math.Max(6, abilities.Strength * 4) + abilities.Health + (abilities.Dexterity / 3);
+        var combatCapacity = capacity * 0.75;
+        var encumbrance = EncumbranceFor(equippedWeight, combatCapacity);
         var carriedEncumbrance = EncumbranceFor(totalWeight, capacity);
         var initiativePenalty = encumbrance switch
         {
@@ -81,7 +85,8 @@ public static class CharacterMobilityRules
         var additionalCarriedPenalty = Math.Max(0,
             MovementPenaltyFor(carriedEncumbrance) - MovementPenaltyFor(encumbrance));
         var explorationMovement = Math.Clamp(movement - additionalCarriedPenalty, 1, 6);
-        return new CharacterMobilityProfile(equippedWeight, totalWeight, capacity, encumbrance, carriedEncumbrance,
+        return new CharacterMobilityProfile(equippedWeight, totalWeight, capacity, combatCapacity,
+            encumbrance, carriedEncumbrance,
             initiativePenalty,
             classInitiative, abilities.Dexterity + classInitiative - initiativePenalty,
             movement, explorationMovement, (double)BaselineMovementAllowance / explorationMovement);

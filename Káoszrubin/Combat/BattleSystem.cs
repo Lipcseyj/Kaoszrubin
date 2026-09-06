@@ -89,7 +89,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             initiativeNotes.Add($"{WeaponFamilies.Find(initiativeFamily!)!.Icon} jártasság +{proficiencyInitiativeBonus}");
         var perkText = initiativeNotes.Count > 0 ? $" [{string.Join(", ", initiativeNotes)}]" : string.Empty;
         var loadText = mobility.EncumbranceInitiativePenalty > 0
-            ? $" - felszerelés {mobility.EncumbranceInitiativePenalty} ({mobility.EquippedWeight}/{mobility.CarryingCapacity})"
+            ? $" - felszerelés {mobility.EncumbranceInitiativePenalty} ({mobility.EquippedWeight}/{mobility.CombatCarryingCapacity:0.##})"
             : string.Empty;
         var initiativeMessage = $"Kezdeményezés: {player.Name} Ügy {player.EffectiveAbilities.Dexterity}" +
             (mobility.ClassInitiativeModifier > 0 ? $" + osztály {mobility.ClassInitiativeModifier}" : string.Empty) +

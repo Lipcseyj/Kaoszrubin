@@ -4018,14 +4018,21 @@ static void EquipmentWeightAffectsMobility()
     var weapon = new WeaponDefinition("W-HEAVY", "Nehéz fegyver", "WT001", new ValueRange(2, 4),
         1, false, allowed, "", 1, Weight: 10);
     var shield = weapon with { Id = "W-SHIELD", Name = "Nehéz pajzs" };
+    var reserve = weapon with { Id = "W-RESERVE", Name = "Nehéz tartalékfegyver" };
     var armor = new ArmorDefinition("A-HEAVY", "Nehéz vért", new ValueRange(2, 4), allowed,
         "", 1, Weight: 14);
-    Assert(character.EquipWeapon(0, weapon) && character.EquipWeapon(1, shield) && character.EquipArmor(armor),
+    var magicItem = new MagicItemDefinition("M-HEAVY", "Nehéz amulett", MagicItemKind.Amulet,
+        ItemRarity.Normal, 1, 0, null, MagicItemEffect.None, 0, allowed, "", 0, Weight: 6);
+    Assert(character.EquipWeapon(0, weapon) && character.EquipWeapon(1, shield) &&
+           character.EquipWeapon(2, reserve) && character.EquipArmor(armor) &&
+           character.AddMagicItem(magicItem),
         "A tesztfelszerelés nem volt felvehető.");
     var heavy = CharacterMobilityRules.Evaluate(character);
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
 
-    Assert(light.Encumbrance == EncumbranceLevel.Light && heavy.EquippedWeight == 34 &&
+    Assert(light.Encumbrance == EncumbranceLevel.Light && heavy.EquippedWeight == 50 &&
+           heavy.CarriedWeight == 50 && heavy.CarryingCapacity == 44 &&
+           heavy.CombatCarryingCapacity == 33 &&
            heavy.Encumbrance == EncumbranceLevel.Heavy &&
            heavy.InitiativeBase < light.InitiativeBase &&
            heavy.CombatMovementAllowance < light.CombatMovementAllowance &&
@@ -4062,9 +4069,9 @@ static void MobilityPreviewIsVisible()
         mobilityContext: new ItemInspectionMobilityContext(snapshot, InventorySlotKind.Backpack, armorIndex));
 
     var loadLine = panel.Single(line => line.Row == 17);
-    Assert(loadLine.Text + loadLine.ColoredSuffix == "FEGYVEREK ⚔ ⚖ 9  ⚡ 8" &&
+    Assert(loadLine.Text + loadLine.ColoredSuffix == "FEGYVEREK ⚔ ⚖ 9/33  ⚡ 8" &&
            panel.Single(line => line.Row == 21).InventorySlot?.Kind == InventorySlotKind.Armor &&
-           panel.Single(line => line.Row == 26).Text == $"HÁTIZSÁK 2/12 ⚖ {27.0:F1}/40" &&
+           panel.Single(line => line.Row == 26).Text == $"HÁTIZSÁK 2/12 ⚖ {27.0:F1}/44" &&
            snapshot.CharacterSheet!.CarriedWeight == 27 &&
            snapshot.CharacterSheet.ExplorationMovementAllowance == 3 &&
            inspection.Text.Contains("súly: 12", StringComparison.Ordinal) &&
@@ -4211,7 +4218,8 @@ static void ReserveWeaponIsPassiveAndPersistent()
     var weight = CharacterMobilityRules.Evaluate(character).EquippedWeight;
     Assert(character.EquipWeapon(2, data.GetWeapon("W004")), "Hiányzik a tartalék kard.");
     Assert(character.AttackWeapon?.Id == "W001" && character.ActiveWeapons.Count() == 2 &&
-        CharacterMobilityRules.Evaluate(character).EquippedWeight == weight && CharacterMobilityRules.Evaluate(character).CarriedWeight == weight + 3,
+        CharacterMobilityRules.Evaluate(character).EquippedWeight == weight + 3 &&
+        CharacterMobilityRules.Evaluate(character).CarriedWeight == weight + 3,
         "A tartalék aktívvá vált vagy hibásan számít a súlyba.");
     var revision = character.InventoryRevision;
     Assert(character.TrySwapReserveWeapon() && character.InventoryRevision == revision + 1 &&
