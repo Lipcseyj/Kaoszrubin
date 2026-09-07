@@ -5608,7 +5608,8 @@ public sealed class Game : ISessionCommandHandler
             hasAvailableReinforcements: HasAvailableTeamReinforcements(participantEnemies),
             hasActiveFormation: _formation.State != PartyFormationState.Disbanded,
             isQuestImportant: participantEnemies.Any(IsQuestImportantEnemy),
-            enemyStrikesFirst: enemyStrikesFirst);
+            enemyStrikesFirst: enemyStrikesFirst,
+            allowPlayerChoice: _musicSettings.Settings.QuickCombat == QuickCombatMode.Ask);
         _isQuickTeamBattle = ShouldUseQuickCombat(quickAssessment);
         _quickBattleSuppressedEntryCount = 0;
 
@@ -5844,7 +5845,7 @@ public sealed class Game : ISessionCommandHandler
         if (_musicSettings.Settings.QuickCombat == QuickCombatMode.Automatic) return true;
 
         var injuryPercent = (int)Math.Ceiling(assessment.PredictedInjuryRatio * 100);
-        var message = $"⚡ Gyorsharc elérhető — becsült sérülés legfeljebb " +
+        var message = $"⚡ Gyorsharc elérhető — {assessment.Reason} Becsült sérülés legfeljebb " +
                       $"{assessment.PredictedVitalityLoss} HP ({injuryPercent}%). " +
                       "I / Enter: gyorsharc, N / Esc: taktikai harc.";
         _renderer.DrawInventoryMessage(message, ConsoleColor.Cyan);
