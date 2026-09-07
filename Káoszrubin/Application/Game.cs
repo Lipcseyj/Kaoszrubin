@@ -3286,23 +3286,31 @@ public sealed class Game : ISessionCommandHandler
         _formation = formation;
         _renderer.SetFormationStatus(_formation);
 
-        var revealed = RevealFor(SelectedCharacter, _player.Position, advanceEnemyMemory: true);
-        _renderer.DrawMovement(_maze, _fogOfWar, previousLeader, _player.Position, revealed,
-            _player.Position == _maze.Exit && previousLeader != _maze.Exit);
         SelectedCharacter.RegisterExplorationStep();
+        var leaderRevealed = RevealFor(SelectedCharacter, _player.Position, advanceEnemyMemory: true);
+        var memberReveals = new List<Position>();
+        foreach (var entry in previousMembers)
+        {
+            entry.Avatar.Character.RegisterExplorationStep();
+            memberReveals.AddRange(RevealFor(entry.Avatar.Character, entry.Destination,
+                advanceEnemyMemory: true));
+        }
+        _renderer.DrawFormationMovement(_maze, _fogOfWar,
+            [previousLeader, .. previousMembers.Select(entry => entry.Previous)],
+            [_player.Position, .. previousMembers.Select(entry => entry.Destination)],
+            [.. leaderRevealed, .. memberReveals],
+            _player.Position,
+            _player.Position == _maze.Exit && previousLeader != _maze.Exit);
+
         PlayCharacterStepSound(SelectedCharacter);
         CollectTreasureChest(SelectedCharacter, _player.Position, shareLootWithParty: true);
         TriggerTrapAt(SelectedCharacter, _player.Position);
         foreach (var entry in previousMembers)
         {
-            entry.Avatar.Character.RegisterExplorationStep();
-            var memberRevealed = RevealFor(entry.Avatar.Character, entry.Destination, advanceEnemyMemory: true);
-            _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, entry.Previous, entry.Destination, memberRevealed,
-                _player.Position);
             CollectTreasureChest(entry.Avatar.Character, entry.Destination, shareLootWithParty: false);
             TriggerTrapAt(entry.Avatar.Character, entry.Destination);
         }
-        CheckBossDiscoveryAt(revealed, SelectedCharacter);
+        CheckBossDiscoveryAt(leaderRevealed, SelectedCharacter);
     }
 
     private void ScheduleFormationMove()

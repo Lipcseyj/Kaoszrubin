@@ -403,6 +403,27 @@ public sealed class ConsoleRenderer
     }
 
     /// <summary>
+    /// Egyetlen konzolfrissítésbe vonja össze az alakzat tagjainak átfedő régi és új mezőit.
+    /// Helyben forduláskor ugyanaz a 2×2-es terület különben tagonként többször is újrarajzolódna.
+    /// </summary>
+    public void DrawFormationMovement(
+        Maze maze,
+        FogOfWar fogOfWar,
+        IReadOnlyList<Position> previousPositions,
+        IReadOnlyList<Position> currentPositions,
+        IReadOnlyList<Position> newlyRevealed,
+        Position playerPosition,
+        bool hasWon)
+    {
+        foreach (var position in newlyRevealed.Concat(previousPositions).Concat(currentPositions)
+                     .Where(maze.IsInside).Where(position => position != playerPosition).Distinct())
+            DrawMapCell(maze, fogOfWar, position);
+        DrawPlayer(playerPosition);
+        if (hasWon) DrawBattleMessage("Elérted a kijáratot! Nyomj Entert a fogadóba lépéshez.");
+        Console.Out.Flush();
+    }
+
+    /// <summary>
     /// A teljes térképet újrarajzolja a jelenlegi láthatósági állapot alapján.
     /// Hasznos, ha a látótér jelentősen megváltozott (pl. fényforrások).
     /// </summary>
