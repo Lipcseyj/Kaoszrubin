@@ -13,6 +13,9 @@ public enum EnemySearchRole { None, Scout, Returning }
 
 public abstract class Enemy(Position position) : WorldObject(position)
 {
+    public const int MinimumPursuitMemoryMoves = 8;
+    public const int MaximumPursuitMemoryMoves = 12;
+    public const int PursuitPathFailureTolerance = 3;
     public const int MinimumSearchMoves = 30;
     public const int MaximumSearchMoves = 120;
     public abstract EnemyDefinition Definition { get; }
@@ -29,6 +32,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public EnemySearchRole SearchRole { get; private set; }
     public Position HomePosition { get; private set; } = position;
     public Position? LastKnownTargetPosition { get; private set; }
+    public Direction? LastKnownTargetDirection { get; private set; }
+    public int ConsecutivePursuitPathFailures { get; private set; }
     public int ReactionDelayMovesRemaining { get; private set; }
     public int SearchMovesRemaining { get; private set; }
     public int ReturnDelayMovesRemaining { get; private set; }
@@ -185,8 +190,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
             : pursuitState;
         PursuitTargetCharacterId = pursuitTargetCharacterId;
         PursuitMemoryRemainingMoves = pursuitTargetCharacterId is null ? 0 : pursuitMemoryRemainingMoves >= 0
-            ? pursuitMemoryRemainingMoves
-            : MinimumSearchMoves;
+            ? Math.Clamp(pursuitMemoryRemainingMoves, MinimumPursuitMemoryMoves, MaximumPursuitMemoryMoves)
+            : MinimumPursuitMemoryMoves;
     }
     public void ReversePatrolDirection() => PatrolDirection = PatrolDirection switch
     {
@@ -200,10 +205,11 @@ public abstract class Enemy(Position position) : WorldObject(position)
     {
         PursuitState = pursue ? EnemyPursuitState.Pursuing : EnemyPursuitState.Undecided;
         PursuitTargetCharacterId = pursue ? targetCharacterId : null;
-        PursuitMemoryRemainingMoves = pursue && targetCharacterId is not null ? MinimumSearchMoves : 0;
+        PursuitMemoryRemainingMoves = pursue && targetCharacterId is not null ? MinimumPursuitMemoryMoves : 0;
     }
 
-    public void RefreshPursuitMemory() => PursuitMemoryRemainingMoves = MinimumSearchMoves;
+    public void RefreshPursuitMemory(int moves = MinimumPursuitMemoryMoves) =>
+        PursuitMemoryRemainingMoves = Math.Clamp(moves, MinimumPursuitMemoryMoves, MaximumPursuitMemoryMoves);
 
     public bool TryRememberPursuitTarget()
     {
@@ -218,6 +224,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
         PursuitTargetCharacterId = null;
         PursuitMemoryRemainingMoves = 0;
         LastKnownTargetPosition = null;
+        LastKnownTargetDirection = null;
+        ConsecutivePursuitPathFailures = 0;
         ReactionDelayMovesRemaining = 0;
         SearchMovesRemaining = 0;
         ReturnDelayMovesRemaining = 0;
@@ -236,22 +244,34 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public void ConfigureAwareness(EnemyAlertness alertness, Position? homePosition = null,
         EnemySearchRole searchRole = EnemySearchRole.None, Position? lastKnownTargetPosition = null,
         int reactionDelayMovesRemaining = 0, int searchMovesRemaining = 0,
-        int returnDelayMovesRemaining = 0)
+        int returnDelayMovesRemaining = 0, Direction? lastKnownTargetDirection = null,
+        int consecutivePursuitPathFailures = 0)
     {
         Alertness = CanSleep ? alertness : EnemyAlertness.Alert;
         HomePosition = homePosition ?? Position;
         SearchRole = searchRole;
         LastKnownTargetPosition = lastKnownTargetPosition;
+        LastKnownTargetDirection = lastKnownTargetDirection;
+        ConsecutivePursuitPathFailures = Math.Clamp(consecutivePursuitPathFailures, 0,
+            PursuitPathFailureTolerance);
         ReactionDelayMovesRemaining = Math.Max(0, reactionDelayMovesRemaining);
         SearchMovesRemaining = Math.Clamp(searchMovesRemaining, 0, MaximumSearchMoves);
         ReturnDelayMovesRemaining = Math.Max(0, returnDelayMovesRemaining);
     }
 
-    public void BeginPursuit(CharacterId targetCharacterId, Position lastKnownPosition, int reactionDelay)
+    public void BeginPursuit(CharacterId targetCharacterId, Position lastKnownPosition, int reactionDelay,
+        int pursuitMemoryMoves = MinimumPursuitMemoryMoves)
     {
+        var previousKnownPosition = PursuitTargetCharacterId == targetCharacterId
+            ? LastKnownTargetPosition
+            : null;
         PursuitState = EnemyPursuitState.Pursuing;
         PursuitTargetCharacterId = targetCharacterId;
         LastKnownTargetPosition = lastKnownPosition;
+        LastKnownTargetDirection = ObservedDirection(previousKnownPosition, lastKnownPosition) ??
+                                   (previousKnownPosition is null ? null : LastKnownTargetDirection);
+        RefreshPursuitMemory(pursuitMemoryMoves);
+        ConsecutivePursuitPathFailures = 0;
         ReactionDelayMovesRemaining = Math.Max(0, reactionDelay);
         SearchMovesRemaining = 0;
         ReturnDelayMovesRemaining = 0;
@@ -259,10 +279,23 @@ public abstract class Enemy(Position position) : WorldObject(position)
         Alertness = EnemyAlertness.Alert;
     }
 
-    public void RefreshKnownTarget(Position position)
+    public void RefreshKnownTarget(Position position, int pursuitMemoryMoves = MinimumPursuitMemoryMoves)
     {
+        LastKnownTargetDirection = ObservedDirection(LastKnownTargetPosition, position) ?? LastKnownTargetDirection;
         LastKnownTargetPosition = position;
+        RefreshPursuitMemory(pursuitMemoryMoves);
+        ConsecutivePursuitPathFailures = 0;
     }
+
+    public void AdvancePredictedTarget(Position position) => LastKnownTargetPosition = position;
+
+    public bool RegisterPursuitPathFailure()
+    {
+        ConsecutivePursuitPathFailures++;
+        return ConsecutivePursuitPathFailures >= PursuitPathFailureTolerance;
+    }
+
+    public void ResetPursuitPathFailures() => ConsecutivePursuitPathFailures = 0;
 
     public bool ConsumeReactionDelay()
     {
@@ -275,20 +308,24 @@ public abstract class Enemy(Position position) : WorldObject(position)
     {
         PursuitState = EnemyPursuitState.Undecided;
         PursuitTargetCharacterId = null;
+        PursuitMemoryRemainingMoves = 0;
         ReactionDelayMovesRemaining = 0;
         SearchRole = EnemySearchRole.Scout;
         SearchMovesRemaining = Math.Clamp(moves, MinimumSearchMoves, MaximumSearchMoves);
         ReturnDelayMovesRemaining = 0;
+        ConsecutivePursuitPathFailures = 0;
     }
 
     public void BeginReturn(int delayMoves)
     {
         PursuitState = EnemyPursuitState.Undecided;
         PursuitTargetCharacterId = null;
+        PursuitMemoryRemainingMoves = 0;
         ReactionDelayMovesRemaining = 0;
         SearchRole = EnemySearchRole.Returning;
         SearchMovesRemaining = 0;
         ReturnDelayMovesRemaining = Math.Max(0, delayMoves);
+        ConsecutivePursuitPathFailures = 0;
     }
 
     public bool ConsumeReturnDelay()
@@ -311,6 +348,16 @@ public abstract class Enemy(Position position) : WorldObject(position)
     }
 
     public void RememberTravelDirection(Direction direction) => PatrolDirection = direction;
+
+    private static Direction? ObservedDirection(Position? previous, Position current)
+    {
+        if (previous is not { } old) return null;
+        var deltaX = current.X - old.X;
+        var deltaY = current.Y - old.Y;
+        if (deltaX == 0 && deltaY == 0) return null;
+        if (Math.Abs(deltaX) >= Math.Abs(deltaY)) return deltaX > 0 ? Direction.Right : Direction.Left;
+        return deltaY > 0 ? Direction.Down : Direction.Up;
+    }
     public void ConfigureGroup(string? groupId, EnemyGroupRole role = EnemyGroupRole.Member)
     {
         GroupId = string.IsNullOrWhiteSpace(groupId) ? null : groupId;

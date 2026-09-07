@@ -53,7 +53,8 @@ internal sealed class GameStateMapper
                 enemy.WeaponCooldowns.ToDictionary(item => item.Key, item => item.Value,
                     StringComparer.OrdinalIgnoreCase), enemy.PreparedWeaponId,
                 enemy.RemainingAbilityCharges.ToDictionary(item => item.Key, item => item.Value,
-                    StringComparer.OrdinalIgnoreCase))).ToList(),
+                    StringComparer.OrdinalIgnoreCase), enemy.LastKnownTargetDirection,
+                enemy.ConsecutivePursuitPathFailures)).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -139,7 +140,8 @@ internal sealed class GameStateMapper
             enemy.ConfigureAwareness(savedEnemy.Alertness, savedEnemy.HomePosition,
                 savedEnemy.SearchRole, savedEnemy.LastKnownTargetPosition,
                 savedEnemy.ReactionDelayMovesRemaining, savedEnemy.SearchMovesRemaining,
-                savedEnemy.ReturnDelayMovesRemaining);
+                savedEnemy.ReturnDelayMovesRemaining, savedEnemy.LastKnownTargetDirection,
+                savedEnemy.ConsecutivePursuitPathFailures);
             enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
             enemy.ConfigureGuaranteedLoot(savedEnemy.GuaranteedLootIds ?? []);
             enemy.RestoreCombatCooldowns(savedEnemy.AbilityCooldowns ?? [], savedEnemy.WeaponCooldowns ?? [],

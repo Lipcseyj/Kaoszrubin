@@ -8,10 +8,16 @@ public static class EnemyTargeting
         Position observerPosition,
         IEnumerable<(LiveCharacter Character, Position Position)> candidates,
         Func<Position, bool> canSee,
-        Random random)
+        Random random,
+        CharacterId? preferredTargetCharacterId = null)
     {
         var visible = candidates.Where(candidate => candidate.Character.IsAlive && canSee(candidate.Position)).ToArray();
         if (visible.Length == 0) return null;
+        if (preferredTargetCharacterId is { } preferredId)
+        {
+            var preferred = visible.FirstOrDefault(candidate => candidate.Character.Id == preferredId);
+            if (preferred.Character is not null) return preferred;
+        }
         var nearestDistance = visible.Min(candidate => Distance(observerPosition, candidate.Position));
         var nearest = visible.Where(candidate => Distance(observerPosition, candidate.Position) == nearestDistance)
             .ToArray();

@@ -300,7 +300,11 @@ Minden szörny a pályageneráláskor egyszer kap mozgási profilt és járőrir
 
 Ha egy találkozás nem ír elő mozgást, a szobában generált szörny 80% eséllyel helyben áll; a fennmaradó 20% egyenlően oszlik meg a kóborló és járőr profil között. Folyosón a helyben állás esélye 10%, a maradék 90% fele-fele arányban kóborló vagy járőr. A jelenlegi szobai csoportkonfigurációk kifejezetten `Stationary` profilt kérnek, ezért ezek tagjai és vezérei észlelés előtt együtt, helyben várakoznak.
 
-Profiltól függetlenül minden magányos szörny vagy szörnycsoport egyszer hoz üldözési döntést, amikor valamelyik tag először legfeljebb öt Chebyshev-távolságra, tiszta látóvonalban meglátja a partyvezért. 60% eséllyel az egész csoport üldözni kezd, 40% eséllyel minden tag végleg megtartja eredeti profilját. Az üldözők járható útvonalon, zárt ajtókat és foglalt mezőket kerülve közelítenek; partitársba ütközve vele kezdenek csatát. Az üldözési döntés, a csoportazonosító és -szerep, a profil és a járőr aktuális iránya mentéskor megmarad. Régi mentésből hiányzó profil alapértéke a korábbi működést megőrző `Wander`; a hiányzó csoportazonosító magányos ellenfelet jelent.
+Profiltól függetlenül a szörny üldözni kezdi a látótávján és tiszta látóvonalban észlelt legközelebbi élő partitagot. Azonos távolságnál véletlen a kezdeti választás, de a már üldözött, továbbra is látható célpont elsőbbséget élvez, ezért az ellenfél nem váltogat indokolatlanul a partitagok között. Egy csoport tagjai megosztják egymással az észlelt célpont helyét. Az alvó és félálomban lévő tagok csak rövid reakciókésés után indulnak el.
+
+Az üldözők járható útvonalon, zárt ajtókat és foglalt mezőket kerülve közelítenek; partitársba ütközve vele kezdenek csatát. A látás elvesztésekor 8–12 saját mozgásig emlékeznek a célpontra: előbb az utolsó ismert mezőhöz mennek, majd továbbhaladnak a célpont utoljára megfigyelt irányába. Egy átmenetileg elállt út csak három egymást követő sikertelen közelítés után szakítja meg az üldözést. Ezután minden falkatag a saját időzítése szerint 30–120 sikeres lépésen át keres; egyikük nyomvesztése már nem küldi azonnal haza a többieket. A keresés végén a szörny visszatér az eredeti helyéhez.
+
+Az üldözési és keresési állapot, a célpont, a hátralévő memória, az utolsó ismert hely és irány, valamint az egymást követő útkeresési hibák mentéskor megmaradnak. Régi mentésből hiányzó profil alapértéke a korábbi működést megőrző `Wander`; a hiányzó csoportazonosító magányos ellenfelet jelent.
 
 ### Szörnycsoportok és találkozások
 
