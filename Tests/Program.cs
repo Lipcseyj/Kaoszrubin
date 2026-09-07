@@ -102,6 +102,7 @@ var tests = new (string Name, Action Run)[]
     ("A zárt út mögötti ellenfél nem érkezhet meg néhány harci kör alatt", TacticalArrivalRequiresWalkableRoute),
     ("A csapatharc két egymást követő tétlen kör után áll le", TeamBattleDetectsInactiveSide),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
+    ("A szörny Ereje találat után lökési vagy tántorítási próbát ad", MonsterStrengthCreatesTacticalPressure),
     ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
     ("A zárt alakzat első sora védi a mögötte álló társat", TeamBattleFormationProtectsRearRow),
     ("A vezér külön harcra készítheti a hátsó sor két oldalát", RearCombatPreparationIsLeaderControlled),
@@ -4318,6 +4319,81 @@ static void TeamBattleFormationProtectsRearRow()
            !encounter.IsProtectedRearTarget(rear, new Position(2, 4)) &&
            !encounter.IsProtectedRearTarget(rear, new Position(3, 5)),
         "Az első sor nem csak az alakzat eleje felől védi a hátsó társat.");
+}
+
+static void MonsterStrengthCreatesTacticalPressure()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var attacker = CreateEnemy(100, 13);
+    var plainDefender = CreateCharacter("Támasz nélkül", 100);
+    var bracedDefender = CreateCharacter("Pajzsos", 100);
+    Assert(bracedDefender.EquipWeapon(0, data.GetWeapon("W004")) &&
+           bracedDefender.EquipWeapon(1, data.GetWeapon("W014")),
+        "A pajzsos Erőpróba-teszt felszerelése sikertelen.");
+    var plainSystem = CreateBattleSystem(1712);
+    var bracedSystem = CreateBattleSystem(1712);
+    var plainRuntime = plainSystem.PrepareTeamCharacter(plainDefender).Runtime;
+    var bracedRuntime = bracedSystem.PrepareTeamCharacter(bracedDefender).Runtime;
+    Assert(bracedRuntime.TryChooseTactic(bracedDefender, BattleTactic.FighterDefensive),
+        "A védekező állás nem volt kiválasztható az Erőpróba tesztjében.");
+    var plain = plainSystem.ResolveMonsterStrengthContest(attacker, plainDefender, plainRuntime);
+    var braced = bracedSystem.ResolveMonsterStrengthContest(attacker, bracedDefender, bracedRuntime);
+    Assert(plain.Roll == braced.Roll && plain.ResistanceRoll == braced.ResistanceRoll &&
+           plain.Total == braced.Total && braced.StrengthPressure == (braced.Strength + 1) / 2 &&
+           braced.ShieldBonus == 2 && braced.DefensiveBonus == 2 &&
+           braced.Resistance == plain.Resistance + 4,
+        "A pajzs vagy a védekező állás nem növelte helyesen az Erőpróba ellenállását.");
+    Assert(plain.Outcome == (plain.Margin >= 5 ? MonsterStrengthContestOutcome.Push :
+               plain.Margin >= 1 ? MonsterStrengthContestOutcome.Stagger : MonsterStrengthContestOutcome.Resisted),
+        "Az Erőpróba különbsége nem a megfelelő taktikai hatást választotta.");
+
+    var race = new RaceDefinition("R-STRENGTH", "Ember", PrimaryAbilities.Zero);
+    var fighterClass = new CharacterClassDefinition(CharacterClassIds.Harcos, "Harcos",
+        PrimaryAbilities.Zero, false, 1.0);
+    var sturdyDefender = new LiveCharacter("Szívós", race, fighterClass,
+        new PrimaryAbilities(5, 5, 10, 5), 100, 0, 1, 0);
+    Assert(sturdyDefender.EquipWeapon(0, data.GetWeapon("W004")) &&
+           sturdyDefender.EquipWeapon(1, data.GetWeapon("W014")),
+        "A szívós pajzsos tesztkarakter felszerelése sikertelen.");
+    var sturdyRuntime = CreateBattleSystem(0).PrepareTeamCharacter(sturdyDefender).Runtime;
+    var kobold = CreateEnemy(30, 3);
+    Assert(Enumerable.Range(0, 200).All(seed =>
+            CreateBattleSystem(seed).ResolveMonsterStrengthContest(kobold, sturdyDefender, sturdyRuntime).Outcome ==
+            MonsterStrengthContestOutcome.Resisted),
+        "A 3-as Erővel rendelkező kobold szerencsével megtántoríthatta a 10-es Egészségű pajzsost.");
+
+    var ordinaryDefender = CreateCharacter("Átlagos", 100);
+    var ordinaryRuntime = CreateBattleSystem(0).PrepareTeamCharacter(ordinaryDefender).Runtime;
+    var strongMonster = CreateEnemy(100, 16);
+    var strongOutcomes = Enumerable.Range(0, 200).Select(seed =>
+        CreateBattleSystem(seed).ResolveMonsterStrengthContest(strongMonster, ordinaryDefender,
+            ordinaryRuntime).Outcome).ToArray();
+    Assert(strongOutcomes.Contains(MonsterStrengthContestOutcome.Resisted) &&
+           strongOutcomes.Any(outcome => outcome is MonsterStrengthContestOutcome.Stagger or
+               MonsterStrengthContestOutcome.Push),
+        "A 16-os szörnyerő próbája garantálttá vagy hatástalanná vált az átlagos célpont ellen.");
+
+    var character = CreateCharacter("Tántorgó", characterClassId: CharacterClassIds.Barbár);
+    var enemy = CreateEnemyAt(new Position(8, 8), "E-STRENGTH");
+    var system = CreateBattleSystem(1713);
+    var preparation = system.PrepareTeamCharacter(character);
+    var encounter = new TeamBattleEncounter(new Position(3, 3),
+        [new TeamCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
+            preparation.Initiative, 3, 1, preparation.Runtime)],
+        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+    Assert(encounter.TryBeginStrengthContest(enemy) && !encounter.TryBeginStrengthContest(enemy),
+        "Ugyanaz a szörny egy körben többször kezdhetett Erőpróbát.");
+    Assert(encounter.StaggerCharacter(character), "A karakter nem kapta meg a tántorodást.");
+    var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1713));
+    var actions = coordinator.GetTeamAllowedBattleActions(encounter, character, enemy, character,
+        encounter.PositionOf(character), false, []);
+    Assert(!actions.Contains(BattleActionKind.Move) && actions.Contains(BattleActionKind.Pass),
+        "A megtántorított karakter továbbra is mozoghatott, vagy más akcióit is elvesztette.");
+    encounter.Turns.StartTurns();
+    encounter.AdvanceTurn();
+    encounter.AdvanceTurn();
+    Assert(!encounter.IsCharacterStaggered(character) && encounter.TryBeginStrengthContest(enemy),
+        "A tántorodás nem a következő saját kör végén múlt el, vagy az Erőpróba nem újult meg körváltáskor.");
 }
 
 static void RearCombatPreparationIsLeaderControlled()

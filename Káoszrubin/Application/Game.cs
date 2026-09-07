@@ -6420,9 +6420,10 @@ public sealed class Game : ISessionCommandHandler
         if (rearPreparationOrdered && character.CurrentVitality < character.MaximumVitality &&
             TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 100, allowedWaste: 15))
             return;
-        if (battle.HasProtectiveFormation && battle.IsFrontRow(character) &&
+        if (!battle.IsCharacterStaggered(character) && battle.HasProtectiveFormation && battle.IsFrontRow(character) &&
             character.CurrentVitality * 3 <= character.MaximumVitality &&
-            battle.RearPartnerOf(character) is { IsAlive: true } &&
+            battle.RearPartnerOf(character) is { IsAlive: true } rearPartner &&
+            !battle.IsCharacterStaggered(rearPartner) &&
             TryExecuteSwapToRear(battle, character, out _))
             return;
         if (TryExecuteTeamAiTurnUndead(battle, character)) return;
@@ -6433,7 +6434,7 @@ public sealed class Game : ISessionCommandHandler
         if (attemptedUrgentPotion &&
             TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 60, allowedWaste: 0))
             return;
-        if (!battle.HasActiveFormation && !battle.IsEngaged(character) &&
+        if (!battle.IsCharacterStaggered(character) && !battle.HasActiveFormation && !battle.IsEngaged(character) &&
             TryExecuteNpcSpellcasterPositioning(battle, character)) return;
         var reachable = ReachableTeamEnemies(battle, character).FirstOrDefault();
         if (reachable is not null)
@@ -6451,6 +6452,15 @@ public sealed class Game : ISessionCommandHandler
         if (!attemptedUrgentPotion && character.CurrentVitality < character.MaximumVitality &&
             TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 30, allowedWaste: 0))
             return;
+        if (battle.IsCharacterStaggered(character))
+        {
+            var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+            PresentBattleEntries([new BattleLogEntry(
+                $"💫 {character.Name} még tántorog, ezért nem tud közeledni.{statusText}",
+                BattleLogKind.Information)]);
+            AdvanceTeamBattleTurn(battle);
+            return;
+        }
         if (battle.HasActiveFormation && battle.FormationSlotFor(character) is not null)
         {
             var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
@@ -6939,13 +6949,18 @@ public sealed class Game : ISessionCommandHandler
             var target = targets[index];
             if (TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target)))
                 battle.Engage(target, enemy);
-            var entry = _battleSystem.ResolveTeamEnemyAction(enemy, target, battle.RuntimeFor(target),
+            var meleeAttack = TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target));
+            var resolution = _battleSystem.ResolveTeamEnemyActionDetailed(enemy, target, battle.RuntimeFor(target),
                 attackWeapon, advanceAttackerEffects: index == 0,
                 alliedGuardDefense: TacticalTeamBattleCoordinator.AlliedGuardDefense(
                     battle, target, GetCasterPosition));
+            var entry = resolution.Entry;
             entries.Add(entry);
             if (entry.Kind is BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)
                 battle.RecordAttack(BattleSide.Hostile);
+            if (meleeAttack && resolution.Hit && resolution.DamageDealt > 0 && target.IsAlive &&
+                battle.TryBeginStrengthContest(enemy))
+                entries.Add(ResolveMonsterStrengthPressure(battle, enemy, target));
             if (!target.IsAlive) ResolveTeamCharacterDefeat(battle, target);
             if (enemy.CurrentHitPoints <= 0 || entry.Kind == BattleLogKind.Information) break;
         }
@@ -7274,12 +7289,111 @@ public sealed class Game : ISessionCommandHandler
         AdvanceTeamBattleTurn(battle);
     }
 
+    private BattleLogEntry ResolveMonsterStrengthPressure(TeamBattleEncounter battle, Enemy enemy,
+        LiveCharacter target)
+    {
+        var result = _battleSystem.ResolveMonsterStrengthContest(enemy, target, battle.RuntimeFor(target));
+        var defense = $"{result.ResistanceRoll} + Egészség {result.Health}" +
+                      (result.ShieldBonus > 0 ? $" + pajzs {result.ShieldBonus}" : string.Empty) +
+                      (result.DefensiveBonus > 0 ? $" + védekező állás {result.DefensiveBonus}" : string.Empty);
+        var roll = $"Erőpróba: {enemy.Name} {result.Roll} + Erőhatás {result.StrengthPressure} " +
+                   $"(Erő {result.Strength}) = {result.Total}; " +
+                   $"{target.Name} ellenállása {defense} = {result.Resistance}.";
+        if (result.Outcome == MonsterStrengthContestOutcome.Resisted)
+            return new BattleLogEntry($"💪 {roll} {target.Name} megtartja a helyét.",
+                BattleLogKind.Information);
+
+        if (result.Outcome == MonsterStrengthContestOutcome.Push &&
+            TryPushTeamBattleTarget(battle, enemy, target, out var pushedFormation))
+            return new BattleLogEntry($"💥 {roll} " + (pushedFormation
+                    ? "A csapás egy mezővel hátratolja az egész alakzatot."
+                    : $"{target.Name} egy mezővel hátralökődik."),
+                BattleLogKind.Information);
+
+        battle.StaggerCharacter(target);
+        var blocked = result.Outcome == MonsterStrengthContestOutcome.Push
+            ? " Nincs hely a hátralökéshez, ezért"
+            : string.Empty;
+        return new BattleLogEntry($"💫 {roll}{blocked} {target.Name} megtántorodik, és a következő " +
+                                  "saját körében nem mozoghat.", BattleLogKind.Information);
+    }
+
+    private bool TryPushTeamBattleTarget(TeamBattleEncounter battle, Enemy enemy, LiveCharacter target,
+        out bool pushedFormation)
+    {
+        pushedFormation = false;
+        var direction = StrengthPushDirection(enemy.Position, battle.PositionOf(target));
+        if (battle.HasActiveFormation && battle.FormationSlotFor(target) is not null)
+        {
+            var destinations = battle.FormationDestinations(direction);
+            if (!CanForceMoveFormation(battle, destinations)) return false;
+            foreach (var (member, destination) in destinations)
+            {
+                MoveBattleCharacterTo(member, destination);
+                RevealFor(member, destination);
+            }
+            battle.UpdateFormationPositions(destinations);
+            battle.PruneSeparatedEngagements();
+            pushedFormation = true;
+        }
+        else
+        {
+            var destination = battle.PositionOf(target) + direction;
+            if (!battle.Turns.IsInsideBattleArea(destination) ||
+                !CanTeamBattleEnter(battle, destination, CombatantId.ForCharacter(target.Id))) return false;
+            MoveBattleCharacterTo(target, destination);
+            battle.UpdatePosition(target, destination);
+            battle.PruneSeparatedEngagements();
+            RevealFor(target, destination);
+        }
+        if (!_isQuickTeamBattle)
+            _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        return true;
+    }
+
+    private bool CanForceMoveFormation(TeamBattleEncounter battle,
+        IReadOnlyDictionary<LiveCharacter, Position> destinations)
+    {
+        if (destinations.Count == 0) return false;
+        var movingIds = destinations.Keys.Select(member => CombatantId.ForCharacter(member.Id)).ToHashSet();
+        var movingAvatars = destinations.Keys.Select(member =>
+                _maze.PartyMembers.FirstOrDefault(avatar => avatar.Character == member))
+            .Where(avatar => avatar is not null).ToHashSet();
+        foreach (var destination in destinations.Values)
+        {
+            if (!battle.Turns.IsInsideBattleArea(destination) || !_maze.IsWalkable(destination) ||
+                _maze.GetEnemyAt(destination) is not null ||
+                battle.Turns.Participants.Any(participant => !movingIds.Contains(participant.Id) &&
+                    participant.State is TacticalParticipantState.Active or TacticalParticipantState.Approaching &&
+                    participant.Position == destination)) return false;
+            var occupant = _maze.GetObjectAt(destination);
+            if (occupant is null or GroundItemPile or Corpse || Maze.IsPassableNeutralNpc(occupant) ||
+                occupant is PartyMemberAvatar avatar && movingAvatars.Contains(avatar)) continue;
+            return false;
+        }
+        return true;
+    }
+
+    private static Direction StrengthPushDirection(Position attacker, Position target)
+    {
+        var deltaX = target.X - attacker.X;
+        var deltaY = target.Y - attacker.Y;
+        if (Math.Abs(deltaX) >= Math.Abs(deltaY))
+            return deltaX >= 0 ? Direction.Right : Direction.Left;
+        return deltaY >= 0 ? Direction.Down : Direction.Up;
+    }
+
     private bool TryExecuteTeamFormationMove(TeamBattleEncounter battle, LiveCharacter character,
         Position target, out string error)
     {
         if (character != SelectedCharacter || !battle.HasActiveFormation)
         {
             error = "Az alakzatot csak a vezér mozgathatja.";
+            return false;
+        }
+        if (battle.HasStaggeredFormationMember)
+        {
+            error = "Az alakzat egyik tagja megtántorodott, ezért ebben a körben az alakzat nem mozoghat.";
             return false;
         }
         var origin = GetCasterPosition(character);
@@ -7355,6 +7469,12 @@ public sealed class Game : ISessionCommandHandler
 
     private bool TryExecuteSwapToRear(TeamBattleEncounter battle, LiveCharacter character, out string error)
     {
+        if (battle.IsCharacterStaggered(character) ||
+            battle.RearPartnerOf(character) is { } rearPartner && battle.IsCharacterStaggered(rearPartner))
+        {
+            error = "Megtántorodott alakzattag ebben a körben nem cserélhet helyet.";
+            return false;
+        }
         if (!battle.TrySwapToRear(character, out var rear, out var frontPosition, out var rearPosition,
                 out var transferredEngagements) || rear is null)
         {
@@ -7388,6 +7508,11 @@ public sealed class Game : ISessionCommandHandler
     private bool TryExecuteTeamCharacterMove(TeamBattleEncounter battle, LiveCharacter character, Position target,
         out string error)
     {
+        if (battle.IsCharacterStaggered(character))
+        {
+            error = $"{character.Name} megtántorodott, ezért ebben a körben nem mozoghat.";
+            return false;
+        }
         if (battle.IsEngaged(character))
         {
             error = $"{character.Name} le van kötve, ezért nem mozoghat.";

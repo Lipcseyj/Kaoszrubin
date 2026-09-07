@@ -323,6 +323,7 @@ public sealed class TacticalTeamBattleCoordinator
                 ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
                 : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
         var reachable = ReachableTeamEnemies(battle, character, characterPosition).ToArray();
+        var staggered = battle.IsCharacterStaggered(character);
         var turnUndeadTargets = AdjacentTeamEnemies(battle, character, characterPosition)
             .Concat(battle.RearFormationEngagedEnemies(character))
             .Where(enemy => SingleBattleCoordinator.CanTurnUndead(character, enemy))
@@ -332,8 +333,11 @@ public sealed class TacticalTeamBattleCoordinator
             var openingActions = new List<BattleActionKind> { BattleActionKind.Pass };
             if (reachable.Length > 0) openingActions.Insert(0, BattleActionKind.PhysicalAttack);
             else if (battle.HasActiveFormation && character == selectedCharacter)
-                openingActions.Insert(0, BattleActionKind.MoveFormation);
-            else openingActions.Insert(0, BattleActionKind.Move);
+            {
+                if (!staggered && !battle.HasStaggeredFormationMember)
+                    openingActions.Insert(0, BattleActionKind.MoveFormation);
+            }
+            else if (!staggered) openingActions.Insert(0, BattleActionKind.Move);
             if (hasUsableCombatSpell)
                 openingActions.Insert(0, BattleActionKind.CastSpell);
             if (turnUndeadTargets.Length > 0 && !turnUndeadUsedThisBattle.Contains(character))
@@ -351,16 +355,18 @@ public sealed class TacticalTeamBattleCoordinator
         }
         if (turnUndeadTargets.Length > 0 && !turnUndeadUsedThisBattle.Contains(character))
             actions.Add(BattleActionKind.TurnUndead);
-        if (battle.HasProtectiveFormation && battle.IsFrontRow(character) &&
-            battle.RearPartnerOf(character) is { IsAlive: true })
+        if (!staggered && battle.HasProtectiveFormation && battle.IsFrontRow(character) &&
+            battle.RearPartnerOf(character) is { IsAlive: true } rearPartner &&
+            !battle.IsCharacterStaggered(rearPartner))
             actions.Add(BattleActionKind.SwapToRear);
-        if (battle.HasActiveFormation && character == selectedCharacter)
+        if (!staggered && !battle.HasStaggeredFormationMember && battle.HasActiveFormation &&
+            character == selectedCharacter)
             actions.Add(BattleActionKind.MoveFormation);
         if (hasUsableCombatSpell)
             actions.Add(BattleActionKind.CastSpell);
         if (!battle.IsEngaged(character))
         {
-            if (!battle.HasActiveFormation || battle.FormationSlotFor(character) is null)
+            if (!staggered && (!battle.HasActiveFormation || battle.FormationSlotFor(character) is null))
                 actions.Add(BattleActionKind.Move);
             if (GetBattleItemOptions(battle, character).Count > 0) actions.Add(BattleActionKind.UseItem);
         }

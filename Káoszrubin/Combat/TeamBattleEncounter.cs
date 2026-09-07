@@ -52,6 +52,8 @@ public sealed class TeamBattleEncounter
     private readonly Dictionary<WorldEntityId, CharacterId> _enemyFacingTargets = [];
     private readonly Dictionary<WorldEntityId, int> _enemyArmorPenalties = [];
     private readonly HashSet<WorldEntityId> _staggeredEnemies = [];
+    private readonly HashSet<CharacterId> _staggeredCharacters = [];
+    private readonly Dictionary<WorldEntityId, int> _strengthContestCycles = [];
     private readonly HashSet<CharacterId> _rearCombatPreparationOrders = [];
     private readonly HashSet<BattleSide> _activeSidesThisCycle = [];
     private readonly Dictionary<CombatantId, int> _spellEffectsAdvancedInCycle = [];
@@ -284,6 +286,29 @@ public sealed class TeamBattleEncounter
 
     public bool ConsumeEnemyStagger(Enemy enemy) => _staggeredEnemies.Remove(enemy.Id);
 
+    public bool TryBeginStrengthContest(Enemy enemy)
+    {
+        if (_strengthContestCycles.GetValueOrDefault(enemy.Id) == Turns.Cycle) return false;
+        _strengthContestCycles[enemy.Id] = Turns.Cycle;
+        return true;
+    }
+
+    public bool StaggerCharacter(LiveCharacter character) =>
+        character.IsAlive && _staggeredCharacters.Add(character.Id);
+
+    public bool IsCharacterStaggered(LiveCharacter character) => _staggeredCharacters.Contains(character.Id);
+
+    public bool HasStaggeredFormationMember => HasActiveFormation && _characters.Values.Any(character =>
+        character.IsAlive && FormationSlotFor(character) is not null && IsCharacterStaggered(character));
+
+    public void PruneSeparatedEngagements() => _engagements.RemoveWhere(pair =>
+    {
+        var character = _characters.Values.FirstOrDefault(value => value.Id == pair.CharacterId);
+        var enemy = _enemies.Values.FirstOrDefault(value => value.Id == pair.EnemyId);
+        return character is null || enemy is null || !character.IsAlive || enemy.CurrentHitPoints <= 0 ||
+               !TacticalDistance.IsMeleeAdjacent(PositionOf(character), enemy.Position);
+    });
+
     public IReadOnlyDictionary<LiveCharacter, Position> FormationDestinations(Direction direction)
     {
         if (!HasActiveFormation) return new Dictionary<LiveCharacter, Position>();
@@ -409,6 +434,8 @@ public sealed class TeamBattleEncounter
             _queuedExtraActions--;
             return Turns.RepeatCurrentTurn();
         }
+        if (CurrentCharacter is { } completedCharacter)
+            _staggeredCharacters.Remove(completedCharacter.Id);
         var completedCycle = Turns.Cycle;
         var next = Turns.AdvanceTurn();
         if (Turns.Cycle > completedCycle)

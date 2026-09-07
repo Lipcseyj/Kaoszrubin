@@ -385,6 +385,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public BattleLogEntry ResolveTeamEnemyAction(Enemy attacker, LiveCharacter defender,
         TeamCharacterBattleRuntime defenderRuntime, WeaponDefinition? attackWeapon = null,
         bool advanceAttackerEffects = true, int alliedGuardDefense = 0)
+        => ResolveTeamEnemyActionDetailed(attacker, defender, defenderRuntime, attackWeapon,
+            advanceAttackerEffects, alliedGuardDefense).Entry;
+
+    public TeamEnemyAttackResolution ResolveTeamEnemyActionDetailed(Enemy attacker, LiveCharacter defender,
+        TeamCharacterBattleRuntime defenderRuntime, WeaponDefinition? attackWeapon = null,
+        bool advanceAttackerEffects = true, int alliedGuardDefense = 0)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
@@ -393,12 +399,37 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var attack = EnemyAttack(attacker.Definition, defender, defenderRuntime.Context, attacker.EffectiveSpeed,
             attackWeapon, allowWeaponFallback: false, attackerInstance: attacker,
             alliedGuardDefense: alliedGuardDefense);
+        var vitalityBefore = defender.CurrentVitality;
         var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
-        return new BattleLogEntry(
+        var entry = new BattleLogEntry(
             $"{FormatAttackSummary(attacker.Name, defender.Name, [attack],
                 defender.CurrentVitality, defender.MaximumVitality)} {survival.ShortLog}",
             attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack,
             DescribeAction(attacker.Name, defender.Name, [attack], survival.Details));
+        return new TeamEnemyAttackResolution(entry, attack.Hit,
+            Math.Max(0, vitalityBefore - defender.CurrentVitality));
+    }
+
+    public MonsterStrengthContestResult ResolveMonsterStrengthContest(Enemy attacker, LiveCharacter defender,
+        TeamCharacterBattleRuntime defenderRuntime)
+    {
+        ArgumentNullException.ThrowIfNull(attacker);
+        ArgumentNullException.ThrowIfNull(defender);
+        ArgumentNullException.ThrowIfNull(defenderRuntime);
+        var strength = attacker.Definition.Strength ?? 1;
+        var strengthPressure = (strength + 1) / 2;
+        var roll = _random.Next(1, 11);
+        var resistanceRoll = _random.Next(1, 11);
+        var shieldBonus = defender.ActiveWeapons.Any(item => item?.WeaponTypeId == DefenseWeaponTypeId) ? 2 : 0;
+        var defensiveBonus = defenderRuntime.Tactic == BattleTactic.FighterDefensive ? 2 : 0;
+        var resistance = resistanceRoll + defender.EffectiveAbilities.Health + shieldBonus + defensiveBonus;
+        var total = strengthPressure + roll;
+        var margin = total - resistance;
+        var outcome = margin >= 5 ? MonsterStrengthContestOutcome.Push :
+            margin >= 1 ? MonsterStrengthContestOutcome.Stagger : MonsterStrengthContestOutcome.Resisted;
+        return new MonsterStrengthContestResult(strength, strengthPressure, roll, total,
+            defender.EffectiveAbilities.Health, resistanceRoll, shieldBonus, defensiveBonus, resistance,
+            margin, outcome);
     }
 
     public BattleLogEntry ResolveTeamOpportunityAttack(Enemy attacker, LiveCharacter defender,
@@ -1399,6 +1430,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
 public sealed record BattleResult(bool PlayerWon, int Rounds, IReadOnlyList<string> Events);
 public sealed record BattleLogEntry(string Message, BattleLogKind Kind, BattleActionDetails? Details = null);
+public sealed record TeamEnemyAttackResolution(BattleLogEntry Entry, bool Hit, int DamageDealt);
+public enum MonsterStrengthContestOutcome { Resisted, Stagger, Push }
+public sealed record MonsterStrengthContestResult(int Strength, int StrengthPressure, int Roll, int Total,
+    int Health, int ResistanceRoll, int ShieldBonus, int DefensiveBonus, int Resistance, int Margin,
+    MonsterStrengthContestOutcome Outcome);
 public sealed record EnemyTurnStartResult(bool CanAct, IReadOnlyList<BattleLogEntry> Entries);
 public sealed record BattlePlayerAction(string Message, BattleLogKind Kind = BattleLogKind.PlayerAttack,
     int DamageToEnemy = 0, int ExtraPlayerActions = 0);
