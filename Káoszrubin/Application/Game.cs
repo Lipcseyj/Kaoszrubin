@@ -3096,7 +3096,7 @@ public sealed class Game : ISessionCommandHandler
         if (!CanControlledCharacterMove(SelectedCharacter)) return;
         var rotated = PartyFormationController.Rotate(_formation, clockwise);
         var positions = PartyFormationController.Positions(rotated, SelectedCharacter.Id, _player.Position);
-        if (!TryPlanFormationPlacement(positions, rotated.Facing, out var followerMoves))
+        if (!TryPlanFormationPlacement(positions, rotated, out var followerMoves))
         {
             _renderer.DrawDeveloperMessage("Az alakzat itt nem tud 90 fokot fordulni: legalabb egy celmezo foglalt.");
             return;
@@ -3115,7 +3115,7 @@ public sealed class Game : ISessionCommandHandler
             var blockFormation = _formation with { Layout = PartyFormationLayout.Block };
             var blockPositions = PartyFormationController.Positions(blockFormation, SelectedCharacter.Id,
                 leaderDestination);
-            if (TryPlanFormationPlacement(blockPositions, blockFormation.Facing, out var reformFollowerMoves))
+            if (TryPlanFormationPlacement(blockPositions, blockFormation, out var reformFollowerMoves))
             {
                 ApplyFormationPositions(blockPositions, blockFormation, reformFollowerMoves);
                 CompleteFormationTravelMove(direction);
@@ -3124,9 +3124,10 @@ public sealed class Game : ISessionCommandHandler
                 return;
             }
 
-            var current = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
-            var translated = current.ToDictionary(pair => pair.Key, pair => pair.Value + direction);
-            if (TryMoveFormationTo(translated, _formation, direction)) return;
+            var current = CurrentFormationPositions();
+            var shifted = PartyFormationController.SingleFileDestinations(_formation, current,
+                SelectedCharacter.Id, leaderDestination);
+            if (TryMoveFormationTo(shifted, _formation, direction)) return;
 
             var turnedFormation = _formation with { Facing = direction };
             var turnedPositions = PartyFormationController.Positions(turnedFormation, SelectedCharacter.Id,
@@ -3148,8 +3149,8 @@ public sealed class Game : ISessionCommandHandler
             Facing = direction,
             Layout = PartyFormationLayout.SingleFile
         };
-        var singleFilePositions = PartyFormationController.Positions(singleFileFormation, SelectedCharacter.Id,
-            leaderDestination);
+        var singleFilePositions = PartyFormationController.SingleFileDestinations(singleFileFormation,
+            CurrentFormationPositions(), SelectedCharacter.Id, leaderDestination);
         if (!PartyFormationController.IsSingleFilePassage(blockDestinations, singleFilePositions, _maze) ||
             !TryMoveFormationTo(singleFilePositions, singleFileFormation, direction)) return;
         AnnouncePartyCommand("Az egymezos szukuletben az alakzat ideiglenesen libasorra valt.",
@@ -3168,7 +3169,7 @@ public sealed class Game : ISessionCommandHandler
             else StartBattle(avatar, enemy);
             return true;
         }
-        if (!TryPlanFormationPlacement(destinations, formation.Facing, out var followerMoves)) return false;
+        if (!TryPlanFormationPlacement(destinations, formation, out var followerMoves)) return false;
         ApplyFormationPositions(destinations, formation, followerMoves);
         CompleteFormationTravelMove(movementDirection);
         return true;
@@ -3182,7 +3183,21 @@ public sealed class Game : ISessionCommandHandler
         ScheduleFormationMove();
     }
 
-    private bool TryPlanFormationPlacement(IReadOnlyDictionary<CharacterId, Position> positions, Direction facing,
+    private IReadOnlyDictionary<CharacterId, Position> CurrentFormationPositions()
+    {
+        var positions = new Dictionary<CharacterId, Position>
+        {
+            [SelectedCharacter.Id] = _player.Position
+        };
+        foreach (var id in _formation.Slots.Where(id => id is not null).Select(id => id!.Value)
+                     .Where(id => id != SelectedCharacter.Id))
+            if (FormationAvatar(id) is { } avatar)
+                positions[id] = avatar.Position;
+        return positions;
+    }
+
+    private bool TryPlanFormationPlacement(IReadOnlyDictionary<CharacterId, Position> positions,
+        PartyFormationSnapshot formation,
         out IReadOnlyDictionary<PartyMemberAvatar, Position> followerMoves)
     {
         followerMoves = new Dictionary<PartyMemberAvatar, Position>();
@@ -3195,7 +3210,9 @@ public sealed class Game : ISessionCommandHandler
         var currentlyOccupiedByFormation = positions.Keys.Select(FormationAvatar)
             .Where(avatar => avatar is not null).Select(avatar => avatar!.Position).ToHashSet();
         var used = new HashSet<Position>();
-        var escortPositions = PartyFormationController.EscortPositions(positions, facing);
+        var escortPositions = formation.Layout == PartyFormationLayout.SingleFile
+            ? PartyFormationController.SingleFileEscortPositions(formation, positions, SelectedCharacter.Id)
+            : PartyFormationController.EscortPositions(positions, formation.Facing);
         var planned = new Dictionary<PartyMemberAvatar, Position>();
         foreach (var follower in followers)
         {
@@ -4962,9 +4979,12 @@ public sealed class Game : ISessionCommandHandler
 
     private bool MoveFollowerWithLockedFormation(PartyMemberAvatar follower)
     {
-        var formationPositions = PartyFormationController.Positions(_formation, SelectedCharacter.Id,
-            _player.Position);
-        var escortPositions = PartyFormationController.EscortPositions(formationPositions, _formation.Facing)
+        var formationPositions = CurrentFormationPositions();
+        var escortCandidates = _formation.Layout == PartyFormationLayout.SingleFile
+            ? PartyFormationController.SingleFileEscortPositions(_formation, formationPositions,
+                SelectedCharacter.Id)
+            : PartyFormationController.EscortPositions(formationPositions, _formation.Facing);
+        var escortPositions = escortCandidates
             .Where(position => position == follower.Position || CanPartyTraverse(follower, position))
             .ToArray();
         if (escortPositions.Contains(follower.Position)) return false;
@@ -5861,6 +5881,11 @@ public sealed class Game : ISessionCommandHandler
     private PartyFormationSnapshot? ActiveBattleFormation()
     {
         if (_formation.State != PartyFormationState.Locked) return null;
+        if (_formation.Layout == PartyFormationLayout.SingleFile)
+            return _formation.Slots.Where(id => id is not null).All(id =>
+                id == SelectedCharacter.Id || FormationAvatar(id!.Value) is not null)
+                ? _formation
+                : null;
         var expected = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
         return expected.All(pair => CharacterRoster.Party.Members.FirstOrDefault(character =>
                     character.Id == pair.Key) is not { IsAlive: true } character ||

@@ -3826,18 +3826,33 @@ static void LockedFormationUsesSingleFileLayout()
         Direction.Up, PartyFormationState.Locked, PartyFormationLayout.SingleFile);
     var positions = PartyFormationRules.Positions(formation, leader.Id, new Position(10, 10));
     var maze = new Maze(17, 17);
-    foreach (var position in positions.Values) maze.Carve(position);
-    var blockPositions = PartyFormationRules.Positions(formation with { Layout = PartyFormationLayout.Block },
-        leader.Id, new Position(10, 10));
+    var blockFormation = formation with { Layout = PartyFormationLayout.Block };
+    var currentBlock = PartyFormationRules.Positions(blockFormation, leader.Id, new Position(10, 10));
+    foreach (var position in currentBlock.Values) maze.Carve(position);
+    maze.Carve(new Position(10, 9));
+    maze.Carve(new Position(9, 9));
+    var blockDestinations = currentBlock.ToDictionary(pair => pair.Key, pair => pair.Value + Direction.Up);
+    var shifted = PartyFormationController.SingleFileDestinations(formation, currentBlock, leader.Id,
+        new Position(10, 9));
+    var turned = PartyFormationController.SingleFileDestinations(formation, shifted, leader.Id,
+        new Position(9, 9));
 
     Assert(formation.State == PartyFormationState.Locked &&
            positions[leader.Id] == new Position(10, 10) &&
            positions[second.Id] == new Position(10, 11) &&
            positions[third.Id] == new Position(10, 12) &&
            positions[fourth.Id] == new Position(10, 13) &&
-           PartyFormationController.IsSingleFilePassage(blockPositions, positions, maze) &&
+           PartyFormationController.IsSingleFilePassage(blockDestinations, shifted, maze) &&
+           shifted[leader.Id] == new Position(10, 9) &&
+           shifted[second.Id] == new Position(10, 10) &&
+           shifted[fourth.Id] == new Position(11, 10) &&
+           shifted[third.Id] == new Position(11, 11) &&
+           turned[leader.Id] == new Position(9, 9) &&
+           turned[second.Id] == new Position(10, 9) &&
+           turned[fourth.Id] == new Position(10, 10) &&
+           turned[third.Id] == new Position(11, 10) &&
            ConsoleRenderer.FormationStatusText(formation).Contains("zárt · libasor", StringComparison.Ordinal),
-        "A libasor nem maradt zárt, nem a vezér mögé rendeződött vagy nem látható a státuszban.");
+        "A libasor nem maradt zárt, nem fűződött ki a szobából vagy nem követte a folyosó kanyarját.");
 }
 
 static void FormationEscortPositionsFollowRearEdge()

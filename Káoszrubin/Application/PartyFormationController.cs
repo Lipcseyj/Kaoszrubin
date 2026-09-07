@@ -83,6 +83,71 @@ public sealed class PartyFormationController
             .ToArray();
     }
 
+    public static IReadOnlyDictionary<CharacterId, Position> SingleFileDestinations(
+        PartyFormationSnapshot formation,
+        IReadOnlyDictionary<CharacterId, Position> currentPositions,
+        CharacterId leaderId,
+        Position leaderDestination)
+    {
+        var order = SingleFileOrder(formation, currentPositions, leaderId);
+        var destinations = new Dictionary<CharacterId, Position>();
+        if (order.Count == 0) return destinations;
+        destinations[leaderId] = leaderDestination;
+        for (var index = 1; index < order.Count; index++)
+            destinations[order[index]] = currentPositions[order[index - 1]];
+        return destinations;
+    }
+
+    public static IReadOnlyList<Position> SingleFileEscortPositions(
+        PartyFormationSnapshot formation,
+        IReadOnlyDictionary<CharacterId, Position> currentPositions,
+        CharacterId leaderId)
+    {
+        var order = SingleFileOrder(formation, currentPositions, leaderId);
+        if (order.Count == 0) return [];
+        var tail = currentPositions[order[^1]];
+        var backward = order.Count > 1
+            ? UnitOffset(currentPositions[order[^2]], tail)
+            : Negate(DirectionOffset(formation.Facing));
+        return EscortPositionsBehind([tail], backward);
+    }
+
+    private static IReadOnlyList<CharacterId> SingleFileOrder(
+        PartyFormationSnapshot formation,
+        IReadOnlyDictionary<CharacterId, Position> currentPositions,
+        CharacterId leaderId)
+    {
+        if (!currentPositions.ContainsKey(leaderId)) return [];
+        var slotOrder = formation.Slots.Where(id => id is not null).Select(id => id!.Value)
+            .Where(currentPositions.ContainsKey).Distinct().ToArray();
+        var remaining = slotOrder.Where(id => id != leaderId).ToList();
+        var result = new List<CharacterId> { leaderId };
+        while (remaining.Count > 0)
+        {
+            var previousPosition = currentPositions[result[^1]];
+            var next = remaining.OrderBy(id => Manhattan(previousPosition, currentPositions[id]))
+                .ThenBy(id => Array.IndexOf(slotOrder, id)).First();
+            result.Add(next);
+            remaining.Remove(next);
+        }
+        return result;
+    }
+
+    private static IReadOnlyList<Position> EscortPositionsBehind(
+        IReadOnlyList<Position> rear,
+        Position backward)
+    {
+        var left = new Position(backward.Y, -backward.X);
+        var directlyBehind = rear.Select(position => Add(position, backward)).ToArray();
+        return directlyBehind
+            .Concat(directlyBehind.Select(position => Add(position, left)))
+            .Concat(directlyBehind.Select(position => new Position(position.X - left.X, position.Y - left.Y)))
+            .Concat(rear.Select(position => new Position(position.X + 2 * backward.X,
+                position.Y + 2 * backward.Y)))
+            .Distinct()
+            .ToArray();
+    }
+
     public static bool IsSingleFilePassage(
         IReadOnlyDictionary<CharacterId, Position> blockPositions,
         IReadOnlyDictionary<CharacterId, Position> singleFilePositions,
@@ -97,4 +162,15 @@ public sealed class PartyFormationController
         Direction.Down => new Position(0, 1),
         _ => new Position(-1, 0)
     };
+
+    private static Position Negate(Position position) => new(-position.X, -position.Y);
+
+    private static Position Add(Position left, Position right) =>
+        new(left.X + right.X, left.Y + right.Y);
+
+    private static Position UnitOffset(Position from, Position to) =>
+        new(Math.Sign(to.X - from.X), Math.Sign(to.Y - from.Y));
+
+    private static int Manhattan(Position first, Position second) =>
+        Math.Abs(first.X - second.X) + Math.Abs(first.Y - second.Y);
 }
