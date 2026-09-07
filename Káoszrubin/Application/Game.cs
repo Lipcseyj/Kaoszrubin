@@ -5222,6 +5222,16 @@ public sealed class Game : ISessionCommandHandler
             SubmitLocalBattleCommand(BattleActionKind.SwapToRear);
             return;
         }
+        if (key.Key == ConsoleKey.B && allowed.Contains(BattleActionKind.PrepareRearLeft))
+        {
+            SubmitLocalBattleCommand(BattleActionKind.PrepareRearLeft);
+            return;
+        }
+        if (key.Key == ConsoleKey.J && allowed.Contains(BattleActionKind.PrepareRearRight))
+        {
+            SubmitLocalBattleCommand(BattleActionKind.PrepareRearRight);
+            return;
+        }
         if (TryGetDirection(key.Key, out var formationDirection) &&
             allowed.Contains(BattleActionKind.MoveFormation))
         {
@@ -6231,6 +6241,23 @@ public sealed class Game : ISessionCommandHandler
                     return;
                 }
                 break;
+            case BattleActionKind.PrepareRearLeft:
+            case BattleActionKind.PrepareRearRight:
+                var preparationSlot = command.Action == BattleActionKind.PrepareRearLeft
+                    ? FormationSlot.RearLeft
+                    : FormationSlot.RearRight;
+                if (!battle.TryOrderRearCombatPreparation(preparationSlot, out var preparingCharacter))
+                {
+                    RejectTeamBattleAction(command, "A kijelölt hátsó alakzathelyen nincs harcra készíthető társ.");
+                    return;
+                }
+                var preparationStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                PresentBattleEntries([new BattleLogEntry(
+                    $"{character.Name} jelzi {preparingCharacter!.Name} számára: készülj a harcra! " +
+                    $"Amíg hátul marad, az önmaga erősítése az elsődleges feladata.{preparationStatus}",
+                    BattleLogKind.Information)]);
+                AdvanceTeamBattleTurn(battle);
+                break;
             case BattleActionKind.Pass:
                 if (IsTeamMovementInProgress(battle))
                 {
@@ -6574,6 +6601,11 @@ public sealed class Game : ISessionCommandHandler
         var mayCastOffensively = enemyStrength >= tactics.MinimumEnemyStrength &&
             (fullOffense || battle.OffensiveSpellCastsFor(caster) < tactics.OffensiveSpellsPerBattle);
 
+        var prioritizeRearSelfBuff = battle.ShouldPrioritizeRearSelfBuff(caster);
+        if (prioritizeRearSelfBuff &&
+            ChooseTeamAiSelfBuff(battle, caster, casterPosition, spells, allies, currentEnemy) is { } selfBuff)
+            return selfBuff;
+
         foreach (var spell in spells)
         {
             var effects = _gameData.GetSpellEffects(spell.Id);
@@ -6636,7 +6668,10 @@ public sealed class Game : ISessionCommandHandler
                     continue;
                 var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
                 if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost)) continue;
-                var targetPosition = ChooseNpcBuffTarget(battle, caster, casterPosition, spell, effects, allies);
+                var allowSelfBuff = !battle.HasProtectiveFormation || !battle.IsRearRow(caster) ||
+                                    prioritizeRearSelfBuff;
+                var targetPosition = ChooseNpcBuffTarget(battle, caster, casterPosition, spell, effects, allies,
+                    allowSelfBuff);
                 if (targetPosition is null || ValidateSpellCast(caster, casterPosition, spell, true,
                         dangerousEnemy, explicitTarget: targetPosition) is not null) continue;
                 return new NpcTeamSpellPlan(spell, targetPosition.Value, dangerousEnemy, Offensive: false);
@@ -6659,6 +6694,29 @@ public sealed class Game : ISessionCommandHandler
         return null;
     }
 
+    private NpcTeamSpellPlan? ChooseTeamAiSelfBuff(TeamBattleEncounter battle, LiveCharacter caster,
+        Position casterPosition, IReadOnlyList<SpellDefinition> spells, IReadOnlyList<LiveCharacter> allies,
+        Enemy? currentEnemy)
+    {
+        foreach (var spell in spells)
+        {
+            var effects = _gameData.GetSpellEffects(spell.Id);
+            if (effects.Any(effect => effect.Type == SpellEffectType.Heal) ||
+                !effects.Any(effect => NpcSpellcastingPolicy.IsBuffEffect(effect.Type)) ||
+                effects.Any(effect => effect.Type == SpellEffectType.ProtectionFromEvil) &&
+                battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).All(enemy => !IsUnholy(enemy.Definition)))
+                continue;
+            var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+            if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost)) continue;
+            var targetPosition = ChooseNpcBuffTarget(battle, caster, casterPosition, spell, effects,
+                spell.TargetType == SpellTargetType.PartyMember ? [caster] : allies, allowSelfBuff: true);
+            if (targetPosition != casterPosition || ValidateSpellCast(caster, casterPosition, spell, true,
+                    currentEnemy, explicitTarget: casterPosition) is not null) continue;
+            return new NpcTeamSpellPlan(spell, casterPosition, currentEnemy, Offensive: false);
+        }
+        return null;
+    }
+
     private NpcSpellcasterTactics NpcTacticsFor(LiveCharacter caster)
     {
         var defaults = NpcSpellcasterTactics.DefaultFor(caster.CharacterClass.Id);
@@ -6670,9 +6728,10 @@ public sealed class Game : ISessionCommandHandler
 
     private Position? ChooseNpcBuffTarget(TeamBattleEncounter battle, LiveCharacter caster,
         Position casterPosition, SpellDefinition spell, IReadOnlyList<SpellEffectDefinition> effects,
-        IReadOnlyList<LiveCharacter> allies) =>
+        IReadOnlyList<LiveCharacter> allies, bool allowSelfBuff = true) =>
         _teamBattleCoordinator.ChooseNpcBuffTarget(battle, caster, casterPosition, spell, effects, allies,
-            GetCasterPosition, (c, pos, sp, tgt, en) => IsValidExplicitSpellTarget(c, pos, sp, tgt, en));
+            GetCasterPosition, (c, pos, sp, tgt, en) => IsValidExplicitSpellTarget(c, pos, sp, tgt, en),
+            allowSelfBuff);
 
     private IEnumerable<Enemy> OrderedNpcSpellTargets(TeamBattleEncounter battle, Position casterPosition) =>
         TacticalTeamBattleCoordinator.OrderedNpcSpellTargets(battle, casterPosition);

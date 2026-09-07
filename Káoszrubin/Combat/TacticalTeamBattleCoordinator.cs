@@ -320,6 +320,7 @@ public sealed class TacticalTeamBattleCoordinator
             if (turnUndeadTargets.Length > 0 && !turnUndeadUsedThisBattle.Contains(character))
                 openingActions.Insert(0, BattleActionKind.TurnUndead);
             if (character.CanSwapReserveWeapon) openingActions.Add(BattleActionKind.SwapWeapon);
+            AddRearPreparationActions(battle, character, selectedCharacter, openingActions);
             return openingActions;
         }
         var actions = new List<BattleActionKind> { BattleActionKind.Pass };
@@ -346,7 +347,20 @@ public sealed class TacticalTeamBattleCoordinator
         }
         if (character == selectedCharacter && battle.Turns.Cycle > 1)
             actions.Add(BattleActionKind.Retreat);
+        AddRearPreparationActions(battle, character, selectedCharacter, actions);
         return actions;
+    }
+
+    private static void AddRearPreparationActions(TeamBattleEncounter battle, LiveCharacter character,
+        LiveCharacter selectedCharacter, ICollection<BattleActionKind> actions)
+    {
+        if (!battle.HasProtectiveFormation || character != selectedCharacter) return;
+        if (battle.Formation?.CharacterAt(FormationSlot.RearLeft) is { } rearLeftId &&
+            battle.Characters.Any(member => member.Id == rearLeftId && member.IsAlive))
+            actions.Add(BattleActionKind.PrepareRearLeft);
+        if (battle.Formation?.CharacterAt(FormationSlot.RearRight) is { } rearRightId &&
+            battle.Characters.Any(member => member.Id == rearRightId && member.IsAlive))
+            actions.Add(BattleActionKind.PrepareRearRight);
     }
 
     public IReadOnlyList<BattleTacticOptionSnapshot>? GetTeamBattleTacticOptions(TeamBattleEncounter battle,
@@ -394,7 +408,8 @@ public sealed class TacticalTeamBattleCoordinator
         Position casterPosition, SpellDefinition spell, IReadOnlyList<SpellEffectDefinition> effects,
         IReadOnlyList<LiveCharacter> allies,
         Func<LiveCharacter, Position> getCasterPosition,
-        Func<LiveCharacter, Position, SpellDefinition, Position, Enemy?, bool> isValidExplicitSpellTarget)
+        Func<LiveCharacter, Position, SpellDefinition, Position, Enemy?, bool> isValidExplicitSpellTarget,
+        bool allowSelfBuff = true)
     {
         bool NeedsBuff(LiveCharacter character) => effects
             .Where(effect => NpcSpellcastingPolicy.IsBuffEffect(effect.Type))
@@ -402,14 +417,15 @@ public sealed class TacticalTeamBattleCoordinator
             .Any(type => type is { } activeType && !character.HasSpellEffect(activeType));
 
         if (spell.TargetType == SpellTargetType.Self)
-            return NeedsBuff(caster) ? casterPosition : null;
+            return allowSelfBuff && NeedsBuff(caster) ? casterPosition : null;
         if (spell.TargetType == SpellTargetType.Party)
         {
+            if (!allowSelfBuff) return null;
             var missing = allies.Count(NeedsBuff);
             return missing >= Math.Min(2, allies.Count) ? casterPosition : null;
         }
         if (spell.TargetType != SpellTargetType.PartyMember) return null;
-        return allies.Where(NeedsBuff)
+        return allies.Where(character => allowSelfBuff || character != caster).Where(NeedsBuff)
             .OrderByDescending(character => battle.IsEngaged(character))
             .ThenByDescending(battle.IsFrontRow)
             .ThenBy(VitalityRatio)

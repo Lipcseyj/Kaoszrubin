@@ -104,6 +104,7 @@ var tests = new (string Name, Action Run)[]
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
     ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
     ("A zárt alakzat első sora védi a mögötte álló társat", TeamBattleFormationProtectsRearRow),
+    ("A vezér külön harcra készítheti a hátsó sor két oldalát", RearCombatPreparationIsLeaderControlled),
     ("A zárt libasor együtt mozog, de nem kap hátsósori védelmet", TeamBattleSingleFileHasNoRearProtection),
     ("Harcban csak szabad hátsó sori karakter használhat CSV-ben engedélyezett italt", TeamBattleItemUseRequiresFreeRearPosition),
     ("A hátsó sor szálfegyverrel eléri az első társ lekötött ellenfelét", TeamBattleRearPolearmReachUsesFrontEngagement),
@@ -4318,6 +4319,60 @@ static void TeamBattleFormationProtectsRearRow()
         "Az első sor nem csak az alakzat eleje felől védi a hátsó társat.");
 }
 
+static void RearCombatPreparationIsLeaderControlled()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var system = CreateBattleSystem(1710);
+    var leader = CreateCharacter("Vezér", characterClassId: CharacterClassIds.Barbár);
+    var rearLeft = CreateCharacter("Bal hátul", characterClassId: CharacterClassIds.Mágus);
+    var rearRight = CreateCharacter("Jobb hátul", characterClassId: CharacterClassIds.Pap);
+    var enemy = CreateEnemyAt(new Position(3, 2), "E-PREPARE");
+    TeamCharacterParticipant Participant(LiveCharacter member, Position position)
+    {
+        var prepared = system.PrepareTeamCharacter(member);
+        return new TeamCharacterParticipant(member, position, TacticalParticipantKind.PartyMember,
+            prepared.Initiative, 3, 1, prepared.Runtime);
+    }
+
+    var formation = new PartyFormationSnapshot(leader.Id, null, rearLeft.Id, rearRight.Id,
+        Direction.Up, PartyFormationState.Locked);
+    var encounter = new TeamBattleEncounter(new Position(3, 3),
+        [Participant(leader, new Position(3, 3)), Participant(rearLeft, new Position(3, 4)),
+            Participant(rearRight, new Position(4, 4))],
+        [new TeamEnemyParticipant(enemy, 5, 2, 1)], leader.Id, enemy.Id, formation: formation);
+    var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1710));
+    var actions = coordinator.GetTeamAllowedBattleActions(encounter, leader, enemy, leader,
+        new Position(3, 3), false, []);
+    Assert(actions.Contains(BattleActionKind.PrepareRearLeft) &&
+           actions.Contains(BattleActionKind.PrepareRearRight),
+        "A vezér nem kapta meg mindkét hátsó alakzathely felkészítő akcióját.");
+
+    Assert(encounter.TryOrderRearCombatPreparation(FormationSlot.RearLeft, out var ordered) &&
+           ordered == rearLeft && encounter.ShouldPrioritizeRearSelfBuff(rearLeft) &&
+           !encounter.ShouldPrioritizeRearSelfBuff(rearRight),
+        "A bal és jobb hátsó felkészítési utasítás nem maradt elkülönítve.");
+
+    var selfBuff = new SpellDefinition("TEST-SELF-BUFF", "Próbavédelem", SpellSchool.Arcane, 1, 1, "",
+        SpellTargetType.Self, 0, 0, false, SpellUsageMode.Combat);
+    var defense = new SpellEffectDefinition("TEST-DEFENSE", selfBuff.Id, 1, SpellEffectType.DefenseBonus,
+        null, 1, 0, 0, 0, 100, SpellResolution.Auto, null, "");
+    var casterPosition = encounter.PositionOf(rearLeft);
+    Assert(coordinator.ChooseNpcBuffTarget(encounter, rearLeft, casterPosition, selfBuff, [defense],
+               [leader, rearLeft, rearRight], encounter.PositionOf, (_, _, _, _, _) => true,
+               allowSelfBuff: false) is null &&
+           coordinator.ChooseNpcBuffTarget(encounter, rearLeft, casterPosition, selfBuff, [defense],
+               [leader, rearLeft, rearRight], encounter.PositionOf, (_, _, _, _, _) => true) == casterPosition,
+        "A hátsó sori önbuff tiltása vagy vezetői engedélyezése nem működik.");
+
+    Assert(encounter.TrySwapToRear(leader, out _, out _, out _, out _) &&
+           !encounter.ShouldPrioritizeRearSelfBuff(rearLeft),
+        "Az előresorolt tag megtartotta a csak hátsó sorban érvényes felkészítési utasítást.");
+    var panel = BattleCommandPanel.Format([BattleActionKind.PrepareRearLeft, BattleActionKind.PrepareRearRight]);
+    Assert(panel.Contains("B: bal hátul", StringComparison.Ordinal) &&
+           panel.Contains("J: jobb hátul", StringComparison.Ordinal),
+        "A két hátsó felkészítő parancs nem jelent meg külön a csatapanelen.");
+}
+
 static void TeamBattleSingleFileHasNoRearProtection()
 {
     var (encounter, front, rear, enemy) = CreateFormationEncounter(PartyFormationLayout.SingleFile);
@@ -4528,7 +4583,8 @@ static void TeamBattleCommandsAreValidated()
         "A visszavonulási parancsot elutasította a session.");
 
     session.SetBattlePrompt(battleId, 4, leader.Id,
-        [BattleActionKind.MoveFormation, BattleActionKind.SwapToRear, BattleActionKind.Pass]);
+        [BattleActionKind.MoveFormation, BattleActionKind.SwapToRear, BattleActionKind.PrepareRearLeft,
+            BattleActionKind.PrepareRearRight, BattleActionKind.Pass]);
     var formationMove = new BattleActionCommand(session.HostPlayerId, 5, leader.Id, battleId, 4,
         BattleActionKind.MoveFormation, Target: new Position(5, 3));
     Assert(session.Submit(formationMove) && session.TryReadCommand(out var acceptedFormationMove) &&
@@ -4542,7 +4598,14 @@ static void TeamBattleCommandsAreValidated()
         BattleActionKind.Pass);
     Assert(session.Submit(pass) && session.TryReadCommand(out var acceptedPass) && acceptedPass == pass,
         "A passz parancsot elutasította a session.");
-    var malformedPass = pass with { CommandId = 8, Target = new Position(9, 9) };
+    var prepareLeft = new BattleActionCommand(session.HostPlayerId, 8, leader.Id, battleId, 4,
+        BattleActionKind.PrepareRearLeft);
+    var prepareRight = prepareLeft with { CommandId = 9, Action = BattleActionKind.PrepareRearRight };
+    Assert(session.Submit(prepareLeft) && session.TryReadCommand(out var acceptedPrepareLeft) &&
+           acceptedPrepareLeft == prepareLeft && session.Submit(prepareRight) &&
+           session.TryReadCommand(out var acceptedPrepareRight) && acceptedPrepareRight == prepareRight,
+        "A két hátsó felkészítő parancsot elutasította a session.");
+    var malformedPass = pass with { CommandId = 10, Target = new Position(9, 9) };
     session.Submit(malformedPass);
     Assert(!session.TryReadCommand(out _),
         "A célponttal meghamisított passz parancs átjutott a session-validáción.");

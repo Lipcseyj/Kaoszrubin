@@ -123,7 +123,9 @@ public enum BattleActionKind
     ThiefAmbush,
     ThiefObserve,
     ThiefPoison,
-    SwapWeapon
+    SwapWeapon,
+    PrepareRearLeft,
+    PrepareRearRight
 }
 
 /// <summary>A kliens választása, nem kész sebzés- vagy dobáseredmény.</summary>

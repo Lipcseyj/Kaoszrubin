@@ -523,6 +523,10 @@ public sealed class CoopGuestScreen
                         BattleActionKind.SwapWeapon,
                     ConsoleKey.H when battle.AllowedActions.Contains(BattleActionKind.SwapToRear) =>
                         BattleActionKind.SwapToRear,
+                    ConsoleKey.B when battle.AllowedActions.Contains(BattleActionKind.PrepareRearLeft) =>
+                        BattleActionKind.PrepareRearLeft,
+                    ConsoleKey.J when battle.AllowedActions.Contains(BattleActionKind.PrepareRearRight) =>
+                        BattleActionKind.PrepareRearRight,
                     ConsoleKey.P when battle.AllowedActions.Contains(BattleActionKind.Pass) =>
                         BattleActionKind.Pass,
                     ConsoleKey.Spacebar when battle.AllowedActions.Contains(BattleActionKind.Pass) &&

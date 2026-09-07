@@ -52,6 +52,7 @@ public sealed class TeamBattleEncounter
     private readonly Dictionary<WorldEntityId, CharacterId> _enemyFacingTargets = [];
     private readonly Dictionary<WorldEntityId, int> _enemyArmorPenalties = [];
     private readonly HashSet<WorldEntityId> _staggeredEnemies = [];
+    private readonly HashSet<CharacterId> _rearCombatPreparationOrders = [];
     private readonly HashSet<BattleSide> _activeSidesThisCycle = [];
     private readonly Dictionary<CombatantId, int> _spellEffectsAdvancedInCycle = [];
     private readonly Dictionary<BattleSide, int> _inactiveCycleStreaks = Enum.GetValues<BattleSide>()
@@ -181,6 +182,24 @@ public sealed class TeamBattleEncounter
     public bool IsRearRow(LiveCharacter character) => FormationSlotFor(character) is
         FormationSlot.RearLeft or FormationSlot.RearRight;
 
+    public bool TryOrderRearCombatPreparation(FormationSlot slot, out LiveCharacter? character)
+    {
+        character = slot is FormationSlot.RearLeft or FormationSlot.RearRight
+            ? CharacterInSlot(slot)
+            : null;
+        if (!HasProtectiveFormation || character is not { IsAlive: true }) return false;
+        _rearCombatPreparationOrders.Add(character.Id);
+        return true;
+    }
+
+    public bool ShouldPrioritizeRearSelfBuff(LiveCharacter character)
+    {
+        if (HasProtectiveFormation && IsRearRow(character))
+            return _rearCombatPreparationOrders.Contains(character.Id);
+        _rearCombatPreparationOrders.Remove(character.Id);
+        return false;
+    }
+
     public bool CanUseItem(LiveCharacter character, MiscItemDefinition item) =>
         item.UsableInCombat && !IsEngaged(character) &&
         (!HasProtectiveFormation || IsRearRow(character));
@@ -307,6 +326,7 @@ public sealed class TeamBattleEncounter
         if (frontIndex < 0 || rearIndex < 0) return false;
         (slots[frontIndex], slots[rearIndex]) = (slots[rearIndex], slots[frontIndex]);
         Formation = PartyFormationRules.WithSlots(formation, slots) with { State = PartyFormationState.Locked };
+        _rearCombatPreparationOrders.Remove(rear.Id);
         UpdatePosition(front, rearPosition);
         UpdatePosition(rear, frontPosition);
 
