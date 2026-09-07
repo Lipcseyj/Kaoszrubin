@@ -6416,6 +6416,10 @@ public sealed class Game : ISessionCommandHandler
 
     private void ExecuteTeamAiCharacterTurn(TeamBattleEncounter battle, LiveCharacter character)
     {
+        var rearPreparationOrdered = battle.ShouldPrioritizeRearSelfBuff(character);
+        if (rearPreparationOrdered && character.CurrentVitality < character.MaximumVitality &&
+            TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 100, allowedWaste: 15))
+            return;
         if (battle.HasProtectiveFormation && battle.IsFrontRow(character) &&
             character.CurrentVitality * 3 <= character.MaximumVitality &&
             battle.RearPartnerOf(character) is { IsAlive: true } &&
@@ -6423,6 +6427,12 @@ public sealed class Game : ISessionCommandHandler
             return;
         if (TryExecuteTeamAiTurnUndead(battle, character)) return;
         if (TryExecuteTeamAiSpell(battle, character)) return;
+        var hasAdjacentEnemy = AdjacentTeamEnemies(battle, character).Any();
+        var attemptedUrgentPotion = character.CurrentVitality * 2 < character.MaximumVitality &&
+                                    !hasAdjacentEnemy;
+        if (attemptedUrgentPotion &&
+            TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 60, allowedWaste: 0))
+            return;
         if (!battle.HasActiveFormation && !battle.IsEngaged(character) &&
             TryExecuteNpcSpellcasterPositioning(battle, character)) return;
         var reachable = ReachableTeamEnemies(battle, character).FirstOrDefault();
@@ -6438,6 +6448,9 @@ public sealed class Game : ISessionCommandHandler
             AdvanceTeamBattleTurn(battle);
             return;
         }
+        if (!attemptedUrgentPotion && character.CurrentVitality < character.MaximumVitality &&
+            TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 30, allowedWaste: 0))
+            return;
         if (battle.HasActiveFormation && battle.FormationSlotFor(character) is not null)
         {
             var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
@@ -6448,6 +6461,20 @@ public sealed class Game : ISessionCommandHandler
         }
         var target = ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
         MoveTeamCharacterToward(battle, character, target.Position);
+    }
+
+    private bool TryExecuteTeamAiHealingPotion(TeamBattleEncounter battle, LiveCharacter character,
+        int chancePercent, int allowedWaste)
+    {
+        var backpackIndex = TacticalTeamBattleCoordinator.ChooseNpcHealingPotionIndex(
+            battle, character, allowedWaste);
+        if (backpackIndex is null || _random.Next(100) >= chancePercent ||
+            !TryUseTeamBattleItem(battle, character, backpackIndex.Value, out var itemMessage))
+            return false;
+        itemMessage += _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        PresentBattleEntries([new BattleLogEntry(itemMessage, BattleLogKind.Information)]);
+        AdvanceTeamBattleTurn(battle);
+        return true;
     }
 
     private bool TryExecuteTeamAiTurnUndead(TeamBattleEncounter battle, LiveCharacter character)
@@ -6601,7 +6628,9 @@ public sealed class Game : ISessionCommandHandler
         var mayCastOffensively = enemyStrength >= tactics.MinimumEnemyStrength &&
             (fullOffense || battle.OffensiveSpellCastsFor(caster) < tactics.OffensiveSpellsPerBattle);
 
-        var prioritizeRearSelfBuff = battle.ShouldPrioritizeRearSelfBuff(caster);
+        var prioritizeRearSelfBuff = battle.ShouldPrioritizeRearSelfBuff(caster) &&
+            (caster.CurrentVitality >= caster.MaximumVitality ||
+             TacticalTeamBattleCoordinator.ChooseNpcHealingPotionIndex(battle, caster, allowedWaste: 15) is null);
         if (prioritizeRearSelfBuff &&
             ChooseTeamAiSelfBuff(battle, caster, casterPosition, spells, allies, currentEnemy) is { } selfBuff)
             return selfBuff;

@@ -105,6 +105,7 @@ var tests = new (string Name, Action Run)[]
     ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
     ("A zárt alakzat első sora védi a mögötte álló társat", TeamBattleFormationProtectsRearRow),
     ("A vezér külön harcra készítheti a hátsó sor két oldalát", RearCombatPreparationIsLeaderControlled),
+    ("A harci AI a gyógyital erejét a megengedett HP-veszteséghez igazítja", TeamBattleAiHealingPotionAvoidsWaste),
     ("A zárt libasor együtt mozog, de nem kap hátsósori védelmet", TeamBattleSingleFileHasNoRearProtection),
     ("Harcban csak szabad hátsó sori karakter használhat CSV-ben engedélyezett italt", TeamBattleItemUseRequiresFreeRearPosition),
     ("A hátsó sor szálfegyverrel eléri az első társ lekötött ellenfelét", TeamBattleRearPolearmReachUsesFrontEngagement),
@@ -4371,6 +4372,32 @@ static void RearCombatPreparationIsLeaderControlled()
     Assert(panel.Contains("B: bal hátul", StringComparison.Ordinal) &&
            panel.Contains("J: jobb hátul", StringComparison.Ordinal),
         "A két hátsó felkészítő parancs nem jelent meg külön a csatapanelen.");
+}
+
+static void TeamBattleAiHealingPotionAvoidsWaste()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var system = CreateBattleSystem(1711);
+    var character = CreateCharacter("Sebesült", vitality: 200, characterClassId: CharacterClassIds.Barbár);
+    Assert(character.AddToBackpack(data.GetItem("T011")) &&
+           character.AddToBackpack(data.GetItem("T012")) &&
+           character.AddToBackpack(data.GetItem("T013")),
+        "A gyógyital-választási teszt készlete nem fért el a hátizsákban.");
+    character.SetCurrentResources(95, 0);
+    var enemy = CreateEnemyAt(new Position(8, 8), "E-POTION");
+    var prepared = system.PrepareTeamCharacter(character);
+    var encounter = new TeamBattleEncounter(new Position(3, 3),
+        [new TeamCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
+            prepared.Initiative, 3, 1, prepared.Runtime)],
+        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+
+    Assert(TacticalTeamBattleCoordinator.ChooseNpcHealingPotionIndex(encounter, character, allowedWaste: 0) == 1,
+        "A normál harci AI olyan gyógyitalt választott, amely HP-t pazarolna.");
+    Assert(TacticalTeamBattleCoordinator.ChooseNpcHealingPotionIndex(encounter, character, allowedWaste: 15) == 2,
+        "A felkészített hátsó tag nem a legerősebb, legfeljebb 15 HP-t pazarló gyógyitalt választotta.");
+    character.SetCurrentResources(196, 0);
+    Assert(TacticalTeamBattleCoordinator.ChooseNpcHealingPotionIndex(encounter, character, allowedWaste: 15) is null,
+        "Az AI a 15 HP-s pazarlási határt meghaladó gyógyitalt választott.");
 }
 
 static void TeamBattleSingleFileHasNoRearProtection()

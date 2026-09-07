@@ -290,6 +290,25 @@ public sealed class TacticalTeamBattleCoordinator
                 _ => false
             };
 
+    public static int? ChooseNpcHealingPotionIndex(TeamBattleEncounter battle, LiveCharacter character,
+        int allowedWaste)
+    {
+        if (character.CurrentVitality >= character.MaximumVitality) return null;
+        var missingVitality = character.MaximumVitality - character.CurrentVitality;
+        return Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
+            .Select(index => (Index: index,
+                Item: character.GetInventoryItem(InventorySlotKind.Backpack, index) as MiscItemDefinition,
+                Quantity: character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index)))
+            .Where(entry => entry.Item is { Effect: ConsumableEffect.Heal } && entry.Quantity > 0 &&
+                            battle.CanUseItem(character, entry.Item) &&
+                            Math.Max(0, character.PreviewVitalityRecovery(entry.Item.EffectValue) - missingVitality) <=
+                            Math.Max(0, allowedWaste))
+            .OrderByDescending(entry => character.PreviewVitalityRecovery(entry.Item!.EffectValue))
+            .ThenBy(entry => entry.Index)
+            .Select(entry => (int?)entry.Index)
+            .FirstOrDefault();
+    }
+
     private static bool IsInitiativeDrink(MiscItemDefinition item) =>
         string.Equals(item.Id, "T023", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(item.Id, "T024", StringComparison.OrdinalIgnoreCase);
