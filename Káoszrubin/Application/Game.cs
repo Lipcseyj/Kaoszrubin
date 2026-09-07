@@ -614,6 +614,11 @@ public sealed class Game : ISessionCommandHandler
                         SaveGame();
                         continue;
                     }
+                    if (keyInfo.Key == ConsoleKey.F12)
+                    {
+                            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
+                            continue;
+                    }
                     if (keyInfo.Key == ConsoleKey.Q)
                     {
                         ShowQuestJournal();
