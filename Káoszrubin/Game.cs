@@ -48,6 +48,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly InnController _innController;
     private ICoopHostLoop? _activeCoopHost;
     private bool _coopSnapshotDirty = true;
+    private bool _processingSessionCommands;
     private DateTime _nextCoopSnapshotHeartbeatUtc = DateTime.MinValue;
     private NarrativeSnapshot? _activeNarrative;
     private AdHocConversationSnapshot? _activeAdHocConversation;
@@ -483,10 +484,10 @@ public sealed class Game : ISessionCommandHandler
     #region Spells
 
     // NPC spellcasting for exploration - simple heals/cures/buffs
-    private void TryNpcCastExplorationSpell(PartyMemberAvatar member)
+    private bool TryNpcCastExplorationSpell(PartyMemberAvatar member)
     {
         var caster = member.Character;
-        if (!caster.IsAlive || !caster.IsSpellcaster || !caster.CanCastSpells) return;
+        if (!caster.IsAlive || !caster.IsSpellcaster || !caster.CanCastSpells) return false;
         var manaReservePercent = 20;
         var manaReserve = Math.Max(0, caster.MaximumMana * manaReservePercent / 100);
         var healThresholdPercent = 50; // more generous during exploration
@@ -512,9 +513,10 @@ public sealed class Game : ISessionCommandHandler
                 _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
                 RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
                 _renderer.RefreshCharacterSheet(SelectedCharacter);
-                return;
+                return true;
             }
         }
+        return false;
     }
 
     private void ApplyCharacterEffectForCaster(LiveCharacter character, SpellEffectDefinition effect, SpellDefinition spell,
@@ -577,7 +579,6 @@ public sealed class Game : ISessionCommandHandler
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);
-                    MarkCoopSnapshotDirty();
                     if (_activeTeamBattle is not null && !_isQuickTeamBattle &&
                         GameInputBindings.BattleDetailsPageDirection(keyInfo) is var detailDirection && detailDirection != 0)
                     {
@@ -597,6 +598,7 @@ public sealed class Game : ISessionCommandHandler
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
+                    MarkCoopSnapshotDirty();
                     if (_activeTeamBattle is not null)
                     {
                         HandleLocalBattleInput(keyInfo);
@@ -761,14 +763,12 @@ public sealed class Game : ISessionCommandHandler
 
                 if (!_battleStarted && now >= _nextEnemyActionUtc)
                 {
-                    MoveEnemies(now);
-                    MarkCoopSnapshotDirty();
+                    if (MoveEnemies(now)) MarkCoopSnapshotDirty();
                 }
 
                 if (!_battleStarted && ShouldProcessPartyMembers(now))
                 {
-                    MovePartyMembers(now);
-                    MarkCoopSnapshotDirty();
+                    if (MovePartyMembers(now)) MarkCoopSnapshotDirty();
                 }
 
                 if (!_battleStarted && now >= _nextAdHocConversationCheckUtc)
@@ -786,8 +786,7 @@ public sealed class Game : ISessionCommandHandler
 
                 if (!_battleStarted && now >= _nextNpcSelfCareCheck)
                 {
-                    ProcessNpcSelfCare(now);
-                    MarkCoopSnapshotDirty();
+                    if (ProcessNpcSelfCare(now)) MarkCoopSnapshotDirty();
                     _nextNpcSelfCareCheck = now + TimeSpan.FromSeconds(1);
                 }
 
@@ -869,7 +868,7 @@ public sealed class Game : ISessionCommandHandler
             StoryNarratives.CreateCampaignFinale(CharacterRoster.Party.Members.Where(character => character.IsAlive), SelectedCharacter.Name));
         _gameOver = true;
         _session.SetPhase(GameSessionPhase.GameOver);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     private void StartNewMaze(bool showLevelImage = true)
@@ -1037,7 +1036,7 @@ public sealed class Game : ISessionCommandHandler
             $"⚜ Roderic külön úton távozott. A viszonyotok {roderic.Friendliness}/10 volt; " +
             $"a végleges csatlakozáshoz legalább {RodericPermanentJoinFriendliness}/10 kellett volna.",
             ConsoleColor.DarkYellow);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
         return true;
     }
 
@@ -1137,7 +1136,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawInventoryMessage(
             "⚜ Roderic: „Amíg utunk közös a kardom a ti kardotok. A pajzsom a ti pajzsotok.” 🤝 Roderic végleg csatlakozott.",
             ConsoleColor.Green);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
         return true;
     }
 
@@ -1428,7 +1427,7 @@ public sealed class Game : ISessionCommandHandler
         if (synchronizeCoopPause)
         {
             SetHelpVisibility(_session.HostPlayerId, SelectedCharacter.Id, true);
-            _activeCoopHost!.TryPublish(CreateSessionSnapshot());
+            RequestCoopSnapshotPublish();
         }
         try
         {
@@ -1439,7 +1438,7 @@ public sealed class Game : ISessionCommandHandler
             if (synchronizeCoopPause)
             {
                 SetHelpVisibility(_session.HostPlayerId, SelectedCharacter.Id, false);
-                _activeCoopHost!.TryPublish(CreateSessionSnapshot());
+                RequestCoopSnapshotPublish();
             }
         }
     }
@@ -1543,7 +1542,7 @@ public sealed class Game : ISessionCommandHandler
             if (_activeCoopHost is not null)
             {
                 PublishRemoteCharacterStates(CharacterSyncReason.GameSaved);
-                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+                RequestCoopSnapshotPublish();
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -1788,7 +1787,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawInventoryMessage(
             $"⌛ Várakozás {character.Name} varázsmemorizálására... ⌛", ConsoleColor.Yellow);
         PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
         while (!_spellPreparationCompleted)
         {
             ProcessSessionCommands();
@@ -1802,7 +1801,7 @@ public sealed class Game : ISessionCommandHandler
         _activeSpellPreparation = null;
         _spellPreparationCompleted = false;
         _session.SetPhase(previousPhase);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     #region Movement
@@ -1971,10 +1970,24 @@ public sealed class Game : ISessionCommandHandler
 
     private void ProcessSessionCommands()
     {
-        if (_commandDispatcher.ProcessPendingCommands() > 0) MarkCoopSnapshotDirty();
+        _processingSessionCommands = true;
+        try
+        {
+            if (_commandDispatcher.ProcessPendingCommands() > 0) MarkCoopSnapshotDirty();
+        }
+        finally
+        {
+            _processingSessionCommands = false;
+        }
     }
 
     private void MarkCoopSnapshotDirty() => _coopSnapshotDirty = true;
+
+    private void RequestCoopSnapshotPublish()
+    {
+        MarkCoopSnapshotDirty();
+        if (!_processingSessionCommands) TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
+    }
 
     private void TryPublishScheduledCoopSnapshot(DateTime now)
     {
@@ -2088,7 +2101,7 @@ public sealed class Game : ISessionCommandHandler
             ProcessSessionCommands();
             if (_innController.Revision != initialRevision)
             {
-                _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                RequestCoopSnapshotPublish();
                 return new ConsoleKeyInfo('\0', InnController.StateChangedKey, false, false, false);
             }
             TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
@@ -2219,7 +2232,7 @@ public sealed class Game : ISessionCommandHandler
             RevealFor(npc.Character, avatar.Position);
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
             _renderer.DrawInventoryMessage($"🤝 {npc.Character.Name} ingyen csatlakozott a partihoz.", ConsoleColor.Green);
-            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+            RequestCoopSnapshotPublish();
             return false;
         }
 
@@ -2496,10 +2509,10 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage(
                 $"✅ Küldetés teljesítve: {quest.Title}. XP: {experienceSummary}." +
                 (itemRewards.Length > 0 ? $" 🎁 {itemRewards}" : string.Empty), ConsoleColor.Green);
-            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+            RequestCoopSnapshotPublish();
             QuestCompletionWindow.Show(completedEntry);
         }
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     private void ShowQuestJournal()
@@ -2525,7 +2538,7 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
             RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.DarkYellow);
         }
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     private void AbandonActiveQuestsFromNpc(string npcId)
@@ -2611,7 +2624,7 @@ public sealed class Game : ISessionCommandHandler
         RecordSessionActivity(SessionActivityKind.System, travelMessage, ConsoleColor.Cyan);
         ProcessNpcQuests(npc, activateOffered: false);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     private void ShowCharacterDetails()
@@ -2835,7 +2848,7 @@ public sealed class Game : ISessionCommandHandler
         _activeNarrative = new NarrativeSnapshot(Guid.NewGuid(), kind, title, subtitle, paragraphs, [], boss);
         _session.SetPhase(GameSessionPhase.Paused);
         _renderer.ShowStoryOverlay(title, subtitle, paragraphs, _maze, _fogOfWar, _player.Position, kind, boss);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
         while (true)
         {
             ProcessSessionCommands();
@@ -2854,7 +2867,7 @@ public sealed class Game : ISessionCommandHandler
         _activeNarrative = null;
         _narrativeAcknowledgements.Clear();
         _session.SetPhase(previousPhase);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     private void ShowSynchronizedLevelImage(string fileName, string path)
@@ -2863,12 +2876,12 @@ public sealed class Game : ISessionCommandHandler
         _levelImageAcknowledgements.Clear();
         _activeLevelImage = new LevelImageSnapshot(Guid.NewGuid(), _maze.LevelName, fileName, []);
         _session.SetPhase(GameSessionPhase.Paused);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
 
         if (!ImageViewer.Show(path))
             _renderer.DrawDeveloperMessage($"Pályakép még nem található: {fileName}");
         AcknowledgeLevelImage(_session.HostPlayerId, SelectedCharacter.Id);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
 
         while (true)
         {
@@ -2881,7 +2894,7 @@ public sealed class Game : ISessionCommandHandler
         _activeLevelImage = null;
         _levelImageAcknowledgements.Clear();
         _session.SetPhase(previousPhase);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     private void AcknowledgeLevelImage(PlayerId playerId, CharacterId characterId)
@@ -2908,7 +2921,7 @@ public sealed class Game : ISessionCommandHandler
         _session.SetPhase(GameSessionPhase.Paused);
         DrawRestSummaryForHost();
         var renderedAcknowledgementCount = _restAcknowledgements.Count;
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
         while (true)
         {
             ProcessSessionCommands();
@@ -2927,7 +2940,7 @@ public sealed class Game : ISessionCommandHandler
         _latestRestNotice = null;
         _restAcknowledgements.Clear();
         _session.SetPhase(previousPhase);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
         foreach (var message in _hostRestAcknowledgementMessages)
             _renderer.DrawInventoryMessage(message, ConsoleColor.DarkCyan);
         _hostRestAcknowledgementMessages.Clear();
@@ -2999,7 +3012,7 @@ public sealed class Game : ISessionCommandHandler
         _leaderDecisionTitle = title;
         _leaderDecisionMessage = message;
         _session.SetPhase(GameSessionPhase.Paused);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
         try
         {
             return action();
@@ -3009,7 +3022,7 @@ public sealed class Game : ISessionCommandHandler
             _leaderDecisionTitle = previousTitle;
             _leaderDecisionMessage = previousMessage;
             _session.SetPhase(previousPhase);
-            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+            RequestCoopSnapshotPublish();
         }
     }
 
@@ -3030,8 +3043,9 @@ public sealed class Game : ISessionCommandHandler
             ConsoleColor.Cyan);
     }
 
-    private void NormalizeFormation()
+    private bool NormalizeFormation()
     {
+        var previous = _formation;
         _formation = PartyFormationController.Normalize(_formation,
             CharacterRoster.Party.Members.Where(member => member.IsAlive).Select(member => member.Id),
             SelectedCharacter.Id, out var transitionedToAssembling);
@@ -3041,6 +3055,7 @@ public sealed class Game : ISessionCommandHandler
             _formationObstacleReported = false;
         }
         _renderer.SetFormationStatus(_formation);
+        return _formation != previous;
     }
 
     private void ToggleFormation()
@@ -3260,7 +3275,7 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, previous, current, true,
                 $"Ajtó kiválasztása ({verb}): nyilak/Tab, Enter: kész, Esc: mégse");
             previous = current;
-            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+            RequestCoopSnapshotPublish();
             while (!Console.KeyAvailable)
             {
                 ProcessSessionCommands();
@@ -3330,7 +3345,7 @@ public sealed class Game : ISessionCommandHandler
         }
         _activeInnDeparture = new InnDepartureSnapshot("A csapat szedelőzködik, és elhagyjátok a fogadót.");
         _session.SetPhase(GameSessionPhase.Paused);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
         CarryPersistentTemporaryFollowers();
         _mazeLevel++;
         StartNewMaze();
@@ -3381,7 +3396,7 @@ public sealed class Game : ISessionCommandHandler
         RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Cyan);
         _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, _fogOfWar.IsRevealed(_maze.Exit));
         _activeInnDeparture = null;
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     private void ReturnFromExpeditionToInn()
@@ -3393,7 +3408,7 @@ public sealed class Game : ISessionCommandHandler
         _innController.Run(_mazeLevel, resume: true);
         _activeInnDeparture = new InnDepartureSnapshot("A csapat szedelőzködik, és elhagyjátok a fogadót.");
         _session.SetPhase(GameSessionPhase.Paused);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
         CarryPersistentTemporaryFollowers();
         _mazeLevel++;
         StartNewMaze();
@@ -4137,7 +4152,7 @@ public sealed class Game : ISessionCommandHandler
                 _activeAdHocConversation = new AdHocConversationSnapshot(conversationId, npc.Character.Name,
                     npc.Character.Race.Name, npc.Character.CharacterClass.Name, transcript.ToArray(),
                     choices[0].Prompt, choices.Select(choice => choice.Text).ToArray());
-                _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                RequestCoopSnapshotPublish();
                 var index = _renderer.DrawUniqueNpcStoryChoice(npc, choices[0].Prompt,
                     choices.Select(choice => choice.Text).ToArray(), transcript);
                 var selected = choices[index];
@@ -4151,7 +4166,7 @@ public sealed class Game : ISessionCommandHandler
                 }
                 _activeAdHocConversation = new AdHocConversationSnapshot(conversationId, npc.Character.Name,
                     npc.Character.Race.Name, npc.Character.CharacterClass.Name, transcript.ToArray(), string.Empty, []);
-                _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                RequestCoopSnapshotPublish();
                 _renderer.DrawUniqueNpcStoryResponse(npc, transcript);
                 return;
             }
@@ -4160,7 +4175,7 @@ public sealed class Game : ISessionCommandHandler
         {
             _activeAdHocConversation = null;
             _session.SetPhase(previousPhase);
-            _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+            RequestCoopSnapshotPublish();
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
             _renderer.SetCharacterSheetFocused(_characterSheetFocused);
         }
@@ -4257,8 +4272,9 @@ public sealed class Game : ISessionCommandHandler
 
 #endregion
 
-    private void MoveEnemies(DateTime now)
+    private bool MoveEnemies(DateTime now)
     {
+        var stateChanged = false;
         var dueEnemies = new List<Enemy>();
         _nextEnemyActionUtc = DateTime.MaxValue;
         foreach (var enemy in _maze.Enemies)
@@ -4271,9 +4287,12 @@ public sealed class Game : ISessionCommandHandler
         foreach (var enemy in dueEnemies)
         {
             ScheduleNextEnemyMove(enemy, now);
+            var previousEffectCount = enemy.ActiveSpellEffects.Count;
             var spellTick = enemy.AdvanceSpellEffects(_random);
+            if (enemy.ActiveSpellEffects.Count != previousEffectCount) stateChanged = true;
             if (spellTick.Damage > 0)
             {
+                stateChanged = true;
                 var spellNotes = new List<string>();
                 ApplyExplorationSpellDamage(SelectedCharacter, enemy, spellTick.Damage, spellNotes);
                 _renderer.DrawInventoryMessage(string.Join("; ", spellTick.Notes.Concat(spellNotes)), ConsoleColor.Magenta);
@@ -4317,7 +4336,8 @@ public sealed class Game : ISessionCommandHandler
             if (direction is null) continue;
             if (TryMoveEnemy(enemy, direction.Value))
             {
-                if (_battleStarted) return;
+                stateChanged = true;
+                if (_battleStarted) return true;
                 if (enemy.SearchRole == EnemySearchRole.Scout && !enemy.RecordSearchStep())
                     enemy.BeginReturn(0);
                 else if (enemy.SearchRole == EnemySearchRole.Returning &&
@@ -4328,9 +4348,14 @@ public sealed class Game : ISessionCommandHandler
             if (enemy.PursuitState != EnemyPursuitState.Pursuing && enemy.MovementProfile == EnemyMovementProfile.Patrol)
             {
                 enemy.ReversePatrolDirection();
-                if (TryMoveEnemy(enemy, enemy.PatrolDirection) && _battleStarted) return;
+                if (TryMoveEnemy(enemy, enemy.PatrolDirection))
+                {
+                    stateChanged = true;
+                    if (_battleStarted) return true;
+                }
             }
         }
+        return stateChanged;
     }
 
     private void Shuffle<T>(IList<T> values)
@@ -4557,13 +4582,12 @@ public sealed class Game : ISessionCommandHandler
                Maze.IsPassableNeutralNpc(occupant);
     }
 
-    private void MovePartyMembers(DateTime now)
+    private bool MovePartyMembers(DateTime now)
     {
-        NormalizeFormation();
+        var stateChanged = NormalizeFormation();
         if (_formation.State == PartyFormationState.Assembling)
         {
-            AdvanceFormationAssembly(now);
-            return;
+            return AdvanceFormationAssembly(now);
         }
         if (_partyScatterUntil is { } scatterUntil && now >= scatterUntil)
         {
@@ -4574,7 +4598,7 @@ public sealed class Game : ISessionCommandHandler
         }
         var isScattering = _partyScatterUntil is not null;
         if (_partyRegrouping) isScattering = false;
-        if (_partyHoldingPosition && !isScattering && !_partyRegrouping) return;
+        if (_partyHoldingPosition && !isScattering && !_partyRegrouping) return false;
         foreach (var member in _maze.PartyMembers.ToArray())
         {
             if (_formation.State == PartyFormationState.Locked && !member.IsTemporaryFollower &&
@@ -4583,20 +4607,21 @@ public sealed class Game : ISessionCommandHandler
             if (_nextPartyMoves.GetValueOrDefault(member) > now) continue;
             ScheduleNextPartyMove(member, now);
             // Allow NPCs to cast simple exploration spells (heals/cures) before moving
-            TryNpcCastExplorationSpell(member);
+            if (TryNpcCastExplorationSpell(member)) stateChanged = true;
             if (isScattering)
             {
-                MovePartyMemberAwayFromLeader(member);
+                if (MovePartyMemberAwayFromLeader(member)) stateChanged = true;
                 continue;
             }
             if (_partyRegrouping)
             {
-                MovePartyMemberTowardLeader(member);
+                if (MovePartyMemberTowardLeader(member)) stateChanged = true;
                 continue;
             }
             if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member))
             {
-                if (_battleStarted) return;
+                stateChanged = true;
+                if (_battleStarted) return true;
                 continue;
             }
             var previous = member.Position;
@@ -4608,8 +4633,14 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
             CheckBossDiscoveryAt(newlyRevealed, member.Character);
             TriggerTrapAt(member.Character, member.Position);
-            if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member) && _battleStarted) return;
+            stateChanged = true;
+            if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member))
+            {
+                stateChanged = true;
+                if (_battleStarted) return true;
+            }
         }
+        return stateChanged;
     }
 
     private bool ShouldProcessPartyMembers(DateTime now)
@@ -4629,7 +4660,7 @@ public sealed class Game : ISessionCommandHandler
         return false;
     }
 
-    private void AdvanceFormationAssembly(DateTime now)
+    private bool AdvanceFormationAssembly(DateTime now)
     {
         var targets = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
         var result = PartyFormationAssemblyCoordinator.Advance(
@@ -4651,7 +4682,7 @@ public sealed class Game : ISessionCommandHandler
             (member, enemy) => StartBattle(member, enemy),
             FormationAvatar);
 
-        if (result.BattleStarted) return;
+        if (result.BattleStarted) return true;
         if (result.AllInPlace)
         {
             _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Locked);
@@ -4660,13 +4691,14 @@ public sealed class Game : ISessionCommandHandler
             _formationObstacleReported = false;
             AnnouncePartyCommand("Az alakzat osszeallt. Csak a vezer mozgathatja; Ctrl+bal/jobb: fordulas.",
                 ConsoleColor.Green);
-            return;
+            return true;
         }
         if (!result.MadeProgress && !_formationObstacleReported && result.ObstacleReported)
         {
             _formationObstacleReported = true;
             _renderer.DrawDeveloperMessage("Az alakzat meg nem tud osszeallni: egy kijelolt hely nem erheto el.");
         }
+        return result.MadeProgress;
     }
 
     private void RegisterFormationAssemblyMove(PartyMemberAvatar member, Position previous)
@@ -4748,42 +4780,44 @@ public sealed class Game : ISessionCommandHandler
         AnnouncePartyCommand("Partiparancs: szétszóródás 10 másodpercig; a Támadás, Gyülekező és Megállj kikapcsolt.", ConsoleColor.Magenta);
     }
 
-    private void MovePartyMemberTowardLeader(PartyMemberAvatar member)
+    private bool MovePartyMemberTowardLeader(PartyMemberAvatar member)
     {
-        if (Manhattan(member.Position, _player.Position) <= 1) return;
+        if (Manhattan(member.Position, _player.Position) <= 1) return false;
         var next = FindNextStep(member, FreeNeighborsOf(_player.Position))
                    ?? FollowLeaderTrail(member, minimumLag: 1);
-        if (next is null) return;
+        if (next is null) return false;
         var previous = member.Position;
         if (!CanEnterTrap(member.Character, next.Value) ||
-            !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
+            !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return false;
         member.Character.RegisterExplorationStep();
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed,
             _player.Position);
         CheckBossDiscoveryAt(newlyRevealed, member.Character);
         TriggerTrapAt(member.Character, member.Position);
+        return true;
     }
 
-    private void MovePartyMemberAwayFromLeader(PartyMemberAvatar member)
+    private bool MovePartyMemberAwayFromLeader(PartyMemberAvatar member)
     {
-        if (Manhattan(member.Position, _player.Position) >= 10) return;
+        if (Manhattan(member.Position, _player.Position) >= 10) return false;
         var target = FindReachablePositions(member, 12)
             .Where(entry => Manhattan(entry.Position, _player.Position) <= 10)
             .OrderByDescending(entry => Manhattan(entry.Position, _player.Position))
             .ThenBy(entry => entry.Distance)
             .FirstOrDefault();
-        if (target == default) return;
+        if (target == default) return false;
         var next = FindNextStep(member, [target.Position]);
-        if (next is null) return;
+        if (next is null) return false;
         var previous = member.Position;
         if (!CanEnterTrap(member.Character, next.Value) ||
-            !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return;
+            !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return false;
         member.Character.RegisterExplorationStep();
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
         CheckBossDiscoveryAt(newlyRevealed, member.Character);
         TriggerTrapAt(member.Character, member.Position);
+        return true;
     }
 
     private bool CanActivelyAttack(PartyMemberAvatar member) =>
@@ -5699,7 +5733,7 @@ public sealed class Game : ISessionCommandHandler
                         var actions = GetTeamAllowedBattleActions(battle, character, enemy);
                         _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, character.Id, actions);
                         PublishTeamBattlePrompt(character, enemy, actions, battle);
-                        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                        RequestCoopSnapshotPublish();
                         return;
                     }
                     ChooseTeamAiTactic(character, runtime);
@@ -5711,7 +5745,7 @@ public sealed class Game : ISessionCommandHandler
                     var actions = GetTeamAllowedBattleActions(battle, character, enemy);
                     _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, character.Id, actions);
                     PublishTeamBattlePrompt(character, enemy, actions, battle);
-                    _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                    RequestCoopSnapshotPublish();
                     return;
                 }
                 ExecuteTeamAiCharacterTurn(battle, character);
@@ -5729,7 +5763,7 @@ public sealed class Game : ISessionCommandHandler
                     [BattleActionKind.AdvanceEnemyTurn]);
                 _renderer.DrawBattleCommandPanel(BattleCommandPanel.Format(
                     [BattleActionKind.AdvanceEnemyTurn], enemyTurn: true));
-                _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+                RequestCoopSnapshotPublish();
                 return;
             }
 
@@ -6701,7 +6735,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     private IReadOnlyList<BattleActionKind> GetTeamAllowedBattleActions(TeamBattleEncounter battle,
@@ -7221,7 +7255,7 @@ public sealed class Game : ISessionCommandHandler
         InitializeEnemyMoveSchedule(DateTime.UtcNow + TimeSpan.FromSeconds(2));
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     private void FinishTeamBattle(TeamBattleEncounter battle, bool forceDefeat = false)
@@ -7276,7 +7310,7 @@ public sealed class Game : ISessionCommandHandler
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _session.SetPhase(GameSessionPhase.Exploration);
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     private void SetHelpVisibility(PlayerId playerId, CharacterId characterId, bool isOpen)
@@ -7379,7 +7413,7 @@ public sealed class Game : ISessionCommandHandler
         RegisterNpcShortage(character, kind);
     }
 
-    private void TryNpcConsumeHealingPotions(LiveCharacter character)
+    private bool TryNpcConsumeHealingPotions(LiveCharacter character)
     {
         var desiredServings = _random.Next(1, 4);
         var consumed = new List<string>();
@@ -7404,6 +7438,7 @@ public sealed class Game : ISessionCommandHandler
         }
         else if (character.CurrentVitality * 2 < character.MaximumVitality && !HasHealingPotion(character))
             RegisterNpcShortage(character, NpcComplaintKind.Injured);
+        return consumed.Count > 0;
     }
 
     private static IEnumerable<(int Index, MiscItemDefinition Item)> BackpackConsumables(
@@ -7419,47 +7454,51 @@ public sealed class Game : ISessionCommandHandler
         ScheduleNpcComplaint(character, kind, DateTime.UtcNow);
     }
 
-    private void ProcessNpcComplaints(DateTime now)
+    private bool ProcessNpcComplaints(DateTime now)
     {
+        var stateChanged = false;
         foreach (var character in _maze.PartyMembers.Select(member => member.Character).Distinct()
                      .Where(IsAutonomousNpc))
         {
-            ProcessNpcComplaint(character, NpcComplaintKind.Hunger, character.FoodLevel == 0, now);
-            ProcessNpcComplaint(character, NpcComplaintKind.Thirst, character.WaterLevel == 0, now);
-            ProcessNpcComplaint(character, NpcComplaintKind.Injured,
+            stateChanged |= ProcessNpcComplaint(character, NpcComplaintKind.Hunger, character.FoodLevel == 0, now);
+            stateChanged |= ProcessNpcComplaint(character, NpcComplaintKind.Thirst, character.WaterLevel == 0, now);
+            stateChanged |= ProcessNpcComplaint(character, NpcComplaintKind.Injured,
                 character.CurrentVitality * 2 < character.MaximumVitality && !HasHealingPotion(character), now);
         }
+        return stateChanged;
     }
 
-    private void ProcessNpcSelfCare(DateTime now)
+    private bool ProcessNpcSelfCare(DateTime now)
     {
+        var stateChanged = false;
         foreach (var character in _maze.PartyMembers.Select(member => member.Character).Distinct()
                      .Where(IsAutonomousNpc))
         {
             if (character.IsAlive && character.CurrentVitality < character.MaximumVitality)
-                TryNpcConsumeHealingPotions(character);
+                stateChanged |= TryNpcConsumeHealingPotions(character);
             if (character.CurrentVitality * 2 >= character.MaximumVitality || HasHealingPotion(character))
                 ClearNpcShortage(character, NpcComplaintKind.Injured);
         }
-        ProcessNpcComplaints(now);
+        return ProcessNpcComplaints(now) || stateChanged;
     }
 
-    private void ProcessNpcComplaint(LiveCharacter character, NpcComplaintKind kind, bool active, DateTime now)
+    private bool ProcessNpcComplaint(LiveCharacter character, NpcComplaintKind kind, bool active, DateTime now)
     {
         var key = (character.Id, kind);
         if (!active)
         {
             _nextNpcComplaints.Remove(key);
-            return;
+            return false;
         }
         if (!_nextNpcComplaints.TryGetValue(key, out var next))
         {
             ScheduleNpcComplaint(character, kind, now);
-            return;
+            return false;
         }
-        if (now < next) return;
+        if (now < next) return false;
         LogScheduledPartyComment(character, kind);
         ScheduleNpcComplaint(character, kind, now);
+        return true;
     }
 
     private void ScheduleNpcComplaint(LiveCharacter character, NpcComplaintKind kind, DateTime from) =>
@@ -7650,7 +7689,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawDeveloperMessage($"Fejlesztői mód: egyedi NPC " +
             $"{_lastDeveloperUniqueNpcIndex + 1}/{targets.Length} — {target.Definition.Name}, " +
             $"{_mazeLevel}. pálya.");
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
     }
 
     private bool TryFindUniqueNpcPosition(NpcDefinition definition, out Position position)
@@ -8146,7 +8185,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawInventoryMessage(
             $"⌛ Várakozás {character.Name} szintlépési döntésére... ⌛", ConsoleColor.Yellow);
         PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
         while (!_levelUpPromptCompleted)
         {
             ProcessSessionCommands();
@@ -8162,7 +8201,7 @@ public sealed class Game : ISessionCommandHandler
         _levelUpResponse = null;
         _levelUpPromptCompleted = false;
         _session.SetPhase(previousPhase);
-        _activeCoopHost?.TryPublish(CreateSessionSnapshot());
+        RequestCoopSnapshotPublish();
         return response;
     }
 

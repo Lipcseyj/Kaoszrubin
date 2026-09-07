@@ -12,6 +12,15 @@ public abstract class WorldObject
     }
 
     public WorldEntityId Id { get; }
-    public Position Position { get; protected set; }
+    public Position Position { get; private set; }
+    internal event Action<WorldObject, Position, Position>? PositionChanged;
     public abstract Rune Symbol { get; }
+
+    protected void SetPosition(Position position)
+    {
+        if (position == Position) return;
+        var previous = Position;
+        Position = position;
+        PositionChanged?.Invoke(this, previous, position);
+    }
 }

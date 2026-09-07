@@ -324,7 +324,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
 
     public void MoveTo(Position position)
     {
-        Position = position;
+        SetPosition(position);
         IsPerceptiblyActive = true;
     }
 

@@ -162,9 +162,14 @@ public sealed class PartyMovementController
 
     public static IEnumerable<Position> FreeNeighborsOf(Maze maze, Player player, Position origin) => Directions
         .Select(direction => origin + direction)
-        .Where(position => maze.IsWalkable(position) && position != player.Position &&
-                           (maze.GetObjectAt(position) is null or GroundItemPile or Corpse ||
-                            Maze.IsPassableNeutralNpc(maze.GetObjectAt(position))));
+        .Where(position => IsFreeNeighbor(maze, player, position));
+
+    private static bool IsFreeNeighbor(Maze maze, Player player, Position position)
+    {
+        if (!maze.IsWalkable(position) || position == player.Position) return false;
+        var occupant = maze.GetObjectAt(position);
+        return occupant is null or GroundItemPile or Corpse || Maze.IsPassableNeutralNpc(occupant);
+    }
 
     public static bool CanPartyTraverse(PartyMemberAvatar member, Position position, Maze maze, Player player)
     {

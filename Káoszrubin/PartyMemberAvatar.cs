@@ -15,7 +15,7 @@ public sealed class PartyMemberAvatar(Position position, LiveCharacter character
     public override Rune Symbol { get; } = Rune.GetRuneAt(character.CharacterClass.Name.ToUpperInvariant(), 0);
     public void MoveTo(Position position)
     {
-        Position = position;
+        SetPosition(position);
         TemporaryFollower?.MoveTo(position);
     }
     public void MakePermanent() => TemporaryFollower = null;

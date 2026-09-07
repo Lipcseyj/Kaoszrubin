@@ -41,7 +41,7 @@ public sealed class WorldNpc(Position position, string definitionId, LiveCharact
 
     public void Decline() => State = WorldNpcState.Declined;
     public void BeginFollowing() => State = WorldNpcState.Following;
-    public void MoveTo(Position position) => Position = position;
+    public void MoveTo(Position position) => SetPosition(position);
     public void AdjustFriendliness(int amount) => Friendliness = Math.Clamp(Friendliness + amount, 0, 10);
     public void AdvanceConversation() => ConversationStage++;
     public void RestoreConversationStage(int stage) => ConversationStage = Math.Max(0, stage);

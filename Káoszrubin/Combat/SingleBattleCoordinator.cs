@@ -209,6 +209,7 @@ public sealed class SingleBattleCoordinator
         Func<LiveCharacter, Position, SpellDefinition, Enemy?, bool> hasValidSpellTarget,
         Func<Position, SpellDefinition, Enemy?, IEnumerable<Position>> getValidSpellTargets)
     {
+        var quickSpells = character.QuickSpells;
         return character.MemorizedSpells
             .Where(spell => inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration)
             .Select(spell => (Spell: spell, Item: (MagicItemDefinition?)null, Slot: (int?)null))
@@ -229,8 +230,13 @@ public sealed class SingleBattleCoordinator
                         ? new[] { characterPosition }
                         : []
                     : getValidSpellTargets(characterPosition, entry.Spell, enemy).Distinct().ToArray();
-                var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
-                    string.Equals(candidate?.Id, entry.Spell.Id, StringComparison.OrdinalIgnoreCase));
+                var quickIndex = -1;
+                for (var index = 0; index < quickSpells.Count; index++)
+                    if (string.Equals(quickSpells[index]?.Id, entry.Spell.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        quickIndex = index;
+                        break;
+                    }
                 return new BattleSpellOption(entry.Spell.Id, entry.Spell.Name, entry.Spell.Level,
                     entry.Item is null ? SpellcastingRules.EffectiveManaCost(character, entry.Spell) : 0,
                     entry.Spell.TargetType, entry.Spell.Range, entry.Spell.AreaRadius, entry.Slot,

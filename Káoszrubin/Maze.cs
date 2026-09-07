@@ -20,6 +20,13 @@ public sealed class Maze
     private readonly List<GroundItemPile> _groundItemPiles = [];
     private readonly List<MazeTrap> _traps = [];
     private readonly Dictionary<Position, MazeDoor> _doors = [];
+    private readonly Dictionary<Position, TreasureChest> _treasureChestsByPosition = [];
+    private readonly Dictionary<Position, Enemy> _enemiesByPosition = [];
+    private readonly Dictionary<Position, PartyMemberAvatar> _partyMembersByPosition = [];
+    private readonly Dictionary<Position, WorldNpc> _worldNpcsByPosition = [];
+    private readonly Dictionary<Position, GroundItemPile> _groundItemPilesByPosition = [];
+    private readonly Dictionary<Position, MazeTrap> _trapsByPosition = [];
+    private readonly Dictionary<Position, List<Corpse>> _corpsesByPosition = [];
 
     public WorldId Id { get; } = WorldId.New();
     public long NavigationRevision { get; private set; }
@@ -147,20 +154,46 @@ public sealed class Maze
     {
         EnsureObjectPositionIsFree(chest.Position);
         _treasureChests.Add(chest);
+        AddToPositionIndex(_treasureChestsByPosition, chest);
     }
 
-    public bool RemoveTreasureChest(TreasureChest chest) => _treasureChests.Remove(chest);
+    public bool RemoveTreasureChest(TreasureChest chest)
+    {
+        if (!_treasureChests.Remove(chest)) return false;
+        RemoveFromPositionIndex(_treasureChestsByPosition, chest, chest.Position);
+        return true;
+    }
 
-    public void AddCorpse(Corpse corpse) => _corpses.Add(corpse);
-    public bool RemoveCorpse(Corpse corpse) => _corpses.Remove(corpse);
+    public void AddCorpse(Corpse corpse)
+    {
+        _corpses.Add(corpse);
+        if (!_corpsesByPosition.TryGetValue(corpse.Position, out var stack))
+            _corpsesByPosition[corpse.Position] = stack = [];
+        stack.Add(corpse);
+    }
+
+    public bool RemoveCorpse(Corpse corpse)
+    {
+        if (!_corpses.Remove(corpse)) return false;
+        RemoveCorpseFromPositionIndex(corpse, corpse.Position);
+        return true;
+    }
 
     public void AddEnemy(Enemy enemy)
     {
         EnsureObjectPositionIsFree(enemy.Position);
         _enemies.Add(enemy);
+        AddToPositionIndex(_enemiesByPosition, enemy);
+        TrackPositionChanges(enemy);
     }
 
-    public bool RemoveEnemy(Enemy enemy) => _enemies.Remove(enemy);
+    public bool RemoveEnemy(Enemy enemy)
+    {
+        if (!_enemies.Remove(enemy)) return false;
+        RemoveFromPositionIndex(_enemiesByPosition, enemy, enemy.Position);
+        StopTrackingPositionChanges(enemy);
+        return true;
+    }
 
     public void AddPartyMember(PartyMemberAvatar member)
     {
@@ -168,63 +201,91 @@ public sealed class Maze
         // ezért mentés visszatöltésekor ezeket a mezőket sem szabad elutasítani.
         EnsureObjectPositionIsFree(member.Position, reserveEntranceAndExit: false);
         _partyMembers.Add(member);
+        AddToPositionIndex(_partyMembersByPosition, member);
+        TrackPositionChanges(member);
     }
 
-    public bool RemovePartyMember(PartyMemberAvatar member) => _partyMembers.Remove(member);
+    public bool RemovePartyMember(PartyMemberAvatar member)
+    {
+        if (!_partyMembers.Remove(member)) return false;
+        RemoveFromPositionIndex(_partyMembersByPosition, member, member.Position);
+        StopTrackingPositionChanges(member);
+        return true;
+    }
 
     public void AddWorldNpc(WorldNpc npc)
     {
         EnsureObjectPositionIsFree(npc.Position);
         _worldNpcs.Add(npc);
+        AddToPositionIndex(_worldNpcsByPosition, npc);
+        TrackPositionChanges(npc);
     }
 
-    public bool RemoveWorldNpc(WorldNpc npc) => _worldNpcs.Remove(npc);
+    public bool RemoveWorldNpc(WorldNpc npc)
+    {
+        if (!_worldNpcs.Remove(npc)) return false;
+        RemoveFromPositionIndex(_worldNpcsByPosition, npc, npc.Position);
+        StopTrackingPositionChanges(npc);
+        return true;
+    }
 
     public void ReplaceEnemyWithCorpse(Enemy enemy)
     {
-        if (!_enemies.Remove(enemy)) throw new ArgumentException("Az ellenfél nem a labirintus része.", nameof(enemy));
-        _corpses.Add(new MonsterCorpse(enemy.Position, enemy.Name, enemy.Definition.Id,
+        if (!RemoveEnemy(enemy)) throw new ArgumentException("Az ellenfél nem a labirintus része.", nameof(enemy));
+        AddCorpse(new MonsterCorpse(enemy.Position, enemy.Name, enemy.Definition.Id,
             guaranteedLootIds: enemy.GuaranteedLootIds, carriedWeaponIds: enemy.CarriedWeaponIds));
     }
 
     public void ReplacePartyMemberWithCorpse(PartyMemberAvatar member)
     {
-        if (!_partyMembers.Remove(member)) throw new ArgumentException("A partitárs nem a labirintus része.", nameof(member));
-        _corpses.Add(new PartyMemberCorpse(member.Position, member.Character));
+        if (!RemovePartyMember(member)) throw new ArgumentException("A partitárs nem a labirintus része.", nameof(member));
+        AddCorpse(new PartyMemberCorpse(member.Position, member.Character));
     }
 
     public WorldObject? GetObjectAt(Position position) =>
-        _treasureChests.FirstOrDefault(chest => chest.Position == position) as WorldObject ??
-        _enemies.FirstOrDefault(enemy => enemy.Position == position) as WorldObject ??
-        _partyMembers.FirstOrDefault(member => member.Position == position) as WorldObject ??
-        _worldNpcs.FirstOrDefault(npc => npc.Position == position) as WorldObject ??
-        _corpses.FirstOrDefault(corpse => corpse.Position == position) as WorldObject ??
-        _groundItemPiles.FirstOrDefault(pile => pile.Position == position) as WorldObject;
+        _treasureChestsByPosition.GetValueOrDefault(position) as WorldObject ??
+        _enemiesByPosition.GetValueOrDefault(position) as WorldObject ??
+        _partyMembersByPosition.GetValueOrDefault(position) as WorldObject ??
+        _worldNpcsByPosition.GetValueOrDefault(position) as WorldObject ??
+        GetCorpseAt(position) as WorldObject ??
+        _groundItemPilesByPosition.GetValueOrDefault(position) as WorldObject;
 
     public GroundItemPile? GetGroundItemPileAt(Position position) =>
-        _groundItemPiles.FirstOrDefault(pile => pile.Position == position);
-    public Corpse? GetCorpseAt(Position position) => _corpses.FirstOrDefault(corpse => corpse.Position == position);
+        _groundItemPilesByPosition.GetValueOrDefault(position);
+    public Corpse? GetCorpseAt(Position position) =>
+        _corpsesByPosition.TryGetValue(position, out var stack) && stack.Count > 0 ? stack[0] : null;
     public IReadOnlyList<Corpse> GetCorpsesAt(Position position) =>
-        _corpses.Where(corpse => corpse.Position == position).ToArray();
+        _corpsesByPosition.TryGetValue(position, out var stack) ? stack.ToArray() : [];
     public IReadOnlyList<MonsterCorpse> GetUnsearchedMonsterCorpsesAt(Position position) =>
-        _corpses.OfType<MonsterCorpse>()
-            .Where(corpse => corpse.Position == position && !corpse.IsSearched).ToArray();
-    public bool RemoveGroundItemPile(GroundItemPile pile) => _groundItemPiles.Remove(pile);
+        _corpsesByPosition.TryGetValue(position, out var stack)
+            ? stack.OfType<MonsterCorpse>().Where(corpse => !corpse.IsSearched).ToArray()
+            : [];
+    public bool RemoveGroundItemPile(GroundItemPile pile)
+    {
+        if (!_groundItemPiles.Remove(pile)) return false;
+        RemoveFromPositionIndex(_groundItemPilesByPosition, pile, pile.Position);
+        return true;
+    }
 
     public void DropItem(Position position, Domain.Inventory.IItemDefinition item, int? charges = null,
         Domain.Inventory.InventoryItemInstanceState? state = null)
     {
         if (!IsWalkable(position)) throw new ArgumentException("Tárgyat csak járható mezőre lehet dobni.", nameof(position));
         var pile = GetGroundItemPileAt(position);
-        if (pile is null) _groundItemPiles.Add(new GroundItemPile(position, item, charges, state));
+        if (pile is null)
+        {
+            pile = new GroundItemPile(position, item, charges, state);
+            _groundItemPiles.Add(pile);
+            AddToPositionIndex(_groundItemPilesByPosition, pile);
+        }
         else pile.Add(item, charges, state);
     }
 
-    public Enemy? GetEnemyAt(Position position) => _enemies.FirstOrDefault(enemy => enemy.Position == position);
-    public PartyMemberAvatar? GetPartyMemberAt(Position position) => _partyMembers.FirstOrDefault(member => member.Position == position);
-    public WorldNpc? GetWorldNpcAt(Position position) => _worldNpcs.FirstOrDefault(npc => npc.Position == position);
-    public TreasureChest? GetTreasureChestAt(Position position) => _treasureChests.FirstOrDefault(chest => chest.Position == position);
-    public MazeTrap? GetTrapAt(Position position) => _traps.FirstOrDefault(trap => trap.Position == position);
+    public Enemy? GetEnemyAt(Position position) => _enemiesByPosition.GetValueOrDefault(position);
+    public PartyMemberAvatar? GetPartyMemberAt(Position position) => _partyMembersByPosition.GetValueOrDefault(position);
+    public WorldNpc? GetWorldNpcAt(Position position) => _worldNpcsByPosition.GetValueOrDefault(position);
+    public TreasureChest? GetTreasureChestAt(Position position) => _treasureChestsByPosition.GetValueOrDefault(position);
+    public MazeTrap? GetTrapAt(Position position) => _trapsByPosition.GetValueOrDefault(position);
 
     public void AddTrap(MazeTrap trap)
     {
@@ -232,6 +293,7 @@ public sealed class Maze
             GetObjectAt(trap.Position) is not null || GetTrapAt(trap.Position) is not null)
             throw new ArgumentException("Csapda csak üres, járható mezőre helyezhető.", nameof(trap));
         _traps.Add(trap);
+        AddToPositionIndex(_trapsByPosition, trap);
     }
 
     public bool TryMoveEnemy(Enemy enemy, Position destination)
@@ -271,6 +333,44 @@ public sealed class Maze
 
     public static bool IsPassableNeutralNpc(WorldObject? occupant) =>
         occupant is WorldNpc { Disposition: NpcDisposition.Neutral };
+
+    private static void AddToPositionIndex<T>(IDictionary<Position, T> index, T item) where T : WorldObject =>
+        index[item.Position] = item;
+
+    private static void RemoveFromPositionIndex<T>(IDictionary<Position, T> index, T item, Position position)
+        where T : WorldObject
+    {
+        if (index.TryGetValue(position, out var indexed) && ReferenceEquals(indexed, item)) index.Remove(position);
+    }
+
+    private void TrackPositionChanges(WorldObject item) => item.PositionChanged += OnObjectPositionChanged;
+    private void StopTrackingPositionChanges(WorldObject item) => item.PositionChanged -= OnObjectPositionChanged;
+
+    private void OnObjectPositionChanged(WorldObject item, Position previous, Position current)
+    {
+        switch (item)
+        {
+            case Enemy enemy:
+                RemoveFromPositionIndex(_enemiesByPosition, enemy, previous);
+                AddToPositionIndex(_enemiesByPosition, enemy);
+                break;
+            case PartyMemberAvatar member:
+                RemoveFromPositionIndex(_partyMembersByPosition, member, previous);
+                AddToPositionIndex(_partyMembersByPosition, member);
+                break;
+            case WorldNpc npc:
+                RemoveFromPositionIndex(_worldNpcsByPosition, npc, previous);
+                AddToPositionIndex(_worldNpcsByPosition, npc);
+                break;
+        }
+    }
+
+    private void RemoveCorpseFromPositionIndex(Corpse corpse, Position position)
+    {
+        if (!_corpsesByPosition.TryGetValue(position, out var stack)) return;
+        stack.Remove(corpse);
+        if (stack.Count == 0) _corpsesByPosition.Remove(position);
+    }
 
     private void EnsureObjectPositionIsFree(Position position, bool reserveEntranceAndExit = true)
     {

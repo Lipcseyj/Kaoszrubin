@@ -698,9 +698,13 @@ public sealed class SpellExecutionService
 
     public static Position? FindResurrectionPosition(Maze maze, Position? playerPosition, PartyMemberCorpse corpse)
     {
-        bool CanUse(Position position) => (!playerPosition.HasValue || position != playerPosition.Value) &&
-            position != maze.Entrance && position != maze.Exit && maze.IsWalkable(position) &&
-            (maze.GetObjectAt(position) is null || maze.GetObjectAt(position) == corpse);
+        bool CanUse(Position position)
+        {
+            if (playerPosition.HasValue && position == playerPosition.Value ||
+                position == maze.Entrance || position == maze.Exit || !maze.IsWalkable(position)) return false;
+            var occupant = maze.GetObjectAt(position);
+            return occupant is null || occupant == corpse;
+        }
         if (CanUse(corpse.Position)) return corpse.Position;
         return FindNearbyTeleportPositions(maze, playerPosition, corpse.Position).Where(CanUse).Select(position => (Position?)position).FirstOrDefault();
     }
