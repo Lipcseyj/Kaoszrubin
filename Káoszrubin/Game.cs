@@ -98,6 +98,7 @@ public sealed class Game : ISessionCommandHandler
     private DateTime _nextNeedsDrain;
     private DateTime _nextNpcSelfCareCheck;
     private readonly Dictionary<Enemy, DateTime> _nextEnemyMoves = [];
+    private DateTime _nextEnemyActionUtc = DateTime.MaxValue;
     private readonly Dictionary<PartyMemberAvatar, DateTime> _nextPartyMoves = [];
     private readonly Dictionary<CharacterId, DateTime> _nextControlledMoves = [];
     private readonly List<Position> _leaderTrail = [];
@@ -736,6 +737,7 @@ public sealed class Game : ISessionCommandHandler
                     SubmitLocalExplorationCommand(keyInfo);
                 }
 
+                var now = DateTime.UtcNow;
                 ProcessSessionCommands();
                 ContinueDisconnectedRemoteBattleAsNpc();
 
@@ -743,36 +745,35 @@ public sealed class Game : ISessionCommandHandler
 
                 if (_helpPausePlayers.Count > 0)
                 {
-                    if (coopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                    if (coopHost?.ShouldPublish(now) == true)
                         coopHost.TryPublish(CreateSessionSnapshot());
                     Thread.Sleep(20);
                     continue;
                 }
 
-                if (!_battleStarted) MoveEnemies();
+                if (!_battleStarted && now >= _nextEnemyActionUtc) MoveEnemies(now);
 
-                if (!_battleStarted) MovePartyMembers();
+                if (!_battleStarted && ShouldProcessPartyMembers(now)) MovePartyMembers(now);
 
-                if (!_battleStarted && DateTime.UtcNow >= _nextAdHocConversationCheckUtc)
+                if (!_battleStarted && now >= _nextAdHocConversationCheckUtc)
                 {
-                    var now = DateTime.UtcNow;
                     _nextAdHocConversationCheckUtc = now + TimeSpan.FromMinutes(1);
                     TryStartAdHocFollowerConversation(now);
                 }
 
-                if (!_battleStarted && DateTime.UtcNow >= _nextNeedsDrain)
+                if (!_battleStarted && now >= _nextNeedsDrain)
                 {
                     DrainNeeds();
-                    _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
+                    _nextNeedsDrain = now + TimeSpan.FromMinutes(1);
                 }
 
-                if (!_battleStarted && DateTime.UtcNow >= _nextNpcSelfCareCheck)
+                if (!_battleStarted && now >= _nextNpcSelfCareCheck)
                 {
-                    ProcessNpcSelfCare(DateTime.UtcNow);
-                    _nextNpcSelfCareCheck = DateTime.UtcNow + TimeSpan.FromSeconds(1);
+                    ProcessNpcSelfCare(now);
+                    _nextNpcSelfCareCheck = now + TimeSpan.FromSeconds(1);
                 }
 
-                if (coopHost?.ShouldPublish(DateTime.UtcNow) == true)
+                if (coopHost?.ShouldPublish(now) == true)
                     coopHost.TryPublish(CreateSessionSnapshot());
 
                 Thread.Sleep(20);
@@ -1084,6 +1085,7 @@ public sealed class Game : ISessionCommandHandler
         _nextNeedsDrain = restored.NextNeedsDrain;
         _nextEnemyMoves.Clear();
         foreach (var enemyMove in restored.NextEnemyMoves) _nextEnemyMoves[enemyMove.Key] = enemyMove.Value;
+        RefreshNextEnemyActionUtc();
         _nextPartyMoves.Clear();
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _spottedEnemyIds.Clear();
@@ -1642,6 +1644,7 @@ public sealed class Game : ISessionCommandHandler
         _nextNeedsDrain = restored.NextNeedsDrain;
         _nextEnemyMoves.Clear();
         foreach (var enemyMove in restored.NextEnemyMoves) _nextEnemyMoves[enemyMove.Key] = enemyMove.Value;
+        RefreshNextEnemyActionUtc();
         _nextPartyMoves.Clear();
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _battleStarted = false;
@@ -4229,11 +4232,18 @@ public sealed class Game : ISessionCommandHandler
 
 #endregion
 
-    private void MoveEnemies()
+    private void MoveEnemies(DateTime now)
     {
-        var now = DateTime.UtcNow;
-        foreach (var enemy in _maze.Enemies.Where(enemy => _nextEnemyMoves.GetValueOrDefault(enemy) <= now)
-                     .OrderBy(_ => _random.Next()).ToArray())
+        var dueEnemies = new List<Enemy>();
+        _nextEnemyActionUtc = DateTime.MaxValue;
+        foreach (var enemy in _maze.Enemies)
+        {
+            var scheduled = _nextEnemyMoves.GetValueOrDefault(enemy);
+            if (scheduled <= now) dueEnemies.Add(enemy);
+            else if (scheduled < _nextEnemyActionUtc) _nextEnemyActionUtc = scheduled;
+        }
+        Shuffle(dueEnemies);
+        foreach (var enemy in dueEnemies)
         {
             ScheduleNextEnemyMove(enemy, now);
             var spellTick = enemy.AdvanceSpellEffects(_random);
@@ -4295,6 +4305,15 @@ public sealed class Game : ISessionCommandHandler
                 enemy.ReversePatrolDirection();
                 if (TryMoveEnemy(enemy, enemy.PatrolDirection) && _battleStarted) return;
             }
+        }
+    }
+
+    private void Shuffle<T>(IList<T> values)
+    {
+        for (var index = values.Count - 1; index > 0; index--)
+        {
+            var other = _random.Next(index + 1);
+            (values[index], values[other]) = (values[other], values[index]);
         }
     }
 
@@ -4385,11 +4404,19 @@ public sealed class Game : ISessionCommandHandler
     private void InitializeEnemyMoveSchedule(DateTime from)
     {
         _nextEnemyMoves.Clear();
+        _nextEnemyActionUtc = DateTime.MaxValue;
         foreach (var enemy in _maze.Enemies) ScheduleNextEnemyMove(enemy, from);
     }
 
-    private void ScheduleNextEnemyMove(Enemy enemy, DateTime from) =>
-        _nextEnemyMoves[enemy] = from + EnemyMoveInterval(enemy);
+    private void ScheduleNextEnemyMove(Enemy enemy, DateTime from)
+    {
+        var scheduled = from + EnemyMoveInterval(enemy);
+        _nextEnemyMoves[enemy] = scheduled;
+        if (scheduled < _nextEnemyActionUtc) _nextEnemyActionUtc = scheduled;
+    }
+
+    private void RefreshNextEnemyActionUtc() =>
+        _nextEnemyActionUtc = _nextEnemyMoves.Count == 0 ? DateTime.MaxValue : _nextEnemyMoves.Values.Min();
 
     private static TimeSpan EnemyMoveInterval(Enemy enemy)
     {
@@ -4450,9 +4477,8 @@ public sealed class Game : ISessionCommandHandler
                Maze.IsPassableNeutralNpc(occupant);
     }
 
-    private void MovePartyMembers()
+    private void MovePartyMembers(DateTime now)
     {
-        var now = DateTime.UtcNow;
         NormalizeFormation();
         if (_formation.State == PartyFormationState.Assembling)
         {
@@ -4504,6 +4530,23 @@ public sealed class Game : ISessionCommandHandler
             TriggerTrapAt(member.Character, member.Position);
             if (CanActivelyAttack(member) && TryResolveAdjacentNpcBattle(member) && _battleStarted) return;
         }
+    }
+
+    private bool ShouldProcessPartyMembers(DateTime now)
+    {
+        if (_formation.State == PartyFormationState.Assembling) return true;
+        if (_partyScatterUntil is { } scatterUntil && now >= scatterUntil) return true;
+        var isScattering = _partyScatterUntil is not null && !_partyRegrouping;
+        if (_partyHoldingPosition && !isScattering && !_partyRegrouping) return false;
+
+        foreach (var member in _maze.PartyMembers)
+        {
+            if (_formation.State == PartyFormationState.Locked && !member.IsTemporaryFollower &&
+                _formation.Slots.Contains(member.Character.Id)) continue;
+            if (_session.IsHumanControlled(member.Character.Id)) continue;
+            if (_nextPartyMoves.GetValueOrDefault(member) <= now) return true;
+        }
+        return false;
     }
 
     private void AdvanceFormationAssembly(DateTime now)
@@ -7183,6 +7226,7 @@ public sealed class Game : ISessionCommandHandler
         _nextNeedsDrain += pauseDuration;
         foreach (var characterIdKey in _nextEnemyMoves.Keys.ToArray())
             _nextEnemyMoves[characterIdKey] += pauseDuration;
+        if (_nextEnemyActionUtc != DateTime.MaxValue) _nextEnemyActionUtc += pauseDuration;
     }
 
     private void DrainNeeds()

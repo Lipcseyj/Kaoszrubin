@@ -1129,3 +1129,60 @@ Minden betöltött szörnynek `|` jellel elválasztott, ellenőrzött FegyverIds
 Az inventory Weapon típusú helyei: 0 = első kéz, 1 = második kéz, 2 = tartalék. A tartalék beleszámít a cipelt súlyba, de nem ad támadást, pajzsvédelmet, jártasságbónuszt vagy felszerelt súlybüntetést. A karakterlap 20. sora a tartalék, 21. sora a páncél. Felfedezéskor a tartalékon Enter cserél; csatában C, egy teljes akcióért. Kétkezes tartalék elővételekor a másik kéz tárgya üres hátizsákhelyre kerül; helyhiánynál a csere egészében elmarad. A csere revíziózott és atomi, hoston és vendégnél is működik. A mentés három fegyverazonosítót ír; a régi kétfegyveres mentések üres tartalékkal tölthetők be.
 
 A `DualWieldingRules.CanEquipOffhand` az elhelyezési jogosultságot ellenőrzi, ezért a pajzsot képzettség nélkül is elfogadja. A támadási útvonalak kizárólag a `TryGetWeapons` eredményéből készíthetnek második csapást; ez a pajzscsaládot mindig kizárja, és tőrhöz vagy kardhoz megköveteli a Kétfegyveres harc diszciplínát, valamint mindkét érintett család legalább Jártas fokát.
+
+## Foglald össze hogy milyen szörnyeket kell legyőzni ahhoz, hogy +1 +2 +3 illetve legendás zsákmányt szerezzünk, és milyen eséllyel
+
+A CSV-ben szereplő FelszerelésEsély nem közvetlenül a +1/+2/+3 vagy Legendás tárgy esélye, hanem annak az esélye, hogy egyáltalán dobjon a szörny a saját felszerelési zsákmánytáblájáról. Ezután a játék véletlen kategóriát, majd azon belül egy megfelelő árú és erősségű tárgyat választ.
+Legfeljebb +1 felszerelés
+- Hobgoblin — 55%
+- Ogre — 40%
+- Troll — 15%
+- Minotaurusz — 50%
+- Útonálló — 50%
+Legfeljebb +2 felszerelés
+Ezekből +1 vagy +2 eshet:
+- Vérfarkas — 25%
+- Bugbear — 50%
+- Ettin — 45%
+- Patkányember — 65%
+Legfeljebb +3, de nem Legendás
+Ezekből +1, +2 vagy +3 felszerelés eshet:
+- Múmia — 35%
+- Medúza — 45%
+- Kiméra — 30%
+- Ork sámán — 60%
+- Wight — 50%
+- Wyvern — 20%
+- Kőgólem — 25%
+- Hidra — 25%
+- Démonpók — 25%
+Legendás zsákmányra is képes ellenfelek
+Ezek tábláján +1/+2/+3 és Legendás tárgy is szerepelhet:
+- Vámpír — 70%
+- Vörös sárkány — 90%
+- Lich — 90%
+- Démonlovag — 85%
+- Balor démon — 90%
+- Fekete sárkány — 95%
+- Éji banya — 65%
+- Fagyóriás — 65%
+- Halállovag — 85%
+- Csontsárkány — 80%
+- Ősvámpír — 95%
+- Pokolfejedelem — 100%
+- Drakolich — 100%
+- Káoszsárkány — 100%
+Különleges esetek:
+- Beholder — 65%: csak varázstárgyat dobhat, akár Legendásat.
+- Vén beholder — 95%: csak varázstárgyat dobhat, akár Legendásat.
+- Éji banya — fegyvert vagy varázstárgyat dobhat, páncélt nem.
+- Fagyóriás — fegyvert vagy páncélt dobhat, gyűrűt, amulettet, pálcát vagy tekercset nem.
+Mi módosítja az esélyeket?
+A kijelzett 🎁 esély:
+alapesély + Intelligencia
+További módosítók:
+- Tolvaj esetén először az alapesély 130%-a számít.
+- Éles érzékek faji tulajdonság: további +15 százalékpont.
+- Az eredmény legfeljebb 100%.
+Ha a szörny saját fegyvere is elvihető, arra előbb külön dobás történik. Ennek alapja 30%, szintén módosítja a kereső Intelligenciája, kasztja és faja. Ha a saját fegyver kiesik, abban a keresésben a felszerelési tábla már nem dob.
+Ezért például a „Vörös sárkány — 90%” nem 90% Legendás esélyt jelent, hanem 90%-os alap felszereléstábla-esélyt. A Legendás tárgy tényleges esélye ennek csak egy része, mert a játék a teljes engedélyezett Varázs–Legendás készletből választ.

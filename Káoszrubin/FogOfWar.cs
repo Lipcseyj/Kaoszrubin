@@ -9,6 +9,7 @@ public sealed class FogOfWar
     public const int HorizontalCellsPerVisionUnit = 2;
     private readonly bool[,] _revealed;
     private readonly bool[,] _currentlyVisible;
+    private HashSet<Position> _currentlyVisiblePositions = [];
     private readonly Dictionary<WorldEntityId, EnemySightMemory> _enemyMemories = [];
     private Dictionary<WorldEntityId, Position> _visibleEnemyPositions = [];
     private bool _hasPartyPerceptionState;
@@ -52,6 +53,7 @@ public sealed class FogOfWar
             if (!HasLineOfSight(maze, origin, target) || _revealed[x, y]) continue;
             _revealed[x, y] = true;
             _currentlyVisible[x, y] = true;
+            _currentlyVisiblePositions.Add(target);
             newlyRevealed.Add(target);
         }
         BridgeShortFogGaps(maze, newlyRevealed);
@@ -68,9 +70,11 @@ public sealed class FogOfWar
     {
         var perceptionSources = sources.ToArray();
         _hasPartyPerceptionState = true;
-        var previousVisible = (bool[,])_currentlyVisible.Clone();
+        var previousVisiblePositions = _currentlyVisiblePositions;
         var previousMemoryPositions = _enemyMemories.Values.Select(memory => memory.Position).ToHashSet();
-        Array.Clear(_currentlyVisible);
+        foreach (var position in previousVisiblePositions)
+            _currentlyVisible[position.X, position.Y] = false;
+        var currentVisiblePositions = new HashSet<Position>();
         foreach (var source in perceptionSources)
         {
             var origin = source.Origin;
@@ -83,9 +87,11 @@ public sealed class FogOfWar
                 if (!maze.IsInside(target) || !IsWithinVisionRange(origin, target, range) ||
                     !HasLineOfSight(maze, origin, target)) continue;
                 _currentlyVisible[x, y] = true;
+                currentVisiblePositions.Add(target);
                 _revealed[x, y] = true;
             }
         }
+        _currentlyVisiblePositions = currentVisiblePositions;
 
         if (advanceEnemyMemory)
             foreach (var (id, memory) in _enemyMemories.ToArray())
@@ -111,10 +117,8 @@ public sealed class FogOfWar
         _visibleEnemyPositions = nowVisible;
         foreach (var enemy in maze.Enemies) enemy.ClearPerceptibleActivity();
 
-        var changed = new List<Position>();
-        for (var y = 0; y < maze.Height; y++)
-        for (var x = 0; x < maze.Width; x++)
-            if (previousVisible[x, y] != _currentlyVisible[x, y]) changed.Add(new Position(x, y));
+        var changed = previousVisiblePositions.Except(currentVisiblePositions)
+            .Concat(currentVisiblePositions.Except(previousVisiblePositions)).ToList();
         var currentMemoryPositions = _enemyMemories.Values.Select(memory => memory.Position).ToHashSet();
         changed.AddRange(previousMemoryPositions.Where(position => !currentMemoryPositions.Contains(position)));
         changed.AddRange(currentMemoryPositions.Where(position => !previousMemoryPositions.Contains(position)));
