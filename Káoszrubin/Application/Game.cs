@@ -4790,7 +4790,7 @@ public sealed class Game : ISessionCommandHandler
         var isScattering = _partyScatterUntil is not null;
         if (_partyRegrouping) isScattering = false;
         if (_partyHoldingPosition && !isScattering && !_partyRegrouping) return false;
-        foreach (var member in _maze.PartyMembers.ToArray())
+        foreach (var member in PartyMembersInFreeMovementOrder())
         {
             if (_formation.State == PartyFormationState.Locked && !member.IsTemporaryFollower &&
                 _formation.Slots.Contains(member.Character.Id)) continue;
@@ -5089,15 +5089,37 @@ public sealed class Game : ISessionCommandHandler
         {
             var original = member.Character.NpcBehavior;
             member.Character.SetNpcBehavior(NpcBehavior.Aggressive);
-            var step = PartyMovementController.ChoosePartyMemberStep(member, _maze, _player, _leaderFacing, _leaderTrail, CurrentLevelVisionModifier);
+            var step = PartyMovementController.ChoosePartyMemberStep(member, _maze, _player, _leaderFacing,
+                _leaderTrail, CurrentLevelVisionModifier, FreeMovementFollowIndex(member));
             member.Character.SetNpcBehavior(original);
             return step;
         }
-        return PartyMovementController.ChoosePartyMemberStep(member, _maze, _player, _leaderFacing, _leaderTrail, CurrentLevelVisionModifier);
+        return PartyMovementController.ChoosePartyMemberStep(member, _maze, _player, _leaderFacing,
+            _leaderTrail, CurrentLevelVisionModifier, FreeMovementFollowIndex(member));
     }
 
     private Position? FollowLeaderTrail(PartyMemberAvatar member, int minimumLag) =>
-        PartyMovementController.FollowLeaderTrail(member, minimumLag, _maze, _player, _leaderTrail);
+        PartyMovementController.FollowLeaderTrail(member, minimumLag, _maze, _player, _leaderTrail,
+            FreeMovementFollowIndex(member));
+
+    private IReadOnlyList<PartyMemberAvatar> PartyMembersInFreeMovementOrder()
+    {
+        var members = _maze.PartyMembers.ToArray();
+        var permanentMembers = members.Where(member => !member.IsTemporaryFollower).ToArray();
+        var followOrder = PartyFormationRules.FollowOrder(_formation, SelectedCharacter.Id,
+            permanentMembers.Select(member => member.Character.Id));
+        var priorities = followOrder.Select((id, index) => (id, index))
+            .ToDictionary(entry => entry.id, entry => entry.index);
+        return members.Select((member, originalIndex) => (member, originalIndex))
+            .OrderBy(entry => entry.member.IsTemporaryFollower ? 1 : 0)
+            .ThenBy(entry => priorities.GetValueOrDefault(entry.member.Character.Id, int.MaxValue))
+            .ThenBy(entry => entry.originalIndex)
+            .Select(entry => entry.member)
+            .ToArray();
+    }
+
+    private int FreeMovementFollowIndex(PartyMemberAvatar member) =>
+        PartyMembersInFreeMovementOrder().ToList().IndexOf(member);
 
     private Position? ChooseForwardStep(PartyMemberAvatar member, int maximumLeaderDistance, int maximumSearchDistance, bool avoidNarrowFront) =>
         PartyMovementController.ChooseForwardStep(member, maximumLeaderDistance, maximumSearchDistance, avoidNarrowFront, _maze, _player, _leaderFacing);

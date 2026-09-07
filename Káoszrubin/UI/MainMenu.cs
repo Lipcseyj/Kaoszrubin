@@ -838,6 +838,7 @@ public sealed class MainMenu
             Hotkey("SZERKESZTŐ: ENTER / SPACE", "A kijelölt karakter felemelése, majd egy másik hellyel felcserélése."),
             Hotkey("SZERKESZTŐ: ESC", "Az alakzatsorrend és a varázshasználó profilok mentése, majd visszatérés a karakterlapra."),
             Text("Az alakzat szerkesztése feloszlatott állapotba teszi a csapatot. A térképen az A indítja el az összeállást: a társak megkeresik a kijelölt helyüket, majd az alakzat automatikusan zárttá válik. Akadályozott célmezőnél az összeállás várakozik."),
+            Text("Feloszlatott alakzatnál is a BAL ELSŐ → JOBB ELSŐ → BAL HÁTSÓ → JOBB HÁTSÓ slotok adják a vezér mögötti követési sorrendet; az egyéni mozgási profilok továbbra is érvényesek."),
             Hotkey("TÉRKÉP: A", "Feloszlatott alakzatnál összeállítás; összeálló vagy zárt alakzatnál feloszlatás."),
             Hotkey("ZÁRT: CTRL+← / →", "A teljes 2×2-es alakzat helyben történő, 90 fokos balra vagy jobbra fordítása."),
             Hotkey("ZÁRT: NYILAK", "Mozgás; sikeres lépéskor az alakzat automatikusan a haladás irányába fordul."),

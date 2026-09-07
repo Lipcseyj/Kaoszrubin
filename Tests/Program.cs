@@ -90,6 +90,7 @@ var tests = new (string Name, Action Run)[]
     ("A taktikai távolság követi a konzolcellák kettő az egyhez arányát", TacticalDistanceUsesConsoleAspectRatio),
     ("A 2x2-es alakzat minden irányban a vezér slotjához igazodik", PartyFormationPositionsFollowFacing),
     ("A zárt 2x2-es alakzat a saját mezőin fordul meg", PartyFormationTurnsInPlace),
+    ("A feloszlatott parti az alakzatslotok sorrendjében követ", FormationSlotsControlFreeFollowOrder),
     ("A zárt alakzat a szűkületben állapotvesztés nélkül libasorra vált", LockedFormationUsesSingleFileLayout),
     ("A követő kísérőhelyei az alakzat hátsó éle mögött vannak", FormationEscortPositionsFollowRearEdge),
     ("A követő kitérhet a zárt alakzat célmezőjéről", TemporaryFollowerCanYieldToFormation),
@@ -3851,6 +3852,39 @@ static void PartyFormationTurnsInPlace()
            afterClockwise[right.Id] == new Position(11, 11) &&
            formation.Facing == Direction.Up,
         "A helyben fordulas kilépett a 2x2-es területből, átírta a slotokat vagy idő előtt módosította az állapotot.");
+}
+
+static void FormationSlotsControlFreeFollowOrder()
+{
+    var leader = CreateCharacter("Vezer");
+    var frontLeft = CreateCharacter("BalElso");
+    var frontRight = CreateCharacter("JobbElso");
+    var rearLeft = CreateCharacter("BalHatso");
+    var formation = new PartyFormationSnapshot(frontLeft.Id, frontRight.Id, rearLeft.Id, leader.Id,
+        Direction.Up, PartyFormationState.Disbanded);
+    var followOrder = PartyFormationRules.FollowOrder(formation, leader.Id,
+        [leader.Id, rearLeft.Id, frontRight.Id, frontLeft.Id]);
+
+    var maze = new Maze(11, 11);
+    var memberPosition = new Position(5, 5);
+    var leftTarget = new Position(4, 5);
+    var upTarget = new Position(5, 4);
+    var rightTarget = new Position(6, 5);
+    foreach (var position in new[] { memberPosition, leftTarget, upTarget, rightTarget }) maze.Carve(position);
+    var member = new PartyMemberAvatar(memberPosition, frontLeft);
+    var player = new Player(new Position(5, 6), leader);
+    IReadOnlyList<Position> trail =
+    [
+        new Position(1, 1), new Position(1, 2), leftTarget, upTarget, rightTarget,
+        new Position(6, 6), player.Position
+    ];
+    var firstStep = PartyMovementController.FollowLeaderTrail(member, 2, maze, player, trail, followOrder: 0);
+    var secondStep = PartyMovementController.FollowLeaderTrail(member, 2, maze, player, trail, followOrder: 1);
+    var thirdStep = PartyMovementController.FollowLeaderTrail(member, 2, maze, player, trail, followOrder: 2);
+
+    Assert(followOrder.SequenceEqual([frontLeft.Id, frontRight.Id, rearLeft.Id]) &&
+           firstStep == rightTarget && secondStep == upTarget && thirdStep == leftTarget,
+        "A szabad követés továbbra is a csatlakozási sorrendet vagy közös nyompontot használt a slotsorrend helyett.");
 }
 
 static void LockedFormationUsesSingleFileLayout()

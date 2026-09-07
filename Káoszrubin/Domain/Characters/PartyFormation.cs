@@ -73,6 +73,22 @@ public static class PartyFormationRules
             Layout = state == PartyFormationState.Locked ? formation.Layout : PartyFormationLayout.Block
         };
 
+    public static IReadOnlyList<CharacterId> FollowOrder(
+        PartyFormationSnapshot formation,
+        CharacterId leaderId,
+        IEnumerable<CharacterId> partyMemberIds)
+    {
+        var available = partyMemberIds.Where(id => id != leaderId).Distinct().ToArray();
+        var availableSet = available.ToHashSet();
+        var ordered = formation.Slots.Where(id => id is not null)
+            .Select(id => id!.Value)
+            .Where(id => id != leaderId && availableSet.Contains(id))
+            .Distinct()
+            .ToList();
+        ordered.AddRange(available.Where(id => !ordered.Contains(id)));
+        return ordered;
+    }
+
     public static PartyFormationSnapshot Rotate(PartyFormationSnapshot formation, bool clockwise) =>
         formation with { Facing = Rotate(formation.Facing, clockwise) };
 

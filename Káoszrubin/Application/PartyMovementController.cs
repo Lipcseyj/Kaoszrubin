@@ -13,7 +13,8 @@ public sealed class PartyMovementController
         Player player,
         Direction leaderFacing,
         IReadOnlyList<Position> leaderTrail,
-        int currentLevelVisionModifier)
+        int currentLevelVisionModifier,
+        int followOrder = 0)
     {
         var behavior = member.Character.NpcBehavior ?? NpcBehavior.Defensive;
         var visibleEnemy = maze.Enemies
@@ -37,19 +38,19 @@ public sealed class PartyMovementController
         if (behavior == NpcBehavior.Scout)
         {
             if (visibleEnemy is not null)
-                return FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail);
+                return FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail, followOrder);
             return ChooseForwardStep(member, maximumLeaderDistance: 10, maximumSearchDistance: 10, avoidNarrowFront: false, maze, player, leaderFacing)
-                ?? FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail);
+                ?? FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail, followOrder);
         }
 
         if (behavior == NpcBehavior.Cautious)
-            return FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail);
+            return FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail, followOrder);
 
         if (behavior == NpcBehavior.Aggressive)
             return ChooseForwardStep(member, maximumLeaderDistance: 3, maximumSearchDistance: 4, avoidNarrowFront: true, maze, player, leaderFacing)
-                ?? FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail);
+                ?? FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail, followOrder);
 
-        return FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail);
+        return FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail, followOrder);
     }
 
     public static Position? FollowLeaderTrail(
@@ -57,12 +58,11 @@ public sealed class PartyMovementController
         int minimumLag,
         Maze maze,
         Player player,
-        IReadOnlyList<Position> leaderTrail)
+        IReadOnlyList<Position> leaderTrail,
+        int followOrder = 0)
     {
         if (leaderTrail.Count == 0) return null;
-        var partyOrder = Enumerable.Range(0, maze.PartyMembers.Count)
-            .FirstOrDefault(index => maze.PartyMembers[index] == member);
-        var formationLag = Math.Min(1, partyOrder);
+        var formationLag = Math.Max(0, followOrder);
         var targetIndex = Math.Max(0, leaderTrail.Count - 1 - minimumLag - formationLag);
         for (var index = targetIndex; index >= 0; index--)
         {
