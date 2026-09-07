@@ -102,6 +102,9 @@ public sealed class Game : ISessionCommandHandler
     private DateTime _nextNpcSelfCareCheck;
     private readonly Dictionary<Enemy, DateTime> _nextEnemyMoves = [];
     private DateTime _nextEnemyActionUtc = DateTime.MaxValue;
+    private readonly Dictionary<Position, IReadOnlyDictionary<Position, int>> _enemyDistanceMaps = [];
+    private WorldId _enemyDistanceMapMazeId;
+    private long _enemyDistanceMapNavigationRevision = -1;
     private readonly Dictionary<PartyMemberAvatar, DateTime> _nextPartyMoves = [];
     private readonly Dictionary<CharacterId, DateTime> _nextControlledMoves = [];
     private readonly List<Position> _leaderTrail = [];
@@ -4467,6 +4470,61 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private Direction? FindEnemyStepToward(Enemy enemy, Position target)
+    {
+        var distances = EnemyDistanceMap(target);
+        if (distances.TryGetValue(enemy.Position, out var currentDistance))
+        {
+            foreach (var direction in Directions)
+            {
+                var next = enemy.Position + direction;
+                if (distances.GetValueOrDefault(next, int.MaxValue) >= currentDistance ||
+                    !CanEnemyPathThrough(next, target)) continue;
+                return direction;
+            }
+        }
+
+        // Mozgó ellenfél vagy más dinamikus objektum elállhatja a közös térkép legjobb lépését.
+        // Ilyenkor a régi, pontos akadálykezelésű keresés kerül elő, ezért a gyorsítás nem változtat
+        // a zsúfolt folyosók átjárhatósági szabályain.
+        return FindEnemyStepTowardDynamic(enemy, target);
+    }
+
+    private IReadOnlyDictionary<Position, int> EnemyDistanceMap(Position target)
+    {
+        if (_enemyDistanceMapMazeId != _maze.Id ||
+            _enemyDistanceMapNavigationRevision != _maze.NavigationRevision)
+        {
+            _enemyDistanceMaps.Clear();
+            _enemyDistanceMapMazeId = _maze.Id;
+            _enemyDistanceMapNavigationRevision = _maze.NavigationRevision;
+        }
+        if (_enemyDistanceMaps.TryGetValue(target, out var cached)) return cached;
+        if (_enemyDistanceMaps.Count >= 16) _enemyDistanceMaps.Clear();
+
+        var distances = new Dictionary<Position, int> { [target] = 0 };
+        var queue = new Queue<Position>();
+        queue.Enqueue(target);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            var nextDistance = distances[current] + 1;
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (distances.ContainsKey(next) || !CanEnemyDistanceMapTraverse(next, target)) continue;
+                distances[next] = nextDistance;
+                queue.Enqueue(next);
+            }
+        }
+        _enemyDistanceMaps[target] = distances;
+        return distances;
+    }
+
+    private bool CanEnemyDistanceMapTraverse(Position position, Position target) =>
+        _maze.IsWalkable(position) &&
+        (position == target || position != _maze.Entrance && position != _maze.Exit);
+
+    private Direction? FindEnemyStepTowardDynamic(Enemy enemy, Position target)
     {
         var queue = new Queue<Position>();
         var previous = new Dictionary<Position, Position>();

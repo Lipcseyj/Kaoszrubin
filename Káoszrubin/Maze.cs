@@ -22,6 +22,7 @@ public sealed class Maze
     private readonly Dictionary<Position, MazeDoor> _doors = [];
 
     public WorldId Id { get; } = WorldId.New();
+    public long NavigationRevision { get; private set; }
     public IReadOnlyList<Room> Rooms => _rooms;
     public IReadOnlyList<TreasureChest> TreasureChests => _treasureChests;
     public IReadOnlyList<Enemy> Enemies => _enemies;
@@ -73,6 +74,7 @@ public sealed class Maze
     {
         if (!IsInside(position)) throw new ArgumentOutOfRangeException(nameof(position));
         Tiles[position.X, position.Y] = Floor;
+        NavigationRevision++;
     }
 
     public void PlaceExit(Position position)
@@ -80,12 +82,14 @@ public sealed class Maze
         if (!IsWalkable(position)) throw new ArgumentException("A kijáratnak járható cellán kell lennie.", nameof(position));
         Exit = position;
         Tiles[Exit.X, Exit.Y] = ExitMarker;
+        NavigationRevision++;
     }
 
     public void SetTile(Position position, Rune tile)
     {
         if (!IsInside(position)) throw new ArgumentOutOfRangeException(nameof(position));
         Tiles[position.X, position.Y] = tile;
+        NavigationRevision++;
     }
 
     public void PlaceDoor(Position position, DoorState state)
@@ -94,16 +98,23 @@ public sealed class Maze
         var door = new MazeDoor(position, state);
         _doors[position] = door;
         Tiles[position.X, position.Y] = door.Symbol;
+        NavigationRevision++;
     }
 
     public MazeDoor? GetDoorAt(Position position) => _doors.GetValueOrDefault(position);
 
-    public bool RemoveDoor(Position position) => _doors.Remove(position);
+    public bool RemoveDoor(Position position)
+    {
+        if (!_doors.Remove(position)) return false;
+        NavigationRevision++;
+        return true;
+    }
 
     public bool SetDoorState(MazeDoor door, DoorState state)
     {
         if (!_doors.TryGetValue(door.Position, out var existing) || existing != door || !door.TrySetState(state)) return false;
         Tiles[door.Position.X, door.Position.Y] = door.Symbol;
+        NavigationRevision++;
         return true;
     }
 
