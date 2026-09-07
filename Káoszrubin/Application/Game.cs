@@ -1806,12 +1806,12 @@ public sealed class Game : ISessionCommandHandler
 
     #region Movement
 
-    private void MovePlayer(Direction direction)
+    private void MovePlayer(Direction direction, bool preserveFormationFacing = false)
     {
         if (!CanControlledCharacterMove(SelectedCharacter)) return;
         if (_formation.State == PartyFormationState.Locked)
         {
-            MoveLockedFormation(direction);
+            MoveLockedFormation(direction, preserveFormationFacing);
             return;
         }
         var previousPosition = _player.Position;
@@ -1938,7 +1938,8 @@ public sealed class Game : ISessionCommandHandler
             command = new LeaderActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
                 key == ConsoleKey.LeftArrow ? LeaderAction.RotateFormationLeft : LeaderAction.RotateFormationRight);
         else if (TryGetDirection(key, out var direction))
-            command = new MoveCharacterCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id, direction);
+            command = new MoveCharacterCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id, direction,
+                GameInputBindings.PreserveFormationFacing(keyInfo.Modifiers));
         else if (GameInputBindings.CharacterAction(key) is { } characterAction)
         {
             Position? targetDoor = null;
@@ -2004,7 +2005,8 @@ public sealed class Game : ISessionCommandHandler
 
     bool ISessionCommandHandler.IsPausedByHelp() => _helpPausePlayers.Count > 0;
 
-    void ISessionCommandHandler.OnMoveLeader(Direction direction) => MovePlayer(direction);
+    void ISessionCommandHandler.OnMoveLeader(Direction direction, bool preserveFormationFacing) =>
+        MovePlayer(direction, preserveFormationFacing);
 
     void ISessionCommandHandler.OnMoveRemoteMember(MoveCharacterCommand command) => MoveRemotePartyMember(command);
 
@@ -3094,71 +3096,84 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
         if (!CanControlledCharacterMove(SelectedCharacter)) return;
-        var rotated = PartyFormationController.Rotate(_formation, clockwise);
-        var positions = PartyFormationController.Positions(rotated, SelectedCharacter.Id, _player.Position);
+        var rotated = PartyFormationController.RotateInPlace(_formation, clockwise);
+        if (_formation.Layout == PartyFormationLayout.SingleFile)
+        {
+            _formation = rotated;
+            _leaderFacing = rotated.Facing;
+            _renderer.SetFormationStatus(_formation);
+            ScheduleFormationMove();
+            AnnouncePartyCommand(clockwise ? "Az alakzat jobbra fordult." : "Az alakzat balra fordult.",
+                ConsoleColor.Cyan);
+            return;
+        }
+        var positions = PartyFormationController.PositionsInSameFootprint(_formation, SelectedCharacter.Id,
+            _player.Position, rotated.Facing);
         if (!TryPlanFormationPlacement(positions, rotated, out var followerMoves))
         {
-            _renderer.DrawDeveloperMessage("Az alakzat itt nem tud 90 fokot fordulni: legalabb egy celmezo foglalt.");
+            _renderer.DrawDeveloperMessage("Az alakzat a sajat teruleten sem tud 90 fokot fordulni.");
             return;
         }
         ApplyFormationPositions(positions, rotated, followerMoves);
+        _leaderFacing = rotated.Facing;
         ScheduleFormationMove();
         AnnouncePartyCommand(clockwise ? "Az alakzat jobbra fordult." : "Az alakzat balra fordult.",
             ConsoleColor.Cyan);
     }
 
-    private void MoveLockedFormation(Direction direction)
+    private void MoveLockedFormation(Direction direction, bool preserveFormationFacing)
     {
         var leaderDestination = _player.Position + direction;
+        var travelFormation = preserveFormationFacing
+            ? _formation
+            : PartyFormationController.FaceInPlace(_formation, direction);
         if (_formation.Layout == PartyFormationLayout.SingleFile)
         {
-            var blockFormation = _formation with { Layout = PartyFormationLayout.Block };
+            var blockFormation = travelFormation with { Layout = PartyFormationLayout.Block };
             var blockPositions = PartyFormationController.Positions(blockFormation, SelectedCharacter.Id,
                 leaderDestination);
             if (TryPlanFormationPlacement(blockPositions, blockFormation, out var reformFollowerMoves))
             {
                 ApplyFormationPositions(blockPositions, blockFormation, reformFollowerMoves);
-                CompleteFormationTravelMove(direction);
+                CompleteFormationTravelMove(direction, preserveFormationFacing);
                 AnnouncePartyCommand("A szukuleten tul az alakzat automatikusan visszaallt 2x2-es rendbe.",
                     ConsoleColor.Green);
                 return;
             }
 
             var current = CurrentFormationPositions();
-            var shifted = PartyFormationController.SingleFileDestinations(_formation, current,
+            var shifted = PartyFormationController.SingleFileDestinations(travelFormation, current,
                 SelectedCharacter.Id, leaderDestination);
-            if (TryMoveFormationTo(shifted, _formation, direction)) return;
+            if (TryMoveFormationTo(shifted, travelFormation, direction, preserveFormationFacing)) return;
 
-            var turnedFormation = _formation with { Facing = direction };
-            var turnedPositions = PartyFormationController.Positions(turnedFormation, SelectedCharacter.Id,
+            var alignedPositions = PartyFormationController.Positions(travelFormation, SelectedCharacter.Id,
                 leaderDestination);
-            TryMoveFormationTo(turnedPositions, turnedFormation, direction);
+            TryMoveFormationTo(alignedPositions, travelFormation, direction, preserveFormationFacing);
             return;
         }
 
-        var blockCurrent = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
+        var blockCurrent = preserveFormationFacing
+            ? CurrentFormationPositions()
+            : PartyFormationController.PositionsInSameFootprint(_formation, SelectedCharacter.Id,
+                _player.Position, travelFormation.Facing);
         var blockDestinations = blockCurrent.ToDictionary(pair => pair.Key, pair => pair.Value + direction);
         if (blockDestinations.Values.All(_maze.IsWalkable))
         {
-            TryMoveFormationTo(blockDestinations, _formation, direction);
+            TryMoveFormationTo(blockDestinations, travelFormation, direction, preserveFormationFacing);
             return;
         }
 
-        var singleFileFormation = _formation with
-        {
-            Facing = direction,
-            Layout = PartyFormationLayout.SingleFile
-        };
+        var singleFileFormation = travelFormation with { Layout = PartyFormationLayout.SingleFile };
         var singleFilePositions = PartyFormationController.SingleFileDestinations(singleFileFormation,
             CurrentFormationPositions(), SelectedCharacter.Id, leaderDestination);
         if (!PartyFormationController.IsSingleFilePassage(blockDestinations, singleFilePositions, _maze) ||
-            !TryMoveFormationTo(singleFilePositions, singleFileFormation, direction)) return;
+            !TryMoveFormationTo(singleFilePositions, singleFileFormation, direction, preserveFormationFacing)) return;
         AnnouncePartyCommand("Az egymezos szukuletben az alakzat ideiglenesen libasorra valt.",
             ConsoleColor.Cyan);
     }
 
     private bool TryMoveFormationTo(IReadOnlyDictionary<CharacterId, Position> destinations,
-        PartyFormationSnapshot formation, Direction movementDirection)
+        PartyFormationSnapshot formation, Direction movementDirection, bool preserveFormationFacing)
     {
         var enemyEntry = destinations.Select(pair => (pair.Key, Enemy: _maze.GetEnemyAt(pair.Value)))
             .FirstOrDefault(entry => entry.Enemy is not null);
@@ -3171,13 +3186,13 @@ public sealed class Game : ISessionCommandHandler
         }
         if (!TryPlanFormationPlacement(destinations, formation, out var followerMoves)) return false;
         ApplyFormationPositions(destinations, formation, followerMoves);
-        CompleteFormationTravelMove(movementDirection);
+        CompleteFormationTravelMove(movementDirection, preserveFormationFacing);
         return true;
     }
 
-    private void CompleteFormationTravelMove(Direction direction)
+    private void CompleteFormationTravelMove(Direction direction, bool preserveFormationFacing)
     {
-        _leaderFacing = direction;
+        if (!preserveFormationFacing) _leaderFacing = direction;
         if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
         ScheduleFormationMove();

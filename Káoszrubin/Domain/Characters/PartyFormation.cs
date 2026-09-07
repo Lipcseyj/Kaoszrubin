@@ -76,6 +76,48 @@ public static class PartyFormationRules
     public static PartyFormationSnapshot Rotate(PartyFormationSnapshot formation, bool clockwise) =>
         formation with { Facing = Rotate(formation.Facing, clockwise) };
 
+    public static PartyFormationSnapshot RotateInPlace(PartyFormationSnapshot formation, bool clockwise) =>
+        formation with { Facing = Rotate(formation.Facing, clockwise) };
+
+    public static PartyFormationSnapshot FaceInPlace(PartyFormationSnapshot formation, Direction facing)
+    {
+        var result = formation;
+        for (var turn = 0; turn < 3 && result.Facing != facing; turn++)
+            result = RotateInPlace(result, clockwise: true);
+        return result;
+    }
+
+    public static IReadOnlyDictionary<CharacterId, Position> PositionsInSameFootprint(
+        PartyFormationSnapshot formation,
+        CharacterId anchorCharacterId,
+        Position anchorPosition,
+        Direction facing)
+    {
+        if (formation.Layout == PartyFormationLayout.SingleFile)
+            return Positions(formation with { Facing = facing }, anchorCharacterId, anchorPosition);
+
+        var anchorSlot = Enumerable.Range(0, 4)
+            .FirstOrDefault(index => formation.Slots[index] == anchorCharacterId);
+        var oldAnchorOffset = Offset((FormationSlot)anchorSlot, formation.Facing);
+        var oldRelativeOffsets = Enumerable.Range(0, 4)
+            .Select(index => Subtract(Offset((FormationSlot)index, formation.Facing), oldAnchorOffset))
+            .ToArray();
+        var footprintOrigin = Add(anchorPosition, new Position(
+            oldRelativeOffsets.Min(offset => offset.X),
+            oldRelativeOffsets.Min(offset => offset.Y)));
+        var newOffsets = Enumerable.Range(0, 4)
+            .Select(index => Offset((FormationSlot)index, facing))
+            .ToArray();
+        var newOriginOffset = new Position(
+            newOffsets.Min(offset => offset.X),
+            newOffsets.Min(offset => offset.Y));
+
+        return Enumerable.Range(0, 4)
+            .Where(index => formation.Slots[index] is not null)
+            .ToDictionary(index => formation.Slots[index]!.Value,
+                index => Add(footprintOrigin, Subtract(newOffsets[index], newOriginOffset)));
+    }
+
     public static Direction Rotate(Direction direction, bool clockwise) => (direction, clockwise) switch
     {
         (Direction.Up, true) or (Direction.Down, false) => Direction.Right,

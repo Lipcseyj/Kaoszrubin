@@ -6,7 +6,7 @@ public interface ISessionCommandHandler
 {
     void OnSetHelpVisibility(PlayerId senderId, CharacterId characterId, bool isOpen);
     bool IsPausedByHelp();
-    void OnMoveLeader(Direction direction);
+    void OnMoveLeader(Direction direction, bool preserveFormationFacing);
     void OnMoveRemoteMember(MoveCharacterCommand command);
     void OnCharacterAction(CharacterActionCommand command);
     void OnLeaderAction(LeaderAction action);
@@ -64,7 +64,7 @@ public sealed class SessionCommandDispatcher
             switch (command)
             {
                 case MoveCharacterCommand move when move.CharacterId == _leaderCharacterId:
-                    _handler.OnMoveLeader(move.Direction);
+                    _handler.OnMoveLeader(move.Direction, move.PreserveFormationFacing);
                     break;
                 case MoveCharacterCommand move:
                     _handler.OnMoveRemoteMember(move);

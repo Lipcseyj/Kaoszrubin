@@ -7,6 +7,9 @@ public enum InventoryInputAction { MoveUp, MoveDown, Inspect, Drop, Use, MoveIte
 /// <summary>A host és a coop vendég közös, kontextusfüggő billentyűkiosztása.</summary>
 public static class GameInputBindings
 {
+    public static bool PreserveFormationFacing(ConsoleModifiers modifiers) =>
+        (modifiers & ConsoleModifiers.Shift) != 0;
+
     public static int BattleDetailsPageDirection(ConsoleKeyInfo key) => key.Key switch
     {
         ConsoleKey.Add => 1,

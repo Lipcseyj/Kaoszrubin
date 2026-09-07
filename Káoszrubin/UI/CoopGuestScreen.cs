@@ -245,7 +245,7 @@ public sealed class CoopGuestScreen
                         if (ConfirmReturnToMainMenu(client, selected)) break;
                         continue;
                     }
-                    await HandleInputAsync(client, selected, key.Key, cancellationToken);
+                    await HandleInputAsync(client, selected, key.Key, key.Modifiers, cancellationToken);
                 }
                 await Task.Delay(20, cancellationToken);
             }
@@ -288,7 +288,7 @@ public sealed class CoopGuestScreen
     }
 
     private async Task HandleInputAsync(CoopSignalRClient client, CoopCharacterOption selected, ConsoleKey key,
-        CancellationToken cancellationToken)
+        ConsoleModifiers modifiers, CancellationToken cancellationToken)
     {
         var characterId = selected.CharacterId;
         if (client.State != CoopClientConnectionState.Connected) return;
@@ -591,7 +591,8 @@ public sealed class CoopGuestScreen
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && TryGetDirection(key, out var direction))
         {
-            command = new MoveCharacterCommand(client.PlayerId!.Value, client.NextCommandId(), characterId, direction);
+            command = new MoveCharacterCommand(client.PlayerId!.Value, client.NextCommandId(), characterId, direction,
+                GameInputBindings.PreserveFormationFacing(modifiers));
         }
         if (command is null) return;
         try

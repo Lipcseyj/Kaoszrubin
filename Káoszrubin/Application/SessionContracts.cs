@@ -42,7 +42,7 @@ public sealed record SetHelpVisibilityCommand(PlayerId SenderId, long CommandId,
     bool IsOpen) : GameCommand(SenderId, CommandId, CharacterId);
 
 public sealed record MoveCharacterCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
-    Direction Direction) : GameCommand(SenderId, CommandId, CharacterId);
+    Direction Direction, bool PreserveFormationFacing = false) : GameCommand(SenderId, CommandId, CharacterId);
 
 public enum CharacterAction
 {

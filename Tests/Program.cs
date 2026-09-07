@@ -89,6 +89,7 @@ var tests = new (string Name, Action Run)[]
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A taktikai távolság követi a konzolcellák kettő az egyhez arányát", TacticalDistanceUsesConsoleAspectRatio),
     ("A 2x2-es alakzat minden irányban a vezér slotjához igazodik", PartyFormationPositionsFollowFacing),
+    ("A zárt 2x2-es alakzat a saját mezőin fordul meg", PartyFormationTurnsInPlace),
     ("A zárt alakzat a szűkületben állapotvesztés nélkül libasorra vált", LockedFormationUsesSingleFileLayout),
     ("A követő kísérőhelyei az alakzat hátsó éle mögött vannak", FormationEscortPositionsFollowRearEdge),
     ("A követő kitérhet a zárt alakzat célmezőjéről", TemporaryFollowerCanYieldToFormation),
@@ -422,6 +423,10 @@ static void HostAndGuestUseSharedInputBindings()
            GameInputBindings.LeaderAction(ConsoleKey.Enter, false) is null &&
            GameInputBindings.LeaderAction(ConsoleKey.Enter, true) == LeaderAction.ActivateExit,
         "A leader-only billentyűkiosztás hibás.");
+    Assert(GameInputBindings.PreserveFormationFacing(ConsoleModifiers.Shift) &&
+           GameInputBindings.PreserveFormationFacing(ConsoleModifiers.Shift | ConsoleModifiers.Alt) &&
+           !GameInputBindings.PreserveFormationFacing(ConsoleModifiers.Control),
+        "A Shift+nyíl alakzati oldalazás módosítója nem közös a host és a vendég között.");
 }
 
 static void RemotePlayerCannotIssueLeaderAction()
@@ -2148,6 +2153,11 @@ static void ProtocolCodecRoundTripsCommand()
     var restored = CoopProtocolJson.Decode(CoopProtocolJson.Encode(command));
     Assert(restored is BattleActionCommand decoded && decoded == command,
         "A JSON wire codec megváltoztatta a battle commandot.");
+    var strafe = new MoveCharacterCommand(PlayerId.New(), 8, CharacterId.New(), Direction.Left,
+        PreserveFormationFacing: true);
+    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(strafe)) is MoveCharacterCommand decodedStrafe &&
+           decodedStrafe == strafe && decodedStrafe.PreserveFormationFacing,
+        "A JSON wire codec elvesztette a Shift+nyíl nézésiirány-megőrzését.");
     var keyOwnerId = CharacterId.New();
     var characterAction = new CharacterActionCommand(PlayerId.New(), 8, CharacterId.New(),
         CharacterAction.CloseOrLockDoor, new Position(7, 9), UseKey: true,
@@ -3814,6 +3824,33 @@ static void PartyFormationPositionsFollowFacing()
            facingRight[rearLeft.Id] == new Position(9, 10) &&
            facingRight[rearRight.Id] == new Position(9, 11),
         "Az alakzat slotjai nem fordultak el helyesen a vezér körül.");
+}
+
+static void PartyFormationTurnsInPlace()
+{
+    var leader = CreateCharacter("Fordulo");
+    var right = CreateCharacter("Jobb");
+    var rearLeft = CreateCharacter("HatsoBal");
+    var rearRight = CreateCharacter("HatsoJobb");
+    var formation = new PartyFormationSnapshot(leader.Id, right.Id, rearLeft.Id, rearRight.Id,
+        Direction.Up, PartyFormationState.Locked);
+    var before = PartyFormationRules.Positions(formation, leader.Id, new Position(10, 10));
+    var clockwise = PartyFormationRules.RotateInPlace(formation, clockwise: true);
+    var afterClockwise = PartyFormationRules.PositionsInSameFootprint(formation, leader.Id,
+        new Position(10, 10), clockwise.Facing);
+    var facingLeft = PartyFormationRules.FaceInPlace(formation, Direction.Left);
+    var afterFacingLeft = PartyFormationRules.PositionsInSameFootprint(formation, leader.Id,
+        new Position(10, 10), facingLeft.Facing);
+
+    Assert(clockwise.Facing == Direction.Right &&
+           clockwise.Slots.SequenceEqual(formation.Slots) &&
+           facingLeft.Facing == Direction.Left &&
+           before.Values.ToHashSet().SetEquals(afterClockwise.Values) &&
+           before.Values.ToHashSet().SetEquals(afterFacingLeft.Values) &&
+           afterClockwise[leader.Id] == new Position(11, 10) &&
+           afterClockwise[right.Id] == new Position(11, 11) &&
+           formation.Facing == Direction.Up,
+        "A helyben fordulas kilépett a 2x2-es területből, átírta a slotokat vagy idő előtt módosította az állapotot.");
 }
 
 static void LockedFormationUsesSingleFileLayout()

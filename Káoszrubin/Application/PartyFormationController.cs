@@ -30,6 +30,19 @@ public sealed class PartyFormationController
     public static PartyFormationSnapshot Rotate(PartyFormationSnapshot formation, bool clockwise) =>
         PartyFormationRules.Rotate(formation, clockwise);
 
+    public static PartyFormationSnapshot RotateInPlace(PartyFormationSnapshot formation, bool clockwise) =>
+        PartyFormationRules.RotateInPlace(formation, clockwise);
+
+    public static PartyFormationSnapshot FaceInPlace(PartyFormationSnapshot formation, Direction facing) =>
+        PartyFormationRules.FaceInPlace(formation, facing);
+
+    public static IReadOnlyDictionary<CharacterId, Position> PositionsInSameFootprint(
+        PartyFormationSnapshot formation,
+        CharacterId leaderId,
+        Position leaderPosition,
+        Direction facing) =>
+        PartyFormationRules.PositionsInSameFootprint(formation, leaderId, leaderPosition, facing);
+
     public static int CalculateMoveDelay(IEnumerable<LiveCharacter> members, int controlledMoveDelayMilliseconds = 85)
     {
         var slowestMultiplier = members.Where(member => member.IsAlive)
