@@ -3781,7 +3781,7 @@ public sealed class Game : ISessionCommandHandler
     private MageIdentificationResult RollLootItemState(IItemDefinition item)
     {
         var state = ItemIdentificationRules.CreateLootState(item, _gameData.ItemCurses, _random,
-            _mazeLevel == 9 ? 15 : 8);
+            CurrentLevelConfiguration.ItemCurseChancePercent);
         return ItemIdentificationRules.AttemptByBestMage(item, state, CharacterRoster.Party.Members, _random);
     }
 
@@ -5667,9 +5667,11 @@ public sealed class Game : ISessionCommandHandler
         return revealed;
     }
 
-    private int CurrentLevelVisionModifier => _locationKind == AdventureLocationKind.Quest
-        ? QuestLocationConfigurations.Get(_locationId).VisionModifier
-        : MazeLevelConfigurations.Get(_mazeLevel).VisionModifier;
+    private MazeLevelConfiguration CurrentLevelConfiguration => _locationKind == AdventureLocationKind.Quest
+        ? QuestLocationConfigurations.Get(_locationId)
+        : MazeLevelConfigurations.Get(_mazeLevel);
+
+    private int CurrentLevelVisionModifier => CurrentLevelConfiguration.VisionModifier;
 
     private void CheckBossDiscoveryAt(IEnumerable<Position> positions, LiveCharacter discoverer)
     {

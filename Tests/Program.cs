@@ -160,6 +160,7 @@ var tests = new (string Name, Action Run)[]
     ("A közös észlelés felfedi a lopakodót és pontatlan hangjelet ad", PartyPerceptionDetectsStealthAndSound),
     ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
     ("A csapdakészlet és darabszám a labirintusszinttel nehezedik", TrapConfigurationScalesByMazeLevel),
+    ("A tárgyátok esélye pályánként konfigurálható", CursedLootChanceIsConfiguredPerMazeLevel),
     ("A karakter kasztja, faja és átmeneti hatásai módosítják a látótávot", CharacterVisionRangeUsesClassRaceAndEffects),
     ("A szörnyek látótávja CSV-ből érkezik", EnemyVisionRangesLoadFromCsv),
     ("A felfedés változó látótávot és látóvonalat használ", FogRevealUsesVariableRangeAndLineOfSight),
@@ -1237,6 +1238,22 @@ static void TrapConfigurationScalesByMazeLevel()
     Assert(first.VisionModifier == 0 && MazeLevelConfigurations.Get(5).VisionModifier == -1 &&
            MazeLevelConfigurations.Get(9).VisionModifier == -2,
         "Az extra sötét pályák látótávmódosítója hibás.");
+}
+
+static void CursedLootChanceIsConfiguredPerMazeLevel()
+{
+    Assert(MazeLevelConfigurations.Get(1).ItemCurseChancePercent == 8 &&
+           MazeLevelConfigurations.Get(9).ItemCurseChancePercent == 15,
+        "Az alapértelmezett vagy a korábbi elátkozott sírkamra-esély megváltozott.");
+    Assert(MazeLevelConfigurations.Get(7).ItemCurseChancePercent == 15 &&
+           MazeLevelConfigurations.Get(12).ItemCurseChancePercent == 15 &&
+           MazeLevelConfigurations.Get(16).ItemCurseChancePercent == 20 &&
+           MazeLevelConfigurations.Get(18).ItemCurseChancePercent == 25 &&
+           MazeLevelConfigurations.Get(19).ItemCurseChancePercent == 25,
+        "A kiemelten veszélyes pályák tárgyátok-esélyei nem a konfigurációból érkeznek.");
+    Assert(QuestLocationConfigurations.Get(QuestLocationConfigurations.RodericMalrec)
+               .ItemCurseChancePercent == 8,
+        "A küldetéshelyszínek nem öröklik az alapértelmezett tárgyátok-esélyt.");
 }
 
 static void LevelImageFileNamesAreNormalized()

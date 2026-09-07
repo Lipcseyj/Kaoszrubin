@@ -67,6 +67,7 @@ public sealed class MazeLevelConfiguration
     public required IntRange RoomSize { get; init; }
     public required IntRange TreasureChestCount { get; init; }
     public required IntRange TreasureGold { get; init; }
+    public int ItemCurseChancePercent { get; init; } = 8;
     public IntRange TrapCount { get; set; } = new(0, 0);
     public IReadOnlyList<string> TrapIds { get; set; } = [];
     public int VisionModifier { get; set; }
@@ -301,6 +302,7 @@ public static class MazeLevelConfigurations
                 RoomSize = new(4, 8),
                 TreasureChestCount = Amount.Several.Range(),
                 TreasureGold = new(300, 780),
+                ItemCurseChancePercent = 15,
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Óriáspók, Amount.Several, Amount.Several),
@@ -347,6 +349,7 @@ public static class MazeLevelConfigurations
                 RoomSize = new(4, 8),
                 TreasureChestCount = Amount.Pack.Range(),
                 TreasureGold = new(520, 1000),
+                ItemCurseChancePercent = 30,
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Múmia, Amount.Several, Amount.Several),
@@ -416,6 +419,7 @@ public static class MazeLevelConfigurations
                 RoomSize = new(5, 10),
                 TreasureChestCount = Amount.Pack.Range(),
                 TreasureGold = new(850, 1700),
+                ItemCurseChancePercent = 15,
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Savanyálka, Amount.Several, Amount.Several),
@@ -512,6 +516,7 @@ public static class MazeLevelConfigurations
                 RoomSize = new(5, 9),
                 TreasureChestCount = Amount.Pack.Range(),
                 TreasureGold = new(1450, 2750),
+                ItemCurseChancePercent = 20,
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Vámpír, Amount.Few, Amount.Several),
@@ -560,6 +565,7 @@ public static class MazeLevelConfigurations
                 RoomSize = new(6, 10),
                 TreasureChestCount = new(12, 18),
                 TreasureGold = new(1900, 3600),
+                ItemCurseChancePercent = 25,
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Démonpók, Amount.Several, Amount.Several),
@@ -584,6 +590,7 @@ public static class MazeLevelConfigurations
                 RoomSize = new(7, 11),
                 TreasureChestCount = new(14, 20),
                 TreasureGold = new(2200, 4200),
+                ItemCurseChancePercent = 25,
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Démonlovag, Amount.Several, Amount.Several),
