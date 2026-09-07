@@ -45,10 +45,12 @@ public sealed class SessionCommandDispatcher
         _leaderCharacterId = leaderCharacterId;
     }
 
-    public void ProcessPendingCommands()
+    public int ProcessPendingCommands()
     {
+        var processedCount = 0;
         while (_session.TryReadCommand(out var command))
         {
+            processedCount++;
             if (command is SetHelpVisibilityCommand helpVisibility)
             {
                 _handler.OnSetHelpVisibility(helpVisibility.SenderId, helpVisibility.CharacterId, helpVisibility.IsOpen);
@@ -126,5 +128,6 @@ public sealed class SessionCommandDispatcher
                     break;
             }
         }
+        return processedCount;
     }
 }

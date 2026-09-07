@@ -29,6 +29,7 @@ public sealed class Game : ISessionCommandHandler
     private const int MaximumPartyMoveDelayMilliseconds = 300;
     private const int CatchUpMoveDelayMilliseconds = 90;
     private const int ControlledMoveDelayMilliseconds = 85;
+    private static readonly TimeSpan CoopSnapshotHeartbeatInterval = TimeSpan.FromSeconds(2);
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
@@ -46,6 +47,8 @@ public sealed class Game : ISessionCommandHandler
     private readonly DoorInteractionController _doorInteractions;
     private readonly InnController _innController;
     private ICoopHostLoop? _activeCoopHost;
+    private bool _coopSnapshotDirty = true;
+    private DateTime _nextCoopSnapshotHeartbeatUtc = DateTime.MinValue;
     private NarrativeSnapshot? _activeNarrative;
     private AdHocConversationSnapshot? _activeAdHocConversation;
     private readonly HashSet<string> _usedAdHocConversationIds = new(StringComparer.OrdinalIgnoreCase);
@@ -533,6 +536,8 @@ public sealed class Game : ISessionCommandHandler
     public void Run(ICoopHostLoop? coopHost = null)
     {
         _activeCoopHost = coopHost;
+        _coopSnapshotDirty = true;
+        _nextCoopSnapshotHeartbeatUtc = DateTime.MinValue;
         WaitForUsableTerminal(processSession: false);
         var previousViewport = TerminalViewport.TryGetSize(out var initialViewport)
             ? initialViewport
@@ -569,6 +574,7 @@ public sealed class Game : ISessionCommandHandler
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);
+                    MarkCoopSnapshotDirty();
                     if (_activeTeamBattle is not null && !_isQuickTeamBattle &&
                         GameInputBindings.BattleDetailsPageDirection(keyInfo) is var detailDirection && detailDirection != 0)
                     {
@@ -745,36 +751,44 @@ public sealed class Game : ISessionCommandHandler
 
                 if (_helpPausePlayers.Count > 0)
                 {
-                    if (coopHost?.ShouldPublish(now) == true)
-                        coopHost.TryPublish(CreateSessionSnapshot());
+                    TryPublishScheduledCoopSnapshot(now);
                     Thread.Sleep(20);
                     continue;
                 }
 
-                if (!_battleStarted && now >= _nextEnemyActionUtc) MoveEnemies(now);
+                if (!_battleStarted && now >= _nextEnemyActionUtc)
+                {
+                    MoveEnemies(now);
+                    MarkCoopSnapshotDirty();
+                }
 
-                if (!_battleStarted && ShouldProcessPartyMembers(now)) MovePartyMembers(now);
+                if (!_battleStarted && ShouldProcessPartyMembers(now))
+                {
+                    MovePartyMembers(now);
+                    MarkCoopSnapshotDirty();
+                }
 
                 if (!_battleStarted && now >= _nextAdHocConversationCheckUtc)
                 {
                     _nextAdHocConversationCheckUtc = now + TimeSpan.FromMinutes(1);
-                    TryStartAdHocFollowerConversation(now);
+                    if (TryStartAdHocFollowerConversation(now)) MarkCoopSnapshotDirty();
                 }
 
                 if (!_battleStarted && now >= _nextNeedsDrain)
                 {
                     DrainNeeds();
+                    MarkCoopSnapshotDirty();
                     _nextNeedsDrain = now + TimeSpan.FromMinutes(1);
                 }
 
                 if (!_battleStarted && now >= _nextNpcSelfCareCheck)
                 {
                     ProcessNpcSelfCare(now);
+                    MarkCoopSnapshotDirty();
                     _nextNpcSelfCareCheck = now + TimeSpan.FromSeconds(1);
                 }
 
-                if (coopHost?.ShouldPublish(now) == true)
-                    coopHost.TryPublish(CreateSessionSnapshot());
+                TryPublishScheduledCoopSnapshot(now);
 
                 Thread.Sleep(20);
                 }
@@ -829,8 +843,7 @@ public sealed class Game : ISessionCommandHandler
             if (processSession)
             {
                 ProcessSessionCommands();
-                if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
-                    _activeCoopHost.TryPublish(CreateSessionSnapshot());
+                TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
             }
             Thread.Sleep(80);
         }
@@ -1780,8 +1793,7 @@ public sealed class Game : ISessionCommandHandler
                 control.ControllerKind == CharacterControllerKind.RemotePlayer &&
                 control.ConnectionState == PlayerConnectionState.Connected);
             if (!stillConnected) break;
-            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
-                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
             Thread.Sleep(20);
         }
         _activeSpellPreparation = null;
@@ -1954,7 +1966,22 @@ public sealed class Game : ISessionCommandHandler
 
     #region Session & Networking
 
-    private void ProcessSessionCommands() => _commandDispatcher.ProcessPendingCommands();
+    private void ProcessSessionCommands()
+    {
+        if (_commandDispatcher.ProcessPendingCommands() > 0) MarkCoopSnapshotDirty();
+    }
+
+    private void MarkCoopSnapshotDirty() => _coopSnapshotDirty = true;
+
+    private void TryPublishScheduledCoopSnapshot(DateTime now)
+    {
+        if (_activeCoopHost is null ||
+            (!_coopSnapshotDirty && now < _nextCoopSnapshotHeartbeatUtc) ||
+            !_activeCoopHost.ShouldPublish(now)) return;
+        if (!_activeCoopHost.TryPublish(CreateSessionSnapshot())) return;
+        _coopSnapshotDirty = false;
+        _nextCoopSnapshotHeartbeatUtc = now + CoopSnapshotHeartbeatInterval;
+    }
 
     void ISessionCommandHandler.OnSetHelpVisibility(PlayerId senderId, CharacterId characterId, bool isOpen) =>
         SetHelpVisibility(senderId, characterId, isOpen);
@@ -2061,8 +2088,7 @@ public sealed class Game : ISessionCommandHandler
                 _activeCoopHost?.TryPublish(CreateSessionSnapshot());
                 return new ConsoleKeyInfo('\0', InnController.StateChangedKey, false, false, false);
             }
-            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
-                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
             Thread.Sleep(20);
         }
         return Console.ReadKey(intercept: true);
@@ -2818,8 +2844,7 @@ public sealed class Game : ISessionCommandHandler
             }
             var required = _session.ConnectedHumanPlayerIds;
             if (required.All(_narrativeAcknowledgements.Contains)) break;
-            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
-                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
             Thread.Sleep(20);
         }
         _renderer.CloseStoryOverlay();
@@ -2846,8 +2871,7 @@ public sealed class Game : ISessionCommandHandler
         {
             ProcessSessionCommands();
             if (_session.ConnectedHumanPlayerIds.All(_levelImageAcknowledgements.Contains)) break;
-            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
-                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
             Thread.Sleep(20);
         }
 
@@ -2894,8 +2918,7 @@ public sealed class Game : ISessionCommandHandler
                 DrawRestSummaryForHost();
                 renderedAcknowledgementCount = _restAcknowledgements.Count;
             }
-            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
-                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
             Thread.Sleep(20);
         }
         _latestRestNotice = null;
@@ -3238,8 +3261,7 @@ public sealed class Game : ISessionCommandHandler
             while (!Console.KeyAvailable)
             {
                 ProcessSessionCommands();
-                if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
-                    _activeCoopHost.TryPublish(CreateSessionSnapshot());
+                TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
                 Thread.Sleep(20);
             }
             var key = Console.ReadKey(intercept: true).Key;
@@ -8074,8 +8096,7 @@ public sealed class Game : ISessionCommandHandler
                 control.ControllerKind == CharacterControllerKind.RemotePlayer &&
                 control.ConnectionState == PlayerConnectionState.Connected);
             if (!stillConnected) break;
-            if (_activeCoopHost?.ShouldPublish(DateTime.UtcNow) == true)
-                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+            TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
             Thread.Sleep(20);
         }
         var response = _levelUpResponse;
