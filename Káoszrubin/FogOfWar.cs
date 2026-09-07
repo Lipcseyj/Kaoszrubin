@@ -130,13 +130,16 @@ public sealed class FogOfWar
         _enemyMemories.Values.FirstOrDefault(memory => memory.Position == position);
 
     private bool CanDetectEnemy(Maze maze, PartyPerceptionSource source, Enemy enemy)
+        => IsCurrentlyVisible(enemy.Position, includeDeveloperReveal: false) &&
+           CanDetectEnemyFrom(maze, source, enemy);
+
+    public static bool CanDetectEnemyFrom(Maze maze, PartyPerceptionSource source, Enemy enemy)
     {
         var effectiveStealth = enemy.IsPerceptiblyActive
             ? 0
             : Math.Max(0, enemy.Definition.Stealth - source.DetectionBonus);
         var detectionRange = Math.Max(1, source.VisionRange - effectiveStealth);
-        return IsCurrentlyVisible(enemy.Position, includeDeveloperReveal: false) &&
-               CanSee(maze, source.Origin, enemy.Position, detectionRange);
+        return CanSee(maze, source.Origin, enemy.Position, detectionRange);
     }
 
     private static bool CanHearEnemy(PartyPerceptionSource source, Enemy enemy)

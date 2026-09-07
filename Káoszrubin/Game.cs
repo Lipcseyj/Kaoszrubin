@@ -6638,20 +6638,35 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
 
-        var friendlySpeed = battle.Characters.Where(candidate => candidate.IsAlive)
+        var livingCharacters = battle.Characters.Where(candidate => candidate.IsAlive).ToArray();
+        var livingEnemies = battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).ToArray();
+        var friendlySpeed = livingCharacters
             .Select(candidate => CharacterMobilityRules.Evaluate(candidate).CombatMovementAllowance)
             .DefaultIfEmpty(0).Min();
-        var hostileSpeed = battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
+        var hostileSpeed = livingEnemies
             .Select(EnemyMovementAllowance).DefaultIfEmpty(0).Max();
-        var fastEnough = friendlySpeed > hostileSpeed;
+        var everyEnemyHasTwoCellGap = livingEnemies.All(enemy => livingCharacters.All(candidate =>
+            TacticalDistance.Between(GetCasterPosition(candidate), enemy.Position) >= 3));
+        var perceptionSources = livingCharacters.Select(candidate => new PartyPerceptionSource(
+            GetCasterPosition(candidate),
+            CharacterClassRules.VisionRange(candidate, CurrentLevelVisionModifier),
+            CharacterClassRules.HearingRange(candidate),
+            CharacterClassRules.DetectionBonus(candidate))).ToArray();
+        var anyEnemyVisible = livingEnemies.Any(enemy => perceptionSources.Any(source =>
+            FogOfWar.CanDetectEnemyFrom(_maze, source, enemy)));
+        var canBreakPursuit = TacticalTeamBattleCoordinator.CanTeamRetreat(
+            friendlySpeed, hostileSpeed, everyEnemyHasTwoCellGap, anyEnemyVisible);
         Dictionary<LiveCharacter, Position> destinations = [];
-        var hasSafeRoute = fastEnough && TryFindTeamRetreatDestinations(battle, out destinations);
+        var hasSafeRoute = canBreakPursuit && TryFindTeamRetreatDestinations(battle, out destinations);
         if (!hasSafeRoute)
         {
-            var failed = fastEnough
+            var failed = canBreakPursuit
                 ? "🏃 A visszavonulás nem sikerült: nincs elérhető biztonságos visszavonulási hely."
+                : friendlySpeed == hostileSpeed
+                ? "🏃 A visszavonulás nem sikerült: azonos sebességnél legalább két mezőnek kell lennie " +
+                  "minden partitag és ellenség között."
                 : $"🏃 A visszavonulás nem sikerült: a csapat sebessége {friendlySpeed}, " +
-                  $"az üldözőké {hostileSpeed}.";
+                  $"az üldözőké {hostileSpeed}, és még van ellenség a parti látóterében.";
             _renderer.DrawInventoryMessage(failed, ConsoleColor.Red);
             RecordSessionActivity(SessionActivityKind.Battle, failed, ConsoleColor.Red);
             AdvanceTeamBattleTurn(battle);
@@ -6668,7 +6683,12 @@ public sealed class Game : ISessionCommandHandler
             battle.MarkRetreated(retreatingCharacter);
             RevealFor(retreatingCharacter, destination);
         }
-        FinishSuccessfulTeamRetreat(battle, friendlySpeed, hostileSpeed);
+        var reason = friendlySpeed > hostileSpeed
+            ? "A csapat gyorsabb az üldözőknél."
+            : friendlySpeed == hostileSpeed
+                ? "A kétmezőnyi távolsági előny elég az elszakadáshoz."
+                : "Az üldözők gyorsabbak, de már egyikük sincs a parti látóterében.";
+        FinishSuccessfulTeamRetreat(battle, friendlySpeed, hostileSpeed, reason);
     }
 
     private bool TryFindTeamRetreatDestinations(TeamBattleEncounter battle,
@@ -6715,7 +6735,8 @@ public sealed class Game : ISessionCommandHandler
         return true;
     }
 
-    private void FinishSuccessfulTeamRetreat(TeamBattleEncounter battle, int friendlySpeed, int hostileSpeed)
+    private void FinishSuccessfulTeamRetreat(TeamBattleEncounter battle, int friendlySpeed, int hostileSpeed,
+        string reason)
     {
         _session.EndBattle(battle.Id);
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
@@ -6731,7 +6752,7 @@ public sealed class Game : ISessionCommandHandler
         InitializeEnemyMoveSchedule(DateTime.UtcNow + TimeSpan.FromSeconds(2));
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         var message = $"🏃 Sikeres visszavonulás: a csapat sebessége {friendlySpeed}, " +
-                      $"az üldözőké {hostileSpeed}.";
+                      $"az üldözőké {hostileSpeed}. {reason}";
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);

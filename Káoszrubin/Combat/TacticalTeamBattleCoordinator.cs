@@ -53,6 +53,12 @@ public sealed class TacticalTeamBattleCoordinator
         livingEnemies.Any(enemy => enemy.CurrentHitPoints > 0 &&
                                    enemy.Definition.HasTrait(EnemyTraits.Flying)) ? 8 : 6;
 
+    public static bool CanTeamRetreat(int friendlySpeed, int hostileSpeed,
+        bool everyEnemyHasTwoCellGap, bool anyEnemyVisible) =>
+        friendlySpeed > hostileSpeed ||
+        friendlySpeed == hostileSpeed && everyEnemyHasTwoCellGap ||
+        friendlySpeed < hostileSpeed && !anyEnemyVisible;
+
     public static IEnumerable<Enemy> AdjacentTeamEnemies(TeamBattleEncounter battle, LiveCharacter character, Position characterPosition) =>
         battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 &&
             TacticalDistance.IsMeleeAdjacent(characterPosition, enemy.Position));
