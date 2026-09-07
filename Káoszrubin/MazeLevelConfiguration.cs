@@ -7,7 +7,7 @@ public sealed record IntRange(int Minimum, int Maximum)
     public int Roll(Random random) => random.Next(Minimum, Maximum + 1);
 }
 
-public enum Amount { One, Few, TwoThree, Several, Pack, Lots, Horde }
+public enum Amount { One, Few, Handful, Several, Pack, Lots, Horde }
 
 public static class AmountRanges
 {
@@ -15,11 +15,11 @@ public static class AmountRanges
     {
         Amount.One => new(1, 1),
         Amount.Few => new(1, 2),
-        Amount.TwoThree => new(2, 3),
-        Amount.Several => new(3, 9),
+        Amount.Handful => new(2, 4),
+        Amount.Several => new(5, 9),
         Amount.Pack => new(10, 15),
-        Amount.Lots => new(16, 49),
-        Amount.Horde => new(50, 100),
+        Amount.Lots => new(16, 25),
+        Amount.Horde => new(26, 50),
         _ => new(1, 1)
     };
 }
@@ -109,7 +109,7 @@ public static class QuestLocationConfigurations
             WallColor = ConsoleColor.DarkMagenta,
             RoomCount = new(6, 8),
             RoomSize = new(4, 7),
-            TreasureChestCount = new(1, 2),
+            TreasureChestCount = Amount.Handful.Range(),
             TreasureGold = new(180, 360),
             BossRoomIds = ["MALREC_CHAMBER"],
             QuestRoomEnemyEncounters =
@@ -120,7 +120,7 @@ public static class QuestLocationConfigurations
             RoomEncounters =
             [
                 Encounters.Same(MonsterIds.Csontváz, Amount.Few, Amount.Few),
-                Encounters.Same(MonsterIds.Zombi, Amount.Few, Amount.TwoThree)
+                Encounters.Same(MonsterIds.Zombi, Amount.Few, Amount.Handful)
             ],
             CorridorEncounters =
             [
@@ -157,7 +157,7 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(40, 100),
                 RoomEncounters =
                 [
-                    Encounters.Same(MonsterIds.Óriáspatkány, Amount.Several, Amount.TwoThree),
+                    Encounters.Same(MonsterIds.Óriáspatkány, Amount.Several, Amount.Handful),
                     Encounters.Same(MonsterIds.Kobold, Amount.Few, Amount.Several),
                     Encounters.Same(MonsterIds.Goblin, Amount.Few, Amount.Few)
                 ],
@@ -174,13 +174,13 @@ public static class MazeLevelConfigurations
                 Level = 2,
                 RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 5),
-                TreasureChestCount = Amount.TwoThree.Range(),
+                TreasureChestCount = Amount.Handful.Range(),
                 TreasureGold = new(60, 140),
                 RoomEncounters =
                 [
-                    Encounters.Same(MonsterIds.Óriáspatkány, Amount.Few, Amount.TwoThree),
+                    Encounters.Same(MonsterIds.Óriáspatkány, Amount.Few, Amount.Handful),
                     Encounters.Same(MonsterIds.Csontváz, Amount.One, Amount.One),
-                    Encounters.LeaderGroup(MonsterIds.Patkányember, MonsterIds.Óriáspatkány, Amount.One, Amount.TwoThree)
+                    Encounters.LeaderGroup(MonsterIds.Patkányember, MonsterIds.Óriáspatkány, Amount.One, Amount.Handful)
                 ],
                 CorridorEncounters =
                 [
@@ -254,13 +254,13 @@ public static class MazeLevelConfigurations
                 ],
                 RoomEncounters =
                 [
-                    Encounters.Same(MonsterIds.Csontváz, Amount.Several, Amount.TwoThree),
+                    Encounters.Same(MonsterIds.Csontváz, Amount.Several, Amount.Handful),
                     Encounters.Mixed(MonsterIds.Zombi, Amount.Several, MonsterIds.Csontváz, Amount.Few, Amount.Few),
                     Encounters.LeaderGroup(MonsterIds.Ghoul, MonsterIds.Csontváz, Amount.One, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo(MonsterIds.CsontvázLovag, Amount.TwoThree, EnemyMovementProfile.Patrol),
+                    Encounters.Solo(MonsterIds.CsontvázLovag, Amount.Handful, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Csontváz, Amount.Several, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Zombi, Amount.Few),
                     Encounters.Mixed(MonsterIds.Zombi, Amount.Few, MonsterIds.Csontváz, Amount.Few, Amount.Few),

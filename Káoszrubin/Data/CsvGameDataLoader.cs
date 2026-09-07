@@ -309,7 +309,8 @@ public static class CsvGameDataLoader
                     IsYes(cells, 14), IdList(Cell(cells, 15)), IsYes(cells, 16),
                     new DamageResistance(Integer(cells, 17) ?? 0, Integer(cells, 18) ?? 0,
                         Integer(cells, 19) ?? 0, Integer(cells, 20) ?? 0, Integer(cells, 21) ?? 0,
-                        Integer(cells, 22) ?? 0, Integer(cells, 23) ?? 0), Traits: ParseEnemyTraits(Cell(cells, 10))));
+                        Integer(cells, 22) ?? 0, Integer(cells, 23) ?? 0), Traits: ParseEnemyTraits(Cell(cells, 10)),
+                    TrackingSense: Integer(cells, 24) ?? 0));
                 break;
             case DataSection.MonsterAbilities:
                 monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),
@@ -1095,6 +1096,8 @@ public static class CsvGameDataLoader
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny erősségi szintje csak 1 és 5 közötti lehet.");
             if (enemy.VisionRange is < 1 or > 8)
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny látótávja csak 1 és 8 közötti lehet.");
+            if (enemy.TrackingSense is < 0 or > 8)
+                throw new InvalidOperationException($"A(z) '{enemy.Id}' szörny nyomérzéke csak 0 és 8 közötti lehet.");
             if (enemy.CanSleep && enemy.HasTrait(EnemyTraits.Undead))
                 throw new InvalidOperationException($"A(z) '{enemy.Id}' élőholt szörny nem lehet alvásképes.");
             foreach (var abilityId in enemy.AbilityIds.Where(abilityId => !abilityIds.Contains(abilityId)))

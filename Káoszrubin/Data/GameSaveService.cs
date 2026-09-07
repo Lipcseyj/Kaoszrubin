@@ -374,7 +374,9 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     string? PreparedWeaponId = null,
     Dictionary<string, int>? RemainingAbilityCharges = null,
     Direction? LastKnownTargetDirection = null,
-    int ConsecutivePursuitPathFailures = 0);
+    int ConsecutivePursuitPathFailures = 0,
+    Position? SearchAnchorPosition = null,
+    List<Position>? SearchVisitedPositions = null);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null,
     List<string>? CarriedWeaponIds = null);

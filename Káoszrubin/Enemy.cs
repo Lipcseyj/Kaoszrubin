@@ -9,13 +9,15 @@ public enum EnemyMovementProfile { Wander, Stationary, Patrol }
 public enum EnemyPursuitState { Undecided, Pursuing, Declined }
 public enum EnemyGroupRole { Member, Leader }
 public enum EnemyAlertness { Sleeping, Drowsy, Alert }
-public enum EnemySearchRole { None, Scout, Returning }
+public enum EnemySearchRole { None, Scout, Returning, Guarding }
 
 public abstract class Enemy(Position position) : WorldObject(position)
 {
     public const int MinimumPursuitMemoryMoves = 8;
     public const int MaximumPursuitMemoryMoves = 12;
     public const int PursuitPathFailureTolerance = 3;
+    public const int SearchCohesionRadius = 6;
+    public const int SearchGuardRadius = 2;
     public const int MinimumSearchMoves = 30;
     public const int MaximumSearchMoves = 120;
     public abstract EnemyDefinition Definition { get; }
@@ -37,6 +39,9 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public int ReactionDelayMovesRemaining { get; private set; }
     public int SearchMovesRemaining { get; private set; }
     public int ReturnDelayMovesRemaining { get; private set; }
+    public Position? SearchAnchorPosition { get; private set; }
+    private readonly HashSet<Position> _searchVisitedPositions = [];
+    public IReadOnlySet<Position> SearchVisitedPositions => _searchVisitedPositions;
     public string? GroupId { get; private set; }
     public EnemyGroupRole GroupRole { get; private set; } = EnemyGroupRole.Member;
     private readonly List<ActiveSpellEffect> _activeSpellEffects = [];
@@ -229,6 +234,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
         ReactionDelayMovesRemaining = 0;
         SearchMovesRemaining = 0;
         ReturnDelayMovesRemaining = 0;
+        SearchAnchorPosition = null;
+        _searchVisitedPositions.Clear();
         SearchRole = EnemySearchRole.None;
     }
 
@@ -245,7 +252,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
         EnemySearchRole searchRole = EnemySearchRole.None, Position? lastKnownTargetPosition = null,
         int reactionDelayMovesRemaining = 0, int searchMovesRemaining = 0,
         int returnDelayMovesRemaining = 0, Direction? lastKnownTargetDirection = null,
-        int consecutivePursuitPathFailures = 0)
+        int consecutivePursuitPathFailures = 0, Position? searchAnchorPosition = null,
+        IReadOnlyList<Position>? searchVisitedPositions = null)
     {
         Alertness = CanSleep ? alertness : EnemyAlertness.Alert;
         HomePosition = homePosition ?? Position;
@@ -257,6 +265,9 @@ public abstract class Enemy(Position position) : WorldObject(position)
         ReactionDelayMovesRemaining = Math.Max(0, reactionDelayMovesRemaining);
         SearchMovesRemaining = Math.Clamp(searchMovesRemaining, 0, MaximumSearchMoves);
         ReturnDelayMovesRemaining = Math.Max(0, returnDelayMovesRemaining);
+        SearchAnchorPosition = searchAnchorPosition;
+        _searchVisitedPositions.Clear();
+        foreach (var visited in searchVisitedPositions ?? []) _searchVisitedPositions.Add(visited);
     }
 
     public void BeginPursuit(CharacterId targetCharacterId, Position lastKnownPosition, int reactionDelay,
@@ -275,6 +286,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
         ReactionDelayMovesRemaining = Math.Max(0, reactionDelay);
         SearchMovesRemaining = 0;
         ReturnDelayMovesRemaining = 0;
+        SearchAnchorPosition = null;
+        _searchVisitedPositions.Clear();
         SearchRole = EnemySearchRole.None;
         Alertness = EnemyAlertness.Alert;
     }
@@ -304,15 +317,20 @@ public abstract class Enemy(Position position) : WorldObject(position)
         return true;
     }
 
-    public void BeginSearch(int moves)
+    public void BeginSearch(int moves, Position anchorPosition, EnemySearchRole role)
     {
+        if (role is not (EnemySearchRole.Scout or EnemySearchRole.Guarding))
+            throw new ArgumentOutOfRangeException(nameof(role));
         PursuitState = EnemyPursuitState.Undecided;
         PursuitTargetCharacterId = null;
         PursuitMemoryRemainingMoves = 0;
         ReactionDelayMovesRemaining = 0;
-        SearchRole = EnemySearchRole.Scout;
+        SearchRole = role;
         SearchMovesRemaining = Math.Clamp(moves, MinimumSearchMoves, MaximumSearchMoves);
         ReturnDelayMovesRemaining = 0;
+        SearchAnchorPosition = anchorPosition;
+        _searchVisitedPositions.Clear();
+        _searchVisitedPositions.Add(Position);
         ConsecutivePursuitPathFailures = 0;
     }
 
@@ -325,6 +343,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
         SearchRole = EnemySearchRole.Returning;
         SearchMovesRemaining = 0;
         ReturnDelayMovesRemaining = Math.Max(0, delayMoves);
+        SearchAnchorPosition = null;
+        _searchVisitedPositions.Clear();
         ConsecutivePursuitPathFailures = 0;
     }
 
@@ -335,11 +355,13 @@ public abstract class Enemy(Position position) : WorldObject(position)
         return true;
     }
 
-    public bool RecordSearchStep()
+    public bool ConsumeSearchMove()
     {
         if (SearchMovesRemaining > 0) SearchMovesRemaining--;
         return SearchMovesRemaining > 0;
     }
+
+    public void RecordSearchVisit(Position position) => _searchVisitedPositions.Add(position);
 
     public void CompleteReturn()
     {

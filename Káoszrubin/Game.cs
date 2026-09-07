@@ -4300,22 +4300,23 @@ public sealed class Game : ISessionCommandHandler
             }
             if (spellTick.SkipAction) continue;
             var visibleTarget = FindVisibleEnemyTarget(enemy);
-            if (visibleTarget is not null)
-                AlertEnemyGroup(enemy, visibleTarget.Value.Character.Id, visibleTarget.Value.Position);
+            var detectedTarget = visibleTarget ?? FindSensedEnemyTarget(enemy);
+            if (detectedTarget is not null)
+                AlertEnemyGroup(enemy, detectedTarget.Value.Character.Id, detectedTarget.Value.Position);
             if (enemy.ConsumeReactionDelay()) continue;
 
             Direction? direction;
             if (enemy.PursuitState == EnemyPursuitState.Pursuing)
             {
-                if (visibleTarget is null && !enemy.TryRememberPursuitTarget())
+                if (detectedTarget is null && !enemy.TryRememberPursuitTarget())
                 {
                     BeginEnemySearch(enemy);
                     direction = EnemySearchOrReturnDirection(enemy);
                 }
                 else
                 {
-                    var targetPosition = visibleTarget?.Position ?? enemy.LastKnownTargetPosition;
-                    if (visibleTarget is null && targetPosition == enemy.Position &&
+                    var targetPosition = detectedTarget?.Position ?? enemy.LastKnownTargetPosition;
+                    if (detectedTarget is null && targetPosition == enemy.Position &&
                         enemy.LastKnownTargetDirection is { } rememberedDirection)
                     {
                         var predictedTarget = enemy.Position + rememberedDirection;
@@ -4329,7 +4330,7 @@ public sealed class Game : ISessionCommandHandler
                     direction = targetPosition is { } target && target != enemy.Position
                         ? FindEnemyStepToward(enemy, target)
                         : null;
-                    if (direction is null && visibleTarget is null && enemy.RegisterPursuitPathFailure())
+                    if (direction is null && detectedTarget is null && enemy.RegisterPursuitPathFailure())
                     {
                         BeginEnemySearch(enemy);
                         direction = EnemySearchOrReturnDirection(enemy);
@@ -4352,14 +4353,18 @@ public sealed class Game : ISessionCommandHandler
                 if (enemy.PursuitState == EnemyPursuitState.Pursuing)
                     enemy.ResetPursuitPathFailures();
                 if (_battleStarted) return true;
-                if (enemy.SearchRole == EnemySearchRole.Scout && !enemy.RecordSearchStep())
-                    enemy.BeginReturn(0);
+                if (enemy.SearchRole == EnemySearchRole.Scout)
+                    foreach (var scout in EnemyGroup(enemy).Where(member =>
+                                 member.SearchRole == EnemySearchRole.Scout &&
+                                 member.SearchAnchorPosition == enemy.SearchAnchorPosition))
+                        scout.RecordSearchVisit(enemy.Position);
                 else if (enemy.SearchRole == EnemySearchRole.Returning &&
                          Manhattan(enemy.Position, enemy.HomePosition) <= 1)
                     enemy.CompleteReturn();
                 continue;
             }
-            if (enemy.PursuitState != EnemyPursuitState.Pursuing && enemy.MovementProfile == EnemyMovementProfile.Patrol)
+            if (enemy.PursuitState != EnemyPursuitState.Pursuing && enemy.SearchRole == EnemySearchRole.None &&
+                enemy.MovementProfile == EnemyMovementProfile.Patrol)
             {
                 enemy.ReversePatrolDirection();
                 if (TryMoveEnemy(enemy, enemy.PatrolDirection))
@@ -4389,6 +4394,14 @@ public sealed class Game : ISessionCommandHandler
         return EnemyTargeting.ChooseNearestVisible(enemy.Position, LivingPartyWithPositions().ToArray(),
             position => FogOfWar.CanSee(_maze, enemy.Position, position, enemy.EffectiveVisionRange), _random,
             enemy.PursuitTargetCharacterId);
+    }
+
+    private (LiveCharacter Character, Position Position)? FindSensedEnemyTarget(Enemy enemy)
+    {
+        return EnemyTargeting.ChooseNearestSensed(enemy.Position, LivingPartyWithPositions().ToArray(),
+            enemy.Definition.TrackingSense,
+            position => EnemyDistanceMap(position).TryGetValue(enemy.Position, out var distance) ? distance : null,
+            _random, enemy.PursuitTargetCharacterId);
     }
 
     private void AlertEnemyGroup(Enemy observer, CharacterId targetCharacterId, Position targetPosition)
@@ -4422,7 +4435,7 @@ public sealed class Game : ISessionCommandHandler
     private void BeginEnemySearch(Enemy observer)
     {
         if (observer.SearchRole != EnemySearchRole.None) return;
-        observer.BeginSearch(_random.Next(Enemy.MinimumSearchMoves, Enemy.MaximumSearchMoves + 1));
+        EnemySearchCoordinator.BeginCoordinatedSearch(EnemyGroup(observer), observer, _random);
     }
 
     private Direction? EnemySearchOrReturnDirection(Enemy enemy)
@@ -4437,39 +4450,41 @@ public sealed class Game : ISessionCommandHandler
             }
             return FindEnemyStepToward(enemy, enemy.HomePosition);
         }
-        if (enemy.SearchRole != EnemySearchRole.Scout) return null;
-
-        var directions = Directions.Where(direction => CanEnemySearchStep(enemy, direction)).ToList();
-        if (directions.Count == 0)
+        if (enemy.SearchRole is not (EnemySearchRole.Scout or EnemySearchRole.Guarding)) return null;
+        if (!enemy.ConsumeSearchMove())
         {
             enemy.BeginReturn(0);
             return EnemySearchOrReturnDirection(enemy);
         }
-        var reverse = Opposite(enemy.PatrolDirection);
-        var forwardChoices = directions.Where(direction => direction != reverse).ToList();
-        var choices = forwardChoices.Count > 0 ? forwardChoices : directions;
-        var selected = choices[_random.Next(choices.Count)];
-        enemy.RememberTravelDirection(selected);
-        return selected;
+
+        var anchor = enemy.SearchAnchorPosition ?? enemy.Position;
+        if (enemy.SearchRole == EnemySearchRole.Guarding)
+            return Manhattan(enemy.Position, anchor) > Enemy.SearchGuardRadius
+                ? FindEnemyStepToward(enemy, anchor)
+                : null;
+
+        if (Manhattan(enemy.Position, anchor) > Enemy.SearchCohesionRadius)
+            return FindEnemyStepToward(enemy, anchor);
+
+        var selected = EnemySearchNavigator.ChooseScoutDirection(enemy.Position, anchor,
+            enemy.PatrolDirection, Enemy.SearchCohesionRadius, enemy.SearchVisitedPositions,
+            Directions, position => CanEnemySearchTraverse(enemy, position), _random);
+        if (selected is null)
+        {
+            enemy.BeginReturn(0);
+            return EnemySearchOrReturnDirection(enemy);
+        }
+        enemy.RememberTravelDirection(selected.Value);
+        return selected.Value;
     }
 
-    private bool CanEnemySearchStep(Enemy enemy, Direction direction)
+    private bool CanEnemySearchTraverse(Enemy enemy, Position position)
     {
-        var position = enemy.Position + direction;
         if (!_maze.IsWalkable(position) || position == _maze.Entrance || position == _maze.Exit) return false;
         if (position == _player.Position || _maze.GetPartyMemberAt(position) is not null) return true;
         var occupant = _maze.GetObjectAt(position);
         return occupant is null or GroundItemPile or Corpse || Maze.IsPassableNeutralNpc(occupant);
     }
-
-    private static Direction Opposite(Direction direction) => direction switch
-    {
-        Direction.Up => Direction.Down,
-        Direction.Down => Direction.Up,
-        Direction.Left => Direction.Right,
-        Direction.Right => Direction.Left,
-        _ => Direction.Right
-    };
 
     private void InitializeEnemyMoveSchedule(DateTime from)
     {

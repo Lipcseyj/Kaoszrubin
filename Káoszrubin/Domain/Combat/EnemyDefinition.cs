@@ -11,7 +11,7 @@ public sealed record EnemyDefinition(string Id, string Name, string Appearance, 
     EnemyRank Rank = EnemyRank.Normal, bool CanSleep = true, IReadOnlyList<string>? WeaponIds = null,
     bool ChoosesWeapon = false, DamageResistance? Resistances = null,
     IReadOnlyList<WeaponDefinition>? Weapons = null, WeaponDefinition? Weapon = null,
-    EnemyTraits Traits = EnemyTraits.None, int AbilityThreat = 0) : IGameDefinition
+    EnemyTraits Traits = EnemyTraits.None, int AbilityThreat = 0, int TrackingSense = 0) : IGameDefinition
 {
     public bool HasTrait(EnemyTraits trait) => (Traits & trait) != 0 || trait switch
     {

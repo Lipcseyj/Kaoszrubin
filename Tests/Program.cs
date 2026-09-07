@@ -153,6 +153,9 @@ var tests = new (string Name, Action Run)[]
     ("A szörnyek látótávja CSV-ből érkezik", EnemyVisionRangesLoadFromCsv),
     ("A felfedés változó látótávot és látóvonalat használ", FogRevealUsesVariableRangeAndLineOfSight),
     ("A szörnyek ébersége, felderítése és alvásképessége adatvezérelt", EnemyAwarenessAndSearchAreDataDriven),
+    ("A falka közös keresési pont körül felderítőkre és biztosítókra oszlik", EnemyPackSearchStaysCoordinated),
+    ("A felderítő a még be nem járt folyosóágakat választja és együtt marad", EnemySearchExploresCorridorFrontiers),
+    ("A szaglás és hatodik érzék CSV-ből, útvonaltávolsággal működik", EnemyTrackingSenseIsDataDriven),
     ("A szörnyjellemzők és képességparaméterek külön töltődnek", MonsterTraitsAndAbilitiesAreDataDriven),
     ("A regeneráció és a leheletlehűlés példányonként működik", MonsterRegenerationAndBreathCooldownWork),
     ("A sebzés nélküli, időzített állapot is lejár", TimedNonDamageStatusExpires),
@@ -3674,7 +3677,8 @@ static void EnemyAwarenessAndSearchAreDataDriven()
            enemy.EffectiveVisionRange == 6 && enemy.ConsumeReactionDelay() &&
            enemy.ReactionDelayMovesRemaining == 3,
         "Az észlelés nem ébresztette fel késleltetve az álló ellenfelet.");
-    enemy.BeginSearch(1);
+    enemy.BeginSearch(1, enemy.LastKnownTargetPosition ?? enemy.Position, EnemySearchRole.Scout);
+    enemy.RecordSearchVisit(new Position(9, 5));
     Assert(enemy.SearchRole == EnemySearchRole.Scout &&
            enemy.SearchMovesRemaining == Enemy.MinimumSearchMoves,
         "A felderítés nem tartja be a harminclépéses minimumot.");
@@ -3694,12 +3698,93 @@ static void EnemyAwarenessAndSearchAreDataDriven()
         Alertness: enemy.Alertness, SearchRole: enemy.SearchRole, HomePosition: enemy.HomePosition,
         LastKnownTargetPosition: enemy.LastKnownTargetPosition,
         ReactionDelayMovesRemaining: enemy.ReactionDelayMovesRemaining,
-        SearchMovesRemaining: enemy.SearchMovesRemaining);
+        SearchMovesRemaining: enemy.SearchMovesRemaining,
+        LastKnownTargetDirection: enemy.LastKnownTargetDirection,
+        SearchAnchorPosition: enemy.SearchAnchorPosition,
+        SearchVisitedPositions: enemy.SearchVisitedPositions.ToList());
     var restored = JsonSerializer.Deserialize<EnemySaveData>(JsonSerializer.Serialize(saved));
     Assert(restored?.SearchRole == EnemySearchRole.Scout &&
            restored.SearchMovesRemaining == Enemy.MinimumSearchMoves &&
-           restored.HomePosition == new Position(4, 5),
+           restored.HomePosition == new Position(4, 5) &&
+           restored.SearchAnchorPosition == new Position(10, 5) &&
+           restored.SearchVisitedPositions?.Contains(new Position(9, 5)) == true,
         "Az éberségi és felderítési állapot nem élte túl a mentési JSON-körutat.");
+}
+
+static void EnemyPackSearchStaysCoordinated()
+{
+    var target = CharacterId.New();
+    var anchor = new Position(8, 6);
+    var group = Enumerable.Range(0, 5).Select(index =>
+    {
+        var definition = new EnemyDefinition($"E-PACK-{index}", $"Falkatag {index}", "f", 1, 20, 0,
+            index + 1, 1, 1, []);
+        var enemy = new ConfiguredEnemy(new Position(4 + index, 4), definition);
+        enemy.BeginPursuit(target, anchor, 0, 10);
+        return (Enemy)enemy;
+    }).ToArray();
+
+    EnemySearchCoordinator.BeginCoordinatedSearch(group, group[0], new Random(7));
+
+    Assert(group.Count(enemy => enemy.SearchRole == EnemySearchRole.Scout) == 2 &&
+           group.Count(enemy => enemy.SearchRole == EnemySearchRole.Guarding) == 3 &&
+           group.All(enemy => enemy.SearchAnchorPosition == anchor) &&
+           group.Select(enemy => enemy.SearchMovesRemaining).Distinct().Count() == 1 &&
+           group.Where(enemy => enemy.SearchRole == EnemySearchRole.Scout)
+               .All(enemy => group.All(member => enemy.SearchVisitedPositions.Contains(member.Position))) &&
+           group.All(enemy => enemy.PursuitState == EnemyPursuitState.Undecided),
+        "A falka nem közös pont körül, összehangolt szerepekkel kezdte meg a keresést.");
+}
+
+static void EnemySearchExploresCorridorFrontiers()
+{
+    var directions = Enum.GetValues<Direction>();
+    var anchor = new Position(2, 2);
+    var junction = new Position(3, 2);
+    var corridor = new HashSet<Position>
+    {
+        anchor, junction, new(4, 2), new(3, 1), new(3, 3)
+    };
+    var searched = new HashSet<Position> { anchor, junction, new(4, 2) };
+    var branch = EnemySearchNavigator.ChooseScoutDirection(junction, anchor, Direction.Right,
+        Enemy.SearchCohesionRadius, searched, directions, corridor.Contains, new Random(2));
+    Assert(branch is Direction.Up or Direction.Down,
+        "A felderítő a már bejárt folyosó helyett nem választott új elágazást.");
+
+    var radiusAnchor = new Position(10, 10);
+    var boundary = new Position(16, 10);
+    var boundaryCorridor = new HashSet<Position> { new(15, 10), boundary, new(17, 10) };
+    var inward = EnemySearchNavigator.ChooseScoutDirection(boundary, radiusAnchor, Direction.Right,
+        Enemy.SearchCohesionRadius, [boundary, new Position(15, 10)], directions,
+        boundaryCorridor.Contains, new Random(3));
+    Assert(inward == Direction.Left,
+        "A felderítő elhagyhatta a falka hatmezős keresési körzetét.");
+}
+
+static void EnemyTrackingSenseIsDataDriven()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    Assert(data.GetEnemy("E001").TrackingSense == 6 && data.GetEnemy("E005").TrackingSense == 8 &&
+           data.GetEnemy("E004").TrackingSense == 5 && data.GetEnemy("E022").TrackingSense == 8 &&
+           data.GetEnemy("E028").TrackingSense == 1,
+        "A patkányok, farkasok, élőholtak vagy emberek nyomérzéke hibásan töltődött be.");
+
+    var nearer = CreateCharacter("Közelebbi");
+    var preferred = CreateCharacter("Üldözött");
+    var positions = new[]
+    {
+        (nearer, new Position(2, 1)),
+        (preferred, new Position(4, 1))
+    };
+    int? Distance(Position position) => position.X - 1;
+    var sensed = EnemyTargeting.ChooseNearestSensed(new Position(1, 1), positions, 4, Distance,
+        new Random(1), preferred.Id);
+    Assert(sensed?.Character == preferred &&
+           EnemyTargeting.ChooseNearestSensed(new Position(1, 1), positions, 0, Distance,
+               new Random(1)) is null &&
+           EnemyTargeting.ChooseNearestSensed(new Position(1, 1), positions, 1, Distance,
+               new Random(1))?.Character == nearer,
+        "A nyomérzék hatótávja vagy a már üldözött célpont elsőbbsége hibás.");
 }
 
 static void PartyFormationPositionsFollowFacing()
