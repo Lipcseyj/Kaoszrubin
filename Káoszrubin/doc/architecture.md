@@ -384,6 +384,10 @@ A partitársak mozgása a `Game` meglévő egyszálú eseményciklusában fut. M
 
 A játék legfeljebb a vezér utolsó 256 sikeres pozícióját tartja nyilván. A vezetőt követő NPC-k nem annak pillanatnyi X/Y-koordinátája köré választanak célmezőt: a parti sorrendje szerint nyompontot céloznak és szélességi útkereséssel lépnek felé. A sorrend legfeljebb egy további lépésnyi formációs késést okoz ezért a hátsó társ sem marad látványosan messzebb. A speciális előremenő vagy ellenségre reagáló viselkedés után ugyanehhez a nyomvonalhoz térnek vissza.
 
+Zárt alakzatban a négy rendes partitag alaphelyzetben 2×2-es blokkban mozog. Ha a következő lépés blokkban fal miatt nem fér el, de ugyanabba az irányba minden tag számára járható egymezős útvonal áll rendelkezésre, az alakzat `Locked` állapota megmarad és az elrendezés ideiglenesen libasorra vált. A vezér marad elöl, a többiek a slotsorrendben követik. A szűkület utáni első szabad területen a rendszer automatikusan visszaállítja a 2×2-es elrendezést. A libasor nem ad első-/hátsósori harci védelmet, mert a szereplők térben nem ilyen rendben állnak.
+
+Az ideiglenes követő nem foglal alakzati slotot. Zárt alakzat mellett hátsó kísérőpozíciót keres, nem indul önálló felderítésre vagy távoli ellenfél után, és az alakzat lépésekor lehetőség szerint egy szomszédos szabad mezőre kitér. Közvetlenül szomszédos ellenséggel azonban megküzd, így egy szűkületben az alakzat elé szorult követő sem okozhat tartós holtpontot. Ha lemarad, járható útvonalon zárkózik fel; az alakzat feloszlatásakor visszakapja a saját NPC-viselkedését. Harcban továbbra is önálló követő résztvevő, alakzati védelem nélkül.
+
 Térképfókuszban három partiparancs írhatja felül a profilok mozgását:
 
 - a `H` tartósan ki- és bekapcsolja a helyben maradást; aktív állapotban a társak nem kezdeményeznek mozgást vagy támadást de a rájuk lépni próbáló szörnnyel továbbra is automatikusan megküzdenek;

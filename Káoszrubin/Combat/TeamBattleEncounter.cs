@@ -122,6 +122,8 @@ public sealed class TeamBattleEncounter
     public WorldEntityId InitiatingEnemyId { get; }
     public PartyFormationSnapshot? Formation { get; private set; }
     public bool HasActiveFormation => Formation is { State: PartyFormationState.Locked };
+    public bool HasProtectiveFormation => Formation is
+        { State: PartyFormationState.Locked, Layout: PartyFormationLayout.Block };
     public TacticalBattleState Turns { get; }
     public int ActionNumber { get; private set; }
     public IReadOnlySet<BattleSide> InactiveSidesLastCompletedCycle { get; private set; } = new HashSet<BattleSide>();
@@ -181,7 +183,7 @@ public sealed class TeamBattleEncounter
 
     public bool CanUseItem(LiveCharacter character, MiscItemDefinition item) =>
         item.UsableInCombat && !IsEngaged(character) &&
-        (!HasActiveFormation || IsRearRow(character));
+        (!HasProtectiveFormation || IsRearRow(character));
 
     public LiveCharacter? RearPartnerOf(LiveCharacter character) => FormationSlotFor(character) switch
     {
@@ -199,7 +201,7 @@ public sealed class TeamBattleEncounter
 
     public bool IsProtectedRearTarget(LiveCharacter character, Position attackerPosition)
     {
-        if (!HasActiveFormation || !character.IsAlive || !IsRearRow(character) ||
+        if (!HasProtectiveFormation || !character.IsAlive || !IsRearRow(character) ||
             FrontPartnerOf(character) is not { IsAlive: true } protector || Formation is not { } formation)
             return false;
         var rearPosition = Turns.Find(CombatantId.ForCharacter(character.Id))?.Position;
@@ -224,7 +226,7 @@ public sealed class TeamBattleEncounter
                               (RuntimeFor(character).Tactic == BattleTactic.ThiefAmbush ||
                                character.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefAmbush) ||
                                character.WeaponProficiencyRankFor(WeaponFamilies.Dagger) == WeaponProficiencyRank.Master);
-        if (!IsRearRow(character) ||
+        if (!HasProtectiveFormation || !IsRearRow(character) ||
             weapon?.CanAttackFromRear != true && !thiefRearStrike ||
             FrontPartnerOf(character) is not { IsAlive: true })
             return [];
@@ -234,7 +236,8 @@ public sealed class TeamBattleEncounter
     /// <summary>Az előtte álló élő társ által lekötött ellenfelek, a hátsó karakter fegyverétől függetlenül.</summary>
     public IReadOnlyList<Enemy> RearFormationEngagedEnemies(LiveCharacter character)
     {
-        if (!IsRearRow(character) || FrontPartnerOf(character) is not { IsAlive: true } front) return [];
+        if (!HasProtectiveFormation || !IsRearRow(character) ||
+            FrontPartnerOf(character) is not { IsAlive: true } front) return [];
         return EngagedEnemies(front);
     }
 
@@ -292,7 +295,7 @@ public sealed class TeamBattleEncounter
         frontPosition = default;
         rearPosition = default;
         transferredEngagements = 0;
-        if (!HasActiveFormation || rear is not { IsAlive: true } || Formation is not { } formation) return false;
+        if (!HasProtectiveFormation || rear is not { IsAlive: true } || Formation is not { } formation) return false;
         var frontParticipant = Turns.Find(CombatantId.ForCharacter(front.Id));
         var rearParticipant = Turns.Find(CombatantId.ForCharacter(rear.Id));
         if (frontParticipant is null || rearParticipant is null) return false;

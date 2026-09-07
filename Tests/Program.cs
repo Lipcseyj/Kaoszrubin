@@ -89,6 +89,9 @@ var tests = new (string Name, Action Run)[]
     ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A taktikai távolság követi a konzolcellák kettő az egyhez arányát", TacticalDistanceUsesConsoleAspectRatio),
     ("A 2x2-es alakzat minden irányban a vezér slotjához igazodik", PartyFormationPositionsFollowFacing),
+    ("A zárt alakzat a szűkületben állapotvesztés nélkül libasorra vált", LockedFormationUsesSingleFileLayout),
+    ("A követő kísérőhelyei az alakzat hátsó éle mögött vannak", FormationEscortPositionsFollowRearEdge),
+    ("A követő kitérhet a zárt alakzat célmezőjéről", TemporaryFollowerCanYieldToFormation),
     ("Zárt alakzatban minden slot pozíciója ajtó-interakciós eredőpont", LockedFormationSharesDoorInteractionOrigins),
     ("Az alakzatos zárnyitás a kiválasztott partitag kulcsát fogyasztja", FormationDoorKeyOwnerTakesPriority),
     ("Zárt alakzatból a coop vendég nem léphet ki", LockedFormationRejectsRemoteMovement),
@@ -99,6 +102,7 @@ var tests = new (string Name, Action Run)[]
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
     ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
     ("A zárt alakzat első sora védi a mögötte álló társat", TeamBattleFormationProtectsRearRow),
+    ("A zárt libasor együtt mozog, de nem kap hátsósori védelmet", TeamBattleSingleFileHasNoRearProtection),
     ("Harcban csak szabad hátsó sori karakter használhat CSV-ben engedélyezett italt", TeamBattleItemUseRequiresFreeRearPosition),
     ("A hátsó sor szálfegyverrel eléri az első társ lekötött ellenfelét", TeamBattleRearPolearmReachUsesFrontEngagement),
     ("A hátsó sori pap elűzheti az első sor által lekötött élőholtat", RearPriestCanTurnFrontEngagedUndead),
@@ -500,13 +504,16 @@ static void LegacyGameSavesMigrateToCurrentVersion()
         LastAdHocConversationUtc = new DateTimeOffset(2026, 8, 31, 12, 0, 0, TimeSpan.Zero),
         AdHocConversationMazeLevel = 4,
         EliraInnCharacterIndex = 2,
-        EliraInnVisitsRemaining = 3
+        EliraInnVisitsRemaining = 3,
+        Formation = new PartyFormationSnapshot(CharacterId.New(), null, null, null,
+            Direction.Left, PartyFormationState.Locked, PartyFormationLayout.SingleFile)
     };
     var restored = JsonSerializer.Deserialize<GameSaveData>(JsonSerializer.Serialize(current));
     Assert(restored is { UsedAdHocConversationIds: ["ELIRA_RESCUE:ADHOC_1_START"],
                AdHocConversationMazeLevel: 4 } &&
            restored.LastAdHocConversationUtc == current.LastAdHocConversationUtc &&
-           restored.EliraInnCharacterIndex == 2 && restored.EliraInnVisitsRemaining == 3,
+           restored.EliraInnCharacterIndex == 2 && restored.EliraInnVisitsRemaining == 3 &&
+           restored.Formation is { State: PartyFormationState.Locked, Layout: PartyFormationLayout.SingleFile },
         "Az egyszer már elindított ad-hoc párbeszéd vagy a korlátozásai elvesztek mentéskor.");
 
     var old = GameSaveFormat.MigrateToCurrent(new GameSaveData { Version = 13 });
@@ -3809,6 +3816,65 @@ static void PartyFormationPositionsFollowFacing()
         "Az alakzat slotjai nem fordultak el helyesen a vezér körül.");
 }
 
+static void LockedFormationUsesSingleFileLayout()
+{
+    var leader = CreateCharacter("Libasorvezér");
+    var second = CreateCharacter("Libasor ketto");
+    var third = CreateCharacter("Libasor harom");
+    var fourth = CreateCharacter("Libasor negy");
+    var formation = new PartyFormationSnapshot(leader.Id, second.Id, third.Id, fourth.Id,
+        Direction.Up, PartyFormationState.Locked, PartyFormationLayout.SingleFile);
+    var positions = PartyFormationRules.Positions(formation, leader.Id, new Position(10, 10));
+    var maze = new Maze(17, 17);
+    foreach (var position in positions.Values) maze.Carve(position);
+    var blockPositions = PartyFormationRules.Positions(formation with { Layout = PartyFormationLayout.Block },
+        leader.Id, new Position(10, 10));
+
+    Assert(formation.State == PartyFormationState.Locked &&
+           positions[leader.Id] == new Position(10, 10) &&
+           positions[second.Id] == new Position(10, 11) &&
+           positions[third.Id] == new Position(10, 12) &&
+           positions[fourth.Id] == new Position(10, 13) &&
+           PartyFormationController.IsSingleFilePassage(blockPositions, positions, maze) &&
+           ConsoleRenderer.FormationStatusText(formation).Contains("zárt · libasor", StringComparison.Ordinal),
+        "A libasor nem maradt zárt, nem a vezér mögé rendeződött vagy nem látható a státuszban.");
+}
+
+static void FormationEscortPositionsFollowRearEdge()
+{
+    var leader = CreateCharacter("Kísérővezér");
+    var second = CreateCharacter("Kísérőtárs");
+    var block = new PartyFormationSnapshot(leader.Id, second.Id, null, null,
+        Direction.Up, PartyFormationState.Locked);
+    var blockPositions = PartyFormationRules.Positions(block, leader.Id, new Position(10, 10));
+    var blockEscorts = PartyFormationController.EscortPositions(blockPositions, block.Facing);
+    var singleFile = block with { Layout = PartyFormationLayout.SingleFile };
+    var filePositions = PartyFormationRules.Positions(singleFile, leader.Id, new Position(10, 10));
+    var fileEscorts = PartyFormationController.EscortPositions(filePositions, singleFile.Facing);
+
+    Assert(blockEscorts.Take(2).ToHashSet().SetEquals([new Position(10, 11), new Position(11, 11)]) &&
+           fileEscorts.First() == new Position(10, 12),
+        "A követő elsődleges kísérőhelye nem az alakzat hátsó éle mögé került.");
+}
+
+static void TemporaryFollowerCanYieldToFormation()
+{
+    var maze = new Maze(7, 7);
+    var destination = new Position(3, 3);
+    maze.Carve(destination);
+    var followerCharacter = CreateCharacter("Kitérő követő");
+    var followerNpc = new WorldNpc(destination, "NPC-YIELD", followerCharacter,
+        NpcDisposition.Friendly, false, false, string.Empty, WorldNpcState.Following);
+    var follower = new PartyMemberAvatar(destination, followerCharacter, followerNpc);
+    maze.AddPartyMember(follower);
+    var positions = new Dictionary<CharacterId, Position> { [CharacterId.New()] = destination };
+
+    Assert(!PartyFormationController.CanFormationOccupy(positions, maze, _ => null) &&
+           PartyFormationController.CanFormationOccupy(positions, maze, _ => null,
+               avatar => avatar.IsTemporaryFollower),
+        "A követő nem különbözik meg az alakzat elől kitérni képtelen akadálytól.");
+}
+
 static void LockedFormationSharesDoorInteractionOrigins()
 {
     var leader = CreateCharacter("Ajtóvezér");
@@ -4166,6 +4232,18 @@ static void TeamBattleFormationProtectsRearRow()
         "Az első sor nem csak az alakzat eleje felől védi a hátsó társat.");
 }
 
+static void TeamBattleSingleFileHasNoRearProtection()
+{
+    var (encounter, front, rear, enemy) = CreateFormationEncounter(PartyFormationLayout.SingleFile);
+    encounter.Engage(front, enemy);
+    Assert(encounter.HasActiveFormation && !encounter.HasProtectiveFormation &&
+           !encounter.IsProtectedRearTarget(rear, new Position(3, 2)) &&
+           encounter.RearFormationEngagedEnemies(rear).Count == 0 &&
+           !encounter.TrySwapToRear(front, out _, out _, out _, out _) &&
+           encounter.FormationDestinations(Direction.Up).Count == 2,
+        "A libasor felbomlott, vagy tévesen megkapta a 2×2-es alakzat harci előnyeit.");
+}
+
 static void TeamBattleItemUseRequiresFreeRearPosition()
 {
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
@@ -4228,7 +4306,7 @@ static void TeamBattleFormationMovementPreservesEngagements()
 }
 
 static (TeamBattleEncounter Encounter, LiveCharacter Front, LiveCharacter Rear, ConfiguredEnemy Enemy)
-    CreateFormationEncounter()
+    CreateFormationEncounter(PartyFormationLayout layout = PartyFormationLayout.Block)
 {
     var system = CreateBattleSystem(1705);
     var front = CreateCharacter("Első sor");
@@ -4237,7 +4315,7 @@ static (TeamBattleEncounter Encounter, LiveCharacter Front, LiveCharacter Rear, 
     var frontPreparation = system.PrepareTeamCharacter(front);
     var rearPreparation = system.PrepareTeamCharacter(rear);
     var formation = new PartyFormationSnapshot(front.Id, null, rear.Id, null,
-        Direction.Up, PartyFormationState.Locked);
+        Direction.Up, PartyFormationState.Locked, layout);
     var encounter = new TeamBattleEncounter(new Position(3, 3),
         [
             new TeamCharacterParticipant(front, new Position(3, 3), TacticalParticipantKind.PartyMember,

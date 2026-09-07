@@ -246,7 +246,8 @@ public sealed class ConsoleRenderer
         var state = formation.State switch
         {
             PartyFormationState.Assembling => "összeáll",
-            PartyFormationState.Locked => "zárt",
+            PartyFormationState.Locked when formation.Layout == PartyFormationLayout.SingleFile => "zárt · libasor",
+            PartyFormationState.Locked => "zárt · 2×2",
             _ => "feloszlatva"
         };
         return $"ALAKZAT {arrow}  {state}";

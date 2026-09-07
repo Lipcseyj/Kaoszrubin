@@ -4,13 +4,16 @@ public enum FormationSlot { FrontLeft, FrontRight, RearLeft, RearRight }
 
 public enum PartyFormationState { Disbanded, Assembling, Locked }
 
+public enum PartyFormationLayout { Block, SingleFile }
+
 public sealed record PartyFormationSnapshot(
     CharacterId? FrontLeft,
     CharacterId? FrontRight,
     CharacterId? RearLeft,
     CharacterId? RearRight,
     Direction Facing,
-    PartyFormationState State)
+    PartyFormationState State,
+    PartyFormationLayout Layout = PartyFormationLayout.Block)
 {
     public IReadOnlyList<CharacterId?> Slots => [FrontLeft, FrontRight, RearLeft, RearRight];
 
@@ -26,7 +29,7 @@ public static class PartyFormationRules
         members.Remove(leader);
         members.Insert(0, leader);
         return FromSlots(members.Cast<CharacterId?>().Concat(Enumerable.Repeat<CharacterId?>(null, 4)).Take(4),
-            facing, state);
+            facing, state, PartyFormationLayout.Block);
     }
 
     public static PartyFormationSnapshot Normalize(PartyFormationSnapshot? formation,
@@ -51,15 +54,24 @@ public static class PartyFormationRules
             slots[index] = remaining.Dequeue();
             used.Add(slots[index]!.Value);
         }
-        return FromSlots(slots, formation?.Facing ?? Direction.Right,
-            formation?.State ?? PartyFormationState.Disbanded);
+        var state = formation?.State ?? PartyFormationState.Disbanded;
+        var layout = state == PartyFormationState.Locked &&
+                     formation?.Layout == PartyFormationLayout.SingleFile
+            ? PartyFormationLayout.SingleFile
+            : PartyFormationLayout.Block;
+        return FromSlots(slots, formation?.Facing ?? Direction.Right, state, layout);
     }
 
     public static PartyFormationSnapshot WithSlots(PartyFormationSnapshot formation,
-        IReadOnlyList<CharacterId?> slots) => FromSlots(slots, formation.Facing, PartyFormationState.Disbanded);
+        IReadOnlyList<CharacterId?> slots) => FromSlots(slots, formation.Facing,
+            PartyFormationState.Disbanded, PartyFormationLayout.Block);
 
     public static PartyFormationSnapshot WithState(PartyFormationSnapshot formation, PartyFormationState state) =>
-        formation with { State = state };
+        formation with
+        {
+            State = state,
+            Layout = state == PartyFormationState.Locked ? formation.Layout : PartyFormationLayout.Block
+        };
 
     public static PartyFormationSnapshot Rotate(PartyFormationSnapshot formation, bool clockwise) =>
         formation with { Facing = Rotate(formation.Facing, clockwise) };
@@ -75,6 +87,17 @@ public static class PartyFormationRules
     public static IReadOnlyDictionary<CharacterId, Position> Positions(PartyFormationSnapshot formation,
         CharacterId anchorCharacterId, Position anchorPosition)
     {
+        if (formation.Layout == PartyFormationLayout.SingleFile)
+        {
+            var orderedIds = formation.Slots.Where(id => id is not null).Select(id => id!.Value).ToList();
+            orderedIds.Remove(anchorCharacterId);
+            orderedIds.Insert(0, anchorCharacterId);
+            var backward = BackwardOffset(formation.Facing);
+            return orderedIds.Select((id, index) => (id, Position: Add(anchorPosition,
+                    new Position(backward.X * index, backward.Y * index))))
+                .ToDictionary(entry => entry.id, entry => entry.Position);
+        }
+
         var anchorSlot = Enumerable.Range(0, 4)
             .FirstOrDefault(index => formation.Slots[index] == anchorCharacterId);
         var anchorOffset = Offset((FormationSlot)anchorSlot, formation.Facing);
@@ -99,11 +122,19 @@ public static class PartyFormationRules
     }
 
     private static PartyFormationSnapshot FromSlots(IEnumerable<CharacterId?> slots, Direction facing,
-        PartyFormationState state)
+        PartyFormationState state, PartyFormationLayout layout)
     {
         var values = slots.Concat(Enumerable.Repeat<CharacterId?>(null, 4)).Take(4).ToArray();
-        return new(values[0], values[1], values[2], values[3], facing, state);
+        return new(values[0], values[1], values[2], values[3], facing, state, layout);
     }
+
+    private static Position BackwardOffset(Direction facing) => facing switch
+    {
+        Direction.Up => new Position(0, 1),
+        Direction.Right => new Position(-1, 0),
+        Direction.Down => new Position(0, -1),
+        _ => new Position(1, 0)
+    };
 
     private static Position Offset(FormationSlot slot, Direction facing)
     {
