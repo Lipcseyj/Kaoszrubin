@@ -1,8 +1,9 @@
-using KaoszRubin.Data;
 using KaoszRubin.Application;
+using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Transport.SignalR;
+using System.Reflection;
 using System.Text.Json;
 
 namespace KaoszRubin.UI;
@@ -23,6 +24,8 @@ public sealed class MainMenu
     private const int SideMenuWidth = 52;
     private const int SideMenuLeft = 142;
     private const int SideMenuTop = 8;
+
+    public static Version AppVersion => Assembly.GetEntryAssembly()!.GetName().Version ?? new Version(0, 0, 0);
 
     // Helpers to measure and pad visible width in console cells (surrogate pairs count as width 2).
     private static int DisplayWidth(string? s)
@@ -1123,7 +1126,7 @@ public sealed class MainMenu
         DrawMainBackdrop();
         var lines = new[]
         {
-            "🏛️  FŐMENÜ",
+            $"🏛️  KÁOSZRUBIN(v{AppVersion}) FŐMENÜ",
             string.Empty,
             $"Aktív karakter: {_characterRoster.SelectedCharacter?.Name ?? "(nincs kiválasztva)"}",
             string.Empty,
