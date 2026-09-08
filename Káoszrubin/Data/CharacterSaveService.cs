@@ -292,7 +292,7 @@ public sealed class CharacterSaveService
     {
         var definition = definitions.FirstOrDefault(candidate => string.Equals(candidate.Id, id, StringComparison.OrdinalIgnoreCase))
             ?? definitions.FirstOrDefault(candidate => string.Equals(candidate.Name, legacyName, StringComparison.OrdinalIgnoreCase));
-        return definition ?? throw new InvalidOperationException($"A mentésben szereplő '{id ?? legacyName}' {typeName} nem található az adatok.csv fájlban.");
+        return definition ?? throw new InvalidOperationException($"A mentésben szereplő '{id ?? legacyName}' {typeName} nem található a " + CsvGameDataLoader.GameDataFileName + " fájlban.");
     }
 
     private sealed class RosterSaveData

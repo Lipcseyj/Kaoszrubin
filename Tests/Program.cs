@@ -473,7 +473,7 @@ static void ExplorationCommandIsRejectedDuringBattle()
 
 static void CharacterIdSurvivesSerialization()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var roster = new CharacterRoster();
     var character = CreateCharacter("Persistent");
     roster.Add(character);
@@ -485,7 +485,7 @@ static void CharacterIdSurvivesSerialization()
 
 static void CharacterHistorySurvivesSerialization()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var character = CreateCharacter("Krónikás");
     character.SetNpcBehavior(NpcBehavior.Defensive);
     character.SetNpcJoinOrigin(4, "A Kormos Griff");
@@ -537,7 +537,7 @@ static void SaveEditorOverwritesWithBackup()
     Directory.CreateDirectory(directory);
     try
     {
-        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         var characterService = new CharacterSaveService(Path.Combine(directory, "characters.json"), data);
         var saveService = new GameSaveService(directory, characterService);
         var roster = new CharacterRoster();
@@ -610,7 +610,7 @@ static void InvalidGameSaveVersionsAreRejected()
 
 static void ClassSpecializationSurvivesSerialization()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var race = data.GetRace("R003");
     var mageClass = data.CharacterClasses.Single(characterClass => characterClass.Id == CharacterClassIds.Mágus);
     var character = new LiveCharacter("Specialista", race, mageClass,
@@ -693,7 +693,7 @@ static void BarbarianRageTriggersAfterFiveDamage()
 
 static void ClassFeatureUpgradesPersistAndAppearOnSheet()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     foreach (var characterClass in data.CharacterClasses)
         Assert(ClassFeatureUpgrades.ForClass(characterClass.Id).Count == 3,
             $"{characterClass.Name} nem pontosan három osztályfejlesztést kapott.");
@@ -726,7 +726,7 @@ static void ClassFeatureUpgradesPersistAndAppearOnSheet()
 
 static void AbilityIncreasesAreCappedAndPersisted()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var character = new LiveCharacter("Képességes", data.GetRace("R001"),
         data.CharacterClasses.Single(characterClass => characterClass.Id == CharacterClassIds.Harcos),
         new PrimaryAbilities(12, 13, 8, 9), data.GetMinimumVitality(8) + 1, 0, 1, 0);
@@ -749,7 +749,7 @@ static void AbilityIncreasesAreCappedAndPersisted()
 
 static void WeaponProficienciesAreLimitedEffectiveAndPersisted()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     Assert(WeaponProficiencyProgression.MilestonesFor(CharacterClassIds.Harcos).SequenceEqual(new[] { 1, 7, 17, 27 }) &&
            WeaponProficiencyProgression.MilestonesFor(CharacterClassIds.Tolvaj).SequenceEqual(new[] { 7, 17 }),
         "A harci és nem harci osztályok fegyverjártassági mérföldkövei hibásak.");
@@ -1202,7 +1202,7 @@ static void RemotePlayerCanAcknowledgeRest()
 
 static void InnNamesAndRumorsLoadFromCsv()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     Assert(data.InnNames.Count == 26 && data.InnNames.Contains("A Törött Kard") &&
            data.InnNames.Contains("A Vándor Pihenője"),
         "A fogadónév-halmaz nem megfelelően töltődött be a CSV-ből.");
@@ -1361,7 +1361,7 @@ static void InitiativeLogShowsSignedDie()
 
 static void NeedStatusEffectsAreVisible()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
     var priestClass = new CharacterClassDefinition(CharacterClassIds.Pap, "Pap", PrimaryAbilities.Zero, true, 1.0);
     var player = new LiveCharacter("Éhező", race, priestClass, new PrimaryAbilities(5, 5, 5, 5),
@@ -1906,7 +1906,7 @@ static void CharacterSheetLayoutIsShared()
 
 static void CharacterDetailsAreShared()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var character = CreateCharacter("Dosszié", characterClassId: CharacterClassIds.Tolvaj);
     character.SetNpcBehavior(NpcBehavior.Defensive);
     character.SetNpcJoinOrigin(3, "A Rézcsengő");
@@ -2475,7 +2475,7 @@ static LiveCharacter CreateCharacter(string name, int vitality = 20,
 
 static void MagicItemIdentificationStatePersists()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var race = data.Races[0];
     var characterClass = data.CharacterClasses.First(value => value.Id == CharacterClassIds.Harcos);
     var character = new LiveCharacter("Azonosító", race, characterClass,
@@ -2522,7 +2522,7 @@ static void MagicItemIdentificationStatePersists()
 
 static void MageIdentifiesFreshMagicLoot()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var race = data.Races[0];
     var mageClass = data.CharacterClasses.First(value => value.Id == CharacterClassIds.Mágus);
     var weakerMage = new LiveCharacter("Tanonc", race, mageClass, new PrimaryAbilities(5, 5, 5, 7),
@@ -2551,7 +2551,7 @@ static void MageIdentifiesFreshMagicLoot()
 
 static void CursedItemsActivateBindAndApplyEffects()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     Assert(data.ItemCurses.Count == 8 && data.ItemCurses.Select(curse => curse.Effect).Distinct().Count() == 8,
         "A nyolc adatvezérelt átok nem töltődött be.");
     var character = CreateCharacter("Átokpróba", characterClassId: CharacterClassIds.Mágus);
@@ -2597,7 +2597,7 @@ static void CursedItemsActivateBindAndApplyEffects()
 
 static void ItemCursePurificationIsPermanent()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var character = CreateCharacter("Tisztító", characterClassId: CharacterClassIds.Mágus);
     var item = new MagicItemDefinition("MI-PURIFY", "Próbagyűrű", MagicItemKind.Ring, ItemRarity.Magic,
         1000, 0, null, MagicItemEffect.None, 0, new HashSet<string> { CharacterClassIds.Mágus },
@@ -2704,7 +2704,7 @@ static void WindowFrameCatalogIsResizableAndConfigured()
 
 static void RaceTraitsAreLoadedFromData()
 {
-    var dataPath = Path.Combine(AppContext.BaseDirectory, "adatok.csv");
+    var dataPath = Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName);
     var catalog = CsvGameDataLoader.Load(dataPath);
     Assert(catalog.GetRace("R001").HasTrait(RaceTraits.Adaptable), "Az ember Alkalmazkodó tulajdonsága hiányzik.");
     Assert(catalog.GetRace("R002").HasTrait(RaceTraits.Resilient), "A törp Rendíthetetlen tulajdonsága hiányzik.");
@@ -2734,7 +2734,7 @@ static void CharacterSheetColorsHealthAndManaSeparately()
 
 static void SpellSchoolsIncludeMageLightSpell()
 {
-    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     foreach (var school in Enum.GetValues<SpellSchool>())
         for (var level = 1; level <= 5; level++)
             Assert(catalog.GetSpells(school, level).Count == (level <= 3 ? 6 : 5),
@@ -2878,7 +2878,7 @@ static void ConsumableStackHalfTransfersToFollower()
 
 static void ClassResourceGrowthLoadsFromCsv()
 {
-    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     Assert(catalog.GetCharacterResourceGrowth(CharacterClassIds.Barbár).AdjustVitality(5) == 10 &&
            catalog.GetCharacterResourceGrowth(CharacterClassIds.Harcos).AdjustVitality(5) == 8 &&
            catalog.GetCharacterResourceGrowth(CharacterClassIds.Tolvaj).AdjustVitality(5) == 5 &&
@@ -2892,7 +2892,7 @@ static void ClassResourceGrowthLoadsFromCsv()
 
 static void NpcDefinitionsLoadFromCsv()
 {
-    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     Assert(catalog.Npcs.Count == 21 && catalog.NpcEncounters.Count == 29 &&
            Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
@@ -2947,7 +2947,7 @@ static void NpcDefinitionsLoadFromCsv()
 
 static void AdHocFollowerConversationsAreConfigured()
 {
-    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     foreach (var storyId in new[] { "ELIRA_RESCUE", "RODERIC_OATH" })
     {
         for (var index = 1; index <= 5; index++)
@@ -2973,7 +2973,7 @@ static void AdHocFollowerConversationsAreConfigured()
 
 static void RodericInsigniaGuardiansAreConfigured()
 {
-    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var encounter = MazeLevelConfigurations.Get(5).QuestRoomEnemyEncounters.Single();
     Assert(encounter is { RoomId: "RODERIC_INSIGNIA", EnemyId: "E052", Count: 3,
                GuaranteedItemId: "T026" } &&
@@ -3001,7 +3001,7 @@ static void RodericInsigniaGuardiansAreConfigured()
 
 static void RodericMalrecQuestLocationIsConfigured()
 {
-    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var configuration = QuestLocationConfigurations.Get(QuestLocationConfigurations.RodericMalrec);
     var malrecEncounter = configuration.QuestRoomEnemyEncounters.Single(value =>
         value.EnemyId == MonsterIds.SirMalrec);
@@ -3098,7 +3098,7 @@ static void QuestRoomsReserveTheirContent()
 
 static void RodericUsesDefinedCharacterBuild()
 {
-    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var first = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"));
     var repeated = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"));
     var scaled = new UniqueNpcCharacterFactory(catalog).Create(catalog.GetNpc("NPC021"), 9);
@@ -3157,7 +3157,7 @@ static void RodericUsesDefinedCharacterBuild()
 
 static void PartyRemarksLoadFromCsv()
 {
-    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var combinations = catalog.Races.SelectMany(race => catalog.CharacterClasses.Select(characterClass =>
         (RaceId: race.Id, ClassId: characterClass.Id))).ToArray();
 
@@ -3226,7 +3226,7 @@ static void WorldNpcGenerationExcludesWhiteColor()
            CharacterColors.WorldNpcSelectable.Count == CharacterColors.Selectable.Count - 1,
         "A world-NPC színpaletta nem pontosan a fehér karakterszínt zárja ki.");
 
-    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var generator = new RandomCharacterGenerator(catalog, new Random(7281));
     var characterClass = catalog.GetCharacterClass(CharacterClassIds.Harcos);
     var recruits = Enumerable.Range(0, 30)
@@ -3340,7 +3340,7 @@ static void RestSummaryUiIsShared()
 
 static void GuestItemInspectionKeepsDamageValue()
 {
-    var dataPath = Path.Combine(AppContext.BaseDirectory, "adatok.csv");
+    var dataPath = Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName);
     var data = CsvGameDataLoader.Load(dataPath);
     var weapon = data.Weapons.First(candidate => candidate.Damage is not null);
     var inspection = ItemInspectionFormatter.Format(weapon, data);
@@ -3383,7 +3383,7 @@ static void BossAndBattlePromptsAreShared()
 
 static void AbilityMagicItemsAreUniversalAndCapped()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var expected = new Dictionary<string, (MagicItemEffect Effect, int Value, int Price)>
     {
         ["M017"] = (MagicItemEffect.Strength, 1, 1200),
@@ -3425,14 +3425,14 @@ static void AbilityMagicItemsAreUniversalAndCapped()
 
 static void UnknownCsvSectionIsRejectedWithLineNumber()
 {
-    var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var invalid = source.Replace("#Képességek", "#Elgépelt képességek", StringComparison.Ordinal);
     AssertCsvLoadFails(invalid, "Ismeretlen fejezetcím", "sorában");
 }
 
 static void MissingRequiredCsvFieldIsRejectedWithLineNumber()
 {
-    var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var invalid = source.Replace("R001,Ember,Adaptable", "R001,Ember", StringComparison.Ordinal);
     AssertCsvLoadFails(invalid, "Tulajdonság", "sorában");
 }
@@ -3465,7 +3465,7 @@ static void AdaptableRaceGainsChosenAbility()
 {
     var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero, RaceTraits.Adaptable);
     var characterClass = new CharacterClassDefinition("C001", "Harcos", PrimaryAbilities.Zero, false, 1.0);
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var character = LiveCharacterFactory.Create("Ember", race, characterClass,
         new PrimaryAbilities(5, 5, 5, 5), 1, 1, data, ConsoleColor.Cyan,
         new PrimaryAbilities(0, 0, 0, 1));
@@ -3518,7 +3518,7 @@ static void CharacterVisionRangeUsesClassRaceAndEffects()
 
 static void EnemyVisionRangesLoadFromCsv()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     Assert(data.GetEnemy("E001").VisionRange == 3 && data.GetEnemy("E001").Stealth == 1 &&
            data.GetEnemy("E026").Noise == 4 && data.GetEnemy("E045").Stealth == 3 &&
            data.GetEnemy("E003").VisionRange == 4 &&
@@ -3554,7 +3554,7 @@ static void FogRevealUsesVariableRangeAndLineOfSight()
 
 static void MonsterTraitsAndAbilitiesAreDataDriven()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var medusa = data.GetEnemy(MonsterIds.Medúza);
     var troll = data.GetEnemy("E013");
     var dragon = data.GetEnemy("E021");
@@ -3574,7 +3574,7 @@ static void MonsterTraitsAndAbilitiesAreDataDriven()
 
 static void SpellBuffDurationLoadsAsRounds()
 {
-    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var blessing = catalog.GetSpellEffects("P003");
     Assert(blessing.Count == 3 && blessing.All(effect => effect.Duration == 4) &&
            blessing.All(effect => effect.Description.Contains("kör", StringComparison.OrdinalIgnoreCase)),
@@ -3589,7 +3589,7 @@ static void SpellBuffDurationLoadsAsRounds()
 
 static void NewSpellEffectsAreSupported()
 {
-    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     foreach (var id in new[] { "S027", "S028", "P026", "P027", "P028" })
         Assert(catalog.GetSpellEffects(id).Count > 0, $"A(z) {id} varázslat hatásai hiányoznak.");
 
@@ -3619,7 +3619,7 @@ static void NewSpellEffectsAreSupported()
 
 static void MonsterRegenerationAndBreathCooldownWork()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var troll = new ConfiguredEnemy(new Position(1, 1), data.GetEnemy("E013"));
     troll.SetCurrentHitPoints(400);
     var battle = new BattleSystem(new Random(7), data.MonsterAbilities, data.Statuses, data.StrengthHitBonuses);
@@ -3646,7 +3646,7 @@ static void MonsterRegenerationAndBreathCooldownWork()
 
 static void TimedNonDamageStatusExpires()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var character = CreateCharacter("Dermedt");
     character.AddStatus(data.GetStatus("STATUS006"));
     var first = character.ApplyTurnEndStatusEffects(new Random(1));
@@ -3657,7 +3657,7 @@ static void TimedNonDamageStatusExpires()
 }
 static void CompositeMonsterAbilityAppliesAllEffects()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var source = data.GetMonsterAbility("MA012");
     var ability = source with { ChancePercent = 100 };
     var definition = data.GetEnemy("E018") with { AbilityIds = ["MA012"] };
@@ -3679,7 +3679,7 @@ static void CompositeMonsterAbilityAppliesAllEffects()
 
 static void MonsterAbilityRespectsWeaponBinding()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var poison = data.GetMonsterAbility("MA002") with { ChancePercent = 100, WeaponIds = ["WN018"] };
     var dagger = data.GetWeapon("W001");
     var fangs = data.GetWeapon("WN018");
@@ -3729,7 +3729,7 @@ static void EnemyAwarenessAndSearchAreDataDriven()
     Assert(undead.Alertness == EnemyAlertness.Alert,
         "Az alvásra képtelen ellenfél alvó állapotba került.");
 
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     Assert(data.GetEnemy("E003").CanSleep && data.GetEnemy("E007").CanSleep &&
            !data.GetEnemy("E004").CanSleep && !data.GetEnemy("E006").CanSleep,
         "A goblin, ork vagy élőholt alvásképessége hibásan töltődött be a CSV-ből.");
@@ -3803,7 +3803,7 @@ static void EnemySearchExploresCorridorFrontiers()
 
 static void EnemyTrackingSenseIsDataDriven()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     Assert(data.GetEnemy("E001").TrackingSense == 6 && data.GetEnemy("E005").TrackingSense == 8 &&
            data.GetEnemy("E004").TrackingSense == 5 && data.GetEnemy("E022").TrackingSense == 8 &&
            data.GetEnemy("E028").TrackingSense == 1,
@@ -4005,7 +4005,7 @@ static void LockedFormationSharesDoorInteractionOrigins()
 
 static void FormationDoorKeyOwnerTakesPriority()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var leader = CreateCharacter("Tolvajvezér", characterClassId: CharacterClassIds.Tolvaj);
     var secondThief = CreateCharacter("Másik tolvaj", characterClassId: CharacterClassIds.Tolvaj);
     var keyOwner = CreateCharacter("Kulcstartó");
@@ -4277,7 +4277,7 @@ static void TeamBattleSummaryListsResourceUse()
         $"Az autoharc győzelmi sora hibás: {victorySummary}");
 
     var (encounter, front, _, _) = CreateFormationEncounter();
-    var poisoned = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"))
+    var poisoned = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName))
         .GetStatus(CharacterStatusIds.Poisoned);
     front.AddStatus(poisoned);
     encounter.CaptureNewStatuses();
@@ -4340,7 +4340,7 @@ static void TeamBattleFormationProtectsRearRow()
 
 static void MonsterStrengthCreatesTacticalPressure()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var attacker = CreateEnemy(100, 13);
     var plainDefender = CreateCharacter("Támasz nélkül", 100);
     var bracedDefender = CreateCharacter("Pajzsos", 100);
@@ -4415,7 +4415,7 @@ static void MonsterStrengthCreatesTacticalPressure()
 
 static void RearCombatPreparationIsLeaderControlled()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var system = CreateBattleSystem(1710);
     var leader = CreateCharacter("Vezér", characterClassId: CharacterClassIds.Barbár);
     var rearLeft = CreateCharacter("Bal hátul", characterClassId: CharacterClassIds.Mágus);
@@ -4469,7 +4469,7 @@ static void RearCombatPreparationIsLeaderControlled()
 
 static void TeamBattleAiHealingPotionAvoidsWaste()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var system = CreateBattleSystem(1711);
     var character = CreateCharacter("Sebesült", vitality: 200, characterClassId: CharacterClassIds.Barbár);
     Assert(character.AddToBackpack(data.GetItem("T011")) &&
@@ -4507,7 +4507,7 @@ static void TeamBattleSingleFileHasNoRearProtection()
 
 static void TeamBattleItemUseRequiresFreeRearPosition()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var combatItemIds = data.Items.Where(item => item.UsableInCombat).Select(item => item.Id).ToArray();
     Assert(combatItemIds.SequenceEqual(["T011", "T012", "T013", "T014", "T015", "T016"]),
         "Nem kizárólag a gyógy- és varázsitalok használhatók harcban a CSV szerint.");
@@ -4529,7 +4529,7 @@ static void TeamBattleItemUseRequiresFreeRearPosition()
 static void TeamBattleRearPolearmReachUsesFrontEngagement()
 {
     var (encounter, front, rear, enemy) = CreateFormationEncounter();
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     Assert(rear.EquipWeapon(0, data.GetWeapon("W011")),
         "A hátsó sori tesztkarakter nem tudta felszerelni a szálfegyvert.");
     encounter.Engage(front, enemy);
@@ -4756,7 +4756,7 @@ static void EquipmentWeightAffectsMobility()
            character.AddMagicItem(magicItem),
         "A tesztfelszerelés nem volt felvehető.");
     var heavy = CharacterMobilityRules.Evaluate(character);
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
 
     Assert(light.Encumbrance == EncumbranceLevel.Light && heavy.EquippedWeight == 50 &&
            heavy.CarriedWeight == 50 && heavy.CarryingCapacity == 44 &&
@@ -4772,7 +4772,7 @@ static void EquipmentWeightAffectsMobility()
 
 static void MobilityPreviewIsVisible()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var race = new RaceDefinition("R-TEST", "Ember", PrimaryAbilities.Zero);
     var fighterClass = new CharacterClassDefinition(CharacterClassIds.Harcos, "Harcos",
         PrimaryAbilities.Zero, false, 1.0);
@@ -4858,7 +4858,7 @@ static void RearPriestCanTurnFrontEngagedUndead()
         [new TeamEnemyParticipant(undead, 5, 2, 1)], front.Id, undead.Id, formation: formation);
     battle.Engage(front, undead);
     battle.Turns.StartTurns();
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1706));
     var actions = coordinator.GetTeamAllowedBattleActions(battle, priest, undead, priest,
         new Position(3, 4), false, []);
@@ -4927,7 +4927,7 @@ static void TacticalAttackArcsUseEnemyFacing()
 
 static void ThiefCanBackstabFromRearFormation()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var system = CreateBattleSystem(1802);
     var front = CreateCharacter("Fedező", characterClassId: CharacterClassIds.Harcos);
     var thief = CreateCharacter("Orvtámadó", characterClassId: CharacterClassIds.Tolvaj);
@@ -4976,7 +4976,7 @@ static void MultilineInnRumorStaysInsideFrame()
 
 static void DevelopmentWeaponsRespectCapacity()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var character = CreateCharacter("Tesztcsomag");
     var granted = DevelopmentWeaponGrantService.Grant(character, data.Weapons, new Random(42));
     Assert(granted.Count == 6 && granted.Select(weapon => weapon.Id).Distinct().Count() == 6 &&
@@ -5004,7 +5004,7 @@ static void DevelopmentWeaponsRespectCapacity()
 
 static void KnightBattleWeaponSwapCommandIsAccepted()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var knight = new LiveCharacter("Tesztlovag", data.GetRace("R001"),
         data.GetCharacterClass(CharacterClassIds.Lovag), new PrimaryAbilities(8, 5, 5, 5), 40, 0, 1, 0);
     Assert(knight.EquipWeapon(0, data.GetWeapon("W004")) &&
@@ -5040,7 +5040,7 @@ static void KnightBattleWeaponSwapCommandIsAccepted()
 static void WeaponSweepRequiresMutualAdjacency()
 {
     var (battle, front, _, primary) = CreateFormationEncounter();
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var weapon = data.GetWeapon("W009") with { MinimumStrength = 1 };
     Assert(front.EquipWeapon(0, weapon), "A pallos nem szerelhető fel.");
     var opposite = CreateEnemyAt(new Position(3, 4), "E-OPPOSITE");
@@ -5061,7 +5061,7 @@ static void WeaponSweepRequiresMutualAdjacency()
 
 static void TacticalWeaponMasteriesHaveDistinctRoles()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var fighter = CreateCharacter("Taktikus", characterClassId: CharacterClassIds.Harcos);
     var system = CreateBattleSystem(7);
     var runtime = system.PrepareTeamCharacter(fighter).Runtime;
@@ -5105,7 +5105,7 @@ static void TacticalWeaponMasteriesHaveDistinctRoles()
 
 static void WeaponFamiliesUseDistinctAttackPatterns()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
 
     IReadOnlyList<Enemy> Targets(string weaponId, Position secondaryPosition)
     {
@@ -5167,7 +5167,7 @@ static void WeaponFamiliesUseDistinctAttackPatterns()
 
 static void DualWieldingRequiresDisciplineAndProficiencies()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var shieldBearer = CreateCharacter("Pajzsos", characterClassId: CharacterClassIds.Harcos);
     Assert(shieldBearer.EquipWeapon(0, data.GetWeapon("W004")) &&
            shieldBearer.EquipWeapon(1, data.GetWeapon("W014")) &&
@@ -5213,7 +5213,7 @@ static void DualWieldingRequiresDisciplineAndProficiencies()
 
 static void ElvenDaggersGainPairedDamage()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var elvenDagger = data.GetWeapon(DualWieldingRules.ElvenDaggerId);
     Assert(elvenDagger.WeaponTypeId == "WT002" && elvenDagger.Damage == new ValueRange(3, 6) &&
            elvenDagger.DamageType == DamageType.Slashing &&
@@ -5242,7 +5242,7 @@ static void ElvenDaggersGainPairedDamage()
 
 static void TacticalDisciplinesProgressAndPersist()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var character = CreateCharacter("Diszciplína", characterClassId: CharacterClassIds.Harcos);
     var firstMilestones = CharacterProgressionService.PendingTacticalDisciplineMilestones(character,
         new LevelUpResult(0, 7, 8, [])).ToArray();
@@ -5341,7 +5341,7 @@ static void ProgressionRetrainingPreservesAdvances()
 
 static void ReserveWeaponIsPassiveAndPersistent()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var character = CreateCharacter("Tartalék");
     Assert(character.EquipWeapon(0, data.GetWeapon("W001")), "Hiányzik a tőr.");
     var weight = CharacterMobilityRules.Evaluate(character).EquippedWeight;
@@ -5362,7 +5362,7 @@ static void ReserveWeaponIsPassiveAndPersistent()
 
 static void ReserveTwoHandedSwapStowsShield()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var character = CreateCharacter("Pajzsos");
     Assert(character.EquipWeapon(0, data.GetWeapon("W004")) &&
         character.EquipWeapon(1, data.GetWeapon("W014")) && character.EquipWeapon(2, data.GetWeapon("W011")), "Hibás előkészítés.");
@@ -5378,7 +5378,7 @@ static void ReserveTwoHandedSwapStowsShield()
 
 static void PhysicalDamageUsesTypesAndWeapons()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     int PlayerDamage(DamageType type, DamageResistance? resistance = null)
     {
         var total = 0;
@@ -5421,7 +5421,7 @@ static void PhysicalDamageUsesTypesAndWeapons()
 
 static void WeaponCsvPropertiesAreInherited()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, "adatok.csv"));
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     Assert(data.Enemies.All(enemy => enemy.Weapons is { Count: > 0 } &&
             enemy.Weapons.Select(weapon => weapon.Id).SequenceEqual(enemy.WeaponIds ?? [])),
         "Fegyver nélküli vagy hibás fegyverlistájú szörny.");

@@ -13,22 +13,18 @@
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.11" />
 		<PackageReference Include="NAudio" Version="3.0.1" />
-		<None Update="adatok.csv" CopyToOutputDirectory="PreserveNewest" />
+		<None Update="Data\game-data.csv" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="Sounds\**\*.wav" CopyToOutputDirectory="PreserveNewest" />
-		<None Include="Kepek\**\*.png" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="Pictures\**\*.png" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="Zene\**\*.mp3" CopyToOutputDirectory="PreserveNewest" />
 		<Compile Remove="Tests\**\*.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Remove="Start.bat" />
 		<None Remove="UI\Mainscreen.txt" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<Content Include="Start.bat">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
 		<Content Include="UI\Mainscreen.txt">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>

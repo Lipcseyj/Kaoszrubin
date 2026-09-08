@@ -217,7 +217,7 @@ Fejlesztői internetes teszthez használható VPN-overlay vagy kézi port-forwar
 ### Session-szabályok
 
 - Meghívókód mögött legalább 128 bit véletlen titok legyen; a rövid, beírható kód csak szerveroldali, gyorsan lejáró hivatkozás.
-- A csatlakozás egyeztesse: protokollverzió, játékverzió, save-schema és `adatok.csv` tartalmi hash.
+- A csatlakozás egyeztesse: protokollverzió, játékverzió, save-schema és `game-data.csv` tartalmi hash.
 - 5–10 másodperces kapcsolatvesztési türelmi idő után az NPC-AI vegye át a karaktert.
 - A reconnect-token ugyanabba a `PlayerId`-ba és karakterbe engedjen vissza, ne új játékost hozzon létre.
 - Host disconnect esetén a session megszűnik. Host migration későbbi, külön feature; az authoritative állapot és a mentéstulajdon miatt nem olcsó kiegészítés.

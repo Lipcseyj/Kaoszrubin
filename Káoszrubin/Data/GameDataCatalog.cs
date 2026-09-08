@@ -60,7 +60,7 @@ public sealed class GameDataCatalog
     public CharacterResourceGrowthDefinition GetCharacterResourceGrowth(string characterClassId) =>
         CharacterResourceGrowthByClass.TryGetValue(characterClassId, out var growth) ? growth :
             throw new InvalidOperationException(
-                $"A(z) '{characterClassId}' osztály erőforrás-növekedése nem található az adatok.csv fájlban.");
+                $"A(z) '{characterClassId}' osztály erőforrás-növekedése nem található az adatfájlban.");
     public WeaponDefinition GetWeapon(string id) => FindById(Weapons, id, "fegyver");
     public ArmorDefinition GetArmor(string id) => FindById(Armors, id, "páncél");
     public MagicItemDefinition GetMagicItem(string id) => FindById(MagicItems, id, "varázstárgy");
@@ -115,7 +115,7 @@ public sealed class GameDataCatalog
         var choices = Perks.Where(perk =>
             string.Equals(perk.CharacterClassId, characterClassId, StringComparison.OrdinalIgnoreCase) && perk.Tier == tier).ToList();
         if (choices.Count != 2)
-            throw new InvalidOperationException($"A(z) '{characterClassId}' osztály {tier}. tehetségfokozatához pontosan két tehetség szükséges az adatok.csv fájlban.");
+            throw new InvalidOperationException($"A(z) '{characterClassId}' osztály {tier}. tehetségfokozatához pontosan két tehetség szükséges az adatfájlban.");
         return choices;
     }
     public StartingEquipmentDefinition? GetStartingEquipment(string characterClassId) =>
@@ -129,14 +129,14 @@ public sealed class GameDataCatalog
     private static int GetThresholdValue(IReadOnlyDictionary<int, int> values, int ability, string abilityName)
     {
         var matchingValue = values.Where(pair => pair.Key <= ability).OrderByDescending(pair => pair.Key).Select(pair => (int?)pair.Value).FirstOrDefault();
-        return matchingValue ?? throw new InvalidOperationException($"Nincs {abilityName} értékhez tartozó minimum az adatok.csv fájlban.");
+        return matchingValue ?? throw new InvalidOperationException($"Nincs {abilityName} értékhez tartozó minimum az adatfájlban.");
     }
 
     private static ValueRange GetRangeThresholdValue(IReadOnlyDictionary<int, ValueRange> values, int ability, string abilityName) =>
         values.Where(pair => pair.Key <= ability).OrderByDescending(pair => pair.Key).Select(pair => pair.Value).FirstOrDefault()
-        ?? throw new InvalidOperationException($"Nincs {abilityName} értékhez tartozó szintlépési növekedés az adatok.csv fájlban.");
+        ?? throw new InvalidOperationException($"Nincs {abilityName} értékhez tartozó szintlépési növekedés az adatfájlban.");
 
     private static T FindById<T>(IReadOnlyList<T> definitions, string id, string typeName) where T : IGameDefinition =>
         definitions.FirstOrDefault(definition => string.Equals(definition.Id, id, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException($"A(z) '{id}' azonosítójú {typeName} nem található az adatok.csv fájlban.");
+        ?? throw new InvalidOperationException($"A(z) '{id}' azonosítójú {typeName} nem található az adatfájlban.");
 }

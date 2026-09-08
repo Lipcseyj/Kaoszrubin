@@ -1149,7 +1149,7 @@ public sealed class Game : ISessionCommandHandler
     {
 #if !DEBUG
         var fileName = ImageViewer.FileNameForLevel(_maze.LevelName);
-        var path = Path.Combine(AppContext.BaseDirectory, "Kepek", fileName);
+        var path = Path.Combine(AppContext.BaseDirectory, "Pictures", fileName);
 
         if (_activeCoopHost is not null)
         {

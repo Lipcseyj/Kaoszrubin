@@ -8,12 +8,14 @@ using KaoszRubin.Domain.Magic;
 
 namespace KaoszRubin.Data;
 
-/// <summary>A szekciókra tagolt adatok.csv betöltője.</summary>
+/// <summary>A szekciókra tagolt game-data.csv betöltője.</summary>
 public static class CsvGameDataLoader
 {
+    public const string GameDataFileName = "Data/game-data.csv";
+
     public static GameDataCatalog Load(string filePath)
     {
-        if (!File.Exists(filePath)) throw new FileNotFoundException("Az adatok.csv nem található.", filePath);
+        if (!File.Exists(filePath)) throw new FileNotFoundException("A " + GameDataFileName + " nem található.", filePath);
 
         var races = new List<RaceDefinition>();
         var characterClasses = new List<CharacterClassDefinition>();
@@ -75,7 +77,7 @@ public static class CsvGameDataLoader
 
             if (IsHeaderRow(cells[0])) continue;
             if (section == DataSection.None)
-                throw new InvalidDataException($"Az adatok.csv {lineNumber}. sora nem tartozik ismert fejezethez: '{rawLine}'.");
+                throw new InvalidDataException($"A " + GameDataFileName + " {lineNumber}. sora nem tartozik ismert fejezethez: '{rawLine}'.");
             try
             {
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
@@ -88,7 +90,7 @@ public static class CsvGameDataLoader
             }
             catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException or ArgumentException)
             {
-                throw new InvalidDataException($"Hiba az adatok.csv {lineNumber}. sorában, a(z) '{section}' fejezetben: {exception.Message}", exception);
+                throw new InvalidDataException($"Hiba a " + GameDataFileName + " {lineNumber}. sorában, a(z) '{section}' fejezetben: {exception.Message}", exception);
             }
         }
 
@@ -97,11 +99,11 @@ public static class CsvGameDataLoader
             vitalityGrowthByHealth, manaGrowthByIntelligence);
         ValidateCharacterResourceGrowth(characterClasses, characterResourceGrowthByClass);
         if (innNames.Count == 0)
-            throw new InvalidDataException("A #Fogadónevek fejezetnek legalább egy nevet kell tartalmaznia az adatok.csv fájlban.");
+            throw new InvalidDataException("A #Fogadónevek fejezetnek legalább egy nevet kell tartalmaznia a " + GameDataFileName + " fájlban.");
         if (innRumors.Count == 0)
-            throw new InvalidDataException("A #Pletykák fejezetnek legalább egy pletykát kell tartalmaznia az adatok.csv fájlban.");
+            throw new InvalidDataException("A #Pletykák fejezetnek legalább egy pletykát kell tartalmaznia a " + GameDataFileName + " fájlban.");
         if (traps.Count == 0)
-            throw new InvalidDataException("A #Csapdák fejezetnek legalább egy csapdát kell tartalmaznia az adatok.csv fájlban.");
+            throw new InvalidDataException("A #Csapdák fejezetnek legalább egy csapdát kell tartalmaznia a " + GameDataFileName + " fájlban.");
         ValidateUniqueIds(
             ("Fajok", races.Select(value => value.Id)),
             ("Osztályok", characterClasses.Select(value => value.Id)),
@@ -221,7 +223,7 @@ public static class CsvGameDataLoader
             CharacterResourceGrowthByClass = characterResourceGrowthByClass,
             BaseLevelCompletionExperience = baseLevelCompletionExperience is >= 0
                 ? baseLevelCompletionExperience.Value
-                : throw new InvalidOperationException("A #Base XP pálya végén értékének nemnegatív egész számnak kell lennie az adatok.csv fájlban.")
+                : throw new InvalidOperationException("A #Base XP pálya végén értékének nemnegatív egész számnak kell lennie a " + GameDataFileName + " fájlban.")
         };
     }
 
@@ -570,13 +572,13 @@ public static class CsvGameDataLoader
 
     private static int RequiredPrice(string[] cells, int index, string id) => Integer(cells, index) is > 0 and var price
         ? price
-        : throw new InvalidOperationException($"A(z) '{id}' tárgy ára hiányzik vagy nem pozitív az adatok.csv fájlban.");
+        : throw new InvalidOperationException($"A(z) '{id}' tárgy ára hiányzik vagy nem pozitív a " + GameDataFileName + " fájlban.");
 
     private static int NonNegativeWeaponPrice(string[] cells, int index, string id) =>
         Integer(cells, index) is >= 0 and var price
             ? price
             : throw new InvalidOperationException(
-                $"A(z) '{id}' fegyver ára hiányzik vagy negatív az adatok.csv fájlban.");
+                $"A(z) '{id}' fegyver ára hiányzik vagy negatív a " + GameDataFileName + " fájlban.");
 
     private static double PositiveWeight(string[] cells, int index, string id, string itemType)
     {
@@ -1344,7 +1346,7 @@ public static class CsvGameDataLoader
         {
             section = ParseSection(sectionCell[1..]);
             if (section == DataSection.None)
-                throw new InvalidDataException($"Ismeretlen fejezetcím az adatok.csv {lineNumber}. sorában: '{sectionCell}'.");
+                throw new InvalidDataException($"Ismeretlen fejezetcím a " + GameDataFileName + " {lineNumber}. sorában: '{sectionCell}'.");
             return true;
         }
 
