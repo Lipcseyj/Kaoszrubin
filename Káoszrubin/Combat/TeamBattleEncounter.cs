@@ -114,15 +114,21 @@ public sealed class TeamBattleEncounter
         }
         var initiatingCharacter = CombatantId.ForCharacter(initiatingCharacterId);
         var initiatingEnemy = CombatantId.ForEnemy(initiatingEnemyId);
-        var openingOrder = enemyStrikesFirst
-            ? new[] { initiatingEnemy, initiatingCharacter }
-            : new[] { initiatingCharacter, initiatingEnemy };
-        Turns = new TacticalBattleState(Id, center, tacticalParticipants, radius, openingCycles, openingOrder);
+        OpeningOrder = enemyStrikesFirst
+            ? [initiatingEnemy, initiatingCharacter]
+            : tacticalParticipants
+                .Where(participant => participant.Id == initiatingCharacter || participant.Id == initiatingEnemy)
+                .OrderByDescending(participant => participant.InitiativeBase)
+                .ThenBy(participant => participant.Id.Value, StringComparer.Ordinal)
+                .Select(participant => participant.Id)
+                .ToArray();
+        Turns = new TacticalBattleState(Id, center, tacticalParticipants, radius, openingCycles, OpeningOrder);
     }
 
     public BattleId Id { get; }
     public CharacterId InitiatingCharacterId { get; }
     public WorldEntityId InitiatingEnemyId { get; }
+    public IReadOnlyList<CombatantId> OpeningOrder { get; }
     public PartyFormationSnapshot? Formation { get; private set; }
     public bool HasActiveFormation => Formation is { State: PartyFormationState.Locked };
     public bool HasProtectiveFormation => Formation is

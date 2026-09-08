@@ -5928,13 +5928,14 @@ public sealed class Game : ISessionCommandHandler
                            _activeTeamBattle.EnemyFor(participant.Id)?.Name ?? participant.Id.Value;
                 return $"{name} {participant.InitiativeBase}";
             }));
-        var openingFirst = enemyStrikesFirst ? initiatingEnemy.Name : initiatingCharacter.Name;
-        var openingSecond = enemyStrikesFirst ? initiatingCharacter.Name : initiatingEnemy.Name;
+        string OpeningName(CombatantId id) => _activeTeamBattle.CharacterFor(id)?.Name ??
+                                               _activeTeamBattle.EnemyFor(id)?.Name ?? id.Value;
+        var openingNames = _activeTeamBattle.OpeningOrder.Select(OpeningName).ToArray();
         var startMessage = _isQuickTeamBattle
             ? $"⚡ GYORSHARC — {initiatingEnemy.Name} ellen. A csapatharc automatikusan lefut."
             : $"⚔️ CSAPATHARC — {characterParticipants.Count} baráti és " +
               $"{enemyParticipants.Count} ellenséges résztvevő. " +
-              $"Nyitó ütésváltás: {openingFirst} → {openingSecond}. Utána kezdeményezés: {queue}.";
+              $"Nyitó ütésváltás: {string.Join(" → ", openingNames)}. Utána kezdeményezés: {queue}.";
         if (_activeTeamBattle.HasProtectiveFormation)
             startMessage += " 🛡️ A zárt alakzat első sora elölről védi a hátsó sort.";
         _renderer.DrawInventoryMessage(startMessage, ConsoleColor.Yellow);

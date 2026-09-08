@@ -98,6 +98,7 @@ var tests = new (string Name, Action Run)[]
     ("Zárt alakzatból a coop vendég nem léphet ki", LockedFormationRejectsRemoteMovement),
     ("A csapatharcban az átlós ellenfél is közelharci távolságban van", DiagonalEnemyIsMeleeAdjacent),
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
+    ("A nyitó ütésváltást a kezdeményezés dönti el, a rajtaütést kivéve", TeamBattleOpeningOrderUsesInitiative),
     ("A zárt út mögötti ellenfél nem érkezhet meg néhány harci kör alatt", TacticalArrivalRequiresWalkableRoute),
     ("A csapatharc két egymást követő tétlen kör után áll le", TeamBattleDetectsInactiveSide),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
@@ -4394,6 +4395,35 @@ static void TacticalBattleStateOrdersEligibleParticipants()
         "A nyitó ütésváltást nem azonnal követte a teljes kezdeményezési sor.");
     Assert(state.InitiativeOrder.Select(value => value.Id).SequenceEqual([late.Id, first.Id, second.Id]),
         "A harmadik körben nem lépett be vagy nem kezdeményezés szerint rendeződött a távoli résztvevő.");
+}
+
+static void TeamBattleOpeningOrderUsesInitiative()
+{
+    var system = CreateBattleSystem(1720);
+    var slower = CreateCharacter("Lassabb");
+    var fasterEnemy = CreateEnemyAt(new Position(2, 1), "OPENING-FAST-ENEMY");
+    var preparation = system.PrepareTeamCharacter(slower);
+    var normal = new TeamBattleEncounter(new Position(1, 1),
+        [new TeamCharacterParticipant(slower, new Position(1, 1), TacticalParticipantKind.PartyMember,
+            4, 3, 1, preparation.Runtime)],
+        [new TeamEnemyParticipant(fasterEnemy, 9, 3, 1)], slower.Id, fasterEnemy.Id);
+    Assert(normal.OpeningOrder.SequenceEqual(
+            [CombatantId.ForEnemy(fasterEnemy.Id), CombatantId.ForCharacter(slower.Id)]) &&
+           normal.Turns.StartTurns().Id == CombatantId.ForEnemy(fasterEnemy.Id),
+        "Normál találkozáskor nem a magasabb kezdeményezésű fél kezdte a nyitó ütésváltást.");
+
+    var faster = CreateCharacter("Gyorsabb");
+    var ambusher = CreateEnemyAt(new Position(4, 3), "OPENING-AMBUSHER");
+    var ambushPreparation = system.PrepareTeamCharacter(faster);
+    var ambush = new TeamBattleEncounter(new Position(3, 3),
+        [new TeamCharacterParticipant(faster, new Position(3, 3), TacticalParticipantKind.PartyMember,
+            20, 3, 1, ambushPreparation.Runtime)],
+        [new TeamEnemyParticipant(ambusher, 1, 3, 1)], faster.Id, ambusher.Id,
+        enemyStrikesFirst: true);
+    Assert(ambush.OpeningOrder.SequenceEqual(
+            [CombatantId.ForEnemy(ambusher.Id), CombatantId.ForCharacter(faster.Id)]) &&
+           ambush.Turns.StartTurns().Id == CombatantId.ForEnemy(ambusher.Id),
+        "Az ellenséges rajtaütés nem őrizte meg a szörny nyitó elsőbbségét.");
 }
 
 static void TacticalArrivalRequiresWalkableRoute()
