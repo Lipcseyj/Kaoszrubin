@@ -17,6 +17,7 @@ public static class ItemInspectionFormatter
     public static ItemInspection FormatUnidentified(InventoryItemSnapshot item) => new(
         $"{item.Name} — A tárgy pontos hatása, értéke és töltete azonosításig ismeretlen. " +
         $"Érzékelhető aura: {item.Description}. " +
+        DurabilityText(item.MaximumDurability, item.DurabilityDamage) +
         (item.IsCurseActivated ? "☠ Az átok aktiválódott és a tárgy a viselőjéhez kötődött. " : string.Empty) +
         "A Vándormágus a fogadóban teljesen azonosíthatja.",
         ConsoleColor.DarkCyan);
@@ -72,9 +73,27 @@ public static class ItemInspectionFormatter
                   (cursed.IsCurseActivated ? " Az átok aktív és a tárgy a viselőjéhez kötődött." : " Az átok még nem aktiválódott.")
                 : string.Empty
             : instanceState is { IsPurified: true } ? " ✨ Az átkot végleg megtörték." : string.Empty;
+        var durability = DurabilityText(EquipmentDurabilityRules.MaximumDurability(item),
+            instanceState?.DurabilityDamage ?? 0);
         return new ItemInspection($"{item.Name} [{item.Id}] — {details}. Ritkaság: {RarityName(item.Rarity)}; " +
-            $"mágikus erő: {item.MagicPower}; alapár: {item.BasePrice} arany. Jellemzés: {description}" + mobility + curse,
+            $"mágikus erő: {item.MagicPower}; alapár: {item.BasePrice} arany. Jellemzés: {description} " +
+            durability + mobility + curse,
             RarityColor(item.Rarity));
+    }
+
+    public static string DurabilityText(int maximumDurability, int durabilityDamage)
+    {
+        if (maximumDurability <= 0) return string.Empty;
+        var current = EquipmentDurabilityRules.CurrentDurability(maximumDurability, durabilityDamage);
+        var percent = EquipmentDurabilityRules.DurabilityPercent(maximumDurability, durabilityDamage);
+        var condition = EquipmentDurabilityRules.Condition(maximumDurability, durabilityDamage) switch
+        {
+            EquipmentCondition.Broken => "💥 törött",
+            EquipmentCondition.Damaged => "🔴 sérült",
+            EquipmentCondition.Worn => "🟡 kopott",
+            _ => "🟢 ép"
+        };
+        return $"Tartósság: {current}/{maximumDurability} ({percent}%) — {condition}. ";
     }
 
     private static string MobilityPreview(IItemDefinition item, GameDataCatalog gameData,

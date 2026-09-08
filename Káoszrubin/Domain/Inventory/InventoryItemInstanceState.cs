@@ -16,6 +16,15 @@ public readonly record struct InventoryItemInstanceState(Guid InstanceId, bool I
                             CurseEffect != ItemCurseEffect.None && CurseValue > 0;
 }
 
+public enum EquipmentCondition
+{
+    NotApplicable,
+    Intact,
+    Worn,
+    Damaged,
+    Broken
+}
+
 public static class EquipmentDurabilityRules
 {
     public static int MaximumDurability(IItemDefinition item) =>
@@ -23,6 +32,28 @@ public static class EquipmentDurabilityRules
 
     public static int CurrentDurability(IItemDefinition item, InventoryItemInstanceState state) =>
         Math.Max(0, MaximumDurability(item) - Math.Max(0, state.DurabilityDamage));
+
+    public static int CurrentDurability(int maximumDurability, int durabilityDamage) =>
+        Math.Max(0, Math.Max(0, maximumDurability) - Math.Max(0, durabilityDamage));
+
+    public static int DurabilityPercent(int maximumDurability, int durabilityDamage) =>
+        maximumDurability <= 0
+            ? 0
+            : (int)Math.Floor(CurrentDurability(maximumDurability, durabilityDamage) * 100d /
+                              maximumDurability);
+
+    public static EquipmentCondition Condition(int maximumDurability, int durabilityDamage)
+    {
+        if (maximumDurability <= 0) return EquipmentCondition.NotApplicable;
+        var percent = DurabilityPercent(maximumDurability, durabilityDamage);
+        return percent switch
+        {
+            0 => EquipmentCondition.Broken,
+            <= 25 => EquipmentCondition.Damaged,
+            <= 50 => EquipmentCondition.Worn,
+            _ => EquipmentCondition.Intact
+        };
+    }
 
     public static InventoryItemInstanceState Normalize(IItemDefinition item, InventoryItemInstanceState state)
     {

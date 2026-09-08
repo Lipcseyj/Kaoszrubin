@@ -188,6 +188,7 @@ var tests = new (string Name, Action Run)[]
     ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("Az azonosítatlan varázstárgy példányállapota mentés és mozgatás közben megmarad", MagicItemIdentificationStatePersists),
     ("A felszerelés tartóssága adatvezérelt és menthető", EquipmentDurabilityDataAndStatePersist),
+    ("A tárgyvizsgálat és a részletes karakterinfó mutatja a felszerelés állapotát", EquipmentDurabilityIsVisible),
     ("A legintelligensebb élő mágus egyszer megpróbálja azonosítani a friss zsákmányt", MageIdentifiesFreshMagicLoot),
     ("Az átkozott tárgy aktiválódik, megköt és alkalmazza az adatvezérelt hátrányokat", CursedItemsActivateBindAndApplyEffects),
     ("Az Átoktörés és a Vándormágus végleg megtisztítja és feloldja a tárgyat", ItemCursePurificationIsPermanent),
@@ -2563,6 +2564,51 @@ static void EquipmentDurabilityDataAndStatePersist()
     var legacy = GameSaveFormat.MigrateToCurrent(new GameSaveData { Version = 20 });
     Assert(legacy.Version == GameSaveFormat.CurrentVersion,
         "A kopás előtti játékmentés nem migrálódott az aktuális formátumra.");
+}
+
+static void EquipmentDurabilityIsVisible()
+{
+    Assert(EquipmentDurabilityRules.Condition(100, 49) == EquipmentCondition.Intact &&
+           EquipmentDurabilityRules.Condition(100, 50) == EquipmentCondition.Worn &&
+           EquipmentDurabilityRules.Condition(100, 75) == EquipmentCondition.Damaged &&
+           EquipmentDurabilityRules.Condition(100, 100) == EquipmentCondition.Broken &&
+           EquipmentDurabilityRules.Condition(0, 0) == EquipmentCondition.NotApplicable,
+        "A tartóssági állapotok határértékei nem 51–100 / 26–50 / 1–25 / 0 százaléknál vannak.");
+
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var dagger = data.GetWeapon("W001");
+    var wornState = InventoryItemInstanceState.Create() with { DurabilityDamage = 40 };
+    var inspection = ItemInspectionFormatter.Format(dagger, data, instanceState: wornState);
+    Assert(inspection.Text.Contains("Tartósság: 40/80 (50%)", StringComparison.Ordinal) &&
+           inspection.Text.Contains("kopott", StringComparison.OrdinalIgnoreCase),
+        "A tárgyvizsgálat nem mutatja a kopott fegyver pontos tartósságát és állapotát.");
+
+    var character = CreateCharacter("Állapotjelző");
+    Assert(character.SetInventoryItem(InventorySlotKind.Weapon, 0, dagger, null, 1, wornState),
+        "A kopott tesztfegyvert nem lehetett felszerelni.");
+    var inventory = InventorySnapshotProjector.Create(character);
+    var sheet = CharacterSheetSnapshotProjector.Create(character, data.ExperienceByLevel, 0);
+    var snapshot = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
+        character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
+        character.CurrentMana, character.MaximumMana, character.FoodLevel, character.WaterLevel, character.Gold,
+        character.IsAlive, null, [], inventory, sheet, character.Color);
+    var detailsLine = CharacterDetailsWindow.Build(snapshot, data)
+        .Single(line => line.Text.Contains($"Fegyver 1: {dagger.Name}", StringComparison.Ordinal));
+    Assert(detailsLine.Text.Contains("Tartósság: 40/80 (50%)", StringComparison.Ordinal) &&
+           detailsLine.Color == ConsoleColor.Yellow,
+        "A részletes karakterinfó nem mutatja vagy nem színezi a kopott felszerelést.");
+    var compactLine = CharacterSheetPanel.Build(snapshot, 0, 0, 0)
+        .Single(line => line.Row == 18);
+    Assert(!compactLine.Text.Contains("Tartósság", StringComparison.Ordinal) &&
+           !compactLine.Text.Contains("🟡", StringComparison.Ordinal),
+        "A kompakt karakterlapra helyigényes tartósságjelzés került.");
+
+    var unidentified = new InventoryItemSnapshot(string.Empty, "❓ Azonosítatlan mágikus fegyver",
+        ItemCategory.Weapon, ItemRarity.Magic, 0, 0, Description: "erős mágikus aura",
+        IsIdentified: false, MaximumDurability: 120, DurabilityDamage: 90);
+    Assert(ItemInspectionFormatter.FormatUnidentified(unidentified).Text.Contains(
+            "Tartósság: 30/120 (25%)", StringComparison.Ordinal),
+        "Az azonosítatlan felszerelés szemmel látható fizikai állapota rejtve maradt.");
 }
 
 static void MageIdentifiesFreshMagicLoot()

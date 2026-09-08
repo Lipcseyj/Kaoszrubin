@@ -59,7 +59,11 @@ public static class CharacterDetailsWindow
         {
             var item = slot.Item!;
             var quantity = item.Quantity > 1 ? $" ×{item.Quantity}" : string.Empty;
-            lines.Add(($"  {SlotName(slot.Kind, slot.Index)}: {item.Name}{quantity}", ConsoleColor.White));
+            var durability = ItemInspectionFormatter.DurabilityText(item.MaximumDurability,
+                item.DurabilityDamage).Trim();
+            AddWrapped(lines, $"  {SlotName(slot.Kind, slot.Index)}: {item.Name}{quantity}" +
+                (durability.Length == 0 ? string.Empty : $"  |  {durability}"),
+                DurabilityColor(item.MaximumDurability, item.DurabilityDamage));
         }
         if (character.Inventory?.Slots.All(slot => slot.Item is null) != false)
             lines.Add(("  — Nincs nála tárgy.", ConsoleColor.DarkGray));
@@ -155,6 +159,15 @@ public static class CharacterDetailsWindow
         "Közepes" => ConsoleColor.Yellow,
         _ => ConsoleColor.Green
     };
+    private static ConsoleColor DurabilityColor(int maximumDurability, int durabilityDamage) =>
+        EquipmentDurabilityRules.Condition(maximumDurability, durabilityDamage) switch
+        {
+            EquipmentCondition.Broken => ConsoleColor.DarkRed,
+            EquipmentCondition.Damaged => ConsoleColor.Red,
+            EquipmentCondition.Worn => ConsoleColor.Yellow,
+            EquipmentCondition.Intact => ConsoleColor.Green,
+            _ => ConsoleColor.White
+        };
     private static string SlotName(InventorySlotKind kind, int index) => kind switch
     { InventorySlotKind.Weapon => $"Fegyver {index + 1}", InventorySlotKind.Armor => "Páncél",
       InventorySlotKind.MagicItem => $"Varázstárgy {index + 1}", _ => $"Hátizsák {index + 1}" };

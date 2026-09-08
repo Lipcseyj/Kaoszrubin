@@ -118,8 +118,8 @@ public static class WorldSnapshotProjector
                     entry.State.IsIdentified && entry.Item is Domain.Magic.MagicItemDefinition magic
                         ? magic.MaximumCharges : 0,
                     entry.State.InstanceId, entry.State.IsIdentified,
-                    entry.State.IsIdentified ? EquipmentDurabilityRules.MaximumDurability(entry.Item) : 0,
-                    entry.State.IsIdentified ? Math.Max(0, entry.State.DurabilityDamage) : 0)).ToArray(),
+                    EquipmentDurabilityRules.MaximumDurability(entry.Item),
+                    Math.Max(0, entry.State.DurabilityDamage))).ToArray(),
                 pile.Symbol.Value)).ToArray();
         var worldNpcs = maze.WorldNpcs.Concat(maze.PartyMembers
             .Where(member => member.TemporaryFollower is not null)

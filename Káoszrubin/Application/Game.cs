@@ -3828,6 +3828,8 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage(
                 $"{ItemIdentificationRules.DisplayName(item, false)} — A pontos hatás, érték és töltet ismeretlen. " +
                 $"Érzékelhető aura: {ItemIdentificationRules.AuraStrength(item)}. " +
+                ItemInspectionFormatter.DurabilityText(EquipmentDurabilityRules.MaximumDurability(item),
+                    unknownState?.DurabilityDamage ?? 0) +
                 (unknownState?.IsCurseActivated == true
                     ? "☠ Az átok aktiválódott és a tárgy a viselőjéhez kötődött. " : string.Empty) +
                 "A Vándormágus azonosíthatja.",

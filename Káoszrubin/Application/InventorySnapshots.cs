@@ -60,8 +60,8 @@ public static class InventorySnapshotProjector
                     identified ? state?.CurseStrength ?? 0 : 0,
                     state?.IsCurseActivated == true,
                     state?.IsCurseActivated == true ? state?.BoundCharacterId : null, state?.IsPurified == true,
-                    identified ? EquipmentDurabilityRules.MaximumDurability(item) : 0,
-                    identified ? Math.Max(0, state?.DurabilityDamage ?? 0) : 0)));
+                    EquipmentDurabilityRules.MaximumDurability(item),
+                    Math.Max(0, state?.DurabilityDamage ?? 0))));
             }
         }
     }
