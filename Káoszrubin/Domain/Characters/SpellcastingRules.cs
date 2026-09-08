@@ -104,7 +104,7 @@ public static class SpellcastingRules
         if (!engaged) return 0;
         var baseChance = Math.Clamp(30 - caster.EffectiveAbilities.Intelligence -
             caster.EffectiveAbilities.Dexterity, 0, 100);
-        var staffReduction = caster.ActiveWeapons.Any(weapon => WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Staff)
+        var staffReduction = caster.OperationalWeapons.Any(weapon => WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Staff)
             ? caster.WeaponProficiencyRankFor(WeaponFamilies.Staff) switch
             {
                 WeaponProficiencyRank.Master => 10,

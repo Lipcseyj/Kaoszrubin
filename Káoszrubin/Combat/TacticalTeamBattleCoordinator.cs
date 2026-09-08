@@ -114,7 +114,7 @@ public sealed class TacticalTeamBattleCoordinator
 
     public static LiveCharacter? PolearmMasterControlling(TeamBattleEncounter battle, Position position) =>
         battle.Characters.FirstOrDefault(character => character.IsAlive &&
-            character.ActiveWeapons.Any(weapon => WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Polearm) &&
+            character.OperationalWeapons.Any(weapon => WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Polearm) &&
             character.WeaponProficiencyRankFor(WeaponFamilies.Polearm) == WeaponProficiencyRank.Master &&
             TacticalDistance.IsMeleeAdjacent(battle.PositionOf(character), position));
 
@@ -165,7 +165,7 @@ public sealed class TacticalTeamBattleCoordinator
         var ownDisciplineDefense = protectedCharacter.HasTacticalDiscipline(TacticalDisciplines.Guardian) ? 1 : 0;
         var suppliedDefense = adjacent.Select(guardian =>
         {
-            var hasShield = guardian.ActiveWeapons.Any(weapon =>
+            var hasShield = guardian.OperationalWeapons.Any(weapon =>
                 WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Shield);
             var shieldDefense = !hasShield ? 0 : guardian.WeaponProficiencyRankFor(WeaponFamilies.Shield) switch
             {
@@ -177,7 +177,7 @@ public sealed class TacticalTeamBattleCoordinator
                                  battle.RuntimeFor(guardian).Context.Tactic == BattleTactic.FighterDefensive
                 ? guardian.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 2 : 1
                 : 0;
-            var swordGuard = guardian.ActiveWeapons.Any(weapon =>
+            var swordGuard = guardian.OperationalWeapons.Any(weapon =>
                                  WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Sword) &&
                              guardian.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master
                 ? 1

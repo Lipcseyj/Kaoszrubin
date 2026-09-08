@@ -36,6 +36,25 @@ public readonly record struct EquipmentWearResult(bool Changed, int MaximumDurab
 
 public static class EquipmentDurabilityRules
 {
+    public static int WeaponHitPenalty(EquipmentCondition condition) =>
+        condition == EquipmentCondition.Damaged ? 1 : 0;
+
+    public static int WeaponDamagePenalty(EquipmentCondition condition) =>
+        condition == EquipmentCondition.Damaged ? 1 : 0;
+
+    public static int DefensePercent(EquipmentCondition condition) => condition switch
+    {
+        EquipmentCondition.Broken => 0,
+        EquipmentCondition.Damaged => 50,
+        _ => 100
+    };
+
+    public static int ScaleDefense(int value, EquipmentCondition condition)
+    {
+        var scaled = value * DefensePercent(condition);
+        return scaled >= 0 ? (scaled + 99) / 100 : -((-scaled + 99) / 100);
+    }
+
     public static int MaximumDurability(IItemDefinition item) =>
         item is IDurableItemDefinition durable ? Math.Max(0, durable.MaximumDurability) : 0;
 

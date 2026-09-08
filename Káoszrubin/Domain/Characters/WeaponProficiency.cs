@@ -1,4 +1,5 @@
 using KaoszRubin.Domain.Combat;
+using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Domain.Characters;
 
@@ -77,8 +78,10 @@ public static class DualWieldingRules
     public static bool TryGetWeapons(LiveCharacter character, out WeaponDefinition? mainHand,
         out WeaponDefinition? offhand)
     {
-        mainHand = character.WeaponSlots[0];
-        offhand = character.WeaponSlots[1];
+        mainHand = character.IsInventoryItemOperational(InventorySlotKind.Weapon, 0)
+            ? character.WeaponSlots[0] : null;
+        offhand = character.IsInventoryItemOperational(InventorySlotKind.Weapon, 1)
+            ? character.WeaponSlots[1] : null;
         return offhand is not null && WeaponFamilies.ForWeapon(offhand) != WeaponFamilies.Shield &&
                CanEquipOffhand(character, mainHand, offhand);
     }

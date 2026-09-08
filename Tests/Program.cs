@@ -190,6 +190,7 @@ var tests = new (string Name, Action Run)[]
     ("A felszerelés tartóssága adatvezérelt és menthető", EquipmentDurabilityDataAndStatePersist),
     ("A tárgyvizsgálat és a részletes karakterinfó mutatja a felszerelés állapotát", EquipmentDurabilityIsVisible),
     ("A közös harci motor koptatja a használt fegyvert és a találatot fogó vértezetet", CombatAppliesEquipmentWear),
+    ("A sérült és törött felszerelés fokozatos harci hátrányt okoz", DamagedAndBrokenEquipmentAffectsCombat),
     ("A legintelligensebb élő mágus egyszer megpróbálja azonosítani a friss zsákmányt", MageIdentifiesFreshMagicLoot),
     ("Az átkozott tárgy aktiválódik, megköt és alkalmazza az adatvezérelt hátrányokat", CursedItemsActivateBindAndApplyEffects),
     ("Az Átoktörés és a Vándormágus végleg megtisztítja és feloldja a tárgyat", ItemCursePurificationIsPermanent),
@@ -2674,6 +2675,95 @@ static void CombatAppliesEquipmentWear()
     Assert(!defender.ApplyInventoryItemWear(InventorySlotKind.Weapon, 1, 100).Changed &&
            defender.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage == 0,
         "A nulla maximális tartósságú, törhetetlen felszerelés kopást kapott.");
+}
+
+static void DamagedAndBrokenEquipmentAffectsCombat()
+{
+    Assert(EquipmentDurabilityRules.WeaponHitPenalty(EquipmentCondition.Worn) == 0 &&
+           EquipmentDurabilityRules.WeaponDamagePenalty(EquipmentCondition.Damaged) == 1 &&
+           EquipmentDurabilityRules.ScaleDefense(9, EquipmentCondition.Damaged) == 5 &&
+           EquipmentDurabilityRules.ScaleDefense(-3, EquipmentCondition.Intact) == -3 &&
+           EquipmentDurabilityRules.ScaleDefense(-3, EquipmentCondition.Damaged) == -2 &&
+           EquipmentDurabilityRules.ScaleDefense(9, EquipmentCondition.Broken) == 0,
+        "A kopott, sérült vagy törött felszerelés alapvető harci módosítói hibásak.");
+
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { CharacterClassIds.Harcos };
+    var weapon = data.GetWeapon("W001") with
+    {
+        Id = "W-CONDITION-TEST", Damage = new ValueRange(5, 5), MaximumDurability = 10000,
+        AllowedClassIds = allowed
+    };
+
+    (int Damage, BattleLogEntry? DamagedEntry) AttackSeries(int durabilityDamage)
+    {
+        var character = CreateCharacter("Kopott támadó", 1000);
+        Assert(character.SetInventoryItem(InventorySlotKind.Weapon, 0, weapon, null, 1,
+                InventoryItemInstanceState.Create() with { DurabilityDamage = durabilityDamage }),
+            "Az állapotteszt fegyvere nem volt felszerelhető.");
+        var system = CreateBattleSystem(41);
+        var runtime = system.PrepareTeamCharacter(character).Runtime;
+        var enemy = CreateEnemy(100000, 1);
+        BattleLogEntry? firstHit = null;
+        for (var attack = 0; attack < 100; attack++)
+        {
+            var before = enemy.CurrentHitPoints;
+            var entry = system.ResolveTeamCharacterAttack(character, runtime, enemy, finishAction: false);
+            if (enemy.CurrentHitPoints < before && firstHit is null) firstHit = entry;
+        }
+        return (100000 - enemy.CurrentHitPoints, firstHit);
+    }
+
+    var intactAttack = AttackSeries(0);
+    var damagedAttack = AttackSeries(7500);
+    Assert(damagedAttack.Damage < intactAttack.Damage &&
+           damagedAttack.DamagedEntry?.Details?.Calculation.Any(line =>
+               line.Contains("Sérült fegyver: találat", StringComparison.Ordinal) ||
+               line.Contains("sérült fegyver -1 sebzés", StringComparison.OrdinalIgnoreCase)) == true,
+        "A sérült fegyver nem csökkentette a találati esélyt és a sebzést a közös harci motorban.");
+
+    var brokenAttacker = CreateCharacter("Töröttkezű");
+    Assert(brokenAttacker.SetInventoryItem(InventorySlotKind.Weapon, 0, weapon, null, 1,
+            InventoryItemInstanceState.Create() with { DurabilityDamage = weapon.MaximumDurability }),
+        "A törött tesztfegyvert nem lehetett felszerelve tárolni.");
+    Assert(brokenAttacker.WeaponSlots[0] == weapon && brokenAttacker.AttackWeapon is null &&
+           !brokenAttacker.IsInventoryItemOperational(InventorySlotKind.Weapon, 0),
+        "A törött fegyver eltűnt a slotból vagy továbbra is használható maradt.");
+    Assert(ItemInspectionFormatter.Format(weapon, data,
+               instanceState: brokenAttacker.GetInventoryItemState(InventorySlotKind.Weapon, 0)).Text
+            .Contains("nem használható fegyverként", StringComparison.OrdinalIgnoreCase),
+        "A tárgyvizsgálat nem magyarázza el a törött fegyver következményét.");
+
+    var armor = data.GetArmor("A001") with
+    {
+        Id = "A-CONDITION-TEST", Defense = new ValueRange(10, 10), MaximumDurability = 10000,
+        AllowedClassIds = allowed
+    };
+    int DamageReceived(int durabilityDamage)
+    {
+        var defender = CreateCharacter("Kopott védő", 100000);
+        Assert(defender.SetInventoryItem(InventorySlotKind.Armor, 0, armor, null, 1,
+                InventoryItemInstanceState.Create() with { DurabilityDamage = durabilityDamage }),
+            "Az állapotteszt páncélja nem volt felszerelhető.");
+        var enemyWeapon = weapon with { Id = "W-ENEMY-CONDITION", Damage = new ValueRange(20, 20) };
+        var enemyDefinition = CreateEnemy(1000, 5).Definition with { Weapon = enemyWeapon };
+        var enemy = new ConfiguredEnemy(new Position(1, 1), enemyDefinition);
+        var system = CreateBattleSystem(67);
+        var runtime = system.PrepareTeamCharacter(defender).Runtime;
+        for (var attack = 0; attack < 100; attack++)
+            system.ResolveTeamEnemyAction(enemy, defender, runtime, enemyWeapon);
+        return 100000 - defender.CurrentVitality;
+    }
+
+    var intactArmorDamage = DamageReceived(0);
+    var damagedArmorDamage = DamageReceived(7500);
+    var brokenArmorDamage = DamageReceived(10000);
+    Assert(intactArmorDamage < damagedArmorDamage && damagedArmorDamage < brokenArmorDamage,
+        "A sérült páncél nem fél védelemmel, vagy a törött páncél nem védelem nélkül működött.");
+    Assert(ItemInspectionFormatter.Format(armor, data,
+               instanceState: InventoryItemInstanceState.Create() with { DurabilityDamage = 7500 }).Text
+            .Contains("védelem 50%-a", StringComparison.OrdinalIgnoreCase),
+        "A tárgyvizsgálat nem magyarázza el a sérült páncél következményét.");
 }
 
 static void MageIdentifiesFreshMagicLoot()

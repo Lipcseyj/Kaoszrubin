@@ -1,5 +1,6 @@
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Combat;
+using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Combat;
 
@@ -250,9 +251,11 @@ public static class EncounterThreatEvaluator
     {
         ArgumentNullException.ThrowIfNull(character);
         if (!character.IsAlive) return 0;
-        var weapon = character.ActiveWeapons.Where(value => value?.Damage is not null)
+        var weapon = character.OperationalWeapons.Where(value => value?.Damage is not null)
             .Select(value => value!.Damage!.Maximum).DefaultIfEmpty(2).Max();
-        var armor = character.Armor?.Defense?.Maximum ?? 0;
+        var armorDefinition = character.OperationalArmor;
+        var armor = EquipmentDurabilityRules.ScaleDefense(armorDefinition?.Defense?.Maximum ?? 0,
+            character.InventoryItemCondition(InventorySlotKind.Armor, 0));
         var abilities = character.EffectiveAbilities;
         return Math.Max(1, character.CurrentVitality + weapon * 3 + armor * 2 +
                            abilities.Strength + abilities.Dexterity + character.Level * 4);

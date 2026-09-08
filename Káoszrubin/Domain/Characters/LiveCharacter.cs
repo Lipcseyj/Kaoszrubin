@@ -96,7 +96,12 @@ public sealed class LiveCharacter
     public ClassSpecializationDefinition? Specialization => ClassSpecializations.Find(SpecializationId);
     public IReadOnlyList<WeaponDefinition?> WeaponSlots => _weaponSlots;
     public IEnumerable<WeaponDefinition?> ActiveWeapons => _weaponSlots.Take(2);
-    public WeaponDefinition? AttackWeapon => ActiveWeapons.FirstOrDefault(weapon => weapon is not null && weapon.WeaponTypeId != "WT003");
+    public IEnumerable<WeaponDefinition?> OperationalWeapons => Enumerable.Range(0, 2)
+        .Select(index => IsInventoryItemOperational(InventorySlotKind.Weapon, index) ? _weaponSlots[index] : null);
+    public WeaponDefinition? AttackWeapon => OperationalWeapons.FirstOrDefault(weapon =>
+        weapon is not null && weapon.WeaponTypeId != "WT003");
+    public ArmorDefinition? OperationalArmor =>
+        IsInventoryItemOperational(InventorySlotKind.Armor, 0) ? Armor : null;
     public bool CanSwapReserveWeapon => ReserveWeaponSwapChanges() is not null;
 
     public InventorySlotChange[]? ReserveWeaponSwapChanges()
@@ -462,6 +467,20 @@ public sealed class LiveCharacter
 
     public bool IsInventoryItemIdentified(InventorySlotKind kind, int index) =>
         GetInventoryItem(kind, index) is not null && GetInventoryItemState(kind, index)?.IsIdentified != false;
+
+    public EquipmentCondition InventoryItemCondition(InventorySlotKind kind, int index)
+    {
+        var item = GetInventoryItem(kind, index);
+        var state = GetInventoryItemState(kind, index);
+        return item is null || state is null
+            ? EquipmentCondition.NotApplicable
+            : EquipmentDurabilityRules.Condition(EquipmentDurabilityRules.MaximumDurability(item),
+                state.Value.DurabilityDamage);
+    }
+
+    public bool IsInventoryItemOperational(InventorySlotKind kind, int index) =>
+        GetInventoryItem(kind, index) is not null &&
+        InventoryItemCondition(kind, index) != EquipmentCondition.Broken;
 
     public bool IdentifyInventoryItem(InventorySlotKind kind, int index)
     {

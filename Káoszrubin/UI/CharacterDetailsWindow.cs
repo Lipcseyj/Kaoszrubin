@@ -61,8 +61,14 @@ public static class CharacterDetailsWindow
             var quantity = item.Quantity > 1 ? $" ×{item.Quantity}" : string.Empty;
             var durability = ItemInspectionFormatter.DurabilityText(item.MaximumDurability,
                 item.DurabilityDamage).Trim();
+            var definition = item.DefinitionId.Length == 0 ? null :
+                data.Weapons.Cast<IItemDefinition>().Concat(data.Armors).FirstOrDefault(candidate =>
+                    string.Equals(candidate.Id, item.DefinitionId, StringComparison.OrdinalIgnoreCase));
+            var durabilityEffect = definition is null ? string.Empty :
+                ItemInspectionFormatter.DurabilityCombatEffectText(definition, item.DurabilityDamage).Trim();
             AddWrapped(lines, $"  {SlotName(slot.Kind, slot.Index)}: {item.Name}{quantity}" +
-                (durability.Length == 0 ? string.Empty : $"  |  {durability}"),
+                (durability.Length == 0 ? string.Empty : $"  |  {durability}") +
+                (durabilityEffect.Length == 0 ? string.Empty : $" {durabilityEffect}"),
                 DurabilityColor(item.MaximumDurability, item.DurabilityDamage));
         }
         if (character.Inventory?.Slots.All(slot => slot.Item is null) != false)

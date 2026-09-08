@@ -63,7 +63,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 costs.Add($"💧 szomjúság: 🔷 -{statusCosts.ManaLost} manna");
             entries.Add(new BattleLogEntry($"Csatakezdő állapothatás — {string.Join("; ", costs)}.", BattleLogKind.Information));
         }
-        var attackWeapon = player.ActiveWeapons.FirstOrDefault(item =>
+        var attackWeapon = player.OperationalWeapons.FirstOrDefault(item =>
             item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
         var initiativeFamily = WeaponFamilies.ForWeapon(attackWeapon);
         var proficiencyInitiativeBonus = initiativeFamily switch
@@ -122,7 +122,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 BattleLogKind.Information));
         }
 
-        var weapon = character.ActiveWeapons.FirstOrDefault(item =>
+        var weapon = character.OperationalWeapons.FirstOrDefault(item =>
             item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
         var family = WeaponFamilies.ForWeapon(weapon);
         var proficiencyBonus = family switch
@@ -359,7 +359,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             .Select(component =>
             {
                 var type = component.DamageType ?? DamageType.Bludgeoning;
-                var damage = Math.Max(0, component.Value - (defender.Armor?.Resistances?.Against(type) ?? 0));
+                var armorCondition = defender.InventoryItemCondition(InventorySlotKind.Armor, 0);
+                var resistance = defender.OperationalArmor?.Resistances?.Against(type) ?? 0;
+                var damage = Math.Max(0, component.Value -
+                    EquipmentDurabilityRules.ScaleDefense(resistance, armorCondition));
                 return (Type: type, Damage: damage);
             }).ToArray();
         var abilityDamage = damageComponents.Sum(component => component.Damage);
@@ -422,7 +425,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var strengthPressure = (strength + 1) / 2;
         var roll = _random.Next(1, 11);
         var resistanceRoll = _random.Next(1, 11);
-        var shieldBonus = defender.ActiveWeapons.Any(item => item?.WeaponTypeId == DefenseWeaponTypeId) ? 2 : 0;
+        var shieldBonus = defender.OperationalWeapons.Any(item => item?.WeaponTypeId == DefenseWeaponTypeId) ? 2 : 0;
         var defensiveBonus = defenderRuntime.Tactic == BattleTactic.FighterDefensive ? 2 : 0;
         var resistance = resistanceRoll + defender.EffectiveAbilities.Health + shieldBonus + defensiveBonus;
         var total = strengthPressure + roll;
@@ -770,8 +773,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         player.BreakSanctuary();
         var forcedHit = context.ShadowStepReady;
         context.ShadowStepReady = false;
-        var weapon = attackWeapon ?? player.ActiveWeapons.FirstOrDefault(item =>
-            item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
+        var weapon = attackWeapon ?? player.AttackWeapon;
+        var weaponSlot = ResolveWeaponSlot(player, weapon, attackWeaponSlotIndex);
+        if (weaponSlot >= 0 && !player.IsInventoryItemOperational(InventorySlotKind.Weapon, weaponSlot))
+        {
+            weapon = null;
+            weaponSlot = -1;
+        }
+        var weaponCondition = weaponSlot >= 0
+            ? player.InventoryItemCondition(InventorySlotKind.Weapon, weaponSlot)
+            : EquipmentCondition.NotApplicable;
+        var durabilityHitPenalty = EquipmentDurabilityRules.WeaponHitPenalty(weaponCondition);
+        var durabilityDamagePenalty = EquipmentDurabilityRules.WeaponDamagePenalty(weaponCondition);
         var blessedWeaponBonus = player.HasPerk(PerkIds.PriestBlessedWeapon) &&
                                  defender.HasTrait(EnemyTraits.Undead) ? 2 : 0;
         var invisibilityBonus = player.SpellEffectValue(ActiveSpellEffectType.Invisibility);
@@ -787,7 +800,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             strengthHitBonus, blessedWeaponBonus) + (weapon?.MagicPower ?? 0) + (retaliation ? 2 : 0) +
                        (weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0) + finisherBonus +
                        Math.Max(0, positionalHitBonus);
-        hitBonus += oathbladeBonus;
+        hitBonus += oathbladeBonus - durabilityHitPenalty;
         var hit = HitRoll(player.EffectiveAbilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
         var strengthHitText = strengthHitBonus > 0 ? $" [Erő-találat +{strengthHitBonus}]" : string.Empty;
@@ -854,6 +867,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         Modifier(player.HasStatus(CharacterStatusIds.Thirsty) ? "💧 Szomjúság: találat" : "🎯 Állapotbüntetés",
             -player.StatusHitPenalty);
         Modifier("☠ Bizonytalan kéz", -player.GetActiveCurseValue(ItemCurseEffect.HitPenalty));
+        Modifier("🛠️ Sérült fegyver: találat", -durabilityHitPenalty);
         Modifier("🎲 Mágikus fegyver (%)", weapon?.MagicPower >= 3 ? 10 : weapon?.MagicPower == 2 ? 5 : 0);
         Modifier("🎲 Halálos pontosság (%)", player.HasPerk(PerkIds.ThiefDeadlyAccuracy) ? 10 : 0);
         Modifier("🎲 Tőrmester (%)", weaponFamily == WeaponFamilies.Dagger && weaponRank == WeaponProficiencyRank.Master ? 5 : 0);
@@ -989,6 +1003,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 notes.Add($"Védekező: ×0,75 sebzés, +{(player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)} védelem");
                 break;
         }
+        if (durabilityDamagePenalty > 0)
+        {
+            damage = Math.Max(1, damage - durabilityDamagePenalty);
+            notes.Add($"🛠️ sérült fegyver -{durabilityDamagePenalty} sebzés");
+            Modifier("🛠️ Sérült fegyver: sebzés", -durabilityDamagePenalty);
+        }
         if (player.HasPerk(PerkIds.ThiefPoisoner))
         {
             var poison = Roll(new ValueRange(1, 6));
@@ -1033,7 +1053,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 : $"💥 Sebzésszorzó: ×{damageMultiplierPercent / 100d:0.##}; {multipliedDamage:0.##} → {roundedMultipliedDamage} (felfelé kerekítve)");
         calculation.Add($"🛡️ {armorText}; effektív {effectiveArmor}");
         calculation.AddRange(notes);
-        var weaponWear = ApplyWeaponWear(player, weapon, attackWeaponSlotIndex, criticalMultiplier > 1);
+        var weaponWear = ApplyWeaponWear(player, weapon, weaponSlot, criticalMultiplier > 1);
         if (weaponWear.Changed)
             calculation.Add(DurabilityCalculation("⚔️ Fegyverkopás", weapon!.Name, weaponWear));
         calculation.Add("💥 Páncél után min. 1; éhség után min. 1; majd taktika és méreg.");
@@ -1045,7 +1065,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public int EstimatePlayerHitChance(LiveCharacter player, Enemy enemy, BattleTactic tactic)
     {
         var defender = enemy.Definition with { HitPoints = enemy.CurrentHitPoints };
-        var weapon = player.ActiveWeapons.FirstOrDefault(item => item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
+        var weapon = player.AttackWeapon;
+        var weaponSlot = ResolveWeaponSlot(player, weapon, null);
+        var durabilityHitPenalty = weaponSlot < 0 ? 0 : EquipmentDurabilityRules.WeaponHitPenalty(
+            player.InventoryItemCondition(InventorySlotKind.Weapon, weaponSlot));
         var weaponEquipped = weapon is not null;
         var blessedWeaponBonus = player.HasPerk(PerkIds.PriestBlessedWeapon) &&
                                  defender.HasTrait(EnemyTraits.Undead) ? 2 : 0;
@@ -1055,7 +1078,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                     (weapon?.MagicPower ?? 0) +
                     (WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Sword &&
                      player.WeaponProficiencyRankFor(WeaponFamilies.Sword) is not null ? 1 : 0) +
-                    (UsesRodericOathblade(player, weapon) ? 1 : 0) +
+                    (UsesRodericOathblade(player, weapon) ? 1 : 0) - durabilityHitPenalty +
                     (enemy.CurrentHitPoints * 2 <= Math.Max(1, enemy.Definition.HitPoints ?? enemy.CurrentHitPoints) &&
                      player.HasTacticalDiscipline(TacticalDisciplines.Finisher) ? 2 : 0);
         var target = 11 + enemy.EffectiveSpeed;
@@ -1137,14 +1160,23 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var strengthBonus = AbilityDamageBonus(strength);
         var damageType = enemyWeapon?.DamageType ?? DamageType.Bludgeoning;
         calculation.Add($"💥 Fegyver: {enemyWeapon?.Name ?? "Puszta kéz"}; {damageType.Name()}; alapsebzés {randomDamage}; erőbónusz {strengthBonus}");
+        var armorCondition = defender.InventoryItemCondition(InventorySlotKind.Armor, 0);
         var armorRoll = RollArmor(defender);
-        var typeDefense = defender.Armor?.Resistances?.Against(damageType) ?? 0;
+        var typeDefense = EquipmentDurabilityRules.ScaleDefense(
+            defender.OperationalArmor?.Resistances?.Against(damageType) ?? 0, armorCondition);
         var armor = Math.Max(0, armorRoll + typeDefense);
         calculation.Add($"🛡️ Típusvédelem: {typeDefense:+#;-#;0}");
-        var shieldEquipped = defender.ActiveWeapons.Any(item => item?.WeaponTypeId == DefenseWeaponTypeId);
-        var shield = defender.ActiveWeapons.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } shieldRange ? Roll(shieldRange) : 0;
+        var shieldSlot = Enumerable.Range(0, 2).FirstOrDefault(index =>
+            defender.IsInventoryItemOperational(InventorySlotKind.Weapon, index) &&
+            defender.GetInventoryItem(InventorySlotKind.Weapon, index) is WeaponDefinition shieldCandidate &&
+            shieldCandidate.WeaponTypeId == DefenseWeaponTypeId, -1);
+        var shieldWeapon = shieldSlot >= 0
+            ? (WeaponDefinition)defender.GetInventoryItem(InventorySlotKind.Weapon, shieldSlot)!
+            : null;
+        var shieldEquipped = shieldWeapon is not null;
+        var shield = shieldWeapon?.Damage is { } shieldRange ? Roll(shieldRange) : 0;
         var shieldRank = defender.WeaponProficiencyRankFor(WeaponFamilies.Shield);
-        var staffEquipped = defender.ActiveWeapons.Any(item =>
+        var staffEquipped = defender.OperationalWeapons.Any(item =>
             WeaponFamilies.ForWeapon(item) == WeaponFamilies.Staff);
         var staffRank = defender.WeaponProficiencyRankFor(WeaponFamilies.Staff);
         var staffDefense = staffEquipped ? staffRank switch
@@ -1153,9 +1185,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             WeaponProficiencyRank.Trained => 1,
             _ => 0
         } : 0;
-        if (shieldRank == WeaponProficiencyRank.Master && shieldEquipped &&
-            defender.ActiveWeapons.FirstOrDefault(item => item?.WeaponTypeId == DefenseWeaponTypeId)?.Damage is { } masterShieldRange)
+        if (shieldRank == WeaponProficiencyRank.Master && shieldWeapon?.Damage is { } masterShieldRange)
             shield = Math.Max(shield, Roll(masterShieldRange));
+        if (shieldEquipped)
+            shield = EquipmentDurabilityRules.ScaleDefense(shield,
+                defender.InventoryItemCondition(InventorySlotKind.Weapon, shieldSlot));
         var evilWard = IsUnholy(attacker)
             ? defender.ActiveSpellEffects.Where(effect => effect.Type == ActiveSpellEffectType.ProtectionFromEvil).ToList()
             : [];
@@ -1173,7 +1207,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                           Math.Max(0, alliedGuardDefense) +
                           (shieldEquipped && shieldRank is not null ? 1 : 0) +
                           staffDefense +
-                          (defender.ActiveWeapons.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
+                          (defender.OperationalWeapons.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
                            defender.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master ? 1 : 0) +
                           tacticDefense - rageDefensePenalty;
         var curseDefensePenalty = defender.GetActiveCurseValue(ItemCurseEffect.DefensePenalty);
@@ -1186,7 +1220,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         Modifier("🛡️ Társi fedezet", Math.Max(0, alliedGuardDefense));
         Modifier("🛡️ Pajzsjártasság", shieldEquipped && shieldRank is not null ? 1 : 0);
         Modifier("🦯 Botjártasság", staffDefense);
-        Modifier("🛡️ Kardmester", defender.ActiveWeapons.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
+        Modifier("🛡️ Kardmester", defender.OperationalWeapons.Any(item => WeaponFamilies.ForWeapon(item) == WeaponFamilies.Sword) &&
             defender.WeaponProficiencyRankFor(WeaponFamilies.Sword) == WeaponProficiencyRank.Master ? 1 : 0);
         Modifier("🛡️ Védekező taktika", tacticDefense);
         Modifier("🛡️ Düh", -rageDefensePenalty);
@@ -1219,7 +1253,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         {
             var bonusType = group.Key;
             var bonusRaw = group.Sum(bonus => bonus.Value) * criticalMultiplier;
-            var bonusTypeDefense = defender.Armor?.Resistances?.Against(bonusType) ?? 0;
+            var bonusTypeDefense = EquipmentDurabilityRules.ScaleDefense(
+                defender.OperationalArmor?.Resistances?.Against(bonusType) ?? 0, armorCondition);
             var bonusArmor = Math.Max(0, armorRoll + bonusTypeDefense);
             var bonusDamage = Math.Max(0, ApplyDefense(bonusRaw, bonusArmor + shield + perkDefense) - reduction);
             var bonusReduction = Math.Clamp((bonusType.IsPhysical() ? physicalReduction : 0) +
@@ -1253,15 +1288,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             var armorWear = defender.ApplyInventoryItemWear(InventorySlotKind.Armor, 0, wearAmount);
             if (armorWear.Changed)
                 calculation.Add(DurabilityCalculation("🛡️ Páncélkopás", defender.Armor!.Name, armorWear));
-            var shieldSlot = Enumerable.Range(0, 2).FirstOrDefault(index =>
-                defender.GetInventoryItem(InventorySlotKind.Weapon, index) is WeaponDefinition shieldWeapon &&
-                shieldWeapon.WeaponTypeId == DefenseWeaponTypeId, -1);
             if (shieldSlot >= 0)
             {
-                var shieldItem = (WeaponDefinition)defender.GetInventoryItem(InventorySlotKind.Weapon, shieldSlot)!;
                 var shieldWear = defender.ApplyInventoryItemWear(InventorySlotKind.Weapon, shieldSlot, wearAmount);
                 if (shieldWear.Changed)
-                    calculation.Add(DurabilityCalculation("🛡️ Pajzskopás", shieldItem.Name, shieldWear));
+                    calculation.Add(DurabilityCalculation("🛡️ Pajzskopás", shieldWeapon!.Name, shieldWear));
             }
         }
         return Detailed(AttackResult.HitFor(damage,
@@ -1273,16 +1304,23 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         int? preferredSlotIndex, bool critical)
     {
         if (weapon is null) return EquipmentWearResult.None;
-        var slot = preferredSlotIndex is >= 0 and < 2 &&
+        var slot = ResolveWeaponSlot(character, weapon, preferredSlotIndex);
+        return slot < 0
+            ? EquipmentWearResult.None
+            : character.ApplyInventoryItemWear(InventorySlotKind.Weapon, slot, critical ? 2 : 1);
+    }
+
+    private static int ResolveWeaponSlot(LiveCharacter character, WeaponDefinition? weapon,
+        int? preferredSlotIndex)
+    {
+        if (weapon is null) return -1;
+        return preferredSlotIndex is >= 0 and < 2 &&
                    character.GetInventoryItem(InventorySlotKind.Weapon, preferredSlotIndex.Value) is WeaponDefinition preferred &&
                    (ReferenceEquals(preferred, weapon) || preferred == weapon)
             ? preferredSlotIndex.Value
             : Enumerable.Range(0, 2).FirstOrDefault(index =>
                 character.GetInventoryItem(InventorySlotKind.Weapon, index) is WeaponDefinition equipped &&
                 (ReferenceEquals(equipped, weapon) || equipped == weapon), -1);
-        return slot < 0
-            ? EquipmentWearResult.None
-            : character.ApplyInventoryItemWear(InventorySlotKind.Weapon, slot, critical ? 2 : 1);
     }
 
     private static string DurabilityCalculation(string label, string itemName, EquipmentWearResult wear)
@@ -1398,9 +1436,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     private int RollArmor(LiveCharacter defender)
     {
-        if (defender.Armor?.Defense is not { } range) return 0;
+        if (defender.OperationalArmor?.Defense is not { } range) return 0;
         var rolled = Roll(range);
-        return defender.HasPerk(PerkIds.KnightArmorMaster) ? Math.Max(rolled, (int)Math.Ceiling((range.Minimum + range.Maximum) / 2.0)) : rolled;
+        var defense = defender.HasPerk(PerkIds.KnightArmorMaster)
+            ? Math.Max(rolled, (int)Math.Ceiling((range.Minimum + range.Maximum) / 2.0))
+            : rolled;
+        return EquipmentDurabilityRules.ScaleDefense(defense,
+            defender.InventoryItemCondition(InventorySlotKind.Armor, 0));
     }
 
     private DamageApplicationResult ApplyEnemyDamage(LiveCharacter player, int damage, BattleRuntimeContext context)

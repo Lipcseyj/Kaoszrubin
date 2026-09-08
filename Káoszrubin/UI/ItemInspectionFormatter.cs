@@ -75,9 +75,10 @@ public static class ItemInspectionFormatter
             : instanceState is { IsPurified: true } ? " ✨ Az átkot végleg megtörték." : string.Empty;
         var durability = DurabilityText(EquipmentDurabilityRules.MaximumDurability(item),
             instanceState?.DurabilityDamage ?? 0);
+        var durabilityEffect = DurabilityCombatEffectText(item, instanceState?.DurabilityDamage ?? 0);
         return new ItemInspection($"{item.Name} [{item.Id}] — {details}. Ritkaság: {RarityName(item.Rarity)}; " +
             $"mágikus erő: {item.MagicPower}; alapár: {item.BasePrice} arany. Jellemzés: {description} " +
-            durability + mobility + curse,
+            durability + durabilityEffect + mobility + curse,
             RarityColor(item.Rarity));
     }
 
@@ -94,6 +95,17 @@ public static class ItemInspectionFormatter
             _ => "🟢 ép"
         };
         return $"Tartósság: {current}/{maximumDurability} ({percent}%) — {condition}. ";
+    }
+
+    public static string DurabilityCombatEffectText(IItemDefinition item, int durabilityDamage)
+    {
+        var maximum = EquipmentDurabilityRules.MaximumDurability(item);
+        var condition = EquipmentDurabilityRules.Condition(maximum, durabilityDamage);
+        if (condition is not (EquipmentCondition.Damaged or EquipmentCondition.Broken)) return string.Empty;
+        var defensive = item is ArmorDefinition or WeaponDefinition { WeaponTypeId: "WT003" };
+        return condition == EquipmentCondition.Broken
+            ? defensive ? "Harci hatás: nem ad védelmet. " : "Harci hatás: nem használható fegyverként. "
+            : defensive ? "Harci hatás: a védelem 50%-a. " : "Harci hatás: -1 találat és -1 sebzés. ";
     }
 
     private static string MobilityPreview(IItemDefinition item, GameDataCatalog gameData,
