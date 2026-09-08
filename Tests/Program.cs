@@ -1243,7 +1243,7 @@ static void TrapConfigurationScalesByMazeLevel()
 static void CursedLootChanceIsConfiguredPerMazeLevel()
 {
     Assert(MazeLevelConfigurations.Get(1).ItemCurseChancePercent == 8 &&
-           MazeLevelConfigurations.Get(9).ItemCurseChancePercent == 15,
+           MazeLevelConfigurations.Get(9).ItemCurseChancePercent == 30,
         "Az alapértelmezett vagy a korábbi elátkozott sírkamra-esély megváltozott.");
     Assert(MazeLevelConfigurations.Get(7).ItemCurseChancePercent == 15 &&
            MazeLevelConfigurations.Get(12).ItemCurseChancePercent == 15 &&
@@ -4389,6 +4389,21 @@ static void MonsterStrengthCreatesTacticalPressure()
            strongOutcomes.Any(outcome => outcome is MonsterStrengthContestOutcome.Stagger or
                MonsterStrengthContestOutcome.Push),
         "A 16-os szörnyerő próbája garantálttá vagy hatástalanná vált az átlagos célpont ellen.");
+
+    var resistedDetails = BattleSystem.DescribeMonsterStrengthContest("Ogre", "Harcos", braced,
+        MonsterStrengthContestOutcome.Resisted);
+    var resistedLog = BattleSystem.MonsterStrengthCombatLogMessage("Harcos",
+        MonsterStrengthContestOutcome.Resisted);
+    var staggerLog = BattleSystem.MonsterStrengthCombatLogMessage("Harcos",
+        MonsterStrengthContestOutcome.Stagger);
+    var pushLog = BattleSystem.MonsterStrengthCombatLogMessage("Harcos",
+        MonsterStrengthContestOutcome.Push);
+    Assert(resistedLog is null && resistedDetails.Summary.Any(line => line.Contains("Erőpróba")) &&
+           resistedDetails.Calculation.Any(line => line.Contains("Erőhatás")),
+        "Az ellenállt Erőpróba nem csak a csatarészletek paneljére került.");
+    Assert(staggerLog is not null && pushLog is not null &&
+           !staggerLog.Contains("Erőpróba") && !pushLog.Contains("Erőpróba"),
+        "A tényleges Erőhatás naplóbejegyzése még mindig kiírja a próba részleteit.");
 
     var character = CreateCharacter("Tántorgó", characterClassId: CharacterClassIds.Barbár);
     var enemy = CreateEnemyAt(new Position(8, 8), "E-STRENGTH");

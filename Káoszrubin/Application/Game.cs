@@ -6962,7 +6962,19 @@ public sealed class Game : ISessionCommandHandler
                 battle.RecordAttack(BattleSide.Hostile);
             if (meleeAttack && resolution.Hit && resolution.DamageDealt > 0 && target.IsAlive &&
                 battle.TryBeginStrengthContest(enemy))
-                entries.Add(ResolveMonsterStrengthPressure(battle, enemy, target));
+            {
+                var pressure = ResolveMonsterStrengthPressure(battle, enemy, target);
+                if (pressure.LogEntry is { } strengthEntry)
+                    entries.Add(strengthEntry);
+                else
+                {
+                    var attackIndex = entries.Count - 1;
+                    entries[attackIndex] = entries[attackIndex] with
+                    {
+                        Details = AppendBattleActionDetails(entries[attackIndex].Details, pressure.Details)
+                    };
+                }
+            }
             if (!target.IsAlive) ResolveTeamCharacterDefeat(battle, target);
             if (enemy.CurrentHitPoints <= 0 || entry.Kind == BattleLogKind.Information) break;
         }
@@ -7291,34 +7303,42 @@ public sealed class Game : ISessionCommandHandler
         AdvanceTeamBattleTurn(battle);
     }
 
-    private BattleLogEntry ResolveMonsterStrengthPressure(TeamBattleEncounter battle, Enemy enemy,
+    private (BattleLogEntry? LogEntry, BattleActionDetails Details) ResolveMonsterStrengthPressure(
+        TeamBattleEncounter battle, Enemy enemy,
         LiveCharacter target)
     {
         var result = _battleSystem.ResolveMonsterStrengthContest(enemy, target, battle.RuntimeFor(target));
-        var defense = $"{result.ResistanceRoll} + Egészség {result.Health}" +
-                      (result.ShieldBonus > 0 ? $" + pajzs {result.ShieldBonus}" : string.Empty) +
-                      (result.DefensiveBonus > 0 ? $" + védekező állás {result.DefensiveBonus}" : string.Empty);
-        var roll = $"Erőpróba: {enemy.Name} {result.Roll} + Erőhatás {result.StrengthPressure} " +
-                   $"(Erő {result.Strength}) = {result.Total}; " +
-                   $"{target.Name} ellenállása {defense} = {result.Resistance}.";
         if (result.Outcome == MonsterStrengthContestOutcome.Resisted)
-            return new BattleLogEntry($"💪 {roll} {target.Name} megtartja a helyét.",
-                BattleLogKind.Information);
+            return (null, BattleSystem.DescribeMonsterStrengthContest(enemy.Name, target.Name, result,
+                MonsterStrengthContestOutcome.Resisted));
 
         if (result.Outcome == MonsterStrengthContestOutcome.Push &&
             TryPushTeamBattleTarget(battle, enemy, target, out var pushedFormation))
-            return new BattleLogEntry($"💥 {roll} " + (pushedFormation
-                    ? "A csapás egy mezővel hátratolja az egész alakzatot."
-                    : $"{target.Name} egy mezővel hátralökődik."),
-                BattleLogKind.Information);
+        {
+            var details = BattleSystem.DescribeMonsterStrengthContest(enemy.Name, target.Name, result,
+                MonsterStrengthContestOutcome.Push);
+            var message = BattleSystem.MonsterStrengthCombatLogMessage(target.Name,
+                MonsterStrengthContestOutcome.Push, pushedFormation)!;
+            return (new BattleLogEntry(message, BattleLogKind.Information, details), details);
+        }
 
         battle.StaggerCharacter(target);
-        var blocked = result.Outcome == MonsterStrengthContestOutcome.Push
-            ? " Nincs hely a hátralökéshez, ezért"
-            : string.Empty;
-        return new BattleLogEntry($"💫 {roll}{blocked} {target.Name} megtántorodik, és a következő " +
-                                  "saját körében nem mozoghat.", BattleLogKind.Information);
+        var pushBlocked = result.Outcome == MonsterStrengthContestOutcome.Push;
+        var staggerDetails = BattleSystem.DescribeMonsterStrengthContest(enemy.Name, target.Name, result,
+            MonsterStrengthContestOutcome.Stagger, pushBlocked);
+        var staggerMessage = BattleSystem.MonsterStrengthCombatLogMessage(target.Name,
+            MonsterStrengthContestOutcome.Stagger, pushBlocked: pushBlocked)!;
+        return (new BattleLogEntry(staggerMessage, BattleLogKind.Information, staggerDetails), staggerDetails);
     }
+
+    private static BattleActionDetails AppendBattleActionDetails(BattleActionDetails? action,
+        BattleActionDetails additional) => action is null
+        ? additional
+        : action with
+        {
+            Summary = action.Summary.Concat(additional.Summary).ToArray(),
+            Calculation = action.Calculation.Concat(additional.Calculation).ToArray()
+        };
 
     private bool TryPushTeamBattleTarget(TeamBattleEncounter battle, Enemy enemy, LiveCharacter target,
         out bool pushedFormation)

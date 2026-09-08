@@ -432,6 +432,44 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             margin, outcome);
     }
 
+    public static BattleActionDetails DescribeMonsterStrengthContest(string attackerName, string defenderName,
+        MonsterStrengthContestResult result, MonsterStrengthContestOutcome actualOutcome, bool pushBlocked = false)
+    {
+        var defenseModifiers = new List<string>();
+        if (result.ShieldBonus > 0) defenseModifiers.Add($"pajzs {result.ShieldBonus:+#;-#;0}");
+        if (result.DefensiveBonus > 0)
+            defenseModifiers.Add($"védekező állás {result.DefensiveBonus:+#;-#;0}");
+        var modifiers = defenseModifiers.Count == 0 ? string.Empty : $" + {string.Join(" + ", defenseModifiers)}";
+        var outcome = actualOutcome switch
+        {
+            MonsterStrengthContestOutcome.Push => "LÖKÉS",
+            MonsterStrengthContestOutcome.Stagger when pushBlocked => "LÖKÉS BLOKKOLVA → MEGTÁNTORÍTÁS",
+            MonsterStrengthContestOutcome.Stagger => "MEGTÁNTORÍTÁS",
+            _ => "ELLENÁLLVA"
+        };
+        return new BattleActionDetails(Guid.NewGuid(), attackerName, defenderName,
+            [$"💪 Erőpróba: {outcome}", $"📏 Különbség: {result.Margin:+#;-#;0}"],
+            [
+                $"🎲 Támadó: d10 {result.Roll} + Erőhatás {result.StrengthPressure} = {result.Total} (Erő {result.Strength})",
+                $"🛡️ Ellenállás: d10 {result.ResistanceRoll} + Egészség {result.Health}{modifiers} = {result.Resistance}",
+                "📐 Eredmény: 1–4 megtántorítás; 5+ lökés"
+            ]);
+    }
+
+    public static string? MonsterStrengthCombatLogMessage(string defenderName,
+        MonsterStrengthContestOutcome actualOutcome, bool pushedFormation = false, bool pushBlocked = false) =>
+        actualOutcome switch
+        {
+            MonsterStrengthContestOutcome.Push when pushedFormation =>
+                "💥 A csapás egy mezővel hátratolja az egész alakzatot.",
+            MonsterStrengthContestOutcome.Push => $"💥 {defenderName} egy mezővel hátralökődik.",
+            MonsterStrengthContestOutcome.Stagger when pushBlocked =>
+                $"💫 Nincs hely a hátralökéshez, ezért {defenderName} megtántorodik, és a következő saját körében nem mozoghat.",
+            MonsterStrengthContestOutcome.Stagger =>
+                $"💫 {defenderName} megtántorodik, és a következő saját körében nem mozoghat.",
+            _ => null
+        };
+
     public BattleLogEntry ResolveTeamOpportunityAttack(Enemy attacker, LiveCharacter defender,
         TeamCharacterBattleRuntime defenderRuntime)
     {
