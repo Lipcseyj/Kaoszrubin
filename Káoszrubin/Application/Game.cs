@@ -324,7 +324,8 @@ public sealed class Game : ISessionCommandHandler
             ShowSynchronizedRest, () => _maze?.PartyMembers
                 .Where(member => member.IsTemporaryFollower)
                 .Select(member => member.Character)
-                .ToArray() ?? [], GetSpecialInnRecruitCandidates, SpecialInnRecruitAccepted);
+                .ToArray() ?? [], GetSpecialInnRecruitCandidates, SpecialInnRecruitAccepted,
+            RunHostWindow);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
         _spellExecutionService = new SpellExecutionService(gameData, _random);
@@ -2517,7 +2518,9 @@ public sealed class Game : ISessionCommandHandler
                 $"✅ Küldetés teljesítve: {quest.Title}. XP: {experienceSummary}." +
                 (itemRewards.Length > 0 ? $" 🎁 {itemRewards}" : string.Empty), ConsoleColor.Green);
             RequestCoopSnapshotPublish();
-            QuestCompletionWindow.Show(completedEntry);
+            RunHostWindow($"Küldetés teljesítve — {completedEntry.Title}",
+                $"A vezető {completedEntry.Title} küldetésének összegzését olvassa…",
+                () => QuestCompletionWindow.Show(completedEntry));
         }
         RequestCoopSnapshotPublish();
     }
@@ -3019,7 +3022,16 @@ public sealed class Game : ISessionCommandHandler
         _leaderDecisionTitle = title;
         _leaderDecisionMessage = message;
         _session.SetPhase(GameSessionPhase.Paused);
-        RequestCoopSnapshotPublish();
+        var remoteListeners = _session.CharacterControls
+            .Where(control => control.AssignedPlayerId is { } playerId &&
+                              playerId != _session.HostPlayerId &&
+                              control.ConnectionState == PlayerConnectionState.Connected)
+            .Select(control => control.CharacterId)
+            .Distinct()
+            .ToArray();
+        if (remoteListeners.Length > 0)
+            PlaySessionSound(SoundEffect.Waiting, remoteListeners);
+        ForceCoopSnapshotPublish();
         try
         {
             return action();
@@ -3029,8 +3041,16 @@ public sealed class Game : ISessionCommandHandler
             _leaderDecisionTitle = previousTitle;
             _leaderDecisionMessage = previousMessage;
             _session.SetPhase(previousPhase);
-            RequestCoopSnapshotPublish();
+            ForceCoopSnapshotPublish();
         }
+    }
+
+    private void ForceCoopSnapshotPublish()
+    {
+        MarkCoopSnapshotDirty();
+        if (_activeCoopHost is null || !_activeCoopHost.TryPublish(CreateSessionSnapshot())) return;
+        _coopSnapshotDirty = false;
+        _nextCoopSnapshotHeartbeatUtc = DateTime.UtcNow + CoopSnapshotHeartbeatInterval;
     }
 
     private void EditFormation()

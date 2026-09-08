@@ -1626,7 +1626,8 @@ public sealed class CoopGuestScreen
             ($"♛  {(!string.IsNullOrWhiteSpace(title) ? title : "Vezetői döntés")}  ♛", ConsoleColor.Yellow),
             ("", ConsoleColor.Gray),
             (message, ConsoleColor.Cyan),
-            ("", ConsoleColor.Gray)
+            ("", ConsoleColor.Gray),
+            ("❖  Várakozás a másik játékosra…  ❖", ConsoleColor.DarkCyan)
         ];
 
     private void ApplyInnUi(GuestMapCell[,] grid, SessionSnapshot snapshot, CharacterId characterId)

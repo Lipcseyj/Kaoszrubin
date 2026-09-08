@@ -51,6 +51,7 @@ internal sealed class InnController
     private readonly Func<IReadOnlyList<LiveCharacter>> _temporaryFollowers;
     private readonly Func<IReadOnlyList<LiveCharacter>> _specialRecruitCandidates;
     private readonly Action<LiveCharacter> _specialRecruitAccepted;
+    private readonly Action<string, string, Action> _runHostWindow;
 
     internal long Revision => _revision;
 
@@ -62,7 +63,8 @@ internal sealed class InnController
         Action<PartyRestSnapshot>? reportRest = null,
         Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null,
         Func<IReadOnlyList<LiveCharacter>>? specialRecruitCandidates = null,
-        Action<LiveCharacter>? specialRecruitAccepted = null)
+        Action<LiveCharacter>? specialRecruitAccepted = null,
+        Action<string, string, Action>? runHostWindow = null)
     {
         _gameData = gameData;
         _characterRoster = characterRoster;
@@ -78,6 +80,7 @@ internal sealed class InnController
         _temporaryFollowers = temporaryFollowers ?? (() => []);
         _specialRecruitCandidates = specialRecruitCandidates ?? (() => []);
         _specialRecruitAccepted = specialRecruitAccepted ?? (_ => { });
+        _runHostWindow = runHostWindow ?? ((_, _, action) => action());
     }
 
     public InnSnapshot? CreateSnapshot()
@@ -793,6 +796,13 @@ internal sealed class InnController
             _renderer.DrawDeveloperMessage($"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {totalCost - _partyLeader.Gold} hiányzik a lakomához.");
             return;
         }
+        _runHostWindow("Fogadói lakomázás", "A vezető a fogadói lakomázást intézi…",
+            () => CompleteInnFeast(perPerson, personCount, totalCost, followers));
+    }
+
+    private void CompleteInnFeast(int perPerson, int personCount, int totalCost,
+        IReadOnlyList<LiveCharacter>? followers)
+    {
         if (!_renderer.ConfirmInnFeast(perPerson, personCount, totalCost)) return;
         _partyLeader.SpendGold(totalCost);
         foreach (var c in _characterRoster.Party.Members)

@@ -1113,7 +1113,8 @@ static void GuestSeesOtherPlayersBlockingWindows()
            personalized.LeaderDecisionTitle == $"Szintlépés — {leader.Name}" &&
            personalized.LeaderDecisionMessage?.Contains(leader.Name, StringComparison.Ordinal) == true &&
            CoopGuestScreen.BuildHostWindowWaitingLines(personalized.LeaderDecisionTitle,
-               personalized.LeaderDecisionMessage).Any(line => line.Text.Contains("Szintlépés", StringComparison.Ordinal)),
+               personalized.LeaderDecisionMessage).Any(line =>
+                   line.Text == "❖  Várakozás a másik játékosra…  ❖"),
         "A más karakter szintlépési ablaka eltűnt a vendég elől várakozási értesítés nélkül.");
 }
 
