@@ -678,6 +678,14 @@ public sealed class ConsoleRenderer
         return string.IsNullOrEmpty(killerText) ? result : $"{result} {killerText}.";
     }
 
+    public static string FormatTeamBattleRetreatSummary(int cycles, int actions,
+        IEnumerable<TeamBattleKill> kills)
+    {
+        var entries = kills.ToArray();
+        return $"🏃 CSAPATHARC VISSZAVONULÁS — ⌛{cycles} 🕧{actions} " +
+               $"☠ {entries.Length} 🎖 {entries.Sum(entry => entry.AwardedExperience)} XP.";
+    }
+
     public static string FormatTeamBattleResourceSummary(IEnumerable<TeamBattleCharacterResult> results,
         int cycles)
     {

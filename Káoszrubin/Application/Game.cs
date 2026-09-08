@@ -7133,9 +7133,14 @@ public sealed class Game : ISessionCommandHandler
     private void FinishSuccessfulTeamRetreat(TeamBattleEncounter battle, int friendlySpeed, int hostileSpeed,
         string reason)
     {
+        battle.RecordCompletedFinalAction();
+        var cycles = Math.Max(1, battle.Turns.Cycle);
+        var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
+        var summary = ConsoleRenderer.FormatTeamBattleRetreatSummary(cycles, battle.ActionNumber, battle.Kills);
+        var resourceSummary = ConsoleRenderer.FormatTeamBattleResourceSummary(characterResults, cycles);
         _session.EndBattle(battle.Id);
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
-            DrainNeedsAfterTeamBattle(character, battle.Turns.Cycle);
+            DrainNeedsAfterTeamBattle(character, cycles);
         ResetTeamMovement();
         _activeTeamBattle = null;
         _isQuickTeamBattle = false;
@@ -7149,8 +7154,17 @@ public sealed class Game : ISessionCommandHandler
         var message = $"🏃 Sikeres visszavonulás: a csapat sebessége {friendlySpeed}, " +
                       $"az üldözőké {hostileSpeed}. {reason}";
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.DrawInventoryMessage(summary, ConsoleColor.DarkYellow);
+        RecordSessionActivity(SessionActivityKind.Battle, summary, ConsoleColor.DarkYellow);
+        var details = $"Eredmény: {resourceSummary}";
+        _renderer.DrawInventoryMessage(details, ConsoleColor.Cyan);
+        RecordSessionActivity(SessionActivityKind.Battle, details, ConsoleColor.Cyan);
         _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);
+        foreach (var (levelingCharacter, result) in _pendingLevelUps.ToArray())
+            ResolvePerkOffers(levelingCharacter, result);
+        _pendingLevelUps.Clear();
+        _renderer.RestoreAfterBattle();
         RequestCoopSnapshotPublish();
     }
 

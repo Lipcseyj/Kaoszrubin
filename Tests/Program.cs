@@ -4568,6 +4568,10 @@ static void TeamBattleSummaryListsResourceUse()
            "Iskra ☠ 1: 1× Óriáspatkány; Pál ☠ 1: 1× Óriáspatkány; Yorgrim ☠ 1: 1× Óriáspatkány.",
         $"Az autoharc győzelmi sora hibás: {victorySummary}");
 
+    var retreatSummary = ConsoleRenderer.FormatTeamBattleRetreatSummary(7, 17, kills);
+    Assert(retreatSummary == "🏃 CSAPATHARC VISSZAVONULÁS — ⌛7 🕧17 ☠ 3 🎖 300 XP.",
+        $"A visszavonulási összefoglaló nem jelzi a megtartott öléseket és XP-t: {retreatSummary}");
+
     var (encounter, front, _, _) = CreateFormationEncounter();
     var poisoned = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName))
         .GetStatus(CharacterStatusIds.Poisoned);
