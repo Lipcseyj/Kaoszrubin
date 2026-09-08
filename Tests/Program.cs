@@ -153,6 +153,7 @@ var tests = new (string Name, Action Run)[]
     ("A közös észlelés felfedi a lopakodót és pontatlan hangjelet ad", PartyPerceptionDetectsStealthAndSound),
     ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
     ("A csapdakészlet és darabszám a labirintusszinttel nehezedik", TrapConfigurationScalesByMazeLevel),
+    ("A mentés visszaállítja a szörny alatt fekvő csapdát", SavedTrapCanShareEnemyPosition),
     ("A tárgyátok esélye pályánként konfigurálható", CursedLootChanceIsConfiguredPerMazeLevel),
     ("A karakter kasztja, faja és átmeneti hatásai módosítják a látótávot", CharacterVisionRangeUsesClassRaceAndEffects),
     ("A szörnyek látótávja CSV-ből érkezik", EnemyVisionRangesLoadFromCsv),
@@ -1242,6 +1243,47 @@ static void TrapConfigurationScalesByMazeLevel()
     Assert(first.VisionModifier == 0 && MazeLevelConfigurations.Get(5).VisionModifier == -1 &&
            MazeLevelConfigurations.Get(9).VisionModifier == -2,
         "Az extra sötét pályák látótávmódosítója hibás.");
+}
+
+static void SavedTrapCanShareEnemyPosition()
+{
+    const int size = 7;
+    var overlap = new Position(3, 2);
+    var entrance = new Position(2, 2);
+    var exit = new Position(5, 5);
+    var tiles = Enumerable.Repeat(Maze.Wall.Value, size * size).ToList();
+    void SetTile(Position position, Rune tile) => tiles[position.Y * size + position.X] = tile.Value;
+    SetTile(entrance, Maze.Floor);
+    SetTile(overlap, Maze.Floor);
+    SetTile(exit, Maze.Floor);
+
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var character = CreateCharacter("Betöltő");
+    var roster = new CharacterRoster();
+    roster.Add(character);
+    roster.Select(character);
+    var enemy = data.Enemies[0];
+    var trap = data.Traps[0];
+    var state = new GameSaveData
+    {
+        MazeLevel = 1,
+        PlayerPosition = entrance,
+        Maze = new MazeSaveData
+        {
+            Width = size,
+            Height = size,
+            WallCodePoint = Maze.Wall.Value,
+            TileCodePoints = tiles,
+            Exit = exit,
+            Enemies = [new EnemySaveData(overlap, enemy.Id, enemy.HitPoints ?? 1)],
+            Traps = [new TrapSaveData(overlap, trap.Id, TrapState.Hidden, false, 0)]
+        }
+    };
+
+    var restored = new GameStateMapper(data, roster, character).Restore(state);
+    Assert(restored.Maze.GetEnemyAt(overlap) is not null &&
+           restored.Maze.GetTrapAt(overlap)?.Definition.Id == trap.Id,
+        "A betöltés nem őrizte meg az egy mezőn álló szörnyet és csapdát.");
 }
 
 static void CursedLootChanceIsConfiguredPerMazeLevel()

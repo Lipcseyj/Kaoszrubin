@@ -129,6 +129,11 @@ internal sealed class GameStateMapper
         foreach (var door in state.Maze.Doors) maze.PlaceDoor(door.Position, door.State);
         maze.PlaceExit(state.Maze.Exit);
         foreach (var chest in state.Maze.Chests) maze.AddTreasureChest(new TreasureChest(chest.Position, chest.GoldAmount));
+        // A mozgó szereplők, tetemek és földi tárgyak játék közben szabályosan kerülhetnek csapdára.
+        // Ezért a csapdákat még ezek előtt állítjuk vissza; a fal-, ajtó-, kijárat- és ládaellenőrzés megmarad.
+        foreach (var trap in state.Maze.Traps)
+            maze.AddTrap(new MazeTrap(trap.Position, _gameData.GetTrap(trap.DefinitionId), trap.State,
+                trap.DetectionAttempted, trap.FailedDisarmAttempts));
 
         var nextEnemyMoves = new Dictionary<Enemy, DateTime>();
         foreach (var savedEnemy in state.Maze.Enemies)
@@ -184,10 +189,6 @@ internal sealed class GameStateMapper
                     item.CurseId, item.CurseEffect, item.CurseValue, item.CurseStrength,
                     item.IsCurseActivated, item.BoundCharacterId is { } ownerId ? CharacterId.From(ownerId) : null,
                     item.IsPurified, Math.Max(0, item.DurabilityDamage)));
-        foreach (var trap in state.Maze.Traps)
-            maze.AddTrap(new MazeTrap(trap.Position, _gameData.GetTrap(trap.DefinitionId), trap.State,
-                trap.DetectionAttempted, trap.FailedDisarmAttempts));
-
         var player = new Player(state.PlayerPosition, _selectedCharacter);
         var fogOfWar = new FogOfWar(maze.Width, maze.Height, VisionRange);
 #if DEBUG
