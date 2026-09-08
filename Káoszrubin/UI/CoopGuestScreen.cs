@@ -1393,8 +1393,6 @@ public sealed class CoopGuestScreen
                 door.BackgroundColor);
         foreach (var memory in world.LastKnownEnemies ?? [])
             Put(grid, memory.Position, "?", memory.IsSoundCue ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray);
-        foreach (var enemy in world.Enemies)
-            Put(grid, enemy.Position, char.ConvertFromUtf32(enemy.SymbolCodePoint), enemy.Color);
         foreach (var chest in world.Chests)
             Put(grid, chest.Position, char.ConvertFromUtf32(chest.SymbolCodePoint), chest.ForegroundColor,
                 chest.BackgroundColor);
@@ -1407,6 +1405,9 @@ public sealed class CoopGuestScreen
         foreach (var npc in world.Npcs ?? [])
             Put(grid, npc.Position, char.ConvertFromUtf32(npc.SymbolCodePoint), npc.ForegroundColor,
                 npc.BackgroundColor);
+        // Az élő ellenfél mindig a mezőn fekvő tetemek és tárgyak fölött látszik.
+        foreach (var enemy in world.Enemies)
+            Put(grid, enemy.Position, char.ConvertFromUtf32(enemy.SymbolCodePoint), enemy.Color);
         foreach (var character in snapshot.Party.Where(character => character.Position is not null))
             Put(grid, character.Position!.Value, CharacterSheetPanel.CharacterClassGlyph(character.CharacterClassId),
                 character.Color);

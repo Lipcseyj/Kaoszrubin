@@ -3143,20 +3143,19 @@ public sealed class ConsoleRenderer
             return fogOfWar.EnemyMemoryAt(position) is { IsSoundCue: true }
                 ? new MapCellVisual(new Rune('?'), ConsoleColor.DarkYellow, ConsoleColor.Black)
                 : new MapCellVisual(FogSymbol, ConsoleColor.Black, ConsoleColor.Black);
+        if (maze.GetPartyMemberAt(position) is { } partyMember)
+            return new MapCellVisual(partyMember.Symbol, partyMember.ForegroundColor, partyMember.BackgroundColor);
+        if (maze.GetEnemyAt(position) is { } visibleEnemy &&
+            fogOfWar.IsEnemyVisible(visibleEnemy.Id, visibleEnemy.Position))
+            return new MapCellVisual(visibleEnemy.Symbol, GetEnemyColor(visibleEnemy), ConsoleColor.Black);
         if (maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap)
             return new MapCellVisual(trap.Symbol, trap.State == TrapState.Detected
                 ? ConsoleColor.Yellow : ConsoleColor.DarkGray, ConsoleColor.Black);
         if (maze.GetWorldNpcAt(position) is { } npc)
             return new MapCellVisual(npc.Symbol, ConsoleColor.White, npc.Character.Color);
-        var mapObject = maze.GetObjectAt(position);
-        if (mapObject is PartyMemberAvatar partyMember)
-            return new MapCellVisual(partyMember.Symbol, partyMember.ForegroundColor, partyMember.BackgroundColor);
-        if (mapObject is Enemy enemy && !fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position))
-            return fogOfWar.EnemyMemoryAt(position) is { } hiddenMemory
-                ? new MapCellVisual(new Rune('?'), hiddenMemory.IsSoundCue ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray,
-                    ConsoleColor.Black)
-                : new MapCellVisual(maze.Tiles[position.X, position.Y], GetTerrainForegroundColor(maze, position),
-                    ConsoleColor.Black);
+        WorldObject? mapObject = maze.GetTreasureChestAt(position) as WorldObject ??
+                                 maze.GetCorpseAt(position) as WorldObject ??
+                                 maze.GetGroundItemPileAt(position);
         if (mapObject is null && fogOfWar.EnemyMemoryAt(position) is { } memory)
             return new MapCellVisual(new Rune('?'), memory.IsSoundCue ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray,
                 ConsoleColor.Black);
@@ -3226,15 +3225,7 @@ public sealed class ConsoleRenderer
             return trap.State == TrapState.Detected ? ConsoleColor.Yellow : ConsoleColor.DarkGray;
         var mapObject = maze.GetObjectAt(position);
         if (mapObject is TreasureChest) return ConsoleColor.Yellow;
-        if (mapObject is Enemy enemy) return enemy.Definition.StrengthTier switch
-        {
-            1 => ConsoleColor.Green,
-            2 => ConsoleColor.Yellow,
-            3 => ConsoleColor.DarkYellow,
-            4 => ConsoleColor.Red,
-            5 => ConsoleColor.Magenta,
-            _ => ConsoleColor.Gray
-        };
+        if (mapObject is Enemy enemy) return GetEnemyColor(enemy);
         if (mapObject is Corpse) return ConsoleColor.DarkRed;
         if (mapObject is GroundItemPile) return ConsoleColor.Cyan;
         if (mapObject is PartyMemberAvatar partyMember) return partyMember.Character.Color;
@@ -3255,6 +3246,16 @@ public sealed class ConsoleRenderer
             _ => ConsoleColor.Black
         };
     }
+
+    private static ConsoleColor GetEnemyColor(Enemy enemy) => enemy.Definition.StrengthTier switch
+    {
+        1 => ConsoleColor.Green,
+        2 => ConsoleColor.Yellow,
+        3 => ConsoleColor.DarkYellow,
+        4 => ConsoleColor.Red,
+        5 => ConsoleColor.Magenta,
+        _ => ConsoleColor.Gray
+    };
 
     private static ConsoleColor GetTerrainForegroundColor(Maze maze, Position position) =>
         maze.Tiles[position.X, position.Y] switch
