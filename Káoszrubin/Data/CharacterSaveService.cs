@@ -263,7 +263,7 @@ public sealed class CharacterSaveService
     private static ItemInstanceSaveData? SaveItemState(InventoryItemInstanceState? state) => state is { } value
         ? new ItemInstanceSaveData(value.InstanceId, value.IsIdentified, value.CurseId, value.CurseEffect,
             value.CurseValue, value.CurseStrength, value.IsCurseActivated, value.BoundCharacterId?.Value,
-            value.IsPurified)
+            value.IsPurified, value.DurabilityDamage)
         : null;
 
     private static InventoryItemInstanceState RestoreItemState(ItemInstanceSaveData? state) => state is null
@@ -271,7 +271,8 @@ public sealed class CharacterSaveService
         : new InventoryItemInstanceState(state.InstanceId == Guid.Empty ? Guid.NewGuid() : state.InstanceId,
             state.IsIdentified, state.CurseId, state.CurseEffect, state.CurseValue, state.CurseStrength,
             state.IsCurseActivated,
-            state.BoundCharacterId is { } ownerId ? CharacterId.From(ownerId) : null, state.IsPurified);
+            state.BoundCharacterId is { } ownerId ? CharacterId.From(ownerId) : null, state.IsPurified,
+            Math.Max(0, state.DurabilityDamage));
 
     private List<SpellDefinition> DefaultLegacySpells(LiveCharacter character)
     {
@@ -363,7 +364,8 @@ public sealed class CharacterSaveService
         int Quantity = 1, ItemInstanceSaveData? State = null);
     private sealed record ItemInstanceSaveData(Guid InstanceId, bool IsIdentified, string? CurseId = null,
         ItemCurseEffect CurseEffect = ItemCurseEffect.None, int CurseValue = 0, int CurseStrength = 0,
-        bool IsCurseActivated = false, Guid? BoundCharacterId = null, bool IsPurified = false);
+        bool IsCurseActivated = false, Guid? BoundCharacterId = null, bool IsPurified = false,
+        int DurabilityDamage = 0);
     private sealed record StatusSaveData(string Id, int? RemainingActivations);
     private sealed record WeaponProficiencySaveData(string FamilyId, int Rank);
     private sealed record MonsterKillSaveData(string EnemyDefinitionId, int Count);

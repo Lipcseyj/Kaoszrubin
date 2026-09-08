@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 20;
+    public const int CurrentVersion = 21;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -130,6 +130,7 @@ public static class GameSaveFormat
                 17 => MigrateVersion17To18(state),
                 18 => MigrateVersion18To19(state),
                 19 => MigrateVersion19To20(state),
+                20 => MigrateVersion20To21(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -272,6 +273,14 @@ public static class GameSaveFormat
         state.Version = 20;
         return state;
     }
+
+    private static GameSaveData MigrateVersion20To21(GameSaveData state)
+    {
+        // A 21-es formátum a felszereléspéldányok kopását őrzi. A hiányzó érték nulla,
+        // ezért minden korábbi mentés fegyvere és páncélja teljesen ép marad.
+        state.Version = 21;
+        return state;
+    }
 }
 
 public sealed record LoadedGameSave(string Path, CharacterRoster Roster, GameSaveData State);
@@ -393,4 +402,5 @@ public sealed record TrapSaveData(Position Position, string DefinitionId, TrapSt
 public sealed record SavedItemReference(string Category, string Id, int Charges = 0,
     Guid? InstanceId = null, bool? IsIdentified = null, string? CurseId = null,
     ItemCurseEffect CurseEffect = ItemCurseEffect.None, int CurseValue = 0, int CurseStrength = 0,
-    bool IsCurseActivated = false, Guid? BoundCharacterId = null, bool IsPurified = false);
+    bool IsCurseActivated = false, Guid? BoundCharacterId = null, bool IsPurified = false,
+    int DurabilityDamage = 0);

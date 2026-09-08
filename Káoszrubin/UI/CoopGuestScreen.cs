@@ -1222,7 +1222,8 @@ public sealed class CoopGuestScreen
                         new InventoryItemInstanceState(inspectSlot.Item.InstanceId, inspectSlot.Item.IsIdentified,
                             inspectSlot.Item.CurseId, inspectSlot.Item.CurseEffect, inspectSlot.Item.CurseValue,
                             inspectSlot.Item.CurseStrength, inspectSlot.Item.IsCurseActivated,
-                            inspectSlot.Item.BoundCharacterId, inspectSlot.Item.IsPurified));
+                            inspectSlot.Item.BoundCharacterId, inspectSlot.Item.IsPurified,
+                            inspectSlot.Item.DurabilityDamage));
                     SetMessage(inspection.Text, inspection.Color);
                 }
                 break;

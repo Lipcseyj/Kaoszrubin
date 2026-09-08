@@ -70,7 +70,7 @@ internal sealed class GameStateMapper
                     entry.Charges, entry.State.InstanceId, entry.State.IsIdentified, entry.State.CurseId,
                     entry.State.CurseEffect, entry.State.CurseValue, entry.State.CurseStrength,
                     entry.State.IsCurseActivated, entry.State.BoundCharacterId?.Value,
-                    entry.State.IsPurified)).ToList())).ToList(),
+                    entry.State.IsPurified, entry.State.DurabilityDamage)).ToList())).ToList(),
             Traps = maze.Traps.Select(trap => new TrapSaveData(trap.Position, trap.Definition.Id, trap.State,
                 trap.DetectionAttempted, trap.FailedDisarmAttempts)).ToList()
         };
@@ -183,7 +183,7 @@ internal sealed class GameStateMapper
                 new InventoryItemInstanceState(item.InstanceId ?? Guid.NewGuid(), item.IsIdentified ?? true,
                     item.CurseId, item.CurseEffect, item.CurseValue, item.CurseStrength,
                     item.IsCurseActivated, item.BoundCharacterId is { } ownerId ? CharacterId.From(ownerId) : null,
-                    item.IsPurified));
+                    item.IsPurified, Math.Max(0, item.DurabilityDamage)));
         foreach (var trap in state.Maze.Traps)
             maze.AddTrap(new MazeTrap(trap.Position, _gameData.GetTrap(trap.DefinitionId), trap.State,
                 trap.DetectionAttempted, trap.FailedDisarmAttempts));

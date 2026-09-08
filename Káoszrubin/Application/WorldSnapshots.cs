@@ -1,5 +1,6 @@
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Combat;
+using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Application;
 
@@ -37,7 +38,8 @@ public sealed record WorldGroundPileSnapshot(WorldEntityId EntityId, Position Po
     ConsoleColor ForegroundColor = ConsoleColor.Cyan, ConsoleColor BackgroundColor = ConsoleColor.Black);
 
 public sealed record WorldItemSnapshot(string Category, string DefinitionId, string Name, int Charges,
-    int MaximumCharges, Guid InstanceId = default, bool IsIdentified = true);
+    int MaximumCharges, Guid InstanceId = default, bool IsIdentified = true,
+    int MaximumDurability = 0, int DurabilityDamage = 0);
 
 public sealed record WorldNpcSnapshot(WorldEntityId EntityId, string DefinitionId, string Name,
     Position Position, string Disposition, bool Recruitable, bool IsQuestNpc, int SymbolCodePoint,
@@ -115,7 +117,9 @@ public static class WorldSnapshotProjector
                     entry.State.IsIdentified ? entry.Charges : 0,
                     entry.State.IsIdentified && entry.Item is Domain.Magic.MagicItemDefinition magic
                         ? magic.MaximumCharges : 0,
-                    entry.State.InstanceId, entry.State.IsIdentified)).ToArray(),
+                    entry.State.InstanceId, entry.State.IsIdentified,
+                    entry.State.IsIdentified ? EquipmentDurabilityRules.MaximumDurability(entry.Item) : 0,
+                    entry.State.IsIdentified ? Math.Max(0, entry.State.DurabilityDamage) : 0)).ToArray(),
                 pile.Symbol.Value)).ToArray();
         var worldNpcs = maze.WorldNpcs.Concat(maze.PartyMembers
             .Where(member => member.TemporaryFollower is not null)

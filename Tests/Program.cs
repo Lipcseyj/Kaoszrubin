@@ -187,6 +187,7 @@ var tests = new (string Name, Action Run)[]
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
     ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("Az azonosítatlan varázstárgy példányállapota mentés és mozgatás közben megmarad", MagicItemIdentificationStatePersists),
+    ("A felszerelés tartóssága adatvezérelt és menthető", EquipmentDurabilityDataAndStatePersist),
     ("A legintelligensebb élő mágus egyszer megpróbálja azonosítani a friss zsákmányt", MageIdentifiesFreshMagicLoot),
     ("Az átkozott tárgy aktiválódik, megköt és alkalmazza az adatvezérelt hátrányokat", CursedItemsActivateBindAndApplyEffects),
     ("Az Átoktörés és a Vándormágus végleg megtisztítja és feloldja a tárgyat", ItemCursePurificationIsPermanent),
@@ -2518,6 +2519,50 @@ static void MagicItemIdentificationStatePersists()
            revealed.Name.StartsWith(item.Name, StringComparison.Ordinal) &&
            revealed.CurseId == curse.Id && revealed.InstanceId == instanceId,
         "Az azonosítás nem fedte fel a valódi tárgyat vagy lecserélte a példányazonosítót.");
+}
+
+static void EquipmentDurabilityDataAndStatePersist()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var dagger = data.GetWeapon("W001");
+    var greatsword = data.GetWeapon("W009");
+    var naturalWeapon = data.GetWeapon("WN001");
+    var clothArmor = data.GetArmor("A001");
+    var plateArmor = data.GetArmor("A006");
+    Assert(dagger.MaximumDurability == 80 && greatsword.MaximumDurability == 120 &&
+           naturalWeapon.MaximumDurability == 0 && clothArmor.MaximumDurability == 90 &&
+           plateArmor.MaximumDurability == 150,
+        "A felszerelések alap-tartóssága nem a súlyuk és típusuk szerinti adatból érkezik.");
+    Assert(data.GetWeapon("LW014").MaximumDurability == 0,
+        "A soha meg nem repedő Tölgykirály pajzsa kopó tárggyá vált.");
+
+    var original = InventoryItemInstanceState.Create();
+    var worn = EquipmentDurabilityRules.ApplyWear(dagger, original, 35);
+    var broken = EquipmentDurabilityRules.ApplyWear(dagger, worn, 1000);
+    var repaired = EquipmentDurabilityRules.Repair(dagger, broken, 20);
+    Assert(worn.DurabilityDamage == 35 && EquipmentDurabilityRules.CurrentDurability(dagger, worn) == 45 &&
+           broken.DurabilityDamage == dagger.MaximumDurability &&
+           EquipmentDurabilityRules.CurrentDurability(dagger, broken) == 0 &&
+           EquipmentDurabilityRules.CurrentDurability(dagger, repaired) == 20,
+        "A kopás, törés vagy javítás nem marad a tartóssági határok között.");
+    Assert(EquipmentDurabilityRules.ApplyWear(naturalWeapon, original, 10) == original,
+        "A természetes szörnyfegyver példánykopást kapott.");
+
+    var character = CreateCharacter("Kopásteszt");
+    Assert(character.SetInventoryItem(InventorySlotKind.Weapon, 0, dagger, null, 1, worn),
+        "A kopott tesztfegyvert nem lehetett felszerelni.");
+    var saves = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-durability-save.json"), data);
+    var restored = saves.DeserializeCharacter(saves.SerializeCharacter(character));
+    var restoredState = restored.GetInventoryItemState(InventorySlotKind.Weapon, 0);
+    Assert(restoredState?.DurabilityDamage == 35 &&
+           InventorySnapshotProjector.Create(restored).Slots.Single(slot =>
+               slot.Kind == InventorySlotKind.Weapon && slot.Index == 0).Item is
+               { MaximumDurability: 80, DurabilityDamage: 35 },
+        "A fegyver kopása nem élte túl a mentési vagy coop-pillanatkép körutat.");
+
+    var legacy = GameSaveFormat.MigrateToCurrent(new GameSaveData { Version = 20 });
+    Assert(legacy.Version == GameSaveFormat.CurrentVersion,
+        "A kopás előtti játékmentés nem migrálódott az aktuális formátumra.");
 }
 
 static void MageIdentifiesFreshMagicLoot()

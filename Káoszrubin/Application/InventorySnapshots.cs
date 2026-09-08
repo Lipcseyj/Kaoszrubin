@@ -17,7 +17,7 @@ public sealed record InventoryItemSnapshot(string DefinitionId, string Name, Ite
     Guid InstanceId = default, bool IsIdentified = true, int UnidentifiedSellPrice = 0,
     string? CurseId = null, ItemCurseEffect CurseEffect = ItemCurseEffect.None, int CurseValue = 0,
     int CurseStrength = 0, bool IsCurseActivated = false, CharacterId? BoundCharacterId = null,
-    bool IsPurified = false);
+    bool IsPurified = false, int MaximumDurability = 0, int DurabilityDamage = 0);
 
 public static class InventorySnapshotProjector
 {
@@ -59,7 +59,9 @@ public static class InventorySnapshotProjector
                     identified ? state?.CurseValue ?? 0 : 0,
                     identified ? state?.CurseStrength ?? 0 : 0,
                     state?.IsCurseActivated == true,
-                    state?.IsCurseActivated == true ? state?.BoundCharacterId : null, state?.IsPurified == true)));
+                    state?.IsCurseActivated == true ? state?.BoundCharacterId : null, state?.IsPurified == true,
+                    identified ? EquipmentDurabilityRules.MaximumDurability(item) : 0,
+                    identified ? Math.Max(0, state?.DurabilityDamage ?? 0) : 0)));
             }
         }
     }

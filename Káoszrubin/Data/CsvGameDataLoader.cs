@@ -335,7 +335,8 @@ public static class CsvGameDataLoader
                         (CharacterClassIds.Tolvaj, 6), (CharacterClassIds.Pap, 7), (CharacterClassIds.Mágus, 8)),
                     Cell(cells, 9), NonNegativeWeaponPrice(cells, 10, id), ParseRarity(cells, 11),
                     EmptyAsNull(Cell(cells, 12)), Integer(cells, 13) ?? 0,
-                    PositiveWeight(cells, 14, id, "fegyver"), ParseDamageType(Cell(cells, 15)), WeaponMaximumTargets(cells), IsYes(cells, 17), EmptyAsNull(Cell(cells, 18))));
+                    PositiveWeight(cells, 14, id, "fegyver"), ParseDamageType(Cell(cells, 15)), WeaponMaximumTargets(cells), IsYes(cells, 17), EmptyAsNull(Cell(cells, 18)),
+                    WeaponMaximumDurability(cells, id)));
                 break;
             case DataSection.Armors:
                 armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),
@@ -344,7 +345,8 @@ public static class CsvGameDataLoader
                     ParseRarity(cells, 9), EmptyAsNull(Cell(cells, 10)), Integer(cells, 11) ?? 0,
                     PositiveWeight(cells, 12, id, "páncél"), new DamageResistance(Integer(cells, 13) ?? 0,
                         Integer(cells, 14) ?? 0, Integer(cells, 15) ?? 0, Integer(cells, 16) ?? 0,
-                        Integer(cells, 17) ?? 0, Integer(cells, 18) ?? 0, Integer(cells, 19) ?? 0)));
+                        Integer(cells, 17) ?? 0, Integer(cells, 18) ?? 0, Integer(cells, 19) ?? 0),
+                    ArmorMaximumDurability(cells, id)));
                 break;
             case DataSection.Abilities:
                 abilities.Add(new AbilityDefinition(id, name));
@@ -589,6 +591,39 @@ public static class CsvGameDataLoader
             ? weight
             : throw new InvalidOperationException($"A(z) '{id}' {itemType} súlya pozitív szám legyen.");
     }
+
+    private static int WeaponMaximumDurability(string[] cells, string id)
+    {
+        if (Integer(cells, 19) is { } configured)
+        {
+            if (configured < 0)
+                throw new InvalidOperationException($"A(z) '{id}' fegyver tartóssága nem lehet negatív.");
+            return configured;
+        }
+        if (string.Equals(Cell(cells, 18), "NATURAL", StringComparison.OrdinalIgnoreCase) ||
+            Integer(cells, 10) == 0) return 0;
+        var baseDurability = string.Equals(Cell(cells, 18), "SHIELD", StringComparison.OrdinalIgnoreCase) ||
+                             IsYes(cells, 5)
+            ? 120
+            : (Double(cells, 14) ?? 1) <= 1 ? 80 : 100;
+        return WithMagicDurabilityBonus(baseDurability, ParseRarity(cells, 11));
+    }
+
+    private static int ArmorMaximumDurability(string[] cells, string id)
+    {
+        if (Integer(cells, 20) is { } configured)
+        {
+            if (configured < 0)
+                throw new InvalidOperationException($"A(z) '{id}' páncél tartóssága nem lehet negatív.");
+            return configured;
+        }
+        var weight = Double(cells, 12) ?? 1;
+        var baseDurability = weight <= 3 ? 90 : weight <= 9 ? 120 : 150;
+        return WithMagicDurabilityBonus(baseDurability, ParseRarity(cells, 9));
+    }
+
+    private static int WithMagicDurabilityBonus(int durability, ItemRarity rarity) =>
+        rarity == ItemRarity.Normal ? durability : (int)Math.Ceiling(durability * 1.25);
 
     private static int RequiredWeaponStrength(string[] cells, int index, string id) =>
         Integer(cells, index) is >= 1 and <= 13 and var strength
@@ -1215,7 +1250,8 @@ public static class CsvGameDataLoader
                 BasePrice = Math.Max(1, (int)Math.Ceiling(weapon.BasePrice * upgrade.PriceMultiplier) + (500 * upgrade.MagicPower)),
                 Rarity = ItemRarity.Magic,
                 BaseWeaponId = weapon.Id,
-                MagicPower = upgrade.MagicPower
+                MagicPower = upgrade.MagicPower,
+                MaximumDurability = WithMagicDurabilityBonus(weapon.MaximumDurability, ItemRarity.Magic)
             });
         return result;
     }
@@ -1236,7 +1272,8 @@ public static class CsvGameDataLoader
                     (armor.Id is "A001" or "A002" ? upgrade.MagicPower * 500 : 500)),
                 Rarity = ItemRarity.Magic,
                 BaseArmorId = armor.Id,
-                MagicPower = upgrade.MagicPower
+                MagicPower = upgrade.MagicPower,
+                MaximumDurability = WithMagicDurabilityBonus(armor.MaximumDurability, ItemRarity.Magic)
             });
         return result;
     }

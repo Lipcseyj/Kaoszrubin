@@ -622,6 +622,8 @@ public sealed class LiveCharacter
         InventoryItemInstanceState? state = item is null
             ? null
             : change.State ?? InventoryItemInstanceState.Create();
+        if (item is not null && state is { } itemState)
+            state = EquipmentDurabilityRules.Normalize(item, itemState);
         if (item is not null && state is { HasCurse: true, IsCurseActivated: false } cursed &&
             IsActiveEquipmentSlot(kind, index))
             state = cursed with { IsCurseActivated = true, BoundCharacterId = Id };

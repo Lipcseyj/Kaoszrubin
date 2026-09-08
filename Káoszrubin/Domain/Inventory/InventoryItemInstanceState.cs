@@ -8,12 +8,49 @@ namespace KaoszRubin.Domain.Inventory;
 public readonly record struct InventoryItemInstanceState(Guid InstanceId, bool IsIdentified,
     string? CurseId = null, ItemCurseEffect CurseEffect = ItemCurseEffect.None, int CurseValue = 0,
     int CurseStrength = 0, bool IsCurseActivated = false, CharacterId? BoundCharacterId = null,
-    bool IsPurified = false)
+    bool IsPurified = false, int DurabilityDamage = 0)
 {
     public static InventoryItemInstanceState Create(bool identified = true) => new(Guid.NewGuid(), identified);
 
     public bool HasCurse => !IsPurified && !string.IsNullOrWhiteSpace(CurseId) &&
                             CurseEffect != ItemCurseEffect.None && CurseValue > 0;
+}
+
+public static class EquipmentDurabilityRules
+{
+    public static int MaximumDurability(IItemDefinition item) =>
+        item is IDurableItemDefinition durable ? Math.Max(0, durable.MaximumDurability) : 0;
+
+    public static int CurrentDurability(IItemDefinition item, InventoryItemInstanceState state) =>
+        Math.Max(0, MaximumDurability(item) - Math.Max(0, state.DurabilityDamage));
+
+    public static InventoryItemInstanceState Normalize(IItemDefinition item, InventoryItemInstanceState state)
+    {
+        var maximum = MaximumDurability(item);
+        return state with { DurabilityDamage = Math.Clamp(state.DurabilityDamage, 0, maximum) };
+    }
+
+    public static InventoryItemInstanceState ApplyWear(IItemDefinition item, InventoryItemInstanceState state,
+        int amount)
+    {
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        var maximum = MaximumDurability(item);
+        return maximum == 0 ? state : state with
+        {
+            DurabilityDamage = Math.Clamp(state.DurabilityDamage + amount, 0, maximum)
+        };
+    }
+
+    public static InventoryItemInstanceState Repair(IItemDefinition item, InventoryItemInstanceState state,
+        int amount)
+    {
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        var maximum = MaximumDurability(item);
+        return maximum == 0 ? state : state with
+        {
+            DurabilityDamage = Math.Clamp(state.DurabilityDamage - amount, 0, maximum)
+        };
+    }
 }
 
 public static class ItemIdentificationRules

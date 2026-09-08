@@ -13,6 +13,11 @@ public interface IItemDefinition : IGameDefinition
     double Weight { get; }
 }
 
+public interface IDurableItemDefinition : IItemDefinition
+{
+    int MaximumDurability { get; }
+}
+
 public enum ItemCategory { Weapon, Armor, MagicItem, Miscellaneous }
 public enum ItemRarity { Normal, Magic, Legendary }
 public enum InventorySlotKind { Weapon, Armor, MagicItem, Backpack }

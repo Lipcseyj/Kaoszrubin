@@ -1189,7 +1189,8 @@ public sealed class ConsoleRenderer
     private static InventoryItemSnapshot ToInventoryItemSnapshot(IItemDefinition item) => new(item.Id, item.Name,
         item.Category, item.Rarity, item is MagicItemDefinition magic ? magic.MaximumCharges : 0,
         item is MagicItemDefinition magicItem ? magicItem.MaximumCharges : 0,
-        item is WeaponDefinition { IsTwoHanded: true }, item.Description, item.BasePrice, item.MagicPower);
+        item is WeaponDefinition { IsTwoHanded: true }, item.Description, item.BasePrice, item.MagicPower,
+        MaximumDurability: EquipmentDurabilityRules.MaximumDurability(item));
 
     public void DrawWanderingMageMenu(LiveCharacter leader, IReadOnlyList<(string Label, string Description)> options,
         int selectedIndex, string message)
