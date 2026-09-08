@@ -158,7 +158,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         var names = _gameData.GetCharacterNames(characterClassId);
         var unused = names.Where(candidate => !usedNames.Contains(candidate.Name, StringComparer.OrdinalIgnoreCase)).ToList();
         var candidates = unused.Count > 0 ? unused : names;
-        if (candidates.Count == 0) throw new InvalidOperationException("A véletlen karakter osztályához nincs név az adatok.csv fájlban.");
+        if (candidates.Count == 0) throw new InvalidOperationException("A véletlen karakter osztályához nincs név az adatfájlban.");
         return candidates[_random.Next(candidates.Count)].Name;
     }
 

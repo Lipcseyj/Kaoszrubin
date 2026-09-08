@@ -1753,7 +1753,7 @@ public sealed class CoopGuestScreen
             _acknowledgedLevelImageId == image.ImageId) return;
 
         _acknowledgedLevelImageId = image.ImageId;
-        var path = Path.Combine(AppContext.BaseDirectory, "Kepek", image.FileName);
+        var path = Path.Combine(AppContext.BaseDirectory, "Pictures", image.FileName);
         if (!ImageViewer.Show(path))
             SetMessage($"Pályakép még nem található: {image.FileName}", ConsoleColor.Yellow);
         try

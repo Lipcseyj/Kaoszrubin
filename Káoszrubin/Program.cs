@@ -12,7 +12,7 @@ Console.InputEncoding = Encoding.UTF8;
 
 Console.ForegroundColor = ConsoleColor.Magenta;
 
-var dataPath = Path.Combine(AppContext.BaseDirectory, "adatok.csv");
+var dataPath = Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName);
 var gameData = CsvGameDataLoader.Load(dataPath);
 var savePath = Path.Combine(AppContext.BaseDirectory, "karakterek.json");
 var gameSaveDirectory = Path.Combine(AppContext.BaseDirectory, "mentések");

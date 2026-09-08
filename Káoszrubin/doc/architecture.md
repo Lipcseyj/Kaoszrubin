@@ -19,7 +19,7 @@ A két rögzített osztályszett magasabb szintű, véletlenül generált karakt
 
 ## Áttekintés
 
-A Káoszrubin egy .NET 10 konzolos, egyjátékos labirintusjáték. Az alkalmazás adatvezérelt: a fajok, osztályok, ellenfelek, felszerelések, varázslatok és fejlődési küszöbök az `adatok.csv` fájlból töltődnek be. A karakterlista JSON-fájlban, a teljes futamok pedig időbélyeges `.save` állományokban maradnak meg.
+A Káoszrubin egy .NET 10 konzolos, egyjátékos labirintusjáték. Az alkalmazás adatvezérelt: a fajok, osztályok, ellenfelek, felszerelések, varázslatok és fejlődési küszöbök az `game-data.csv` fájlból töltődnek be. A karakterlista JSON-fájlban, a teljes futamok pedig időbélyeges `.save` állományokban maradnak meg.
 
 ### Halottűzés
 
@@ -53,7 +53,7 @@ A megoldás fő felelősségi területei:
 
 ```text
 Program
-  ├─ CsvGameDataLoader ── adatok.csv ──> GameDataCatalog
+  ├─ CsvGameDataLoader ── game-data.csv ──> GameDataCatalog
   └─ MainMenu
        ├─ CharacterSaveService <──> karakterek.json
        ├─ GameSaveService <──> mentések/*.save
@@ -69,7 +69,7 @@ Program
 Az indítás menete:
 
 1. A `Program.cs` UTF-8 konzolkódolást állít be.
-2. Az alkalmazás kimeneti könyvtárából betölti az `adatok.csv` fájlt.
+2. Az alkalmazás kimeneti könyvtárából betölti az `game-data.csv` fájlt.
 3. A `CsvGameDataLoader` létrehozza a `GameDataCatalog` katalógust.
 4. A `MainMenu` betölti a `karakterek.json` állományt, ha létezik.
 5. A felhasználó karaktert készíthet, választhat vagy törölhet, illetve játékot indíthat.
@@ -111,7 +111,7 @@ Az indítás menete:
 - `Domain/Inventory`: általános tárgyfelület és hétköznapi tárgyak.
 - `Domain/Magic`: varázstárgyak és varázslatok.
 
-A `Definition` végű típusok az `adatok.csv` tartalmát képviselik. A `LiveCharacter` ezzel szemben változó futásidejű állapot: HP, manna, szükségletek, arany, XP, szint, felszerelés, hátizsák, valamint az ismert és memorizált varázslatok.
+A `Definition` végű típusok az `game-data.csv` tartalmát képviselik. A `LiveCharacter` ezzel szemben változó futásidejű állapot: HP, manna, szükségletek, arany, XP, szint, felszerelés, hátizsák, valamint az ismert és memorizált varázslatok.
 
 ### `UI`: menük
 
@@ -153,7 +153,7 @@ A `Definition` végű típusok az `adatok.csv` tartalmát képviselik. A `LiveCh
 - A leader és a távoli játékos által vezérelt partitag tényleges harca ugyanazt a léptethető, host-authoritatív `BattleState`-et használja; az aktív `BattleId`/`TurnId` a `Game` felől megfigyelhető. A harc játékosakciónál visszatér a fő játékhurokba, a session globális `Battle` fázisa pedig a teljes világot megállítja. `BattlePromptEvent` jelzi az adott körben engedélyezett akciókat, és kizárólag a harcoló karakter tulajdonosa válaszolhat rá. A fegyveres támadás, a varázslat és a halottűzés ugyanazon a validált command queue-n érkezik vissza. A kliens nem küldhet dobás- vagy sebzéseredményt: a jogosultságot, célpontot, erőforrás-felhasználást és véletlent a host ellenőrzi és számolja. Automatikus támogatói akciót csak NPC-karakter végez, másik emberi avatár nem. Ha a harcoló vendég kapcsolata megszakad, az AI fegyveres támadásokkal befejezi a csatát, így a globális szünet nem ragadhat bent. A fogadó egyelőre csak explicit session-fázist jelez.
 - A `Game.CreateSessionSnapshot()` a futó host állapotából elkészíti a transport által közvetlenül publikálható session- és world read modelt. Host módban a fő ciklus csak akkor és legfeljebb 10 Hz-cel készít snapshotot, ha van csatlakozott vendég. A world projekció csak a `FogOfWar` szerint ténylegesen felfedett adatokat adja át. A publisher minden csatlakozott játékosnak átadja a teljes valódi party karakterlap- és inventory-read modeljét a közös hátizsákkezeléshez; a karakterhez kötött varázsopciók és promptok továbbra is csak a tulajdonoshoz kerülnek. A protokoll 3-as verziójában a `CharacterSheetSnapshot` a tulajdonságokat, XP-t, tehetségneveket, állapotikonokat és megjelenítési metaadatokat is hordozza; minden party-tag külön publikus karakterszínt kap a helyes térképi kasztbetű színezéséhez. A host és a vendég ugyanazt a `CharacterSheetPanel` sorelrendezést és `GameInputBindings` keymapet használja: `Tab` vált fókuszt, inventoryban `Enter` használ, `D` eldob, `Space` mozgat, `F` köteget felez, `S` elfogyasztható köteget oszt szét és `I` vizsgál. A bal/jobb nyíl a valódi party és a követők lapjai között vált; követőinventory nem módosítható. Az `N/Z/K` karakterhez kötött `CharacterActionCommand`, ezért a vendég saját pozícióján nyit, zár és keres; a `P/G/H/M` és a kijárati `Enter` leader-only marad. Minden inventoryművelet revízióhoz kötött, fázisváltáskor pedig a fókusz bezár. A vendég render fingerprintje figyelmen kívül hagyja a puszta replikációs sorszámváltozást, így a 10 Hz-es host-publikálás nem okoz folyamatos teljes újrarajzolást. A szimulációs szálon elutasított commandok címzetten visszajutnak hozzá. Távoli vereségnél a karakter tetemmé válik, a session feloldja a vezérlését, a vendég pedig megfigyelő módban marad. A vendég jelenlegi harci felülete csak fegyveres támadást és halottűzést kínál; a távoli varázslatcélzás és a szintlépési választások tulajdonoshoz irányítása a következő UI/protokoll-lépés.
 
-## Adatmodell és `adatok.csv`
+## Adatmodell és `game-data.csv`
 
 A CSV `#` karakterrel kezdődő szekciókból áll. A betöltő az ékezeteket és kis-/nagybetűket figyelmen kívül hagyva azonosítja a szekcióneveket. A jelenlegi szekciók:
 
@@ -179,7 +179,7 @@ A sorok közötti kapcsolatok szöveges azonosítókon alapulnak, például `C00
 
 A `#Base XP pálya végén` szekció egyetlen nemnegatív egész számot tartalmaz. A `GameDataCatalog.BaseLevelCompletionExperience` kötelező értékként kapja meg; hiánya vagy negatív értéke betöltési hibát okoz.
 
-Az `adatok.csv` a projektfájl beállítása miatt fordításkor a kimeneti könyvtárba másolódik. A program futáskor ezt a másolatot olvassa, nem feltétlenül a forráskönyvtárban lévő fájlt.
+Az `game-data.csv` a projektfájl beállítása miatt fordításkor a kimeneti könyvtárba másolódik. A program futáskor ezt a másolatot olvassa, nem feltétlenül a forráskönyvtárban lévő fájlt.
 
 ## Karakter létrehozása és fejlődése
 
@@ -189,7 +189,7 @@ A karakternév 1–13 karakter hosszú lehet. A korábbi mentésekből érkező 
 
 Minden `LiveCharacter` tartós `ConsoleColor` tulajdonsággal rendelkezik. Kézi karaktergeneráláskor a játékos egy jól látható színpalettáról választ; gyorsindításkor és fejlesztői társgeneráláskor a szín véletlen. Régi mentéseknél az alapértelmezés cián.
 
-Az `adatok.csv` `#Karakternevek` szekciója osztályonként 20 `CharacterNameDefinition` rekordot tartalmaz. A gyorsindítás az elkészült karakter tényleges osztályának névkészletéből választ, és előnyben részesíti a karakterlistában még nem használt neveket. Ha egy osztály mind a 20 neve foglalt, az ismétlődés megengedett. A definíciók nem játékos karakterek későbbi elnevezésére is újrahasználhatók.
+Az `game-data.csv` `#Karakternevek` szekciója osztályonként 20 `CharacterNameDefinition` rekordot tartalmaz. A gyorsindítás az elkészült karakter tényleges osztályának névkészletéből választ, és előnyben részesíti a karakterlistában még nem használt neveket. Ha egy osztály mind a 20 neve foglalt, az ismétlődés megengedett. A definíciók nem játékos karakterek későbbi elnevezésére is újrahasználhatók.
 
 Csak olyan osztály választható, amelynek minden CSV-ben megadott képességminimumát teljesíti a karakter. A maximális HP és manna képlete:
 
@@ -212,11 +212,11 @@ ceil(CSV XP-küszöb × osztály XP-módosító)
 
 Egy XP-jóváírás egyszerre több szintlépést is eredményezhet.
 
-Minden elért új szinthez külön HP- és – mannát használó osztálynál – mannadobás tartozik. A dobás zárt tartományát az `adatok.csv` `#Szintlépés életerő növekedés`, illetve `#Szintlépés manna növekedés` szekciója adja meg az Egészség és az Intelligencia alapján. A növekmény egyszerre emeli a maximális és az aktuális erőforrást, tehát a szintlépés részleges feltöltést is jelent. Több egyszerre elért szint minden bónusza külön kisorsolódik és összeadódik.
+Minden elért új szinthez külön HP- és – mannát használó osztálynál – mannadobás tartozik. A dobás zárt tartományát az `game-data.csv` `#Szintlépés életerő növekedés`, illetve `#Szintlépés manna növekedés` szekciója adja meg az Egészség és az Intelligencia alapján. A növekmény egyszerre emeli a maximális és az aktuális erőforrást, tehát a szintlépés részleges feltöltést is jelent. Több egyszerre elért szint minden bónusza külön kisorsolódik és összeadódik.
 
 ### Tehetségek
 
-Minden osztályhoz hat `PerkDefinition` tartozik az `adatok.csv` `#Tehetségek` szekciójában. A mezők: stabil azonosító, név, leírás, osztályazonosító és fokozat. A hat tehetség három egymást kizáró párt alkot; fokozatonként pontosan két definíció szükséges.
+Minden osztályhoz hat `PerkDefinition` tartozik az `game-data.csv` `#Tehetségek` szekciójában. A mezők: stabil azonosító, név, leírás, osztályazonosító és fokozat. A hat tehetség három egymást kizáró párt alkot; fokozatonként pontosan két definíció szükséges.
 
 A tehetségablakok az 5., 15. és 25. szint körüli ±2 szint:
 
@@ -279,7 +279,7 @@ A Pap Feltámadás tehetségének „naponta egyszer” korlátját a jelenlegi 
 
 ### Karakterállapotok
 
-Az állapotok az `adatok.csv` `#Állapotok` szekciójának `StatusDefinition` rekordjai. A CSV állapotonként tárolja az emojit, időtartamot, körsebzést, támadó- és kezdeményezésbüntetést, maximum-erőforrás és regeneráció százalékokat, csatakezdő veszteségeket és a nulla szükségletszint szorzóját. Hibás sebzéstartomány, százalék vagy üres emoji betöltési hibát okoz.
+Az állapotok az `game-data.csv` `#Állapotok` szekciójának `StatusDefinition` rekordjai. A CSV állapotonként tárolja az emojit, időtartamot, körsebzést, támadó- és kezdeményezésbüntetést, maximum-erőforrás és regeneráció százalékokat, csatakezdő veszteségeket és a nulla szükségletszint szorzóját. Hibás sebzéstartomány, százalék vagy üres emoji betöltési hibát okoz.
 
 | Állapot | Aktív hatás |
 |---|---|
@@ -529,7 +529,7 @@ is megőrzi. Tehát egy félig elhasznált pálca mozgatással vagy mentés-viss
 
 ### Varázslatdefiníciók és szintek
 
-A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív alap-mannaköltséget, leírást és célzási metaadatokat tartalmaz. Az `adatok.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`, `Célzás`, `Hatótáv`, `Terület`, `Látóvonal`, `HasználatiMód`. A célzás típusa `Self`, `Party`, `PartyMember`, `Enemy`, `Corpse`, `Cell`, `Area` vagy `Direction`; a használati mód `Exploration`, `Combat` vagy `Both`. Mindkét iskola mannaköltsége és leírása a tényleges CSV-s hatásokhoz van hangolva.
+A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív alap-mannaköltséget, leírást és célzási metaadatokat tartalmaz. Az `game-data.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`, `Célzás`, `Hatótáv`, `Terület`, `Látóvonal`, `HasználatiMód`. A célzás típusa `Self`, `Party`, `PartyMember`, `Enemy`, `Corpse`, `Cell`, `Area` vagy `Direction`; a használati mód `Exploration`, `Combat` vagy `Both`. Mindkét iskola mannaköltsége és leírása a tényleges CSV-s hatásokhoz van hangolva.
 
 Mindkét iskolában pontosan 20 varázslat található, szintenként pontosan négy:
 
@@ -666,7 +666,7 @@ Jutalmazás után a parti a fogadóban pihen: kizárólag a túlélők aktuális
 
 ### Fogadói kereskedés
 
-Minden `IItemDefinition` pozitív `BasePrice` alapárral rendelkezik, amely közvetlenül az `adatok.csv` megfelelő sorából származik. Hiányzó, nulla vagy negatív ár betöltési hibát okoz. Az árskála az egyszerű ellátmány néhány aranyas tartományától az alapfegyvereken és vérteken át a több tízezer aranyas legendás felszerelésekig terjed; a legerősebb legendás gyűrűk és amulettek szintén ritka és drága fogadói ajánlatok.
+Minden `IItemDefinition` pozitív `BasePrice` alapárral rendelkezik, amely közvetlenül az `game-data.csv` megfelelő sorából származik. Hiányzó, nulla vagy negatív ár betöltési hibát okoz. Az árskála az egyszerű ellátmány néhány aranyas tartományától az alapfegyvereken és vérteken át a több tízezer aranyas legendás felszerelésekig terjed; a legerősebb legendás gyűrűk és amulettek szintén ritka és drága fogadói ajánlatok.
 
 A fogadó minden látogatáskor új, véletlen piacot készít. A kereskedő normál és mágikus tárgyainak eladási ára 80% eséllyel az alapár 105–150%-a, 20% eséllyel kedvezményes 85–100%. A parti tárgyaiért jóval kevesebbet, az alapár véletlen 40–70%-át kínálja. Az ajánlatok az adott fogadólátogatás teljes ideje alatt stabilak, ezért a nézetváltással nem dobhatók újra; a visszavásárlási ár mindig alacsonyabb a lehetséges eladási árnál.
 
@@ -731,7 +731,7 @@ A kampány zárópályája a 21. szint, „A Káoszrubin rejtekhelye”. A 20. s
 
 ## Szörnyek erőssége és képességei
 
-Az `adatok.csv` `#Ellenségek` szekciója tetszőleges számú, `|` jellel elválasztott `KépességIds` értéket és külön `Jellemzők` mezőt tárol. A jelenlegi jellemzők az `Undead`, `Demonic` és `Flying`; ezek nem foglalnak képességhelyet. A betöltő hibát jelez tartományon kívüli erősségnél, ismeretlen képességnél vagy jellemzőnél. Az erősség nem módosítja automatikusan a statisztikákat: a HP, Erő, Páncél, Gyorsaság és XP továbbra is külön hangolható.
+Az `game-data.csv` `#Ellenségek` szekciója tetszőleges számú, `|` jellel elválasztott `KépességIds` értéket és külön `Jellemzők` mezőt tárol. A jelenlegi jellemzők az `Undead`, `Demonic` és `Flying`; ezek nem foglalnak képességhelyet. A betöltő hibát jelez tartományon kívüli erősségnél, ismeretlen képességnél vagy jellemzőnél. Az erősség nem módosítja automatikusan a statisztikákat: a HP, Erő, Páncél, Gyorsaság és XP továbbra is külön hangolható.
 
 A térképi szörnyrúnák erősség szerinti színe:
 
@@ -850,7 +850,7 @@ célérték     = 11 + védekező sebességi képessége
 találat      = támadóérték >= célérték
 ```
 
-A játékos sebességi képessége az Ügyesség, az ellenfélé a Gyorsaság. A Harcos, Barbár és Lovag fegyveres támadásához az Erő további találati bónuszt ad: 7–9 Erőnél +1, 10–12-nél +2, 13-nál +3. A szabály nem keménykódolt kasztlista: az `adatok.csv` `#Erő találati bónusz` szekciója osztályonként külön `MinimumErő` és `Bónusz` küszöbsorokat tárol, így a jogosult osztályok és a görbe külön-külön hangolhatók. Mindig a karakter Erőértékét nem meghaladó legmagasabb küszöb érvényesül; a napló csak a tényleges, nem nulla `Erő-találat` bónuszt mutatja.
+A játékos sebességi képessége az Ügyesség, az ellenfélé a Gyorsaság. A Harcos, Barbár és Lovag fegyveres támadásához az Erő további találati bónuszt ad: 7–9 Erőnél +1, 10–12-nél +2, 13-nál +3. A szabály nem keménykódolt kasztlista: az `game-data.csv` `#Erő találati bónusz` szekciója osztályonként külön `MinimumErő` és `Bónusz` küszöbsorokat tárol, így a jogosult osztályok és a görbe külön-külön hangolhatók. Mindig a karakter Erőértékét nem meghaladó legmagasabb küszöb érvényesül; a napló csak a tényleges, nem nulla `Erő-találat` bónuszt mutatja.
 
 Sikertelen próba esetén nincs sebzés. A természetes 20 a játékos és az ellenfél számára is automatikus, kritikus találat; a tolvaj Halálos pontosság tehetsége természetes 18–20 között teszi kritikussá a támadást.
 
@@ -951,7 +951,7 @@ Fontos állapotélettartamok:
 
 ## Bővítési irányelvek
 
-- Új statikus tartalmat lehetőleg az `adatok.csv` és egy megfelelő `Definition` típus bővítésével adjunk hozzá.
+- Új statikus tartalmat lehetőleg az `game-data.csv` és egy megfelelő `Definition` típus bővítésével adjunk hozzá.
 - Új CSV-szekcióhoz a `DataSection`, a `ParseSection`, az `AddDefinition` és a `GameDataCatalog` összehangolt módosítása szükséges.
 - Új labirintusszint-hangolás elsődleges helye a `MazeLevelConfigurations`.
 - Új harci szabály a `BattleSystem` felelőssége; a renderer csak a kapott harci eseményt jelenítse meg.
@@ -1006,14 +1006,14 @@ Röviden: új hagyományos tárgynál többnyire elég a CSV; új szörnynél a 
 
 ### Ha a csv-ben áthelyezek egy fejezetet máshová, be fog töltődni?
 
-Igen. Az adatok.csv teljes szekciói sorrendtől függetlenül betöltődnek, mert a hivatkozások ellenőrzése csak a teljes fájl beolvasása után történik.
+Igen. Az game-data.csv teljes szekciói sorrendtől függetlenül betöltődnek, mert a hivatkozások ellenőrzése csak a teljes fájl beolvasása után történik.
 Feltételek:
 - A szekció fejlécét is mozgasd, például #Fegyverek.
 - A hozzá tartozó oszlopfejléc és minden adatsor maradjon alatta.
 - Ne kerüljön közéjük másik #Szekció, mert attól kezdve a sorok már ahhoz tartoznak.
 - Az azonosítók maradjanak egyediek, a hivatkozások pedig létezzenek.
 - A CSV-mezők sorrendjét ne változtasd meg önmagában.
-Fontos: a játék a futási mappába másolt adatok.csv-t olvassa. Módosítás után újra kell fordítani vagy kézzel frissíteni például a bin/Debug/net10.0/adatok.csv fájlt. Ha a régi bináris mellett régi másolat marad, a változás nem látszik.
+Fontos: a játék a futási mappába másolt game-data.csv-t olvassa. Módosítás után újra kell fordítani vagy kézzel frissíteni például a bin/Debug/net10.0/game-data.csv fájlt. Ha a régi bináris mellett régi másolat marad, a változás nem látszik.
 
 ### Ha beszúrok egy pályát, mondjuk 6.-nak mire kell figyelnem hogy minden rendben legyen?
 
@@ -1032,7 +1032,7 @@ A [MazeLevelConfiguration.cs](C:\\Dev\\Kaoszrubin\\Káoszrubin\\MazeLevelConfigu
   - aranymennyiségét;
   - szobai és folyosói ellenfeleit;
   - ellenfelek mozgásprofilját.
-Az ellenfél-ID-knak létezniük kell az adatok.csv-ben.
+Az ellenfél-ID-knak létezniük kell az game-data.csv-ben.
 2. Csapdák
 A csapdák automatikusan a Level alapján járnak, de a beszúrás megváltoztatja a kategóriahatárokat:
 - 1–2: alap
@@ -1043,7 +1043,7 @@ A csapdák automatikusan a Level alapján járnak, de a beszúrás megváltoztat
 - 18-tól: káosz
 Dönteni kell, hogy ezek kampánypozíciók vagy nehézségi szintek. Beszúrás után például a régi 6. pálya már a 7–9-es csapdakészletet kapná. Ha ezt nem akarod, a határokat is eggyel el kell tolni.
 3. Pályakép
-A kép kerüljön a Káoszrubin\Kepek könyvtárba. A fájlnév a pályanévből automatikusan készül:
+A kép kerüljön a Káoszrubin\Pictures könyvtárba. A fájlnév a pályanévből automatikusan készül:
 - kisbetűs;
 - ékezet nélküli;
 - szóköz és írásjel nélkül;
@@ -1065,7 +1065,7 @@ Ezért a régi 6–21. pályák eggyel erősebb gazdasági és jutalmazási sáv
 Ha az új pályán:
 - nincs boss: a tizenkét kulcsos történet változatlan maradhat;
 - már ismert boss szerepel: ugyanazért a boss-ID-ért másodszor nem jár kulcs;
-- új boss kerül be: az adatok.csv bossjelölése és a MonsterIds.Bosses készlet miatt már 13 kulcs lehet szükséges.
+- új boss kerül be: az game-data.csv bossjelölése és a MonsterIds.Bosses készlet miatt már 13 kulcs lehet szükséges.
 Az utóbbi esetben át kell írni a „tizenkét kulcs”, „tizenkét zár” és kapcsolódó történeti szövegeket is. Ha meg akarjuk tartani a tizenkét kulcsot, az új pálya főellenfele ne legyen kulcsot adó boss.
 6. Mentések kompatibilitása
 Ez a legfontosabb veszély. A mentés jelenleg sorszámmal tárolja a pályaszintet. Egy régi mentésben szereplő MazeLevel = 6 az új verzióban már az újonnan beszúrt pályát jelentené.
