@@ -63,30 +63,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 costs.Add($"💧 szomjúság: 🔷 -{statusCosts.ManaLost} manna");
             entries.Add(new BattleLogEntry($"Csatakezdő állapothatás — {string.Join("; ", costs)}.", BattleLogKind.Information));
         }
-        var attackWeapon = player.OperationalWeapons.FirstOrDefault(item =>
-            item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
-        var initiativeFamily = WeaponFamilies.ForWeapon(attackWeapon);
-        var proficiencyInitiativeBonus = initiativeFamily switch
-        {
-            WeaponFamilies.Dagger when player.WeaponProficiencyRankFor(initiativeFamily) is not null => 2,
-            WeaponFamilies.Polearm when player.WeaponProficiencyRankFor(initiativeFamily) is not null => 3,
-            _ => 0
-        };
-        var perkInitiativeBonus = player.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
-        var magicInitiativeBonus = player.GetMagicItemBonus(MagicItemEffect.Initiative);
-        var spellInitiativeBonus = player.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus);
-        var mobility = CharacterMobilityRules.Evaluate(player);
-        var initiativeBonus = perkInitiativeBonus + magicInitiativeBonus + spellInitiativeBonus + proficiencyInitiativeBonus;
-        var playerInitiative = RollInitiative(mobility.InitiativeBase + initiativeBonus - player.StatusInitiativePenalty);
+        var initiative = RollCharacterInitiative(player, includeTacticalDiscipline: false);
+        var mobility = initiative.Mobility;
+        var playerInitiative = initiative.Roll;
         var enemyInitiativeBonus = MonsterAbilityValue(defender, MonsterAbilityEffect.InitiativeBonus);
         var enemyInitiative = RollInitiative(enemy.EffectiveSpeed + enemyInitiativeBonus);
         var playerAttacks = playerInitiative.Total >= enemyInitiative.Total;
         var initiativeNotes = new List<string>();
-        if (perkInitiativeBonus > 0) initiativeNotes.Add($"Első csapás +{perkInitiativeBonus}");
-        if (magicInitiativeBonus > 0) initiativeNotes.Add($"varázstárgy +{magicInitiativeBonus}");
-        if (spellInitiativeBonus > 0) initiativeNotes.Add($"áldás +{spellInitiativeBonus}");
-        if (proficiencyInitiativeBonus > 0)
-            initiativeNotes.Add($"{WeaponFamilies.Find(initiativeFamily!)!.Icon} jártasság +{proficiencyInitiativeBonus}");
+        if (initiative.PerkBonus > 0) initiativeNotes.Add($"Első csapás +{initiative.PerkBonus}");
+        if (initiative.MagicItemBonus > 0) initiativeNotes.Add($"varázstárgy +{initiative.MagicItemBonus}");
+        if (initiative.SpellBonus > 0) initiativeNotes.Add($"áldás +{initiative.SpellBonus}");
+        if (initiative.ProficiencyBonus > 0)
+            initiativeNotes.Add($"{WeaponFamilies.Find(initiative.WeaponFamily!)!.Icon} jártasság +{initiative.ProficiencyBonus}");
         var perkText = initiativeNotes.Count > 0 ? $" [{string.Join(", ", initiativeNotes)}]" : string.Empty;
         var loadText = mobility.EncumbranceInitiativePenalty > 0
             ? $" - felszerelés {mobility.EncumbranceInitiativePenalty} ({mobility.EquippedWeight}/{mobility.CombatCarryingCapacity:0.##})"
@@ -122,6 +110,17 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 BattleLogKind.Information));
         }
 
+        var initiative = RollCharacterInitiative(character, includeTacticalDiscipline: true);
+        entries.Add(new BattleLogEntry(
+            $"⚡ {character.Name} kezdeményezése: {initiative.TotalBase} {initiative.Roll.ModifierText} = {initiative.Roll.Total}." +
+            (initiative.DisciplineBonus > 0 ? $" [🏃 Portyázó +{initiative.DisciplineBonus}]" : string.Empty),
+            BattleLogKind.Information));
+        return new TeamCombatantPreparation(runtime, initiative.Roll.Total, entries);
+    }
+
+    private CharacterInitiativeRoll RollCharacterInitiative(LiveCharacter character,
+        bool includeTacticalDiscipline)
+    {
         var weapon = character.OperationalWeapons.FirstOrDefault(item =>
             item is not null && item.WeaponTypeId != DefenseWeaponTypeId);
         var family = WeaponFamilies.ForWeapon(weapon);
@@ -133,17 +132,14 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         };
         var mobility = CharacterMobilityRules.Evaluate(character);
         var perkBonus = character.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
-        var disciplineBonus = character.HasTacticalDiscipline(TacticalDisciplines.Skirmisher) ? 2 : 0;
+        var disciplineBonus = includeTacticalDiscipline &&
+                              character.HasTacticalDiscipline(TacticalDisciplines.Skirmisher) ? 2 : 0;
+        var magicItemBonus = character.GetMagicItemBonus(MagicItemEffect.Initiative);
+        var spellBonus = character.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus);
         var totalBase = mobility.InitiativeBase + perkBonus + proficiencyBonus + disciplineBonus +
-                        character.GetMagicItemBonus(MagicItemEffect.Initiative) +
-                        character.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus) -
-                        character.StatusInitiativePenalty;
-        var roll = RollInitiative(totalBase);
-        entries.Add(new BattleLogEntry(
-            $"⚡ {character.Name} kezdeményezése: {totalBase} {roll.ModifierText} = {roll.Total}." +
-            (disciplineBonus > 0 ? " [🏃 Portyázó +2]" : string.Empty),
-            BattleLogKind.Information));
-        return new TeamCombatantPreparation(runtime, roll.Total, entries);
+                        magicItemBonus + spellBonus - character.StatusInitiativePenalty;
+        return new CharacterInitiativeRoll(mobility, family, perkBonus, proficiencyBonus, disciplineBonus,
+            magicItemBonus, spellBonus, totalBase, RollInitiative(totalBase));
     }
 
     public int RollTeamEnemyInitiative(Enemy enemy)
@@ -1552,6 +1548,17 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     {
         public static DamageApplicationResult Empty { get; } = new(string.Empty, string.Empty);
     }
+
+    private sealed record CharacterInitiativeRoll(
+        CharacterMobilityProfile Mobility,
+        string? WeaponFamily,
+        int PerkBonus,
+        int ProficiencyBonus,
+        int DisciplineBonus,
+        int MagicItemBonus,
+        int SpellBonus,
+        int TotalBase,
+        InitiativeRoll Roll);
 
     private sealed record InitiativeRoll(int Total, string ModifierText);
     private sealed record HitRollResult(bool Hit, int NaturalRoll, string Description);
