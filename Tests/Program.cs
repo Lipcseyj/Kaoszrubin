@@ -101,6 +101,8 @@ var tests = new (string Name, Action Run)[]
     ("A nyitó ütésváltást a kezdeményezés dönti el, a rajtaütést kivéve", TeamBattleOpeningOrderUsesInitiative),
     ("Az Első csapás a nyitásban +10, a rendes sorrendben +2 kezdeményezést ad", FirstStrikeUsesSeparateOpeningInitiative),
     ("A gyorsítás és lassítás a következő kör elején rendezi át a kezdeményezést", SpellEffectsReorderInitiativeAtCycleBoundary),
+    ("Az időzített állapot kezdeményezés-büntetése körhatáron rendezi át a sorrendet", StatusPenaltyReordersInitiativeAtCycleBoundary),
+    ("A kezdeményezési holtverseny sorrendje körönként stabil marad", InitiativeTiesRemainStable),
     ("A zárt út mögötti ellenfél nem érkezhet meg néhány harci kör alatt", TacticalArrivalRequiresWalkableRoute),
     ("A csapatharc két egymást követő tétlen kör után áll le", TeamBattleDetectsInactiveSide),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
@@ -4478,14 +4480,14 @@ static void SpellEffectsReorderInitiativeAtCycleBoundary()
     character.ApplySpellEffect(new ActiveSpellEffect("HASTE-TEST", ActiveSpellEffectType.InitiativeBonus,
         5, 3, Beneficial: true));
     enemy.ApplySpellEffect(new ActiveSpellEffect("SLOW-TEST", ActiveSpellEffectType.SpeedPenalty, 3, 3));
-    Assert(encounter.Turns.CurrentParticipant?.InitiativeBase == 7,
+    Assert(encounter.Turns.CurrentParticipant?.CurrentInitiative == 7,
         "A varázshatás kör közben megváltoztatta az aktuális sorrendet.");
 
     encounter.AdvanceTurn();
     var secondCycleFirst = encounter.AdvanceTurn();
     Assert(encounter.Turns.Cycle == 2 && secondCycleFirst.Id == characterId &&
-           encounter.Turns.Find(characterId)?.InitiativeBase == 10 &&
-           encounter.Turns.Find(enemyId)?.InitiativeBase == 4 &&
+           encounter.Turns.Find(characterId)?.CurrentInitiative == 10 &&
+           encounter.Turns.Find(enemyId)?.CurrentInitiative == 4 &&
            encounter.InitiativeChangesAtCycleStart.Count == 2,
         "A gyorsítás és lassítás nem a következő kör kezdeményezését rendezte át.");
 
@@ -4494,8 +4496,8 @@ static void SpellEffectsReorderInitiativeAtCycleBoundary()
     encounter.AdvanceTurn();
     var thirdCycleFirst = encounter.AdvanceTurn();
     Assert(encounter.Turns.Cycle == 3 && thirdCycleFirst.Id == enemyId &&
-           encounter.Turns.Find(characterId)?.InitiativeBase == 5 &&
-           encounter.Turns.Find(enemyId)?.InitiativeBase == 7 &&
+           encounter.Turns.Find(characterId)?.CurrentInitiative == 5 &&
+           encounter.Turns.Find(enemyId)?.CurrentInitiative == 7 &&
            encounter.InitiativeChangesAtCycleStart.Count == 2,
         "A lejárt gyorsítás és lassítás nem állította vissza a következő kör sorrendjét.");
 
@@ -4503,6 +4505,55 @@ static void SpellEffectsReorderInitiativeAtCycleBoundary()
     encounter.AdvanceTurn();
     Assert(encounter.Turns.Cycle == 4 && encounter.InitiativeChangesAtCycleStart.Count == 0,
         "A rendszer változatlan kezdeményezés mellett is körönkénti naplóeseményt készítene.");
+}
+
+static void StatusPenaltyReordersInitiativeAtCycleBoundary()
+{
+    var system = CreateBattleSystem(1723);
+    var character = CreateCharacter("Rémült");
+    var enemy = CreateEnemy(20, 2, speed: 7);
+    var preparation = system.PrepareTeamCharacter(character);
+    var encounter = new TeamBattleEncounter(new Position(1, 1),
+        [new TeamCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
+            8, 3, 1, preparation.Runtime)],
+        [new TeamEnemyParticipant(enemy, 7, 3, 1)], character.Id, enemy.Id);
+    var characterId = CombatantId.ForCharacter(character.Id);
+    var enemyId = CombatantId.ForEnemy(enemy.Id);
+    var fear = new StatusDefinition("FEAR-TEST", "Rettegés", "😱", 2,
+        0, 0, 0, 2, 0, 100, 100, 100, 100, 0, 0, 1, "Teszt");
+
+    Assert(encounter.Turns.StartTurns().Id == characterId,
+        "A státuszteszt kezdeti kezdeményezési sorrendje hibás.");
+    character.AddStatus(fear);
+    encounter.AdvanceTurn();
+    var penalizedCycleFirst = encounter.AdvanceTurn();
+    Assert(encounter.Turns.Cycle == 2 && penalizedCycleFirst.Id == enemyId &&
+           encounter.Turns.Find(characterId)?.CurrentInitiative == 6 &&
+           encounter.InitiativeChangesAtCycleStart is [{ PreviousInitiative: 8, CurrentInitiative: 6 }],
+        "Az időzített kezdeményezés-büntetés nem rendezte át a következő kört.");
+
+    character.RemoveStatus(fear.Id);
+    encounter.AdvanceTurn();
+    var restoredCycleFirst = encounter.AdvanceTurn();
+    Assert(encounter.Turns.Cycle == 3 && restoredCycleFirst.Id == characterId &&
+           encounter.Turns.Find(characterId)?.CurrentInitiative == 8 &&
+           encounter.InitiativeChangesAtCycleStart is [{ PreviousInitiative: 6, CurrentInitiative: 8 }],
+        "A megszűnt kezdeményezés-büntetés nem állította vissza a következő kör sorrendjét.");
+}
+
+static void InitiativeTiesRemainStable()
+{
+    var first = new TacticalBattleParticipant(new CombatantId("character:a"), BattleSide.Friendly,
+        TacticalParticipantKind.PartyMember, new Position(1, 1), 5, 3);
+    var second = new TacticalBattleParticipant(new CombatantId("character:b"), BattleSide.Friendly,
+        TacticalParticipantKind.PartyMember, new Position(2, 1), 5, 3);
+    var state = new TacticalBattleState(BattleId.New(), new Position(1, 1), [second, first]);
+
+    Assert(state.InitiativeOrder.Select(participant => participant.Id).SequenceEqual([first.Id, second.Id]) &&
+           state.StartTurns().Id == first.Id && state.AdvanceTurn().Id == second.Id &&
+           state.AdvanceTurn().Id == first.Id &&
+           state.InitiativeOrder.Select(participant => participant.Id).SequenceEqual([first.Id, second.Id]),
+        "Az azonos kezdeményezésű résztvevők sorrendje megváltozott a körhatáron.");
 }
 
 static void TacticalArrivalRequiresWalkableRoute()

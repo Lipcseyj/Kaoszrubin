@@ -498,18 +498,18 @@ public sealed class TeamBattleEncounter
             var previousModifier = _dynamicInitiativeModifiers.GetValueOrDefault(participant.Id);
             if (currentModifier == previousModifier) continue;
 
-            var currentInitiative = participant.InitiativeBase + currentModifier - previousModifier;
+            var currentInitiative = participant.CurrentInitiative + currentModifier - previousModifier;
             if (!Turns.TryUpdateInitiative(participant.Id, currentInitiative)) continue;
             _dynamicInitiativeModifiers[participant.Id] = currentModifier;
             var name = character?.Name ?? enemy?.Name ?? participant.Id.Value;
             changes.Add(new TeamBattleInitiativeChange(participant.Id, name,
-                participant.InitiativeBase, currentInitiative));
+                participant.CurrentInitiative, currentInitiative));
         }
         return changes;
     }
 
     private static int DynamicInitiativeModifier(LiveCharacter character) =>
-        character.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus);
+        character.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus) - character.StatusInitiativePenalty;
 
     private static int DynamicInitiativeModifier(Enemy enemy) =>
         enemy.EffectiveSpeed - (enemy.Definition.Speed ?? 1);

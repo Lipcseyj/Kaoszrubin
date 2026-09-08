@@ -250,7 +250,7 @@ public sealed class Game : ISessionCommandHandler
             var enemy = battle.EnemyFor(participant.Id);
             return new TacticalBattleParticipantSnapshot(participant.Id,
                 character?.Name ?? enemy?.Name ?? participant.Id.Value,
-                participant.Side, participant.Kind, participant.Position, participant.InitiativeBase,
+                participant.Side, participant.Kind, participant.Position, participant.CurrentInitiative,
                 participant.Id == current.Id && _teamMovementTurnId == battle.Turns.TurnId
                     ? _teamMovementRemaining : participant.MovementAllowance,
                 participant.EligibleFromCycle, participant.State,
@@ -5921,12 +5921,12 @@ public sealed class Game : ISessionCommandHandler
             RecordSessionActivity(SessionActivityKind.Battle, protectionMessage, ConsoleColor.Cyan);
         }
         var queue = string.Join(" → ", _activeTeamBattle.Turns.Participants
-            .OrderByDescending(participant => participant.InitiativeBase)
+            .OrderByDescending(participant => participant.CurrentInitiative)
             .Select(participant =>
             {
                 var name = _activeTeamBattle.CharacterFor(participant.Id)?.Name ??
                            _activeTeamBattle.EnemyFor(participant.Id)?.Name ?? participant.Id.Value;
-                return $"{name} {participant.InitiativeBase}";
+                return $"{name} {participant.CurrentInitiative}";
             }));
         string OpeningName(CombatantId id) => _activeTeamBattle.CharacterFor(id)?.Name ??
                                                _activeTeamBattle.EnemyFor(id)?.Name ?? id.Value;

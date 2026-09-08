@@ -54,7 +54,7 @@ public sealed record TacticalBattleParticipant(
     BattleSide Side,
     TacticalParticipantKind Kind,
     Position Position,
-    int InitiativeBase,
+    int CurrentInitiative,
     int MovementAllowance,
     int EligibleFromCycle = 1,
     TacticalParticipantState State = TacticalParticipantState.Active)
@@ -134,7 +134,7 @@ public sealed class TacticalBattleState
 
     public IReadOnlyList<TacticalBattleParticipant> InitiativeOrder => _participants.Values
         .Where(participant => participant.CanActIn(Cycle))
-        .OrderByDescending(participant => participant.InitiativeBase)
+        .OrderByDescending(participant => participant.CurrentInitiative)
         .ThenBy(participant => participant.Id.Value, StringComparer.Ordinal)
         .ToArray();
 
@@ -181,7 +181,7 @@ public sealed class TacticalBattleState
     public bool TryUpdateInitiative(CombatantId id, int initiative)
     {
         if (!_participants.TryGetValue(id, out var participant)) return false;
-        _participants[id] = participant with { InitiativeBase = initiative };
+        _participants[id] = participant with { CurrentInitiative = initiative };
         return true;
     }
 
