@@ -474,6 +474,30 @@ public sealed class LiveCharacter
         return true;
     }
 
+    public EquipmentWearResult ApplyInventoryItemWear(InventorySlotKind kind, int index, int amount)
+    {
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        var item = GetInventoryItem(kind, index);
+        var state = GetInventoryItemState(kind, index);
+        if (item is null || state is null || amount == 0) return EquipmentWearResult.None;
+        var maximum = EquipmentDurabilityRules.MaximumDurability(item);
+        if (maximum <= 0) return EquipmentWearResult.None;
+
+        var previousDurability = EquipmentDurabilityRules.CurrentDurability(item, state.Value);
+        var previousCondition = EquipmentDurabilityRules.Condition(maximum, state.Value.DurabilityDamage);
+        var wornState = EquipmentDurabilityRules.ApplyWear(item, state.Value, amount);
+        var currentDurability = EquipmentDurabilityRules.CurrentDurability(item, wornState);
+        var currentCondition = EquipmentDurabilityRules.Condition(maximum, wornState.DurabilityDamage);
+        if (currentDurability == previousDurability)
+            return new EquipmentWearResult(false, maximum, previousDurability, currentDurability,
+                previousCondition, currentCondition);
+
+        ApplyInventoryChanges(new InventorySlotChange(kind, index, item,
+            GetInventoryItemCharges(kind, index), GetInventoryItemQuantity(kind, index), wornState));
+        return new EquipmentWearResult(true, maximum, previousDurability, currentDurability,
+            previousCondition, currentCondition);
+    }
+
     public int GetActiveCurseValue(ItemCurseEffect effect) => ActiveEquippedItemStates()
         .Where(state => state.IsCurseActivated && state.BoundCharacterId == Id && state.CurseEffect == effect)
         .Sum(state => state.CurseValue);

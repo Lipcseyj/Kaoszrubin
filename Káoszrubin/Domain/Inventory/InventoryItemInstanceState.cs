@@ -25,6 +25,15 @@ public enum EquipmentCondition
     Broken
 }
 
+public readonly record struct EquipmentWearResult(bool Changed, int MaximumDurability,
+    int PreviousDurability, int CurrentDurability, EquipmentCondition PreviousCondition,
+    EquipmentCondition CurrentCondition)
+{
+    public bool ConditionChanged => Changed && PreviousCondition != CurrentCondition;
+    public static EquipmentWearResult None => new(false, 0, 0, 0,
+        EquipmentCondition.NotApplicable, EquipmentCondition.NotApplicable);
+}
+
 public static class EquipmentDurabilityRules
 {
     public static int MaximumDurability(IItemDefinition item) =>

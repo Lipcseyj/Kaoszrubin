@@ -6807,6 +6807,7 @@ public sealed class Game : ISessionCommandHandler
                                    battle.RuntimeFor(character).Tactic == BattleTactic.ThiefAmbush &&
                                    (advantage.IsRear || rearFormationStrike),
                 attackWeapon: dualWielding ? mainHand : null,
+                attackWeaponSlotIndex: dualWielding ? 0 : null,
                 armorPenalty: battle.EnemyArmorPenalty(target));
             var hit = target.CurrentHitPoints < before;
             positionalDaggerHit |= hit && advantage.Arc != TacticalAttackArc.Front &&
@@ -6833,6 +6834,7 @@ public sealed class Game : ISessionCommandHandler
                     offhandTarget, finishAction: true, damagePercent: DualWieldingRules.OffhandDamagePercent,
                     positionalHitBonus: advantage.HitBonus, positionalAdvantage: advantage.Name,
                     attackWeapon: offhand, allowTriggeredExtraAttacks: false, allowAmbush: false,
+                    attackWeaponSlotIndex: 1,
                     armorPenalty: battle.EnemyArmorPenalty(offhandTarget), damageScaleName: "Mellékkéz");
                 var offhandHit = offhandTarget.CurrentHitPoints < before;
                 positionalDaggerHit |= offhandHit && advantage.Arc != TacticalAttackArc.Front &&

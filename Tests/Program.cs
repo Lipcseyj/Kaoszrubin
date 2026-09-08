@@ -189,6 +189,7 @@ var tests = new (string Name, Action Run)[]
     ("Az azonosítatlan varázstárgy példányállapota mentés és mozgatás közben megmarad", MagicItemIdentificationStatePersists),
     ("A felszerelés tartóssága adatvezérelt és menthető", EquipmentDurabilityDataAndStatePersist),
     ("A tárgyvizsgálat és a részletes karakterinfó mutatja a felszerelés állapotát", EquipmentDurabilityIsVisible),
+    ("A közös harci motor koptatja a használt fegyvert és a találatot fogó vértezetet", CombatAppliesEquipmentWear),
     ("A legintelligensebb élő mágus egyszer megpróbálja azonosítani a friss zsákmányt", MageIdentifiesFreshMagicLoot),
     ("Az átkozott tárgy aktiválódik, megköt és alkalmazza az adatvezérelt hátrányokat", CursedItemsActivateBindAndApplyEffects),
     ("Az Átoktörés és a Vándormágus végleg megtisztítja és feloldja a tárgyat", ItemCursePurificationIsPermanent),
@@ -2609,6 +2610,70 @@ static void EquipmentDurabilityIsVisible()
     Assert(ItemInspectionFormatter.FormatUnidentified(unidentified).Text.Contains(
             "Tartósság: 30/120 (25%)", StringComparison.Ordinal),
         "Az azonosítatlan felszerelés szemmel látható fizikai állapota rejtve maradt.");
+}
+
+static void CombatAppliesEquipmentWear()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var attacker = CreateCharacter("Koptató", 1000);
+    var weapon = data.GetWeapon("W001");
+    Assert(attacker.EquipWeapon(0, weapon), "A kopási teszt fegyvere nem volt felszerelhető.");
+    var enemy = CreateEnemy(10000, 1);
+    var attackSystem = CreateBattleSystem(17);
+    var attackerRuntime = attackSystem.PrepareTeamCharacter(attacker).Runtime;
+    var observedWeaponHits = 0;
+    for (var attempt = 0; attempt < 40 && observedWeaponHits < 3; attempt++)
+    {
+        var before = attacker.GetInventoryItemState(InventorySlotKind.Weapon, 0)!.Value.DurabilityDamage;
+        var enemyVitalityBefore = enemy.CurrentHitPoints;
+        var entry = attackSystem.ResolveTeamCharacterAttack(attacker, attackerRuntime, enemy,
+            finishAction: false);
+        var after = attacker.GetInventoryItemState(InventorySlotKind.Weapon, 0)!.Value.DurabilityDamage;
+        var hit = enemy.CurrentHitPoints < enemyVitalityBefore;
+        var expectedWear = hit ? entry.Kind == BattleLogKind.CriticalHit ? 2 : 1 : 0;
+        Assert(after - before == expectedWear,
+            "A sikeres, kritikus vagy elhibázott fegyvertámadás nem a megfelelő kopást okozta.");
+        if (!hit) continue;
+        observedWeaponHits++;
+        Assert(entry.Details?.Calculation.Any(line => line.Contains("Fegyverkopás", StringComparison.Ordinal)) == true,
+            "A fegyverkopás nem került be a csatarészletek közé.");
+    }
+    Assert(observedWeaponHits >= 3 && attacker.InventoryRevision > 1,
+        "Nem sikerült több fegyverkopást megfigyelni, vagy az inventory revízió nem változott.");
+
+    var defender = CreateCharacter("Vértvizsgáló", 1000);
+    var armor = data.GetArmor("A001");
+    var shield = data.GetWeapon("W014");
+    Assert(defender.EquipWeapon(1, shield) && defender.EquipArmor(armor),
+        "A kopási teszt páncélja vagy pajzsa nem volt felszerelhető.");
+    var armoredEnemy = CreateEnemy(10000, 5);
+    var defenseSystem = CreateBattleSystem(29);
+    var defenderRuntime = defenseSystem.PrepareTeamCharacter(defender).Runtime;
+    var observedArmorHits = 0;
+    for (var attempt = 0; attempt < 40 && observedArmorHits < 3; attempt++)
+    {
+        var armorBefore = defender.GetInventoryItemState(InventorySlotKind.Armor, 0)!.Value.DurabilityDamage;
+        var shieldBefore = defender.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage;
+        var resolution = defenseSystem.ResolveTeamEnemyActionDetailed(armoredEnemy, defender, defenderRuntime);
+        var armorAfter = defender.GetInventoryItemState(InventorySlotKind.Armor, 0)!.Value.DurabilityDamage;
+        var shieldAfter = defender.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage;
+        var expectedWear = resolution.Hit ? resolution.Entry.Kind == BattleLogKind.CriticalHit ? 2 : 1 : 0;
+        Assert(armorAfter - armorBefore == expectedWear && shieldAfter - shieldBefore == expectedWear,
+            "A fizikai találat nem egyformán és a kritikus szabály szerint koptatta a páncélt és pajzsot.");
+        if (!resolution.Hit) continue;
+        observedArmorHits++;
+        Assert(resolution.Entry.Details?.Calculation.Any(line => line.Contains("Páncélkopás", StringComparison.Ordinal)) == true &&
+               resolution.Entry.Details.Calculation.Any(line => line.Contains("Pajzskopás", StringComparison.Ordinal)),
+            "A páncél- vagy pajzskopás nem került be a csatarészletek közé.");
+    }
+    Assert(observedArmorHits >= 3, "Nem sikerült több páncélt érő találatot megfigyelni.");
+
+    var indestructible = shield with { Id = "W-INDESTRUCTIBLE-TEST", MaximumDurability = 0 };
+    Assert(defender.SetInventoryItem(InventorySlotKind.Weapon, 1, indestructible, null, 1),
+        "A törhetetlen pajzsot nem lehetett felszerelni.");
+    Assert(!defender.ApplyInventoryItemWear(InventorySlotKind.Weapon, 1, 100).Changed &&
+           defender.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage == 0,
+        "A nulla maximális tartósságú, törhetetlen felszerelés kopást kapott.");
 }
 
 static void MageIdentifiesFreshMagicLoot()

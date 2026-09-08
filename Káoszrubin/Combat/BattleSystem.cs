@@ -185,7 +185,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         int damagePercent = 100, int positionalHitBonus = 0, string? positionalAdvantage = null,
         bool tacticalBackstab = false, WeaponDefinition? attackWeapon = null,
         bool allowTriggeredExtraAttacks = true, bool allowAmbush = true,
-        int armorPenalty = 0, string damageScaleName = "Söprési mellékcélpont")
+        int armorPenalty = 0, string damageScaleName = "Söprési mellékcélpont",
+        int? attackWeaponSlotIndex = null)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -203,7 +204,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         {
             var woundedTarget = defender.CurrentHitPoints * 2 <= Math.Max(1, defender.Definition.HitPoints ?? defender.CurrentHitPoints);
             var attack = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed, woundedTarget,
-                positionalHitBonus, positionalAdvantage, tacticalBackstab, attackWeapon, allowAmbush);
+                positionalHitBonus, positionalAdvantage, tacticalBackstab, attackWeapon, allowAmbush,
+                attackWeaponSlotIndex);
             if (attack.Hit && damagePercent != 100)
             {
                 var scaledDamage = Math.Max(1, attack.Damage * Math.Clamp(damagePercent, 1, 100) / 100);
@@ -228,7 +230,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                                          Math.Max(1, defender.Definition.HitPoints ?? definition.HitPoints.Value);
                 var extra = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed,
                     extraWoundedTarget, positionalHitBonus, positionalAdvantage, tacticalBackstab,
-                    attackWeapon, allowAmbush);
+                    attackWeapon, allowAmbush, attackWeaponSlotIndex);
                 critical |= extra.Critical;
                 definition = ApplyAttack(definition, extra);
                 attacks.Add(extra with { Message = $"Acélvihar: {extra.Message}" });
@@ -575,7 +577,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                     DualWieldingRules.TryGetWeapons(player, out _, out var offhand) && offhand is not null)
                 {
                     var offhandAttack = PlayerAttack(player, defender, context, enemy.EffectiveSpeed,
-                        attackWeapon: offhand, allowAmbush: false);
+                        attackWeapon: offhand, allowAmbush: false, attackWeaponSlotIndex: 1);
                     if (offhandAttack.Hit)
                     {
                         var scaledDamage = Math.Max(1, offhandAttack.Damage *
@@ -763,7 +765,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleRuntimeContext context,
         int defenderSpeed, bool woundedTarget = false, int positionalHitBonus = 0,
         string? positionalAdvantage = null, bool tacticalBackstab = false,
-        WeaponDefinition? attackWeapon = null, bool allowAmbush = true)
+        WeaponDefinition? attackWeapon = null, bool allowAmbush = true, int? attackWeaponSlotIndex = null)
     {
         player.BreakSanctuary();
         var forcedHit = context.ShadowStepReady;
@@ -1031,6 +1033,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 : $"💥 Sebzésszorzó: ×{damageMultiplierPercent / 100d:0.##}; {multipliedDamage:0.##} → {roundedMultipliedDamage} (felfelé kerekítve)");
         calculation.Add($"🛡️ {armorText}; effektív {effectiveArmor}");
         calculation.AddRange(notes);
+        var weaponWear = ApplyWeaponWear(player, weapon, attackWeaponSlotIndex, criticalMultiplier > 1);
+        if (weaponWear.Changed)
+            calculation.Add(DurabilityCalculation("⚔️ Fegyverkopás", weapon!.Name, weaponWear));
         calculation.Add("💥 Páncél után min. 1; éhség után min. 1; majd taktika és méreg.");
         return Detailed(AttackResult.HitFor(damage,
             $"találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText}{positionalHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplierPercent / 100d:0.##} - {armorText} = {damageText}.{noteText}",
@@ -1242,10 +1247,61 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         calculation.Add($"💥 Minimum 1, majd fix csökkentés −{reduction}, majd −{percentageReduction}%, lefelé kerekítve");
         if (absorbed > 0) calculation.Add($"🔷 Mannapajzs: −{absorbed} sebzés / manna");
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
+        if (damageType.IsPhysical())
+        {
+            var wearAmount = criticalMultiplier > 1 ? 2 : 1;
+            var armorWear = defender.ApplyInventoryItemWear(InventorySlotKind.Armor, 0, wearAmount);
+            if (armorWear.Changed)
+                calculation.Add(DurabilityCalculation("🛡️ Páncélkopás", defender.Armor!.Name, armorWear));
+            var shieldSlot = Enumerable.Range(0, 2).FirstOrDefault(index =>
+                defender.GetInventoryItem(InventorySlotKind.Weapon, index) is WeaponDefinition shieldWeapon &&
+                shieldWeapon.WeaponTypeId == DefenseWeaponTypeId, -1);
+            if (shieldSlot >= 0)
+            {
+                var shieldItem = (WeaponDefinition)defender.GetInventoryItem(InventorySlotKind.Weapon, shieldSlot)!;
+                var shieldWear = defender.ApplyInventoryItemWear(InventorySlotKind.Weapon, shieldSlot, wearAmount);
+                if (shieldWear.Changed)
+                    calculation.Add(DurabilityCalculation("🛡️ Pajzskopás", shieldItem.Name, shieldWear));
+            }
+        }
         return Detailed(AttackResult.HitFor(damage,
             $"találat: {hit.Description} → 🎯; sebzés: (Erőbónusz {strengthBonus} + fegyver {randomDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damageText}.{statusText}",
             criticalMultiplier > 1));
     }
+
+    private static EquipmentWearResult ApplyWeaponWear(LiveCharacter character, WeaponDefinition? weapon,
+        int? preferredSlotIndex, bool critical)
+    {
+        if (weapon is null) return EquipmentWearResult.None;
+        var slot = preferredSlotIndex is >= 0 and < 2 &&
+                   character.GetInventoryItem(InventorySlotKind.Weapon, preferredSlotIndex.Value) is WeaponDefinition preferred &&
+                   (ReferenceEquals(preferred, weapon) || preferred == weapon)
+            ? preferredSlotIndex.Value
+            : Enumerable.Range(0, 2).FirstOrDefault(index =>
+                character.GetInventoryItem(InventorySlotKind.Weapon, index) is WeaponDefinition equipped &&
+                (ReferenceEquals(equipped, weapon) || equipped == weapon), -1);
+        return slot < 0
+            ? EquipmentWearResult.None
+            : character.ApplyInventoryItemWear(InventorySlotKind.Weapon, slot, critical ? 2 : 1);
+    }
+
+    private static string DurabilityCalculation(string label, string itemName, EquipmentWearResult wear)
+    {
+        var transition = wear.ConditionChanged
+            ? $"; {ConditionName(wear.PreviousCondition)} → {ConditionName(wear.CurrentCondition)}"
+            : string.Empty;
+        return $"{label}: {itemName} {wear.PreviousDurability} → {wear.CurrentDurability}/" +
+               $"{wear.MaximumDurability}{transition}";
+    }
+
+    private static string ConditionName(EquipmentCondition condition) => condition switch
+    {
+        EquipmentCondition.Broken => "törött",
+        EquipmentCondition.Damaged => "sérült",
+        EquipmentCondition.Worn => "kopott",
+        EquipmentCondition.Intact => "ép",
+        _ => "nem kopó"
+    };
 
     private WeaponDefinition? SelectEnemyAttackWeapon(EnemyDefinition attacker)
     {
