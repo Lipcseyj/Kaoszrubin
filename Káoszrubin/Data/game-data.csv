@@ -178,7 +178,7 @@ K006,Manna
 
 #Tehetségek
 Id,Név,Leírás,OsztályId,Fokozat
-PERK-C001-1A,Első csapás,+10 jár a kezdeményezéshez.,C001,1
+PERK-C001-1A,Első csapás,"A nyitó kezdeményezéshez +10, a további körökben +2 jár.",C001,1
 PERK-C001-1B,Robusztusság,+10 maximális HP.,C001,1
 PERK-C001-2A,Fegyvermester,+2 jár minden fegyveres találati próbához.,C001,2
 PERK-C001-2B,Rendíthetetlen,Minden elszenvedett találat sebzése 2 ponttal csökken.,C001,2

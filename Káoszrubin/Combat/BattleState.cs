@@ -73,4 +73,4 @@ public sealed class TeamCharacterBattleRuntime
 }
 
 public sealed record TeamCombatantPreparation(TeamCharacterBattleRuntime Runtime, int Initiative,
-    IReadOnlyList<BattleLogEntry> Entries);
+    int OpeningInitiative, IReadOnlyList<BattleLogEntry> Entries);

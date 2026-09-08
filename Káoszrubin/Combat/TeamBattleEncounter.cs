@@ -10,7 +10,8 @@ public sealed record TeamCharacterParticipant(
     int Initiative,
     int MovementAllowance,
     int EligibleFromCycle,
-    TeamCharacterBattleRuntime Runtime);
+    TeamCharacterBattleRuntime Runtime,
+    int? OpeningInitiative = null);
 
 public sealed record TeamEnemyParticipant(
     Enemy Enemy,
@@ -114,11 +115,20 @@ public sealed class TeamBattleEncounter
         }
         var initiatingCharacter = CombatantId.ForCharacter(initiatingCharacterId);
         var initiatingEnemy = CombatantId.ForEnemy(initiatingEnemyId);
+        var initiatingCharacterParticipant = characterList.Single(participant =>
+            participant.Character.Id == initiatingCharacterId);
+        var characterOpeningInitiative = initiatingCharacterParticipant.OpeningInitiative ??
+                                          initiatingCharacterParticipant.Initiative;
+        var enemyOpeningInitiative = enemyList.Single(participant =>
+            participant.Enemy.Id == initiatingEnemyId).Initiative;
         OpeningOrder = enemyStrikesFirst
             ? [initiatingEnemy, initiatingCharacter]
-            : tacticalParticipants
-                .Where(participant => participant.Id == initiatingCharacter || participant.Id == initiatingEnemy)
-                .OrderByDescending(participant => participant.InitiativeBase)
+            : new[]
+                {
+                    (Id: initiatingCharacter, Initiative: characterOpeningInitiative),
+                    (Id: initiatingEnemy, Initiative: enemyOpeningInitiative)
+                }
+                .OrderByDescending(participant => participant.Initiative)
                 .ThenBy(participant => participant.Id.Value, StringComparer.Ordinal)
                 .Select(participant => participant.Id)
                 .ToArray();

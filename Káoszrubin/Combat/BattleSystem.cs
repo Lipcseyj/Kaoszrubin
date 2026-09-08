@@ -36,10 +36,14 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
         var initiative = RollCharacterInitiative(character, includeTacticalDiscipline: true);
         entries.Add(new BattleLogEntry(
-            $"⚡ {character.Name} kezdeményezése: {initiative.TotalBase} {initiative.Roll.ModifierText} = {initiative.Roll.Total}." +
-            (initiative.DisciplineBonus > 0 ? $" [🏃 Portyázó +{initiative.DisciplineBonus}]" : string.Empty),
+            $"⚡ {character.Name} kezdeményezése: {initiative.NormalBase} {initiative.Roll.ModifierText} = {initiative.Roll.Total}." +
+            (initiative.DisciplineBonus > 0 ? $" [🏃 Portyázó +{initiative.DisciplineBonus}]" : string.Empty) +
+            (initiative.FirstStrikeOpeningBonus > 0
+                ? $" [⚔ Első csapás: nyitó +{initiative.FirstStrikeOpeningBonus} = {initiative.OpeningTotal}; " +
+                  $"rendes +{initiative.FirstStrikeNormalBonus}]"
+                : string.Empty),
             BattleLogKind.Information));
-        return new TeamCombatantPreparation(runtime, initiative.Roll.Total, entries);
+        return new TeamCombatantPreparation(runtime, initiative.Roll.Total, initiative.OpeningTotal, entries);
     }
 
     private CharacterInitiativeRoll RollCharacterInitiative(LiveCharacter character,
@@ -55,15 +59,19 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             _ => 0
         };
         var mobility = CharacterMobilityRules.Evaluate(character);
-        var perkBonus = character.HasPerk(PerkIds.FighterFirstStrike) ? 10 : 0;
+        var hasFirstStrike = character.HasPerk(PerkIds.FighterFirstStrike);
+        var firstStrikeNormalBonus = hasFirstStrike ? 2 : 0;
+        var firstStrikeOpeningBonus = hasFirstStrike ? 10 : 0;
         var disciplineBonus = includeTacticalDiscipline &&
                               character.HasTacticalDiscipline(TacticalDisciplines.Skirmisher) ? 2 : 0;
         var magicItemBonus = character.GetMagicItemBonus(MagicItemEffect.Initiative);
         var spellBonus = character.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus);
-        var totalBase = mobility.InitiativeBase + perkBonus + proficiencyBonus + disciplineBonus +
+        var normalBase = mobility.InitiativeBase + firstStrikeNormalBonus + proficiencyBonus + disciplineBonus +
                         magicItemBonus + spellBonus - character.StatusInitiativePenalty;
-        return new CharacterInitiativeRoll(mobility, family, perkBonus, proficiencyBonus, disciplineBonus,
-            magicItemBonus, spellBonus, totalBase, RollInitiative(totalBase));
+        var roll = RollInitiative(normalBase);
+        var openingTotal = roll.Total - firstStrikeNormalBonus + firstStrikeOpeningBonus;
+        return new CharacterInitiativeRoll(firstStrikeNormalBonus, firstStrikeOpeningBonus,
+            disciplineBonus, normalBase, roll, openingTotal);
     }
 
     public int RollTeamEnemyInitiative(Enemy enemy)
@@ -1298,15 +1306,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     }
 
     private sealed record CharacterInitiativeRoll(
-        CharacterMobilityProfile Mobility,
-        string? WeaponFamily,
-        int PerkBonus,
-        int ProficiencyBonus,
+        int FirstStrikeNormalBonus,
+        int FirstStrikeOpeningBonus,
         int DisciplineBonus,
-        int MagicItemBonus,
-        int SpellBonus,
-        int TotalBase,
-        InitiativeRoll Roll);
+        int NormalBase,
+        InitiativeRoll Roll,
+        int OpeningTotal);
 
     private sealed record InitiativeRoll(int Total, string ModifierText);
     private sealed record HitRollResult(bool Hit, int NaturalRoll, string Description);

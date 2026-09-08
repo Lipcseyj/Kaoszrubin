@@ -99,6 +99,7 @@ var tests = new (string Name, Action Run)[]
     ("A csapatharcban az átlós ellenfél is közelharci távolságban van", DiagonalEnemyIsMeleeAdjacent),
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
     ("A nyitó ütésváltást a kezdeményezés dönti el, a rajtaütést kivéve", TeamBattleOpeningOrderUsesInitiative),
+    ("Az Első csapás a nyitásban +10, a rendes sorrendben +2 kezdeményezést ad", FirstStrikeUsesSeparateOpeningInitiative),
     ("A zárt út mögötti ellenfél nem érkezhet meg néhány harci kör alatt", TacticalArrivalRequiresWalkableRoute),
     ("A csapatharc két egymást követő tétlen kör után áll le", TeamBattleDetectsInactiveSide),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
@@ -4424,6 +4425,38 @@ static void TeamBattleOpeningOrderUsesInitiative()
             [CombatantId.ForEnemy(ambusher.Id), CombatantId.ForCharacter(faster.Id)]) &&
            ambush.Turns.StartTurns().Id == CombatantId.ForEnemy(ambusher.Id),
         "Az ellenséges rajtaütés nem őrizte meg a szörny nyitó elsőbbségét.");
+}
+
+static void FirstStrikeUsesSeparateOpeningInitiative()
+{
+    var normalCharacter = CreateCharacter("Normál");
+    var firstStrikeCharacter = CreateCharacter("Elsőcsapás");
+    Assert(firstStrikeCharacter.AddPerk(new PerkDefinition(PerkIds.FighterFirstStrike, "Első csapás",
+            "Teszt", CharacterClassIds.Harcos, 1)),
+        "A tesztkarakter nem kapta meg az Első csapás tehetséget.");
+
+    var normalPreparation = CreateBattleSystem(1721).PrepareTeamCharacter(normalCharacter);
+    var firstStrikePreparation = CreateBattleSystem(1721).PrepareTeamCharacter(firstStrikeCharacter);
+    Assert(firstStrikePreparation.Initiative == normalPreparation.Initiative + 2 &&
+           firstStrikePreparation.OpeningInitiative == normalPreparation.OpeningInitiative + 10 &&
+           firstStrikePreparation.OpeningInitiative == firstStrikePreparation.Initiative + 8,
+        "Az Első csapás nem ugyanarra a dobásra adta a nyitó +10 és a rendes +2 bónuszt.");
+
+    var enemy = CreateEnemyAt(new Position(2, 1), "FIRST-STRIKE-ENEMY");
+    var enemyInitiative = firstStrikePreparation.Initiative + 5;
+    var encounter = new TeamBattleEncounter(new Position(1, 1),
+        [new TeamCharacterParticipant(firstStrikeCharacter, new Position(1, 1),
+            TacticalParticipantKind.PartyMember, firstStrikePreparation.Initiative, 3, 1,
+            firstStrikePreparation.Runtime, firstStrikePreparation.OpeningInitiative)],
+        [new TeamEnemyParticipant(enemy, enemyInitiative, 3, 1)], firstStrikeCharacter.Id, enemy.Id);
+    var characterId = CombatantId.ForCharacter(firstStrikeCharacter.Id);
+    var enemyId = CombatantId.ForEnemy(enemy.Id);
+
+    Assert(encounter.OpeningOrder.SequenceEqual([characterId, enemyId]) &&
+           encounter.Turns.StartTurns().Id == characterId &&
+           encounter.Turns.AdvanceTurn().Id == enemyId &&
+           encounter.Turns.AdvanceTurn().Id == enemyId,
+        "Az Első csapás nyitó bónusza nem csak az első ütésváltást rendezte át.");
 }
 
 static void TacticalArrivalRequiresWalkableRoute()

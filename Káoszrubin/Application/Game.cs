@@ -5865,7 +5865,7 @@ public sealed class Game : ISessionCommandHandler
             characterParticipants.Add(new TeamCharacterParticipant(character, position, kind,
                 preparation.Initiative,
                 Math.Min(7, CharacterMobilityRules.Evaluate(character).CombatMovementAllowance + disciplineMovement),
-                character == initiatingCharacter ? 1 : 2, preparation.Runtime));
+                character == initiatingCharacter ? 1 : 2, preparation.Runtime, preparation.OpeningInitiative));
         }
 
         var friendlyPositions = characterParticipants.Select(value => value.Position).ToArray();
