@@ -8,14 +8,15 @@ using KaoszRubin.UI;
 
 namespace KaoszRubin.Combat;
 
-public sealed class SingleBattleCoordinator
+/// <summary>A csapatharc karakterakcióihoz közös célzási, taktikai és támogató szabályok.</summary>
+public sealed class BattleActionCoordinator
 {
     private readonly GameDataCatalog _gameData;
     private readonly BattleSystem _battleSystem;
     private readonly SpellExecutionService _spellExecutionService;
     private readonly Random _random;
 
-    public SingleBattleCoordinator(
+    public BattleActionCoordinator(
         GameDataCatalog gameData,
         BattleSystem battleSystem,
         SpellExecutionService spellExecutionService,
@@ -86,36 +87,6 @@ public sealed class SingleBattleCoordinator
         _ => tactic.ToString()
     };
 
-    public IReadOnlyList<BattleTacticOptionSnapshot>? GetBattleTacticOptions(BattleState state)
-    {
-        if (!state.IsAwaitingTacticSelection) return null;
-        return state.Player.CharacterClass.Id switch
-        {
-            CharacterClassIds.Harcos =>
-            [
-                new(BattleActionKind.FighterPrecise, "🎯 Pontos",
-                    $"sebzés ×{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? "0,85" : "0,75")}",
-                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPrecise)),
-                new(BattleActionKind.FighterPowerful, "💥 Erőteljes",
-                    $"sebzés ×1,25, {(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) ? "negyed" : "fél")} páncél",
-                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterPowerful)),
-                new(BattleActionKind.FighterDefensive, "🛡️ Védekező",
-                    $"sebzés ×0,75, védelem +{(state.Player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)}",
-                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.FighterDefensive))
-            ],
-            CharacterClassIds.Tolvaj =>
-            [
-                new(BattleActionKind.ThiefAmbush, "🗡️ Orvtámadás", "első találat ×2 sebzés",
-                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.ThiefAmbush)),
-                new(BattleActionKind.ThiefObserve, "👁️ Megfigyelés", "+2 találat",
-                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.ThiefObserve)),
-                new(BattleActionKind.ThiefPoison, "☠️ Mérgezett penge", "+1–4 sebzés találatonként",
-                    _battleSystem.EstimatePlayerHitChance(state.Player, state.Enemy, BattleTactic.ThiefPoison))
-            ],
-            _ => null
-        };
-    }
-
     public static BattleActionKind TacticActionFor(string characterClassId, int option) =>
         characterClassId == CharacterClassIds.Harcos
             ? option switch
@@ -131,28 +102,6 @@ public sealed class SingleBattleCoordinator
                 _ => BattleActionKind.ThiefPoison
             };
 
-    public IReadOnlyList<BattleActionKind> GetAllowedBattleActions(
-        BattleState? activeBattleState,
-        LiveCharacter character,
-        Position characterPosition,
-        Enemy enemy,
-        bool hasUsableCombatSpell,
-        HashSet<LiveCharacter> turnUndeadUsedThisBattle)
-    {
-        if (activeBattleState is { IsCompleted: false, IsPlayerTurn: false } enemyTurn &&
-            enemyTurn.PlayerCharacterId == character.Id)
-            return [BattleActionKind.AdvanceEnemyTurn];
-        if (activeBattleState is { IsAwaitingTacticSelection: true } state && state.PlayerCharacterId == character.Id)
-            return character.CharacterClass.Id == CharacterClassIds.Harcos
-                ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
-                : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
-        var actions = new List<BattleActionKind> { BattleActionKind.PhysicalAttack };
-        if (hasUsableCombatSpell) actions.Add(BattleActionKind.CastSpell);
-        if (CanTurnUndead(character, enemy) && !turnUndeadUsedThisBattle.Contains(character))
-            actions.Add(BattleActionKind.TurnUndead);
-        return actions;
-    }
-
     public LiveCharacter? TryRollKnightProtector(
         LiveCharacter protectedCharacter,
         Position protectedPosition,
@@ -166,21 +115,6 @@ public sealed class SingleBattleCoordinator
             .Select(entry => entry.Character).FirstOrDefault();
         var chance = knight?.HasClassFeatureUpgrade(ClassFeatureUpgrades.KnightBodyguard) == true ? 90 : 75;
         return knight is not null && _random.Next(100) < chance ? knight : null;
-    }
-
-    public void TryAssignKnightProtection(
-        BattleState state,
-        LiveCharacter protectedCharacter,
-        Position protectedPosition,
-        IEnumerable<(LiveCharacter Character, Position Position)> livingPartyWithPositions,
-        Action<string, ConsoleColor> onMessage)
-    {
-        var knight = TryRollKnightProtector(protectedCharacter, protectedPosition, livingPartyWithPositions);
-        if (knight is null) return;
-        state.SetKnightProtection(knight);
-        onMessage($"🛡️ {knight.Name} készen áll közbelépni: a társ első találatát teljesen kivédi, " +
-                  "de a sebzés harmadát ő kapja.",
-            ConsoleColor.Cyan);
     }
 
     public bool HasUsableCombatSpell(

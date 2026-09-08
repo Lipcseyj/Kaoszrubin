@@ -30,25 +30,17 @@ public sealed class SessionEventService
         RecordSessionActivity(SessionActivityKind.System, message, speaker.Color);
     }
 
-    public void PlayBattleRoundSound(BattleLogEntry entry, BattleState? activeBattleState, CharacterId selectedCharacterId)
+    public void PlayBattleRoundSound(BattleLogEntry entry, CharacterId selectedCharacterId)
     {
         if (entry.Kind is not (BattleLogKind.PlayerAttack or BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)) return;
-        var battle = activeBattleState;
-        var listeners = battle is not null
-            ? new[] { battle.PlayerCharacterId, selectedCharacterId }.Distinct().ToArray()
-            : [selectedCharacterId];
+        CharacterId[] listeners = [selectedCharacterId];
         var missed = entry.Message.Contains("💨", StringComparison.Ordinal);
-        var enemyHitPlayer = !missed && battle is not null &&
-            entry.Message.Contains($"{battle.Enemy.Name} → {battle.Player.Name}", StringComparison.Ordinal);
-        if (enemyHitPlayer && battle is not null)
-            PlaySessionSound(SoundEffect.PlayerGotHit, [battle.PlayerCharacterId], selectedCharacterId);
-        else
-            PlaySessionSound(missed ? SoundEffect.Miss : SoundEffect.Hit, listeners, selectedCharacterId);
+        PlaySessionSound(missed ? SoundEffect.Miss : SoundEffect.Hit, listeners, selectedCharacterId);
     }
 
     public void PresentBattleEntries(IEnumerable<BattleLogEntry> entries, bool isQuickTeamBattle,
         Action<BattleLogEntry> drawBattleRound, Action<BattleLogEntry> refreshBattleStatus,
-        BattleState? activeBattleState, CharacterId selectedCharacterId, Action<int>? incrementQuickBattleSuppressedEntryCount = null)
+        CharacterId selectedCharacterId, Action<int>? incrementQuickBattleSuppressedEntryCount = null)
     {
         foreach (var entry in entries)
         {
@@ -60,7 +52,7 @@ public sealed class SessionEventService
             }
             drawBattleRound(entry);
             RecordSessionActivity(SessionActivityKind.Battle, entry.Message, BattleEntryColor(entry.Kind));
-            PlayBattleRoundSound(entry, activeBattleState, selectedCharacterId);
+            PlayBattleRoundSound(entry, selectedCharacterId);
             refreshBattleStatus(entry);
         }
     }

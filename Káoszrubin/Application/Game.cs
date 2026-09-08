@@ -74,7 +74,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly GameSettingsService _musicSettings;
     private readonly GameSession _session;
     private readonly SpellExecutionService _spellExecutionService;
-    private readonly SingleBattleCoordinator _singleBattleCoordinator;
+    private readonly BattleActionCoordinator _battleActionCoordinator;
     private readonly TacticalTeamBattleCoordinator _teamBattleCoordinator;
     private readonly NpcQuestCoordinator _npcQuestCoordinator;
     private readonly StoryConversationCoordinator _storyConversationCoordinator;
@@ -172,7 +172,7 @@ public sealed class Game : ISessionCommandHandler
             ? CreateTeamBattleSnapshot(teamBattle)
             : null;
         var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_difficultyLevel, _maze.LevelName,
-            positions, battle, WorldSnapshotProjector.Create(_maze, _fogOfWar, null,
+            positions, battle, WorldSnapshotProjector.Create(_maze, _fogOfWar,
                 _activeTeamBattle?.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
                     .Select(enemy => enemy.Id).ToHashSet())));
         var followers = _maze.PartyMembers
@@ -328,7 +328,7 @@ public sealed class Game : ISessionCommandHandler
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
         _spellExecutionService = new SpellExecutionService(gameData, _random);
-        _singleBattleCoordinator = new SingleBattleCoordinator(gameData, _battleSystem, _spellExecutionService, _random);
+        _battleActionCoordinator = new BattleActionCoordinator(gameData, _battleSystem, _spellExecutionService, _random);
         _teamBattleCoordinator = new TacticalTeamBattleCoordinator(gameData, _battleSystem, _random);
         _npcQuestCoordinator = new NpcQuestCoordinator(gameData);
         _storyConversationCoordinator = new StoryConversationCoordinator(gameData, _random);
@@ -5347,17 +5347,17 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private LiveCharacter? TryRollKnightProtector(LiveCharacter protectedCharacter) =>
-        _singleBattleCoordinator.TryRollKnightProtector(protectedCharacter, GetCasterPosition(protectedCharacter),
+        _battleActionCoordinator.TryRollKnightProtector(protectedCharacter, GetCasterPosition(protectedCharacter),
             LivingPartyWithPositions());
 
-    private static BattleTactic ToBattleTactic(BattleActionKind action) => SingleBattleCoordinator.ToBattleTactic(action);
+    private static BattleTactic ToBattleTactic(BattleActionKind action) => BattleActionCoordinator.ToBattleTactic(action);
 
     private static string BattleTacticName(BattleTactic tactic, LiveCharacter character) =>
-        SingleBattleCoordinator.BattleTacticName(tactic, character);
+        BattleActionCoordinator.BattleTacticName(tactic, character);
 
     private IReadOnlyList<BattleSpellOption> GetSpellOptions(LiveCharacter character,
         Position characterPosition, Enemy? enemy, bool inCombat) =>
-        _singleBattleCoordinator.GetSpellOptions(character, characterPosition, enemy, inCombat,
+        _battleActionCoordinator.GetSpellOptions(character, characterPosition, enemy, inCombat,
             (c, pos, sp, en) => HasValidSpellTarget(c, pos, sp, en),
             (pos, sp, en) => GetValidSpellTargets(pos, sp, en));
 
@@ -5391,15 +5391,15 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private bool HasUsableCombatSpell(LiveCharacter character, Position characterPosition, Enemy enemy) =>
-        _singleBattleCoordinator.HasUsableCombatSpell(character, characterPosition, enemy,
+        _battleActionCoordinator.HasUsableCombatSpell(character, characterPosition, enemy,
             _timeStopUsedThisBattle, EquippedCastingItems(character),
             (c, pos, sp, en) => HasValidSpellTarget(c, pos, sp, en));
 
     private static bool CanTurnUndead(LiveCharacter character, Enemy enemy) =>
-        SingleBattleCoordinator.CanTurnUndead(character, enemy);
+        BattleActionCoordinator.CanTurnUndead(character, enemy);
 
     private BattlePlayerAction ResolveTurnUndead(LiveCharacter character, Enemy enemy) =>
-        _singleBattleCoordinator.ResolveTurnUndead(character, enemy, _turnUndeadUsedThisBattle);
+        _battleActionCoordinator.ResolveTurnUndead(character, enemy, _turnUndeadUsedThisBattle);
 
     private SpellCastAttempt? TryCastSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
         bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null,
@@ -8126,7 +8126,6 @@ public sealed class Game : ISessionCommandHandler
             _isQuickTeamBattle,
             entry => _renderer.DrawBattleRound(entry),
             _ => _renderer.RefreshBattleStatusRows(),
-            null,
             SelectedCharacter.Id,
             _ => _quickBattleSuppressedEntryCount++);
     }

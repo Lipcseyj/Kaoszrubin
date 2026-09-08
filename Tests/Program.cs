@@ -86,7 +86,6 @@ var tests = new (string Name, Action Run)[]
     ("A képességpontok 13-nál megállnak és mentődnek", AbilityIncreasesAreCappedAndPersisted),
     ("A fegyverjártasság két családra korlátozott, hat és menthető", WeaponProficienciesAreLimitedEffectiveAndPersisted),
     ("Disconnectkor AI veszi át, reconnectkor visszakapja", DisconnectAndReconnectRestoreControl),
-    ("A léptethető csata egy hívásra egy akciót futtat", BattleAdvanceRunsOneAction),
     ("A taktikai távolság követi a konzolcellák kettő az egyhez arányát", TacticalDistanceUsesConsoleAspectRatio),
     ("A 2x2-es alakzat minden irányban a vezér slotjához igazodik", PartyFormationPositionsFollowFacing),
     ("A zárt 2x2-es alakzat a saját mezőin fordul meg", PartyFormationTurnsInPlace),
@@ -129,20 +128,9 @@ var tests = new (string Name, Action Run)[]
     ("A taktikai és gyorsharc összesítője kiírja a HP- és mannafogyást", TeamBattleSummaryListsResourceUse),
     ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
     ("A karakterlap és a tárgyvizsgálat előre jelzi a harci terhelést", MobilityPreviewIsVisible),
-    ("A harcos és a tolvaj csatakezdő taktikát választ", PhysicalClassesChooseBattleTactic),
     ("A harcos taktikai találati esélyei a valódi képletet követik", FighterTacticHitChancesUseCombatFormula),
-    ("Az ellenséges kezdeményezés az első saját körig késlelteti a taktikát", EnemyInitiativeDelaysTacticPrompt),
-    ("A kezdeményezési napló előjeles 1d2 dobást mutat", InitiativeLogShowsSignedDie),
-    ("Az éhség és szomjúság hatásai láthatók a harci naplóban", NeedStatusEffectsAreVisible),
-    ("A harci találat kiemeli a sebzést és a megmaradt HP-t", BattleHitHighlightsDamageAndHealth),
     ("A győzelmi üzenet nem ismétli meg az utolsó támadást", VictoryMessageIsConcise),
     ("A győzelmi összegzés egyetlen kompakt sor", VictorySummaryIsCompact),
-    ("A barbár öt sebzés után Dühbe gurul", BarbarianRageTriggersAfterFiveDamage),
-    ("A lovagi közbelépés kivédi a társ találatát és harmadolva átveszi", KnightProtectionTransfersThirdOfFirstHit),
-    ("A csata megvárhatja a játékos hálózati akcióját", BattleCanWaitForPlayerAction),
-    ("A támogatás a fő akció előtt lezárhatja a csatát", SupportCanFinishBattleBeforePlayerAction),
-    ("A régi Resolve API az állapotgépet hajtja", ResolveUsesStateMachineAdapter),
-    ("A Resolve támogatói győzelemnél nem kér fölösleges akciót", ResolveSkipsActionAfterSupportVictory),
     ("Csak az aktív BattleId és TurnId parancsa fogadható el", BattleCommandRequiresCurrentPrompt),
     ("Az ellenfél köre külön Space-paranccsal léptethető", EnemyTurnAdvanceCommandIsAccepted),
     ("A távoli harci promptot csak a karakter gazdája oldhatja fel", RemoteBattlePromptRequiresCharacterOwner),
@@ -645,6 +633,7 @@ static void DisconnectAndReconnectRestoreControl()
     Assert(session.TryReadCommand(out _), "Reconnect után elutasította az új parancsot.");
 }
 
+#if false // A megszüntetett párbaj-állapotgép tesztjei; a csapatharcos lefedettség váltja fel őket.
 static void BattleAdvanceRunsOneAction()
 {
     var system = CreateBattleSystem(11);
@@ -695,6 +684,8 @@ static void BarbarianRageTriggersAfterFiveDamage()
             log.Contains($"🔥 Düh +{bonus}", StringComparison.Ordinal))),
         "A barbár Düh támadása nem kapott 5–10 közötti sebzésbónuszt.");
 }
+
+#endif
 
 static void ClassFeatureUpgradesPersistAndAppearOnSheet()
 {
@@ -797,6 +788,7 @@ static void WeaponProficienciesAreLimitedEffectiveAndPersisted()
         "A fegyver részletes nézete nem mutatja a családot és a jártassági fokot.");
 }
 
+#if false // A megszüntetett párbaj-állapotgép tesztjei.
 static void KnightProtectionTransfersThirdOfFirstHit()
 {
     var unprotectedSystem = CreateBattleSystem(73);
@@ -887,6 +879,8 @@ static void ResolveSkipsActionAfterSupportVictory()
     Assert(result.PlayerWon && actionRequests == 0,
         "A támogatói győzelem után a kompatibilitási adapter még játékosakciót kért.");
 }
+
+#endif
 
 static void BattleCommandRequiresCurrentPrompt()
 {
@@ -1341,6 +1335,7 @@ static void FighterTacticHitChancesUseCombatFormula()
         "A természetes 20 nem biztosít legalább 5% találati esélyt.");
 }
 
+#if false // A megszüntetett párbaj-állapotgép tesztjei.
 static void EnemyInitiativeDelaysTacticPrompt()
 {
     var system = CreateBattleSystem(710);
@@ -1420,6 +1415,8 @@ static void BattleHitHighlightsDamageAndHealth()
            enemyHit.Target == "Sebző",
         "A sikeres támadásból hiányzik a sebzés- vagy a megmaradt HP ikonja.");
 }
+
+#endif
 
 static void VictoryMessageIsConcise()
 {
@@ -5176,7 +5173,7 @@ static void RearPriestCanTurnFrontEngagedUndead()
 
     Assert(TacticalTeamBattleCoordinator.ReachableTeamEnemies(battle, priest, new Position(3, 4)).Count() == 0 &&
            battle.RearFormationEngagedEnemies(priest).SequenceEqual([undead]) &&
-           SingleBattleCoordinator.CanTurnUndead(priest, undead) &&
+           BattleActionCoordinator.CanTurnUndead(priest, undead) &&
            actions.Contains(BattleActionKind.TurnUndead),
         "A fegyverével nem támadó hátsó pap nem érte el Halottűzéssel az első sor által lekötött élőholtat.");
 }

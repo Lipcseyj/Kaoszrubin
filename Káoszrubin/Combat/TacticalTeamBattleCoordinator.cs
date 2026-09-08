@@ -326,7 +326,7 @@ public sealed class TacticalTeamBattleCoordinator
         var staggered = battle.IsCharacterStaggered(character);
         var turnUndeadTargets = AdjacentTeamEnemies(battle, character, characterPosition)
             .Concat(battle.RearFormationEngagedEnemies(character))
-            .Where(enemy => SingleBattleCoordinator.CanTurnUndead(character, enemy))
+            .Where(enemy => BattleActionCoordinator.CanTurnUndead(character, enemy))
             .DistinctBy(enemy => enemy.Id).ToArray();
         if (battle.Turns.Cycle == 1 && character.Id == battle.InitiatingCharacterId)
         {
