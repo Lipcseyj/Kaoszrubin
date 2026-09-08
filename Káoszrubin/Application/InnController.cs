@@ -85,7 +85,11 @@ internal sealed class InnController
         if (!_active) return null;
         var vendors = _vendorStocks.Select(pair => new InnVendorSnapshot(pair.Key, VendorName(pair.Key),
             pair.Value.Select((offer, index) => new InnOfferSnapshot(index, ToSnapshot(offer.Item), offer.Price)).ToArray()))
-            .ToArray();
+            .ToList();
+        if (_vendorStocks.ContainsKey(InnVendorKind.Blacksmith))
+            vendors.Add(CreateRepairVendorSnapshot(InnVendorKind.BlacksmithRepair));
+        if (_vendorStocks.ContainsKey(InnVendorKind.Armorer))
+            vendors.Add(CreateRepairVendorSnapshot(InnVendorKind.ArmorerRepair));
         return new InnSnapshot(_revision, _partyLeader.Gold, vendors,
             _rumors.Select(rumor => new InnRumorSnapshot(rumor.Title, rumor.Lines, rumor.Color)).ToArray(),
             _transactions.ToArray(),
@@ -100,6 +104,8 @@ internal sealed class InnController
     {
         if (!_active) { message = "A parti jelenleg nincs a fogadóban."; return false; }
         if (expectedRevision != _revision) { message = "A készlet időközben megváltozott; válassz újra."; return false; }
+        if (vendor is InnVendorKind.BlacksmithRepair or InnVendorKind.ArmorerRepair)
+            return TryRepair(vendor, offerIndex, recipient, out message);
         if (!_vendorStocks.TryGetValue(vendor, out var stock)) { message = "Ez a kereskedő most nincs jelen."; return false; }
         if (offerIndex < 0 || offerIndex >= stock.Count) { message = "Az ajánlat már nem érhető el."; return false; }
         var offer = stock[offerIndex];
@@ -156,6 +162,8 @@ internal sealed class InnController
         InnVendorKind.Witcher => "Vajákos",
         InnVendorKind.Blacksmith => "Kovácsmester",
         InnVendorKind.Armorer => "Páncélmíves",
+        InnVendorKind.BlacksmithRepair => "Kovácsmester javítóműhelye",
+        InnVendorKind.ArmorerRepair => "Páncélmíves javítóműhelye",
         InnVendorKind.WanderingMage => "Vándormágus portéka",
         _ => vendor.ToString()
     };
@@ -289,8 +297,16 @@ internal sealed class InnController
             new(InnMenuOptionKind.Feast, $"🍽️ Lakomázás ({ModifyPriceOfItem(FeastBasePricePerPerson, completedLevel)} {ConsoleRenderer.MoneyIcon}/fő)", "Ellátmány feltöltése: élelem és víz minden partitag és követő számára.", LeaderOnly: true),
             new(InnMenuOptionKind.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} {ConsoleRenderer.MoneyIcon})", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött.", LeaderOnly: true)
         };
-        if (blacksmithPresent) options.Add(new(InnMenuOptionKind.Blacksmith, "🔨 Kovácsmester", "Kizárólag fegyvereket kínál, csak vásárlásra.", InnVendorKind.Blacksmith));
-        if (armorerPresent) options.Add(new(InnMenuOptionKind.Armorer, "🛡️ Páncélmíves", "Kizárólag páncélokat kínál, csak vásárlásra.", InnVendorKind.Armorer));
+        if (blacksmithPresent)
+        {
+            options.Add(new(InnMenuOptionKind.Blacksmith, "🔨 Kovácsmester", "Kizárólag fegyvereket kínál, csak vásárlásra.", InnVendorKind.Blacksmith));
+            options.Add(new(InnMenuOptionKind.BlacksmithRepair, "🔧 Fegyverjavítás", "A Kovácsmester teljesen helyreállítja a parti sérült fegyvereit és pajzsait.", InnVendorKind.BlacksmithRepair));
+        }
+        if (armorerPresent)
+        {
+            options.Add(new(InnMenuOptionKind.Armorer, "🛡️ Páncélmíves", "Kizárólag páncélokat kínál, csak vásárlásra.", InnVendorKind.Armorer));
+            options.Add(new InnMenuOptionSnapshot(InnMenuOptionKind.ArmorerRepair, "🪡 Páncéljavítás", "A Páncélmíves teljesen helyreállítja a parti sérült vértezeteit.", InnVendorKind.ArmorerRepair));
+        }
         if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka, azonosítás és tárgyátkok megtörése.", InnVendorKind.WanderingMage));
         options.Add(new(InnMenuOptionKind.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása.", LeaderOnly: true));
         options.Add(new(InnMenuOptionKind.Retraining, "🏛️ Veterán kiképző",
@@ -356,6 +372,8 @@ internal sealed class InnController
                     _vendorStocks.GetValueOrDefault(InnVendorKind.Blacksmith) ?? []); break;
                 case InnMenuOptionKind.Armorer: RunSpecialistMarket("🛡️ PÁNCÉLMÍVES",
                     _vendorStocks.GetValueOrDefault(InnVendorKind.Armorer) ?? []); break;
+                case InnMenuOptionKind.BlacksmithRepair: RunRepairMarket(InnVendorKind.BlacksmithRepair); break;
+                case InnMenuOptionKind.ArmorerRepair: RunRepairMarket(InnVendorKind.ArmorerRepair); break;
                 case InnMenuOptionKind.WanderingMage: RunWanderingMage(
                     _vendorStocks.GetValueOrDefault(InnVendorKind.WanderingMage) ?? []); break;
                 case InnMenuOptionKind.Recruit: RunInnRecruitment(); break;
@@ -1467,6 +1485,99 @@ internal sealed class InnController
         _ => $"{string.Join(", ", items.Take(items.Count - 1))} és {items[^1]}"
     };
 
+    private InnVendorSnapshot CreateRepairVendorSnapshot(InnVendorKind vendor)
+    {
+        var offers = CreateRepairOffers(vendor).Select((offer, index) =>
+        {
+            var current = EquipmentDurabilityRules.CurrentDurability(offer.Item, offer.State);
+            var maximum = EquipmentDurabilityRules.MaximumDurability(offer.Item);
+            var snapshot = ToSnapshot(offer.Item) with
+            {
+                DefinitionId = offer.State.IsIdentified ? offer.Item.Id : string.Empty,
+                Name = $"{offer.Owner.Name}: {ItemIdentificationRules.DisplayName(offer.Item, offer.State.IsIdentified)}",
+                Description = $"Teljes javítás: {current}/{maximum} → {maximum}/{maximum} tartósság.",
+                BasePrice = offer.State.IsIdentified ? offer.Item.BasePrice : 0,
+                MagicPower = offer.State.IsIdentified ? offer.Item.MagicPower : 0,
+                MaximumDurability = maximum,
+                DurabilityDamage = offer.State.DurabilityDamage,
+                IsIdentified = offer.State.IsIdentified
+            };
+            return new InnOfferSnapshot(index, snapshot, offer.Price, offer.Owner.Id);
+        }).ToArray();
+        return new InnVendorSnapshot(vendor, VendorName(vendor), offers);
+    }
+
+    private List<RepairOffer> CreateRepairOffers(InnVendorKind vendor)
+    {
+        var category = vendor == InnVendorKind.BlacksmithRepair ? ItemCategory.Weapon : ItemCategory.Armor;
+        var offers = new List<RepairOffer>();
+        foreach (var owner in _characterRoster.Party.Members)
+        foreach (var kind in new[] { InventorySlotKind.Weapon, InventorySlotKind.Armor, InventorySlotKind.Backpack })
+        {
+            var count = kind switch
+            {
+                InventorySlotKind.Weapon => 3,
+                InventorySlotKind.Armor => 1,
+                _ => LiveCharacter.MaximumBackpackItemCount
+            };
+            for (var index = 0; index < count; index++)
+            {
+                var item = owner.GetInventoryItem(kind, index);
+                var state = owner.GetInventoryItemState(kind, index);
+                if (item?.Category != category || state is null) continue;
+                var price = EquipmentDurabilityRules.FullRepairCost(item, state.Value);
+                if (price > 0) offers.Add(new RepairOffer(owner, kind, index, item, state.Value, price));
+            }
+        }
+        return offers;
+    }
+
+    private bool TryRepair(InnVendorKind vendor, int offerIndex, LiveCharacter recipient, out string message)
+    {
+        var artisan = vendor == InnVendorKind.BlacksmithRepair ? InnVendorKind.Blacksmith : InnVendorKind.Armorer;
+        if (!_vendorStocks.ContainsKey(artisan))
+        { message = "A szükséges mester most nincs jelen."; return false; }
+        var offers = CreateRepairOffers(vendor);
+        if (offerIndex < 0 || offerIndex >= offers.Count)
+        { message = "A javítási ajánlat már nem érhető el."; return false; }
+        var offer = offers[offerIndex];
+        if (offer.Owner != recipient)
+        { message = "Csak az általad irányított karakter felszerelését javíttathatod."; return false; }
+        if (_partyLeader.Gold < offer.Price)
+        { message = $"Nincs elég közös arany: még {offer.Price - _partyLeader.Gold} hiányzik."; return false; }
+        if (!offer.Owner.RepairInventoryItemFully(offer.Kind, offer.Index))
+        { message = "A tárgy állapota időközben megváltozott; válassz újra."; return false; }
+        _partyLeader.SpendGold(offer.Price);
+        _revision++;
+        var name = ItemIdentificationRules.DisplayName(offer.Item, offer.State.IsIdentified);
+        message = $"Teljesen megjavítva: {name} ({offer.Price} arany).";
+        RecordTransaction(InnTransactionKind.Service, recipient.Name, $"{name} javítása", offer.Price,
+            recipient.Name, announceOnHost: true);
+        return true;
+    }
+
+    private void RunRepairMarket(InnVendorKind vendor)
+    {
+        var selectedIndex = 0;
+        var message = "A javítás teljesen helyreállítja a kiválasztott tárgy tartósságát.";
+        while (true)
+        {
+            var offers = CreateRepairOffers(vendor);
+            selectedIndex = offers.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, offers.Count - 1);
+            _renderer.DrawInnRepairScreen(CreateRepairVendorSnapshot(vendor), _partyLeader.Gold,
+                selectedIndex, message, _innName);
+            var key = _readKey().Key;
+            if (key == StateChangedKey) { message = ConsumeHostTransactionMessages(message); continue; }
+            if (key == ConsoleKey.Escape) return;
+            if (key == ConsoleKey.UpArrow && offers.Count > 0)
+                selectedIndex = (selectedIndex - 1 + offers.Count) % offers.Count;
+            else if (key == ConsoleKey.DownArrow && offers.Count > 0)
+                selectedIndex = (selectedIndex + 1) % offers.Count;
+            else if (key == ConsoleKey.Enter && offers.Count > 0)
+                TryPurchase(vendor, selectedIndex, _revision, offers[selectedIndex].Owner, out message);
+        }
+    }
+
     private void RunSpecialistMarket(string title, List<InnStockOffer> stock)
     {
         var selectedIndex = 0;
@@ -1551,6 +1662,8 @@ internal sealed class InnController
     };
 
     private sealed record RechargeableWand(LiveCharacter Character, InventorySlotKind Kind, int Index, MagicItemDefinition Item);
+    private sealed record RepairOffer(LiveCharacter Owner, InventorySlotKind Kind, int Index,
+        IItemDefinition Item, InventoryItemInstanceState State, int Price);
     private sealed record IdentifiableItem(LiveCharacter Character, InventorySlotKind Kind, int Index, IItemDefinition Item);
     private sealed record PurifiableItem(LiveCharacter Character, InventorySlotKind Kind, int Index,
         IItemDefinition Item, InventoryItemInstanceState State);

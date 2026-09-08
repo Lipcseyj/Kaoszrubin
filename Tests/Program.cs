@@ -191,6 +191,7 @@ var tests = new (string Name, Action Run)[]
     ("A tárgyvizsgálat és a részletes karakterinfó mutatja a felszerelés állapotát", EquipmentDurabilityIsVisible),
     ("A közös harci motor koptatja a használt fegyvert és a találatot fogó vértezetet", CombatAppliesEquipmentWear),
     ("A sérült és törött felszerelés fokozatos harci hátrányt okoz", DamagedAndBrokenEquipmentAffectsCombat),
+    ("A fogadói javítás ára ritkaság- és kopásarányos, az állapotot pedig megőrzi", EquipmentRepairRestoresDurability),
     ("A legintelligensebb élő mágus egyszer megpróbálja azonosítani a friss zsákmányt", MageIdentifiesFreshMagicLoot),
     ("Az átkozott tárgy aktiválódik, megköt és alkalmazza az adatvezérelt hátrányokat", CursedItemsActivateBindAndApplyEffects),
     ("Az Átoktörés és a Vándormágus végleg megtisztítja és feloldja a tárgyat", ItemCursePurificationIsPermanent),
@@ -2764,6 +2765,51 @@ static void DamagedAndBrokenEquipmentAffectsCombat()
                instanceState: InventoryItemInstanceState.Create() with { DurabilityDamage = 7500 }).Text
             .Contains("védelem 50%-a", StringComparison.OrdinalIgnoreCase),
         "A tárgyvizsgálat nem magyarázza el a sérült páncél következményét.");
+}
+
+static void EquipmentRepairRestoresDurability()
+{
+    var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { CharacterClassIds.Harcos };
+    var normal = new WeaponDefinition("W-REPAIR-N", "Javítandó kard", "WT001", new ValueRange(2, 4), 1,
+        false, allowed, "", 1000, Rarity: ItemRarity.Normal, MaximumDurability: 100);
+    var magic = normal with { Id = "W-REPAIR-M", Rarity = ItemRarity.Magic };
+    var legendary = normal with { Id = "W-REPAIR-L", Rarity = ItemRarity.Legendary };
+    var state = new InventoryItemInstanceState(Guid.NewGuid(), false, "CURSE-TEST",
+        ItemCurseEffect.HitPenalty, 1, 2, true, CharacterId.New(), DurabilityDamage: 60);
+    Assert(EquipmentDurabilityRules.FullRepairCost(normal, state) == 150 &&
+           EquipmentDurabilityRules.FullRepairCost(magic, state) == 210 &&
+           EquipmentDurabilityRules.FullRepairCost(legendary, state) == 300 &&
+           EquipmentDurabilityRules.FullRepairCost(normal, state with { DurabilityDamage = 0 }) == 0,
+        "A teljes javítás díja nem a hiányzó tartósság 25/35/50%-os árhányadát követi.");
+
+    var character = CreateCharacter("Javítás");
+    var boundState = state with { BoundCharacterId = character.Id };
+    Assert(character.SetInventoryItem(InventorySlotKind.Weapon, 0, magic, null, 1, boundState),
+        "A javítási tesztfegyvert nem lehetett felszerelni.");
+    var revisionBefore = character.InventoryRevision;
+    Assert(character.RepairInventoryItemFully(InventorySlotKind.Weapon, 0),
+        "A kopott felszerelés teljes javítása sikertelen volt.");
+    var repaired = character.GetInventoryItemState(InventorySlotKind.Weapon, 0)!.Value;
+    Assert(repaired.DurabilityDamage == 0 && repaired.InstanceId == boundState.InstanceId &&
+           repaired.IsIdentified == boundState.IsIdentified && repaired.CurseId == boundState.CurseId &&
+           repaired.IsCurseActivated && repaired.BoundCharacterId == character.Id &&
+           character.InventoryRevision == revisionBefore + 1,
+        "A javítás lecserélte a példányt, elvesztette az azonosítás/átok állapotát vagy nem frissített revíziót.");
+    Assert(!character.RepairInventoryItemFully(InventorySlotKind.Weapon, 0),
+        "A teljesen ép felszerelést ismét meg lehetett javítani.");
+
+    var repairItem = new InventoryItemSnapshot(magic.Id, $"{character.Name}: {magic.Name}",
+        ItemCategory.Weapon, magic.Rarity, 0, 0, Description: "Teljes javítás: 40/100 → 100/100 tartósság.",
+        BasePrice: magic.BasePrice, MaximumDurability: 100, DurabilityDamage: 60);
+    var repairVendor = new InnVendorSnapshot(InnVendorKind.BlacksmithRepair, "Javítóműhely",
+        [new InnOfferSnapshot(0, repairItem, 210)]);
+    var lines = ConsoleRenderer.BuildInnVendorLines(repairVendor, InnMarketMode.Buy, [], 0,
+        500, 0, "Válassz javítást.", "Tesztfogadó");
+    Assert(lines.Any(line => line.Text.Contains("FEGYVERJAVÍTÁS", StringComparison.Ordinal)) &&
+           lines.Any(line => line.Text.Contains("40/100 → 100/100", StringComparison.Ordinal)) &&
+           lines.Any(line => line.Text.Contains("Enter javítás", StringComparison.Ordinal)) &&
+           lines.Any(line => line.Text.Contains("210", StringComparison.Ordinal)),
+        "A közös host/vendég javítóképernyő nem mutatja az állapotváltozást, árat vagy vezérlést.");
 }
 
 static void MageIdentifiesFreshMagicLoot()

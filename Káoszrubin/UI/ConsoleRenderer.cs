@@ -854,7 +854,7 @@ public sealed class ConsoleRenderer
         return lines;
     }
 
-    internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnVendorLines(
+    public static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnVendorLines(
         InnVendorSnapshot vendor, InnMarketMode mode,
         IReadOnlyList<(InventoryItemSnapshot Item, int Price, string OwnerName)> sellOffers,
         int selectedIndex, int partyGold, int freeBackpackSlots, string message, string innName)
@@ -866,6 +866,8 @@ public sealed class ConsoleRenderer
         {
             InnVendorKind.Blacksmith => "🏰🍺  🔨 KOVÁCSMESTER  ✨",
             InnVendorKind.Armorer => "🏰🍺  🛡️ PÁNCÉLMÍVES  ✨",
+            InnVendorKind.BlacksmithRepair => "🏰🍺  🔧 FEGYVERJAVÍTÁS  ✨",
+            InnVendorKind.ArmorerRepair => "🏰🍺  🪡 PÁNCÉLJAVÍTÁS  ✨",
             InnVendorKind.WanderingMage => "🏰🍺  🧙 VÁNDORMÁGUS PORTÉKÁI  ✨",
             _ => $"🏰🍺  {innName} FOGADÓ KERESKEDŐJE  🛒✨"
         };
@@ -875,13 +877,18 @@ public sealed class ConsoleRenderer
             (string.Empty, ConsoleColor.Gray)
         };
         var usesMarketLayout = vendor.Kind is InnVendorKind.Market or InnVendorKind.Witcher;
+        var usesRepairLayout = vendor.Kind is InnVendorKind.BlacksmithRepair or InnVendorKind.ArmorerRepair;
         if (usesMarketLayout)
             lines.Add((buying ? "◀  [ VÁSÁRLÁS ]     ELADÁS  ▶" : "◀    VÁSÁRLÁS     [ ELADÁS ]  ▶",
                 ConsoleColor.Cyan));
         else
-            lines.Add(("Csak vásárlás — a kínálat és az árak a fogadóba érkezéskor rögzültek.",
+            lines.Add((usesRepairLayout
+                ? "Teljes javítás — a díj a kopásból, az alapárból és a ritkaságból számolódik."
+                : "Csak vásárlás — a kínálat és az árak a fogadóba érkezéskor rögzültek.",
                 ConsoleColor.DarkYellow));
-        lines.Add(($"{MoneyIcon} Közös arany: {partyGold}     🎒 Szabad hátizsákhely: {freeBackpackSlots}",
+        lines.Add((usesRepairLayout
+                ? $"{MoneyIcon} Közös arany: {partyGold}"
+                : $"{MoneyIcon} Közös arany: {partyGold}     🎒 Szabad hátizsákhely: {freeBackpackSlots}",
             ConsoleColor.Green));
         lines.Add((new string('─', 92), ConsoleColor.DarkMagenta));
         for (var row = 0; row < InnMarketPageSize; row++)
@@ -892,7 +899,9 @@ public sealed class ConsoleRenderer
             if (buying)
             {
                 var offer = vendor.Offers[index];
-                lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} {MoneyIcon}",
+                lines.Add((usesRepairLayout
+                    ? $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {offer.Item.Name,-32} javítás {offer.Price,5} {MoneyIcon}"
+                    : $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} {MoneyIcon}",
                     selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
             }
             else
@@ -913,7 +922,9 @@ public sealed class ConsoleRenderer
         lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
         lines.Add((usesMarketLayout
             ? "↑/↓ választás   ←/→ vétel–eladás   Enter üzlet   Tab karakterlap   Esc vissza"
-            : "↑/↓ választás   Enter vásárlás   Tab karakterlap   Esc vissza", ConsoleColor.White));
+            : usesRepairLayout
+                ? "↑/↓ választás   Enter javítás   Tab karakterlap   Esc vissza"
+                : "↑/↓ választás   Enter vásárlás   Tab karakterlap   Esc vissza", ConsoleColor.White));
         return lines;
     }
 
@@ -1184,6 +1195,14 @@ public sealed class ConsoleRenderer
             new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item), offer.Price)).ToArray());
         DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, InnMarketMode.Buy, [], selectedIndex,
             leader.Gold, freeBackpackSlots, message, innName), FramedWindow.Inn);
+    }
+
+    public void DrawInnRepairScreen(InnVendorSnapshot vendor, int partyGold, int selectedIndex,
+        string message, string innName)
+    {
+        ClearInnMenuScreen();
+        DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, InnMarketMode.Buy, [], selectedIndex,
+            partyGold, 0, message, innName), FramedWindow.Inn);
     }
 
     private static InventoryItemSnapshot ToInventoryItemSnapshot(IItemDefinition item) => new(item.Id, item.Name,

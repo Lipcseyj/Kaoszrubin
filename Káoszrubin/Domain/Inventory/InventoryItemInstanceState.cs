@@ -55,6 +55,21 @@ public static class EquipmentDurabilityRules
         return scaled >= 0 ? (scaled + 99) / 100 : -((-scaled + 99) / 100);
     }
 
+    public static int FullRepairCost(IItemDefinition item, InventoryItemInstanceState state)
+    {
+        var maximum = MaximumDurability(item);
+        var damage = Math.Clamp(state.DurabilityDamage, 0, maximum);
+        if (maximum <= 0 || damage <= 0) return 0;
+        var fullRepairPercent = item.Rarity switch
+        {
+            ItemRarity.Legendary => 50,
+            ItemRarity.Magic => 35,
+            _ => 25
+        };
+        return Math.Max(1, (int)Math.Ceiling(item.BasePrice * (double)damage / maximum *
+                                             fullRepairPercent / 100));
+    }
+
     public static int MaximumDurability(IItemDefinition item) =>
         item is IDurableItemDefinition durable ? Math.Max(0, durable.MaximumDurability) : 0;
 

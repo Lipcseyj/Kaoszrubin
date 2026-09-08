@@ -838,6 +838,9 @@ public sealed class CoopGuestScreen
             return null;
         }
         var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == characterId);
+        if (vendor.Kind is InnVendorKind.BlacksmithRepair or InnVendorKind.ArmorerRepair)
+            vendor = vendor with { Offers = vendor.Offers.Where(offer =>
+                offer.InventoryOwnerId == characterId).ToArray() };
         var sellOffers = _innMarketMode == InnMarketMode.Sell && vendor.Kind == InnVendorKind.Market
             ? GuestInnSellOffers(inn, own).ToArray()
             : [];
@@ -1669,6 +1672,9 @@ public sealed class CoopGuestScreen
                 return;
             }
             var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == characterId);
+            if (vendor?.Kind is InnVendorKind.BlacksmithRepair or InnVendorKind.ArmorerRepair)
+                vendor = vendor with { Offers = vendor.Offers.Where(offer =>
+                    offer.InventoryOwnerId == characterId).ToArray() };
             var sellOffers = vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell
                 ? GuestInnSellOffers(inn, own).ToArray()
                 : [];

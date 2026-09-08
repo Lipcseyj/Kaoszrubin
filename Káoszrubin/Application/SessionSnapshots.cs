@@ -93,12 +93,15 @@ public sealed record InnDepartureSnapshot(string Message);
 public sealed record BossPresentationSnapshot(string Name, string Appearance, int StrengthTier,
     string Reward);
 
-public enum InnVendorKind { Market, Witcher, Blacksmith, Armorer, WanderingMage }
+public enum InnVendorKind
+{
+    Market, Witcher, Blacksmith, Armorer, WanderingMage, BlacksmithRepair, ArmorerRepair
+}
 
 public enum InnMenuOptionKind
 {
     Rest, Market, Witcher, Feast, SecretStash, Blacksmith, Armorer, WanderingMage, Recruit, Rumors,
-    Retraining, ReturnExpedition, Leave
+    Retraining, BlacksmithRepair, ArmorerRepair, ReturnExpedition, Leave
 }
 
 public sealed record InnMenuOptionSnapshot(InnMenuOptionKind Kind, string Label, string Description,
@@ -132,7 +135,8 @@ public sealed record InnTransactionSnapshot(long Sequence, InnTransactionKind Ki
 
 public sealed record InnVendorSnapshot(InnVendorKind Kind, string Name, IReadOnlyList<InnOfferSnapshot> Offers);
 
-public sealed record InnOfferSnapshot(int Index, InventoryItemSnapshot Item, int Price);
+public sealed record InnOfferSnapshot(int Index, InventoryItemSnapshot Item, int Price,
+    CharacterId? InventoryOwnerId = null);
 
 public sealed record SessionCharacterSnapshot(CharacterId CharacterId, string Name, string RaceId,
     string CharacterClassId, int Level, int CurrentVitality, int MaximumVitality, int CurrentMana,

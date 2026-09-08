@@ -517,6 +517,18 @@ public sealed class LiveCharacter
             previousCondition, currentCondition);
     }
 
+    public bool RepairInventoryItemFully(InventorySlotKind kind, int index)
+    {
+        var item = GetInventoryItem(kind, index);
+        var state = GetInventoryItemState(kind, index);
+        if (item is null || state is null || state.Value.DurabilityDamage <= 0 ||
+            EquipmentDurabilityRules.MaximumDurability(item) <= 0) return false;
+        ApplyInventoryChanges(new InventorySlotChange(kind, index, item,
+            GetInventoryItemCharges(kind, index), GetInventoryItemQuantity(kind, index),
+            EquipmentDurabilityRules.Repair(item, state.Value, state.Value.DurabilityDamage)));
+        return true;
+    }
+
     public int GetActiveCurseValue(ItemCurseEffect effect) => ActiveEquippedItemStates()
         .Where(state => state.IsCurseActivated && state.BoundCharacterId == Id && state.CurseEffect == effect)
         .Sum(state => state.CurseValue);
