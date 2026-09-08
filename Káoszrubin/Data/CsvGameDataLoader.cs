@@ -77,7 +77,7 @@ public static class CsvGameDataLoader
 
             if (IsHeaderRow(cells[0])) continue;
             if (section == DataSection.None)
-                throw new InvalidDataException($"A " + GameDataFileName + " {lineNumber}. sora nem tartozik ismert fejezethez: '{rawLine}'.");
+                throw new InvalidDataException($"A {GameDataFileName} {lineNumber}. sora nem tartozik ismert fejezethez: '{rawLine}'.");
             try
             {
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
@@ -90,7 +90,9 @@ public static class CsvGameDataLoader
             }
             catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException or ArgumentException)
             {
-                throw new InvalidDataException($"Hiba a " + GameDataFileName + " {lineNumber}. sorában, a(z) '{section}' fejezetben: {exception.Message}", exception);
+                throw new InvalidDataException(
+                    $"Hiba a {GameDataFileName} {lineNumber}. sorában, a(z) '{section}' fejezetben: {exception.Message}",
+                    exception);
             }
         }
 
@@ -1346,7 +1348,8 @@ public static class CsvGameDataLoader
         {
             section = ParseSection(sectionCell[1..]);
             if (section == DataSection.None)
-                throw new InvalidDataException($"Ismeretlen fejezetcím a " + GameDataFileName + " {lineNumber}. sorában: '{sectionCell}'.");
+                throw new InvalidDataException(
+                    $"Ismeretlen fejezetcím a {GameDataFileName} {lineNumber}. sorában: '{sectionCell}'.");
             return true;
         }
 
