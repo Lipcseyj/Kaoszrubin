@@ -100,6 +100,7 @@ var tests = new (string Name, Action Run)[]
     ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
     ("A nyitó ütésváltást a kezdeményezés dönti el, a rajtaütést kivéve", TeamBattleOpeningOrderUsesInitiative),
     ("Az Első csapás a nyitásban +10, a rendes sorrendben +2 kezdeményezést ad", FirstStrikeUsesSeparateOpeningInitiative),
+    ("A gyorsítás és lassítás a következő kör elején rendezi át a kezdeményezést", SpellEffectsReorderInitiativeAtCycleBoundary),
     ("A zárt út mögötti ellenfél nem érkezhet meg néhány harci kör alatt", TacticalArrivalRequiresWalkableRoute),
     ("A csapatharc két egymást követő tétlen kör után áll le", TeamBattleDetectsInactiveSide),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
@@ -4457,6 +4458,51 @@ static void FirstStrikeUsesSeparateOpeningInitiative()
            encounter.Turns.AdvanceTurn().Id == enemyId &&
            encounter.Turns.AdvanceTurn().Id == enemyId,
         "Az Első csapás nyitó bónusza nem csak az első ütésváltást rendezte át.");
+}
+
+static void SpellEffectsReorderInitiativeAtCycleBoundary()
+{
+    var system = CreateBattleSystem(1722);
+    var character = CreateCharacter("Gyorsított");
+    var enemy = CreateEnemy(20, 2, speed: 7);
+    var preparation = system.PrepareTeamCharacter(character);
+    var encounter = new TeamBattleEncounter(new Position(1, 1),
+        [new TeamCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
+            5, 3, 1, preparation.Runtime)],
+        [new TeamEnemyParticipant(enemy, 7, 3, 1)], character.Id, enemy.Id);
+    var characterId = CombatantId.ForCharacter(character.Id);
+    var enemyId = CombatantId.ForEnemy(enemy.Id);
+
+    Assert(encounter.Turns.StartTurns().Id == enemyId,
+        "A teszt kezdeti kezdeményezési sorrendje hibás.");
+    character.ApplySpellEffect(new ActiveSpellEffect("HASTE-TEST", ActiveSpellEffectType.InitiativeBonus,
+        5, 3, Beneficial: true));
+    enemy.ApplySpellEffect(new ActiveSpellEffect("SLOW-TEST", ActiveSpellEffectType.SpeedPenalty, 3, 3));
+    Assert(encounter.Turns.CurrentParticipant?.InitiativeBase == 7,
+        "A varázshatás kör közben megváltoztatta az aktuális sorrendet.");
+
+    encounter.AdvanceTurn();
+    var secondCycleFirst = encounter.AdvanceTurn();
+    Assert(encounter.Turns.Cycle == 2 && secondCycleFirst.Id == characterId &&
+           encounter.Turns.Find(characterId)?.InitiativeBase == 10 &&
+           encounter.Turns.Find(enemyId)?.InitiativeBase == 4 &&
+           encounter.InitiativeChangesAtCycleStart.Count == 2,
+        "A gyorsítás és lassítás nem a következő kör kezdeményezését rendezte át.");
+
+    character.RemoveSpellEffects(effect => effect.SourceSpellId == "HASTE-TEST");
+    enemy.RemoveSpellEffects(effect => effect.SourceSpellId == "SLOW-TEST");
+    encounter.AdvanceTurn();
+    var thirdCycleFirst = encounter.AdvanceTurn();
+    Assert(encounter.Turns.Cycle == 3 && thirdCycleFirst.Id == enemyId &&
+           encounter.Turns.Find(characterId)?.InitiativeBase == 5 &&
+           encounter.Turns.Find(enemyId)?.InitiativeBase == 7 &&
+           encounter.InitiativeChangesAtCycleStart.Count == 2,
+        "A lejárt gyorsítás és lassítás nem állította vissza a következő kör sorrendjét.");
+
+    encounter.AdvanceTurn();
+    encounter.AdvanceTurn();
+    Assert(encounter.Turns.Cycle == 4 && encounter.InitiativeChangesAtCycleStart.Count == 0,
+        "A rendszer változatlan kezdeményezés mellett is körönkénti naplóeseményt készítene.");
 }
 
 static void TacticalArrivalRequiresWalkableRoute()

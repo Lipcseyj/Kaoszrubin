@@ -5996,6 +5996,17 @@ public sealed class Game : ISessionCommandHandler
             {
                 _battleLogCycle = battle.Turns.Cycle;
                 _renderer.SetBattleCommandPanelRound(battle.Turns.Cycle);
+                if (battle.InitiativeChangesAtCycleStart.Count > 0)
+                {
+                    var changes = string.Join(", ", battle.InitiativeChangesAtCycleStart.Select(change =>
+                        $"{change.Name} {change.PreviousInitiative}→{change.CurrentInitiative}"));
+                    var order = string.Join(" → ", battle.Turns.InitiativeOrder.Select(participant =>
+                        battle.CharacterFor(participant.Id)?.Name ?? battle.EnemyFor(participant.Id)?.Name ??
+                        participant.Id.Value));
+                    PresentBattleEntries([new BattleLogEntry(
+                        $"⚡ {battle.Turns.Cycle}. kör: kezdeményezés változott — {changes}. Új sorrend: {order}.",
+                        BattleLogKind.Information)]);
+                }
             }
             UpdateTeamBattleFocus(battle, current);
             if (battle.CurrentCharacter is { } character)

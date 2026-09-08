@@ -1,5 +1,6 @@
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Inventory;
+using KaoszRubin.Domain.Magic;
 
 namespace KaoszRubin.Combat;
 
@@ -34,6 +35,12 @@ public sealed record TeamBattleCharacterResult(
     IReadOnlyList<string> GainedStatusIcons,
     int SpellsCast);
 
+public sealed record TeamBattleInitiativeChange(
+    CombatantId CombatantId,
+    string Name,
+    int PreviousInitiative,
+    int CurrentInitiative);
+
 /// <summary>A játékvilág objektumait a tiszta taktikai körsorrendhez kapcsoló futásidejű összecsapás.</summary>
 public sealed class TeamBattleEncounter
 {
@@ -58,6 +65,7 @@ public sealed class TeamBattleEncounter
     private readonly HashSet<CharacterId> _rearCombatPreparationOrders = [];
     private readonly HashSet<BattleSide> _activeSidesThisCycle = [];
     private readonly Dictionary<CombatantId, int> _spellEffectsAdvancedInCycle = [];
+    private readonly Dictionary<CombatantId, int> _dynamicInitiativeModifiers = [];
     private readonly Dictionary<BattleSide, int> _inactiveCycleStreaks = Enum.GetValues<BattleSide>()
         .ToDictionary(side => side, _ => 0);
     private readonly List<TeamBattleKill> _kills = [];
@@ -102,6 +110,7 @@ public sealed class TeamBattleEncounter
                 participant.Kind, participant.Position, participant.Initiative,
                 participant.MovementAllowance, participant.EligibleFromCycle,
                 participant.EligibleFromCycle > 1 ? TacticalParticipantState.Approaching : TacticalParticipantState.Active));
+            _dynamicInitiativeModifiers[id] = DynamicInitiativeModifier(participant.Character);
         }
         foreach (var participant in enemyList)
         {
@@ -111,6 +120,7 @@ public sealed class TeamBattleEncounter
                 TacticalParticipantKind.Enemy, participant.Enemy.Position, participant.Initiative,
                 participant.MovementAllowance, participant.EligibleFromCycle,
                 participant.EligibleFromCycle > 1 ? TacticalParticipantState.Approaching : TacticalParticipantState.Active));
+            _dynamicInitiativeModifiers[id] = DynamicInitiativeModifier(participant.Enemy);
             _enemyFacingTargets[participant.Enemy.Id] = initiatingCharacterId;
         }
         var initiatingCharacter = CombatantId.ForCharacter(initiatingCharacterId);
@@ -149,6 +159,7 @@ public sealed class TeamBattleEncounter
     public IReadOnlyCollection<LiveCharacter> Characters => _characters.Values;
     public IReadOnlyCollection<Enemy> Enemies => _enemies.Values;
     public IReadOnlyList<TeamBattleKill> Kills => _kills;
+    public IReadOnlyList<TeamBattleInitiativeChange> InitiativeChangesAtCycleStart { get; private set; } = [];
     public bool FriendlySideDefeated => _characters.Values.All(character => !character.IsAlive);
     public bool HostileSideDefeated => _enemies.Values.All(enemy => enemy.CurrentHitPoints <= 0);
     public bool IsCompleted => FriendlySideDefeated || HostileSideDefeated;
@@ -394,6 +405,7 @@ public sealed class TeamBattleEncounter
             participant.EligibleFromCycle, TacticalParticipantState.Approaching);
         if (!Turns.TryAddParticipant(tactical)) return false;
         _enemies.Add(id, participant.Enemy);
+        _dynamicInitiativeModifiers[id] = DynamicInitiativeModifier(participant.Enemy);
         _enemyFacingTargets[participant.Enemy.Id] = InitiatingCharacterId;
         return true;
     }
@@ -445,6 +457,7 @@ public sealed class TeamBattleEncounter
     {
         ActionNumber++;
         SelectedTargetEnemyId = null;
+        InitiativeChangesAtCycleStart = [];
         if (_queuedExtraActions > 0)
         {
             _queuedExtraActions--;
@@ -453,6 +466,8 @@ public sealed class TeamBattleEncounter
         if (CurrentCharacter is { } completedCharacter)
             _staggeredCharacters.Remove(completedCharacter.Id);
         var completedCycle = Turns.Cycle;
+        if (Turns.IsLastTurnInCycle)
+            InitiativeChangesAtCycleStart = RefreshDynamicInitiatives();
         var next = Turns.AdvanceTurn();
         if (Turns.Cycle > completedCycle)
         {
@@ -469,6 +484,35 @@ public sealed class TeamBattleEncounter
         }
         return next;
     }
+
+    private IReadOnlyList<TeamBattleInitiativeChange> RefreshDynamicInitiatives()
+    {
+        var changes = new List<TeamBattleInitiativeChange>();
+        foreach (var participant in Turns.Participants.ToArray())
+        {
+            _characters.TryGetValue(participant.Id, out var character);
+            _enemies.TryGetValue(participant.Id, out var enemy);
+            var currentModifier = character is not null
+                ? DynamicInitiativeModifier(character)
+                : enemy is not null ? DynamicInitiativeModifier(enemy) : 0;
+            var previousModifier = _dynamicInitiativeModifiers.GetValueOrDefault(participant.Id);
+            if (currentModifier == previousModifier) continue;
+
+            var currentInitiative = participant.InitiativeBase + currentModifier - previousModifier;
+            if (!Turns.TryUpdateInitiative(participant.Id, currentInitiative)) continue;
+            _dynamicInitiativeModifiers[participant.Id] = currentModifier;
+            var name = character?.Name ?? enemy?.Name ?? participant.Id.Value;
+            changes.Add(new TeamBattleInitiativeChange(participant.Id, name,
+                participant.InitiativeBase, currentInitiative));
+        }
+        return changes;
+    }
+
+    private static int DynamicInitiativeModifier(LiveCharacter character) =>
+        character.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus);
+
+    private static int DynamicInitiativeModifier(Enemy enemy) =>
+        enemy.EffectiveSpeed - (enemy.Definition.Speed ?? 1);
 
     public void RecordMovement(BattleSide side) => _activeSidesThisCycle.Add(side);
     public void RecordAttack(BattleSide side) => _activeSidesThisCycle.Add(side);

@@ -130,6 +130,7 @@ public sealed class TacticalBattleState
     public TacticalBattleParticipant? CurrentParticipant => HasStarted && _turnIndex < _cycleOrder.Count
         ? _participants.GetValueOrDefault(_cycleOrder[_turnIndex])
         : null;
+    public bool IsLastTurnInCycle => HasStarted && _turnIndex == _cycleOrder.Count - 1;
 
     public IReadOnlyList<TacticalBattleParticipant> InitiativeOrder => _participants.Values
         .Where(participant => participant.CanActIn(Cycle))
@@ -174,6 +175,13 @@ public sealed class TacticalBattleState
     {
         if (!_participants.TryGetValue(id, out var participant)) return false;
         _participants[id] = participant with { Position = position };
+        return true;
+    }
+
+    public bool TryUpdateInitiative(CombatantId id, int initiative)
+    {
+        if (!_participants.TryGetValue(id, out var participant)) return false;
+        _participants[id] = participant with { InitiativeBase = initiative };
         return true;
     }
 

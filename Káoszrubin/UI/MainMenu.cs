@@ -945,7 +945,7 @@ public sealed class MainMenu
             ColoredText("Az első saját kör előtt az egész csatára állást választ. Osztályjártasság: 1–4. szint +1; 5–9. +2; 10–14. +3; 15–20. +4 találat.", ConsoleColor.Yellow),
             ColoredText("🎯 Pontos: +2 találat, sebzés ×0,75.  💥 Erőteljes: -1 találat, sebzés ×1,25, fél páncél és teljes erejű söprés.  🛡️ Védekező: sebzés ×0,75, +3 védelem és szomszédos társi fedezet.", ConsoleColor.Cyan),
             ColoredText("🌟 10./20. szint: Kimért pontosság — Pontos ×0,85 | Zúzó lendület — 75% páncéltörés | Áthatolhatatlan állás — +4 védelem.", ConsoleColor.DarkCyan),
-            Text("1. fokozat — 5. szint (Ember: 4.): Első csapás — +10 kezdeményezés | Robusztusság — +10 max HP."),
+            Text("1. fokozat — 5. szint (Ember: 4.): Első csapás — nyitáskor +10, utána +2 kezdeményezés | Robusztusság — +10 max HP."),
             Text("2. fokozat — 15. szint: Fegyvermester — +2 fegyveres találat | Rendíthetetlen — minden elszenvedett találatból -2 sebzés."),
             Text("3. fokozat — 25. szint: Acélvihar — találat után 35% eséllyel újabb támadás | Utolsó erőd — harconként egyszer 1 HP-n túléli a halálos csapást."),
             Blank(),
