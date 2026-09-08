@@ -6,5 +6,7 @@
   <Project Path="Káoszrubin/Kaoszrubin.csproj">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
-  <Project Path="Tests/KaoszrubinTests.csproj" />
+  <Project Path="Tests/KaoszrubinTests.csproj">
+    <Platform Solution="Debug|x64" Project="x64" />
+  </Project>
 </Solution>
