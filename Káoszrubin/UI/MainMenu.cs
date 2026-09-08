@@ -84,18 +84,23 @@ public sealed class MainMenu
     public MainMenu(GameDataCatalog gameData, string characterSavePath, string gameSaveDirectory,
         string applicationVersion, string catalogHash)
     {
+        StartupLog.Info("main-menu.initialization.start");
         _gameData = gameData;
         _characterSaveService = new CharacterSaveService(characterSavePath, gameData);
         _gameSaveService = new GameSaveService(gameSaveDirectory, _characterSaveService);
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
         _characterRoster = _characterSaveService.Load();
-        _soundEffects = new SoundEffects(_musicSettings.Settings);
+        StartupLog.Info("main-menu.characters.loaded", $"count={_characterRoster.Characters.Count}");
+        _soundEffects = new SoundEffects(_musicSettings.Settings,
+            message => StartupLog.Warning("audio.sound-effect", message));
+        StartupLog.Info("main-menu.initialization.complete");
     }
 
     public void Run()
     {
         bool menuSoundPlayed = false;
+        var readyLogged = false;
 
         while (true)
         {
@@ -106,6 +111,11 @@ public sealed class MainMenu
             }   
 
             DrawMainMenu();
+            if (!readyLogged)
+            {
+                StartupLog.Info("main-menu.ready", "A főmenü kirajzolva, a program billentyűbevitelre vár.");
+                readyLogged = true;
+            }
 
             switch (Console.ReadKey(intercept: true).Key)
             {

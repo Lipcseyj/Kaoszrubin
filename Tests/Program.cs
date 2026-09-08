@@ -8,6 +8,7 @@ using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Magic;
+using KaoszRubin.Infrastructure;
 using KaoszRubin.Transport.SignalR;
 using KaoszRubin.UI;
 using KaoszRubin.World;
@@ -17,6 +18,7 @@ using System.Text;
 var tests = new (string Name, Action Run)[]
 {
     ("A terminál méretőre pontosan a teljes játékképernyőt követeli meg", TerminalViewportRequiresCompleteGameScreen),
+    ("A Windows Terminal újraindítás debuggerben és gyermekfolyamatban kimarad", WindowsTerminalRelaunchGuardsAreStable),
     ("A többsoros fogadói pletyka minden sora a kereten belül marad", MultilineInnRumorStaysInsideFrame),
     ("A fejlesztői fegyvercsomag követi a kategóriákat és a hátizsák kapacitását", DevelopmentWeaponsRespectCapacity),
     ("A lovag harci fegyvercsere-parancsa átjut a session ellenőrzésén", KnightBattleWeaponSwapCommandIsAccepted),
@@ -236,6 +238,22 @@ static void TerminalViewportRequiresCompleteGameScreen()
         "Egy hiányzó sornál a játéknak várakoznia kell.");
     Assert(new TerminalViewport.Size(minimumWidth, minimumHeight).CanFit(minimumWidth, minimumHeight),
         "A pontos minimális méretnek már használhatónak kell lennie.");
+}
+
+static void WindowsTerminalRelaunchGuardsAreStable()
+{
+    Assert(SystemHelpers.ShouldRelaunchInWindowsTerminal(
+            isWindows: true, hasWindowsTerminalSession: false, hasChildMarker: false, debuggerAttached: false),
+        "A közvetlen Windows-indítás nem kérte a Windows Terminalt.");
+    Assert(!SystemHelpers.ShouldRelaunchInWindowsTerminal(
+            isWindows: true, hasWindowsTerminalSession: true, hasChildMarker: false, debuggerAttached: false) &&
+           !SystemHelpers.ShouldRelaunchInWindowsTerminal(
+               isWindows: true, hasWindowsTerminalSession: false, hasChildMarker: true, debuggerAttached: false) &&
+           !SystemHelpers.ShouldRelaunchInWindowsTerminal(
+               isWindows: true, hasWindowsTerminalSession: false, hasChildMarker: false, debuggerAttached: true) &&
+           !SystemHelpers.ShouldRelaunchInWindowsTerminal(
+               isWindows: false, hasWindowsTerminalSession: false, hasChildMarker: false, debuggerAttached: false),
+        "A Windows Terminal újraindítási őrfeltételei ciklust vagy debuggerleválást engednek.");
 }
 
 var failures = 0;
