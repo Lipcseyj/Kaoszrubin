@@ -6463,6 +6463,7 @@ public sealed class Game : ISessionCommandHandler
             TryExecuteSwapToRear(battle, character, out _))
             return;
         if (TryExecuteTeamAiTurnUndead(battle, character)) return;
+        EnsureNpcOffensiveSpellPlan(battle, character);
         if (TryExecuteTeamAiSpell(battle, character)) return;
         var hasAdjacentEnemy = AdjacentTeamEnemies(battle, character).Any();
         var attemptedUrgentPotion = character.CurrentVitality * 2 < character.MaximumVitality &&
@@ -6540,6 +6541,70 @@ public sealed class Game : ISessionCommandHandler
         return true;
     }
 
+    private void EnsureNpcOffensiveSpellPlan(TeamBattleEncounter battle, LiveCharacter caster)
+    {
+        if (!caster.IsSpellcaster || !caster.CanCastSpells || !SpellcastingRules.HasRequiredFocus(caster))
+        {
+            battle.ClearNpcSpellPlan(caster);
+            return;
+        }
+
+        if (battle.NpcSpellPlanFor(caster) is { } existing)
+        {
+            var existingTarget = existing.TargetEnemyId is { } enemyId
+                ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == enemyId && enemy.CurrentHitPoints > 0)
+                : null;
+            var existingSpell = caster.MemorizedSpells.FirstOrDefault(spell =>
+                string.Equals(spell.Id, existing.SpellId, StringComparison.OrdinalIgnoreCase));
+            if (existing.Status != NpcSpellPlanStatus.Failed && existingTarget is not null &&
+                existingSpell is not null && NpcSpellcastingPolicy.CanSpendMana(caster,
+                    SpellcastingRules.EffectiveManaCost(caster, existingSpell)))
+            {
+                if (existing.TargetPosition != existingTarget.Position)
+                    battle.SetNpcSpellPlan(caster, existing with { TargetPosition = existingTarget.Position });
+                return;
+            }
+            var reason = existingTarget is null ? "a célpont már nem harcképes" :
+                existingSpell is null ? "a tervezett varázslat már nem elérhető" :
+                existing.Status == NpcSpellPlanStatus.Failed ? "a terv nem megvalósítható" :
+                "nincs hozzá elkölthető mana";
+            PresentBattleEntries([new BattleLogEntry(
+                $"⚠️ {caster.Name} elveti korábbi varázstervét: {reason}.", BattleLogKind.Information)]);
+            battle.ClearNpcSpellPlan(caster);
+        }
+
+        var livingEnemies = battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).ToArray();
+        if (livingEnemies.Length == 0) return;
+        var tactics = NpcTacticsFor(caster).EffectiveProfile(
+            livingEnemies.Any(enemy => IsUnholy(enemy.Definition)));
+        var enemyStrength = livingEnemies.Sum(enemy => Math.Max(1, enemy.Definition.StrengthTier));
+        var mayCastOffensively = enemyStrength >= tactics.MinimumEnemyStrength &&
+            (enemyStrength >= tactics.FullOffenseEnemyStrength ||
+             battle.OffensiveSpellCastsFor(caster) < tactics.OffensiveSpellsPerBattle);
+        if (!mayCastOffensively) return;
+
+        var spell = caster.MemorizedSpells.Where(candidate => candidate.CanUseInCombat &&
+                NpcSpellcastingPolicy.IsSingleTargetOffensive(candidate,
+                    _gameData.GetSpellEffects(candidate.Id)) &&
+                NpcSpellcastingPolicy.CanSpendMana(caster,
+                    SpellcastingRules.EffectiveManaCost(caster, candidate)))
+            .OrderBy(candidate => SpellcastingRules.EffectiveManaCost(caster, candidate))
+            .ThenBy(candidate => candidate.Level).FirstOrDefault();
+        var target = OrderedNpcSpellTargets(battle, GetCasterPosition(caster)).FirstOrDefault();
+        if (spell is null || target is null) return;
+
+        var ready = ValidateSpellCast(caster, GetCasterPosition(caster), spell, true, target,
+            explicitTarget: target.Position) is null;
+        var plan = new NpcSpellPlan(Guid.NewGuid(), spell.Id, target.Id, target.Position,
+            ready ? GetCasterPosition(caster) : null, NpcSpellPlanComplexity.Simple, battle.Turns.Cycle,
+            ExpectedTargetCount: 1, ExpectedUtility: 0,
+            ready ? NpcSpellPlanStatus.ReadyToCast : NpcSpellPlanStatus.SeekingPosition);
+        battle.SetNpcSpellPlan(caster, plan);
+        PresentBattleEntries([new BattleLogEntry(
+            $"🔮 {caster.Name} terve: most {spell.Name} varázslatot használ {target.Name} ellen.",
+            BattleLogKind.Information)]);
+    }
+
     private bool TryExecuteNpcSpellcasterPositioning(TeamBattleEncounter battle, LiveCharacter caster)
     {
         if (!caster.IsSpellcaster || !caster.CanCastSpells ||
@@ -6551,7 +6616,14 @@ public sealed class Game : ISessionCommandHandler
         var withinCastingPlan = enemyStrength >= tactics.MinimumEnemyStrength &&
             (enemyStrength >= tactics.FullOffenseEnemyStrength ||
              battle.OffensiveSpellCastsFor(caster) < tactics.OffensiveSpellsPerBattle);
+        var activePlan = battle.NpcSpellPlanFor(caster);
+        var plannedTarget = activePlan?.TargetEnemyId is { } targetId
+            ? livingEnemies.FirstOrDefault(enemy => enemy.Id == targetId)
+            : null;
+        var planningEnemies = plannedTarget is null ? livingEnemies : [plannedTarget];
         var offensiveSpells = caster.MemorizedSpells.Where(spell => spell.CanUseInCombat &&
+                (activePlan is null || string.Equals(spell.Id, activePlan.SpellId,
+                    StringComparison.OrdinalIgnoreCase)) &&
                 NpcSpellcastingPolicy.IsSingleTargetOffensive(spell, _gameData.GetSpellEffects(spell.Id)))
             .ToArray();
         var spendableOffensiveSpells = offensiveSpells.Where(spell =>
@@ -6574,13 +6646,19 @@ public sealed class Game : ISessionCommandHandler
         }
 
         var origin = GetCasterPosition(caster);
-        if (livingEnemies.Any(enemy => spendableOffensiveSpells.Any(spell =>
+        if (planningEnemies.Any(enemy => spendableOffensiveSpells.Any(spell =>
                 FogOfWar.CanSee(_maze, origin, enemy.Position, Math.Max(1, spell.Range)))))
         {
+            if (activePlan is not null)
+                battle.SetNpcSpellPlan(caster, activePlan with
+                {
+                    RequiredCastingPosition = origin,
+                    Status = NpcSpellPlanStatus.ReadyToCast
+                });
             FinishNpcSpellcasterPositioning(battle, caster, "megtartja a lővonalat");
             return true;
         }
-        return MoveNpcSpellcasterToBestPosition(battle, caster, livingEnemies, spendableOffensiveSpells,
+        return MoveNpcSpellcasterToBestPosition(battle, caster, planningEnemies, spendableOffensiveSpells,
             seekLineOfSight: true);
     }
 
@@ -6596,9 +6674,22 @@ public sealed class Game : ISessionCommandHandler
                 enemies, offensiveSpells);
             if (lineOfSightPath.Count > 0)
             {
+                if (battle.NpcSpellPlanFor(caster) is { } plan)
+                {
+                    battle.SetNpcSpellPlan(caster, plan with
+                    {
+                        RequiredCastingPosition = lineOfSightPath[^1],
+                        Status = NpcSpellPlanStatus.SeekingPosition
+                    });
+                    PresentBattleEntries([new BattleLogEntry(
+                        $"🔮 {caster.Name} a tervezett varázslat lővonalához mozog.",
+                        BattleLogKind.Information)]);
+                }
                 CompleteTeamCharacterMovement(battle, caster, lineOfSightPath);
                 return true;
             }
+            if (battle.NpcSpellPlanFor(caster) is { } failedPlan)
+                battle.SetNpcSpellPlan(caster, failedPlan with { Status = NpcSpellPlanStatus.Failed });
             FinishNpcSpellcasterPositioning(battle, caster, "nem talál elérhető lővonalat");
             return true;
         }
@@ -6689,6 +6780,10 @@ public sealed class Game : ISessionCommandHandler
         if (plan.Offensive)
         {
             battle.RecordOffensiveSpellCast(caster);
+            if (battle.NpcSpellPlanFor(caster) is { } completedPlan &&
+                string.Equals(completedPlan.SpellId, plan.Spell.Id, StringComparison.OrdinalIgnoreCase) &&
+                completedPlan.TargetEnemyId == plan.Enemy?.Id)
+                battle.ClearNpcSpellPlan(caster);
             battle.RecordAttack(BattleSide.Friendly);
             if (attempt.DamageToCurrentEnemy > 0 && plan.Enemy is not null)
                 plan.Enemy.ReceiveSpellDamage(attempt.DamageToCurrentEnemy);
@@ -6780,9 +6875,36 @@ public sealed class Game : ISessionCommandHandler
         dangerousEnemy ??= currentEnemy;
         if (dangerousEnemy is null) return null;
 
+        var activePlan = battle.NpcSpellPlanFor(caster);
+        if (activePlan is not null)
+        {
+            var plannedSpell = spells.FirstOrDefault(spell => string.Equals(spell.Id, activePlan.SpellId,
+                StringComparison.OrdinalIgnoreCase));
+            var plannedTarget = activePlan.TargetEnemyId is { } targetId
+                ? enemies.FirstOrDefault(enemy => enemy.Id == targetId)
+                : null;
+            if (plannedSpell is not null && plannedTarget is not null &&
+                NpcSpellcastingPolicy.CanSpendMana(caster,
+                    SpellcastingRules.EffectiveManaCost(caster, plannedSpell)) &&
+                ValidateSpellCast(caster, casterPosition, plannedSpell, true, plannedTarget,
+                    explicitTarget: plannedTarget.Position) is null)
+            {
+                if (activePlan.Status != NpcSpellPlanStatus.ReadyToCast ||
+                    activePlan.RequiredCastingPosition != casterPosition)
+                    battle.SetNpcSpellPlan(caster, activePlan with
+                    {
+                        TargetPosition = plannedTarget.Position,
+                        RequiredCastingPosition = casterPosition,
+                        Status = NpcSpellPlanStatus.ReadyToCast
+                    });
+                return new NpcTeamSpellPlan(plannedSpell, plannedTarget.Position, plannedTarget, Offensive: true);
+            }
+            return null;
+        }
+
         // A beállított támadó kvóta teljesítése elsőbbséget élvez az automatikus
         // önbuffal szemben. Ha innen nincs érvényes célpont, a mozgási AI lővonalat keres.
-        if (mayCastOffensively)
+        if (activePlan is null && mayCastOffensively)
         foreach (var spell in spells)
         {
             var effects = _gameData.GetSpellEffects(spell.Id);

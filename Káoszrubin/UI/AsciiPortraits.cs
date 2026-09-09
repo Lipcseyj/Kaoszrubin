@@ -384,9 +384,9 @@ public static class AsciiPortraits
 
            // E042 - Halállovag
            [MonsterIds.Halállovag] = Portrait(
-    "   /\\___/\\",
-    "  | ◉   ◉ |",
-    "  |  ☠▲☠  |",
+    "   /■■††■■\\",
+    "  | ň   ň |",
+    "  |   ■   |",
     " /|==|█|==|\\",
     "   /|___|\\  †"),
 
@@ -460,7 +460,24 @@ public static class AsciiPortraits
     "  / ò   ó \\__",
     " <   _▲_____)~",
     "  \\_▽▽_/|--†",
-    "    /|  |\\")
+    "    /|  |\\"),
+
+           // E052 - Csontváz Lovag
+           [MonsterIds.CsontvázLovag] = Portrait(
+    "    .-††-.",
+    "   / ◉  ◉ \\",
+    "  |  ▽▽▽▽  |",
+    "   \\_||||_/",
+    "   /|    |\\"),
+
+           // E053 - Sir Malrec
+           [MonsterIds.SirMalrec] = Portrait(
+    "   /■■††■■\\",
+    "  | Ď   Ď |",
+    "  |   Ô   |",
+    " /|=▽▽▽▽▽=|\\",
+    "   /|___|\\  †"),
+
        };
 
     private static readonly AsciiPortrait Unknown = Portrait(
