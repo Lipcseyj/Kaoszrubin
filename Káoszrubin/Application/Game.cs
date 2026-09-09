@@ -6554,8 +6554,9 @@ public sealed class Game : ISessionCommandHandler
         var offensiveSpells = caster.MemorizedSpells.Where(spell => spell.CanUseInCombat &&
                 NpcSpellcastingPolicy.IsSingleTargetOffensive(spell, _gameData.GetSpellEffects(spell.Id)))
             .ToArray();
-        var hasSpendableMana = withinCastingPlan && offensiveSpells.Any(spell =>
-            NpcSpellcastingPolicy.CanSpendMana(caster, SpellcastingRules.EffectiveManaCost(caster, spell)));
+        var spendableOffensiveSpells = offensiveSpells.Where(spell =>
+            NpcSpellcastingPolicy.CanSpendMana(caster, SpellcastingRules.EffectiveManaCost(caster, spell))).ToArray();
+        var hasSpendableMana = withinCastingPlan && spendableOffensiveSpells.Length > 0;
 
         if (!hasSpendableMana)
         {
@@ -6573,13 +6574,13 @@ public sealed class Game : ISessionCommandHandler
         }
 
         var origin = GetCasterPosition(caster);
-        if (livingEnemies.Any(enemy => offensiveSpells.Any(spell =>
+        if (livingEnemies.Any(enemy => spendableOffensiveSpells.Any(spell =>
                 FogOfWar.CanSee(_maze, origin, enemy.Position, Math.Max(1, spell.Range)))))
         {
             FinishNpcSpellcasterPositioning(battle, caster, "megtartja a lővonalat");
             return true;
         }
-        return MoveNpcSpellcasterToBestPosition(battle, caster, livingEnemies, offensiveSpells,
+        return MoveNpcSpellcasterToBestPosition(battle, caster, livingEnemies, spendableOffensiveSpells,
             seekLineOfSight: true);
     }
 
@@ -6589,6 +6590,19 @@ public sealed class Game : ISessionCommandHandler
     {
         var origin = GetCasterPosition(caster);
         var actorId = CombatantId.ForCharacter(caster.Id);
+        if (seekLineOfSight)
+        {
+            var lineOfSightPath = FindPathToNearestNpcSpellLineOfSight(battle, origin, actorId,
+                enemies, offensiveSpells);
+            if (lineOfSightPath.Count > 0)
+            {
+                CompleteTeamCharacterMovement(battle, caster, lineOfSightPath);
+                return true;
+            }
+            FinishNpcSpellcasterPositioning(battle, caster, "nem talál elérhető lővonalat");
+            return true;
+        }
+
         var candidates = new List<(IReadOnlyList<Position> Path, int VisibleTargets, int Safety)>();
         var allowance = Math.Max(1, battle.Current.MovementAllowance);
         for (var y = Math.Max(0, origin.Y - allowance); y <= Math.Min(_maze.Height - 1, origin.Y + allowance); y++)
@@ -6619,6 +6633,41 @@ public sealed class Game : ISessionCommandHandler
         FinishNpcSpellcasterPositioning(battle, caster,
             seekLineOfSight ? "nem talál elérhető lővonalat" : "biztonságos helyen marad");
         return true;
+    }
+
+    private IReadOnlyList<Position> FindPathToNearestNpcSpellLineOfSight(TeamBattleEncounter battle,
+        Position origin, CombatantId actorId, IReadOnlyList<Enemy> enemies,
+        IReadOnlyList<SpellDefinition> offensiveSpells)
+    {
+        bool HasLineOfSight(Position position) => enemies.Any(enemy => offensiveSpells.Any(spell =>
+            FogOfWar.CanSee(_maze, position, enemy.Position, Math.Max(1, spell.Range))));
+
+        var queue = new Queue<Position>();
+        var previous = new Dictionary<Position, Position> { [origin] = origin };
+        queue.Enqueue(origin);
+        Position? destination = null;
+        while (queue.Count > 0 && destination is null)
+        {
+            var current = queue.Dequeue();
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (previous.ContainsKey(next) || !battle.Turns.IsInsideBattleArea(next) ||
+                    !CanTeamBattleEnter(battle, next, actorId)) continue;
+                previous[next] = current;
+                if (HasLineOfSight(next))
+                {
+                    destination = next;
+                    break;
+                }
+                queue.Enqueue(next);
+            }
+        }
+        if (destination is null) return [];
+        var path = new List<Position>();
+        for (var current = destination.Value; current != origin; current = previous[current]) path.Add(current);
+        path.Reverse();
+        return path;
     }
 
     private void FinishNpcSpellcasterPositioning(TeamBattleEncounter battle, LiveCharacter caster, string action)
@@ -6731,8 +6780,26 @@ public sealed class Game : ISessionCommandHandler
         dangerousEnemy ??= currentEnemy;
         if (dangerousEnemy is null) return null;
 
-        if (battle.Turns.Cycle <= 2 ||
-            tactics.ManaFallback == SpellcasterManaFallback.SelfBuffAndMelee && !mayCastOffensively)
+        // A beállított támadó kvóta teljesítése elsőbbséget élvez az automatikus
+        // önbuffal szemben. Ha innen nincs érvényes célpont, a mozgási AI lővonalat keres.
+        if (mayCastOffensively)
+        foreach (var spell in spells)
+        {
+            var effects = _gameData.GetSpellEffects(spell.Id);
+            if (!NpcSpellcastingPolicy.IsSingleTargetOffensive(spell, effects)) continue;
+            var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+            if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost)) continue;
+            foreach (var target in enemies)
+            {
+                if (ValidateSpellCast(caster, casterPosition, spell, true, target,
+                        explicitTarget: target.Position) is not null) continue;
+                return new NpcTeamSpellPlan(spell, target.Position, target, Offensive: true);
+            }
+        }
+
+        // Az önbuff a hozzá tartozó fallback része; nem előzheti meg a még
+        // rendelkezésre álló támadó varázslatokat.
+        if (tactics.ManaFallback == SpellcasterManaFallback.SelfBuffAndMelee && !mayCastOffensively)
             foreach (var spell in spells)
             {
                 var effects = _gameData.GetSpellEffects(spell.Id);
@@ -6751,21 +6818,6 @@ public sealed class Game : ISessionCommandHandler
                         dangerousEnemy, explicitTarget: targetPosition) is not null) continue;
                 return new NpcTeamSpellPlan(spell, targetPosition.Value, dangerousEnemy, Offensive: false);
             }
-
-        if (mayCastOffensively)
-        foreach (var spell in spells)
-        {
-            var effects = _gameData.GetSpellEffects(spell.Id);
-            if (!NpcSpellcastingPolicy.IsSingleTargetOffensive(spell, effects)) continue;
-            var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
-            if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost)) continue;
-            foreach (var target in enemies)
-            {
-                if (ValidateSpellCast(caster, casterPosition, spell, true, target,
-                        explicitTarget: target.Position) is not null) continue;
-                return new NpcTeamSpellPlan(spell, target.Position, target, Offensive: true);
-            }
-        }
         return null;
     }
 
