@@ -1424,7 +1424,8 @@ public sealed class CoopGuestScreen
         foreach (var enemy in world.Enemies)
             Put(grid, enemy.Position, char.ConvertFromUtf32(enemy.SymbolCodePoint), enemy.Color);
         foreach (var character in snapshot.Party.Where(character => character.Position is not null))
-            Put(grid, character.Position!.Value, CharacterSheetPanel.CharacterClassGlyph(character.CharacterClassId),
+            Put(grid, character.Position!.Value, CharacterSheetPanel.PartyAvatarGlyph(character.CharacterClassId,
+                    _musicSettings.Settings.PartyAvatars),
                 character.Color);
         foreach (var participant in (snapshot.Battle?.Participants ?? [])
                      .Where(participant => participant.IsCurrent || participant.IsCurrentTarget))

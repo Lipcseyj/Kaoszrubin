@@ -143,6 +143,7 @@ public sealed class ConsoleRenderer
     private int _messageLogScrollOffset;
     private readonly GameDataCatalog _gameData;
     private readonly Party _party;
+    private readonly GameSettings _settings;
     private readonly Func<IReadOnlyList<LiveCharacter>> _temporaryFollowers;
     private int _mazeLevel;
     private int _goldenKeyCount;
@@ -190,10 +191,11 @@ public sealed class ConsoleRenderer
     #region Initialization and session state
 
     public ConsoleRenderer(GameDataCatalog gameData, Party party,
-        Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null)
+        Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null, GameSettings? settings = null)
     {
         _gameData = gameData;
         _party = party;
+        _settings = settings ?? new GameSettings();
         _temporaryFollowers = temporaryFollowers ?? (() => []);
     }
 
@@ -3256,7 +3258,7 @@ public sealed class ConsoleRenderer
         if (playerPosition == position)
         {
             var character = _party.Leader ?? throw new InvalidOperationException("A főkarakter rajzolása előtt a partit inicializálni kell.");
-            return new MapCellVisual(Rune.GetRuneAt(character.CharacterClass.Name.ToUpperInvariant(), 0),
+            return new MapCellVisual(Rune.GetRuneAt(PartyAvatarGlyph(character), 0),
                 character.Color, ConsoleColor.Black);
         }
         if (!fogOfWar.IsVisible(position))
@@ -3264,7 +3266,8 @@ public sealed class ConsoleRenderer
                 ? new MapCellVisual(new Rune('?'), ConsoleColor.DarkYellow, ConsoleColor.Black)
                 : new MapCellVisual(FogSymbol, ConsoleColor.Black, ConsoleColor.Black);
         if (maze.GetPartyMemberAt(position) is { } partyMember)
-            return new MapCellVisual(partyMember.Symbol, partyMember.ForegroundColor, partyMember.BackgroundColor);
+            return new MapCellVisual(Rune.GetRuneAt(PartyAvatarGlyph(partyMember.Character), 0),
+                partyMember.ForegroundColor, partyMember.BackgroundColor);
         if (maze.GetEnemyAt(position) is { } visibleEnemy &&
             fogOfWar.IsEnemyVisible(visibleEnemy.Id, visibleEnemy.Position))
             return new MapCellVisual(visibleEnemy.Symbol, GetEnemyColor(visibleEnemy), ConsoleColor.Black);
@@ -3303,9 +3306,12 @@ public sealed class ConsoleRenderer
     {
         var character = _party.Leader ?? throw new InvalidOperationException("A főkarakter rajzolása előtt a partit inicializálni kell.");
         Console.SetCursorPosition(position.X, position.Y);
-        var symbol = Rune.GetRuneAt(character.CharacterClass.Name.ToUpperInvariant(), 0);
+        var symbol = Rune.GetRuneAt(PartyAvatarGlyph(character), 0);
         WriteRuneWithColor(symbol, character.Color, ConsoleColor.Black);
     }
+
+    private string PartyAvatarGlyph(LiveCharacter character) =>
+        CharacterSheetPanel.PartyAvatarGlyph(character.CharacterClass.Id, _settings.PartyAvatars);
 
     /// <summary>
     /// Egyszerű segéd: kiír egy tetszőleges szöveget adott X,Y koordinátára a konzolon.

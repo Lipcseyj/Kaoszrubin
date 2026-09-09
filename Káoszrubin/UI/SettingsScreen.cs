@@ -25,6 +25,10 @@ public static class SettingsScreen
                     QuickCombatMode.Automatic => QuickCombatMode.Never,
                     _ => QuickCombatMode.Ask
                 };
+            else if (key.Key is ConsoleKey.R)
+                settings.PartyAvatars = settings.PartyAvatars == PartyAvatarSet.Letters
+                    ? PartyAvatarSet.Runes
+                    : PartyAvatarSet.Letters;
             else if (key.Key is ConsoleKey.LeftArrow or ConsoleKey.DownArrow)
                 settings.VolumePercent = Math.Max(0, settings.VolumePercent - 5);
             else if (key.Key is ConsoleKey.RightArrow or ConsoleKey.UpArrow)
@@ -46,7 +50,7 @@ public static class SettingsScreen
     {
         Console.Clear();
         var left = Math.Max(0, (Console.WindowWidth - Width) / 2);
-        const int contentRows = 17;
+        const int contentRows = 19;
         var top = Math.Max(0, (Console.WindowHeight - contentRows - 2) / 2);
         var style = WindowFrameConfiguration.For(FramedWindow.Settings);
         var lines = new[]
@@ -60,12 +64,14 @@ public static class SettingsScreen
             $"Effekthangerő: {settings.SoundEffectsVolumePercent}%",
             VolumeBar(settings.SoundEffectsVolumePercent),
             $"Gyorsharc: {QuickCombatModeName(settings.QuickCombat)}",
+            $"Party avatárok: {PartyAvatarSetName(settings.PartyAvatars)}",
             string.Empty,
             "M / Space       Zene ki- és bekapcsolása",
             "← → / ↑ ↓      Hangerő módosítása",
             "E               Hangeffektek ki- és bekapcsolása",
             "A / D           Effekthangerő módosítása",
             "G               Gyorsharc módjának váltása",
+            "R               Party avatárkészlet váltása",
             string.Empty,
             "Enter / Esc     Vissza"
         };
@@ -84,7 +90,7 @@ public static class SettingsScreen
             {
                 0 => ConsoleColor.Yellow,
                 2 => settings.Enabled ? ConsoleColor.Green : ConsoleColor.DarkRed,
-                3 or 4 or 6 or 7 or 8 => ConsoleColor.Cyan,
+                3 or 4 or 6 or 7 or 8 or 9 => ConsoleColor.Cyan,
                 5 => settings.SoundEffectsEnabled ? ConsoleColor.Green : ConsoleColor.DarkRed,
                 _ => ConsoleColor.Gray
             };
@@ -104,6 +110,12 @@ public static class SettingsScreen
         QuickCombatMode.Automatic => "AUTOMATIKUS",
         QuickCombatMode.Never => "SOHA",
         _ => "RÁKÉRDEZ"
+    };
+
+    private static string PartyAvatarSetName(PartyAvatarSet avatarSet) => avatarSet switch
+    {
+        PartyAvatarSet.Runes => "RÚNÁK (ᚺᛒᛚᛏᛈᛗ)",
+        _ => "BETŰK (HBLTPM)"
     };
 
     private static void WriteAt(int left, int top, string text)

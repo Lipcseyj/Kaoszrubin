@@ -9,6 +9,12 @@ public enum QuickCombatMode
     Never
 }
 
+public enum PartyAvatarSet
+{
+    Letters,
+    Runes
+}
+
 public sealed class GameSettings
 {
     public bool Enabled { get; set; } = true;
@@ -16,12 +22,14 @@ public sealed class GameSettings
     public bool SoundEffectsEnabled { get; set; } = true;
     public int SoundEffectsVolumePercent { get; set; } = 75;
     public QuickCombatMode QuickCombat { get; set; } = QuickCombatMode.Ask;
+    public PartyAvatarSet PartyAvatars { get; set; } = PartyAvatarSet.Letters;
 
     public void Normalize()
     {
         VolumePercent = Math.Clamp(VolumePercent, 0, 100);
         SoundEffectsVolumePercent = Math.Clamp(SoundEffectsVolumePercent, 0, 100);
         if (!Enum.IsDefined(QuickCombat)) QuickCombat = QuickCombatMode.Ask;
+        if (!Enum.IsDefined(PartyAvatars)) PartyAvatars = PartyAvatarSet.Letters;
     }
 }
 

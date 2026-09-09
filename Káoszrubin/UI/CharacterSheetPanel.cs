@@ -48,6 +48,20 @@ public static class CharacterSheetPanel
         _ => "?"
     };
 
+    public static string PartyAvatarGlyph(string characterClassId, PartyAvatarSet avatarSet) =>
+        avatarSet == PartyAvatarSet.Runes
+            ? characterClassId switch
+            {
+                CharacterClassIds.Harcos => "ᚺ",
+                CharacterClassIds.Barbár => "ᛒ",
+                CharacterClassIds.Lovag => "ᛚ",
+                CharacterClassIds.Tolvaj => "ᛏ",
+                CharacterClassIds.Pap => "ᛈ",
+                CharacterClassIds.Mágus => "ᛗ",
+                _ => "?"
+            }
+            : CharacterClassGlyph(characterClassId);
+
     public static CharacterSheetPanelLine BuildGoldLine(LiveCharacter character)
     {
         return new CharacterSheetPanelLine(9, $"Arany: {character.Gold} {ConsoleRenderer.MoneyIcon}", ConsoleColor.Yellow);

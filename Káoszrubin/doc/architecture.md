@@ -1242,3 +1242,21 @@ Van még egy fontos különbség varázslattípusonként:
 - Irányított varázslat, például Égő kéz: csak a közvetlen iránymezőt ellenőrzi, maga a tölcsér utána nem vizsgál falakat.
 A látóvonal itt található: [FogOfWar.cs (line 172)](C:/Users/lipcs/source/repos/Lipcseyj/Kaoszrubin/Káoszrubin/World/FogOfWar.cs:172), a blokkoló mezők pedig itt: [Maze.cs (line 128)](C:/Users/lipcs/source/repos/Lipcseyj/Kaoszrubin/Káoszrubin/World/Maze.cs:128).
 A sarokátlövés, illetve a falakon átható területi/tölcsér/lánchatás szerintem külön finomítandó pont lehet.
+
+## A játékban mikor telik és mikor nem az idő?
+
+A játékban nincs külön naptár vagy kijelzett világóra. Kétféle „idő” működik:
+- Felfedezés közben valós idő telik.
+- Harcban körök/akciók alapján haladnak a hatások.
+Jelenlegi működés:
+- A térképen állva is telik az idő, nem kell mozogni.
+- Percenként csökken az élelem és a víz.
+- Valós idő alapján mozognak az ellenfelek és az NPC-partitagok.
+- A 10 másodperces szétszóródás és az NPC-k időzített reakciói is valós idősek.
+- Harc alatt a térképi időzítők nem futnak; a szükségletek a harc végén, a lejátszott körök alapján csökkennek.
+- A súgó megnyitása tényleges szünet: legalább az éhség/szomjúság és az ellenfélmozgás határideje eltolódik.
+- Varázslatanimáció közben szintén megáll a felfedezési idő.
+- A fogadóban és a történeti/szintlépési képernyőkön a normál térképi ciklus nem fut.
+- Mentés, karakterlap, varázslatinformáció és naplógörgetés közben viszont a háttérben tovább fut a játék, mert ezek nem állítják meg a fő ciklust.
+Van egy fontos következetlenség: több modális ablak — például a beállítások, alakzatszerkesztő, küldetésnapló és párbeszédek — „Paused” állapotot jelez, de az eltelt valós idő határidőit nem minden esetben tolja el. Emiatt bezárás után egy lejárt éhség-, ellenfél- vagy NPC-esemény rögtön lefuthat. Tehát ezek jelenleg nem teljesen megbízható szünetek.
+A központi kezelés itt található: [Game.cs (line 771)](C:/Dev/Kaoszrubin/Káoszrubin/Application/Game.cs:771), a modális ablakok kezelése pedig itt: [Game.cs (line 3031)](C:/Dev/Kaoszrubin/Káoszrubin/Application/Game.cs:3031).

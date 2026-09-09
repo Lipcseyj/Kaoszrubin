@@ -312,13 +312,13 @@ public sealed class Game : ISessionCommandHandler
         _gameStateMapper = new GameStateMapper(gameData, characterRoster, selectedCharacter);
         _loadedState = loadedState;
         _session = session ?? new GameSession(characterRoster.Party, selectedCharacter);
+        _musicSettings = musicSettings ?? new GameSettingsService();
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party, () => _maze?.PartyMembers
             .Where(member => member.IsTemporaryFollower)
             .Select(member => member.Character)
-            .ToArray() ?? []);
+            .ToArray() ?? [], _musicSettings.Settings);
         _renderer.SetFormationStatus(_formation);
         _renderer.SetGoldenKeyCount(0);
-        _musicSettings = musicSettings ?? new GameSettingsService();
         _soundEffects = new SoundEffects(_musicSettings.Settings,
             message => _renderer.DrawDeveloperMessage(message));
         _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
