@@ -88,10 +88,10 @@ public static class EquipmentDurabilityRules
     public static EquipmentCondition Condition(int maximumDurability, int durabilityDamage)
     {
         if (maximumDurability <= 0) return EquipmentCondition.NotApplicable;
+        if (CurrentDurability(maximumDurability, durabilityDamage) <= 0) return EquipmentCondition.Broken;
         var percent = DurabilityPercent(maximumDurability, durabilityDamage);
         return percent switch
         {
-            0 => EquipmentCondition.Broken,
             <= 25 => EquipmentCondition.Damaged,
             <= 50 => EquipmentCondition.Worn,
             _ => EquipmentCondition.Intact

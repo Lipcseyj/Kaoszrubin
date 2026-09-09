@@ -9,7 +9,8 @@ public readonly record struct InventorySlotAddress(InventorySlotKind Kind, int I
 public sealed record CharacterSheetPanelLine(int Row, string Text, ConsoleColor Color,
     InventorySlotAddress? InventorySlot = null, ConsoleColor Background = ConsoleColor.Black,
     string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White,
-    bool ExtendsToDivider = false, IReadOnlyList<TextSegment>? Segments = null);
+    bool ExtendsToDivider = false, IReadOnlyList<TextSegment>? Segments = null,
+    int ColoredTextStart = -1, ConsoleColor ColoredTextColor = ConsoleColor.White);
 
 public sealed record PartyStatusLine(string Identity, ConsoleColor IdentityColor,
     string Vitality, ConsoleColor VitalityColor, string Mana, ConsoleColor ManaColor,
@@ -241,18 +242,20 @@ public static class CharacterSheetPanel
         CharacterInventorySnapshot inventory, CharacterSheetSnapshot details)
     {
         var weapons = Slots(inventory, InventorySlotKind.Weapon, 3);
-        lines.Add(new(18, $"Főkéz: {ItemName(weapons[0].Item)}", ConsoleColor.Gray,
-            new InventorySlotAddress(InventorySlotKind.Weapon, 0)));
+        lines.Add(DurableInventoryLine(18, "1", weapons[0], InventorySlotKind.Weapon, 0,
+            ConsoleColor.Gray));
         lines.Add(new(19, weapons[0].Item?.IsTwoHanded == true
-                ? "Mellékkéz: ⛔ kétkezes fegyver"
-                : $"Mellékkéz: {ItemName(weapons[1].Item)}",
+                ? "2: ⛔ kétkezes fegyver"
+                : $"2: {ItemName(weapons[1].Item)}",
             weapons[0].Item?.IsTwoHanded == true ? ConsoleColor.DarkGray : ConsoleColor.Gray,
-            new InventorySlotAddress(InventorySlotKind.Weapon, 1)));
-        lines.Add(new(20, $"Tartalék: {ItemName(weapons[2].Item)}", ConsoleColor.Gray,
-            new InventorySlotAddress(InventorySlotKind.Weapon, 2)));
+            new InventorySlotAddress(InventorySlotKind.Weapon, 1),
+            ColoredTextStart: weapons[0].Item?.IsTwoHanded == true ? -1 : "2: ".Length,
+            ColoredTextColor: DurabilityColor(weapons[1].Item)));
+        lines.Add(DurableInventoryLine(20, "3", weapons[2], InventorySlotKind.Weapon, 2,
+            ConsoleColor.Gray));
         var armor = Slots(inventory, InventorySlotKind.Armor, 1)[0];
-        lines.Add(new(21, $"Páncél: {ItemName(armor.Item)}", ConsoleColor.DarkYellow,
-            new InventorySlotAddress(InventorySlotKind.Armor, 0)));
+        lines.Add(DurableInventoryLine(21, "páncél", armor, InventorySlotKind.Armor, 0,
+            ConsoleColor.DarkYellow));
 
         var magicItems = Slots(inventory, InventorySlotKind.MagicItem, 3);
         lines.Add(new(22, $"VARÁZSTÁRGYAK {magicItems.Count(slot => slot.Item is not null)}/3", ConsoleColor.Magenta));
@@ -285,6 +288,23 @@ public static class CharacterSheetPanel
         ? "üres"
         : (item.MaximumCharges > 0 ? $"{item.Name} ({item.Charges}/{item.MaximumCharges})" : item.Name) +
           (item.Quantity > 1 ? $" ×{item.Quantity}" : string.Empty);
+
+    private static CharacterSheetPanelLine DurableInventoryLine(int row, string label,
+        InventorySlotSnapshot slot, InventorySlotKind kind, int index, ConsoleColor labelColor) =>
+        new(row, $"{label}: {ItemName(slot.Item)}", labelColor,
+            new InventorySlotAddress(kind, index), ColoredTextStart: $"{label}: ".Length,
+            ColoredTextColor: DurabilityColor(slot.Item));
+
+    private static ConsoleColor DurabilityColor(InventoryItemSnapshot? item) => item is null
+        ? ConsoleColor.DarkGray
+        : EquipmentDurabilityRules.Condition(item.MaximumDurability, item.DurabilityDamage) switch
+        {
+            EquipmentCondition.Intact => ConsoleColor.Green,
+            EquipmentCondition.Worn => ConsoleColor.Yellow,
+            EquipmentCondition.Damaged => ConsoleColor.Red,
+            EquipmentCondition.Broken => ConsoleColor.DarkRed,
+            _ => ConsoleColor.Gray
+        };
 
     /// <summary>
     /// A terheltségi kategória szövegét UI színre képezi le.

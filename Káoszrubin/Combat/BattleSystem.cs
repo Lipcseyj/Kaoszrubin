@@ -170,7 +170,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 $"{FormatAttackSummary(attacker.Name, defender.Name, attacks,
                     defender.CurrentHitPoints, defender.Definition.HitPoints ?? defender.CurrentHitPoints)}{statusText}",
             critical ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack,
-            DescribeAction(attacker.Name, defender.Name, attacks, statusText));
+            DescribeAction(attacker.Name, defender.Name, attacks, statusText),
+            attacks.SelectMany(attack => attack.DurabilityNotices).ToArray());
     }
 
     public WeaponDefinition? SelectEnemyAttackWeapon(Enemy attacker)
@@ -338,7 +339,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             $"{FormatAttackSummary(attacker.Name, defender.Name, [attack],
                 defender.CurrentVitality, defender.MaximumVitality)} {survival.ShortLog}",
             attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack,
-            DescribeAction(attacker.Name, defender.Name, [attack], survival.Details));
+            DescribeAction(attacker.Name, defender.Name, [attack], survival.Details),
+            attack.DurabilityNotices);
         return new TeamEnemyAttackResolution(entry, attack.Hit,
             Math.Max(0, vitalityBefore - defender.CurrentVitality));
     }
@@ -422,7 +424,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             $"↪️ {FormatAttackSummary(attacker.Name, defender.Name, [attack],
                 defender.CurrentVitality, defender.MaximumVitality)} {survival.ShortLog}",
             attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack,
-            DescribeAction(attacker.Name, defender.Name, [attack], survival.Details));
+            DescribeAction(attacker.Name, defender.Name, [attack], survival.Details),
+            attack.DurabilityNotices);
     }
 
     public void SetTeamKnightProtection(TeamCharacterBattleRuntime runtime, LiveCharacter knight)
@@ -811,7 +814,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         calculation.Add("💥 Páncél után min. 1; éhség után min. 1; majd taktika és méreg.");
         return Detailed(AttackResult.HitFor(damage,
             $"találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText}{positionalHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplierPercent / 100d:0.##} - {armorText} = {damageText}.{noteText}",
-            criticalMultiplier > 1));
+            criticalMultiplier > 1,
+            DurabilityNotice(player.Name, weapon?.Name, "fegyvere", weaponWear, defensive: false)));
     }
 
     public int EstimatePlayerHitChance(LiveCharacter player, Enemy enemy, BattleTactic tactic)
@@ -1034,22 +1038,31 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         calculation.Add($"💥 Minimum 1, majd fix csökkentés −{reduction}, majd −{percentageReduction}%, lefelé kerekítve");
         if (absorbed > 0) calculation.Add($"🔷 Mannapajzs: −{absorbed} sebzés / manna");
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
+        var durabilityNotices = new List<BattleLogNotice>();
         if (damageType.IsPhysical())
         {
             var wearAmount = criticalMultiplier > 1 ? 2 : 1;
             var armorWear = defender.ApplyInventoryItemWear(InventorySlotKind.Armor, 0, wearAmount);
             if (armorWear.Changed)
+            {
                 calculation.Add(DurabilityCalculation("🛡️ Páncélkopás", defender.Armor!.Name, armorWear));
+                AddDurabilityNotice(durabilityNotices, defender.Name, defender.Armor.Name,
+                    "páncélja", armorWear, defensive: true);
+            }
             if (shieldSlot >= 0)
             {
                 var shieldWear = defender.ApplyInventoryItemWear(InventorySlotKind.Weapon, shieldSlot, wearAmount);
                 if (shieldWear.Changed)
+                {
                     calculation.Add(DurabilityCalculation("🛡️ Pajzskopás", shieldWeapon!.Name, shieldWear));
+                    AddDurabilityNotice(durabilityNotices, defender.Name, shieldWeapon.Name,
+                        "pajzsa", shieldWear, defensive: true);
+                }
             }
         }
         return Detailed(AttackResult.HitFor(damage,
             $"találat: {hit.Description} → 🎯; sebzés: (Erőbónusz {strengthBonus} + fegyver {randomDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damageText}.{statusText}",
-            criticalMultiplier > 1));
+            criticalMultiplier > 1, durabilityNotices));
     }
 
     private static EquipmentWearResult ApplyWeaponWear(LiveCharacter character, WeaponDefinition? weapon,
@@ -1092,6 +1105,36 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         EquipmentCondition.Intact => "ép",
         _ => "nem kopó"
     };
+
+    private static IReadOnlyList<BattleLogNotice> DurabilityNotice(string ownerName, string? itemName,
+        string equipmentName, EquipmentWearResult wear, bool defensive)
+    {
+        if (!wear.ConditionChanged || string.IsNullOrWhiteSpace(itemName)) return [];
+        var state = wear.CurrentCondition switch
+        {
+            EquipmentCondition.Worn => "🟡 kopottá vált",
+            EquipmentCondition.Damaged => "🔴 megsérült",
+            EquipmentCondition.Broken => "💥 eltört",
+            _ => $"állapota megváltozott: {ConditionName(wear.CurrentCondition)}"
+        };
+        var consequence = wear.CurrentCondition switch
+        {
+            EquipmentCondition.Damaged when defensive => " A védelme a felére csökkent.",
+            EquipmentCondition.Damaged => " Mostantól −1 találatot és −1 sebzést okoz.",
+            EquipmentCondition.Broken when defensive => " Már nem ad védelmet.",
+            EquipmentCondition.Broken => " Már nem használható fegyverként.",
+            _ => string.Empty
+        };
+        return [new BattleLogNotice(
+            $"{state}: {ownerName} {equipmentName}, {itemName} ({wear.CurrentDurability}/{wear.MaximumDurability}).{consequence}")];
+    }
+
+    private static void AddDurabilityNotice(ICollection<BattleLogNotice> notices, string ownerName,
+        string itemName, string equipmentName, EquipmentWearResult wear, bool defensive)
+    {
+        foreach (var notice in DurabilityNotice(ownerName, itemName, equipmentName, wear, defensive))
+            notices.Add(notice);
+    }
 
     private WeaponDefinition? SelectEnemyAttackWeapon(EnemyDefinition attacker)
     {
@@ -1317,15 +1360,21 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private sealed record HitRollResult(bool Hit, int NaturalRoll, string Description);
     private sealed record MonsterBonusDamageRoll(int Value, DamageType? DamageType);
     private sealed record MonsterOnHitResult(IReadOnlyList<MonsterBonusDamageRoll> Damage, string StatusText);
-    private sealed record AttackResult(bool Hit, int Damage, string Message, bool Critical, AttackDetails? Details = null)
+    private sealed record AttackResult(bool Hit, int Damage, string Message, bool Critical,
+        AttackDetails? Details = null, IReadOnlyList<BattleLogNotice>? WearNotices = null)
     {
+        public IReadOnlyList<BattleLogNotice> DurabilityNotices => WearNotices ?? [];
         public static AttackResult Miss(string message) => new(false, 0, message, false);
-        public static AttackResult HitFor(int damage, string message, bool critical = false) => new(true, damage, message, critical);
+        public static AttackResult HitFor(int damage, string message, bool critical = false,
+            IReadOnlyList<BattleLogNotice>? durabilityNotices = null) =>
+            new(true, damage, message, critical, WearNotices: durabilityNotices);
     }
 }
 
 public sealed record BattleResult(bool PlayerWon, int Rounds, IReadOnlyList<string> Events);
-public sealed record BattleLogEntry(string Message, BattleLogKind Kind, BattleActionDetails? Details = null);
+public sealed record BattleLogNotice(string Message, BattleLogKind Kind = BattleLogKind.Information);
+public sealed record BattleLogEntry(string Message, BattleLogKind Kind, BattleActionDetails? Details = null,
+    IReadOnlyList<BattleLogNotice>? FollowUps = null);
 public sealed record TeamEnemyAttackResolution(BattleLogEntry Entry, bool Hit, int DamageDealt);
 public enum MonsterStrengthContestOutcome { Resisted, Stagger, Push }
 public sealed record MonsterStrengthContestResult(int Strength, int StrengthPressure, int Roll, int Total,

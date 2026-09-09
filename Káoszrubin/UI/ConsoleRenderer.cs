@@ -2836,8 +2836,12 @@ public sealed class ConsoleRenderer
                 InventorySlotKind.Backpack => SheetSelectionKind.Backpack,
                 _ => throw new ArgumentOutOfRangeException()
             };
-            WriteSheetLine(line.Row, line.Text, line.Color,
-                SelectionBackground(new SheetSelectionKey(kind, slot.Index)));
+            var background = SelectionBackground(new SheetSelectionKey(kind, slot.Index));
+            if (line.ColoredTextStart >= 0)
+                WriteSheetLineWithColoredTail(line.Row, line.Text, line.ColoredTextStart,
+                    line.Color, line.ColoredTextColor, background);
+            else
+                WriteSheetLine(line.Row, line.Text, line.Color, background);
         }
     }
 
@@ -3121,6 +3125,17 @@ public sealed class ConsoleRenderer
         // Itt történik a tényleges kiírás: balra igazított, maximum 'maximumWidth' karakter,
         // és X=172 lesz (a jobb oldali karakterlap kezdő X pozíciója).
         WriteAt(RightSheetX, y, clippedText.PadRight(RightSheetWidth));
+    }
+
+    private void WriteSheetLineWithColoredTail(int y, string text, int coloredTextStart,
+        ConsoleColor prefixColor, ConsoleColor coloredTextColor, ConsoleColor backgroundColor)
+    {
+        var clipped = text[..Math.Min(text.Length, RightSheetWidth)];
+        var split = Math.Clamp(coloredTextStart, 0, clipped.Length);
+        SetColors(prefixColor, backgroundColor);
+        WriteAt(RightSheetX, y, clipped[..split]);
+        SetColors(coloredTextColor, backgroundColor);
+        WriteAt(RightSheetX + split, y, clipped[split..].PadRight(RightSheetWidth - split));
     }
 
     /// <summary>

@@ -2653,6 +2653,7 @@ static void EquipmentDurabilityIsVisible()
            EquipmentDurabilityRules.Condition(100, 50) == EquipmentCondition.Worn &&
            EquipmentDurabilityRules.Condition(100, 75) == EquipmentCondition.Damaged &&
            EquipmentDurabilityRules.Condition(100, 100) == EquipmentCondition.Broken &&
+           EquipmentDurabilityRules.Condition(120, 119) == EquipmentCondition.Damaged &&
            EquipmentDurabilityRules.Condition(0, 0) == EquipmentCondition.NotApplicable,
         "A tartóssági állapotok határértékei nem 51–100 / 26–50 / 1–25 / 0 százaléknál vannak.");
 
@@ -2681,8 +2682,10 @@ static void EquipmentDurabilityIsVisible()
     var compactLine = CharacterSheetPanel.Build(snapshot, 0, 0, 0)
         .Single(line => line.Row == 18);
     Assert(!compactLine.Text.Contains("Tartósság", StringComparison.Ordinal) &&
-           !compactLine.Text.Contains("🟡", StringComparison.Ordinal),
-        "A kompakt karakterlapra helyigényes tartósságjelzés került.");
+           !compactLine.Text.Contains("🟡", StringComparison.Ordinal) &&
+           compactLine.ColoredTextStart == "Főkéz: ".Length &&
+           compactLine.ColoredTextColor == ConsoleColor.Yellow,
+        "A kompakt karakterlap nem helytakarékosan, a kopott fegyver nevét sárgítva jelez.");
 
     var unidentified = new InventoryItemSnapshot(string.Empty, "❓ Azonosítatlan mágikus fegyver",
         ItemCategory.Weapon, ItemRarity.Magic, 0, 0, Description: "erős mágikus aura",
@@ -2721,6 +2724,23 @@ static void CombatAppliesEquipmentWear()
     Assert(observedWeaponHits >= 3 && attacker.InventoryRevision > 1,
         "Nem sikerült több fegyverkopást megfigyelni, vagy az inventory revízió nem változott.");
 
+    Assert(attacker.SetInventoryItem(InventorySlotKind.Weapon, 0, weapon, null, 1,
+            InventoryItemInstanceState.Create() with { DurabilityDamage = weapon.MaximumDurability - 1 }),
+        "A majdnem törött tesztfegyvert nem lehetett felszerelni.");
+    BattleLogEntry? weaponBreak = null;
+    for (var attempt = 0; attempt < 40 && weaponBreak is null; attempt++)
+    {
+        var entry = attackSystem.ResolveTeamCharacterAttack(attacker, attackerRuntime, enemy,
+            finishAction: false);
+        if (entry.FollowUps?.Any(notice => notice.Message.Contains("eltört", StringComparison.OrdinalIgnoreCase)) == true)
+            weaponBreak = entry;
+    }
+    Assert(weaponBreak?.FollowUps?.Any(notice =>
+               notice.Message.Contains(attacker.Name, StringComparison.Ordinal) &&
+               notice.Message.Contains(weapon.Name, StringComparison.Ordinal) &&
+               notice.Message.Contains("nem használható", StringComparison.OrdinalIgnoreCase)) == true,
+        "A fegyver törése nem adott külön, következményt is leíró csatalog-üzenetet.");
+
     var defender = CreateCharacter("Vértvizsgáló", 1000);
     var armor = data.GetArmor("A001");
     var shield = data.GetWeapon("W014");
@@ -2747,6 +2767,30 @@ static void CombatAppliesEquipmentWear()
             "A páncél- vagy pajzskopás nem került be a csatarészletek közé.");
     }
     Assert(observedArmorHits >= 3, "Nem sikerült több páncélt érő találatot megfigyelni.");
+
+    var breakingDefender = CreateCharacter("Törő vértes", 1000);
+    Assert(breakingDefender.SetInventoryItem(InventorySlotKind.Armor, 0, armor, null, 1,
+               InventoryItemInstanceState.Create() with { DurabilityDamage = armor.MaximumDurability - 1 }) &&
+           breakingDefender.SetInventoryItem(InventorySlotKind.Weapon, 1, shield, null, 1,
+               InventoryItemInstanceState.Create() with { DurabilityDamage = shield.MaximumDurability - 1 }),
+        "A majdnem törött páncélt vagy pajzsot nem lehetett felszerelni.");
+    var breakingEnemyWeapon = weapon with { Id = "W-BREAK-NOTICE", Damage = new ValueRange(1, 1) };
+    var breakingEnemy = new ConfiguredEnemy(new Position(1, 1),
+        CreateEnemy(10000, 5, speed: 100).Definition with { Weapon = breakingEnemyWeapon });
+    var breakingSystem = CreateBattleSystem(31);
+    var breakingRuntime = breakingSystem.PrepareTeamCharacter(breakingDefender).Runtime;
+    var defensiveBreakNotices = new List<BattleLogNotice>();
+    for (var attempt = 0; attempt < 40 && defensiveBreakNotices.Count < 2; attempt++)
+    {
+        var resolution = breakingSystem.ResolveTeamEnemyActionDetailed(
+            breakingEnemy, breakingDefender, breakingRuntime, breakingEnemyWeapon);
+        if (resolution.Entry.FollowUps is { } followUps) defensiveBreakNotices.AddRange(followUps);
+    }
+    Assert(defensiveBreakNotices.Count(notice =>
+               notice.Message.Contains("eltört", StringComparison.OrdinalIgnoreCase) &&
+               notice.Message.Contains("nem ad védelmet", StringComparison.OrdinalIgnoreCase)) == 2,
+        "A páncél és a pajzs törése nem adott külön, következményt is leíró csatalog-üzenetet. " +
+        string.Join(" | ", defensiveBreakNotices.Select(notice => notice.Message)));
 
     var indestructible = shield with { Id = "W-INDESTRUCTIBLE-TEST", MaximumDurability = 0 };
     Assert(defender.SetInventoryItem(InventorySlotKind.Weapon, 1, indestructible, null, 1),

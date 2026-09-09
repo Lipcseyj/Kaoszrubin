@@ -1485,11 +1485,21 @@ public sealed class CoopGuestScreen
             {
                 var marker = line.InventorySlot is not null && line.InventorySlot == _inventorySource &&
                              own?.CharacterId == _inventorySourceCharacterId ? "*" : " ";
+                IReadOnlyList<TextSegment>? segments = line.Segments;
+                if (segments is null && line.ColoredTextStart >= 0)
+                {
+                    var split = Math.Clamp(line.ColoredTextStart, 0, line.Text.Length);
+                    segments = [new TextSegment(marker, line.Color),
+                        new TextSegment(line.Text[..split], line.Color),
+                        new TextSegment(line.Text[split..], line.ColoredTextColor)];
+                }
+                else if (segments is not null)
+                    segments = [new TextSegment(marker, line.Color), .. segments];
                 panel[y] = new GuestTextLine(marker + line.Text, line.Color,
                     line.InventorySlot is not null && line.InventorySlot == selectedSlot
                         ? ConsoleColor.DarkCyan
                         : line.Background, line.ColoredSuffix, line.ColoredSuffixColor,
-                    line.Segments, line.ExtendsToDivider);
+                    segments, line.ExtendsToDivider, CenterSegments: line.ColoredTextStart < 0);
             }
             else
                 panel[y] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
@@ -2065,7 +2075,7 @@ public sealed class CoopGuestScreen
         {
             var text = string.Concat(line.Segments.Select(segment => segment.Text));
             if (text.Length > width) text = text[..width];
-            var leftPadding = Math.Max(0, (width - text.Length) / 2);
+            var leftPadding = line.CenterSegments ? Math.Max(0, (width - text.Length) / 2) : 0;
             Console.Write(new string(' ', leftPadding));
             var remaining = Math.Min(width - leftPadding, text.Length);
             var offset = 0;
@@ -2332,7 +2342,8 @@ public sealed class CoopGuestScreen
         ConsoleColor Background = ConsoleColor.Black, bool IsContinuation = false);
     private readonly record struct GuestTextLine(string Text, ConsoleColor Foreground, ConsoleColor Background,
         string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White,
-        IReadOnlyList<TextSegment>? Segments = null, bool ExtendsToDivider = false);
+        IReadOnlyList<TextSegment>? Segments = null, bool ExtendsToDivider = false,
+        bool CenterSegments = true);
     private sealed record GuestRenderFrame(WorldId WorldId, int WindowWidth, int WindowHeight, int MapWidth,
         int MapHeight, GuestMapCell[,] Map, GuestTextLine[] Panel, PartyStatusLine?[] PartyStatuses,
         GuestTextLine[] Footers, CharacterResourceLine? ResourceLine);

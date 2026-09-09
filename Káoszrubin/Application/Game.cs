@@ -8723,12 +8723,15 @@ public sealed class Game : ISessionCommandHandler
 
     private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries)
     {
-        var materialized = entries.ToArray();
+        var sourceEntries = entries.ToArray();
+        var materialized = sourceEntries.SelectMany(entry =>
+            new[] { entry }.Concat((entry.FollowUps ?? []).Select(notice =>
+                new BattleLogEntry(notice.Message, notice.Kind)))).ToArray();
         if (_locationId == DeveloperBattleTestLocationId && _activeTeamBattle is { } loggedBattle)
             _developerBattleLog.AppendBattleEntries(loggedBattle, materialized);
         if (_activeTeamBattle is not null && !_isQuickTeamBattle)
         {
-            foreach (var entry in materialized)
+            foreach (var entry in sourceEntries)
             {
                 _lastBattleActionDetails = entry.Details ?? new BattleActionDetails(Guid.NewGuid(),
                     _activeTeamBattle.CurrentCharacter?.Name ?? _activeTeamBattle.CurrentEnemy?.Name ?? "Akció",
