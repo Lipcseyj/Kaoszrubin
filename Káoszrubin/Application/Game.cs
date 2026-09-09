@@ -7153,10 +7153,11 @@ public sealed class Game : ISessionCommandHandler
     {
         var plan = ChooseTeamAiSpell(battle, caster);
         if (plan is null) return false;
-        if (caster.CharacterClass.Id == CharacterClassIds.Pap && battle.IsEngaged(caster))
+        if (NpcSpellcastingPolicy.UsesEngagedSpellCadence(caster.CharacterClass.Id) &&
+            battle.IsEngaged(caster))
         {
-            var urgent = IsUrgentEngagedPriestSpell(battle, caster, plan);
-            if (!NpcSpellcastingPolicy.CanPriestCastWhileEngaged(battle.Turns.Cycle, urgent))
+            var urgent = IsUrgentEngagedSupportSpell(battle, caster, plan);
+            if (!NpcSpellcastingPolicy.CanCastWhileEngaged(battle.Turns.Cycle, urgent))
             {
                 if (_locationId == DeveloperBattleTestLocationId)
                     _developerBattleLog.Append("AI-ENGAGED-SPELL-SKIP",
@@ -7192,7 +7193,7 @@ public sealed class Game : ISessionCommandHandler
         return true;
     }
 
-    private bool IsUrgentEngagedPriestSpell(TeamBattleEncounter battle, LiveCharacter caster,
+    private bool IsUrgentEngagedSupportSpell(TeamBattleEncounter battle, LiveCharacter caster,
         NpcTeamSpellPlan plan)
     {
         var effects = _gameData.GetSpellEffects(plan.Spell.Id);

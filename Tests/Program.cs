@@ -129,7 +129,7 @@ var tests = new (string Name, Action Run)[]
     ("Az NPC varázslási szabálya tartalékolja a mannát és csak egycélú támadást választ", NpcSpellcastingPolicyPreservesMana),
     ("Az Átoktörés csak ténylegesen tisztítható csapattársra használható", BreakCurseRequiresUsefulPartyTarget),
     ("A Megtisztítás nem használható egyszerű gyógyításként", CleansingHealRequiresRemovableStatus),
-    ("A lekötött pap ritkítja a rutinvarázslást, de a sürgős segítséget nem", EngagedPriestSpellcastingIsThrottled),
+    ("A lekötött pap és lovag ritkítja a rutinvarázslást, de a sürgős segítséget nem", EngagedSupportSpellcastingIsThrottled),
     ("Az NPC támadóvarázslási összerőhatárai inkluzívak", NpcOffensiveSpellStrengthThresholdsAreInclusive),
     ("Az NPC varázspontozása csoport ellen területi, gyenge célra takarékos támadást kedvel", NpcSpellUtilityValuesTargetsAndOverkill),
     ("Az NPC varázsmemóriája váltogatja a repertoárt, de nem ír felül nagy erőkülönbséget", NpcSpellMemoryBalancesVarietyAndUtility),
@@ -5231,14 +5231,18 @@ static void CleansingHealRequiresRemovableStatus()
         "A Megtisztítás a méreg levétele után is indokoltnak látszik.");
 }
 
-static void EngagedPriestSpellcastingIsThrottled()
+static void EngagedSupportSpellcastingIsThrottled()
 {
-    Assert(!NpcSpellcastingPolicy.CanPriestCastWhileEngaged(1, urgent: false) &&
-           !NpcSpellcastingPolicy.CanPriestCastWhileEngaged(2, urgent: false) &&
-           NpcSpellcastingPolicy.CanPriestCastWhileEngaged(3, urgent: false),
-        "A lekötött pap rutinvarázslása nem minden harmadik csatakörre korlátozott.");
-    Assert(NpcSpellcastingPolicy.CanPriestCastWhileEngaged(1, urgent: true),
-        "A lekötött pap sürgős gyógyítását vagy tisztítását is letiltotta a ritkítás.");
+    Assert(NpcSpellcastingPolicy.UsesEngagedSpellCadence(CharacterClassIds.Pap) &&
+           NpcSpellcastingPolicy.UsesEngagedSpellCadence(CharacterClassIds.Lovag) &&
+           !NpcSpellcastingPolicy.UsesEngagedSpellCadence(CharacterClassIds.Mágus),
+        "A lekötött varázslási ritkítás nem pontosan a papra és a lovagra vonatkozik.");
+    Assert(!NpcSpellcastingPolicy.CanCastWhileEngaged(1, urgent: false) &&
+           !NpcSpellcastingPolicy.CanCastWhileEngaged(2, urgent: false) &&
+           NpcSpellcastingPolicy.CanCastWhileEngaged(3, urgent: false),
+        "A lekötött pap vagy lovag rutinvarázslása nem minden harmadik csatakörre korlátozott.");
+    Assert(NpcSpellcastingPolicy.CanCastWhileEngaged(1, urgent: true),
+        "A lekötött pap vagy lovag sürgős gyógyítását vagy tisztítását is letiltotta a ritkítás.");
 }
 
 static void NpcOffensiveSpellStrengthThresholdsAreInclusive()

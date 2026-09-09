@@ -8,7 +8,7 @@ public static class NpcSpellcastingPolicy
     public const int ManaReservePercent = 20;
     public const int HealThresholdPercent = 35;
     public const int EmergencyHealThresholdPercent = 10;
-    public const int EngagedPriestRoutineSpellInterval = 3;
+    public const int EngagedSupportCasterRoutineSpellInterval = 3;
 
     public static bool NeedsHealing(LiveCharacter character) =>
         ResourcePercent(character.CurrentVitality, character.MaximumVitality) <= HealThresholdPercent;
@@ -34,8 +34,11 @@ public static class NpcSpellcastingPolicy
                character.HasActiveCurse;
     }
 
-    public static bool CanPriestCastWhileEngaged(int battleCycle, bool urgent) =>
-        urgent || Math.Max(1, battleCycle) % EngagedPriestRoutineSpellInterval == 0;
+    public static bool UsesEngagedSpellCadence(string characterClassId) =>
+        characterClassId is CharacterClassIds.Pap or CharacterClassIds.Lovag;
+
+    public static bool CanCastWhileEngaged(int battleCycle, bool urgent) =>
+        urgent || Math.Max(1, battleCycle) % EngagedSupportCasterRoutineSpellInterval == 0;
 
     public static bool CanSpendMana(LiveCharacter caster, int manaCost, bool emergency = false)
     {
