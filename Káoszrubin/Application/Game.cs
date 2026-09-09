@@ -6549,29 +6549,30 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
 
-        if (battle.NpcSpellPlanFor(caster) is { } existing)
+        var previousPlan = battle.NpcSpellPlanFor(caster);
+        if (previousPlan is { } existing)
         {
             var existingTarget = existing.TargetEnemyId is { } enemyId
                 ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == enemyId && enemy.CurrentHitPoints > 0)
                 : null;
             var existingSpell = caster.MemorizedSpells.FirstOrDefault(spell =>
                 string.Equals(spell.Id, existing.SpellId, StringComparison.OrdinalIgnoreCase));
-            if (existing.Status != NpcSpellPlanStatus.Failed && existingTarget is not null &&
-                existingSpell is not null && NpcSpellcastingPolicy.CanSpendMana(caster,
-                    SpellcastingRules.EffectiveManaCost(caster, existingSpell)))
+            var canReevaluate = existing.Status != NpcSpellPlanStatus.Failed && existingTarget is not null &&
+                                existingSpell is not null && NpcSpellcastingPolicy.CanSpendMana(caster,
+                                    SpellcastingRules.EffectiveManaCost(caster, existingSpell));
+            if (!canReevaluate)
             {
-                if (existing.AttackPattern is NpcSpellAttackPattern.SingleTarget or NpcSpellAttackPattern.Chain &&
-                    existing.TargetPosition != existingTarget.Position)
-                    battle.SetNpcSpellPlan(caster, existing with { TargetPosition = existingTarget.Position });
-                return;
+                var reason = existingTarget is null ? "a célpont már nem harcképes" :
+                    existingSpell is null ? "a tervezett varázslat már nem elérhető" :
+                    existing.Status == NpcSpellPlanStatus.Failed ? "a terv nem megvalósítható" :
+                    "nincs hozzá elkölthető mana";
+                PresentBattleEntries([new BattleLogEntry(
+                    $"⚠️ {caster.Name} elveti korábbi varázstervét: {reason}.", BattleLogKind.Information)]);
+                battle.ClearNpcSpellPlan(caster);
+                previousPlan = null;
             }
-            var reason = existingTarget is null ? "a célpont már nem harcképes" :
-                existingSpell is null ? "a tervezett varázslat már nem elérhető" :
-                existing.Status == NpcSpellPlanStatus.Failed ? "a terv nem megvalósítható" :
-                "nincs hozzá elkölthető mana";
-            PresentBattleEntries([new BattleLogEntry(
-                $"⚠️ {caster.Name} elveti korábbi varázstervét: {reason}.", BattleLogKind.Information)]);
-            battle.ClearNpcSpellPlan(caster);
+            // A következő kiválasztás az élő tervet is újraértékeli: mozgás közben
+            // az ellenfelek szétszéledhetnek, vagy kialakulhat egy jobb területi célpont.
         }
 
         var livingEnemies = battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).ToArray();
@@ -6582,31 +6583,78 @@ public sealed class Game : ISessionCommandHandler
         var mayCastOffensively = enemyStrength >= tactics.MinimumEnemyStrength &&
             (enemyStrength >= tactics.FullOffenseEnemyStrength ||
              battle.OffensiveSpellCastsFor(caster) < tactics.OffensiveSpellsPerBattle);
-        if (!mayCastOffensively) return;
+        if (!mayCastOffensively)
+        {
+            if (previousPlan is not null)
+            {
+                battle.ClearNpcSpellPlan(caster);
+                PresentBattleEntries([new BattleLogEntry(
+                    $"⚠️ {caster.Name} elveti korábbi varázstervét: a megmaradt ellenfélerő már nem indokolja.",
+                    BattleLogKind.Information)]);
+            }
+            return;
+        }
 
         var selected = ChooseNpcOffensiveSpellPlan(battle, caster, livingEnemies);
-        if (selected is null) return;
+        if (selected is null)
+        {
+            if (previousPlan is not null)
+            {
+                battle.ClearNpcSpellPlan(caster);
+                PresentBattleEntries([new BattleLogEntry(
+                    $"⚠️ {caster.Name} elveti korábbi varázstervét: már nincs elég hasznos célzás.",
+                    BattleLogKind.Information)]);
+            }
+            return;
+        }
 
         var casterPosition = GetCasterPosition(caster);
+        var status = selected.ReadyToCast ? NpcSpellPlanStatus.ReadyToCast : NpcSpellPlanStatus.SeekingPosition;
+        if (previousPlan is not null && SameNpcSpellPlanIntent(previousPlan, selected))
+        {
+            battle.SetNpcSpellPlan(caster, previousPlan with
+            {
+                TargetEnemyId = selected.PrimaryTarget.Id,
+                TargetPosition = selected.TargetPosition,
+                RequiredCastingPosition = selected.CastingPosition,
+                ExpectedTargetCount = selected.TargetCount,
+                ExpectedUtility = selected.Evaluation.Utility,
+                Status = status
+            });
+            return;
+        }
+
         var plan = new NpcSpellPlan(Guid.NewGuid(), selected.Spell.Id, selected.PrimaryTarget.Id,
-            selected.TargetPosition, selected.ReadyToCast ? casterPosition : null,
+            selected.TargetPosition, selected.CastingPosition,
             selected.Classification.Complexity, selected.Classification.AttackPattern,
             selected.Classification.Roles, battle.Turns.Cycle, selected.TargetCount,
-            selected.Evaluation.Utility, selected.ReadyToCast
-                ? NpcSpellPlanStatus.ReadyToCast
-                : NpcSpellPlanStatus.SeekingPosition);
+            selected.Evaluation.Utility, status);
         battle.SetNpcSpellPlan(caster, plan);
         PresentBattleEntries([new BattleLogEntry(
-            DescribeNpcOffensiveSpellPlan(caster, selected),
+            DescribeNpcOffensiveSpellPlan(caster, selected, replanned: previousPlan is not null),
             BattleLogKind.Information)]);
+    }
+
+    private static bool SameNpcSpellPlanIntent(NpcSpellPlan existing, NpcOffensiveSpellCandidate selected)
+    {
+        if (!string.Equals(existing.SpellId, selected.Spell.Id, StringComparison.OrdinalIgnoreCase) ||
+            existing.TargetEnemyId != selected.PrimaryTarget.Id) return false;
+        return selected.Classification.AttackPattern is NpcSpellAttackPattern.SingleTarget or
+            NpcSpellAttackPattern.Chain ||
+            existing.TargetPosition == selected.TargetPosition;
     }
 
     private NpcOffensiveSpellCandidate? ChooseNpcOffensiveSpellPlan(TeamBattleEncounter battle,
         LiveCharacter caster, IReadOnlyList<Enemy> livingEnemies)
     {
         var casterPosition = GetCasterPosition(caster);
-        var readyCandidates = new List<NpcOffensiveSpellCandidate>();
-        var singleTargetFallbacks = new List<NpcOffensiveSpellCandidate>();
+        var mayMoveForPlan = caster.CharacterClass.Id != CharacterClassIds.Lovag &&
+                             !battle.HasActiveFormation && !battle.IsEngaged(caster) &&
+                             !battle.IsCharacterStaggered(caster);
+        var castingPositions = mayMoveForPlan
+            ? ReachableNpcSpellcastingPositions(battle, casterPosition, CombatantId.ForCharacter(caster.Id))
+            : new Dictionary<Position, int> { [casterPosition] = 0 };
+        var candidates = new List<NpcOffensiveSpellCandidate>();
         foreach (var spell in caster.MemorizedSpells.Where(spell => spell.CanUseInCombat))
         {
             var effects = _gameData.GetSpellEffects(spell.Id).ToArray();
@@ -6615,51 +6663,113 @@ public sealed class Game : ISessionCommandHandler
             if (!classification.IsOffensive ||
                 !NpcSpellcastingPolicy.CanSpendMana(caster, manaCost)) continue;
 
-            if (classification.AttackPattern is NpcSpellAttackPattern.SingleTarget or NpcSpellAttackPattern.Chain)
+            foreach (var castingPosition in castingPositions)
             {
-                foreach (var enemy in OrderedNpcSpellTargets(battle, casterPosition))
+                if (spell.TargetType == SpellTargetType.Enemy)
                 {
-                    var targets = NpcSpellPlanTargets(classification.AttackPattern, effects, enemy,
-                        livingEnemies);
-                    var evaluation = NpcSpellPlanEvaluator.Evaluate(caster, spell, effects, targets, manaCost);
-                    var ready = ValidateSpellCast(caster, casterPosition, spell, true, enemy,
-                        explicitTarget: enemy.Position) is null;
-                    var candidate = new NpcOffensiveSpellCandidate(spell, enemy.Position, enemy,
-                        classification, targets.Count, evaluation, ready);
-                    if (ready) readyCandidates.Add(candidate);
-                    else if (classification.AttackPattern == NpcSpellAttackPattern.SingleTarget)
-                        singleTargetFallbacks.Add(candidate);
+                    foreach (var enemy in livingEnemies)
+                    {
+                        if (!IsValidExplicitSpellTarget(caster, castingPosition.Key, spell,
+                                enemy.Position, enemy)) continue;
+                        var targets = NpcSpellPlanTargets(classification.AttackPattern, effects, enemy,
+                            livingEnemies);
+                        candidates.Add(CreateNpcOffensiveSpellCandidate(caster, spell, effects,
+                            classification, castingPosition.Key, enemy.Position, enemy, targets,
+                            manaCost, castingPosition.Value, battle.Current.MovementAllowance, livingEnemies));
+                    }
+                    continue;
                 }
-                continue;
-            }
 
-            if (classification.AttackPattern is not (NpcSpellAttackPattern.Area or
-                NpcSpellAttackPattern.Direction)) continue;
-            foreach (var targetPosition in GetValidSpellTargets(casterPosition, spell, livingEnemies[0]).Distinct())
-            {
-                var affected = ResolveEnemySpellTargets(spell, targetPosition, livingEnemies[0], casterPosition)
-                    .Where(livingEnemies.Contains).Distinct().ToArray();
-                if (affected.Length == 0) continue;
-                var primaryTarget = affected.OrderByDescending(enemy => enemy.Definition.StrengthTier)
-                    .ThenByDescending(enemy => enemy.Definition.Rank)
-                    .ThenByDescending(enemy => enemy.CurrentHitPoints).First();
-                if (ValidateSpellCast(caster, casterPosition, spell, true, primaryTarget,
-                        explicitTarget: targetPosition) is not null) continue;
-                var targets = affected.Select(enemy => new NpcSpellPlanTarget(enemy)).ToArray();
-                var evaluation = NpcSpellPlanEvaluator.Evaluate(caster, spell, effects, targets, manaCost);
-                readyCandidates.Add(new NpcOffensiveSpellCandidate(spell, targetPosition, primaryTarget,
-                    classification, targets.Length, evaluation, ReadyToCast: true));
+                IEnumerable<Position> targetPositions = spell.TargetType switch
+                {
+                    SpellTargetType.Area => PotentialNpcAreaSpellTargets(livingEnemies, spell.AreaRadius),
+                    SpellTargetType.Direction => Directions.Select(direction => castingPosition.Key + direction),
+                    _ => []
+                };
+                foreach (var targetPosition in targetPositions.Distinct())
+                {
+                    if (!IsValidExplicitSpellTarget(caster, castingPosition.Key, spell,
+                            targetPosition, livingEnemies[0])) continue;
+                    var affected = ResolveEnemySpellTargets(spell, targetPosition, livingEnemies[0],
+                            castingPosition.Key)
+                        .Where(livingEnemies.Contains).Distinct().ToArray();
+                    if (affected.Length == 0) continue;
+                    var primaryTarget = affected.OrderByDescending(enemy => enemy.Definition.StrengthTier)
+                        .ThenByDescending(enemy => enemy.Definition.Rank)
+                        .ThenByDescending(enemy => enemy.CurrentHitPoints).First();
+                    var targets = affected.Select(enemy => new NpcSpellPlanTarget(enemy)).ToArray();
+                    candidates.Add(CreateNpcOffensiveSpellCandidate(caster, spell, effects,
+                        classification, castingPosition.Key, targetPosition, primaryTarget, targets,
+                        manaCost, castingPosition.Value, battle.Current.MovementAllowance, livingEnemies));
+                }
             }
         }
 
-        var candidates = readyCandidates.Count > 0 ? readyCandidates : singleTargetFallbacks;
         return candidates.Where(candidate => candidate.Evaluation.Utility > 0)
             .OrderByDescending(candidate => candidate.Evaluation.Utility)
             .ThenByDescending(candidate => candidate.Evaluation.UsefulDamage)
+            .ThenBy(candidate => candidate.MovementDistance)
             .ThenBy(candidate => SpellcastingRules.EffectiveManaCost(caster, candidate.Spell))
             .ThenBy(candidate => candidate.Spell.Level)
             .ThenBy(candidate => candidate.Spell.Id, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(candidate => candidate.CastingPosition.Y)
+            .ThenBy(candidate => candidate.CastingPosition.X)
+            .ThenBy(candidate => candidate.TargetPosition.Y)
+            .ThenBy(candidate => candidate.TargetPosition.X)
             .FirstOrDefault();
+    }
+
+    private NpcOffensiveSpellCandidate CreateNpcOffensiveSpellCandidate(LiveCharacter caster,
+        SpellDefinition spell, IReadOnlyList<SpellEffectDefinition> effects,
+        NpcSpellTacticalClassification classification, Position castingPosition, Position targetPosition,
+        Enemy primaryTarget, IReadOnlyList<NpcSpellPlanTarget> targets, int manaCost, int movementDistance,
+        int movementAllowance, IReadOnlyList<Enemy> livingEnemies)
+    {
+        var evaluation = NpcSpellPlanEvaluator.Evaluate(caster, spell, effects, targets, manaCost);
+        var movementTurns = movementDistance == 0 ? 0 :
+            (int)Math.Ceiling(movementDistance / (double)Math.Max(1, movementAllowance));
+        var adjacentThreat = livingEnemies.Where(enemy =>
+                TacticalDistance.IsMeleeAdjacent(castingPosition, enemy.Position))
+            .Sum(enemy => Math.Max(1, enemy.Definition.StrengthTier));
+        var movementPenalty = movementTurns * 3.0 + movementDistance * 0.25;
+        var dangerPenalty = adjacentThreat * 2.0;
+        return new NpcOffensiveSpellCandidate(spell, castingPosition, targetPosition, primaryTarget,
+            classification, targets.Count,
+            evaluation with { Utility = evaluation.Utility - movementPenalty - dangerPenalty },
+            ReadyToCast: movementDistance == 0, movementDistance);
+    }
+
+    private Dictionary<Position, int> ReachableNpcSpellcastingPositions(TeamBattleEncounter battle,
+        Position origin, CombatantId actorId)
+    {
+        var distances = new Dictionary<Position, int> { [origin] = 0 };
+        var queue = new Queue<Position>();
+        queue.Enqueue(origin);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (distances.ContainsKey(next) || !battle.Turns.IsInsideBattleArea(next) ||
+                    !CanTeamBattleEnter(battle, next, actorId)) continue;
+                distances[next] = distances[current] + 1;
+                queue.Enqueue(next);
+            }
+        }
+        return distances;
+    }
+
+    private IEnumerable<Position> PotentialNpcAreaSpellTargets(IReadOnlyList<Enemy> livingEnemies, int radius)
+    {
+        var effectiveRadius = Math.Max(0, radius);
+        foreach (var enemy in livingEnemies)
+        for (var y = enemy.Position.Y - effectiveRadius; y <= enemy.Position.Y + effectiveRadius; y++)
+        for (var x = enemy.Position.X - effectiveRadius; x <= enemy.Position.X + effectiveRadius; x++)
+        {
+            var position = new Position(x, y);
+            if (_maze.IsInside(position)) yield return position;
+        }
     }
 
     private static IReadOnlyList<NpcSpellPlanTarget> NpcSpellPlanTargets(NpcSpellAttackPattern pattern,
@@ -6680,20 +6790,28 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private static string DescribeNpcOffensiveSpellPlan(LiveCharacter caster,
-        NpcOffensiveSpellCandidate candidate) => candidate.Classification.AttackPattern switch
+        NpcOffensiveSpellCandidate candidate, bool replanned = false)
     {
-        NpcSpellAttackPattern.Area =>
-            $"🔮 {caster.Name} terve: most {candidate.Spell.Name} varázslattal egy " +
-            $"{candidate.TargetCount} fős ellenségcsoportot céloz.",
-        NpcSpellAttackPattern.Direction =>
-            $"🔮 {caster.Name} terve: most {candidate.Spell.Name} varázslattal " +
-            $"{candidate.TargetCount} ellenfelet fog elérni.",
-        NpcSpellAttackPattern.Chain =>
-            $"🔮 {caster.Name} terve: most {candidate.Spell.Name} varázslatot indít " +
-            $"{candidate.PrimaryTarget.Name} felől, várhatóan {candidate.TargetCount} célpontra.",
-        _ => $"🔮 {caster.Name} terve: most {candidate.Spell.Name} varázslatot használ " +
-             $"{candidate.PrimaryTarget.Name} ellen."
-    };
+        var lead = replanned ? $"🔄 {caster.Name} új terve" : $"🔮 {caster.Name} terve";
+        var movement = candidate.MovementDistance > 0
+            ? $" Előbb {candidate.MovementDistance} mezőnyire lévő tüzelőállást keres."
+            : string.Empty;
+        var plan = candidate.Classification.AttackPattern switch
+        {
+            NpcSpellAttackPattern.Area =>
+                $"{lead}: {candidate.Spell.Name} varázslattal egy " +
+                $"{candidate.TargetCount} fős ellenségcsoportot céloz.",
+            NpcSpellAttackPattern.Direction =>
+                $"{lead}: {candidate.Spell.Name} varázslattal " +
+                $"{candidate.TargetCount} ellenfelet fog elérni.",
+            NpcSpellAttackPattern.Chain =>
+                $"{lead}: {candidate.Spell.Name} varázslatot indít " +
+                $"{candidate.PrimaryTarget.Name} felől, várhatóan {candidate.TargetCount} célpontra.",
+            _ => $"{lead}: {candidate.Spell.Name} varázslatot használ " +
+                 $"{candidate.PrimaryTarget.Name} ellen."
+        };
+        return plan + movement;
+    }
 
     private bool TryExecuteNpcSpellcasterPositioning(TeamBattleEncounter battle, LiveCharacter caster)
     {
@@ -6707,14 +6825,9 @@ public sealed class Game : ISessionCommandHandler
             (enemyStrength >= tactics.FullOffenseEnemyStrength ||
              battle.OffensiveSpellCastsFor(caster) < tactics.OffensiveSpellsPerBattle);
         var activePlan = battle.NpcSpellPlanFor(caster);
-        if (activePlan is { AttackPattern: not NpcSpellAttackPattern.SingleTarget }) return false;
-        var plannedTarget = activePlan?.TargetEnemyId is { } targetId
-            ? livingEnemies.FirstOrDefault(enemy => enemy.Id == targetId)
-            : null;
-        var planningEnemies = plannedTarget is null ? livingEnemies : [plannedTarget];
+        if (activePlan is not null)
+            return MoveNpcSpellcasterTowardPlannedCastingPosition(battle, caster, activePlan);
         var offensiveSpells = caster.MemorizedSpells.Where(spell => spell.CanUseInCombat &&
-                (activePlan is null || string.Equals(spell.Id, activePlan.SpellId,
-                    StringComparison.OrdinalIgnoreCase)) &&
                 NpcSpellcastingPolicy.IsSingleTargetOffensive(spell, _gameData.GetSpellEffects(spell.Id)))
             .ToArray();
         var spendableOffensiveSpells = offensiveSpells.Where(spell =>
@@ -6737,20 +6850,69 @@ public sealed class Game : ISessionCommandHandler
         }
 
         var origin = GetCasterPosition(caster);
-        if (planningEnemies.Any(enemy => spendableOffensiveSpells.Any(spell =>
+        if (livingEnemies.Any(enemy => spendableOffensiveSpells.Any(spell =>
                 FogOfWar.CanSee(_maze, origin, enemy.Position, Math.Max(1, spell.Range)))))
         {
-            if (activePlan is not null)
-                battle.SetNpcSpellPlan(caster, activePlan with
-                {
-                    RequiredCastingPosition = origin,
-                    Status = NpcSpellPlanStatus.ReadyToCast
-                });
             FinishNpcSpellcasterPositioning(battle, caster, "megtartja a lővonalat");
             return true;
         }
-        return MoveNpcSpellcasterToBestPosition(battle, caster, planningEnemies, spendableOffensiveSpells,
+        return MoveNpcSpellcasterToBestPosition(battle, caster, livingEnemies, spendableOffensiveSpells,
             seekLineOfSight: true);
+    }
+
+    private bool MoveNpcSpellcasterTowardPlannedCastingPosition(TeamBattleEncounter battle,
+        LiveCharacter caster, NpcSpellPlan plan)
+    {
+        var origin = GetCasterPosition(caster);
+        if (plan.RequiredCastingPosition is not { } destination || destination == origin)
+        {
+            battle.SetNpcSpellPlan(caster, plan with { Status = NpcSpellPlanStatus.Failed });
+            return false;
+        }
+
+        var path = FindNpcSpellcastingPath(battle, origin, destination,
+            CombatantId.ForCharacter(caster.Id));
+        if (path.Count == 0)
+        {
+            battle.SetNpcSpellPlan(caster, plan with { Status = NpcSpellPlanStatus.Failed });
+            FinishNpcSpellcasterPositioning(battle, caster,
+                "nem talál járható utat a tervezett tüzelőálláshoz");
+            return true;
+        }
+
+        var spellName = caster.MemorizedSpells.FirstOrDefault(spell =>
+            string.Equals(spell.Id, plan.SpellId, StringComparison.OrdinalIgnoreCase))?.Name ?? plan.SpellId;
+        battle.SetNpcSpellPlan(caster, plan with { Status = NpcSpellPlanStatus.SeekingPosition });
+        PresentBattleEntries([new BattleLogEntry(
+            $"🔮 {caster.Name} a(z) {spellName} tervezett tüzelőállásához mozog " +
+            $"({path.Count} mező).", BattleLogKind.Information)]);
+        CompleteTeamCharacterMovement(battle, caster, path);
+        return true;
+    }
+
+    private IReadOnlyList<Position> FindNpcSpellcastingPath(TeamBattleEncounter battle,
+        Position origin, Position destination, CombatantId actorId)
+    {
+        var queue = new Queue<Position>();
+        var previous = new Dictionary<Position, Position> { [origin] = origin };
+        queue.Enqueue(origin);
+        while (queue.Count > 0 && !previous.ContainsKey(destination))
+        {
+            var current = queue.Dequeue();
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (previous.ContainsKey(next) || !battle.Turns.IsInsideBattleArea(next) ||
+                    !CanTeamBattleEnter(battle, next, actorId)) continue;
+                previous[next] = current;
+                queue.Enqueue(next);
+            }
+        }
+        if (!previous.ContainsKey(destination)) return [];
+        var path = new List<Position>();
+        for (var current = destination; current != origin; current = previous[current]) path.Add(current);
+        path.Reverse();
+        return path;
     }
 
     private bool MoveNpcSpellcasterToBestPosition(TeamBattleEncounter battle, LiveCharacter caster,
@@ -6975,6 +7137,7 @@ public sealed class Game : ISessionCommandHandler
                 ? enemies.FirstOrDefault(enemy => enemy.Id == targetId)
                 : null;
             if (plannedSpell is not null && plannedTarget is not null &&
+                activePlan.RequiredCastingPosition == casterPosition &&
                 NpcSpellcastingPolicy.CanSpendMana(caster,
                     SpellcastingRules.EffectiveManaCost(caster, plannedSpell)) &&
                 ValidateSpellCast(caster, casterPosition, plannedSpell, true, plannedTarget,
@@ -6989,8 +7152,6 @@ public sealed class Game : ISessionCommandHandler
                     });
                 return new NpcTeamSpellPlan(plannedSpell, activePlan.TargetPosition, plannedTarget, Offensive: true);
             }
-            if (activePlan.AttackPattern != NpcSpellAttackPattern.SingleTarget)
-                battle.SetNpcSpellPlan(caster, activePlan with { Status = NpcSpellPlanStatus.Failed });
             return null;
         }
 
@@ -8574,9 +8735,9 @@ public sealed class Game : ISessionCommandHandler
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source, long SourceRevision);
     private sealed record DeveloperUniqueNpcTarget(NpcDefinition Definition, int MazeLevel);
     private sealed record NpcTeamSpellPlan(SpellDefinition Spell, Position Target, Enemy? Enemy, bool Offensive);
-    private sealed record NpcOffensiveSpellCandidate(SpellDefinition Spell, Position TargetPosition,
-        Enemy PrimaryTarget, NpcSpellTacticalClassification Classification, int TargetCount,
-        NpcSpellPlanEvaluation Evaluation, bool ReadyToCast);
+    private sealed record NpcOffensiveSpellCandidate(SpellDefinition Spell, Position CastingPosition,
+        Position TargetPosition, Enemy PrimaryTarget, NpcSpellTacticalClassification Classification,
+        int TargetCount, NpcSpellPlanEvaluation Evaluation, bool ReadyToCast, int MovementDistance);
 
     private void FillPartyForDevelopment(IReadOnlyList<string> characterClassIds, string setName)
     {
