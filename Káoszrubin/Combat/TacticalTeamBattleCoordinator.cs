@@ -44,6 +44,15 @@ public sealed class TacticalTeamBattleCoordinator
         enemy.Definition.IsBoss || enemy.Definition.Rank is EnemyRank.MiniBoss or EnemyRank.Boss ||
         enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) == true;
 
+    public static bool ShouldNpcSwapToReserveWeapon(LiveCharacter character)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+        if (character.AttackWeapon is not null || !character.CanSwapReserveWeapon) return false;
+        return character.GetInventoryItem(InventorySlotKind.Weapon, 2) is WeaponDefinition reserve &&
+               reserve.WeaponTypeId != "WT003" &&
+               character.IsInventoryItemOperational(InventorySlotKind.Weapon, 2);
+    }
+
     public static Enemy ClosestLivingTeamEnemy(TeamBattleEncounter battle, Position origin) =>
         battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
             .OrderBy(enemy => TacticalDistance.Between(origin, enemy.Position))

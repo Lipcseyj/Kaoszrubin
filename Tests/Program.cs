@@ -33,6 +33,7 @@ var tests = new (string Name, Action Run)[]
     ("A taktikai diszciplínák a 8. és 18. szinten választhatók és menthetők", TacticalDisciplinesProgressAndPersist),
     ("A fogadói átképzés csoportonként őrzi meg a fejlődési lépéseket", ProgressionRetrainingPreservesAdvances),
     ("A tartalékfegyver passzív és veszteség nélkül menthető, cserélhető", ReserveWeaponIsPassiveAndPersistent),
+    ("Az NPC eltört aktív fegyver helyett működő tartalékra vált", NpcSwapsBrokenWeaponForOperationalReserve),
     ("A kétkezes tartalékfegyver atomian elteszi a pajzsot", ReserveTwoHandedSwapStowsShield),
     ("A sebzéstípusok és a szörnyfegyverek módosítják a valódi sebzést", PhysicalDamageUsesTypesAndWeapons),
     ("A CSV új fegyverei adatvezéreltek és örökítik a harci tulajdonságokat", WeaponCsvPropertiesAreInherited),
@@ -2683,7 +2684,7 @@ static void EquipmentDurabilityIsVisible()
         .Single(line => line.Row == 18);
     Assert(!compactLine.Text.Contains("Tartósság", StringComparison.Ordinal) &&
            !compactLine.Text.Contains("🟡", StringComparison.Ordinal) &&
-           compactLine.ColoredTextStart == "Főkéz: ".Length &&
+           compactLine.ColoredTextStart == "1: ".Length &&
            compactLine.ColoredTextColor == ConsoleColor.Yellow,
         "A kompakt karakterlap nem helytakarékosan, a kopott fegyver nevét sárgítva jelez.");
 
@@ -6285,6 +6286,35 @@ static void ReserveWeaponIsPassiveAndPersistent()
     var restored = saves.Deserialize(saves.Serialize(roster)).SelectedCharacter!;
     Assert(restored.WeaponSlots.Select(value => value?.Id).SequenceEqual(character.WeaponSlots.Select(value => value?.Id)),
         "A tartalék fegyver elveszett a mentésben.");
+}
+
+static void NpcSwapsBrokenWeaponForOperationalReserve()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var character = CreateCharacter("Fegyverváltó");
+    var brokenWeapon = data.GetWeapon("W001");
+    var reserve = data.GetWeapon("W004");
+    var reserveState = InventoryItemInstanceState.Create() with { DurabilityDamage = 7 };
+    Assert(character.SetInventoryItem(InventorySlotKind.Weapon, 0, brokenWeapon, null, 1,
+               InventoryItemInstanceState.Create() with { DurabilityDamage = brokenWeapon.MaximumDurability }) &&
+           character.SetInventoryItem(InventorySlotKind.Weapon, 2, reserve, null, 1, reserveState),
+        "Az NPC fegyvercsere-tesztje nem tudta előkészíteni a felszerelést.");
+    Assert(TacticalTeamBattleCoordinator.ShouldNpcSwapToReserveWeapon(character),
+        "Az NPC nem ismerte fel, hogy az eltört aktív fegyverét le kell cserélnie.");
+    Assert(character.TrySwapReserveWeapon() && character.AttackWeapon?.Id == reserve.Id &&
+           character.GetInventoryItemState(InventorySlotKind.Weapon, 0)?.DurabilityDamage == 7 &&
+           character.WeaponSlots[2]?.Id == brokenWeapon.Id,
+        "Az NPC tartalékfegyver-cseréje nem őrizte meg a tárgyállapotokat.");
+    Assert(!TacticalTeamBattleCoordinator.ShouldNpcSwapToReserveWeapon(character),
+        "Az NPC működő aktív fegyver mellett is újabb tartalékcserét kezdeményezne.");
+
+    Assert(character.SetInventoryItem(InventorySlotKind.Weapon, 0, brokenWeapon, null, 1,
+               InventoryItemInstanceState.Create() with { DurabilityDamage = brokenWeapon.MaximumDurability }) &&
+           character.SetInventoryItem(InventorySlotKind.Weapon, 2, reserve, null, 1,
+               InventoryItemInstanceState.Create() with { DurabilityDamage = reserve.MaximumDurability }),
+        "A törött tartalékfegyveres esetet nem sikerült előkészíteni.");
+    Assert(!TacticalTeamBattleCoordinator.ShouldNpcSwapToReserveWeapon(character),
+        "Az NPC törött tartalékfegyvert próbálna kézbe venni.");
 }
 
 static void ReserveTwoHandedSwapStowsShield()

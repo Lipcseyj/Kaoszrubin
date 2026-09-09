@@ -6482,6 +6482,7 @@ public sealed class Game : ISessionCommandHandler
         if (attemptedUrgentPotion &&
             TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 60, allowedWaste: 0))
             return;
+        if (TryExecuteTeamAiReserveWeaponSwap(battle, character)) return;
         if (!battle.IsCharacterStaggered(character) && !battle.HasActiveFormation && !battle.IsEngaged(character) &&
             TryExecuteNpcSpellcasterPositioning(battle, character)) return;
         var reachable = ReachableTeamEnemies(battle, character).FirstOrDefault();
@@ -6531,6 +6532,28 @@ public sealed class Game : ISessionCommandHandler
             return false;
         itemMessage += _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(itemMessage, BattleLogKind.Information)]);
+        AdvanceTeamBattleTurn(battle);
+        return true;
+    }
+
+    private bool TryExecuteTeamAiReserveWeaponSwap(TeamBattleEncounter battle, LiveCharacter character)
+    {
+        if (!TacticalTeamBattleCoordinator.ShouldNpcSwapToReserveWeapon(character)) return false;
+        var unusableWeapon = Enumerable.Range(0, 2)
+            .Where(index => character.InventoryItemCondition(InventorySlotKind.Weapon, index) ==
+                            EquipmentCondition.Broken)
+            .Select(index => character.GetInventoryItem(InventorySlotKind.Weapon, index) as WeaponDefinition)
+            .FirstOrDefault(weapon => weapon is not null && weapon.WeaponTypeId != "WT003");
+        if (!character.TrySwapReserveWeapon()) return false;
+        var replacement = character.AttackWeapon;
+        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        var reason = unusableWeapon is null
+            ? "használható aktív fegyver híján"
+            : $"eltört {unusableWeapon.Name} helyett";
+        PresentBattleEntries([new BattleLogEntry(
+            $"🔄 {character.Name} {reason} előveszi a tartalékát: {replacement?.Name}.{statusText}",
+            BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
         return true;
     }
