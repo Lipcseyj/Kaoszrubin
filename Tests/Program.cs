@@ -23,6 +23,7 @@ var tests = new (string Name, Action Run)[]
     ("A fejlesztői fegyvercsomag követi a kategóriákat és a hátizsák kapacitását", DevelopmentWeaponsRespectCapacity),
     ("A harci tesztpálya a kért csoportokat, jelölőládákat és középső folyosót építi", DeveloperBattleTestScenarioHasRequestedLayout),
     ("A harci teszt-NPC-k pontos szinttel és véletlenül memorizált elérhető varázslatokkal készülnek", CombatTestCharactersMatchRequestedLevelAndSpells),
+    ("A mentésből indított tesztcsata önállóan helyreállítja a csatalogot", LoadedDeveloperBattleCreatesRecoveryLog),
     ("A lovag harci fegyvercsere-parancsa átjut a session ellenőrzésén", KnightBattleWeaponSwapCommandIsAccepted),
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
     ("A taktikai fegyverjártasságok módosítják a söprést, fedezetet és varázslást", TacticalWeaponMasteriesHaveDistinctRoles),
@@ -5824,6 +5825,37 @@ static void DeveloperBattleTestScenarioHasRequestedLayout()
                scenario.Maze.BlocksSight(new Position(corridor.X + 2, corridor.Y + offset)),
             "A középső 2×8-as folyosó járható szélessége vagy oldalfala hibás.");
     }
+}
+
+static void LoadedDeveloperBattleCreatesRecoveryLog()
+{
+    var system = CreateBattleSystem(4210);
+    var character = CreateCharacter("Loghős");
+    var enemy = CreateNpcSpellTestEnemy("LOG-ENEMY", 30, 2, new Position(2, 1));
+    var preparation = system.PrepareTeamCharacter(character);
+    var battle = new TeamBattleEncounter(new Position(1, 1),
+        [new TeamCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
+            preparation.Initiative, 3, 1, preparation.Runtime)],
+        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+    battle.Turns.StartTurns();
+
+    var log = new DeveloperBattleLog();
+    log.BeginBattle(battle);
+    log.CompleteBattle(battle, "defeat");
+    var path = log.FilePath;
+    Assert(path is not null && File.Exists(path),
+        "A scenario-inicializálás nélkül indított tesztcsata nem hozott létre naplófájlt.");
+    using var stream = new FileStream(path!, FileMode.Open, FileAccess.Read,
+        FileShare.ReadWrite | FileShare.Delete);
+    using var reader = new StreamReader(stream, Encoding.UTF8);
+    var text = reader.ReadToEnd();
+    Assert(text.Contains("[LOG-START] reason=battle-recovery", StringComparison.Ordinal) &&
+           text.Contains("[SCENARIO-RECOVERY]", StringComparison.Ordinal) &&
+           text.Contains("[BATTLE-START]", StringComparison.Ordinal) &&
+           text.Contains("[BATTLE-END]", StringComparison.Ordinal) &&
+           text.Contains("outcome=defeat", StringComparison.Ordinal),
+        "A helyreállított csatalogból hiányzik a kezdet, a csataállapot vagy a vereségi lezárás.");
+    File.Delete(path!);
 }
 
 static void CombatTestCharactersMatchRequestedLevelAndSpells()

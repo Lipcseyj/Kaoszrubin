@@ -28,29 +28,7 @@ public sealed class DeveloperBattleLog
     {
         lock (_sync)
         {
-            try
-            {
-                CloseWriter();
-                StartupLog.Initialize();
-                var directory = Path.GetDirectoryName(StartupLog.FilePath);
-                if (string.IsNullOrWhiteSpace(directory))
-                    directory = Path.Combine(AppContext.BaseDirectory, "naplók");
-                Directory.CreateDirectory(directory);
-                _filePath = Path.Combine(directory,
-                    $"battle-test-{DateTime.Now:yyyyMMdd-HHmmss-fff}.log");
-                _stream = new FileStream(_filePath, FileMode.Create, FileAccess.Write,
-                    FileShare.ReadWrite | FileShare.Delete);
-                _writer = new StreamWriter(_stream, new UTF8Encoding(false)) { AutoFlush = true };
-                _writer.WriteLine("KÁOSZRUBIN — FEJLESZTŐI HARCI TESZTNAPLÓ");
-                StartupLog.Info("battle-test-log.created", $"Napló: {_filePath}");
-            }
-            catch (Exception exception)
-            {
-                CloseWriter();
-                _filePath = null;
-                StartupLog.Error("battle-test-log.create-failed", exception);
-                return;
-            }
+            if (!TryOpenNewLog("scenario")) return;
         }
 
         Append("SCENARIO", $"partyLevel={options.PartyLevel}; groups={options.EnemyGroupCount}; " +
@@ -97,6 +75,18 @@ public sealed class DeveloperBattleLog
 
     public void BeginBattle(TeamBattleEncounter battle)
     {
+        var recovered = false;
+        lock (_sync)
+        {
+            if (_filePath is null)
+            {
+                if (!TryOpenNewLog("battle-recovery")) return;
+                recovered = true;
+            }
+        }
+        if (recovered)
+            Append("SCENARIO-RECOVERY",
+                "A mentésből betöltött tesztpályához nem tartozott aktív scenario-log; a csatanapló helyreállítva.");
         Append("BATTLE-START", $"battle={battle.Id}; center={FormatPosition(battle.Turns.Center)}; " +
                                $"radius={battle.Turns.Radius}; formation={battle.Formation?.Layout.ToString() ?? "none"}; " +
                                $"friendly={battle.Characters.Count}; hostile={battle.Enemies.Count}; " +
@@ -197,6 +187,35 @@ public sealed class DeveloperBattleLog
         _stream = new FileStream(_filePath, FileMode.Append, FileAccess.Write,
             FileShare.ReadWrite | FileShare.Delete);
         _writer = new StreamWriter(_stream, new UTF8Encoding(false)) { AutoFlush = true };
+    }
+
+    private bool TryOpenNewLog(string reason)
+    {
+        try
+        {
+            CloseWriter();
+            StartupLog.Initialize();
+            var directory = Path.GetDirectoryName(StartupLog.FilePath);
+            if (string.IsNullOrWhiteSpace(directory))
+                directory = Path.Combine(AppContext.BaseDirectory, "naplók");
+            Directory.CreateDirectory(directory);
+            _filePath = Path.Combine(directory,
+                $"battle-test-{DateTime.Now:yyyyMMdd-HHmmss-fff}.log");
+            _stream = new FileStream(_filePath, FileMode.Create, FileAccess.Write,
+                FileShare.ReadWrite | FileShare.Delete);
+            _writer = new StreamWriter(_stream, new UTF8Encoding(false)) { AutoFlush = true };
+            _writer.WriteLine("KÁOSZRUBIN — FEJLESZTŐI HARCI TESZTNAPLÓ");
+            _writer.WriteLine($"{DateTimeOffset.Now:O} [LOG-START] reason={reason}");
+            StartupLog.Info("battle-test-log.created", $"reason={reason}; Napló: {_filePath}");
+            return true;
+        }
+        catch (Exception exception)
+        {
+            CloseWriter();
+            _filePath = null;
+            StartupLog.Error("battle-test-log.create-failed", exception);
+            return false;
+        }
     }
 
     private void CloseWriter()

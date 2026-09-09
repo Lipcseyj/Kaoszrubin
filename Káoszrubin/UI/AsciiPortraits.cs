@@ -177,10 +177,10 @@ public static class AsciiPortraits
            // E016 - Medúza
            [MonsterIds.Medúza] = Portrait(
     " ~S~S~S~S~",
-    "S / ò  ó \\ S",
-    " S|   ▲  |S",
+    "S / ò  ó  \\ S",
+    " S|   ▲   |S",
     "  \\  ▽▽  /",
-    "   \\_____/"),
+    "   \\____/"),
 
            // E017 - Kiméra
            [MonsterIds.Kiméra] = Portrait(
