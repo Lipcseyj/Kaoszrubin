@@ -6557,9 +6557,10 @@ public sealed class Game : ISessionCommandHandler
                 : null;
             var existingSpell = caster.MemorizedSpells.FirstOrDefault(spell =>
                 string.Equals(spell.Id, existing.SpellId, StringComparison.OrdinalIgnoreCase));
-            var canReevaluate = existing.Status != NpcSpellPlanStatus.Failed && existingTarget is not null &&
-                                existingSpell is not null && NpcSpellcastingPolicy.CanSpendMana(caster,
-                                    SpellcastingRules.EffectiveManaCost(caster, existingSpell));
+            var canSpendMana = existingSpell is not null && NpcSpellcastingPolicy.CanSpendMana(caster,
+                SpellcastingRules.EffectiveManaCost(caster, existingSpell));
+            var canReevaluate = NpcSpellPlanningPolicy.CanReevaluatePlan(existing.Status,
+                existingTarget is not null, existingSpell is not null, canSpendMana);
             if (!canReevaluate)
             {
                 var reason = existingTarget is null ? "a célpont már nem harcképes" :
@@ -6648,9 +6649,9 @@ public sealed class Game : ISessionCommandHandler
         LiveCharacter caster, IReadOnlyList<Enemy> livingEnemies)
     {
         var casterPosition = GetCasterPosition(caster);
-        var mayMoveForPlan = caster.CharacterClass.Id != CharacterClassIds.Lovag &&
-                             !battle.HasActiveFormation && !battle.IsEngaged(caster) &&
-                             !battle.IsCharacterStaggered(caster);
+        var mayMoveForPlan = NpcSpellPlanningPolicy.CanMoveForPlan(
+            caster.CharacterClass.Id == CharacterClassIds.Lovag, battle.HasActiveFormation,
+            battle.IsEngaged(caster), battle.IsCharacterStaggered(caster));
         var castingPositions = mayMoveForPlan
             ? ReachableNpcSpellcastingPositions(battle, casterPosition, CombatantId.ForCharacter(caster.Id))
             : new Dictionary<Position, int> { [casterPosition] = 0 };
@@ -6727,10 +6728,8 @@ public sealed class Game : ISessionCommandHandler
         var incumbent = rankedCandidates.FirstOrDefault(candidate =>
             CandidateContinuesNpcSpellPlan(candidate, activePlan));
         if (incumbent is null) return best;
-        var retentionMargin = Math.Max(4.0, Math.Abs(best.Evaluation.Utility) * 0.12);
-        var utilityCollapsed = activePlan.ExpectedUtility > 0 &&
-                               incumbent.Evaluation.Utility < activePlan.ExpectedUtility * 0.55;
-        return !utilityCollapsed && incumbent.Evaluation.Utility >= best.Evaluation.Utility - retentionMargin
+        return NpcSpellPlanningPolicy.ShouldRetainPlan(activePlan.ExpectedUtility,
+            incumbent.Evaluation.Utility, best.Evaluation.Utility)
             ? incumbent
             : best;
     }
@@ -6749,32 +6748,9 @@ public sealed class Game : ISessionCommandHandler
         LiveCharacter caster, NpcOffensiveSpellCandidate candidate)
     {
         var memories = battle.NpcOffensiveSpellMemoriesFor(caster);
-        if (memories.Count == 0) return candidate;
-
-        var utility = candidate.Evaluation.Utility;
-        var scale = Math.Max(1.0, Math.Abs(utility));
-        var usesOfSpell = memories.Count(memory => string.Equals(memory.SpellId,
-            candidate.Spell.Id, StringComparison.OrdinalIgnoreCase));
-        if (usesOfSpell == 0)
-            utility += Math.Clamp(scale * 0.08, 3.0, 12.0);
-        else
-            utility -= Math.Min(8.0, usesOfSpell * 1.5);
-
-        var last = memories[^1];
-        if (last.Complexity != candidate.Classification.Complexity)
-            utility += Math.Clamp(scale * 0.08, 2.0, 10.0);
-        else
-            utility -= Math.Clamp(scale * 0.04, 1.0, 6.0);
-
-        if (string.Equals(last.SpellId, candidate.Spell.Id, StringComparison.OrdinalIgnoreCase))
-        {
-            var consecutiveUses = memories.AsEnumerable().Reverse().TakeWhile(memory =>
-                string.Equals(memory.SpellId, candidate.Spell.Id, StringComparison.OrdinalIgnoreCase)).Count();
-            utility -= Math.Clamp(scale * 0.14, 4.0, 20.0) + Math.Min(8.0, consecutiveUses * 2.0);
-        }
-        else if (last.AttackPattern != candidate.Classification.AttackPattern)
-            utility += 2.0;
-
+        var utility = NpcSpellPlanningPolicy.AdjustUtilityForMemory(memories, candidate.Spell.Id,
+            candidate.Classification.Complexity, candidate.Classification.AttackPattern,
+            candidate.Evaluation.Utility);
         return candidate with { Evaluation = candidate.Evaluation with { Utility = utility } };
     }
 
@@ -6785,16 +6761,14 @@ public sealed class Game : ISessionCommandHandler
         int movementAllowance, IReadOnlyList<Enemy> livingEnemies)
     {
         var evaluation = NpcSpellPlanEvaluator.Evaluate(caster, spell, effects, targets, manaCost);
-        var movementTurns = movementDistance == 0 ? 0 :
-            (int)Math.Ceiling(movementDistance / (double)Math.Max(1, movementAllowance));
         var adjacentThreat = livingEnemies.Where(enemy =>
                 TacticalDistance.IsMeleeAdjacent(castingPosition, enemy.Position))
             .Sum(enemy => Math.Max(1, enemy.Definition.StrengthTier));
-        var movementPenalty = movementTurns * 3.0 + movementDistance * 0.25;
-        var dangerPenalty = adjacentThreat * 2.0;
+        var positionPenalty = NpcSpellPlanningPolicy.PositionPenalty(movementDistance,
+            movementAllowance, adjacentThreat);
         return new NpcOffensiveSpellCandidate(spell, castingPosition, targetPosition, primaryTarget,
             classification, targets.Count,
-            evaluation with { Utility = evaluation.Utility - movementPenalty - dangerPenalty },
+            evaluation with { Utility = evaluation.Utility - positionPenalty },
             ReadyToCast: movementDistance == 0, movementDistance);
     }
 

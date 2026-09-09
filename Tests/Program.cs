@@ -124,6 +124,13 @@ var tests = new (string Name, Action Run)[]
     ("Az alakzat csak a fennálló lekötéseket megtartva mozdulhat", TeamBattleFormationMovementPreservesEngagements),
     ("A csapatharc célpontja akcióvesztés nélkül váltható", TeamBattleTargetCanBeChanged),
     ("Az NPC varázslási szabálya tartalékolja a mannát és csak egycélú támadást választ", NpcSpellcastingPolicyPreservesMana),
+    ("Az NPC varázspontozása csoport ellen területi, gyenge célra takarékos támadást kedvel", NpcSpellUtilityValuesTargetsAndOverkill),
+    ("Az NPC varázsmemóriája váltogatja a repertoárt, de nem ír felül nagy erőkülönbséget", NpcSpellMemoryBalancesVarietyAndUtility),
+    ("Az NPC varázsterv hiszterézise megtartja a közeli tervet és elengedi az összeomlottat", NpcSpellPlanRetentionIsStable),
+    ("Az NPC varázsterv érvényét veszti halott célnál, elfogyott manánál és sikertelen tervnél", NpcSpellPlanInvalidationCoversFailureModes),
+    ("Csak a szabad, alakzaton kívüli nem-lovag mozoghat varázslási pozícióba", NpcSpellPlanMovementHonorsClassAndBattleState),
+    ("Az NPC tüzelőállás-pontozása körökkel és közelharci veszéllyel számol", NpcSpellPositionPenaltyIncludesTravelAndDanger),
+    ("A csapatharc varázsmemóriája sorrendben őrzi a megkísérelt terveket", TeamBattleStoresNpcSpellMemory),
     ("A szabad és lekötött varázslás eltérően módosítja a harci hibakockázatot", EngagementAdjustsSpellFailureChance),
     ("A harcba hívott erősítés a következő körben lép be", TeamBattleReinforcementJoinsNextCycle),
     ("A coop session validálja a csapatharcos mozgást, tárgyhasználatot és passzt", TeamBattleCommandsAreValidated),
@@ -5168,6 +5175,164 @@ static void NpcSpellcastingPolicyPreservesMana()
            ActiveSpellEffectType.DefenseBonus,
         "Az NPC támadó- vagy buffvarázslat-besorolása hibás.");
 }
+
+static void NpcSpellUtilityValuesTargetsAndOverkill()
+{
+    var caster = CreateNpcSpellTestCaster();
+    var spell = new SpellDefinition("TEST-UTILITY", "Próbavillám", SpellSchool.Arcane, 1, 6, "",
+        SpellTargetType.Enemy, 8, 0, true, SpellUsageMode.Combat);
+    var damage = new SpellEffectDefinition("FX-TEST-UTILITY", spell.Id, 1, SpellEffectType.Damage,
+        new DiceExpression(2, 6), 1, 1, 0, 0, 100, SpellResolution.Auto, null, "");
+    var targets = new[]
+    {
+        CreateNpcSpellTestEnemy("UTILITY-1", 40, 2, new Position(2, 2)),
+        CreateNpcSpellTestEnemy("UTILITY-2", 40, 2, new Position(3, 2)),
+        CreateNpcSpellTestEnemy("UTILITY-3", 40, 2, new Position(4, 2))
+    };
+    var single = NpcSpellPlanEvaluator.Evaluate(caster, spell, [damage],
+        [new NpcSpellPlanTarget(targets[0])], spell.ManaCost);
+    var area = NpcSpellPlanEvaluator.Evaluate(caster, spell with
+        { Id = "TEST-AREA", TargetType = SpellTargetType.Area, AreaRadius = 1, ManaCost = 8 }, [damage],
+        targets.Select(enemy => new NpcSpellPlanTarget(enemy)).ToArray(), 8);
+
+    var weak = CreateNpcSpellTestEnemy("UTILITY-WEAK", 5, 1, new Position(2, 3));
+    var cheapEffect = damage with
+    {
+        Id = "FX-TEST-CHEAP", Dice = new DiceExpression(1, 8),
+        IntelligenceMultiplier = 0, LevelMultiplier = 0, Value = 2
+    };
+    var wastefulEffect = damage with
+    {
+        Id = "FX-TEST-WASTEFUL", Dice = new DiceExpression(20, 10),
+        IntelligenceMultiplier = 0, LevelMultiplier = 0, Value = 0
+    };
+    var cheap = NpcSpellPlanEvaluator.Evaluate(caster, spell, [cheapEffect],
+        [new NpcSpellPlanTarget(weak)], 1);
+    var wasteful = NpcSpellPlanEvaluator.Evaluate(caster, spell with { ManaCost = 30 }, [wastefulEffect],
+        [new NpcSpellPlanTarget(weak)], 30);
+
+    Assert(area.Utility > single.Utility * 2 && area.UsefulDamage == single.UsefulDamage * 3,
+        "A többcélú varázslat nem kapta meg a csoportsebzés hasznát.");
+    Assert(cheap.Utility > wasteful.Utility && wasteful.Overkill > 100,
+        "A pontozás nem büntette a gyenge célpontra pazarolt nagy varázslatot.");
+}
+
+static void NpcSpellMemoryBalancesVarietyAndUtility()
+{
+    NpcOffensiveSpellMemory[] memories =
+    [
+        new("MAGIC-MISSILE", NpcSpellPlanComplexity.Simple, NpcSpellAttackPattern.SingleTarget, 1),
+        new("MAGIC-MISSILE", NpcSpellPlanComplexity.Simple, NpcSpellAttackPattern.SingleTarget, 2)
+    ];
+    var repeated = NpcSpellPlanningPolicy.AdjustUtilityForMemory(memories, "MAGIC-MISSILE",
+        NpcSpellPlanComplexity.Simple, NpcSpellAttackPattern.SingleTarget, 100);
+    var unusedSimple = NpcSpellPlanningPolicy.AdjustUtilityForMemory(memories, "FROST-BOLT",
+        NpcSpellPlanComplexity.Simple, NpcSpellAttackPattern.SingleTarget, 100);
+    var unusedComplex = NpcSpellPlanningPolicy.AdjustUtilityForMemory(memories, "FIREBALL",
+        NpcSpellPlanComplexity.Complex, NpcSpellAttackPattern.Area, 100);
+    var clearlySuperiorRepeat = NpcSpellPlanningPolicy.AdjustUtilityForMemory(memories, "MAGIC-MISSILE",
+        NpcSpellPlanComplexity.Simple, NpcSpellAttackPattern.SingleTarget, 250);
+    var weakNovelty = NpcSpellPlanningPolicy.AdjustUtilityForMemory(memories, "FIREBALL",
+        NpcSpellPlanComplexity.Complex, NpcSpellAttackPattern.Area, 40);
+
+    Assert(unusedComplex > unusedSimple && unusedSimple > repeated,
+        "A memória nem jutalmazza az egyszerű–összetett vagy repertoárváltást.");
+    Assert(clearlySuperiorRepeat > weakNovelty,
+        "A változatossági bónusz felülírt egy lényegesen jobb ismételt varázslatot.");
+}
+
+static void NpcSpellPlanRetentionIsStable()
+{
+    Assert(NpcSpellPlanningPolicy.ShouldRetainPlan(100, 91, 100),
+        "A 12 százalékon belüli aktív tervet nem tartotta meg a hiszterézis.");
+    Assert(!NpcSpellPlanningPolicy.ShouldRetainPlan(100, 87, 100),
+        "A megtartási tartományon kívüli tervet is megtartotta a hiszterézis.");
+    Assert(!NpcSpellPlanningPolicy.ShouldRetainPlan(100, 50, 52),
+        "Az eredeti hasznának 55 százaléka alá esett terv nem omlott össze.");
+}
+
+static void NpcSpellPlanInvalidationCoversFailureModes()
+{
+    Assert(NpcSpellPlanningPolicy.CanReevaluatePlan(NpcSpellPlanStatus.SeekingPosition,
+            targetIsAlive: true, spellIsAvailable: true, canSpendMana: true),
+        "Egy megvalósítható, pozíciót kereső tervet érvénytelenített.");
+    Assert(!NpcSpellPlanningPolicy.CanReevaluatePlan(NpcSpellPlanStatus.SeekingPosition,
+            targetIsAlive: false, spellIsAvailable: true, canSpendMana: true) &&
+           !NpcSpellPlanningPolicy.CanReevaluatePlan(NpcSpellPlanStatus.SeekingPosition,
+               targetIsAlive: true, spellIsAvailable: false, canSpendMana: true) &&
+           !NpcSpellPlanningPolicy.CanReevaluatePlan(NpcSpellPlanStatus.SeekingPosition,
+               targetIsAlive: true, spellIsAvailable: true, canSpendMana: false) &&
+           !NpcSpellPlanningPolicy.CanReevaluatePlan(NpcSpellPlanStatus.Failed,
+               targetIsAlive: true, spellIsAvailable: true, canSpendMana: true),
+        "A halott célpont, elveszett varázslat, elfogyott mana vagy sikertelen terv nem érvénytelenítette a tervet.");
+}
+
+static void NpcSpellPlanMovementHonorsClassAndBattleState()
+{
+    Assert(NpcSpellPlanningPolicy.CanMoveForPlan(isKnight: false, hasActiveFormation: false,
+            isEngaged: false, isStaggered: false),
+        "A szabad mágus nem kereshet tüzelőállást.");
+    Assert(!NpcSpellPlanningPolicy.CanMoveForPlan(isKnight: true, hasActiveFormation: false,
+            isEngaged: false, isStaggered: false) &&
+           !NpcSpellPlanningPolicy.CanMoveForPlan(isKnight: false, hasActiveFormation: true,
+               isEngaged: false, isStaggered: false) &&
+           !NpcSpellPlanningPolicy.CanMoveForPlan(isKnight: false, hasActiveFormation: false,
+               isEngaged: true, isStaggered: false) &&
+           !NpcSpellPlanningPolicy.CanMoveForPlan(isKnight: false, hasActiveFormation: false,
+               isEngaged: false, isStaggered: true),
+        "A lovag, alakzat, lekötés vagy tántorodás nem tiltotta le a tervhez mozgást.");
+}
+
+static void NpcSpellPositionPenaltyIncludesTravelAndDanger()
+{
+    var current = NpcSpellPlanningPolicy.PositionPenalty(0, 3, 0);
+    var distant = NpcSpellPlanningPolicy.PositionPenalty(4, 3, 0);
+    var dangerous = NpcSpellPlanningPolicy.PositionPenalty(4, 3, 3);
+    Assert(current == 0 && distant == 7 && dangerous == 13,
+        $"A mozgási vagy veszélybüntetés hibás: {current}/{distant}/{dangerous}.");
+}
+
+static void TeamBattleStoresNpcSpellMemory()
+{
+    var system = CreateBattleSystem(1801);
+    var caster = CreateCharacter("Memóriamágus", characterClassId: CharacterClassIds.Mágus);
+    var enemy = CreateNpcSpellTestEnemy("MEMORY-TARGET", 30, 2, new Position(2, 1));
+    var preparation = system.PrepareTeamCharacter(caster);
+    var battle = new TeamBattleEncounter(new Position(1, 1),
+        [new TeamCharacterParticipant(caster, new Position(1, 1), TacticalParticipantKind.PartyMember,
+            preparation.Initiative, 3, 1, preparation.Runtime)],
+        [new TeamEnemyParticipant(enemy, 5, 2, 1)], caster.Id, enemy.Id);
+    var first = new NpcSpellPlan(Guid.NewGuid(), "SPELL-SIMPLE", enemy.Id, enemy.Position,
+        new Position(1, 1), NpcSpellPlanComplexity.Simple, NpcSpellAttackPattern.SingleTarget,
+        NpcSpellTacticalRole.Damage, 1, 1, 20, NpcSpellPlanStatus.ReadyToCast);
+    var second = first with
+    {
+        Id = Guid.NewGuid(), SpellId = "SPELL-AREA", Complexity = NpcSpellPlanComplexity.Complex,
+        AttackPattern = NpcSpellAttackPattern.Area, ExpectedTargetCount = 3
+    };
+    battle.RecordNpcOffensiveSpellMemory(caster, first);
+    battle.RecordNpcOffensiveSpellMemory(caster, second);
+    var memories = battle.NpcOffensiveSpellMemoriesFor(caster);
+
+    Assert(memories.Count == 2 && memories[0].SpellId == "SPELL-SIMPLE" &&
+           memories[1].SpellId == "SPELL-AREA" &&
+           memories.Select(memory => memory.Complexity).SequenceEqual(
+               [NpcSpellPlanComplexity.Simple, NpcSpellPlanComplexity.Complex]),
+        "A csatamemória elvesztette a varázslatok sorrendjét vagy tervtípusát.");
+}
+
+static LiveCharacter CreateNpcSpellTestCaster()
+{
+    var race = new RaceDefinition("R-NPC-SPELL", "Ember", PrimaryAbilities.Zero);
+    var mageClass = new CharacterClassDefinition(CharacterClassIds.Mágus, "Mágus", PrimaryAbilities.Zero,
+        true, 1.0);
+    return new LiveCharacter("Tervmágus", race, mageClass, new PrimaryAbilities(5, 5, 5, 8),
+        40, 100, 1, 0);
+}
+
+static ConfiguredEnemy CreateNpcSpellTestEnemy(string id, int hitPoints, int strengthTier,
+    Position position) => new(position, new EnemyDefinition(id, id, "e", strengthTier, hitPoints,
+        0, 1, 1, strengthTier, []));
 
 static void EngagementAdjustsSpellFailureChance()
 {
