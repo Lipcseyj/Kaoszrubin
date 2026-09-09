@@ -232,7 +232,7 @@ public static class AsciiPortraits
 
            // E023 - Démonlovag
            [MonsterIds.Démonlovag] = Portrait(
-    "   /\\___/\\",
+    "   /|____/|",
     "  | ◉   ◉ |",
     "  |  /▲\\  |",
     " /|==|█|==|\\",
@@ -384,8 +384,8 @@ public static class AsciiPortraits
 
            // E042 - Halállovag
            [MonsterIds.Halállovag] = Portrait(
-    "   /■■††■■\\",
-    "  | ň   ň |",
+    "  †■■■■■■■†",
+    "  | Í   Í |",
     "  |   ■   |",
     " /|==|█|==|\\",
     "   /|___|\\  †"),
@@ -419,7 +419,7 @@ public static class AsciiPortraits
     "   /\\____/\\",
     "  / ◉    ◉ \\",
     " |   __▲__  |",
-    "  \\  ▼▼▼▼  /",
+    "  \\  ▼--▼  /",
     "  /V\\_██_/V\\"),
 
            // E047 - Pokolfejedelem
