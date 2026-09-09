@@ -1555,6 +1555,52 @@ public sealed class ConsoleRenderer
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
     public void DrawDoorMessage(string message, ConsoleColor color = ConsoleColor.DarkYellow) => DrawBattleMessage(message, color);
 
+    public DeveloperBattleTestOptions? DrawDeveloperBattleTestSetup(int currentPartyLevel,
+        int maximumPartyLevel, Maze maze, FogOfWar fogOfWar, Position playerPosition)
+    {
+        _spellCastingOverlaySnapshot = null;
+        var selected = 0;
+        var values = new[] { Math.Clamp(currentPartyLevel, 1, maximumPartyLevel), 3, 4 };
+        var minimums = new[] { currentPartyLevel, 1, 1 };
+        var maximums = new[] { maximumPartyLevel, DeveloperBattleTestOptions.MaximumEnemyGroupCount,
+            DeveloperBattleTestOptions.MaximumEnemiesPerGroup };
+        var labels = new[] { "Parti cél-szintje", "Ellenségcsoportok", "Ellenségek csoportonként" };
+        while (true)
+        {
+            var lines = new List<(string Text, ConsoleColor Color)>
+            {
+                ("🧪⚔  HARCI TESZTPÁLYA  ⚔🧪", ConsoleColor.Magenta),
+                ("A jelenlegi vezér megmarad; a régi társakat Mágus, Pap és Lovag váltja.", ConsoleColor.Cyan),
+                ("A választott szint nem lehet alacsonyabb a vezér jelenlegi szintjénél.", ConsoleColor.DarkYellow),
+                (string.Empty, ConsoleColor.Gray)
+            };
+            for (var index = 0; index < labels.Length; index++)
+                lines.Add(($"{(index == selected ? "▶" : " ")} {labels[index],-27}: {values[index],2}",
+                    index == selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add(("↑/↓ mező   ←/→ érték   Enter létrehozás   Esc mégsem", ConsoleColor.Green));
+            DrawSpellCastingOverlay(82, lines, maze, fogOfWar, playerPosition);
+
+            switch (Console.ReadKey(intercept: true).Key)
+            {
+                case ConsoleKey.UpArrow: selected = (selected - 1 + values.Length) % values.Length; break;
+                case ConsoleKey.DownArrow: selected = (selected + 1) % values.Length; break;
+                case ConsoleKey.LeftArrow:
+                    values[selected] = Math.Max(minimums[selected], values[selected] - 1);
+                    break;
+                case ConsoleKey.RightArrow:
+                    values[selected] = Math.Min(maximums[selected], values[selected] + 1);
+                    break;
+                case ConsoleKey.Enter:
+                    RestoreSpellCastingOverlay();
+                    return new DeveloperBattleTestOptions(values[0], values[1], values[2]);
+                case ConsoleKey.Escape:
+                    RestoreSpellCastingOverlay();
+                    return null;
+            }
+        }
+    }
+
     #endregion
 
     #region Character progression and spell UI

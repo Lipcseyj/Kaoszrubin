@@ -21,6 +21,8 @@ var tests = new (string Name, Action Run)[]
     ("A Windows Terminal újraindítás debuggerben és gyermekfolyamatban kimarad", WindowsTerminalRelaunchGuardsAreStable),
     ("A többsoros fogadói pletyka minden sora a kereten belül marad", MultilineInnRumorStaysInsideFrame),
     ("A fejlesztői fegyvercsomag követi a kategóriákat és a hátizsák kapacitását", DevelopmentWeaponsRespectCapacity),
+    ("A harci tesztpálya a kért csoportokat, jelölőládákat és középső folyosót építi", DeveloperBattleTestScenarioHasRequestedLayout),
+    ("A harci teszt-NPC-k pontos szinttel és véletlenül memorizált elérhető varázslatokkal készülnek", CombatTestCharactersMatchRequestedLevelAndSpells),
     ("A lovag harci fegyvercsere-parancsa átjut a session ellenőrzésén", KnightBattleWeaponSwapCommandIsAccepted),
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
     ("A taktikai fegyverjártasságok módosítják a söprést, fedezetet és varázslást", TacticalWeaponMasteriesHaveDistinctRoles),
@@ -5694,6 +5696,66 @@ static void DevelopmentWeaponsRespectCapacity()
     var revision = full.InventoryRevision;
     Assert(DevelopmentWeaponGrantService.Grant(full, data.Weapons, new Random(42)).Count == 0 && full.InventoryRevision == revision,
         "A telt hátizsák módosult a sikertelen kiosztástól.");
+}
+
+static void DeveloperBattleTestScenarioHasRequestedLayout()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var options = new DeveloperBattleTestOptions(12, 6, 12);
+    var scenario = DeveloperBattleTestScenarioBuilder.Create(ConsoleRenderer.PlayfieldWidth,
+        ConsoleRenderer.PlayfieldHeight, options, data.Enemies, new Random(4201), 30);
+
+    Assert(scenario.EnemyGroups.Count == 6 && scenario.EnemyGroups.All(group => group.Count == 12) &&
+           scenario.Maze.Enemies.Count == 72 && scenario.GroupMarkers.Count == 6 &&
+           scenario.Maze.TreasureChests.Count == 6,
+        "A tesztpálya nem a kért számú csoportot, ellenfelet vagy jelölőládát készítette.");
+    Assert(scenario.EnemyGroups.Select(group => group[0].GroupId).Distinct().Count() == 6 &&
+           scenario.EnemyGroups.All(group => group.Select(enemy => enemy.GroupId).Distinct().Count() == 1),
+        "Az ellenfelek csoportazonosítói összekeveredtek.");
+    Assert(scenario.EnemyGroups.SelectMany(group => group).All(enemy =>
+        enemy.Position.Y < scenario.LeaderPosition.Y &&
+        Math.Max(Math.Abs(enemy.Position.X - scenario.LeaderPosition.X),
+            Math.Abs(enemy.Position.Y - scenario.LeaderPosition.Y)) is >=
+                DeveloperBattleTestScenarioBuilder.MinimumEnemyDistance and <=
+                DeveloperBattleTestScenarioBuilder.MaximumEnemyDistance),
+        "Egy ellenfél nem a felső térfélen vagy nem 10–20 mezős távolságban áll.");
+    Assert(scenario.EnemyGroups.Zip(scenario.GroupMarkers).All(pair => pair.First.Any(enemy =>
+        Math.Abs(enemy.Position.X - pair.Second.Position.X) +
+        Math.Abs(enemy.Position.Y - pair.Second.Position.Y) == 1)),
+        "Egy jelölőláda nem a saját ellenségcsoportja mellett áll.");
+
+    var corridor = scenario.CorridorTopLeft;
+    for (var offset = 0; offset < DeveloperBattleTestScenarioBuilder.CorridorLength; offset++)
+    {
+        Assert(scenario.Maze.IsWalkable(new Position(corridor.X, corridor.Y + offset)) &&
+               scenario.Maze.IsWalkable(new Position(corridor.X + 1, corridor.Y + offset)) &&
+               scenario.Maze.BlocksSight(new Position(corridor.X - 1, corridor.Y + offset)) &&
+               scenario.Maze.BlocksSight(new Position(corridor.X + 2, corridor.Y + offset)),
+            "A középső 2×8-as folyosó járható szélessége vagy oldalfala hibás.");
+    }
+}
+
+static void CombatTestCharactersMatchRequestedLevelAndSpells()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var generator = new RandomCharacterGenerator(data, new Random(4202));
+    var characters = new[] { CharacterClassIds.Mágus, CharacterClassIds.Pap, CharacterClassIds.Lovag }
+        .Select(classId => generator.CreateCombatTestCharacter(data.GetCharacterClass(classId), 12, []))
+        .ToArray();
+
+    Assert(characters.All(character => character.Level == 12 && character.IsAlive &&
+                                     character.CurrentVitality == character.MaximumVitality &&
+                                     character.CurrentMana == character.MaximumMana &&
+                                     SpellcastingRules.HasRequiredFocus(character)),
+        "A teszt-NPC szintje, erőforrása vagy varázsfókusza hibás.");
+    Assert(characters.All(character => character.MemorizedSpells.Count ==
+                                      Math.Min(character.KnownSpells.Count, character.MemorizationCapacity) &&
+                                      character.MemorizedSpells.All(spell =>
+                                          spell.Level <= SpellcastingRules.MaximumSpellLevel(character.Level) &&
+                                          character.KnownSpells.Any(known => known.Id == spell.Id))),
+        "A teszt-NPC nem az ismert, szintjén elérhető varázslataiból memorizált.");
+    Assert(characters.All(character => character.ActiveWeapons.Any(weapon => weapon is not null)),
+        "Egy teszt-NPC nem kapta meg a kaszt alapfegyverzetét.");
 }
 
 static void KnightBattleWeaponSwapCommandIsAccepted()

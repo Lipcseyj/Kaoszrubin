@@ -148,6 +148,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly HashSet<WorldEntityId> _spottedChestIds = [];
     private readonly List<ExpeditionEnemyTemplate> _levelEnemyTemplates = [];
     private readonly List<WorldNpc> _temporaryFollowersEnteringNextMaze = [];
+    private readonly List<LiveCharacter> _developerBattleTestCompanions = [];
     private LiveCharacter? _eliraWaitingAtInn;
     private int _eliraInnVisitsRemaining;
     private bool _isReturnExpedition;
@@ -721,6 +722,11 @@ public sealed class Game : ISessionCommandHandler
                     if (IsLevelUpPartyShortcut(keyInfo))
                     {
                         GrantPartyExperienceForDevelopment();
+                        continue;
+                    }
+                    if (IsDeveloperBattleTestShortcut(keyInfo))
+                    {
+                        StartDeveloperBattleTest();
                         continue;
                     }
                     if (IsFillPartySetYShortcut(keyInfo))
@@ -8766,6 +8772,106 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawDeveloperMessage(_developerPhasing
             ? "Fejlesztői mód: fal-áthaladás engedélyezve."
             : "Fejlesztői mód: fal-áthaladás letiltva.");
+    }
+
+    private void StartDeveloperBattleTest()
+    {
+        if (_session.ConnectedRemoteCharacterCount > 0)
+        {
+            _renderer.DrawDeveloperMessage(
+                "Fejlesztői mód: a tesztparti csak csatlakoztatott vendégek nélkül hozható létre.");
+            return;
+        }
+
+        var maximumLevel = Math.Max(SelectedCharacter.Level,
+            _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(SelectedCharacter.Level).Max());
+        var options = _renderer.DrawDeveloperBattleTestSetup(SelectedCharacter.Level, maximumLevel,
+            _maze, _fogOfWar, _player.Position);
+        if (options is null) return;
+
+        var generator = new RandomCharacterGenerator(_gameData, _random);
+        foreach (var previousCompanion in _developerBattleTestCompanions.ToArray())
+            CharacterRoster.Remove(previousCompanion);
+        _developerBattleTestCompanions.Clear();
+        generator.PrepareForCombatTest(SelectedCharacter, options.PartyLevel);
+        foreach (var status in SelectedCharacter.Statuses.ToArray())
+            SelectedCharacter.RemoveStatus(status.Id);
+        SelectedCharacter.RemoveSpellEffects();
+        SelectedCharacter.RestoreVitality(Math.Max(0,
+            SelectedCharacter.MaximumVitality - SelectedCharacter.CurrentVitality));
+        SelectedCharacter.RestoreMana(Math.Max(0,
+            SelectedCharacter.MaximumMana - SelectedCharacter.CurrentMana));
+
+        var companions = new List<LiveCharacter>();
+        foreach (var classId in new[] { CharacterClassIds.Mágus, CharacterClassIds.Pap, CharacterClassIds.Lovag })
+        {
+            var companion = generator.CreateCombatTestCharacter(_gameData.GetCharacterClass(classId),
+                options.PartyLevel, CharacterRoster.Characters.Concat(companions)
+                    .Select(character => character.Name).ToArray());
+            CharacterRoster.Add(companion);
+            companions.Add(companion);
+            _developerBattleTestCompanions.Add(companion);
+        }
+        CharacterRoster.Party.Restore(SelectedCharacter, companions);
+        _session.SetPhase(GameSessionPhase.Exploration);
+        _session.SynchronizeParty();
+
+        var scenario = DeveloperBattleTestScenarioBuilder.Create(MazeWidth, MazeHeight, options,
+            _gameData.Enemies, _random, maximumLevel);
+        _locationKind = AdventureLocationKind.Campaign;
+        _locationId = "DEVELOPER_COMBAT_TEST";
+        _mazeLevel = options.PartyLevel;
+        _difficultyLevel = options.PartyLevel;
+        _suspendedCampaignState = null;
+        _pendingRodericExpedition = false;
+        _pendingRodericReturn = false;
+        _temporaryFollowersEnteringNextMaze.Clear();
+        _hasRestedThisLevel = false;
+        _spottedEnemyIds.Clear();
+        _spottedChestIds.Clear();
+        _npcSpellcasterTactics.Clear();
+        _activeTeamBattle = null;
+        _battleStarted = false;
+        _gameOver = false;
+        _isQuickTeamBattle = false;
+        _partyHoldingPosition = false;
+        _partyRegrouping = false;
+        _partyAttackMode = false;
+        _partyCommandState = new PartyCommandState(false, false, false, null);
+        _partyScatterUntil = null;
+        _leaderFacing = Direction.Up;
+        _maze = scenario.Maze;
+        _player = new Player(scenario.LeaderPosition, SelectedCharacter);
+        _leaderTrail.Clear();
+        _leaderTrail.Add(_player.Position);
+        _nextPartyMoves.Clear();
+        PlacePartyMembersNear(_player.Position);
+        CaptureExpeditionEnemyTemplates();
+
+        _formation = PartyFormationRules.CreateDefault(
+            CharacterRoster.Party.Members.Select(member => member.Id), SelectedCharacter.Id);
+        _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
+        _renderer.SetFormationStatus(_formation);
+        _session.SetFormationMovementLocked(false);
+        _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
+        RevealFor(SelectedCharacter, _player.Position);
+        foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
+        _fogOfWar.ToggleDeveloperReveal();
+        InitializeEnemyMoveSchedule(DateTime.UtcNow);
+        _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
+        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        var partySummary = string.Join("; ", CharacterRoster.Party.Members.Select(character =>
+            $"{character.Name} ({character.CharacterClass.Name}, L{character.Level}" +
+            (character.IsSpellcaster
+                ? $", {character.MemorizedSpells.Count} memorizált varázslat)"
+                : ")")));
+        _renderer.DrawDeveloperMessage(
+            $"Tesztpálya kész: {options.EnemyGroupCount}×{options.EnemiesPerGroup} ellenfél, " +
+            $"{options.EnemyGroupCount} jelölőláda. Ctrl+Shift+U: köd visszakapcsolása. {partySummary}");
+        _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, exitDiscovered: false);
+        RequestCoopSnapshotPublish();
+        LogMazeAccessibilityCheck();
     }
 
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source, long SourceRevision);

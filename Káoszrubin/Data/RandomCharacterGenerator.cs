@@ -37,6 +37,32 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         return character;
     }
 
+    /// <summary>Alapfelszerelésű, de a megadott szint minden fejlődési elemével és véletlenül
+    /// memorizált, elérhető varázslataival rendelkező harci teszt-NPC-t készít.</summary>
+    public LiveCharacter CreateCombatTestCharacter(CharacterClassDefinition characterClass, int targetLevel,
+        IReadOnlyCollection<string> usedNames)
+    {
+        var character = CreateLevelOne(characterClass, usedNames);
+        PrepareForCombatTest(character, targetLevel);
+        return character;
+    }
+
+    public void PrepareForCombatTest(LiveCharacter character, int targetLevel)
+    {
+        if (targetLevel < character.Level)
+            throw new ArgumentOutOfRangeException(nameof(targetLevel),
+                "A fejlesztői teszt nem csökkentheti egy karakter szintjét.");
+        RaiseToLevel(character, targetLevel);
+        AddRandomPerks(character);
+        AddRandomTacticalDisciplines(character);
+        AddRandomWeaponProficiencies(character);
+        if (character.IsSpellcaster)
+            character.SetMemorizedSpells(character.KnownSpells.OrderBy(_ => _random.Next())
+                .Take(character.MemorizationCapacity));
+        character.RestoreVitality(Math.Max(0, character.MaximumVitality - character.CurrentVitality));
+        character.RestoreMana(Math.Max(0, character.MaximumMana - character.CurrentMana));
+    }
+
     public LiveCharacter CreateLevelOne(IReadOnlyCollection<string> usedNames)
     {
         for (var attempt = 0; attempt < 2_000; attempt++)
