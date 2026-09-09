@@ -5210,10 +5210,14 @@ static void BreakCurseRequiresUsefulPartyTarget()
 static void NpcOffensiveSpellStrengthThresholdsAreInclusive()
 {
     var tactics = NpcSpellcasterTactics.Default.StandardProfile;
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+        CsvGameDataLoader.GameDataFileName));
+    var koboldStrength = catalog.GetEnemy("E002").Strength ?? 1;
 
-    Assert(NpcSpellPlanningPolicy.EnemyStrength([1, 1, 1, 1]) == 4 &&
+    Assert(koboldStrength == 3 &&
+           NpcSpellPlanningPolicy.EnemyStrength(Enumerable.Repeat(koboldStrength, 3)) == 9 &&
            NpcSpellPlanningPolicy.EnemyStrength([0, -2, 3]) == 5,
-        "Az ellenség-összerő nem a résztvevők legalább egynek vett erőszintjeit összegzi.");
+        "Az ellenség-összerő nem a résztvevők tényleges Erő tulajdonságát összegzi (3 koboldnak 9-et kell adnia).");
     Assert(!NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, 7, offensiveSpellsCast: 0) &&
            NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, 8, offensiveSpellsCast: 0),
         "A mágus alsó, 8-as összerőhatára nem inkluzív.");

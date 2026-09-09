@@ -58,8 +58,8 @@ public static class NpcSpellPlanningPolicy
         bool isStaggered) =>
         !isKnight && !hasActiveFormation && !isEngaged && !isStaggered;
 
-    public static int EnemyStrength(IEnumerable<int> strengthTiers) =>
-        strengthTiers.Sum(tier => Math.Max(1, tier));
+    public static int EnemyStrength(IEnumerable<int> strengths) =>
+        strengths.Sum(strength => Math.Max(1, strength));
 
     public static bool ShouldCastOffensively(NpcSpellcasterCombatProfile tactics, int enemyStrength,
         int offensiveSpellsCast) =>

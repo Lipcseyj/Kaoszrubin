@@ -1560,7 +1560,7 @@ public sealed class ConsoleRenderer
     {
         _spellCastingOverlaySnapshot = null;
         var selected = 0;
-        var values = new[] { Math.Clamp(currentPartyLevel, 1, maximumPartyLevel), 3, 8 };
+        var values = new[] { Math.Clamp(currentPartyLevel, 1, maximumPartyLevel), 3, 4 };
         var minimums = new[] { currentPartyLevel, 1, 1 };
         var maximums = new[] { maximumPartyLevel, DeveloperBattleTestOptions.MaximumEnemyGroupCount,
             DeveloperBattleTestOptions.MaximumEnemiesPerGroup };

@@ -32,7 +32,7 @@ public static class DeveloperBattleTestScenarioBuilder
     public const int MinimumEnemyDistance = 10;
     public const int MaximumEnemyDistance = 20;
     private const int GroupsPerRow = 4;
-    private const int GroupColumnSpacing = 10;
+    private const int GroupColumnSpacing = 20;
     private const int GroupRowSpacing = 4;
     private const int GroupWidth = 4;
 

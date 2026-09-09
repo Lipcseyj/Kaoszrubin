@@ -78,11 +78,12 @@ public sealed class DeveloperBattleLog
         {
             var group = scenario.EnemyGroups[index];
             Append("ENEMY-GROUP", $"index={index + 1}; id={group.FirstOrDefault()?.GroupId ?? "-"}; " +
-                                  $"count={group.Count}; totalStrength={NpcSpellPlanningPolicy.EnemyStrength(group.Select(enemy => enemy.Definition.StrengthTier))}; " +
+                                  $"count={group.Count}; totalStrength={NpcSpellPlanningPolicy.EnemyStrength(group.Select(enemy => enemy.Definition.Strength ?? 1))}; " +
                                   $"marker={FormatPosition(scenario.GroupMarkers[index].Position)}");
             foreach (var enemy in group)
                 Append("ENEMY", $"group={index + 1}; id={enemy.Id}; definition={enemy.Definition.Id}; name={enemy.Name}; " +
-                                $"position={FormatPosition(enemy.Position)}; tier={enemy.Definition.StrengthTier}; rank={enemy.Definition.Rank}; " +
+                                $"position={FormatPosition(enemy.Position)}; strength={enemy.Definition.Strength ?? 1}; " +
+                                $"tier={enemy.Definition.StrengthTier}; rank={enemy.Definition.Rank}; " +
                                 $"HP={enemy.CurrentHitPoints}; armor={enemy.Definition.Armor}; speed={enemy.EffectiveSpeed}; " +
                                 $"abilities={JoinNames(enemy.Definition.AbilityIds)}");
         }
@@ -93,7 +94,7 @@ public sealed class DeveloperBattleLog
         Append("BATTLE-START", $"battle={battle.Id}; center={FormatPosition(battle.Turns.Center)}; " +
                                $"radius={battle.Turns.Radius}; formation={battle.Formation?.Layout.ToString() ?? "none"}; " +
                                $"friendly={battle.Characters.Count}; hostile={battle.Enemies.Count}; " +
-                               $"enemyStrength={NpcSpellPlanningPolicy.EnemyStrength(battle.Enemies.Select(enemy => enemy.Definition.StrengthTier))}");
+                               $"enemyStrength={NpcSpellPlanningPolicy.EnemyStrength(battle.Enemies.Select(enemy => enemy.Definition.Strength ?? 1))}");
         AppendBattleState(battle, "initial");
     }
 
@@ -133,7 +134,8 @@ public sealed class DeveloperBattleLog
                 Append("STATE-ENEMY", $"name={enemy.Name}; id={enemy.Id}; position={FormatPosition(participant.Position)}; " +
                                       $"state={participant.State}; eligibleFrom={participant.EligibleFromCycle}; " +
                                       $"initiative={participant.CurrentInitiative}; movement={participant.MovementAllowance}; " +
-                                      $"HP={enemy.CurrentHitPoints}/{enemy.Definition.HitPoints}; tier={enemy.Definition.StrengthTier}; " +
+                                      $"HP={enemy.CurrentHitPoints}/{enemy.Definition.HitPoints}; strength={enemy.Definition.Strength ?? 1}; " +
+                                      $"tier={enemy.Definition.StrengthTier}; " +
                                       $"group={enemy.GroupId ?? "-"}; engaged={battle.IsEngaged(enemy)}; " +
                                       $"effects={JoinNames(enemy.ActiveSpellEffects.Select(effect => $"{effect.Type}:{effect.Value}/{effect.RemainingRounds}"))}");
         }
