@@ -4,6 +4,13 @@ public enum NpcSpellPlanComplexity { Simple, Complex }
 
 public enum NpcSpellPlanStatus { SeekingPosition, ReadyToCast, Failed }
 
+/// <summary>Egy NPC ténylegesen megkísérelt támadó varázslatának csatán belüli emléke.</summary>
+public sealed record NpcOffensiveSpellMemory(
+    string SpellId,
+    NpcSpellPlanComplexity Complexity,
+    NpcSpellAttackPattern AttackPattern,
+    int Cycle);
+
 /// <summary>Egy NPC varázshasználó több akción át megőrzött harci szándéka.</summary>
 public sealed record NpcSpellPlan(
     Guid Id,

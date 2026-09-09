@@ -6705,7 +6705,11 @@ public sealed class Game : ISessionCommandHandler
             }
         }
 
-        return candidates.Where(candidate => candidate.Evaluation.Utility > 0)
+        var scoredCandidates = candidates
+            .Select(candidate => ApplyNpcSpellTacticalMemory(battle, caster, candidate))
+            .Where(candidate => candidate.Evaluation.Utility > 0)
+            .ToArray();
+        var rankedCandidates = scoredCandidates
             .OrderByDescending(candidate => candidate.Evaluation.Utility)
             .ThenByDescending(candidate => candidate.Evaluation.UsefulDamage)
             .ThenBy(candidate => candidate.MovementDistance)
@@ -6716,7 +6720,62 @@ public sealed class Game : ISessionCommandHandler
             .ThenBy(candidate => candidate.CastingPosition.X)
             .ThenBy(candidate => candidate.TargetPosition.Y)
             .ThenBy(candidate => candidate.TargetPosition.X)
-            .FirstOrDefault();
+            .ToArray();
+        var best = rankedCandidates.FirstOrDefault();
+        if (best is null || battle.NpcSpellPlanFor(caster) is not { } activePlan) return best;
+
+        var incumbent = rankedCandidates.FirstOrDefault(candidate =>
+            CandidateContinuesNpcSpellPlan(candidate, activePlan));
+        if (incumbent is null) return best;
+        var retentionMargin = Math.Max(4.0, Math.Abs(best.Evaluation.Utility) * 0.12);
+        var utilityCollapsed = activePlan.ExpectedUtility > 0 &&
+                               incumbent.Evaluation.Utility < activePlan.ExpectedUtility * 0.55;
+        return !utilityCollapsed && incumbent.Evaluation.Utility >= best.Evaluation.Utility - retentionMargin
+            ? incumbent
+            : best;
+    }
+
+    private static bool CandidateContinuesNpcSpellPlan(NpcOffensiveSpellCandidate candidate,
+        NpcSpellPlan plan)
+    {
+        if (!string.Equals(candidate.Spell.Id, plan.SpellId, StringComparison.OrdinalIgnoreCase) ||
+            candidate.PrimaryTarget.Id != plan.TargetEnemyId ||
+            candidate.CastingPosition != plan.RequiredCastingPosition) return false;
+        return candidate.Classification.AttackPattern is NpcSpellAttackPattern.SingleTarget or
+            NpcSpellAttackPattern.Chain || candidate.TargetPosition == plan.TargetPosition;
+    }
+
+    private static NpcOffensiveSpellCandidate ApplyNpcSpellTacticalMemory(TeamBattleEncounter battle,
+        LiveCharacter caster, NpcOffensiveSpellCandidate candidate)
+    {
+        var memories = battle.NpcOffensiveSpellMemoriesFor(caster);
+        if (memories.Count == 0) return candidate;
+
+        var utility = candidate.Evaluation.Utility;
+        var scale = Math.Max(1.0, Math.Abs(utility));
+        var usesOfSpell = memories.Count(memory => string.Equals(memory.SpellId,
+            candidate.Spell.Id, StringComparison.OrdinalIgnoreCase));
+        if (usesOfSpell == 0)
+            utility += Math.Clamp(scale * 0.08, 3.0, 12.0);
+        else
+            utility -= Math.Min(8.0, usesOfSpell * 1.5);
+
+        var last = memories[^1];
+        if (last.Complexity != candidate.Classification.Complexity)
+            utility += Math.Clamp(scale * 0.08, 2.0, 10.0);
+        else
+            utility -= Math.Clamp(scale * 0.04, 1.0, 6.0);
+
+        if (string.Equals(last.SpellId, candidate.Spell.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            var consecutiveUses = memories.AsEnumerable().Reverse().TakeWhile(memory =>
+                string.Equals(memory.SpellId, candidate.Spell.Id, StringComparison.OrdinalIgnoreCase)).Count();
+            utility -= Math.Clamp(scale * 0.14, 4.0, 20.0) + Math.Min(8.0, consecutiveUses * 2.0);
+        }
+        else if (last.AttackPattern != candidate.Classification.AttackPattern)
+            utility += 2.0;
+
+        return candidate with { Evaluation = candidate.Evaluation with { Utility = utility } };
     }
 
     private NpcOffensiveSpellCandidate CreateNpcOffensiveSpellCandidate(LiveCharacter caster,
@@ -7036,7 +7095,10 @@ public sealed class Game : ISessionCommandHandler
             if (battle.NpcSpellPlanFor(caster) is { } completedPlan &&
                 string.Equals(completedPlan.SpellId, plan.Spell.Id, StringComparison.OrdinalIgnoreCase) &&
                 completedPlan.TargetEnemyId == plan.Enemy?.Id)
+            {
+                battle.RecordNpcOffensiveSpellMemory(caster, completedPlan);
                 battle.ClearNpcSpellPlan(caster);
+            }
             battle.RecordAttack(BattleSide.Friendly);
             if (attempt.DamageToCurrentEnemy > 0 && plan.Enemy is not null)
                 plan.Enemy.ReceiveSpellDamage(attempt.DamageToCurrentEnemy);

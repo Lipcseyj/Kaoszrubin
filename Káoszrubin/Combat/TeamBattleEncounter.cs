@@ -55,6 +55,7 @@ public sealed class TeamBattleEncounter
     private readonly Dictionary<CharacterId, int> _spellCasts = [];
     private readonly Dictionary<CharacterId, int> _offensiveSpellCasts = [];
     private readonly Dictionary<CharacterId, NpcSpellPlan> _npcSpellPlans = [];
+    private readonly Dictionary<CharacterId, List<NpcOffensiveSpellMemory>> _npcOffensiveSpellMemories = [];
     private readonly HashSet<WorldEntityId> _resolvedEnemyDeaths = [];
     private readonly HashSet<CharacterId> _resolvedCharacterDeaths = [];
     private readonly HashSet<(CharacterId CharacterId, WorldEntityId EnemyId)> _engagements = [];
@@ -525,6 +526,18 @@ public sealed class TeamBattleEncounter
     public NpcSpellPlan? NpcSpellPlanFor(LiveCharacter caster) => _npcSpellPlans.GetValueOrDefault(caster.Id);
     public void SetNpcSpellPlan(LiveCharacter caster, NpcSpellPlan plan) => _npcSpellPlans[caster.Id] = plan;
     public void ClearNpcSpellPlan(LiveCharacter caster) => _npcSpellPlans.Remove(caster.Id);
+    public IReadOnlyList<NpcOffensiveSpellMemory> NpcOffensiveSpellMemoriesFor(LiveCharacter caster) =>
+        _npcOffensiveSpellMemories.TryGetValue(caster.Id, out var memories) ? memories : [];
+    public void RecordNpcOffensiveSpellMemory(LiveCharacter caster, NpcSpellPlan plan)
+    {
+        if (!_npcOffensiveSpellMemories.TryGetValue(caster.Id, out var memories))
+        {
+            memories = [];
+            _npcOffensiveSpellMemories[caster.Id] = memories;
+        }
+        memories.Add(new NpcOffensiveSpellMemory(plan.SpellId, plan.Complexity,
+            plan.AttackPattern, Turns.Cycle));
+    }
     public void RecordCompletedFinalAction() => ActionNumber++;
     public void RecordKill(LiveCharacter killer, Enemy enemy, int awardedExperience) =>
         _kills.Add(new TeamBattleKill(killer.Id, killer.Name, enemy.Definition.Id, enemy.Name,
