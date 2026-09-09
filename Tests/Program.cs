@@ -203,6 +203,10 @@ var tests = new (string Name, Action Run)[]
     ("A tárgyvizsgálat és a részletes karakterinfó mutatja a felszerelés állapotát", EquipmentDurabilityIsVisible),
     ("A közös harci motor koptatja a használt fegyvert és a találatot fogó vértezetet", CombatAppliesEquipmentWear),
     ("A sav és a káosz különleges módon koptatja a felszerelést", AcidAndChaosCauseSpecialEquipmentWear),
+    ("A felszerelészsákmány véletlen, de nem törött állapotban érkezik", EquipmentLootStartsWithRandomWear),
+    ("A kereskedő a kopott felszerelésért tartósságarányosan kevesebbet fizet", WornEquipmentSellsForLess),
+    ("A tárgybővítések és kaszttehetségek javítják a tartósságot", UpgradesAndClassPerksImproveDurability),
+    ("A legendás felszerelések egyedi tartósságúak és a javítókészlet csak terepi szintig javít", LegendaryDurabilityAndFieldRepairKit),
     ("A sérült és törött felszerelés fokozatos harci hátrányt okoz", DamagedAndBrokenEquipmentAffectsCombat),
     ("A fogadói javítás ára ritkaság- és kopásarányos, az állapotot pedig megőrzi", EquipmentRepairRestoresDurability),
     ("A legintelligensebb élő mágus egyszer megpróbálja azonosítani a friss zsákmányt", MageIdentifiesFreshMagicLoot),
@@ -2852,6 +2856,118 @@ static void AcidAndChaosCauseSpecialEquipmentWear()
            chaos.Resolution.Entry.Details?.Calculation.Any(line =>
                line.Contains("Káoszmarás", StringComparison.Ordinal)) == true,
         "A káoszsebzés nem egyetlen véletlen aktív felszerelést koptatott 1–3 ponttal.");
+}
+
+static void EquipmentLootStartsWithRandomWear()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var weapon = data.GetWeapon("W001");
+    var damages = Enumerable.Range(1, 40)
+        .Select(seed => ItemIdentificationRules.CreateLootState(weapon, data.ItemCurses, new Random(seed), 0,
+            data.LootRules.MinimumEquipmentDurabilityPercent,
+            data.LootRules.MaximumEquipmentDurabilityPercent).DurabilityDamage)
+        .ToArray();
+    var maximumDamage = weapon.MaximumDurability -
+                        (int)Math.Ceiling(weapon.MaximumDurability *
+                            data.LootRules.MinimumEquipmentDurabilityPercent / 100d);
+    Assert(data.LootRules.MinimumEquipmentDurabilityPercent == 25 &&
+           data.LootRules.MaximumEquipmentDurabilityPercent == 100 &&
+           damages.Distinct().Count() > 1 && damages.All(damage => damage >= 0 && damage <= maximumDamage) &&
+           damages.All(damage => damage < weapon.MaximumDurability),
+        "A zsákmánykopás nem a konfigurált 25–100%-os megmaradt tartósságból sorsolódott.");
+
+    var indestructible = data.GetWeapon("LW014");
+    Assert(ItemIdentificationRules.CreateLootState(indestructible, data.ItemCurses, new Random(1), 0,
+               25, 100).DurabilityDamage == 0,
+        "A törhetetlen zsákmány véletlen kopást kapott.");
+}
+
+static void WornEquipmentSellsForLess()
+{
+    var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { CharacterClassIds.Harcos };
+    var weapon = new WeaponDefinition("W-SELL-WEAR", "Kopott kard", "WT001", new ValueRange(2, 4), 1,
+        false, allowed, "", 1000, MaximumDurability: 100);
+    var intact = InventoryItemInstanceState.Create();
+    var worn = intact with { DurabilityDamage = 40 };
+    var broken = intact with { DurabilityDamage = 100 };
+    var indestructible = weapon with { Id = "W-SELL-FOREVER", MaximumDurability = 0 };
+    Assert(EquipmentDurabilityRules.DepreciatedSellPrice(weapon, intact, 500) == 500 &&
+           EquipmentDurabilityRules.DepreciatedSellPrice(weapon, worn, 500) == 300 &&
+           EquipmentDurabilityRules.DepreciatedSellPrice(weapon, broken, 500) == 1 &&
+           EquipmentDurabilityRules.DepreciatedSellPrice(indestructible, worn, 500) == 500,
+        "A kereskedői ár nem a megmaradt tartósság arányát követi.");
+}
+
+static void UpgradesAndClassPerksImproveDurability()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    Assert(data.GetWeapon("W001-PLUS1").MaximumDurability == 92 &&
+           data.GetWeapon("W001-PLUS2").MaximumDurability == 104 &&
+           data.GetWeapon("W001-PLUS3").MaximumDurability == 120 &&
+           data.GetArmor("A001-PLUS1").MaximumDurability == 104 &&
+           data.GetArmor("A001-PLUS2").MaximumDurability == 117 &&
+           data.GetArmor("A001-PLUS3").MaximumDurability == 135,
+        "A +1/+2/+3 tárgybővítés nem 15/30/50%-kal növelte a tartósságot.");
+
+    var fighter = CreateCharacter("Fegyvermester", characterClassId: CharacterClassIds.Harcos);
+    var fighterWeapon = data.GetWeapon("W001");
+    Assert(fighter.AddPerk(data.GetPerk(PerkIds.FighterWeaponMaster)) && fighter.EquipWeapon(0, fighterWeapon),
+        "A Fegyvermester kopási próbája nem volt előkészíthető.");
+    fighter.ApplyInventoryItemWear(InventorySlotKind.Weapon, 0, 2);
+    Assert(fighter.GetInventoryItemState(InventorySlotKind.Weapon, 0)?.DurabilityDamage == 1 &&
+           !fighter.ApplyInventoryItemWear(InventorySlotKind.Weapon, 0, 1).Changed,
+        "A Fegyvermester nem csökkentette eggyel a fegyverkopást.");
+
+    var knight = CreateCharacter("Páncélmester", characterClassId: CharacterClassIds.Lovag);
+    var knightArmor = data.GetArmor("A003");
+    var knightShield = data.GetWeapon("W014");
+    Assert(knight.AddPerk(data.GetPerk(PerkIds.KnightArmorMaster)) &&
+           knight.EquipArmor(knightArmor) && knight.EquipWeapon(1, knightShield),
+        "A Páncélmester kopási próbája nem volt előkészíthető.");
+    knight.ApplyInventoryItemWear(InventorySlotKind.Armor, 0, 2);
+    knight.ApplyInventoryItemWear(InventorySlotKind.Weapon, 1, 2);
+    Assert(knight.GetInventoryItemState(InventorySlotKind.Armor, 0)?.DurabilityDamage == 1 &&
+           knight.GetInventoryItemState(InventorySlotKind.Weapon, 1)?.DurabilityDamage == 1,
+        "A Páncélmester nem csökkentette eggyel a páncél- és pajzskopást.");
+}
+
+static void LegendaryDurabilityAndFieldRepairKit()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var repairKit = data.GetItem(MiscItemIds.RepairKit);
+    Assert(repairKit is { Effect: ConsumableEffect.RepairEquipment, EffectValue: 50 } &&
+           Math.Abs(repairKit.Weight - 0.8) < 0.001,
+        "A javítókészlet adatai nem töltődtek be.");
+    Assert(Math.Abs(data.GetArmor("LA018").Weight - 3) < 0.001 &&
+           Math.Abs(data.GetArmor("LA019").Weight - 0.5) < 0.001 &&
+           Math.Abs(data.GetArmor("LA020").Weight - 7) < 0.001,
+        "A három legendás páncél javított súlya nem töltődött be.");
+    Assert(data.GetWeapon("LW001").MaximumDurability == 200 &&
+           data.GetWeapon("LW020").MaximumDurability == 300 &&
+           data.GetWeapon("LW014").MaximumDurability == 0 &&
+           data.GetArmor("LA001").MaximumDurability == 160 &&
+           data.GetArmor("LA020").MaximumDurability == 340 &&
+           data.Weapons.Where(item => item.Rarity == ItemRarity.Legendary && item.Id != "LW014")
+               .All(item => item.MaximumDurability >= 170) &&
+           data.Armors.Where(item => item.Rarity == ItemRarity.Legendary)
+               .All(item => item.MaximumDurability >= 160),
+        "A legendás felszerelések nem kapták meg az egyedi, emelt tartósságukat.");
+
+    var character = CreateCharacter("Terepi javító");
+    var weapon = data.GetWeapon("W001") with { Id = "W-FIELD-REPAIR", MaximumDurability = 200 };
+    var state = InventoryItemInstanceState.Create() with { DurabilityDamage = 190 };
+    Assert(character.SetInventoryItem(InventorySlotKind.Weapon, 0, weapon, null, 1, state),
+        "A terepi javítás tesztfegyvere nem volt felszerelhető.");
+    var first = character.RepairInventoryItemLimited(InventorySlotKind.Weapon, 0, 50, 75);
+    var second = character.RepairInventoryItemLimited(InventorySlotKind.Weapon, 0, 50, 75);
+    var capped = character.RepairInventoryItemLimited(InventorySlotKind.Weapon, 0, 50, 75);
+    var blocked = character.RepairInventoryItemLimited(InventorySlotKind.Weapon, 0, 50, 75);
+    var repairedState = character.GetInventoryItemState(InventorySlotKind.Weapon, 0)!.Value;
+    Assert(first is { Changed: true, PreviousDurability: 10, CurrentDurability: 60 } &&
+           second is { Changed: true, PreviousDurability: 60, CurrentDurability: 110 } &&
+           capped is { Changed: true, PreviousDurability: 110, CurrentDurability: 150 } &&
+           !blocked.Changed && repairedState.DurabilityDamage == 50 && repairedState.InstanceId == state.InstanceId,
+        "A javítókészlet nem 50 pontos részjavítást vagy nem 75%-os terepi korlátot alkalmazott.");
 }
 
 static void DamagedAndBrokenEquipmentAffectsCombat()

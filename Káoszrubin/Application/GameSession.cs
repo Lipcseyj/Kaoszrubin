@@ -522,8 +522,20 @@ public sealed class GameSession
                 allowInn: true, requireItem: true, out reason)) return false;
         var character = _party.Members.First(member => member.Id == command.CharacterId);
         if (character.GetInventoryItem(InventorySlotKind.Backpack, command.BackpackIndex) is not MiscItemDefinition
-            { Effect: not ConsumableEffect.None })
+            { Effect: not ConsumableEffect.None } item)
             return Fail("A kijelölt tárgy közvetlenül nem használható.", out reason);
+        if (item.Effect != ConsumableEffect.RepairEquipment &&
+            (command.TargetKind is not null || command.TargetIndex is not null))
+            return Fail("Ez a használati tárgy nem fogad felszerelés-célpontot.", out reason);
+        if ((command.TargetKind is null) != (command.TargetIndex is null))
+            return Fail("A javítás célpontja hiányos.", out reason);
+        if (command.TargetKind is { } targetKind && command.TargetIndex is { } targetIndex)
+        {
+            if (!InventoryTransferService.IsValidSlotAddress(targetKind, targetIndex) ||
+                character.GetInventoryItem(targetKind, targetIndex) is not { } target ||
+                EquipmentDurabilityRules.MaximumDurability(target) <= 0)
+                return Fail("A kijelölt tárgy nem javítható.", out reason);
+        }
         reason = string.Empty;
         return true;
     }

@@ -10,4 +10,5 @@ public sealed record MonsterLootDefinition(string EnemyId, int EquipmentChancePe
 /// <summary>A minden szörnyre érvényes keresési és pénzszabályok.</summary>
 public sealed record LootRules(int KeyChancePercent, int GoldChancePercent, int GoldPerStrengthTier,
     int ThiefChanceMultiplierPercent, int IntelligenceChanceBonusPerPoint,
-    int ChestJackpotChancePercent, int ChestJackpotMultiplier, int CarriedWeaponChancePercent);
+    int ChestJackpotChancePercent, int ChestJackpotMultiplier, int CarriedWeaponChancePercent,
+    int MinimumEquipmentDurabilityPercent = 25, int MaximumEquipmentDurabilityPercent = 100);

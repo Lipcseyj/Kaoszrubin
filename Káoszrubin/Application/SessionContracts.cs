@@ -80,7 +80,8 @@ public sealed record InventoryTransferCommand(PlayerId SenderId, long CommandId,
     : GameCommand(SenderId, CommandId, CharacterId);
 
 public sealed record UseInventoryItemCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
-    long ExpectedInventoryRevision, int BackpackIndex)
+    long ExpectedInventoryRevision, int BackpackIndex, InventorySlotKind? TargetKind = null,
+    int? TargetIndex = null)
     : GameCommand(SenderId, CommandId, CharacterId);
 
 public sealed record DropInventoryItemCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,

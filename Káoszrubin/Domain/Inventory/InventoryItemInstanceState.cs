@@ -70,6 +70,28 @@ public static class EquipmentDurabilityRules
                                              fullRepairPercent / 100));
     }
 
+    public static int DepreciatedSellPrice(IItemDefinition item, InventoryItemInstanceState state,
+        int intactPrice)
+    {
+        if (intactPrice <= 0) return 0;
+        var maximum = MaximumDurability(item);
+        if (maximum <= 0) return intactPrice;
+        return Math.Max(1, intactPrice * CurrentDurability(item, state) / maximum);
+    }
+
+    public static int WearAfterClassBenefit(LiveCharacter character, InventorySlotKind kind,
+        IItemDefinition item, int amount)
+    {
+        if (amount <= 0) return 0;
+        var protectsWeapon = character.HasPerk(PerkIds.FighterWeaponMaster) &&
+                             kind == InventorySlotKind.Weapon &&
+                             item is WeaponDefinition { WeaponTypeId: not "WT003" };
+        var protectsArmor = character.HasPerk(PerkIds.KnightArmorMaster) &&
+                            (kind == InventorySlotKind.Armor ||
+                             item is WeaponDefinition { WeaponTypeId: "WT003" });
+        return protectsWeapon || protectsArmor ? Math.Max(0, amount - 1) : amount;
+    }
+
     public static int MaximumDurability(IItemDefinition item) =>
         item is IDurableItemDefinition durable ? Math.Max(0, durable.MaximumDurability) : 0;
 
@@ -191,17 +213,36 @@ public static class ItemIdentificationRules
                     Math.Max(1, state.CurseStrength) * 100);
 
     public static InventoryItemInstanceState CreateLootState(IItemDefinition item,
-        IReadOnlyList<ItemCurseDefinition> curses, Random random, int curseChancePercent)
+        IReadOnlyList<ItemCurseDefinition> curses, Random random, int curseChancePercent,
+        int minimumDurabilityPercent = 100, int maximumDurabilityPercent = 100)
     {
         var identified = !RequiresIdentification(item);
-        if (!RequiresIdentification(item) || random.Next(100) >= Math.Clamp(curseChancePercent, 0, 100))
-            return InventoryItemInstanceState.Create(identified);
-        var candidates = curses.Where(curse => curse.CanAffect(item)).ToArray();
-        if (candidates.Length == 0) return InventoryItemInstanceState.Create(identified);
-        var selected = candidates[random.Next(candidates.Length)];
-        return new InventoryItemInstanceState(Guid.NewGuid(), identified, selected.Id, selected.Effect,
-            selected.Value, selected.Strength);
+        var state = InventoryItemInstanceState.Create(identified);
+        if (RequiresIdentification(item) && random.Next(100) < Math.Clamp(curseChancePercent, 0, 100))
+        {
+            var candidates = curses.Where(curse => curse.CanAffect(item)).ToArray();
+            if (candidates.Length > 0)
+            {
+                var selected = candidates[random.Next(candidates.Length)];
+                state = new InventoryItemInstanceState(Guid.NewGuid(), identified, selected.Id, selected.Effect,
+                    selected.Value, selected.Strength);
+            }
+        }
+
+        var maximum = EquipmentDurabilityRules.MaximumDurability(item);
+        if (maximum <= 0) return state;
+        var minimumPercent = Math.Clamp(minimumDurabilityPercent, 1, 100);
+        var maximumPercent = Math.Clamp(maximumDurabilityPercent, minimumPercent, 100);
+        var rolledPercent = random.Next(minimumPercent, maximumPercent + 1);
+        var current = Math.Clamp((int)Math.Ceiling(maximum * rolledPercent / 100d), 1, maximum);
+        return state with { DurabilityDamage = maximum - current };
     }
+}
+
+public readonly record struct EquipmentRepairResult(bool Changed, string ItemName, int MaximumDurability,
+    int PreviousDurability, int CurrentDurability)
+{
+    public static EquipmentRepairResult None => new(false, string.Empty, 0, 0, 0);
 }
 
 public readonly record struct MageIdentificationResult(InventoryItemInstanceState State, LiveCharacter? Mage,

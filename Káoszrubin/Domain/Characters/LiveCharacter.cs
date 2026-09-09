@@ -499,6 +499,8 @@ public sealed class LiveCharacter
         var item = GetInventoryItem(kind, index);
         var state = GetInventoryItemState(kind, index);
         if (item is null || state is null || amount == 0) return EquipmentWearResult.None;
+        amount = EquipmentDurabilityRules.WearAfterClassBenefit(this, kind, item, amount);
+        if (amount == 0) return EquipmentWearResult.None;
         var maximum = EquipmentDurabilityRules.MaximumDurability(item);
         if (maximum <= 0) return EquipmentWearResult.None;
 
@@ -527,6 +529,27 @@ public sealed class LiveCharacter
             GetInventoryItemCharges(kind, index), GetInventoryItemQuantity(kind, index),
             EquipmentDurabilityRules.Repair(item, state.Value, state.Value.DurabilityDamage)));
         return true;
+    }
+
+    public EquipmentRepairResult RepairInventoryItemLimited(InventorySlotKind kind, int index, int amount,
+        int maximumPercent)
+    {
+        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        if (maximumPercent is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(maximumPercent));
+        var item = GetInventoryItem(kind, index);
+        var state = GetInventoryItemState(kind, index);
+        var maximum = item is null ? 0 : EquipmentDurabilityRules.MaximumDurability(item);
+        if (item is null || state is null || maximum <= 0) return EquipmentRepairResult.None;
+
+        var previous = EquipmentDurabilityRules.CurrentDurability(item, state.Value);
+        var fieldMaximum = Math.Max(1, maximum * maximumPercent / 100);
+        var repairAmount = Math.Min(amount, Math.Max(0, fieldMaximum - previous));
+        if (repairAmount <= 0) return EquipmentRepairResult.None;
+        var repairedState = EquipmentDurabilityRules.Repair(item, state.Value, repairAmount);
+        var current = EquipmentDurabilityRules.CurrentDurability(item, repairedState);
+        ApplyInventoryChanges(new InventorySlotChange(kind, index, item,
+            GetInventoryItemCharges(kind, index), GetInventoryItemQuantity(kind, index), repairedState));
+        return new EquipmentRepairResult(true, item.Name, maximum, previous, current);
     }
 
     public int GetActiveCurseValue(ItemCurseEffect effect) => ActiveEquippedItemStates()

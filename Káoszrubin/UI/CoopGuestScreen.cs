@@ -12,6 +12,7 @@ namespace KaoszRubin.UI;
 /// <summary>Az első LAN vertical slice vendégoldali, snapshotból rajzoló konzolképernyője.</summary>
 public sealed class CoopGuestScreen
 {
+    private const int FieldRepairMaximumPercent = 75;
     private readonly string _applicationVersion;
     private readonly string _catalogHash;
     private readonly GameDataCatalog _gameData;
@@ -880,9 +881,8 @@ public sealed class CoopGuestScreen
             .ToDictionary(price => price.InstanceId, price => price.Price);
         return inventory.Slots
             .Where(slot => slot.Kind == InventorySlotKind.Backpack && slot.Item is not null)
-            .Select(slot => (slot.Item!.IsIdentified
-                    ? prices.TryGetValue(slot.Item.DefinitionId, out var price)
-                    : instancePrices.TryGetValue(slot.Item.InstanceId, out price))
+            .Select(slot => (instancePrices.TryGetValue(slot.Item!.InstanceId, out var price) ||
+                             slot.Item.IsIdentified && prices.TryGetValue(slot.Item.DefinitionId, out price))
                 ? (Slot: slot, Price: price)
                 : ((InventorySlotSnapshot Slot, int Price)?)null)
             .Where(entry => entry is not null)
@@ -1136,6 +1136,20 @@ public sealed class CoopGuestScreen
                     command = new InventoryTransferCommand(client.PlayerId!.Value, client.NextCommandId(),
                         characterId, inventory.Revision, InventorySlotKind.Weapon, 2,
                         characterId, inventory.Revision, InventorySlotKind.Weapon, 0);
+                else if (useSlot.Item is { MaximumDurability: > 0 } repairTarget &&
+                         repairTarget.MaximumDurability - repairTarget.DurabilityDamage <
+                         repairTarget.MaximumDurability * FieldRepairMaximumPercent / 100)
+                {
+                    var repairKitSlot = slots.FirstOrDefault(candidate =>
+                        candidate.Kind == InventorySlotKind.Backpack && candidate.Item is not null &&
+                        string.Equals(candidate.Item.DefinitionId, MiscItemIds.RepairKit,
+                            StringComparison.OrdinalIgnoreCase));
+                    if (repairKitSlot?.Item is null)
+                        SetMessage("A célzott terepi javításhoz javítókészlet kell a hátizsákba.");
+                    else
+                        command = new UseInventoryItemCommand(client.PlayerId!.Value, client.NextCommandId(),
+                            characterId, inventory.Revision, repairKitSlot.Index, useSlot.Kind, useSlot.Index);
+                }
                 else if (useSlot.Kind == InventorySlotKind.Backpack && useSlot.Item is not null &&
                     SpellcastingRules.IsSpellcastingFocusId(useSlot.Item.DefinitionId))
                 {

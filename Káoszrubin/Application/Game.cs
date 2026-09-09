@@ -31,6 +31,8 @@ public sealed class Game : ISessionCommandHandler
     private const int MaximumPartyMoveDelayMilliseconds = 300;
     private const int CatchUpMoveDelayMilliseconds = 90;
     private const int ControlledMoveDelayMilliseconds = 85;
+    private const int FieldRepairAmount = 50;
+    private const int FieldRepairMaximumPercent = 75;
     private static readonly TimeSpan CoopSnapshotHeartbeatInterval = TimeSpan.FromSeconds(2);
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
@@ -3810,7 +3812,9 @@ public sealed class Game : ISessionCommandHandler
     private MageIdentificationResult RollLootItemState(IItemDefinition item)
     {
         var state = ItemIdentificationRules.CreateLootState(item, _gameData.ItemCurses, _random,
-            CurrentLevelConfiguration.ItemCurseChancePercent);
+            CurrentLevelConfiguration.ItemCurseChancePercent,
+            _gameData.LootRules.MinimumEquipmentDurabilityPercent,
+            _gameData.LootRules.MaximumEquipmentDurabilityPercent);
         return ItemIdentificationRules.AttemptByBestMage(item, state, CharacterRoster.Party.Members, _random);
     }
 
@@ -3963,6 +3967,23 @@ public sealed class Game : ISessionCommandHandler
                 character.InventoryRevision, InventorySlotKind.Weapon, 0))) _localCommandId = swapCommandId;
             return;
         }
+        if (slot is { } repairTarget &&
+            repairTarget.Character.GetInventoryItem(repairTarget.Kind, repairTarget.Index) is { } targetItem &&
+            EquipmentDurabilityRules.MaximumDurability(targetItem) > 0)
+        {
+            var repairKitIndex = FindBackpackItemIndex(repairTarget.Character, MiscItemIds.RepairKit);
+            if (repairKitIndex is null)
+            {
+                _renderer.DrawInventoryMessage("A célzott terepi javításhoz javítókészlet kell a hátizsákba.",
+                    ConsoleColor.DarkYellow);
+                return;
+            }
+            var repairCommandId = _localCommandId + 1;
+            if (_session.Submit(new UseInventoryItemCommand(_session.HostPlayerId, repairCommandId,
+                    repairTarget.Character.Id, repairTarget.Character.InventoryRevision, repairKitIndex.Value,
+                    repairTarget.Kind, repairTarget.Index))) _localCommandId = repairCommandId;
+            return;
+        }
         if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
         { _renderer.DrawInventoryMessage("Használható tárgyat a hátizsákban jelölj ki.", ConsoleColor.DarkYellow); return; }
         var selectedItem = slot.Value.Character.GetInventoryItem(slot.Value.Kind, slot.Value.Index);
@@ -4003,6 +4024,8 @@ public sealed class Game : ISessionCommandHandler
                 ConsumableEffect.CureDisease when character.RemoveStatus(CharacterStatusIds.Diseased) => "a betegség megszűnt",
                 ConsumableEffect.StopBleeding when character.RemoveStatus(CharacterStatusIds.Bleeding) => "a vérzés elállt",
                 ConsumableEffect.Vision when character.IsAlive => UseVisionItem(character, item),
+                ConsumableEffect.RepairEquipment => UseFieldRepairKit(character,
+                    command.TargetKind, command.TargetIndex, item.EffectValue),
                 _ => string.Empty
             };
         if (string.IsNullOrEmpty(result)) used = false;
@@ -4016,6 +4039,51 @@ public sealed class Game : ISessionCommandHandler
         RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green, [character.Id]);
         if (item.Effect == ConsumableEffect.Heal)
             PlaySessionSound(SoundEffect.DefensiveSpell, [character.Id]);
+    }
+
+    private static int? FindBackpackItemIndex(LiveCharacter character, string itemId)
+    {
+        for (var index = 0; index < LiveCharacter.MaximumBackpackItemCount; index++)
+            if (string.Equals(character.GetInventoryItem(InventorySlotKind.Backpack, index)?.Id, itemId,
+                    StringComparison.OrdinalIgnoreCase)) return index;
+        return null;
+    }
+
+    private static string UseFieldRepairKit(LiveCharacter character, InventorySlotKind? requestedKind,
+        int? requestedIndex, int amount)
+    {
+        var target = requestedKind is { } kind && requestedIndex is { } index
+            ? (Kind: kind, Index: index)
+            : FindFieldRepairTarget(character);
+        if (target is null) return string.Empty;
+        var repaired = character.RepairInventoryItemLimited(target.Value.Kind, target.Value.Index,
+            amount, FieldRepairMaximumPercent);
+        return repaired.Changed
+            ? $"{repaired.ItemName} tartóssága {repaired.PreviousDurability}/{repaired.MaximumDurability} → " +
+              $"{repaired.CurrentDurability}/{repaired.MaximumDurability} (terepi maximum: {FieldRepairMaximumPercent}%)"
+            : string.Empty;
+    }
+
+    private static (InventorySlotKind Kind, int Index)? FindFieldRepairTarget(LiveCharacter character)
+    {
+        var addresses = Enumerable.Range(0, 3).Select(index => (InventorySlotKind.Weapon, index))
+            .Append((InventorySlotKind.Armor, 0))
+            .Concat(Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
+                .Select(index => (InventorySlotKind.Backpack, index)));
+        return addresses.Select(address =>
+            {
+                var item = character.GetInventoryItem(address.Item1, address.Item2);
+                var state = character.GetInventoryItemState(address.Item1, address.Item2);
+                var maximum = item is null ? 0 : EquipmentDurabilityRules.MaximumDurability(item);
+                var current = item is null || state is null ? maximum :
+                    EquipmentDurabilityRules.CurrentDurability(item, state.Value);
+                return (Kind: address.Item1, Index: address.Item2, Maximum: maximum, Current: current);
+            })
+            .Where(candidate => candidate.Maximum > 0 &&
+                                candidate.Current < candidate.Maximum * FieldRepairMaximumPercent / 100)
+            .OrderBy(candidate => candidate.Current * 100d / candidate.Maximum)
+            .Select(candidate => ((InventorySlotKind Kind, int Index)?)(candidate.Kind, candidate.Index))
+            .FirstOrDefault();
     }
 
     private void ExecuteDropInventoryItem(DropInventoryItemCommand command)

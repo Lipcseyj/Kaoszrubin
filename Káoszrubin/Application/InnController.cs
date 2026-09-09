@@ -140,7 +140,10 @@ internal sealed class InnController
         var identified = state?.IsIdentified != false;
         if (!_buybackPrices.ContainsKey(item.Id))
         { message = "Ezt a tárgyat a kereskedő nem veszi meg."; return false; }
-        var price = identified ? _buybackPrices[item.Id] : Math.Max(1, item.BasePrice / 4);
+        var intactPrice = identified ? _buybackPrices[item.Id] : Math.Max(1, item.BasePrice / 4);
+        var price = state is { } itemState
+            ? EquipmentDurabilityRules.DepreciatedSellPrice(item, itemState, intactPrice)
+            : intactPrice;
         if (price <= 0) { message = "Ezt a tárgyat a kereskedő nem veszi meg."; return false; }
         if (!seller.RemoveOneInventoryItem(InventorySlotKind.Backpack, backpackIndex))
         { message = "Az eladás most nem hajtható végre."; return false; }
@@ -229,6 +232,8 @@ internal sealed class InnController
         var wanderingMagePresent = _random.Next(100) < 30;
         var blacksmithStock = blacksmithPresent ? CreateSpecialistStock(completedLevel, ItemCategory.Weapon) : [];
         var armorerStock = armorerPresent ? CreateSpecialistStock(completedLevel, ItemCategory.Armor) : [];
+        if (blacksmithPresent) AddRepairKitStock(blacksmithStock, completedLevel);
+        if (armorerPresent) AddRepairKitStock(armorerStock, completedLevel);
         var wanderingMageStock = wanderingMagePresent ? CreateWanderingMageStock() : [];
         _vendorStocks.Clear();
         _vendorStocks[InnVendorKind.Market] = CreateMerchantStock(completedLevel).ToList();
@@ -302,12 +307,12 @@ internal sealed class InnController
         };
         if (blacksmithPresent)
         {
-            options.Add(new(InnMenuOptionKind.Blacksmith, "🔨 Kovácsmester", "Kizárólag fegyvereket kínál, csak vásárlásra.", InnVendorKind.Blacksmith));
+            options.Add(new(InnMenuOptionKind.Blacksmith, "🔨 Kovácsmester", "Fegyvereket és javítókészletet kínál, csak vásárlásra.", InnVendorKind.Blacksmith));
             options.Add(new(InnMenuOptionKind.BlacksmithRepair, "🔧 Fegyverjavítás", "A Kovácsmester teljesen helyreállítja a parti sérült fegyvereit és pajzsait.", InnVendorKind.BlacksmithRepair));
         }
         if (armorerPresent)
         {
-            options.Add(new(InnMenuOptionKind.Armorer, "🛡️ Páncélmíves", "Kizárólag páncélokat kínál, csak vásárlásra.", InnVendorKind.Armorer));
+            options.Add(new(InnMenuOptionKind.Armorer, "🛡️ Páncélmíves", "Páncélokat és javítókészletet kínál, csak vásárlásra.", InnVendorKind.Armorer));
             options.Add(new InnMenuOptionSnapshot(InnMenuOptionKind.ArmorerRepair, "🪡 Páncéljavítás", "A Páncélmíves teljesen helyreállítja a parti sérült vértezeteit.", InnVendorKind.ArmorerRepair));
         }
         if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka, azonosítás és tárgyátkok megtörése.", InnVendorKind.WanderingMage));
@@ -714,7 +719,7 @@ internal sealed class InnController
 
         var fixedExtras = includePremiumSupplies
             ? CreateSecretStashSupplies()
-            : new[] { "T001", "T001", "T001", "T001", "T004", "T005", "T004", "T005", "T002", "T002", "T002", "T002", "T002", "T002", "T002", "T002", "T025", "T025" };
+            : new[] { "T001", "T001", "T001", "T001", "T004", "T005", "T004", "T005", "T002", "T002", "T002", "T002", "T002", "T002", "T002", "T002", "T025", "T025", MiscItemIds.RepairKit, MiscItemIds.RepairKit };
 
         foreach (var itemId in fixedExtras)
         {
@@ -776,7 +781,11 @@ internal sealed class InnController
                 if (item is null) return null;
                 if (!buybackPrices.ContainsKey(item.Id)) return null;
                 var identified = character.IsInventoryItemIdentified(InventorySlotKind.Backpack, index);
-                var price = identified ? buybackPrices[item.Id] : Math.Max(1, item.BasePrice / 4);
+                var intactPrice = identified ? buybackPrices[item.Id] : Math.Max(1, item.BasePrice / 4);
+                var state = character.GetInventoryItemState(InventorySlotKind.Backpack, index);
+                var price = state is { } itemState
+                    ? EquipmentDurabilityRules.DepreciatedSellPrice(item, itemState, intactPrice)
+                    : intactPrice;
                 return price <= 0 ? null : new InnSellOffer(character, index, item, price);
             }))
             .Where(offer => offer is not null).Cast<InnSellOffer>()
@@ -1216,6 +1225,13 @@ internal sealed class InnController
             .OrderBy(offer => offer.Price).ToList();
     }
 
+    private void AddRepairKitStock(ICollection<InnStockOffer> stock, int completedLevel)
+    {
+        var repairKit = _gameData.Items.FirstOrDefault(item =>
+            string.Equals(item.Id, MiscItemIds.RepairKit, StringComparison.OrdinalIgnoreCase));
+        if (repairKit is not null) stock.Add(CreateMerchantStockOffer(repairKit, 1.0, completedLevel));
+    }
+
     private List<InnStockOffer> CreateWanderingMageStock()
     {
         var stock = new List<InnStockOffer>();
@@ -1480,10 +1496,21 @@ internal sealed class InnController
         var prices = _buybackPrices.Select(pair => new InnSellPriceSnapshot(pair.Key, pair.Value)).ToList();
         prices.AddRange(_characterRoster.Party.Members.SelectMany(character => character.Backpack
             .Select((item, index) => (Character: character, Item: item, Index: index)))
-            .Where(entry => entry.Item is not null && _buybackPrices.ContainsKey(entry.Item.Id) &&
-                !entry.Character.IsInventoryItemIdentified(InventorySlotKind.Backpack, entry.Index))
-            .Select(entry => new InnSellPriceSnapshot(string.Empty, Math.Max(1, entry.Item!.BasePrice / 4),
-                entry.Character.GetInventoryItemState(InventorySlotKind.Backpack, entry.Index)?.InstanceId ?? Guid.Empty)));
+            .Where(entry => entry.Item is not null && _buybackPrices.ContainsKey(entry.Item.Id))
+            .Select(entry => (Item: entry.Item!, State: entry.Character.GetInventoryItemState(
+                InventorySlotKind.Backpack, entry.Index)))
+            .Where(entry => entry.State is { } state &&
+                (!state.IsIdentified || state.DurabilityDamage > 0))
+            .Select(entry =>
+            {
+                var state = entry.State!.Value;
+                var intactPrice = state.IsIdentified
+                    ? _buybackPrices[entry.Item.Id]
+                    : Math.Max(1, entry.Item.BasePrice / 4);
+                return new InnSellPriceSnapshot(string.Empty,
+                    EquipmentDurabilityRules.DepreciatedSellPrice(entry.Item, state, intactPrice),
+                    state.InstanceId);
+            }));
         return prices;
     }
 

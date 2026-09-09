@@ -20,7 +20,8 @@ public enum ConsumableEffect
     CurePoison,
     CureDisease,
     StopBleeding,
-    Vision
+    Vision,
+    RepairEquipment
 }
 
 public static class MiscItemIds
@@ -32,6 +33,7 @@ public static class MiscItemIds
     public const string Torch = "T025";
     public const string FallenKnightInsignia = "T026";
     public const string SilverOathSeal = "T027";
+    public const string RepairKit = "T028";
 }
 
 public static class QuestItemIds

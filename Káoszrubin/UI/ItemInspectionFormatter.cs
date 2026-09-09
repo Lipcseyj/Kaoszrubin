@@ -240,6 +240,7 @@ public static class ItemInspectionFormatter
         ConsumableEffect.Food => "élelem", ConsumableEffect.Water => "víz", ConsumableEffect.Heal => "HP",
         ConsumableEffect.RestoreMana => "manna", ConsumableEffect.CurePoison => "mérgezés gyógyítása",
         ConsumableEffect.CureDisease => "betegség gyógyítása", ConsumableEffect.StopBleeding => "vérzés elállítása",
+        ConsumableEffect.Vision => "látótáv", ConsumableEffect.RepairEquipment => "terepi javítás",
         _ => "nincs"
     };
 

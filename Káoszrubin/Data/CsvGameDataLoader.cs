@@ -166,6 +166,8 @@ public static class CsvGameDataLoader
         ValidateMonsterAbilities(monsterAbilities, statuses, weapons);
         ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
         ValidateMonsterLoot(enemies, monsterLoot);
+        if (itemUpgrades.Any(upgrade => upgrade.DurabilityBonusPercent < 0))
+            throw new InvalidOperationException("A tárgybővítések tartósságbónusza nem lehet negatív.");
         ValidateTrapConfigurations(traps);
         ValidateQuestRoomEncounters(enemies, items);
         ValidateNpcData(npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcStoryChoices, npcQuests,
@@ -551,7 +553,7 @@ public static class CsvGameDataLoader
                 break;
             case DataSection.ItemUpgrades:
                 itemUpgrades.Add(new ItemUpgradeDefinition(id, Cell(cells, 1), Integer(cells, 2) ?? 0,
-                    Double(cells, 3) ?? 1, Integer(cells, 4) ?? 0));
+                    Double(cells, 3) ?? 1, Integer(cells, 4) ?? 0, Integer(cells, 5) ?? 0));
                 break;
         }
     }
@@ -1208,11 +1210,15 @@ public static class CsvGameDataLoader
         var rules = new LootRules(Required("KulcsEsély"), Required("AranyEsély"),
             Required("AranyTierSzorzó"), Required("TolvajEsélySzorzó"),
             Required("IntelligenciaPontBónusz"), Required("LádaFőnyereményEsély"),
-            Required("LádaFőnyereménySzorzó"), Required("SajátFegyverEsély"));
+            Required("LádaFőnyereménySzorzó"), Required("SajátFegyverEsély"),
+            Required("ZsákmányFelszerelésMinTartósság"), Required("ZsákmányFelszerelésMaxTartósság"));
         if (rules.KeyChancePercent is < 0 or > 100 || rules.GoldChancePercent is < 0 or > 100 ||
             rules.GoldPerStrengthTier <= 0 || rules.ThiefChanceMultiplierPercent <= 0 ||
             rules.IntelligenceChanceBonusPerPoint < 0 || rules.ChestJackpotChancePercent is < 0 or > 100 ||
-            rules.ChestJackpotMultiplier < 1 || rules.CarriedWeaponChancePercent is < 0 or > 100)
+            rules.ChestJackpotMultiplier < 1 || rules.CarriedWeaponChancePercent is < 0 or > 100 ||
+            rules.MinimumEquipmentDurabilityPercent is < 1 or > 100 ||
+            rules.MaximumEquipmentDurabilityPercent < rules.MinimumEquipmentDurabilityPercent ||
+            rules.MaximumEquipmentDurabilityPercent > 100)
             throw new InvalidOperationException("A #Zsákmány paraméterek értékei érvénytelenek.");
         return rules;
     }
@@ -1251,7 +1257,8 @@ public static class CsvGameDataLoader
                 Rarity = ItemRarity.Magic,
                 BaseWeaponId = weapon.Id,
                 MagicPower = upgrade.MagicPower,
-                MaximumDurability = WithMagicDurabilityBonus(weapon.MaximumDurability, ItemRarity.Magic)
+                MaximumDurability = IncreaseDurability(weapon.MaximumDurability,
+                    upgrade.DurabilityBonusPercent)
             });
         return result;
     }
@@ -1273,10 +1280,15 @@ public static class CsvGameDataLoader
                 Rarity = ItemRarity.Magic,
                 BaseArmorId = armor.Id,
                 MagicPower = upgrade.MagicPower,
-                MaximumDurability = WithMagicDurabilityBonus(armor.MaximumDurability, ItemRarity.Magic)
+                MaximumDurability = IncreaseDurability(armor.MaximumDurability,
+                    upgrade.DurabilityBonusPercent)
             });
         return result;
     }
+
+    private static int IncreaseDurability(int durability, int bonusPercent) => durability <= 0
+        ? 0
+        : (int)Math.Ceiling(durability * (100 + Math.Max(0, bonusPercent)) / 100d);
 
     private static ValueRange? Increase(ValueRange? range, int amount) => range is null
         ? null
