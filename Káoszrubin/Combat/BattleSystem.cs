@@ -1039,25 +1039,63 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (absorbed > 0) calculation.Add($"🔷 Mannapajzs: −{absorbed} sebzés / manna");
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
         var durabilityNotices = new List<BattleLogNotice>();
+        void ApplyDefensiveWear(InventorySlotKind kind, int slot, string label, string equipmentName,
+            IItemDefinition item, int amount)
+        {
+            var wear = defender.ApplyInventoryItemWear(kind, slot, amount);
+            if (!wear.Changed) return;
+            calculation.Add(DurabilityCalculation(label, item.Name, wear));
+            AddDurabilityNotice(durabilityNotices, defender.Name, item.Name, equipmentName, wear,
+                defensive: kind == InventorySlotKind.Armor || item is WeaponDefinition
+                    { WeaponTypeId: DefenseWeaponTypeId });
+        }
+
         if (damageType.IsPhysical())
         {
             var wearAmount = criticalMultiplier > 1 ? 2 : 1;
-            var armorWear = defender.ApplyInventoryItemWear(InventorySlotKind.Armor, 0, wearAmount);
-            if (armorWear.Changed)
-            {
-                calculation.Add(DurabilityCalculation("🛡️ Páncélkopás", defender.Armor!.Name, armorWear));
-                AddDurabilityNotice(durabilityNotices, defender.Name, defender.Armor.Name,
-                    "páncélja", armorWear, defensive: true);
-            }
+            if (defender.Armor is { } wornArmor)
+                ApplyDefensiveWear(InventorySlotKind.Armor, 0, "🛡️ Páncélkopás", "páncélja",
+                    wornArmor, wearAmount);
             if (shieldSlot >= 0)
+                ApplyDefensiveWear(InventorySlotKind.Weapon, shieldSlot, "🛡️ Pajzskopás", "pajzsa",
+                    shieldWeapon!, wearAmount);
+        }
+
+        var damageTypes = monsterBonusRolls
+            .Where(bonus => bonus.DamageType is not null && bonus.Value > 0)
+            .Select(bonus => bonus.DamageType!.Value)
+            .Append(damageType)
+            .ToHashSet();
+        if (damageTypes.Contains(DamageType.Acid))
+        {
+            var acidWear = criticalMultiplier > 1 ? 4 : 2;
+            if (defender.Armor is { } corrodedArmor)
+                ApplyDefensiveWear(InventorySlotKind.Armor, 0, "🧪 Savmarás", "páncélja",
+                    corrodedArmor, acidWear);
+            if (shieldSlot >= 0)
+                ApplyDefensiveWear(InventorySlotKind.Weapon, shieldSlot, "🧪 Savmarás", "pajzsa",
+                    shieldWeapon!, acidWear);
+        }
+        if (damageTypes.Contains(DamageType.Chaos))
+        {
+            var chaosTargets = new List<(InventorySlotKind Kind, int Slot, IItemDefinition Item,
+                string EquipmentName)>();
+            if (defender.Armor is { } chaosArmor &&
+                EquipmentDurabilityRules.MaximumDurability(chaosArmor) > 0 &&
+                defender.InventoryItemCondition(InventorySlotKind.Armor, 0) != EquipmentCondition.Broken)
+                chaosTargets.Add((InventorySlotKind.Armor, 0, chaosArmor, "páncélja"));
+            foreach (var slot in Enumerable.Range(0, 2))
+                if (defender.GetInventoryItem(InventorySlotKind.Weapon, slot) is WeaponDefinition chaosWeapon &&
+                    EquipmentDurabilityRules.MaximumDurability(chaosWeapon) > 0 &&
+                    defender.InventoryItemCondition(InventorySlotKind.Weapon, slot) != EquipmentCondition.Broken)
+                    chaosTargets.Add((InventorySlotKind.Weapon, slot, chaosWeapon,
+                        chaosWeapon.WeaponTypeId == DefenseWeaponTypeId ? "pajzsa" : "fegyvere"));
+            if (chaosTargets.Count > 0)
             {
-                var shieldWear = defender.ApplyInventoryItemWear(InventorySlotKind.Weapon, shieldSlot, wearAmount);
-                if (shieldWear.Changed)
-                {
-                    calculation.Add(DurabilityCalculation("🛡️ Pajzskopás", shieldWeapon!.Name, shieldWear));
-                    AddDurabilityNotice(durabilityNotices, defender.Name, shieldWeapon.Name,
-                        "pajzsa", shieldWear, defensive: true);
-                }
+                var target = chaosTargets[_random.Next(chaosTargets.Count)];
+                var chaosWear = _random.Next(1, 4) * criticalMultiplier;
+                ApplyDefensiveWear(target.Kind, target.Slot, "✹ Káoszmarás", target.EquipmentName,
+                    target.Item, chaosWear);
             }
         }
         return Detailed(AttackResult.HitFor(damage,

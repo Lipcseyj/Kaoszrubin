@@ -202,6 +202,7 @@ var tests = new (string Name, Action Run)[]
     ("A felszerelés tartóssága adatvezérelt és menthető", EquipmentDurabilityDataAndStatePersist),
     ("A tárgyvizsgálat és a részletes karakterinfó mutatja a felszerelés állapotát", EquipmentDurabilityIsVisible),
     ("A közös harci motor koptatja a használt fegyvert és a találatot fogó vértezetet", CombatAppliesEquipmentWear),
+    ("A sav és a káosz különleges módon koptatja a felszerelést", AcidAndChaosCauseSpecialEquipmentWear),
     ("A sérült és törött felszerelés fokozatos harci hátrányt okoz", DamagedAndBrokenEquipmentAffectsCombat),
     ("A fogadói javítás ára ritkaság- és kopásarányos, az állapotot pedig megőrzi", EquipmentRepairRestoresDurability),
     ("A legintelligensebb élő mágus egyszer megpróbálja azonosítani a friss zsákmányt", MageIdentifiesFreshMagicLoot),
@@ -2799,6 +2800,58 @@ static void CombatAppliesEquipmentWear()
     Assert(!defender.ApplyInventoryItemWear(InventorySlotKind.Weapon, 1, 100).Changed &&
            defender.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage == 0,
         "A nulla maximális tartósságú, törhetetlen felszerelés kopást kapott.");
+}
+
+static void AcidAndChaosCauseSpecialEquipmentWear()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var armor = data.GetArmor("A001");
+    var shield = data.GetWeapon("W014");
+    var weapon = data.GetWeapon("W001");
+
+    (TeamEnemyAttackResolution Resolution, int ArmorWear, int ShieldWear, int WeaponWear) ResolveHit(
+        DamageType damageType, int seed)
+    {
+        var defender = CreateCharacter($"{damageType.Name()} célpont", 1000);
+        Assert(defender.EquipWeapon(0, weapon) && defender.EquipWeapon(1, shield) && defender.EquipArmor(armor),
+            "A különleges kopási teszt felszerelése nem volt feladható.");
+        var attackWeapon = data.GetWeapon("WN003") with
+        {
+            Id = $"W-{damageType}-WEAR-TEST",
+            Damage = new ValueRange(1, 1),
+            DamageType = damageType
+        };
+        var enemy = new ConfiguredEnemy(new Position(1, 1),
+            CreateEnemy(10000, 5, speed: 100).Definition with { Weapon = attackWeapon });
+        var system = CreateBattleSystem(seed);
+        var runtime = system.PrepareTeamCharacter(defender).Runtime;
+        for (var attempt = 0; attempt < 40; attempt++)
+        {
+            var resolution = system.ResolveTeamEnemyActionDetailed(enemy, defender, runtime, attackWeapon);
+            if (!resolution.Hit) continue;
+            return (resolution,
+                defender.GetInventoryItemState(InventorySlotKind.Armor, 0)!.Value.DurabilityDamage,
+                defender.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage,
+                defender.GetInventoryItemState(InventorySlotKind.Weapon, 0)!.Value.DurabilityDamage);
+        }
+        throw new InvalidOperationException("A különleges kopási próba negyven támadásból sem talált.");
+    }
+
+    var acid = ResolveHit(DamageType.Acid, 71);
+    var expectedAcidWear = acid.Resolution.Entry.Kind == BattleLogKind.CriticalHit ? 4 : 2;
+    Assert(acid.ArmorWear == expectedAcidWear && acid.ShieldWear == expectedAcidWear && acid.WeaponWear == 0 &&
+           acid.Resolution.Entry.Details?.Calculation.Any(line =>
+               line.Contains("Savmarás", StringComparison.Ordinal)) == true,
+        "A sav nem kétszeres alapkopással marta a páncélt és a pajzsot.");
+
+    var chaos = ResolveHit(DamageType.Chaos, 73);
+    var chaosWear = chaos.ArmorWear + chaos.ShieldWear + chaos.WeaponWear;
+    var chaosMaximum = chaos.Resolution.Entry.Kind == BattleLogKind.CriticalHit ? 6 : 3;
+    Assert(chaosWear >= 1 && chaosWear <= chaosMaximum &&
+           new[] { chaos.ArmorWear, chaos.ShieldWear, chaos.WeaponWear }.Count(value => value > 0) == 1 &&
+           chaos.Resolution.Entry.Details?.Calculation.Any(line =>
+               line.Contains("Káoszmarás", StringComparison.Ordinal)) == true,
+        "A káoszsebzés nem egyetlen véletlen aktív felszerelést koptatott 1–3 ponttal.");
 }
 
 static void DamagedAndBrokenEquipmentAffectsCombat()
@@ -5859,7 +5912,9 @@ static void DeveloperBattleTestScenarioHasRequestedLayout()
             Math.Abs(enemy.Position.Y - scenario.LeaderPosition.Y)) is >=
                 DeveloperBattleTestScenarioBuilder.MinimumEnemyDistance and <=
                 DeveloperBattleTestScenarioBuilder.MaximumEnemyDistance),
-        "Egy ellenfél nem a felső térfélen vagy nem 10–20 mezős távolságban áll.");
+        $"Egy ellenfél nem a felső térfélen vagy nem " +
+        $"{DeveloperBattleTestScenarioBuilder.MinimumEnemyDistance}–" +
+        $"{DeveloperBattleTestScenarioBuilder.MaximumEnemyDistance} mezős távolságban áll.");
     Assert(scenario.EnemyGroups.Zip(scenario.GroupMarkers).All(pair => pair.First.Any(enemy =>
         Math.Abs(enemy.Position.X - pair.Second.Position.X) +
         Math.Abs(enemy.Position.Y - pair.Second.Position.Y) == 1)),
