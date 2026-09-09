@@ -12,6 +12,8 @@ public sealed class DeveloperBattleLog
 {
     private readonly object _sync = new();
     private string? _filePath;
+    private FileStream? _stream;
+    private StreamWriter? _writer;
 
     public string? FilePath
     {
@@ -28,6 +30,7 @@ public sealed class DeveloperBattleLog
         {
             try
             {
+                CloseWriter();
                 StartupLog.Initialize();
                 var directory = Path.GetDirectoryName(StartupLog.FilePath);
                 if (string.IsNullOrWhiteSpace(directory))
@@ -35,14 +38,17 @@ public sealed class DeveloperBattleLog
                 Directory.CreateDirectory(directory);
                 _filePath = Path.Combine(directory,
                     $"battle-test-{DateTime.Now:yyyyMMdd-HHmmss-fff}.log");
-                File.WriteAllText(_filePath,
-                    "KÁOSZRUBIN — FEJLESZTŐI HARCI TESZTNAPLÓ" + Environment.NewLine,
-                    new UTF8Encoding(false));
+                _stream = new FileStream(_filePath, FileMode.Create, FileAccess.Write,
+                    FileShare.ReadWrite | FileShare.Delete);
+                _writer = new StreamWriter(_stream, new UTF8Encoding(false)) { AutoFlush = true };
+                _writer.WriteLine("KÁOSZRUBIN — FEJLESZTŐI HARCI TESZTNAPLÓ");
                 StartupLog.Info("battle-test-log.created", $"Napló: {_filePath}");
             }
-            catch
+            catch (Exception exception)
             {
+                CloseWriter();
                 _filePath = null;
+                StartupLog.Error("battle-test-log.create-failed", exception);
                 return;
             }
         }
@@ -146,6 +152,7 @@ public sealed class DeveloperBattleLog
         AppendBattleState(battle, "final");
         Append("BATTLE-END", $"battle={battle.Id}; outcome={outcome}; cycles={battle.Turns.Cycle}; " +
                              $"actions={battle.ActionNumber}; kills={battle.Kills.Count}");
+        FlushToDisk();
     }
 
     public void Append(string eventName, string details)
@@ -155,15 +162,49 @@ public sealed class DeveloperBattleLog
             if (_filePath is null) return;
             try
             {
-                File.AppendAllText(_filePath,
-                    $"{DateTimeOffset.Now:O} [{eventName}] {Clean(details)}{Environment.NewLine}",
-                    new UTF8Encoding(false));
+                EnsureWriter();
+                _writer!.WriteLine($"{DateTimeOffset.Now:O} [{eventName}] {Clean(details)}");
             }
-            catch
+            catch (Exception exception)
             {
-                // A diagnosztikai napló soha nem állíthatja meg a játékot.
+                StartupLog.Error("battle-test-log.write-failed", exception);
+                CloseWriter();
             }
         }
+    }
+
+    private void FlushToDisk()
+    {
+        lock (_sync)
+        {
+            if (_writer is null || _stream is null) return;
+            try
+            {
+                _writer.Flush();
+                _stream.Flush(flushToDisk: true);
+            }
+            catch (Exception exception)
+            {
+                StartupLog.Error("battle-test-log.flush-failed", exception);
+                CloseWriter();
+            }
+        }
+    }
+
+    private void EnsureWriter()
+    {
+        if (_writer is not null || _filePath is null) return;
+        _stream = new FileStream(_filePath, FileMode.Append, FileAccess.Write,
+            FileShare.ReadWrite | FileShare.Delete);
+        _writer = new StreamWriter(_stream, new UTF8Encoding(false)) { AutoFlush = true };
+    }
+
+    private void CloseWriter()
+    {
+        try { _writer?.Dispose(); }
+        catch { /* A diagnosztikai napló lezárása nem állíthatja meg a játékot. */ }
+        _writer = null;
+        _stream = null;
     }
 
     public static string FormatTactics(NpcSpellcasterCombatProfile tactics) =>
