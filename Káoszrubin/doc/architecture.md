@@ -1209,3 +1209,18 @@ További módosítók:
 - Az eredmény legfeljebb 100%.
 Ha a szörny saját fegyvere is elvihető, arra előbb külön dobás történik. Ennek alapja 30%, szintén módosítja a kereső Intelligenciája, kasztja és faja. Ha a saját fegyver kiesik, abban a keresésben a felszerelési tábla már nem dob.
 Ezért például a „Vörös sárkány — 90%” nem 90% Legendás esélyt jelent, hanem 90%-os alap felszereléstábla-esélyt. A Legendás tárgy tényleges esélye ennek csak egy része, mert a játék a teljes engedélyezett Varázs–Legendás készletből választ.
+
+## A tüzelőállás látótávja az ellenségre átmehet partytagokon? És ellenségeken? És átlósan hogy viselkedik? Terhedhet átlósan, vagy "megkerüli az átlót"?
+
+Jelenleg:
+- A látóvonal átmegy partytagokon és ellenségeken is. Csak fal, zárt ajtó és bezárt ajtó blokkolja; a lények nem.
+- A sugár átlósan is terjedhet. Bresenham-vonalat használ, nem keres kerülőutat.
+- Tökéletes átlónál csak az átlós cellákat vizsgálja. Tehát két, sarokban összeérő fal között „átcsúszhat”: (1,0) és (0,1) fal nem blokkolja a (0,0) → (1,1) vonalat. Az (1,1) fal viszont igen.
+- Ha egy ellenőrzött mező blokkol, nem próbálja meg megkerülni.
+Van még egy fontos különbség varázslattípusonként:
+- Egycélú varázslat: teljes látóvonal kell az ellenfélig.
+- Láncvarázslat: csak az első célpontig kell látóvonal; a további ugrások falakon is átmehetnek.
+- Területi varázslat: csak a célmezőig kell látóvonal; a robbanás jelenleg falon keresztül is elérheti a sugáron belüli ellenfeleket.
+- Irányított varázslat, például Égő kéz: csak a közvetlen iránymezőt ellenőrzi, maga a tölcsér utána nem vizsgál falakat.
+A látóvonal itt található: [FogOfWar.cs (line 172)](C:/Users/lipcs/source/repos/Lipcseyj/Kaoszrubin/Káoszrubin/World/FogOfWar.cs:172), a blokkoló mezők pedig itt: [Maze.cs (line 128)](C:/Users/lipcs/source/repos/Lipcseyj/Kaoszrubin/Káoszrubin/World/Maze.cs:128).
+A sarokátlövés, illetve a falakon átható területi/tölcsér/lánchatás szerintem külön finomítandó pont lehet.
