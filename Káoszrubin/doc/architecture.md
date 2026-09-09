@@ -39,11 +39,11 @@ Az animáció a közös varázsvégrehajtásból indul, ezért a tárgyból és 
 
 ### Halottűzés
 
-Az `MA001` Élőholt tulajdonságú ellenfelek ellen a Pap és a Lovag csatánként egyszer külön kasztakciót használhat; a partyvezérnél ez a `T` billentyű, az NPC-k pedig automatikusan választják. A képesség nem varázslat, ezért nem fogyaszt mannát, nem igényel memorizálást vagy fókusztárgyat, de egy teljes harci akcióba kerül.
+Az `MA001` Élőholt tulajdonságú ellenfelek ellen a Pap és a Lovag az első körtől külön kasztakciót használhat, karakterenként 10 körös újrahasználati idővel. Az 1. körben használt képesség a 11.-ben, a 4.-ben használt a 14.-ben válik újra elérhetővé; az extra akciók nem rövidítik a várakozást. Új csatában ismét az első körtől elérhető. A hatótáv 2 térképcella, átlósan is, alakzattól és fegyvertől függetlenül. A partyvezérnél ez a `T` billentyű, az NPC-k pedig automatikusan választják. A képesség nem varázslat, ezért nem fogyaszt mannát, nem igényel memorizálást vagy fókusztárgyat, de egy teljes harci akcióba kerül.
 
 - Pap: `1d20 + Intelligencia + szint/2` a `10 + ellenfél-erősség×2` nehézség ellen. Sikerre az élőholt két akciót kihagy. Legalább 10 pontos túldobás az 1–2-es erősségű, nem vezér élőholtat azonnal megsemmisíti.
 - Lovag: `1d20 + Erő + szint/3` ugyanilyen nehézség ellen. Sikerre `1d6 + szint/2` szent sebzést okoz, az ellenfél kihagyja következő akcióját, a Lovag pedig két akcióra +2 védelmet kap.
-- Kudarc esetén csak az akció és az adott csatára szóló használat vész el. A 4–5-ös erősségű és vezér ellenfelek nem semmisíthetők meg azonnal.
+- Kudarc esetén is elfogy az akció és elindul a 10 körös újrahasználati idő. A 4–5-ös erősségű és vezér ellenfelek nem semmisíthetők meg azonnal.
 
 ### Bossok és aranykulcsok
 

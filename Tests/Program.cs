@@ -17,6 +17,8 @@ using System.Text;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A halottűzés az első körtől karakterenként tíz kör után újul meg", TurnUndeadRefreshesAfterTenRounds),
+    ("A halottűzés mindkét kasztnál két mezőre hat alakzat nélkül is", TurnUndeadHasTwoCellRange),
     ("A buff és gyógyítás hangját a varázslótól és célponttól eltérő játékos is hallja", DefensiveSpellSoundIsShared),
     ("A becsapódások CSV-színe, ideje, alapértéke és validációja működik", SpellImpactTests.CsvSettings),
     ("A becsapódások területe, tölcsére, lánca és színhulláma pontos", SpellImpactTests.FootprintsAndAnimation),
@@ -5194,7 +5196,7 @@ static void MonsterStrengthCreatesTacticalPressure()
     Assert(encounter.StaggerCharacter(character), "A karakter nem kapta meg a tántorodást.");
     var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1713));
     var actions = coordinator.GetTeamAllowedBattleActions(encounter, character, enemy, character,
-        encounter.PositionOf(character), false, []);
+        encounter.PositionOf(character), false, new Dictionary<LiveCharacter, int>());
     Assert(!actions.Contains(BattleActionKind.Move) && actions.Contains(BattleActionKind.Pass),
         "A megtántorított karakter továbbra is mozoghatott, vagy más akcióit is elvesztette.");
     encounter.Turns.StartTurns();
@@ -5227,7 +5229,7 @@ static void RearCombatPreparationIsLeaderControlled()
         [new TeamEnemyParticipant(enemy, 5, 2, 1)], leader.Id, enemy.Id, formation: formation);
     var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1710));
     var actions = coordinator.GetTeamAllowedBattleActions(encounter, leader, enemy, leader,
-        new Position(3, 3), false, []);
+        new Position(3, 3), false, new Dictionary<LiveCharacter, int>());
     Assert(actions.Contains(BattleActionKind.PrepareRearLeft) &&
            actions.Contains(BattleActionKind.PrepareRearRight),
         "A vezér nem kapta meg mindkét hátsó alakzathely felkészítő akcióját.");
@@ -5875,6 +5877,101 @@ static void Assert(bool condition, string message)
     if (!condition) throw new InvalidOperationException(message);
 }
 
+static void TurnUndeadRefreshesAfterTenRounds()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var random = new Random(1);
+    var system = CreateBattleSystem(1805);
+    var actions = new BattleActionCoordinator(data, system, new SpellExecutionService(data, random), random);
+    var tactical = new TacticalTeamBattleCoordinator(data, system, new Random(1805));
+    var priest = CreateCharacter("Pap", characterClassId: CharacterClassIds.Pap);
+    var knight = CreateCharacter("Lovag", characterClassId: CharacterClassIds.Lovag);
+    var position = new Position(3, 3);
+    var definition = CreateEnemy(1000, 5).Definition with { Traits = EnemyTraits.Undead };
+    var undead = new ConfiguredEnemy(new Position(3, 1), definition);
+    TeamCharacterParticipant Participant(LiveCharacter character, Position cell) => new(character, cell,
+        TacticalParticipantKind.PartyMember, 10, 3, 1, system.PrepareTeamCharacter(character).Runtime);
+    var battle = new TeamBattleEncounter(position,
+        [Participant(priest, position), Participant(knight, new Position(4, 3))],
+        [new TeamEnemyParticipant(undead, 5, 2, 1)], priest.Id, undead.Id);
+    battle.Turns.StartTurns();
+    var cooldowns = new Dictionary<LiveCharacter, int>();
+    bool Available(LiveCharacter character) => tactical.GetTeamAllowedBattleActions(battle, character,
+        undead, priest, battle.PositionOf(character), false, cooldowns).Contains(BattleActionKind.TurnUndead);
+    void AdvanceTo(int round)
+    {
+        while (battle.Turns.Cycle < round) battle.Turns.AdvanceTurn();
+    }
+
+    Assert(Available(priest) && Available(knight), "Az első körben a képesség nem elérhető mindkét karakternek.");
+    var failed = actions.ResolveTurnUndead(priest, undead, position, battle.Turns.Cycle, cooldowns);
+    Assert(failed.Kind == BattleLogKind.Information && !Available(priest) && Available(knight),
+        "A sikertelen halottűzés nem indított saját lehűlést, vagy a másik karaktert is letiltotta.");
+    battle.Turns.RepeatCurrentTurn();
+    Assert(!Available(priest), "Az extra akció túl korán megújította a képességet.");
+    var blocked = false;
+    try { actions.ResolveTurnUndead(priest, undead, position, battle.Turns.Cycle, cooldowns); }
+    catch (InvalidOperationException) { blocked = true; }
+    Assert(blocked, "A közvetlen végrehajtás átengedte az ismételt használatot ugyanabban a körben.");
+
+    AdvanceTo(4);
+    actions.ResolveTurnUndead(knight, undead, battle.PositionOf(knight), battle.Turns.Cycle, cooldowns);
+    for (var round = 4; round <= 10; round++)
+    {
+        AdvanceTo(round);
+        Assert(!Available(priest) && !Available(knight), "A halottűzés tíz kör eltelte előtt újult meg.");
+    }
+    AdvanceTo(11);
+    Assert(Available(priest) && !Available(knight), "A 11. körben nem a megfelelő karakter képessége újult meg.");
+    actions.ResolveTurnUndead(priest, undead, position, battle.Turns.Cycle, cooldowns);
+    AdvanceTo(13);
+    Assert(!Available(knight), "A 4. körben használt képesség már a 13. körben elérhető lett.");
+    AdvanceTo(14);
+    Assert(Available(knight) && !Available(priest), "A késleltetett első használat nem a 14. körre újult meg.");
+    AdvanceTo(21);
+    Assert(Available(priest), "A második tízkörös újrahasználati idő nem járt le.");
+    Assert(BattleActionCoordinator.IsTurnUndeadReady(priest, 1, new Dictionary<LiveCharacter, int>()),
+        "Egy új csata üres használati állapota nem az első körtől elérhető.");
+}
+
+static void TurnUndeadHasTwoCellRange()
+{
+    var origin = new Position(5, 5);
+    var definition = CreateEnemy(100, 3).Definition with { Traits = EnemyTraits.Undead };
+    foreach (var classId in new[] { CharacterClassIds.Pap, CharacterClassIds.Lovag })
+    {
+        var character = CreateCharacter("Elűző", characterClassId: classId);
+        foreach (var position in new[] { new Position(3, 3), new Position(5, 3), new Position(7, 5), new Position(7, 7) })
+            Assert(BattleActionCoordinator.CanTurnUndead(character, new ConfiguredEnemy(position, definition), origin),
+                "A kétmezős, átlósan is érvényes hatótáv túl rövid.");
+        var far = new ConfiguredEnemy(new Position(8, 5), definition);
+        Assert(!BattleActionCoordinator.CanTurnUndead(character, far, origin), "A képesség három mezőre is hatott.");
+        var near = new ConfiguredEnemy(new Position(7, 5), definition);
+        var alive = CreateEnemyAt(new Position(5, 4), "E-NOT-UNDEAD");
+        var system = CreateBattleSystem(1811);
+        var battle = new TeamBattleEncounter(origin,
+            [new TeamCharacterParticipant(character, origin, TacticalParticipantKind.PartyMember,
+                10, 3, 1, system.PrepareTeamCharacter(character).Runtime)],
+            new[] { near, far, alive }.Select(enemy => new TeamEnemyParticipant(enemy, 5, 2, 1)),
+            character.Id, near.Id);
+        Assert(TacticalTeamBattleCoordinator.TurnUndeadTargets(battle, character, origin).SequenceEqual([near]),
+            "Az alakzat nélküli célpontlista hibás vagy túl távoli élőholtat is tartalmaz.");
+        var snapshot = new BattleSnapshot(battle.Id, 1, 1, true, character.Id,
+            new SessionEnemySnapshot(alive.Definition.Id, alive.Name, alive.Position,
+                alive.CurrentHitPoints, alive.CurrentHitPoints, alive.Id),
+            [BattleActionKind.TurnUndead], TurnUndeadTargetEnemyId: near.Id);
+        var restored = JsonSerializer.Deserialize<BattleSnapshot>(JsonSerializer.Serialize(snapshot))!;
+        Assert(restored.TurnUndeadTargetEnemyId == near.Id && restored.Enemy.EntityId == alive.Id,
+            "A coop halottűzési célpont nem különült el a közelebbi, nem élőholt fókuszcélponttól.");
+        near.ReceiveSpellDamage(near.CurrentHitPoints);
+        Assert(!TacticalTeamBattleCoordinator.TurnUndeadTargets(battle, character, origin).Any(),
+            "A legyőzött élőholt elűzhető maradt.");
+    }
+    var warrior = CreateCharacter("Harcos");
+    Assert(!BattleActionCoordinator.CanTurnUndead(warrior, new ConfiguredEnemy(new Position(5, 4), definition), origin),
+        "A halottűzés jogosulatlan kaszt számára is elérhető lett.");
+}
+
 static void RearPriestCanTurnFrontEngagedUndead()
 {
     var system = CreateBattleSystem(1706);
@@ -5900,7 +5997,7 @@ static void RearPriestCanTurnFrontEngagedUndead()
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1706));
     var actions = coordinator.GetTeamAllowedBattleActions(battle, priest, undead, priest,
-        new Position(3, 4), false, []);
+        new Position(3, 4), false, new Dictionary<LiveCharacter, int>());
 
     Assert(TacticalTeamBattleCoordinator.ReachableTeamEnemies(battle, priest, new Position(3, 4)).Count() == 0 &&
            battle.RearFormationEngagedEnemies(priest).SequenceEqual([undead]) &&
@@ -6152,7 +6249,8 @@ static void KnightBattleWeaponSwapCommandIsAccepted()
             preparation.Initiative, 3, 1, preparation.Runtime)],
         [new TeamEnemyParticipant(rat, 1, 1, 1)], knight.Id, rat.Id);
     var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(42));
-    var allowed = coordinator.GetTeamAllowedBattleActions(battle, knight, rat, knight, new(3, 3), false, []);
+    var allowed = coordinator.GetTeamAllowedBattleActions(battle, knight, rat, knight, new(3, 3), false,
+        new Dictionary<LiveCharacter, int>());
     Assert(allowed.Contains(BattleActionKind.SwapWeapon), "A panel nem kínálja fel a fegyvercserét.");
     var battleId = BattleId.New();
     session.SetBattlePrompt(battleId, 1, knight.Id, allowed);

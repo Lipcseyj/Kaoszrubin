@@ -120,7 +120,7 @@ public sealed class Game : ISessionCommandHandler
     private PartyCommandState _partyCommandState;
     private bool _saveAfterBattle;
     private bool _timeStopUsedThisBattle;
-    private readonly HashSet<LiveCharacter> _turnUndeadUsedThisBattle = [];
+    private readonly Dictionary<LiveCharacter, int> _turnUndeadNextAvailableRounds = [];
     private readonly HashSet<CharacterId> _battleNoPathReported = [];
     private int _battleLogCycle = -1;
     private readonly Dictionary<(CharacterId CharacterId, NpcComplaintKind Kind), DateTime> _nextNpcComplaints = [];
@@ -275,7 +275,9 @@ public sealed class Game : ISessionCommandHandler
             actingCharacter is null ? null : GetBattleItemOptions(battle, actingCharacter),
             actingCharacter is null ? null : ReachableTeamEnemies(battle, actingCharacter)
                 .Select(enemy => enemy.Id).ToArray(), IsQuickBattle: _isQuickTeamBattle,
-            ActionDetails: _lastBattleActionDetails);
+            ActionDetails: _lastBattleActionDetails,
+            TurnUndeadTargetEnemyId: actingCharacter is not null && allowed.Contains(BattleActionKind.TurnUndead)
+                ? PreferredTurnUndeadTarget(battle, actingCharacter)?.Id : null);
     }
 
     private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(TeamBattleEncounter battle,
@@ -357,7 +359,8 @@ public sealed class Game : ISessionCommandHandler
     {
         var caster = member.Character;
         if (!caster.IsAlive) return null;
-        if (CanTurnUndead(caster, enemy) && !_turnUndeadUsedThisBattle.Contains(caster))
+        if (BattleActionCoordinator.CanTurnUndead(caster, enemy, member.Position) &&
+            IsTurnUndeadReady(caster))
             return ResolveTurnUndead(caster, enemy);
         if (!caster.IsSpellcaster || !caster.CanCastSpells) return null;
         // Emergency heal: any ally under 35% HP, within the spell's range of the caster
@@ -5352,10 +5355,8 @@ public sealed class Game : ISessionCommandHandler
         }
         if (key.Key == ConsoleKey.T && allowed.Contains(BattleActionKind.TurnUndead))
         {
-            var targets = TurnUndeadTargets(battle, character).ToArray();
-            var undeadTarget = battle.SelectedTargetEnemy() is { } selected && targets.Contains(selected)
-                ? selected
-                : targets.First();
+            var undeadTarget = PreferredTurnUndeadTarget(battle, character);
+            if (undeadTarget is null) return;
             SubmitLocalBattleCommand(BattleActionKind.TurnUndead,
                 targetEnemyId: undeadTarget.Id);
             return;
@@ -5492,11 +5493,13 @@ public sealed class Game : ISessionCommandHandler
             _timeStopUsedThisBattle, EquippedCastingItems(character),
             (c, pos, sp, en) => HasValidSpellTarget(c, pos, sp, en));
 
-    private static bool CanTurnUndead(LiveCharacter character, Enemy enemy) =>
-        BattleActionCoordinator.CanTurnUndead(character, enemy);
+    private bool IsTurnUndeadReady(LiveCharacter character) =>
+        BattleActionCoordinator.IsTurnUndeadReady(character, _activeTeamBattle?.Turns.Cycle ?? 1,
+            _turnUndeadNextAvailableRounds);
 
     private BattlePlayerAction ResolveTurnUndead(LiveCharacter character, Enemy enemy) =>
-        _battleActionCoordinator.ResolveTurnUndead(character, enemy, _turnUndeadUsedThisBattle);
+        _battleActionCoordinator.ResolveTurnUndead(character, enemy, GetCasterPosition(character),
+            _activeTeamBattle?.Turns.Cycle ?? 1, _turnUndeadNextAvailableRounds);
 
     private SpellCastAttempt? TryCastSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
         bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null,
@@ -5981,7 +5984,7 @@ public sealed class Game : ISessionCommandHandler
         if (_battleStarted || !initiatingCharacter.IsAlive || initiatingEnemy.CurrentHitPoints <= 0) return;
         CheckBossDiscovery([initiatingEnemy], initiatingCharacter);
         _timeStopUsedThisBattle = false;
-        _turnUndeadUsedThisBattle.Clear();
+        _turnUndeadNextAvailableRounds.Clear();
         _battleNoPathReported.Clear();
         _battleLogCycle = -1;
         _pendingLevelUps.Clear();
@@ -6667,7 +6670,7 @@ public sealed class Game : ISessionCommandHandler
 
     private bool TryExecuteTeamAiTurnUndead(TeamBattleEncounter battle, LiveCharacter character)
     {
-        if (_turnUndeadUsedThisBattle.Contains(character)) return false;
+        if (!IsTurnUndeadReady(character)) return false;
         var undead = TurnUndeadTargets(battle, character)
             .OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault();
         if (undead is null) return false;
@@ -7913,7 +7916,7 @@ public sealed class Game : ISessionCommandHandler
         if (IsTeamMovementInProgress(battle)) return [BattleActionKind.Move, BattleActionKind.Pass];
         return _teamBattleCoordinator.GetTeamAllowedBattleActions(battle, character, focusEnemy, SelectedCharacter,
             GetCasterPosition(character), HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy),
-            _turnUndeadUsedThisBattle);
+            _turnUndeadNextAvailableRounds);
     }
 
     private IReadOnlyList<BattleTacticOptionSnapshot>? GetTeamBattleTacticOptions(TeamBattleEncounter battle,
@@ -7937,10 +7940,14 @@ public sealed class Game : ISessionCommandHandler
         TacticalTeamBattleCoordinator.ReachableTeamEnemies(battle, character, GetCasterPosition(character));
 
     private IEnumerable<Enemy> TurnUndeadTargets(TeamBattleEncounter battle, LiveCharacter character) =>
-        AdjacentTeamEnemies(battle, character)
-            .Concat(battle.RearFormationEngagedEnemies(character))
-            .Where(enemy => CanTurnUndead(character, enemy))
-            .DistinctBy(enemy => enemy.Id);
+        TacticalTeamBattleCoordinator.TurnUndeadTargets(battle, character, GetCasterPosition(character));
+
+    private Enemy? PreferredTurnUndeadTarget(TeamBattleEncounter battle, LiveCharacter character)
+    {
+        var targets = TurnUndeadTargets(battle, character).ToArray();
+        return battle.SelectedTargetEnemy() is { } selected && targets.Contains(selected)
+            ? selected : targets.FirstOrDefault();
+    }
 
     private IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy) =>
         TacticalTeamBattleCoordinator.AdjacentTeamCharacters(battle, enemy, GetCasterPosition);

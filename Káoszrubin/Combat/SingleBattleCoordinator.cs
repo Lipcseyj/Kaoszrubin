@@ -11,6 +11,8 @@ namespace KaoszRubin.Combat;
 /// <summary>A csapatharc karakterakcióihoz közös célzási, taktikai és támogató szabályok.</summary>
 public sealed class BattleActionCoordinator
 {
+    public const int TurnUndeadRange = 2;
+    public const int TurnUndeadCooldownRounds = 10;
     private readonly GameDataCatalog _gameData;
     private readonly BattleSystem _battleSystem;
     private readonly SpellExecutionService _spellExecutionService;
@@ -29,12 +31,25 @@ public sealed class BattleActionCoordinator
     }
 
     public static bool CanTurnUndead(LiveCharacter character, Enemy enemy) =>
+        character.IsAlive && enemy.CurrentHitPoints > 0 &&
         character.CharacterClass.Id is CharacterClassIds.Pap or CharacterClassIds.Lovag &&
         enemy.Definition.HasTrait(EnemyTraits.Undead);
 
-    public BattlePlayerAction ResolveTurnUndead(LiveCharacter character, Enemy enemy, HashSet<LiveCharacter> turnUndeadUsedThisBattle)
+    public static bool CanTurnUndead(LiveCharacter character, Enemy enemy, Position characterPosition) =>
+        CanTurnUndead(character, enemy) && Chebyshev(characterPosition, enemy.Position) <= TurnUndeadRange;
+
+    public static bool IsTurnUndeadReady(LiveCharacter character, int round,
+        IReadOnlyDictionary<LiveCharacter, int> nextAvailableRounds) =>
+        round >= 1 && (!nextAvailableRounds.TryGetValue(character, out var nextRound) || round >= nextRound);
+
+    public BattlePlayerAction ResolveTurnUndead(LiveCharacter character, Enemy enemy, Position characterPosition,
+        int round, Dictionary<LiveCharacter, int> nextAvailableRounds)
     {
-        turnUndeadUsedThisBattle.Add(character);
+        if (!CanTurnUndead(character, enemy, characterPosition) ||
+            !IsTurnUndeadReady(character, round, nextAvailableRounds))
+            throw new InvalidOperationException("A halottűzés célpontja érvénytelen, vagy még nem telt le a 10 körös újrahasználati idő.");
+        // Failed attempts also consume the ability; extra actions do not advance battle rounds.
+        nextAvailableRounds[character] = round + TurnUndeadCooldownRounds;
         var priest = character.CharacterClass.Id == CharacterClassIds.Pap;
         var ability = priest ? character.EffectiveAbilities.Intelligence : character.EffectiveAbilities.Strength;
         var levelBonus = priest ? character.Level / 2 : character.Level / 3;

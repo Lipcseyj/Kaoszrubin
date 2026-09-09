@@ -538,8 +538,9 @@ public sealed class CoopGuestScreen
                 if (action is not null)
                     command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                         battle.BattleId, battle.TurnId, action.Value,
-                        TargetEnemyId: action is BattleActionKind.PhysicalAttack or BattleActionKind.TurnUndead
-                            ? targetEnemyId : null);
+                        TargetEnemyId: action == BattleActionKind.TurnUndead
+                            ? battle.TurnUndeadTargetEnemyId ?? targetEnemyId
+                            : action == BattleActionKind.PhysicalAttack ? targetEnemyId : null);
             }
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && key == ConsoleKey.V)

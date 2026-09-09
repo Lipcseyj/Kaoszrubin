@@ -160,7 +160,7 @@ public sealed record BattleSnapshot(BattleId BattleId, long TurnId, int Round, b
     int Cycle = 1, IReadOnlyList<TacticalBattleParticipantSnapshot>? Participants = null,
     IReadOnlyList<BattleItemOptionSnapshot>? ItemOptions = null,
     IReadOnlyList<WorldEntityId>? ValidTargetEnemyIds = null, bool IsQuickBattle = false,
-    BattleActionDetails? ActionDetails = null);
+    BattleActionDetails? ActionDetails = null, WorldEntityId? TurnUndeadTargetEnemyId = null);
 
 public sealed record TacticalBattleParticipantSnapshot(CombatantId Id, string Name, BattleSide Side,
     TacticalParticipantKind Kind, Position Position, int Initiative, int MovementAllowance,

@@ -80,6 +80,10 @@ public sealed class TacticalTeamBattleCoordinator
             .DistinctBy(enemy => enemy.Id);
     }
 
+    public static IEnumerable<Enemy> TurnUndeadTargets(TeamBattleEncounter battle, LiveCharacter character,
+        Position characterPosition) =>
+        battle.Enemies.Where(enemy => BattleActionCoordinator.CanTurnUndead(character, enemy, characterPosition));
+
     public static IReadOnlyList<Enemy> SweepTargets(TeamBattleEncounter battle, LiveCharacter character,
         Position origin, Enemy primary)
     {
@@ -324,7 +328,8 @@ public sealed class TacticalTeamBattleCoordinator
 
     public IReadOnlyList<BattleActionKind> GetTeamAllowedBattleActions(TeamBattleEncounter battle,
         LiveCharacter character, Enemy focusEnemy, LiveCharacter selectedCharacter,
-        Position characterPosition, bool hasUsableCombatSpell, HashSet<LiveCharacter> turnUndeadUsedThisBattle)
+        Position characterPosition, bool hasUsableCombatSpell,
+        IReadOnlyDictionary<LiveCharacter, int> turnUndeadNextAvailableRounds)
     {
         var runtime = battle.RuntimeFor(character);
         if (runtime.RequiresTacticSelection)
@@ -333,10 +338,8 @@ public sealed class TacticalTeamBattleCoordinator
                 : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
         var reachable = ReachableTeamEnemies(battle, character, characterPosition).ToArray();
         var staggered = battle.IsCharacterStaggered(character);
-        var turnUndeadTargets = AdjacentTeamEnemies(battle, character, characterPosition)
-            .Concat(battle.RearFormationEngagedEnemies(character))
-            .Where(enemy => BattleActionCoordinator.CanTurnUndead(character, enemy))
-            .DistinctBy(enemy => enemy.Id).ToArray();
+        var canTurnUndead = BattleActionCoordinator.IsTurnUndeadReady(character, battle.Turns.Cycle,
+            turnUndeadNextAvailableRounds) && TurnUndeadTargets(battle, character, characterPosition).Any();
         if (battle.Turns.Cycle == 1 && character.Id == battle.InitiatingCharacterId)
         {
             var openingActions = new List<BattleActionKind> { BattleActionKind.Pass };
@@ -349,7 +352,7 @@ public sealed class TacticalTeamBattleCoordinator
             else if (!staggered) openingActions.Insert(0, BattleActionKind.Move);
             if (hasUsableCombatSpell)
                 openingActions.Insert(0, BattleActionKind.CastSpell);
-            if (turnUndeadTargets.Length > 0 && !turnUndeadUsedThisBattle.Contains(character))
+            if (canTurnUndead)
                 openingActions.Insert(0, BattleActionKind.TurnUndead);
             if (character.CanSwapReserveWeapon) openingActions.Add(BattleActionKind.SwapWeapon);
             AddRearPreparationActions(battle, character, selectedCharacter, openingActions);
@@ -362,7 +365,7 @@ public sealed class TacticalTeamBattleCoordinator
             actions.Add(BattleActionKind.PhysicalAttack);
             if (reachable.Length > 1) actions.Add(BattleActionKind.SelectTarget);
         }
-        if (turnUndeadTargets.Length > 0 && !turnUndeadUsedThisBattle.Contains(character))
+        if (canTurnUndead)
             actions.Add(BattleActionKind.TurnUndead);
         if (!staggered && battle.HasProtectiveFormation && battle.IsFrontRow(character) &&
             battle.RearPartnerOf(character) is { IsAlive: true } rearPartner &&
