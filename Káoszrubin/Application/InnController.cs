@@ -813,19 +813,33 @@ internal sealed class InnController
         IReadOnlyList<LiveCharacter>? followers)
     {
         if (!_renderer.ConfirmInnFeast(perPerson, personCount, totalCost)) return;
-        _partyLeader.SpendGold(totalCost);
+        // A megerősítés alatt egy coop játékos még költhet a közös aranyból, ezért
+        // közvetlenül a teljesítés előtt is atomi levonással ellenőrizzük a fedezetet.
+        if (!_partyLeader.SpendGold(totalCost))
+        {
+            _renderer.DrawDeveloperMessage(
+                $"{ConsoleRenderer.MoneyIcon} A közös arany időközben megváltozott; a lakoma nem történt meg.");
+            return;
+        }
         foreach (var c in _characterRoster.Party.Members)
         {
             c.RestoreFood(100);
             c.RestoreWater(100);
+            c.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
+                _gameData.GetStatus(CharacterStatusIds.Thirsty));
         }
         if (followers is not null)
             foreach (var f in followers)
             {
                 f.RestoreFood(100);
                 f.RestoreWater(100);
+                f.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
+                    _gameData.GetStatus(CharacterStatusIds.Thirsty));
             }
         _revision++;
+
+        // A fogadói karakterlap a lakomaablak mögött is azonnal az új értékeket mutassa.
+        _renderer.RefreshCharacterSheet(_partyLeader);
 
         _renderer.DrawFeastWindow(_characterRoster.Party.Members.Select(m => m.Name).ToList(), totalCost);
         

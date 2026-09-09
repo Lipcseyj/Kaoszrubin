@@ -4036,7 +4036,9 @@ public sealed class Game : ISessionCommandHandler
 
         character.RemoveOneInventoryItem(InventorySlotKind.Backpack, command.BackpackIndex);
         character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry), _gameData.GetStatus(CharacterStatusIds.Thirsty));
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        // Fogadóban is rögtön rajzoljuk újra a látható karakterlapot az új
+        // éhség-/szomjúságértékkel és a megváltozott inventoryval.
+        _renderer.RefreshCharacterSheet(character);
         var message = $"{character.Name} használta: {item.Name} — {result}.";
         _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green, [character.Id]);
