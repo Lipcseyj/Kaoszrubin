@@ -24,6 +24,8 @@ A Káoszrubin egy .NET 10 konzolos, egyjátékos labirintusjáték. Az alkalmaz�
 
 ### Támadóvarázslatok becsapódása
 
+A buffok és gyógyítások a `defensive-spell.wav` hangot használják térképen és csatában is. Ez közös session-hang: akkor is hallható a helyi és coop játékosok számára, ha másik partitag varázsol önmagára vagy egy társára. A `BecsapódásIdőMs = 0` csak a vizuális effektet kapcsolja ki, a hangot nem.
+
 A támadóvarázslatok becsapódását az egycélpontos és lánctámadásoknál pulzáló előtér/háttér, területi támadásoknál kifelé futó színhullám jelzi. A lángtölcsér a sebzés tényleges kúpalakját követi. A lények jelei az effekt alatt is megmaradnak; a halálos sebzés csak az animáció után távolítja el őket. Csak felfedett térképcellák rajzolódnak, majd helyreáll az eredeti megjelenítés és a harci fókuszjelölés.
 
 A `#Varázslatok` és `#Papi varázslatok` szekció két opcionális utolsó oszlopa:

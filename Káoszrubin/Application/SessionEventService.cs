@@ -84,7 +84,9 @@ public sealed class SessionEventService
     public void PlaySessionSound(SoundEffect effect, IReadOnlyCollection<CharacterId>? listeners = null,
         CharacterId? selectedCharacterId = null)
     {
-        var listenerIds = listeners?.Distinct().ToArray();
+        // Buffs and healing are audible to everyone watching the shared party,
+        // even when another party member casts a self-only spell on the map.
+        var listenerIds = effect == SoundEffect.DefensiveSpell ? null : listeners?.Distinct().ToArray();
         RecordSessionSound(effect, listenerIds);
         if (selectedCharacterId is not null && listenerIds is not null && !listenerIds.Contains(selectedCharacterId.Value)) return;
         _soundEffects.Play(effect);

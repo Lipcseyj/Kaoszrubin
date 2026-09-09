@@ -17,6 +17,7 @@ using System.Text;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A buff és gyógyítás hangját a varázslótól és célponttól eltérő játékos is hallja", DefensiveSpellSoundIsShared),
     ("A becsapódások CSV-színe, ideje, alapértéke és validációja működik", SpellImpactTests.CsvSettings),
     ("A becsapódások területe, tölcsére, lánca és színhulláma pontos", SpellImpactTests.FootprintsAndAnimation),
     ("A támadó becsapódás a sebzés előtt az összes lánccélpontot megkapja", SpellImpactTests.ImpactPrecedesDamage),
@@ -296,6 +297,35 @@ foreach (var test in tests)
 }
 
 return failures == 0 ? 0 : 1;
+
+static void DefensiveSpellSoundIsShared()
+{
+    var leader = CreateCharacter("Hallgató");
+    var caster = CreateCharacter("Varázsló");
+    var target = CreateCharacter("Sérült társ");
+    var party = new Party();
+    party.SetLeader(leader);
+    party.Add(caster);
+    party.Add(target);
+    using var audio = new SoundEffects(new GameSettings { SoundEffectsEnabled = false });
+    var events = new SessionEventService(new ConsoleRenderer(new GameDataCatalog(), party), audio, new Random(1));
+
+    // A map self-buff and healing another companion both excluded the leader before.
+    foreach (var listeners in new CharacterId[][] { [caster.Id], [caster.Id, target.Id] })
+    {
+        events.PlaySessionSound(SoundEffect.DefensiveSpell, listeners, leader.Id);
+        var sound = events.Sounds.Last();
+        Assert(sound.Effect == SoundEffect.DefensiveSpell && party.Members.All(member => sound.IsAudibleTo(member.Id)),
+            "A defenzív varázslathang csak a varázslóhoz vagy célpontjához jutott el.");
+        var remoteSound = JsonSerializer.Deserialize<SessionSoundSnapshot>(JsonSerializer.Serialize(sound))!;
+        Assert(remoteSound.IsAudibleTo(leader.Id) && remoteSound.IsAudibleTo(caster.Id),
+            "A közös defenzív hang címzése nem maradt meg hálózati továbbításkor.");
+    }
+
+    events.PlaySessionSound(SoundEffect.Step1, [caster.Id], leader.Id);
+    Assert(!events.Sounds.Last().IsAudibleTo(leader.Id),
+        "A javítás egy karakterhez címzett lépéshangot is közössé tett.");
+}
 
 static void HostMovementIsAccepted()
 {
