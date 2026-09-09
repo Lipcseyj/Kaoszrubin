@@ -1,3 +1,5 @@
+using KaoszRubin.Domain.Characters;
+
 namespace KaoszRubin.Combat;
 
 /// <summary>A tervválasztás csatamemóriához és stabilitásához tartozó tiszta szabályok.</summary>
@@ -55,6 +57,15 @@ public static class NpcSpellPlanningPolicy
     public static bool CanMoveForPlan(bool isKnight, bool hasActiveFormation, bool isEngaged,
         bool isStaggered) =>
         !isKnight && !hasActiveFormation && !isEngaged && !isStaggered;
+
+    public static int EnemyStrength(IEnumerable<int> strengthTiers) =>
+        strengthTiers.Sum(tier => Math.Max(1, tier));
+
+    public static bool ShouldCastOffensively(NpcSpellcasterCombatProfile tactics, int enemyStrength,
+        int offensiveSpellsCast) =>
+        enemyStrength >= tactics.MinimumEnemyStrength &&
+        (enemyStrength >= tactics.FullOffenseEnemyStrength ||
+         offensiveSpellsCast < tactics.OffensiveSpellsPerBattle);
 
     public static double PositionPenalty(int movementDistance, int movementAllowance,
         int adjacentEnemyStrength)

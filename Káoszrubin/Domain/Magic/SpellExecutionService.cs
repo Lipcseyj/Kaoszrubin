@@ -143,6 +143,7 @@ public sealed class SpellExecutionService
             SpellEffectType.CureStatus => ParseEffectParameters(effect.Parameter).Any(character.HasStatus),
             SpellEffectType.Dispel when string.Equals(effect.Parameter, "HarmfulOnly",
                 StringComparison.OrdinalIgnoreCase) => character.ActiveSpellEffects.Any(active => !active.Beneficial),
+            SpellEffectType.BreakItemCurse => character.HasActiveCurse,
             SpellEffectType.RestoreNeeds => character.FoodLevel < 100 || character.WaterLevel < 100,
             _ => true
         });

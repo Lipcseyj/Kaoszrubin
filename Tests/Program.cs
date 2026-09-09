@@ -126,6 +126,8 @@ var tests = new (string Name, Action Run)[]
     ("Az alakzat csak a fennálló lekötéseket megtartva mozdulhat", TeamBattleFormationMovementPreservesEngagements),
     ("A csapatharc célpontja akcióvesztés nélkül váltható", TeamBattleTargetCanBeChanged),
     ("Az NPC varázslási szabálya tartalékolja a mannát és csak egycélú támadást választ", NpcSpellcastingPolicyPreservesMana),
+    ("Az Átoktörés csak ténylegesen tisztítható csapattársra használható", BreakCurseRequiresUsefulPartyTarget),
+    ("Az NPC támadóvarázslási összerőhatárai inkluzívak", NpcOffensiveSpellStrengthThresholdsAreInclusive),
     ("Az NPC varázspontozása csoport ellen területi, gyenge célra takarékos támadást kedvel", NpcSpellUtilityValuesTargetsAndOverkill),
     ("Az NPC varázsmemóriája váltogatja a repertoárt, de nem ír felül nagy erőkülönbséget", NpcSpellMemoryBalancesVarietyAndUtility),
     ("Az NPC varázsterv hiszterézise megtartja a közeli tervet és elengedi az összeomlottat", NpcSpellPlanRetentionIsStable),
@@ -5176,6 +5178,48 @@ static void NpcSpellcastingPolicyPreservesMana()
            NpcSpellcastingPolicy.ActiveTypeFor(SpellEffectType.DefenseBonus) ==
            ActiveSpellEffectType.DefenseBonus,
         "Az NPC támadó- vagy buffvarázslat-besorolása hibás.");
+}
+
+static void BreakCurseRequiresUsefulPartyTarget()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+        CsvGameDataLoader.GameDataFileName));
+    var spell = catalog.GetSpell("P027");
+    var effects = catalog.GetSpellEffects(spell.Id);
+    var service = new SpellExecutionService(catalog, new Random(1802));
+    var ally = CreateCharacter("Tiszta");
+    var classification = NpcSpellTacticalClassifier.Classify(spell, effects);
+
+    Assert(spell.TargetType == SpellTargetType.PartyMember &&
+           !classification.IsOffensive &&
+           classification.AttackPattern == NpcSpellAttackPattern.None &&
+           classification.Roles.HasFlag(NpcSpellTacticalRole.Cleanse),
+        "Az Átoktörés célpontja vagy taktikai tisztító besorolása hibás.");
+    Assert(!service.CanAffectCharacter(spell, ally),
+        "Az Átoktörés tiszta csapattársat is érvényes célpontnak tekintett.");
+
+    ally.ApplySpellEffect(new ActiveSpellEffect("TEST-CURSE", ActiveSpellEffectType.HitBonus,
+        -2, 3, Beneficial: false));
+    Assert(service.CanAffectCharacter(spell, ally),
+        "Az Átoktörés nem ismerte fel a káros varázshatással sújtott csapattársat.");
+    ally.RemoveSpellEffects(active => !active.Beneficial);
+    Assert(!service.CanAffectCharacter(spell, ally),
+        "Az Átoktörés a megtisztítás után továbbra is elsüthető maradt ugyanarra a csapattársra.");
+}
+
+static void NpcOffensiveSpellStrengthThresholdsAreInclusive()
+{
+    var tactics = NpcSpellcasterTactics.Default.StandardProfile;
+
+    Assert(NpcSpellPlanningPolicy.EnemyStrength([1, 1, 1, 1]) == 4 &&
+           NpcSpellPlanningPolicy.EnemyStrength([0, -2, 3]) == 5,
+        "Az ellenség-összerő nem a résztvevők legalább egynek vett erőszintjeit összegzi.");
+    Assert(!NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, 7, offensiveSpellsCast: 0) &&
+           NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, 8, offensiveSpellsCast: 0),
+        "A mágus alsó, 8-as összerőhatára nem inkluzív.");
+    Assert(!NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, 8, offensiveSpellsCast: 2) &&
+           NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, 16, offensiveSpellsCast: 2),
+        "A mágus teljes támadásra váltó, 16-os összerőhatára nem inkluzív, vagy nem kezeli a kvótát.");
 }
 
 static void NpcSpellUtilityValuesTargetsAndOverkill()

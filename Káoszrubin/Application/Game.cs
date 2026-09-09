@@ -6,6 +6,7 @@ using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Magic;
 using KaoszRubin.Domain;
+using KaoszRubin.Infrastructure;
 using KaoszRubin.UI;
 using static KaoszRubin.UI.GameInput;
 using MainMenu = KaoszRubin.UI.MainMenu;
@@ -22,6 +23,7 @@ public sealed class Game : ISessionCommandHandler
     private const string RodericInsigniaQuestId = "NPCQ037";
     private const string RodericSharedBattleQuestId = "NPCQ038";
     private const string RodericMalrecQuestId = "NPCQ039";
+    private const string DeveloperBattleTestLocationId = "DEVELOPER_COMBAT_TEST";
     private const int RodericPermanentJoinFriendliness = 8;
     private const int ZombieSpeed = 2;
     private const int ZombieMoveIntervalMilliseconds = 700;
@@ -84,6 +86,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly LootAndInventoryService _lootService;
     private readonly DungeonExpeditionCoordinator _expeditionCoordinator;
     private readonly SessionEventService _sessionEventService;
+    private readonly DeveloperBattleLog _developerBattleLog = new();
     private readonly PartyCommandController _partyCommandController;
     private readonly PartyAiController _partyAiController;
     private readonly SessionCommandDispatcher _commandDispatcher;
@@ -5936,6 +5939,8 @@ public sealed class Game : ISessionCommandHandler
         _activeTeamBattle.Turns.StartTurns();
         _preparedTeamBattleTurnId = 0;
         _battleStarted = true;
+        if (_locationId == DeveloperBattleTestLocationId)
+            _developerBattleLog.BeginBattle(_activeTeamBattle);
         _session.SetPhase(GameSessionPhase.Battle);
         PlaySessionSound(SoundEffect.BattleStart);
         _renderer.DrawBattleStarted(initiatingEnemy);
@@ -6586,10 +6591,30 @@ public sealed class Game : ISessionCommandHandler
         if (livingEnemies.Length == 0) return;
         var tactics = NpcTacticsFor(caster).EffectiveProfile(
             livingEnemies.Any(enemy => IsUnholy(enemy.Definition)));
-        var enemyStrength = livingEnemies.Sum(enemy => Math.Max(1, enemy.Definition.StrengthTier));
-        var mayCastOffensively = enemyStrength >= tactics.MinimumEnemyStrength &&
-            (enemyStrength >= tactics.FullOffenseEnemyStrength ||
-             battle.OffensiveSpellCastsFor(caster) < tactics.OffensiveSpellsPerBattle);
+        var enemyStrength = NpcSpellPlanningPolicy.EnemyStrength(
+            livingEnemies.Select(enemy => enemy.Definition.StrengthTier));
+        var mayCastOffensively = NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, enemyStrength,
+            battle.OffensiveSpellCastsFor(caster));
+        if (_locationId == DeveloperBattleTestLocationId)
+        {
+            var spellDiagnostics = caster.MemorizedSpells.Where(spell => spell.CanUseInCombat).Select(spell =>
+            {
+                var classification = NpcSpellTacticalClassifier.Classify(spell,
+                    _gameData.GetSpellEffects(spell.Id));
+                var manaCost = SpellcastingRules.EffectiveManaCost(caster, spell);
+                return $"{spell.Name}({spell.Id}):offensive={classification.IsOffensive}," +
+                       $"pattern={classification.AttackPattern},mana={manaCost}," +
+                       $"spendable={NpcSpellcastingPolicy.CanSpendMana(caster, manaCost)}";
+            });
+            _developerBattleLog.Append("AI-PLAN-GATE",
+                $"battle={battle.Id}; cycle={battle.Turns.Cycle}; caster={caster.Name}; " +
+                $"position={GetCasterPosition(caster)}; MP={caster.CurrentMana}/{caster.MaximumMana}; " +
+                $"enemies={livingEnemies.Length}; strength={enemyStrength}; " +
+                $"strengthBreakdown={string.Join(',', livingEnemies.Select(enemy => enemy.Definition.StrengthTier))}; " +
+                $"profile={DeveloperBattleLog.FormatTactics(tactics)}; " +
+                $"offensiveCasts={battle.OffensiveSpellCastsFor(caster)}; allowed={mayCastOffensively}; " +
+                $"spells={string.Join(" / ", spellDiagnostics)}");
+        }
         if (!mayCastOffensively)
         {
             if (previousPlan is not null)
@@ -6603,6 +6628,16 @@ public sealed class Game : ISessionCommandHandler
         }
 
         var selected = ChooseNpcOffensiveSpellPlan(battle, caster, livingEnemies);
+        if (_locationId == DeveloperBattleTestLocationId)
+            _developerBattleLog.Append("AI-PLAN-SELECT",
+                selected is null
+                    ? $"battle={battle.Id}; caster={caster.Name}; result=none"
+                    : $"battle={battle.Id}; caster={caster.Name}; spell={selected.Spell.Name}({selected.Spell.Id}); " +
+                      $"target={selected.PrimaryTarget.Name}({selected.PrimaryTarget.Id}); targets={selected.TargetCount}; " +
+                      $"castFrom={selected.CastingPosition}; aim={selected.TargetPosition}; " +
+                      $"distance={selected.MovementDistance}; ready={selected.ReadyToCast}; " +
+                      $"utility={selected.Evaluation.Utility:F2}; usefulDamage={selected.Evaluation.UsefulDamage:F2}; " +
+                      $"overkill={selected.Evaluation.Overkill:F2}");
         if (selected is null)
         {
             if (previousPlan is not null)
@@ -6728,6 +6763,13 @@ public sealed class Game : ISessionCommandHandler
             .ThenBy(candidate => candidate.TargetPosition.Y)
             .ThenBy(candidate => candidate.TargetPosition.X)
             .ToArray();
+        if (_locationId == DeveloperBattleTestLocationId)
+            _developerBattleLog.Append("AI-CANDIDATES",
+                $"battle={battle.Id}; caster={caster.Name}; generated={candidates.Count}; positive={rankedCandidates.Length}; " +
+                $"top={string.Join(" / ", rankedCandidates.Take(12).Select(candidate =>
+                    $"{candidate.Spell.Id}:u={candidate.Evaluation.Utility:F2},dmg={candidate.Evaluation.UsefulDamage:F2}," +
+                    $"over={candidate.Evaluation.Overkill:F2},targets={candidate.TargetCount},move={candidate.MovementDistance}," +
+                    $"from={candidate.CastingPosition},aim={candidate.TargetPosition}"))}");
         var best = rankedCandidates.FirstOrDefault();
         if (best is null || battle.NpcSpellPlanFor(caster) is not { } activePlan) return best;
 
@@ -6859,10 +6901,10 @@ public sealed class Game : ISessionCommandHandler
         var configuredTactics = NpcTacticsFor(caster);
         var livingEnemies = battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).ToArray();
         var tactics = configuredTactics.EffectiveProfile(livingEnemies.Any(enemy => IsUnholy(enemy.Definition)));
-        var enemyStrength = livingEnemies.Sum(enemy => Math.Max(1, enemy.Definition.StrengthTier));
-        var withinCastingPlan = enemyStrength >= tactics.MinimumEnemyStrength &&
-            (enemyStrength >= tactics.FullOffenseEnemyStrength ||
-             battle.OffensiveSpellCastsFor(caster) < tactics.OffensiveSpellsPerBattle);
+        var enemyStrength = NpcSpellPlanningPolicy.EnemyStrength(
+            livingEnemies.Select(enemy => enemy.Definition.StrengthTier));
+        var withinCastingPlan = NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, enemyStrength,
+            battle.OffensiveSpellCastsFor(caster));
         var activePlan = battle.NpcSpellPlanFor(caster);
         if (activePlan is not null)
             return MoveNpcSpellcasterTowardPlannedCastingPosition(battle, caster, activePlan);
@@ -6872,6 +6914,13 @@ public sealed class Game : ISessionCommandHandler
         var spendableOffensiveSpells = offensiveSpells.Where(spell =>
             NpcSpellcastingPolicy.CanSpendMana(caster, SpellcastingRules.EffectiveManaCost(caster, spell))).ToArray();
         var hasSpendableMana = withinCastingPlan && spendableOffensiveSpells.Length > 0;
+        if (_locationId == DeveloperBattleTestLocationId)
+            _developerBattleLog.Append("AI-POSITION",
+                $"battle={battle.Id}; cycle={battle.Turns.Cycle}; caster={caster.Name}; position={GetCasterPosition(caster)}; " +
+                $"strength={enemyStrength}; profile={DeveloperBattleLog.FormatTactics(tactics)}; " +
+                $"withinPlan={withinCastingPlan}; offensiveSpells={string.Join(',', offensiveSpells.Select(spell => spell.Id))}; " +
+                $"spendable={string.Join(',', spendableOffensiveSpells.Select(spell => spell.Id))}; " +
+                $"activePlan={activePlan?.SpellId ?? "none"}; fallback={tactics.ManaFallback}");
 
         if (!hasSpendableMana)
         {
@@ -7107,11 +7156,10 @@ public sealed class Game : ISessionCommandHandler
         var livingEnemies = battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).ToArray();
         var configuredTactics = NpcTacticsFor(caster);
         var tactics = configuredTactics.EffectiveProfile(livingEnemies.Any(enemy => IsUnholy(enemy.Definition)));
-        var enemyStrength = livingEnemies
-            .Sum(enemy => Math.Max(1, enemy.Definition.StrengthTier));
-        var fullOffense = enemyStrength >= tactics.FullOffenseEnemyStrength;
-        var mayCastOffensively = enemyStrength >= tactics.MinimumEnemyStrength &&
-            (fullOffense || battle.OffensiveSpellCastsFor(caster) < tactics.OffensiveSpellsPerBattle);
+        var enemyStrength = NpcSpellPlanningPolicy.EnemyStrength(
+            livingEnemies.Select(enemy => enemy.Definition.StrengthTier));
+        var mayCastOffensively = NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, enemyStrength,
+            battle.OffensiveSpellCastsFor(caster));
 
         var prioritizeRearSelfBuff = battle.ShouldPrioritizeRearSelfBuff(caster) &&
             (caster.CurrentVitality >= caster.MaximumVitality ||
@@ -7622,6 +7670,9 @@ public sealed class Game : ISessionCommandHandler
         var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
         var summary = ConsoleRenderer.FormatTeamBattleRetreatSummary(cycles, battle.ActionNumber, battle.Kills);
         var resourceSummary = ConsoleRenderer.FormatTeamBattleResourceSummary(characterResults, cycles);
+        if (_locationId == DeveloperBattleTestLocationId)
+            _developerBattleLog.CompleteBattle(battle,
+                $"retreat; friendlySpeed={friendlySpeed}; hostileSpeed={hostileSpeed}; reason={reason}");
         _session.EndBattle(battle.Id);
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
             DrainNeedsAfterTeamBattle(character, cycles);
@@ -8260,6 +8311,8 @@ public sealed class Game : ISessionCommandHandler
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
             DrainNeedsAfterTeamBattle(character, battle.Turns.Cycle);
         var inactive = battle.InactiveSidesLastCompletedCycle;
+        if (_locationId == DeveloperBattleTestLocationId)
+            _developerBattleLog.CompleteBattle(battle, "stalemate");
         var sideName = inactive.Contains(BattleSide.Friendly) ? "a csapat" : "az ellenséges oldal";
         ResetTeamMovement();
         _activeTeamBattle = null;
@@ -8299,6 +8352,8 @@ public sealed class Game : ISessionCommandHandler
         var cycles = Math.Max(1, battle.Turns.Cycle);
         var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
         var resourceSummary = ConsoleRenderer.FormatTeamBattleResourceSummary(characterResults, cycles);
+        if (_locationId == DeveloperBattleTestLocationId)
+            _developerBattleLog.CompleteBattle(battle, victory ? "victory" : "defeat");
         ResetTeamMovement();
         _activeTeamBattle = null;
         _isQuickTeamBattle = false;
@@ -8595,6 +8650,8 @@ public sealed class Game : ISessionCommandHandler
     private void PresentBattleEntries(IEnumerable<BattleLogEntry> entries)
     {
         var materialized = entries.ToArray();
+        if (_locationId == DeveloperBattleTestLocationId && _activeTeamBattle is { } loggedBattle)
+            _developerBattleLog.AppendBattleEntries(loggedBattle, materialized);
         if (_activeTeamBattle is not null && !_isQuickTeamBattle)
         {
             foreach (var entry in materialized)
@@ -8615,8 +8672,12 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private void RecordSessionActivity(SessionActivityKind kind, string message, ConsoleColor color,
-        IReadOnlyCollection<CharacterId>? listeners = null) =>
+        IReadOnlyCollection<CharacterId>? listeners = null)
+    {
         _sessionEventService.RecordSessionActivity(kind, message, color, listeners);
+        if (_locationId == DeveloperBattleTestLocationId && kind == SessionActivityKind.Battle)
+            _developerBattleLog.Append("BATTLE-ACTIVITY", message);
+    }
 
     private void PlayCharacterStepSound(LiveCharacter character) =>
         _sessionEventService.PlayCharacterStepSound(character, SelectedCharacter.Id);
@@ -8819,7 +8880,7 @@ public sealed class Game : ISessionCommandHandler
         var scenario = DeveloperBattleTestScenarioBuilder.Create(MazeWidth, MazeHeight, options,
             _gameData.Enemies, _random, maximumLevel);
         _locationKind = AdventureLocationKind.Campaign;
-        _locationId = "DEVELOPER_COMBAT_TEST";
+        _locationId = DeveloperBattleTestLocationId;
         _mazeLevel = options.PartyLevel;
         _difficultyLevel = options.PartyLevel;
         _suspendedCampaignState = null;
@@ -8857,6 +8918,8 @@ public sealed class Game : ISessionCommandHandler
         RevealFor(SelectedCharacter, _player.Position);
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
         _fogOfWar.ToggleDeveloperReveal();
+        _developerBattleLog.BeginScenario(options, scenario, CharacterRoster.Party.Members, _gameData,
+            NpcTacticsFor);
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
@@ -8866,9 +8929,11 @@ public sealed class Game : ISessionCommandHandler
             (character.IsSpellcaster
                 ? $", {character.MemorizedSpells.Count} memorizált varázslat)"
                 : ")")));
+        var logPath = _developerBattleLog.FilePath ?? "nem sikerült létrehozni";
         _renderer.DrawDeveloperMessage(
             $"Tesztpálya kész: {options.EnemyGroupCount}×{options.EnemiesPerGroup} ellenfél, " +
             $"{options.EnemyGroupCount} jelölőláda. Ctrl+Shift+U: köd visszakapcsolása. {partySummary}");
+        _renderer.DrawDeveloperMessage($"Harci tesztnapló: {logPath}");
         _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, exitDiscovered: false);
         RequestCoopSnapshotPublish();
         LogMazeAccessibilityCheck();
