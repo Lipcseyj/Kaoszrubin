@@ -67,6 +67,16 @@ public static class NpcSpellPlanningPolicy
         (enemyStrength >= tactics.FullOffenseEnemyStrength ||
          offensiveSpellsCast < tactics.OffensiveSpellsPerBattle);
 
+    public static bool CanPreferSaferFullCastingMove(int nearestEnemyDistance, int movementAllowance,
+        int selectedMovementDistance, double selectedUtility, double candidateUtility)
+    {
+        if (movementAllowance <= 1 || selectedMovementDistance <= 0 ||
+            selectedMovementDistance >= movementAllowance || nearestEnemyDistance > movementAllowance + 1)
+            return false;
+        var utilityTolerance = Math.Max(4.0, Math.Abs(selectedUtility) * PlanRetentionPercent / 100.0);
+        return candidateUtility >= selectedUtility - utilityTolerance;
+    }
+
     public static double PositionPenalty(int movementDistance, int movementAllowance,
         int adjacentEnemyStrength)
     {

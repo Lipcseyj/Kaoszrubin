@@ -8,12 +8,34 @@ public static class NpcSpellcastingPolicy
     public const int ManaReservePercent = 20;
     public const int HealThresholdPercent = 35;
     public const int EmergencyHealThresholdPercent = 10;
+    public const int EngagedPriestRoutineSpellInterval = 3;
 
     public static bool NeedsHealing(LiveCharacter character) =>
         ResourcePercent(character.CurrentVitality, character.MaximumVitality) <= HealThresholdPercent;
 
     public static bool IsEmergency(LiveCharacter character) =>
         ResourcePercent(character.CurrentVitality, character.MaximumVitality) <= EmergencyHealThresholdPercent;
+
+    public static bool HasCurableStatus(LiveCharacter character,
+        IEnumerable<SpellEffectDefinition> effects) => effects
+        .Where(effect => effect.Type == SpellEffectType.CureStatus)
+        .SelectMany(effect => SpellExecutionService.ParseEffectParameters(effect.Parameter))
+        .Any(character.HasStatus);
+
+    public static bool NeedsCleansing(LiveCharacter character,
+        IEnumerable<SpellEffectDefinition> effects)
+    {
+        var effectList = effects as IReadOnlyCollection<SpellEffectDefinition> ?? effects.ToArray();
+        return HasCurableStatus(character, effectList) ||
+               effectList.Any(effect => effect.Type == SpellEffectType.Dispel &&
+                   string.Equals(effect.Parameter, "HarmfulOnly", StringComparison.OrdinalIgnoreCase)) &&
+               character.ActiveSpellEffects.Any(active => !active.Beneficial) ||
+               effectList.Any(effect => effect.Type == SpellEffectType.BreakItemCurse) &&
+               character.HasActiveCurse;
+    }
+
+    public static bool CanPriestCastWhileEngaged(int battleCycle, bool urgent) =>
+        urgent || Math.Max(1, battleCycle) % EngagedPriestRoutineSpellInterval == 0;
 
     public static bool CanSpendMana(LiveCharacter caster, int manaCost, bool emergency = false)
     {

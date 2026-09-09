@@ -127,6 +127,8 @@ var tests = new (string Name, Action Run)[]
     ("A csapatharc célpontja akcióvesztés nélkül váltható", TeamBattleTargetCanBeChanged),
     ("Az NPC varázslási szabálya tartalékolja a mannát és csak egycélú támadást választ", NpcSpellcastingPolicyPreservesMana),
     ("Az Átoktörés csak ténylegesen tisztítható csapattársra használható", BreakCurseRequiresUsefulPartyTarget),
+    ("A Megtisztítás nem használható egyszerű gyógyításként", CleansingHealRequiresRemovableStatus),
+    ("A lekötött pap ritkítja a rutinvarázslást, de a sürgős segítséget nem", EngagedPriestSpellcastingIsThrottled),
     ("Az NPC támadóvarázslási összerőhatárai inkluzívak", NpcOffensiveSpellStrengthThresholdsAreInclusive),
     ("Az NPC varázspontozása csoport ellen területi, gyenge célra takarékos támadást kedvel", NpcSpellUtilityValuesTargetsAndOverkill),
     ("Az NPC varázsmemóriája váltogatja a repertoárt, de nem ír felül nagy erőkülönbséget", NpcSpellMemoryBalancesVarietyAndUtility),
@@ -134,6 +136,7 @@ var tests = new (string Name, Action Run)[]
     ("Az NPC varázsterv érvényét veszti halott célnál, elfogyott manánál és sikertelen tervnél", NpcSpellPlanInvalidationCoversFailureModes),
     ("Csak a szabad, alakzaton kívüli nem-lovag mozoghat varázslási pozícióba", NpcSpellPlanMovementHonorsClassAndBattleState),
     ("Az NPC tüzelőállás-pontozása körökkel és közelharci veszéllyel számol", NpcSpellPositionPenaltyIncludesTravelAndDanger),
+    ("A veszélyben tüzelőállást kereső mágus a teljes mozgást részesíti előnyben", NpcCasterPrefersFullSafeCastingMove),
     ("A csapatharc varázsmemóriája sorrendben őrzi a megkísérelt terveket", TeamBattleStoresNpcSpellMemory),
     ("A szabad és lekötött varázslás eltérően módosítja a harci hibakockázatot", EngagementAdjustsSpellFailureChance),
     ("A harcba hívott erősítés a következő körben lép be", TeamBattleReinforcementJoinsNextCycle),
@@ -5207,6 +5210,36 @@ static void BreakCurseRequiresUsefulPartyTarget()
         "Az Átoktörés a megtisztítás után továbbra is elsüthető maradt ugyanarra a csapattársra.");
 }
 
+static void CleansingHealRequiresRemovableStatus()
+{
+    var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+        CsvGameDataLoader.GameDataFileName));
+    var effects = catalog.GetSpellEffects("P014");
+    var ally = CreateCharacter("Tiszta", vitality: 40);
+    ally.ReceiveDamage(30);
+
+    Assert(NpcSpellcastingPolicy.NeedsHealing(ally) &&
+           !NpcSpellcastingPolicy.NeedsCleansing(ally, effects),
+        "A Megtisztítás a pusztán sérült, de tiszta csapattársat is tisztítandó célpontnak tekintette.");
+
+    ally.AddStatus(catalog.GetStatus(CharacterStatusIds.Poisoned));
+    Assert(NpcSpellcastingPolicy.NeedsCleansing(ally, effects),
+        "A Megtisztítás nem ismerte fel a mérgezett csapattársat.");
+    ally.RemoveStatus(CharacterStatusIds.Poisoned);
+    Assert(!NpcSpellcastingPolicy.NeedsCleansing(ally, effects),
+        "A Megtisztítás a méreg levétele után is indokoltnak látszik.");
+}
+
+static void EngagedPriestSpellcastingIsThrottled()
+{
+    Assert(!NpcSpellcastingPolicy.CanPriestCastWhileEngaged(1, urgent: false) &&
+           !NpcSpellcastingPolicy.CanPriestCastWhileEngaged(2, urgent: false) &&
+           NpcSpellcastingPolicy.CanPriestCastWhileEngaged(3, urgent: false),
+        "A lekötött pap rutinvarázslása nem minden harmadik csatakörre korlátozott.");
+    Assert(NpcSpellcastingPolicy.CanPriestCastWhileEngaged(1, urgent: true),
+        "A lekötött pap sürgős gyógyítását vagy tisztítását is letiltotta a ritkítás.");
+}
+
 static void NpcOffensiveSpellStrengthThresholdsAreInclusive()
 {
     var tactics = NpcSpellcasterTactics.Default.StandardProfile;
@@ -5340,6 +5373,16 @@ static void NpcSpellPositionPenaltyIncludesTravelAndDanger()
     var dangerous = NpcSpellPlanningPolicy.PositionPenalty(4, 3, 3);
     Assert(current == 0 && distant == 7 && dangerous == 13,
         $"A mozgási vagy veszélybüntetés hibás: {current}/{distant}/{dangerous}.");
+}
+
+static void NpcCasterPrefersFullSafeCastingMove()
+{
+    Assert(NpcSpellPlanningPolicy.CanPreferSaferFullCastingMove(3, 4, 1, 100, 94),
+        "A közeli ellenfélnél nem választható a közel azonos értékű, teljes mozgásnyi tüzelőállás.");
+    Assert(!NpcSpellPlanningPolicy.CanPreferSaferFullCastingMove(6, 4, 1, 100, 100) &&
+           !NpcSpellPlanningPolicy.CanPreferSaferFullCastingMove(3, 4, 0, 100, 100) &&
+           !NpcSpellPlanningPolicy.CanPreferSaferFullCastingMove(3, 4, 1, 100, 80),
+        "A teljes mozgás preferenciája biztonságos távolságban, mozgás nélkül vagy nagy hasznosságvesztéssel is aktiválódott.");
 }
 
 static void TeamBattleStoresNpcSpellMemory()

@@ -6771,6 +6771,8 @@ public sealed class Game : ISessionCommandHandler
                     $"over={candidate.Evaluation.Overkill:F2},targets={candidate.TargetCount},move={candidate.MovementDistance}," +
                     $"from={candidate.CastingPosition},aim={candidate.TargetPosition}"))}");
         var best = rankedCandidates.FirstOrDefault();
+        if (best is not null)
+            best = PreferSaferFullCastingMove(battle, caster, livingEnemies, rankedCandidates, best);
         if (best is null || battle.NpcSpellPlanFor(caster) is not { } activePlan) return best;
 
         var incumbent = rankedCandidates.FirstOrDefault(candidate =>
@@ -6780,6 +6782,43 @@ public sealed class Game : ISessionCommandHandler
             incumbent.Evaluation.Utility, best.Evaluation.Utility)
             ? incumbent
             : best;
+    }
+
+    private NpcOffensiveSpellCandidate PreferSaferFullCastingMove(TeamBattleEncounter battle,
+        LiveCharacter caster, IReadOnlyList<Enemy> livingEnemies,
+        IReadOnlyList<NpcOffensiveSpellCandidate> rankedCandidates, NpcOffensiveSpellCandidate selected)
+    {
+        var movementAllowance = Math.Max(1, battle.Current.MovementAllowance);
+        var origin = GetCasterPosition(caster);
+        var nearestEnemyDistance = livingEnemies.Min(enemy => TacticalDistance.Between(origin, enemy.Position));
+        if (!NpcSpellPlanningPolicy.CanPreferSaferFullCastingMove(nearestEnemyDistance, movementAllowance,
+                selected.MovementDistance, selected.Evaluation.Utility, selected.Evaluation.Utility))
+            return selected;
+
+        var actorId = CombatantId.ForCharacter(caster.Id);
+        return rankedCandidates
+            .Where(candidate => string.Equals(candidate.Spell.Id, selected.Spell.Id,
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                candidate.TargetCount >= selected.TargetCount &&
+                                candidate.MovementDistance >= movementAllowance &&
+                                NpcSpellPlanningPolicy.CanPreferSaferFullCastingMove(nearestEnemyDistance,
+                                    movementAllowance, selected.MovementDistance, selected.Evaluation.Utility,
+                                    candidate.Evaluation.Utility))
+            .Select(candidate =>
+            {
+                var path = FindNpcSpellcastingPath(battle, origin, candidate.CastingPosition, actorId);
+                if (path.Count < movementAllowance)
+                    return (Candidate: (NpcOffensiveSpellCandidate?)null, Safety: -1);
+                var firstTurnPosition = path[movementAllowance - 1];
+                var safety = livingEnemies.Min(enemy =>
+                    TacticalDistance.Between(firstTurnPosition, enemy.Position));
+                return (Candidate: (NpcOffensiveSpellCandidate?)candidate, Safety: safety);
+            })
+            .Where(option => option.Candidate is not null && option.Safety >= nearestEnemyDistance)
+            .OrderByDescending(option => option.Safety)
+            .ThenByDescending(option => option.Candidate!.Evaluation.Utility)
+            .Select(option => option.Candidate!)
+            .FirstOrDefault() ?? selected;
     }
 
     private static bool CandidateContinuesNpcSpellPlan(NpcOffensiveSpellCandidate candidate,
@@ -7114,6 +7153,18 @@ public sealed class Game : ISessionCommandHandler
     {
         var plan = ChooseTeamAiSpell(battle, caster);
         if (plan is null) return false;
+        if (caster.CharacterClass.Id == CharacterClassIds.Pap && battle.IsEngaged(caster))
+        {
+            var urgent = IsUrgentEngagedPriestSpell(battle, caster, plan);
+            if (!NpcSpellcastingPolicy.CanPriestCastWhileEngaged(battle.Turns.Cycle, urgent))
+            {
+                if (_locationId == DeveloperBattleTestLocationId)
+                    _developerBattleLog.Append("AI-ENGAGED-SPELL-SKIP",
+                        $"battle={battle.Id}; cycle={battle.Turns.Cycle}; caster={caster.Name}; " +
+                        $"spell={plan.Spell.Name}({plan.Spell.Id}); urgent={urgent}; reason=routine-cadence");
+                return false;
+            }
+        }
         var attempt = TryCastSpell(caster, GetCasterPosition(caster), plan.Spell, inCombat: true,
             plan.Enemy, explicitTarget: plan.Target);
         if (attempt is not { ConsumesTurn: true }) return false;
@@ -7139,6 +7190,23 @@ public sealed class Game : ISessionCommandHandler
         SynchronizeTeamBattleDefeats(battle, caster);
         AdvanceTeamBattleTurn(battle);
         return true;
+    }
+
+    private bool IsUrgentEngagedPriestSpell(TeamBattleEncounter battle, LiveCharacter caster,
+        NpcTeamSpellPlan plan)
+    {
+        var effects = _gameData.GetSpellEffects(plan.Spell.Id);
+        var targets = plan.Spell.TargetType switch
+        {
+            SpellTargetType.Self => [caster],
+            SpellTargetType.Party => battle.Characters.Where(character => character.IsAlive).ToArray(),
+            SpellTargetType.PartyMember => battle.Characters.Where(character => character.IsAlive &&
+                GetCasterPosition(character) == plan.Target).ToArray(),
+            _ => []
+        };
+        return targets.Any(target => NpcSpellcastingPolicy.NeedsCleansing(target, effects)) ||
+               effects.Any(effect => effect.Type == SpellEffectType.Heal) &&
+               targets.Any(NpcSpellcastingPolicy.IsEmergency);
     }
 
     private NpcTeamSpellPlan? ChooseTeamAiSpell(TeamBattleEncounter battle, LiveCharacter caster)
@@ -7172,6 +7240,8 @@ public sealed class Game : ISessionCommandHandler
         {
             var effects = _gameData.GetSpellEffects(spell.Id);
             if (!effects.Any(effect => effect.Type == SpellEffectType.Heal)) continue;
+            var alsoCleanses = effects.Any(effect => effect.Type is SpellEffectType.CureStatus or
+                SpellEffectType.Dispel or SpellEffectType.BreakItemCurse);
             var wounded = allies.Where(NpcSpellcastingPolicy.NeedsHealing).ToArray();
             if (wounded.Length == 0) break;
             IEnumerable<LiveCharacter> targets = spell.TargetType switch
@@ -7183,6 +7253,8 @@ public sealed class Game : ISessionCommandHandler
             };
             foreach (var target in targets)
             {
+                if (alsoCleanses && !NpcSpellcastingPolicy.NeedsCleansing(target, effects))
+                    continue;
                 var targetPosition = spell.TargetType is SpellTargetType.Self or SpellTargetType.Party
                     ? casterPosition : GetCasterPosition(target);
                 var emergency = spell.TargetType == SpellTargetType.Party
@@ -7199,8 +7271,9 @@ public sealed class Game : ISessionCommandHandler
         foreach (var spell in spells)
         {
             var effects = _gameData.GetSpellEffects(spell.Id);
-            if (!effects.Any(effect => effect.Type is SpellEffectType.CureStatus or SpellEffectType.Dispel)) continue;
-            foreach (var ally in allies.Where(ally => _spellExecutionService.CanAffectCharacter(spell, ally)))
+            if (!effects.Any(effect => effect.Type is SpellEffectType.CureStatus or SpellEffectType.Dispel or
+                    SpellEffectType.BreakItemCurse)) continue;
+            foreach (var ally in allies.Where(ally => NpcSpellcastingPolicy.NeedsCleansing(ally, effects)))
             {
                 var targetPosition = spell.TargetType is SpellTargetType.Self or SpellTargetType.Party
                     ? casterPosition : GetCasterPosition(ally);
