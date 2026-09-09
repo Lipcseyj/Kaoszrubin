@@ -6595,8 +6595,10 @@ public sealed class Game : ISessionCommandHandler
 
         var ready = ValidateSpellCast(caster, GetCasterPosition(caster), spell, true, target,
             explicitTarget: target.Position) is null;
+        var classification = NpcSpellTacticalClassifier.Classify(spell, _gameData.GetSpellEffects(spell.Id));
         var plan = new NpcSpellPlan(Guid.NewGuid(), spell.Id, target.Id, target.Position,
-            ready ? GetCasterPosition(caster) : null, NpcSpellPlanComplexity.Simple, battle.Turns.Cycle,
+            ready ? GetCasterPosition(caster) : null, classification.Complexity,
+            classification.AttackPattern, classification.Roles, battle.Turns.Cycle,
             ExpectedTargetCount: 1, ExpectedUtility: 0,
             ready ? NpcSpellPlanStatus.ReadyToCast : NpcSpellPlanStatus.SeekingPosition);
         battle.SetNpcSpellPlan(caster, plan);

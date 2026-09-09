@@ -32,12 +32,13 @@ public static class NpcSpellcastingPolicy
     public static bool IsSingleTargetOffensive(SpellDefinition spell,
         IEnumerable<SpellEffectDefinition> effects)
     {
-        var spellEffects = effects as IReadOnlyCollection<SpellEffectDefinition> ?? effects.ToArray();
-        return spell.TargetType == SpellTargetType.Enemy && spell.AreaRadius == 0 &&
-               spellEffects.Any(effect => effect.Type == SpellEffectType.Damage ||
-                   effect.Type is SpellEffectType.HitBonus or SpellEffectType.VisionBonus && effect.Value < 0) &&
-               spellEffects.All(effect => effect.Type != SpellEffectType.ChainDamage);
+        var classification = NpcSpellTacticalClassifier.Classify(spell, effects);
+        return classification.IsOffensive &&
+               classification.AttackPattern == NpcSpellAttackPattern.SingleTarget;
     }
+
+    public static bool IsOffensive(SpellDefinition spell, IEnumerable<SpellEffectDefinition> effects) =>
+        NpcSpellTacticalClassifier.Classify(spell, effects).IsOffensive;
 
     public static ActiveSpellEffectType? ActiveTypeFor(SpellEffectType type) => type switch
     {

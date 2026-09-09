@@ -12,6 +12,8 @@ public sealed record NpcSpellPlan(
     Position TargetPosition,
     Position? RequiredCastingPosition,
     NpcSpellPlanComplexity Complexity,
+    NpcSpellAttackPattern AttackPattern,
+    NpcSpellTacticalRole TacticalRoles,
     int CreatedInCycle,
     int ExpectedTargetCount,
     double ExpectedUtility,
