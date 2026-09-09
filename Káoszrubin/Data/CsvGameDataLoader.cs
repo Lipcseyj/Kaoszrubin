@@ -376,7 +376,11 @@ public static class CsvGameDataLoader
                     RequiredSpellManaCost(cells, id), RequiredSpellDescription(cells, id),
                     RequiredSpellTargetType(cells, id), RequiredNonNegativeInteger(cells, 6, id, "hatótáv"),
                     RequiredNonNegativeInteger(cells, 7, id, "terület"), IsYes(cells, 8),
-                    RequiredSpellUsageMode(cells, id)));
+                    RequiredSpellUsageMode(cells, id))
+                {
+                    ImpactPalette = OptionalImpactPalette(cells, id, SpellImpactPalette.Blue),
+                    ImpactDurationMilliseconds = OptionalImpactDuration(cells, id)
+                });
                 break;
             case DataSection.StrengthHitBonuses:
                 strengthHitBonuses.Add(new StrengthHitBonusDefinition(id, Integer(cells, 1) ?? 0,
@@ -402,7 +406,11 @@ public static class CsvGameDataLoader
                     RequiredSpellManaCost(cells, id), RequiredSpellDescription(cells, id),
                     RequiredSpellTargetType(cells, id), RequiredNonNegativeInteger(cells, 6, id, "hatótáv"),
                     RequiredNonNegativeInteger(cells, 7, id, "terület"), IsYes(cells, 8),
-                    RequiredSpellUsageMode(cells, id)));
+                    RequiredSpellUsageMode(cells, id))
+                {
+                    ImpactPalette = OptionalImpactPalette(cells, id, SpellImpactPalette.YellowBrown),
+                    ImpactDurationMilliseconds = OptionalImpactDuration(cells, id)
+                });
                 break;
             case DataSection.SpellEffects:
                 spellEffects.Add(new SpellEffectDefinition(id, Cell(cells, 1), Integer(cells, 2) ?? 0,
@@ -978,6 +986,18 @@ public static class CsvGameDataLoader
                 throw new InvalidOperationException($"A(z) '{item.Id}' gyűrűnek vagy amulettnek passzív hatással és töltet nélkül kell rendelkeznie.");
         }
     }
+
+    private static SpellImpactPalette OptionalImpactPalette(string[] cells, string id, SpellImpactPalette fallback) =>
+        string.IsNullOrWhiteSpace(Cell(cells, 10)) ? fallback :
+        Enum.TryParse<SpellImpactPalette>(Cell(cells, 10), true, out var palette) && Enum.IsDefined(palette)
+            ? palette
+            : throw new InvalidOperationException($"A(z) '{id}' becsapódásszíne Red, Blue vagy YellowBrown legyen.");
+
+    private static int? OptionalImpactDuration(string[] cells, string id) =>
+        string.IsNullOrWhiteSpace(Cell(cells, 11)) ? null :
+        int.TryParse(Cell(cells, 11), NumberStyles.Integer, CultureInfo.InvariantCulture, out var duration) && duration >= 0
+            ? duration
+            : throw new InvalidOperationException($"A(z) '{id}' becsapódásideje nemnegatív egész szám legyen (ezredmásodperc; 0 = kikapcsolva).");
 
     private static int RequiredSpellLevel(string[] cells, string id) => Integer(cells, 2) is >= 1 and <= 5 and var level
         ? level

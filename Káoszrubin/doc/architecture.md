@@ -22,6 +22,19 @@ A két rögzített osztályszett magasabb szintű, véletlenül generált karakt
 
 A Káoszrubin egy .NET 10 konzolos, egyjátékos labirintusjáték. Az alkalmazás adatvezérelt: a fajok, osztályok, ellenfelek, felszerelések, varázslatok és fejlődési küszöbök az `game-data.csv` fájlból töltődnek be. A karakterlista JSON-fájlban, a teljes futamok pedig időbélyeges `.save` állományokban maradnak meg.
 
+### Támadóvarázslatok becsapódása
+
+A támadóvarázslatok becsapódását az egycélpontos és lánctámadásoknál pulzáló előtér/háttér, területi támadásoknál kifelé futó színhullám jelzi. A lángtölcsér a sebzés tényleges kúpalakját követi. A lények jelei az effekt alatt is megmaradnak; a halálos sebzés csak az animáció után távolítja el őket. Csak felfedett térképcellák rajzolódnak, majd helyreáll az eredeti megjelenítés és a harci fókuszjelölés.
+
+A `#Varázslatok` és `#Papi varázslatok` szekció két opcionális utolsó oszlopa:
+
+- `BecsapódásSzín`: `Red` (tűz/pusztítás), `Blue` (jég/arkán) vagy `YellowBrown` (villám/szent fény). Az előtér és a háttér együtt változik. Üres mezőnél az arkán iskola kék, a papi iskola sárgásbarna.
+- `BecsapódásIdőMs`: nemnegatív egész ezredmásodperc. `1500` = 1,5 másodperc, `3000` = 3 másodperc, `0` = kikapcsolva. Üres vagy hiányzó oszlop esetén egy célpont és lánc: 1500 ms, terület és irány/tölcsér: 3000 ms. Ez csak a látvány ideje; a varázshatások körökben megadott időtartama külön adat marad.
+
+A mellékelt CSV minden effekt nélküli varázslatnál (buff, gyógyítás, teleportáció, feltámasztás és általános mágiaoszlatás) explicit `0` értéket használ. A 24 támadóvarázslat különböző, jellegéhez igazított időt kapott 500–5000 ms között: a Villámcsapás 500, a Mágikus lövedék 700, a Tűzgolyó 3000, a Meteorzápor 4700, az Arkán kataklizma 5000 ms. Az ellenséges gyengítések, például a Vakítás és a Lassítás, továbbra is becsapódási effektet kapnak.
+
+Az animáció a közös varázsvégrehajtásból indul, ezért a tárgyból és az NPC által elsütött támadásokat is kezeli. Térképes játék közben szünetel a világ, és ugyanennyivel eltolódnak a mozgás, szükségletek, NPC-önellátás és beszélgetések határidői. Csata közben a következő kör az effekt után folytatódik. Átirányított konzolkimenetnél és nem látható becsapódásnál nincs animációs várakozás.
+
 ### Halottűzés
 
 Az `MA001` Élőholt tulajdonságú ellenfelek ellen a Pap és a Lovag csatánként egyszer külön kasztakciót használhat; a partyvezérnél ez a `T` billentyű, az NPC-k pedig automatikusan választják. A képesség nem varázslat, ezért nem fogyaszt mannát, nem igényel memorizálást vagy fókusztárgyat, de egy teljes harci akcióba kerül.

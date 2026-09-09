@@ -361,7 +361,7 @@ W014,fapajzs,WT003,1-2,3,nem,igen,igen,nem,Könnyű pajzs amely kevés védelem�
 W015,vaspajzs,WT003,2-3,6,nem,nem,igen,nem,Masszív falap vasalt szegéllyel a beérkező csapások felfogására.,120,,,,5,zúzás,1,nem,SHIELD
 W016,acélpajzs,WT003,2-5,10,nem,nem,igen,nem,Masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.,250,,,,7,zúzás,1,nem,SHIELD
 W017,nagybalta,WT001,6-20,9,igen,nem,nem,nem,Kétkezes könyörtelen csatabárd.,500,,,,8,vágás,2,nem,AXE
-W018,harci bot,WT001,3-8,2,igen,igen,igen,igen,Hosszú keményfa bot gyors ütésekhez és védekezéshez.,45,,,,2,zúzás,1,igen,STAFF
+W018,harci bot,WT002,3-8,2,igen,igen,igen,igen,Hosszú keményfa bot gyors ütésekhez és védekezéshez.,45,,,,2,zúzás,1,igen,STAFF
 W019,óriásdorong,WT001,7-16,10,igen,nem,nem,nem,Hatalmas fatörzsből durván kifaragott kétkezes zúzófegyver.,0,,,,8,zúzás,2,nem,BLUNT
 W020,tüzes ostor,WT001,8-17,8,nem,nem,nem,nem,Pokoli lánggal izzó ostor amely messziről is lecsap az áldozatra.,0,,,,4,tűz,1,igen,WHIP
 W021,varázsbot,WT001,10-22,2,nem,nem,nem,igen,Sötét fából készült bot amelynek vége egy sötét vörösen pulzáló ékkövet fog körbe.,0,,,,2,nekrotikus,1,igen,STAFF
@@ -578,66 +578,66 @@ E050,100,igen,igen,igen,Varázs,Legendás,12,40000
 E051,65,igen,igen,igen,Sima,Varázs,2,900
 
 #Varázslatok
-Id,Név,Szint,Manna,Leírás,Célzás,Hatótáv,Terület,Látóvonal,HasználatiMód
-S001,Mágikus lövedék,1,6,Biztosan célba találó arkán lövedék amely a varázsló erejével növekszik.,Enemy,8,0,igen,Both
-S002,Fagyasztó érintés,1,5,Fagyos közelharci varázslat amely megsebzi és lelassítja az ellenfelet.,Enemy,1,0,igen,Both
-S003,Égő kéz,1,8,Rövid lángtölcsér amely több ellenfelet megsebezhet és lángra lobbanthat.,Direction,2,1,igen,Both
-S005,Lángoló nyíl,1,7,Nagy hatótávú tűznyíl amely találatkor égést okoz.,Enemy,8,0,igen,Both
-S021,Erőpajzs,1,6,Sűrű arkán mező amely rövid időre megerősíti a mágus védelmét.,Self,0,0,nem,Both
-S026,Fényvarázslat,1,6,Arkán fény veszi körül a mágust és messzebbre tárja fel előtte a labirintust.,Self,0,0,nem,Exploration
-S004,Villámcsapás,2,12,Egyetlen célpontba vezetett nagy erejű villámcsapás.,Enemy,6,0,igen,Both
-S006,Láthatatlanság,2,11,Egy partitag eltűnik az ellenfelek szeme elől amíg támadást nem indít.,PartyMember,6,0,igen,Both
-S013,Arkán páncél,2,10,Mágikus védőréteg amely ideiglenesen növeli a varázsló védelmét.,Self,0,0,nem,Both
-S014,Lassítás,2,12,Megzavarja az ellenfél időérzékét és minden második akcióját elveheti.,Enemy,8,0,igen,Both
-S022,Jégbilincs,2,11,Fagyos bilincsek lassítják az ellenfelet és megakasztják minden második mozdulatát.,Enemy,8,0,igen,Both
-S027,Vakítás,2,11,Vakító arkán villanás homályosítja el az ellenfél látását és jelentősen rontja a támadásainak pontosságát.,Enemy,8,0,igen,Both
-S007,Tűzgolyó,3,18,Nagy területen robbanó tűzgömb amely égő sebeket hagy maga után.,Area,8,2,igen,Both
-S008,Jégvihar,3,18,Fagyos vihar amely megsebzi és több körre lelassítja az ellenfeleket.,Area,8,2,igen,Both
-S010,Teleportáció,3,14,A varázsló egy már felfedezett szabad mezőre teleportál.,Cell,8,0,nem,Both
-S015,Mágia szétoszlatása,3,16,Megszünteti a célterületen működő ideiglenes mágikus hatásokat.,Area,6,1,igen,Both
-S023,Hasadó villám,3,18,Egy villámív több egymáshoz közeli ellenfélen is végigfut.,Enemy,8,0,igen,Both
-S028,Rémkép,3,15,Rémisztő látomásokat idéz az ellenségek elméjébe amelyek megtorpannak és bizonytalanabbul támadnak.,Area,7,1,igen,Both
-S009,Villámvihar,4,26,Tartós villámvihar amely a kezdeti csapás után tovább sebzi az ellenfeleket.,Area,8,2,igen,Both
-S011,Meteorzápor,4,30,Meteorok pusztítják el a célterületet és égő talajt hagynak hátra.,Area,10,3,igen,Both
-S016,Láncvillám,4,28,A villám az első célpontról legfeljebb három közeli ellenfélre ugrik.,Enemy,8,0,igen,Both
-S017,Kőbőr,4,24,Egy partitag kőkemény bőrt kap amely felezi a fizikai sérülést és megakadályozza a vérzést.,PartyMember,6,0,igen,Both
-S024,Harci gyorsítás,4,25,Felgyorsítja a teljes partit és pontosabbá teszi a támadásaikat.,Party,0,0,nem,Both
-S012,Időmegállítás,5,42,A mágus rövid időre megállítja környezetét és két további akciót kap.,Self,0,0,nem,Combat
-S018,Dezintegráció,5,40,Elsöprő sugár amely súlyosan sebzi és a legyengült ellenfelet elpusztíthatja.,Enemy,8,0,igen,Both
-S019,Dimenziókapu,5,32,A teljes élő parti egy távoli felfedezett területre teleportál.,Cell,10,0,nem,Both
-S020,Arkán kataklizma,5,50,Hatalmas területi pusztítás amely véletlen elemi utóhatást kelt.,Area,10,4,igen,Both
-S025,Lélekvihar,5,44,Sötét arkán vihar tépi az ellenfeleket és még több körön át pusztítja őket.,Area,9,3,igen,Both
+Id,Név,Szint,Manna,Leírás,Célzás,Hatótáv,Terület,Látóvonal,HasználatiMód,BecsapódásSzín,BecsapódásIdőMs
+S001,Mágikus lövedék,1,6,Biztosan célba találó arkán lövedék amely a varázsló erejével növekszik.,Enemy,8,0,igen,Both,Blue,700
+S002,Fagyasztó érintés,1,5,Fagyos közelharci varázslat amely megsebzi és lelassítja az ellenfelet.,Enemy,1,0,igen,Both,Blue,1200
+S003,Égő kéz,1,8,Rövid lángtölcsér amely több ellenfelet megsebezhet és lángra lobbanthat.,Direction,2,1,igen,Both,Red,2200
+S005,Lángoló nyíl,1,7,Nagy hatótávú tűznyíl amely találatkor égést okoz.,Enemy,8,0,igen,Both,Red,1000
+S021,Erőpajzs,1,6,Sűrű arkán mező amely rövid időre megerősíti a mágus védelmét.,Self,0,0,nem,Both,Blue,0
+S026,Fényvarázslat,1,6,Arkán fény veszi körül a mágust és messzebbre tárja fel előtte a labirintust.,Self,0,0,nem,Exploration,Blue,0
+S004,Villámcsapás,2,12,Egyetlen célpontba vezetett nagy erejű villámcsapás.,Enemy,6,0,igen,Both,YellowBrown,500
+S006,Láthatatlanság,2,11,Egy partitag eltűnik az ellenfelek szeme elől amíg támadást nem indít.,PartyMember,6,0,igen,Both,Blue,0
+S013,Arkán páncél,2,10,Mágikus védőréteg amely ideiglenesen növeli a varázsló védelmét.,Self,0,0,nem,Both,Blue,0
+S014,Lassítás,2,12,Megzavarja az ellenfél időérzékét és minden második akcióját elveheti.,Enemy,8,0,igen,Both,Blue,1600
+S022,Jégbilincs,2,11,Fagyos bilincsek lassítják az ellenfelet és megakasztják minden második mozdulatát.,Enemy,8,0,igen,Both,Blue,2000
+S027,Vakítás,2,11,Vakító arkán villanás homályosítja el az ellenfél látását és jelentősen rontja a támadásainak pontosságát.,Enemy,8,0,igen,Both,YellowBrown,600
+S007,Tűzgolyó,3,18,Nagy területen robbanó tűzgömb amely égő sebeket hagy maga után.,Area,8,2,igen,Both,Red,3000
+S008,Jégvihar,3,18,Fagyos vihar amely megsebzi és több körre lelassítja az ellenfeleket.,Area,8,2,igen,Both,Blue,3600
+S010,Teleportáció,3,14,A varázsló egy már felfedezett szabad mezőre teleportál.,Cell,8,0,nem,Both,Blue,0
+S015,Mágia szétoszlatása,3,16,Megszünteti a célterületen működő ideiglenes mágikus hatásokat.,Area,6,1,igen,Both,Blue,0
+S023,Hasadó villám,3,18,Egy villámív több egymáshoz közeli ellenfélen is végigfut.,Enemy,8,0,igen,Both,YellowBrown,1800
+S028,Rémkép,3,15,Rémisztő látomásokat idéz az ellenségek elméjébe amelyek megtorpannak és bizonytalanabbul támadnak.,Area,7,1,igen,Both,Blue,3400
+S009,Villámvihar,4,26,Tartós villámvihar amely a kezdeti csapás után tovább sebzi az ellenfeleket.,Area,8,2,igen,Both,YellowBrown,3800
+S011,Meteorzápor,4,30,Meteorok pusztítják el a célterületet és égő talajt hagynak hátra.,Area,10,3,igen,Both,Red,4700
+S016,Láncvillám,4,28,A villám az első célpontról legfeljebb három közeli ellenfélre ugrik.,Enemy,8,0,igen,Both,YellowBrown,2600
+S017,Kőbőr,4,24,Egy partitag kőkemény bőrt kap amely felezi a fizikai sérülést és megakadályozza a vérzést.,PartyMember,6,0,igen,Both,Blue,0
+S024,Harci gyorsítás,4,25,Felgyorsítja a teljes partit és pontosabbá teszi a támadásaikat.,Party,0,0,nem,Both,Blue,0
+S012,Időmegállítás,5,42,A mágus rövid időre megállítja környezetét és két további akciót kap.,Self,0,0,nem,Combat,Blue,0
+S018,Dezintegráció,5,40,Elsöprő sugár amely súlyosan sebzi és a legyengült ellenfelet elpusztíthatja.,Enemy,8,0,igen,Both,Red,2800
+S019,Dimenziókapu,5,32,A teljes élő parti egy távoli felfedezett területre teleportál.,Cell,10,0,nem,Both,Blue,0
+S020,Arkán kataklizma,5,50,Hatalmas területi pusztítás amely véletlen elemi utóhatást kelt.,Area,10,4,igen,Both,Blue,5000
+S025,Lélekvihar,5,44,Sötét arkán vihar tépi az ellenfeleket és még több körön át pusztítja őket.,Area,9,3,igen,Both,Red,4200
 
 #Papi varázslatok
-Id,Név,Szint,Manna,Leírás,Célzás,Hatótáv,Terület,Látóvonal,HasználatiMód
-P001,Gyógyító érintés,1,5,Érintéssel gyógyít 2d8 plusz Intelligencia plusz karakterszint HP-t.,PartyMember,1,0,igen,Both
-P002,Szent fény,1,6,Szent fényt lő egy ellenfélre amely élőholt és démoni célpont ellen másfélszeres sebzést okoz.,Enemy,8,0,igen,Both
-P003,Áldás,1,8,Négy körre találatot védelmet és kezdeményezést ad minden élő part tagnak.,Party,0,0,nem,Both
-P006,Méregűzés,1,5,Eltávolítja a Mérgezés állapotot egy élő part tagjáról.,PartyMember,6,0,igen,Both
-P021,Étel és ital teremtése,1,6,Mennyei útravalót és tiszta vizet teremt amely az egész parti szükségleteit enyhíti.,Party,0,0,nem,Exploration
-P026,Fegyveráldás,1,6,A pap rövid időre szent erővel áldja meg saját fegyverét amely pontosabban és nagyobb erővel sújt le.,Self,0,0,nem,Both
-P004,Szent pajzs,2,10,Négy körre öt pont védelmet ad egy élő part tagnak.,PartyMember,6,0,igen,Both
-P005,Gyógyítás,2,11,Hat mezőről nagy mennyiségű életerőt állít vissza egy élő part tagnak.,PartyMember,6,0,igen,Both
-P007,Védelem a gonosztól,2,12,Öt körre védelmet és sebzéscsökkentést ad élőholt vagy démoni támadó ellen.,PartyMember,6,0,igen,Both
-P013,Betegségűzés,2,10,Eltávolítja a Betegség állapotot és visszaállítja a normál erőforrásmaximumokat.,PartyMember,6,0,igen,Both
-P022,Remény imája,2,12,Szelíd isteni erő gyógyítja egyszerre a teljes élő partit.,Party,0,0,nem,Both
-P027,Átoktörés,2,11,Isteni erő töri meg az egy partitagot sújtó káros mágikus hatásokat és annak legerősebb aktív tárgyátkát.,PartyMember,6,0,igen,Both
-P009,Szent csapás,3,17,Súlyos szent sebzést okoz és rontott ellenpróbánál elveszi a következő ellenséges akciót.,Enemy,8,0,igen,Both
-P010,Isteni védelem,3,18,Négy körre védelmet és huszonöt százalék fizikai sebzéscsökkentést ad a teljes partinak.,Party,0,0,nem,Both
-P014,Megtisztítás,3,15,Eltávolítja a Mérgezés Betegség és Vérzés állapotot majd gyógyítja a célpontot.,PartyMember,6,0,igen,Both
-P015,Bátorság imája,3,14,Öt körre találatot fizikai sebzést és kezdeményezést ad a teljes partinak.,Party,0,0,nem,Both
-P023,Szent fegyver,3,16,Áldott erő teszi pontosabbá és pusztítóbbá a teljes parti fegyvereit.,Party,0,0,nem,Both
-P028,Fénykitörés,3,16,Robbanásszerű szent fény sújtja a célterület ellenségeit és megrendítheti őket.,Area,7,1,igen,Both
-P008,Feltámasztás,4,30,Egy elesett társat huszonöt százalék HP-val és nulla mannával hoz vissza.,Corpse,6,0,igen,Both
-P011,Szent ítélet,4,28,Nagy szent sebzést okoz és rontott ellenpróbánál eltávolítja a pozitív varázshatásokat.,Enemy,8,0,igen,Both
-P016,Őrangyal,4,26,Öt körig kivédi a célpont első halálos csapását majd gyógyítja őt.,PartyMember,6,0,igen,Both
-P017,Tömeges gyógyítás,4,30,Minden élő part tagnak egyszerre nagy mennyiségű életerőt állít vissza.,Party,0,0,nem,Both
-P024,Égi bástya,4,27,Mennyei oltalom növeli a teljes parti védelmét és csökkenti a fizikai sérüléseket.,Party,0,0,nem,Both
-P012,Isteni csoda,5,45,Maximumra gyógyítja és minden súlyos állapottól megtisztítja a teljes élő partit.,Party,0,0,nem,Both
-P018,Isteni harag,5,46,Hatalmas területi szent sebzést okoz minden ellenségnek de a partit nem sebzi.,Area,8,3,igen,Both
-P019,Szentély,5,38,Négy körre felére csökkenti a közeli part tagokat érő sebzést és állapotvédelmet ad.,Self,0,3,nem,Both
-P020,Igazi feltámasztás,5,50,Egy elesett társat teljes HP-val fél mannával és negatív állapotok nélkül hoz vissza.,Corpse,8,0,igen,Both
-P025,Mennyei tűz,5,45,Tiszta égi láng borítja el az ellenségeket és tovább perzseli őket.,Area,9,3,igen,Both
+Id,Név,Szint,Manna,Leírás,Célzás,Hatótáv,Terület,Látóvonal,HasználatiMód,BecsapódásSzín,BecsapódásIdőMs
+P001,Gyógyító érintés,1,5,Érintéssel gyógyít 2d8 plusz Intelligencia plusz karakterszint HP-t.,PartyMember,1,0,igen,Both,YellowBrown,0
+P002,Szent fény,1,6,Szent fényt lő egy ellenfélre amely élőholt és démoni célpont ellen másfélszeres sebzést okoz.,Enemy,8,0,igen,Both,YellowBrown,800
+P003,Áldás,1,8,Négy körre találatot védelmet és kezdeményezést ad minden élő part tagnak.,Party,0,0,nem,Both,YellowBrown,0
+P006,Méregűzés,1,5,Eltávolítja a Mérgezés állapotot egy élő part tagjáról.,PartyMember,6,0,igen,Both,YellowBrown,0
+P021,Étel és ital teremtése,1,6,Mennyei útravalót és tiszta vizet teremt amely az egész parti szükségleteit enyhíti.,Party,0,0,nem,Exploration,YellowBrown,0
+P026,Fegyveráldás,1,6,A pap rövid időre szent erővel áldja meg saját fegyverét amely pontosabban és nagyobb erővel sújt le.,Self,0,0,nem,Both,YellowBrown,0
+P004,Szent pajzs,2,10,Négy körre öt pont védelmet ad egy élő part tagnak.,PartyMember,6,0,igen,Both,YellowBrown,0
+P005,Gyógyítás,2,11,Hat mezőről nagy mennyiségű életerőt állít vissza egy élő part tagnak.,PartyMember,6,0,igen,Both,YellowBrown,0
+P007,Védelem a gonosztól,2,12,Öt körre védelmet és sebzéscsökkentést ad élőholt vagy démoni támadó ellen.,PartyMember,6,0,igen,Both,YellowBrown,0
+P013,Betegségűzés,2,10,Eltávolítja a Betegség állapotot és visszaállítja a normál erőforrásmaximumokat.,PartyMember,6,0,igen,Both,YellowBrown,0
+P022,Remény imája,2,12,Szelíd isteni erő gyógyítja egyszerre a teljes élő partit.,Party,0,0,nem,Both,YellowBrown,0
+P027,Átoktörés,2,11,Isteni erő töri meg az egy partitagot sújtó káros mágikus hatásokat és annak legerősebb aktív tárgyátkát.,PartyMember,6,0,igen,Both,YellowBrown,0
+P009,Szent csapás,3,17,Súlyos szent sebzést okoz és rontott ellenpróbánál elveszi a következő ellenséges akciót.,Enemy,8,0,igen,Both,YellowBrown,1400
+P010,Isteni védelem,3,18,Négy körre védelmet és huszonöt százalék fizikai sebzéscsökkentést ad a teljes partinak.,Party,0,0,nem,Both,YellowBrown,0
+P014,Megtisztítás,3,15,Eltávolítja a Mérgezés Betegség és Vérzés állapotot majd gyógyítja a célpontot.,PartyMember,6,0,igen,Both,YellowBrown,0
+P015,Bátorság imája,3,14,Öt körre találatot fizikai sebzést és kezdeményezést ad a teljes partinak.,Party,0,0,nem,Both,YellowBrown,0
+P023,Szent fegyver,3,16,Áldott erő teszi pontosabbá és pusztítóbbá a teljes parti fegyvereit.,Party,0,0,nem,Both,YellowBrown,0
+P028,Fénykitörés,3,16,Robbanásszerű szent fény sújtja a célterület ellenségeit és megrendítheti őket.,Area,7,1,igen,Both,YellowBrown,2400
+P008,Feltámasztás,4,30,Egy elesett társat huszonöt százalék HP-val és nulla mannával hoz vissza.,Corpse,6,0,igen,Both,YellowBrown,0
+P011,Szent ítélet,4,28,Nagy szent sebzést okoz és rontott ellenpróbánál eltávolítja a pozitív varázshatásokat.,Enemy,8,0,igen,Both,YellowBrown,3200
+P016,Őrangyal,4,26,Öt körig kivédi a célpont első halálos csapását majd gyógyítja őt.,PartyMember,6,0,igen,Both,YellowBrown,0
+P017,Tömeges gyógyítás,4,30,Minden élő part tagnak egyszerre nagy mennyiségű életerőt állít vissza.,Party,0,0,nem,Both,YellowBrown,0
+P024,Égi bástya,4,27,Mennyei oltalom növeli a teljes parti védelmét és csökkenti a fizikai sérüléseket.,Party,0,0,nem,Both,YellowBrown,0
+P012,Isteni csoda,5,45,Maximumra gyógyítja és minden súlyos állapottól megtisztítja a teljes élő partit.,Party,0,0,nem,Both,YellowBrown,0
+P018,Isteni harag,5,46,Hatalmas területi szent sebzést okoz minden ellenségnek de a partit nem sebzi.,Area,8,3,igen,Both,YellowBrown,4000
+P019,Szentély,5,38,Négy körre felére csökkenti a közeli part tagokat érő sebzést és állapotvédelmet ad.,Self,0,3,nem,Both,YellowBrown,0
+P020,Igazi feltámasztás,5,50,Egy elesett társat teljes HP-val fél mannával és negatív állapotok nélkül hoz vissza.,Corpse,8,0,igen,Both,YellowBrown,0
+P025,Mennyei tűz,5,45,Tiszta égi láng borítja el az ellenségeket és tovább perzseli őket.,Area,9,3,igen,Both,Red,4500
 
 #Varázshatások
 Id,VarázslatId,Sorrend,Típus,Kocka,IntSzorzó,SzintSzorzó,Érték,IdőtartamKör,Esély,Ellenpróba,Paraméter,Leírás

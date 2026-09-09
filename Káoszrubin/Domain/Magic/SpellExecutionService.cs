@@ -182,7 +182,8 @@ public sealed class SpellExecutionService
         Func<Position, bool, bool> onTeleportLeader,
         Func<Position, bool, string> onTeleportLivingParty,
         Func<Position, SpellEffectDefinition, string> onResurrectPartyMember,
-        Action<LiveCharacter>? onRefreshCharacterSheet = null)
+        Action<LiveCharacter>? onRefreshCharacterSheet = null,
+        Action<IReadOnlyList<Position>>? onOffensiveImpact = null)
     {
         _calculation.Clear();
         _criticalOccurred = false;
@@ -366,6 +367,11 @@ public sealed class SpellExecutionService
                 ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints, notes, maze);
             notes.Add("🔁 Láncvarázs: a sebzés ingyen megismétlődött");
         }
+
+        // Present the impact before lethal damage removes creatures from the map.
+        // The damage dictionary also contains the actual secondary chain targets.
+        if (IsOffensiveSpell(spell))
+            onOffensiveImpact?.Invoke(damage.Keys.Select(enemy => enemy.Position).Distinct().ToArray());
 
         var currentDamage = 0;
         var actualDamage = 0;

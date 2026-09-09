@@ -5584,7 +5584,46 @@ public sealed class Game : ISessionCommandHandler
         _spellExecutionService.ExecuteSpell(caster, casterPosition, spell, target, inCombat, currentEnemy, divineJudgment,
             ref _timeStopUsedThisBattle, LivingPartyWithPositions().ToArray(), _maze,
             ApplyExplorationSpellDamage, TeleportLeader, TeleportLivingParty, ResurrectPartyMember,
-            c => _renderer.RefreshCharacterSheet(c));
+            c => _renderer.RefreshCharacterSheet(c),
+            targets => PlaySpellImpact(spell, casterPosition, target, targets));
+
+    private void PlaySpellImpact(SpellDefinition spell, Position casterPosition, Position target,
+        IReadOnlyList<Position> enemyTargets)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            _renderer.PlaySpellImpact(_maze, _fogOfWar, _player.Position, spell, casterPosition, target, enemyTargets);
+        }
+        finally
+        {
+            // This runs on the game loop: no world action advances during the animation.
+            // Move deadlines too, so wall-clock time cannot cause catch-up actions afterwards.
+            if (!_battleStarted) ShiftExplorationSchedules(watch.Elapsed);
+        }
+    }
+
+    private void ShiftExplorationSchedules(TimeSpan pause)
+    {
+        _nextNeedsDrain += pause;
+        _nextNpcSelfCareCheck += pause;
+        _nextAdHocConversationCheckUtc += pause;
+        if (_lastAdHocConversationUtc != DateTime.MinValue) _lastAdHocConversationUtc += pause;
+        if (_nextEnemyActionUtc != DateTime.MaxValue) _nextEnemyActionUtc += pause;
+        ShiftDeadlines(_nextEnemyMoves, pause);
+        ShiftDeadlines(_nextPartyMoves, pause);
+        ShiftDeadlines(_nextControlledMoves, pause);
+        ShiftDeadlines(_nextNpcComplaints, pause);
+        _partyScatterUntil += pause;
+        _partyCommandState = _partyCommandState with { ScatterUntil = _partyCommandState.ScatterUntil + pause };
+    }
+
+    private static void ShiftDeadlines<TKey>(Dictionary<TKey, DateTime> deadlines, TimeSpan pause) where TKey : notnull
+    {
+        foreach (var key in deadlines.Keys.ToArray())
+            if (deadlines[key] != DateTime.MaxValue && deadlines[key] != DateTime.MinValue)
+                deadlines[key] += pause;
+    }
 
     private IEnumerable<Enemy> ResolveEnemySpellTargets(SpellDefinition spell, Position target, Enemy? currentEnemy, Position casterPosition) =>
         _spellExecutionService.ResolveEnemySpellTargets(spell, target, currentEnemy, casterPosition, _maze);

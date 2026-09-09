@@ -17,6 +17,9 @@ using System.Text;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A becsapódások CSV-színe, ideje, alapértéke és validációja működik", SpellImpactTests.CsvSettings),
+    ("A becsapódások területe, tölcsére, lánca és színhulláma pontos", SpellImpactTests.FootprintsAndAnimation),
+    ("A támadó becsapódás a sebzés előtt az összes lánccélpontot megkapja", SpellImpactTests.ImpactPrecedesDamage),
     ("A terminál méretőre pontosan a teljes játékképernyőt követeli meg", TerminalViewportRequiresCompleteGameScreen),
     ("A Windows Terminal újraindítás debuggerben és gyermekfolyamatban kimarad", WindowsTerminalRelaunchGuardsAreStable),
     ("A többsoros fogadói pletyka minden sora a kereten belül marad", MultilineInnRumorStaysInsideFrame),

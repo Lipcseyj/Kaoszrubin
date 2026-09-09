@@ -2690,6 +2690,57 @@ public sealed class ConsoleRenderer
         RenderMessageLog();
     }
 
+    public void PlaySpellImpact(Maze maze, FogOfWar fogOfWar, Position playerPosition,
+        SpellDefinition spell, Position casterPosition, Position target, IReadOnlyList<Position> enemyTargets)
+    {
+        if (spell.EffectiveImpactDurationMilliseconds <= 0 || Console.IsOutputRedirected) return;
+        var cells = SpellImpactVisual.GetCells(spell, casterPosition, target, enemyTargets, maze)
+            .Where(fogOfWar.IsVisible)
+            .ToDictionary(position => position, position => GetMapCellVisual(maze, fogOfWar, position, playerPosition));
+        if (cells.Count == 0) return;
+        var origin = spell.TargetType == SpellTargetType.Direction ? casterPosition : target;
+        var watch = Stopwatch.StartNew();
+        try
+        {
+            while (watch.Elapsed.TotalMilliseconds < spell.EffectiveImpactDurationMilliseconds)
+            {
+                if (!TerminalViewport.TryGetSize(out var size) || !size.CanFit(maze.Width, maze.Height)) break;
+                var elapsed = watch.Elapsed.TotalMilliseconds;
+                foreach (var (position, visual) in cells)
+                {
+                    var colors = SpellImpactVisual.GetColors(spell, position, origin, elapsed);
+                    Console.SetCursorPosition(position.X, position.Y);
+                    WriteRuneWithColor(visual.Rune, colors.Foreground, colors.Background);
+                }
+                Thread.Sleep((int)Math.Max(1, Math.Min(50,
+                    spell.EffectiveImpactDurationMilliseconds - watch.Elapsed.TotalMilliseconds)));
+            }
+        }
+        catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception))
+        {
+            // Resizing may interrupt the animation, but must not cancel a paid spell.
+        }
+        finally
+        {
+            try
+            {
+                foreach (var (position, visual) in cells)
+                {
+                    Console.SetCursorPosition(position.X, position.Y);
+                    var focused = _teamBattleFocusPositions.Contains(position);
+                    WriteRuneWithColor(visual.Rune,
+                        focused ? visual.BackgroundColor : visual.ForegroundColor,
+                        focused ? visual.ForegroundColor : visual.BackgroundColor);
+                }
+                ResetColorCache();
+            }
+            catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception))
+            {
+                // The main viewport loop restores the screen once the terminal fits again.
+            }
+        }
+    }
+
     public void DrawSpellTargetCursor(Maze maze, FogOfWar fogOfWar, Position? previousPosition,
         Position position, bool valid, string prompt)
     {
