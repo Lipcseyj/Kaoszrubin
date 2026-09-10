@@ -33,6 +33,7 @@ public sealed class Game : ISessionCommandHandler
     private const int ControlledMoveDelayMilliseconds = 85;
     private const int FieldRepairAmount = 50;
     private const int FieldRepairMaximumPercent = 75;
+    private static readonly TimeSpan StalemateRestartDelay = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan CoopSnapshotHeartbeatInterval = TimeSpan.FromSeconds(2);
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
@@ -8521,8 +8522,11 @@ public sealed class Game : ISessionCommandHandler
     {
         _renderer.DrawBattleCommandPanel(string.Empty);
         _session.EndBattle(battle.Id);
+        var cycles = Math.Max(1, battle.Turns.Cycle);
+        var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
+        var resourceSummary = ConsoleRenderer.FormatTeamBattleResourceSummary(characterResults, cycles);
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
-            DrainNeedsAfterTeamBattle(character, battle.Turns.Cycle);
+            DrainNeedsAfterTeamBattle(character, cycles);
         var inactive = battle.InactiveSidesLastCompletedCycle;
         if (_locationId == DeveloperBattleTestLocationId)
             _developerBattleLog.CompleteBattle(battle, "stalemate");
@@ -8541,19 +8545,24 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.DarkYellow);
+        var details = $"Eredmény: {resourceSummary}";
+        _renderer.DrawInventoryMessage(details, ConsoleColor.Cyan);
+        RecordSessionActivity(SessionActivityKind.Battle, details, ConsoleColor.Cyan);
         foreach (var (character, result) in _pendingLevelUps.ToArray())
             ResolvePerkOffers(character, result);
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.RestoreAfterBattle();
         _pendingLevelUps.Clear();
         if (_saveAfterBattle)
         {
             _saveAfterBattle = false;
             SaveGame();
         }
-        InitializeEnemyMoveSchedule(DateTime.UtcNow + TimeSpan.FromSeconds(2));
-        foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
+        var resumeAt = DateTime.UtcNow + StalemateRestartDelay;
+        InitializeEnemyMoveSchedule(resumeAt);
+        foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, resumeAt);
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
-        RequestCoopSnapshotPublish();
+        ForceCoopSnapshotPublish();
+        Thread.Sleep(800);
     }
 
     private void FinishTeamBattle(TeamBattleEncounter battle, bool forceDefeat = false)
