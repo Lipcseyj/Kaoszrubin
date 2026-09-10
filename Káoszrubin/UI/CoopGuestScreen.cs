@@ -316,25 +316,16 @@ public sealed class CoopGuestScreen
         client.SendCommandAsync(new SetPlayerWindowVisibilityCommand(client.PlayerId!.Value,
             client.NextCommandId(), characterId, kind, windowId, isOpen), cancellationToken);
 
-    private async Task OpenInventoryAsync(CoopSignalRClient client, CharacterId characterId,
-        CancellationToken cancellationToken)
-    {
-        _personalWindowId ??= Guid.NewGuid();
-        _personalWindowKind = PlayerWindowKind.Inventory;
-        await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.Inventory,
-            _personalWindowId.Value, true, cancellationToken);
-    }
-
     private async Task CloseInventoryAsync(CoopSignalRClient client, CharacterId characterId,
         CancellationToken cancellationToken = default)
     {
         var windowId = _personalWindowId;
-        var kind = _personalWindowKind ?? PlayerWindowKind.Inventory;
+        var kind = _personalWindowKind;
         CloseInventoryLocally();
         _personalWindowId = null;
         _personalWindowKind = null;
-        if (windowId is not null)
-            await SendPersonalWindowStateAsync(client, characterId, kind, windowId.Value, false,
+        if (windowId is not null && kind is not null)
+            await SendPersonalWindowStateAsync(client, characterId, kind.Value, windowId.Value, false,
                 cancellationToken);
     }
 
@@ -386,8 +377,8 @@ public sealed class CoopGuestScreen
         }
         if (snapshot.Phase != GameSessionPhase.Exploration)
             ClearDoorTargeting();
-        // A saját személyes ablak marad fókuszban akkor is, ha közben közös esemény érkezik.
-        // A közös ablakot a rajzolás ilyenkor csak várakozó státuszként jelzi.
+        // A térképet kitakaró személyes ablak marad fókuszban akkor is, ha közös esemény érkezik.
+        // Az oldalsó inventory nem blokkoló ablak; közös eseménynél átadja a fókuszt.
         if (_characterDetailsOpen)
         {
             if (key is ConsoleKey.R or ConsoleKey.Escape or ConsoleKey.Enter)
@@ -395,9 +386,10 @@ public sealed class CoopGuestScreen
                 _characterDetailsOpen = false;
                 if (_personalWindowId is { } detailsWindowId)
                 {
-                    _personalWindowKind = PlayerWindowKind.Inventory;
-                    await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.Inventory,
-                        detailsWindowId, true, cancellationToken);
+                    _personalWindowKind = null;
+                    _personalWindowId = null;
+                    await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.CharacterDetails,
+                        detailsWindowId, false, cancellationToken);
                 }
             }
             else
@@ -420,19 +412,10 @@ public sealed class CoopGuestScreen
             var spellInfoCommand = HandleSpellInfoInput(client, characterId, snapshot, key);
             if (!_spellInfoOpen && _personalWindowId is { } spellInfoWindowId)
             {
-                if (_inventoryOpen)
-                {
-                    _personalWindowKind = PlayerWindowKind.Inventory;
-                    await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.Inventory,
-                        spellInfoWindowId, true, cancellationToken);
-                }
-                else
-                {
-                    _personalWindowKind = null;
-                    _personalWindowId = null;
-                    await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.SpellInfo,
-                        spellInfoWindowId, false, cancellationToken);
-                }
+                _personalWindowKind = null;
+                _personalWindowId = null;
+                await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.SpellInfo,
+                    spellInfoWindowId, false, cancellationToken);
             }
             if (spellInfoCommand is not null)
             {
@@ -440,11 +423,6 @@ public sealed class CoopGuestScreen
                 catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
                 { SetMessage(exception.Message); }
             }
-            return;
-        }
-        if (_inventoryOpen)
-        {
-            await HandleInventoryInputAsync(client, characterId, snapshot, key, cancellationToken);
             return;
         }
         if (snapshot.SharedWindow is { } sharedWindow)
@@ -464,6 +442,11 @@ public sealed class CoopGuestScreen
                 SetMessage(exception.Message);
             }
             Interlocked.Exchange(ref _redrawRequested, 1);
+            return;
+        }
+        if (_inventoryOpen && !HasSharedWindow(snapshot))
+        {
+            await HandleInventoryInputAsync(client, characterId, snapshot, key, cancellationToken);
             return;
         }
         if (snapshot.LevelImage is not null) return;
@@ -684,7 +667,6 @@ public sealed class CoopGuestScreen
             _inventorySelection = 0;
             _inventorySource = null;
             _displayedCharacterId = characterId;
-            await OpenInventoryAsync(client, characterId, cancellationToken);
             Interlocked.Exchange(ref _redrawRequested, 1);
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && GameInputBindings.CharacterAction(key) is { } action)
@@ -883,7 +865,6 @@ public sealed class CoopGuestScreen
             _inventoryOpen = true;
             _inventorySelection = 0;
             _inventorySource = null;
-            await OpenInventoryAsync(client, characterId, cancellationToken);
             Interlocked.Exchange(ref _redrawRequested, 1);
             return null;
         }
@@ -1206,12 +1187,10 @@ public sealed class CoopGuestScreen
             case InventoryInputAction.CharacterDetails:
                 _characterDetailsOpen = true;
                 _characterDetailsOffset = 0;
-                if (_personalWindowId is { } detailsWindowId)
-                {
-                    _personalWindowKind = PlayerWindowKind.CharacterDetails;
-                    await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.CharacterDetails,
-                        detailsWindowId, true, cancellationToken);
-                }
+                _personalWindowId = Guid.NewGuid();
+                _personalWindowKind = PlayerWindowKind.CharacterDetails;
+                await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.CharacterDetails,
+                    _personalWindowId.Value, true, cancellationToken);
                 Interlocked.Exchange(ref _redrawRequested, 1);
                 break;
             case InventoryInputAction.MoveUp when slots.Count > 0:
@@ -1284,12 +1263,10 @@ public sealed class CoopGuestScreen
                 {
                     _spellInfoOpen = true;
                     _spellInfoSelection = 0;
-                    if (_personalWindowId is { } spellInfoWindowId)
-                    {
-                        _personalWindowKind = PlayerWindowKind.SpellInfo;
-                        await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.SpellInfo,
-                            spellInfoWindowId, true, cancellationToken);
-                    }
+                    _personalWindowId = Guid.NewGuid();
+                    _personalWindowKind = PlayerWindowKind.SpellInfo;
+                    await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.SpellInfo,
+                        _personalWindowId.Value, true, cancellationToken);
                 }
                 else if (useSlot.Kind == InventorySlotKind.Backpack && useSlot.Item is not null)
                     command = new UseInventoryItemCommand(client.PlayerId!.Value, client.NextCommandId(),

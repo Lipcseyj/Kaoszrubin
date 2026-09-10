@@ -104,7 +104,7 @@ public sealed class Game : ISessionCommandHandler
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
-    private Guid? _hostInventoryWindowId;
+    private Guid? _hostSpellInfoWindowId;
     private HeldInventoryItem? _heldInventoryItem;
     private DateTime _nextNeedsDrain;
     private DateTime _nextNpcSelfCareCheck;
@@ -651,7 +651,7 @@ public sealed class Game : ISessionCommandHandler
                         if (keyInfo.Key == ConsoleKey.Escape)
                         {
                             _renderer.CloseSpellInfoPage();
-                            RestoreHostInventoryWindowKind();
+                            CloseHostSpellInfoWindow();
                         }
                         else if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveSpellInfoSelection(-1);
                         else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveSpellInfoSelection(1);
@@ -677,7 +677,6 @@ public sealed class Game : ISessionCommandHandler
                     {
                         if (_characterSheetFocused) CancelHeldInventoryItem();
                         _characterSheetFocused = !_characterSheetFocused;
-                        SetHostInventoryWindowVisibility(_characterSheetFocused);
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
@@ -1499,7 +1498,7 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
         _renderer.CloseSpellInfoPage();
-        RestoreHostInventoryWindowKind();
+        CloseHostSpellInfoWindow();
         BeginExplorationSpellCasting(spell);
     }
 
@@ -2171,7 +2170,6 @@ public sealed class Game : ISessionCommandHandler
     {
         CancelHeldInventoryItem();
         _characterSheetFocused = true;
-        SetHostInventoryWindowVisibility(true);
         _renderer.DrawInnCharacterSheet(SelectedCharacter);
         while (true)
         {
@@ -2185,7 +2183,6 @@ public sealed class Game : ISessionCommandHandler
             {
                 CancelHeldInventoryItem();
                 _characterSheetFocused = false;
-                SetHostInventoryWindowVisibility(false);
                 _renderer.SetCharacterSheetFocused(false);
                 return;
             }
@@ -3141,28 +3138,12 @@ public sealed class Game : ISessionCommandHandler
         }
     }
 
-    private void SetHostInventoryWindowVisibility(bool isOpen)
+    private void CloseHostSpellInfoWindow()
     {
-        if (_activeCoopHost is null) return;
-        if (isOpen)
-        {
-            _hostInventoryWindowId ??= Guid.NewGuid();
-            SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id,
-                PlayerWindowKind.Inventory, _hostInventoryWindowId.Value, true);
-        }
-        else if (_hostInventoryWindowId is { } windowId)
-        {
-            SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id,
-                PlayerWindowKind.Inventory, windowId, false);
-            _hostInventoryWindowId = null;
-        }
-    }
-
-    private void RestoreHostInventoryWindowKind()
-    {
-        if (_activeCoopHost is null || _hostInventoryWindowId is not { } windowId) return;
+        if (_activeCoopHost is null || _hostSpellInfoWindowId is not { } windowId) return;
         SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id,
-            PlayerWindowKind.Inventory, windowId, true);
+            PlayerWindowKind.SpellInfo, windowId, false);
+        _hostSpellInfoWindowId = null;
     }
 
     private void RunHostWindow(string title, string message, Action action) =>
@@ -4190,9 +4171,12 @@ public sealed class Game : ISessionCommandHandler
         if (SpellcastingRules.IsSpellcastingFocus(selectedItem))
         {
             _renderer.DrawSpellInfoPage(slot.Value.Character, 0);
-            if (_activeCoopHost is not null && _hostInventoryWindowId is { } windowId)
+            if (_activeCoopHost is not null)
+            {
+                _hostSpellInfoWindowId = Guid.NewGuid();
                 SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id,
-                    PlayerWindowKind.SpellInfo, windowId, true);
+                    PlayerWindowKind.SpellInfo, _hostSpellInfoWindowId.Value, true);
+            }
             return;
         }
         if (selectedItem is not MiscItemDefinition item || item.Effect == ConsumableEffect.None)
@@ -6190,7 +6174,11 @@ public sealed class Game : ISessionCommandHandler
         _battleNoPathReported.Clear();
         _battleLogCycle = -1;
         _pendingLevelUps.Clear();
-        if (_renderer.IsSpellInfoPageOpen) _renderer.CloseSpellInfoPage();
+        if (_renderer.IsSpellInfoPageOpen)
+        {
+            _renderer.CloseSpellInfoPage();
+            CloseHostSpellInfoWindow();
+        }
 
         var characterParticipants = new List<TeamCharacterParticipant>();
         var preparationEntries = new List<BattleLogEntry>();
@@ -8824,6 +8812,8 @@ public sealed class Game : ISessionCommandHandler
     private void SetPlayerWindowVisibility(PlayerId playerId, CharacterId characterId, PlayerWindowKind kind,
         Guid windowId, bool isOpen)
     {
+        // A karakterlap a térkép melletti, valós idejű panel; önmagában nem blokkolja a közös játékot.
+        if (!PlayerWindowKindRules.PausesGame(kind)) return;
         var characterName = CharacterRoster.Party.Members
             .FirstOrDefault(character => character.Id == characterId)?.Name ?? "Egy játékos";
         if (isOpen)

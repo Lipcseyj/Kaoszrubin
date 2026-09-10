@@ -48,6 +48,11 @@ public enum PlayerWindowKind
     SpellInfo
 }
 
+public static class PlayerWindowKindRules
+{
+    public static bool PausesGame(PlayerWindowKind kind) => kind != PlayerWindowKind.Inventory;
+}
+
 public sealed record SetPlayerWindowVisibilityCommand(PlayerId SenderId, long CommandId,
     CharacterId CharacterId, PlayerWindowKind Kind, Guid WindowId, bool IsOpen)
     : GameCommand(SenderId, CommandId, CharacterId);

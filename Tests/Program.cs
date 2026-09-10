@@ -64,6 +64,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég elküldheti a saját memorizált varázslatait", RemotePlayerCanPrepareSpells),
     ("A vendég válaszolhat a saját szintlépési promptjára", RemotePlayerCanResolveLevelUpPrompt),
     ("A vendég értesítést kap a más által kezelt blokkoló ablakokról", GuestSeesOtherPlayersBlockingWindows),
+    ("Az oldalsó inventory nem állítja meg a coop játékot", SideInventoryDoesNotPauseCoop),
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
@@ -1297,6 +1298,16 @@ static void RemotePlayerCanAcknowledgeRest()
         "A session elutasította a vendég pihenési nyugtázását.");
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(command)) is AcknowledgeRestCommand decoded &&
            decoded == command, "A pihenési nyugtázás nem írható körbe a hálózati protokollon.");
+}
+
+static void SideInventoryDoesNotPauseCoop()
+{
+    Assert(!PlayerWindowKindRules.PausesGame(PlayerWindowKind.Inventory) &&
+           PlayerWindowKindRules.PausesGame(PlayerWindowKind.Help) &&
+           PlayerWindowKindRules.PausesGame(PlayerWindowKind.QuestJournal) &&
+           PlayerWindowKindRules.PausesGame(PlayerWindowKind.CharacterDetails) &&
+           PlayerWindowKindRules.PausesGame(PlayerWindowKind.SpellInfo),
+        "A térkép melletti inventory vagy valamely térképtakaró személyes ablak szüneteltetése hibás.");
 }
 
 static void RemotePlayerCanAcknowledgeSharedWindow()
