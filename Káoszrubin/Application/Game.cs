@@ -164,7 +164,8 @@ public sealed class Game : ISessionCommandHandler
     private LiveCharacter? _eliraWaitingAtInn;
     private int _eliraInnVisitsRemaining;
     private bool _isReturnExpedition;
-#endregion
+    private readonly HashSet<WorldNpc> _pendingNpcQuestProcessing = [];
+    #endregion
 
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter SelectedCharacter { get; }
@@ -2051,7 +2052,7 @@ public sealed class Game : ISessionCommandHandler
     }
 
     void ISessionCommandHandler.OnSetPlayerWindowVisibility(SetPlayerWindowVisibilityCommand command) =>
-        SetPlayerWindowVisibility(command.SenderId, command.CharacterId, command.Kind, command.WindowId,
+        UpdatePlayerBlockingWindowState(command.SenderId, command.CharacterId, command.Kind, command.WindowId,
             command.IsOpen);
 
     bool ISessionCommandHandler.IsPausedByPlayerWindow() => _openPlayerWindows.Count > 0;
@@ -2826,8 +2827,9 @@ public sealed class Game : ISessionCommandHandler
                 SynchronizeQuestJournal(npc, quest);
                 var updated = npc.Quests.First(value =>
                     string.Equals(value.QuestId, quest.Id, StringComparison.OrdinalIgnoreCase));
-                if (updated.Progress < quest.RequiredCount) continue;
-                ProcessNpcQuests(npc, activateOffered: false);
+                if (updated.Progress >= quest.RequiredCount)
+                    _pendingNpcQuestProcessing.Add(npc);
+
                 if (string.Equals(npc.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(quest.Id, RodericSharedBattleQuestId, StringComparison.OrdinalIgnoreCase))
                 {
@@ -2839,10 +2841,24 @@ public sealed class Game : ISessionCommandHandler
             }
         }
 
-        if (!isMalrec || rodericAtConfrontation is null) return;
-        ProcessNpcQuests(rodericAtConfrontation, activateOffered: false);
-        rodericAtConfrontation.SetStoryState("MALREC_DEFEATED");
-        _pendingRodericReturn = true;
+        if (isMalrec && rodericAtConfrontation != null)
+        {
+            _pendingNpcQuestProcessing.Add(rodericAtConfrontation);
+            rodericAtConfrontation.SetStoryState("MALREC_DEFEATED");
+            _pendingRodericReturn = true;
+        }
+    }
+
+    private void ProcessPendingNpcQuestCompletions()
+    {
+        if (_pendingNpcQuestProcessing.Count == 0)
+            return;
+
+        var pending = _pendingNpcQuestProcessing.ToArray();
+        _pendingNpcQuestProcessing.Clear();
+
+        foreach (var npc in pending)
+            ProcessNpcQuests(npc, activateOffered: false);
     }
 
     private void RegisterNpcQuestProgress(NpcQuestType type, string targetId, int amount = 1)
@@ -3120,7 +3136,7 @@ public sealed class Game : ISessionCommandHandler
         var windowId = hadPrevious ? previous!.WindowId : Guid.NewGuid();
         var previousCaptureSharedWindow = _captureSharedWindow;
         _captureSharedWindow = false;
-        SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id, kind, windowId, true);
+        UpdatePlayerBlockingWindowState(_session.HostPlayerId, SelectedCharacter.Id, kind, windowId, true);
         ForceCoopSnapshotPublish();
         try
         {
@@ -3130,10 +3146,10 @@ public sealed class Game : ISessionCommandHandler
         {
             _captureSharedWindow = previousCaptureSharedWindow;
             if (hadPrevious)
-                SetPlayerWindowVisibility(previous!.PlayerId, previous.CharacterId, previous.Kind,
+                UpdatePlayerBlockingWindowState(previous!.PlayerId, previous.CharacterId, previous.Kind,
                     previous.WindowId, true);
             else
-                SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id, kind, windowId, false);
+                UpdatePlayerBlockingWindowState(_session.HostPlayerId, SelectedCharacter.Id, kind, windowId, false);
             ForceCoopSnapshotPublish();
         }
     }
@@ -3141,7 +3157,7 @@ public sealed class Game : ISessionCommandHandler
     private void CloseHostSpellInfoWindow()
     {
         if (_activeCoopHost is null || _hostSpellInfoWindowId is not { } windowId) return;
-        SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id,
+        UpdatePlayerBlockingWindowState(_session.HostPlayerId, SelectedCharacter.Id,
             PlayerWindowKind.SpellInfo, windowId, false);
         _hostSpellInfoWindowId = null;
     }
@@ -4174,7 +4190,7 @@ public sealed class Game : ISessionCommandHandler
             if (_activeCoopHost is not null)
             {
                 _hostSpellInfoWindowId = Guid.NewGuid();
-                SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id,
+                UpdatePlayerBlockingWindowState(_session.HostPlayerId, SelectedCharacter.Id,
                     PlayerWindowKind.SpellInfo, _hostSpellInfoWindowId.Value, true);
             }
             return;
@@ -8673,6 +8689,7 @@ public sealed class Game : ISessionCommandHandler
         var message = $"☠ {enemy.Name} elesett. +{enemy.Definition.ExperienceReward} XP kerül szétosztásra.";
         if (!_isQuickTeamBattle) _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);
+        ProcessPendingNpcQuestCompletions();
     }
 
     private void ResolveTeamCharacterDefeat(TeamBattleEncounter battle, LiveCharacter character)
@@ -8809,7 +8826,18 @@ public sealed class Game : ISessionCommandHandler
         RequestCoopSnapshotPublish();
     }
 
-    private void SetPlayerWindowVisibility(PlayerId playerId, CharacterId characterId, PlayerWindowKind kind,
+    /// <summary>
+    /// A coopban megnyitott, játékot szüneteltető személyes ablakok központi nyilvántartója.
+    /// Nyilvántartja a megnyitott ablakot, elindítja vagy lezárja a közös játék szünetét,
+    /// frissíti a felső státuszcsíkot, snapshotot küld, naplóüzenetet ír, és hangot is lejátszhat.
+    /// Ez az igazság forrása arra nézve, hogy jelenleg mely játékosok tartják szüneteltetve a közös játékot valamilyen személyes ablakkal.
+    /// </summary>
+    /// <param name="playerId">melyik játékos</param>
+    /// <param name="characterId"> melyik karakterével</param>
+    /// <param name="kind">milyen ablakot nyitott (súgó, inventory stb.)</param>
+    /// <param name="windowId">az adott konkrét ablakpéldány azonosítója</param>
+    /// <param name="isOpen">megnyitotta vagy bezárta</param>
+    private void UpdatePlayerBlockingWindowState(PlayerId playerId, CharacterId characterId, PlayerWindowKind kind,
         Guid windowId, bool isOpen)
     {
         // A karakterlap a térkép melletti, valós idejű panel; önmagában nem blokkolja a közös játékot.
@@ -8833,10 +8861,6 @@ public sealed class Game : ISessionCommandHandler
                 characterName, kind, windowId);
             RefreshCoopWindowStatus();
             if (!wasPaused) _playerWindowPauseStartedUtc = DateTime.UtcNow;
-            var message = $"⏸ {characterName} {PlayerWindowActivity(kind)}. A közös játék szünetel.";
-            RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow);
-            if (playerId != _session.HostPlayerId)
-                _renderer.DrawInventoryMessage(message, ConsoleColor.Yellow);
             var otherCharacters = _session.CharacterControls
                 .Where(control => control.AssignedPlayerId is { } assigned && assigned != playerId &&
                                   control.ConnectionState == PlayerConnectionState.Connected)
