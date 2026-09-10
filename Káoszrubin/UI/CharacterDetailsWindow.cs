@@ -97,7 +97,8 @@ public static class CharacterDetailsWindow
         return lines;
     }
 
-    public static void Show(SessionCharacterSnapshot character, GameDataCatalog data)
+    public static void Show(SessionCharacterSnapshot character, GameDataCatalog data,
+        Func<string?>? coopStatusProvider = null)
     {
         var allLines = Build(character, data);
         var offset = 0;
@@ -116,7 +117,7 @@ public static class CharacterDetailsWindow
             page.Add(($"↑/↓, PgUp/PgDn: lapozás  {offset + 1}–{Math.Min(allLines.Count, offset + pageSize)}/{allLines.Count}", ConsoleColor.DarkYellow));
             page.Add(("R / Enter / Esc: bezárás", ConsoleColor.DarkYellow));
             Draw(page);
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = CoopWindowStatusBanner.ReadKey(coopStatusProvider).Key;
             if (key is ConsoleKey.R or ConsoleKey.Enter or ConsoleKey.Escape) return;
             offset = key switch { ConsoleKey.UpArrow => offset - 1, ConsoleKey.DownArrow => offset + 1,
                 ConsoleKey.PageUp => offset - pageSize, ConsoleKey.PageDown => offset + pageSize, _ => offset };

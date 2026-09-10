@@ -103,6 +103,6 @@ public sealed class SessionEventService
         BattleLogKind.PlayerAttack => ConsoleColor.Green,
         BattleLogKind.EnemyAttack => ConsoleColor.Red,
         BattleLogKind.CriticalHit => ConsoleColor.Yellow,
-        _ => ConsoleColor.Gray
+        _ => ConsoleColor.Cyan
     };
 }

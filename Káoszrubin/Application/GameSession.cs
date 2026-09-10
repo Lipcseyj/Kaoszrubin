@@ -355,8 +355,10 @@ public sealed class GameSession
             control.AssignedPlayerId != command.SenderId || control.ConnectionState != PlayerConnectionState.Connected ||
             control.ControllerKind == CharacterControllerKind.Npc)
             return Fail("A játékos nem irányíthatja ezt a karaktert.", out reason);
-        if (command is SetHelpVisibilityCommand)
+        if (command is SetPlayerWindowVisibilityCommand playerWindow)
         {
+            if (!Enum.IsDefined(playerWindow.Kind) || playerWindow.WindowId == Guid.Empty)
+                return Fail("A személyes ablak állapota érvénytelen.", out reason);
             reason = string.Empty;
             return true;
         }

@@ -7,7 +7,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 77;
+    public const int Version = 78;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -26,7 +26,21 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
     AdHocConversationSnapshot? AdHocConversation = null,
     PartyFormationSnapshot? Formation = null,
     string? LeaderDecisionMessage = null,
-    string? LeaderDecisionTitle = null);
+    string? LeaderDecisionTitle = null,
+    IReadOnlyList<PlayerWindowStateSnapshot>? OpenPlayerWindows = null,
+    ReplicatedWindowSnapshot? SharedWindow = null);
+
+/// <summary>
+/// Egy játékos személyes, nem replikált tartalmú böngészőablaka. A többi kliens csak azt látja,
+/// hogy ki mivel foglalkozik; az ablak tartalmát nem kapja meg.
+/// </summary>
+public sealed record PlayerWindowStateSnapshot(PlayerId PlayerId, CharacterId CharacterId,
+    string CharacterName, PlayerWindowKind Kind, Guid WindowId);
+
+public sealed record ReplicatedWindowSnapshot(Guid WindowId, string Title, int Width, string? Frame,
+    IReadOnlyList<ReplicatedWindowLineSnapshot> Lines);
+
+public sealed record ReplicatedWindowLineSnapshot(string Text, ConsoleColor Color);
 
 public enum QuestJournalStatus { Active, Completed, Abandoned }
 

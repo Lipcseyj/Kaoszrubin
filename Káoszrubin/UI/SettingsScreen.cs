@@ -5,13 +5,14 @@ public static class SettingsScreen
 {
     private const int Width = 58;
 
-    public static void Show(GameSettingsService settingsService, Action? applyAudioSettings = null)
+    public static void Show(GameSettingsService settingsService, Action? applyAudioSettings = null,
+        Func<string?>? coopStatusProvider = null)
     {
         var settings = settingsService.Settings;
         while (true)
         {
             Draw(settings);
-            var key = Console.ReadKey(intercept: true);
+            var key = CoopWindowStatusBanner.ReadKey(coopStatusProvider);
             if (key.Key is ConsoleKey.Escape or ConsoleKey.Enter) break;
 
             if (key.Key is ConsoleKey.Spacebar or ConsoleKey.M)

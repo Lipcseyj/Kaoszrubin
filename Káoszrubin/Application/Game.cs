@@ -104,6 +104,7 @@ public sealed class Game : ISessionCommandHandler
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
+    private Guid? _hostInventoryWindowId;
     private HeldInventoryItem? _heldInventoryItem;
     private DateTime _nextNeedsDrain;
     private DateTime _nextNpcSelfCareCheck;
@@ -129,8 +130,8 @@ public sealed class Game : ISessionCommandHandler
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
     private readonly Dictionary<string, QuestJournalEntrySnapshot> _questJournal =
         new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<PlayerId> _helpPausePlayers = [];
-    private DateTime? _helpPauseStartedUtc;
+    private readonly Dictionary<PlayerId, PlayerWindowStateSnapshot> _openPlayerWindows = [];
+    private DateTime? _playerWindowPauseStartedUtc;
     private DateTime? _partyScatterUntil;
     private Direction _leaderFacing = Direction.Right;
     private PartyFormationSnapshot _formation;
@@ -138,6 +139,9 @@ public sealed class Game : ISessionCommandHandler
     private bool _formationObstacleReported;
     private string? _leaderDecisionMessage;
     private string? _leaderDecisionTitle;
+    private ReplicatedWindowSnapshot? _activeSharedWindow;
+    private Guid? _sharedWindowId;
+    private bool _captureSharedWindow;
     private int _mazeLevel = 1;
     private AdventureLocationKind _locationKind = AdventureLocationKind.Campaign;
     private string _locationId = string.Empty;
@@ -219,6 +223,8 @@ public sealed class Game : ISessionCommandHandler
             Formation = _formation,
             LeaderDecisionMessage = _leaderDecisionMessage,
             LeaderDecisionTitle = _leaderDecisionTitle,
+            OpenPlayerWindows = _openPlayerWindows.Values.ToArray(),
+            SharedWindow = _activeSharedWindow,
             Party = snapshot.Party.Select(character => character with
             {
                 Gold = SelectedCharacter.Gold,
@@ -318,6 +324,7 @@ public sealed class Game : ISessionCommandHandler
             .Where(member => member.IsTemporaryFollower)
             .Select(member => member.Character)
             .ToArray() ?? [], _musicSettings.Settings);
+        _renderer.SharedWindowPresented = CaptureSharedWindowPresentation;
         _renderer.SetFormationStatus(_formation);
         _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(_musicSettings.Settings,
@@ -603,8 +610,9 @@ public sealed class Game : ISessionCommandHandler
                     }
                     if (GameInput.IsSettingsShortcut(keyInfo))
                     {
-                        RunHostWindow("Beállítások", "A vezető a játék beállításait kezeli…",
-                            () => SettingsScreen.Show(_musicSettings, ApplyAudioSettings));
+                        RunHostPersonalWindow(PlayerWindowKind.Settings,
+                            () => SettingsScreen.Show(_musicSettings, ApplyAudioSettings,
+                                CurrentHostCoopWindowStatus));
                         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
@@ -637,7 +645,11 @@ public sealed class Game : ISessionCommandHandler
                     }
                     if (_renderer.IsSpellInfoPageOpen)
                     {
-                        if (keyInfo.Key == ConsoleKey.Escape) _renderer.CloseSpellInfoPage();
+                        if (keyInfo.Key == ConsoleKey.Escape)
+                        {
+                            _renderer.CloseSpellInfoPage();
+                            RestoreHostInventoryWindowKind();
+                        }
                         else if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveSpellInfoSelection(-1);
                         else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveSpellInfoSelection(1);
                         else if (TryGetQuickSpellIndex(keyInfo, out var spellSlot)) AssignSelectedSpellQuickSlot(spellSlot);
@@ -662,6 +674,7 @@ public sealed class Game : ISessionCommandHandler
                     {
                         if (_characterSheetFocused) CancelHeldInventoryItem();
                         _characterSheetFocused = !_characterSheetFocused;
+                        SetHostInventoryWindowVisibility(_characterSheetFocused);
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
@@ -771,11 +784,12 @@ public sealed class Game : ISessionCommandHandler
 
                 var now = DateTime.UtcNow;
                 ProcessSessionCommands();
+                PruneDisconnectedPlayerWindows();
                 ContinueDisconnectedRemoteBattleAsNpc();
 
                 if (!_battleStarted && ProcessPendingRodericTransition()) continue;
 
-                if (_helpPausePlayers.Count > 0)
+                if (_openPlayerWindows.Count > 0)
                 {
                     TryPublishScheduledCoopSnapshot(now);
                     Thread.Sleep(20);
@@ -1454,24 +1468,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void ShowInGameHelp()
     {
-        var synchronizeCoopPause = _activeCoopHost is not null;
-        if (synchronizeCoopPause)
-        {
-            SetHelpVisibility(_session.HostPlayerId, SelectedCharacter.Id, true);
-            RequestCoopSnapshotPublish();
-        }
-        try
-        {
-            RunHostWindow("Súgó", "A vezető a súgót olvassa…", MainMenu.ShowHelp);
-        }
-        finally
-        {
-            if (synchronizeCoopPause)
-            {
-                SetHelpVisibility(_session.HostPlayerId, SelectedCharacter.Id, false);
-                RequestCoopSnapshotPublish();
-            }
-        }
+        RunHostPersonalWindow(PlayerWindowKind.Help, () => MainMenu.ShowHelp(CurrentHostCoopWindowStatus));
     }
 
     private void AssignSelectedSpellQuickSlot(int slotIndex)
@@ -1499,6 +1496,7 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
         _renderer.CloseSpellInfoPage();
+        RestoreHostInventoryWindowKind();
         BeginExplorationSpellCasting(spell);
     }
 
@@ -1800,9 +1798,23 @@ public sealed class Game : ISessionCommandHandler
                     ConnectionState: PlayerConnectionState.Connected, AssignedPlayerId: not null })
                 WaitForRemoteSpellPreparation(character);
             else
-                RunHostWindow($"Varázsmemorizálás — {character.Name}",
-                    $"A vezető {character.Name} varázslatait készíti elő…",
-                    () => character.SetMemorizedSpells(_renderer.DrawSpellPreparationScreen(character)));
+            {
+                var spellInfo = SpellInfoSnapshotProjector.Create(character);
+                _activeSpellPreparation = new SpellPreparationSnapshot(Guid.NewGuid(), character.Id,
+                    character.Name, character.MemorizationCapacity, spellInfo.KnownSpells,
+                    character.MemorizedSpells.Select(spell => spell.Id).ToArray());
+                try
+                {
+                    RunHostWindow($"Varázsmemorizálás — {character.Name}",
+                        $"A vezető {character.Name} varázslatait készíti elő…",
+                        () => character.SetMemorizedSpells(_renderer.DrawSpellPreparationScreen(character)));
+                }
+                finally
+                {
+                    _activeSpellPreparation = null;
+                    ForceCoopSnapshotPublish();
+                }
+            }
         }
     }
 
@@ -1817,6 +1829,11 @@ public sealed class Game : ISessionCommandHandler
         _session.SetPhase(GameSessionPhase.Paused);
         _renderer.DrawInventoryMessage(
             $"⌛ Várakozás {character.Name} varázsmemorizálására... ⌛", ConsoleColor.Yellow);
+        _renderer.DrawReplicatedWindow(MagicProgressionWindow.PreparationWidth,
+            MagicProgressionWindow.BuildPreparation(character.Name, _activeSpellPreparation.SelectedSpellIds.Count,
+                _activeSpellPreparation.Capacity, _activeSpellPreparation.Spells,
+                _activeSpellPreparation.SelectedSpellIds.ToHashSet(StringComparer.OrdinalIgnoreCase), 0),
+            FramedWindow.SpellPreparation);
         PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
         RequestCoopSnapshotPublish();
         while (!_spellPreparationCompleted)
@@ -2031,10 +2048,11 @@ public sealed class Game : ISessionCommandHandler
         _nextCoopSnapshotHeartbeatUtc = now + CoopSnapshotHeartbeatInterval;
     }
 
-    void ISessionCommandHandler.OnSetHelpVisibility(PlayerId senderId, CharacterId characterId, bool isOpen) =>
-        SetHelpVisibility(senderId, characterId, isOpen);
+    void ISessionCommandHandler.OnSetPlayerWindowVisibility(SetPlayerWindowVisibilityCommand command) =>
+        SetPlayerWindowVisibility(command.SenderId, command.CharacterId, command.Kind, command.WindowId,
+            command.IsOpen);
 
-    bool ISessionCommandHandler.IsPausedByHelp() => _helpPausePlayers.Count > 0;
+    bool ISessionCommandHandler.IsPausedByPlayerWindow() => _openPlayerWindows.Count > 0;
 
     void ISessionCommandHandler.OnMoveLeader(Direction direction, bool preserveFormationFacing) =>
         MovePlayer(direction, preserveFormationFacing);
@@ -2147,6 +2165,7 @@ public sealed class Game : ISessionCommandHandler
     {
         CancelHeldInventoryItem();
         _characterSheetFocused = true;
+        SetHostInventoryWindowVisibility(true);
         _renderer.DrawInnCharacterSheet(SelectedCharacter);
         while (true)
         {
@@ -2160,6 +2179,7 @@ public sealed class Game : ISessionCommandHandler
             {
                 CancelHeldInventoryItem();
                 _characterSheetFocused = false;
+                SetHostInventoryWindowVisibility(false);
                 _renderer.SetCharacterSheetFocused(false);
                 return;
             }
@@ -2286,7 +2306,7 @@ public sealed class Game : ISessionCommandHandler
                 string.Equals(value.QuestId, quest.Id, StringComparison.OrdinalIgnoreCase));
             if (progress.Progress < quest.RequiredCount)
             {
-                _renderer.DrawUniqueNpcStoryChoice(npc,
+                ShowNpcStoryChoiceWithReplica(npc,
                     $"Négy feltámasztott csontváz járja a közeli kriptákat. Eddig {progress.Progress}/4 bukott el.",
                     ["A sírokhoz nem nyúlunk. Visszatérünk ha végeztünk."]);
                 _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
@@ -2305,8 +2325,9 @@ public sealed class Game : ISessionCommandHandler
             var count = CountPartyBackpackItems(MiscItemIds.FallenKnightInsignia);
             if (count < 3)
             {
-                _renderer.DrawUniqueNpcStoryChoice(npc,
-                    $"Három jelvényt keressetek. Eddig {count}/3 került elő.", ["Folytatjuk a keresést."]);
+                ShowNpcStoryChoiceWithReplica(npc,
+                    $"Három jelvényt keressetek. Eddig {count}/3 került elő.",
+                    ["Folytatjuk a keresést."]);
                 _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
                 return;
             }
@@ -2333,29 +2354,59 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
     }
 
+    private void ShowNpcStoryChoiceWithReplica(WorldNpc npc, string prompt, IReadOnlyList<string> choices)
+    {
+        var conversationId = Guid.NewGuid();
+        _activeAdHocConversation = new AdHocConversationSnapshot(conversationId, npc.Character.Name,
+            npc.Character.Race.Name, npc.Character.CharacterClass.Name, [], prompt, choices);
+        ForceCoopSnapshotPublish();
+        try
+        {
+            _renderer.DrawUniqueNpcStoryChoice(npc, prompt, choices);
+        }
+        finally
+        {
+            _activeAdHocConversation = null;
+        }
+    }
+
     private void RunStoryConversation(WorldNpc npc)
     {
+        var conversationId = Guid.NewGuid();
         var transcript = new List<string>();
-        while (true)
+        try
         {
-            var choices = _gameData.GetNpcStoryChoices(npc.StoryId ?? string.Empty, npc.StoryStateId,
-                npc.Friendliness);
-            if (choices.Count == 0) return;
-            var index = _renderer.DrawUniqueNpcStoryChoice(npc, choices[0].Prompt,
-                choices.Select(choice => choice.Text).ToArray(), transcript);
-            var selected = choices[index];
-            transcript.Add($"Te: {selected.Text}");
-            transcript.AddRange(selected.Response.Split('|',
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-            npc.AdjustFriendliness(selected.FriendlinessChange);
-            npc.SetStoryState(selected.NextStateId);
-            if (!selected.ContinueConversation)
+            while (true)
             {
-                _renderer.DrawUniqueNpcStoryResponse(npc, transcript);
+                var choices = _gameData.GetNpcStoryChoices(npc.StoryId ?? string.Empty, npc.StoryStateId,
+                    npc.Friendliness);
+                if (choices.Count == 0) return;
+                _activeAdHocConversation = new AdHocConversationSnapshot(conversationId, npc.Character.Name,
+                    npc.Character.Race.Name, npc.Character.CharacterClass.Name, transcript.ToArray(),
+                    choices[0].Prompt, choices.Select(choice => choice.Text).ToArray());
+                ForceCoopSnapshotPublish();
+                var index = _renderer.DrawUniqueNpcStoryChoice(npc, choices[0].Prompt,
+                    choices.Select(choice => choice.Text).ToArray(), transcript);
+                var selected = choices[index];
+                transcript.Add($"Te: {selected.Text}");
+                transcript.AddRange(selected.Response.Split('|',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+                npc.AdjustFriendliness(selected.FriendlinessChange);
+                npc.SetStoryState(selected.NextStateId);
                 ApplyNpcStoryAction(npc, selected);
+                if (selected.ContinueConversation) continue;
+                _activeAdHocConversation = new AdHocConversationSnapshot(conversationId, npc.Character.Name,
+                    npc.Character.Race.Name, npc.Character.CharacterClass.Name, transcript.ToArray(),
+                    string.Empty, []);
+                ForceCoopSnapshotPublish();
+                _renderer.DrawUniqueNpcStoryResponse(npc, transcript);
                 return;
             }
-            ApplyNpcStoryAction(npc, selected);
+        }
+        finally
+        {
+            _activeAdHocConversation = null;
+            ForceCoopSnapshotPublish();
         }
     }
 
@@ -2471,6 +2522,7 @@ public sealed class Game : ISessionCommandHandler
         var avatar = new PartyMemberAvatar(npc.Position, npc.Character, npc);
         _maze.AddPartyMember(avatar);
         _nextPartyMoves[avatar] = DateTime.UtcNow;
+        if (newlyActivated.Count > 0) ForceCoopSnapshotPublish();
         if (string.Equals(npc.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))
             _renderer.DrawUniqueNpcQuestOffer(npc, _gameData.GetNpcQuests(npc.DefinitionId));
         else if (newlyActivated.Count > 0)
@@ -2553,9 +2605,9 @@ public sealed class Game : ISessionCommandHandler
     private void ShowQuestJournal()
     {
         var options = BuildQuestFastTravelOptions();
-        var selectedQuestId = RunHostWindow("Küldetésnapló",
-            "A vezető a küldetésnaplót kezeli…",
-            () => QuestJournalWindow.Show(OrderedQuestJournal(), options));
+        var selectedQuestId = RunHostPersonalWindow(PlayerWindowKind.QuestJournal,
+            () => QuestJournalWindow.Show(OrderedQuestJournal(), options,
+                coopStatusProvider: CurrentHostCoopWindowStatus));
         if (selectedQuestId?.FastTravelQuestId is { } questId)
             CompleteQuestByFastTravel(questId, options);
         else if (selectedQuestId?.AbandonedQuestId is { } abandonedQuestId)
@@ -2664,9 +2716,9 @@ public sealed class Game : ISessionCommandHandler
 
     private void ShowCharacterDetails()
     {
-        RunHostWindow($"Karakterrészletek — {_renderer.DisplayedCharacter.Name}",
-            "A vezető a részletes karakterlapot olvassa…",
-            () => CharacterDetailsWindow.Show(CreateCharacterDetailsSnapshot(_renderer.DisplayedCharacter), _gameData));
+        RunHostPersonalWindow(PlayerWindowKind.CharacterDetails,
+            () => CharacterDetailsWindow.Show(CreateCharacterDetailsSnapshot(_renderer.DisplayedCharacter),
+                _gameData, CurrentHostCoopWindowStatus));
     }
 
     private IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal() =>
@@ -3036,6 +3088,58 @@ public sealed class Game : ISessionCommandHandler
         }
     }
 
+    private void RunHostPersonalWindow(PlayerWindowKind kind, Action action) =>
+        RunHostPersonalWindow(kind, () => { action(); return true; });
+
+    private T RunHostPersonalWindow<T>(PlayerWindowKind kind, Func<T> action)
+    {
+        if (_activeCoopHost is null) return action();
+        var hadPrevious = _openPlayerWindows.TryGetValue(_session.HostPlayerId, out var previous);
+        var windowId = hadPrevious ? previous!.WindowId : Guid.NewGuid();
+        var previousCaptureSharedWindow = _captureSharedWindow;
+        _captureSharedWindow = false;
+        SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id, kind, windowId, true);
+        ForceCoopSnapshotPublish();
+        try
+        {
+            return action();
+        }
+        finally
+        {
+            _captureSharedWindow = previousCaptureSharedWindow;
+            if (hadPrevious)
+                SetPlayerWindowVisibility(previous!.PlayerId, previous.CharacterId, previous.Kind,
+                    previous.WindowId, true);
+            else
+                SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id, kind, windowId, false);
+            ForceCoopSnapshotPublish();
+        }
+    }
+
+    private void SetHostInventoryWindowVisibility(bool isOpen)
+    {
+        if (_activeCoopHost is null) return;
+        if (isOpen)
+        {
+            _hostInventoryWindowId ??= Guid.NewGuid();
+            SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id,
+                PlayerWindowKind.Inventory, _hostInventoryWindowId.Value, true);
+        }
+        else if (_hostInventoryWindowId is { } windowId)
+        {
+            SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id,
+                PlayerWindowKind.Inventory, windowId, false);
+            _hostInventoryWindowId = null;
+        }
+    }
+
+    private void RestoreHostInventoryWindowKind()
+    {
+        if (_activeCoopHost is null || _hostInventoryWindowId is not { } windowId) return;
+        SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id,
+            PlayerWindowKind.Inventory, windowId, true);
+    }
+
     private void RunHostWindow(string title, string message, Action action) =>
         RunHostWindow(title, message, () => { action(); return true; });
 
@@ -3044,6 +3148,12 @@ public sealed class Game : ISessionCommandHandler
         var previousPhase = _session.Phase;
         var previousTitle = _leaderDecisionTitle;
         var previousMessage = _leaderDecisionMessage;
+        var previousCaptureSharedWindow = _captureSharedWindow;
+        var previousSharedWindowId = _sharedWindowId;
+        var previousSharedWindow = _activeSharedWindow;
+        _captureSharedWindow = true;
+        _sharedWindowId = Guid.NewGuid();
+        _activeSharedWindow = null;
         _leaderDecisionTitle = title;
         _leaderDecisionMessage = message;
         _session.SetPhase(GameSessionPhase.Paused);
@@ -3063,6 +3173,9 @@ public sealed class Game : ISessionCommandHandler
         }
         finally
         {
+            _captureSharedWindow = previousCaptureSharedWindow;
+            _sharedWindowId = previousSharedWindowId;
+            _activeSharedWindow = previousSharedWindow;
             _leaderDecisionTitle = previousTitle;
             _leaderDecisionMessage = previousMessage;
             _session.SetPhase(previousPhase);
@@ -3071,6 +3184,16 @@ public sealed class Game : ISessionCommandHandler
             else
                 ForceCoopSnapshotPublish();
         }
+    }
+
+    private void CaptureSharedWindowPresentation(int width,
+        IReadOnlyList<(string Text, ConsoleColor Color)> lines, FramedWindow? frame)
+    {
+        if (!_captureSharedWindow || _sharedWindowId is not { } windowId) return;
+        _activeSharedWindow = new ReplicatedWindowSnapshot(windowId,
+            _leaderDecisionTitle ?? "Közös ablak", width, frame?.ToString(),
+            lines.Select(line => new ReplicatedWindowLineSnapshot(line.Text, line.Color)).ToArray());
+        ForceCoopSnapshotPublish();
     }
 
     private void ForceCoopSnapshotPublish()
@@ -4007,6 +4130,9 @@ public sealed class Game : ISessionCommandHandler
         if (SpellcastingRules.IsSpellcastingFocus(selectedItem))
         {
             _renderer.DrawSpellInfoPage(slot.Value.Character, 0);
+            if (_activeCoopHost is not null && _hostInventoryWindowId is { } windowId)
+                SetPlayerWindowVisibility(_session.HostPlayerId, SelectedCharacter.Id,
+                    PlayerWindowKind.SpellInfo, windowId, true);
             return;
         }
         if (selectedItem is not MiscItemDefinition item || item.Effect == ConsumableEffect.None)
@@ -8635,35 +8761,115 @@ public sealed class Game : ISessionCommandHandler
         RequestCoopSnapshotPublish();
     }
 
-    private void SetHelpVisibility(PlayerId playerId, CharacterId characterId, bool isOpen)
+    private void SetPlayerWindowVisibility(PlayerId playerId, CharacterId characterId, PlayerWindowKind kind,
+        Guid windowId, bool isOpen)
     {
         var characterName = CharacterRoster.Party.Members
             .FirstOrDefault(character => character.Id == characterId)?.Name ?? "Egy játékos";
         if (isOpen)
         {
-            if (!_helpPausePlayers.Add(playerId)) return;
-            _helpPauseStartedUtc ??= DateTime.UtcNow;
-            var message = $"⏸ {characterName} megnyitotta a súgót. A közös játék szünetel.";
+            var wasPaused = _openPlayerWindows.Count > 0;
+            if (_openPlayerWindows.TryGetValue(playerId, out var current) && current.WindowId == windowId)
+            {
+                if (current.Kind == kind && current.CharacterId == characterId) return;
+                _openPlayerWindows[playerId] = new PlayerWindowStateSnapshot(playerId, characterId,
+                    characterName, kind, windowId);
+                RequestCoopSnapshotPublish();
+                return;
+            }
+
+            _openPlayerWindows[playerId] = new PlayerWindowStateSnapshot(playerId, characterId,
+                characterName, kind, windowId);
+            if (!wasPaused) _playerWindowPauseStartedUtc = DateTime.UtcNow;
+            var message = $"⏸ {characterName} {PlayerWindowActivity(kind)}. A közös játék szünetel.";
             RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow);
             if (playerId != _session.HostPlayerId)
                 _renderer.DrawInventoryMessage(message, ConsoleColor.Yellow);
+            var otherCharacters = _session.CharacterControls
+                .Where(control => control.AssignedPlayerId is { } assigned && assigned != playerId &&
+                                  control.ConnectionState == PlayerConnectionState.Connected)
+                .Select(control => control.CharacterId)
+                .Distinct()
+                .ToArray();
+            if (otherCharacters.Length > 0)
+                PlaySessionSound(SoundEffect.Waiting, otherCharacters);
+            RequestCoopSnapshotPublish();
             return;
         }
 
-        if (!_helpPausePlayers.Remove(playerId)) return;
-        var resumedMessage = $"▶ {characterName} bezárta a súgót.";
+        if (!_openPlayerWindows.TryGetValue(playerId, out var open) || open.WindowId != windowId) return;
+        _openPlayerWindows.Remove(playerId);
+        var resumedMessage = $"▶ {characterName} bezárta: {PlayerWindowTitle(open.Kind)}.";
         RecordSessionActivity(SessionActivityKind.System, resumedMessage, ConsoleColor.Green);
         if (playerId != _session.HostPlayerId)
             _renderer.DrawInventoryMessage(resumedMessage, ConsoleColor.Green);
-        if (_helpPausePlayers.Count > 0 || _helpPauseStartedUtc is not { } pauseStarted) return;
+        RequestCoopSnapshotPublish();
+        CompletePlayerWindowPauseIfPossible();
+    }
+
+    private string? CurrentHostCoopWindowStatus()
+    {
+        if (_activeCoopHost is null) return null;
+        ProcessSessionCommands();
+        PruneDisconnectedPlayerWindows();
+        TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
+        var remote = _openPlayerWindows.Values.FirstOrDefault(window =>
+            window.PlayerId != _session.HostPlayerId);
+        return remote is null
+            ? null
+            : $"{remote.CharacterName} {PlayerWindowActivity(remote.Kind)}; a közös játék szünetel.";
+    }
+
+    private void PruneDisconnectedPlayerWindows()
+    {
+        var connectedPlayers = _session.CharacterControls
+            .Where(control => control.AssignedPlayerId is not null &&
+                              control.ConnectionState == PlayerConnectionState.Connected)
+            .Select(control => control.AssignedPlayerId!.Value)
+            .Append(_session.HostPlayerId)
+            .ToHashSet();
+        var removed = false;
+        foreach (var playerId in _openPlayerWindows.Keys.Where(playerId => !connectedPlayers.Contains(playerId))
+                     .ToArray())
+        {
+            _openPlayerWindows.Remove(playerId);
+            removed = true;
+        }
+        if (!removed) return;
+        RequestCoopSnapshotPublish();
+        CompletePlayerWindowPauseIfPossible();
+    }
+
+    private void CompletePlayerWindowPauseIfPossible()
+    {
+        if (_openPlayerWindows.Count > 0 || _playerWindowPauseStartedUtc is not { } pauseStarted) return;
 
         var pauseDuration = DateTime.UtcNow - pauseStarted;
-        _helpPauseStartedUtc = null;
-        _nextNeedsDrain += pauseDuration;
-        foreach (var characterIdKey in _nextEnemyMoves.Keys.ToArray())
-            _nextEnemyMoves[characterIdKey] += pauseDuration;
-        if (_nextEnemyActionUtc != DateTime.MaxValue) _nextEnemyActionUtc += pauseDuration;
+        _playerWindowPauseStartedUtc = null;
+        if (!_battleStarted) ShiftExplorationSchedules(pauseDuration);
     }
+
+    private static string PlayerWindowTitle(PlayerWindowKind kind) => kind switch
+    {
+        PlayerWindowKind.Help => "súgó",
+        PlayerWindowKind.Settings => "beállítások",
+        PlayerWindowKind.QuestJournal => "küldetésnapló",
+        PlayerWindowKind.Inventory => "felszerelés",
+        PlayerWindowKind.CharacterDetails => "részletes karakterinformáció",
+        PlayerWindowKind.SpellInfo => "varázslatinformáció",
+        _ => "személyes ablak"
+    };
+
+    private static string PlayerWindowActivity(PlayerWindowKind kind) => kind switch
+    {
+        PlayerWindowKind.Help => "a súgót olvassa",
+        PlayerWindowKind.Settings => "a beállításokat kezeli",
+        PlayerWindowKind.QuestJournal => "a küldetésnaplót böngészi",
+        PlayerWindowKind.Inventory => "a felszerelését rendezi",
+        PlayerWindowKind.CharacterDetails => "a részletes karakterinformációkat olvassa",
+        PlayerWindowKind.SpellInfo => "a varázslatait böngészi",
+        _ => "egy személyes ablakot használ"
+    };
 
     private void DrainNeeds()
     {
@@ -9361,21 +9567,34 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
         
-        RunHostWindow($"Szintlépés — {character.Name}",
-            $"A vezető {character.Name} szintlépési döntéseit kezeli…", () =>
-            {
-                PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
-                var selectedPerks = _renderer.DrawLevelUpScreen(character, result, offers);
-                foreach (var perk in selectedPerks)
-                    if (character.AddPerk(perk))
-                        character.ApplyPerkAcquisitionBonus(perk);
-                if (ShouldChooseSpecialization(character, offers)) ResolveLocalSpecialization(character);
-                ResolveLocalClassFeatureUpgrades(character, result);
-                ResolveLocalTacticalDisciplines(character, result);
-                ResolveLocalAbilityIncreases(character, result);
-                ResolveLocalWeaponProficiencies(character, result);
-                ResolveSpellLearning(character, result);
-            });
+        _activeLevelUpPrompt = new LevelUpPromptSnapshot(Guid.NewGuid(), character.Id, character.Name,
+            LevelUpPromptKind.Summary, result.PreviousLevel, result.CurrentLevel, result.VitalityGained,
+            result.ManaGained, [], "A vezető véglegesíti a fejlődési döntéseket…",
+            result.Bonuses.Select(bonus => new LevelUpBonusSnapshot(bonus.Level, bonus.Vitality, bonus.Mana))
+                .ToArray());
+        try
+        {
+            RunHostWindow($"Szintlépés — {character.Name}",
+                $"A vezető {character.Name} szintlépési döntéseit kezeli…", () =>
+                {
+                    PlaySessionSound(SoundEffect.NewSkill, [character.Id]);
+                    var selectedPerks = _renderer.DrawLevelUpScreen(character, result, offers);
+                    foreach (var perk in selectedPerks)
+                        if (character.AddPerk(perk))
+                            character.ApplyPerkAcquisitionBonus(perk);
+                    if (ShouldChooseSpecialization(character, offers)) ResolveLocalSpecialization(character);
+                    ResolveLocalClassFeatureUpgrades(character, result);
+                    ResolveLocalTacticalDisciplines(character, result);
+                    ResolveLocalAbilityIncreases(character, result);
+                    ResolveLocalWeaponProficiencies(character, result);
+                    ResolveSpellLearning(character, result);
+                });
+        }
+        finally
+        {
+            _activeLevelUpPrompt = null;
+            ForceCoopSnapshotPublish();
+        }
     }
 
     private void ResolveRemoteLevelUp(LiveCharacter character, LevelUpResult result,
@@ -9621,6 +9840,22 @@ public sealed class Game : ISessionCommandHandler
         _session.SetPhase(GameSessionPhase.Paused);
         _renderer.DrawInventoryMessage(
             $"⌛ Várakozás {character.Name} szintlépési döntésére... ⌛", ConsoleColor.Yellow);
+        var replicatedLines = kind == LevelUpPromptKind.Summary
+            ? LevelUpWindow.BuildSummary(character.Name, result.PreviousLevel, result.CurrentLevel,
+                _activeLevelUpPrompt.Bonuses ?? [], result.VitalityGained, result.ManaGained, character.UsesMana,
+                character.CurrentVitality, character.MaximumVitality, character.CurrentMana,
+                character.MaximumMana, message, contextLines?.Select(line => line.Text).ToArray())
+            : LevelUpWindow.UsesSwordFrame(kind)
+                ? LevelUpWindow.BuildChoice(kind, contextLines ?? [], choices, 0)
+                : MagicProgressionWindow.BuildLearning(character.Name, message, choices, 0);
+        var replicatedWindow = kind == LevelUpPromptKind.Summary
+            ? FramedWindow.LevelUp
+            : LevelUpWindow.UsesSwordFrame(kind) ? FramedWindow.LevelUpChoice : FramedWindow.SpellLearning;
+        var replicatedWidth = kind == LevelUpPromptKind.Summary
+            ? LevelUpWindow.Width
+            : LevelUpWindow.UsesSwordFrame(kind) ? LevelUpWindow.ChoiceWidth(kind) :
+                MagicProgressionWindow.LearningWidth;
+        _renderer.DrawReplicatedWindow(replicatedWidth, replicatedLines, replicatedWindow);
         PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
         RequestCoopSnapshotPublish();
         while (!_levelUpPromptCompleted)

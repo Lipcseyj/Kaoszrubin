@@ -4,8 +4,8 @@ namespace KaoszRubin.Application;
 
 public interface ISessionCommandHandler
 {
-    void OnSetHelpVisibility(PlayerId senderId, CharacterId characterId, bool isOpen);
-    bool IsPausedByHelp();
+    void OnSetPlayerWindowVisibility(SetPlayerWindowVisibilityCommand command);
+    bool IsPausedByPlayerWindow();
     void OnMoveLeader(Direction direction, bool preserveFormationFacing);
     void OnMoveRemoteMember(MoveCharacterCommand command);
     void OnCharacterAction(CharacterActionCommand command);
@@ -51,14 +51,15 @@ public sealed class SessionCommandDispatcher
         while (_session.TryReadCommand(out var command))
         {
             processedCount++;
-            if (command is SetHelpVisibilityCommand helpVisibility)
+            if (command is SetPlayerWindowVisibilityCommand playerWindow)
             {
-                _handler.OnSetHelpVisibility(helpVisibility.SenderId, helpVisibility.CharacterId, helpVisibility.IsOpen);
+                _handler.OnSetPlayerWindowVisibility(playerWindow);
                 continue;
             }
-            if (_handler.IsPausedByHelp())
+            if (_handler.IsPausedByPlayerWindow() && !IsPersonalWindowCommand(command))
             {
-                _session.RejectExecutedCommand(command, "A játék szünetel, amíg egy játékos a súgót olvassa.");
+                _session.RejectExecutedCommand(command,
+                    "A játék szünetel, amíg egy játékos személyes ablakot használ.");
                 continue;
             }
             switch (command)
@@ -130,4 +131,9 @@ public sealed class SessionCommandDispatcher
         }
         return processedCount;
     }
+
+    private static bool IsPersonalWindowCommand(GameCommand command) => command is
+        InventoryTransferCommand or UseInventoryItemCommand or DropInventoryItemCommand or
+        SplitInventoryStackCommand or DistributeInventoryStackCommand or GiveFollowerStackCommand or
+        AssignQuickSpellCommand;
 }

@@ -38,8 +38,19 @@ public sealed record CharacterControlState(CharacterId CharacterId, CharacterCon
 
 public abstract record GameCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId);
 
-public sealed record SetHelpVisibilityCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
-    bool IsOpen) : GameCommand(SenderId, CommandId, CharacterId);
+public enum PlayerWindowKind
+{
+    Help,
+    Settings,
+    QuestJournal,
+    Inventory,
+    CharacterDetails,
+    SpellInfo
+}
+
+public sealed record SetPlayerWindowVisibilityCommand(PlayerId SenderId, long CommandId,
+    CharacterId CharacterId, PlayerWindowKind Kind, Guid WindowId, bool IsOpen)
+    : GameCommand(SenderId, CommandId, CharacterId);
 
 public sealed record MoveCharacterCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     Direction Direction, bool PreserveFormationFacing = false) : GameCommand(SenderId, CommandId, CharacterId);

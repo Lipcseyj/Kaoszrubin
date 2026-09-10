@@ -140,8 +140,10 @@ public sealed class SessionReplicationPublisher
         }
         return snapshot with
         {
-            SpellPreparation = ownsSpellPreparation ? snapshot.SpellPreparation : null,
-            LevelUpPrompt = ownsLevelUp ? snapshot.LevelUpPrompt : null,
+            // A döntést továbbra is csak a karakter gazdájának parancsa hajthatja végre, de a másik
+            // játékos read-only replikaként ugyanazt az ablakot látja.
+            SpellPreparation = snapshot.SpellPreparation,
+            LevelUpPrompt = snapshot.LevelUpPrompt,
             LeaderDecisionTitle = waitingTitle,
             LeaderDecisionMessage = waitingMessage,
             Party = snapshot.Party.Select(character => controlledCharacters.Contains(character.CharacterId) ||

@@ -71,6 +71,8 @@ public sealed class CoopGuestScreen
     private GuestRenderFrame? _lastFrame;
     private Guid? _battleDetailsId;
     private int _battleDetailsPage;
+    private Guid? _personalWindowId;
+    private PlayerWindowKind? _personalWindowKind;
     private readonly BattleCommandPanel _battleCommandPanel = new(
         ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', BattleCommandPanel.Width),
         ConsoleColor.Cyan);
@@ -201,25 +203,18 @@ public sealed class CoopGuestScreen
                     }
                     if (GameInput.IsSettingsShortcut(key))
                     {
-                        SettingsScreen.Show(_musicSettings, ApplyAudioSettings);
+                        await RunPersonalWindowAsync(client, selected.CharacterId, PlayerWindowKind.Settings,
+                            () => SettingsScreen.Show(_musicSettings, ApplyAudioSettings,
+                                () => CurrentCoopWindowStatus(client, selected.CharacterId)), cancellationToken);
                         _lastFrame = null;
                         Interlocked.Exchange(ref _redrawRequested, 1);
                         continue;
                     }
                     if (GameInput.IsHelpShortcut(key))
                     {
-                        var playerId = client.PlayerId!.Value;
-                        await client.SendCommandAsync(new SetHelpVisibilityCommand(playerId,
-                            client.NextCommandId(), selected.CharacterId, true), cancellationToken);
-                        try
-                        {
-                            MainMenu.ShowHelp();
-                        }
-                        finally
-                        {
-                            await client.SendCommandAsync(new SetHelpVisibilityCommand(playerId,
-                                client.NextCommandId(), selected.CharacterId, false), cancellationToken);
-                        }
+                        await RunPersonalWindowAsync(client, selected.CharacterId, PlayerWindowKind.Help,
+                            () => MainMenu.ShowHelp(() => CurrentCoopWindowStatus(client, selected.CharacterId)),
+                            cancellationToken);
                         continue;
                     }
                     if (key.Key == ConsoleKey.Q &&
@@ -230,7 +225,10 @@ public sealed class CoopGuestScreen
                         !_inventoryOpen && !_battleSpellMenuOpen && !_battleItemMenuOpen &&
                         _targetedBattleSpell is null)
                     {
-                        QuestJournalWindow.Show(questSnapshot.QuestJournal ?? [], allowAbandon: false);
+                        await RunPersonalWindowAsync(client, selected.CharacterId, PlayerWindowKind.QuestJournal,
+                            () => QuestJournalWindow.Show(questSnapshot.QuestJournal ?? [], allowAbandon: false,
+                                coopStatusProvider: () => CurrentCoopWindowStatus(client, selected.CharacterId)),
+                            cancellationToken);
                         continue;
                     }
                     if (key.Key == ConsoleKey.Escape && client.CurrentSnapshot?.Phase != GameSessionPhase.Inn &&
@@ -260,6 +258,18 @@ public sealed class CoopGuestScreen
             _soundEffects.Dispose();
             try { Console.CursorVisible = true; }
             catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception)) { }
+            if (_personalWindowId is { } windowId && _personalWindowKind is { } windowKind &&
+                client.State == CoopClientConnectionState.Connected)
+            {
+                try
+                {
+                    await SendPersonalWindowStateAsync(client, selected.CharacterId, windowKind, windowId,
+                        false, CancellationToken.None);
+                }
+                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
+                {
+                }
+            }
             await client.DisconnectAsync(CancellationToken.None);
         }
     }
@@ -268,6 +278,63 @@ public sealed class CoopGuestScreen
     {
         _backgroundMusic.ApplySettings();
         _soundEffects.ApplySettings();
+    }
+
+    private async Task RunPersonalWindowAsync(CoopSignalRClient client, CharacterId characterId,
+        PlayerWindowKind kind, Action action, CancellationToken cancellationToken)
+    {
+        var previousKind = _personalWindowKind;
+        var windowId = _personalWindowId ?? Guid.NewGuid();
+        _personalWindowId = windowId;
+        _personalWindowKind = kind;
+        await SendPersonalWindowStateAsync(client, characterId, kind, windowId, true, cancellationToken);
+        try
+        {
+            action();
+        }
+        finally
+        {
+            if (previousKind is { } previous)
+            {
+                _personalWindowKind = previous;
+                await SendPersonalWindowStateAsync(client, characterId, previous, windowId, true,
+                    CancellationToken.None);
+            }
+            else
+            {
+                _personalWindowKind = null;
+                _personalWindowId = null;
+                await SendPersonalWindowStateAsync(client, characterId, kind, windowId, false,
+                    CancellationToken.None);
+            }
+        }
+    }
+
+    private static Task SendPersonalWindowStateAsync(CoopSignalRClient client, CharacterId characterId,
+        PlayerWindowKind kind, Guid windowId, bool isOpen, CancellationToken cancellationToken) =>
+        client.SendCommandAsync(new SetPlayerWindowVisibilityCommand(client.PlayerId!.Value,
+            client.NextCommandId(), characterId, kind, windowId, isOpen), cancellationToken);
+
+    private async Task OpenInventoryAsync(CoopSignalRClient client, CharacterId characterId,
+        CancellationToken cancellationToken)
+    {
+        _personalWindowId ??= Guid.NewGuid();
+        _personalWindowKind = PlayerWindowKind.Inventory;
+        await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.Inventory,
+            _personalWindowId.Value, true, cancellationToken);
+    }
+
+    private async Task CloseInventoryAsync(CoopSignalRClient client, CharacterId characterId,
+        CancellationToken cancellationToken = default)
+    {
+        var windowId = _personalWindowId;
+        var kind = _personalWindowKind ?? PlayerWindowKind.Inventory;
+        CloseInventoryLocally();
+        _personalWindowId = null;
+        _personalWindowKind = null;
+        if (windowId is not null)
+            await SendPersonalWindowStateAsync(client, characterId, kind, windowId.Value, false,
+                cancellationToken);
     }
 
     private bool ConfirmReturnToMainMenu(CoopSignalRClient client, CoopCharacterOption selected)
@@ -296,22 +363,21 @@ public sealed class CoopGuestScreen
         GameCommand? command = null;
         var snapshot = client.CurrentSnapshot;
         if (snapshot is null) return;
-        if (snapshot.LevelImage is not null) return;
         var ownsCharacter = snapshot.CharacterControls.Any(control =>
             control.CharacterId == characterId && control.AssignedPlayerId == client.PlayerId &&
             control.ConnectionState == PlayerConnectionState.Connected);
         if (!ownsCharacter)
         {
-            if (_inventoryOpen) CloseInventory();
+            if (_inventoryOpen) await CloseInventoryAsync(client, characterId, cancellationToken);
             return;
         }
         if (snapshot.AdHocConversation is not null)
         {
-            if (_inventoryOpen) CloseInventory();
-            return;
+            if (!_inventoryOpen) return;
         }
-        if (_inventoryOpen && snapshot.Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn))
-            CloseInventory();
+        if (_inventoryOpen && snapshot.Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn or
+                GameSessionPhase.Paused))
+            await CloseInventoryAsync(client, characterId, cancellationToken);
         if (snapshot.Phase != GameSessionPhase.Inn)
         {
             _innVendor = null;
@@ -319,6 +385,68 @@ public sealed class CoopGuestScreen
         }
         if (snapshot.Phase != GameSessionPhase.Exploration)
             ClearDoorTargeting();
+        // A saját személyes ablak marad fókuszban akkor is, ha közben közös esemény érkezik.
+        // A közös ablakot a rajzolás ilyenkor csak várakozó státuszként jelzi.
+        if (_characterDetailsOpen)
+        {
+            if (key is ConsoleKey.R or ConsoleKey.Escape or ConsoleKey.Enter)
+            {
+                _characterDetailsOpen = false;
+                if (_personalWindowId is { } detailsWindowId)
+                {
+                    _personalWindowKind = PlayerWindowKind.Inventory;
+                    await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.Inventory,
+                        detailsWindowId, true, cancellationToken);
+                }
+            }
+            else
+            {
+                var pageSize = Math.Max(4, ConsoleRenderer.PlayfieldHeight - 8);
+                _characterDetailsOffset = key switch
+                {
+                    ConsoleKey.UpArrow => _characterDetailsOffset - 1,
+                    ConsoleKey.DownArrow => _characterDetailsOffset + 1,
+                    ConsoleKey.PageUp => _characterDetailsOffset - pageSize,
+                    ConsoleKey.PageDown => _characterDetailsOffset + pageSize,
+                    _ => _characterDetailsOffset
+                };
+            }
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return;
+        }
+        if (_spellInfoOpen && _inventoryOpen)
+        {
+            var spellInfoCommand = HandleSpellInfoInput(client, characterId, snapshot, key);
+            if (!_spellInfoOpen && _personalWindowId is { } spellInfoWindowId)
+            {
+                if (_inventoryOpen)
+                {
+                    _personalWindowKind = PlayerWindowKind.Inventory;
+                    await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.Inventory,
+                        spellInfoWindowId, true, cancellationToken);
+                }
+                else
+                {
+                    _personalWindowKind = null;
+                    _personalWindowId = null;
+                    await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.SpellInfo,
+                        spellInfoWindowId, false, cancellationToken);
+                }
+            }
+            if (spellInfoCommand is not null)
+            {
+                try { await client.SendCommandAsync(spellInfoCommand, cancellationToken); }
+                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
+                { SetMessage(exception.Message); }
+            }
+            return;
+        }
+        if (_inventoryOpen)
+        {
+            await HandleInventoryInputAsync(client, characterId, snapshot, key, cancellationToken);
+            return;
+        }
+        if (snapshot.LevelImage is not null) return;
         if (snapshot.SpellPreparation is { CharacterId: var preparingCharacter } preparation &&
             preparingCharacter == characterId)
         {
@@ -380,30 +508,6 @@ public sealed class CoopGuestScreen
             Interlocked.Exchange(ref _redrawRequested, 1);
             return;
         }
-        if (_characterDetailsOpen)
-        {
-            if (key is ConsoleKey.R or ConsoleKey.Escape or ConsoleKey.Enter)
-                _characterDetailsOpen = false;
-            else
-            {
-                var pageSize = Math.Max(4, ConsoleRenderer.PlayfieldHeight - 8);
-                _characterDetailsOffset = key switch
-                {
-                    ConsoleKey.UpArrow => _characterDetailsOffset - 1,
-                    ConsoleKey.DownArrow => _characterDetailsOffset + 1,
-                    ConsoleKey.PageUp => _characterDetailsOffset - pageSize,
-                    ConsoleKey.PageDown => _characterDetailsOffset + pageSize,
-                    _ => _characterDetailsOffset
-                };
-            }
-            Interlocked.Exchange(ref _redrawRequested, 1);
-            return;
-        }
-        if (command is null && _spellInfoOpen)
-        {
-            command = HandleSpellInfoInput(client, characterId, snapshot, key);
-            if (command is null) return;
-        }
         if (command is null && _battleSpellMenuOpen)
         {
             command = HandleBattleSpellMenuInput(client, characterId, snapshot, key);
@@ -441,15 +545,9 @@ public sealed class CoopGuestScreen
             command = HandleBattleSpellTargetInput(client, characterId, snapshot, key);
             if (command is null) return;
         }
-        else
-        if (_inventoryOpen)
-        {
-            await HandleInventoryInputAsync(client, characterId, snapshot, key, cancellationToken);
-            return;
-        }
         else if (snapshot.Phase == GameSessionPhase.Inn && snapshot.Inn is { } inn)
         {
-            command = HandleInnInput(client, characterId, snapshot, inn, key);
+            command = await HandleInnInputAsync(client, characterId, snapshot, inn, key, cancellationToken);
             if (command is null) return;
         }
         else if (snapshot.Battle is { } battle && battle.ActingCharacterId == characterId)
@@ -566,6 +664,7 @@ public sealed class CoopGuestScreen
             _inventorySelection = 0;
             _inventorySource = null;
             _displayedCharacterId = characterId;
+            await OpenInventoryAsync(client, characterId, cancellationToken);
             Interlocked.Exchange(ref _redrawRequested, 1);
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && GameInputBindings.CharacterAction(key) is { } action)
@@ -755,8 +854,8 @@ public sealed class CoopGuestScreen
         return null;
     }
 
-    private GameCommand? HandleInnInput(CoopSignalRClient client, CharacterId characterId,
-        SessionSnapshot snapshot, InnSnapshot inn, ConsoleKey key)
+    private async Task<GameCommand?> HandleInnInputAsync(CoopSignalRClient client, CharacterId characterId,
+        SessionSnapshot snapshot, InnSnapshot inn, ConsoleKey key, CancellationToken cancellationToken)
     {
         if (inn.LevelCompletion is not null) return null;
         if (GameInputBindings.IsCharacterSheetToggle(key))
@@ -764,6 +863,7 @@ public sealed class CoopGuestScreen
             _inventoryOpen = true;
             _inventorySelection = 0;
             _inventorySource = null;
+            await OpenInventoryAsync(client, characterId, cancellationToken);
             Interlocked.Exchange(ref _redrawRequested, 1);
             return null;
         }
@@ -1059,14 +1159,16 @@ public sealed class CoopGuestScreen
             character.CharacterId == (_displayedCharacterId ?? characterId));
         if (own?.IsTemporaryFollower == true)
         {
-            if (GameInputBindings.IsCharacterSheetToggle(key)) CloseInventory();
+            if (GameInputBindings.IsCharacterSheetToggle(key))
+                await CloseInventoryAsync(client, characterId, cancellationToken);
             else SetMessage("A követő NPC inventoryja csak megtekinthető.", ConsoleColor.DarkYellow);
             return;
         }
         var inventory = own?.Inventory;
         if (inventory is null)
         {
-            if (GameInputBindings.IsCharacterSheetToggle(key)) CloseInventory();
+            if (GameInputBindings.IsCharacterSheetToggle(key))
+                await CloseInventoryAsync(client, characterId, cancellationToken);
             else SetMessage("A követő NPC inventoryja nem módosítható.", ConsoleColor.DarkYellow);
             return;
         }
@@ -1076,7 +1178,7 @@ public sealed class CoopGuestScreen
         GameCommand? command = null;
         if (GameInputBindings.IsCharacterSheetToggle(key))
         {
-            CloseInventory();
+            await CloseInventoryAsync(client, characterId, cancellationToken);
             return;
         }
         switch (GameInputBindings.InventoryAction(key))
@@ -1084,6 +1186,12 @@ public sealed class CoopGuestScreen
             case InventoryInputAction.CharacterDetails:
                 _characterDetailsOpen = true;
                 _characterDetailsOffset = 0;
+                if (_personalWindowId is { } detailsWindowId)
+                {
+                    _personalWindowKind = PlayerWindowKind.CharacterDetails;
+                    await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.CharacterDetails,
+                        detailsWindowId, true, cancellationToken);
+                }
                 Interlocked.Exchange(ref _redrawRequested, 1);
                 break;
             case InventoryInputAction.MoveUp when slots.Count > 0:
@@ -1156,6 +1264,12 @@ public sealed class CoopGuestScreen
                 {
                     _spellInfoOpen = true;
                     _spellInfoSelection = 0;
+                    if (_personalWindowId is { } spellInfoWindowId)
+                    {
+                        _personalWindowKind = PlayerWindowKind.SpellInfo;
+                        await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.SpellInfo,
+                            spellInfoWindowId, true, cancellationToken);
+                    }
                 }
                 else if (useSlot.Kind == InventorySlotKind.Backpack && useSlot.Item is not null)
                     command = new UseInventoryItemCommand(client.PlayerId!.Value, client.NextCommandId(),
@@ -1258,7 +1372,7 @@ public sealed class CoopGuestScreen
         }
     }
 
-    private void CloseInventory()
+    private void CloseInventoryLocally()
     {
         _inventoryOpen = false;
         _spellInfoOpen = false;
@@ -1333,14 +1447,7 @@ public sealed class CoopGuestScreen
         foreach (var activity in (snapshot.Activities ?? []).Where(activity =>
                      activity.Sequence > _lastSessionActivitySequence).OrderBy(activity => activity.Sequence))
         {
-            var prefix = activity.Kind switch
-            {
-                SessionActivityKind.Battle => "⚔ ",
-                SessionActivityKind.Spell => "✨ ",
-                SessionActivityKind.Support => "🤝 ",
-                _ => string.Empty
-            };
-            if (activity.IsVisibleTo(characterId)) SetMessage(prefix + activity.Message, activity.Color);
+            if (activity.IsVisibleTo(characterId)) SetMessage(activity.Message, activity.Color);
             _lastSessionActivitySequence = activity.Sequence;
         }
     }
@@ -1457,16 +1564,28 @@ public sealed class CoopGuestScreen
         ApplyBattleSpellUi(grid, snapshot, own);
         ApplyBattleItemUi(grid, snapshot, own);
         ApplyInnUi(grid, snapshot, selected.CharacterId);
-        ApplyInnDepartureUi(grid, snapshot);
-        ApplyRestSummaryUi(grid, snapshot, client.PlayerId);
-        ApplyNarrativeUi(grid, snapshot, client.PlayerId);
-        ApplySpellPreparationUi(grid, snapshot, own);
-        ApplyLevelUpUi(grid, snapshot, own);
+        var localPersonalWindowOpen = _personalWindowKind is not null;
+        if (!localPersonalWindowOpen)
+        {
+            if (snapshot.SharedWindow is { } sharedWindow)
+                ApplySharedWindowReplica(grid, sharedWindow);
+            else
+            {
+                ApplyInnDepartureUi(grid, snapshot);
+                ApplyRestSummaryUi(grid, snapshot, client.PlayerId);
+                ApplyNarrativeUi(grid, snapshot, client.PlayerId);
+                ApplySpellPreparationUi(grid, snapshot, own);
+                ApplyLevelUpUi(grid, snapshot, own);
+                ApplyFormationEditorReplica(grid, snapshot);
+                ApplyAdHocConversationUi(grid, snapshot.AdHocConversation);
+                ApplyQuestOfferUi(grid, snapshot);
+                ApplyQuestCompletionUi(grid, snapshot);
+                if (!HasConcreteSharedOverlay(snapshot)) ApplyLeaderDecisionUi(grid, snapshot);
+            }
+        }
         ApplyCharacterDetailsUi(grid, own);
-        ApplyAdHocConversationUi(grid, snapshot.AdHocConversation);
-        ApplyQuestOfferUi(grid, snapshot);
-        ApplyQuestCompletionUi(grid, snapshot);
-        ApplyLeaderDecisionUi(grid, snapshot);
+        if (localPersonalWindowOpen) ApplyPendingSharedWindowStatus(grid, snapshot);
+        ApplyRemotePlayerWindowStatus(grid, snapshot, client.PlayerId);
         var panelLines = _spellInfoOpen && own?.SpellInfo is not null
             ? SpellInfoPanel.Build(own.Name, own.CharacterClassId, own.Level, own.SpellInfo,
                 _spellInfoSelection, focused: _inventoryOpen).ToDictionary(line => line.Row)
@@ -1590,14 +1709,15 @@ public sealed class CoopGuestScreen
                 : new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
         }
         var commandSegments = snapshot.Battle is { } battle
-            ? BattleCommandPanel.FormatWithHighlighting(battle.AllowedActions, battle.TacticOptions,
-                !battle.IsPlayerTurn, _battleCommandPanel.HotkeyColor)
+            ? BattleCommandPanel.WithRound(battle.Cycle,
+                BattleCommandPanel.FormatWithHighlighting(battle.AllowedActions, battle.TacticOptions,
+                    !battle.IsPlayerTurn, _battleCommandPanel.HotkeyColor)).ToArray()
             : [];
-        var commandLine = commandSegments.Count == 0
+        var commandLine = commandSegments.Length == 0
             ? _battleCommandPanel.Close()
             : _battleCommandPanel.OpenWithHighlighting(commandSegments);
         footer[0] = new GuestTextLine(commandLine, _battleCommandPanel.Foreground,
-            _battleCommandPanel.Background, Segments: commandSegments.Count == 0 ? null : commandSegments);
+            _battleCommandPanel.Background, Segments: commandSegments.Length == 0 ? null : commandSegments);
         if (_targetedBattleSpell is { } targeted && _spellTargetCursor is { } cursor)
             footer[^1] = new GuestTextLine($"╳ {targeted.Name} — {ConsoleRenderer.SpellTargetName(targeted.TargetType)}, " +
                 $"táv {targeted.Range}{(targeted.AreaRadius > 0 ? $", sugár {targeted.AreaRadius}" : string.Empty)} | " +
@@ -1643,6 +1763,128 @@ public sealed class CoopGuestScreen
         if (string.IsNullOrWhiteSpace(snapshot.LeaderDecisionMessage)) return;
         DrawGuestOverlay(grid, BuildHostWindowWaitingLines(snapshot.LeaderDecisionTitle,
             snapshot.LeaderDecisionMessage), ConsoleColor.DarkYellow, 68, FramedWindow.FormationEditor);
+    }
+
+    private static void ApplySharedWindowReplica(GuestMapCell[,] grid, ReplicatedWindowSnapshot window)
+    {
+        FramedWindow? frame = Enum.TryParse<FramedWindow>(window.Frame, out var parsedFrame)
+            ? parsedFrame
+            : null;
+        var borderColor = frame is { } framed &&
+                          WindowFrameConfiguration.For(framed) == WindowFrameStyle.Sword
+            ? ConsoleColor.Yellow
+            : ConsoleColor.Magenta;
+        DrawGuestOverlay(grid, window.Lines.Select(line => (line.Text, line.Color)).ToArray(),
+            borderColor, window.Width, frame);
+    }
+
+    private bool HasConcreteSharedOverlay(SessionSnapshot snapshot) =>
+        snapshot.SharedWindow is not null || snapshot.Narrative is not null || snapshot.RestNotice is not null ||
+        snapshot.AdHocConversation is not null || snapshot.SpellPreparation is not null ||
+        snapshot.LevelUpPrompt is not null || IsFormationEditorOpen(snapshot) ||
+        _newQuestOffers.Count > 0 || _questCompletions.Count > 0;
+
+    private static bool IsFormationEditorOpen(SessionSnapshot snapshot) =>
+        snapshot.Formation is not null && string.Equals(snapshot.LeaderDecisionTitle, "Alakzatszerkesztő",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static void ApplyFormationEditorReplica(GuestMapCell[,] grid, SessionSnapshot snapshot)
+    {
+        if (!IsFormationEditorOpen(snapshot) || snapshot.Formation is not { } formation) return;
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("⚔  ALAKZATSZERKESZTŐ  ⚔", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ("A vezető az egész csapat alakzatát szerkeszti.", ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray),
+            ("HALADÁSI IRÁNY  ▲", ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        var positionNames = new[] { "ELSŐ BAL", "ELSŐ JOBB", "HÁTSÓ BAL", "HÁTSÓ JOBB" };
+        for (var index = 0; index < positionNames.Length; index++)
+        {
+            var character = index < formation.Slots.Count && formation.Slots[index] is { } characterId
+                ? snapshot.Party.FirstOrDefault(member => member.CharacterId == characterId)
+                : null;
+            lines.Add(($"{positionNames[index],-12}: {character?.Name ?? "— üres —"}",
+                character?.Color ?? ConsoleColor.DarkGray));
+        }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("Read-only nézet — a módosításokat a vezető végzi.", ConsoleColor.DarkYellow));
+        DrawGuestOverlay(grid, lines, ConsoleColor.DarkYellow, 104, FramedWindow.FormationEditor);
+    }
+
+    private static void ApplyRemotePlayerWindowStatus(GuestMapCell[,] grid, SessionSnapshot snapshot,
+        PlayerId? localPlayerId)
+    {
+        if (localPlayerId is null) return;
+        var remote = (snapshot.OpenPlayerWindows ?? []).FirstOrDefault(window =>
+            window.PlayerId != localPlayerId.Value);
+        if (remote is null) return;
+        var text = $" FIGYELEM: {remote.CharacterName} {PlayerWindowActivityText(remote.Kind)}; " +
+                   "a közös játék szünetel. ";
+        var width = grid.GetLength(0);
+        text = BattleCommandPanel.TruncateToDisplayWidth(text, width).PadRight(width);
+        for (var index = 0; index < text.Length && index < width; index++)
+            grid[index, 0] = new GuestMapCell(text[index].ToString(), ConsoleColor.Yellow, ConsoleColor.DarkRed);
+    }
+
+    private void ApplyPendingSharedWindowStatus(GuestMapCell[,] grid, SessionSnapshot snapshot)
+    {
+        if (!HasSharedWindow(snapshot)) return;
+        var title = !string.IsNullOrWhiteSpace(snapshot.LeaderDecisionTitle)
+            ? snapshot.LeaderDecisionTitle
+            : SharedWindowTitle(snapshot);
+        var text = $" KÖZÖS ESEMÉNY VÁR: {title}. Zárd be a saját ablakodat a megtekintéséhez. ";
+        var width = grid.GetLength(0);
+        text = BattleCommandPanel.TruncateToDisplayWidth(text, width).PadRight(width);
+        for (var index = 0; index < text.Length && index < width; index++)
+            grid[index, 0] = new GuestMapCell(text[index].ToString(), ConsoleColor.White, ConsoleColor.DarkRed);
+    }
+
+    private bool HasSharedWindow(SessionSnapshot snapshot) =>
+        snapshot.SharedWindow is not null || snapshot.Narrative is not null || snapshot.RestNotice is not null ||
+        snapshot.AdHocConversation is not null || snapshot.SpellPreparation is not null ||
+        snapshot.LevelUpPrompt is not null || IsFormationEditorOpen(snapshot) ||
+        _newQuestOffers.Count > 0 || _questCompletions.Count > 0 ||
+        !string.IsNullOrWhiteSpace(snapshot.LeaderDecisionMessage);
+
+    private static string SharedWindowTitle(SessionSnapshot snapshot) => snapshot switch
+    {
+        { SharedWindow: { Title: var title } } => title,
+        { Narrative: { Title: var title } } => title,
+        { AdHocConversation: { CharacterName: var name } } => $"Beszélgetés — {name}",
+        { SpellPreparation: { CharacterName: var name } } => $"Varázsmemorizálás — {name}",
+        { LevelUpPrompt: { CharacterName: var name } } => $"Szintlépés — {name}",
+        { RestNotice: not null } => "Pihenés összesítő",
+        _ => "közös ablak"
+    };
+
+    public static string PlayerWindowActivityText(PlayerWindowKind kind) => kind switch
+    {
+        PlayerWindowKind.Help => "a súgót olvassa",
+        PlayerWindowKind.Settings => "a beállításokat kezeli",
+        PlayerWindowKind.QuestJournal => "a küldetésnaplót böngészi",
+        PlayerWindowKind.Inventory => "a felszerelését rendezi",
+        PlayerWindowKind.CharacterDetails => "a részletes karakterinformációkat olvassa",
+        PlayerWindowKind.SpellInfo => "a varázslatait böngészi",
+        _ => "személyes ablakot használ"
+    };
+
+    private string? CurrentCoopWindowStatus(CoopSignalRClient client, CharacterId characterId)
+    {
+        var snapshot = client.CurrentSnapshot;
+        if (snapshot is null || client.PlayerId is not { } localPlayerId) return null;
+        SynchronizeSessionSounds(snapshot, characterId);
+        var remote = (snapshot.OpenPlayerWindows ?? []).FirstOrDefault(window =>
+            window.PlayerId != localPlayerId);
+        if (remote is not null)
+            return $"{remote.CharacterName} {PlayerWindowActivityText(remote.Kind)}; a közös játék szünetel.";
+        if (!HasSharedWindow(snapshot)) return null;
+        var title = !string.IsNullOrWhiteSpace(snapshot.LeaderDecisionTitle)
+            ? snapshot.LeaderDecisionTitle
+            : SharedWindowTitle(snapshot);
+        return $"Közös esemény vár: {title}.";
     }
 
     public static IReadOnlyList<(string Text, ConsoleColor Color)> BuildHostWindowWaitingLines(
@@ -1855,7 +2097,9 @@ public sealed class CoopGuestScreen
     private void ApplySpellPreparationUi(GuestMapCell[,] grid, SessionSnapshot snapshot,
         SessionCharacterSnapshot? own)
     {
-        if (snapshot.SpellPreparation is not { } preparation || own?.CharacterId != preparation.CharacterId) return;
+        if (snapshot.SpellPreparation is not { } preparation) return;
+        var character = snapshot.Party.FirstOrDefault(candidate => candidate.CharacterId == preparation.CharacterId);
+        if (character is null) return;
         if (_spellPreparationPromptId != preparation.PromptId)
         {
             _spellPreparationPromptId = preparation.PromptId;
@@ -1873,16 +2117,19 @@ public sealed class CoopGuestScreen
 
     private void ApplyLevelUpUi(GuestMapCell[,] grid, SessionSnapshot snapshot, SessionCharacterSnapshot? own)
     {
-        if (snapshot.LevelUpPrompt is not { } prompt || own?.CharacterId != prompt.CharacterId) return;
+        if (snapshot.LevelUpPrompt is not { } prompt) return;
+        var character = snapshot.Party.FirstOrDefault(candidate => candidate.CharacterId == prompt.CharacterId);
+        if (character is null) return;
         if (_levelUpPromptId != prompt.PromptId)
         { _levelUpPromptId = prompt.PromptId; _levelUpSelection = 0; }
         List<(string Text, ConsoleColor Color)> lines;
         if (prompt.Kind == LevelUpPromptKind.Summary)
         {
-            var details = own.CharacterSheet;
+            var details = character.CharacterSheet;
             lines = LevelUpWindow.BuildSummary(prompt.CharacterName, prompt.PreviousLevel, prompt.CurrentLevel,
                 prompt.Bonuses ?? [], prompt.VitalityGained, prompt.ManaGained, details?.UsesMana == true,
-                own.CurrentVitality, own.MaximumVitality, own.CurrentMana, own.MaximumMana, prompt.Message,
+                character.CurrentVitality, character.MaximumVitality, character.CurrentMana,
+                character.MaximumMana, prompt.Message,
                 prompt.ContextLines?.Select(line => line.Text).ToArray()).ToList();
         }
         else if (LevelUpWindow.UsesSwordFrame(prompt.Kind))

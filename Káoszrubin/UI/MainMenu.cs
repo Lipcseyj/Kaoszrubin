@@ -771,7 +771,7 @@ public sealed class MainMenu
         return candidates[_random.Next(candidates.Count)].Name;
     }
 
-    public static void ShowHelp()
+    public static void ShowHelp(Func<string?>? coopStatusProvider = null)
     {
         var source = new HelpSourceLine[]
         {
@@ -1035,7 +1035,7 @@ public sealed class MainMenu
             ColoredText("🦯 Harci bot — Jártas: +1 védelem, -5% harci varázskudarc | Mester: +2 védelem, -10% harci varázskudarc.", ConsoleColor.Magenta),
             Text("A többcélú fegyver fő célpontja teljes, mellékcélpontjai alapból 75% sebzést kapnak. A bárd ívben, a szálfegyver egyenes vonalban, a kétkezes zúzófegyver kis összefüggő területen hat. Bárdmester, dühöngő barbár vagy Erőteljes állású harcos teljes söprési sebzést okoz.")
         };
-        ShowScrollableHelp(source);
+        ShowScrollableHelp(source, coopStatusProvider);
     }
 
     private sealed record HelpSourceLine(string Text, ConsoleColor Color, string? Key = null);
@@ -1047,7 +1047,8 @@ public sealed class MainMenu
     private static HelpSourceLine Hotkey(string key, string text) => new(text, ConsoleColor.Gray, key);
     private static HelpSourceLine Blank() => Text(string.Empty);
 
-    private static void ShowScrollableHelp(IReadOnlyList<HelpSourceLine> source)
+    private static void ShowScrollableHelp(IReadOnlyList<HelpSourceLine> source,
+        Func<string?>? coopStatusProvider = null)
     {
         var offset = 0;
         var width = Math.Max(30, Math.Min(122, Console.WindowWidth - 4));
@@ -1097,7 +1098,7 @@ public sealed class MainMenu
             WriteAt(left, top + height - 1, WindowFrameCatalog.Horizontal(style, width, bottom: true),
                 ConsoleColor.Magenta, width);
 
-            switch (Console.ReadKey(intercept: true).Key)
+            switch (CoopWindowStatusBanner.ReadKey(coopStatusProvider).Key)
             {
                 case ConsoleKey.UpArrow: offset--; break;
                 case ConsoleKey.DownArrow: offset++; break;

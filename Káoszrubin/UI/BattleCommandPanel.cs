@@ -107,6 +107,12 @@ public sealed class BattleCommandPanel
         return ParseHotkeysPublic(plainText, hotkeyColor);
     }
 
+    public static IReadOnlyList<TextSegment> WithRound(int? round, IReadOnlyList<TextSegment> segments)
+    {
+        if (round is null) return segments;
+        return [new TextSegment($"{round}. KÖR", ConsoleColor.Cyan), new TextSegment(" "), .. segments];
+    }
+
     /// <summary>
     /// Parses a text string containing hotkeys (identified by text before colons) and creates
     /// colored segments where hotkey portions use the specified highlight color.

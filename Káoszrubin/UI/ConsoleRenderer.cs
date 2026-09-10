@@ -22,6 +22,8 @@ public sealed record UniqueNpcConversationResult(int FriendlinessChange, bool Fo
 
 public sealed class ConsoleRenderer
 {
+    public Action<int, IReadOnlyList<(string Text, ConsoleColor Color)>, FramedWindow?>?
+        SharedWindowPresented { get; set; }
     public const int PlayfieldWidth = 170;
     public const int PlayfieldHeight = 44;
     public const int StandardMessageLogLineCount = 7;
@@ -510,17 +512,7 @@ public sealed class ConsoleRenderer
     public void DrawBattleCommandPanelWithHighlighting(IReadOnlyList<TextSegment> segments)
     {
         // Prepare segments, optionally prepending the round header if present
-        List<TextSegment> segmentsToRender;
-        if (_battleCommandPanelRound is int round)
-        {
-            segmentsToRender = new List<TextSegment> { new TextSegment($"{round}. KÖR", ConsoleColor.Cyan) };
-            segmentsToRender.Add(new TextSegment(" "));
-            segmentsToRender.AddRange(segments);
-        }
-        else
-        {
-            segmentsToRender = segments.ToList();
-        }
+        var segmentsToRender = BattleCommandPanel.WithRound(_battleCommandPanelRound, segments);
 
         _battleCommandPanel.OpenWithHighlighting(segmentsToRender);
 
@@ -2020,6 +2012,7 @@ public sealed class ConsoleRenderer
     private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
         FramedWindow? framedWindow = null)
     {
+        SharedWindowPresented?.Invoke(frameWidth, lines, framedWindow);
         var style = framedWindow is { } window
             ? WindowFrameConfiguration.For(window)
             : WindowFrameStyle.Double;
@@ -2682,6 +2675,9 @@ public sealed class ConsoleRenderer
 
     public void DrawInventoryMessage(string message, ConsoleColor color = ConsoleColor.Cyan) => DrawBattleMessage(message, color);
     public void DrawNpcBattleSummary(string message, ConsoleColor color) => DrawBattleMessage(message, color);
+
+    public void DrawReplicatedWindow(int width, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
+        FramedWindow window) => DrawCenteredFrame(width, lines, window);
 
     public void ScrollMessageLog(bool towardOlderMessages)
     {

@@ -1111,7 +1111,12 @@ static void SessionSnapshotRoundTripsThroughJson()
         Formation = PartyFormationRules.CreateDefault([leader.Id, companion.Id], leader.Id,
             Direction.Down, PartyFormationState.Locked),
         LeaderDecisionMessage = "Várunk a vezető döntéseire…",
-        LeaderDecisionTitle = "Alakzatszerkesztő"
+        LeaderDecisionTitle = "Alakzatszerkesztő",
+        OpenPlayerWindows = [new PlayerWindowStateSnapshot(session.HostPlayerId, leader.Id, leader.Name,
+            PlayerWindowKind.QuestJournal, Guid.NewGuid())],
+        SharedWindow = new ReplicatedWindowSnapshot(Guid.NewGuid(), "Közös próba", 64,
+            FramedWindow.Storyline.ToString(),
+            [new ReplicatedWindowLineSnapshot("A host által rajzolt közös tartalom.", ConsoleColor.Cyan)])
     };
     var json = JsonSerializer.Serialize(snapshot);
     var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
@@ -1124,6 +1129,9 @@ static void SessionSnapshotRoundTripsThroughJson()
            restored.Formation is { Facing: Direction.Down, State: PartyFormationState.Locked } &&
            restored.LeaderDecisionMessage == "Várunk a vezető döntéseire…" &&
            restored.LeaderDecisionTitle == "Alakzatszerkesztő" &&
+           restored.OpenPlayerWindows is [{ Kind: PlayerWindowKind.QuestJournal }] &&
+           restored.SharedWindow is { Title: "Közös próba", Width: 64,
+               Frame: nameof(FramedWindow.Storyline), Lines: [{ Color: ConsoleColor.Cyan }] } &&
            restored.Sounds is [{ Sequence: 1, Effect: SoundEffect.OffensiveSpell,
                ListenerCharacterIds: [{ } listener] }] && listener == companion.Id &&
            restored.PartyGold == 777 && restored.Party.All(character => character.Gold == 777) &&
@@ -1175,13 +1183,14 @@ static void GuestSeesOtherPlayersBlockingWindows()
             LevelUpPromptKind.PerkChoice, 1, 2, 5, 0, [], "Válassz tehetséget.")
     };
     var personalized = new SessionReplicationPublisher().CreateFrame(remote, snapshot).Session;
-    Assert(personalized.LevelUpPrompt is null &&
+    Assert(personalized.LevelUpPrompt is { CharacterId: var levelUpCharacterId } &&
+           levelUpCharacterId == leader.Id &&
            personalized.LeaderDecisionTitle == $"Szintlépés — {leader.Name}" &&
            personalized.LeaderDecisionMessage?.Contains(leader.Name, StringComparison.Ordinal) == true &&
            CoopGuestScreen.BuildHostWindowWaitingLines(personalized.LeaderDecisionTitle,
                personalized.LeaderDecisionMessage).Any(line =>
                    line.Text == "❖  Várakozás a másik játékosra…  ❖"),
-        "A más karakter szintlépési ablaka eltűnt a vendég elől várakozási értesítés nélkül.");
+        "A más karakter szintlépési ablaka nem maradt látható read-only replikaként.");
 }
 
 static void PartyMemberCanBeRestoredOnEntranceOrExit()
@@ -2329,9 +2338,11 @@ static void ProtocolCodecRoundTripsCommand()
     var sale = new InnSaleCommand(PlayerId.New(), 10, CharacterId.New(), 4, 7, 2);
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(sale)) is InnSaleCommand decodedSale &&
            decodedSale == sale, "A JSON wire codec megváltoztatta a fogadói eladást.");
-    var helpVisibility = new SetHelpVisibilityCommand(PlayerId.New(), 11, CharacterId.New(), true);
-    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(helpVisibility)) is SetHelpVisibilityCommand decodedHelp &&
-           decodedHelp == helpVisibility, "A JSON wire codec megváltoztatta a súgó láthatósági parancsát.");
+    var windowVisibility = new SetPlayerWindowVisibilityCommand(PlayerId.New(), 12, CharacterId.New(),
+        PlayerWindowKind.Inventory, Guid.NewGuid(), true);
+    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(windowVisibility)) is
+               SetPlayerWindowVisibilityCommand decodedWindow && decodedWindow == windowVisibility,
+        "A JSON wire codec megváltoztatta a személyes ablak láthatósági parancsát.");
     var distribution = new DistributeInventoryStackCommand(PlayerId.New(), 12, CharacterId.New(), 4, 2);
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(distribution)) is
                DistributeInventoryStackCommand decodedDistribution && decodedDistribution == distribution,
@@ -5268,6 +5279,11 @@ static void RearCombatPreparationIsLeaderControlled()
     Assert(panel.Contains("B: bal hátul", StringComparison.Ordinal) &&
            panel.Contains("J: jobb hátul", StringComparison.Ordinal),
         "A két hátsó felkészítő parancs nem jelent meg külön a csatapanelen.");
+    var roundSegments = BattleCommandPanel.WithRound(7,
+        BattleCommandPanel.FormatWithHighlighting([BattleActionKind.PhysicalAttack]));
+    Assert(string.Concat(roundSegments.Select(segment => segment.Text)).StartsWith("7. KÖR ",
+            StringComparison.Ordinal) && roundSegments[0].Color == ConsoleColor.Cyan,
+        "A közös csatapanel-formázó nem őrizte meg a körszámot vagy annak színét.");
 }
 
 static void TeamBattleAiHealingPotionAvoidsWaste()

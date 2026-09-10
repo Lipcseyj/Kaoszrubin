@@ -73,7 +73,8 @@ public static class QuestJournalWindow
     }
 
     public static Result? Show(IReadOnlyList<QuestJournalEntrySnapshot> entries,
-        IReadOnlyList<FastTravelOption>? fastTravelOptions = null, bool allowAbandon = true)
+        IReadOnlyList<FastTravelOption>? fastTravelOptions = null, bool allowAbandon = true,
+        Func<string?>? coopStatusProvider = null)
     {
         var options = fastTravelOptions ?? [];
         var selectedOption = 0;
@@ -120,7 +121,7 @@ public static class QuestJournalWindow
                     confirmingAbandon ? ConsoleColor.Red : ConsoleColor.DarkYellow));
             Draw(page);
 
-            var key = Console.ReadKey(intercept: true).Key;
+            var key = CoopWindowStatusBanner.ReadKey(coopStatusProvider).Key;
             if (confirmingAbandon)
             {
                 if (key is ConsoleKey.I or ConsoleKey.Y)
