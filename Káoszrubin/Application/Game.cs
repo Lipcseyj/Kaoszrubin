@@ -786,7 +786,7 @@ public sealed class Game : ISessionCommandHandler
 
                 var now = DateTime.UtcNow;
                 ProcessSessionCommands();
-                PruneDisconnectedPlayerWindows();
+                if (PruneDisconnectedPlayerWindows()) RefreshCoopWindowStatus();
                 ContinueDisconnectedRemoteBattleAsNpc();
 
                 if (!_battleStarted && ProcessPendingRodericTransition()) continue;
@@ -3229,7 +3229,7 @@ public sealed class Game : ISessionCommandHandler
         while (_activeSharedWindow is not null)
         {
             ProcessSessionCommands();
-            PruneDisconnectedPlayerWindows();
+            if (PruneDisconnectedPlayerWindows()) RefreshCoopWindowStatus();
             var required = _session.ConnectedHumanPlayerIds;
             if (required.All(_sharedWindowAcknowledgements.Contains)) return;
             TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
@@ -8824,12 +8824,14 @@ public sealed class Game : ISessionCommandHandler
                 if (current.Kind == kind && current.CharacterId == characterId) return;
                 _openPlayerWindows[playerId] = new PlayerWindowStateSnapshot(playerId, characterId,
                     characterName, kind, windowId);
+                RefreshCoopWindowStatus();
                 RequestCoopSnapshotPublish();
                 return;
             }
 
             _openPlayerWindows[playerId] = new PlayerWindowStateSnapshot(playerId, characterId,
                 characterName, kind, windowId);
+            RefreshCoopWindowStatus();
             if (!wasPaused) _playerWindowPauseStartedUtc = DateTime.UtcNow;
             var message = $"⏸ {characterName} {PlayerWindowActivity(kind)}. A közös játék szünetel.";
             RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Yellow);
@@ -8849,6 +8851,7 @@ public sealed class Game : ISessionCommandHandler
 
         if (!_openPlayerWindows.TryGetValue(playerId, out var open) || open.WindowId != windowId) return;
         _openPlayerWindows.Remove(playerId);
+        RefreshCoopWindowStatus();
         var resumedMessage = $"▶ {characterName} bezárta: {PlayerWindowTitle(open.Kind)}.";
         RecordSessionActivity(SessionActivityKind.System, resumedMessage, ConsoleColor.Green);
         if (playerId != _session.HostPlayerId)
@@ -8870,24 +8873,38 @@ public sealed class Game : ISessionCommandHandler
             : $"{remote.CharacterName} {PlayerWindowActivity(remote.Kind)}; a közös játék szünetel.";
     }
 
-    private void PruneDisconnectedPlayerWindows()
+    private void RefreshCoopWindowStatus()
+    {
+        CoopWindowStatusBanner.Refresh(CurrentHostCoopWindowStatus);
+    }
+
+    private bool PruneDisconnectedPlayerWindows()
     {
         var connectedPlayers = _session.CharacterControls
-            .Where(control => control.AssignedPlayerId is not null &&
-                              control.ConnectionState == PlayerConnectionState.Connected)
+            .Where(control =>
+                control.AssignedPlayerId is not null &&
+                control.ConnectionState == PlayerConnectionState.Connected)
             .Select(control => control.AssignedPlayerId!.Value)
             .Append(_session.HostPlayerId)
             .ToHashSet();
+
         var removed = false;
-        foreach (var playerId in _openPlayerWindows.Keys.Where(playerId => !connectedPlayers.Contains(playerId))
+
+        foreach (var playerId in _openPlayerWindows.Keys
+                     .Where(playerId => !connectedPlayers.Contains(playerId))
                      .ToArray())
         {
             _openPlayerWindows.Remove(playerId);
             removed = true;
         }
-        if (!removed) return;
+
+        if (!removed)
+            return false;
+
         RequestCoopSnapshotPublish();
         CompletePlayerWindowPauseIfPossible();
+
+        return true;
     }
 
     private void CompletePlayerWindowPauseIfPossible()

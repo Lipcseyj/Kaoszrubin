@@ -31,10 +31,33 @@ public static class CoopWindowStatusBanner
         }
     }
 
+    public static void Refresh(Func<string?>? statusProvider)
+    {
+        string? current = null;
+
+        if (statusProvider is not null)
+        {
+            try
+            {
+                current = statusProvider();
+            }
+            catch
+            {
+            }
+        }
+
+        Draw(current);
+    }
+
+    public static void Clear()
+    {
+        Draw(null);
+    }
+
     private static void Draw(string? message)
     {
         int width;
-        try { width = Console.WindowWidth; }
+        try { width = Math.Max(Console.WindowWidth, 170); }
         catch (IOException) { return; }
         var text = string.IsNullOrWhiteSpace(message) ? string.Empty : $" FIGYELEM: {message} ";
         text = BattleCommandPanel.TruncateToDisplayWidth(text, width);
