@@ -25,6 +25,7 @@ var tests = new (string Name, Action Run)[]
     ("A támadó becsapódás a sebzés előtt az összes lánccélpontot megkapja", SpellImpactTests.ImpactPrecedesDamage),
     ("A terminál méretőre pontosan a teljes játékképernyőt követeli meg", TerminalViewportRequiresCompleteGameScreen),
     ("A Windows Terminal újraindítás debuggerben és gyermekfolyamatban kimarad", WindowsTerminalRelaunchGuardsAreStable),
+    ("A Windows Terminal gyermek-kézfogás argumentuma szigorúan validált", WindowsTerminalHandshakeArgumentIsValidated),
     ("A többsoros fogadói pletyka minden sora a kereten belül marad", MultilineInnRumorStaysInsideFrame),
     ("A fejlesztői fegyvercsomag követi a kategóriákat és a hátizsák kapacitását", DevelopmentWeaponsRespectCapacity),
     ("A harci tesztpálya a kért csoportokat, jelölőládákat és középső folyosót építi", DeveloperBattleTestScenarioHasRequestedLayout),
@@ -281,6 +282,17 @@ static void WindowsTerminalRelaunchGuardsAreStable()
            !SystemHelpers.ShouldRelaunchInWindowsTerminal(
                isWindows: false, hasWindowsTerminalSession: false, hasChildMarker: false, debuggerAttached: false),
         "A Windows Terminal újraindítási őrfeltételei ciklust vagy debuggerleválást engednek.");
+}
+
+static void WindowsTerminalHandshakeArgumentIsValidated()
+{
+    const string id = "0123456789abcdef0123456789abcdef";
+    Assert(SystemHelpers.GetTerminalHandshakeId([$"{SystemHelpers.TerminalChildArgument}={id}"]) == id,
+        "Az érvényes gyermek-kézfogás azonosítója nem olvasható vissza.");
+    Assert(SystemHelpers.GetTerminalHandshakeId([SystemHelpers.TerminalChildArgument]) is null &&
+           SystemHelpers.GetTerminalHandshakeId([$"{SystemHelpers.TerminalChildArgument}=hibás"]) is null &&
+           SystemHelpers.GetTerminalHandshakeId(null) is null,
+        "A hiányzó vagy hibás gyermek-kézfogás azonosítója elfogadásra került.");
 }
 
 var failures = 0;
