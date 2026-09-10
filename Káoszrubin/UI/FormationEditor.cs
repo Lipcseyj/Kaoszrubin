@@ -11,7 +11,8 @@ public static class FormationEditor
         IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> SpellcasterTactics);
 
     public static Result Edit(IReadOnlyList<LiveCharacter> party, PartyFormationSnapshot formation,
-        IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> currentTactics)
+        IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> currentTactics,
+        Action<int, IReadOnlyList<(string Text, ConsoleColor Color)>, FramedWindow?>? presentationChanged = null)
     {
         var slots = formation.Slots.ToArray();
         var tactics = currentTactics.ToDictionary(pair => pair.Key, pair => pair.Value);
@@ -24,6 +25,9 @@ public static class FormationEditor
         using var background = new BackgroundContentRestorer(left, top, width, height);
         while (true)
         {
+            presentationChanged?.Invoke(width,
+                BuildFormationPresentation(party, slots, cursor, pickedUp, tactics),
+                FramedWindow.FormationEditor);
             Draw(party, slots, cursor, pickedUp, tactics, left, top, width, height);
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return new Result(slots, tactics);
@@ -33,7 +37,7 @@ public static class FormationEditor
                 tactics[tacticsId] = EditSpellcasterTactics(spellcaster,
                     tactics.GetValueOrDefault(tacticsId,
                         NpcSpellcasterTactics.DefaultFor(spellcaster.CharacterClass.Id)),
-                    left, top, width, height);
+                    left, top, width, height, presentationChanged);
                 continue;
             }
             if (key == ConsoleKey.Enter || key == ConsoleKey.Spacebar)
@@ -55,6 +59,41 @@ public static class FormationEditor
                 _ => cursor
             };
         }
+    }
+
+    private static IReadOnlyList<(string Text, ConsoleColor Color)> BuildFormationPresentation(
+        IReadOnlyList<LiveCharacter> party, IReadOnlyList<CharacterId?> slots, int cursor, int? pickedUp,
+        IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> tactics)
+    {
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("⚔  ALAKZATSZERKESZTŐ  ⚔", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ("A host az egész csapat alakzatát szerkeszti — read-only nézet.", ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray),
+            ("HALADÁSI IRÁNY  ▲", ConsoleColor.Cyan),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        var positionNames = new[] { "ELSŐ BAL", "ELSŐ JOBB", "HÁTSÓ BAL", "HÁTSÓ JOBB" };
+        for (var index = 0; index < positionNames.Length; index++)
+        {
+            var character = slots[index] is { } id ? party.FirstOrDefault(member => member.Id == id) : null;
+            var marker = index == cursor ? "▶" : index == pickedUp ? "◆" : " ";
+            lines.Add(($"{marker} {positionNames[index],-12}: {character?.Name ?? "— üres —"}",
+                index == cursor ? ConsoleColor.Yellow : character?.Color ?? ConsoleColor.DarkGray));
+        }
+        if (slots[cursor] is { } selectedId &&
+            party.FirstOrDefault(member => member.Id == selectedId) is { IsSpellcaster: true } spellcaster)
+        {
+            var value = tactics.GetValueOrDefault(selectedId,
+                NpcSpellcasterTactics.DefaultFor(spellcaster.CharacterClass.Id));
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add(($"Varázstaktika: {value.OffensiveSpellsPerBattle}/csata, erő " +
+                       $"{value.MinimumEnemyStrength}–{value.FullOffenseEnemyStrength}, " +
+                       (value.ManaFallback == SpellcasterManaFallback.Retreat
+                           ? "hátravonulás" : "önbuff + közelharc"), ConsoleColor.DarkCyan));
+        }
+        return lines;
     }
 
     private static void Draw(IReadOnlyList<LiveCharacter> party, IReadOnlyList<CharacterId?> slots,
@@ -143,7 +182,8 @@ public static class FormationEditor
     }
 
     private static NpcSpellcasterTactics EditSpellcasterTactics(LiveCharacter character,
-        NpcSpellcasterTactics initial, int left, int top, int width, int height)
+        NpcSpellcasterTactics initial, int left, int top, int width, int height,
+        Action<int, IReadOnlyList<(string Text, ConsoleColor Color)>, FramedWindow?>? presentationChanged)
     {
         var value = initial.Normalize();
         if (character.CharacterClass.Id == CharacterClassIds.Pap && value.UnholyProfile is null)
@@ -160,6 +200,11 @@ public static class FormationEditor
                 "Mana elfogyásakor: " + (value.ManaFallback == SpellcasterManaFallback.Retreat
                     ? "hátravonulás" : "önbuff és közelharc")
             };
+            presentationChanged?.Invoke(width,
+                BuildProfilePresentation(character, "VARÁZSHASZNÁLÓ TAKTIKA", lines, row,
+                    character.CharacterClass.Id == CharacterClassIds.Pap
+                        ? "U: élőholt/démon profil szerkesztése" : null),
+                FramedWindow.FormationEditor);
             DrawProfileEditor(character, "VARÁZSHASZNÁLÓ TAKTIKA", lines, row, left, top, width, height,
                 character.CharacterClass.Id == CharacterClassIds.Pap
                     ? "U: élőholt/démon profil szerkesztése" : null);
@@ -170,7 +215,7 @@ public static class FormationEditor
                 var profile = value.UnholyProfile ??
                     NpcSpellcasterTactics.DefaultFor(CharacterClassIds.Pap).UnholyProfile!;
                 value = value with { UnholyProfile = EditUnholyProfile(character, profile,
-                    left, top, width, height) };
+                    left, top, width, height, presentationChanged) };
                 continue;
             }
             if (key == ConsoleKey.UpArrow) row = Math.Max(0, row - 1);
@@ -191,7 +236,8 @@ public static class FormationEditor
     }
 
     private static NpcSpellcasterCombatProfile EditUnholyProfile(LiveCharacter character,
-        NpcSpellcasterCombatProfile initial, int left, int top, int width, int height)
+        NpcSpellcasterCombatProfile initial, int left, int top, int width, int height,
+        Action<int, IReadOnlyList<(string Text, ConsoleColor Color)>, FramedWindow?>? presentationChanged)
     {
         var value = initial.Normalize();
         var row = 0;
@@ -205,6 +251,9 @@ public static class FormationEditor
                 "Mana elfogyásakor: " + (value.ManaFallback == SpellcasterManaFallback.Retreat
                     ? "hátravonulás" : "önbuff és közelharc")
             };
+            presentationChanged?.Invoke(width,
+                BuildProfilePresentation(character, "ÉLŐHOLT/DÉMON PROFIL", lines, row),
+                FramedWindow.FormationEditor);
             DrawProfileEditor(character, "ÉLŐHOLT/DÉMON PROFIL", lines, row, left, top, width, height);
             var key = Console.ReadKey(intercept: true).Key;
             if (key is ConsoleKey.Enter or ConsoleKey.Escape) return value.Normalize();
@@ -223,6 +272,30 @@ public static class FormationEditor
             };
             value = value.Normalize();
         }
+    }
+
+    private static IReadOnlyList<(string Text, ConsoleColor Color)> BuildProfilePresentation(
+        LiveCharacter character, string title, IReadOnlyList<string> values, int selectedRow,
+        string? extraCommand = null)
+    {
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ($"✦  {title}  ✦", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            (character.Name, character.Color),
+            (string.Empty, ConsoleColor.Gray)
+        };
+        lines.AddRange(values.Select((value, index) =>
+            ($"{(index == selectedRow ? "▶" : " ")} {value}",
+                index == selectedRow ? ConsoleColor.White : ConsoleColor.Gray)));
+        if (!string.IsNullOrWhiteSpace(extraCommand))
+        {
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add((extraCommand, ConsoleColor.Cyan));
+        }
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("A host módosítja az értékeket — read-only nézet.", ConsoleColor.DarkYellow));
+        return lines;
     }
 
     private static void DrawProfileEditor(LiveCharacter character, string title, IReadOnlyList<string> lines,

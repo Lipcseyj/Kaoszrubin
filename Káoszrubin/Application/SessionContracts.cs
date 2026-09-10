@@ -168,6 +168,10 @@ public sealed record AcknowledgeLevelImageCommand(PlayerId SenderId, long Comman
 public sealed record AcknowledgeRestCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     Guid RestId) : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record AcknowledgeSharedWindowCommand(PlayerId SenderId, long CommandId,
+    CharacterId CharacterId, Guid WindowId, long Revision)
+    : GameCommand(SenderId, CommandId, CharacterId);
+
 public sealed record AssignQuickSpellCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     string SpellId, int QuickSlot) : GameCommand(SenderId, CommandId, CharacterId);
 

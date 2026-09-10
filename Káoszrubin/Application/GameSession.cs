@@ -433,6 +433,14 @@ public sealed class GameSession
             reason = string.Empty;
             return true;
         }
+        if (command is AcknowledgeSharedWindowCommand sharedWindowAcknowledgement)
+        {
+            if (Phase != GameSessionPhase.Paused || sharedWindowAcknowledgement.WindowId == Guid.Empty ||
+                sharedWindowAcknowledgement.Revision <= 0)
+                return Fail("Nincs nyugtázható közös ablak.", out reason);
+            reason = string.Empty;
+            return true;
+        }
         if (command is AssignQuickSpellCommand quickSpell)
         {
             if (Phase is not (GameSessionPhase.Exploration or GameSessionPhase.Inn) ||

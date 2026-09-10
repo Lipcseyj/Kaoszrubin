@@ -237,6 +237,7 @@ public sealed class CoopGuestScreen
                         client.CurrentSnapshot?.RestNotice is null &&
                         client.CurrentSnapshot?.SpellPreparation is null &&
                         client.CurrentSnapshot?.LevelUpPrompt is null &&
+                        client.CurrentSnapshot?.SharedWindow is null &&
                         !_inventoryOpen && !_battleSpellMenuOpen && !_battleItemMenuOpen &&
                         _targetedBattleSpell is null &&
                         _doorTargetAction is null)
@@ -371,7 +372,7 @@ public sealed class CoopGuestScreen
             if (_inventoryOpen) await CloseInventoryAsync(client, characterId, cancellationToken);
             return;
         }
-        if (snapshot.AdHocConversation is not null)
+        if (snapshot.AdHocConversation is not null && snapshot.SharedWindow is null)
         {
             if (!_inventoryOpen) return;
         }
@@ -444,6 +445,25 @@ public sealed class CoopGuestScreen
         if (_inventoryOpen)
         {
             await HandleInventoryInputAsync(client, characterId, snapshot, key, cancellationToken);
+            return;
+        }
+        if (snapshot.SharedWindow is { } sharedWindow)
+        {
+            if (key is not (ConsoleKey.Enter or ConsoleKey.Escape) ||
+                (sharedWindow.AcknowledgedPlayerIds ?? []).Contains(client.PlayerId!.Value)) return;
+            _newQuestOffers.Clear();
+            _questCompletions.Clear();
+            try
+            {
+                await client.SendCommandAsync(new AcknowledgeSharedWindowCommand(client.PlayerId!.Value,
+                    client.NextCommandId(), characterId, sharedWindow.WindowId, sharedWindow.Revision),
+                    cancellationToken);
+            }
+            catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
+            {
+                SetMessage(exception.Message);
+            }
+            Interlocked.Exchange(ref _redrawRequested, 1);
             return;
         }
         if (snapshot.LevelImage is not null) return;
@@ -1567,8 +1587,8 @@ public sealed class CoopGuestScreen
         var localPersonalWindowOpen = _personalWindowKind is not null;
         if (!localPersonalWindowOpen)
         {
-            if (snapshot.SharedWindow is { } sharedWindow)
-                ApplySharedWindowReplica(grid, sharedWindow);
+            if (snapshot.SharedWindow is { Lines.Count: > 0 } sharedWindow)
+                ApplySharedWindowReplica(grid, sharedWindow, client.PlayerId);
             else
             {
                 ApplyInnDepartureUi(grid, snapshot);
@@ -1576,11 +1596,11 @@ public sealed class CoopGuestScreen
                 ApplyNarrativeUi(grid, snapshot, client.PlayerId);
                 ApplySpellPreparationUi(grid, snapshot, own);
                 ApplyLevelUpUi(grid, snapshot, own);
-                ApplyFormationEditorReplica(grid, snapshot);
                 ApplyAdHocConversationUi(grid, snapshot.AdHocConversation);
                 ApplyQuestOfferUi(grid, snapshot);
                 ApplyQuestCompletionUi(grid, snapshot);
-                if (!HasConcreteSharedOverlay(snapshot)) ApplyLeaderDecisionUi(grid, snapshot);
+                if (!HasConcreteSharedOverlay(snapshot) && snapshot.SharedWindow is { } pendingSharedWindow)
+                    ApplySharedWindowReplica(grid, pendingSharedWindow, client.PlayerId);
             }
         }
         ApplyCharacterDetailsUi(grid, own);
@@ -1758,14 +1778,8 @@ public sealed class CoopGuestScreen
         return option > 0 && battle.AllowedActions.Contains(action);
     }
 
-    private static void ApplyLeaderDecisionUi(GuestMapCell[,] grid, SessionSnapshot snapshot)
-    {
-        if (string.IsNullOrWhiteSpace(snapshot.LeaderDecisionMessage)) return;
-        DrawGuestOverlay(grid, BuildHostWindowWaitingLines(snapshot.LeaderDecisionTitle,
-            snapshot.LeaderDecisionMessage), ConsoleColor.DarkYellow, 68, FramedWindow.FormationEditor);
-    }
-
-    private static void ApplySharedWindowReplica(GuestMapCell[,] grid, ReplicatedWindowSnapshot window)
+    private static void ApplySharedWindowReplica(GuestMapCell[,] grid, ReplicatedWindowSnapshot window,
+        PlayerId? localPlayerId)
     {
         FramedWindow? frame = Enum.TryParse<FramedWindow>(window.Frame, out var parsedFrame)
             ? parsedFrame
@@ -1774,45 +1788,28 @@ public sealed class CoopGuestScreen
                           WindowFrameConfiguration.For(framed) == WindowFrameStyle.Sword
             ? ConsoleColor.Yellow
             : ConsoleColor.Magenta;
-        DrawGuestOverlay(grid, window.Lines.Select(line => (line.Text, line.Color)).ToArray(),
-            borderColor, window.Width, frame);
+        var lines = window.Lines.Select(line => (line.Text, line.Color)).ToList();
+        if (lines.Count == 0)
+        {
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add(($"◆  {window.Title}  ◆", ConsoleColor.Yellow));
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add(("A host a közös eseményt kezeli.", ConsoleColor.Cyan));
+        }
+        var acknowledged = localPlayerId is { } playerId &&
+                           (window.AcknowledgedPlayerIds ?? []).Contains(playerId);
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add((acknowledged
+            ? "✓ Nyugtázva — várakozás a másik játékosra…"
+            : "Enter / Esc: elolvastam", acknowledged ? ConsoleColor.DarkCyan : ConsoleColor.Green));
+        DrawGuestOverlay(grid, lines, borderColor, window.Width, frame, preserveLastLine: true);
     }
 
     private bool HasConcreteSharedOverlay(SessionSnapshot snapshot) =>
-        snapshot.SharedWindow is not null || snapshot.Narrative is not null || snapshot.RestNotice is not null ||
+        snapshot.Narrative is not null || snapshot.RestNotice is not null ||
         snapshot.AdHocConversation is not null || snapshot.SpellPreparation is not null ||
-        snapshot.LevelUpPrompt is not null || IsFormationEditorOpen(snapshot) ||
+        snapshot.LevelUpPrompt is not null ||
         _newQuestOffers.Count > 0 || _questCompletions.Count > 0;
-
-    private static bool IsFormationEditorOpen(SessionSnapshot snapshot) =>
-        snapshot.Formation is not null && string.Equals(snapshot.LeaderDecisionTitle, "Alakzatszerkesztő",
-            StringComparison.OrdinalIgnoreCase);
-
-    private static void ApplyFormationEditorReplica(GuestMapCell[,] grid, SessionSnapshot snapshot)
-    {
-        if (!IsFormationEditorOpen(snapshot) || snapshot.Formation is not { } formation) return;
-        var lines = new List<(string Text, ConsoleColor Color)>
-        {
-            ("⚔  ALAKZATSZERKESZTŐ  ⚔", ConsoleColor.Yellow),
-            (string.Empty, ConsoleColor.Gray),
-            ("A vezető az egész csapat alakzatát szerkeszti.", ConsoleColor.Cyan),
-            (string.Empty, ConsoleColor.Gray),
-            ("HALADÁSI IRÁNY  ▲", ConsoleColor.Cyan),
-            (string.Empty, ConsoleColor.Gray)
-        };
-        var positionNames = new[] { "ELSŐ BAL", "ELSŐ JOBB", "HÁTSÓ BAL", "HÁTSÓ JOBB" };
-        for (var index = 0; index < positionNames.Length; index++)
-        {
-            var character = index < formation.Slots.Count && formation.Slots[index] is { } characterId
-                ? snapshot.Party.FirstOrDefault(member => member.CharacterId == characterId)
-                : null;
-            lines.Add(($"{positionNames[index],-12}: {character?.Name ?? "— üres —"}",
-                character?.Color ?? ConsoleColor.DarkGray));
-        }
-        lines.Add((string.Empty, ConsoleColor.Gray));
-        lines.Add(("Read-only nézet — a módosításokat a vezető végzi.", ConsoleColor.DarkYellow));
-        DrawGuestOverlay(grid, lines, ConsoleColor.DarkYellow, 104, FramedWindow.FormationEditor);
-    }
 
     private static void ApplyRemotePlayerWindowStatus(GuestMapCell[,] grid, SessionSnapshot snapshot,
         PlayerId? localPlayerId)
@@ -1845,9 +1842,7 @@ public sealed class CoopGuestScreen
     private bool HasSharedWindow(SessionSnapshot snapshot) =>
         snapshot.SharedWindow is not null || snapshot.Narrative is not null || snapshot.RestNotice is not null ||
         snapshot.AdHocConversation is not null || snapshot.SpellPreparation is not null ||
-        snapshot.LevelUpPrompt is not null || IsFormationEditorOpen(snapshot) ||
-        _newQuestOffers.Count > 0 || _questCompletions.Count > 0 ||
-        !string.IsNullOrWhiteSpace(snapshot.LeaderDecisionMessage);
+        snapshot.LevelUpPrompt is not null || _newQuestOffers.Count > 0 || _questCompletions.Count > 0;
 
     private static string SharedWindowTitle(SessionSnapshot snapshot) => snapshot switch
     {
@@ -1886,17 +1881,6 @@ public sealed class CoopGuestScreen
             : SharedWindowTitle(snapshot);
         return $"Közös esemény vár: {title}.";
     }
-
-    public static IReadOnlyList<(string Text, ConsoleColor Color)> BuildHostWindowWaitingLines(
-        string? title, string message) =>
-        [
-            ("", ConsoleColor.Gray),
-            ($"♛  {(!string.IsNullOrWhiteSpace(title) ? title : "Vezetői döntés")}  ♛", ConsoleColor.Yellow),
-            ("", ConsoleColor.Gray),
-            (message, ConsoleColor.Cyan),
-            ("", ConsoleColor.Gray),
-            ("❖  Várakozás a másik játékosra…  ❖", ConsoleColor.DarkCyan)
-        ];
 
     private void ApplyInnUi(GuestMapCell[,] grid, SessionSnapshot snapshot, CharacterId characterId)
     {
@@ -2155,7 +2139,8 @@ public sealed class CoopGuestScreen
     }
 
     private static void DrawGuestOverlay(GuestMapCell[,] grid, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
-        ConsoleColor borderColor, int desiredWidth, FramedWindow? framedWindow = null)
+        ConsoleColor borderColor, int desiredWidth, FramedWindow? framedWindow = null,
+        bool preserveLastLine = false)
     {
         var width = Math.Min(desiredWidth, Math.Max(10, grid.GetLength(0) - 2));
         var style = framedWindow is { } window
@@ -2167,7 +2152,9 @@ public sealed class CoopGuestScreen
         var contentPadding = WindowFrameCatalog.ContentPadding(style);
         var contentWidth = Math.Max(0, width - contentPadding * 2);
         var maximumRows = Math.Max(1, grid.GetLength(1) - 2 - adornmentRows);
-        var visible = lines.Take(maximumRows).ToArray();
+        var visible = preserveLastLine && lines.Count > maximumRows
+            ? lines.Take(Math.Max(0, maximumRows - 1)).Append(lines[^1]).ToArray()
+            : lines.Take(maximumRows).ToArray();
         var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
         var top = Math.Max(0, (grid.GetLength(1) - visible.Length - 2 - adornmentRows) / 2);
         var frameTop = topAdornment is null ? top : top + 1;

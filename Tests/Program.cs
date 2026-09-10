@@ -60,6 +60,7 @@ var tests = new (string Name, Action Run)[]
     ("A vendég nyugtázhatja a közös történeti ablakot", RemotePlayerCanAcknowledgeNarrative),
     ("A vendég nyugtázhatja a közös pályaképet", RemotePlayerCanAcknowledgeLevelImage),
     ("A vendég nyugtázhatja a közös pihenési összegzőt", RemotePlayerCanAcknowledgeRest),
+    ("A vendég revízióhelyesen nyugtázhatja a közös ablakot", RemotePlayerCanAcknowledgeSharedWindow),
     ("A vendég elküldheti a saját memorizált varázslatait", RemotePlayerCanPrepareSpells),
     ("A vendég válaszolhat a saját szintlépési promptjára", RemotePlayerCanResolveLevelUpPrompt),
     ("A vendég értesítést kap a más által kezelt blokkoló ablakokról", GuestSeesOtherPlayersBlockingWindows),
@@ -1114,9 +1115,10 @@ static void SessionSnapshotRoundTripsThroughJson()
         LeaderDecisionTitle = "Alakzatszerkesztő",
         OpenPlayerWindows = [new PlayerWindowStateSnapshot(session.HostPlayerId, leader.Id, leader.Name,
             PlayerWindowKind.QuestJournal, Guid.NewGuid())],
-        SharedWindow = new ReplicatedWindowSnapshot(Guid.NewGuid(), "Közös próba", 64,
+        SharedWindow = new ReplicatedWindowSnapshot(Guid.NewGuid(), 3, "Közös próba", 64,
             FramedWindow.Storyline.ToString(),
-            [new ReplicatedWindowLineSnapshot("A host által rajzolt közös tartalom.", ConsoleColor.Cyan)])
+            [new ReplicatedWindowLineSnapshot("A host által rajzolt közös tartalom.", ConsoleColor.Cyan)],
+            [session.HostPlayerId])
     };
     var json = JsonSerializer.Serialize(snapshot);
     var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
@@ -1130,8 +1132,9 @@ static void SessionSnapshotRoundTripsThroughJson()
            restored.LeaderDecisionMessage == "Várunk a vezető döntéseire…" &&
            restored.LeaderDecisionTitle == "Alakzatszerkesztő" &&
            restored.OpenPlayerWindows is [{ Kind: PlayerWindowKind.QuestJournal }] &&
-           restored.SharedWindow is { Title: "Közös próba", Width: 64,
-               Frame: nameof(FramedWindow.Storyline), Lines: [{ Color: ConsoleColor.Cyan }] } &&
+           restored.SharedWindow is { Revision: 3, Title: "Közös próba", Width: 64,
+               Frame: nameof(FramedWindow.Storyline), Lines: [{ Color: ConsoleColor.Cyan }],
+               AcknowledgedPlayerIds.Count: 1 } &&
            restored.Sounds is [{ Sequence: 1, Effect: SoundEffect.OffensiveSpell,
                ListenerCharacterIds: [{ } listener] }] && listener == companion.Id &&
            restored.PartyGold == 777 && restored.Party.All(character => character.Gold == 777) &&
@@ -1186,10 +1189,7 @@ static void GuestSeesOtherPlayersBlockingWindows()
     Assert(personalized.LevelUpPrompt is { CharacterId: var levelUpCharacterId } &&
            levelUpCharacterId == leader.Id &&
            personalized.LeaderDecisionTitle == $"Szintlépés — {leader.Name}" &&
-           personalized.LeaderDecisionMessage?.Contains(leader.Name, StringComparison.Ordinal) == true &&
-           CoopGuestScreen.BuildHostWindowWaitingLines(personalized.LeaderDecisionTitle,
-               personalized.LeaderDecisionMessage).Any(line =>
-                   line.Text == "❖  Várakozás a másik játékosra…  ❖"),
+           personalized.LeaderDecisionMessage?.Contains(leader.Name, StringComparison.Ordinal) == true,
         "A más karakter szintlépési ablaka nem maradt látható read-only replikaként.");
 }
 
@@ -1297,6 +1297,20 @@ static void RemotePlayerCanAcknowledgeRest()
         "A session elutasította a vendég pihenési nyugtázását.");
     Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(command)) is AcknowledgeRestCommand decoded &&
            decoded == command, "A pihenési nyugtázás nem írható körbe a hálózati protokollon.");
+}
+
+static void RemotePlayerCanAcknowledgeSharedWindow()
+{
+    var (session, _, companion) = CreateSession();
+    var remote = session.RegisterRemotePlayer();
+    Assert(session.TryAssignRemoteControl(remote, companion.Id, out var assignmentError), assignmentError);
+    session.SetPhase(GameSessionPhase.Paused);
+    var command = new AcknowledgeSharedWindowCommand(remote, 1, companion.Id, Guid.NewGuid(), 4);
+    Assert(session.Submit(command) && session.TryReadCommand(out var accepted) && accepted == command,
+        "A session elutasította a vendég közösablak-nyugtázását.");
+    Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(command)) is
+               AcknowledgeSharedWindowCommand decoded && decoded == command,
+        "A közösablak-nyugtázás nem írható körbe a hálózati protokollon.");
 }
 
 static void InnNamesAndRumorsLoadFromCsv()

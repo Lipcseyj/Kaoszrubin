@@ -24,6 +24,7 @@ public interface ISessionCommandHandler
     void OnAcknowledgeNarrative(AcknowledgeNarrativeCommand command);
     void OnAcknowledgeLevelImage(AcknowledgeLevelImageCommand command);
     void OnAcknowledgeRest(AcknowledgeRestCommand command);
+    void OnAcknowledgeSharedWindow(AcknowledgeSharedWindowCommand command);
     void OnAssignQuickSpell(AssignQuickSpellCommand command);
     void OnPrepareSpells(PrepareSpellsCommand command);
     void OnResolveLevelUpPrompt(ResolveLevelUpPromptCommand command);
@@ -118,6 +119,9 @@ public sealed class SessionCommandDispatcher
                 case AcknowledgeRestCommand restAcknowledgement:
                     _handler.OnAcknowledgeRest(restAcknowledgement);
                     break;
+                case AcknowledgeSharedWindowCommand sharedWindowAcknowledgement:
+                    _handler.OnAcknowledgeSharedWindow(sharedWindowAcknowledgement);
+                    break;
                 case AssignQuickSpellCommand quickSpell:
                     _handler.OnAssignQuickSpell(quickSpell);
                     break;
@@ -135,5 +139,5 @@ public sealed class SessionCommandDispatcher
     private static bool IsPersonalWindowCommand(GameCommand command) => command is
         InventoryTransferCommand or UseInventoryItemCommand or DropInventoryItemCommand or
         SplitInventoryStackCommand or DistributeInventoryStackCommand or GiveFollowerStackCommand or
-        AssignQuickSpellCommand;
+        AssignQuickSpellCommand or AcknowledgeSharedWindowCommand;
 }

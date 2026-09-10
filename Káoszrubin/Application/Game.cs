@@ -141,6 +141,8 @@ public sealed class Game : ISessionCommandHandler
     private string? _leaderDecisionTitle;
     private ReplicatedWindowSnapshot? _activeSharedWindow;
     private Guid? _sharedWindowId;
+    private long _sharedWindowRevision;
+    private readonly HashSet<PlayerId> _sharedWindowAcknowledgements = [];
     private bool _captureSharedWindow;
     private int _mazeLevel = 1;
     private AdventureLocationKind _locationKind = AdventureLocationKind.Campaign;
@@ -224,7 +226,8 @@ public sealed class Game : ISessionCommandHandler
             LeaderDecisionMessage = _leaderDecisionMessage,
             LeaderDecisionTitle = _leaderDecisionTitle,
             OpenPlayerWindows = _openPlayerWindows.Values.ToArray(),
-            SharedWindow = _activeSharedWindow,
+            SharedWindow = _activeSharedWindow is null ? null : _activeSharedWindow with
+            { AcknowledgedPlayerIds = _sharedWindowAcknowledgements.ToArray() },
             Party = snapshot.Party.Select(character => character with
             {
                 Gold = SelectedCharacter.Gold,
@@ -2094,6 +2097,9 @@ public sealed class Game : ISessionCommandHandler
 
     void ISessionCommandHandler.OnAcknowledgeRest(AcknowledgeRestCommand command) => ExecuteRestAcknowledgement(command);
 
+    void ISessionCommandHandler.OnAcknowledgeSharedWindow(AcknowledgeSharedWindowCommand command) =>
+        ExecuteSharedWindowAcknowledgement(command);
+
     void ISessionCommandHandler.OnAssignQuickSpell(AssignQuickSpellCommand command) => ExecuteAssignQuickSpell(command);
 
     void ISessionCommandHandler.OnPrepareSpells(PrepareSpellsCommand command) => ExecuteSpellPreparation(command);
@@ -2870,6 +2876,25 @@ public sealed class Game : ISessionCommandHandler
         AcknowledgeRest(command.SenderId, command.CharacterId);
     }
 
+    private void ExecuteSharedWindowAcknowledgement(AcknowledgeSharedWindowCommand command)
+    {
+        if (_activeSharedWindow is null || _activeSharedWindow.WindowId != command.WindowId ||
+            _activeSharedWindow.Revision != command.Revision)
+        {
+            _session.RejectExecutedCommand(command, "Ez a közös ablak vagy annak oldala már nem aktív.");
+            return;
+        }
+        if (!_sharedWindowAcknowledgements.Add(command.SenderId)) return;
+        var characterName = CharacterRoster.Party.Members
+            .FirstOrDefault(character => character.Id == command.CharacterId)?.Name ?? "Egy játékos";
+        RecordSessionActivity(SessionActivityKind.System,
+            $"✓ {characterName} elolvasta a közös ablakot.", ConsoleColor.DarkCyan,
+            _session.CharacterControls.Where(control => control.AssignedPlayerId != command.SenderId &&
+                                                        control.AssignedPlayerId is not null)
+                .Select(control => control.CharacterId).ToArray());
+        RequestCoopSnapshotPublish();
+    }
+
     private void AcknowledgeRest(PlayerId playerId, CharacterId characterId)
     {
         if (!_restAcknowledgements.Add(playerId)) return;
@@ -3150,10 +3175,15 @@ public sealed class Game : ISessionCommandHandler
         var previousMessage = _leaderDecisionMessage;
         var previousCaptureSharedWindow = _captureSharedWindow;
         var previousSharedWindowId = _sharedWindowId;
+        var previousSharedWindowRevision = _sharedWindowRevision;
         var previousSharedWindow = _activeSharedWindow;
+        var previousSharedWindowAcknowledgements = _sharedWindowAcknowledgements.ToArray();
         _captureSharedWindow = true;
         _sharedWindowId = Guid.NewGuid();
-        _activeSharedWindow = null;
+        _sharedWindowRevision = 1;
+        _sharedWindowAcknowledgements.Clear();
+        _activeSharedWindow = new ReplicatedWindowSnapshot(_sharedWindowId.Value, _sharedWindowRevision,
+            title, 68, null, []);
         _leaderDecisionTitle = title;
         _leaderDecisionMessage = message;
         _session.SetPhase(GameSessionPhase.Paused);
@@ -3169,13 +3199,23 @@ public sealed class Game : ISessionCommandHandler
         ForceCoopSnapshotPublish();
         try
         {
-            return action();
+            var result = action();
+            if (_activeCoopHost is not null && _activeSharedWindow is not null)
+            {
+                _sharedWindowAcknowledgements.Add(_session.HostPlayerId);
+                ForceCoopSnapshotPublish();
+                WaitForSharedWindowAcknowledgements();
+            }
+            return result;
         }
         finally
         {
             _captureSharedWindow = previousCaptureSharedWindow;
             _sharedWindowId = previousSharedWindowId;
+            _sharedWindowRevision = previousSharedWindowRevision;
             _activeSharedWindow = previousSharedWindow;
+            _sharedWindowAcknowledgements.Clear();
+            _sharedWindowAcknowledgements.UnionWith(previousSharedWindowAcknowledgements);
             _leaderDecisionTitle = previousTitle;
             _leaderDecisionMessage = previousMessage;
             _session.SetPhase(previousPhase);
@@ -3190,10 +3230,30 @@ public sealed class Game : ISessionCommandHandler
         IReadOnlyList<(string Text, ConsoleColor Color)> lines, FramedWindow? frame)
     {
         if (!_captureSharedWindow || _sharedWindowId is not { } windowId) return;
-        _activeSharedWindow = new ReplicatedWindowSnapshot(windowId,
-            _leaderDecisionTitle ?? "Közös ablak", width, frame?.ToString(),
-            lines.Select(line => new ReplicatedWindowLineSnapshot(line.Text, line.Color)).ToArray());
+        var projectedLines = lines.Select(line => new ReplicatedWindowLineSnapshot(line.Text, line.Color)).ToArray();
+        var frameName = frame?.ToString();
+        var changed = _activeSharedWindow is not { } current || current.Width != width ||
+                      !string.Equals(current.Frame, frameName, StringComparison.Ordinal) ||
+                      !current.Lines.SequenceEqual(projectedLines);
+        if (!changed) return;
+        _sharedWindowRevision++;
+        _sharedWindowAcknowledgements.Clear();
+        _activeSharedWindow = new ReplicatedWindowSnapshot(windowId, _sharedWindowRevision,
+            _leaderDecisionTitle ?? "Közös ablak", width, frameName, projectedLines);
         ForceCoopSnapshotPublish();
+    }
+
+    private void WaitForSharedWindowAcknowledgements()
+    {
+        while (_activeSharedWindow is not null)
+        {
+            ProcessSessionCommands();
+            PruneDisconnectedPlayerWindows();
+            var required = _session.ConnectedHumanPlayerIds;
+            if (required.All(_sharedWindowAcknowledgements.Contains)) return;
+            TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
+            Thread.Sleep(20);
+        }
     }
 
     private void ForceCoopSnapshotPublish()
@@ -3211,7 +3271,7 @@ public sealed class Game : ISessionCommandHandler
             "Várunk a vezető alakzati döntéseire…",
             () => FormationEditor.Edit(
                 CharacterRoster.Party.Members.Where(member => member.IsAlive).ToArray(),
-                _formation, _npcSpellcasterTactics));
+                _formation, _npcSpellcasterTactics, CaptureSharedWindowPresentation));
         _formation = PartyFormationRules.WithSlots(_formation, result.Slots);
         _npcSpellcasterTactics.Clear();
         foreach (var pair in result.SpellcasterTactics) _npcSpellcasterTactics[pair.Key] = pair.Value.Normalize();
