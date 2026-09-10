@@ -25,7 +25,7 @@ public sealed class MainMenu
     private const int SideMenuLeft = 142;
     private const int SideMenuTop = 8;
 
-    public static Version AppVersion => Assembly.GetEntryAssembly()!.GetName().Version ?? new Version(0, 0, 0);
+    public static string AppVersion => (Assembly.GetEntryAssembly()!.GetName().Version ?? new Version(0, 0, 0)).ToString(3);
 
     // Helpers to measure and pad visible width in console cells (surrogate pairs count as width 2).
     private static int DisplayWidth(string? s)
@@ -84,17 +84,17 @@ public sealed class MainMenu
     public MainMenu(GameDataCatalog gameData, string characterSavePath, string gameSaveDirectory,
         string applicationVersion, string catalogHash)
     {
-        StartupLog.Info("main-menu.initialization.start");
+        Log.Info("main-menu.initialization.start");
         _gameData = gameData;
         _characterSaveService = new CharacterSaveService(characterSavePath, gameData);
         _gameSaveService = new GameSaveService(gameSaveDirectory, _characterSaveService);
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
         _characterRoster = _characterSaveService.Load();
-        StartupLog.Info("main-menu.characters.loaded", $"count={_characterRoster.Characters.Count}");
+        Log.Info("main-menu.characters.loaded", $"count={_characterRoster.Characters.Count}");
         _soundEffects = new SoundEffects(_musicSettings.Settings,
-            message => StartupLog.Warning("audio.sound-effect", message));
-        StartupLog.Info("main-menu.initialization.complete");
+            message => Log.Warning("audio.sound-effect", message));
+        Log.Info("main-menu.initialization.complete");
     }
 
     public void Run()
@@ -113,7 +113,7 @@ public sealed class MainMenu
             DrawMainMenu();
             if (!readyLogged)
             {
-                StartupLog.Info("main-menu.ready", "A főmenü kirajzolva, a program billentyűbevitelre vár.");
+                Log.Info("main-menu.ready", "A főmenü kirajzolva, a program billentyűbevitelre vár.");
                 readyLogged = true;
             }
 

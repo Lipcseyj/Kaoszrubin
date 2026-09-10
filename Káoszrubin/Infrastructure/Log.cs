@@ -3,8 +3,8 @@ using System.Text;
 
 namespace KaoszRubin.Infrastructure;
 
-/// <summary>A grafikus felület előtt is használható, hibabiztos indítási napló.</summary>
-public static class StartupLog
+/// <summary>A teljes folyamat élettartama alatt használható, hibabiztos játéknapló.</summary>
+public static class Log
 {
     private static readonly object Sync = new();
     private static readonly string SessionId = Guid.NewGuid().ToString("N")[..8];
@@ -27,7 +27,7 @@ public static class StartupLog
                 try
                 {
                     Directory.CreateDirectory(directory);
-                    _filePath = Path.Combine(directory, $"startup-{DateTime.Now:yyyyMMdd}.log");
+                    _filePath = Path.Combine(directory, $"game-{DateTime.Now:yyyyMMdd}.log");
                     Append("INFO", "log.initialized", $"Napló: {_filePath}");
                     return;
                 }

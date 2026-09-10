@@ -271,16 +271,14 @@ static void TerminalViewportRequiresCompleteGameScreen()
 static void WindowsTerminalRelaunchGuardsAreStable()
 {
     Assert(SystemHelpers.ShouldRelaunchInWindowsTerminal(
-            isWindows: true, hasWindowsTerminalSession: false, hasChildMarker: false, debuggerAttached: false),
+            isWindows: true, hasChildMarker: false, debuggerAttached: false),
         "A közvetlen Windows-indítás nem kérte a Windows Terminalt.");
     Assert(!SystemHelpers.ShouldRelaunchInWindowsTerminal(
-            isWindows: true, hasWindowsTerminalSession: true, hasChildMarker: false, debuggerAttached: false) &&
+               isWindows: true, hasChildMarker: true, debuggerAttached: false) &&
            !SystemHelpers.ShouldRelaunchInWindowsTerminal(
-               isWindows: true, hasWindowsTerminalSession: false, hasChildMarker: true, debuggerAttached: false) &&
+               isWindows: true, hasChildMarker: false, debuggerAttached: true) &&
            !SystemHelpers.ShouldRelaunchInWindowsTerminal(
-               isWindows: true, hasWindowsTerminalSession: false, hasChildMarker: false, debuggerAttached: true) &&
-           !SystemHelpers.ShouldRelaunchInWindowsTerminal(
-               isWindows: false, hasWindowsTerminalSession: false, hasChildMarker: false, debuggerAttached: false),
+               isWindows: false, hasChildMarker: false, debuggerAttached: false),
         "A Windows Terminal újraindítási őrfeltételei ciklust vagy debuggerleválást engednek.");
 }
 

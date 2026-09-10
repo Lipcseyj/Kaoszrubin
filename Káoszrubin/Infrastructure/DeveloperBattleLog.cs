@@ -157,7 +157,7 @@ public sealed class DeveloperBattleLog
             }
             catch (Exception exception)
             {
-                StartupLog.Error("battle-test-log.write-failed", exception);
+                Log.Error("battle-test-log.write-failed", exception);
                 CloseWriter();
             }
         }
@@ -175,7 +175,7 @@ public sealed class DeveloperBattleLog
             }
             catch (Exception exception)
             {
-                StartupLog.Error("battle-test-log.flush-failed", exception);
+                Log.Error("battle-test-log.flush-failed", exception);
                 CloseWriter();
             }
         }
@@ -194,8 +194,8 @@ public sealed class DeveloperBattleLog
         try
         {
             CloseWriter();
-            StartupLog.Initialize();
-            var directory = Path.GetDirectoryName(StartupLog.FilePath);
+            Log.Initialize();
+            var directory = Path.GetDirectoryName(Log.FilePath);
             if (string.IsNullOrWhiteSpace(directory))
                 directory = Path.Combine(AppContext.BaseDirectory, "naplók");
             Directory.CreateDirectory(directory);
@@ -206,14 +206,14 @@ public sealed class DeveloperBattleLog
             _writer = new StreamWriter(_stream, new UTF8Encoding(false)) { AutoFlush = true };
             _writer.WriteLine("KÁOSZRUBIN — FEJLESZTŐI HARCI TESZTNAPLÓ");
             _writer.WriteLine($"{DateTimeOffset.Now:O} [LOG-START] reason={reason}");
-            StartupLog.Info("battle-test-log.created", $"reason={reason}; Napló: {_filePath}");
+            Log.Info("battle-test-log.created", $"reason={reason}; Napló: {_filePath}");
             return true;
         }
         catch (Exception exception)
         {
             CloseWriter();
             _filePath = null;
-            StartupLog.Error("battle-test-log.create-failed", exception);
+            Log.Error("battle-test-log.create-failed", exception);
             return false;
         }
     }

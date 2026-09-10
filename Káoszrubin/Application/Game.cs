@@ -826,12 +826,22 @@ public sealed class Game : ISessionCommandHandler
         }
         finally
         {
-            _backgroundMusic.Dispose();
-            _soundEffects.Dispose();
+            try { _backgroundMusic.Dispose(); }
+            catch (Exception exception) { Log.Error("audio.music-dispose-failed", exception); }
+            try { _soundEffects.Dispose(); }
+            catch (Exception exception) { Log.Error("audio.effects-dispose-failed", exception); }
             if (_activeCoopHost is not null)
             {
-                PublishRemoteCharacterStates(CharacterSyncReason.SessionEnded);
-                _activeCoopHost.TryPublish(CreateSessionSnapshot());
+                try
+                {
+                    PublishRemoteCharacterStates(CharacterSyncReason.SessionEnded);
+                    _activeCoopHost.TryPublish(CreateSessionSnapshot());
+                }
+                catch (Exception exception)
+                {
+                    // A leállítási snapshot soha nem fedheti el a játékhurkot megszakító eredeti hibát.
+                    Log.Error("session.shutdown-publish-failed", exception);
+                }
             }
             _activeCoopHost = null;
             try { Console.CursorVisible = true; }
@@ -3056,7 +3066,10 @@ public sealed class Game : ISessionCommandHandler
             _leaderDecisionTitle = previousTitle;
             _leaderDecisionMessage = previousMessage;
             _session.SetPhase(previousPhase);
-            ForceCoopSnapshotPublish();
+            if (previousPhase == GameSessionPhase.Battle && _activeTeamBattle is not { IsCompleted: false })
+                MarkCoopSnapshotDirty();
+            else
+                ForceCoopSnapshotPublish();
         }
     }
 
