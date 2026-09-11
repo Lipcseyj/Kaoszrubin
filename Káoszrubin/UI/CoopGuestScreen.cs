@@ -60,6 +60,7 @@ public sealed class CoopGuestScreen
     private Guid? _acknowledgedRestId;
     private bool _spellInfoOpen;
     private int _spellInfoSelection;
+    private IReadOnlyList<CharacterSheetPanelLine>? _itemInspectionPanel;
     private Guid? _spellPreparationPromptId;
     private int _spellPreparationCursor;
     private readonly HashSet<string> _preparedSpellIds = new(StringComparer.OrdinalIgnoreCase);
@@ -407,6 +408,15 @@ public sealed class CoopGuestScreen
                 };
             }
             Interlocked.Exchange(ref _redrawRequested, 1);
+            return;
+        }
+        if (_itemInspectionPanel is not null && _inventoryOpen)
+        {
+            if (key is ConsoleKey.Escape or ConsoleKey.I or ConsoleKey.Enter)
+            {
+                _itemInspectionPanel = null;
+                Interlocked.Exchange(ref _redrawRequested, 1);
+            }
             return;
         }
         if (_spellInfoOpen && _inventoryOpen)
@@ -1170,6 +1180,7 @@ public sealed class CoopGuestScreen
         }
         var slots = inventory.Slots;
         var isControlledCharacter = own!.CharacterId == characterId;
+        var panelWidth = _lastFrame?.PanelWidth ?? CharacterSheetPanel.Width;
         _inventorySelection = Math.Clamp(_inventorySelection, 0, Math.Max(0, slots.Count - 1));
         GameCommand? command = null;
         if (GameInputBindings.IsCharacterSheetToggle(key))
@@ -1320,14 +1331,11 @@ public sealed class CoopGuestScreen
                 var inspectSlot = slots[_inventorySelection];
                 if (inspectSlot.Item is null)
                     SetMessage("A kijelölt helyen nincs megvizsgálható tárgy.");
+                else if (!inspectSlot.Item.IsIdentified)
+                    _itemInspectionPanel = ItemInspectionPanel.BuildUnidentified(inspectSlot.Item,
+                        focused: _inventoryOpen, width: panelWidth);
                 else
                 {
-                    if (!inspectSlot.Item.IsIdentified)
-                    {
-                        var unknown = ItemInspectionFormatter.FormatUnidentified(inspectSlot.Item);
-                        SetMessage(unknown.Text, unknown.Color);
-                        break;
-                    }
                     IItemDefinition definition = inspectSlot.Item.Category switch
                     {
                         ItemCategory.Weapon => _gameData.GetWeapon(inspectSlot.Item.DefinitionId),
@@ -1335,16 +1343,13 @@ public sealed class CoopGuestScreen
                         ItemCategory.MagicItem => _gameData.GetMagicItem(inspectSlot.Item.DefinitionId),
                         _ => _gameData.GetItem(inspectSlot.Item.DefinitionId)
                     };
-                    var inspection = ItemInspectionFormatter.Format(definition, _gameData, inspectSlot.Item.Charges,
-                        own?.CharacterSheet?.WeaponProficiencyRanks,
-                        own is null ? null : new ItemInspectionMobilityContext(own,
-                            inspectSlot.Kind, inspectSlot.Index),
+                    _itemInspectionPanel = ItemInspectionPanel.BuildKnown(definition, _gameData,
+                        inspectSlot.Item.Quantity, inspectSlot.Item.Charges,
                         new InventoryItemInstanceState(inspectSlot.Item.InstanceId, inspectSlot.Item.IsIdentified,
                             inspectSlot.Item.CurseId, inspectSlot.Item.CurseEffect, inspectSlot.Item.CurseValue,
                             inspectSlot.Item.CurseStrength, inspectSlot.Item.IsCurseActivated,
                             inspectSlot.Item.BoundCharacterId, inspectSlot.Item.IsPurified,
-                            inspectSlot.Item.DurabilityDamage));
-                    SetMessage(inspection.Text, inspection.Color);
+                            inspectSlot.Item.DurabilityDamage), focused: _inventoryOpen, width: panelWidth);
                 }
                 break;
         }
@@ -1364,6 +1369,7 @@ public sealed class CoopGuestScreen
     {
         _inventoryOpen = false;
         _spellInfoOpen = false;
+        _itemInspectionPanel = null;
         _inventorySource = null;
         _inventorySourceCharacterId = null;
         _inventorySourceRevision = 0;
@@ -1575,14 +1581,16 @@ public sealed class CoopGuestScreen
         ApplyCharacterDetailsUi(grid, own);
         if (localPersonalWindowOpen) ApplyPendingSharedWindowStatus(grid, snapshot);
         ApplyRemotePlayerWindowStatus(grid, snapshot, client.PlayerId);
-        var panelLines = _spellInfoOpen && own?.SpellInfo is not null
-            ? SpellInfoPanel.Build(own.Name, own.CharacterClassId, own.Level, own.SpellInfo,
-                _spellInfoSelection, focused: _inventoryOpen, width: panelWidth).ToDictionary(line => line.Row)
-            : own?.CharacterSheet is not null && own.Inventory is not null
-                ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount,
-                    snapshot.BossKeyCount, own.CharacterId == snapshot.LeaderCharacterId, width: panelWidth)
-                    .ToDictionary(line => line.Row)
-                : [];
+        var panelLines = _itemInspectionPanel is not null
+            ? _itemInspectionPanel.ToDictionary(line => line.Row)
+            : _spellInfoOpen && own?.SpellInfo is not null
+                ? SpellInfoPanel.Build(own.Name, own.CharacterClassId, own.Level, own.SpellInfo,
+                    _spellInfoSelection, focused: _inventoryOpen, width: panelWidth).ToDictionary(line => line.Row)
+                : own?.CharacterSheet is not null && own.Inventory is not null
+                    ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount,
+                        snapshot.BossKeyCount, own.CharacterId == snapshot.LeaderCharacterId, width: panelWidth)
+                        .ToDictionary(line => line.Row)
+                    : [];
         var actionDetails = snapshot.Battle?.ActionDetails;
         if (_battleDetailsId != actionDetails?.Id)
         {
@@ -1624,7 +1632,7 @@ public sealed class CoopGuestScreen
                 panel[y] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
         }
 
-        var partyMembers = _spellInfoOpen ? [] : snapshot.Party.Take(4).ToArray();
+        var partyMembers = _spellInfoOpen || _itemInspectionPanel is not null ? [] : snapshot.Party.Take(4).ToArray();
         for (var index = 0; index < partyMembers.Length; index++)
         {
             var member = partyMembers[index];
@@ -1642,12 +1650,12 @@ public sealed class CoopGuestScreen
         if (!stillControlled && panel.Length > 41)
             panel[41] = new GuestTextLine("Megfigyelő mód", ConsoleColor.DarkYellow, ConsoleColor.Black);
 
-        if (!_spellInfoOpen && snapshot.Formation is { } formation && panel.Length > 40)
+        if (!_spellInfoOpen && _itemInspectionPanel is null && snapshot.Formation is { } formation && panel.Length > 40)
             panel[40] = new GuestTextLine(ConsoleRenderer.FormationStatusText(formation),
                 formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan,
                 ConsoleColor.Black);
 
-        if (!_spellInfoOpen)
+        if (!_spellInfoOpen && _itemInspectionPanel is null)
         {
             var currentActor = snapshot.Battle is { IsQuickBattle: false, Participants: { } participants }
                 ? participants.FirstOrDefault(participant => participant.IsCurrent) : null;

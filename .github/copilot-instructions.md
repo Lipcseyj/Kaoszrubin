@@ -6,3 +6,6 @@
 ## SpellInfo Behavior
 - F-keys must still assign quick slots while the SpellInfo page is open.
 - Item-only actions like drop/use/move/split must not work while SpellInfo is open.
+
+## Item Inspection Behavior
+- Only exit actions should be supported on the item inspection page: Esc, I, or Enter.

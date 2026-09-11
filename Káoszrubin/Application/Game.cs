@@ -671,6 +671,12 @@ public sealed class Game : ISessionCommandHandler
                     }
                     if (_characterSheetFocused)
                     {
+                        if (_renderer.IsItemInspectionPageOpen)
+                        {
+                            if (keyInfo.Key is ConsoleKey.Escape or ConsoleKey.I or ConsoleKey.Enter)
+                                _renderer.CloseItemInspectionPage();
+                            continue;
+                        }
                         if (_renderer.IsSpellInfoPageOpen)
                         {
                             if (keyInfo.Key == ConsoleKey.Escape)
@@ -2176,6 +2182,12 @@ public sealed class Game : ISessionCommandHandler
             if (keyInfo.Key == InnController.StateChangedKey)
             {
                 _renderer.RefreshCharacterSheet(SelectedCharacter);
+                continue;
+            }
+            if (_renderer.IsItemInspectionPageOpen)
+            {
+                if (keyInfo.Key is ConsoleKey.Escape or ConsoleKey.I or ConsoleKey.Enter)
+                    _renderer.CloseItemInspectionPage();
                 continue;
             }
             if (GameInputBindings.IsCharacterSheetToggle(keyInfo.Key) || keyInfo.Key == ConsoleKey.Escape)
@@ -4042,41 +4054,42 @@ public sealed class Game : ISessionCommandHandler
     private void InspectSelectedInventoryItem()
     {
         var slot = _renderer.GetSelectedInventorySlot();
-        if (slot is null && _renderer.GetSelectedPartyMember() is { } partyMember)
+        if (slot is null)
         {
-            _renderer.DrawInventoryMessage($"{partyMember.Name} — mozgásprofil: {NpcBehaviorName(partyMember.NpcBehavior)}.", partyMember.Color);
-            return;
-        }
-        var item = slot is { } selected ? selected.Character.GetInventoryItem(selected.Kind, selected.Index) : null;
-        if (item is null) { _renderer.DrawInventoryMessage("A kijelölt helyen nincs megvizsgálható tárgy.", ConsoleColor.DarkYellow); return; }
-
-        if (slot is { } unknownSlot && !unknownSlot.Character.IsInventoryItemIdentified(unknownSlot.Kind, unknownSlot.Index))
-        {
-            var unknownState = unknownSlot.Character.GetInventoryItemState(unknownSlot.Kind, unknownSlot.Index);
-            _renderer.DrawInventoryMessage(
-                $"{ItemIdentificationRules.DisplayName(item, false)} — A pontos hatás, érték és töltet ismeretlen. " +
-                $"Érzékelhető aura: {ItemIdentificationRules.AuraStrength(item)}. " +
-                ItemInspectionFormatter.DurabilityText(EquipmentDurabilityRules.MaximumDurability(item),
-                    unknownState?.DurabilityDamage ?? 0) +
-                (unknownState?.IsCurseActivated == true
-                    ? "☠ Az átok aktiválódott és a tárgy a viselőjéhez kötődött. " : string.Empty) +
-                "A Vándormágus azonosíthatja.",
-                ConsoleColor.DarkCyan);
+            if (_renderer.GetSelectedPartyMember() is { } partyMember)
+                _renderer.DrawInventoryMessage($"{partyMember.Name} — mozgásprofil: {NpcBehaviorName(partyMember.NpcBehavior)}.",
+                    partyMember.Color);
+            else
+                _renderer.DrawInventoryMessage("A kijelölt helyen nincs megvizsgálható tárgy.", ConsoleColor.DarkYellow);
             return;
         }
 
-        var inspection = ItemInspectionFormatter.Format(item, _gameData,
-            slot is { } itemSlot
-                ? itemSlot.Character.GetInventoryItemCharges(itemSlot.Kind, itemSlot.Index)
-                : 0,
-            slot?.Character.WeaponProficiencies.ToDictionary(proficiency => proficiency.FamilyId,
-                proficiency => (int)proficiency.Rank, StringComparer.OrdinalIgnoreCase),
-            slot is { } previewSlot
-                ? new ItemInspectionMobilityContext(CreateCharacterDetailsSnapshot(previewSlot.Character),
-                    previewSlot.Kind, previewSlot.Index)
-                : null,
-            slot is { } stateSlot ? stateSlot.Character.GetInventoryItemState(stateSlot.Kind, stateSlot.Index) : null);
-        _renderer.DrawInventoryMessage(inspection.Text, inspection.Color);
+        var item = slot.Value.Character.GetInventoryItem(slot.Value.Kind, slot.Value.Index);
+        if (item is null)
+        {
+            _renderer.DrawInventoryMessage("A kijelölt helyen nincs megvizsgálható tárgy.", ConsoleColor.DarkYellow);
+            return;
+        }
+
+        if (!slot.Value.Character.IsInventoryItemIdentified(slot.Value.Kind, slot.Value.Index))
+        {
+            var unknownItem = InventorySnapshotProjector.Create(slot.Value.Character).Slots
+                .FirstOrDefault(entry => entry.Kind == slot.Value.Kind && entry.Index == slot.Value.Index).Item;
+            if (unknownItem is null)
+            {
+                _renderer.DrawInventoryMessage("A tárgy adatai jelenleg nem olvashatók.", ConsoleColor.DarkYellow);
+                return;
+            }
+            _renderer.DrawItemInspectionPage(ItemInspectionPanel.BuildUnidentified(unknownItem,
+                focused: _characterSheetFocused, width: CharacterSheetPanel.Width));
+            return;
+        }
+
+        var state = slot.Value.Character.GetInventoryItemState(slot.Value.Kind, slot.Value.Index);
+        var charges = slot.Value.Character.GetInventoryItemCharges(slot.Value.Kind, slot.Value.Index);
+        var quantity = slot.Value.Character.GetInventoryItemQuantity(slot.Value.Kind, slot.Value.Index);
+        _renderer.DrawItemInspectionPage(ItemInspectionPanel.BuildKnown(item, _gameData,
+            quantity, charges, state, focused: _characterSheetFocused, width: CharacterSheetPanel.Width));
     }
 
     private void DismissSelectedPartyMember()

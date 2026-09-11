@@ -184,6 +184,7 @@ public sealed class ConsoleRenderer
     private bool _characterSheetFocused;
     private LiveCharacter? _spellInfoCharacter;
     private int _selectedSpellInfoIndex;
+    private IReadOnlyList<CharacterSheetPanelLine>? _itemInspectionPanel;
     private List<MapCellSnapshot>? _spellCastingOverlaySnapshot;
     private SheetSelectionKey? _activeSheetSelection;
     private readonly Dictionary<LiveCharacter, SheetSelectionKey> _lastSheetSelections = [];
@@ -2555,6 +2556,11 @@ public sealed class ConsoleRenderer
             DrawSpellInfoPage(_spellInfoCharacter, _selectedSpellInfoIndex);
             return;
         }
+        if (_itemInspectionPanel is not null)
+        {
+            DrawItemInspectionPage(_itemInspectionPanel);
+            return;
+        }
         var characterToDraw = _displayedCharacter is not null && SheetCharacters().Contains(_displayedCharacter)
             ? _displayedCharacter
             : character;
@@ -2571,6 +2577,7 @@ public sealed class ConsoleRenderer
 
     public void MoveCharacterSheetSelection(int direction)
     {
+        if (_itemInspectionPanel is not null) return;
         if (_displayedCharacter is null || direction == 0) return;
         var entries = BuildSheetSelections(_displayedCharacter);
         if (entries.Count == 0) return;
@@ -2586,6 +2593,7 @@ public sealed class ConsoleRenderer
 
     public void MoveDisplayedPartyMember(int direction)
     {
+        if (_itemInspectionPanel is not null) return;
         var characters = SheetCharacters();
         if (_displayedCharacter is null || direction == 0 || characters.Count == 0) return;
         if (_activeSheetSelection is { } active) _lastSheetSelections[_displayedCharacter] = active;
@@ -2599,6 +2607,7 @@ public sealed class ConsoleRenderer
 
     public void DrawSpellInfoPage(LiveCharacter character, int selectedIndex)
     {
+        _itemInspectionPanel = null;
         var spells = character.KnownSpells.OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).ToList();
         selectedIndex = spells.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, spells.Count - 1);
         _spellInfoCharacter = character;
@@ -2614,6 +2623,7 @@ public sealed class ConsoleRenderer
     }
 
     public bool IsSpellInfoPageOpen => _spellInfoCharacter is not null;
+    public bool IsItemInspectionPageOpen => _itemInspectionPanel is not null;
 
     public LiveCharacter? SpellInfoCharacter => _spellInfoCharacter;
 
@@ -2643,6 +2653,26 @@ public sealed class ConsoleRenderer
         var character = _spellInfoCharacter;
         _spellInfoCharacter = null;
         DrawCharacterSheet(character);
+    }
+
+    public void DrawItemInspectionPage(IReadOnlyList<CharacterSheetPanelLine> lines)
+    {
+        _spellInfoCharacter = null;
+        _itemInspectionPanel = lines;
+        var panelLines = lines.ToDictionary(line => line.Row);
+        for (var row = 0; row <= PicturePanelBottom; row++)
+            if (panelLines.TryGetValue(row, out var line))
+                WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
+            else
+                WriteSheetLine(row, string.Empty, ConsoleColor.Gray);
+    }
+
+    public void CloseItemInspectionPage()
+    {
+        if (_itemInspectionPanel is null) return;
+        _itemInspectionPanel = null;
+        if (_displayedCharacter is not null)
+            DrawCharacterSheet(_displayedCharacter);
     }
 
     public InventorySlotReference? GetSelectedInventorySlot()
