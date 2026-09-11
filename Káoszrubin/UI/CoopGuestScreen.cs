@@ -1614,19 +1614,14 @@ public sealed class CoopGuestScreen
         {
             if (panelLines.TryGetValue(y, out var line))
             {
-                var marker = line.InventorySlot is not null && line.InventorySlot == _inventorySource &&
-                             own?.CharacterId == _inventorySourceCharacterId ? "*" : " ";
                 IReadOnlyList<TextSegment>? segments = line.Segments;
                 if (segments is null && line.ColoredTextStart >= 0)
                 {
                     var split = Math.Clamp(line.ColoredTextStart, 0, line.Text.Length);
-                    segments = [new TextSegment(marker, line.Color),
-                        new TextSegment(line.Text[..split], line.Color),
+                    segments = [new TextSegment(line.Text[..split], line.Color),
                         new TextSegment(line.Text[split..], line.ColoredTextColor)];
                 }
-                else if (segments is not null)
-                    segments = [new TextSegment(marker, line.Color), .. segments];
-                panel[y] = new GuestTextLine(marker + line.Text, line.Color,
+                panel[y] = new GuestTextLine(line.Text, line.Color,
                     line.InventorySlot is not null && line.InventorySlot == selectedSlot
                         ? ConsoleColor.DarkCyan
                         : line.Background, line.ColoredSuffix, line.ColoredSuffixColor,
@@ -2250,12 +2245,10 @@ public sealed class CoopGuestScreen
                 WriteAt(frame.MapWidth, row, new GuestTextLine("│ ", ConsoleColor.DarkCyan, ConsoleColor.Black), 2);
             if (fullRedraw || previous!.Panel[row] != frame.Panel[row])
             {
-                // A guest minden karakterlap-sor elé egy marker karaktert (" " vagy "*") fűz,
-                // ezért egy oszloppal balrébb kezdünk, hogy a szöveg a host oszlopába kerüljön.
                 if (frame.Panel[row].ExtendsToDivider)
                     WriteAt(frame.MapWidth, row, frame.Panel[row], BattleDetailsPanel.ExtendedWidth);
                 else
-                    WriteAt(frame.MapWidth + 1, row, frame.Panel[row], CharacterSheetPanel.Width + 1);
+                    WriteAt(frame.MapWidth + 2, row, frame.Panel[row], CharacterSheetPanel.Width);
             }
         }
 
@@ -2271,7 +2264,7 @@ public sealed class CoopGuestScreen
                 // Teljes rajzoláskor a panel már elkészült, ezért a hiányzó státusz nem törölheti le.
                 // Részleges rajzoláskor viszont egy megszűnt státusz helyére vissza kell tenni a panel sorát.
                 if (!fullRedraw && previous!.PartyStatuses[row] is not null)
-                    WriteAt(frame.MapWidth + 1, row, frame.Panel[row], CharacterSheetPanel.Width + 1);
+                    WriteAt(frame.MapWidth + 2, row, frame.Panel[row], CharacterSheetPanel.Width);
                 continue;
             }
 
