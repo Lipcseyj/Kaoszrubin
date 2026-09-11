@@ -92,7 +92,6 @@ public sealed class ConsoleRenderer
     private const int SpellInfoSelectedSpellStateLine = 29;
     private const int SpellInfoDescriptionStartLine = 30;
     private const int SpellInfoDescriptionRows = 5;
-    private const int SpellInfoDescriptionWidth = RightSheetWidth;
     private const int SpellInfoLevelsHeadingLine = 36;
     private const int SpellInfoNextUnlockLine = 43;
     private const int SpellInfoControlsLine = 45;
@@ -139,6 +138,11 @@ public sealed class ConsoleRenderer
     private PartyFormationSnapshot? _formation;
     private const int ResourceIconStep = 10;
     private const int PortraitInteriorWidth = 25;
+    private static int RightSheetWidthForWindow() =>
+        Math.Max(RightSheetWidth, SafeConsoleWindowWidth() - RightSheetX);
+
+    private static int RightSheetExtendedWidthForWindow() =>
+        BattleDetailsPanel.ExtendedWidthFor(RightSheetWidthForWindow());
     private const int MessagePanelLeft = 2;
     private const int FirstMessageLineOffset = 1;
     private readonly Queue<MessageLogLine> _messageLog = new();
@@ -160,7 +164,7 @@ public sealed class ConsoleRenderer
         if (_battleDetails?.Id != details?.Id) _battleDetailsPage = 0;
         _battleDetails = details;
         if (_spellInfoCharacter is null)
-            foreach (var line in BattleDetailsPanel.Build(details, _battleDetailsPage))
+            foreach (var line in BattleDetailsPanel.Build(details, _battleDetailsPage, RightSheetWidthForWindow()))
                 if (line.ExtendsToDivider)
                     WriteExtendedCharacterSheetLine(line);
                 else
@@ -230,6 +234,18 @@ public sealed class ConsoleRenderer
         catch
         {
             return ScreenRowCountForMessageLogLineCount(StandardMessageLogLineCount);
+        }
+    }
+
+    private static int SafeConsoleWindowWidth()
+    {
+        try
+        {
+            return Console.WindowWidth;
+        }
+        catch
+        {
+            return RightSheetX + RightSheetWidth;
         }
     }
 
@@ -2584,7 +2600,7 @@ public sealed class ConsoleRenderer
         for (var line = CharacterSheetHeaderLine; line <= PicturePanelBottom; line++) WriteSheetLine(line, string.Empty, ConsoleColor.Gray);
         var info = SpellInfoSnapshotProjector.Create(character);
         foreach (var line in SpellInfoPanel.Build(character.Name, character.CharacterClass.Id, character.Level,
-                     info, selectedIndex, _characterSheetFocused))
+                     info, selectedIndex, _characterSheetFocused, RightSheetWidthForWindow()))
             WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
     }
 
@@ -2663,7 +2679,7 @@ public sealed class ConsoleRenderer
         if (_displayedCharacter == _party.Leader) UpdateGoldInCharacterSheet(_displayedCharacter);
         var panelLines = CharacterSheetPanel.Build(_displayedCharacter, _gameData.ExperienceByLevel, _mazeLevel,
             _goldenKeyCount, MonsterIds.Bosses.Count, _displayedCharacter == _party.Leader,
-            IsTemporaryFollower(_displayedCharacter));
+            IsTemporaryFollower(_displayedCharacter), RightSheetWidthForWindow());
         foreach (var heading in panelLines.Where(line => line.Row is CharacterSheetWeaponsHeadingLine or
                      CharacterSheetMagicItemsHeadingLine or CharacterSheetBackpackHeadingLine))
             WriteCharacterSheetPanelLine(heading);
@@ -2788,7 +2804,7 @@ public sealed class ConsoleRenderer
         _displayedCharacter = character;
         var panelLines = CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
             _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader,
-            IsTemporaryFollower(character));
+            IsTemporaryFollower(character), RightSheetWidthForWindow());
         DrawCharacterSheetHeader(character);
         foreach (var line in panelLines.Where(line => line.Row != CharacterSheetHeaderLine && line.InventorySlot is null))
             if (line.Row == CharacterSheetVitalityLine)
@@ -2821,7 +2837,7 @@ public sealed class ConsoleRenderer
     private void WriteExtendedCharacterSheetLine(CharacterSheetPanelLine line)
     {
         var x = RightSheetX - 2;
-        var remaining = BattleDetailsPanel.ExtendedWidth;
+        var remaining = RightSheetExtendedWidthForWindow();
         SetColors(line.Color, line.Background);
         Console.SetCursorPosition(x, line.Row);
         foreach (var segment in line.Segments ?? [new TextSegment(line.Text, line.Color)])
@@ -2872,7 +2888,8 @@ public sealed class ConsoleRenderer
         if (_activeSheetSelection is null || entries.All(entry => entry.Key != _activeSheetSelection))
             _activeSheetSelection = entries.FirstOrDefault()?.Key;
         var panelLines = CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
-            _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader, IsTemporaryFollower(character));
+            _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader, IsTemporaryFollower(character),
+            RightSheetWidthForWindow());
         DrawInventorySlotRows(character, panelLines);
         DrawPartyStatusRows(character);
     }
@@ -2912,7 +2929,7 @@ public sealed class ConsoleRenderer
             }
             var member = partyMembers[index];
             DrawPartyStatusLine(row, CharacterSheetPanel.BuildPartyStatus(member,
-                member == displayedCharacter, member == _party.Leader),
+                    member == displayedCharacter, member == _party.Leader, RightSheetWidthForWindow()),
                 SelectionBackground(new(SheetSelectionKind.PartyMember, index)));
         }
     }
@@ -3087,7 +3104,8 @@ public sealed class ConsoleRenderer
         if (names.Count == 0) return $"{label}: nincs";
         var prefix = $"{label}: ";
         var separatorsWidth = (names.Count - FirstItemNumber) * FrameBorderWidth;
-        var availablePerName = Math.Max(FirstItemNumber, (RightSheetWidth - prefix.Length - separatorsWidth) / names.Count);
+        var rightSheetWidth = RightSheetWidthForWindow();
+        var availablePerName = Math.Max(FirstItemNumber, (rightSheetWidth - prefix.Length - separatorsWidth) / names.Count);
         var shortenedNames = names.Select(name => name.Length <= availablePerName ? name : name[..availablePerName]);
         return prefix + string.Join(", ", shortenedNames);
     }
@@ -3099,13 +3117,14 @@ public sealed class ConsoleRenderer
 
         var rows = new List<string>(rowCount);
         var namesPerRow = (int)Math.Ceiling(names.Count / (double)rowCount);
+        var rightSheetWidth = RightSheetWidthForWindow();
         for (var row = 0; row < rowCount; row++)
         {
             var rowNames = names.Skip(row * namesPerRow).Take(namesPerRow).ToList();
             if (rowNames.Count == 0) { rows.Add(string.Empty); continue; }
             var prefix = row == 0 ? $"{label}: " : new string(' ', label.Length + FrameBorderWidth);
             var separatorsWidth = (rowNames.Count - FirstItemNumber) * FrameBorderWidth;
-            var availablePerName = Math.Max(FirstItemNumber, (RightSheetWidth - prefix.Length - separatorsWidth) / rowNames.Count);
+            var availablePerName = Math.Max(FirstItemNumber, (rightSheetWidth - prefix.Length - separatorsWidth) / rowNames.Count);
             var shortenedNames = rowNames.Select(name => name.Length <= availablePerName ? name : name[..availablePerName]);
             rows.Add(prefix + string.Join(", ", shortenedNames));
         }
@@ -3140,16 +3159,17 @@ public sealed class ConsoleRenderer
             }
             : _displayedCharacter?.Color ?? ConsoleColor.Cyan;
         var style = WindowFrameConfiguration.For(FramedWindow.CreaturePortrait);
-        WriteSheetLine(PicturePanelTop, WindowFrameCatalog.Horizontal(style, RightSheetWidth), ConsoleColor.DarkCyan);
+        var rightSheetWidth = RightSheetWidthForWindow();
+        WriteSheetLine(PicturePanelTop, WindowFrameCatalog.Horizontal(style, rightSheetWidth), ConsoleColor.DarkCyan);
         for (var index = 0; index < PicturePanelHeight; index++)
         {
             var line = index < portrait.Lines.Count ? portrait.Lines[index] : string.Empty;
             var sides = WindowFrameCatalog.Sides(style, index, PicturePanelHeight);
-            var interiorWidth = RightSheetWidth - sides.Left.Length - sides.Right.Length;
+            var interiorWidth = rightSheetWidth - sides.Left.Length - sides.Right.Length;
             WriteSheetLine(PicturePanelTop + index + FirstMessageLineOffset,
                 sides.Left + CenterPanelText(line, portrait.CanvasWidth, interiorWidth) + sides.Right, color);
         }
-        WriteSheetLine(PicturePanelBottom, WindowFrameCatalog.Horizontal(style, RightSheetWidth, bottom: true),
+        WriteSheetLine(PicturePanelBottom, WindowFrameCatalog.Horizontal(style, rightSheetWidth, bottom: true),
             ConsoleColor.DarkCyan);
         if (_battleActingCharacter != null && _battleActingCharacter.NpcBehavior != null )
         {
@@ -3174,22 +3194,22 @@ public sealed class ConsoleRenderer
 
     private void WriteSheetLine(int y, string text, ConsoleColor foregroundColor, ConsoleColor backgroundColor)
     {
-        var clippedText = text.Length <= RightSheetWidth ? text : text[..RightSheetWidth];
+        var rightSheetWidth = RightSheetWidthForWindow();
+        var clippedText = text.Length <= rightSheetWidth ? text : text[..rightSheetWidth];
         SetColors(foregroundColor, backgroundColor);
-        // Itt történik a tényleges kiírás: balra igazított, maximum 'maximumWidth' karakter,
-        // és X=172 lesz (a jobb oldali karakterlap kezdő X pozíciója).
-        WriteAt(RightSheetX, y, clippedText.PadRight(RightSheetWidth));
+        WriteAt(RightSheetX, y, clippedText.PadRight(rightSheetWidth));
     }
 
     private void WriteSheetLineWithColoredTail(int y, string text, int coloredTextStart,
         ConsoleColor prefixColor, ConsoleColor coloredTextColor, ConsoleColor backgroundColor)
     {
-        var clipped = text[..Math.Min(text.Length, RightSheetWidth)];
+        var rightSheetWidth = RightSheetWidthForWindow();
+        var clipped = text[..Math.Min(text.Length, rightSheetWidth)];
         var split = Math.Clamp(coloredTextStart, 0, clipped.Length);
         SetColors(prefixColor, backgroundColor);
         WriteAt(RightSheetX, y, clipped[..split]);
         SetColors(coloredTextColor, backgroundColor);
-        WriteAt(RightSheetX + split, y, clipped[split..].PadRight(RightSheetWidth - split));
+        WriteAt(RightSheetX + split, y, clipped[split..].PadRight(rightSheetWidth - split));
     }
 
     /// <summary>
@@ -3200,8 +3220,9 @@ public sealed class ConsoleRenderer
     private void WriteSheetLine(int y, string leftText, ConsoleColor leftColor, ConsoleColor leftColorBg, string rightText, ConsoleColor rightColor)
     {
         // Alap felosztás: fele-fele, de dinamikusan kiegészítjük ha az egyik rövidebb
-        var leftMax = RightSheetWidth / FrameBorderWidth;
-        var rightMax = RightSheetWidth - leftMax;
+        var rightSheetWidth = RightSheetWidthForWindow();
+        var leftMax = rightSheetWidth / FrameBorderWidth;
+        var rightMax = rightSheetWidth - leftMax;
 
         string leftClipped;
         string rightClipped;
@@ -3209,13 +3230,13 @@ public sealed class ConsoleRenderer
         if (leftText.Length <= leftMax)
         {
             leftClipped = leftText;
-            var remaining = RightSheetWidth - leftClipped.Length;
+            var remaining = rightSheetWidth - leftClipped.Length;
             rightClipped = rightText.Length <= remaining ? rightText : rightText[..remaining];
         }
         else if (rightText.Length <= rightMax)
         {
             rightClipped = rightText;
-            var remaining = RightSheetWidth - rightClipped.Length;
+            var remaining = rightSheetWidth - rightClipped.Length;
             leftClipped = leftText.Length <= remaining ? leftText : leftText[..remaining];
         }
         else
@@ -3231,7 +3252,7 @@ public sealed class ConsoleRenderer
 
         SetColors(rightColor, ConsoleColor.Black);
         var secondX = RightSheetX + leftPadded.Length;
-        var remainingWidth = RightSheetWidth - leftPadded.Length;
+        var remainingWidth = rightSheetWidth - leftPadded.Length;
         var rightPadded = rightClipped.PadRight(remainingWidth);
         WriteAt(secondX, y, rightPadded);
     }

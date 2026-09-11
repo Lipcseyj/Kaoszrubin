@@ -8,12 +8,13 @@ namespace KaoszRubin.UI;
 public static class SpellInfoPanel
 {
     private const int VisibleSpellRows = 20;
-    private const int DescriptionWidth = CharacterSheetPanel.Width;
     private const int DescriptionRows = 5;
 
     public static IReadOnlyList<CharacterSheetPanelLine> Build(string characterName, string characterClassId,
-        int characterLevel, SpellInfoSnapshot info, int selectedIndex, bool focused = false)
+        int characterLevel, SpellInfoSnapshot info, int selectedIndex, bool focused = false,
+        int width = CharacterSheetPanel.Width)
     {
+        var effectiveWidth = Math.Max(CharacterSheetPanel.Width, width);
         var spells = info.KnownSpells;
         selectedIndex = spells.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, spells.Count - 1);
         var lines = new List<CharacterSheetPanelLine>
@@ -47,7 +48,7 @@ public static class SpellInfoPanel
             lines.Add(new(29, selected.IsMemorized
                 ? $"Memorizált{(selected.QuickSlot is { } slot ? $", F{slot + 1}" : string.Empty)}"
                 : "Csak ismert", ConsoleColor.Magenta));
-            var description = Wrap(selected.Description, DescriptionWidth).Take(DescriptionRows).ToArray();
+            var description = Wrap(selected.Description, effectiveWidth).Take(DescriptionRows).ToArray();
             for (var row = 0; row < DescriptionRows; row++)
                 lines.Add(new(30 + row, row < description.Length ? description[row] : string.Empty, ConsoleColor.Gray));
         }

@@ -29,8 +29,9 @@ public sealed record CharacterResourceLine(string Vitality, ConsoleColor Vitalit
 public static class CharacterSheetPanel
 {
     public const int Width = 27;
-    public static readonly string BlankLine = new(' ', Width);
     private const int ResourceIconStep = 10;
+
+    public static string BlankLineForWidth(int width) => new(' ', Math.Max(Width, width));
 
     /// <summary>
     /// A karakterosztály azonosítóját egy rövid, egybetűs glyph-re alakítja,
@@ -73,10 +74,11 @@ public static class CharacterSheetPanel
     /// A metódus a szükséges mezőket kinyeri, majd a közös, belső összeállító
     /// metódusnak adja át a formázáshoz és színezéshez.
     /// </summary>
-    public static PartyStatusLine BuildPartyStatus(LiveCharacter character, bool isDisplayed, bool isLeader = false) =>
+    public static PartyStatusLine BuildPartyStatus(LiveCharacter character, bool isDisplayed, bool isLeader = false,
+        int width = Width) =>
         BuildPartyStatus(character.Name, character.CharacterClass.Id, character.CurrentVitality,
             character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
-            character.Color, isDisplayed, isLeader);
+            character.Color, isDisplayed, isLeader, width);
 
     /// <summary>
     /// Session snapshotból készít rövid parti-státusz sort.
@@ -84,10 +86,10 @@ public static class CharacterSheetPanel
     /// adatszerkezetből dolgozik ugyanarra a megjelenítési modellre.
     /// </summary>
     public static PartyStatusLine BuildPartyStatus(SessionCharacterSnapshot character, bool isDisplayed,
-        bool isLeader = false) =>
+        bool isLeader = false, int width = Width) =>
         BuildPartyStatus(character.Name, character.CharacterClassId, character.CurrentVitality,
             character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
-            character.Color, isDisplayed, isLeader);
+            character.Color, isDisplayed, isLeader, width);
 
     /// <summary>
     /// Élő karakter aktuális életerő/mána állapotából készít egy erőforrás-sort.
@@ -129,14 +131,15 @@ public static class CharacterSheetPanel
     /// </summary>
     private static PartyStatusLine BuildPartyStatus(string name, string classId, int currentVitality,
         int maximumVitality, int currentMana, int maximumMana, bool isAlive, ConsoleColor identityColor,
-        bool isDisplayed, bool isLeader)
+        bool isDisplayed, bool isLeader, int width)
     {
         var marker = isDisplayed ? "▶ " : "  ";
         var prefix = $"{marker}{CharacterClassGlyph(classId)} ";
         if (!isAlive)
         {
             const string dead = " 💀";
-            return new PartyStatusLine(prefix + Shorten(name, Width - prefix.Length - dead.Length),
+            var deadRowWidth = Math.Max(Width, width);
+            return new PartyStatusLine(prefix + Shorten(name, deadRowWidth - prefix.Length - dead.Length),
                 identityColor, dead, ConsoleColor.DarkRed, string.Empty, ConsoleColor.DarkGray,
                 isLeader ? prefix.Length : -1);
         }
@@ -145,7 +148,8 @@ public static class CharacterSheetPanel
         var manaPercent = Percent(currentMana, maximumMana);
         var vitality = $" ❤️{vitalityPercent}%";
         var mana = maximumMana > 0 ? $" 🔷{manaPercent}%" : string.Empty;
-        var maximumNameLength = Width - prefix.Length - vitality.Length - mana.Length;
+        var effectiveWidth = Math.Max(Width, width);
+        var maximumNameLength = effectiveWidth - prefix.Length - vitality.Length - mana.Length;
         return new PartyStatusLine(prefix + Shorten(name, maximumNameLength), identityColor,
             vitality, vitalityPercent <= 25 ? ConsoleColor.Red :
             vitalityPercent <= 50 ? ConsoleColor.Yellow : ConsoleColor.Green,
@@ -177,7 +181,7 @@ public static class CharacterSheetPanel
     /// </summary>
     public static IReadOnlyList<CharacterSheetPanelLine> Build(LiveCharacter character,
         IReadOnlyDictionary<int, int> experienceByLevel, int mazeLevel, int goldenKeyCount, int bossCount,
-        bool isPartyLeader = false, bool isTemporaryFollower = false)
+        bool isPartyLeader = false, bool isTemporaryFollower = false, int width = Width)
     {
         var snapshot = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
             character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
@@ -187,7 +191,7 @@ public static class CharacterSheetPanel
             CharacterSheetSnapshotProjector.Create(character, experienceByLevel,
                 MazeLevelConfigurations.Get(mazeLevel).VisionModifier),
             IsTemporaryFollower: isTemporaryFollower);
-        return Build(snapshot, mazeLevel, goldenKeyCount, bossCount, isPartyLeader);
+        return Build(snapshot, mazeLevel, goldenKeyCount, bossCount, isPartyLeader, width);
     }
 
     /// <summary>
@@ -196,13 +200,14 @@ public static class CharacterSheetPanel
     /// és az inventory külön blokkjait fix sorpozíciókkal.
     /// </summary>
     public static IReadOnlyList<CharacterSheetPanelLine> Build(SessionCharacterSnapshot character,
-        int mazeLevel, int goldenKeyCount, int bossCount, bool isPartyLeader = false)
+        int mazeLevel, int goldenKeyCount, int bossCount, bool isPartyLeader = false, int width = Width)
     {
         ArgumentNullException.ThrowIfNull(character);
         var details = character.CharacterSheet ?? throw new ArgumentException(
             "A karakterlap-projekció hiányzik a session snapshotból.", nameof(character));
         var inventory = character.Inventory ?? throw new ArgumentException(
             "Az inventory-projekció hiányzik a session snapshotból.", nameof(character));
+        var effectiveWidth = Math.Max(Width, width);
         var lines = new List<CharacterSheetPanelLine>
         {
             new(0, $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}", ConsoleColor.Green),
@@ -233,17 +238,17 @@ public static class CharacterSheetPanel
         var proficiencies = details.WeaponProficiencyNames ?? [];
         lines.Add(new(10, proficiencies.Count > 0 ? $"Fegyver: {string.Join(' ', proficiencies)}" : "Fegyver: —",
             proficiencies.Count > 0 ? ConsoleColor.Yellow : ConsoleColor.DarkGray));
-        lines.Add(new(11, CompactRows("Teh", details.PerkNames, 1)[0], ConsoleColor.Magenta));
-        lines.Add(new(12, BlankLine, ConsoleColor.Black));
+        lines.Add(new(11, CompactRows("Teh", details.PerkNames, 1, effectiveWidth)[0], ConsoleColor.Magenta));
+        lines.Add(new(12, BlankLineForWidth(effectiveWidth), ConsoleColor.Black));
         lines.Add(new(13, "OSZTÁLYFEJLESZTÉSEK", ConsoleColor.DarkCyan));
         var upgrades = details.ClassFeatureUpgradeNames ?? [];
-        lines.Add(new(14, upgrades.Count > 0 ? Shorten($"L10: {upgrades[0]}", Width) : "L10: —", upgrades.Count > 0 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
-        lines.Add(new(15, upgrades.Count > 1 ? Shorten($"L20: {upgrades[1]}", Width) : "L20: —", upgrades.Count > 1 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
-        lines.Add(new(16, BlankLine, ConsoleColor.Black));
+        lines.Add(new(14, upgrades.Count > 0 ? Shorten($"L10: {upgrades[0]}", effectiveWidth) : "L10: —", upgrades.Count > 0 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
+        lines.Add(new(15, upgrades.Count > 1 ? Shorten($"L20: {upgrades[1]}", effectiveWidth) : "L20: —", upgrades.Count > 1 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
+        lines.Add(new(16, BlankLineForWidth(effectiveWidth), ConsoleColor.Black));
         lines.Add(new(17, "FEGYVEREK ", ConsoleColor.Yellow,
             ColoredSuffix: $"⚔ ⚖ {details.EquippedWeight}/{details.CombatCarryingCapacity:0.##}  ⚡ {details.InitiativeBase}",
             ColoredSuffixColor: EncumbranceColor(details.Encumbrance)));
-        AddInventoryLines(lines, inventory, details);
+        AddInventoryLines(lines, inventory, details, effectiveWidth);
         return lines;
     }
 
@@ -253,7 +258,7 @@ public static class CharacterSheetPanel
     /// fegyverhely megjelenítését és a terheltséghez tartozó színkódolást is.
     /// </summary>
     private static void AddInventoryLines(ICollection<CharacterSheetPanelLine> lines,
-        CharacterInventorySnapshot inventory, CharacterSheetSnapshot details)
+        CharacterInventorySnapshot inventory, CharacterSheetSnapshot details, int width)
     {
         var weapons = Slots(inventory, InventorySlotKind.Weapon, 3);
         lines.Add(DurableInventoryLine(18, "1", weapons[0], InventorySlotKind.Weapon, 0,
@@ -343,7 +348,7 @@ public static class CharacterSheetPanel
     /// hogy soronként egyenletesen ossza el őket, és a panel szélességébe
     /// nem férő neveket levágja. Üres bemenetnél "nincs" jelzést ad.
     /// </summary>
-    private static IReadOnlyList<string> CompactRows(string prefix, IEnumerable<string> values, int rowCount)
+    private static IReadOnlyList<string> CompactRows(string prefix, IEnumerable<string> values, int rowCount, int width)
     {
         var names = values.ToList();
         if (names.Count == 0) return [$"{prefix}: nincs", .. Enumerable.Repeat(string.Empty, rowCount - 1)];
@@ -359,7 +364,8 @@ public static class CharacterSheetPanel
             }
             var rowPrefix = row == 0 ? $"{prefix}: " : new string(' ', prefix.Length + 2);
             var separatorWidth = (rowNames.Count - 1) * 2;
-            var availablePerName = Math.Max(1, (Width - rowPrefix.Length - separatorWidth) / rowNames.Count);
+            var effectiveWidth = Math.Max(Width, width);
+            var availablePerName = Math.Max(1, (effectiveWidth - rowPrefix.Length - separatorWidth) / rowNames.Count);
             rows.Add(rowPrefix + string.Join(", ", rowNames.Select(name =>
                 name.Length <= availablePerName ? name : name[..availablePerName])));
         }

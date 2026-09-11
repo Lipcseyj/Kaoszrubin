@@ -1498,6 +1498,7 @@ public sealed class CoopGuestScreen
         var windowWidth = SafeWindowWidth();
         var windowHeight = SafeWindowHeight();
         var mapWidth = Math.Min(world.Width, Math.Max(1, windowWidth - CharacterSheetPanel.Width - 2));
+        var panelWidth = Math.Max(CharacterSheetPanel.Width, windowWidth - mapWidth - 2);
         var mapHeight = Math.Min(world.Height, Math.Max(1, windowHeight - MessageLineCount));
         _messageLineWidth = Math.Max(1, mapWidth - 4);
         var grid = new GuestMapCell[mapWidth, mapHeight];
@@ -1587,10 +1588,10 @@ public sealed class CoopGuestScreen
         ApplyRemotePlayerWindowStatus(grid, snapshot, client.PlayerId);
         var panelLines = _spellInfoOpen && own?.SpellInfo is not null
             ? SpellInfoPanel.Build(own.Name, own.CharacterClassId, own.Level, own.SpellInfo,
-                _spellInfoSelection, focused: _inventoryOpen).ToDictionary(line => line.Row)
+                _spellInfoSelection, focused: _inventoryOpen, width: panelWidth).ToDictionary(line => line.Row)
             : own?.CharacterSheet is not null && own.Inventory is not null
                 ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount,
-                    snapshot.BossKeyCount, own.CharacterId == snapshot.LeaderCharacterId)
+                    snapshot.BossKeyCount, own.CharacterId == snapshot.LeaderCharacterId, width: panelWidth)
                     .ToDictionary(line => line.Row)
                 : [];
         var actionDetails = snapshot.Battle?.ActionDetails;
@@ -1600,7 +1601,7 @@ public sealed class CoopGuestScreen
             _battleDetailsPage = 0;
         }
         if (!_spellInfoOpen && snapshot.Battle is { IsQuickBattle: false })
-            foreach (var line in BattleDetailsPanel.Build(actionDetails, _battleDetailsPage))
+            foreach (var line in BattleDetailsPanel.Build(actionDetails, _battleDetailsPage, panelWidth))
                 panelLines[line.Row] = line;
         var selectedSlot = _inventoryOpen && own is { IsTemporaryFollower: false,
             Inventory.Slots.Count: > 0 } && own.Inventory is { } inventory
@@ -1645,7 +1646,7 @@ public sealed class CoopGuestScreen
                     member.CharacterId == (_inventoryOpen
                         ? _displayedCharacterId ?? selected.CharacterId
                         : selected.CharacterId),
-                    member.CharacterId == snapshot.LeaderCharacterId);
+                    member.CharacterId == snapshot.LeaderCharacterId, panelWidth);
             }
         }
 
@@ -1677,18 +1678,18 @@ public sealed class CoopGuestScreen
             var pictureTop = Math.Max(0, panel.Length - 7);
             var pictureStyle = WindowFrameConfiguration.For(FramedWindow.CreaturePortrait);
             panel[pictureTop] = new GuestTextLine(WindowFrameCatalog.Horizontal(pictureStyle,
-                CharacterSheetPanel.Width), ConsoleColor.DarkCyan, ConsoleColor.Black);
+                panelWidth), ConsoleColor.DarkCyan, ConsoleColor.Black);
             for (var index = 0; index < 5; index++)
             {
                 var line = index < portrait.Lines.Count ? portrait.Lines[index] : string.Empty;
                 var sides = WindowFrameCatalog.Sides(pictureStyle, index, 5);
-                var interiorWidth = CharacterSheetPanel.Width - sides.Left.Length - sides.Right.Length;
+                var interiorWidth = panelWidth - sides.Left.Length - sides.Right.Length;
                 panel[pictureTop + index + 1] = new GuestTextLine(
                     sides.Left + CenterPortrait(line, portrait.CanvasWidth, interiorWidth) + sides.Right,
                     portraitColor, ConsoleColor.Black);
             }
             panel[pictureTop + 6] = new GuestTextLine(WindowFrameCatalog.Horizontal(pictureStyle,
-                CharacterSheetPanel.Width, bottom: true), ConsoleColor.DarkCyan, ConsoleColor.Black);
+                panelWidth, bottom: true), ConsoleColor.DarkCyan, ConsoleColor.Black);
         }
 
         var messages = _messageLog.ToArray();
@@ -1729,7 +1730,7 @@ public sealed class CoopGuestScreen
                 " — nyilak/Tab, Enter: kész, Esc: mégse",
                 ConsoleColor.Cyan, ConsoleColor.Black);
 
-        return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, grid, panel,
+        return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, panelWidth, grid, panel,
             partyStatuses, footer, resourceLine);
     }
 
@@ -2249,15 +2250,15 @@ public sealed class CoopGuestScreen
             if (fullRedraw || previous!.Panel[row] != frame.Panel[row])
             {
                 if (frame.Panel[row].ExtendsToDivider)
-                    WriteAt(frame.MapWidth, row, frame.Panel[row], BattleDetailsPanel.ExtendedWidth);
+                    WriteAt(frame.MapWidth, row, frame.Panel[row], BattleDetailsPanel.ExtendedWidthFor(frame.PanelWidth));
                 else
-                    WriteAt(frame.MapWidth + 2, row, frame.Panel[row], CharacterSheetPanel.Width);
+                    WriteAt(frame.MapWidth + 2, row, frame.Panel[row], frame.PanelWidth);
             }
         }
 
         if (frame.ResourceLine is { } resources &&
             (fullRedraw || previous!.ResourceLine != resources || previous.Panel[5] != frame.Panel[5]))
-            WriteCharacterResourceAt(frame.MapWidth + 2, 5, resources);
+            WriteCharacterResourceAt(frame.MapWidth + 2, 5, resources, frame.PanelWidth);
 
         for (var row = 0; row < frame.PartyStatuses.Length; row++)
         {
@@ -2267,13 +2268,13 @@ public sealed class CoopGuestScreen
                 // Teljes rajzoláskor a panel már elkészült, ezért a hiányzó státusz nem törölheti le.
                 // Részleges rajzoláskor viszont egy megszűnt státusz helyére vissza kell tenni a panel sorát.
                 if (!fullRedraw && previous!.PartyStatuses[row] is not null)
-                    WriteAt(frame.MapWidth + 2, row, frame.Panel[row], CharacterSheetPanel.Width);
+                    WriteAt(frame.MapWidth + 2, row, frame.Panel[row], frame.PanelWidth);
                 continue;
             }
 
             if (!fullRedraw && previous!.PartyStatuses[row] == status &&
                 previous.Panel[row] == frame.Panel[row]) continue;
-            WritePartyStatusAt(frame.MapWidth + 2, row, status);
+            WritePartyStatusAt(frame.MapWidth + 2, row, status, frame.PanelWidth);
         }
 
         for (var row = 1; row < frame.Footers.Length; row++)
@@ -2343,10 +2344,10 @@ public sealed class CoopGuestScreen
         Console.Write(new string(' ', Math.Max(0, width - left.Length - suffix.Length)));
     }
 
-    private static void WritePartyStatusAt(int x, int y, PartyStatusLine? status)
+    private static void WritePartyStatusAt(int x, int y, PartyStatusLine? status, int width)
     {
         WriteAt(x, y, new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black),
-            CharacterSheetPanel.Width);
+            Math.Max(CharacterSheetPanel.Width, width));
         if (status is null || !TrySetCursorPosition(x, y)) return;
         if (status.InvertedNameStart >= 0)
         {
@@ -2447,10 +2448,10 @@ public sealed class CoopGuestScreen
             QuestCompletionWindow.Width, FramedWindow.QuestOffer);
     }
 
-    private static void WriteCharacterResourceAt(int x, int y, CharacterResourceLine resources)
+    private static void WriteCharacterResourceAt(int x, int y, CharacterResourceLine resources, int width)
     {
         WriteAt(x, y, new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black),
-            CharacterSheetPanel.Width);
+            Math.Max(CharacterSheetPanel.Width, width));
         if (!TrySetCursorPosition(x, y)) return;
         Console.ForegroundColor = ConsoleColor.Gray;
         Console.BackgroundColor = ConsoleColor.Black;
@@ -2581,6 +2582,6 @@ public sealed class CoopGuestScreen
         IReadOnlyList<TextSegment>? Segments = null, bool ExtendsToDivider = false,
         bool CenterSegments = true);
     private sealed record GuestRenderFrame(WorldId WorldId, int WindowWidth, int WindowHeight, int MapWidth,
-        int MapHeight, GuestMapCell[,] Map, GuestTextLine[] Panel, PartyStatusLine?[] PartyStatuses,
+        int MapHeight, int PanelWidth, GuestMapCell[,] Map, GuestTextLine[] Panel, PartyStatusLine?[] PartyStatuses,
         GuestTextLine[] Footers, CharacterResourceLine? ResourceLine);
 }

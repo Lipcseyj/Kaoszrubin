@@ -2060,6 +2060,12 @@ static void CharacterSheetLayoutIsShared()
     var restored = JsonSerializer.Deserialize<SessionCharacterSnapshot>(JsonSerializer.Serialize(snapshot));
     Assert(restored is not null && CharacterSheetPanel.Build(restored, 3, 1, 4).SequenceEqual(hostLines),
         "A közös karakterlap read modelje nem élte túl a JSON wire-körutat.");
+    var wideHostLines = CharacterSheetPanel.Build(character, experienceByLevel, 3, 1, 4, width: 40);
+    var wideGuestLines = CharacterSheetPanel.Build(snapshot, 3, 1, 4, width: 40);
+    Assert(wideHostLines.SequenceEqual(wideGuestLines) &&
+           wideHostLines.Single(line => line.Row == 12).Text.Length == 40 &&
+           wideHostLines.Single(line => line.Row == 16).Text.Length == 40,
+        "A széles karakterlap-sorok nem használják az extra jobb oldali helyet azonosan hoston és vendégen.");
     var hostLeaderLine = CharacterSheetPanel.Build(character, experienceByLevel, 3, 1, 4, true)
         .Single(line => line.Row == 2);
     var guestLeaderLine = CharacterSheetPanel.Build(snapshot, 3, 1, 4, true)
@@ -3991,6 +3997,17 @@ static void SpellUiModelsAreShared()
            infoLines.Any(line => line.Row == 43 && line.Text == "Következő feloldás: L10") &&
            infoLines.Single(line => line.Row == 5).Background == ConsoleColor.DarkCyan,
         "A közös varázslatinformációs panel elvesztette a gyorshelyet, feloldást vagy kijelölést.");
+    var longDescriptionSpell = spell with
+    {
+        Description = "Egy próbaként használt varázslat, amely szélesebb karakterlapon kevesebb töréssel jelenjen meg."
+    };
+    var defaultInfoLines = SpellInfoPanel.Build("Rubin", CharacterClassIds.Mágus, 6,
+        new SpellInfoSnapshot("Kristálygömb", 3, [longDescriptionSpell]), 0);
+    var wideInfoLines = SpellInfoPanel.Build("Rubin", CharacterClassIds.Mágus, 6,
+        new SpellInfoSnapshot("Kristálygömb", 3, [longDescriptionSpell]), 0, width: 40);
+    Assert(wideInfoLines.Count(line => line.Row is >= 30 and < 35 && !string.IsNullOrWhiteSpace(line.Text)) <=
+           defaultInfoLines.Count(line => line.Row is >= 30 and < 35 && !string.IsNullOrWhiteSpace(line.Text)),
+        "A széles varázslatinformációs panel nem használja ki az extra jobb oldali helyet a leírás tördelésénél.");
 
     var selectorLines = SpellSelectorWindow.Build("Rubin", 5, 12, true,
         [new SpellSelectorOption("Próbaláng", 2, 7, SpellTargetType.Enemy, "F1", false)], 0, 0);
@@ -5065,6 +5082,9 @@ static void BattleDetailsPanelPagesCalculation()
                segment.Color == ConsoleColor.Yellow) == true &&
            last[^1].Text.Contains($"{pages}/{pages}"),
         "A csatarészlet panel mérete, kritikus esélye vagy lapozása hibás.");
+    var wide = BattleDetailsPanel.Build(details, 0, 40);
+    Assert(wide[0].Text.Length == 42 && wide[^1].Text.Length == 42,
+        "A széles csatarészlet panel nem használja ki az extra jobb oldali helyet.");
 }
 
 static void QuickCombatSummaryListsKillsAndExperience()
