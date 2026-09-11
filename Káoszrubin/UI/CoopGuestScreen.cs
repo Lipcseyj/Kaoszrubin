@@ -1494,7 +1494,7 @@ public sealed class CoopGuestScreen
     {
         var windowWidth = SafeWindowWidth();
         var windowHeight = SafeWindowHeight();
-        var mapWidth = Math.Min(world.Width, Math.Max(1, windowWidth - CharacterSheetPanel.Width - 4));
+        var mapWidth = Math.Min(world.Width, Math.Max(1, windowWidth - CharacterSheetPanel.Width - 2));
         var mapHeight = Math.Min(world.Height, Math.Max(1, windowHeight - MessageLineCount - 1));
         _messageLineWidth = Math.Max(1, mapWidth - 4);
         var grid = new GuestMapCell[mapWidth, mapHeight];
@@ -1712,7 +1712,12 @@ public sealed class CoopGuestScreen
         var commandLine = commandSegments.Length == 0
             ? _battleCommandPanel.Close()
             : _battleCommandPanel.OpenWithHighlighting(commandSegments);
-        footer[0] = new GuestTextLine(commandLine, _battleCommandPanel.Foreground,
+        // Zárt állapotban a parancssáv ugyanaz a keretvonal, amit a host is cián színnel rajzol.
+        // A panel fix 170 karakteres, a térkép viszont ennél szélesebb lehet, ezért a vonalat
+        // a tényleges térképszélességre nyújtjuk, különben szóköz marad a záró ┤ előtt.
+        footer[0] = new GuestTextLine(
+            commandSegments.Length == 0 ? new string('─', Math.Max(1, mapWidth)) : commandLine,
+            commandSegments.Length == 0 ? ConsoleColor.DarkCyan : _battleCommandPanel.Foreground,
             _battleCommandPanel.Background, Segments: commandSegments.Length == 0 ? null : commandSegments);
         if (_targetedBattleSpell is { } targeted && _spellTargetCursor is { } cursor)
             footer[^1] = new GuestTextLine($"╳ {targeted.Name} — {ConsoleRenderer.SpellTargetName(targeted.TargetType)}, " +
@@ -2237,27 +2242,26 @@ public sealed class CoopGuestScreen
                     WriteMapCell(x, mapTop + y, frame.Map[x, y]);
         }
 
-        if (fullRedraw || previous!.Footers[0] != frame.Footers[0])
-            WriteAt(2, frame.MapHeight, frame.Footers[0], Math.Max(1, frame.MapWidth - 4));
-
         for (var row = 0; row < frame.Panel.Length; row++)
         {
             var dividerChanged = !fullRedraw &&
                                  previous!.Panel[row].ExtendsToDivider != frame.Panel[row].ExtendsToDivider;
             if (fullRedraw || dividerChanged)
-                WriteAt(frame.MapWidth, row, new GuestTextLine(" │ ", ConsoleColor.DarkCyan, ConsoleColor.Black), 3);
+                WriteAt(frame.MapWidth, row, new GuestTextLine("│ ", ConsoleColor.DarkCyan, ConsoleColor.Black), 2);
             if (fullRedraw || previous!.Panel[row] != frame.Panel[row])
             {
+                // A guest minden karakterlap-sor elé egy marker karaktert (" " vagy "*") fűz,
+                // ezért egy oszloppal balrébb kezdünk, hogy a szöveg a host oszlopába kerüljön.
                 if (frame.Panel[row].ExtendsToDivider)
-                    WriteAt(frame.MapWidth + 1, row, frame.Panel[row], BattleDetailsPanel.ExtendedWidth);
+                    WriteAt(frame.MapWidth, row, frame.Panel[row], BattleDetailsPanel.ExtendedWidth);
                 else
-                    WriteAt(frame.MapWidth + 3, row, frame.Panel[row], CharacterSheetPanel.Width);
+                    WriteAt(frame.MapWidth + 1, row, frame.Panel[row], CharacterSheetPanel.Width + 1);
             }
         }
 
         if (frame.ResourceLine is { } resources &&
             (fullRedraw || previous!.ResourceLine != resources || previous.Panel[5] != frame.Panel[5]))
-            WriteCharacterResourceAt(frame.MapWidth + 3, 5, resources);
+            WriteCharacterResourceAt(frame.MapWidth + 2, 5, resources);
 
         for (var row = 0; row < frame.PartyStatuses.Length; row++)
         {
@@ -2267,18 +2271,28 @@ public sealed class CoopGuestScreen
                 // Teljes rajzoláskor a panel már elkészült, ezért a hiányzó státusz nem törölheti le.
                 // Részleges rajzoláskor viszont egy megszűnt státusz helyére vissza kell tenni a panel sorát.
                 if (!fullRedraw && previous!.PartyStatuses[row] is not null)
-                    WriteAt(frame.MapWidth + 3, row, frame.Panel[row], CharacterSheetPanel.Width);
+                    WriteAt(frame.MapWidth + 1, row, frame.Panel[row], CharacterSheetPanel.Width + 1);
                 continue;
             }
 
             if (!fullRedraw && previous!.PartyStatuses[row] == status &&
                 previous.Panel[row] == frame.Panel[row]) continue;
-            WritePartyStatusAt(frame.MapWidth + 3, row, status);
+            WritePartyStatusAt(frame.MapWidth + 2, row, status);
         }
 
         for (var row = 1; row < frame.Footers.Length; row++)
             if (fullRedraw || previous!.Footers[row] != frame.Footers[row])
                 WriteAt(2, frame.MapHeight + row, frame.Footers[row], Math.Max(1, frame.MapWidth - 4));
+
+        // A keret alsó vonalát a panel-oszlop után rajzoljuk, különben az oldalsó " │ " elválasztó
+        // felülírja a záró ┤ csatlakozást.
+        if (fullRedraw || previous!.Footers[0] != frame.Footers[0])
+        {
+            WriteAt(0, frame.MapHeight, frame.Footers[0], Math.Max(1, frame.MapWidth));
+            if (frame.Footers[0].Segments is null)
+                WriteAt(frame.MapWidth, frame.MapHeight,
+                    new GuestTextLine("┤", ConsoleColor.DarkCyan, ConsoleColor.Black), 1);
+        }
 
         Console.ResetColor();
         TrySetCursorPosition(0, Math.Min(frame.WindowHeight - 1, frame.MapHeight + frame.Footers.Length));
