@@ -1128,79 +1128,97 @@ NPCE029,NPC021,5,1,50,RODERIC_MEETING
 
 #NPC párbeszédek
 Id,NpcId,MinimumBarátságosság,MaximumBarátságosság,Szöveg
-NPCD001,NPC001,0,3,Ne nyúlj a csomagjaimhoz. Nem bízom idegenekben.
-NPCD002,NPC001,4,7,Ritka hozzávalókat keresek. Talán segíthetnénk egymásnak.
-NPCD003,NPC001,8,10,Jó szándékot látok bennetek. Hallgassátok meg a kérésemet.
-NPCD004,NPC002,0,3,Egy rossz mozdulat és ti lesztek a következő trófeáim.
-NPCD005,NPC002,4,7,Ha tényleg tudtok harcolni bizonyítsátok be a szörnyeken.
-NPCD006,NPC002,8,10,Láttam már gyengébb csapatot túlélni. Talán számíthatunk egymásra.
-NPCD007,NPC003,0,3,Amit találok az az enyém. Ezt jobb ha megjegyzitek.
-NPCD008,NPC003,4,7,Üzletet ajánlok. Hozzatok valamit és mind jól járunk.
-NPCD009,NPC003,8,10,Megbízhatónak tűntök. Megosztok veletek egy nyomot.
-NPCD010,NPC004,0,3,Nehéz közönség vagytok. Egyelőre megtartom magamnak a dalaimat.
-NPCD011,NPC004,4,7,Egy régi történethez keresek bizonyítékot a mélyben.
-NPCD012,NPC004,8,10,Rólatok még nagy éneket írhatok. Szívesen veletek tartanék.
-NPCD013,NPC001,0,3,A barlang levegője keserű. Ha közelebb jöttök legalább ne lélegezzetek rám.
-NPCD014,NPC001,4,7,A vörös kupakú fiolákból kifogytam. Sebesülteknek tartogatom őket.
-NPCD015,NPC001,8,10,A jó orvosság fél győzelem. A másik fele az hogy életben eljussatok hozzám.
-NPCD016,NPC002,0,3,A fegyveretek hangosabb a lépteiteknél. Így csak a saját sírotokat találjátok meg.
-NPCD017,NPC002,4,7,A bestiák nyomai frissek. Ha levadásszátok őket talán még hasznotokra is lehetek.
-NPCD018,NPC002,8,10,Nem sokan térnek vissza onnan ahová ti tartotok. Bizonyítsátok hogy kivételek vagytok.
-NPCD019,NPC003,0,3,A térképem nem eladó és a kincsem sem közös. Maradjunk ennyiben.
-NPCD020,NPC003,4,7,A legjobb útvonal mindig ott kezdődik ahol mások már visszafordultak.
-NPCD021,NPC003,8,10,Találtam egy jelet a köveken. Segítsetek az útravalóval és elmondom merre mutat.
-NPCD022,NPC004,0,3,Ebből a találkozásból egyelőre legfeljebb gyászdal születne.
-NPCD023,NPC004,4,7,A csontok különös ritmust vernek amikor széthullanak. Hallanom kell még néhányszor.
-NPCD024,NPC004,8,10,Ha túléljük ezt a mélységet a nevetek minden fogadóban énekelni fogják.
-NPCD025,NPC005,0,3,Ne zavarjatok. Egy patkánycsalád nyomát követem és nálatok jobb a szaglásuk.
-NPCD026,NPC005,4,7,Ezek a dögök már a felszíni pincékbe is feljárnak. Valakinek ritkítania kell őket.
-NPCD027,NPC005,8,10,Tiszta munka és gyors penge. Talán mégsem vagytok teljesen reménytelenek.
-NPCD028,NPC006,0,3,Nem megyek vissza közéjük. Inkább próbáljatok meg ti.
-NPCD029,NPC006,4,7,A koboldok nem hősök. Csak sokan vannak és mindig a sötétből jönnek.
-NPCD030,NPC006,8,10,Ismerem a járataikat. Ti elintézitek az őröket én pedig megmutatom a rövid utat.
-NPCD031,NPC007,0,3,A címerem összetört de az esküm nem. Ne adjatok okot hogy rátok emeljem a kardom.
-NPCD032,NPC007,4,7,A goblinok rajtaütöttek az őrjáratomon. Az adósságomat vérrel fizetem vissza.
-NPCD033,NPC007,8,10,Ha megtisztítjátok az utat a társaim halála nem volt hiábavaló.
-NPCD034,NPC008,0,3,Túl hangosan éltek. A holtak már messziről hallják a szíveteket.
-NPCD035,NPC008,4,7,A csontok emlékeznek azokra akik felébresztették őket. Segítsetek újra elcsendesíteni a sírokat.
-NPCD036,NPC008,8,10,A nyugtalan lelkek már nem tőletek félnek. Ez jó jel.
-NPCD037,NPC009,0,3,Az ork nem árul el senkit. Én csak hamarabb választottam oldalt.
-NPCD038,NPC009,4,7,A hadúr minden gyengét a csarnokok elé küld meghalni. Ideje visszaküldeni neki az üzenetet.
-NPCD039,NPC009,8,10,Jól harcoltok. Az én törzsemben ezt többre tartanák bármilyen eskünél.
-NPCD040,NPC010,0,3,Egy rossz mozdulat és mindannyian gombává változunk. Ti talán hamarabb.
-NPCD041,NPC010,4,7,A pókméreg kiváló alapanyag ha az ember túléli a begyűjtését.
-NPCD042,NPC010,8,10,A tudomány hálátlan mesterség. Szerencsére én nem vagyok az.
-NPCD043,NPC011,0,3,Ha a táborból jöttetek végezzetek gyorsan. Ha nem akkor oldozzatok el.
-NPCD044,NPC011,4,7,Napok óta számolom az őrjáratokat. A bugbearek váltáskor maradnak a legkevesebben.
-NPCD045,NPC011,8,10,Kinyitottátok előttem az utat. Most én mutatom meg nektek hol fáj legjobban az ork seregnek.
-NPCD046,NPC012,0,3,A sírok nem üresek. Csak türelmesebbek nálatok.
-NPCD047,NPC012,4,7,Elvesztettem a szent jeleket a folyosókon. A kijárat közelében talán még áll egy.
-NPCD048,NPC012,8,10,A holtak csendje követ benneteket. Ez ritka áldás ezen a helyen.
-NPCD049,NPC013,0,3,Ha pikkelyt kerestek rossz helyen jártok. Ha sárkányt akkor még rosszabban.
-NPCD050,NPC013,4,7,A kincsesládák zárain gyakran ugyanaz a jel van mint a sárkánycsontokon.
-NPCD051,NPC013,8,10,Ti megnyitjátok az utat én pedig elolvasom amit a hamu megőrzött.
-NPCD052,NPC014,0,3,A mocsár mindenkit átenged. Csak nem ugyanabban az alakban.
-NPCD053,NPC014,4,7,Ismerem a száraz köveket. Találjátok meg a túloldalt és beszélhetünk az árról.
-NPCD054,NPC014,8,10,A láp elfogadta a lépteiteket. Engem még sosem tisztelt meg ennyire.
-NPCD055,NPC015,0,3,Ne érjetek a kristályokhoz. Némelyik még emlékszik az utolsó kézre.
-NPCD056,NPC015,4,7,A csapdák és a ládák ugyanannak a mérnöknek a munkái. A hibái is.
-NPCD057,NPC015,8,10,A törésvonalak már kirajzolják az utat. Csak követni kell őket.
-NPCD058,NPC016,0,3,Az éjszaka mögöttem jön. Ne álljatok közénk.
-NPCD059,NPC016,4,7,A kijáratot keresem mielőtt a vár urai újra megérzik a véremet.
-NPCD060,NPC016,8,10,Nem hittem hogy megérem a következő hajnalt. Talán mégis van olyan.
-NPCD061,NPC017,0,3,A láncaimat eltörtem. Aki újra rám akarja tenni az elveszíti a kezét.
-NPCD062,NPC017,4,7,A démonok neveit a sebeimből tanultam meg. Segítsetek kitörölni közülük néhányat.
-NPCD063,NPC017,8,10,A pokol is vérezhet. Most már ti is láttátok.
-NPCD064,NPC018,0,3,A káosz nem ellenség és nem barát. Tükör amely rosszkor néz vissza.
-NPCD065,NPC018,4,7,A rejtekhely kapuja nem ott lesz ahol látjátok. Keressétek azt amit a térkép tagad.
-NPCD066,NPC018,8,10,A Rubin útja megnyílt előttetek. Most már csak az számít kik érkeznek meg a végére.
-NPCD067,NPC019,0,3,Aki nem bírja el a saját fegyverét ne induljon óriásra.
-NPCD068,NPC019,4,7,Az ogrék erősek de minden ütés előtt ugyanoda néznek. Ezt használjátok ki.
-NPCD069,NPC019,8,10,Jó vadászat volt. A hegy sokáig emlékezni fog a zuhanásukra.
-NPCD070,NPC020,0,3,Ha a patkányok nem végeznek velem a bizalmatlanságotok fog.
-NPCD071,NPC020,4,7,A nevem Elira. Kijuttattok innen vagy itt hagytok a járatoknak?
-NPCD072,NPC020,8,10,Rég nem bíztam senkiben ennyire. Talán az utam nem ér véget a kijáratnál.
-NPCD073,NPC021,0,10,Álljatok meg. A holtak nyugalmát nem zavarhatják meg újabb sírrablók.
+NPCD001,NPC001,0,3,"A félhomályban egy idős füvesasszony kuporog ládák és megszárított növénycsomók között. Amikor észrevesz benneteket, gyorsan maga mellé húzza a táskáját. ""Ne nyúljatok a csomagjaimhoz. Errefelé az ember előbb számolja meg az ujjait, aztán az új ismerőseit."""
+NPCD002,NPC001,4,7,"A füvesasszony egy üres gyógyitalos fiolát forgat az ujjai között, majd végigmér benneteket. ""Kifogytam a kis gyógyitalokból, odakint pedig még akadnak sebesültek. Hozzatok nekem három kis gyógyitalt, és én sem felejtem el a segítségeteket."""
+NPCD003,NPC001,8,10,"A füvesasszony most már mosolyogva fogad, és félreteszi a mozsarát. ""Három kis gyógyital sokkal többet ér itt, mint három marék arany. Ha találtok belőlük, hozzátok el nekem. Jó kezekbe kerülnek."""
+
+NPCD004,NPC002,0,3,"Egy sebhelyes szörnyvadász állja el az ösvényt. Egyik kezét lazán a kardja markolatán tartja, övéről agyarak és karmok lógnak. ""Egy rossz mozdulat, és ti lesztek a következő trófeáim. Ne adjatok rá okot."""
+NPCD005,NPC002,4,7,"A szörnyvadász egy goblinból kivágott, csorba nyílhegyet mutat fel. ""A környéken négy goblin garázdálkodik. Vadásszátok le mind a négyet, és meglátjuk, tényleg ér-e valamit az a sok fegyver, amit cipeltek."""
+NPCD006,NPC002,8,10,"A vadász elismerően biccent felétek, de a tekintete továbbra is kemény. ""Négy goblin. Ennyit kérek. Ha azok nem térnek vissza több portyáról, én már tudni fogom, hogy számíthatok rátok."""
+
+NPCD007,NPC003,0,3,"Egy poros köpenyű kincskereső térdel egy félig széthajtott térkép fölött. Amikor közelebb léptek, azonnal ráteszi a tenyerét. ""Amit találok, az az enyém. A térképemre és a zsákomra ugyanez vonatkozik."""
+NPCD008,NPC003,4,7,"A kincskereső megemeli majdnem üres élelmiszeres zsákját. ""Mélyebbre készülök, de üres gyomorral még a legjobb térkép sem ér sokat. Hozzatok öt adag útravalót, és cserébe megosztom veletek, amit odalent találok."""
+NPCD009,NPC003,8,10,"A kincskereső félrehajtja a térkép egyik sarkát, és most először enged titeket közelebb. ""Öt adag útravaló kellene a következő utamhoz. Ha segítetek feltölteni a készleteimet, talán én is tudok mutatni nektek néhány helyet, amit mások még nem találtak meg."""
+
+NPCD010,NPC004,0,3,"Egy cifra, de erősen megtépázott ruhájú dalnok ül egy kőládán, hangszerét szorosan magához ölelve. ""Nehéz közönség vagytok. Egyelőre azt sem döntöttem el, ballada vagy gyászének illene-e hozzátok."""
+NPCD011,NPC004,4,7,"A dalnok a sötét folyosó felé biccent, ahonnan csontok száraz csörgése hallatszik. ""Egy új balladához hiteles részletek kellenek. Döntsetek le három csontvázat, és amikor visszatértek, meséljétek el, hogyan hullottak darabokra."""
+NPCD012,NPC004,8,10,"A dalnok izgatottan penget néhány komor hangot. ""Három csontváz bukása már egy tisztességes versszak. Ha ti végzitek el a munkát, még az is lehet, hogy egyszer a neveteket énekli majd az egész vidék."""
+
+NPCD013,NPC001,0,3,"A füvesasszony ezúttal véres rongyokat válogat egy lapos kosárban. Az ép darabokból alig néhány maradt. ""A barlang levegője keserű, a sebek pedig gyorsabban romlanak benne, mint odafent. Ha közelebb jöttök, legalább ne tapossatok rá a kötszereimre."""
+NPCD014,NPC001,4,7,"A füvesasszony felmutat egy utolsó, tiszta kötést. ""Ebből is kifogytam. Hozzatok két tiszta kötést. Nem dísznek kell: lehet, hogy mire visszaértek, két ember élete múlik rajtuk."""
+NPCD015,NPC001,8,10,"A füvesasszony gondosan összehajtja a megmaradt vásznat. ""Két kötést kérek. A jó orvosság fél győzelem, a másik fele pedig az, hogy legyen mivel összetartani azt, akit még meg lehet menteni."""
+
+NPCD016,NPC002,0,3,"A szörnyvadász leguggol néhány friss lábnyom mellé, majd rosszallóan a felszerelésetekre néz. ""A fegyvereitek hangosabbak a lépteiteknél. Ha így mentek tovább, a goblinoknak csak ki kell ásniuk a sírotokat."""
+NPCD017,NPC002,4,7,"A vadász hat különböző goblinlábnyomra mutat a porban. ""Ezek ugyanahhoz a portyázó csapathoz tartoznak. Hat goblin. Intézzétek el mindet, és akkor elhiszem, hogy nem csak szerencséből jutottatok idáig."""
+NPCD018,NPC002,8,10,"A szörnyvadász végighúzza hüvelykujját a pengéje élén, majd elégedetten biccent. ""Hat zöldfülű. Egy sem maradhat közülük, aki hírt vihet a többieknek. Ha ezt megoldjátok, többé nem újoncként nézek rátok."""
+
+NPCD019,NPC003,0,3,"A kincskereső egy rozsdás zárat vizsgál, miközben kulcscsomója bosszantóan csörög az oldalán. ""A térképem nem eladó, a kincsem nem közös, és mielőtt kérdeznétek: igen, a kulcsaimat is megszámoltam."""
+NPCD020,NPC003,4,7,"A kincskereső két üres kulcshelyre bök a bőrtokján. ""Találtam egy lezárt mellékjáratot, de két hozzá való kulcs hiányzik. Szerezzetek nekem két kulcsot, és megmutatom, hol van az ajtó."""
+NPCD021,NPC003,8,10,"A kincskereső közelebb int, majd egy alig látható jelet mutat a térképen. ""Két kulcs választ el bennünket ettől a járattól. Hozzátok el őket, és amit odabent találunk, arról ezúttal hajlandó vagyok beszélni veletek."""
+
+NPCD022,NPC004,0,3,"A dalnok rekedten próbál kiénekelni egy hangot, majd fájdalmas arccal a torkához kap. ""Nevethettek nyugodtan. Ha így folytatom, ebből a találkozásból még gyászdal sem születik."""
+NPCD023,NPC004,4,7,"A dalnok reménykedve néz az italaitok felé. ""A por, a penész meg ez az átkozott pince elvitte a hangomat. Egyetlen korsó mézsör helyretenné. Hozzatok nekem egyet, és újra hallhattok valami mást is a csontok zörgésén kívül."""
+NPCD024,NPC004,8,10,"A dalnok megköszörüli a torkát, majd mosolyogva megpendíti hangszerét. ""Egy mézsör, csak ennyit kérek. Ha visszahozza a hangomat, esküszöm, az első rendes dal, amit eléneklek, rólatok fog szólni."""
+
+NPCD025,NPC005,0,3,"Egy alacsony, bűzlő bőrkabátba bújt patkányvadász térdel a földön, és apró karmok nyomait vizsgálja. ""Ne zavarjatok. Egy patkánycsalád nyomát követem, és jelenleg nálatok jobb a szaglásuk."""
+NPCD026,NPC005,4,7,"A patkányvadász egy megrágott gabonazsákot lök elétek. ""Ezek a dögök már a felszíni pincékbe is feljárnak. Öt óriáspatkányt kellene elintézni. Ötöt. Utána talán egy ideig újra az embereké lesznek a kamrák."""
+NPCD027,NPC005,8,10,"A patkányvadász elégedetten szemügyre veszi a pengéiteket. ""Öt döglött óriáspatkány már valami. Tiszta munka, gyors penge. Talán mégsem vagytok teljesen reménytelenek."""
+
+NPCD028,NPC006,0,3,"Egy szakadt ruhájú férfi lapul két szikla között. Minden távoli neszre összerezzen, és folyton a háta mögé pillant. ""Nem megyek vissza közéjük. Ha annyira kíváncsiak vagytok rájuk, próbáljátok meg ti."""
+NPCD029,NPC006,4,7,"A szökevény a sötét járatra mutat, miközben idegesen markolja a ruháját. ""Négy kobold követ. Nem hősök, csak sokan vannak és szeretnek a sötétből támadni. Intézzétek el azt a négyet, és talán lesz időm eltűnni innen."""
+NPCD030,NPC006,8,10,"A szökevény arcáról valamennyire eltűnik a rettegés. ""Ha az a négy kobold nem jön utánam többé, megmutatom nektek azokat a járatokat, amelyeket ők használnak. Van köztük egy rövid út is."""
+
+NPCD031,NPC007,0,3,"Egy horpadt páncélú határőr támaszkodik a kardjára. Köpenyén szétszakadt címer lóg, arcán friss vér szárad. ""A címerem összetört, de az esküm nem. Ne adjatok okot arra, hogy rátok is kardot emeljek."""
+NPCD032,NPC007,4,7,"A határőr a folyosón heverő, véres pajzsokra néz. ""A goblinok rajtaütöttek az őrjáratomon. Ötöt ismerek közülük, akik részt vettek benne. Keressétek meg azt az öt goblint, és végezzetek velük."""
+NPCD033,NPC007,8,10,"A határőr kiegyenesedik, és most már bajtársként néz rátok. ""Öt goblin élete nem hozza vissza a társaimat. De ha megtisztítjátok tőlük az utat, legalább nem hiába haltak meg."""
+
+NPCD034,NPC008,0,3,"Egy csuklyás remete ül mozdulatlanul egy kialudt mécses előtt. Körülötte csontokból rakott apró jelek sorakoznak. ""Túl hangosan éltek. A holtak már messziről hallják a szíveteket."""
+NPCD035,NPC008,4,7,"A remete öt karcolást húz a porba, majd a katakombák felé mutat. ""Öt csontváz járja nyugtalanul a sírokat. Pusztítsátok el mind az ötöt, hogy végre elcsendesedhessenek azok, akiknek már régen pihenniük kellene."""
+NPCD036,NPC008,8,10,"A remete egy rothadó húsdarabot ejt a parázsra, amely keserű füsttel égni kezd. ""A csontok után maradtak még testek is, amelyek nem tudják, hogy meghaltak. Három zombit kell elpusztítanotok. Azután elvégezhetem értük a szertartást."""
+
+NPCD037,NPC009,0,3,"Egy termetes ork ül a fal mellett, páncéljáról letépve egykori törzsének jelvénye. Keze közelében súlyos bárd hever. ""Az ork nem árul el senkit. Én csak hamarabb választottam oldalt, mint ahogy a többiek megértették volna, hogy rossz oldalon állnak."""
+NPCD038,NPC009,4,7,"Az ork dezertőr megvetően köp egyet korábbi törzsének irányába. ""A hadúr a gyengéket küldi előre meghalni. Öt ork portyázik a csarnokokban. Végezzetek velük, és hadd tudja meg a hadúr, hogy valaki már visszafelé is küldi az üzeneteit."""
+NPCD039,NPC009,8,10,"A dezertőr elismerően végigmér benneteket, majd három mély rovást karcol a bárdja nyelébe. ""Most a hadúr testőrei következnek. Három hobgoblin. Ha azok elesnek, a hadúr először fogja megérezni, milyen az, amikor ő marad védelem nélkül."""
+
+NPCD040,NPC010,0,3,"Egy kócos alkimista térdel fortyogó lombikok és gombákkal teli üvegek között. Amikor meglát benneteket, rémülten a lábatok elé mutat. ""Egy rossz mozdulat, és mindannyian gombává változunk. Ti talán hamarabb."""
+NPCD041,NPC010,4,7,"Az alkimista egy üres, vastag falú üveget emel a fény felé. ""Óriáspókok mérgére van szükségem. Négy példány elég lesz a kísérleteimhez. Győzzetek le négy óriáspókot, a veszélyes részt pedig bízzátok rám."""
+NPCD042,NPC010,8,10,"Az alkimista két kis üres fiolát tesz elétek. ""Most ellenőrző minták kellenek. Hozzatok két adag ellenmérget. Összevetem őket a saját főzetemmel, és talán legközelebb már nem kell imádkoznunk, amikor valakit megmar egy pók."""
+
+NPCD043,NPC011,0,3,"Egy megkötözött fogoly ül az ork tábor szélén, csuklóját véresre dörzsölte a kötél. Amikor meglát benneteket, felkapja a fejét. ""Ha a táborból jöttetek, végezzetek gyorsan. Ha nem, akkor előbb oldozzatok el."""
+NPCD044,NPC011,4,7,"A kiszabadított fogoly két őrhely felé mutat. ""Napok óta számolom az őrjáratokat. Két bugbear figyeli a tábort, és váltáskor elszakadnak egymástól. Intézzétek el mindkettőt. Nélkülük a tábor elveszíti a szemét."""
+NPCD045,NPC011,8,10,"A fogoly egy lopott ork térképet terít a földre. ""Kinyitottátok előttem az utat. A két bugbear nélkül vakok lesznek. Most én mutatom meg nektek, hol fáj legjobban az ork seregnek."""
+
+NPCD046,NPC012,0,3,"Egy sápadt sírőr áll két megrepedezett kőszarkofág között. Ruhájára régi szent jeleket varrtak, arcán azonban semmi öröm nincs. ""A sírok nem üresek. Csak türelmesebbek nálatok."""
+NPCD047,NPC012,4,7,"A sírőr egy megsérült kőtáblán futtatja végig ujjait. ""Elvesztettem a kijárathoz vezető sírjelet. Találjátok meg innen a kijáratot, majd térjetek vissza hozzám. Ha az út még létezik, tudnom kell róla."""
+NPCD048,NPC012,8,10,"A sírőr két meggyalázott pecsétre mutat a falon. ""Valaki csapdákat épített a sírok szent útjára. Hatástalanítsatok két csapdát. Ha a pecsétek újra biztonságban vannak, a halottak is csendesebben fognak aludni."""
+
+NPCD049,NPC013,0,3,"Egy pikkelyekkel, elszenesedett csontdarabokkal és jegyzetekkel megrakott kutatóasztal mögött sovány alak dolgozik. Fel sem néz, amikor megszólal. ""Ha pikkelyt kerestek, rossz helyen jártok. Ha sárkányt, akkor még rosszabban."""
+NPCD050,NPC013,4,7,"A sárkánykutató két különös zár rajzát teríti elétek. ""Két ládát találtam ugyanazzal a jellel, amely a sárkánycsontokon is megjelenik. Nyissatok ki két kincsesládát. Tudnom kell, miért használták ugyanazt a jelképet."""
+NPCD051,NPC013,8,10,"A kutató egy hamuval szennyezett térképen végighúzza az ujját. ""A hamuréteg egy út történetét őrzi. Találjátok meg a kijáratot, majd térjetek vissza. Ha tudom, merre vezetett az út, talán azt is megtudjuk, mi járt végig rajta."""
+
+NPCD052,NPC014,0,3,"Egy csontos révész áll bokáig a fekete lápvízben, hosszú botjával időnként megszúrva az iszapot. ""A mocsár mindenkit átenged. Csak nem feltétlenül ugyanabban az alakban, ahogy belépett."""
+NPCD053,NPC014,4,7,"A révész néhány alig látható, száraz kőre mutat a vízben. ""Valahol arra van az út túloldala. Találjátok meg a kijáratot, aztán gyertek vissza. Ha ti átjutottok, én is tudni fogom, merre érdemes vinni a csónakot."""
+NPCD054,NPC014,8,10,"A révész botja hegyével két gyanúsan sima iszapfoltra mutat. ""A láp alatt kelepcék lapulnak. Kettőt már megtaláltam, de én nem nyúlok hozzájuk. Hatástalanítsatok két csapdát, és végre járható lesz az ösvény."""
+
+NPCD055,NPC015,0,3,"Egy kristályporral borított mérnök guggol egy repedt szerkezet előtt. Az egyik kezében nagyító, a másikban apró kalapács van. ""Ne érjetek a kristályokhoz. Némelyik még emlékszik az utolsó kézre, amely hozzáért."""
+NPCD056,NPC015,4,7,"A mérnök három különböző zárszerkezet rajzát teríti ki. ""A ládák zárain ugyanazokat a törésvonalakat látom. Nyissatok ki három kincsesládát. Figyeljétek meg a szerkezetüket, és talán rájövök, mit akart elrejteni a készítőjük."""
+NPCD057,NPC015,8,10,"A mérnök két összetört rugót tart fel. ""Most a hibák érdekelnek. Hatástalanítsatok két csapdát, és jegyezzétek meg, hogyan működtek. Ha jól sejtem, ugyanaz a kéz készítette őket, mint a kristályzárakat."""
+
+NPCD058,NPC016,0,3,"Egy sápadt menekült húzódik meg a fal árnyékában. Ruhája valaha előkelő lehetett, most vér és korom borítja. ""Az éjszaka mögöttem jön. Ne álljatok közénk."""
+NPCD059,NPC016,4,7,"A menekült a folyosók sötétjét figyeli, mintha bármelyik pillanatban üldözők bukkanhatnának fel. ""Meg kell találnom a kijáratot, mielőtt a vár urai újra megérzik a véremet. Keressétek meg innen a kijáratot, aztán gyertek vissza értem."""
+NPCD060,NPC016,8,10,"A menekült két régi családi jelvényt rajzol a porba. ""Mielőtt elvisznek innen, elkobozták mindenemet. Két ládában lehetnek a holmijaim. Nyissatok ki két ládát. Ha megtaláljátok bennük az örökségemet, talán nem teljesen üres kézzel hagyom el ezt a helyet."""
+
+NPCD061,NPC017,0,3,"Egy tetőtől talpig hegekkel borított démonvadász áll egy szétszakított lánchalom mellett. Pengéjén fekete, olajos vér csillog. ""A láncaimat eltörtem. Aki újra rám akarja tenni őket, elveszíti a kezét."""
+NPCD062,NPC017,4,7,"A démonvadász egy megperzselt póklábat rúg elétek. ""A démonpókok hálója nem fonálból készül, hanem szenvedésből. Három ilyen förmedvény van a közelben. Öljétek meg mind a hármat, mielőtt újabb áldozatokat húznak a hálójukba."""
+NPCD063,NPC017,8,10,"A démonvadász kardján négy nevet mutat, mindegyiket mélyen a pengébe karcolva. ""Most a pokol lovagjai következnek. Négy démonlovag őrzi a Vértrónus útját. Pusztítsátok el mind a négyet. Hadd tanulják meg, hogy a pokol is vérezhet."""
+
+NPCD064,NPC018,0,3,"Egy arcát elfedő alak áll ott, ahol a folyosó falai látszólag lehetetlen szögben találkoznak. Árnyéka néha más irányba mozdul, mint ő maga. ""A káosz nem ellenség és nem barát. Tükör, amely rosszkor néz vissza."""
+NPCD065,NPC018,4,7,"Az idegen egy térképet nyújt felétek, amelyen a folyosók egy része egyszerűen megszakad. ""A kijárat nem ott lesz, ahol a szemetek keresi. Találjátok meg az utat ebből a lehetetlen labirintusból, majd térjetek vissza. Keressétek azt, amit a térkép tagad."""
+NPCD066,NPC018,8,10,"Az idegen körül egy pillanatra vörös fény fut végig a köveken. ""Három láda őrzi a Rubin visszhangját. Nyissátok ki mind a hármat. Ha valóban nektek szól a Káoszrubin hívása, a bennük maradt energia válaszolni fog."""
+
+NPCD067,NPC019,0,3,"Egy hatalmas termetű vadász ül egy kőtömbön, mellette embermagasságú dárda és óriási lábnyomokkal teli térkép fekszik. ""Aki nem bírja el a saját fegyverét, ne induljon óriásra."""
+NPCD068,NPC019,4,7,"Az óriásvadász három mély nyomra mutat a porban. ""Három ogre járja ezt a vidéket. Erősek, de minden ütés előtt ugyanoda néznek. Vadásszátok le mind a hármat, és ne próbáljátok erőből legyőzni azt, amit ésszel is el lehet."""
+NPCD069,NPC019,8,10,"Az óriásvadász elégedetten nézi a távolban fekvő hatalmas testeket. ""Három ogre. Szép nagyvad volt. A hegy sokáig emlékezni fog arra, amikor lezuhantak róla."""
 
 #NPC történeti választások
 Id,TörténetId,ÁllapotId,Mondat,Sorrend,Válasz,ViszonyVáltozás,KövetkezőÁllapotId,Reakció,Hatás,HatásParaméter,Folytatás,MinimumViszony,MaximumViszony
