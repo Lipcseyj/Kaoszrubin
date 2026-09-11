@@ -108,6 +108,7 @@ public sealed class Game : ISessionCommandHandler
     private HeldInventoryItem? _heldInventoryItem;
     private DateTime _nextNeedsDrain;
     private DateTime _nextNpcSelfCareCheck;
+    private DateTime _nextTrapMessageUtc;
     private readonly Dictionary<Enemy, DateTime> _nextEnemyMoves = [];
     private DateTime _nextEnemyActionUtc = DateTime.MaxValue;
     private readonly Dictionary<Position, IReadOnlyDictionary<Position, int>> _enemyDistanceMaps = [];
@@ -1454,6 +1455,9 @@ public sealed class Game : ISessionCommandHandler
 
     private void ShowTrapMessage(string message, ConsoleColor color, LiveCharacter character)
     {
+        var now = DateTime.UtcNow;
+        if (now < _nextTrapMessageUtc) return;
+        _nextTrapMessageUtc = now + TimeSpan.FromSeconds(2);
         _renderer.DrawInventoryMessage(message, color);
         RecordSessionActivity(SessionActivityKind.System, message, color, [character.Id]);
     }
