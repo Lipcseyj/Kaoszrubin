@@ -254,9 +254,14 @@ public sealed class ConsoleRenderer
     public void SetFormationStatus(PartyFormationSnapshot formation)
     {
         _formation = formation;
-        if (_displayedCharacter is not null)
-            WriteSheetLine(CharacterSheetControlsLine, FormationStatusText(formation),
-                formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
+        if (_displayedCharacter is null) return;
+        if (_spellInfoCharacter is not null)
+        {
+            RefreshSpellInfoPage();
+            return;
+        }
+        WriteSheetLine(CharacterSheetControlsLine, FormationStatusText(formation),
+            formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
     }
 
     public static string FormationStatusText(PartyFormationSnapshot formation)
@@ -2597,11 +2602,14 @@ public sealed class ConsoleRenderer
         selectedIndex = spells.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, spells.Count - 1);
         _spellInfoCharacter = character;
         _selectedSpellInfoIndex = selectedIndex;
-        for (var line = CharacterSheetHeaderLine; line <= PicturePanelBottom; line++) WriteSheetLine(line, string.Empty, ConsoleColor.Gray);
         var info = SpellInfoSnapshotProjector.Create(character);
-        foreach (var line in SpellInfoPanel.Build(character.Name, character.CharacterClass.Id, character.Level,
-                     info, selectedIndex, _characterSheetFocused, RightSheetWidthForWindow()))
-            WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
+        var panelLines = SpellInfoPanel.Build(character.Name, character.CharacterClass.Id, character.Level,
+            info, selectedIndex, _characterSheetFocused, RightSheetWidthForWindow()).ToDictionary(line => line.Row);
+        for (var row = 0; row <= PicturePanelBottom; row++)
+            if (panelLines.TryGetValue(row, out var line))
+                WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
+            else
+                WriteSheetLine(row, string.Empty, ConsoleColor.Gray);
     }
 
     public bool IsSpellInfoPageOpen => _spellInfoCharacter is not null;
@@ -2802,6 +2810,7 @@ public sealed class ConsoleRenderer
     private void DrawCharacterSheet(LiveCharacter character)
     {
         _displayedCharacter = character;
+        ClearRightPanel();
         var panelLines = CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
             _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader,
             IsTemporaryFollower(character), RightSheetWidthForWindow());
@@ -3175,6 +3184,12 @@ public sealed class ConsoleRenderer
         {
             Thread.Sleep(500);
         }
+    }
+
+    private void ClearRightPanel()
+    {
+        for (var row = 0; row <= PicturePanelBottom; row++)
+            WriteSheetLine(row, string.Empty, ConsoleColor.Gray);
     }
 
     private static string CenterPanelText(string text, int canvasWidth, int interiorWidth = PortraitInteriorWidth)
