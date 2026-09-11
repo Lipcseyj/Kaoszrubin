@@ -1827,8 +1827,7 @@ public sealed class Game : ISessionCommandHandler
             character.MemorizedSpells.Select(spell => spell.Id).ToArray());
         _spellPreparationCompleted = false;
         _session.SetPhase(GameSessionPhase.Paused);
-        _renderer.DrawInventoryMessage(
-            $"⌛ Várakozás {character.Name} varázsmemorizálására... ⌛", ConsoleColor.Yellow);
+        CoopWindowStatusBanner.Refresh(() => $"Várakozás {character.Name} varázsmemorizálására...");
         _renderer.DrawReplicatedWindow(MagicProgressionWindow.PreparationWidth,
             MagicProgressionWindow.BuildPreparation(character.Name, _activeSpellPreparation.SelectedSpellIds.Count,
                 _activeSpellPreparation.Capacity, _activeSpellPreparation.Spells,
@@ -1848,6 +1847,8 @@ public sealed class Game : ISessionCommandHandler
         }
         _activeSpellPreparation = null;
         _spellPreparationCompleted = false;
+        _renderer.ClearReplicatedWindow();
+        CoopWindowStatusBanner.Clear();
         _session.SetPhase(previousPhase);
         RequestCoopSnapshotPublish();
     }
@@ -9917,8 +9918,7 @@ public sealed class Game : ISessionCommandHandler
         _levelUpResponse = null;
         _levelUpPromptCompleted = false;
         _session.SetPhase(GameSessionPhase.Paused);
-        _renderer.DrawInventoryMessage(
-            $"⌛ Várakozás {character.Name} szintlépési döntésére... ⌛", ConsoleColor.Yellow);
+        CoopWindowStatusBanner.Refresh(() => $"Várakozás {character.Name} szintlépési döntésére...");
         var replicatedLines = kind == LevelUpPromptKind.Summary
             ? LevelUpWindow.BuildSummary(character.Name, result.PreviousLevel, result.CurrentLevel,
                 _activeLevelUpPrompt.Bonuses ?? [], result.VitalityGained, result.ManaGained, character.UsesMana,
@@ -9951,6 +9951,8 @@ public sealed class Game : ISessionCommandHandler
         _activeLevelUpPrompt = null;
         _levelUpResponse = null;
         _levelUpPromptCompleted = false;
+        _renderer.ClearReplicatedWindow();
+        CoopWindowStatusBanner.Clear();
         _session.SetPhase(previousPhase);
         RequestCoopSnapshotPublish();
         return response;

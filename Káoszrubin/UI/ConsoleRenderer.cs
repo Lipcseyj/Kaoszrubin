@@ -147,6 +147,7 @@ public sealed class ConsoleRenderer
     private const int FirstMessageLineOffset = 1;
     private readonly Queue<MessageLogLine> _messageLog = new();
     private int _messageLogScrollOffset;
+    private BackgroundContentRestorer? _replicatedWindowBackground;
     private readonly GameDataCatalog _gameData;
     private readonly Party _party;
     private readonly GameSettings _settings;
@@ -2706,7 +2707,18 @@ public sealed class ConsoleRenderer
     public void DrawNpcBattleSummary(string message, ConsoleColor color) => DrawBattleMessage(message, color);
 
     public void DrawReplicatedWindow(int width, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
-        FramedWindow window) => DrawCenteredFrame(width, lines, window);
+        FramedWindow window)
+    {
+        _replicatedWindowBackground?.Dispose();
+        _replicatedWindowBackground = SaveCenteredFrameBackground(width, lines, window);
+        DrawCenteredFrame(width, lines, window);
+    }
+
+    public void ClearReplicatedWindow()
+    {
+        _replicatedWindowBackground?.Dispose();
+        _replicatedWindowBackground = null;
+    }
 
     public void ScrollMessageLog(bool towardOlderMessages)
     {
