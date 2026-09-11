@@ -661,7 +661,7 @@ public static class MazeLevelConfigurations
 
     public static MazeLevelConfiguration Get(int level)
     {
-        if (Configurations.TryGetValue(level, out var configuration)) return ConfigureTraps(configuration);
+        if (Configurations.TryGetValue(level, out var configuration)) return ConfigureVisionAndTraps(configuration);
         var increase = level - 11;
         var tier = Math.Clamp(4 + increase / 3, 4, 5);
         var (leader, follower, peer) = tier switch
@@ -669,7 +669,7 @@ public static class MazeLevelConfigurations
             4 => (MonsterIds.Beholder, MonsterIds.Ogre, MonsterIds.Kiméra),
             _ => (MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, MonsterIds.Ősvámpír)
         };
-        return ConfigureTraps(new MazeLevelConfiguration
+        return ConfigureVisionAndTraps(new MazeLevelConfiguration
         {
             Level = level,
             Name = $"A mélység {level}. szintje",
@@ -694,7 +694,7 @@ public static class MazeLevelConfigurations
         });
     }
 
-    private static MazeLevelConfiguration ConfigureTraps(MazeLevelConfiguration configuration)
+    private static MazeLevelConfiguration ConfigureVisionAndTraps(MazeLevelConfiguration configuration)
     {
         configuration.VisionModifier = configuration.Level switch
         {
@@ -704,12 +704,12 @@ public static class MazeLevelConfigurations
         };
         (configuration.TrapCount, configuration.TrapIds) = configuration.Level switch
         {
-            <= 2 => (new IntRange(2, 5), BasicTraps),
-            <= 6 => (new IntRange(3, 5), EarlyTraps),
-            <= 9 => (new IntRange(3, 6), MidTraps),
-            <= 13 => (new IntRange(3, 6), AdvancedTraps),
-            <= 17 => (new IntRange(4, 6), DeadlyTraps),
-            _ => (new IntRange(4, 8), ChaosTraps)
+            <= 2 => (new IntRange(3, 7), BasicTraps),
+            <= 6 => (new IntRange(4, 8), EarlyTraps),
+            <= 9 => (new IntRange(5, 10), MidTraps),
+            <= 13 => (new IntRange(5, 10), AdvancedTraps),
+            <= 17 => (new IntRange(5, 12), DeadlyTraps),
+            _ => (new IntRange(6, 13), ChaosTraps)
         };
         return configuration;
     }

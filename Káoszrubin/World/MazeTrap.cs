@@ -22,7 +22,7 @@ public sealed class MazeTrap : WorldObject
     public bool DetectionAttempted { get; private set; }
     public int FailedDisarmAttempts { get; private set; }
     public bool IsActive => State is TrapState.Hidden or TrapState.Detected;
-    public override Rune Symbol => State == TrapState.Disarmed ? new Rune('·') : Definition.Symbol;
+    public override Rune Symbol => State == TrapState.Disarmed ? new Rune('·') : (State == TrapState.Triggered ? new Rune('×') : Definition.Symbol);
 
     public void MarkDetectionAttempted() => DetectionAttempted = true;
     public void Detect() { DetectionAttempted = true; State = TrapState.Detected; }
