@@ -412,13 +412,6 @@ public sealed class CoopGuestScreen
         if (_spellInfoOpen && _inventoryOpen)
         {
             var spellInfoCommand = HandleSpellInfoInput(client, characterId, snapshot, key);
-            if (!_spellInfoOpen && _personalWindowId is { } spellInfoWindowId)
-            {
-                _personalWindowKind = null;
-                _personalWindowId = null;
-                await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.SpellInfo,
-                    spellInfoWindowId, false, cancellationToken);
-            }
             if (spellInfoCommand is not null)
             {
                 try { await client.SendCommandAsync(spellInfoCommand, cancellationToken); }
@@ -1265,10 +1258,6 @@ public sealed class CoopGuestScreen
                 {
                     _spellInfoOpen = true;
                     _spellInfoSelection = 0;
-                    _personalWindowId = Guid.NewGuid();
-                    _personalWindowKind = PlayerWindowKind.SpellInfo;
-                    await SendPersonalWindowStateAsync(client, characterId, PlayerWindowKind.SpellInfo,
-                        _personalWindowId.Value, true, cancellationToken);
                 }
                 else if (useSlot.Kind == InventorySlotKind.Backpack && useSlot.Item is not null)
                     command = new UseInventoryItemCommand(client.PlayerId!.Value, client.NextCommandId(),

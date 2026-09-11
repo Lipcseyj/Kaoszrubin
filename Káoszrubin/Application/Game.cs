@@ -647,25 +647,13 @@ public sealed class Game : ISessionCommandHandler
                         ShowQuestJournal();
                         continue;
                     }
-                    if (_renderer.IsSpellInfoPageOpen)
-                    {
-                        if (keyInfo.Key == ConsoleKey.Escape)
-                        {
-                            _renderer.CloseSpellInfoPage();
-                            CloseHostSpellInfoWindow();
-                        }
-                        else if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveSpellInfoSelection(-1);
-                        else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveSpellInfoSelection(1);
-                        else if (TryGetQuickSpellIndex(keyInfo, out var spellSlot)) AssignSelectedSpellQuickSlot(spellSlot);
-                        else if (keyInfo.Key == ConsoleKey.Enter) CastSelectedSpellInfo();
-                        continue;
-                    }
                     if (keyInfo.Key == ConsoleKey.V)
                     {
                         BeginExplorationSpellCasting();
                         continue;
                     }
-                    if (TryGetQuickSpellIndex(keyInfo, out var quickSpellSlot))
+                    if (!(_characterSheetFocused && _renderer.IsSpellInfoPageOpen) &&
+                        TryGetQuickSpellIndex(keyInfo, out var quickSpellSlot))
                     {
                         var quickSpell = SelectedCharacter.QuickSpells[quickSpellSlot];
                         if (quickSpell is null)
@@ -683,6 +671,16 @@ public sealed class Game : ISessionCommandHandler
                     }
                     if (_characterSheetFocused)
                     {
+                        if (_renderer.IsSpellInfoPageOpen)
+                        {
+                            if (keyInfo.Key == ConsoleKey.Escape)
+                                _renderer.CloseSpellInfoPage();
+                            else if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveSpellInfoSelection(-1);
+                            else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveSpellInfoSelection(1);
+                            else if (TryGetQuickSpellIndex(keyInfo, out var spellSlot)) AssignSelectedSpellQuickSlot(spellSlot);
+                            else if (keyInfo.Key == ConsoleKey.Enter) CastSelectedSpellInfo();
+                            continue;
+                        }
                         if (keyInfo.Key == ConsoleKey.Escape)
                         {
                             if (ConfirmReturnToMainMenu()) { CancelHeldInventoryItem(); return; }
@@ -1499,7 +1497,6 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
         _renderer.CloseSpellInfoPage();
-        CloseHostSpellInfoWindow();
         BeginExplorationSpellCasting(spell);
     }
 
@@ -4187,12 +4184,6 @@ public sealed class Game : ISessionCommandHandler
         if (SpellcastingRules.IsSpellcastingFocus(selectedItem))
         {
             _renderer.DrawSpellInfoPage(slot.Value.Character, 0);
-            if (_activeCoopHost is not null)
-            {
-                _hostSpellInfoWindowId = Guid.NewGuid();
-                UpdatePlayerBlockingWindowState(_session.HostPlayerId, SelectedCharacter.Id,
-                    PlayerWindowKind.SpellInfo, _hostSpellInfoWindowId.Value, true);
-            }
             return;
         }
         if (selectedItem is not MiscItemDefinition item || item.Effect == ConsumableEffect.None)
@@ -6191,10 +6182,7 @@ public sealed class Game : ISessionCommandHandler
         _battleLogCycle = -1;
         _pendingLevelUps.Clear();
         if (_renderer.IsSpellInfoPageOpen)
-        {
             _renderer.CloseSpellInfoPage();
-            CloseHostSpellInfoWindow();
-        }
 
         var characterParticipants = new List<TeamCharacterParticipant>();
         var preparationEntries = new List<BattleLogEntry>();
