@@ -3337,7 +3337,9 @@ static void WindowFrameCatalogIsResizableAndConfigured()
            ConsoleRenderer.MessageLogLineCountForWindowHeight(
                ConsoleRenderer.ScreenRowCountForMessageLogLineCount(ConsoleRenderer.StandardMessageLogLineCount) - 1) == 7 &&
            ConsoleRenderer.MessageLogLineCountForWindowHeight(
-               ConsoleRenderer.ScreenRowCountForMessageLogLineCount(ConsoleRenderer.StandardMessageLogLineCount + ConsoleRenderer.TallDisplayExtraMessageLines)) == 11 &&
+               ConsoleRenderer.ScreenRowCountForMessageLogLineCount(ConsoleRenderer.StandardMessageLogLineCount)) == ConsoleRenderer.StandardMessageLogLineCount &&
+           ConsoleRenderer.MessageLogLineCountForWindowHeight(
+               ConsoleRenderer.ScreenRowCountForMessageLogLineCount(ConsoleRenderer.StandardMessageLogLineCount) + 3) == ConsoleRenderer.StandardMessageLogLineCount + 3 &&
            ConsoleRenderer.MessageLogBufferLineCount == ConsoleRenderer.MessageLogLineCount * 3 &&
            ConsoleRenderer.ScreenRowCount == ConsoleRenderer.PlayfieldHeight +
                ConsoleRenderer.MessageLogLineCount + 1,

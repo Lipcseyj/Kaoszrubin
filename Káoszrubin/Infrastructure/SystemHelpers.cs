@@ -67,7 +67,7 @@ public static class SystemHelpers
         psi.ArgumentList.Add("--window");
         psi.ArgumentList.Add("new");
 
-        psi.ArgumentList.Add("--maximized");
+        psi.ArgumentList.Add("--fullscreen");
 
         psi.ArgumentList.Add("new-tab");
 

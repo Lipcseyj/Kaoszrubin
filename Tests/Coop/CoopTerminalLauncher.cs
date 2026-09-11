@@ -35,7 +35,7 @@ internal static class CoopTerminalLauncher
 
         startInfo.ArgumentList.Add("--window");
         startInfo.ArgumentList.Add("new");
-        startInfo.ArgumentList.Add("--maximized");
+        startInfo.ArgumentList.Add("--fullscreen");
         startInfo.ArgumentList.Add("new-tab");
         startInfo.ArgumentList.Add("--title");
         startInfo.ArgumentList.Add(title);

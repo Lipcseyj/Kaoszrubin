@@ -212,10 +212,11 @@ public sealed class ConsoleRenderer
             ? TallDisplayExtraMessageLines
             : 0);
 
-    public static int MessageLogLineCountForWindowHeight(int windowHeight) =>
-        StandardMessageLogLineCount + (windowHeight >= ScreenRowCountForMessageLogLineCount(StandardMessageLogLineCount + TallDisplayExtraMessageLines)
-            ? TallDisplayExtraMessageLines
-            : 0);
+    public static int MessageLogLineCountForWindowHeight(int windowHeight)
+    {
+        var extraRows = Math.Max(0, windowHeight - ScreenRowCountForMessageLogLineCount(StandardMessageLogLineCount));
+        return StandardMessageLogLineCount + extraRows;
+    }
 
     public static int ScreenRowCountForMessageLogLineCount(int messageLogLineCount) =>
         PlayfieldHeight + messageLogLineCount + 1;
