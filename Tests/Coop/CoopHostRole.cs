@@ -9,6 +9,7 @@ internal static class CoopHostRole
 {
     public static int Run(CoopHarnessOptions options)
     {
+        using var roleConsole = CoopRoleConsole.Initialize("host", options);
         var workspaceRoot = CoopFixtureFactory.CreateTemporaryWorkspaceRoot(options.Workspace);
         var fixture = CoopFixtureFactory.Create(workspaceRoot);
         fixture.HostRoster.Party.SetLeader(fixture.HostLeader);

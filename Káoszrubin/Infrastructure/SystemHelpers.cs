@@ -39,13 +39,7 @@ public static class SystemHelpers
                 "Nem határozható meg az EXE elérési útja.");
 
         Log.Info("terminal.version.start");
-        Version? terminalVersion = GetWindowsTerminalVersion();
-
-        string colorScheme =
-            terminalVersion is not null &&
-            terminalVersion >= IbmSchemeMinimumVersion
-                ? "IBM 5153"
-                : "Vintage";
+        string colorScheme = GetPreferredTerminalColorScheme(out Version? terminalVersion);
 
         Log.Info("terminal.launch.start",
             $"version={terminalVersion?.ToString() ?? "ismeretlen"}; scheme={colorScheme}; exe={exePath}");
@@ -232,6 +226,20 @@ public static class SystemHelpers
             Log.Error("terminal.child.handshake-failed", exception);
             return false;
         }
+    }
+
+    /// <summary>
+    /// A Windows Terminal verziójához illeszkedő színsémát adja vissza. Ugyanezt használja a játék
+    /// indítása és minden eszköz, amely a játékot saját Terminal-ablakban futtatja.
+    /// </summary>
+    public static string GetPreferredTerminalColorScheme() => GetPreferredTerminalColorScheme(out _);
+
+    internal static string GetPreferredTerminalColorScheme(out Version? terminalVersion)
+    {
+        terminalVersion = GetWindowsTerminalVersion();
+        return terminalVersion is not null && terminalVersion >= IbmSchemeMinimumVersion
+            ? "IBM 5153"
+            : "Vintage";
     }
 
     private static bool IsRunningInWindowsTerminal()

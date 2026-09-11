@@ -40,13 +40,13 @@ internal static class CoopSimulationHarness
 
             if (scenario.StartHost)
             {
-                children.Add(CoopHarnessProcess.StartRole("host", scenario.Name, options.Port, workspaceRoot));
+                children.Add(StartRole("host", scenario, options.Port, workspaceRoot));
                 Thread.Sleep(1200);
             }
 
             if (scenario.StartGuest)
             {
-                children.Add(CoopHarnessProcess.StartRole("guest", scenario.Name, options.Port, workspaceRoot));
+                children.Add(StartRole("guest", scenario, options.Port, workspaceRoot));
             }
 
             Console.WriteLine();
@@ -90,6 +90,29 @@ internal static class CoopSimulationHarness
 
             if (string.IsNullOrWhiteSpace(options.Workspace)) TryDeleteWorkspace(workspaceRoot);
         }
+    }
+
+    private static CoopHarnessProcess StartRole(string role, CoopScenario scenario, int port, string workspaceRoot)
+    {
+        var child = CoopHarnessProcess.StartRole(role, scenario.Name, port, workspaceRoot);
+
+        if (!child.LaunchedInWindowsTerminal)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine($"[{role}] A wt.exe nem erheto el, ezert legacy konzolban indult. " +
+                              "Az emoji karakterek igy nem jelennek meg helyesen.");
+            Console.ResetColor();
+        }
+
+        if (!child.RoleProcessResolved)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine($"[{role}] A szerepfolyamat PID-je nem volt beolvashato; " +
+                              "a vezerlo nem tudja automatikusan leallitani ezt az ablakot.");
+            Console.ResetColor();
+        }
+
+        return child;
     }
 
     private static CoopScenario? ResolveScenario(string? requestedScenario)

@@ -9,6 +9,7 @@ internal static class CoopGuestRole
 
     public static int Run(CoopHarnessOptions options)
     {
+        using var roleConsole = CoopRoleConsole.Initialize("guest", options);
         var workspaceRoot = CoopFixtureFactory.CreateTemporaryWorkspaceRoot(options.Workspace);
         var fixture = CoopFixtureFactory.Create(workspaceRoot);
         var hostUrl = $"http://localhost:{options.Port}";
