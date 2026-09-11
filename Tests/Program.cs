@@ -10,10 +10,17 @@ using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Magic;
 using KaoszRubin.Infrastructure;
 using KaoszRubin.Transport.SignalR;
+using KaoszRubin.Tests.Coop;
 using KaoszRubin.UI;
 using KaoszRubin.World;
 using System.Text.Json;
 using System.Text;
+
+if (CoopHarnessOptions.TryParse(args, out var harnessOptions))
+{
+    CoopSimulationHarness.Run(harnessOptions);
+    return Environment.ExitCode;
+}
 
 var tests = new (string Name, Action Run)[]
 {

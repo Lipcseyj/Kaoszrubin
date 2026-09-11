@@ -57,7 +57,7 @@ public static class CoopWindowStatusBanner
     private static void Draw(string? message)
     {
         int width;
-        try { width = Math.Max(Console.WindowWidth, 170); }
+        try { width = Math.Min(Console.WindowWidth, 169); }
         catch (IOException) { return; }
         var text = string.IsNullOrWhiteSpace(message) ? string.Empty : $" FIGYELEM: {message} ";
         text = BattleCommandPanel.TruncateToDisplayWidth(text, width);

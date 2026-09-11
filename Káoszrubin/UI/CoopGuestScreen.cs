@@ -149,8 +149,7 @@ public sealed class CoopGuestScreen
                 if (!TerminalViewport.TryGetSize(out var viewport) ||
                     !viewport.CanFit(ConsoleRenderer.PlayfieldWidth + 1, ConsoleRenderer.ScreenRowCount))
                 {
-                    TerminalViewport.DrawSizeWarning(viewport, ConsoleRenderer.PlayfieldWidth + 1,
-                        ConsoleRenderer.ScreenRowCount);
+                    TerminalViewport.DrawSizeWarning(viewport, 200, 50);
                     previousViewport = default;
                     _lastFrame = null;
                     Interlocked.Exchange(ref _redrawRequested, 1);

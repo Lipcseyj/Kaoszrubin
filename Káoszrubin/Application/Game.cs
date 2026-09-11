@@ -876,8 +876,8 @@ public sealed class Game : ISessionCommandHandler
 
     private void WaitForUsableTerminal(bool processSession)
     {
-        var minimumWidth = ConsoleRenderer.PlayfieldWidth + 1;
-        var minimumHeight = ConsoleRenderer.ScreenRowCount;
+        var minimumWidth = 200;
+        var minimumHeight = 50;
         TerminalViewport.Size lastWarningSize = default;
         var warningDrawn = false;
         while (true)
