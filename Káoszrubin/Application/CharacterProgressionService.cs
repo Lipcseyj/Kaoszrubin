@@ -29,12 +29,25 @@ public sealed class CharacterProgressionService
     public IReadOnlyList<ExperienceAward> DistributeExperience(
         LiveCharacter winner,
         int totalExperience,
-        IEnumerable<LiveCharacter> livingParty)
+        IEnumerable<LiveCharacter> livingParty, bool isQuest = false)
     {
         var total = Math.Max(0, totalExperience);
-        var others = livingParty
-            .Where(character => character != winner && character.IsAlive)
-            .ToList();
+        var members = livingParty.Where(character => character.IsAlive).ToList();
+        if (!members.Contains(winner) && winner.IsAlive) members.Insert(0, winner);
+
+        if (isQuest)
+        {
+            if (members.Count == 0)
+                return [AwardExperience(winner, total)];
+            var questShareBase = total / members.Count;
+            var questShareRemainder = total % members.Count;
+            var awards = new List<ExperienceAward>(members.Count);
+            for (var index = 0; index < members.Count; index++)
+                awards.Add(AwardExperience(members[index], questShareBase + (index < questShareRemainder ? 1 : 0)));
+            return awards;
+        }
+
+        var others = members.Where(character => character != winner).ToList();
         if (others.Count == 0)
             return [AwardExperience(winner, total)];
 
@@ -42,10 +55,11 @@ public sealed class CharacterProgressionService
         var remainder = total - winnerShare;
         var sharedBase = remainder / others.Count;
         var sharedRemainder = remainder % others.Count;
-        var awards = new List<ExperienceAward> { AwardExperience(winner, winnerShare) };
+        var winnerAward = AwardExperience(winner, winnerShare);
+        var resultAwards = new List<ExperienceAward> { winnerAward };
         for (var index = 0; index < others.Count; index++)
-            awards.Add(AwardExperience(others[index], sharedBase + (index < sharedRemainder ? 1 : 0)));
-        return awards;
+            resultAwards.Add(AwardExperience(others[index], sharedBase + (index < sharedRemainder ? 1 : 0)));
+        return resultAwards;
     }
 
     public static string FormatExperienceAwards(IEnumerable<ExperienceAward> awards) => string.Join("; ", awards.Select(award =>
