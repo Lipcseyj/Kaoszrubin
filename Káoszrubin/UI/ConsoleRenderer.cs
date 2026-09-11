@@ -2278,6 +2278,20 @@ public sealed class ConsoleRenderer
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
+    public bool ConfirmQuestTurnIn(string npcName, NpcQuestDefinition quest, int progress,
+        int requiredCount, string rewardItemsText)
+    {
+        DrawCenteredFrame(QuestTurnInWindow.Width,
+            QuestTurnInWindow.Build(npcName, quest, progress, requiredCount, rewardItemsText),
+            FramedWindow.QuestOffer);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Enter) return true;
+            if (key == ConsoleKey.Escape) return false;
+        }
+    }
+
     public void DrawUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<NpcQuestDefinition> quests)
     {
         ResetColorCache();

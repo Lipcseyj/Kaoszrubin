@@ -2570,9 +2570,11 @@ public sealed class Game : ISessionCommandHandler
 
             var current = npc.Quests.First(value => string.Equals(value.QuestId, quest.Id,
                 StringComparison.OrdinalIgnoreCase));
+            var currentProgress = current.Progress;
             if (quest.Type == NpcQuestType.Collect)
             {
                 var available = CountPartyBackpackItems(quest.TargetId);
+                currentProgress = Math.Min(available, quest.RequiredCount);
                 if (available < quest.RequiredCount)
                 {
                     _renderer.DrawInventoryMessage(
@@ -2580,16 +2582,35 @@ public sealed class Game : ISessionCommandHandler
                     SynchronizeQuestJournal(npc, quest, available);
                     continue;
                 }
-                RemovePartyBackpackItems(quest.TargetId, quest.RequiredCount);
-                npc.AddQuestProgress(quest.Id, quest.RequiredCount, quest.RequiredCount);
             }
-            else if (current.Progress < quest.RequiredCount)
+            else if (currentProgress < quest.RequiredCount)
             {
-                SynchronizeQuestJournal(npc, quest);
+                SynchronizeQuestJournal(npc, quest, currentProgress);
                 _renderer.DrawInventoryMessage(
-                    $"📜 {quest.Title}: {current.Progress}/{quest.RequiredCount}", ConsoleColor.DarkYellow);
+                    $"📜 {quest.Title}: {currentProgress}/{quest.RequiredCount}", ConsoleColor.DarkYellow);
                 continue;
             }
+
+            var rewardItemsText = DescribeNpcQuestItemRewards(quest).TrimStart();
+            var shouldTurnIn = RunHostWindow($"Küldetés leadása — {quest.Title}",
+                $"A vezető eldönti, hogy leadja-e a(z) {quest.Title} küldetést.",
+                () => _renderer.ConfirmQuestTurnIn(npc.Character.Name, quest, currentProgress,
+                    quest.RequiredCount, rewardItemsText.Length > 0 ? rewardItemsText : "nincs tárgyjutalom"));
+            if (!shouldTurnIn)
+            {
+                _renderer.DrawInventoryMessage($"📜 {quest.Title}: a jutalom felvétele elhalasztva.",
+                    ConsoleColor.DarkYellow);
+                SynchronizeQuestJournal(npc, quest, currentProgress);
+                continue;
+            }
+
+            if (quest.Type == NpcQuestType.Collect)
+            {
+                RemovePartyBackpackItems(quest.TargetId, quest.RequiredCount);
+                npc.AddQuestProgress(quest.Id, quest.RequiredCount, quest.RequiredCount);
+                currentProgress = quest.RequiredCount;
+            }
+            SynchronizeQuestJournal(npc, quest, currentProgress);
 
             if (!npc.CompleteQuest(quest.Id)) continue;
             SynchronizeQuestJournal(npc, quest);
