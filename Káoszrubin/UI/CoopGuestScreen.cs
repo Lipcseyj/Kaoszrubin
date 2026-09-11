@@ -146,10 +146,13 @@ public sealed class CoopGuestScreen
             while (!cancellationToken.IsCancellationRequested &&
                    client.State is not (CoopClientConnectionState.Disconnected or CoopClientConnectionState.Faulted))
             {
+                // A guest nézet az alsó keret + üzenetsorok utolsó soránál áll meg,
+                // ezért a host által számolt ScreenRowCount (+1 extra sor) itt túl szigorú.
+                var minimumGuestHeight = ConsoleRenderer.PlayfieldHeight + MessageLineCount;
                 if (!TerminalViewport.TryGetSize(out var viewport) ||
-                    !viewport.CanFit(ConsoleRenderer.PlayfieldWidth + 1, ConsoleRenderer.ScreenRowCount))
+                    !viewport.CanFit(ConsoleRenderer.PlayfieldWidth + 1, minimumGuestHeight))
                 {
-                    TerminalViewport.DrawSizeWarning(viewport, 200, 50);
+                    TerminalViewport.DrawSizeWarning(viewport, 200, minimumGuestHeight);
                     previousViewport = default;
                     _lastFrame = null;
                     Interlocked.Exchange(ref _redrawRequested, 1);

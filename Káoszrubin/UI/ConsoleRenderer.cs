@@ -29,7 +29,7 @@ public sealed class ConsoleRenderer
     public const int StandardMessageLogLineCount = 7;
     public const int TallDisplayExtraMessageLines = 4;
     public const int TallDisplayMinimumPixelHeight = 1200;
-    public static int MessageLogLineCount { get; } = MessageLogLineCountForMonitorHeight(CurrentMonitorPixelHeight());
+    public static int MessageLogLineCount => MessageLogLineCountForWindowHeight(SafeConsoleWindowHeight());
     public static int MessageLogBufferLineCount => MessageLogLineCount * 3;
     public static int ScreenRowCount => PlayfieldHeight + MessageLogLineCount + 1;
     public static string MoneyIcon { get; } = IsWindows11OrLater() ? "🪙" : "💰";
@@ -212,19 +212,23 @@ public sealed class ConsoleRenderer
             ? TallDisplayExtraMessageLines
             : 0);
 
-    private static int CurrentMonitorPixelHeight()
+    public static int MessageLogLineCountForWindowHeight(int windowHeight) =>
+        StandardMessageLogLineCount + (windowHeight >= ScreenRowCountForMessageLogLineCount(StandardMessageLogLineCount + TallDisplayExtraMessageLines)
+            ? TallDisplayExtraMessageLines
+            : 0);
+
+    public static int ScreenRowCountForMessageLogLineCount(int messageLogLineCount) =>
+        PlayfieldHeight + messageLogLineCount + 1;
+
+    private static int SafeConsoleWindowHeight()
     {
         try
         {
-            var windowHandle = Process.GetCurrentProcess().MainWindowHandle;
-            var screen = windowHandle != IntPtr.Zero
-                ? System.Windows.Forms.Screen.FromHandle(windowHandle)
-                : System.Windows.Forms.Screen.PrimaryScreen;
-            return screen?.Bounds.Height ?? 1080;
+            return Console.WindowHeight;
         }
         catch
         {
-            return 1080;
+            return ScreenRowCountForMessageLogLineCount(StandardMessageLogLineCount);
         }
     }
 
