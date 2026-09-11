@@ -148,7 +148,7 @@ public sealed class CoopGuestScreen
             {
                 // A guest nézet az alsó keret + üzenetsorok utolsó soránál áll meg,
                 // ezért a host által számolt ScreenRowCount (+1 extra sor) itt túl szigorú.
-                var minimumGuestHeight = ConsoleRenderer.PlayfieldHeight + MessageLineCount;
+                var minimumGuestHeight = ConsoleRenderer.ScreenRowCount;
                 if (!TerminalViewport.TryGetSize(out var viewport) ||
                     !viewport.CanFit(ConsoleRenderer.PlayfieldWidth + 1, minimumGuestHeight))
                 {
@@ -1498,7 +1498,7 @@ public sealed class CoopGuestScreen
         var windowWidth = SafeWindowWidth();
         var windowHeight = SafeWindowHeight();
         var mapWidth = Math.Min(world.Width, Math.Max(1, windowWidth - CharacterSheetPanel.Width - 2));
-        var mapHeight = Math.Min(world.Height, Math.Max(1, windowHeight - MessageLineCount - 1));
+        var mapHeight = Math.Min(world.Height, Math.Max(1, windowHeight - MessageLineCount));
         _messageLineWidth = Math.Max(1, mapWidth - 4);
         var grid = new GuestMapCell[mapWidth, mapHeight];
         for (var y = 0; y < mapHeight; y++)
