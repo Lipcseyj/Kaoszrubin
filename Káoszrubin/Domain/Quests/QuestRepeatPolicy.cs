@@ -1,11 +1,11 @@
 namespace KaoszRubin.Domain.Quests;
 
 /// <summary>
-/// Meghatározza, hogy egy küldetés milyen gyakorisággal teljesíthető.
+/// Meghatározza, hogy egy quest a sikeres teljesítése után
+/// újra elérhetővé válhat-e.
 /// </summary>
 public enum QuestRepeatPolicy
 {
-    OncePerGame = 0,
-    OncePerNpcInstance,
+    Once = 0,
     Repeatable
 }

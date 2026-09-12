@@ -13,6 +13,7 @@ public sealed record QuestDefinition(
     string Description,
     QuestObjective Objective,
     int ExperienceReward,
+    QuestScope Scope,
     QuestRepeatPolicy RepeatPolicy,
     IItemDefinition? FixedRewardItem = null,
     int FixedRewardItemCount = 0,
