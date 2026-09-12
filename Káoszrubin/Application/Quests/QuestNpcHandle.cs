@@ -39,6 +39,13 @@ public class QuestNpcHandle
             InstanceId);
     }
 
+    public bool AreAllQuestsResolved =>
+        GetQuests()
+            .All(quest => quest.IsResolved);
+
+    public bool HasUnresolvedQuests =>
+        !AreAllQuestsResolved;
+
     public IReadOnlyList<QuestHandle> GetActiveQuests()
     {
         return Manager.GetActiveQuestsForNpc(

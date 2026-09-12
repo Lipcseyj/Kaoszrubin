@@ -98,6 +98,11 @@ public sealed class QuestHandle
             QuestState.Active or
             QuestState.ReadyToTurnIn;
 
+    public bool IsResolved =>
+        State is
+            QuestState.Completed or
+            QuestState.Failed;
+
     public IItemDefinition? FixedRewardItem =>
     _definition.FixedRewardItem;
 

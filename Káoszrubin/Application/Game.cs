@@ -2664,32 +2664,97 @@ public sealed class Game : ISessionCommandHandler
     {
         if (_maze.PartyMembers.Any(member => member.IsTemporaryFollower))
         {
-            _renderer.DrawInventoryMessage("Már van egy ideiglenes követőtök.", ConsoleColor.DarkYellow);
+            _renderer.DrawInventoryMessage(
+                "Már van egy ideiglenes követőtök.",
+                ConsoleColor.DarkYellow);
+
             return false;
         }
-        if (!_maze.RemoveWorldNpc(npc)) return false;
+
+        var npcId =
+            LegacyNpcIdMap.ToQuestNpcId(
+                npc.DefinitionId);
+
+        var instanceId =
+            _questWorldContext.GetInstanceId(npc);
+
+        var questNpc =
+            _questManager.For(
+                npcId,
+                instanceId);
+
+        // ------------------------------------------------------------
+        // NPC áthelyezése a világból temporary followerként a partyba
+        // ------------------------------------------------------------
+
+        if (!_maze.RemoveWorldNpc(npc))
+            return false;
+
         npc.BeginFollowing();
-        var newlyActivated = new List<NpcQuestDefinition>();
-        foreach (var quest in npc.Quests.Where(progress => progress.State == NpcQuestState.Offered).ToArray())
-        {
-            var definition = _gameData.NpcQuests.First(value =>
-                string.Equals(value.Id, quest.QuestId, StringComparison.OrdinalIgnoreCase));
-            if (definition.RequiredStoryStateId is { } requiredState &&
-                !string.Equals(requiredState, npc.StoryStateId, StringComparison.OrdinalIgnoreCase)) continue;
-            npc.ActivateQuest(quest.QuestId);
-            SynchronizeQuestJournal(npc, definition);
-            newlyActivated.Add(definition);
-        }
-        var avatar = new PartyMemberAvatar(npc.Position, npc.Character, npc);
+
+        var avatar =
+            new PartyMemberAvatar(
+                npc.Position,
+                npc.Character,
+                npc);
+
         _maze.AddPartyMember(avatar);
-        _nextPartyMoves[avatar] = DateTime.UtcNow;
-        if (newlyActivated.Count > 0) ForceCoopSnapshotPublish();
-        if (string.Equals(npc.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))
-            _renderer.DrawUniqueNpcQuestOffer(npc, _gameData.GetNpcQuests(npc.DefinitionId));
-        else if (newlyActivated.Count > 0)
-            _renderer.DrawGenericUniqueNpcQuestOffer(npc, newlyActivated);
-        _renderer.DrawInventoryMessage($"🌿 {npc.Character.Name} ideiglenes követőként csatlakozott. Nem foglal partyhelyet.",
+
+        _nextPartyMoves[avatar] =
+            DateTime.UtcNow;
+
+        // ------------------------------------------------------------
+        // Az új quest-rendszer aktiválja az elérhető questeket
+        // ------------------------------------------------------------
+
+        var activatedQuests =
+            questNpc.ActivateAvailableQuests();
+
+        // Átmenetileg még tükrözzük a legacy WorldNpc.Quests
+        // és journal struktúrába.
+        foreach (var quest in activatedQuests)
+        {
+            SynchronizeLegacyQuestProgress(
+                quest);
+        }
+
+        if (activatedQuests.Count > 0)
+        {
+            ForceCoopSnapshotPublish();
+        }
+
+        // ------------------------------------------------------------
+        // Quest offer UI
+        // ------------------------------------------------------------
+
+        if (npcId == QuestNpcId.EliraSilverbranch)
+        {
+            // Az Elira-specifikus renderer egyelőre még
+            // legacy quest definíciókat vár.
+            _renderer.DrawUniqueNpcQuestOffer(
+                npc,
+                _gameData.GetNpcQuests(
+                    npc.DefinitionId));
+        }
+        else if (activatedQuests.Count > 0)
+        {
+            var legacyDefinitions =
+                activatedQuests
+                    .Select(quest =>
+                        GetLegacyQuestDefinition(
+                            quest.Id))
+                    .ToArray();
+
+            _renderer.DrawGenericUniqueNpcQuestOffer(
+                npc,
+                legacyDefinitions);
+        }
+
+        _renderer.DrawInventoryMessage(
+            $"🌿 {npc.Character.Name} ideiglenes követőként csatlakozott. " +
+            "Nem foglal partyhelyet.",
             ConsoleColor.Cyan);
+
         return true;
     }
 
@@ -2912,6 +2977,24 @@ public sealed class Game : ISessionCommandHandler
         }
 
         RequestCoopSnapshotPublish();
+    }
+
+    private bool CanNpcJoin(WorldNpc npc)
+    {
+        if (!npc.Recruitable)
+            return false;
+
+        var npcId =
+            LegacyNpcIdMap.ToQuestNpcId(
+                npc.DefinitionId);
+
+        var instanceId =
+            _questWorldContext.GetInstanceId(
+                npc);
+
+        return _questManager
+            .For(npcId, instanceId)
+            .AreAllQuestsResolved;
     }
 
     private NpcQuestDefinition GetLegacyQuestDefinition(QuestId questId)

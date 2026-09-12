@@ -35,8 +35,6 @@ public sealed class WorldNpc(Position position, string definitionId, LiveCharact
     public int ConversationStage { get; private set; }
     public IReadOnlyList<string> QuestIds => _quests.Keys.ToArray();
     public IReadOnlyList<NpcQuestProgress> Quests => _quests.Values.ToArray();
-    public bool CanJoin => Recruitable && _quests.Values.All(quest =>
-        quest.State is NpcQuestState.Completed or NpcQuestState.Abandoned);
     public override Rune Symbol { get; } = Rune.GetRuneAt(character.CharacterClass.Name.ToUpperInvariant(), 0);
 
     public void Decline() => State = WorldNpcState.Declined;
