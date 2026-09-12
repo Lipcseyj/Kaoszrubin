@@ -8716,7 +8716,6 @@ public sealed class Game : ISessionCommandHandler
         var message = $"☠ {enemy.Name} elesett. +{enemy.Definition.ExperienceReward} XP kerül szétosztásra.";
         if (!_isQuickTeamBattle) _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);
-        ProcessPendingNpcQuestCompletions();
     }
 
     private void ResolveTeamCharacterDefeat(TeamBattleEncounter battle, LiveCharacter character)
@@ -8849,6 +8848,7 @@ public sealed class Game : ISessionCommandHandler
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _session.SetPhase(GameSessionPhase.Exploration);
+        ProcessPendingNpcQuestCompletions();
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         RequestCoopSnapshotPublish();
     }
