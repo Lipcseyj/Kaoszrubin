@@ -2114,7 +2114,7 @@ public sealed class ConsoleRenderer
         }
         lines.Add((string.Empty, ConsoleColor.Gray));
         var actions = npc.CanJoin ? "Enter: csatlakozzon ingyen   " : string.Empty;
-        if (npc.Disposition == NpcDisposition.Neutral) actions += "T: továbbhaladás   ";
+        if (npc.Disposition == NpcDisposition.Neutral) actions += "Enter: továbbhaladás   ";
         actions += npc.CanJoin ? "Esc: most nem" : "Esc: távozás";
         lines.Add((actions, ConsoleColor.Yellow));
         DrawCenteredFrame(WorldNpcRecruitmentFrameWidth, lines, FramedWindow.Inn);
@@ -2122,7 +2122,7 @@ public sealed class ConsoleRenderer
         {
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Enter && npc.CanJoin) return WorldNpcInteractionResult.Join;
-            if (key == ConsoleKey.T && npc.Disposition == NpcDisposition.Neutral)
+            if (key == ConsoleKey.Enter && npc.Disposition == NpcDisposition.Neutral)
                 return WorldNpcInteractionResult.Continue;
             if (key == ConsoleKey.Escape) return WorldNpcInteractionResult.Leave;
         }
