@@ -6,6 +6,7 @@ using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Magic;
+using KaoszRubin.Domain.Quests;
 using KaoszRubin.UI;
 using Microsoft.AspNetCore.Routing.Matching;
 using NAudio.CoreAudioApi;
@@ -2082,7 +2083,7 @@ public sealed class ConsoleRenderer
     #region NPC interaction and story dialogs
 
     public WorldNpcInteractionResult DrawWorldNpcRecruitment(WorldNpc npc,
-        IReadOnlyList<NpcQuestDefinition> questDefinitions)
+        bool canJoin, IReadOnlyList<NpcQuestUiEntry> npcQuestUiEntries)
     {
         ResetColorCache();
         Console.Clear();
@@ -2094,34 +2095,77 @@ public sealed class ConsoleRenderer
             ($"{npc.Character.Name} — {npc.Character.Race.Name} {npc.Character.CharacterClass.Name}", npc.Character.Color),
             ($"Szint {npc.Character.Level}   ❤️ {npc.Character.CurrentVitality}/{npc.Character.MaximumVitality}{mana}", ConsoleColor.Gray),
             ($"Viszony: {npc.Friendliness}/10   Viselkedés: {NpcBehaviorName(npc.Behavior)}", ConsoleColor.Cyan),
-            (npc.QuestIds.Count > 0 ? $"📜 Küldetések: {npc.QuestIds.Count}" : string.Empty, ConsoleColor.DarkYellow),
+            (npcQuestUiEntries.Count > 0 ? $"📜 Küldetések: {npcQuestUiEntries.Count}" : string.Empty, ConsoleColor.DarkYellow),
             (string.Empty, ConsoleColor.Gray),
         };
         lines.AddRange(MessageTextLayout.Wrap($"„{npc.Dialogue}”", WorldNpcRecruitmentTextWidth)
             .Select(line => (line, ConsoleColor.White)));
-        foreach (var quest in questDefinitions)
+
+        foreach (var quest in npcQuestUiEntries)
         {
-            var progress = npc.Quests.FirstOrDefault(value =>
-                string.Equals(value.QuestId, quest.Id, StringComparison.OrdinalIgnoreCase));
-            var status = progress?.State switch
+            var status = quest.State switch
             {
-                NpcQuestState.Active => $"{progress.Progress}/{quest.RequiredCount}",
-                NpcQuestState.Completed => "teljesítve",
-                _ => "új"
+                QuestState.Locked =>
+                    "zárolt",
+
+                QuestState.Available =>
+                    "új",
+
+                QuestState.Active =>
+                    $"{quest.Progress}/{quest.RequiredCount}",
+
+                QuestState.ReadyToTurnIn =>
+                    $"{quest.Progress}/{quest.RequiredCount} — leadható",
+
+                QuestState.Completed =>
+                    "teljesítve",
+
+                QuestState.Failed =>
+                    "elhagyva",
+
+                _ =>
+                    throw new ArgumentOutOfRangeException()
             };
-            lines.Add(($"  📜 {quest.Title} [{status}]", progress?.State == NpcQuestState.Completed
-                ? ConsoleColor.Green : ConsoleColor.DarkYellow));
+
+            var color = quest.State switch
+            {
+                QuestState.Locked =>
+                    ConsoleColor.DarkGray,
+
+                QuestState.Available =>
+                    ConsoleColor.Yellow,
+
+                QuestState.Active =>
+                    ConsoleColor.DarkYellow,
+
+                QuestState.ReadyToTurnIn =>
+                    ConsoleColor.Cyan,
+
+                QuestState.Completed =>
+                    ConsoleColor.Green,
+
+                QuestState.Failed =>
+                    ConsoleColor.DarkGray,
+
+                _ =>
+                    ConsoleColor.Gray
+            };
+
+            lines.Add((
+                $"  📜 {quest.Title} [{status}]",
+                color));
         }
+
         lines.Add((string.Empty, ConsoleColor.Gray));
-        var actions = npc.CanJoin ? "Enter: csatlakozzon ingyen   " : string.Empty;
+        var actions = canJoin ? "Enter: csatlakozzon ingyen   " : string.Empty;
         if (npc.Disposition == NpcDisposition.Neutral) actions += "Enter: továbbhaladás   ";
-        actions += npc.CanJoin ? "Esc: most nem" : "Esc: távozás";
+        actions += canJoin ? "Esc: most nem" : "Esc: távozás";
         lines.Add((actions, ConsoleColor.Yellow));
         DrawCenteredFrame(WorldNpcRecruitmentFrameWidth, lines, FramedWindow.Inn);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
-            if (key == ConsoleKey.Enter && npc.CanJoin) return WorldNpcInteractionResult.Join;
+            if (key == ConsoleKey.Enter && canJoin) return WorldNpcInteractionResult.Join;
             if (key == ConsoleKey.Enter && npc.Disposition == NpcDisposition.Neutral)
                 return WorldNpcInteractionResult.Continue;
             if (key == ConsoleKey.Escape) return WorldNpcInteractionResult.Leave;

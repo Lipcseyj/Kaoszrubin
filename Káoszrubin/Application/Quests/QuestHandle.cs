@@ -119,6 +119,13 @@ public sealed class QuestHandle
             GiverInstanceId);
     }
 
+    public void Abandon()
+    {
+        _manager.Abandon(
+            Id,
+            GiverInstanceId);
+    }
+
     /// <summary>
     /// Aktiválja a questet a QuestManager szabályain keresztül.
     /// </summary>

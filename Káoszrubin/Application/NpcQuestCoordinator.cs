@@ -1,22 +1,39 @@
-using KaoszRubin.Domain;
-using KaoszRubin.Domain.Characters;
-using KaoszRubin.Domain.Combat;
+using KaoszRubin.Application.Quests;
 using KaoszRubin.Data;
+using KaoszRubin.Domain;
+using KaoszRubin.Domain.Quests;
+using KaoszRubin.Infrastructure.Quests;
+using KaoszRubin.World;
 
 namespace KaoszRubin.Application;
 
 public sealed class NpcQuestCoordinator
 {
     private readonly GameDataCatalog _gameData;
+    private readonly QuestManager _questManager;
+    private readonly MazeQuestWorldContext _questWorldContext;
 
-    public NpcQuestCoordinator(GameDataCatalog gameData)
+    public NpcQuestCoordinator(
+        GameDataCatalog gameData,
+        QuestManager questManager,
+        MazeQuestWorldContext questWorldContext)
     {
+        ArgumentNullException.ThrowIfNull(gameData);
+        ArgumentNullException.ThrowIfNull(questManager);
+        ArgumentNullException.ThrowIfNull(questWorldContext);
+
         _gameData = gameData;
+        _questManager = questManager;
+        _questWorldContext = questWorldContext;
     }
 
-    public static IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal(IEnumerable<QuestJournalEntrySnapshot> journal) =>
-        journal.OrderBy(entry => entry.Status)
-            .ThenBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase)
+    public static IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal(
+        IEnumerable<QuestJournalEntrySnapshot> journal) =>
+        journal
+            .OrderBy(entry => entry.Status)
+            .ThenBy(
+                entry => entry.Title,
+                StringComparer.CurrentCultureIgnoreCase)
             .ToArray();
 
     public void SynchronizeQuestJournal(
@@ -25,27 +42,89 @@ public sealed class NpcQuestCoordinator
         NpcQuestDefinition quest,
         int? visibleProgress = null)
     {
-        var progress = npc.Quests.First(value => string.Equals(value.QuestId, quest.Id,
-            StringComparison.OrdinalIgnoreCase));
-        if (progress.State == NpcQuestState.Offered) return;
-        questJournal.TryGetValue(quest.Id, out var previous);
-        if (previous?.Status == QuestJournalStatus.Abandoned)
+        ArgumentNullException.ThrowIfNull(questJournal);
+        ArgumentNullException.ThrowIfNull(npc);
+        ArgumentNullException.ThrowIfNull(quest);
+
+        var npcId =
+            LegacyNpcIdMap.ToQuestNpcId(
+                npc.DefinitionId);
+
+        var instanceId =
+            _questWorldContext.GetInstanceId(
+                npc);
+
+        var typedQuestId =
+            LegacyQuestIdMap.ToQuestId(
+                quest.Id);
+
+        var questHandle =
+            _questManager
+                .For(npcId, instanceId)
+                .GetQuest(typedQuestId);
+
+        // A legacy Offered állapot megfelelője nálunk
+        // Locked vagy Available.
+        // Ezek még nem kerülnek a naplóba.
+        if (questHandle.State is
+            QuestState.Locked or
+            QuestState.Available)
         {
-            npc.AbandonQuest(quest.Id);
             return;
         }
-        var status = progress.State switch
+
+        questJournal.TryGetValue(
+            quest.Id,
+            out var previous);
+
+        // A journal régi mentésekből jelezheti, hogy
+        // a questet már elhagyták.
+        // Ezt átvezetjük az új QuestManager állapotába.
+        if (previous?.Status ==
+            QuestJournalStatus.Abandoned)
         {
-            NpcQuestState.Completed => QuestJournalStatus.Completed,
-            NpcQuestState.Abandoned => QuestJournalStatus.Abandoned,
-            _ => QuestJournalStatus.Active
-        };
-        questJournal[quest.Id] = CreateQuestJournalEntry(quest, status,
-            visibleProgress ?? progress.Progress, quest.ExperienceReward) with
-        {
-            CompletionExperienceSummary = previous?.CompletionExperienceSummary,
-            CompletionItemRewardSummary = previous?.CompletionItemRewardSummary
-        };
+            if (questHandle.IsInProgress)
+            {
+                questHandle.Abandon();
+            }
+
+            return;
+        }
+
+        var status =
+            questHandle.State switch
+            {
+                QuestState.Completed =>
+                    QuestJournalStatus.Completed,
+
+                QuestState.Failed =>
+                    QuestJournalStatus.Abandoned,
+
+                QuestState.Active or
+                QuestState.ReadyToTurnIn =>
+                    QuestJournalStatus.Active,
+
+                _ =>
+                    throw new InvalidOperationException(
+                        $"A(z) '{questHandle.Id}' quest " +
+                        $"nem naplózható állapotban van: " +
+                        $"{questHandle.State}.")
+            };
+
+        questJournal[quest.Id] =
+            CreateQuestJournalEntry(
+                quest,
+                status,
+                visibleProgress ?? questHandle.Progress,
+                quest.ExperienceReward)
+            with
+            {
+                CompletionExperienceSummary =
+                    previous?.CompletionExperienceSummary,
+
+                CompletionItemRewardSummary =
+                    previous?.CompletionItemRewardSummary
+            };
     }
 
     public QuestJournalEntrySnapshot CreateQuestJournalEntry(
@@ -53,14 +132,38 @@ public sealed class NpcQuestCoordinator
         QuestJournalStatus status,
         int progress,
         int experienceReward) =>
-        new(quest.Id, quest.Title, quest.Description, _gameData.GetNpc(quest.NpcId).Name, status,
-            Math.Clamp(progress, 0, quest.RequiredCount), quest.RequiredCount, experienceReward);
+        new(
+            quest.Id,
+            quest.Title,
+            quest.Description,
+            _gameData.GetNpc(quest.NpcId).Name,
+            status,
+            Math.Clamp(
+                progress,
+                0,
+                quest.RequiredCount),
+            quest.RequiredCount,
+            experienceReward);
 
-    public static bool IsRodericInsigniaEnemy(string? groupId) =>
-        string.Equals(groupId, "QUEST:RODERIC:INSIGNIA_1", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(groupId, "QUEST:RODERIC:INSIGNIA_2", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(groupId, "QUEST:RODERIC:INSIGNIA_3", StringComparison.OrdinalIgnoreCase);
+    public static bool IsRodericInsigniaEnemy(
+        string? groupId) =>
+        string.Equals(
+            groupId,
+            "QUEST:RODERIC:INSIGNIA_1",
+            StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(
+            groupId,
+            "QUEST:RODERIC:INSIGNIA_2",
+            StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(
+            groupId,
+            "QUEST:RODERIC:INSIGNIA_3",
+            StringComparison.OrdinalIgnoreCase);
 
-    public static bool IsRodericMalrecEnemy(string? groupId) =>
-        string.Equals(groupId, "QUEST:RODERIC:MALREC", StringComparison.OrdinalIgnoreCase);
+    public static bool IsRodericMalrecEnemy(
+        string? groupId) =>
+        string.Equals(
+            groupId,
+            "QUEST:RODERIC:MALREC",
+            StringComparison.OrdinalIgnoreCase);
 }

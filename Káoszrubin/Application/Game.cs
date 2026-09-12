@@ -16,6 +16,8 @@ using MainMenu = KaoszRubin.UI.MainMenu;
 
 namespace KaoszRubin.Application;
 
+public sealed record NpcQuestUiEntry(string Title, QuestState State, int Progress, int RequiredCount);
+
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
 public sealed class Game : ISessionCommandHandler
 {
@@ -358,7 +360,6 @@ public sealed class Game : ISessionCommandHandler
         _spellExecutionService = new SpellExecutionService(gameData, _random);
         _battleActionCoordinator = new BattleActionCoordinator(gameData, _battleSystem, _spellExecutionService, _random);
         _teamBattleCoordinator = new TacticalTeamBattleCoordinator(gameData, _battleSystem, _random);
-        _npcQuestCoordinator = new NpcQuestCoordinator(gameData);
         _storyConversationCoordinator = new StoryConversationCoordinator(gameData, _random);
         _progressionService = new CharacterProgressionService(gameData, _random);
         _sustenanceService = new PartySustenanceService(gameData, _random);
@@ -373,6 +374,7 @@ public sealed class Game : ISessionCommandHandler
         _questNpcInstanceRegistry = new QuestNpcInstanceRegistry();
         _questWorldContext = CreateQuestWorldContext();
         _questManager = CreateQuestManager(gameData);
+        _npcQuestCoordinator = new NpcQuestCoordinator(_gameData, _questManager, _questWorldContext);
     }
 
     private MazeQuestWorldContext CreateQuestWorldContext()
@@ -1817,9 +1819,36 @@ public sealed class Game : ISessionCommandHandler
                         StringComparison.OrdinalIgnoreCase)) is { } quest)
                     SynchronizeQuestJournal(npc, quest);
         foreach (var npc in CurrentQuestNpcs())
-        foreach (var progress in npc.Quests.Where(progress =>
-                     _questJournal.GetValueOrDefault(progress.QuestId)?.Status == QuestJournalStatus.Abandoned))
-            npc.AbandonQuest(progress.QuestId);
+        {
+
+            var npcId = LegacyNpcIdMap.ToQuestNpcId(npc.DefinitionId);
+
+            var instanceId =
+                _questWorldContext.GetInstanceId(
+                    npc);
+
+            var questNpc =
+                _questManager.For(
+                    npcId,
+                    instanceId);
+
+            foreach (var progress in npc.Quests.Where(progress =>
+                         _questJournal.GetValueOrDefault(progress.QuestId)?.Status ==
+                         QuestJournalStatus.Abandoned))
+            {
+                var typedQuestId =
+                    LegacyQuestIdMap.ToQuestId(
+                        progress.QuestId);
+
+                var quest =
+                    questNpc.GetQuest(
+                        typedQuestId);
+
+                if (quest.IsInProgress)
+                    quest.Abandon();
+            }
+        }
+
         _player = restored.Player;
         _fogOfWar = restored.FogOfWar;
         _leaderFacing = restored.LeaderFacing;
@@ -2400,6 +2429,28 @@ public sealed class Game : ISessionCommandHandler
             $"A vezető {npc.Character.Name} párbeszédét kezeli…", () => EncounterWorldNpcCore(npc));
     }
 
+    private IReadOnlyList<NpcQuestUiEntry> GetNpcQuestUiEntries(WorldNpc npc)
+    {
+        var npcId =
+            LegacyNpcIdMap.ToQuestNpcId(
+                npc.DefinitionId);
+
+        var instanceId =
+            _questWorldContext.GetInstanceId(
+                npc);
+
+        return _questManager
+            .For(npcId, instanceId)
+            .GetQuests()
+            .Select(quest =>
+                new NpcQuestUiEntry(
+                    quest.Title,
+                    quest.State,
+                    quest.Progress,
+                    quest.RequiredCount))
+            .ToArray();
+    }
+
     private bool EncounterWorldNpcCore(WorldNpc npc)
     {
         var definition = npc.DefinitionId == "NPC-FIRST-COMPANION"
@@ -2429,7 +2480,7 @@ public sealed class Game : ISessionCommandHandler
             return false;
         }
         var questDefinitions = _gameData.GetNpcQuests(npc.DefinitionId);
-        var result = _renderer.DrawWorldNpcRecruitment(npc, questDefinitions);
+        var result = _renderer.DrawWorldNpcRecruitment(npc, CanNpcJoin(npc), GetNpcQuestUiEntries(npc));
         ProcessNpcQuests(npc);
         if (result == WorldNpcInteractionResult.Continue)
         {

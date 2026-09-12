@@ -121,6 +121,20 @@ public sealed class QuestRuntimeState
         State = QuestState.Failed;
     }
 
+    internal void Abandon()
+    {
+        if (State is not (
+            QuestState.Active or
+            QuestState.ReadyToTurnIn))
+        {
+            throw new InvalidOperationException(
+                $"A(z) '{QuestId}' quest csak folyamatban lévő " +
+                $"állapotból hagyható el. Aktuális állapot: {State}.");
+        }
+
+        State = QuestState.Failed;
+    }
+
     internal void ResetForRepeat()
     {
         Progress = 0;

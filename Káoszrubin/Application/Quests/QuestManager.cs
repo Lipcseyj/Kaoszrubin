@@ -223,6 +223,18 @@ public sealed class QuestManager
             .ToArray();
     }
 
+    public QuestHandle Abandon(QuestId questId, QuestNpcInstanceId giverInstanceId = default)
+    {
+        var state =
+            _stateStore.Get(
+                questId,
+                giverInstanceId);
+
+        state.Abandon();
+
+        return CreateHandle(state);
+    }
+
     // ------------------------------------------------------------
     // Gameplay események
     // ------------------------------------------------------------
