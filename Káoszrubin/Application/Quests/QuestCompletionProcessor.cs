@@ -18,22 +18,26 @@ public sealed class QuestCompletionProcessor
     private readonly QuestStateStore _stateStore;
     private readonly QuestProgressEngine _progressEngine;
     private readonly IQuestWorldContext _world;
+    private readonly QuestRewardService _rewardService;
 
     public QuestCompletionProcessor(
         QuestCatalog catalog,
         QuestStateStore stateStore,
         QuestProgressEngine progressEngine,
-        IQuestWorldContext world)
+        IQuestWorldContext world,
+        QuestRewardService rewardService)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(stateStore);
         ArgumentNullException.ThrowIfNull(progressEngine);
         ArgumentNullException.ThrowIfNull(world);
+        ArgumentNullException.ThrowIfNull(rewardService);
 
         _catalog = catalog;
         _stateStore = stateStore;
         _progressEngine = progressEngine;
         _world = world;
+        _rewardService = rewardService;
     }
 
     /// <summary>
@@ -89,28 +93,24 @@ public sealed class QuestCompletionProcessor
                 $"{definition.Objective.RequiredCount}.");
         }
 
-        ConsumeObjectiveItemsIfNeeded(
-            definition);
+        ConsumeObjectiveItemsIfNeeded(definition);
+
+        var rewards =
+            _rewardService.Grant(
+                definition);
 
         state.Complete();
 
-        var result =
-            new QuestCompletionResult(
-                QuestId: definition.Id,
-                GiverInstanceId: state.GiverInstanceId,
-                Title: definition.Title,
-                ExperienceReward:
-                    definition.ExperienceReward,
-                FixedRewardItem:
-                    definition.FixedRewardItem,
-                FixedRewardItemCount:
-                    definition.FixedRewardItemCount,
-                RandomRewardCount:
-                    definition.RandomRewardCount,
-                CompletionCount:
-                    state.CompletionCount);
-
-        return result;
+        return new QuestCompletionResult(
+            QuestId: definition.Id,
+            GiverInstanceId:
+                state.GiverInstanceId,
+            Title:
+                definition.Title,
+            CompletionCount:
+                state.CompletionCount,
+            Rewards:
+                rewards);
     }
 
     /// <summary>

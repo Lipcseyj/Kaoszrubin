@@ -13,8 +13,5 @@ public sealed record QuestCompletionResult(
     QuestId QuestId,
     QuestNpcInstanceId GiverInstanceId,
     string Title,
-    int ExperienceReward,
-    IItemDefinition? FixedRewardItem,
-    int FixedRewardItemCount,
-    int RandomRewardCount,
-    int CompletionCount);
+    int CompletionCount,
+    QuestRewardResult Rewards);
