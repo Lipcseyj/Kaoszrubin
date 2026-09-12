@@ -2616,7 +2616,7 @@ public sealed class Game : ISessionCommandHandler
             SynchronizeQuestJournal(npc, quest);
             if (_gameData.GetNpc(npc.DefinitionId).Unique)
                 npc.AdjustFriendliness(1);
-            var awards = DistributeExperience(SelectedCharacter, quest.ExperienceReward);
+            var awards = DistributeExperience(SelectedCharacter, quest.ExperienceReward, isQuest: true);
             var leveledAwards = awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive).ToArray();
             foreach (var award in leveledAwards)
                 ResolvePerkOffers(award.Character, award.Result);
@@ -5911,7 +5911,7 @@ public sealed class Game : ISessionCommandHandler
         caster.RecordMonsterKill(enemy.Definition.Id);
         _maze.ReplaceEnemyWithCorpse(enemy);
         _nextEnemyMoves.Remove(enemy);
-        var awards = DistributeExperience(caster, enemy.Definition.ExperienceReward);
+        var awards = DistributeExperience(caster, enemy.Definition.ExperienceReward, isQuest: false);
         notes.Add($"☠ {enemy.Name} elpusztult; {FormatExperienceAwards(awards)}");
         _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
         var leveledAwards = awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive).ToList();
@@ -8706,7 +8706,7 @@ public sealed class Game : ISessionCommandHandler
         if (credited is not null)
         {
             credited.RecordMonsterKill(enemy.Definition.Id);
-            var awards = DistributeExperience(credited, enemy.Definition.ExperienceReward);
+            var awards = DistributeExperience(credited, enemy.Definition.ExperienceReward, isQuest: false);
             battle.RecordKill(credited, enemy, awards.Sum(award => award.Result.GainedExperience));
             _pendingLevelUps.AddRange(awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive)
                 .Select(award => (award.Character, award.Result)));
@@ -9623,8 +9623,8 @@ public sealed class Game : ISessionCommandHandler
         _gameData.GetCharacterResourceGrowth(SelectedCharacter.CharacterClass.Id),
         _random);
 
-    private IReadOnlyList<ExperienceAward> DistributeExperience(LiveCharacter winner, int totalExperience) =>
-        _progressionService.DistributeExperience(winner, totalExperience, CharacterRoster.Party.Members);
+    private IReadOnlyList<ExperienceAward> DistributeExperience(LiveCharacter winner, int totalExperience, bool isQuest) =>
+        _progressionService.DistributeExperience(winner, totalExperience, CharacterRoster.Party.Members, isQuest);
 
     private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002",
         // Witcher-only consumables (potions and medical supplies)

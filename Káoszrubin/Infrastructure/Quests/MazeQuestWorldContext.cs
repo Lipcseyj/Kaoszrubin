@@ -9,24 +9,26 @@ namespace KaoszRubin.Infrastructure.Quests;
 /// <summary>
 /// A quest-rendszer és a konkrét Maze/WorldNpc infrastruktúra közötti adapter.
 /// </summary>
-public sealed class MazeQuestWorldContext
-    : IQuestWorldContext
+public sealed class MazeQuestWorldContext : IQuestWorldContext
 {
     private readonly Func<Maze> _getMaze;
     private readonly Func<IItemDefinition, int> _countPartyItem;
     private readonly QuestNpcInstanceRegistry _instanceRegistry;
-
+    private readonly Func<IItemDefinition, int, bool> _tryConsumePartyItem;
     public MazeQuestWorldContext(
         Func<Maze> getMaze,
         Func<IItemDefinition, int> countPartyItem,
+        Func<IItemDefinition, int, bool> tryConsumePartyItem,
         QuestNpcInstanceRegistry instanceRegistry)
     {
         ArgumentNullException.ThrowIfNull(getMaze);
         ArgumentNullException.ThrowIfNull(countPartyItem);
+        ArgumentNullException.ThrowIfNull(tryConsumePartyItem);
         ArgumentNullException.ThrowIfNull(instanceRegistry);
 
         _getMaze = getMaze;
         _countPartyItem = countPartyItem;
+        _tryConsumePartyItem = tryConsumePartyItem;
         _instanceRegistry = instanceRegistry;
     }
 
@@ -121,6 +123,20 @@ public sealed class MazeQuestWorldContext
         ArgumentNullException.ThrowIfNull(item);
 
         return _countPartyItem(item);
+    }
+
+    public bool TryConsumePartyItem(
+    IItemDefinition item,
+    int amount)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        if (amount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(amount));
+
+        return _tryConsumePartyItem(
+            item,
+            amount);
     }
 
     private WorldNpc? FindNpc(

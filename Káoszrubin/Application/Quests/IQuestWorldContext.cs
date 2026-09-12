@@ -24,17 +24,15 @@ public interface IQuestWorldContext
     /// <summary>
     /// Igaz, ha az NPC él és jelenleg a partit követi.
     /// </summary>
-    bool IsNpcAliveAndFollowing(
-        QuestNpcId npcId,
-        QuestNpcInstanceId instanceId);
+    bool IsNpcAliveAndFollowing(QuestNpcId npcId, QuestNpcInstanceId instanceId);
 
     /// <summary>
     /// Visszaadja az adott NPC aktuális, quest-rendszer számára
     /// értelmezett történetállapotát.
     /// </summary>
-    QuestStoryState GetNpcStoryState(
-        QuestNpcId npcId,
-        QuestNpcInstanceId instanceId);
+    QuestStoryState GetNpcStoryState(QuestNpcId npcId, QuestNpcInstanceId instanceId);
 
     int CountPartyItem(IItemDefinition item);
+
+    bool TryConsumePartyItem(IItemDefinition item, int amount);
 }

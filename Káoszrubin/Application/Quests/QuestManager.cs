@@ -16,22 +16,26 @@ public sealed class QuestManager
     private readonly QuestStateStore _stateStore;
     private readonly QuestAvailabilityService _availability;
     private readonly QuestProgressEngine _progressEngine;
+    private readonly QuestCompletionProcessor _completionProcessor;
 
     public QuestManager(
         QuestCatalog catalog,
         QuestStateStore stateStore,
         QuestAvailabilityService availability,
-        QuestProgressEngine progressEngine)
+        QuestProgressEngine progressEngine,
+        QuestCompletionProcessor completionProcessor)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(stateStore);
         ArgumentNullException.ThrowIfNull(availability);
         ArgumentNullException.ThrowIfNull(progressEngine);
+        ArgumentNullException.ThrowIfNull(completionProcessor);
 
         _catalog = catalog;
         _stateStore = stateStore;
         _availability = availability;
         _progressEngine = progressEngine;
+        _completionProcessor = completionProcessor;
     }
 
     // ------------------------------------------------------------
@@ -115,6 +119,32 @@ public sealed class QuestManager
             .GetAvailableForNpc(
                 npcId,
                 instanceId)
+            .Select(CreateHandle)
+            .ToArray();
+    }
+
+    public bool CanComplete(
+        QuestId questId,
+        QuestNpcInstanceId giverInstanceId = default)
+    {
+        return _completionProcessor.CanComplete(
+            questId,
+            giverInstanceId);
+    }
+
+    public QuestCompletionResult Complete(
+        QuestId questId,
+        QuestNpcInstanceId giverInstanceId = default)
+    {
+        return _completionProcessor.Complete(
+            questId,
+            giverInstanceId);
+    }
+
+    public IReadOnlyList<QuestHandle> GetPendingQuestCompletions()
+    {
+        return _completionProcessor
+            .GetPendingCompletions()
             .Select(CreateHandle)
             .ToArray();
     }

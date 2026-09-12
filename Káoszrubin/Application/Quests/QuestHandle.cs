@@ -87,6 +87,18 @@ public sealed class QuestHandle
     public bool IsFailed =>
         State == QuestState.Failed;
 
+    public bool CanComplete =>
+    _manager.CanComplete(
+        Id,
+        GiverInstanceId);
+
+    public QuestCompletionResult Complete()
+    {
+        return _manager.Complete(
+            Id,
+            GiverInstanceId);
+    }
+
     /// <summary>
     /// Aktiválja a questet a QuestManager szabályain keresztül.
     /// </summary>
