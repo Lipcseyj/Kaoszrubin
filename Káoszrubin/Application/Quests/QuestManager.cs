@@ -59,9 +59,7 @@ public sealed class QuestManager
     // NEM egyedi Npc támogatás
     // ------------------------------------------------------------
 
-    public QuestNpcHandle For(
-    QuestNpcId npcId,
-    QuestNpcInstanceId instanceId = default)
+    public QuestNpcHandle For(QuestNpcId npcId, QuestNpcInstanceId instanceId = default)
     {
         return new QuestNpcHandle(
             this,
@@ -73,10 +71,7 @@ public sealed class QuestManager
     // Quest lekérdezések
     // ------------------------------------------------------------
 
-    public IReadOnlyList<QuestHandle>
-    GetActiveQuestsForNpc(
-        QuestNpcId npcId,
-        QuestNpcInstanceId instanceId = default)
+    public IReadOnlyList<QuestHandle> GetActiveQuestsForNpc(QuestNpcId npcId, QuestNpcInstanceId instanceId = default)
     {
         return GetQuestsForNpc(
                 npcId,
@@ -101,9 +96,7 @@ public sealed class QuestManager
     /// <summary>
     /// Lekér egy konkrét NPC-példányhoz tartozó questet.
     /// </summary>
-    public QuestHandle GetQuest(
-        QuestId questId,
-        QuestNpcInstanceId giverInstanceId)
+    public QuestHandle GetQuest(QuestId questId, QuestNpcInstanceId giverInstanceId)
     {
         return CreateHandle(
             questId,
@@ -137,9 +130,7 @@ public sealed class QuestManager
     /// <summary>
     /// Egy konkrét NPC-példányhoz tartozó questek.
     /// </summary>
-    public IReadOnlyList<QuestHandle> GetQuestsForNpc(
-        QuestNpcId npcId,
-        QuestNpcInstanceId instanceId = default)
+    public IReadOnlyList<QuestHandle> GetQuestsForNpc(QuestNpcId npcId, QuestNpcInstanceId instanceId = default)
     {
         var definitions =
             _catalog.GetByGiver(npcId);
@@ -155,9 +146,7 @@ public sealed class QuestManager
     /// <summary>
     /// Egy NPC jelenleg elérhető questjei.
     /// </summary>
-    public IReadOnlyList<QuestHandle> GetAvailableQuestsForNpc(
-        QuestNpcId npcId,
-        QuestNpcInstanceId instanceId = default)
+    public IReadOnlyList<QuestHandle> GetAvailableQuestsForNpc(QuestNpcId npcId, QuestNpcInstanceId instanceId = default)
     {
         return _availability
             .GetAvailableForNpc(
@@ -167,18 +156,14 @@ public sealed class QuestManager
             .ToArray();
     }
 
-    public bool CanComplete(
-        QuestId questId,
-        QuestNpcInstanceId giverInstanceId = default)
+    public bool CanComplete(QuestId questId, QuestNpcInstanceId giverInstanceId = default)
     {
         return _completionProcessor.CanComplete(
             questId,
             giverInstanceId);
     }
 
-    public QuestCompletionResult Complete(
-        QuestId questId,
-        QuestNpcInstanceId giverInstanceId = default)
+    public QuestCompletionResult Complete(QuestId questId, QuestNpcInstanceId giverInstanceId = default)
     {
         return _completionProcessor.Complete(
             questId,
@@ -197,9 +182,7 @@ public sealed class QuestManager
     // Aktiválás
     // ------------------------------------------------------------
 
-    public QuestHandle Activate(
-        QuestId questId,
-        QuestNpcInstanceId giverInstanceId = default)
+    public QuestHandle Activate(QuestId questId, QuestNpcInstanceId giverInstanceId = default)
     {
         var state = _availability.Activate(
             questId,
@@ -220,9 +203,7 @@ public sealed class QuestManager
     /// <summary>
     /// Aktiválja az NPC összes jelenleg elérhető questjét.
     /// </summary>
-    public IReadOnlyList<QuestHandle> ActivateAvailableForNpc(
-        QuestNpcId npcId,
-        QuestNpcInstanceId instanceId = default)
+    public IReadOnlyList<QuestHandle> ActivateAvailableForNpc(QuestNpcId npcId, QuestNpcInstanceId instanceId = default)
     {
         var states = _availability
             .ActivateAvailableForNpc(
@@ -246,8 +227,7 @@ public sealed class QuestManager
     // Gameplay események
     // ------------------------------------------------------------
 
-    public IReadOnlyList<QuestProgressChange> RegisterKill(
-        Enemy defeatedEnemy)
+    public IReadOnlyList<QuestProgressChange> RegisterKill(Enemy defeatedEnemy)
     {
         ArgumentNullException.ThrowIfNull(defeatedEnemy);
 
@@ -255,9 +235,7 @@ public sealed class QuestManager
             new EnemyKilledEvent(defeatedEnemy));
     }
 
-    public IReadOnlyList<QuestProgressChange>
-        RegisterInventoryChanged(
-            IItemDefinition item)
+    public IReadOnlyList<QuestProgressChange> RegisterInventoryChanged(IItemDefinition item)
     {
         ArgumentNullException.ThrowIfNull(item);
 
@@ -265,23 +243,19 @@ public sealed class QuestManager
             new InventoryItemCountChangedEvent(item));
     }
 
-    public IReadOnlyList<QuestProgressChange>
-        RegisterTrapDisarmed()
+    public IReadOnlyList<QuestProgressChange> RegisterTrapDisarmed()
     {
         return _progressEngine.Process(
             new TrapDisarmedEvent());
     }
 
-    public IReadOnlyList<QuestProgressChange>
-        RegisterChestOpened()
+    public IReadOnlyList<QuestProgressChange> RegisterChestOpened()
     {
         return _progressEngine.Process(
             new ChestOpenedEvent());
     }
 
-    public IReadOnlyList<QuestProgressChange>
-        RegisterLocationReached(
-            QuestLocation location)
+    public IReadOnlyList<QuestProgressChange> RegisterLocationReached(QuestLocation location)
     {
         return _progressEngine.Process(
             new LocationReachedEvent(location));
@@ -291,16 +265,13 @@ public sealed class QuestManager
     /// Minden aktív collect quest progressét újraszámolja
     /// az aktuális party inventoryból.
     /// </summary>
-    public IReadOnlyList<QuestProgressChange>
-        SynchronizeCollectQuests()
+    public IReadOnlyList<QuestProgressChange> SynchronizeCollectQuests()
     {
         return _progressEngine
             .SynchronizeCollectObjectives();
     }
 
-    internal void StartConversation(
-    QuestNpcId npcId,
-    QuestNpcInstanceId instanceId = default)
+    internal void StartConversation(QuestNpcId npcId, QuestNpcInstanceId instanceId = default)
     {
         _conversationService.StartConversation(
             npcId,
