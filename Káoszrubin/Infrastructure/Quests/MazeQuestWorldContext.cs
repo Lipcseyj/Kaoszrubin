@@ -139,6 +139,15 @@ public sealed class MazeQuestWorldContext : IQuestWorldContext
             amount);
     }
 
+    public WorldNpc? ResolveNpc(
+        QuestNpcId npcId,
+        QuestNpcInstanceId instanceId = default)
+    {
+        return FindNpc(
+            npcId,
+            instanceId);
+    }
+    
     private WorldNpc? FindNpc(
         QuestNpcId npcId,
         QuestNpcInstanceId instanceId)

@@ -88,9 +88,14 @@ public sealed class QuestHandle
         State == QuestState.Failed;
 
     public bool CanComplete =>
-    _manager.CanComplete(
-        Id,
-        GiverInstanceId);
+        _manager.CanComplete(
+            Id,
+            GiverInstanceId);
+
+    public bool IsInProgress =>
+        State is
+            QuestState.Active or
+            QuestState.ReadyToTurnIn;
 
     public QuestCompletionResult Complete()
     {

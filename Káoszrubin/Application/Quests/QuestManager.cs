@@ -17,30 +17,74 @@ public sealed class QuestManager
     private readonly QuestAvailabilityService _availability;
     private readonly QuestProgressEngine _progressEngine;
     private readonly QuestCompletionProcessor _completionProcessor;
+    private readonly IQuestNpcConversationService _conversationService;
 
     public QuestManager(
         QuestCatalog catalog,
         QuestStateStore stateStore,
         QuestAvailabilityService availability,
         QuestProgressEngine progressEngine,
-        QuestCompletionProcessor completionProcessor)
+        QuestCompletionProcessor completionProcessor,
+        IQuestNpcConversationService conversationService)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(stateStore);
         ArgumentNullException.ThrowIfNull(availability);
         ArgumentNullException.ThrowIfNull(progressEngine);
         ArgumentNullException.ThrowIfNull(completionProcessor);
+        ArgumentNullException.ThrowIfNull(conversationService);
 
         _catalog = catalog;
         _stateStore = stateStore;
         _availability = availability;
         _progressEngine = progressEngine;
         _completionProcessor = completionProcessor;
+        _conversationService = conversationService;
+
+        Roderic = new RodericNpcApi(this);
+
+        Elira = new EliraNpcApi(this);
+    }
+
+
+    // ------------------------------------------------------------
+    // Egyedi Npc támogatás
+    // ------------------------------------------------------------
+
+    public RodericNpcApi Roderic { get; }
+
+    public EliraNpcApi Elira { get; }
+
+    // ------------------------------------------------------------
+    // NEM egyedi Npc támogatás
+    // ------------------------------------------------------------
+
+    public QuestNpcHandle For(
+    QuestNpcId npcId,
+    QuestNpcInstanceId instanceId = default)
+    {
+        return new QuestNpcHandle(
+            this,
+            npcId,
+            instanceId);
     }
 
     // ------------------------------------------------------------
     // Quest lekérdezések
     // ------------------------------------------------------------
+
+    public IReadOnlyList<QuestHandle>
+    GetActiveQuestsForNpc(
+        QuestNpcId npcId,
+        QuestNpcInstanceId instanceId = default)
+    {
+        return GetQuestsForNpc(
+                npcId,
+                instanceId)
+            .Where(quest =>
+                quest.IsInProgress)
+            .ToArray();
+    }
 
     /// <summary>
     /// Lekér egy globális questet.
@@ -252,6 +296,15 @@ public sealed class QuestManager
     {
         return _progressEngine
             .SynchronizeCollectObjectives();
+    }
+
+    internal void StartConversation(
+    QuestNpcId npcId,
+    QuestNpcInstanceId instanceId = default)
+    {
+        _conversationService.StartConversation(
+            npcId,
+            instanceId);
     }
 
     // ------------------------------------------------------------
