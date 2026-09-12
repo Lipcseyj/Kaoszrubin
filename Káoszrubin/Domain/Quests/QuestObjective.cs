@@ -23,10 +23,10 @@ public abstract record QuestObjective(int RequiredCount)
     /// Opcionálisan egy meghatározott NPC-nek is a csapatban kell lennie.
     /// </summary>public sealed record KillEnemy(
     public sealed record KillEnemy(
-     EnemyDefinition Enemy,
-     int Count,
-     QuestNpcId? RequiredFollower = null)
-     : QuestObjective(Count);
+        EnemyDefinition Enemy,
+        int Count,
+        QuestFollowerRequirement? RequiredFollower = null)
+        : QuestObjective(Count);
 
     /// <summary>
     /// Egy ellenfél-kategóriába tartozó ellenfelek legyőzése.
@@ -35,7 +35,7 @@ public abstract record QuestObjective(int RequiredCount)
     public sealed record KillEnemyWithTraits(
         EnemyTraits RequiredTraits,
         int Count,
-        QuestNpcId? RequiredFollower = null)
+        QuestFollowerRequirement? RequiredFollower = null)
         : QuestObjective(Count);
 
     /// <summary>
@@ -66,6 +66,11 @@ public abstract record QuestObjective(int RequiredCount)
         QuestNpcId Npc,
         QuestLocation Destination)
         : QuestObjective(1);
+
+    public sealed record QuestFollowerRequirement(
+        QuestNpcId Npc,
+        QuestStoryState? RequiredStoryState = null,
+    int MaximumDistance = 6);
 }
 
 /// <summary>

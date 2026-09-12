@@ -4,6 +4,7 @@ using KaoszRubin.Domain;
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Quests;
+using static KaoszRubin.Domain.Quests.QuestObjective;
 
 namespace KaoszRubin.Infrastructure.Quests;
 
@@ -55,7 +56,7 @@ public sealed class QuestCatalogBuilder
             Giver: giver,
             Title: source.Title,
             Description: source.Description,
-            Objective: CreateObjective(source, giver),
+            Objective: CreateObjective(source, giver, id),
             ExperienceReward: source.ExperienceReward,
             Scope: scope,
             RepeatPolicy: QuestRepeatPolicy.Once,
@@ -69,9 +70,7 @@ public sealed class QuestCatalogBuilder
                 source.RandomRewardCount);
     }
 
-    private QuestObjective CreateObjective(
-        NpcQuestDefinition source,
-        QuestNpcId giver)
+    private QuestObjective CreateObjective(NpcQuestDefinition source, QuestNpcId giver, QuestId questId)
     {
         return source.Type switch
         {
@@ -81,9 +80,7 @@ public sealed class QuestCatalogBuilder
                     source.RequiredCount),
 
             NpcQuestType.Kill =>
-                new QuestObjective.KillEnemy(
-                    _gameData.GetEnemy(source.TargetId),
-                    source.RequiredCount),
+                CreateKillObjective(source, questId),
 
             NpcQuestType.KillWithFollower =>
                 CreateKillWithFollowerObjective(
@@ -111,6 +108,31 @@ public sealed class QuestCatalogBuilder
         };
     }
 
+    //Ez az egyetlen quest-specifikus workaroundunk jelenleg.
+    //    Később érdemes lehet a CSV - t kibővíteni például:
+    //SzükségesKövetőNpc
+    //SzükségesKövetőÁllapot
+    //MaxKövetőTávolság
+    //oszlopokkal, és akkor ez a special case is eltűnik.Most viszont egy helyre zártuk a legacy kompatibilitást, ami már nagy előrelépés.
+    private QuestObjective CreateKillObjective(NpcQuestDefinition source, QuestId questId)
+    {
+        var enemy =
+            _gameData.GetEnemy(source.TargetId);
+
+        QuestFollowerRequirement? followerRequirement =
+            questId == QuestId.RodericOathbreakerKnight
+                ? new QuestFollowerRequirement(
+                    QuestNpcId.SirRoderic,
+                    QuestStoryState.MalrecFight,
+                    MaximumDistance: 6)
+                : null;
+
+        return new QuestObjective.KillEnemy(
+            enemy,
+            source.RequiredCount,
+            followerRequirement);
+    }
+
     private static QuestObjective CreateKillWithFollowerObjective(
         NpcQuestDefinition source,
         QuestNpcId giver)
@@ -121,7 +143,7 @@ public sealed class QuestCatalogBuilder
         return new QuestObjective.KillEnemyWithTraits(
             traits,
             source.RequiredCount,
-            giver);
+            new QuestFollowerRequirement(giver));
     }
 
     private static QuestObjective CreateDisarmObjective(

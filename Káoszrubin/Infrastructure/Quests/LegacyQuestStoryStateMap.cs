@@ -8,22 +8,38 @@ namespace KaoszRubin.Infrastructure.Quests;
 /// </summary>
 public static class LegacyQuestStoryStateMap
 {
-    public static QuestStoryState ToQuestStoryState(string legacyState)
+    public static QuestStoryState ToQuestStoryState(
+        string legacyState)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(legacyState);
+        if (TryToQuestStoryState(
+                legacyState,
+                out var state))
+        {
+            return state;
+        }
 
-        return legacyState.ToUpperInvariant() switch
+        throw new InvalidDataException(
+            $"Ismeretlen legacy NPC story state: '{legacyState}'.");
+    }
+
+    public static bool TryToQuestStoryState(string? legacyState, out QuestStoryState state)
+    {
+        if (string.IsNullOrWhiteSpace(legacyState))
+        {
+            state = QuestStoryState.None;
+            return false;
+        }
+
+        state = legacyState.ToUpperInvariant() switch
         {
             "1" => QuestStoryState.State1,
             "2" => QuestStoryState.State2,
             "3" => QuestStoryState.State3,
-
             "TRUSTED" => QuestStoryState.Trusted,
-
             "MALREC_FIGHT" => QuestStoryState.MalrecFight,
-
-            _ => throw new InvalidDataException(
-                $"Ismeretlen legacy NPC story state: '{legacyState}'.")
+            _ => QuestStoryState.None
         };
+
+        return state != QuestStoryState.None;
     }
 }

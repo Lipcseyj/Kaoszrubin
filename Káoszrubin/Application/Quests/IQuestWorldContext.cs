@@ -18,7 +18,8 @@ public interface IQuestWorldContext
     bool IsNpcParticipatingInCombat(
         QuestNpcId npcId,
         QuestNpcInstanceId instanceId,
-        Enemy defeatedEnemy);
+        Enemy defeatedEnemy,
+        int maximumDistance);
 
     /// <summary>
     /// Igaz, ha az NPC él és jelenleg a partit követi.

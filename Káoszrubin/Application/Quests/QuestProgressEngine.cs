@@ -1,6 +1,7 @@
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Quests;
+using static KaoszRubin.Domain.Quests.QuestObjective;
 
 namespace KaoszRubin.Application.Quests;
 
@@ -266,21 +267,35 @@ public sealed class QuestProgressEngine
     }
 
     private bool RequiredFollowerParticipated(
-        QuestNpcId? requiredFollower,
+        QuestFollowerRequirement? requirement,
         QuestRuntimeState state,
         Enemy defeatedEnemy)
     {
-        if (requiredFollower is null)
+        if (requirement is null)
             return true;
 
         var instanceId = ResolveNpcInstanceId(
-            requiredFollower.Value,
+            requirement.Npc,
             state);
 
-        return _world.IsNpcParticipatingInCombat(
-            requiredFollower.Value,
-            instanceId,
-            defeatedEnemy);
+        if (!_world.IsNpcParticipatingInCombat(
+                requirement.Npc,
+                instanceId,
+                defeatedEnemy,
+                requirement.MaximumDistance))
+        {
+            return false;
+        }
+
+        if (requirement.RequiredStoryState is { } requiredState &&
+            _world.GetNpcStoryState(
+                requirement.Npc,
+                instanceId) != requiredState)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private QuestNpcInstanceId ResolveNpcInstanceId(
