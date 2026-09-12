@@ -1,3 +1,4 @@
+using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Quests;
 
 namespace KaoszRubin.Application.Quests;
@@ -96,6 +97,15 @@ public sealed class QuestHandle
         State is
             QuestState.Active or
             QuestState.ReadyToTurnIn;
+
+    public IItemDefinition? FixedRewardItem =>
+    _definition.FixedRewardItem;
+
+    public int FixedRewardItemCount =>
+        _definition.FixedRewardItemCount;
+
+    public int RandomRewardCount =>
+        _definition.RandomRewardCount;
 
     public QuestCompletionResult Complete()
     {

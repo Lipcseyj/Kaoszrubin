@@ -371,7 +371,38 @@ public sealed class Game : ISessionCommandHandler
         _partyCommandState = new PartyCommandState(false, false, false, null);
         _commandDispatcher = new SessionCommandDispatcher(_session, this, selectedCharacter.Id);
         _questNpcInstanceRegistry = new QuestNpcInstanceRegistry();
+        _questWorldContext = CreateQuestWorldContext();
         _questManager = CreateQuestManager(gameData);
+    }
+
+    private MazeQuestWorldContext CreateQuestWorldContext()
+    {
+        var ret = new MazeQuestWorldContext(
+        getMaze:
+            () => _maze,
+
+        countPartyItem:
+            item =>
+                CountPartyBackpackItems(
+                    item.Id),
+
+        tryConsumePartyItem:
+            (item, amount) =>
+            {
+                if (CountPartyBackpackItems(item.Id) < amount)
+                    return false;
+
+                RemovePartyBackpackItems(
+                    item.Id,
+                    amount);
+
+                return true;
+            },
+
+        instanceRegistry:
+            _questNpcInstanceRegistry);
+
+        return ret;
     }
 
     private QuestManager CreateQuestManager(GameDataCatalog gameData)
@@ -391,36 +422,6 @@ public sealed class Game : ISessionCommandHandler
         var questStateStore =
             new QuestStateStore(
                 questCatalog);
-
-        // ------------------------------------------------------------
-        // Kapcsolat a játékvilággal
-        // ------------------------------------------------------------
-
-        _questWorldContext =
-            new MazeQuestWorldContext(
-                getMaze:
-                    () => _maze,
-
-                countPartyItem:
-                    item =>
-                        CountPartyBackpackItems(
-                            item.Id),
-
-                tryConsumePartyItem:
-                    (item, amount) =>
-                    {
-                        if (CountPartyBackpackItems(item.Id) < amount)
-                            return false;
-
-                        RemovePartyBackpackItems(
-                            item.Id,
-                            amount);
-
-                        return true;
-                    },
-
-                instanceRegistry:
-                    _questNpcInstanceRegistry);
 
         // ------------------------------------------------------------
         // Quest availability / progress
@@ -2694,93 +2695,277 @@ public sealed class Game : ISessionCommandHandler
 
     private void ProcessNpcQuests(WorldNpc npc, bool activateOffered = true)
     {
-        foreach (var progress in npc.Quests.Where(quest =>
-                     quest.State is NpcQuestState.Offered or NpcQuestState.Active).ToArray())
-        {
-            var quest = _gameData.NpcQuests.First(value =>
-                string.Equals(value.Id, progress.QuestId, StringComparison.OrdinalIgnoreCase));
-            if (progress.State == NpcQuestState.Offered)
-            {
-                if (!activateOffered) continue;
-                if (quest.RequiredStoryStateId is { } requiredState &&
-                    !string.Equals(requiredState, npc.StoryStateId, StringComparison.OrdinalIgnoreCase)) continue;
-                npc.ActivateQuest(quest.Id);
-                SynchronizeQuestJournal(npc, quest);
-                _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description} " +
-                    $"Jutalom: {quest.ExperienceReward} XP{DescribeNpcQuestItemRewards(quest)}.", ConsoleColor.Cyan);
-            }
+        var npcId =
+            LegacyNpcIdMap.ToQuestNpcId(
+                npc.DefinitionId);
 
-            var current = npc.Quests.First(value => string.Equals(value.QuestId, quest.Id,
-                StringComparison.OrdinalIgnoreCase));
-            var currentProgress = current.Progress;
-            if (quest.Type == NpcQuestType.Collect)
+        var instanceId =
+            _questWorldContext.GetInstanceId(npc);
+
+        var questNpc =
+            _questManager.For(
+                npcId,
+                instanceId);
+
+        // ------------------------------------------------------------
+        // Új questek aktiválása
+        // ------------------------------------------------------------
+
+        if (activateOffered)
+        {
+            var activated =
+                questNpc.ActivateAvailableQuests();
+
+            foreach (var quest in activated)
             {
-                var available = CountPartyBackpackItems(quest.TargetId);
-                currentProgress = Math.Min(available, quest.RequiredCount);
-                if (available < quest.RequiredCount)
-                {
-                    _renderer.DrawInventoryMessage(
-                        $"📜 {quest.Title}: {available}/{quest.RequiredCount}", ConsoleColor.DarkYellow);
-                    SynchronizeQuestJournal(npc, quest, available);
-                    continue;
-                }
-            }
-            else if (currentProgress < quest.RequiredCount)
-            {
-                SynchronizeQuestJournal(npc, quest, currentProgress);
+                // Átmenetileg még tükrözzük a régi WorldNpc.Quests
+                // és journal struktúrába.
+                SynchronizeLegacyQuestProgress(
+                    quest);
+
                 _renderer.DrawInventoryMessage(
-                    $"📜 {quest.Title}: {currentProgress}/{quest.RequiredCount}", ConsoleColor.DarkYellow);
+                    $"📜 Új küldetés: {quest.Title} — " +
+                    $"{quest.Description} " +
+                    $"Jutalom: {quest.ExperienceReward} XP" +
+                    $"{DescribeQuestItemRewards(quest)}.",
+                    ConsoleColor.Cyan);
+            }
+        }
+
+        // A collect questek progressze nem additív,
+        // hanem az aktuális inventoryból származik.
+        _questManager.SynchronizeCollectQuests();
+
+        // Frissen kérjük le, mert az aktiválás és az inventory
+        // szinkron közben változhatott az állapotuk.
+        var quests =
+            questNpc.GetActiveQuests()
+                .ToArray();
+
+        foreach (var quest in quests)
+        {
+            // Amíg a journal és néhány legacy WorldNpc funkció
+            // a régi struktúrát használja, tartsuk szinkronban.
+            SynchronizeLegacyQuestProgress(
+                quest);
+
+            // --------------------------------------------------------
+            // Még nincs kész
+            // --------------------------------------------------------
+
+            if (!quest.IsReadyToTurnIn)
+            {
+                _renderer.DrawInventoryMessage(
+                    $"📜 {quest.Title}: " +
+                    $"{quest.Progress}/{quest.RequiredCount}",
+                    ConsoleColor.DarkYellow);
+
                 continue;
             }
 
-            var rewardItemsText = DescribeNpcQuestItemRewards(quest).TrimStart();
-            var shouldTurnIn = RunHostWindow($"Küldetés leadása — {quest.Title}",
-                $"A vezető eldönti, hogy leadja-e a(z) {quest.Title} küldetést.",
-                () => _renderer.ConfirmQuestTurnIn(npc.Character.Name, quest, currentProgress,
-                    quest.RequiredCount, rewardItemsText.Length > 0 ? rewardItemsText : "nincs tárgyjutalom"));
+            // --------------------------------------------------------
+            // Leadási megerősítés
+            // --------------------------------------------------------
+
+            var legacyQuest =
+                GetLegacyQuestDefinition(
+                    quest.Id);
+
+            var rewardItemsText =
+                DescribeQuestItemRewards(quest)
+                    .TrimStart(' ', '+');
+
+            var shouldTurnIn =
+                RunHostWindow(
+                    $"Küldetés leadása — {quest.Title}",
+                    $"A vezető eldönti, hogy leadja-e a(z) " +
+                    $"{quest.Title} küldetést.",
+                    () => _renderer.ConfirmQuestTurnIn(
+                        npc.Character.Name,
+                        legacyQuest,
+                        quest.Progress,
+                        quest.RequiredCount,
+                        string.IsNullOrWhiteSpace(rewardItemsText)
+                            ? "nincs tárgyjutalom"
+                            : rewardItemsText));
+
             if (!shouldTurnIn)
             {
-                _renderer.DrawInventoryMessage($"📜 {quest.Title}: a jutalom felvétele elhalasztva.",
+                _renderer.DrawInventoryMessage(
+                    $"📜 {quest.Title}: " +
+                    "a jutalom felvétele elhalasztva.",
                     ConsoleColor.DarkYellow);
-                SynchronizeQuestJournal(npc, quest, currentProgress);
+
                 continue;
             }
 
-            if (quest.Type == NpcQuestType.Collect)
-            {
-                RemovePartyBackpackItems(quest.TargetId, quest.RequiredCount);
-                npc.AddQuestProgress(quest.Id, quest.RequiredCount, quest.RequiredCount);
-                currentProgress = quest.RequiredCount;
-            }
-            SynchronizeQuestJournal(npc, quest, currentProgress);
+            // --------------------------------------------------------
+            // Quest lezárása + valódi jutalmak kiosztása
+            // --------------------------------------------------------
 
-            if (!npc.CompleteQuest(quest.Id)) continue;
-            SynchronizeQuestJournal(npc, quest);
-            if (_gameData.GetNpc(npc.DefinitionId).Unique)
-                npc.AdjustFriendliness(1);
-            var awards = DistributeExperience(SelectedCharacter, quest.ExperienceReward, isQuest: true);
-            var leveledAwards = awards.Where(award => award.Result.LeveledUp && award.Character.IsAlive).ToArray();
-            foreach (var award in leveledAwards)
-                ResolvePerkOffers(award.Character, award.Result);
-            if (leveledAwards.Length > 0)
-                _renderer.RefreshCharacterSheet(SelectedCharacter);
-            var itemRewards = GrantNpcQuestItems(quest);
-            var experienceSummary = FormatExperienceAwards(awards);
-            var completedEntry = _questJournal[quest.Id] with
+            QuestCompletionResult completion;
+
+            try
             {
-                CompletionExperienceSummary = experienceSummary,
-                CompletionItemRewardSummary = itemRewards.Length > 0 ? itemRewards : "nem volt tárgyjutalom"
-            };
-            _questJournal[quest.Id] = completedEntry;
+                completion =
+                    quest.Complete();
+            }
+            catch (InvalidOperationException exception)
+            {
+                // Főleg collect questnél fordulhat elő,
+                // ha a confirmation és a tényleges leadás között
+                // megváltozott az inventory.
+                _renderer.DrawInventoryMessage(
+                    $"📜 {quest.Title}: " +
+                    $"a küldetés most nem adható le. " +
+                    $"{exception.Message}",
+                    ConsoleColor.DarkYellow);
+
+                continue;
+            }
+
+            // --------------------------------------------------------
+            // Unique NPC barátságosság
+            // --------------------------------------------------------
+
+            if (_gameData
+                .GetNpc(npc.DefinitionId)
+                .Unique)
+            {
+                npc.AdjustFriendliness(1);
+            }
+
+            // --------------------------------------------------------
+            // Level-up / perk UI
+            // --------------------------------------------------------
+
+            foreach (var award in
+                     completion.Rewards.LevelUpAwards)
+            {
+                ResolvePerkOffers(
+                    award.Character,
+                    award.Result);
+            }
+
+            if (completion.Rewards.HasLevelUps)
+            {
+                _renderer.RefreshCharacterSheet(
+                    SelectedCharacter);
+            }
+
+            if (completion.Rewards.HasItemRewards)
+            {
+                PlaySessionSound(
+                    SoundEffect.Item);
+            }
+
+            // --------------------------------------------------------
+            // Legacy journal frissítése
+            // --------------------------------------------------------
+
+            SynchronizeLegacyQuestProgress(
+                quest);
+
+            var experienceSummary =
+                FormatExperienceAwards(
+                    completion.Rewards.ExperienceAwards);
+
+            var itemRewards =
+                FormatQuestItemRewards(
+                    completion.Rewards);
+
+            var completedEntry =
+                _questJournal[legacyQuest.Id] with
+                {
+                    CompletionExperienceSummary =
+                        experienceSummary,
+
+                    CompletionItemRewardSummary =
+                        string.IsNullOrWhiteSpace(itemRewards)
+                            ? "nem volt tárgyjutalom"
+                            : itemRewards
+                };
+
+            _questJournal[legacyQuest.Id] =
+                completedEntry;
+
+            // --------------------------------------------------------
+            // Visszajelzés
+            // --------------------------------------------------------
+
             _renderer.DrawInventoryMessage(
-                $"✅ Küldetés teljesítve: {quest.Title}. XP: {experienceSummary}." +
-                (itemRewards.Length > 0 ? $" 🎁 {itemRewards}" : string.Empty), ConsoleColor.Green);
+                $"✅ Küldetés teljesítve: {quest.Title}. " +
+                $"XP: {experienceSummary}." +
+                (!string.IsNullOrWhiteSpace(itemRewards)
+                    ? $" 🎁 {itemRewards}"
+                    : string.Empty),
+                ConsoleColor.Green);
+
             RequestCoopSnapshotPublish();
-            RunHostWindow($"Küldetés teljesítve — {completedEntry.Title}",
-                $"A vezető {completedEntry.Title} küldetésének összegzését olvassa…",
-                () => QuestCompletionWindow.Show(completedEntry));
+
+            RunHostWindow(
+                $"Küldetés teljesítve — {completedEntry.Title}",
+                $"A vezető {completedEntry.Title} " +
+                "küldetésének összegzését olvassa…",
+                () => QuestCompletionWindow.Show(
+                    completedEntry));
         }
+
         RequestCoopSnapshotPublish();
+    }
+
+    private NpcQuestDefinition GetLegacyQuestDefinition(QuestId questId)
+    {
+        return _gameData.NpcQuests.Single(
+            definition =>
+                LegacyQuestIdMap.ToQuestId(
+                    definition.Id) == questId);
+    }
+
+    private static string DescribeQuestItemRewards(QuestHandle quest)
+    {
+        var parts =
+            new List<string>();
+
+        if (quest.FixedRewardItem is not null &&
+            quest.FixedRewardItemCount > 0)
+        {
+            parts.Add(
+                $"{quest.FixedRewardItem.Name} " +
+                $"×{quest.FixedRewardItemCount}");
+        }
+
+        if (quest.RandomRewardCount > 0)
+        {
+            parts.Add(
+                $"{quest.RandomRewardCount} véletlen tárgy");
+        }
+
+        return parts.Count == 0
+            ? string.Empty
+            : " + " + string.Join(
+                " + ",
+                parts);
+    }
+
+    private static string FormatQuestItemRewards(QuestRewardResult rewards)
+    {
+        if (rewards.ItemRewards.Count == 0)
+            return string.Empty;
+
+        var summary =
+            string.Join(
+                ", ",
+                rewards.ItemRewards
+                    .GroupBy(reward =>
+                        reward.Item.Name)
+                    .Select(group =>
+                        $"{group.Key} ×{group.Count()}"));
+
+        return rewards.DroppedItemCount == 0
+            ? summary
+            : $"{summary} " +
+              $"({rewards.DroppedItemCount} a földön)";
     }
 
     private void ShowQuestJournal()
@@ -4280,7 +4465,7 @@ public sealed class Game : ISessionCommandHandler
         if (!slot.Value.Character.IsInventoryItemIdentified(slot.Value.Kind, slot.Value.Index))
         {
             var unknownItem = InventorySnapshotProjector.Create(slot.Value.Character).Slots
-                .FirstOrDefault(entry => entry.Kind == slot.Value.Kind && entry.Index == slot.Value.Index).Item;
+                .FirstOrDefault(entry => entry.Kind == slot.Value.Kind && entry.Index == slot.Value.Index)?.Item;
             if (unknownItem is null)
             {
                 _renderer.DrawInventoryMessage("A tárgy adatai jelenleg nem olvashatók.", ConsoleColor.DarkYellow);
