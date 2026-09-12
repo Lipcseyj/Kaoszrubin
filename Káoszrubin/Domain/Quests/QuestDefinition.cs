@@ -15,6 +15,9 @@ public sealed record QuestDefinition(
     int ExperienceReward,
     QuestScope Scope,
     QuestRepeatPolicy RepeatPolicy,
+    QuestActivationRequirement? ActivationRequirement = null,
     IItemDefinition? FixedRewardItem = null,
     int FixedRewardItemCount = 0,
     int RandomRewardCount = 0);
+
+//Később, ha ténylegesen lesz olyan quest, amelyhez egyszerre több követelmény kell, az ActivationRequirement maga lehet például egy AllOf kompozit. Nem kell már most bonyolítanunk.

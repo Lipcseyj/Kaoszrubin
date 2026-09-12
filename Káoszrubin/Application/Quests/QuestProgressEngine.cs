@@ -170,7 +170,7 @@ public sealed class QuestProgressEngine
         QuestRuntimeState state,
         EnemyKilledEvent occurred)
     {
-        if (!occurred.Enemy.Definition.HasTrait(objective.RequiredTraits))
+        if (!HasAllTraits(occurred.Enemy.Definition, objective.RequiredTraits))
         {
             return 0;
         }
@@ -179,6 +179,13 @@ public sealed class QuestProgressEngine
             objective.RequiredFollower,
             state,
             occurred.Enemy) ? 1 : 0;
+    }
+
+    private static bool HasAllTraits(
+    EnemyDefinition enemy,
+    EnemyTraits requiredTraits)
+    {
+        return (enemy.Traits & requiredTraits) == requiredTraits;
     }
 
     private static int MatchExploreLocation(
