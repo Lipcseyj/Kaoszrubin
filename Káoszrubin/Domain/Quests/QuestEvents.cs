@@ -16,29 +16,13 @@ public sealed record EnemyKilledEvent(
     : QuestEvent;
 
 /// <summary>
-/// A parti egy adott tárgyból meghatározott mennyiséget szerzett.
+/// Egy adott tárgy mennyisége megváltozott a parti inventoryjában.
+/// Nem tartalmaz deltát, mert a collect quest progressét mindig
+/// az inventory aktuális állapotából számítjuk újra.
 /// </summary>
-public sealed record ItemObtainedEvent
-    : QuestEvent
-{
-    public IItemDefinition Item { get; }
-    public int Amount { get; }
-
-    public ItemObtainedEvent(
-        IItemDefinition item,
-        int amount = 1)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-
-        if (amount <= 0)
-            throw new ArgumentOutOfRangeException(
-                nameof(amount),
-                "A megszerzett tárgy mennyiségének pozitívnak kell lennie.");
-
-        Item = item;
-        Amount = amount;
-    }
-}
+public sealed record InventoryItemCountChangedEvent(
+    IItemDefinition Item)
+    : QuestEvent;
 
 /// <summary>
 /// A parti sikeresen hatástalanított egy csapdát.

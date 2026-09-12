@@ -135,6 +135,14 @@ public sealed class QuestStateStore
                 state.State == QuestState.ReadyToTurnIn)
             .ToArray();
 
+    public IReadOnlyList<QuestRuntimeState> GetInProgress() =>
+    _states.Values
+        .Where(state =>
+            state.State is
+                QuestState.Active or
+                QuestState.ReadyToTurnIn)
+        .ToArray();
+
     private QuestStateKey CreateKey(
         QuestId questId,
         QuestNpcInstanceId giverInstanceId)

@@ -1,4 +1,5 @@
 using KaoszRubin.Domain.Combat;
+using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Quests;
 
 namespace KaoszRubin.Application.Quests;
@@ -36,10 +37,14 @@ public sealed class QuestProgressEngine
     {
         ArgumentNullException.ThrowIfNull(questEvent);
 
+        if (questEvent is InventoryItemCountChangedEvent inventoryChanged)
+        {
+            return SynchronizeCollectObjectives(
+                inventoryChanged.Item);
+        }
+
         var changes = new List<QuestProgressChange>();
 
-        // ToArray szándékos:
-        // a feldolgozás közben egy Active quest ReadyToTurnIn állapotba kerülhet.
         foreach (var state in _stateStore.GetActive().ToArray())
         {
             var definition = _catalog.Get(state.QuestId);
@@ -65,16 +70,78 @@ public sealed class QuestProgressEngine
                 continue;
             }
 
-            changes.Add(new QuestProgressChange(
-                state.QuestId,
-                state.GiverInstanceId,
+            changes.Add(CreateChange(
+                state,
                 previousProgress,
-                state.Progress,
-                previousState,
-                state.State));
+                previousState));
         }
 
         return changes;
+    }
+
+    public IReadOnlyList<QuestProgressChange> SynchronizeCollectObjectives()
+    {
+        return SynchronizeCollectObjectives(
+            changedItem: null);
+    }
+
+    private IReadOnlyList<QuestProgressChange> SynchronizeCollectObjectives(IItemDefinition? changedItem)
+    {
+        var changes = new List<QuestProgressChange>();
+
+        foreach (var state in _stateStore.GetInProgress())
+        {
+            var definition = _catalog.Get(state.QuestId);
+
+            if (definition.Objective is not
+                QuestObjective.CollectItem objective)
+            {
+                continue;
+            }
+
+            if (changedItem is not null &&
+                !Equals(objective.Item, changedItem))
+            {
+                continue;
+            }
+
+            var currentAmount =
+                _world.CountPartyItem(objective.Item);
+
+            var previousProgress = state.Progress;
+            var previousState = state.State;
+
+            state.SynchronizeProgress(
+                currentAmount,
+                objective.RequiredCount);
+
+            if (state.Progress == previousProgress &&
+                state.State == previousState)
+            {
+                continue;
+            }
+
+            changes.Add(CreateChange(
+                state,
+                previousProgress,
+                previousState));
+        }
+
+        return changes;
+    }
+
+    private static QuestProgressChange CreateChange(
+    QuestRuntimeState state,
+    int previousProgress,
+    QuestState previousState)
+    {
+        return new QuestProgressChange(
+            state.QuestId,
+            state.GiverInstanceId,
+            previousProgress,
+            state.Progress,
+            previousState,
+            state.State);
     }
 
     private int GetProgressAmount(
@@ -84,13 +151,6 @@ public sealed class QuestProgressEngine
     {
         return (quest.Objective, questEvent) switch
         {
-            (
-                QuestObjective.CollectItem objective,
-                ItemObtainedEvent occurred
-            ) => MatchCollectItem(
-                objective,
-                occurred),
-
             (
                 QuestObjective.KillEnemy objective,
                 EnemyKilledEvent occurred
@@ -134,17 +194,6 @@ public sealed class QuestProgressEngine
 
             _ => 0
         };
-    }
-
-    private static int MatchCollectItem(
-        QuestObjective.CollectItem objective,
-        ItemObtainedEvent occurred)
-    {
-        return Equals(
-            objective.Item,
-            occurred.Item)
-            ? occurred.Amount
-            : 0;
     }
 
     private int MatchKillEnemy(

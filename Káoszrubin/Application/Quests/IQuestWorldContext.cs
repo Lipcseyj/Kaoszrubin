@@ -1,6 +1,7 @@
 ﻿using KaoszRubin.Domain;
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Quests;
+using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Application.Quests;
 
@@ -25,4 +26,14 @@ public interface IQuestWorldContext
     bool IsNpcAliveAndFollowing(
         QuestNpcId npcId,
         QuestNpcInstanceId instanceId);
+
+    /// <summary>
+    /// Visszaadja az adott NPC aktuális, quest-rendszer számára
+    /// értelmezett történetállapotát.
+    /// </summary>
+    QuestStoryState GetNpcStoryState(
+        QuestNpcId npcId,
+        QuestNpcInstanceId instanceId);
+
+    int CountPartyItem(IItemDefinition item);
 }

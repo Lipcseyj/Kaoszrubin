@@ -13,8 +13,12 @@ public sealed record QuestProgressChange(
     QuestState PreviousState,
     QuestState CurrentState)
 {
-    public int ProgressAdded =>
+    public int ProgressDelta =>
         CurrentProgress - PreviousProgress;
+
+    public bool LostReadyToTurnIn =>
+        PreviousState == QuestState.ReadyToTurnIn &&
+        CurrentState == QuestState.Active;
 
     public bool BecameReadyToTurnIn =>
         PreviousState != QuestState.ReadyToTurnIn &&

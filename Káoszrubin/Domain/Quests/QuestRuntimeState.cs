@@ -47,8 +47,15 @@ public sealed class QuestRuntimeState
 
     internal void Activate()
     {
-        State = QuestState.Active;
+        if (State != QuestState.Available)
+        {
+            throw new InvalidOperationException(
+                $"A(z) '{QuestId}' quest csak Available állapotból " +
+                $"aktiválható. Aktuális állapot: {State}.");
+        }
+
         Progress = 0;
+        State = QuestState.Active;
     }
 
     internal void AddProgress(int amount, int requiredCount)
@@ -70,8 +77,41 @@ public sealed class QuestRuntimeState
             State = QuestState.ReadyToTurnIn;
     }
 
+    internal void SynchronizeProgress(int currentProgress, int requiredCount)
+    {
+        if (currentProgress < 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(currentProgress));
+
+        if (requiredCount <= 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(requiredCount));
+
+        if (State is not (
+            QuestState.Active or
+            QuestState.ReadyToTurnIn))
+        {
+            return;
+        }
+
+        Progress = Math.Min(
+            currentProgress,
+            requiredCount);
+
+        State = Progress >= requiredCount
+            ? QuestState.ReadyToTurnIn
+            : QuestState.Active;
+    }
+
     internal void Complete()
     {
+        if (State != QuestState.ReadyToTurnIn)
+        {
+            throw new InvalidOperationException(
+                $"A(z) '{QuestId}' quest csak ReadyToTurnIn állapotból " +
+                $"teljesíthető. Aktuális állapot: {State}.");
+        }
+
         State = QuestState.Completed;
         CompletionCount++;
     }
