@@ -25,6 +25,12 @@ if (CoopHarnessOptions.TryParse(args, out var harnessOptions))
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A questnapló külön sorokat és célzott feladást használ", QuestJournalTests.SeparateRowsAndTargetedAbandon),
+    ("A gyorsutazás konkrét questadót és friss útvonalat használ", QuestJournalTests.TravelTargetsOneInstanceAndRechecksWorld),
+    ("A gyorsutazás újraellenőrzi a collect készletét", QuestJournalTests.TravelRechecksCollectInventory),
+    ("A globális quest utazása is konkrét karakterhez kötött", QuestJournalTests.GlobalTravelRetainsConcreteGiver),
+    ("A külön questtörténetek NPC nélkül is körbefordulnak a mentésben", QuestJournalTests.SeparateHistorySurvivesSaveWithoutNpc),
+    ("A questkulcs túléli a teljes és delta snapshotot és az újracsatlakozást", QuestJournalTests.JournalKeysSurviveFullDeltaAndReconnect),
     ("A questállapot mentési köre nem játszik vissza játékmeneti műveleteket", QuestPersistenceTests.RuntimeRoundTripDoesNotReplayGameplay),
     ("A hibás questállapot-import nem módosít részleges állapotot", QuestPersistenceTests.InvalidRuntimeImportIsAtomic),
     ("A collect betöltése a visszaállított inventoryt használja", QuestPersistenceTests.CollectRestoreUsesLoadedInventory),
@@ -3992,9 +3998,9 @@ static void QuestJournalBuildsSharedHistory()
 {
     var entries = new QuestJournalEntrySnapshot[]
     {
-        new("Q-A", "Folyamatban", "Tedd meg.", "Elira", QuestJournalStatus.Active, 2, 4, 240),
-        new("Q-B", "Befejezve", "Megtetted.", "Elira", QuestJournalStatus.Completed, 1, 1, 420),
-        new("Q-C", "Feladva", "Nem folytatod.", "Elira", QuestJournalStatus.Abandoned, 1, 3, 180)
+        new(new(KaoszRubin.Domain.Quests.QuestId.EliraRescue), "Folyamatban", "Tedd meg.", "Elira", QuestJournalStatus.Active, 2, 4, 240),
+        new(new(KaoszRubin.Domain.Quests.QuestId.EliraTornBandage), "Befejezve", "Megtetted.", "Elira", QuestJournalStatus.Completed, 1, 1, 420),
+        new(new(KaoszRubin.Domain.Quests.QuestId.EliraOnOurTrail), "Feladva", "Nem folytatod.", "Elira", QuestJournalStatus.Abandoned, 1, 3, 180)
     };
     var lines = QuestJournalWindow.Build(entries);
     var restoration = QuestJournalWindow.CalculateRestorationRegion(entries, 0, 200, 50);

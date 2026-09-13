@@ -125,7 +125,7 @@ internal static class QuestPersistenceTests
             "Az import összeolvasztotta a külön NPC-k állapotát vagy automatikusan aktivált.");
         Require(save.Quests!.LegacyJournalArchive.Count == 2 && save.Quests.MigrationNotes.Count >= 2,
             "Az ismeretlen vagy nem egyértelmű naplóbejegyzés elveszett.");
-        var history = adapter.CreateJournal(fixture.Manager).Single(entry => entry.QuestId == "NPCQ037");
+        var history = adapter.CreateJournal(fixture.Manager).Single(entry => entry.Key.QuestId == QuestId.RodericFallenComradesInsignia);
         Require(history.CompletionExperienceSummary == "régi XP" && history.CompletionItemRewardSummary == "régi tárgy",
             "Az NPC nélkül fennmaradt globális jutalomtörténet elveszett.");
         save.Quests = adapter.Export(fixture.Manager);

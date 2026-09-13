@@ -3,6 +3,8 @@ using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Transport.SignalR;
+using Microsoft.AspNetCore.Components.RenderTree;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 
@@ -17,9 +19,11 @@ public sealed class MainMenu
     private readonly GameSaveService _gameSaveService;
     private readonly string _applicationVersion;
     private readonly string _catalogHash;
+    private readonly BackgroundMusicPlayer _backgroundMusicPlayer;
     private readonly Random _random = new();
     private readonly SoundEffects _soundEffects;
     private readonly GameSettingsService _musicSettings = new();
+    bool _menuSoundPlayed = false;
 
     private const int SideMenuWidth = 52;
     private const int SideMenuLeft = 142;
@@ -90,6 +94,8 @@ public sealed class MainMenu
         _gameSaveService = new GameSaveService(gameSaveDirectory, _characterSaveService);
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
+        _backgroundMusicPlayer = new BackgroundMusicPlayer(_musicSettings.Settings,
+            message => Debug.WriteLine(message));
         _characterRoster = _characterSaveService.Load();
         Log.Info("main-menu.characters.loaded", $"count={_characterRoster.Characters.Count}");
         _soundEffects = new SoundEffects(_musicSettings.Settings,
@@ -99,15 +105,15 @@ public sealed class MainMenu
 
     public void Run()
     {
-        bool menuSoundPlayed = false;
         var readyLogged = false;
 
         while (true)
         {
-            if (!menuSoundPlayed)
+            if (!_menuSoundPlayed)
             {
-                _soundEffects.Play(SoundEffect.MainMenu);
-                menuSoundPlayed = true;
+                //_soundEffects.Play(SoundEffect.MainMenu);
+                _backgroundMusicPlayer.EnterMenu();
+                _menuSoundPlayed = true;
             }   
 
             DrawMainMenu();
@@ -186,8 +192,9 @@ public sealed class MainMenu
             return;
         }
 
+        _menuSoundPlayed = false;
         new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService,
-            musicSettings: _musicSettings).Run();
+            _backgroundMusicPlayer, musicSettings: _musicSettings).Run();
     }
 
     private void StartHostedGame()
@@ -198,7 +205,7 @@ public sealed class MainMenu
             // A coop lobby a leaderből indul; a távoli játékos a saját karakterével tölti fel a következő helyet.
             _characterRoster.Party.SetLeader(selectedCharacter);
             var game = new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService,
-                musicSettings: _musicSettings);
+                _backgroundMusicPlayer, musicSettings: _musicSettings);
             var host = CoopHostRuntime.StartAsync(game.Session, _applicationVersion, _catalogHash,
                     _characterSaveService.DeserializeCharacter, character => _characterRoster.Add(character))
                 .GetAwaiter().GetResult();
@@ -291,7 +298,7 @@ public sealed class MainMenu
         if (reservedGuid == Guid.Empty || reservedCharacter is null || reservedCharacter == leader)
             throw new InvalidOperationException("A coop mentés nem tartalmaz érvényes vendégkarakter-slotot.");
 
-        var game = new Game(_gameData, _characterRoster, leader, _gameSaveService, loaded.State,
+        var game = new Game(_gameData, _characterRoster, leader, _gameSaveService, _backgroundMusicPlayer, loaded.State,
             musicSettings: _musicSettings);
         var host = CoopHostRuntime.StartAsync(game.Session, _applicationVersion, _catalogHash,
                 _characterSaveService.DeserializeCharacter, character => _characterRoster.Add(character),
@@ -574,7 +581,7 @@ public sealed class MainMenu
                         {
                             _characterRoster = loaded.Roster;
                             new Game(_gameData, _characterRoster, _characterRoster.SelectedCharacter!,
-                                _gameSaveService, loaded.State, musicSettings: _musicSettings).Run();
+                                _gameSaveService, _backgroundMusicPlayer, loaded.State, musicSettings: _musicSettings).Run();
                         }
                         return;
                     }

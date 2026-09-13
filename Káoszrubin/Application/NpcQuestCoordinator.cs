@@ -36,112 +36,27 @@ public sealed class NpcQuestCoordinator
                 StringComparer.CurrentCultureIgnoreCase)
             .ToArray();
 
-    public void SynchronizeQuestJournal(
-        Dictionary<string, QuestJournalEntrySnapshot> questJournal,
-        WorldNpc npc,
-        NpcQuestDefinition quest)
+    /// <summary>Pontos futáskulcs szerinti projekció, a napló nem ír vissza a managerbe.</summary>
+    public void SynchronizeQuestJournal(Dictionary<QuestKey, QuestJournalEntrySnapshot> journal, QuestHandle quest)
     {
-        ArgumentNullException.ThrowIfNull(questJournal);
-        ArgumentNullException.ThrowIfNull(npc);
-        ArgumentNullException.ThrowIfNull(quest);
-
-        var npcId =
-            LegacyNpcIdMap.ToQuestNpcId(
-                npc.DefinitionId);
-
-        var instanceId =
-            _questWorldContext.GetInstanceId(
-                npc);
-
-        var typedQuestId =
-            LegacyQuestIdMap.ToQuestId(
-                quest.Id);
-
-        var questHandle =
-            _questManager
-                .For(npcId, instanceId)
-                .GetQuest(typedQuestId);
-
-        SynchronizeQuestJournal(questJournal, questHandle);
-    }
-
-    /// <summary>Csak projekció: a napló soha nem módosítja a futásidejű állapotot.</summary>
-    public void SynchronizeQuestJournal(
-        Dictionary<string, QuestJournalEntrySnapshot> questJournal, QuestHandle questHandle)
-    {
-        ArgumentNullException.ThrowIfNull(questJournal);
-        ArgumentNullException.ThrowIfNull(questHandle);
-        var quest = _gameData.NpcQuests.Single(definition =>
-            LegacyQuestIdMap.ToQuestId(definition.Id) == questHandle.Id);
-
-        // A legacy Offered állapot megfelelője nálunk
-        // Locked vagy Available.
-        // Ezek még nem kerülnek a naplóba.
-        if (questHandle.State is
-            QuestState.Locked or
-            QuestState.Available)
+        if (quest.State is QuestState.Locked or QuestState.Available)
         {
+            journal.Remove(quest.Key);
             return;
         }
-
-        questJournal.TryGetValue(
-            quest.Id,
-            out var previous);
-
-        var status =
-            questHandle.State switch
+        journal.TryGetValue(quest.Key, out var previous);
+        var giver = _gameData.NpcQuests.Single(definition => LegacyQuestIdMap.ToQuestId(definition.Id) == quest.Id).NpcId;
+        var npc = _questWorldContext.ResolveNpc(quest.Giver, quest.GiverInstanceId);
+        journal[quest.Key] = new(quest.Key, previous?.Title ?? quest.Title, previous?.Description ?? quest.Description,
+            previous?.QuestGiverName ?? npc?.Character.Name ?? _gameData.GetNpc(giver).Name,
+            quest.State switch
             {
-                QuestState.Completed =>
-                    QuestJournalStatus.Completed,
-
-                QuestState.Failed =>
-                    QuestJournalStatus.Abandoned,
-
-                QuestState.Active or
-                QuestState.ReadyToTurnIn =>
-                    QuestJournalStatus.Active,
-
-                _ =>
-                    throw new InvalidOperationException(
-                        $"A(z) '{questHandle.Id}' quest " +
-                        $"nem naplózható állapotban van: " +
-                        $"{questHandle.State}.")
-            };
-
-        questJournal[quest.Id] =
-            CreateQuestJournalEntry(
-                quest,
-                status,
-                questHandle.Progress,
-                quest.ExperienceReward)
-            with
-            {
-                CompletionExperienceSummary =
-                    previous?.CompletionExperienceSummary,
-
-                CompletionItemRewardSummary =
-                    previous?.CompletionItemRewardSummary
-            };
+                QuestState.Completed => QuestJournalStatus.Completed,
+                QuestState.Failed => QuestJournalStatus.Abandoned,
+                _ => QuestJournalStatus.Active
+            }, quest.Progress, quest.RequiredCount, previous?.ExperienceReward ?? quest.ExperienceReward,
+            previous?.CompletionExperienceSummary, previous?.CompletionItemRewardSummary);
     }
-
-    public QuestJournalEntrySnapshot CreateQuestJournalEntry(
-        NpcQuestDefinition quest,
-        QuestJournalStatus status,
-        int progress,
-        int experienceReward) =>
-        new(
-            quest.Id,
-            quest.Title,
-            quest.Description,
-            _gameData.GetNpc(quest.NpcId).Name,
-            status,
-            Math.Clamp(
-                progress,
-                0,
-                quest.RequiredCount),
-            quest.RequiredCount,
-            experienceReward);
-
     public static bool IsRodericInsigniaEnemy(
         string? groupId) =>
         string.Equals(

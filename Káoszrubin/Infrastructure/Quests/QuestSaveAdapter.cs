@@ -78,14 +78,29 @@ public sealed class QuestSaveAdapter
         return states;
     }
 
-    public QuestSaveData Export(QuestManager manager) => new()
+    public QuestSaveData Export(QuestManager manager, IEnumerable<QuestJournalEntrySnapshot>? journal = null)
     {
-        States = manager.ExportState().Select(WriteState).ToList(),
-        NpcIdentities = _instances.Export().Select(identity => new QuestNpcIdentitySaveData(
-            identity.InstanceId.Value, identity.CharacterId.Value, _npcIds[identity.NpcId])).ToList(),
-        LegacyJournalArchive = _archive.ToList(),
-        MigrationNotes = _notes.ToList()
-    };
+        var entries = journal?.ToDictionary(entry => entry.Key);
+        return new()
+        {
+            States = manager.ExportState().Select(state =>
+            {
+                var saved = WriteState(state);
+                // Kizárólag kijelzési metaadatot veszünk át; állapotot és progresst soha a naplóból.
+                return entries?.GetValueOrDefault(state.Key) is { } entry ? saved with
+                {
+                    Title = entry.Title, Description = entry.Description, GiverName = entry.QuestGiverName,
+                    ExperienceReward = entry.ExperienceReward,
+                    CompletionExperienceSummary = entry.CompletionExperienceSummary,
+                    CompletionItemRewardSummary = entry.CompletionItemRewardSummary
+                } : saved;
+            }).ToList(),
+            NpcIdentities = _instances.Export().Select(identity => new QuestNpcIdentitySaveData(
+                identity.InstanceId.Value, identity.CharacterId.Value, _npcIds[identity.NpcId])).ToList(),
+            LegacyJournalArchive = _archive.ToList(),
+            MigrationNotes = _notes.ToList()
+        };
+    }
 
     public void RecordCompletion(QuestHandle quest, string experienceSummary, string itemSummary)
     {
@@ -103,7 +118,7 @@ public sealed class QuestSaveAdapter
             .Select(state =>
             {
                 var saved = WriteState(state);
-                return new QuestJournalEntrySnapshot(saved.QuestId, saved.Title, saved.Description,
+                return new QuestJournalEntrySnapshot(state.Key, saved.Title, saved.Description,
                     saved.GiverName, state.State switch
                     {
                         QuestState.Completed => QuestJournalStatus.Completed,

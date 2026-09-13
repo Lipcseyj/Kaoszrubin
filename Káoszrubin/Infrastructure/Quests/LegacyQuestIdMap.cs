@@ -61,4 +61,48 @@ public static class LegacyQuestIdMap
                 $"Ismeretlen legacy quest-azonosító: '{legacyId}'.")
         };
     }
+    public static string ToExternalId(QuestId id) => id switch
+    {
+        QuestId.HerbalistHealingSupplies => "NPCQ001",
+        QuestId.MonsterHunterGoblinHunt => "NPCQ002",
+        QuestId.TreasureHunterDeepJourneySupplies => "NPCQ003",
+        QuestId.BardSongOfBones => "NPCQ004",
+        QuestId.HerbalistCleanBandages => "NPCQ005",
+        QuestId.MonsterHunterGoblinBounty => "NPCQ006",
+        QuestId.TreasureHunterSealedPath => "NPCQ007",
+        QuestId.BardRestoreTheVoice => "NPCQ008",
+        QuestId.RatHunterClearTheTunnels => "NPCQ009",
+        QuestId.KoboldFugitiveNoWayBack => "NPCQ010",
+        QuestId.BorderGuardLostPatrol => "NPCQ011",
+        QuestId.SpiritSeerSilenceInTheGraves => "NPCQ012",
+        QuestId.SpiritSeerRestlessBodies => "NPCQ013",
+        QuestId.OrcDeserterBrokenTusk => "NPCQ014",
+        QuestId.OrcDeserterWarlordsGuards => "NPCQ015",
+        QuestId.CaveAlchemistVenomGlands => "NPCQ016",
+        QuestId.CaveAlchemistReliableAntidote => "NPCQ017",
+        QuestId.PrisonerScoutEyesOfTheCamp => "NPCQ018",
+        QuestId.GraveKeeperLostGraveMarker => "NPCQ019",
+        QuestId.GraveKeeperDesecratedSeals => "NPCQ020",
+        QuestId.DragonResearcherScaledLocks => "NPCQ021",
+        QuestId.DragonResearcherPathOfAsh => "NPCQ022",
+        QuestId.SwampFerrymanDryPath => "NPCQ023",
+        QuestId.SwampFerrymanSunkenTraps => "NPCQ024",
+        QuestId.CrystalEngineerCrystalLockSecret => "NPCQ025",
+        QuestId.CrystalEngineerFaultyMechanisms => "NPCQ026",
+        QuestId.NightRefugeeEscapeFromEternalNight => "NPCQ027",
+        QuestId.NightRefugeeConfiscatedInheritance => "NPCQ028",
+        QuestId.DemonHunterBurnTheWebs => "NPCQ029",
+        QuestId.DemonHunterKnightsOfHell => "NPCQ030",
+        QuestId.ChaosPilgrimImpossiblePath => "NPCQ031",
+        QuestId.ChaosPilgrimRubyEchoes => "NPCQ032",
+        QuestId.GiantHunterBigGame => "NPCQ033",
+        QuestId.EliraRescue => "NPCQ034",
+        QuestId.EliraTornBandage => "NPCQ035",
+        QuestId.EliraOnOurTrail => "NPCQ036",
+        QuestId.RodericFallenComradesInsignia => "NPCQ037",
+        QuestId.RodericSharedBladeTrial => "NPCQ038",
+        QuestId.RodericOathbreakerKnight => "NPCQ039",
+        QuestId.RodericTheDeadAreNotPrey => "NPCQ040",
+        _ => throw new InvalidDataException("Ismeretlen típusos questazonosító.")
+    };
 }

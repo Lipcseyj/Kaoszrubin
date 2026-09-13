@@ -1,3 +1,4 @@
+using KaoszRubin.Domain.Quests;
 using KaoszRubin.Application;
 using KaoszRubin.Combat;
 using KaoszRubin.Data;
@@ -29,8 +30,8 @@ public sealed class CoopGuestScreen
     private int _inventorySelection;
     private bool _characterDetailsOpen;
     private int _characterDetailsOffset;
-    private readonly HashSet<string> _knownQuestIds = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _completedQuestIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<QuestKey> _knownQuestIds = [];
+    private readonly HashSet<QuestKey> _completedQuestIds = [];
     private readonly List<QuestJournalEntrySnapshot> _newQuestOffers = [];
     private readonly List<QuestJournalEntrySnapshot> _questCompletions = [];
     private bool _questJournalInitialized;
@@ -1451,18 +1452,18 @@ public sealed class CoopGuestScreen
         var quests = snapshot.QuestJournal ?? [];
         if (!_questJournalInitialized)
         {
-            _knownQuestIds.UnionWith(quests.Select(quest => quest.QuestId));
+            _knownQuestIds.UnionWith(quests.Select(quest => quest.Key));
             _completedQuestIds.UnionWith(quests.Where(quest => quest.Status == QuestJournalStatus.Completed)
-                .Select(quest => quest.QuestId));
+                .Select(quest => quest.Key));
             _questJournalInitialized = true;
             return;
         }
 
         foreach (var quest in quests)
         {
-            if (_knownQuestIds.Add(quest.QuestId) && quest.Status == QuestJournalStatus.Active)
+            if (_knownQuestIds.Add(quest.Key) && quest.Status == QuestJournalStatus.Active)
                 _newQuestOffers.Add(quest);
-            if (quest.Status == QuestJournalStatus.Completed && _completedQuestIds.Add(quest.QuestId))
+            if (quest.Status == QuestJournalStatus.Completed && _completedQuestIds.Add(quest.Key))
                 _questCompletions.Add(quest);
         }
     }

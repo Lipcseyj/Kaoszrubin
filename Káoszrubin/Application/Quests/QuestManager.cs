@@ -102,6 +102,15 @@ public sealed class QuestManager
     /// <summary>A teljes hiteles állapot másolata, a lezárt és már nem jelen lévő NPC-k futásaival együtt.</summary>
     public IReadOnlyList<QuestStateSnapshot> ExportState() => _stateStore.Export();
 
+    /// <summary>Meglévő futást keres pontos kulccsal; hiányzó vagy nem normalizált kulcs nem hoz létre állapotot.</summary>
+    public bool TryGetQuest(QuestKey key, out QuestHandle quest)
+    {
+        var state = _stateStore.All.FirstOrDefault(state => state.QuestId == key.QuestId &&
+            state.GiverInstanceId == key.GiverInstanceId);
+        quest = state is null ? null! : CreateHandle(state);
+        return state is not null;
+    }
+
     /// <summary>
     /// Visszaállítja a validált állapotot, majd a betöltött világ és inventory alapján egyeztet.
     /// Nem aktivál vagy jutalmaz; csak az egyeztetett állapotból küld projekciós értesítést.

@@ -130,25 +130,25 @@ internal static class QuestMigrationTests
         var world = new MazeQuestWorldContext(() => new Maze(7, 7), _ => 0, (_, _) => false,
             new QuestNpcInstanceRegistry(), _ => false);
         var coordinator = new NpcQuestCoordinator(data, fixture.Manager, world);
-        var journal = new Dictionary<string, QuestJournalEntrySnapshot>();
+        var journal = new Dictionary<QuestKey, QuestJournalEntrySnapshot>();
         fixture.Manager.QuestChanged += quest => coordinator.SynchronizeQuestJournal(journal, quest);
         var item = ((QuestObjective.CollectItem)definition.Objective).Item;
         fixture.Inventory[item] = 2;
         var quest = fixture.Manager.Activate(definition.Id, new QuestNpcInstanceId(1));
-        Require(journal["NPCQ001"] is { Status: QuestJournalStatus.Active, Progress: 2 },
+        Require(journal[quest.Key] is { Status: QuestJournalStatus.Active, Progress: 2 },
             "NPC jelenléte nélkül hiányzik az aktiválás vagy a kezdeti collect progress a naplóból.");
-        journal["NPCQ001"] = journal["NPCQ001"] with { Status = QuestJournalStatus.Abandoned };
+        journal[quest.Key] = journal[quest.Key] with { Status = QuestJournalStatus.Abandoned };
         coordinator.SynchronizeQuestJournal(journal, quest);
-        Require(quest.IsActive && journal["NPCQ001"].Status == QuestJournalStatus.Active,
+        Require(quest.IsActive && journal[quest.Key].Status == QuestJournalStatus.Active,
             "A napló visszaírt a domainbe, vagy felülírta a hiteles állapotot.");
         fixture.Inventory[item] = 3;
-        Require(quest.CanComplete && journal["NPCQ001"].Progress == 3,
+        Require(quest.CanComplete && journal[quest.Key].Progress == 3,
             "A CanComplete belső inventory-szinkronja nem frissítette a naplót.");
         quest.Abandon();
-        Require(journal["NPCQ001"].Status == QuestJournalStatus.Abandoned,
+        Require(journal[quest.Key].Status == QuestJournalStatus.Abandoned,
             "A feladás nem jutott el ugyanabban a hívásban a naplóig.");
         fixture.Inventory[item] = 0;
-        Require(fixture.Manager.RegisterInventoryChanged(item).Count == 0 && journal["NPCQ001"].Progress == 3,
+        Require(fixture.Manager.RegisterInventoryChanged(item).Count == 0 && journal[quest.Key].Progress == 3,
             "A feladott naplósor később tovább változott.");
     }
 

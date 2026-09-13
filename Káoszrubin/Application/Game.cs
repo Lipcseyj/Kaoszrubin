@@ -136,8 +136,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly Dictionary<(CharacterId CharacterId, NpcComplaintKind Kind), DateTime> _nextNpcComplaints = [];
     private readonly HashSet<(CharacterId CharacterId, NpcComplaintKind Kind)> _reportedNpcShortages = [];
     private readonly List<(LiveCharacter Character, LevelUpResult Result)> _pendingLevelUps = [];
-    private readonly Dictionary<string, QuestJournalEntrySnapshot> _questJournal =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<QuestKey, QuestJournalEntrySnapshot> _questJournal = [];
     private readonly Dictionary<PlayerId, PlayerWindowStateSnapshot> _openPlayerWindows = [];
     private DateTime? _playerWindowPauseStartedUtc;
     private DateTime? _partyScatterUntil;
@@ -324,13 +323,14 @@ public sealed class Game : ISessionCommandHandler
         History: CreateCharacterHistory(character));
 
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
-        GameSaveService gameSaveService, GameSaveData? loadedState = null, GameSession? session = null,
+        GameSaveService gameSaveService, BackgroundMusicPlayer backgroundMusicPlayer, GameSaveData? loadedState = null, GameSession? session = null,
         GameSettingsService? musicSettings = null)
     {
         CharacterRoster = characterRoster;
         SelectedCharacter = selectedCharacter;
         _gameData = gameData;
         _gameSaveService = gameSaveService;
+        _backgroundMusic = backgroundMusicPlayer;
         _formation = PartyFormationRules.CreateDefault(characterRoster.Party.Members.Select(member => member.Id),
             selectedCharacter.Id);
         _questNpcInstanceRegistry = new QuestNpcInstanceRegistry();
@@ -346,8 +346,6 @@ public sealed class Game : ISessionCommandHandler
         _renderer.SetFormationStatus(_formation);
         _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(_musicSettings.Settings,
-            message => _renderer.DrawDeveloperMessage(message));
-        _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
             message => _renderer.DrawDeveloperMessage(message));
         _doorInteractions = new DoorInteractionController(gameData, _renderer,
             (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random,
@@ -1751,10 +1749,10 @@ public sealed class Game : ISessionCommandHandler
         var state = _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
             _leaderTrail, _partyHoldingPosition, _partyRegrouping, _partyAttackMode, _hasRestedThisLevel, _partyScatterUntil,
             _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
-        state.QuestJournal = _questJournal.Values.Select(entry => new QuestJournalSaveData(entry.QuestId,
+        state.QuestJournal = _questJournal.Values.Select(entry => new QuestJournalSaveData(LegacyQuestIdMap.ToExternalId(entry.Key.QuestId),
             entry.Status, entry.Progress, entry.ExperienceReward,
             entry.CompletionExperienceSummary, entry.CompletionItemRewardSummary)).ToList();
-        state.Quests = _questSaveAdapter.Export(_questManager);
+        state.Quests = _questSaveAdapter.Export(_questManager, _questJournal.Values);
         state.LocationKind = _locationKind;
         state.LocationId = _locationId;
         state.DifficultyLevel = _difficultyLevel;
@@ -1848,7 +1846,7 @@ public sealed class Game : ISessionCommandHandler
         // A roster, a világ és a fog már a betöltött állapotot mutatja. Nincs aktiválás vagy jutalmazás.
         _questManager.RestoreState(questStates);
         foreach (var entry in _questSaveAdapter.CreateJournal(_questManager))
-            _questJournal[entry.QuestId] = entry;
+            _questJournal[entry.Key] = entry;
         RevealFor(SelectedCharacter, _player.Position);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
         _renderer.DrawDeveloperMessage(_locationKind == AdventureLocationKind.Quest
@@ -2779,7 +2777,7 @@ public sealed class Game : ISessionCommandHandler
         return true;
     }
 
-    private void ProcessNpcQuests(WorldNpc npc, bool activateOffered = true)
+    private void ProcessNpcQuests(WorldNpc npc, bool activateOffered = true, QuestKey? selectedQuest = null)
     {
         var npcId =
             LegacyNpcIdMap.ToQuestNpcId(
@@ -2821,6 +2819,7 @@ public sealed class Game : ISessionCommandHandler
         // szinkron közben változhatott az állapotuk.
         var quests =
             questNpc.GetActiveQuests()
+                .Where(quest => selectedQuest is null || quest.Key == selectedQuest)
                 .ToArray();
 
         foreach (var quest in quests)
@@ -2948,7 +2947,7 @@ public sealed class Game : ISessionCommandHandler
                     completion.Rewards);
 
             var completedEntry =
-                _questJournal[legacyQuest.Id] with
+                _questJournal[quest.Key] with
                 {
                     CompletionExperienceSummary =
                         experienceSummary,
@@ -2959,7 +2958,7 @@ public sealed class Game : ISessionCommandHandler
                             : itemRewards
                 };
 
-            _questJournal[legacyQuest.Id] =
+            _questJournal[quest.Key] =
                 completedEntry;
             _questSaveAdapter.RecordCompletion(quest, experienceSummary,
                 completedEntry.CompletionItemRewardSummary!);
@@ -3073,22 +3072,18 @@ public sealed class Game : ISessionCommandHandler
             AbandonQuest(abandonedQuestId, notify: true);
     }
 
-    private void AbandonQuest(string questId, bool notify)
+    private void AbandonQuest(QuestKey key, bool notify)
     {
-        var typedId = LegacyQuestIdMap.ToQuestId(questId);
-        var quests = _questManager.GetActiveQuests().Where(quest => quest.Id == typedId).ToArray();
-        if (quests.Length == 0) return;
-        // A napló a 3. migrációs lépésig még QuestId-alapú: a meglévő közös sor minden futását feladja.
-        foreach (var quest in quests) quest.Abandon();
+        if (!_questManager.TryGetQuest(key, out var quest) || !quest.IsInProgress) return;
+        quest.Abandon();
         if (notify)
         {
-            var message = $"× Küldetés feladva: {quests[0].Title}.";
+            var message = $"× Küldetés feladva: {quest.Title}.";
             _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
             RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.DarkYellow);
         }
         RequestCoopSnapshotPublish();
     }
-
     private void AbandonActiveQuestsFromNpc(string npcId)
     {
         var giver = LegacyNpcIdMap.ToQuestNpcId(npcId);
@@ -3104,29 +3099,9 @@ public sealed class Game : ISessionCommandHandler
             .Concat(_temporaryFollowersEnteringNextMaze)
             .Distinct();
 
-    private IReadOnlyList<QuestJournalWindow.FastTravelOption> BuildQuestFastTravelOptions()
-    {
-        var options = new List<QuestJournalWindow.FastTravelOption>();
-        foreach (var npc in _maze.WorldNpcs)
-        foreach (var progress in npc.Quests.Where(progress => progress.State == NpcQuestState.Active))
-        {
-            var quest = _gameData.NpcQuests.FirstOrDefault(candidate =>
-                string.Equals(candidate.Id, progress.QuestId, StringComparison.OrdinalIgnoreCase));
-            if (quest is null || !IsNpcQuestReadyForTurnIn(quest, progress)) continue;
-            var distance = FindQuestTravelDistance(_player.Position, npc.Position);
-            if (distance is null) continue;
-            var needCost = Math.Clamp((distance.Value * 2 + 19) / 20, 1, 15);
-            options.Add(new QuestJournalWindow.FastTravelOption(quest.Id, quest.Title,
-                npc.Character.Name, needCost));
-        }
-        return options;
-    }
-
-    private bool IsNpcQuestReadyForTurnIn(NpcQuestDefinition quest, NpcQuestProgress progress) =>
-        quest.Type == NpcQuestType.Collect
-            ? CountPartyBackpackItems(quest.TargetId) >= quest.RequiredCount
-            : progress.Progress >= quest.RequiredCount;
-
+    private IReadOnlyList<QuestFastTravelOption> BuildQuestFastTravelOptions() =>
+        new QuestTravelService(_questManager, _questWorldContext).BuildOptions(_maze.WorldNpcs,
+            npc => FindQuestTravelDistance(_player.Position, npc.Position));
     private int? FindQuestTravelDistance(Position origin, Position destination)
     {
         var distances = new Dictionary<Position, int> { [origin] = 0 };
@@ -3149,16 +3124,12 @@ public sealed class Game : ISessionCommandHandler
         return null;
     }
 
-    private void CompleteQuestByFastTravel(string questId,
-        IReadOnlyList<QuestJournalWindow.FastTravelOption> options)
+    private void CompleteQuestByFastTravel(QuestKey key, IReadOnlyList<QuestFastTravelOption> options)
     {
-        var option = options.FirstOrDefault(candidate =>
-            string.Equals(candidate.QuestId, questId, StringComparison.OrdinalIgnoreCase));
-        var npc = _maze.WorldNpcs.FirstOrDefault(candidate => candidate.Quests.Any(progress =>
-            string.Equals(progress.QuestId, questId, StringComparison.OrdinalIgnoreCase) &&
-            progress.State == NpcQuestState.Active));
-        if (option is null || npc is null) return;
-
+        var selection = options.SingleOrDefault(candidate => candidate.Key == key);
+        if (selection is null || !new QuestTravelService(_questManager, _questWorldContext).TryResolve(
+                selection, _maze.WorldNpcs, npc => FindQuestTravelDistance(_player.Position, npc.Position),
+                out var option, out var npc)) return;
         foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive))
         {
             character.ConsumeFood(option.NeedCost);
@@ -3170,7 +3141,7 @@ public sealed class Game : ISessionCommandHandler
             $"🍖-{option.NeedCost} 💧-{option.NeedCost} minden élő csapattagnak.";
         _renderer.DrawInventoryMessage(travelMessage, ConsoleColor.Cyan);
         RecordSessionActivity(SessionActivityKind.System, travelMessage, ConsoleColor.Cyan);
-        ProcessNpcQuests(npc, activateOffered: false);
+        ProcessNpcQuests(npc, activateOffered: false, selectedQuest: key);
         _renderer.RefreshCharacterSheet(SelectedCharacter);
         RequestCoopSnapshotPublish();
     }
@@ -3187,13 +3158,6 @@ public sealed class Game : ISessionCommandHandler
         SynchronizeInventoryQuests();
         return NpcQuestCoordinator.OrderedQuestJournal(_questJournal.Values);
     }
-
-    private void SynchronizeQuestJournal(WorldNpc npc, NpcQuestDefinition quest) =>
-        _npcQuestCoordinator.SynchronizeQuestJournal(_questJournal, npc, quest);
-
-    private QuestJournalEntrySnapshot CreateQuestJournalEntry(NpcQuestDefinition quest,
-        QuestJournalStatus status, int progress, int experienceReward) =>
-        _npcQuestCoordinator.CreateQuestJournalEntry(quest, status, progress, experienceReward);
 
     private string GrantNpcQuestItems(NpcQuestDefinition quest)
     {
@@ -4199,11 +4163,9 @@ public sealed class Game : ISessionCommandHandler
 
     private string? ReturnExpeditionReason(int completedLevel)
     {
-        var activeQuestIds = _questJournal.Values.Where(entry => entry.Status == QuestJournalStatus.Active)
-            .Select(entry => entry.QuestId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var quest = _gameData.NpcQuests.FirstOrDefault(candidate => activeQuestIds.Contains(candidate.Id) &&
-            _gameData.NpcEncounters.Any(encounter => encounter.MazeLevel == completedLevel &&
-                string.Equals(encounter.NpcId, candidate.NpcId, StringComparison.OrdinalIgnoreCase)));
+        var quest = _questManager.GetActiveQuests().FirstOrDefault(candidate =>
+            _questWorldContext.ResolveNpc(candidate.Giver, candidate.GiverInstanceId) is { } npc &&
+            _maze.WorldNpcs.Contains(npc));
         if (quest is not null)
             return $"Aktív küldetés maradt hátra: {quest.Title}. " + Environment.NewLine + " A régi kijárat visszahoz ugyanebbe a fogadóba.";
         return _random.Next(100) < 35
@@ -6670,6 +6632,18 @@ public sealed class Game : ISessionCommandHandler
                 EnemyMovementAllowance(initiatingEnemy), 1));
 
         var participantEnemies = enemyParticipants.Select(value => value.Enemy).ToArray();
+
+        if (participantEnemies.Sum(e => e.Definition.Strength) > characterParticipants.Sum(c => c.Character.Abilities.Strength) ||
+            (participantEnemies.Count() > characterParticipants.Count() + 2))
+        {
+            _backgroundMusic.EnterLargeBattle();
+        }
+        else
+        {
+            _backgroundMusic.EnterSmallBattle();
+        }
+
+
         foreach (var enemy in participantEnemies) _battleSystem.PrepareEnemyForBattle(enemy);
         var quickAssessment = QuickCombatRules.Assess(characterParticipants.Select(value => value.Character),
             participantEnemies.Select(enemy => enemy.Definition),

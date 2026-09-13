@@ -17,7 +17,7 @@
 		<None Update="Data\game-data.csv" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="Sounds\**\*.wav" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="Pictures\**\*.png" CopyToOutputDirectory="PreserveNewest" />
-		<None Include="Zene\**\*.mp3" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="Music\**\*.mp3" CopyToOutputDirectory="PreserveNewest" />
 		<Compile Remove="Tests\**\*.cs" />
 	</ItemGroup>
 

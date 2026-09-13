@@ -1,4 +1,5 @@
 using KaoszRubin.Application;
+using KaoszRubin.Audio;
 using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Transport.SignalR;
@@ -16,8 +17,9 @@ internal static class CoopHostRole
 
         try
         {
-            var game = new Game(fixture.Catalog, fixture.HostRoster, fixture.HostLeader,
-                fixture.GameSaveService, musicSettings: fixture.GameSettingsService);
+            // TODO: check music player passing
+            var game = new Game(fixture.Catalog, fixture.HostRoster, fixture.HostLeader, 
+                fixture.GameSaveService, new BackgroundMusicPlayer(fixture.GameSettingsService.Settings), musicSettings: fixture.GameSettingsService);
             var host = CoopHostRuntime.StartAsync(game.Session, fixture.ApplicationVersion, fixture.CatalogHash,
                     fixture.CharacterSaveService.DeserializeCharacter,
                     character => RegisterRemoteCharacter(fixture.HostRoster, character),

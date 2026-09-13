@@ -16,6 +16,7 @@ namespace KaoszRubin.Application.Quests;
 /// </summary>
 public sealed class QuestHandle
 {
+    public QuestKey Key => new(Id, GiverInstanceId);
     private readonly QuestManager _manager;
     private readonly QuestDefinition _definition;
     private readonly QuestRuntimeState _state;

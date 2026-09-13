@@ -1,3 +1,5 @@
+using KaoszRubin.Application.Quests;
+using KaoszRubin.Domain.Quests;
 using KaoszRubin.Application;
 
 namespace KaoszRubin.UI;
@@ -6,12 +8,11 @@ namespace KaoszRubin.UI;
 public static class QuestJournalWindow
 {
     public const int Width = 84;
-    public sealed record FastTravelOption(string QuestId, string QuestTitle, string QuestGiverName, int NeedCost);
-    public sealed record Result(string? FastTravelQuestId = null, string? AbandonedQuestId = null);
+    public sealed record Result(QuestKey? FastTravelQuestId = null, QuestKey? AbandonedQuestId = null);
     public readonly record struct RestorationRegion(int Left, int Top, int Width, int Height);
 
     public static IReadOnlyList<(string Text, ConsoleColor Color)> Build(
-        IReadOnlyList<QuestJournalEntrySnapshot> entries, string? selectedActiveQuestId = null)
+        IReadOnlyList<QuestJournalEntrySnapshot> entries, QuestKey? selectedActiveQuestId = null)
     {
         var lines = new List<(string, ConsoleColor)>
         {
@@ -23,7 +24,7 @@ public static class QuestJournalWindow
         if (active.Length == 0) lines.Add(("  — Nincs aktív küldetés.", ConsoleColor.DarkGray));
         foreach (var entry in active)
         {
-            var marker = string.Equals(entry.QuestId, selectedActiveQuestId, StringComparison.OrdinalIgnoreCase)
+            var marker = entry.Key == selectedActiveQuestId
                 ? "▶" : "◇";
             lines.Add(($"  {marker} {entry.Title} — {entry.Progress}/{entry.RequiredCount}  " +
                 $"{entry.QuestGiverName} ({entry.ExperienceReward} XP)",
@@ -73,7 +74,7 @@ public static class QuestJournalWindow
     }
 
     public static Result? Show(IReadOnlyList<QuestJournalEntrySnapshot> entries,
-        IReadOnlyList<FastTravelOption>? fastTravelOptions = null, bool allowAbandon = true,
+        IReadOnlyList<QuestFastTravelOption>? fastTravelOptions = null, bool allowAbandon = true,
         Func<string?>? coopStatusProvider = null)
     {
         var options = fastTravelOptions ?? [];
@@ -90,7 +91,7 @@ public static class QuestJournalWindow
             var activeEntries = entries.Where(entry => entry.Status == QuestJournalStatus.Active).ToArray();
             if (activeEntries.Length > 0)
                 selectedActiveQuest = Math.Clamp(selectedActiveQuest, 0, activeEntries.Length - 1);
-            var selectedQuestId = activeEntries.Length == 0 ? null : activeEntries[selectedActiveQuest].QuestId;
+            QuestKey? selectedQuestId = activeEntries.Length == 0 ? null : activeEntries[selectedActiveQuest].Key;
             var allLines = Build(entries, selectedQuestId).ToList();
             if (options.Count > 0)
             {
@@ -125,13 +126,13 @@ public static class QuestJournalWindow
             if (confirmingAbandon)
             {
                 if (key is ConsoleKey.I or ConsoleKey.Y)
-                    return new Result(AbandonedQuestId: activeEntries[selectedActiveQuest].QuestId);
+                    return new Result(AbandonedQuestId: activeEntries[selectedActiveQuest].Key);
                 if (key is ConsoleKey.N or ConsoleKey.Escape) confirmingAbandon = false;
                 continue;
             }
             if (key is ConsoleKey.Q or ConsoleKey.Enter or ConsoleKey.Escape) return null;
             if (key == ConsoleKey.T && options.Count > 0)
-                return new Result(FastTravelQuestId: options[selectedOption].QuestId);
+                return new Result(FastTravelQuestId: options[selectedOption].Key);
             if (allowAbandon && key == ConsoleKey.Tab && activeEntries.Length > 0)
                 selectedActiveQuest = (selectedActiveQuest + 1) % activeEntries.Length;
             if (allowAbandon && key == ConsoleKey.F && activeEntries.Length > 0) confirmingAbandon = true;

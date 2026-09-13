@@ -4,5 +4,6 @@ obj/
 .vscode/
 *.user
 *.suo
-Zene/
-Káoszrubin/Zene/
+.~*
+Music/
+Káoszrubin/Music/

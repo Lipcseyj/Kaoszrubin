@@ -8,10 +8,16 @@ using KaoszRubin.Domain.Magic;
 
 namespace KaoszRubin.Data;
 
-/// <summary>A szekciókra tagolt game-data.csv betöltője.</summary>
+/// <summary>
+/// A szekciókra tagolt, pontosvesszővel elválasztott game-data.csv betöltője.
+///
+/// A pontosvessző az oszlophatároló, ezért az adatmezőkben szereplő vesszők
+/// normál szövegként megmaradnak. Az idézőjeles CSV-mezőket továbbra is kezeli.
+/// </summary>
 public static class CsvGameDataLoader
 {
     public const string GameDataFileName = "Data/game-data.csv";
+    private const char CsvSeparator = ';';
 
     public static GameDataCatalog Load(string filePath)
     {
@@ -501,7 +507,9 @@ public static class CsvGameDataLoader
                 innNames.Add(name);
                 break;
             case DataSection.InnRumors:
-                var rumorText = string.Join(", ", cells.Skip(1)).Trim();
+                // A CSV oszlophatárolója pontosvessző, ezért a pletyka szövegében
+                // szereplő vesszők már ugyanabban a cellában maradnak.
+                var rumorText = Cell(cells, 1).Trim();
                 if (string.IsNullOrWhiteSpace(rumorText))
                     throw new InvalidOperationException("A pletyka szövege nem lehet üres.");
                 innRumors.Add(new InnRumorDefinition(id, rumorText));
@@ -695,10 +703,10 @@ public static class CsvGameDataLoader
         void Validate(MazeLevelConfiguration configuration, string location)
         {
             foreach (var encounter in configuration.QuestRoomEnemyEncounters)
-            if (!configuration.QuestRoomIds.Concat(configuration.BossRoomIds).Contains(encounter.RoomId,
-                    StringComparer.OrdinalIgnoreCase) || !enemyIds.Contains(encounter.EnemyId) || encounter.Count < 1 ||
-                encounter.GuaranteedItemId is { } itemId && !itemIds.Contains(itemId))
-                throw new InvalidDataException($"A(z) {location} quest room ellenfél-konfigurációja érvénytelen.");
+                if (!configuration.QuestRoomIds.Concat(configuration.BossRoomIds).Contains(encounter.RoomId,
+                        StringComparer.OrdinalIgnoreCase) || !enemyIds.Contains(encounter.EnemyId) || encounter.Count < 1 ||
+                    encounter.GuaranteedItemId is { } itemId && !itemIds.Contains(itemId))
+                    throw new InvalidDataException($"A(z) {location} quest room ellenfél-konfigurációja érvénytelen.");
         }
     }
 
@@ -847,15 +855,15 @@ public static class CsvGameDataLoader
                 throw new InvalidDataException($"A(z) '{remark.Id}' megjegyzés szövege nem lehet üres.");
         }
         foreach (var situation in situations)
-        foreach (var race in races)
-        foreach (var characterClass in classes)
-            if (!remarks.Any(remark =>
-                    remark.CharacterName is null &&
-                    string.Equals(remark.SituationId, situation.Id, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(remark.RaceId, race.Id, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(remark.CharacterClassId, characterClass.Id, StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidDataException($"A(z) '{situation.Id}' szituációhoz nincs megjegyzés a(z) " +
-                                               $"'{race.Id}' faj és '{characterClass.Id}' osztály párosához.");
+            foreach (var race in races)
+                foreach (var characterClass in classes)
+                    if (!remarks.Any(remark =>
+                            remark.CharacterName is null &&
+                            string.Equals(remark.SituationId, situation.Id, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(remark.RaceId, race.Id, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(remark.CharacterClassId, characterClass.Id, StringComparison.OrdinalIgnoreCase)))
+                        throw new InvalidDataException($"A(z) '{situation.Id}' szituációhoz nincs megjegyzés a(z) " +
+                                                       $"'{race.Id}' faj és '{characterClass.Id}' osztály párosához.");
     }
 
     private static void ValidateCharacterResourceGrowth(
@@ -1137,15 +1145,15 @@ public static class CsvGameDataLoader
 
     private static int AbilityThreat(MonsterAbilityDefinition ability) => ability.Effects.Sum(component =>
         (component.Effect switch
-    {
-        MonsterAbilityEffect.ExtraDamage => Math.Max(1, component.Value * ability.ChancePercent / 100),
-        MonsterAbilityEffect.ApplyStatus or MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease or
-            MonsterAbilityEffect.Bleeding => ability.Trigger == MonsterAbilityTrigger.Active ? 10 : 5,
-        MonsterAbilityEffect.Regeneration => Math.Max(2, component.Value * 2),
-        MonsterAbilityEffect.ArmorBonus => component.Value * 3,
-        MonsterAbilityEffect.InitiativeBonus => component.Value * 2,
-        _ => 1
-    }) * Math.Max(1, ability.MaximumTargets));
+        {
+            MonsterAbilityEffect.ExtraDamage => Math.Max(1, component.Value * ability.ChancePercent / 100),
+            MonsterAbilityEffect.ApplyStatus or MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease or
+                MonsterAbilityEffect.Bleeding => ability.Trigger == MonsterAbilityTrigger.Active ? 10 : 5,
+            MonsterAbilityEffect.Regeneration => Math.Max(2, component.Value * 2),
+            MonsterAbilityEffect.ArmorBonus => component.Value * 3,
+            MonsterAbilityEffect.InitiativeBonus => component.Value * 2,
+            _ => 1
+        }) * Math.Max(1, ability.MaximumTargets));
 
     private static void ValidateEnemies(IEnumerable<EnemyDefinition> enemies,
         IReadOnlyCollection<MonsterAbilityDefinition> monsterAbilities)
@@ -1262,24 +1270,24 @@ public static class CsvGameDataLoader
         var result = weapons.ToList();
         foreach (var weapon in weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal &&
                      weapon.Id != "W005" && !weapon.IsMonsterOnly))
-        foreach (var upgrade in upgrades)
-            result.Add(weapon with
-            {
-                Id = $"{weapon.Id}-{upgrade.Id}",
-                Name = weapon.Name + " " + upgrade.NameSuffix,
-                Damage = Increase(weapon.Damage, upgrade.CombatBonus),
-                Description = $"{weapon.Description} Mágikus {upgrade.NameSuffix} változat.",
-                // Calculate magical variant base price with tiered pricing premium
-                // Formula: (Base weapon price × upgrade multiplier, rounded up) + 500 gold per magic tier
-                // Example: Dagger (35) × 2.0 multiplier = ⌈70⌉ + 500 * 2 = 1070 gold for +2 dagger
-                // This ensures each magic tier adds at least 500 gold to the base cost, maintaining value hierarchy
-                BasePrice = Math.Max(1, (int)Math.Ceiling(weapon.BasePrice * upgrade.PriceMultiplier) + (500 * upgrade.MagicPower)),
-                Rarity = ItemRarity.Magic,
-                BaseWeaponId = weapon.Id,
-                MagicPower = upgrade.MagicPower,
-                MaximumDurability = IncreaseDurability(weapon.MaximumDurability,
-                    upgrade.DurabilityBonusPercent)
-            });
+            foreach (var upgrade in upgrades)
+                result.Add(weapon with
+                {
+                    Id = $"{weapon.Id}-{upgrade.Id}",
+                    Name = weapon.Name + " " + upgrade.NameSuffix,
+                    Damage = Increase(weapon.Damage, upgrade.CombatBonus),
+                    Description = $"{weapon.Description} Mágikus {upgrade.NameSuffix} változat.",
+                    // Calculate magical variant base price with tiered pricing premium
+                    // Formula: (Base weapon price × upgrade multiplier, rounded up) + 500 gold per magic tier
+                    // Example: Dagger (35) × 2.0 multiplier = ⌈70⌉ + 500 * 2 = 1070 gold for +2 dagger
+                    // This ensures each magic tier adds at least 500 gold to the base cost, maintaining value hierarchy
+                    BasePrice = Math.Max(1, (int)Math.Ceiling(weapon.BasePrice * upgrade.PriceMultiplier) + (500 * upgrade.MagicPower)),
+                    Rarity = ItemRarity.Magic,
+                    BaseWeaponId = weapon.Id,
+                    MagicPower = upgrade.MagicPower,
+                    MaximumDurability = IncreaseDurability(weapon.MaximumDurability,
+                        upgrade.DurabilityBonusPercent)
+                });
         return result;
     }
 
@@ -1288,21 +1296,21 @@ public static class CsvGameDataLoader
     {
         var result = armors.ToList();
         foreach (var armor in armors.Where(armor => armor.Rarity == ItemRarity.Normal))
-        foreach (var upgrade in upgrades)
-            result.Add(armor with
-            {
-                Id = $"{armor.Id}-{upgrade.Id}",
-                Name = armor.Name + " " + upgrade.NameSuffix,
-                Defense = Increase(armor.Defense, upgrade.CombatBonus),
-                Description = $"{armor.Description} Mágikus {upgrade.NameSuffix} változat.",
-                BasePrice = Math.Max(1, (int)Math.Ceiling(armor.BasePrice * upgrade.PriceMultiplier) +
-                    (armor.Id is "A001" or "A002" ? upgrade.MagicPower * 500 : 500)),
-                Rarity = ItemRarity.Magic,
-                BaseArmorId = armor.Id,
-                MagicPower = upgrade.MagicPower,
-                MaximumDurability = IncreaseDurability(armor.MaximumDurability,
-                    upgrade.DurabilityBonusPercent)
-            });
+            foreach (var upgrade in upgrades)
+                result.Add(armor with
+                {
+                    Id = $"{armor.Id}-{upgrade.Id}",
+                    Name = armor.Name + " " + upgrade.NameSuffix,
+                    Defense = Increase(armor.Defense, upgrade.CombatBonus),
+                    Description = $"{armor.Description} Mágikus {upgrade.NameSuffix} változat.",
+                    BasePrice = Math.Max(1, (int)Math.Ceiling(armor.BasePrice * upgrade.PriceMultiplier) +
+                        (armor.Id is "A001" or "A002" ? upgrade.MagicPower * 500 : 500)),
+                    Rarity = ItemRarity.Magic,
+                    BaseArmorId = armor.Id,
+                    MagicPower = upgrade.MagicPower,
+                    MaximumDurability = IncreaseDurability(armor.MaximumDurability,
+                        upgrade.DurabilityBonusPercent)
+                });
         return result;
     }
 
@@ -1351,7 +1359,7 @@ public static class CsvGameDataLoader
                 else quoted = !quoted;
                 continue;
             }
-            if (character == ',' && !quoted)
+            if (character == CsvSeparator && !quoted)
             {
                 cells.Add(cell.ToString().Trim());
                 cell.Clear();

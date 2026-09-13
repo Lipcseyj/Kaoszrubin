@@ -1,13 +1,16 @@
 using KaoszRubin.Combat;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Magic;
+using KaoszRubin.Domain.Quests;
+using KaoszRubin.Infrastructure.Quests;
+using System.Text.Json.Serialization;
 
 namespace KaoszRubin.Application;
 
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 79;
+    public const int Version = 80;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -45,7 +48,8 @@ public sealed record ReplicatedWindowLineSnapshot(string Text, ConsoleColor Colo
 
 public enum QuestJournalStatus { Active, Completed, Abandoned }
 
-public sealed record QuestJournalEntrySnapshot(string QuestId, string Title, string Description,
+public sealed record QuestJournalEntrySnapshot(
+    [property: JsonRequired, JsonConverter(typeof(QuestKeyJsonConverter))] QuestKey Key, string Title, string Description,
     string QuestGiverName, QuestJournalStatus Status, int Progress, int RequiredCount,
     int ExperienceReward, string? CompletionExperienceSummary = null,
     string? CompletionItemRewardSummary = null);
