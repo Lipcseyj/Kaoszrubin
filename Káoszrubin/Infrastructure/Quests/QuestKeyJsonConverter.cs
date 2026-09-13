@@ -13,7 +13,7 @@ public sealed class QuestKeyJsonConverter : JsonConverter<QuestKey>
         var value = json.RootElement;
         if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty("QuestId", out var id) ||
             id.ValueKind != JsonValueKind.String || !value.TryGetProperty("GiverInstanceId", out var giver) ||
-            !giver.TryGetInt32(out var instance) || instance < 0)
+            giver.ValueKind != JsonValueKind.Number || !giver.TryGetInt32(out var instance) || instance < 0)
             throw new JsonException("Érvénytelen questkulcs.");
         try
         {

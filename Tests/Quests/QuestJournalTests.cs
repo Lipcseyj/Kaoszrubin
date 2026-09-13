@@ -180,7 +180,9 @@ internal static class QuestJournalTests
         Require(json.Contains("NPCQ002") && JsonSerializer.Deserialize<QuestJournalEntrySnapshot>(json,
             new JsonSerializerOptions(JsonSerializerDefaults.Web))!.Key == Entry(2).Key,
             "A webes JSON-beállítások nem stabil szöveges kulcsot visznek át.");
-        foreach (var bad in new[] { json.Replace("NPCQ002", "UNKNOWN"), json.Replace("\"GiverInstanceId\":2", "\"GiverInstanceId\":-1"), "{}" })
+        foreach (var bad in new[] { json.Replace("NPCQ002", "UNKNOWN"),
+            json.Replace("\"GiverInstanceId\":2", "\"GiverInstanceId\":-1"),
+            json.Replace("\"GiverInstanceId\":2", "\"GiverInstanceId\":\"hibás\""), "{}" })
         {
             try { JsonSerializer.Deserialize<QuestJournalEntrySnapshot>(bad, new JsonSerializerOptions(JsonSerializerDefaults.Web)); }
             catch (JsonException) { continue; }
@@ -196,7 +198,7 @@ internal static class QuestJournalTests
     }
     private static WorldNpc Add(Maze maze, LiveCharacter character, string id, int x)
     {
-        var npc = new WorldNpc(new(x, 2), id, character, NpcDisposition.Neutral, false, true, "");
+        var npc = new WorldNpc(new(x, 3), id, character, NpcDisposition.Neutral, false, true, "");
         maze.Carve(npc.Position);
         maze.AddWorldNpc(npc);
         return npc;

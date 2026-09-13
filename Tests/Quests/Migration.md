@@ -254,3 +254,59 @@ Következő: a terv 3. lépése, a napló, UI-kiválasztás és gyorsutazás át
 QuestKey-re. A mostani mentés külön tárolja a futásokat, de a régi stringkulcsú
 UI-napló még összevonhat azonos QuestId-jú sorokat. A coop szerződés és a
 Roderic/Elira történeti lezárások teljes átvezetése a terv későbbi lépéseiben marad.
+
+## 2026-09-13: a 3. lépés – napló, kiválasztás és gyorsutazás
+
+A közös questfolyamatok átálltak QuestKey-re. A felhasználó kérésére Roderic
+küldetéseinek történetspecifikus átvezetése alacsonyabb prioritású, mert ezek a
+küldetések át lesznek dolgozva. Ebben a lépésben nem változtattunk Roderic történetén.
+
+### Elkészült működés
+
+- A napló és a naplóablak kiválasztási eredménye pontos futáskulcsot használ.
+  Két azonos QuestId-jú, külön NPC-hez tartozó quest külön sor és külön feladás.
+  A manager TryGetQuest lekérdezése hiányzó kulcshoz nem hoz létre új állapotot.
+- A naplóprojekció csak a típusos állapotból dolgozik. A korábbi stringkulcsú
+  segédútvonalakat eltávolítottuk; a jutalomösszegzések is futásonként maradnak meg.
+  A mentés a naplóból kizárólag kijelzési metaadatot vesz át, állapotot/progresst nem.
+- A QuestTravelService a típusos leadhatóságból készít opciókat. Az opció a
+  QuestKey mellett a konkrét cél-NPC azonosítóját is őrzi, globális questnél is.
+  Végrehajtás előtt újra ellenőrzi a készletet/állapotot, az élő és jelen lévő
+  questadót, az útvonalat és annak aktuális költségét. A Game csak a kiválasztott
+  questet ajánlja fel leadásra, nem az NPC összes kész küldetését.
+- A fogadói visszatérési indok tényleges aktív futást és a jelenlegi pályán
+  elérhető konkrét questadót keres, a régi napló/CSV archetípus-egyeztetése helyett.
+- A hátrahagyott aktív questek továbbra is megkapják a rájuk illeszkedő globális
+  eseményeket és inventoryváltozásokat; ez a meglévő engine viselkedése maradt.
+  Távoli, nem jelen lévő questadóhoz nincs gyorsutazási opció. A naplótörténet
+  NPC hiányában is megmarad.
+- A közös session-napló kulcsát saját JSON-konverter viszi át stabil szöveges
+  külső quest-ID-val és numerikus instance ID-val. A vendég ismert/teljesített
+  questhalmazai is QuestKey-t használnak. A journal DTO változásakor a protokoll
+  79-ről 80-ra lépett; a közben érkezett zenei módosításokkal jelenleg 81.
+  A WorldNpc wire-progress teljes kiváltása továbbra is az 5. lépés része.
+
+### Tesztek és közben érkezett commitok
+
+A hat új QuestJournalTests teszt: két sor és célzott feladás; konkrét NPC és
+friss utazási költség; collect-visszaellenőrzés; globális quest konkrét fizikai
+célpontja; külön jutalomtörténetek mentése NPC nélkül; teljes/delta/reconnect
+session-napló és a webes JSON-beállítások kulcsmegőrzése. Hibás, hiányzó,
+ismeretlen és nem numerikus wire-kulcsadatok elutasítását is ellenőrizzük.
+
+A felhasználó munka közben a 476d48f commitba mentette a questmódosításokat,
+és CSV/zenei módosítások is érkeztek. A végső ellenőrzés a 41ab24d állapotra
+épülő munkafán történt. Az öt kezdeti új teszthibát a lefoglalt bejáratra
+helyezett teszt-NPC okozta; a fixture szabad cellára került. Két meglévő CSV-teszt
+vesszős sorokra keresett a már pontosvesszős fájlban, ezért nem módosított tesztadatot.
+A tesztek most a tényleges elválasztót használják; a játékadatokat nem írtuk át.
+
+- Teljes solution build: 0 hiba, 28 CS0618 (a 3. lépés előtt 33).
+- Teljes tesztkészlet: 274 PASS, 0 FAIL (előtte 268 PASS).
+- `git diff --check`: nincs whitespace-hiba.
+- Friss futási naplók: `Káoszrubin/quest-step3-build.log`, `Káoszrubin/quest-step3-tests.log`.
+- Interaktív Game/UI-végigjátszás nem történt; a célzott műveleteket és adatcserét
+  komponens- és integrációs tesztek fedik.
+
+Következő a 4. lépés közös megjelenítési/leadási rétege és Elira átvezetése.
+Roderic speciális történeti részeit az átdolgozás miatt későbbre soroljuk.

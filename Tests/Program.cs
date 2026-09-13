@@ -4176,7 +4176,9 @@ static void UnknownCsvSectionIsRejectedWithLineNumber()
 static void MissingRequiredCsvFieldIsRejectedWithLineNumber()
 {
     var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-    var invalid = source.Replace("R001,Ember,Adaptable", "R001,Ember", StringComparison.Ordinal);
+    var separator = source.Contains("R001;Ember;Adaptable", StringComparison.Ordinal) ? ';' : ',';
+    var invalid = source.Replace($"R001{separator}Ember{separator}Adaptable", $"R001{separator}Ember", StringComparison.Ordinal);
+    Assert(invalid != source, "A kötelező mezőt törlő teszt nem találta a módosítandó CSV-sort.");
     AssertCsvLoadFails(invalid, "Tulajdonság", "sorában");
 }
 

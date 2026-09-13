@@ -1,8 +1,8 @@
-FAIL  A questnapló külön sorokat és célzott feladást használ: Az objektum helyének üres, járható mezőnek kell lennie. (Parameter 'position')
-FAIL  A gyorsutazás konkrét questadót és friss útvonalat használ: Az objektum helyének üres, járható mezőnek kell lennie. (Parameter 'position')
-FAIL  A gyorsutazás újraellenőrzi a collect készletét: Az objektum helyének üres, járható mezőnek kell lennie. (Parameter 'position')
-FAIL  A globális quest utazása is konkrét karakterhez kötött: Az objektum helyének üres, járható mezőnek kell lennie. (Parameter 'position')
-FAIL  A külön questtörténetek NPC nélkül is körbefordulnak a mentésben: Az objektum helyének üres, járható mezőnek kell lennie. (Parameter 'position')
+PASS  A questnapló külön sorokat és célzott feladást használ
+PASS  A gyorsutazás konkrét questadót és friss útvonalat használ
+PASS  A gyorsutazás újraellenőrzi a collect készletét
+PASS  A globális quest utazása is konkrét karakterhez kötött
+PASS  A külön questtörténetek NPC nélkül is körbefordulnak a mentésben
 PASS  A questkulcs túléli a teljes és delta snapshotot és az újracsatlakozást
 PASS  A questállapot mentési köre nem játszik vissza játékmeneti műveleteket
 PASS  A hibás questállapot-import nem módosít részleges állapotot

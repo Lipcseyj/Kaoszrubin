@@ -15,14 +15,17 @@ internal static class SpellImpactTests
                 catalog.GetSpell("P002").ImpactPalette == SpellImpactPalette.YellowBrown,
             "A tűz, jég és szent varázslatok színe hibás.");
         var original = File.ReadAllLines(path);
+        var spellLine = original.Single(line => line.StartsWith("S001;Mágikus lövedék;") ||
+            line.StartsWith("S001,Mágikus lövedék,"));
+        var separator = spellLine[4];
         var temporary = Path.GetTempFileName();
         try
         {
             foreach (var suffix in new[] { "", ",Red,725", ",Blue,0", ",YellowBrown," })
             {
                 File.WriteAllLines(temporary, original.Select(line =>
-                    line.StartsWith("S001,Mágikus lövedék,") || line.StartsWith("S007,Tűzgolyó,")
-                        ? string.Join(',', line.Split(',').Take(10)) + suffix : line));
+                    line.StartsWith($"S001{separator}Mágikus lövedék{separator}") || line.StartsWith($"S007{separator}Tűzgolyó{separator}")
+                        ? string.Join(separator, line.Split(separator).Take(10)) + suffix.Replace(',', separator) : line));
                 var loaded = CsvGameDataLoader.Load(temporary);
                 var single = loaded.GetSpell("S001");
                 var area = loaded.GetSpell("S007");
@@ -33,8 +36,8 @@ internal static class SpellImpactTests
             }
             foreach (var suffix in new[] { ",Green,1500", ",99,1500", ",Red,-1", ",Red,NaN", ",Blue,1.5" })
             {
-                File.WriteAllLines(temporary, original.Select(line => line.StartsWith("S001,Mágikus lövedék,")
-                    ? string.Join(',', line.Split(',').Take(10)) + suffix : line));
+                File.WriteAllLines(temporary, original.Select(line => line.StartsWith($"S001{separator}Mágikus lövedék{separator}")
+                    ? string.Join(separator, line.Split(separator).Take(10)) + suffix.Replace(',', separator) : line));
                 var rejected = false;
                 try { CsvGameDataLoader.Load(temporary); }
                 catch (InvalidDataException) { rejected = true; }
