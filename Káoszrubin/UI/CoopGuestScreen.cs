@@ -1383,9 +1383,7 @@ public sealed class CoopGuestScreen
         var snapshot = client.CurrentSnapshot;
         if (snapshot is not null)
         {
-            _backgroundMusic.SynchronizeMazeLevel(snapshot.MazeLevel,
-                exitDiscovered: snapshot.World?.Exit is not null,
-                inInn: snapshot.Phase == GameSessionPhase.Inn);
+            SynchronizeBackgroundMusic(snapshot);
             SynchronizeInnTransactions(snapshot);
             SynchronizeSessionSounds(snapshot, selected.CharacterId);
             SynchronizeSessionActivities(snapshot, selected.CharacterId);
@@ -1416,6 +1414,27 @@ public sealed class CoopGuestScreen
         var frame = BuildFrame(client, selected, snapshot, world);
         RenderFrame(frame, _lastFrame);
         _lastFrame = frame;
+    }
+
+    private void SynchronizeBackgroundMusic(SessionSnapshot snapshot)
+    {
+        switch (snapshot.MusicContext)
+        {
+            case BackgroundMusicContext.Inn: _backgroundMusic.EnterInn(); break;
+            case BackgroundMusicContext.Menu: _backgroundMusic.EnterMenu(); break;
+            case BackgroundMusicContext.SmallBattle: _backgroundMusic.EnterSmallBattle(); break;
+            case BackgroundMusicContext.LargeBattle: _backgroundMusic.EnterLargeBattle(); break;
+            case BackgroundMusicContext.RareLevelup: _backgroundMusic.EnterRareLevelup(); break;
+            case BackgroundMusicContext.Map:
+                _backgroundMusic.SynchronizeMazeLevel(snapshot.MazeLevel,
+                    exitDiscovered: snapshot.World?.Exit is not null);
+                break;
+            default:
+                _backgroundMusic.SynchronizeMazeLevel(snapshot.MazeLevel,
+                    exitDiscovered: snapshot.World?.Exit is not null,
+                    inInn: snapshot.Phase == GameSessionPhase.Inn);
+                break;
+        }
     }
 
     private void SynchronizeInnTransactions(SessionSnapshot snapshot)

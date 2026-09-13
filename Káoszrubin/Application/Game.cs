@@ -241,6 +241,7 @@ public sealed class Game : ISessionCommandHandler
             OpenPlayerWindows = _openPlayerWindows.Values.ToArray(),
             SharedWindow = _activeSharedWindow is null ? null : _activeSharedWindow with
             { AcknowledgedPlayerIds = _sharedWindowAcknowledgements.ToArray() },
+            MusicContext = _backgroundMusic.Context,
             Party = snapshot.Party.Select(character => character with
             {
                 Gold = SelectedCharacter.Gold,
@@ -380,7 +381,13 @@ public sealed class Game : ISessionCommandHandler
         _npcQuestCoordinator = new NpcQuestCoordinator(_gameData, _questManager, _questWorldContext);
         _questManager.QuestChanged += SynchronizeLegacyQuestProgress;
         _questInventorySynchronizer = new QuestInventorySynchronizer(_questManager);
-        _backgroundMusic.SetReportCallback(message => _renderer.DrawDeveloperMessage(message));
+        _backgroundMusic.SetReportCallback(message =>
+        {
+            if (_session.Phase == GameSessionPhase.Inn)
+                _innController.ReportMessage(message);
+            else
+                _renderer.DrawDeveloperMessage(message);
+        });
     }
 
     private MazeQuestWorldContext CreateQuestWorldContext()
@@ -1001,8 +1008,6 @@ public sealed class Game : ISessionCommandHandler
         }
         finally
         {
-            try { _backgroundMusic.Dispose(); }
-            catch (Exception exception) { Log.Error("audio.music-dispose-failed", exception); }
             try { _soundEffects.Dispose(); }
             catch (Exception exception) { Log.Error("audio.effects-dispose-failed", exception); }
             if (_activeCoopHost is not null)

@@ -163,7 +163,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
             if (_output is not null)
             {
                 if (!_isExitVolumeReduced)
-                    _output.Volume = _settings.MusicVolumePercent / 100f;
+                    _reader!.Volume = _settings.MusicVolumePercent / 100f;
                 return;
             }
 
@@ -225,7 +225,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
         if (!CanPlayCurrentContextLocked() || _context is not { } context)
             return;
 
-        if (BackgroundMusicCatalog.RandomTrackPath(context) is not { } path)
+        if (BackgroundMusicCatalog.RandomTrackPath(context, _reportMessages) is not { } path)
         {
             _reportMessages?.Invoke(
                 $"A {BackgroundMusicCatalog.RelativeDirectory(context)} mappában " +
@@ -241,11 +241,11 @@ public sealed class BackgroundMusicPlayer : IDisposable
                 File.ReadAllBytes(path),
                 writable: false);
 
-            _reader = new AudioFileReader(_compressedAudio);
-            _output = new WaveOut
+            _reader = new AudioFileReader(_compressedAudio)
             {
                 Volume = CurrentVolumeLocked()
             };
+            _output = new WaveOut();
 
             _output.PlaybackStopped += PlaybackStopped;
             _output.Init(_reader);
@@ -336,7 +336,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
         if (_output is null) return;
 
         _isExitVolumeReduced = true;
-        _output.Volume = _settings.MusicVolumePercent / 100f * 0.25f;
+        _reader!.Volume = _settings.MusicVolumePercent / 100f * 0.25f;
     }
 
     /// <summary>Az aktuális zenét és a betervezett következő számot leállítja.</summary>

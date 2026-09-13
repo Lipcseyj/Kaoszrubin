@@ -48,7 +48,7 @@ public sealed class SoundEffects : IDisposable
             if (_disposed) return;
             _settings.Normalize();
             var volume = _settings.SoundEffectsVolumePercent / 100f;
-            foreach (var playback in _activePlaybacks) playback.Output.Volume = volume;
+            foreach (var playback in _activePlaybacks) playback.Volume = volume;
             if (!_settings.SoundEffectsEnabled)
                 foreach (var playback in _activePlaybacks.ToArray()) playback.Output.Stop();
         }
@@ -157,22 +157,30 @@ public sealed class SoundEffects : IDisposable
     {
         private readonly MemoryStream _stream;
         private readonly WaveFileReader _reader;
+        private readonly WaveChannel32 _channel;
         private int _disposed;
 
         public ActivePlayback(byte[] wav, float volume)
         {
             _stream = new MemoryStream(wav, writable: false);
             _reader = new WaveFileReader(_stream);
-            Output = new WaveOut { Volume = volume };
-            Output.Init(_reader);
+            _channel = new WaveChannel32(_reader)
+            {
+                Volume = volume,
+                PadWithZeroes = false
+            };
+            Output = new WaveOut();
+            Output.Init(_channel);
         }
 
         public WaveOut Output { get; }
+        public float Volume { set => _channel.Volume = value; }
 
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             Output.Dispose();
+            _channel.Dispose();
             _reader.Dispose();
             _stream.Dispose();
         }

@@ -23,6 +23,7 @@ public sealed class MainMenu
     private readonly Random _random = new();
     private readonly SoundEffects _soundEffects;
     private readonly GameSettingsService _musicSettings = new();
+    private string? _menuStatus;
     bool _menuSoundPlayed = false;
 
     private const int SideMenuWidth = 52;
@@ -105,6 +106,7 @@ public sealed class MainMenu
 
     public void SetMenuStatusBar(string status)
     {
+        _menuStatus = status;
         var statusLine = PadRightDisplay(status, Console.WindowWidth);
         Console.SetCursorPosition(0, Console.WindowHeight - 1);
         Console.ForegroundColor = ConsoleColor.DarkGray;
@@ -128,6 +130,7 @@ public sealed class MainMenu
             }   
 
             DrawMainMenu();
+            if (_menuStatus is not null) SetMenuStatusBar(_menuStatus);
             if (!readyLogged)
             {
                 Log.Info("main-menu.ready", "A főmenü kirajzolva, a program billentyűbevitelre vár.");

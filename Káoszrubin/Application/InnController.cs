@@ -33,7 +33,7 @@ internal sealed class InnController
     private readonly Dictionary<InnVendorKind, List<InnStockOffer>> _vendorStocks = [];
     private readonly List<InnRumor> _rumors = [];
     private readonly Queue<InnTransactionSnapshot> _transactions = new();
-    private readonly Queue<string> _pendingHostTransactionMessages = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<string> _pendingHostTransactionMessages = new();
     private readonly Dictionary<string, int> _buybackPrices = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _usedInnNames = new(StringComparer.OrdinalIgnoreCase);
     private long _transactionSequence;
@@ -81,8 +81,9 @@ internal sealed class InnController
         _specialRecruitCandidates = specialRecruitCandidates ?? (() => []);
         _specialRecruitAccepted = specialRecruitAccepted ?? (_ => { });
         _runHostWindow = runHostWindow ?? ((_, _, action) => action());
-        backgroundMusicPlayer?.SetReportCallback(message => _pendingHostTransactionMessages.Enqueue(message));
     }
+
+    internal void ReportMessage(string message) => _pendingHostTransactionMessages.Enqueue(message);
 
     public InnSnapshot? CreateSnapshot()
     {
@@ -1690,7 +1691,8 @@ internal sealed class InnController
         if (announceOnHost)
         {
             _pendingHostTransactionMessages.Enqueue(FormatTransaction(transaction));
-            while (_pendingHostTransactionMessages.Count > 8) _pendingHostTransactionMessages.Dequeue();
+            while (_pendingHostTransactionMessages.Count > 8)
+                _pendingHostTransactionMessages.TryDequeue(out _);
         }
     }
 
