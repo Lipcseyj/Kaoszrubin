@@ -25,6 +25,11 @@ if (CoopHarnessOptions.TryParse(args, out var harnessOptions))
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A világpillanatkép típusos questállapotot és stabil kulcsot visz át", QuestReplicationTests.WorldUsesTypedStatesAndStableKeys),
+    ("A questdelta csak a ténylegesen módosult NPC-t tartalmazza", QuestReplicationTests.DeltaChangesOnlyTheAffectedNpc),
+    ("A questprojekció megtartja a láthatóságot és a követő aktuális pozícióját", QuestReplicationTests.VisibilityAndFollowerPositionRemainAuthoritative),
+    ("A questreplikáció és resync nem ismétli a jutalmat vagy értesítést", QuestReplicationTests.ReplicationAndReconnectNeverReplayCompletion),
+    ("A vendég questértesítése példányonként egyszer jelenik meg", QuestReplicationTests.NotificationsDistinguishInstancesAndSkipHistoricalBaseline),
     ("A questmegjelenítés változatlan típusos adatot kap", QuestPresentationTests.PresentationIsAnImmutableTypedSnapshot),
     ("Az elhalasztott questleadás nem fogyaszt és nem jutalmaz", QuestPresentationTests.DeferredTurnInNeverConsumesOrRewards),
     ("A leadási megerősítés után friss készletellenőrzés történik", QuestPresentationTests.ConfirmationDoesNotFreezeInventoryEligibility),

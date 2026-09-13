@@ -1,4 +1,4 @@
-using KaoszRubin.Domain.Quests;
+using KaoszRubin.Application.Quests;
 using KaoszRubin.Application;
 using KaoszRubin.Combat;
 using KaoszRubin.Data;
@@ -30,11 +30,9 @@ public sealed class CoopGuestScreen
     private int _inventorySelection;
     private bool _characterDetailsOpen;
     private int _characterDetailsOffset;
-    private readonly HashSet<QuestKey> _knownQuestIds = [];
-    private readonly HashSet<QuestKey> _completedQuestIds = [];
+    private readonly QuestJournalNotificationTracker _questNotifications = new();
     private readonly List<QuestJournalEntrySnapshot> _newQuestOffers = [];
     private readonly List<QuestJournalEntrySnapshot> _questCompletions = [];
-    private bool _questJournalInitialized;
     private CharacterId? _displayedCharacterId;
     private InventorySlotAddress? _inventorySource;
     private CharacterId? _inventorySourceCharacterId;
@@ -1468,23 +1466,9 @@ public sealed class CoopGuestScreen
 
     private void SynchronizeQuestOffers(SessionSnapshot snapshot)
     {
-        var quests = snapshot.QuestJournal ?? [];
-        if (!_questJournalInitialized)
-        {
-            _knownQuestIds.UnionWith(quests.Select(quest => quest.Key));
-            _completedQuestIds.UnionWith(quests.Where(quest => quest.Status == QuestJournalStatus.Completed)
-                .Select(quest => quest.Key));
-            _questJournalInitialized = true;
-            return;
-        }
-
-        foreach (var quest in quests)
-        {
-            if (_knownQuestIds.Add(quest.Key) && quest.Status == QuestJournalStatus.Active)
-                _newQuestOffers.Add(quest);
-            if (quest.Status == QuestJournalStatus.Completed && _completedQuestIds.Add(quest.Key))
-                _questCompletions.Add(quest);
-        }
+        var notifications = _questNotifications.Observe(snapshot.QuestJournal ?? []);
+        _newQuestOffers.AddRange(notifications.Offers);
+        _questCompletions.AddRange(notifications.Completions);
     }
 
     private void SynchronizeSessionSounds(SessionSnapshot snapshot, CharacterId localCharacterId)

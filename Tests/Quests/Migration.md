@@ -342,3 +342,32 @@ A feladás sem számít sikeres mentésnek. Teljes build: 0 hiba, 26 CS0618
 A felhasználó által hátrébb sorolt Roderic-specifikus munka nyitott marad.
 Következő közös migrációs feladat az 5. lépés: a WorldSnapshots flat NPC
 questprogressének kiváltása; a session-napló kulcsosítása már a 3. lépésben elkészült.
+
+## 2026-09-13: az 5. lépés – típusos NPC-questadatok a replikációban
+
+- A WorldNpcSnapshot flat QuestIds/NpcQuestProgress mezőit a managerből készített
+  WorldQuestSnapshot váltotta fel: stabil QuestKey, típusos állapot, haladás,
+  szükséges mennyiség és teljesítésszám. A fizikai questadó példányazonosítója
+  külön is szerepel. A projekció nem aktivál és nem jutalmaz.
+- A megváltozott wire-séma miatt a session-protokoll 81-ről 82-re lépett.
+  A questkulcs meglévő JSON-konvertere stabil külső quest-ID-t visz át;
+  az állapot szöveges enumként kerül a hálózatra. A mentésverzió változatlan.
+- A láthatósági szűrés a questadatok lekérdezése előtt történik. A követő
+  helyét a party-avatar adja, az NPC és a questpéldány azonossága megmarad.
+- A questlista rendezett, az NPC-delta tartalom szerint hasonlítja össze:
+  változatlan adatok új listapéldánya nem eredményez felesleges upsertet.
+- A vendég értesítéskövetése külön tesztelhető komponensbe került.
+  A kezdeti történet néma; az ismételt frame, teljes resync és új kapcsolat
+  nem játssza vissza a már látott lezárást. A jutalmazás a hoston marad.
+
+Öt új QuestReplicationTests teszt fedi a JSON-körutat, a külön NPC-példányokat,
+a változatlan és célzott deltát, a láthatóságot és követővé válást, valamint
+a teljes/delta/resync/reconnect adatfolyamot és az értesítések ismétlésvédelmét.
+A korábbi protokoll elutasítását is ellenőrizzük.
+
+- Teljes solution build: 0 hiba, 23 CS0618 (kiindulás 26).
+- Teljes tesztkészlet: 283 PASS, 0 FAIL (kiindulás 278).
+- Interaktív UI- és külön gépes hálózati végigjátszás nem történt.
+
+Következő a 6. lépés: a flat CSV/definíciós határ átvezetése.
+Roderic történeti átdolgozása továbbra is későbbi prioritás.

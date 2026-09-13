@@ -1,6 +1,9 @@
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Combat;
 using KaoszRubin.Domain.Inventory;
+using KaoszRubin.Domain.Quests;
+using KaoszRubin.Infrastructure.Quests;
+using System.Text.Json.Serialization;
 
 namespace KaoszRubin.Application;
 
@@ -44,13 +47,22 @@ public sealed record WorldItemSnapshot(string Category, string DefinitionId, str
 public sealed record WorldNpcSnapshot(WorldEntityId EntityId, string DefinitionId, string Name,
     Position Position, string Disposition, bool Recruitable, bool IsQuestNpc, int SymbolCodePoint,
     ConsoleColor ForegroundColor = ConsoleColor.White, ConsoleColor BackgroundColor = ConsoleColor.Black,
-    int Friendliness = 5, string Behavior = "Guarded", IReadOnlyList<string>? QuestIds = null,
-    IReadOnlyList<NpcQuestProgress>? Quests = null);
+    int Friendliness = 5, string Behavior = "Guarded", int QuestInstanceId = 0,
+    IReadOnlyList<WorldQuestSnapshot>? Quests = null);
+
+/// <summary>A host típusos állapotából másolt questfutás; a kliens nem futtat questműveleteket.</summary>
+public sealed record WorldQuestSnapshot(
+    [property: JsonRequired, JsonConverter(typeof(QuestKeyJsonConverter))] QuestKey Key,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<QuestState>))] QuestState State,
+    int Progress, int RequiredCount, int CompletionCount);
+
+public sealed record WorldNpcQuestData(int InstanceId, IReadOnlyList<WorldQuestSnapshot> Quests);
 
 public static class WorldSnapshotProjector
 {
     public static WorldSnapshot Create(Maze maze, FogOfWar fogOfWar,
-        IReadOnlySet<WorldEntityId>? forcedVisibleEnemies = null)
+        IReadOnlySet<WorldEntityId>? forcedVisibleEnemies = null,
+        Func<WorldNpc, WorldNpcQuestData>? projectQuests = null)
     {
         ArgumentNullException.ThrowIfNull(maze);
         ArgumentNullException.ThrowIfNull(fogOfWar);
@@ -119,14 +131,20 @@ public static class WorldSnapshotProjector
                     EquipmentDurabilityRules.MaximumDurability(entry.Item),
                     Math.Max(0, entry.State.DurabilityDamage))).ToArray(),
                 pile.Symbol.Value)).ToArray();
-        var worldNpcs = maze.WorldNpcs.Concat(maze.PartyMembers
+        var worldNpcs = maze.WorldNpcs.Select(npc => (Npc: npc, npc.Position)).Concat(maze.PartyMembers
             .Where(member => member.TemporaryFollower is not null)
-            .Select(member => member.TemporaryFollower!));
-        var npcs = worldNpcs.Where(npc => IsVisible(npc.Position)).Select(npc =>
-            new WorldNpcSnapshot(npc.Id, npc.DefinitionId, npc.Character.Name, npc.Position,
+            .Select(member => (Npc: member.TemporaryFollower!, member.Position)));
+        var npcs = worldNpcs.Where(entry => IsVisible(entry.Position)).Select(entry =>
+        {
+            var npc = entry.Npc;
+            var quests = npc.IsQuestNpc
+                ? projectQuests?.Invoke(npc) ?? throw new InvalidOperationException("A quest NPC projekciójához típusos állapotforrás szükséges.")
+                : new WorldNpcQuestData(0, []);
+            return new WorldNpcSnapshot(npc.Id, npc.DefinitionId, npc.Character.Name, entry.Position,
                 npc.Disposition.ToString(), npc.Recruitable, npc.IsQuestNpc, npc.Symbol.Value,
                 ConsoleColor.White, npc.Character.Color, npc.Friendliness, npc.Behavior.ToString(),
-                npc.QuestIds, npc.Quests)).ToArray();
+                quests.InstanceId, quests.Quests);
+        }).ToArray();
 
         return new WorldSnapshot(maze.Id, maze.Width, maze.Height,
             IsVisible(maze.Entrance) ? maze.Entrance : null,

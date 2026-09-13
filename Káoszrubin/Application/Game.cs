@@ -200,7 +200,8 @@ public sealed class Game : ISessionCommandHandler
         var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_difficultyLevel, _maze.LevelName,
             positions, battle, WorldSnapshotProjector.Create(_maze, _fogOfWar,
                 _activeTeamBattle?.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
-                    .Select(enemy => enemy.Id).ToHashSet())));
+                    .Select(enemy => enemy.Id).ToHashSet(),
+                new QuestWorldSnapshotProjector(_questManager, _questWorldContext).Create)));
         var followers = _maze.PartyMembers
             .Where(member => member.IsTemporaryFollower)
             .Select(member => member.Character)

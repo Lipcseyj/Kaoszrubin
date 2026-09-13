@@ -55,7 +55,7 @@ public static class WorldDeltaProjector
         var corpseChanges = Upserts(previous.Corpses, current.Corpses, corpse => corpse.EntityId).ToArray();
         var pileChanges = Upserts(previous.GroundPiles, current.GroundPiles, pile => pile.EntityId,
             GroundPileEquals).ToArray();
-        var npcChanges = Upserts(previous.Npcs ?? [], current.Npcs ?? [], npc => npc.EntityId).ToArray();
+        var npcChanges = Upserts(previous.Npcs ?? [], current.Npcs ?? [], npc => npc.EntityId, NpcEquals).ToArray();
         var memoryChanges = Upserts(previous.LastKnownEnemies ?? [], current.LastKnownEnemies ?? [],
             memory => memory.EntityId).ToArray();
         var currentMemoryIds = (current.LastKnownEnemies ?? []).Select(memory => memory.EntityId).ToHashSet();
@@ -86,6 +86,10 @@ public static class WorldDeltaProjector
             .Concat(snapshot.Corpses.Select(corpse => corpse.EntityId))
             .Concat(snapshot.GroundPiles.Select(pile => pile.EntityId))
             .Concat((snapshot.Npcs ?? []).Select(npc => npc.EntityId));
+
+    private static bool NpcEquals(WorldNpcSnapshot first, WorldNpcSnapshot second) =>
+        (first with { Quests = null }) == (second with { Quests = null }) &&
+        (first.Quests ?? []).SequenceEqual(second.Quests ?? []);
 
     private static bool EnemyEquals(WorldEnemySnapshot first, WorldEnemySnapshot second) =>
         first.EntityId == second.EntityId && first.DefinitionId == second.DefinitionId && first.Name == second.Name &&
