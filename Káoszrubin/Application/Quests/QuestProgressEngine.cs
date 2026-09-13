@@ -14,6 +14,7 @@ public sealed class QuestProgressEngine
     private readonly QuestCatalog _catalog;
     private readonly QuestStateStore _stateStore;
     private readonly IQuestWorldContext _world;
+    internal event Action<QuestProgressChange>? ProgressChanged;
 
     public QuestProgressEngine(
         QuestCatalog catalog,
@@ -77,6 +78,7 @@ public sealed class QuestProgressEngine
                 previousState));
         }
 
+        PublishChanges(changes);
         return changes;
     }
 
@@ -84,6 +86,23 @@ public sealed class QuestProgressEngine
     {
         return SynchronizeCollectObjectives(
             changedItem: null);
+    }
+
+    internal void SynchronizeExplorationObjective(QuestRuntimeState state)
+    {
+        if (state.State != QuestState.Active ||
+            _catalog.Get(state.QuestId).Objective is not QuestObjective.ExploreLocation objective ||
+            !_world.HasDiscoveredLocation(objective.Location)) return;
+
+        var previousProgress = state.Progress;
+        var previousState = state.State;
+        state.AddProgress(1, objective.RequiredCount);
+        ProgressChanged?.Invoke(CreateChange(state, previousProgress, previousState));
+    }
+
+    private void PublishChanges(IEnumerable<QuestProgressChange> changes)
+    {
+        foreach (var change in changes) ProgressChanged?.Invoke(change);
     }
 
     private IReadOnlyList<QuestProgressChange> SynchronizeCollectObjectives(IItemDefinition? changedItem)
@@ -128,6 +147,7 @@ public sealed class QuestProgressEngine
                 previousState));
         }
 
+        PublishChanges(changes);
         return changes;
     }
 
@@ -170,6 +190,11 @@ public sealed class QuestProgressEngine
 
             (
                 QuestObjective.ExploreLocation objective,
+                LocationDiscoveredEvent occurred
+            ) => objective.Location == occurred.Location ? 1 : 0,
+
+            (
+                QuestObjective.ExploreLocation objective,
                 LocationReachedEvent occurred
             ) => MatchExploreLocation(
                 objective,
@@ -187,7 +212,7 @@ public sealed class QuestProgressEngine
 
             (
                 QuestObjective.EscortNpc objective,
-                LocationReachedEvent occurred
+                NpcReachedLocationEvent occurred
             ) => MatchEscort(
                 objective,
                 state,
@@ -250,18 +275,21 @@ public sealed class QuestProgressEngine
     private int MatchEscort(
         QuestObjective.EscortNpc objective,
         QuestRuntimeState state,
-        LocationReachedEvent occurred)
+        NpcReachedLocationEvent occurred)
     {
-        if (objective.Destination != occurred.Location)
+        if (objective.Destination != occurred.Location || objective.Npc != occurred.NpcId)
             return 0;
 
         var instanceId = ResolveNpcInstanceId(
             objective.Npc,
             state);
 
+        if (!instanceId.IsNone && instanceId != occurred.InstanceId) return 0;
+
         return _world.IsNpcAliveAndFollowing(
             objective.Npc,
-            instanceId)
+            occurred.InstanceId) &&
+            _world.IsNpcAtLocation(objective.Npc, occurred.InstanceId, occurred.Location)
             ? 1
             : 0;
     }

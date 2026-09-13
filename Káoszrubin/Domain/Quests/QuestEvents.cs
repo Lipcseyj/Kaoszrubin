@@ -46,3 +46,10 @@ public sealed record ChestOpenedEvent
 public sealed record LocationReachedEvent(
     QuestLocation Location)
     : QuestEvent;
+
+/// <summary>A hely láthatóvá vált; kísérő célba érését nem jelenti.</summary>
+public sealed record LocationDiscoveredEvent(QuestLocation Location) : QuestEvent;
+
+/// <summary>A konkrét kísérővel a parti végrehajtja a helyszín elérését.</summary>
+public sealed record NpcReachedLocationEvent(
+    QuestNpcId NpcId, QuestNpcInstanceId InstanceId, QuestLocation Location) : QuestEvent;

@@ -19,6 +19,12 @@ public sealed class QuestManager
     private readonly QuestCompletionProcessor _completionProcessor;
     private readonly IQuestNpcConversationService _conversationService;
 
+    /// <summary>
+    /// A futásidejű módosítás utáni szinkron projekciós értesítés.
+    /// A feliratkozó csak olvassa a handle-t; nem indít questműveletet vagy UI-t.
+    /// </summary>
+    public event Action<QuestHandle>? QuestChanged;
+
     public QuestManager(
         QuestCatalog catalog,
         QuestStateStore stateStore,
@@ -40,6 +46,8 @@ public sealed class QuestManager
         _progressEngine = progressEngine;
         _completionProcessor = completionProcessor;
         _conversationService = conversationService;
+        _progressEngine.ProgressChanged += change => QuestChanged?.Invoke(
+            CreateHandle(change.QuestId, change.GiverInstanceId));
 
         Roderic = new RodericNpcApi(this);
 
@@ -144,7 +152,7 @@ public sealed class QuestManager
     }
 
     /// <summary>
-    /// Egy NPC jelenleg elérhető questjei.
+    /// Egy NPC jelenleg általánosan felajánlható questjei (Story küldetések nélkül).
     /// </summary>
     public IReadOnlyList<QuestHandle> GetAvailableQuestsForNpc(QuestNpcId npcId, QuestNpcInstanceId instanceId = default)
     {
@@ -165,9 +173,13 @@ public sealed class QuestManager
 
     public QuestCompletionResult Complete(QuestId questId, QuestNpcInstanceId giverInstanceId = default)
     {
-        return _completionProcessor.Complete(
+        var result = _completionProcessor.Complete(
             questId,
             giverInstanceId);
+        QuestChanged?.Invoke(CreateHandle(questId, giverInstanceId));
+        // A fogyasztás és a jutalom más aktív collect küldetést is érinthet.
+        _progressEngine.SynchronizeCollectObjectives();
+        return result;
     }
 
     public IReadOnlyList<QuestHandle> GetPendingQuestCompletions()
@@ -187,6 +199,8 @@ public sealed class QuestManager
         var state = _availability.Activate(
             questId,
             giverInstanceId);
+        QuestChanged?.Invoke(CreateHandle(state));
+        _progressEngine.SynchronizeExplorationObjective(state);
 
         // Collect quest esetén azonnal vegyük figyelembe
         // a már meglévő inventory tartalmát.
@@ -201,7 +215,7 @@ public sealed class QuestManager
     }
 
     /// <summary>
-    /// Aktiválja az NPC összes jelenleg elérhető questjét.
+    /// Aktiválja az NPC összes jelenleg általánosan felajánlható questjét.
     /// </summary>
     public IReadOnlyList<QuestHandle> ActivateAvailableForNpc(QuestNpcId npcId, QuestNpcInstanceId instanceId = default)
     {
@@ -209,6 +223,12 @@ public sealed class QuestManager
             .ActivateAvailableForNpc(
                 npcId,
                 instanceId);
+
+        foreach (var state in states)
+        {
+            QuestChanged?.Invoke(CreateHandle(state));
+            _progressEngine.SynchronizeExplorationObjective(state);
+        }
 
         if (states.Any(state =>
                 _catalog.Get(state.QuestId).Objective
@@ -231,6 +251,7 @@ public sealed class QuestManager
                 giverInstanceId);
 
         state.Abandon();
+        QuestChanged?.Invoke(CreateHandle(state));
 
         return CreateHandle(state);
     }
@@ -271,6 +292,17 @@ public sealed class QuestManager
     {
         return _progressEngine.Process(
             new LocationReachedEvent(location));
+    }
+
+    public IReadOnlyList<QuestProgressChange> RegisterLocationDiscovered(QuestLocation location) =>
+        _progressEngine.Process(new LocationDiscoveredEvent(location));
+
+    public IReadOnlyList<QuestProgressChange> RegisterNpcReachedLocation(
+        QuestNpcId npcId, QuestNpcInstanceId instanceId, QuestLocation location)
+    {
+        if (npcId == QuestNpcId.None) throw new ArgumentException("A kísérő NPC azonosítója kötelező.", nameof(npcId));
+        if (instanceId.IsNone) throw new ArgumentException("A kísérő példányazonosítója kötelező.", nameof(instanceId));
+        return _progressEngine.Process(new NpcReachedLocationEvent(npcId, instanceId, location));
     }
 
     /// <summary>

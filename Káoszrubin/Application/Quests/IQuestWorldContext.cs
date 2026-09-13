@@ -26,6 +26,11 @@ public interface IQuestWorldContext
     /// </summary>
     bool IsNpcAliveAndFollowing(QuestNpcId npcId, QuestNpcInstanceId instanceId);
 
+    bool IsNpcAtLocation(QuestNpcId npcId, QuestNpcInstanceId instanceId, QuestLocation location);
+
+    /// <summary>Az aktuális helyszín felfedezett helyei; pályaváltáskor a világ határozza meg újra.</summary>
+    bool HasDiscoveredLocation(QuestLocation location);
+
     /// <summary>
     /// Visszaadja az adott NPC aktuális, quest-rendszer számára
     /// értelmezett történetállapotát.

@@ -15,5 +15,9 @@ public enum QuestStoryState
     Trusted,
 
     // A Sir Malrec harc speciális Roderic-állapota.
-    MalrecFight
+    MalrecFight,
+    ProofActive,
+    InsigniasActive,
+    Following,
+    MalrecApproach
 }

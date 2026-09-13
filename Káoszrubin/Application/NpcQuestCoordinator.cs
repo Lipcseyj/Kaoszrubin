@@ -39,8 +39,7 @@ public sealed class NpcQuestCoordinator
     public void SynchronizeQuestJournal(
         Dictionary<string, QuestJournalEntrySnapshot> questJournal,
         WorldNpc npc,
-        NpcQuestDefinition quest,
-        int? visibleProgress = null)
+        NpcQuestDefinition quest)
     {
         ArgumentNullException.ThrowIfNull(questJournal);
         ArgumentNullException.ThrowIfNull(npc);
@@ -63,6 +62,18 @@ public sealed class NpcQuestCoordinator
                 .For(npcId, instanceId)
                 .GetQuest(typedQuestId);
 
+        SynchronizeQuestJournal(questJournal, questHandle);
+    }
+
+    /// <summary>Csak projekció: a napló soha nem módosítja a futásidejű állapotot.</summary>
+    public void SynchronizeQuestJournal(
+        Dictionary<string, QuestJournalEntrySnapshot> questJournal, QuestHandle questHandle)
+    {
+        ArgumentNullException.ThrowIfNull(questJournal);
+        ArgumentNullException.ThrowIfNull(questHandle);
+        var quest = _gameData.NpcQuests.Single(definition =>
+            LegacyQuestIdMap.ToQuestId(definition.Id) == questHandle.Id);
+
         // A legacy Offered állapot megfelelője nálunk
         // Locked vagy Available.
         // Ezek még nem kerülnek a naplóba.
@@ -76,20 +87,6 @@ public sealed class NpcQuestCoordinator
         questJournal.TryGetValue(
             quest.Id,
             out var previous);
-
-        // A journal régi mentésekből jelezheti, hogy
-        // a questet már elhagyták.
-        // Ezt átvezetjük az új QuestManager állapotába.
-        if (previous?.Status ==
-            QuestJournalStatus.Abandoned)
-        {
-            if (questHandle.IsInProgress)
-            {
-                questHandle.Abandon();
-            }
-
-            return;
-        }
 
         var status =
             questHandle.State switch
@@ -115,7 +112,7 @@ public sealed class NpcQuestCoordinator
             CreateQuestJournalEntry(
                 quest,
                 status,
-                visibleProgress ?? questHandle.Progress,
+                questHandle.Progress,
                 quest.ExperienceReward)
             with
             {

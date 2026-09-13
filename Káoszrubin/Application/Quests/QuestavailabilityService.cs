@@ -62,7 +62,8 @@ public sealed class QuestAvailabilityService
     }
 
     /// <summary>
-    /// Visszaadja az adott NPC jelenleg felvehető questjeit.
+    /// Visszaadja az adott NPC jelenleg általánosan felajánlható questjeit.
+    /// A Story típusú küldetést csak konkrét Activate hívás indíthatja el.
     /// Előtte automatikusan frissíti az availability állapotukat.
     /// </summary>
     public IReadOnlyList<QuestRuntimeState> GetAvailableForNpc(
@@ -73,7 +74,8 @@ public sealed class QuestAvailabilityService
                 npcId,
                 instanceId)
             .Where(state =>
-                state.State == QuestState.Available)
+                state.State == QuestState.Available &&
+                _catalog.Get(state.QuestId).ActivationKind == QuestActivationKind.Offered)
             .ToArray();
     }
 

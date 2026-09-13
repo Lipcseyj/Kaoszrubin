@@ -15,21 +15,36 @@ public sealed class MazeQuestWorldContext : IQuestWorldContext
     private readonly Func<IItemDefinition, int> _countPartyItem;
     private readonly QuestNpcInstanceRegistry _instanceRegistry;
     private readonly Func<IItemDefinition, int, bool> _tryConsumePartyItem;
+    private readonly Func<QuestLocation, bool> _hasDiscoveredLocation;
+    public const int ExitEscortMaximumDistance = 3;
     public MazeQuestWorldContext(
         Func<Maze> getMaze,
         Func<IItemDefinition, int> countPartyItem,
         Func<IItemDefinition, int, bool> tryConsumePartyItem,
-        QuestNpcInstanceRegistry instanceRegistry)
+        QuestNpcInstanceRegistry instanceRegistry,
+        Func<QuestLocation, bool> hasDiscoveredLocation)
     {
         ArgumentNullException.ThrowIfNull(getMaze);
         ArgumentNullException.ThrowIfNull(countPartyItem);
         ArgumentNullException.ThrowIfNull(tryConsumePartyItem);
         ArgumentNullException.ThrowIfNull(instanceRegistry);
+        ArgumentNullException.ThrowIfNull(hasDiscoveredLocation);
 
         _getMaze = getMaze;
         _countPartyItem = countPartyItem;
         _tryConsumePartyItem = tryConsumePartyItem;
         _instanceRegistry = instanceRegistry;
+        _hasDiscoveredLocation = hasDiscoveredLocation;
+    }
+
+    public bool HasDiscoveredLocation(QuestLocation location) => _hasDiscoveredLocation(location);
+
+    public bool IsNpcAtLocation(QuestNpcId npcId, QuestNpcInstanceId instanceId, QuestLocation location)
+    {
+        var npc = FindNpc(npcId, instanceId);
+        return location == QuestLocation.Exit && npc is not null &&
+            FindTemporaryFollowerAvatar(npc) is { } avatar &&
+            Manhattan(avatar.Position, _getMaze().Exit) <= ExitEscortMaximumDistance;
     }
 
     public QuestNpcInstanceId GetInstanceId(
@@ -199,7 +214,7 @@ public sealed class MazeQuestWorldContext : IQuestWorldContext
     {
         var maze = _getMaze();
 
-        return (IEnumerable<WorldNpc>)maze.WorldNpcs
+        return maze.WorldNpcs
             .Concat(
                 maze.PartyMembers
                     .Where(member =>
@@ -207,7 +222,7 @@ public sealed class MazeQuestWorldContext : IQuestWorldContext
                     .Select(member =>
                         member.TemporaryFollower!))
             .Where(npc => npc.IsQuestNpc)
-            .Distinct(ReferenceEqualityComparer.Instance);
+            .Distinct<WorldNpc>(ReferenceEqualityComparer.Instance);
     }
 
     private static QuestNpcId GetQuestNpcId(

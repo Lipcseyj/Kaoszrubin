@@ -61,14 +61,28 @@ public sealed class QuestCatalogBuilder
             Scope: scope,
             RepeatPolicy: QuestRepeatPolicy.Once,
             ActivationRequirement:
-                CreateActivationRequirement(source),
+                CreateStoryActivationRequirement(id) ?? CreateActivationRequirement(source),
             FixedRewardItem:
                 ResolveRewardItem(source.RewardItemId),
             FixedRewardItemCount:
                 source.RewardItemCount,
             RandomRewardCount:
-                source.RandomRewardCount);
+                source.RandomRewardCount,
+            ActivationKind: id is QuestId.RodericTheDeadAreNotPrey or
+                QuestId.RodericFallenComradesInsignia or QuestId.RodericOathbreakerKnight
+                    ? QuestActivationKind.Story : QuestActivationKind.Offered);
     }
+
+    // A történeti választás a hatás végrehajtása ELŐTT állítja át az NPC állapotát.
+    // A Malrec-küldetés a helyszínre induláskor nyílik meg, nem már TRUSTED állapotban.
+    private static QuestActivationRequirement? CreateStoryActivationRequirement(QuestId id) => id switch
+    {
+        QuestId.RodericTheDeadAreNotPrey => new QuestActivationRequirement.StoryStateEquals(QuestStoryState.ProofActive),
+        QuestId.RodericFallenComradesInsignia => new QuestActivationRequirement.StoryStateEquals(QuestStoryState.InsigniasActive),
+        QuestId.RodericSharedBladeTrial => new QuestActivationRequirement.StoryStateEquals(QuestStoryState.Following),
+        QuestId.RodericOathbreakerKnight => new QuestActivationRequirement.StoryStateEquals(QuestStoryState.MalrecApproach),
+        _ => null
+    };
 
     private QuestObjective CreateObjective(NpcQuestDefinition source, QuestNpcId giver, QuestId questId)
     {

@@ -37,6 +37,10 @@ public static class LegacyQuestStoryStateMap
             "3" => QuestStoryState.State3,
             "TRUSTED" => QuestStoryState.Trusted,
             "MALREC_FIGHT" => QuestStoryState.MalrecFight,
+            "PROOF_ACTIVE" => QuestStoryState.ProofActive,
+            "INSIGNIAS_ACTIVE" => QuestStoryState.InsigniasActive,
+            "FOLLOWING" => QuestStoryState.Following,
+            "MALREC_APPROACH" => QuestStoryState.MalrecApproach,
             _ => QuestStoryState.None
         };
 

@@ -18,6 +18,13 @@ public sealed record QuestDefinition(
     QuestActivationRequirement? ActivationRequirement = null,
     IItemDefinition? FixedRewardItem = null,
     int FixedRewardItemCount = 0,
-    int RandomRewardCount = 0);
+    int RandomRewardCount = 0,
+    QuestActivationKind ActivationKind = QuestActivationKind.Offered);
+
+public enum QuestActivationKind
+{
+    Offered,
+    Story
+}
 
 //Később, ha ténylegesen lesz olyan quest, amelyhez egyszerre több követelmény kell, az ActivationRequirement maga lehet például egy AllOf kompozit. Nem kell már most bonyolítanunk.

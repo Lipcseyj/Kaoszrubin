@@ -24,17 +24,23 @@ internal sealed class QuestTestFixture : IQuestWorldContext, IQuestRewardContext
     public List<(QuestNpcId Npc, QuestNpcInstanceId Instance, Enemy Enemy, int Distance)> CombatChecks { get; } = [];
     public bool ParticipatingInCombat { get; set; }
     public bool AliveAndFollowing { get; set; }
+    public bool AtLocation { get; set; }
+    public HashSet<QuestLocation> DiscoveredLocations { get; } = [];
+    public bool UseCharacterInventories { get; set; }
     public bool RejectConsumption { get; set; }
     public bool BackpackFull { get; set; }
+    public bool StoreRewardsInInventory { get; set; }
     public int ConsumptionAttempts { get; private set; }
     public int ConsumedItems { get; private set; }
     public int RandomRewardRolls { get; private set; }
     public LiveCharacter SelectedCharacter { get; } = CreateCharacter("Vezér");
     public LiveCharacter Companion { get; } = CreateCharacter("Társ");
-    public IEnumerable<LiveCharacter> PartyMembers => [SelectedCharacter, Companion];
+    public List<LiveCharacter> Members { get; }
+    public IEnumerable<LiveCharacter> PartyMembers => Members;
 
     public QuestTestFixture(params QuestDefinition[] definitions)
     {
+        Members = [SelectedCharacter, Companion];
         var catalog = new QuestCatalog(definitions);
         var store = new QuestStateStore(catalog);
         var progress = new QuestProgressEngine(catalog, store, this);
@@ -64,7 +70,11 @@ internal sealed class QuestTestFixture : IQuestWorldContext, IQuestRewardContext
         new CharacterClassDefinition(CharacterClassIds.Harcos, "Harcos", PrimaryAbilities.Zero, false, 1.0),
         new PrimaryAbilities(5, 5, 5, 5), 20, 0, 0, 0);
 
-    public int CountPartyItem(IItemDefinition item) => Inventory.GetValueOrDefault(item);
+    public int CountPartyItem(IItemDefinition item) => UseCharacterInventories
+        ? PartyMembers.Sum(character => Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
+            .Where(index => character.Backpack[index]?.Id == item.Id)
+            .Sum(index => character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index)))
+        : Inventory.GetValueOrDefault(item);
 
     public bool TryConsumePartyItem(IItemDefinition item, int amount)
     {
@@ -86,6 +96,8 @@ internal sealed class QuestTestFixture : IQuestWorldContext, IQuestRewardContext
     }
 
     public bool IsNpcAliveAndFollowing(QuestNpcId npcId, QuestNpcInstanceId instanceId) => AliveAndFollowing;
+    public bool IsNpcAtLocation(QuestNpcId npcId, QuestNpcInstanceId instanceId, QuestLocation location) => AtLocation;
+    public bool HasDiscoveredLocation(QuestLocation location) => DiscoveredLocations.Contains(location);
 
     public IItemDefinition? RollRandomReward(int experienceReward)
     {
@@ -98,6 +110,7 @@ internal sealed class QuestTestFixture : IQuestWorldContext, IQuestRewardContext
         ownerName = SelectedCharacter.Name;
         if (BackpackFull) return false;
         StoredRewards.Add(item);
+        if (StoreRewardsInInventory) Inventory[item] = CountPartyItem(item) + 1;
         return true;
     }
 

@@ -59,6 +59,8 @@ public sealed class Game : ISessionCommandHandler
     private ICoopHostLoop? _activeCoopHost;
     private bool _coopSnapshotDirty = true;
     private bool _processingSessionCommands;
+    private bool _synchronizingQuestInventory;
+    private readonly QuestInventorySynchronizer _questInventorySynchronizer;
     private DateTime _nextCoopSnapshotHeartbeatUtc = DateTime.MinValue;
     private NarrativeSnapshot? _activeNarrative;
     private AdHocConversationSnapshot? _activeAdHocConversation;
@@ -185,6 +187,7 @@ public sealed class Game : ISessionCommandHandler
     {
         if (_maze is null || _player is null)
             throw new InvalidOperationException("Session snapshot csak inicializált játékból készíthető.");
+        SynchronizeInventoryQuests();
         var positions = new Dictionary<CharacterId, Position>
         {
             [SelectedCharacter.Id] = _player.Position
@@ -375,6 +378,8 @@ public sealed class Game : ISessionCommandHandler
         _questWorldContext = CreateQuestWorldContext();
         _questManager = CreateQuestManager(gameData);
         _npcQuestCoordinator = new NpcQuestCoordinator(_gameData, _questManager, _questWorldContext);
+        _questManager.QuestChanged += SynchronizeLegacyQuestProgress;
+        _questInventorySynchronizer = new QuestInventorySynchronizer(_questManager);
     }
 
     private MazeQuestWorldContext CreateQuestWorldContext()
@@ -402,7 +407,9 @@ public sealed class Game : ISessionCommandHandler
             },
 
         instanceRegistry:
-            _questNpcInstanceRegistry);
+            _questNpcInstanceRegistry,
+        hasDiscoveredLocation: location => location == QuestLocation.Exit &&
+            _fogOfWar is not null && _maze is not null && _fogOfWar.IsRevealed(_maze.Exit));
 
         return ret;
     }
@@ -1737,6 +1744,7 @@ public sealed class Game : ISessionCommandHandler
 
     private GameSaveData CreateGameSaveData()
     {
+        SynchronizeInventoryQuests();
         var state = _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
             _leaderTrail, _partyHoldingPosition, _partyRegrouping, _partyAttackMode, _hasRestedThisLevel, _partyScatterUntil,
             _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
@@ -2210,6 +2218,7 @@ public sealed class Game : ISessionCommandHandler
         finally
         {
             _processingSessionCommands = false;
+            SynchronizeInventoryQuests();
         }
     }
 
@@ -2217,8 +2226,10 @@ public sealed class Game : ISessionCommandHandler
 
     private void RequestCoopSnapshotPublish()
     {
+        SynchronizeInventoryQuests();
         MarkCoopSnapshotDirty();
-        if (!_processingSessionCommands) TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
+        if (!_processingSessionCommands && !_synchronizingQuestInventory)
+            TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
     }
 
     private void TryPublishScheduledCoopSnapshot(DateTime now)
@@ -2512,20 +2523,18 @@ public sealed class Game : ISessionCommandHandler
     {
         if (string.Equals(npc.StoryStateId, "PROOF_ACTIVE", StringComparison.OrdinalIgnoreCase))
         {
-            var quest = _gameData.NpcQuests.Single(value =>
-                string.Equals(value.Id, RodericGraveRespectQuestId, StringComparison.OrdinalIgnoreCase));
-            var progress = npc.Quests.Single(value =>
-                string.Equals(value.QuestId, quest.Id, StringComparison.OrdinalIgnoreCase));
-            if (progress.Progress < quest.RequiredCount)
+            var quest = _questManager.GetQuest(QuestId.RodericTheDeadAreNotPrey);
+            if (quest.Progress < quest.RequiredCount)
             {
                 ShowNpcStoryChoiceWithReplica(npc,
-                    $"Négy feltámasztott csontváz járja a közeli kriptákat. Eddig {progress.Progress}/4 bukott el.",
+                    $"Négy feltámasztott csontváz járja a közeli kriptákat. Eddig {quest.Progress}/4 bukott el.",
                     ["A sírokhoz nem nyúlunk. Visszatérünk ha végeztünk."]);
                 _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
                 return;
             }
 
             ProcessNpcQuests(npc, activateOffered: false);
+            if (!quest.IsCompleted) return;
             npc.SetStoryState("PROOF_COMPLETE");
             RunStoryConversation(npc);
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
@@ -2545,6 +2554,7 @@ public sealed class Game : ISessionCommandHandler
             }
 
             ProcessNpcQuests(npc, activateOffered: false);
+            if (!_questManager.GetQuest(QuestId.RodericFallenComradesInsignia).IsCompleted) return;
             npc.SetStoryState("CONFESSION");
             RunStoryConversation(npc);
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
@@ -2650,12 +2660,13 @@ public sealed class Game : ISessionCommandHandler
 
     private void ActivateNpcQuest(WorldNpc npc, string questId)
     {
-        if (!npc.ActivateQuest(questId)) return;
-        var quest = _gameData.NpcQuests.First(value =>
-            string.Equals(value.Id, questId, StringComparison.OrdinalIgnoreCase));
-        SynchronizeQuestJournal(npc, quest);
+        var quest = _questManager.For(LegacyNpcIdMap.ToQuestNpcId(npc.DefinitionId),
+            _questWorldContext.GetInstanceId(npc)).GetQuest(LegacyQuestIdMap.ToQuestId(questId));
+        if (quest.IsInProgress || quest.IsResolved) return;
+        quest.Activate();
         _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description} " +
             $"Jutalom: {quest.ExperienceReward} XP.", ConsoleColor.Cyan);
+        RequestCoopSnapshotPublish();
     }
 
     private void GrantRodericEmergencySupplies(WorldNpc npc)
@@ -2667,6 +2678,7 @@ public sealed class Game : ISessionCommandHandler
             new InventoryBundleEntry(_gameData.GetItem("T006"), 2),
             new InventoryBundleEntry(_gameData.GetItem("T002"), 4)
         };
+        // itt sose legyen CAHE_BLOCKED mert megakasztja a quest-et, helyette a be nem férő tárgyak kerüljenek a földre
         if (!InventoryBundleGrantService.TryGrant(CharacterRoster.Party.Members, bundle, out var lackingSpace))
         {
             npc.SetStoryState("CACHE_BLOCKED");
@@ -2761,14 +2773,6 @@ public sealed class Game : ISessionCommandHandler
         var activatedQuests =
             questNpc.ActivateAvailableQuests();
 
-        // Átmenetileg még tükrözzük a legacy WorldNpc.Quests
-        // és journal struktúrába.
-        foreach (var quest in activatedQuests)
-        {
-            SynchronizeLegacyQuestProgress(
-                quest);
-        }
-
         if (activatedQuests.Count > 0)
         {
             ForceCoopSnapshotPublish();
@@ -2834,11 +2838,6 @@ public sealed class Game : ISessionCommandHandler
 
             foreach (var quest in activated)
             {
-                // Átmenetileg még tükrözzük a régi WorldNpc.Quests
-                // és journal struktúrába.
-                SynchronizeLegacyQuestProgress(
-                    quest);
-
                 _renderer.DrawInventoryMessage(
                     $"📜 Új küldetés: {quest.Title} — " +
                     $"{quest.Description} " +
@@ -2850,7 +2849,7 @@ public sealed class Game : ISessionCommandHandler
 
         // A collect questek progressze nem additív,
         // hanem az aktuális inventoryból származik.
-        _questManager.SynchronizeCollectQuests();
+        ProcessQuestProgressChanges(_questManager.SynchronizeCollectQuests());
 
         // Frissen kérjük le, mert az aktiválás és az inventory
         // szinkron közben változhatott az állapotuk.
@@ -2860,11 +2859,6 @@ public sealed class Game : ISessionCommandHandler
 
         foreach (var quest in quests)
         {
-            // Amíg a journal és néhány legacy WorldNpc funkció
-            // a régi struktúrát használja, tartsuk szinkronban.
-            SynchronizeLegacyQuestProgress(
-                quest);
-
             // --------------------------------------------------------
             // Még nincs kész
             // --------------------------------------------------------
@@ -2978,9 +2972,6 @@ public sealed class Game : ISessionCommandHandler
             // --------------------------------------------------------
             // Legacy journal frissítése
             // --------------------------------------------------------
-
-            SynchronizeLegacyQuestProgress(
-                quest);
 
             var experienceSummary =
                 FormatExperienceAwards(
@@ -3116,12 +3107,14 @@ public sealed class Game : ISessionCommandHandler
 
     private void AbandonQuest(string questId, bool notify)
     {
-        if (!_questJournal.TryGetValue(questId, out var entry) || entry.Status != QuestJournalStatus.Active) return;
-        foreach (var npc in CurrentQuestNpcs()) npc.AbandonQuest(questId);
-        _questJournal[questId] = entry with { Status = QuestJournalStatus.Abandoned };
+        var typedId = LegacyQuestIdMap.ToQuestId(questId);
+        var quests = _questManager.GetActiveQuests().Where(quest => quest.Id == typedId).ToArray();
+        if (quests.Length == 0) return;
+        // A napló a 3. migrációs lépésig még QuestId-alapú: a meglévő közös sor minden futását feladja.
+        foreach (var quest in quests) quest.Abandon();
         if (notify)
         {
-            var message = $"× Küldetés feladva: {entry.Title}.";
+            var message = $"× Küldetés feladva: {quests[0].Title}.";
             _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
             RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.DarkYellow);
         }
@@ -3130,10 +3123,10 @@ public sealed class Game : ISessionCommandHandler
 
     private void AbandonActiveQuestsFromNpc(string npcId)
     {
-        var questIds = _gameData.NpcQuests.Where(quest =>
-                string.Equals(quest.NpcId, npcId, StringComparison.OrdinalIgnoreCase))
-            .Select(quest => quest.Id).ToArray();
-        foreach (var questId in questIds) AbandonQuest(questId, notify: false);
+        var giver = LegacyNpcIdMap.ToQuestNpcId(npcId);
+        foreach (var quest in _questManager.GetActiveQuests().Where(quest => quest.Giver == giver))
+            quest.Abandon();
+        RequestCoopSnapshotPublish();
     }
 
     private IEnumerable<WorldNpc> CurrentQuestNpcs() =>
@@ -3221,11 +3214,14 @@ public sealed class Game : ISessionCommandHandler
                 _gameData, CurrentHostCoopWindowStatus));
     }
 
-    private IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal() =>
-        NpcQuestCoordinator.OrderedQuestJournal(_questJournal.Values);
+    private IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal()
+    {
+        SynchronizeInventoryQuests();
+        return NpcQuestCoordinator.OrderedQuestJournal(_questJournal.Values);
+    }
 
-    private void SynchronizeQuestJournal(WorldNpc npc, NpcQuestDefinition quest, int? visibleProgress = null) =>
-        _npcQuestCoordinator.SynchronizeQuestJournal(_questJournal, npc, quest, visibleProgress);
+    private void SynchronizeQuestJournal(WorldNpc npc, NpcQuestDefinition quest) =>
+        _npcQuestCoordinator.SynchronizeQuestJournal(_questJournal, npc, quest);
 
     private QuestJournalEntrySnapshot CreateQuestJournalEntry(NpcQuestDefinition quest,
         QuestJournalStatus status, int progress, int experienceReward) =>
@@ -3316,9 +3312,6 @@ public sealed class Game : ISessionCommandHandler
                     change.QuestId,
                     change.GiverInstanceId);
 
-            SynchronizeLegacyQuestProgress(
-                quest);
-
             var color =
                 change.BecameReadyToTurnIn
                     ? ConsoleColor.Cyan
@@ -3342,64 +3335,24 @@ public sealed class Game : ISessionCommandHandler
     private void SynchronizeLegacyQuestProgress(
     QuestHandle quest)
     {
-        var legacyDefinition =
-            _gameData.NpcQuests.Single(
-                definition =>
-                    LegacyQuestIdMap.ToQuestId(
-                        definition.Id)
-                    == quest.Id);
+        LegacyQuestProgressProjection.Synchronize(
+            _questWorldContext.ResolveNpc(quest.Giver, quest.GiverInstanceId), quest);
+        _npcQuestCoordinator.SynchronizeQuestJournal(_questJournal, quest);
+        MarkCoopSnapshotDirty();
+    }
 
-        var npc =
-            _questWorldContext.ResolveNpc(
-                quest.Giver,
-                quest.GiverInstanceId);
-
-        if (npc is null)
-            return;
-
-        var legacyState =
-            quest.State switch
-            {
-                QuestState.Locked =>
-                    NpcQuestState.Offered,
-
-                QuestState.Available =>
-                    NpcQuestState.Offered,
-
-                QuestState.Active =>
-                    NpcQuestState.Active,
-
-                QuestState.ReadyToTurnIn =>
-                    NpcQuestState.Active,
-
-                QuestState.Completed =>
-                    NpcQuestState.Completed,
-
-                QuestState.Failed =>
-                    NpcQuestState.Abandoned,
-
-                _ => throw new ArgumentOutOfRangeException()
-            };
-
-        var restored =
-            npc.Quests
-                .Select(progress =>
-                    LegacyQuestIdMap.ToQuestId(
-                        progress.QuestId) == quest.Id
-                        ? progress with
-                        {
-                            State = legacyState,
-                            Progress = quest.Progress
-                        }
-                        : progress)
-                .ToArray();
-
-        npc.RestoreQuests(restored);
-
-        SynchronizeQuestJournal(
-            npc,
-            legacyDefinition,
-            quest.Progress);
+    private void SynchronizeInventoryQuests()
+    {
+        if (_synchronizingQuestInventory || _maze is null) return;
+        _synchronizingQuestInventory = true;
+        try
+        {
+            ProcessQuestProgressChanges(_questInventorySynchronizer.Synchronize(CharacterRoster.Party.Members));
+        }
+        finally
+        {
+            _synchronizingQuestInventory = false;
+        }
     }
 
     private void ProcessPendingNpcQuestCompletions()
@@ -3790,6 +3743,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void ForceCoopSnapshotPublish()
     {
+        SynchronizeInventoryQuests();
         MarkCoopSnapshotDirty();
         if (_activeCoopHost is null || !_activeCoopHost.TryPublish(CreateSessionSnapshot())) return;
         _coopSnapshotDirty = false;
@@ -4244,7 +4198,7 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
         if (_maze.PartyMembers.FirstOrDefault(member => member.IsTemporaryFollower) is { } escort &&
-            Manhattan(escort.Position, _player.Position) > 3)
+            Manhattan(escort.Position, _player.Position) > MazeQuestWorldContext.ExitEscortMaximumDistance)
         {
             _renderer.DrawInventoryMessage($"🌿 {escort.Character.Name} túl messze van a kijárattól. Várjátok meg vagy hívjátok magatokhoz Gyülekező paranccsal.",
                 ConsoleColor.Yellow);
@@ -4374,16 +4328,9 @@ public sealed class Game : ISessionCommandHandler
         var avatar = _maze.PartyMembers.FirstOrDefault(member => member.TemporaryFollower is not null);
         if (avatar?.TemporaryFollower is not { } follower) return;
         if (string.Equals(follower.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase)) return;
-        foreach (var progress in follower.Quests.Where(value => value.State == NpcQuestState.Active).ToArray())
-        {
-            var quest = _gameData.NpcQuests.FirstOrDefault(value =>
-                string.Equals(value.Id, progress.QuestId, StringComparison.OrdinalIgnoreCase));
-            if (quest is { Type: NpcQuestType.Escort })
-            {
-                follower.AddQuestProgress(quest.Id, 1, quest.RequiredCount);
-                SynchronizeQuestJournal(follower, quest);
-            }
-        }
+        ProcessQuestProgressChanges(_questManager.RegisterNpcReachedLocation(
+            LegacyNpcIdMap.ToQuestNpcId(follower.DefinitionId),
+            _questWorldContext.GetInstanceId(follower), QuestLocation.Exit));
         ProcessNpcQuests(follower);
         follower.AdjustFriendliness(2);
 
@@ -6535,7 +6482,7 @@ public sealed class Game : ISessionCommandHandler
         if (_fogOfWar.IsRevealed(_maze.Exit))
         {
             _backgroundMusic.MarkExitDiscovered();
-            if (!exitWasRevealed) ProcessQuestProgressChanges(_questManager.RegisterLocationReached(QuestLocation.Exit));
+            if (!exitWasRevealed) ProcessQuestProgressChanges(_questManager.RegisterLocationDiscovered(QuestLocation.Exit));
         }
         return revealed;
     }
