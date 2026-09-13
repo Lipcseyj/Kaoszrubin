@@ -8,7 +8,7 @@ namespace KaoszRubin.Application.Quests;
 public sealed class QuestStateStore
 {
     private readonly QuestCatalog _catalog;
-    private readonly Dictionary<QuestStateKey, QuestRuntimeState> _states = [];
+    private readonly Dictionary<QuestKey, QuestRuntimeState> _states = [];
 
     public IReadOnlyCollection<QuestRuntimeState> All =>
         _states.Values;
@@ -18,6 +18,53 @@ public sealed class QuestStateStore
         ArgumentNullException.ThrowIfNull(catalog);
 
         _catalog = catalog;
+    }
+
+    public IReadOnlyList<QuestStateSnapshot> Export() => _states.Values
+        .OrderBy(state => state.QuestId).ThenBy(state => state.GiverInstanceId.Value)
+        .Select(state => new QuestStateSnapshot(state.QuestId, state.GiverInstanceId,
+            state.State, state.Progress, state.CompletionCount)).ToArray();
+
+    /// <summary>
+    /// A teljes bemenet ellenőrzése után cseréli az állapotot, jutalmazás és aktiválás nélkül.
+    /// A visszatöltött kulcsok meglévő handle-jeit megtartja; a hiányzó futásokat leválasztja.
+    /// </summary>
+    public void Restore(IEnumerable<QuestStateSnapshot> snapshots)
+    {
+        ArgumentNullException.ThrowIfNull(snapshots);
+        var restored = new Dictionary<QuestKey, QuestStateSnapshot>();
+        foreach (var snapshot in snapshots)
+        {
+            ArgumentNullException.ThrowIfNull(snapshot);
+            var definition = _catalog.Get(snapshot.QuestId);
+            var key = CreateKey(snapshot.QuestId, snapshot.GiverInstanceId);
+            if (key.GiverInstanceId != snapshot.GiverInstanceId)
+                throw new InvalidDataException($"A globális quest példányazonosítója csak None lehet: {snapshot.QuestId}.");
+            var validProgress = snapshot.State switch
+            {
+                QuestState.Locked or QuestState.Available => snapshot.Progress == 0,
+                QuestState.Active => snapshot.Progress >= 0 && snapshot.Progress < definition.Objective.RequiredCount,
+                QuestState.ReadyToTurnIn or QuestState.Completed => snapshot.Progress == definition.Objective.RequiredCount,
+                QuestState.Failed => snapshot.Progress >= 0 && snapshot.Progress <= definition.Objective.RequiredCount,
+                _ => false
+            };
+            if (!validProgress || snapshot.CompletionCount < 0 ||
+                snapshot.State == QuestState.Completed && snapshot.CompletionCount == 0 ||
+                definition.RepeatPolicy == QuestRepeatPolicy.Once &&
+                snapshot.CompletionCount != (snapshot.State == QuestState.Completed ? 1 : 0))
+                throw new InvalidDataException($"Érvénytelen questállapot: {snapshot.QuestId}/{snapshot.State}, " +
+                    $"progress={snapshot.Progress}, completionCount={snapshot.CompletionCount}.");
+            if (!restored.TryAdd(key, snapshot))
+                throw new InvalidDataException($"Ismétlődő questfutás: {key}.");
+        }
+
+        foreach (var key in _states.Keys.Except(restored.Keys).ToArray())
+        {
+            _states[key].Restore(QuestState.Locked, 0, 0);
+            _states.Remove(key);
+        }
+        foreach (var (key, snapshot) in restored)
+            GetOrCreate(key.QuestId, key.GiverInstanceId).Restore(snapshot.State, snapshot.Progress, snapshot.CompletionCount);
     }
 
     /// <summary>
@@ -143,7 +190,7 @@ public sealed class QuestStateStore
                 QuestState.ReadyToTurnIn)
         .ToArray();
 
-    private QuestStateKey CreateKey(
+    private QuestKey CreateKey(
         QuestId questId,
         QuestNpcInstanceId giverInstanceId)
     {
@@ -152,13 +199,13 @@ public sealed class QuestStateStore
         return definition.Scope switch
         {
             QuestScope.Global =>
-                new QuestStateKey(
+                new QuestKey(
                     questId,
                     QuestNpcInstanceId.None),
 
             QuestScope.PerNpcInstance
                 when !giverInstanceId.IsNone =>
-                new QuestStateKey(
+                new QuestKey(
                     questId,
                     giverInstanceId),
 
@@ -174,7 +221,4 @@ public sealed class QuestStateStore
         };
     }
 
-    private readonly record struct QuestStateKey(
-        QuestId QuestId,
-        QuestNpcInstanceId GiverInstanceId);
 }

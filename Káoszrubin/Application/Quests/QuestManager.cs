@@ -99,6 +99,27 @@ public sealed class QuestManager
     /// </summary>
     public EliraNpcApi Elira { get; }
 
+    /// <summary>A teljes hiteles állapot másolata, a lezárt és már nem jelen lévő NPC-k futásaival együtt.</summary>
+    public IReadOnlyList<QuestStateSnapshot> ExportState() => _stateStore.Export();
+
+    /// <summary>
+    /// Visszaállítja a validált állapotot, majd a betöltött világ és inventory alapján egyeztet.
+    /// Nem aktivál vagy jutalmaz; csak az egyeztetett állapotból küld projekciós értesítést.
+    /// </summary>
+    public void RestoreState(IEnumerable<QuestStateSnapshot> snapshots)
+    {
+        _stateStore.Restore(snapshots);
+        _availability.RefreshRestoredStates();
+        _progressEngine.SynchronizeCollectObjectives();
+        PublishState();
+    }
+
+    /// <summary>Világváltás után újraküldi a projekciókat a jelenlegi állapot visszatekerése nélkül.</summary>
+    public void PublishState()
+    {
+        foreach (var state in _stateStore.All) QuestChanged?.Invoke(CreateHandle(state));
+    }
+
     // ------------------------------------------------------------
     // NEM egyedi Npc támogatás
     // ------------------------------------------------------------

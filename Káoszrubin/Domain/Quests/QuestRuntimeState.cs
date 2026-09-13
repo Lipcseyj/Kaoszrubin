@@ -45,6 +45,14 @@ public sealed class QuestRuntimeState
         State = state;
     }
 
+    // Csak a katalógussal együtt validáló állapottár hívja; nem játszik vissza játékmeneti műveleteket.
+    internal void Restore(QuestState state, int progress, int completionCount)
+    {
+        State = state;
+        Progress = progress;
+        CompletionCount = completionCount;
+    }
+
     internal void Activate()
     {
         if (State != QuestState.Available)

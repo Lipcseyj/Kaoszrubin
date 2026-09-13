@@ -150,6 +150,12 @@ public sealed class QuestAvailabilityService
         return available;
     }
 
+    internal void RefreshRestoredStates()
+    {
+        foreach (var state in _stateStore.All)
+            RefreshAvailability(_catalog.Get(state.QuestId), state, state.GiverInstanceId);
+    }
+
     private void RefreshAvailability(
         QuestDefinition definition,
         QuestRuntimeState state,

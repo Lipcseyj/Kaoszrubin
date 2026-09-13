@@ -176,6 +176,7 @@ public sealed class Game : ISessionCommandHandler
     private MazeQuestWorldContext _questWorldContext;
     private readonly QuestManager _questManager;
     private readonly QuestNpcInstanceRegistry _questNpcInstanceRegistry;
+    private readonly QuestSaveAdapter _questSaveAdapter;
     #endregion
 
     public CharacterRoster CharacterRoster { get; }
@@ -332,7 +333,8 @@ public sealed class Game : ISessionCommandHandler
         _gameSaveService = gameSaveService;
         _formation = PartyFormationRules.CreateDefault(characterRoster.Party.Members.Select(member => member.Id),
             selectedCharacter.Id);
-        _gameStateMapper = new GameStateMapper(gameData, characterRoster, selectedCharacter);
+        _questNpcInstanceRegistry = new QuestNpcInstanceRegistry();
+        _gameStateMapper = new GameStateMapper(gameData, characterRoster, selectedCharacter, _questNpcInstanceRegistry);
         _loadedState = loadedState;
         _session = session ?? new GameSession(characterRoster.Party, selectedCharacter);
         _musicSettings = musicSettings ?? new GameSettingsService();
@@ -374,9 +376,9 @@ public sealed class Game : ISessionCommandHandler
         _partyAiController = new PartyAiController(_random);
         _partyCommandState = new PartyCommandState(false, false, false, null);
         _commandDispatcher = new SessionCommandDispatcher(_session, this, selectedCharacter.Id);
-        _questNpcInstanceRegistry = new QuestNpcInstanceRegistry();
         _questWorldContext = CreateQuestWorldContext();
         _questManager = CreateQuestManager(gameData);
+        _questSaveAdapter = new QuestSaveAdapter(gameData, _questNpcInstanceRegistry);
         _npcQuestCoordinator = new NpcQuestCoordinator(_gameData, _questManager, _questWorldContext);
         _questManager.QuestChanged += SynchronizeLegacyQuestProgress;
         _questInventorySynchronizer = new QuestInventorySynchronizer(_questManager);
@@ -1270,8 +1272,6 @@ public sealed class Game : ISessionCommandHandler
                         State = currentRoderic.State,
                         Friendliness = currentRoderic.Friendliness,
                         Behavior = currentRoderic.Behavior,
-                        QuestIds = currentRoderic.QuestIds.ToList(),
-                        Quests = currentRoderic.Quests.ToList(),
                         ConversationStage = currentRoderic.ConversationStage,
                         StoryStateId = currentRoderic.StoryStateId
                     }
@@ -1280,7 +1280,7 @@ public sealed class Game : ISessionCommandHandler
             }
         }
 
-        var restored = _gameStateMapper.Restore(suspended);
+        var restored = _gameStateMapper.Restore(suspended, skipDepartedNpcCharacters: true);
         _mazeLevel = restored.MazeLevel;
         _locationKind = AdventureLocationKind.Campaign;
         _locationId = string.IsNullOrWhiteSpace(suspended.LocationId)
@@ -1313,6 +1313,9 @@ public sealed class Game : ISessionCommandHandler
         CaptureExpeditionEnemyTemplates();
         _battleStarted = false;
         _session.SetPhase(GameSessionPhase.Exploration);
+        // A kampány pillanatképe csak a világot állítja vissza: a questhaladás azóta előreléphetett.
+        _questManager.SynchronizeCollectQuests();
+        _questManager.PublishState();
         RevealFor(SelectedCharacter, _player.Position);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
         _renderer.DrawInventoryMessage("↩ Visszatértetek a katakombák ugyanazon pontjára.", ConsoleColor.Cyan);
@@ -1749,7 +1752,9 @@ public sealed class Game : ISessionCommandHandler
             _leaderTrail, _partyHoldingPosition, _partyRegrouping, _partyAttackMode, _hasRestedThisLevel, _partyScatterUntil,
             _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
         state.QuestJournal = _questJournal.Values.Select(entry => new QuestJournalSaveData(entry.QuestId,
-            entry.Status, entry.Progress, entry.ExperienceReward)).ToList();
+            entry.Status, entry.Progress, entry.ExperienceReward,
+            entry.CompletionExperienceSummary, entry.CompletionItemRewardSummary)).ToList();
+        state.Quests = _questSaveAdapter.Export(_questManager);
         state.LocationKind = _locationKind;
         state.LocationId = _locationId;
         state.DifficultyLevel = _difficultyLevel;
@@ -1788,6 +1793,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void RestoreGame(GameSaveData state)
     {
+        var questStates = _questSaveAdapter.PrepareRestore(state, CharacterRoster);
         var restored = _gameStateMapper.Restore(state);
         _mazeLevel = restored.MazeLevel;
         _locationKind = state.LocationKind;
@@ -1810,53 +1816,9 @@ public sealed class Game : ISessionCommandHandler
         _lastAdHocConversationUtc = state.LastAdHocConversationUtc?.UtcDateTime ?? DateTime.MinValue;
         _adHocConversationMazeLevel = state.AdHocConversationMazeLevel;
         _questJournal.Clear();
-        foreach (var saved in state.QuestJournal ?? [])
-            if (_gameData.NpcQuests.FirstOrDefault(quest => string.Equals(quest.Id, saved.QuestId,
-                    StringComparison.OrdinalIgnoreCase)) is { } quest)
-                _questJournal[quest.Id] = CreateQuestJournalEntry(quest, saved.Status, saved.Progress,
-                    saved.ExperienceReward);
         _renderer.SetGoldenKeyCount(_collectedBossKeyIds.Count);
         _maze = restored.Maze;
         CaptureExpeditionEnemyTemplates();
-        if (_questJournal.Count == 0)
-            foreach (var npc in _maze.WorldNpcs.Concat(_maze.PartyMembers
-                         .Where(member => member.TemporaryFollower is not null)
-                         .Select(member => member.TemporaryFollower!)))
-            foreach (var progress in npc.Quests.Where(progress => progress.State != NpcQuestState.Offered))
-                if (_gameData.NpcQuests.FirstOrDefault(quest => string.Equals(quest.Id, progress.QuestId,
-                        StringComparison.OrdinalIgnoreCase)) is { } quest)
-                    SynchronizeQuestJournal(npc, quest);
-        foreach (var npc in CurrentQuestNpcs())
-        {
-
-            var npcId = LegacyNpcIdMap.ToQuestNpcId(npc.DefinitionId);
-
-            var instanceId =
-                _questWorldContext.GetInstanceId(
-                    npc);
-
-            var questNpc =
-                _questManager.For(
-                    npcId,
-                    instanceId);
-
-            foreach (var progress in npc.Quests.Where(progress =>
-                         _questJournal.GetValueOrDefault(progress.QuestId)?.Status ==
-                         QuestJournalStatus.Abandoned))
-            {
-                var typedQuestId =
-                    LegacyQuestIdMap.ToQuestId(
-                        progress.QuestId);
-
-                var quest =
-                    questNpc.GetQuest(
-                        typedQuestId);
-
-                if (quest.IsInProgress)
-                    quest.Abandon();
-            }
-        }
-
         _player = restored.Player;
         _fogOfWar = restored.FogOfWar;
         _leaderFacing = restored.LeaderFacing;
@@ -1883,6 +1845,10 @@ public sealed class Game : ISessionCommandHandler
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _battleStarted = false;
         _gameOver = false;
+        // A roster, a világ és a fog már a betöltött állapotot mutatja. Nincs aktiválás vagy jutalmazás.
+        _questManager.RestoreState(questStates);
+        foreach (var entry in _questSaveAdapter.CreateJournal(_questManager))
+            _questJournal[entry.QuestId] = entry;
         RevealFor(SelectedCharacter, _player.Position);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
         _renderer.DrawDeveloperMessage(_locationKind == AdventureLocationKind.Quest
@@ -2995,6 +2961,8 @@ public sealed class Game : ISessionCommandHandler
 
             _questJournal[legacyQuest.Id] =
                 completedEntry;
+            _questSaveAdapter.RecordCompletion(quest, experienceSummary,
+                completedEntry.CompletionItemRewardSummary!);
 
             // --------------------------------------------------------
             // Visszajelzés

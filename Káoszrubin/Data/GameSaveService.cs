@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 21;
+    public const int CurrentVersion = 22;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -131,9 +131,20 @@ public static class GameSaveFormat
                 18 => MigrateVersion18To19(state),
                 19 => MigrateVersion19To20(state),
                 20 => MigrateVersion20To21(state),
+                21 => MigrateVersion21To22(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
+        if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion21To22(GameSaveData state)
+    {
+        // A típusos import a karakterek és a katalógus feloldása után történik.
+        // A null jelölés a save editorral újramentett legacy fájlokban is megmarad.
+        state.Quests = null;
+        state.Version = 22;
         return state;
     }
 
@@ -318,6 +329,7 @@ public sealed class GameSaveData
     public MazeSaveData Maze { get; set; } = new();
     public FogSaveData Fog { get; set; } = new();
     public List<QuestJournalSaveData> QuestJournal { get; set; } = [];
+    public QuestSaveData? Quests { get; set; }
     public List<string> UsedAdHocConversationIds { get; set; } = [];
     public DateTimeOffset? LastAdHocConversationUtc { get; set; }
     public int AdHocConversationMazeLevel { get; set; } = -1;
@@ -328,7 +340,8 @@ public sealed class GameSaveData
 public enum AdventureLocationKind { Campaign, Quest }
 
 public sealed record QuestJournalSaveData(string QuestId, QuestJournalStatus Status,
-    int Progress, int ExperienceReward);
+    int Progress, int ExperienceReward, string? CompletionExperienceSummary = null,
+    string? CompletionItemRewardSummary = null);
 
 public sealed class MazeSaveData
 {
@@ -395,7 +408,8 @@ public sealed record WorldNpcSaveData(Position Position, string DefinitionId, in
     NpcDisposition Disposition, bool Recruitable, bool IsQuestNpc, string Dialogue, WorldNpcState State,
     int Friendliness = 5, Domain.NpcWorldBehavior Behavior = Domain.NpcWorldBehavior.Guarded,
     List<string>? QuestIds = null, List<NpcQuestProgress>? Quests = null, int ConversationStage = 0,
-    string? StoryId = null, string StoryStateId = "INITIAL");
+    string? StoryId = null, string StoryStateId = "INITIAL", int QuestInstanceId = 0,
+    Guid? CharacterId = null);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);
 public sealed record TrapSaveData(Position Position, string DefinitionId, TrapState State,
     bool DetectionAttempted, int FailedDisarmAttempts);

@@ -1,6 +1,8 @@
 using System.Text;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Inventory;
+using KaoszRubin.Domain.Quests;
+using KaoszRubin.Infrastructure.Quests;
 
 namespace KaoszRubin.Data;
 
@@ -10,13 +12,15 @@ internal sealed class GameStateMapper
     private readonly GameDataCatalog _gameData;
     private readonly CharacterRoster _characterRoster;
     private readonly LiveCharacter _selectedCharacter;
+    private readonly QuestNpcInstanceRegistry _questInstances;
 
     public GameStateMapper(GameDataCatalog gameData, CharacterRoster characterRoster,
-        LiveCharacter selectedCharacter)
+        LiveCharacter selectedCharacter, QuestNpcInstanceRegistry? questInstances = null)
     {
         _gameData = gameData;
         _characterRoster = characterRoster;
         _selectedCharacter = selectedCharacter;
+        _questInstances = questInstances ?? new QuestNpcInstanceRegistry();
     }
 
     public GameSaveData Create(int mazeLevel, Maze maze, Player player, FogOfWar fogOfWar,
@@ -108,7 +112,7 @@ internal sealed class GameStateMapper
         };
     }
 
-    public RestoredGameState Restore(GameSaveData state)
+    public RestoredGameState Restore(GameSaveData state, bool skipDepartedNpcCharacters = false)
     {
         if (state.Maze.TileCodePoints.Count != state.Maze.Width * state.Maze.Height)
             throw new InvalidOperationException("A mentett térképrács mérete érvénytelen.");
@@ -161,18 +165,25 @@ internal sealed class GameStateMapper
             nextEnemyMoves[enemy] = now + TimeSpan.FromMilliseconds(remaining);
         }
         foreach (var avatar in state.Maze.PartyAvatars)
-            if (avatar.CharacterIndex >= 0 && avatar.CharacterIndex < _characterRoster.Characters.Count)
+        {
+            if (skipDepartedNpcCharacters && avatar.TemporaryFollower is { } savedNpc && IsDeparted(savedNpc)) continue;
+            if (avatar.TemporaryFollower?.CharacterId is not null ||
+                avatar.CharacterIndex >= 0 && avatar.CharacterIndex < _characterRoster.Characters.Count)
             {
                 WorldNpc? follower = avatar.TemporaryFollower is { } savedFollower
                     ? RestoreWorldNpc(savedFollower) : null;
                 maze.AddPartyMember(new PartyMemberAvatar(avatar.Position,
-                    _characterRoster.Characters[avatar.CharacterIndex], follower));
+                    follower?.Character ?? _characterRoster.Characters[avatar.CharacterIndex], follower));
             }
+        }
         foreach (var npc in state.Maze.Npcs ?? [])
-            if (npc.CharacterIndex >= 0 && npc.CharacterIndex < _characterRoster.Characters.Count)
+        {
+            if (skipDepartedNpcCharacters && IsDeparted(npc)) continue;
+            if (npc.CharacterId is not null || npc.CharacterIndex >= 0 && npc.CharacterIndex < _characterRoster.Characters.Count)
             {
                 maze.AddWorldNpc(RestoreWorldNpc(npc));
             }
+        }
         foreach (var corpse in state.Maze.Corpses)
         {
             var restored = corpse.PartyCharacterIndex is >= 0 and var characterIndex && characterIndex < _characterRoster.Characters.Count
@@ -216,19 +227,31 @@ internal sealed class GameStateMapper
     private int CharacterIndex(LiveCharacter character) => Enumerable.Range(0, _characterRoster.Characters.Count)
         .First(index => _characterRoster.Characters[index] == character);
 
+    // A felfüggesztett világban maradhat olyan követő, aki azóta végleg elhagyta a karakterlistát.
+    private bool IsDeparted(WorldNpcSaveData npc) => npc.CharacterId is { } id &&
+        !_characterRoster.Characters.Any(character => character.Id.Value == id);
+
     private WorldNpcSaveData SaveWorldNpc(WorldNpc npc) => new(npc.Position, npc.DefinitionId,
         CharacterIndex(npc.Character), npc.Disposition, npc.Recruitable, npc.IsQuestNpc,
         npc.Dialogue, npc.State, npc.Friendliness, npc.Behavior, npc.QuestIds.ToList(),
-        npc.Quests.ToList(), npc.ConversationStage, npc.StoryId, npc.StoryStateId);
+        npc.Quests.ToList(), npc.ConversationStage, npc.StoryId, npc.StoryStateId,
+        npc.IsQuestNpc ? _questInstances.GetOrCreate(npc).Value : 0, npc.Character.Id.Value);
 
     private WorldNpc RestoreWorldNpc(WorldNpcSaveData saved)
     {
         var restored = new WorldNpc(saved.Position, saved.DefinitionId,
-            _characterRoster.Characters[saved.CharacterIndex], saved.Disposition, saved.Recruitable,
-            saved.IsQuestNpc, saved.Dialogue, saved.State, saved.Friendliness, saved.Behavior, saved.QuestIds,
+            saved.CharacterId is { } id
+                ? _characterRoster.Characters.SingleOrDefault(character => character.Id.Value == id)
+                    ?? throw new InvalidDataException($"Hiányzó mentett NPC-karakter: {id}.")
+                : _characterRoster.Characters[saved.CharacterIndex], saved.Disposition, saved.Recruitable,
+            saved.IsQuestNpc, saved.Dialogue, saved.State, saved.Friendliness, saved.Behavior,
+            saved.IsQuestNpc ? _gameData.NpcQuests.Where(quest => string.Equals(quest.NpcId, saved.DefinitionId,
+                StringComparison.OrdinalIgnoreCase)).Select(quest => quest.Id).ToArray() : saved.QuestIds,
             saved.StoryId, saved.StoryStateId);
-        restored.RestoreQuests(saved.Quests ?? []);
+        // A legacy progress kizárólag a QuestSaveAdapter bemenete; ezt a nézetet a manager tölti fel.
         restored.RestoreConversationStage(saved.ConversationStage);
+        if (saved.IsQuestNpc && saved.QuestInstanceId > 0)
+            _questInstances.Restore(restored, new QuestNpcInstanceId(saved.QuestInstanceId));
         return restored;
     }
 

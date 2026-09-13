@@ -25,6 +25,18 @@ if (CoopHarnessOptions.TryParse(args, out var harnessOptions))
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A questállapot mentési köre nem játszik vissza játékmeneti műveleteket", QuestPersistenceTests.RuntimeRoundTripDoesNotReplayGameplay),
+    ("A hibás questállapot-import nem módosít részleges állapotot", QuestPersistenceTests.InvalidRuntimeImportIsAtomic),
+    ("A collect betöltése a visszaállított inventoryt használja", QuestPersistenceTests.CollectRestoreUsesLoadedInventory),
+    ("A questadó azonossága megmarad új világobjektum és registry-import esetén", QuestPersistenceTests.RegistryRetainsIdentityAcrossWorldObjects),
+    ("A régi questmentés külön NPC-állapotokkal és archívummal fordul körbe", QuestPersistenceTests.LegacySaveRoundTripsSeparateNpcStatesAndArchive),
+    ("A régi terminális questütközések nem aktiválnak újra", QuestPersistenceTests.LegacyTerminalConflictsNeverReactivate),
+    ("A hibás típusos mentés nem esik vissza legacy állapotokra", QuestPersistenceTests.TypedSaveRejectsCorruptionWithoutLegacyFallback),
+    ("A felfüggesztett világ megtartja a friss questállapotot és követőazonosságot", QuestPersistenceTests.SuspendedWorldRetainsCurrentQuestStateAndFollowerIdentity),
+    ("A mentett NPC karakterazonosítója túléli a roster átrendeződését", QuestPersistenceTests.PersistedCharacterIdSurvivesRosterReordering),
+    ("A questmentés verziómigrációja a felfüggesztett kampányt is kezeli", QuestPersistenceTests.VersionMigrationIncludesSuspendedCampaign),
+    ("A visszaállított világ kizárólag típusos questprogresst tükröz", QuestPersistenceTests.WorldRestoreUsesOnlyTypedProgress),
+    ("A régi NPC rekordja elsőbbséget élvez a példányhoz nem kötött naplóval szemben", QuestPersistenceTests.LegacyNpcRecordTakesPrecedenceOverUnboundJournal),
     ("A halottűzés az első körtől karakterenként tíz kör után újul meg", TurnUndeadRefreshesAfterTenRounds),
     ("A halottűzés mindkét kasztnál két mezőre hat alakzat nélkül is", TurnUndeadHasTwoCellRange),
     ("A buff és gyógyítás hangját a varázslótól és célponttól eltérő játékos is hallja", DefensiveSpellSoundIsShared),

@@ -1,83 +1,69 @@
-﻿using KaoszRubin.Domain.Quests;
+using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Quests;
 using KaoszRubin.World;
 
 namespace KaoszRubin.Infrastructure.Quests;
 
-//Most runtime közben ez már stabil.
-//A mentés/betöltéshez később ténylegesen el kell mentenünk az instance ID-t is, de ezért került bele már most a Restore().
+public sealed record QuestNpcIdentity(QuestNpcInstanceId InstanceId, CharacterId CharacterId, QuestNpcId NpcId);
 
 /// <summary>
-/// Stabil QuestNpcInstanceId értéket rendel az aktuális játék
-/// WorldNpc példányaihoz.
-///
-/// Ugyanaz a WorldNpc objektum mindig ugyanazt az instance ID-t kapja,
-/// függetlenül attól, hogy WorldNpc-ként vagy temporary followerré
-/// válva van jelen.
+/// A tartós karakterazonossághoz rendeli a quest NPC példányazonosítóját.
+/// Ugyanaz a követő több világpillanatképben is ugyanazt az azonosítót kapja.
+/// Az eltávozott NPC-k bejegyzéseit is megőrzi, ezért azonosítójuk nem használható fel újra.
 /// </summary>
 public sealed class QuestNpcInstanceRegistry
 {
-    private readonly Dictionary<WorldNpc, QuestNpcInstanceId> _ids =
-        new(ReferenceEqualityComparer.Instance);
+    private Dictionary<CharacterId, QuestNpcIdentity> _identities = [];
+    private Dictionary<QuestNpcInstanceId, CharacterId> _owners = [];
+    private long _nextId = 1;
 
-    private int _nextId = 1;
+    public QuestNpcInstanceId GetOrCreate(WorldNpc npc) =>
+        GetOrCreate(npc.Character.Id, LegacyNpcIdMap.ToQuestNpcId(npc.DefinitionId));
 
-    public QuestNpcInstanceId GetOrCreate(
-        WorldNpc npc)
+    internal QuestNpcInstanceId GetOrCreate(CharacterId characterId, QuestNpcId npcId)
     {
-        ArgumentNullException.ThrowIfNull(npc);
-
-        if (_ids.TryGetValue(npc, out var existing))
-            return existing;
-
-        var id =
-            new QuestNpcInstanceId(_nextId++);
-
-        _ids.Add(npc, id);
-
+        if (_identities.TryGetValue(characterId, out var identity))
+        {
+            if (identity.NpcId != npcId) throw new InvalidDataException("Az NPC karakterazonossága más NPC-típushoz tartozik.");
+            return identity.InstanceId;
+        }
+        if (_nextId > int.MaxValue) throw new InvalidOperationException("Elfogytak a quest NPC példányazonosítók.");
+        var id = new QuestNpcInstanceId((int)_nextId);
+        Register(new(id, characterId, npcId));
         return id;
     }
 
-    /// <summary>
-    /// Mentés visszatöltésekor lehetővé teszi egy korábbi
-    /// instance ID visszaállítását ugyanahhoz az NPC-hez.
-    /// </summary>
-    public void Restore(
-        WorldNpc npc,
-        QuestNpcInstanceId instanceId)
+    public void Restore(WorldNpc npc, QuestNpcInstanceId instanceId) =>
+        Register(new(instanceId, npc.Character.Id, LegacyNpcIdMap.ToQuestNpcId(npc.DefinitionId)));
+
+    public IReadOnlyList<QuestNpcIdentity> Export() =>
+        _identities.Values.OrderBy(identity => identity.InstanceId.Value).ToArray();
+
+    public void Import(IEnumerable<QuestNpcIdentity> identities)
     {
-        ArgumentNullException.ThrowIfNull(npc);
-
-        if (instanceId.IsNone)
-            throw new ArgumentException(
-                "QuestNpcInstanceId.None nem állítható vissza.",
-                nameof(instanceId));
-
-        if (_ids.TryGetValue(npc, out var existing))
+        ArgumentNullException.ThrowIfNull(identities);
+        var candidate = new QuestNpcInstanceRegistry();
+        foreach (var identity in identities)
         {
-            if (existing != instanceId)
-            {
-                throw new InvalidOperationException(
-                    $"Az NPC már más instance ID-val rendelkezik: " +
-                    $"{existing}.");
-            }
-
-            return;
+            if (candidate._identities.ContainsKey(identity.CharacterId))
+                throw new InvalidDataException("Ismétlődő NPC karakterazonosító a mentésben.");
+            candidate.Register(identity);
         }
+        _identities = candidate._identities;
+        _owners = candidate._owners;
+        _nextId = candidate._nextId;
+    }
 
-        if (_ids.Values.Contains(instanceId))
-        {
-            throw new InvalidOperationException(
-                $"A(z) '{instanceId}' quest NPC instance ID " +
-                "már használatban van.");
-        }
-
-        _ids.Add(
-            npc,
-            instanceId);
-
-        _nextId =
-            Math.Max(
-                _nextId,
-                instanceId.Value + 1);
+    private void Register(QuestNpcIdentity identity)
+    {
+        if (identity.InstanceId.IsNone || identity.CharacterId.Value == Guid.Empty ||
+            identity.NpcId == QuestNpcId.None || !Enum.IsDefined(identity.NpcId))
+            throw new InvalidDataException("Érvénytelen quest NPC azonosság.");
+        if (_identities.TryGetValue(identity.CharacterId, out var existing) && existing != identity ||
+            _owners.TryGetValue(identity.InstanceId, out var owner) && owner != identity.CharacterId)
+            throw new InvalidDataException("Ütköző quest NPC példányazonosító vagy karakterazonosság.");
+        _identities[identity.CharacterId] = identity;
+        _owners[identity.InstanceId] = identity.CharacterId;
+        _nextId = Math.Max(_nextId, (long)identity.InstanceId.Value + 1);
     }
 }

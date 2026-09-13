@@ -182,3 +182,75 @@ ezt a mostani csomag nem javította, és nem rögzíti helyes viselkedésként.
 Az első kiadható mérföldkő továbbra is az 1–2. lépés együtt: a típusos állapot
 legyen az egyetlen játékmeneti állapotforrás, stabil NPC-azonossággal és működő
 régi/új mentésbetöltéssel. A jelenlegi zöld tesztek ezt még nem igazolják.
+
+## 2026-09-13: a 2. lépés – tartós questazonosság és mentés/betöltés
+
+A megvalósítás a `doc/quest-readme.md` réteghatárait követi: a Game a
+QuestManager export/restore API-ját használja, a mentési séma és a régi adatok
+értelmezése az infrastruktúrában lévő QuestSaveAdapter feladata.
+
+### Elkészült változtatások
+
+- `QuestKey` és változatlan `QuestStateSnapshot`; a teljes bemenet ellenőrzése
+  után végrehajtott állapotcsere. Hibás kulcs, scope, progress, állapot,
+  completion count és duplikált futás nem okoz részleges állapotbetöltést.
+- 22-es mentési verzió, külön `Quests` blokk stabil szöveges quest/NPC ID-kkal
+  és állapotnevekkel, normalizált instance ID-val és completion counttal.
+  A kijelzési adatok és a tényleges jutalmazás szöveges összegzése futásonként
+  megmarad akkor is, ha az NPC már nincs a világban.
+- Az NPC registry a tartós CharacterId-hoz rendel questpéldány-azonosítót.
+  A mentés a világ NPC-inél mindkettőt tárolja; a korábban eltávozott NPC-k
+  registry-bejegyzései megmaradnak, az ID-k nem használódnak fel újra.
+- Betöltéskor az adapter előkészíti és ellenőrzi az identitásokat és állapotokat,
+  majd a mapper felépíti a világot. A Game ezután állítja vissza a típusos
+  állapotot, egyezteti az aktív collect objective-okat a betöltött inventoryval,
+  és állítja elő a naplót/kompatibilitási projekciókat. Nincs aktiválás,
+  tárgyfogyasztás vagy jutalmazás a restore során.
+- A GameStateMapper többé nem olvassa vissza az NPC-k flat questprogressét.
+  A régi adat csak a migrációs adapter bemenete; a WorldNpc-nézetet a manager
+  állapotváltozásai töltik fel.
+- A felfüggesztett kampány visszaállítása a világot cseréli; az aktuális
+  questállapotot nem tölti vissza a régebbi snapshotból. Az új WorldNpc objektum
+  ugyanahhoz a karakterhez ugyanazt az instance ID-t kapja. Egy közben végleg
+  eltávozott követőt a régi pillanatkép nem hoz vissza.
+
+### Régi mentések egyeztetési szabályai
+
+A hiányzó/null `Quests` blokk egyszeri legacy importot jelöl. Ez megmarad akkor
+is, ha a save editor a mentést már 22-es verzióval írja vissza. Jelen lévő, de
+érvénytelen típusos blokk nem esik vissza legacy adatokra.
+
+Offered → Locked/Available, Active → Active/ReadyToTurnIn, Completed →
+Completed és completion count 1, Abandoned → Failed. Collect esetén a betöltött
+készlet határozza meg az aktív futás tényleges progressét.
+
+Ugyanazon NPC több világpillanatképének, valamint a globális questek régi
+naplóadatainak egyeztetésében: Completed > Failed > Active/Ready > Offered;
+azonos rangnál a nagyobb progress marad. Az eltérések migrációs megjegyzést kapnak.
+PerNpcInstance questnél több vagy nulla lehetséges NPC esetén a régi napló
+archívumba kerül. Egyetlen lehetséges NPC mellett is annak saját állapota és
+progresse az elsődleges; eltérő állapotú naplótörténetet archiválunk. Egyező
+állapotnál a napló kijelzési/jutalomtörténeti adatai átvehetők. Ismeretlen régi
+naplóazonosító szintén megmarad az archívumban. Hibás NPC-azonosság vagy ismeretlen
+NPC-hez kötött questrekord esetén az import hibát jelez.
+
+### Ellenőrzés és a következő lépés
+
+A 12 új, külön regisztrált QuestPersistenceTests teszt az állapotimportot,
+a karakter- és JSON-mentési kört, a collect-egyeztetést, a jutalommentes
+betöltést, a külön NPC-példányokat, a legacy ütközéseket/archívumot, a hibás
+típusos adatok elutasítását, a felfüggesztett világot és a flat kimeneti projekciót
+ellenőrzi. Az új karakterlista valóban deszerializált LiveCharacter objektumokat
+használ. A Malrec-visszatérési teszt a valódi mapper/registry/manager/adapter
+láncot vizsgálja; interaktív Game/UI- és teljes történeti végigjátszás nem történt.
+
+- Teljes solution build: 0 hiba, 33 CS0618 figyelmeztetés (kiindulás: 35).
+- Teljes tesztkészlet: 268 PASS, 0 FAIL (kiindulás: 256 PASS).
+- `git diff --check`: nincs whitespace-hiba.
+- Nincs új figyelmeztetés-elnyomás; négy legacy enumhivatkozás az importerben
+  marad, a Game figyelmeztetései 12-ről 7-re, a mapperéi 3-ról 2-re csökkentek.
+
+Következő: a terv 3. lépése, a napló, UI-kiválasztás és gyorsutazás átállítása
+QuestKey-re. A mostani mentés külön tárolja a futásokat, de a régi stringkulcsú
+UI-napló még összevonhat azonos QuestId-jú sorokat. A coop szerződés és a
+Roderic/Elira történeti lezárások teljes átvezetése a terv későbbi lépéseiben marad.
