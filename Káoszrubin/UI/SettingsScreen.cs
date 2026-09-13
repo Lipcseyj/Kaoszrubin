@@ -16,7 +16,7 @@ public static class SettingsScreen
             if (key.Key is ConsoleKey.Escape or ConsoleKey.Enter) break;
 
             if (key.Key is ConsoleKey.Spacebar or ConsoleKey.M)
-                settings.Enabled = !settings.Enabled;
+                settings.MusicEnabled = !settings.MusicEnabled;
             else if (key.Key is ConsoleKey.E)
                 settings.SoundEffectsEnabled = !settings.SoundEffectsEnabled;
             else if (key.Key is ConsoleKey.G)
@@ -31,9 +31,9 @@ public static class SettingsScreen
                     ? PartyAvatarSet.Runes
                     : PartyAvatarSet.Letters;
             else if (key.Key is ConsoleKey.LeftArrow or ConsoleKey.DownArrow)
-                settings.VolumePercent = Math.Max(0, settings.VolumePercent - 5);
+                settings.MusicVolumePercent = Math.Max(0, settings.MusicVolumePercent - 5);
             else if (key.Key is ConsoleKey.RightArrow or ConsoleKey.UpArrow)
-                settings.VolumePercent = Math.Min(100, settings.VolumePercent + 5);
+                settings.MusicVolumePercent = Math.Min(100, settings.MusicVolumePercent + 5);
             else if (key.Key is ConsoleKey.A)
                 settings.SoundEffectsVolumePercent = Math.Max(0, settings.SoundEffectsVolumePercent - 5);
             else if (key.Key is ConsoleKey.D)
@@ -58,9 +58,9 @@ public static class SettingsScreen
         {
             "⚙️  BEÁLLÍTÁSOK",
             string.Empty,
-            $"Zene: {(settings.Enabled ? "BE" : "KI")}",
-            $"Hangerő: {settings.VolumePercent}%",
-            VolumeBar(settings.VolumePercent),
+            $"Zene: {(settings.MusicEnabled ? "BE" : "KI")}",
+            $"Hangerő: {settings.MusicVolumePercent}%",
+            VolumeBar(settings.MusicVolumePercent),
             $"Hangeffektek: {(settings.SoundEffectsEnabled ? "BE" : "KI")}",
             $"Effekthangerő: {settings.SoundEffectsVolumePercent}%",
             VolumeBar(settings.SoundEffectsVolumePercent),
@@ -90,7 +90,7 @@ public static class SettingsScreen
             Console.ForegroundColor = row switch
             {
                 0 => ConsoleColor.Yellow,
-                2 => settings.Enabled ? ConsoleColor.Green : ConsoleColor.DarkRed,
+                2 => settings.MusicEnabled ? ConsoleColor.Green : ConsoleColor.DarkRed,
                 3 or 4 or 6 or 7 or 8 or 9 => ConsoleColor.Cyan,
                 5 => settings.SoundEffectsEnabled ? ConsoleColor.Green : ConsoleColor.DarkRed,
                 _ => ConsoleColor.Gray

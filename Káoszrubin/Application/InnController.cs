@@ -64,7 +64,7 @@ internal sealed class InnController
         Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null,
         Func<IReadOnlyList<LiveCharacter>>? specialRecruitCandidates = null,
         Action<LiveCharacter>? specialRecruitAccepted = null,
-        Action<string, string, Action>? runHostWindow = null)
+        Action<string, string, Action>? runHostWindow = null, BackgroundMusicPlayer? backgroundMusicPlayer = null)
     {
         _gameData = gameData;
         _characterRoster = characterRoster;
@@ -81,6 +81,7 @@ internal sealed class InnController
         _specialRecruitCandidates = specialRecruitCandidates ?? (() => []);
         _specialRecruitAccepted = specialRecruitAccepted ?? (_ => { });
         _runHostWindow = runHostWindow ?? ((_, _, action) => action());
+        backgroundMusicPlayer?.SetReportCallback(message => _pendingHostTransactionMessages.Enqueue(message));
     }
 
     public InnSnapshot? CreateSnapshot()

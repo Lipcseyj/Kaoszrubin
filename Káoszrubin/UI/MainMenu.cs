@@ -95,12 +95,21 @@ public sealed class MainMenu
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
         _backgroundMusicPlayer = new BackgroundMusicPlayer(_musicSettings.Settings,
-            message => Debug.WriteLine(message));
+            message => SetMenuStatusBar(message));
         _characterRoster = _characterSaveService.Load();
         Log.Info("main-menu.characters.loaded", $"count={_characterRoster.Characters.Count}");
         _soundEffects = new SoundEffects(_musicSettings.Settings,
             message => Log.Warning("audio.sound-effect", message));
         Log.Info("main-menu.initialization.complete");
+    }
+
+    public void SetMenuStatusBar(string status)
+    {
+        var statusLine = PadRightDisplay(status, Console.WindowWidth);
+        Console.SetCursorPosition(0, Console.WindowHeight - 1);
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.Write(statusLine);
+        Console.ResetColor();
     }
 
     public void Run()
@@ -109,6 +118,8 @@ public sealed class MainMenu
 
         while (true)
         {
+            _backgroundMusicPlayer.SetReportCallback(message => SetMenuStatusBar(message));
+
             if (!_menuSoundPlayed)
             {
                 //_soundEffects.Play(SoundEffect.MainMenu);
@@ -160,7 +171,7 @@ public sealed class MainMenu
                     break;
                 case ConsoleKey.D8:
                 case ConsoleKey.NumPad8:
-                    SettingsScreen.Show(_musicSettings, _soundEffects.ApplySettings);
+                    SettingsScreen.Show(_musicSettings, ApplyAudioSettings);
                     break;
                 case ConsoleKey.D9:
                 case ConsoleKey.NumPad9:
@@ -173,6 +184,11 @@ public sealed class MainMenu
         }
     }
 
+    private void ApplyAudioSettings()
+    {
+        _soundEffects.ApplySettings();
+        _backgroundMusicPlayer.ApplySettings();
+    }
 
     private void StartGame()
     {

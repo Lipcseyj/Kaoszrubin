@@ -28,8 +28,8 @@ public enum BackgroundMusicContext
 public sealed class BackgroundMusicPlayer : IDisposable
 {
     private readonly object _sync = new();
-    private readonly Action<string>? _reportFailure;
     private readonly GameSettings _settings;
+    private Action<string>? _reportMessages;
 
     private WaveOut? _output;
     private AudioFileReader? _reader;
@@ -42,10 +42,19 @@ public sealed class BackgroundMusicPlayer : IDisposable
     private bool _isExitVolumeReduced;
     private bool _disposed;
 
-    public BackgroundMusicPlayer(GameSettings settings, Action<string>? reportFailure = null)
+    public BackgroundMusicPlayer(GameSettings settings, Action<string>? reportMessages = null)
     {
         _settings = settings;
-        _reportFailure = reportFailure;
+        _reportMessages = reportMessages;
+    }
+
+    public void SetReportCallback(Action<string>? reportMessages)
+    {
+        lock (_sync)
+        {
+            if (_disposed) return;
+            _reportMessages = reportMessages;
+        }
     }
 
     /// <summary>
@@ -145,7 +154,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
 
             _settings.Normalize();
 
-            if (!_settings.Enabled)
+            if (!_settings.MusicEnabled)
             {
                 StopLocked();
                 return;
@@ -154,7 +163,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
             if (_output is not null)
             {
                 if (!_isExitVolumeReduced)
-                    _output.Volume = _settings.VolumePercent / 100f;
+                    _output.Volume = _settings.MusicVolumePercent / 100f;
                 return;
             }
 
@@ -187,7 +196,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
 
         if (_context == context)
         {
-            if (_settings.Enabled &&
+            if (_settings.MusicEnabled &&
                 _output is null &&
                 _scheduledAction is null &&
                 CanPlayCurrentContextLocked())
@@ -201,13 +210,13 @@ public sealed class BackgroundMusicPlayer : IDisposable
         StopLocked();
         _context = context;
 
-        if (_settings.Enabled && CanPlayCurrentContextLocked())
+        if (_settings.MusicEnabled && CanPlayCurrentContextLocked())
             PlayRandomTrackLocked();
     }
 
     private bool CanPlayCurrentContextLocked() =>
         !_disposed &&
-        _settings.Enabled &&
+        _settings.MusicEnabled &&
         _context.HasValue &&
         (_context != BackgroundMusicContext.Map || !_exitDiscovered);
 
@@ -218,7 +227,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
 
         if (BackgroundMusicCatalog.RandomTrackPath(context) is not { } path)
         {
-            _reportFailure?.Invoke(
+            _reportMessages?.Invoke(
                 $"A {BackgroundMusicCatalog.RelativeDirectory(context)} mappában " +
                 "nem található lejátszható MP3-fájl.");
             return;
@@ -245,7 +254,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
         catch (Exception exception)
         {
             StopLocked();
-            _reportFailure?.Invoke(
+            _reportMessages?.Invoke(
                 $"Háttérzene nem indítható ({BackgroundMusicCatalog.RelativeDirectory(context)}): " +
                 exception.Message);
         }
@@ -253,8 +262,8 @@ public sealed class BackgroundMusicPlayer : IDisposable
 
     private float CurrentVolumeLocked() =>
         _context == BackgroundMusicContext.Map && _exitDiscovered
-            ? _settings.VolumePercent / 100f * 0.25f
-            : _settings.VolumePercent / 100f;
+            ? _settings.MusicVolumePercent / 100f * 0.25f
+            : _settings.MusicVolumePercent / 100f;
 
     private void PlaybackStopped(object? sender, StoppedEventArgs eventArgs)
     {
@@ -266,7 +275,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
 
             if (eventArgs.Exception is not null)
             {
-                _reportFailure?.Invoke(
+                _reportMessages?.Invoke(
                     $"A háttérzene lejátszása megszakadt: {eventArgs.Exception.Message}");
                 return;
             }
@@ -327,7 +336,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
         if (_output is null) return;
 
         _isExitVolumeReduced = true;
-        _output.Volume = _settings.VolumePercent / 100f * 0.25f;
+        _output.Volume = _settings.MusicVolumePercent / 100f * 0.25f;
     }
 
     /// <summary>Az aktuális zenét és a betervezett következő számot leállítja.</summary>
@@ -402,7 +411,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
 /// </summary>
 public static class BackgroundMusicCatalog
 {
-    public static string? RandomTrackPath(BackgroundMusicContext context)
+    public static string? RandomTrackPath(BackgroundMusicContext context, Action<string>? reportMessages = null)
     {
         var directory = DirectoryPath(context);
         if (!Directory.Exists(directory)) return null;
@@ -412,9 +421,16 @@ public static class BackgroundMusicCatalog
             "*.mp3",
             SearchOption.TopDirectoryOnly);
 
-        return tracks.Length == 0
+        string? track = tracks.Length == 0
             ? null
             : tracks[Random.Shared.Next(tracks.Length)];
+
+        if (track != null)
+        {
+            reportMessages?.Invoke($"Zene: {RelativeDirectory(context)}\\{Path.GetFileName(track)}");
+        }
+
+        return track;
     }
 
     public static string DirectoryPath(BackgroundMusicContext context) =>

@@ -357,7 +357,7 @@ public sealed class Game : ISessionCommandHandler
                 .Where(member => member.IsTemporaryFollower)
                 .Select(member => member.Character)
                 .ToArray() ?? [], GetSpecialInnRecruitCandidates, SpecialInnRecruitAccepted,
-            RunHostWindow);
+            RunHostWindow, _backgroundMusic);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
         _spellExecutionService = new SpellExecutionService(gameData, _random);
@@ -380,6 +380,7 @@ public sealed class Game : ISessionCommandHandler
         _npcQuestCoordinator = new NpcQuestCoordinator(_gameData, _questManager, _questWorldContext);
         _questManager.QuestChanged += SynchronizeLegacyQuestProgress;
         _questInventorySynchronizer = new QuestInventorySynchronizer(_questManager);
+        _backgroundMusic.SetReportCallback(message => _renderer.DrawDeveloperMessage(message));
     }
 
     private MazeQuestWorldContext CreateQuestWorldContext()
