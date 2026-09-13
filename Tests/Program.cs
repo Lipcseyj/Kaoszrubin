@@ -11,6 +11,7 @@ using KaoszRubin.Domain.Magic;
 using KaoszRubin.Infrastructure;
 using KaoszRubin.Transport.SignalR;
 using KaoszRubin.Tests.Coop;
+using KaoszRubin.Tests.Quests;
 using KaoszRubin.UI;
 using KaoszRubin.World;
 using System.Text.Json;
@@ -81,6 +82,19 @@ var tests = new (string Name, Action Run)[]
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
+    ("A legacy NPC-életciklus a CSV-ellenőrzéstől függetlenül működik", LegacyNpcLifecycleIsPreserved),
+    ("A típusos quest aktiválását a történeti kapu szabályozza", QuestManagerTests.ActivationHonorsStoryGate),
+    ("A típusos quest tömeges felvétele megőrzi a zárolt és lezárt állapotot", QuestManagerTests.BulkActivationLeavesLockedAndResolvedQuestsAlone),
+    ("A típusos quest csak megfelelő aktív eseményre halad és nem lépi túl a célt", QuestManagerTests.ProgressOnlyUsesMatchingActiveObjectives),
+    ("A típusos collect quest a készlet növekedését és visszaesését is jelzi", QuestManagerTests.CollectTracksInventoryInBothDirections),
+    ("A típusos quest leadása pontosan egyszer fogyaszt és jutalmaz", QuestManagerTests.CompletionGrantsRewardsOnlyOnce),
+    ("A típusos quest leadáskor újraellenőrzi a megváltozott készletet", QuestManagerTests.CompletionRechecksChangedInventory),
+    ("A típusos quest sikertelen tárgyelvételnél nem ad jutalmat", QuestManagerTests.FailedConsumptionDoesNotGrantRewards),
+    ("A típusos quest feladása azonnal megállítja a haladást", QuestManagerTests.AbandonImmediatelyStopsProgress),
+    ("A típusos quest két NPC-példányának külön életciklusa van", QuestManagerTests.NpcInstancesHaveIndependentLifecycles),
+    ("A típusos quest globális azonossága és NPC-ellenőrzése működik", QuestManagerTests.GlobalIdentityAndNpcValidation),
+    ("A típusos quest beszélgetése megőrzi az NPC-példány azonosságát", QuestManagerTests.ConversationKeepsNpcInstanceIdentity),
+    ("A típusos follower quest célpontot, részvételt és történetállapotot ellenőriz", QuestManagerTests.FollowerKillHonorsEnemyParticipationAndStory),
     ("Elira és Roderic ad-hoc beszélgetései egyszer használható szálakat alkotnak", AdHocFollowerConversationsAreConfigured),
     ("A quest roomok kizárják a véletlen térképtartalmat", QuestRoomsReserveTheirContent),
     ("A három Skeleton Knight példányhoz kötött jelvényt őriz", RodericInsigniaGuardiansAreConfigured),
@@ -1358,12 +1372,12 @@ static void TrapConfigurationScalesByMazeLevel()
     var first = MazeLevelConfigurations.Get(1);
     var middle = MazeLevelConfigurations.Get(10);
     var final = MazeLevelConfigurations.Get(MazeLevelConfigurations.FinalLevel);
-    Assert(first.TrapCount == new IntRange(2, 5) && first.TrapIds.SequenceEqual(["TR001"]),
+    Assert(first.TrapCount == new IntRange(3, 7) && first.TrapIds.SequenceEqual(["TR001"]),
         "Az első szint csapdakonfigurációja nem kezdőbarát.");
-    Assert(middle.TrapCount == new IntRange(3, 6) && middle.TrapIds.Contains("TR005") &&
+    Assert(middle.TrapCount == new IntRange(5, 10) && middle.TrapIds.Contains("TR005") &&
            middle.TrapIds.Contains("TR008") && !middle.TrapIds.Contains("TR006"),
         "A középső szintek csapdakonfigurációja nem megfelelően nehezedik.");
-    Assert(final.TrapCount == new IntRange(4, 8) && final.TrapIds.Contains("TR007") &&
+    Assert(final.TrapCount == new IntRange(6, 13) && final.TrapIds.Contains("TR007") &&
            !final.TrapIds.Contains("TR001"),
         "A végső szintek nem a legnehezebb csapdakészletet használják.");
     Assert(first.VisionModifier == 0 && MazeLevelConfigurations.Get(5).VisionModifier == -1 &&
@@ -3581,16 +3595,21 @@ static void NpcDefinitionsLoadFromCsv()
            Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
         "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-    Assert(catalog.NpcDialogues.Count == 73 && catalog.NpcStoryChoices.Count == 70 &&
-           catalog.NpcQuests.Count == 40 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Collect) == 8 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Kill) == 18 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.KillWithFollower) == 1 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Explore) == 5 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Disarm) == 3 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.OpenChest) == 4 &&
-           catalog.NpcQuests.Count(quest => quest.Type == NpcQuestType.Escort) == 1,
-        "Az NPC-párbeszédek vagy a küldetéstípusok hibásan töltődtek.");
+    Assert(catalog.NpcDialogues.Count == 69,
+        $"Az NPC-párbeszédek száma hibás: várt 69, tényleges {catalog.NpcDialogues.Count}.");
+    Assert(catalog.NpcStoryChoices.Count == 70,
+        $"Az NPC történeti választások száma hibás: várt 70, tényleges {catalog.NpcStoryChoices.Count}.");
+    Assert(catalog.NpcQuests.Count == 40,
+        $"Az NPC-küldetések száma hibás: várt 40, tényleges {catalog.NpcQuests.Count}.");
+    foreach (var (type, expected) in new[]
+    {
+        (NpcQuestType.Collect, 8), (NpcQuestType.Kill, 18), (NpcQuestType.KillWithFollower, 1),
+        (NpcQuestType.Explore, 5), (NpcQuestType.Disarm, 3), (NpcQuestType.OpenChest, 4), (NpcQuestType.Escort, 1)
+    })
+    {
+        var actual = catalog.NpcQuests.Count(quest => quest.Type == type);
+        Assert(actual == expected, $"A(z) {type} küldetések száma hibás: várt {expected}, tényleges {actual}.");
+    }
     Assert(catalog.GetNpc("NPC001") is { Disposition: NpcDisposition.Neutral, Unique: false } &&
            catalog.GetNpcQuests("NPC002").Any(quest =>
                quest is { TargetId: "E003", ExperienceReward: 260 }) &&
@@ -3605,7 +3624,10 @@ static void NpcDefinitionsLoadFromCsv()
                [NpcQuestType.Escort, NpcQuestType.Collect, NpcQuestType.Kill]) &&
            catalog.NpcQuests.All(quest => quest.RandomRewardCount > 0 || quest.RewardItemCount > 0),
         "A semleges nem egyedi NPC vagy a hozzá kapcsolt küldetés hibás.");
+}
 
+static void LegacyNpcLifecycleIsPreserved()
+{
     var npc = new WorldNpc(new Position(1, 1), "NPC002", CreateCharacter("Küldetésadó"),
         NpcDisposition.Neutral, false, true, "Próba", questIds: ["NPCQ002"]);
     Assert(npc.ActivateQuest("NPCQ002") && npc.AddQuestProgress("NPCQ002", 3, 4) &&
