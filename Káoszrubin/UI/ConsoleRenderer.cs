@@ -37,6 +37,7 @@ public sealed class ConsoleRenderer
     public static string MoneyIcon { get; } = IsWindows11OrLater() ? "🪙" : "💰";
     public static string WandIcon { get; } = IsWindows11OrLater() ? "🪄" : "✨";
     public static string DamageReductionIcon { get; } = IsWindows11OrLater() ? "🪨" : "💥🛡️";
+    public static string ArmorRepairIcon { get; } = IsWindows11OrLater() ? "\U0001faa1" : "🔨🛡️";
     private const int RightBorderX = PlayfieldWidth;
     private const int BottomBorderY = PlayfieldHeight;
     private static readonly Rune FogSymbol = new('█');
@@ -899,7 +900,7 @@ public sealed class ConsoleRenderer
             InnVendorKind.Blacksmith => "🏰🍺  🔨 KOVÁCSMESTER  ✨",
             InnVendorKind.Armorer => "🏰🍺  🛡️ PÁNCÉLMÍVES  ✨",
             InnVendorKind.BlacksmithRepair => "🏰🍺  🔧 FEGYVERJAVÍTÁS  ✨",
-            InnVendorKind.ArmorerRepair => "🏰🍺  🪡 PÁNCÉLJAVÍTÁS  ✨",
+            InnVendorKind.ArmorerRepair => "🏰🍺  " + ConsoleRenderer.ArmorRepairIcon + " PÁNCÉLJAVÍTÁS  ✨",
             InnVendorKind.WanderingMage => "🏰🍺  🧙 VÁNDORMÁGUS PORTÉKÁI  ✨",
             _ => $"🏰🍺  {innName} FOGADÓ KERESKEDŐJE  🛒✨"
         };

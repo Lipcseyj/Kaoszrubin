@@ -315,7 +315,7 @@ internal sealed class InnController
         if (armorerPresent)
         {
             options.Add(new(InnMenuOptionKind.Armorer, "🛡️ Páncélmíves", "Páncélokat és javítókészletet kínál, csak vásárlásra.", InnVendorKind.Armorer));
-            options.Add(new InnMenuOptionSnapshot(InnMenuOptionKind.ArmorerRepair, "🪡 Páncéljavítás", "A Páncélmíves teljesen helyreállítja a parti sérült vértezeteit.", InnVendorKind.ArmorerRepair));
+            options.Add(new InnMenuOptionSnapshot(InnMenuOptionKind.ArmorerRepair, $"{ConsoleRenderer.ArmorRepairIcon} Páncéljavítás", "A Páncélmíves teljesen helyreállítja a parti sérült vértezeteit.", InnVendorKind.ArmorerRepair));
         }
         if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka, azonosítás és tárgyátkok megtörése.", InnVendorKind.WanderingMage));
         options.Add(new(InnMenuOptionKind.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása.", LeaderOnly: true));
