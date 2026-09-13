@@ -1,3 +1,4 @@
+using KaoszRubin.Application.Quests;
 using KaoszRubin.Application;
 using KaoszRubin.Combat;
 using KaoszRubin.Data;
@@ -2304,7 +2305,7 @@ public sealed class ConsoleRenderer
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
-    public void DrawGenericUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<NpcQuestDefinition> quests)
+    public void DrawGenericUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<QuestPresentationSnapshot> quests)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
         {
@@ -2322,11 +2323,10 @@ public sealed class ConsoleRenderer
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
-    public bool ConfirmQuestTurnIn(string npcName, NpcQuestDefinition quest, int progress,
-        int requiredCount, string rewardItemsText)
+    public bool ConfirmQuestTurnIn(string npcName, QuestPresentationSnapshot quest)
     {
         DrawCenteredFrame(QuestTurnInWindow.Width,
-            QuestTurnInWindow.Build(npcName, quest, progress, requiredCount, rewardItemsText),
+            QuestTurnInWindow.Build(npcName, quest),
             FramedWindow.QuestOffer);
         while (true)
         {
@@ -2336,7 +2336,7 @@ public sealed class ConsoleRenderer
         }
     }
 
-    public void DrawUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<NpcQuestDefinition> quests)
+    public void DrawUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<QuestPresentationSnapshot> quests)
     {
         ResetColorCache();
         Console.Clear();
@@ -2345,7 +2345,7 @@ public sealed class ConsoleRenderer
             ("🌿 ELIRA KÉRÉSE", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
             ("„Köszönöm. Már azt hittem, a labirintusban maradok örökre.”", ConsoleColor.White),
-            ("„Ha valóban kijuttattok, három dologban kérem a segítségeteket:”", ConsoleColor.White),
+            ("„Ha valóban kijuttattok, ezekben kérem a segítségeteket:”", ConsoleColor.White),
             (string.Empty, ConsoleColor.Gray)
         };
         foreach (var quest in quests)

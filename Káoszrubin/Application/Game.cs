@@ -1868,10 +1868,8 @@ public sealed class Game : ISessionCommandHandler
             FindRodericFollower() is { StoryStateId: "MALREC_DEFEATED" })
             _pendingRodericReturn = true;
         else if (_locationKind == AdventureLocationKind.Campaign && _suspendedCampaignState is null &&
-                 FindRodericFollower() is { StoryStateId: "TRUSTED" } roderic &&
-                 roderic.Quests.Any(progress =>
-                     string.Equals(progress.QuestId, RodericMalrecQuestId, StringComparison.OrdinalIgnoreCase) &&
-                     progress.State == NpcQuestState.Offered))
+                 FindRodericFollower() is { StoryStateId: "TRUSTED" } &&
+                 _questManager.Roderic.Quests.OathbreakerKnight.State is (QuestState.Locked or QuestState.Available))
             _pendingRodericExpedition = true;
     }
     #endregion
@@ -2460,7 +2458,6 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
             return false;
         }
-        var questDefinitions = _gameData.GetNpcQuests(npc.DefinitionId);
         var result = _renderer.DrawWorldNpcRecruitment(npc, CanNpcJoin(npc), GetNpcQuestUiEntries(npc));
         ProcessNpcQuests(npc);
         if (result == WorldNpcInteractionResult.Continue)
@@ -2752,29 +2749,14 @@ public sealed class Game : ISessionCommandHandler
         // Quest offer UI
         // ------------------------------------------------------------
 
-        if (npcId == QuestNpcId.EliraSilverbranch)
+        var offers = activatedQuests.Select(QuestPresentationSnapshot.From).ToArray();
+        if (offers.Length > 0)
         {
-            // Az Elira-specifikus renderer egyelőre még
-            // legacy quest definíciókat vár.
-            _renderer.DrawUniqueNpcQuestOffer(
-                npc,
-                _gameData.GetNpcQuests(
-                    npc.DefinitionId));
+            if (npcId == QuestNpcId.EliraSilverbranch)
+                _renderer.DrawUniqueNpcQuestOffer(npc, offers);
+            else
+                _renderer.DrawGenericUniqueNpcQuestOffer(npc, offers);
         }
-        else if (activatedQuests.Count > 0)
-        {
-            var legacyDefinitions =
-                activatedQuests
-                    .Select(quest =>
-                        GetLegacyQuestDefinition(
-                            quest.Id))
-                    .ToArray();
-
-            _renderer.DrawGenericUniqueNpcQuestOffer(
-                npc,
-                legacyDefinitions);
-        }
-
         _renderer.DrawInventoryMessage(
             $"🌿 {npc.Character.Name} ideiglenes követőként csatlakozott. " +
             "Nem foglal partyhelyet.",
@@ -2848,48 +2830,18 @@ public sealed class Game : ISessionCommandHandler
             // Leadási megerősítés
             // --------------------------------------------------------
 
-            var legacyQuest =
-                GetLegacyQuestDefinition(
-                    quest.Id);
-
-            var rewardItemsText =
-                DescribeQuestItemRewards(quest)
-                    .TrimStart(' ', '+');
-
-            var shouldTurnIn =
-                RunHostWindow(
-                    $"Küldetés leadása — {quest.Title}",
-                    $"A vezető eldönti, hogy leadja-e a(z) " +
-                    $"{quest.Title} küldetést.",
-                    () => _renderer.ConfirmQuestTurnIn(
-                        npc.Character.Name,
-                        legacyQuest,
-                        quest.Progress,
-                        quest.RequiredCount,
-                        string.IsNullOrWhiteSpace(rewardItemsText)
-                            ? "nincs tárgyjutalom"
-                            : rewardItemsText));
-
-            if (!shouldTurnIn)
-            {
-                _renderer.DrawInventoryMessage(
-                    $"📜 {quest.Title}: " +
-                    "a jutalom felvétele elhalasztva.",
-                    ConsoleColor.DarkYellow);
-
-                continue;
-            }
-
-            // --------------------------------------------------------
-            // Quest lezárása + valódi jutalmak kiosztása
-            // --------------------------------------------------------
-
             QuestCompletionResult completion;
-
             try
             {
-                completion =
-                    quest.Complete();
+                if (!QuestTurnInService.TryComplete(quest, snapshot => RunHostWindow(
+                        $"Küldetés leadása — {snapshot.Title}",
+                        $"A vezető eldönti, hogy leadja-e a(z) {snapshot.Title} küldetést.",
+                        () => _renderer.ConfirmQuestTurnIn(npc.Character.Name, snapshot)), out completion))
+                {
+                    _renderer.DrawInventoryMessage($"📜 {quest.Title}: a jutalom felvétele elhalasztva.",
+                        ConsoleColor.DarkYellow);
+                    continue;
+                }
             }
             catch (InvalidOperationException exception)
             {
@@ -3010,14 +2962,6 @@ public sealed class Game : ISessionCommandHandler
         return _questManager
             .For(npcId, instanceId)
             .AreAllQuestsResolved;
-    }
-
-    private NpcQuestDefinition GetLegacyQuestDefinition(QuestId questId)
-    {
-        return _gameData.NpcQuests.Single(
-            definition =>
-                LegacyQuestIdMap.ToQuestId(
-                    definition.Id) == questId);
     }
 
     private static string DescribeQuestItemRewards(QuestHandle quest)
@@ -3165,40 +3109,6 @@ public sealed class Game : ISessionCommandHandler
         return NpcQuestCoordinator.OrderedQuestJournal(_questJournal.Values);
     }
 
-    private string GrantNpcQuestItems(NpcQuestDefinition quest)
-    {
-        var rewards = new List<IItemDefinition>();
-        if (quest.RewardItemId is { } fixedItemId)
-        {
-            var fixedItem = FindQuestRewardItem(fixedItemId);
-            for (var count = 0; count < quest.RewardItemCount; count++) rewards.Add(fixedItem);
-        }
-        for (var count = 0; count < quest.RandomRewardCount; count++)
-            if (RollQuestReward(quest.ExperienceReward) is { } reward) rewards.Add(reward);
-        if (rewards.Count == 0) return string.Empty;
-
-        var dropped = 0;
-        foreach (var reward in rewards)
-        {
-            if (TryStoreLootInParty(reward, out _)) continue;
-            _maze.DropItem(_player.Position, reward);
-            dropped++;
-        }
-        PlaySessionSound(SoundEffect.Item);
-        var summary = string.Join(", ", rewards.GroupBy(item => item.Name)
-            .Select(group => $"{group.Key} ×{group.Count()}"));
-        return dropped == 0 ? summary : $"{summary} ({dropped} a földön)";
-    }
-
-    private string DescribeNpcQuestItemRewards(NpcQuestDefinition quest)
-    {
-        var parts = new List<string>();
-        if (quest.RewardItemId is { } fixedItemId)
-            parts.Add($"{FindQuestRewardItem(fixedItemId).Name} ×{quest.RewardItemCount}");
-        if (quest.RandomRewardCount > 0) parts.Add($"{quest.RandomRewardCount} véletlen tárgy");
-        return parts.Count == 0 ? string.Empty : " + " + string.Join(" + ", parts);
-    }
-
     private IItemDefinition? RollQuestReward(int experienceReward)
     {
         var maximumRarity = experienceReward >= 2000 ? ItemRarity.Legendary :
@@ -3210,7 +3120,6 @@ public sealed class Game : ISessionCommandHandler
         return candidates.Length == 0 ? null : candidates[_random.Next(candidates.Length)];
     }
 
-    private IItemDefinition FindQuestRewardItem(string itemId) => _gameData.GetItemDefinition(itemId);
 
     private IEnumerable<IItemDefinition> QuestRewardItems() => _gameData.Items.Cast<IItemDefinition>()
         .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems)
@@ -4268,6 +4177,8 @@ public sealed class Game : ISessionCommandHandler
             LegacyNpcIdMap.ToQuestNpcId(follower.DefinitionId),
             _questWorldContext.GetInstanceId(follower), QuestLocation.Exit));
         ProcessNpcQuests(follower);
+        if (string.Equals(follower.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase) &&
+            !_questManager.Elira.CanResolveDeparture) return;
         follower.AdjustFriendliness(2);
 
         if (follower.Friendliness >= 10)

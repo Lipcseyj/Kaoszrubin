@@ -1,4 +1,4 @@
-using KaoszRubin.Domain;
+using KaoszRubin.Application.Quests;
 
 namespace KaoszRubin.UI;
 
@@ -8,7 +8,7 @@ public static class QuestTurnInWindow
     public const int Width = 92;
 
     public static IReadOnlyList<(string Text, ConsoleColor Color)> Build(string npcName,
-        NpcQuestDefinition quest, int progress, int requiredCount, string rewardItemsText)
+        QuestPresentationSnapshot quest)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
         {
@@ -23,13 +23,13 @@ public static class QuestTurnInWindow
         lines.AddRange(MessageTextLayout.Wrap(quest.Description, 82)
             .Select(text => ($"   {text}", ConsoleColor.Gray)));
 
-        lines.Add(($"Állapot: {Math.Clamp(progress, 0, requiredCount)}/{requiredCount}",
-            progress >= requiredCount ? ConsoleColor.Green : ConsoleColor.DarkYellow));
+        lines.Add(($"Állapot: {Math.Clamp(quest.Progress, 0, quest.RequiredCount)}/{quest.RequiredCount}",
+            quest.Progress >= quest.RequiredCount ? ConsoleColor.Green : ConsoleColor.DarkYellow));
 
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("🎁 JUTALOM", ConsoleColor.Cyan));
         lines.Add(($"⭐ Tapasztalat: {quest.ExperienceReward} XP", ConsoleColor.Cyan));
-        lines.Add(($"🎁 Tárgyak: {rewardItemsText}", ConsoleColor.Yellow));
+        lines.Add(($"🎁 Tárgyak: {quest.RewardItemsText}", ConsoleColor.Yellow));
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("Enter: leadás és jutalom felvétele", ConsoleColor.Green));
         lines.Add(("Esc: most még halasztom", ConsoleColor.DarkYellow));

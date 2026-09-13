@@ -25,6 +25,10 @@ if (CoopHarnessOptions.TryParse(args, out var harnessOptions))
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A questmegjelenítés változatlan típusos adatot kap", QuestPresentationTests.PresentationIsAnImmutableTypedSnapshot),
+    ("Az elhalasztott questleadás nem fogyaszt és nem jutalmaz", QuestPresentationTests.DeferredTurnInNeverConsumesOrRewards),
+    ("A leadási megerősítés után friss készletellenőrzés történik", QuestPresentationTests.ConfirmationDoesNotFreezeInventoryEligibility),
+    ("Elira kijárati döntése tényleges questlezárást igényel", QuestPresentationTests.EliraDepartureRequiresActualCompletion),
     ("A questnapló külön sorokat és célzott feladást használ", QuestJournalTests.SeparateRowsAndTargetedAbandon),
     ("A gyorsutazás konkrét questadót és friss útvonalat használ", QuestJournalTests.TravelTargetsOneInstanceAndRechecksWorld),
     ("A gyorsutazás újraellenőrzi a collect készletét", QuestJournalTests.TravelRechecksCollectInventory),

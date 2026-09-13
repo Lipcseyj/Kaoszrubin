@@ -310,3 +310,35 @@ A tesztek most a tényleges elválasztót használják; a játékadatokat nem í
 
 Következő a 4. lépés közös megjelenítési/leadási rétege és Elira átvezetése.
 Roderic speciális történeti részeit az átdolgozás miatt későbbre soroljuk.
+
+## 2026-09-13: a 4. lépés közös megjelenítési/leadási rétege és Elira
+
+- A QuestPresentationSnapshot változatlan, futáskulcsos megjelenítési adatot ad
+  az ajánlati és leadási ablakoknak. A renderer és a QuestTurnInWindow nem kap
+  NpcQuestDefinition objektumot vagy élő quest handle-t.
+- Elira és az általános egyedi NPC ajánlati ablaka csak a ténylegesen aktivált
+  questeket mutatja. Az Elira-szöveg többé nem állít rögzített három ajánlatot.
+- A QuestTurnInService a megerősítést és a tényleges leadást választja szét.
+  Elutasításkor nincs fogyasztás/jutalom; elfogadás után a handle ellenőrzi a
+  friss készletet és állapotot. A host közös ablaka, coop értesítései, jutalmazás
+  utáni level-up kezelése és összegzése megmaradt.
+- Elira CanResolveDeparture feltétele a Rescue Completed állapota. Ready,
+  elhalasztott vagy feladott állapot nem nyitja meg a kijárati búcsúzást vagy
+  végleges csatlakozást, és nem adja meg az ehhez kapcsolódó barátságbónuszt.
+  A pályaváltás meglévő követőátviteli útvonala ilyenkor is továbbviszi Elirát.
+- A Game utolsó WorldNpc.Quests-olvasása (Roderic régi Offered ellenőrzése)
+  mechanikusan a típusos Locked/Available állapotokra került. Roderic történetét
+  nem dolgoztuk át, speciális történeti végigjátszása továbbra is későbbi feladat.
+- Törölve a GetLegacyQuestDefinition és a hívó nélküli flat jutalmazó/leíró
+  segédek. A NPC-spawn CSV/definíciós határa a 6. lépésre marad.
+
+Négy új QuestPresentationTests teszt ellenőrzi a snapshot változatlanságát és
+ablaktartalmát, a leadás elhalasztását/elfogadását, a megerősítés alatt változó
+készletet, valamint Elira célba érés → elhalasztás → tényleges leadás állapotsorát.
+A feladás sem számít sikeres mentésnek. Teljes build: 0 hiba, 26 CS0618
+(kiindulás 28). Teljes tesztkészlet: 278 PASS, 0 FAIL (kiindulás 274).
+`git diff --check`: nincs whitespace-hiba. Interaktív UI-végigjátszás nem történt.
+
+A felhasználó által hátrébb sorolt Roderic-specifikus munka nyitott marad.
+Következő közös migrációs feladat az 5. lépés: a WorldSnapshots flat NPC
+questprogressének kiváltása; a session-napló kulcsosítása már a 3. lépésben elkészült.

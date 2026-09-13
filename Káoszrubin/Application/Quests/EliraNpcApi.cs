@@ -16,4 +16,7 @@ public sealed class EliraNpcApi
     }
 
     public EliraQuestApi Quests { get; }
+
+    /// <summary>A kijárati búcsúzás/csatlakozás csak a mentőküldetés elfogadott leadása után nyílhat meg.</summary>
+    public bool CanResolveDeparture => Quests.Rescue.IsCompleted;
 }
