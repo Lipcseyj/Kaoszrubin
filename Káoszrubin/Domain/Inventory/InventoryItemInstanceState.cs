@@ -28,7 +28,9 @@ public enum EquipmentCondition
 public enum EquipmentWearCause
 {
     Attack,
-    BeingAttacked
+    BeingAttacked,
+    Acid,
+    Chaos
 }
 
 public readonly record struct EquipmentWearResult(bool Changed, int MaximumDurability,
@@ -69,6 +71,12 @@ public static class EquipmentDurabilityRules
 
             EquipmentWearCause.BeingAttacked =>
                 kind == InventorySlotKind.Armor || isShield,
+
+            EquipmentWearCause.Acid =>
+                kind == InventorySlotKind.Armor || isShield,
+
+            EquipmentWearCause.Chaos =>
+                kind == InventorySlotKind.Armor || kind == InventorySlotKind.Weapon,
 
             _ => false
         };
@@ -135,16 +143,15 @@ public static class EquipmentDurabilityRules
         if (amount <= 0 || !CanWearFrom(item, kind, cause))
             return 0;
 
-        var protectedByClass = cause switch
-        {
-            EquipmentWearCause.Attack =>
-                character.HasPerk(PerkIds.FighterWeaponMaster),
+        var isShield = IsShield(item);
 
-            EquipmentWearCause.BeingAttacked =>
-                character.HasPerk(PerkIds.KnightArmorMaster),
-
-            _ => false
-        };
+        var protectedByClass =
+            kind == InventorySlotKind.Weapon &&
+            !isShield &&
+            character.HasPerk(PerkIds.FighterWeaponMaster)
+            ||
+            (kind == InventorySlotKind.Armor || isShield) &&
+            character.HasPerk(PerkIds.KnightArmorMaster);
 
         return protectedByClass
             ? ApplyWearResistance(amount, 50)
