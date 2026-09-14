@@ -357,9 +357,9 @@ W010;csatabárd;WT001;6-13;7;nem;nem;nem;nem;Széles pengéjű egykezes harci fe
 W011;lándzsa;WT001;5-12;5;igen;nem;nem;nem;Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.;160;;;;4;szúrás;2;igen;POLEARM
 W012;alabárd;WT001;7-15;8;igen;nem;nem;nem;Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.;480;;;;7;vágás;2;igen;POLEARM
 W013;kétkezes pöröly;WT001;7-14;8;igen;nem;igen;nem;Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.;450;;;;7;zúzás;2;nem;BLUNT
-W014;fapajzs;WT003;1-2;3;nem;igen;igen;nem;Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.;85;;;;3;zúzás;1;nem;SHIELD
-W015;vaspajzs;WT003;2-3;6;nem;nem;igen;nem;Masszív falap vasalt szegéllyel a beérkező csapások felfogására.;120;;;;5;zúzás;1;nem;SHIELD
-W016;acélpajzs;WT003;2-5;10;nem;nem;igen;nem;Masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.;250;;;;7;zúzás;1;nem;SHIELD
+W014;fapajzs;WT003;1-2;3;nem;igen;igen;nem;Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.;120;;;;3;zúzás;1;nem;SHIELD;75
+W015;vaspajzs;WT003;2-3;6;nem;nem;igen;nem;Masszív falap vasalt szegéllyel a beérkező csapások felfogására.;300;;;;5;zúzás;1;nem;SHIELD;150
+W016;acélpajzs;WT003;2-5;10;nem;nem;igen;nem;Masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.;800;;;;7;zúzás;1;nem;SHIELD;250
 W017;nagybalta;WT001;6-20;9;igen;nem;nem;nem;Kétkezes könyörtelen csatabárd.;500;;;;8;vágás;2;nem;AXE
 W018;harci bot;WT002;3-8;2;igen;igen;igen;igen;Hosszú keményfa bot gyors ütésekhez és védekezéshez.;45;;;;2;zúzás;1;igen;STAFF
 W019;óriásdorong;WT001;7-16;10;igen;nem;nem;nem;Hatalmas fatörzsből durván kifaragott kétkezes zúzófegyver.;0;;;;8;zúzás;2;nem;BLUNT

@@ -25,6 +25,12 @@ public enum EquipmentCondition
     Broken
 }
 
+public enum EquipmentWearCause
+{
+    Attack,
+    BeingAttacked
+}
+
 public readonly record struct EquipmentWearResult(bool Changed, int MaximumDurability,
     int PreviousDurability, int CurrentDurability, EquipmentCondition PreviousCondition,
     EquipmentCondition CurrentCondition)
@@ -36,16 +42,56 @@ public readonly record struct EquipmentWearResult(bool Changed, int MaximumDurab
 
 public static class EquipmentDurabilityRules
 {
-    public static int WeaponHitPenalty(EquipmentCondition condition) =>
-        condition == EquipmentCondition.Damaged ? 1 : 0;
+    public static bool IsShield(IItemDefinition item) => item is WeaponDefinition { WeaponTypeId: "WT003" };
 
-    public static int WeaponDamagePenalty(EquipmentCondition condition) =>
-        condition == EquipmentCondition.Damaged ? 1 : 0;
+    public static int WeaponHitPenalty(EquipmentCondition condition) => condition switch
+    {
+        EquipmentCondition.Damaged => 2,
+        EquipmentCondition.Worn => 1,
+        _ => 0
+    };
+
+    public static int WeaponDamagePenalty(EquipmentCondition condition) => condition switch
+    {
+        EquipmentCondition.Damaged => 2,
+        EquipmentCondition.Worn => 1,
+        _ => 0
+    };
+
+    public static bool CanWearFrom(IItemDefinition item, InventorySlotKind kind, EquipmentWearCause cause)
+    {
+        var isShield = IsShield(item);
+
+        return cause switch
+        {
+            EquipmentWearCause.Attack =>
+                kind == InventorySlotKind.Weapon && !isShield,
+
+            EquipmentWearCause.BeingAttacked =>
+                kind == InventorySlotKind.Armor || isShield,
+
+            _ => false
+        };
+    }
+
+    public static int ApplyWearResistance(int amount, int resistancePercent)
+    {
+        var wear = 0;
+
+        for (var i = 0; i < amount; i++)
+        {
+            if (Random.Shared.Next(100) >= resistancePercent)
+                wear++;
+        }
+
+        return wear;
+    }
 
     public static int DefensePercent(EquipmentCondition condition) => condition switch
     {
         EquipmentCondition.Broken => 0,
         EquipmentCondition.Damaged => 50,
+        EquipmentCondition.Worn => 75,
         _ => 100
     };
 
@@ -79,17 +125,30 @@ public static class EquipmentDurabilityRules
         return Math.Max(1, intactPrice * CurrentDurability(item, state) / maximum);
     }
 
-    public static int WearAfterClassBenefit(LiveCharacter character, InventorySlotKind kind,
-        IItemDefinition item, int amount)
+    public static int WearAfterClassBenefit(
+        LiveCharacter character,
+        InventorySlotKind kind,
+        IItemDefinition item,
+        EquipmentWearCause cause,
+        int amount)
     {
-        if (amount <= 0) return 0;
-        var protectsWeapon = character.HasPerk(PerkIds.FighterWeaponMaster) &&
-                             kind == InventorySlotKind.Weapon &&
-                             item is WeaponDefinition { WeaponTypeId: not "WT003" };
-        var protectsArmor = character.HasPerk(PerkIds.KnightArmorMaster) &&
-                            (kind == InventorySlotKind.Armor ||
-                             item is WeaponDefinition { WeaponTypeId: "WT003" });
-        return protectsWeapon || protectsArmor ? Math.Max(0, amount - 1) : amount;
+        if (amount <= 0 || !CanWearFrom(item, kind, cause))
+            return 0;
+
+        var protectedByClass = cause switch
+        {
+            EquipmentWearCause.Attack =>
+                character.HasPerk(PerkIds.FighterWeaponMaster),
+
+            EquipmentWearCause.BeingAttacked =>
+                character.HasPerk(PerkIds.KnightArmorMaster),
+
+            _ => false
+        };
+
+        return protectedByClass
+            ? ApplyWearResistance(amount, 50)
+            : amount;
     }
 
     public static int MaximumDurability(IItemDefinition item) =>

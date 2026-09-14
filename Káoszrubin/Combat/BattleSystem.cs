@@ -1042,7 +1042,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         void ApplyDefensiveWear(InventorySlotKind kind, int slot, string label, string equipmentName,
             IItemDefinition item, int amount)
         {
-            var wear = defender.ApplyInventoryItemWear(kind, slot, amount);
+            var wear = defender.ApplyInventoryItemWear(kind, slot, EquipmentWearCause.BeingAttacked, amount);
             if (!wear.Changed) return;
             calculation.Add(DurabilityCalculation(label, item.Name, wear));
             AddDurabilityNotice(durabilityNotices, defender.Name, item.Name, equipmentName, wear,
@@ -1110,7 +1110,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var slot = ResolveWeaponSlot(character, weapon, preferredSlotIndex);
         return slot < 0
             ? EquipmentWearResult.None
-            : character.ApplyInventoryItemWear(InventorySlotKind.Weapon, slot, critical ? 2 : 1);
+            : character.ApplyInventoryItemWear(InventorySlotKind.Weapon, slot, EquipmentWearCause.Attack, critical ? 2 : 1);
     }
 
     private static int ResolveWeaponSlot(LiveCharacter character, WeaponDefinition? weapon,
