@@ -429,8 +429,6 @@ public sealed class ConfiguredEnemy : Enemy
             .Where(weapon => !weapon.IsTwoHanded)
             .ToArray();
 
-        // Ha betöltéskor már megmondtuk, melyik fegyver volt nála,
-        // egy kétkezes fegyver automatikusan kizárja a pajzsot.
         var restoredWeapon = selectedWeaponId is { Length: > 0 }
             ? weapons.FirstOrDefault(weapon =>
                 string.Equals(
@@ -439,42 +437,35 @@ public sealed class ConfiguredEnemy : Enemy
                     StringComparison.OrdinalIgnoreCase))
             : null;
 
+        // Mentésből visszaállított vagy explicit módon megadott fegyver
+        // elsőbbséget élvez a véletlen választással szemben.
+        var selectedWeapon = restoredWeapon ?? definition.Weapon;
+
         var canUseShield =
             definition.Shield is not null &&
             oneHandedWeapons.Length > 0 &&
-            restoredWeapon?.IsTwoHanded != true;
+            selectedWeapon?.IsTwoHanded != true;
 
-        var usesShield = canUseShield &&
-                         (hasShield ?? rng.Next(100) < ShieldChancePercent);
+        var usesShield =
+            canUseShield &&
+            (hasShield ?? rng.Next(100) < ShieldChancePercent);
 
         var selectedShield = usesShield
             ? definition.Shield
             : null;
 
-        // Pajzs mellett kétkezes fegyver nem kerülhet az aktív
-        // fegyverkészletbe.
         IReadOnlyList<WeaponDefinition> usableWeapons =
             usesShield
                 ? oneHandedWeapons
                 : weapons;
 
-        var selectedWeapon = definition.Weapon;
-
         if (definition.ChoosesWeapon && usableWeapons.Count > 0)
         {
-            if (restoredWeapon is not null &&
-                usableWeapons.Any(weapon =>
-                    string.Equals(
-                        weapon.Id,
-                        restoredWeapon.Id,
-                        StringComparison.OrdinalIgnoreCase)))
-            {
-                selectedWeapon = restoredWeapon;
-            }
-            else
-            {
+            // Csak akkor sorsolunk, ha sem mentett, sem explicit fegyver nincs.
+            if (selectedWeapon is null)
                 selectedWeapon = usableWeapons[rng.Next(usableWeapons.Count)];
-            }
+
+            selectedWeapon ??= usableWeapons[0];
         }
 
         Definition = definition with

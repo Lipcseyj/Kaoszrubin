@@ -733,7 +733,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             notes.Add("🔱 Szálfegyver-mester: első találat ×1,5");
         }
         var rawDamage = baseDamage + abilityBonus + randomBonus + perkBonus;
-        var damage = ApplyDefense((rawDamage * damageMultiplierPercent + 99) / 100, effectiveArmor);
+        var shield = defender.Shield?.Damage is { } shieldDefense ? Roll(shieldDefense) : 0;
+        var damage = ApplyDefense((rawDamage * damageMultiplierPercent + 99) / 100, effectiveArmor + shield);
+
         var statusDamagePenalty = player.StatusPhysicalDamagePenalty;
         Modifier(player.HasStatus(CharacterStatusIds.Hungry) ? "🍖 Éhség: fizikai sebzés" : "💥 Állapotbüntetés",
             -statusDamagePenalty);
@@ -807,6 +809,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 ? $"💥 Sebzésszorzó: ×{damageMultiplierPercent / 100d:0.##} → {roundedMultipliedDamage}"
                 : $"💥 Sebzésszorzó: ×{damageMultiplierPercent / 100d:0.##}; {multipliedDamage:0.##} → {roundedMultipliedDamage} (felfelé kerekítve)");
         calculation.Add($"🛡️ {armorText}; effektív {effectiveArmor}");
+        calculation.Add($"🛡️ {defender.Shield?.Name ?? "Pajzs"}: dobás {shield}");
         calculation.AddRange(notes);
         // we consider the enemy which does e.g. chaos damage has a chaos aura as well which can harm player weapons
         var wearCause = defender.Weapon?.DamageType switch

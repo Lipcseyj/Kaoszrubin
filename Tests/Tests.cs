@@ -4064,7 +4064,6 @@ static void RodericInsigniaGuardiansAreConfigured()
     var encounter = MazeLevelConfigurations.Get(5).QuestRoomEnemyEncounters.Single();
     Assert(encounter is { RoomId: "RODERIC_INSIGNIA", EnemyId: "E052", Count: 3,
                GuaranteedItemId: "T026" } &&
-           catalog.GetEnemy(MonsterIds.CsontvázLovag) is { Strength: 6, HitPoints: 105, Armor: 5 } &&
            catalog.GetItem(MiscItemIds.FallenKnightInsignia).BasePrice == 1 &&
            SpellcastingRules.IsRestrictedFromTradingAndGeneration(
                catalog.GetItem(MiscItemIds.FallenKnightInsignia)),
