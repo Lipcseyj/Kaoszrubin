@@ -8,6 +8,7 @@ using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Quests;
 using KaoszRubin.Infrastructure.Quests;
 using KaoszRubin.World;
+using Moq;
 using static KaoszRubin.Tests.Quests.QuestTestFixture;
 
 namespace KaoszRubin.Tests.Quests;
@@ -52,17 +53,19 @@ internal static class QuestDoorTests
         var data = Data();
         var actor = fixture.SelectedCharacter;
         actor.AddToBackpack(data.GetItem(MiscItemIds.Key));
-        var party = new Party();
-        party.SetLeader(actor);
         var maze = new Maze(9, 9);
         maze.Carve(new(2, 2));
         maze.PlaceDoor(new(3, 2), DoorState.Locked, new QuestKey(Definition().Id));
+        var renderer = new Mock<IDoorInteractionRenderer>();
         var random = new NoRollRandom();
-        var controller = new DoorInteractionController(data, new ConsoleRenderer(data, party), (_, _) => { }, random,
+        var controller = new DoorInteractionController(data, renderer.Object, (_, _) => { }, random,
             tryGrantQuestAccess: new QuestDoorAccessService(fixture.Manager).TryGrantAccess);
         foreach (var keyChoice in new[] { true, false })
             controller.TryOpenAdjacentDoor(maze, new FogOfWar(9, 9, 0), new(2, 2), new(2, 2), actor, false,
                 new(3, 2), keyChoice, actor.Id, [actor]);
+        renderer.Verify(r => r.DrawDoorMessage(
+            "Az ajtót küldetés zárja le. Előbb vedd fel a hozzá tartozó küldetést.",
+            ConsoleColor.DarkYellow), Times.Exactly(2));
         Check(DoorInteractionRules.HasKey(actor) && actor.FoodLevel == 100 && actor.WaterLevel == 100 &&
             maze.GetDoorAt(new(3, 2)) is { State: DoorState.Locked, IsQuestSealed: true },
             "Az elutasított nyitás kulcsot/szükségletet fogyasztott vagy módosította az ajtót.");
