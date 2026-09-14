@@ -86,7 +86,10 @@ public enum QuestId
 
     // NPC021 - Sir Roderic
     RodericFallenComradesInsignia,
+    // A megőrzött azonosító ma a pátriárkák feladatát jelöli.
     RodericSharedBladeTrial,
     RodericOathbreakerKnight,
-    RodericTheDeadAreNotPrey
+    // A megőrzött azonosító ma a nyolc élőholt elleni bizonyítást jelöli.
+    RodericTheDeadAreNotPrey,
+    RodericOrderRelics
 }

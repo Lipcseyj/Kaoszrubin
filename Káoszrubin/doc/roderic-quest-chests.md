@@ -59,6 +59,5 @@ Teljes solution build: 0 warning, 0 hiba. Teljes tesztcsomag: 293 PASS,
 3 FAIL, kizárólag a korábban ismert durability-tesztekben. Ezeket a felhasználó
 kérésére nem javítottuk. Interaktív játékbeli és külön gépes coop-próba nem történt.
 
-Az alap CSV új szekciói egyelőre üresek. Roderic végleges ládatartalma,
-szobaelhelyezése és a CACHE-szál kiváltása a történeti átvezetés része lesz;
-ez a csomag az ehhez szükséges infrastruktúrát adja.
+Az ezt követő [Roderic-rework](roderic-rework-implementation.md) már beköti
+a ládatartalmat és a szobaelhelyezést, valamint kiváltja a CACHE-szálat.

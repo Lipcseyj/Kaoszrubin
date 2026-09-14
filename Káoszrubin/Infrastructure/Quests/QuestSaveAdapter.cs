@@ -37,6 +37,12 @@ public sealed class QuestSaveAdapter
     public IReadOnlyList<QuestStateSnapshot> PrepareRestore(GameSaveData save, CharacterRoster roster)
     {
         var block = save.Quests ?? ImportLegacy(save, roster);
+        if (save.RequiresRodericReworkQuestMigration)
+        {
+            save.Quests = block;
+            RodericReworkSaveMigration.Apply(save);
+            save.RequiresRodericReworkQuestMigration = false;
+        }
         if (block.States is null || block.NpcIdentities is null || block.LegacyJournalArchive is null ||
             block.MigrationNotes is null || block.States.Any(state => state is null) ||
             block.NpcIdentities.Any(identity => identity is null))

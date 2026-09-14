@@ -238,9 +238,9 @@ public sealed class QuestProgressEngine
         QuestRuntimeState state,
         EnemyKilledEvent occurred)
     {
-        if (!Equals(
-                objective.Enemy,
-                occurred.Enemy.Definition))
+        // A példány definícióját a kisorsolt fegyver és pajzs módosíthatja.
+        if (!string.Equals(objective.Enemy.Id, occurred.Enemy.Definition.Id,
+                StringComparison.OrdinalIgnoreCase))
         {
             return 0;
         }

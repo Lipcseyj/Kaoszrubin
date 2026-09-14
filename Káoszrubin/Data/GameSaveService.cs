@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 24;
+    public const int CurrentVersion = 25;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -134,10 +134,18 @@ public static class GameSaveFormat
                 21 => MigrateVersion21To22(state),
                 22 => MigrateVersion22To23(state),
                 23 => MigrateVersion23To24(state),
+                24 => MigrateVersion24To25(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion24To25(GameSaveData state)
+    {
+        RodericReworkSaveMigration.Apply(state);
+        state.Version = 25;
         return state;
     }
 
@@ -316,6 +324,8 @@ public sealed record GameSaveInfo(string Path, string MainCharacterName, int Maz
 
 public sealed class GameSaveData
 {
+    [JsonIgnore]
+    internal bool RequiresRodericReworkQuestMigration { get; set; }
     [JsonRequired]
     public int Version { get; set; } = GameSaveFormat.CurrentVersion;
     public DateTimeOffset SavedAt { get; set; }

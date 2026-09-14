@@ -19,7 +19,7 @@ internal static class QuestCatalogImportTests
         var data = CsvGameDataLoader.Load(DataPath);
         var rows = File.ReadLines(DataPath).Where(line => line.StartsWith("NPCQ", StringComparison.Ordinal))
             .Select(line => line.Split(';')).ToArray();
-        Require(rows.Length == 40 && data.Quests.Count == 40 && data.Npcs.Count == 21,
+        Require(rows.Length == 41 && data.Quests.Count == 41 && data.Npcs.Count == 21,
             "A teljes quest/NPC katalógus hiányos.");
         Require(data.Quests.All.Select(q => q.Id).ToHashSet().SetEquals(
             Enum.GetValues<QuestId>().Where(id => id != QuestId.None)), "Hiányzó vagy duplikált questmapping.");
@@ -48,6 +48,8 @@ internal static class QuestCatalogImportTests
                 $"Eltérő jutalom: {row[0]}.");
             var objectiveMatches = (row[2], quest.Objective) switch
             {
+                ("KillWithTraits", QuestObjective.KillEnemyWithTraits kill) => kill.RequiredTraits == EnemyTraits.Undead && kill.RequiredFollower is null,
+                ("OpenQuestChest", QuestObjective.OpenQuestChest chest) => chest.ChestId.Value == row[3],
                 ("Collect", QuestObjective.CollectItem item) => ReferenceEquals(item.Item, data.GetItemDefinition(row[3])),
                 ("Kill", QuestObjective.KillEnemy kill) => ReferenceEquals(kill.Enemy, data.GetEnemy(row[3])),
                 ("KillWithFollower", QuestObjective.KillEnemyWithTraits kill) =>

@@ -31,6 +31,7 @@ public sealed class DungeonExpeditionCoordinator
                 enemy.PatrolDirection, enemy.GroupId, enemy.GroupRole)));
         templates.AddRange(maze.Corpses.OfType<MonsterCorpse>()
             .Where(corpse => !gameData.GetEnemy(corpse.EnemyDefinitionId).IsBoss &&
+                             corpse.EnemyDefinitionId != MonsterIds.ÉlőholtPátriárka &&
                              corpse.GuaranteedLootIds.Count == 0)
             .Select(corpse => new ExpeditionEnemyTemplate(corpse.EnemyDefinitionId, corpse.Position,
                 EnemyMovementProfile.Wander, Direction.Right, null, EnemyGroupRole.Member)));

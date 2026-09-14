@@ -40,6 +40,7 @@ public static class LegacyQuestStoryStateMap
             "PROOF_ACTIVE" => QuestStoryState.ProofActive,
             "INSIGNIAS_ACTIVE" => QuestStoryState.InsigniasActive,
             "FOLLOWING" => QuestStoryState.Following,
+            "RELICS_ACTIVE" => QuestStoryState.RelicsActive,
             "MALREC_APPROACH" => QuestStoryState.MalrecApproach,
             _ => QuestStoryState.None
         };

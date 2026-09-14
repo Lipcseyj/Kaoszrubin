@@ -143,7 +143,7 @@ RELIC_TEST;T001;1"),
         var old = new GameSaveData { Version = 23 };
         old.Maze.Chests.Add(new(new(3, 3), 42));
         GameSaveFormat.MigrateToCurrent(old);
-        Check(old.Version == 24 && old.Maze.Chests.Single().QuestChest is null, "A régi aranyláda questládává változott.");
+        Check(old.Version == GameSaveFormat.CurrentVersion && old.Maze.Chests.Single().QuestChest is null, "A régi aranyláda questládává változott.");
     }
 
     public static void PlacementUsesNamedRoomAndRejectsDuplicates()

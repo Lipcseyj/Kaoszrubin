@@ -1,5 +1,8 @@
 # LOVAG NPC – RODERIC VÁRNOK
 
+> Az alábbi dokumentum az eredeti történet terve. A megvalósított új
+> küldetéssort a [Roderic-rework leírása](roderic-rework-implementation.md) rögzíti.
+
 ## Alapadatok
 
 Név: Roderic Várnok  

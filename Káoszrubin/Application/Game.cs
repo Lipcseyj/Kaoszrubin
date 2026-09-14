@@ -24,9 +24,6 @@ public sealed class Game : ISessionCommandHandler
     #region Fields and Properties
     private const string EliraStoryId = "ELIRA_RESCUE";
     private const string RodericStoryId = "RODERIC_OATH";
-    private const string RodericGraveRespectQuestId = "NPCQ040";
-    private const string RodericInsigniaQuestId = "NPCQ037";
-    private const string RodericSharedBattleQuestId = "NPCQ038";
     private const string RodericMalrecQuestId = "NPCQ039";
     private const string DeveloperBattleTestLocationId = "DEVELOPER_COMBAT_TEST";
     private const int RodericPermanentJoinFriendliness = 8;
@@ -1202,14 +1199,35 @@ public sealed class Game : ISessionCommandHandler
 
     private bool ProcessPendingRodericTransition()
     {
+        if (FindRodericFollower() is { } follower)
+        {
+            var quest = follower.StoryStateId switch
+            {
+                "FOLLOWING" => _questManager.Roderic.Quests.PatriarchsShadows,
+                "RELICS_ACTIVE" => _questManager.Roderic.Quests.OrderRelics,
+                "MALREC_FIGHT" => _questManager.Roderic.Quests.OathbreakerKnight,
+                _ => null
+            };
+            if (quest is not null && (quest.IsReadyToTurnIn || quest.IsCompleted))
+            {
+                ConverseWithRoderic(follower);
+                return true;
+            }
+            if (follower.StoryStateId is "TRUSTED" or "RELICS_COMPLETE")
+            {
+                ConverseWithRoderic(follower);
+                return true;
+            }
+            if (follower.StoryStateId == "MALREC_READY") _pendingRodericExpedition = true;
+        }
         if (_pendingRodericExpedition)
         {
             _pendingRodericExpedition = false;
             var roderic = FindRodericFollower() ??
                 throw new InvalidOperationException("Roderic eltűnt a saját történeti átmenete előtt.");
-            RunStoryConversation(roderic);
-            if (!string.Equals(roderic.StoryStateId, "MALREC_APPROACH", StringComparison.OrdinalIgnoreCase))
+            if (roderic.StoryStateId != "MALREC_READY")
                 return true;
+            roderic.SetStoryState("MALREC_APPROACH");
             StartRodericQuestLocation();
             return true;
         }
@@ -1869,7 +1887,7 @@ public sealed class Game : ISessionCommandHandler
             FindRodericFollower() is { StoryStateId: "MALREC_DEFEATED" })
             _pendingRodericReturn = true;
         else if (_locationKind == AdventureLocationKind.Campaign && _suspendedCampaignState is null &&
-                 FindRodericFollower() is { StoryStateId: "TRUSTED" } &&
+                 FindRodericFollower() is { StoryStateId: "MALREC_READY" } &&
                  _questManager.Roderic.Quests.OathbreakerKnight.State is (QuestState.Locked or QuestState.Available))
             _pendingRodericExpedition = true;
     }
@@ -2508,14 +2526,26 @@ public sealed class Game : ISessionCommandHandler
 
     private void ConverseWithRoderic(WorldNpc npc)
     {
+        if (npc.StoryStateId is "FOLLOWING" or "RELICS_ACTIVE" or "MALREC_FIGHT")
+        {
+            ProcessNpcQuests(npc, activateOffered: false, confirmTurnIn: false);
+            if (RodericStoryProgression.NextState(npc.StoryStateId, _questManager.Roderic.Quests) is not { } next)
+                return;
+            npc.SetStoryState(next);
+            if (next == "MALREC_DEFEATED")
+            {
+                _pendingRodericReturn = true;
+                return;
+            }
+        }
         if (string.Equals(npc.StoryStateId, "PROOF_ACTIVE", StringComparison.OrdinalIgnoreCase))
         {
             var quest = _questManager.GetQuest(QuestId.RodericTheDeadAreNotPrey);
             if (quest.Progress < quest.RequiredCount)
             {
                 ShowNpcStoryChoiceWithReplica(npc,
-                    $"Négy feltámasztott csontváz járja a közeli kriptákat. Eddig {quest.Progress}/4 bukott el.",
-                    ["A sírokhoz nem nyúlunk. Visszatérünk ha végeztünk."]);
+                    $"Bizonyítsátok hogy közös az ellenségünk. Eddig {quest.Progress}/{quest.RequiredCount} élőholt bukott el.",
+                    ["Visszatérünk ha végeztünk."]);
                 _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
                 return;
             }
@@ -2554,7 +2584,7 @@ public sealed class Game : ISessionCommandHandler
             RunStoryConversation(npc);
             if (string.Equals(npc.StoryStateId, "JOIN_ACCEPTED", StringComparison.OrdinalIgnoreCase))
                 TryFinalizeRodericPermanentJoin();
-            if (string.Equals(npc.StoryStateId, "MALREC_APPROACH", StringComparison.OrdinalIgnoreCase))
+            if (npc.StoryStateId == "MALREC_READY" && npc.State == WorldNpcState.Following)
                 _pendingRodericExpedition = true;
             _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
             return;
@@ -2631,14 +2661,12 @@ public sealed class Game : ISessionCommandHandler
                 ActivateNpcQuest(npc, questId);
                 return;
             case NpcStoryAction.BeginFollowing:
+                if (npc.State == WorldNpcState.Following) return;
                 if (!BeginTemporaryFollowing(npc))
                 {
                     npc.SetStoryState(choice.StateId);
                     npc.AdjustFriendliness(-choice.FriendlinessChange);
                 }
-                return;
-            case NpcStoryAction.GrantEmergencySupplies:
-                GrantRodericEmergencySupplies(npc);
                 return;
             default:
                 throw new InvalidOperationException($"Hiányos NPC-történeti hatás: {choice.Id}/{choice.Action}.");
@@ -2654,30 +2682,6 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description} " +
             $"Jutalom: {quest.ExperienceReward} XP.", ConsoleColor.Cyan);
         RequestCoopSnapshotPublish();
-    }
-
-    private void GrantRodericEmergencySupplies(WorldNpc npc)
-    {
-        var bundle = new[]
-        {
-            new InventoryBundleEntry(_gameData.GetItem("T012"), 4),
-            new InventoryBundleEntry(_gameData.GetItem("T004"), 2),
-            new InventoryBundleEntry(_gameData.GetItem("T006"), 2),
-            new InventoryBundleEntry(_gameData.GetItem("T002"), 4)
-        };
-        // itt sose legyen CAHE_BLOCKED mert megakasztja a quest-et, helyette a be nem férő tárgyak kerüljenek a földre
-        if (!InventoryBundleGrantService.TryGrant(CharacterRoster.Party.Members, bundle, out var lackingSpace))
-        {
-            npc.SetStoryState("CACHE_BLOCKED");
-            _renderer.DrawInventoryMessage(
-                $"Az Ezüst Eskü készlete érintetlen maradt. Előbb 4 szabad hátizsákhely kell: {string.Join(", ", lackingSpace)}.",
-                ConsoleColor.DarkYellow);
-            return;
-        }
-
-        _renderer.DrawInventoryMessage(
-            $"🗝 Az Ezüst Eskü vésztartaléka kiosztva {CharacterRoster.Party.Members.Count} partitag között: " +
-            "fejenként 4 gyógyital, 2 kenyér, 2 füstölt hús és 4 bőrkulacs.", ConsoleColor.Green);
     }
 
     private void ConverseWithFirstUniqueNpc(WorldNpc npc)
@@ -2785,7 +2789,8 @@ public sealed class Game : ISessionCommandHandler
         return true;
     }
 
-    private void ProcessNpcQuests(WorldNpc npc, bool activateOffered = true, QuestKey? selectedQuest = null)
+    private void ProcessNpcQuests(WorldNpc npc, bool activateOffered = true, QuestKey? selectedQuest = null,
+        bool confirmTurnIn = true)
     {
         var npcId =
             LegacyNpcIdMap.ToQuestNpcId(
@@ -2853,7 +2858,8 @@ public sealed class Game : ISessionCommandHandler
             QuestCompletionResult completion;
             try
             {
-                if (!QuestTurnInService.TryComplete(quest, snapshot => RunHostWindow(
+                if (!confirmTurnIn) completion = quest.Complete();
+                else if (!QuestTurnInService.TryComplete(quest, snapshot => RunHostWindow(
                         $"Küldetés leadása — {snapshot.Title}",
                         $"A vezető eldönti, hogy leadja-e a(z) {snapshot.Title} küldetést.",
                         () => _renderer.ConfirmQuestTurnIn(npc.Character.Name, snapshot)), out completion))
@@ -6417,6 +6423,14 @@ public sealed class Game : ISessionCommandHandler
         var visibleEnemies = enemies.Where(enemy => _fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position))
             .DistinctBy(enemy => enemy.Id).ToList();
         var newlySpotted = visibleEnemies.Where(enemy => _spottedEnemyIds.Add(enemy.Id)).ToList();
+        if (newlySpotted.Any(enemy => enemy.Definition.Id == MonsterIds.ÉlőholtPátriárka) &&
+            FindRodericFollower() is { StoryStateId: "FOLLOWING" } &&
+            _seenBossIds.Add(MonsterIds.ÉlőholtPátriárka))
+        {
+            _renderer.DrawInventoryMessage(
+                "⚜ Roderic: A pátriárkák... már ők is élőholtak. Szabadítsuk meg őket ettől a gyalázattól!",
+                ConsoleColor.Cyan);
+        }
         if (newlySpotted.Count > 0)
         {
             PlaySessionSound(SoundEffect.MonsterSpotted);

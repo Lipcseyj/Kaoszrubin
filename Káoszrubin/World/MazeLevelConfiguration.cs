@@ -255,20 +255,31 @@ public static class MazeLevelConfigurations
                 RoomSize = new(4, 7),
                 TreasureChestCount = Amount.Several.Range(),
                 TreasureGold = new(240, 480),
-                QuestRoomIds = ["RODERIC_MEETING", "RODERIC_INSIGNIA"],
+                QuestRoomIds = ["RODERIC_MEETING", "RODERIC_INSIGNIA", "RODERIC_PATRIARCHS", "RODERIC_RELICS"],
                 SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
                 {
                     ["RODERIC_MEETING"] = SpecialRoomPlacement.MiddleRoute,
-                    ["RODERIC_INSIGNIA"] = SpecialRoomPlacement.SideBranch
+                    ["RODERIC_INSIGNIA"] = SpecialRoomPlacement.SideBranch,
+                    ["RODERIC_PATRIARCHS"] = SpecialRoomPlacement.SideBranch,
+                    ["RODERIC_RELICS"] = SpecialRoomPlacement.SideBranch
                 },
                 QuestDoorRequirements = new Dictionary<string, Domain.Quests.QuestId>
                 {
-                    ["RODERIC_INSIGNIA"] = Domain.Quests.QuestId.RodericFallenComradesInsignia
+                    ["RODERIC_INSIGNIA"] = Domain.Quests.QuestId.RodericFallenComradesInsignia,
+                    ["RODERIC_PATRIARCHS"] = Domain.Quests.QuestId.RodericSharedBladeTrial,
+                    ["RODERIC_RELICS"] = Domain.Quests.QuestId.RodericOrderRelics
+                },
+                QuestChestPlacements = new Dictionary<string, Domain.Quests.QuestChestId>
+                {
+                    ["RODERIC_RELICS"] = new("RODERIC_ORDER_RELICS")
                 },
                 QuestRoomEnemyEncounters =
                 [
                     new("RODERIC_INSIGNIA", MonsterIds.CsontvázLovag, 3,
-                        Domain.Inventory.MiscItemIds.FallenKnightInsignia)
+                        Domain.Inventory.MiscItemIds.FallenKnightInsignia),
+                    new("RODERIC_PATRIARCHS", MonsterIds.ÉlőholtPátriárka, 2),
+                    new("RODERIC_PATRIARCHS", MonsterIds.Csontváz, 3),
+                    new("RODERIC_RELICS", MonsterIds.Zombi, 4)
                 ],
                 RoomEncounters =
                 [

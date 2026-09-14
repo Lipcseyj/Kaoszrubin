@@ -68,7 +68,7 @@ internal sealed class QuestCatalogBuilder
             RandomRewardCount:
                 source.RandomRewardCount,
             ActivationKind: id is QuestId.RodericTheDeadAreNotPrey or
-                QuestId.RodericFallenComradesInsignia or QuestId.RodericOathbreakerKnight
+                QuestId.RodericFallenComradesInsignia or QuestId.RodericOathbreakerKnight or QuestId.RodericOrderRelics
                     ? QuestActivationKind.Story : QuestActivationKind.Offered);
     }
 
@@ -79,6 +79,7 @@ internal sealed class QuestCatalogBuilder
         QuestId.RodericTheDeadAreNotPrey => new QuestActivationRequirement.StoryStateEquals(QuestStoryState.ProofActive),
         QuestId.RodericFallenComradesInsignia => new QuestActivationRequirement.StoryStateEquals(QuestStoryState.InsigniasActive),
         QuestId.RodericSharedBladeTrial => new QuestActivationRequirement.StoryStateEquals(QuestStoryState.Following),
+        QuestId.RodericOrderRelics => new QuestActivationRequirement.StoryStateEquals(QuestStoryState.RelicsActive),
         QuestId.RodericOathbreakerKnight => new QuestActivationRequirement.StoryStateEquals(QuestStoryState.MalrecApproach),
         _ => null
     };
@@ -87,6 +88,8 @@ internal sealed class QuestCatalogBuilder
     {
         return source.Type switch
         {
+            QuestImportType.KillWithTraits => new QuestObjective.KillEnemyWithTraits(
+                MapLegacyEnemyTraits(source.TargetId), source.RequiredCount),
             QuestImportType.OpenQuestChest when source.RequiredCount == 1 =>
                 new QuestObjective.OpenQuestChest(_gameData.GetQuestChest(new(source.TargetId)).Id),
             QuestImportType.Collect =>
@@ -140,7 +143,9 @@ internal sealed class QuestCatalogBuilder
                     QuestNpcId.SirRoderic,
                     QuestStoryState.MalrecFight,
                     MaximumDistance: 6)
-                : null;
+                : questId == QuestId.RodericSharedBladeTrial
+                    ? new QuestFollowerRequirement(QuestNpcId.SirRoderic, QuestStoryState.Following, MaximumDistance: 6)
+                    : null;
 
         return new QuestObjective.KillEnemy(
             enemy,

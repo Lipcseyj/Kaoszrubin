@@ -20,6 +20,10 @@ public sealed class RodericQuestApi
         _manager.GetQuest(
             QuestId.RodericSharedBladeTrial);
 
+    public QuestHandle PatriarchsShadows => SharedBladeTrial;
+    public QuestHandle FightingOnTheSameSide => TheDeadAreNotPrey;
+    public QuestHandle OrderRelics => _manager.GetQuest(QuestId.RodericOrderRelics);
+
     public QuestHandle OathbreakerKnight =>
         _manager.GetQuest(
             QuestId.RodericOathbreakerKnight);

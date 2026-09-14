@@ -33,7 +33,7 @@ var tests = new (string Name, Action Run)[]
     ("A jelvényes szoba egyetlen lezárt questajtót kap", QuestDoorTests.GeneratedRoomHasOneSealedQuestDoor),
     ("Roderic és a lezárható mellékszobák 80 seeddel is elérhetők", RodericRoomPlacementTests.PlacementSurvivesMultipleSeeds),
     ("A szobagenerálás reprodukálható és elutasítja a hibás konfigurációt", RodericRoomPlacementTests.SeedAndConfigurationAreValidated),
-    ("Mind a 40 quest és 21 NPC típusos importja megőrzi a CSV-adatokat", QuestCatalogImportTests.AllDefinitionsPreserveCsvData),
+    ("Mind a 41 quest és 21 NPC típusos importja megőrzi a CSV-adatokat", QuestCatalogImportTests.AllDefinitionsPreserveCsvData),
     ("A hibás questdefiníció már CSV-betöltéskor meghiúsul", QuestCatalogImportTests.InvalidDefinitionsFailDuringLoading),
     ("A világpillanatkép típusos questállapotot és stabil kulcsot visz át", QuestReplicationTests.WorldUsesTypedStatesAndStableKeys),
     ("A questdelta csak a ténylegesen módosult NPC-t tartalmazza", QuestReplicationTests.DeltaChangesOnlyTheAffectedNpc),
@@ -131,6 +131,9 @@ var tests = new (string Name, Action Run)[]
     ("A típusos quest két NPC-példányának külön életciklusa van", QuestManagerTests.NpcInstancesHaveIndependentLifecycles),
     ("A típusos quest globális azonossága és NPC-ellenőrzése működik", QuestManagerTests.GlobalIdentityAndNpcValidation),
     ("A típusos quest beszélgetése megőrzi az NPC-példány azonosságát", QuestManagerTests.ConversationKeepsNpcInstanceIdentity),
+    ("Roderic öt küldetése sorrendben, teli hátizsákkal is teljesíthető", RodericReworkTests.FiveQuestsFollowTheStory),
+    ("Roderic ellenfelei és a három questkapu pontosan konfiguráltak", RodericReworkTests.EncountersAndGatesAreExact),
+    ("Roderic régi mentése jutalom és pályaépítés nélkül továbblép", RodericReworkTests.OldCampaignAdvancesWithoutRewardsOrRebuilding),
     ("A típusos follower quest célpontot, részvételt és történetállapotot ellenőriz", QuestManagerTests.FollowerKillHonorsEnemyParticipationAndStory),
     ("Roderic története csak az aktuális típusos küldetést indítja", QuestMigrationTests.RodericStoryStartsOnlyTheChosenQuest),
     ("A kijárat felfedezése nem teljesíti a kísérő küldetését", QuestMigrationTests.DiscoveryNeverCompletesEscort),
@@ -3980,14 +3983,14 @@ static void NpcDefinitionsLoadFromCsv()
         "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
     Assert(catalog.NpcDialogues.Count == 69,
         $"Az NPC-párbeszédek száma hibás: várt 69, tényleges {catalog.NpcDialogues.Count}.");
-    Assert(catalog.NpcStoryChoices.Count == 70,
-        $"Az NPC történeti választások száma hibás: várt 70, tényleges {catalog.NpcStoryChoices.Count}.");
-    Assert(catalog.Quests.Count == 40,
-        $"Az NPC-küldetések száma hibás: várt 40, tényleges {catalog.Quests.Count}.");
+    Assert(catalog.NpcStoryChoices.Count == 67,
+        $"Az NPC történeti választások száma hibás: várt 67, tényleges {catalog.NpcStoryChoices.Count}.");
+    Assert(catalog.Quests.Count == 41,
+        $"Az NPC-küldetések száma hibás: várt 41, tényleges {catalog.Quests.Count}.");
     foreach (var (type, expected) in new[]
     {
         (typeof(QuestObjective.CollectItem), 8), (typeof(QuestObjective.KillEnemy), 18), (typeof(QuestObjective.KillEnemyWithTraits), 1),
-        (typeof(QuestObjective.ExploreLocation), 5), (typeof(QuestObjective.DisarmTraps), 3), (typeof(QuestObjective.OpenChests), 4), (typeof(QuestObjective.EscortNpc), 1)
+        (typeof(QuestObjective.ExploreLocation), 5), (typeof(QuestObjective.DisarmTraps), 3), (typeof(QuestObjective.OpenChests), 4), (typeof(QuestObjective.EscortNpc), 1), (typeof(QuestObjective.OpenQuestChest), 1)
     })
     {
         var actual = catalog.Quests.All.Count(quest => quest.Objective.GetType() == type);
@@ -4005,7 +4008,8 @@ static void NpcDefinitionsLoadFromCsv()
                [{ FriendlinessChange: 2 }, { FriendlinessChange: 0 }, { FriendlinessChange: -3 }] &&
            catalog.Quests.GetByGiver(QuestNpcId.EliraSilverbranch).Select(quest => quest.Objective.GetType()).ToHashSet().SetEquals(
                [typeof(QuestObjective.EscortNpc), typeof(QuestObjective.CollectItem), typeof(QuestObjective.KillEnemy)]) &&
-           catalog.Quests.All.All(quest => quest.RandomRewardCount > 0 || quest.FixedRewardItemCount > 0),
+           catalog.Quests.All.All(quest => quest.RandomRewardCount > 0 || quest.FixedRewardItemCount > 0 ||
+               quest.Objective is QuestObjective.OpenQuestChest && quest.ExperienceReward > 0),
         "A semleges nem egyedi NPC vagy a hozzá kapcsolt küldetés hibás.");
 }
 
@@ -4061,7 +4065,7 @@ static void AdHocFollowerConversationsAreConfigured()
 static void RodericInsigniaGuardiansAreConfigured()
 {
     var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-    var encounter = MazeLevelConfigurations.Get(5).QuestRoomEnemyEncounters.Single();
+    var encounter = MazeLevelConfigurations.Get(5).QuestRoomEnemyEncounters.Single(value => value.RoomId == "RODERIC_INSIGNIA");
     Assert(encounter is { RoomId: "RODERIC_INSIGNIA", EnemyId: "E052", Count: 3,
                GuaranteedItemId: "T026" } &&
            catalog.GetItem(MiscItemIds.FallenKnightInsignia).BasePrice == 1 &&
@@ -4103,8 +4107,8 @@ static void RodericMalrecQuestLocationIsConfigured()
                { Rank: EnemyRank.MiniBoss, IsBoss: false, HitPoints: 420, Armor: 9 } &&
            quest is { Objective: QuestObjective.KillEnemy { Enemy.Id: "E053" }, ActivationRequirement: QuestActivationRequirement.StoryStateEquals { RequiredState: QuestStoryState.MalrecApproach } },
         "Sir Malrec rangja, küldetése vagy az 5-ös nehézségű küldetéshelyszíne hibás.");
-    Assert(quest is { FixedRewardItem.Id: "T027", FixedRewardItemCount: 1 } &&
-           proofQuest is { Objective: QuestObjective.KillEnemy { Enemy.Id: "E004", Count: 4 } } &&
+    Assert(catalog.GetQuestChest(new("RODERIC_ORDER_RELICS")).Items.Any(item => item.Item.Id == "T027" && item.Quantity == 1) &&
+           proofQuest is { Objective: QuestObjective.KillEnemyWithTraits { RequiredTraits: EnemyTraits.Undead, Count: 8 } } &&
            catalog.GetNpcStoryChoices("RODERIC_OATH", "PROOF_OFFER").Single() is
                { Action: NpcStoryAction.ActivateQuest, ActionParameter: "NPCQ040",
                    NextStateId: "PROOF_ACTIVE" } &&
@@ -4120,14 +4124,10 @@ static void RodericMalrecQuestLocationIsConfigured()
     var lowTrustVerdict = catalog.GetNpcStoryChoices("RODERIC_OATH", "JOIN_VERDICT", 7);
     var highTrustVerdict = catalog.GetNpcStoryChoices("RODERIC_OATH", "JOIN_VERDICT", 8);
     Assert(initialChoices.Count == 3 && initialChoices.All(value => value.ContinueConversation) &&
-           trustedChoices.Single() is { NextStateId: "MALREC_STORY", ContinueConversation: true } &&
+           trustedChoices.Single() is { NextStateId: "RELICS_ACTIVE", Action: NpcStoryAction.ActivateQuest, ActionParameter: "NPCQ041" } &&
            catalog.GetNpcStoryChoices("RODERIC_OATH", "MALREC_STORY").All(value =>
-               value.NextStateId == "CACHE_DECISION" && value.ContinueConversation) &&
-           catalog.GetNpcStoryChoices("RODERIC_OATH", "CACHE_DECISION").Count == 3 &&
-           catalog.GetNpcStoryChoices("RODERIC_OATH", "CACHE_DECISION").Count(value =>
-               value.Action == NpcStoryAction.GrantEmergencySupplies) == 2 &&
-           catalog.GetNpcStoryChoices("RODERIC_OATH", "CACHE_BLOCKED").Single().Action ==
-               NpcStoryAction.GrantEmergencySupplies &&
+               value.NextStateId == "MALREC_READY" && !value.ContinueConversation) &&
+           catalog.GetNpcStoryChoices("RODERIC_OATH", "CACHE_BLOCKED").Count == 0 &&
            finalChoices.Count == 3 && finalChoices.All(value => value.ContinueConversation) &&
            catalog.GetNpcStoryChoices("RODERIC_OATH", "SECOND_CHANCE").Count == 2 &&
            catalog.GetNpcStoryChoices("RODERIC_OATH", "SECOND_CHANCE").Any(value =>

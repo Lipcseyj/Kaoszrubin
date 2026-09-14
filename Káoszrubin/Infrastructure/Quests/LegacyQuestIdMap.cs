@@ -56,6 +56,7 @@ public static class LegacyQuestIdMap
             "NPCQ038" => QuestId.RodericSharedBladeTrial,
             "NPCQ039" => QuestId.RodericOathbreakerKnight,
             "NPCQ040" => QuestId.RodericTheDeadAreNotPrey,
+            "NPCQ041" => QuestId.RodericOrderRelics,
 
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest-azonosító: '{legacyId}'.")
@@ -103,6 +104,7 @@ public static class LegacyQuestIdMap
         QuestId.RodericSharedBladeTrial => "NPCQ038",
         QuestId.RodericOathbreakerKnight => "NPCQ039",
         QuestId.RodericTheDeadAreNotPrey => "NPCQ040",
+        QuestId.RodericOrderRelics => "NPCQ041",
         _ => throw new InvalidDataException("Ismeretlen típusos questazonosító.")
     };
 }

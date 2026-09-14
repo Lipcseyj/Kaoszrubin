@@ -871,7 +871,7 @@ public static class CsvGameDataLoader
             {
                 QuestImportType.OpenQuestChest => !string.IsNullOrWhiteSpace(quest.TargetId),
                 QuestImportType.Kill => enemyIds.Contains(quest.TargetId),
-                QuestImportType.KillWithFollower => monsterAbilities.Any(ability =>
+                QuestImportType.KillWithFollower or QuestImportType.KillWithTraits => monsterAbilities.Any(ability =>
                         string.Equals(ability.Id, quest.TargetId, StringComparison.OrdinalIgnoreCase)) ||
                     enemies.Any(enemy => enemy.MatchesAbilityOrLegacyTrait(quest.TargetId)),
                 QuestImportType.Collect => itemIds.Contains(quest.TargetId),

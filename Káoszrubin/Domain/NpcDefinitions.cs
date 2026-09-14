@@ -48,6 +48,5 @@ public enum NpcStoryAction
     ActivateQuest,
     BeginFollowing,
     TravelToLocation,
-    RequestPermanentJoin,
-    GrantEmergencySupplies
+    RequestPermanentJoin
 }

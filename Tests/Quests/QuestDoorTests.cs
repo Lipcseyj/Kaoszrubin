@@ -124,7 +124,7 @@ internal static class QuestDoorTests
     {
         var settings = MazeLevelConfigurations.Get(5).CreateGenerationSettings(new Random(19));
         var maze = new MazeGenerator(settings, [], [], new Random(20)).Create(55, 31);
-        var door = maze.Doors.Single(d => d.RequiredQuest is not null);
+        var door = maze.Doors.Single(d => d.RequiredQuest == new QuestKey(Definition().Id));
         Check(door.RequiredQuest == new QuestKey(Definition().Id) && door.IsQuestSealed &&
             door.State == DoorState.Closed && !door.IsWalkable, "A jelvényes szoba nem lezárt questajtót kapott.");
         var invalid = new MazeGenerationSettings

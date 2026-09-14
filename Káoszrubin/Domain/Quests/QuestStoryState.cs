@@ -19,5 +19,6 @@ public enum QuestStoryState
     ProofActive,
     InsigniasActive,
     Following,
-    MalrecApproach
+    MalrecApproach,
+    RelicsActive
 }

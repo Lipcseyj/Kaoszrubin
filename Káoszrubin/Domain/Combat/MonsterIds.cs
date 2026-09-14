@@ -55,6 +55,7 @@ public static class MonsterIds
     public const string Patkányember = "E051";
     public const string CsontvázLovag = "E052";
     public const string SirMalrec = "E053";
+    public const string ÉlőholtPátriárka = "E061";
 
     public static IReadOnlySet<string> Bosses { get; } = new HashSet<string>(
     [
