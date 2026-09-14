@@ -43,7 +43,9 @@ internal sealed class GameStateMapper
             Rooms = maze.Rooms.Where(room => room != maze.StartingRoom).ToList(),
             Doors = maze.Doors.Select(door => new DoorSaveData(door.Position, door.State,
                 door.RequiredQuest is { } key ? new QuestDoorSaveData(key, door.QuestAccessGranted) : null)).ToList(),
-            Chests = maze.TreasureChests.Select(chest => new ChestSaveData(chest.Position, chest.GoldAmount)).ToList(),
+            Chests = maze.TreasureChests.Select(chest => new ChestSaveData(chest.Position, chest.GoldAmount,
+                chest.Definition is { } definition ? new QuestChestSaveData(definition.Id.Value, chest.IsOpened,
+                    chest.RemainingItems.Select(item => new QuestChestItemSaveData(item.Item.Id, item.Quantity)).ToList()) : null)).ToList(),
             Enemies = maze.Enemies.Select(enemy => new EnemySaveData(enemy.Position, enemy.Definition.Id,
                 enemy.CurrentHitPoints, enemy.MovementProfile, enemy.PatrolDirection, enemy.PursuitState,
                 Math.Max(0, (int)(nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds),
@@ -142,7 +144,21 @@ internal sealed class GameStateMapper
             maze.PlaceDoor(door.Position, door.State, door.QuestGate?.Key, door.QuestGate?.AccessGranted ?? false);
         }
         maze.PlaceExit(state.Maze.Exit);
-        foreach (var chest in state.Maze.Chests) maze.AddTreasureChest(new TreasureChest(chest.Position, chest.GoldAmount));
+        var chestIds = new HashSet<QuestChestId>();
+        foreach (var chest in state.Maze.Chests)
+        {
+            if (chest.QuestChest is not { } saved)
+            {
+                maze.AddTreasureChest(new TreasureChest(chest.Position, chest.GoldAmount));
+                continue;
+            }
+            var id = new QuestChestId(saved.DefinitionId);
+            if (!chestIds.Add(id) || saved.RemainingItems is null)
+                throw new InvalidDataException("Duplikált questláda vagy hiányzó mentett ládatartalom.");
+            maze.AddTreasureChest(new TreasureChest(chest.Position, _gameData.GetQuestChest(id), saved.IsOpened,
+                chest.GoldAmount, saved.RemainingItems.Select(item =>
+                    new QuestChestItem(_gameData.GetItemDefinition(item.ItemId), item.Quantity)).ToArray()));
+        }
         // A mozgó szereplők, tetemek és földi tárgyak játék közben szabályosan kerülhetnek csapdára.
         // Ezért a csapdákat még ezek előtt állítjuk vissza; a fal-, ajtó-, kijárat- és ládaellenőrzés megmarad.
         foreach (var trap in state.Maze.Traps)

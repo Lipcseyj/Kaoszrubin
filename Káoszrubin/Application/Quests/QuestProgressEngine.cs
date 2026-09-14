@@ -88,8 +88,17 @@ public sealed class QuestProgressEngine
             changedItem: null);
     }
 
-    internal void SynchronizeExplorationObjective(QuestRuntimeState state)
+    internal void SynchronizeWorldObjective(QuestRuntimeState state)
     {
+        if (state.State == QuestState.Active &&
+            _catalog.Get(state.QuestId).Objective is QuestObjective.OpenQuestChest chest &&
+            _world.HasOpenedQuestChest(chest.ChestId))
+        {
+            var before = state.Progress;
+            state.AddProgress(1, 1);
+            ProgressChanged?.Invoke(CreateChange(state, before, QuestState.Active));
+            return;
+        }
         if (state.State != QuestState.Active ||
             _catalog.Get(state.QuestId).Objective is not QuestObjective.ExploreLocation objective ||
             !_world.HasDiscoveredLocation(objective.Location)) return;
@@ -172,6 +181,8 @@ public sealed class QuestProgressEngine
     {
         return (quest.Objective, questEvent) switch
         {
+            (QuestObjective.OpenQuestChest objective, ChestOpenedEvent occurred) =>
+                objective.ChestId == occurred.ChestId ? 1 : 0,
             (
                 QuestObjective.KillEnemy objective,
                 EnemyKilledEvent occurred

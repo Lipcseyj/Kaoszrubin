@@ -72,6 +72,8 @@ public sealed class MazeLevelConfiguration
     public IReadOnlyList<string> TrapIds { get; set; } = [];
     public int VisionModifier { get; set; }
     public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
+    public IReadOnlyDictionary<string, Domain.Quests.QuestChestId> QuestChestPlacements { get; init; }
+        = new Dictionary<string, Domain.Quests.QuestChestId>();
     public IReadOnlyList<string> BossRoomIds { get; init; } = [];
     public IReadOnlyDictionary<string, SpecialRoomPlacement> SpecialRoomPlacements { get; init; }
         = new Dictionary<string, SpecialRoomPlacement>();

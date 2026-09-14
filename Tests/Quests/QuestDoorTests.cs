@@ -114,7 +114,7 @@ internal static class QuestDoorTests
         var old = new GameSaveData { Version = 22 };
         old.Maze.Doors.Add(new(new(3, 2), DoorState.Open));
         GameSaveFormat.MigrateToCurrent(old);
-        Check(old.Version == 23 && old.Maze.Doors.Single().QuestGate is null, "A régi mentés ajtajára utólag questzár került.");
+        Check(old.Version == GameSaveFormat.CurrentVersion && old.Maze.Doors.Single().QuestGate is null, "A régi mentés ajtajára utólag questzár került.");
     }
 
     public static void GeneratedRoomHasOneSealedQuestDoor()

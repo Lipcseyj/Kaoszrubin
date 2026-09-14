@@ -358,7 +358,7 @@ public sealed class QuestManager
             questId,
             giverInstanceId);
         QuestChanged?.Invoke(CreateHandle(state));
-        _progressEngine.SynchronizeExplorationObjective(state);
+        _progressEngine.SynchronizeWorldObjective(state);
 
         // Collect quest esetén azonnal vegyük figyelembe
         // a már meglévő inventory tartalmát.
@@ -393,7 +393,7 @@ public sealed class QuestManager
         foreach (var state in states)
         {
             QuestChanged?.Invoke(CreateHandle(state));
-            _progressEngine.SynchronizeExplorationObjective(state);
+            _progressEngine.SynchronizeWorldObjective(state);
         }
 
         if (states.Any(state =>
@@ -491,10 +491,10 @@ public sealed class QuestManager
     /// A hívó csak a világban megtörtént eseményt közli; nem keres questeket kézzel.
     /// </summary>
     /// <returns>Az esemény által módosított questek progress-változásai.</returns>
-    public IReadOnlyList<QuestProgressChange> RegisterChestOpened()
+    public IReadOnlyList<QuestProgressChange> RegisterChestOpened(QuestChestId? chestId = null)
     {
         return _progressEngine.Process(
-            new ChestOpenedEvent());
+            new ChestOpenedEvent(chestId));
     }
 
     /// <summary>

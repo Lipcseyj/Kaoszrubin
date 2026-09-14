@@ -97,6 +97,8 @@ internal sealed class QuestTestFixture : IQuestWorldContext, IQuestRewardContext
 
     public bool IsNpcAliveAndFollowing(QuestNpcId npcId, QuestNpcInstanceId instanceId) => AliveAndFollowing;
     public bool IsNpcAtLocation(QuestNpcId npcId, QuestNpcInstanceId instanceId, QuestLocation location) => AtLocation;
+    public HashSet<QuestChestId> OpenedChests { get; } = [];
+    public bool HasOpenedQuestChest(QuestChestId id) => OpenedChests.Contains(id);
     public bool HasDiscoveredLocation(QuestLocation location) => DiscoveredLocations.Contains(location);
 
     public IItemDefinition? RollRandomReward(int experienceReward)

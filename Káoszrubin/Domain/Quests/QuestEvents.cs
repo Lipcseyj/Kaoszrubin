@@ -37,7 +37,7 @@ public sealed record TrapDisarmedEvent
 /// <summary>
 /// A parti sikeresen kinyitott egy kincsesládát.
 /// </summary>
-public sealed record ChestOpenedEvent
+public sealed record ChestOpenedEvent(QuestChestId? ChestId = null)
     : QuestEvent;
 
 /// <summary>

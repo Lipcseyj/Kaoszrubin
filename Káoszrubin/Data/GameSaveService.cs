@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 23;
+    public const int CurrentVersion = 24;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -133,10 +133,18 @@ public static class GameSaveFormat
                 20 => MigrateVersion20To21(state),
                 21 => MigrateVersion21To22(state),
                 22 => MigrateVersion22To23(state),
+                23 => MigrateVersion23To24(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion23To24(GameSaveData state)
+    {
+        // Korábbi ládák maradnak egyszer felvehető, hagyományos aranyládák.
+        state.Version = 24;
         return state;
     }
 
@@ -383,7 +391,10 @@ public sealed record QuestDoorSaveData(
     [property: JsonRequired, JsonConverter(typeof(Infrastructure.Quests.QuestKeyJsonConverter))]
     Domain.Quests.QuestKey Key,
     bool AccessGranted = false);
-public sealed record ChestSaveData(Position Position, int GoldAmount);
+public sealed record ChestSaveData(Position Position, int GoldAmount, QuestChestSaveData? QuestChest = null);
+public sealed record QuestChestSaveData(string DefinitionId, [property: JsonRequired] bool IsOpened,
+    [property: JsonRequired] List<QuestChestItemSaveData> RemainingItems);
+public sealed record QuestChestItemSaveData(string ItemId, int Quantity);
 public sealed record EnemySaveData(Position Position, string DefinitionId, int CurrentHitPoints,
     EnemyMovementProfile MovementProfile = EnemyMovementProfile.Wander,
     Direction PatrolDirection = Direction.Right,

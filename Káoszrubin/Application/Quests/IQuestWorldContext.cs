@@ -30,6 +30,7 @@ public interface IQuestWorldContext
 
     /// <summary>Az aktuális helyszín felfedezett helyei; pályaváltáskor a világ határozza meg újra.</summary>
     bool HasDiscoveredLocation(QuestLocation location);
+    bool HasOpenedQuestChest(QuestChestId chestId) => false;
 
     /// <summary>
     /// Visszaadja az adott NPC aktuális, quest-rendszer számára

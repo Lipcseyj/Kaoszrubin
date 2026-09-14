@@ -2080,3 +2080,9 @@ S008;RPP024;;;Aludjatok. Ha valami közeledik előbb velem kell megbeszélnie.;S
 S009;RPP025;;;Vizet kérek. Az Ezüst Esküre mondom kiszáradva még az eskü szavait is nehéz kimondani.;Sir Roderic;Nem
 S009;RPP026;;;Igyunk társaim. A fegyelem nem azt jelenti hogy figyelmen kívül hagyjuk a testünk jelzéseit.;Sir Roderic;Nem
 S009;RPP027;;;A kulacsom üres. Töltsük fel mielőtt a következő ütközetben vesszük észre.;Sir Roderic;Nem
+
+#Quest ládák
+Id;Név;Arany
+
+#Quest láda tartalom
+Id;TárgyId;Darab

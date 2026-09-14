@@ -91,6 +91,8 @@ public sealed class QuestCatalog
     {
         foreach (var quest in definitions)
         {
+            if (quest.Objective is QuestObjective.OpenQuestChest chest && string.IsNullOrWhiteSpace(chest.ChestId.Value))
+                throw new InvalidOperationException("A ládaobjective érvényes ládaazonosítót igényel.");
             if (quest.Id == QuestId.None)
                 throw new InvalidOperationException(
                     "QuestDefinition nem használhat QuestId.None azonosítót.");

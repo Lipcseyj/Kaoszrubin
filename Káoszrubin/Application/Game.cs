@@ -1120,6 +1120,7 @@ public sealed class Game : ISessionCommandHandler
         PlaceTraps(configuration);
         PlaceFirstSinglePlayerCompanion();
         PlaceConfiguredWorldNpcs();
+        QuestChestPlacement.Place(_maze, _gameData, configuration.QuestChestPlacements);
         PlaceQuestRoomEnemies(configuration);
         CaptureExpeditionEnemyTemplates();
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
@@ -1183,6 +1184,7 @@ public sealed class Game : ISessionCommandHandler
         PlacePartyMembersNear(_player.Position);
         PlaceCarriedTemporaryFollowersNear(_player.Position);
         PlaceTraps(configuration);
+        QuestChestPlacement.Place(_maze, _gameData, configuration.QuestChestPlacements);
         PlaceQuestRoomEnemies(configuration);
         CaptureExpeditionEnemyTemplates();
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
@@ -2098,6 +2100,25 @@ public sealed class Game : ISessionCommandHandler
     {
         var chest = _maze.GetTreasureChestAt(position);
         if (chest is null) return;
+        if (chest.Definition is not null)
+        {
+            var result = new QuestChestService(_questManager).Collect(chest,
+                item => TryStoreSearchedLoot(character, item, shareLootWithParty, out _),
+                SelectedCharacter.AddGold);
+            ProcessQuestProgressChanges(result.Changes);
+            SynchronizeInventoryQuests();
+            var text = $"🎁 {chest.Definition.Name}: {result.Gold} arany, {result.ItemCount} tárgy felvéve. " +
+                (result.RemainingCount > 0
+                    ? $"{result.RemainingCount} tárgy a ládában maradt; később újra átkutathatod."
+                    : "A láda üres.");
+            _renderer.RefreshCharacterSheet(SelectedCharacter);
+            _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position]);
+            _renderer.DrawInventoryMessage(text, ConsoleColor.Yellow);
+            RecordSessionActivity(SessionActivityKind.System, text, ConsoleColor.Yellow, [character.Id]);
+            if (result.FirstOpening) PlaySessionSound(SoundEffect.Chest, [character.Id]);
+            RequestCoopSnapshotPublish();
+            return;
+        }
         var rules = _gameData.LootRules;
         var jackpotChance = AdjustedSearchChance(character, rules.ChestJackpotChancePercent);
         var jackpot = _random.Next(100) < jackpotChance;
@@ -4215,6 +4236,11 @@ public sealed class Game : ISessionCommandHandler
 
     private bool TrySearchCurrentCell(LiveCharacter character, Position position, bool shareLootWithParty)
     {
+        if (_maze.GetTreasureChestAt(position)?.Definition is not null)
+        {
+            CollectTreasureChest(character, position, shareLootWithParty);
+            return true;
+        }
         var corpses = _maze.GetCorpsesAt(position);
         var pile = _maze.GetGroundItemPileAt(position);
         if (corpses.Count == 0 && pile is null) return false;

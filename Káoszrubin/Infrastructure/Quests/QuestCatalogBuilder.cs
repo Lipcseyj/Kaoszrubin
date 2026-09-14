@@ -87,6 +87,8 @@ internal sealed class QuestCatalogBuilder
     {
         return source.Type switch
         {
+            QuestImportType.OpenQuestChest when source.RequiredCount == 1 =>
+                new QuestObjective.OpenQuestChest(_gameData.GetQuestChest(new(source.TargetId)).Id),
             QuestImportType.Collect =>
                 new QuestObjective.CollectItem(
                     _gameData.GetItemDefinition(source.TargetId),

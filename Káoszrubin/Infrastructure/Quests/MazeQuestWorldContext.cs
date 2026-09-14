@@ -11,6 +11,8 @@ namespace KaoszRubin.Infrastructure.Quests;
 /// </summary>
 public sealed class MazeQuestWorldContext : IQuestWorldContext
 {
+    public bool HasOpenedQuestChest(QuestChestId chestId) =>
+        _getMaze().TreasureChests.Any(chest => chest.Definition?.Id == chestId && chest.IsOpened);
     private readonly Func<Maze> _getMaze;
     private readonly Func<IItemDefinition, int> _countPartyItem;
     private readonly QuestNpcInstanceRegistry _instanceRegistry;

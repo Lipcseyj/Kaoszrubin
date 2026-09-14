@@ -44,6 +44,10 @@ public sealed class GameDataCatalog
     public IReadOnlyList<NpcStoryChoiceDefinition> NpcStoryChoices { get; init; } = [];
     /// <summary>A betöltéskor ellenőrzött, feloldott questdefiníciók; futásidejű állapotot nem tartalmaz.</summary>
     public QuestCatalog Quests { get; internal set; } = new([]);
+    public IReadOnlyList<QuestChestDefinition> QuestChests { get; internal set; } = [];
+    public QuestChestDefinition GetQuestChest(QuestChestId id) =>
+        QuestChests.FirstOrDefault(chest => chest.Id == id)
+        ?? throw new InvalidDataException($"Ismeretlen questláda: {id}.");
     public IReadOnlyList<PartySituationDefinition> PartySituations { get; init; } = [];
     public IReadOnlyList<PartyRemarkDefinition> PartyRemarks { get; init; } = [];
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();

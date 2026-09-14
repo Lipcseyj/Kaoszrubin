@@ -59,6 +59,9 @@ public abstract record QuestObjective(int RequiredCount)
         int Count)
         : QuestObjective(Count);
 
+    /// <summary>A megadott láda első kinyitása; a tartalom elvitele nem feltétel.</summary>
+    public sealed record OpenQuestChest(QuestChestId ChestId) : QuestObjective(1);
+
     /// <summary>
     /// Egy quest NPC élve eljuttatása egy meghatározott helyre.
     /// </summary>

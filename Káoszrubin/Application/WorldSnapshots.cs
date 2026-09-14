@@ -31,7 +31,8 @@ public sealed record WorldLastKnownEnemySnapshot(WorldEntityId EntityId, Positio
     int RemainingPartyMoves, bool IsSoundCue = false);
 
 public sealed record WorldChestSnapshot(WorldEntityId EntityId, Position Position, int SymbolCodePoint = '▣',
-    ConsoleColor ForegroundColor = ConsoleColor.Yellow, ConsoleColor BackgroundColor = ConsoleColor.Black);
+    ConsoleColor ForegroundColor = ConsoleColor.Yellow, ConsoleColor BackgroundColor = ConsoleColor.Black,
+    string? DefinitionId = null, string? Name = null, bool IsOpened = false, int RemainingItemCount = 0);
 
 public sealed record WorldCorpseSnapshot(WorldEntityId EntityId, Position Position, string FormerName,
     CharacterId? PartyCharacterId, string? EnemyDefinitionId, bool IsSearched, int SymbolCodePoint = '†',
@@ -115,7 +116,9 @@ public static class WorldSnapshotProjector
                 }, enemy.Symbol.Value);
         }).ToArray();
         var chests = maze.TreasureChests.Where(chest => IsVisible(chest.Position))
-            .Select(chest => new WorldChestSnapshot(chest.Id, chest.Position, chest.Symbol.Value)).ToArray();
+            .Select(chest => new WorldChestSnapshot(chest.Id, chest.Position, chest.Symbol.Value,
+                DefinitionId: chest.Definition?.Id.Value, Name: chest.Definition?.Name,
+                IsOpened: chest.IsOpened, RemainingItemCount: chest.RemainingItems.Sum(item => item.Quantity))).ToArray();
         var corpses = maze.Corpses.Where(corpse => IsVisible(corpse.Position)).Select(corpse =>
             new WorldCorpseSnapshot(corpse.Id, corpse.Position, corpse.FormerName,
                 (corpse as PartyMemberCorpse)?.Character.Id, (corpse as MonsterCorpse)?.EnemyDefinitionId,

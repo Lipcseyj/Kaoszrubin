@@ -53,6 +53,7 @@ public static class CsvGameDataLoader
         var npcDialogues = new List<NpcDialogueDefinition>();
         var npcStoryChoices = new List<NpcStoryChoiceDefinition>();
         var npcQuests = new List<QuestImportRow>();
+        var questChests = new QuestChestCsvBuilder();
         var partySituations = new List<PartySituationDefinition>();
         var partyRemarks = new List<PartyRemarkDefinition>();
         var itemUpgrades = new List<ItemUpgradeDefinition>();
@@ -87,6 +88,8 @@ public static class CsvGameDataLoader
                 throw new InvalidDataException($"A {GameDataFileName} {lineNumber}. sora nem tartozik ismert fejezethez: '{rawLine}'.");
             try
             {
+                if (section == DataSection.QuestChests) { questChests.AddDefinition(cells); continue; }
+                if (section == DataSection.QuestChestItems) { questChests.AddItem(cells); continue; }
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
                     monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, itemCurses, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps,
                     npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcStoryChoices, npcQuests,
@@ -235,6 +238,7 @@ public static class CsvGameDataLoader
                 ? baseLevelCompletionExperience.Value
                 : throw new InvalidOperationException("A #Base XP pálya végén értékének nemnegatív egész számnak kell lennie a " + GameDataFileName + " fájlban.")
         };
+        catalog.QuestChests = questChests.Build(catalog);
         catalog.Quests = new QuestCatalogBuilder(catalog).Build(npcQuests);
         foreach (var requirement in Enumerable.Range(1, MazeLevelConfigurations.FinalLevel)
             .Select(MazeLevelConfigurations.Get).Concat(QuestLocationConfigurations.All)
@@ -812,6 +816,7 @@ public static class CsvGameDataLoader
         {
             var targetIsValid = quest.Type switch
             {
+                QuestImportType.OpenQuestChest => !string.IsNullOrWhiteSpace(quest.TargetId),
                 QuestImportType.Kill => enemyIds.Contains(quest.TargetId),
                 QuestImportType.KillWithFollower => monsterAbilities.Any(ability =>
                         string.Equals(ability.Id, quest.TargetId, StringComparison.OrdinalIgnoreCase)) ||
@@ -1477,6 +1482,8 @@ public static class CsvGameDataLoader
         "npc parbeszedek" => DataSection.NpcDialogues,
         "npc torteneti valasztasok" => DataSection.NpcStoryChoices,
         "npc kuldetesek" => DataSection.NpcQuests,
+        "quest ladak" => DataSection.QuestChests,
+        "quest lada tartalom" => DataSection.QuestChestItems,
         "szituaciok" => DataSection.PartySituations,
         "parti megjegyzesek" => DataSection.PartyRemarks,
         "faji kepessegbonuszok" => DataSection.RaceAbilityBonuses,
@@ -1532,6 +1539,8 @@ public static class CsvGameDataLoader
         NpcDialogues,
         NpcStoryChoices,
         NpcQuests,
+        QuestChests,
+        QuestChestItems,
         PartySituations,
         PartyRemarks,
         RaceAbilityBonuses,

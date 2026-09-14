@@ -60,5 +60,6 @@ A három ismert durability-hibát a felhasználó kérésére nem javítottuk:
 sav/káosz kopás, kaszttehetségek kopásmódosítása, sérült felszerelés harci módosítói.
 Interaktív UI- és külön gépes coop-végigjátszás nem történt.
 
-Következő előfeltétel: CSV-ből konfigurált, azonosítható questládák és konkrét
-ládához kötött questobjective.
+A következő előfeltétel elkészült: [CSV-ből konfigurált questládák és konkrét
+ládához kötött questobjective](roderic-quest-chests.md). Ez a csomag a mentés
+verzióját 24-re, a coop-protokollt 84-re emeli.

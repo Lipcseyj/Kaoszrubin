@@ -26,6 +26,11 @@ if (CoopHarnessOptions.TryParse(args, out var harnessOptions))
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A questláda CSV-je célzott objective-ot és ellenőrzött tartalmat ad", QuestChestTests.CsvResolvesChestAndObjective),
+    ("Csak az első ládanyitás ad progresst, a kipakolás nem", QuestChestTests.FirstOpeningCountsButEmptyingDoesNot),
+    ("A teli hátizsák mellett a zsákmány a questládában marad", QuestChestTests.FullBackpackKeepsContentInChest),
+    ("A részlegesen kiürített questláda mentése és replikációja veszteségmentes", QuestChestTests.PartialContentSurvivesSaveAndReplication),
+    ("A questláda megadott szobába és egyszer kerül", QuestChestTests.PlacementUsesNamedRoomAndRejectsDuplicates),
     ("A questajtó a pontos futást követi és megőrzi a megszerzett hozzáférést", QuestDoorTests.AccessFollowsExactQuestAndRemainsGranted),
     ("A tiltott questajtó-próba nem fogyaszt erőforrást", QuestDoorTests.DeniedInteractionSpendsNothing),
     ("A questajtó mentése és hálózati deltája megőrzi a feloldást", QuestDoorTests.SaveAndWorldDeltaPreserveGate),
