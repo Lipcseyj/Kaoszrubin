@@ -75,6 +75,8 @@ public sealed class MazeLevelConfiguration
     public IReadOnlyList<string> BossRoomIds { get; init; } = [];
     public IReadOnlyDictionary<string, SpecialRoomPlacement> SpecialRoomPlacements { get; init; }
         = new Dictionary<string, SpecialRoomPlacement>();
+    public IReadOnlyDictionary<string, Domain.Quests.QuestId> QuestDoorRequirements { get; init; }
+        = new Dictionary<string, Domain.Quests.QuestId>();
     public IReadOnlyList<QuestRoomEnemyEncounterConfiguration> QuestRoomEnemyEncounters { get; init; } = [];
     public required IReadOnlyList<EnemyEncounterConfiguration> RoomEncounters { get; init; }
     public required IReadOnlyList<EnemyEncounterConfiguration> CorridorEncounters { get; init; }
@@ -92,7 +94,8 @@ public sealed class MazeLevelConfiguration
         LevelName = Name,
         QuestRoomIds = QuestRoomIds,
         BossRoomIds = BossRoomIds,
-        SpecialRoomPlacements = SpecialRoomPlacements
+        SpecialRoomPlacements = SpecialRoomPlacements,
+        QuestDoorRequirements = QuestDoorRequirements
     };
 }
 
@@ -255,6 +258,10 @@ public static class MazeLevelConfigurations
                 {
                     ["RODERIC_MEETING"] = SpecialRoomPlacement.MiddleRoute,
                     ["RODERIC_INSIGNIA"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestDoorRequirements = new Dictionary<string, Domain.Quests.QuestId>
+                {
+                    ["RODERIC_INSIGNIA"] = Domain.Quests.QuestId.RodericFallenComradesInsignia
                 },
                 QuestRoomEnemyEncounters =
                 [

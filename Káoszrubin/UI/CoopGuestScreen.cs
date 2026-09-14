@@ -2030,7 +2030,7 @@ public sealed class CoopGuestScreen
             slot.Kind == InventorySlotKind.Backpack &&
             string.Equals(slot.Item?.DefinitionId, MiscItemIds.Key, StringComparison.OrdinalIgnoreCase)) == true);
         if (character is null || !CharacterClassRules.IsThief(character.CharacterClassId) || keyOwner is null ||
-            door is null ||
+            door is null || door.IsQuestSealed ||
             action switch
             {
                 CharacterAction.OpenDoor => door.State != DoorState.Locked,

@@ -26,6 +26,10 @@ if (CoopHarnessOptions.TryParse(args, out var harnessOptions))
 
 var tests = new (string Name, Action Run)[]
 {
+    ("A questajtó a pontos futást követi és megőrzi a megszerzett hozzáférést", QuestDoorTests.AccessFollowsExactQuestAndRemainsGranted),
+    ("A tiltott questajtó-próba nem fogyaszt erőforrást", QuestDoorTests.DeniedInteractionSpendsNothing),
+    ("A questajtó mentése és hálózati deltája megőrzi a feloldást", QuestDoorTests.SaveAndWorldDeltaPreserveGate),
+    ("A jelvényes szoba egyetlen lezárt questajtót kap", QuestDoorTests.GeneratedRoomHasOneSealedQuestDoor),
     ("Roderic és a lezárható mellékszobák 80 seeddel is elérhetők", RodericRoomPlacementTests.PlacementSurvivesMultipleSeeds),
     ("A szobagenerálás reprodukálható és elutasítja a hibás konfigurációt", RodericRoomPlacementTests.SeedAndConfigurationAreValidated),
     ("Mind a 40 quest és 21 NPC típusos importja megőrzi a CSV-adatokat", QuestCatalogImportTests.AllDefinitionsPreserveCsvData),
@@ -2948,7 +2952,7 @@ static void CombatAppliesEquipmentWear()
     var indestructible = shield with { Id = "W-INDESTRUCTIBLE-TEST", MaximumDurability = 0 };
     Assert(defender.SetInventoryItem(InventorySlotKind.Weapon, 1, indestructible, null, 1),
         "A törhetetlen pajzsot nem lehetett felszerelni.");
-    Assert(!defender.ApplyInventoryItemWear(InventorySlotKind.Weapon, 1, 100).Changed &&
+    Assert(!defender.ApplyInventoryItemWear(InventorySlotKind.Weapon, 1, EquipmentWearCause.Attack, 100).Changed &&
            defender.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage == 0,
         "A nulla maximális tartósságú, törhetetlen felszerelés kopást kapott.");
 }
@@ -3060,9 +3064,9 @@ static void UpgradesAndClassPerksImproveDurability()
     var fighterWeapon = data.GetWeapon("W001");
     Assert(fighter.AddPerk(data.GetPerk(PerkIds.FighterWeaponMaster)) && fighter.EquipWeapon(0, fighterWeapon),
         "A Fegyvermester kopási próbája nem volt előkészíthető.");
-    fighter.ApplyInventoryItemWear(InventorySlotKind.Weapon, 0, 2);
+    fighter.ApplyInventoryItemWear(InventorySlotKind.Weapon, 0, EquipmentWearCause.Attack, 2);
     Assert(fighter.GetInventoryItemState(InventorySlotKind.Weapon, 0)?.DurabilityDamage == 1 &&
-           !fighter.ApplyInventoryItemWear(InventorySlotKind.Weapon, 0, 1).Changed,
+           !fighter.ApplyInventoryItemWear(InventorySlotKind.Weapon, 0, EquipmentWearCause.Attack, 1).Changed,
         "A Fegyvermester nem csökkentette eggyel a fegyverkopást.");
 
     var knight = CreateCharacter("Páncélmester", characterClassId: CharacterClassIds.Lovag);
@@ -3071,8 +3075,8 @@ static void UpgradesAndClassPerksImproveDurability()
     Assert(knight.AddPerk(data.GetPerk(PerkIds.KnightArmorMaster)) &&
            knight.EquipArmor(knightArmor) && knight.EquipWeapon(1, knightShield),
         "A Páncélmester kopási próbája nem volt előkészíthető.");
-    knight.ApplyInventoryItemWear(InventorySlotKind.Armor, 0, 2);
-    knight.ApplyInventoryItemWear(InventorySlotKind.Weapon, 1, 2);
+    knight.ApplyInventoryItemWear(InventorySlotKind.Armor, 0, EquipmentWearCause.BeingAttacked, 2);
+    knight.ApplyInventoryItemWear(InventorySlotKind.Weapon, 1, EquipmentWearCause.BeingAttacked, 2);
     Assert(knight.GetInventoryItemState(InventorySlotKind.Armor, 0)?.DurabilityDamage == 1 &&
            knight.GetInventoryItemState(InventorySlotKind.Weapon, 1)?.DurabilityDamage == 1,
         "A Páncélmester nem csökkentette eggyel a páncél- és pajzskopást.");

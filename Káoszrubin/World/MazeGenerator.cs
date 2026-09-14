@@ -491,6 +491,11 @@ public sealed class MazeGenerator
     private static void ValidateSettings(MazeGenerationSettings settings)
     {
         var ids = settings.QuestRoomIds.Concat(settings.BossRoomIds).ToArray();
+        if (settings.QuestDoorRequirements.Any(rule => !Enum.IsDefined(rule.Value) ||
+            rule.Value == Domain.Quests.QuestId.None ||
+            !settings.SpecialRoomPlacements.TryGetValue(rule.Key, out var placement) ||
+            placement != SpecialRoomPlacement.SideBranch))
+            throw new ArgumentException("Questzár csak egybejáratú mellékszobához rendelhető.", nameof(settings));
         if (ids.Any(string.IsNullOrWhiteSpace) || ids.Distinct(StringComparer.Ordinal).Count() != ids.Length ||
             ids.Length > settings.RoomCount || settings.SpecialRoomPlacements.Any(rule =>
                 !ids.Contains(rule.Key) || !Enum.IsDefined(rule.Value)))

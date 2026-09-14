@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 22;
+    public const int CurrentVersion = 23;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -132,10 +132,18 @@ public static class GameSaveFormat
                 19 => MigrateVersion19To20(state),
                 20 => MigrateVersion20To21(state),
                 21 => MigrateVersion21To22(state),
+                22 => MigrateVersion22To23(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion22To23(GameSaveData state)
+    {
+        // A régi ajtók feltétel nélküliek maradnak; már játszott pályát nem zárunk le utólag.
+        state.Version = 23;
         return state;
     }
 
@@ -370,7 +378,11 @@ public sealed class FogSaveData
     public bool DeveloperRevealActive { get; set; }
 }
 
-public sealed record DoorSaveData(Position Position, DoorState State);
+public sealed record DoorSaveData(Position Position, DoorState State, QuestDoorSaveData? QuestGate = null);
+public sealed record QuestDoorSaveData(
+    [property: JsonRequired, JsonConverter(typeof(Infrastructure.Quests.QuestKeyJsonConverter))]
+    Domain.Quests.QuestKey Key,
+    bool AccessGranted = false);
 public sealed record ChestSaveData(Position Position, int GoldAmount);
 public sealed record EnemySaveData(Position Position, string DefinitionId, int CurrentHitPoints,
     EnemyMovementProfile MovementProfile = EnemyMovementProfile.Wander,

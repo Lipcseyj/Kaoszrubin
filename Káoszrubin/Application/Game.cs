@@ -348,9 +348,6 @@ public sealed class Game : ISessionCommandHandler
         _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(_musicSettings.Settings,
             message => _renderer.DrawDeveloperMessage(message));
-        _doorInteractions = new DoorInteractionController(gameData, _renderer,
-            (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random,
-            (message, color, actor) => RecordSessionActivity(SessionActivityKind.System, message, color, [actor.Id]));
         _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer,
             effect => PlaySessionSound(effect),
             _random, AwardExperienceResult, ResolvePerkOffers, PreparePartySpells, ReadInnKey,
@@ -381,6 +378,10 @@ public sealed class Game : ISessionCommandHandler
         _npcQuestCoordinator = new NpcQuestCoordinator(_gameData, _questManager, _questWorldContext);
         _questManager.QuestChanged += ProjectQuestChange;
         _questInventorySynchronizer = new QuestInventorySynchronizer(_questManager);
+        _doorInteractions = new DoorInteractionController(gameData, _renderer,
+            (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random,
+            (message, color, actor) => RecordSessionActivity(SessionActivityKind.System, message, color, [actor.Id]),
+            new QuestDoorAccessService(_questManager).TryGrantAccess);
         _backgroundMusic.SetReportCallback(message =>
         {
             if (_session.Phase == GameSessionPhase.Inn)
@@ -3953,7 +3954,7 @@ public sealed class Game : ISessionCommandHandler
         var keyOwner = DoorKeyOwners(SelectedCharacter).FirstOrDefault(DoorInteractionRules.HasKey);
         if (!CharacterClassRules.IsThief(SelectedCharacter.CharacterClass.Id) ||
             keyOwner is null ||
-            targetDoorPosition is not { } target || _maze.GetDoorAt(target) is not { } door ||
+            targetDoorPosition is not { } target || _maze.GetDoorAt(target) is not { } door || door.IsQuestSealed ||
             action switch
             {
                 CharacterAction.OpenDoor => door.State != DoorState.Locked,
