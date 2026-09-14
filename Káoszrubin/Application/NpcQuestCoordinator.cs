@@ -45,7 +45,7 @@ public sealed class NpcQuestCoordinator
             return;
         }
         journal.TryGetValue(quest.Key, out var previous);
-        var giver = _gameData.NpcQuests.Single(definition => LegacyQuestIdMap.ToQuestId(definition.Id) == quest.Id).NpcId;
+        var giver = quest.Giver;
         var npc = _questWorldContext.ResolveNpc(quest.Giver, quest.GiverInstanceId);
         journal[quest.Key] = new(quest.Key, previous?.Title ?? quest.Title, previous?.Description ?? quest.Description,
             previous?.QuestGiverName ?? npc?.Character.Name ?? _gameData.GetNpc(giver).Name,

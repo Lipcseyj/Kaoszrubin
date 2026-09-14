@@ -245,8 +245,7 @@ internal sealed class GameStateMapper
                     ?? throw new InvalidDataException($"Hiányzó mentett NPC-karakter: {id}.")
                 : _characterRoster.Characters[saved.CharacterIndex], saved.Disposition, saved.Recruitable,
             saved.IsQuestNpc, saved.Dialogue, saved.State, saved.Friendliness, saved.Behavior,
-            saved.IsQuestNpc ? _gameData.NpcQuests.Where(quest => string.Equals(quest.NpcId, saved.DefinitionId,
-                StringComparison.OrdinalIgnoreCase)).Select(quest => quest.Id).ToArray() : saved.QuestIds,
+            saved.IsQuestNpc ? LegacyQuestProgressProjection.GetQuestIds(_gameData.Quests, saved.DefinitionId) : saved.QuestIds,
             saved.StoryId, saved.StoryStateId);
         // A legacy progress kizárólag a QuestSaveAdapter bemenete; ezt a nézetet a manager tölti fel.
         restored.RestoreConversationStage(saved.ConversationStage);

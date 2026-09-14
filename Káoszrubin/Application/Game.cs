@@ -429,9 +429,7 @@ public sealed class Game : ISessionCommandHandler
         // Definíciók
         // ------------------------------------------------------------
 
-        var questCatalog =
-            new QuestCatalogBuilder(gameData)
-                .Build();
+        var questCatalog = gameData.Quests;
 
         // ------------------------------------------------------------
         // Runtime state
@@ -1487,7 +1485,7 @@ public sealed class Game : ISessionCommandHandler
             var dialogue = _gameData.GetNpcDialogues(definition.Id)
                 .Where(value => friendliness >= value.MinimumFriendliness && friendliness <= value.MaximumFriendliness)
                 .OrderBy(_ => _random.Next()).FirstOrDefault()?.Text ?? "Az idegen óvatosan végigmér benneteket.";
-            var questIds = _gameData.GetNpcQuests(definition.Id).Select(quest => quest.Id).ToArray();
+            var questIds = LegacyQuestProgressProjection.GetQuestIds(_gameData.Quests, definition.Id);
             _maze.AddWorldNpc(new WorldNpc(candidates[_random.Next(candidates.Count)], definition.Id, recruit,
                 definition.Disposition, definition.Recruitable, questIds.Length > 0, dialogue,
                 friendliness: friendliness, behavior: definition.Behavior, questIds: questIds,

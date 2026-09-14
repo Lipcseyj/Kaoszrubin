@@ -1,3 +1,4 @@
+using KaoszRubin.Domain.Quests;
 using KaoszRubin;
 using KaoszRubin.Application;
 using KaoszRubin.Audio;
@@ -25,6 +26,8 @@ if (CoopHarnessOptions.TryParse(args, out var harnessOptions))
 
 var tests = new (string Name, Action Run)[]
 {
+    ("Mind a 40 quest és 21 NPC típusos importja megőrzi a CSV-adatokat", QuestCatalogImportTests.AllDefinitionsPreserveCsvData),
+    ("A hibás questdefiníció már CSV-betöltéskor meghiúsul", QuestCatalogImportTests.InvalidDefinitionsFailDuringLoading),
     ("A világpillanatkép típusos questállapotot és stabil kulcsot visz át", QuestReplicationTests.WorldUsesTypedStatesAndStableKeys),
     ("A questdelta csak a ténylegesen módosult NPC-t tartalmazza", QuestReplicationTests.DeltaChangesOnlyTheAffectedNpc),
     ("A questprojekció megtartja a láthatóságot és a követő aktuális pozícióját", QuestReplicationTests.VisibilityAndFollowerPositionRemainAuthoritative),
@@ -3634,30 +3637,30 @@ static void NpcDefinitionsLoadFromCsv()
         $"Az NPC-párbeszédek száma hibás: várt 69, tényleges {catalog.NpcDialogues.Count}.");
     Assert(catalog.NpcStoryChoices.Count == 70,
         $"Az NPC történeti választások száma hibás: várt 70, tényleges {catalog.NpcStoryChoices.Count}.");
-    Assert(catalog.NpcQuests.Count == 40,
-        $"Az NPC-küldetések száma hibás: várt 40, tényleges {catalog.NpcQuests.Count}.");
+    Assert(catalog.Quests.Count == 40,
+        $"Az NPC-küldetések száma hibás: várt 40, tényleges {catalog.Quests.Count}.");
     foreach (var (type, expected) in new[]
     {
-        (NpcQuestType.Collect, 8), (NpcQuestType.Kill, 18), (NpcQuestType.KillWithFollower, 1),
-        (NpcQuestType.Explore, 5), (NpcQuestType.Disarm, 3), (NpcQuestType.OpenChest, 4), (NpcQuestType.Escort, 1)
+        (typeof(QuestObjective.CollectItem), 8), (typeof(QuestObjective.KillEnemy), 18), (typeof(QuestObjective.KillEnemyWithTraits), 1),
+        (typeof(QuestObjective.ExploreLocation), 5), (typeof(QuestObjective.DisarmTraps), 3), (typeof(QuestObjective.OpenChests), 4), (typeof(QuestObjective.EscortNpc), 1)
     })
     {
-        var actual = catalog.NpcQuests.Count(quest => quest.Type == type);
+        var actual = catalog.Quests.All.Count(quest => quest.Objective.GetType() == type);
         Assert(actual == expected, $"A(z) {type} küldetések száma hibás: várt {expected}, tényleges {actual}.");
     }
     Assert(catalog.GetNpc("NPC001") is { Disposition: NpcDisposition.Neutral, Unique: false } &&
-           catalog.GetNpcQuests("NPC002").Any(quest =>
-               quest is { TargetId: "E003", ExperienceReward: 260 }) &&
-           catalog.GetNpcQuests("NPC001").Any(quest => quest is
-               { Id: "NPCQ001", RewardItemId: "T018", RewardItemCount: 2, RandomRewardCount: 0 }) &&
+           catalog.Quests.GetByGiver(QuestNpcId.MonsterHunter).Any(quest =>
+               quest is { Objective: QuestObjective.KillEnemy { Enemy.Id: "E003" }, ExperienceReward: 260 }) &&
+           catalog.Quests.GetByGiver(QuestNpcId.WanderingHerbalist).Any(quest => quest is
+               { Id: QuestId.HerbalistHealingSupplies, FixedRewardItem.Id: "T018", FixedRewardItemCount: 2, RandomRewardCount: 0 }) &&
            catalog.GetNpc("NPC020") is { Unique: true, Recruitable: true, RaceId: "R003" } &&
            catalog.GetNpc("NPC021") is { Unique: true, RaceId: "R001", StoryId: "RODERIC_OATH" } &&
            catalog.NpcEncounters.Single(encounter => encounter.NpcId == "NPC021").QuestRoomId == "RODERIC_MEETING" &&
            catalog.GetNpcStoryChoices("RODERIC_OATH", "INITIAL") is
                [{ FriendlinessChange: 2 }, { FriendlinessChange: 0 }, { FriendlinessChange: -3 }] &&
-           catalog.GetNpcQuests("NPC020").Select(quest => quest.Type).ToHashSet().SetEquals(
-               [NpcQuestType.Escort, NpcQuestType.Collect, NpcQuestType.Kill]) &&
-           catalog.NpcQuests.All(quest => quest.RandomRewardCount > 0 || quest.RewardItemCount > 0),
+           catalog.Quests.GetByGiver(QuestNpcId.EliraSilverbranch).Select(quest => quest.Objective.GetType()).ToHashSet().SetEquals(
+               [typeof(QuestObjective.EscortNpc), typeof(QuestObjective.CollectItem), typeof(QuestObjective.KillEnemy)]) &&
+           catalog.Quests.All.All(quest => quest.RandomRewardCount > 0 || quest.FixedRewardItemCount > 0),
         "A semleges nem egyedi NPC vagy a hozzá kapcsolt küldetés hibás.");
 }
 
@@ -3748,18 +3751,18 @@ static void RodericMalrecQuestLocationIsConfigured()
         value.EnemyId == MonsterIds.SirMalrec);
     var guards = configuration.QuestRoomEnemyEncounters.Single(value =>
         value.EnemyId == MonsterIds.CsontvázLovag);
-    var quest = catalog.NpcQuests.Single(value => value.Id == "NPCQ039");
-    var proofQuest = catalog.NpcQuests.Single(value => value.Id == "NPCQ040");
+    var quest = catalog.Quests.Get(QuestId.RodericOathbreakerKnight);
+    var proofQuest = catalog.Quests.Get(QuestId.RodericTheDeadAreNotPrey);
     Assert(configuration.Level == 5 && configuration.BossRoomIds.SequenceEqual(["MALREC_CHAMBER"]) &&
            malrecEncounter is { RoomId: "MALREC_CHAMBER", EnemyId: "E053", Count: 1 } &&
            guards is { RoomId: "MALREC_CHAMBER", EnemyId: "E052", Count: 4,
                GuaranteedItemId: null } &&
            catalog.GetEnemy(MonsterIds.SirMalrec) is
                { Rank: EnemyRank.MiniBoss, IsBoss: false, HitPoints: 420, Armor: 9 } &&
-           quest is { Type: NpcQuestType.Kill, TargetId: "E053", RequiredStoryStateId: "TRUSTED" },
+           quest is { Objective: QuestObjective.KillEnemy { Enemy.Id: "E053" }, ActivationRequirement: QuestActivationRequirement.StoryStateEquals { RequiredState: QuestStoryState.MalrecApproach } },
         "Sir Malrec rangja, küldetése vagy az 5-ös nehézségű küldetéshelyszíne hibás.");
-    Assert(quest is { RewardItemId: "T027", RewardItemCount: 1 } &&
-           proofQuest is { Type: NpcQuestType.Kill, TargetId: "E004", RequiredCount: 4 } &&
+    Assert(quest is { FixedRewardItem.Id: "T027", FixedRewardItemCount: 1 } &&
+           proofQuest is { Objective: QuestObjective.KillEnemy { Enemy.Id: "E004", Count: 4 } } &&
            catalog.GetNpcStoryChoices("RODERIC_OATH", "PROOF_OFFER").Single() is
                { Action: NpcStoryAction.ActivateQuest, ActionParameter: "NPCQ040",
                    NextStateId: "PROOF_ACTIVE" } &&

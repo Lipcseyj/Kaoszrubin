@@ -8,6 +8,10 @@ namespace KaoszRubin.Infrastructure.Quests;
 /// <summary>Átmeneti, kizárólag typed → legacy kimenet a még át nem vezetett fogyasztóknak.</summary>
 public static class LegacyQuestProgressProjection
 {
+    public static string[] GetQuestIds(QuestCatalog catalog, string npcId) =>
+        catalog.GetByGiver(LegacyNpcIdMap.ToQuestNpcId(npcId))
+            .Select(quest => LegacyQuestIdMap.ToExternalId(quest.Id)).ToArray();
+
     public static void Synchronize(WorldNpc? npc, QuestHandle quest)
     {
         if (npc is null) return;

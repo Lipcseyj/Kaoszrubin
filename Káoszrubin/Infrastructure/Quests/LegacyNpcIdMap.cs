@@ -42,4 +42,29 @@ public static class LegacyNpcIdMap
                 $"Ismeretlen legacy quest NPC-azonosító: '{legacyId}'.")
         };
     }
+    public static string ToExternalId(QuestNpcId id) => id switch
+    {
+        QuestNpcId.WanderingHerbalist => "NPC001",
+        QuestNpcId.MonsterHunter => "NPC002",
+        QuestNpcId.TreasureHunter => "NPC003",
+        QuestNpcId.WanderingBard => "NPC004",
+        QuestNpcId.RatHunter => "NPC005",
+        QuestNpcId.KoboldFugitive => "NPC006",
+        QuestNpcId.WoundedBorderGuard => "NPC007",
+        QuestNpcId.SpiritSeerHermit => "NPC008",
+        QuestNpcId.OrcDeserter => "NPC009",
+        QuestNpcId.CaveAlchemist => "NPC010",
+        QuestNpcId.PrisonerScout => "NPC011",
+        QuestNpcId.GraveKeeper => "NPC012",
+        QuestNpcId.DragonResearcher => "NPC013",
+        QuestNpcId.SwampFerryman => "NPC014",
+        QuestNpcId.CrystalEngineer => "NPC015",
+        QuestNpcId.NightRefugee => "NPC016",
+        QuestNpcId.UnchainedDemonHunter => "NPC017",
+        QuestNpcId.ChaosPilgrim => "NPC018",
+        QuestNpcId.GiantHunter => "NPC019",
+        QuestNpcId.EliraSilverbranch => "NPC020",
+        QuestNpcId.SirRoderic => "NPC021",
+        _ => throw new InvalidDataException("Ismeretlen típusos questadó-azonosító.")
+    };
 }

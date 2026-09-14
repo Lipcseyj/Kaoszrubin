@@ -103,7 +103,7 @@ internal static class QuestPersistenceTests
     {
         var data = LoadData();
         var roster = Roster(6);
-        var definition = new QuestCatalogBuilder(data).Build().Get(QuestId.MonsterHunterGoblinHunt);
+        var definition = data.Quests.Get(QuestId.MonsterHunterGoblinHunt);
         var count = definition.Objective.RequiredCount;
         var save = EmptySave();
         save.Version = 21;
@@ -117,7 +117,7 @@ internal static class QuestPersistenceTests
         GameSaveFormat.MigrateToCurrent(save);
         var registry = new QuestNpcInstanceRegistry();
         var adapter = new QuestSaveAdapter(data, registry);
-        var fixture = new QuestTestFixture(new QuestCatalogBuilder(data).Build().All.ToArray());
+        var fixture = new QuestTestFixture(data.Quests.All.ToArray());
         fixture.Manager.RestoreState(adapter.PrepareRestore(save, roster));
         var states = fixture.Manager.ExportState().Where(state => state.QuestId == definition.Id).ToArray();
         Require(states.Select(state => state.State).SequenceEqual([
@@ -131,7 +131,7 @@ internal static class QuestPersistenceTests
         save.Quests = adapter.Export(fixture.Manager);
         var reloaded = Clone(save);
         var nextAdapter = new QuestSaveAdapter(data, new());
-        var nextFixture = new QuestTestFixture(new QuestCatalogBuilder(data).Build().All.ToArray());
+        var nextFixture = new QuestTestFixture(data.Quests.All.ToArray());
         var characters = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-quest-roster.json"), data);
         var loadedRoster = characters.Deserialize(characters.Serialize(roster));
         Require(!ReferenceEquals(roster.Characters[1], loadedRoster.Characters[1]) &&
@@ -210,7 +210,7 @@ internal static class QuestPersistenceTests
         save.Maze.PartyAvatars = [new(new(2, 2), 1, follower)];
         save.SuspendedCampaign = EmptySave();
         save.SuspendedCampaign.Maze.PartyAvatars = [new(new(2, 2), 1, follower)];
-        var fixture = new QuestTestFixture(new QuestCatalogBuilder(data).Build().All.ToArray());
+        var fixture = new QuestTestFixture(data.Quests.All.ToArray());
         fixture.Manager.RestoreState(adapter.PrepareRestore(save, roster));
         var mapper = new GameStateMapper(data, roster, roster.SelectedCharacter!, registry);
         var questWorld = mapper.Restore(save);
@@ -225,7 +225,7 @@ internal static class QuestPersistenceTests
         var reloaded = Clone(save);
         var restoredRegistry = new QuestNpcInstanceRegistry();
         var restoredAdapter = new QuestSaveAdapter(data, restoredRegistry);
-        var restoredFixture = new QuestTestFixture(new QuestCatalogBuilder(data).Build().All.ToArray());
+        var restoredFixture = new QuestTestFixture(data.Quests.All.ToArray());
         restoredFixture.Manager.RestoreState(restoredAdapter.PrepareRestore(reloaded, roster));
         var restoredMapper = new GameStateMapper(data, roster, roster.SelectedCharacter!, restoredRegistry);
         var returned = restoredMapper.Restore(reloaded.SuspendedCampaign!);
@@ -280,7 +280,7 @@ internal static class QuestPersistenceTests
         { CharacterId = original.CharacterId, QuestInstanceId = original.QuestInstanceId, QuestIds = [] };
         var mapper = new GameStateMapper(data, roster, roster.SelectedCharacter!, registry);
         var world = mapper.Restore(save);
-        var fixture = new QuestTestFixture(new QuestCatalogBuilder(data).Build().All.ToArray());
+        var fixture = new QuestTestFixture(data.Quests.All.ToArray());
         fixture.Manager.QuestChanged += quest => LegacyQuestProgressProjection.Synchronize(world.Maze.WorldNpcs.Single(), quest);
         fixture.Manager.RestoreState(states);
         var projected = mapper.Create(1, world.Maze, world.Player, world.FogOfWar, Direction.Right,

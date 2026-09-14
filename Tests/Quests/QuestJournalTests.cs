@@ -16,7 +16,7 @@ internal static class QuestJournalTests
     public static void SeparateRowsAndTargetedAbandon()
     {
         var data = LoadData();
-        var definition = new QuestCatalogBuilder(data).Build().Get(QuestId.HerbalistHealingSupplies);
+        var definition = data.Quests.Get(QuestId.HerbalistHealingSupplies);
         var fixture = new QuestTestFixture(definition);
         var (maze, registry, world) = World();
         var firstNpc = Add(maze, fixture.SelectedCharacter, "NPC001", 2);
@@ -115,7 +115,7 @@ internal static class QuestJournalTests
     public static void SeparateHistorySurvivesSaveWithoutNpc()
     {
         var data = LoadData();
-        var definition = new QuestCatalogBuilder(data).Build().Get(QuestId.MonsterHunterGoblinHunt);
+        var definition = data.Quests.Get(QuestId.MonsterHunterGoblinHunt);
         var fixture = new QuestTestFixture(definition);
         var (maze, registry, world) = World();
         var first = registry.GetOrCreate(Add(maze, fixture.SelectedCharacter, "NPC002", 2));

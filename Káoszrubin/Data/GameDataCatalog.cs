@@ -1,3 +1,6 @@
+using KaoszRubin.Application.Quests;
+using KaoszRubin.Domain.Quests;
+using KaoszRubin.Infrastructure.Quests;
 using KaoszRubin.Domain;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Combat;
@@ -39,7 +42,8 @@ public sealed class GameDataCatalog
     public IReadOnlyList<NpcEncounterDefinition> NpcEncounters { get; init; } = [];
     public IReadOnlyList<NpcDialogueDefinition> NpcDialogues { get; init; } = [];
     public IReadOnlyList<NpcStoryChoiceDefinition> NpcStoryChoices { get; init; } = [];
-    public IReadOnlyList<NpcQuestDefinition> NpcQuests { get; init; } = [];
+    /// <summary>A betöltéskor ellenőrzött, feloldott questdefiníciók; futásidejű állapotot nem tartalmaz.</summary>
+    public QuestCatalog Quests { get; internal set; } = new([]);
     public IReadOnlyList<PartySituationDefinition> PartySituations { get; init; } = [];
     public IReadOnlyList<PartyRemarkDefinition> PartyRemarks { get; init; } = [];
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
@@ -91,8 +95,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<NpcStoryChoiceDefinition> GetNpcStoryChoices(string storyId, string stateId,
         int friendliness) => GetNpcStoryChoices(storyId, stateId)
         .Where(choice => choice.IsAvailableAt(friendliness)).ToArray();
-    public IReadOnlyList<NpcQuestDefinition> GetNpcQuests(string npcId) => NpcQuests
-        .Where(quest => string.Equals(quest.NpcId, npcId, StringComparison.OrdinalIgnoreCase)).ToArray();
+    public NpcDefinition GetNpc(QuestNpcId id) => GetNpc(LegacyNpcIdMap.ToExternalId(id));
     public IReadOnlyList<PartyRemarkDefinition> GetPartyRemarks(string situationId, LiveCharacter character)
     {
         var unique = PartyRemarks.Where(remark => !remark.TemporaryFollower &&

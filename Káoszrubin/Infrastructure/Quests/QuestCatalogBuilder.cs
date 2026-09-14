@@ -9,13 +9,12 @@ using static KaoszRubin.Domain.Quests.QuestObjective;
 namespace KaoszRubin.Infrastructure.Quests;
 
 /// <summary>
-/// A legacy GameDataCatalog questadataiból felépíti az új,
-/// erősen tipizált QuestCatalogot.
+/// A CSV belső importrekordjaiból felépíti a típusos QuestCatalogot,
+/// és a betöltött játékadatokban feloldja a célpontokat és jutalmakat.
 ///
-/// A legacy string azonosítók ezen az osztályon túl
-/// nem kerülhetnek a quest-rendszerbe.
+/// Csak a betöltő használja; a köztes rekordokat a kész katalógus nem őrzi meg.
 /// </summary>
-public sealed class QuestCatalogBuilder
+internal sealed class QuestCatalogBuilder
 {
     private readonly GameDataCatalog _gameData;
 
@@ -26,9 +25,9 @@ public sealed class QuestCatalogBuilder
         _gameData = gameData;
     }
 
-    public QuestCatalog Build()
+    public QuestCatalog Build(IEnumerable<QuestImportRow> rows)
     {
-        var definitions = _gameData.NpcQuests
+        var definitions = rows
             .Select(CreateDefinition)
             .ToArray();
 
@@ -36,7 +35,7 @@ public sealed class QuestCatalogBuilder
     }
 
     private QuestDefinition CreateDefinition(
-        NpcQuestDefinition source)
+        QuestImportRow source)
     {
         var id =
             LegacyQuestIdMap.ToQuestId(source.Id);
@@ -84,34 +83,34 @@ public sealed class QuestCatalogBuilder
         _ => null
     };
 
-    private QuestObjective CreateObjective(NpcQuestDefinition source, QuestNpcId giver, QuestId questId)
+    private QuestObjective CreateObjective(QuestImportRow source, QuestNpcId giver, QuestId questId)
     {
         return source.Type switch
         {
-            NpcQuestType.Collect =>
+            QuestImportType.Collect =>
                 new QuestObjective.CollectItem(
                     _gameData.GetItemDefinition(source.TargetId),
                     source.RequiredCount),
 
-            NpcQuestType.Kill =>
+            QuestImportType.Kill =>
                 CreateKillObjective(source, questId),
 
-            NpcQuestType.KillWithFollower =>
+            QuestImportType.KillWithFollower =>
                 CreateKillWithFollowerObjective(
                     source,
                     giver),
 
-            NpcQuestType.Explore =>
+            QuestImportType.Explore =>
                 new QuestObjective.ExploreLocation(
                     MapLocation(source.TargetId)),
 
-            NpcQuestType.Disarm =>
+            QuestImportType.Disarm =>
                 CreateDisarmObjective(source),
 
-            NpcQuestType.OpenChest =>
+            QuestImportType.OpenChest =>
                 CreateOpenChestObjective(source),
 
-            NpcQuestType.Escort =>
+            QuestImportType.Escort =>
                 new QuestObjective.EscortNpc(
                     giver,
                     MapLocation(source.TargetId)),
@@ -128,7 +127,7 @@ public sealed class QuestCatalogBuilder
     //SzükségesKövetőÁllapot
     //MaxKövetőTávolság
     //oszlopokkal, és akkor ez a special case is eltűnik.Most viszont egy helyre zártuk a legacy kompatibilitást, ami már nagy előrelépés.
-    private QuestObjective CreateKillObjective(NpcQuestDefinition source, QuestId questId)
+    private QuestObjective CreateKillObjective(QuestImportRow source, QuestId questId)
     {
         var enemy =
             _gameData.GetEnemy(source.TargetId);
@@ -148,7 +147,7 @@ public sealed class QuestCatalogBuilder
     }
 
     private static QuestObjective CreateKillWithFollowerObjective(
-        NpcQuestDefinition source,
+        QuestImportRow source,
         QuestNpcId giver)
     {
         var traits =
@@ -161,7 +160,7 @@ public sealed class QuestCatalogBuilder
     }
 
     private static QuestObjective CreateDisarmObjective(
-        NpcQuestDefinition source)
+        QuestImportRow source)
     {
         EnsureAnyTarget(source);
 
@@ -170,7 +169,7 @@ public sealed class QuestCatalogBuilder
     }
 
     private static QuestObjective CreateOpenChestObjective(
-        NpcQuestDefinition source)
+        QuestImportRow source)
     {
         EnsureAnyTarget(source);
 
@@ -224,7 +223,7 @@ public sealed class QuestCatalogBuilder
 
     private static QuestActivationRequirement?
         CreateActivationRequirement(
-            NpcQuestDefinition source)
+            QuestImportRow source)
     {
         if (string.IsNullOrWhiteSpace(
                 source.RequiredStoryStateId))
@@ -249,7 +248,7 @@ public sealed class QuestCatalogBuilder
     }
 
     private static void EnsureAnyTarget(
-        NpcQuestDefinition source)
+        QuestImportRow source)
     {
         if (!string.Equals(
                 source.TargetId,

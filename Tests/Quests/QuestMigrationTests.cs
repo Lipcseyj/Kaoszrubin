@@ -14,7 +14,7 @@ internal static class QuestMigrationTests
     public static void RodericStoryStartsOnlyTheChosenQuest()
     {
         var data = LoadData();
-        var fixture = new QuestTestFixture(new QuestCatalogBuilder(data).Build().All.ToArray());
+        var fixture = new QuestTestFixture(data.Quests.All.ToArray());
         var npc = fixture.Manager.For(QuestNpcId.SirRoderic);
         Require(npc.ActivateAvailableQuests().Count == 0, "Roderic már a bemutatkozás előtt küldetéseket adott.");
         foreach (var (legacyId, typedId) in new[]
@@ -125,7 +125,7 @@ internal static class QuestMigrationTests
     public static void JournalProjectsChangesWithoutNpcOrReverseWrites()
     {
         var data = LoadData();
-        var definition = new QuestCatalogBuilder(data).Build().Get(QuestId.HerbalistHealingSupplies);
+        var definition = data.Quests.Get(QuestId.HerbalistHealingSupplies);
         var fixture = new QuestTestFixture(definition);
         var world = new MazeQuestWorldContext(() => new Maze(7, 7), _ => 0, (_, _) => false,
             new QuestNpcInstanceRegistry(), _ => false);

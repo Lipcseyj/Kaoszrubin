@@ -1,3 +1,4 @@
+using KaoszRubin.Infrastructure.Quests;
 using System.Globalization;
 using System.Text;
 using KaoszRubin.Domain;
@@ -51,7 +52,7 @@ public static class CsvGameDataLoader
         var npcEncounters = new List<NpcEncounterDefinition>();
         var npcDialogues = new List<NpcDialogueDefinition>();
         var npcStoryChoices = new List<NpcStoryChoiceDefinition>();
-        var npcQuests = new List<NpcQuestDefinition>();
+        var npcQuests = new List<QuestImportRow>();
         var partySituations = new List<PartySituationDefinition>();
         var partyRemarks = new List<PartyRemarkDefinition>();
         var itemUpgrades = new List<ItemUpgradeDefinition>();
@@ -183,7 +184,7 @@ public static class CsvGameDataLoader
         var lootRules = CreateLootRules(lootRuleValues);
         var doorAttemptRules = CreateDoorAttemptRules(doorAttemptRuleValues);
 
-        return new GameDataCatalog
+        var catalog = new GameDataCatalog
         {
             Races = races.Select(race => race with
             {
@@ -221,7 +222,6 @@ public static class CsvGameDataLoader
             NpcEncounters = npcEncounters,
             NpcDialogues = npcDialogues,
             NpcStoryChoices = npcStoryChoices,
-            NpcQuests = npcQuests,
             PartySituations = partySituations,
             PartyRemarks = partyRemarks,
             MinimumVitalityByHealth = minimumVitalityByHealth,
@@ -235,6 +235,8 @@ public static class CsvGameDataLoader
                 ? baseLevelCompletionExperience.Value
                 : throw new InvalidOperationException("A #Base XP pálya végén értékének nemnegatív egész számnak kell lennie a " + GameDataFileName + " fájlban.")
         };
+        catalog.Quests = new QuestCatalogBuilder(catalog).Build(npcQuests);
+        return catalog;
     }
 
     private static DamageType ParseDamageType(string value) => value.Trim().ToLowerInvariant() switch
@@ -287,7 +289,7 @@ public static class CsvGameDataLoader
         ICollection<NpcDefinition> npcs, ICollection<UniqueNpcCharacterDefinition> uniqueNpcCharacters,
         ICollection<NpcEncounterDefinition> npcEncounters,
         ICollection<NpcDialogueDefinition> npcDialogues, ICollection<NpcStoryChoiceDefinition> npcStoryChoices,
-        ICollection<NpcQuestDefinition> npcQuests,
+        ICollection<QuestImportRow> npcQuests,
         ICollection<PartySituationDefinition> partySituations,
         ICollection<PartyRemarkDefinition> partyRemarks,
         ICollection<ItemUpgradeDefinition> itemUpgrades,
@@ -478,7 +480,7 @@ public static class CsvGameDataLoader
                     Cell(cells, 4)));
                 break;
             case DataSection.NpcQuests:
-                npcQuests.Add(new NpcQuestDefinition(id, Cell(cells, 1), EnumValue<NpcQuestType>(cells, 2),
+                npcQuests.Add(new QuestImportRow(id, Cell(cells, 1), EnumValue<QuestImportType>(cells, 2),
                     Cell(cells, 3), Math.Max(1, Integer(cells, 4) ?? 1),
                     Math.Max(0, Integer(cells, 5) ?? 0), Cell(cells, 6), Cell(cells, 7),
                     EmptyAsNull(Cell(cells, 8)), Math.Max(0, Integer(cells, 9) ?? 0),
@@ -715,7 +717,7 @@ public static class CsvGameDataLoader
         IReadOnlyCollection<NpcEncounterDefinition> encounters,
         IReadOnlyCollection<NpcDialogueDefinition> dialogues,
         IReadOnlyCollection<NpcStoryChoiceDefinition> storyChoices,
-        IReadOnlyCollection<NpcQuestDefinition> quests,
+        IReadOnlyCollection<QuestImportRow> quests,
         IReadOnlyCollection<RaceDefinition> races, IReadOnlyCollection<CharacterClassDefinition> classes,
         IReadOnlyCollection<EnemyDefinition> enemies, IReadOnlyCollection<MonsterAbilityDefinition> monsterAbilities,
         IReadOnlyCollection<MiscItemDefinition> items, IReadOnlyCollection<WeaponDefinition> weapons,
@@ -805,14 +807,14 @@ public static class CsvGameDataLoader
         {
             var targetIsValid = quest.Type switch
             {
-                NpcQuestType.Kill => enemyIds.Contains(quest.TargetId),
-                NpcQuestType.KillWithFollower => monsterAbilities.Any(ability =>
+                QuestImportType.Kill => enemyIds.Contains(quest.TargetId),
+                QuestImportType.KillWithFollower => monsterAbilities.Any(ability =>
                         string.Equals(ability.Id, quest.TargetId, StringComparison.OrdinalIgnoreCase)) ||
                     enemies.Any(enemy => enemy.MatchesAbilityOrLegacyTrait(quest.TargetId)),
-                NpcQuestType.Collect => itemIds.Contains(quest.TargetId),
-                NpcQuestType.Explore => string.Equals(quest.TargetId, "EXIT", StringComparison.OrdinalIgnoreCase),
-                NpcQuestType.Escort => string.Equals(quest.TargetId, "EXIT", StringComparison.OrdinalIgnoreCase),
-                NpcQuestType.Disarm or NpcQuestType.OpenChest =>
+                QuestImportType.Collect => itemIds.Contains(quest.TargetId),
+                QuestImportType.Explore => string.Equals(quest.TargetId, "EXIT", StringComparison.OrdinalIgnoreCase),
+                QuestImportType.Escort => string.Equals(quest.TargetId, "EXIT", StringComparison.OrdinalIgnoreCase),
+                QuestImportType.Disarm or QuestImportType.OpenChest =>
                     string.Equals(quest.TargetId, "ANY", StringComparison.OrdinalIgnoreCase),
                 _ => false
             };

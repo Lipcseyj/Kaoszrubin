@@ -371,3 +371,36 @@ A korábbi protokoll elutasítását is ellenőrizzük.
 
 Következő a 6. lépés: a flat CSV/definíciós határ átvezetése.
 Roderic történeti átdolgozása továbbra is későbbi prioritás.
+
+## 2026-09-14: a 6. lépés – a flat definíciós köztes modell leválasztása
+
+- A CsvGameDataLoader a betöltés végén egyszer felépíti és ellenőrzi a típusos
+  GameDataCatalog.Quests katalógust. A célpontok és jutalmak feloldott definíciók.
+- A publikus NpcQuestDefinition, NpcQuestType, NpcQuests és GetNpcQuests megszűnt.
+  A QuestImportRow/QuestImportType belső, csak betöltés alatt élő köztes modell;
+  a QuestCatalogBuilder szintén belső importadapter, nem játékmeneti API.
+- A Game, a napló és a mentési adapter a kész típusos katalógust használja.
+  A napló NPC nélkül a típusos giverből kér nevet. Az NPC-k külső azonosítóinak
+  visszaalakítása a LegacyNpcIdMap része lett.
+- A még létező WorldNpc-tükör inicializálásához szükséges stringes questlista
+  előállítása a LegacyQuestProgressProjection kompatibilitási határába került.
+  A tükör és mutátorai eltávolítása továbbra is a 7. lépés feladata.
+- Roderic történeti működését nem dolgoztuk át. Az eddigi aktiválási és
+  Malrec-követőfeltételek változatlanok; meglévő tesztjei típusos definíciót olvasnak.
+- A README inicializálási példája a gameData.Quests belépést mutatja.
+  Sem CSV-tartalom, sem mentés-/hálózati verzió nem változott.
+
+Két új QuestCatalogImportTests teszt ellenőrzi mind a 40 quest és 21 NPC
+teljességét és az ID-k körbefordulását, a scope-ot, minden objective célpontját,
+darabszámot, címet, leírást és jutalmat; továbbá az ismeretlen ID/cél/jutalom,
+hibás fix jutalommennyiség, üres cím és duplikált quest betöltéskori elutasítását.
+
+- Teljes solution build: 0 hiba, 23 CS0618 (változatlan).
+- Teljes tesztkészlet: 285 PASS, 0 FAIL (kiindulás 283).
+- Az első, sandboxban futó tesztkörben a csatanapló-teszt nem tudott a Tests
+  kimeneti könyvtárába írni. A szükséges jogosultsággal a teljes készlet sikeres;
+  emiatt alkalmazáskódot nem módosítottunk.
+- Interaktív végigjátszás nem történt.
+
+Következő a 7. lépés: a runtime bridge-ek és a WorldNpc legacy questállapotának
+eltávolítása, a régi mentések importkompatibilitásának megtartásával.

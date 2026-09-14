@@ -26,11 +26,11 @@ public sealed class QuestSaveAdapter
     public QuestSaveAdapter(GameDataCatalog data, QuestNpcInstanceRegistry instances)
     {
         _data = data;
-        _catalog = new QuestCatalogBuilder(data).Build();
+        _catalog = data.Quests;
         _instances = instances;
-        _questIds = data.NpcQuests.ToDictionary(q => LegacyQuestIdMap.ToQuestId(q.Id), q => q.Id);
-        _npcIds = data.NpcQuests.Select(quest => quest.NpcId).Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(LegacyNpcIdMap.ToQuestNpcId, id => id);
+        _questIds = data.Quests.All.ToDictionary(q => q.Id, q => LegacyQuestIdMap.ToExternalId(q.Id));
+        _npcIds = data.Quests.All.Select(quest => quest.Giver).Distinct()
+            .ToDictionary(id => id, LegacyNpcIdMap.ToExternalId);
     }
 
     /// <summary>A világ létrehozása előtt feloldja és ellenőrzi a teljes questmentést és az NPC-azonosságokat.</summary>

@@ -1060,10 +1060,8 @@ quest engine
 A `Game` composition rootjában:
 
 ```csharp
-var questCatalog =
-    new QuestCatalogBuilder(
-        gameData)
-    .Build();
+// A CSV betöltője már felépítette és ellenőrizte a típusos katalógust.
+var questCatalog = gameData.Quests;
 
 var questStateStore =
     new QuestStateStore(

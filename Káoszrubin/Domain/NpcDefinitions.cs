@@ -3,7 +3,6 @@ using KaoszRubin.Domain.Characters;
 namespace KaoszRubin.Domain;
 
 public enum NpcWorldBehavior { Friendly, Guarded, Opportunistic, Aggressive }
-public enum NpcQuestType { Collect, Kill, KillWithFollower, Explore, Disarm, OpenChest, Escort }
 
 public sealed record NpcDefinition(string Id, string Name, string CharacterClassId,
     NpcDisposition Disposition, NpcWorldBehavior Behavior, bool Recruitable, bool Unique,
@@ -51,12 +50,4 @@ public enum NpcStoryAction
     TravelToLocation,
     RequestPermanentJoin,
     GrantEmergencySupplies
-}
-
-public sealed record NpcQuestDefinition(string Id, string NpcId, NpcQuestType Type, string TargetId,
-    int RequiredCount, int ExperienceReward, string Title, string Description,
-    string? RewardItemId = null, int RewardItemCount = 0, int RandomRewardCount = 1,
-    string? RequiredStoryStateId = null) : IGameDefinition
-{
-    public string Name => Title;
 }
