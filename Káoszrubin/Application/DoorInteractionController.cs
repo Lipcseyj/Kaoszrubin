@@ -8,13 +8,13 @@ internal sealed class DoorInteractionController
 {
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private readonly GameDataCatalog _gameData;
-    private readonly ConsoleRenderer _renderer;
+    private readonly IDoorInteractionRenderer _renderer;
     private readonly Action<SoundEffect, LiveCharacter> _playActorSound;
     private readonly Action<string, ConsoleColor, LiveCharacter> _recordActivity;
     private readonly Random _random;
     private readonly Func<MazeDoor, bool> _tryGrantQuestAccess;
 
-    public DoorInteractionController(GameDataCatalog gameData, ConsoleRenderer renderer,
+    public DoorInteractionController(GameDataCatalog gameData, IDoorInteractionRenderer renderer,
         Action<SoundEffect, LiveCharacter> playActorSound, Random random,
         Action<string, ConsoleColor, LiveCharacter>? recordActivity = null,
         Func<MazeDoor, bool>? tryGrantQuestAccess = null)

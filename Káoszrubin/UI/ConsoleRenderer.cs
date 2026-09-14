@@ -22,7 +22,7 @@ public sealed record SpellCastSelection(SpellDefinition Spell, LiveCharacter Cas
     MagicItemDefinition? CastingItem = null, int? CastingItemSlotIndex = null);
 public sealed record UniqueNpcConversationResult(int FriendlinessChange, bool FollowRequested, int ChoiceIndex);
 
-public sealed class ConsoleRenderer
+public sealed class ConsoleRenderer : IDoorInteractionRenderer
 {
     public Action<int, IReadOnlyList<(string Text, ConsoleColor Color)>, FramedWindow?>?
         SharedWindowPresented { get; set; }

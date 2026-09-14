@@ -15,15 +15,11 @@ using KaoszRubin.Tests.Coop;
 using KaoszRubin.Tests.Quests;
 using KaoszRubin.UI;
 using KaoszRubin.World;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text;
 
-if (CoopHarnessOptions.TryParse(args, out var harnessOptions))
-{
-    CoopSimulationHarness.Run(harnessOptions);
-    return Environment.ExitCode;
-}
-
+#region test cases
 var tests = new (string Name, Action Run)[]
 {
     ("A questláda CSV-je célzott objective-ot és ellenőrzött tartalmat ad", QuestChestTests.CsvResolvesChestAndObjective),
@@ -284,6 +280,7 @@ var tests = new (string Name, Action Run)[]
     ("A felszerelészsákmány véletlen, de nem törött állapotban érkezik", EquipmentLootStartsWithRandomWear),
     ("A kereskedő a kopott felszerelésért tartósságarányosan kevesebbet fizet", WornEquipmentSellsForLess),
     ("A tárgybővítések és kaszttehetségek javítják a tartósságot", UpgradesAndClassPerksImproveDurability),
+    ("A megfelelő tárgy a megfelelő hatásra kopik", EquipmentWearCauseMatchesEquipmentType),
     ("A legendás felszerelések egyedi tartósságúak és a javítókészlet csak terepi szintig javít", LegendaryDurabilityAndFieldRepairKit),
     ("A sérült és törött felszerelés fokozatos harci hátrányt okoz", DamagedAndBrokenEquipmentAffectsCombat),
     ("A fogadói javítás ára ritkaság- és kopásarányos, az állapotot pedig megőrzi", EquipmentRepairRestoresDurability),
@@ -319,6 +316,8 @@ var tests = new (string Name, Action Run)[]
     ("A host gateway kapcsolathoz köti a PlayerId-t", HostGatewayBindsAuthenticatedPlayer),
     ("A host gateway kezeli a control-, replikáció- és disconnect-folyamot", HostGatewayRunsConnectionLifecycle),
     ("A hálózati lifecycle és a szimulációs esemény nem deadlockol", GatewayAndSimulationDoNotDeadlock),
+    ("A tesztfuttató argumentumai szigorúan validáltak", TestRunnerOptionsAreValidated),
+    ("A tesztfuttató névszűrése kis- és nagybetűtől független", TestRunnerFilterIsCaseInsensitive),
     ("A SignalR LAN host elindítható és leállítható", () =>
         SignalRServerStartsAndStops().GetAwaiter().GetResult()),
     ("A SignalR kliens végigviszi a LAN coop kapcsolatot", () =>
@@ -326,6 +325,143 @@ var tests = new (string Name, Action Run)[]
     ("Az in-memory transport végigviszi a coop protokollfolyamot", () =>
         InMemoryTransportRunsProtocolFlow().GetAwaiter().GetResult())
 };
+#endregion
+
+// ================================ Main method ================================
+Console.OutputEncoding = Encoding.UTF8;
+Console.InputEncoding = Encoding.UTF8;
+
+if (CoopHarnessOptions.TryParse(args, out var harnessOptions))
+{
+    CoopSimulationHarness.Run(harnessOptions);
+    return Environment.ExitCode;
+}
+
+if (!TryParseTestRunnerOptions(args, out var filter, out var justFail, out var showHelp))
+{
+    PrintUsage();
+    return 2;
+}
+
+if (showHelp)
+{
+    PrintUsage();
+    return 0;
+}
+var passed = 0;
+var failures = 0;
+foreach (var test in tests)
+{
+    if (!MatchesTestFilter(test.Name, test.Run, filter))
+    {
+        continue;
+    }
+
+    var stopwatch = Stopwatch.StartNew();
+    try
+    {
+        test.Run();
+        stopwatch.Stop();
+        if (!justFail)
+        {
+            Console.WriteLine($"PASS  {stopwatch.Elapsed.TotalMilliseconds,9:F1} ms  {test.Name}");
+        }
+        passed++;
+    }
+    catch (Exception exception)
+    {
+        stopwatch.Stop();
+        failures++;
+        Console.WriteLine($"FAIL  {stopwatch.Elapsed.TotalMilliseconds,9:F1} ms  {test.Name}: {exception.Message}");
+    }
+}
+
+Console.WriteLine($"Passed: {passed}, Failed: {failures}");
+
+return failures == 0 ? 0 : 1;
+
+// ============================== END Main method ===============================
+
+static bool TryParseTestRunnerOptions(
+    string[] args,
+    out string? filter,
+    out bool justFail,
+    out bool showHelp)
+{
+    filter = null;
+    justFail = false;
+    showHelp = false;
+
+    for (var i = 0; i < args.Length; i++)
+    {
+        switch (args[i])
+        {
+            case "--filter":
+                if (i + 1 >= args.Length || args[i + 1].StartsWith("-", StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                filter = args[++i];
+                break;
+            case "--just-fail":
+                justFail = true;
+                break;
+            case "-h":
+                showHelp = true;
+                break;
+            default:
+                return false;
+        }
+    }
+
+    return true;
+}
+
+static void PrintUsage()
+{
+    Console.WriteLine("Usage: Tests [-h] [--filter <filterstring>] [--just-fail]");
+    Console.WriteLine("       Tests --coop-sim [--scenario <name>] [--port <port>] [--workspace <path>]");
+    Console.WriteLine("       Tests --coop-role <host|guest> [--scenario <name>] [--port <port>] [--workspace <path>]");
+    Console.WriteLine("  -h                         Show this usage information.");
+    Console.WriteLine("  --filter <filterstring>    Run tests whose display or method name contains the filter.");
+    Console.WriteLine("  --just-fail                Write failed result lines only.");
+    Console.WriteLine("  --coop-sim                 Run the coop simulation harness.");
+    Console.WriteLine("  --coop-role <host|guest>   Run one coop harness role.");
+    Console.WriteLine("  --scenario <name>          Select an optional coop scenario.");
+    Console.WriteLine($"  --port <port>               Set the coop port (default: {CoopHarnessOptions.DefaultPort}).");
+    Console.WriteLine("  --workspace <path>         Set the coop harness workspace.");
+}
+
+static bool MatchesTestFilter(string testName, Action run, string? filter) =>
+    filter is null ||
+    testName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+    run.Method.Name.Contains(filter, StringComparison.OrdinalIgnoreCase);
+
+static void TestRunnerOptionsAreValidated()
+{
+    Assert(TryParseTestRunnerOptions(
+               ["--just-fail", "--filter", "inventory"],
+               out var filter,
+               out var justFail,
+               out var showHelp) &&
+           filter == "inventory" && justFail && !showHelp,
+        "Az összetett tesztfuttató argumentumok feldolgozása hibás.");
+    Assert(TryParseTestRunnerOptions(["-h"], out _, out _, out showHelp) && showHelp,
+        "A tesztfuttató súgókapcsolója nem működik.");
+    Assert(!TryParseTestRunnerOptions(["--filter"], out _, out _, out _) &&
+           !TryParseTestRunnerOptions(["--unknown"], out _, out _, out _),
+        "A tesztfuttató elfogadott egy hiányos vagy ismeretlen argumentumot.");
+}
+
+static void TestRunnerFilterIsCaseInsensitive()
+{
+    Assert(MatchesTestFilter("Inventory snapshot", TestRunnerFilterIsCaseInsensitive, "INVENTORY") &&
+           MatchesTestFilter("Unrelated display name", TestRunnerFilterIsCaseInsensitive, "RUNNERFILTER") &&
+           MatchesTestFilter("Inventory snapshot", TestRunnerFilterIsCaseInsensitive, null) &&
+           !MatchesTestFilter("Inventory snapshot", TestRunnerFilterIsCaseInsensitive, "combat"),
+        "A tesztfuttató név- és metódusszűrése nem case-insensitive részszövegkeresést használ.");
+}
 
 static void TerminalViewportRequiresCompleteGameScreen()
 {
@@ -363,23 +499,6 @@ static void WindowsTerminalHandshakeArgumentIsValidated()
            SystemHelpers.GetTerminalHandshakeId(null) is null,
         "A hiányzó vagy hibás gyermek-kézfogás azonosítója elfogadásra került.");
 }
-
-var failures = 0;
-foreach (var test in tests)
-{
-    try
-    {
-        test.Run();
-        Console.WriteLine($"PASS  {test.Name}");
-    }
-    catch (Exception exception)
-    {
-        failures++;
-        Console.WriteLine($"FAIL  {test.Name}: {exception.Message}");
-    }
-}
-
-return failures == 0 ? 0 : 1;
 
 static void DefensiveSpellSoundIsShared()
 {
@@ -3056,7 +3175,9 @@ static void WornEquipmentSellsForLess()
 
 static void UpgradesAndClassPerksImproveDurability()
 {
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var data = CsvGameDataLoader.Load(
+        Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+
     Assert(data.GetWeapon("W001-PLUS1").MaximumDurability == 92 &&
            data.GetWeapon("W001-PLUS2").MaximumDurability == 104 &&
            data.GetWeapon("W001-PLUS3").MaximumDurability == 120 &&
@@ -3065,26 +3186,132 @@ static void UpgradesAndClassPerksImproveDurability()
            data.GetArmor("A001-PLUS3").MaximumDurability == 135,
         "A +1/+2/+3 tárgybővítés nem 15/30/50%-kal növelte a tartósságot.");
 
-    var fighter = CreateCharacter("Fegyvermester", characterClassId: CharacterClassIds.Harcos);
-    var fighterWeapon = data.GetWeapon("W001");
-    Assert(fighter.AddPerk(data.GetPerk(PerkIds.FighterWeaponMaster)) && fighter.EquipWeapon(0, fighterWeapon),
-        "A Fegyvermester kopási próbája nem volt előkészíthető.");
-    fighter.ApplyInventoryItemWear(InventorySlotKind.Weapon, 0, EquipmentWearCause.Attack, 2);
-    Assert(fighter.GetInventoryItemState(InventorySlotKind.Weapon, 0)?.DurabilityDamage == 1 &&
-           !fighter.ApplyInventoryItemWear(InventorySlotKind.Weapon, 0, EquipmentWearCause.Attack, 1).Changed,
-        "A Fegyvermester nem csökkentette eggyel a fegyverkopást.");
+    const int attempts = 1000;
 
-    var knight = CreateCharacter("Páncélmester", characterClassId: CharacterClassIds.Lovag);
-    var knightArmor = data.GetArmor("A003");
-    var knightShield = data.GetWeapon("W014");
-    Assert(knight.AddPerk(data.GetPerk(PerkIds.KnightArmorMaster)) &&
-           knight.EquipArmor(knightArmor) && knight.EquipWeapon(1, knightShield),
-        "A Páncélmester kopási próbája nem volt előkészíthető.");
-    knight.ApplyInventoryItemWear(InventorySlotKind.Armor, 0, EquipmentWearCause.BeingAttacked, 2);
-    knight.ApplyInventoryItemWear(InventorySlotKind.Weapon, 1, EquipmentWearCause.BeingAttacked, 2);
-    Assert(knight.GetInventoryItemState(InventorySlotKind.Armor, 0)?.DurabilityDamage == 1 &&
-           knight.GetInventoryItemState(InventorySlotKind.Weapon, 1)?.DurabilityDamage == 1,
-        "A Páncélmester nem csökkentette eggyel a páncél- és pajzskopást.");
+    var fighterWear = 0;
+
+    for (var i = 0; i < attempts; i++)
+    {
+        var fighter = CreateCharacter(
+            $"Fegyvrmest{i}",
+            characterClassId: CharacterClassIds.Harcos);
+
+        var weapon = data.GetWeapon("W001");
+
+        Assert(
+            fighter.AddPerk(data.GetPerk(PerkIds.FighterWeaponMaster)) &&
+            fighter.EquipWeapon(0, weapon),
+            "A Fegyvermester kopási próbája nem volt előkészíthető.");
+
+        fighter.ApplyInventoryItemWear(
+            InventorySlotKind.Weapon,
+            0,
+            EquipmentWearCause.Attack,
+            1);
+
+        fighterWear += fighter
+                           .GetInventoryItemState(InventorySlotKind.Weapon, 0)?
+                           .DurabilityDamage ?? 0;
+    }
+
+    Assert(
+        fighterWear is >= 400 and <= 600,
+        $"A Fegyvermester 50%-os kopásellenállása nem megfelelő. " +
+        $"1000 próbából {fighterWear} kopás történt.");
+
+    var armorWear = 0;
+    var shieldWear = 0;
+
+    for (var i = 0; i < attempts; i++)
+    {
+        var knight = CreateCharacter(
+            $"Páncélmest{i}",
+            characterClassId: CharacterClassIds.Lovag);
+
+        var armor = data.GetArmor("A003");
+        var shield = data.GetWeapon("W014");
+
+        Assert(
+            knight.AddPerk(data.GetPerk(PerkIds.KnightArmorMaster)) &&
+            knight.EquipArmor(armor) &&
+            knight.EquipWeapon(1, shield),
+            "A Páncélmester kopási próbája nem volt előkészíthető.");
+
+        knight.ApplyInventoryItemWear(
+            InventorySlotKind.Armor,
+            0,
+            EquipmentWearCause.BeingAttacked,
+            1);
+
+        knight.ApplyInventoryItemWear(
+            InventorySlotKind.Weapon,
+            1,
+            EquipmentWearCause.BeingAttacked,
+            1);
+
+        armorWear += knight
+                         .GetInventoryItemState(InventorySlotKind.Armor, 0)?
+                         .DurabilityDamage ?? 0;
+
+        shieldWear += knight
+                          .GetInventoryItemState(InventorySlotKind.Weapon, 1)?
+                          .DurabilityDamage ?? 0;
+    }
+
+    Assert(
+        armorWear is >= 400 and <= 600,
+        $"A Páncélmester 50%-os páncél-kopásellenállása nem megfelelő. " +
+        $"1000 próbából {armorWear} kopás történt.");
+
+    Assert(
+        shieldWear is >= 400 and <= 600,
+        $"A Páncélmester 50%-os pajzs-kopásellenállása nem megfelelő. " +
+        $"1000 próbából {shieldWear} kopás történt.");
+}
+
+static void EquipmentWearCauseMatchesEquipmentType()
+{
+    var data = CsvGameDataLoader.Load(
+        Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+
+    var weapon = data.GetWeapon("W001");
+    var shield = data.GetWeapon("W014");
+    var armor = data.GetArmor("A003");
+
+    Assert(
+        EquipmentDurabilityRules.CanWearFrom(
+            weapon,
+            InventorySlotKind.Weapon,
+            EquipmentWearCause.Attack),
+        "A normál fegyvernek támadáskor kopnia kell.");
+
+    Assert(
+        !EquipmentDurabilityRules.CanWearFrom(
+            weapon,
+            InventorySlotKind.Weapon,
+            EquipmentWearCause.BeingAttacked),
+        "A normál fegyvernek védekezéskor nem szabad kopnia.");
+
+    Assert(
+        !EquipmentDurabilityRules.CanWearFrom(
+            shield,
+            InventorySlotKind.Weapon,
+            EquipmentWearCause.Attack),
+        "A pajzsnak támadáskor nem szabad kopnia.");
+
+    Assert(
+        EquipmentDurabilityRules.CanWearFrom(
+            shield,
+            InventorySlotKind.Weapon,
+            EquipmentWearCause.BeingAttacked),
+        "A pajzsnak védekezéskor kopnia kell.");
+
+    Assert(
+        EquipmentDurabilityRules.CanWearFrom(
+            armor,
+            InventorySlotKind.Armor,
+            EquipmentWearCause.BeingAttacked),
+        "A páncélnak védekezéskor kopnia kell.");
 }
 
 static void LegendaryDurabilityAndFieldRepairKit()
@@ -3128,89 +3355,197 @@ static void LegendaryDurabilityAndFieldRepairKit()
 
 static void DamagedAndBrokenEquipmentAffectsCombat()
 {
-    Assert(EquipmentDurabilityRules.WeaponHitPenalty(EquipmentCondition.Worn) == 0 &&
-           EquipmentDurabilityRules.WeaponDamagePenalty(EquipmentCondition.Damaged) == 1 &&
+    Assert(EquipmentDurabilityRules.WeaponHitPenalty(EquipmentCondition.Worn) == 1 &&
+           EquipmentDurabilityRules.WeaponHitPenalty(EquipmentCondition.Damaged) == 2 &&
+           EquipmentDurabilityRules.WeaponDamagePenalty(EquipmentCondition.Worn) == 1 &&
+           EquipmentDurabilityRules.WeaponDamagePenalty(EquipmentCondition.Damaged) == 2 &&
+           EquipmentDurabilityRules.ScaleDefense(9, EquipmentCondition.Worn) == 7 &&
            EquipmentDurabilityRules.ScaleDefense(9, EquipmentCondition.Damaged) == 5 &&
            EquipmentDurabilityRules.ScaleDefense(-3, EquipmentCondition.Intact) == -3 &&
            EquipmentDurabilityRules.ScaleDefense(-3, EquipmentCondition.Damaged) == -2 &&
            EquipmentDurabilityRules.ScaleDefense(9, EquipmentCondition.Broken) == 0,
         "A kopott, sérült vagy törött felszerelés alapvető harci módosítói hibásak.");
 
-    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-    var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { CharacterClassIds.Harcos };
+    var data = CsvGameDataLoader.Load(
+        Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+
+    var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        CharacterClassIds.Harcos
+    };
+
     var weapon = data.GetWeapon("W001") with
     {
-        Id = "W-CONDITION-TEST", Damage = new ValueRange(5, 5), MaximumDurability = 10000,
+        Id = "W-CONDITION-TEST",
+        Damage = new ValueRange(5, 5),
+        MaximumDurability = 10000,
         AllowedClassIds = allowed
     };
 
-    (int Damage, BattleLogEntry? DamagedEntry) AttackSeries(int durabilityDamage)
+    (int Damage, BattleLogEntry? FirstHit) AttackSeries(int durabilityDamage)
     {
         var character = CreateCharacter("Kopott támadó", 1000);
-        Assert(character.SetInventoryItem(InventorySlotKind.Weapon, 0, weapon, null, 1,
-                InventoryItemInstanceState.Create() with { DurabilityDamage = durabilityDamage }),
+
+        Assert(character.SetInventoryItem(
+                InventorySlotKind.Weapon,
+                0,
+                weapon,
+                null,
+                1,
+                InventoryItemInstanceState.Create() with
+                {
+                    DurabilityDamage = durabilityDamage
+                }),
             "Az állapotteszt fegyvere nem volt felszerelhető.");
+
         var system = CreateBattleSystem(41);
         var runtime = system.PrepareTeamCharacter(character).Runtime;
         var enemy = CreateEnemy(100000, 1);
+
         BattleLogEntry? firstHit = null;
+
         for (var attack = 0; attack < 100; attack++)
         {
             var before = enemy.CurrentHitPoints;
-            var entry = system.ResolveTeamCharacterAttack(character, runtime, enemy, finishAction: false);
-            if (enemy.CurrentHitPoints < before && firstHit is null) firstHit = entry;
+
+            var entry = system.ResolveTeamCharacterAttack(
+                character,
+                runtime,
+                enemy,
+                finishAction: false);
+
+            if (enemy.CurrentHitPoints < before && firstHit is null)
+                firstHit = entry;
         }
+
         return (100000 - enemy.CurrentHitPoints, firstHit);
     }
 
+    // 100% tartósság → Intact
     var intactAttack = AttackSeries(0);
+
+    // 50% tartósság → Worn
+    var wornAttack = AttackSeries(5000);
+
+    // 25% tartósság → Damaged
     var damagedAttack = AttackSeries(7500);
-    Assert(damagedAttack.Damage < intactAttack.Damage &&
-           damagedAttack.DamagedEntry?.Details?.Calculation.Any(line =>
-               line.Contains("Sérült fegyver: találat", StringComparison.Ordinal) ||
-               line.Contains("sérült fegyver -1 sebzés", StringComparison.OrdinalIgnoreCase)) == true,
-        "A sérült fegyver nem csökkentette a találati esélyt és a sebzést a közös harci motorban.");
+
+    Assert(
+        wornAttack.Damage < intactAttack.Damage &&
+        damagedAttack.Damage < wornAttack.Damage,
+        "A kopott és sérült fegyver nem okozott fokozatosan nagyobb harci hátrányt.");
+
+    Assert(
+        damagedAttack.FirstHit?.Details?.Calculation.Any(line =>
+            line.Contains("Sérült fegyver", StringComparison.OrdinalIgnoreCase)) == true,
+        "A harci napló nem jelzi a sérült fegyver hátrányát.");
 
     var brokenAttacker = CreateCharacter("Töröttkezű");
-    Assert(brokenAttacker.SetInventoryItem(InventorySlotKind.Weapon, 0, weapon, null, 1,
-            InventoryItemInstanceState.Create() with { DurabilityDamage = weapon.MaximumDurability }),
+
+    Assert(brokenAttacker.SetInventoryItem(
+            InventorySlotKind.Weapon,
+            0,
+            weapon,
+            null,
+            1,
+            InventoryItemInstanceState.Create() with
+            {
+                DurabilityDamage = weapon.MaximumDurability
+            }),
         "A törött tesztfegyvert nem lehetett felszerelve tárolni.");
-    Assert(brokenAttacker.WeaponSlots[0] == weapon && brokenAttacker.AttackWeapon is null &&
-           !brokenAttacker.IsInventoryItemOperational(InventorySlotKind.Weapon, 0),
+
+    Assert(
+        brokenAttacker.WeaponSlots[0] == weapon &&
+        brokenAttacker.AttackWeapon is null &&
+        !brokenAttacker.IsInventoryItemOperational(InventorySlotKind.Weapon, 0),
         "A törött fegyver eltűnt a slotból vagy továbbra is használható maradt.");
-    Assert(ItemInspectionFormatter.Format(weapon, data,
-               instanceState: brokenAttacker.GetInventoryItemState(InventorySlotKind.Weapon, 0)).Text
-            .Contains("nem használható fegyverként", StringComparison.OrdinalIgnoreCase),
+
+    Assert(
+        ItemInspectionFormatter.Format(
+                weapon,
+                data,
+                instanceState: brokenAttacker.GetInventoryItemState(
+                    InventorySlotKind.Weapon, 0))
+            .Text
+            .Contains("nem használható fegyverként",
+                StringComparison.OrdinalIgnoreCase),
         "A tárgyvizsgálat nem magyarázza el a törött fegyver következményét.");
 
     var armor = data.GetArmor("A001") with
     {
-        Id = "A-CONDITION-TEST", Defense = new ValueRange(10, 10), MaximumDurability = 10000,
+        Id = "A-CONDITION-TEST",
+        Defense = new ValueRange(10, 10),
+        MaximumDurability = 10000,
         AllowedClassIds = allowed
     };
+
     int DamageReceived(int durabilityDamage)
     {
         var defender = CreateCharacter("Kopott védő", 100000);
-        Assert(defender.SetInventoryItem(InventorySlotKind.Armor, 0, armor, null, 1,
-                InventoryItemInstanceState.Create() with { DurabilityDamage = durabilityDamage }),
+
+        Assert(defender.SetInventoryItem(
+                InventorySlotKind.Armor,
+                0,
+                armor,
+                null,
+                1,
+                InventoryItemInstanceState.Create() with
+                {
+                    DurabilityDamage = durabilityDamage
+                }),
             "Az állapotteszt páncélja nem volt felszerelhető.");
-        var enemyWeapon = weapon with { Id = "W-ENEMY-CONDITION", Damage = new ValueRange(20, 20) };
-        var enemyDefinition = CreateEnemy(1000, 5).Definition with { Weapon = enemyWeapon };
-        var enemy = new ConfiguredEnemy(new Position(1, 1), enemyDefinition);
+
+        var enemyWeapon = weapon with
+        {
+            Id = "W-ENEMY-CONDITION",
+            Damage = new ValueRange(20, 20)
+        };
+
+        var enemyDefinition =
+            CreateEnemy(1000, 5).Definition with
+            {
+                Weapon = enemyWeapon
+            };
+
+        var enemy = new ConfiguredEnemy(
+            new Position(1, 1),
+            enemyDefinition);
+
         var system = CreateBattleSystem(67);
         var runtime = system.PrepareTeamCharacter(defender).Runtime;
+
         for (var attack = 0; attack < 100; attack++)
-            system.ResolveTeamEnemyAction(enemy, defender, runtime, enemyWeapon);
+        {
+            system.ResolveTeamEnemyAction(
+                enemy,
+                defender,
+                runtime,
+                enemyWeapon);
+        }
+
         return 100000 - defender.CurrentVitality;
     }
 
     var intactArmorDamage = DamageReceived(0);
+    var wornArmorDamage = DamageReceived(5000);
     var damagedArmorDamage = DamageReceived(7500);
     var brokenArmorDamage = DamageReceived(10000);
-    Assert(intactArmorDamage < damagedArmorDamage && damagedArmorDamage < brokenArmorDamage,
-        "A sérült páncél nem fél védelemmel, vagy a törött páncél nem védelem nélkül működött.");
-    Assert(ItemInspectionFormatter.Format(armor, data,
-               instanceState: InventoryItemInstanceState.Create() with { DurabilityDamage = 7500 }).Text
+
+    Assert(
+        intactArmorDamage < wornArmorDamage &&
+        wornArmorDamage < damagedArmorDamage &&
+        damagedArmorDamage < brokenArmorDamage,
+        "A kopott, sérült és törött páncél nem fokozatosan csökkenő védelemmel működött.");
+
+    Assert(
+        ItemInspectionFormatter.Format(
+                armor,
+                data,
+                instanceState: InventoryItemInstanceState.Create() with
+                {
+                    DurabilityDamage = 7500
+                })
+            .Text
             .Contains("védelem 50%-a", StringComparison.OrdinalIgnoreCase),
         "A tárgyvizsgálat nem magyarázza el a sérült páncél következményét.");
 }

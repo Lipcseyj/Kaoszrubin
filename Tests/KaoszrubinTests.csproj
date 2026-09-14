@@ -8,5 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Káoszrubin\Kaoszrubin.csproj" />
+    <PackageReference Include="Moq" Version="4.20.72" />
   </ItemGroup>
 </Project>

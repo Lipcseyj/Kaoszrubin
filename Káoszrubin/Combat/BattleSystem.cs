@@ -808,7 +808,14 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 : $"💥 Sebzésszorzó: ×{damageMultiplierPercent / 100d:0.##}; {multipliedDamage:0.##} → {roundedMultipliedDamage} (felfelé kerekítve)");
         calculation.Add($"🛡️ {armorText}; effektív {effectiveArmor}");
         calculation.AddRange(notes);
-        var weaponWear = ApplyWeaponWear(player, weapon, weaponSlot, criticalMultiplier > 1);
+        // we consider the enemy which does e.g. chaos damage has a chaos aura as well which can harm player weapons
+        var wearCause = defender.Weapon?.DamageType switch
+        {
+            DamageType.Acid => EquipmentWearCause.Acid,
+            DamageType.Chaos => EquipmentWearCause.Chaos,
+            _ => EquipmentWearCause.Attack
+        };
+        var weaponWear = ApplyWeaponWear(player, weapon, weaponSlot, criticalMultiplier > 1, wearCause);
         if (weaponWear.Changed)
             calculation.Add(DurabilityCalculation("⚔️ Fegyverkopás", weapon!.Name, weaponWear));
         calculation.Add("💥 Páncél után min. 1; éhség után min. 1; majd taktika és méreg.");
@@ -1042,7 +1049,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         void ApplyDefensiveWear(InventorySlotKind kind, int slot, string label, string equipmentName,
             IItemDefinition item, int amount)
         {
-            var wear = defender.ApplyInventoryItemWear(kind, slot, EquipmentWearCause.BeingAttacked, amount);
+            var wearCause = enemyWeapon?.DamageType switch
+            {
+                DamageType.Acid => EquipmentWearCause.Acid,
+                DamageType.Chaos => EquipmentWearCause.Chaos,
+                _ => EquipmentWearCause.BeingAttacked
+            };
+            var wear = defender.ApplyInventoryItemWear(kind, slot, wearCause, amount);
             if (!wear.Changed) return;
             calculation.Add(DurabilityCalculation(label, item.Name, wear));
             AddDurabilityNotice(durabilityNotices, defender.Name, item.Name, equipmentName, wear,
@@ -1104,13 +1117,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     }
 
     private static EquipmentWearResult ApplyWeaponWear(LiveCharacter character, WeaponDefinition? weapon,
-        int? preferredSlotIndex, bool critical)
+        int? preferredSlotIndex, bool critical, EquipmentWearCause wearCause)
     {
         if (weapon is null) return EquipmentWearResult.None;
         var slot = ResolveWeaponSlot(character, weapon, preferredSlotIndex);
         return slot < 0
             ? EquipmentWearResult.None
-            : character.ApplyInventoryItemWear(InventorySlotKind.Weapon, slot, EquipmentWearCause.Attack, critical ? 2 : 1);
+            : character.ApplyInventoryItemWear(InventorySlotKind.Weapon, slot, wearCause, critical ? 2 : 1);
     }
 
     private static int ResolveWeaponSlot(LiveCharacter character, WeaponDefinition? weapon,
