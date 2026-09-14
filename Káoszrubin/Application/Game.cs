@@ -900,6 +900,11 @@ public sealed class Game : ISessionCommandHandler
                         TeleportLeaderToNextUniqueNpc();
                         continue;
                     }
+                    if (IsTeleportPartyToPositionShortcut(keyInfo))
+                    {
+                        TeleportPartyToSelectedPosition();
+                        continue;
+                    }
                     if (IsLevelUpShortcut(keyInfo))
                     {
                         TriggerDeveloperLevelUp();
@@ -9589,6 +9594,62 @@ public sealed class Game : ISessionCommandHandler
         _sessionEventService.RecordSessionSound(effect, listenerCharacterIds);
 
     private static ConsoleColor BattleEntryColor(BattleLogKind kind) => SessionEventService.BattleEntryColor(kind);
+
+    private void TeleportPartyToSelectedPosition()
+    {
+        var companions = _maze.PartyMembers.Where(member => member.Character.IsAlive).ToArray();
+        var target = RunHostWindow<Position?>("Fejlesztői teleport",
+            "A vezető teleportálási célpontot választ az aktuális pályán.", () =>
+            {
+                var cursor = _player.Position;
+                Position? previous = null;
+                var wasRevealed = _fogOfWar.IsDeveloperRevealActive;
+                if (!wasRevealed) _fogOfWar.ToggleDeveloperReveal();
+                _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+                try
+                {
+                    while (true)
+                    {
+                        var valid = DeveloperPartyTeleport.FindDestinations(_maze, cursor, companions).Count > 0;
+                        _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, previous, cursor, valid,
+                            $"Teleport ({cursor.X}, {cursor.Y}) | Nyilak: célpont | Enter: teleport | Esc: mégse" +
+                            (valid ? string.Empty : " | Nincs szabad hely a csapatnak"));
+                        previous = cursor;
+                        var key = Console.ReadKey(intercept: true);
+                        if (key.Key == ConsoleKey.Escape) return null;
+                        if (key.Key == ConsoleKey.Enter && valid) return cursor;
+                        if (TryGetDirection(key.Key, out var direction) && _maze.IsInside(cursor + direction))
+                            cursor += direction;
+                    }
+                }
+                finally
+                {
+                    if (!wasRevealed) _fogOfWar.ToggleDeveloperReveal();
+                    _renderer.FinishSpellTargeting(_maze, _fogOfWar, _player.Position);
+                }
+            });
+        if (target is null) return;
+        var positions = DeveloperPartyTeleport.FindDestinations(_maze, target.Value, companions);
+        if (positions.Count != companions.Length + 1) return;
+        _player.TeleportTo(positions[0]);
+        for (var index = 0; index < companions.Length; index++)
+        {
+            companions[index].MoveTo(positions[index + 1]);
+            ScheduleNextPartyMove(companions[index], DateTime.UtcNow);
+        }
+        _leaderTrail.Clear();
+        _leaderTrail.Add(_player.Position);
+        _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
+        _partyHoldingPosition = false;
+        _partyRegrouping = false;
+        _partyAttackMode = false;
+        _partyScatterUntil = DateTime.MinValue;
+        RevealFor(SelectedCharacter, _player.Position);
+        foreach (var member in companions) RevealFor(member.Character, member.Position);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.DrawDeveloperMessage($"Fejlesztői teleport: vezér és {companions.Length} társ → ({target.Value.X}, {target.Value.Y}).");
+        ForceCoopSnapshotPublish();
+    }
 
     private void TeleportLeaderNearExit()
     {
