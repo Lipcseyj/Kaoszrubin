@@ -17,6 +17,8 @@ public sealed class MazeGenerationSettings
     public IReadOnlyList<string> BossRoomIds { get; init; } = [];
     public IReadOnlyDictionary<string, SpecialRoomPlacement> SpecialRoomPlacements { get; init; }
         = new Dictionary<string, SpecialRoomPlacement>();
+    public IReadOnlyDictionary<string, Domain.Quests.QuestId> QuestDoorRequirements { get; init; }
+        = new Dictionary<string, Domain.Quests.QuestId>();
 }
 
 public enum SpecialRoomPlacement { MiddleRoute, SideBranch }

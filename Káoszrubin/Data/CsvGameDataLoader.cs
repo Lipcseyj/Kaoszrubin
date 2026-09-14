@@ -236,6 +236,11 @@ public static class CsvGameDataLoader
                 : throw new InvalidOperationException("A #Base XP pálya végén értékének nemnegatív egész számnak kell lennie a " + GameDataFileName + " fájlban.")
         };
         catalog.Quests = new QuestCatalogBuilder(catalog).Build(npcQuests);
+        foreach (var requirement in Enumerable.Range(1, MazeLevelConfigurations.FinalLevel)
+            .Select(MazeLevelConfigurations.Get).Concat(QuestLocationConfigurations.All)
+            .SelectMany(level => level.QuestDoorRequirements.Values))
+            if (catalog.Quests.Get(requirement).Scope != Domain.Quests.QuestScope.Global)
+                throw new InvalidDataException("A generált szoba questzára globális küldetést igényel.");
         return catalog;
     }
 

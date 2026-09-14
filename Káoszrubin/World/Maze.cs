@@ -99,10 +99,11 @@ public sealed class Maze
         NavigationRevision++;
     }
 
-    public void PlaceDoor(Position position, DoorState state)
+    public void PlaceDoor(Position position, DoorState state,
+        Domain.Quests.QuestKey? requiredQuest = null, bool questAccessGranted = false)
     {
         if (!IsInside(position)) throw new ArgumentOutOfRangeException(nameof(position));
-        var door = new MazeDoor(position, state);
+        var door = new MazeDoor(position, state, requiredQuest, questAccessGranted);
         _doors[position] = door;
         Tiles[position.X, position.Y] = door.Symbol;
         NavigationRevision++;

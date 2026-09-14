@@ -35,7 +35,10 @@ internal static class SpecialRoomPlacer
                     maze.SetTile(position, maze.WallRune);
                 }
                 var state = maze.GetDoorAt(entrance.Value)?.State ?? DoorState.Closed;
-                maze.PlaceDoor(entrance.Value, state);
+                if (settings.QuestDoorRequirements.TryGetValue(request.Id, out var questId))
+                    maze.PlaceDoor(entrance.Value, DoorState.Closed, new Domain.Quests.QuestKey(questId));
+                else
+                    maze.PlaceDoor(entrance.Value, state);
                 selected = room;
                 break;
             }

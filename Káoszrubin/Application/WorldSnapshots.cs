@@ -19,7 +19,8 @@ public sealed record WorldCellSnapshot(Position Position, int TileCodePoint,
     ConsoleColor ForegroundColor = ConsoleColor.Black, ConsoleColor BackgroundColor = ConsoleColor.Black);
 
 public sealed record WorldDoorSnapshot(Position Position, DoorState State, int SymbolCodePoint = '▥',
-    ConsoleColor ForegroundColor = ConsoleColor.Gray, ConsoleColor BackgroundColor = ConsoleColor.Black);
+    ConsoleColor ForegroundColor = ConsoleColor.Gray, ConsoleColor BackgroundColor = ConsoleColor.Black,
+    bool IsQuestSealed = false);
 
 public sealed record WorldEnemySnapshot(WorldEntityId EntityId, string DefinitionId, string Name,
     Position Position, int CurrentHitPoints, int MaximumHitPoints, string? GroupId,
@@ -95,7 +96,7 @@ public static class WorldSnapshotProjector
                     DoorState.Closed => ConsoleColor.DarkYellow,
                     DoorState.Smashed => ConsoleColor.DarkGray,
                     _ => ConsoleColor.Gray
-                })).ToArray();
+                }, IsQuestSealed: door.IsQuestSealed)).ToArray();
         var enemies = maze.Enemies.Where(enemy => fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position) ||
                                                   forcedVisibleEnemies?.Contains(enemy.Id) == true).Select(enemy =>
         {

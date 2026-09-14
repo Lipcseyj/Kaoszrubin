@@ -41,7 +41,8 @@ internal sealed class GameStateMapper
             Exit = maze.Exit,
             StartingRoom = maze.StartingRoom,
             Rooms = maze.Rooms.Where(room => room != maze.StartingRoom).ToList(),
-            Doors = maze.Doors.Select(door => new DoorSaveData(door.Position, door.State)).ToList(),
+            Doors = maze.Doors.Select(door => new DoorSaveData(door.Position, door.State,
+                door.RequiredQuest is { } key ? new QuestDoorSaveData(key, door.QuestAccessGranted) : null)).ToList(),
             Chests = maze.TreasureChests.Select(chest => new ChestSaveData(chest.Position, chest.GoldAmount)).ToList(),
             Enemies = maze.Enemies.Select(enemy => new EnemySaveData(enemy.Position, enemy.Definition.Id,
                 enemy.CurrentHitPoints, enemy.MovementProfile, enemy.PatrolDirection, enemy.PursuitState,
@@ -130,7 +131,16 @@ internal sealed class GameStateMapper
             maze.SetTile(new Position(x, y), new Rune(state.Maze.TileCodePoints[tileIndex++]));
         if (state.Maze.StartingRoom is { } startingRoom) maze.SetStartingRoom(startingRoom);
         foreach (var room in state.Maze.Rooms) maze.AddRoom(room);
-        foreach (var door in state.Maze.Doors) maze.PlaceDoor(door.Position, door.State);
+        foreach (var door in state.Maze.Doors)
+        {
+            if (door.QuestGate is { } gate)
+            {
+                var definition = _gameData.Quests.Get(gate.Key.QuestId);
+                if (definition.Scope == QuestScope.Global ? !gate.Key.GiverInstanceId.IsNone : gate.Key.GiverInstanceId.IsNone)
+                    throw new InvalidDataException("A questajtó példányazonosítója nem felel meg a quest scope-jának.");
+            }
+            maze.PlaceDoor(door.Position, door.State, door.QuestGate?.Key, door.QuestGate?.AccessGranted ?? false);
+        }
         maze.PlaceExit(state.Maze.Exit);
         foreach (var chest in state.Maze.Chests) maze.AddTreasureChest(new TreasureChest(chest.Position, chest.GoldAmount));
         // A mozgó szereplők, tetemek és földi tárgyak játék közben szabályosan kerülhetnek csapdára.

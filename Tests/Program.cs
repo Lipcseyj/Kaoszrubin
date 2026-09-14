@@ -22,6 +22,10 @@ using System.Text;
 #region test cases
 var tests = new (string Name, Action Run)[]
 {
+    ("A questajtó a pontos futást követi és megőrzi a megszerzett hozzáférést", QuestDoorTests.AccessFollowsExactQuestAndRemainsGranted),
+    ("A tiltott questajtó-próba nem fogyaszt erőforrást", QuestDoorTests.DeniedInteractionSpendsNothing),
+    ("A questajtó mentése és hálózati deltája megőrzi a feloldást", QuestDoorTests.SaveAndWorldDeltaPreserveGate),
+    ("A jelvényes szoba egyetlen lezárt questajtót kap", QuestDoorTests.GeneratedRoomHasOneSealedQuestDoor),
     ("Roderic és a lezárható mellékszobák 80 seeddel is elérhetők", RodericRoomPlacementTests.PlacementSurvivesMultipleSeeds),
     ("A szobagenerálás reprodukálható és elutasítja a hibás konfigurációt", RodericRoomPlacementTests.SeedAndConfigurationAreValidated),
     ("Mind a 40 quest és 21 NPC típusos importja megőrzi a CSV-adatokat", QuestCatalogImportTests.AllDefinitionsPreserveCsvData),

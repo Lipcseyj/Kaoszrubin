@@ -313,12 +313,12 @@ internal static class QuestPersistenceTests
     {
         var save = new GameSaveData { Version = 21, SuspendedCampaign = new() { Version = 12 } };
         GameSaveFormat.MigrateToCurrent(save);
-        Require(save.Version == 22 && save.SuspendedCampaign.Version == 22 &&
+        Require(save.Version == GameSaveFormat.CurrentVersion && save.SuspendedCampaign.Version == GameSaveFormat.CurrentVersion &&
             save.Quests is null && save.SuspendedCampaign.Quests is null,
             "A felfüggesztett mentés verziója vagy az egyszeri legacy import jelölése hibás.");
         GameSaveFormat.MigrateToCurrent(save);
         Require(save.Quests is null, "Az ismételt formátummigráció elvesztette a pending legacy importot.");
-        Reject(() => GameSaveFormat.MigrateToCurrent(new() { Version = 23 }));
+        Reject(() => GameSaveFormat.MigrateToCurrent(new() { Version = GameSaveFormat.CurrentVersion + 1 }));
     }
 
     private static GameSaveData EmptySave() => new()

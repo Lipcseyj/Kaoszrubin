@@ -12,15 +12,18 @@ internal sealed class DoorInteractionController
     private readonly Action<SoundEffect, LiveCharacter> _playActorSound;
     private readonly Action<string, ConsoleColor, LiveCharacter> _recordActivity;
     private readonly Random _random;
+    private readonly Func<MazeDoor, bool> _tryGrantQuestAccess;
 
     public DoorInteractionController(GameDataCatalog gameData, ConsoleRenderer renderer,
         Action<SoundEffect, LiveCharacter> playActorSound, Random random,
-        Action<string, ConsoleColor, LiveCharacter>? recordActivity = null)
+        Action<string, ConsoleColor, LiveCharacter>? recordActivity = null,
+        Func<MazeDoor, bool>? tryGrantQuestAccess = null)
     {
         _gameData = gameData;
         _renderer = renderer;
         _playActorSound = playActorSound;
         _random = random;
+        _tryGrantQuestAccess = tryGrantQuestAccess ?? (door => !door.IsQuestSealed);
         _recordActivity = recordActivity ?? ((_, _, _) => { });
     }
 
@@ -31,6 +34,11 @@ internal sealed class DoorInteractionController
     {
         var door = GetAdjacentDoor(maze, actorPosition, targetDoorPosition);
         if (door is null) { Report("Nincs ajtó melletted.", selectedCharacter); return; }
+        if (!_tryGrantQuestAccess(door))
+        {
+            Report("Az ajtót küldetés zárja le. Előbb vedd fel a hozzá tartozó küldetést.", selectedCharacter);
+            return;
+        }
         if (door.State == DoorState.Open) { Report("Az ajtó már nyitva van.", selectedCharacter); return; }
         if (door.State == DoorState.Smashed) { Report("A bezúzott ajtónyílás már szabad.", selectedCharacter); return; }
         if (door.State == DoorState.Closed)
@@ -157,6 +165,11 @@ internal sealed class DoorInteractionController
     {
         var door = GetAdjacentDoor(maze, actorPosition, targetDoorPosition);
         if (door is null) { Report("Nincs ajtó melletted.", selectedCharacter); return; }
+        if (door.IsQuestSealed)
+        {
+            Report("Ezt az ajtót küldetés zárja le; kulccsal nem változtatható meg a zárása.", selectedCharacter);
+            return;
+        }
         if (door.State == DoorState.Smashed) { Report("A bezúzott ajtó többé nem zárható kulcsra.", selectedCharacter, ConsoleColor.Red); return; }
         if (door.State == DoorState.Locked) { Report("Az ajtó már kulcsra van zárva.", selectedCharacter); return; }
 

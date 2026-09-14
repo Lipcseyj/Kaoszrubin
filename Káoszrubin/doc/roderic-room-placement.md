@@ -48,5 +48,6 @@ A kész szobák és ajtók a meglévő mentési és hálózati reprezentációba
   reprodukálhatóság és hibás konfiguráció elutasítása.
 - Teljes solution build: 0 hiba, 0 warning. Teljes tesztkészlet: 287 PASS, 0 FAIL.
 
-Interaktív végigjátszás nem történt. Következő lépés a questfeltételes ajtók
-hostoldali ellenőrzése, a feltörés és bezúzás útvonalaira is kiterjesztve.
+Interaktív végigjátszás nem történt. A következő előfeltétel azóta elkészült:
+[questfeltételes ajtók](roderic-quest-doors.md), a feltörés és bezúzás
+útvonalaira is kiterjesztett hostoldali ellenőrzéssel.
