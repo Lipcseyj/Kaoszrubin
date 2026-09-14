@@ -1,3 +1,4 @@
+using Kaoszrubin.Infrastructure;
 using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
 
@@ -177,12 +178,9 @@ public sealed class CharacterCreationScreen
             WriteInside(7, "Név: ", ConsoleColor.Cyan);
             Console.SetCursorPosition(_frameLeft + 10, 7);
             Console.ForegroundColor = ConsoleColor.White;
-            var name = Console.ReadLine()?.Trim();
+            var name = ConsoleExtensions.ReadLine(LiveCharacter.MaximumNameLength, trim: true);
             if (string.IsNullOrWhiteSpace(name)) return null;
             if (name.Length <= LiveCharacter.MaximumNameLength) return name;
-
-            WriteInside(9, $"⚠ A név túl hosszú. Maximum {LiveCharacter.MaximumNameLength} karakter.", ConsoleColor.Red);
-            Console.ReadKey(intercept: true);
         }
     }
 
