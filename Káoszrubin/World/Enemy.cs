@@ -61,10 +61,20 @@ public abstract class Enemy(Position position) : WorldObject(position)
     {
         get
         {
-            if (Definition.ChoosesWeapon)
-                return Definition.Weapon is { IsMonsterOnly: false } selected ? [selected.Id] : [];
-            return (Definition.Weapons ?? []).Where(weapon => !weapon.IsMonsterOnly)
-                .Select(weapon => weapon.Id).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            IEnumerable<string> weaponIds = Definition.ChoosesWeapon
+                ? Definition.Weapon is { IsMonsterOnly: false } selected
+                    ? [selected.Id]
+                    : []
+                : (Definition.Weapons ?? [])
+                    .Where(weapon => !weapon.IsMonsterOnly)
+                    .Select(weapon => weapon.Id);
+
+            if (Definition.Shield is { IsMonsterOnly: false } shield)
+                weaponIds = weaponIds.Append(shield.Id);
+
+            return weaponIds
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         }
     }
 
@@ -403,21 +413,77 @@ public abstract class Enemy(Position position) : WorldObject(position)
 /// <summary>CSV-definícióból létrehozott, saját megjelenésű ellenfél.</summary>
 public sealed class ConfiguredEnemy : Enemy
 {
-    public ConfiguredEnemy(Position position, EnemyDefinition definition, Random? random = null,
-        string? selectedWeaponId = null) : base(position)
+    private const int ShieldChancePercent = 50;
+
+    public ConfiguredEnemy(
+        Position position,
+        EnemyDefinition definition,
+        Random? random = null,
+        string? selectedWeaponId = null,
+        bool? hasShield = null) : base(position)
     {
+        var rng = random ?? Random.Shared;
         var weapons = definition.Weapons ?? [];
+
+        var oneHandedWeapons = weapons
+            .Where(weapon => !weapon.IsTwoHanded)
+            .ToArray();
+
+        // Ha betöltéskor már megmondtuk, melyik fegyver volt nála,
+        // egy kétkezes fegyver automatikusan kizárja a pajzsot.
+        var restoredWeapon = selectedWeaponId is { Length: > 0 }
+            ? weapons.FirstOrDefault(weapon =>
+                string.Equals(
+                    weapon.Id,
+                    selectedWeaponId,
+                    StringComparison.OrdinalIgnoreCase))
+            : null;
+
+        var canUseShield =
+            definition.Shield is not null &&
+            oneHandedWeapons.Length > 0 &&
+            restoredWeapon?.IsTwoHanded != true;
+
+        var usesShield = canUseShield &&
+                         (hasShield ?? rng.Next(100) < ShieldChancePercent);
+
+        var selectedShield = usesShield
+            ? definition.Shield
+            : null;
+
+        // Pajzs mellett kétkezes fegyver nem kerülhet az aktív
+        // fegyverkészletbe.
+        IReadOnlyList<WeaponDefinition> usableWeapons =
+            usesShield
+                ? oneHandedWeapons
+                : weapons;
+
         var selectedWeapon = definition.Weapon;
-        if (definition.ChoosesWeapon && weapons.Count > 0)
+
+        if (definition.ChoosesWeapon && usableWeapons.Count > 0)
         {
-            if (selectedWeaponId is { Length: > 0 })
-                selectedWeapon = weapons.FirstOrDefault(weapon => string.Equals(weapon.Id, selectedWeaponId,
-                    StringComparison.OrdinalIgnoreCase));
-            else if (selectedWeapon is null)
-                selectedWeapon = weapons[(random ?? Random.Shared).Next(weapons.Count)];
-            selectedWeapon ??= weapons[0];
+            if (restoredWeapon is not null &&
+                usableWeapons.Any(weapon =>
+                    string.Equals(
+                        weapon.Id,
+                        restoredWeapon.Id,
+                        StringComparison.OrdinalIgnoreCase)))
+            {
+                selectedWeapon = restoredWeapon;
+            }
+            else
+            {
+                selectedWeapon = usableWeapons[rng.Next(usableWeapons.Count)];
+            }
         }
-        Definition = definition with { Weapon = selectedWeapon };
+
+        Definition = definition with
+        {
+            Weapons = usableWeapons,
+            Weapon = selectedWeapon,
+            Shield = selectedShield
+        };
+
         Symbol = Rune.GetRuneAt(definition.Appearance, 0);
         InitializeHitPoints(definition.HitPoints ?? 0);
     }

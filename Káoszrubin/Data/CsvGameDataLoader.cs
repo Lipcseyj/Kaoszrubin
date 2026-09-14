@@ -146,14 +146,45 @@ public static class CsvGameDataLoader
         for (var index = 0; index < enemies.Count; index++)
         {
             var enemy = enemies[index];
-            var resolvedWeapons = (enemy.WeaponIds ?? []).Select(weaponId =>
-                    weapons.FirstOrDefault(value => value.Id == weaponId)
-                    ?? throw new InvalidDataException($"Ismeretlen szörnyfegyver: {enemy.Id} / {weaponId}"))
+
+            var resolvedWeapons = (enemy.WeaponIds ?? [])
+                .Select(weaponId =>
+                    weapons.FirstOrDefault(weapon =>
+                        string.Equals(weapon.Id, weaponId, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new InvalidDataException(
+                        $"Ismeretlen szörnyfegyver: {enemy.Id} / {weaponId}"))
                 .ToArray();
-            if (resolvedWeapons.Length == 0 || resolvedWeapons.Any(weapon =>
-                    weapon.Damage is null || weapon.WeaponTypeId == "WT003"))
-                throw new InvalidDataException($"A(z) {enemy.Id} szörnynek legalább egy támadó fegyver kell.");
-            enemies[index] = enemy with { Weapons = resolvedWeapons };
+
+            if (resolvedWeapons.Length == 0 ||
+                resolvedWeapons.Any(weapon =>
+                    weapon.Damage is null ||
+                    weapon.WeaponTypeId == "WT003"))
+            {
+                throw new InvalidDataException(
+                    $"A(z) {enemy.Id} szörnynek legalább egy támadó fegyver kell.");
+            }
+
+            WeaponDefinition? resolvedShield = null;
+
+            if (enemy.ShieldId is { } shieldId)
+            {
+                resolvedShield = weapons.FirstOrDefault(weapon =>
+                    string.Equals(weapon.Id, shieldId, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new InvalidDataException(
+                        $"Ismeretlen szörnypajzs: {enemy.Id} / {shieldId}");
+
+                if (resolvedShield.WeaponTypeId != "WT003")
+                {
+                    throw new InvalidDataException(
+                        $"A(z) {enemy.Id} szörny PajzsId mezője nem pajzsra hivatkozik: {shieldId}");
+                }
+            }
+
+            enemies[index] = enemy with
+            {
+                Weapons = resolvedWeapons,
+                Shield = resolvedShield
+            };
         }
         var monsterAbilityById = monsterAbilities.ToDictionary(ability => ability.Id, StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < enemies.Count; index++)
@@ -318,18 +349,40 @@ public static class CsvGameDataLoader
                 characterClasses.Add(new CharacterClassDefinition(id, name, PrimaryAbilities.Zero, CharacterClassRules.UsesMana(id), Double(cells, 2) ?? 1));
                 break;
             case DataSection.Enemies:
-                enemies.Add(new EnemyDefinition(id, name, Cell(cells, 2), Integer(cells, 3), Integer(cells, 4),
-                    Integer(cells, 5), Integer(cells, 6), Integer(cells, 7) ?? 0, Integer(cells, 8) ?? 1,
+                enemies.Add(new EnemyDefinition(
+                    id,
+                    name,
+                    Cell(cells, 2),
+                    Integer(cells, 3),
+                    Integer(cells, 4),
+                    Integer(cells, 5),
+                    Integer(cells, 6),
+                    Integer(cells, 7) ?? 0,
+                    Integer(cells, 8) ?? 1,
                     IdList(Cell(cells, 9)),
-                    MonsterIds.Bosses.Contains(id), Integer(cells, 11) ?? 5,
-                    Math.Clamp(Integer(cells, 12) ?? 0, 0, 3), Math.Clamp(Integer(cells, 13) ?? 2, 0, 4),
-                    MonsterIds.Bosses.Contains(id) ? EnemyRank.Boss :
-                    MonsterIds.MiniBosses.Contains(id) ? EnemyRank.MiniBoss : EnemyRank.Normal,
-                    IsYes(cells, 14), IdList(Cell(cells, 15)), IsYes(cells, 16),
-                    new DamageResistance(Integer(cells, 17) ?? 0, Integer(cells, 18) ?? 0,
-                        Integer(cells, 19) ?? 0, Integer(cells, 20) ?? 0, Integer(cells, 21) ?? 0,
-                        Integer(cells, 22) ?? 0, Integer(cells, 23) ?? 0), Traits: ParseEnemyTraits(Cell(cells, 10)),
-                    TrackingSense: Integer(cells, 24) ?? 0));
+                    MonsterIds.Bosses.Contains(id),
+                    Integer(cells, 11) ?? 5,
+                    Math.Clamp(Integer(cells, 12) ?? 0, 0, 3),
+                    Math.Clamp(Integer(cells, 13) ?? 2, 0, 4),
+                    MonsterIds.Bosses.Contains(id)
+                        ? EnemyRank.Boss
+                        : MonsterIds.MiniBosses.Contains(id)
+                            ? EnemyRank.MiniBoss
+                            : EnemyRank.Normal,
+                    IsYes(cells, 14),
+                    IdList(Cell(cells, 15)),
+                    IsYes(cells, 16),
+                    new DamageResistance(
+                        Integer(cells, 17) ?? 0,
+                        Integer(cells, 18) ?? 0,
+                        Integer(cells, 19) ?? 0,
+                        Integer(cells, 20) ?? 0,
+                        Integer(cells, 21) ?? 0,
+                        Integer(cells, 22) ?? 0,
+                        Integer(cells, 23) ?? 0),
+                    Traits: ParseEnemyTraits(Cell(cells, 10)),
+                    TrackingSense: Integer(cells, 24) ?? 0,
+                    ShieldId: EmptyAsNull(Cell(cells, 25))));
                 break;
             case DataSection.MonsterAbilities:
                 monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),
