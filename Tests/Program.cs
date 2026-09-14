@@ -26,6 +26,8 @@ if (CoopHarnessOptions.TryParse(args, out var harnessOptions))
 
 var tests = new (string Name, Action Run)[]
 {
+    ("Roderic és a lezárható mellékszobák 80 seeddel is elérhetők", RodericRoomPlacementTests.PlacementSurvivesMultipleSeeds),
+    ("A szobagenerálás reprodukálható és elutasítja a hibás konfigurációt", RodericRoomPlacementTests.SeedAndConfigurationAreValidated),
     ("Mind a 40 quest és 21 NPC típusos importja megőrzi a CSV-adatokat", QuestCatalogImportTests.AllDefinitionsPreserveCsvData),
     ("A hibás questdefiníció már CSV-betöltéskor meghiúsul", QuestCatalogImportTests.InvalidDefinitionsFailDuringLoading),
     ("A világpillanatkép típusos questállapotot és stabil kulcsot visz át", QuestReplicationTests.WorldUsesTypedStatesAndStableKeys),

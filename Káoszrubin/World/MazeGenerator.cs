@@ -8,21 +8,35 @@ public sealed class MazeGenerator
     private const int CorridorWidth = 2;
     private const int GridStep = 5;
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
-    private readonly Random _random = new();
+    private readonly Random _random;
     private readonly MazeGenerationSettings _settings;
     private readonly IReadOnlyList<ResolvedEnemyEncounter> _roomEncounters;
     private readonly IReadOnlyList<ResolvedEnemyEncounter> _corridorEncounters;
 
     public MazeGenerator(MazeGenerationSettings settings, IReadOnlyList<ResolvedEnemyEncounter> roomEncounters,
-        IReadOnlyList<ResolvedEnemyEncounter> corridorEncounters)
+        IReadOnlyList<ResolvedEnemyEncounter> corridorEncounters, Random? random = null)
     {
         _settings = settings;
+        _random = random ?? new Random();
         _roomEncounters = roomEncounters;
         _corridorEncounters = corridorEncounters;
         ValidateSettings(_settings);
     }
 
     public Maze Create(int width, int height)
+    {
+        // A sikertelen elrendezést még objektumok és szereplők létrehozása előtt eldobjuk.
+        for (var attempt = 0; attempt < 128; attempt++)
+        {
+            var maze = CreateLayout(width, height);
+            if (!SpecialRoomPlacer.TryAssign(maze, _settings, _random)) continue;
+            PlaceMapObjects(maze);
+            return maze;
+        }
+        throw new InvalidOperationException("128 kísérletből sem sikerült a speciális szobák elhelyezése.");
+    }
+
+    private Maze CreateLayout(int width, int height)
     {
         var maze = new Maze(width, height, _settings.WallRune, _settings.WallColor, _settings.LevelName);
         var gridWidth = (width - 3) / GridStep + 1;
@@ -36,8 +50,6 @@ public sealed class MazeGenerator
         maze.PlaceExit(ToMazePosition(new Position(gridWidth - 1, gridHeight - 1)));
         // Végső biztosíték: ha bármi mégis leválasztott maradt, a legkevesebb faláttöréssel visszaköti a hálózathoz.
         maze.EnsureFullAccessibility(RollDoorState);
-        AssignSpecialRooms(maze);
-        PlaceMapObjects(maze);
         return maze;
     }
 
@@ -177,21 +189,6 @@ public sealed class MazeGenerator
                 .Take(members.Count).ToList();
             PlaceGroup(maze, encounter, members, positions);
         }
-    }
-
-    private void AssignSpecialRooms(Maze maze)
-    {
-        var available = maze.Rooms.Where(room => room.AllowsRandomContent)
-            .OrderByDescending(room => Manhattan(
-                new Position(room.TopLeft.X + room.Width / 2, room.TopLeft.Y + room.Height / 2), maze.Entrance))
-            .ThenBy(_ => _random.Next()).ToList();
-        if (available.Count < _settings.QuestRoomIds.Count + _settings.BossRoomIds.Count)
-            throw new InvalidOperationException("Nincs elég szoba a kötelező küldetésszobák elhelyezéséhez.");
-        for (var index = 0; index < _settings.QuestRoomIds.Count; index++)
-            maze.AssignRoomPurpose(available[index], RoomPurpose.Quest, _settings.QuestRoomIds[index]);
-        for (var index = 0; index < _settings.BossRoomIds.Count; index++)
-            maze.AssignRoomPurpose(available[_settings.QuestRoomIds.Count + index], RoomPurpose.Boss,
-                _settings.BossRoomIds[index]);
     }
 
     private void PlaceCorridorEncounters(Maze maze)
@@ -493,6 +490,11 @@ public sealed class MazeGenerator
 
     private static void ValidateSettings(MazeGenerationSettings settings)
     {
+        var ids = settings.QuestRoomIds.Concat(settings.BossRoomIds).ToArray();
+        if (ids.Any(string.IsNullOrWhiteSpace) || ids.Distinct(StringComparer.Ordinal).Count() != ids.Length ||
+            ids.Length > settings.RoomCount || settings.SpecialRoomPlacements.Any(rule =>
+                !ids.Contains(rule.Key) || !Enum.IsDefined(rule.Value)))
+            throw new ArgumentException("Hibás vagy elhelyezhetetlen speciálisszoba-konfiguráció.", nameof(settings));
         if (settings.DoubleWidthCorridorChance is < 0 or > 1) throw new ArgumentOutOfRangeException(nameof(settings.DoubleWidthCorridorChance));
         if (settings.RoomCount < 0) throw new ArgumentOutOfRangeException(nameof(settings.RoomCount));
         if (settings.MinimumRoomSize < 2 || settings.MaximumRoomSize < settings.MinimumRoomSize)

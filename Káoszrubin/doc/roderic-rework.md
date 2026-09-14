@@ -19,7 +19,7 @@ Megjegyzés: a jelvényeket továbbra is az első 3 legyőzött csontvázlovag �
 biztosítania kell hogy az első 3 csontvázlovag akikkel a játékos találkozik ezen a pályán legyen egy bossroomban.
 Előfeltétel: legyenek olyan bossroom-ok amik a pálya szélén vannak, és nem akadályozzák a labirintus bejárását. Az ajtajuk csak akkor 
 nyitható ki, ha egy bizonyos küldetés aktív. (ez új játékmechanika lesz)
-A ghoul-ok egy zárt ajtajú bossroomban lesznek, ami csak akkor nyitható ki, ha a küldetés aktív.
+A csontvázlovagok-ok egy zárt ajtajú bossroomban lesznek, ami csak akkor nyitható ki, ha a küldetés aktív.
 
 ## Harmadik küldetés: "A pátriárkák árnyai"
 Ezután Roderic beszél arról, hogy velük tartott a rend 2 pátriárkája, és Roderic szemtanúja volt ahogy borzalmas élőholt teremtmények
@@ -29,7 +29,7 @@ A borzalmas igazság feltárása után le kell győznünk a gonosszá vált pát
 
 a győzelem után Roderic elmondja, hogy a pátriárkák egy titkos helyen tartották a rend ereklyéit, és hogy azokat vissza kell szereznünk. 
 Feladat: győzz le 2 ghoul-t (csak ez a két ghoul lesz a pályán)
-A pátriárkák ez zárt ajtajú bossroomban lesznek, ami csak akkor nyitható ki, ha a küldetés aktív.
+A pátriárka ghoulok egy zárt ajtajú bossroomban lesznek, ami csak akkor nyitható ki, ha a küldetés aktív.
 
 ## Negyedik küldetés: "A rend ereklyéi"
 A rend ereklyéi egy kincsesládában vannak elrejtve. 

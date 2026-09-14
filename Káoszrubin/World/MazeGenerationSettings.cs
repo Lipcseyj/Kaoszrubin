@@ -15,4 +15,8 @@ public sealed class MazeGenerationSettings
     public string LevelName { get; init; } = "Labirintus";
     public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
     public IReadOnlyList<string> BossRoomIds { get; init; } = [];
+    public IReadOnlyDictionary<string, SpecialRoomPlacement> SpecialRoomPlacements { get; init; }
+        = new Dictionary<string, SpecialRoomPlacement>();
 }
+
+public enum SpecialRoomPlacement { MiddleRoute, SideBranch }

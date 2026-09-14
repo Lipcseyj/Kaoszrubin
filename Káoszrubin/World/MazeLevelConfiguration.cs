@@ -73,6 +73,8 @@ public sealed class MazeLevelConfiguration
     public int VisionModifier { get; set; }
     public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
     public IReadOnlyList<string> BossRoomIds { get; init; } = [];
+    public IReadOnlyDictionary<string, SpecialRoomPlacement> SpecialRoomPlacements { get; init; }
+        = new Dictionary<string, SpecialRoomPlacement>();
     public IReadOnlyList<QuestRoomEnemyEncounterConfiguration> QuestRoomEnemyEncounters { get; init; } = [];
     public required IReadOnlyList<EnemyEncounterConfiguration> RoomEncounters { get; init; }
     public required IReadOnlyList<EnemyEncounterConfiguration> CorridorEncounters { get; init; }
@@ -89,7 +91,8 @@ public sealed class MazeLevelConfiguration
         WallColor = WallColor,
         LevelName = Name,
         QuestRoomIds = QuestRoomIds,
-        BossRoomIds = BossRoomIds
+        BossRoomIds = BossRoomIds,
+        SpecialRoomPlacements = SpecialRoomPlacements
     };
 }
 
@@ -248,6 +251,11 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = Amount.Several.Range(),
                 TreasureGold = new(240, 480),
                 QuestRoomIds = ["RODERIC_MEETING", "RODERIC_INSIGNIA"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["RODERIC_MEETING"] = SpecialRoomPlacement.MiddleRoute,
+                    ["RODERIC_INSIGNIA"] = SpecialRoomPlacement.SideBranch
+                },
                 QuestRoomEnemyEncounters =
                 [
                     new("RODERIC_INSIGNIA", MonsterIds.CsontvázLovag, 3,
