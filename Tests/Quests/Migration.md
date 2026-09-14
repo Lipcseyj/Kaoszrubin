@@ -404,3 +404,31 @@ hibás fix jutalommennyiség, üres cím és duplikált quest betöltéskori elu
 
 Következő a 7. lépés: a runtime bridge-ek és a WorldNpc legacy questállapotának
 eltávolítása, a régi mentések importkompatibilitásának megtartásával.
+
+## 2026-09-14: a 7. lépés – a runtime bridge-ek eltávolítása
+
+- A WorldNpc questtárolója, QuestIds/Quests propertyjei, questIds konstruktorparamétere
+  és ActivateQuest/AddQuestProgress/CompleteQuest/AbandonQuest/RestoreQuests metódusai
+  megszűntek. Az NPC világ-, követő- és beszélgetési állapota megmaradt.
+- A LegacyQuestProgressProjection törölve. A Game ProjectQuestChange eseménykezelője
+  csak a típusos naplót és a coop frissítésjelzését kezeli; nem ír második questállapotot.
+- Az új világmentés nem ír flat questlistát az NPC-khez. A régi mezők olvashatók
+  maradnak, a LegacyNpcQuestProgress/LegacyNpcQuestState DTO a Data rétegben él.
+  A 0/1/2/3 numerikus állapotértékeket megőriztük. A QuestSaveAdapter továbbra is
+  jutalmazás nélkül importálja a régi mentést. Mentés- és protokollverzió nem változott.
+- A jutalom- és beszélgetési adapter neve QuestRewardContext, illetve
+  QuestNpcConversationService lett. A külső ID- és storymapperek megmaradtak.
+- Törölve a hívó nélküli pending quest-feldolgozás és az öt üres helyőrző fájl.
+  Roderic történeti működését nem dolgoztuk át.
+- A korábbi NPC-életciklusteszt a megmaradt világműködés mellett a quest API hiányát
+  ellenőrzi. A mentési teszt azt is igazolja, hogy hibás/stale legacy DTO mellett
+  a típusos állapot marad hiteles, újramenthető, és nem jár új jutalommal.
+  A korábbi bridge-függő tesztbekötések és a kikommentezett flat teszt törölve.
+- A quest README migrációs állapota és adapternevei frissítve.
+
+Ellenőrzés: teljes solution build 0 warning, 0 hiba (előtte 23 CS0618).
+Teljes tesztkészlet: 285 PASS, 0 FAIL. Nincs globális figyelmeztetéselnyomás.
+git diff --check: nincs whitespace-hiba. Interaktív UI-/külön gépes coop-végigjátszás
+nem történt; Roderic speciális történeti végigjátszása és átdolgozása későbbi munka.
+
+A közös migráció 0–7. lépése lezárult a fenti, külön jelzett Roderic-korláttal.

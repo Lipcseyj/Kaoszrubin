@@ -407,7 +407,9 @@ public sealed record PartyAvatarSaveData(Position Position, int CharacterIndex,
 public sealed record WorldNpcSaveData(Position Position, string DefinitionId, int CharacterIndex,
     NpcDisposition Disposition, bool Recruitable, bool IsQuestNpc, string Dialogue, WorldNpcState State,
     int Friendliness = 5, Domain.NpcWorldBehavior Behavior = Domain.NpcWorldBehavior.Guarded,
-    List<string>? QuestIds = null, List<NpcQuestProgress>? Quests = null, int ConversationStage = 0,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] List<string>? QuestIds = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] List<LegacyNpcQuestProgress>? Quests = null,
+    int ConversationStage = 0,
     string? StoryId = null, string StoryStateId = "INITIAL", int QuestInstanceId = 0,
     Guid? CharacterId = null);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);

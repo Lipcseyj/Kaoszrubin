@@ -230,7 +230,6 @@ internal static class QuestPersistenceTests
         var restoredMapper = new GameStateMapper(data, roster, roster.SelectedCharacter!, restoredRegistry);
         var returned = restoredMapper.Restore(reloaded.SuspendedCampaign!);
         var secondNpc = returned.Maze.PartyMembers.Single().TemporaryFollower!;
-        restoredFixture.Manager.QuestChanged += quest => LegacyQuestProgressProjection.Synchronize(secondNpc, quest);
         restoredFixture.Manager.SynchronizeCollectQuests();
         restoredFixture.Manager.PublishState();
         Require(!ReferenceEquals(firstNpc, secondNpc) && restoredRegistry.GetOrCreate(secondNpc) == firstId &&
@@ -281,15 +280,19 @@ internal static class QuestPersistenceTests
         var mapper = new GameStateMapper(data, roster, roster.SelectedCharacter!, registry);
         var world = mapper.Restore(save);
         var fixture = new QuestTestFixture(data.Quests.All.ToArray());
-        fixture.Manager.QuestChanged += quest => LegacyQuestProgressProjection.Synchronize(world.Maze.WorldNpcs.Single(), quest);
         fixture.Manager.RestoreState(states);
         var projected = mapper.Create(1, world.Maze, world.Player, world.FogOfWar, Direction.Right,
             [], false, false, false, false, null, DateTime.UtcNow, new Dictionary<Enemy, DateTime>(), [], []);
+        projected.Quests = adapter.Export(fixture.Manager);
         using var json = JsonDocument.Parse(JsonSerializer.Serialize(projected));
-        var questProgress = json.RootElement.GetProperty("Maze").GetProperty("Npcs")[0].GetProperty("Quests")
-            .EnumerateArray().Single(q => q.GetProperty("QuestId").GetString() == "NPCQ002");
-        Require(questProgress.GetProperty("State").GetInt32() == 1 && questProgress.GetProperty("Progress").GetInt32() == 1,
-            "A világ flat questnézete eltér a típusos állapottól, vagy a hiányzó legacy questlista elnyelte a projekciót.");
+        var npcData = json.RootElement.GetProperty("Maze").GetProperty("Npcs")[0];
+        Require(!npcData.TryGetProperty("Quests", out _) && !npcData.TryGetProperty("QuestIds", out _),
+            "Az új mentés továbbra is flat questállapotot ír az NPC mellé.");
+        var reloaded = Clone(projected);
+        var restoredStates = new QuestSaveAdapter(data, new QuestNpcInstanceRegistry()).PrepareRestore(reloaded, roster);
+        Require(restoredStates.SequenceEqual(states) && restoredStates.Single().Progress == 1 &&
+            restoredStates.Single().State == QuestState.Active && fixture.StoredRewards.Count == 0,
+            "A megmaradt régi DTO felülírta a típusos állapotot vagy az új mentés elvesztette a progresst.");
     }
 
     public static void LegacyNpcRecordTakesPrecedenceOverUnboundJournal()

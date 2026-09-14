@@ -145,8 +145,8 @@ Tipikus osztályok:
 - `LegacyQuestStoryStateMap`
 - `QuestNpcInstanceRegistry`
 - `MazeQuestWorldContext`
-- `LegacyQuestRewardContext`
-- `LegacyQuestNpcConversationService`
+- `QuestRewardContext`
+- `QuestNpcConversationService`
 
 ## Fő szerepe
 
@@ -1390,48 +1390,35 @@ játékfolyam orchestration
 
 # 33. Migrációs állapot
 
-A régi rendszerből jelenleg fokozatosan kivezetendő:
+A közös questmigráció 7. lépése elkészült (2026-09-14).
 
-```text
-WorldNpc.Quests
-NpcQuestProgress
-NpcQuestState
+A futásidejű questállapot egyetlen forrása a QuestStateStore. A WorldNpc
+nem tárol questlistát vagy progresst, és nincsenek questmutátorai. A Game
+ProjectQuestChange eseménykezelője csak a naplót és a coop-projekció frissítését
+vezérli; nincs visszatükrözés legacy állapotba.
 
-WorldNpc.ActivateQuest()
-WorldNpc.AddQuestProgress()
-WorldNpc.CompleteQuest()
-WorldNpc.AbandonQuest()
-WorldNpc.RestoreQuests()
-```
-
-Átmeneti bridge-ek még létezhetnek:
-
-```text
-SynchronizeLegacyQuestProgress()
-legacy save/load
-legacy coop snapshot
-legacy journal kompatibilitás
-```
-
-A végállapot:
-
-```text
-QuestStateStore = egyetlen quest runtime igazságforrás
-```
+A CSV-ből a betöltő állítja elő a GameDataCatalog.Quests típusos katalógust.
+A napló, gyorsutazás és hálózati adatcsere QuestKey szerint azonosít.
+A mentés a manager exportját és a tartós NPC-példányazonosságot tárolja.
 
 ---
 
-# 34. Következő architekturális célok
+# 34. Megmaradó kompatibilitási határok
 
-A jelenlegi migráció után:
+- A LegacyNpcQuestProgress és LegacyNpcQuestState kizárólag a régi mentések
+  bemeneti DTO-ja a Data rétegben. A numerikus állapotértékek változatlanok.
+  A QuestSaveAdapter ezeket típusos állapotra fordítja, jutalmazás nélkül.
+- A WorldNpcSaveData.QuestIds és .Quests mezők régi mentések olvasásához
+  megmaradnak; új világmentésben nem kapnak értéket és nem kerülnek a JSON-ba.
+- A külső quest-/NPC-ID-k és a történeti stringek mapperei megmaradnak:
+  a CSV, mentés és történeti rendszer ellenőrzött határai.
+- A QuestRewardContext és QuestNpcConversationService működő
+  infrastruktúra-adapterek; a félrevezető Legacy előtag lekerült róluk.
+- Roderic történeti átdolgozása és speciális végigjátszása külön, későbbi munka.
+  A jelenlegi aktiválási és követőfeltételeit a közös migráció nem változtatta meg.
 
-1. save/load átállítása `QuestStateStore` export/restore-ra;
-2. `QuestNpcInstanceRegistry` mentése;
-3. coop snapshot typed quest state-re átállítása;
-4. `SynchronizeLegacyQuestProgress()` eltávolítása;
-5. `WorldNpc.Quests` teljes törlése;
-6. `NpcQuestState` és `NpcQuestProgress` törlése;
-7. legacy quest metódusok törlése a `WorldNpc`-ból.
+A korábbi fejezetek tiltott legacy API-példái a már eltávolított mintákat
+szemléltetik, nem elérhető hívásokat.
 
 ---
 

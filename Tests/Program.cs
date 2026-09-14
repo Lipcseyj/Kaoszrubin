@@ -112,7 +112,7 @@ var tests = new (string Name, Action Run)[]
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
-    ("A legacy NPC-életciklus a CSV-ellenőrzéstől függetlenül működik", LegacyNpcLifecycleIsPreserved),
+    ("Az NPC-életciklus működik saját questállapot nélkül", NpcLifecycleHasNoQuestState),
     ("A típusos quest aktiválását a történeti kapu szabályozza", QuestManagerTests.ActivationHonorsStoryGate),
     ("A típusos quest tömeges felvétele megőrzi a zárolt és lezárt állapotot", QuestManagerTests.BulkActivationLeavesLockedAndResolvedQuestsAlone),
     ("A típusos quest csak megfelelő aktív eseményre halad és nem lépi túl a célt", QuestManagerTests.ProgressOnlyUsesMatchingActiveObjectives),
@@ -144,7 +144,6 @@ var tests = new (string Name, Action Run)[]
     ("Az ideiglenes követő megtartja a world-NPC inverz térképszíneit", TemporaryFollowerKeepsWorldNpcMapColors),
     ("A hosszú NPC-párbeszéd az ablakon belül sortörést kap", NpcDialogueWrapsInsideRecruitmentWindow),
     ("A közös küldetésnapló elkülöníti az aktív és teljesített küldetéseket", QuestJournalBuildsSharedHistory),
-//    ("A feladott NPC-küldetés menthető és nem aktiválható újra", AbandonedNpcQuestRemainsResolved),
     ("Az ismeretlen CSV-fejezet sorszámos hibát ad", UnknownCsvSectionIsRejectedWithLineNumber),
     ("A hiányzó kötelező CSV-mező sorszámos hibát ad", MissingRequiredCsvFieldIsRejectedWithLineNumber),
     ("Az alkalmazkodó ember választott képességbónuszt kap", AdaptableRaceGainsChosenAbility),
@@ -3664,16 +3663,14 @@ static void NpcDefinitionsLoadFromCsv()
         "A semleges nem egyedi NPC vagy a hozzá kapcsolt küldetés hibás.");
 }
 
-static void LegacyNpcLifecycleIsPreserved()
+static void NpcLifecycleHasNoQuestState()
 {
     var npc = new WorldNpc(new Position(1, 1), "NPC002", CreateCharacter("Küldetésadó"),
-        NpcDisposition.Neutral, false, true, "Próba", questIds: ["NPCQ002"]);
-    Assert(npc.ActivateQuest("NPCQ002") && npc.AddQuestProgress("NPCQ002", 3, 4) &&
-           npc.Quests.Single() is { State: NpcQuestState.Active, Progress: 3 } &&
-           npc.AddQuestProgress("NPCQ002", 1, 4) && npc.CompleteQuest("NPCQ002") &&
-           npc.Quests.Single().State == NpcQuestState.Completed,
-        "Az NPC-küldetés felvétele, haladása vagy egyszeri lezárása hibás.");
-
+        NpcDisposition.Neutral, false, true, "Próba");
+    Assert(typeof(WorldNpc).GetProperty("Quests") is null && typeof(WorldNpc).GetProperty("QuestIds") is null &&
+           new[] { "ActivateQuest", "AddQuestProgress", "CompleteQuest", "AbandonQuest", "RestoreQuests" }
+               .All(name => typeof(WorldNpc).GetMethod(name) is null),
+        "A WorldNpc továbbra is párhuzamos questállapotot vagy mutátorokat kínál.");
     npc.AdjustFriendliness(20);
     npc.SetStoryState("TEST_STATE");
     npc.BeginFollowing();
@@ -4029,23 +4026,6 @@ static void QuestJournalBuildsSharedHistory()
         "A küldetésnapló kerete vagy aktív/teljesített/feladott tartalma hibás.");
 }
 
-//static void AbandonedNpcQuestRemainsResolved()
-//{
-//    var character = CreateCharacter("Elira-próba");
-//    var npc = new WorldNpc(new Position(1, 1), "NPC020", character, NpcDisposition.Neutral,
-//        true, true, "Próba", questIds: ["Q-ELIRA"], storyId: "ELIRA_RESCUE");
-//    Assert(npc.ActivateQuest("Q-ELIRA") && npc.AbandonQuest("Q-ELIRA") &&
-//           npc.Quests.Single().State == NpcQuestState.Abandoned && npc.CanJoin,
-//        "A feladott küldetés nem maradt lezárt NPC-állapotban.");
-//    Assert(!npc.AddQuestProgress("Q-ELIRA", 1, 3) && !npc.CompleteQuest("Q-ELIRA") &&
-//           !npc.ActivateQuest("Q-ELIRA"),
-//        "A feladott küldetés újra aktiválható vagy tovább teljesíthető volt.");
-
-//    var saved = new QuestJournalSaveData("Q-ELIRA", QuestJournalStatus.Abandoned, 1, 180);
-//    var restored = JsonSerializer.Deserialize<QuestJournalSaveData>(JsonSerializer.Serialize(saved));
-//    Assert(restored?.Status == QuestJournalStatus.Abandoned && restored.Progress == 1,
-//        "A feladott naplóállapot nem élte túl a mentési körutat.");
-//}
 
 static void SpellUiModelsAreShared()
 {

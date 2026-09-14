@@ -1,4 +1,4 @@
-﻿using KaoszRubin.Application.Quests;
+using KaoszRubin.Application.Quests;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Inventory;
 
@@ -8,7 +8,7 @@ public delegate bool TryStoreQuestReward(
     IItemDefinition item,
     out string ownerName);
 
-public sealed class LegacyQuestRewardContext
+public sealed class QuestRewardContext
     : IQuestRewardContext
 {
     private readonly Func<LiveCharacter> _getSelectedCharacter;
@@ -17,7 +17,7 @@ public sealed class LegacyQuestRewardContext
     private readonly TryStoreQuestReward _tryStoreItem;
     private readonly Action<IItemDefinition> _dropItem;
 
-    public LegacyQuestRewardContext(
+    public QuestRewardContext(
         Func<LiveCharacter> getSelectedCharacter,
         Func<IEnumerable<LiveCharacter>> getPartyMembers,
         Func<int, IItemDefinition?> rollRandomReward,

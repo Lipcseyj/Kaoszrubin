@@ -171,7 +171,6 @@ public sealed class Game : ISessionCommandHandler
     private LiveCharacter? _eliraWaitingAtInn;
     private int _eliraInnVisitsRemaining;
     private bool _isReturnExpedition;
-    private readonly HashSet<WorldNpc> _pendingNpcQuestProcessing = [];
     private MazeQuestWorldContext _questWorldContext;
     private readonly QuestManager _questManager;
     private readonly QuestNpcInstanceRegistry _questNpcInstanceRegistry;
@@ -380,7 +379,7 @@ public sealed class Game : ISessionCommandHandler
         _questManager = CreateQuestManager(gameData);
         _questSaveAdapter = new QuestSaveAdapter(gameData, _questNpcInstanceRegistry);
         _npcQuestCoordinator = new NpcQuestCoordinator(_gameData, _questManager, _questWorldContext);
-        _questManager.QuestChanged += SynchronizeLegacyQuestProgress;
+        _questManager.QuestChanged += ProjectQuestChange;
         _questInventorySynchronizer = new QuestInventorySynchronizer(_questManager);
         _backgroundMusic.SetReportCallback(message =>
         {
@@ -460,7 +459,7 @@ public sealed class Game : ISessionCommandHandler
         // ------------------------------------------------------------
 
         var rewardContext =
-            new LegacyQuestRewardContext(
+            new QuestRewardContext(
                 getSelectedCharacter:
                     () => SelectedCharacter,
 
@@ -508,7 +507,7 @@ public sealed class Game : ISessionCommandHandler
         // ------------------------------------------------------------
 
         var conversationService =
-            new LegacyQuestNpcConversationService(
+            new QuestNpcConversationService(
                 _questWorldContext,
                 RunStoryConversation);
 
@@ -1485,10 +1484,10 @@ public sealed class Game : ISessionCommandHandler
             var dialogue = _gameData.GetNpcDialogues(definition.Id)
                 .Where(value => friendliness >= value.MinimumFriendliness && friendliness <= value.MaximumFriendliness)
                 .OrderBy(_ => _random.Next()).FirstOrDefault()?.Text ?? "Az idegen óvatosan végigmér benneteket.";
-            var questIds = LegacyQuestProgressProjection.GetQuestIds(_gameData.Quests, definition.Id);
+            var isQuestNpc = _gameData.Quests.GetByGiver(LegacyNpcIdMap.ToQuestNpcId(definition.Id)).Count > 0;
             _maze.AddWorldNpc(new WorldNpc(candidates[_random.Next(candidates.Count)], definition.Id, recruit,
-                definition.Disposition, definition.Recruitable, questIds.Length > 0, dialogue,
-                friendliness: friendliness, behavior: definition.Behavior, questIds: questIds,
+                definition.Disposition, definition.Recruitable, isQuestNpc, dialogue,
+                friendliness: friendliness, behavior: definition.Behavior,
                 storyId: definition.StoryId));
         }
     }
@@ -3178,11 +3177,8 @@ public sealed class Game : ISessionCommandHandler
         RequestCoopSnapshotPublish();
     }
 
-    private void SynchronizeLegacyQuestProgress(
-    QuestHandle quest)
+    private void ProjectQuestChange(QuestHandle quest)
     {
-        LegacyQuestProgressProjection.Synchronize(
-            _questWorldContext.ResolveNpc(quest.Giver, quest.GiverInstanceId), quest);
         _npcQuestCoordinator.SynchronizeQuestJournal(_questJournal, quest);
         MarkCoopSnapshotDirty();
     }
@@ -3199,18 +3195,6 @@ public sealed class Game : ISessionCommandHandler
         {
             _synchronizingQuestInventory = false;
         }
-    }
-
-    private void ProcessPendingNpcQuestCompletions()
-    {
-        if (_pendingNpcQuestProcessing.Count == 0)
-            return;
-
-        var pending = _pendingNpcQuestProcessing.ToArray();
-        _pendingNpcQuestProcessing.Clear();
-
-        foreach (var npc in pending)
-            ProcessNpcQuests(npc, activateOffered: false);
     }
 
     private void ExecuteRestAcknowledgement(AcknowledgeRestCommand command)
@@ -9153,7 +9137,6 @@ public sealed class Game : ISessionCommandHandler
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _session.SetPhase(GameSessionPhase.Exploration);
-        ProcessPendingNpcQuestCompletions();
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         RequestCoopSnapshotPublish();
     }

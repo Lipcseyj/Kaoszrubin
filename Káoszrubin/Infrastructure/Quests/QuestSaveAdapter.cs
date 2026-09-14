@@ -208,10 +208,10 @@ public sealed class QuestSaveAdapter
                     progressById.TryGetValue(id, out var progress);
                     var state = progress?.State switch
                     {
-                        null or NpcQuestState.Offered => QuestState.Locked,
-                        NpcQuestState.Active => QuestState.Active,
-                        NpcQuestState.Completed => QuestState.Completed,
-                        NpcQuestState.Abandoned => QuestState.Failed,
+                        null or LegacyNpcQuestState.Offered => QuestState.Locked,
+                        LegacyNpcQuestState.Active => QuestState.Active,
+                        LegacyNpcQuestState.Completed => QuestState.Completed,
+                        LegacyNpcQuestState.Abandoned => QuestState.Failed,
                         _ => throw new InvalidDataException($"Ismeretlen régi questállapot: {id}.")
                     };
                     Merge(Convert(definition, definition.Scope == QuestScope.Global ? default : Instance(npc.QuestInstanceId),

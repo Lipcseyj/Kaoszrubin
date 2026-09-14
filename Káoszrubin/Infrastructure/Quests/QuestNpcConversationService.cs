@@ -1,4 +1,4 @@
-﻿using KaoszRubin.Application.Quests;
+using KaoszRubin.Application.Quests;
 using KaoszRubin.Domain.Quests;
 using KaoszRubin.World;
 
@@ -8,13 +8,13 @@ namespace KaoszRubin.Infrastructure.Quests;
 /// Az új QuestManager beszélgetés API-ját összeköti
 /// a jelenlegi Game NPC-interakciós kódjával.
 /// </summary>
-public sealed class LegacyQuestNpcConversationService
+public sealed class QuestNpcConversationService
     : IQuestNpcConversationService
 {
     private readonly MazeQuestWorldContext _world;
     private readonly Action<WorldNpc> _startConversation;
 
-    public LegacyQuestNpcConversationService(MazeQuestWorldContext world, Action<WorldNpc> startConversation)
+    public QuestNpcConversationService(MazeQuestWorldContext world, Action<WorldNpc> startConversation)
     {
         ArgumentNullException.ThrowIfNull(world);
         ArgumentNullException.ThrowIfNull(startConversation);

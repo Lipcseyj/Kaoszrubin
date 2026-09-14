@@ -172,7 +172,7 @@ internal static class QuestReplicationTests
         }
         private WorldNpc Add(LiveCharacter character, Position position)
         {
-            var npc = new WorldNpc(position, "NPC002", character, NpcDisposition.Neutral, false, true, "", questIds: ["NPCQ002"]);
+            var npc = new WorldNpc(position, "NPC002", character, NpcDisposition.Neutral, false, true, "");
             Maze.Carve(position);
             Maze.AddWorldNpc(npc);
             return npc;

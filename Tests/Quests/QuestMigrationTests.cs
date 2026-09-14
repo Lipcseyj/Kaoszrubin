@@ -102,7 +102,7 @@ internal static class QuestMigrationTests
         maze.Carve(new Position(9, 9));
         maze.PlaceExit(new Position(9, 9));
         var npc = new WorldNpc(new Position(5, 9), "NPC020", fixture.SelectedCharacter,
-            NpcDisposition.Neutral, true, true, "Elira", questIds: ["NPCQ034"]);
+            NpcDisposition.Neutral, true, true, "Elira");
         npc.BeginFollowing();
         var avatar = new PartyMemberAvatar(npc.Position, npc.Character, npc);
         maze.Carve(avatar.Position);
