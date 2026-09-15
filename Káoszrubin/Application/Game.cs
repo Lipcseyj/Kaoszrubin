@@ -5973,17 +5973,36 @@ public sealed class Game : ISessionCommandHandler
         }
     }
 
-    private void SubmitLocalBattleCommand(BattleActionKind action, string? spellId = null,
-        int? castingItemSlotIndex = null, Position? target = null,
-        WorldEntityId? targetEnemyId = null, int? backpackIndex = null)
+    private void SubmitLocalBattleCommand(
+        BattleActionKind action,
+        string? spellId = null,
+        int? castingItemSlotIndex = null,
+        Position? target = null,
+        WorldEntityId? targetEnemyId = null,
+        int? backpackIndex = null)
     {
         var battleId = _activeTeamBattle?.Id;
         var turnId = _activeTeamBattle?.Turns.TurnId;
         if (battleId is null || turnId is null) return;
+
         var commandId = _localCommandId + 1;
-        if (_session.Submit(new BattleActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
-                battleId.Value, turnId.Value, action, spellId, castingItemSlotIndex, target,
-                targetEnemyId, backpackIndex)))
+
+        var command = new BattleActionCommand(
+            _session.HostPlayerId,
+            commandId,
+            SelectedCharacter.Id,
+            battleId.Value,
+            turnId.Value,
+            action,
+            spellId,
+            castingItemSlotIndex,
+            target,
+            targetEnemyId,
+            backpackIndex);
+
+        var submitted = _session.Submit(command);
+
+        if (submitted)
             _localCommandId = commandId;
     }
 
@@ -6765,10 +6784,26 @@ public sealed class Game : ISessionCommandHandler
                         _battleSystem.BeginTeamCharacterTurn(character);
                     _preparedTeamBattleTurnId = battle.Turns.TurnId;
                 }
+
+                var isHumanControlled = _session.IsHumanControlled(character.Id);
+
+                // PauseBeforeAnyAction:
+                // az AI/NPC karakter teljes köre előtt egyszer megállunk.
+                if (!_isQuickTeamBattle &&
+                    !isHumanControlled &&
+                    _gameSettings.Settings.CombatSpeed == CombatSpeed.PauseBeforeAnyAction &&
+                    battle.PreActionPauseHandledTurnId != battle.Turns.TurnId)
+                {
+                    battle.PreActionPauseHandledTurnId = battle.Turns.TurnId;
+                    battle.PauseReason = BattlePauseReason.BeforeAutomaticAction;
+
+                    continue;
+                }
+
                 var runtime = battle.RuntimeFor(character);
                 if (runtime.RequiresTacticSelection)
                 {
-                    if (!_isQuickTeamBattle && _session.IsHumanControlled(character.Id))
+                    if (!_isQuickTeamBattle && isHumanControlled)
                     {
                         var enemy = ClosestLivingTeamEnemy(battle, current.Position);
                         var actions = GetTeamAllowedBattleActions(battle, character, enemy);
@@ -6780,7 +6815,7 @@ public sealed class Game : ISessionCommandHandler
                     ChooseTeamAiTactic(character, runtime);
                     continue;
                 }
-                if (!_isQuickTeamBattle && _session.IsHumanControlled(character.Id))
+                if (!_isQuickTeamBattle && isHumanControlled)
                 {
                     var enemy = ClosestLivingTeamEnemy(battle, current.Position);
                     var actions = GetTeamAllowedBattleActions(battle, character, enemy);
@@ -6911,6 +6946,7 @@ public sealed class Game : ISessionCommandHandler
             }
 
             battle.PauseReason = BattlePauseReason.None;
+
             ContinueTeamBattle();
             return;
         }

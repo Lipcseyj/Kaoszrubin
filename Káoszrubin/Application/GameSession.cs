@@ -629,7 +629,7 @@ public sealed class GameSession
 
     private static bool HasValidBattleActionShape(BattleActionCommand command) => command.Action switch
     {
-        BattleActionKind.AdvanceEnemyTurn or BattleActionKind.Retreat or
+        BattleActionKind.ResumeBattle or BattleActionKind.AdvanceEnemyTurn or BattleActionKind.Retreat or
         BattleActionKind.SwapToRear or BattleActionKind.PrepareRearLeft or
         BattleActionKind.PrepareRearRight or BattleActionKind.SwapWeapon or BattleActionKind.Pass or
         BattleActionKind.FighterPrecise or BattleActionKind.FighterPowerful or

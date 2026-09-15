@@ -155,6 +155,7 @@ public sealed class TeamBattleEncounter
     }
 
     public BattlePauseReason PauseReason { get; set; }
+    public long? PreActionPauseHandledTurnId { get; set; }
     public BattleId Id { get; }
     public CharacterId InitiatingCharacterId { get; }
     public WorldEntityId InitiatingEnemyId { get; }
