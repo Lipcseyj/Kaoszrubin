@@ -18,6 +18,7 @@ public static class BattleDetailsPanel
     {
         var effectiveWidth = Math.Max(CharacterSheetPanel.Width, width);
         var extendedWidth = ExtendedWidthFor(effectiveWidth);
+
         var pages = Pages(details, effectiveWidth);
         page = Normalize(page, pages.Count);
         var header = FillSeparator("├─ TÁMADÁS RÉSZLETEZŐ ", extendedWidth);
@@ -26,6 +27,7 @@ public static class BattleDetailsPanel
             new(FirstRow, header, ConsoleColor.DarkCyan, ExtendsToDivider: true,
                 Segments: [new(header, ConsoleColor.DarkCyan)])
         };
+
         for (var row = 0; row < ContentRows; row++)
         {
             var text = row < pages[page].Count ? pages[page][row] : string.Empty;
@@ -48,6 +50,8 @@ public static class BattleDetailsPanel
         return lines;
     }
 
+    private static bool StartsWithStrengthOrRange(string text) =>
+        text.StartsWith("💪") || text.StartsWith("📏");
     private static string FillSeparator(string start, int width) =>
         start + new string('─', Math.Max(0, width - start.Length - 1)) + "┤";
 
@@ -57,12 +61,33 @@ public static class BattleDetailsPanel
 
     private static List<List<string>> Pages(BattleActionDetails? details, int width)
     {
-        if (details is null) return [["⌛ Az első akcióra vár..."]];
-        var heading = string.IsNullOrWhiteSpace(details.Target) ? details.Actor : $"{details.Actor} → {details.Target}";
-        // The outcome (including critical chance) must always fit on the first page.
+        if (details is null)
+            return [["⌛ Az első akcióra vár..."]];
+
+        var heading = string.IsNullOrWhiteSpace(details.Target)
+            ? details.Actor
+            : $"{details.Actor} → {details.Target}";
+
+        var detailLines = details.Summary
+            .Concat(details.Calculation)
+            .ToArray();
+
+        var normalLines = detailLines
+            .Where(line => !StartsWithStrengthOrRange(line));
+
+        var strengthOrRangeLines = detailLines
+            .Where(StartsWithStrengthOrRange);
+
         var lines = new[] { Wrap(heading, width).FirstOrDefault() ?? string.Empty }
-            .Concat(details.Summary).Concat(details.Calculation).SelectMany(text => Wrap(text, width)).ToArray();
-        return lines.Chunk(ContentRows).Select(chunk => chunk.ToList()).ToList();
+            .Concat(normalLines)
+            .Concat(strengthOrRangeLines)
+            .SelectMany(text => Wrap(text, width))
+            .ToArray();
+
+        return lines
+            .Chunk(ContentRows)
+            .Select(chunk => chunk.ToList())
+            .ToList();
     }
 
     // Keep surrogate pairs, combining marks and emoji sequences intact when wrapping.
