@@ -15,6 +15,13 @@ public enum PartyAvatarSet
     Runes
 }
 
+public enum CombatSpeed
+{
+    PauseBeforeAnyAction,
+    PauseAfterHit,
+    PauseBeforePlayerAction
+}
+
 public sealed class GameSettings
 {
     public bool MusicEnabled { get; set; } = true;
@@ -23,6 +30,7 @@ public sealed class GameSettings
     public int SoundEffectsVolumePercent { get; set; } = 75;
     public QuickCombatMode QuickCombat { get; set; } = QuickCombatMode.Ask;
     public PartyAvatarSet PartyAvatars { get; set; } = PartyAvatarSet.Letters;
+    public CombatSpeed CombatSpeed { get; set; } = CombatSpeed.PauseBeforeAnyAction;    
 
     public void Normalize()
     {

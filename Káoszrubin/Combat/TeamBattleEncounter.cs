@@ -41,6 +41,13 @@ public sealed record TeamBattleInitiativeChange(
     int PreviousInitiative,
     int CurrentInitiative);
 
+public enum BattlePauseReason
+{
+    None,
+    BeforeAutomaticAction,
+    AfterHit
+}
+
 /// <summary>A játékvilág objektumait a tiszta taktikai körsorrendhez kapcsoló futásidejű összecsapás.</summary>
 public sealed class TeamBattleEncounter
 {
@@ -147,6 +154,7 @@ public sealed class TeamBattleEncounter
         Turns = new TacticalBattleState(Id, center, tacticalParticipants, radius, openingCycles, OpeningOrder);
     }
 
+    public BattlePauseReason PauseReason { get; set; }
     public BattleId Id { get; }
     public CharacterId InitiatingCharacterId { get; }
     public WorldEntityId InitiatingEnemyId { get; }

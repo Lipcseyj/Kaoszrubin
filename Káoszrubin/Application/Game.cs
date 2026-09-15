@@ -80,7 +80,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly GameSaveData? _loadedState;
     private readonly SoundEffects _soundEffects;
     private readonly BackgroundMusicPlayer _backgroundMusic;
-    private readonly GameSettingsService _musicSettings;
+    private readonly GameSettingsService _gameSettings;
     private readonly GameSession _session;
     private readonly SpellExecutionService _spellExecutionService;
     private readonly BattleActionCoordinator _battleActionCoordinator;
@@ -335,15 +335,15 @@ public sealed class Game : ISessionCommandHandler
         _gameStateMapper = new GameStateMapper(gameData, characterRoster, selectedCharacter, _questNpcInstanceRegistry);
         _loadedState = loadedState;
         _session = session ?? new GameSession(characterRoster.Party, selectedCharacter);
-        _musicSettings = musicSettings ?? new GameSettingsService();
+        _gameSettings = musicSettings ?? new GameSettingsService();
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party, () => _maze?.PartyMembers
             .Where(member => member.IsTemporaryFollower)
             .Select(member => member.Character)
-            .ToArray() ?? [], _musicSettings.Settings);
+            .ToArray() ?? [], _gameSettings.Settings);
         _renderer.SharedWindowPresented = CaptureSharedWindowPresentation;
         _renderer.SetFormationStatus(_formation);
         _renderer.SetGoldenKeyCount(0);
-        _soundEffects = new SoundEffects(_musicSettings.Settings,
+        _soundEffects = new SoundEffects(_gameSettings.Settings,
             message => _renderer.DrawDeveloperMessage(message));
         _innController = new InnController(gameData, characterRoster, selectedCharacter, _renderer,
             effect => PlaySessionSound(effect),
@@ -772,7 +772,7 @@ public sealed class Game : ISessionCommandHandler
                     if (GameInput.IsSettingsShortcut(keyInfo))
                     {
                         RunHostPersonalWindow(PlayerWindowKind.Settings,
-                            () => SettingsScreen.Show(_musicSettings, ApplyAudioSettings,
+                            () => SettingsScreen.Show(_gameSettings, ApplyAudioSettings,
                                 CurrentHostCoopWindowStatus));
                         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
@@ -5807,6 +5807,8 @@ public sealed class Game : ISessionCommandHandler
     private void HandleLocalTeamBattleInput(TeamBattleEncounter battle, ConsoleKeyInfo key)
     {
         if (battle.IsCompleted) return;
+
+
         if (IsHelpShortcut(key))
         {
             ShowInGameHelp();
@@ -5820,6 +5822,20 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage("Mentés kérve: a csapatharc lezárása után elkészül.", ConsoleColor.Yellow);
             return;
         }
+
+        if (key.Key == ConsoleKey.Escape)
+        {
+            if (ConfirmReturnToMainMenu()) Environment.Exit(0);
+        }
+
+        if (battle.PauseReason != BattlePauseReason.None)
+        {
+            if (key.Key == ConsoleKey.Spacebar)
+                SubmitLocalBattleCommand(BattleActionKind.ResumeBattle);
+
+            return;
+        }
+
         if (battle.CurrentEnemy is not null)
         {
             if (key.Key == ConsoleKey.Spacebar)
@@ -6597,7 +6613,7 @@ public sealed class Game : ISessionCommandHandler
             hasActiveFormation: _formation.State != PartyFormationState.Disbanded,
             isQuestImportant: participantEnemies.Any(IsQuestImportantEnemy),
             enemyStrikesFirst: enemyStrikesFirst,
-            allowPlayerChoice: _musicSettings.Settings.QuickCombat == QuickCombatMode.Ask);
+            allowPlayerChoice: _gameSettings.Settings.QuickCombat == QuickCombatMode.Ask);
         _isQuickTeamBattle = ShouldUseQuickCombat(quickAssessment);
         _quickBattleSuppressedEntryCount = 0;
 
@@ -6672,6 +6688,23 @@ public sealed class Game : ISessionCommandHandler
     {
         while (_activeTeamBattle is { } battle)
         {
+            // Központi fék ami meg tudja állítani a csatát, hogy lássuk a csapást
+            if (battle.PauseReason != BattlePauseReason.None)
+            {
+                _session.SetBattlePrompt(
+                    battle.Id,
+                    battle.Turns.TurnId,
+                    SelectedCharacter.Id,
+                    [BattleActionKind.ResumeBattle]);
+
+                _renderer.DrawBattleCommandPanel(
+                    BattleCommandPanel.Format(
+                        [BattleActionKind.ResumeBattle]));
+
+                RequestCoopSnapshotPublish();
+                return;
+            }
+
             SynchronizeTeamBattleDefeats(battle);
             if (!SelectedCharacter.IsAlive)
             {
@@ -6762,7 +6795,8 @@ public sealed class Game : ISessionCommandHandler
 
             if (battle.CurrentEnemy is { CurrentHitPoints: > 0 } enemyActor)
             {
-                if (_isQuickTeamBattle || !CanTeamEnemyActMeaningfully(battle, enemyActor))
+                if (_isQuickTeamBattle || !CanTeamEnemyActMeaningfully(battle, enemyActor) ||
+                    _gameSettings.Settings.CombatSpeed == CombatSpeed.PauseBeforePlayerAction)
                 {
                     ExecuteTeamEnemyTurn(battle, enemyActor);
                     continue;
@@ -6848,8 +6882,8 @@ public sealed class Game : ISessionCommandHandler
 
     private bool ShouldUseQuickCombat(QuickCombatAssessment assessment)
     {
-        if (!assessment.IsEligible || _musicSettings.Settings.QuickCombat == QuickCombatMode.Never) return false;
-        if (_musicSettings.Settings.QuickCombat == QuickCombatMode.Automatic) return true;
+        if (!assessment.IsEligible || _gameSettings.Settings.QuickCombat == QuickCombatMode.Never) return false;
+        if (_gameSettings.Settings.QuickCombat == QuickCombatMode.Automatic) return true;
 
         var injuryPercent = (int)Math.Ceiling(assessment.PredictedInjuryRatio * 100);
         var message = $"⚡ Gyorsharc elérhető — {assessment.Reason} Becsült sérülés legfeljebb " +
@@ -6867,6 +6901,20 @@ public sealed class Game : ISessionCommandHandler
     private void ExecuteTeamBattleAction(TeamBattleEncounter battle, BattleActionCommand command)
     {
         if (command.BattleId != battle.Id || command.TurnId != battle.Turns.TurnId) return;
+
+        if (battle.PauseReason != BattlePauseReason.None)
+        {
+            if (command.Action != BattleActionKind.ResumeBattle)
+            {
+                RejectTeamBattleAction(command, "A harc folytatásához nyomj Space-t.");
+                return;
+            }
+
+            battle.PauseReason = BattlePauseReason.None;
+            ContinueTeamBattle();
+            return;
+        }
+
         if (battle.CurrentEnemy is { } enemyActor)
         {
             if (command.Action != BattleActionKind.AdvanceEnemyTurn || command.CharacterId != SelectedCharacter.Id)
@@ -8117,6 +8165,12 @@ public sealed class Game : ISessionCommandHandler
                 attackWeaponSlotIndex: dualWielding ? 0 : null,
                 armorPenalty: battle.EnemyArmorPenalty(target));
             var hit = target.CurrentHitPoints < before;
+
+            if (_gameSettings.Settings.CombatSpeed == CombatSpeed.PauseAfterHit && hit)
+            {
+                battle.PauseReason = BattlePauseReason.AfterHit;
+            }
+
             positionalDaggerHit |= hit && advantage.Arc != TacticalAttackArc.Front &&
                                    WeaponFamilies.ForWeapon(dualWielding ? mainHand : character.AttackWeapon) ==
                                    WeaponFamilies.Dagger;
@@ -8144,6 +8198,12 @@ public sealed class Game : ISessionCommandHandler
                     attackWeaponSlotIndex: 1,
                     armorPenalty: battle.EnemyArmorPenalty(offhandTarget), damageScaleName: "Mellékkéz");
                 var offhandHit = offhandTarget.CurrentHitPoints < before;
+
+                if (_gameSettings.Settings.CombatSpeed == CombatSpeed.PauseAfterHit && offhandHit)
+                {
+                    battle.PauseReason = BattlePauseReason.AfterHit;
+                }
+
                 positionalDaggerHit |= offhandHit && advantage.Arc != TacticalAttackArc.Front &&
                                        WeaponFamilies.ForWeapon(offhand) == WeaponFamilies.Dagger;
                 PresentBattleEntries([offhandEntry with { Message = $"⚔️ Mellékkéz — {offhandEntry.Message}" }]);
@@ -8267,6 +8327,12 @@ public sealed class Game : ISessionCommandHandler
                 attackWeapon, advanceAttackerEffects: index == 0,
                 alliedGuardDefense: TacticalTeamBattleCoordinator.AlliedGuardDefense(
                     battle, target, GetCasterPosition));
+
+            if (_gameSettings.Settings.CombatSpeed == CombatSpeed.PauseAfterHit && resolution.Hit)
+            {
+                battle.PauseReason = BattlePauseReason.AfterHit;
+            }
+
             var entry = resolution.Entry;
             entries.Add(entry);
             if (entry.Kind is BattleLogKind.EnemyAttack or BattleLogKind.CriticalHit)

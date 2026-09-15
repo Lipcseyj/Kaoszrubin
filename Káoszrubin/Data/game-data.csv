@@ -345,7 +345,7 @@ WT003;Védelem
 #Fegyverek
 Id;Név;Típus;Sebzés;MinimumErő;Kétkezes;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;Sebzéstípus;MaxCélpont;HátsóSor;Fegyvercsalád;MaxTartósság
 W001;tőr;WT002;2-5;1;nem;igen;nem;igen;Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.;35;;;;1;szúrás;1;nem;DAGGER
-W002;rövid kard;WT002;3-7;3;nem;igen;nem;nem;Fordulékony egykezes kard amely szűk helyen is jól használható.;70;;;;2;vágás;1;nem;SWORD
+W002;rövid kard;WT002;3-7;3;nem;igen;nem;nem;Fordulékony egykezes kard amely szűk helyen is jól használható.;70;;;;2;szúrás;1;nem;SWORD
 W003;katana;WT002;5-10;4;igen;igen;nem;nem;Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.;420;;;;4;vágás;1;nem;SWORD
 W004;hosszú kard;WT001;5-11;5;nem;igen;nem;nem;Megbízható acélkard erőteljes vágásokhoz és szúrásokhoz.;180;;;;3;vágás;1;nem;SWORD
 W005;bunkó;WT001;3-6;3;nem;igen;igen;nem;Egyszerű nehéz ütőfegyver amelyhez több erő kell mint ügyesség.;25;;;;3;zúzás;1;nem;BLUNT
