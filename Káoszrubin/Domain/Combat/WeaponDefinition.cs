@@ -12,4 +12,44 @@ public sealed record WeaponDefinition(string Id, string Name, string? WeaponType
     public bool IsMonsterOnly => BasePrice <= 0 || FamilyId == "NATURAL";
     public bool CanBeEquippedBy(string characterClassId, int strength) =>
         !IsMonsterOnly && AllowedClassIds.Contains(characterClassId) && strength >= MinimumStrength;
+
+    public string GetIcon() => Id?.ToUpperInvariant() switch
+    {
+        // Konkrét fegyverek
+        "W005" => "●━",      // bunkó
+        "W006" => "✹━",      // buzogány
+        "W007" => "━┄✹",     // láncos buzogány
+        "W002" => "─†",      // rövid kard
+        "W004" => "──†",     // hosszú kard
+        "W009" => "━━‡",     // pallos
+        "W008" => "✦━",     // csatacsillag
+        "W011" => "━━➤",     // lándzsa
+        "W012" => "━━◢➤",    // alabárd
+
+        // Általános fegyvercsaládok
+        _ => FamilyId?.ToUpperInvariant() switch
+        {
+            "DAGGER" => "🗡️",
+            "SWORD" => "⚔️",
+            "AXE" => "🪓",
+            "BLUNT" => "🔨",
+            "POLEARM" => "🔱",
+            "SHIELD" => "🛡️",
+            "BOW" => "🏹",
+
+            "NATURAL" => DamageType switch
+            {
+                DamageType.Slashing => "🐾",
+                DamageType.Piercing => "🦷",
+                DamageType.Bludgeoning => "👊",
+                DamageType.Fire => "🔥",
+                DamageType.Acid => "🧪",
+                DamageType.Necrotic => "☠️",
+                DamageType.Chaos => "🌀",
+                _ => "⚔️"
+            },
+
+            _ => "⚔️"
+        }
+    };
 }

@@ -20,7 +20,7 @@ public static class BattleDetailsPanel
         var extendedWidth = ExtendedWidthFor(effectiveWidth);
         var pages = Pages(details, effectiveWidth);
         page = Normalize(page, pages.Count);
-        var header = FillSeparator("├─ ⚔ CSATARÉSZLET ", extendedWidth);
+        var header = FillSeparator("├─ TÁMADÁS RÉSZLETEZŐ ", extendedWidth);
         var lines = new List<CharacterSheetPanelLine>
         {
             new(FirstRow, header, ConsoleColor.DarkCyan, ExtendsToDivider: true,
@@ -30,7 +30,9 @@ public static class BattleDetailsPanel
         {
             var text = row < pages[page].Count ? pages[page][row] : string.Empty;
             lines.Add(new(FirstRow + 1 + row, text,
-                text.Contains("KRITIKUS") ? ConsoleColor.Yellow :
+                text.StartsWith("ℹ️") ? ConsoleColor.Magenta :
+                text.StartsWith("🛡️") ? ConsoleColor.Cyan :
+                text.StartsWith("🎲") ? ConsoleColor.Yellow :
                 text.StartsWith("💥") ? ConsoleColor.Red :
                 text.StartsWith("🎯") ? ConsoleColor.Green : ConsoleColor.Gray));
         }

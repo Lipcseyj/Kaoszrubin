@@ -133,7 +133,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             var woundedTarget = defender.CurrentHitPoints * 2 <= Math.Max(1, defender.Definition.HitPoints ?? defender.CurrentHitPoints);
             var attack = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed, woundedTarget,
                 positionalHitBonus, positionalAdvantage, tacticalBackstab, attackWeapon, allowAmbush,
-                attackWeaponSlotIndex);
+                attackWeaponSlotIndex, defender.Name);
             if (attack.Hit && damagePercent != 100)
             {
                 var scaledDamage = Math.Max(1, attack.Damage * Math.Clamp(damagePercent, 1, 100) / 100);
@@ -158,7 +158,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                                          Math.Max(1, defender.Definition.HitPoints ?? definition.HitPoints.Value);
                 var extra = PlayerAttack(attacker, definition, runtime.Context, defender.EffectiveSpeed,
                     extraWoundedTarget, positionalHitBonus, positionalAdvantage, tacticalBackstab,
-                    attackWeapon, allowAmbush, attackWeaponSlotIndex);
+                    attackWeapon, allowAmbush, attackWeaponSlotIndex, defender.Name);
                 critical |= extra.Critical;
                 definition = ApplyAttack(definition, extra);
                 attacks.Add(extra with { Message = $"Acélvihar: {extra.Message}" });
@@ -446,7 +446,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var outcome = successful.Length == 0
             ? "💨 MELLÉ"
             : critical ? "💥 KRITIKUS!" : "🎯 TALÁLAT";
-        var summary = $"{attackerName}\t→ {defenderName}\t{outcome}";
+        var summary = $"{attackerName}\t\t→ {defenderName}\t\t{outcome}";
         if (successful.Length > 0)
             summary += $"\t💥 {successful.Sum(attack => attack.Damage)}\t{defenderName} ❤️ {currentHitPoints}/{maximumHitPoints}";
         return summary;
@@ -455,29 +455,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private static BattleActionDetails DescribeAction(string actor, string target,
         IReadOnlyList<AttackResult> attacks, string effects)
     {
-        var summary = new List<string>
+        var calculations = new List<string>();
+        foreach (var attack in attacks)
         {
-            $"🎯 {attacks.Count(attack => attack.Hit)}/{attacks.Count} találat",
-            $"💥 Sebzés: {attacks.Sum(attack => attack.Damage)}",
-            $"🎲 Kritikus: {attacks.FirstOrDefault()?.Details?.CriticalChancePercent ?? 0:0.##}%" +
-                (attacks.Any(attack => attack.Critical) ? " KRITIKUS!" : " — nem")
-        };
-        var calculation = new List<string>();
-        for (var i = 0; i < attacks.Count; i++)
-        {
-            var attack = attacks[i];
-            calculation.Add($"⚔ {i + 1}. ütés: {(attack.Hit ? "talált" : "mellé")}");
-            if (attack.Details is { } detail)
-            {
-                calculation.Add($"🎯 {detail.Hit}");
-                calculation.Add($"🎲 {detail.CriticalChancePercent:0.##}%; kritikus ×{detail.CriticalMultiplier}");
-                calculation.AddRange(detail.Calculation);
-                calculation.Add($"💥 Végső sebzés: {detail.Damage}");
-            }
-            else calculation.Add(attack.Message);
+            calculations.AddRange(attack.Details?.Calculation ?? []);
         }
-        if (!string.IsNullOrWhiteSpace(effects)) calculation.Add(effects);
-        return new(Guid.NewGuid(), actor, target, summary, calculation);
+        return new(Guid.NewGuid(), "", "", [], calculations);
     }
 
     private static void ApplyBattleStartPerks(LiveCharacter player, Action<BattleLogEntry> onRound)
@@ -523,8 +506,58 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private AttackResult PlayerAttack(LiveCharacter player, EnemyDefinition defender, BattleRuntimeContext context,
         int defenderSpeed, bool woundedTarget = false, int positionalHitBonus = 0,
         string? positionalAdvantage = null, bool tacticalBackstab = false,
-        WeaponDefinition? attackWeapon = null, bool allowAmbush = true, int? attackWeaponSlotIndex = null)
+        WeaponDefinition? attackWeapon = null, bool allowAmbush = true, int? attackWeaponSlotIndex = null, string? defenderName = null)
     {
+        // ============================================================
+        // RÉSZLETES HARCI INFORMÁCIÓK GYŰJTŐI
+        // ============================================================
+
+        // Ez kerül mindig legelőre. Találat esetén pontosan 6 sor.
+        var calculationSummary = new List<string>();
+
+        // Az összefoglaló után következő részletes blokkok.
+        var hitCalculations = new List<string>();
+        var criticalCalculations = new List<string>();
+        var defenseCalculations = new List<string>();
+        var damageCalculations = new List<string>();
+        var otherCalculations = new List<string>();
+
+        // Modifier metódus
+        void Modifier(List<string> target, string name, int value)
+        {
+            if (value != 0)
+                target.Add($"{name}: {value:+#;-#;0}");
+        }
+
+        List<string> BuildCalculation()
+        {
+            var result = new List<string>();
+
+            result.AddRange(calculationSummary);
+
+            void AddSection(List<string> items)
+            {
+                if (items.Count == 0)
+                    return;
+
+                result.AddRange(items);
+            }
+
+            AddSection(hitCalculations);
+            AddSection(criticalCalculations);
+            AddSection(defenseCalculations);
+            AddSection(damageCalculations);
+            AddSection(otherCalculations);
+
+            return result;
+        }
+        // ============================================================
+
+
+        // ============================================================
+        // ADATGYŰJTÉS
+        // ============================================================
+
         player.BreakSanctuary();
         var forcedHit = context.ShadowStepReady;
         context.ShadowStepReady = false;
@@ -594,56 +627,205 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 ? 2
             : hit.NaturalRoll >= criticalNaturalRollMinimum || context.Tactic == BattleTactic.ThiefObserve && hit.NaturalRoll == 19 &&
               player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve) ? 2 : 1;
-        var calculation = new List<string>
-        {
-            $"🎯 d20={hit.NaturalRoll}; ügyesség {player.EffectiveAbilities.Dexterity}",
-            $"🎯 Cél: 11 + gyorsaság {defenderSpeed} = {11 + defenderSpeed}",
-            $"🎯 Összes módosító: {hitBonus - player.StatusHitPenalty:+#;-#;0}",
-            $"🎲 Kritikus alap 5%; bónusz +{criticalChanceBonusPercent}%",
-            $"🎲 Kritikus küszöb: {criticalNaturalRollMinimum}–20"
-        };
-        void Modifier(string name, int value) { if (value != 0) calculation.Add($"{name}: {value:+#;-#;0}"); }
-        Modifier("🎯 Erő", strengthHitBonus);
-        Modifier("🎯 Osztályjártasság", classHitBonus);
-        Modifier("🎯 Fegyvermester", weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0);
-        Modifier("🎯 Varázstárgy", player.GetMagicItemBonus(MagicItemEffect.Hit));
-        Modifier("🎯 Varázshatás", player.SpellEffectValue(ActiveSpellEffectType.HitBonus));
-        Modifier("🎯 Láthatatlanság", invisibilityBonus);
-        Modifier("🎯 Áldott fegyver", blessedWeaponBonus);
-        Modifier("🎯 Mágikus fegyver", weapon?.MagicPower ?? 0);
-        Modifier("🎯 Kardjártasság", weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0);
-        Modifier("🎯 Esküpenge", oathbladeBonus);
-        Modifier("🎯 Megtorlás", retaliation ? 2 : 0);
-        Modifier("🎯 Kivégző", finisherBonus);
-        Modifier(string.IsNullOrWhiteSpace(positionalAdvantage) ? "🎯 Pozíció" : $"🎯 {positionalAdvantage}",
+        // ============================================================
+
+
+        // ============================================================
+        // TALÁLATI FÁZIS INFORMÁCIÓI
+        // ============================================================
+
+        var hitTarget = 11 + defenderSpeed;
+        var totalHitModifier = hitBonus - player.StatusHitPenalty;
+        var totalHitRoll =
+            hit.NaturalRoll +
+            player.EffectiveAbilities.Dexterity +
+            totalHitModifier;
+
+        hitCalculations.Add(
+            $"🎯 d20={hit.NaturalRoll}; ügyesség {player.EffectiveAbilities.Dexterity}");
+
+        hitCalculations.Add(
+            $"🎯 Cél: 11 + gyorsaság {defenderSpeed} = {hitTarget}");
+
+        hitCalculations.Add(
+            $"🎯 Összes módosító: {totalHitModifier:+#;-#;0}");
+
+        Modifier(hitCalculations, "🎯 Erő", strengthHitBonus);
+        Modifier(hitCalculations, "🎯 Osztályjártasság", classHitBonus);
+
+        Modifier(
+            hitCalculations,
+            "🎯 Fegyvermester",
+            weapon is not null && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0);
+
+        Modifier(
+            hitCalculations,
+            "🎯 Varázstárgy",
+            player.GetMagicItemBonus(MagicItemEffect.Hit));
+
+        Modifier(
+            hitCalculations,
+            "🎯 Varázshatás",
+            player.SpellEffectValue(ActiveSpellEffectType.HitBonus));
+
+        Modifier(hitCalculations, "🎯 Láthatatlanság", invisibilityBonus);
+        Modifier(hitCalculations, "🎯 Áldott fegyver", blessedWeaponBonus);
+        Modifier(hitCalculations, "🎯 Mágikus fegyver", weapon?.MagicPower ?? 0);
+
+        Modifier(
+            hitCalculations,
+            "🎯 Kardjártasság",
+            weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0);
+
+        Modifier(hitCalculations, "🎯 Esküpenge", oathbladeBonus);
+        Modifier(hitCalculations, "🎯 Megtorlás", retaliation ? 2 : 0);
+        Modifier(hitCalculations, "🎯 Kivégző", finisherBonus);
+
+        Modifier(
+            hitCalculations,
+            string.IsNullOrWhiteSpace(positionalAdvantage)
+                ? "🎯 Pozíció"
+                : $"🎯 {positionalAdvantage}",
             Math.Max(0, positionalHitBonus));
-        Modifier("🎯 Taktika", context.Tactic is BattleTactic.FighterPrecise or BattleTactic.ThiefObserve ? 2 :
-            context.Tactic == BattleTactic.FighterPowerful ? -1 : 0);
-        Modifier(player.HasStatus(CharacterStatusIds.Thirsty) ? "💧 Szomjúság: találat" : "🎯 Állapotbüntetés",
+
+        Modifier(
+            hitCalculations,
+            "🎯 Taktika",
+            context.Tactic is BattleTactic.FighterPrecise or BattleTactic.ThiefObserve
+                ? 2
+                : context.Tactic == BattleTactic.FighterPowerful
+                    ? -1
+                    : 0);
+
+        Modifier(
+            hitCalculations,
+            player.HasStatus(CharacterStatusIds.Thirsty)
+                ? "💧 Szomjúság: találat"
+                : "🎯 Állapotbüntetés",
             -player.StatusHitPenalty);
-        Modifier("☠ Bizonytalan kéz", -player.GetActiveCurseValue(ItemCurseEffect.HitPenalty));
-        Modifier("🛠️ Sérült fegyver: találat", -durabilityHitPenalty);
-        Modifier("🎲 Mágikus fegyver (%)", weapon?.MagicPower >= 3 ? 10 : weapon?.MagicPower == 2 ? 5 : 0);
-        Modifier("🎲 Halálos pontosság (%)", player.HasPerk(PerkIds.ThiefDeadlyAccuracy) ? 10 : 0);
-        Modifier("🎲 Tőrmester (%)", weaponFamily == WeaponFamilies.Dagger && weaponRank == WeaponProficiencyRank.Master ? 5 : 0);
-        Modifier("🎲 Megfigyelés (%)", context.Tactic == BattleTactic.ThiefObserve &&
-            player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve) ? 5 : 0);
-        // Natural critical range is not sufficient: the attack must also hit.
+
+        Modifier(
+            hitCalculations,
+            "☠ Bizonytalan kéz",
+            -player.GetActiveCurseValue(ItemCurseEffect.HitPenalty));
+
+        Modifier(
+            hitCalculations,
+            "🛠️ Sérült fegyver: találat",
+            -durabilityHitPenalty);        // Natural critical range is not sufficient: the attack must also hit.
+        // ============================================================
+
+
+        // ============================================================
+        // KRITIKUS TALÁLAT INFORMÁCIÓI
+        // ============================================================
+
+        Modifier(
+            criticalCalculations,
+            "🎲 Mágikus fegyver (%)",
+            weapon?.MagicPower >= 3
+                ? 10
+                : weapon?.MagicPower == 2
+                    ? 5
+                    : 0);
+
+        Modifier(
+            criticalCalculations,
+            "🎲 Halálos pontosság (%)",
+            player.HasPerk(PerkIds.ThiefDeadlyAccuracy) ? 10 : 0);
+
+        Modifier(
+            criticalCalculations,
+            "🎲 Tőrmester (%)",
+            weaponFamily == WeaponFamilies.Dagger &&
+            weaponRank == WeaponProficiencyRank.Master
+                ? 5
+                : 0);
+
+        Modifier(
+            criticalCalculations,
+            "🎲 Megfigyelés (%)",
+            context.Tactic == BattleTactic.ThiefObserve &&
+            player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefObserve)
+                ? 5
+                : 0);
+
+        // A természetes kritikus tartomány önmagában nem elég:
+        // a támadásnak el is kell találnia az ellenfelet.
         var criticalChance = Enumerable.Range(1, 20).Count(roll =>
-            (forcedHit || roll != 1 && (roll == 20 || roll + player.EffectiveAbilities.Dexterity +
-                hitBonus - player.StatusHitPenalty >= 11 + defenderSpeed)) &&
+            (forcedHit ||
+             roll != 1 &&
+             (roll == 20 ||
+              roll +
+              player.EffectiveAbilities.Dexterity +
+              hitBonus -
+              player.StatusHitPenalty >= 11 + defenderSpeed)) &&
             roll >= criticalNaturalRollMinimum) * 5d;
-        calculation.Add($"🎲 Tényleges kritikus esély: {criticalChance:0.##}%");
+
+        criticalCalculations.Add(
+            $"🎲 Kritikus alap 5%; bónusz +{criticalChanceBonusPercent}%");
+
+        criticalCalculations.Add(
+            $"🎲 Kritikus küszöb: {criticalNaturalRollMinimum}–20");
+
+        criticalCalculations.Add(
+            $"🎲 Tényleges kritikus esély: {criticalChance:0.##}%");
+        // ============================================================
+        
+
+        // Detailed metódus
         AttackResult Detailed(AttackResult result) => result with
         {
-            Details = new AttackDetails(hit.Description, result.Damage, criticalChance,
-                result.Critical ? criticalMultiplier : 1, calculation.ToArray())
+            Details = new AttackDetails(
+                hit.Description,
+                result.Damage,
+                criticalChance,
+                result.Critical ? criticalMultiplier : 1,
+                BuildCalculation().ToArray())
         };
+
+
+        // ============================================================
+        // ÖSSZEFOGLALÓ – 1–2. SOR
+        // ============================================================
+
+        calculationSummary.Add(
+            $"⚔️ {player.Name} → {defenderName ?? defender.Name}");
+
+        calculationSummary.Add(
+            $"🎯 {totalHitRoll} vs {hitTarget} " +
+            $"({totalHitModifier:+#;-#;0} módosító)");
+        // ============================================================
+
+        // ========================================================
+        // SIKERTELEN TÁMADÁS
+        // ========================================================
         if (!hit.Hit)
         {
             context.ConsecutivePlayerHits = 0;
+            if (!hit.Hit)
+            {
+                calculationSummary.Add(
+                    $"🎲 Kritikus: {criticalChance:0.##}% → nem");
+
+                context.ConsecutivePlayerHits = 0;
+
+                return Detailed(
+                    AttackResult.Miss(
+                        $"találat: {hit.Description}" +
+                        $"{thirstHitText}" +
+                        $"{magicWeaponHitText}" +
+                        $"{magicWeaponCriticalText} → 💨." +
+                        $"{strengthHitText}" +
+                        $"{classHitText}" +
+                        $"{positionalHitText}"));
+            }
             return Detailed(AttackResult.Miss($"találat: {hit.Description}{thirstHitText}{magicWeaponHitText}{magicWeaponCriticalText} → 💨.{strengthHitText}{classHitText}{positionalHitText}"));
         }
+
+        // ============================================================
+        // SEBZÉSI FÁZIS – ALAPSEBZÉS ÉS BÓNUSZOK
+        // ============================================================
 
         var baseDamage = weapon?.Damage is { } range ? Roll(range) : Roll(new ValueRange(1, 2));
         var usesDexterity = weapon is not null && string.Equals(weapon.WeaponTypeId, DexterityWeaponTypeId, StringComparison.OrdinalIgnoreCase);
@@ -653,33 +835,33 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var perkBonus = player.GetMagicItemBonus(MagicItemEffect.Damage) + blessedWeaponBonus +
                         player.SpellEffectValue(ActiveSpellEffectType.DamageBonus);
         var notes = new List<string>();
-        Modifier("💥 Varázstárgy", player.GetMagicItemBonus(MagicItemEffect.Damage));
-        Modifier("💥 Varázshatás", player.SpellEffectValue(ActiveSpellEffectType.DamageBonus));
+        Modifier(damageCalculations, "💥 Varázstárgy", player.GetMagicItemBonus(MagicItemEffect.Damage));
+        Modifier(damageCalculations, "💥 Varázshatás", player.SpellEffectValue(ActiveSpellEffectType.DamageBonus));
         if (oathbladeBonus > 0)
         {
             perkBonus += 2;
-            notes.Add("Esküpenge +1 találat és +2 sebzés");
+            notes.Add("ℹ️⚔ Esküpenge +1 találat és +2 sebzés");
         }
         if (weaponFamily == WeaponFamilies.Sword && weaponRank is not null)
-            notes.Add("⚔️ Kardjártasság +1 találat");
+            notes.Add("ℹ️⚔ Kardjártasság +1 találat");
         if (weaponFamily == WeaponFamilies.Dagger && weaponRank is not null)
-        { perkBonus += 1; notes.Add("🗡️ Tőrjártasság +1 sebzés"); }
+        { perkBonus += 1; notes.Add("ℹ️🗡️ Tőrjártasság +1 sebzés"); }
         if (weaponFamily == WeaponFamilies.Axe && weaponRank is not null)
-        { perkBonus += 2; notes.Add("🪓 Bárdjártasság +2 sebzés"); }
+        { perkBonus += 2; notes.Add("ℹ️🪓 Bárdjártasság +2 sebzés"); }
         if (string.Equals(weapon?.Id, DualWieldingRules.ElvenDaggerId, StringComparison.OrdinalIgnoreCase) &&
             DualWieldingRules.HasPairedElvenDaggers(player))
         {
             perkBonus++;
-            notes.Add("🧝 Páros elf tőr +1 sebzés");
-            Modifier("💥 Páros elf tőr", 1);
+            notes.Add("ℹ️🧝 Páros elf tőr +1 sebzés");
+            Modifier(damageCalculations, "💥 Páros elf tőr", 1);
         }
-        if (blessedWeaponBonus > 0) notes.Add("Áldott fegyver +2");
-        if (player.HasPerk(PerkIds.BarbarianBloodlust) && player.CurrentVitality * 2 < player.MaximumVitality) { perkBonus += 3; notes.Add("Vérszomj +3"); }
-        if (player.HasPerk(PerkIds.BarbarianPrimalStrength)) { perkBonus += 5; notes.Add("Őserő +5"); }
+        if (blessedWeaponBonus > 0) notes.Add("ℹ️ Áldott fegyver +2");
+        if (player.HasPerk(PerkIds.BarbarianBloodlust) && player.CurrentVitality * 2 < player.MaximumVitality) { perkBonus += 3; notes.Add("ℹ️ Vérszomj +3"); }
+        if (player.HasPerk(PerkIds.BarbarianPrimalStrength)) { perkBonus += 5; notes.Add("ℹ️ Őserő +5"); }
         if (player.HasPerk(PerkIds.BarbarianRage))
         {
             perkBonus += context.ConsecutivePlayerHits;
-            if (context.ConsecutivePlayerHits > 0) notes.Add($"Őrjöngés +{context.ConsecutivePlayerHits}");
+            if (context.ConsecutivePlayerHits > 0) notes.Add($"ℹ️ Őrjöngés +{context.ConsecutivePlayerHits}");
         }
         if (context.BarbarianRageActionsRemaining > 0)
         {
@@ -690,12 +872,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                     : new ValueRange(5, 10);
             var rageBonus = Roll(rageRange);
             perkBonus += rageBonus;
-            notes.Add($"🔥 Düh +{rageBonus}");
+            notes.Add($"ℹ️🔥 Düh +{rageBonus}");
         }
-        if (retaliation) { perkBonus += 4; notes.Add("⚔️ Megtorlás: +2 találat, +4 sebzés"); }
+        if (retaliation) { perkBonus += 4; notes.Add("ℹ️⚔️ Megtorlás: +2 találat, +4 sebzés"); }
+
+        // ============================================================
+        // VÉDELMI FÁZIS – SEBZÉSTÍPUS, PÁNCÉL ÉS PAJZS
+        // ============================================================
+
         var damageType = weapon?.DamageType ?? DamageType.Bludgeoning;
         var typeDefense = defender.Resistances?.Against(damageType) ?? 0;
-        calculation.Add($"💥 Sebzéstípus: {damageType.Name()}; típusvédelem {typeDefense:+#;-#;0}");
+        damageCalculations.Add($"💥 Sebzéstípus: {damageType.Name()}");
+        damageCalculations.Add($"💥 Típusvédelem {typeDefense:+#;-#;0}");
         var armor = Math.Max(0, (defender.Armor ?? 0) + MonsterAbilityValue(defender, MonsterAbilityEffect.ArmorBonus) + typeDefense);
         var powerfulMastery = context.Tactic == BattleTactic.FighterPowerful &&
                               player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful);
@@ -713,71 +901,72 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         {
             damageMultiplierPercent = player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefAmbush) ? 250 : 200;
             context.AmbushAvailable = false;
-            notes.Add($"{(tacticalBackstab ? "Hátbatámadás: " : string.Empty)}Orvtámadás ×{damageMultiplierPercent / 100d:0.##}");
+            notes.Add($"{(tacticalBackstab ? "ℹ️ Hátbatámadás: " : string.Empty)}Orvtámadás ×{damageMultiplierPercent / 100d:0.##}");
         }
         if (criticalMultiplier > 1)
             notes.Add(criticalMultiplier == 3
                 ? weaponFamily == WeaponFamilies.Axe && weaponRank == WeaponProficiencyRank.Master && hit.NaturalRoll == 20 &&
                   !player.HasPerk(PerkIds.ThiefDeadlyAccuracy)
-                    ? "Bárdmester kritikus sebzés ×3"
-                    : "Halálos pontosság kritikus sebzés ×3"
-                : "Kritikus sebzés ×2");
+                    ? "ℹ️\U0001fa93 Bárdmester kritikus sebzés ×3"
+                    : "ℹ️ Halálos pontosság kritikus sebzés ×3"
+                : "ℹ️ Kritikus sebzés ×2");
         if (magicWeaponCriticalText.Length > 0)
-            notes.Add(magicWeaponCriticalText.Trim());
+            notes.Add($"ℹ️ {magicWeaponCriticalText.Trim()}");
         damageMultiplierPercent *= criticalMultiplier;
         if (weaponFamily == WeaponFamilies.Polearm && weaponRank == WeaponProficiencyRank.Master &&
             context.PolearmMasterOpeningAvailable)
         {
             damageMultiplierPercent = damageMultiplierPercent * 150 / 100;
             context.PolearmMasterOpeningAvailable = false;
-            notes.Add("🔱 Szálfegyver-mester: első találat ×1,5");
+            notes.Add("ℹ️🔱 Szálfegyver-mester: első találat ×1,5");
         }
         var rawDamage = baseDamage + abilityBonus + randomBonus + perkBonus;
-        var shield = defender.Shield?.Damage is { } shieldDefense ? Roll(shieldDefense) : 0;
-        var damage = ApplyDefense((rawDamage * damageMultiplierPercent + 99) / 100, effectiveArmor + shield);
+        var shieldRoll = defender.Shield?.Damage is { } shieldDefense ? Roll(shieldDefense) : 0;
+
+        var damage = ApplyDefense((rawDamage * damageMultiplierPercent + 99) / 100, effectiveArmor + shieldRoll);
 
         var statusDamagePenalty = player.StatusPhysicalDamagePenalty;
-        Modifier(player.HasStatus(CharacterStatusIds.Hungry) ? "🍖 Éhség: fizikai sebzés" : "💥 Állapotbüntetés",
+        Modifier(damageCalculations, player.HasStatus(CharacterStatusIds.Hungry) ? "🍖 Éhség: fizikai sebzés" : "💥 Állapotbüntetés",
             -statusDamagePenalty);
         damage = Math.Max(1, damage - statusDamagePenalty);
         if (statusDamagePenalty > 0)
             notes.Add(player.HasStatus(CharacterStatusIds.Hungry)
-                ? $"🍖 éhség -{statusDamagePenalty} fizikai sebzés"
-                : $"állapot -{statusDamagePenalty} fizikai sebzés");
+                ? $"ℹ️🍖 éhség -{statusDamagePenalty} fizikai sebzés"
+                : $"ℹ️💥 állapot -{statusDamagePenalty} fizikai sebzés");
         switch (context.Tactic)
         {
             case BattleTactic.FighterPrecise:
                 var precisePercent = player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? 85 : 75;
                 damage = Math.Max(1, damage * precisePercent / 100);
-                notes.Add($"Pontos: +2 találat, ×0,{precisePercent} sebzés");
+                notes.Add($"ℹ️ Pontos: +2 találat, ×0,{precisePercent} sebzés");
                 break;
             case BattleTactic.FighterPowerful:
                 damage = Math.Max(1, (damage * 125 + 99) / 100);
-                notes.Add($"Erőteljes: -1 találat, ×1,25 sebzés, {(powerfulMastery ? 75 : 50)}% páncéltörés");
+                notes.Add($"ℹ️💥 Erőteljes: -1 találat, ×1,25 sebzés, {(powerfulMastery ? 75 : 50)}% páncéltörés");
                 break;
             case BattleTactic.FighterDefensive:
                 damage = Math.Max(1, damage * 75 / 100);
-                notes.Add($"Védekező: ×0,75 sebzés, +{(player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)} védelem");
+                notes.Add($"ℹ️ Védekező: ×0,75 sebzés, +{(player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)} védelem");
                 break;
         }
         if (durabilityDamagePenalty > 0)
         {
             damage = Math.Max(1, damage - durabilityDamagePenalty);
-            notes.Add($"🛠️ sérült fegyver -{durabilityDamagePenalty} sebzés");
-            Modifier("🛠️ Sérült fegyver: sebzés", -durabilityDamagePenalty);
+            notes.Add($"ℹ️🛠️ sérült fegyver -{durabilityDamagePenalty} sebzés");
+            Modifier(damageCalculations, "🛠️ Sérült fegyver: sebzés", -durabilityDamagePenalty);
         }
         if (player.HasPerk(PerkIds.ThiefPoisoner))
         {
             var poison = Roll(new ValueRange(1, 6));
             damage += poison;
-            notes.Add($"Méreg +{poison}");
+            notes.Add($"ℹ️☠️ Méreg +{poison}");
         }
         if (context.Tactic == BattleTactic.ThiefPoison)
         {
             var poison = Roll(player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefPoison)
                 ? new ValueRange(2, 6) : new ValueRange(1, 4));
             damage += poison;
-            notes.Add($"Mérgezett penge +{poison}");
+            notes.Add($"ℹ️☠️ Mérgezett penge +{poison}");
         }
         if (context.BarbarianRageActionsRemaining > 0 &&
             player.HasClassFeatureUpgrade(ClassFeatureUpgrades.BarbarianBloodRage))
@@ -785,7 +974,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             var before = player.CurrentVitality;
             player.RestoreVitality(Roll(new ValueRange(1, 3)));
             var restored = player.CurrentVitality - before;
-            if (restored > 0) notes.Add($"❤️‍🔥 Vérdüh +{restored} HP");
+            if (restored > 0) notes.Add($"ℹ️❤️‍🔥 Vérdüh +{restored} HP");
         }
         context.ConsecutivePlayerHits++;
         var noteText = notes.Count == 0 ? string.Empty : $" [{string.Join(", ", notes)}]";
@@ -795,22 +984,67 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             : $"páncél {armor}";
         if (bluntArmorIgnored > 0)
             armorText += $" → {effectiveArmor} (🔨 jártasság -{bluntArmorIgnored})";
+
+        defenseCalculations.Add(
+            $"🛡️ {armorText}; effektív {effectiveArmor}");
+
+        if (defender.ShieldId != null && defender.Shield is not null)
+        {
+            defenseCalculations.Add(
+                $"🛡️ {defender.Shield.Name}: dobás {shieldRoll}");
+        }
+
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
-        var damageAbilityName = usesDexterity ? "Ügyesség" : "Erő";
-        calculation.Add($"💥 Fegyver alapsebzése: {weapon?.Name ?? "Puszta kéz"} → {baseDamage}");
-        calculation.Add($"💥 {damageAbilityName}bónusz: {damageAbilityName} {ability} → +{abilityBonus}");
-        calculation.Add($"🎲 Véletlen sebzésbónusz (0–2): +{randomBonus}");
-        calculation.Add($"💥 Nyers sebzés: fegyver {baseDamage} + {damageAbilityName.ToLowerInvariant()} {abilityBonus} + véletlen {randomBonus} + egyéb {perkBonus} = {rawDamage}");
-        var multipliedDamage = rawDamage * damageMultiplierPercent / 100d;
-        var roundedMultipliedDamage = (rawDamage * damageMultiplierPercent + 99) / 100;
-        calculation.Add(damageMultiplierPercent == 100
-            ? $"💥 Sebzésszorzó: ×1 → {rawDamage}"
-            : multipliedDamage == roundedMultipliedDamage
-                ? $"💥 Sebzésszorzó: ×{damageMultiplierPercent / 100d:0.##} → {roundedMultipliedDamage}"
-                : $"💥 Sebzésszorzó: ×{damageMultiplierPercent / 100d:0.##}; {multipliedDamage:0.##} → {roundedMultipliedDamage} (felfelé kerekítve)");
-        calculation.Add($"🛡️ {armorText}; effektív {effectiveArmor}");
-        calculation.Add($"🛡️ {defender.Shield?.Name ?? "Pajzs"}: dobás {shield}");
-        calculation.AddRange(notes);
+
+
+        // ============================================================
+        // SEBZÉSI FÁZIS – VÉGSŐ SZÁMÍTÁS INFORMÁCIÓI
+        // ============================================================
+
+        var damageAbilityName =
+            usesDexterity ? "Ügyesség" : "Erő";
+
+        damageCalculations.Add(
+            $"💥 Fegyver alapsebzése: " +
+            $"{weapon?.Name ?? "Puszta kéz"} → {baseDamage}");
+
+        damageCalculations.Add(
+            $"💥 {damageAbilityName}bónusz: " +
+            $"{damageAbilityName} {ability} → +{abilityBonus}");
+
+        damageCalculations.Add(
+            $"🎲 Véletlen sebzésbónusz (0–2): +{randomBonus}");
+
+        damageCalculations.Add(
+            $"💥 Nyers sebzés: fegyver {baseDamage} + " +
+            $"{damageAbilityName.ToLowerInvariant()} {abilityBonus} + " +
+            $"véletlen {randomBonus} + egyéb {perkBonus} = {rawDamage}");
+
+        var multipliedDamage =
+            rawDamage * damageMultiplierPercent / 100d;
+
+        var roundedMultipliedDamage =
+            (rawDamage * damageMultiplierPercent + 99) / 100;
+
+        damageCalculations.Add(
+            damageMultiplierPercent == 100
+                ? $"💥 Sebzésszorzó: ×1 → {rawDamage}"
+                : multipliedDamage == roundedMultipliedDamage
+                    ? $"💥 Sebzésszorzó: " +
+                      $"×{damageMultiplierPercent / 100d:0.##} → " +
+                      $"{roundedMultipliedDamage}"
+                    : $"💥 Sebzésszorzó: " +
+                      $"×{damageMultiplierPercent / 100d:0.##}; " +
+                      $"{multipliedDamage:0.##} → " +
+                      $"{roundedMultipliedDamage} " +
+                      $"(felfelé kerekítve)");
+
+        damageCalculations.Add("💥 Páncél és éhség után min. 1");
+        damageCalculations.Add("💥 Majd taktika és méreg");
+        // ============================================================
+
+        otherCalculations.AddRange(notes);
+
         // we consider the enemy which does e.g. chaos damage has a chaos aura as well which can harm player weapons
         var wearCause = defender.Weapon?.DamageType switch
         {
@@ -820,8 +1054,43 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         };
         var weaponWear = ApplyWeaponWear(player, weapon, weaponSlot, criticalMultiplier > 1, wearCause);
         if (weaponWear.Changed)
-            calculation.Add(DurabilityCalculation("⚔️ Fegyverkopás", weapon!.Name, weaponWear));
-        calculation.Add("💥 Páncél után min. 1; éhség után min. 1; majd taktika és méreg.");
+            otherCalculations.Add(DurabilityCalculation("ℹ️🛠️ Fegyverkopás", weapon!.Name, weaponWear));
+
+        // ============================================================
+        // ÖSSZEFOGLALÓ – 3–6. SOR
+        // ============================================================
+
+        var shieldSummary =
+            defender.Shield is not null
+                ? $"; {defender.Shield.Name} -{shieldRoll}"
+                : string.Empty;
+
+        calculationSummary.Add(
+            $"🛡️ Páncél -{effectiveArmor}{shieldSummary}");
+
+        var weaponName = weapon?.Name ?? "puszta kéz";
+
+        var weaponDamageRange =
+            weapon?.Damage?.ToString() ?? "1-2";
+
+        var directDamageBonus =
+            abilityBonus +
+            randomBonus +
+            perkBonus;
+
+        var weaponIcon = weapon?.GetIcon() ?? "👊";
+
+        calculationSummary.Add(
+            $"💥 {weaponIcon}{weaponName} [{weaponDamageRange}] → " +
+            $"{baseDamage} {directDamageBonus:+#;-#;0}");
+
+        calculationSummary.Add(
+            $"🎲 Kritikus: {criticalChance:0.##}% → " +
+            $"{(criticalMultiplier > 1 ? "IGEN" : "nem")}");
+
+        calculationSummary.Add(
+            $"💥 {damage} ({damageType.Name()})");
+
         return Detailed(AttackResult.HitFor(damage,
             $"találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText}{positionalHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplierPercent / 100d:0.##} - {armorText} = {damageText}.{noteText}",
             criticalMultiplier > 1,
@@ -1070,10 +1339,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         {
             var wearAmount = criticalMultiplier > 1 ? 2 : 1;
             if (defender.Armor is { } wornArmor)
-                ApplyDefensiveWear(InventorySlotKind.Armor, 0, "🛡️ Páncélkopás", "páncélja",
+                ApplyDefensiveWear(InventorySlotKind.Armor, 0, "🛡️🛠️ Páncélkopás", "páncélja",
                     wornArmor, wearAmount);
             if (shieldSlot >= 0)
-                ApplyDefensiveWear(InventorySlotKind.Weapon, shieldSlot, "🛡️ Pajzskopás", "pajzsa",
+                ApplyDefensiveWear(InventorySlotKind.Weapon, shieldSlot, "🛡️🛠️ Pajzskopás", "pajzsa",
                     shieldWeapon!, wearAmount);
         }
 

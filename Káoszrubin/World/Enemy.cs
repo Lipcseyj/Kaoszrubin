@@ -21,9 +21,13 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public const int MinimumSearchMoves = 30;
     public const int MaximumSearchMoves = 120;
     public abstract EnemyDefinition Definition { get; }
-    public string Name => Definition.ChoosesWeapon && Definition.Weapon is { } weapon
-        ? $"{Definition.Name} ({weapon.Name})"
+    public string LongName => Definition.ChoosesWeapon && Definition.Weapon is { } weapon
+        ? (Definition.ShieldId != null && Definition.Shield is { } shield ? $"{Definition.Name} ({weapon.Name} + {shield.Name})" : $"{Definition.Name} ({weapon.Name})")
         : Definition.Name;
+    public string Name => Definition.ChoosesWeapon && Definition.Weapon is { } weapon
+        ? (Definition.ShieldId != null && Definition.Shield is { } shield ? $"{Definition.Name} ({weapon.GetIcon()} + {shield.GetIcon()})" : $"{Definition.Name} ({weapon.GetIcon()})")
+        : Definition.Name;
+    public string ShortName => Definition.Name;
     public int CurrentHitPoints { get; private set; }
     public EnemyMovementProfile MovementProfile { get; private set; } = EnemyMovementProfile.Wander;
     public Direction PatrolDirection { get; private set; } = Direction.Right;

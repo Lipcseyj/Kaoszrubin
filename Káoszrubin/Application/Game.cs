@@ -9554,7 +9554,7 @@ public sealed class Game : ISessionCommandHandler
             {
                 _lastBattleActionDetails = entry.Details ?? new BattleActionDetails(Guid.NewGuid(),
                     _activeTeamBattle.CurrentCharacter?.Name ?? _activeTeamBattle.CurrentEnemy?.Name ?? "Akció",
-                    "", ["✨ Akció eredménye", "🎲 Kritikus: nem alkalmazható"], [entry.Message]);
+                    "", [], [entry.Message]);
                 _renderer.DrawBattleDetails(_lastBattleActionDetails);
             }
         }
