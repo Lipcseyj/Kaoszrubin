@@ -5806,7 +5806,6 @@ public sealed class Game : ISessionCommandHandler
 
     private void HandleLocalTeamBattleInput(TeamBattleEncounter battle, ConsoleKeyInfo key)
     {
-        if (battle.IsCompleted) return;
 
 
         if (IsHelpShortcut(key))
@@ -5835,6 +5834,8 @@ public sealed class Game : ISessionCommandHandler
 
             return;
         }
+
+        if (battle.IsCompleted) return;
 
         if (battle.CurrentEnemy is not null)
         {
@@ -6830,16 +6831,29 @@ public sealed class Game : ISessionCommandHandler
 
             if (battle.CurrentEnemy is { CurrentHitPoints: > 0 } enemyActor)
             {
-                if (_isQuickTeamBattle || !CanTeamEnemyActMeaningfully(battle, enemyActor) ||
-                    _gameSettings.Settings.CombatSpeed == CombatSpeed.PauseBeforePlayerAction)
+                // Gyorsharcban, jelentéktelen enemy-akciónál, illetve minden olyan
+                // tempónál, ahol nem akarunk az enemy akciója ELŐTT megállni,
+                // az ellenfél automatikusan végrehajtja a körét.
+                if (_isQuickTeamBattle ||
+                    !CanTeamEnemyActMeaningfully(battle, enemyActor) ||
+                    _gameSettings.Settings.CombatSpeed != CombatSpeed.PauseBeforeAnyAction)
                 {
                     ExecuteTeamEnemyTurn(battle, enemyActor);
                     continue;
                 }
-                _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, SelectedCharacter.Id,
+
+                // PauseBeforeAnyAction: az ellenfél akciója előtt Space-re várunk.
+                _session.SetBattlePrompt(
+                    battle.Id,
+                    battle.Turns.TurnId,
+                    SelectedCharacter.Id,
                     [BattleActionKind.AdvanceEnemyTurn]);
-                _renderer.DrawBattleCommandPanel(BattleCommandPanel.Format(
-                    [BattleActionKind.AdvanceEnemyTurn], enemyTurn: true));
+
+                _renderer.DrawBattleCommandPanel(
+                    BattleCommandPanel.Format(
+                        [BattleActionKind.AdvanceEnemyTurn],
+                        enemyTurn: true));
+
                 RequestCoopSnapshotPublish();
                 return;
             }
