@@ -37,6 +37,7 @@ public static class QuestCompletionWindow
         var left = Math.Max(0, (Console.WindowWidth - width) / 2);
         var top = Math.Max(0, (Console.WindowHeight - height) / 2);
         using var background = new BackgroundContentRestorer(left, top, width, height);
+
         Draw(lines, left, top, width);
         while (Console.ReadKey(intercept: true).Key is not (ConsoleKey.Enter or ConsoleKey.Escape)) { }
     }

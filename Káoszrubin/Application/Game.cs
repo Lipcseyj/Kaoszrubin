@@ -1913,7 +1913,7 @@ public sealed class Game : ISessionCommandHandler
     }
     #endregion
 
-        private void TryRestParty()
+    private void TryRestParty()
     {
         if (_hasRestedThisLevel)
         {
@@ -2468,6 +2468,8 @@ public sealed class Game : ISessionCommandHandler
 
     private IReadOnlyList<NpcQuestUiEntry> GetNpcQuestUiEntries(WorldNpc npc)
     {
+        if (!npc.IsQuestNpc) return Array.Empty<NpcQuestUiEntry>();
+
         var npcId =
             LegacyNpcIdMap.ToQuestNpcId(
                 npc.DefinitionId);
@@ -2503,24 +2505,26 @@ public sealed class Game : ISessionCommandHandler
         if (definition.Unique && string.Equals(definition.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))
         {
             ConverseWithFirstUniqueNpc(npc);
+            _renderer.RefreshCharacterSheet();
             return false;
         }
         if (definition.Unique && string.Equals(definition.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase))
         {
             ConverseWithRoderic(npc);
+            _renderer.RefreshCharacterSheet();
             return false;
         }
         if (definition.Unique)
         {
             _renderer.DrawUniqueNpcIntroduction(npc);
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            _renderer.RefreshCharacterSheet();
             return false;
         }
         var result = _renderer.DrawWorldNpcRecruitment(npc, CanNpcJoin(npc), GetNpcQuestUiEntries(npc));
         ProcessNpcQuests(npc);
         if (result == WorldNpcInteractionResult.Continue)
         {
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            _renderer.RefreshCharacterSheet();
             return true;
         }
         if (result == WorldNpcInteractionResult.Join && CharacterRoster.Party.Add(npc.Character))
@@ -2531,14 +2535,14 @@ public sealed class Game : ISessionCommandHandler
             _maze.AddPartyMember(avatar);
             _nextPartyMoves[avatar] = DateTime.UtcNow;
             RevealFor(npc.Character, avatar.Position);
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            _renderer.RefreshCharacterSheet();
             _renderer.DrawInventoryMessage($"🤝 {npc.Character.Name} ingyen csatlakozott a partihoz.", ConsoleColor.Green);
             RequestCoopSnapshotPublish();
             return false;
         }
 
         npc.Decline();
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.RefreshCharacterSheet();
         _renderer.DrawInventoryMessage(result == WorldNpcInteractionResult.Join ? "A parti megtelt; előbb helyet kell felszabadítani."
             : $"{npc.Character.Name} egyelőre itt marad.", ConsoleColor.Yellow);
         return false;
@@ -2566,7 +2570,7 @@ public sealed class Game : ISessionCommandHandler
                 ShowNpcStoryChoiceWithReplica(npc,
                     $"Bizonyítsátok hogy közös az ellenségünk. Eddig {quest.Progress}/{quest.RequiredCount} élőholt bukott el.",
                     ["Visszatérünk ha végeztünk."]);
-                _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+                _renderer.RefreshCharacterSheet();
                 return;
             }
 
@@ -2574,7 +2578,7 @@ public sealed class Game : ISessionCommandHandler
             if (!quest.IsCompleted) return;
             npc.SetStoryState("PROOF_COMPLETE");
             RunStoryConversation(npc);
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            _renderer.RefreshCharacterSheet();
             return;
         }
 
@@ -2586,7 +2590,7 @@ public sealed class Game : ISessionCommandHandler
                 ShowNpcStoryChoiceWithReplica(npc,
                     $"Három jelvényt keressetek. Eddig {count}/3 került elő.",
                     ["Folytatjuk a keresést."]);
-                _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+                _renderer.RefreshCharacterSheet();
                 return;
             }
 
@@ -2594,7 +2598,7 @@ public sealed class Game : ISessionCommandHandler
             if (!_questManager.GetQuest(QuestId.RodericFallenComradesInsignia).IsCompleted) return;
             npc.SetStoryState("CONFESSION");
             RunStoryConversation(npc);
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+            _renderer.RefreshCharacterSheet();
             return;
         }
 
@@ -2606,11 +2610,11 @@ public sealed class Game : ISessionCommandHandler
                 TryFinalizeRodericPermanentJoin();
             if (npc.StoryStateId == "MALREC_READY" && npc.State == WorldNpcState.Following)
                 _pendingRodericExpedition = true;
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
+            _renderer.RefreshCharacterSheet();
             return;
         }
         _renderer.DrawUniqueNpcIntroduction(npc);
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.RefreshCharacterSheet();
     }
 
     private void ShowNpcStoryChoiceWithReplica(WorldNpc npc, string prompt, IReadOnlyList<string> choices)
@@ -2622,6 +2626,7 @@ public sealed class Game : ISessionCommandHandler
         try
         {
             _renderer.DrawUniqueNpcStoryChoice(npc, prompt, choices);
+            _renderer.RefreshCharacterSheet();
         }
         finally
         {
@@ -2729,7 +2734,7 @@ public sealed class Game : ISessionCommandHandler
         if (result.FollowRequested && npc.State != WorldNpcState.Following)
             BeginTemporaryFollowing(npc);
         if (npc.State == WorldNpcState.Following) ProcessNpcQuests(npc);
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.RefreshCharacterSheet();
         _renderer.DrawInventoryMessage($"🌿 Elira viszonya: {npc.Friendliness}/10.",
             friendlinessChange >= 0 ? ConsoleColor.Green : ConsoleColor.DarkYellow);
     }
@@ -2801,6 +2806,8 @@ public sealed class Game : ISessionCommandHandler
             else
                 _renderer.DrawGenericUniqueNpcQuestOffer(npc, offers);
         }
+
+        _renderer.RefreshCharacterSheet();
         _renderer.DrawInventoryMessage(
             $"🌿 {npc.Character.Name} ideiglenes követőként csatlakozott. " +
             "Nem foglal partyhelyet.",
@@ -2812,6 +2819,8 @@ public sealed class Game : ISessionCommandHandler
     private void ProcessNpcQuests(WorldNpc npc, bool activateOffered = true, QuestKey? selectedQuest = null,
         bool confirmTurnIn = true)
     {
+        if (!npc.IsQuestNpc) return;
+    
         var npcId =
             LegacyNpcIdMap.ToQuestNpcId(
                 npc.DefinitionId);
@@ -2996,6 +3005,9 @@ public sealed class Game : ISessionCommandHandler
     {
         if (!npc.Recruitable)
             return false;
+
+        if (!npc.IsQuestNpc)
+            return true;
 
         var npcId =
             LegacyNpcIdMap.ToQuestNpcId(
@@ -5005,7 +5017,6 @@ public sealed class Game : ISessionCommandHandler
             _activeAdHocConversation = null;
             _session.SetPhase(previousPhase);
             RequestCoopSnapshotPublish();
-            _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
             _renderer.SetCharacterSheetFocused(_characterSheetFocused);
         }
     }
@@ -6511,7 +6522,6 @@ public sealed class Game : ISessionCommandHandler
             {
                 StageRodericForMalrecEncounter(boss, roderic);
                 RunStoryConversation(roderic);
-                _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
                 continue;
             }
             var narrative = StoryNarratives.BossNarratives.GetValueOrDefault(boss.Definition.Id)

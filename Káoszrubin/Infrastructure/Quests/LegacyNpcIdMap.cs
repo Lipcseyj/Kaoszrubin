@@ -37,6 +37,7 @@ public static class LegacyNpcIdMap
             "NPC019" => QuestNpcId.GiantHunter,
             "NPC020" => QuestNpcId.EliraSilverbranch,
             "NPC021" => QuestNpcId.SirRoderic,
+            "NPC-FIRST-COMPANION" => QuestNpcId.None,
 
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest NPC-azonosító: '{legacyId}'.")

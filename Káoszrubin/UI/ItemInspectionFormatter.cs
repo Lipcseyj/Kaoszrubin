@@ -33,6 +33,7 @@ public static class ItemInspectionFormatter
         {
             WeaponDefinition weapon =>
                 $"Fegyver | típus: {(weapon.WeaponTypeId is { } typeId ? gameData.GetWeaponType(typeId).Name : "nincs")} | " +
+                $"család: {weapon.FamilyId} | "+
                 WeaponProficiencyText(weapon, weaponProficiencies) +
                 WeaponMagicPowerText(weapon) +
                 $"sebzéstípus: {weapon.DamageType.Name()} | célpontok: {weapon.MaximumTargets} | " +

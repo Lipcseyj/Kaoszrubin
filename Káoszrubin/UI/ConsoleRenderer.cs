@@ -2026,24 +2026,32 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
     /// <summary>
     /// Elmenti a középre igazított ablak által lefedett konzolcellákat, a díszítéssel együtt.
     /// </summary>
-    private BackgroundContentRestorer SaveCenteredFrameBackground(int frameWidth,
-        IReadOnlyList<(string Text, ConsoleColor Color)> lines, FramedWindow window)
+    private BackgroundContentRestorer SaveCenteredFrameBackground(int frameWidth, int height, FramedWindow window)
     {
         var style = WindowFrameConfiguration.For(window);
         var adornmentRows = WindowFrameCatalog.Adornment(style, frameWidth) is null ? 0 : 2;
-        var height = lines.Count + FrameBorderWidth + adornmentRows;
+        height += FrameBorderWidth + adornmentRows;
         var (left, top) = CenteredFrameOrigin(frameWidth, height);
         return new BackgroundContentRestorer(left, top, frameWidth, height, ResetColorCache);
+    }
+
+    /// <summary>
+    /// Elmenti a középre igazított ablak által lefedett konzolcellákat, a díszítéssel együtt.
+    /// </summary>
+    private BackgroundContentRestorer SaveCenteredFrameBackground(int frameWidth,
+        IReadOnlyList<(string Text, ConsoleColor Color)> lines, FramedWindow window)
+    {
+        return SaveCenteredFrameBackground(frameWidth, lines.Count, window);
     }
 
     private static (int Left, int Top) CenteredFrameOrigin(int width, int height) =>
         (Math.Max(0, (Console.WindowWidth - width) / FrameBorderWidth),
          Math.Max(MinimumCenteredFrameTop, (Console.WindowHeight - height) / FrameBorderWidth));
 
-    private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
-        FramedWindow? framedWindow = null)
+    private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines, FramedWindow? framedWindow = null)
     {
         SharedWindowPresented?.Invoke(frameWidth, lines, framedWindow);
+
         var style = framedWindow is { } window
             ? WindowFrameConfiguration.For(window)
             : WindowFrameStyle.Double;
@@ -2087,8 +2095,6 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
     public WorldNpcInteractionResult DrawWorldNpcRecruitment(WorldNpc npc,
         bool canJoin, IReadOnlyList<NpcQuestUiEntry> npcQuestUiEntries)
     {
-        ResetColorCache();
-        Console.Clear();
         var mana = npc.Character.UsesMana ? $"   🔷 {npc.Character.CurrentMana}/{npc.Character.MaximumMana}" : string.Empty;
         var lines = new List<(string Text, ConsoleColor Color)>
         {
@@ -2160,10 +2166,11 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
 
         lines.Add((string.Empty, ConsoleColor.Gray));
         var actions = canJoin ? "Enter: csatlakozzon ingyen   " : string.Empty;
-        if (npc.Disposition == NpcDisposition.Neutral) actions += "Enter: továbbhaladás   ";
-        actions += canJoin ? "Esc: most nem" : "Esc: távozás";
+        if (npc.Disposition == NpcDisposition.Neutral) actions += "Enter: tovább   ";
+        actions += canJoin ? "Esc: most nem" : "";
         lines.Add((actions, ConsoleColor.Yellow));
-        DrawCenteredFrame(WorldNpcRecruitmentFrameWidth, lines, FramedWindow.Inn);
+        using var background = SaveCenteredFrameBackground(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.SpecializationChoice), lines, FramedWindow.QuestOffer);
+        DrawCenteredFrame(WorldNpcRecruitmentFrameWidth, lines, FramedWindow.QuestOffer);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
@@ -2176,6 +2183,8 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
 
     public UniqueNpcConversationResult DrawUniqueNpcConversation(WorldNpc npc)
     {
+        using var background = SaveCenteredFrameBackground(78, 22, FramedWindow.QuestOffer);
+
         if (npc.ConversationStage >= 3)
         {
             DrawCenteredFrame(78,
@@ -2237,6 +2246,8 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
 
     public void DrawUniqueNpcIntroduction(WorldNpc npc)
     {
+        using var background = SaveCenteredFrameBackground(78, 22, FramedWindow.QuestOffer);
+        
         var title = $"⚜ {npc.Character.Name.ToUpperInvariant()}";
         DrawCenteredFrame(78,
         [
@@ -2247,7 +2258,7 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
             ($"„{npc.Dialogue}”", ConsoleColor.White),
             (string.Empty, ConsoleColor.Gray),
             ("Enter: tovább", ConsoleColor.Yellow)
-        ], FramedWindow.Inn);
+        ], FramedWindow.QuestOffer);
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
@@ -2277,7 +2288,9 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
             var wrapped = MessageTextLayout.Wrap($"{index + 1}) {choice}", 82).ToArray();
             lines.AddRange(wrapped.Select(line => (line, ConsoleColor.Yellow)));
         }
-        DrawCenteredFrame(88, lines, FramedWindow.Inn);
+        using var background = SaveCenteredFrameBackground(88, lines, FramedWindow.QuestOffer);
+
+        DrawCenteredFrame(88, lines, FramedWindow.QuestOffer);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
@@ -2302,7 +2315,10 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
                     ? ConsoleColor.Yellow : ConsoleColor.White)));
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("Enter: tovább", ConsoleColor.Yellow));
-        DrawCenteredFrame(88, lines, FramedWindow.Inn);
+
+        using var background = SaveCenteredFrameBackground(88, lines, FramedWindow.QuestOffer);
+        DrawCenteredFrame(88, lines, FramedWindow.QuestOffer);
+
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
@@ -2320,15 +2336,20 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
         }
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("Enter: tovább", ConsoleColor.Yellow));
+
+        using var background = SaveCenteredFrameBackground(88, lines, FramedWindow.QuestOffer);
         DrawCenteredFrame(88, lines, FramedWindow.QuestOffer);
+
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
     public bool ConfirmQuestTurnIn(string npcName, QuestPresentationSnapshot quest)
     {
-        DrawCenteredFrame(QuestTurnInWindow.Width,
-            QuestTurnInWindow.Build(npcName, quest),
-            FramedWindow.QuestOffer);
+        var lines = QuestTurnInWindow.Build(npcName, quest);
+
+        using var background = SaveCenteredFrameBackground(QuestTurnInWindow.Width, lines, FramedWindow.QuestOffer);
+        DrawCenteredFrame(QuestTurnInWindow.Width, lines, FramedWindow.QuestOffer);
+
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
@@ -2340,7 +2361,6 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
     public void DrawUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<QuestPresentationSnapshot> quests)
     {
         ResetColorCache();
-        Console.Clear();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("🌿 ELIRA KÉRÉSE", ConsoleColor.Yellow),
@@ -2358,7 +2378,10 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
         lines.Add(("„Nem felejtem el, amit értem tesztek.”", ConsoleColor.White));
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add(("Enter: tovább", ConsoleColor.Yellow));
+
+        using var background = SaveCenteredFrameBackground(88, lines, FramedWindow.QuestOffer);
         DrawCenteredFrame(88, lines, FramedWindow.QuestOffer);
+
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
@@ -2378,7 +2401,9 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
             ("2: egyelőre maradjon követő", ConsoleColor.Cyan),
             ("3: várjon meg minket a fogadóban", ConsoleColor.Yellow)
         };
-        DrawCenteredFrame(78, lines, FramedWindow.Inn);
+        using var background = SaveCenteredFrameBackground(78, lines, FramedWindow.QuestOffer);
+        DrawCenteredFrame(78, lines, FramedWindow.QuestOffer);
+
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
@@ -2390,6 +2415,10 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
                 return UniqueNpcDepartureChoice.WaitAtInn;
         }
     }
+
+    #endregion
+
+    #region Inn helpers and incremental updates
 
     public (LiveCharacter Character, ProgressionRetrainingKind Kind)? DrawProgressionRetrainingScreen(
         IReadOnlyList<LiveCharacter> party, int partyGold)
@@ -2540,10 +2569,6 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
         _ => behavior.ToString()
     };
 
-    #endregion
-
-    #region Inn helpers and incremental updates
-
     public void DrawRestSummaryScreen(PartyRestSnapshot rest, string footer, ConsoleColor footerColor)
     {
         ClearInnMenuScreen();
@@ -2605,6 +2630,14 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
     {
         if (battlePosition != playerPosition) DrawMapCell(maze, fogOfWar, battlePosition);
         DrawPlayer(playerPosition);
+    }
+
+    public void RefreshCharacterSheet()
+    {
+        var character = _displayedCharacter ?? _party.Members.FirstOrDefault();
+        if (character is null) return;
+
+        RefreshCharacterSheet(character);
     }
 
     /// <summary>Csak a jobb oldali karakterlapot rajzolja újra, a játéktér érintése nélkül.</summary>

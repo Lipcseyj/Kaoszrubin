@@ -366,7 +366,7 @@ W019;óriásdorong;WT001;7-16;10;igen;nem;nem;nem;Hatalmas fatörzsből durván 
 W020;tüzes ostor;WT001;8-17;8;nem;nem;nem;nem;Pokoli lánggal izzó ostor amely messziről is lecsap az áldozatra.;0;;;;4;tűz;1;igen;WHIP
 W021;varázsbot;WT001;10-22;2;nem;nem;nem;igen;Sötét fából készült bot amelynek vége egy sötét vörösen pulzáló ékkövet fog körbe.;0;;;;2;nekrotikus;1;igen;STAFF
 W022;elf tőr;WT002;3-6;1;nem;igen;nem;igen;Hosszabb hajlított pengéjű elf tőr. Két elf tőrt használva mindkettő +1 sebzést okoz.;90;;;;1;vágás;1;nem;DAGGER
-W023;kasza;WT001;8-17;8;igen;nem;nem;nem;Hosszú nyelű, széles pengéjű kasza, amelyet élőholt aratók és más szörnyek használnak.;0;MonsterOnly;;;6;vágás;2;igen;POLEARM;
+W023;kasza;WT001;8-17;8;igen;nem;nem;nem;Hosszú nyelű, széles pengéjű kasza, amelyet élőholt aratók és más szörnyek használnak.;0;;;;6;vágás;2;igen;POLEARM;
 RW001;Várnok örökpenge;WT001;9-17;9;igen;nem;nem;nem;A Várnok család ezüsttel futtatott pallosa. Roderic esküjéhez kötött +1 ereklye amelyet más nem használhat.;1600;Magic;W009;1;7;vágás;2;nem;SWORD
 LW001;Hajnalpenge;WT001;9-17;6;nem;nem;igen;nem;A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.;6500;Legendás;W004;3;3;vágás;1;nem;SWORD;200
 LW002;Éjcsók;WT002;7-14;1;nem;igen;nem;igen;Fekete tőr amely hangtalanul találja meg a páncél réseit.;5200;Legendás;W001;4;1;szúrás;1;nem;DAGGER;170
@@ -516,7 +516,7 @@ E066;Csontváz őr;ǂ;9;240;7;4;800;2;MA007;Undead;5;;;nem;W011|W012;igen;2;3;-3
 E067;Páncélozott zombi;Ƶ;8;260;6;2;780;2;MA003|MA007;Undead;4;;;nem;W005|W006;igen;1;1;0;0;0;0;0;5;W015
 E068;Barlangi troll;Ť;16;780;8;5;2000;3;MA008|MA007;;6;;;igen;WN012|WN011;nem;0;0;0;0;0;0;0;4;
 E069;Vén múmia;M;15;700;9;3;2400;4;MA003|MA013;Undead;5;;;nem;WN003;nem;1;1;0;0;0;2;0;6;
-E070;Alfa vérfarkas;Ŀ;19;1250;8;10;4500;4;MA004|MA006|MA007;;8;2;2;igen;WN012|WN007;nem;0;0;0;0;0;0;0;9;
+E070;Alfa vérfarkas;Ŀ;19;1250;8;10;4500;4;MA004|MA006|MA007;;8;2;2;igen;WN012|WN007;nem;0;0;0;0;0;0;0;8;
 E071;Ősi minotaurusz;Ṅ;19;1450;10;6;4700;4;MA005|MA007;;6;;;igen;W017|W012;igen;0;0;0;0;0;0;0;7;
 E072;Káoszkultista;c;8;190;4;6;720;2;MA004;;6;1;2;igen;W001|W002;igen;0;0;0;0;0;0;1;3;W014
 E073;Sötételf orgyilkos;æ;11;330;5;9;1250;3;MA006;;7;3;1;igen;W001|W003;igen;0;0;0;0;0;0;0;4;
