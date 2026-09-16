@@ -220,6 +220,7 @@ public sealed class Maze
         _worldNpcs.Add(npc);
         AddToPositionIndex(_worldNpcsByPosition, npc);
         TrackPositionChanges(npc);
+        Log.Info($"A(z) '{npc.Id}'({npc.Character.Name}) NPC elhelyezve a pályán: {npc.Position}");
     }
 
     public bool RemoveWorldNpc(WorldNpc npc)

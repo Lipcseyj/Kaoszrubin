@@ -1113,6 +1113,12 @@ public sealed class Game : ISessionCommandHandler
             configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
             configuration.CorridorEncounters.Select(ResolveEncounter).ToList());
         _maze = _generator.Create(MazeWidth, MazeHeight);
+
+        foreach (var roomId in configuration.QuestRoomIds) 
+        { 
+            if (_maze.GetRoomByContentId(roomId) is null) throw new InvalidOperationException($"A generált pályáról hiányzik a kötelező questroom: {roomId}."); 
+        }
+
         _player = new Player(_maze.Entrance, SelectedCharacter);
         _leaderTrail.Clear();
         _leaderTrail.Add(_player.Position);
@@ -1475,7 +1481,11 @@ public sealed class Game : ISessionCommandHandler
         {
             var definition = _gameData.GetNpc(encounter.NpcId);
             if (definition.Unique && CharacterRoster.Characters.Any(character =>
-                    string.Equals(character.Name, definition.Name, StringComparison.OrdinalIgnoreCase))) continue;
+                    string.Equals(character.Name, definition.Name, StringComparison.OrdinalIgnoreCase))) 
+            { 
+                Log.Warning($"A(z) '{definition.Id}' egyedi NPC már szerepel a karakterlistában, ezért nem kerül elhelyezésre a pályán.");
+                continue; 
+            }
             var candidates = new List<Position>();
             for (var y = 0; y < _maze.Height; y++)
             for (var x = 0; x < _maze.Width; x++)
@@ -1492,7 +1502,12 @@ public sealed class Game : ISessionCommandHandler
                     (distance < encounter.MinimumDistance || distance > encounter.MaximumDistance)) continue;
                 candidates.Add(position);
             }
-            if (candidates.Count == 0) continue;
+
+            if (candidates.Count == 0) 
+            {
+                Log.Warning($"A(z) '{definition.Id}' NPC számára nincs megfelelő pozíció a pályán.");
+                continue;
+            }
 
             var generator = new RandomCharacterGenerator(_gameData, _random);
             var recruit = definition.Unique && _gameData.GetUniqueNpcCharacter(definition.Id) is not null
@@ -3173,7 +3188,11 @@ public sealed class Game : ISessionCommandHandler
 
     private void RegisterNpcQuestKill(Enemy defeatedEnemy)
     {
+        //TODO: remove when quest is stable and tested
+        var quest = _questManager.Roderic.Quests.PatriarchsShadows;
+
         var changes = _questManager.RegisterKill(defeatedEnemy);
+        Log.Info($"Roderic progress: {quest.Progress}/{quest.RequiredCount} after killing {defeatedEnemy.Definition.Name}. Changes: {changes.Count}");
 
         ProcessQuestProgressChanges(changes);
     }
