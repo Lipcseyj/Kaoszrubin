@@ -84,13 +84,32 @@ public static class SpellcastingRules
         _ => 0
     };
 
-    public static int MaximumSpellLevel(int characterLevel) => characterLevel switch
+    public static int MaximumSpellLevel(string characterClassId, int characterLevel) =>
+    characterClassId.ToUpperInvariant() switch
     {
-        >= 20 => 5,
-        >= 15 => 4,
-        >= 10 => 3,
-        >= 5 => 2,
-        _ => 1
+        CharacterClassIds.Mágus or CharacterClassIds.Pap => characterLevel switch
+        {
+            >= 20 => 5,
+            >= 15 => 4,
+            >= 10 => 3,
+            >= 5 => 2,
+            _ => 1
+        },
+
+        CharacterClassIds.Lovag => characterLevel >= 8 ? 2 : 1,
+
+        _ => 0
+    };
+
+    public static bool LearnsSpellAtLevel(string characterClassId, int level) =>
+    characterClassId.ToUpperInvariant() switch
+    {
+        CharacterClassIds.Lovag =>
+            level == 2 || level >= 5 && (level - 5) % 3 == 0,
+
+        CharacterClassIds.Pap or CharacterClassIds.Mágus => true,
+
+        _ => false
     };
 
     public static int EffectiveManaCost(LiveCharacter character, SpellDefinition spell) =>
@@ -120,7 +139,8 @@ public static class SpellcastingRules
         LiveCharacter character, GameDataCatalog gameData, int atCharacterLevel)
     {
         if (!TryGetSchool(character.CharacterClass.Id, out var school)) return [];
-        var maximumLevel = MaximumSpellLevel(atCharacterLevel);
+        if (!LearnsSpellAtLevel(character.CharacterClass.Id, atCharacterLevel)) return [];
+        var maximumLevel = MaximumSpellLevel(character.CharacterClass.Id, atCharacterLevel);
         return gameData.Spells.Where(spell => spell.School == school)
             .Where(spell => spell.Level <= maximumLevel &&
                 character.KnownSpells.All(known => !string.Equals(known.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))
@@ -146,11 +166,7 @@ public static class SpellcastingRules
         foreach (var levelUp in levelUps)
         {
             var lvl = levelUp.Level;
-            if (string.Equals(character.CharacterClass.Id, CharacterClassIds.Lovag, StringComparison.OrdinalIgnoreCase))
-            {
-                var shouldLearn = lvl == 2 || (lvl >= 5 && (lvl - 5) % 3 == 0);
-                if (!shouldLearn) continue;
-            }
+            if (!LearnsSpellAtLevel(character.CharacterClass.Id, lvl)) continue;
 
             var choices = AvailableUnknownSpells(character, gameData, levelUp.Level);
             if (choices.Count > 0) character.LearnSpell(choices[random.Next(choices.Count)]);

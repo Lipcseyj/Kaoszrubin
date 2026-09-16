@@ -528,6 +528,8 @@ E078;Kígyóember;Ϟ;13;540;6;8;1900;3;MA006;;7;2;1;igen;W001|W002|W003|W004|W01
 E079;Küklopsz;Ç;20;1550;9;4;5000;4;MA005|MA007;;6;;;igen;W019|W017;igen;0;0;1;0;0;0;0;5;
 E080;Árnylidérc;Ȝ;18;1100;8;10;4600;4;MA006|MA013;Undead;8;4;0;nem;WN002;nem;2;2;-2;0;0;4;0;8;
 E081;Élő páncél;₳;21;2100;13;3;7200;5;MA005|MA007;;5;;;nem;W004|W006;igen;5;5;-3;2;1;2;0;2;W016
+E082;Martalóc;o;7;130;4;6;400;2;MA005;;5;;;igen;W004|W006|W007|W008|W009|W010|W011|W012;igen;0;0;0;0;0;0;0;3;W015
+E083;Káoszlovag;Ø;10;380;9;5;1350;3;MA005|MA007;;6;;;igen;W004|W006|W007|W008|W009|W010|W013|W017;igen;0;0;0;0;0;0;0;3;W016
 
 #Szörnyképességek
 Id;Név;Hatás;AktiválásiEsély;Érték;Leírás;Aktiválás;Lehűlés;Hatótáv;MaxCélpont;ÁllapotId;AI súly;FegyverIds;Sebzéstípus;TovábbiHatások;HasználatCsatánként

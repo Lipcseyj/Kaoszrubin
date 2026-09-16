@@ -10459,7 +10459,7 @@ public sealed class Game : ISessionCommandHandler
         {
             if (!SpellcastingRules.TryGetSchool(character.CharacterClass.Id, out var school)) return false;
             var candidate = _gameData.Spells.FirstOrDefault(spell => spell.School == school &&
-                spell.Level <= SpellcastingRules.MaximumSpellLevel(bonus.Level) && !simulatedKnown.Contains(spell.Id));
+                spell.Level <= SpellcastingRules.MaximumSpellLevel(character.CharacterClass.Id, bonus.Level) && !simulatedKnown.Contains(spell.Id));
             if (candidate is null) return false;
             simulatedKnown.Add(candidate.Id);
             return true;
@@ -10541,7 +10541,7 @@ public sealed class Game : ISessionCommandHandler
         {
             if (!SpellcastingRules.TryGetSchool(character.CharacterClass.Id, out var school)) break;
             var simulatedChoice = _gameData.Spells.FirstOrDefault(spell => spell.School == school &&
-                spell.Level <= SpellcastingRules.MaximumSpellLevel(bonus.Level) && !simulatedKnown.Contains(spell.Id));
+                spell.Level <= SpellcastingRules.MaximumSpellLevel(character.CharacterClass.Id, bonus.Level) && !simulatedKnown.Contains(spell.Id));
             if (simulatedChoice is null) continue;
             simulatedKnown.Add(simulatedChoice.Id);
             learningCount++;

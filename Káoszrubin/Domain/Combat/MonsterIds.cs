@@ -77,6 +77,8 @@ public static class MonsterIds
     public const string Küklopsz = "E079";
     public const string Árnylidérc = "E080";
     public const string ÉlőPáncél = "E081";
+    public const string Martalóc = "E082";
+    public const string Káoszlovag = "E083";
 
     public static IReadOnlySet<string> Bosses { get; } = new HashSet<string>(
     [

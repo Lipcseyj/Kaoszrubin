@@ -6695,7 +6695,7 @@ static void CombatTestCharactersMatchRequestedLevelAndSpells()
     Assert(characters.All(character => character.MemorizedSpells.Count ==
                                       Math.Min(character.KnownSpells.Count, character.MemorizationCapacity) &&
                                       character.MemorizedSpells.All(spell =>
-                                          spell.Level <= SpellcastingRules.MaximumSpellLevel(character.Level) &&
+                                          spell.Level <= SpellcastingRules.MaximumSpellLevel(character.CharacterClass.Id, character.Level) &&
                                           character.KnownSpells.Any(known => known.Id == spell.Id))),
         "A teszt-NPC nem az ismert, szintjén elérhető varázslataiból memorizált.");
     Assert(characters.All(character => character.ActiveWeapons.Any(weapon => weapon is not null)),

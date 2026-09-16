@@ -256,8 +256,9 @@ public sealed class LiveCharacter
 
     public bool LearnSpell(SpellDefinition spell)
     {
+        if (!SpellcastingRules.LearnsSpellAtLevel(CharacterClass.Id, Level)) return false;
         if (!SpellcastingRules.TryGetSchool(CharacterClass.Id, out var school) || spell.School != school ||
-            spell.Level > SpellcastingRules.MaximumSpellLevel(Level) ||
+            spell.Level > SpellcastingRules.MaximumSpellLevel(CharacterClass.Id, Level) ||
             _knownSpells.Any(known => string.Equals(known.Id, spell.Id, StringComparison.OrdinalIgnoreCase))) return false;
         _knownSpells.Add(spell);
         return true;
