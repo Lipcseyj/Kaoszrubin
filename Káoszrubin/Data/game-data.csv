@@ -366,6 +366,7 @@ W019;óriásdorong;WT001;7-16;10;igen;nem;nem;nem;Hatalmas fatörzsből durván 
 W020;tüzes ostor;WT001;8-17;8;nem;nem;nem;nem;Pokoli lánggal izzó ostor amely messziről is lecsap az áldozatra.;0;;;;4;tűz;1;igen;WHIP
 W021;varázsbot;WT001;10-22;2;nem;nem;nem;igen;Sötét fából készült bot amelynek vége egy sötét vörösen pulzáló ékkövet fog körbe.;0;;;;2;nekrotikus;1;igen;STAFF
 W022;elf tőr;WT002;3-6;1;nem;igen;nem;igen;Hosszabb hajlított pengéjű elf tőr. Két elf tőrt használva mindkettő +1 sebzést okoz.;90;;;;1;vágás;1;nem;DAGGER
+W023;kasza;WT001;8-17;8;igen;nem;nem;nem;Hosszú nyelű, széles pengéjű kasza, amelyet élőholt aratók és más szörnyek használnak.;0;MonsterOnly;;;6;vágás;2;igen;POLEARM;
 RW001;Várnok örökpenge;WT001;9-17;9;igen;nem;nem;nem;A Várnok család ezüsttel futtatott pallosa. Roderic esküjéhez kötött +1 ereklye amelyet más nem használhat.;1600;Magic;W009;1;7;vágás;2;nem;SWORD
 LW001;Hajnalpenge;WT001;9-17;6;nem;nem;igen;nem;A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.;6500;Legendás;W004;3;3;vágás;1;nem;SWORD;200
 LW002;Éjcsók;WT002;7-14;1;nem;igen;nem;igen;Fekete tőr amely hangtalanul találja meg a páncél réseit.;5200;Legendás;W001;4;1;szúrás;1;nem;DAGGER;170
@@ -507,6 +508,26 @@ E051;Patkányember;Ʒ;7;105;4;7;600;2;MA003;;5;;;igen;W001|W002|W005;igen;0;0;0;
 E052;Csontváz lovag;ǂ;7;105;5;4;330;2;MA007;Undead;4;;;nem;W004|W006|W007|W008||W009|W010|W011|W012|W013;igen;2;3;-3;0;0;0;0;6;W015
 E053;Sir Malrec az Esküszegő;‡;11;420;9;5;1800;4;MA005;Undead;6;1;3;nem;W009;nem;0;0;0;0;0;0;0;8;
 E061;Élőholt pátriárka;Ɨ;8;180;6;4;700;3;MA007;Undead;5;;;nem;W006|W007|W008;igen;0;0;0;0;0;0;0;7;W015
+E062;Goblin főnök;Ǥ;7;180;6;6;750;2;MA005|MA006;;6;;;igen;W004|W006|W010;igen;0;0;0;0;0;0;0;3;W015
+E063;Ork törzsfő;Ø;11;360;8;5;1350;3;MA005|MA007;;6;;;igen;W009|W017;igen;0;0;0;0;0;0;0;3;
+E064;Kaszás Wight;Ŵ;15;720;8;6;2300;4;MA013|MA007;Undead;7;;;nem;W023|W013;igen;0;0;0;0;0;1;0;7;
+E065;Vámpír kardmester;V;17;980;8;9;3900;4;MA006;Undead;7;2;1;nem;W009|W003;igen;0;0;0;0;0;1;0;7;
+E066;Csontváz őr;ǂ;9;240;7;4;800;2;MA007;Undead;5;;;nem;W011|W012;igen;2;3;-3;0;0;0;0;6;
+E067;Páncélozott zombi;Ƶ;8;260;6;2;780;2;MA003|MA007;Undead;4;;;nem;W005|W006;igen;1;1;0;0;0;0;0;5;W015
+E068;Barlangi troll;Ť;16;780;8;5;2000;3;MA008|MA007;;6;;;igen;WN012|WN011;nem;0;0;0;0;0;0;0;4;
+E069;Vén múmia;M;15;700;9;3;2400;4;MA003|MA013;Undead;5;;;nem;WN003;nem;1;1;0;0;0;2;0;6;
+E070;Alfa vérfarkas;Ŀ;19;1250;8;10;4500;4;MA004|MA006|MA007;;8;2;2;igen;WN012|WN007;nem;0;0;0;0;0;0;0;9;
+E071;Ősi minotaurusz;Ṅ;19;1450;10;6;4700;4;MA005|MA007;;6;;;igen;W017|W012;igen;0;0;0;0;0;0;0;7;
+E072;Káoszkultista;c;8;190;4;6;720;2;MA004;;6;1;2;igen;W001|W002;igen;0;0;0;0;0;0;1;3;W014
+E073;Sötételf orgyilkos;æ;11;330;5;9;1250;3;MA006;;7;3;1;igen;W001|W003;igen;0;0;0;0;0;0;0;4;
+E074;Nekromanta;Ɲ;14;520;6;6;2100;3;MA013;;7;2;1;nem;W021|W018;igen;0;0;0;0;0;2;0;5;
+E075;Gargoyle;Γ;14;680;9;6;2200;3;MA007;Flying;6;1;2;nem;WN002|WN009;nem;3;3;1;0;0;0;0;4;
+E076;Óriásskorpió;ϟ;13;610;7;7;2050;3;MA002|MA007;;5;1;2;igen;WN010|WN018;nem;1;2;2;0;2;0;0;6;
+E077;Pokolkutya;ʘ;15;760;7;9;2800;4;MA006;Demonic;7;2;3;nem;WN007|WN006;nem;0;0;0;4;0;0;0;8;
+E078;Kígyóember;Ϟ;13;540;6;8;1900;3;MA006;;7;2;1;igen;W001|W002|W003|W004|W011;igen;0;1;0;0;1;0;0;6;W015
+E079;Küklopsz;Ç;20;1550;9;4;5000;4;MA005|MA007;;6;;;igen;W019|W017;igen;0;0;1;0;0;0;0;5;
+E080;Árnylidérc;Ȝ;18;1100;8;10;4600;4;MA006|MA013;Undead;8;4;0;nem;WN002;nem;2;2;-2;0;0;4;0;8;
+E081;Élő páncél;₳;21;2100;13;3;7200;5;MA005|MA007;;5;;;nem;W004|W006;igen;5;5;-3;2;1;2;0;2;W016
 
 #Szörnyképességek
 Id;Név;Hatás;AktiválásiEsély;Érték;Leírás;Aktiválás;Lehűlés;Hatótáv;MaxCélpont;ÁllapotId;AI súly;FegyverIds;Sebzéstípus;TovábbiHatások;HasználatCsatánként
@@ -577,6 +598,29 @@ E048;95;nem;nem;igen;Varázs;Legendás;12;40000
 E049;100;igen;igen;igen;Varázs;Legendás;12;40000
 E050;100;igen;igen;igen;Varázs;Legendás;12;40000
 E051;65;igen;igen;igen;Sima;Varázs;2;900
+E052;70;igen;igen;igen;Sima;Legendás;6;9000
+E053;100;igen;igen;igen;Varázs;Legendás;8;18000
+E061;75;igen;igen;igen;Varázs;Varázs;4;5000
+E062;70;igen;igen;igen;Sima;Varázs;3;2500
+E063;80;igen;igen;igen;Sima;Varázs;4;5000
+E064;85;igen;igen;igen;Varázs;Legendás;7;12000
+E065;90;igen;igen;igen;Varázs;Legendás;8;18000
+E066;50;igen;igen;nem;Sima;Varázs;2;1500
+E067;35;igen;igen;nem;Sima;Varázs;1;900
+E068;25;nem;igen;igen;Sima;Varázs;3;3000
+E069;75;nem;igen;igen;Varázs;Legendás;7;12000
+E070;35;nem;igen;igen;Sima;Varázs;4;6000
+E071;75;igen;igen;igen;Varázs;Legendás;7;12000
+E072;60;igen;igen;igen;Sima;Varázs;3;3000
+E073;70;igen;igen;igen;Sima;Varázs;4;6000
+E074;85;igen;igen;igen;Varázs;Legendás;6;10000
+E075;25;nem;igen;igen;Varázs;Varázs;4;5000
+E076;18;nem;igen;igen;Sima;Varázs;3;3500
+E077;30;nem;igen;igen;Varázs;Varázs;5;7000
+E078;65;igen;igen;igen;Sima;Varázs;4;5000
+E079;65;igen;igen;igen;Sima;Legendás;6;10000
+E080;70;nem;nem;igen;Varázs;Legendás;7;12000
+E081;100;igen;igen;igen;Varázs;Legendás;10;30000
 
 #Varázslatok
 Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs

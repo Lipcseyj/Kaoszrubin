@@ -118,9 +118,17 @@ public static class QuestLocationConfigurations
             WallColor = ConsoleColor.DarkMagenta,
             RoomCount = new(6, 8),
             RoomSize = new(4, 7),
-            TreasureChestCount = Amount.Handful.Range(),
+            TreasureChestCount = Amount.Several.Range(),
             TreasureGold = new(180, 360),
             BossRoomIds = ["MALREC_CHAMBER"],
+            SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+            {
+                ["MALREC_CHAMBER"] = SpecialRoomPlacement.SideBranch
+            },
+            QuestDoorRequirements = new Dictionary<string, Domain.Quests.QuestId>
+            {
+                ["MALREC_CHAMBER"] = Domain.Quests.QuestId.RodericOathbreakerKnight,
+            },
             QuestRoomEnemyEncounters =
             [
                 new("MALREC_CHAMBER", MonsterIds.SirMalrec, 1),
@@ -129,11 +137,13 @@ public static class QuestLocationConfigurations
             RoomEncounters =
             [
                 Encounters.Same(MonsterIds.Csontváz, Amount.Few, Amount.Few),
-                Encounters.Same(MonsterIds.Zombi, Amount.Few, Amount.Handful)
+                Encounters.Mixed(MonsterIds.Zombi, Amount.Handful, MonsterIds.PáncélozottZombi, Amount.Handful, Amount.Few),
+                Encounters.LeaderGroup(MonsterIds.Ghoul, MonsterIds.CsontvázŐr, Amount.One, Amount.Several),
+                Encounters.LeaderGroup(MonsterIds.Ghoul, MonsterIds.PáncélozottZombi, Amount.One, Amount.Several)
             ],
             CorridorEncounters =
             [
-                Encounters.Solo(MonsterIds.Csontváz, Amount.Several),
+                Encounters.Solo(MonsterIds.CsontvázŐr, Amount.Several, EnemyMovementProfile.Patrol),
                 Encounters.Solo(MonsterIds.Zombi, Amount.Several),
                 Encounters.Solo(MonsterIds.CsontvázLovag, Amount.Several, EnemyMovementProfile.Patrol)
             ]
@@ -241,7 +251,8 @@ public static class MazeLevelConfigurations
                 CorridorEncounters =
                 [
                     Encounters.Solo(MonsterIds.Farkas, Amount.Several, EnemyMovementProfile.Patrol),
-                    Encounters.Solo(MonsterIds.Goblin, Amount.Few)
+                    Encounters.Solo(MonsterIds.Goblin, Amount.Few),
+                    Encounters.Solo(MonsterIds.Patkányember, Amount.Few)
                 ]
             },
             [5] = new()
