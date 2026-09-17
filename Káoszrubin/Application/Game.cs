@@ -320,6 +320,20 @@ public sealed class Game : ISessionCommandHandler
         character.Color, SpellInfo: character.IsSpellcaster ? SpellInfoSnapshotProjector.Create(character) : null,
         History: CreateCharacterHistory(character));
 
+    private void HandleLocalSessionEvent(GameSessionEvent sessionEvent)
+    {
+        switch (sessionEvent)
+        {
+            case GameCommandRejectedEvent rejected
+                when rejected.RecipientPlayerId == _session.HostPlayerId:
+
+                _renderer.DrawInventoryMessage(
+                    rejected.Reason,
+                    ConsoleColor.Red);
+                break;
+        }
+    }
+
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
         GameSaveService gameSaveService, BackgroundMusicPlayer backgroundMusicPlayer, GameSaveData? loadedState = null, GameSession? session = null,
         GameSettingsService? musicSettings = null)
@@ -386,6 +400,7 @@ public sealed class Game : ISessionCommandHandler
             else
                 _renderer.DrawDeveloperMessage(message);
         });
+        _session.EventPublished += HandleLocalSessionEvent;
     }
 
     private MazeQuestWorldContext CreateQuestWorldContext()

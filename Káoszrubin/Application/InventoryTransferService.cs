@@ -112,8 +112,16 @@ public static class InventoryTransferService
             AddChange(changes, destination, new InventorySlotChange(command.DestinationKind,
                 command.DestinationIndex, sourceItem, sourceCharges, sourceQuantity, sourceState));
         }
-        if (changes.Any(entry => !entry.Key.CanApplyInventoryChanges(entry.Value.ToArray())))
-            return Fail("A tárgyak nem helyezhetők el a megadott slotokban.", out plan, out error);
+        
+        foreach (var entry in changes)
+        {
+            if (!entry.Key.TryValidateInventoryChanges(
+                    entry.Value.ToArray(),
+                    out var validationError))
+            {
+                return Fail(validationError, out plan, out error);
+            }
+        }
 
         plan = new InventoryTransferPlan(changes, sourceItem, displaced,
             sourceState?.IsIdentified != false, displacedState?.IsIdentified != false);

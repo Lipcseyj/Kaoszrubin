@@ -1261,3 +1261,98 @@ Jelenlegi működés:
 - Mentés, karakterlap, varázslatinformáció és naplógörgetés közben viszont a háttérben tovább fut a játék, mert ezek nem állítják meg a fő ciklust.
 Van egy fontos következetlenség: több modális ablak — például a beállítások, alakzatszerkesztő, küldetésnapló és párbeszédek — „Paused” állapotot jelez, de az eltelt valós idő határidőit nem minden esetben tolja el. Emiatt bezárás után egy lejárt éhség-, ellenfél- vagy NPC-esemény rögtön lefuthat. Tehát ezek jelenleg nem teljesen megbízható szünetek.
 A központi kezelés itt található: [Game.cs (line 771)](C:/Dev/Kaoszrubin/Káoszrubin/Application/Game.cs:771), a modális ablakok kezelése pedig itt: [Game.cs (line 3031)](C:/Dev/Kaoszrubin/Káoszrubin/Application/Game.cs:3031).
+
+
+## Event-ek
+
+Utána végignézném a többi GameSessionEvent létrehozási helyeit. Nem abból indulnék ki, hogy „ha event, rajzoljuk ki hoston is”, hanem mindegyiknél feltenném ezt a kérdést:
+
+Ez globális session-esemény, egy konkrét játékosnak szóló visszajelzés, vagy pusztán hálózati replikációs jel?
+
+Szerintem ezzel nagyon szépen szét fog tisztulni a rendszered. És amit most találtál, az valóban nem inventory bug volt, hanem egy single-playerben láthatóvá vált session-event routing hiányosság.
+A bemásolt eseményeket átnézve szerintem most már szépen látszik, hogy nem minden GameSessionEvent ugyanazt a célt szolgálja.
+
+Event	Jelleg	Kinek szól?
+SessionPhaseChangedEvent	globális session állapot	minden résztvevő
+CharacterControlChangedEvent	globális session állapot	minden résztvevő
+GameCommandRejectedEvent	személyes visszajelzés	csak a PlayerId
+BattlePromptEvent	harci vezérlési esemény	elsősorban az aktuális karakter irányítója
+BattleEndedEvent	globális battle állapot	minden résztvevő
+
+És szerintem pont itt van a design szaga: egyetlen EventPublished csatornára került két külön kategória:
+
+session állapotváltozás / replikáció
++
+egy játékosnak szóló command feedback
+
+A CoopHostGateway eredetileg nyilván azért iratkozott fel, hogy a session eventeket elküldje a remote kliensnek. Később bekerült:
+
+GameCommandRejectedEvent
+
+ami már nem egyszerűen „küldjük ki a guestnek”, hanem:
+
+küldjük annak, aki a commandot kiadta.
+
+Ez single playerben rögtön feltárta a problémát.
+
+Van még egy fontos dolog: a Publish() jelenleg lock alatt fut
+
+A TryReadCommand():
+
+lock (_stateGate)
+{
+    ...
+    if (!Validate(candidate, out var reason))
+    {
+        Publish(...);
+    }
+}
+
+és a Publish() rögtön:
+
+EventPublished?.Invoke(sessionEvent);
+
+Ez azt jelenti, hogy az event handlerek a _stateGate zárolása alatt futnak.
+
+Én ezt nem szeretem.
+
+Ha például:
+
+OnSessionEventPublished(...)
+
+később valamilyen olyan session műveletet hív, amely szintén állapotot módosít, nagyon könnyű érdekes reentrancy / lock életciklus problémákat létrehozni.
+
+A renderer meghívása lock alatt szintén nem szép:
+
+_stateGate lock
+    ↓
+EventPublished
+    ↓
+_renderer.DrawInventoryMessage(...)
+
+A UI-nak semmi keresnivalója a session state-lock élettartamában.
+
+Emiatt én még tovább javítanám
+
+A session a rejectiont tegye queue-ba:
+
+private readonly Queue<GameSessionEvent> _pendingEvents = new();
+
+lockon belül:
+
+_pendingEvents.Enqueue(
+    new GameCommandRejectedEvent(
+        ++_eventSequence,
+        candidate.SenderId,
+        candidate.CommandId,
+        reason));
+
+majd lockon kívül publikálja.
+
+Vagy a meglévő rendszeredhez igazodva valamilyen:
+
+PublishPendingEvents();
+
+mechanizmus.
+
+Nem feltétlenül kell ezt most rögtön átépíteni, de én megjelölném technikai adósságként.

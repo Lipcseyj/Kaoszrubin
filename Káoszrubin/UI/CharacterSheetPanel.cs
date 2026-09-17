@@ -223,7 +223,7 @@ public static class CharacterSheetPanel
             : $"Szint: {character.Level}  XP: MAX", ConsoleColor.Cyan));
         var visionColor = details.VisionRange < details.NaturalVisionRange ? ConsoleColor.Red :
             details.VisionRange > details.NaturalVisionRange ? ConsoleColor.Green : ConsoleColor.White;
-        lines.Add(new(4, $"💪{details.Abilities.Strength} 🏹{details.Abilities.Dexterity} 💖{details.Abilities.Health} 🧠{details.Abilities.Intelligence} 👁️",
+        lines.Add(new(4, $"💪{details.Abilities.Strength} 🏹{details.Abilities.Dexterity} 💖{details.Abilities.Health} 🧠{details.Abilities.Intelligence} 👁️  ",
             ConsoleColor.White, ColoredSuffix: details.VisionRange.ToString(), ColoredSuffixColor: visionColor));
         lines.Add(new(5, $"❤️{character.CurrentVitality}/{character.MaximumVitality}" +
             (details.UsesMana ? $"  🔷{character.CurrentMana}/{character.MaximumMana}" : string.Empty),

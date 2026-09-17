@@ -225,7 +225,7 @@ public sealed class CoopHostGateway
         if (sessionEvent is not GameCommandRejectedEvent rejected) return;
         lock (_gate)
         {
-            if (_connectionsByPlayer.TryGetValue(rejected.PlayerId, out var connectionId))
+            if (_connectionsByPlayer.TryGetValue(rejected.RecipientPlayerId, out var connectionId))
             {
                 while (_pendingMessages.Count >= MaximumPendingMessages) _pendingMessages.Dequeue();
                 _pendingMessages.Enqueue(new CoopOutgoingMessage(connectionId,

@@ -1201,7 +1201,7 @@ static void RemoteBattlePromptRequiresCharacterOwner()
     Assert(session.TryReadCommand(out var accepted) && accepted.SenderId == remote,
         "A távoli karakter gazdájának érvényes harci akcióját elutasította a session.");
     session.RejectExecutedCommand(accepted, "Szemantikai próbahiba.");
-    Assert(events.OfType<GameCommandRejectedEvent>().Any(rejected => rejected.PlayerId == remote &&
+    Assert(events.OfType<GameCommandRejectedEvent>().Any(rejected => rejected.RecipientPlayerId == remote &&
             rejected.CommandId == accepted.CommandId && rejected.Reason == "Szemantikai próbahiba."),
         "A végrehajtási réteg szemantikai elutasítása nem került vissza a parancs gazdájához.");
 

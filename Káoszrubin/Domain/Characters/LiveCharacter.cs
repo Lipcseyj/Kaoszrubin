@@ -644,50 +644,147 @@ public sealed class LiveCharacter
         _ => false
     };
 
-    public bool CanApplyInventoryChanges(params InventorySlotChange[] changes)
+    public bool CanApplyInventoryChanges(params InventorySlotChange[] changes) =>
+        TryValidateInventoryChanges(changes, out _);
+
+    public bool TryValidateInventoryChanges(
+        InventorySlotChange[] changes,
+        out string error)
     {
         var weapons = (WeaponDefinition?[])_weaponSlots.Clone();
         var armor = Armor;
         var magicItems = (MagicItemDefinition?[])_magicItems.Clone();
+
         foreach (var change in changes)
         {
             var existingState = GetInventoryItemState(change.Kind, change.Index);
+
             if (existingState is { IsCurseActivated: true, IsPurified: false } bound &&
                 bound.BoundCharacterId == Id &&
-                (change.Item is null || change.State?.InstanceId != bound.InstanceId)) return false;
-            if (change.State is { IsCurseActivated: true, IsPurified: false, BoundCharacterId: { } ownerId } &&
-                ownerId != Id) return false;
-            if (!IsValidSpellcastingFocusChange(change)) return false;
-            if (!CharacterBoundItemRules.CanBeHeldBy(this, change.Item)) return false;
-            if (change.Item is not null && !CanPlaceInventoryItem(change.Kind, change.Item)) return false;
-            if (change.Kind == InventorySlotKind.Backpack && change.Item is not null &&
-                change.Quantity is < 1 or > MaximumBackpackStackSize) return false;
+                (change.Item is null || change.State?.InstanceId != bound.InstanceId))
+            {
+                error = "Az elátkozott tárgy nem vehető le az átok megtöréséig.";
+                return false;
+            }
+
+            if (change.State is
+                {
+                    IsCurseActivated: true,
+                    IsPurified: false,
+                    BoundCharacterId: { } ownerId
+                } &&
+                ownerId != Id)
+            {
+                error = "Az elátkozott tárgy másik karakterhez van kötve.";
+                return false;
+            }
+
+            if (!IsValidSpellcastingFocusChange(change))
+            {
+                error = "A varázslási fókusz nem helyezhető át erre a helyre.";
+                return false;
+            }
+
+            if (!CharacterBoundItemRules.CanBeHeldBy(this, change.Item))
+            {
+                error = "Ezt a tárgyat csak a jogos tulajdonosa használhatja.";
+                return false;
+            }
+
+            if (change.Item is not null &&
+                !CanPlaceInventoryItem(change.Kind, change.Item))
+            {
+                error = "Ez a tárgy nem tehető erre a felszereléshelyre.";
+                return false;
+            }
+
+            if (change.Kind == InventorySlotKind.Backpack &&
+                change.Item is not null &&
+                change.Quantity is < 1 or > MaximumBackpackStackSize)
+            {
+                error = "Érvénytelen tárgymennyiség a hátizsákban.";
+                return false;
+            }
+
             switch (change.Kind)
             {
                 case InventorySlotKind.Weapon when change.Index is >= 0 and < 3:
                     weapons[change.Index] = (WeaponDefinition?)change.Item;
                     break;
+
                 case InventorySlotKind.Armor when change.Index == 0:
                     armor = (ArmorDefinition?)change.Item;
                     break;
+
                 case InventorySlotKind.MagicItem when change.Index is >= 0 and < MaximumMagicItemCount:
                     magicItems[change.Index] = (MagicItemDefinition?)change.Item;
                     break;
+
                 case InventorySlotKind.Backpack when change.Index is >= 0 and < MaximumBackpackItemCount:
                     break;
+
                 default:
+                    error = "Érvénytelen inventory-hely.";
                     return false;
             }
         }
 
         var effectiveAbilities = ApplyMagicAbilityBonuses(Abilities, magicItems);
-        if (weapons.Any(weapon => weapon is not null &&
-                !weapon.CanBeEquippedBy(CharacterClass.Id, effectiveAbilities.Strength))) return false;
-        if (armor is not null && !armor.CanBeEquippedBy(CharacterClass.Id)) return false;
-        if (magicItems.Any(item => item is not null && !item.CanBeEquippedBy(CharacterClass.Id))) return false;
-        if (weapons[1]?.IsTwoHanded == true) return false;
-        if (weapons[0]?.IsTwoHanded == true && weapons[1] is not null) return false;
-        return weapons[1] is not { } offhand || DualWieldingRules.CanEquipOffhand(this, weapons[0], offhand);
+
+        foreach (var weapon in weapons.Where(weapon => weapon is not null))
+        {
+            if (weapon!.CanBeEquippedBy(
+                    CharacterClass.Id,
+                    effectiveAbilities.Strength))
+                continue;
+
+            error =
+                effectiveAbilities.Strength < weapon.MinimumStrength
+                    ? $"{Name} nem elég erős a(z) {weapon.Name} használatához. " +
+                      $"Szükséges erő: {weapon.MinimumStrength}, " +
+                      $"jelenlegi erő: {effectiveAbilities.Strength}."
+                    : $"{Name} nem használhatja a(z) {weapon.Name} fegyvert.";
+
+            return false;
+        }
+
+        if (armor is not null &&
+            !armor.CanBeEquippedBy(CharacterClass.Id))
+        {
+            error = $"{Name} nem viselheti a(z) {armor.Name} páncélt.";
+            return false;
+        }
+
+        if (magicItems.Any(item =>
+                item is not null &&
+                !item.CanBeEquippedBy(CharacterClass.Id)))
+        {
+            error = "A karakter nem használhatja ezt a mágikus tárgyat.";
+            return false;
+        }
+
+        if (weapons[1]?.IsTwoHanded == true)
+        {
+            error = "Kétkezes fegyver nem tehető a mellékkézbe.";
+            return false;
+        }
+
+        if (weapons[0]?.IsTwoHanded == true &&
+            weapons[1] is not null)
+        {
+            error = "Kétkezes fegyver mellett a másik kéznek üresnek kell lennie.";
+            return false;
+        }
+
+        if (weapons[1] is { } offhand &&
+            !DualWieldingRules.CanEquipOffhand(this, weapons[0], offhand))
+        {
+            error = "Ez a fegyver nem használható a mellékkézben.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
     }
 
     private bool IsValidSpellcastingFocusChange(InventorySlotChange change)

@@ -1205,18 +1205,31 @@ public sealed class CoopGuestScreen
                 _inventorySelection = (_inventorySelection + 1) % slots.Count;
                 break;
             case InventoryInputAction.MoveItem when slots.Count > 0:
+            {
                 var selected = slots[_inventorySelection];
+
                 if (_inventorySource is null)
                 {
                     if (selected.Item is null)
+                    {
                         SetMessage("Először egy tárgyat tartalmazó forrásslotot jelölj ki.");
-                    else if (!isControlledCharacter && selected.Kind != InventorySlotKind.Backpack)
+                    }
+                    else if (!isControlledCharacter &&
+                             selected.Kind != InventorySlotKind.Backpack)
+                    {
                         SetMessage("Másik partitag felszerelését nem mozgathatod.");
+                    }
                     else
                     {
-                        _inventorySource = new InventorySlotAddress(selected.Kind, selected.Index);
+                        _inventorySource =
+                            new InventorySlotAddress(selected.Kind, selected.Index);
+
                         _inventorySourceCharacterId = own.CharacterId;
                         _inventorySourceRevision = inventory.Revision;
+
+                        SetMessage(
+                            $"Kézben: {selected.Item.Name}. " +
+                            "Válassz célhelyet, majd nyomj Space-t.");
                     }
                 }
                 else
@@ -1225,18 +1238,30 @@ public sealed class CoopGuestScreen
                         (_inventorySource.Value.Kind != InventorySlotKind.Backpack ||
                          selected.Kind != InventorySlotKind.Backpack))
                     {
-                        SetMessage("Karakterek között csak hátizsákból hátizsákba mozgathatsz tárgyat.");
+                        SetMessage(
+                            "Karakterek között csak hátizsákból hátizsákba mozgathatsz tárgyat.");
                         break;
                     }
-                    command = new InventoryTransferCommand(client.PlayerId!.Value, client.NextCommandId(),
-                        _inventorySourceCharacterId!.Value, _inventorySourceRevision,
-                        _inventorySource.Value.Kind, _inventorySource.Value.Index,
-                        own.CharacterId, inventory.Revision, selected.Kind, selected.Index);
+
+                    command = new InventoryTransferCommand(
+                        client.PlayerId!.Value,
+                        client.NextCommandId(),
+                        _inventorySourceCharacterId!.Value,
+                        _inventorySourceRevision,
+                        _inventorySource.Value.Kind,
+                        _inventorySource.Value.Index,
+                        own.CharacterId,
+                        inventory.Revision,
+                        selected.Kind,
+                        selected.Index);
+
                     _inventorySource = null;
                     _inventorySourceCharacterId = null;
                     _inventorySourceRevision = 0;
                 }
+
                 break;
+            }
             case InventoryInputAction.Use when !isControlledCharacter:
             case InventoryInputAction.Drop when !isControlledCharacter:
             case InventoryInputAction.SplitStack when !isControlledCharacter:

@@ -195,7 +195,7 @@ public sealed record SessionPhaseChangedEvent(long Sequence, GameSessionPhase Pr
 public sealed record CharacterControlChangedEvent(long Sequence, CharacterControlState Control)
     : GameSessionEvent(Sequence);
 
-public sealed record GameCommandRejectedEvent(long Sequence, PlayerId PlayerId, long CommandId,
+public sealed record GameCommandRejectedEvent(long Sequence, PlayerId RecipientPlayerId, long CommandId,
     string Reason) : GameSessionEvent(Sequence);
 
 public sealed record BattlePromptEvent(long Sequence, BattleId BattleId, long TurnId,
