@@ -71,12 +71,12 @@ public sealed class BattleCommandPanel
         if (!isHumanControlled) return Decorate($"Space: végrehajtja {actorName} akcióját.");
 
         if (tactics is { Count: > 0 })
-            return Decorate("Taktika: " + string.Join(" | ", tactics.Select((tactic, index) =>
+            return Decorate($"{actorName} taktikái: " + string.Join(" | ", tactics.Select((tactic, index) =>
                 $"{index + 1}: {tactic.Name}")));
 
         var actionSet = actions.ToHashSet();
         if (actionSet.SetEquals([BattleActionKind.Move, BattleActionKind.Pass]))
-            return Decorate("Akció: nyilak: további lépés | Space/P: mozgás vége");
+            return Decorate($"{actorName} akciói: nyilak: további lépés | Space/P: mozgás vége");
 
         var commands = new List<string>();
         if (actionSet.Contains(BattleActionKind.SwapToRear)) commands.Add("H: hátra!");
@@ -92,7 +92,7 @@ public sealed class BattleCommandPanel
         if (actionSet.Contains(BattleActionKind.TurnUndead)) commands.Add("T: halottűzés");
         if (actionSet.Contains(BattleActionKind.Retreat)) commands.Add("R: visszavonulás");
         if (actionSet.Contains(BattleActionKind.Pass)) commands.Add("P: passz");
-        return commands.Count == 0 ? string.Empty : Decorate($"{actorName ?? "na"} akciói: " + string.Join(" | ", commands));
+        return commands.Count == 0 ? string.Empty : Decorate($"{actorName} akciói: " + string.Join(" | ", commands));
     }
 
     /// <summary>

@@ -170,10 +170,11 @@ public sealed class Game : ISessionCommandHandler
     private int _eliraInnVisitsRemaining;
     private bool _isReturnExpedition;
     private MazeQuestWorldContext _questWorldContext;
-    private int _lastDelayedAction;
     private readonly QuestManager _questManager;
     private readonly QuestNpcInstanceRegistry _questNpcInstanceRegistry;
     private readonly QuestSaveAdapter _questSaveAdapter;
+    private DateTime? _automaticBattleResumeUtc;
+    private (BattleId BattleId, int ActionNumber)? _lastDelayedAction;
     #endregion
 
     public CharacterRoster CharacterRoster { get; }
@@ -955,8 +956,16 @@ public sealed class Game : ISessionCommandHandler
 
                 var now = DateTime.UtcNow;
                 ProcessSessionCommands();
+
+                if (_activeTeamBattle is not null &&
+                    _automaticBattleResumeUtc is { } battleResumeUtc &&
+                    DateTime.UtcNow >= battleResumeUtc)
+                {
+                    ContinueTeamBattle();
+                }
+                    
                 if (PruneDisconnectedPlayerWindows()) RefreshCoopWindowStatus();
-                ContinueDisconnectedRemoteBattleAsNpc();
+                    ContinueDisconnectedRemoteBattleAsNpc();
 
                 if (!_battleStarted && ProcessPendingRodericTransition()) continue;
 
@@ -6609,7 +6618,7 @@ public sealed class Game : ISessionCommandHandler
         _turnUndeadNextAvailableRounds.Clear();
         _battleNoPathReported.Clear();
         _battleLogCycle = -1;
-        _lastDelayedAction = 0;
+        _lastDelayedAction = null;
         _pendingLevelUps.Clear();
         if (_renderer.IsSpellInfoPageOpen)
             _renderer.CloseSpellInfoPage();
@@ -6763,11 +6772,8 @@ public sealed class Game : ISessionCommandHandler
 
                 RequestCoopSnapshotPublish();
 
-                Thread.Sleep(20);
                 return;
             }
-
-            DelayAutomaticTurns(battle);
 
             SynchronizeTeamBattleDefeats(battle);
             if (!SelectedCharacter.IsAlive)
@@ -6815,6 +6821,10 @@ public sealed class Game : ISessionCommandHandler
                 }
             }
             UpdateTeamBattleFocus(battle, current);
+
+            if (DelayAutomaticTurns(battle))
+                return;
+
             if (battle.CurrentCharacter is { } character)
             {
                 if (!character.IsAlive)
@@ -6904,21 +6914,62 @@ public sealed class Game : ISessionCommandHandler
         }
     }
 
-    private void DelayAutomaticTurns(TeamBattleEncounter battle)
+    private bool DelayAutomaticTurns(TeamBattleEncounter battle)
     {
-        if (_isQuickTeamBattle || _gameSettings.Settings.CombatSpeed == CombatSpeed.PauseBeforeAnyAction) return;
+        if (_isQuickTeamBattle ||
+            _gameSettings.Settings.CombatSpeed == CombatSpeed.PauseBeforeAnyAction ||
+            _gameSettings.Settings.CombatDelayMilliseconds <= 0)
+            return false;
 
-        // delay for one action only once
-        if (_lastDelayedAction == battle.ActionNumber) return;
+        var actorId = battle.LastActionActorId;
+        if (actorId is null)
+            return false;
 
-        _lastDelayedAction = battle.ActionNumber;
+        var participant = battle.Turns.Find(actorId.Value);
+        if (participant is null)
+            return false;
 
-        if (battle.Current.Kind == TacticalParticipantKind.Enemy ||
-            battle.Current.Kind == TacticalParticipantKind.Follower ||
-            battle.Current.Kind == TacticalParticipantKind.PartyMember)
+        var automatic = participant.Kind switch
         {
-            Thread.Sleep(_gameSettings.Settings.CombatDelayMilliseconds);
+            TacticalParticipantKind.Enemy => true,
+            TacticalParticipantKind.Follower => true,
+
+            TacticalParticipantKind.PartyMember =>
+                battle.CharacterFor(participant.Id) is { } character &&
+                !_session.IsHumanControlled(character.Id),
+
+            _ => false
+        };
+
+        if (!automatic)
+            return false;
+
+        var actionKey = (battle.Id, battle.ActionNumber);
+        var now = DateTime.UtcNow;
+
+        // Új automatikus akció fejeződött be:
+        // most indul a várakozási idő.
+        if (_lastDelayedAction != actionKey)
+        {
+            _lastDelayedAction = actionKey;
+
+            _automaticBattleResumeUtc =
+                now.AddMilliseconds(
+                    _gameSettings.Settings.CombatDelayMilliseconds);
+
+            return true;
         }
+
+        // Ugyanezt az akciót már késleltetjük.
+        if (_automaticBattleResumeUtc is { } resumeUtc &&
+            now < resumeUtc)
+        {
+            return true;
+        }
+
+        // Letelt a várakozás.
+        _automaticBattleResumeUtc = null;
+        return false;
     }
 
     #endregion

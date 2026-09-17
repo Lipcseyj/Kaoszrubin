@@ -15,7 +15,7 @@ public static class SettingsScreen
             var key = CoopWindowStatusBanner.ReadKey(coopStatusProvider);
             if (key.Key is ConsoleKey.Escape or ConsoleKey.Enter) break;
 
-            if (key.Key is ConsoleKey.Spacebar or ConsoleKey.M)
+            if (key.Key is ConsoleKey.Spacebar or ConsoleKey.Z)
                 settings.MusicEnabled = !settings.MusicEnabled;
             else if (key.Key is ConsoleKey.E)
                 settings.SoundEffectsEnabled = !settings.SoundEffectsEnabled;
@@ -26,7 +26,7 @@ public static class SettingsScreen
                     QuickCombatMode.Automatic => QuickCombatMode.Never,
                     _ => QuickCombatMode.Ask
                 };
-            else if (key.Key is ConsoleKey.C)
+            else if (key.Key is ConsoleKey.S)
                 settings.CombatSpeed = settings.CombatSpeed switch
                 {
                     CombatSpeed.PauseBeforeAnyAction => CombatSpeed.PauseAfterHit,
@@ -34,7 +34,16 @@ public static class SettingsScreen
                     CombatSpeed.PauseBeforePlayerAction => CombatSpeed.PauseBeforeAnyAction,
                     _ => CombatSpeed.PauseBeforeAnyAction
                 };
-            else if (key.Key is ConsoleKey.R)
+            else if (key.Key is ConsoleKey.K && settings.CombatSpeed != CombatSpeed.PauseBeforeAnyAction)
+                settings.CombatDelayMilliseconds = settings.CombatDelayMilliseconds switch
+                {
+                    250 => 500,
+                    500 => 1000,
+                    1000 => 2000,
+                    2000 => 250,
+                    _ => 0
+                };
+            else if (key.Key is ConsoleKey.P)
                 settings.PartyAvatars = settings.PartyAvatars == PartyAvatarSet.Letters
                     ? PartyAvatarSet.Runes
                     : PartyAvatarSet.Letters;
@@ -79,14 +88,14 @@ public static class SettingsScreen
             $"{settings.CombatDelayMilliseconds} ms",
             $"Party avatárok: {PartyAvatarSetName(settings.PartyAvatars)}",
             string.Empty,
-            "M / Space       Zene ki- és bekapcsolása",
+            "Z / Space       Zene ki- és bekapcsolása",
             "← → / ↑ ↓      Hangerő módosítása",
             "E               Hangeffektek ki- és bekapcsolása",
             "A / D           Effekthangerő módosítása",
             "G               Gyorsharc módjának váltása",
-            "C               A harc sebességének váltása",
+            "S               A harc sebességének váltása",
             "K               A harc késleltetésének módosítása",
-            "R               Party avatárkészlet váltása",
+            "P               Party avatárkészlet váltása",
             string.Empty,
             "Enter / Esc     Vissza"
         };
@@ -107,10 +116,14 @@ public static class SettingsScreen
                 2 => settings.MusicEnabled ? ConsoleColor.Green : ConsoleColor.DarkRed,
                 3 or 4 or 6 or 7 or 9 => ConsoleColor.Cyan,
                 5 => settings.SoundEffectsEnabled ? ConsoleColor.Green : ConsoleColor.DarkRed,
-                8 => ConsoleColor.Magenta,
+                8 => ConsoleColor.Green,
                 10 => settings.CombatSpeed == CombatSpeed.PauseBeforeAnyAction ? ConsoleColor.Green : 
                     (settings.CombatSpeed == CombatSpeed.PauseAfterHit ? ConsoleColor.DarkYellow : ConsoleColor.Yellow),
-                11 => ConsoleColor.Blue,
+                11 => ConsoleColor.DarkCyan,
+                12 => settings.CombatSpeed == CombatSpeed.PauseBeforeAnyAction ? ConsoleColor.DarkGray : settings.CombatDelayMilliseconds == 2000 ? ConsoleColor.DarkGreen : 
+                    settings.CombatDelayMilliseconds == 1000 ? ConsoleColor.Green :
+                    (settings.CombatDelayMilliseconds == 500 ? ConsoleColor.DarkYellow : ConsoleColor.Yellow),
+                13 => ConsoleColor.Magenta,
                 _ => ConsoleColor.Gray
             };
             Console.Write(text.PadRight(interiorWidth - 2));
