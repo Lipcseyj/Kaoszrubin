@@ -11,6 +11,7 @@ using KaoszRubin.Domain.Quests;
 using KaoszRubin.Infrastructure;
 using KaoszRubin.Infrastructure.Quests;
 using KaoszRubin.UI;
+using System.Runtime;
 using static KaoszRubin.UI.GameInput;
 using MainMenu = KaoszRubin.UI.MainMenu;
 
@@ -38,6 +39,7 @@ public sealed class Game : ISessionCommandHandler
     private static readonly TimeSpan StalemateRestartDelay = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan CoopSnapshotHeartbeatInterval = TimeSpan.FromSeconds(2);
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
+    public static GameSettingsService? StaticGameSettings;
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
     private readonly GameDataCatalog _gameData;
@@ -172,6 +174,8 @@ public sealed class Game : ISessionCommandHandler
     private readonly QuestManager _questManager;
     private readonly QuestNpcInstanceRegistry _questNpcInstanceRegistry;
     private readonly QuestSaveAdapter _questSaveAdapter;
+    private DateTime? _automaticBattleResumeUtc;
+    private (BattleId BattleId, int ActionNumber)? _lastDelayedAction;
     #endregion
 
     public CharacterRoster CharacterRoster { get; }
@@ -336,7 +340,7 @@ public sealed class Game : ISessionCommandHandler
 
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
         GameSaveService gameSaveService, BackgroundMusicPlayer backgroundMusicPlayer, GameSaveData? loadedState = null, GameSession? session = null,
-        GameSettingsService? musicSettings = null)
+        GameSettingsService? gameSettings = null)
     {
         CharacterRoster = characterRoster;
         SelectedCharacter = selectedCharacter;
@@ -349,7 +353,7 @@ public sealed class Game : ISessionCommandHandler
         _gameStateMapper = new GameStateMapper(gameData, characterRoster, selectedCharacter, _questNpcInstanceRegistry);
         _loadedState = loadedState;
         _session = session ?? new GameSession(characterRoster.Party, selectedCharacter);
-        _gameSettings = musicSettings ?? new GameSettingsService();
+        StaticGameSettings = _gameSettings = gameSettings ?? new GameSettingsService();
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party, () => _maze?.PartyMembers
             .Where(member => member.IsTemporaryFollower)
             .Select(member => member.Character)
@@ -968,8 +972,16 @@ public sealed class Game : ISessionCommandHandler
 
                 var now = DateTime.UtcNow;
                 ProcessSessionCommands();
+
+                if (_activeTeamBattle is not null &&
+                    _automaticBattleResumeUtc is { } battleResumeUtc &&
+                    DateTime.UtcNow >= battleResumeUtc)
+                {
+                    ContinueTeamBattle();
+                }
+                    
                 if (PruneDisconnectedPlayerWindows()) RefreshCoopWindowStatus();
-                ContinueDisconnectedRemoteBattleAsNpc();
+                    ContinueDisconnectedRemoteBattleAsNpc();
 
                 if (!_battleStarted && ProcessPendingRodericTransition()) continue;
 
@@ -6622,6 +6634,7 @@ public sealed class Game : ISessionCommandHandler
         _turnUndeadNextAvailableRounds.Clear();
         _battleNoPathReported.Clear();
         _battleLogCycle = -1;
+        _lastDelayedAction = null;
         _pendingLevelUps.Clear();
         if (_renderer.IsSpellInfoPageOpen)
             _renderer.CloseSpellInfoPage();
@@ -6761,11 +6774,20 @@ public sealed class Game : ISessionCommandHandler
                     SelectedCharacter.Id,
                     [BattleActionKind.ResumeBattle]);
 
-                _renderer.DrawBattleCommandPanel(
-                    BattleCommandPanel.Format(
-                        [BattleActionKind.ResumeBattle]));
+                if (battle.CurrentCharacter is { } c)
+                {
+                    var isHumanControlled = _session.IsHumanControlled(c.Id);
+                    _renderer.DrawBattleCommandPanel(
+                    BattleCommandPanel.Format([BattleActionKind.ResumeBattle], isHumanControlled, c.Name));
+                }
+                else if (battle.CurrentEnemy is { } e)
+                {
+                    _renderer.DrawBattleCommandPanel(
+                        BattleCommandPanel.Format([BattleActionKind.ResumeBattle], false, e.Name));
+                }
 
                 RequestCoopSnapshotPublish();
+
                 return;
             }
 
@@ -6815,6 +6837,10 @@ public sealed class Game : ISessionCommandHandler
                 }
             }
             UpdateTeamBattleFocus(battle, current);
+
+            if (DelayAutomaticTurns(battle))
+                return;
+
             if (battle.CurrentCharacter is { } character)
             {
                 if (!character.IsAlive)
@@ -6894,9 +6920,7 @@ public sealed class Game : ISessionCommandHandler
                     [BattleActionKind.AdvanceEnemyTurn]);
 
                 _renderer.DrawBattleCommandPanel(
-                    BattleCommandPanel.Format(
-                        [BattleActionKind.AdvanceEnemyTurn],
-                        enemyTurn: true));
+                    BattleCommandPanel.Format([BattleActionKind.AdvanceEnemyTurn], false, enemyActor.Name));
 
                 RequestCoopSnapshotPublish();
                 return;
@@ -6906,7 +6930,65 @@ public sealed class Game : ISessionCommandHandler
         }
     }
 
-#endregion
+    private bool DelayAutomaticTurns(TeamBattleEncounter battle)
+    {
+        if (_isQuickTeamBattle ||
+            _gameSettings.Settings.CombatSpeed == CombatSpeed.PauseBeforeAnyAction ||
+            _gameSettings.Settings.CombatDelayMilliseconds <= 0)
+            return false;
+
+        var actorId = battle.LastActionActorId;
+        if (actorId is null)
+            return false;
+
+        var participant = battle.Turns.Find(actorId.Value);
+        if (participant is null)
+            return false;
+
+        var automatic = participant.Kind switch
+        {
+            TacticalParticipantKind.Enemy => true,
+            TacticalParticipantKind.Follower => true,
+
+            TacticalParticipantKind.PartyMember =>
+                battle.CharacterFor(participant.Id) is { } character &&
+                !_session.IsHumanControlled(character.Id),
+
+            _ => false
+        };
+
+        if (!automatic)
+            return false;
+
+        var actionKey = (battle.Id, battle.ActionNumber);
+        var now = DateTime.UtcNow;
+
+        // Új automatikus akció fejeződött be:
+        // most indul a várakozási idő.
+        if (_lastDelayedAction != actionKey)
+        {
+            _lastDelayedAction = actionKey;
+
+            _automaticBattleResumeUtc =
+                now.AddMilliseconds(
+                    _gameSettings.Settings.CombatDelayMilliseconds);
+
+            return true;
+        }
+
+        // Ugyanezt az akciót már késleltetjük.
+        if (_automaticBattleResumeUtc is { } resumeUtc &&
+            now < resumeUtc)
+        {
+            return true;
+        }
+
+        // Letelt a várakozás.
+        _automaticBattleResumeUtc = null;
+        return false;
+    }
+
+    #endregion
 
     private bool TryCallTeamBattleReinforcements(TeamBattleEncounter battle)
     {
@@ -8654,7 +8736,7 @@ public sealed class Game : ISessionCommandHandler
     private void PublishTeamBattlePrompt(LiveCharacter character, Enemy enemy,
         IReadOnlyList<BattleActionKind> actions, TeamBattleEncounter battle)
     {
-        var message = BattleCommandPanel.Format(actions,
+        var message = BattleCommandPanel.Format(actions, true, character.Name,
             battle.RuntimeFor(character).RequiresTacticSelection
                 ? GetTeamBattleTacticOptions(battle, character, enemy)
                 : null);

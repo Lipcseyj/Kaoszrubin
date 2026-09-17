@@ -70,12 +70,19 @@ public static class CsvGameDataLoader
         var section = DataSection.None;
 
         var sourceLines = ReadLinesWithFallbackEncoding(filePath).ToArray();
+        Console.WriteLine($"Loading game data from {GameDataFileName}...");
         for (var lineIndex = 0; lineIndex < sourceLines.Length; lineIndex++)
         {
             var rawLine = sourceLines[lineIndex];
             var lineNumber = lineIndex + 1;
             var cells = ParseCsvLine(rawLine);
             if (cells.All(string.IsNullOrEmpty)) continue;
+
+            if (lineIndex % 100 == 0)
+            {
+                var progress = (int)((lineIndex / (double)sourceLines.Length) * 100);
+                Console.Write($"\rProgress: {progress}% ({lineIndex}/{sourceLines.Length} lines)");
+            }
 
             if (TryReadSection(cells, lineNumber, out var parsedSection))
             {
@@ -276,6 +283,7 @@ public static class CsvGameDataLoader
             .SelectMany(level => level.QuestDoorRequirements.Values))
             if (catalog.Quests.Get(requirement).Scope != Domain.Quests.QuestScope.Global)
                 throw new InvalidDataException("A generált szoba questzára globális küldetést igényel.");
+        Console.WriteLine($"\nGame data loaded successfully!");
         return catalog;
     }
 

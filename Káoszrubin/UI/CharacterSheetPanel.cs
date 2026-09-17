@@ -38,20 +38,22 @@ public static class CharacterSheetPanel
     /// amely a parti-státuszsor elején jelenik meg.
     /// Ismeretlen osztály esetén "?" jelet ad vissza.
     /// </summary>
-    public static string CharacterClassGlyph(string characterClassId) => characterClassId switch
+    public static string CharacterClassGlyph(string characterClassId, PartyAvatarSet? partyAvatar = null)
     {
-        CharacterClassIds.Harcos => "H",
-        CharacterClassIds.Barbár => "B",
-        CharacterClassIds.Lovag => "L",
-        CharacterClassIds.Tolvaj => "T",
-        CharacterClassIds.Pap => "P",
-        CharacterClassIds.Mágus => "M",
-        _ => "?"
-    };
+        if (partyAvatar == null)
+        {
+            if (Game.StaticGameSettings == null)
+            {
+                return "?";
+            }
+            else
+            {
+                partyAvatar = Game.StaticGameSettings.Settings.PartyAvatars;
+            }
+        }
 
-    public static string PartyAvatarGlyph(string characterClassId, PartyAvatarSet avatarSet) =>
-        avatarSet == PartyAvatarSet.Runes
-            ? characterClassId switch
+        return partyAvatar == PartyAvatarSet.Runes ?
+            characterClassId switch
             {
                 CharacterClassIds.Harcos => "ᚺ",
                 CharacterClassIds.Barbár => "ᛒ",
@@ -60,8 +62,21 @@ public static class CharacterSheetPanel
                 CharacterClassIds.Pap => "ᛈ",
                 CharacterClassIds.Mágus => "ᛗ",
                 _ => "?"
-            }
-            : CharacterClassGlyph(characterClassId);
+            } :
+            characterClassId switch
+            {
+                CharacterClassIds.Harcos => "H",
+                CharacterClassIds.Barbár => "B",
+                CharacterClassIds.Lovag => "L",
+                CharacterClassIds.Tolvaj => "T",
+                CharacterClassIds.Pap => "P",
+                CharacterClassIds.Mágus => "M",
+                _ => "?"
+            };
+    }
+
+    public static string PartyAvatarGlyph(string characterClassId, PartyAvatarSet avatarSet) =>
+        CharacterClassGlyph(characterClassId, avatarSet);
 
     public static CharacterSheetPanelLine BuildGoldLine(LiveCharacter character)
     {

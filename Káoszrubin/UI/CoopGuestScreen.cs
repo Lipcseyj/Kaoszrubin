@@ -1732,7 +1732,7 @@ public sealed class CoopGuestScreen
         var commandSegments = snapshot.Battle is { } battle
             ? BattleCommandPanel.WithRound(battle.Cycle,
                 BattleCommandPanel.FormatWithHighlighting(battle.AllowedActions, battle.TacticOptions,
-                    !battle.IsPlayerTurn, _battleCommandPanel.HotkeyColor)).ToArray()
+                    battle.IsPlayerTurn, _battleCommandPanel.HotkeyColor, "coop")).ToArray()
             : [];
         var commandLine = commandSegments.Length == 0
             ? _battleCommandPanel.Close()

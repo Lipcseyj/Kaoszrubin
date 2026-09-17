@@ -162,6 +162,13 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
     private LiveCharacter? _battleActingCharacter;
     private BattleActionDetails? _battleDetails;
     private int _battleDetailsPage;
+    private CharacterId? _lastCharacterSheetCharacterId;
+    private readonly Dictionary<int, CharacterSheetPanelLine> _lastCharacterSheetLines = [];
+    private CharacterResourceLine? _lastCharacterResourceLine;
+    private readonly Dictionary<int, PartyStatusRowState> _lastPartyStatusRows = [];
+    private readonly record struct PartyStatusRowState(
+        PartyStatusLine? Status,
+        ConsoleColor Background);
 
     public void DrawBattleDetails(BattleActionDetails? details)
     {
@@ -2938,30 +2945,118 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
         Console.Write('┤');
     }
 
+    private void InvalidateCharacterSheetCache()
+    {
+        _lastCharacterSheetCharacterId = null;
+        _lastCharacterSheetLines.Clear();
+        _lastCharacterResourceLine = null;
+        _lastPartyStatusRows.Clear();
+    }
+
+    private static bool SheetLineEquals(
+    CharacterSheetPanelLine a,
+    CharacterSheetPanelLine b)
+    {
+        return a.Row == b.Row &&
+               a.Text == b.Text &&
+               a.Color == b.Color &&
+               a.Background == b.Background &&
+               a.ColoredSuffix == b.ColoredSuffix &&
+               a.ColoredSuffixColor == b.ColoredSuffixColor &&
+               a.ExtendsToDivider == b.ExtendsToDivider &&
+               a.ColoredTextStart == b.ColoredTextStart &&
+               a.ColoredTextColor == b.ColoredTextColor &&
+               a.InventorySlot == b.InventorySlot &&
+               SegmentsEqual(a.Segments, b.Segments);
+    }
+
+    private static bool SegmentsEqual(
+        IReadOnlyList<TextSegment>? a,
+        IReadOnlyList<TextSegment>? b)
+    {
+        if (ReferenceEquals(a, b))
+            return true;
+
+        if (a is null || b is null || a.Count != b.Count)
+            return false;
+
+        return a.SequenceEqual(b);
+    }
+
     /// <summary>
     /// Teljes karakterlap rajzolása a jobb oldali panelre. Minden sor a WriteSheetLine segítségével kerül oda.
     /// </summary>
     private void DrawCharacterSheet(LiveCharacter character)
     {
+        var fullRedraw = _lastCharacterSheetCharacterId != character.Id;
+
         _displayedCharacter = character;
-        ClearRightPanel();
-        var panelLines = CharacterSheetPanel.Build(character, _gameData.ExperienceByLevel, _mazeLevel,
-            _goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader,
-            IsTemporaryFollower(character), RightSheetWidthForWindow());
-        DrawCharacterSheetHeader(character);
-        foreach (var line in panelLines.Where(line => line.Row != CharacterSheetHeaderLine && line.InventorySlot is null))
-            if (line.Row == CharacterSheetVitalityLine)
-                DrawCharacterResourceLine(line.Row, CharacterSheetPanel.BuildResourceLine(character));
-            else
-                WriteCharacterSheetPanelLine(line);
+
+        if (fullRedraw)
+        {
+            ClearRightPanel();
+            InvalidateCharacterSheetCache();
+        }
+
+        var panelLines = CharacterSheetPanel.Build(
+            character,
+            _gameData.ExperienceByLevel,
+            _mazeLevel,
+            _goldenKeyCount,
+            MonsterIds.Bosses.Count,
+            character == _party.Leader,
+            IsTemporaryFollower(character),
+            RightSheetWidthForWindow());
+
+        if (fullRedraw)
+            DrawCharacterSheetHeader(character);
+
+        var resourceLine = CharacterSheetPanel.BuildResourceLine(character);
+
+        if (fullRedraw || _lastCharacterResourceLine != resourceLine)
+        {
+            DrawCharacterResourceLine(
+                CharacterSheetVitalityLine,
+                resourceLine);
+
+            _lastCharacterResourceLine = resourceLine;
+        }
+
+        foreach (var line in panelLines.Where(line =>
+                     line.Row != CharacterSheetHeaderLine &&
+                     line.Row != CharacterSheetVitalityLine &&
+                     line.InventorySlot is null))
+        {
+            if (!fullRedraw &&
+                _lastCharacterSheetLines.TryGetValue(line.Row, out var previous) &&
+                SheetLineEquals(previous, line))
+            {
+                continue;
+            }
+
+            WriteCharacterSheetPanelLine(line);
+            _lastCharacterSheetLines[line.Row] = line;
+        }
+
         DrawSelectableCharacterSheetRows(character);
-        if (_battleActive && _battleDetails is not null) DrawBattleDetails(_battleDetails);
-        WriteSheetLine(CharacterSheetReservedMessageLine, string.Empty, ConsoleColor.DarkGray);
-        WriteSheetLine(CharacterSheetControlsLine, _formation is null ? string.Empty : FormationStatusText(_formation),
-            _formation?.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
+
+        if (_battleActive && _battleDetails is not null)
+            DrawBattleDetails(_battleDetails);
+
+        WriteSheetLine(
+            CharacterSheetReservedMessageLine,
+            string.Empty,
+            ConsoleColor.DarkGray);
+
+        WriteSheetLine(
+            CharacterSheetControlsLine,
+            _formation is null ? string.Empty : FormationStatusText(_formation),
+            _formation?.State == PartyFormationState.Locked
+                ? ConsoleColor.Green
+                : ConsoleColor.DarkCyan);
+
         DrawPicturePanel();
     }
-
 
     private void WriteCharacterSheetPanelLine(CharacterSheetPanelLine line)
     {
@@ -3061,19 +3156,52 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
 
     private void DrawPartyStatusRows(LiveCharacter displayedCharacter)
     {
-        var partyMembers = _party.Members.Take(CharacterSheetPartyMemberRows).ToList();
+        var partyMembers = _party.Members
+            .Take(CharacterSheetPartyMemberRows)
+            .ToList();
+
         for (var index = 0; index < CharacterSheetPartyMemberRows; index++)
         {
             var row = CharacterSheetPartyMembersStartLine + index;
+
             if (index >= partyMembers.Count)
             {
+                var emptyState = new PartyStatusRowState(
+                    Status: null,
+                    Background: ConsoleColor.Black);
+
+                if (_lastPartyStatusRows.TryGetValue(row, out var previous) &&
+                    previous == emptyState)
+                {
+                    continue;
+                }
+
                 WriteSheetLine(row, string.Empty, ConsoleColor.DarkGray);
+                _lastPartyStatusRows[row] = emptyState;
                 continue;
             }
+
             var member = partyMembers[index];
-            DrawPartyStatusLine(row, CharacterSheetPanel.BuildPartyStatus(member,
-                    member == displayedCharacter, member == _party.Leader, RightSheetWidthForWindow()),
-                SelectionBackground(new(SheetSelectionKind.PartyMember, index)));
+
+            var status = CharacterSheetPanel.BuildPartyStatus(
+                member,
+                member == displayedCharacter,
+                member == _party.Leader,
+                RightSheetWidthForWindow());
+
+            var background = SelectionBackground(
+                new(SheetSelectionKind.PartyMember, index));
+
+            var state = new PartyStatusRowState(status, background);
+
+            if (_lastPartyStatusRows.TryGetValue(row, out var previousState) &&
+                previousState == state)
+            {
+                continue;
+            }
+
+            DrawPartyStatusLine(row, status, background);
+            _lastPartyStatusRows[row] = state;
         }
     }
 
@@ -3314,10 +3442,6 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
         }
         WriteSheetLine(PicturePanelBottom, WindowFrameCatalog.Horizontal(style, rightSheetWidth, bottom: true),
             ConsoleColor.DarkCyan);
-        if (_battleActingCharacter != null && _battleActingCharacter.NpcBehavior != null )
-        {
-            Thread.Sleep(500);
-        }
     }
 
     private void ClearRightPanel()

@@ -51,7 +51,7 @@ public enum BattlePauseReason
 /// <summary>A játékvilág objektumait a tiszta taktikai körsorrendhez kapcsoló futásidejű összecsapás.</summary>
 public sealed class TeamBattleEncounter
 {
-    public const int InactiveCycleLimit = 2;
+    public const int InactiveCycleLimit = 5;
 
     private readonly Dictionary<CombatantId, LiveCharacter> _characters = [];
     private readonly Dictionary<CombatantId, Enemy> _enemies = [];
@@ -80,6 +80,7 @@ public sealed class TeamBattleEncounter
     private readonly List<TeamBattleKill> _kills = [];
     private int _queuedExtraActions;
     private int _reinforcementsCheckedThroughCycle;
+    public CombatantId? LastActionActorId { get; private set; }
 
     public TeamBattleEncounter(Position center,
         IEnumerable<TeamCharacterParticipant> characters,
@@ -466,6 +467,8 @@ public sealed class TeamBattleEncounter
 
     public TacticalBattleParticipant AdvanceTurn()
     {
+        LastActionActorId = Current.Id;
+
         ActionNumber++;
         SelectedTargetEnemyId = null;
         InitiativeChangesAtCycleStart = [];
@@ -547,7 +550,13 @@ public sealed class TeamBattleEncounter
         memories.Add(new NpcOffensiveSpellMemory(plan.SpellId, plan.Complexity,
             plan.AttackPattern, Turns.Cycle));
     }
-    public void RecordCompletedFinalAction() => ActionNumber++;
+
+    public void RecordCompletedFinalAction()
+    {
+        LastActionActorId = Current.Id;
+        ActionNumber++;
+    }
+
     public void RecordKill(LiveCharacter killer, Enemy enemy, int awardedExperience) =>
         _kills.Add(new TeamBattleKill(killer.Id, killer.Name, enemy.Definition.Id, enemy.Name,
             Math.Max(0, awardedExperience)));
