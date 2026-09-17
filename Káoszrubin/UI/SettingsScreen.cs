@@ -59,7 +59,7 @@ public static class SettingsScreen
     {
         Console.Clear();
         var left = Math.Max(0, (Console.WindowWidth - Width) / 2);
-        const int contentRows = 22;
+        const int contentRows = 25;
         var top = Math.Max(0, (Console.WindowHeight - contentRows - 2) / 2);
         var style = WindowFrameConfiguration.For(FramedWindow.Settings);
         var lines = new[]
@@ -75,6 +75,8 @@ public static class SettingsScreen
             $"Gyorsharc: {QuickCombatModeName(settings.QuickCombat)}",
             $"Harci sebesség:",
             $"{CombatSpeedName(settings.CombatSpeed)}",
+            $"Harci késleltetés:",
+            $"{settings.CombatDelayMilliseconds} ms",
             $"Party avatárok: {PartyAvatarSetName(settings.PartyAvatars)}",
             string.Empty,
             "M / Space       Zene ki- és bekapcsolása",
@@ -83,6 +85,7 @@ public static class SettingsScreen
             "A / D           Effekthangerő módosítása",
             "G               Gyorsharc módjának váltása",
             "C               A harc sebességének váltása",
+            "K               A harc késleltetésének módosítása",
             "R               Party avatárkészlet váltása",
             string.Empty,
             "Enter / Esc     Vissza"

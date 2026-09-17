@@ -31,6 +31,7 @@ public sealed class GameSettings
     public QuickCombatMode QuickCombat { get; set; } = QuickCombatMode.Ask;
     public PartyAvatarSet PartyAvatars { get; set; } = PartyAvatarSet.Letters;
     public CombatSpeed CombatSpeed { get; set; } = CombatSpeed.PauseBeforeAnyAction;    
+    public int CombatDelayMilliseconds { get; set; } = 500;
 
     public void Normalize()
     {

@@ -11,6 +11,7 @@ using KaoszRubin.Domain.Quests;
 using KaoszRubin.Infrastructure;
 using KaoszRubin.Infrastructure.Quests;
 using KaoszRubin.UI;
+using System.Runtime;
 using static KaoszRubin.UI.GameInput;
 using MainMenu = KaoszRubin.UI.MainMenu;
 
@@ -169,6 +170,7 @@ public sealed class Game : ISessionCommandHandler
     private int _eliraInnVisitsRemaining;
     private bool _isReturnExpedition;
     private MazeQuestWorldContext _questWorldContext;
+    private int _lastDelayedAction;
     private readonly QuestManager _questManager;
     private readonly QuestNpcInstanceRegistry _questNpcInstanceRegistry;
     private readonly QuestSaveAdapter _questSaveAdapter;
@@ -6607,6 +6609,7 @@ public sealed class Game : ISessionCommandHandler
         _turnUndeadNextAvailableRounds.Clear();
         _battleNoPathReported.Clear();
         _battleLogCycle = -1;
+        _lastDelayedAction = 0;
         _pendingLevelUps.Clear();
         if (_renderer.IsSpellInfoPageOpen)
             _renderer.CloseSpellInfoPage();
@@ -6746,13 +6749,25 @@ public sealed class Game : ISessionCommandHandler
                     SelectedCharacter.Id,
                     [BattleActionKind.ResumeBattle]);
 
-                _renderer.DrawBattleCommandPanel(
-                    BattleCommandPanel.Format(
-                        [BattleActionKind.ResumeBattle]));
+                if (battle.CurrentCharacter is { } c)
+                {
+                    var isHumanControlled = _session.IsHumanControlled(c.Id);
+                    _renderer.DrawBattleCommandPanel(
+                    BattleCommandPanel.Format([BattleActionKind.ResumeBattle], isHumanControlled, c.Name));
+                }
+                else if (battle.CurrentEnemy is { } e)
+                {
+                    _renderer.DrawBattleCommandPanel(
+                        BattleCommandPanel.Format([BattleActionKind.ResumeBattle], false, e.Name));
+                }
 
                 RequestCoopSnapshotPublish();
+
+                Thread.Sleep(20);
                 return;
             }
+
+            DelayAutomaticTurns(battle);
 
             SynchronizeTeamBattleDefeats(battle);
             if (!SelectedCharacter.IsAlive)
@@ -6879,9 +6894,7 @@ public sealed class Game : ISessionCommandHandler
                     [BattleActionKind.AdvanceEnemyTurn]);
 
                 _renderer.DrawBattleCommandPanel(
-                    BattleCommandPanel.Format(
-                        [BattleActionKind.AdvanceEnemyTurn],
-                        enemyTurn: true));
+                    BattleCommandPanel.Format([BattleActionKind.AdvanceEnemyTurn], false, enemyActor.Name));
 
                 RequestCoopSnapshotPublish();
                 return;
@@ -6891,7 +6904,24 @@ public sealed class Game : ISessionCommandHandler
         }
     }
 
-#endregion
+    private void DelayAutomaticTurns(TeamBattleEncounter battle)
+    {
+        if (_isQuickTeamBattle || _gameSettings.Settings.CombatSpeed == CombatSpeed.PauseBeforeAnyAction) return;
+
+        // delay for one action only once
+        if (_lastDelayedAction == battle.ActionNumber) return;
+
+        _lastDelayedAction = battle.ActionNumber;
+
+        if (battle.Current.Kind == TacticalParticipantKind.Enemy ||
+            battle.Current.Kind == TacticalParticipantKind.Follower ||
+            battle.Current.Kind == TacticalParticipantKind.PartyMember)
+        {
+            Thread.Sleep(_gameSettings.Settings.CombatDelayMilliseconds);
+        }
+    }
+
+    #endregion
 
     private bool TryCallTeamBattleReinforcements(TeamBattleEncounter battle)
     {
@@ -8639,7 +8669,7 @@ public sealed class Game : ISessionCommandHandler
     private void PublishTeamBattlePrompt(LiveCharacter character, Enemy enemy,
         IReadOnlyList<BattleActionKind> actions, TeamBattleEncounter battle)
     {
-        var message = BattleCommandPanel.Format(actions,
+        var message = BattleCommandPanel.Format(actions, true, character.Name,
             battle.RuntimeFor(character).RequiresTacticSelection
                 ? GetTeamBattleTacticOptions(battle, character, enemy)
                 : null);

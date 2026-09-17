@@ -4453,7 +4453,7 @@ static void BossAndBattlePromptsAreShared()
     };
     Assert(BattlePromptText.Tactic(CharacterClassIds.Harcos, tactics).Contains("65%", StringComparison.Ordinal) &&
            BattlePromptText.Tactic(CharacterClassIds.Tolvaj, thiefTactics).Contains("Megfigyelés 70%", StringComparison.Ordinal) &&
-           BattleCommandPanel.Format(thiefTactics.Select(option => option.Action), thiefTactics)
+           BattleCommandPanel.Format(thiefTactics.Select(option => option.Action), true, "testthief", thiefTactics)
                .Contains("3: ☠️ Mérgezett penge", StringComparison.Ordinal) &&
            BattleCommandPanel.DisplayWidth("🗡️ Orvtámadás | 👁️ Megfigyelés") == 30 &&
            BattlePromptText.EnemyTurn == "Space — ellenfél köre" &&
@@ -5720,7 +5720,7 @@ static void RearCombatPreparationIsLeaderControlled()
     Assert(encounter.TrySwapToRear(leader, out _, out _, out _, out _) &&
            !encounter.ShouldPrioritizeRearSelfBuff(rearLeft),
         "Az előresorolt tag megtartotta a csak hátsó sorban érvényes felkészítési utasítást.");
-    var panel = BattleCommandPanel.Format([BattleActionKind.PrepareRearLeft, BattleActionKind.PrepareRearRight]);
+    var panel = BattleCommandPanel.Format([BattleActionKind.PrepareRearLeft, BattleActionKind.PrepareRearRight], true, "testactor");
     Assert(panel.Contains("B: bal hátul", StringComparison.Ordinal) &&
            panel.Contains("J: jobb hátul", StringComparison.Ordinal),
         "A két hátsó felkészítő parancs nem jelent meg külön a csatapanelen.");

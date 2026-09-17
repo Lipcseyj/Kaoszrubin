@@ -65,10 +65,11 @@ public sealed class BattleCommandPanel
         return _line;
     }
 
-    public static string Format(IEnumerable<BattleActionKind> actions,
-        IReadOnlyList<BattleTacticOptionSnapshot>? tactics = null, bool enemyTurn = false)
+    public static string Format(IEnumerable<BattleActionKind> actions, bool isHumanControlled, string actorName,
+        IReadOnlyList<BattleTacticOptionSnapshot>? tactics = null)
     {
-        if (enemyTurn) return Decorate("Space: végrehajtja az ellenfél akcióját.");
+        if (!isHumanControlled) return Decorate($"Space: végrehajtja {actorName} akcióját.");
+
         if (tactics is { Count: > 0 })
             return Decorate("Taktika: " + string.Join(" | ", tactics.Select((tactic, index) =>
                 $"{index + 1}: {tactic.Name}")));
@@ -91,7 +92,7 @@ public sealed class BattleCommandPanel
         if (actionSet.Contains(BattleActionKind.TurnUndead)) commands.Add("T: halottűzés");
         if (actionSet.Contains(BattleActionKind.Retreat)) commands.Add("R: visszavonulás");
         if (actionSet.Contains(BattleActionKind.Pass)) commands.Add("P: passz");
-        return commands.Count == 0 ? string.Empty : Decorate("Akció: " + string.Join(" | ", commands));
+        return commands.Count == 0 ? string.Empty : Decorate($"{actorName ?? "na"} akciói: " + string.Join(" | ", commands));
     }
 
     /// <summary>
@@ -99,10 +100,10 @@ public sealed class BattleCommandPanel
     /// where hotkeys are highlighted separately. Hotkeys are identified by text before colons.
     /// </summary>
     public static IReadOnlyList<TextSegment> FormatWithHighlighting(IEnumerable<BattleActionKind> actions,
-        IReadOnlyList<BattleTacticOptionSnapshot>? tactics = null, bool enemyTurn = false,
-        ConsoleColor? hotkeyColor = null)
+        IReadOnlyList<BattleTacticOptionSnapshot>? tactics = null, bool isHumanControlled = true,
+        ConsoleColor? hotkeyColor = null, string? actorName = null)
     {
-        var plainText = Format(actions, tactics, enemyTurn);
+        var plainText = Format(actions, isHumanControlled, actorName ?? "na", tactics);
         if (string.IsNullOrEmpty(plainText)) return [];
 
         return ParseHotkeysPublic(plainText, hotkeyColor);

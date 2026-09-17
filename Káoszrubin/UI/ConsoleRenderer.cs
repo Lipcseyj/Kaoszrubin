@@ -3314,10 +3314,6 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
         }
         WriteSheetLine(PicturePanelBottom, WindowFrameCatalog.Horizontal(style, rightSheetWidth, bottom: true),
             ConsoleColor.DarkCyan);
-        if (_battleActingCharacter != null && _battleActingCharacter.NpcBehavior != null )
-        {
-            Thread.Sleep(500);
-        }
     }
 
     private void ClearRightPanel()
