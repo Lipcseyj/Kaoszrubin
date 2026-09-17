@@ -596,6 +596,236 @@ public static class AsciiPortraits
                   /|___|\  †
                """),
 
+           // E061 - Élőholt pátriárka
+           [MonsterIds.ÉlőholtPátriárka] = Portrait(
+               """
+                    .†††.
+                   / ◉  ◉ \
+                  |  ▽▓▽   |
+                   \_||||_/
+                   /|†██|\
+               """),
+
+           // E062 - Goblin főnök
+           [MonsterIds.GoblinFőnök] = Portrait(
+               """
+                     ^^^
+                  /\_____/\
+                 <  ò   ó  >
+                  \_▽▽▽▽_/
+                   /|██|\==>
+               """),
+
+           // E063 - Ork törzsfő
+           [MonsterIds.OrkTörzsfő] = Portrait(
+               """
+                  \__^^__/
+                   / ò ó \
+                  | _▲_  |
+                 /|=↑██↑=|\
+                   /|  |\
+               """),
+
+           // E064 - Kaszás Wight
+           [MonsterIds.KaszásWight] = Portrait(
+               """
+                    .~~~~.
+                   / ◉  ◉ \   )
+                  |   ▽▽   |  /
+                  \__||||__/=/
+                  ~~/|  |\ /
+               """),
+
+           // E065 - Vámpír kardmester
+           [MonsterIds.VámpírKardmester] = Portrait(
+               """
+                    _____    /
+                   /ò   ó\  /
+                  |   ▽   |/
+                   \  ▼▼ /==
+                   /V\___/V\
+               """),
+
+           // E066 - Csontváz őr
+           [MonsterIds.CsontvázŐr] = Portrait(
+               """
+                     /▲\    |
+                    [◉ ◉]   |
+                   | ▽▽▽ |  |
+                  /|_||||_|\|
+                    /|  |\  †
+               """),
+
+           // E067 - Páncélozott zombi
+           [MonsterIds.PáncélozottZombi] = Portrait(
+               """
+                    .___._
+                   /x   ◉\
+                  |  _▲_  |]
+                  |/|███|\|]
+                   /_| |_\
+               """),
+
+           // E068 - Barlangi troll
+           [MonsterIds.BarlangiTroll] = Portrait(
+               """
+                   __/\____
+                  / ◉    ◉ \
+                 |    ___   |
+                /|  _/▽▽\_ |\
+                  \_/|██|\_/
+               """),
+
+           // E069 - Vén múmia
+           [MonsterIds.VénMúmia] = Portrait(
+               """
+                    .-†-.
+                   /==◉===\
+                  |==/▲\===|
+                  |==▽▽▽===|
+                   /_|=|_\
+               """),
+
+           // E070 - Alfa vérfarkas
+           [MonsterIds.AlfaVérfarkas] = Portrait(
+               """
+                 /\         /\
+                /  \_______/  \
+               |   ò       ó   |
+                \   /▽▽▽\    /
+                /\/\/   \/\/\
+               """),
+
+           // E071 - Ősi minotaurusz
+           [MonsterIds.ŐsiMinotaurusz] = Portrait(
+               """
+               \___       ___/
+                \__\_____/__/
+                   / ò ◉ \
+                  |  (▲)  |
+                 /|_==██==_|\
+               """),
+
+           // E072 - Káoszkultista
+           [MonsterIds.Káoszkultista] = Portrait(
+               """
+                     /\
+                    /╳ \
+                   /(◉ ◉)\
+                  /_| ▽ |_\  †
+                    /|_|\
+               """),
+
+           // E073 - Sötételf orgyilkos
+           [MonsterIds.SötételfOrgyilkos] = Portrait(
+               """
+                     ▒▒▒▒
+                    ▒(◉◉)▒
+                 <==/|__|\==>
+                    /|  |\
+                    /_  _\
+               """),
+
+           // E074 - Nekromanta
+           [MonsterIds.Nekromanta] = Portrait(
+               """
+                     _☠_    ✦
+                    /___\  ( )
+                   / ◉ ◉ \--╂
+                  /|_╳╳╳_|\ │
+                    /___\   │
+               """),
+
+           // E075 - Gargoyle
+           [MonsterIds.Gargoyle] = Portrait(
+               """
+                 /\_/\ /\_/\
+                /  ◉ \_/ ◉  \
+               <     /▲\     >
+                \__▽▽▽▽▽__/
+                  /_/   \_\
+               """),
+
+           // E076 - Óriásskorpió
+           [MonsterIds.Óriásskorpió] = Portrait(
+               """
+                \_        _/
+                 \(◉)__(◉)/
+                  \_▽▽▽▽_/
+                 /|/|  |\|\
+                     \__>~
+               """),
+
+           // E077 - Pokolkutya
+           [MonsterIds.Pokolkutya] = Portrait(
+               """
+                 ^/\_______/\^
+                /   ◉     ◉   \
+               |     /▲\      |
+                \__▽▽▽▽▽____/
+                 ~~/\/  \/\~~
+               """),
+
+           // E078 - Kígyóember
+           [MonsterIds.Kígyóember] = Portrait(
+               """
+                    .-S-.
+                   / ◉ ◉ \   |
+                  |   ▲   |   |
+                   \  Y  /====
+                   /|~~~|\
+               """),
+
+           // E079 - Küklopsz
+           [MonsterIds.Küklopsz] = Portrait(
+               """
+                    _______
+                   /   ◉   \
+                  |   _▲_   |
+                 /|  ▽▽▽▽▽  |\
+                   /|███|\==O
+               """),
+
+           // E080 - Árnylidérc
+           [MonsterIds.Árnylidérc] = Portrait(
+               """
+                    ~~~~~
+                  ~~ ◉ ◉ ~~
+                 ~~   ▽   ~~
+                  ~~|||||~~
+                   ~~/ \~~
+               """),
+
+           // E081 - Élő páncél
+           [MonsterIds.ÉlőPáncél] = Portrait(
+               """
+                     /▲\    |
+                    [   ]   |
+                   | ╳██╳ |  |
+                  /|=|██|=|\|
+                    /|__|\  †
+               """),
+
+           // E082 - Martalóc
+           [MonsterIds.Martalóc] = Portrait(
+               """
+                     ___
+                    /_o_\
+                   | ò ó |  |
+                  /|_▽▽▽_|\ |
+                   /|██|\==>
+               """),
+
+           // E083 - Káoszlovag
+           [MonsterIds.Káoszlovag] = Portrait(
+               """
+                   /■╳╳■\   †
+                  | ◉  ◉ |  |
+                  |  /▲\ |==|
+                 /|==|██|==|\
+                   /|___|\
+               """),
+
        };
 
     private static readonly AsciiPortrait Unknown = Portrait(
