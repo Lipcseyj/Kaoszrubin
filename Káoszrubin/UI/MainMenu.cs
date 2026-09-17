@@ -213,7 +213,7 @@ public sealed class MainMenu
 
         _menuSoundPlayed = false;
         new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService,
-            _backgroundMusicPlayer, musicSettings: _musicSettings).Run();
+            _backgroundMusicPlayer, gameSettings: _musicSettings).Run();
     }
 
     private void StartHostedGame()
@@ -224,7 +224,7 @@ public sealed class MainMenu
             // A coop lobby a leaderből indul; a távoli játékos a saját karakterével tölti fel a következő helyet.
             _characterRoster.Party.SetLeader(selectedCharacter);
             var game = new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService,
-                _backgroundMusicPlayer, musicSettings: _musicSettings);
+                _backgroundMusicPlayer, gameSettings: _musicSettings);
             var host = CoopHostRuntime.StartAsync(game.Session, _applicationVersion, _catalogHash,
                     _characterSaveService.DeserializeCharacter, character => _characterRoster.Add(character))
                 .GetAwaiter().GetResult();
@@ -318,7 +318,7 @@ public sealed class MainMenu
             throw new InvalidOperationException("A coop mentés nem tartalmaz érvényes vendégkarakter-slotot.");
 
         var game = new Game(_gameData, _characterRoster, leader, _gameSaveService, _backgroundMusicPlayer, loaded.State,
-            musicSettings: _musicSettings);
+            gameSettings: _musicSettings);
         var host = CoopHostRuntime.StartAsync(game.Session, _applicationVersion, _catalogHash,
                 _characterSaveService.DeserializeCharacter, character => _characterRoster.Add(character),
                 reservedRemoteCharacterId: reservedId)
@@ -600,7 +600,7 @@ public sealed class MainMenu
                         {
                             _characterRoster = loaded.Roster;
                             new Game(_gameData, _characterRoster, _characterRoster.SelectedCharacter!,
-                                _gameSaveService, _backgroundMusicPlayer, loaded.State, musicSettings: _musicSettings).Run();
+                                _gameSaveService, _backgroundMusicPlayer, loaded.State, gameSettings: _musicSettings).Run();
                         }
                         return;
                     }

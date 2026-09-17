@@ -39,6 +39,7 @@ public sealed class Game : ISessionCommandHandler
     private static readonly TimeSpan StalemateRestartDelay = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan CoopSnapshotHeartbeatInterval = TimeSpan.FromSeconds(2);
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
+    public static GameSettingsService? StaticGameSettings;
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
     private readonly GameDataCatalog _gameData;
@@ -325,7 +326,7 @@ public sealed class Game : ISessionCommandHandler
 
     public Game(GameDataCatalog gameData, CharacterRoster characterRoster, LiveCharacter selectedCharacter,
         GameSaveService gameSaveService, BackgroundMusicPlayer backgroundMusicPlayer, GameSaveData? loadedState = null, GameSession? session = null,
-        GameSettingsService? musicSettings = null)
+        GameSettingsService? gameSettings = null)
     {
         CharacterRoster = characterRoster;
         SelectedCharacter = selectedCharacter;
@@ -338,7 +339,7 @@ public sealed class Game : ISessionCommandHandler
         _gameStateMapper = new GameStateMapper(gameData, characterRoster, selectedCharacter, _questNpcInstanceRegistry);
         _loadedState = loadedState;
         _session = session ?? new GameSession(characterRoster.Party, selectedCharacter);
-        _gameSettings = musicSettings ?? new GameSettingsService();
+        StaticGameSettings = _gameSettings = gameSettings ?? new GameSettingsService();
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party, () => _maze?.PartyMembers
             .Where(member => member.IsTemporaryFollower)
             .Select(member => member.Character)
