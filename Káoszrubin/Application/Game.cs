@@ -4544,7 +4544,11 @@ public sealed class Game : ISessionCommandHandler
         _renderer.RefreshAfterPartyMemberRemoved(character, PartyLeader);
         var sackMemberMsg = $"👋 {character.Name} felszerelésével együtt végleg távozott a partiból.";
         _renderer.DrawInventoryMessage(sackMemberMsg, ConsoleColor.DarkYellow);
-        RecordSessionActivity(SessionActivityKind.System, sackMemberMsg, ConsoleColor.DarkYellow, [character.Id]);
+        var guestCharacterId = _session.CharacterControls.FirstOrDefault(cc => cc.ControllerKind == CharacterControllerKind.RemotePlayer)?.CharacterId;
+        if (guestCharacterId is not null)
+        {
+            RecordSessionActivity(SessionActivityKind.System, sackMemberMsg, ConsoleColor.DarkYellow, [guestCharacterId.Value]);
+        }
         TryFinalizeRodericPermanentJoin();
     }
 

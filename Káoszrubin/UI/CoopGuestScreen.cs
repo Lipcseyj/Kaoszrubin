@@ -1710,13 +1710,14 @@ public sealed class CoopGuestScreen
                 formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan,
                 ConsoleColor.Black);
 
+        var currentActor = snapshot.Battle is { IsQuickBattle: false, Participants: { } participants }
+            ? participants.FirstOrDefault(participant => participant.IsCurrent) : null;
+        var actingCharacter = currentActor is { Side: BattleSide.Friendly }
+            ? snapshot.Party.FirstOrDefault(character =>
+                CombatantId.ForCharacter(character.CharacterId) == currentActor.Id) : null;
+
         if (!_spellInfoOpen && _itemInspectionPanel is null)
         {
-            var currentActor = snapshot.Battle is { IsQuickBattle: false, Participants: { } participants }
-                ? participants.FirstOrDefault(participant => participant.IsCurrent) : null;
-            var actingCharacter = currentActor is { Side: BattleSide.Friendly }
-                ? snapshot.Party.FirstOrDefault(character =>
-                    CombatantId.ForCharacter(character.CharacterId) == currentActor.Id) : null;
             var portrait = actingCharacter is not null
                 ? AsciiPortraits.ForCharacterClass(actingCharacter.CharacterClassId)
                 : snapshot.Battle is { Enemy: { } battleEnemy }
@@ -1758,7 +1759,7 @@ public sealed class CoopGuestScreen
         var commandSegments = snapshot.Battle is { } battle
             ? BattleCommandPanel.WithRound(battle.Cycle,
                 BattleCommandPanel.FormatWithHighlighting(battle.AllowedActions, battle.TacticOptions,
-                    battle.IsPlayerTurn, _battleCommandPanel.HotkeyColor, "coop")).ToArray()
+                    battle.IsPlayerTurn, _battleCommandPanel.HotkeyColor, actingCharacter?.Name ?? "Vendég")).ToArray()
             : [];
         var commandLine = commandSegments.Length == 0
             ? _battleCommandPanel.Close()

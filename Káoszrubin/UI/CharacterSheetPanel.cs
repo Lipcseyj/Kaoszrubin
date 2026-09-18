@@ -32,6 +32,12 @@ public static class CharacterSheetPanel
     private const int ResourceIconStep = 10;
 
     public static string BlankLineForWidth(int width) => new(' ', Math.Max(Width, width));
+    public static readonly GameSettings? _gameSettings = null;
+
+    static CharacterSheetPanel()
+    {
+            _gameSettings = new GameSettingsService().Settings;
+    }
 
     /// <summary>
     /// A karakterosztály azonosítóját egy rövid, egybetűs glyph-re alakítja,
@@ -42,13 +48,13 @@ public static class CharacterSheetPanel
     {
         if (partyAvatar == null)
         {
-            if (Game.StaticGameSettings == null)
+            if (_gameSettings == null)
             {
                 return "?";
             }
             else
             {
-                partyAvatar = Game.StaticGameSettings.Settings.PartyAvatars;
+                partyAvatar = _gameSettings.PartyAvatars;
             }
         }
 
