@@ -1356,3 +1356,23 @@ PublishPendingEvents();
 mechanizmus.
 
 Nem feltétlenül kell ezt most rögtön átépíteni, de én megjelölném technikai adósságként.
+
+## Kommunikációs jellegű események
+lokális, pillanatnyi UI-művelet
+"Kézben: Pallos..."
+        → SetMessage / renderer
+
+
+játékvilágban történt esemény,
+amit más játékosnak is látnia kell
+"Goblin elesett."
+"Ajtó kinyílt."
+"Küldetés teljesítve."
+        → RecordSessionActivity
+
+
+command authoritative elutasítása
+"Nem elég erős."
+"Az inventory azóta megváltozott."
+        → GameCommandRejectedEvent
+        → csak a command küldőjének

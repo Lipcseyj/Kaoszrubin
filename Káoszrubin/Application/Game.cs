@@ -179,7 +179,7 @@ public sealed class Game : ISessionCommandHandler
     #endregion
 
     public CharacterRoster CharacterRoster { get; }
-    public LiveCharacter SelectedCharacter { get; }
+    public LiveCharacter PartyLeader { get; }
     public GameSession Session => _session;
     public TeamBattleEncounter? ActiveTeamBattle => _activeTeamBattle;
 
@@ -190,7 +190,7 @@ public sealed class Game : ISessionCommandHandler
         SynchronizeInventoryQuests();
         var positions = new Dictionary<CharacterId, Position>
         {
-            [SelectedCharacter.Id] = _player.Position
+            [PartyLeader.Id] = _player.Position
         };
         foreach (var member in _maze.PartyMembers) positions[member.Character.Id] = member.Position;
 
@@ -211,7 +211,7 @@ public sealed class Game : ISessionCommandHandler
         var followerSnapshots = followers.Select(character => new SessionCharacterSnapshot(
             character.Id, character.Name, character.Race.Id, character.CharacterClass.Id, character.Level,
             character.CurrentVitality, character.MaximumVitality, character.CurrentMana, character.MaximumMana,
-            character.FoodLevel, character.WaterLevel, SelectedCharacter.Gold, character.IsAlive,
+            character.FoodLevel, character.WaterLevel, PartyLeader.Gold, character.IsAlive,
             positions.GetValueOrDefault(character.Id), character.Statuses.Select(status => status.Id).ToArray(),
             Inventory: InventorySnapshotProjector.Create(character),
             CharacterSheet: CharacterSheetSnapshotProjector.Create(character,
@@ -233,7 +233,7 @@ public sealed class Game : ISessionCommandHandler
             LevelUpPrompt = _activeLevelUpPrompt,
             Activities = _sessionEventService.Activities,
             Sounds = _sessionEventService.Sounds,
-            PartyGold = SelectedCharacter.Gold,
+            PartyGold = PartyLeader.Gold,
             QuestJournal = OrderedQuestJournal(),
             AdHocConversation = _activeAdHocConversation,
             Formation = _formation,
@@ -245,7 +245,7 @@ public sealed class Game : ISessionCommandHandler
             MusicContext = _backgroundMusic.Context,
             Party = snapshot.Party.Select(character => character with
             {
-                Gold = SelectedCharacter.Gold,
+                Gold = PartyLeader.Gold,
                 CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
                     _gameData.ExperienceByLevel, CurrentLevelVisionModifier),
                 History = CreateCharacterHistory(characters[character.CharacterId]),
@@ -267,7 +267,7 @@ public sealed class Game : ISessionCommandHandler
             ReachableTeamEnemies(battle, actingCharacter).OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault()) ??
             battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
                 .OrderBy(enemy => TacticalDistance.Between(current.Position, enemy.Position)).First();
-        var actingCharacterId = actingCharacter?.Id ?? SelectedCharacter.Id;
+        var actingCharacterId = actingCharacter?.Id ?? PartyLeader.Id;
         var allowed = actingCharacter is null
             ? new[] { BattleActionKind.AdvanceEnemyTurn }
             : GetTeamAllowedBattleActions(battle, actingCharacter, focusEnemy);
@@ -318,7 +318,7 @@ public sealed class Game : ISessionCommandHandler
     private SessionCharacterSnapshot CreateCharacterDetailsSnapshot(LiveCharacter character) => new(
         character.Id, character.Name, character.Race.Id, character.CharacterClass.Id, character.Level,
         character.CurrentVitality, character.MaximumVitality, character.CurrentMana, character.MaximumMana,
-        character.FoodLevel, character.WaterLevel, SelectedCharacter.Gold, character.IsAlive, null,
+        character.FoodLevel, character.WaterLevel, PartyLeader.Gold, character.IsAlive, null,
         character.Statuses.Select(status => status.Id).ToArray(), InventorySnapshotProjector.Create(character),
         CharacterSheetSnapshotProjector.Create(character, _gameData.ExperienceByLevel, CurrentLevelVisionModifier),
         character.Color, SpellInfo: character.IsSpellcaster ? SpellInfoSnapshotProjector.Create(character) : null,
@@ -343,7 +343,7 @@ public sealed class Game : ISessionCommandHandler
         GameSettingsService? gameSettings = null)
     {
         CharacterRoster = characterRoster;
-        SelectedCharacter = selectedCharacter;
+        PartyLeader = selectedCharacter;
         _gameData = gameData;
         _gameSaveService = gameSaveService;
         _backgroundMusic = backgroundMusicPlayer;
@@ -478,7 +478,7 @@ public sealed class Game : ISessionCommandHandler
         var rewardContext =
             new QuestRewardContext(
                 getSelectedCharacter:
-                    () => SelectedCharacter,
+                    () => PartyLeader,
 
                 getPartyMembers:
                     () => CharacterRoster.Party.Members,
@@ -492,7 +492,7 @@ public sealed class Game : ISessionCommandHandler
                     (IItemDefinition item, out string ownerName) =>
                         LootAndInventoryService.TryStoreLootInParty(
                             item,
-                            SelectedCharacter,
+                            PartyLeader,
                             CharacterRoster.Party.Members,
                             out ownerName),
 
@@ -710,7 +710,7 @@ public sealed class Game : ISessionCommandHandler
                 var message = $"{caster.Name} elsüti: {spell.Name} → {lowest.Name}. -{manaCost} manna.{summary}";
                 _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
                 RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
-                _renderer.RefreshCharacterSheet(SelectedCharacter);
+                _renderer.RefreshCharacterSheet(PartyLeader);
                 return true;
             }
         }
@@ -831,7 +831,7 @@ public sealed class Game : ISessionCommandHandler
                     if (!(_characterSheetFocused && _renderer.IsSpellInfoPageOpen) &&
                         TryGetQuickSpellIndex(keyInfo, out var quickSpellSlot))
                     {
-                        var quickSpell = SelectedCharacter.QuickSpells[quickSpellSlot];
+                        var quickSpell = PartyLeader.QuickSpells[quickSpellSlot];
                         if (quickSpell is null)
                             _renderer.DrawInventoryMessage("Ez a varázslat-gyorshely üres.", ConsoleColor.DarkYellow);
                         else
@@ -868,7 +868,7 @@ public sealed class Game : ISessionCommandHandler
                             if (ConfirmReturnToMainMenu()) { CancelHeldInventoryItem(); return; }
                             continue;
                         }
-                        if (keyInfo.Key == ConsoleKey.A && _renderer.DisplayedCharacter == SelectedCharacter)
+                        if (keyInfo.Key == ConsoleKey.A && _renderer.DisplayedCharacter == PartyLeader)
                         {
                             EditFormation();
                             continue;
@@ -1104,7 +1104,7 @@ public sealed class Game : ISessionCommandHandler
         PlaySessionSound(SoundEffect.Victory);
         ShowSynchronizedNarrative(NarrativeKind.CampaignFinale, "GRATULÁLUNK, KULCSHORDOZÓK!",
             "XV. fejezet — A csillagok választottai",
-            StoryNarratives.CreateCampaignFinale(CharacterRoster.Party.Members.Where(character => character.IsAlive), SelectedCharacter.Name));
+            StoryNarratives.CreateCampaignFinale(CharacterRoster.Party.Members.Where(character => character.IsAlive), PartyLeader.Name));
         _gameOver = true;
         _session.SetPhase(GameSessionPhase.GameOver);
         RequestCoopSnapshotPublish();
@@ -1146,7 +1146,7 @@ public sealed class Game : ISessionCommandHandler
             if (_maze.GetRoomByContentId(roomId) is null) throw new InvalidOperationException($"A generált pályáról hiányzik a kötelező questroom: {roomId}."); 
         }
 
-        _player = new Player(_maze.Entrance, SelectedCharacter);
+        _player = new Player(_maze.Entrance, PartyLeader);
         _leaderTrail.Clear();
         _leaderTrail.Add(_player.Position);
         _nextPartyMoves.Clear();
@@ -1159,7 +1159,7 @@ public sealed class Game : ISessionCommandHandler
         PlaceQuestRoomEnemies(configuration);
         CaptureExpeditionEnemyTemplates();
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
-        RevealFor(SelectedCharacter, _player.Position);
+        RevealFor(PartyLeader, _player.Position);
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
         _battleStarted = false;
         _gameOver = false;
@@ -1212,7 +1212,7 @@ public sealed class Game : ISessionCommandHandler
             configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
             configuration.CorridorEncounters.Select(ResolveEncounter).ToList());
         _maze = _generator.Create(MazeWidth, MazeHeight);
-        _player = new Player(_maze.Entrance, SelectedCharacter);
+        _player = new Player(_maze.Entrance, PartyLeader);
         _leaderTrail.Clear();
         _leaderTrail.Add(_player.Position);
         _nextPartyMoves.Clear();
@@ -1223,7 +1223,7 @@ public sealed class Game : ISessionCommandHandler
         PlaceQuestRoomEnemies(configuration);
         CaptureExpeditionEnemyTemplates();
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
-        RevealFor(SelectedCharacter, _player.Position);
+        RevealFor(PartyLeader, _player.Position);
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
         _battleStarted = false;
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
@@ -1310,7 +1310,7 @@ public sealed class Game : ISessionCommandHandler
 
     private int RodericTargetLevel()
     {
-        var requested = SelectedCharacter.Level >= 7 ? SelectedCharacter.Level + 2 : 7;
+        var requested = PartyLeader.Level >= 7 ? PartyLeader.Level + 2 : 7;
         return Math.Min(requested, _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(requested).Max());
     }
 
@@ -1353,7 +1353,7 @@ public sealed class Game : ISessionCommandHandler
         _fogOfWar = restored.FogOfWar;
         _leaderFacing = restored.LeaderFacing;
         _formation = PartyFormationRules.Normalize(suspended.Formation,
-            CharacterRoster.Party.Members.Select(member => member.Id), SelectedCharacter.Id);
+            CharacterRoster.Party.Members.Select(member => member.Id), PartyLeader.Id);
         _renderer.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(_formation.State == PartyFormationState.Locked);
         _leaderTrail.Clear();
@@ -1377,7 +1377,7 @@ public sealed class Game : ISessionCommandHandler
         // A kampány pillanatképe csak a világot állítja vissza: a questhaladás azóta előreléphetett.
         _questManager.SynchronizeCollectQuests();
         _questManager.PublishState();
-        RevealFor(SelectedCharacter, _player.Position);
+        RevealFor(PartyLeader, _player.Position);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
         _renderer.DrawInventoryMessage("↩ Visszatértetek a katakombák ugyanazon pontjára.", ConsoleColor.Cyan);
         _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, _fogOfWar.IsRevealed(_maze.Exit));
@@ -1469,7 +1469,7 @@ public sealed class Game : ISessionCommandHandler
         if (_activeCoopHost is not null || _mazeLevel != 1 || CharacterRoster.Party.Members.Count != 1 ||
             _maze.WorldNpcs.Count != 0) return;
 
-        var preferredClassIds = SelectedCharacter.CharacterClass.Id switch
+        var preferredClassIds = PartyLeader.CharacterClass.Id switch
         {
             CharacterClassIds.Harcos or CharacterClassIds.Barbár => new[] { CharacterClassIds.Pap, CharacterClassIds.Tolvaj },
             CharacterClassIds.Lovag => new[] { CharacterClassIds.Mágus, CharacterClassIds.Tolvaj },
@@ -1544,9 +1544,9 @@ public sealed class Game : ISessionCommandHandler
                         : null)
                 : definition.Unique && definition.RaceId is { } raceId
                     ? generator.CreateUniqueRecruit(definition.Name, _gameData.GetRace(raceId),
-                        _gameData.GetCharacterClass(definition.CharacterClassId), SelectedCharacter.Level)
+                        _gameData.GetCharacterClass(definition.CharacterClassId), PartyLeader.Level)
                 : generator.CreateRecruit(_gameData.GetCharacterClass(definition.CharacterClassId),
-                    SelectedCharacter.Level, CharacterRoster.Characters.Select(character => character.Name).ToArray());
+                    PartyLeader.Level, CharacterRoster.Characters.Select(character => character.Name).ToArray());
             CharacterRoster.Add(recruit);
             var friendliness = definition.Unique ? 4 : RollNpcFriendliness(definition);
             var dialogue = _gameData.GetNpcDialogues(definition.Id)
@@ -1725,7 +1725,7 @@ public sealed class Game : ISessionCommandHandler
     {
         var character = _renderer.SpellInfoCharacter;
         var spell = _renderer.GetSelectedSpellInfo();
-        if (character != SelectedCharacter || spell is null ||
+        if (character != PartyLeader || spell is null ||
             character.MemorizedSpells.All(candidate => !string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))
         {
             _renderer.DrawInventoryMessage("Csak a partivezér memorizált varázslata süthető el.", ConsoleColor.DarkYellow);
@@ -1740,7 +1740,7 @@ public sealed class Game : ISessionCommandHandler
         var spell = quickSpell;
         MagicItemDefinition? castingItem = null;
         int? castingItemSlotIndex = null;
-        var caster = SelectedCharacter;
+        var caster = PartyLeader;
         if (spell is null)
         {
             var casters = GetSpellcastingPartyMembers();
@@ -1749,7 +1749,7 @@ public sealed class Game : ISessionCommandHandler
                 _renderer.DrawInventoryMessage("Senki nem tud varázsolni a partiban.", ConsoleColor.DarkYellow);
                 return;
             }
-            var startIndex = Math.Max(0, casters.IndexOf(SelectedCharacter));
+            var startIndex = Math.Max(0, casters.IndexOf(PartyLeader));
             var selection = _renderer.DrawSpellCastingScreen(casters, startIndex, inCombat: false, _maze, _fogOfWar,
                 GetCasterPosition, ShowInGameHelp);
             _renderer.RestoreSpellCastingOverlay();
@@ -1781,7 +1781,7 @@ public sealed class Game : ISessionCommandHandler
             .Where(entry => SpellcastingRules.CanUseCastingItem(character, entry.Item!, _gameData.GetSpell(entry.Item!.SpellId!)))
             .Select(entry => entry.Item!);
 
-    private Position GetCasterPosition(LiveCharacter character) => character == SelectedCharacter
+    private Position GetCasterPosition(LiveCharacter character) => character == PartyLeader
         ? _player.Position
         : _maze.PartyMembers.First(member => member.Character == character).Position;
 
@@ -1893,7 +1893,7 @@ public sealed class Game : ISessionCommandHandler
         _fogOfWar = restored.FogOfWar;
         _leaderFacing = restored.LeaderFacing;
         _formation = PartyFormationRules.Normalize(state.Formation,
-            CharacterRoster.Party.Members.Select(member => member.Id), SelectedCharacter.Id);
+            CharacterRoster.Party.Members.Select(member => member.Id), PartyLeader.Id);
         _npcSpellcasterTactics.Clear();
         foreach (var entry in state.NpcSpellcasterTactics ?? [])
             if (CharacterRoster.Party.Members.Any(member => member.Id == entry.CharacterId && member.IsSpellcaster))
@@ -1919,7 +1919,7 @@ public sealed class Game : ISessionCommandHandler
         _questManager.RestoreState(questStates);
         foreach (var entry in _questSaveAdapter.CreateJournal(_questManager))
             _questJournal[entry.Key] = entry;
-        RevealFor(SelectedCharacter, _player.Position);
+        RevealFor(PartyLeader, _player.Position);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
         _renderer.DrawDeveloperMessage(_locationKind == AdventureLocationKind.Quest
             ? $"Mentés betöltve: {state.MainCharacterName}, {_maze.LevelName} ({_difficultyLevel}. nehézség)."
@@ -1954,7 +1954,7 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
         var livingParty = CharacterRoster.Party.Members.Where(character => character.IsAlive).ToList();
-        var everyoneInside = livingParty.All(character => character == SelectedCharacter
+        var everyoneInside = livingParty.All(character => character == PartyLeader
             ? room.Contains(_player.Position)
             : _maze.PartyMembers.Any(avatar => avatar.Character == character && room.Contains(avatar.Position)));
         if (!everyoneInside)
@@ -2057,7 +2057,7 @@ public sealed class Game : ISessionCommandHandler
                 _activeSpellPreparation.Capacity, _activeSpellPreparation.Spells,
                 _activeSpellPreparation.SelectedSpellIds.ToHashSet(StringComparer.OrdinalIgnoreCase), 0),
             FramedWindow.SpellPreparation);
-        PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
+        PlaySessionSound(SoundEffect.Waiting, [PartyLeader.Id]);
         RequestCoopSnapshotPublish();
         while (!_spellPreparationCompleted)
         {
@@ -2081,7 +2081,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void MovePlayer(Direction direction, bool preserveFormationFacing = false)
     {
-        if (!CanControlledCharacterMove(SelectedCharacter)) return;
+        if (!CanControlledCharacterMove(PartyLeader)) return;
         if (_formation.State == PartyFormationState.Locked)
         {
             MoveLockedFormation(direction, preserveFormationFacing);
@@ -2101,7 +2101,7 @@ public sealed class Game : ISessionCommandHandler
         {
             if (!EncounterWorldNpc(npc)) return;
         }
-        if (!CanEnterTrap(SelectedCharacter, targetPosition)) return;
+        if (!CanEnterTrap(PartyLeader, targetPosition)) return;
 
         var moved = _player.TryMove(direction, _maze);
         if (!moved)
@@ -2118,19 +2118,19 @@ public sealed class Game : ISessionCommandHandler
                 return;
             }
         }
-        SelectedCharacter.RegisterExplorationStep();
-        ScheduleNextControlledMove(SelectedCharacter);
+        PartyLeader.RegisterExplorationStep();
+        ScheduleNextControlledMove(PartyLeader);
         _leaderFacing = direction;
         if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
 
-        var newlyRevealed = RevealFor(SelectedCharacter, _player.Position, advanceEnemyMemory: true);
+        var newlyRevealed = RevealFor(PartyLeader, _player.Position, advanceEnemyMemory: true);
         var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit;
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
-        CheckBossDiscoveryAt(newlyRevealed, SelectedCharacter);
-        PlayCharacterStepSound(SelectedCharacter);
-        CollectTreasureChest(SelectedCharacter, _player.Position, shareLootWithParty: true);
-        TriggerTrapAt(SelectedCharacter, _player.Position);
+        CheckBossDiscoveryAt(newlyRevealed, PartyLeader);
+        PlayCharacterStepSound(PartyLeader);
+        CollectTreasureChest(PartyLeader, _player.Position, shareLootWithParty: true);
+        TriggerTrapAt(PartyLeader, _player.Position);
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
     }
@@ -2169,14 +2169,14 @@ public sealed class Game : ISessionCommandHandler
         {
             var result = new QuestChestService(_questManager).Collect(chest,
                 item => TryStoreSearchedLoot(character, item, shareLootWithParty, out _),
-                SelectedCharacter.AddGold);
+                PartyLeader.AddGold);
             ProcessQuestProgressChanges(result.Changes);
             SynchronizeInventoryQuests();
             var text = $"🎁 {chest.Definition.Name}: {result.Gold} arany, {result.ItemCount} tárgy felvéve. " +
                 (result.RemainingCount > 0
                     ? $"{result.RemainingCount} tárgy a ládában maradt; később újra átkutathatod."
                     : "A láda üres.");
-            _renderer.RefreshCharacterSheet(SelectedCharacter);
+            _renderer.RefreshCharacterSheet(PartyLeader);
             _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position]);
             _renderer.DrawInventoryMessage(text, ConsoleColor.Yellow);
             RecordSessionActivity(SessionActivityKind.System, text, ConsoleColor.Yellow, [character.Id]);
@@ -2190,13 +2190,13 @@ public sealed class Game : ISessionCommandHandler
         var rewardMultiplier = jackpot ? rules.ChestJackpotMultiplier : 1;
         if (character.HasPerk(PerkIds.ThiefMasterThief)) rewardMultiplier *= 2;
         var goldAmount = chest.GoldAmount * rewardMultiplier;
-        SelectedCharacter.AddGold(goldAmount);
+        PartyLeader.AddGold(goldAmount);
         var masterThiefLoot = RollMasterThiefChestLoot(character);
         _maze.RemoveTreasureChest(chest);
         ProcessQuestProgressChanges(_questManager.RegisterChestOpened());
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        if (character == SelectedCharacter)
+        if (character == PartyLeader)
             _renderer.DrawTreasureCollected(goldAmount, jackpot, jackpotChance, rewardMultiplier);
 
         var message = $"🎁 {character.Name} kinyitotta a kincsesládát: {goldAmount} arany" +
@@ -2227,17 +2227,17 @@ public sealed class Game : ISessionCommandHandler
         var key = keyInfo.Key;
         if ((keyInfo.Modifiers & ConsoleModifiers.Control) != 0 &&
             key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow)
-            command = new LeaderActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
+            command = new LeaderActionCommand(_session.HostPlayerId, commandId, PartyLeader.Id,
                 key == ConsoleKey.LeftArrow ? LeaderAction.RotateFormationLeft : LeaderAction.RotateFormationRight);
         else if (TryGetDirection(key, out var direction))
-            command = new MoveCharacterCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id, direction,
+            command = new MoveCharacterCommand(_session.HostPlayerId, commandId, PartyLeader.Id, direction,
                 GameInputBindings.PreserveFormationFacing(keyInfo.Modifiers));
         else if (GameInputBindings.CharacterAction(key) is { } characterAction)
         {
             Position? targetDoor = null;
             if (characterAction is CharacterAction.OpenDoor or CharacterAction.CloseOrLockDoor)
             {
-                var doors = AdjacentDoorPositions(SelectedCharacter, _player.Position, includeFormation: true);
+                var doors = AdjacentDoorPositions(PartyLeader, _player.Position, includeFormation: true);
                 if (doors.Count == 1) targetDoor = doors[0];
                 else if (doors.Count > 1)
                 {
@@ -2246,14 +2246,14 @@ public sealed class Game : ISessionCommandHandler
                 }
             }
             var keyChoice = GetLocalThiefKeyChoice(characterAction, targetDoor);
-            command = new CharacterActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id,
+            command = new CharacterActionCommand(_session.HostPlayerId, commandId, PartyLeader.Id,
                 characterAction, targetDoor, keyChoice.UseKey, keyChoice.KeyOwnerCharacterId);
         }
         else
         {
             var action = GameInputBindings.LeaderAction(key, _player.Position == _maze.Exit);
             if (action is not null)
-                command = new LeaderActionCommand(_session.HostPlayerId, commandId, SelectedCharacter.Id, action.Value);
+                command = new LeaderActionCommand(_session.HostPlayerId, commandId, PartyLeader.Id, action.Value);
         }
         if (command is null || !_session.Submit(command)) return;
         _localCommandId = commandId;
@@ -2415,13 +2415,13 @@ public sealed class Game : ISessionCommandHandler
     {
         CancelHeldInventoryItem();
         _characterSheetFocused = true;
-        _renderer.DrawInnCharacterSheet(SelectedCharacter);
+        _renderer.DrawInnCharacterSheet(PartyLeader);
         while (true)
         {
             var keyInfo = ReadInnKeyCore();
             if (keyInfo.Key == InnController.StateChangedKey)
             {
-                _renderer.RefreshCharacterSheet(SelectedCharacter);
+                _renderer.RefreshCharacterSheet(PartyLeader);
                 continue;
             }
             if (_renderer.IsItemInspectionPageOpen)
@@ -2742,7 +2742,7 @@ public sealed class Game : ISessionCommandHandler
         {
             var sameRaceMembers = CharacterRoster.Party.Members.Count(character =>
                 string.Equals(character.Race.Id, npc.Character.Race.Id, StringComparison.OrdinalIgnoreCase));
-            var affinity = string.Equals(SelectedCharacter.Race.Id, npc.Character.Race.Id,
+            var affinity = string.Equals(PartyLeader.Race.Id, npc.Character.Race.Id,
                 StringComparison.OrdinalIgnoreCase) ? 2 : sameRaceMembers > 0 ? 1 : 0;
             if (affinity > 0)
             {
@@ -2965,7 +2965,7 @@ public sealed class Game : ISessionCommandHandler
             if (completion.Rewards.HasLevelUps)
             {
                 _renderer.RefreshCharacterSheet(
-                    SelectedCharacter);
+                    PartyLeader);
             }
 
             if (completion.Rewards.HasItemRewards)
@@ -3177,7 +3177,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawInventoryMessage(travelMessage, ConsoleColor.Cyan);
         RecordSessionActivity(SessionActivityKind.System, travelMessage, ConsoleColor.Cyan);
         ProcessNpcQuests(npc, activateOffered: false, selectedQuest: key);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         RequestCoopSnapshotPublish();
     }
 
@@ -3390,7 +3390,7 @@ public sealed class Game : ISessionCommandHandler
             {
                 _narrativeAcknowledgements.Add(_session.HostPlayerId);
                 if (_session.ConnectedHumanPlayerIds.Any(player => player != _session.HostPlayerId))
-                    PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
+                    PlaySessionSound(SoundEffect.Waiting, [PartyLeader.Id]);
             }
             var required = _session.ConnectedHumanPlayerIds;
             if (required.All(_narrativeAcknowledgements.Contains)) break;
@@ -3414,7 +3414,7 @@ public sealed class Game : ISessionCommandHandler
 
         if (!ImageViewer.Show(path))
             _renderer.DrawDeveloperMessage($"Pályakép még nem található: {fileName}");
-        AcknowledgeLevelImage(_session.HostPlayerId, SelectedCharacter.Id);
+        AcknowledgeLevelImage(_session.HostPlayerId, PartyLeader.Id);
         RequestCoopSnapshotPublish();
 
         while (true)
@@ -3460,7 +3460,7 @@ public sealed class Game : ISessionCommandHandler
         {
             ProcessSessionCommands();
             if (Console.KeyAvailable && Console.ReadKey(intercept: true).Key == ConsoleKey.Enter)
-                AcknowledgeRest(_session.HostPlayerId, SelectedCharacter.Id);
+                AcknowledgeRest(_session.HostPlayerId, PartyLeader.Id);
             var required = _session.ConnectedHumanPlayerIds;
             if (required.All(_restAcknowledgements.Contains)) break;
             if (_restAcknowledgements.Count != renderedAcknowledgementCount)
@@ -3545,7 +3545,7 @@ public sealed class Game : ISessionCommandHandler
         var windowId = hadPrevious ? previous!.WindowId : Guid.NewGuid();
         var previousCaptureSharedWindow = _captureSharedWindow;
         _captureSharedWindow = false;
-        UpdatePlayerBlockingWindowState(_session.HostPlayerId, SelectedCharacter.Id, kind, windowId, true);
+        UpdatePlayerBlockingWindowState(_session.HostPlayerId, PartyLeader.Id, kind, windowId, true);
         ForceCoopSnapshotPublish();
         try
         {
@@ -3558,7 +3558,7 @@ public sealed class Game : ISessionCommandHandler
                 UpdatePlayerBlockingWindowState(previous!.PlayerId, previous.CharacterId, previous.Kind,
                     previous.WindowId, true);
             else
-                UpdatePlayerBlockingWindowState(_session.HostPlayerId, SelectedCharacter.Id, kind, windowId, false);
+                UpdatePlayerBlockingWindowState(_session.HostPlayerId, PartyLeader.Id, kind, windowId, false);
             ForceCoopSnapshotPublish();
         }
     }
@@ -3566,7 +3566,7 @@ public sealed class Game : ISessionCommandHandler
     private void CloseHostSpellInfoWindow()
     {
         if (_activeCoopHost is null || _hostSpellInfoWindowId is not { } windowId) return;
-        UpdatePlayerBlockingWindowState(_session.HostPlayerId, SelectedCharacter.Id,
+        UpdatePlayerBlockingWindowState(_session.HostPlayerId, PartyLeader.Id,
             PlayerWindowKind.SpellInfo, windowId, false);
         _hostSpellInfoWindowId = null;
     }
@@ -3693,7 +3693,7 @@ public sealed class Game : ISessionCommandHandler
         var previous = _formation;
         _formation = PartyFormationController.Normalize(_formation,
             CharacterRoster.Party.Members.Where(member => member.IsAlive).Select(member => member.Id),
-            SelectedCharacter.Id, out var transitionedToAssembling);
+            PartyLeader.Id, out var transitionedToAssembling);
         if (transitionedToAssembling)
         {
             _session.SetFormationMovementLocked(false);
@@ -3738,7 +3738,7 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawDeveloperMessage("Fordulni csak teljesen osszeallt alakzattal lehet.");
             return;
         }
-        if (!CanControlledCharacterMove(SelectedCharacter)) return;
+        if (!CanControlledCharacterMove(PartyLeader)) return;
         var rotated = PartyFormationController.RotateInPlace(_formation, clockwise);
         if (_formation.Layout == PartyFormationLayout.SingleFile)
         {
@@ -3750,7 +3750,7 @@ public sealed class Game : ISessionCommandHandler
                 ConsoleColor.Cyan);
             return;
         }
-        var positions = PartyFormationController.PositionsInSameFootprint(_formation, SelectedCharacter.Id,
+        var positions = PartyFormationController.PositionsInSameFootprint(_formation, PartyLeader.Id,
             _player.Position, rotated.Facing);
         if (!TryPlanFormationPlacement(positions, rotated, out var followerMoves))
         {
@@ -3773,7 +3773,7 @@ public sealed class Game : ISessionCommandHandler
         if (_formation.Layout == PartyFormationLayout.SingleFile)
         {
             var blockFormation = travelFormation with { Layout = PartyFormationLayout.Block };
-            var blockPositions = PartyFormationController.Positions(blockFormation, SelectedCharacter.Id,
+            var blockPositions = PartyFormationController.Positions(blockFormation, PartyLeader.Id,
                 leaderDestination);
             if (TryPlanFormationPlacement(blockPositions, blockFormation, out var reformFollowerMoves))
             {
@@ -3786,10 +3786,10 @@ public sealed class Game : ISessionCommandHandler
 
             var current = CurrentFormationPositions();
             var shifted = PartyFormationController.SingleFileDestinations(travelFormation, current,
-                SelectedCharacter.Id, leaderDestination);
+                PartyLeader.Id, leaderDestination);
             if (TryMoveFormationTo(shifted, travelFormation, direction, preserveFormationFacing)) return;
 
-            var alignedPositions = PartyFormationController.Positions(travelFormation, SelectedCharacter.Id,
+            var alignedPositions = PartyFormationController.Positions(travelFormation, PartyLeader.Id,
                 leaderDestination);
             TryMoveFormationTo(alignedPositions, travelFormation, direction, preserveFormationFacing);
             return;
@@ -3797,7 +3797,7 @@ public sealed class Game : ISessionCommandHandler
 
         var blockCurrent = preserveFormationFacing
             ? CurrentFormationPositions()
-            : PartyFormationController.PositionsInSameFootprint(_formation, SelectedCharacter.Id,
+            : PartyFormationController.PositionsInSameFootprint(_formation, PartyLeader.Id,
                 _player.Position, travelFormation.Facing);
         var blockDestinations = blockCurrent.ToDictionary(pair => pair.Key, pair => pair.Value + direction);
         if (blockDestinations.Values.All(_maze.IsWalkable))
@@ -3808,7 +3808,7 @@ public sealed class Game : ISessionCommandHandler
 
         var singleFileFormation = travelFormation with { Layout = PartyFormationLayout.SingleFile };
         var singleFilePositions = PartyFormationController.SingleFileDestinations(singleFileFormation,
-            CurrentFormationPositions(), SelectedCharacter.Id, leaderDestination);
+            CurrentFormationPositions(), PartyLeader.Id, leaderDestination);
         if (!PartyFormationController.IsSingleFilePassage(blockDestinations, singleFilePositions, _maze) ||
             !TryMoveFormationTo(singleFilePositions, singleFileFormation, direction, preserveFormationFacing)) return;
         AnnouncePartyCommand("Az egymezos szukuletben az alakzat ideiglenesen libasorra valt.",
@@ -3845,10 +3845,10 @@ public sealed class Game : ISessionCommandHandler
     {
         var positions = new Dictionary<CharacterId, Position>
         {
-            [SelectedCharacter.Id] = _player.Position
+            [PartyLeader.Id] = _player.Position
         };
         foreach (var id in _formation.Slots.Where(id => id is not null).Select(id => id!.Value)
-                     .Where(id => id != SelectedCharacter.Id))
+                     .Where(id => id != PartyLeader.Id))
             if (FormationAvatar(id) is { } avatar)
                 positions[id] = avatar.Position;
         return positions;
@@ -3869,7 +3869,7 @@ public sealed class Game : ISessionCommandHandler
             .Where(avatar => avatar is not null).Select(avatar => avatar!.Position).ToHashSet();
         var used = new HashSet<Position>();
         var escortPositions = formation.Layout == PartyFormationLayout.SingleFile
-            ? PartyFormationController.SingleFileEscortPositions(formation, positions, SelectedCharacter.Id)
+            ? PartyFormationController.SingleFileEscortPositions(formation, positions, PartyLeader.Id)
             : PartyFormationController.EscortPositions(positions, formation.Facing);
         var planned = new Dictionary<PartyMemberAvatar, Position>();
         foreach (var follower in followers)
@@ -3920,17 +3920,17 @@ public sealed class Game : ISessionCommandHandler
         foreach (var (follower, destination) in followerMoves)
             ApplyFollowerEscortMove(follower, destination);
         var previousLeader = _player.Position;
-        var previousMembers = positions.Keys.Where(id => id != SelectedCharacter.Id)
+        var previousMembers = positions.Keys.Where(id => id != PartyLeader.Id)
             .Select(id => (Avatar: FormationAvatar(id), Destination: positions[id]))
             .Where(entry => entry.Avatar is not null)
             .Select(entry => (Avatar: entry.Avatar!, Previous: entry.Avatar!.Position, entry.Destination)).ToArray();
-        _player.TeleportTo(positions[SelectedCharacter.Id]);
+        _player.TeleportTo(positions[PartyLeader.Id]);
         foreach (var entry in previousMembers) entry.Avatar.MoveTo(entry.Destination);
         _formation = formation;
         _renderer.SetFormationStatus(_formation);
 
-        SelectedCharacter.RegisterExplorationStep();
-        var leaderRevealed = RevealFor(SelectedCharacter, _player.Position, advanceEnemyMemory: true);
+        PartyLeader.RegisterExplorationStep();
+        var leaderRevealed = RevealFor(PartyLeader, _player.Position, advanceEnemyMemory: true);
         var memberReveals = new List<Position>();
         foreach (var entry in previousMembers)
         {
@@ -3945,15 +3945,15 @@ public sealed class Game : ISessionCommandHandler
             _player.Position,
             _player.Position == _maze.Exit && previousLeader != _maze.Exit);
 
-        PlayCharacterStepSound(SelectedCharacter);
-        CollectTreasureChest(SelectedCharacter, _player.Position, shareLootWithParty: true);
-        TriggerTrapAt(SelectedCharacter, _player.Position);
+        PlayCharacterStepSound(PartyLeader);
+        CollectTreasureChest(PartyLeader, _player.Position, shareLootWithParty: true);
+        TriggerTrapAt(PartyLeader, _player.Position);
         foreach (var entry in previousMembers)
         {
             CollectTreasureChest(entry.Avatar.Character, entry.Destination, shareLootWithParty: false);
             TriggerTrapAt(entry.Avatar.Character, entry.Destination);
         }
-        CheckBossDiscoveryAt(leaderRevealed, SelectedCharacter);
+        CheckBossDiscoveryAt(leaderRevealed, PartyLeader);
     }
 
     private void ScheduleFormationMove()
@@ -3972,7 +3972,7 @@ public sealed class Game : ISessionCommandHandler
         var character = CharacterRoster.Party.Members.FirstOrDefault(candidate => candidate.Id == command.CharacterId);
         var position = character is null ? null : GetCharacterWorldPosition(character);
         if (character is null || position is null || !character.IsAlive) return;
-        var isLeader = character == SelectedCharacter;
+        var isLeader = character == PartyLeader;
         var doorContext = ResolveDoorInteraction(character, position.Value, command.Action,
             command.TargetDoorPosition);
         var keyOwners = DoorKeyOwners(character);
@@ -4041,8 +4041,8 @@ public sealed class Game : ISessionCommandHandler
     private (bool? UseKey, CharacterId? KeyOwnerCharacterId) GetLocalThiefKeyChoice(
         CharacterAction action, Position? targetDoorPosition)
     {
-        var keyOwner = DoorKeyOwners(SelectedCharacter).FirstOrDefault(DoorInteractionRules.HasKey);
-        if (!CharacterClassRules.IsThief(SelectedCharacter.CharacterClass.Id) ||
+        var keyOwner = DoorKeyOwners(PartyLeader).FirstOrDefault(DoorInteractionRules.HasKey);
+        if (!CharacterClassRules.IsThief(PartyLeader.CharacterClass.Id) ||
             keyOwner is null ||
             targetDoorPosition is not { } target || _maze.GetDoorAt(target) is not { } door || door.IsQuestSealed ||
             action switch
@@ -4186,7 +4186,7 @@ public sealed class Game : ISessionCommandHandler
         _battleStarted = false;
         _hasRestedThisLevel = true;
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
-        RevealFor(SelectedCharacter, _player.Position);
+        RevealFor(PartyLeader, _player.Position);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         var message = "🗺️ Visszatérő expedíció: a felderített térkép megmaradt, a vidéket csak kisebb szörnyjárőrök népesítették be újra. 🍖-3 💧-3";
         _renderer.DrawInventoryMessage(message, ConsoleColor.Cyan);
@@ -4229,7 +4229,7 @@ public sealed class Game : ISessionCommandHandler
         _leaderTrail.Clear();
         _leaderTrail.Add(_player.Position);
         _nextPartyMoves.Clear();
-        foreach (var character in CharacterRoster.Party.Members.Where(character => character != SelectedCharacter &&
+        foreach (var character in CharacterRoster.Party.Members.Where(character => character != PartyLeader &&
                      character.IsAlive && oldAvatars.All(entry => entry.Character != character)))
             oldAvatars.Add((character, null));
         var positions = FindNearbyFreePositions(_player.Position).Take(oldAvatars.Count).ToArray();
@@ -4330,7 +4330,7 @@ public sealed class Game : ISessionCommandHandler
             messages.Add("Ez a régi tetem már nem tartalmaz azonosítható zsákmányt");
 
         PickUpGroundItems(character, position, shareLootWithParty, messages);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position]);
         string[] resultMessages = messages.Count == 0
             ? ["🔎 A keresés nem hozott eredményt."]
@@ -4367,7 +4367,7 @@ public sealed class Game : ISessionCommandHandler
         {
             var maximumGold = Math.Max(1, enemy.StrengthTier * rules.GoldPerStrengthTier);
             var gold = _random.Next(1, maximumGold + 1);
-            SelectedCharacter.AddGold(gold);
+            PartyLeader.AddGold(gold);
             messages.Add($"{ConsoleRenderer.MoneyIcon} {gold} arany");
         }
         if (_lootService.RollCarriedWeapon(corpse.CarriedWeaponIds, carriedWeaponChance) is { } carriedWeapon)
@@ -4405,7 +4405,7 @@ public sealed class Game : ISessionCommandHandler
         _lootService.RollMasterThiefChestLoot(character, AllTradableItems());
 
     private bool TryStoreLootInParty(IItemDefinition item, out string ownerName) =>
-        LootAndInventoryService.TryStoreLootInParty(item, SelectedCharacter, CharacterRoster.Party.Members, out ownerName);
+        LootAndInventoryService.TryStoreLootInParty(item, PartyLeader, CharacterRoster.Party.Members, out ownerName);
 
     #region Inventory & Loot
 
@@ -4498,7 +4498,7 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage("A Del használatához jelölj ki egy partitársat.", ConsoleColor.DarkYellow);
             return;
         }
-        if (character == SelectedCharacter)
+        if (character == PartyLeader)
         {
             _renderer.DrawInventoryMessage("👑 A party leaderét nem lehet kirúgni.", ConsoleColor.DarkYellow);
             return;
@@ -4538,7 +4538,7 @@ public sealed class Game : ISessionCommandHandler
         CharacterRoster.Remove(character);
         foreach (var position in changedPositions.Distinct())
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, position, _player.Position);
-        _renderer.RefreshAfterPartyMemberRemoved(character, SelectedCharacter);
+        _renderer.RefreshAfterPartyMemberRemoved(character, PartyLeader);
         _renderer.DrawInventoryMessage($"👋 {character.Name} felszerelésével együtt végleg távozott a partiból.",
             ConsoleColor.DarkYellow);
         TryFinalizeRodericPermanentJoin();
@@ -4635,7 +4635,15 @@ public sealed class Game : ISessionCommandHandler
                 _ => string.Empty
             };
         if (string.IsNullOrEmpty(result)) used = false;
-        if (!used) { _renderer.DrawInventoryMessage("A tárgy hatására most nincs szükség vagy nem alkalmazható.", ConsoleColor.DarkYellow); return; }
+        if (!used) 
+        {
+            var notUsableMsg = "A tárgy hatására most nincs szükség vagy nem alkalmazható.";
+            if (command.SenderId == _session.HostPlayerId)
+                _renderer.DrawInventoryMessage(notUsableMsg, ConsoleColor.DarkYellow); 
+            RecordSessionActivity(SessionActivityKind.System, notUsableMsg, ConsoleColor.DarkYellow, [character.Id]);
+            
+            return; 
+        }
 
         character.RemoveOneInventoryItem(InventorySlotKind.Backpack, command.BackpackIndex);
         character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry), _gameData.GetStatus(CharacterStatusIds.Thirsty));
@@ -4643,7 +4651,8 @@ public sealed class Game : ISessionCommandHandler
         // éhség-/szomjúságértékkel és a megváltozott inventoryval.
         _renderer.RefreshCharacterSheet(character);
         var message = $"{character.Name} használta: {item.Name} — {result}.";
-        _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+        if (command.SenderId == _session.HostPlayerId)
+            _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green, [character.Id]);
         if (item.Effect == ConsumableEffect.Heal)
             PlaySessionSound(SoundEffect.DefensiveSpell, [character.Id]);
@@ -4709,11 +4718,15 @@ public sealed class Game : ISessionCommandHandler
             ? stackedState with { InstanceId = Guid.NewGuid() }
             : state;
         _maze.DropItem(position.Value, item, charges, droppedState);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position.Value]);
         var pileCount = _maze.GetGroundItemPileAt(position.Value)?.Items.Count ?? 1;
-        _renderer.DrawInventoryMessage($"Ledobtad: {ItemIdentificationRules.DisplayName(item, state?.IsIdentified != false)}. " +
-                                       $"A mezőn {pileCount} tárgy van.", ConsoleColor.Cyan);
+        var message = $"Ledobtad: {ItemIdentificationRules.DisplayName(item, state?.IsIdentified != false)}. " +
+                      $"A mezőn {pileCount} tárgy van.";
+        if (command.SenderId == _session.HostPlayerId)
+            _renderer.DrawInventoryMessage(message, ConsoleColor.Cyan);
+        else
+            RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Cyan, [character.Id]);
         PlaySessionSound(SoundEffect.Item, [character.Id]);
     }
 
@@ -4746,7 +4759,7 @@ public sealed class Game : ISessionCommandHandler
             !pile.TryTake(command.GroundItemIndex, command.ExpectedGroundPileRevision, out _)) return;
         character.ApplyInventoryChanges(change);
         if (pile.Entries.Count == 0) _maze.RemoveGroundItemPile(pile);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position.Value]);
         _renderer.DrawInventoryMessage($"Felvetted: {ItemIdentificationRules.DisplayName(entry.Item, entry.State.IsIdentified)}.", ConsoleColor.Green);
         PlaySessionSound(SoundEffect.Item, [character.Id]);
@@ -4754,7 +4767,7 @@ public sealed class Game : ISessionCommandHandler
 
     private Position? GetCharacterWorldPosition(LiveCharacter character)
     {
-        if (character == SelectedCharacter) return _player.Position;
+        if (character == PartyLeader) return _player.Position;
         return _maze.PartyMembers.FirstOrDefault(member => member.Character == character)?.Position;
     }
 
@@ -4844,16 +4857,30 @@ public sealed class Game : ISessionCommandHandler
     private void GrabOrPlaceInventoryItem()
     {
         var slot = _renderer.GetSelectedInventorySlot();
-        if (slot is null) { _renderer.DrawInventoryMessage("Válassz egy felszerelés- vagy hátizsákhelyet.", ConsoleColor.DarkYellow); return; }
+        if (slot is null) 
+        { 
+            var selectSlotErrorMsg = "Válassz egy felszerelés- vagy hátizsákhelyet.";
+                _renderer.DrawInventoryMessage(selectSlotErrorMsg, ConsoleColor.DarkYellow); 
+        }
         var target = slot.Value;
         if (_heldInventoryItem is null)
         {
             var item = target.Character.GetInventoryItem(target.Kind, target.Index);
-            if (item is null) { _renderer.DrawInventoryMessage("A kijelölt hely üres.", ConsoleColor.DarkYellow); return; }
+            if (item is null) 
+            { 
+                var emptySlotErrorMsg = "A kijelölt hely üres.";
+                _renderer.DrawInventoryMessage(emptySlotErrorMsg, ConsoleColor.DarkYellow);
+                return; 
+            }
             if (SpellcastingRules.IsSpellcastingFocus(item))
-            { _renderer.DrawInventoryMessage($"A(z) {item.Name} a hátizsák első helyéhez kötött, ezért nem mozgatható.", ConsoleColor.Red); return; }
+            { 
+                var focusErrorMsg = $"A(z) {item.Name} a hátizsák első helyéhez kötött, ezért nem mozgatható.";
+                _renderer.DrawInventoryMessage(focusErrorMsg, ConsoleColor.Red); 
+                return; 
+            }
             _heldInventoryItem = new HeldInventoryItem(item, target, target.Character.InventoryRevision);
-            _renderer.DrawInventoryMessage($"Kézben: {item.Name}. Válassz célhelyet, majd nyomj Space-t.", ConsoleColor.Yellow);
+            var grabItemMsg = $"Kézbe vetted: {item.Name}. Válassz célhelyet, majd nyomj Space-t.";
+            _renderer.DrawInventoryMessage(grabItemMsg, ConsoleColor.Yellow);
             return;
         }
 
@@ -4861,7 +4888,9 @@ public sealed class Game : ISessionCommandHandler
         if (target == held.Source)
         {
             _heldInventoryItem = null;
-            _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} áthelyezése megszakítva.", ConsoleColor.DarkYellow);
+
+            var cancelMoveMsg = $"A(z) {held.Item.Name} áthelyezése megszakítva.";
+            _renderer.DrawInventoryMessage(cancelMoveMsg, ConsoleColor.DarkYellow);
             return;
         }
         var commandId = _localCommandId + 1;
@@ -4877,22 +4906,23 @@ public sealed class Game : ISessionCommandHandler
     {
         if (_heldInventoryItem is not { } held) return;
         _heldInventoryItem = null;
-        _renderer.DrawInventoryMessage($"A(z) {held.Item.Name} áthelyezése megszakítva.", ConsoleColor.DarkYellow);
+        var cancelHeldInventoryItemMsg = $"A(z) {held.Item.Name} áthelyezése megszakítva.";
+        _renderer.DrawInventoryMessage(cancelHeldInventoryItemMsg, ConsoleColor.DarkYellow);
     }
 
     private void SplitSelectedInventoryStack()
     {
         if (_heldInventoryItem is not null)
         {
-            _renderer.DrawInventoryMessage("Előbb fejezd be vagy szakítsd meg a kézben tartott tárgy mozgatását.",
-                ConsoleColor.DarkYellow);
+            var splitStackErrorMsg = "Előbb fejezd be vagy szakítsd meg a kézben tartott tárgy mozgatását.";
+            _renderer.DrawInventoryMessage(splitStackErrorMsg, ConsoleColor.DarkYellow);
             return;
         }
         var slot = _renderer.GetSelectedInventorySlot();
         if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
         {
-            _renderer.DrawInventoryMessage("Hátizsákban levő köteget jelölj ki a felezéshez.",
-                ConsoleColor.DarkYellow);
+            var splitStackErrorMsg = "Hátizsákban levő köteget jelölj ki a felezéshez.";
+            _renderer.DrawInventoryMessage(splitStackErrorMsg, ConsoleColor.DarkYellow);
             return;
         }
         var selected = slot.Value;
@@ -4915,10 +4945,11 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage(error, ConsoleColor.Red);
             return;
         }
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawInventoryMessage(
-            $"Köteg megfelezve: {result.ItemName} ({result.RemainingQuantity}+{result.NewQuantity}).",
-            ConsoleColor.Green);
+        _renderer.RefreshCharacterSheet(PartyLeader);
+        var message = $"Köteg megfelezve: {result.ItemName} ({result.RemainingQuantity}+{result.NewQuantity}).";
+        if (command.SenderId == _session.HostPlayerId)
+            _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green);
         PlaySessionSound(SoundEffect.Item, [command.CharacterId]);
     }
 
@@ -4926,15 +4957,15 @@ public sealed class Game : ISessionCommandHandler
     {
         if (_heldInventoryItem is not null)
         {
-            _renderer.DrawInventoryMessage("Előbb fejezd be vagy szakítsd meg a kézben tartott tárgy mozgatását.",
-                ConsoleColor.DarkYellow);
+            var distributeStackErrorMsg = "Előbb fejezd be vagy szakítsd meg a kézben tartott tárgy mozgatását.";
+            _renderer.DrawInventoryMessage(distributeStackErrorMsg, ConsoleColor.DarkYellow);
             return;
         }
         var slot = _renderer.GetSelectedInventorySlot();
         if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
         {
-            _renderer.DrawInventoryMessage("Elfogyasztható hátizsáktárgyat jelölj ki a szétosztáshoz.",
-                ConsoleColor.DarkYellow);
+            var distributeStackErrorMsg = "Elfogyasztható hátizsáktárgyat jelölj ki a szétosztáshoz.";
+            _renderer.DrawInventoryMessage(distributeStackErrorMsg, ConsoleColor.DarkYellow);
             return;
         }
         var selected = slot.Value;
@@ -4957,7 +4988,7 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage(error, ConsoleColor.Red);
             return;
         }
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         var recipients = result.RecipientNames.Count == 0 ? string.Empty :
             $" → {string.Join(", ", result.RecipientNames)}";
         _renderer.DrawInventoryMessage(
@@ -4972,20 +5003,23 @@ public sealed class Game : ISessionCommandHandler
     {
         if (_heldInventoryItem is not null)
         {
-            _renderer.DrawInventoryMessage("Előbb fejezd be vagy szakítsd meg a tárgy mozgatását.", ConsoleColor.DarkYellow);
+            var giveStackError1Msg = "Előbb fejezd be vagy szakítsd meg a kézben tartott tárgy mozgatását.";
+            _renderer.DrawInventoryMessage(giveStackError1Msg, ConsoleColor.DarkYellow);
             return;
         }
         var slot = _renderer.GetSelectedInventorySlot();
         if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
         {
-            _renderer.DrawInventoryMessage("Elfogyasztható hátizsákköteget jelölj ki az átadáshoz.", ConsoleColor.DarkYellow);
+            var giveStackError2Msg = "Elfogyasztható hátizsákköteget jelölj ki az átadáshoz.";
+            _renderer.DrawInventoryMessage(giveStackError2Msg, ConsoleColor.DarkYellow);
             return;
         }
         var follower = _maze.PartyMembers.FirstOrDefault(member => member.IsTemporaryFollower && member.Character.IsAlive)
             ?.Character;
         if (follower is null)
         {
-            _renderer.DrawInventoryMessage("Nincs aktív követő NPC, akinek átadhatnád.", ConsoleColor.DarkYellow);
+            var giveStackError3Msg = "Nincs aktív követő NPC, akinek átadhatnád.";
+            _renderer.DrawInventoryMessage(giveStackError3Msg, ConsoleColor.DarkYellow);
             return;
         }
         var selected = slot.Value;
@@ -5008,7 +5042,7 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage(error, ConsoleColor.Red);
             return;
         }
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         var message = $"{result.FollowerName} kapott: {result.ItemName} ×{result.TransferredQuantity}; " +
                       $"a forrásnál maradt: {result.RemainingQuantity}.";
         _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
@@ -5023,15 +5057,23 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage(error, ConsoleColor.Red);
             return;
         }
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
-        _renderer.DrawInventoryMessage(result.DisplacedItemName is null
+        _renderer.RefreshCharacterSheet(PartyLeader);
+        
+        var transferMessage = (result.DisplacedItemName is null || result.DisplacedItemName == result.SourceItemName)
             ? $"Áthelyezted: {result.SourceItemName}."
-            : $"Felcserélted: {result.SourceItemName} ↔ {result.DisplacedItemName}.", ConsoleColor.Green);
+            : $"Felcserélted: {result.SourceItemName} ↔ {result.DisplacedItemName}.";
+        if (command.SenderId == _session.HostPlayerId)
+            _renderer.DrawInventoryMessage(transferMessage, ConsoleColor.Green);
+        RecordSessionActivity(SessionActivityKind.System, transferMessage, ConsoleColor.Green, [command.CharacterId]);
+        PlaySessionSound(SoundEffect.Item, [command.CharacterId]);
+
         foreach (var activation in result.CurseActivations ?? [])
         {
             _renderer.DrawInventoryMessage(activation, ConsoleColor.Red);
             RecordSessionActivity(SessionActivityKind.System, activation, ConsoleColor.Red);
         }
+
+        // Ha a hoston kívüli játékos ad át tárgyat a hostnak, vagy vesz el tőle, akkor jelezzük a hostnak.
         if (command.SenderId != _session.HostPlayerId && CharacterRoster.Party.Leader is { } leader)
         {
             var guestCharacter = _session.CharacterControls
@@ -5040,21 +5082,26 @@ public sealed class Game : ISessionCommandHandler
                 .Select(control => CharacterRoster.Party.Members.FirstOrDefault(character =>
                     character.Id == control.CharacterId))
                 .FirstOrDefault(character => character is not null);
-            string? hostTransferMessage = null;
-            if (command.DestinationCharacterId == leader.Id && command.CharacterId != leader.Id)
-                hostTransferMessage = $"{guestCharacter?.Name ?? "A vendég"} átadta a hostnak: " +
-                                      $"{result.SourceItemName}.";
-            else if (command.CharacterId == leader.Id && command.DestinationCharacterId != leader.Id)
-                hostTransferMessage = $"{guestCharacter?.Name ?? "A vendég"} elvette a hosttól: " +
-                                      $"{result.SourceItemName}.";
-            if (hostTransferMessage is not null)
+
+            if (guestCharacter != null)
             {
-                _renderer.DrawInventoryMessage(hostTransferMessage, ConsoleColor.Yellow);
-                RecordSessionActivity(SessionActivityKind.System, hostTransferMessage, ConsoleColor.Yellow,
-                    [leader.Id]);
+                string? hostTransferMessage = null;
+                if (command.DestinationCharacterId == leader.Id && command.CharacterId != leader.Id)
+                    hostTransferMessage = $"{guestCharacter?.Name ?? "A vendég"} átadta a hostnak: " +
+                                          $"{result.SourceItemName}.";
+                else if (command.CharacterId == leader.Id && command.DestinationCharacterId != leader.Id)
+                    hostTransferMessage = $"{guestCharacter?.Name ?? "A vendég"} elvette a hosttól: " +
+                                          $"{result.SourceItemName}.";
+                if (hostTransferMessage is not null)
+                {
+                    _renderer.DrawInventoryMessage(hostTransferMessage, ConsoleColor.Magenta);
+                    RecordSessionActivity(SessionActivityKind.System, hostTransferMessage, ConsoleColor.Magenta,
+                        [leader.Id, guestCharacter.Id]);
+                    PlaySessionSound(SoundEffect.Item, [leader.Id, guestCharacter.Id]);
+
+                }
             }
         }
-        PlaySessionSound(SoundEffect.Item, [command.CharacterId]);
     }
 
     private bool TryStartAdHocFollowerConversation(DateTime now)
@@ -5085,7 +5132,7 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private IReadOnlyList<WorldNpc> GetAdHocConversationCandidates() =>
-        _storyConversationCoordinator.GetAdHocConversationCandidates(_maze, _player, CharacterRoster, SelectedCharacter);
+        _storyConversationCoordinator.GetAdHocConversationCandidates(_maze, _player, CharacterRoster, PartyLeader);
 
     private static bool IsAdHocConversationStory(string? storyId) =>
         StoryConversationCoordinator.IsAdHocConversationStory(storyId);
@@ -5161,7 +5208,7 @@ public sealed class Game : ISessionCommandHandler
             {
                 stateChanged = true;
                 var spellNotes = new List<string>();
-                ApplyExplorationSpellDamage(SelectedCharacter, enemy, spellTick.Damage, spellNotes);
+                ApplyExplorationSpellDamage(PartyLeader, enemy, spellTick.Damage, spellNotes);
                 _renderer.DrawInventoryMessage(string.Join("; ", spellTick.Notes.Concat(spellNotes)), ConsoleColor.Magenta);
                 if (enemy.CurrentHitPoints <= 0) continue;
             }
@@ -5391,7 +5438,7 @@ public sealed class Game : ISessionCommandHandler
             return true;
         }
         if (!_maze.TryMoveEnemy(enemy, destination)) return false;
-        RevealFor(SelectedCharacter, _player.Position);
+        RevealFor(PartyLeader, _player.Position);
         _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
         return true;
     }
@@ -5575,12 +5622,12 @@ public sealed class Game : ISessionCommandHandler
 
     private bool AdvanceFormationAssembly(DateTime now)
     {
-        var targets = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
+        var targets = PartyFormationController.Positions(_formation, PartyLeader.Id, _player.Position);
         var result = PartyFormationAssemblyCoordinator.Advance(
             now,
             _maze,
             _player,
-            SelectedCharacter.Id,
+            PartyLeader.Id,
             targets,
             _maze.PartyMembers,
             _nextPartyMoves,
@@ -5716,7 +5763,7 @@ public sealed class Game : ISessionCommandHandler
         var formationPositions = CurrentFormationPositions();
         var escortCandidates = _formation.Layout == PartyFormationLayout.SingleFile
             ? PartyFormationController.SingleFileEscortPositions(_formation, formationPositions,
-                SelectedCharacter.Id)
+                PartyLeader.Id)
             : PartyFormationController.EscortPositions(formationPositions, _formation.Facing);
         var escortPositions = escortCandidates
             .Where(position => position == follower.Position || CanPartyTraverse(follower, position))
@@ -5817,7 +5864,7 @@ public sealed class Game : ISessionCommandHandler
     {
         var members = _maze.PartyMembers.ToArray();
         var permanentMembers = members.Where(member => !member.IsTemporaryFollower).ToArray();
-        var followOrder = PartyFormationRules.FollowOrder(_formation, SelectedCharacter.Id,
+        var followOrder = PartyFormationRules.FollowOrder(_formation, PartyLeader.Id,
             permanentMembers.Select(member => member.Character.Id));
         var priorities = followOrder.Select((id, index) => (id, index))
             .ToDictionary(entry => entry.id, entry => entry.index);
@@ -5900,7 +5947,7 @@ public sealed class Game : ISessionCommandHandler
                 SubmitLocalBattleCommand(BattleActionKind.AdvanceEnemyTurn);
             return;
         }
-        if (battle.CurrentCharacter is not { } character || character != SelectedCharacter) return;
+        if (battle.CurrentCharacter is not { } character || character != PartyLeader) return;
         var enemy = battle.SelectedTargetEnemy() ?? ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
         var allowed = GetTeamAllowedBattleActions(battle, character, enemy);
         if (battle.RuntimeFor(character).RequiresTacticSelection && key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 or
@@ -6048,7 +6095,7 @@ public sealed class Game : ISessionCommandHandler
         var command = new BattleActionCommand(
             _session.HostPlayerId,
             commandId,
-            SelectedCharacter.Id,
+            PartyLeader.Id,
             battleId.Value,
             turnId.Value,
             action,
@@ -6121,7 +6168,7 @@ public sealed class Game : ISessionCommandHandler
             _session.RejectExecutedCommand(command, result?.Message ?? "A varázslat célpontja érvénytelen.");
             return;
         }
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawInventoryMessage(result.Message,
             result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
         RecordSessionActivity(SessionActivityKind.Spell, result.Message,
@@ -6157,7 +6204,7 @@ public sealed class Game : ISessionCommandHandler
         if (usingItem)
         {
             caster.ConsumeMagicItemCharge(castingItemIndex);
-            _renderer.RefreshCharacterSheet(SelectedCharacter);
+            _renderer.RefreshCharacterSheet(PartyLeader);
         }
         else caster.SpendMana(manaCost);
         _renderer.RefreshBattleStatusRows();
@@ -6179,7 +6226,7 @@ public sealed class Game : ISessionCommandHandler
         var spellListeners = ResolveCharacterSpellTargets(caster, spell, target.Value)
             .Select(character => character.Id)
             .Append(caster.Id)
-            .Concat(inCombat ? [SelectedCharacter.Id] : [])
+            .Concat(inCombat ? [PartyLeader.Id] : [])
             .Distinct()
             .ToArray();
         PlaySessionSound(IsOffensiveSpell(spell) ? SoundEffect.OffensiveSpell : SoundEffect.DefensiveSpell,
@@ -6200,7 +6247,7 @@ public sealed class Game : ISessionCommandHandler
 
     private IEnumerable<(LiveCharacter Character, Position Position)> LivingPartyWithPositions()
     {
-        if (SelectedCharacter.IsAlive && _player is not null) yield return (SelectedCharacter, _player.Position);
+        if (PartyLeader.IsAlive && _player is not null) yield return (PartyLeader, _player.Position);
         if (_maze is not null)
         {
             foreach (var member in _maze.PartyMembers.Where(member => member.Character.IsAlive))
@@ -6213,12 +6260,12 @@ public sealed class Game : ISessionCommandHandler
         Position? explicitTarget = null) =>
         _spellExecutionService.ValidateSpellCast(caster, casterPosition, spell, inCombat, currentEnemy, castingItem,
             castingItemSlotIndex, explicitTarget, _timeStopUsedThisBattle, LivingPartyWithPositions().ToArray(),
-            _maze, _fogOfWar, _player?.Position, SelectedCharacter);
+            _maze, _fogOfWar, _player?.Position, PartyLeader);
 
     private bool IsValidExplicitSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
         Position target, Enemy? currentEnemy) =>
         _spellExecutionService.IsValidExplicitSpellTarget(caster, casterPosition, spell, target, currentEnemy,
-            LivingPartyWithPositions().ToArray(), _maze, _fogOfWar, _player?.Position, SelectedCharacter);
+            LivingPartyWithPositions().ToArray(), _maze, _fogOfWar, _player?.Position, PartyLeader);
 
     private static string CastingItemUseText(MagicItemDefinition item) => SpellExecutionService.CastingItemUseText(item);
 
@@ -6302,7 +6349,7 @@ public sealed class Game : ISessionCommandHandler
         ScheduleNextPartyMove(avatar, DateTime.UtcNow);
         RevealFor(avatar.Character, avatar.Position);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         return $"✨ {corpse.Character.Name} visszatért {corpse.Character.CurrentVitality} HP-val" +
                (corpse.Character.UsesMana ? $" és {corpse.Character.CurrentMana} mannával" : string.Empty);
     }
@@ -6329,7 +6376,7 @@ public sealed class Game : ISessionCommandHandler
         else
         {
             foreach (var award in leveledAwards) ResolvePerkOffers(award.Character, award.Result);
-            _renderer.RefreshCharacterSheet(SelectedCharacter);
+            _renderer.RefreshCharacterSheet(PartyLeader);
         }
     }
 
@@ -6339,7 +6386,7 @@ public sealed class Game : ISessionCommandHandler
         _player.TeleportTo(target);
         _leaderTrail.Clear();
         _leaderTrail.Add(target);
-        RevealFor(SelectedCharacter, target);
+        RevealFor(PartyLeader, target);
         if (!inCombat) _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, target);
         return true;
     }
@@ -6411,19 +6458,19 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private IEnumerable<Position> GetValidSpellTargets(Position casterPosition, SpellDefinition spell, Enemy? currentEnemy) =>
-        _spellExecutionService.GetValidSpellTargets(casterPosition, spell, currentEnemy, _maze, _fogOfWar, _player?.Position, SelectedCharacter);
+        _spellExecutionService.GetValidSpellTargets(casterPosition, spell, currentEnemy, _maze, _fogOfWar, _player?.Position, PartyLeader);
 
     private bool IsValidSpellTarget(Position casterPosition, SpellDefinition spell, Position position, Enemy? currentEnemy) =>
-        _spellExecutionService.IsValidSpellTarget(casterPosition, spell, position, currentEnemy, _maze, _fogOfWar, _player?.Position, SelectedCharacter);
+        _spellExecutionService.IsValidSpellTarget(casterPosition, spell, position, currentEnemy, _maze, _fogOfWar, _player?.Position, PartyLeader);
 
     private bool HasValidSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Enemy? currentEnemy) =>
-        _spellExecutionService.HasValidSpellTarget(caster, casterPosition, spell, currentEnemy, LivingPartyWithPositions().ToArray(), _maze, _fogOfWar, _player?.Position, SelectedCharacter);
+        _spellExecutionService.HasValidSpellTarget(caster, casterPosition, spell, currentEnemy, LivingPartyWithPositions().ToArray(), _maze, _fogOfWar, _player?.Position, PartyLeader);
 
     private bool CanAffectCharacter(SpellDefinition spell, LiveCharacter character) =>
         _spellExecutionService.CanAffectCharacter(spell, character);
 
     private string DescribeSpellTarget(LiveCharacter caster, SpellDefinition spell, Position position, Enemy? currentEnemy) =>
-        _spellExecutionService.DescribeSpellTarget(caster, spell, position, currentEnemy, _maze, _player?.Position, SelectedCharacter);
+        _spellExecutionService.DescribeSpellTarget(caster, spell, position, currentEnemy, _maze, _player?.Position, PartyLeader);
 
     private static string DirectionName(Position origin, Position position) => position.X < origin.X ? "bal" :
         position.X > origin.X ? "jobb" : position.Y < origin.Y ? "fel" : "le";
@@ -6609,7 +6656,7 @@ public sealed class Game : ISessionCommandHandler
     {
         if (!enemy.Definition.IsBoss || !_collectedBossKeyIds.Add(enemy.Definition.Id)) return;
         _renderer.SetGoldenKeyCount(_collectedBossKeyIds.Count);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         var completed = _collectedBossKeyIds.Count == MonsterIds.Bosses.Count
             ? " A tizenkét aranykulcs összegyűlt — a küldetés első célja teljesült!"
             : string.Empty;
@@ -6621,7 +6668,7 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private void StartBattle(Enemy enemy, bool enemyStrikesFirst = false)
-        => StartTeamBattle(SelectedCharacter, enemy, enemyStrikesFirst);
+        => StartTeamBattle(PartyLeader, enemy, enemyStrikesFirst);
 
     private void StartBattle(PartyMemberAvatar member, Enemy enemy, bool enemyStrikesFirst = false)
         => StartTeamBattle(member.Character, enemy, enemyStrikesFirst);
@@ -6750,10 +6797,10 @@ public sealed class Game : ISessionCommandHandler
         if (_formation.State != PartyFormationState.Locked) return null;
         if (_formation.Layout == PartyFormationLayout.SingleFile)
             return _formation.Slots.Where(id => id is not null).All(id =>
-                id == SelectedCharacter.Id || FormationAvatar(id!.Value) is not null)
+                id == PartyLeader.Id || FormationAvatar(id!.Value) is not null)
                 ? _formation
                 : null;
-        var expected = PartyFormationController.Positions(_formation, SelectedCharacter.Id, _player.Position);
+        var expected = PartyFormationController.Positions(_formation, PartyLeader.Id, _player.Position);
         return expected.All(pair => CharacterRoster.Party.Members.FirstOrDefault(character =>
                     character.Id == pair.Key) is not { IsAlive: true } character ||
                 GetCasterPosition(character) == pair.Value)
@@ -6771,7 +6818,7 @@ public sealed class Game : ISessionCommandHandler
                 _session.SetBattlePrompt(
                     battle.Id,
                     battle.Turns.TurnId,
-                    SelectedCharacter.Id,
+                    PartyLeader.Id,
                     [BattleActionKind.ResumeBattle]);
 
                 if (battle.CurrentCharacter is { } c)
@@ -6792,7 +6839,7 @@ public sealed class Game : ISessionCommandHandler
             }
 
             SynchronizeTeamBattleDefeats(battle);
-            if (!SelectedCharacter.IsAlive)
+            if (!PartyLeader.IsAlive)
             {
                 FinishTeamBattle(battle, forceDefeat: true);
                 return;
@@ -6916,7 +6963,7 @@ public sealed class Game : ISessionCommandHandler
                 _session.SetBattlePrompt(
                     battle.Id,
                     battle.Turns.TurnId,
-                    SelectedCharacter.Id,
+                    PartyLeader.Id,
                     [BattleActionKind.AdvanceEnemyTurn]);
 
                 _renderer.DrawBattleCommandPanel(
@@ -7093,7 +7140,7 @@ public sealed class Game : ISessionCommandHandler
 
         if (battle.CurrentEnemy is { } enemyActor)
         {
-            if (command.Action != BattleActionKind.AdvanceEnemyTurn || command.CharacterId != SelectedCharacter.Id)
+            if (command.Action != BattleActionKind.AdvanceEnemyTurn || command.CharacterId != PartyLeader.Id)
             {
                 RejectTeamBattleAction(command, "Most egy ellenfél következik.");
                 return;
@@ -7179,7 +7226,7 @@ public sealed class Game : ISessionCommandHandler
                     return;
                 }
                 var weaponSwapStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
-                _renderer.RefreshCharacterSheet(SelectedCharacter);
+                _renderer.RefreshCharacterSheet(PartyLeader);
                 PresentBattleEntries([new BattleLogEntry($"{character.Name}: fegyvercsere → {character.AttackWeapon?.Name}.{weaponSwapStatus}", BattleLogKind.Information)]);
                 AdvanceTeamBattleTurn(battle);
                 break;
@@ -7332,7 +7379,7 @@ public sealed class Game : ISessionCommandHandler
         character.RemoveOneInventoryItem(InventorySlotKind.Backpack, backpackIndex);
         character.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
             _gameData.GetStatus(CharacterStatusIds.Thirsty));
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         message = $"{character.Name} használta: {item.Name} — {result}.";
         PlaySessionSound(item.Effect == ConsumableEffect.Heal ? SoundEffect.DefensiveSpell : SoundEffect.Item,
             [character.Id]);
@@ -7449,7 +7496,7 @@ public sealed class Game : ISessionCommandHandler
         if (!character.TrySwapReserveWeapon()) return false;
         var replacement = character.AttackWeapon;
         var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         var reason = unusableWeapon is null
             ? "használható aktív fegyver híján"
             : $"eltört {unusableWeapon.Name} helyett";
@@ -8552,7 +8599,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void ExecuteTeamRetreat(TeamBattleEncounter battle, LiveCharacter character)
     {
-        if (character != SelectedCharacter || battle.Turns.Cycle <= 1)
+        if (character != PartyLeader || battle.Turns.Cycle <= 1)
         {
             _renderer.DrawInventoryMessage("A visszavonulást csak a vezér rendelheti el a nyitó ütésváltás után.",
                 ConsoleColor.Red);
@@ -8576,7 +8623,7 @@ public sealed class Game : ISessionCommandHandler
             PresentBattleEntries([new BattleLogEntry($"{character.Name} visszavonulási kísérlete.{statusText}",
                 BattleLogKind.Information)]);
         if (!character.IsAlive) ResolveTeamCharacterDefeat(battle, character);
-        if (!SelectedCharacter.IsAlive)
+        if (!PartyLeader.IsAlive)
         {
             FinishTeamBattle(battle, forceDefeat: true);
             return;
@@ -8620,7 +8667,7 @@ public sealed class Game : ISessionCommandHandler
 
         foreach (var (retreatingCharacter, destination) in destinations)
         {
-            if (retreatingCharacter == SelectedCharacter) _player.TeleportTo(destination);
+            if (retreatingCharacter == PartyLeader) _player.TeleportTo(destination);
             else if (_maze.PartyMembers.FirstOrDefault(member => member.Character == retreatingCharacter) is { } avatar)
                 avatar.MoveTo(destination);
             battle.UpdatePosition(retreatingCharacter, destination);
@@ -8644,7 +8691,7 @@ public sealed class Game : ISessionCommandHandler
             .Select(participant => participant.Position).ToHashSet();
         var friendlyCharacters = battle.Characters.ToHashSet();
         foreach (var character in battle.Characters.Where(candidate => candidate.IsAlive)
-                     .OrderByDescending(candidate => candidate == SelectedCharacter))
+                     .OrderByDescending(candidate => candidate == PartyLeader))
         {
             var origin = GetCasterPosition(character);
             occupied.Remove(origin);
@@ -8724,7 +8771,7 @@ public sealed class Game : ISessionCommandHandler
         LiveCharacter character, Enemy focusEnemy)
     {
         if (IsTeamMovementInProgress(battle)) return [BattleActionKind.Move, BattleActionKind.Pass];
-        return _teamBattleCoordinator.GetTeamAllowedBattleActions(battle, character, focusEnemy, SelectedCharacter,
+        return _teamBattleCoordinator.GetTeamAllowedBattleActions(battle, character, focusEnemy, PartyLeader,
             GetCasterPosition(character), HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy),
             _turnUndeadNextAvailableRounds);
     }
@@ -8982,7 +9029,7 @@ public sealed class Game : ISessionCommandHandler
     private bool TryExecuteTeamFormationMove(TeamBattleEncounter battle, LiveCharacter character,
         Position target, out string error)
     {
-        if (character != SelectedCharacter || !battle.HasActiveFormation)
+        if (character != PartyLeader || !battle.HasActiveFormation)
         {
             error = "Az alakzatot csak a vezér mozgathatja.";
             return false;
@@ -9041,7 +9088,7 @@ public sealed class Game : ISessionCommandHandler
         var previous = destinations.Keys.ToDictionary(value => value, GetCasterPosition);
         foreach (var (member, destination) in destinations)
         {
-            if (member == SelectedCharacter) _player.TeleportTo(destination);
+            if (member == PartyLeader) _player.TeleportTo(destination);
             else _maze.PartyMembers.First(avatar => avatar.Character == member).MoveTo(destination);
         }
         battle.UpdateFormationPositions(destinations);
@@ -9049,7 +9096,7 @@ public sealed class Game : ISessionCommandHandler
         foreach (var (member, destination) in destinations)
         {
             var revealed = RevealFor(member, destination);
-            if (member == SelectedCharacter)
+            if (member == PartyLeader)
                 _renderer.DrawMovement(_maze, _fogOfWar, previous[member], destination, revealed, hasWon: false);
             else
                 _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous[member], destination, revealed,
@@ -9097,7 +9144,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void MoveBattleCharacterTo(LiveCharacter character, Position position)
     {
-        if (character == SelectedCharacter) _player.TeleportTo(position);
+        if (character == PartyLeader) _player.TeleportTo(position);
         else _maze.PartyMembers.First(member => member.Character == character).MoveTo(position);
     }
 
@@ -9161,13 +9208,13 @@ public sealed class Game : ISessionCommandHandler
             battle.RecordMovement(BattleSide.Friendly);
             var previousPosition = GetCasterPosition(character);
             var destination = steps[^1];
-            if (character == SelectedCharacter) _player.TeleportTo(destination);
+            if (character == PartyLeader) _player.TeleportTo(destination);
             else _maze.PartyMembers.First(member => member.Character == character).MoveTo(destination);
             battle.UpdatePosition(character, destination);
             var newlyRevealed = RevealFor(character, destination);
             if (!_isQuickTeamBattle)
             {
-                if (character == SelectedCharacter)
+                if (character == PartyLeader)
                     _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, destination, newlyRevealed, hasWon: false);
                 else
                     _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previousPosition, destination, newlyRevealed,
@@ -9312,7 +9359,7 @@ public sealed class Game : ISessionCommandHandler
             _maze.ReplacePartyMemberWithCorpse(avatar);
             _nextPartyMoves.Remove(avatar);
         }
-        if (character != SelectedCharacter)
+        if (character != PartyLeader)
         {
             _activeCoopHost?.TryPublishCharacterState(character.Id,
                 _gameSaveService.SerializeCharacter(character), CharacterSyncReason.CharacterDied);
@@ -9391,7 +9438,7 @@ public sealed class Game : ISessionCommandHandler
         if (!victory)
         {
             _saveAfterBattle = false;
-            _renderer.DrawGameOver(SelectedCharacter.Name);
+            _renderer.DrawGameOver(PartyLeader.Name);
             _gameOver = true;
             _session.SetPhase(GameSessionPhase.GameOver);
             return;
@@ -9401,7 +9448,7 @@ public sealed class Game : ISessionCommandHandler
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
         {
             DrainNeedsAfterTeamBattle(character, cycles);
-            if (character != SelectedCharacter) TryNpcUseConsumables(character);
+            if (character != PartyLeader) TryNpcUseConsumables(character);
         }
         var message = ConsoleRenderer.FormatTeamBattleVictorySummary(wasQuickBattle, cycles,
             battle.ActionNumber, battle.Kills);
@@ -9411,7 +9458,7 @@ public sealed class Game : ISessionCommandHandler
         _renderer.DrawInventoryMessage(details, ConsoleColor.Cyan);
         RecordSessionActivity(SessionActivityKind.Battle, details, ConsoleColor.Cyan);
         TryLogPartyComments(PartySituationIds.BattleWon);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         foreach (var (character, result) in _pendingLevelUps.ToArray())
             ResolvePerkOffers(character, result);
@@ -9571,7 +9618,7 @@ public sealed class Game : ISessionCommandHandler
             .Select(member => member.Character);
         var characters = CharacterRoster.Party.Members.Concat(followers).Distinct();
         _sustenanceService.DrainNeeds(characters, IsAutonomousNpc, LogNewZeroNeed, TryNpcUseConsumables);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
     }
 
     private int DrainNeedsAfterBattle(LiveCharacter character, int monsterTier) =>
@@ -9581,7 +9628,7 @@ public sealed class Game : ISessionCommandHandler
         _sustenanceService.DrainNeedsAfterTeamBattle(character, cycles, IsAutonomousNpc, LogNewZeroNeed);
 
     private bool IsAutonomousNpc(LiveCharacter character) =>
-        character != SelectedCharacter && !_session.IsHumanControlled(character.Id) &&
+        character != PartyLeader && !_session.IsHumanControlled(character.Id) &&
         CharacterRoster.Party.Members.Contains(character) &&
         _maze.PartyMembers.Any(member => member.Character == character);
 
@@ -9805,7 +9852,7 @@ public sealed class Game : ISessionCommandHandler
             _isQuickTeamBattle,
             entry => _renderer.DrawBattleRound(entry),
             _ => _renderer.RefreshBattleStatusRows(),
-            SelectedCharacter.Id,
+            PartyLeader.Id,
             _ => _quickBattleSuppressedEntryCount++);
     }
 
@@ -9818,13 +9865,13 @@ public sealed class Game : ISessionCommandHandler
     }
 
     private void PlayCharacterStepSound(LiveCharacter character) =>
-        _sessionEventService.PlayCharacterStepSound(character, SelectedCharacter.Id);
+        _sessionEventService.PlayCharacterStepSound(character, PartyLeader.Id);
 
     private void PlayBattleVictorySound() =>
-        _sessionEventService.PlayBattleVictorySound(SelectedCharacter.Id);
+        _sessionEventService.PlayBattleVictorySound(PartyLeader.Id);
 
     private void PlaySessionSound(SoundEffect effect, IReadOnlyCollection<CharacterId>? listeners = null) =>
-        _sessionEventService.PlaySessionSound(effect, listeners, SelectedCharacter.Id);
+        _sessionEventService.PlaySessionSound(effect, listeners, PartyLeader.Id);
 
     private void ApplyAudioSettings()
     {
@@ -9886,7 +9933,7 @@ public sealed class Game : ISessionCommandHandler
         _partyRegrouping = false;
         _partyAttackMode = false;
         _partyScatterUntil = DateTime.MinValue;
-        RevealFor(SelectedCharacter, _player.Position);
+        RevealFor(PartyLeader, _player.Position);
         foreach (var member in companions) RevealFor(member.Character, member.Position);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         _renderer.DrawDeveloperMessage($"Fejlesztői teleport: vezér és {companions.Length} társ → ({target.Value.X}, {target.Value.Y}).");
@@ -9910,7 +9957,7 @@ public sealed class Game : ISessionCommandHandler
         _player.TeleportTo(destination.Value);
         _leaderTrail.Clear();
         _leaderTrail.Add(destination.Value);
-        RevealFor(SelectedCharacter, destination.Value);
+        RevealFor(PartyLeader, destination.Value);
         // A fejlesztői teleport közvetlenül is jelzi a kijárat elérését; ne függjön
         // attól, hogy az általános látómező-frissítés új cellának számította-e a kijáratot.
         _backgroundMusic.MarkExitDiscovered();
@@ -9969,8 +10016,8 @@ public sealed class Game : ISessionCommandHandler
         _player.TeleportTo(destination.Value);
         _leaderTrail.Clear();
         _leaderTrail.Add(destination.Value);
-        RevealFor(SelectedCharacter, destination.Value);
-        RevealFor(SelectedCharacter, npcPosition);
+        RevealFor(PartyLeader, destination.Value);
+        RevealFor(PartyLeader, npcPosition);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, destination.Value);
         _renderer.DrawDeveloperMessage($"Fejlesztői mód: egyedi NPC " +
             $"{_lastDeveloperUniqueNpcIndex + 1}/{targets.Length} — {target.Definition.Name}, " +
@@ -9998,7 +10045,7 @@ public sealed class Game : ISessionCommandHandler
             return true;
         }
 
-        if (string.Equals(SelectedCharacter.Name, definition.Name, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(PartyLeader.Name, definition.Name, StringComparison.OrdinalIgnoreCase))
         {
             position = _player.Position;
             return true;
@@ -10038,9 +10085,9 @@ public sealed class Game : ISessionCommandHandler
             return;
         }
 
-        var maximumLevel = Math.Max(SelectedCharacter.Level,
-            _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(SelectedCharacter.Level).Max());
-        var options = _renderer.DrawDeveloperBattleTestSetup(SelectedCharacter.Level, maximumLevel,
+        var maximumLevel = Math.Max(PartyLeader.Level,
+            _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(PartyLeader.Level).Max());
+        var options = _renderer.DrawDeveloperBattleTestSetup(PartyLeader.Level, maximumLevel,
             _maze, _fogOfWar, _player.Position);
         if (options is null) return;
 
@@ -10048,14 +10095,14 @@ public sealed class Game : ISessionCommandHandler
         foreach (var previousCompanion in _developerBattleTestCompanions.ToArray())
             CharacterRoster.Remove(previousCompanion);
         _developerBattleTestCompanions.Clear();
-        generator.PrepareForCombatTest(SelectedCharacter, options.PartyLevel);
-        foreach (var status in SelectedCharacter.Statuses.ToArray())
-            SelectedCharacter.RemoveStatus(status.Id);
-        SelectedCharacter.RemoveSpellEffects();
-        SelectedCharacter.RestoreVitality(Math.Max(0,
-            SelectedCharacter.MaximumVitality - SelectedCharacter.CurrentVitality));
-        SelectedCharacter.RestoreMana(Math.Max(0,
-            SelectedCharacter.MaximumMana - SelectedCharacter.CurrentMana));
+        generator.PrepareForCombatTest(PartyLeader, options.PartyLevel);
+        foreach (var status in PartyLeader.Statuses.ToArray())
+            PartyLeader.RemoveStatus(status.Id);
+        PartyLeader.RemoveSpellEffects();
+        PartyLeader.RestoreVitality(Math.Max(0,
+            PartyLeader.MaximumVitality - PartyLeader.CurrentVitality));
+        PartyLeader.RestoreMana(Math.Max(0,
+            PartyLeader.MaximumMana - PartyLeader.CurrentMana));
 
         var companions = new List<LiveCharacter>();
         foreach (var classId in new[] { CharacterClassIds.Mágus, CharacterClassIds.Pap, CharacterClassIds.Lovag })
@@ -10067,7 +10114,7 @@ public sealed class Game : ISessionCommandHandler
             companions.Add(companion);
             _developerBattleTestCompanions.Add(companion);
         }
-        CharacterRoster.Party.Restore(SelectedCharacter, companions);
+        CharacterRoster.Party.Restore(PartyLeader, companions);
         _session.SetPhase(GameSessionPhase.Exploration);
         _session.SynchronizeParty();
 
@@ -10096,7 +10143,7 @@ public sealed class Game : ISessionCommandHandler
         _partyScatterUntil = null;
         _leaderFacing = Direction.Up;
         _maze = scenario.Maze;
-        _player = new Player(scenario.LeaderPosition, SelectedCharacter);
+        _player = new Player(scenario.LeaderPosition, PartyLeader);
         _leaderTrail.Clear();
         _leaderTrail.Add(_player.Position);
         _nextPartyMoves.Clear();
@@ -10104,12 +10151,12 @@ public sealed class Game : ISessionCommandHandler
         CaptureExpeditionEnemyTemplates();
 
         _formation = PartyFormationRules.CreateDefault(
-            CharacterRoster.Party.Members.Select(member => member.Id), SelectedCharacter.Id);
+            CharacterRoster.Party.Members.Select(member => member.Id), PartyLeader.Id);
         _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
         _renderer.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
-        RevealFor(SelectedCharacter, _player.Position);
+        RevealFor(PartyLeader, _player.Position);
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
         _fogOfWar.ToggleDeveloperReveal();
         _developerBattleLog.BeginScenario(options, scenario, CharacterRoster.Party.Members, _gameData,
@@ -10117,7 +10164,7 @@ public sealed class Game : ISessionCommandHandler
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         var partySummary = string.Join("; ", CharacterRoster.Party.Members.Select(character =>
             $"{character.Name} ({character.CharacterClass.Name}, L{character.Level}" +
             (character.IsSpellcaster
@@ -10162,7 +10209,7 @@ public sealed class Game : ISessionCommandHandler
         PlacePartyMembersNear(_player.Position);
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawDeveloperMessage($"Fejlesztői mód: {setName} osztályszett hozzáadva: " +
             string.Join(", ", added.Select(member => $"{member.Name} ({member.CharacterClass.Name})")) + ".");
     }
@@ -10182,14 +10229,14 @@ public sealed class Game : ISessionCommandHandler
         PlacePartyMembersNear(_player.Position);
         foreach (var avatar in _maze.PartyMembers) RevealFor(avatar.Character, avatar.Position);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawDeveloperMessage($"Fejlesztői mód: {member.Name} ({member.CharacterClass.Name}) 1. szinten csatlakozott. Profil: {NpcBehaviorName(member.NpcBehavior)}.");
     }
 
     private void PlacePartyMembersNear(Position origin)
     {
         var alreadyPlaced = _maze.PartyMembers.Select(member => member.Character).ToHashSet();
-        var companions = CharacterRoster.Party.Members.Where(member => member != SelectedCharacter && member.IsAlive && !alreadyPlaced.Contains(member)).ToList();
+        var companions = CharacterRoster.Party.Members.Where(member => member != PartyLeader && member.IsAlive && !alreadyPlaced.Contains(member)).ToList();
         if (companions.Count == 0) return;
 
         var positions = FindNearbyFreePositions(origin).Take(companions.Count).ToList();
@@ -10247,12 +10294,12 @@ public sealed class Game : ISessionCommandHandler
             _maze.GetDoorAt(bottomBoundary) is not null;
     }
 
-    private LevelUpResult AddExperience(int amount) => SelectedCharacter.AddExperience(
+    private LevelUpResult AddExperience(int amount) => PartyLeader.AddExperience(
         amount,
         _gameData.ExperienceByLevel,
-        _gameData.GetVitalityGrowth(SelectedCharacter.Abilities.Health),
-        _gameData.GetManaGrowth(SelectedCharacter.Abilities.Intelligence),
-        _gameData.GetCharacterResourceGrowth(SelectedCharacter.CharacterClass.Id),
+        _gameData.GetVitalityGrowth(PartyLeader.Abilities.Health),
+        _gameData.GetManaGrowth(PartyLeader.Abilities.Intelligence),
+        _gameData.GetCharacterResourceGrowth(PartyLeader.CharacterClass.Id),
         _random);
 
     private IReadOnlyList<ExperienceAward> DistributeExperience(LiveCharacter winner, int totalExperience, bool isQuest) =>
@@ -10287,14 +10334,14 @@ public sealed class Game : ISessionCommandHandler
             ResolvePerkOffers(award.Character, award.Result);
         var weaponGrants = CharacterRoster.Party.Members.Select(character =>
             $"{character.Name}: {DevelopmentWeaponGrantService.Grant(character, _gameData.Weapons, _random).Count}/6 fegyver").ToList();
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawDeveloperMessage($"Fejlesztői mód: 5000 XP minden partitagnak. {FormatExperienceAwards(awards)} " +
             string.Join("; ", weaponGrants));
     }
 
     private void TriggerDeveloperLevelUp()
     {
-        var neededExperience = SelectedCharacter.GetExperienceNeededForNextLevel(_gameData.ExperienceByLevel);
+        var neededExperience = PartyLeader.GetExperienceNeededForNextLevel(_gameData.ExperienceByLevel);
         if (neededExperience <= 0)
         {
             _renderer.DrawDeveloperMessage("Fejlesztői mód: a karakter már elérte a maximális szintet.");
@@ -10302,8 +10349,8 @@ public sealed class Game : ISessionCommandHandler
         }
 
         var result = AddExperience(neededExperience);
-        ResolvePerkOffers(SelectedCharacter, result);
-        _renderer.RefreshCharacterSheet(SelectedCharacter);
+        ResolvePerkOffers(PartyLeader, result);
+        _renderer.RefreshCharacterSheet(PartyLeader);
     }
 
     private void ResolvePerkOffers(LiveCharacter character, LevelUpResult result)
@@ -10605,7 +10652,7 @@ public sealed class Game : ISessionCommandHandler
             : LevelUpWindow.UsesSwordFrame(kind) ? LevelUpWindow.ChoiceWidth(kind) :
                 MagicProgressionWindow.LearningWidth;
         _renderer.DrawReplicatedWindow(replicatedWidth, replicatedLines, replicatedWindow);
-        PlaySessionSound(SoundEffect.Waiting, [SelectedCharacter.Id]);
+        PlaySessionSound(SoundEffect.Waiting, [PartyLeader.Id]);
         RequestCoopSnapshotPublish();
         while (!_levelUpPromptCompleted)
         {
