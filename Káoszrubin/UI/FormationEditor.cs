@@ -91,7 +91,7 @@ public static class FormationEditor
             lines.Add(($"Varázstaktika: {value.OffensiveSpellsPerBattle}/csata, erő " +
                        $"{value.MinimumEnemyStrength}–{value.FullOffenseEnemyStrength}, " +
                        (value.ManaFallback == SpellcasterManaFallback.Retreat
-                           ? "hátravonulás" : "önbuff + közelharc"), ConsoleColor.DarkCyan));
+                           ? "hátravonulás" : (value.ManaFallback == SpellcasterManaFallback.SelfBuffAndMelee ? "önbuff + közelharc" : "közelharc")), ConsoleColor.DarkCyan));
         }
         return lines;
     }
@@ -136,7 +136,7 @@ public static class FormationEditor
             var value = tactics.GetValueOrDefault(selectedId,
                 NpcSpellcasterTactics.DefaultFor(character.CharacterClass.Id));
             var detail = $"Varázstaktika: {value.OffensiveSpellsPerBattle}/csata, erő {value.MinimumEnemyStrength}–{value.FullOffenseEnemyStrength}, " +
-                (value.ManaFallback == SpellcasterManaFallback.Retreat ? "hátravonulás" : "önbuff + közelharc");
+                (value.ManaFallback == SpellcasterManaFallback.Retreat ? "hátravonulás" : (value.ManaFallback == SpellcasterManaFallback.SelfBuffAndMelee ? "önbuff + közelharc" : "közelharc"));
             WriteCentered(left, top + 14, width, detail, ConsoleColor.Cyan);
             var unholy = value.UnholyProfile ?? NpcSpellcasterTactics.DefaultFor(
                 character.CharacterClass.Id).UnholyProfile;
@@ -198,7 +198,7 @@ public static class FormationEditor
                 $"Ez alatt az ellenfél-összerő alatt nem varázsol: {value.MinimumEnemyStrength}",
                 $"Ettől az összerőtől teljes támadás: {value.FullOffenseEnemyStrength}",
                 "Mana elfogyásakor: " + (value.ManaFallback == SpellcasterManaFallback.Retreat
-                    ? "hátravonulás" : "önbuff és közelharc")
+                    ? "hátravonulás" : (value.ManaFallback == SpellcasterManaFallback.SelfBuffAndMelee ? "önbuff és közelharc" : "közelharc"))
             };
             presentationChanged?.Invoke(width,
                 BuildProfilePresentation(character, "VARÁZSHASZNÁLÓ TAKTIKA", lines, row,
@@ -228,8 +228,15 @@ public static class FormationEditor
                 0 => value with { OffensiveSpellsPerBattle = value.OffensiveSpellsPerBattle + delta },
                 1 => value with { MinimumEnemyStrength = value.MinimumEnemyStrength + delta },
                 2 => value with { FullOffenseEnemyStrength = value.FullOffenseEnemyStrength + delta },
-                _ => value with { ManaFallback = value.ManaFallback == SpellcasterManaFallback.Retreat
-                    ? SpellcasterManaFallback.SelfBuffAndMelee : SpellcasterManaFallback.Retreat }
+                _ => value with
+                {
+                    ManaFallback = value.ManaFallback switch
+                    {
+                        SpellcasterManaFallback.Retreat => SpellcasterManaFallback.SelfBuffAndMelee,
+                        SpellcasterManaFallback.SelfBuffAndMelee => SpellcasterManaFallback.Melee,
+                        _ => SpellcasterManaFallback.Retreat
+                    }
+                }
             };
             value = value.Normalize();
         }
@@ -249,7 +256,7 @@ public static class FormationEditor
                 $"Alsó ellenfél-összerő: {value.MinimumEnemyStrength}",
                 $"Teljes támadás összereje: {value.FullOffenseEnemyStrength}",
                 "Mana elfogyásakor: " + (value.ManaFallback == SpellcasterManaFallback.Retreat
-                    ? "hátravonulás" : "önbuff és közelharc")
+                    ? "hátravonulás" : (value.ManaFallback == SpellcasterManaFallback.SelfBuffAndMelee ? "önbuff és közelharc" : "közelharc"))
             };
             presentationChanged?.Invoke(width,
                 BuildProfilePresentation(character, "ÉLŐHOLT/DÉMON PROFIL", lines, row),
@@ -267,8 +274,15 @@ public static class FormationEditor
                 0 => value with { OffensiveSpellsPerBattle = value.OffensiveSpellsPerBattle + delta },
                 1 => value with { MinimumEnemyStrength = value.MinimumEnemyStrength + delta },
                 2 => value with { FullOffenseEnemyStrength = value.FullOffenseEnemyStrength + delta },
-                _ => value with { ManaFallback = value.ManaFallback == SpellcasterManaFallback.Retreat
-                    ? SpellcasterManaFallback.SelfBuffAndMelee : SpellcasterManaFallback.Retreat }
+                _ => value with
+                {
+                    ManaFallback = value.ManaFallback switch
+                    {
+                        SpellcasterManaFallback.Retreat => SpellcasterManaFallback.SelfBuffAndMelee,
+                        SpellcasterManaFallback.SelfBuffAndMelee => SpellcasterManaFallback.Melee,
+                        _ => SpellcasterManaFallback.Retreat
+                    }
+                }
             };
             value = value.Normalize();
         }

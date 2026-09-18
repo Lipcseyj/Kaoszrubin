@@ -7975,7 +7975,7 @@ public sealed class Game : ISessionCommandHandler
 
         if (!hasSpendableMana)
         {
-            if (tactics.ManaFallback == SpellcasterManaFallback.SelfBuffAndMelee) return false;
+            if (tactics.ManaFallback != SpellcasterManaFallback.Retreat) return false;
             var preferredSafety = TacticalTeamBattleCoordinator.PreferredSpellcasterRetreatDistance(livingEnemies);
             var currentSafety = livingEnemies.Length == 0 ? preferredSafety : livingEnemies.Min(enemy =>
                 TacticalDistance.Between(GetCasterPosition(caster), enemy.Position));

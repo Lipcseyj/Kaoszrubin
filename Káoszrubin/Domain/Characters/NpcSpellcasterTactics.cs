@@ -1,6 +1,6 @@
 namespace KaoszRubin.Domain.Characters;
 
-public enum SpellcasterManaFallback { Retreat, SelfBuffAndMelee }
+public enum SpellcasterManaFallback { Retreat, SelfBuffAndMelee, Melee }
 
 public sealed record NpcSpellcasterCombatProfile(int OffensiveSpellsPerBattle, int MinimumEnemyStrength,
     int FullOffenseEnemyStrength, SpellcasterManaFallback ManaFallback)
@@ -25,7 +25,7 @@ public sealed record NpcSpellcasterTactics(
 
     public static NpcSpellcasterTactics DefaultFor(string characterClassId) => characterClassId switch
     {
-        CharacterClassIds.Lovag => new(0, 20, 40, SpellcasterManaFallback.SelfBuffAndMelee),
+        CharacterClassIds.Lovag => new(0, 20, 40, SpellcasterManaFallback.Melee),
         CharacterClassIds.Pap => new(1, 15, 30, SpellcasterManaFallback.SelfBuffAndMelee,
             new NpcSpellcasterCombatProfile(5, 5, 15, SpellcasterManaFallback.SelfBuffAndMelee)),
         _ => Default
