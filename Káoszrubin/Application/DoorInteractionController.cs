@@ -13,6 +13,7 @@ internal sealed class DoorInteractionController
     private readonly Action<string, ConsoleColor, LiveCharacter> _recordActivity;
     private readonly Random _random;
     private readonly Func<MazeDoor, bool> _tryGrantQuestAccess;
+    private bool _isSenderleader;
 
     public DoorInteractionController(GameDataCatalog gameData, IDoorInteractionRenderer renderer,
         Action<SoundEffect, LiveCharacter> playActorSound, Random random,
@@ -30,8 +31,9 @@ internal sealed class DoorInteractionController
     public void TryOpenAdjacentDoor(Maze maze, FogOfWar fogOfWar, Position actorPosition, Position leaderPosition,
         LiveCharacter selectedCharacter, bool allowPartyAssistanceAndPrompts, Position? targetDoorPosition = null,
         bool? useKeyChoice = null, CharacterId? keyOwnerCharacterId = null,
-        IReadOnlyList<LiveCharacter>? availableKeyOwners = null)
+        IReadOnlyList<LiveCharacter>? availableKeyOwners = null, bool isSenderLeader = false)
     {
+        _isSenderleader = isSenderLeader;
         var door = GetAdjacentDoor(maze, actorPosition, targetDoorPosition);
         if (door is null) { Report("Nincs ajtó melletted.", selectedCharacter); return; }
         if (!_tryGrantQuestAccess(door))
@@ -142,8 +144,9 @@ internal sealed class DoorInteractionController
         Position leaderPosition, LiveCharacter selectedCharacter, bool allowPartyAssistanceAndPrompts,
         Position? targetDoorPosition = null,
         bool? useKeyChoice = null, CharacterId? keyOwnerCharacterId = null,
-        IReadOnlyList<LiveCharacter>? availableKeyOwners = null)
+        IReadOnlyList<LiveCharacter>? availableKeyOwners = null, bool isSenderLeader = false)
     {
+        _isSenderleader = isSenderLeader;   
         var door = GetAdjacentDoor(maze, actorPosition, targetDoorPosition);
         if (door is null) { Report("Nincs ajtó melletted.", selectedCharacter); return; }
         if (door.State == DoorState.Open)
@@ -285,7 +288,8 @@ internal sealed class DoorInteractionController
 
     private void Report(string message, LiveCharacter actor, ConsoleColor color = ConsoleColor.DarkYellow)
     {
-        _renderer.DrawDoorMessage(message, color);
+        if (_isSenderleader)
+            _renderer.DrawDoorMessage(message, color);
         _recordActivity(message, color, actor);
     }
 

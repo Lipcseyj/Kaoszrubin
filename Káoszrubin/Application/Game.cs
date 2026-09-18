@@ -3973,6 +3973,7 @@ public sealed class Game : ISessionCommandHandler
         var position = character is null ? null : GetCharacterWorldPosition(character);
         if (character is null || position is null || !character.IsAlive) return;
         var isLeader = character == PartyLeader;
+        var isSenderLeader = command.SenderId == _session.HostPlayerId;
         var doorContext = ResolveDoorInteraction(character, position.Value, command.Action,
             command.TargetDoorPosition);
         var keyOwners = DoorKeyOwners(character);
@@ -3981,16 +3982,16 @@ public sealed class Game : ISessionCommandHandler
             case CharacterAction.OpenDoor:
                 _doorInteractions.TryOpenAdjacentDoor(_maze, _fogOfWar, doorContext.Origin, _player.Position,
                     character, allowPartyAssistanceAndPrompts: isLeader, doorContext.Target, command.UseKey,
-                    command.KeyOwnerCharacterId, keyOwners);
+                    command.KeyOwnerCharacterId, keyOwners, isSenderLeader);
                 break;
             case CharacterAction.CloseOrLockDoor:
                 _doorInteractions.TryCloseOrLockAdjacentDoor(_maze, _fogOfWar, doorContext.Origin, _player.Position,
                     character, allowPartyAssistanceAndPrompts: isLeader, doorContext.Target, command.UseKey,
-                    command.KeyOwnerCharacterId, keyOwners);
+                    command.KeyOwnerCharacterId, keyOwners, isSenderLeader);
                 break;
             case CharacterAction.SearchCurrentPosition:
                 if (!TryDisarmAdjacentTrap(character, position.Value))
-                    TrySearchCurrentCell(character, position.Value, shareLootWithParty: isLeader);
+                    TrySearchCurrentCell(character, position.Value, shareLootWithParty: isLeader, isSenderLeader: isSenderLeader);
                 break;
         }
     }
@@ -4303,7 +4304,7 @@ public sealed class Game : ISessionCommandHandler
         _localCommandId = commandId;
     }
 
-    private bool TrySearchCurrentCell(LiveCharacter character, Position position, bool shareLootWithParty)
+    private bool TrySearchCurrentCell(LiveCharacter character, Position position, bool shareLootWithParty, bool isSenderLeader)
     {
         if (_maze.GetTreasureChestAt(position)?.Definition is not null)
         {
@@ -4337,8 +4338,10 @@ public sealed class Game : ISessionCommandHandler
             : messages.Select(message => $"🔎 {message}.").ToArray();
         foreach (var resultMessage in resultMessages)
         {
-            _renderer.DrawInventoryMessage(resultMessage, ConsoleColor.Yellow);
-            RecordSessionActivity(SessionActivityKind.System, resultMessage, ConsoleColor.Yellow, [character.Id]);
+            if (isSenderLeader)
+                _renderer.DrawInventoryMessage(resultMessage, ConsoleColor.Yellow);
+            else 
+                RecordSessionActivity(SessionActivityKind.System, resultMessage, ConsoleColor.Yellow, [character.Id]);
         }
         return true;
     }
@@ -4539,8 +4542,9 @@ public sealed class Game : ISessionCommandHandler
         foreach (var position in changedPositions.Distinct())
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, position, _player.Position);
         _renderer.RefreshAfterPartyMemberRemoved(character, PartyLeader);
-        _renderer.DrawInventoryMessage($"👋 {character.Name} felszerelésével együtt végleg távozott a partiból.",
-            ConsoleColor.DarkYellow);
+        var sackMemberMsg = $"👋 {character.Name} felszerelésével együtt végleg távozott a partiból.";
+        _renderer.DrawInventoryMessage(sackMemberMsg, ConsoleColor.DarkYellow);
+        RecordSessionActivity(SessionActivityKind.System, sackMemberMsg, ConsoleColor.DarkYellow, [character.Id]);
         TryFinalizeRodericPermanentJoin();
     }
 
@@ -4640,7 +4644,7 @@ public sealed class Game : ISessionCommandHandler
             var notUsableMsg = "A tárgy hatására most nincs szükség vagy nem alkalmazható.";
             if (command.SenderId == _session.HostPlayerId)
                 _renderer.DrawInventoryMessage(notUsableMsg, ConsoleColor.DarkYellow); 
-            RecordSessionActivity(SessionActivityKind.System, notUsableMsg, ConsoleColor.DarkYellow, [character.Id]);
+            else RecordSessionActivity(SessionActivityKind.System, notUsableMsg, ConsoleColor.DarkYellow, [character.Id]);
             
             return; 
         }
@@ -4653,7 +4657,7 @@ public sealed class Game : ISessionCommandHandler
         var message = $"{character.Name} használta: {item.Name} — {result}.";
         if (command.SenderId == _session.HostPlayerId)
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
-        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green, [character.Id]);
+        else RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green, [character.Id]);
         if (item.Effect == ConsumableEffect.Heal)
             PlaySessionSound(SoundEffect.DefensiveSpell, [character.Id]);
     }
@@ -4761,7 +4765,8 @@ public sealed class Game : ISessionCommandHandler
         if (pile.Entries.Count == 0) _maze.RemoveGroundItemPile(pile);
         _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position.Value]);
-        _renderer.DrawInventoryMessage($"Felvetted: {ItemIdentificationRules.DisplayName(entry.Item, entry.State.IsIdentified)}.", ConsoleColor.Green);
+        if (command.SenderId == _session.HostPlayerId)
+            _renderer.DrawInventoryMessage($"Felvetted: {ItemIdentificationRules.DisplayName(entry.Item, entry.State.IsIdentified)}.", ConsoleColor.Green);
         PlaySessionSound(SoundEffect.Item, [character.Id]);
     }
 
@@ -4949,7 +4954,8 @@ public sealed class Game : ISessionCommandHandler
         var message = $"Köteg megfelezve: {result.ItemName} ({result.RemainingQuantity}+{result.NewQuantity}).";
         if (command.SenderId == _session.HostPlayerId)
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
-        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green);
+        else
+            RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green);
         PlaySessionSound(SoundEffect.Item, [command.CharacterId]);
     }
 
@@ -5059,48 +5065,62 @@ public sealed class Game : ISessionCommandHandler
         }
         _renderer.RefreshCharacterSheet(PartyLeader);
         
-        var transferMessage = (result.DisplacedItemName is null || result.DisplacedItemName == result.SourceItemName)
-            ? $"Áthelyezted: {result.SourceItemName}."
-            : $"Felcserélted: {result.SourceItemName} ↔ {result.DisplacedItemName}.";
-        if (command.SenderId == _session.HostPlayerId)
-            _renderer.DrawInventoryMessage(transferMessage, ConsoleColor.Green);
-        RecordSessionActivity(SessionActivityKind.System, transferMessage, ConsoleColor.Green, [command.CharacterId]);
-        PlaySessionSound(SoundEffect.Item, [command.CharacterId]);
-
         foreach (var activation in result.CurseActivations ?? [])
         {
             _renderer.DrawInventoryMessage(activation, ConsoleColor.Red);
             RecordSessionActivity(SessionActivityKind.System, activation, ConsoleColor.Red);
         }
 
-        // Ha a hoston kívüli játékos ad át tárgyat a hostnak, vagy vesz el tőle, akkor jelezzük a hostnak.
-        if (command.SenderId != _session.HostPlayerId && CharacterRoster.Party.Leader is { } leader)
+        var guest = _session.CharacterControls
+            .Where(control => control.ControllerKind == CharacterControllerKind.RemotePlayer)
+            .Select(control => CharacterRoster.Party.Members.FirstOrDefault(character =>
+                character.Id == control.CharacterId))
+            .FirstOrDefault(character => character is not null);
+
+        var leader = CharacterRoster.Party.Leader;
+
+        if (guest != null && leader != null && 
+            (command.CharacterId == guest.Id || command.CharacterId == leader.Id) &&
+            (command.CharacterId != command.DestinationCharacterId))
         {
-            var guestCharacter = _session.CharacterControls
-                .Where(control => control.AssignedPlayerId == command.SenderId &&
-                                  control.ConnectionState == PlayerConnectionState.Connected)
-                .Select(control => CharacterRoster.Party.Members.FirstOrDefault(character =>
-                    character.Id == control.CharacterId))
-                .FirstOrDefault(character => character is not null);
+            CharacterId? thirdPartyId = null;
+            if (command.CharacterId != leader.Id && command.CharacterId != guest.Id)
+                thirdPartyId = command.CharacterId;
 
-            if (guestCharacter != null)
+            if (thirdPartyId == null &&
+               (command.DestinationCharacterId != leader.Id && command.DestinationCharacterId != guest.Id))
+                thirdPartyId = command.DestinationCharacterId;
+
+            // ha a host elvesz vagy ad a guest-nek
+            if (command.SenderId == _session.HostPlayerId)
             {
-                string? hostTransferMessage = null;
-                if (command.DestinationCharacterId == leader.Id && command.CharacterId != leader.Id)
-                    hostTransferMessage = $"{guestCharacter?.Name ?? "A vendég"} átadta a hostnak: " +
-                                          $"{result.SourceItemName}.";
-                else if (command.CharacterId == leader.Id && command.DestinationCharacterId != leader.Id)
-                    hostTransferMessage = $"{guestCharacter?.Name ?? "A vendég"} elvette a hosttól: " +
-                                          $"{result.SourceItemName}.";
-                if (hostTransferMessage is not null)
-                {
-                    _renderer.DrawInventoryMessage(hostTransferMessage, ConsoleColor.Magenta);
-                    RecordSessionActivity(SessionActivityKind.System, hostTransferMessage, ConsoleColor.Magenta,
-                        [leader.Id, guestCharacter.Id]);
-                    PlaySessionSound(SoundEffect.Item, [leader.Id, guestCharacter.Id]);
-
-                }
+                var secondActor = thirdPartyId == null ? guest.Name : (CharacterRoster.Party.Members.FirstOrDefault(character => character.Id == thirdPartyId)?.Name ?? "ismeretlen");
+                string hostTransferMessage = $"Tárgy adásvétel {leader.Name} és {secondActor} között: {result.SourceItemName}";
+                _renderer.DrawInventoryMessage(hostTransferMessage, ConsoleColor.Magenta);
+                RecordSessionActivity(SessionActivityKind.System, hostTransferMessage, ConsoleColor.Magenta,
+                    [leader.Id, guest.Id]);
+                PlaySessionSound(SoundEffect.Item, [leader.Id, guest.Id]);
             }
+            // ha a guest játékos ad át tárgyat a hostnak, vagy vesz el tőle
+            else 
+            {
+                var secondActor = thirdPartyId == null ? leader.Name : (CharacterRoster.Party.Members.FirstOrDefault(character => character.Id == thirdPartyId)?.Name ?? "ismeretlen");
+                string hostTransferMessage = $"Tárgy adásvétel {guest.Name} és {secondActor} között: {result.SourceItemName}";
+                _renderer.DrawInventoryMessage(hostTransferMessage, ConsoleColor.Magenta);
+                RecordSessionActivity(SessionActivityKind.System, hostTransferMessage, ConsoleColor.Magenta,
+                    [leader.Id, guest.Id]);
+                PlaySessionSound(SoundEffect.Item, [leader.Id, guest.Id]);
+            }
+        }
+        else
+        {
+            var transferMessage = (result.DisplacedItemName is null || result.DisplacedItemName == result.SourceItemName)
+                ? $"Áthelyezted: {result.SourceItemName}."
+                : $"Felcserélted: {result.SourceItemName} ↔ {result.DisplacedItemName}.";
+            if (command.SenderId == _session.HostPlayerId)
+                _renderer.DrawInventoryMessage(transferMessage, ConsoleColor.Green);
+            RecordSessionActivity(SessionActivityKind.System, transferMessage, ConsoleColor.Green, [command.CharacterId]);
+            PlaySessionSound(SoundEffect.Item, [command.CharacterId]);
         }
     }
 
