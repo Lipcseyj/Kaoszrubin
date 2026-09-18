@@ -12,6 +12,7 @@ using KaoszRubin.Infrastructure;
 using KaoszRubin.Infrastructure.Quests;
 using KaoszRubin.UI;
 using System.Runtime;
+using System.Security.Cryptography.Xml;
 using static KaoszRubin.UI.GameInput;
 using MainMenu = KaoszRubin.UI.MainMenu;
 
@@ -845,6 +846,10 @@ public sealed class Game : ISessionCommandHandler
                         _renderer.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
+
+                    if (CheckDevToolsKeys(keyInfo))
+                        continue;
+
                     if (_characterSheetFocused)
                     {
                         if (_renderer.IsItemInspectionPageOpen)
@@ -865,8 +870,10 @@ public sealed class Game : ISessionCommandHandler
                         }
                         if (keyInfo.Key == ConsoleKey.Escape)
                         {
-                            if (ConfirmReturnToMainMenu()) { CancelHeldInventoryItem(); return; }
-                            continue;
+                                CancelHeldInventoryItem();
+                                _characterSheetFocused = !_characterSheetFocused;
+                                _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+                                continue;
                         }
                         if (keyInfo.Key == ConsoleKey.A && _renderer.DisplayedCharacter == PartyLeader)
                         {
@@ -893,73 +900,6 @@ public sealed class Game : ISessionCommandHandler
                         }
                         continue;
                     }
-#if DEBUG
-                    if (IsRevealMapShortcut(keyInfo))
-                    {
-                        var isMapRevealed = _fogOfWar.ToggleDeveloperReveal();
-                        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-                        _renderer.DrawDeveloperMessage(isMapRevealed
-                            ? "Fejlesztői mód: teljes térkép felfedve."
-                            : "Fejlesztői mód: köd visszaállítva.");
-                        continue;
-                    }
-                    if (IsNewMazeShortcut(keyInfo))
-                    {
-                        StartNewMaze();
-                        continue;
-                    }
-                    if (IsTeleportToExitShortcut(keyInfo))
-                    {
-                        TeleportLeaderNearExit();
-                        _player.Character.AddGold(1000);
-                        continue;
-                    }
-                    if (IsTeleportToNextUniqueNpcShortcut(keyInfo))
-                    {
-                        TeleportLeaderToNextUniqueNpc();
-                        continue;
-                    }
-                    if (IsTeleportPartyToPositionShortcut(keyInfo))
-                    {
-                        TeleportPartyToSelectedPosition();
-                        continue;
-                    }
-                    if (IsLevelUpShortcut(keyInfo))
-                    {
-                        TriggerDeveloperLevelUp();
-                        continue;
-                    }
-                    if (IsLevelUpPartyShortcut(keyInfo))
-                    {
-                        GrantPartyExperienceForDevelopment();
-                        continue;
-                    }
-                    if (IsDeveloperBattleTestShortcut(keyInfo))
-                    {
-                        StartDeveloperBattleTest();
-                        continue;
-                    }
-                    if (IsFillPartySetYShortcut(keyInfo))
-                    {
-                        FillPartyForDevelopment([CharacterClassIds.Harcos, CharacterClassIds.Mágus, CharacterClassIds.Lovag], "Y");
-                        continue;
-                    }
-                    if (IsFillPartySetXShortcut(keyInfo))
-                    {
-                        FillPartyForDevelopment([CharacterClassIds.Barbár, CharacterClassIds.Tolvaj, CharacterClassIds.Pap], "X");
-                        continue;
-                    }
-                    if (IsAddLevelOnePartyMemberShortcut(keyInfo))
-                    {
-                        AddLevelOnePartyMemberForDevelopment();
-                        continue;
-                    }
-                    if (IsDeveloperPhasingShortcut(keyInfo))
-                    {
-                        ToggleDeveloperPhasing();
-                        continue;
-                    }
-#endif
 
                     var key = keyInfo.Key;
                     if (key == ConsoleKey.Escape)
@@ -1064,6 +1004,82 @@ public sealed class Game : ISessionCommandHandler
             }
         }
     }
+
+    #region DEV TOOLS
+    private bool CheckDevToolsKeys(ConsoleKeyInfo keyInfo)
+    {
+        bool devToolStarted = false;
+
+#if DEBUG
+        if (IsRevealMapShortcut(keyInfo))
+        {
+            var isMapRevealed = _fogOfWar.ToggleDeveloperReveal();
+            _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+            _renderer.DrawDeveloperMessage(isMapRevealed
+                ? "Fejlesztői mód: teljes térkép felfedve."
+                : "Fejlesztői mód: köd visszaállítva.");
+            devToolStarted = true;
+        }
+        if (IsNewMazeShortcut(keyInfo))
+        {
+            StartNewMaze();
+            devToolStarted = true;
+        }
+        if (IsTeleportToExitShortcut(keyInfo))
+        {
+            TeleportLeaderNearExit();
+            _player.Character.AddGold(1000);
+            devToolStarted = true;
+        }
+        if (IsTeleportToNextUniqueNpcShortcut(keyInfo))
+        {
+            TeleportLeaderToNextUniqueNpc();
+            devToolStarted = true;
+        }
+        if (IsTeleportPartyToPositionShortcut(keyInfo))
+        {
+            TeleportPartyToSelectedPosition();
+            devToolStarted = true;
+        }
+        if (IsLevelUpShortcut(keyInfo))
+        {
+            TriggerDeveloperLevelUp();
+            devToolStarted = true;
+        }
+        if (IsLevelUpPartyShortcut(keyInfo))
+        {
+            GrantPartyExperienceForDevelopment();
+            devToolStarted = true;
+        }
+        if (IsDeveloperBattleTestShortcut(keyInfo))
+        {
+            StartDeveloperBattleTest();
+            devToolStarted = true;
+        }
+        if (IsFillPartySetYShortcut(keyInfo))
+        {
+            FillPartyForDevelopment([CharacterClassIds.Harcos, CharacterClassIds.Mágus, CharacterClassIds.Lovag], "Y");
+            devToolStarted = true;
+        }
+        if (IsFillPartySetXShortcut(keyInfo))
+        {
+            FillPartyForDevelopment([CharacterClassIds.Barbár, CharacterClassIds.Tolvaj, CharacterClassIds.Pap], "X");
+            devToolStarted = true;
+        }
+        if (IsAddLevelOnePartyMemberShortcut(keyInfo))
+        {
+            AddLevelOnePartyMemberForDevelopment();
+            devToolStarted = true;
+        }
+        if (IsDeveloperPhasingShortcut(keyInfo))
+        {
+            ToggleDeveloperPhasing();
+            devToolStarted = true;
+        }
+#endif
+        return devToolStarted;
+    }
+    #endregion
 
     private void WaitForUsableTerminal(bool processSession)
     {
