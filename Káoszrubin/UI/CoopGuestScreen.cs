@@ -1212,12 +1212,19 @@ public sealed class CoopGuestScreen
                 {
                     if (selected.Item is null)
                     {
-                        SetMessage("Először egy tárgyat tartalmazó forrásslotot jelölj ki.");
+                        SetMessage("A kijelölt hely üres.");
                     }
                     else if (!isControlledCharacter &&
                              selected.Kind != InventorySlotKind.Backpack)
                     {
-                        SetMessage("Másik partitag felszerelését nem mozgathatod.");
+                        SetMessage("Másik partitag felszerelését nem mozgathatod.", ConsoleColor.Red);
+                    }
+                    else if (selected.Kind == InventorySlotKind.Backpack && selected.Index == 0 &&
+                             SpellcastingRules.IsSpellcastingFocusId(selected.Item.DefinitionId))
+                    {
+                        SetMessage(
+                            $"A(z) {selected.Item.Name} a hátizsák első helyéhez kötött, ezért nem mozgatható.",
+                            ConsoleColor.Red);
                     }
                     else
                     {
@@ -1229,7 +1236,7 @@ public sealed class CoopGuestScreen
 
                         SetMessage(
                             $"Kézben: {selected.Item.Name}. " +
-                            "Válassz célhelyet, majd nyomj Space-t.");
+                            "Válassz célhelyet, majd nyomj Space-t.", ConsoleColor.Yellow);
                     }
                 }
                 else
@@ -1239,7 +1246,19 @@ public sealed class CoopGuestScreen
                          selected.Kind != InventorySlotKind.Backpack))
                     {
                         SetMessage(
-                            "Karakterek között csak hátizsákból hátizsákba mozgathatsz tárgyat.");
+                            "Karakterek között csak hátizsákból hátizsákba mozgathatsz tárgyat.",
+                            ConsoleColor.Red);
+                        break;
+                    }
+
+                    if (_inventorySourceCharacterId == own.CharacterId &&
+                        _inventorySource.Value.Kind == selected.Kind &&
+                        _inventorySource.Value.Index == selected.Index)
+                    {
+                        SetMessage($"A(z) {selected.Item!.Name} áthelyezése megszakítva.", ConsoleColor.DarkYellow);
+                        _inventorySource = null;
+                        _inventorySourceCharacterId = null;
+                        _inventorySourceRevision = 0;
                         break;
                     }
 
@@ -1302,11 +1321,16 @@ public sealed class CoopGuestScreen
                 break;
             case InventoryInputAction.Drop when slots.Count > 0 && snapshot.Phase == GameSessionPhase.Exploration:
                 var dropSlot = slots[_inventorySelection];
-                if (dropSlot.Item is not null)
+                if (dropSlot.Item is null)
+                    SetMessage("A kijelölt hely üres.");
+                else if (SpellcastingRules.IsSpellcastingFocusId(dropSlot.Item.DefinitionId))
+                    SetMessage($"A(z) {dropSlot.Item.Name} a karakterhez kötött varázsfókusz, ezért nem dobható el.",
+                        ConsoleColor.Red);
+                else if (CharacterBoundItemRules.IsBound(_gameData.GetItem(dropSlot.Item.DefinitionId)))
+                    SetMessage($"A(z) {dropSlot.Item.Name} családi ereklye, ezért nem dobható el.", ConsoleColor.Red);
+                else
                     command = new DropInventoryItemCommand(client.PlayerId!.Value, client.NextCommandId(),
                         characterId, inventory.Revision, dropSlot.Kind, dropSlot.Index);
-                else
-                    SetMessage("Az üres slot nem dobható el.");
                 break;
             case InventoryInputAction.SplitStack when slots.Count > 0:
                 var splitSlot = slots[_inventorySelection];
@@ -1315,9 +1339,9 @@ public sealed class CoopGuestScreen
                 else if (splitSlot.Kind != InventorySlotKind.Backpack)
                     SetMessage("Hátizsákban levő köteget jelölj ki a felezéshez.");
                 else if (splitSlot.Item is null || splitSlot.Item.Quantity < 2)
-                    SetMessage("A kijelölt tárgy nem több darabos köteg.");
+                    SetMessage("A kijelölt tárgy nem több darabos köteg.", ConsoleColor.Red);
                 else if (!slots.Any(slot => slot.Kind == InventorySlotKind.Backpack && slot.Item is null))
-                    SetMessage("A hátizsákban nincs üres hely a köteg felezéséhez.");
+                    SetMessage("A hátizsákban nincs üres hely a köteg felezéséhez.", ConsoleColor.Red);
                 else
                     command = new SplitInventoryStackCommand(client.PlayerId!.Value, client.NextCommandId(),
                         characterId, inventory.Revision, splitSlot.Index);
@@ -1328,6 +1352,8 @@ public sealed class CoopGuestScreen
                     SetMessage("Előbb fejezd be vagy szakítsd meg a tárgy mozgatását.");
                 else if (distributeSlot.Kind != InventorySlotKind.Backpack || distributeSlot.Item is null)
                     SetMessage("Elfogyasztható hátizsáktárgyat jelölj ki a szétosztáshoz.");
+                else if (distributeSlot.Item.Quantity < 2)
+                    SetMessage("A szétosztáshoz legalább két darab szükséges.", ConsoleColor.Red);
                 else
                     command = new DistributeInventoryStackCommand(client.PlayerId!.Value, client.NextCommandId(),
                         characterId, inventory.Revision, distributeSlot.Index);
@@ -1341,9 +1367,9 @@ public sealed class CoopGuestScreen
                     SetMessage("Elfogyasztható hátizsákköteget jelölj ki az átadáshoz.");
                 else if (giveSlot.Item.Category != ItemCategory.Miscellaneous ||
                          _gameData.GetItem(giveSlot.Item.DefinitionId).Effect == ConsumableEffect.None)
-                    SetMessage("Csak elfogyasztható tárgy adható a követőnek.");
+                    SetMessage("Csak elfogyasztható tárgy adható a követőnek.", ConsoleColor.Red);
                 else if (giveSlot.Item.Quantity < 2)
-                    SetMessage("Legalább két darab kell az átadáshoz.");
+                    SetMessage("Legalább két darab kell az átadáshoz.", ConsoleColor.Red);
                 else if (follower?.Inventory is null)
                     SetMessage("Nincs aktív követő NPC, akinek átadhatnád.");
                 else
