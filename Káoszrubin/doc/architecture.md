@@ -914,7 +914,7 @@ A támadások addig váltakoznak, amíg valamelyik fél HP-ja nullára nem csök
 - **Játékosgyőzelem:** megkapja az ellenfél XP-jét; az ellenfél kikerül a pálya aktív listájából, és holttest kerül a helyére; a szükséglet-időzítő újabb egy percről indul.
 - **Játékosvereség:** a karakter HP-ja 0 marad, halottnak számít, és a játék véget ér. A főmenüből halott karakterrel nem indítható új játék.
 
-Az ellenfél definíciója változatlan adat. A `Resolve` a csata alatt lokális `EnemyDefinition` másolaton számol, majd a maradék HP-t visszaírja az `Enemy.CurrentHitPoints` értékébe; így a túlélő, korábban megsérült szörny állapota menthető. A játékos HP-ja közvetlenül a `LiveCharacter` objektumon változik.
+Az ellenfél definíciója változatlan adat. A játékos támadásának számítása egy külön `EnemyDefenseSnapshot` objektumban tartja a csata során változó HP-t és az adott támadáshoz módosított védelmi adatokat, majd a maradék HP-t visszaírja az `Enemy.CurrentHitPoints` értékébe. Az ellenfél támadása közvetlenül az `Enemy` példányt kapja, ezért a definíció mellett a futásidejű varázshatásokat, képességtölteteket és lehűléseket is ugyanabból a forrásból olvassa. A játékos HP-ja közvetlenül a `LiveCharacter` objektumon változik.
 
 ## Megjelenítés
 
