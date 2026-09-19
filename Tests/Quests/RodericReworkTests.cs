@@ -52,9 +52,11 @@ internal static class RodericReworkTests
         State(QuestStoryState.RelicsActive);
         quests.OrderRelics.Activate();
         var chest = new TreasureChest(new(3, 3), data.GetQuestChest(new("RODERIC_ORDER_RELICS")));
+        var expectedRemaining = chest.RemainingItems.Sum(item => item.Quantity);
         var result = new QuestChestService(fixture.Manager).Collect(chest, _ => false, _ => { });
         quests.OrderRelics.Complete();
-        Check(result.RemainingCount == 13 && RodericStoryProgression.NextState("RELICS_ACTIVE", quests) == "RELICS_COMPLETE",
+        Check(result.RemainingCount == expectedRemaining &&
+            RodericStoryProgression.NextState("RELICS_ACTIVE", quests) == "RELICS_COMPLETE",
             "A teli inventory megakasztotta az ereklye történetét.");
         State(QuestStoryState.MalrecApproach);
         quests.OathbreakerKnight.Activate();

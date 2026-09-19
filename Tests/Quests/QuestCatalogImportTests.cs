@@ -79,7 +79,7 @@ internal static class QuestCatalogImportTests
             ("NPCQ001;NPC001;Collect;T011", "NPCQ001;NPC001;Collect;MISSING_ITEM"),
             (";T018;2;0", ";MISSING_REWARD;2;0"),
             (";T018;2;0", ";T018;0;0"),
-            (";180;Gyógyító készlet;", ";180;;"),
+            (";810;Gyógyító készlet;", ";810;;"),
             ("NPCQ005;NPC001", "NPCQ001;NPC001")
         })
         {

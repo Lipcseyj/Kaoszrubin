@@ -41,7 +41,14 @@ try
 
     var dataPath = Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName);
     Log.Info("game-data.load.start", dataPath);
-    var gameData = CsvGameDataLoader.Load(dataPath);
+    Console.WriteLine($"Loading game data from {CsvGameDataLoader.GameDataFileName}...");
+    var gameData = CsvGameDataLoader.Load(dataPath, progress =>
+    {
+        if (progress.IsComplete)
+            Console.WriteLine("\nGame data loaded successfully!");
+        else
+            Console.Write($"\rProgress: {progress.Percent}% ({progress.LinesRead}/{progress.TotalLines} lines)");
+    });
     Log.Info("game-data.load.complete");
     var savePath = Path.Combine(AppContext.BaseDirectory, "karakterek.json");
     var gameSaveDirectory = Path.Combine(AppContext.BaseDirectory, "mentések");

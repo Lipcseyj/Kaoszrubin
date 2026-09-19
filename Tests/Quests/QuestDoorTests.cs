@@ -62,7 +62,7 @@ internal static class QuestDoorTests
             tryGrantQuestAccess: new QuestDoorAccessService(fixture.Manager).TryGrantAccess);
         foreach (var keyChoice in new[] { true, false })
             controller.TryOpenAdjacentDoor(maze, new FogOfWar(9, 9, 0), new(2, 2), new(2, 2), actor, false,
-                new(3, 2), keyChoice, actor.Id, [actor]);
+                new(3, 2), keyChoice, actor.Id, [actor], isSenderLeader: true);
         renderer.Verify(r => r.DrawDoorMessage(
             "Az ajtót küldetés zárja le. Előbb vedd fel a hozzá tartozó küldetést.",
             ConsoleColor.DarkYellow), Times.Exactly(2));

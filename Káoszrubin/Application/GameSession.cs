@@ -247,15 +247,14 @@ public sealed class GameSession
     {
         lock (_stateGate)
         {
+            allowedActions ??= [BattleActionKind.PhysicalAttack];
             Log.Info(
                 "battle.session.prompt",
                 $"battleId={battleId}; " +
                 $"turnId={turnId}; " +
                 $"character={actingCharacterId}; " +
                 $"allowed=[{string.Join(", ", allowedActions)}]");
-
             if (turnId <= 0) throw new ArgumentOutOfRangeException(nameof(turnId));
-            allowedActions ??= [BattleActionKind.PhysicalAttack];
             if (allowedActions.Count == 0) throw new ArgumentException("Legalább egy harci akció engedélyezése szükséges.", nameof(allowedActions));
             SetPhase(GameSessionPhase.Battle);
             _activeBattleId = battleId;
@@ -379,7 +378,7 @@ public sealed class GameSession
         }
         if (command is MoveCharacterCommand && _formationMovementLocked &&
             control.ControllerKind == CharacterControllerKind.RemotePlayer)
-            return Fail("Zart alakzatban csak a party-leader adhat mozgasparancsot.", out reason);
+            return Fail("Zárt alakzatban csak a vezető adhat mozgásparancsot.", out reason);
         if (command is CharacterActionCommand characterAction)
         {
             if (!Enum.IsDefined(characterAction.Action))

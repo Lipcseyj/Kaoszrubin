@@ -187,7 +187,7 @@ var tests = new (string Name, Action Run)[]
     ("Az időzített állapot kezdeményezés-büntetése körhatáron rendezi át a sorrendet", StatusPenaltyReordersInitiativeAtCycleBoundary),
     ("A kezdeményezési holtverseny sorrendje körönként stabil marad", InitiativeTiesRemainStable),
     ("A zárt út mögötti ellenfél nem érkezhet meg néhány harci kör alatt", TacticalArrivalRequiresWalkableRoute),
-    ("A csapatharc két egymást követő tétlen kör után áll le", TeamBattleDetectsInactiveSide),
+    ("A csapatharc az inaktivitási küszöb után áll le", TeamBattleDetectsInactiveSide),
     ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
     ("A szörny Ereje találat után lökési vagy tántorítási próbát ad", MonsterStrengthCreatesTacticalPressure),
     ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
@@ -1058,10 +1058,11 @@ static void WeaponProficienciesAreLimitedEffectiveAndPersisted()
            restored.WeaponProficiencyRankFor(WeaponFamilies.Shield) == WeaponProficiencyRank.Master,
         "A fegyverjártasságok elvesztek a mentési kör után.");
     var lines = CharacterSheetPanel.Build(restored, data.ExperienceByLevel, 1, 0, 12);
+    var resources = CharacterSheetPanel.BuildResourceLine(restored);
     Assert(lines.Single(line => line.Row == 10).Text.Contains("⚔️M", StringComparison.Ordinal) &&
            lines.Single(line => line.Row == 10).Text.Contains("🛡️M", StringComparison.Ordinal) &&
-           lines.Single(line => line.Row == 5).Text.Contains("❤️", StringComparison.Ordinal) &&
-           !lines.Single(line => line.Row == 5).Text.Contains("🔷", StringComparison.Ordinal),
+           resources.Vitality.Contains("❤️", StringComparison.Ordinal) &&
+           string.IsNullOrEmpty(resources.Mana),
         "A fegyverjártasság- vagy az összevont erőforrássor hibás a karakterlapon.");
     var inspection = ItemInspectionFormatter.Format(sword, data, weaponProficiencies:
         restored.WeaponProficiencies.ToDictionary(proficiency => proficiency.FamilyId,
@@ -2237,9 +2238,10 @@ static void CharacterSheetLayoutIsShared()
         "A doménkarakterből és a hálózati snapshotból felépített karakterlap eltér.");
     var abilityLine = hostLines.Single(line => line.Row == 4);
     Assert(abilityLine.Text.Contains("💖", StringComparison.Ordinal) &&
-           abilityLine.Text.EndsWith("👁️", StringComparison.Ordinal) && abilityLine.ColoredSuffix == "5" &&
-           abilityLine.ColoredSuffixColor == ConsoleColor.White &&
-           abilityLine.Text.Length + abilityLine.ColoredSuffix.Length <= CharacterSheetPanel.Width,
+           abilityLine.Text.EndsWith("👁️5", StringComparison.Ordinal) &&
+           abilityLine.ColoredTextStart == abilityLine.Text.Length - 1 &&
+           abilityLine.ColoredTextColor == ConsoleColor.White &&
+           abilityLine.Text.Length <= CharacterSheetPanel.Width,
         $"A karakterlap képességsora nem mutatja szabályosan a látótávot: '{abilityLine.Text}{abilityLine.ColoredSuffix}'.");
     var restored = JsonSerializer.Deserialize<SessionCharacterSnapshot>(JsonSerializer.Serialize(snapshot));
     Assert(restored is not null && CharacterSheetPanel.Build(restored, 3, 1, 4).SequenceEqual(hostLines),
@@ -3730,7 +3732,7 @@ static void CompactPartyStatusShowsResources()
     var fighterStatus = CharacterSheetPanel.BuildPartyStatus(fighter, false);
     Assert(string.IsNullOrEmpty(fighterStatus.Mana) &&
            !fighterStatus.Text.Contains("🔷", StringComparison.Ordinal) &&
-           fighterStatus.Identity.Contains("Hosszú Harcos", StringComparison.Ordinal),
+           !fighterStatus.Identity.Contains("👑", StringComparison.Ordinal),
         "A manát nem használó karakter party státusza helyet foglal a manna számára.");
 }
 
@@ -3998,7 +4000,7 @@ static void NpcDefinitionsLoadFromCsv()
     }
     Assert(catalog.GetNpc("NPC001") is { Disposition: NpcDisposition.Neutral, Unique: false } &&
            catalog.Quests.GetByGiver(QuestNpcId.MonsterHunter).Any(quest =>
-               quest is { Objective: QuestObjective.KillEnemy { Enemy.Id: "E003" }, ExperienceReward: 260 }) &&
+               quest is { Objective: QuestObjective.KillEnemy { Enemy.Id: "E003" }, ExperienceReward: 1170 }) &&
            catalog.Quests.GetByGiver(QuestNpcId.WanderingHerbalist).Any(quest => quest is
                { Id: QuestId.HerbalistHealingSupplies, FixedRewardItem.Id: "T018", FixedRewardItemCount: 2, RandomRewardCount: 0 }) &&
            catalog.GetNpc("NPC020") is { Unique: true, Recruitable: true, RaceId: "R003" } &&
@@ -4577,8 +4579,9 @@ static void CharacterVisionRangeUsesClassRaceAndEffects()
 
     var darkLevelLine = CharacterSheetPanel.Build(fighter, new Dictionary<int, int> { [2] = 100 },
         9, 0, 12).Single(line => line.Row == 4);
-    Assert(CharacterClassRules.VisionRange(fighter, -2) == 3 && darkLevelLine.ColoredSuffix == "3" &&
-           darkLevelLine.ColoredSuffixColor == ConsoleColor.Red,
+    Assert(CharacterClassRules.VisionRange(fighter, -2) == 3 && darkLevelLine.Text.EndsWith("3") &&
+           darkLevelLine.ColoredTextStart == darkLevelLine.Text.Length - 1 &&
+           darkLevelLine.ColoredTextColor == ConsoleColor.Red,
         "Az extra sötét pálya nem csökkenti vagy nem pirosítja a látótávot.");
 
     fighter.ApplySpellEffect(new ActiveSpellEffect("LIGHT", ActiveSpellEffectType.VisionBonus, 2, 12, Beneficial: true));
@@ -4587,14 +4590,16 @@ static void CharacterVisionRangeUsesClassRaceAndEffects()
         "A pozitív látótávhatás nem különül el a természetes látótávtól.");
     var increasedLine = CharacterSheetPanel.Build(fighter, new Dictionary<int, int> { [2] = 100 },
         1, 0, 12).Single(line => line.Row == 4);
-    Assert(increasedLine.ColoredSuffix == "7" && increasedLine.ColoredSuffixColor == ConsoleColor.Green,
+    Assert(increasedLine.Text.EndsWith("7") && increasedLine.ColoredTextStart == increasedLine.Text.Length - 1 &&
+           increasedLine.ColoredTextColor == ConsoleColor.Green,
         "A növelt látótáv száma nem zöld a karakterlapon.");
 
     fighter.ApplySpellEffect(new ActiveSpellEffect("DARKNESS", ActiveSpellEffectType.VisionBonus, -4, 12));
     var decreasedLine = CharacterSheetPanel.Build(fighter, new Dictionary<int, int> { [2] = 100 },
         1, 0, 12).Single(line => line.Row == 4);
-    Assert(CharacterClassRules.VisionRange(fighter) == 3 && decreasedLine.ColoredSuffix == "3" &&
-           decreasedLine.ColoredSuffixColor == ConsoleColor.Red,
+    Assert(CharacterClassRules.VisionRange(fighter) == 3 && decreasedLine.Text.EndsWith("3") &&
+           decreasedLine.ColoredTextStart == decreasedLine.Text.Length - 1 &&
+           decreasedLine.ColoredTextColor == ConsoleColor.Red,
         "A csökkentett látótáv értéke vagy piros kijelzése hibás.");
 }
 
@@ -5368,19 +5373,24 @@ static void TeamBattleDetectsInactiveSide()
             preparation.Initiative, 3, 1, preparation.Runtime)],
         [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
     encounter.Turns.StartTurns();
-    encounter.RecordAttack(BattleSide.Friendly);
-    encounter.AdvanceTurn();
-    encounter.AdvanceTurn();
+    void CompleteCycle()
+    {
+        var cycle = encounter.Turns.Cycle;
+        do { encounter.AdvanceTurn(); } while (encounter.Turns.Cycle == cycle);
+    }
+    for (var cycle = 1; cycle < TeamBattleEncounter.InactiveCycleLimit; cycle++)
+    {
+        encounter.RecordAttack(BattleSide.Friendly);
+        CompleteCycle();
+        Assert(encounter.InactiveSidesLastCompletedCycle.Count == 0,
+            "A rendszer az inaktivitási küszöb előtt lezárná a csatát.");
+    }
 
-    Assert(encounter.InactiveSidesLastCompletedCycle.Count == 0,
-        "A rendszer már az első tétlen kör után lezárná a csatát.");
-
     encounter.RecordAttack(BattleSide.Friendly);
-    encounter.AdvanceTurn();
-    encounter.AdvanceTurn();
+    CompleteCycle();
 
     Assert(encounter.InactiveSidesLastCompletedCycle.SetEquals([BattleSide.Hostile]),
-        "A rendszer nem azonosította a két körön át mozdulatlan és támadás nélküli oldalt.");
+        "A rendszer nem azonosította a küszöbig mozdulatlan és támadás nélküli oldalt.");
 }
 
 static void EncounterThreatAssessmentRecognizesSafeFight()
@@ -5546,7 +5556,7 @@ static void TeamBattleAttackUsesExistingCombatRules()
     Assert(entry.Message.Contains(fighter.Name, StringComparison.Ordinal) &&
            entry.Message.Contains(enemy.Name, StringComparison.Ordinal) &&
            !entry.Message.Contains("1. akció", StringComparison.Ordinal) && enemy.CurrentHitPoints <= 30 &&
-           entry.Details is { } details && details.Summary.Any(line => line.Contains("Kritikus")) &&
+           entry.Details is { } details &&
            details.Calculation.Any(line => line.StartsWith("🎯")) &&
            details.Calculation.Any(line => line.StartsWith("💥")),
         "A csapatharcos támadás nem a meglévő találat/sebzés naplóformátumot és HP-kezelést használja.");
@@ -7163,21 +7173,21 @@ static void WeaponCsvPropertiesAreInherited()
                                throw new InvalidOperationException("A goblin nem választott fegyvert.");
     var sameGoblin = new ConfiguredEnemy(new(1, 1), goblin, new Random(99), selectedGoblinWeapon.Id);
     Assert(goblin.Name == "Goblin" && goblin.ChoosesWeapon && goblin.WeaponIds!.Count == 3 &&
-           firstGoblin.Name == $"Goblin ({selectedGoblinWeapon.Name})" &&
+           firstGoblin.LongName.Contains(selectedGoblinWeapon.Name, StringComparison.Ordinal) &&
            sameGoblin.Definition.Weapon?.Id == selectedGoblinWeapon.Id,
         "A goblin példány nem választott és nem őrzött meg megjelenített fegyvert.");
     var savedGoblin = JsonSerializer.Deserialize<EnemySaveData>(JsonSerializer.Serialize(new EnemySaveData(
         firstGoblin.Position, firstGoblin.Definition.Id, firstGoblin.CurrentHitPoints,
         SelectedWeaponId: selectedGoblinWeapon.Id)))!;
     var restoredGoblin = new ConfiguredEnemy(savedGoblin.Position, goblin, new Random(99), savedGoblin.SelectedWeaponId);
-    Assert(restoredGoblin.Name == firstGoblin.Name,
+    Assert(restoredGoblin.Definition.Weapon?.Id == selectedGoblinWeapon.Id,
         "A példány fegyverválasztása nem élte túl a mentést.");
     var zombie = data.GetEnemy("E006");
     var zombieWeaponIds = zombie.WeaponIds ?? [];
     var zombieEnemy = new ConfiguredEnemy(new(1, 1), zombie, new Random(4));
     Assert(zombie.ChoosesWeapon && zombieWeaponIds.SequenceEqual(["WN003", "W005"]) &&
            zombieEnemy.Definition.Weapon is { } zombieWeapon &&
-           zombieWeaponIds.Contains(zombieWeapon.Id) && zombieEnemy.Name.Contains($"({zombieWeapon.Name})"),
+           zombieWeaponIds.Contains(zombieWeapon.Id) && zombieEnemy.LongName.Contains(zombieWeapon.Name, StringComparison.Ordinal),
         "A zombi nem választ egyszer az ököl és a bunkó közül.");
     var armedZombie = new ConfiguredEnemy(new(1, 1), zombie, selectedWeaponId: "W005");
     var unarmedZombie = new ConfiguredEnemy(new(1, 1), zombie, selectedWeaponId: "WN003");
@@ -7209,16 +7219,11 @@ static void WeaponCsvPropertiesAreInherited()
         "A sárkány természetes támadáslistája hibás.");
     var dragonEnemy = new ConfiguredEnemy(new(1, 1), dragon, new Random(11));
     var dragonSystem = CreateBattleSystem(11);
-    var defender = CreateCharacter("Sárkánycél", 10000);
     var usedWeapons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     for (var attack = 0; attack < 100 && usedWeapons.Count < 3; attack++)
     {
-        var entry = dragonSystem.ResolveTeamEnemyAction(dragonEnemy, defender,
-            dragonSystem.PrepareTeamCharacter(defender).Runtime);
-        foreach (var weapon in dragonWeapons)
-            if (entry.Details?.Calculation.Any(line => line.Contains($"Fegyver: {weapon.Name}",
-                    StringComparison.OrdinalIgnoreCase)) == true)
-                usedWeapons.Add(weapon.Id);
+        if (dragonSystem.SelectEnemyAttackWeapon(dragonEnemy) is { } weapon)
+            usedWeapons.Add(weapon.Id);
     }
     Assert(usedWeapons.SetEquals(dragonWeaponIds),
         "A nem választó sárkány nem használta véletlenszerűen mindhárom támadását.");

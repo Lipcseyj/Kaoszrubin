@@ -101,7 +101,7 @@ public static class CharacterSheetPanel
         int width = Width) =>
         BuildPartyStatus(character.Name, character.CharacterClass.Id, character.Level, character.CurrentVitality,
             character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
-            character.Color, isDisplayed, isLeader, width);
+            character.UsesMana, character.Color, isDisplayed, isLeader, width);
 
     /// <summary>
     /// Session snapshotból készít rövid parti-státusz sort.
@@ -112,7 +112,7 @@ public static class CharacterSheetPanel
         bool isLeader = false, int width = Width) =>
         BuildPartyStatus(character.Name, character.CharacterClassId, character.Level, character.CurrentVitality,
             character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
-            character.Color, isDisplayed, isLeader, width);
+            character.CharacterSheet?.UsesMana == true, character.Color, isDisplayed, isLeader, width);
 
     /// <summary>
     /// Élő karakter aktuális életerő/mána állapotából készít egy erőforrás-sort.
@@ -153,7 +153,8 @@ public static class CharacterSheetPanel
     /// valamint az életerő és mána százalékos megjelenítésének és színezésének logikáját.
     /// </summary>
     private static PartyStatusLine BuildPartyStatus(string name, string classId, int level, int currentVitality,
-        int maximumVitality, int currentMana, int maximumMana, bool isAlive, ConsoleColor identityColor,
+        int maximumVitality, int currentMana, int maximumMana, bool isAlive, bool usesMana,
+        ConsoleColor identityColor,
         bool isDisplayed, bool isLeader, int width)
     {
         var marker = isDisplayed ? "▶ " : "  ";
@@ -174,7 +175,7 @@ public static class CharacterSheetPanel
         var vitalityPercent = Percent(currentVitality, maximumVitality);
         var manaPercent = Percent(currentMana, maximumMana);
         var vitality = $" ❤️{vitalityPercent}%";
-        var mana = maximumMana > 0 ? $" 🔷{manaPercent}%" : string.Empty;
+        var mana = usesMana && maximumMana > 0 ? $" 🔷{manaPercent}%" : string.Empty;
         var effectiveWidth = Math.Max(Width, width);
         var maximumNameLength = Math.Min(PartyStatusNameColumnWidth,
             effectiveWidth - prefix.Length - levelSuffix.Length - vitality.Length - mana.Length);
@@ -182,7 +183,7 @@ public static class CharacterSheetPanel
         return new PartyStatusLine(prefix + alignedLiveName + levelSuffix, identityColor,
             vitality, vitalityPercent <= 25 ? ConsoleColor.Red :
             vitalityPercent <= 50 ? ConsoleColor.Yellow : ConsoleColor.Green,
-            mana, maximumMana <= 0 || currentMana <= 0 ? ConsoleColor.DarkGray :
+            mana, !usesMana || maximumMana <= 0 || currentMana <= 0 ? ConsoleColor.DarkGray :
             manaPercent <= 50 ? ConsoleColor.Blue : ConsoleColor.Cyan,
             isLeader ? prefix.Length : -1);
     }

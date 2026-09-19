@@ -20,7 +20,7 @@ public static class CsvGameDataLoader
     public const string GameDataFileName = "Data/game-data.csv";
     private const char CsvSeparator = ';';
 
-    public static GameDataCatalog Load(string filePath)
+    public static GameDataCatalog Load(string filePath, Action<CsvLoadProgress>? reportProgress = null)
     {
         if (!File.Exists(filePath)) throw new FileNotFoundException("A " + GameDataFileName + " nem található.", filePath);
 
@@ -70,7 +70,7 @@ public static class CsvGameDataLoader
         var section = DataSection.None;
 
         var sourceLines = ReadLinesWithFallbackEncoding(filePath).ToArray();
-        Console.WriteLine($"Loading game data from {GameDataFileName}...");
+        reportProgress?.Invoke(new CsvLoadProgress(0, sourceLines.Length, IsComplete: false));
         for (var lineIndex = 0; lineIndex < sourceLines.Length; lineIndex++)
         {
             var rawLine = sourceLines[lineIndex];
@@ -80,8 +80,7 @@ public static class CsvGameDataLoader
 
             if (lineIndex % 100 == 0)
             {
-                var progress = (int)((lineIndex / (double)sourceLines.Length) * 100);
-                Console.Write($"\rProgress: {progress}% ({lineIndex}/{sourceLines.Length} lines)");
+                reportProgress?.Invoke(new CsvLoadProgress(lineIndex, sourceLines.Length, IsComplete: false));
             }
 
             if (TryReadSection(cells, lineNumber, out var parsedSection))
@@ -283,7 +282,7 @@ public static class CsvGameDataLoader
             .SelectMany(level => level.QuestDoorRequirements.Values))
             if (catalog.Quests.Get(requirement).Scope != Domain.Quests.QuestScope.Global)
                 throw new InvalidDataException("A generált szoba questzára globális küldetést igényel.");
-        Console.WriteLine($"\nGame data loaded successfully!");
+        reportProgress?.Invoke(new CsvLoadProgress(sourceLines.Length, sourceLines.Length, IsComplete: true));
         return catalog;
     }
 
@@ -1620,4 +1619,9 @@ public static class CsvGameDataLoader
         LevelCompletionExperience,
         ItemUpgrades
     }
+}
+
+public readonly record struct CsvLoadProgress(int LinesRead, int TotalLines, bool IsComplete)
+{
+    public int Percent => TotalLines == 0 ? 100 : (int)(LinesRead / (double)TotalLines * 100);
 }
