@@ -11,7 +11,7 @@ internal static class CoopGuestRole
     {
         using var roleConsole = CoopRoleConsole.Initialize("guest", options);
         var workspaceRoot = CoopFixtureFactory.CreateTemporaryWorkspaceRoot(options.Workspace);
-        var fixture = CoopFixtureFactory.Create(workspaceRoot);
+        var fixture = CoopFixtureFactory.Create(workspaceRoot, options.SettingsPath);
         var hostUrl = $"http://localhost:{options.Port}";
         var guest = fixture.GuestCharacter;
         var characterData = fixture.CharacterSaveService.SerializeCharacter(guest);
@@ -24,6 +24,7 @@ internal static class CoopGuestRole
         Console.WriteLine($"Scenario: {options.Scenario ?? "manual"}");
         Console.WriteLine($"Host cim: {hostUrl}");
         Console.WriteLine($"Karakter: {guest.Name} ({guest.CharacterClass.Name})");
+        Console.WriteLine($"Beállítások: {options.SettingsPath ?? Path.Combine(workspaceRoot, "beallitasok.json")}");
         Console.WriteLine();
 
         var screen = new CoopGuestScreen(fixture.ApplicationVersion, fixture.CatalogHash, fixture.Catalog,

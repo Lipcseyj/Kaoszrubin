@@ -1,4 +1,5 @@
 using System.Text.Json;
+using KaoszRubin.Infrastructure;
 
 namespace KaoszRubin.Application;
 
@@ -72,14 +73,28 @@ public sealed class GameSettingsService
 
     private static GameSettings Load(string path)
     {
+        if (!File.Exists(path))
+        {
+            Log.Info("game-settings.loaded", $"source=defaults-missing; path={path}");
+            return new GameSettings();
+        }
+
         try
         {
-            var settings = JsonSerializer.Deserialize<GameSettings>(File.ReadAllText(path)) ?? new GameSettings();
+            var settings = JsonSerializer.Deserialize<GameSettings>(File.ReadAllText(path));
+            if (settings is null)
+            {
+                Log.Warning("game-settings.loaded", $"source=defaults-empty; path={path}");
+                return new GameSettings();
+            }
             settings.Normalize();
+            Log.Info("game-settings.loaded", $"source=file; path={path}");
             return settings;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            Log.Warning("game-settings.loaded",
+                $"source=defaults-invalid; path={path}; error={exception.GetType().Name}: {exception.Message}");
             return new GameSettings();
         }
     }

@@ -12,7 +12,7 @@ internal static class CoopHostRole
     {
         using var roleConsole = CoopRoleConsole.Initialize("host", options);
         var workspaceRoot = CoopFixtureFactory.CreateTemporaryWorkspaceRoot(options.Workspace);
-        var fixture = CoopFixtureFactory.Create(workspaceRoot);
+        var fixture = CoopFixtureFactory.Create(workspaceRoot, options.SettingsPath);
         fixture.HostRoster.Party.SetLeader(fixture.HostLeader);
 
         try
@@ -33,6 +33,7 @@ internal static class CoopHostRole
                 Console.WriteLine("Kaoszrubin coop host szerep");
                 Console.ResetColor();
                 Console.WriteLine($"Scenario: {options.Scenario ?? "manual"}");
+                Console.WriteLine($"Beállítások: {options.SettingsPath ?? Path.Combine(workspaceRoot, "beallitasok.json")}");
                 Console.WriteLine($"Csatlakozasi cim: {host.ConnectionHint}");
                 Console.WriteLine("Esc: kilepes lobbybol");
                 Console.WriteLine();

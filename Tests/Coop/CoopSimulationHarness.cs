@@ -36,17 +36,17 @@ internal static class CoopSimulationHarness
 
         try
         {
-            PrintScenarioBriefing(scenario, options.Port, workspaceRoot);
+            PrintScenarioBriefing(scenario, options.Port, workspaceRoot, options.SettingsPath);
 
             if (scenario.StartHost)
             {
-                children.Add(StartRole("host", scenario, options.Port, workspaceRoot));
+                children.Add(StartRole("host", scenario, options.Port, workspaceRoot, options.SettingsPath));
                 Thread.Sleep(1200);
             }
 
             if (scenario.StartGuest)
             {
-                children.Add(StartRole("guest", scenario, options.Port, workspaceRoot));
+                children.Add(StartRole("guest", scenario, options.Port, workspaceRoot, options.SettingsPath));
             }
 
             Console.WriteLine();
@@ -92,9 +92,10 @@ internal static class CoopSimulationHarness
         }
     }
 
-    private static CoopHarnessProcess StartRole(string role, CoopScenario scenario, int port, string workspaceRoot)
+    private static CoopHarnessProcess StartRole(string role, CoopScenario scenario, int port, string workspaceRoot,
+        string? settingsPath)
     {
-        var child = CoopHarnessProcess.StartRole(role, scenario.Name, port, workspaceRoot);
+        var child = CoopHarnessProcess.StartRole(role, scenario.Name, port, workspaceRoot, settingsPath);
 
         if (!child.LaunchedInWindowsTerminal)
         {
@@ -139,7 +140,8 @@ internal static class CoopSimulationHarness
         return scenarios[choice - 1];
     }
 
-    private static void PrintScenarioBriefing(CoopScenario scenario, int port, string workspaceRoot)
+    private static void PrintScenarioBriefing(CoopScenario scenario, int port, string workspaceRoot,
+        string? settingsPath)
     {
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Cyan;
@@ -147,6 +149,7 @@ internal static class CoopSimulationHarness
         Console.ResetColor();
         Console.WriteLine($"Port: {port}");
         Console.WriteLine($"Ideiglenes munkakonyvtar: {workspaceRoot}");
+        Console.WriteLine($"Beallitasok: {settingsPath ?? Path.Combine(workspaceRoot, "beallitasok.json")}");
         Console.WriteLine();
 
         WriteHints("Kezi lepesek", scenario.ControllerInstructions, port);

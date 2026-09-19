@@ -34,7 +34,8 @@ internal sealed class CoopHarnessProcess : IDisposable
         }
     }
 
-    public static CoopHarnessProcess StartRole(string role, string? scenario, int port, string workspaceRoot)
+    public static CoopHarnessProcess StartRole(string role, string? scenario, int port, string workspaceRoot,
+        string? settingsPath)
     {
         var processPath = Environment.ProcessPath
             ?? throw new InvalidOperationException("A futtathato folyamat utvonala nem elerheto.");
@@ -58,6 +59,11 @@ internal sealed class CoopHarnessProcess : IDisposable
         {
             arguments.Add("--scenario");
             arguments.Add(scenario);
+        }
+        if (!string.IsNullOrWhiteSpace(settingsPath))
+        {
+            arguments.Add("--settings");
+            arguments.Add(settingsPath);
         }
 
         var title = role.Equals("host", StringComparison.OrdinalIgnoreCase)

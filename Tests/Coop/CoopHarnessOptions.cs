@@ -11,7 +11,8 @@ internal sealed record CoopHarnessOptions(
     CoopHarnessMode Mode,
     string? Scenario,
     int Port,
-    string? Workspace)
+    string? Workspace,
+    string? SettingsPath)
 {
     public const int DefaultPort = 5127;
 
@@ -25,6 +26,7 @@ internal sealed record CoopHarnessOptions(
         string? scenario = null;
         var port = DefaultPort;
         string? workspace = null;
+        string? settingsPath = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -51,6 +53,9 @@ internal sealed record CoopHarnessOptions(
                 case "--workspace":
                     if (!TryReadNextValue(args, ref i, out workspace)) return false;
                     break;
+                case "--settings":
+                    if (!TryReadNextValue(args, ref i, out settingsPath)) return false;
+                    break;
             }
         }
 
@@ -60,20 +65,20 @@ internal sealed record CoopHarnessOptions(
         {
             if (role.Equals("host", StringComparison.OrdinalIgnoreCase))
             {
-                options = new CoopHarnessOptions(CoopHarnessMode.HostRole, scenario, port, workspace);
+                options = new CoopHarnessOptions(CoopHarnessMode.HostRole, scenario, port, workspace, settingsPath);
                 return true;
             }
 
             if (role.Equals("guest", StringComparison.OrdinalIgnoreCase))
             {
-                options = new CoopHarnessOptions(CoopHarnessMode.GuestRole, scenario, port, workspace);
+                options = new CoopHarnessOptions(CoopHarnessMode.GuestRole, scenario, port, workspace, settingsPath);
                 return true;
             }
 
             return false;
         }
 
-        options = new CoopHarnessOptions(CoopHarnessMode.Simulation, scenario, port, workspace);
+        options = new CoopHarnessOptions(CoopHarnessMode.Simulation, scenario, port, workspace, settingsPath);
         return true;
     }
 

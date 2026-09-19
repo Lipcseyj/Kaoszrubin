@@ -28,6 +28,20 @@ Mas port vagy sajat (nem torlodo) munkakonyvtar:
 dotnet run --project Tests -- --coop-sim --scenario join --port 5300 --workspace C:\temp\kr-coop
 ```
 
+Megadott jatekbeallitasokkal (mindket szerep ugyanazt a JSON-fajlt tolti be):
+
+```powershell
+dotnet run --project Tests -- --coop-sim --scenario join --settings C:\temp\beallitasok.json
+```
+
+Ha nincs `--settings`, a harness a workspace `beallitasok.json` fajljat hasznalja.
+Ideiglenes workspace es hianyzo fajl eseten az alapertelmezett beallitasok ervenyesek.
+A zene callbackje igy tesztelheto: engedelyezd a zenet a fajlban, indits `join`
+szcenariot, majd ellenorizd, hogy a vendeg terkepen a `Zene: Music\\Map\\...` uzenet
+az uzenetnaploban jelenik meg, es nem az also konzolsorban. A fogadoba belepve az
+`Inn` kontextus uzenete ugyanebbe a guest naploba kerul. A main-menu callbacket a
+harness szandekosan nem teszteli, mert a menut nem inditja el.
+
 Egy szerep kezi inditasa (a vezerlo folyamat ezt hasznalja belul):
 
 ```powershell

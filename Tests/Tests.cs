@@ -424,8 +424,8 @@ static bool TryParseTestRunnerOptions(
 static void PrintUsage()
 {
     Console.WriteLine("Usage: Tests [-h] [--filter <filterstring>] [--just-fail]");
-    Console.WriteLine("       Tests --coop-sim [--scenario <name>] [--port <port>] [--workspace <path>]");
-    Console.WriteLine("       Tests --coop-role <host|guest> [--scenario <name>] [--port <port>] [--workspace <path>]");
+    Console.WriteLine("       Tests --coop-sim [--scenario <name>] [--port <port>] [--workspace <path>] [--settings <path>]");
+    Console.WriteLine("       Tests --coop-role <host|guest> [--scenario <name>] [--port <port>] [--workspace <path>] [--settings <path>]");
     Console.WriteLine("  -h                         Show this usage information.");
     Console.WriteLine("  --filter <filterstring>    Run tests whose display or method name contains the filter.");
     Console.WriteLine("  --just-fail                Write failed result lines only.");
@@ -434,6 +434,7 @@ static void PrintUsage()
     Console.WriteLine("  --scenario <name>          Select an optional coop scenario.");
     Console.WriteLine($"  --port <port>               Set the coop port (default: {CoopHarnessOptions.DefaultPort}).");
     Console.WriteLine("  --workspace <path>         Set the coop harness workspace.");
+    Console.WriteLine("  --settings <path>          Load game settings for both coop roles from this JSON file.");
 }
 
 static bool MatchesTestFilter(string testName, Action run, string? filter) =>
@@ -455,6 +456,12 @@ static void TestRunnerOptionsAreValidated()
     Assert(!TryParseTestRunnerOptions(["--filter"], out _, out _, out _) &&
            !TryParseTestRunnerOptions(["--unknown"], out _, out _, out _),
         "A tesztfuttató elfogadott egy hiányos vagy ismeretlen argumentumot.");
+    Assert(CoopHarnessOptions.TryParse(
+               ["--coop-sim", "--scenario", "join", "--settings", "C:\\teszt\\beallitasok.json"],
+               out var coopOptions) &&
+           coopOptions.Mode == CoopHarnessMode.Simulation && coopOptions.Scenario == "join" &&
+           coopOptions.SettingsPath == "C:\\teszt\\beallitasok.json",
+        "A coop harness nem dolgozta fel a külön beállításfájlt.");
 }
 
 static void TestRunnerFilterIsCaseInsensitive()

@@ -19,7 +19,7 @@ internal sealed record CoopFixture(
 
 internal static class CoopFixtureFactory
 {
-    public static CoopFixture Create(string workspaceRoot)
+    public static CoopFixture Create(string workspaceRoot, string? settingsPath = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
         Directory.CreateDirectory(workspaceRoot);
@@ -29,7 +29,8 @@ internal static class CoopFixtureFactory
         var catalog = CsvGameDataLoader.Load(catalogPath);
         var characterSaveService = new CharacterSaveService(Path.Combine(workspaceRoot, "characters.json"), catalog);
         var gameSaveService = new GameSaveService(Path.Combine(workspaceRoot, "saves"), characterSaveService);
-        var gameSettingsService = new GameSettingsService(Path.Combine(workspaceRoot, "beallitasok.json"));
+        var gameSettingsService = new GameSettingsService(settingsPath ??
+            Path.Combine(workspaceRoot, "beallitasok.json"));
 
         var race = catalog.Races.FirstOrDefault(value => value.Id == "R001") ?? catalog.Races.First();
         var hostClass = catalog.CharacterClasses.First(value => value.Id == CharacterClassIds.Harcos);
