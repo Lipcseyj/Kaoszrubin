@@ -751,7 +751,7 @@ public sealed partial class ConsoleRenderer
                     if (_lastPartyStatusRows.TryGetValue(row, out var previous) && previous == emptyState)
                         continue;
 
-                    WriteSheetLine(row, string.Empty, ConsoleColor.DarkGray);
+                    FillPartyStatusRowBackground(row, ConsoleColor.Black);
                     _lastPartyStatusRows[row] = emptyState;
                     continue;
                 }
@@ -781,8 +781,8 @@ public sealed partial class ConsoleRenderer
         /// </summary>
         private void DrawPartyStatusLine(int y, PartyStatusLine status, ConsoleColor background)
         {
-            WriteSheetLine(y, string.Empty, ConsoleColor.Gray, background);
-            var x = RightSheetX;
+            FillPartyStatusRowBackground(y, background);
+            var x = RightSheetX - 1;
             if (status.InvertedNameStart >= 0)
             {
                 var prefix = status.Identity[..status.InvertedNameStart];
@@ -811,6 +811,18 @@ public sealed partial class ConsoleRenderer
                 WriteAt(x, y, text);
                 x += text.Length;
             }
+        }
+
+        /// <summary>
+        /// Fills a party-status row across the extended right panel width.
+        /// Use this to keep party rows aligned with the battle details panel width and left offset.
+        /// </summary>
+        private void FillPartyStatusRowBackground(int y, ConsoleColor background)
+        {
+            var startX = RightSheetX - 1;
+            var width = RightSheetExtendedWidthForWindow();
+            SetColors(ConsoleColor.Gray, background);
+            WriteAt(startX, y, new string(' ', width));
         }
 
         /// <summary>

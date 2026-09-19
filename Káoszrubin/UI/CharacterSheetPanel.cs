@@ -97,7 +97,7 @@ public static class CharacterSheetPanel
     /// </summary>
     public static PartyStatusLine BuildPartyStatus(LiveCharacter character, bool isDisplayed, bool isLeader = false,
         int width = Width) =>
-        BuildPartyStatus(character.Name, character.CharacterClass.Id, character.CurrentVitality,
+        BuildPartyStatus(character.Name, character.CharacterClass.Id, character.Level, character.CurrentVitality,
             character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
             character.Color, isDisplayed, isLeader, width);
 
@@ -108,7 +108,7 @@ public static class CharacterSheetPanel
     /// </summary>
     public static PartyStatusLine BuildPartyStatus(SessionCharacterSnapshot character, bool isDisplayed,
         bool isLeader = false, int width = Width) =>
-        BuildPartyStatus(character.Name, character.CharacterClassId, character.CurrentVitality,
+        BuildPartyStatus(character.Name, character.CharacterClassId, character.Level, character.CurrentVitality,
             character.MaximumVitality, character.CurrentMana, character.MaximumMana, character.IsAlive,
             character.Color, isDisplayed, isLeader, width);
 
@@ -150,17 +150,19 @@ public static class CharacterSheetPanel
     /// Kezeli a kijelölt marker, osztály-jel, névrövidítés, halott állapot,
     /// valamint az életerő és mána százalékos megjelenítésének és színezésének logikáját.
     /// </summary>
-    private static PartyStatusLine BuildPartyStatus(string name, string classId, int currentVitality,
+    private static PartyStatusLine BuildPartyStatus(string name, string classId, int level, int currentVitality,
         int maximumVitality, int currentMana, int maximumMana, bool isAlive, ConsoleColor identityColor,
         bool isDisplayed, bool isLeader, int width)
     {
         var marker = isDisplayed ? "▶ " : "  ";
         var prefix = $"{marker}{CharacterClassGlyph(classId)} ";
+        var levelSuffix = $" ★ {level}";
         if (!isAlive)
         {
             const string dead = " 💀";
             var deadRowWidth = Math.Max(Width, width);
-            return new PartyStatusLine(prefix + Shorten(name, deadRowWidth - prefix.Length - dead.Length),
+            var deadMaximumNameLength = deadRowWidth - prefix.Length - levelSuffix.Length - dead.Length;
+            return new PartyStatusLine(prefix + Shorten(name, deadMaximumNameLength) + levelSuffix,
                 identityColor, dead, ConsoleColor.DarkRed, string.Empty, ConsoleColor.DarkGray,
                 isLeader ? prefix.Length : -1);
         }
@@ -170,8 +172,8 @@ public static class CharacterSheetPanel
         var vitality = $" ❤️{vitalityPercent}%";
         var mana = maximumMana > 0 ? $" 🔷{manaPercent}%" : string.Empty;
         var effectiveWidth = Math.Max(Width, width);
-        var maximumNameLength = effectiveWidth - prefix.Length - vitality.Length - mana.Length;
-        return new PartyStatusLine(prefix + Shorten(name, maximumNameLength), identityColor,
+        var maximumNameLength = effectiveWidth - prefix.Length - levelSuffix.Length - vitality.Length - mana.Length;
+        return new PartyStatusLine(prefix + Shorten(name, maximumNameLength) + levelSuffix, identityColor,
             vitality, vitalityPercent <= 25 ? ConsoleColor.Red :
             vitalityPercent <= 50 ? ConsoleColor.Yellow : ConsoleColor.Green,
             mana, maximumMana <= 0 || currentMana <= 0 ? ConsoleColor.DarkGray :
