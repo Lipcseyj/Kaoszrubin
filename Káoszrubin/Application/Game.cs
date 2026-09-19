@@ -177,6 +177,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly QuestSaveAdapter _questSaveAdapter;
     private DateTime? _automaticBattleResumeUtc;
     private (BattleId BattleId, int ActionNumber)? _lastDelayedAction;
+    public List<CharacterId> _humanMemberIds = [];
     #endregion
 
     public CharacterRoster CharacterRoster { get; }
@@ -468,9 +469,9 @@ public sealed class Game : ISessionCommandHandler
         _questManager.QuestChanged += ProjectQuestChange;
         _questInventorySynchronizer = new QuestInventorySynchronizer(_questManager);
         _doorInteractions = new DoorInteractionController(gameData, _renderer,
-            (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random,
-            (message, color, actor) => RecordSessionActivity(SessionActivityKind.System, message, color, [actor.Id]),
-            new QuestDoorAccessService(_questManager).TryGrantAccess);
+        (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random,
+        (message, color, actor) => RecordSessionActivity(SessionActivityKind.System, message, color, [actor.Id]),
+        new QuestDoorAccessService(_questManager).TryGrantAccess);
         _backgroundMusic.SetReportCallback(message =>
         {
             if (_session.Phase == GameSessionPhase.Inn)
@@ -837,6 +838,16 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawDeveloperMessage($"Coop host aktív: {coopHost.ConnectionHint}");
         try
         {
+            for (int i = 0; i < CharacterRoster.Party.Members.Count; i++)
+            {
+                var member = CharacterRoster.Party.Members[i];
+                if (Session.IsHumanControlled(member.Id))
+                {
+                    _humanMemberIds.Add(member.Id);
+                    Log.Info($"Character {member.Name}(Id={member.Id}) is human controlled.");
+                }
+            }
+
             while (!_gameOver)
             {
                 try
@@ -4402,40 +4413,52 @@ public sealed class Game : ISessionCommandHandler
         }
         var corpses = _maze.GetCorpsesAt(position);
         var pile = _maze.GetGroundItemPileAt(position);
-        if (corpses.Count == 0 && pile is null) return false;
+        if (corpses.Count == 0 && pile is null)
+        {
+            var nothingFoundMessage = "🔎 A keresés nem hozott eredményt.";
+            if (isSenderLeader) _renderer.DrawInventoryMessage(nothingFoundMessage, ConsoleColor.Yellow);
+            RecordSessionActivity(SessionActivityKind.System, nothingFoundMessage, ConsoleColor.Yellow, [character.Id]);
+            return false;
+        }
         var unsearched = _maze.GetUnsearchedMonsterCorpsesAt(position);
-        if (unsearched.Count == 0 && pile is null && corpses.All(corpse => corpse is MonsterCorpse)) return false;
 
         var messages = new List<string>();
+        var hasSuccessfulCorpseLoot = false;
         foreach (var monsterCorpse in unsearched)
         {
             monsterCorpse.MarkSearched();
             var corpseMessages = new List<string>();
-            SearchMonsterCorpse(monsterCorpse, character, position, shareLootWithParty, corpseMessages);
+            hasSuccessfulCorpseLoot |= SearchMonsterCorpse(monsterCorpse, character, position, shareLootWithParty,
+                corpseMessages);
             messages.Add($"† {monsterCorpse.FormerName}: {string.Join(", ", corpseMessages)}");
         }
+        if (unsearched.Count == 0 && pile is null && corpses.All(corpse => corpse is MonsterCorpse))
+            messages.Add("🔎 A tetemeket már átkutattátok, új zsákmány nem maradt.");
         if (unsearched.Count == 0 && corpses.Any(corpse => corpse is PartyMemberCorpse))
-            messages.Add("Az elesett társ testén nincs elvehető zsákmány");
+            messages.Add("🔎 Az elesett társ testén nincs elvehető zsákmány");
         else if (unsearched.Count == 0 && corpses.Any(corpse => corpse is not MonsterCorpse))
-            messages.Add("Ez a régi tetem már nem tartalmaz azonosítható zsákmányt");
+            messages.Add("🔎 Ez a régi tetem már nem tartalmaz azonosítható zsákmányt");
 
         PickUpGroundItems(character, position, shareLootWithParty, messages);
         _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position]);
+
         string[] resultMessages = messages.Count == 0
             ? ["🔎 A keresés nem hozott eredményt."]
-            : messages.Select(message => $"🔎 {message}.").ToArray();
+            : messages.Select(message => $"🔎 {character.Name} » Zsákmány: {message}.").ToArray();
+
+        var visibleListeners = hasSuccessfulCorpseLoot ? _humanMemberIds : [character.Id];
+
         foreach (var resultMessage in resultMessages)
         {
-            if (isSenderLeader)
+            if (isSenderLeader || hasSuccessfulCorpseLoot)
                 _renderer.DrawInventoryMessage(resultMessage, ConsoleColor.Yellow);
-            else 
-                RecordSessionActivity(SessionActivityKind.System, resultMessage, ConsoleColor.Yellow, [character.Id]);
+            RecordSessionActivity(SessionActivityKind.System, resultMessage, ConsoleColor.Yellow, visibleListeners);
         }
         return true;
     }
 
-    private void SearchMonsterCorpse(MonsterCorpse corpse, LiveCharacter character, Position position,
+    private bool SearchMonsterCorpse(MonsterCorpse corpse, LiveCharacter character, Position position,
         bool shareLootWithParty, ICollection<string> messages)
     {
         var enemy = _gameData.GetEnemy(corpse.EnemyDefinitionId);
@@ -4454,12 +4477,14 @@ public sealed class Game : ISessionCommandHandler
                      (equipmentDefinition is null ? string.Empty : $", 🎁 {equipmentChance}%"));
 
         var foundItems = corpse.GuaranteedLootIds.Select(_gameData.GetItem).Cast<IItemDefinition>().ToList();
+        var foundGold = false;
         if (_random.Next(100) < keyChance) foundItems.Add(_gameData.GetItem(MiscItemIds.Key));
         if (_random.Next(100) < goldChance)
         {
             var maximumGold = Math.Max(1, enemy.StrengthTier * rules.GoldPerStrengthTier);
             var gold = _random.Next(1, maximumGold + 1);
             PartyLeader.AddGold(gold);
+            foundGold = true;
             messages.Add($"{ConsoleRenderer.MoneyIcon} {gold} arany");
         }
         if (_lootService.RollCarriedWeapon(corpse.CarriedWeaponIds, carriedWeaponChance) is { } carriedWeapon)
@@ -4485,6 +4510,7 @@ public sealed class Game : ISessionCommandHandler
         }
         if (foundItems.Count == 0 && messages.All(message => !message.StartsWith(ConsoleRenderer.MoneyIcon, StringComparison.Ordinal)))
             messages.Add("a tetemnél nem találtál zsákmányt");
+        return foundGold || foundItems.Count > 0;
     }
 
     private int AdjustedSearchChance(LiveCharacter character, int baseChance) =>
@@ -6023,8 +6049,6 @@ public sealed class Game : ISessionCommandHandler
 
     private void HandleLocalTeamBattleInput(TeamBattleEncounter battle, ConsoleKeyInfo key)
     {
-
-
         if (IsHelpShortcut(key))
         {
             ShowInGameHelp();
@@ -6041,6 +6065,7 @@ public sealed class Game : ISessionCommandHandler
 
         if (key.Key == ConsoleKey.Escape)
         {
+            //TODO: quit to MainMenu instead
             if (ConfirmReturnToMainMenu()) Environment.Exit(0);
         }
 
@@ -10449,8 +10474,11 @@ public sealed class Game : ISessionCommandHandler
             ResolvePerkOffers(award.Character, award.Result);
         var weaponGrants = CharacterRoster.Party.Members.Select(character =>
             $"{character.Name}: {DevelopmentWeaponGrantService.Grant(character, _gameData.Weapons, _random).Count}/6 fegyver").ToList();
+        _maze.AddCorpse(new MonsterCorpse(_player.Position, "tesztHulla", _maze.Enemies.First().Definition.Id,
+            guaranteedLootIds: ["T001", "T002"]));
+
         _renderer.RefreshCharacterSheet(PartyLeader);
-        _renderer.DrawDeveloperMessage($"Fejlesztői mód: 5000 XP minden partitagnak. {FormatExperienceAwards(awards)} " +
+        _renderer.DrawDeveloperMessage($"Fejlesztői mód: 5000 XP minden partitagnak + fegyverek + loot. {FormatExperienceAwards(awards)} " +
             string.Join("; ", weaponGrants));
     }
 
