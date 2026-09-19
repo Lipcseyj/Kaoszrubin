@@ -247,6 +247,13 @@ public sealed class GameSession
     {
         lock (_stateGate)
         {
+            Log.Info(
+                "battle.session.prompt",
+                $"battleId={battleId}; " +
+                $"turnId={turnId}; " +
+                $"character={actingCharacterId}; " +
+                $"allowed=[{string.Join(", ", allowedActions)}]");
+
             if (turnId <= 0) throw new ArgumentOutOfRangeException(nameof(turnId));
             allowedActions ??= [BattleActionKind.PhysicalAttack];
             if (allowedActions.Count == 0) throw new ArgumentException("Legalább egy harci akció engedélyezése szükséges.", nameof(allowedActions));
@@ -265,6 +272,14 @@ public sealed class GameSession
         lock (_stateGate)
         {
             if (_activeBattleId != battleId) return;
+
+            Log.Info(
+            "battle.session.end",
+            $"battleId={battleId}; " +
+            $"turnId={_activeBattleTurnId}; " +
+            $"actingCharacter={_actingBattleCharacterId}; " +
+            $"allowed=[{string.Join(", ", _allowedBattleActions)}]");
+
             _activeBattleId = null;
             _activeBattleTurnId = 0;
             _actingBattleCharacterId = null;
@@ -660,13 +675,63 @@ public sealed class GameSession
         if (battle is null)
         {
             if (Phase == GameSessionPhase.Battle && _activeBattleId is not null)
-                throw new ArgumentException("Az aktív csatához harci snapshot szükséges.", nameof(battle));
+            {
+                throw new ArgumentException(
+                    $"Az aktív csatához harci snapshot szükséges. " +
+                    $"Phase={Phase}; " +
+                    $"ActiveBattleId={_activeBattleId}; " +
+                    $"ActiveTurnId={_activeBattleTurnId}; " +
+                    $"ActingCharacterId={_actingBattleCharacterId}",
+                    nameof(battle));
+            }
+
             return;
         }
-        if (Phase != GameSessionPhase.Battle || _activeBattleId != battle.BattleId ||
-            _activeBattleTurnId != battle.TurnId || _actingBattleCharacterId != battle.ActingCharacterId)
-            throw new ArgumentException("A harci snapshot nem az aktív session-prompthoz tartozik.", nameof(battle));
+
+        var differences = new List<string>();
+
+        if (Phase != GameSessionPhase.Battle)
+            differences.Add(
+                $"Phase: session={Phase}, snapshot=Battle");
+
+        if (_activeBattleId != battle.BattleId)
+            differences.Add(
+                $"BattleId: session={_activeBattleId}, snapshot={battle.BattleId}");
+
+        if (_activeBattleTurnId != battle.TurnId)
+            differences.Add(
+                $"TurnId: session={_activeBattleTurnId}, snapshot={battle.TurnId}");
+
+        if (_actingBattleCharacterId != battle.ActingCharacterId)
+            differences.Add(
+                $"ActingCharacterId: session={_actingBattleCharacterId}, snapshot={battle.ActingCharacterId}");
+
         if (!_allowedBattleActions.SetEquals(battle.AllowedActions))
-            throw new ArgumentException("A harci snapshot engedélyezett akciói eltérnek az aktív prompttól.", nameof(battle));
+        {
+            var promptOnly = _allowedBattleActions
+                .Except(battle.AllowedActions)
+                .OrderBy(action => action)
+                .ToArray();
+
+            var snapshotOnly = battle.AllowedActions
+                .Except(_allowedBattleActions)
+                .OrderBy(action => action)
+                .ToArray();
+
+            differences.Add(
+                $"AllowedActions: " +
+                $"Prompt=[{string.Join(", ", _allowedBattleActions.OrderBy(action => action))}], " +
+                $"Snapshot=[{string.Join(", ", battle.AllowedActions.OrderBy(action => action))}], " +
+                $"CsakPrompt=[{string.Join(", ", promptOnly)}], " +
+                $"CsakSnapshot=[{string.Join(", ", snapshotOnly)}]");
+        }
+
+        if (differences.Count > 0)
+        {
+            throw new ArgumentException(
+                "A harci snapshot eltér az aktív session-prompthoz tartozó állapottól. " +
+                string.Join(" | ", differences),
+                nameof(battle));
+        }
     }
 }
