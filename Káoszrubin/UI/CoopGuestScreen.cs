@@ -2335,7 +2335,7 @@ public sealed class CoopGuestScreen
 
             if (!fullRedraw && previous!.PartyStatuses[row] == status &&
                 previous.Panel[row] == frame.Panel[row]) continue;
-            WritePartyStatusAt(frame.MapWidth, row, status, BattleDetailsPanel.ExtendedWidthFor(frame.PanelWidth));
+            WritePartyStatusAt(frame.MapWidth + 1, row, status, BattleDetailsPanel.ExtendedWidthFor(frame.PanelWidth));
         }
 
         for (var row = 1; row < frame.Footers.Length; row++)
