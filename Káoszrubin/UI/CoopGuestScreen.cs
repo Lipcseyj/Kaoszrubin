@@ -1590,14 +1590,18 @@ public sealed class CoopGuestScreen
             Put(grid, character.Position!.Value, CharacterSheetPanel.PartyAvatarGlyph(character.CharacterClassId,
                     _musicSettings.Settings.PartyAvatars),
                 character.Color);
-        foreach (var participant in (snapshot.Battle?.Participants ?? [])
-                     .Where(participant => participant.IsCurrent || participant.IsCurrentTarget))
+        foreach (var participant in snapshot.Battle?.Participants ?? [])
         {
-            var position = participant.Position;
-            if (position.X < 0 || position.X >= grid.GetLength(0) ||
-                position.Y < 0 || position.Y >= grid.GetLength(1)) continue;
-            var cell = grid[position.X, position.Y];
-            grid[position.X, position.Y] = cell with { Color = cell.Background, Background = cell.Color };
+            var position = ResolveBattleHighlightPosition(participant, snapshot.Party, world.Enemies);
+            if (position is null) continue;
+            if (position.Value.X < 0 || position.Value.X >= grid.GetLength(0) ||
+                position.Value.Y < 0 || position.Value.Y >= grid.GetLength(1)) continue;
+            var cell = grid[position.Value.X, position.Value.Y];
+            grid[position.Value.X, position.Value.Y] = cell with
+            {
+                Color = cell.Background,
+                Background = cell.Color
+            };
         }
         if (snapshot.Phase == GameSessionPhase.Inn)
             for (var y = 0; y < grid.GetLength(1); y++)
@@ -2595,6 +2599,27 @@ public sealed class CoopGuestScreen
     {
         if (position.X >= 0 && position.X < grid.GetLength(0) && position.Y >= 0 && position.Y < grid.GetLength(1))
             grid[position.X, position.Y] = new GuestMapCell(value, color, background);
+    }
+
+    internal static Position? ResolveBattleHighlightPosition(TacticalBattleParticipantSnapshot participant,
+        IReadOnlyList<SessionCharacterSnapshot> party, IReadOnlyList<WorldEnemySnapshot> enemies)
+    {
+        if ((!participant.IsCurrent && !participant.IsCurrentTarget) || participant.CurrentVitality <= 0 ||
+            participant.State is not (TacticalParticipantState.Active or TacticalParticipantState.Approaching))
+            return null;
+
+        if (participant.Side == BattleSide.Hostile)
+        {
+            // A csata résztvevőjének pozíciója egy snapshot erejéig lemaradhat a világállapottól.
+            // A vendég ezért az élő, kirajzolt ellenfél helyét emeli ki; ha az már nincs a világban,
+            // nem színezi át a régi mezőn fekvő hullát.
+            if (participant.EnemyId is not { } enemyId) return null;
+            return enemies.FirstOrDefault(enemy => enemy.EntityId == enemyId && enemy.CurrentHitPoints > 0)?.Position;
+        }
+
+        return party.FirstOrDefault(character =>
+                   CombatantId.ForCharacter(character.CharacterId) == participant.Id && character.IsAlive)?.Position
+               ?? participant.Position;
     }
 
     private static string CenterPortrait(string text, int canvasWidth, int interiorWidth = 25)
