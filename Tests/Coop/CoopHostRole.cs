@@ -17,8 +17,7 @@ internal static class CoopHostRole
 
         try
         {
-            using var backgroundMusic = new BackgroundMusicPlayer(fixture.GameSettingsService.Settings,
-                message => Console.WriteLine(message));
+            using var backgroundMusic = new BackgroundMusicPlayer(fixture.GameSettingsService.Settings);
             var game = new Game(fixture.Catalog, fixture.HostRoster, fixture.HostLeader, 
                 fixture.GameSaveService, backgroundMusic, gameSettings: fixture.GameSettingsService);
             var host = CoopHostRuntime.StartAsync(game.Session, fixture.ApplicationVersion, fixture.CatalogHash,

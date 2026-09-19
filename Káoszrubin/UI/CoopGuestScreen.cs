@@ -19,6 +19,7 @@ public sealed class CoopGuestScreen
     private readonly GameDataCatalog _gameData;
     private readonly SoundEffects _soundEffects;
     private readonly BackgroundMusicPlayer _backgroundMusic;
+    private readonly bool _ownsBackgroundMusic;
     private readonly GameSettingsService _musicSettings;
     private int _redrawRequested = 1;
     private static int MessageLineCount => ConsoleRenderer.MessageLogLineCount;
@@ -78,7 +79,7 @@ public sealed class CoopGuestScreen
         ConsoleColor.Cyan);
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData,
-        GameSettingsService? musicSettings = null)
+        GameSettingsService? musicSettings = null, BackgroundMusicPlayer? backgroundMusic = null)
     {
         _applicationVersion = applicationVersion;
         _catalogHash = catalogHash;
@@ -86,8 +87,9 @@ public sealed class CoopGuestScreen
         _musicSettings = musicSettings ?? new GameSettingsService();
         _soundEffects = new SoundEffects(_musicSettings.Settings,
             message => SetMessage(message, ConsoleColor.DarkYellow));
-        _backgroundMusic = new BackgroundMusicPlayer(_musicSettings.Settings,
-            message => SetMessage(message, ConsoleColor.DarkYellow));
+        _ownsBackgroundMusic = backgroundMusic is null;
+        _backgroundMusic = backgroundMusic ?? new BackgroundMusicPlayer(_musicSettings.Settings);
+        ConfigureBackgroundMusicReporting();
     }
 
     public async Task RunAsync(string hostUrl, string displayName, LiveCharacter localCharacter,
@@ -95,6 +97,7 @@ public sealed class CoopGuestScreen
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(localCharacter);
+        ConfigureBackgroundMusicReporting();
         await using var client = new CoopSignalRClient(hostUrl, _applicationVersion, _catalogHash, displayName);
         client.SnapshotChanged += _ => Interlocked.Exchange(ref _redrawRequested, 1);
         client.ConnectionStateChanged += _ => Interlocked.Exchange(ref _redrawRequested, 1);
@@ -257,7 +260,7 @@ public sealed class CoopGuestScreen
         }
         finally
         {
-            _backgroundMusic.Dispose();
+            if (_ownsBackgroundMusic) _backgroundMusic.Dispose();
             _soundEffects.Dispose();
             try { Console.CursorVisible = true; }
             catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception)) { }
@@ -1485,6 +1488,9 @@ public sealed class CoopGuestScreen
                 break;
         }
     }
+
+    private void ConfigureBackgroundMusicReporting() =>
+        _backgroundMusic.SetReportCallback(message => SetMessage(message, ConsoleColor.DarkYellow));
 
     private void SynchronizeInnTransactions(SessionSnapshot snapshot)
     {

@@ -279,7 +279,9 @@ public sealed class MainMenu
         if (string.IsNullOrWhiteSpace(hostUrl)) hostUrl = "http://localhost:5127";
         try
         {
-            new CoopGuestScreen(_applicationVersion, _catalogHash, _gameData, _musicSettings)
+            _menuSoundPlayed = false;
+            new CoopGuestScreen(_applicationVersion, _catalogHash, _gameData, _musicSettings,
+                    _backgroundMusicPlayer)
                 .RunAsync(hostUrl, character.Name, character, _characterSaveService.SerializeCharacter(character),
                     PersistGuestCharacterState)
                 .GetAwaiter().GetResult();
