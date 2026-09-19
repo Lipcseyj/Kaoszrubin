@@ -434,7 +434,7 @@ public sealed class Game : ISessionCommandHandler
             .Select(member => member.Character)
             .ToArray() ?? [], _gameSettings.Settings);
         _renderer.SharedWindowPresented = CaptureSharedWindowPresentation;
-        _renderer.SetFormationStatus(_formation);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
         _renderer.SetGoldenKeyCount(0);
         _soundEffects = new SoundEffects(_gameSettings.Settings,
             message => _renderer.DrawDeveloperMessage(message));
@@ -654,7 +654,7 @@ public sealed class Game : ISessionCommandHandler
                 var message = $"{caster.Name} elsüti: {spell.Name} → {target.Name}. -{manaCost} manna.{summary}";
                 _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
                 RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
-                _renderer.RefreshBattleStatusRows();
+                _renderer.CharacterSheet.RefreshBattleStatusRows();
                 onSpellCast?.Invoke();
                 return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
             }
@@ -698,7 +698,7 @@ public sealed class Game : ISessionCommandHandler
             var message = $"{caster.Name} elsüti: {spell.Name} → {targetChar.Name}. -{manaCost} manna. {string.Join("; ", notes)}";
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
             RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
-            _renderer.RefreshBattleStatusRows();
+            _renderer.CharacterSheet.RefreshBattleStatusRows();
             onSpellCast?.Invoke();
             return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, 0, 0);
         }
@@ -724,7 +724,7 @@ public sealed class Game : ISessionCommandHandler
             var message = $"{caster.Name} elsüti: {spell.Name} → {enemy.Name}. -{manaCost} manna. {execution.Summary}";
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
             RecordSessionActivity(SessionActivityKind.Support, message, ConsoleColor.Green);
-            _renderer.RefreshBattleStatusRows();
+            _renderer.CharacterSheet.RefreshBattleStatusRows();
             onSpellCast?.Invoke();
             return new BattlePlayerAction(message, BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions);
         }
@@ -857,7 +857,7 @@ public sealed class Game : ISessionCommandHandler
                 {
                     previousViewport = currentViewport;
                     _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
-                    _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+                    _renderer.CharacterSheet.SetCharacterSheetFocused(_characterSheetFocused);
                 }
                 if (Console.KeyAvailable)
                 {
@@ -865,7 +865,7 @@ public sealed class Game : ISessionCommandHandler
                     if (_activeTeamBattle is not null && !_isQuickTeamBattle &&
                         GameInputBindings.BattleDetailsPageDirection(keyInfo) is var detailDirection && detailDirection != 0)
                     {
-                        _renderer.PageBattleDetails(detailDirection);
+                        _renderer.CharacterSheet.PageBattleDetails(detailDirection);
                         continue;
                     }
                     if (keyInfo.Key is ConsoleKey.PageUp or ConsoleKey.PageDown)
@@ -879,7 +879,7 @@ public sealed class Game : ISessionCommandHandler
                             () => SettingsScreen.Show(_gameSettings, ApplyAudioSettings,
                                 CurrentHostCoopWindowStatus));
                         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
-                        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+                        _renderer.CharacterSheet.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
                     MarkCoopSnapshotDirty();
@@ -913,7 +913,7 @@ public sealed class Game : ISessionCommandHandler
                         BeginExplorationSpellCasting();
                         continue;
                     }
-                    if (!(_characterSheetFocused && _renderer.IsSpellInfoPageOpen) &&
+                    if (!(_characterSheetFocused && _renderer.CharacterSheet.IsSpellInfoPageOpen) &&
                         TryGetQuickSpellIndex(keyInfo, out var quickSpellSlot))
                     {
                         var quickSpell = PartyLeader.QuickSpells[quickSpellSlot];
@@ -927,7 +927,7 @@ public sealed class Game : ISessionCommandHandler
                     {
                         if (_characterSheetFocused) CancelHeldInventoryItem();
                         _characterSheetFocused = !_characterSheetFocused;
-                        _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+                        _renderer.CharacterSheet.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
 
@@ -936,18 +936,18 @@ public sealed class Game : ISessionCommandHandler
 
                     if (_characterSheetFocused)
                     {
-                        if (_renderer.IsItemInspectionPageOpen)
+                        if (_renderer.CharacterSheet.IsItemInspectionPageOpen)
                         {
                             if (keyInfo.Key is ConsoleKey.Escape or ConsoleKey.I or ConsoleKey.Enter)
-                                _renderer.CloseItemInspectionPage();
+                                _renderer.CharacterSheet.CloseItemInspectionPage();
                             continue;
                         }
-                        if (_renderer.IsSpellInfoPageOpen)
+                        if (_renderer.CharacterSheet.IsSpellInfoPageOpen)
                         {
                             if (keyInfo.Key == ConsoleKey.Escape)
-                                _renderer.CloseSpellInfoPage();
-                            else if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.MoveSpellInfoSelection(-1);
-                            else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.MoveSpellInfoSelection(1);
+                                _renderer.CharacterSheet.CloseSpellInfoPage();
+                            else if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.CharacterSheet.MoveSpellInfoSelection(-1);
+                            else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.CharacterSheet.MoveSpellInfoSelection(1);
                             else if (TryGetQuickSpellIndex(keyInfo, out var spellSlot)) AssignSelectedSpellQuickSlot(spellSlot);
                             else if (keyInfo.Key == ConsoleKey.Enter) CastSelectedSpellInfo();
                             continue;
@@ -956,18 +956,18 @@ public sealed class Game : ISessionCommandHandler
                         {
                                 CancelHeldInventoryItem();
                                 _characterSheetFocused = !_characterSheetFocused;
-                                _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+                                _renderer.CharacterSheet.SetCharacterSheetFocused(_characterSheetFocused);
                                 continue;
                         }
-                        if (keyInfo.Key == ConsoleKey.A && _renderer.DisplayedCharacter == PartyLeader)
+                        if (keyInfo.Key == ConsoleKey.A && _renderer.CharacterSheet.DisplayedCharacter == PartyLeader)
                         {
                             EditFormation();
                             continue;
                         }
                         switch (GameInputBindings.InventoryAction(keyInfo.Key))
                         {
-                            case InventoryInputAction.MoveUp: _renderer.MoveCharacterSheetSelection(-1); break;
-                            case InventoryInputAction.MoveDown: _renderer.MoveCharacterSheetSelection(1); break;
+                            case InventoryInputAction.MoveUp: _renderer.CharacterSheet.MoveCharacterSheetSelection(-1); break;
+                            case InventoryInputAction.MoveDown: _renderer.CharacterSheet.MoveCharacterSheetSelection(1); break;
                             case InventoryInputAction.Drop: DropSelectedInventoryItem(); break;
                             case InventoryInputAction.Inspect: InspectSelectedInventoryItem(); break;
                             case InventoryInputAction.Use: UseSelectedInventoryItem(); break;
@@ -977,8 +977,8 @@ public sealed class Game : ISessionCommandHandler
                             case InventoryInputAction.CharacterDetails: ShowCharacterDetails(); break;
                             case InventoryInputAction.GiveFollowerStack: GiveSelectedStackToFollower(); break;
                             default:
-                                if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
-                                else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
+                                if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.CharacterSheet.MoveDisplayedPartyMember(-1);
+                                else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.CharacterSheet.MoveDisplayedPartyMember(1);
                                 else if (keyInfo.Key == ConsoleKey.Delete) DismissSelectedPartyMember();
                                 break;
                         }
@@ -1220,7 +1220,7 @@ public sealed class Game : ISessionCommandHandler
         _session.SynchronizeParty();
         NormalizeFormation();
         _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
-        _renderer.SetFormationStatus(_formation);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
         _hasRestedThisLevel = false;
         _spottedEnemyIds.Clear();
@@ -1297,7 +1297,7 @@ public sealed class Game : ISessionCommandHandler
         _session.SynchronizeParty();
         NormalizeFormation();
         _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
-        _renderer.SetFormationStatus(_formation);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
         _hasRestedThisLevel = false;
         _spottedEnemyIds.Clear();
@@ -1454,7 +1454,7 @@ public sealed class Game : ISessionCommandHandler
         _leaderFacing = restored.LeaderFacing;
         _formation = PartyFormationRules.Normalize(suspended.Formation,
             CharacterRoster.Party.Members.Select(member => member.Id), PartyLeader.Id);
-        _renderer.SetFormationStatus(_formation);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(_formation.State == PartyFormationState.Locked);
         _leaderTrail.Clear();
         _leaderTrail.AddRange(restored.LeaderTrail);
@@ -1809,29 +1809,29 @@ public sealed class Game : ISessionCommandHandler
 
     private void AssignSelectedSpellQuickSlot(int slotIndex)
     {
-        var character = _renderer.SpellInfoCharacter;
-        var spell = _renderer.GetSelectedSpellInfo();
+        var character = _renderer.CharacterSheet.SpellInfoCharacter;
+        var spell = _renderer.CharacterSheet.GetSelectedSpellInfo();
         if (character is null || spell is null) return;
         if (!character.AssignQuickSpell(slotIndex, spell))
         {
             _renderer.DrawInventoryMessage("Csak memorizált varázslat tehető gyorshelyre.", ConsoleColor.Red);
             return;
         }
-        _renderer.RefreshSpellInfoPage();
+        _renderer.CharacterSheet.RefreshSpellInfoPage();
         _renderer.DrawInventoryMessage($"{spell.Name} hozzárendelve: F{slotIndex + 1}.", ConsoleColor.Cyan);
     }
 
     private void CastSelectedSpellInfo()
     {
-        var character = _renderer.SpellInfoCharacter;
-        var spell = _renderer.GetSelectedSpellInfo();
+        var character = _renderer.CharacterSheet.SpellInfoCharacter;
+        var spell = _renderer.CharacterSheet.GetSelectedSpellInfo();
         if (character != PartyLeader || spell is null ||
             character.MemorizedSpells.All(candidate => !string.Equals(candidate.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))
         {
             _renderer.DrawInventoryMessage("Csak a partivezér memorizált varázslata süthető el.", ConsoleColor.DarkYellow);
             return;
         }
-        _renderer.CloseSpellInfoPage();
+        _renderer.CharacterSheet.CloseSpellInfoPage();
         BeginExplorationSpellCasting(spell);
     }
 
@@ -1863,7 +1863,7 @@ public sealed class Game : ISessionCommandHandler
             currentEnemy: null, castingItem: castingItem, castingItemSlotIndex: castingItemSlotIndex);
         if (result is not null)
         {
-            _renderer.RefreshBattleStatusRows();
+            _renderer.CharacterSheet.RefreshBattleStatusRows();
             _renderer.DrawInventoryMessage(result.Message, result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
         }
     }
@@ -1998,7 +1998,7 @@ public sealed class Game : ISessionCommandHandler
         foreach (var entry in state.NpcSpellcasterTactics ?? [])
             if (CharacterRoster.Party.Members.Any(member => member.Id == entry.CharacterId && member.IsSpellcaster))
                 _npcSpellcasterTactics[entry.CharacterId] = entry.Tactics.Normalize();
-        _renderer.SetFormationStatus(_formation);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(_formation.State == PartyFormationState.Locked);
         _leaderTrail.Clear();
         _leaderTrail.AddRange(restored.LeaderTrail);
@@ -2515,7 +2515,7 @@ public sealed class Game : ISessionCommandHandler
     {
         CancelHeldInventoryItem();
         _characterSheetFocused = true;
-        _renderer.DrawInnCharacterSheet(PartyLeader);
+        _renderer.CharacterSheet.DrawInnCharacterSheet(PartyLeader);
         while (true)
         {
             var keyInfo = ReadInnKeyCore();
@@ -2524,17 +2524,17 @@ public sealed class Game : ISessionCommandHandler
                 _renderer.RefreshCharacterSheet(PartyLeader);
                 continue;
             }
-            if (_renderer.IsItemInspectionPageOpen)
+            if (_renderer.CharacterSheet.IsItemInspectionPageOpen)
             {
                 if (keyInfo.Key is ConsoleKey.Escape or ConsoleKey.I or ConsoleKey.Enter)
-                    _renderer.CloseItemInspectionPage();
+                    _renderer.CharacterSheet.CloseItemInspectionPage();
                 continue;
             }
             if (GameInputBindings.IsCharacterSheetToggle(keyInfo.Key) || keyInfo.Key == ConsoleKey.Escape)
             {
                 CancelHeldInventoryItem();
                 _characterSheetFocused = false;
-                _renderer.SetCharacterSheetFocused(false);
+                _renderer.CharacterSheet.SetCharacterSheetFocused(false);
                 return;
             }
             if (keyInfo.Key == ConsoleKey.Q)
@@ -2544,8 +2544,8 @@ public sealed class Game : ISessionCommandHandler
             }
             switch (GameInputBindings.InventoryAction(keyInfo.Key))
             {
-                case InventoryInputAction.MoveUp: _renderer.MoveCharacterSheetSelection(-1); break;
-                case InventoryInputAction.MoveDown: _renderer.MoveCharacterSheetSelection(1); break;
+                case InventoryInputAction.MoveUp: _renderer.CharacterSheet.MoveCharacterSheetSelection(-1); break;
+                case InventoryInputAction.MoveDown: _renderer.CharacterSheet.MoveCharacterSheetSelection(1); break;
                 case InventoryInputAction.Inspect: InspectSelectedInventoryItem(); break;
                 case InventoryInputAction.Use: UseSelectedInventoryItem(); break;
                 case InventoryInputAction.MoveItem: GrabOrPlaceInventoryItem(); break;
@@ -2557,8 +2557,8 @@ public sealed class Game : ISessionCommandHandler
                     _renderer.DrawInventoryMessage("A fogadóban nem dobhatsz tárgyat a földre.", ConsoleColor.DarkYellow);
                     break;
                 default:
-                    if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.MoveDisplayedPartyMember(-1);
-                    else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.MoveDisplayedPartyMember(1);
+                    if (keyInfo.Key == ConsoleKey.LeftArrow) _renderer.CharacterSheet.MoveDisplayedPartyMember(-1);
+                    else if (keyInfo.Key == ConsoleKey.RightArrow) _renderer.CharacterSheet.MoveDisplayedPartyMember(1);
                     else if (keyInfo.Key == ConsoleKey.Delete) DismissSelectedPartyMember();
                     break;
             }
@@ -2632,26 +2632,26 @@ public sealed class Game : ISessionCommandHandler
         if (definition.Unique && string.Equals(definition.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))
         {
             ConverseWithFirstUniqueNpc(npc);
-            _renderer.RefreshCharacterSheet();
+            _renderer.CharacterSheet.RefreshCharacterSheet();
             return false;
         }
         if (definition.Unique && string.Equals(definition.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase))
         {
             ConverseWithRoderic(npc);
-            _renderer.RefreshCharacterSheet();
+            _renderer.CharacterSheet.RefreshCharacterSheet();
             return false;
         }
         if (definition.Unique)
         {
             _renderer.DrawUniqueNpcIntroduction(npc);
-            _renderer.RefreshCharacterSheet();
+            _renderer.CharacterSheet.RefreshCharacterSheet();
             return false;
         }
         var result = _renderer.DrawWorldNpcRecruitment(npc, CanNpcJoin(npc), GetNpcQuestUiEntries(npc));
         ProcessNpcQuests(npc);
         if (result == WorldNpcInteractionResult.Continue)
         {
-            _renderer.RefreshCharacterSheet();
+            _renderer.CharacterSheet.RefreshCharacterSheet();
             return true;
         }
         if (result == WorldNpcInteractionResult.Join && CharacterRoster.Party.Add(npc.Character))
@@ -2662,14 +2662,14 @@ public sealed class Game : ISessionCommandHandler
             _maze.AddPartyMember(avatar);
             _nextPartyMoves[avatar] = DateTime.UtcNow;
             RevealFor(npc.Character, avatar.Position);
-            _renderer.RefreshCharacterSheet();
+            _renderer.CharacterSheet.RefreshCharacterSheet();
             _renderer.DrawInventoryMessage($"🤝 {npc.Character.Name} ingyen csatlakozott a partihoz.", ConsoleColor.Green);
             RequestCoopSnapshotPublish();
             return false;
         }
 
         npc.Decline();
-        _renderer.RefreshCharacterSheet();
+        _renderer.CharacterSheet.RefreshCharacterSheet();
         _renderer.DrawInventoryMessage(result == WorldNpcInteractionResult.Join ? "A parti megtelt; előbb helyet kell felszabadítani."
             : $"{npc.Character.Name} egyelőre itt marad.", ConsoleColor.Yellow);
         return false;
@@ -2697,7 +2697,7 @@ public sealed class Game : ISessionCommandHandler
                 ShowNpcStoryChoiceWithReplica(npc,
                     $"Bizonyítsátok hogy közös az ellenségünk. Eddig {quest.Progress}/{quest.RequiredCount} élőholt bukott el.",
                     ["Visszatérünk ha végeztünk."]);
-                _renderer.RefreshCharacterSheet();
+                _renderer.CharacterSheet.RefreshCharacterSheet();
                 return;
             }
 
@@ -2705,7 +2705,7 @@ public sealed class Game : ISessionCommandHandler
             if (!quest.IsCompleted) return;
             npc.SetStoryState("PROOF_COMPLETE");
             RunStoryConversation(npc);
-            _renderer.RefreshCharacterSheet();
+            _renderer.CharacterSheet.RefreshCharacterSheet();
             return;
         }
 
@@ -2717,7 +2717,7 @@ public sealed class Game : ISessionCommandHandler
                 ShowNpcStoryChoiceWithReplica(npc,
                     $"Három jelvényt keressetek. Eddig {count}/3 került elő.",
                     ["Folytatjuk a keresést."]);
-                _renderer.RefreshCharacterSheet();
+                _renderer.CharacterSheet.RefreshCharacterSheet();
                 return;
             }
 
@@ -2725,7 +2725,7 @@ public sealed class Game : ISessionCommandHandler
             if (!_questManager.GetQuest(QuestId.RodericFallenComradesInsignia).IsCompleted) return;
             npc.SetStoryState("CONFESSION");
             RunStoryConversation(npc);
-            _renderer.RefreshCharacterSheet();
+            _renderer.CharacterSheet.RefreshCharacterSheet();
             return;
         }
 
@@ -2737,11 +2737,11 @@ public sealed class Game : ISessionCommandHandler
                 TryFinalizeRodericPermanentJoin();
             if (npc.StoryStateId == "MALREC_READY" && npc.State == WorldNpcState.Following)
                 _pendingRodericExpedition = true;
-            _renderer.RefreshCharacterSheet();
+            _renderer.CharacterSheet.RefreshCharacterSheet();
             return;
         }
         _renderer.DrawUniqueNpcIntroduction(npc);
-        _renderer.RefreshCharacterSheet();
+        _renderer.CharacterSheet.RefreshCharacterSheet();
     }
 
     private void ShowNpcStoryChoiceWithReplica(WorldNpc npc, string prompt, IReadOnlyList<string> choices)
@@ -2753,7 +2753,7 @@ public sealed class Game : ISessionCommandHandler
         try
         {
             _renderer.DrawUniqueNpcStoryChoice(npc, prompt, choices);
-            _renderer.RefreshCharacterSheet();
+            _renderer.CharacterSheet.RefreshCharacterSheet();
         }
         finally
         {
@@ -2861,7 +2861,7 @@ public sealed class Game : ISessionCommandHandler
         if (result.FollowRequested && npc.State != WorldNpcState.Following)
             BeginTemporaryFollowing(npc);
         if (npc.State == WorldNpcState.Following) ProcessNpcQuests(npc);
-        _renderer.RefreshCharacterSheet();
+        _renderer.CharacterSheet.RefreshCharacterSheet();
         _renderer.DrawInventoryMessage($"🌿 Elira viszonya: {npc.Friendliness}/10.",
             friendlinessChange >= 0 ? ConsoleColor.Green : ConsoleColor.DarkYellow);
     }
@@ -2934,7 +2934,7 @@ public sealed class Game : ISessionCommandHandler
                 _renderer.DrawGenericUniqueNpcQuestOffer(npc, offers);
         }
 
-        _renderer.RefreshCharacterSheet();
+        _renderer.CharacterSheet.RefreshCharacterSheet();
         _renderer.DrawInventoryMessage(
             $"🌿 {npc.Character.Name} ideiglenes követőként csatlakozott. " +
             "Nem foglal partyhelyet.",
@@ -3284,7 +3284,7 @@ public sealed class Game : ISessionCommandHandler
     private void ShowCharacterDetails()
     {
         RunHostPersonalWindow(PlayerWindowKind.CharacterDetails,
-            () => CharacterDetailsWindow.Show(CreateCharacterDetailsSnapshot(_renderer.DisplayedCharacter),
+            () => CharacterDetailsWindow.Show(CreateCharacterDetailsSnapshot(_renderer.CharacterSheet.DisplayedCharacter),
                 _gameData, CurrentHostCoopWindowStatus));
     }
 
@@ -3782,7 +3782,7 @@ public sealed class Game : ISessionCommandHandler
         _formation = PartyFormationRules.WithSlots(_formation, result.Slots);
         _npcSpellcasterTactics.Clear();
         foreach (var pair in result.SpellcasterTactics) _npcSpellcasterTactics[pair.Key] = pair.Value.Normalize();
-        _renderer.SetFormationStatus(_formation);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
         AnnouncePartyCommand("Az alakzat sorrendje elmentve. A terkepen A-val rendelheted el az osszeallast.",
             ConsoleColor.Cyan);
@@ -3799,7 +3799,7 @@ public sealed class Game : ISessionCommandHandler
             _session.SetFormationMovementLocked(false);
             _formationObstacleReported = false;
         }
-        _renderer.SetFormationStatus(_formation);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
         return _formation != previous;
     }
 
@@ -3809,7 +3809,7 @@ public sealed class Game : ISessionCommandHandler
         if (_formation.State != PartyFormationState.Disbanded)
         {
             _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
-            _renderer.SetFormationStatus(_formation);
+            _renderer.CharacterSheet.SetFormationStatus(_formation);
             _session.SetFormationMovementLocked(false);
             _formationObstacleReported = false;
             AnnouncePartyCommand("Az alakzat feloszlott; minden partitag ujra egyenileg mozoghat.", ConsoleColor.Gray);
@@ -3821,7 +3821,7 @@ public sealed class Game : ISessionCommandHandler
             State = PartyFormationState.Assembling,
             Layout = PartyFormationLayout.Block
         };
-        _renderer.SetFormationStatus(_formation);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
         _partyHoldingPosition = false;
         _partyRegrouping = false;
         _partyAttackMode = false;
@@ -3844,7 +3844,7 @@ public sealed class Game : ISessionCommandHandler
         {
             _formation = rotated;
             _leaderFacing = rotated.Facing;
-            _renderer.SetFormationStatus(_formation);
+            _renderer.CharacterSheet.SetFormationStatus(_formation);
             ScheduleFormationMove();
             AnnouncePartyCommand(clockwise ? "Az alakzat jobbra fordult." : "Az alakzat balra fordult.",
                 ConsoleColor.Cyan);
@@ -4027,7 +4027,7 @@ public sealed class Game : ISessionCommandHandler
         _player.TeleportTo(positions[PartyLeader.Id]);
         foreach (var entry in previousMembers) entry.Avatar.MoveTo(entry.Destination);
         _formation = formation;
-        _renderer.SetFormationStatus(_formation);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
 
         PartyLeader.RegisterExplorationStep();
         var leaderRevealed = RevealFor(PartyLeader, _player.Position, advanceEnemyMemory: true);
@@ -4390,7 +4390,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void DropSelectedInventoryItem()
     {
-        var slot = _renderer.GetSelectedInventorySlot();
+        var slot = _renderer.CharacterSheet.GetSelectedInventorySlot();
         if (slot is null) { _renderer.DrawInventoryMessage("Itt nincs ledobható tárgy.", ConsoleColor.DarkYellow); return; }
         var item = slot.Value.Character.GetInventoryItem(slot.Value.Kind, slot.Value.Index);
         if (item is null) { _renderer.DrawInventoryMessage("A kijelölt hely üres.", ConsoleColor.DarkYellow); return; }
@@ -4569,10 +4569,10 @@ public sealed class Game : ISessionCommandHandler
 
     private void InspectSelectedInventoryItem()
     {
-        var slot = _renderer.GetSelectedInventorySlot();
+        var slot = _renderer.CharacterSheet.GetSelectedInventorySlot();
         if (slot is null)
         {
-            if (_renderer.GetSelectedPartyMember() is { } partyMember)
+            if (_renderer.CharacterSheet.GetSelectedPartyMember() is { } partyMember)
                 _renderer.DrawInventoryMessage($"{partyMember.Name} — mozgásprofil: {NpcBehaviorName(partyMember.NpcBehavior)}.",
                     partyMember.Color);
             else
@@ -4596,7 +4596,7 @@ public sealed class Game : ISessionCommandHandler
                 _renderer.DrawInventoryMessage("A tárgy adatai jelenleg nem olvashatók.", ConsoleColor.DarkYellow);
                 return;
             }
-            _renderer.DrawItemInspectionPage(ItemInspectionPanel.BuildUnidentified(unknownItem,
+            _renderer.CharacterSheet.DrawItemInspectionPage(ItemInspectionPanel.BuildUnidentified(unknownItem,
                 focused: _characterSheetFocused, width: CharacterSheetPanel.Width));
             return;
         }
@@ -4604,13 +4604,13 @@ public sealed class Game : ISessionCommandHandler
         var state = slot.Value.Character.GetInventoryItemState(slot.Value.Kind, slot.Value.Index);
         var charges = slot.Value.Character.GetInventoryItemCharges(slot.Value.Kind, slot.Value.Index);
         var quantity = slot.Value.Character.GetInventoryItemQuantity(slot.Value.Kind, slot.Value.Index);
-        _renderer.DrawItemInspectionPage(ItemInspectionPanel.BuildKnown(item, _gameData,
+        _renderer.CharacterSheet.DrawItemInspectionPage(ItemInspectionPanel.BuildKnown(item, _gameData,
             quantity, charges, state, focused: _characterSheetFocused, width: CharacterSheetPanel.Width));
     }
 
     private void DismissSelectedPartyMember()
     {
-        var character = _renderer.GetSelectedPartyMember();
+        var character = _renderer.CharacterSheet.GetSelectedPartyMember();
         if (character is null)
         {
             _renderer.DrawInventoryMessage("A Del használatához jelölj ki egy partitársat.", ConsoleColor.DarkYellow);
@@ -4656,7 +4656,7 @@ public sealed class Game : ISessionCommandHandler
         CharacterRoster.Remove(character);
         foreach (var position in changedPositions.Distinct())
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, position, _player.Position);
-        _renderer.RefreshAfterPartyMemberRemoved(character, PartyLeader);
+        _renderer.CharacterSheet.RefreshAfterPartyMemberRemoved(character, PartyLeader);
         var sackMemberMsg = $"👋 {character.Name} felszerelésével együtt végleg távozott a partiból.";
         _renderer.DrawInventoryMessage(sackMemberMsg, ConsoleColor.DarkYellow);
         var guestCharacterId = _session.CharacterControls.FirstOrDefault(cc => cc.ControllerKind == CharacterControllerKind.RemotePlayer)?.CharacterId;
@@ -4686,7 +4686,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void UseSelectedInventoryItem()
     {
-        var slot = _renderer.GetSelectedInventorySlot();
+        var slot = _renderer.CharacterSheet.GetSelectedInventorySlot();
         if (slot is { } reserve && reserve.Kind == InventorySlotKind.Weapon && reserve.Index == 2)
         {
             var character = reserve.Character;
@@ -4718,7 +4718,7 @@ public sealed class Game : ISessionCommandHandler
         var selectedItem = slot.Value.Character.GetInventoryItem(slot.Value.Kind, slot.Value.Index);
         if (SpellcastingRules.IsSpellcastingFocus(selectedItem))
         {
-            _renderer.DrawSpellInfoPage(slot.Value.Character, 0);
+            _renderer.CharacterSheet.DrawSpellInfoPage(slot.Value.Character, 0);
             return;
         }
         if (selectedItem is not MiscItemDefinition item || item.Effect == ConsumableEffect.None)
@@ -4980,7 +4980,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void GrabOrPlaceInventoryItem()
     {
-        var slot = _renderer.GetSelectedInventorySlot();
+        var slot = _renderer.CharacterSheet.GetSelectedInventorySlot();
         if (slot is null) 
         { 
             var selectSlotErrorMsg = "Válassz egy felszerelés- vagy hátizsákhelyet.";
@@ -5042,7 +5042,7 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage(splitStackErrorMsg, ConsoleColor.DarkYellow);
             return;
         }
-        var slot = _renderer.GetSelectedInventorySlot();
+        var slot = _renderer.CharacterSheet.GetSelectedInventorySlot();
         if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
         {
             var splitStackErrorMsg = "Hátizsákban levő köteget jelölj ki a felezéshez.";
@@ -5086,7 +5086,7 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage(distributeStackErrorMsg, ConsoleColor.DarkYellow);
             return;
         }
-        var slot = _renderer.GetSelectedInventorySlot();
+        var slot = _renderer.CharacterSheet.GetSelectedInventorySlot();
         if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
         {
             var distributeStackErrorMsg = "Elfogyasztható hátizsáktárgyat jelölj ki a szétosztáshoz.";
@@ -5132,7 +5132,7 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawInventoryMessage(giveStackError1Msg, ConsoleColor.DarkYellow);
             return;
         }
-        var slot = _renderer.GetSelectedInventorySlot();
+        var slot = _renderer.CharacterSheet.GetSelectedInventorySlot();
         if (slot is null || slot.Value.Kind != InventorySlotKind.Backpack)
         {
             var giveStackError2Msg = "Elfogyasztható hátizsákköteget jelölj ki az átadáshoz.";
@@ -5319,7 +5319,7 @@ public sealed class Game : ISessionCommandHandler
             _activeAdHocConversation = null;
             _session.SetPhase(previousPhase);
             RequestCoopSnapshotPublish();
-            _renderer.SetCharacterSheetFocused(_characterSheetFocused);
+            _renderer.CharacterSheet.SetCharacterSheetFocused(_characterSheetFocused);
         }
     }
 
@@ -5785,7 +5785,7 @@ public sealed class Game : ISessionCommandHandler
         if (result.AllInPlace)
         {
             _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Locked);
-            _renderer.SetFormationStatus(_formation);
+            _renderer.CharacterSheet.SetFormationStatus(_formation);
             _session.SetFormationMovementLocked(true);
             _formationObstacleReported = false;
             AnnouncePartyCommand("Az alakzat osszeallt. Csak a vezer mozgathatja; Ctrl+bal/jobb: fordulas.",
@@ -6345,7 +6345,7 @@ public sealed class Game : ISessionCommandHandler
             _renderer.RefreshCharacterSheet(PartyLeader);
         }
         else caster.SpendMana(manaCost);
-        _renderer.RefreshBattleStatusRows();
+        _renderer.CharacterSheet.RefreshBattleStatusRows();
 
         if (inCombat)
         {
@@ -6821,8 +6821,8 @@ public sealed class Game : ISessionCommandHandler
         _battleLogCycle = -1;
         _lastDelayedAction = null;
         _pendingLevelUps.Clear();
-        if (_renderer.IsSpellInfoPageOpen)
-            _renderer.CloseSpellInfoPage();
+        if (_renderer.CharacterSheet.IsSpellInfoPageOpen)
+            _renderer.CharacterSheet.CloseSpellInfoPage();
 
         var characterParticipants = new List<TeamCharacterParticipant>();
         var preparationEntries = new List<BattleLogEntry>();
@@ -9266,7 +9266,7 @@ public sealed class Game : ISessionCommandHandler
         MoveBattleCharacterTo(rear, frontPosition);
         battle.RecordMovement(BattleSide.Friendly);
         _formation = battle.Formation!;
-        _renderer.SetFormationStatus(_formation);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
         var transferText = transferredEngagements == 0
@@ -9984,14 +9984,14 @@ public sealed class Game : ISessionCommandHandler
                 _lastBattleActionDetails = entry.Details ?? new BattleActionDetails(Guid.NewGuid(),
                     _activeTeamBattle.CurrentCharacter?.Name ?? _activeTeamBattle.CurrentEnemy?.Name ?? "Akció",
                     "", [], [entry.Message]);
-                _renderer.DrawBattleDetails(_lastBattleActionDetails);
+                _renderer.CharacterSheet.DrawBattleDetails(_lastBattleActionDetails);
             }
         }
         _sessionEventService.PresentBattleEntries(
             materialized,
             _isQuickTeamBattle,
             entry => _renderer.DrawBattleRound(entry),
-            _ => _renderer.RefreshBattleStatusRows(),
+            _ => _renderer.CharacterSheet.RefreshBattleStatusRows(),
             PartyLeader.Id,
             _ => _quickBattleSuppressedEntryCount++);
     }
@@ -10293,7 +10293,7 @@ public sealed class Game : ISessionCommandHandler
         _formation = PartyFormationRules.CreateDefault(
             CharacterRoster.Party.Members.Select(member => member.Id), PartyLeader.Id);
         _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
-        _renderer.SetFormationStatus(_formation);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
         RevealFor(PartyLeader, _player.Position);

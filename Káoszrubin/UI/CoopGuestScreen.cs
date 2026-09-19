@@ -1706,7 +1706,7 @@ public sealed class CoopGuestScreen
             panel[41] = new GuestTextLine("Megfigyelő mód", ConsoleColor.DarkYellow, ConsoleColor.Black);
 
         if (!_spellInfoOpen && _itemInspectionPanel is null && snapshot.Formation is { } formation && panel.Length > 40)
-            panel[40] = new GuestTextLine(ConsoleRenderer.FormationStatusText(formation),
+            panel[40] = new GuestTextLine(ConsoleRenderer.CharacterSheetRenderer.FormationStatusText(formation),
                 formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan,
                 ConsoleColor.Black);
 
