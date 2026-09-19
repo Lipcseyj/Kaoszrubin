@@ -54,7 +54,7 @@ internal sealed class GameStateMapper
                 enemy.GuaranteedLootIds.ToList(), enemy.Alertness, enemy.SearchRole,
                 enemy.HomePosition, enemy.LastKnownTargetPosition, enemy.ReactionDelayMovesRemaining,
                 enemy.SearchMovesRemaining, enemy.ReturnDelayMovesRemaining,
-                enemy.Definition.Weapon?.Id,
+                null, // SelectedWeaponId: csak a 25-ös és régebbi mentések visszaolvasásához marad meg.
                 enemy.AbilityCooldowns.ToDictionary(item => item.Key, item => item.Value,
                     StringComparer.OrdinalIgnoreCase),
                 enemy.WeaponCooldowns.ToDictionary(item => item.Key, item => item.Value,
@@ -62,7 +62,8 @@ internal sealed class GameStateMapper
                 enemy.RemainingAbilityCharges.ToDictionary(item => item.Key, item => item.Value,
                     StringComparer.OrdinalIgnoreCase), enemy.LastKnownTargetDirection,
                 enemy.ConsecutivePursuitPathFailures, enemy.SearchAnchorPosition,
-                enemy.SearchVisitedPositions.ToList())).ToList(),
+                enemy.SearchVisitedPositions.ToList(),
+                new EnemyEquipmentSaveData(enemy.EquippedWeapon?.Id, enemy.EquippedShield?.Id))).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -168,8 +169,13 @@ internal sealed class GameStateMapper
         var nextEnemyMoves = new Dictionary<Enemy, DateTime>();
         foreach (var savedEnemy in state.Maze.Enemies)
         {
-            var enemy = new ConfiguredEnemy(savedEnemy.Position, _gameData.GetEnemy(savedEnemy.DefinitionId),
-                selectedWeaponId: savedEnemy.SelectedWeaponId);
+            var equipment = savedEnemy.Equipment is { } savedEquipment
+                ? new EnemyEquipmentSelection(savedEquipment.WeaponId, savedEquipment.ShieldId)
+                : null;
+            var definition = _gameData.GetEnemy(savedEnemy.DefinitionId);
+            var enemy = equipment is null
+                ? ConfiguredEnemy.RestoreLegacy(savedEnemy.Position, definition, savedEnemy.SelectedWeaponId)
+                : new ConfiguredEnemy(savedEnemy.Position, definition, equipment: equipment);
             enemy.SetCurrentHitPoints(savedEnemy.CurrentHitPoints);
             enemy.ConfigureMovement(savedEnemy.MovementProfile, savedEnemy.PatrolDirection, savedEnemy.PursuitState,
                 savedEnemy.PursuitTargetCharacterId, savedEnemy.PursuitMemoryRemainingMoves);

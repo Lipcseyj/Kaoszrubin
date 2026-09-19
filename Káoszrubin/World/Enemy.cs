@@ -11,6 +11,8 @@ public enum EnemyGroupRole { Member, Leader }
 public enum EnemyAlertness { Sleeping, Drowsy, Alert }
 public enum EnemySearchRole { None, Scout, Returning, Guarding }
 
+public sealed record EnemyEquipmentSelection(string? WeaponId, string? ShieldId);
+
 public abstract class Enemy(Position position) : WorldObject(position)
 {
     public const int MinimumPursuitMemoryMoves = 8;
@@ -21,11 +23,14 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public const int MinimumSearchMoves = 30;
     public const int MaximumSearchMoves = 120;
     public abstract EnemyDefinition Definition { get; }
-    public string LongName => Definition.ChoosesWeapon && Definition.Weapon is { } weapon
-        ? (Definition.ShieldId != null && Definition.Shield is { } shield ? $"{Definition.Name} ({weapon.Name} + {shield.Name})" : $"{Definition.Name} ({weapon.Name})")
+    public IReadOnlyList<WeaponDefinition> AttackWeapons { get; protected init; } = [];
+    public WeaponDefinition? EquippedWeapon { get; protected init; }
+    public WeaponDefinition? EquippedShield { get; protected init; }
+    public string LongName => Definition.ChoosesWeapon && EquippedWeapon is { } weapon
+        ? (EquippedShield is { } shield ? $"{Definition.Name} ({weapon.Name} + {shield.Name})" : $"{Definition.Name} ({weapon.Name})")
         : Definition.Name;
-    public string Name => Definition.ChoosesWeapon && Definition.Weapon is { } weapon
-        ? (Definition.ShieldId != null && Definition.Shield is { } shield ? $"{Definition.Name} ({weapon.GetIcon()} + {shield.GetIcon()})" : $"{Definition.Name} ({weapon.GetIcon()})")
+    public string Name => Definition.ChoosesWeapon && EquippedWeapon is { } weapon
+        ? (EquippedShield is { } shield ? $"{Definition.Name} ({weapon.GetIcon()} + {shield.GetIcon()})" : $"{Definition.Name} ({weapon.GetIcon()})")
         : Definition.Name;
     public string ShortName => Definition.Name;
     public int CurrentHitPoints { get; private set; }
@@ -66,14 +71,14 @@ public abstract class Enemy(Position position) : WorldObject(position)
         get
         {
             IEnumerable<string> weaponIds = Definition.ChoosesWeapon
-                ? Definition.Weapon is { IsMonsterOnly: false } selected
+                ? EquippedWeapon is { IsMonsterOnly: false } selected
                     ? [selected.Id]
                     : []
-                : (Definition.Weapons ?? [])
+                : AttackWeapons
                     .Where(weapon => !weapon.IsMonsterOnly)
                     .Select(weapon => weapon.Id);
 
-            if (Definition.Shield is { IsMonsterOnly: false } shield)
+            if (EquippedShield is { IsMonsterOnly: false } shield)
                 weaponIds = weaponIds.Append(shield.Id);
 
             return weaponIds
@@ -423,8 +428,13 @@ public sealed class ConfiguredEnemy : Enemy
         Position position,
         EnemyDefinition definition,
         Random? random = null,
-        string? selectedWeaponId = null,
-        bool? hasShield = null) : base(position)
+        EnemyEquipmentSelection? equipment = null)
+        : this(position, definition, random, equipment, null)
+    {
+    }
+
+    private ConfiguredEnemy(Position position, EnemyDefinition definition, Random? random,
+        EnemyEquipmentSelection? equipment, string? legacySelectedWeaponId) : base(position)
     {
         var rng = random ?? Random.Shared;
         var weapons = definition.Weapons ?? [];
@@ -433,29 +443,49 @@ public sealed class ConfiguredEnemy : Enemy
             .Where(weapon => !weapon.IsTwoHanded)
             .ToArray();
 
-        var restoredWeapon = selectedWeaponId is { Length: > 0 }
+        if (equipment is not null && definition.ChoosesWeapon != (equipment.WeaponId is not null))
+            throw new ArgumentException(definition.ChoosesWeapon
+                    ? "A fegyvert választó ellenfél mentett felszereléséből hiányzik a fegyver."
+                    : "A támadásonként fegyvert választó ellenfélnek nem lehet felszerelt fegyvere.",
+                nameof(equipment));
+
+        var restoredWeaponId = equipment?.WeaponId ?? legacySelectedWeaponId;
+        var restoredWeapon = restoredWeaponId is { Length: > 0 }
             ? weapons.FirstOrDefault(weapon =>
                 string.Equals(
                     weapon.Id,
-                    selectedWeaponId,
+                    restoredWeaponId,
                     StringComparison.OrdinalIgnoreCase))
             : null;
 
+        if (equipment is not null && restoredWeaponId is not null && restoredWeapon is null)
+            throw new ArgumentException($"Az ellenfél nem használhatja a mentett fegyvert: {restoredWeaponId}.",
+                nameof(equipment));
+
         // Mentésből visszaállított vagy explicit módon megadott fegyver
         // elsőbbséget élvez a véletlen választással szemben.
-        var selectedWeapon = restoredWeapon ?? definition.Weapon;
+        var selectedWeapon = restoredWeapon;
 
         var canUseShield =
-            definition.Shield is not null &&
+            definition.ShieldOption is not null &&
             oneHandedWeapons.Length > 0 &&
             selectedWeapon?.IsTwoHanded != true;
 
-        var usesShield =
-            canUseShield &&
-            (hasShield ?? rng.Next(100) < ShieldChancePercent);
+        var usesShield = equipment is not null
+            ? equipment.ShieldId is not null
+            : canUseShield && rng.Next(100) < ShieldChancePercent;
+
+        if (equipment?.ShieldId is { } restoredShieldId &&
+            !string.Equals(restoredShieldId, definition.ShieldOption?.Id, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Az ellenfél nem használhatja a mentett pajzsot: {restoredShieldId}.",
+                nameof(equipment));
+
+        if (usesShield && !canUseShield)
+            throw new ArgumentException("Az ellenfél mentett fegyvere és pajzsa nem használható együtt.",
+                nameof(equipment));
 
         var selectedShield = usesShield
-            ? definition.Shield
+            ? definition.ShieldOption
             : null;
 
         IReadOnlyList<WeaponDefinition> usableWeapons =
@@ -472,16 +502,18 @@ public sealed class ConfiguredEnemy : Enemy
             selectedWeapon ??= usableWeapons[0];
         }
 
-        Definition = definition with
-        {
-            Weapons = usableWeapons,
-            Weapon = selectedWeapon,
-            Shield = selectedShield
-        };
+        Definition = definition;
+        AttackWeapons = usableWeapons;
+        EquippedWeapon = definition.ChoosesWeapon ? selectedWeapon : null;
+        EquippedShield = selectedShield;
 
         Symbol = Rune.GetRuneAt(definition.Appearance, 0);
         InitializeHitPoints(definition.HitPoints ?? 0);
     }
+
+    public static ConfiguredEnemy RestoreLegacy(Position position, EnemyDefinition definition,
+        string? selectedWeaponId, Random? random = null) =>
+        new(position, definition, random, null, selectedWeaponId);
 
     public override EnemyDefinition Definition { get; }
     public override Rune Symbol { get; }

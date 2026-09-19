@@ -3093,7 +3093,7 @@ static void CombatAppliesEquipmentWear()
         "A majdnem törött páncélt vagy pajzsot nem lehetett felszerelni.");
     var breakingEnemyWeapon = weapon with { Id = "W-BREAK-NOTICE", Damage = new ValueRange(1, 1) };
     var breakingEnemy = new ConfiguredEnemy(new Position(1, 1),
-        CreateEnemy(10000, 5, speed: 100).Definition with { Weapon = breakingEnemyWeapon });
+        CreateEnemy(10000, 5, speed: 100).Definition);
     var breakingSystem = CreateBattleSystem(31);
     var breakingRuntime = breakingSystem.PrepareTeamCharacter(breakingDefender).Runtime;
     var defensiveBreakNotices = new List<BattleLogNotice>();
@@ -3137,7 +3137,7 @@ static void AcidAndChaosCauseSpecialEquipmentWear()
             DamageType = damageType
         };
         var enemy = new ConfiguredEnemy(new Position(1, 1),
-            CreateEnemy(10000, 5, speed: 100).Definition with { Weapon = attackWeapon });
+            CreateEnemy(10000, 5, speed: 100).Definition);
         var system = CreateBattleSystem(seed);
         var runtime = system.PrepareTeamCharacter(defender).Runtime;
         for (var attempt = 0; attempt < 40; attempt++)
@@ -3537,11 +3537,7 @@ static void DamagedAndBrokenEquipmentAffectsCombat()
             Damage = new ValueRange(20, 20)
         };
 
-        var enemyDefinition =
-            CreateEnemy(1000, 5).Definition with
-            {
-                Weapon = enemyWeapon
-            };
+        var enemyDefinition = CreateEnemy(1000, 5).Definition;
 
         var enemy = new ConfiguredEnemy(
             new Position(1, 1),
@@ -7179,8 +7175,12 @@ static void PhysicalDamageUsesTypesAndWeapons()
             var system = CreateBattleSystem(seed);
             var target = CreateCharacter("Védő", 1000);
             target.EquipArmor(data.GetArmor("A002") with { Defense = new(5, 5), Resistances = resistance });
+            var weapon = data.GetWeapon("W005") with { Damage = new(weaponDamage, weaponDamage) };
             var enemy = new ConfiguredEnemy(new(1, 1), data.GetEnemy("E003") with
-            { Weapon = data.GetWeapon("W005") with { Damage = new(weaponDamage, weaponDamage) } });
+            {
+                WeaponIds = [weapon.Id],
+                Weapons = [weapon]
+            });
             system.ResolveTeamEnemyAction(enemy, target, system.PrepareTeamCharacter(target).Runtime);
             total += 1000 - target.CurrentVitality;
         }
@@ -7200,28 +7200,49 @@ static void WeaponCsvPropertiesAreInherited()
         "A régi goblin- vagy orkvariáns megmaradt.");
     var goblin = data.GetEnemy("E003");
     var firstGoblin = new ConfiguredEnemy(new(1, 1), goblin, new Random(7));
-    var selectedGoblinWeapon = firstGoblin.Definition.Weapon ??
+    var selectedGoblinWeapon = firstGoblin.EquippedWeapon ??
                                throw new InvalidOperationException("A goblin nem választott fegyvert.");
-    var sameGoblin = new ConfiguredEnemy(new(1, 1), goblin, new Random(99), selectedGoblinWeapon.Id);
+    var sameGoblin = new ConfiguredEnemy(new(1, 1), goblin, new Random(99),
+        new EnemyEquipmentSelection(selectedGoblinWeapon.Id, null));
     Assert(goblin.Name == "Goblin" && goblin.ChoosesWeapon && goblin.WeaponIds!.Count == 3 &&
            firstGoblin.LongName.Contains(selectedGoblinWeapon.Name, StringComparison.Ordinal) &&
-           sameGoblin.Definition.Weapon?.Id == selectedGoblinWeapon.Id,
+           sameGoblin.EquippedWeapon?.Id == selectedGoblinWeapon.Id &&
+           ReferenceEquals(firstGoblin.Definition, goblin) && ReferenceEquals(sameGoblin.Definition, goblin),
         "A goblin példány nem választott és nem őrzött meg megjelenített fegyvert.");
     var savedGoblin = JsonSerializer.Deserialize<EnemySaveData>(JsonSerializer.Serialize(new EnemySaveData(
         firstGoblin.Position, firstGoblin.Definition.Id, firstGoblin.CurrentHitPoints,
         SelectedWeaponId: selectedGoblinWeapon.Id)))!;
-    var restoredGoblin = new ConfiguredEnemy(savedGoblin.Position, goblin, new Random(99), savedGoblin.SelectedWeaponId);
-    Assert(restoredGoblin.Definition.Weapon?.Id == selectedGoblinWeapon.Id,
+    var restoredGoblin = ConfiguredEnemy.RestoreLegacy(savedGoblin.Position, goblin,
+        savedGoblin.SelectedWeaponId, new Random(99));
+    Assert(restoredGoblin.EquippedWeapon?.Id == selectedGoblinWeapon.Id,
         "A példány fegyverválasztása nem élte túl a mentést.");
+    var oneHandedGoblinWeapon = goblin.Weapons!.First(weapon => !weapon.IsTwoHanded);
+    var goblinShield = goblin.ShieldOption ?? throw new InvalidOperationException("A goblinnak nincs pajzsopciója.");
+    var shieldedGoblin = new ConfiguredEnemy(new(1, 1), goblin, new Random(1),
+        equipment: new EnemyEquipmentSelection(oneHandedGoblinWeapon.Id, goblinShield.Id));
+    var shieldlessGoblin = new ConfiguredEnemy(new(1, 1), goblin, new Random(1),
+        equipment: new EnemyEquipmentSelection(oneHandedGoblinWeapon.Id, null));
+    var savedEquipment = JsonSerializer.Deserialize<EnemyEquipmentSaveData>(JsonSerializer.Serialize(
+        new EnemyEquipmentSaveData(shieldedGoblin.EquippedWeapon?.Id, shieldedGoblin.EquippedShield?.Id)))!;
+    var reloadedShieldedGoblin = new ConfiguredEnemy(new(1, 1), goblin, new Random(99),
+        equipment: new EnemyEquipmentSelection(savedEquipment.WeaponId, savedEquipment.ShieldId));
+    Assert(shieldedGoblin.EquippedShield?.Id == goblinShield.Id &&
+           shieldlessGoblin.EquippedShield is null &&
+           reloadedShieldedGoblin.EquippedWeapon?.Id == oneHandedGoblinWeapon.Id &&
+           reloadedShieldedGoblin.EquippedShield?.Id == goblinShield.Id &&
+           shieldedGoblin.AttackWeapons.All(weapon => !weapon.IsTwoHanded),
+        "A példány fegyver- vagy pajzsállapota nem maradt stabil mentés után.");
     var zombie = data.GetEnemy("E006");
     var zombieWeaponIds = zombie.WeaponIds ?? [];
     var zombieEnemy = new ConfiguredEnemy(new(1, 1), zombie, new Random(4));
     Assert(zombie.ChoosesWeapon && zombieWeaponIds.SequenceEqual(["WN003", "W005"]) &&
-           zombieEnemy.Definition.Weapon is { } zombieWeapon &&
+           zombieEnemy.EquippedWeapon is { } zombieWeapon &&
            zombieWeaponIds.Contains(zombieWeapon.Id) && zombieEnemy.LongName.Contains(zombieWeapon.Name, StringComparison.Ordinal),
         "A zombi nem választ egyszer az ököl és a bunkó közül.");
-    var armedZombie = new ConfiguredEnemy(new(1, 1), zombie, selectedWeaponId: "W005");
-    var unarmedZombie = new ConfiguredEnemy(new(1, 1), zombie, selectedWeaponId: "WN003");
+    var armedZombie = new ConfiguredEnemy(new(1, 1), zombie,
+        equipment: new EnemyEquipmentSelection("W005", null));
+    var unarmedZombie = new ConfiguredEnemy(new(1, 1), zombie,
+        equipment: new EnemyEquipmentSelection("WN003", null));
     var minotaurCorpseMaze = new Maze(7, 7);
     var minotaurForLoot = new ConfiguredEnemy(new(3, 3), data.GetEnemy("E014"));
     minotaurCorpseMaze.Carve(minotaurForLoot.Position);

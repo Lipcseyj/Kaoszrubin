@@ -178,14 +178,14 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         ArgumentNullException.ThrowIfNull(attacker);
         if (attacker.PreparedWeaponId is { } preparedId)
         {
-            var prepared = (attacker.Definition.Weapons ?? []).FirstOrDefault(weapon =>
+            var prepared = attacker.AttackWeapons.FirstOrDefault(weapon =>
                 string.Equals(weapon.Id, preparedId, StringComparison.OrdinalIgnoreCase));
             if (prepared is not null) return prepared;
             attacker.ClearPreparedWeapon();
         }
-        if (attacker.Definition.Weapon is { } selectedWeapon)
+        if (attacker.EquippedWeapon is { } selectedWeapon)
             return attacker.IsWeaponReady(selectedWeapon.Id) ? selectedWeapon : null;
-        var ready = (attacker.Definition.Weapons ?? []).Where(weapon => attacker.IsWeaponReady(weapon.Id)).ToArray();
+        var ready = attacker.AttackWeapons.Where(weapon => attacker.IsWeaponReady(weapon.Id)).ToArray();
         return ready.Length > 0 ? ready[_random.Next(ready.Length)] : null;
     }
 
@@ -193,8 +193,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     {
         ArgumentNullException.ThrowIfNull(targetCount);
         if (attacker.PreparedWeaponId is not null) return SelectEnemyAttackWeapon(attacker);
-        if (attacker.Definition.Weapon is not null) return SelectEnemyAttackWeapon(attacker);
-        var ready = (attacker.Definition.Weapons ?? []).Where(weapon => attacker.IsWeaponReady(weapon.Id)).ToArray();
+        if (attacker.EquippedWeapon is not null) return SelectEnemyAttackWeapon(attacker);
+        var ready = attacker.AttackWeapons.Where(weapon => attacker.IsWeaponReady(weapon.Id)).ToArray();
         if (ready.Length == 0) return null;
         var breaths = ready.Where(IsTelegraphedWeapon).Select(weapon => (Weapon: weapon, Targets: targetCount(weapon)))
             .Where(candidate => candidate.Targets > 0).ToArray();
@@ -410,9 +410,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
         ArgumentNullException.ThrowIfNull(defenderRuntime);
-        var weapons = (attacker.Definition.Weapons ?? []).Where(weapon =>
+        var weapons = attacker.AttackWeapons.Where(weapon =>
             weapon.MaximumTargets == 1 && attacker.IsWeaponReady(weapon.Id)).ToArray();
-        var opportunityWeapon = attacker.Definition.Weapon is { MaximumTargets: 1 } selected &&
+        var opportunityWeapon = attacker.EquippedWeapon is { MaximumTargets: 1 } selected &&
                                 attacker.IsWeaponReady(selected.Id)
             ? selected
             : weapons.Length > 0 ? weapons[_random.Next(weapons.Length)] : null;
@@ -1889,9 +1889,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 armorAbilityBonus,
                 enemy.Definition.HasTrait(EnemyTraits.Undead),
                 enemy.Definition.Resistances,
-                enemy.Definition.ShieldId,
-                enemy.Definition.Shield,
-                enemy.Definition.Weapon);
+                enemy.EquippedShield?.Id,
+                enemy.EquippedShield,
+                enemy.EquippedWeapon);
         }
     }
 

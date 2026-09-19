@@ -192,7 +192,7 @@ public static class CsvGameDataLoader
             enemies[index] = enemy with
             {
                 Weapons = resolvedWeapons,
-                Shield = resolvedShield
+                ShieldOption = resolvedShield
             };
         }
         var monsterAbilityById = monsterAbilities.ToDictionary(ability => ability.Id, StringComparer.OrdinalIgnoreCase);

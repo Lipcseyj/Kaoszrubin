@@ -8985,9 +8985,9 @@ public sealed class Game : ISessionCommandHandler
 
     private bool CanTeamEnemyActMeaningfully(TeamBattleEncounter battle, Enemy enemy)
     {
-        var possibleWeapons = enemy.Definition.Weapon is { } selected
+        var possibleWeapons = enemy.EquippedWeapon is { } selected
             ? new[] { selected }
-            : enemy.Definition.Weapons ?? [];
+            : enemy.AttackWeapons;
         if (possibleWeapons.Any(weapon => TacticalTeamBattleCoordinator.EnemyAttackTargets(
                 battle, enemy, weapon, GetCasterPosition).Count > 0)) return true;
         if (battle.IsEngaged(enemy)) return false;

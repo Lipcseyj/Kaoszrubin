@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 25;
+    public const int CurrentVersion = 26;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -135,10 +135,19 @@ public static class GameSaveFormat
                 22 => MigrateVersion22To23(state),
                 23 => MigrateVersion23To24(state),
                 24 => MigrateVersion24To25(state),
+                25 => MigrateVersion25To26(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion25To26(GameSaveData state)
+    {
+        // A régi mentés csak a kiválasztott fegyvert ismerte. Az Equipment null marad,
+        // ezért az első betöltés még a legacy pajzssorsolást használja; a következő mentés már pontos.
+        state.Version = 26;
         return state;
     }
 
@@ -431,7 +440,9 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     Direction? LastKnownTargetDirection = null,
     int ConsecutivePursuitPathFailures = 0,
     Position? SearchAnchorPosition = null,
-    List<Position>? SearchVisitedPositions = null);
+    List<Position>? SearchVisitedPositions = null,
+    EnemyEquipmentSaveData? Equipment = null);
+public sealed record EnemyEquipmentSaveData(string? WeaponId, string? ShieldId);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null,
     List<string>? CarriedWeaponIds = null);
