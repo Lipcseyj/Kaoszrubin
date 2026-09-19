@@ -12,59 +12,39 @@ public sealed partial class ConsoleRenderer
 {
     public sealed class CharacterSheetRenderer
     {
-        private const int CharacterSheetPerkRows = 2;
         private const int CharacterSheetHeaderLine = 1;
-        private const int CharacterSheetRaceClassLine = 1;
-        private const int CharacterSheetFirstPerkLine = 2;
-        private const int CharacterSheetSecondPerkLine = 3;
         private const int CharacterSheetStatusLine = 8;
-        private const int CharacterSheetLevelLine = 5;
-        private const int CharacterSheetExperienceLine = 6;
-        private const int CharacterSheetStrengthLine = 7;
-        private const int CharacterSheetDexterityLine = 8;
-        private const int CharacterSheetHealthLine = 9;
-        private const int CharacterSheetIntelligenceLine = 10;
         private const int CharacterSheetVitalityLine = 5;
-        private const int CharacterSheetFoodLine = 13;
-        private const int CharacterSheetWaterLine = 14;
         private const int CharacterSheetGoldLine = 9;
         private const int CharacterSheetWeaponsHeadingLine = 17;
-        private const int CharacterSheetFirstWeaponLine = 18;
-        private const int CharacterSheetSecondWeaponLine = 19;
-        private const int CharacterSheetArmorLine = 20;
         private const int CharacterSheetMagicItemsHeadingLine = 22;
-        private const int CharacterSheetMagicItemsStartLine = 23;
         private const int CharacterSheetBackpackHeadingLine = 26;
-        private const int CharacterSheetBackpackStartLine = 27;
         private const int CharacterSheetPartyMembersStartLine = 41;
-        private const int CharacterSheetMaximumMagicItems = 3;
-        private const int CharacterSheetBackpackSlots = 12;
         private const int CharacterSheetPartyMemberRows = 4;
         private const int CharacterSheetReservedMessageLine = 39;
         public const int CharacterSheetControlsLine = 40;
 
+        private enum SheetSelectionKind { Weapon, Armor, MagicItem, Backpack, PartyMember }
+        private readonly record struct SheetSelectionKey(SheetSelectionKind Kind, int Index);
+        private sealed record SheetSelectionEntry(SheetSelectionKey Key);
+        private readonly record struct PartyStatusRowState(PartyStatusLine? Status, ConsoleColor Background);
+
         private readonly ConsoleRenderer _owner;
+        private readonly Party _party;
 
         private bool _characterSheetFocused;
         private int _selectedSpellInfoIndex;
         private IReadOnlyList<CharacterSheetPanelLine>? _itemInspectionPanel;
-
         private SheetSelectionKey? _activeSheetSelection;
         private readonly Dictionary<LiveCharacter, SheetSelectionKey> _lastSheetSelections = [];
 
         private CharacterId? _lastCharacterSheetCharacterId;
         private readonly Dictionary<int, CharacterSheetPanelLine> _lastCharacterSheetLines = [];
         private CharacterResourceLine? _lastCharacterVitalsOverlay;
-
         private readonly Dictionary<int, PartyStatusRowState> _lastPartyStatusRows = [];
-        private readonly record struct PartyStatusRowState(
-            PartyStatusLine? Status,
-            ConsoleColor Background);
+
         private PartyFormationSnapshot? _formation;
-        private readonly Party _party;
         private LiveCharacter? _displayedCharacter;
-        public LiveCharacter DisplayedCharacter => _displayedCharacter ?? _party.Leader
-            ?? throw new InvalidOperationException("Nincs megjeleníthető karakter.");
 
         internal CharacterSheetRenderer(ConsoleRenderer owner, Party party)
         {
@@ -72,6 +52,35 @@ public sealed partial class ConsoleRenderer
             _party = party;
         }
 
+        /// <summary>
+        /// Gets the character currently displayed on the right panel.
+        /// Use this when an external flow needs the active character-sheet context.
+        /// </summary>
+        public LiveCharacter DisplayedCharacter =>
+            _displayedCharacter ?? _party.Leader ?? throw new InvalidOperationException("Nincs megjeleníthető karakter.");
+
+        /// <summary>
+        /// Gets whether the spell info page is currently open.
+        /// Use this to gate input handling while spell detail mode is active.
+        /// </summary>
+        public bool IsSpellInfoPageOpen => _owner._spellInfoCharacter is not null;
+
+        /// <summary>
+        /// Gets whether an item inspection page is currently open.
+        /// Use this to restrict actions to inspection-specific keys while the page is visible.
+        /// </summary>
+        public bool IsItemInspectionPageOpen => _itemInspectionPanel is not null;
+
+        /// <summary>
+        /// Gets the character whose spells are currently shown on the spell info page.
+        /// Use this when applying quick-slot or cast actions from spell info selection.
+        /// </summary>
+        public LiveCharacter? SpellInfoCharacter => _owner._spellInfoCharacter;
+
+        /// <summary>
+        /// Refreshes the right panel for the current display context.
+        /// Use this when underlying data changed and the currently visible character sheet should be redrawn.
+        /// </summary>
         public void RefreshCharacterSheet()
         {
             var character = _displayedCharacter ?? _party.Members.FirstOrDefault();
@@ -80,7 +89,10 @@ public sealed partial class ConsoleRenderer
             RefreshCharacterSheet(character);
         }
 
-        /// <summary>Csak a jobb oldali karakterlapot rajzolja újra, a játéktér érintése nélkül.</summary>
+        /// <summary>
+        /// Refreshes the right panel using a fallback character when no display character is set.
+        /// Use this after character state updates when spell info and inspection overlays should be preserved.
+        /// </summary>
         public void RefreshCharacterSheet(LiveCharacter character)
         {
             if (_owner._spellInfoCharacter is not null)
@@ -88,23 +100,33 @@ public sealed partial class ConsoleRenderer
                 DrawSpellInfoPage(_owner._spellInfoCharacter, _selectedSpellInfoIndex);
                 return;
             }
+
             if (_itemInspectionPanel is not null)
             {
                 DrawItemInspectionPage(_itemInspectionPanel);
                 return;
             }
+
             var characterToDraw = _displayedCharacter is not null && SheetCharacters().Contains(_displayedCharacter)
                 ? _displayedCharacter
                 : character;
             DrawCharacterSheet(characterToDraw);
         }
 
+        /// <summary>
+        /// Updates only the gold row in the character sheet.
+        /// Use this for lightweight UI refresh after transactions that only change currency.
+        /// </summary>
         public void UpdateGoldInCharacterSheet(LiveCharacter character)
         {
             var goldLine = CharacterSheetPanel.BuildGoldLine(character);
             WriteSheetLine(CharacterSheetGoldLine, goldLine.Text, goldLine.Color, goldLine.Background);
         }
 
+        /// <summary>
+        /// Draws the inn variant of the character sheet and focuses sheet navigation.
+        /// Use this when entering inn inventory management mode.
+        /// </summary>
         public void DrawInnCharacterSheet(LiveCharacter character)
         {
             _owner.DrawFrame(5);
@@ -115,6 +137,10 @@ public sealed partial class ConsoleRenderer
             _owner.DrawInnMessage("Fogadói karakterlap — Tab: vissza a fogadóba | ↑/↓: választás | ←/→: karakter");
         }
 
+        /// <summary>
+        /// Sets focus visual state for character sheet controls.
+        /// Use this when toggling between movement/input mode and character-sheet input mode.
+        /// </summary>
         public void SetCharacterSheetFocused(bool focused)
         {
             _characterSheetFocused = focused;
@@ -123,6 +149,10 @@ public sealed partial class ConsoleRenderer
             DrawSelectableCharacterSheetRows(_displayedCharacter);
         }
 
+        /// <summary>
+        /// Moves the current character-sheet selection up or down.
+        /// Use positive values to move forward and negative values to move backward.
+        /// </summary>
         public void MoveCharacterSheetSelection(int direction)
         {
             if (_itemInspectionPanel is not null) return;
@@ -139,6 +169,10 @@ public sealed partial class ConsoleRenderer
             DrawSelectableCharacterSheetRows(_displayedCharacter);
         }
 
+        /// <summary>
+        /// Switches the displayed party member on the character sheet.
+        /// Use this for left/right navigation between members while preserving per-character selection.
+        /// </summary>
         public void MoveDisplayedPartyMember(int direction)
         {
             if (_itemInspectionPanel is not null) return;
@@ -153,6 +187,10 @@ public sealed partial class ConsoleRenderer
             DrawCharacterSheet(_displayedCharacter);
         }
 
+        /// <summary>
+        /// Draws the spell information page for a character.
+        /// Use this when opening spell details or when spell selection index changes.
+        /// </summary>
         public void DrawSpellInfoPage(LiveCharacter character, int selectedIndex)
         {
             _itemInspectionPanel = null;
@@ -170,11 +208,10 @@ public sealed partial class ConsoleRenderer
                     WriteSheetLine(row, string.Empty, ConsoleColor.Gray);
         }
 
-        public bool IsSpellInfoPageOpen => _owner._spellInfoCharacter is not null;
-        public bool IsItemInspectionPageOpen => _itemInspectionPanel is not null;
-
-        public LiveCharacter? SpellInfoCharacter => _owner._spellInfoCharacter;
-
+        /// <summary>
+        /// Gets the currently selected spell from the spell info page.
+        /// Use this to map Enter/F-key actions to the selected spell.
+        /// </summary>
         public SpellDefinition? GetSelectedSpellInfo()
         {
             if (_owner._spellInfoCharacter is null) return null;
@@ -182,11 +219,20 @@ public sealed partial class ConsoleRenderer
             return spells.ElementAtOrDefault(_selectedSpellInfoIndex);
         }
 
+        /// <summary>
+        /// Redraws the currently open spell info page.
+        /// Use this after quick-slot assignment or any state change affecting spell details.
+        /// </summary>
         public void RefreshSpellInfoPage()
         {
-            if (_owner._spellInfoCharacter is not null) DrawSpellInfoPage(_owner._spellInfoCharacter, _selectedSpellInfoIndex);
+            if (_owner._spellInfoCharacter is not null)
+                DrawSpellInfoPage(_owner._spellInfoCharacter, _selectedSpellInfoIndex);
         }
 
+        /// <summary>
+        /// Moves the selected row on the spell info page.
+        /// Use positive/negative direction values for down/up navigation.
+        /// </summary>
         public void MoveSpellInfoSelection(int direction)
         {
             if (_owner._spellInfoCharacter is null || direction == 0 || _owner._spellInfoCharacter.KnownSpells.Count == 0) return;
@@ -195,6 +241,10 @@ public sealed partial class ConsoleRenderer
             DrawSpellInfoPage(_owner._spellInfoCharacter, _selectedSpellInfoIndex);
         }
 
+        /// <summary>
+        /// Closes the spell info page and restores the regular character sheet.
+        /// Use this for Escape handling or before starting a cast action from spell info mode.
+        /// </summary>
         public void CloseSpellInfoPage()
         {
             if (_owner._spellInfoCharacter is null) return;
@@ -203,6 +253,10 @@ public sealed partial class ConsoleRenderer
             DrawCharacterSheet(character);
         }
 
+        /// <summary>
+        /// Draws an item inspection panel on the right side.
+        /// Use this when inspecting an identified or unidentified inventory item.
+        /// </summary>
         public void DrawItemInspectionPage(IReadOnlyList<CharacterSheetPanelLine> lines)
         {
             _owner._spellInfoCharacter = null;
@@ -215,6 +269,10 @@ public sealed partial class ConsoleRenderer
                     WriteSheetLine(row, string.Empty, ConsoleColor.Gray);
         }
 
+        /// <summary>
+        /// Closes the item inspection panel and redraws the selected character sheet.
+        /// Use this for inspection exit actions (Esc, I, Enter).
+        /// </summary>
         public void CloseItemInspectionPage()
         {
             if (_itemInspectionPanel is null) return;
@@ -223,6 +281,10 @@ public sealed partial class ConsoleRenderer
                 DrawCharacterSheet(_displayedCharacter);
         }
 
+        /// <summary>
+        /// Returns the inventory slot currently selected on the character sheet.
+        /// Use this before drop/use/move/split actions to resolve the target slot.
+        /// </summary>
         public InventorySlotReference? GetSelectedInventorySlot()
         {
             if (_displayedCharacter is null || _activeSheetSelection is not { } selection) return null;
@@ -239,12 +301,20 @@ public sealed partial class ConsoleRenderer
                 : null;
         }
 
+        /// <summary>
+        /// Returns the party member currently selected in the party section.
+        /// Use this for member-specific actions such as dismissal or behavior display.
+        /// </summary>
         public LiveCharacter? GetSelectedPartyMember()
         {
             if (_activeSheetSelection is not { Kind: SheetSelectionKind.PartyMember } selection) return null;
             return _party.Members.ElementAtOrDefault(selection.Index);
         }
 
+        /// <summary>
+        /// Reconciles sheet state after removing a party member.
+        /// Use this immediately after party roster removal to keep selection and display valid.
+        /// </summary>
         public void RefreshAfterPartyMemberRemoved(LiveCharacter removedCharacter, LiveCharacter leader)
         {
             _lastSheetSelections.Remove(removedCharacter);
@@ -254,12 +324,20 @@ public sealed partial class ConsoleRenderer
             DrawCharacterSheet(_displayedCharacter);
         }
 
+        /// <summary>
+        /// Redraws only selectable inventory and party rows.
+        /// Use this after selection or inventory-content changes when full redraw is unnecessary.
+        /// </summary>
         public void RefreshInventoryRows()
         {
-            if (_displayedCharacter is not null) DrawSelectableCharacterSheetRows(_displayedCharacter);
+            if (_displayedCharacter is not null)
+                DrawSelectableCharacterSheetRows(_displayedCharacter);
         }
 
-        /// <summary>Fogadói üzlet után csak a látható arany- és tárgysorokat frissíti.</summary>
+        /// <summary>
+        /// Refreshes visible inn-related transaction rows (gold and inventory rows).
+        /// Use this after buy/sell operations to avoid redrawing the whole frame.
+        /// </summary>
         public void RefreshInnTransactionRows()
         {
             if (_displayedCharacter is null) return;
@@ -273,7 +351,10 @@ public sealed partial class ConsoleRenderer
             DrawInventorySlotRows(_displayedCharacter, panelLines);
         }
 
-        /// <summary>Csata közben csak az állapot-, HP- és mannasorokat frissíti.</summary>
+        /// <summary>
+        /// Refreshes battle-sensitive rows (status icons, resources, party status).
+        /// Use this after damage, healing, mana use, or status effect changes in battle.
+        /// </summary>
         public void RefreshBattleStatusRows()
         {
             if (_displayedCharacter is null) return;
@@ -281,14 +362,10 @@ public sealed partial class ConsoleRenderer
             DrawPartyStatusRows(_displayedCharacter);
         }
 
-        private void InvalidateCharacterSheetCache()
-        {
-            _lastCharacterSheetCharacterId = null;
-            _lastCharacterSheetLines.Clear();
-            _lastCharacterVitalsOverlay = null;
-            _lastPartyStatusRows.Clear();
-        }
-
+        /// <summary>
+        /// Stores and renders current formation status text on the controls row.
+        /// Use this whenever formation state/facing/layout changes.
+        /// </summary>
         public void SetFormationStatus(PartyFormationSnapshot formation)
         {
             _formation = formation;
@@ -298,10 +375,14 @@ public sealed partial class ConsoleRenderer
                 RefreshSpellInfoPage();
                 return;
             }
-            WriteSheetLine(CharacterSheetRenderer.CharacterSheetControlsLine, FormationStatusText(formation),
+            WriteSheetLine(CharacterSheetControlsLine, FormationStatusText(formation),
                 formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
         }
 
+        /// <summary>
+        /// Formats formation state into the controls-row text.
+        /// Use this helper when any UI needs a consistent formation label.
+        /// </summary>
         public static string FormationStatusText(PartyFormationSnapshot formation)
         {
             var arrow = formation.Facing switch
@@ -321,6 +402,10 @@ public sealed partial class ConsoleRenderer
             return $"ALAKZAT {arrow}  {state}";
         }
 
+        /// <summary>
+        /// Draws detailed battle action text on the right panel.
+        /// Use this in non-quick battles when new action details become available.
+        /// </summary>
         public void DrawBattleDetails(BattleActionDetails? details)
         {
             if (_owner._battleDetails?.Id != details?.Id) _owner._battleDetailsPage = 0;
@@ -333,6 +418,10 @@ public sealed partial class ConsoleRenderer
                         WriteCharacterSheetPanelLine(line);
         }
 
+        /// <summary>
+        /// Changes the page index of battle details and redraws the panel.
+        /// Use +1/-1 direction values for PageDown/PageUp-like behavior.
+        /// </summary>
         public void PageBattleDetails(int direction)
         {
             _owner._battleDetailsPage = BattleDetailsPanel.Normalize(_owner._battleDetailsPage + direction,
@@ -340,38 +429,9 @@ public sealed partial class ConsoleRenderer
             DrawBattleDetails(_owner._battleDetails);
         }
 
-        private static bool SheetLineEquals(
-        CharacterSheetPanelLine a,
-        CharacterSheetPanelLine b)
-        {
-            return a.Row == b.Row &&
-                   a.Text == b.Text &&
-                   a.Color == b.Color &&
-                   a.Background == b.Background &&
-                   a.ColoredSuffix == b.ColoredSuffix &&
-                   a.ColoredSuffixColor == b.ColoredSuffixColor &&
-                   a.ExtendsToDivider == b.ExtendsToDivider &&
-                   a.ColoredTextStart == b.ColoredTextStart &&
-                   a.ColoredTextColor == b.ColoredTextColor &&
-                   a.InventorySlot == b.InventorySlot &&
-                   SegmentsEqual(a.Segments, b.Segments);
-        }
-
-        private static bool SegmentsEqual(
-            IReadOnlyList<TextSegment>? a,
-            IReadOnlyList<TextSegment>? b)
-        {
-            if (ReferenceEquals(a, b))
-                return true;
-
-            if (a is null || b is null || a.Count != b.Count)
-                return false;
-
-            return a.SequenceEqual(b);
-        }
-
         /// <summary>
-        /// Teljes karakterlap rajzolása a jobb oldali panelre. Minden sor a WriteSheetLine segítségével kerül oda.
+        /// Draws the full character sheet for one character into the right panel.
+        /// Use this as the primary render entry point for character sheet state changes.
         /// </summary>
         public void DrawCharacterSheet(LiveCharacter character)
         {
@@ -403,7 +463,6 @@ public sealed partial class ConsoleRenderer
             if (fullRedraw || _lastCharacterVitalsOverlay != resourceLine)
             {
                 DrawCharacterResourceLine(CharacterSheetVitalityLine, resourceLine);
-
                 _lastCharacterVitalsOverlay = resourceLine;
             }
 
@@ -428,10 +487,7 @@ public sealed partial class ConsoleRenderer
             if (_owner._battleActive && _owner._battleDetails is not null)
                 DrawBattleDetails(_owner._battleDetails);
 
-            WriteSheetLine(
-                CharacterSheetReservedMessageLine,
-                string.Empty,
-                ConsoleColor.DarkGray);
+            WriteSheetLine(CharacterSheetReservedMessageLine, string.Empty, ConsoleColor.DarkGray);
 
             WriteSheetLine(
                 CharacterSheetControlsLine,
@@ -443,7 +499,102 @@ public sealed partial class ConsoleRenderer
             DrawPicturePanel();
         }
 
-        public void WriteCharacterSheetPanelLine(CharacterSheetPanelLine line)
+        /// <summary>
+        /// Draws the portrait panel next to the message log.
+        /// Use this after character/enemy context changes that affect portrait or portrait color.
+        /// </summary>
+        public void DrawPicturePanel()
+        {
+            var actingCharacter = _owner._battleActive ? _owner._battleActingCharacter : null;
+            var portrait = actingCharacter is not null
+                ? AsciiPortraits.ForCharacterClass(actingCharacter.CharacterClass.Id)
+                : _owner._battleActive && _owner._battleEnemy is not null
+                    ? AsciiPortraits.ForEnemy(_owner._battleEnemy.Definition.Id)
+                    : AsciiPortraits.ForCharacterClass(_displayedCharacter?.CharacterClass.Id ?? "");
+            var color = actingCharacter is not null ? actingCharacter.Color
+                : _owner._battleActive && _owner._battleEnemy is not null
+                    ? _owner._battleEnemy.Definition.StrengthTier switch
+                    {
+                        1 => ConsoleColor.Green,
+                        2 => ConsoleColor.Yellow,
+                        3 => ConsoleColor.DarkYellow,
+                        4 => ConsoleColor.Red,
+                        _ => ConsoleColor.Magenta
+                    }
+                    : _displayedCharacter?.Color ?? ConsoleColor.Cyan;
+            var style = WindowFrameConfiguration.For(FramedWindow.CreaturePortrait);
+            var rightSheetWidth = RightSheetWidthForWindow();
+            WriteSheetLine(PicturePanelTop, WindowFrameCatalog.Horizontal(style, rightSheetWidth), ConsoleColor.DarkCyan);
+            for (var index = 0; index < PicturePanelHeight; index++)
+            {
+                var line = index < portrait.Lines.Count ? portrait.Lines[index] : string.Empty;
+                var sides = WindowFrameCatalog.Sides(style, index, PicturePanelHeight);
+                var interiorWidth = rightSheetWidth - sides.Left.Length - sides.Right.Length;
+                WriteSheetLine(PicturePanelTop + index + FirstMessageLineOffset,
+                    sides.Left + CenterPanelText(line, portrait.CanvasWidth, interiorWidth) + sides.Right, color);
+            }
+            WriteSheetLine(PicturePanelBottom, WindowFrameCatalog.Horizontal(style, rightSheetWidth, bottom: true),
+                ConsoleColor.DarkCyan);
+        }
+
+        /// <summary>
+        /// Writes a single colored line to the right panel with default black background.
+        /// Use this for lightweight row output when only foreground color varies.
+        /// </summary>
+        public void WriteSheetLine(int y, string text, ConsoleColor foregroundColor) =>
+            WriteSheetLine(y, text, foregroundColor, ConsoleColor.Black);
+
+        /// <summary>
+        /// Clears cached line and status snapshots used for incremental redraws.
+        /// Use this before a forced full redraw to avoid stale diffing data.
+        /// </summary>
+        private void InvalidateCharacterSheetCache()
+        {
+            _lastCharacterSheetCharacterId = null;
+            _lastCharacterSheetLines.Clear();
+            _lastCharacterVitalsOverlay = null;
+            _lastPartyStatusRows.Clear();
+        }
+
+        /// <summary>
+        /// Compares two panel lines to decide whether redraw is needed.
+        /// Use this from incremental rendering paths to skip unchanged rows.
+        /// </summary>
+        private static bool SheetLineEquals(CharacterSheetPanelLine a, CharacterSheetPanelLine b)
+        {
+            return a.Row == b.Row &&
+                   a.Text == b.Text &&
+                   a.Color == b.Color &&
+                   a.Background == b.Background &&
+                   a.ColoredSuffix == b.ColoredSuffix &&
+                   a.ColoredSuffixColor == b.ColoredSuffixColor &&
+                   a.ExtendsToDivider == b.ExtendsToDivider &&
+                   a.ColoredTextStart == b.ColoredTextStart &&
+                   a.ColoredTextColor == b.ColoredTextColor &&
+                   a.InventorySlot == b.InventorySlot &&
+                   SegmentsEqual(a.Segments, b.Segments);
+        }
+
+        /// <summary>
+        /// Compares optional text segment lists for content equality.
+        /// Use this helper when line rendering supports segmented colored text.
+        /// </summary>
+        private static bool SegmentsEqual(IReadOnlyList<TextSegment>? a, IReadOnlyList<TextSegment>? b)
+        {
+            if (ReferenceEquals(a, b))
+                return true;
+
+            if (a is null || b is null || a.Count != b.Count)
+                return false;
+
+            return a.SequenceEqual(b);
+        }
+
+        /// <summary>
+        /// Writes a panel line model, including suffix and mixed-color variants.
+        /// Use this for non-selectable rows generated by character sheet panel builders.
+        /// </summary>
+        private void WriteCharacterSheetPanelLine(CharacterSheetPanelLine line)
         {
             SetColors(ConsoleColor.DarkCyan, ConsoleColor.Black);
             WriteAt(RightBorderX, line.Row, "│ ");
@@ -470,15 +621,15 @@ public sealed partial class ConsoleRenderer
             }
             else
             {
-                WriteSheetLine(
-                    line.Row,
-                    line.Text,
-                    line.Color,
-                    line.Background);
+                WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
             }
         }
 
-        public void WriteExtendedCharacterSheetLine(CharacterSheetPanelLine line)
+        /// <summary>
+        /// Writes a line that can extend beyond the standard right panel width.
+        /// Use this for battle details lines that need divider-to-divider rendering.
+        /// </summary>
+        private void WriteExtendedCharacterSheetLine(CharacterSheetPanelLine line)
         {
             var x = RightSheetX - 2;
             var remaining = RightSheetExtendedWidthForWindow();
@@ -495,6 +646,10 @@ public sealed partial class ConsoleRenderer
             if (remaining > 0) Console.Write(new string(' ', remaining));
         }
 
+        /// <summary>
+        /// Draws battle status icons and resource line for the selected character.
+        /// Use this after combat effects, buffs, debuffs, HP, or mana changes.
+        /// </summary>
         private void DrawBattleStatusRows(LiveCharacter character)
         {
             var statusIcons = character.Statuses.Select(status => status.Icon)
@@ -521,11 +676,22 @@ public sealed partial class ConsoleRenderer
             DrawCharacterResourceLine(CharacterSheetVitalityLine, CharacterSheetPanel.BuildResourceLine(character));
         }
 
+        /// <summary>
+        /// Draws the character-sheet header with focus-aware background.
+        /// Use this when displayed character or focus state changes.
+        /// </summary>
         private void DrawCharacterSheetHeader(LiveCharacter character) => WriteSheetLine(
-            CharacterSheetHeaderLine, "KARAKTERLAP", ConsoleColor.Yellow,
+            CharacterSheetHeaderLine,
+            "KARAKTERLAP",
+            ConsoleColor.Yellow,
             _characterSheetFocused ? ConsoleColor.DarkGreen : ConsoleColor.Black,
-            " - " + character.Name, character.Color);
+            " - " + character.Name,
+            character.Color);
 
+        /// <summary>
+        /// Draws selectable inventory rows and party rows with selection highlighting.
+        /// Use this after selection movement or inventory mutations.
+        /// </summary>
         private void DrawSelectableCharacterSheetRows(LiveCharacter character)
         {
             var entries = BuildSheetSelections(character);
@@ -538,6 +704,10 @@ public sealed partial class ConsoleRenderer
             DrawPartyStatusRows(character);
         }
 
+        /// <summary>
+        /// Draws inventory-slot lines and applies selection highlight backgrounds.
+        /// Use this when inventory rows need redraw without full sheet render.
+        /// </summary>
         private void DrawInventorySlotRows(LiveCharacter character, IEnumerable<CharacterSheetPanelLine> panelLines)
         {
             foreach (var line in panelLines.Where(line => line.InventorySlot is not null))
@@ -560,11 +730,13 @@ public sealed partial class ConsoleRenderer
             }
         }
 
+        /// <summary>
+        /// Draws the compact party member status section.
+        /// Use this when displayed member, HP, mana, or roster content changes.
+        /// </summary>
         private void DrawPartyStatusRows(LiveCharacter displayedCharacter)
         {
-            var partyMembers = _party.Members
-                .Take(CharacterSheetPartyMemberRows)
-                .ToList();
+            var partyMembers = _party.Members.Take(CharacterSheetPartyMemberRows).ToList();
 
             for (var index = 0; index < CharacterSheetPartyMemberRows; index++)
             {
@@ -576,11 +748,8 @@ public sealed partial class ConsoleRenderer
                         Status: null,
                         Background: ConsoleColor.Black);
 
-                    if (_lastPartyStatusRows.TryGetValue(row, out var previous) &&
-                        previous == emptyState)
-                    {
+                    if (_lastPartyStatusRows.TryGetValue(row, out var previous) && previous == emptyState)
                         continue;
-                    }
 
                     WriteSheetLine(row, string.Empty, ConsoleColor.DarkGray);
                     _lastPartyStatusRows[row] = emptyState;
@@ -595,22 +764,21 @@ public sealed partial class ConsoleRenderer
                     member == _party.Leader,
                     RightSheetWidthForWindow());
 
-                var background = SelectionBackground(
-                    new(SheetSelectionKind.PartyMember, index));
-
+                var background = SelectionBackground(new(SheetSelectionKind.PartyMember, index));
                 var state = new PartyStatusRowState(status, background);
 
-                if (_lastPartyStatusRows.TryGetValue(row, out var previousState) &&
-                    previousState == state)
-                {
+                if (_lastPartyStatusRows.TryGetValue(row, out var previousState) && previousState == state)
                     continue;
-                }
 
                 DrawPartyStatusLine(row, status, background);
                 _lastPartyStatusRows[row] = state;
             }
         }
 
+        /// <summary>
+        /// Draws one party status row with identity and resource coloring.
+        /// Use this only from party row render paths where row background is already resolved.
+        /// </summary>
         private void DrawPartyStatusLine(int y, PartyStatusLine status, ConsoleColor background)
         {
             WriteSheetLine(y, string.Empty, ConsoleColor.Gray, background);
@@ -632,11 +800,12 @@ public sealed partial class ConsoleRenderer
                 WriteAt(x, y, status.Identity);
                 x += status.Identity.Length;
             }
+
             foreach (var (text, color) in new[]
                      {
-                     (status.Vitality, status.VitalityColor),
-                     (status.Mana, status.ManaColor)
-                 })
+                         (status.Vitality, status.VitalityColor),
+                         (status.Mana, status.ManaColor)
+                     })
             {
                 SetColors(color, background);
                 WriteAt(x, y, text);
@@ -644,6 +813,10 @@ public sealed partial class ConsoleRenderer
             }
         }
 
+        /// <summary>
+        /// Builds navigation entries for the current character sheet.
+        /// Use this to map keyboard movement to selectable rows.
+        /// </summary>
         private List<SheetSelectionEntry> BuildSheetSelections(LiveCharacter character)
         {
             var entries = new List<SheetSelectionEntry>();
@@ -651,68 +824,51 @@ public sealed partial class ConsoleRenderer
             for (var index = 0; index < character.WeaponSlots.Count; index++)
                 entries.Add(new(new(SheetSelectionKind.Weapon, index)));
             entries.Add(new(new(SheetSelectionKind.Armor, 0)));
-            for (var index = 0; index < character.MagicItems.Count; index++) entries.Add(new(new(SheetSelectionKind.MagicItem, index)));
-            for (var index = 0; index < character.Backpack.Count; index++) entries.Add(new(new(SheetSelectionKind.Backpack, index)));
+            for (var index = 0; index < character.MagicItems.Count; index++)
+                entries.Add(new(new(SheetSelectionKind.MagicItem, index)));
+            for (var index = 0; index < character.Backpack.Count; index++)
+                entries.Add(new(new(SheetSelectionKind.Backpack, index)));
             var partyMemberCount = Math.Min(CharacterSheetPartyMemberRows, _party.Members.Count);
-            for (var index = 0; index < partyMemberCount; index++) entries.Add(new(new(SheetSelectionKind.PartyMember, index)));
+            for (var index = 0; index < partyMemberCount; index++)
+                entries.Add(new(new(SheetSelectionKind.PartyMember, index)));
             return entries;
         }
 
-        private List<LiveCharacter> SheetCharacters() => _party.Members
-            .Concat(_owner._temporaryFollowers())
-            .Distinct()
-            .ToList();
+        /// <summary>
+        /// Returns all characters that can be cycled on the sheet.
+        /// Use this for left/right display navigation.
+        /// </summary>
+        private List<LiveCharacter> SheetCharacters() =>
+            _party.Members.Concat(_owner._temporaryFollowers()).Distinct().ToList();
 
+        /// <summary>
+        /// Determines whether a character is shown as temporary follower instead of party member.
+        /// Use this to alter selectable slots and panel rendering behavior.
+        /// </summary>
         private bool IsTemporaryFollower(LiveCharacter character) =>
             !_party.Members.Contains(character) && _owner._temporaryFollowers().Contains(character);
 
+        /// <summary>
+        /// Returns highlight background for a selectable key.
+        /// Use this during row rendering to keep current selection visually distinct.
+        /// </summary>
         private ConsoleColor SelectionBackground(SheetSelectionKey key) =>
             _activeSheetSelection == key ? ConsoleColor.DarkCyan : ConsoleColor.Black;
 
         /// <summary>
-        /// A jobb oldali kép-panel (ASCII portré) kirajzolása. A PicturePanelTop-ról indul,
-        /// és a WriteSheetLine metódussal írja ki a keretet és a képsorokat.
+        /// Clears the whole right panel area.
+        /// Use this before full redraws to avoid leftover characters from previous content.
         /// </summary>
-        public void DrawPicturePanel()
-        {
-            var actingCharacter = _owner._battleActive ? _owner._battleActingCharacter : null;
-            var portrait = actingCharacter is not null
-                ? AsciiPortraits.ForCharacterClass(actingCharacter.CharacterClass.Id)
-                : _owner._battleActive && _owner._battleEnemy is not null
-                ? AsciiPortraits.ForEnemy(_owner._battleEnemy.Definition.Id)
-                : AsciiPortraits.ForCharacterClass(_displayedCharacter?.CharacterClass.Id ?? "");
-            var color = actingCharacter is not null ? actingCharacter.Color
-                : _owner._battleActive && _owner._battleEnemy is not null
-                ? _owner._battleEnemy.Definition.StrengthTier switch
-                {
-                    1 => ConsoleColor.Green,
-                    2 => ConsoleColor.Yellow,
-                    3 => ConsoleColor.DarkYellow,
-                    4 => ConsoleColor.Red,
-                    _ => ConsoleColor.Magenta
-                }
-                : _displayedCharacter?.Color ?? ConsoleColor.Cyan;
-            var style = WindowFrameConfiguration.For(FramedWindow.CreaturePortrait);
-            var rightSheetWidth = RightSheetWidthForWindow();
-            WriteSheetLine(PicturePanelTop, WindowFrameCatalog.Horizontal(style, rightSheetWidth), ConsoleColor.DarkCyan);
-            for (var index = 0; index < PicturePanelHeight; index++)
-            {
-                var line = index < portrait.Lines.Count ? portrait.Lines[index] : string.Empty;
-                var sides = WindowFrameCatalog.Sides(style, index, PicturePanelHeight);
-                var interiorWidth = rightSheetWidth - sides.Left.Length - sides.Right.Length;
-                WriteSheetLine(PicturePanelTop + index + FirstMessageLineOffset,
-                    sides.Left + CenterPanelText(line, portrait.CanvasWidth, interiorWidth) + sides.Right, color);
-            }
-            WriteSheetLine(PicturePanelBottom, WindowFrameCatalog.Horizontal(style, rightSheetWidth, bottom: true),
-                ConsoleColor.DarkCyan);
-        }
-
         private void ClearRightPanel()
         {
             for (var row = 0; row <= PicturePanelBottom; row++)
                 WriteSheetLine(row, string.Empty, ConsoleColor.Gray);
         }
 
+        /// <summary>
+        /// Centers portrait text inside the panel interior width.
+        /// Use this when writing monospaced portrait lines with fixed canvas width.
+        /// </summary>
         private static string CenterPanelText(string text, int canvasWidth, int interiorWidth = PortraitInteriorWidth)
         {
             var canvas = text.PadRight(canvasWidth);
@@ -721,14 +877,10 @@ public sealed partial class ConsoleRenderer
         }
 
         /// <summary>
-        /// A jobb oldali karakterpanel egy sorába ír. Fontos: a tényleges X koordináta
-        /// konstansan 172, és a maximális szélesség 27 karakter (azaz a jobb panel fixelt).
-        /// A metódus beállítja a színeket, levágja a túl hosszú szöveget és jobbra/padra ír.
+        /// Writes one right-panel line with explicit foreground and background.
+        /// Use this for any row where full-width clipping and padding must be enforced.
         /// </summary>
-        public void WriteSheetLine(int y, string text, ConsoleColor foregroundColor)
-            => WriteSheetLine(y, text, foregroundColor, ConsoleColor.Black);
-
-        public void WriteSheetLine(int y, string text, ConsoleColor foregroundColor, ConsoleColor backgroundColor)
+        private void WriteSheetLine(int y, string text, ConsoleColor foregroundColor, ConsoleColor backgroundColor)
         {
             var rightSheetWidth = RightSheetWidthForWindow();
             var clippedText = text.Length <= rightSheetWidth ? text : text[..rightSheetWidth];
@@ -736,6 +888,10 @@ public sealed partial class ConsoleRenderer
             WriteAt(RightSheetX, y, clippedText.PadRight(rightSheetWidth));
         }
 
+        /// <summary>
+        /// Writes a line where a suffix region uses a second color.
+        /// Use this for rows that need mixed coloring without splitting into multiple write calls externally.
+        /// </summary>
         private void WriteSheetLineWithColoredTail(
             int y,
             string text,
@@ -745,31 +901,31 @@ public sealed partial class ConsoleRenderer
             ConsoleColor background)
         {
             var split = Math.Clamp(coloredTextStart, 0, text.Length);
-
             var firstPart = text[..split];
             var coloredPart = text[split..];
 
-            // Sor törlése/padding, ahogy eddig is szükséges
             WriteSheetLine(y, string.Empty, color, background);
-
             Console.SetCursorPosition(RightSheetX, y);
 
             SetColors(color, background);
             Console.Write(firstPart);
 
-            // NEM állítjuk újra a cursor X-et!
             SetColors(coloredTextColor, background);
             Console.Write(coloredPart);
         }
 
         /// <summary>
-        /// Két szöveget ír ki egymás mellé a jobb oldali karakterlapra, két külön színnel.
-        /// A teljes sor hossza nem haladja meg a maximum 27 karaktert — ha szükséges,
-        /// levágja a szövegeket úgy, hogy mindkét rész látható maradjon lehetőleg.
+        /// Writes a two-part line where left and right text blocks use different colors.
+        /// Use this for header-style rows that show two semantic segments on one line.
         /// </summary>
-        private void WriteSheetLine(int y, string leftText, ConsoleColor leftColor, ConsoleColor leftColorBg, string rightText, ConsoleColor rightColor)
+        private void WriteSheetLine(
+            int y,
+            string leftText,
+            ConsoleColor leftColor,
+            ConsoleColor leftColorBg,
+            string rightText,
+            ConsoleColor rightColor)
         {
-            // Alap felosztás: fele-fele, de dinamikusan kiegészítjük ha az egyik rövidebb
             var rightSheetWidth = RightSheetWidthForWindow();
             var leftMax = rightSheetWidth / FrameBorderWidth;
             var rightMax = rightSheetWidth - leftMax;
@@ -795,7 +951,6 @@ public sealed partial class ConsoleRenderer
                 rightClipped = rightText.Length <= rightMax ? rightText : rightText[..rightMax];
             }
 
-            // Kiírás: először a bal oldali rész, majd a jobb oldali közvetlenül utána
             SetColors(leftColor, leftColorBg);
             var leftPadded = leftClipped.PadRight(leftClipped.Length);
             WriteAt(RightSheetX, y, leftPadded);
@@ -807,10 +962,9 @@ public sealed partial class ConsoleRenderer
             WriteAt(secondX, y, rightPadded);
         }
 
-
         /// <summary>
-        /// Színkezelő: csak akkor állítja át Console.ForegroundColor/BackgroundColor értékét,
-        /// ha azok eltérnek a cache-elt értékektől, így minimalizálva a felesleges rendszerhívásokat.
+        /// Sets console colors with owner-level caching to reduce redundant writes.
+        /// Use this before direct console writes in this renderer.
         /// </summary>
         private void SetColors(ConsoleColor foregroundColor, ConsoleColor backgroundColor)
         {
@@ -827,67 +981,24 @@ public sealed partial class ConsoleRenderer
             }
         }
 
-        /// <summary>Reseteli a konzol színeket és törli a cache-elt színértékeket.</summary>
-        private void ResetColorCache()
-        {
-            Console.ResetColor();
-            _owner._currentForegroundColor = null;
-            _owner._currentBackgroundColor = null;
-        }
-
+        /// <summary>
+        /// Draws vitality and mana tokens in one resource row.
+        /// Use this for both normal and battle refresh paths.
+        /// </summary>
         private void DrawCharacterResourceLine(int y, CharacterResourceLine resources)
         {
             WriteSheetLine(y, string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
             var x = RightSheetX;
             foreach (var (text, color) in new[]
                      {
-                     (resources.Vitality, resources.VitalityColor),
-                     (resources.Mana, resources.ManaColor)
-                 })
+                         (resources.Vitality, resources.VitalityColor),
+                         (resources.Mana, resources.ManaColor)
+                     })
             {
                 SetColors(color, ConsoleColor.Black);
                 WriteAt(x, y, text);
                 x += text.Length;
             }
         }
-
-        private static string FormatCompactList(string label, IEnumerable<string> values)
-        {
-            var names = values.ToList();
-            if (names.Count == 0) return $"{label}: nincs";
-            var prefix = $"{label}: ";
-            var separatorsWidth = (names.Count - FirstItemNumber) * FrameBorderWidth;
-            var rightSheetWidth = RightSheetWidthForWindow();
-            var availablePerName = Math.Max(FirstItemNumber, (rightSheetWidth - prefix.Length - separatorsWidth) / names.Count);
-            var shortenedNames = names.Select(name => name.Length <= availablePerName ? name : name[..availablePerName]);
-            return prefix + string.Join(", ", shortenedNames);
-        }
-
-        private static IReadOnlyList<string> FormatCompactListRows(string label, IEnumerable<string> values, int rowCount)
-        {
-            var names = values.ToList();
-            if (names.Count == 0) return [$"{label}: nincs", .. Enumerable.Repeat(string.Empty, rowCount - FirstItemNumber)];
-
-            var rows = new List<string>(rowCount);
-            var namesPerRow = (int)Math.Ceiling(names.Count / (double)rowCount);
-            var rightSheetWidth = RightSheetWidthForWindow();
-            for (var row = 0; row < rowCount; row++)
-            {
-                var rowNames = names.Skip(row * namesPerRow).Take(namesPerRow).ToList();
-                if (rowNames.Count == 0) { rows.Add(string.Empty); continue; }
-                var prefix = row == 0 ? $"{label}: " : new string(' ', label.Length + FrameBorderWidth);
-                var separatorsWidth = (rowNames.Count - FirstItemNumber) * FrameBorderWidth;
-                var availablePerName = Math.Max(FirstItemNumber, (rightSheetWidth - prefix.Length - separatorsWidth) / rowNames.Count);
-                var shortenedNames = rowNames.Select(name => name.Length <= availablePerName ? name : name[..availablePerName]);
-                rows.Add(prefix + string.Join(", ", shortenedNames));
-            }
-            return rows;
-        }
-
-
-        private enum SheetSelectionKind { Weapon, Armor, MagicItem, Backpack, PartyMember }
-        private readonly record struct SheetSelectionKey(SheetSelectionKind Kind, int Index);
-        private sealed record SheetSelectionEntry(SheetSelectionKey Key);
-
     }
 }   
