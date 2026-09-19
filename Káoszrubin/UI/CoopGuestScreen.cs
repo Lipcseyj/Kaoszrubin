@@ -1756,10 +1756,36 @@ public sealed class CoopGuestScreen
                 ? messages[messageIndex]
                 : new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
         }
-        var commandSegments = snapshot.Battle is { } battle
-            ? BattleCommandPanel.WithRound(battle.Cycle,
-                BattleCommandPanel.FormatWithHighlighting(battle.AllowedActions, battle.TacticOptions,
-                    battle.IsPlayerTurn, _battleCommandPanel.HotkeyColor, actingCharacter?.Name ?? "Vendég")).ToArray()
+        //if (snapshot.Battle is { } btl) 
+        //{
+        //    var participantEntries = btl.Participants?.Select(participant => $"{participant.Name} ({participant.Id})") ?? [];
+        //    var allowedActions = btl.AllowedActions?.Select(action => action.ToString()) ?? [];
+        //    var tactics = btl.TacticOptions?.Select(option => option.Name) ?? [];
+        //    var currentParticipant = btl.Participants?.FirstOrDefault(participant => participant.IsCurrent)?.Name ?? "Unknown";
+        //    Log.Info("BattleState", $"Cycle: {btl.Cycle}, ActingCharacterId: {btl.ActingCharacterId}, " +
+        //        $"Participants: {string.Join(", ", participantEntries)}, " +
+        //        $"AllowedActions: {string.Join(", ", allowedActions)}, TacticOptions: {string.Join(", ", tactics)}, " +
+        //        $"CurrentParticipant: {currentParticipant}");
+        //}
+    const string LeftDecoration = "♦▓▒ ";
+    const string RightDecoration = " ▒▓♦";
+
+    var commandSegments = snapshot.Battle is { } battle
+            ? BattleCommandPanel.WithRound(
+                battle.Cycle,
+                battle.AllowedActions.Count == 1 && (battle.AllowedActions[0] == BattleActionKind.ResumeBattle || battle.AllowedActions[0] == BattleActionKind.AdvanceEnemyTurn)
+                    ?
+                    [
+                        new TextSegment($"{LeftDecoration}Következő: {battle.Participants?.FirstOrDefault(participant => participant.IsCurrent)?.Name ??
+                            snapshot.Party.FirstOrDefault(character => character.CharacterId == battle.ActingCharacterId)?.Name ??
+                            actingCharacter?.Name ?? "Vendég"}{RightDecoration}")
+                    ]
+                    : BattleCommandPanel.FormatWithHighlighting(
+                        battle.AllowedActions,
+                        battle.TacticOptions,
+                        battle.IsPlayerTurn,
+                        _battleCommandPanel.HotkeyColor,
+                        actingCharacter?.Name ?? "Vendég")).ToArray()
             : [];
         var commandLine = commandSegments.Length == 0
             ? _battleCommandPanel.Close()
