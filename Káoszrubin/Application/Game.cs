@@ -177,6 +177,7 @@ public sealed class Game : ISessionCommandHandler
     private readonly QuestSaveAdapter _questSaveAdapter;
     private DateTime? _automaticBattleResumeUtc;
     private (BattleId BattleId, int ActionNumber)? _lastDelayedAction;
+    public List<CharacterId> _humanMemberIds = [];
     #endregion
 
     public CharacterRoster CharacterRoster { get; }
@@ -264,46 +265,119 @@ public sealed class Game : ISessionCommandHandler
     {
         var current = battle.Current;
         var actingCharacter = battle.CurrentCharacter;
-        var focusEnemy = battle.CurrentEnemy ?? battle.SelectedTargetEnemy() ?? (actingCharacter is null ? null :
-            ReachableTeamEnemies(battle, actingCharacter).OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault()) ??
-            battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
-                .OrderBy(enemy => TacticalDistance.Between(current.Position, enemy.Position)).First();
-        var actingCharacterId = actingCharacter?.Id ?? PartyLeader.Id;
-        var allowed = actingCharacter is null
-            ? new[] { BattleActionKind.AdvanceEnemyTurn }
-            : GetTeamAllowedBattleActions(battle, actingCharacter, focusEnemy);
-        var spellOptions = actingCharacter is not null && allowed.Contains(BattleActionKind.CastSpell)
-            ? GetSpellOptions(actingCharacter, GetCasterPosition(actingCharacter), focusEnemy, inCombat: true)
-            : null;
+        var isPaused = battle.PauseReason != BattlePauseReason.None;
+
+        var focusEnemy =
+            battle.CurrentEnemy ??
+            battle.SelectedTargetEnemy() ??
+            (actingCharacter is null
+                ? null
+                : ReachableTeamEnemies(battle, actingCharacter)
+                    .OrderBy(enemy => enemy.CurrentHitPoints)
+                    .FirstOrDefault()) ??
+            battle.Enemies
+                .Where(enemy => enemy.CurrentHitPoints > 0)
+                .OrderBy(enemy => TacticalDistance.Between(current.Position, enemy.Position))
+                .First();
+
+        // Pause esetén a session promptot a party leader kezeli,
+        // és egyetlen engedélyezett akció a ResumeBattle.
+        var actingCharacterId = isPaused
+            ? PartyLeader.Id
+            : actingCharacter?.Id ?? PartyLeader.Id;
+
+        IReadOnlyList<BattleActionKind> allowed = isPaused
+            ? [BattleActionKind.ResumeBattle]
+            : actingCharacter is null
+                ? [BattleActionKind.AdvanceEnemyTurn]
+                : GetTeamAllowedBattleActions(battle, actingCharacter, focusEnemy);
+
+        var spellOptions =
+            !isPaused &&
+            actingCharacter is not null &&
+            allowed.Contains(BattleActionKind.CastSpell)
+                ? GetSpellOptions(
+                    actingCharacter,
+                    GetCasterPosition(actingCharacter),
+                    focusEnemy,
+                    inCombat: true)
+                : null;
+
         var focusTargetId = TeamBattleFocusTarget(battle, current);
+
         var participants = battle.Turns.Participants.Select(participant =>
         {
             var character = battle.CharacterFor(participant.Id);
             var enemy = battle.EnemyFor(participant.Id);
-            return new TacticalBattleParticipantSnapshot(participant.Id,
+
+            return new TacticalBattleParticipantSnapshot(
+                participant.Id,
                 character?.Name ?? enemy?.Name ?? participant.Id.Value,
-                participant.Side, participant.Kind, participant.Position, participant.CurrentInitiative,
+                participant.Side,
+                participant.Kind,
+                participant.Position,
+                participant.CurrentInitiative,
                 participant.Id == current.Id && _teamMovementTurnId == battle.Turns.TurnId
-                    ? _teamMovementRemaining : participant.MovementAllowance,
-                participant.EligibleFromCycle, participant.State,
+                    ? _teamMovementRemaining
+                    : participant.MovementAllowance,
+                participant.EligibleFromCycle,
+                participant.State,
                 character?.CurrentVitality ?? enemy?.CurrentHitPoints ?? 0,
                 character?.MaximumVitality ?? enemy?.Definition.HitPoints ?? 0,
-                participant.Id == current.Id, participant.Id == focusTargetId, enemy?.Id);
-        }).OrderByDescending(participant => participant.Initiative).ToArray();
-        return new BattleSnapshot(battle.Id, battle.Turns.TurnId, battle.ActionNumber,
-            actingCharacter is not null, actingCharacterId,
-            new SessionEnemySnapshot(focusEnemy.Definition.Id, focusEnemy.Name, focusEnemy.Position,
-                focusEnemy.CurrentHitPoints, focusEnemy.Definition.HitPoints ?? focusEnemy.CurrentHitPoints,
+                participant.Id == current.Id,
+                participant.Id == focusTargetId,
+                enemy?.Id);
+        })
+        .OrderByDescending(participant => participant.Initiative)
+        .ToArray();
+
+        return new BattleSnapshot(
+            battle.Id,
+            battle.Turns.TurnId,
+            battle.ActionNumber,
+
+            // ResumeBattle is szintén játékosi prompt.
+            isPaused || actingCharacter is not null,
+
+            actingCharacterId,
+
+            new SessionEnemySnapshot(
+                focusEnemy.Definition.Id,
+                focusEnemy.Name,
+                focusEnemy.Position,
+                focusEnemy.CurrentHitPoints,
+                focusEnemy.Definition.HitPoints ?? focusEnemy.CurrentHitPoints,
                 focusEnemy.Id),
-            allowed, spellOptions,
-            actingCharacter is null ? null : GetTeamBattleTacticOptions(battle, actingCharacter, focusEnemy),
-            battle.Turns.Cycle, participants,
-            actingCharacter is null ? null : GetBattleItemOptions(battle, actingCharacter),
-            actingCharacter is null ? null : ReachableTeamEnemies(battle, actingCharacter)
-                .Select(enemy => enemy.Id).ToArray(), IsQuickBattle: _isQuickTeamBattle,
+
+            allowed,
+            spellOptions,
+
+            !isPaused && actingCharacter is not null
+                ? GetTeamBattleTacticOptions(battle, actingCharacter, focusEnemy)
+                : null,
+
+            battle.Turns.Cycle,
+            participants,
+
+            !isPaused && actingCharacter is not null
+                ? GetBattleItemOptions(battle, actingCharacter)
+                : null,
+
+            !isPaused && actingCharacter is not null
+                ? ReachableTeamEnemies(battle, actingCharacter)
+                    .Select(enemy => enemy.Id)
+                    .ToArray()
+                : null,
+
+            IsQuickBattle: _isQuickTeamBattle,
             ActionDetails: _lastBattleActionDetails,
-            TurnUndeadTargetEnemyId: actingCharacter is not null && allowed.Contains(BattleActionKind.TurnUndead)
-                ? PreferredTurnUndeadTarget(battle, actingCharacter)?.Id : null);
+
+            TurnUndeadTargetEnemyId:
+                !isPaused &&
+                actingCharacter is not null &&
+                allowed.Contains(BattleActionKind.TurnUndead)
+                    ? PreferredTurnUndeadTarget(battle, actingCharacter)?.Id
+                    : null);
     }
 
     private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(TeamBattleEncounter battle,
@@ -395,9 +469,9 @@ public sealed class Game : ISessionCommandHandler
         _questManager.QuestChanged += ProjectQuestChange;
         _questInventorySynchronizer = new QuestInventorySynchronizer(_questManager);
         _doorInteractions = new DoorInteractionController(gameData, _renderer,
-            (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random,
-            (message, color, actor) => RecordSessionActivity(SessionActivityKind.System, message, color, [actor.Id]),
-            new QuestDoorAccessService(_questManager).TryGrantAccess);
+        (effect, actor) => PlaySessionSound(effect, [actor.Id]), _random,
+        (message, color, actor) => RecordSessionActivity(SessionActivityKind.System, message, color, [actor.Id]),
+        new QuestDoorAccessService(_questManager).TryGrantAccess);
         _backgroundMusic.SetReportCallback(message =>
         {
             if (_session.Phase == GameSessionPhase.Inn)
@@ -764,6 +838,16 @@ public sealed class Game : ISessionCommandHandler
             _renderer.DrawDeveloperMessage($"Coop host aktív: {coopHost.ConnectionHint}");
         try
         {
+            for (int i = 0; i < CharacterRoster.Party.Members.Count; i++)
+            {
+                var member = CharacterRoster.Party.Members[i];
+                if (Session.IsHumanControlled(member.Id))
+                {
+                    _humanMemberIds.Add(member.Id);
+                    Log.Info($"Character {member.Name}(Id={member.Id}) is human controlled.");
+                }
+            }
+
             while (!_gameOver)
             {
                 try
@@ -4329,7 +4413,12 @@ public sealed class Game : ISessionCommandHandler
         }
         var corpses = _maze.GetCorpsesAt(position);
         var pile = _maze.GetGroundItemPileAt(position);
-        if (corpses.Count == 0 && pile is null) return false;
+        if (corpses.Count == 0 && pile is null) 
+        { 
+            var nothingFoundMessage = "🔎 A keresés nem hozott eredményt.";
+            _renderer.DrawInventoryMessage(nothingFoundMessage, ConsoleColor.Yellow);
+            return false; 
+        }
         var unsearched = _maze.GetUnsearchedMonsterCorpsesAt(position);
         if (unsearched.Count == 0 && pile is null && corpses.All(corpse => corpse is MonsterCorpse)) return false;
 
@@ -4349,15 +4438,18 @@ public sealed class Game : ISessionCommandHandler
         PickUpGroundItems(character, position, shareLootWithParty, messages);
         _renderer.RefreshCharacterSheet(PartyLeader);
         _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position]);
+
         string[] resultMessages = messages.Count == 0
             ? ["🔎 A keresés nem hozott eredményt."]
-            : messages.Select(message => $"🔎 {message}.").ToArray();
+            : messages.Select(message => $"🔎 {character.Name} » Zsákmány: {message}.").ToArray();
+
+        bool lootFound = resultMessages.Any(message => message.Contains("zsákmány", StringComparison.OrdinalIgnoreCase));
+
         foreach (var resultMessage in resultMessages)
         {
-            if (isSenderLeader)
+            if (isSenderLeader || lootFound)
                 _renderer.DrawInventoryMessage(resultMessage, ConsoleColor.Yellow);
-            else 
-                RecordSessionActivity(SessionActivityKind.System, resultMessage, ConsoleColor.Yellow, [character.Id]);
+            RecordSessionActivity(SessionActivityKind.System, resultMessage, ConsoleColor.Yellow, lootFound ? _humanMemberIds : [character.Id]);
         }
         return true;
     }
@@ -5950,8 +6042,6 @@ public sealed class Game : ISessionCommandHandler
 
     private void HandleLocalTeamBattleInput(TeamBattleEncounter battle, ConsoleKeyInfo key)
     {
-
-
         if (IsHelpShortcut(key))
         {
             ShowInGameHelp();
@@ -5968,6 +6058,7 @@ public sealed class Game : ISessionCommandHandler
 
         if (key.Key == ConsoleKey.Escape)
         {
+            //TODO: quit to MainMenu instead
             if (ConfirmReturnToMainMenu()) Environment.Exit(0);
         }
 
@@ -10374,8 +10465,11 @@ public sealed class Game : ISessionCommandHandler
             ResolvePerkOffers(award.Character, award.Result);
         var weaponGrants = CharacterRoster.Party.Members.Select(character =>
             $"{character.Name}: {DevelopmentWeaponGrantService.Grant(character, _gameData.Weapons, _random).Count}/6 fegyver").ToList();
+        _maze.AddCorpse(new MonsterCorpse(_player.Position, "tesztHulla", _maze.Enemies.First().Definition.Id,
+            guaranteedLootIds: ["T001", "T002"]));
+
         _renderer.RefreshCharacterSheet(PartyLeader);
-        _renderer.DrawDeveloperMessage($"Fejlesztői mód: 5000 XP minden partitagnak. {FormatExperienceAwards(awards)} " +
+        _renderer.DrawDeveloperMessage($"Fejlesztői mód: 5000 XP minden partitagnak + fegyverek + loot. {FormatExperienceAwards(awards)} " +
             string.Join("; ", weaponGrants));
     }
 
