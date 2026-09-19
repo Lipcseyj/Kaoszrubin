@@ -41,7 +41,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
     private bool _exitDiscovered;
     private bool _isExitVolumeReduced;
     private bool _disposed;
-    private bool _musicNotFoundReported;
+    private readonly HashSet<BackgroundMusicContext> _missingMusicReportedContexts = [];
 
     public BackgroundMusicPlayer(GameSettings settings, Action<string>? reportMessages = null)
     {
@@ -228,14 +228,15 @@ public sealed class BackgroundMusicPlayer : IDisposable
 
         if (BackgroundMusicCatalog.RandomTrackPath(context, _reportMessages) is not { } path)
         {
-            if (!_musicNotFoundReported)
+            if (_reportMessages is { } report && _missingMusicReportedContexts.Add(context))
             {
-                _reportMessages?.Invoke(
+                report(
                     $"A {BackgroundMusicCatalog.RelativeDirectory(context)} mappában nem található lejátszható MP3-fájl.");
-                _musicNotFoundReported = true;
             }
             return;
         }
+
+        _missingMusicReportedContexts.Remove(context);
 
         try
         {

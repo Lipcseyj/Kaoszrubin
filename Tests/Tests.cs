@@ -71,6 +71,7 @@ var tests = new (string Name, Action Run)[]
     ("A terminál méretőre pontosan a teljes játékképernyőt követeli meg", TerminalViewportRequiresCompleteGameScreen),
     ("A Windows Terminal újraindítás debuggerben és gyermekfolyamatban kimarad", WindowsTerminalRelaunchGuardsAreStable),
     ("A Windows Terminal gyermek-kézfogás argumentuma szigorúan validált", WindowsTerminalHandshakeArgumentIsValidated),
+    ("A hiányzó háttérzene callbackje kontextusonként egyszer jelez", BackgroundMusicMissingTrackReportingIsBounded),
     ("A többsoros fogadói pletyka minden sora a kereten belül marad", MultilineInnRumorStaysInsideFrame),
     ("A fejlesztői fegyvercsomag követi a kategóriákat és a hátizsák kapacitását", DevelopmentWeaponsRespectCapacity),
     ("A harci tesztpálya a kért csoportokat, jelölőládákat és középső folyosót építi", DeveloperBattleTestScenarioHasRequestedLayout),
@@ -471,6 +472,29 @@ static void TestRunnerFilterIsCaseInsensitive()
            MatchesTestFilter("Inventory snapshot", TestRunnerFilterIsCaseInsensitive, null) &&
            !MatchesTestFilter("Inventory snapshot", TestRunnerFilterIsCaseInsensitive, "combat"),
         "A tesztfuttató név- és metódusszűrése nem case-insensitive részszövegkeresést használ.");
+}
+
+static void BackgroundMusicMissingTrackReportingIsBounded()
+{
+    var settings = new GameSettings { MusicEnabled = true };
+    using var player = new BackgroundMusicPlayer(settings);
+
+    // Callback nélkül a sikertelen próba nem számít jelentettnek: a később
+    // bekötött UI-nak még meg kell kapnia a diagnosztikai üzenetet.
+    player.EnterMap();
+    var messages = new List<string>();
+    player.SetReportCallback(messages.Add);
+    player.EnterMap();
+    player.EnterMap();
+    player.EnterInn();
+    player.EnterInn();
+    player.EnterMap();
+
+    Assert(messages.Count(message => message.Contains("Music\\Map", StringComparison.Ordinal)) == 1 &&
+           messages.Count(message => message.Contains("Music\\Inn", StringComparison.Ordinal)) == 1 &&
+           messages.All(message => message.Contains("nem található lejátszható MP3-fájl",
+               StringComparison.Ordinal)),
+        "A hiányzó zene jelzése elveszett vagy ismét elárasztotta a callbacket.");
 }
 
 static void TerminalViewportRequiresCompleteGameScreen()
