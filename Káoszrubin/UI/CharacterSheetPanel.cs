@@ -29,6 +29,8 @@ public sealed record CharacterResourceLine(string Vitality, ConsoleColor Vitalit
 public static class CharacterSheetPanel
 {
     public const int Width = 27;
+    private const int PartyStatusNameColumnWidth = 13;
+    private const int PartyStatusLevelColumnWidth = 2;
     private const int ResourceIconStep = 10;
 
     public static string BlankLineForWidth(int width) => new(' ', Math.Max(Width, width));
@@ -156,13 +158,15 @@ public static class CharacterSheetPanel
     {
         var marker = isDisplayed ? "▶ " : "  ";
         var prefix = $"{marker}{CharacterClassGlyph(classId)} ";
-        var levelSuffix = $" ★ {level}";
+        var levelSuffix = $" ★ {level.ToString().PadLeft(PartyStatusLevelColumnWidth)}";
         if (!isAlive)
         {
             const string dead = " 💀";
             var deadRowWidth = Math.Max(Width, width);
-            var deadMaximumNameLength = deadRowWidth - prefix.Length - levelSuffix.Length - dead.Length;
-            return new PartyStatusLine(prefix + Shorten(name, deadMaximumNameLength) + levelSuffix,
+            var deadMaximumNameLength = Math.Min(PartyStatusNameColumnWidth,
+                deadRowWidth - prefix.Length - levelSuffix.Length - dead.Length);
+            var alignedName = Shorten(name, deadMaximumNameLength).PadRight(Math.Max(1, deadMaximumNameLength));
+            return new PartyStatusLine(prefix + alignedName + levelSuffix,
                 identityColor, dead, ConsoleColor.DarkRed, string.Empty, ConsoleColor.DarkGray,
                 isLeader ? prefix.Length : -1);
         }
@@ -172,8 +176,10 @@ public static class CharacterSheetPanel
         var vitality = $" ❤️{vitalityPercent}%";
         var mana = maximumMana > 0 ? $" 🔷{manaPercent}%" : string.Empty;
         var effectiveWidth = Math.Max(Width, width);
-        var maximumNameLength = effectiveWidth - prefix.Length - levelSuffix.Length - vitality.Length - mana.Length;
-        return new PartyStatusLine(prefix + Shorten(name, maximumNameLength) + levelSuffix, identityColor,
+        var maximumNameLength = Math.Min(PartyStatusNameColumnWidth,
+            effectiveWidth - prefix.Length - levelSuffix.Length - vitality.Length - mana.Length);
+        var alignedLiveName = Shorten(name, maximumNameLength).PadRight(Math.Max(1, maximumNameLength));
+        return new PartyStatusLine(prefix + alignedLiveName + levelSuffix, identityColor,
             vitality, vitalityPercent <= 25 ? ConsoleColor.Red :
             vitalityPercent <= 50 ? ConsoleColor.Yellow : ConsoleColor.Green,
             mana, maximumMana <= 0 || currentMana <= 0 ? ConsoleColor.DarkGray :

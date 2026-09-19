@@ -2321,13 +2321,21 @@ public sealed class CoopGuestScreen
                 // Teljes rajzoláskor a panel már elkészült, ezért a hiányzó státusz nem törölheti le.
                 // Részleges rajzoláskor viszont egy megszűnt státusz helyére vissza kell tenni a panel sorát.
                 if (!fullRedraw && previous!.PartyStatuses[row] is not null)
-                    WriteAt(frame.MapWidth + 2, row, frame.Panel[row], frame.PanelWidth);
+                {
+                    WriteAt(frame.MapWidth, row,
+                        new GuestTextLine("│ ", ConsoleColor.DarkCyan, ConsoleColor.Black), 2);
+                    if (frame.Panel[row].ExtendsToDivider)
+                        WriteAt(frame.MapWidth, row, frame.Panel[row],
+                            BattleDetailsPanel.ExtendedWidthFor(frame.PanelWidth));
+                    else
+                        WriteAt(frame.MapWidth + 2, row, frame.Panel[row], frame.PanelWidth);
+                }
                 continue;
             }
 
             if (!fullRedraw && previous!.PartyStatuses[row] == status &&
                 previous.Panel[row] == frame.Panel[row]) continue;
-            WritePartyStatusAt(frame.MapWidth + 2, row, status, frame.PanelWidth);
+            WritePartyStatusAt(frame.MapWidth, row, status, BattleDetailsPanel.ExtendedWidthFor(frame.PanelWidth));
         }
 
         for (var row = 1; row < frame.Footers.Length; row++)
