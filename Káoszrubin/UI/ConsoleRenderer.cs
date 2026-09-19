@@ -164,7 +164,7 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
     private int _battleDetailsPage;
     private CharacterId? _lastCharacterSheetCharacterId;
     private readonly Dictionary<int, CharacterSheetPanelLine> _lastCharacterSheetLines = [];
-    private CharacterResourceLine? _lastCharacterResourceLine;
+    private CharacterResourceLine? _lastCharacterVitalsOverlay;
     private readonly Dictionary<int, PartyStatusRowState> _lastPartyStatusRows = [];
     private readonly record struct PartyStatusRowState(
         PartyStatusLine? Status,
@@ -2949,7 +2949,7 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
     {
         _lastCharacterSheetCharacterId = null;
         _lastCharacterSheetLines.Clear();
-        _lastCharacterResourceLine = null;
+        _lastCharacterVitalsOverlay = null;
         _lastPartyStatusRows.Clear();
     }
 
@@ -3013,13 +3013,11 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
 
         var resourceLine = CharacterSheetPanel.BuildResourceLine(character);
 
-        if (fullRedraw || _lastCharacterResourceLine != resourceLine)
+        if (fullRedraw || _lastCharacterVitalsOverlay != resourceLine)
         {
-            DrawCharacterResourceLine(
-                CharacterSheetVitalityLine,
-                resourceLine);
+            DrawCharacterResourceLine(CharacterSheetVitalityLine, resourceLine);
 
-            _lastCharacterResourceLine = resourceLine;
+            _lastCharacterVitalsOverlay = resourceLine;
         }
 
         foreach (var line in panelLines.Where(line =>
@@ -3060,16 +3058,37 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
 
     private void WriteCharacterSheetPanelLine(CharacterSheetPanelLine line)
     {
-        // A csatarészlet elválasztója két oszloppal balra nyúlik (├─). Normál
-        // karakterlapsor visszaállításakor mindkét cellát felül kell írni, különben
-        // a vízszintes vonal az „Arany” és a többi sor előtt ott marad.
         SetColors(ConsoleColor.DarkCyan, ConsoleColor.Black);
         WriteAt(RightBorderX, line.Row, "│ ");
-        if (string.IsNullOrEmpty(line.ColoredSuffix))
-            WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
+
+        if (line.ColoredTextStart >= 0)
+        {
+            WriteSheetLineWithColoredTail(
+                line.Row,
+                line.Text,
+                line.ColoredTextStart,
+                line.Color,
+                line.ColoredTextColor,
+                line.Background);
+        }
+        else if (!string.IsNullOrEmpty(line.ColoredSuffix))
+        {
+            WriteSheetLine(
+                line.Row,
+                line.Text,
+                line.Color,
+                line.Background,
+                line.ColoredSuffix,
+                line.ColoredSuffixColor);
+        }
         else
-            WriteSheetLine(line.Row, line.Text, line.Color, line.Background,
-                line.ColoredSuffix, line.ColoredSuffixColor);
+        {
+            WriteSheetLine(
+                line.Row,
+                line.Text,
+                line.Color,
+                line.Background);
+        }
     }
 
     private void WriteExtendedCharacterSheetLine(CharacterSheetPanelLine line)
@@ -3473,16 +3492,30 @@ public sealed class ConsoleRenderer : IDoorInteractionRenderer
         WriteAt(RightSheetX, y, clippedText.PadRight(rightSheetWidth));
     }
 
-    private void WriteSheetLineWithColoredTail(int y, string text, int coloredTextStart,
-        ConsoleColor prefixColor, ConsoleColor coloredTextColor, ConsoleColor backgroundColor)
+    private void WriteSheetLineWithColoredTail(
+        int y,
+        string text,
+        int coloredTextStart,
+        ConsoleColor color,
+        ConsoleColor coloredTextColor,
+        ConsoleColor background)
     {
-        var rightSheetWidth = RightSheetWidthForWindow();
-        var clipped = text[..Math.Min(text.Length, rightSheetWidth)];
-        var split = Math.Clamp(coloredTextStart, 0, clipped.Length);
-        SetColors(prefixColor, backgroundColor);
-        WriteAt(RightSheetX, y, clipped[..split]);
-        SetColors(coloredTextColor, backgroundColor);
-        WriteAt(RightSheetX + split, y, clipped[split..].PadRight(rightSheetWidth - split));
+        var split = Math.Clamp(coloredTextStart, 0, text.Length);
+
+        var firstPart = text[..split];
+        var coloredPart = text[split..];
+
+        // Sor törlése/padding, ahogy eddig is szükséges
+        WriteSheetLine(y, string.Empty, color, background);
+
+        Console.SetCursorPosition(RightSheetX, y);
+
+        SetColors(color, background);
+        Console.Write(firstPart);
+
+        // NEM állítjuk újra a cursor X-et!
+        SetColors(coloredTextColor, background);
+        Console.Write(coloredPart);
     }
 
     /// <summary>

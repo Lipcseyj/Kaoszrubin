@@ -219,6 +219,9 @@ public static class CharacterSheetPanel
     /// Session snapshot alapján felépíti a teljes karakterlap panel minden sorát,
     /// beleértve az alapadatokat, statokat, erőforrásokat, állapotokat, osztályfejlesztéseket
     /// és az inventory külön blokkjait fix sorpozíciókkal.
+    /// ColoredSuffix: külön jobb oldali szövegrész, amit a WriteSheetLine() a saját secondX pozíciójára tesz. 
+    /// ColoredTextStart: ugyanazon Text stringen belül mondja meg, hogy honnantól váltson másik színre.
+    /// Nincs külön pozicionálás.
     /// </summary>
     public static IReadOnlyList<CharacterSheetPanelLine> Build(SessionCharacterSnapshot character,
         int mazeLevel, int goldenKeyCount, int bossCount, bool isPartyLeader = false, int width = Width)
@@ -242,13 +245,21 @@ public static class CharacterSheetPanel
         lines.Add(new(3, details.NextLevelExperience is { } next
             ? $"Szint: {character.Level}  XP: {details.Experience}/{next}"
             : $"Szint: {character.Level}  XP: MAX", ConsoleColor.Cyan));
+        
         var visionColor = details.VisionRange < details.NaturalVisionRange ? ConsoleColor.Red :
             details.VisionRange > details.NaturalVisionRange ? ConsoleColor.Green : ConsoleColor.White;
-        lines.Add(new(4, $"💪{details.Abilities.Strength} 🏹{details.Abilities.Dexterity} 💖{details.Abilities.Health} 🧠{details.Abilities.Intelligence} 👁️  ",
-            ConsoleColor.White, ColoredSuffix: details.VisionRange.ToString(), ColoredSuffixColor: visionColor));
-        lines.Add(new(5, $"❤️{character.CurrentVitality}/{character.MaximumVitality}" +
-            (details.UsesMana ? $"  🔷{character.CurrentMana}/{character.MaximumMana}" : string.Empty),
-            details.UsesMana ? ConsoleColor.Cyan : ConsoleColor.Red));
+        var visionText =
+            $"💪{details.Abilities.Strength} 🏹{details.Abilities.Dexterity} " +
+            $"💖{details.Abilities.Health} 🧠{details.Abilities.Intelligence} 👁️";
+
+        lines.Add(new(
+            4,
+            visionText + details.VisionRange,
+            ConsoleColor.White,
+            ColoredTextStart: visionText.Length,
+            ColoredTextColor: visionColor));
+        
+        lines.Add(new(5, "", ConsoleColor.Black)); //placeholder, it is replaced by the resource line in the UI
         lines.Add(new(6, $"É: {ResourceIcons("🍖", character.FoodLevel)}", ConsoleColor.Yellow));
         lines.Add(new(7, $"V: {ResourceIcons("💧", character.WaterLevel)}", ConsoleColor.Cyan));
         var statusIcons = details.StatusIcons
@@ -300,15 +311,27 @@ public static class CharacterSheetPanel
         var magicItems = Slots(inventory, InventorySlotKind.MagicItem, 3);
         lines.Add(new(22, $"VARÁZSTÁRGYAK {magicItems.Count(slot => slot.Item is not null)}/3", ConsoleColor.Magenta));
         for (var index = 0; index < magicItems.Count; index++)
-            lines.Add(new(23 + index, $"{index + 1}: {ItemName(magicItems[index].Item)}", ConsoleColor.Gray,
+            lines.Add(new(23 + index, $"{index + 1}: {ItemName(magicItems[index].Item)}", MagicItemSlotColor(magicItems[index].Item),
                 new InventorySlotAddress(InventorySlotKind.MagicItem, index)));
 
         var backpack = Slots(inventory, InventorySlotKind.Backpack, LiveCharacter.MaximumBackpackItemCount);
         lines.Add(new(26, $"HÁTIZSÁK {backpack.Count(slot => slot.Item is not null)}/{LiveCharacter.MaximumBackpackItemCount} " +
             $"⚖ {details.CarriedWeight:F1}/{details.CarryingCapacity}", EncumbranceColor(details.CarriedEncumbrance)));
         for (var index = 0; index < backpack.Count; index++)
-            lines.Add(new(27 + index, $"{index + 1}: {ItemName(backpack[index].Item)}", ConsoleColor.Gray,
+            lines.Add(new(27 + index, $"{index + 1}: {ItemName(backpack[index].Item)}", BackpackSlotColor(backpack[index].Item),
                 new InventorySlotAddress(InventorySlotKind.Backpack, index)));
+    }
+
+    private static ConsoleColor BackpackSlotColor(InventoryItemSnapshot? item)
+    {
+        if (item is null) return ConsoleColor.DarkGray;
+        return ConsoleColor.Gray;
+    }
+
+    private static ConsoleColor MagicItemSlotColor(InventoryItemSnapshot? item)
+    {
+        if (item is null) return ConsoleColor.DarkGray;
+        return ConsoleColor.Cyan;   
     }
 
     /// <summary>

@@ -2309,8 +2309,8 @@ public sealed class CoopGuestScreen
             }
         }
 
-        if (frame.ResourceLine is { } resources &&
-            (fullRedraw || previous!.ResourceLine != resources || previous.Panel[5] != frame.Panel[5]))
+        if (frame.CharacterVitalsOverlay is { } resources &&
+            (fullRedraw || previous!.CharacterVitalsOverlay != resources || previous.Panel[5] != frame.Panel[5]))
             WriteCharacterResourceAt(frame.MapWidth + 2, 5, resources, frame.PanelWidth);
 
         for (var row = 0; row < frame.PartyStatuses.Length; row++)
@@ -2508,7 +2508,6 @@ public sealed class CoopGuestScreen
         if (!TrySetCursorPosition(x, y)) return;
         Console.ForegroundColor = ConsoleColor.Gray;
         Console.BackgroundColor = ConsoleColor.Black;
-        Console.Write(' ');
         foreach (var (text, color) in new[]
                  {
                      (resources.Vitality, resources.VitalityColor),
@@ -2636,5 +2635,5 @@ public sealed class CoopGuestScreen
         bool CenterSegments = true);
     private sealed record GuestRenderFrame(WorldId WorldId, int WindowWidth, int WindowHeight, int MapWidth,
         int MapHeight, int PanelWidth, GuestMapCell[,] Map, GuestTextLine[] Panel, PartyStatusLine?[] PartyStatuses,
-        GuestTextLine[] Footers, CharacterResourceLine? ResourceLine);
+        GuestTextLine[] Footers, CharacterResourceLine? CharacterVitalsOverlay);
 }
