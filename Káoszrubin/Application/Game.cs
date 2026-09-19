@@ -4413,27 +4413,31 @@ public sealed class Game : ISessionCommandHandler
         }
         var corpses = _maze.GetCorpsesAt(position);
         var pile = _maze.GetGroundItemPileAt(position);
-        if (corpses.Count == 0 && pile is null) 
-        { 
+        if (corpses.Count == 0 && pile is null)
+        {
             var nothingFoundMessage = "🔎 A keresés nem hozott eredményt.";
-            _renderer.DrawInventoryMessage(nothingFoundMessage, ConsoleColor.Yellow);
-            return false; 
+            if (isSenderLeader) _renderer.DrawInventoryMessage(nothingFoundMessage, ConsoleColor.Yellow);
+            RecordSessionActivity(SessionActivityKind.System, nothingFoundMessage, ConsoleColor.Yellow, [character.Id]);
+            return false;
         }
         var unsearched = _maze.GetUnsearchedMonsterCorpsesAt(position);
-        if (unsearched.Count == 0 && pile is null && corpses.All(corpse => corpse is MonsterCorpse)) return false;
 
         var messages = new List<string>();
+        var hasSuccessfulCorpseLoot = false;
         foreach (var monsterCorpse in unsearched)
         {
             monsterCorpse.MarkSearched();
             var corpseMessages = new List<string>();
-            SearchMonsterCorpse(monsterCorpse, character, position, shareLootWithParty, corpseMessages);
+            hasSuccessfulCorpseLoot |= SearchMonsterCorpse(monsterCorpse, character, position, shareLootWithParty,
+                corpseMessages);
             messages.Add($"† {monsterCorpse.FormerName}: {string.Join(", ", corpseMessages)}");
         }
+        if (unsearched.Count == 0 && pile is null && corpses.All(corpse => corpse is MonsterCorpse))
+            messages.Add("🔎 A tetemeket már átkutattátok, új zsákmány nem maradt.");
         if (unsearched.Count == 0 && corpses.Any(corpse => corpse is PartyMemberCorpse))
-            messages.Add("Az elesett társ testén nincs elvehető zsákmány");
+            messages.Add("🔎 Az elesett társ testén nincs elvehető zsákmány");
         else if (unsearched.Count == 0 && corpses.Any(corpse => corpse is not MonsterCorpse))
-            messages.Add("Ez a régi tetem már nem tartalmaz azonosítható zsákmányt");
+            messages.Add("🔎 Ez a régi tetem már nem tartalmaz azonosítható zsákmányt");
 
         PickUpGroundItems(character, position, shareLootWithParty, messages);
         _renderer.RefreshCharacterSheet(PartyLeader);
@@ -4443,18 +4447,18 @@ public sealed class Game : ISessionCommandHandler
             ? ["🔎 A keresés nem hozott eredményt."]
             : messages.Select(message => $"🔎 {character.Name} » Zsákmány: {message}.").ToArray();
 
-        bool lootFound = resultMessages.Any(message => message.Contains("zsákmány", StringComparison.OrdinalIgnoreCase));
+        var visibleListeners = hasSuccessfulCorpseLoot ? _humanMemberIds : [character.Id];
 
         foreach (var resultMessage in resultMessages)
         {
-            if (isSenderLeader || lootFound)
+            if (isSenderLeader || hasSuccessfulCorpseLoot)
                 _renderer.DrawInventoryMessage(resultMessage, ConsoleColor.Yellow);
-            RecordSessionActivity(SessionActivityKind.System, resultMessage, ConsoleColor.Yellow, lootFound ? _humanMemberIds : [character.Id]);
+            RecordSessionActivity(SessionActivityKind.System, resultMessage, ConsoleColor.Yellow, visibleListeners);
         }
         return true;
     }
 
-    private void SearchMonsterCorpse(MonsterCorpse corpse, LiveCharacter character, Position position,
+    private bool SearchMonsterCorpse(MonsterCorpse corpse, LiveCharacter character, Position position,
         bool shareLootWithParty, ICollection<string> messages)
     {
         var enemy = _gameData.GetEnemy(corpse.EnemyDefinitionId);
@@ -4473,12 +4477,14 @@ public sealed class Game : ISessionCommandHandler
                      (equipmentDefinition is null ? string.Empty : $", 🎁 {equipmentChance}%"));
 
         var foundItems = corpse.GuaranteedLootIds.Select(_gameData.GetItem).Cast<IItemDefinition>().ToList();
+        var foundGold = false;
         if (_random.Next(100) < keyChance) foundItems.Add(_gameData.GetItem(MiscItemIds.Key));
         if (_random.Next(100) < goldChance)
         {
             var maximumGold = Math.Max(1, enemy.StrengthTier * rules.GoldPerStrengthTier);
             var gold = _random.Next(1, maximumGold + 1);
             PartyLeader.AddGold(gold);
+            foundGold = true;
             messages.Add($"{ConsoleRenderer.MoneyIcon} {gold} arany");
         }
         if (_lootService.RollCarriedWeapon(corpse.CarriedWeaponIds, carriedWeaponChance) is { } carriedWeapon)
@@ -4504,6 +4510,7 @@ public sealed class Game : ISessionCommandHandler
         }
         if (foundItems.Count == 0 && messages.All(message => !message.StartsWith(ConsoleRenderer.MoneyIcon, StringComparison.Ordinal)))
             messages.Add("a tetemnél nem találtál zsákmányt");
+        return foundGold || foundItems.Count > 0;
     }
 
     private int AdjustedSearchChance(LiveCharacter character, int baseChance) =>
