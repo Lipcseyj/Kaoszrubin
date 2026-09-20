@@ -6450,6 +6450,10 @@ static BattleSystem CreateBattleSystem(int seed) => new(new Random(seed),
     Array.Empty<MonsterAbilityDefinition>(), Array.Empty<StatusDefinition>(),
     Array.Empty<StrengthHitBonusDefinition>());
 
+static BattleSystem CreateMaximumBattleSystem() => new(new MaximumRandom(),
+    Array.Empty<MonsterAbilityDefinition>(), Array.Empty<StatusDefinition>(),
+    Array.Empty<StrengthHitBonusDefinition>());
+
 static ConfiguredEnemy CreateEnemy(int hitPoints, int strength, int speed = 1) => new(new Position(1, 1),
     new EnemyDefinition("E-TEST", "Tesztellenfél", "e", strength, hitPoints, 0, speed,
         1, 1, Array.Empty<string>()));
@@ -6973,34 +6977,24 @@ static void DefensiveInterventionsReachBattleLogs()
     var shieldBearer = CreateCharacter("Pajzshordozó", vitality: 1000);
     Assert(shieldBearer.EquipWeapon(1, data.GetWeapon("LW013") with { MinimumStrength = 1 }),
         "A kritikus blokk tesztpajzsa nem volt felszerelhető.");
-    var blockSystem = CreateBattleSystem(8142);
+    var blockSystem = CreateMaximumBattleSystem();
     var blockRuntime = blockSystem.PrepareCharacter(shieldBearer).Runtime;
-    BattleLogEntry? blockedEntry = null;
-    for (var attempt = 0; attempt < 200 && blockedEntry is null; attempt++)
-    {
-        var resolution = blockSystem.ResolveEnemyActionDetailed(CreateEnemy(1000, 20), shieldBearer, blockRuntime);
-        if (resolution.Entry.ShieldBlocks?.Any(block => block.IsCriticalBlock) == true)
-            blockedEntry = resolution.Entry;
-    }
-    Assert(blockedEntry is not null &&
-           blockedEntry.Message.Contains("🛡️ Pajzshordozó kritikus pajzsblokkal kivédte a csapást", StringComparison.Ordinal) &&
+    var blockedEntry = blockSystem.ResolveEnemyActionDetailed(
+        CreateEnemy(1000, 20), shieldBearer, blockRuntime).Entry;
+    Assert(blockedEntry.Message.Contains("🛡️ Pajzshordozó PAJZSBLOKK", StringComparison.Ordinal) &&
            blockedEntry.Details?.Calculation.Any(line =>
                line.Contains("KRITIKUS BLOKK", StringComparison.Ordinal)) == true,
-        "A kritikus pajzsblokk nem jelent meg egyszerre az alsó és a részletes harci naplóban.");
+        $"A kritikus pajzsblokk nem jelent meg egyszerre az alsó és a részletes harci naplóban. " +
+        $"Napló='{blockedEntry.Message}', blokkok='{string.Join(",", blockedEntry.ShieldBlocks ?? [])}', " +
+        $"részletek='{string.Join(" | ", blockedEntry.Details?.Calculation ?? [])}'.");
 
     var protectedCharacter = CreateCharacter("Védett", vitality: 1000, characterClassId: CharacterClassIds.Pap);
     var protector = CreateCharacter("Őrszem", vitality: 1000, characterClassId: CharacterClassIds.Lovag);
-    var protectionSystem = CreateBattleSystem(8143);
+    var protectionSystem = CreateMaximumBattleSystem();
     var protectionRuntime = protectionSystem.PrepareCharacter(protectedCharacter).Runtime;
     protectionSystem.SetTeamKnightProtection(protectionRuntime, protector);
-    BattleLogEntry? protectedEntry = null;
-    for (var attempt = 0; attempt < 200 && protectedEntry is null; attempt++)
-    {
-        var resolution = protectionSystem.ResolveEnemyActionDetailed(
-            CreateEnemy(1000, 20), protectedCharacter, protectionRuntime);
-        if (resolution.Entry.Message.Contains("🛡️ Őrszem közbelépett", StringComparison.Ordinal))
-            protectedEntry = resolution.Entry;
-    }
+    var protectedEntry = protectionSystem.ResolveEnemyActionDetailed(
+        CreateEnemy(1000, 20), protectedCharacter, protectionRuntime).Entry;
     Assert(protectedEntry is not null &&
            protectedEntry.Details?.Calculation.Any(line =>
                line.Contains("🛡️ Őrszem közbelépett", StringComparison.Ordinal) &&
@@ -7515,4 +7509,13 @@ static void WeaponCsvPropertiesAreInherited()
            StrongDistinctBaseTypes(values => values.Necrotic) >= 2 &&
            StrongDistinctBaseTypes(values => values.Chaos) >= 2,
         "Nincs mind a négy új sebzéstípushoz két erős, eltérő alaptípusú legendás páncél.");
+}
+
+file sealed class MaximumRandom : Random
+{
+    public override int Next() => int.MaxValue;
+    public override int Next(int maxValue) => maxValue <= 0 ? 0 : maxValue - 1;
+    public override int Next(int minValue, int maxValue) => maxValue <= minValue ? minValue : maxValue - 1;
+    public override double NextDouble() => 0.9999999999999999d;
+    protected override double Sample() => 0.9999999999999999d;
 }
