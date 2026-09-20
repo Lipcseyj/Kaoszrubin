@@ -29,6 +29,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
 {
     private readonly object _sync = new();
     private readonly GameSettings _settings;
+    private readonly Func<BackgroundMusicContext, Action<string>?, string?> _trackResolver;
     private Action<string>? _reportMessages;
 
     private WaveOut? _output;
@@ -43,10 +44,12 @@ public sealed class BackgroundMusicPlayer : IDisposable
     private bool _disposed;
     private readonly HashSet<BackgroundMusicContext> _missingMusicReportedContexts = [];
 
-    public BackgroundMusicPlayer(GameSettings settings, Action<string>? reportMessages = null)
+    public BackgroundMusicPlayer(GameSettings settings, Action<string>? reportMessages = null,
+        Func<BackgroundMusicContext, Action<string>?, string?>? trackResolver = null)
     {
         _settings = settings;
         _reportMessages = reportMessages;
+        _trackResolver = trackResolver ?? BackgroundMusicCatalog.RandomTrackPath;
     }
 
     public void SetReportCallback(Action<string>? reportMessages)
@@ -226,7 +229,7 @@ public sealed class BackgroundMusicPlayer : IDisposable
         if (!CanPlayCurrentContextLocked() || _context is not { } context)
             return;
 
-        if (BackgroundMusicCatalog.RandomTrackPath(context, _reportMessages) is not { } path)
+        if (_trackResolver(context, _reportMessages) is not { } path)
         {
             if (_reportMessages is { } report && _missingMusicReportedContexts.Add(context))
             {

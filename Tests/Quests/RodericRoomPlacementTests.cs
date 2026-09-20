@@ -6,7 +6,7 @@ internal static class RodericRoomPlacementTests
 {
     public static void PlacementSurvivesMultipleSeeds()
     {
-        for (var seed = 0; seed < 80; seed++)
+        Parallel.For(0, 80, seed =>
         {
             var settings = seed < 40
                 ? MazeLevelConfigurations.Get(5).CreateGenerationSettings(new Random(seed))
@@ -23,9 +23,9 @@ internal static class RodericRoomPlacementTests
                         ["RELICS"] = SpecialRoomPlacement.SideBranch
                     }
                 };
-            var width = seed % 2 == 0 ? 55 : 170;
-            var height = seed % 2 == 0 ? 31 : 44;
-            var maze = new MazeGenerator(settings, [], [], new Random(seed)).Create(width, height);
+            // A speciális szobák szabályait a seed variálja; az óriási 170×44-es pálya csak a
+            // DFS/BFS költségét növelte, új elhelyezési esetet nem adott ehhez a teszthez.
+            var maze = new MazeGenerator(settings, [], [], new Random(seed)).Create(45, 27);
             var rooms = maze.Rooms.Where(room => room.ContentId is not null).ToArray();
             Check(rooms.Length == settings.QuestRoomIds.Count + settings.BossRoomIds.Count, seed, "Hiányzó speciális szoba.");
             var blocked = new HashSet<Position>();
@@ -56,7 +56,7 @@ internal static class RodericRoomPlacementTests
                 detour <= Math.Max(8, routeLength * 0.15), seed, "Roderic túl korán/későn vagy túl nagy kitérővel érhető el.");
             Check(maze.TreasureChests.All(chest => !rooms.Any(room => room.Contains(chest.Position))),
                 seed, "Véletlen láda került speciális szobába.");
-        }
+        });
     }
 
     public static void SeedAndConfigurationAreValidated()
