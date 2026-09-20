@@ -366,7 +366,7 @@ public static class CsvGameDataLoader
                     Cell(cells, 2),
                     Integer(cells, 3),
                     Integer(cells, 4),
-                    Integer(cells, 5),
+                    EnemyArmorRangeFrom(cells, 5),
                     Integer(cells, 6),
                     Integer(cells, 7) ?? 0,
                     Integer(cells, 8) ?? 1,
@@ -393,7 +393,8 @@ public static class CsvGameDataLoader
                         Integer(cells, 23) ?? 0),
                     Traits: ParseEnemyTraits(Cell(cells, 10)),
                     TrackingSense: Integer(cells, 24) ?? 0,
-                    ShieldId: EmptyAsNull(Cell(cells, 25))));
+                    ShieldId: EmptyAsNull(Cell(cells, 25)),
+                    MagicResistance: Math.Clamp(Integer(cells, 26) ?? 0, 0, 100)));
                 break;
             case DataSection.MonsterAbilities:
                 monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),
@@ -1475,6 +1476,21 @@ public static class CsvGameDataLoader
             && minimum <= maximum
             ? new ValueRange(minimum, maximum)
             : null;
+    }
+
+    private static ValueRange? EnemyArmorRangeFrom(string[] cells, int index)
+    {
+        if (ValueRangeFrom(cells, index) is { } explicitRange) return explicitRange;
+        if (Integer(cells, index) is not { } armor) return null;
+        armor = Math.Max(0, armor);
+        var deviation = armor switch
+        {
+            0 => 0,
+            <= 3 => 1,
+            <= 8 => 2,
+            _ => 3
+        };
+        return new ValueRange(armor - deviation, armor + deviation);
     }
     private static PrimaryAbilities PrimaryAbilitiesFrom(string[] cells) => new(Integer(cells, 1) ?? 0, Integer(cells, 2) ?? 0, Integer(cells, 3) ?? 0, Integer(cells, 4) ?? 0);
 

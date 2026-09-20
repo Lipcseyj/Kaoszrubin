@@ -87,7 +87,8 @@ public static class NpcSpellPlanEvaluator
                        Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier);
         if (caster.HasPerk(PerkIds.MageElementalMaster)) perRound *= 1.25;
         return Math.Max(0, perRound) * effect.Duration * EffectChance(effect) *
-               ResolutionMultiplier(caster, spell, effect, enemy);
+               ResolutionMultiplier(caster, spell, effect, enemy) *
+               (100 - Math.Clamp(enemy.Definition.MagicResistance, 0, 100)) / 100.0;
     }
 
     private static double ExpectedControlUtility(LiveCharacter caster, SpellDefinition spell,
@@ -132,6 +133,7 @@ public static class NpcSpellPlanEvaluator
             spell.School == SpellSchool.Arcane) multiplier *= 1.15;
         if (SpellExecutionService.IsHolyEffect(effect) && SpellExecutionService.IsUnholy(enemy.Definition))
             multiplier *= 1.50;
+        multiplier *= (100 - Math.Clamp(enemy.Definition.MagicResistance, 0, 100)) / 100.0;
         return multiplier;
     }
 

@@ -490,6 +490,7 @@ public sealed class SpellExecutionService
         if (divineJudgment) { rolled *= 2; _calculation.Add("⚡ Isteni ítélet ×2"); }
         if (resolution.Critical) { rolled *= 2; _calculation.Add("🎲 KRITIKUS ×2"); }
         if (resolution.Half) { rolled = Math.Max(1, rolled / 2); _calculation.Add("🛡️ Sikeres mentő: felezés ↓, min. 1"); }
+        rolled = ApplyMagicResistance(enemy, rolled, notes);
         notes.Add($"{enemy.Name}: -{rolled} HP ({resolution.Text})");
         return rolled;
     }
@@ -551,10 +552,15 @@ public sealed class SpellExecutionService
         {
             var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, cache);
             if (!resolution.Applies || _random.Next(100) >= effect.ChancePercent) continue;
+            var damageMultiplier = effect.Dice is null ? 100 : 100 - MagicResistance(enemy);
+            if (effect.Dice is not null && caster.HasPerk(PerkIds.MageElementalMaster))
+                damageMultiplier = damageMultiplier * 125 / 100;
             enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type, effect.Value,
                 AdjustedDuration(caster, spell, effect, divineJudgment),
                 effect.Dice, (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier),
-                false, effect.Dice is not null && caster.HasPerk(PerkIds.MageElementalMaster) ? 125 : 100));
+                false, damageMultiplier));
+            if (effect.Dice is not null && MagicResistance(enemy) > 0)
+                notes.Add($"{enemy.Name}: 🔮 varázsvédelem {MagicResistance(enemy)}% az időszakos sebzés ellen");
             notes.Add($"{enemy.Name}: {TimedEffectName(type)} ({AdjustedDuration(caster, spell, effect, divineJudgment)} kör)");
         }
     }
@@ -678,6 +684,7 @@ public sealed class SpellExecutionService
                 var fireDamage = effect.Dice?.Roll(_random) ?? 0;
                 if (caster.HasPerk(PerkIds.MageElementalMaster))
                     fireDamage = (int)Math.Ceiling(fireDamage * 1.25);
+                fireDamage = ApplyMagicResistance(enemy, fireDamage, notes);
                 damage[enemy] += fireDamage;
                 notes.Add($"{enemy.Name}: 🔥 -{fireDamage} HP");
             }
@@ -688,6 +695,18 @@ public sealed class SpellExecutionService
         }
         notes.Add($"🎲 véletlen elem: {element}");
     }
+
+    private int ApplyMagicResistance(Enemy enemy, int damage, ICollection<string> notes)
+    {
+        var resistance = MagicResistance(enemy);
+        if (damage <= 0 || resistance <= 0) return Math.Max(0, damage);
+        var reduced = resistance >= 100 ? 0 : Math.Max(1, damage * (100 - resistance) / 100);
+        _calculation.Add($"🔮 {enemy.Name}: varázsvédelem {resistance}%, {damage} → {reduced}");
+        notes.Add($"{enemy.Name}: 🔮 varázsvédelem -{damage - reduced} sebzés");
+        return reduced;
+    }
+
+    private static int MagicResistance(Enemy enemy) => Math.Clamp(enemy.Definition.MagicResistance, 0, 100);
 
     public string DispelAt(Position target, int radius, Maze maze,
         IReadOnlyList<(LiveCharacter Character, Position Position)> livingParty, string? parameter = null)

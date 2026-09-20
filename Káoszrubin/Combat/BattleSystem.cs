@@ -884,7 +884,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var typeDefense = defender.Resistances?.Against(damageType) ?? 0;
         defenseCalculations.Add($"🛡️ Sebzéstípus: {damageType.Name()}");
         defenseCalculations.Add($"🛡️ Típusvédelem {typeDefense:+#;-#;0}");
-        var armor = Math.Max(0, defender.Armor + defender.ArmorAbilityBonus + typeDefense);
+        var armorRoll = Roll(defender.Armor);
+        defenseCalculations.Add($"🛡️ Páncél {defender.Armor}: {armorRoll}");
+        var armor = Math.Max(0, armorRoll + defender.ArmorAbilityBonus + typeDefense);
         var powerfulMastery = context.Tactic == BattleTactic.FighterPowerful &&
                               player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful);
         var armorPiercing = weapon?.IsTwoHanded == true || context.Tactic == BattleTactic.FighterPowerful;
@@ -1863,7 +1865,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         int CurrentHitPoints,
         int MaximumHitPoints,
         int EffectiveSpeed,
-        int Armor,
+        ValueRange Armor,
         int ArmorAbilityBonus,
         bool IsUndead,
         DamageResistance? Resistances,
@@ -1885,7 +1887,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 enemy.CurrentHitPoints,
                 maximumHitPoints,
                 enemy.EffectiveSpeed,
-                Math.Max(0, (enemy.Definition.Armor ?? 0) - Math.Max(0, armorPenalty)),
+                enemy.Definition.Armor is { } armor
+                    ? new ValueRange(Math.Max(0, armor.Minimum - Math.Max(0, armorPenalty)),
+                        Math.Max(0, armor.Maximum - Math.Max(0, armorPenalty)))
+                    : new ValueRange(0, 0),
                 armorAbilityBonus,
                 enemy.Definition.HasTrait(EnemyTraits.Undead),
                 enemy.Definition.Resistances,

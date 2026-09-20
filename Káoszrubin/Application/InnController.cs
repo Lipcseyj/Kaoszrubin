@@ -1056,7 +1056,8 @@ internal sealed class InnController
             $"A(z) {selected.Level}. szint környékén látták. Jel a térképen: {enemy.Appearance}.",
             $"Erősség: {enemy.StrengthTier}/5; HP {enemy.HitPoints ?? 0}; Erő {enemy.Strength ?? 0}; " +
             $"Ellenállás: {enemy.Resistances ?? new DamageResistance()}; " +
-            $"Páncél {enemy.Armor ?? 0}; Gyorsaság {enemy.Speed ?? 0}; jutalom {enemy.ExperienceReward} XP."
+            $"Páncél {enemy.Armor?.ToString() ?? "0-0"}; Varázsvédelem {enemy.MagicResistance}%; " +
+            $"Gyorsaság {enemy.Speed ?? 0}; jutalom {enemy.ExperienceReward} XP."
         };
         if (enemy.Traits != EnemyTraits.None)
         {

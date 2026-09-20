@@ -2831,8 +2831,10 @@ public sealed class Game : ISessionCommandHandler
             _questWorldContext.GetInstanceId(npc)).GetQuest(LegacyQuestIdMap.ToQuestId(questId));
         if (quest.IsInProgress || quest.IsResolved) return;
         quest.Activate();
-        _renderer.DrawInventoryMessage($"📜 Új küldetés: {quest.Title} — {quest.Description} " +
-            $"Jutalom: {quest.ExperienceReward} XP.", ConsoleColor.Cyan);
+        var questMessage = $"📜 Új küldetés: {quest.Title} — {quest.Description} " +
+            $"Jutalom: {quest.ExperienceReward} XP.";
+        _renderer.DrawInventoryMessage(questMessage, ConsoleColor.Cyan);
+        RecordSessionActivity(SessionActivityKind.Support, questMessage, ConsoleColor.Cyan);
         RequestCoopSnapshotPublish();
     }
 

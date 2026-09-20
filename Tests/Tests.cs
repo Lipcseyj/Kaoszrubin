@@ -4133,7 +4133,8 @@ static void RodericMalrecQuestLocationIsConfigured()
            guards is { RoomId: "MALREC_CHAMBER", EnemyId: "E052", Count: 4,
                GuaranteedItemId: null } &&
            catalog.GetEnemy(MonsterIds.SirMalrec) is
-               { Rank: EnemyRank.MiniBoss, IsBoss: false, HitPoints: 420, Armor: 9 } &&
+               { Rank: EnemyRank.MiniBoss, IsBoss: false, HitPoints: 420,
+                   Armor: { Minimum: 6, Maximum: 12 } } &&
            quest is { Objective: QuestObjective.KillEnemy { Enemy.Id: "E053" }, ActivationRequirement: QuestActivationRequirement.StoryStateEquals { RequiredState: QuestStoryState.MalrecApproach } },
         "Sir Malrec rangja, küldetése vagy az 5-ös nehézségű küldetéshelyszíne hibás.");
     Assert(catalog.GetQuestChest(new("RODERIC_ORDER_RELICS")).Items.Any(item => item.Item.Id == "T027" && item.Quantity == 1) &&
@@ -4729,6 +4730,24 @@ static void NewSpellEffectsAreSupported()
            service.IsOffensiveSpell(catalog.GetSpell("S028")) &&
            service.IsOffensiveSpell(catalog.GetSpell("P028")),
         "Az új támadó vagy kontrollvarázslatok nem minősülnek támadónak.");
+
+    var golemDefinition = catalog.GetEnemy("E039");
+    var blackDragonDefinition = catalog.GetEnemy("E025");
+    Assert(golemDefinition.Armor is { Minimum: 7, Maximum: 13 } &&
+           golemDefinition.AverageArmor == 10 && golemDefinition.MagicResistance == 40 &&
+           blackDragonDefinition.Armor is { Minimum: 7, Maximum: 13 } &&
+           blackDragonDefinition.MagicResistance == 30,
+        "Az ellenfélpáncél kis szórású tartománya vagy a CSV-s varázsvédelem hibás.");
+
+    var resistantEnemy = new ConfiguredEnemy(new Position(3, 3), golemDefinition);
+    var testSpell = new SpellDefinition("TEST-MAGIC-RESISTANCE", "Próbavarázs", SpellSchool.Arcane,
+        1, 0, "", SpellTargetType.Enemy, 6, 0, true, SpellUsageMode.Combat);
+    var testDamage = new SpellEffectDefinition("TEST-MAGIC-DAMAGE", testSpell.Id, 1,
+        SpellEffectType.Damage, null, 0, 0, 100, 0, 100, SpellResolution.Auto, null, "");
+    var resistedDamage = service.ResolveSpellDamage(ally, testDamage, testSpell, resistantEnemy,
+        new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), []);
+    Assert(resistedDamage == 60,
+        "A 40 százalékos varázsvédelem nem csökkentette 100-ról 60-ra a közvetlen varázssebzést.");
 }
 
 static void MonsterRegenerationAndBreathCooldownWork()

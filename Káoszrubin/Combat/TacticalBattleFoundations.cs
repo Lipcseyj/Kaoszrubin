@@ -280,8 +280,8 @@ public static class EncounterThreatEvaluator
             _ => 1.0
         };
         var raw = Math.Max(1, enemy.HitPoints ?? 1) + Math.Max(1, enemy.Strength ?? 1) * 3 +
-                  Math.Max(0, enemy.Armor ?? 0) * 2 + Math.Max(1, enemy.Speed ?? 1) * 2 +
-                  Math.Max(1, enemy.StrengthTier) * 4 + enemy.AbilityThreat;
+                  Math.Max(0, enemy.AverageArmor) * 2 + Math.Max(1, enemy.Speed ?? 1) * 2 +
+                  Math.Max(1, enemy.StrengthTier) * 4 + enemy.AbilityThreat + enemy.MagicResistance / 5;
         return Math.Max(1, (int)Math.Ceiling(raw * rankMultiplier));
     }
 }
