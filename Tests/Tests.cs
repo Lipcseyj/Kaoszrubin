@@ -5720,21 +5720,54 @@ static void MonsterStrengthCreatesTacticalPressure()
     var preparation = system.PrepareTeamCharacter(character);
     var encounter = new TeamBattleEncounter(new Position(3, 3),
         [new TeamCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
-            preparation.Initiative, 3, 1, preparation.Runtime)],
+            100, 3, 1, preparation.Runtime)],
         [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+    encounter.Turns.StartTurns();
     Assert(encounter.TryBeginStrengthContest(enemy) && !encounter.TryBeginStrengthContest(enemy),
         "Ugyanaz a szörny egy körben többször kezdhetett Erőpróbát.");
-    Assert(encounter.StaggerCharacter(character), "A karakter nem kapta meg a tántorodást.");
+    Assert(StaggerRules.Resolve(StaggerSeverity.Light, 25).BlocksOffensiveActions &&
+           !StaggerRules.Resolve(StaggerSeverity.Light, 26).BlocksOffensiveActions &&
+           StaggerRules.Resolve(StaggerSeverity.Normal, 45).BlocksOffensiveActions &&
+           !StaggerRules.Resolve(StaggerSeverity.Normal, 46).BlocksOffensiveActions &&
+           StaggerRules.Resolve(StaggerSeverity.Heavy, 70).BlocksOffensiveActions &&
+           !StaggerRules.Resolve(StaggerSeverity.Heavy, 71).BlocksOffensiveActions,
+        "A könnyű, normál vagy súlyos megingás 25/45/70%-os határa hibás.");
+    Assert(encounter.StaggerCharacter(character, StaggerSeverity.Light) &&
+           encounter.StaggerCharacter(character, StaggerSeverity.Heavy),
+        "A karakter megingása nem jött létre, vagy nem erősödött fel.");
+    var staggerRolls = 0;
+    var firstResolution = encounter.PrepareStaggerAction(CombatantId.ForCharacter(character.Id), () =>
+    {
+        staggerRolls++;
+        return 70;
+    });
+    var repeatedResolution = encounter.PrepareStaggerAction(CombatantId.ForCharacter(character.Id), () =>
+    {
+        staggerRolls++;
+        return 100;
+    });
+    Assert(firstResolution is { Severity: StaggerSeverity.Heavy, BlocksMovement: true,
+               BlocksOffensiveActions: true } && repeatedResolution == firstResolution && staggerRolls == 1,
+        "A megingás nem a legerősebb fokozattal, vagy egy akcióban többször dobott.");
     var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1713));
     var actions = coordinator.GetTeamAllowedBattleActions(encounter, character, enemy, character,
         encounter.PositionOf(character), false, new Dictionary<LiveCharacter, int>());
-    Assert(!actions.Contains(BattleActionKind.Move) && actions.Contains(BattleActionKind.Pass),
-        "A megtántorított karakter továbbra is mozoghatott, vagy más akcióit is elvesztette.");
-    encounter.Turns.StartTurns();
+    Assert(!actions.Contains(BattleActionKind.Move) &&
+           !actions.Contains(BattleActionKind.PhysicalAttack) &&
+           !actions.Contains(BattleActionKind.ShieldBash) &&
+           !actions.Contains(BattleActionKind.CastSpell) &&
+           !actions.Contains(BattleActionKind.TurnUndead) &&
+           actions.Contains(BattleActionKind.Pass),
+        "A megingott karakter mozgási vagy támadó akciói nem a közös szabály szerint tiltódtak.");
+    encounter.GrantExtraActions(1);
+    encounter.AdvanceTurn();
+    Assert(encounter.CurrentCharacter == character && !encounter.IsCharacterStaggered(character) &&
+           !encounter.AreOffensiveActionsBlocked(CombatantId.ForCharacter(character.Id)),
+        "A soron kívüli extra akció örökölte az előző akció megingását.");
     encounter.AdvanceTurn();
     encounter.AdvanceTurn();
     Assert(!encounter.IsCharacterStaggered(character) && encounter.TryBeginStrengthContest(enemy),
-        "A tántorodás nem a következő saját kör végén múlt el, vagy az Erőpróba nem újult meg körváltáskor.");
+        "A megingás nem az akció végén múlt el, vagy az Erőpróba nem újult meg körváltáskor.");
 }
 
 static void RearCombatPreparationIsLeaderControlled()
@@ -6979,9 +7012,15 @@ static void WeaponFamiliesUseDistinctAttackPatterns()
             statePreparation.Initiative, 3, 1, statePreparation.Runtime)],
         [new TeamEnemyParticipant(stateEnemy, 1, 2, 1)], stateCharacter.Id, stateEnemy.Id);
     Assert(stateBattle.ApplyArmorShred(stateEnemy, 2) && stateBattle.EnemyArmorPenalty(stateEnemy) == 2 &&
-           !stateBattle.ApplyArmorShred(stateEnemy, 1) && stateBattle.StaggerEnemy(stateEnemy) &&
-           stateBattle.ConsumeEnemyStagger(stateEnemy) && !stateBattle.ConsumeEnemyStagger(stateEnemy),
-        "A páncélrepesztés vagy a megtorpanás harci állapota hibás.");
+           !stateBattle.ApplyArmorShred(stateEnemy, 1) &&
+           stateBattle.StaggerEnemy(stateEnemy, StaggerSeverity.Normal) && stateBattle.IsEnemyStaggered(stateEnemy),
+        "A páncélrepesztés vagy az ellenfél megingásának harci állapota hibás.");
+    var enemyResolution = stateBattle.PrepareStaggerAction(CombatantId.ForEnemy(stateEnemy.Id), () => 46);
+    Assert(enemyResolution is { Severity: StaggerSeverity.Normal, BlocksMovement: true,
+               BlocksOffensiveActions: false } &&
+           stateBattle.IsMovementBlocked(CombatantId.ForEnemy(stateEnemy.Id)) &&
+           !stateBattle.AreOffensiveActionsBlocked(CombatantId.ForEnemy(stateEnemy.Id)),
+        "Az ellenfél nem ugyanazt a megingási állapotgépet használja, mint a parti.");
 }
 
 static void DualWieldingRequiresDisciplineAndProficiencies()

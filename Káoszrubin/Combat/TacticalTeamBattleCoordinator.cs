@@ -339,14 +339,17 @@ public sealed class TacticalTeamBattleCoordinator
         var reachable = ReachableTeamEnemies(battle, character, characterPosition).ToArray();
         var canShieldBash = AdjacentTeamEnemies(battle, character, characterPosition).Any() &&
                             character.OperationalWeapons.Any(ShieldRules.IsShield);
-        var staggered = battle.IsCharacterStaggered(character);
+        var combatantId = CombatantId.ForCharacter(character.Id);
+        var staggered = battle.IsMovementBlocked(combatantId);
+        var offensiveActionsBlocked = battle.AreOffensiveActionsBlocked(combatantId);
         var canTurnUndead = BattleActionCoordinator.IsTurnUndeadReady(character, battle.Turns.Cycle,
             turnUndeadNextAvailableRounds) && TurnUndeadTargets(battle, character, characterPosition).Any();
         if (battle.Turns.Cycle == 1 && character.Id == battle.InitiatingCharacterId)
         {
             var openingActions = new List<BattleActionKind> { BattleActionKind.Pass };
-            if (reachable.Length > 0) openingActions.Insert(0, BattleActionKind.PhysicalAttack);
-            if (canShieldBash)
+            if (reachable.Length > 0 && !offensiveActionsBlocked)
+                openingActions.Insert(0, BattleActionKind.PhysicalAttack);
+            if (canShieldBash && !offensiveActionsBlocked)
                 openingActions.Insert(0, BattleActionKind.ShieldBash);
             else if (battle.HasActiveFormation && character == selectedCharacter)
             {
@@ -354,9 +357,9 @@ public sealed class TacticalTeamBattleCoordinator
                     openingActions.Insert(0, BattleActionKind.MoveFormation);
             }
             else if (!staggered) openingActions.Insert(0, BattleActionKind.Move);
-            if (hasUsableCombatSpell)
+            if (hasUsableCombatSpell && !offensiveActionsBlocked)
                 openingActions.Insert(0, BattleActionKind.CastSpell);
-            if (canTurnUndead)
+            if (canTurnUndead && !offensiveActionsBlocked)
                 openingActions.Insert(0, BattleActionKind.TurnUndead);
             if (character.CanSwapReserveWeapon) openingActions.Add(BattleActionKind.SwapWeapon);
             AddRearPreparationActions(battle, character, selectedCharacter, openingActions);
@@ -364,14 +367,14 @@ public sealed class TacticalTeamBattleCoordinator
         }
         var actions = new List<BattleActionKind> { BattleActionKind.Pass };
         if (character.CanSwapReserveWeapon) actions.Add(BattleActionKind.SwapWeapon);
-        if (reachable.Length > 0)
+        if (reachable.Length > 0 && !offensiveActionsBlocked)
         {
             actions.Add(BattleActionKind.PhysicalAttack);
             if (canShieldBash)
                 actions.Add(BattleActionKind.ShieldBash);
             if (reachable.Length > 1) actions.Add(BattleActionKind.SelectTarget);
         }
-        if (canTurnUndead)
+        if (canTurnUndead && !offensiveActionsBlocked)
             actions.Add(BattleActionKind.TurnUndead);
         if (!staggered && battle.HasProtectiveFormation && battle.IsFrontRow(character) &&
             battle.RearPartnerOf(character) is { IsAlive: true } rearPartner &&
@@ -380,7 +383,7 @@ public sealed class TacticalTeamBattleCoordinator
         if (!staggered && !battle.HasStaggeredFormationMember && battle.HasActiveFormation &&
             character == selectedCharacter)
             actions.Add(BattleActionKind.MoveFormation);
-        if (hasUsableCombatSpell)
+        if (hasUsableCombatSpell && !offensiveActionsBlocked)
             actions.Add(BattleActionKind.CastSpell);
         if (!battle.IsEngaged(character))
         {
@@ -388,7 +391,7 @@ public sealed class TacticalTeamBattleCoordinator
                 actions.Add(BattleActionKind.Move);
             if (GetBattleItemOptions(battle, character).Count > 0) actions.Add(BattleActionKind.UseItem);
         }
-        if (character == selectedCharacter && battle.Turns.Cycle > 1)
+        if (!staggered && character == selectedCharacter && battle.Turns.Cycle > 1)
             actions.Add(BattleActionKind.Retreat);
         AddRearPreparationActions(battle, character, selectedCharacter, actions);
         return actions;

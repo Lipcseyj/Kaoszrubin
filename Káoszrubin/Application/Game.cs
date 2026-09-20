@@ -2844,36 +2844,96 @@ public sealed class Game : ISessionCommandHandler
         {
             var sameRaceMembers = CharacterRoster.Party.Members.Count(character =>
                 string.Equals(character.Race.Id, npc.Character.Race.Id, StringComparison.OrdinalIgnoreCase));
-            var affinity = string.Equals(PartyLeader.Race.Id, npc.Character.Race.Id,
-                StringComparison.OrdinalIgnoreCase) ? 2 : sameRaceMembers > 0 ? 1 : 0;
+
+            var affinity = string.Equals(
+                PartyLeader.Race.Id,
+                npc.Character.Race.Id,
+                StringComparison.OrdinalIgnoreCase)
+                    ? 2
+                    : sameRaceMembers > 0
+                        ? 1
+                        : 0;
+
             if (affinity > 0)
             {
                 npc.AdjustFriendliness(affinity);
-                _renderer.DrawInventoryMessage($"🌿 Faji rokonszenv: Elira viszonya +{affinity}.", ConsoleColor.Green);
+
+                var affinityMessage =
+                    $"🌿 Faji rokonszenv: Elira viszonya +{affinity}.";
+
+                _renderer.DrawInventoryMessage(
+                    affinityMessage,
+                    ConsoleColor.Green);
+
+                RecordSessionActivity(
+                    SessionActivityKind.Support,
+                    affinityMessage,
+                    ConsoleColor.Green);
             }
         }
 
         var result = _renderer.DrawUniqueNpcConversation(npc);
         var friendlinessChange = result.FriendlinessChange;
-        if (npc.ConversationStage == 2 && result.ChoiceIndex == 1 &&
-            !CharacterRoster.Party.Members.Any(character => string.Equals(character.Race.Id,
-                npc.Character.Race.Id, StringComparison.OrdinalIgnoreCase))) friendlinessChange = -1;
+
+        if (npc.ConversationStage == 2 &&
+            result.ChoiceIndex == 1 &&
+            !CharacterRoster.Party.Members.Any(character =>
+                string.Equals(
+                    character.Race.Id,
+                    npc.Character.Race.Id,
+                    StringComparison.OrdinalIgnoreCase)))
+        {
+            friendlinessChange = -1;
+        }
+
         npc.AdjustFriendliness(friendlinessChange);
-        if (result.ChoiceIndex >= 0) npc.AdvanceConversation();
-        if (result.FollowRequested && npc.State != WorldNpcState.Following)
+
+        if (result.ChoiceIndex >= 0)
+            npc.AdvanceConversation();
+
+        if (result.FollowRequested &&
+            npc.State != WorldNpcState.Following)
+        {
             BeginTemporaryFollowing(npc);
-        if (npc.State == WorldNpcState.Following) ProcessNpcQuests(npc);
+        }
+
+        if (npc.State == WorldNpcState.Following)
+            ProcessNpcQuests(npc);
+
         _renderer.CharacterSheet.RefreshCharacterSheet();
-        _renderer.DrawInventoryMessage($"🌿 Elira viszonya: {npc.Friendliness}/10.",
-            friendlinessChange >= 0 ? ConsoleColor.Green : ConsoleColor.DarkYellow);
+
+        var friendlinessColor =
+            friendlinessChange >= 0
+                ? ConsoleColor.Green
+                : ConsoleColor.DarkYellow;
+
+        var friendlinessMessage =
+            $"🌿 Elira viszonya: {npc.Friendliness}/10.";
+
+        _renderer.DrawInventoryMessage(
+            friendlinessMessage,
+            friendlinessColor);
+
+        RecordSessionActivity(
+            SessionActivityKind.Support,
+            friendlinessMessage,
+            friendlinessColor);
     }
 
     private bool BeginTemporaryFollowing(WorldNpc npc)
     {
         if (_maze.PartyMembers.Any(member => member.IsTemporaryFollower))
         {
+            var message =
+                "Már van egy ideiglenes követőtök.";
+
             _renderer.DrawInventoryMessage(
-                "Már van egy ideiglenes követőtök.",
+                message,
+                ConsoleColor.DarkYellow);
+
+            RecordSessionActivity(
+                SessionActivityKind.Support,
+                message,
                 ConsoleColor.DarkYellow);
 
             return false;
@@ -2921,13 +2981,35 @@ public sealed class Game : ISessionCommandHandler
         if (activatedQuests.Count > 0)
         {
             ForceCoopSnapshotPublish();
+
+            foreach (var quest in activatedQuests)
+            {
+                var questMessage =
+                    $"📜 Új küldetés: {quest.Title} — " +
+                    $"{quest.Description} " +
+                    $"Jutalom: {quest.ExperienceReward} XP" +
+                    $"{DescribeQuestItemRewards(quest)}.";
+
+                _renderer.DrawInventoryMessage(
+                    questMessage,
+                    ConsoleColor.Cyan);
+
+                RecordSessionActivity(
+                    SessionActivityKind.Support,
+                    questMessage,
+                    ConsoleColor.Cyan);
+            }
         }
 
         // ------------------------------------------------------------
         // Quest offer UI
         // ------------------------------------------------------------
 
-        var offers = activatedQuests.Select(QuestPresentationSnapshot.From).ToArray();
+        var offers =
+            activatedQuests
+                .Select(QuestPresentationSnapshot.From)
+                .ToArray();
+
         if (offers.Length > 0)
         {
             if (npcId == QuestNpcId.EliraSilverbranch)
@@ -2937,9 +3019,18 @@ public sealed class Game : ISessionCommandHandler
         }
 
         _renderer.CharacterSheet.RefreshCharacterSheet();
-        _renderer.DrawInventoryMessage(
+
+        var followerMessage =
             $"🌿 {npc.Character.Name} ideiglenes követőként csatlakozott. " +
-            "Nem foglal partyhelyet.",
+            "Nem foglal partyhelyet.";
+
+        _renderer.DrawInventoryMessage(
+            followerMessage,
+            ConsoleColor.Cyan);
+
+        RecordSessionActivity(
+            SessionActivityKind.Support,
+            followerMessage,
             ConsoleColor.Cyan);
 
         return true;
@@ -2973,11 +3064,19 @@ public sealed class Game : ISessionCommandHandler
 
             foreach (var quest in activated)
             {
-                _renderer.DrawInventoryMessage(
+                var questMessage =
                     $"📜 Új küldetés: {quest.Title} — " +
                     $"{quest.Description} " +
                     $"Jutalom: {quest.ExperienceReward} XP" +
-                    $"{DescribeQuestItemRewards(quest)}.",
+                    $"{DescribeQuestItemRewards(quest)}.";
+
+                _renderer.DrawInventoryMessage(
+                    questMessage,
+                    ConsoleColor.Cyan);
+
+                RecordSessionActivity(
+                    SessionActivityKind.Support,
+                    questMessage,
                     ConsoleColor.Cyan);
             }
         }
@@ -3001,9 +3100,17 @@ public sealed class Game : ISessionCommandHandler
 
             if (!quest.IsReadyToTurnIn)
             {
-                _renderer.DrawInventoryMessage(
+                var progressMessage =
                     $"📜 {quest.Title}: " +
-                    $"{quest.Progress}/{quest.RequiredCount}",
+                    $"{quest.Progress}/{quest.RequiredCount}";
+
+                _renderer.DrawInventoryMessage(
+                    progressMessage,
+                    ConsoleColor.DarkYellow);
+
+                RecordSessionActivity(
+                    SessionActivityKind.Support,
+                    progressMessage,
                     ConsoleColor.DarkYellow);
 
                 continue;
@@ -3017,25 +3124,45 @@ public sealed class Game : ISessionCommandHandler
             try
             {
                 if (!confirmTurnIn) completion = quest.Complete();
-                else if (!QuestTurnInService.TryComplete(quest, snapshot => RunHostWindow(
-                        $"Küldetés leadása — {snapshot.Title}",
-                        $"A vezető eldönti, hogy leadja-e a(z) {snapshot.Title} küldetést.",
-                        () => _renderer.ConfirmQuestTurnIn(npc.Character.Name, snapshot)), out completion))
+                else if (!QuestTurnInService.TryComplete(
+                             quest,
+                             snapshot => RunHostWindow(
+                                 $"Küldetés leadása — {snapshot.Title}",
+                                 $"A vezető eldönti, hogy leadja-e a(z) {snapshot.Title} küldetést.",
+                                 () => _renderer.ConfirmQuestTurnIn(
+                                     npc.Character.Name,
+                                     snapshot)),
+                             out completion))
                 {
-                    _renderer.DrawInventoryMessage($"📜 {quest.Title}: a jutalom felvétele elhalasztva.",
+                    var postponedMessage =
+                        $"📜 {quest.Title}: a jutalom felvétele elhalasztva.";
+
+                    _renderer.DrawInventoryMessage(
+                        postponedMessage,
                         ConsoleColor.DarkYellow);
+
+                    RecordSessionActivity(
+                        SessionActivityKind.Support,
+                        postponedMessage,
+                        ConsoleColor.DarkYellow);
+
                     continue;
                 }
             }
             catch (InvalidOperationException exception)
             {
-                // Főleg collect questnél fordulhat elő,
-                // ha a confirmation és a tényleges leadás között
-                // megváltozott az inventory.
-                _renderer.DrawInventoryMessage(
+                var errorMessage =
                     $"📜 {quest.Title}: " +
                     $"a küldetés most nem adható le. " +
-                    $"{exception.Message}",
+                    $"{exception.Message}";
+
+                _renderer.DrawInventoryMessage(
+                    errorMessage,
+                    ConsoleColor.DarkYellow);
+
+                RecordSessionActivity(
+                    SessionActivityKind.Support,
+                    errorMessage,
                     ConsoleColor.DarkYellow);
 
                 continue;
@@ -3109,12 +3236,20 @@ public sealed class Game : ISessionCommandHandler
             // Visszajelzés
             // --------------------------------------------------------
 
-            _renderer.DrawInventoryMessage(
+            var completionMessage =
                 $"✅ Küldetés teljesítve: {quest.Title}. " +
                 $"XP: {experienceSummary}." +
                 (!string.IsNullOrWhiteSpace(itemRewards)
                     ? $" 🎁 {itemRewards}"
-                    : string.Empty),
+                    : string.Empty);
+
+            _renderer.DrawInventoryMessage(
+                completionMessage,
+                ConsoleColor.Green);
+
+            RecordSessionActivity(
+                SessionActivityKind.Support,
+                completionMessage,
                 ConsoleColor.Green);
 
             RequestCoopSnapshotPublish();
@@ -7035,6 +7170,26 @@ public sealed class Game : ISessionCommandHandler
             if (DelayAutomaticTurns(battle))
                 return;
 
+            if (_preparedTeamBattleTurnId != battle.Turns.TurnId)
+            {
+                if (battle.CurrentCharacter is { } preparedCharacter &&
+                    battle.ShouldAdvanceSpellEffects(CombatantId.ForCharacter(preparedCharacter.Id)))
+                    _battleSystem.BeginTeamCharacterTurn(preparedCharacter);
+                var stagger = battle.PrepareStaggerAction(current.Id, () => _random.Next(1, 101));
+                if (stagger is not null)
+                {
+                    var actorName = battle.CharacterFor(current.Id)?.Name ?? battle.EnemyFor(current.Id)?.Name ??
+                        current.Id.Value;
+                    PresentBattleEntries([new BattleLogEntry(stagger.BlocksOffensiveActions
+                            ? $"💫 {actorName} megingása megszakítja ennek az akciónak a támadását vagy varázslását " +
+                              $"({stagger.Roll}/{stagger.DisruptionChance}%)."
+                            : $"💫 {actorName} összeszedi magát, de ebben az akcióban nem mozoghat " +
+                              $"({stagger.Roll}/{stagger.DisruptionChance}%).",
+                        BattleLogKind.Information)]);
+                }
+                _preparedTeamBattleTurnId = battle.Turns.TurnId;
+            }
+
             if (battle.CurrentCharacter is { } character)
             {
                 if (!character.IsAlive)
@@ -7043,13 +7198,6 @@ public sealed class Game : ISessionCommandHandler
                     AdvanceTeamBattleTurn(battle);
                     continue;
                 }
-                if (_preparedTeamBattleTurnId != battle.Turns.TurnId)
-                {
-                    if (battle.ShouldAdvanceSpellEffects(CombatantId.ForCharacter(character.Id)))
-                        _battleSystem.BeginTeamCharacterTurn(character);
-                    _preparedTeamBattleTurnId = battle.Turns.TurnId;
-                }
-
                 var isHumanControlled = _session.IsHumanControlled(character.Id);
 
                 // PauseBeforeAnyAction:
@@ -7577,6 +7725,8 @@ public sealed class Game : ISessionCommandHandler
 
     private void ExecuteTeamAiCharacterTurn(TeamBattleEncounter battle, LiveCharacter character)
     {
+        var combatantId = CombatantId.ForCharacter(character.Id);
+        var offensiveActionsBlocked = battle.AreOffensiveActionsBlocked(combatantId);
         var rearPreparationOrdered = battle.ShouldPrioritizeRearSelfBuff(character);
         if (rearPreparationOrdered && character.CurrentVitality < character.MaximumVitality &&
             TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 100, allowedWaste: 15))
@@ -7587,9 +7737,12 @@ public sealed class Game : ISessionCommandHandler
             !battle.IsCharacterStaggered(rearPartner) &&
             TryExecuteSwapToRear(battle, character, out _))
             return;
-        if (TryExecuteTeamAiTurnUndead(battle, character)) return;
-        EnsureNpcOffensiveSpellPlan(battle, character);
-        if (TryExecuteTeamAiSpell(battle, character)) return;
+        if (!offensiveActionsBlocked && TryExecuteTeamAiTurnUndead(battle, character)) return;
+        if (!offensiveActionsBlocked)
+        {
+            EnsureNpcOffensiveSpellPlan(battle, character);
+            if (TryExecuteTeamAiSpell(battle, character)) return;
+        }
         var hasAdjacentEnemy = AdjacentTeamEnemies(battle, character).Any();
         var attemptedUrgentPotion = character.CurrentVitality * 2 < character.MaximumVitality &&
                                     !hasAdjacentEnemy;
@@ -7597,6 +7750,18 @@ public sealed class Game : ISessionCommandHandler
             TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 60, allowedWaste: 0))
             return;
         if (TryExecuteTeamAiReserveWeaponSwap(battle, character)) return;
+        if (offensiveActionsBlocked)
+        {
+            if (!attemptedUrgentPotion && character.CurrentVitality < character.MaximumVitality &&
+                TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 30, allowedWaste: 0))
+                return;
+            var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+            PresentBattleEntries([new BattleLogEntry(
+                $"💫 {character.Name} megingása miatt nem tud támadni vagy varázsolni.{statusText}",
+                BattleLogKind.Information)]);
+            AdvanceTeamBattleTurn(battle);
+            return;
+        }
         if (!battle.IsCharacterStaggered(character) && !battle.HasActiveFormation && !battle.IsEngaged(character) &&
             TryExecuteNpcSpellcasterPositioning(battle, character)) return;
         var reachable = ReachableTeamEnemies(battle, character).FirstOrDefault();
@@ -7619,7 +7784,7 @@ public sealed class Game : ISessionCommandHandler
         {
             var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
             PresentBattleEntries([new BattleLogEntry(
-                $"💫 {character.Name} még tántorog, ezért nem tud közeledni.{statusText}",
+                $"💫 {character.Name} megingott állapotban van, ezért nem tud közeledni.{statusText}",
                 BattleLogKind.Information)]);
             AdvanceTeamBattleTurn(battle);
             return;
@@ -8637,9 +8802,9 @@ public sealed class Game : ISessionCommandHandler
                 $"🔨 {character.Name} zúzó csapása megszakítja {target.Name} előkészített fegyverét ({interrupted}).",
                 BattleLogKind.Information)]);
         }
-        else if (battle.StaggerEnemy(target))
+        else if (battle.StaggerEnemy(target, StaggerSeverity.Light))
             PresentBattleEntries([new BattleLogEntry(
-                $"🔨 {character.Name} megtorpasztja {target.Name} ellenfelet; a következő közeledése elmarad.",
+                $"🔨 {character.Name} könnyen megingatja {target.Name} ellenfelet.",
                 BattleLogKind.Information)]);
     }
 
@@ -8656,11 +8821,11 @@ public sealed class Game : ISessionCommandHandler
             {
                 actualOutcome = MonsterStrengthContestOutcome.Stagger;
                 pushBlocked = true;
-                battle.StaggerEnemy(target);
+                battle.StaggerEnemy(target, StaggerSeverity.Heavy);
             }
         }
         else if (result.Outcome == MonsterStrengthContestOutcome.Stagger)
-            battle.StaggerEnemy(target);
+            battle.StaggerEnemy(target, StaggerSeverity.Normal);
 
         if (result.Damage > 0)
             target.SetCurrentHitPoints(target.CurrentHitPoints - result.Damage);
@@ -8696,6 +8861,15 @@ public sealed class Game : ISessionCommandHandler
         }
         if (!turnStart.CanAct)
         {
+            AdvanceTeamBattleTurn(battle);
+            return;
+        }
+
+        if (battle.AreOffensiveActionsBlocked(CombatantId.ForEnemy(enemy.Id)))
+        {
+            PresentBattleEntries([new BattleLogEntry(
+                $"💫 {enemy.Name} megingása miatt nem tud támadni vagy képességet használni.",
+                BattleLogKind.Information)]);
             AdvanceTeamBattleTurn(battle);
             return;
         }
@@ -8741,11 +8915,11 @@ public sealed class Game : ISessionCommandHandler
                 {
                     actualOutcome = MonsterStrengthContestOutcome.Stagger;
                     pushBlocked = true;
-                    battle.StaggerCharacter(bashTarget);
+                    battle.StaggerCharacter(bashTarget, StaggerSeverity.Heavy);
                 }
             }
             else if (bash.Outcome == MonsterStrengthContestOutcome.Stagger)
-                battle.StaggerCharacter(bashTarget);
+                battle.StaggerCharacter(bashTarget, StaggerSeverity.Normal);
             if (bash.Damage > 0) bashTarget.ReceiveDamage(bash.Damage);
             battle.RecordAttack(BattleSide.Hostile);
             var outcomeText = actualOutcome switch
@@ -9093,6 +9267,7 @@ public sealed class Game : ISessionCommandHandler
 
     private bool CanTeamEnemyActMeaningfully(TeamBattleEncounter battle, Enemy enemy)
     {
+        if (battle.AreOffensiveActionsBlocked(CombatantId.ForEnemy(enemy.Id))) return false;
         var possibleWeapons = enemy.EquippedWeapon is { } selected
             ? new[] { selected }
             : enemy.AttackWeapons;
@@ -9123,10 +9298,10 @@ public sealed class Game : ISessionCommandHandler
 
     private void MoveTeamEnemyToward(TeamBattleEncounter battle, Enemy enemy, Position target)
     {
-        if (battle.ConsumeEnemyStagger(enemy))
+        if (battle.IsMovementBlocked(CombatantId.ForEnemy(enemy.Id)))
         {
             PresentBattleEntries([new BattleLogEntry(
-                $"🔨 {enemy.Name} megtorpan, ezért ebben a körben nem tud közeledni.",
+                $"💫 {enemy.Name} megingott, ezért ebben az akcióban nem tud közeledni.",
                 BattleLogKind.Information)]);
             AdvanceTeamBattleTurn(battle);
             return;
@@ -9189,8 +9364,9 @@ public sealed class Game : ISessionCommandHandler
             return (new BattleLogEntry(message, BattleLogKind.Information, details), details);
         }
 
-        battle.StaggerCharacter(target);
         var pushBlocked = result.Outcome == MonsterStrengthContestOutcome.Push;
+        battle.StaggerCharacter(target,
+            pushBlocked ? StaggerSeverity.Heavy : StaggerSeverity.Normal);
         var staggerDetails = BattleSystem.DescribeMonsterStrengthContest(enemy.Name, target.Name, result,
             MonsterStrengthContestOutcome.Stagger, pushBlocked);
         var staggerMessage = BattleSystem.MonsterStrengthCombatLogMessage(target.Name,
@@ -9297,7 +9473,7 @@ public sealed class Game : ISessionCommandHandler
         }
         if (battle.HasStaggeredFormationMember)
         {
-            error = "Az alakzat egyik tagja megtántorodott, ezért ebben a körben az alakzat nem mozoghat.";
+            error = "Az alakzat egyik tagja megingott, ezért ebben az akcióban az alakzat nem mozoghat.";
             return false;
         }
         var origin = GetCasterPosition(character);
@@ -9376,7 +9552,7 @@ public sealed class Game : ISessionCommandHandler
         if (battle.IsCharacterStaggered(character) ||
             battle.RearPartnerOf(character) is { } rearPartner && battle.IsCharacterStaggered(rearPartner))
         {
-            error = "Megtántorodott alakzattag ebben a körben nem cserélhet helyet.";
+            error = "Megingott alakzattag ebben az akcióban nem cserélhet helyet.";
             return false;
         }
         if (!battle.TrySwapToRear(character, out var rear, out var frontPosition, out var rearPosition,
@@ -9414,7 +9590,7 @@ public sealed class Game : ISessionCommandHandler
     {
         if (battle.IsCharacterStaggered(character))
         {
-            error = $"{character.Name} megtántorodott, ezért ebben a körben nem mozoghat.";
+            error = $"{character.Name} megingott, ezért ebben az akcióban nem mozoghat.";
             return false;
         }
         if (battle.IsEngaged(character))

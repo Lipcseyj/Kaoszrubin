@@ -68,8 +68,7 @@ public sealed class TeamBattleEncounter
     private readonly HashSet<(CharacterId CharacterId, WorldEntityId EnemyId)> _engagements = [];
     private readonly Dictionary<WorldEntityId, CharacterId> _enemyFacingTargets = [];
     private readonly Dictionary<WorldEntityId, int> _enemyArmorPenalties = [];
-    private readonly HashSet<WorldEntityId> _staggeredEnemies = [];
-    private readonly HashSet<CharacterId> _staggeredCharacters = [];
+    private readonly Dictionary<CombatantId, StaggerState> _staggerStates = [];
     private readonly Dictionary<WorldEntityId, int> _strengthContestCycles = [];
     private readonly HashSet<CharacterId> _rearCombatPreparationOrders = [];
     private readonly HashSet<BattleSide> _activeSidesThisCycle = [];
@@ -321,9 +320,8 @@ public sealed class TeamBattleEncounter
         return true;
     }
 
-    public bool StaggerEnemy(Enemy enemy) => enemy.CurrentHitPoints > 0 && _staggeredEnemies.Add(enemy.Id);
-
-    public bool ConsumeEnemyStagger(Enemy enemy) => _staggeredEnemies.Remove(enemy.Id);
+    public bool StaggerEnemy(Enemy enemy, StaggerSeverity severity = StaggerSeverity.Normal) =>
+        enemy.CurrentHitPoints > 0 && ApplyStagger(CombatantId.ForEnemy(enemy.Id), severity);
 
     public bool TryBeginStrengthContest(Enemy enemy)
     {
@@ -332,10 +330,64 @@ public sealed class TeamBattleEncounter
         return true;
     }
 
-    public bool StaggerCharacter(LiveCharacter character) =>
-        character.IsAlive && _staggeredCharacters.Add(character.Id);
+    public bool StaggerCharacter(LiveCharacter character, StaggerSeverity severity = StaggerSeverity.Normal) =>
+        character.IsAlive && ApplyStagger(CombatantId.ForCharacter(character.Id), severity);
 
-    public bool IsCharacterStaggered(LiveCharacter character) => _staggeredCharacters.Contains(character.Id);
+    public bool IsCharacterStaggered(LiveCharacter character) =>
+        IsStaggered(CombatantId.ForCharacter(character.Id));
+
+    public bool IsEnemyStaggered(Enemy enemy) => IsStaggered(CombatantId.ForEnemy(enemy.Id));
+
+    public bool IsMovementBlocked(CombatantId combatantId) =>
+        _staggerStates.TryGetValue(combatantId, out var state) &&
+        (state.ActiveResolution?.BlocksMovement == true || state.PendingSeverity is not null);
+
+    public bool AreOffensiveActionsBlocked(CombatantId combatantId) =>
+        _staggerStates.TryGetValue(combatantId, out var state) &&
+        state.ActiveTurnId == Turns.TurnId && state.ActiveResolution?.BlocksOffensiveActions == true;
+
+    public StaggerActionResolution? PrepareStaggerAction(CombatantId combatantId, Func<int> rollD100)
+    {
+        ArgumentNullException.ThrowIfNull(rollD100);
+        if (!_staggerStates.TryGetValue(combatantId, out var state)) return null;
+        if (state.ActiveTurnId == Turns.TurnId && state.ActiveResolution is not null)
+            return state.ActiveResolution;
+        if (state.PendingSeverity is not { } severity) return null;
+        var resolution = StaggerRules.Resolve(severity, rollD100());
+        _staggerStates[combatantId] = state with
+        {
+            PendingSeverity = null,
+            ActiveResolution = resolution,
+            ActiveTurnId = Turns.TurnId
+        };
+        return resolution;
+    }
+
+    private bool ApplyStagger(CombatantId combatantId, StaggerSeverity severity)
+    {
+        if (!_staggerStates.TryGetValue(combatantId, out var state))
+        {
+            _staggerStates[combatantId] = new StaggerState(severity);
+            return true;
+        }
+        var pending = state.PendingSeverity is { } existing
+            ? StaggerRules.Stronger(existing, severity)
+            : severity;
+        if (state.PendingSeverity == pending) return false;
+        _staggerStates[combatantId] = state with { PendingSeverity = pending };
+        return true;
+    }
+
+    private bool IsStaggered(CombatantId combatantId) =>
+        _staggerStates.TryGetValue(combatantId, out var state) &&
+        (state.PendingSeverity is not null || state.ActiveResolution is not null);
+
+    private void CompleteStaggeredAction(CombatantId combatantId)
+    {
+        if (!_staggerStates.TryGetValue(combatantId, out var state) || state.ActiveResolution is null) return;
+        if (state.PendingSeverity is null) _staggerStates.Remove(combatantId);
+        else _staggerStates[combatantId] = state with { ActiveResolution = null, ActiveTurnId = 0 };
+    }
 
     public bool HasStaggeredFormationMember => HasActiveFormation && _characters.Values.Any(character =>
         character.IsAlive && FormationSlotFor(character) is not null && IsCharacterStaggered(character));
@@ -472,13 +524,12 @@ public sealed class TeamBattleEncounter
         ActionNumber++;
         SelectedTargetEnemyId = null;
         InitiativeChangesAtCycleStart = [];
+        CompleteStaggeredAction(Current.Id);
         if (_queuedExtraActions > 0)
         {
             _queuedExtraActions--;
             return Turns.RepeatCurrentTurn();
         }
-        if (CurrentCharacter is { } completedCharacter)
-            _staggeredCharacters.Remove(completedCharacter.Id);
         var completedCycle = Turns.Cycle;
         if (Turns.IsLastTurnInCycle)
             InitiativeChangesAtCycleStart = RefreshDynamicInitiatives();

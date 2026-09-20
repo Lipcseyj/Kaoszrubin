@@ -449,8 +449,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var outcome = actualOutcome switch
         {
             MonsterStrengthContestOutcome.Push => "LÖKÉS",
-            MonsterStrengthContestOutcome.Stagger when pushBlocked => "LÖKÉS BLOKKOLVA → MEGTÁNTORÍTÁS",
-            MonsterStrengthContestOutcome.Stagger => "MEGTÁNTORÍTÁS",
+            MonsterStrengthContestOutcome.Stagger when pushBlocked => "LÖKÉS BLOKKOLVA → SÚLYOS MEGINGÁS",
+            MonsterStrengthContestOutcome.Stagger => "MEGINGÁS",
             _ => "ELLENÁLLVA"
         };
         return new BattleActionDetails(Guid.NewGuid(), attackerName, defenderName,
@@ -458,7 +458,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             [
                 $"🎲 Támadó: d10 {result.Roll} + Erőhatás {result.StrengthPressure} = {result.Total} (Erő {result.Strength})",
                 $"🛡️ Ellenállás: d10 {result.ResistanceRoll} + Egészség {result.Health}{modifiers} = {result.Resistance}",
-                "📐 Eredmény: 1–4 megtántorítás; 5+ lökés"
+                "📐 Eredmény: 1–4 megingás; 5+ lökés"
             ]);
     }
 
@@ -470,9 +470,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 "💥 A csapás egy mezővel hátratolja az egész alakzatot.",
             MonsterStrengthContestOutcome.Push => $"💥 {defenderName} egy mezővel hátralökődik.",
             MonsterStrengthContestOutcome.Stagger when pushBlocked =>
-                $"💫 Nincs hely a hátralökéshez, ezért {defenderName} megtántorodik, és a következő saját körében nem mozoghat.",
+                $"💫 Nincs hely a hátralökéshez, ezért {defenderName} súlyosan meginog.",
             MonsterStrengthContestOutcome.Stagger =>
-                $"💫 {defenderName} megtántorodik, és a következő saját körében nem mozoghat.",
+                $"💫 {defenderName} meginog.",
             _ => null
         };
 
