@@ -213,6 +213,7 @@ var tests = new (string Name, Action Run)[]
     ("A Megtisztítás nem használható egyszerű gyógyításként", CleansingHealRequiresRemovableStatus),
     ("A lekötött pap és lovag ritkítja a rutinvarázslást, de a sürgős segítséget nem", EngagedSupportSpellcastingIsThrottled),
     ("Az NPC támadóvarázslási összerőhatárai inkluzívak", NpcOffensiveSpellStrengthThresholdsAreInclusive),
+    ("Az önbuff és közelharc profil haszon, mannaköltség és véletlen alapján buffol", NpcSelfBuffUsesValueManaAndChance),
     ("Az NPC varázspontozása csoport ellen területi, gyenge célra takarékos támadást kedvel", NpcSpellUtilityValuesTargetsAndOverkill),
     ("Az NPC varázsmemóriája váltogatja a repertoárt, de nem ír felül nagy erőkülönbséget", NpcSpellMemoryBalancesVarietyAndUtility),
     ("Az NPC varázsterv hiszterézise megtartja a közeli tervet és elengedi az összeomlottat", NpcSpellPlanRetentionIsStable),
@@ -6123,6 +6124,39 @@ static void NpcOffensiveSpellStrengthThresholdsAreInclusive()
     Assert(!NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, 8, offensiveSpellsCast: 2) &&
            NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, 16, offensiveSpellsCast: 2),
         "A mágus teljes támadásra váltó, 16-os összerőhatára nem inkluzív, vagy nem kezeli a kvótát.");
+}
+
+static void NpcSelfBuffUsesValueManaAndChance()
+{
+    SpellEffectDefinition Buff(string id, SpellEffectType type, int value, int duration) =>
+        new(id, "SELF-BUFF", 1, type, null, 0, 0, value, duration, 100,
+            SpellResolution.Auto, null, "");
+
+    var weakExpensive = NpcSpellcastingPolicy.BuffCastChancePercent(
+        manaCost: 8, currentMana: 10, enemyStrength: 2, enemyCount: 1, beneficiaryCount: 1,
+        casterIsEngaged: false, casterIsFrontRow: false,
+        [Buff("WEAK", SpellEffectType.DefenseBonus, 1, 2)]);
+    var strongEfficient = NpcSpellcastingPolicy.BuffCastChancePercent(
+        manaCost: 2, currentMana: 20, enemyStrength: 20, enemyCount: 3, beneficiaryCount: 1,
+        casterIsEngaged: true, casterIsFrontRow: true,
+        [Buff("STRONG", SpellEffectType.DefenseBonus, 8, 5)]);
+    var partyValue = NpcSpellcastingPolicy.BuffCastChancePercent(
+        manaCost: 2, currentMana: 20, enemyStrength: 20, enemyCount: 3, beneficiaryCount: 4,
+        casterIsEngaged: false, casterIsFrontRow: false,
+        [Buff("PARTY-HIT", SpellEffectType.HitBonus, 2, 5),
+         Buff("PARTY-DAMAGE", SpellEffectType.DamageBonus, 2, 5)]);
+    var selfValue = NpcSpellcastingPolicy.BuffCastChancePercent(
+        manaCost: 2, currentMana: 20, enemyStrength: 20, enemyCount: 3, beneficiaryCount: 1,
+        casterIsEngaged: false, casterIsFrontRow: false,
+        [Buff("SELF-HIT", SpellEffectType.HitBonus, 2, 5),
+         Buff("SELF-DAMAGE", SpellEffectType.DamageBonus, 2, 5)]);
+
+    Assert(weakExpensive == 0 && strongEfficient is >= 20 and <= 85 && partyValue > selfValue,
+        "Az önbuff pontozása nem veti össze a hatást, a fenyegetést, a csapathasznot és a mannaköltséget.");
+    Assert(NpcSpellcastingPolicy.ShouldCastBuff(strongEfficient, strongEfficient - 1) &&
+           !NpcSpellcastingPolicy.ShouldCastBuff(strongEfficient, strongEfficient) &&
+           !NpcSpellcastingPolicy.ShouldCastBuff(0, 0),
+        "Az önbuff valószínűségi döntése nem a kiszámított esélyt használja.");
 }
 
 static void NpcSpellUtilityValuesTargetsAndOverkill()

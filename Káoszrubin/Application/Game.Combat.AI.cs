@@ -937,6 +937,16 @@ public sealed partial class Game
                     allowSelfBuff);
                 if (targetPosition is null || ValidateSpellCast(caster, casterPosition, spell, true,
                         dangerousEnemy, explicitTarget: targetPosition) is not null) continue;
+                var beneficiaryCount = spell.TargetType == SpellTargetType.Party
+                    ? allies.Count(ally => effects
+                        .Where(effect => NpcSpellcastingPolicy.IsBuffEffect(effect.Type))
+                        .Select(effect => NpcSpellcastingPolicy.ActiveTypeFor(effect.Type))
+                        .Any(type => type is { } activeType && !ally.HasSpellEffect(activeType)))
+                    : 1;
+                var castChance = NpcSpellcastingPolicy.BuffCastChancePercent(manaCost, caster.CurrentMana,
+                    enemyStrength, livingEnemies.Length, beneficiaryCount, battle.IsEngaged(caster),
+                    battle.IsFrontRow(caster), effects);
+                if (!NpcSpellcastingPolicy.ShouldCastBuff(castChance, _random.Next(100))) continue;
                 return new NpcBattleSpellChoice(spell, targetPosition.Value, dangerousEnemy, Offensive: false);
             }
         return null;
