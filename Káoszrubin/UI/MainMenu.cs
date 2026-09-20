@@ -1,4 +1,5 @@
 using KaoszRubin.Application;
+using KaoszRubin.Combat;
 using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Inventory;
@@ -858,6 +859,14 @@ public sealed class MainMenu
             Text("A fegyveres találat: 1d20 + Ügyesség + módosítók az ellenfél 11 + Gyorsaság értéke ellen. A természetes 1 mindig hibázik, a természetes 20 mindig talál és kritikus."),
             Text("A csata alatt a világ ideje megáll."),
             Blank(),
+            Section("MEGINGÁS", ConsoleColor.DarkMagenta),
+            Text(StaggerHelpText[0]),
+            Text(StaggerHelpText[1]),
+            Text(StaggerHelpText[2]),
+            Text(StaggerHelpText[3]),
+            Text(StaggerHelpText[4]),
+            Text(StaggerHelpText[5]),
+            Blank(),
             Section("KÜLDETÉSEK", ConsoleColor.Yellow),
             Hotkey("Q", "A közös küldetésnapló megnyitása."),
             Hotkey("NAPLÓ: TAB", "A feladható aktív küldetések közötti váltás."),
@@ -926,7 +935,7 @@ public sealed class MainMenu
             Text("Hátravonuló profilnál a varázshasználó 6 taktikai mezőnyi biztonságos távolságnál megáll. Ha bármely élő ellenfél repül, 8 mezőre próbál távolodni."),
             Text("A Pap Halottűzése és a Lovag Szent elűzése 2 mezőre hat, átlósan is. Az első körtől elérhető; használat után 10 körrel újul meg, karakterenként külön. A hátsó sorból és alakzaton kívül is használható."),
             Text("A le nem kötött varázshasználó varázslata nem hiúsulhat meg általános harci hibakockázat miatt. Lekötéskor a koncentráció megtörhet; ez külön szabály a támadóvarázslatok találati és ellenpróbájától, amelyek továbbra is elbukhatnak."),
-            Text("„Mana elfogyásakor”: Hátravonulás esetén a karakter biztonságos távolságot keres; Önbuff és közelharc esetén hasznos erősítést próbál alkalmazni, majd fegyverrel harcol."),
+            Text("„Mana elfogyásakor”: Hátravonulás esetén a karakter biztonságos távolságot keres; Önbuff és közelharc esetén hasznos erősítést próbál alkalmazni, majd fegyverrel harcol. Sima közelharcra állítva kihagyja az önbuffot."),
             Hotkey("PAP PROFIL: U", "Külön élőholt/démon profil szerkesztése. Ha a csatában van élőholt vagy démon ellenfél, ez a profil felülírja a Pap általános beállításait."),
             Text("Alapértékek: Mágus 2 varázslat, 8/16-os küszöb, hátravonulás; Pap 1 varázslat, 15/30, önbuff+közelharc; Pap élőholt/démon profil 5 varázslat, 5/15; Lovag 0 varázslat, 20/40, önbuff+közelharc."),
             Blank(),
@@ -1071,6 +1080,16 @@ public sealed class MainMenu
     private static HelpSourceLine ColoredText(string text, ConsoleColor color) => new(text, color);
     private static HelpSourceLine Hotkey(string key, string text) => new(text, ConsoleColor.Gray, key);
     private static HelpSourceLine Blank() => Text(string.Empty);
+
+    internal static IReadOnlyList<string> StaggerHelpText { get; } =
+    [
+        $"💫 A megingás a következő saját akció végéig tartó harci állapot. Mindig megakadályozza a mozgást, az alakzat mozgatását, a HÁTRA! helycserét és a visszavonulást.",
+        $"Az akció elején egyetlen dobás dönti el, hogy a megingás a támadó akciót is megszakítja-e: könnyű {StaggerRules.DisruptionChance(StaggerSeverity.Light)}%, normál {StaggerRules.DisruptionChance(StaggerSeverity.Normal)}%, súlyos {StaggerRules.DisruptionChance(StaggerSeverity.Heavy)}%.",
+        "Sikeres megszakításnál nem használható fegyveres támadás, pajzslökés, varázslás vagy halottűzés; az ellenfél támadása és aktív képessége is elvész. A passz, a fegyvercsere és az egyébként engedélyezett tárgyhasználat megmarad.",
+        "Könnyű megingást okozhat a zúzófegyver-mester találata. A sikeres pajzslökés és szörnyerő-próba normál megingást, a helyhiány miatt meghiúsuló hátralökés súlyos megingást okoz.",
+        "Az ismételt megingás a függő hatást a magasabb fokozatra erősíti, de nem halmozza az időtartamot. A hatás az érintett tényleges akciója után elfogy; az esetleges extra akció már tisztán indul.",
+        $"Jelzés: a saját karakter Állapot sorában a {CombatConditionPresentation.StaggerIcon} ikon látszik. A megingott ellenfél térképi jele és portréja sötétmagenta hátteret kap; az akció eleji napló a dobást és annak eredményét is kiírja."
+    ];
 
     private static void ShowScrollableHelp(IReadOnlyList<HelpSourceLine> source,
         Func<string?>? coopStatusProvider = null)

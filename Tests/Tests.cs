@@ -4498,6 +4498,14 @@ static void BossAndBattlePromptsAreShared()
            BattlePromptText.EnemyTurn == "Space — ellenfél köre" &&
            BattlePromptText.PlayerAction(true, true).Contains("halottűzés", StringComparison.Ordinal),
         "A közös harci prompt elvesztette a taktikai esélyt vagy valamelyik vezérlést.");
+
+    var staggerHelp = string.Join('\n', MainMenu.StaggerHelpText);
+    Assert(staggerHelp.Contains("💫", StringComparison.Ordinal) &&
+           staggerHelp.Contains("könnyű 25%, normál 45%, súlyos 70%", StringComparison.Ordinal) &&
+           staggerHelp.Contains("pajzslökés", StringComparison.OrdinalIgnoreCase) &&
+           staggerHelp.Contains("extra akció", StringComparison.OrdinalIgnoreCase) &&
+           staggerHelp.Contains("sötétmagenta", StringComparison.OrdinalIgnoreCase),
+        "A harci súgó megingás-fejezete nem dokumentálja a fokozatokat, forrásokat, életciklust vagy jelzéseket.");
 }
 
 static void AbilityMagicItemsAreUniversalAndCapped()
