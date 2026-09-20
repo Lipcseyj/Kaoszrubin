@@ -617,7 +617,6 @@ public sealed class CoopGuestScreen
             }
             else
             {
-                var targetEnemyId = battle.Enemy.EntityId;
                 var action = key switch
                 {
                     ConsoleKey.Spacebar when battle.AllowedActions.Contains(BattleActionKind.AdvanceEnemyTurn) =>
@@ -648,10 +647,10 @@ public sealed class CoopGuestScreen
                 if (action is not null)
                     command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                         battle.BattleId, battle.TurnId, action.Value,
-                        TargetEnemyId: action == BattleActionKind.TurnUndead
-                            ? battle.TurnUndeadTargetEnemyId ?? targetEnemyId
-                            : action is BattleActionKind.PhysicalAttack or BattleActionKind.ShieldBash
-                                ? targetEnemyId : null);
+                        TargetEnemyId: action is BattleActionKind.PhysicalAttack or BattleActionKind.ShieldBash or
+                            BattleActionKind.TurnUndead
+                                ? TargetForAction(battle, action.Value)
+                                : null);
             }
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && key == ConsoleKey.V)
@@ -2514,7 +2513,9 @@ public sealed class CoopGuestScreen
         var actor = battle.Participants?.FirstOrDefault(participant =>
             participant.Id == CombatantId.ForCharacter(characterId));
         if (actor is null) return null;
-        var validTargetIds = (battle.ValidTargetEnemyIds ?? []).ToHashSet();
+        var validTargetIds = battle.ActionTargets is { Count: > 0 }
+            ? battle.ActionTargets.SelectMany(option => option.EnemyIds).ToHashSet()
+            : (battle.ValidTargetEnemyIds ?? []).ToHashSet();
         var targets = (battle.Participants ?? []).Where(participant =>
                 participant.Side == BattleSide.Hostile && participant.EnemyId is not null &&
                 participant.CurrentVitality > 0 &&
@@ -2527,6 +2528,18 @@ public sealed class CoopGuestScreen
         var selectedId = battle.Enemy.EntityId is { } enemyId ? CombatantId.ForEnemy(enemyId) : (CombatantId?)null;
         var selectedIndex = selectedId is { } id ? Array.FindIndex(targets, target => target.Id == id) : -1;
         return targets[(selectedIndex + 1) % targets.Length];
+    }
+
+    internal static WorldEntityId? TargetForAction(BattleSnapshot battle, BattleActionKind action)
+    {
+        var targetIds = battle.ActionTargets?.FirstOrDefault(option => option.Action == action)?.EnemyIds;
+        if (targetIds is not { Count: > 0 })
+            return action == BattleActionKind.TurnUndead
+                ? battle.TurnUndeadTargetEnemyId
+                : battle.ValidTargetEnemyIds?.FirstOrDefault();
+        return battle.Enemy.EntityId is { } selected && targetIds.Contains(selected)
+            ? selected
+            : targetIds[0];
     }
 
     private static void ApplyAdHocConversationUi(GuestMapCell[,] grid,

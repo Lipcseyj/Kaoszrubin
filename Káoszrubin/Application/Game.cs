@@ -195,6 +195,7 @@ public sealed partial class Game : ISessionCommandHandler
         IReadOnlyList<BattleItemOptionSnapshot>? ItemOptions,
         IReadOnlyList<WorldEntityId>? ValidTargetEnemyIds,
         WorldEntityId? TurnUndeadTargetEnemyId,
+        IReadOnlyList<BattleActionTargetsSnapshot>? ActionTargets,
         bool IsPaused,
         bool IsPlayerTurn);
 
@@ -327,7 +328,8 @@ public sealed partial class Game : ISessionCommandHandler
             prompt.ValidTargetEnemyIds,
             IsQuickBattle: _isQuickBattle,
             ActionDetails: _lastBattleActionDetails,
-            TurnUndeadTargetEnemyId: prompt.TurnUndeadTargetEnemyId);
+            TurnUndeadTargetEnemyId: prompt.TurnUndeadTargetEnemyId,
+            ActionTargets: prompt.ActionTargets);
     }
 
     private BattlePromptState CreateBattlePromptState(BattleEncounter battle)
@@ -365,6 +367,9 @@ public sealed partial class Game : ISessionCommandHandler
                     focusEnemy,
                     inCombat: true)
                 : null;
+        var actionTargets = !isPaused && actingCharacter is not null
+            ? CreateBattleActionTargets(battle, actingCharacter, allowed)
+            : null;
 
         return new BattlePromptState(
             battle.Id,
@@ -388,9 +393,33 @@ public sealed partial class Game : ISessionCommandHandler
             !isPaused && actingCharacter is not null && allowed.Contains(BattleActionKind.TurnUndead)
                 ? PreferredTurnUndeadTarget(battle, actingCharacter)?.Id
                 : null,
+            actionTargets,
             isPaused,
             isPaused || actingCharacter is not null);
     }
+
+    private IReadOnlyList<BattleActionTargetsSnapshot> CreateBattleActionTargets(BattleEncounter battle,
+        LiveCharacter character, IReadOnlyCollection<BattleActionKind> allowed)
+    {
+        var targets = new List<BattleActionTargetsSnapshot>();
+        if (allowed.Contains(BattleActionKind.PhysicalAttack))
+            targets.Add(new BattleActionTargetsSnapshot(BattleActionKind.PhysicalAttack,
+                OrderedTargetIds(ReachableEnemies(battle, character))));
+        if (allowed.Contains(BattleActionKind.ShieldBash))
+            targets.Add(new BattleActionTargetsSnapshot(BattleActionKind.ShieldBash,
+                OrderedTargetIds(AdjacentEnemies(battle, character))));
+        if (allowed.Contains(BattleActionKind.TurnUndead))
+            targets.Add(new BattleActionTargetsSnapshot(BattleActionKind.TurnUndead,
+                OrderedTargetIds(TurnUndeadTargets(battle, character))));
+        return targets;
+    }
+
+    private static IReadOnlyList<WorldEntityId> OrderedTargetIds(IEnumerable<Enemy> enemies) => enemies
+        .OrderBy(enemy => enemy.Position.Y)
+        .ThenBy(enemy => enemy.Position.X)
+        .ThenBy(enemy => enemy.Id.ToString(), StringComparer.Ordinal)
+        .Select(enemy => enemy.Id)
+        .ToArray();
 
     private CharacterSheetSnapshot CharacterSheetWithCombatConditions(LiveCharacter character,
         BattleSnapshot? battle)

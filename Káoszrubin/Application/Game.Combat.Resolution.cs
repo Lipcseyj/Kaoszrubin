@@ -594,8 +594,20 @@ public sealed partial class Game
         return target is null ? null : CombatantId.ForCharacter(target.Id);
     }
 
-    private Enemy? NextBattleTarget(BattleEncounter battle, LiveCharacter character) =>
-        TacticalBattleCoordinator.NextBattleTarget(battle, character, GetCasterPosition(character));
+    private Enemy? NextBattleTarget(BattleEncounter battle, LiveCharacter character,
+        IReadOnlyCollection<BattleActionKind> allowed)
+    {
+        var targets = SelectableEnemies(battle, character, allowed)
+            .OrderBy(enemy => enemy.Position.Y)
+            .ThenBy(enemy => enemy.Position.X)
+            .ThenBy(enemy => enemy.Id.ToString(), StringComparer.Ordinal)
+            .ToArray();
+        if (targets.Length == 0) return null;
+        var selectedIndex = battle.SelectedTargetEnemyId is { } selectedId
+            ? Array.FindIndex(targets, enemy => enemy.Id == selectedId)
+            : -1;
+        return targets[(selectedIndex + 1) % targets.Length];
+    }
 
     private void UpdateBattleFocus(BattleEncounter battle, TacticalBattleParticipant current)
     {

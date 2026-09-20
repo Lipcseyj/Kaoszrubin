@@ -261,17 +261,6 @@ public sealed class TacticalBattleCoordinator
                 yield return new Position(x, y);
     }
 
-    public static Enemy? NextBattleTarget(BattleEncounter battle, LiveCharacter character, Position characterPosition)
-    {
-        var targets = ReachableEnemies(battle, character, characterPosition).OrderBy(enemy => enemy.Position.Y)
-            .ThenBy(enemy => enemy.Position.X).ThenBy(enemy => enemy.Id.ToString(), StringComparer.Ordinal).ToArray();
-        if (targets.Length == 0) return null;
-        var currentTargetId = battle.SelectedTargetEnemyId ??
-                              targets.OrderBy(enemy => enemy.CurrentHitPoints).First().Id;
-        var selectedIndex = Array.FindIndex(targets, enemy => enemy.Id == currentTargetId);
-        return targets[(selectedIndex + 1) % targets.Length];
-    }
-
     public static IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(BattleEncounter battle,
         LiveCharacter character)
     {
@@ -344,6 +333,10 @@ public sealed class TacticalBattleCoordinator
         var offensiveActionsBlocked = battle.AreOffensiveActionsBlocked(combatantId);
         var canTurnUndead = BattleActionCoordinator.IsTurnUndeadReady(character, battle.Turns.Cycle,
             turnUndeadNextAvailableRounds) && TurnUndeadTargets(battle, character, characterPosition).Any();
+        var selectableTargetCount = reachable
+            .Concat(canTurnUndead ? TurnUndeadTargets(battle, character, characterPosition) : [])
+            .DistinctBy(enemy => enemy.Id)
+            .Count();
         if (battle.Turns.Cycle == 1 && character.Id == battle.InitiatingCharacterId)
         {
             var openingActions = new List<BattleActionKind> { BattleActionKind.Pass };
@@ -361,6 +354,8 @@ public sealed class TacticalBattleCoordinator
                 openingActions.Insert(0, BattleActionKind.CastSpell);
             if (canTurnUndead && !offensiveActionsBlocked)
                 openingActions.Insert(0, BattleActionKind.TurnUndead);
+            if (selectableTargetCount > 1 && !offensiveActionsBlocked)
+                openingActions.Add(BattleActionKind.SelectTarget);
             if (character.CanSwapReserveWeapon) openingActions.Add(BattleActionKind.SwapWeapon);
             AddRearPreparationActions(battle, character, selectedCharacter, openingActions);
             return openingActions;
@@ -372,10 +367,11 @@ public sealed class TacticalBattleCoordinator
             actions.Add(BattleActionKind.PhysicalAttack);
             if (canShieldBash)
                 actions.Add(BattleActionKind.ShieldBash);
-            if (reachable.Length > 1) actions.Add(BattleActionKind.SelectTarget);
         }
         if (canTurnUndead && !offensiveActionsBlocked)
             actions.Add(BattleActionKind.TurnUndead);
+        if (selectableTargetCount > 1 && !offensiveActionsBlocked)
+            actions.Add(BattleActionKind.SelectTarget);
         if (!staggered && battle.HasProtectiveFormation && battle.IsFrontRow(character) &&
             battle.RearPartnerOf(character) is { IsAlive: true } rearPartner &&
             !battle.IsCharacterStaggered(rearPartner))

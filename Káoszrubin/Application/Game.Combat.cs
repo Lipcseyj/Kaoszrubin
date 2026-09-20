@@ -511,7 +511,8 @@ public sealed partial class Game
                 var selectedEnemy = command.TargetEnemyId is { } selectedId
                     ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == selectedId)
                     : null;
-                if (selectedEnemy is null || !ReachableEnemies(battle, character).Contains(selectedEnemy) ||
+                var selectableEnemies = SelectableEnemies(battle, character, allowed).ToHashSet();
+                if (selectedEnemy is null || !selectableEnemies.Contains(selectedEnemy) ||
                     !battle.TrySelectTarget(selectedEnemy))
                 {
                     RejectBattleAction(command, "A választott ellenfél nem elérhető célpont.");
@@ -536,12 +537,11 @@ public sealed partial class Game
                 RecordSessionActivity(SessionActivityKind.Battle, tacticMessage, ConsoleColor.Cyan);
                 break;
             case BattleActionKind.PhysicalAttack:
+                var physicalTargets = TargetsForAction(battle, character, BattleActionKind.PhysicalAttack);
                 var target = command.TargetEnemyId is { } targetId
-                    ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == targetId)
-                    : battle.SelectedTargetEnemy() ??
-                      ReachableEnemies(battle, character).OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault();
-                if (target is null || target.CurrentHitPoints <= 0 ||
-                    !ReachableEnemies(battle, character).Contains(target))
+                    ? physicalTargets.FirstOrDefault(enemy => enemy.Id == targetId)
+                    : PreferredActionTarget(battle, physicalTargets);
+                if (target is null)
                 {
                     RejectBattleAction(command, "A választott ellenfél nincs közelharci távolságban.");
                     return;
@@ -549,11 +549,11 @@ public sealed partial class Game
                 ResolveCharacterAttack(battle, character, target);
                 break;
             case BattleActionKind.ShieldBash:
+                var bashTargets = TargetsForAction(battle, character, BattleActionKind.ShieldBash);
                 var bashTarget = command.TargetEnemyId is { } bashTargetId
-                    ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == bashTargetId)
-                    : null;
-                if (bashTarget is null || bashTarget.CurrentHitPoints <= 0 ||
-                    !AdjacentEnemies(battle, character).Contains(bashTarget))
+                    ? bashTargets.FirstOrDefault(enemy => enemy.Id == bashTargetId)
+                    : PreferredActionTarget(battle, bashTargets);
+                if (bashTarget is null)
                 {
                     RejectBattleAction(command, "A pajzslökés célpontja nincs közvetlen közelharci távolságban.");
                     return;
@@ -643,10 +643,10 @@ public sealed partial class Game
                 AdvanceBattleTurn(battle);
                 break;
             case BattleActionKind.TurnUndead:
-                var turnUndeadTargets = TurnUndeadTargets(battle, character).ToArray();
+                var turnUndeadTargets = TargetsForAction(battle, character, BattleActionKind.TurnUndead);
                 var undead = command.TargetEnemyId is { } undeadId
                     ? turnUndeadTargets.FirstOrDefault(enemy => enemy.Id == undeadId)
-                    : turnUndeadTargets.FirstOrDefault();
+                    : PreferredActionTarget(battle, turnUndeadTargets);
                 if (undead is null)
                 {
                     RejectBattleAction(command, "Nincs elűzhető élőholt a közelben.");
@@ -668,6 +668,27 @@ public sealed partial class Game
         ContinueBattle();
 
     }
+
+    private IReadOnlyList<Enemy> TargetsForAction(BattleEncounter battle, LiveCharacter character,
+        BattleActionKind action) => action switch
+    {
+        BattleActionKind.PhysicalAttack => ReachableEnemies(battle, character).ToArray(),
+        BattleActionKind.ShieldBash => AdjacentEnemies(battle, character).ToArray(),
+        BattleActionKind.TurnUndead => TurnUndeadTargets(battle, character).ToArray(),
+        _ => []
+    };
+
+    private IEnumerable<Enemy> SelectableEnemies(BattleEncounter battle, LiveCharacter character,
+        IReadOnlyCollection<BattleActionKind> allowed) =>
+        new[] { BattleActionKind.PhysicalAttack, BattleActionKind.ShieldBash, BattleActionKind.TurnUndead }
+            .Where(allowed.Contains)
+            .SelectMany(action => TargetsForAction(battle, character, action))
+            .DistinctBy(enemy => enemy.Id);
+
+    private static Enemy? PreferredActionTarget(BattleEncounter battle, IReadOnlyList<Enemy> targets) =>
+        battle.SelectedTargetEnemy() is { } selected && targets.Contains(selected)
+            ? selected
+            : targets.OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault();
 
     private void ExecuteSpellBattleAction(BattleEncounter battle, LiveCharacter character,
         BattleActionCommand command)

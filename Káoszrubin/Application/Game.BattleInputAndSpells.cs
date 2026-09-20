@@ -75,7 +75,7 @@ public sealed partial class Game
             return;
         }
         if (key.Key == ConsoleKey.Tab && allowed.Contains(BattleActionKind.SelectTarget) &&
-            NextBattleTarget(battle, character) is { } selectedTarget)
+            NextBattleTarget(battle, character, allowed) is { } selectedTarget)
         {
             SubmitLocalBattleCommand(BattleActionKind.SelectTarget, targetEnemyId: selectedTarget.Id);
             return;
@@ -93,15 +93,15 @@ public sealed partial class Game
         }
         if (key.Key == ConsoleKey.Spacebar && allowed.Contains(BattleActionKind.PhysicalAttack))
         {
-            var targetEnemy = battle.SelectedTargetEnemy() ??
-                              ReachableEnemies(battle, character).OrderBy(value => value.CurrentHitPoints).First();
+            var targetEnemy = PreferredActionTarget(battle,
+                TargetsForAction(battle, character, BattleActionKind.PhysicalAttack))!;
             SubmitLocalBattleCommand(BattleActionKind.PhysicalAttack, targetEnemyId: targetEnemy.Id);
             return;
         }
         if (key.Key == ConsoleKey.Q && allowed.Contains(BattleActionKind.ShieldBash))
         {
-            var targetEnemy = battle.SelectedTargetEnemy() ??
-                              ReachableEnemies(battle, character).OrderBy(value => value.CurrentHitPoints).First();
+            var targetEnemy = PreferredActionTarget(battle,
+                TargetsForAction(battle, character, BattleActionKind.ShieldBash))!;
             SubmitLocalBattleCommand(BattleActionKind.ShieldBash, targetEnemyId: targetEnemy.Id);
             return;
         }

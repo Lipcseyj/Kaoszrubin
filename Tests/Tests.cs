@@ -6603,6 +6603,7 @@ static void TurnUndeadRefreshesAfterTenRounds()
 
 static void TurnUndeadHasTwoCellRange()
 {
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var origin = new Position(5, 5);
     var definition = CreateEnemy(100, 3).Definition with { Traits = EnemyTraits.Undead };
     foreach (var classId in new[] { CharacterClassIds.Pap, CharacterClassIds.Lovag })
@@ -6614,23 +6615,42 @@ static void TurnUndeadHasTwoCellRange()
         var far = new ConfiguredEnemy(new Position(8, 5), definition);
         Assert(!BattleActionCoordinator.CanTurnUndead(character, far, origin), "A képesség három mezőre is hatott.");
         var near = new ConfiguredEnemy(new Position(7, 5), definition);
+        var secondNear = new ConfiguredEnemy(new Position(5, 3), definition);
         var alive = CreateEnemyAt(new Position(5, 4), "E-NOT-UNDEAD");
         var system = CreateBattleSystem(1811);
         var battle = new BattleEncounter(origin,
             [new BattleCharacterParticipant(character, origin, TacticalParticipantKind.PartyMember,
                 10, 3, 1, system.PrepareCharacter(character).Runtime)],
-            new[] { near, far, alive }.Select(enemy => new BattleEnemyParticipant(enemy, 5, 2, 1)),
+            new[] { near, secondNear, far, alive }.Select(enemy => new BattleEnemyParticipant(enemy, 5, 2, 1)),
             character.Id, near.Id);
-        Assert(TacticalBattleCoordinator.TurnUndeadTargets(battle, character, origin).SequenceEqual([near]),
+        Assert(TacticalBattleCoordinator.TurnUndeadTargets(battle, character, origin).SequenceEqual([near, secondNear]),
             "Az alakzat nélküli célpontlista hibás vagy túl távoli élőholtat is tartalmaz.");
+        battle.Turns.StartTurns();
+        var tactical = new TacticalBattleCoordinator(data, system, new Random(1811));
+        var openingActions = tactical.GetAllowedBattleActions(battle, character, alive, character, origin,
+            false, new Dictionary<LiveCharacter, int>());
+        Assert(openingActions.Contains(BattleActionKind.SelectTarget),
+            "A nyitókör nem engedi a több, akcióspecifikusan érvényes célpont közötti váltást.");
         var snapshot = new BattleSnapshot(battle.Id, 1, 1, true, character.Id,
             new SessionEnemySnapshot(alive.Definition.Id, alive.Name, alive.Position,
                 alive.CurrentHitPoints, alive.CurrentHitPoints, alive.Id),
-            [BattleActionKind.TurnUndead], TurnUndeadTargetEnemyId: near.Id);
+            [BattleActionKind.PhysicalAttack, BattleActionKind.ShieldBash, BattleActionKind.TurnUndead,
+                BattleActionKind.SelectTarget],
+            TurnUndeadTargetEnemyId: near.Id,
+            ActionTargets:
+            [
+                new BattleActionTargetsSnapshot(BattleActionKind.PhysicalAttack, [alive.Id]),
+                new BattleActionTargetsSnapshot(BattleActionKind.ShieldBash, [alive.Id]),
+                new BattleActionTargetsSnapshot(BattleActionKind.TurnUndead, [near.Id, secondNear.Id])
+            ]);
         var restored = JsonSerializer.Deserialize<BattleSnapshot>(JsonSerializer.Serialize(snapshot))!;
-        Assert(restored.TurnUndeadTargetEnemyId == near.Id && restored.Enemy.EntityId == alive.Id,
-            "A coop halottűzési célpont nem különült el a közelebbi, nem élőholt fókuszcélponttól.");
+        Assert(restored.ActionTargets?.Single(option => option.Action == BattleActionKind.TurnUndead)
+                   .EnemyIds.SequenceEqual([near.Id, secondNear.Id]) == true &&
+               CoopGuestScreen.TargetForAction(restored, BattleActionKind.TurnUndead) == near.Id &&
+               CoopGuestScreen.TargetForAction(restored, BattleActionKind.ShieldBash) == alive.Id,
+            "A coop akciónkénti célpontlista elveszett, vagy a guest nem az adott akció érvényes célpontját választja.");
         near.ReceiveSpellDamage(near.CurrentHitPoints);
+        secondNear.ReceiveSpellDamage(secondNear.CurrentHitPoints);
         Assert(!TacticalBattleCoordinator.TurnUndeadTargets(battle, character, origin).Any(),
             "A legyőzött élőholt elűzhető maradt.");
     }
