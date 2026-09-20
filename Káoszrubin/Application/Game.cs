@@ -216,8 +216,7 @@ public sealed class Game : ISessionCommandHandler
             character.FoodLevel, character.WaterLevel, PartyLeader.Gold, character.IsAlive,
             positions.GetValueOrDefault(character.Id), character.Statuses.Select(status => status.Id).ToArray(),
             Inventory: InventorySnapshotProjector.Create(character),
-            CharacterSheet: CharacterSheetSnapshotProjector.Create(character,
-                _gameData.ExperienceByLevel, CurrentLevelVisionModifier), Color: character.Color,
+            CharacterSheet: CharacterSheetWithCombatConditions(character, battle), Color: character.Color,
             IsTemporaryFollower: true, History: CreateCharacterHistory(character))).ToArray();
         return snapshot with
         {
@@ -248,8 +247,7 @@ public sealed class Game : ISessionCommandHandler
             Party = snapshot.Party.Select(character => character with
             {
                 Gold = PartyLeader.Gold,
-                CharacterSheet = CharacterSheetSnapshotProjector.Create(characters[character.CharacterId],
-                    _gameData.ExperienceByLevel, CurrentLevelVisionModifier),
+                CharacterSheet = CharacterSheetWithCombatConditions(characters[character.CharacterId], battle),
                 History = CreateCharacterHistory(characters[character.CharacterId]),
                 SpellInfo = SpellcastingRules.TryGetSchool(characters[character.CharacterId].CharacterClass.Id, out _)
                     ? SpellInfoSnapshotProjector.Create(characters[character.CharacterId]) : null,
@@ -326,7 +324,8 @@ public sealed class Game : ISessionCommandHandler
                 character?.MaximumVitality ?? enemy?.Definition.HitPoints ?? 0,
                 participant.Id == current.Id,
                 participant.Id == focusTargetId,
-                enemy?.Id);
+                enemy?.Id,
+                CombatConditionsFor(battle, participant.Id));
         })
         .OrderByDescending(participant => participant.Initiative)
         .ToArray();
@@ -380,6 +379,40 @@ public sealed class Game : ISessionCommandHandler
                     : null);
     }
 
+    private CharacterSheetSnapshot CharacterSheetWithCombatConditions(LiveCharacter character,
+        BattleSnapshot? battle)
+    {
+        var combatIcons = battle?.Participants?
+            .FirstOrDefault(participant => participant.Id == CombatantId.ForCharacter(character.Id))?
+            .Conditions?
+            .Select(condition => condition.Icon) ?? [];
+        return CharacterSheetWithCombatIcons(character, combatIcons);
+    }
+
+    private CharacterSheetSnapshot CharacterSheetWithCombatIcons(LiveCharacter character,
+        IEnumerable<string> combatIcons)
+    {
+        var sheet = CharacterSheetSnapshotProjector.Create(character, _gameData.ExperienceByLevel,
+            CurrentLevelVisionModifier);
+        return sheet with
+        {
+            StatusIcons = sheet.StatusIcons.Concat(combatIcons).Distinct(StringComparer.Ordinal).ToArray()
+        };
+    }
+
+    private static IReadOnlyList<CombatConditionSnapshot> CombatConditionsFor(TeamBattleEncounter battle,
+        CombatantId combatantId)
+    {
+        if (battle.StaggerFor(combatantId) is not { } stagger) return [];
+        return
+        [
+            new CombatConditionSnapshot(CombatConditionKind.Staggered,
+                CombatConditionPresentation.StaggerName, CombatConditionPresentation.StaggerIcon,
+                stagger.Severity, stagger.IsResolved, stagger.BlocksMovement,
+                stagger.BlocksOffensiveActions)
+        ];
+    }
+
     private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(TeamBattleEncounter battle,
         LiveCharacter character) => TacticalTeamBattleCoordinator.GetBattleItemOptions(battle, character);
 
@@ -395,7 +428,11 @@ public sealed class Game : ISessionCommandHandler
         character.CurrentVitality, character.MaximumVitality, character.CurrentMana, character.MaximumMana,
         character.FoodLevel, character.WaterLevel, PartyLeader.Gold, character.IsAlive, null,
         character.Statuses.Select(status => status.Id).ToArray(), InventorySnapshotProjector.Create(character),
-        CharacterSheetSnapshotProjector.Create(character, _gameData.ExperienceByLevel, CurrentLevelVisionModifier),
+        CharacterSheetWithCombatIcons(character,
+            _activeTeamBattle is { IsCompleted: false } battle &&
+            battle.StaggerFor(CombatantId.ForCharacter(character.Id)) is not null
+                ? [CombatConditionPresentation.StaggerIcon]
+                : []),
         character.Color, SpellInfo: character.IsSpellcaster ? SpellInfoSnapshotProjector.Create(character) : null,
         History: CreateCharacterHistory(character));
 
@@ -9259,6 +9296,9 @@ public sealed class Game : ISessionCommandHandler
     private void UpdateTeamBattleFocus(TeamBattleEncounter battle, TacticalBattleParticipant current)
     {
         if (_isQuickTeamBattle) return;
+        _renderer.UpdateTeamBattleConditions(_maze, _fogOfWar, _player.Position,
+            battle.Characters.Where(battle.IsCharacterStaggered).Select(character => character.Id),
+            battle.Enemies.Where(battle.IsEnemyStaggered).Select(enemy => enemy.Id));
         _renderer.DrawTacticalBattleActor(battle.CharacterFor(current.Id), battle.EnemyFor(current.Id));
         var targetId = TeamBattleFocusTarget(battle, current);
         var targetPosition = targetId is { } id ? battle.Turns.Find(id)?.Position : null;

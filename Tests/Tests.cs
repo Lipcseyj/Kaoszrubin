@@ -5735,6 +5735,10 @@ static void MonsterStrengthCreatesTacticalPressure()
     Assert(encounter.StaggerCharacter(character, StaggerSeverity.Light) &&
            encounter.StaggerCharacter(character, StaggerSeverity.Heavy),
         "A karakter megingása nem jött létre, vagy nem erősödött fel.");
+    Assert(encounter.StaggerFor(CombatantId.ForCharacter(character.Id)) is
+           { Severity: StaggerSeverity.Heavy, IsResolved: false, BlocksMovement: true,
+               BlocksOffensiveActions: null },
+        "A függő megingás megjelenítési pillanatképe nem őrzi a fokozatot vagy a még ismeretlen kimenetelt.");
     var staggerRolls = 0;
     var firstResolution = encounter.PrepareStaggerAction(CombatantId.ForCharacter(character.Id), () =>
     {
@@ -5749,6 +5753,25 @@ static void MonsterStrengthCreatesTacticalPressure()
     Assert(firstResolution is { Severity: StaggerSeverity.Heavy, BlocksMovement: true,
                BlocksOffensiveActions: true } && repeatedResolution == firstResolution && staggerRolls == 1,
         "A megingás nem a legerősebb fokozattal, vagy egy akcióban többször dobott.");
+    Assert(encounter.StaggerFor(CombatantId.ForCharacter(character.Id)) is
+           { Severity: StaggerSeverity.Heavy, IsResolved: true, BlocksOffensiveActions: true },
+        "A feloldott megingás megjelenítési pillanatképe nem tartalmazza az akcióvesztést.");
+    var combatCondition = new CombatConditionSnapshot(CombatConditionKind.Staggered,
+        CombatConditionPresentation.StaggerName, CombatConditionPresentation.StaggerIcon,
+        StaggerSeverity.Heavy, true, true, true);
+    var participantSnapshot = new TacticalBattleParticipantSnapshot(
+        CombatantId.ForCharacter(character.Id), character.Name, BattleSide.Friendly,
+        TacticalParticipantKind.PartyMember, encounter.PositionOf(character), 100, 3, 1,
+        TacticalParticipantState.Active, character.CurrentVitality, character.MaximumVitality, true,
+        Conditions: [combatCondition]);
+    Assert(CoopGuestScreen.IsStaggered(participantSnapshot),
+        "A coop kliens nem ismeri fel a snapshot megingási állapotát.");
+    var statusLine = CharacterSheetPanel.Build(character, data.ExperienceByLevel, 1, 0, 0,
+            combatStatusIcons: [CombatConditionPresentation.StaggerIcon])
+        .Single(line => line.Row == 8);
+    Assert(statusLine.Text.Contains(CombatConditionPresentation.StaggerIcon) &&
+           character.Statuses.All(status => status.Icon != CombatConditionPresentation.StaggerIcon),
+        "A megingás nem az ideiglenes állapotsoron látszik, vagy bekerült a tartós karakterstátuszok közé.");
     var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1713));
     var actions = coordinator.GetTeamAllowedBattleActions(encounter, character, enemy, character,
         encounter.PositionOf(character), false, new Dictionary<LiveCharacter, int>());

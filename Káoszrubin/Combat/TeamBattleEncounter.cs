@@ -338,6 +338,23 @@ public sealed class TeamBattleEncounter
 
     public bool IsEnemyStaggered(Enemy enemy) => IsStaggered(CombatantId.ForEnemy(enemy.Id));
 
+    public StaggerSnapshot? StaggerFor(CombatantId combatantId)
+    {
+        if (!_staggerStates.TryGetValue(combatantId, out var state)) return null;
+        if (state.ActiveResolution is { } active)
+        {
+            var displayedSeverity = state.PendingSeverity is { } pending
+                ? StaggerRules.Stronger(active.Severity, pending)
+                : active.Severity;
+            return new StaggerSnapshot(displayedSeverity, IsResolved: true, active.BlocksMovement,
+                active.BlocksOffensiveActions);
+        }
+        return state.PendingSeverity is { } severity
+            ? new StaggerSnapshot(severity, IsResolved: false, BlocksMovement: true,
+                BlocksOffensiveActions: null)
+            : null;
+    }
+
     public bool IsMovementBlocked(CombatantId combatantId) =>
         _staggerStates.TryGetValue(combatantId, out var state) &&
         (state.ActiveResolution?.BlocksMovement == true || state.PendingSeverity is not null);

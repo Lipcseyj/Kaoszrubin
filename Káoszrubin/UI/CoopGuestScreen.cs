@@ -1586,9 +1586,16 @@ public sealed class CoopGuestScreen
         foreach (var npc in world.Npcs ?? [])
             Put(grid, npc.Position, char.ConvertFromUtf32(npc.SymbolCodePoint), npc.ForegroundColor,
                 npc.BackgroundColor);
+        var staggeredEnemyIds = (snapshot.Battle?.Participants ?? [])
+            .Where(participant => participant.EnemyId is not null && IsStaggered(participant))
+            .Select(participant => participant.EnemyId!.Value)
+            .ToHashSet();
         // Az élő ellenfél mindig a mezőn fekvő tetemek és tárgyak fölött látszik.
         foreach (var enemy in world.Enemies)
-            Put(grid, enemy.Position, char.ConvertFromUtf32(enemy.SymbolCodePoint), enemy.Color);
+            Put(grid, enemy.Position, char.ConvertFromUtf32(enemy.SymbolCodePoint), enemy.Color,
+                staggeredEnemyIds.Contains(enemy.EntityId)
+                    ? ConsoleRenderer.StaggerBackgroundColor
+                    : ConsoleColor.Black);
         foreach (var character in snapshot.Party.Where(character => character.Position is not null))
             Put(grid, character.Position!.Value, CharacterSheetPanel.PartyAvatarGlyph(character.CharacterClassId,
                     _musicSettings.Settings.PartyAvatars),
@@ -1600,11 +1607,18 @@ public sealed class CoopGuestScreen
             if (position.Value.X < 0 || position.Value.X >= grid.GetLength(0) ||
                 position.Value.Y < 0 || position.Value.Y >= grid.GetLength(1)) continue;
             var cell = grid[position.Value.X, position.Value.Y];
-            grid[position.Value.X, position.Value.Y] = cell with
-            {
-                Color = cell.Background,
-                Background = cell.Color
-            };
+            grid[position.Value.X, position.Value.Y] = IsStaggered(participant) &&
+                                                       participant.Side == BattleSide.Hostile
+                ? cell with
+                {
+                    Color = ConsoleColor.White,
+                    Background = ConsoleRenderer.StaggerBackgroundColor
+                }
+                : cell with
+                {
+                    Color = cell.Background,
+                    Background = cell.Color
+                };
         }
         if (snapshot.Phase == GameSessionPhase.Inn)
             for (var y = 0; y < grid.GetLength(1); y++)
@@ -1741,6 +1755,12 @@ public sealed class CoopGuestScreen
                 ? world.Enemies.FirstOrDefault(candidate => candidate.DefinitionId == battleSnapshotEnemy.DefinitionId)?.Color
                   ?? ConsoleColor.Red
                 : own?.Color ?? ConsoleColor.Cyan;
+            var portraitEnemyId = snapshot.Battle?.Enemy.EntityId;
+            var portraitBackground = actingCharacter is null && portraitEnemyId is { } enemyId &&
+                                     (snapshot.Battle?.Participants ?? []).Any(participant =>
+                                         participant.EnemyId == enemyId && IsStaggered(participant))
+                ? ConsoleRenderer.StaggerBackgroundColor
+                : ConsoleColor.Black;
             var pictureTop = Math.Max(0, panel.Length - 7);
             var pictureStyle = WindowFrameConfiguration.For(FramedWindow.CreaturePortrait);
             panel[pictureTop] = new GuestTextLine(WindowFrameCatalog.Horizontal(pictureStyle,
@@ -1752,7 +1772,7 @@ public sealed class CoopGuestScreen
                 var interiorWidth = panelWidth - sides.Left.Length - sides.Right.Length;
                 panel[pictureTop + index + 1] = new GuestTextLine(
                     sides.Left + CenterPortrait(line, portrait.CanvasWidth, interiorWidth) + sides.Right,
-                    portraitColor, ConsoleColor.Black);
+                    portraitColor, portraitBackground);
             }
             panel[pictureTop + 6] = new GuestTextLine(WindowFrameCatalog.Horizontal(pictureStyle,
                 panelWidth, bottom: true), ConsoleColor.DarkCyan, ConsoleColor.Black);
@@ -2603,6 +2623,9 @@ public sealed class CoopGuestScreen
         if (position.X >= 0 && position.X < grid.GetLength(0) && position.Y >= 0 && position.Y < grid.GetLength(1))
             grid[position.X, position.Y] = new GuestMapCell(value, color, background);
     }
+
+    internal static bool IsStaggered(TacticalBattleParticipantSnapshot participant) =>
+        participant.Conditions?.Any(condition => condition.Kind == CombatConditionKind.Staggered) == true;
 
     internal static Position? ResolveBattleHighlightPosition(TacticalBattleParticipantSnapshot participant,
         IReadOnlyList<SessionCharacterSnapshot> party, IReadOnlyList<WorldEnemySnapshot> enemies)

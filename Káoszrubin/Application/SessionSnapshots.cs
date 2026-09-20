@@ -185,7 +185,22 @@ public sealed record BattleSnapshot(BattleId BattleId, long TurnId, int Round, b
 public sealed record TacticalBattleParticipantSnapshot(CombatantId Id, string Name, BattleSide Side,
     TacticalParticipantKind Kind, Position Position, int Initiative, int MovementAllowance,
     int EligibleFromCycle, TacticalParticipantState State, int CurrentVitality, int MaximumVitality,
-    bool IsCurrent, bool IsCurrentTarget = false, WorldEntityId? EnemyId = null);
+    bool IsCurrent, bool IsCurrentTarget = false, WorldEntityId? EnemyId = null,
+    IReadOnlyList<CombatConditionSnapshot>? Conditions = null);
+
+public enum CombatConditionKind
+{
+    Staggered
+}
+
+public sealed record CombatConditionSnapshot(CombatConditionKind Kind, string Name, string Icon,
+    StaggerSeverity Severity, bool IsResolved, bool BlocksMovement, bool? BlocksOffensiveActions);
+
+public static class CombatConditionPresentation
+{
+    public const string StaggerName = "Megingás";
+    public const string StaggerIcon = "💫";
+}
 
 public sealed record BattleItemOptionSnapshot(int BackpackIndex, string DefinitionId, string Name, int Quantity);
 

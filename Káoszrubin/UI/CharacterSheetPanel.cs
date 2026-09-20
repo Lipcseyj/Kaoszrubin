@@ -211,15 +211,22 @@ public static class CharacterSheetPanel
     /// </summary>
     public static IReadOnlyList<CharacterSheetPanelLine> Build(LiveCharacter character,
         IReadOnlyDictionary<int, int> experienceByLevel, int mazeLevel, int goldenKeyCount, int bossCount,
-        bool isPartyLeader = false, bool isTemporaryFollower = false, int width = Width)
+        bool isPartyLeader = false, bool isTemporaryFollower = false, int width = Width,
+        IReadOnlyList<string>? combatStatusIcons = null)
     {
+        var characterSheet = CharacterSheetSnapshotProjector.Create(character, experienceByLevel,
+            MazeLevelConfigurations.Get(mazeLevel).VisionModifier);
+        characterSheet = characterSheet with
+        {
+            StatusIcons = characterSheet.StatusIcons.Concat(combatStatusIcons ?? [])
+                .Distinct(StringComparer.Ordinal).ToArray()
+        };
         var snapshot = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
             character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
             character.CurrentMana, character.MaximumMana, character.FoodLevel, character.WaterLevel,
             character.Gold, character.IsAlive, null, character.Statuses.Select(status => status.Id).ToArray(),
             InventorySnapshotProjector.Create(character),
-            CharacterSheetSnapshotProjector.Create(character, experienceByLevel,
-                MazeLevelConfigurations.Get(mazeLevel).VisionModifier),
+            characterSheet,
             IsTemporaryFollower: isTemporaryFollower);
         return Build(snapshot, mazeLevel, goldenKeyCount, bossCount, isPartyLeader, width);
     }

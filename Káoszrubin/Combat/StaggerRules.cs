@@ -13,6 +13,9 @@ public sealed record StaggerActionResolution(StaggerSeverity Severity, int Disru
 public sealed record StaggerState(StaggerSeverity? PendingSeverity = null,
     StaggerActionResolution? ActiveResolution = null, long ActiveTurnId = 0);
 
+public sealed record StaggerSnapshot(StaggerSeverity Severity, bool IsResolved,
+    bool BlocksMovement, bool? BlocksOffensiveActions);
+
 public static class StaggerRules
 {
     public static int DisruptionChance(StaggerSeverity severity) => severity switch

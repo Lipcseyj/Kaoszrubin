@@ -453,7 +453,8 @@ public sealed partial class ConsoleRenderer
                 MonsterIds.Bosses.Count,
                 character == _party.Leader,
                 IsTemporaryFollower(character),
-                RightSheetWidthForWindow());
+                RightSheetWidthForWindow(),
+                _owner.CombatStatusIconsFor(character));
 
             if (fullRedraw)
                 DrawCharacterSheetHeader(character);
@@ -522,6 +523,10 @@ public sealed partial class ConsoleRenderer
                         _ => ConsoleColor.Magenta
                     }
                     : _displayedCharacter?.Color ?? ConsoleColor.Cyan;
+            var background = actingCharacter is null && _owner._battleEnemy is { } enemy &&
+                             _owner.IsStaggeredBattleEnemy(enemy)
+                ? StaggerBackgroundColor
+                : ConsoleColor.Black;
             var style = WindowFrameConfiguration.For(FramedWindow.CreaturePortrait);
             var rightSheetWidth = RightSheetWidthForWindow();
             WriteSheetLine(PicturePanelTop, WindowFrameCatalog.Horizontal(style, rightSheetWidth), ConsoleColor.DarkCyan);
@@ -531,7 +536,8 @@ public sealed partial class ConsoleRenderer
                 var sides = WindowFrameCatalog.Sides(style, index, PicturePanelHeight);
                 var interiorWidth = rightSheetWidth - sides.Left.Length - sides.Right.Length;
                 WriteSheetLine(PicturePanelTop + index + FirstMessageLineOffset,
-                    sides.Left + CenterPanelText(line, portrait.CanvasWidth, interiorWidth) + sides.Right, color);
+                    sides.Left + CenterPanelText(line, portrait.CanvasWidth, interiorWidth) + sides.Right,
+                    color, background);
             }
             WriteSheetLine(PicturePanelBottom, WindowFrameCatalog.Horizontal(style, rightSheetWidth, bottom: true),
                 ConsoleColor.DarkCyan);
@@ -668,7 +674,10 @@ public sealed partial class ConsoleRenderer
                     ActiveSpellEffectType.VisionBonus when effect.Value < 0 => "🌑",
                     ActiveSpellEffectType.VisionBonus => "🔆",
                     _ => "✨"
-                })).ToList();
+                }))
+                .Concat(_owner.CombatStatusIconsFor(character))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
             WriteSheetLine(CharacterSheetStatusLine, statusIcons.Count == 0
                     ? "Áll: nincs"
                     : $"Áll: {string.Join(' ', statusIcons)}",
@@ -1013,4 +1022,4 @@ public sealed partial class ConsoleRenderer
             }
         }
     }
-}   
+}

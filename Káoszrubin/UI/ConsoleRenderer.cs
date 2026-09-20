@@ -41,6 +41,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     public static string WandIcon { get; } = IsWindows11OrLater() ? "🪄" : "✨";
     public static string DamageReductionIcon { get; } = IsWindows11OrLater() ? "🪨" : "💥🛡️";
     public static string ArmorRepairIcon { get; } = IsWindows11OrLater() ? "\U0001faa1" : "🔨🛡️";
+    public const ConsoleColor StaggerBackgroundColor = ConsoleColor.DarkMagenta;
     private const int RightBorderX = PlayfieldWidth;
     private const int BottomBorderY = PlayfieldHeight;
     private static readonly Rune FogSymbol = new('█');
@@ -139,6 +140,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
     private readonly HashSet<Position> _teamBattleFocusPositions = [];
+    private readonly HashSet<CharacterId> _staggeredBattleCharacterIds = [];
+    private readonly HashSet<WorldEntityId> _staggeredBattleEnemyIds = [];
     private readonly BattleCommandPanel _battleCommandPanel = new(
         ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', PlayfieldWidth),
         ConsoleColor.Cyan);
@@ -306,6 +309,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _battleEnemy = null;
         _battleActingCharacter = null;
         _teamBattleFocusPositions.Clear();
+        _staggeredBattleCharacterIds.Clear();
+        _staggeredBattleEnemyIds.Clear();
         _battleDetails = null;
         _battleDetailsPage = 0;
         _spellInfoCharacter = null;
@@ -324,6 +329,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _battleEnemy = null;
         _battleActingCharacter = null;
         _teamBattleFocusPositions.Clear();
+        _staggeredBattleCharacterIds.Clear();
+        _staggeredBattleEnemyIds.Clear();
         _spellInfoCharacter = null;
         _spellCastingOverlaySnapshot = null;
         CharacterSheet.RefreshCharacterSheet();
@@ -437,7 +444,11 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         {
             Console.SetCursorPosition(position.X, position.Y);
             var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
-            if (focused.Contains(position))
+            var staggeredEnemy = maze.GetEnemyAt(position) is { } enemy &&
+                                 _staggeredBattleEnemyIds.Contains(enemy.Id);
+            if (focused.Contains(position) && staggeredEnemy)
+                WriteRuneWithColor(visual.Rune, ConsoleColor.White, StaggerBackgroundColor);
+            else if (focused.Contains(position))
                 WriteRuneWithColor(visual.Rune, visual.BackgroundColor, visual.ForegroundColor);
             else
                 WriteRuneWithColor(visual.Rune, visual.ForegroundColor, visual.BackgroundColor);
@@ -445,6 +456,44 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _teamBattleFocusPositions.Clear();
         _teamBattleFocusPositions.UnionWith(focused);
     }
+
+    public void UpdateTeamBattleConditions(Maze maze, FogOfWar fogOfWar, Position playerPosition,
+        IEnumerable<CharacterId> staggeredCharacterIds, IEnumerable<WorldEntityId> staggeredEnemyIds)
+    {
+        var characters = staggeredCharacterIds.ToHashSet();
+        var enemies = staggeredEnemyIds.ToHashSet();
+        if (_staggeredBattleCharacterIds.SetEquals(characters) &&
+            _staggeredBattleEnemyIds.SetEquals(enemies)) return;
+
+        var changedCharacters = _staggeredBattleCharacterIds
+            .Where(id => !characters.Contains(id))
+            .Concat(characters.Where(id => !_staggeredBattleCharacterIds.Contains(id)))
+            .ToHashSet();
+        var changedEnemies = _staggeredBattleEnemyIds
+            .Where(id => !enemies.Contains(id))
+            .Concat(enemies.Where(id => !_staggeredBattleEnemyIds.Contains(id)))
+            .ToHashSet();
+        _staggeredBattleCharacterIds.Clear();
+        _staggeredBattleCharacterIds.UnionWith(characters);
+        _staggeredBattleEnemyIds.Clear();
+        _staggeredBattleEnemyIds.UnionWith(enemies);
+
+        foreach (var enemy in maze.Enemies.Where(enemy => changedEnemies.Contains(enemy.Id)))
+            if (enemy.Position != playerPosition) DrawMapCell(maze, fogOfWar, enemy.Position);
+        foreach (var member in maze.PartyMembers.Where(member => changedCharacters.Contains(member.Character.Id)))
+            if (member.Position != playerPosition) DrawMapCell(maze, fogOfWar, member.Position);
+        if (_party.Leader is { } leader && changedCharacters.Contains(leader.Id)) DrawPlayer(playerPosition);
+
+        CharacterSheet.RefreshBattleStatusRows();
+        CharacterSheet.DrawPicturePanel();
+    }
+
+    internal IReadOnlyList<string> CombatStatusIconsFor(LiveCharacter character) =>
+        _staggeredBattleCharacterIds.Contains(character.Id)
+            ? [CombatConditionPresentation.StaggerIcon]
+            : [];
+
+    private bool IsStaggeredBattleEnemy(Enemy enemy) => _staggeredBattleEnemyIds.Contains(enemy.Id);
 
     /// <summary>
     /// Csata kezdetét jelző megjelenítés: kapcsolja a csata állapotát és kirajzolja a kép-panelt.
@@ -456,6 +505,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _battleDetails = null;
         _battleDetailsPage = 0;
         _battleEnemy = enemy;
+        _staggeredBattleCharacterIds.Clear();
+        _staggeredBattleEnemyIds.Clear();
         DrawBattleCommandPanel(string.Empty);
         CharacterSheet.DrawPicturePanel();
         DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
@@ -572,6 +623,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _battleDetails = null;
         _battleDetailsPage = 0;
         _battleEnemy = null;
+        _staggeredBattleCharacterIds.Clear();
+        _staggeredBattleEnemyIds.Clear();
         CharacterSheet.DrawPicturePanel();
         DrawBattleCommandPanel(string.Empty);
         CharacterSheet.WriteSheetLine(RightSheetBattleHintLine, string.Empty, ConsoleColor.DarkCyan);
@@ -2764,7 +2817,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
                 partyMember.ForegroundColor, partyMember.BackgroundColor);
         if (maze.GetEnemyAt(position) is { } visibleEnemy &&
             fogOfWar.IsEnemyVisible(visibleEnemy.Id, visibleEnemy.Position))
-            return new MapCellVisual(visibleEnemy.Symbol, GetEnemyColor(visibleEnemy), ConsoleColor.Black);
+            return new MapCellVisual(visibleEnemy.Symbol, GetEnemyColor(visibleEnemy),
+                IsStaggeredBattleEnemy(visibleEnemy) ? StaggerBackgroundColor : ConsoleColor.Black);
         if (maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap)
             return new MapCellVisual(trap.Symbol, trap.State == TrapState.Detected
                 ? ConsoleColor.Yellow : ConsoleColor.DarkGray, ConsoleColor.Black);
