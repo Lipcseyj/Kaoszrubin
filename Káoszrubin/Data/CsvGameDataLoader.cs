@@ -152,6 +152,7 @@ public static class CsvGameDataLoader
         ValidateSpells(spells);
         ValidateSpellEffects(spells, spellEffects);
         ValidateMagicItems(magicItems, spells);
+        ValidateShields(weapons);
         for (var index = 0; index < enemies.Count; index++)
         {
             var enemy = enemies[index];
@@ -416,7 +417,7 @@ public static class CsvGameDataLoader
                     Cell(cells, 9), NonNegativeWeaponPrice(cells, 10, id), ParseRarity(cells, 11),
                     EmptyAsNull(Cell(cells, 12)), Integer(cells, 13) ?? 0,
                     PositiveWeight(cells, 14, id, "fegyver"), ParseDamageType(Cell(cells, 15)), WeaponMaximumTargets(cells), IsYes(cells, 17), EmptyAsNull(Cell(cells, 18)),
-                    WeaponMaximumDurability(cells, id), Math.Clamp(Integer(cells, 20) ?? 0, 0, 4)));
+                    WeaponMaximumDurability(cells, id), Integer(cells, 20) ?? 0));
                 break;
             case DataSection.Armors:
                 armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),
@@ -1227,6 +1228,25 @@ public static class CsvGameDataLoader
             MonsterAbilityEffect.InitiativeBonus => component.Value * 2,
             _ => 1
         }) * Math.Max(1, ability.MaximumTargets));
+
+    private static void ValidateShields(IEnumerable<WeaponDefinition> weapons)
+    {
+        foreach (var weapon in weapons)
+        {
+            var shieldType = string.Equals(weapon.WeaponTypeId, "WT003", StringComparison.OrdinalIgnoreCase);
+            var shieldFamily = string.Equals(weapon.FamilyId, WeaponFamilies.Shield,
+                StringComparison.OrdinalIgnoreCase);
+            if (shieldType != shieldFamily)
+                throw new InvalidDataException(
+                    $"A(z) {weapon.Id} pajzs Típus és Fegyvercsalád mezője nincs összhangban.");
+            if (shieldType && weapon.ShieldTier is < 1 or > 4)
+                throw new InvalidDataException(
+                    $"A(z) {weapon.Id} pajzs PajzsTier mezőjének 1 és 4 közé kell esnie.");
+            if (!shieldType && weapon.ShieldTier != 0)
+                throw new InvalidDataException(
+                    $"A(z) {weapon.Id} nem pajzs, ezért a PajzsTier értéke csak 0 lehet.");
+        }
+    }
 
     private static void ValidateEnemies(IEnumerable<EnemyDefinition> enemies,
         IReadOnlyCollection<MonsterAbilityDefinition> monsterAbilities)

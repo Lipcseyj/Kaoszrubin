@@ -1,6 +1,27 @@
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Domain.Combat;
+
+public sealed record ShieldDefenseSnapshot(WeaponDefinition Shield,
+    WeaponProficiencyRank? Proficiency = null, bool HasShieldWall = false,
+    EquipmentCondition Condition = EquipmentCondition.Intact)
+{
+    public int BlockRating
+    {
+        get
+        {
+            var rating = ShieldRules.CriticalBlockRating(Shield, Proficiency, HasShieldWall);
+            return Condition == EquipmentCondition.Damaged ? Math.Min(1, rating) : rating;
+        }
+    }
+}
+
+public sealed record ShieldBlockResult(bool Attempted, int Roll, int BlockRating, bool IsCriticalBlock)
+{
+    public int RequiredRoll => Attempted ? 21 - BlockRating : 0;
+    public static ShieldBlockResult NotAttempted => new(false, 0, 0, false);
+}
 
 public static class ShieldRules
 {
@@ -40,4 +61,13 @@ public static class ShieldRules
 
     public static bool IsCriticalBlock(int d20Roll, int blockRating) =>
         blockRating > 0 && d20Roll >= 21 - Math.Clamp(blockRating, 1, MaximumCriticalBlockRating);
+
+    public static ShieldBlockResult ResolveCriticalBlock(ShieldDefenseSnapshot? shield,
+        DamageType damageType, int d20Roll)
+    {
+        var rating = shield?.BlockRating ?? 0;
+        if (!damageType.IsPhysical() || rating <= 0) return ShieldBlockResult.NotAttempted;
+        var roll = Math.Clamp(d20Roll, 1, 20);
+        return new ShieldBlockResult(true, roll, rating, IsCriticalBlock(roll, rating));
+    }
 }

@@ -171,7 +171,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                     defender.CurrentHitPoints, defender.Definition.HitPoints ?? defender.CurrentHitPoints)}{statusText}",
             critical ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack,
             DescribeAction(attacker.Name, defender.Name, attacks, statusText),
-            attacks.SelectMany(attack => attack.DurabilityNotices).ToArray());
+            attacks.SelectMany(attack => attack.DurabilityNotices).ToArray(),
+            attacks.Where(attack => attack.ShieldBlock.Attempted)
+                .Select(attack => attack.ShieldBlock).ToArray());
     }
 
     public WeaponDefinition? SelectEnemyAttackWeapon(Enemy attacker)
@@ -340,7 +342,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 defender.CurrentVitality, defender.MaximumVitality)} {survival.ShortLog}",
             attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack,
             DescribeAction(attacker.Name, defender.Name, [attack], survival.Details),
-            attack.DurabilityNotices);
+            attack.DurabilityNotices,
+            attack.ShieldBlock.Attempted ? [attack.ShieldBlock] : []);
         return new TeamEnemyAttackResolution(entry, attack.Hit,
             Math.Max(0, vitalityBefore - defender.CurrentVitality));
     }
@@ -992,7 +995,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             notes.Add("ℹ️🔱 Szálfegyver-mester: első találat ×1,5");
         }
         var rawDamage = baseDamage + abilityBonus + randomBonus + perkBonus;
-        var shieldRoll = defender.Shield?.Damage is { } shieldDefense ? Roll(shieldDefense) : 0;
+        var shieldRoll = defender.Shield?.Shield.Damage is { } shieldDefense ? Roll(shieldDefense) : 0;
 
         var damage = ApplyDefense((rawDamage * damageMultiplierPercent + 99) / 100, effectiveArmor + shieldRoll);
 
@@ -1026,19 +1029,15 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             notes.Add($"ℹ️🛠️ sérült fegyver -{durabilityDamagePenalty} sebzés");
             Modifier(damageCalculations, "🛠️ Sérült fegyver: sebzés", -durabilityDamagePenalty);
         }
-        var criticalBlockRoll = damageType.IsPhysical() && defender.Shield is not null
-            ? _random.Next(1, 21)
-            : 0;
-        var criticalBlock = ShieldRules.IsCriticalBlock(criticalBlockRoll,
-            ShieldRules.CriticalBlockRating(defender.Shield));
-        if (criticalBlock)
+        var shieldBlock = ResolveCriticalBlock(defender.Shield, damageType);
+        if (shieldBlock.IsCriticalBlock)
         {
             damage = 0;
-            notes.Add($"🛡️ KRITIKUS BLOKK ({criticalBlockRoll})");
-            defenseCalculations.Add($"🛡️ Kritikus blokk: d20={criticalBlockRoll} → teljes fizikai sebzés kivédve");
+            notes.Add($"🛡️ KRITIKUS BLOKK ({shieldBlock.Roll})");
+            defenseCalculations.Add($"🛡️ Kritikus blokk: d20={shieldBlock.Roll}, érték {shieldBlock.BlockRating} → teljes fizikai sebzés kivédve");
         }
-        else if (criticalBlockRoll > 0)
-            defenseCalculations.Add($"🛡️ Kritikus blokk: d20={criticalBlockRoll} → nem");
+        else if (shieldBlock.Attempted)
+            defenseCalculations.Add($"🛡️ Kritikus blokk: d20={shieldBlock.Roll}, érték {shieldBlock.BlockRating} → nem");
         if (player.HasPerk(PerkIds.ThiefPoisoner))
         {
             var poison = Roll(new ValueRange(1, 6));
@@ -1072,10 +1071,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         defenseCalculations.Add(
             $"🛡️ {armorText}; effektív {effectiveArmor}");
 
-        if (defender.ShieldId != null && defender.Shield is not null)
+        if (defender.Shield is not null)
         {
             defenseCalculations.Add(
-                $"🛡️ {defender.Shield.Name}: dobás {shieldRoll}");
+                $"🛡️ {defender.Shield.Shield.Name}: dobás {shieldRoll}");
         }
 
         var damageText = damage > 0 ? $"💥 {damage}" : "0";
@@ -1146,7 +1145,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
         var shieldSummary =
             defender.Shield is not null
-                ? $"; {defender.Shield.Name} -{shieldRoll}"
+                ? $"; {defender.Shield.Shield.Name} -{shieldRoll}"
                 : string.Empty;
 
         calculationSummary.Add(
@@ -1178,7 +1177,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return Detailed(AttackResult.HitFor(damage,
             $"találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText}{positionalHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplierPercent / 100d:0.##} - {armorText} = {damageText}.{noteText}",
             criticalMultiplier > 1,
-            DurabilityNotice(player.Name, weapon?.Name, "fegyvere", weaponWear, defensive: false)));
+            DurabilityNotice(player.Name, weapon?.Name, "fegyvere", weaponWear, defensive: false),
+            shieldBlock));
     }
 
     public int EstimatePlayerHitChance(LiveCharacter player, Enemy enemy, BattleTactic tactic)
@@ -1442,6 +1442,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var shieldEquipped = shieldWeapon is not null;
         var shield = shieldWeapon?.Damage is { } shieldRange ? Roll(shieldRange) : 0;
         var shieldRank = defender.WeaponProficiencyRankFor(WeaponFamilies.Shield);
+        var shieldCondition = shieldSlot >= 0
+            ? defender.InventoryItemCondition(InventorySlotKind.Weapon, shieldSlot)
+            : EquipmentCondition.NotApplicable;
+        var shieldDefense = shieldWeapon is null ? null : new ShieldDefenseSnapshot(shieldWeapon, shieldRank,
+            defender.HasPerk(PerkIds.KnightShieldWall), shieldCondition);
         var staffEquipped = defender.OperationalWeapons.Any(item =>
             WeaponFamilies.ForWeapon(item) == WeaponFamilies.Staff);
         var staffRank = defender.WeaponProficiencyRankFor(WeaponFamilies.Staff);
@@ -1454,8 +1459,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (shieldRank == WeaponProficiencyRank.Master && shieldWeapon?.Damage is { } masterShieldRange)
             shield = Math.Max(shield, Roll(masterShieldRange));
         if (shieldEquipped)
-            shield = EquipmentDurabilityRules.ScaleDefense(shield,
-                defender.InventoryItemCondition(InventorySlotKind.Weapon, shieldSlot));
+            shield = EquipmentDurabilityRules.ScaleDefense(shield, shieldCondition);
 
         var evilWard = IsUnholy(definition)
             ? defender.ActiveSpellEffects.Where(effect => effect.Type == ActiveSpellEffectType.ProtectionFromEvil).ToList()
@@ -1524,23 +1528,15 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (percentageReduction > 0)
             damage = damage * (100 - percentageReduction) / 100;
 
-        var criticalBlockRating = ShieldRules.CriticalBlockRating(shieldWeapon, shieldRank,
-            defender.HasPerk(PerkIds.KnightShieldWall));
-        if (shieldSlot >= 0 &&
-            defender.InventoryItemCondition(InventorySlotKind.Weapon, shieldSlot) == EquipmentCondition.Damaged)
-            criticalBlockRating = Math.Min(1, criticalBlockRating);
-        var criticalBlockRoll = damageType.IsPhysical() && criticalBlockRating > 0
-            ? _random.Next(1, 21)
-            : 0;
-        var criticalBlock = ShieldRules.IsCriticalBlock(criticalBlockRoll, criticalBlockRating);
-        if (criticalBlock)
+        var shieldBlock = ResolveCriticalBlock(shieldDefense, damageType);
+        if (shieldBlock.IsCriticalBlock)
         {
             damage = 0;
-            defenseCalculations.Add($"🛡️ KRITIKUS BLOKK: d20={criticalBlockRoll}, érték {criticalBlockRating} → teljes fizikai sebzés kivédve");
+            defenseCalculations.Add($"🛡️ KRITIKUS BLOKK: d20={shieldBlock.Roll}, érték {shieldBlock.BlockRating} → teljes fizikai sebzés kivédve");
             otherCalculations.Add($"🛡️ {defender.Name} teljesen kivédi a fizikai csapást.");
         }
-        else if (criticalBlockRoll > 0)
-            defenseCalculations.Add($"🛡️ Kritikus blokk: d20={criticalBlockRoll}, érték {criticalBlockRating} → nem");
+        else if (shieldBlock.Attempted)
+            defenseCalculations.Add($"🛡️ Kritikus blokk: d20={shieldBlock.Roll}, érték {shieldBlock.BlockRating} → nem");
 
         foreach (var group in monsterBonusRolls.Where(bonus => bonus.DamageType is not null && bonus.DamageType != damageType)
                      .GroupBy(bonus => bonus.DamageType!.Value))
@@ -1609,7 +1605,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                     wornArmor, wearAmount);
             if (shieldSlot >= 0)
                 ApplyDefensiveWear(InventorySlotKind.Weapon, shieldSlot, "🛡️🛠️ Pajzskopás", "pajzsa",
-                    shieldWeapon!, criticalBlock ? (criticalMultiplier > 1 ? 3 : 2) : wearAmount);
+                    shieldWeapon!, shieldBlock.IsCriticalBlock ? (criticalMultiplier > 1 ? 3 : 2) : wearAmount);
         }
 
         var damageTypes = monsterBonusRolls
@@ -1671,7 +1667,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
         return Detailed(AttackResult.HitFor(damage,
             $"találat: {hit.Description} → 🎯; sebzés: (Erőbónusz {strengthBonus} + fegyver {baseDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damageText}.{statusText}",
-            criticalMultiplier > 1, durabilityNotices));
+            criticalMultiplier > 1, durabilityNotices, shieldBlock));
     }
 
     private static EquipmentWearResult ApplyWeaponWear(LiveCharacter character, WeaponDefinition? weapon,
@@ -1944,6 +1940,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     }
 
     private static int AbilityDamageBonus(int ability) => Math.Max(0, (ability - 1) / 2);
+    private ShieldBlockResult ResolveCriticalBlock(ShieldDefenseSnapshot? shield, DamageType damageType)
+    {
+        if (shield is null || !damageType.IsPhysical() || shield.BlockRating <= 0)
+            return ShieldBlockResult.NotAttempted;
+        return ShieldRules.ResolveCriticalBlock(shield, damageType, _random.Next(1, 21));
+    }
+
     private int Roll(ValueRange range) => _random.Next(range.Minimum, range.Maximum + 1);
     private static int ApplyDefense(int rawDamage, int defense) => Math.Max(1, rawDamage - defense);
 
@@ -1969,8 +1972,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         int ArmorAbilityBonus,
         bool IsUndead,
         DamageResistance? Resistances,
-        string? ShieldId,
-        WeaponDefinition? Shield,
+        ShieldDefenseSnapshot? Shield,
         WeaponDefinition? Weapon)
     {
         public bool IsWounded => CurrentHitPoints * 2 <= Math.Max(1, MaximumHitPoints);
@@ -1994,8 +1996,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 armorAbilityBonus,
                 enemy.Definition.HasTrait(EnemyTraits.Undead),
                 enemy.Definition.Resistances,
-                enemy.EquippedShield?.Id,
-                enemy.EquippedShield,
+                enemy.EquippedShield is { } shield ? new ShieldDefenseSnapshot(shield) : null,
                 enemy.EquippedWeapon);
         }
     }
@@ -2019,20 +2020,24 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private sealed record MonsterBonusDamageRoll(int Value, DamageType? DamageType);
     private sealed record MonsterOnHitResult(IReadOnlyList<MonsterBonusDamageRoll> Damage, string StatusText);
     private sealed record AttackResult(bool Hit, int Damage, string Message, bool Critical,
-        AttackDetails? Details = null, IReadOnlyList<BattleLogNotice>? WearNotices = null)
+        AttackDetails? Details = null, IReadOnlyList<BattleLogNotice>? WearNotices = null,
+        ShieldBlockResult? BlockResult = null)
     {
         public IReadOnlyList<BattleLogNotice> DurabilityNotices => WearNotices ?? [];
+        public ShieldBlockResult ShieldBlock => BlockResult ?? ShieldBlockResult.NotAttempted;
         public static AttackResult Miss(string message) => new(false, 0, message, false);
         public static AttackResult HitFor(int damage, string message, bool critical = false,
-            IReadOnlyList<BattleLogNotice>? durabilityNotices = null) =>
-            new(true, damage, message, critical, WearNotices: durabilityNotices);
+            IReadOnlyList<BattleLogNotice>? durabilityNotices = null,
+            ShieldBlockResult? shieldBlock = null) =>
+            new(true, damage, message, critical, WearNotices: durabilityNotices, BlockResult: shieldBlock);
     }
 }
 
 public sealed record BattleResult(bool PlayerWon, int Rounds, IReadOnlyList<string> Events);
 public sealed record BattleLogNotice(string Message, BattleLogKind Kind = BattleLogKind.Information);
 public sealed record BattleLogEntry(string Message, BattleLogKind Kind, BattleActionDetails? Details = null,
-    IReadOnlyList<BattleLogNotice>? FollowUps = null);
+    IReadOnlyList<BattleLogNotice>? FollowUps = null,
+    IReadOnlyList<ShieldBlockResult>? ShieldBlocks = null);
 public sealed record TeamEnemyAttackResolution(BattleLogEntry Entry, bool Hit, int DamageDealt);
 public enum MonsterStrengthContestOutcome { Resisted, Stagger, Push }
 public sealed record MonsterStrengthContestResult(int Strength, int StrengthPressure, int Roll, int Total,

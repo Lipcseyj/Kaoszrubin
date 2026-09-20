@@ -81,6 +81,7 @@ var tests = new (string Name, Action Run)[]
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
     ("A taktikai fegyverjártasságok módosítják a söprést, fedezetet és varázslást", TacticalWeaponMasteriesHaveDistinctRoles),
     ("A pajzstier közösen vezérli a kritikus blokkot és a pajzslökést", ShieldTierDrivesBlockAndBash),
+    ("A pajzs CSV-validációja elutasítja a hibás tiert és besorolást", ShieldCsvValidationRejectsInvalidDefinitions),
     ("A többcélú fegyverek ívben, vonalban és kis területen hatnak", WeaponFamiliesUseDistinctAttackPatterns),
     ("A kétfegyveres harc csak képzett tőr- és kardpárokkal működik", DualWieldingRequiresDisciplineAndProficiencies),
     ("Az elf tőr ügyességi vágófegyver és párban sebzésbónuszt ad", ElvenDaggersGainPairedDamage),
@@ -3076,8 +3077,7 @@ static void CombatAppliesEquipmentWear()
         var armorAfter = defender.GetInventoryItemState(InventorySlotKind.Armor, 0)!.Value.DurabilityDamage;
         var shieldAfter = defender.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage;
         var expectedWear = resolution.Hit ? resolution.Entry.Kind == BattleLogKind.CriticalHit ? 2 : 1 : 0;
-        var criticalBlock = resolution.Entry.Details?.Calculation.Any(line =>
-            line.Contains("KRITIKUS BLOKK", StringComparison.Ordinal)) == true;
+        var criticalBlock = resolution.Entry.ShieldBlocks?.Any(block => block.IsCriticalBlock) == true;
         var expectedShieldWear = criticalBlock
             ? resolution.Entry.Kind == BattleLogKind.CriticalHit ? 3 : 2
             : expectedWear;
@@ -3085,6 +3085,9 @@ static void CombatAppliesEquipmentWear()
             "A fizikai találat vagy a kritikus blokk nem a megfelelő mértékben koptatta a páncélt és pajzsot.");
         if (!resolution.Hit) continue;
         observedArmorHits++;
+        Assert(resolution.Entry.ShieldBlocks is { Count: 1 } &&
+               resolution.Entry.ShieldBlocks[0].Attempted,
+            "A pajzs blokkpróbája nem strukturált harci eredményként érkezett meg.");
         Assert(resolution.Entry.Details?.Calculation.Any(line => line.Contains("Páncélkopás", StringComparison.Ordinal)) == true &&
                resolution.Entry.Details.Calculation.Any(line => line.Contains("Pajzskopás", StringComparison.Ordinal)),
             "A páncél- vagy pajzskopás nem került be a csatarészletek közé.");
@@ -6876,11 +6879,18 @@ static void ShieldTierDrivesBlockAndBash()
     Assert(wood.ShieldTier == 1 && iron.ShieldTier == 2 && steel.ShieldTier == 3 &&
            legendary.ShieldTier == 4,
         "A pajzsok CSV-s tierbesorolása hibás.");
+    var damagedSnapshot = new ShieldDefenseSnapshot(legendary, WeaponProficiencyRank.Master, true,
+        EquipmentCondition.Damaged);
+    var guaranteedBlock = ShieldRules.ResolveCriticalBlock(
+        new ShieldDefenseSnapshot(steel, WeaponProficiencyRank.Trained), DamageType.Slashing, 17);
+    var elementalAttempt = ShieldRules.ResolveCriticalBlock(
+        new ShieldDefenseSnapshot(legendary), DamageType.Fire, 20);
     Assert(ShieldRules.CriticalBlockRating(wood) == 1 &&
            ShieldRules.CriticalBlockRating(steel, WeaponProficiencyRank.Trained) == 4 &&
            ShieldRules.CriticalBlockRating(legendary, WeaponProficiencyRank.Master, true) == 4 &&
-           ShieldRules.IsCriticalBlock(20, 1) && !ShieldRules.IsCriticalBlock(19, 1) &&
-           ShieldRules.IsCriticalBlock(17, 4),
+           damagedSnapshot.BlockRating == 1 && guaranteedBlock is
+               { Attempted: true, Roll: 17, BlockRating: 4, IsCriticalBlock: true } &&
+           elementalAttempt == ShieldBlockResult.NotAttempted,
         "A pajzstier, jártasság vagy Pajzsfal nem a közös 5–20 százalékos blokkszabályt használja.");
 
     var fighter = CreateCharacter("Pajzslökő", characterClassId: CharacterClassIds.Harcos);
@@ -6898,6 +6908,18 @@ static void ShieldTierDrivesBlockAndBash()
            (bash.Outcome == MonsterStrengthContestOutcome.Resisted) == (bash.Damage == 0) &&
            wearAfter == wearBefore + 1,
         "A pajzslökés nem a tiert és jártasságot használta, vagy nem koptatta a pajzsot.");
+}
+
+static void ShieldCsvValidationRejectsInvalidDefinitions()
+{
+    var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var missingTier = source.Replace(";SHIELD;50;1", ";SHIELD;50;0", StringComparison.Ordinal);
+    Assert(missingTier != source, "A pajzstiert törlő teszt nem találta a fapajzs sorát.");
+    AssertCsvLoadFails(missingTier, "W014", "PajzsTier", "1 és 4");
+
+    var mismatchedFamily = source.Replace(";SHIELD;50;1", ";SWORD;50;1", StringComparison.Ordinal);
+    Assert(mismatchedFamily != source, "A pajzscsaládot módosító teszt nem találta a fapajzs sorát.");
+    AssertCsvLoadFails(mismatchedFamily, "W014", "nincs összhangban");
 }
 
 static void WeaponFamiliesUseDistinctAttackPatterns()
