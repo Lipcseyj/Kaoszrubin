@@ -11,7 +11,7 @@ public sealed record TeamCharacterParticipant(
     int Initiative,
     int MovementAllowance,
     int EligibleFromCycle,
-    TeamCharacterBattleRuntime Runtime,
+    CharacterBattleChoices Runtime,
     int? OpeningInitiative = null);
 
 public sealed record TeamEnemyParticipant(
@@ -55,7 +55,7 @@ public sealed class TeamBattleEncounter
 
     private readonly Dictionary<CombatantId, LiveCharacter> _characters = [];
     private readonly Dictionary<CombatantId, Enemy> _enemies = [];
-    private readonly Dictionary<CharacterId, TeamCharacterBattleRuntime> _characterRuntimes = [];
+    private readonly Dictionary<CharacterId, CharacterBattleChoices> _characterRuntimes = [];
     private readonly Dictionary<CharacterId, (int Vitality, int Mana)> _startingResources = [];
     private readonly Dictionary<CharacterId, HashSet<string>> _startingStatusIds = [];
     private readonly Dictionary<CharacterId, List<string>> _gainedStatusIcons = [];
@@ -179,7 +179,7 @@ public sealed class TeamBattleEncounter
     public Enemy? CurrentEnemy => _enemies.GetValueOrDefault(Current.Id);
     public WorldEntityId? SelectedTargetEnemyId { get; private set; }
 
-    public TeamCharacterBattleRuntime RuntimeFor(LiveCharacter character) =>
+    public CharacterBattleChoices RuntimeFor(LiveCharacter character) =>
         _characterRuntimes[character.Id];
 
     public (int Vitality, int Mana) StartingResourcesFor(LiveCharacter character) =>

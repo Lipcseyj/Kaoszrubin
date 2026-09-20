@@ -18,11 +18,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         statuses.ToDictionary(status => status.Id, StringComparer.OrdinalIgnoreCase);
     private readonly IReadOnlyList<StrengthHitBonusDefinition> _strengthHitBonuses = strengthHitBonuses.ToList();
 
-    public TeamCombatantPreparation PrepareTeamCharacter(LiveCharacter character)
+    public CombatantPreparation PrepareCharacter(LiveCharacter character)
     {
         ArgumentNullException.ThrowIfNull(character);
         var entries = new List<BattleLogEntry>();
-        var runtime = new TeamCharacterBattleRuntime(character);
+        var runtime = new CharacterBattleChoices(character);
         ApplyBattleStartPerks(character, entries.Add);
         var statusCosts = character.ApplyBattleStartStatusEffects();
         if (statusCosts.VitalityLost > 0 || statusCosts.ManaLost > 0)
@@ -43,7 +43,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                   $"rendes +{initiative.FirstStrikeNormalBonus}]"
                 : string.Empty),
             BattleLogKind.Information));
-        return new TeamCombatantPreparation(runtime, initiative.Roll.Total, initiative.OpeningTotal, entries);
+        return new CombatantPreparation(runtime, initiative.Roll.Total, initiative.OpeningTotal, entries);
     }
 
     private CharacterInitiativeRoll RollCharacterInitiative(LiveCharacter character,
@@ -74,7 +74,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             disciplineBonus, normalBase, roll, openingTotal);
     }
 
-    public int RollTeamEnemyInitiative(Enemy enemy)
+    public int RollEnemyInitiative(Enemy enemy)
     {
         ArgumentNullException.ThrowIfNull(enemy);
         return RollInitiative(enemy.EffectiveSpeed +
@@ -89,13 +89,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         enemy.ClearPreparedWeapon();
     }
 
-    public void BeginTeamCharacterTurn(LiveCharacter character)
+    public void BeginCharacterTurn(LiveCharacter character)
     {
         ArgumentNullException.ThrowIfNull(character);
         character.AdvanceSpellEffects();
     }
 
-    public string FinishTeamCharacterAction(LiveCharacter character, TeamCharacterBattleRuntime runtime)
+    public string FinishCharacterAction(LiveCharacter character, CharacterBattleChoices runtime)
     {
         ArgumentNullException.ThrowIfNull(character);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -108,8 +108,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 (tick.Expired ? " (elmúlt)" : string.Empty)))}.";
     }
 
-    public BattleLogEntry ResolveTeamCharacterAttack(LiveCharacter attacker,
-        TeamCharacterBattleRuntime runtime, Enemy defender, bool finishAction = true,
+    public BattleLogEntry ResolveCharacterAttack(LiveCharacter attacker,
+        CharacterBattleChoices runtime, Enemy defender, bool finishAction = true,
         int damagePercent = 100, int positionalHitBonus = 0, string? positionalAdvantage = null,
         bool tacticalBackstab = false, WeaponDefinition? attackWeapon = null,
         bool allowTriggeredExtraAttacks = true, bool allowAmbush = true,
@@ -135,7 +135,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var critical = false;
         for (var index = 0; index < count && target.CurrentHitPoints > 0; index++)
         {
-            var attack = PlayerAttack(attacker, target, runtime.Context, attackOptions);
+            var attack = ResolveCharacterWeaponAttack(attacker, target, runtime.Context, attackOptions);
             if (attack.Hit && damagePercent != 100)
             {
                 var scaledDamage = attack.Damage == 0 ? 0 :
@@ -157,7 +157,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             if (allowTriggeredExtraAttacks && index == 0 && attack.Hit && target.CurrentHitPoints > 0 &&
                 attacker.HasPerk(PerkIds.FighterSteelStorm) && _random.NextDouble() < 0.35)
             {
-                var extra = PlayerAttack(attacker, target, runtime.Context,
+                var extra = ResolveCharacterWeaponAttack(attacker, target, runtime.Context,
                     attackOptions with { WoundedTarget = target.IsWounded });
                 critical |= extra.Critical;
                 target = target.Apply(extra);
@@ -165,7 +165,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             }
         }
         defender.SetCurrentHitPoints(target.CurrentHitPoints);
-        var statusText = finishAction ? FinishTeamCharacterAction(attacker, runtime) : string.Empty;
+        var statusText = finishAction ? FinishCharacterAction(attacker, runtime) : string.Empty;
             return new BattleLogEntry(
                 $"{FormatAttackSummary(attacker.Name, defender.Name, attacks,
                     defender.CurrentHitPoints, defender.Definition.HitPoints ?? defender.CurrentHitPoints)}{statusText}",
@@ -261,8 +261,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return _random.Next(100) < selected.AiWeight ? selected : null;
     }
 
-    public BattleLogEntry ResolveTeamEnemyAbility(Enemy attacker, LiveCharacter defender,
-        TeamCharacterBattleRuntime defenderRuntime, MonsterAbilityDefinition ability,
+    public BattleLogEntry ResolveEnemyAbility(Enemy attacker, LiveCharacter defender,
+        CharacterBattleChoices defenderRuntime, MonsterAbilityDefinition ability,
         bool consumeResources = true) =>
         ResolveEnemyAbility(attacker, defender, defenderRuntime.Context, ability, consumeResources);
 
@@ -318,21 +318,21 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         }
     }
 
-    public BattleLogEntry ResolveTeamEnemyAction(Enemy attacker, LiveCharacter defender,
-        TeamCharacterBattleRuntime defenderRuntime, WeaponDefinition? attackWeapon = null,
+    public BattleLogEntry ResolveEnemyAction(Enemy attacker, LiveCharacter defender,
+        CharacterBattleChoices defenderRuntime, WeaponDefinition? attackWeapon = null,
         bool advanceAttackerEffects = true, int alliedGuardDefense = 0)
-        => ResolveTeamEnemyActionDetailed(attacker, defender, defenderRuntime, attackWeapon,
+        => ResolveEnemyActionDetailed(attacker, defender, defenderRuntime, attackWeapon,
             advanceAttackerEffects, alliedGuardDefense).Entry;
 
-    public TeamEnemyAttackResolution ResolveTeamEnemyActionDetailed(Enemy attacker, LiveCharacter defender,
-        TeamCharacterBattleRuntime defenderRuntime, WeaponDefinition? attackWeapon = null,
+    public EnemyAttackResolution ResolveEnemyActionDetailed(Enemy attacker, LiveCharacter defender,
+        CharacterBattleChoices defenderRuntime, WeaponDefinition? attackWeapon = null,
         bool advanceAttackerEffects = true, int alliedGuardDefense = 0)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
         ArgumentNullException.ThrowIfNull(defenderRuntime);
         attackWeapon ??= SelectEnemyAttackWeapon(attacker);
-        var attack = EnemyAttack(attacker, defender, defenderRuntime.Context,
+        var attack = ResolveEnemyWeaponAttack(attacker, defender, defenderRuntime.Context,
             new EnemyAttackOptions(AttackWeapon: attackWeapon, AllowWeaponFallback: false,
                 AlliedGuardDefense: alliedGuardDefense));
         var vitalityBefore = defender.CurrentVitality;
@@ -344,12 +344,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             DescribeAction(attacker.Name, defender.Name, [attack], survival.Details),
             attack.DurabilityNotices,
             attack.ShieldBlock.Attempted ? [attack.ShieldBlock] : []);
-        return new TeamEnemyAttackResolution(entry, attack.Hit,
+        return new EnemyAttackResolution(entry, attack.Hit,
             Math.Max(0, vitalityBefore - defender.CurrentVitality));
     }
 
     public MonsterStrengthContestResult ResolveMonsterStrengthContest(Enemy attacker, LiveCharacter defender,
-        TeamCharacterBattleRuntime defenderRuntime)
+        CharacterBattleChoices defenderRuntime)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
@@ -476,8 +476,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             _ => null
         };
 
-    public BattleLogEntry ResolveTeamOpportunityAttack(Enemy attacker, LiveCharacter defender,
-        TeamCharacterBattleRuntime defenderRuntime)
+    public BattleLogEntry ResolveEnemyAttackOnRetreatingCharacter(Enemy attacker, LiveCharacter defender,
+        CharacterBattleChoices defenderRuntime)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
@@ -488,7 +488,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                                 attacker.IsWeaponReady(selected.Id)
             ? selected
             : weapons.Length > 0 ? weapons[_random.Next(weapons.Length)] : null;
-        var attack = EnemyAttack(attacker, defender, defenderRuntime.Context,
+        var attack = ResolveEnemyWeaponAttack(attacker, defender, defenderRuntime.Context,
             new EnemyAttackOptions(AttackWeapon: opportunityWeapon, AllowWeaponFallback: false));
         var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
         return new BattleLogEntry(
@@ -499,7 +499,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             attack.DurabilityNotices);
     }
 
-    public void SetTeamKnightProtection(TeamCharacterBattleRuntime runtime, LiveCharacter knight)
+    public void SetTeamKnightProtection(CharacterBattleChoices runtime, LiveCharacter knight)
     {
         runtime.Context.KnightProtector = knight;
         runtime.Context.KnightProtectionAvailable = true;
@@ -570,7 +570,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return new InitiativeRoll(speed + modifier, $"±1d2({modifier:+#;-#;0})");
     }
 
-    private AttackResult PlayerAttack(LiveCharacter player, EnemyDefenseSnapshot defender,
+    private AttackResult ResolveCharacterWeaponAttack(LiveCharacter player, EnemyDefenseSnapshot defender,
         BattleRuntimeContext context, PlayerAttackOptions options)
     {
         var defenderSpeed = defender.EffectiveSpeed;
@@ -656,7 +656,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var retaliation = context.KnightRetaliationReady;
         context.KnightRetaliationReady = false;
         var finisherBonus = woundedTarget && player.HasTacticalDiscipline(TacticalDisciplines.Finisher) ? 2 : 0;
-        var hitBonus = PlayerHitBonus(player, context.Tactic, weapon is not null, invisibilityBonus,
+        var hitBonus = CharacterHitBonus(player, context.Tactic, weapon is not null, invisibilityBonus,
             strengthHitBonus, blessedWeaponBonus) + (weapon?.MagicPower ?? 0) + (retaliation ? 2 : 0) +
                        (weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0) + finisherBonus +
                        Math.Max(0, positionalHitBonus);
@@ -1181,32 +1181,32 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             shieldBlock));
     }
 
-    public int EstimatePlayerHitChance(LiveCharacter player, Enemy enemy, BattleTactic tactic)
+    public int EstimateCharacterHitChance(LiveCharacter character, Enemy enemy, BattleTactic tactic)
     {
         var defender = enemy.Definition;
-        var weapon = player.AttackWeapon;
-        var weaponSlot = ResolveWeaponSlot(player, weapon, null);
+        var weapon = character.AttackWeapon;
+        var weaponSlot = ResolveWeaponSlot(character, weapon, null);
         var durabilityHitPenalty = weaponSlot < 0 ? 0 : EquipmentDurabilityRules.WeaponHitPenalty(
-            player.InventoryItemCondition(InventorySlotKind.Weapon, weaponSlot));
+            character.InventoryItemCondition(InventorySlotKind.Weapon, weaponSlot));
         var weaponEquipped = weapon is not null;
-        var blessedWeaponBonus = player.HasPerk(PerkIds.PriestBlessedWeapon) &&
+        var blessedWeaponBonus = character.HasPerk(PerkIds.PriestBlessedWeapon) &&
                                  defender.HasTrait(EnemyTraits.Undead) ? 2 : 0;
-        var bonus = PlayerHitBonus(player, tactic, weaponEquipped,
-            player.SpellEffectValue(ActiveSpellEffectType.Invisibility), StrengthHitBonus(player), blessedWeaponBonus) -
-                    player.StatusHitPenalty +
+        var bonus = CharacterHitBonus(character, tactic, weaponEquipped,
+            character.SpellEffectValue(ActiveSpellEffectType.Invisibility), StrengthHitBonus(character), blessedWeaponBonus) -
+                    character.StatusHitPenalty +
                     (weapon?.MagicPower ?? 0) +
                     (WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Sword &&
-                     player.WeaponProficiencyRankFor(WeaponFamilies.Sword) is not null ? 1 : 0) +
-                    (UsesRodericOathblade(player, weapon) ? 1 : 0) - durabilityHitPenalty +
+                     character.WeaponProficiencyRankFor(WeaponFamilies.Sword) is not null ? 1 : 0) +
+                    (UsesRodericOathblade(character, weapon) ? 1 : 0) - durabilityHitPenalty +
                     (enemy.CurrentHitPoints * 2 <= Math.Max(1, enemy.Definition.HitPoints ?? enemy.CurrentHitPoints) &&
-                     player.HasTacticalDiscipline(TacticalDisciplines.Finisher) ? 2 : 0);
+                     character.HasTacticalDiscipline(TacticalDisciplines.Finisher) ? 2 : 0);
         var target = 11 + enemy.EffectiveSpeed;
         var successfulRolls = Enumerable.Range(1, 20).Count(roll =>
-            roll != 1 && (roll == 20 || roll + player.EffectiveAbilities.Dexterity + bonus >= target));
+            roll != 1 && (roll == 20 || roll + character.EffectiveAbilities.Dexterity + bonus >= target));
         return successfulRolls * 5;
     }
 
-    private int PlayerHitBonus(LiveCharacter player, BattleTactic? tactic,
+    private int CharacterHitBonus(LiveCharacter character, BattleTactic? tactic,
         bool weaponEquipped, int invisibilityBonus, int strengthHitBonus, int blessedWeaponBonus)
     {
         var tacticHitBonus = tactic switch
@@ -1216,10 +1216,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             BattleTactic.ThiefObserve => 2,
             _ => 0
         };
-        return (weaponEquipped && player.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0) +
-               player.GetMagicItemBonus(MagicItemEffect.Hit) + blessedWeaponBonus + invisibilityBonus +
-               strengthHitBonus + player.SpellEffectValue(ActiveSpellEffectType.HitBonus) +
-               ClassHitBonus(player) + tacticHitBonus - player.GetActiveCurseValue(ItemCurseEffect.HitPenalty);
+        return (weaponEquipped && character.HasPerk(PerkIds.FighterWeaponMaster) ? 2 : 0) +
+               character.GetMagicItemBonus(MagicItemEffect.Hit) + blessedWeaponBonus + invisibilityBonus +
+               strengthHitBonus + character.SpellEffectValue(ActiveSpellEffectType.HitBonus) +
+               ClassHitBonus(character) + tacticHitBonus - character.GetActiveCurseValue(ItemCurseEffect.HitPenalty);
     }
 
     private static bool UsesRodericOathblade(LiveCharacter player, WeaponDefinition? weapon) =>
@@ -1241,7 +1241,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         .Select(bonus => bonus.Bonus)
         .FirstOrDefault();
 
-    private AttackResult EnemyAttack(Enemy attacker, LiveCharacter defender, BattleRuntimeContext context,
+    private AttackResult ResolveEnemyWeaponAttack(Enemy attacker, LiveCharacter defender, BattleRuntimeContext context,
         EnemyAttackOptions options)
     {
         var definition = attacker.Definition;
@@ -2038,7 +2038,7 @@ public sealed record BattleLogNotice(string Message, BattleLogKind Kind = Battle
 public sealed record BattleLogEntry(string Message, BattleLogKind Kind, BattleActionDetails? Details = null,
     IReadOnlyList<BattleLogNotice>? FollowUps = null,
     IReadOnlyList<ShieldBlockResult>? ShieldBlocks = null);
-public sealed record TeamEnemyAttackResolution(BattleLogEntry Entry, bool Hit, int DamageDealt);
+public sealed record EnemyAttackResolution(BattleLogEntry Entry, bool Hit, int DamageDealt);
 public enum MonsterStrengthContestOutcome { Resisted, Stagger, Push }
 public sealed record MonsterStrengthContestResult(int Strength, int StrengthPressure, int Roll, int Total,
     int Health, int ResistanceRoll, int ShieldBonus, int DefensiveBonus, int Resistance, int Margin,

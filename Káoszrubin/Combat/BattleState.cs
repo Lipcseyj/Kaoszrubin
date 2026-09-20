@@ -49,9 +49,9 @@ internal sealed class BattleRuntimeContext
 }
 
 /// <summary>Egy karakter csapatharcon belüli, a teljes összecsapás alatt megőrzött harci állapota.</summary>
-public sealed class TeamCharacterBattleRuntime
+public sealed class CharacterBattleChoices
 {
-    internal TeamCharacterBattleRuntime(LiveCharacter character) => Context = new BattleRuntimeContext(character);
+    internal CharacterBattleChoices(LiveCharacter character) => Context = new BattleRuntimeContext(character);
     internal BattleRuntimeContext Context { get; }
     public BattleTactic? Tactic => Context.Tactic;
     public bool RequiresTacticSelection => Context.RequiresTacticSelection && Context.Tactic is null;
@@ -72,5 +72,5 @@ public sealed class TeamCharacterBattleRuntime
     }
 }
 
-public sealed record TeamCombatantPreparation(TeamCharacterBattleRuntime Runtime, int Initiative,
+public sealed record CombatantPreparation(CharacterBattleChoices Runtime, int Initiative,
     int OpeningInitiative, IReadOnlyList<BattleLogEntry> Entries);

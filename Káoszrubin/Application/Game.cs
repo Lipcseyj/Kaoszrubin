@@ -7009,7 +7009,7 @@ public sealed class Game : ISessionCommandHandler
         var preparationEntries = new List<BattleLogEntry>();
         foreach (var (character, position) in LivingPartyWithPositions().DistinctBy(entry => entry.Character.Id))
         {
-            var preparation = _battleSystem.PrepareTeamCharacter(character);
+            var preparation = _battleSystem.PrepareCharacter(character);
             preparationEntries.AddRange(preparation.Entries);
             var avatar = _maze.PartyMembers.FirstOrDefault(member => member.Character == character);
             var kind = avatar?.IsTemporaryFollower == true
@@ -7028,12 +7028,12 @@ public sealed class Game : ISessionCommandHandler
                             TacticalDistance.IsWithin(initiatingEnemy.Position, enemy.Position) &&
                             (enemy == initiatingEnemy || CanEnemyReachBattleWithinCycles(enemy, friendlyPositions)))
             .DistinctBy(enemy => enemy.Id)
-            .Select(enemy => new TeamEnemyParticipant(enemy, _battleSystem.RollTeamEnemyInitiative(enemy),
+            .Select(enemy => new TeamEnemyParticipant(enemy, _battleSystem.RollEnemyInitiative(enemy),
                 EnemyMovementAllowance(enemy), enemy == initiatingEnemy ? 1 : 2))
             .ToList();
         if (enemyParticipants.All(value => value.Enemy != initiatingEnemy))
             enemyParticipants.Add(new TeamEnemyParticipant(initiatingEnemy,
-                _battleSystem.RollTeamEnemyInitiative(initiatingEnemy),
+                _battleSystem.RollEnemyInitiative(initiatingEnemy),
                 EnemyMovementAllowance(initiatingEnemy), 1));
 
         var participantEnemies = enemyParticipants.Select(value => value.Enemy).ToArray();
@@ -7211,7 +7211,7 @@ public sealed class Game : ISessionCommandHandler
             {
                 if (battle.CurrentCharacter is { } preparedCharacter &&
                     battle.ShouldAdvanceSpellEffects(CombatantId.ForCharacter(preparedCharacter.Id)))
-                    _battleSystem.BeginTeamCharacterTurn(preparedCharacter);
+                    _battleSystem.BeginCharacterTurn(preparedCharacter);
                 var stagger = battle.PrepareStaggerAction(current.Id, () => _random.Next(1, 101));
                 if (stagger is not null)
                 {
@@ -7387,7 +7387,7 @@ public sealed class Game : ISessionCommandHandler
         foreach (var enemy in reinforcements)
         {
             _battleSystem.PrepareEnemyForBattle(enemy);
-            battle.TryAddEnemy(new TeamEnemyParticipant(enemy, _battleSystem.RollTeamEnemyInitiative(enemy),
+            battle.TryAddEnemy(new TeamEnemyParticipant(enemy, _battleSystem.RollEnemyInitiative(enemy),
                 EnemyMovementAllowance(enemy), battle.Turns.Cycle + 1));
         }
         var message = $"📯 Az ellenség erősítést hív: {reinforcements.Length} új harcos " +
@@ -7575,7 +7575,7 @@ public sealed class Game : ISessionCommandHandler
                     RejectTeamBattleAction(command, "A tartalékfegyver most nem vehető kézbe.");
                     return;
                 }
-                var weaponSwapStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                var weaponSwapStatus = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
                 _renderer.RefreshCharacterSheet(PartyLeader);
                 PresentBattleEntries([new BattleLogEntry($"{character.Name}: fegyvercsere → {character.AttackWeapon?.Name}.{weaponSwapStatus}", BattleLogKind.Information)]);
                 AdvanceTeamBattleTurn(battle);
@@ -7597,7 +7597,7 @@ public sealed class Game : ISessionCommandHandler
                     RejectTeamBattleAction(command, "A kijelölt hátsó alakzathelyen nincs harcra készíthető társ.");
                     return;
                 }
-                var preparationStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                var preparationStatus = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(
                     $"{character.Name} jelzi {preparingCharacter!.Name} számára: készülj a harcra! " +
                     $"Amíg hátul marad, az önmaga erősítése az elsődleges feladata.{preparationStatus}",
@@ -7610,7 +7610,7 @@ public sealed class Game : ISessionCommandHandler
                     FinishTeamCharacterMovement(battle, character);
                     break;
                 }
-                var passStatus = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                var passStatus = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(
                     $"{character.Name}\t⌛ Kivár.{passStatus}",
                     BattleLogKind.Information)]);
@@ -7626,7 +7626,7 @@ public sealed class Game : ISessionCommandHandler
                     return;
                 }
                 itemMessage +=
-                    _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                    _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(itemMessage, BattleLogKind.Information)]);
                 AdvanceTeamBattleTurn(battle);
                 break;
@@ -7644,7 +7644,7 @@ public sealed class Game : ISessionCommandHandler
                 battle.RecordAttack(BattleSide.Friendly);
                 if (turning.DamageToEnemy > 0) undead.ReceiveSpellDamage(turning.DamageToEnemy);
                 var turnMessage = turning.Message +
-                    _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                    _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(turnMessage, turning.Kind)]);
                 if (undead.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, undead, character);
                 AdvanceTeamBattleTurn(battle);
@@ -7689,7 +7689,7 @@ public sealed class Game : ISessionCommandHandler
         if (attempt.DamageToCurrentEnemy > 0) currentEnemy.ReceiveSpellDamage(attempt.DamageToCurrentEnemy);
         battle.GrantExtraActions(attempt.ExtraPlayerActions);
         var message = attempt.Message +
-                      _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                      _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(message, attempt.Kind, attempt.Details)]);
         SynchronizeTeamBattleDefeats(battle, character);
         AdvanceTeamBattleTurn(battle);
@@ -7748,7 +7748,7 @@ public sealed class Game : ISessionCommandHandler
         }
     }
 
-    private void ChooseTeamAiTactic(LiveCharacter character, TeamCharacterBattleRuntime runtime)
+    private void ChooseTeamAiTactic(LiveCharacter character, CharacterBattleChoices runtime)
     {
         var choices = character.CharacterClass.Id == CharacterClassIds.Harcos
             ? new[] { BattleTactic.FighterPrecise, BattleTactic.FighterPowerful, BattleTactic.FighterDefensive }
@@ -7792,7 +7792,7 @@ public sealed class Game : ISessionCommandHandler
             if (!attemptedUrgentPotion && character.CurrentVitality < character.MaximumVitality &&
                 TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 30, allowedWaste: 0))
                 return;
-            var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+            var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
             PresentBattleEntries([new BattleLogEntry(
                 $"💫 {character.Name} megingása miatt nem tud támadni vagy varázsolni.{statusText}",
                 BattleLogKind.Information)]);
@@ -7819,7 +7819,7 @@ public sealed class Game : ISessionCommandHandler
             return;
         if (battle.IsCharacterStaggered(character))
         {
-            var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+            var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
             PresentBattleEntries([new BattleLogEntry(
                 $"💫 {character.Name} megingott állapotban van, ezért nem tud közeledni.{statusText}",
                 BattleLogKind.Information)]);
@@ -7828,7 +7828,7 @@ public sealed class Game : ISessionCommandHandler
         }
         if (battle.HasActiveFormation && battle.FormationSlotFor(character) is not null)
         {
-            var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+            var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
             PresentBattleEntries([new BattleLogEntry(
                 $"{character.Name} tartja a helyét az alakzatban.{statusText}", BattleLogKind.Information)]);
             AdvanceTeamBattleTurn(battle);
@@ -7846,7 +7846,7 @@ public sealed class Game : ISessionCommandHandler
         if (backpackIndex is null || _random.Next(100) >= chancePercent ||
             !TryUseTeamBattleItem(battle, character, backpackIndex.Value, out var itemMessage))
             return false;
-        itemMessage += _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        itemMessage += _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(itemMessage, BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
         return true;
@@ -7862,7 +7862,7 @@ public sealed class Game : ISessionCommandHandler
             .FirstOrDefault(weapon => weapon is not null && weapon.WeaponTypeId != "WT003");
         if (!character.TrySwapReserveWeapon()) return false;
         var replacement = character.AttackWeapon;
-        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         _renderer.RefreshCharacterSheet(PartyLeader);
         var reason = unusableWeapon is null
             ? "használható aktív fegyver híján"
@@ -7884,7 +7884,7 @@ public sealed class Game : ISessionCommandHandler
         battle.RecordAttack(BattleSide.Friendly);
         if (turning.DamageToEnemy > 0) undead.ReceiveSpellDamage(turning.DamageToEnemy);
         var message = turning.Message +
-                      _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                      _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(message, turning.Kind)]);
         if (undead.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, undead, character);
         AdvanceTeamBattleTurn(battle);
@@ -8482,7 +8482,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void FinishNpcSpellcasterPositioning(TeamBattleEncounter battle, LiveCharacter caster, string action)
     {
-        var statusText = _battleSystem.FinishTeamCharacterAction(caster, battle.RuntimeFor(caster));
+        var statusText = _battleSystem.FinishCharacterAction(caster, battle.RuntimeFor(caster));
         PresentBattleEntries([new BattleLogEntry($"{caster.Name} {action}.{statusText}",
             BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
@@ -8525,7 +8525,7 @@ public sealed class Game : ISessionCommandHandler
         }
         battle.GrantExtraActions(attempt.ExtraPlayerActions);
         var message = attempt.Message +
-                      _battleSystem.FinishTeamCharacterAction(caster, battle.RuntimeFor(caster));
+                      _battleSystem.FinishCharacterAction(caster, battle.RuntimeFor(caster));
         PresentBattleEntries([new BattleLogEntry(message, attempt.Kind)]);
         SynchronizeTeamBattleDefeats(battle, caster);
         AdvanceTeamBattleTurn(battle);
@@ -8745,7 +8745,7 @@ public sealed class Game : ISessionCommandHandler
             var before = target.CurrentHitPoints;
             var damagePercent = TacticalTeamBattleCoordinator.SweepDamagePercent(character,
                 battle.RuntimeFor(character), secondaryTarget: index > 0);
-            var entry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character), target,
+            var entry = _battleSystem.ResolveCharacterAttack(character, battle.RuntimeFor(character), target,
                 finishAction: !dualWielding && index == targets.Count - 1, damagePercent: damagePercent,
                 positionalHitBonus: advantage.HitBonus, positionalAdvantage: advantage.Name,
                 tacticalBackstab: character.CharacterClass.Id == CharacterClassIds.Tolvaj &&
@@ -8781,7 +8781,7 @@ public sealed class Game : ISessionCommandHandler
                 if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), offhandTarget.Position))
                     battle.Engage(character, offhandTarget);
                 var before = offhandTarget.CurrentHitPoints;
-                var offhandEntry = _battleSystem.ResolveTeamCharacterAttack(character, battle.RuntimeFor(character),
+                var offhandEntry = _battleSystem.ResolveCharacterAttack(character, battle.RuntimeFor(character),
                     offhandTarget, finishAction: true, damagePercent: DualWieldingRules.OffhandDamagePercent,
                     positionalHitBonus: advantage.HitBonus, positionalAdvantage: advantage.Name,
                     attackWeapon: offhand, allowTriggeredExtraAttacks: false, allowAmbush: false,
@@ -8802,7 +8802,7 @@ public sealed class Game : ISessionCommandHandler
             }
             else
             {
-                var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+                var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
                 if (!string.IsNullOrEmpty(statusText))
                     PresentBattleEntries([new BattleLogEntry($"{character.Name}:{statusText}",
                         BattleLogKind.Information)]);
@@ -8874,7 +8874,7 @@ public sealed class Game : ISessionCommandHandler
             MonsterStrengthContestOutcome.Stagger => "meginog",
             _ => "ellenáll"
         };
-        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(
             $"🛡️ {character.Name} pajzzsal meglöki {target.Name} ellenfelet: {outcomeText}" +
             (result.Damage > 0 ? $", -{result.Damage} HP" : string.Empty) + $".{statusText}",
@@ -8925,7 +8925,7 @@ public sealed class Game : ISessionCommandHandler
                 .Take(activeAbility.MaximumTargets).ToArray();
             if (abilityTargets.Length > 0) battle.FaceEnemyToward(enemy, abilityTargets[0]);
             PresentBattleEntries(abilityTargets.Select((target, index) =>
-                _battleSystem.ResolveTeamEnemyAbility(enemy, target, battle.RuntimeFor(target), activeAbility,
+                _battleSystem.ResolveEnemyAbility(enemy, target, battle.RuntimeFor(target), activeAbility,
                     consumeResources: index == 0)).ToArray());
             battle.RecordAttack(BattleSide.Hostile);
             foreach (var target in abilityTargets.Where(target => !target.IsAlive))
@@ -9003,7 +9003,7 @@ public sealed class Game : ISessionCommandHandler
             if (TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target)))
                 battle.Engage(target, enemy);
             var meleeAttack = TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target));
-            var resolution = _battleSystem.ResolveTeamEnemyActionDetailed(enemy, target, battle.RuntimeFor(target),
+            var resolution = _battleSystem.ResolveEnemyActionDetailed(enemy, target, battle.RuntimeFor(target),
                 attackWeapon, advanceAttackerEffects: index == 0,
                 alliedGuardDefense: TacticalTeamBattleCoordinator.AlliedGuardDefense(
                     battle, target, GetCasterPosition));
@@ -9070,12 +9070,12 @@ public sealed class Game : ISessionCommandHandler
                     GetCasterPosition(retreatingCharacter)))
                 .OrderByDescending(enemy => enemy.EffectiveSpeed).FirstOrDefault();
             if (attacker is null) continue;
-            var entry = _battleSystem.ResolveTeamOpportunityAttack(attacker, retreatingCharacter,
+            var entry = _battleSystem.ResolveEnemyAttackOnRetreatingCharacter(attacker, retreatingCharacter,
                 battle.RuntimeFor(retreatingCharacter));
             PresentBattleEntries([entry]);
             if (!retreatingCharacter.IsAlive) ResolveTeamCharacterDefeat(battle, retreatingCharacter);
         }
-        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         if (!string.IsNullOrEmpty(statusText))
             PresentBattleEntries([new BattleLogEntry($"{character.Name} visszavonulási kísérlete.{statusText}",
                 BattleLogKind.Information)]);
@@ -9579,7 +9579,7 @@ public sealed class Game : ISessionCommandHandler
                 _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous[member], destination, revealed,
                     _player.Position);
         }
-        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry($"{character.Name} egy mezővel mozgatja az egész alakzatot.{statusText}",
             BattleLogKind.Information)]);
         AdvanceTeamBattleTurn(battle);
@@ -9607,7 +9607,7 @@ public sealed class Game : ISessionCommandHandler
         _formation = battle.Formation!;
         _renderer.CharacterSheet.SetFormationStatus(_formation);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         var transferText = transferredEngagements == 0
             ? string.Empty
             : $" {rear.Name} {transferredEngagements} lekötést átvett.";
@@ -9699,7 +9699,7 @@ public sealed class Game : ISessionCommandHandler
             }
         }
         if (!finishAction) return;
-        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         var message = steps.Length > 0
             ? $"{character.Name}\t👣 {steps.Length} mezőt mozog{statusText}"
             : $"{character.Name}\t⛔ Nincs járható út{statusText}";
@@ -9721,7 +9721,7 @@ public sealed class Game : ISessionCommandHandler
 
     private void FinishTeamCharacterMovement(TeamBattleEncounter battle, LiveCharacter character)
     {
-        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(
             $"{character.Name}\t👣 {_teamMovementSteps} mezőt mozog{statusText}", BattleLogKind.Information)]);
         ResetTeamMovement();

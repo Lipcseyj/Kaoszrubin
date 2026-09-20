@@ -976,6 +976,8 @@ public sealed class MainMenu
             Text("☠️ Mérgezés: minden saját támadási kör végén 1–4 páncélt figyelmen kívül hagyó sebzés; 6 aktiválódás után elmúlik."),
             Text("🤒 Betegség: a maximális HP és manna 80%-ra, a visszatöltésük 50%-ra csökken. Nem múlik el magától."),
             Text("🩸 Vérzés: minden saját támadási kör végén 1–3 páncélt figyelmen kívül hagyó sebzés; 4 aktiválódás után elmúlik."),
+            Text("🗿 Kődermedtség: a megkövülő test két saját akcióig 3 ponttal rontja a találatot és a fizikai sebzést."),
+            Text("😱 Rettegés: a természetfeletti félelem két saját akcióig 2 ponttal rontja a kezdeményezést és a találatot."),
             Blank(),
             Section("BUFFOK ÉS IDŐTARTAM", ConsoleColor.Magenta),
             Text("Akció: csatában a karakter saját köre; térképen ugyanazon karakter minden 10. sikeres lépése."),

@@ -155,7 +155,7 @@ public sealed class TacticalTeamBattleCoordinator
         return TacticalAttackAdvantage.Front;
     }
 
-    public static int SweepDamagePercent(LiveCharacter character, TeamCharacterBattleRuntime runtime,
+    public static int SweepDamagePercent(LiveCharacter character, CharacterBattleChoices runtime,
         bool secondaryTarget)
     {
         if (!secondaryTarget) return 100;
@@ -418,20 +418,20 @@ public sealed class TacticalTeamBattleCoordinator
             CharacterClassIds.Harcos =>
             [
                 new(BattleActionKind.FighterPrecise, "🎯 Pontos", "nagyobb találati esély, kisebb sebzés",
-                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPrecise)),
+                    _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.FighterPrecise)),
                 new(BattleActionKind.FighterPowerful, "💥 Erőteljes", "páncéltörés és nagyobb sebzés",
-                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterPowerful)),
+                    _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.FighterPowerful)),
                 new(BattleActionKind.FighterDefensive, "🛡️ Védekező", "nagyobb védelem, kisebb sebzés",
-                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.FighterDefensive))
+                    _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.FighterDefensive))
             ],
             CharacterClassIds.Tolvaj =>
             [
                 new(BattleActionKind.ThiefAmbush, "🗡️ Orvtámadás", "első találat ×2; tőrrel hátsó sorból is, hátba kerülve ismételhető",
-                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.ThiefAmbush)),
+                    _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.ThiefAmbush)),
                 new(BattleActionKind.ThiefObserve, "👁️ Megfigyelés", "+2 találat",
-                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.ThiefObserve)),
+                    _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.ThiefObserve)),
                 new(BattleActionKind.ThiefPoison, "☠️ Mérgezett penge", "+1–4 sebzés találatonként",
-                    _battleSystem.EstimatePlayerHitChance(character, enemy, BattleTactic.ThiefPoison))
+                    _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.ThiefPoison))
             ],
             _ => null
         };

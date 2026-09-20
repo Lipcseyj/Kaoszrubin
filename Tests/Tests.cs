@@ -1074,9 +1074,9 @@ static void WeaponProficienciesAreLimitedEffectiveAndPersisted()
     Assert(fighter.EquipWeapon(0, sword), "A tesztkarakter nem tudta felszerelni a hosszú kardot.");
     var system = CreateBattleSystem(2201);
     var enemy = CreateEnemy(100, 1, speed: 8);
-    var before = system.EstimatePlayerHitChance(fighter, enemy, BattleTactic.FighterDefensive);
+    var before = system.EstimateCharacterHitChance(fighter, enemy, BattleTactic.FighterDefensive);
     Assert(fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Sword), "A Kard Jártas fok nem volt választható.");
-    var after = system.EstimatePlayerHitChance(fighter, enemy, BattleTactic.FighterDefensive);
+    var after = system.EstimateCharacterHitChance(fighter, enemy, BattleTactic.FighterDefensive);
     Assert(after == before + 5, "A Kard Jártas fok nem adott +1, azaz 5 százalékpont találati esélyt.");
     Assert(fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Sword) &&
            fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Shield) &&
@@ -1707,9 +1707,9 @@ static void FighterTacticHitChancesUseCombatFormula()
     var system = CreateBattleSystem(1701);
     var fighter = CreateCharacter("Harcos", characterClassId: CharacterClassIds.Harcos);
     var enemy = CreateEnemy(100, 1, speed: 8);
-    var precise = system.EstimatePlayerHitChance(fighter, enemy, BattleTactic.FighterPrecise);
-    var powerful = system.EstimatePlayerHitChance(fighter, enemy, BattleTactic.FighterPowerful);
-    var defensive = system.EstimatePlayerHitChance(fighter, enemy, BattleTactic.FighterDefensive);
+    var precise = system.EstimateCharacterHitChance(fighter, enemy, BattleTactic.FighterPrecise);
+    var powerful = system.EstimateCharacterHitChance(fighter, enemy, BattleTactic.FighterPowerful);
+    var defensive = system.EstimateCharacterHitChance(fighter, enemy, BattleTactic.FighterDefensive);
     Assert(precise == defensive + 10 && defensive == powerful + 5,
         $"A taktikai módosítók nem +2/0/-1 arányban változtatják az esélyt: {precise}/{defensive}/{powerful}%.");
 
@@ -1720,9 +1720,9 @@ static void FighterTacticHitChancesUseCombatFormula()
         new PrimaryAbilities(5, 100, 5, 5), 20, 0, 1, 0);
     var nearlyImpossible = new LiveCharacter("Esélytelen", race, fighterClass,
         new PrimaryAbilities(5, -100, 5, 5), 20, 0, 1, 0);
-    Assert(system.EstimatePlayerHitChance(nearlyCertain, enemy, BattleTactic.FighterPrecise) == 95,
+    Assert(system.EstimateCharacterHitChance(nearlyCertain, enemy, BattleTactic.FighterPrecise) == 95,
         "A természetes 1 nem korlátozza 95%-ra a találati esélyt.");
-    Assert(system.EstimatePlayerHitChance(nearlyImpossible, enemy, BattleTactic.FighterPowerful) == 5,
+    Assert(system.EstimateCharacterHitChance(nearlyImpossible, enemy, BattleTactic.FighterPowerful) == 5,
         "A természetes 20 nem biztosít legalább 5% találati esélyt.");
 }
 
@@ -3022,13 +3022,13 @@ static void CombatAppliesEquipmentWear()
     Assert(attacker.EquipWeapon(0, weapon), "A kopási teszt fegyvere nem volt felszerelhető.");
     var enemy = CreateEnemy(10000, 1);
     var attackSystem = CreateBattleSystem(17);
-    var attackerRuntime = attackSystem.PrepareTeamCharacter(attacker).Runtime;
+    var attackerRuntime = attackSystem.PrepareCharacter(attacker).Runtime;
     var observedWeaponHits = 0;
     for (var attempt = 0; attempt < 40 && observedWeaponHits < 3; attempt++)
     {
         var before = attacker.GetInventoryItemState(InventorySlotKind.Weapon, 0)!.Value.DurabilityDamage;
         var enemyVitalityBefore = enemy.CurrentHitPoints;
-        var entry = attackSystem.ResolveTeamCharacterAttack(attacker, attackerRuntime, enemy,
+        var entry = attackSystem.ResolveCharacterAttack(attacker, attackerRuntime, enemy,
             finishAction: false);
         var after = attacker.GetInventoryItemState(InventorySlotKind.Weapon, 0)!.Value.DurabilityDamage;
         var hit = enemy.CurrentHitPoints < enemyVitalityBefore;
@@ -3049,7 +3049,7 @@ static void CombatAppliesEquipmentWear()
     BattleLogEntry? weaponBreak = null;
     for (var attempt = 0; attempt < 40 && weaponBreak is null; attempt++)
     {
-        var entry = attackSystem.ResolveTeamCharacterAttack(attacker, attackerRuntime, enemy,
+        var entry = attackSystem.ResolveCharacterAttack(attacker, attackerRuntime, enemy,
             finishAction: false);
         if (entry.FollowUps?.Any(notice => notice.Message.Contains("eltört", StringComparison.OrdinalIgnoreCase)) == true)
             weaponBreak = entry;
@@ -3067,13 +3067,13 @@ static void CombatAppliesEquipmentWear()
         "A kopási teszt páncélja vagy pajzsa nem volt felszerelhető.");
     var armoredEnemy = CreateEnemy(10000, 5);
     var defenseSystem = CreateBattleSystem(29);
-    var defenderRuntime = defenseSystem.PrepareTeamCharacter(defender).Runtime;
+    var defenderRuntime = defenseSystem.PrepareCharacter(defender).Runtime;
     var observedArmorHits = 0;
     for (var attempt = 0; attempt < 40 && observedArmorHits < 3; attempt++)
     {
         var armorBefore = defender.GetInventoryItemState(InventorySlotKind.Armor, 0)!.Value.DurabilityDamage;
         var shieldBefore = defender.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage;
-        var resolution = defenseSystem.ResolveTeamEnemyActionDetailed(armoredEnemy, defender, defenderRuntime);
+        var resolution = defenseSystem.ResolveEnemyActionDetailed(armoredEnemy, defender, defenderRuntime);
         var armorAfter = defender.GetInventoryItemState(InventorySlotKind.Armor, 0)!.Value.DurabilityDamage;
         var shieldAfter = defender.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage;
         var expectedWear = resolution.Hit ? resolution.Entry.Kind == BattleLogKind.CriticalHit ? 2 : 1 : 0;
@@ -3104,11 +3104,11 @@ static void CombatAppliesEquipmentWear()
     var breakingEnemy = new ConfiguredEnemy(new Position(1, 1),
         CreateEnemy(10000, 5, speed: 100).Definition);
     var breakingSystem = CreateBattleSystem(31);
-    var breakingRuntime = breakingSystem.PrepareTeamCharacter(breakingDefender).Runtime;
+    var breakingRuntime = breakingSystem.PrepareCharacter(breakingDefender).Runtime;
     var defensiveBreakNotices = new List<BattleLogNotice>();
     for (var attempt = 0; attempt < 40 && defensiveBreakNotices.Count < 2; attempt++)
     {
-        var resolution = breakingSystem.ResolveTeamEnemyActionDetailed(
+        var resolution = breakingSystem.ResolveEnemyActionDetailed(
             breakingEnemy, breakingDefender, breakingRuntime, breakingEnemyWeapon);
         if (resolution.Entry.FollowUps is { } followUps) defensiveBreakNotices.AddRange(followUps);
     }
@@ -3133,7 +3133,7 @@ static void AcidAndChaosCauseSpecialEquipmentWear()
     var shield = data.GetWeapon("W014");
     var weapon = data.GetWeapon("W001");
 
-    (TeamEnemyAttackResolution Resolution, int ArmorWear, int ShieldWear, int WeaponWear) ResolveHit(
+    (EnemyAttackResolution Resolution, int ArmorWear, int ShieldWear, int WeaponWear) ResolveHit(
         DamageType damageType, int seed)
     {
         var defender = CreateCharacter($"{damageType.Name()} célpont", 1000);
@@ -3148,10 +3148,10 @@ static void AcidAndChaosCauseSpecialEquipmentWear()
         var enemy = new ConfiguredEnemy(new Position(1, 1),
             CreateEnemy(10000, 5, speed: 100).Definition);
         var system = CreateBattleSystem(seed);
-        var runtime = system.PrepareTeamCharacter(defender).Runtime;
+        var runtime = system.PrepareCharacter(defender).Runtime;
         for (var attempt = 0; attempt < 40; attempt++)
         {
-            var resolution = system.ResolveTeamEnemyActionDetailed(enemy, defender, runtime, attackWeapon);
+            var resolution = system.ResolveEnemyActionDetailed(enemy, defender, runtime, attackWeapon);
             if (!resolution.Hit) continue;
             return (resolution,
                 defender.GetInventoryItemState(InventorySlotKind.Armor, 0)!.Value.DurabilityDamage,
@@ -3444,7 +3444,7 @@ static void DamagedAndBrokenEquipmentAffectsCombat()
             "Az állapotteszt fegyvere nem volt felszerelhető.");
 
         var system = CreateBattleSystem(41);
-        var runtime = system.PrepareTeamCharacter(character).Runtime;
+        var runtime = system.PrepareCharacter(character).Runtime;
         var enemy = CreateEnemy(100000, 1);
 
         BattleLogEntry? firstHit = null;
@@ -3453,7 +3453,7 @@ static void DamagedAndBrokenEquipmentAffectsCombat()
         {
             var before = enemy.CurrentHitPoints;
 
-            var entry = system.ResolveTeamCharacterAttack(
+            var entry = system.ResolveCharacterAttack(
                 character,
                 runtime,
                 enemy,
@@ -3553,11 +3553,11 @@ static void DamagedAndBrokenEquipmentAffectsCombat()
             enemyDefinition);
 
         var system = CreateBattleSystem(67);
-        var runtime = system.PrepareTeamCharacter(defender).Runtime;
+        var runtime = system.PrepareCharacter(defender).Runtime;
 
         for (var attack = 0; attack < 100; attack++)
         {
-            system.ResolveTeamEnemyAction(
+            system.ResolveEnemyAction(
                 enemy,
                 defender,
                 runtime,
@@ -4814,11 +4814,11 @@ static void CompositeMonsterAbilityAppliesAllEffects()
     var enemy = new ConfiguredEnemy(new Position(1, 1), definition);
     var target = CreateCharacter("Sugárcél", vitality: 100);
     var battle = new BattleSystem(new Random(1), [ability], data.Statuses, data.StrengthHitBonuses);
-    var runtime = battle.PrepareTeamCharacter(target).Runtime;
+    var runtime = battle.PrepareCharacter(target).Runtime;
     battle.PrepareEnemyForBattle(enemy);
 
     var before = target.CurrentVitality;
-    var result = battle.ResolveTeamEnemyAbility(enemy, target, runtime, ability);
+    var result = battle.ResolveEnemyAbility(enemy, target, runtime, ability);
 
     Assert(target.HasStatus("STATUS006") && target.CurrentVitality == before - 4 &&
            enemy.RemainingAbilityCharges.GetValueOrDefault("MA012") == 1 &&
@@ -4838,14 +4838,14 @@ static void MonsterAbilityRespectsWeaponBinding()
         Weapons: [dagger, fangs]));
     var target = CreateCharacter("Kötési cél", vitality: 500);
     var battle = new BattleSystem(new Random(2), [poison], data.Statuses, data.StrengthHitBonuses);
-    var runtime = battle.PrepareTeamCharacter(target).Runtime;
+    var runtime = battle.PrepareCharacter(target).Runtime;
 
-    for (var i = 0; i < 20; i++) battle.ResolveTeamEnemyAction(enemy, target, runtime, dagger);
+    for (var i = 0; i < 20; i++) battle.ResolveEnemyAction(enemy, target, runtime, dagger);
     Assert(!target.HasStatus(CharacterStatusIds.Poisoned),
         "A mérgezés a hozzá nem kötött tőrrel is aktiválódott.");
 
     for (var i = 0; i < 20 && !target.HasStatus(CharacterStatusIds.Poisoned); i++)
-        battle.ResolveTeamEnemyAction(enemy, target, runtime, fangs);
+        battle.ResolveEnemyAction(enemy, target, runtime, fangs);
     Assert(target.HasStatus(CharacterStatusIds.Poisoned),
         "A mérgezés a hozzá kötött méregfogakkal sem aktiválódott.");
 }
@@ -5262,7 +5262,7 @@ static void TeamBattleOpeningOrderUsesInitiative()
     var system = CreateBattleSystem(1720);
     var slower = CreateCharacter("Lassabb");
     var fasterEnemy = CreateEnemyAt(new Position(2, 1), "OPENING-FAST-ENEMY");
-    var preparation = system.PrepareTeamCharacter(slower);
+    var preparation = system.PrepareCharacter(slower);
     var normal = new TeamBattleEncounter(new Position(1, 1),
         [new TeamCharacterParticipant(slower, new Position(1, 1), TacticalParticipantKind.PartyMember,
             4, 3, 1, preparation.Runtime)],
@@ -5274,7 +5274,7 @@ static void TeamBattleOpeningOrderUsesInitiative()
 
     var faster = CreateCharacter("Gyorsabb");
     var ambusher = CreateEnemyAt(new Position(4, 3), "OPENING-AMBUSHER");
-    var ambushPreparation = system.PrepareTeamCharacter(faster);
+    var ambushPreparation = system.PrepareCharacter(faster);
     var ambush = new TeamBattleEncounter(new Position(3, 3),
         [new TeamCharacterParticipant(faster, new Position(3, 3), TacticalParticipantKind.PartyMember,
             20, 3, 1, ambushPreparation.Runtime)],
@@ -5294,8 +5294,8 @@ static void FirstStrikeUsesSeparateOpeningInitiative()
             "Teszt", CharacterClassIds.Harcos, 1)),
         "A tesztkarakter nem kapta meg az Első csapás tehetséget.");
 
-    var normalPreparation = CreateBattleSystem(1721).PrepareTeamCharacter(normalCharacter);
-    var firstStrikePreparation = CreateBattleSystem(1721).PrepareTeamCharacter(firstStrikeCharacter);
+    var normalPreparation = CreateBattleSystem(1721).PrepareCharacter(normalCharacter);
+    var firstStrikePreparation = CreateBattleSystem(1721).PrepareCharacter(firstStrikeCharacter);
     Assert(firstStrikePreparation.Initiative == normalPreparation.Initiative + 2 &&
            firstStrikePreparation.OpeningInitiative == normalPreparation.OpeningInitiative + 10 &&
            firstStrikePreparation.OpeningInitiative == firstStrikePreparation.Initiative + 8,
@@ -5323,7 +5323,7 @@ static void SpellEffectsReorderInitiativeAtCycleBoundary()
     var system = CreateBattleSystem(1722);
     var character = CreateCharacter("Gyorsított");
     var enemy = CreateEnemy(20, 2, speed: 7);
-    var preparation = system.PrepareTeamCharacter(character);
+    var preparation = system.PrepareCharacter(character);
     var encounter = new TeamBattleEncounter(new Position(1, 1),
         [new TeamCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
             5, 3, 1, preparation.Runtime)],
@@ -5368,7 +5368,7 @@ static void StatusPenaltyReordersInitiativeAtCycleBoundary()
     var system = CreateBattleSystem(1723);
     var character = CreateCharacter("Rémült");
     var enemy = CreateEnemy(20, 2, speed: 7);
-    var preparation = system.PrepareTeamCharacter(character);
+    var preparation = system.PrepareCharacter(character);
     var encounter = new TeamBattleEncounter(new Position(1, 1),
         [new TeamCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
             8, 3, 1, preparation.Runtime)],
@@ -5430,7 +5430,7 @@ static void TeamBattleDetectsInactiveSide()
     var system = CreateBattleSystem(1710);
     var character = CreateCharacter("Aktivitás");
     var enemy = CreateEnemy(20, 2);
-    var preparation = system.PrepareTeamCharacter(character);
+    var preparation = system.PrepareCharacter(character);
     var encounter = new TeamBattleEncounter(new Position(1, 1),
         [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
@@ -5610,12 +5610,12 @@ static void TeamBattleAttackUsesExistingCombatRules()
 {
     var system = CreateBattleSystem(1701);
     var fighter = CreateCharacter("Csapatharcos", 30);
-    var preparation = system.PrepareTeamCharacter(fighter);
+    var preparation = system.PrepareCharacter(fighter);
     Assert(preparation.Runtime.TryChooseTactic(fighter, BattleTactic.FighterPrecise),
         "A harcos nem tudta kiválasztani a meglévő pontos taktikát.");
     var enemy = CreateEnemy(30, 2, 1);
-    system.BeginTeamCharacterTurn(fighter);
-    var entry = system.ResolveTeamCharacterAttack(fighter, preparation.Runtime, enemy);
+    system.BeginCharacterTurn(fighter);
+    var entry = system.ResolveCharacterAttack(fighter, preparation.Runtime, enemy);
     Assert(entry.Message.Contains(fighter.Name, StringComparison.Ordinal) &&
            entry.Message.Contains(enemy.Name, StringComparison.Ordinal) &&
            !entry.Message.Contains("1. akció", StringComparison.Ordinal) && enemy.CurrentHitPoints <= 30 &&
@@ -5630,7 +5630,7 @@ static void TeamBattleEngagementLastsUntilEnemyDeath()
     var system = CreateBattleSystem(1702);
     var character = CreateCharacter("Lekötött hős");
     var enemy = CreateEnemy(20, 2);
-    var preparation = system.PrepareTeamCharacter(character);
+    var preparation = system.PrepareCharacter(character);
     var encounter = new TeamBattleEncounter(new Position(1, 1),
         [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
@@ -5666,8 +5666,8 @@ static void MonsterStrengthCreatesTacticalPressure()
         "A pajzsos Erőpróba-teszt felszerelése sikertelen.");
     var plainSystem = CreateBattleSystem(1712);
     var bracedSystem = CreateBattleSystem(1712);
-    var plainRuntime = plainSystem.PrepareTeamCharacter(plainDefender).Runtime;
-    var bracedRuntime = bracedSystem.PrepareTeamCharacter(bracedDefender).Runtime;
+    var plainRuntime = plainSystem.PrepareCharacter(plainDefender).Runtime;
+    var bracedRuntime = bracedSystem.PrepareCharacter(bracedDefender).Runtime;
     Assert(bracedRuntime.TryChooseTactic(bracedDefender, BattleTactic.FighterDefensive),
         "A védekező állás nem volt kiválasztható az Erőpróba tesztjében.");
     var plain = plainSystem.ResolveMonsterStrengthContest(attacker, plainDefender, plainRuntime);
@@ -5689,7 +5689,7 @@ static void MonsterStrengthCreatesTacticalPressure()
     Assert(sturdyDefender.EquipWeapon(0, data.GetWeapon("W004")) &&
            sturdyDefender.EquipWeapon(1, data.GetWeapon("W014")),
         "A szívós pajzsos tesztkarakter felszerelése sikertelen.");
-    var sturdyRuntime = CreateBattleSystem(0).PrepareTeamCharacter(sturdyDefender).Runtime;
+    var sturdyRuntime = CreateBattleSystem(0).PrepareCharacter(sturdyDefender).Runtime;
     var kobold = CreateEnemy(30, 3);
     Assert(Enumerable.Range(0, 200).All(seed =>
             CreateBattleSystem(seed).ResolveMonsterStrengthContest(kobold, sturdyDefender, sturdyRuntime).Outcome ==
@@ -5697,7 +5697,7 @@ static void MonsterStrengthCreatesTacticalPressure()
         "A 3-as Erővel rendelkező kobold szerencsével megtántoríthatta a 10-es Egészségű pajzsost.");
 
     var ordinaryDefender = CreateCharacter("Átlagos", 100);
-    var ordinaryRuntime = CreateBattleSystem(0).PrepareTeamCharacter(ordinaryDefender).Runtime;
+    var ordinaryRuntime = CreateBattleSystem(0).PrepareCharacter(ordinaryDefender).Runtime;
     var strongMonster = CreateEnemy(100, 16);
     var strongOutcomes = Enumerable.Range(0, 200).Select(seed =>
         CreateBattleSystem(seed).ResolveMonsterStrengthContest(strongMonster, ordinaryDefender,
@@ -5725,7 +5725,7 @@ static void MonsterStrengthCreatesTacticalPressure()
     var character = CreateCharacter("Tántorgó", characterClassId: CharacterClassIds.Barbár);
     var enemy = CreateEnemyAt(new Position(8, 8), "E-STRENGTH");
     var system = CreateBattleSystem(1713);
-    var preparation = system.PrepareTeamCharacter(character);
+    var preparation = system.PrepareCharacter(character);
     var encounter = new TeamBattleEncounter(new Position(3, 3),
         [new TeamCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
             100, 3, 1, preparation.Runtime)],
@@ -5811,7 +5811,7 @@ static void RearCombatPreparationIsLeaderControlled()
     var enemy = CreateEnemyAt(new Position(3, 2), "E-PREPARE");
     TeamCharacterParticipant Participant(LiveCharacter member, Position position)
     {
-        var prepared = system.PrepareTeamCharacter(member);
+        var prepared = system.PrepareCharacter(member);
         return new TeamCharacterParticipant(member, position, TacticalParticipantKind.PartyMember,
             prepared.Initiative, 3, 1, prepared.Runtime);
     }
@@ -5871,7 +5871,7 @@ static void TeamBattleAiHealingPotionAvoidsWaste()
         "A gyógyital-választási teszt készlete nem fért el a hátizsákban.");
     character.SetCurrentResources(95, 0);
     var enemy = CreateEnemyAt(new Position(8, 8), "E-POTION");
-    var prepared = system.PrepareTeamCharacter(character);
+    var prepared = system.PrepareCharacter(character);
     var encounter = new TeamBattleEncounter(new Position(3, 3),
         [new TeamCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
             prepared.Initiative, 3, 1, prepared.Runtime)],
@@ -5966,8 +5966,8 @@ static (TeamBattleEncounter Encounter, LiveCharacter Front, LiveCharacter Rear, 
     var front = CreateCharacter("Első sor");
     var rear = CreateCharacter("Hátsó sor");
     var enemy = CreateEnemyAt(new Position(3, 2), "E-FORMATION");
-    var frontPreparation = system.PrepareTeamCharacter(front);
-    var rearPreparation = system.PrepareTeamCharacter(rear);
+    var frontPreparation = system.PrepareCharacter(front);
+    var rearPreparation = system.PrepareCharacter(rear);
     var formation = new PartyFormationSnapshot(front.Id, null, rear.Id, null,
         Direction.Up, PartyFormationState.Locked, layout);
     var encounter = new TeamBattleEncounter(new Position(3, 3),
@@ -5987,7 +5987,7 @@ static void TeamBattleTargetCanBeChanged()
     var character = CreateCharacter("Célpontváltó");
     var firstEnemy = CreateEnemy(20, 2);
     var secondEnemy = CreateEnemy(20, 2);
-    var preparation = system.PrepareTeamCharacter(character);
+    var preparation = system.PrepareCharacter(character);
     var encounter = new TeamBattleEncounter(new Position(1, 1),
         [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
@@ -6244,7 +6244,7 @@ static void TeamBattleStoresNpcSpellMemory()
     var system = CreateBattleSystem(1801);
     var caster = CreateCharacter("Memóriamágus", characterClassId: CharacterClassIds.Mágus);
     var enemy = CreateNpcSpellTestEnemy("MEMORY-TARGET", 30, 2, new Position(2, 1));
-    var preparation = system.PrepareTeamCharacter(caster);
+    var preparation = system.PrepareCharacter(caster);
     var battle = new TeamBattleEncounter(new Position(1, 1),
         [new TeamCharacterParticipant(caster, new Position(1, 1), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
@@ -6299,7 +6299,7 @@ static void TeamBattleReinforcementJoinsNextCycle()
     var character = CreateCharacter("Erősítéspróba");
     var enemy = CreateEnemy(20, 2);
     var reinforcement = CreateEnemy(20, 2);
-    var preparation = system.PrepareTeamCharacter(character);
+    var preparation = system.PrepareCharacter(character);
     var encounter = new TeamBattleEncounter(new Position(1, 1),
         [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
@@ -6490,7 +6490,7 @@ static void TurnUndeadRefreshesAfterTenRounds()
     var definition = CreateEnemy(1000, 5).Definition with { Traits = EnemyTraits.Undead };
     var undead = new ConfiguredEnemy(new Position(3, 1), definition);
     TeamCharacterParticipant Participant(LiveCharacter character, Position cell) => new(character, cell,
-        TacticalParticipantKind.PartyMember, 10, 3, 1, system.PrepareTeamCharacter(character).Runtime);
+        TacticalParticipantKind.PartyMember, 10, 3, 1, system.PrepareCharacter(character).Runtime);
     var battle = new TeamBattleEncounter(position,
         [Participant(priest, position), Participant(knight, new Position(4, 3))],
         [new TeamEnemyParticipant(undead, 5, 2, 1)], priest.Id, undead.Id);
@@ -6551,7 +6551,7 @@ static void TurnUndeadHasTwoCellRange()
         var system = CreateBattleSystem(1811);
         var battle = new TeamBattleEncounter(origin,
             [new TeamCharacterParticipant(character, origin, TacticalParticipantKind.PartyMember,
-                10, 3, 1, system.PrepareTeamCharacter(character).Runtime)],
+                10, 3, 1, system.PrepareCharacter(character).Runtime)],
             new[] { near, far, alive }.Select(enemy => new TeamEnemyParticipant(enemy, 5, 2, 1)),
             character.Id, near.Id);
         Assert(TacticalTeamBattleCoordinator.TurnUndeadTargets(battle, character, origin).SequenceEqual([near]),
@@ -6580,8 +6580,8 @@ static void RearPriestCanTurnFrontEngagedUndead()
     var undead = CreateEnemyAt(new Position(3, 2), "E-REAR-UNDEAD");
     var undeadDefinition = undead.Definition with { Traits = EnemyTraits.Undead };
     undead = new ConfiguredEnemy(new Position(3, 2), undeadDefinition);
-    var frontPreparation = system.PrepareTeamCharacter(front);
-    var priestPreparation = system.PrepareTeamCharacter(priest);
+    var frontPreparation = system.PrepareCharacter(front);
+    var priestPreparation = system.PrepareCharacter(priest);
     var formation = new PartyFormationSnapshot(front.Id, null, priest.Id, null,
         Direction.Up, PartyFormationState.Locked);
     var battle = new TeamBattleEncounter(new Position(3, 3),
@@ -6633,7 +6633,7 @@ static void TacticalAttackArcsUseEnemyFacing()
     var enemy = CreateEnemyAt(new Position(3, 3), "E-FACING");
     var participants = attackers.Select(attacker =>
     {
-        var preparation = system.PrepareTeamCharacter(attacker.Character);
+        var preparation = system.PrepareCharacter(attacker.Character);
         return new TeamCharacterParticipant(attacker.Character, attacker.Position,
             TacticalParticipantKind.PartyMember, preparation.Initiative, 3, 1, preparation.Runtime);
     }).ToArray();
@@ -6669,8 +6669,8 @@ static void ThiefCanBackstabFromRearFormation()
     var thief = CreateCharacter("Orvtámadó", characterClassId: CharacterClassIds.Tolvaj);
     Assert(thief.EquipWeapon(0, data.GetWeapon("W001")), "A tolvaj nem tudta felszerelni a tőrt.");
     var enemy = CreateEnemyAt(new Position(3, 2), "E-REAR-THIEF");
-    var frontPreparation = system.PrepareTeamCharacter(front);
-    var thiefPreparation = system.PrepareTeamCharacter(thief);
+    var frontPreparation = system.PrepareCharacter(front);
+    var thiefPreparation = system.PrepareCharacter(thief);
     var formation = new PartyFormationSnapshot(front.Id, null, thief.Id, null,
         Direction.Up, PartyFormationState.Locked);
     var battle = new TeamBattleEncounter(new Position(3, 3),
@@ -6685,7 +6685,7 @@ static void ThiefCanBackstabFromRearFormation()
     Assert(thiefPreparation.Runtime.TryChooseTactic(thief, BattleTactic.ThiefAmbush) &&
            battle.RearFormationEnemiesInReach(thief).SequenceEqual([enemy]),
         "Az Orvtámadás nem nyitotta meg a hátsó sori tőrtámadást.");
-    var entry = system.ResolveTeamCharacterAttack(thief, thiefPreparation.Runtime, enemy,
+    var entry = system.ResolveCharacterAttack(thief, thiefPreparation.Runtime, enemy,
         tacticalBackstab: true);
     Assert(entry.Details?.Calculation.Any(line => line.Contains("Hátbatámadás: Orvtámadás",
                StringComparison.Ordinal)) == true,
@@ -6782,7 +6782,7 @@ static void LoadedDeveloperBattleCreatesRecoveryLog()
     var system = CreateBattleSystem(4210);
     var character = CreateCharacter("Loghős");
     var enemy = CreateNpcSpellTestEnemy("LOG-ENEMY", 30, 2, new Position(2, 1));
-    var preparation = system.PrepareTeamCharacter(character);
+    var preparation = system.PrepareCharacter(character);
     var battle = new TeamBattleEncounter(new Position(1, 1),
         [new TeamCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
@@ -6842,7 +6842,7 @@ static void KnightBattleWeaponSwapCommandIsAccepted()
     var party = new Party(); party.SetLeader(knight);
     var session = new GameSession(party, knight);
     var system = CreateBattleSystem(42);
-    var preparation = system.PrepareTeamCharacter(knight);
+    var preparation = system.PrepareCharacter(knight);
     var rat = new ConfiguredEnemy(new(3, 2), data.GetEnemy("E001"));
     var battle = new TeamBattleEncounter(new(3, 3),
         [new TeamCharacterParticipant(knight, new(3, 3), TacticalParticipantKind.PartyMember,
@@ -6894,7 +6894,7 @@ static void TacticalWeaponMasteriesHaveDistinctRoles()
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var fighter = CreateCharacter("Taktikus", characterClassId: CharacterClassIds.Harcos);
     var system = CreateBattleSystem(7);
-    var runtime = system.PrepareTeamCharacter(fighter).Runtime;
+    var runtime = system.PrepareCharacter(fighter).Runtime;
     Assert(runtime.TryChooseTactic(fighter, BattleTactic.FighterPowerful) &&
            TacticalTeamBattleCoordinator.SweepDamagePercent(fighter, runtime, true) == 100,
         "Az Erőteljes állás nem ad teljes erejű söprést.");
@@ -6914,8 +6914,8 @@ static void TacticalWeaponMasteriesHaveDistinctRoles()
            swordMaster.TryAdvanceWeaponProficiency(WeaponFamilies.Sword) &&
            swordMaster.TryAdvanceWeaponProficiency(WeaponFamilies.Sword),
         "A kardmester tesztfelszerelése hibás.");
-    var swordPreparation = system.PrepareTeamCharacter(swordMaster);
-    var allyPreparation = system.PrepareTeamCharacter(protectedAlly);
+    var swordPreparation = system.PrepareCharacter(swordMaster);
+    var allyPreparation = system.PrepareCharacter(protectedAlly);
     var guardEnemy = CreateEnemyAt(new Position(2, 1), "SWORD-GUARD");
     var guardBattle = new TeamBattleEncounter(new Position(1, 1),
         [new TeamCharacterParticipant(swordMaster, new Position(1, 1), TacticalParticipantKind.PartyMember,
@@ -6999,7 +6999,7 @@ static void WeaponFamiliesUseDistinctAttackPatterns()
         var secondary = CreateEnemyAt(secondaryPosition, $"{weaponId}-SECONDARY");
         var decoyPosition = weaponId == "W011" ? new Position(4, 2) : new Position(3, 4);
         var decoy = CreateEnemyAt(decoyPosition, $"{weaponId}-DECOY");
-        var preparation = CreateBattleSystem(1803).PrepareTeamCharacter(character);
+        var preparation = CreateBattleSystem(1803).PrepareCharacter(character);
         var battle = new TeamBattleEncounter(new Position(3, 3),
             [new TeamCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
                 preparation.Initiative, 3, 1, preparation.Runtime)],
@@ -7027,7 +7027,7 @@ static void WeaponFamiliesUseDistinctAttackPatterns()
            sentinel.TryAdvanceWeaponProficiency(WeaponFamilies.Polearm),
         "A szálfegyver-mester tesztkarakter nem állítható elő.");
     var approaching = CreateEnemyAt(new Position(3, 1), "INTERCEPTED");
-    var sentinelPreparation = CreateBattleSystem(1805).PrepareTeamCharacter(sentinel);
+    var sentinelPreparation = CreateBattleSystem(1805).PrepareCharacter(sentinel);
     var sentinelBattle = new TeamBattleEncounter(new Position(3, 3),
         [new TeamCharacterParticipant(sentinel, new Position(3, 3), TacticalParticipantKind.PartyMember,
             sentinelPreparation.Initiative, 3, 1, sentinelPreparation.Runtime)],
@@ -7037,7 +7037,7 @@ static void WeaponFamiliesUseDistinctAttackPatterns()
 
     var stateEnemy = CreateEnemyAt(new Position(1, 1), "TACTICAL-STATE");
     var stateCharacter = CreateCharacter("Állapotteszt");
-    var statePreparation = CreateBattleSystem(1804).PrepareTeamCharacter(stateCharacter);
+    var statePreparation = CreateBattleSystem(1804).PrepareCharacter(stateCharacter);
     var stateBattle = new TeamBattleEncounter(new Position(1, 2),
         [new TeamCharacterParticipant(stateCharacter, new Position(1, 2), TacticalParticipantKind.PartyMember,
             statePreparation.Initiative, 3, 1, statePreparation.Runtime)],
@@ -7084,11 +7084,11 @@ static void DualWieldingRequiresDisciplineAndProficiencies()
 
     Assert(fighter.EquipWeapon(1, data.GetWeapon("W001")), "A mellékkéz tőre nem szerelhető vissza.");
     var system = CreateBattleSystem(1806);
-    var runtime = system.PrepareTeamCharacter(fighter).Runtime;
+    var runtime = system.PrepareCharacter(fighter).Runtime;
     BattleLogEntry? entry = null;
     for (var attempt = 0; attempt < 20; attempt++)
     {
-        entry = system.ResolveTeamCharacterAttack(fighter, runtime, CreateEnemy(100, 0), finishAction: false,
+        entry = system.ResolveCharacterAttack(fighter, runtime, CreateEnemy(100, 0), finishAction: false,
             damagePercent: DualWieldingRules.OffhandDamagePercent, attackWeapon: fighter.WeaponSlots[1],
             allowTriggeredExtraAttacks: false, allowAmbush: false, damageScaleName: "Mellékkéz");
         if (entry.Details?.Calculation.Any(line => line.Contains("Fegyver alapsebzése: tőr") &&
@@ -7116,11 +7116,11 @@ static void ElvenDaggersGainPairedDamage()
            DualWieldingRules.HasPairedElvenDaggers(fighter),
         "A páros elf tőr nem szerelhető fel aktív kétfegyveres harccal.");
     var system = CreateBattleSystem(1807);
-    var runtime = system.PrepareTeamCharacter(fighter).Runtime;
+    var runtime = system.PrepareCharacter(fighter).Runtime;
     BattleLogEntry? entry = null;
     for (var attempt = 0; attempt < 20; attempt++)
     {
-        entry = system.ResolveTeamCharacterAttack(fighter, runtime, CreateEnemy(100, 0), finishAction: false,
+        entry = system.ResolveCharacterAttack(fighter, runtime, CreateEnemy(100, 0), finishAction: false,
             attackWeapon: elvenDagger, allowTriggeredExtraAttacks: false, allowAmbush: false);
         if (entry.Details?.Calculation.Any(line => line.Contains("Páros elf tőr", StringComparison.OrdinalIgnoreCase)) == true)
             break;
@@ -7149,8 +7149,8 @@ static void TacticalDisciplinesProgressAndPersist()
         "A 18. szint vagy a kétdiszciplínás korlát hibás.");
 
     var baseCharacter = CreateCharacter("Alap", characterClassId: CharacterClassIds.Harcos);
-    var baseInitiative = CreateBattleSystem(91).PrepareTeamCharacter(baseCharacter).Initiative;
-    var disciplineInitiative = CreateBattleSystem(91).PrepareTeamCharacter(character).Initiative;
+    var baseInitiative = CreateBattleSystem(91).PrepareCharacter(baseCharacter).Initiative;
+    var disciplineInitiative = CreateBattleSystem(91).PrepareCharacter(character).Initiative;
     Assert(disciplineInitiative == baseInitiative + 2,
         "A Portyázó nem adott +2 csapatharcos kezdeményezést.");
 
@@ -7158,11 +7158,11 @@ static void TacticalDisciplinesProgressAndPersist()
     var woundedEnemy = CreateEnemy(20, 1, speed: 8);
     woundedEnemy.SetCurrentHitPoints(10);
     var chanceWithoutDiscipline = CreateBattleSystem(17)
-        .EstimatePlayerHitChance(baseCharacter, woundedEnemy, BattleTactic.FighterPrecise);
+        .EstimateCharacterHitChance(baseCharacter, woundedEnemy, BattleTactic.FighterPrecise);
     Assert(finisher.ChooseTacticalDiscipline(TacticalDisciplines.Finisher),
         "A Kivégző diszciplína nem választható.");
     var chanceWithDiscipline = CreateBattleSystem(17)
-        .EstimatePlayerHitChance(finisher, woundedEnemy, BattleTactic.FighterPrecise);
+        .EstimateCharacterHitChance(finisher, woundedEnemy, BattleTactic.FighterPrecise);
     Assert(chanceWithDiscipline == chanceWithoutDiscipline + 10,
         "A Kivégző nem adott +2, azaz 10 százalékpontnyi találati előnyt a sebesült célpont ellen.");
 
@@ -7170,8 +7170,8 @@ static void TacticalDisciplinesProgressAndPersist()
     var guardian = CreateCharacter("Őrszem", characterClassId: CharacterClassIds.Harcos);
     Assert(guardian.ChooseTacticalDiscipline(TacticalDisciplines.Guardian),
         "A Bajtársi őrség nem választható.");
-    var protectedPreparation = CreateBattleSystem(22).PrepareTeamCharacter(protectedAlly);
-    var guardianPreparation = CreateBattleSystem(23).PrepareTeamCharacter(guardian);
+    var protectedPreparation = CreateBattleSystem(22).PrepareCharacter(protectedAlly);
+    var guardianPreparation = CreateBattleSystem(23).PrepareCharacter(guardian);
     var guardEnemy = CreateEnemy(20, 2);
     var guardBattle = new TeamBattleEncounter(new(1, 1),
         [new TeamCharacterParticipant(protectedAlly, new(1, 1), TacticalParticipantKind.PartyMember,
@@ -7307,7 +7307,7 @@ static void PhysicalDamageUsesTypesAndWeapons()
             character.EquipWeapon(0, data.GetWeapon("W005") with { Damage = new(20, 20), DamageType = type });
             var enemy = new ConfiguredEnemy(new(1, 1), new("E-TYPE", "Cél", "e", 1, 1000, 8, 1, 1, 1, [],
                 Resistances: resistance ?? new(4, 0, -4)));
-            system.ResolveTeamCharacterAttack(character, system.PrepareTeamCharacter(character).Runtime, enemy);
+            system.ResolveCharacterAttack(character, system.PrepareCharacter(character).Runtime, enemy);
             total += 1000 - enemy.CurrentHitPoints;
         }
         return total;
@@ -7332,7 +7332,7 @@ static void PhysicalDamageUsesTypesAndWeapons()
                 WeaponIds = [weapon.Id],
                 Weapons = [weapon]
             });
-            system.ResolveTeamEnemyAction(enemy, target, system.PrepareTeamCharacter(target).Runtime);
+            system.ResolveEnemyAction(enemy, target, system.PrepareCharacter(target).Runtime);
             total += 1000 - target.CurrentVitality;
         }
         return total;
@@ -7444,7 +7444,7 @@ static void WeaponCsvPropertiesAreInherited()
     var targetSystem = CreateBattleSystem(21);
     var breathTargets = Enumerable.Range(0, 4).Select(index => CreateCharacter($"Leheletcél {index}", 100)).ToArray();
     var targetPositions = new[] { new Position(3, 2), new Position(4, 3), new Position(3, 4), new Position(2, 3) };
-    var targetPreparations = breathTargets.Select(targetSystem.PrepareTeamCharacter).ToArray();
+    var targetPreparations = breathTargets.Select(targetSystem.PrepareCharacter).ToArray();
     var breathEnemy = new ConfiguredEnemy(new(3, 3), data.GetEnemy("E050"));
     var breathBattle = new TeamBattleEncounter(new(3, 3), breathTargets.Select((character, index) =>
             new TeamCharacterParticipant(character, targetPositions[index], TacticalParticipantKind.PartyMember,
