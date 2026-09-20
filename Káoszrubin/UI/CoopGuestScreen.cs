@@ -1596,7 +1596,7 @@ public sealed class CoopGuestScreen
                 staggeredEnemyIds.Contains(enemy.EntityId)
                     ? ConsoleRenderer.StaggerBackgroundColor
                     : ConsoleColor.Black);
-        foreach (var character in snapshot.Party.Where(character => character.Position is not null))
+        foreach (var character in snapshot.Party.Where(ShouldDrawPartyAvatar))
             Put(grid, character.Position!.Value, CharacterSheetPanel.PartyAvatarGlyph(character.CharacterClassId,
                     _musicSettings.Settings.PartyAvatars),
                 character.Color);
@@ -2626,6 +2626,9 @@ public sealed class CoopGuestScreen
 
     internal static bool IsStaggered(TacticalBattleParticipantSnapshot participant) =>
         participant.Conditions?.Any(condition => condition.Kind == CombatConditionKind.Staggered) == true;
+
+    internal static bool ShouldDrawPartyAvatar(SessionCharacterSnapshot character) =>
+        character.IsAlive && character.Position is not null;
 
     internal static Position? ResolveBattleHighlightPosition(TacticalBattleParticipantSnapshot participant,
         IReadOnlyList<SessionCharacterSnapshot> party, IReadOnlyList<WorldEnemySnapshot> enemies)

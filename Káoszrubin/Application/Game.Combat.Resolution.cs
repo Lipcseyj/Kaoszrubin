@@ -1137,8 +1137,11 @@ public sealed partial class Game
         battle.MarkDefeated(character);
         if (avatar is not null)
         {
+            var defeatedPosition = avatar.Position;
             _maze.ReplacePartyMemberWithCorpse(avatar);
             _nextPartyMoves.Remove(avatar);
+            if (!_isQuickBattle)
+                _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [defeatedPosition]);
         }
         if (character != PartyLeader)
         {

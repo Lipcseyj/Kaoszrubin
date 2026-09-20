@@ -194,6 +194,7 @@ var tests = new (string Name, Action Run)[]
     ("A harc az inaktivitási küszöb után áll le", BattleDetectsInactiveSide),
     ("A harc ugyanazt a támadási szabálymotort használja", BattleAttackUsesExistingCombatRules),
     ("A szörny Ereje találat után lökési vagy tántorítási próbát ad", MonsterStrengthCreatesTacticalPressure),
+    ("A vendég csak élő, pozícióval rendelkező partiavatárt rajzol", GuestDrawsOnlyLivingPartyAvatars),
     ("A közelharci támadás az ellenfél haláláig leköti a karaktert", BattleEngagementLastsUntilEnemyDeath),
     ("A zárt alakzat első sora védi a mögötte álló társat", BattleFormationProtectsRearRow),
     ("A vezér külön harcra készítheti a hátsó sor két oldalát", RearCombatPreparationIsLeaderControlled),
@@ -5666,6 +5667,22 @@ static void BattleFormationProtectsRearRow()
            !encounter.IsProtectedRearTarget(rear, new Position(2, 4)) &&
            !encounter.IsProtectedRearTarget(rear, new Position(3, 5)),
         "Az első sor nem csak az alakzat eleje felől védi a hátsó társat.");
+}
+
+static void GuestDrawsOnlyLivingPartyAvatars()
+{
+    var character = CreateCharacter("Snapshot hős");
+    var living = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
+        character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
+        character.CurrentMana, character.MaximumMana, character.FoodLevel, character.WaterLevel, character.Gold,
+        true, new Position(3, 4), [], null);
+
+    Assert(CoopGuestScreen.ShouldDrawPartyAvatar(living),
+        "Az élő, pozícióval rendelkező karakter avatárja eltűnt a guest térképről.");
+    Assert(!CoopGuestScreen.ShouldDrawPartyAvatar(living with { IsAlive = false }),
+        "Az elesett karaktert a guest továbbra is élő avatárként rajzolná.");
+    Assert(!CoopGuestScreen.ShouldDrawPartyAvatar(living with { Position = null }),
+        "A világpozíció nélküli karaktert a guest megpróbálná kirajzolni.");
 }
 
 static void MonsterStrengthCreatesTacticalPressure()
