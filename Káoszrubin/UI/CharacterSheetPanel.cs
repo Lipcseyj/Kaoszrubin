@@ -31,6 +31,7 @@ public static class CharacterSheetPanel
     public const int Width = 27;
     private const int PartyStatusNameColumnWidth = 13;
     private const int PartyStatusLevelColumnWidth = 2;
+    private const int PartyStatusHpColumnWidth = 6;
     private const int ResourceIconStep = 10;
 
     public static string BlankLineForWidth(int width) => new(' ', Math.Max(Width, width));
@@ -174,14 +175,14 @@ public static class CharacterSheetPanel
 
         var vitalityPercent = Percent(currentVitality, maximumVitality);
         var manaPercent = Percent(currentMana, maximumMana);
-        var vitality = $" ❤️{vitalityPercent}%";
-        var mana = usesMana && maximumMana > 0 ? $" 🔷{manaPercent}%" : string.Empty;
+        var vitality = $" ❤️{currentVitality}";
+        var mana = usesMana && maximumMana > 0 ? $" 🔷{currentMana}" : string.Empty;
         var effectiveWidth = Math.Max(Width, width);
         var maximumNameLength = Math.Min(PartyStatusNameColumnWidth,
             effectiveWidth - prefix.Length - levelSuffix.Length - vitality.Length - mana.Length);
         var alignedLiveName = Shorten(name, maximumNameLength).PadRight(Math.Max(1, maximumNameLength));
         return new PartyStatusLine(prefix + alignedLiveName + levelSuffix, identityColor,
-            vitality, vitalityPercent <= 25 ? ConsoleColor.Red :
+            vitality.PadRight(PartyStatusHpColumnWidth), vitalityPercent <= 25 ? ConsoleColor.Red :
             vitalityPercent <= 50 ? ConsoleColor.Yellow : ConsoleColor.Green,
             mana, !usesMana || maximumMana <= 0 || currentMana <= 0 ? ConsoleColor.DarkGray :
             manaPercent <= 50 ? ConsoleColor.Blue : ConsoleColor.Cyan,
