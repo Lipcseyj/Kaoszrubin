@@ -81,6 +81,7 @@ var tests = new (string Name, Action Run)[]
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
     ("A taktikai fegyverjártasságok módosítják a söprést, fedezetet és varázslást", TacticalWeaponMasteriesHaveDistinctRoles),
     ("A pajzstier közösen vezérli a kritikus blokkot és a pajzslökést", ShieldTierDrivesBlockAndBash),
+    ("A kritikus pajzsblokk és a lovagi közbelépés minden harci naplóban látszik", DefensiveInterventionsReachBattleLogs),
     ("A pajzs CSV-validációja elutasítja a hibás tiert és besorolást", ShieldCsvValidationRejectsInvalidDefinitions),
     ("A többcélú fegyverek ívben, vonalban és kis területen hatnak", WeaponFamiliesUseDistinctAttackPatterns),
     ("A kétfegyveres harc csak képzett tőr- és kardpárokkal működik", DualWieldingRequiresDisciplineAndProficiencies),
@@ -6964,6 +6965,47 @@ static void ShieldTierDrivesBlockAndBash()
            (bash.Outcome == MonsterStrengthContestOutcome.Resisted) == (bash.Damage == 0) &&
            wearAfter == wearBefore + 1,
         "A pajzslökés nem a tiert és jártasságot használta, vagy nem koptatta a pajzsot.");
+}
+
+static void DefensiveInterventionsReachBattleLogs()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var shieldBearer = CreateCharacter("Pajzshordozó", vitality: 1000);
+    Assert(shieldBearer.EquipWeapon(1, data.GetWeapon("LW013") with { MinimumStrength = 1 }),
+        "A kritikus blokk tesztpajzsa nem volt felszerelhető.");
+    var blockSystem = CreateBattleSystem(8142);
+    var blockRuntime = blockSystem.PrepareCharacter(shieldBearer).Runtime;
+    BattleLogEntry? blockedEntry = null;
+    for (var attempt = 0; attempt < 200 && blockedEntry is null; attempt++)
+    {
+        var resolution = blockSystem.ResolveEnemyActionDetailed(CreateEnemy(1000, 20), shieldBearer, blockRuntime);
+        if (resolution.Entry.ShieldBlocks?.Any(block => block.IsCriticalBlock) == true)
+            blockedEntry = resolution.Entry;
+    }
+    Assert(blockedEntry is not null &&
+           blockedEntry.Message.Contains("🛡️ Pajzshordozó kritikus pajzsblokkal kivédte a csapást", StringComparison.Ordinal) &&
+           blockedEntry.Details?.Calculation.Any(line =>
+               line.Contains("KRITIKUS BLOKK", StringComparison.Ordinal)) == true,
+        "A kritikus pajzsblokk nem jelent meg egyszerre az alsó és a részletes harci naplóban.");
+
+    var protectedCharacter = CreateCharacter("Védett", vitality: 1000, characterClassId: CharacterClassIds.Pap);
+    var protector = CreateCharacter("Őrszem", vitality: 1000, characterClassId: CharacterClassIds.Lovag);
+    var protectionSystem = CreateBattleSystem(8143);
+    var protectionRuntime = protectionSystem.PrepareCharacter(protectedCharacter).Runtime;
+    protectionSystem.SetTeamKnightProtection(protectionRuntime, protector);
+    BattleLogEntry? protectedEntry = null;
+    for (var attempt = 0; attempt < 200 && protectedEntry is null; attempt++)
+    {
+        var resolution = protectionSystem.ResolveEnemyActionDetailed(
+            CreateEnemy(1000, 20), protectedCharacter, protectionRuntime);
+        if (resolution.Entry.Message.Contains("🛡️ Őrszem közbelépett", StringComparison.Ordinal))
+            protectedEntry = resolution.Entry;
+    }
+    Assert(protectedEntry is not null &&
+           protectedEntry.Details?.Calculation.Any(line =>
+               line.Contains("🛡️ Őrszem közbelépett", StringComparison.Ordinal) &&
+               line.Contains("teljes", StringComparison.OrdinalIgnoreCase)) == true,
+        "A lovagi közbelépés alsó naplóüzenete nem jutott el a részletes harci naplóba.");
 }
 
 static void ShieldCsvValidationRejectsInvalidDefinitions()

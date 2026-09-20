@@ -516,6 +516,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var summary = $"{attackerName}\t\t→ {defenderName}\t\t{outcome}";
         if (successful.Length > 0)
             summary += $"\t💥 {successful.Sum(attack => attack.Damage)}\t{defenderName} ❤️ {currentHitPoints}/{maximumHitPoints}";
+        if (attacks.Any(attack => attack.ShieldBlock.IsCriticalBlock))
+            summary += $". 🛡️ {defenderName} PAJZSBLOKK";
         return summary;
     }
 
@@ -527,7 +529,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         {
             calculations.AddRange(attack.Details?.Calculation ?? []);
         }
-        return new(Guid.NewGuid(), "", "", [], calculations);
+        if (!string.IsNullOrWhiteSpace(effects)) calculations.Add(effects);
+        return new(Guid.NewGuid(), actor, target, [], calculations);
     }
 
     private static void ApplyBattleStartPerks(LiveCharacter player, Action<BattleLogEntry> onRound)
