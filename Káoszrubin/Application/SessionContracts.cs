@@ -129,6 +129,7 @@ public enum BattleActionKind
     Pass,
     SelectTarget,
     PhysicalAttack,
+    ShieldBash,
     AdvanceEnemyTurn,
     CastSpell,
     UseItem,

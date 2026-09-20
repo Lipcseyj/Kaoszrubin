@@ -337,6 +337,8 @@ public sealed class TacticalTeamBattleCoordinator
                 ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
                 : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
         var reachable = ReachableTeamEnemies(battle, character, characterPosition).ToArray();
+        var canShieldBash = AdjacentTeamEnemies(battle, character, characterPosition).Any() &&
+                            character.OperationalWeapons.Any(ShieldRules.IsShield);
         var staggered = battle.IsCharacterStaggered(character);
         var canTurnUndead = BattleActionCoordinator.IsTurnUndeadReady(character, battle.Turns.Cycle,
             turnUndeadNextAvailableRounds) && TurnUndeadTargets(battle, character, characterPosition).Any();
@@ -344,6 +346,8 @@ public sealed class TacticalTeamBattleCoordinator
         {
             var openingActions = new List<BattleActionKind> { BattleActionKind.Pass };
             if (reachable.Length > 0) openingActions.Insert(0, BattleActionKind.PhysicalAttack);
+            if (canShieldBash)
+                openingActions.Insert(0, BattleActionKind.ShieldBash);
             else if (battle.HasActiveFormation && character == selectedCharacter)
             {
                 if (!staggered && !battle.HasStaggeredFormationMember)
@@ -363,6 +367,8 @@ public sealed class TacticalTeamBattleCoordinator
         if (reachable.Length > 0)
         {
             actions.Add(BattleActionKind.PhysicalAttack);
+            if (canShieldBash)
+                actions.Add(BattleActionKind.ShieldBash);
             if (reachable.Length > 1) actions.Add(BattleActionKind.SelectTarget);
         }
         if (canTurnUndead)

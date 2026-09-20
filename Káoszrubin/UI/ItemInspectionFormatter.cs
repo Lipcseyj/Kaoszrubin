@@ -36,6 +36,7 @@ public static class ItemInspectionFormatter
                 $"család: {weapon.FamilyId} | "+
                 WeaponProficiencyText(weapon, weaponProficiencies) +
                 WeaponMagicPowerText(weapon) +
+                (weapon.ShieldTier > 0 ? $"pajzstier: {weapon.ShieldTier} | alap kritikus blokk: {weapon.ShieldTier * 5}% | " : string.Empty) +
                 $"sebzéstípus: {weapon.DamageType.Name()} | célpontok: {weapon.MaximumTargets} | " +
                 (weapon.CanAttackFromRear ? "hátsó sorból is használható | " : string.Empty) +
                 $"sebzés: {weapon.Damage?.ToString() ?? "nincs"} | minimum Erő: {weapon.MinimumStrength} | " +

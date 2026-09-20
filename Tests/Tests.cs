@@ -80,6 +80,7 @@ var tests = new (string Name, Action Run)[]
     ("A lovag harci fegyvercsere-parancsa átjut a session ellenőrzésén", KnightBattleWeaponSwapCommandIsAccepted),
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
     ("A taktikai fegyverjártasságok módosítják a söprést, fedezetet és varázslást", TacticalWeaponMasteriesHaveDistinctRoles),
+    ("A pajzstier közösen vezérli a kritikus blokkot és a pajzslökést", ShieldTierDrivesBlockAndBash),
     ("A többcélú fegyverek ívben, vonalban és kis területen hatnak", WeaponFamiliesUseDistinctAttackPatterns),
     ("A kétfegyveres harc csak képzett tőr- és kardpárokkal működik", DualWieldingRequiresDisciplineAndProficiencies),
     ("Az elf tőr ügyességi vágófegyver és párban sebzésbónuszt ad", ElvenDaggersGainPairedDamage),
@@ -3075,8 +3076,13 @@ static void CombatAppliesEquipmentWear()
         var armorAfter = defender.GetInventoryItemState(InventorySlotKind.Armor, 0)!.Value.DurabilityDamage;
         var shieldAfter = defender.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage;
         var expectedWear = resolution.Hit ? resolution.Entry.Kind == BattleLogKind.CriticalHit ? 2 : 1 : 0;
-        Assert(armorAfter - armorBefore == expectedWear && shieldAfter - shieldBefore == expectedWear,
-            "A fizikai találat nem egyformán és a kritikus szabály szerint koptatta a páncélt és pajzsot.");
+        var criticalBlock = resolution.Entry.Details?.Calculation.Any(line =>
+            line.Contains("KRITIKUS BLOKK", StringComparison.Ordinal)) == true;
+        var expectedShieldWear = criticalBlock
+            ? resolution.Entry.Kind == BattleLogKind.CriticalHit ? 3 : 2
+            : expectedWear;
+        Assert(armorAfter - armorBefore == expectedWear && shieldAfter - shieldBefore == expectedShieldWear,
+            "A fizikai találat vagy a kritikus blokk nem a megfelelő mértékben koptatta a páncélt és pajzsot.");
         if (!resolution.Hit) continue;
         observedArmorHits++;
         Assert(resolution.Entry.Details?.Calculation.Any(line => line.Contains("Páncélkopás", StringComparison.Ordinal)) == true &&
@@ -6858,6 +6864,40 @@ static void TacticalWeaponMasteriesHaveDistinctRoles()
     Assert(milestones.Any(text => text.Contains("képességpont", StringComparison.OrdinalIgnoreCase)) &&
            milestones.Any(text => text.Contains("tehetség", StringComparison.OrdinalIgnoreCase)),
         "A szintlépési előnézetből hiányzik a következő fejlődés.");
+}
+
+static void ShieldTierDrivesBlockAndBash()
+{
+    var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+    var wood = data.GetWeapon("W014");
+    var iron = data.GetWeapon("W015");
+    var steel = data.GetWeapon("W016");
+    var legendary = data.GetWeapon("LW013");
+    Assert(wood.ShieldTier == 1 && iron.ShieldTier == 2 && steel.ShieldTier == 3 &&
+           legendary.ShieldTier == 4,
+        "A pajzsok CSV-s tierbesorolása hibás.");
+    Assert(ShieldRules.CriticalBlockRating(wood) == 1 &&
+           ShieldRules.CriticalBlockRating(steel, WeaponProficiencyRank.Trained) == 4 &&
+           ShieldRules.CriticalBlockRating(legendary, WeaponProficiencyRank.Master, true) == 4 &&
+           ShieldRules.IsCriticalBlock(20, 1) && !ShieldRules.IsCriticalBlock(19, 1) &&
+           ShieldRules.IsCriticalBlock(17, 4),
+        "A pajzstier, jártasság vagy Pajzsfal nem a közös 5–20 százalékos blokkszabályt használja.");
+
+    var fighter = CreateCharacter("Pajzslökő", characterClassId: CharacterClassIds.Harcos);
+    Assert(fighter.EquipWeapon(1, steel with { MinimumStrength = 1 }) &&
+           fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Shield) &&
+           fighter.TryAdvanceWeaponProficiency(WeaponFamilies.Shield),
+        "A pajzslökés tesztkaraktere nem állítható elő.");
+    var enemy = CreateEnemy(100, 5);
+    var system = CreateBattleSystem(2401);
+    var wearBefore = fighter.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage;
+    var bash = system.ResolvePlayerShieldBash(fighter, enemy, fighter.WeaponSlots[1]!);
+    var wearAfter = fighter.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage;
+    Assert(bash.ShieldPower == 5 && bash.AttackTotal == bash.AttackerRoll + bash.StrengthPressure + 5 &&
+           bash.DefenseTotal == bash.DefenderRoll + bash.DefenderStability &&
+           (bash.Outcome == MonsterStrengthContestOutcome.Resisted) == (bash.Damage == 0) &&
+           wearAfter == wearBefore + 1,
+        "A pajzslökés nem a tiert és jártasságot használta, vagy nem koptatta a pajzsot.");
 }
 
 static void WeaponFamiliesUseDistinctAttackPatterns()

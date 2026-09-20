@@ -138,7 +138,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             var attack = PlayerAttack(attacker, target, runtime.Context, attackOptions);
             if (attack.Hit && damagePercent != 100)
             {
-                var scaledDamage = Math.Max(1, attack.Damage * Math.Clamp(damagePercent, 1, 100) / 100);
+                var scaledDamage = attack.Damage == 0 ? 0 :
+                    Math.Max(1, attack.Damage * Math.Clamp(damagePercent, 1, 100) / 100);
                 attack = attack with
                 {
                     Damage = scaledDamage,
@@ -364,6 +365,74 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return new MonsterStrengthContestResult(strength, strengthPressure, roll, total,
             defender.EffectiveAbilities.Health, resistanceRoll, shieldBonus, defensiveBonus, resistance,
             margin, outcome);
+    }
+
+    public ShieldBashContestResult ResolvePlayerShieldBash(LiveCharacter attacker, Enemy defender,
+        WeaponDefinition shield)
+    {
+        ArgumentNullException.ThrowIfNull(attacker);
+        ArgumentNullException.ThrowIfNull(defender);
+        ArgumentNullException.ThrowIfNull(shield);
+        var rank = attacker.WeaponProficiencyRankFor(WeaponFamilies.Shield);
+        var shieldPower = ShieldRules.BashPower(shield, rank, attacker.HasPerk(PerkIds.KnightShieldWall));
+        var strength = attacker.EffectiveAbilities.Strength;
+        var defenderStability = Math.Max(1, ((defender.Definition.Strength ?? 1) + 1) / 2) +
+                                Math.Max(1, defender.Definition.StrengthTier);
+        var result = ResolveShieldBash(strength, shieldPower, defenderStability);
+        var shieldSlot = Enumerable.Range(0, 2).FirstOrDefault(index =>
+            ReferenceEquals(attacker.GetInventoryItem(InventorySlotKind.Weapon, index), shield), -1);
+        if (shieldSlot >= 0)
+            attacker.ApplyInventoryItemWear(InventorySlotKind.Weapon, shieldSlot,
+                EquipmentWearCause.BeingAttacked, 1);
+        return result;
+    }
+
+    public ShieldBashContestResult ResolveEnemyShieldBash(Enemy attacker, LiveCharacter defender)
+    {
+        ArgumentNullException.ThrowIfNull(attacker);
+        ArgumentNullException.ThrowIfNull(defender);
+        var shield = attacker.EquippedShield ??
+                     throw new InvalidOperationException("A pajzslökéshez pajzs szükséges.");
+        var strength = attacker.Definition.Strength ?? 1;
+        var defenderShieldBonus = defender.OperationalWeapons.Any(ShieldRules.IsShield) ? 2 : 0;
+        var defenderStability = defender.EffectiveAbilities.Health + defenderShieldBonus;
+        return ResolveShieldBash(strength, ShieldRules.BashPower(shield), defenderStability);
+    }
+
+    private ShieldBashContestResult ResolveShieldBash(int strength, int shieldPower, int defenderStability)
+    {
+        var attackerRoll = _random.Next(1, 11);
+        var defenderRoll = _random.Next(1, 11);
+        var strengthPressure = (Math.Max(1, strength) + 1) / 2;
+        var attackTotal = attackerRoll + strengthPressure + Math.Max(0, shieldPower);
+        var defenseTotal = defenderRoll + Math.Max(0, defenderStability);
+        var margin = attackTotal - defenseTotal;
+        var outcome = margin >= 5 ? MonsterStrengthContestOutcome.Push :
+            margin >= 1 ? MonsterStrengthContestOutcome.Stagger : MonsterStrengthContestOutcome.Resisted;
+        var damage = outcome == MonsterStrengthContestOutcome.Resisted
+            ? 0
+            : Math.Max(1, shieldPower + AbilityDamageBonus(strength) / 2);
+        return new ShieldBashContestResult(attackerRoll, strength, strengthPressure, shieldPower,
+            attackTotal, defenderRoll, defenderStability, defenseTotal, margin, outcome, damage);
+    }
+
+    public static BattleActionDetails DescribeShieldBash(string attackerName, string defenderName,
+        ShieldBashContestResult result, MonsterStrengthContestOutcome actualOutcome, bool pushBlocked = false)
+    {
+        var outcome = actualOutcome switch
+        {
+            MonsterStrengthContestOutcome.Push => "LÖKÉS",
+            MonsterStrengthContestOutcome.Stagger when pushBlocked => "LÖKÉS BLOKKOLVA → MEGINGÁS",
+            MonsterStrengthContestOutcome.Stagger => "MEGINGÁS",
+            _ => "ELLENÁLLVA"
+        };
+        return new BattleActionDetails(Guid.NewGuid(), attackerName, defenderName,
+            [$"🛡️ Pajzslökés: {outcome}", $"📏 Különbség: {result.Margin:+#;-#;0}"],
+            [
+                $"🎲 Támadó: d10 {result.AttackerRoll} + Erőhatás {result.StrengthPressure} + pajzserő {result.ShieldPower} = {result.AttackTotal}",
+                $"🛡️ Stabilitás: d10 {result.DefenderRoll} + {result.DefenderStability} = {result.DefenseTotal}",
+                $"📐 Eredmény: 1–4 megingás; 5+ lökés; sebzés {result.Damage}"
+            ]);
     }
 
     public static BattleActionDetails DescribeMonsterStrengthContest(string attackerName, string defenderName,
@@ -957,6 +1026,19 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             notes.Add($"ℹ️🛠️ sérült fegyver -{durabilityDamagePenalty} sebzés");
             Modifier(damageCalculations, "🛠️ Sérült fegyver: sebzés", -durabilityDamagePenalty);
         }
+        var criticalBlockRoll = damageType.IsPhysical() && defender.Shield is not null
+            ? _random.Next(1, 21)
+            : 0;
+        var criticalBlock = ShieldRules.IsCriticalBlock(criticalBlockRoll,
+            ShieldRules.CriticalBlockRating(defender.Shield));
+        if (criticalBlock)
+        {
+            damage = 0;
+            notes.Add($"🛡️ KRITIKUS BLOKK ({criticalBlockRoll})");
+            defenseCalculations.Add($"🛡️ Kritikus blokk: d20={criticalBlockRoll} → teljes fizikai sebzés kivédve");
+        }
+        else if (criticalBlockRoll > 0)
+            defenseCalculations.Add($"🛡️ Kritikus blokk: d20={criticalBlockRoll} → nem");
         if (player.HasPerk(PerkIds.ThiefPoisoner))
         {
             var poison = Roll(new ValueRange(1, 6));
@@ -1442,6 +1524,24 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (percentageReduction > 0)
             damage = damage * (100 - percentageReduction) / 100;
 
+        var criticalBlockRating = ShieldRules.CriticalBlockRating(shieldWeapon, shieldRank,
+            defender.HasPerk(PerkIds.KnightShieldWall));
+        if (shieldSlot >= 0 &&
+            defender.InventoryItemCondition(InventorySlotKind.Weapon, shieldSlot) == EquipmentCondition.Damaged)
+            criticalBlockRating = Math.Min(1, criticalBlockRating);
+        var criticalBlockRoll = damageType.IsPhysical() && criticalBlockRating > 0
+            ? _random.Next(1, 21)
+            : 0;
+        var criticalBlock = ShieldRules.IsCriticalBlock(criticalBlockRoll, criticalBlockRating);
+        if (criticalBlock)
+        {
+            damage = 0;
+            defenseCalculations.Add($"🛡️ KRITIKUS BLOKK: d20={criticalBlockRoll}, érték {criticalBlockRating} → teljes fizikai sebzés kivédve");
+            otherCalculations.Add($"🛡️ {defender.Name} teljesen kivédi a fizikai csapást.");
+        }
+        else if (criticalBlockRoll > 0)
+            defenseCalculations.Add($"🛡️ Kritikus blokk: d20={criticalBlockRoll}, érték {criticalBlockRating} → nem");
+
         foreach (var group in monsterBonusRolls.Where(bonus => bonus.DamageType is not null && bonus.DamageType != damageType)
                      .GroupBy(bonus => bonus.DamageType!.Value))
         {
@@ -1509,7 +1609,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                     wornArmor, wearAmount);
             if (shieldSlot >= 0)
                 ApplyDefensiveWear(InventorySlotKind.Weapon, shieldSlot, "🛡️🛠️ Pajzskopás", "pajzsa",
-                    shieldWeapon!, wearAmount);
+                    shieldWeapon!, criticalBlock ? (criticalMultiplier > 1 ? 3 : 2) : wearAmount);
         }
 
         var damageTypes = monsterBonusRolls
@@ -1938,6 +2038,9 @@ public enum MonsterStrengthContestOutcome { Resisted, Stagger, Push }
 public sealed record MonsterStrengthContestResult(int Strength, int StrengthPressure, int Roll, int Total,
     int Health, int ResistanceRoll, int ShieldBonus, int DefensiveBonus, int Resistance, int Margin,
     MonsterStrengthContestOutcome Outcome);
+public sealed record ShieldBashContestResult(int AttackerRoll, int AttackerStrength, int StrengthPressure,
+    int ShieldPower, int AttackTotal, int DefenderRoll, int DefenderStability, int DefenseTotal,
+    int Margin, MonsterStrengthContestOutcome Outcome, int Damage);
 public sealed record EnemyTurnStartResult(bool CanAct, IReadOnlyList<BattleLogEntry> Entries);
 public sealed record BattlePlayerAction(string Message, BattleLogKind Kind = BattleLogKind.PlayerAttack,
     int DamageToEnemy = 0, int ExtraPlayerActions = 0);

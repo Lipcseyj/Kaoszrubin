@@ -624,6 +624,8 @@ public sealed class CoopGuestScreen
                         BattleActionKind.AdvanceEnemyTurn,
                     ConsoleKey.Spacebar when battle.AllowedActions.Contains(BattleActionKind.PhysicalAttack) =>
                         BattleActionKind.PhysicalAttack,
+                    ConsoleKey.Q when battle.AllowedActions.Contains(BattleActionKind.ShieldBash) =>
+                        BattleActionKind.ShieldBash,
                     ConsoleKey.T when battle.AllowedActions.Contains(BattleActionKind.TurnUndead) =>
                         BattleActionKind.TurnUndead,
                     ConsoleKey.R when battle.AllowedActions.Contains(BattleActionKind.Retreat) =>
@@ -648,7 +650,8 @@ public sealed class CoopGuestScreen
                         battle.BattleId, battle.TurnId, action.Value,
                         TargetEnemyId: action == BattleActionKind.TurnUndead
                             ? battle.TurnUndeadTargetEnemyId ?? targetEnemyId
-                            : action == BattleActionKind.PhysicalAttack ? targetEnemyId : null);
+                            : action is BattleActionKind.PhysicalAttack or BattleActionKind.ShieldBash
+                                ? targetEnemyId : null);
             }
         }
         else if (snapshot.Phase == GameSessionPhase.Exploration && key == ConsoleKey.V)

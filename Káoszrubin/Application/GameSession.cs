@@ -660,6 +660,9 @@ public sealed class GameSession
                                  command.BackpackIndex is null,
         BattleActionKind.PhysicalAttack => command.SpellId is null && command.CastingItemSlotIndex is null &&
                                            command.Target is null && command.BackpackIndex is null,
+        BattleActionKind.ShieldBash => command.TargetEnemyId is not null && command.SpellId is null &&
+                                       command.CastingItemSlotIndex is null && command.Target is null &&
+                                       command.BackpackIndex is null,
         BattleActionKind.UseItem => command.BackpackIndex is >= 0 and < LiveCharacter.MaximumBackpackItemCount &&
                                     command.SpellId is null && command.CastingItemSlotIndex is null &&
                                     command.Target is null && command.TargetEnemyId is null,

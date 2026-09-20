@@ -6122,6 +6122,13 @@ public sealed class Game : ISessionCommandHandler
             SubmitLocalBattleCommand(BattleActionKind.PhysicalAttack, targetEnemyId: targetEnemy.Id);
             return;
         }
+        if (key.Key == ConsoleKey.Q && allowed.Contains(BattleActionKind.ShieldBash))
+        {
+            var targetEnemy = battle.SelectedTargetEnemy() ??
+                              ReachableTeamEnemies(battle, character).OrderBy(value => value.CurrentHitPoints).First();
+            SubmitLocalBattleCommand(BattleActionKind.ShieldBash, targetEnemyId: targetEnemy.Id);
+            return;
+        }
         if (key.Key == ConsoleKey.C && allowed.Contains(BattleActionKind.SwapWeapon))
         {
             SubmitLocalBattleCommand(BattleActionKind.SwapWeapon);
@@ -7343,6 +7350,24 @@ public sealed class Game : ISessionCommandHandler
                     return;
                 }
                 ResolveTeamCharacterAttack(battle, character, target);
+                break;
+            case BattleActionKind.ShieldBash:
+                var bashTarget = command.TargetEnemyId is { } bashTargetId
+                    ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == bashTargetId)
+                    : null;
+                if (bashTarget is null || bashTarget.CurrentHitPoints <= 0 ||
+                    !AdjacentTeamEnemies(battle, character).Contains(bashTarget))
+                {
+                    RejectTeamBattleAction(command, "A pajzslökés célpontja nincs közvetlen közelharci távolságban.");
+                    return;
+                }
+                var bashShield = character.OperationalWeapons.FirstOrDefault(ShieldRules.IsShield);
+                if (bashShield is null)
+                {
+                    RejectTeamBattleAction(command, "A pajzslökéshez működő pajzs szükséges.");
+                    return;
+                }
+                ResolveTeamCharacterShieldBash(battle, character, bashTarget, bashShield);
                 break;
             case BattleActionKind.Move when command.Target is { } destination:
                 if (!TryExecuteTeamCharacterMove(battle, character, destination, out var movementError))
@@ -8618,6 +8643,45 @@ public sealed class Game : ISessionCommandHandler
                 BattleLogKind.Information)]);
     }
 
+    private void ResolveTeamCharacterShieldBash(TeamBattleEncounter battle, LiveCharacter character,
+        Enemy target, WeaponDefinition shield)
+    {
+        battle.Engage(character, target);
+        var result = _battleSystem.ResolvePlayerShieldBash(character, target, shield);
+        var actualOutcome = result.Outcome;
+        var pushBlocked = false;
+        if (result.Outcome == MonsterStrengthContestOutcome.Push)
+        {
+            if (!TryPushTeamBattleEnemy(battle, character, target))
+            {
+                actualOutcome = MonsterStrengthContestOutcome.Stagger;
+                pushBlocked = true;
+                battle.StaggerEnemy(target);
+            }
+        }
+        else if (result.Outcome == MonsterStrengthContestOutcome.Stagger)
+            battle.StaggerEnemy(target);
+
+        if (result.Damage > 0)
+            target.SetCurrentHitPoints(target.CurrentHitPoints - result.Damage);
+        battle.RecordAttack(BattleSide.Friendly);
+        var outcomeText = actualOutcome switch
+        {
+            MonsterStrengthContestOutcome.Push => "hátralökődik",
+            MonsterStrengthContestOutcome.Stagger when pushBlocked => "nem tud hátralépni, ezért meginog",
+            MonsterStrengthContestOutcome.Stagger => "meginog",
+            _ => "ellenáll"
+        };
+        var statusText = _battleSystem.FinishTeamCharacterAction(character, battle.RuntimeFor(character));
+        PresentBattleEntries([new BattleLogEntry(
+            $"🛡️ {character.Name} pajzzsal meglöki {target.Name} ellenfelet: {outcomeText}" +
+            (result.Damage > 0 ? $", -{result.Damage} HP" : string.Empty) + $".{statusText}",
+            BattleLogKind.PlayerAttack,
+            BattleSystem.DescribeShieldBash(character.Name, target.Name, result, actualOutcome, pushBlocked))]);
+        if (target.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, target, character);
+        AdvanceTeamBattleTurn(battle);
+    }
+
     private void ExecuteTeamEnemyTurn(TeamBattleEncounter battle, Enemy enemy)
     {
         var turnStart = battle.ShouldAdvanceSpellEffects(CombatantId.ForEnemy(enemy.Id))
@@ -8655,6 +8719,48 @@ public sealed class Game : ISessionCommandHandler
             battle.RecordAttack(BattleSide.Hostile);
             foreach (var target in abilityTargets.Where(target => !target.IsAlive))
                 ResolveTeamCharacterDefeat(battle, target);
+            AdvanceTeamBattleTurn(battle);
+            return;
+        }
+
+        var bashTarget = enemy.EquippedShield is { ShieldTier: > 0 } &&
+                         _random.Next(100) < (battle.HasActiveFormation ? 35 : 20)
+            ? livingTargets.FirstOrDefault(target =>
+                TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target)))
+            : null;
+        if (bashTarget is not null)
+        {
+            battle.FaceEnemyToward(enemy, bashTarget);
+            battle.Engage(bashTarget, enemy);
+            var bash = _battleSystem.ResolveEnemyShieldBash(enemy, bashTarget);
+            var actualOutcome = bash.Outcome;
+            var pushBlocked = false;
+            if (bash.Outcome == MonsterStrengthContestOutcome.Push)
+            {
+                if (!TryPushTeamBattleTarget(battle, enemy, bashTarget, out _))
+                {
+                    actualOutcome = MonsterStrengthContestOutcome.Stagger;
+                    pushBlocked = true;
+                    battle.StaggerCharacter(bashTarget);
+                }
+            }
+            else if (bash.Outcome == MonsterStrengthContestOutcome.Stagger)
+                battle.StaggerCharacter(bashTarget);
+            if (bash.Damage > 0) bashTarget.ReceiveDamage(bash.Damage);
+            battle.RecordAttack(BattleSide.Hostile);
+            var outcomeText = actualOutcome switch
+            {
+                MonsterStrengthContestOutcome.Push => "hátralöki",
+                MonsterStrengthContestOutcome.Stagger when pushBlocked => "a falnak löki és megingatja",
+                MonsterStrengthContestOutcome.Stagger => "megingatja",
+                _ => "nem tudja kimozdítani"
+            };
+            PresentBattleEntries([new BattleLogEntry(
+                $"🛡️ {enemy.Name} pajzslökéssel {outcomeText} {bashTarget.Name} karaktert" +
+                (bash.Damage > 0 ? $", -{bash.Damage} HP." : "."),
+                BattleLogKind.EnemyAttack,
+                BattleSystem.DescribeShieldBash(enemy.Name, bashTarget.Name, bash, actualOutcome, pushBlocked))]);
+            if (!bashTarget.IsAlive) ResolveTeamCharacterDefeat(battle, bashTarget);
             AdvanceTeamBattleTurn(battle);
             return;
         }
@@ -9131,6 +9237,21 @@ public sealed class Game : ISessionCommandHandler
         }
         if (!_isQuickTeamBattle)
             _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        return true;
+    }
+
+    private bool TryPushTeamBattleEnemy(TeamBattleEncounter battle, LiveCharacter attacker, Enemy target)
+    {
+        var direction = StrengthPushDirection(battle.PositionOf(attacker), target.Position);
+        var destination = target.Position + direction;
+        if (!battle.Turns.IsInsideBattleArea(destination) ||
+            !CanTeamBattleEnter(battle, destination, CombatantId.ForEnemy(target.Id))) return false;
+        var previous = target.Position;
+        target.MoveTo(destination);
+        battle.UpdatePosition(target);
+        battle.PruneSeparatedEngagements();
+        if (!_isQuickTeamBattle)
+            _renderer.DrawEnemyMovement(_maze, _fogOfWar, previous, destination, _player.Position);
         return true;
     }
 

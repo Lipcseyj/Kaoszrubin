@@ -416,7 +416,7 @@ public static class CsvGameDataLoader
                     Cell(cells, 9), NonNegativeWeaponPrice(cells, 10, id), ParseRarity(cells, 11),
                     EmptyAsNull(Cell(cells, 12)), Integer(cells, 13) ?? 0,
                     PositiveWeight(cells, 14, id, "fegyver"), ParseDamageType(Cell(cells, 15)), WeaponMaximumTargets(cells), IsYes(cells, 17), EmptyAsNull(Cell(cells, 18)),
-                    WeaponMaximumDurability(cells, id)));
+                    WeaponMaximumDurability(cells, id), Math.Clamp(Integer(cells, 20) ?? 0, 0, 4)));
                 break;
             case DataSection.Armors:
                 armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),

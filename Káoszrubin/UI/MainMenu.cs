@@ -1004,7 +1004,7 @@ public sealed class MainMenu
             ColoredText("Két mezőn belüli társ csatájában 75% eséllyel közbelép: a társ első találatának teljes sebzését kivédi, a lovag pedig annak felfelé kerekített harmadát kapja. Osztályjártasság: 5/10/15. szinttől +1/+2/+3 találat; élőholt ellen Szent elűzés.", ConsoleColor.Cyan),
             ColoredText("🌟 10./20. szint: Testőr — 90% közbelépés | Márványfal — csak negyed sebzés | Megtorlás — közbelépés után a következő támadás +2 találat, +4 sebzés.", ConsoleColor.DarkCyan),
             ColoredText("Papi imákat használ, 2. szinten kapja az első imáját, legfeljebb 2. szintű imákat képes használni.", ConsoleColor.Cyan),
-            Text("1. fokozat — 5. szint (Ember: 4.): Pajzsfal — pajzzsal +2 védelem | Kihívás — az ellenfél első támadása automatikusan hibázik."),
+            Text("1. fokozat — 5. szint (Ember: 4.): Pajzsfal — pajzzsal +2 védelem, +1 kritikus blokk és pajzslökés | Kihívás — az ellenfél első támadása automatikusan hibázik."),
             Text("2. fokozat — 15. szint: Páncélmester — a páncéldobás legalább az átlag és minden páncél-/pajzskopás −50% | Szent eskü — csatakezdéskor +10 HP."),
             Text("3. fokozat — 25. szint: Őrangyal — egyszer kivédi a halálos sebzést és +25 HP | Legyőzhetetlen — +15 max HP és -4 elszenvedett sebzés."),
             Blank(),
@@ -1040,7 +1040,7 @@ public sealed class MainMenu
             ColoredText("🏃 Portyázó — Csapatharcban +2 kezdeményezést és +1 mező harci mozgást ad, legfeljebb 7 mezőig.", ConsoleColor.Green),
             ColoredText("🤝 Bajtársi őrség — Szomszédos élő társ mellett +1 sajá védelmet ad, és +1 fedezetet nyújt minden szomszédos társnak. Ez a pajzsos vagy harcos fedezettel összeadódik.", ConsoleColor.Cyan),
             ColoredText("⚔️ Kétfegyveres harc — Két egykezes tőrrel vagy karddal, minden érintett családból legalább Jártas fokon a főkéz után külön mellékkéz-dobást ad 60% sebzéssel. Az Orvtámadás csak a főkézre érvényes.", ConsoleColor.DarkYellow),
-            Text("A mellékkézbe képesség nélkül csak pajzs tehető. A pajzs kizárólag véd, soha nem ad mellékkéz-támadást. Tőr vagy kard csak aktív Kétfegyveres harccal és az összes érintett fegyvercsalád Jártas fokával szerelhető oda; más fegyver soha."),
+            Text("A mellékkézbe képesség nélkül csak pajzs tehető. A pajzs normál mellékkéz-támadást nem ad, de külön pajzslökéssel megingathat vagy hátralökhet. Tőr vagy kard csak aktív Kétfegyveres harccal és az összes érintett fegyvercsalád Jártas fokával szerelhető oda; más fegyver soha."),
             Blank(),
             Section("ÁTKÉPZÉS", ConsoleColor.Magenta),
             Text("A fogadó Veterán kiképzőjénél a leader aranyért újraoszthatja egy partitag osztályképesség-fejlesztéseit, taktikai diszciplínáit vagy fegyverjártasságait."),
@@ -1056,7 +1056,7 @@ public sealed class MainMenu
             ColoredText("🪓 Bárd — Jártas: +2 sebzés | Mester: természetes 20 esetén ×3 kritikus; az íves söprés mellékcélpontjai teljes sebzést kapnak és -2 páncélt szenvednek a csata végéig.", ConsoleColor.Red),
             ColoredText("🔨 Zúzófegyver — Jártas: -2 ellenséges páncél | Mester: összesen -4 páncél; megszakítja az előkészített szörnyfegyvert, máskülönben az ellenfél következő közeledése elmarad.", ConsoleColor.DarkYellow),
             ColoredText("🔱 Szálfegyver — Jártas: +3 kezdeményezés, vonalban a cél mögé is csap | Mester: az első sikeres találat ×1,5, és feltartóztatja a hatókörébe belépő ellenfelet.", ConsoleColor.Green),
-            ColoredText("🛡️ Pajzs — Jártas: +1 védelem és társi fedezet | Mester: jobb pajzsdobás és erősebb fedezet; a lovag ebben különösen hatékony.", ConsoleColor.Blue),
+            ColoredText("🛡️ Pajzs — ritka kritikus blokkal teljes fizikai csapást véd ki; Q: pajzslökés. Jártas: +1 védelem, blokk, lökés és társi fedezet | Mester: jobb pajzsdobás, további blokk/lökés és erősebb fedezet.", ConsoleColor.Blue),
             ColoredText("🦯 Harci bot — Jártas: +1 védelem, -5% harci varázskudarc | Mester: +2 védelem, -10% harci varázskudarc.", ConsoleColor.Magenta),
             Text("A többcélú fegyver fő célpontja teljes, mellékcélpontjai alapból 75% sebzést kapnak. A bárd ívben, a szálfegyver egyenes vonalban, a kétkezes zúzófegyver kis összefüggő területen hat. Bárdmester, dühöngő barbár vagy Erőteljes állású harcos teljes söprési sebzést okoz.")
         };

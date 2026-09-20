@@ -190,7 +190,7 @@ PERK-C002-2A;Őrjöngés;Minden egymást követő találat +1 halmozódó sebzé
 PERK-C002-2B;Fájdalomtűrés;A 3 pontnál kisebb beérkező sebzést figyelmen kívül hagyja.;C002;2
 PERK-C002-3A;Berserker düh;Fél HP alatt minden körben kétszer támadhat.;C002;3
 PERK-C002-3B;Őserő;+20 maximális HP és +5 állandó közelharci sebzés.;C002;3
-PERK-C003-1A;Pajzsfal;Pajzzsal további +2 védelmet kap.;C003;1
+PERK-C003-1A;Pajzsfal;Pajzzsal további +2 védelmet valamint +1 kritikus blokk- és pajzslökési erőt kap.;C003;1
 PERK-C003-1B;Kihívás;Az ellenfél első támadása automatikusan elhibázza.;C003;1
 PERK-C003-2A;Páncélmester;"A viselt páncél védelmi dobása mindig legalább az átlagérték; páncélja és pajzsa minden kopása 1 ponttal csökken.";C003;2
 PERK-C003-2B;Szent eskü;Minden csata elején visszanyer 10 HP-t.;C003;2
@@ -343,7 +343,7 @@ WT002;Ügyesség
 WT003;Védelem
 
 #Fegyverek
-Id;Név;Típus;Sebzés;MinimumErő;Kétkezes;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;Sebzéstípus;MaxCélpont;HátsóSor;Fegyvercsalád;MaxTartósság
+Id;Név;Típus;Sebzés;MinimumErő;Kétkezes;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;Sebzéstípus;MaxCélpont;HátsóSor;Fegyvercsalád;MaxTartósság;PajzsTier
 W001;tőr;WT002;2-5;1;nem;igen;nem;igen;Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.;35;;;;1;szúrás;1;nem;DAGGER
 W002;rövid kard;WT002;3-7;3;nem;igen;nem;nem;Fordulékony egykezes kard amely szűk helyen is jól használható.;70;;;;2;szúrás;1;nem;SWORD
 W003;katana;WT002;5-10;4;igen;igen;nem;nem;Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.;420;;;;4;vágás;1;nem;SWORD
@@ -357,9 +357,9 @@ W010;csatabárd;WT001;6-13;7;nem;nem;nem;nem;Széles pengéjű egykezes harci fe
 W011;lándzsa;WT001;5-12;5;igen;nem;nem;nem;Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.;160;;;;4;szúrás;2;igen;POLEARM
 W012;alabárd;WT001;7-15;8;igen;nem;nem;nem;Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.;480;;;;7;vágás;2;igen;POLEARM
 W013;kétkezes pöröly;WT001;7-14;8;igen;nem;igen;nem;Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.;450;;;;7;zúzás;2;nem;BLUNT
-W014;fapajzs;WT003;1-2;3;nem;igen;igen;nem;Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.;120;;;;3;zúzás;1;nem;SHIELD;50
-W015;vaspajzs;WT003;2-3;6;nem;nem;igen;nem;Masszív falap vasalt szegéllyel a beérkező csapások felfogására.;300;;;;5;zúzás;1;nem;SHIELD;90
-W016;acélpajzs;WT003;2-5;10;nem;nem;igen;nem;Masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.;800;;;;7;zúzás;1;nem;SHIELD;160
+W014;fapajzs;WT003;1-2;3;nem;igen;igen;nem;Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.;120;;;;3;zúzás;1;nem;SHIELD;50;1
+W015;vaspajzs;WT003;2-3;6;nem;nem;igen;nem;Masszív falap vasalt szegéllyel a beérkező csapások felfogására.;300;;;;5;zúzás;1;nem;SHIELD;90;2
+W016;acélpajzs;WT003;2-5;10;nem;nem;igen;nem;Masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.;800;;;;7;zúzás;1;nem;SHIELD;160;3
 W017;nagybalta;WT001;6-20;9;igen;nem;nem;nem;Kétkezes könyörtelen csatabárd.;500;;;;8;vágás;2;nem;AXE
 W018;harci bot;WT002;3-8;2;igen;igen;igen;igen;Hosszú keményfa bot gyors ütésekhez és védekezéshez.;45;;;;2;zúzás;1;igen;STAFF
 W019;óriásdorong;WT001;7-16;10;igen;nem;nem;nem;Hatalmas fatörzsből durván kifaragott kétkezes zúzófegyver.;0;;;;8;zúzás;2;nem;BLUNT
@@ -380,8 +380,8 @@ LW009;Világdaraboló;WT001;14-26;8;nem;nem;nem;nem;Óriások kovácsolta csatab
 LW010;Fagykarom;WT001;11-21;6;nem;igen;nem;nem;Jégkék hosszú kard amely dércsíkot hagy minden vágás után.;7200;Legendás;W004;4;3;vágás;1;nem;SWORD;210
 LW011;Pokollánc;WT001;12-23;7;nem;nem;igen;nem;Lángoló láncos buzogány amely kiszámíthatatlan tűzíveket rajzol.;8800;Legendás;W007;5;5;zúzás;1;nem;BLUNT;230
 LW012;Csillaghullás;WT001;13-24;8;nem;nem;igen;nem;Meteoritvasból készült csatacsillag vakító szikrákkal.;9300;Legendás;W008;5;5;zúzás;1;nem;BLUNT;240
-LW013;Őrzők pajzsa;WT003;6-12;9;nem;nem;igen;nem;Rúnás pajzs amely ősi őrszemek erejét hordozza.;7000;Legendás;W015;6;5;zúzás;1;nem;SHIELD;260
-LW014;Tölgykirály pajzsa;WT003;7-13;6;nem;igen;igen;nem;Élő szentfából nőtt pajzs amely soha nem reped meg.;7400;Legendás;W014;5;3;zúzás;1;nem;SHIELD;0
+LW013;Őrzők pajzsa;WT003;6-12;9;nem;nem;igen;nem;Rúnás pajzs amely ősi őrszemek erejét hordozza.;7000;Legendás;W015;6;5;zúzás;1;nem;SHIELD;260;4
+LW014;Tölgykirály pajzsa;WT003;7-13;6;nem;igen;igen;nem;Élő szentfából nőtt pajzs amely soha nem reped meg.;7400;Legendás;W014;5;3;zúzás;1;nem;SHIELD;0;4
 LW015;Lélekarató;WT001;15-29;9;igen;nem;nem;nem;Fekete alabárd amely hideg suttogással várja következő áldozatát.;12000;Legendás;W012;6;7;vágás;2;igen;POLEARM;280
 LW016;Titánöklű;WT001;10-20;5;nem;nem;igen;nem;Sűrű csillagfémből öntött bunkó felfoghatatlan súllyal.;6800;Legendás;W005;3;6;zúzás;1;nem;BLUNT;230
 LW017;Ezüsthold;WT002;12-22;7;igen;igen;nem;igen;Holdfényben kovácsolt katana amely kékes félholdakat rajzol.;9000;Legendás;W003;5;4;vágás;1;nem;SWORD;230

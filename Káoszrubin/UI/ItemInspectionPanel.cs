@@ -152,6 +152,9 @@ public static class ItemInspectionPanel
                 yield return ($"🎓 Engedélyezett kasztok: {AllowedClassNames(weapon.AllowedClassIds, gameData)}", ConsoleColor.Gray);
                 if (!string.IsNullOrWhiteSpace(weapon.FamilyId))
                     yield return ($"🧬 Fegyvercsalád: {weapon.FamilyId}", ConsoleColor.DarkCyan);
+                if (weapon.ShieldTier > 0)
+                    yield return ($"🛡 Pajzstier: {weapon.ShieldTier} | alap kritikus blokk: {weapon.ShieldTier * 5}%",
+                        ConsoleColor.Cyan);
                 if (!string.IsNullOrWhiteSpace(weapon.BaseWeaponId))
                     yield return ($"🛠 Alapfegyver: {weapon.BaseWeaponId}", ConsoleColor.DarkCyan);
                 yield break;

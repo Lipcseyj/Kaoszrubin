@@ -84,6 +84,7 @@ public sealed class BattleCommandPanel
         if (actionSet.Contains(BattleActionKind.PrepareRearLeft)) commands.Add("B: bal hátul készülj");
         if (actionSet.Contains(BattleActionKind.PrepareRearRight)) commands.Add("J: jobb hátul készülj");
         if (actionSet.Contains(BattleActionKind.PhysicalAttack)) commands.Add("Space: támadás");
+        if (actionSet.Contains(BattleActionKind.ShieldBash)) commands.Add("Q: pajzslökés");
         if (actionSet.Contains(BattleActionKind.Move) || actionSet.Contains(BattleActionKind.MoveFormation))
             commands.Add("nyilak: mozgás");
         if (actionSet.Contains(BattleActionKind.CastSpell)) commands.Add("V/F1-F8: varázslat");
@@ -125,7 +126,7 @@ public sealed class BattleCommandPanel
         var knownHotkeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Space", "nyilak", "V", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
-            "Tab", "U", "T", "R", "P", "C", "H", "B", "J", "Space/P", "V/F1-F8", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+            "Tab", "U", "T", "R", "P", "Q", "C", "H", "B", "J", "Space/P", "V/F1-F8", "1", "2", "3", "4", "5", "6", "7", "8", "9"
         };
 
         var segments = new List<TextSegment>();

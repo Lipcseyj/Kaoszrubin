@@ -27,7 +27,7 @@ public static class WeaponFamilies
         new(Axe, "Bárd", "🪓", "+2 fizikai sebzés.", "A természetes 20 háromszoros kritikus; az íves söprés mellékcélpontjai teljes sebzést kapnak és -2 páncélt szenvednek a csata végéig."),
         new(Blunt, "Zúzófegyver", "🔨", "Az ellenfél páncéljából 2 pontot figyelmen kívül hagy.", "Összesen 4 pont páncélt hagy figyelmen kívül; találattal megszakítja az előkészített szörnyfegyvert, máskülönben megtorpasztja a következő közeledését."),
         new(Polearm, "Szálfegyver", "🔱", "+3 kezdeményezés; vonalban a cél mögötti ellenfelet is eléri.", "A csata első sikeres találata ×1,5 sebzés, és feltartóztatja a fegyver hatókörébe belépő ellenfelet."),
-        new(Shield, "Pajzs", "🛡️", "Felszerelt pajzzsal +1 védelem, és +1 társi fedezetet ad a szomszédnak.", "A pajzsdobás kétszer történik; a társi fedezet +2, lovagnál +3."),
+        new(Shield, "Pajzs", "🛡️", "Felszerelt pajzzsal +1 védelem és +1 társi fedezet; a kritikus blokk és pajzslökés +1 erőt kap.", "A pajzsdobás kétszer történik; a kritikus blokk és pajzslökés további +1 erőt, a társi fedezet +2-t, lovagnál +3-at kap."),
         new(Staff, "Harci bot", "🦯", "Felszerelve +1 védelem és -5% harci varázskudarc.", "Felszerelve összesen +2 védelem és -10% harci varázskudarc.")
     ];
 
