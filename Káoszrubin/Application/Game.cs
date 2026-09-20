@@ -5160,7 +5160,7 @@ public sealed class Game : ISessionCommandHandler
             var selectSlotErrorMsg = "Válassz egy felszerelés- vagy hátizsákhelyet.";
                 _renderer.DrawInventoryMessage(selectSlotErrorMsg, ConsoleColor.DarkYellow); 
         }
-        var target = slot.Value;
+        InventorySlotReference target = slot.Value;
         if (_heldInventoryItem is null)
         {
             var item = target.Character.GetInventoryItem(target.Kind, target.Index);
