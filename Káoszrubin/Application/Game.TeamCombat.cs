@@ -183,26 +183,7 @@ public sealed partial class Game
             // Központi fék ami meg tudja állítani a csatát, hogy lássuk a csapást
             if (battle.PauseReason != BattlePauseReason.None)
             {
-                _session.SetBattlePrompt(
-                    battle.Id,
-                    battle.Turns.TurnId,
-                    PartyLeader.Id,
-                    [BattleActionKind.ResumeBattle]);
-
-                if (battle.CurrentCharacter is { } c)
-                {
-                    var isHumanControlled = _session.IsHumanControlled(c.Id);
-                    _renderer.DrawBattleCommandPanel(
-                    BattleCommandPanel.Format([BattleActionKind.ResumeBattle], isHumanControlled, c.Name));
-                }
-                else if (battle.CurrentEnemy is { } e)
-                {
-                    _renderer.DrawBattleCommandPanel(
-                        BattleCommandPanel.Format([BattleActionKind.ResumeBattle], false, e.Name));
-                }
-
-                RequestCoopSnapshotPublish();
-
+                SetTeamBattlePrompt(battle);
                 return;
             }
 
@@ -304,11 +285,7 @@ public sealed partial class Game
                 {
                     if (!_isQuickTeamBattle && isHumanControlled)
                     {
-                        var enemy = ClosestLivingTeamEnemy(battle, current.Position);
-                        var actions = GetTeamAllowedBattleActions(battle, character, enemy);
-                        _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, character.Id, actions);
-                        PublishTeamBattlePrompt(character, enemy, actions, battle);
-                        RequestCoopSnapshotPublish();
+                        SetTeamBattlePrompt(battle);
                         return;
                     }
                     ChooseTeamAiTactic(character, runtime);
@@ -316,11 +293,7 @@ public sealed partial class Game
                 }
                 if (!_isQuickTeamBattle && isHumanControlled)
                 {
-                    var enemy = ClosestLivingTeamEnemy(battle, current.Position);
-                    var actions = GetTeamAllowedBattleActions(battle, character, enemy);
-                    _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, character.Id, actions);
-                    PublishTeamBattlePrompt(character, enemy, actions, battle);
-                    RequestCoopSnapshotPublish();
+                    SetTeamBattlePrompt(battle);
                     return;
                 }
                 ExecuteTeamAiCharacterTurn(battle, character);
@@ -341,16 +314,7 @@ public sealed partial class Game
                 }
 
                 // PauseBeforeAnyAction: az ellenfél akciója előtt Space-re várunk.
-                _session.SetBattlePrompt(
-                    battle.Id,
-                    battle.Turns.TurnId,
-                    PartyLeader.Id,
-                    [BattleActionKind.AdvanceEnemyTurn]);
-
-                _renderer.DrawBattleCommandPanel(
-                    BattleCommandPanel.Format([BattleActionKind.AdvanceEnemyTurn], false, enemyActor.Name));
-
-                RequestCoopSnapshotPublish();
+                SetTeamBattlePrompt(battle);
                 return;
             }
 
@@ -790,9 +754,7 @@ public sealed partial class Game
         _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
         if (_activeTeamBattle is { IsCompleted: false } battle && battle.CurrentCharacter is { } character)
         {
-            var enemy = ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
-            _session.SetBattlePrompt(battle.Id, battle.Turns.TurnId, character.Id,
-                GetTeamAllowedBattleActions(battle, character, enemy));
+            SetTeamBattlePrompt(battle);
         }
     }
 

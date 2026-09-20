@@ -242,27 +242,37 @@ public sealed class GameSession
         }
     }
 
-    public void SetBattlePrompt(BattleId battleId, long turnId, CharacterId actingCharacterId,
+    public bool SetBattlePrompt(BattleId battleId, long turnId, CharacterId actingCharacterId,
         IReadOnlyList<BattleActionKind>? allowedActions = null)
     {
         lock (_stateGate)
         {
             allowedActions ??= [BattleActionKind.PhysicalAttack];
+            if (turnId <= 0) throw new ArgumentOutOfRangeException(nameof(turnId));
+            if (allowedActions.Count == 0)
+                throw new ArgumentException("Legalább egy harci akció engedélyezése szükséges.", nameof(allowedActions));
+            var allowedActionSet = allowedActions.ToHashSet();
+            if (Phase == GameSessionPhase.Battle &&
+                _activeBattleId == battleId &&
+                _activeBattleTurnId == turnId &&
+                _actingBattleCharacterId == actingCharacterId &&
+                _allowedBattleActions.SetEquals(allowedActionSet))
+                return false;
+
             Log.Info(
                 "battle.session.prompt",
                 $"battleId={battleId}; " +
                 $"turnId={turnId}; " +
                 $"character={actingCharacterId}; " +
                 $"allowed=[{string.Join(", ", allowedActions)}]");
-            if (turnId <= 0) throw new ArgumentOutOfRangeException(nameof(turnId));
-            if (allowedActions.Count == 0) throw new ArgumentException("Legalább egy harci akció engedélyezése szükséges.", nameof(allowedActions));
             SetPhase(GameSessionPhase.Battle);
             _activeBattleId = battleId;
             _activeBattleTurnId = turnId;
             _actingBattleCharacterId = actingCharacterId;
-            _allowedBattleActions = allowedActions.ToHashSet();
+            _allowedBattleActions = allowedActionSet;
             Publish(sequence => new BattlePromptEvent(sequence, battleId, turnId, actingCharacterId,
                 allowedActions));
+            return true;
         }
     }
 

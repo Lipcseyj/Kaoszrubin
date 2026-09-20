@@ -236,6 +236,7 @@ var tests = new (string Name, Action Run)[]
     ("A győzelmi üzenet nem ismétli meg az utolsó támadást", VictoryMessageIsConcise),
     ("A győzelmi összegzés egyetlen kompakt sor", VictorySummaryIsCompact),
     ("Csak az aktív BattleId és TurnId parancsa fogadható el", BattleCommandRequiresCurrentPrompt),
+    ("Az azonos harci prompt idempotens, a tartalmi változás újrapublikál", BattlePromptIsIdempotent),
     ("Az ellenfél köre külön Space-paranccsal léptethető", EnemyTurnAdvanceCommandIsAccepted),
     ("A távoli harci promptot csak a karakter gazdája oldhatja fel", RemoteBattlePromptRequiresCharacterOwner),
     ("A varázslat command csak szemantikus választást hordoz", SpellBattleCommandIsAccepted),
@@ -1218,6 +1219,24 @@ static void BattleCommandRequiresCurrentPrompt()
     session.EndBattle(battleId);
     Assert(events.OfType<BattleEndedEvent>().Any(ended => ended.BattleId == battleId),
         "A session nem publikálta a csata végét.");
+}
+
+static void BattlePromptIsIdempotent()
+{
+    var (session, leader, _) = CreateSession();
+    var events = CollectEvents(session);
+    var battleId = BattleId.New();
+    Assert(session.SetBattlePrompt(battleId, 3, leader.Id,
+               [BattleActionKind.PhysicalAttack, BattleActionKind.Pass]),
+        "Az első harci prompt nem került beállításra.");
+    Assert(!session.SetBattlePrompt(battleId, 3, leader.Id,
+               [BattleActionKind.Pass, BattleActionKind.PhysicalAttack]) &&
+           events.OfType<BattlePromptEvent>().Count() == 1,
+        "Az azonos tartalmú, eltérő sorrendű prompt ismét eseményt publikált.");
+    Assert(session.SetBattlePrompt(battleId, 3, leader.Id,
+               [BattleActionKind.PhysicalAttack, BattleActionKind.Retreat]) &&
+           events.OfType<BattlePromptEvent>().Count() == 2,
+        "Az azonos kör tartalmilag megváltozott promptja nem publikálódott újra.");
 }
 
 static void RemoteBattlePromptRequiresCharacterOwner()

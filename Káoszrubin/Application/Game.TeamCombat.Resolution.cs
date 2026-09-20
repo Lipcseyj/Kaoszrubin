@@ -530,14 +530,25 @@ public sealed partial class Game
         LiveCharacter character, Enemy enemy) =>
         _teamBattleCoordinator.GetTeamBattleTacticOptions(battle, character, enemy);
 
-    private void PublishTeamBattlePrompt(LiveCharacter character, Enemy enemy,
-        IReadOnlyList<BattleActionKind> actions, TeamBattleEncounter battle)
+    private void SetTeamBattlePrompt(TeamBattleEncounter battle)
     {
-        var message = BattleCommandPanel.Format(actions, true, character.Name,
-            battle.RuntimeFor(character).RequiresTacticSelection
-                ? GetTeamBattleTacticOptions(battle, character, enemy)
-                : null);
+        var prompt = CreateTeamBattlePromptState(battle);
+        if (!_session.SetBattlePrompt(prompt.BattleId, prompt.TurnId, prompt.ActingCharacterId,
+                prompt.AllowedActions))
+            return;
+
+        var currentActorName = prompt.ActingCharacter?.Name ?? battle.CurrentEnemy?.Name ?? prompt.FocusEnemy.Name;
+        var isHumanControlled = prompt.ActingCharacter is not null &&
+                                _session.IsHumanControlled(prompt.ActingCharacter.Id);
+        var tacticOptions = !prompt.IsPaused &&
+                            prompt.ActingCharacter is not null &&
+                            battle.RuntimeFor(prompt.ActingCharacter).RequiresTacticSelection
+            ? prompt.TacticOptions
+            : null;
+        var message = BattleCommandPanel.Format(prompt.AllowedActions, isHumanControlled, currentActorName,
+            tacticOptions);
         _renderer.DrawBattleCommandPanel(message);
+        RequestCoopSnapshotPublish();
     }
 
     private IEnumerable<Enemy> AdjacentTeamEnemies(TeamBattleEncounter battle, LiveCharacter character) =>

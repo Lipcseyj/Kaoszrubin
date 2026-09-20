@@ -183,6 +183,21 @@ public sealed partial class Game : ISessionCommandHandler
     public GameSession Session => _session;
     public TeamBattleEncounter? ActiveTeamBattle => _activeTeamBattle;
 
+    private sealed record TeamBattlePromptState(
+        BattleId BattleId,
+        long TurnId,
+        CharacterId ActingCharacterId,
+        LiveCharacter? ActingCharacter,
+        Enemy FocusEnemy,
+        IReadOnlyList<BattleActionKind> AllowedActions,
+        IReadOnlyList<BattleSpellOption>? SpellOptions,
+        IReadOnlyList<BattleTacticOptionSnapshot>? TacticOptions,
+        IReadOnlyList<BattleItemOptionSnapshot>? ItemOptions,
+        IReadOnlyList<WorldEntityId>? ValidTargetEnemyIds,
+        WorldEntityId? TurnUndeadTargetEnemyId,
+        bool IsPaused,
+        bool IsPlayerTurn);
+
     public SessionSnapshot CreateSessionSnapshot()
     {
         if (_maze is null || _player is null)
@@ -260,45 +275,7 @@ public sealed partial class Game : ISessionCommandHandler
     private BattleSnapshot CreateTeamBattleSnapshot(TeamBattleEncounter battle)
     {
         var current = battle.Current;
-        var actingCharacter = battle.CurrentCharacter;
-        var isPaused = battle.PauseReason != BattlePauseReason.None;
-
-        var focusEnemy =
-            battle.CurrentEnemy ??
-            battle.SelectedTargetEnemy() ??
-            (actingCharacter is null
-                ? null
-                : ReachableTeamEnemies(battle, actingCharacter)
-                    .OrderBy(enemy => enemy.CurrentHitPoints)
-                    .FirstOrDefault()) ??
-            battle.Enemies
-                .Where(enemy => enemy.CurrentHitPoints > 0)
-                .OrderBy(enemy => TacticalDistance.Between(current.Position, enemy.Position))
-                .First();
-
-        // Pause esetén a session promptot a party leader kezeli,
-        // és egyetlen engedélyezett akció a ResumeBattle.
-        var actingCharacterId = isPaused
-            ? PartyLeader.Id
-            : actingCharacter?.Id ?? PartyLeader.Id;
-
-        IReadOnlyList<BattleActionKind> allowed = isPaused
-            ? [BattleActionKind.ResumeBattle]
-            : actingCharacter is null
-                ? [BattleActionKind.AdvanceEnemyTurn]
-                : GetTeamAllowedBattleActions(battle, actingCharacter, focusEnemy);
-
-        var spellOptions =
-            !isPaused &&
-            actingCharacter is not null &&
-            allowed.Contains(BattleActionKind.CastSpell)
-                ? GetSpellOptions(
-                    actingCharacter,
-                    GetCasterPosition(actingCharacter),
-                    focusEnemy,
-                    inCombat: true)
-                : null;
-
+        var prompt = CreateTeamBattlePromptState(battle);
         var focusTargetId = TeamBattleFocusTarget(battle, current);
 
         var participants = battle.Turns.Participants.Select(participant =>
@@ -329,52 +306,90 @@ public sealed partial class Game : ISessionCommandHandler
         .ToArray();
 
         return new BattleSnapshot(
+            prompt.BattleId,
+            prompt.TurnId,
+            battle.ActionNumber,
+            prompt.IsPlayerTurn,
+            prompt.ActingCharacterId,
+            new SessionEnemySnapshot(
+                prompt.FocusEnemy.Definition.Id,
+                prompt.FocusEnemy.Name,
+                prompt.FocusEnemy.Position,
+                prompt.FocusEnemy.CurrentHitPoints,
+                prompt.FocusEnemy.Definition.HitPoints ?? prompt.FocusEnemy.CurrentHitPoints,
+                prompt.FocusEnemy.Id),
+            prompt.AllowedActions,
+            prompt.SpellOptions,
+            prompt.TacticOptions,
+            battle.Turns.Cycle,
+            participants,
+            prompt.ItemOptions,
+            prompt.ValidTargetEnemyIds,
+            IsQuickBattle: _isQuickTeamBattle,
+            ActionDetails: _lastBattleActionDetails,
+            TurnUndeadTargetEnemyId: prompt.TurnUndeadTargetEnemyId);
+    }
+
+    private TeamBattlePromptState CreateTeamBattlePromptState(TeamBattleEncounter battle)
+    {
+        var current = battle.Current;
+        var actingCharacter = battle.CurrentCharacter;
+        var isPaused = battle.PauseReason != BattlePauseReason.None;
+        var focusEnemy =
+            battle.CurrentEnemy ??
+            battle.SelectedTargetEnemy() ??
+            (actingCharacter is null
+                ? null
+                : ReachableTeamEnemies(battle, actingCharacter)
+                    .OrderBy(enemy => enemy.CurrentHitPoints)
+                    .FirstOrDefault()) ??
+            battle.Enemies
+                .Where(enemy => enemy.CurrentHitPoints > 0)
+                .OrderBy(enemy => TacticalDistance.Between(current.Position, enemy.Position))
+                .First();
+        var actingCharacterId = isPaused
+            ? PartyLeader.Id
+            : actingCharacter?.Id ?? PartyLeader.Id;
+        IReadOnlyList<BattleActionKind> allowed = isPaused
+            ? [BattleActionKind.ResumeBattle]
+            : actingCharacter is null
+                ? [BattleActionKind.AdvanceEnemyTurn]
+                : GetTeamAllowedBattleActions(battle, actingCharacter, focusEnemy);
+        var spellOptions =
+            !isPaused &&
+            actingCharacter is not null &&
+            allowed.Contains(BattleActionKind.CastSpell)
+                ? GetSpellOptions(
+                    actingCharacter,
+                    GetCasterPosition(actingCharacter),
+                    focusEnemy,
+                    inCombat: true)
+                : null;
+
+        return new TeamBattlePromptState(
             battle.Id,
             battle.Turns.TurnId,
-            battle.ActionNumber,
-
-            // ResumeBattle is szintén játékosi prompt.
-            isPaused || actingCharacter is not null,
-
             actingCharacterId,
-
-            new SessionEnemySnapshot(
-                focusEnemy.Definition.Id,
-                focusEnemy.Name,
-                focusEnemy.Position,
-                focusEnemy.CurrentHitPoints,
-                focusEnemy.Definition.HitPoints ?? focusEnemy.CurrentHitPoints,
-                focusEnemy.Id),
-
+            actingCharacter,
+            focusEnemy,
             allowed,
             spellOptions,
-
             !isPaused && actingCharacter is not null
                 ? GetTeamBattleTacticOptions(battle, actingCharacter, focusEnemy)
                 : null,
-
-            battle.Turns.Cycle,
-            participants,
-
             !isPaused && actingCharacter is not null
                 ? GetBattleItemOptions(battle, actingCharacter)
                 : null,
-
             !isPaused && actingCharacter is not null
                 ? ReachableTeamEnemies(battle, actingCharacter)
                     .Select(enemy => enemy.Id)
                     .ToArray()
                 : null,
-
-            IsQuickBattle: _isQuickTeamBattle,
-            ActionDetails: _lastBattleActionDetails,
-
-            TurnUndeadTargetEnemyId:
-                !isPaused &&
-                actingCharacter is not null &&
-                allowed.Contains(BattleActionKind.TurnUndead)
-                    ? PreferredTurnUndeadTarget(battle, actingCharacter)?.Id
-                    : null);
+            !isPaused && actingCharacter is not null && allowed.Contains(BattleActionKind.TurnUndead)
+                ? PreferredTurnUndeadTarget(battle, actingCharacter)?.Id
+                : null,
+            isPaused,
+            isPaused || actingCharacter is not null);
     }
 
     private CharacterSheetSnapshot CharacterSheetWithCombatConditions(LiveCharacter character,
