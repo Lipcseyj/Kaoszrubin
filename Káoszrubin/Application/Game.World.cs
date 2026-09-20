@@ -397,7 +397,7 @@ public sealed partial class Game
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);
-                    if (_activeTeamBattle is not null && !_isQuickTeamBattle &&
+                    if (_activeBattle is not null && !_isQuickBattle &&
                         GameInputBindings.BattleDetailsPageDirection(keyInfo) is var detailDirection && detailDirection != 0)
                     {
                         _renderer.CharacterSheet.PageBattleDetails(detailDirection);
@@ -418,7 +418,7 @@ public sealed partial class Game
                         continue;
                     }
                     MarkCoopSnapshotDirty();
-                    if (_activeTeamBattle is not null)
+                    if (_activeBattle is not null)
                     {
                         HandleLocalBattleInput(keyInfo);
                         continue;
@@ -532,11 +532,11 @@ public sealed partial class Game
                 var now = DateTime.UtcNow;
                 ProcessSessionCommands();
 
-                if (_activeTeamBattle is not null &&
+                if (_activeBattle is not null &&
                     _automaticBattleResumeUtc is { } battleResumeUtc &&
                     DateTime.UtcNow >= battleResumeUtc)
                 {
-                    ContinueTeamBattle();
+                    ContinueBattle();
                 }
                     
                 if (PruneDisconnectedPlayerWindows()) RefreshCoopWindowStatus();

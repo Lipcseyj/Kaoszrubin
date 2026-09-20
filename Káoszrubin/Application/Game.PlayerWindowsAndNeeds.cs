@@ -154,11 +154,8 @@ public sealed partial class Game
         _renderer.RefreshCharacterSheet(PartyLeader);
     }
 
-    private int DrainNeedsAfterBattle(LiveCharacter character, int monsterTier) =>
-        _sustenanceService.DrainNeedsAfterBattle(character, monsterTier, IsAutonomousNpc, LogNewZeroNeed);
-
-    private void DrainNeedsAfterTeamBattle(LiveCharacter character, int cycles) =>
-        _sustenanceService.DrainNeedsAfterTeamBattle(character, cycles, IsAutonomousNpc, LogNewZeroNeed);
+    private void DrainNeedsAfterBattle(LiveCharacter character, int cycles) =>
+        _sustenanceService.DrainNeedsAfterBattle(character, cycles, IsAutonomousNpc, LogNewZeroNeed);
 
     private bool IsAutonomousNpc(LiveCharacter character) =>
         character != PartyLeader && !_session.IsHumanControlled(character.Id) &&
@@ -368,21 +365,21 @@ public sealed partial class Game
         var materialized = sourceEntries.SelectMany(entry =>
             new[] { entry }.Concat((entry.FollowUps ?? []).Select(notice =>
                 new BattleLogEntry(notice.Message, notice.Kind)))).ToArray();
-        if (_locationId == DeveloperBattleTestLocationId && _activeTeamBattle is { } loggedBattle)
+        if (_locationId == DeveloperBattleTestLocationId && _activeBattle is { } loggedBattle)
             _developerBattleLog.AppendBattleEntries(loggedBattle, materialized);
-        if (_activeTeamBattle is not null && !_isQuickTeamBattle)
+        if (_activeBattle is not null && !_isQuickBattle)
         {
             foreach (var entry in sourceEntries)
             {
                 _lastBattleActionDetails = entry.Details ?? new BattleActionDetails(Guid.NewGuid(),
-                    _activeTeamBattle.CurrentCharacter?.Name ?? _activeTeamBattle.CurrentEnemy?.Name ?? "Akció",
+                    _activeBattle.CurrentCharacter?.Name ?? _activeBattle.CurrentEnemy?.Name ?? "Akció",
                     "", [], [entry.Message]);
                 _renderer.CharacterSheet.DrawBattleDetails(_lastBattleActionDetails);
             }
         }
         _sessionEventService.PresentBattleEntries(
             materialized,
-            _isQuickTeamBattle,
+            _isQuickBattle,
             entry => _renderer.DrawBattleRound(entry),
             _ => _renderer.CharacterSheet.RefreshBattleStatusRows(),
             PartyLeader.Id,

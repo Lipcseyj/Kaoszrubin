@@ -86,7 +86,7 @@ public sealed partial class Game : ISessionCommandHandler
     private readonly GameSession _session;
     private readonly SpellExecutionService _spellExecutionService;
     private readonly BattleActionCoordinator _battleActionCoordinator;
-    private readonly TacticalTeamBattleCoordinator _teamBattleCoordinator;
+    private readonly TacticalBattleCoordinator _battleCoordinator;
     private readonly NpcQuestCoordinator _npcQuestCoordinator;
     private readonly StoryConversationCoordinator _storyConversationCoordinator;
     private readonly CharacterProgressionService _progressionService;
@@ -100,13 +100,13 @@ public sealed partial class Game : ISessionCommandHandler
     private readonly PartyAiController _partyAiController;
     private readonly SessionCommandDispatcher _commandDispatcher;
     private long _localCommandId;
-    private TeamBattleEncounter? _activeTeamBattle;
-    private bool _isQuickTeamBattle;
+    private BattleEncounter? _activeBattle;
+    private bool _isQuickBattle;
     private int _quickBattleSuppressedEntryCount;
-    private long _preparedTeamBattleTurnId;
-    private long _teamMovementTurnId = -1;
-    private int _teamMovementRemaining;
-    private int _teamMovementSteps;
+    private long _preparedBattleTurnId;
+    private long _battleMovementTurnId = -1;
+    private int _battleMovementRemaining;
+    private int _battleMovementSteps;
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
@@ -181,9 +181,9 @@ public sealed partial class Game : ISessionCommandHandler
     public CharacterRoster CharacterRoster { get; }
     public LiveCharacter PartyLeader { get; }
     public GameSession Session => _session;
-    public TeamBattleEncounter? ActiveTeamBattle => _activeTeamBattle;
+    public BattleEncounter? ActiveBattle => _activeBattle;
 
-    private sealed record TeamBattlePromptState(
+    private sealed record BattlePromptState(
         BattleId BattleId,
         long TurnId,
         CharacterId ActingCharacterId,
@@ -209,12 +209,12 @@ public sealed partial class Game : ISessionCommandHandler
         };
         foreach (var member in _maze.PartyMembers) positions[member.Character.Id] = member.Position;
 
-        BattleSnapshot? battle = _activeTeamBattle is { IsCompleted: false } teamBattle
-            ? CreateTeamBattleSnapshot(teamBattle)
+        BattleSnapshot? battle = _activeBattle is { IsCompleted: false } activeBattle
+            ? CreateBattleSnapshot(activeBattle)
             : null;
         var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_difficultyLevel, _maze.LevelName,
             positions, battle, WorldSnapshotProjector.Create(_maze, _fogOfWar,
-                _activeTeamBattle?.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
+                _activeBattle?.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
                     .Select(enemy => enemy.Id).ToHashSet(),
                 new QuestWorldSnapshotProjector(_questManager, _questWorldContext).Create)));
         var followers = _maze.PartyMembers
@@ -272,11 +272,11 @@ public sealed partial class Game : ISessionCommandHandler
         };
     }
 
-    private BattleSnapshot CreateTeamBattleSnapshot(TeamBattleEncounter battle)
+    private BattleSnapshot CreateBattleSnapshot(BattleEncounter battle)
     {
         var current = battle.Current;
-        var prompt = CreateTeamBattlePromptState(battle);
-        var focusTargetId = TeamBattleFocusTarget(battle, current);
+        var prompt = CreateBattlePromptState(battle);
+        var focusTargetId = BattleFocusTarget(battle, current);
 
         var participants = battle.Turns.Participants.Select(participant =>
         {
@@ -290,8 +290,8 @@ public sealed partial class Game : ISessionCommandHandler
                 participant.Kind,
                 participant.Position,
                 participant.CurrentInitiative,
-                participant.Id == current.Id && _teamMovementTurnId == battle.Turns.TurnId
-                    ? _teamMovementRemaining
+                participant.Id == current.Id && _battleMovementTurnId == battle.Turns.TurnId
+                    ? _battleMovementRemaining
                     : participant.MovementAllowance,
                 participant.EligibleFromCycle,
                 participant.State,
@@ -325,12 +325,12 @@ public sealed partial class Game : ISessionCommandHandler
             participants,
             prompt.ItemOptions,
             prompt.ValidTargetEnemyIds,
-            IsQuickBattle: _isQuickTeamBattle,
+            IsQuickBattle: _isQuickBattle,
             ActionDetails: _lastBattleActionDetails,
             TurnUndeadTargetEnemyId: prompt.TurnUndeadTargetEnemyId);
     }
 
-    private TeamBattlePromptState CreateTeamBattlePromptState(TeamBattleEncounter battle)
+    private BattlePromptState CreateBattlePromptState(BattleEncounter battle)
     {
         var current = battle.Current;
         var actingCharacter = battle.CurrentCharacter;
@@ -340,7 +340,7 @@ public sealed partial class Game : ISessionCommandHandler
             battle.SelectedTargetEnemy() ??
             (actingCharacter is null
                 ? null
-                : ReachableTeamEnemies(battle, actingCharacter)
+                : ReachableEnemies(battle, actingCharacter)
                     .OrderBy(enemy => enemy.CurrentHitPoints)
                     .FirstOrDefault()) ??
             battle.Enemies
@@ -354,7 +354,7 @@ public sealed partial class Game : ISessionCommandHandler
             ? [BattleActionKind.ResumeBattle]
             : actingCharacter is null
                 ? [BattleActionKind.AdvanceEnemyTurn]
-                : GetTeamAllowedBattleActions(battle, actingCharacter, focusEnemy);
+                : GetAllowedBattleActions(battle, actingCharacter, focusEnemy);
         var spellOptions =
             !isPaused &&
             actingCharacter is not null &&
@@ -366,7 +366,7 @@ public sealed partial class Game : ISessionCommandHandler
                     inCombat: true)
                 : null;
 
-        return new TeamBattlePromptState(
+        return new BattlePromptState(
             battle.Id,
             battle.Turns.TurnId,
             actingCharacterId,
@@ -375,13 +375,13 @@ public sealed partial class Game : ISessionCommandHandler
             allowed,
             spellOptions,
             !isPaused && actingCharacter is not null
-                ? GetTeamBattleTacticOptions(battle, actingCharacter, focusEnemy)
+                ? GetBattleTacticOptions(battle, actingCharacter, focusEnemy)
                 : null,
             !isPaused && actingCharacter is not null
                 ? GetBattleItemOptions(battle, actingCharacter)
                 : null,
             !isPaused && actingCharacter is not null
-                ? ReachableTeamEnemies(battle, actingCharacter)
+                ? ReachableEnemies(battle, actingCharacter)
                     .Select(enemy => enemy.Id)
                     .ToArray()
                 : null,
@@ -413,7 +413,7 @@ public sealed partial class Game : ISessionCommandHandler
         };
     }
 
-    private static IReadOnlyList<CombatConditionSnapshot> CombatConditionsFor(TeamBattleEncounter battle,
+    private static IReadOnlyList<CombatConditionSnapshot> CombatConditionsFor(BattleEncounter battle,
         CombatantId combatantId)
     {
         if (battle.StaggerFor(combatantId) is not { } stagger) return [];
@@ -426,11 +426,11 @@ public sealed partial class Game : ISessionCommandHandler
         ];
     }
 
-    private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(TeamBattleEncounter battle,
-        LiveCharacter character) => TacticalTeamBattleCoordinator.GetBattleItemOptions(battle, character);
+    private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(BattleEncounter battle,
+        LiveCharacter character) => TacticalBattleCoordinator.GetBattleItemOptions(battle, character);
 
-    private static bool IsTeamBattleItemUseful(LiveCharacter character, MiscItemDefinition item) =>
-        TacticalTeamBattleCoordinator.IsTeamBattleItemUseful(character, item);
+    private static bool IsBattleItemUseful(LiveCharacter character, MiscItemDefinition item) =>
+        TacticalBattleCoordinator.IsBattleItemUseful(character, item);
 
     private static CharacterHistorySnapshot CreateCharacterHistory(LiveCharacter character) => new(
         character.MonsterKills.Select(pair => new MonsterKillSnapshot(pair.Key, pair.Value)).ToArray(),
@@ -442,7 +442,7 @@ public sealed partial class Game : ISessionCommandHandler
         character.FoodLevel, character.WaterLevel, PartyLeader.Gold, character.IsAlive, null,
         character.Statuses.Select(status => status.Id).ToArray(), InventorySnapshotProjector.Create(character),
         CharacterSheetWithCombatIcons(character,
-            _activeTeamBattle is { IsCompleted: false } battle &&
+            _activeBattle is { IsCompleted: false } battle &&
             battle.StaggerFor(CombatantId.ForCharacter(character.Id)) is not null
                 ? [CombatConditionPresentation.StaggerIcon]
                 : []),
@@ -500,7 +500,7 @@ public sealed partial class Game : ISessionCommandHandler
             gameData.StrengthHitBonuses);
         _spellExecutionService = new SpellExecutionService(gameData, _random);
         _battleActionCoordinator = new BattleActionCoordinator(gameData, _battleSystem, _spellExecutionService, _random);
-        _teamBattleCoordinator = new TacticalTeamBattleCoordinator(gameData, _battleSystem, _random);
+        _battleCoordinator = new TacticalBattleCoordinator(gameData, _battleSystem, _random);
         _storyConversationCoordinator = new StoryConversationCoordinator(gameData, _random);
         _progressionService = new CharacterProgressionService(gameData, _random);
         _sustenanceService = new PartySustenanceService(gameData, _random);

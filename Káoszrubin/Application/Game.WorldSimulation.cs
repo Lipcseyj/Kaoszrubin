@@ -23,7 +23,7 @@ public sealed partial class Game
     private bool TryStartAdHocFollowerConversation(DateTime now)
     {
         if (_session.Phase != GameSessionPhase.Exploration || _characterSheetFocused ||
-            _activeTeamBattle is not null || _activeNarrative is not null ||
+            _activeBattle is not null || _activeNarrative is not null ||
             _adHocConversationMazeLevel == _mazeLevel ||
             now - _lastAdHocConversationUtc < TimeSpan.FromHours(1) ||
             _maze.Enemies.Any(enemy => _fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position)) ||

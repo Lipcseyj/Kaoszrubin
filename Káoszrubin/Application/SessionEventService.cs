@@ -38,13 +38,13 @@ public sealed class SessionEventService
         PlaySessionSound(missed ? SoundEffect.Miss : SoundEffect.Hit, listeners, selectedCharacterId);
     }
 
-    public void PresentBattleEntries(IEnumerable<BattleLogEntry> entries, bool isQuickTeamBattle,
+    public void PresentBattleEntries(IEnumerable<BattleLogEntry> entries, bool isQuickBattle,
         Action<BattleLogEntry> drawBattleRound, Action<BattleLogEntry> refreshBattleStatus,
         CharacterId selectedCharacterId, Action<int>? incrementQuickBattleSuppressedEntryCount = null)
     {
         foreach (var entry in entries)
         {
-            if (isQuickTeamBattle)
+            if (isQuickBattle)
             {
                 incrementQuickBattleSuppressedEntryCount?.Invoke(1);
                 RecordSessionActivity(SessionActivityKind.Battle, entry.Message, BattleEntryColor(entry.Kind));

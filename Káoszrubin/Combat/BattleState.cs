@@ -48,7 +48,7 @@ internal sealed class BattleRuntimeContext
     public LiveCharacter? KnightProtector { get; set; }
 }
 
-/// <summary>Egy karakter csapatharcon belüli, a teljes összecsapás alatt megőrzött harci állapota.</summary>
+/// <summary>Egy karakter harcon belüli, a teljes összecsapás alatt megőrzött harci állapota.</summary>
 public sealed class CharacterBattleChoices
 {
     internal CharacterBattleChoices(LiveCharacter character) => Context = new BattleRuntimeContext(character);

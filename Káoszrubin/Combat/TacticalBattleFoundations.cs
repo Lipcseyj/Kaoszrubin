@@ -48,7 +48,7 @@ public enum BattleSide { Friendly, Hostile }
 public enum TacticalParticipantKind { PartyMember, Follower, Enemy }
 public enum TacticalParticipantState { Approaching, Active, Defeated, Retreated }
 
-/// <summary>A későbbi csapatharc minden szereplőjének hálózaton is átadható közös állapota.</summary>
+/// <summary>A későbbi harc minden szereplőjének hálózaton is átadható közös állapota.</summary>
 public sealed record TacticalBattleParticipant(
     CombatantId Id,
     BattleSide Side,
@@ -116,7 +116,7 @@ public sealed class TacticalBattleState
                 throw new ArgumentException($"Duplikált harci résztvevő: {participant.Id}.", nameof(participants));
         }
         if (_participants.Count == 0)
-            throw new ArgumentException("A csapatharchoz legalább egy résztvevő szükséges.", nameof(participants));
+            throw new ArgumentException("A harchoz legalább egy résztvevő szükséges.", nameof(participants));
     }
 
     public BattleId Id { get; }
@@ -142,7 +142,7 @@ public sealed class TacticalBattleState
 
     public TacticalBattleParticipant StartTurns()
     {
-        if (HasStarted) throw new InvalidOperationException("A csapatharc körsorrendje már elindult.");
+        if (HasStarted) throw new InvalidOperationException("A harc körsorrendje már elindult.");
         BuildCycleOrder();
         return ActivateCurrent();
     }

@@ -45,29 +45,7 @@ public sealed class PartySustenanceService
         }
     }
 
-    public int DrainNeedsAfterBattle(
-        LiveCharacter character,
-        int monsterTier,
-        Func<LiveCharacter, bool> isAutonomousNpc,
-        Action<LiveCharacter, NpcComplaintKind, int, int> onLogNewZeroNeed)
-    {
-        var foodBefore = character.FoodLevel;
-        var waterBefore = character.WaterLevel;
-        var loss = _random.Next(1, 6) + Math.Clamp(monsterTier, 1, 5);
-        character.ConsumeFood(loss);
-        character.ConsumeWater(loss);
-        character.SynchronizeNeedStatuses(
-            _gameData.GetStatus(CharacterStatusIds.Hungry),
-            _gameData.GetStatus(CharacterStatusIds.Thirsty));
-        if (isAutonomousNpc(character))
-        {
-            onLogNewZeroNeed(character, NpcComplaintKind.Hunger, foodBefore, character.FoodLevel);
-            onLogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
-        }
-        return loss;
-    }
-
-    public void DrainNeedsAfterTeamBattle(
+    public void DrainNeedsAfterBattle(
         LiveCharacter character,
         int cycles,
         Func<LiveCharacter, bool> isAutonomousNpc,

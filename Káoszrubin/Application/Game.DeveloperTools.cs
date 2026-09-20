@@ -268,10 +268,10 @@ public sealed partial class Game
         _spottedEnemyIds.Clear();
         _spottedChestIds.Clear();
         _npcSpellcasterTactics.Clear();
-        _activeTeamBattle = null;
+        _activeBattle = null;
         _battleStarted = false;
         _gameOver = false;
-        _isQuickTeamBattle = false;
+        _isQuickBattle = false;
         _partyHoldingPosition = false;
         _partyRegrouping = false;
         _partyAttackMode = false;
@@ -318,7 +318,7 @@ public sealed partial class Game
 
     private sealed record HeldInventoryItem(IItemDefinition Item, InventorySlotReference Source, long SourceRevision);
     private sealed record DeveloperUniqueNpcTarget(NpcDefinition Definition, int MazeLevel);
-    private sealed record NpcTeamSpellPlan(SpellDefinition Spell, Position Target, Enemy? Enemy, bool Offensive);
+    private sealed record NpcBattleSpellChoice(SpellDefinition Spell, Position Target, Enemy? Enemy, bool Offensive);
     private sealed record NpcOffensiveSpellCandidate(SpellDefinition Spell, Position CastingPosition,
         Position TargetPosition, Enemy PrimaryTarget, NpcSpellTacticalClassification Classification,
         int TargetCount, NpcSpellPlanEvaluation Evaluation, bool ReadyToCast, int MovementDistance);

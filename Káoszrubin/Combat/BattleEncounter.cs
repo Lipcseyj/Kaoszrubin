@@ -4,7 +4,7 @@ using KaoszRubin.Domain.Magic;
 
 namespace KaoszRubin.Combat;
 
-public sealed record TeamCharacterParticipant(
+public sealed record BattleCharacterParticipant(
     LiveCharacter Character,
     Position Position,
     TacticalParticipantKind Kind,
@@ -14,20 +14,20 @@ public sealed record TeamCharacterParticipant(
     CharacterBattleChoices Runtime,
     int? OpeningInitiative = null);
 
-public sealed record TeamEnemyParticipant(
+public sealed record BattleEnemyParticipant(
     Enemy Enemy,
     int Initiative,
     int MovementAllowance,
     int EligibleFromCycle);
 
-public sealed record TeamBattleKill(
+public sealed record BattleKill(
     CharacterId KillerId,
     string KillerName,
     string EnemyDefinitionId,
     string EnemyName,
     int AwardedExperience);
 
-public sealed record TeamBattleCharacterResult(
+public sealed record BattleCharacterResult(
     string Name,
     int VitalityLost,
     int ManaUsed,
@@ -35,7 +35,7 @@ public sealed record TeamBattleCharacterResult(
     IReadOnlyList<string> GainedStatusIcons,
     int SpellsCast);
 
-public sealed record TeamBattleInitiativeChange(
+public sealed record BattleInitiativeChange(
     CombatantId CombatantId,
     string Name,
     int PreviousInitiative,
@@ -49,7 +49,7 @@ public enum BattlePauseReason
 }
 
 /// <summary>A játékvilág objektumait a tiszta taktikai körsorrendhez kapcsoló futásidejű összecsapás.</summary>
-public sealed class TeamBattleEncounter
+public sealed class BattleEncounter
 {
     public const int InactiveCycleLimit = 5;
 
@@ -76,14 +76,14 @@ public sealed class TeamBattleEncounter
     private readonly Dictionary<CombatantId, int> _dynamicInitiativeModifiers = [];
     private readonly Dictionary<BattleSide, int> _inactiveCycleStreaks = Enum.GetValues<BattleSide>()
         .ToDictionary(side => side, _ => 0);
-    private readonly List<TeamBattleKill> _kills = [];
+    private readonly List<BattleKill> _kills = [];
     private int _queuedExtraActions;
     private int _reinforcementsCheckedThroughCycle;
     public CombatantId? LastActionActorId { get; private set; }
 
-    public TeamBattleEncounter(Position center,
-        IEnumerable<TeamCharacterParticipant> characters,
-        IEnumerable<TeamEnemyParticipant> enemies,
+    public BattleEncounter(Position center,
+        IEnumerable<BattleCharacterParticipant> characters,
+        IEnumerable<BattleEnemyParticipant> enemies,
         CharacterId initiatingCharacterId,
         WorldEntityId initiatingEnemyId,
         bool enemyStrikesFirst = false,
@@ -169,8 +169,8 @@ public sealed class TeamBattleEncounter
     public IReadOnlySet<BattleSide> InactiveSidesLastCompletedCycle { get; private set; } = new HashSet<BattleSide>();
     public IReadOnlyCollection<LiveCharacter> Characters => _characters.Values;
     public IReadOnlyCollection<Enemy> Enemies => _enemies.Values;
-    public IReadOnlyList<TeamBattleKill> Kills => _kills;
-    public IReadOnlyList<TeamBattleInitiativeChange> InitiativeChangesAtCycleStart { get; private set; } = [];
+    public IReadOnlyList<BattleKill> Kills => _kills;
+    public IReadOnlyList<BattleInitiativeChange> InitiativeChangesAtCycleStart { get; private set; } = [];
     public bool FriendlySideDefeated => _characters.Values.All(character => !character.IsAlive);
     public bool HostileSideDefeated => _enemies.Values.All(enemy => enemy.CurrentHitPoints <= 0);
     public bool IsCompleted => FriendlySideDefeated || HostileSideDefeated;
@@ -185,11 +185,11 @@ public sealed class TeamBattleEncounter
     public (int Vitality, int Mana) StartingResourcesFor(LiveCharacter character) =>
         _startingResources[character.Id];
 
-    public TeamBattleCharacterResult ResultFor(LiveCharacter character)
+    public BattleCharacterResult ResultFor(LiveCharacter character)
     {
         CaptureNewStatuses();
         var starting = StartingResourcesFor(character);
-        return new TeamBattleCharacterResult(character.Name,
+        return new BattleCharacterResult(character.Name,
             Math.Max(0, starting.Vitality - character.CurrentVitality),
             Math.Max(0, starting.Mana - character.CurrentMana), !character.IsAlive,
             _gainedStatusIcons[character.Id].ToArray(), _spellCasts[character.Id]);
@@ -477,7 +477,7 @@ public sealed class TeamBattleEncounter
         ? _characters.Values.FirstOrDefault(character => character.Id == id)
         : null;
 
-    public bool TryAddEnemy(TeamEnemyParticipant participant)
+    public bool TryAddEnemy(BattleEnemyParticipant participant)
     {
         var id = CombatantId.ForEnemy(participant.Enemy.Id);
         if (_enemies.ContainsKey(id)) return false;
@@ -567,9 +567,9 @@ public sealed class TeamBattleEncounter
         return next;
     }
 
-    private IReadOnlyList<TeamBattleInitiativeChange> RefreshDynamicInitiatives()
+    private IReadOnlyList<BattleInitiativeChange> RefreshDynamicInitiatives()
     {
-        var changes = new List<TeamBattleInitiativeChange>();
+        var changes = new List<BattleInitiativeChange>();
         foreach (var participant in Turns.Participants.ToArray())
         {
             _characters.TryGetValue(participant.Id, out var character);
@@ -584,7 +584,7 @@ public sealed class TeamBattleEncounter
             if (!Turns.TryUpdateInitiative(participant.Id, currentInitiative)) continue;
             _dynamicInitiativeModifiers[participant.Id] = currentModifier;
             var name = character?.Name ?? enemy?.Name ?? participant.Id.Value;
-            changes.Add(new TeamBattleInitiativeChange(participant.Id, name,
+            changes.Add(new BattleInitiativeChange(participant.Id, name,
                 participant.CurrentInitiative, currentInitiative));
         }
         return changes;
@@ -626,7 +626,7 @@ public sealed class TeamBattleEncounter
     }
 
     public void RecordKill(LiveCharacter killer, Enemy enemy, int awardedExperience) =>
-        _kills.Add(new TeamBattleKill(killer.Id, killer.Name, enemy.Definition.Id, enemy.Name,
+        _kills.Add(new BattleKill(killer.Id, killer.Name, enemy.Definition.Id, enemy.Name,
             Math.Max(0, awardedExperience)));
 
     public void GrantExtraActions(int count) => _queuedExtraActions += Math.Max(0, count);

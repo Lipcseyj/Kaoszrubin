@@ -499,7 +499,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             attack.DurabilityNotices);
     }
 
-    public void SetTeamKnightProtection(CharacterBattleChoices runtime, LiveCharacter knight)
+    public void SetKnightProtection(CharacterBattleChoices runtime, LiveCharacter knight)
     {
         runtime.Context.KnightProtector = knight;
         runtime.Context.KnightProtectionAvailable = true;

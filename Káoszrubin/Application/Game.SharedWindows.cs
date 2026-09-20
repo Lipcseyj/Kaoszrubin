@@ -223,11 +223,11 @@ public sealed partial class Game
 
     private void ContinueDisconnectedRemoteBattleAsNpc()
     {
-        if (_activeTeamBattle is { IsCompleted: false } teamBattle &&
-            teamBattle.CurrentCharacter is { } teamCharacter &&
-            !_session.IsHumanControlled(teamCharacter.Id))
+        if (_activeBattle is { IsCompleted: false } battle &&
+            battle.CurrentCharacter is { } currentCharacter &&
+            !_session.IsHumanControlled(currentCharacter.Id))
         {
-            ContinueTeamBattle();
+            ContinueBattle();
             return;
         }
         return;
@@ -357,7 +357,7 @@ public sealed partial class Game
             _leaderDecisionTitle = previousTitle;
             _leaderDecisionMessage = previousMessage;
             _session.SetPhase(previousPhase);
-            if (previousPhase == GameSessionPhase.Battle && _activeTeamBattle is not { IsCompleted: false })
+            if (previousPhase == GameSessionPhase.Battle && _activeBattle is not { IsCompleted: false })
                 MarkCoopSnapshotDirty();
             else
                 ForceCoopSnapshotPublish();

@@ -36,12 +36,12 @@ public sealed partial class Game
     }
 
     private void StartBattle(Enemy enemy, bool enemyStrikesFirst = false)
-        => StartTeamBattle(PartyLeader, enemy, enemyStrikesFirst);
+        => StartBattle(PartyLeader, enemy, enemyStrikesFirst);
 
     private void StartBattle(PartyMemberAvatar member, Enemy enemy, bool enemyStrikesFirst = false)
-        => StartTeamBattle(member.Character, enemy, enemyStrikesFirst);
+        => StartBattle(member.Character, enemy, enemyStrikesFirst);
 
-    private void StartTeamBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy, bool enemyStrikesFirst)
+    private void StartBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy, bool enemyStrikesFirst)
     {
         if (_battleStarted || !initiatingCharacter.IsAlive || initiatingEnemy.CurrentHitPoints <= 0) return;
         CheckBossDiscovery([initiatingEnemy], initiatingCharacter);
@@ -54,7 +54,7 @@ public sealed partial class Game
         if (_renderer.CharacterSheet.IsSpellInfoPageOpen)
             _renderer.CharacterSheet.CloseSpellInfoPage();
 
-        var characterParticipants = new List<TeamCharacterParticipant>();
+        var characterParticipants = new List<BattleCharacterParticipant>();
         var preparationEntries = new List<BattleLogEntry>();
         foreach (var (character, position) in LivingPartyWithPositions().DistinctBy(entry => entry.Character.Id))
         {
@@ -65,7 +65,7 @@ public sealed partial class Game
                 ? TacticalParticipantKind.Follower
                 : TacticalParticipantKind.PartyMember;
             var disciplineMovement = character.HasTacticalDiscipline(TacticalDisciplines.Skirmisher) ? 1 : 0;
-            characterParticipants.Add(new TeamCharacterParticipant(character, position, kind,
+            characterParticipants.Add(new BattleCharacterParticipant(character, position, kind,
                 preparation.Initiative,
                 Math.Min(7, CharacterMobilityRules.Evaluate(character).CombatMovementAllowance + disciplineMovement),
                 character == initiatingCharacter ? 1 : 2, preparation.Runtime, preparation.OpeningInitiative));
@@ -77,11 +77,11 @@ public sealed partial class Game
                             TacticalDistance.IsWithin(initiatingEnemy.Position, enemy.Position) &&
                             (enemy == initiatingEnemy || CanEnemyReachBattleWithinCycles(enemy, friendlyPositions)))
             .DistinctBy(enemy => enemy.Id)
-            .Select(enemy => new TeamEnemyParticipant(enemy, _battleSystem.RollEnemyInitiative(enemy),
+            .Select(enemy => new BattleEnemyParticipant(enemy, _battleSystem.RollEnemyInitiative(enemy),
                 EnemyMovementAllowance(enemy), enemy == initiatingEnemy ? 1 : 2))
             .ToList();
         if (enemyParticipants.All(value => value.Enemy != initiatingEnemy))
-            enemyParticipants.Add(new TeamEnemyParticipant(initiatingEnemy,
+            enemyParticipants.Add(new BattleEnemyParticipant(initiatingEnemy,
                 _battleSystem.RollEnemyInitiative(initiatingEnemy),
                 EnemyMovementAllowance(initiatingEnemy), 1));
 
@@ -101,17 +101,17 @@ public sealed partial class Game
         foreach (var enemy in participantEnemies) _battleSystem.PrepareEnemyForBattle(enemy);
         var quickAssessment = QuickCombatRules.Assess(characterParticipants.Select(value => value.Character),
             participantEnemies.Select(enemy => enemy.Definition),
-            hasAvailableReinforcements: HasAvailableTeamReinforcements(participantEnemies),
+            hasAvailableReinforcements: HasAvailableReinforcements(participantEnemies),
             hasActiveFormation: _formation.State != PartyFormationState.Disbanded,
             isQuestImportant: participantEnemies.Any(IsQuestImportantEnemy),
             enemyStrikesFirst: enemyStrikesFirst,
             allowPlayerChoice: _gameSettings.Settings.QuickCombat == QuickCombatMode.Ask);
-        _isQuickTeamBattle = ShouldUseQuickCombat(quickAssessment);
+        _isQuickBattle = ShouldUseQuickCombat(quickAssessment);
         _quickBattleSuppressedEntryCount = 0;
 
         _lastBattleActionDetails = null;
-        ResetTeamMovement();
-        _activeTeamBattle = new TeamBattleEncounter(initiatingEnemy.Position,
+        ResetBattleMovement();
+        _activeBattle = new BattleEncounter(initiatingEnemy.Position,
             characterParticipants, enemyParticipants, initiatingCharacter.Id, initiatingEnemy.Id,
             enemyStrikesFirst, formation: ActiveBattleFormation());
         var protectionMessages = new List<string>();
@@ -119,14 +119,14 @@ public sealed partial class Game
         {
             var knight = TryRollKnightProtector(protectedParticipant.Character);
             if (knight is null) continue;
-            _battleSystem.SetTeamKnightProtection(protectedParticipant.Runtime, knight);
+            _battleSystem.SetKnightProtection(protectedParticipant.Runtime, knight);
             protectionMessages.Add($"🛡️ {knight.Name} védi {protectedParticipant.Character.Name} első találatát.");
         }
-        _activeTeamBattle.Turns.StartTurns();
-        _preparedTeamBattleTurnId = 0;
+        _activeBattle.Turns.StartTurns();
+        _preparedBattleTurnId = 0;
         _battleStarted = true;
         if (_locationId == DeveloperBattleTestLocationId)
-            _developerBattleLog.BeginBattle(_activeTeamBattle);
+            _developerBattleLog.BeginBattle(_activeBattle);
         _session.SetPhase(GameSessionPhase.Battle);
         PlaySessionSound(SoundEffect.BattleStart);
         _renderer.DrawBattleStarted(initiatingEnemy);
@@ -137,27 +137,27 @@ public sealed partial class Game
             _renderer.DrawInventoryMessage(protectionMessage, ConsoleColor.Cyan);
             RecordSessionActivity(SessionActivityKind.Battle, protectionMessage, ConsoleColor.Cyan);
         }
-        var queue = string.Join(" → ", _activeTeamBattle.Turns.Participants
+        var queue = string.Join(" → ", _activeBattle.Turns.Participants
             .OrderByDescending(participant => participant.CurrentInitiative)
             .Select(participant =>
             {
-                var name = _activeTeamBattle.CharacterFor(participant.Id)?.Name ??
-                           _activeTeamBattle.EnemyFor(participant.Id)?.Name ?? participant.Id.Value;
+                var name = _activeBattle.CharacterFor(participant.Id)?.Name ??
+                           _activeBattle.EnemyFor(participant.Id)?.Name ?? participant.Id.Value;
                 return $"{name} {participant.CurrentInitiative}";
             }));
-        string OpeningName(CombatantId id) => _activeTeamBattle.CharacterFor(id)?.Name ??
-                                               _activeTeamBattle.EnemyFor(id)?.Name ?? id.Value;
-        var openingNames = _activeTeamBattle.OpeningOrder.Select(OpeningName).ToArray();
-        var startMessage = _isQuickTeamBattle
-            ? $"⚡ GYORSHARC — {initiatingEnemy.Name} ellen. A csapatharc automatikusan lefut."
-            : $"⚔️ CSAPATHARC — {characterParticipants.Count} baráti és " +
+        string OpeningName(CombatantId id) => _activeBattle.CharacterFor(id)?.Name ??
+                                               _activeBattle.EnemyFor(id)?.Name ?? id.Value;
+        var openingNames = _activeBattle.OpeningOrder.Select(OpeningName).ToArray();
+        var startMessage = _isQuickBattle
+            ? $"⚡ GYORSHARC — {initiatingEnemy.Name} ellen. A harc automatikusan lefut."
+            : $"⚔️ HARC — {characterParticipants.Count} baráti és " +
               $"{enemyParticipants.Count} ellenséges résztvevő. " +
               $"Nyitó ütésváltás: {string.Join(" → ", openingNames)}. Utána kezdeményezés: {queue}.";
-        if (_activeTeamBattle.HasProtectiveFormation)
+        if (_activeBattle.HasProtectiveFormation)
             startMessage += " 🛡️ A zárt alakzat első sora elölről védi a hátsó sort.";
         _renderer.DrawInventoryMessage(startMessage, ConsoleColor.Yellow);
         RecordSessionActivity(SessionActivityKind.Battle, startMessage, ConsoleColor.Yellow);
-        ContinueTeamBattle();
+        ContinueBattle();
     }
 
     private PartyFormationSnapshot? ActiveBattleFormation()
@@ -176,37 +176,37 @@ public sealed partial class Game
             : null;
     }
 
-    private void ContinueTeamBattle()
+    private void ContinueBattle()
     {
-        while (_activeTeamBattle is { } battle)
+        while (_activeBattle is { } battle)
         {
             // Központi fék ami meg tudja állítani a csatát, hogy lássuk a csapást
             if (battle.PauseReason != BattlePauseReason.None)
             {
-                SetTeamBattlePrompt(battle);
+                SetBattlePrompt(battle);
                 return;
             }
 
-            SynchronizeTeamBattleDefeats(battle);
+            SynchronizeBattleDefeats(battle);
             if (!PartyLeader.IsAlive)
             {
-                FinishTeamBattle(battle, forceDefeat: true);
+                FinishBattle(battle, forceDefeat: true);
                 return;
             }
             if (battle.IsCompleted)
             {
-                FinishTeamBattle(battle);
+                FinishBattle(battle);
                 return;
             }
             if (battle.InactiveSidesLastCompletedCycle.Count > 0)
             {
-                FinishTeamBattleStalemate(battle);
+                FinishBattleStalemate(battle);
                 return;
             }
-            var reinforcementsArrived = TryCallTeamBattleReinforcements(battle);
-            if (_isQuickTeamBattle && (reinforcementsArrived || battle.ActionNumber >= 200))
+            var reinforcementsArrived = TryCallBattleReinforcements(battle);
+            if (_isQuickBattle && (reinforcementsArrived || battle.ActionNumber >= 200))
             {
-                _isQuickTeamBattle = false;
+                _isQuickBattle = false;
                 var reason = reinforcementsArrived
                     ? "Váratlan erősítés érkezett."
                     : "Az automatikus szimuláció nem tudta gyorsan lezárni az ütközetet.";
@@ -232,12 +232,12 @@ public sealed partial class Game
                         BattleLogKind.Information)]);
                 }
             }
-            UpdateTeamBattleFocus(battle, current);
+            UpdateBattleFocus(battle, current);
 
             if (DelayAutomaticTurns(battle))
                 return;
 
-            if (_preparedTeamBattleTurnId != battle.Turns.TurnId)
+            if (_preparedBattleTurnId != battle.Turns.TurnId)
             {
                 if (battle.CurrentCharacter is { } preparedCharacter &&
                     battle.ShouldAdvanceSpellEffects(CombatantId.ForCharacter(preparedCharacter.Id)))
@@ -254,7 +254,7 @@ public sealed partial class Game
                               $"({stagger.Roll}/{stagger.DisruptionChance}%).",
                         BattleLogKind.Information)]);
                 }
-                _preparedTeamBattleTurnId = battle.Turns.TurnId;
+                _preparedBattleTurnId = battle.Turns.TurnId;
             }
 
             if (battle.CurrentCharacter is { } character)
@@ -262,14 +262,14 @@ public sealed partial class Game
                 if (!character.IsAlive)
                 {
                     battle.MarkDefeated(character);
-                    AdvanceTeamBattleTurn(battle);
+                    AdvanceBattleTurn(battle);
                     continue;
                 }
                 var isHumanControlled = _session.IsHumanControlled(character.Id);
 
                 // PauseBeforeAnyAction:
                 // az AI/NPC karakter teljes köre előtt egyszer megállunk.
-                if (!_isQuickTeamBattle &&
+                if (!_isQuickBattle &&
                     !isHumanControlled &&
                     _gameSettings.Settings.CombatSpeed == CombatSpeed.PauseBeforeAnyAction &&
                     battle.PreActionPauseHandledTurnId != battle.Turns.TurnId)
@@ -283,20 +283,20 @@ public sealed partial class Game
                 var runtime = battle.RuntimeFor(character);
                 if (runtime.RequiresTacticSelection)
                 {
-                    if (!_isQuickTeamBattle && isHumanControlled)
+                    if (!_isQuickBattle && isHumanControlled)
                     {
-                        SetTeamBattlePrompt(battle);
+                        SetBattlePrompt(battle);
                         return;
                     }
-                    ChooseTeamAiTactic(character, runtime);
+                    ChooseAiTactic(character, runtime);
                     continue;
                 }
-                if (!_isQuickTeamBattle && isHumanControlled)
+                if (!_isQuickBattle && isHumanControlled)
                 {
-                    SetTeamBattlePrompt(battle);
+                    SetBattlePrompt(battle);
                     return;
                 }
-                ExecuteTeamAiCharacterTurn(battle, character);
+                ExecuteAiCharacterTurn(battle, character);
                 continue;
             }
 
@@ -305,26 +305,26 @@ public sealed partial class Game
                 // Gyorsharcban, jelentéktelen enemy-akciónál, illetve minden olyan
                 // tempónál, ahol nem akarunk az enemy akciója ELŐTT megállni,
                 // az ellenfél automatikusan végrehajtja a körét.
-                if (_isQuickTeamBattle ||
-                    !CanTeamEnemyActMeaningfully(battle, enemyActor) ||
+                if (_isQuickBattle ||
+                    !CanEnemyActMeaningfully(battle, enemyActor) ||
                     _gameSettings.Settings.CombatSpeed != CombatSpeed.PauseBeforeAnyAction)
                 {
-                    ExecuteTeamEnemyTurn(battle, enemyActor);
+                    ExecuteEnemyTurn(battle, enemyActor);
                     continue;
                 }
 
                 // PauseBeforeAnyAction: az ellenfél akciója előtt Space-re várunk.
-                SetTeamBattlePrompt(battle);
+                SetBattlePrompt(battle);
                 return;
             }
 
-            AdvanceTeamBattleTurn(battle);
+            AdvanceBattleTurn(battle);
         }
     }
 
-    private bool DelayAutomaticTurns(TeamBattleEncounter battle)
+    private bool DelayAutomaticTurns(BattleEncounter battle)
     {
-        if (_isQuickTeamBattle ||
+        if (_isQuickBattle ||
             _gameSettings.Settings.CombatSpeed == CombatSpeed.PauseBeforeAnyAction ||
             _gameSettings.Settings.CombatDelayMilliseconds <= 0)
             return false;
@@ -381,7 +381,7 @@ public sealed partial class Game
     }
 
 
-    private bool TryCallTeamBattleReinforcements(TeamBattleEncounter battle)
+    private bool TryCallBattleReinforcements(BattleEncounter battle)
     {
         if (!battle.BeginReinforcementCheckForCurrentCycle()) return false;
         var activeGroups = battle.Enemies.Where(enemy => !string.IsNullOrWhiteSpace(enemy.GroupId))
@@ -399,7 +399,7 @@ public sealed partial class Game
         foreach (var enemy in reinforcements)
         {
             _battleSystem.PrepareEnemyForBattle(enemy);
-            battle.TryAddEnemy(new TeamEnemyParticipant(enemy, _battleSystem.RollEnemyInitiative(enemy),
+            battle.TryAddEnemy(new BattleEnemyParticipant(enemy, _battleSystem.RollEnemyInitiative(enemy),
                 EnemyMovementAllowance(enemy), battle.Turns.Cycle + 1));
         }
         var message = $"📯 Az ellenség erősítést hív: {reinforcements.Length} új harcos " +
@@ -409,7 +409,7 @@ public sealed partial class Game
         return true;
     }
 
-    private bool HasAvailableTeamReinforcements(IReadOnlyCollection<Enemy> participants)
+    private bool HasAvailableReinforcements(IReadOnlyCollection<Enemy> participants)
     {
         var participantIds = participants.Select(enemy => enemy.Id).ToHashSet();
         var groupIds = participants.Where(enemy => !string.IsNullOrWhiteSpace(enemy.GroupId))
@@ -440,7 +440,7 @@ public sealed partial class Game
                Maze.IsPassableNeutralNpc(occupant);
     }
 
-    private static bool IsQuestImportantEnemy(Enemy enemy) => TacticalTeamBattleCoordinator.IsQuestImportantEnemy(enemy);
+    private static bool IsQuestImportantEnemy(Enemy enemy) => TacticalBattleCoordinator.IsQuestImportantEnemy(enemy);
 
     private static int EnemyMovementAllowance(Enemy enemy) =>
         Math.Clamp((enemy.EffectiveSpeed + 1) / 2 +
@@ -464,7 +464,7 @@ public sealed partial class Game
         }
     }
 
-    private void ExecuteTeamBattleAction(TeamBattleEncounter battle, BattleActionCommand command)
+    private void ExecuteBattleAction(BattleEncounter battle, BattleActionCommand command)
     {
         if (command.BattleId != battle.Id || command.TurnId != battle.Turns.TurnId) return;
 
@@ -472,13 +472,13 @@ public sealed partial class Game
         {
             if (command.Action != BattleActionKind.ResumeBattle)
             {
-                RejectTeamBattleAction(command, "A harc folytatásához nyomj Space-t.");
+                RejectBattleAction(command, "A harc folytatásához nyomj Space-t.");
                 return;
             }
 
             battle.PauseReason = BattlePauseReason.None;
 
-            ContinueTeamBattle();
+            ContinueBattle();
             return;
         }
 
@@ -486,23 +486,23 @@ public sealed partial class Game
         {
             if (command.Action != BattleActionKind.AdvanceEnemyTurn || command.CharacterId != PartyLeader.Id)
             {
-                RejectTeamBattleAction(command, "Most egy ellenfél következik.");
+                RejectBattleAction(command, "Most egy ellenfél következik.");
                 return;
             }
-            ExecuteTeamEnemyTurn(battle, enemyActor);
-            ContinueTeamBattle();
+            ExecuteEnemyTurn(battle, enemyActor);
+            ContinueBattle();
             return;
         }
         if (battle.CurrentCharacter is not { } character || character.Id != command.CharacterId)
         {
-            RejectTeamBattleAction(command, "Nem ez a karakter van soron.");
+            RejectBattleAction(command, "Nem ez a karakter van soron.");
             return;
         }
-        var focusEnemy = ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
-        var allowed = GetTeamAllowedBattleActions(battle, character, focusEnemy);
+        var focusEnemy = ClosestLivingEnemy(battle, GetCasterPosition(character));
+        var allowed = GetAllowedBattleActions(battle, character, focusEnemy);
         if (!allowed.Contains(command.Action))
         {
-            RejectTeamBattleAction(command, "Ez az akció most nem használható.");
+            RejectBattleAction(command, "Ez az akció most nem használható.");
             return;
         }
         switch (command.Action)
@@ -511,10 +511,10 @@ public sealed partial class Game
                 var selectedEnemy = command.TargetEnemyId is { } selectedId
                     ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == selectedId)
                     : null;
-                if (selectedEnemy is null || !ReachableTeamEnemies(battle, character).Contains(selectedEnemy) ||
+                if (selectedEnemy is null || !ReachableEnemies(battle, character).Contains(selectedEnemy) ||
                     !battle.TrySelectTarget(selectedEnemy))
                 {
-                    RejectTeamBattleAction(command, "A választott ellenfél nem elérhető célpont.");
+                    RejectBattleAction(command, "A választott ellenfél nem elérhető célpont.");
                     return;
                 }
                 _renderer.DrawInventoryMessage($"Célpont: {selectedEnemy.Name}.", ConsoleColor.Yellow);
@@ -528,7 +528,7 @@ public sealed partial class Game
                 var tactic = ToBattleTactic(command.Action);
                 if (!battle.RuntimeFor(character).TryChooseTactic(character, tactic))
                 {
-                    RejectTeamBattleAction(command, "Ez a harci taktika most nem választható.");
+                    RejectBattleAction(command, "Ez a harci taktika most nem választható.");
                     return;
                 }
                 var tacticMessage = $"{character.Name} harci taktikája: {BattleTacticName(tactic, character)}.";
@@ -539,63 +539,63 @@ public sealed partial class Game
                 var target = command.TargetEnemyId is { } targetId
                     ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == targetId)
                     : battle.SelectedTargetEnemy() ??
-                      ReachableTeamEnemies(battle, character).OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault();
+                      ReachableEnemies(battle, character).OrderBy(enemy => enemy.CurrentHitPoints).FirstOrDefault();
                 if (target is null || target.CurrentHitPoints <= 0 ||
-                    !ReachableTeamEnemies(battle, character).Contains(target))
+                    !ReachableEnemies(battle, character).Contains(target))
                 {
-                    RejectTeamBattleAction(command, "A választott ellenfél nincs közelharci távolságban.");
+                    RejectBattleAction(command, "A választott ellenfél nincs közelharci távolságban.");
                     return;
                 }
-                ResolveTeamCharacterAttack(battle, character, target);
+                ResolveCharacterAttack(battle, character, target);
                 break;
             case BattleActionKind.ShieldBash:
                 var bashTarget = command.TargetEnemyId is { } bashTargetId
                     ? battle.Enemies.FirstOrDefault(enemy => enemy.Id == bashTargetId)
                     : null;
                 if (bashTarget is null || bashTarget.CurrentHitPoints <= 0 ||
-                    !AdjacentTeamEnemies(battle, character).Contains(bashTarget))
+                    !AdjacentEnemies(battle, character).Contains(bashTarget))
                 {
-                    RejectTeamBattleAction(command, "A pajzslökés célpontja nincs közvetlen közelharci távolságban.");
+                    RejectBattleAction(command, "A pajzslökés célpontja nincs közvetlen közelharci távolságban.");
                     return;
                 }
                 var bashShield = character.OperationalWeapons.FirstOrDefault(ShieldRules.IsShield);
                 if (bashShield is null)
                 {
-                    RejectTeamBattleAction(command, "A pajzslökéshez működő pajzs szükséges.");
+                    RejectBattleAction(command, "A pajzslökéshez működő pajzs szükséges.");
                     return;
                 }
-                ResolveTeamCharacterShieldBash(battle, character, bashTarget, bashShield);
+                ResolveCharacterShieldBash(battle, character, bashTarget, bashShield);
                 break;
             case BattleActionKind.Move when command.Target is { } destination:
-                if (!TryExecuteTeamCharacterMove(battle, character, destination, out var movementError))
+                if (!TryExecuteCharacterMove(battle, character, destination, out var movementError))
                 {
-                    RejectTeamBattleAction(command, movementError);
+                    RejectBattleAction(command, movementError);
                     return;
                 }
                 break;
             case BattleActionKind.MoveFormation when command.Target is { } formationDestination:
-                if (!TryExecuteTeamFormationMove(battle, character, formationDestination,
+                if (!TryExecuteFormationMove(battle, character, formationDestination,
                         out var formationMovementError))
                 {
-                    RejectTeamBattleAction(command, formationMovementError);
+                    RejectBattleAction(command, formationMovementError);
                     return;
                 }
                 break;
             case BattleActionKind.SwapWeapon:
                 if (!character.TrySwapReserveWeapon())
                 {
-                    RejectTeamBattleAction(command, "A tartalékfegyver most nem vehető kézbe.");
+                    RejectBattleAction(command, "A tartalékfegyver most nem vehető kézbe.");
                     return;
                 }
                 var weaponSwapStatus = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
                 _renderer.RefreshCharacterSheet(PartyLeader);
                 PresentBattleEntries([new BattleLogEntry($"{character.Name}: fegyvercsere → {character.AttackWeapon?.Name}.{weaponSwapStatus}", BattleLogKind.Information)]);
-                AdvanceTeamBattleTurn(battle);
+                AdvanceBattleTurn(battle);
                 break;
             case BattleActionKind.SwapToRear:
                 if (!TryExecuteSwapToRear(battle, character, out var swapError))
                 {
-                    RejectTeamBattleAction(command, swapError);
+                    RejectBattleAction(command, swapError);
                     return;
                 }
                 break;
@@ -606,7 +606,7 @@ public sealed partial class Game
                     : FormationSlot.RearRight;
                 if (!battle.TryOrderRearCombatPreparation(preparationSlot, out var preparingCharacter))
                 {
-                    RejectTeamBattleAction(command, "A kijelölt hátsó alakzathelyen nincs harcra készíthető társ.");
+                    RejectBattleAction(command, "A kijelölt hátsó alakzathelyen nincs harcra készíthető társ.");
                     return;
                 }
                 var preparationStatus = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
@@ -614,33 +614,33 @@ public sealed partial class Game
                     $"{character.Name} jelzi {preparingCharacter!.Name} számára: készülj a harcra! " +
                     $"Amíg hátul marad, az önmaga erősítése az elsődleges feladata.{preparationStatus}",
                     BattleLogKind.Information)]);
-                AdvanceTeamBattleTurn(battle);
+                AdvanceBattleTurn(battle);
                 break;
             case BattleActionKind.Pass:
-                if (IsTeamMovementInProgress(battle))
+                if (IsBattleMovementInProgress(battle))
                 {
-                    FinishTeamCharacterMovement(battle, character);
+                    FinishCharacterMovement(battle, character);
                     break;
                 }
                 var passStatus = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(
                     $"{character.Name}\t⌛ Kivár.{passStatus}",
                     BattleLogKind.Information)]);
-                AdvanceTeamBattleTurn(battle);
+                AdvanceBattleTurn(battle);
                 break;
             case BattleActionKind.Retreat:
-                ExecuteTeamRetreat(battle, character);
+                ExecuteRetreat(battle, character);
                 return;
             case BattleActionKind.UseItem when command.BackpackIndex is { } backpackIndex:
-                if (!TryUseTeamBattleItem(battle, character, backpackIndex, out var itemMessage))
+                if (!TryUseBattleItem(battle, character, backpackIndex, out var itemMessage))
                 {
-                    RejectTeamBattleAction(command, itemMessage);
+                    RejectBattleAction(command, itemMessage);
                     return;
                 }
                 itemMessage +=
                     _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(itemMessage, BattleLogKind.Information)]);
-                AdvanceTeamBattleTurn(battle);
+                AdvanceBattleTurn(battle);
                 break;
             case BattleActionKind.TurnUndead:
                 var turnUndeadTargets = TurnUndeadTargets(battle, character).ToArray();
@@ -649,7 +649,7 @@ public sealed partial class Game
                     : turnUndeadTargets.FirstOrDefault();
                 if (undead is null)
                 {
-                    RejectTeamBattleAction(command, "Nincs elűzhető élőholt a közelben.");
+                    RejectBattleAction(command, "Nincs elűzhető élőholt a közelben.");
                     return;
                 }
                 var turning = ResolveTurnUndead(character, undead);
@@ -658,18 +658,18 @@ public sealed partial class Game
                 var turnMessage = turning.Message +
                     _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
                 PresentBattleEntries([new BattleLogEntry(turnMessage, turning.Kind)]);
-                if (undead.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, undead, character);
-                AdvanceTeamBattleTurn(battle);
+                if (undead.CurrentHitPoints <= 0) ResolveEnemyDefeat(battle, undead, character);
+                AdvanceBattleTurn(battle);
                 break;
             case BattleActionKind.CastSpell:
-                ExecuteTeamSpellBattleAction(battle, character, command);
+                ExecuteSpellBattleAction(battle, character, command);
                 break;
         }
-        ContinueTeamBattle();
+        ContinueBattle();
 
     }
 
-    private void ExecuteTeamSpellBattleAction(TeamBattleEncounter battle, LiveCharacter character,
+    private void ExecuteSpellBattleAction(BattleEncounter battle, LiveCharacter character,
         BattleActionCommand command)
     {
         if (command.SpellId is null || command.Target is null) return;
@@ -677,7 +677,7 @@ public sealed partial class Game
             string.Equals(candidate.Id, command.SpellId, StringComparison.OrdinalIgnoreCase));
         if (spell is null)
         {
-            RejectTeamBattleAction(command, "Ismeretlen varázslat.");
+            RejectBattleAction(command, "Ismeretlen varázslat.");
             return;
         }
         MagicItemDefinition? castingItem = null;
@@ -688,12 +688,12 @@ public sealed partial class Game
             : null;
         currentEnemy ??= battle.Enemies.FirstOrDefault(enemy =>
             enemy.Position == command.Target && enemy.CurrentHitPoints > 0);
-        currentEnemy ??= ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
+        currentEnemy ??= ClosestLivingEnemy(battle, GetCasterPosition(character));
         var attempt = TryCastSpell(character, GetCasterPosition(character), spell, inCombat: true,
             currentEnemy, castingItem, command.CastingItemSlotIndex, command.Target);
         if (attempt is null || !attempt.ConsumesTurn)
         {
-            RejectTeamBattleAction(command, attempt?.Message ?? "A varázslat célpontja érvénytelen.");
+            RejectBattleAction(command, attempt?.Message ?? "A varázslat célpontja érvénytelen.");
             return;
         }
         battle.RecordSpellCast(character);
@@ -703,11 +703,11 @@ public sealed partial class Game
         var message = attempt.Message +
                       _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(message, attempt.Kind, attempt.Details)]);
-        SynchronizeTeamBattleDefeats(battle, character);
-        AdvanceTeamBattleTurn(battle);
+        SynchronizeBattleDefeats(battle, character);
+        AdvanceBattleTurn(battle);
     }
 
-    private bool TryUseTeamBattleItem(TeamBattleEncounter battle, LiveCharacter character,
+    private bool TryUseBattleItem(BattleEncounter battle, LiveCharacter character,
         int backpackIndex, out string message)
     {
         if (backpackIndex is < 0 or >= LiveCharacter.MaximumBackpackItemCount ||
@@ -748,17 +748,17 @@ public sealed partial class Game
         return true;
     }
 
-    private void RejectTeamBattleAction(BattleActionCommand command, string message)
+    private void RejectBattleAction(BattleActionCommand command, string message)
     {
         _session.RejectExecutedCommand(command, message);
         _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
-        if (_activeTeamBattle is { IsCompleted: false } battle && battle.CurrentCharacter is { } character)
+        if (_activeBattle is { IsCompleted: false } battle && battle.CurrentCharacter is { } character)
         {
-            SetTeamBattlePrompt(battle);
+            SetBattlePrompt(battle);
         }
     }
 
-    private void ChooseTeamAiTactic(LiveCharacter character, CharacterBattleChoices runtime)
+    private void ChooseAiTactic(LiveCharacter character, CharacterBattleChoices runtime)
     {
         var choices = character.CharacterClass.Id == CharacterClassIds.Harcos
             ? new[] { BattleTactic.FighterPrecise, BattleTactic.FighterPowerful, BattleTactic.FighterDefensive }
@@ -766,7 +766,7 @@ public sealed partial class Game
         var tactic = choices[_random.Next(choices.Length)];
         runtime.TryChooseTactic(character, tactic);
         var message = $"{character.Name} harci taktikája: {BattleTacticName(tactic, character)}.";
-        if (!_isQuickTeamBattle) _renderer.DrawInventoryMessage(message, ConsoleColor.Cyan);
+        if (!_isQuickBattle) _renderer.DrawInventoryMessage(message, ConsoleColor.Cyan);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Cyan);
     }
 }

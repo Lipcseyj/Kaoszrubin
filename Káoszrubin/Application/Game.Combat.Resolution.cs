@@ -20,23 +20,23 @@ namespace KaoszRubin.Application;
 
 public sealed partial class Game
 {
-    private void ResolveTeamCharacterAttack(TeamBattleEncounter battle, LiveCharacter character, Enemy enemy)
+    private void ResolveCharacterAttack(BattleEncounter battle, LiveCharacter character, Enemy enemy)
     {
         battle.RecordAttack(BattleSide.Friendly);
         if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position))
             battle.Engage(character, enemy);
         var dualWielding = DualWieldingRules.TryGetWeapons(character, out var mainHand, out var offhand);
-        var targets = TacticalTeamBattleCoordinator.SweepTargets(battle, character, GetCasterPosition(character), enemy);
+        var targets = TacticalBattleCoordinator.SweepTargets(battle, character, GetCasterPosition(character), enemy);
         var positionalDaggerHit = false;
         for (var index = 0; index < targets.Count; index++)
         {
             var target = targets[index];
             var rearFormationStrike = battle.RearFormationEnemiesInReach(character).Contains(target);
-            var advantage = TacticalTeamBattleCoordinator.AttackAdvantage(battle, character, target);
+            var advantage = TacticalBattleCoordinator.AttackAdvantage(battle, character, target);
             if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), target.Position))
                 battle.Engage(character, target);
             var before = target.CurrentHitPoints;
-            var damagePercent = TacticalTeamBattleCoordinator.SweepDamagePercent(character,
+            var damagePercent = TacticalBattleCoordinator.SweepDamagePercent(character,
                 battle.RuntimeFor(character), secondaryTarget: index > 0);
             var entry = _battleSystem.ResolveCharacterAttack(character, battle.RuntimeFor(character), target,
                 finishAction: !dualWielding && index == targets.Count - 1, damagePercent: damagePercent,
@@ -60,17 +60,17 @@ public sealed partial class Game
             if (hit) ApplyWeaponTacticalHitEffects(battle, character, target,
                 dualWielding ? mainHand : character.AttackWeapon, secondaryTarget: index > 0);
             PresentBattleEntries([entry]);
-            if (target.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, target, character);
+            if (target.CurrentHitPoints <= 0) ResolveEnemyDefeat(battle, target, character);
         }
 
         if (dualWielding && offhand is not null)
         {
-            var offhandTarget = enemy.CurrentHitPoints > 0 && ReachableTeamEnemies(battle, character).Contains(enemy)
+            var offhandTarget = enemy.CurrentHitPoints > 0 && ReachableEnemies(battle, character).Contains(enemy)
                 ? enemy
-                : ReachableTeamEnemies(battle, character).OrderBy(target => target.CurrentHitPoints).FirstOrDefault();
+                : ReachableEnemies(battle, character).OrderBy(target => target.CurrentHitPoints).FirstOrDefault();
             if (offhandTarget is not null)
             {
-                var advantage = TacticalTeamBattleCoordinator.AttackAdvantage(battle, character, offhandTarget);
+                var advantage = TacticalBattleCoordinator.AttackAdvantage(battle, character, offhandTarget);
                 if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), offhandTarget.Position))
                     battle.Engage(character, offhandTarget);
                 var before = offhandTarget.CurrentHitPoints;
@@ -91,7 +91,7 @@ public sealed partial class Game
                                        WeaponFamilies.ForWeapon(offhand) == WeaponFamilies.Dagger;
                 PresentBattleEntries([offhandEntry with { Message = $"⚔️ Mellékkéz — {offhandEntry.Message}" }]);
                 if (offhandTarget.CurrentHitPoints <= 0)
-                    ResolveTeamEnemyDefeat(battle, offhandTarget, character);
+                    ResolveEnemyDefeat(battle, offhandTarget, character);
             }
             else
             {
@@ -108,11 +108,11 @@ public sealed partial class Game
             PresentBattleEntries([new BattleLogEntry(
                 $"🗡️ {character.Name} tőrmesterként az oldal-/hátbatámadás után kicsúszik a lekötésből.",
                 BattleLogKind.Information)]);
-        if (!character.IsAlive) ResolveTeamCharacterDefeat(battle, character);
-        AdvanceTeamBattleTurn(battle);
+        if (!character.IsAlive) ResolveCharacterDefeat(battle, character);
+        AdvanceBattleTurn(battle);
     }
 
-    private void ApplyWeaponTacticalHitEffects(TeamBattleEncounter battle, LiveCharacter character,
+    private void ApplyWeaponTacticalHitEffects(BattleEncounter battle, LiveCharacter character,
         Enemy target, WeaponDefinition? weapon, bool secondaryTarget)
     {
         var family = WeaponFamilies.ForWeapon(weapon);
@@ -138,7 +138,7 @@ public sealed partial class Game
                 BattleLogKind.Information)]);
     }
 
-    private void ResolveTeamCharacterShieldBash(TeamBattleEncounter battle, LiveCharacter character,
+    private void ResolveCharacterShieldBash(BattleEncounter battle, LiveCharacter character,
         Enemy target, WeaponDefinition shield)
     {
         battle.Engage(character, target);
@@ -147,7 +147,7 @@ public sealed partial class Game
         var pushBlocked = false;
         if (result.Outcome == MonsterStrengthContestOutcome.Push)
         {
-            if (!TryPushTeamBattleEnemy(battle, character, target))
+            if (!TryPushBattleEnemy(battle, character, target))
             {
                 actualOutcome = MonsterStrengthContestOutcome.Stagger;
                 pushBlocked = true;
@@ -173,11 +173,11 @@ public sealed partial class Game
             (result.Damage > 0 ? $", -{result.Damage} HP" : string.Empty) + $".{statusText}",
             BattleLogKind.PlayerAttack,
             BattleSystem.DescribeShieldBash(character.Name, target.Name, result, actualOutcome, pushBlocked))]);
-        if (target.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, target, character);
-        AdvanceTeamBattleTurn(battle);
+        if (target.CurrentHitPoints <= 0) ResolveEnemyDefeat(battle, target, character);
+        AdvanceBattleTurn(battle);
     }
 
-    private void ExecuteTeamEnemyTurn(TeamBattleEncounter battle, Enemy enemy)
+    private void ExecuteEnemyTurn(BattleEncounter battle, Enemy enemy)
     {
         var turnStart = battle.ShouldAdvanceSpellEffects(CombatantId.ForEnemy(enemy.Id))
             ? _battleSystem.BeginEnemyTurn(enemy)
@@ -185,13 +185,13 @@ public sealed partial class Game
         if (turnStart.Entries.Count > 0) PresentBattleEntries(turnStart.Entries);
         if (enemy.CurrentHitPoints <= 0)
         {
-            ResolveTeamEnemyDefeat(battle, enemy, null);
-            AdvanceTeamBattleTurn(battle);
+            ResolveEnemyDefeat(battle, enemy, null);
+            AdvanceBattleTurn(battle);
             return;
         }
         if (!turnStart.CanAct)
         {
-            AdvanceTeamBattleTurn(battle);
+            AdvanceBattleTurn(battle);
             return;
         }
 
@@ -200,11 +200,11 @@ public sealed partial class Game
             PresentBattleEntries([new BattleLogEntry(
                 $"💫 {enemy.Name} megingása miatt nem tud támadni vagy képességet használni.",
                 BattleLogKind.Information)]);
-            AdvanceTeamBattleTurn(battle);
+            AdvanceBattleTurn(battle);
             return;
         }
 
-        var livingTargets = TeamEnemyTargets(battle, enemy)
+        var livingTargets = EnemyTargets(battle, enemy)
             .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character))).ToArray();
         var closestDistance = livingTargets.Length == 0 ? int.MaxValue :
             TacticalDistance.Between(enemy.Position, GetCasterPosition(livingTargets[0]));
@@ -222,8 +222,8 @@ public sealed partial class Game
                     consumeResources: index == 0)).ToArray());
             battle.RecordAttack(BattleSide.Hostile);
             foreach (var target in abilityTargets.Where(target => !target.IsAlive))
-                ResolveTeamCharacterDefeat(battle, target);
-            AdvanceTeamBattleTurn(battle);
+                ResolveCharacterDefeat(battle, target);
+            AdvanceBattleTurn(battle);
             return;
         }
 
@@ -241,7 +241,7 @@ public sealed partial class Game
             var pushBlocked = false;
             if (bash.Outcome == MonsterStrengthContestOutcome.Push)
             {
-                if (!TryPushTeamBattleTarget(battle, enemy, bashTarget, out _))
+                if (!TryPushBattleTarget(battle, enemy, bashTarget, out _))
                 {
                     actualOutcome = MonsterStrengthContestOutcome.Stagger;
                     pushBlocked = true;
@@ -264,28 +264,28 @@ public sealed partial class Game
                 (bash.Damage > 0 ? $", -{bash.Damage} HP." : "."),
                 BattleLogKind.EnemyAttack,
                 BattleSystem.DescribeShieldBash(enemy.Name, bashTarget.Name, bash, actualOutcome, pushBlocked))]);
-            if (!bashTarget.IsAlive) ResolveTeamCharacterDefeat(battle, bashTarget);
-            AdvanceTeamBattleTurn(battle);
+            if (!bashTarget.IsAlive) ResolveCharacterDefeat(battle, bashTarget);
+            AdvanceBattleTurn(battle);
             return;
         }
 
         var attackWeapon = _battleSystem.SelectEnemyAttackWeapon(enemy, weapon =>
-            TacticalTeamBattleCoordinator.EnemyAttackTargets(battle, enemy, weapon, GetCasterPosition).Count);
-        var targets = TacticalTeamBattleCoordinator.EnemyAttackTargets(battle, enemy, attackWeapon,
+            TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, weapon, GetCasterPosition).Count);
+        var targets = TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, attackWeapon,
             GetCasterPosition);
         if (targets.Count == 0)
         {
-            var target = TeamEnemyTargets(battle, enemy)
+            var target = EnemyTargets(battle, enemy)
                 .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))
                 .First();
-            MoveTeamEnemyToward(battle, enemy, GetCasterPosition(target));
+            MoveEnemyToward(battle, enemy, GetCasterPosition(target));
             return;
         }
         battle.FaceEnemyToward(enemy, targets[0]);
         if (BattleSystem.IsTelegraphedWeapon(attackWeapon) && !enemy.IsWeaponPrepared(attackWeapon!.Id))
         {
             PresentBattleEntries([_battleSystem.PrepareEnemyWeapon(enemy, attackWeapon)]);
-            AdvanceTeamBattleTurn(battle);
+            AdvanceBattleTurn(battle);
             return;
         }
 
@@ -298,7 +298,7 @@ public sealed partial class Game
             var meleeAttack = TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target));
             var resolution = _battleSystem.ResolveEnemyActionDetailed(enemy, target, battle.RuntimeFor(target),
                 attackWeapon, advanceAttackerEffects: index == 0,
-                alliedGuardDefense: TacticalTeamBattleCoordinator.AlliedGuardDefense(
+                alliedGuardDefense: TacticalBattleCoordinator.AlliedGuardDefense(
                     battle, target, GetCasterPosition));
 
             if (_gameSettings.Settings.CombatSpeed == CombatSpeed.PauseAfterHit && resolution.Hit)
@@ -325,18 +325,18 @@ public sealed partial class Game
                     };
                 }
             }
-            if (!target.IsAlive) ResolveTeamCharacterDefeat(battle, target);
+            if (!target.IsAlive) ResolveCharacterDefeat(battle, target);
             if (enemy.CurrentHitPoints <= 0 || entry.Kind == BattleLogKind.Information) break;
         }
         _battleSystem.MarkEnemyWeaponUsed(enemy, attackWeapon);
         PresentBattleEntries(entries);
-        if (enemy.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, enemy, null);
-        AdvanceTeamBattleTurn(battle);
+        if (enemy.CurrentHitPoints <= 0) ResolveEnemyDefeat(battle, enemy, null);
+        AdvanceBattleTurn(battle);
     }
 
-    private void AdvanceTeamBattleTurn(TeamBattleEncounter battle)
+    private void AdvanceBattleTurn(BattleEncounter battle)
     {
-        ResetTeamMovement();
+        ResetBattleMovement();
         battle.CaptureNewStatuses();
         if (battle.IsCompleted)
         {
@@ -344,10 +344,10 @@ public sealed partial class Game
             return;
         }
         battle.AdvanceTurn();
-        _preparedTeamBattleTurnId = 0;
+        _preparedBattleTurnId = 0;
     }
 
-    private void ExecuteTeamRetreat(TeamBattleEncounter battle, LiveCharacter character)
+    private void ExecuteRetreat(BattleEncounter battle, LiveCharacter character)
     {
         if (character != PartyLeader || battle.Turns.Cycle <= 1)
         {
@@ -366,16 +366,16 @@ public sealed partial class Game
             var entry = _battleSystem.ResolveEnemyAttackOnRetreatingCharacter(attacker, retreatingCharacter,
                 battle.RuntimeFor(retreatingCharacter));
             PresentBattleEntries([entry]);
-            if (!retreatingCharacter.IsAlive) ResolveTeamCharacterDefeat(battle, retreatingCharacter);
+            if (!retreatingCharacter.IsAlive) ResolveCharacterDefeat(battle, retreatingCharacter);
         }
         var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         if (!string.IsNullOrEmpty(statusText))
             PresentBattleEntries([new BattleLogEntry($"{character.Name} visszavonulási kísérlete.{statusText}",
                 BattleLogKind.Information)]);
-        if (!character.IsAlive) ResolveTeamCharacterDefeat(battle, character);
+        if (!character.IsAlive) ResolveCharacterDefeat(battle, character);
         if (!PartyLeader.IsAlive)
         {
-            FinishTeamBattle(battle, forceDefeat: true);
+            FinishBattle(battle, forceDefeat: true);
             return;
         }
 
@@ -395,10 +395,10 @@ public sealed partial class Game
             CharacterClassRules.DetectionBonus(candidate))).ToArray();
         var anyEnemyVisible = livingEnemies.Any(enemy => perceptionSources.Any(source =>
             FogOfWar.CanDetectEnemyFrom(_maze, source, enemy)));
-        var canBreakPursuit = TacticalTeamBattleCoordinator.CanTeamRetreat(
+        var canBreakPursuit = TacticalBattleCoordinator.CanRetreat(
             friendlySpeed, hostileSpeed, everyEnemyHasTwoCellGap, anyEnemyVisible);
         Dictionary<LiveCharacter, Position> destinations = [];
-        var hasSafeRoute = canBreakPursuit && TryFindTeamRetreatDestinations(battle, out destinations);
+        var hasSafeRoute = canBreakPursuit && TryFindRetreatDestinations(battle, out destinations);
         if (!hasSafeRoute)
         {
             var failed = canBreakPursuit
@@ -410,8 +410,8 @@ public sealed partial class Game
                   $"az üldözőké {hostileSpeed}, és még van ellenség a parti látóterében.";
             _renderer.DrawInventoryMessage(failed, ConsoleColor.Red);
             RecordSessionActivity(SessionActivityKind.Battle, failed, ConsoleColor.Red);
-            AdvanceTeamBattleTurn(battle);
-            ContinueTeamBattle();
+            AdvanceBattleTurn(battle);
+            ContinueBattle();
             return;
         }
 
@@ -429,10 +429,10 @@ public sealed partial class Game
             : friendlySpeed == hostileSpeed
                 ? "A kétmezőnyi távolsági előny elég az elszakadáshoz."
                 : "Az üldözők gyorsabbak, de már egyikük sincs a parti látóterében.";
-        FinishSuccessfulTeamRetreat(battle, friendlySpeed, hostileSpeed, reason);
+        FinishSuccessfulRetreat(battle, friendlySpeed, hostileSpeed, reason);
     }
 
-    private bool TryFindTeamRetreatDestinations(TeamBattleEncounter battle,
+    private bool TryFindRetreatDestinations(BattleEncounter battle,
         out Dictionary<LiveCharacter, Position> destinations)
     {
         destinations = [];
@@ -476,24 +476,24 @@ public sealed partial class Game
         return true;
     }
 
-    private void FinishSuccessfulTeamRetreat(TeamBattleEncounter battle, int friendlySpeed, int hostileSpeed,
+    private void FinishSuccessfulRetreat(BattleEncounter battle, int friendlySpeed, int hostileSpeed,
         string reason)
     {
         battle.RecordCompletedFinalAction();
         var cycles = Math.Max(1, battle.Turns.Cycle);
         var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
-        var summary = ConsoleRenderer.FormatTeamBattleRetreatSummary(cycles, battle.ActionNumber, battle.Kills);
-        var resourceSummary = ConsoleRenderer.FormatTeamBattleResourceSummary(characterResults, cycles);
+        var summary = ConsoleRenderer.FormatBattleRetreatSummary(cycles, battle.ActionNumber, battle.Kills);
+        var resourceSummary = ConsoleRenderer.FormatBattleResourceSummary(characterResults, cycles);
         if (_locationId == DeveloperBattleTestLocationId)
             _developerBattleLog.CompleteBattle(battle,
                 $"retreat; friendlySpeed={friendlySpeed}; hostileSpeed={hostileSpeed}; reason={reason}");
         _session.EndBattle(battle.Id);
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
-            DrainNeedsAfterTeamBattle(character, cycles);
-        ResetTeamMovement();
-        _activeTeamBattle = null;
-        _isQuickTeamBattle = false;
-        _preparedTeamBattleTurnId = 0;
+            DrainNeedsAfterBattle(character, cycles);
+        ResetBattleMovement();
+        _activeBattle = null;
+        _isQuickBattle = false;
+        _preparedBattleTurnId = 0;
         _battleStarted = false;
         _saveAfterBattle = false;
         _session.SetPhase(GameSessionPhase.Exploration);
@@ -517,22 +517,22 @@ public sealed partial class Game
         RequestCoopSnapshotPublish();
     }
 
-    private IReadOnlyList<BattleActionKind> GetTeamAllowedBattleActions(TeamBattleEncounter battle,
+    private IReadOnlyList<BattleActionKind> GetAllowedBattleActions(BattleEncounter battle,
         LiveCharacter character, Enemy focusEnemy)
     {
-        if (IsTeamMovementInProgress(battle)) return [BattleActionKind.Move, BattleActionKind.Pass];
-        return _teamBattleCoordinator.GetTeamAllowedBattleActions(battle, character, focusEnemy, PartyLeader,
+        if (IsBattleMovementInProgress(battle)) return [BattleActionKind.Move, BattleActionKind.Pass];
+        return _battleCoordinator.GetAllowedBattleActions(battle, character, focusEnemy, PartyLeader,
             GetCasterPosition(character), HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy),
             _turnUndeadNextAvailableRounds);
     }
 
-    private IReadOnlyList<BattleTacticOptionSnapshot>? GetTeamBattleTacticOptions(TeamBattleEncounter battle,
+    private IReadOnlyList<BattleTacticOptionSnapshot>? GetBattleTacticOptions(BattleEncounter battle,
         LiveCharacter character, Enemy enemy) =>
-        _teamBattleCoordinator.GetTeamBattleTacticOptions(battle, character, enemy);
+        _battleCoordinator.GetBattleTacticOptions(battle, character, enemy);
 
-    private void SetTeamBattlePrompt(TeamBattleEncounter battle)
+    private void SetBattlePrompt(BattleEncounter battle)
     {
-        var prompt = CreateTeamBattlePromptState(battle);
+        var prompt = CreateBattlePromptState(battle);
         if (!_session.SetBattlePrompt(prompt.BattleId, prompt.TurnId, prompt.ActingCharacterId,
                 prompt.AllowedActions))
             return;
@@ -551,120 +551,120 @@ public sealed partial class Game
         RequestCoopSnapshotPublish();
     }
 
-    private IEnumerable<Enemy> AdjacentTeamEnemies(TeamBattleEncounter battle, LiveCharacter character) =>
-        TacticalTeamBattleCoordinator.AdjacentTeamEnemies(battle, character, GetCasterPosition(character));
+    private IEnumerable<Enemy> AdjacentEnemies(BattleEncounter battle, LiveCharacter character) =>
+        TacticalBattleCoordinator.AdjacentEnemies(battle, character, GetCasterPosition(character));
 
-    private IEnumerable<Enemy> ReachableTeamEnemies(TeamBattleEncounter battle, LiveCharacter character) =>
-        TacticalTeamBattleCoordinator.ReachableTeamEnemies(battle, character, GetCasterPosition(character));
+    private IEnumerable<Enemy> ReachableEnemies(BattleEncounter battle, LiveCharacter character) =>
+        TacticalBattleCoordinator.ReachableEnemies(battle, character, GetCasterPosition(character));
 
-    private IEnumerable<Enemy> TurnUndeadTargets(TeamBattleEncounter battle, LiveCharacter character) =>
-        TacticalTeamBattleCoordinator.TurnUndeadTargets(battle, character, GetCasterPosition(character));
+    private IEnumerable<Enemy> TurnUndeadTargets(BattleEncounter battle, LiveCharacter character) =>
+        TacticalBattleCoordinator.TurnUndeadTargets(battle, character, GetCasterPosition(character));
 
-    private Enemy? PreferredTurnUndeadTarget(TeamBattleEncounter battle, LiveCharacter character)
+    private Enemy? PreferredTurnUndeadTarget(BattleEncounter battle, LiveCharacter character)
     {
         var targets = TurnUndeadTargets(battle, character).ToArray();
         return battle.SelectedTargetEnemy() is { } selected && targets.Contains(selected)
             ? selected : targets.FirstOrDefault();
     }
 
-    private IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy) =>
-        TacticalTeamBattleCoordinator.AdjacentTeamCharacters(battle, enemy, GetCasterPosition);
+    private IEnumerable<LiveCharacter> AdjacentCharacters(BattleEncounter battle, Enemy enemy) =>
+        TacticalBattleCoordinator.AdjacentCharacters(battle, enemy, GetCasterPosition);
 
-    private IEnumerable<LiveCharacter> TeamEnemyTargets(TeamBattleEncounter battle, Enemy enemy) =>
-        TacticalTeamBattleCoordinator.TeamEnemyTargets(battle, enemy);
+    private IEnumerable<LiveCharacter> EnemyTargets(BattleEncounter battle, Enemy enemy) =>
+        TacticalBattleCoordinator.EnemyTargets(battle, enemy);
 
-    private static IEnumerable<Position> TeamMeleePositions(Position center) =>
-        TacticalTeamBattleCoordinator.TeamMeleePositions(center);
+    private static IEnumerable<Position> MeleePositions(Position center) =>
+        TacticalBattleCoordinator.MeleePositions(center);
 
-    private CombatantId? TeamBattleFocusTarget(TeamBattleEncounter battle, TacticalBattleParticipant current)
+    private CombatantId? BattleFocusTarget(BattleEncounter battle, TacticalBattleParticipant current)
     {
         if (battle.CharacterFor(current.Id) is { } character)
         {
             var enemy = battle.SelectedTargetEnemy() ??
-                        ReachableTeamEnemies(battle, character).OrderBy(candidate => candidate.CurrentHitPoints)
+                        ReachableEnemies(battle, character).OrderBy(candidate => candidate.CurrentHitPoints)
                 .FirstOrDefault() ?? battle.Enemies.Where(candidate => candidate.CurrentHitPoints > 0)
                 .OrderBy(candidate => TacticalDistance.Between(current.Position, candidate.Position)).FirstOrDefault();
             return enemy is null ? null : CombatantId.ForEnemy(enemy.Id);
         }
         if (battle.EnemyFor(current.Id) is not { } actingEnemy) return null;
-        var target = AdjacentTeamCharacters(battle, actingEnemy)
+        var target = AdjacentCharacters(battle, actingEnemy)
             .OrderBy(candidate => (double)candidate.CurrentVitality / Math.Max(1, candidate.MaximumVitality))
-            .FirstOrDefault() ?? TeamEnemyTargets(battle, actingEnemy)
+            .FirstOrDefault() ?? EnemyTargets(battle, actingEnemy)
             .OrderBy(candidate => TacticalDistance.Between(current.Position, GetCasterPosition(candidate))).FirstOrDefault();
         return target is null ? null : CombatantId.ForCharacter(target.Id);
     }
 
-    private Enemy? NextTeamBattleTarget(TeamBattleEncounter battle, LiveCharacter character) =>
-        TacticalTeamBattleCoordinator.NextTeamBattleTarget(battle, character, GetCasterPosition(character));
+    private Enemy? NextBattleTarget(BattleEncounter battle, LiveCharacter character) =>
+        TacticalBattleCoordinator.NextBattleTarget(battle, character, GetCasterPosition(character));
 
-    private void UpdateTeamBattleFocus(TeamBattleEncounter battle, TacticalBattleParticipant current)
+    private void UpdateBattleFocus(BattleEncounter battle, TacticalBattleParticipant current)
     {
-        if (_isQuickTeamBattle) return;
-        _renderer.UpdateTeamBattleConditions(_maze, _fogOfWar, _player.Position,
+        if (_isQuickBattle) return;
+        _renderer.UpdateBattleConditions(_maze, _fogOfWar, _player.Position,
             battle.Characters.Where(battle.IsCharacterStaggered).Select(character => character.Id),
             battle.Enemies.Where(battle.IsEnemyStaggered).Select(enemy => enemy.Id));
         _renderer.DrawTacticalBattleActor(battle.CharacterFor(current.Id), battle.EnemyFor(current.Id));
-        var targetId = TeamBattleFocusTarget(battle, current);
+        var targetId = BattleFocusTarget(battle, current);
         var targetPosition = targetId is { } id ? battle.Turns.Find(id)?.Position : null;
-        _renderer.DrawTeamBattleFocus(_maze, _fogOfWar, _player.Position, current.Position, targetPosition);
+        _renderer.DrawBattleFocus(_maze, _fogOfWar, _player.Position, current.Position, targetPosition);
     }
 
-    private bool CanTeamEnemyActMeaningfully(TeamBattleEncounter battle, Enemy enemy)
+    private bool CanEnemyActMeaningfully(BattleEncounter battle, Enemy enemy)
     {
         if (battle.AreOffensiveActionsBlocked(CombatantId.ForEnemy(enemy.Id))) return false;
         var possibleWeapons = enemy.EquippedWeapon is { } selected
             ? new[] { selected }
             : enemy.AttackWeapons;
-        if (possibleWeapons.Any(weapon => TacticalTeamBattleCoordinator.EnemyAttackTargets(
+        if (possibleWeapons.Any(weapon => TacticalBattleCoordinator.EnemyAttackTargets(
                 battle, enemy, weapon, GetCasterPosition).Count > 0)) return true;
         if (battle.IsEngaged(enemy)) return false;
-        var target = TeamEnemyTargets(battle, enemy)
+        var target = EnemyTargets(battle, enemy)
             .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))
             .First();
-        var goals = TeamMeleePositions(GetCasterPosition(target))
-            .Where(position => CanTeamBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)))
+        var goals = MeleePositions(GetCasterPosition(target))
+            .Where(position => CanBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)))
             .ToArray();
-        return FindTeamBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id)).Count > 0;
+        return FindBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id)).Count > 0;
     }
 
-    private Enemy ClosestLivingTeamEnemy(TeamBattleEncounter battle, Position origin) =>
-        TacticalTeamBattleCoordinator.ClosestLivingTeamEnemy(battle, origin);
+    private Enemy ClosestLivingEnemy(BattleEncounter battle, Position origin) =>
+        TacticalBattleCoordinator.ClosestLivingEnemy(battle, origin);
 
-    private void MoveTeamCharacterToward(TeamBattleEncounter battle, LiveCharacter character, Position target)
+    private void MoveCharacterToward(BattleEncounter battle, LiveCharacter character, Position target)
     {
-        var goals = TeamMeleePositions(target)
-            .Where(position => CanTeamBattleEnter(battle, position, CombatantId.ForCharacter(character.Id)))
+        var goals = MeleePositions(target)
+            .Where(position => CanBattleEnter(battle, position, CombatantId.ForCharacter(character.Id)))
             .ToArray();
-        var path = FindTeamBattlePath(battle, GetCasterPosition(character), goals,
+        var path = FindBattlePath(battle, GetCasterPosition(character), goals,
             CombatantId.ForCharacter(character.Id));
-        CompleteTeamCharacterMovement(battle, character, path);
+        CompleteCharacterMovement(battle, character, path);
     }
 
-    private void MoveTeamEnemyToward(TeamBattleEncounter battle, Enemy enemy, Position target)
+    private void MoveEnemyToward(BattleEncounter battle, Enemy enemy, Position target)
     {
         if (battle.IsMovementBlocked(CombatantId.ForEnemy(enemy.Id)))
         {
             PresentBattleEntries([new BattleLogEntry(
                 $"💫 {enemy.Name} megingott, ezért ebben az akcióban nem tud közeledni.",
                 BattleLogKind.Information)]);
-            AdvanceTeamBattleTurn(battle);
+            AdvanceBattleTurn(battle);
             return;
         }
-        var goals = TeamMeleePositions(target)
-            .Where(position => CanTeamBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)))
+        var goals = MeleePositions(target)
+            .Where(position => CanBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)))
             .ToArray();
-        var path = FindTeamBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id));
+        var path = FindBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id));
         var traversed = path.Take(battle.Current.MovementAllowance).ToArray();
         LiveCharacter? interceptor = null;
         for (var index = 0; index < traversed.Length; index++)
         {
-            interceptor = TacticalTeamBattleCoordinator.PolearmMasterControlling(battle, traversed[index]);
+            interceptor = TacticalBattleCoordinator.PolearmMasterControlling(battle, traversed[index]);
             if (interceptor is null) continue;
             traversed = traversed.Take(index + 1).ToArray();
             break;
         }
         var landingIndex = Array.FindLastIndex(traversed, position =>
-            CanTeamBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)));
+            CanBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)));
         var steps = landingIndex < 0 ? Array.Empty<Position>() : traversed.Take(landingIndex + 1).ToArray();
         var previousPosition = enemy.Position;
         if (steps.Length > 0)
@@ -672,7 +672,7 @@ public sealed partial class Game
             battle.RecordMovement(BattleSide.Hostile);
             enemy.MoveTo(steps[^1]);
             battle.UpdatePosition(enemy);
-            if (!_isQuickTeamBattle)
+            if (!_isQuickBattle)
                 _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
         }
         if (steps.Length > 0)
@@ -686,11 +686,11 @@ public sealed partial class Game
                 $"🔱 {interceptor.Name} szálfegyverrel feltartóztatja {enemy.Name} előrenyomulását.",
                 BattleLogKind.Information)]);
         }
-        AdvanceTeamBattleTurn(battle);
+        AdvanceBattleTurn(battle);
     }
 
     private (BattleLogEntry? LogEntry, BattleActionDetails Details) ResolveMonsterStrengthPressure(
-        TeamBattleEncounter battle, Enemy enemy,
+        BattleEncounter battle, Enemy enemy,
         LiveCharacter target)
     {
         var result = _battleSystem.ResolveMonsterStrengthContest(enemy, target, battle.RuntimeFor(target));
@@ -699,7 +699,7 @@ public sealed partial class Game
                 MonsterStrengthContestOutcome.Resisted));
 
         if (result.Outcome == MonsterStrengthContestOutcome.Push &&
-            TryPushTeamBattleTarget(battle, enemy, target, out var pushedFormation))
+            TryPushBattleTarget(battle, enemy, target, out var pushedFormation))
         {
             var details = BattleSystem.DescribeMonsterStrengthContest(enemy.Name, target.Name, result,
                 MonsterStrengthContestOutcome.Push);
@@ -727,7 +727,7 @@ public sealed partial class Game
             Calculation = action.Calculation.Concat(additional.Calculation).ToArray()
         };
 
-    private bool TryPushTeamBattleTarget(TeamBattleEncounter battle, Enemy enemy, LiveCharacter target,
+    private bool TryPushBattleTarget(BattleEncounter battle, Enemy enemy, LiveCharacter target,
         out bool pushedFormation)
     {
         pushedFormation = false;
@@ -749,33 +749,33 @@ public sealed partial class Game
         {
             var destination = battle.PositionOf(target) + direction;
             if (!battle.Turns.IsInsideBattleArea(destination) ||
-                !CanTeamBattleEnter(battle, destination, CombatantId.ForCharacter(target.Id))) return false;
+                !CanBattleEnter(battle, destination, CombatantId.ForCharacter(target.Id))) return false;
             MoveBattleCharacterTo(target, destination);
             battle.UpdatePosition(target, destination);
             battle.PruneSeparatedEngagements();
             RevealFor(target, destination);
         }
-        if (!_isQuickTeamBattle)
+        if (!_isQuickBattle)
             _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         return true;
     }
 
-    private bool TryPushTeamBattleEnemy(TeamBattleEncounter battle, LiveCharacter attacker, Enemy target)
+    private bool TryPushBattleEnemy(BattleEncounter battle, LiveCharacter attacker, Enemy target)
     {
         var direction = StrengthPushDirection(battle.PositionOf(attacker), target.Position);
         var destination = target.Position + direction;
         if (!battle.Turns.IsInsideBattleArea(destination) ||
-            !CanTeamBattleEnter(battle, destination, CombatantId.ForEnemy(target.Id))) return false;
+            !CanBattleEnter(battle, destination, CombatantId.ForEnemy(target.Id))) return false;
         var previous = target.Position;
         target.MoveTo(destination);
         battle.UpdatePosition(target);
         battle.PruneSeparatedEngagements();
-        if (!_isQuickTeamBattle)
+        if (!_isQuickBattle)
             _renderer.DrawEnemyMovement(_maze, _fogOfWar, previous, destination, _player.Position);
         return true;
     }
 
-    private bool CanForceMoveFormation(TeamBattleEncounter battle,
+    private bool CanForceMoveFormation(BattleEncounter battle,
         IReadOnlyDictionary<LiveCharacter, Position> destinations)
     {
         if (destinations.Count == 0) return false;
@@ -807,7 +807,7 @@ public sealed partial class Game
         return deltaY >= 0 ? Direction.Down : Direction.Up;
     }
 
-    private bool TryExecuteTeamFormationMove(TeamBattleEncounter battle, LiveCharacter character,
+    private bool TryExecuteFormationMove(BattleEncounter battle, LiveCharacter character,
         Position target, out string error)
     {
         if (character != PartyLeader || !battle.HasActiveFormation)
@@ -886,12 +886,12 @@ public sealed partial class Game
         var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry($"{character.Name} egy mezővel mozgatja az egész alakzatot.{statusText}",
             BattleLogKind.Information)]);
-        AdvanceTeamBattleTurn(battle);
+        AdvanceBattleTurn(battle);
         error = string.Empty;
         return true;
     }
 
-    private bool TryExecuteSwapToRear(TeamBattleEncounter battle, LiveCharacter character, out string error)
+    private bool TryExecuteSwapToRear(BattleEncounter battle, LiveCharacter character, out string error)
     {
         if (battle.IsCharacterStaggered(character) ||
             battle.RearPartnerOf(character) is { } rearPartner && battle.IsCharacterStaggered(rearPartner))
@@ -918,7 +918,7 @@ public sealed partial class Game
         PresentBattleEntries([new BattleLogEntry(
             $"Hátra! {character.Name} helyet cserél {rear.Name} karakterrel.{transferText}{statusText}",
             BattleLogKind.Information)]);
-        AdvanceTeamBattleTurn(battle);
+        AdvanceBattleTurn(battle);
         error = string.Empty;
         return true;
     }
@@ -929,7 +929,7 @@ public sealed partial class Game
         else _maze.PartyMembers.First(member => member.Character == character).MoveTo(position);
     }
 
-    private bool TryExecuteTeamCharacterMove(TeamBattleEncounter battle, LiveCharacter character, Position target,
+    private bool TryExecuteCharacterMove(BattleEncounter battle, LiveCharacter character, Position target,
         out string error)
     {
         if (battle.IsCharacterStaggered(character))
@@ -942,23 +942,23 @@ public sealed partial class Game
             error = $"{character.Name} le van kötve, ezért nem mozoghat.";
             return false;
         }
-        BeginTeamMovementIfNeeded(battle);
-        var path = FindStraightTeamBattlePath(battle, GetCasterPosition(character), target,
+        BeginBattleMovementIfNeeded(battle);
+        var path = FindStraightBattlePath(battle, GetCasterPosition(character), target,
             CombatantId.ForCharacter(character.Id), maximumSteps: 1);
         if (path.Count == 0)
         {
             error = "Ebben az irányban nincs szabad, elérhető mező. Az akciód megmaradt.";
             return false;
         }
-        CompleteTeamCharacterMovement(battle, character, path, finishAction: false);
-        _teamMovementRemaining--;
-        _teamMovementSteps++;
-        if (_teamMovementRemaining <= 0) FinishTeamCharacterMovement(battle, character);
+        CompleteCharacterMovement(battle, character, path, finishAction: false);
+        _battleMovementRemaining--;
+        _battleMovementSteps++;
+        if (_battleMovementRemaining <= 0) FinishCharacterMovement(battle, character);
         error = string.Empty;
         return true;
     }
 
-    private IReadOnlyList<Position> FindStraightTeamBattlePath(TeamBattleEncounter battle, Position origin,
+    private IReadOnlyList<Position> FindStraightBattlePath(BattleEncounter battle, Position origin,
         Position target, CombatantId actorId, int maximumSteps)
     {
         var deltaX = target.X - origin.X;
@@ -972,14 +972,14 @@ public sealed partial class Game
         for (var index = 0; index < Math.Min(maximumSteps, requestedSteps); index++)
         {
             var next = new Position(current.X + stepX, current.Y + stepY);
-            if (!CanTeamBattleEnter(battle, next, actorId)) break;
+            if (!CanBattleEnter(battle, next, actorId)) break;
             steps.Add(next);
             current = next;
         }
         return steps;
     }
 
-    private void CompleteTeamCharacterMovement(TeamBattleEncounter battle, LiveCharacter character,
+    private void CompleteCharacterMovement(BattleEncounter battle, LiveCharacter character,
         IReadOnlyList<Position> path, bool finishAction = true)
     {
         var steps = path.Take(battle.Current.MovementAllowance).ToArray();
@@ -993,7 +993,7 @@ public sealed partial class Game
             else _maze.PartyMembers.First(member => member.Character == character).MoveTo(destination);
             battle.UpdatePosition(character, destination);
             var newlyRevealed = RevealFor(character, destination);
-            if (!_isQuickTeamBattle)
+            if (!_isQuickBattle)
             {
                 if (character == PartyLeader)
                     _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, destination, newlyRevealed, hasWon: false);
@@ -1009,37 +1009,37 @@ public sealed partial class Game
             : $"{character.Name}\t⛔ Nincs járható út{statusText}";
         if (steps.Length > 0 || _battleNoPathReported.Add(character.Id) || !string.IsNullOrEmpty(statusText))
             PresentBattleEntries([new BattleLogEntry(message, BattleLogKind.Information)]);
-        AdvanceTeamBattleTurn(battle);
+        AdvanceBattleTurn(battle);
     }
 
-    private bool IsTeamMovementInProgress(TeamBattleEncounter battle) =>
-        _teamMovementTurnId == battle.Turns.TurnId && _teamMovementSteps > 0;
+    private bool IsBattleMovementInProgress(BattleEncounter battle) =>
+        _battleMovementTurnId == battle.Turns.TurnId && _battleMovementSteps > 0;
 
-    private void BeginTeamMovementIfNeeded(TeamBattleEncounter battle)
+    private void BeginBattleMovementIfNeeded(BattleEncounter battle)
     {
-        if (_teamMovementTurnId == battle.Turns.TurnId) return;
-        _teamMovementTurnId = battle.Turns.TurnId;
-        _teamMovementRemaining = battle.Current.MovementAllowance;
-        _teamMovementSteps = 0;
+        if (_battleMovementTurnId == battle.Turns.TurnId) return;
+        _battleMovementTurnId = battle.Turns.TurnId;
+        _battleMovementRemaining = battle.Current.MovementAllowance;
+        _battleMovementSteps = 0;
     }
 
-    private void FinishTeamCharacterMovement(TeamBattleEncounter battle, LiveCharacter character)
+    private void FinishCharacterMovement(BattleEncounter battle, LiveCharacter character)
     {
         var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(
-            $"{character.Name}\t👣 {_teamMovementSteps} mezőt mozog{statusText}", BattleLogKind.Information)]);
-        ResetTeamMovement();
-        AdvanceTeamBattleTurn(battle);
+            $"{character.Name}\t👣 {_battleMovementSteps} mezőt mozog{statusText}", BattleLogKind.Information)]);
+        ResetBattleMovement();
+        AdvanceBattleTurn(battle);
     }
 
-    private void ResetTeamMovement()
+    private void ResetBattleMovement()
     {
-        _teamMovementTurnId = -1;
-        _teamMovementRemaining = 0;
-        _teamMovementSteps = 0;
+        _battleMovementTurnId = -1;
+        _battleMovementRemaining = 0;
+        _battleMovementSteps = 0;
     }
 
-    private IReadOnlyList<Position> FindTeamBattlePath(TeamBattleEncounter battle, Position origin,
+    private IReadOnlyList<Position> FindBattlePath(BattleEncounter battle, Position origin,
         IReadOnlyCollection<Position> goals, CombatantId actorId)
     {
         if (goals.Count == 0) return [];
@@ -1055,7 +1055,7 @@ public sealed partial class Game
             {
                 var next = current + direction;
                 if (previous.ContainsKey(next) ||
-                    !CanTeamBattleEnter(battle, next, actorId) && !CanFlyingEnemyTraverse(battle, next, actorId)) continue;
+                    !CanBattleEnter(battle, next, actorId) && !CanFlyingEnemyTraverse(battle, next, actorId)) continue;
                 previous[next] = current;
                 if (goalSet.Contains(next)) { found = next; break; }
                 queue.Enqueue(next);
@@ -1068,7 +1068,7 @@ public sealed partial class Game
         return path;
     }
 
-    private bool CanTeamBattleEnter(TeamBattleEncounter battle, Position position, CombatantId actorId)
+    private bool CanBattleEnter(BattleEncounter battle, Position position, CombatantId actorId)
     {
         if (!_maze.IsWalkable(position)) return false;
         if (battle.Turns.Participants.Any(participant => participant.Id != actorId &&
@@ -1082,7 +1082,7 @@ public sealed partial class Game
                Maze.IsPassableNeutralNpc(occupant);
     }
 
-    private bool CanFlyingEnemyTraverse(TeamBattleEncounter battle, Position position, CombatantId actorId)
+    private bool CanFlyingEnemyTraverse(BattleEncounter battle, Position position, CombatantId actorId)
     {
         var enemy = battle.EnemyFor(actorId);
         if (enemy is null || !enemy.Definition.HasTrait(EnemyTraits.Flying) || !_maze.IsWalkable(position))
@@ -1092,15 +1092,15 @@ public sealed partial class Game
             participant.Position == position);
     }
 
-    private void SynchronizeTeamBattleDefeats(TeamBattleEncounter battle, LiveCharacter? killer = null)
+    private void SynchronizeBattleDefeats(BattleEncounter battle, LiveCharacter? killer = null)
     {
         foreach (var enemy in battle.Enemies.Where(enemy => enemy.CurrentHitPoints <= 0).ToArray())
-            ResolveTeamEnemyDefeat(battle, enemy, killer);
+            ResolveEnemyDefeat(battle, enemy, killer);
         foreach (var character in battle.Characters.Where(character => !character.IsAlive).ToArray())
-            ResolveTeamCharacterDefeat(battle, character);
+            ResolveCharacterDefeat(battle, character);
     }
 
-    private void ResolveTeamEnemyDefeat(TeamBattleEncounter battle, Enemy enemy, LiveCharacter? killer)
+    private void ResolveEnemyDefeat(BattleEncounter battle, Enemy enemy, LiveCharacter? killer)
     {
         if (!battle.TryResolveDeath(enemy)) return;
         battle.MarkDefeated(enemy);
@@ -1119,11 +1119,11 @@ public sealed partial class Game
         _maze.ReplaceEnemyWithCorpse(enemy);
         _nextEnemyMoves.Remove(enemy);
         var message = $"☠ {enemy.Name} elesett. +{enemy.Definition.ExperienceReward} XP kerül szétosztásra.";
-        if (!_isQuickTeamBattle) _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
+        if (!_isQuickBattle) _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);
     }
 
-    private void ResolveTeamCharacterDefeat(TeamBattleEncounter battle, LiveCharacter character)
+    private void ResolveCharacterDefeat(BattleEncounter battle, LiveCharacter character)
     {
         var avatar = _maze.PartyMembers.FirstOrDefault(member => member.Character == character);
         if (avatar is not null && IsQuestCriticalRoderic(avatar))
@@ -1146,37 +1146,37 @@ public sealed partial class Game
                 _gameSaveService.SerializeCharacter(character), CharacterSyncReason.CharacterDied);
             _session.ReleaseCharacterControl(character.Id);
         }
-        var messageText = $"☠ {character.Name} elesett a csapatharcban.";
+        var messageText = $"☠ {character.Name} elesett a harcban.";
         _renderer.DrawInventoryMessage(messageText, ConsoleColor.Red);
         RecordSessionActivity(SessionActivityKind.Battle, messageText, ConsoleColor.Red);
         PlaySessionSound(SoundEffect.MemberKilled);
         TryLogPartyComments(PartySituationIds.PartyMemberDied);
     }
 
-    private void FinishTeamBattleStalemate(TeamBattleEncounter battle)
+    private void FinishBattleStalemate(BattleEncounter battle)
     {
         _renderer.DrawBattleCommandPanel(string.Empty);
         _session.EndBattle(battle.Id);
         var cycles = Math.Max(1, battle.Turns.Cycle);
         var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
-        var resourceSummary = ConsoleRenderer.FormatTeamBattleResourceSummary(characterResults, cycles);
+        var resourceSummary = ConsoleRenderer.FormatBattleResourceSummary(characterResults, cycles);
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
-            DrainNeedsAfterTeamBattle(character, cycles);
+            DrainNeedsAfterBattle(character, cycles);
         var inactive = battle.InactiveSidesLastCompletedCycle;
         if (_locationId == DeveloperBattleTestLocationId)
             _developerBattleLog.CompleteBattle(battle, "stalemate");
         var sideName = inactive.Contains(BattleSide.Friendly) ? "a csapat" : "az ellenséges oldal";
-        ResetTeamMovement();
-        _activeTeamBattle = null;
-        _isQuickTeamBattle = false;
-        _preparedTeamBattleTurnId = 0;
+        ResetBattleMovement();
+        _activeBattle = null;
+        _isQuickBattle = false;
+        _preparedBattleTurnId = 0;
         _battleStarted = false;
         _session.SetPhase(GameSessionPhase.Exploration);
         var message = inactive.Count == 2
             ? $"⚖️ Az összecsapás véget ér: egyik oldal sem mozdult vagy támadott " +
-              $"{TeamBattleEncounter.InactiveCycleLimit} teljes körön át."
+              $"{BattleEncounter.InactiveCycleLimit} teljes körön át."
             : $"⚖️ Az összecsapás véget ér: {sideName} nem mozdult és nem támadott " +
-              $"{TeamBattleEncounter.InactiveCycleLimit} teljes körön át.";
+              $"{BattleEncounter.InactiveCycleLimit} teljes körön át.";
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
         _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.DarkYellow);
@@ -1200,22 +1200,22 @@ public sealed partial class Game
         Thread.Sleep(800);
     }
 
-    private void FinishTeamBattle(TeamBattleEncounter battle, bool forceDefeat = false)
+    private void FinishBattle(BattleEncounter battle, bool forceDefeat = false)
     {
         _renderer.DrawBattleCommandPanel(string.Empty);
         _session.EndBattle(battle.Id);
         var victory = !forceDefeat && battle.HostileSideDefeated && !battle.FriendlySideDefeated;
-        var wasQuickBattle = _isQuickTeamBattle;
+        var wasQuickBattle = _isQuickBattle;
         var cycles = Math.Max(1, battle.Turns.Cycle);
         var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
-        var resourceSummary = ConsoleRenderer.FormatTeamBattleResourceSummary(characterResults, cycles);
+        var resourceSummary = ConsoleRenderer.FormatBattleResourceSummary(characterResults, cycles);
         if (_locationId == DeveloperBattleTestLocationId)
             _developerBattleLog.CompleteBattle(battle, victory ? "victory" : "defeat");
-        ResetTeamMovement();
+        ResetBattleMovement();
 
-        _activeTeamBattle = null;
+        _activeBattle = null;
         _battleStarted = false;
-        _preparedTeamBattleTurnId = 0;
+        _preparedBattleTurnId = 0;
 
         _session.EndBattle(battle.Id);
         if (!victory)
@@ -1230,10 +1230,10 @@ public sealed partial class Game
         PlayBattleVictorySound();
         foreach (var character in battle.Characters.Where(character => character.IsAlive))
         {
-            DrainNeedsAfterTeamBattle(character, cycles);
+            DrainNeedsAfterBattle(character, cycles);
             if (character != PartyLeader) TryNpcUseConsumables(character);
         }
-        var message = ConsoleRenderer.FormatTeamBattleVictorySummary(wasQuickBattle, cycles,
+        var message = ConsoleRenderer.FormatBattleVictorySummary(wasQuickBattle, cycles,
             battle.ActionNumber, battle.Kills);
         _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);

@@ -24,13 +24,13 @@ public sealed record TacticalAttackAdvantage(TacticalAttackArc Arc, int HitBonus
     };
 }
 
-public sealed class TacticalTeamBattleCoordinator
+public sealed class TacticalBattleCoordinator
 {
     private readonly GameDataCatalog _gameData;
     private readonly BattleSystem _battleSystem;
     private readonly Random _random;
 
-    public TacticalTeamBattleCoordinator(
+    public TacticalBattleCoordinator(
         GameDataCatalog gameData,
         BattleSystem battleSystem,
         Random random)
@@ -53,7 +53,7 @@ public sealed class TacticalTeamBattleCoordinator
                character.IsInventoryItemOperational(InventorySlotKind.Weapon, 2);
     }
 
-    public static Enemy ClosestLivingTeamEnemy(TeamBattleEncounter battle, Position origin) =>
+    public static Enemy ClosestLivingEnemy(BattleEncounter battle, Position origin) =>
         battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
             .OrderBy(enemy => TacticalDistance.Between(origin, enemy.Position))
             .ThenBy(enemy => enemy.CurrentHitPoints).First();
@@ -62,29 +62,29 @@ public sealed class TacticalTeamBattleCoordinator
         livingEnemies.Any(enemy => enemy.CurrentHitPoints > 0 &&
                                    enemy.Definition.HasTrait(EnemyTraits.Flying)) ? 8 : 6;
 
-    public static bool CanTeamRetreat(int friendlySpeed, int hostileSpeed,
+    public static bool CanRetreat(int friendlySpeed, int hostileSpeed,
         bool everyEnemyHasTwoCellGap, bool anyEnemyVisible) =>
         friendlySpeed > hostileSpeed ||
         friendlySpeed == hostileSpeed && everyEnemyHasTwoCellGap ||
         friendlySpeed < hostileSpeed && !anyEnemyVisible;
 
-    public static IEnumerable<Enemy> AdjacentTeamEnemies(TeamBattleEncounter battle, LiveCharacter character, Position characterPosition) =>
+    public static IEnumerable<Enemy> AdjacentEnemies(BattleEncounter battle, LiveCharacter character, Position characterPosition) =>
         battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 &&
             TacticalDistance.IsMeleeAdjacent(characterPosition, enemy.Position));
 
-    public static IEnumerable<Enemy> ReachableTeamEnemies(TeamBattleEncounter battle, LiveCharacter character, Position characterPosition)
+    public static IEnumerable<Enemy> ReachableEnemies(BattleEncounter battle, LiveCharacter character, Position characterPosition)
     {
-        var adjacent = AdjacentTeamEnemies(battle, character, characterPosition).ToArray();
+        var adjacent = AdjacentEnemies(battle, character, characterPosition).ToArray();
         return adjacent.Concat(battle.RearFormationEnemiesInReach(character))
             .Where(enemy => enemy.CurrentHitPoints > 0)
             .DistinctBy(enemy => enemy.Id);
     }
 
-    public static IEnumerable<Enemy> TurnUndeadTargets(TeamBattleEncounter battle, LiveCharacter character,
+    public static IEnumerable<Enemy> TurnUndeadTargets(BattleEncounter battle, LiveCharacter character,
         Position characterPosition) =>
         battle.Enemies.Where(enemy => BattleActionCoordinator.CanTurnUndead(character, enemy, characterPosition));
 
-    public static IReadOnlyList<Enemy> SweepTargets(TeamBattleEncounter battle, LiveCharacter character,
+    public static IReadOnlyList<Enemy> SweepTargets(BattleEncounter battle, LiveCharacter character,
         Position origin, Enemy primary)
     {
         var targets = new List<Enemy> { primary };
@@ -125,13 +125,13 @@ public sealed class TacticalTeamBattleCoordinator
             _ => WeaponAttackPattern.Single
         };
 
-    public static LiveCharacter? PolearmMasterControlling(TeamBattleEncounter battle, Position position) =>
+    public static LiveCharacter? PolearmMasterControlling(BattleEncounter battle, Position position) =>
         battle.Characters.FirstOrDefault(character => character.IsAlive &&
             character.OperationalWeapons.Any(weapon => WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Polearm) &&
             character.WeaponProficiencyRankFor(WeaponFamilies.Polearm) == WeaponProficiencyRank.Master &&
             TacticalDistance.IsMeleeAdjacent(battle.PositionOf(character), position));
 
-    public static TacticalAttackAdvantage AttackAdvantage(TeamBattleEncounter battle,
+    public static TacticalAttackAdvantage AttackAdvantage(BattleEncounter battle,
         LiveCharacter attacker, Enemy defender)
     {
         var attackerPosition = battle.PositionOf(attacker);
@@ -169,7 +169,7 @@ public sealed class TacticalTeamBattleCoordinator
         return 75;
     }
 
-    public static int AlliedGuardDefense(TeamBattleEncounter battle, LiveCharacter protectedCharacter,
+    public static int AlliedGuardDefense(BattleEncounter battle, LiveCharacter protectedCharacter,
         Func<LiveCharacter, Position> getPosition)
     {
         var adjacent = battle.Characters.Where(guardian => guardian != protectedCharacter && guardian.IsAlive &&
@@ -201,13 +201,13 @@ public sealed class TacticalTeamBattleCoordinator
         return ownDisciplineDefense + suppliedDefense;
     }
 
-    public static IEnumerable<LiveCharacter> AdjacentTeamCharacters(TeamBattleEncounter battle, Enemy enemy,
+    public static IEnumerable<LiveCharacter> AdjacentCharacters(BattleEncounter battle, Enemy enemy,
         Func<LiveCharacter, Position> getCasterPosition) =>
         battle.Characters.Where(character => character.IsAlive &&
             TacticalDistance.IsMeleeAdjacent(getCasterPosition(character), enemy.Position) &&
             !battle.IsProtectedRearTarget(character, enemy.Position));
 
-    public static IReadOnlyList<LiveCharacter> EnemyAttackTargets(TeamBattleEncounter battle, Enemy enemy,
+    public static IReadOnlyList<LiveCharacter> EnemyAttackTargets(BattleEncounter battle, Enemy enemy,
         WeaponDefinition? weapon, Func<LiveCharacter, Position> getCharacterPosition)
     {
         var maximumRange = weapon?.CanAttackFromRear == true ? 2 : 1;
@@ -219,7 +219,7 @@ public sealed class TacticalTeamBattleCoordinator
                 : TacticalDistance.IsWithin(enemy.Position, position, maximumRange) && position != enemy.Position;
         }
 
-        var directCandidates = TeamEnemyTargets(battle, enemy).Where(InRange)
+        var directCandidates = EnemyTargets(battle, enemy).Where(InRange)
             .OrderBy(character => (double)character.CurrentVitality / Math.Max(1, character.MaximumVitality))
             .ThenBy(character => TacticalDistance.Between(enemy.Position, getCharacterPosition(character)))
             .ToArray();
@@ -246,14 +246,14 @@ public sealed class TacticalTeamBattleCoordinator
     private static bool AreNeighboringTargets(Position first, Position second) =>
         TacticalDistance.IsMeleeAdjacent(first, second) || TacticalDistance.Between(first, second) <= 1;
 
-    public static IEnumerable<LiveCharacter> TeamEnemyTargets(TeamBattleEncounter battle, Enemy enemy)
+    public static IEnumerable<LiveCharacter> EnemyTargets(BattleEncounter battle, Enemy enemy)
     {
         var exposed = battle.Characters.Where(character => character.IsAlive &&
             !battle.IsProtectedRearTarget(character, enemy.Position)).ToArray();
         return exposed.Length > 0 ? exposed : battle.Characters.Where(character => character.IsAlive);
     }
 
-    public static IEnumerable<Position> TeamMeleePositions(Position center)
+    public static IEnumerable<Position> MeleePositions(Position center)
     {
         for (var y = center.Y - 1; y <= center.Y + 1; y++)
         for (var x = center.X - 1; x <= center.X + 1; x++)
@@ -261,9 +261,9 @@ public sealed class TacticalTeamBattleCoordinator
                 yield return new Position(x, y);
     }
 
-    public static Enemy? NextTeamBattleTarget(TeamBattleEncounter battle, LiveCharacter character, Position characterPosition)
+    public static Enemy? NextBattleTarget(BattleEncounter battle, LiveCharacter character, Position characterPosition)
     {
-        var targets = ReachableTeamEnemies(battle, character, characterPosition).OrderBy(enemy => enemy.Position.Y)
+        var targets = ReachableEnemies(battle, character, characterPosition).OrderBy(enemy => enemy.Position.Y)
             .ThenBy(enemy => enemy.Position.X).ThenBy(enemy => enemy.Id.ToString(), StringComparer.Ordinal).ToArray();
         if (targets.Length == 0) return null;
         var currentTargetId = battle.SelectedTargetEnemyId ??
@@ -272,7 +272,7 @@ public sealed class TacticalTeamBattleCoordinator
         return targets[(selectedIndex + 1) % targets.Length];
     }
 
-    public static IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(TeamBattleEncounter battle,
+    public static IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(BattleEncounter battle,
         LiveCharacter character)
     {
         if (battle.IsEngaged(character)) return [];
@@ -280,14 +280,14 @@ public sealed class TacticalTeamBattleCoordinator
             .Select(index => (Index: index, Item: character.GetInventoryItem(InventorySlotKind.Backpack, index),
                 Quantity: character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index)))
             .Where(entry => entry.Item is MiscItemDefinition item && entry.Quantity > 0 &&
-                            battle.CanUseItem(character, item) && IsTeamBattleItemUseful(character, item))
+                            battle.CanUseItem(character, item) && IsBattleItemUseful(character, item))
             .GroupBy(entry => entry.Item!.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => new BattleItemOptionSnapshot(group.Min(entry => entry.Index), group.Key,
                 group.First().Item!.Name, group.Sum(entry => entry.Quantity)))
             .ToArray();
     }
 
-    public static bool IsTeamBattleItemUseful(LiveCharacter character, MiscItemDefinition item) =>
+    public static bool IsBattleItemUseful(LiveCharacter character, MiscItemDefinition item) =>
         !item.UsableInCombat ? false : string.Equals(item.Id, MiscItemIds.HerbalTea, StringComparison.OrdinalIgnoreCase)
             ? character.WaterLevel < 100 || character.CurrentVitality < character.MaximumVitality
             : IsInitiativeDrink(item) || item.Effect switch
@@ -303,7 +303,7 @@ public sealed class TacticalTeamBattleCoordinator
                 _ => false
             };
 
-    public static int? ChooseNpcHealingPotionIndex(TeamBattleEncounter battle, LiveCharacter character,
+    public static int? ChooseNpcHealingPotionIndex(BattleEncounter battle, LiveCharacter character,
         int allowedWaste)
     {
         if (character.CurrentVitality >= character.MaximumVitality) return null;
@@ -326,7 +326,7 @@ public sealed class TacticalTeamBattleCoordinator
         string.Equals(item.Id, "T023", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(item.Id, "T024", StringComparison.OrdinalIgnoreCase);
 
-    public IReadOnlyList<BattleActionKind> GetTeamAllowedBattleActions(TeamBattleEncounter battle,
+    public IReadOnlyList<BattleActionKind> GetAllowedBattleActions(BattleEncounter battle,
         LiveCharacter character, Enemy focusEnemy, LiveCharacter selectedCharacter,
         Position characterPosition, bool hasUsableCombatSpell,
         IReadOnlyDictionary<LiveCharacter, int> turnUndeadNextAvailableRounds)
@@ -336,8 +336,8 @@ public sealed class TacticalTeamBattleCoordinator
             return character.CharacterClass.Id == CharacterClassIds.Harcos
                 ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
                 : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
-        var reachable = ReachableTeamEnemies(battle, character, characterPosition).ToArray();
-        var canShieldBash = AdjacentTeamEnemies(battle, character, characterPosition).Any() &&
+        var reachable = ReachableEnemies(battle, character, characterPosition).ToArray();
+        var canShieldBash = AdjacentEnemies(battle, character, characterPosition).Any() &&
                             character.OperationalWeapons.Any(ShieldRules.IsShield);
         var combatantId = CombatantId.ForCharacter(character.Id);
         var staggered = battle.IsMovementBlocked(combatantId);
@@ -397,7 +397,7 @@ public sealed class TacticalTeamBattleCoordinator
         return actions;
     }
 
-    private static void AddRearPreparationActions(TeamBattleEncounter battle, LiveCharacter character,
+    private static void AddRearPreparationActions(BattleEncounter battle, LiveCharacter character,
         LiveCharacter selectedCharacter, ICollection<BattleActionKind> actions)
     {
         if (!battle.HasProtectiveFormation || character != selectedCharacter) return;
@@ -409,7 +409,7 @@ public sealed class TacticalTeamBattleCoordinator
             actions.Add(BattleActionKind.PrepareRearRight);
     }
 
-    public IReadOnlyList<BattleTacticOptionSnapshot>? GetTeamBattleTacticOptions(TeamBattleEncounter battle,
+    public IReadOnlyList<BattleTacticOptionSnapshot>? GetBattleTacticOptions(BattleEncounter battle,
         LiveCharacter character, Enemy enemy)
     {
         if (!battle.RuntimeFor(character).RequiresTacticSelection) return null;
@@ -440,7 +440,7 @@ public sealed class TacticalTeamBattleCoordinator
     public static double VitalityRatio(LiveCharacter character) =>
         (double)character.CurrentVitality / Math.Max(1, character.MaximumVitality);
 
-    public static IEnumerable<Enemy> OrderedNpcSpellTargets(TeamBattleEncounter battle, Position casterPosition) =>
+    public static IEnumerable<Enemy> OrderedNpcSpellTargets(BattleEncounter battle, Position casterPosition) =>
         battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
             .OrderByDescending(battle.IsEngaged)
             .ThenBy(enemy => battle.Characters.Where(character => battle.EngagedEnemies(character).Contains(enemy))
@@ -450,7 +450,7 @@ public sealed class TacticalTeamBattleCoordinator
             .ThenBy(enemy => enemy.CurrentHitPoints)
             .ThenBy(enemy => TacticalDistance.Between(casterPosition, enemy.Position));
 
-    public Position? ChooseNpcBuffTarget(TeamBattleEncounter battle, LiveCharacter caster,
+    public Position? ChooseNpcBuffTarget(BattleEncounter battle, LiveCharacter caster,
         Position casterPosition, SpellDefinition spell, IReadOnlyList<SpellEffectDefinition> effects,
         IReadOnlyList<LiveCharacter> allies,
         Func<LiveCharacter, Position> getCasterPosition,

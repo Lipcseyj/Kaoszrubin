@@ -73,7 +73,7 @@ public sealed class DeveloperBattleLog
         }
     }
 
-    public void BeginBattle(TeamBattleEncounter battle)
+    public void BeginBattle(BattleEncounter battle)
     {
         var recovered = false;
         lock (_sync)
@@ -94,7 +94,7 @@ public sealed class DeveloperBattleLog
         AppendBattleState(battle, "initial");
     }
 
-    public void AppendBattleEntries(TeamBattleEncounter battle, IEnumerable<BattleLogEntry> entries)
+    public void AppendBattleEntries(BattleEncounter battle, IEnumerable<BattleLogEntry> entries)
     {
         foreach (var entry in entries)
         {
@@ -107,7 +107,7 @@ public sealed class DeveloperBattleLog
         AppendBattleState(battle, "after-entry");
     }
 
-    public void AppendBattleState(TeamBattleEncounter battle, string reason)
+    public void AppendBattleState(BattleEncounter battle, string reason)
     {
         var current = battle.Turns.CurrentParticipant;
         Append("BATTLE-STATE", $"reason={reason}; battle={battle.Id}; cycle={battle.Turns.Cycle}; " +
@@ -137,7 +137,7 @@ public sealed class DeveloperBattleLog
         }
     }
 
-    public void CompleteBattle(TeamBattleEncounter battle, string outcome)
+    public void CompleteBattle(BattleEncounter battle, string outcome)
     {
         AppendBattleState(battle, "final");
         Append("BATTLE-END", $"battle={battle.Id}; outcome={outcome}; cycles={battle.Turns.Cycle}; " +

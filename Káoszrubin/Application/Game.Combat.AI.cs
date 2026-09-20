@@ -20,13 +20,13 @@ namespace KaoszRubin.Application;
 
 public sealed partial class Game
 {
-    private void ExecuteTeamAiCharacterTurn(TeamBattleEncounter battle, LiveCharacter character)
+    private void ExecuteAiCharacterTurn(BattleEncounter battle, LiveCharacter character)
     {
         var combatantId = CombatantId.ForCharacter(character.Id);
         var offensiveActionsBlocked = battle.AreOffensiveActionsBlocked(combatantId);
         var rearPreparationOrdered = battle.ShouldPrioritizeRearSelfBuff(character);
         if (rearPreparationOrdered && character.CurrentVitality < character.MaximumVitality &&
-            TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 100, allowedWaste: 15))
+            TryExecuteAiHealingPotion(battle, character, chancePercent: 100, allowedWaste: 15))
             return;
         if (!battle.IsCharacterStaggered(character) && battle.HasProtectiveFormation && battle.IsFrontRow(character) &&
             character.CurrentVitality * 3 <= character.MaximumVitality &&
@@ -34,48 +34,48 @@ public sealed partial class Game
             !battle.IsCharacterStaggered(rearPartner) &&
             TryExecuteSwapToRear(battle, character, out _))
             return;
-        if (!offensiveActionsBlocked && TryExecuteTeamAiTurnUndead(battle, character)) return;
+        if (!offensiveActionsBlocked && TryExecuteAiTurnUndead(battle, character)) return;
         if (!offensiveActionsBlocked)
         {
             EnsureNpcOffensiveSpellPlan(battle, character);
-            if (TryExecuteTeamAiSpell(battle, character)) return;
+            if (TryExecuteAiSpell(battle, character)) return;
         }
-        var hasAdjacentEnemy = AdjacentTeamEnemies(battle, character).Any();
+        var hasAdjacentEnemy = AdjacentEnemies(battle, character).Any();
         var attemptedUrgentPotion = character.CurrentVitality * 2 < character.MaximumVitality &&
                                     !hasAdjacentEnemy;
         if (attemptedUrgentPotion &&
-            TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 60, allowedWaste: 0))
+            TryExecuteAiHealingPotion(battle, character, chancePercent: 60, allowedWaste: 0))
             return;
-        if (TryExecuteTeamAiReserveWeaponSwap(battle, character)) return;
+        if (TryExecuteAiReserveWeaponSwap(battle, character)) return;
         if (offensiveActionsBlocked)
         {
             if (!attemptedUrgentPotion && character.CurrentVitality < character.MaximumVitality &&
-                TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 30, allowedWaste: 0))
+                TryExecuteAiHealingPotion(battle, character, chancePercent: 30, allowedWaste: 0))
                 return;
             var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
             PresentBattleEntries([new BattleLogEntry(
                 $"💫 {character.Name} megingása miatt nem tud támadni vagy varázsolni.{statusText}",
                 BattleLogKind.Information)]);
-            AdvanceTeamBattleTurn(battle);
+            AdvanceBattleTurn(battle);
             return;
         }
         if (!battle.IsCharacterStaggered(character) && !battle.HasActiveFormation && !battle.IsEngaged(character) &&
             TryExecuteNpcSpellcasterPositioning(battle, character)) return;
-        var reachable = ReachableTeamEnemies(battle, character).FirstOrDefault();
+        var reachable = ReachableEnemies(battle, character).FirstOrDefault();
         if (reachable is not null)
         {
-            ResolveTeamCharacterAttack(battle, character, reachable);
+            ResolveCharacterAttack(battle, character, reachable);
             return;
         }
         if (battle.IsEngaged(character))
         {
             PresentBattleEntries([new BattleLogEntry($"{character.Name} le van kötve, ezért nem tud mozogni.",
                 BattleLogKind.Information)]);
-            AdvanceTeamBattleTurn(battle);
+            AdvanceBattleTurn(battle);
             return;
         }
         if (!attemptedUrgentPotion && character.CurrentVitality < character.MaximumVitality &&
-            TryExecuteTeamAiHealingPotion(battle, character, chancePercent: 30, allowedWaste: 0))
+            TryExecuteAiHealingPotion(battle, character, chancePercent: 30, allowedWaste: 0))
             return;
         if (battle.IsCharacterStaggered(character))
         {
@@ -83,7 +83,7 @@ public sealed partial class Game
             PresentBattleEntries([new BattleLogEntry(
                 $"💫 {character.Name} megingott állapotban van, ezért nem tud közeledni.{statusText}",
                 BattleLogKind.Information)]);
-            AdvanceTeamBattleTurn(battle);
+            AdvanceBattleTurn(battle);
             return;
         }
         if (battle.HasActiveFormation && battle.FormationSlotFor(character) is not null)
@@ -91,30 +91,30 @@ public sealed partial class Game
             var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
             PresentBattleEntries([new BattleLogEntry(
                 $"{character.Name} tartja a helyét az alakzatban.{statusText}", BattleLogKind.Information)]);
-            AdvanceTeamBattleTurn(battle);
+            AdvanceBattleTurn(battle);
             return;
         }
-        var target = ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
-        MoveTeamCharacterToward(battle, character, target.Position);
+        var target = ClosestLivingEnemy(battle, GetCasterPosition(character));
+        MoveCharacterToward(battle, character, target.Position);
     }
 
-    private bool TryExecuteTeamAiHealingPotion(TeamBattleEncounter battle, LiveCharacter character,
+    private bool TryExecuteAiHealingPotion(BattleEncounter battle, LiveCharacter character,
         int chancePercent, int allowedWaste)
     {
-        var backpackIndex = TacticalTeamBattleCoordinator.ChooseNpcHealingPotionIndex(
+        var backpackIndex = TacticalBattleCoordinator.ChooseNpcHealingPotionIndex(
             battle, character, allowedWaste);
         if (backpackIndex is null || _random.Next(100) >= chancePercent ||
-            !TryUseTeamBattleItem(battle, character, backpackIndex.Value, out var itemMessage))
+            !TryUseBattleItem(battle, character, backpackIndex.Value, out var itemMessage))
             return false;
         itemMessage += _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(itemMessage, BattleLogKind.Information)]);
-        AdvanceTeamBattleTurn(battle);
+        AdvanceBattleTurn(battle);
         return true;
     }
 
-    private bool TryExecuteTeamAiReserveWeaponSwap(TeamBattleEncounter battle, LiveCharacter character)
+    private bool TryExecuteAiReserveWeaponSwap(BattleEncounter battle, LiveCharacter character)
     {
-        if (!TacticalTeamBattleCoordinator.ShouldNpcSwapToReserveWeapon(character)) return false;
+        if (!TacticalBattleCoordinator.ShouldNpcSwapToReserveWeapon(character)) return false;
         var unusableWeapon = Enumerable.Range(0, 2)
             .Where(index => character.InventoryItemCondition(InventorySlotKind.Weapon, index) ==
                             EquipmentCondition.Broken)
@@ -130,11 +130,11 @@ public sealed partial class Game
         PresentBattleEntries([new BattleLogEntry(
             $"🔄 {character.Name} {reason} előveszi a tartalékát: {replacement?.Name}.{statusText}",
             BattleLogKind.Information)]);
-        AdvanceTeamBattleTurn(battle);
+        AdvanceBattleTurn(battle);
         return true;
     }
 
-    private bool TryExecuteTeamAiTurnUndead(TeamBattleEncounter battle, LiveCharacter character)
+    private bool TryExecuteAiTurnUndead(BattleEncounter battle, LiveCharacter character)
     {
         if (!IsTurnUndeadReady(character)) return false;
         var undead = TurnUndeadTargets(battle, character)
@@ -146,12 +146,12 @@ public sealed partial class Game
         var message = turning.Message +
                       _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         PresentBattleEntries([new BattleLogEntry(message, turning.Kind)]);
-        if (undead.CurrentHitPoints <= 0) ResolveTeamEnemyDefeat(battle, undead, character);
-        AdvanceTeamBattleTurn(battle);
+        if (undead.CurrentHitPoints <= 0) ResolveEnemyDefeat(battle, undead, character);
+        AdvanceBattleTurn(battle);
         return true;
     }
 
-    private void EnsureNpcOffensiveSpellPlan(TeamBattleEncounter battle, LiveCharacter caster)
+    private void EnsureNpcOffensiveSpellPlan(BattleEncounter battle, LiveCharacter caster)
     {
         if (!caster.IsSpellcaster || !caster.CanCastSpells || !SpellcastingRules.HasRequiredFocus(caster))
         {
@@ -285,7 +285,7 @@ public sealed partial class Game
             existing.TargetPosition == selected.TargetPosition;
     }
 
-    private NpcOffensiveSpellCandidate? ChooseNpcOffensiveSpellPlan(TeamBattleEncounter battle,
+    private NpcOffensiveSpellCandidate? ChooseNpcOffensiveSpellPlan(BattleEncounter battle,
         LiveCharacter caster, IReadOnlyList<Enemy> livingEnemies)
     {
         var casterPosition = GetCasterPosition(caster);
@@ -383,7 +383,7 @@ public sealed partial class Game
             : best;
     }
 
-    private NpcOffensiveSpellCandidate PreferSaferFullCastingMove(TeamBattleEncounter battle,
+    private NpcOffensiveSpellCandidate PreferSaferFullCastingMove(BattleEncounter battle,
         LiveCharacter caster, IReadOnlyList<Enemy> livingEnemies,
         IReadOnlyList<NpcOffensiveSpellCandidate> rankedCandidates, NpcOffensiveSpellCandidate selected)
     {
@@ -430,7 +430,7 @@ public sealed partial class Game
             NpcSpellAttackPattern.Chain || candidate.TargetPosition == plan.TargetPosition;
     }
 
-    private static NpcOffensiveSpellCandidate ApplyNpcSpellTacticalMemory(TeamBattleEncounter battle,
+    private static NpcOffensiveSpellCandidate ApplyNpcSpellTacticalMemory(BattleEncounter battle,
         LiveCharacter caster, NpcOffensiveSpellCandidate candidate)
     {
         var memories = battle.NpcOffensiveSpellMemoriesFor(caster);
@@ -458,7 +458,7 @@ public sealed partial class Game
             ReadyToCast: movementDistance == 0, movementDistance);
     }
 
-    private Dictionary<Position, int> ReachableNpcSpellcastingPositions(TeamBattleEncounter battle,
+    private Dictionary<Position, int> ReachableNpcSpellcastingPositions(BattleEncounter battle,
         Position origin, CombatantId actorId)
     {
         var distances = new Dictionary<Position, int> { [origin] = 0 };
@@ -471,7 +471,7 @@ public sealed partial class Game
             {
                 var next = current + direction;
                 if (distances.ContainsKey(next) || !battle.Turns.IsInsideBattleArea(next) ||
-                    !CanTeamBattleEnter(battle, next, actorId)) continue;
+                    !CanBattleEnter(battle, next, actorId)) continue;
                 distances[next] = distances[current] + 1;
                 queue.Enqueue(next);
             }
@@ -532,7 +532,7 @@ public sealed partial class Game
         return plan + movement;
     }
 
-    private bool TryExecuteNpcSpellcasterPositioning(TeamBattleEncounter battle, LiveCharacter caster)
+    private bool TryExecuteNpcSpellcasterPositioning(BattleEncounter battle, LiveCharacter caster)
     {
         if (!caster.IsSpellcaster || !caster.CanCastSpells ||
             caster.CharacterClass.Id == CharacterClassIds.Lovag) return false;
@@ -563,7 +563,7 @@ public sealed partial class Game
         if (!hasSpendableMana)
         {
             if (tactics.ManaFallback != SpellcasterManaFallback.Retreat) return false;
-            var preferredSafety = TacticalTeamBattleCoordinator.PreferredSpellcasterRetreatDistance(livingEnemies);
+            var preferredSafety = TacticalBattleCoordinator.PreferredSpellcasterRetreatDistance(livingEnemies);
             var currentSafety = livingEnemies.Length == 0 ? preferredSafety : livingEnemies.Min(enemy =>
                 TacticalDistance.Between(GetCasterPosition(caster), enemy.Position));
             if (currentSafety >= preferredSafety)
@@ -586,7 +586,7 @@ public sealed partial class Game
             seekLineOfSight: true);
     }
 
-    private bool MoveNpcSpellcasterTowardPlannedCastingPosition(TeamBattleEncounter battle,
+    private bool MoveNpcSpellcasterTowardPlannedCastingPosition(BattleEncounter battle,
         LiveCharacter caster, NpcSpellPlan plan)
     {
         var origin = GetCasterPosition(caster);
@@ -612,11 +612,11 @@ public sealed partial class Game
         PresentBattleEntries([new BattleLogEntry(
             $"🔮 {caster.Name} a(z) {spellName} tervezett tüzelőállásához mozog " +
             $"({path.Count} mező).", BattleLogKind.Information)]);
-        CompleteTeamCharacterMovement(battle, caster, path);
+        CompleteCharacterMovement(battle, caster, path);
         return true;
     }
 
-    private IReadOnlyList<Position> FindNpcSpellcastingPath(TeamBattleEncounter battle,
+    private IReadOnlyList<Position> FindNpcSpellcastingPath(BattleEncounter battle,
         Position origin, Position destination, CombatantId actorId)
     {
         var queue = new Queue<Position>();
@@ -629,7 +629,7 @@ public sealed partial class Game
             {
                 var next = current + direction;
                 if (previous.ContainsKey(next) || !battle.Turns.IsInsideBattleArea(next) ||
-                    !CanTeamBattleEnter(battle, next, actorId)) continue;
+                    !CanBattleEnter(battle, next, actorId)) continue;
                 previous[next] = current;
                 queue.Enqueue(next);
             }
@@ -641,7 +641,7 @@ public sealed partial class Game
         return path;
     }
 
-    private bool MoveNpcSpellcasterToBestPosition(TeamBattleEncounter battle, LiveCharacter caster,
+    private bool MoveNpcSpellcasterToBestPosition(BattleEncounter battle, LiveCharacter caster,
         IReadOnlyList<Enemy> enemies, IReadOnlyList<SpellDefinition> offensiveSpells, bool seekLineOfSight,
         int? preferredSafety = null)
     {
@@ -664,7 +664,7 @@ public sealed partial class Game
                         $"🔮 {caster.Name} a tervezett varázslat lővonalához mozog.",
                         BattleLogKind.Information)]);
                 }
-                CompleteTeamCharacterMovement(battle, caster, lineOfSightPath);
+                CompleteCharacterMovement(battle, caster, lineOfSightPath);
                 return true;
             }
             if (battle.NpcSpellPlanFor(caster) is { } failedPlan)
@@ -679,8 +679,8 @@ public sealed partial class Game
         for (var x = Math.Max(0, origin.X - allowance); x <= Math.Min(_maze.Width - 1, origin.X + allowance); x++)
         {
             var position = new Position(x, y);
-            if (position == origin || !CanTeamBattleEnter(battle, position, actorId)) continue;
-            var path = FindTeamBattlePath(battle, origin, [position], actorId);
+            if (position == origin || !CanBattleEnter(battle, position, actorId)) continue;
+            var path = FindBattlePath(battle, origin, [position], actorId);
             if (path.Count == 0 || path.Count > battle.Current.MovementAllowance) continue;
             var visibleTargets = enemies.Count(enemy => offensiveSpells.Any(spell =>
                 FogOfWar.CanSee(_maze, position, enemy.Position, Math.Max(1, spell.Range))));
@@ -697,7 +697,7 @@ public sealed partial class Game
                 .ThenBy(candidate => candidate.Path.Count).FirstOrDefault();
         if (selected.Path is not null)
         {
-            CompleteTeamCharacterMovement(battle, caster, selected.Path);
+            CompleteCharacterMovement(battle, caster, selected.Path);
             return true;
         }
         FinishNpcSpellcasterPositioning(battle, caster,
@@ -705,7 +705,7 @@ public sealed partial class Game
         return true;
     }
 
-    private IReadOnlyList<Position> FindPathToNearestNpcSpellLineOfSight(TeamBattleEncounter battle,
+    private IReadOnlyList<Position> FindPathToNearestNpcSpellLineOfSight(BattleEncounter battle,
         Position origin, CombatantId actorId, IReadOnlyList<Enemy> enemies,
         IReadOnlyList<SpellDefinition> offensiveSpells)
     {
@@ -723,7 +723,7 @@ public sealed partial class Game
             {
                 var next = current + direction;
                 if (previous.ContainsKey(next) || !battle.Turns.IsInsideBattleArea(next) ||
-                    !CanTeamBattleEnter(battle, next, actorId)) continue;
+                    !CanBattleEnter(battle, next, actorId)) continue;
                 previous[next] = current;
                 if (HasLineOfSight(next))
                 {
@@ -740,17 +740,17 @@ public sealed partial class Game
         return path;
     }
 
-    private void FinishNpcSpellcasterPositioning(TeamBattleEncounter battle, LiveCharacter caster, string action)
+    private void FinishNpcSpellcasterPositioning(BattleEncounter battle, LiveCharacter caster, string action)
     {
         var statusText = _battleSystem.FinishCharacterAction(caster, battle.RuntimeFor(caster));
         PresentBattleEntries([new BattleLogEntry($"{caster.Name} {action}.{statusText}",
             BattleLogKind.Information)]);
-        AdvanceTeamBattleTurn(battle);
+        AdvanceBattleTurn(battle);
     }
 
-    private bool TryExecuteTeamAiSpell(TeamBattleEncounter battle, LiveCharacter caster)
+    private bool TryExecuteAiSpell(BattleEncounter battle, LiveCharacter caster)
     {
-        var plan = ChooseTeamAiSpell(battle, caster);
+        var plan = ChooseAiSpell(battle, caster);
         if (plan is null) return false;
         if (NpcSpellcastingPolicy.UsesEngagedSpellCadence(caster.CharacterClass.Id) &&
             battle.IsEngaged(caster))
@@ -787,13 +787,13 @@ public sealed partial class Game
         var message = attempt.Message +
                       _battleSystem.FinishCharacterAction(caster, battle.RuntimeFor(caster));
         PresentBattleEntries([new BattleLogEntry(message, attempt.Kind)]);
-        SynchronizeTeamBattleDefeats(battle, caster);
-        AdvanceTeamBattleTurn(battle);
+        SynchronizeBattleDefeats(battle, caster);
+        AdvanceBattleTurn(battle);
         return true;
     }
 
-    private bool IsUrgentEngagedSupportSpell(TeamBattleEncounter battle, LiveCharacter caster,
-        NpcTeamSpellPlan plan)
+    private bool IsUrgentEngagedSupportSpell(BattleEncounter battle, LiveCharacter caster,
+        NpcBattleSpellChoice plan)
     {
         var effects = _gameData.GetSpellEffects(plan.Spell.Id);
         var targets = plan.Spell.TargetType switch
@@ -809,7 +809,7 @@ public sealed partial class Game
                targets.Any(NpcSpellcastingPolicy.IsEmergency);
     }
 
-    private NpcTeamSpellPlan? ChooseTeamAiSpell(TeamBattleEncounter battle, LiveCharacter caster)
+    private NpcBattleSpellChoice? ChooseAiSpell(BattleEncounter battle, LiveCharacter caster)
     {
         if (!caster.IsSpellcaster || !caster.CanCastSpells ||
             !SpellcastingRules.HasRequiredFocus(caster)) return null;
@@ -831,9 +831,9 @@ public sealed partial class Game
 
         var prioritizeRearSelfBuff = battle.ShouldPrioritizeRearSelfBuff(caster) &&
             (caster.CurrentVitality >= caster.MaximumVitality ||
-             TacticalTeamBattleCoordinator.ChooseNpcHealingPotionIndex(battle, caster, allowedWaste: 15) is null);
+             TacticalBattleCoordinator.ChooseNpcHealingPotionIndex(battle, caster, allowedWaste: 15) is null);
         if (prioritizeRearSelfBuff &&
-            ChooseTeamAiSelfBuff(battle, caster, casterPosition, spells, allies, currentEnemy) is { } selfBuff)
+            ChooseAiSelfBuff(battle, caster, casterPosition, spells, allies, currentEnemy) is { } selfBuff)
             return selfBuff;
 
         foreach (var spell in spells)
@@ -864,7 +864,7 @@ public sealed partial class Game
                 if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost, emergency) ||
                     ValidateSpellCast(caster, casterPosition, spell, true, currentEnemy,
                         explicitTarget: targetPosition) is not null) continue;
-                return new NpcTeamSpellPlan(spell, targetPosition, currentEnemy, Offensive: false);
+                return new NpcBattleSpellChoice(spell, targetPosition, currentEnemy, Offensive: false);
             }
         }
 
@@ -881,7 +881,7 @@ public sealed partial class Game
                 if (!NpcSpellcastingPolicy.CanSpendMana(caster, manaCost) ||
                     ValidateSpellCast(caster, casterPosition, spell, true, currentEnemy,
                         explicitTarget: targetPosition) is not null) continue;
-                return new NpcTeamSpellPlan(spell, targetPosition, currentEnemy, Offensive: false);
+                return new NpcBattleSpellChoice(spell, targetPosition, currentEnemy, Offensive: false);
             }
         }
 
@@ -913,7 +913,7 @@ public sealed partial class Game
                         RequiredCastingPosition = casterPosition,
                         Status = NpcSpellPlanStatus.ReadyToCast
                     });
-                return new NpcTeamSpellPlan(plannedSpell, activePlan.TargetPosition, plannedTarget, Offensive: true);
+                return new NpcBattleSpellChoice(plannedSpell, activePlan.TargetPosition, plannedTarget, Offensive: true);
             }
             return null;
         }
@@ -937,12 +937,12 @@ public sealed partial class Game
                     allowSelfBuff);
                 if (targetPosition is null || ValidateSpellCast(caster, casterPosition, spell, true,
                         dangerousEnemy, explicitTarget: targetPosition) is not null) continue;
-                return new NpcTeamSpellPlan(spell, targetPosition.Value, dangerousEnemy, Offensive: false);
+                return new NpcBattleSpellChoice(spell, targetPosition.Value, dangerousEnemy, Offensive: false);
             }
         return null;
     }
 
-    private NpcTeamSpellPlan? ChooseTeamAiSelfBuff(TeamBattleEncounter battle, LiveCharacter caster,
+    private NpcBattleSpellChoice? ChooseAiSelfBuff(BattleEncounter battle, LiveCharacter caster,
         Position casterPosition, IReadOnlyList<SpellDefinition> spells, IReadOnlyList<LiveCharacter> allies,
         Enemy? currentEnemy)
     {
@@ -960,7 +960,7 @@ public sealed partial class Game
                 spell.TargetType == SpellTargetType.PartyMember ? [caster] : allies, allowSelfBuff: true);
             if (targetPosition != casterPosition || ValidateSpellCast(caster, casterPosition, spell, true,
                     currentEnemy, explicitTarget: casterPosition) is not null) continue;
-            return new NpcTeamSpellPlan(spell, casterPosition, currentEnemy, Offensive: false);
+            return new NpcBattleSpellChoice(spell, casterPosition, currentEnemy, Offensive: false);
         }
         return null;
     }
@@ -974,16 +974,16 @@ public sealed partial class Game
             : configured;
     }
 
-    private Position? ChooseNpcBuffTarget(TeamBattleEncounter battle, LiveCharacter caster,
+    private Position? ChooseNpcBuffTarget(BattleEncounter battle, LiveCharacter caster,
         Position casterPosition, SpellDefinition spell, IReadOnlyList<SpellEffectDefinition> effects,
         IReadOnlyList<LiveCharacter> allies, bool allowSelfBuff = true) =>
-        _teamBattleCoordinator.ChooseNpcBuffTarget(battle, caster, casterPosition, spell, effects, allies,
+        _battleCoordinator.ChooseNpcBuffTarget(battle, caster, casterPosition, spell, effects, allies,
             GetCasterPosition, (c, pos, sp, tgt, en) => IsValidExplicitSpellTarget(c, pos, sp, tgt, en),
             allowSelfBuff);
 
-    private IEnumerable<Enemy> OrderedNpcSpellTargets(TeamBattleEncounter battle, Position casterPosition) =>
-        TacticalTeamBattleCoordinator.OrderedNpcSpellTargets(battle, casterPosition);
+    private IEnumerable<Enemy> OrderedNpcSpellTargets(BattleEncounter battle, Position casterPosition) =>
+        TacticalBattleCoordinator.OrderedNpcSpellTargets(battle, casterPosition);
 
     private static double VitalityRatio(LiveCharacter character) =>
-        TacticalTeamBattleCoordinator.VitalityRatio(character);
+        TacticalBattleCoordinator.VitalityRatio(character);
 }

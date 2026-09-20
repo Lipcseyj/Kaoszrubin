@@ -139,7 +139,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private List<MapCellSnapshot>? _spellCastingOverlaySnapshot;
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
-    private readonly HashSet<Position> _teamBattleFocusPositions = [];
+    private readonly HashSet<Position> _battleFocusPositions = [];
     private readonly HashSet<CharacterId> _staggeredBattleCharacterIds = [];
     private readonly HashSet<WorldEntityId> _staggeredBattleEnemyIds = [];
     private readonly BattleCommandPanel _battleCommandPanel = new(
@@ -308,7 +308,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _battleActive = false;
         _battleEnemy = null;
         _battleActingCharacter = null;
-        _teamBattleFocusPositions.Clear();
+        _battleFocusPositions.Clear();
         _staggeredBattleCharacterIds.Clear();
         _staggeredBattleEnemyIds.Clear();
         _battleDetails = null;
@@ -328,7 +328,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _battleActive = false;
         _battleEnemy = null;
         _battleActingCharacter = null;
-        _teamBattleFocusPositions.Clear();
+        _battleFocusPositions.Clear();
         _staggeredBattleCharacterIds.Clear();
         _staggeredBattleEnemyIds.Clear();
         _spellInfoCharacter = null;
@@ -418,7 +418,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     /// </summary>
     public void DrawMapVisibilityChanged(Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
-        _teamBattleFocusPositions.Clear();
+        _battleFocusPositions.Clear();
         for (var y = 0; y < maze.Height; y++)
             for (var x = 0; x < maze.Width; x++) DrawMapCell(maze, fogOfWar, new Position(x, y));
         DrawPlayer(playerPosition);
@@ -434,13 +434,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     }
 
     /// <summary>Villogtatás nélkül, inverz színekkel jelöli az aktuális cselekvőt és célpontját.</summary>
-    public void DrawTeamBattleFocus(Maze maze, FogOfWar fogOfWar, Position playerPosition,
+    public void DrawBattleFocus(Maze maze, FogOfWar fogOfWar, Position playerPosition,
         Position actorPosition, Position? targetPosition)
     {
         var focused = targetPosition is { } target
             ? new HashSet<Position> { actorPosition, target }
             : new HashSet<Position> { actorPosition };
-        foreach (var position in _teamBattleFocusPositions.Concat(focused).Distinct())
+        foreach (var position in _battleFocusPositions.Concat(focused).Distinct())
         {
             Console.SetCursorPosition(position.X, position.Y);
             var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
@@ -453,11 +453,11 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             else
                 WriteRuneWithColor(visual.Rune, visual.ForegroundColor, visual.BackgroundColor);
         }
-        _teamBattleFocusPositions.Clear();
-        _teamBattleFocusPositions.UnionWith(focused);
+        _battleFocusPositions.Clear();
+        _battleFocusPositions.UnionWith(focused);
     }
 
-    public void UpdateTeamBattleConditions(Maze maze, FogOfWar fogOfWar, Position playerPosition,
+    public void UpdateBattleConditions(Maze maze, FogOfWar fogOfWar, Position playerPosition,
         IEnumerable<CharacterId> staggeredCharacterIds, IEnumerable<WorldEntityId> staggeredEnemyIds)
     {
         var characters = staggeredCharacterIds.ToHashSet();
@@ -667,7 +667,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
                $"🍖-{needLoss}💧-{needLoss}{spells}👹{enemy.CurrentHitPoints}HP";
     }
 
-    public static string FormatQuickBattleKillSummary(IEnumerable<TeamBattleKill> kills)
+    public static string FormatQuickBattleKillSummary(IEnumerable<BattleKill> kills)
     {
         var entries = kills.ToArray();
         var totalExperience = entries.Sum(entry => entry.AwardedExperience);
@@ -683,8 +683,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         return $"Szerzett XP: {totalExperience}. {killText}";
     }
 
-    public static string FormatTeamBattleVictorySummary(bool automatic, int cycles, int actions,
-        IEnumerable<TeamBattleKill> kills)
+    public static string FormatBattleVictorySummary(bool automatic, int cycles, int actions,
+        IEnumerable<BattleKill> kills)
     {
         var entries = kills.ToArray();
         var experience = entries.Sum(entry => entry.AwardedExperience);
@@ -698,20 +698,20 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
                 return $"{killerGroup.Key.KillerName} ☠ {killerGroup.Count()}: {enemies}";
             }));
         var automaticIcon = automatic ? "🤖" : string.Empty;
-        var result = $"🏆{automaticIcon} CSAPATHARC GYŐZELEM — ⌛{cycles} 🕧{actions} " +
+        var result = $"🏆{automaticIcon} HARC GYŐZELEM — ⌛{cycles} 🕧{actions} " +
                      $"☠ {entries.Length} 🎖 {experience}.";
         return string.IsNullOrEmpty(killerText) ? result : $"{result} {killerText}.";
     }
 
-    public static string FormatTeamBattleRetreatSummary(int cycles, int actions,
-        IEnumerable<TeamBattleKill> kills)
+    public static string FormatBattleRetreatSummary(int cycles, int actions,
+        IEnumerable<BattleKill> kills)
     {
         var entries = kills.ToArray();
-        return $"🏃 CSAPATHARC VISSZAVONULÁS — ⌛{cycles} 🕧{actions} " +
+        return $"🏃 HARC VISSZAVONULÁS — ⌛{cycles} 🕧{actions} " +
                $"☠ {entries.Length} 🎖 {entries.Sum(entry => entry.AwardedExperience)} XP.";
     }
 
-    public static string FormatTeamBattleResourceSummary(IEnumerable<TeamBattleCharacterResult> results,
+    public static string FormatBattleResourceSummary(IEnumerable<BattleCharacterResult> results,
         int cycles)
     {
         var characters = results.Select(result =>
@@ -2753,7 +2753,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
                 foreach (var (position, visual) in cells)
                 {
                     Console.SetCursorPosition(position.X, position.Y);
-                    var focused = _teamBattleFocusPositions.Contains(position);
+                    var focused = _battleFocusPositions.Contains(position);
                     WriteRuneWithColor(visual.Rune,
                         focused ? visual.BackgroundColor : visual.ForegroundColor,
                         focused ? visual.ForegroundColor : visual.BackgroundColor);

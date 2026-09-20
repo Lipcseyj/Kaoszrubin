@@ -22,22 +22,22 @@ public sealed partial class Game
 {
     private void HandleLocalBattleInput(ConsoleKeyInfo key)
     {
-        if (_activeTeamBattle is { } teamBattle) HandleLocalTeamBattleInput(teamBattle, key);
+        if (_activeBattle is { } battle) HandleLocalBattleInput(battle, key);
     }
 
-    private void HandleLocalTeamBattleInput(TeamBattleEncounter battle, ConsoleKeyInfo key)
+    private void HandleLocalBattleInput(BattleEncounter battle, ConsoleKeyInfo key)
     {
         if (IsHelpShortcut(key))
         {
             ShowInGameHelp();
             _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
-            ContinueTeamBattle();
+            ContinueBattle();
             return;
         }
         if (IsSaveGameShortcut(key))
         {
             _saveAfterBattle = true;
-            _renderer.DrawInventoryMessage("Mentés kérve: a csapatharc lezárása után elkészül.", ConsoleColor.Yellow);
+            _renderer.DrawInventoryMessage("Mentés kérve: a harc lezárása után elkészül.", ConsoleColor.Yellow);
             return;
         }
 
@@ -64,8 +64,8 @@ public sealed partial class Game
             return;
         }
         if (battle.CurrentCharacter is not { } character || character != PartyLeader) return;
-        var enemy = battle.SelectedTargetEnemy() ?? ClosestLivingTeamEnemy(battle, GetCasterPosition(character));
-        var allowed = GetTeamAllowedBattleActions(battle, character, enemy);
+        var enemy = battle.SelectedTargetEnemy() ?? ClosestLivingEnemy(battle, GetCasterPosition(character));
+        var allowed = GetAllowedBattleActions(battle, character, enemy);
         if (battle.RuntimeFor(character).RequiresTacticSelection && key.Key is ConsoleKey.D1 or ConsoleKey.NumPad1 or
                 ConsoleKey.D2 or ConsoleKey.NumPad2 or ConsoleKey.D3 or ConsoleKey.NumPad3)
         {
@@ -75,7 +75,7 @@ public sealed partial class Game
             return;
         }
         if (key.Key == ConsoleKey.Tab && allowed.Contains(BattleActionKind.SelectTarget) &&
-            NextTeamBattleTarget(battle, character) is { } selectedTarget)
+            NextBattleTarget(battle, character) is { } selectedTarget)
         {
             SubmitLocalBattleCommand(BattleActionKind.SelectTarget, targetEnemyId: selectedTarget.Id);
             return;
@@ -85,7 +85,7 @@ public sealed partial class Game
             SubmitLocalBattleCommand(BattleActionKind.Retreat);
             return;
         }
-        if ((key.Key == ConsoleKey.P || key.Key == ConsoleKey.Spacebar && IsTeamMovementInProgress(battle)) &&
+        if ((key.Key == ConsoleKey.P || key.Key == ConsoleKey.Spacebar && IsBattleMovementInProgress(battle)) &&
             allowed.Contains(BattleActionKind.Pass))
         {
             SubmitLocalBattleCommand(BattleActionKind.Pass);
@@ -94,14 +94,14 @@ public sealed partial class Game
         if (key.Key == ConsoleKey.Spacebar && allowed.Contains(BattleActionKind.PhysicalAttack))
         {
             var targetEnemy = battle.SelectedTargetEnemy() ??
-                              ReachableTeamEnemies(battle, character).OrderBy(value => value.CurrentHitPoints).First();
+                              ReachableEnemies(battle, character).OrderBy(value => value.CurrentHitPoints).First();
             SubmitLocalBattleCommand(BattleActionKind.PhysicalAttack, targetEnemyId: targetEnemy.Id);
             return;
         }
         if (key.Key == ConsoleKey.Q && allowed.Contains(BattleActionKind.ShieldBash))
         {
             var targetEnemy = battle.SelectedTargetEnemy() ??
-                              ReachableTeamEnemies(battle, character).OrderBy(value => value.CurrentHitPoints).First();
+                              ReachableEnemies(battle, character).OrderBy(value => value.CurrentHitPoints).First();
             SubmitLocalBattleCommand(BattleActionKind.ShieldBash, targetEnemyId: targetEnemy.Id);
             return;
         }
@@ -139,7 +139,7 @@ public sealed partial class Game
         }
         if (key.Key == ConsoleKey.U && allowed.Contains(BattleActionKind.UseItem))
         {
-            var item = SelectTeamBattleItem(battle, character);
+            var item = SelectBattleItem(battle, character);
             if (item is not null)
                 SubmitLocalBattleCommand(BattleActionKind.UseItem, backpackIndex: item.BackpackIndex);
             return;
@@ -181,7 +181,7 @@ public sealed partial class Game
             targetPosition, enemy.Id);
     }
 
-    private BattleItemOptionSnapshot? SelectTeamBattleItem(TeamBattleEncounter battle,
+    private BattleItemOptionSnapshot? SelectBattleItem(BattleEncounter battle,
         LiveCharacter character)
     {
         var options = GetBattleItemOptions(battle, character).Take(9).ToArray();
@@ -209,8 +209,8 @@ public sealed partial class Game
         WorldEntityId? targetEnemyId = null,
         int? backpackIndex = null)
     {
-        var battleId = _activeTeamBattle?.Id;
-        var turnId = _activeTeamBattle?.Turns.TurnId;
+        var battleId = _activeBattle?.Id;
+        var turnId = _activeBattle?.Turns.TurnId;
         if (battleId is null || turnId is null) return;
 
         var commandId = _localCommandId + 1;
@@ -251,7 +251,7 @@ public sealed partial class Game
 
     private void ExecuteBattleAction(BattleActionCommand command)
     {
-        if (_activeTeamBattle is { } teamBattle) ExecuteTeamBattleAction(teamBattle, command);
+        if (_activeBattle is { } battle) ExecuteBattleAction(battle, command);
     }
 
     private LiveCharacter? TryRollKnightProtector(LiveCharacter protectedCharacter) =>
@@ -304,12 +304,12 @@ public sealed partial class Game
             (c, pos, sp, en) => HasValidSpellTarget(c, pos, sp, en));
 
     private bool IsTurnUndeadReady(LiveCharacter character) =>
-        BattleActionCoordinator.IsTurnUndeadReady(character, _activeTeamBattle?.Turns.Cycle ?? 1,
+        BattleActionCoordinator.IsTurnUndeadReady(character, _activeBattle?.Turns.Cycle ?? 1,
             _turnUndeadNextAvailableRounds);
 
     private BattlePlayerAction ResolveTurnUndead(LiveCharacter character, Enemy enemy) =>
         _battleActionCoordinator.ResolveTurnUndead(character, enemy, GetCasterPosition(character),
-            _activeTeamBattle?.Turns.Cycle ?? 1, _turnUndeadNextAvailableRounds);
+            _activeBattle?.Turns.Cycle ?? 1, _turnUndeadNextAvailableRounds);
 
     private SpellCastAttempt? TryCastSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell,
         bool inCombat, Enemy? currentEnemy, MagicItemDefinition? castingItem = null, int? castingItemSlotIndex = null,
@@ -334,7 +334,7 @@ public sealed partial class Game
 
         if (inCombat)
         {
-            var engaged = _activeTeamBattle?.IsEngaged(caster) == true;
+            var engaged = _activeBattle?.IsEngaged(caster) == true;
             var failureChance = SpellcastingRules.CombatFailureChance(caster, engaged);
             var roll = _random.Next(1, 101);
             if (roll <= failureChance)

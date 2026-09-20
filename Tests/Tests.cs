@@ -183,31 +183,31 @@ var tests = new (string Name, Action Run)[]
     ("Zárt alakzatban minden slot pozíciója ajtó-interakciós eredőpont", LockedFormationSharesDoorInteractionOrigins),
     ("Az alakzatos zárnyitás a kiválasztott partitag kulcsát fogyasztja", FormationDoorKeyOwnerTakesPriority),
     ("Zárt alakzatból a coop vendég nem léphet ki", LockedFormationRejectsRemoteMovement),
-    ("A csapatharcban az átlós ellenfél is közelharci távolságban van", DiagonalEnemyIsMeleeAdjacent),
-    ("A csapatharc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
-    ("A nyitó ütésváltást a kezdeményezés dönti el, a rajtaütést kivéve", TeamBattleOpeningOrderUsesInitiative),
+    ("A harcban az átlós ellenfél is közelharci távolságban van", DiagonalEnemyIsMeleeAdjacent),
+    ("A harc váza kezeli a belépési kört és a kezdeményezési sorrendet", TacticalBattleStateOrdersEligibleParticipants),
+    ("A nyitó ütésváltást a kezdeményezés dönti el, a rajtaütést kivéve", BattleOpeningOrderUsesInitiative),
     ("Az Első csapás a nyitásban +10, a rendes sorrendben +2 kezdeményezést ad", FirstStrikeUsesSeparateOpeningInitiative),
     ("A gyorsítás és lassítás a következő kör elején rendezi át a kezdeményezést", SpellEffectsReorderInitiativeAtCycleBoundary),
     ("Az időzített állapot kezdeményezés-büntetése körhatáron rendezi át a sorrendet", StatusPenaltyReordersInitiativeAtCycleBoundary),
     ("A kezdeményezési holtverseny sorrendje körönként stabil marad", InitiativeTiesRemainStable),
     ("A zárt út mögötti ellenfél nem érkezhet meg néhány harci kör alatt", TacticalArrivalRequiresWalkableRoute),
-    ("A csapatharc az inaktivitási küszöb után áll le", TeamBattleDetectsInactiveSide),
-    ("A csapatharc ugyanazt a támadási szabálymotort használja", TeamBattleAttackUsesExistingCombatRules),
+    ("A harc az inaktivitási küszöb után áll le", BattleDetectsInactiveSide),
+    ("A harc ugyanazt a támadási szabálymotort használja", BattleAttackUsesExistingCombatRules),
     ("A szörny Ereje találat után lökési vagy tántorítási próbát ad", MonsterStrengthCreatesTacticalPressure),
-    ("A közelharci támadás az ellenfél haláláig leköti a karaktert", TeamBattleEngagementLastsUntilEnemyDeath),
-    ("A zárt alakzat első sora védi a mögötte álló társat", TeamBattleFormationProtectsRearRow),
+    ("A közelharci támadás az ellenfél haláláig leköti a karaktert", BattleEngagementLastsUntilEnemyDeath),
+    ("A zárt alakzat első sora védi a mögötte álló társat", BattleFormationProtectsRearRow),
     ("A vezér külön harcra készítheti a hátsó sor két oldalát", RearCombatPreparationIsLeaderControlled),
-    ("A harci AI a gyógyital erejét a megengedett HP-veszteséghez igazítja", TeamBattleAiHealingPotionAvoidsWaste),
-    ("A zárt libasor együtt mozog, de nem kap hátsósori védelmet", TeamBattleSingleFileHasNoRearProtection),
-    ("Harcban csak szabad hátsó sori karakter használhat CSV-ben engedélyezett italt", TeamBattleItemUseRequiresFreeRearPosition),
-    ("A hátsó sor szálfegyverrel eléri az első társ lekötött ellenfelét", TeamBattleRearPolearmReachUsesFrontEngagement),
+    ("A harci AI a gyógyital erejét a megengedett HP-veszteséghez igazítja", BattleAiHealingPotionAvoidsWaste),
+    ("A zárt libasor együtt mozog, de nem kap hátsósori védelmet", BattleSingleFileHasNoRearProtection),
+    ("Harcban csak szabad hátsó sori karakter használhat CSV-ben engedélyezett italt", BattleItemUseRequiresFreeRearPosition),
+    ("A hátsó sor szálfegyverrel eléri az első társ lekötött ellenfelét", BattleRearPolearmReachUsesFrontEngagement),
     ("A hátsó sori pap elűzheti az első sor által lekötött élőholtat", RearPriestCanTurnFrontEngagedUndead),
     ("A hátráló varázshasználó távolságcélja repülő ellenfélnél nagyobb", SpellcasterRetreatDistanceIsCapped),
     ("Az ellenfél nézésiránya oldal- és hátbatámadási bónuszt ad", TacticalAttackArcsUseEnemyFacing),
     ("A tolvaj tőrrel a zárt alakzat hátsó sorából is orvtámad", ThiefCanBackstabFromRearFormation),
-    ("A Hátra! helycsere átadja az első sori lekötéseket", TeamBattleSwapToRearTransfersEngagements),
-    ("Az alakzat csak a fennálló lekötéseket megtartva mozdulhat", TeamBattleFormationMovementPreservesEngagements),
-    ("A csapatharc célpontja akcióvesztés nélkül váltható", TeamBattleTargetCanBeChanged),
+    ("A Hátra! helycsere átadja az első sori lekötéseket", BattleSwapToRearTransfersEngagements),
+    ("Az alakzat csak a fennálló lekötéseket megtartva mozdulhat", BattleFormationMovementPreservesEngagements),
+    ("A harc célpontja akcióvesztés nélkül váltható", BattleTargetCanBeChanged),
     ("Az NPC varázslási szabálya tartalékolja a mannát és csak egycélú támadást választ", NpcSpellcastingPolicyPreservesMana),
     ("Az Átoktörés csak ténylegesen tisztítható csapattársra használható", BreakCurseRequiresUsefulPartyTarget),
     ("A Megtisztítás nem használható egyszerű gyógyításként", CleansingHealRequiresRemovableStatus),
@@ -220,16 +220,16 @@ var tests = new (string Name, Action Run)[]
     ("Csak a szabad, alakzaton kívüli nem-lovag mozoghat varázslási pozícióba", NpcSpellPlanMovementHonorsClassAndBattleState),
     ("Az NPC tüzelőállás-pontozása körökkel és közelharci veszéllyel számol", NpcSpellPositionPenaltyIncludesTravelAndDanger),
     ("A veszélyben tüzelőállást kereső mágus a teljes mozgást részesíti előnyben", NpcCasterPrefersFullSafeCastingMove),
-    ("A csapatharc varázsmemóriája sorrendben őrzi a megkísérelt terveket", TeamBattleStoresNpcSpellMemory),
+    ("A harc varázsmemóriája sorrendben őrzi a megkísérelt terveket", BattleStoresNpcSpellMemory),
     ("A szabad és lekötött varázslás eltérően módosítja a harci hibakockázatot", EngagementAdjustsSpellFailureChance),
-    ("A harcba hívott erősítés a következő körben lép be", TeamBattleReinforcementJoinsNextCycle),
-    ("A coop session validálja a csapatharcos mozgást, tárgyhasználatot és passzt", TeamBattleCommandsAreValidated),
+    ("A harcba hívott erősítés a következő körben lép be", BattleReinforcementJoinsNextCycle),
+    ("A coop session validálja a harci mozgást, tárgyhasználatot és passzt", BattleCommandsAreValidated),
     ("A fenyegetésbecslés felismeri az elszigetelt gyenge ellenfelet", EncounterThreatAssessmentRecognizesSafeFight),
     ("A gyorsharc legfeljebb három jelentéktelen ellenfelet enged át", QuickCombatAllowsUpToThreeSafeEnemies),
     ("A gyorsharc beállítása normalizálható és menthető", QuickCombatSettingPersists),
     ("A csatarészlet panel lapozható és mutatja a kritikus esélyt", BattleDetailsPanelPagesCalculation),
     ("A gyorsharc összesítője ölőnként csoportosítja az ellenfeleket és az XP-t", QuickCombatSummaryListsKillsAndExperience),
-    ("A taktikai és gyorsharc összesítője kiírja a HP- és mannafogyást", TeamBattleSummaryListsResourceUse),
+    ("A taktikai és gyorsharc összesítője kiírja a HP- és mannafogyást", BattleSummaryListsResourceUse),
     ("A felszerelés súlya leterheltséget és mozgási hátrányt okoz", EquipmentWeightAffectsMobility),
     ("A karakterlap és a tárgyvizsgálat előre jelzi a harci terhelést", MobilityPreviewIsVisible),
     ("A harcos taktikai találati esélyei a valódi képletet követik", FighterTacticHitChancesUseCombatFormula),
@@ -951,7 +951,7 @@ static void DisconnectAndReconnectRestoreControl()
     Assert(session.TryReadCommand(out _), "Reconnect után elutasította az új parancsot.");
 }
 
-#if false // A megszüntetett párbaj-állapotgép tesztjei; a csapatharcos lefedettség váltja fel őket.
+#if false // A megszüntetett párbaj-állapotgép tesztjei; a harci lefedettség váltja fel őket.
 static void BattleAdvanceRunsOneAction()
 {
     var system = CreateBattleSystem(11);
@@ -5269,16 +5269,16 @@ static void TacticalBattleStateOrdersEligibleParticipants()
         "A harmadik körben nem lépett be vagy nem kezdeményezés szerint rendeződött a távoli résztvevő.");
 }
 
-static void TeamBattleOpeningOrderUsesInitiative()
+static void BattleOpeningOrderUsesInitiative()
 {
     var system = CreateBattleSystem(1720);
     var slower = CreateCharacter("Lassabb");
     var fasterEnemy = CreateEnemyAt(new Position(2, 1), "OPENING-FAST-ENEMY");
     var preparation = system.PrepareCharacter(slower);
-    var normal = new TeamBattleEncounter(new Position(1, 1),
-        [new TeamCharacterParticipant(slower, new Position(1, 1), TacticalParticipantKind.PartyMember,
+    var normal = new BattleEncounter(new Position(1, 1),
+        [new BattleCharacterParticipant(slower, new Position(1, 1), TacticalParticipantKind.PartyMember,
             4, 3, 1, preparation.Runtime)],
-        [new TeamEnemyParticipant(fasterEnemy, 9, 3, 1)], slower.Id, fasterEnemy.Id);
+        [new BattleEnemyParticipant(fasterEnemy, 9, 3, 1)], slower.Id, fasterEnemy.Id);
     Assert(normal.OpeningOrder.SequenceEqual(
             [CombatantId.ForEnemy(fasterEnemy.Id), CombatantId.ForCharacter(slower.Id)]) &&
            normal.Turns.StartTurns().Id == CombatantId.ForEnemy(fasterEnemy.Id),
@@ -5287,10 +5287,10 @@ static void TeamBattleOpeningOrderUsesInitiative()
     var faster = CreateCharacter("Gyorsabb");
     var ambusher = CreateEnemyAt(new Position(4, 3), "OPENING-AMBUSHER");
     var ambushPreparation = system.PrepareCharacter(faster);
-    var ambush = new TeamBattleEncounter(new Position(3, 3),
-        [new TeamCharacterParticipant(faster, new Position(3, 3), TacticalParticipantKind.PartyMember,
+    var ambush = new BattleEncounter(new Position(3, 3),
+        [new BattleCharacterParticipant(faster, new Position(3, 3), TacticalParticipantKind.PartyMember,
             20, 3, 1, ambushPreparation.Runtime)],
-        [new TeamEnemyParticipant(ambusher, 1, 3, 1)], faster.Id, ambusher.Id,
+        [new BattleEnemyParticipant(ambusher, 1, 3, 1)], faster.Id, ambusher.Id,
         enemyStrikesFirst: true);
     Assert(ambush.OpeningOrder.SequenceEqual(
             [CombatantId.ForEnemy(ambusher.Id), CombatantId.ForCharacter(faster.Id)]) &&
@@ -5315,11 +5315,11 @@ static void FirstStrikeUsesSeparateOpeningInitiative()
 
     var enemy = CreateEnemyAt(new Position(2, 1), "FIRST-STRIKE-ENEMY");
     var enemyInitiative = firstStrikePreparation.Initiative + 5;
-    var encounter = new TeamBattleEncounter(new Position(1, 1),
-        [new TeamCharacterParticipant(firstStrikeCharacter, new Position(1, 1),
+    var encounter = new BattleEncounter(new Position(1, 1),
+        [new BattleCharacterParticipant(firstStrikeCharacter, new Position(1, 1),
             TacticalParticipantKind.PartyMember, firstStrikePreparation.Initiative, 3, 1,
             firstStrikePreparation.Runtime, firstStrikePreparation.OpeningInitiative)],
-        [new TeamEnemyParticipant(enemy, enemyInitiative, 3, 1)], firstStrikeCharacter.Id, enemy.Id);
+        [new BattleEnemyParticipant(enemy, enemyInitiative, 3, 1)], firstStrikeCharacter.Id, enemy.Id);
     var characterId = CombatantId.ForCharacter(firstStrikeCharacter.Id);
     var enemyId = CombatantId.ForEnemy(enemy.Id);
 
@@ -5336,10 +5336,10 @@ static void SpellEffectsReorderInitiativeAtCycleBoundary()
     var character = CreateCharacter("Gyorsított");
     var enemy = CreateEnemy(20, 2, speed: 7);
     var preparation = system.PrepareCharacter(character);
-    var encounter = new TeamBattleEncounter(new Position(1, 1),
-        [new TeamCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
+    var encounter = new BattleEncounter(new Position(1, 1),
+        [new BattleCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
             5, 3, 1, preparation.Runtime)],
-        [new TeamEnemyParticipant(enemy, 7, 3, 1)], character.Id, enemy.Id);
+        [new BattleEnemyParticipant(enemy, 7, 3, 1)], character.Id, enemy.Id);
     var characterId = CombatantId.ForCharacter(character.Id);
     var enemyId = CombatantId.ForEnemy(enemy.Id);
 
@@ -5381,10 +5381,10 @@ static void StatusPenaltyReordersInitiativeAtCycleBoundary()
     var character = CreateCharacter("Rémült");
     var enemy = CreateEnemy(20, 2, speed: 7);
     var preparation = system.PrepareCharacter(character);
-    var encounter = new TeamBattleEncounter(new Position(1, 1),
-        [new TeamCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
+    var encounter = new BattleEncounter(new Position(1, 1),
+        [new BattleCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
             8, 3, 1, preparation.Runtime)],
-        [new TeamEnemyParticipant(enemy, 7, 3, 1)], character.Id, enemy.Id);
+        [new BattleEnemyParticipant(enemy, 7, 3, 1)], character.Id, enemy.Id);
     var characterId = CombatantId.ForCharacter(character.Id);
     var enemyId = CombatantId.ForEnemy(enemy.Id);
     var fear = new StatusDefinition("FEAR-TEST", "Rettegés", "😱", 2,
@@ -5437,23 +5437,23 @@ static void TacticalArrivalRequiresWalkableRoute()
         "A taktikai érkezés nem különítette el a zárt és a járható útvonalat.");
 }
 
-static void TeamBattleDetectsInactiveSide()
+static void BattleDetectsInactiveSide()
 {
     var system = CreateBattleSystem(1710);
     var character = CreateCharacter("Aktivitás");
     var enemy = CreateEnemy(20, 2);
     var preparation = system.PrepareCharacter(character);
-    var encounter = new TeamBattleEncounter(new Position(1, 1),
-        [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
+    var encounter = new BattleEncounter(new Position(1, 1),
+        [new BattleCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
-        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+        [new BattleEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
     encounter.Turns.StartTurns();
     void CompleteCycle()
     {
         var cycle = encounter.Turns.Cycle;
         do { encounter.AdvanceTurn(); } while (encounter.Turns.Cycle == cycle);
     }
-    for (var cycle = 1; cycle < TeamBattleEncounter.InactiveCycleLimit; cycle++)
+    for (var cycle = 1; cycle < BattleEncounter.InactiveCycleLimit; cycle++)
     {
         encounter.RecordAttack(BattleSide.Friendly);
         CompleteCycle();
@@ -5563,7 +5563,7 @@ static void QuickCombatSummaryListsKillsAndExperience()
 {
     var iskra = CharacterId.New();
     var yorgrim = CharacterId.New();
-    TeamBattleKill[] kills =
+    BattleKill[] kills =
     [
         new(iskra, "Iskra", "E001", "Óriáspatkány", 100),
         new(iskra, "Iskra", "E001", "Óriáspatkány", 100),
@@ -5576,33 +5576,33 @@ static void QuickCombatSummaryListsKillsAndExperience()
         "A gyorsharc összesítője nem a tényleges ölőket, ellenféltípusokat és XP-t írta ki.");
 }
 
-static void TeamBattleSummaryListsResourceUse()
+static void BattleSummaryListsResourceUse()
 {
-    var summary = ConsoleRenderer.FormatTeamBattleResourceSummary(
+    var summary = ConsoleRenderer.FormatBattleResourceSummary(
     [
-        new TeamBattleCharacterResult("Iskra", 0, 0, false, ["🤒"], 0),
-        new TeamBattleCharacterResult("Yorgrim", 0, 0, false, ["🤒"], 0),
-        new TeamBattleCharacterResult("Fürge", 0, 0, false, [], 0),
-        new TeamBattleCharacterResult("Pál", 0, 20, false, [], 3)
+        new BattleCharacterResult("Iskra", 0, 0, false, ["🤒"], 0),
+        new BattleCharacterResult("Yorgrim", 0, 0, false, ["🤒"], 0),
+        new BattleCharacterResult("Fürge", 0, 0, false, [], 0),
+        new BattleCharacterResult("Pál", 0, 20, false, [], 3)
     ], 7);
     Assert(summary == "Iskra: ❤️-0 🤒; Yorgrim: ❤️-0 🤒; Fürge: ❤️-0; " +
            "Pál: ❤️-0🔷-20 ✨3 Mindenki 🍖-7 💧-7",
-        "A csapatharc erőforrás-összesítője nem személyenként és tömör emoji-formában jelenik meg.");
+        "A harc erőforrás-összesítője nem személyenként és tömör emoji-formában jelenik meg.");
 
-    TeamBattleKill[] kills =
+    BattleKill[] kills =
     [
         new(CharacterId.New(), "Iskra", "E001", "Óriáspatkány", 100),
         new(CharacterId.New(), "Pál", "E001", "Óriáspatkány", 100),
         new(CharacterId.New(), "Yorgrim", "E001", "Óriáspatkány", 100)
     ];
-    var victorySummary = ConsoleRenderer.FormatTeamBattleVictorySummary(true, 7, 17, kills);
+    var victorySummary = ConsoleRenderer.FormatBattleVictorySummary(true, 7, 17, kills);
     Assert(victorySummary ==
-           "🏆🤖 CSAPATHARC GYŐZELEM — ⌛7 🕧17 ☠ 3 🎖 300. " +
+           "🏆🤖 HARC GYŐZELEM — ⌛7 🕧17 ☠ 3 🎖 300. " +
            "Iskra ☠ 1: 1× Óriáspatkány; Pál ☠ 1: 1× Óriáspatkány; Yorgrim ☠ 1: 1× Óriáspatkány.",
         $"Az autoharc győzelmi sora hibás: {victorySummary}");
 
-    var retreatSummary = ConsoleRenderer.FormatTeamBattleRetreatSummary(7, 17, kills);
-    Assert(retreatSummary == "🏃 CSAPATHARC VISSZAVONULÁS — ⌛7 🕧17 ☠ 3 🎖 300 XP.",
+    var retreatSummary = ConsoleRenderer.FormatBattleRetreatSummary(7, 17, kills);
+    Assert(retreatSummary == "🏃 HARC VISSZAVONULÁS — ⌛7 🕧17 ☠ 3 🎖 300 XP.",
         $"A visszavonulási összefoglaló nem jelzi a megtartott öléseket és XP-t: {retreatSummary}");
 
     var (encounter, front, _, _) = CreateFormationEncounter();
@@ -5618,10 +5618,10 @@ static void TeamBattleSummaryListsResourceUse()
         "A csata közben megszűnt állapot vagy a karakter varázslatszáma elveszett az összesítőből.");
 }
 
-static void TeamBattleAttackUsesExistingCombatRules()
+static void BattleAttackUsesExistingCombatRules()
 {
     var system = CreateBattleSystem(1701);
-    var fighter = CreateCharacter("Csapatharcos", 30);
+    var fighter = CreateCharacter("Harcos", 30);
     var preparation = system.PrepareCharacter(fighter);
     Assert(preparation.Runtime.TryChooseTactic(fighter, BattleTactic.FighterPrecise),
         "A harcos nem tudta kiválasztani a meglévő pontos taktikát.");
@@ -5634,19 +5634,19 @@ static void TeamBattleAttackUsesExistingCombatRules()
            entry.Details is { } details &&
            details.Calculation.Any(line => line.StartsWith("🎯")) &&
            details.Calculation.Any(line => line.StartsWith("💥")),
-        "A csapatharcos támadás nem a meglévő találat/sebzés naplóformátumot és HP-kezelést használja.");
+        "A harci támadás nem a meglévő találat/sebzés naplóformátumot és HP-kezelést használja.");
 }
 
-static void TeamBattleEngagementLastsUntilEnemyDeath()
+static void BattleEngagementLastsUntilEnemyDeath()
 {
     var system = CreateBattleSystem(1702);
     var character = CreateCharacter("Lekötött hős");
     var enemy = CreateEnemy(20, 2);
     var preparation = system.PrepareCharacter(character);
-    var encounter = new TeamBattleEncounter(new Position(1, 1),
-        [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
+    var encounter = new BattleEncounter(new Position(1, 1),
+        [new BattleCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
-        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+        [new BattleEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
     encounter.Engage(character, enemy);
     Assert(encounter.IsEngaged(character) && encounter.IsEngaged(enemy),
         "A közelharci páros nem került lekötött állapotba.");
@@ -5655,7 +5655,7 @@ static void TeamBattleEngagementLastsUntilEnemyDeath()
         "A karaktert a legyőzött ellenfél továbbra is lekötve tartja.");
 }
 
-static void TeamBattleFormationProtectsRearRow()
+static void BattleFormationProtectsRearRow()
 {
     var (encounter, front, rear, _) = CreateFormationEncounter();
     Assert(encounter.HasActiveFormation && encounter.IsFrontRow(front) && encounter.IsRearRow(rear) &&
@@ -5738,10 +5738,10 @@ static void MonsterStrengthCreatesTacticalPressure()
     var enemy = CreateEnemyAt(new Position(8, 8), "E-STRENGTH");
     var system = CreateBattleSystem(1713);
     var preparation = system.PrepareCharacter(character);
-    var encounter = new TeamBattleEncounter(new Position(3, 3),
-        [new TeamCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
+    var encounter = new BattleEncounter(new Position(3, 3),
+        [new BattleCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
             100, 3, 1, preparation.Runtime)],
-        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+        [new BattleEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
     encounter.Turns.StartTurns();
     Assert(encounter.TryBeginStrengthContest(enemy) && !encounter.TryBeginStrengthContest(enemy),
         "Ugyanaz a szörny egy körben többször kezdhetett Erőpróbát.");
@@ -5792,8 +5792,8 @@ static void MonsterStrengthCreatesTacticalPressure()
     Assert(statusLine.Text.Contains(CombatConditionPresentation.StaggerIcon) &&
            character.Statuses.All(status => status.Icon != CombatConditionPresentation.StaggerIcon),
         "A megingás nem az ideiglenes állapotsoron látszik, vagy bekerült a tartós karakterstátuszok közé.");
-    var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1713));
-    var actions = coordinator.GetTeamAllowedBattleActions(encounter, character, enemy, character,
+    var coordinator = new TacticalBattleCoordinator(data, system, new Random(1713));
+    var actions = coordinator.GetAllowedBattleActions(encounter, character, enemy, character,
         encounter.PositionOf(character), false, new Dictionary<LiveCharacter, int>());
     Assert(!actions.Contains(BattleActionKind.Move) &&
            !actions.Contains(BattleActionKind.PhysicalAttack) &&
@@ -5821,21 +5821,21 @@ static void RearCombatPreparationIsLeaderControlled()
     var rearLeft = CreateCharacter("Bal hátul", characterClassId: CharacterClassIds.Mágus);
     var rearRight = CreateCharacter("Jobb hátul", characterClassId: CharacterClassIds.Pap);
     var enemy = CreateEnemyAt(new Position(3, 2), "E-PREPARE");
-    TeamCharacterParticipant Participant(LiveCharacter member, Position position)
+    BattleCharacterParticipant Participant(LiveCharacter member, Position position)
     {
         var prepared = system.PrepareCharacter(member);
-        return new TeamCharacterParticipant(member, position, TacticalParticipantKind.PartyMember,
+        return new BattleCharacterParticipant(member, position, TacticalParticipantKind.PartyMember,
             prepared.Initiative, 3, 1, prepared.Runtime);
     }
 
     var formation = new PartyFormationSnapshot(leader.Id, null, rearLeft.Id, rearRight.Id,
         Direction.Up, PartyFormationState.Locked);
-    var encounter = new TeamBattleEncounter(new Position(3, 3),
+    var encounter = new BattleEncounter(new Position(3, 3),
         [Participant(leader, new Position(3, 3)), Participant(rearLeft, new Position(3, 4)),
             Participant(rearRight, new Position(4, 4))],
-        [new TeamEnemyParticipant(enemy, 5, 2, 1)], leader.Id, enemy.Id, formation: formation);
-    var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1710));
-    var actions = coordinator.GetTeamAllowedBattleActions(encounter, leader, enemy, leader,
+        [new BattleEnemyParticipant(enemy, 5, 2, 1)], leader.Id, enemy.Id, formation: formation);
+    var coordinator = new TacticalBattleCoordinator(data, system, new Random(1710));
+    var actions = coordinator.GetAllowedBattleActions(encounter, leader, enemy, leader,
         new Position(3, 3), false, new Dictionary<LiveCharacter, int>());
     Assert(actions.Contains(BattleActionKind.PrepareRearLeft) &&
            actions.Contains(BattleActionKind.PrepareRearRight),
@@ -5872,7 +5872,7 @@ static void RearCombatPreparationIsLeaderControlled()
         "A közös csatapanel-formázó nem őrizte meg a körszámot vagy annak színét.");
 }
 
-static void TeamBattleAiHealingPotionAvoidsWaste()
+static void BattleAiHealingPotionAvoidsWaste()
 {
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var system = CreateBattleSystem(1711);
@@ -5884,21 +5884,21 @@ static void TeamBattleAiHealingPotionAvoidsWaste()
     character.SetCurrentResources(95, 0);
     var enemy = CreateEnemyAt(new Position(8, 8), "E-POTION");
     var prepared = system.PrepareCharacter(character);
-    var encounter = new TeamBattleEncounter(new Position(3, 3),
-        [new TeamCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
+    var encounter = new BattleEncounter(new Position(3, 3),
+        [new BattleCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
             prepared.Initiative, 3, 1, prepared.Runtime)],
-        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+        [new BattleEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
 
-    Assert(TacticalTeamBattleCoordinator.ChooseNpcHealingPotionIndex(encounter, character, allowedWaste: 0) == 1,
+    Assert(TacticalBattleCoordinator.ChooseNpcHealingPotionIndex(encounter, character, allowedWaste: 0) == 1,
         "A normál harci AI olyan gyógyitalt választott, amely HP-t pazarolna.");
-    Assert(TacticalTeamBattleCoordinator.ChooseNpcHealingPotionIndex(encounter, character, allowedWaste: 15) == 2,
+    Assert(TacticalBattleCoordinator.ChooseNpcHealingPotionIndex(encounter, character, allowedWaste: 15) == 2,
         "A felkészített hátsó tag nem a legerősebb, legfeljebb 15 HP-t pazarló gyógyitalt választotta.");
     character.SetCurrentResources(196, 0);
-    Assert(TacticalTeamBattleCoordinator.ChooseNpcHealingPotionIndex(encounter, character, allowedWaste: 15) is null,
+    Assert(TacticalBattleCoordinator.ChooseNpcHealingPotionIndex(encounter, character, allowedWaste: 15) is null,
         "Az AI a 15 HP-s pazarlási határt meghaladó gyógyitalt választott.");
 }
 
-static void TeamBattleSingleFileHasNoRearProtection()
+static void BattleSingleFileHasNoRearProtection()
 {
     var (encounter, front, rear, enemy) = CreateFormationEncounter(PartyFormationLayout.SingleFile);
     encounter.Engage(front, enemy);
@@ -5910,7 +5910,7 @@ static void TeamBattleSingleFileHasNoRearProtection()
         "A libasor felbomlott, vagy tévesen megkapta a 2×2-es alakzat harci előnyeit.");
 }
 
-static void TeamBattleItemUseRequiresFreeRearPosition()
+static void BattleItemUseRequiresFreeRearPosition()
 {
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
     var combatItemIds = data.Items.Where(item => item.UsableInCombat).Select(item => item.Id).ToArray();
@@ -5931,7 +5931,7 @@ static void TeamBattleItemUseRequiresFreeRearPosition()
         "A pálca vagy tekercs kikerült a külön varázslási tárgykategóriából.");
 }
 
-static void TeamBattleRearPolearmReachUsesFrontEngagement()
+static void BattleRearPolearmReachUsesFrontEngagement()
 {
     var (encounter, front, rear, enemy) = CreateFormationEncounter();
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
@@ -5943,7 +5943,7 @@ static void TeamBattleRearPolearmReachUsesFrontEngagement()
         "A hátsó sori szálfegyver nem érte el az előtte álló társ lekötött ellenfelét.");
 }
 
-static void TeamBattleSwapToRearTransfersEngagements()
+static void BattleSwapToRearTransfersEngagements()
 {
     var (encounter, front, rear, enemy) = CreateFormationEncounter();
     encounter.Engage(front, enemy);
@@ -5959,7 +5959,7 @@ static void TeamBattleSwapToRearTransfersEngagements()
         "A Hátra! nem cserélte fel atomian a slotokat, pozíciókat és lekötéseket.");
 }
 
-static void TeamBattleFormationMovementPreservesEngagements()
+static void BattleFormationMovementPreservesEngagements()
 {
     var (encounter, front, _, enemy) = CreateFormationEncounter();
     encounter.Engage(front, enemy);
@@ -5971,7 +5971,7 @@ static void TeamBattleFormationMovementPreservesEngagements()
         "Az alakzatmozgás nem a fennálló közelharci lekötés megtartását követeli meg.");
 }
 
-static (TeamBattleEncounter Encounter, LiveCharacter Front, LiveCharacter Rear, ConfiguredEnemy Enemy)
+static (BattleEncounter Encounter, LiveCharacter Front, LiveCharacter Rear, ConfiguredEnemy Enemy)
     CreateFormationEncounter(PartyFormationLayout layout = PartyFormationLayout.Block)
 {
     var system = CreateBattleSystem(1705);
@@ -5982,28 +5982,28 @@ static (TeamBattleEncounter Encounter, LiveCharacter Front, LiveCharacter Rear, 
     var rearPreparation = system.PrepareCharacter(rear);
     var formation = new PartyFormationSnapshot(front.Id, null, rear.Id, null,
         Direction.Up, PartyFormationState.Locked, layout);
-    var encounter = new TeamBattleEncounter(new Position(3, 3),
+    var encounter = new BattleEncounter(new Position(3, 3),
         [
-            new TeamCharacterParticipant(front, new Position(3, 3), TacticalParticipantKind.PartyMember,
+            new BattleCharacterParticipant(front, new Position(3, 3), TacticalParticipantKind.PartyMember,
                 frontPreparation.Initiative, 3, 1, frontPreparation.Runtime),
-            new TeamCharacterParticipant(rear, new Position(3, 4), TacticalParticipantKind.PartyMember,
+            new BattleCharacterParticipant(rear, new Position(3, 4), TacticalParticipantKind.PartyMember,
                 rearPreparation.Initiative, 3, 1, rearPreparation.Runtime)
         ],
-        [new TeamEnemyParticipant(enemy, 5, 2, 1)], front.Id, enemy.Id, formation: formation);
+        [new BattleEnemyParticipant(enemy, 5, 2, 1)], front.Id, enemy.Id, formation: formation);
     return (encounter, front, rear, enemy);
 }
 
-static void TeamBattleTargetCanBeChanged()
+static void BattleTargetCanBeChanged()
 {
     var system = CreateBattleSystem(1703);
     var character = CreateCharacter("Célpontváltó");
     var firstEnemy = CreateEnemy(20, 2);
     var secondEnemy = CreateEnemy(20, 2);
     var preparation = system.PrepareCharacter(character);
-    var encounter = new TeamBattleEncounter(new Position(1, 1),
-        [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
+    var encounter = new BattleEncounter(new Position(1, 1),
+        [new BattleCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
-        [new TeamEnemyParticipant(firstEnemy, 5, 2, 1), new TeamEnemyParticipant(secondEnemy, 4, 2, 2)],
+        [new BattleEnemyParticipant(firstEnemy, 5, 2, 1), new BattleEnemyParticipant(secondEnemy, 4, 2, 2)],
         character.Id, firstEnemy.Id);
     encounter.Turns.StartTurns();
     var turnId = encounter.Turns.TurnId;
@@ -6251,16 +6251,16 @@ static void NpcCasterPrefersFullSafeCastingMove()
         "A teljes mozgás preferenciája biztonságos távolságban, mozgás nélkül vagy nagy hasznosságvesztéssel is aktiválódott.");
 }
 
-static void TeamBattleStoresNpcSpellMemory()
+static void BattleStoresNpcSpellMemory()
 {
     var system = CreateBattleSystem(1801);
     var caster = CreateCharacter("Memóriamágus", characterClassId: CharacterClassIds.Mágus);
     var enemy = CreateNpcSpellTestEnemy("MEMORY-TARGET", 30, 2, new Position(2, 1));
     var preparation = system.PrepareCharacter(caster);
-    var battle = new TeamBattleEncounter(new Position(1, 1),
-        [new TeamCharacterParticipant(caster, new Position(1, 1), TacticalParticipantKind.PartyMember,
+    var battle = new BattleEncounter(new Position(1, 1),
+        [new BattleCharacterParticipant(caster, new Position(1, 1), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
-        [new TeamEnemyParticipant(enemy, 5, 2, 1)], caster.Id, enemy.Id);
+        [new BattleEnemyParticipant(enemy, 5, 2, 1)], caster.Id, enemy.Id);
     var first = new NpcSpellPlan(Guid.NewGuid(), "SPELL-SIMPLE", enemy.Id, enemy.Position,
         new Position(1, 1), NpcSpellPlanComplexity.Simple, NpcSpellAttackPattern.SingleTarget,
         NpcSpellTacticalRole.Damage, 1, 1, 20, NpcSpellPlanStatus.ReadyToCast);
@@ -6305,19 +6305,19 @@ static void EngagementAdjustsSpellFailureChance()
         "A szabad varázslásnak hibakockázata van, vagy a lekötött varázslás képlete hibás.");
 }
 
-static void TeamBattleReinforcementJoinsNextCycle()
+static void BattleReinforcementJoinsNextCycle()
 {
     var system = CreateBattleSystem(1704);
     var character = CreateCharacter("Erősítéspróba");
     var enemy = CreateEnemy(20, 2);
     var reinforcement = CreateEnemy(20, 2);
     var preparation = system.PrepareCharacter(character);
-    var encounter = new TeamBattleEncounter(new Position(1, 1),
-        [new TeamCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
+    var encounter = new BattleEncounter(new Position(1, 1),
+        [new BattleCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
-        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+        [new BattleEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
     encounter.Turns.StartTurns();
-    Assert(encounter.TryAddEnemy(new TeamEnemyParticipant(reinforcement, 99, 3, 2)) &&
+    Assert(encounter.TryAddEnemy(new BattleEnemyParticipant(reinforcement, 99, 3, 2)) &&
            !encounter.Turns.InitiativeOrder.Any(participant =>
                participant.Id == CombatantId.ForEnemy(reinforcement.Id)),
         "Az erősítés már a nyitó ütésváltásba bekerült.");
@@ -6327,7 +6327,7 @@ static void TeamBattleReinforcementJoinsNextCycle()
         "Az erősítés nem a következő kör kezdeményezési sorrendjébe került.");
 }
 
-static void TeamBattleCommandsAreValidated()
+static void BattleCommandsAreValidated()
 {
     var (session, leader, _) = CreateSession();
     var battleId = BattleId.New();
@@ -6335,13 +6335,13 @@ static void TeamBattleCommandsAreValidated()
     var move = new BattleActionCommand(session.HostPlayerId, 1, leader.Id, battleId, 1,
         BattleActionKind.Move, Target: new Position(4, 3));
     Assert(session.Submit(move) && session.TryReadCommand(out var acceptedMove) && acceptedMove == move,
-        "A szemantikus csapatharcos mozgási parancsot elutasította a session.");
+        "A szemantikus harci mozgási parancsot elutasította a session.");
 
     session.SetBattlePrompt(battleId, 2, leader.Id, [BattleActionKind.UseItem]);
     var use = new BattleActionCommand(session.HostPlayerId, 2, leader.Id, battleId, 2,
         BattleActionKind.UseItem, BackpackIndex: 3);
     Assert(session.Submit(use) && session.TryReadCommand(out var acceptedUse) && acceptedUse == use,
-        "A csapatharcos tárgyhasználati parancsot elutasította a session.");
+        "A harci tárgyhasználati parancsot elutasította a session.");
 
     var enemyId = WorldEntityId.New();
     session.SetBattlePrompt(battleId, 3, leader.Id,
@@ -6499,20 +6499,20 @@ static void TurnUndeadRefreshesAfterTenRounds()
     var random = new Random(1);
     var system = CreateBattleSystem(1805);
     var actions = new BattleActionCoordinator(data, system, new SpellExecutionService(data, random), random);
-    var tactical = new TacticalTeamBattleCoordinator(data, system, new Random(1805));
+    var tactical = new TacticalBattleCoordinator(data, system, new Random(1805));
     var priest = CreateCharacter("Pap", characterClassId: CharacterClassIds.Pap);
     var knight = CreateCharacter("Lovag", characterClassId: CharacterClassIds.Lovag);
     var position = new Position(3, 3);
     var definition = CreateEnemy(1000, 5).Definition with { Traits = EnemyTraits.Undead };
     var undead = new ConfiguredEnemy(new Position(3, 1), definition);
-    TeamCharacterParticipant Participant(LiveCharacter character, Position cell) => new(character, cell,
+    BattleCharacterParticipant Participant(LiveCharacter character, Position cell) => new(character, cell,
         TacticalParticipantKind.PartyMember, 10, 3, 1, system.PrepareCharacter(character).Runtime);
-    var battle = new TeamBattleEncounter(position,
+    var battle = new BattleEncounter(position,
         [Participant(priest, position), Participant(knight, new Position(4, 3))],
-        [new TeamEnemyParticipant(undead, 5, 2, 1)], priest.Id, undead.Id);
+        [new BattleEnemyParticipant(undead, 5, 2, 1)], priest.Id, undead.Id);
     battle.Turns.StartTurns();
     var cooldowns = new Dictionary<LiveCharacter, int>();
-    bool Available(LiveCharacter character) => tactical.GetTeamAllowedBattleActions(battle, character,
+    bool Available(LiveCharacter character) => tactical.GetAllowedBattleActions(battle, character,
         undead, priest, battle.PositionOf(character), false, cooldowns).Contains(BattleActionKind.TurnUndead);
     void AdvanceTo(int round)
     {
@@ -6565,12 +6565,12 @@ static void TurnUndeadHasTwoCellRange()
         var near = new ConfiguredEnemy(new Position(7, 5), definition);
         var alive = CreateEnemyAt(new Position(5, 4), "E-NOT-UNDEAD");
         var system = CreateBattleSystem(1811);
-        var battle = new TeamBattleEncounter(origin,
-            [new TeamCharacterParticipant(character, origin, TacticalParticipantKind.PartyMember,
+        var battle = new BattleEncounter(origin,
+            [new BattleCharacterParticipant(character, origin, TacticalParticipantKind.PartyMember,
                 10, 3, 1, system.PrepareCharacter(character).Runtime)],
-            new[] { near, far, alive }.Select(enemy => new TeamEnemyParticipant(enemy, 5, 2, 1)),
+            new[] { near, far, alive }.Select(enemy => new BattleEnemyParticipant(enemy, 5, 2, 1)),
             character.Id, near.Id);
-        Assert(TacticalTeamBattleCoordinator.TurnUndeadTargets(battle, character, origin).SequenceEqual([near]),
+        Assert(TacticalBattleCoordinator.TurnUndeadTargets(battle, character, origin).SequenceEqual([near]),
             "Az alakzat nélküli célpontlista hibás vagy túl távoli élőholtat is tartalmaz.");
         var snapshot = new BattleSnapshot(battle.Id, 1, 1, true, character.Id,
             new SessionEnemySnapshot(alive.Definition.Id, alive.Name, alive.Position,
@@ -6580,7 +6580,7 @@ static void TurnUndeadHasTwoCellRange()
         Assert(restored.TurnUndeadTargetEnemyId == near.Id && restored.Enemy.EntityId == alive.Id,
             "A coop halottűzési célpont nem különült el a közelebbi, nem élőholt fókuszcélponttól.");
         near.ReceiveSpellDamage(near.CurrentHitPoints);
-        Assert(!TacticalTeamBattleCoordinator.TurnUndeadTargets(battle, character, origin).Any(),
+        Assert(!TacticalBattleCoordinator.TurnUndeadTargets(battle, character, origin).Any(),
             "A legyőzött élőholt elűzhető maradt.");
     }
     var warrior = CreateCharacter("Harcos");
@@ -6600,22 +6600,22 @@ static void RearPriestCanTurnFrontEngagedUndead()
     var priestPreparation = system.PrepareCharacter(priest);
     var formation = new PartyFormationSnapshot(front.Id, null, priest.Id, null,
         Direction.Up, PartyFormationState.Locked);
-    var battle = new TeamBattleEncounter(new Position(3, 3),
+    var battle = new BattleEncounter(new Position(3, 3),
         [
-            new TeamCharacterParticipant(front, new Position(3, 3), TacticalParticipantKind.PartyMember,
+            new BattleCharacterParticipant(front, new Position(3, 3), TacticalParticipantKind.PartyMember,
                 frontPreparation.Initiative, 3, 1, frontPreparation.Runtime),
-            new TeamCharacterParticipant(priest, new Position(3, 4), TacticalParticipantKind.PartyMember,
+            new BattleCharacterParticipant(priest, new Position(3, 4), TacticalParticipantKind.PartyMember,
                 priestPreparation.Initiative, 3, 1, priestPreparation.Runtime)
         ],
-        [new TeamEnemyParticipant(undead, 5, 2, 1)], front.Id, undead.Id, formation: formation);
+        [new BattleEnemyParticipant(undead, 5, 2, 1)], front.Id, undead.Id, formation: formation);
     battle.Engage(front, undead);
     battle.Turns.StartTurns();
     var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-    var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(1706));
-    var actions = coordinator.GetTeamAllowedBattleActions(battle, priest, undead, priest,
+    var coordinator = new TacticalBattleCoordinator(data, system, new Random(1706));
+    var actions = coordinator.GetAllowedBattleActions(battle, priest, undead, priest,
         new Position(3, 4), false, new Dictionary<LiveCharacter, int>());
 
-    Assert(TacticalTeamBattleCoordinator.ReachableTeamEnemies(battle, priest, new Position(3, 4)).Count() == 0 &&
+    Assert(TacticalBattleCoordinator.ReachableEnemies(battle, priest, new Position(3, 4)).Count() == 0 &&
            battle.RearFormationEngagedEnemies(priest).SequenceEqual([undead]) &&
            BattleActionCoordinator.CanTurnUndead(priest, undead) &&
            actions.Contains(BattleActionKind.TurnUndead),
@@ -6627,8 +6627,8 @@ static void SpellcasterRetreatDistanceIsCapped()
     var ground = CreateEnemyAt(new Position(1, 1), "E-GROUND");
     var flyingDefinition = ground.Definition with { Id = "E-FLYING", Traits = EnemyTraits.Flying };
     var flying = new ConfiguredEnemy(new Position(2, 2), flyingDefinition);
-    Assert(TacticalTeamBattleCoordinator.PreferredSpellcasterRetreatDistance([ground]) == 6 &&
-           TacticalTeamBattleCoordinator.PreferredSpellcasterRetreatDistance([ground, flying]) == 8,
+    Assert(TacticalBattleCoordinator.PreferredSpellcasterRetreatDistance([ground]) == 6 &&
+           TacticalBattleCoordinator.PreferredSpellcasterRetreatDistance([ground, flying]) == 8,
         "A hátráló varázshasználó 6/8 mezős biztonsági távolsága hibás.");
 }
 
@@ -6650,17 +6650,17 @@ static void TacticalAttackArcsUseEnemyFacing()
     var participants = attackers.Select(attacker =>
     {
         var preparation = system.PrepareCharacter(attacker.Character);
-        return new TeamCharacterParticipant(attacker.Character, attacker.Position,
+        return new BattleCharacterParticipant(attacker.Character, attacker.Position,
             TacticalParticipantKind.PartyMember, preparation.Initiative, 3, 1, preparation.Runtime);
     }).ToArray();
     var front = attackers[1].Character;
-    var battle = new TeamBattleEncounter(new Position(3, 3),
+    var battle = new BattleEncounter(new Position(3, 3),
         participants,
-        [new TeamEnemyParticipant(enemy, 5, 2, 1)], front.Id, enemy.Id);
+        [new BattleEnemyParticipant(enemy, 5, 2, 1)], front.Id, enemy.Id);
 
     foreach (var attacker in attackers)
     {
-        var advantage = TacticalTeamBattleCoordinator.AttackAdvantage(battle, attacker.Character, enemy);
+        var advantage = TacticalBattleCoordinator.AttackAdvantage(battle, attacker.Character, enemy);
         var expectedBonus = attacker.Arc switch
         {
             TacticalAttackArc.Flank => 1,
@@ -6673,7 +6673,7 @@ static void TacticalAttackArcsUseEnemyFacing()
 
     var flank = attackers[4].Character;
     battle.FaceEnemyToward(enemy, flank);
-    Assert(TacticalTeamBattleCoordinator.AttackAdvantage(battle, flank, enemy).Arc == TacticalAttackArc.Front,
+    Assert(TacticalBattleCoordinator.AttackAdvantage(battle, flank, enemy).Arc == TacticalAttackArc.Front,
         "Az ellenfél nem fordult az új célpont felé.");
 }
 
@@ -6689,12 +6689,12 @@ static void ThiefCanBackstabFromRearFormation()
     var thiefPreparation = system.PrepareCharacter(thief);
     var formation = new PartyFormationSnapshot(front.Id, null, thief.Id, null,
         Direction.Up, PartyFormationState.Locked);
-    var battle = new TeamBattleEncounter(new Position(3, 3),
-        [new TeamCharacterParticipant(front, new Position(3, 3), TacticalParticipantKind.PartyMember,
+    var battle = new BattleEncounter(new Position(3, 3),
+        [new BattleCharacterParticipant(front, new Position(3, 3), TacticalParticipantKind.PartyMember,
              frontPreparation.Initiative, 3, 1, frontPreparation.Runtime),
-         new TeamCharacterParticipant(thief, new Position(3, 4), TacticalParticipantKind.PartyMember,
+         new BattleCharacterParticipant(thief, new Position(3, 4), TacticalParticipantKind.PartyMember,
              thiefPreparation.Initiative, 3, 1, thiefPreparation.Runtime)],
-        [new TeamEnemyParticipant(enemy, 5, 2, 1)], front.Id, enemy.Id, formation: formation);
+        [new BattleEnemyParticipant(enemy, 5, 2, 1)], front.Id, enemy.Id, formation: formation);
     battle.Engage(front, enemy);
     Assert(battle.RearFormationEnemiesInReach(thief).Count == 0,
         "A képesség nélküli hátsó sori tolvaj elérte az ellenfelet.");
@@ -6799,10 +6799,10 @@ static void LoadedDeveloperBattleCreatesRecoveryLog()
     var character = CreateCharacter("Loghős");
     var enemy = CreateNpcSpellTestEnemy("LOG-ENEMY", 30, 2, new Position(2, 1));
     var preparation = system.PrepareCharacter(character);
-    var battle = new TeamBattleEncounter(new Position(1, 1),
-        [new TeamCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
+    var battle = new BattleEncounter(new Position(1, 1),
+        [new BattleCharacterParticipant(character, new Position(1, 1), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
-        [new TeamEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
+        [new BattleEnemyParticipant(enemy, 5, 2, 1)], character.Id, enemy.Id);
     battle.Turns.StartTurns();
 
     var log = new DeveloperBattleLog();
@@ -6860,12 +6860,12 @@ static void KnightBattleWeaponSwapCommandIsAccepted()
     var system = CreateBattleSystem(42);
     var preparation = system.PrepareCharacter(knight);
     var rat = new ConfiguredEnemy(new(3, 2), data.GetEnemy("E001"));
-    var battle = new TeamBattleEncounter(new(3, 3),
-        [new TeamCharacterParticipant(knight, new(3, 3), TacticalParticipantKind.PartyMember,
+    var battle = new BattleEncounter(new(3, 3),
+        [new BattleCharacterParticipant(knight, new(3, 3), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
-        [new TeamEnemyParticipant(rat, 1, 1, 1)], knight.Id, rat.Id);
-    var coordinator = new TacticalTeamBattleCoordinator(data, system, new Random(42));
-    var allowed = coordinator.GetTeamAllowedBattleActions(battle, knight, rat, knight, new(3, 3), false,
+        [new BattleEnemyParticipant(rat, 1, 1, 1)], knight.Id, rat.Id);
+    var coordinator = new TacticalBattleCoordinator(data, system, new Random(42));
+    var allowed = coordinator.GetAllowedBattleActions(battle, knight, rat, knight, new(3, 3), false,
         new Dictionary<LiveCharacter, int>());
     Assert(allowed.Contains(BattleActionKind.SwapWeapon), "A panel nem kínálja fel a fegyvercserét.");
     var battleId = BattleId.New();
@@ -6894,14 +6894,14 @@ static void WeaponSweepRequiresMutualAdjacency()
     var side = CreateEnemyAt(new Position(4, 2), "E-SIDE");
     foreach (var enemy in new[] { opposite, distant, side })
         Assert(battle.TryAddEnemy(new(enemy, 1, 1, 1)), "Nem csatlakozott a célpont.");
-    Assert(TacticalTeamBattleCoordinator.SweepTargets(battle, front, new(3, 3), primary)
+    Assert(TacticalBattleCoordinator.SweepTargets(battle, front, new(3, 3), primary)
         .SequenceEqual([primary, side]), "Távoli vagy átellenes célpont bekerült a csapásba.");
     side.SetCurrentHitPoints(0);
-    Assert(TacticalTeamBattleCoordinator.SweepTargets(battle, front, new(3, 3), primary).Count == 1,
+    Assert(TacticalBattleCoordinator.SweepTargets(battle, front, new(3, 3), primary).Count == 1,
         "A halott célpontot vagy az átellenes ellenfelet elérte a csapás.");
     Assert(front.EquipWeapon(0, data.GetWeapon("W004")), "A kard nem szerelhető fel.");
     side.SetCurrentHitPoints(10);
-    Assert(TacticalTeamBattleCoordinator.SweepTargets(battle, front, new(3, 3), primary).Count == 1,
+    Assert(TacticalBattleCoordinator.SweepTargets(battle, front, new(3, 3), primary).Count == 1,
         "Az egycélpontos kard több ellenfelet ért el.");
 }
 
@@ -6912,7 +6912,7 @@ static void TacticalWeaponMasteriesHaveDistinctRoles()
     var system = CreateBattleSystem(7);
     var runtime = system.PrepareCharacter(fighter).Runtime;
     Assert(runtime.TryChooseTactic(fighter, BattleTactic.FighterPowerful) &&
-           TacticalTeamBattleCoordinator.SweepDamagePercent(fighter, runtime, true) == 100,
+           TacticalBattleCoordinator.SweepDamagePercent(fighter, runtime, true) == 100,
         "Az Erőteljes állás nem ad teljes erejű söprést.");
 
     var mage = CreateCharacter("Botharcos", characterClassId: CharacterClassIds.Mágus);
@@ -6933,13 +6933,13 @@ static void TacticalWeaponMasteriesHaveDistinctRoles()
     var swordPreparation = system.PrepareCharacter(swordMaster);
     var allyPreparation = system.PrepareCharacter(protectedAlly);
     var guardEnemy = CreateEnemyAt(new Position(2, 1), "SWORD-GUARD");
-    var guardBattle = new TeamBattleEncounter(new Position(1, 1),
-        [new TeamCharacterParticipant(swordMaster, new Position(1, 1), TacticalParticipantKind.PartyMember,
+    var guardBattle = new BattleEncounter(new Position(1, 1),
+        [new BattleCharacterParticipant(swordMaster, new Position(1, 1), TacticalParticipantKind.PartyMember,
              swordPreparation.Initiative, 3, 1, swordPreparation.Runtime),
-         new TeamCharacterParticipant(protectedAlly, new Position(1, 2), TacticalParticipantKind.PartyMember,
+         new BattleCharacterParticipant(protectedAlly, new Position(1, 2), TacticalParticipantKind.PartyMember,
              allyPreparation.Initiative, 3, 1, allyPreparation.Runtime)],
-        [new TeamEnemyParticipant(guardEnemy, 1, 2, 1)], protectedAlly.Id, guardEnemy.Id);
-    Assert(TacticalTeamBattleCoordinator.AlliedGuardDefense(guardBattle, protectedAlly,
+        [new BattleEnemyParticipant(guardEnemy, 1, 2, 1)], protectedAlly.Id, guardEnemy.Id);
+    Assert(TacticalBattleCoordinator.AlliedGuardDefense(guardBattle, protectedAlly,
                candidate => guardBattle.PositionOf(candidate)) == 1,
         "A kardmester nem adott +1 fedezetet a szomszédos társának.");
 
@@ -7011,7 +7011,7 @@ static void DefensiveInterventionsReachBattleLogs()
     var protector = CreateCharacter("Őrszem", vitality: 1000, characterClassId: CharacterClassIds.Lovag);
     var protectionSystem = CreateMaximumBattleSystem();
     var protectionRuntime = protectionSystem.PrepareCharacter(protectedCharacter).Runtime;
-    protectionSystem.SetTeamKnightProtection(protectionRuntime, protector);
+    protectionSystem.SetKnightProtection(protectionRuntime, protector);
     var protectedEntry = protectionSystem.ResolveEnemyActionDetailed(
         CreateEnemy(1000, 20), protectedCharacter, protectionRuntime).Entry;
     Assert(protectedEntry is not null &&
@@ -7047,25 +7047,25 @@ static void WeaponFamiliesUseDistinctAttackPatterns()
         var decoyPosition = weaponId == "W011" ? new Position(4, 2) : new Position(3, 4);
         var decoy = CreateEnemyAt(decoyPosition, $"{weaponId}-DECOY");
         var preparation = CreateBattleSystem(1803).PrepareCharacter(character);
-        var battle = new TeamBattleEncounter(new Position(3, 3),
-            [new TeamCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
+        var battle = new BattleEncounter(new Position(3, 3),
+            [new BattleCharacterParticipant(character, new Position(3, 3), TacticalParticipantKind.PartyMember,
                 preparation.Initiative, 3, 1, preparation.Runtime)],
-            [new TeamEnemyParticipant(primary, 3, 2, 1), new TeamEnemyParticipant(secondary, 2, 2, 1),
-             new TeamEnemyParticipant(decoy, 1, 2, 1)], character.Id, primary.Id);
-        return TacticalTeamBattleCoordinator.SweepTargets(battle, character, new Position(3, 3), primary);
+            [new BattleEnemyParticipant(primary, 3, 2, 1), new BattleEnemyParticipant(secondary, 2, 2, 1),
+             new BattleEnemyParticipant(decoy, 1, 2, 1)], character.Id, primary.Id);
+        return TacticalBattleCoordinator.SweepTargets(battle, character, new Position(3, 3), primary);
     }
 
     var polearmTargets = Targets("W011", new Position(3, 1));
     Assert(polearmTargets.Count == 2 && polearmTargets[1].Position == new Position(3, 1) &&
-           TacticalTeamBattleCoordinator.AttackPattern(data.GetWeapon("W011")) == WeaponAttackPattern.Line,
+           TacticalBattleCoordinator.AttackPattern(data.GetWeapon("W011")) == WeaponAttackPattern.Line,
         "A szálfegyver nem egyenes vonalban érte el a cél mögötti mezőt.");
     var axeTargets = Targets("W017", new Position(4, 2));
     Assert(axeTargets.Count == 2 &&
-           TacticalTeamBattleCoordinator.AttackPattern(data.GetWeapon("W017")) == WeaponAttackPattern.Arc,
+           TacticalBattleCoordinator.AttackPattern(data.GetWeapon("W017")) == WeaponAttackPattern.Arc,
         "A nagybalta nem ívesen söpört.");
     var hammerTargets = Targets("W013", new Position(4, 2));
     Assert(hammerTargets.Count == 2 &&
-           TacticalTeamBattleCoordinator.AttackPattern(data.GetWeapon("W013")) == WeaponAttackPattern.Compact,
+           TacticalBattleCoordinator.AttackPattern(data.GetWeapon("W013")) == WeaponAttackPattern.Compact,
         "A kétkezes pöröly nem kis összefüggő területen hatott.");
 
     var sentinel = CreateCharacter("Feltartóztató", characterClassId: CharacterClassIds.Harcos);
@@ -7075,20 +7075,20 @@ static void WeaponFamiliesUseDistinctAttackPatterns()
         "A szálfegyver-mester tesztkarakter nem állítható elő.");
     var approaching = CreateEnemyAt(new Position(3, 1), "INTERCEPTED");
     var sentinelPreparation = CreateBattleSystem(1805).PrepareCharacter(sentinel);
-    var sentinelBattle = new TeamBattleEncounter(new Position(3, 3),
-        [new TeamCharacterParticipant(sentinel, new Position(3, 3), TacticalParticipantKind.PartyMember,
+    var sentinelBattle = new BattleEncounter(new Position(3, 3),
+        [new BattleCharacterParticipant(sentinel, new Position(3, 3), TacticalParticipantKind.PartyMember,
             sentinelPreparation.Initiative, 3, 1, sentinelPreparation.Runtime)],
-        [new TeamEnemyParticipant(approaching, 1, 2, 1)], sentinel.Id, approaching.Id);
-    Assert(TacticalTeamBattleCoordinator.PolearmMasterControlling(sentinelBattle, new Position(3, 2)) == sentinel,
+        [new BattleEnemyParticipant(approaching, 1, 2, 1)], sentinel.Id, approaching.Id);
+    Assert(TacticalBattleCoordinator.PolearmMasterControlling(sentinelBattle, new Position(3, 2)) == sentinel,
         "A szálfegyver-mester nem tartotta ellenőrzés alatt a belépő mezőt.");
 
     var stateEnemy = CreateEnemyAt(new Position(1, 1), "TACTICAL-STATE");
     var stateCharacter = CreateCharacter("Állapotteszt");
     var statePreparation = CreateBattleSystem(1804).PrepareCharacter(stateCharacter);
-    var stateBattle = new TeamBattleEncounter(new Position(1, 2),
-        [new TeamCharacterParticipant(stateCharacter, new Position(1, 2), TacticalParticipantKind.PartyMember,
+    var stateBattle = new BattleEncounter(new Position(1, 2),
+        [new BattleCharacterParticipant(stateCharacter, new Position(1, 2), TacticalParticipantKind.PartyMember,
             statePreparation.Initiative, 3, 1, statePreparation.Runtime)],
-        [new TeamEnemyParticipant(stateEnemy, 1, 2, 1)], stateCharacter.Id, stateEnemy.Id);
+        [new BattleEnemyParticipant(stateEnemy, 1, 2, 1)], stateCharacter.Id, stateEnemy.Id);
     Assert(stateBattle.ApplyArmorShred(stateEnemy, 2) && stateBattle.EnemyArmorPenalty(stateEnemy) == 2 &&
            !stateBattle.ApplyArmorShred(stateEnemy, 1) &&
            stateBattle.StaggerEnemy(stateEnemy, StaggerSeverity.Normal) && stateBattle.IsEnemyStaggered(stateEnemy),
@@ -7199,7 +7199,7 @@ static void TacticalDisciplinesProgressAndPersist()
     var baseInitiative = CreateBattleSystem(91).PrepareCharacter(baseCharacter).Initiative;
     var disciplineInitiative = CreateBattleSystem(91).PrepareCharacter(character).Initiative;
     Assert(disciplineInitiative == baseInitiative + 2,
-        "A Portyázó nem adott +2 csapatharcos kezdeményezést.");
+        "A Portyázó nem adott +2 harci kezdeményezést.");
 
     var finisher = CreateCharacter("Kivégző", characterClassId: CharacterClassIds.Harcos);
     var woundedEnemy = CreateEnemy(20, 1, speed: 8);
@@ -7220,13 +7220,13 @@ static void TacticalDisciplinesProgressAndPersist()
     var protectedPreparation = CreateBattleSystem(22).PrepareCharacter(protectedAlly);
     var guardianPreparation = CreateBattleSystem(23).PrepareCharacter(guardian);
     var guardEnemy = CreateEnemy(20, 2);
-    var guardBattle = new TeamBattleEncounter(new(1, 1),
-        [new TeamCharacterParticipant(protectedAlly, new(1, 1), TacticalParticipantKind.PartyMember,
+    var guardBattle = new BattleEncounter(new(1, 1),
+        [new BattleCharacterParticipant(protectedAlly, new(1, 1), TacticalParticipantKind.PartyMember,
              protectedPreparation.Initiative, 3, 1, protectedPreparation.Runtime),
-         new TeamCharacterParticipant(guardian, new(1, 2), TacticalParticipantKind.PartyMember,
+         new BattleCharacterParticipant(guardian, new(1, 2), TacticalParticipantKind.PartyMember,
              guardianPreparation.Initiative, 3, 1, guardianPreparation.Runtime)],
-        [new TeamEnemyParticipant(guardEnemy, 1, 2, 1)], protectedAlly.Id, guardEnemy.Id);
-    Assert(TacticalTeamBattleCoordinator.AlliedGuardDefense(guardBattle, protectedAlly,
+        [new BattleEnemyParticipant(guardEnemy, 1, 2, 1)], protectedAlly.Id, guardEnemy.Id);
+    Assert(TacticalBattleCoordinator.AlliedGuardDefense(guardBattle, protectedAlly,
                candidate => candidate == protectedAlly ? new(1, 1) : new(1, 2)) == 1,
         "A Bajtársi őrség nem adott fedezetet a szomszédos társnak.");
 
@@ -7307,13 +7307,13 @@ static void NpcSwapsBrokenWeaponForOperationalReserve()
                InventoryItemInstanceState.Create() with { DurabilityDamage = brokenWeapon.MaximumDurability }) &&
            character.SetInventoryItem(InventorySlotKind.Weapon, 2, reserve, null, 1, reserveState),
         "Az NPC fegyvercsere-tesztje nem tudta előkészíteni a felszerelést.");
-    Assert(TacticalTeamBattleCoordinator.ShouldNpcSwapToReserveWeapon(character),
+    Assert(TacticalBattleCoordinator.ShouldNpcSwapToReserveWeapon(character),
         "Az NPC nem ismerte fel, hogy az eltört aktív fegyverét le kell cserélnie.");
     Assert(character.TrySwapReserveWeapon() && character.AttackWeapon?.Id == reserve.Id &&
            character.GetInventoryItemState(InventorySlotKind.Weapon, 0)?.DurabilityDamage == 7 &&
            character.WeaponSlots[2]?.Id == brokenWeapon.Id,
         "Az NPC tartalékfegyver-cseréje nem őrizte meg a tárgyállapotokat.");
-    Assert(!TacticalTeamBattleCoordinator.ShouldNpcSwapToReserveWeapon(character),
+    Assert(!TacticalBattleCoordinator.ShouldNpcSwapToReserveWeapon(character),
         "Az NPC működő aktív fegyver mellett is újabb tartalékcserét kezdeményezne.");
 
     Assert(character.SetInventoryItem(InventorySlotKind.Weapon, 0, brokenWeapon, null, 1,
@@ -7321,7 +7321,7 @@ static void NpcSwapsBrokenWeaponForOperationalReserve()
            character.SetInventoryItem(InventorySlotKind.Weapon, 2, reserve, null, 1,
                InventoryItemInstanceState.Create() with { DurabilityDamage = reserve.MaximumDurability }),
         "A törött tartalékfegyveres esetet nem sikerült előkészíteni.");
-    Assert(!TacticalTeamBattleCoordinator.ShouldNpcSwapToReserveWeapon(character),
+    Assert(!TacticalBattleCoordinator.ShouldNpcSwapToReserveWeapon(character),
         "Az NPC törött tartalékfegyvert próbálna kézbe venni.");
 }
 
@@ -7493,13 +7493,13 @@ static void WeaponCsvPropertiesAreInherited()
     var targetPositions = new[] { new Position(3, 2), new Position(4, 3), new Position(3, 4), new Position(2, 3) };
     var targetPreparations = breathTargets.Select(targetSystem.PrepareCharacter).ToArray();
     var breathEnemy = new ConfiguredEnemy(new(3, 3), data.GetEnemy("E050"));
-    var breathBattle = new TeamBattleEncounter(new(3, 3), breathTargets.Select((character, index) =>
-            new TeamCharacterParticipant(character, targetPositions[index], TacticalParticipantKind.PartyMember,
+    var breathBattle = new BattleEncounter(new(3, 3), breathTargets.Select((character, index) =>
+            new BattleCharacterParticipant(character, targetPositions[index], TacticalParticipantKind.PartyMember,
                 targetPreparations[index].Initiative, 3, 1, targetPreparations[index].Runtime)),
-        [new TeamEnemyParticipant(breathEnemy, 5, 2, 1)], breathTargets[0].Id, breathEnemy.Id);
-    Assert(TacticalTeamBattleCoordinator.EnemyAttackTargets(breathBattle, breathEnemy, breath,
+        [new BattleEnemyParticipant(breathEnemy, 5, 2, 1)], breathTargets[0].Id, breathEnemy.Id);
+    Assert(TacticalBattleCoordinator.EnemyAttackTargets(breathBattle, breathEnemy, breath,
                character => targetPositions[Array.IndexOf(breathTargets, character)]).Count == 3 &&
-           TacticalTeamBattleCoordinator.EnemyAttackTargets(breathBattle, breathEnemy, chaosBreath,
+           TacticalBattleCoordinator.EnemyAttackTargets(breathBattle, breathEnemy, chaosBreath,
                character => targetPositions[Array.IndexOf(breathTargets, character)]).Count == 4,
         "A leheletek CSV szerinti többcélú támadása nem érvényesül.");
     Assert(data.GetWeapon("W009-PLUS1").MaximumTargets == 2 &&

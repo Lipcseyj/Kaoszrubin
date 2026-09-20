@@ -8,7 +8,7 @@ using KaoszRubin.UI;
 
 namespace KaoszRubin.Combat;
 
-/// <summary>A csapatharc karakterakcióihoz közös célzási, taktikai és támogató szabályok.</summary>
+/// <summary>A harc karakterakcióihoz közös célzási, taktikai és támogató szabályok.</summary>
 public sealed class BattleActionCoordinator
 {
     public const int TurnUndeadRange = 2;
