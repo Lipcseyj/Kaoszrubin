@@ -1,5 +1,20 @@
 internal static partial class Program
 {
+    static void BattleCommandGateIgnoresBufferedInput()
+    {
+        var gate = new BattleCommandGate();
+
+        Assert(gate.TryBegin(41, 10), "Az első harci parancsot be kell engedni.");
+        Assert(gate.IsPending, "A parancsnak a feldolgozásig függőben kell maradnia.");
+        Assert(!gate.TryBegin(42, 10), "A gyorsan ismételt parancsot figyelmen kívül kell hagyni.");
+        Assert(!gate.Complete(42), "Másik parancs visszajelzése nem oldhatja fel a reteszt.");
+        Assert(!gate.CompleteAfterSnapshot(10), "A kiinduló snapshot nem igazolja a feldolgozást.");
+        Assert(gate.CompleteAfterSnapshot(11), "Az új snapshotnak fel kell oldania a vendég reteszét.");
+        Assert(gate.TryBegin(43), "A feldolgozás utáni új parancsot be kell engedni.");
+        Assert(gate.Complete(43) && !gate.IsPending,
+            "A megfelelő parancsvisszajelzésnek fel kell oldania a reteszt.");
+    }
+
     static void HostMovementIsAccepted()
     {
         var (session, leader, _) = CreateSession();

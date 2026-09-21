@@ -221,6 +221,7 @@ internal static partial class Program
     ("A győzelmi üzenet nem ismétli meg az utolsó támadást", VictoryMessageIsConcise),
     ("A győzelmi összegzés egyetlen kompakt sor", VictorySummaryIsCompact),
     ("Csak az aktív BattleId és TurnId parancsa fogadható el", BattleCommandRequiresCurrentPrompt),
+    ("A függő harci parancs kiszűri a gyors ismételt bemenetet", BattleCommandGateIgnoresBufferedInput),
     ("Az azonos harci prompt idempotens, a tartalmi változás újrapublikál", BattlePromptIsIdempotent),
     ("Az ellenfél köre külön Space-paranccsal léptethető", EnemyTurnAdvanceCommandIsAccepted),
     ("A távoli harci promptot csak a karakter gazdája oldhatja fel", RemoteBattlePromptRequiresCharacterOwner),

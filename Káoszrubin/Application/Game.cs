@@ -100,6 +100,7 @@ public sealed partial class Game : ISessionCommandHandler
     private readonly PartyAiController _partyAiController;
     private readonly SessionCommandDispatcher _commandDispatcher;
     private long _localCommandId;
+    private readonly BattleCommandGate _localBattleCommandGate = new();
     private BattleEncounter? _activeBattle;
     private bool _isQuickBattle;
     private int _quickBattleSuppressedEntryCount;
@@ -485,6 +486,7 @@ public sealed partial class Game : ISessionCommandHandler
             case GameCommandRejectedEvent rejected
                 when rejected.RecipientPlayerId == _session.HostPlayerId:
 
+                _localBattleCommandGate.Complete(rejected.CommandId);
                 _renderer.DrawInventoryMessage(
                     rejected.Reason,
                     ConsoleColor.Red);

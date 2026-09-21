@@ -77,6 +77,7 @@ public sealed class CoopGuestScreen
     private readonly BattleCommandPanel _battleCommandPanel = new(
         ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', BattleCommandPanel.Width),
         ConsoleColor.Cyan);
+    private readonly BattleCommandGate _battleCommandGate = new();
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData,
         GameSettingsService? musicSettings = null, BackgroundMusicPlayer? backgroundMusic = null)
@@ -99,10 +100,18 @@ public sealed class CoopGuestScreen
         ArgumentNullException.ThrowIfNull(localCharacter);
         ConfigureBackgroundMusicReporting();
         await using var client = new CoopSignalRClient(hostUrl, _applicationVersion, _catalogHash, displayName);
-        client.SnapshotChanged += _ => Interlocked.Exchange(ref _redrawRequested, 1);
+        client.SnapshotChanged += snapshot =>
+        {
+            _battleCommandGate.CompleteAfterSnapshot(snapshot.SnapshotSequence);
+            Interlocked.Exchange(ref _redrawRequested, 1);
+        };
         client.ConnectionStateChanged += _ => Interlocked.Exchange(ref _redrawRequested, 1);
         client.ProtocolErrorReceived += error => SetMessage($"Protokollhiba: {error.Message}");
-        client.CommandRejected += rejected => SetMessage($"A host elutasította: {rejected.Reason}");
+        client.CommandRejected += rejected =>
+        {
+            _battleCommandGate.Complete(rejected.CommandId);
+            SetMessage($"A host elutasította: {rejected.Reason}");
+        };
         client.CharacterStateReceived += state =>
         {
             if (state.CharacterId != localCharacter.Id)
@@ -360,6 +369,7 @@ public sealed class CoopGuestScreen
         GameCommand? command = null;
         var snapshot = client.CurrentSnapshot;
         if (snapshot is null) return;
+        if (snapshot.Battle is not null && _battleCommandGate.IsPending) return;
         var ownsCharacter = snapshot.CharacterControls.Any(control =>
             control.CharacterId == characterId && control.AssignedPlayerId == client.PlayerId &&
             control.ConnectionState == PlayerConnectionState.Connected);
@@ -522,26 +532,14 @@ public sealed class CoopGuestScreen
         {
             command = HandleBattleSpellMenuInput(client, characterId, snapshot, key);
             if (command is not null)
-            {
-                try { await client.SendCommandAsync(command, cancellationToken); }
-                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
-                {
-                    SetMessage(exception.Message);
-                }
-            }
+                await SendInputCommandAsync(client, command, snapshot, cancellationToken);
             return;
         }
         if (command is null && _battleItemMenuOpen)
         {
             command = HandleBattleItemMenuInput(client, characterId, snapshot, key);
             if (command is not null)
-            {
-                try { await client.SendCommandAsync(command, cancellationToken); }
-                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
-                {
-                    SetMessage(exception.Message);
-                }
-            }
+                await SendInputCommandAsync(client, command, snapshot, cancellationToken);
             return;
         }
         if (command is not null) { }
@@ -711,12 +709,22 @@ public sealed class CoopGuestScreen
                 GameInputBindings.PreserveFormationFacing(modifiers));
         }
         if (command is null) return;
+        await SendInputCommandAsync(client, command, snapshot, cancellationToken);
+    }
+
+    private async Task SendInputCommandAsync(CoopSignalRClient client, GameCommand command,
+        SessionSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        if (command is BattleActionCommand battleCommand &&
+            !_battleCommandGate.TryBegin(battleCommand.CommandId, snapshot.SnapshotSequence)) return;
         try
         {
             await client.SendCommandAsync(command, cancellationToken);
         }
         catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
         {
+            if (command is BattleActionCommand failedBattleCommand)
+                _battleCommandGate.Complete(failedBattleCommand.CommandId);
             SetMessage(exception.Message);
         }
     }

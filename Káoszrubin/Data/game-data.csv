@@ -357,9 +357,6 @@ W010;csatabárd;WT001;6-13;7;nem;nem;nem;nem;Széles pengéjű egykezes harci fe
 W011;lándzsa;WT001;5-12;5;igen;nem;nem;nem;Hosszú nyelű szúrófegyver amely távolabb tartja az ellenfelet.;160;;;;4;szúrás;2;igen;POLEARM
 W012;alabárd;WT001;7-15;8;igen;nem;nem;nem;Sokoldalú hosszú fegyver fejszepengével és hegyes csúccsal.;480;;;;7;vágás;2;igen;POLEARM
 W013;kétkezes pöröly;WT001;7-14;8;igen;nem;igen;nem;Tömör hadikalapács amely teljes erejét egyetlen pontra összpontosítja.;450;;;;7;zúzás;2;nem;BLUNT
-W014;fapajzs;WT003;1-2;3;nem;igen;igen;nem;Könnyű pajzs amely kevés védelemért cserébe alig akadályozza viselőjét.;120;;;;3;zúzás;1;nem;SHIELD;50;1
-W015;vaspajzs;WT003;2-3;6;nem;nem;igen;nem;Masszív falap vasalt szegéllyel a beérkező csapások felfogására.;300;;;;5;zúzás;1;nem;SHIELD;90;2
-W016;acélpajzs;WT003;2-5;10;nem;nem;igen;nem;Masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.;800;;;;7;zúzás;1;nem;SHIELD;160;3
 W017;nagybalta;WT001;6-20;9;igen;nem;nem;nem;Kétkezes könyörtelen csatabárd.;500;;;;8;vágás;2;nem;AXE
 W018;harci bot;WT002;3-8;2;igen;igen;igen;igen;Hosszú keményfa bot gyors ütésekhez és védekezéshez.;45;;;;2;zúzás;1;igen;STAFF
 W019;óriásdorong;WT001;7-16;10;igen;nem;nem;nem;Hatalmas fatörzsből durván kifaragott kétkezes zúzófegyver.;0;;;;8;zúzás;2;nem;BLUNT
@@ -367,6 +364,26 @@ W020;tüzes ostor;WT001;8-17;8;nem;nem;nem;nem;Pokoli lánggal izzó ostor amely
 W021;varázsbot;WT001;10-22;2;nem;nem;nem;igen;Sötét fából készült bot amelynek vége egy sötét vörösen pulzáló ékkövet fog körbe.;0;;;;2;nekrotikus;1;igen;STAFF
 W022;elf tőr;WT002;3-6;1;nem;igen;nem;igen;Hosszabb hajlított pengéjű elf tőr. Két elf tőrt használva mindkettő +1 sebzést okoz.;90;;;;1;vágás;1;nem;DAGGER
 W023;kasza;WT001;8-17;8;igen;nem;nem;nem;Hosszú nyelű, széles pengéjű kasza, amelyet élőholt aratók és más szörnyek használnak.;0;;;;6;vágás;2;igen;POLEARM;
+
+W024;kis kerek pajzs;WT003;1-2;1;nem;igen;nem;nem;Apró ökölpajzs, amely alig terheli a viselőjét. Fürge harcosok és tolvajok számára ideális.;160;;;;1;zúzás;1;nem;SHIELD;40;1
+W036;gilf ökölpajzs;WT003;2-3;1;nem;igen;nem;nem;Apró ökölpajzs, amely alig terheli a viselőjét. Fürge harcosok és tolvajok számára ideális. Gilf feketeacél anyaga miatt erősebb;1100;;;;1;zúzás;1;nem;SHIELD;90;2
+W025;könnyű kerek pajzs;WT003;1-3;3;nem;nem;igen;nem;Kis méretű fa- és bőrpajzs. Könnyű, gyorsan mozgatható és szűk járatokban sem akadályoz.;190;;;;2;zúzás;1;nem;SHIELD;60;1
+W014;vasalt kerek pajzs;WT003;2-4;4;nem;nem;igen;nem;Erős deszkákból készült kerek pajzs vasalt peremmel. Jó kompromisszum védelem és mozgékonyság között.;260;;;;4;zúzás;1;nem;SHIELD;80;1
+W026;elf pajzs;WT003;2-4;2;nem;nem;igen;nem;Karcsú, ívelt elf pajzs különleges könnyűfémből. Kis súlya ellenére meglepően ellenálló.;480;;;;2;zúzás;1;nem;SHIELD;100;1
+
+W027;légiós pajzs;WT003;3-5;7;nem;nem;nem;nem;Nagy, négyszögletes pajzs. A test jó részét lefedi, cserébe ormótlan.;380;;;;5;zúzás;1;nem;SHIELD;120;2
+W028;csepppajzs;WT003;3-5;5;nem;nem;igen;nem;Hosszúkás, lefelé keskenyedő pajzs, amely a felsőtest mellett a combot is jól védi. Papok is használhatják.;450;;;;5;zúzás;1;nem;SHIELD;120;2
+W015;kerek vaspajzs;WT003;3-5;6;nem;nem;nem;nem;Kerek, masszív pajzs teljesen fémből.;520;;;;5;zúzás;1;nem;SHIELD;145;2
+W029;lovagi címerpajzs;WT003;3-6;7;nem;nem;nem;nem;Masszív acélszegélyes pajzs, amelynek homlokát viselője címere díszíti.;720;;;;6;zúzás;1;nem;SHIELD;155;2
+W030;elf őrpajzs;WT003;3-6;4;nem;nem;nem;nem;Az elf őrségek hosszúkás pajzsa. Könnyebb az emberi megfelelőinél, mégis kiváló védelmet nyújt.;950;;;;3;zúzás;1;nem;SHIELD;150;2
+
+W016;acélpajzs;WT003;4-6;10;nem;nem;nem;nem;Kerek, masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.;900;;;;7;zúzás;1;nem;SHIELD;190;3
+W031;törp kerekpajzs;WT003;4-7;8;nem;nem;nem;nem;Vastag fémből kovácsolt, nehéz törp pajzs. Kis átmérőjéhez képest szinte elpusztíthatatlan.;1150;;;;7;zúzás;1;nem;SHIELD;230;3
+W032;törp erődpajzs;WT003;5-8;11;nem;nem;nem;nem;Rendkívül vastag törp pajzs megerősített peremmel. Súlya miatt csak igen erős harcosok képesek hatékonyan használni.;1750;;;;9;zúzás;1;nem;SHIELD;310;3
+W033;nagypajzs;WT003;4-7;9;nem;nem;nem;nem;Nagy felületű acélpajzs, amely szinte teljesen eltakarja viselője felsőtestét.;1250;;;;8;zúzás;1;nem;SHIELD;250;3
+W034;toronypajzs;WT003;5-9;12;nem;nem;nem;nem;Embermagasságú nehéz pajzs. Rendkívüli védelmet biztosít, de komoly erőt igényel a mozgatása.;2200;;;;11;zúzás;1;nem;SHIELD;350;3
+W035;tüskés pajzs;WT003;4-7;8;nem;nem;nem;nem;Vastag fémpajzs előrenyúló tüskékkel. Védekezés mellett brutális közelharci csapásokra is alkalmas.;1350;;;;8;szúrás;1;nem;SHIELD;210;3
+
 RW001;Várnok örökpenge;WT001;9-17;9;igen;nem;nem;nem;A Várnok család ezüsttel futtatott pallosa. Roderic esküjéhez kötött +1 ereklye amelyet más nem használhat.;1600;Magic;W009;1;7;vágás;2;nem;SWORD
 LW001;Hajnalpenge;WT001;9-17;6;nem;nem;igen;nem;A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.;6500;Legendás;W004;3;3;vágás;1;nem;SWORD;200
 LW002;Éjcsók;WT002;7-14;1;nem;igen;nem;igen;Fekete tőr amely hangtalanul találja meg a páncél réseit.;5200;Legendás;W001;4;1;szúrás;1;nem;DAGGER;170
@@ -415,7 +432,7 @@ WN024;démoni csáprágók;WT001;9-19;1;nem;nem;nem;nem;Hatalmas pokoli pókszá
 
 #Páncélok
 Id;Név;Védelem;Barbár;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;VágásVédelem;SzúrásVédelem;ZúzásVédelem;TűzVédelem;SavVédelem;NekrotikusVédelem;KáoszVédelem;MaxTartósság
-A001;kámzsa;1-2;igen;igen;igen;igen;Vastag szövetből készült csuklyás ruházat a kisebb sérülések ellen.;20;;;;1;0;0;0;0;0;0;0
+A001;kámzsa;0-1;igen;igen;igen;igen;Vastag szövetből készült csuklyás ruházat a kisebb sérülések ellen.;20;;;;1;0;0;0;0;0;0;0
 A002;bőrvért;2-3;igen;igen;igen;nem;Könnyű edzett bőrpáncél amely szabad mozgást biztosít.;100;;;;3;1;-1;0;0;0;0;0
 A003;láncing;3-4;igen;nem;igen;nem;Összefűzött fémkarikákból készült hajlékony vértezet.;250;;;;6;2;-1;-2;0;0;0;0
 A004;pikkelypáncél;2-5;igen;nem;igen;nem;Egymásra simuló fémpikkelyekből álló változó védelmű páncél.;350;;;;8;2;0;-1;0;0;0;0
