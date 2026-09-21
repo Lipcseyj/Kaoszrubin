@@ -514,19 +514,54 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         runtime.Context.KnightProtectionAvailable = true;
     }
 
-    private static string FormatAttackSummary(string attackerName, string defenderName,
-        IReadOnlyList<AttackResult> attacks, int currentHitPoints, int maximumHitPoints)
+    public static string PadRightDisplay(string text, int width)
     {
+        var padding = width - BattleCommandPanel.DisplayWidth(text);
+
+        return padding > 0
+            ? text + new string(' ', padding)
+            : text;
+    }
+
+    private static string FormatAttackSummary(
+     string attackerName,
+     string defenderName,
+     IReadOnlyList<AttackResult> attacks,
+     int currentHitPoints,
+     int maximumHitPoints)
+    {
+        const int AttackerWidth = 23;
+        const int DefenderWidth = 23;
+        const int OutcomeWidth = 16;
+        const int DamageWidth = 14;
+
         var successful = attacks.Where(attack => attack.Hit).ToArray();
         var critical = attacks.Any(attack => attack.Critical);
+
         var outcome = successful.Length == 0
             ? "💨 MELLÉ"
-            : critical ? "💥 KRITIKUS!" : "🎯 TALÁLAT";
-        var summary = $"{attackerName}\t\t→ {defenderName}\t\t{outcome}";
-        if (successful.Length > 0)
-            summary += $"\t💥 {successful.Sum(attack => attack.Damage)}\t{defenderName} ❤️ {currentHitPoints}/{maximumHitPoints}";
+            : critical
+                ? "💥 KRITIKUS!"
+                : "🎯 TALÁLAT";
+
+        var damage = successful.Length > 0
+            ? $"💥 {successful.Sum(attack => attack.Damage)}"
+            : string.Empty;
+
+        var hitPoints = successful.Length > 0
+            ? $"{defenderName} ❤️ {currentHitPoints}/{maximumHitPoints}"
+            : string.Empty;
+
+        var summary =
+            $"{PadRightDisplay(attackerName, AttackerWidth)} → " +
+            $"{PadRightDisplay(defenderName, DefenderWidth)} " +
+            $"{PadRightDisplay(outcome, OutcomeWidth)} " +
+            $"{PadRightDisplay(damage, DamageWidth)}" +
+            hitPoints;
+
         if (attacks.Any(attack => attack.ShieldBlock.IsCriticalBlock))
             summary += $". 🛡️ {defenderName} PAJZSBLOKK";
+
         return summary;
     }
 
