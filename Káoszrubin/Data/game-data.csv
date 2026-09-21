@@ -374,15 +374,15 @@ W026;elf pajzs;WT003;2-4;2;nem;nem;igen;nem;Karcsú, ívelt elf pajzs különleg
 W027;légiós pajzs;WT003;3-5;7;nem;nem;nem;nem;Nagy, négyszögletes pajzs. A test jó részét lefedi, cserébe ormótlan.;380;;;;5;zúzás;1;nem;SHIELD;120;2
 W028;csepppajzs;WT003;3-5;5;nem;nem;igen;nem;Hosszúkás, lefelé keskenyedő pajzs, amely a felsőtest mellett a combot is jól védi. Papok is használhatják.;450;;;;5;zúzás;1;nem;SHIELD;120;2
 W015;kerek vaspajzs;WT003;3-5;6;nem;nem;nem;nem;Kerek, masszív pajzs teljesen fémből.;520;;;;5;zúzás;1;nem;SHIELD;145;2
-W029;lovagi címerpajzs;WT003;3-6;7;nem;nem;nem;nem;Masszív acélszegélyes pajzs, amelynek homlokát viselője címere díszíti.;720;;;;6;zúzás;1;nem;SHIELD;155;2
-W030;elf őrpajzs;WT003;3-6;4;nem;nem;nem;nem;Az elf őrségek hosszúkás pajzsa. Könnyebb az emberi megfelelőinél, mégis kiváló védelmet nyújt.;950;;;;3;zúzás;1;nem;SHIELD;150;2
+W029;lovagi címerpajzs;WT003;3-6;7;nem;nem;nem;nem;Masszív acélszegélyes pajzs, amelynek homlokát viselője címere díszíti.;720;;;;6;zúzás;1;nem;SHIELD;145;2
+W030;elf őrpajzs;WT003;3-6;4;nem;nem;nem;nem;Az elf őrségek hosszúkás pajzsa. Könnyebb az emberi megfelelőinél, mégis kiváló védelmet nyújt.;950;;;;3;zúzás;1;nem;SHIELD;170;2
 
-W016;acélpajzs;WT003;4-6;10;nem;nem;nem;nem;Kerek, masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.;900;;;;7;zúzás;1;nem;SHIELD;190;3
-W031;törp kerekpajzs;WT003;4-7;8;nem;nem;nem;nem;Vastag fémből kovácsolt, nehéz törp pajzs. Kis átmérőjéhez képest szinte elpusztíthatatlan.;1150;;;;7;zúzás;1;nem;SHIELD;230;3
-W032;törp erődpajzs;WT003;5-8;11;nem;nem;nem;nem;Rendkívül vastag törp pajzs megerősített peremmel. Súlya miatt csak igen erős harcosok képesek hatékonyan használni.;1750;;;;9;zúzás;1;nem;SHIELD;310;3
-W033;nagypajzs;WT003;4-7;9;nem;nem;nem;nem;Nagy felületű acélpajzs, amely szinte teljesen eltakarja viselője felsőtestét.;1250;;;;8;zúzás;1;nem;SHIELD;250;3
-W034;toronypajzs;WT003;5-9;12;nem;nem;nem;nem;Embermagasságú nehéz pajzs. Rendkívüli védelmet biztosít, de komoly erőt igényel a mozgatása.;2200;;;;11;zúzás;1;nem;SHIELD;350;3
-W035;tüskés pajzs;WT003;4-7;8;nem;nem;nem;nem;Vastag fémpajzs előrenyúló tüskékkel. Védekezés mellett brutális közelharci csapásokra is alkalmas.;1350;;;;8;szúrás;1;nem;SHIELD;210;3
+W016;acélpajzs;WT003;4-6;10;nem;nem;nem;nem;Kerek, masszív acélpajzs amely kitűnő védelmet biztosít az erős karúaknak.;900;;;;7;zúzás;1;nem;SHIELD;170;3
+W031;törp kerekpajzs;WT003;4-7;8;nem;nem;nem;nem;Vastag fémből kovácsolt, nehéz törp pajzs. Kis átmérőjéhez képest szinte elpusztíthatatlan.;1150;;;;7;zúzás;1;nem;SHIELD;200;3
+W032;törp falanxpajzs;WT003;5-8;11;nem;nem;nem;nem;Rendkívül vastag törp pajzs megerősített peremmel. Súlya miatt csak igen erős harcosok képesek hatékonyan használni.;1750;;;;9;zúzás;1;nem;SHIELD;200;3
+W033;nagypajzs;WT003;4-7;9;nem;nem;nem;nem;Nagy felületű acélpajzs, amely szinte teljesen eltakarja viselője felsőtestét.;1250;;;;8;zúzás;1;nem;SHIELD;170;3
+W034;toronypajzs;WT003;5-9;12;nem;nem;nem;nem;Embermagasságú nehéz pajzs. Rendkívüli védelmet biztosít, de komoly erőt igényel a mozgatása.;2200;;;;11;zúzás;1;nem;SHIELD;170;3
+W035;tüskés pajzs;WT003;4-7;8;nem;nem;nem;nem;Vastag fémpajzs előrenyúló tüskékkel. Védekezés mellett brutális közelharci csapásokra is alkalmas.;1350;;;;8;szúrás;1;nem;SHIELD;170;3
 
 RW001;Várnok örökpenge;WT001;9-17;9;igen;nem;nem;nem;A Várnok család ezüsttel futtatott pallosa. Roderic esküjéhez kötött +1 ereklye amelyet más nem használhat.;1600;Magic;W009;1;7;vágás;2;nem;SWORD
 LW001;Hajnalpenge;WT001;9-17;6;nem;nem;igen;nem;A nap első sugarával izzó hosszú kard amely reményt vág a sötétségbe.;6500;Legendás;W004;3;3;vágás;1;nem;SWORD;200

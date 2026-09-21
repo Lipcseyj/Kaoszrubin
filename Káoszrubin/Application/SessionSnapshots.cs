@@ -194,16 +194,20 @@ public sealed record TacticalBattleParticipantSnapshot(CombatantId Id, string Na
 
 public enum CombatConditionKind
 {
-    Staggered
+    Staggered,
+    BarbarianRage
 }
 
 public sealed record CombatConditionSnapshot(CombatConditionKind Kind, string Name, string Icon,
-    StaggerSeverity Severity, bool IsResolved, bool BlocksMovement, bool? BlocksOffensiveActions);
+    StaggerSeverity? Severity = null, bool IsResolved = false, bool BlocksMovement = false,
+    bool? BlocksOffensiveActions = false);
 
 public static class CombatConditionPresentation
 {
     public const string StaggerName = "Megingás";
     public const string StaggerIcon = "💫";
+    public const string BarbarianRageName = "Düh";
+    public const string BarbarianRageIcon = "🔥";
 }
 
 public sealed record BattleItemOptionSnapshot(int BackpackIndex, string DefinitionId, string Name, int Quantity);

@@ -55,6 +55,7 @@ public sealed class CharacterBattleChoices
     internal BattleRuntimeContext Context { get; }
     public BattleTactic? Tactic => Context.Tactic;
     public bool RequiresTacticSelection => Context.RequiresTacticSelection && Context.Tactic is null;
+    public bool IsBarbarianRaging => Context.BarbarianRageActionsRemaining > 0;
 
     public bool TryChooseTactic(LiveCharacter character, BattleTactic tactic)
     {
