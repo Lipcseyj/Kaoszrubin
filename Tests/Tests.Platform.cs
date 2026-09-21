@@ -1,5 +1,47 @@
 internal static partial class Program
 {
+    static void RubyFireSpreadsAcrossMenuWidth()
+    {
+        var fire = new RubyFireEffect(ConsoleRenderer.PlayfieldWidth, 8, new Random(43050));
+        for (var frame = 0; frame < 24; frame++) fire.Update();
+
+        Assert(fire.Width == ConsoleRenderer.PlayfieldWidth && fire.Height == 8,
+            "A rubintűz nem a főmenü képszélességét vagy a 43–50. sor nyolc sorát használja.");
+        Assert(Enumerable.Range(0, fire.Width).All(x => fire.IntensityAt(x, fire.Height - 1) > 0),
+            "A rubintűz forrássora nem ér végig a kép szélességén.");
+        Assert(Enumerable.Range(0, fire.Width).Any(x => fire.IntensityAt(x, 0) > 0) &&
+               Enumerable.Range(0, fire.Width).SelectMany(x => Enumerable.Range(0, fire.Height)
+                   .Select(y => fire.IntensityAt(x, y))).All(value => value <= 9),
+            "A láng nem terjed fel a teljes sávban, vagy kilépett az intenzitástartományból.");
+    }
+
+    static void RubyPulseUsesSlowSineWave()
+    {
+        Assert(Math.Abs(RubyPulseEffect.BrightnessAt(0)) < 0.0001 &&
+               RubyPulseEffect.BrightnessAt(0.85) > 0.99 &&
+               Math.Abs(RubyPulseEffect.BrightnessAt(2.4)) < 0.0001 &&
+               Math.Abs(RubyPulseEffect.BrightnessAt(15)) < 0.0001 &&
+               RubyPulseEffect.BrightnessAt(30.85) > 0.99 &&
+               RubyPulseEffect.BrightnessAt(0.85, 0.8) <
+               RubyPulseEffect.BrightnessAt(0.85, 0) &&
+               RubyPulseEffect.PulseColor(0) == ConsoleColor.DarkMagenta &&
+               RubyPulseEffect.PulseColor(0.5) == ConsoleColor.Magenta &&
+               RubyPulseEffect.PulseColor(1) == ConsoleColor.White,
+            "A rubin fénye nem harminc másodpercenkénti gyors, kifelé terjedő impulzust használ.");
+    }
+
+    static void DragonEyesFlashEveryFortyFiveSeconds()
+    {
+        Assert(Math.Abs(DragonEyeFlashEffect.BrightnessAt(0)) < 0.0001 &&
+               DragonEyeFlashEffect.BrightnessAt(1.5) > 0.99 &&
+               Math.Abs(DragonEyeFlashEffect.BrightnessAt(4)) < 0.0001 &&
+               Math.Abs(DragonEyeFlashEffect.BrightnessAt(44)) < 0.0001 &&
+               DragonEyeFlashEffect.BrightnessAt(46.5) > 0.99 &&
+               DragonEyeFlashEffect.EyeColor(0) == ConsoleColor.DarkMagenta &&
+               DragonEyeFlashEffect.EyeColor(1) == ConsoleColor.White,
+            "A sárkányszemek nem 45 másodpercenként felizzó, három másodperces effektet használnak.");
+    }
+
     static void BackgroundMusicMissingTrackReportingIsBounded()
     {
         var settings = new GameSettings { MusicEnabled = true };

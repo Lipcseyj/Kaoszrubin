@@ -101,6 +101,7 @@ public sealed partial class Game : ISessionCommandHandler
     private readonly PartyAiController _partyAiController;
     private readonly SessionCommandDispatcher _commandDispatcher;
     private long _localCommandId;
+    private readonly BattleCommandGate _localBattleCommandGate = new();
     private BattleEncounter? _activeBattle;
     private bool _isQuickBattle;
     private int _quickBattleSuppressedEntryCount;
@@ -443,17 +444,20 @@ public sealed partial class Game : ISessionCommandHandler
         };
     }
 
-    private static IReadOnlyList<CombatConditionSnapshot> CombatConditionsFor(BattleEncounter battle,
+    internal static IReadOnlyList<CombatConditionSnapshot> CombatConditionsFor(BattleEncounter battle,
         CombatantId combatantId)
     {
-        if (battle.StaggerFor(combatantId) is not { } stagger) return [];
-        return
-        [
-            new CombatConditionSnapshot(CombatConditionKind.Staggered,
+        var conditions = new List<CombatConditionSnapshot>();
+        if (battle.StaggerFor(combatantId) is { } stagger)
+            conditions.Add(new CombatConditionSnapshot(CombatConditionKind.Staggered,
                 CombatConditionPresentation.StaggerName, CombatConditionPresentation.StaggerIcon,
                 stagger.Severity, stagger.IsResolved, stagger.BlocksMovement,
-                stagger.BlocksOffensiveActions)
-        ];
+                stagger.BlocksOffensiveActions));
+        if (battle.CharacterFor(combatantId) is { } character && battle.RuntimeFor(character).IsBarbarianRaging)
+            conditions.Add(new CombatConditionSnapshot(CombatConditionKind.BarbarianRage,
+                CombatConditionPresentation.BarbarianRageName,
+                CombatConditionPresentation.BarbarianRageIcon));
+        return conditions;
     }
 
     private IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(BattleEncounter battle,
@@ -471,11 +475,9 @@ public sealed partial class Game : ISessionCommandHandler
         character.CurrentVitality, character.MaximumVitality, character.CurrentMana, character.MaximumMana,
         character.FoodLevel, character.WaterLevel, PartyLeader.Gold, character.IsAlive, null,
         character.Statuses.Select(status => status.Id).ToArray(), InventorySnapshotProjector.Create(character),
-        CharacterSheetWithCombatIcons(character,
-            _activeBattle is { IsCompleted: false } battle &&
-            battle.StaggerFor(CombatantId.ForCharacter(character.Id)) is not null
-                ? [CombatConditionPresentation.StaggerIcon]
-                : []),
+        CharacterSheetWithCombatIcons(character, _activeBattle is { IsCompleted: false } battle
+            ? CombatConditionsFor(battle, CombatantId.ForCharacter(character.Id)).Select(condition => condition.Icon)
+            : []),
         character.Color, SpellInfo: character.IsSpellcaster ? SpellInfoSnapshotProjector.Create(character) : null,
         History: CreateCharacterHistory(character));
 
@@ -486,6 +488,7 @@ public sealed partial class Game : ISessionCommandHandler
             case GameCommandRejectedEvent rejected
                 when rejected.RecipientPlayerId == _session.HostPlayerId:
 
+                _localBattleCommandGate.Complete(rejected.CommandId);
                 _renderer.DrawInventoryMessage(
                     rejected.Reason,
                     ConsoleColor.Red);

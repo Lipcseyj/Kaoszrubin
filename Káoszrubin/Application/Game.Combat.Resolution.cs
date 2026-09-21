@@ -614,7 +614,9 @@ public sealed partial class Game
         if (_isQuickBattle) return;
         _renderer.UpdateBattleConditions(_maze, _fogOfWar, _player.Position,
             battle.Characters.Where(battle.IsCharacterStaggered).Select(character => character.Id),
-            battle.Enemies.Where(battle.IsEnemyStaggered).Select(enemy => enemy.Id));
+            battle.Enemies.Where(battle.IsEnemyStaggered).Select(enemy => enemy.Id),
+            battle.Characters.Where(character => battle.RuntimeFor(character).IsBarbarianRaging)
+                .Select(character => character.Id));
         _renderer.DrawTacticalBattleActor(battle.CharacterFor(current.Id), battle.EnemyFor(current.Id));
         var targetId = BattleFocusTarget(battle, current);
         var targetPosition = targetId is { } id ? battle.Turns.Find(id)?.Position : null;

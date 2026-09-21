@@ -7,9 +7,10 @@ namespace KaoszRubin.UI;
 public sealed class CharacterCreationScreen
 {
     private const int AbilityPointTotal = 25;
-    private const int FramePreferredWidth = 84;
     private static int _frameLeft;
+    private static int _frameTop;
     private static int _frameWidth;
+    private static int _frameHeight;
     private readonly GameDataCatalog _gameData;
     private readonly CharacterRoster _characterRoster;
     private readonly Random _random = new();
@@ -21,6 +22,20 @@ public sealed class CharacterCreationScreen
     }
 
     public void Run()
+    {
+        var ownsSurface = !CharacterMenuSurface.IsActive;
+        if (ownsSurface) CharacterMenuSurface.Begin();
+        try
+        {
+            RunCreation();
+        }
+        finally
+        {
+            if (ownsSurface) CharacterMenuSurface.End();
+        }
+    }
+
+    private void RunCreation()
     {
         var name = ReadName();
         if (name is null) return;
@@ -176,7 +191,7 @@ public sealed class CharacterCreationScreen
             WriteInside(3, "🪶 Add meg a hős nevét", ConsoleColor.Yellow);
             WriteInside(5, $"Legfeljebb {LiveCharacter.MaximumNameLength} karakter · üresen: vissza", ConsoleColor.DarkGray);
             WriteInside(7, "Név: ", ConsoleColor.Cyan);
-            Console.SetCursorPosition(_frameLeft + 10, 7);
+            Console.SetCursorPosition(_frameLeft + 10, _frameTop + 7);
             Console.ForegroundColor = ConsoleColor.White;
             var name = ConsoleExtensions.ReadLine(LiveCharacter.MaximumNameLength, trim: true);
             if (string.IsNullOrWhiteSpace(name)) return null;
@@ -371,7 +386,7 @@ public sealed class CharacterCreationScreen
         var portrait = AsciiPortraits.ForCharacterClass(characterClass.Id);
         var preferredLeft = Math.Max(_frameLeft + 42, _frameLeft + _frameWidth - portrait.CanvasWidth - 4);
         var left = Math.Max(0, Math.Min(preferredLeft, Console.WindowWidth - portrait.CanvasWidth));
-        var top = 3;
+        var top = _frameTop + 3;
         var returnLeft = Console.CursorLeft;
         var returnTop = Console.CursorTop;
         Console.ForegroundColor = color;
@@ -428,35 +443,20 @@ public sealed class CharacterCreationScreen
 
     private static void DrawFrame(string title, int requestedHeight)
     {
-        Console.Clear();
-        _frameWidth = Math.Max(10, Math.Min(FramePreferredWidth, Console.WindowWidth - 2));
-        var height = Math.Max(4, Math.Min(requestedHeight, Console.WindowHeight - 1));
-        _frameLeft = Math.Max(0, (Console.WindowWidth - _frameWidth) / 2);
-        Console.ForegroundColor = ConsoleColor.DarkYellow;
-        Console.SetCursorPosition(_frameLeft, 0);
-        Console.Write("@)" + new string('=', _frameWidth - 4) + "(@");
-        for (var row = 1; row < height - 1; row++)
-        {
-            Console.SetCursorPosition(_frameLeft, row);
-            Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write(" |");
-            Console.SetCursorPosition(_frameLeft + _frameWidth - 2, row);
-            Console.Write("| ");
-        }
-        Console.SetCursorPosition(_frameLeft, height - 1);
-        Console.ForegroundColor = ConsoleColor.DarkYellow;
-        Console.Write("@)" + new string('=', _frameWidth - 4) + "(@");
-        WriteInside(1, title, ConsoleColor.Yellow, centered: true);
-        Console.ResetColor();
+        var frame = CharacterMenuSurface.DrawWindow(title);
+        _frameLeft = frame.Left;
+        _frameTop = frame.Top;
+        _frameWidth = frame.Width;
+        _frameHeight = frame.Height;
     }
 
     private static void WriteInside(int row, string text, ConsoleColor color, bool centered = false)
     {
-        if (row < 1 || row >= Console.WindowHeight) return;
+        if (row < 1 || row >= _frameHeight - 1 || _frameTop + row >= Console.WindowHeight) return;
         var maximumLength = Math.Max(0, _frameWidth - 8);
         if (text.Length > maximumLength) text = text[..maximumLength];
         var offset = centered ? Math.Max(0, (maximumLength - text.Length) / 2) : 0;
-        Console.SetCursorPosition(_frameLeft + 4 + offset, row);
+        Console.SetCursorPosition(_frameLeft + 4 + offset, _frameTop + row);
         Console.ForegroundColor = color;
         Console.Write(text);
         Console.ResetColor();

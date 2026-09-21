@@ -23,13 +23,17 @@ public sealed class MainMenu
     private readonly BackgroundMusicPlayer _backgroundMusicPlayer;
     private readonly Random _random = new();
     private readonly SoundEffects _soundEffects;
+    private readonly MainMenuCreature? _mainMenuCreature;
     private readonly GameSettingsService _musicSettings = new();
     private string? _menuStatus;
     bool _menuSoundPlayed = false;
 
-    private const int SideMenuWidth = 52;
-    private const int SideMenuLeft = 142;
+    public const int SideMenuWidth = 52;
+    public const int SideMenuLeft = 142;
     private const int SideMenuTop = 8;
+    private const int RubyFireTop = 43;
+    private const int RubyFireHeight = 8;
+    private const int RubyFireFrameMilliseconds = 85;
 
     public static string AppVersion => (Assembly.GetEntryAssembly()!.GetName().Version ?? new Version(0, 0, 0)).ToString(3);
 
@@ -92,6 +96,7 @@ public sealed class MainMenu
     {
         Log.Info("main-menu.initialization.start");
         _gameData = gameData;
+        _mainMenuCreature = MainMenuCreaturePanel.ChooseCreature(gameData, _random);
         _characterSaveService = new CharacterSaveService(characterSavePath, gameData);
         _gameSaveService = new GameSaveService(gameSaveDirectory, _characterSaveService);
         _applicationVersion = applicationVersion;
@@ -102,6 +107,7 @@ public sealed class MainMenu
         Log.Info("main-menu.characters.loaded", $"count={_characterRoster.Characters.Count}");
         _soundEffects = new SoundEffects(_musicSettings.Settings,
             message => Log.Warning("audio.sound-effect", message));
+        Console.CursorVisible = false;
         Log.Info("main-menu.initialization.complete");
     }
 
@@ -118,6 +124,9 @@ public sealed class MainMenu
     public void Run()
     {
         var readyLogged = false;
+        var rubyFire = new RubyFireEffect(SideMenuLeft + SideMenuWidth, RubyFireHeight, _random);
+        var rubyPulse = new RubyPulseEffect(AsciiArts.GetMainScreen());
+        var dragonEyes = new DragonEyeFlashEffect();
 
         while (true)
         {
@@ -138,7 +147,7 @@ public sealed class MainMenu
                 readyLogged = true;
             }
 
-            switch (Console.ReadKey(intercept: true).Key)
+            switch (ReadMainMenuKey(rubyFire, rubyPulse, dragonEyes).Key)
             {
                 case ConsoleKey.D1:
                 case ConsoleKey.NumPad1:
@@ -185,6 +194,27 @@ public sealed class MainMenu
                     Console.Clear();
                     return;
             }
+        }
+    }
+
+    private static ConsoleKeyInfo ReadMainMenuKey(RubyFireEffect rubyFire, RubyPulseEffect rubyPulse,
+        DragonEyeFlashEffect dragonEyes)
+    {
+        while (true)
+        {
+            rubyPulse.Render(Console.WindowWidth, Console.WindowHeight);
+            dragonEyes.Render(Console.WindowWidth, Console.WindowHeight);
+            rubyFire.Update();
+            var visibleWidth = Math.Min(rubyFire.Width, Console.WindowWidth);
+            var visibleHeight = Math.Min(rubyFire.Height,
+                Math.Max(0, Console.WindowHeight - RubyFireTop - 1));
+            if (visibleWidth > 0 && visibleHeight > 0)
+                rubyFire.Render(0, RubyFireTop, visibleWidth, visibleHeight);
+
+            if (Console.KeyAvailable)
+                return Console.ReadKey(intercept: true);
+
+            Thread.Sleep(RubyFireFrameMilliseconds);
         }
     }
 
@@ -354,74 +384,76 @@ public sealed class MainMenu
 
     private void ManageCharacters()
     {
+        CharacterMenuSurface.Begin();
         var selectedIndex = _characterRoster.SelectedCharacter is null ? 0 :
             Math.Max(0, _characterRoster.Characters.ToList().IndexOf(_characterRoster.SelectedCharacter));
-        while (true)
+        try
         {
-            selectedIndex = _characterRoster.Characters.Count == 0 ? 0 :
-                Math.Clamp(selectedIndex, 0, _characterRoster.Characters.Count - 1);
-            DrawCharacterManager(selectedIndex);
-            var readKeyInfo = Console.ReadKey(intercept: true);
-            switch (readKeyInfo.Key)
+            while (true)
             {
-                case ConsoleKey.UpArrow when _characterRoster.Characters.Count > 0:
-                    selectedIndex = (selectedIndex - 1 + _characterRoster.Characters.Count) % _characterRoster.Characters.Count;
-                    break;
-                case ConsoleKey.DownArrow when _characterRoster.Characters.Count > 0:
-                    selectedIndex = (selectedIndex + 1) % _characterRoster.Characters.Count;
-                    break;
-                case ConsoleKey.Enter when _characterRoster.Characters.Count > 0:
-                    _characterRoster.Select(_characterRoster.Characters[selectedIndex]);
-                    SaveCharacters();
-                    break;
-                case ConsoleKey.N:
-                    var before = _characterRoster.Characters.Count;
-                    new CharacterCreationScreen(_gameData, _characterRoster).Run();
-                    if (_characterRoster.Characters.Count > before) selectedIndex = _characterRoster.Characters.Count - 1;
-                    SaveCharacters();
-                    break;
-                case ConsoleKey.D when _characterRoster.Characters.Count > 0:
-                case ConsoleKey.Delete when _characterRoster.Characters.Count > 0:
-                    if (HasShift(readKeyInfo))
-                    {
-                        var confirmationFrame = GetCharacterManagerFrame();
-                        WriteAt(confirmationFrame.Left + 4, confirmationFrame.Top + confirmationFrame.Height - 3,
-                            $"⚠ Biztosan törlöd AZ ÖSSZES KARAKTERT?  I/Y = igen", ConsoleColor.Red,
-                            confirmationFrame.Width - 8);
-                        if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
+                selectedIndex = _characterRoster.Characters.Count == 0 ? 0 :
+                    Math.Clamp(selectedIndex, 0, _characterRoster.Characters.Count - 1);
+                DrawCharacterManager(selectedIndex);
+                var readKeyInfo = Console.ReadKey(intercept: true);
+                switch (readKeyInfo.Key)
+                {
+                    case ConsoleKey.UpArrow when _characterRoster.Characters.Count > 0:
+                        selectedIndex = (selectedIndex - 1 + _characterRoster.Characters.Count) % _characterRoster.Characters.Count;
+                        break;
+                    case ConsoleKey.DownArrow when _characterRoster.Characters.Count > 0:
+                        selectedIndex = (selectedIndex + 1) % _characterRoster.Characters.Count;
+                        break;
+                    case ConsoleKey.Enter when _characterRoster.Characters.Count > 0:
+                        _characterRoster.Select(_characterRoster.Characters[selectedIndex]);
+                        SaveCharacters();
+                        break;
+                    case ConsoleKey.N:
+                        var before = _characterRoster.Characters.Count;
+                        new CharacterCreationScreen(_gameData, _characterRoster).Run();
+                        if (_characterRoster.Characters.Count > before) selectedIndex = _characterRoster.Characters.Count - 1;
+                        SaveCharacters();
+                        break;
+                    case ConsoleKey.D when _characterRoster.Characters.Count > 0:
+                    case ConsoleKey.Delete when _characterRoster.Characters.Count > 0:
+                        if (HasShift(readKeyInfo))
                         {
-                            foreach (var character in _characterRoster.Characters.ToList())
+                            var confirmationFrame = GetCharacterManagerFrame();
+                            WriteAt(confirmationFrame.Left + 4, confirmationFrame.Top + confirmationFrame.Height - 3,
+                                $"⚠ Biztosan törlöd AZ ÖSSZES KARAKTERT?  I/Y = igen", ConsoleColor.Red,
+                                confirmationFrame.Width - 8);
+                            if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
+                            {
+                                foreach (var character in _characterRoster.Characters.ToList())
+                                    _characterRoster.Remove(character);
+                                SaveCharacters();
+                            }
+                        }
+                        else
+                        {
+                            var character = _characterRoster.Characters[selectedIndex];
+                            var confirmationFrame = GetCharacterManagerFrame();
+                            WriteAt(confirmationFrame.Left + 4, confirmationFrame.Top + confirmationFrame.Height - 3,
+                                $"⚠ Biztosan törlöd: {character.Name}?  I/Y = igen", ConsoleColor.Red,
+                                confirmationFrame.Width - 8);
+                            if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
                             {
                                 _characterRoster.Remove(character);
+                                SaveCharacters();
                             }
-                            SaveCharacters();
                         }
-                    }
-                    else
-                    {
-                        var character = _characterRoster.Characters[selectedIndex];
-                        var confirmationFrame = GetCharacterManagerFrame();
-                        WriteAt(confirmationFrame.Left + 4, confirmationFrame.Top + confirmationFrame.Height - 3,
-                            $"⚠ Biztosan törlöd: {character.Name}?  I/Y = igen", ConsoleColor.Red,
-                            confirmationFrame.Width - 8);
-                        if (Console.ReadKey(intercept: true).Key is ConsoleKey.I or ConsoleKey.Y)
-                        {
-                            _characterRoster.Remove(character);
-                            SaveCharacters();
-                        }
-                    }
-                    break;
-                case ConsoleKey.Escape:
-                    return;
+                        break;
+                    case ConsoleKey.Escape:
+                        return;
+                }
             }
         }
+        finally { CharacterMenuSurface.End(); }
     }
     private static bool HasShift(ConsoleKeyInfo keyInfo) =>
     (keyInfo.Modifiers & (ConsoleModifiers.Shift)) == (ConsoleModifiers.Shift);
 
     private void DrawCharacterManager(int selectedIndex)
     {
-        ResetConsole();
         var frame = GetCharacterManagerFrame();
         DrawCharacterManagerFrame(frame);
         WriteAt(frame.Left + 4, frame.Top + 1, "👥 KARAKTEREK", ConsoleColor.Yellow, frame.Width - 8);
@@ -490,21 +522,13 @@ public sealed class MainMenu
 
     private static CharacterManagerFrame GetCharacterManagerFrame()
     {
-        var width = Math.Max(10, Math.Min(118, Console.WindowWidth - 2));
-        var height = Math.Max(8, Math.Min(Console.WindowHeight - 1, 28));
-        return new CharacterManagerFrame(Math.Max(0, (Console.WindowWidth - width) / 2), 0, width, height);
+        var frame = CharacterMenuSurface.Frame;
+        return new CharacterManagerFrame(frame.Left, frame.Top, frame.Width, frame.Height);
     }
 
     private static void DrawCharacterManagerFrame(CharacterManagerFrame frame)
     {
-        WriteAt(frame.Left, frame.Top, "@)" + new string('=', frame.Width - 4) + "(@", ConsoleColor.DarkYellow, frame.Width);
-        for (var row = 1; row < frame.Height - 1; row++)
-        {
-            WriteAt(frame.Left, frame.Top + row, " |", ConsoleColor.DarkCyan, 2);
-            WriteAt(frame.Left + frame.Width - 2, frame.Top + row, "| ", ConsoleColor.DarkCyan, 2);
-        }
-        WriteAt(frame.Left, frame.Top + frame.Height - 1,
-            "@)" + new string('=', frame.Width - 4) + "(@", ConsoleColor.DarkYellow, frame.Width);
+        CharacterMenuSurface.DrawWindow("👥 KARAKTEREK");
     }
 
     private static string CharacterClassIcon(string characterClassId) => characterClassId switch
@@ -1242,6 +1266,8 @@ public sealed class MainMenu
             "Esc) Kilépés"
         };
         DrawSidePanel("KÁOSZRUBIN", lines);
+        if (_mainMenuCreature is not null)
+            MainMenuCreaturePanel.Draw(_mainMenuCreature, _random, SideMenuLeft, SideMenuWidth);
     }
 
     private void DrawMainBackdrop()

@@ -593,6 +593,17 @@ internal static partial class Program
         Assert(statusLine.Text.Contains(CombatConditionPresentation.StaggerIcon) &&
                character.Statuses.All(status => status.Icon != CombatConditionPresentation.StaggerIcon),
             "A megingás nem az ideiglenes állapotsoron látszik, vagy bekerült a tartós karakterstátuszok közé.");
+        preparation.Runtime.Context.BarbarianRageActionsRemaining = 1;
+        var rageConditions = Game.CombatConditionsFor(encounter, CombatantId.ForCharacter(character.Id));
+        Assert(rageConditions.Any(condition =>
+                   condition.Kind == CombatConditionKind.BarbarianRage &&
+                   condition.Name == CombatConditionPresentation.BarbarianRageName &&
+                   condition.Icon == CombatConditionPresentation.BarbarianRageIcon),
+            "Az aktív barbár Düh nem jelenik meg ideiglenes harci állapotként.");
+        system.FinishCharacterAction(character, preparation.Runtime);
+        Assert(Game.CombatConditionsFor(encounter, CombatantId.ForCharacter(character.Id))
+                .All(condition => condition.Kind != CombatConditionKind.BarbarianRage),
+            "A lejárt barbár Düh ikonja nem tűnt el az állapotjelzőből.");
         var coordinator = new TacticalBattleCoordinator(data, system, new Random(1713));
         var actions = coordinator.GetAllowedBattleActions(encounter, character, enemy, character,
             encounter.PositionOf(character), false, new Dictionary<LiveCharacter, int>());

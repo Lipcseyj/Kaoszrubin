@@ -56,6 +56,7 @@ public static class CsvGameDataLoader
         var questChests = new QuestChestCsvBuilder();
         var partySituations = new List<PartySituationDefinition>();
         var partyRemarks = new List<PartyRemarkDefinition>();
+        var creatureQuotes = new List<CreatureQuoteDefinition>();
         var itemUpgrades = new List<ItemUpgradeDefinition>();
         var raceBonuses = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var classMinimums = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
@@ -99,7 +100,7 @@ public static class CsvGameDataLoader
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
                     monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, itemCurses, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps,
                     npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcStoryChoices, npcQuests,
-                    partySituations, partyRemarks, itemUpgrades,
+                    partySituations, partyRemarks, creatureQuotes, itemUpgrades,
                     raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                     vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass,
                     characterResourceGrowthByClass, ref baseLevelCompletionExperience);
@@ -148,6 +149,7 @@ public static class CsvGameDataLoader
             ("NPC küldetések", npcQuests.Select(value => value.Id)),
             ("Szituációk", partySituations.Select(value => value.Id)),
             ("Parti megjegyzések", partyRemarks.Select(value => value.Id)),
+            ("Lény mondatok", creatureQuotes.Select(value => value.Id)),
             ("Tárgybővítések", itemUpgrades.Select(value => value.Id)));
         ValidateSpells(spells);
         ValidateSpellEffects(spells, spellEffects);
@@ -222,6 +224,7 @@ public static class CsvGameDataLoader
             races, characterClasses,
             enemies, monsterAbilities, items, weapons, armors, magicItems, perks);
         ValidatePartyRemarks(partySituations, partyRemarks, races, characterClasses);
+        ValidateCreatureQuotes(creatureQuotes, characterClasses, enemies);
         var lootRules = CreateLootRules(lootRuleValues);
         var doorAttemptRules = CreateDoorAttemptRules(doorAttemptRuleValues);
 
@@ -265,6 +268,7 @@ public static class CsvGameDataLoader
             NpcStoryChoices = npcStoryChoices,
             PartySituations = partySituations,
             PartyRemarks = partyRemarks,
+            CreatureQuotes = creatureQuotes,
             MinimumVitalityByHealth = minimumVitalityByHealth,
             MinimumManaByIntelligence = minimumManaByIntelligence,
             ExperienceByLevel = experienceByLevel,
@@ -340,6 +344,7 @@ public static class CsvGameDataLoader
         ICollection<QuestImportRow> npcQuests,
         ICollection<PartySituationDefinition> partySituations,
         ICollection<PartyRemarkDefinition> partyRemarks,
+        ICollection<CreatureQuoteDefinition> creatureQuotes,
         ICollection<ItemUpgradeDefinition> itemUpgrades,
         IDictionary<string, PrimaryAbilities> raceBonuses, IDictionary<string, PrimaryAbilities> classMinimums,
         IDictionary<int, int> minimumVitalityByHealth, IDictionary<int, int> minimumManaByIntelligence, IDictionary<int, int> experienceByLevel,
@@ -571,6 +576,9 @@ public static class CsvGameDataLoader
             case DataSection.PartyRemarks:
                 partyRemarks.Add(new PartyRemarkDefinition(id, Cell(cells, 1), Cell(cells, 2),
                     Cell(cells, 3), Cell(cells, 4), EmptyAsNull(Cell(cells, 5)), IsYes(cells, 6)));
+                break;
+            case DataSection.CreatureQuotes:
+                creatureQuotes.Add(ParseCreatureQuote(id, cells));
                 break;
             case DataSection.InnNames:
                 if (string.IsNullOrWhiteSpace(name))
@@ -1248,6 +1256,40 @@ public static class CsvGameDataLoader
         }
     }
 
+    private static CreatureQuoteDefinition ParseCreatureQuote(string id, string[] cells)
+    {
+        var kind = id.StartsWith("CS", StringComparison.OrdinalIgnoreCase)
+            ? CreatureQuoteKind.CharacterClass
+            : id.StartsWith("ES", StringComparison.OrdinalIgnoreCase)
+                ? CreatureQuoteKind.Enemy
+                : throw new InvalidDataException(
+                    $"A(z) '{id}' lénymondat-azonosítónak CSxxx vagy ESxxx alakúnak kell lennie.");
+        if (id.Length != 5 || !int.TryParse(id.AsSpan(2), out _))
+            throw new InvalidDataException(
+                $"A(z) '{id}' lénymondat-azonosítónak CSxxx vagy ESxxx alakúnak kell lennie.");
+        var quotes = Enumerable.Range(1, 3).Select(index => Cell(cells, index).Trim()).ToArray();
+        if (quotes.Any(string.IsNullOrWhiteSpace))
+            throw new InvalidDataException($"A(z) '{id}' lényhez mindhárom mondatot meg kell adni.");
+        return new CreatureQuoteDefinition(id, kind, $"{id[0]}{id[2..]}", quotes);
+    }
+
+    private static void ValidateCreatureQuotes(IReadOnlyCollection<CreatureQuoteDefinition> quotes,
+        IReadOnlyCollection<CharacterClassDefinition> characterClasses,
+        IReadOnlyCollection<EnemyDefinition> enemies)
+    {
+        foreach (var quote in quotes)
+        {
+            var exists = quote.Kind == CreatureQuoteKind.CharacterClass
+                ? characterClasses.Any(value => string.Equals(value.Id, quote.CreatureId,
+                    StringComparison.OrdinalIgnoreCase))
+                : enemies.Any(value => string.Equals(value.Id, quote.CreatureId,
+                    StringComparison.OrdinalIgnoreCase));
+            if (!exists)
+                throw new InvalidDataException(
+                    $"A(z) '{quote.Id}' lénymondat nem létező lényre hivatkozik: '{quote.CreatureId}'.");
+        }
+    }
+
     private static void ValidateEnemies(IEnumerable<EnemyDefinition> enemies,
         IReadOnlyCollection<MonsterAbilityDefinition> monsterAbilities)
     {
@@ -1582,6 +1624,7 @@ public static class CsvGameDataLoader
         "quest lada tartalom" => DataSection.QuestChestItems,
         "szituaciok" => DataSection.PartySituations,
         "parti megjegyzesek" => DataSection.PartyRemarks,
+        "leny mondatok" => DataSection.CreatureQuotes,
         "faji kepessegbonuszok" => DataSection.RaceAbilityBonuses,
         "osztaly kepessegminimumok" => DataSection.ClassAbilityMinimums,
         "ero talalati bonusz" => DataSection.StrengthHitBonuses,
@@ -1639,6 +1682,7 @@ public static class CsvGameDataLoader
         QuestChestItems,
         PartySituations,
         PartyRemarks,
+        CreatureQuotes,
         RaceAbilityBonuses,
         ClassAbilityMinimums,
         StrengthHitBonuses,

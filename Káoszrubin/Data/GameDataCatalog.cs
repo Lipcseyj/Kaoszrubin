@@ -50,6 +50,7 @@ public sealed class GameDataCatalog
         ?? throw new InvalidDataException($"Ismeretlen questláda: {id}.");
     public IReadOnlyList<PartySituationDefinition> PartySituations { get; init; } = [];
     public IReadOnlyList<PartyRemarkDefinition> PartyRemarks { get; init; } = [];
+    public IReadOnlyList<CreatureQuoteDefinition> CreatureQuotes { get; init; } = [];
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();

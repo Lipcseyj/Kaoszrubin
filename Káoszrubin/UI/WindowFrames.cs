@@ -6,7 +6,7 @@ public enum FramedWindow
 {
     MainMenu, Help, SpellSelector, CreaturePortrait, Storyline, LevelUp, LevelUpChoice,
     SpellLearning, SpellPreparation, Inn, Settings, QuestOffer, QuestJournal, CharacterDetails,
-    FormationEditor
+    FormationEditor, CharacterManagement
 }
 
 /// <summary>Az egyes képernyők kerete itt cserélhető, a rajzolókód módosítása nélkül.</summary>
@@ -29,7 +29,8 @@ public static class WindowFrameConfiguration
             [FramedWindow.QuestOffer] = WindowFrameStyle.Stone,
             [FramedWindow.QuestJournal] = WindowFrameStyle.Scroll2,
             [FramedWindow.CharacterDetails] = WindowFrameStyle.Stone,
-            [FramedWindow.FormationEditor] = WindowFrameStyle.Sword
+            [FramedWindow.FormationEditor] = WindowFrameStyle.Sword,
+            [FramedWindow.CharacterManagement] = WindowFrameStyle.Scroll
         };
 
     public static WindowFrameStyle For(FramedWindow window) => Styles[window];

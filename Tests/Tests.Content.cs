@@ -1,5 +1,25 @@
 internal static partial class Program
 {
+    static void CreatureQuotesLoadAndResolveForMainMenu()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+
+        Assert(catalog.CreatureQuotes.Count == 82 &&
+               catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.CharacterClass) == 6 &&
+               catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.Enemy) == 76,
+            "A #Lény mondatok szekció nem minden osztály- és szörnymondatot olvasott be.");
+        Assert(catalog.CreatureQuotes.Single(quote => quote.Id == "CS001").CreatureId == "C001" &&
+               catalog.CreatureQuotes.Single(quote => quote.Id == "ES001").CreatureId == "E001" &&
+               catalog.CreatureQuotes.All(quote => quote.Quotes.Count == 3 &&
+                   quote.Quotes.All(text => !string.IsNullOrWhiteSpace(text))),
+            "A CSxxx/ESxxx hivatkozás vagy a három lénymondat feloldása hibás.");
+        var creature = MainMenuCreaturePanel.ChooseCreature(catalog, new Random(2161));
+        Assert(creature is not null && creature.Portrait.Lines.Count == 5 &&
+               creature.Quotes.Quotes.Contains(creature.Quotes.Quotes[0]),
+            "A főmenü nem tudott a betöltött mondatokhoz portréval rendelkező lényt választani.");
+    }
+
     static void RaceTraitsAreLoadedFromData()
     {
         var dataPath = Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName);

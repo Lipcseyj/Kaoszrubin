@@ -41,6 +41,10 @@ public sealed partial class Game
             return;
         }
 
+        // A konzol több gyors billentyűt is pufferelhet, miközben az előző harci
+        // parancs még a session sorában vár. Ezek nem vihetők át a következő körre.
+        if (_localBattleCommandGate.IsPending) return;
+
         if (key.Key == ConsoleKey.Escape)
         {
             //TODO: quit to MainMenu instead
@@ -215,6 +219,8 @@ public sealed partial class Game
 
         var commandId = _localCommandId + 1;
 
+        if (!_localBattleCommandGate.TryBegin(commandId)) return;
+
         var command = new BattleActionCommand(
             _session.HostPlayerId,
             commandId,
@@ -232,6 +238,8 @@ public sealed partial class Game
 
         if (submitted)
             _localCommandId = commandId;
+        else
+            _localBattleCommandGate.Complete(commandId);
     }
 
     private static BattleActionKind TacticActionFor(string characterClassId, int option) =>
@@ -251,6 +259,8 @@ public sealed partial class Game
 
     private void ExecuteBattleAction(BattleActionCommand command)
     {
+        if (command.SenderId == _session.HostPlayerId)
+            _localBattleCommandGate.Complete(command.CommandId);
         if (_activeBattle is { } battle) ExecuteBattleAction(battle, command);
     }
 
