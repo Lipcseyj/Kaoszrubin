@@ -15,6 +15,21 @@ internal static partial class Program
             "A láng nem terjed fel a teljes sávban, vagy kilépett az intenzitástartományból.");
     }
 
+    static void RubyPulseUsesSlowSineWave()
+    {
+        Assert(Math.Abs(RubyPulseEffect.BrightnessAt(0)) < 0.0001 &&
+               RubyPulseEffect.BrightnessAt(0.85) > 0.99 &&
+               Math.Abs(RubyPulseEffect.BrightnessAt(2.4)) < 0.0001 &&
+               Math.Abs(RubyPulseEffect.BrightnessAt(15)) < 0.0001 &&
+               RubyPulseEffect.BrightnessAt(30.85) > 0.99 &&
+               RubyPulseEffect.BrightnessAt(0.85, 0.8) <
+               RubyPulseEffect.BrightnessAt(0.85, 0) &&
+               RubyPulseEffect.PulseColor(0) == ConsoleColor.DarkMagenta &&
+               RubyPulseEffect.PulseColor(0.5) == ConsoleColor.Magenta &&
+               RubyPulseEffect.PulseColor(1) == ConsoleColor.White,
+            "A rubin fénye nem harminc másodpercenkénti gyors, kifelé terjedő impulzust használ.");
+    }
+
     static void BackgroundMusicMissingTrackReportingIsBounded()
     {
         var settings = new GameSettings { MusicEnabled = true };
