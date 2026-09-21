@@ -4,14 +4,18 @@ namespace KaoszRubin.UI;
 public static class SettingsScreen
 {
     private const int Width = 70;
+    private const int ContentRows = 25;
 
     public static void Show(GameSettingsService settingsService, Action? applyAudioSettings = null,
         Func<string?>? coopStatusProvider = null)
     {
         var settings = settingsService.Settings;
+        var left = Math.Max(0, (Console.WindowWidth - Width) / 2);
+        var top = Math.Max(0, (Console.WindowHeight - ContentRows - 2) / 2);
+        using var background = new BackgroundContentRestorer(left, top, Width, ContentRows + 2);
         while (true)
         {
-            Draw(settings);
+            Draw(settings, left, top);
             var key = CoopWindowStatusBanner.ReadKey(coopStatusProvider);
             if (key.Key is ConsoleKey.Escape or ConsoleKey.Enter) break;
 
@@ -64,12 +68,8 @@ public static class SettingsScreen
         settingsService.Save();
     }
 
-    private static void Draw(GameSettings settings)
+    private static void Draw(GameSettings settings, int left, int top)
     {
-        Console.Clear();
-        var left = Math.Max(0, (Console.WindowWidth - Width) / 2);
-        const int contentRows = 25;
-        var top = Math.Max(0, (Console.WindowHeight - contentRows - 2) / 2);
         var style = WindowFrameConfiguration.For(FramedWindow.Settings);
         var lines = new[]
         {
@@ -102,9 +102,9 @@ public static class SettingsScreen
 
         Console.ForegroundColor = ConsoleColor.Magenta;
         WriteAt(left, top, WindowFrameCatalog.Horizontal(style, Width));
-        for (var row = 0; row < contentRows; row++)
+        for (var row = 0; row < ContentRows; row++)
         {
-            var sides = WindowFrameCatalog.Sides(style, row, contentRows);
+            var sides = WindowFrameCatalog.Sides(style, row, ContentRows);
             var interiorWidth = Width - sides.Left.Length - sides.Right.Length;
             var text = lines[row];
             if (text.Length > interiorWidth - 2) text = text[..(interiorWidth - 2)];
@@ -130,7 +130,7 @@ public static class SettingsScreen
             Console.ForegroundColor = ConsoleColor.Magenta;
             Console.Write(" " + sides.Right);
         }
-        WriteAt(left, top + contentRows + 1, WindowFrameCatalog.Horizontal(style, Width, bottom: true));
+        WriteAt(left, top + ContentRows + 1, WindowFrameCatalog.Horizontal(style, Width, bottom: true));
         Console.ResetColor();
     }
 

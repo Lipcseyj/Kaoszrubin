@@ -948,7 +948,10 @@ internal static partial class Program
                WindowFrameConfiguration.For(FramedWindow.CharacterManagement) == WindowFrameStyle.Scroll &&
                CharacterMenuSurface.MazeGlyph(0, 0) == '┼' &&
                CharacterMenuSurface.MazeGlyph(1, 0) == '─' &&
-               CharacterMenuSurface.MazeGlyph(0, 1) == '│',
+               CharacterMenuSurface.MazeGlyph(0, 1) == '│' &&
+               Enum.GetValues<CharacterMenuBackdropStyle>().Length == 2 &&
+               Enumerable.Range(0, 48).Select(x => CharacterMenuSurface.BlockGlyph(x, x / 2))
+                   .ToHashSet().SetEquals(['░', '▒', '▓', '█']),
             "Az első körös ablak–keret alapbeállítások hibásak.");
     }
 }

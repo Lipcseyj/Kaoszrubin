@@ -425,8 +425,6 @@ public sealed partial class Game
                         RunHostPersonalWindow(PlayerWindowKind.Settings,
                             () => SettingsScreen.Show(_gameSettings, ApplyAudioSettings,
                                 CurrentHostCoopWindowStatus));
-                        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
-                        _renderer.CharacterSheet.SetCharacterSheetFocused(_characterSheetFocused);
                         continue;
                     }
                     MarkCoopSnapshotDirty();

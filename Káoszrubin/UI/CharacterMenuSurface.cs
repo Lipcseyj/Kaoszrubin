@@ -1,6 +1,7 @@
 namespace KaoszRubin.UI;
 
 internal readonly record struct CharacterMenuFrame(int Left, int Top, int Width, int Height);
+internal enum CharacterMenuBackdropStyle { Maze, Blocks }
 
 /// <summary>Közös, Scroll-keretes felület a karakterlista és a karakteralkotás minden lépéséhez.</summary>
 internal static class CharacterMenuSurface
@@ -9,6 +10,7 @@ internal static class CharacterMenuSurface
     private const int PreferredHeight = 34;
     private static int _backgroundWidth;
     private static int _backgroundHeight;
+    private static CharacterMenuBackdropStyle _backdropStyle;
     public static bool IsActive { get; private set; }
 
     public static CharacterMenuFrame Frame
@@ -27,15 +29,20 @@ internal static class CharacterMenuSurface
     public static void Begin()
     {
         IsActive = true;
-        DrawMazeBackdrop();
+        _backdropStyle = Random.Shared.Next(2) == 0
+            ? CharacterMenuBackdropStyle.Maze
+            : CharacterMenuBackdropStyle.Blocks;
+        DrawBackdrop();
     }
 
     public static void End() => IsActive = false;
 
     public static CharacterMenuFrame DrawWindow(string title)
     {
-        if (!IsActive || _backgroundWidth != Console.WindowWidth || _backgroundHeight != Console.WindowHeight)
+        if (!IsActive)
             Begin();
+        else if (_backgroundWidth != Console.WindowWidth || _backgroundHeight != Console.WindowHeight)
+            DrawBackdrop();
 
         var frame = Frame;
         var style = WindowFrameConfiguration.For(FramedWindow.CharacterManagement);
@@ -66,7 +73,7 @@ internal static class CharacterMenuSurface
         return frame;
     }
 
-    private static void DrawMazeBackdrop()
+    private static void DrawBackdrop()
     {
         Console.BackgroundColor = ConsoleColor.Black;
         Console.ForegroundColor = ConsoleColor.DarkGray;
@@ -78,7 +85,9 @@ internal static class CharacterMenuSurface
             Console.SetCursorPosition(0, y);
             var rowWidth = y == _backgroundHeight - 1 ? Math.Max(0, _backgroundWidth - 1) : _backgroundWidth;
             for (var x = 0; x < rowWidth; x++)
-                Console.Write(MazeGlyph(x, y));
+                Console.Write(_backdropStyle == CharacterMenuBackdropStyle.Maze
+                    ? MazeGlyph(x, y)
+                    : BlockGlyph(x, y));
         }
         Console.ResetColor();
     }
@@ -91,5 +100,12 @@ internal static class CharacterMenuSurface
         if (horizontal) return '─';
         if (vertical) return '│';
         return (x * 17 + y * 31) % 97 == 0 ? '·' : ' ';
+    }
+
+    internal static char BlockGlyph(int x, int y)
+    {
+        const string ramp = "░▒▓██▓▒░";
+        var diagonalWave = x / 3 + y / 2 + (x + y) / 17;
+        return ramp[diagonalWave % ramp.Length];
     }
 }
