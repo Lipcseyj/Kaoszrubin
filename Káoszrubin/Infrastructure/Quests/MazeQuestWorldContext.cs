@@ -12,8 +12,10 @@ namespace KaoszRubin.Infrastructure.Quests;
 public sealed class MazeQuestWorldContext : IQuestWorldContext
 {
     public bool HasOpenedQuestChest(QuestChestId chestId) =>
-        _getMaze().TreasureChests.Any(chest => chest.Definition?.Id == chestId && chest.IsOpened);
+        _getMazes().SelectMany(maze => maze.TreasureChests)
+            .Any(chest => chest.Definition?.Id == chestId && chest.IsOpened);
     private readonly Func<Maze> _getMaze;
+    private readonly Func<IEnumerable<Maze>> _getMazes;
     private readonly Func<IItemDefinition, int> _countPartyItem;
     private readonly QuestNpcInstanceRegistry _instanceRegistry;
     private readonly Func<IItemDefinition, int, bool> _tryConsumePartyItem;
@@ -24,7 +26,8 @@ public sealed class MazeQuestWorldContext : IQuestWorldContext
         Func<IItemDefinition, int> countPartyItem,
         Func<IItemDefinition, int, bool> tryConsumePartyItem,
         QuestNpcInstanceRegistry instanceRegistry,
-        Func<QuestLocation, bool> hasDiscoveredLocation)
+        Func<QuestLocation, bool> hasDiscoveredLocation,
+        Func<IEnumerable<Maze>>? getMazes = null)
     {
         ArgumentNullException.ThrowIfNull(getMaze);
         ArgumentNullException.ThrowIfNull(countPartyItem);
@@ -33,6 +36,7 @@ public sealed class MazeQuestWorldContext : IQuestWorldContext
         ArgumentNullException.ThrowIfNull(hasDiscoveredLocation);
 
         _getMaze = getMaze;
+        _getMazes = getMazes ?? (() => [getMaze()]);
         _countPartyItem = countPartyItem;
         _tryConsumePartyItem = tryConsumePartyItem;
         _instanceRegistry = instanceRegistry;
@@ -214,15 +218,11 @@ public sealed class MazeQuestWorldContext : IQuestWorldContext
 
     private IEnumerable<WorldNpc> EnumerateQuestNpcs()
     {
-        var maze = _getMaze();
-
-        return maze.WorldNpcs
-            .Concat(
-                maze.PartyMembers
+        return _getMazes().SelectMany(maze => maze.WorldNpcs
+            .Concat(maze.PartyMembers
                     .Where(member =>
                         member.TemporaryFollower is not null)
-                    .Select(member =>
-                        member.TemporaryFollower!))
+                    .Select(member => member.TemporaryFollower!)))
             .Where(npc => npc.IsQuestNpc)
             .Distinct<WorldNpc>(ReferenceEqualityComparer.Instance);
     }

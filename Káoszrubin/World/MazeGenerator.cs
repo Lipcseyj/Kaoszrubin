@@ -3,24 +3,24 @@ using KaoszRubin.Domain.Combat;
 namespace KaoszRubin.World;
 
 /// <summary>2×2-es folyosókból, szűkületekből és ajtós szobákból álló labirintust készít.</summary>
-public sealed class MazeGenerator
+public class MazeGenerator
 {
-    private const int CorridorWidth = 2;
-    private const int GridStep = 5;
+    protected virtual int CorridorNodeWidth => 2;
+    protected virtual int GridStep => 5;
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
-    private readonly Random _random;
-    private readonly MazeGenerationSettings _settings;
+    protected readonly Random Random;
+    protected readonly MazeGenerationSettings Settings;
     private readonly IReadOnlyList<ResolvedEnemyEncounter> _roomEncounters;
     private readonly IReadOnlyList<ResolvedEnemyEncounter> _corridorEncounters;
 
     public MazeGenerator(MazeGenerationSettings settings, IReadOnlyList<ResolvedEnemyEncounter> roomEncounters,
         IReadOnlyList<ResolvedEnemyEncounter> corridorEncounters, Random? random = null)
     {
-        _settings = settings;
-        _random = random ?? new Random();
+        Settings = settings;
+        Random = random ?? new Random();
         _roomEncounters = roomEncounters;
         _corridorEncounters = corridorEncounters;
-        ValidateSettings(_settings);
+        ValidateSettings(Settings);
     }
 
     public Maze Create(int width, int height)
@@ -29,7 +29,7 @@ public sealed class MazeGenerator
         for (var attempt = 0; attempt < 128; attempt++)
         {
             var maze = CreateLayout(width, height);
-            if (!SpecialRoomPlacer.TryAssign(maze, _settings, _random)) continue;
+            if (!SpecialRoomPlacer.TryAssign(maze, Settings, Random)) continue;
             PlaceMapObjects(maze);
             return maze;
         }
@@ -38,9 +38,9 @@ public sealed class MazeGenerator
 
     private Maze CreateLayout(int width, int height)
     {
-        var maze = new Maze(width, height, _settings.WallRune, _settings.WallColor, _settings.LevelName);
-        var gridWidth = (width - 3) / GridStep + 1;
-        var gridHeight = (height - 3) / GridStep + 1;
+        var maze = new Maze(width, height, Settings.WallRune, Settings.WallColor, Settings.LevelName);
+        var gridWidth = (width - CorridorNodeWidth - 1) / GridStep + 1;
+        var gridHeight = (height - CorridorNodeWidth - 1) / GridStep + 1;
         var visited = new bool[gridWidth, gridHeight];
 
         PlaceRooms(maze, gridWidth, gridHeight);
@@ -54,7 +54,7 @@ public sealed class MazeGenerator
     }
 
     /// <summary>A bejáratnál garantált 3×3-as belső teret készít a négyfős partinak.</summary>
-    private static void CreateStartingRoom(Maze maze)
+    protected virtual void CreateStartingRoom(Maze maze)
     {
         const int size = 3;
         var room = new Room(new Position(1, 1), size, size);
@@ -82,72 +82,74 @@ public sealed class MazeGenerator
         visited[gridPosition.X, gridPosition.Y] = true;
         CarveNode(maze, gridPosition);
 
-        foreach (var direction in Directions.OrderBy(_ => _random.Next()))
+        foreach (var direction in Directions.OrderBy(_ => Random.Next()))
         {
             var next = gridPosition + direction;
             if (!IsInsideGrid(next, gridWidth, gridHeight) || visited[next.X, next.Y]) continue;
 
-            var isWide = _random.NextDouble() < _settings.DoubleWidthCorridorChance;
-            CarveConnection(maze, gridPosition, direction, isWide);
+            CarveConnection(maze, gridPosition, direction, RollConnectionWidth());
             CarveFrom(maze, next, visited, gridWidth, gridHeight);
         }
     }
 
-    private static void CarveNode(Maze maze, Position gridPosition)
+    protected virtual int RollConnectionWidth() =>
+        Random.NextDouble() < Settings.DoubleWidthCorridorChance ? 2 : 1;
+
+    private void CarveNode(Maze maze, Position gridPosition)
     {
         var topLeft = ToMazePosition(gridPosition);
-        for (var y = topLeft.Y; y < topLeft.Y + CorridorWidth; y++)
-        for (var x = topLeft.X; x < topLeft.X + CorridorWidth; x++)
+        for (var y = topLeft.Y; y < topLeft.Y + CorridorNodeWidth; y++)
+        for (var x = topLeft.X; x < topLeft.X + CorridorNodeWidth; x++)
             CarveOutsideRoomFootprints(maze, new Position(x, y));
     }
 
-    private void CarveConnection(Maze maze, Position gridPosition, Direction direction, bool isWide)
+    private void CarveConnection(Maze maze, Position gridPosition, Direction direction, int width)
     {
         var topLeft = ToMazePosition(gridPosition);
-        var connectionLength = GridStep - CorridorWidth;
+        var connectionLength = GridStep - CorridorNodeWidth;
         if (direction is Direction.Left or Direction.Right)
         {
-            var wallX = direction == Direction.Right ? topLeft.X + CorridorWidth : topLeft.X - 1;
-            CarveHorizontalConnection(maze, wallX, topLeft.Y, direction == Direction.Right ? 1 : -1, connectionLength, isWide);
+            var wallX = direction == Direction.Right ? topLeft.X + CorridorNodeWidth : topLeft.X - 1;
+            CarveHorizontalConnection(maze, wallX, topLeft.Y, direction == Direction.Right ? 1 : -1, connectionLength, width);
             return;
         }
 
-        var wallY = direction == Direction.Down ? topLeft.Y + CorridorWidth : topLeft.Y - 1;
-        CarveVerticalConnection(maze, topLeft.X, wallY, direction == Direction.Down ? 1 : -1, connectionLength, isWide);
+        var wallY = direction == Direction.Down ? topLeft.Y + CorridorNodeWidth : topLeft.Y - 1;
+        CarveVerticalConnection(maze, topLeft.X, wallY, direction == Direction.Down ? 1 : -1, connectionLength, width);
     }
 
-    private static void CarveHorizontalConnection(Maze maze, int startX, int y, int step, int length, bool isWide)
+    private static void CarveHorizontalConnection(Maze maze, int startX, int y, int step, int length, int width)
     {
         for (var offset = 0; offset < length; offset++)
         {
-            CarveOutsideRoomFootprints(maze, new Position(startX + offset * step, y));
-            if (isWide) CarveOutsideRoomFootprints(maze, new Position(startX + offset * step, y + 1));
+            for (var lane = 0; lane < width; lane++)
+                CarveOutsideRoomFootprints(maze, new Position(startX + offset * step, y + lane));
         }
     }
 
-    private static void CarveVerticalConnection(Maze maze, int x, int startY, int step, int length, bool isWide)
+    private static void CarveVerticalConnection(Maze maze, int x, int startY, int step, int length, int width)
     {
         for (var offset = 0; offset < length; offset++)
         {
-            CarveOutsideRoomFootprints(maze, new Position(x, startY + offset * step));
-            if (isWide) CarveOutsideRoomFootprints(maze, new Position(x + 1, startY + offset * step));
+            for (var lane = 0; lane < width; lane++)
+                CarveOutsideRoomFootprints(maze, new Position(x + lane, startY + offset * step));
         }
     }
 
     private void PlaceRooms(Maze maze, int gridWidth, int gridHeight)
     {
         var placedRooms = 0;
-        var attempts = _settings.RoomCount * 400;
-        for (var attempt = 0; attempt < attempts && placedRooms < _settings.RoomCount; attempt++)
+        var attempts = Settings.RoomCount * 400;
+        for (var attempt = 0; attempt < attempts && placedRooms < Settings.RoomCount; attempt++)
         {
-            var width = _random.Next(_settings.MinimumRoomSize, _settings.MaximumRoomSize + 1);
-            var height = _random.Next(_settings.MinimumRoomSize, _settings.MaximumRoomSize + 1);
-            var topLeft = new Position(_random.Next(2, maze.Width - width), _random.Next(2, maze.Height - height));
+            var width = Random.Next(Settings.MinimumRoomSize, Settings.MaximumRoomSize + 1);
+            var height = Random.Next(Settings.MinimumRoomSize, Settings.MaximumRoomSize + 1);
+            var topLeft = new Position(Random.Next(2, maze.Width - width), Random.Next(2, maze.Height - height));
             if (TryReserveRoom(maze, topLeft, width, height, gridWidth, gridHeight)) placedRooms++;
         }
     }
 
-    private static bool TryReserveRoom(Maze maze, Position topLeft, int width, int height, int gridWidth, int gridHeight)
+    private bool TryReserveRoom(Maze maze, Position topLeft, int width, int height, int gridWidth, int gridHeight)
     {
         if (OverlapsStartingRoom(maze, topLeft, width, height) ||
             CoversPosition(topLeft, width, height, maze.Entrance) ||
@@ -163,19 +165,19 @@ public sealed class MazeGenerator
 
     private void PlaceMapObjects(Maze maze)
     {
-        PlaceObjects(maze, _settings.TreasureChestCount, GetRoomPositions(maze).Where(position =>
+        PlaceObjects(maze, Settings.TreasureChestCount, GetRoomPositions(maze).Where(position =>
             maze.Rooms.FirstOrDefault(room => room.Contains(position))?.AllowsRandomContent == true),
-            position => new TreasureChest(position, _settings.TreasureGoldRange.Roll(_random)), maze.AddTreasureChest);
+            position => new TreasureChest(position, Settings.TreasureGoldRange.Roll(Random)), maze.AddTreasureChest);
         PlaceRoomEncounters(maze);
         PlaceCorridorEncounters(maze);
     }
 
     private void PlaceRoomEncounters(Maze maze)
     {
-        var rooms = maze.Rooms.Where(room => room.AllowsRandomContent).OrderBy(_ => _random.Next()).ToList();
+        var rooms = maze.Rooms.Where(room => room.AllowsRandomContent).OrderBy(_ => Random.Next()).ToList();
         var encounters = ExpandEncounters(_roomEncounters)
             .OrderByDescending(encounter => encounter.Members.Any(member => member.Role == EnemyGroupRole.Leader))
-            .ThenBy(_ => _random.Next()).ToList();
+            .ThenBy(_ => Random.Next()).ToList();
         foreach (var encounter in encounters)
         {
             var members = RollMembers(encounter);
@@ -185,7 +187,7 @@ public sealed class MazeGenerator
             rooms.RemoveAt(roomIndex);
             var center = new Position(room.TopLeft.X + room.Width / 2, room.TopLeft.Y + room.Height / 2);
             var positions = AvailableRoomPositions(maze, room)
-                .OrderBy(position => Manhattan(position, center)).ThenBy(_ => _random.Next())
+                .OrderBy(position => Manhattan(position, center)).ThenBy(_ => Random.Next())
                 .Take(members.Count).ToList();
             PlaceGroup(maze, encounter, members, positions);
         }
@@ -193,13 +195,13 @@ public sealed class MazeGenerator
 
     private void PlaceCorridorEncounters(Maze maze)
     {
-        foreach (var encounter in ExpandEncounters(_corridorEncounters).OrderBy(_ => _random.Next()))
+        foreach (var encounter in ExpandEncounters(_corridorEncounters).OrderBy(_ => Random.Next()))
         {
             var members = RollMembers(encounter);
             var available = GetOutdoorPositions(maze).Where(position => maze.GetObjectAt(position) is null &&
                 position != maze.Entrance && position != maze.Exit).ToHashSet();
             if (available.Count < members.Count) return;
-            var anchor = available.ElementAt(_random.Next(available.Count));
+            var anchor = available.ElementAt(Random.Next(available.Count));
             var positions = ConnectedPositions(anchor, available, members.Count);
             if (positions.Count < members.Count) continue;
             PlaceGroup(maze, encounter, members, positions);
@@ -207,12 +209,12 @@ public sealed class MazeGenerator
     }
 
     private IEnumerable<ResolvedEnemyEncounter> ExpandEncounters(IEnumerable<ResolvedEnemyEncounter> encounters) =>
-        encounters.SelectMany(encounter => Enumerable.Repeat(encounter, encounter.GroupCount.Roll(_random)));
+        encounters.SelectMany(encounter => Enumerable.Repeat(encounter, encounter.GroupCount.Roll(Random)));
 
     private List<(EnemyDefinition Definition, EnemyGroupRole Role)> RollMembers(ResolvedEnemyEncounter encounter) =>
         encounter.Members
             .OrderBy(member => member.Role == EnemyGroupRole.Leader ? 0 : 1)
-            .SelectMany(member => Enumerable.Repeat((member.Definition, member.Role), member.Count.Roll(_random)))
+            .SelectMany(member => Enumerable.Repeat((member.Definition, member.Role), member.Count.Roll(Random)))
             .ToList();
 
     private List<Position> AvailableRoomPositions(Maze maze, Room room) => room.InteriorPositions()
@@ -265,7 +267,7 @@ public sealed class MazeGenerator
             return;
         }
 
-        var roll = _random.Next(100);
+        var roll = Random.Next(100);
         if (roll >= 55)
         {
             foreach (var enemy in group) enemy.ConfigureAwareness(EnemyAlertness.Alert);
@@ -290,12 +292,12 @@ public sealed class MazeGenerator
     {
         var isInRoom = maze.Rooms.Any(room => room.Contains(position));
         var stationaryChance = isInRoom ? 80 : 10;
-        var roll = _random.Next(100);
+        var roll = Random.Next(100);
         var profile = configuredProfile ?? (roll < stationaryChance
             ? EnemyMovementProfile.Stationary
             : (roll - stationaryChance) % 2 == 0 ? EnemyMovementProfile.Wander : EnemyMovementProfile.Patrol);
-        var enemy = new ConfiguredEnemy(position, definition, _random);
-        enemy.ConfigureMovement(profile, Directions[_random.Next(Directions.Length)]);
+        var enemy = new ConfiguredEnemy(position, definition, Random);
+        enemy.ConfigureMovement(profile, Directions[Random.Next(Directions.Length)]);
         return enemy;
     }
 
@@ -329,7 +331,7 @@ public sealed class MazeGenerator
         var oppositeConnection = GetRoomDoorCandidates(room)
             .Where(candidate => GetRoomDoorSide(room, candidate.Door) == Opposite(primarySide))
             .Where(candidate => maze.IsWalkable(candidate.Outside))
-            .OrderBy(_ => _random.Next())
+            .OrderBy(_ => Random.Next())
             .FirstOrDefault();
         if (oppositeConnection.Door != default)
             maze.PlaceDoor(oppositeConnection.Door, RollDoorState());
@@ -413,7 +415,7 @@ public sealed class MazeGenerator
         var available = candidates.Where(position => maze.GetObjectAt(position) is null && position != maze.Entrance && position != maze.Exit).ToList();
         for (var count = 0; count < requestedCount && available.Count > 0; count++)
         {
-            var index = _random.Next(available.Count);
+            var index = Random.Next(available.Count);
             var position = available[index];
             available.RemoveAt(index);
             add(factory(position));
@@ -453,7 +455,7 @@ public sealed class MazeGenerator
 
     private DoorState RollDoorState()
     {
-        var roll = _random.Next(100);
+        var roll = Random.Next(100);
         return roll < 80 ? DoorState.Locked : roll < 90 ? DoorState.Closed : DoorState.Open;
     }
 
@@ -485,7 +487,7 @@ public sealed class MazeGenerator
         }
     }
 
-    private static Position ToMazePosition(Position gridPosition) => new(1 + gridPosition.X * GridStep, 1 + gridPosition.Y * GridStep);
+    private Position ToMazePosition(Position gridPosition) => new(1 + gridPosition.X * GridStep, 1 + gridPosition.Y * GridStep);
     private static bool IsInsideGrid(Position position, int width, int height) => position.X >= 0 && position.X < width && position.Y >= 0 && position.Y < height;
 
     private static void ValidateSettings(MazeGenerationSettings settings)
@@ -501,6 +503,8 @@ public sealed class MazeGenerator
                 !ids.Contains(rule.Key) || !Enum.IsDefined(rule.Value)))
             throw new ArgumentException("Hibás vagy elhelyezhetetlen speciálisszoba-konfiguráció.", nameof(settings));
         if (settings.DoubleWidthCorridorChance is < 0 or > 1) throw new ArgumentOutOfRangeException(nameof(settings.DoubleWidthCorridorChance));
+        if (settings.WideCorridorNarrowingChance is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(settings.WideCorridorNarrowingChance));
         if (settings.RoomCount < 0) throw new ArgumentOutOfRangeException(nameof(settings.RoomCount));
         if (settings.MinimumRoomSize < 2 || settings.MaximumRoomSize < settings.MinimumRoomSize)
             throw new ArgumentException("A szobaméreteknek legalább 2-nek és növekvő sorrendűnek kell lenniük.");

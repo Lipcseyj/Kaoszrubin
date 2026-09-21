@@ -604,13 +604,13 @@ public sealed partial class Game
     private IReadOnlyList<Position> RevealFor(LiveCharacter character, Position position,
         bool advanceEnemyMemory = false)
     {
-        var exitWasRevealed = _fogOfWar.IsRevealed(_maze.Exit);
+        var exitWasRevealed = IsLevelExitDiscovered();
         var sources = LivingPartyWithPositions().Select(entry => new PartyPerceptionSource(entry.Position,
             CharacterClassRules.VisionRange(entry.Character, CurrentLevelVisionModifier),
             CharacterClassRules.HearingRange(entry.Character),
             CharacterClassRules.DetectionBonus(entry.Character))).ToArray();
         var revealed = _fogOfWar.UpdatePartyVisibility(_maze, sources, advanceEnemyMemory);
-        if (_fogOfWar.IsRevealed(_maze.Exit))
+        if (IsLevelExitDiscovered())
         {
             _backgroundMusic.MarkExitDiscovered();
             if (!exitWasRevealed) ProcessQuestProgressChanges(_questManager.RegisterLocationDiscovered(QuestLocation.Exit));

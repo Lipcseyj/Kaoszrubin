@@ -1,5 +1,85 @@
 internal static partial class Program
 {
+    static void WideMazeUsesThreeCellCorridors()
+    {
+        var level = MazeLevelConfigurations.Get(6);
+        Assert(level.Layout is WideMazeLayoutConfiguration { AreaCount: { Minimum: 2, Maximum: 2 } },
+            "A nagy csarnokok szintje nem a külön széles, kétterületes pályatípust használja.");
+        Assert(level.CorridorEncounters.Any(encounter => encounter.Members.Count > 1),
+            "A széles pálya folyosóin nincs többféle szörnyből álló csapat konfigurálva.");
+        var settings = new MazeGenerationSettings
+        {
+            RoomCount = 0,
+            TreasureChestCount = 0,
+            WideCorridorNarrowingChance = 0
+        };
+        var maze = new WideMazeGenerator(settings, [], [], new Random(117)).Create(43, 31);
+        const int step = 6;
+        const int width = 3;
+        for (var nodeY = 1; nodeY + width <= maze.Height; nodeY += step)
+        for (var nodeX = 1; nodeX + width <= maze.Width; nodeX += step)
+        {
+            for (var y = nodeY; y < nodeY + width; y++)
+            for (var x = nodeX; x < nodeX + width; x++)
+                Assert(maze.IsWalkable(new Position(x, y)), "A széles generátor egyik csomópontja nem 3×3-as.");
+
+            if (nodeX + step + width <= maze.Width && maze.IsWalkable(new Position(nodeX + width, nodeY)))
+                for (var offset = 0; offset < step - width; offset++)
+                for (var lane = 0; lane < width; lane++)
+                    Assert(maze.IsWalkable(new Position(nodeX + width + offset, nodeY + lane)),
+                        "Egy vízszintes széles folyosó nem három mező széles.");
+            if (nodeY + step + width <= maze.Height && maze.IsWalkable(new Position(nodeX, nodeY + width)))
+                for (var offset = 0; offset < step - width; offset++)
+                for (var lane = 0; lane < width; lane++)
+                    Assert(maze.IsWalkable(new Position(nodeX + lane, nodeY + width + offset)),
+                        "Egy függőleges széles folyosó nem három mező széles.");
+        }
+    }
+
+    static void MazePassageSurvivesSaveRoundTrip()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var character = CreateCharacter("Átjáróőr");
+        var roster = new CharacterRoster();
+        roster.Add(character);
+        roster.Select(character);
+        var maze = new Maze(9, 9);
+        maze.Carve(maze.Entrance);
+        var exit = new Position(7, 7);
+        maze.Carve(exit);
+        maze.PlaceExit(exit);
+        maze.AddPassage(new MazePassage(exit, "AREA_2", new Position(2, 2)));
+        var secondMaze = new Maze(9, 9);
+        secondMaze.Carve(secondMaze.Entrance);
+        secondMaze.AddPassage(new MazePassage(secondMaze.Entrance, "AREA_1", exit));
+        var fog = new FogOfWar(maze.Width, maze.Height, 5);
+        var secondFog = new FogOfWar(secondMaze.Width, secondMaze.Height, 5);
+        var mapper = new GameStateMapper(data, roster, character);
+        var save = mapper.Create(6, maze, new Player(maze.Entrance, character), fog, Direction.Right,
+            [maze.Entrance], false, false, false, false, null, DateTime.UtcNow, new Dictionary<Enemy, DateTime>(),
+            [], []);
+        var secondSave = mapper.Create(6, secondMaze, new Player(secondMaze.Entrance, character), secondFog,
+            Direction.Right, [secondMaze.Entrance], false, false, false, false, null, DateTime.UtcNow,
+            new Dictionary<Enemy, DateTime>(), [], []);
+        save.ActiveAreaId = "AREA_1";
+        save.Areas =
+        [
+            new DungeonAreaSaveData("AREA_1", save.Maze, save.Fog),
+            new DungeonAreaSaveData("AREA_2", secondSave.Maze, secondSave.Fog)
+        ];
+        var json = System.Text.Json.JsonSerializer.Serialize(save);
+        var serialized = System.Text.Json.JsonSerializer.Deserialize<GameSaveData>(json)!;
+        var restored = mapper.Restore(serialized);
+        var passage = restored.Maze.GetPassageAt(exit);
+        var level = new DungeonLevel(
+            [new DungeonArea("AREA_1", maze, fog), new DungeonArea("AREA_2", secondMaze, secondFog)], "AREA_1");
+        level.Activate("AREA_2");
+        Assert(passage is { DestinationAreaId: "AREA_2", DestinationPosition: { X: 2, Y: 2 } } &&
+               serialized.Areas.Select(area => area.Id).SequenceEqual(["AREA_1", "AREA_2"]) &&
+               level.ActiveArea.Maze.GetPassageAt(secondMaze.Entrance)?.DestinationAreaId == "AREA_1",
+            "A többterületes mentés elvesztette az átjárót vagy a területazonosítót.");
+    }
+
     static void TrapConfigurationScalesByMazeLevel()
     {
         var first = MazeLevelConfigurations.Get(1);

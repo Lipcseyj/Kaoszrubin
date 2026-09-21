@@ -46,10 +46,21 @@ public sealed partial class Game
 
         instanceRegistry:
             _questNpcInstanceRegistry,
-        hasDiscoveredLocation: location => location == QuestLocation.Exit &&
-            _fogOfWar is not null && _maze is not null && _fogOfWar.IsRevealed(_maze.Exit));
+        hasDiscoveredLocation: location => location == QuestLocation.Exit && IsLevelExitDiscovered(),
+        getMazes: () => _dungeonLevel is null ? [_maze] :
+            _dungeonLevel.Areas.Select(area => area.Maze));
 
         return ret;
+    }
+
+    private bool IsLevelExitDiscovered()
+    {
+        if (_dungeonLevel is not null)
+        {
+            var finalArea = _dungeonLevel.Areas[^1];
+            return finalArea.FogOfWar.IsRevealed(finalArea.Maze.Exit);
+        }
+        return _fogOfWar is not null && _maze is not null && _fogOfWar.IsRevealed(_maze.Exit);
     }
 
     private QuestManager CreateQuestManager(GameDataCatalog gameData)
@@ -764,19 +775,14 @@ public sealed partial class Game
             character.ResetLevelRelentless();
         }
         var configuration = MazeLevelConfigurations.Get(_mazeLevel);
-        ResolvedEnemyEncounter ResolveEncounter(EnemyEncounterConfiguration encounter) => new(
-            encounter.GroupCount,
-            encounter.Members.Select(member => new ResolvedEnemyGroupMember(
-                _gameData.GetEnemy(member.EnemyId), member.Count, member.Role)).ToList(),
-            encounter.MovementProfile);
-        _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
-            configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
-            configuration.CorridorEncounters.Select(ResolveEncounter).ToList());
-        _maze = _generator.Create(MazeWidth, MazeHeight);
+        _dungeonLevel = GenerateDungeonLevel(configuration);
+        _maze = _dungeonLevel.ActiveArea.Maze;
+        _fogOfWar = _dungeonLevel.ActiveArea.FogOfWar;
 
         foreach (var roomId in configuration.QuestRoomIds) 
         { 
-            if (_maze.GetRoomByContentId(roomId) is null) throw new InvalidOperationException($"A generált pályáról hiányzik a kötelező questroom: {roomId}."); 
+            if (!_dungeonLevel.Areas.Any(area => area.Maze.GetRoomByContentId(roomId) is not null))
+                throw new InvalidOperationException($"A generált pályáról hiányzik a kötelező questroom: {roomId}.");
         }
 
         _player = new Player(_maze.Entrance, PartyLeader);
@@ -785,13 +791,11 @@ public sealed partial class Game
         _nextPartyMoves.Clear();
         PlacePartyMembersNear(_player.Position);
         PlaceCarriedTemporaryFollowersNear(_player.Position);
-        PlaceTraps(configuration);
+        PlaceTrapsAcrossAreas(configuration);
         PlaceFirstSinglePlayerCompanion();
         PlaceConfiguredWorldNpcs();
-        QuestChestPlacement.Place(_maze, _gameData, configuration.QuestChestPlacements);
-        PlaceQuestRoomEnemies(configuration);
+        PlaceSpecialRoomContent(configuration);
         CaptureExpeditionEnemyTemplates();
-        _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
         RevealFor(PartyLeader, _player.Position);
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
         _battleStarted = false;
@@ -806,10 +810,94 @@ public sealed partial class Game
         }
         CheckBossDiscovery(_maze.Enemies.Where(enemy => _fogOfWar.IsRevealed(enemy.Position)));
         PlaySessionSound(SoundEffect.LevelStart);
-        _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, _fogOfWar.IsRevealed(_maze.Exit));
+        _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, IsLevelExitDiscovered());
         _activeInnDeparture = null;
         if (showLevelImage) ShowLevelImage();
         LogMazeAccessibilityCheck();
+    }
+
+    private DungeonLevel GenerateDungeonLevel(MazeLevelConfiguration configuration)
+    {
+        ResolvedEnemyEncounter ResolveEncounter(EnemyEncounterConfiguration encounter) => new(
+            encounter.GroupCount,
+            encounter.Members.Select(member => new ResolvedEnemyGroupMember(
+                _gameData.GetEnemy(member.EnemyId), member.Count, member.Role)).ToList(),
+            encounter.MovementProfile);
+
+        var layout = configuration.Layout ??
+                     new ClassicMazeLayoutConfiguration(configuration.DoubleWidthCorridorChance);
+        if (layout is WideMazeLayoutConfiguration invalidWide &&
+            (invalidWide.AreaCount.Minimum < 1 || invalidWide.AreaCount.Maximum < invalidWide.AreaCount.Minimum ||
+             invalidWide.NarrowingChance is < 0 or > 1))
+            throw new InvalidOperationException("A széles pálya területszáma vagy szűkületi esélye érvénytelen.");
+        var areaCount = layout is WideMazeLayoutConfiguration wide ? wide.AreaCount.Roll(_random) : 1;
+        if (areaCount <= 0) throw new InvalidOperationException("A szint területszáma nem lehet nulla.");
+
+        var roomBuckets = DistributeEncounters(configuration.RoomEncounters.Select(ResolveEncounter), areaCount);
+        var corridorBuckets = DistributeEncounters(configuration.CorridorEncounters.Select(ResolveEncounter), areaCount);
+        var rolledSettings = configuration.CreateGenerationSettings(_random);
+        var areas = new List<DungeonArea>(areaCount);
+        for (var index = 0; index < areaCount; index++)
+        {
+            var isFinal = index == areaCount - 1;
+            var settings = AreaGenerationSettings(rolledSettings, index, areaCount, isFinal);
+            _generator = layout.Style == MazeLayoutStyle.Wide
+                ? new WideMazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random)
+                : new MazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random);
+            var maze = _generator.Create(MazeWidth, MazeHeight);
+            areas.Add(new DungeonArea($"AREA_{index + 1}", maze,
+                new FogOfWar(maze.Width, maze.Height, CharacterClassRules.BaseVisionRange)));
+        }
+
+        for (var index = 0; index < areas.Count - 1; index++)
+        {
+            var source = areas[index];
+            var destination = areas[index + 1];
+            source.Maze.AddPassage(new MazePassage(source.Maze.Exit, destination.Id, destination.Maze.Entrance));
+            destination.Maze.AddPassage(new MazePassage(destination.Maze.Entrance, source.Id, source.Maze.Exit));
+        }
+        return new DungeonLevel(areas, areas[0].Id);
+    }
+
+    private List<ResolvedEnemyEncounter>[] DistributeEncounters(
+        IEnumerable<ResolvedEnemyEncounter> encounters, int areaCount)
+    {
+        if (areaCount == 1) return [encounters.ToList()];
+        var result = Enumerable.Range(0, areaCount).Select(_ => new List<ResolvedEnemyEncounter>()).ToArray();
+        foreach (var encounter in encounters)
+        {
+            var total = encounter.GroupCount.Roll(_random);
+            var offset = _random.Next(areaCount);
+            for (var group = 0; group < total; group++)
+                result[(offset + group) % areaCount].Add(encounter with { GroupCount = new IntRange(1, 1) });
+        }
+        return result;
+    }
+
+    private static MazeGenerationSettings AreaGenerationSettings(MazeGenerationSettings source,
+        int areaIndex, int areaCount, bool includeSpecialRooms)
+    {
+        static int Share(int total, int index, int count) => total / count + (index < total % count ? 1 : 0);
+        var specialCount = includeSpecialRooms ? source.QuestRoomIds.Count + source.BossRoomIds.Count : 0;
+        return new MazeGenerationSettings
+        {
+            DoubleWidthCorridorChance = source.DoubleWidthCorridorChance,
+            WideCorridorNarrowingChance = source.WideCorridorNarrowingChance,
+            RoomCount = Math.Max(specialCount, Share(source.RoomCount, areaIndex, areaCount)),
+            MinimumRoomSize = source.MinimumRoomSize,
+            MaximumRoomSize = source.MaximumRoomSize,
+            TreasureChestCount = Share(source.TreasureChestCount, areaIndex, areaCount),
+            TreasureGoldRange = source.TreasureGoldRange,
+            WallRune = source.WallRune,
+            WallColor = source.WallColor,
+            LevelName = areaCount == 1 ? source.LevelName : $"{source.LevelName} — {areaIndex + 1}/{areaCount}",
+            QuestRoomIds = includeSpecialRooms ? source.QuestRoomIds : [],
+            BossRoomIds = includeSpecialRooms ? source.BossRoomIds : [],
+            SpecialRoomPlacements = includeSpecialRooms ? source.SpecialRoomPlacements
+                : new Dictionary<string, SpecialRoomPlacement>(),
+            QuestDoorRequirements = includeSpecialRooms ? source.QuestDoorRequirements
+                : new Dictionary<string, QuestId>()
+        };
     }
 
 
@@ -853,8 +941,9 @@ public sealed partial class Game
         PlaceTraps(configuration);
         QuestChestPlacement.Place(_maze, _gameData, configuration.QuestChestPlacements);
         PlaceQuestRoomEnemies(configuration);
-        CaptureExpeditionEnemyTemplates();
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
+        _dungeonLevel = new DungeonLevel([new DungeonArea("AREA_1", _maze, _fogOfWar)], "AREA_1");
+        CaptureExpeditionEnemyTemplates();
         RevealFor(PartyLeader, _player.Position);
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
         _battleStarted = false;
@@ -863,7 +952,7 @@ public sealed partial class Game
         _renderer.DrawInventoryMessage(
             "⚔ Küldetéshelyszín: Sir Malrec sírkápolnája (5. nehézség). A katakombák állapota megmaradt.",
             ConsoleColor.Cyan);
-        _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, _fogOfWar.IsRevealed(_maze.Exit));
+        _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, IsLevelExitDiscovered());
         LogMazeAccessibilityCheck();
     }
 
@@ -980,9 +1069,10 @@ public sealed partial class Game
             ? $"CAMPAIGN_{_mazeLevel:00}" : suspended.LocationId;
         _difficultyLevel = suspended.DifficultyLevel > 0 ? suspended.DifficultyLevel : _mazeLevel;
         _suspendedCampaignState = null;
-        _maze = restored.Maze;
+        _dungeonLevel = RestoreDungeonLevel(suspended, restored, skipDepartedNpcCharacters: true);
+        _maze = _dungeonLevel.ActiveArea.Maze;
         _player = restored.Player;
-        _fogOfWar = restored.FogOfWar;
+        _fogOfWar = _dungeonLevel.ActiveArea.FogOfWar;
         _leaderFacing = restored.LeaderFacing;
         _formation = PartyFormationRules.Normalize(suspended.Formation,
             CharacterRoster.Party.Members.Select(member => member.Id), PartyLeader.Id);
@@ -1012,7 +1102,7 @@ public sealed partial class Game
         RevealFor(PartyLeader, _player.Position);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
         _renderer.DrawInventoryMessage("↩ Visszatértetek a katakombák ugyanazon pontjára.", ConsoleColor.Cyan);
-        _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, _fogOfWar.IsRevealed(_maze.Exit));
+        _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, IsLevelExitDiscovered());
     }
 
     private bool TryFinalizeRodericPermanentJoin()
@@ -1068,12 +1158,43 @@ public sealed partial class Game
               $"(pl. {report.UnreachablePositions[0].X},{report.UnreachablePositions[0].Y}).");
     }
 
-    private void PlaceTraps(MazeLevelConfiguration configuration)
+    private void PlaceTrapsAcrossAreas(MazeLevelConfiguration configuration)
+    {
+        var total = configuration.TrapCount.Roll(_random);
+        var active = _dungeonLevel.ActiveArea;
+        for (var index = 0; index < _dungeonLevel.Areas.Count; index++)
+        {
+            var area = _dungeonLevel.Areas[index];
+            _maze = area.Maze;
+            _fogOfWar = area.FogOfWar;
+            var count = total / _dungeonLevel.Areas.Count +
+                        (index < total % _dungeonLevel.Areas.Count ? 1 : 0);
+            PlaceTraps(configuration, count);
+        }
+        _maze = active.Maze;
+        _fogOfWar = active.FogOfWar;
+    }
+
+    private void PlaceSpecialRoomContent(MazeLevelConfiguration configuration)
+    {
+        var active = _dungeonLevel.ActiveArea;
+        var specialArea = _dungeonLevel.Areas.LastOrDefault(area =>
+            configuration.QuestRoomIds.Concat(configuration.BossRoomIds)
+                .Any(id => area.Maze.GetRoomByContentId(id) is not null)) ?? active;
+        _maze = specialArea.Maze;
+        _fogOfWar = specialArea.FogOfWar;
+        QuestChestPlacement.Place(_maze, _gameData, configuration.QuestChestPlacements);
+        PlaceQuestRoomEnemies(configuration);
+        _maze = active.Maze;
+        _fogOfWar = active.FogOfWar;
+    }
+
+    private void PlaceTraps(MazeLevelConfiguration configuration, int? requestedCount = null)
     {
         var definitions = configuration.TrapIds.Select(_gameData.GetTrap)
             .Where(trap => trap.MinimumLevel <= _difficultyLevel).ToArray();
         if (definitions.Length == 0) return;
-        var desiredCount = configuration.TrapCount.Roll(_random);
+        var desiredCount = requestedCount ?? configuration.TrapCount.Roll(_random);
         var candidates = new List<Position>();
         for (var y = 0; y < _maze.Height; y++)
         for (var x = 0; x < _maze.Width; x++)
@@ -1081,6 +1202,7 @@ public sealed partial class Game
             var position = new Position(x, y);
             if (!_maze.IsWalkable(position) || position == _maze.Entrance || position == _maze.Exit ||
                 _maze.StartingRoom?.Contains(position) == true || _maze.GetObjectAt(position) is not null ||
+                _maze.GetPassageAt(position) is not null ||
                 _maze.Rooms.Any(room => !room.AllowsRandomContent && room.Contains(position)) ||
                 Manhattan(position, _maze.Entrance) < 6 ||
                 _maze.Doors.Any(door => Manhattan(door.Position, position) <= 1)) continue;
@@ -1136,8 +1258,15 @@ public sealed partial class Game
 
     private void PlaceConfiguredWorldNpcs()
     {
+        var activeArea = _dungeonLevel.ActiveArea;
         foreach (var encounter in _gameData.NpcEncounters.Where(value => value.MazeLevel == _mazeLevel))
         {
+            var targetArea = encounter.QuestRoomId is { } targetRoomId
+                ? _dungeonLevel.Areas.FirstOrDefault(area => area.Maze.GetRoomByContentId(targetRoomId) is not null)
+                : activeArea;
+            targetArea ??= activeArea;
+            _maze = targetArea.Maze;
+            _fogOfWar = targetArea.FogOfWar;
             var definition = _gameData.GetNpc(encounter.NpcId);
             if (definition.Unique && CharacterRoster.Characters.Any(character =>
                     string.Equals(character.Name, definition.Name, StringComparison.OrdinalIgnoreCase))) 
@@ -1190,6 +1319,8 @@ public sealed partial class Game
                 friendliness: friendliness, behavior: definition.Behavior,
                 storyId: definition.StoryId));
         }
+        _maze = activeArea.Maze;
+        _fogOfWar = activeArea.FogOfWar;
     }
 
     private void PlaceQuestRoomEnemies(MazeLevelConfiguration configuration)

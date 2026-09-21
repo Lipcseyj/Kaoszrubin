@@ -80,7 +80,9 @@ internal sealed class GameStateMapper
                     entry.State.IsCurseActivated, entry.State.BoundCharacterId?.Value,
                     entry.State.IsPurified, entry.State.DurabilityDamage)).ToList())).ToList(),
             Traps = maze.Traps.Select(trap => new TrapSaveData(trap.Position, trap.Definition.Id, trap.State,
-                trap.DetectionAttempted, trap.FailedDisarmAttempts)).ToList()
+                trap.DetectionAttempted, trap.FailedDisarmAttempts)).ToList(),
+            Passages = maze.Passages.Select(passage => new MazePassageSaveData(passage.Position,
+                passage.DestinationAreaId, passage.DestinationPosition)).ToList()
         };
         for (var y = 0; y < maze.Height; y++)
         for (var x = 0; x < maze.Width; x++) mazeData.TileCodePoints.Add(maze.Tiles[x, y].Value);
@@ -145,6 +147,9 @@ internal sealed class GameStateMapper
             maze.PlaceDoor(door.Position, door.State, door.QuestGate?.Key, door.QuestGate?.AccessGranted ?? false);
         }
         maze.PlaceExit(state.Maze.Exit);
+        foreach (var passage in state.Maze.Passages ?? [])
+            maze.AddPassage(new MazePassage(passage.Position, passage.DestinationAreaId,
+                passage.DestinationPosition));
         var chestIds = new HashSet<QuestChestId>();
         foreach (var chest in state.Maze.Chests)
         {

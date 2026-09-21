@@ -137,6 +137,23 @@ public sealed partial class Game
         var state = _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
             _leaderTrail, _partyHoldingPosition, _partyRegrouping, _partyAttackMode, _hasRestedThisLevel, _partyScatterUntil,
             _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
+        if (_dungeonLevel is not null)
+        {
+            state.ActiveAreaId = _dungeonLevel.ActiveAreaId;
+            var now = DateTime.UtcNow;
+            state.Areas = _dungeonLevel.Areas.Select(area =>
+            {
+                if (area == _dungeonLevel.ActiveArea)
+                    return new DungeonAreaSaveData(area.Id, state.Maze, state.Fog);
+                var schedule = area.Maze.Enemies.ToDictionary(enemy => enemy, enemy => now +
+                    area.EnemyMoveDelays.GetValueOrDefault(enemy, EnemyMoveInterval(enemy)));
+                var areaState = _gameStateMapper.Create(_mazeLevel, area.Maze,
+                    new Player(area.Maze.Entrance, PartyLeader), area.FogOfWar, _leaderFacing,
+                    [area.Maze.Entrance], false, false, false, _hasRestedThisLevel, null,
+                    _nextNeedsDrain, schedule, [], []);
+                return new DungeonAreaSaveData(area.Id, areaState.Maze, areaState.Fog);
+            }).ToList();
+        }
         state.QuestJournal = _questJournal.Values.Select(entry => new QuestJournalSaveData(LegacyQuestIdMap.ToExternalId(entry.Key.QuestId),
             entry.Status, entry.Progress, entry.ExperienceReward,
             entry.CompletionExperienceSummary, entry.CompletionItemRewardSummary)).ToList();
@@ -203,10 +220,11 @@ public sealed partial class Game
         _adHocConversationMazeLevel = state.AdHocConversationMazeLevel;
         _questJournal.Clear();
         _renderer.SetGoldenKeyCount(_collectedBossKeyIds.Count);
-        _maze = restored.Maze;
+        _dungeonLevel = RestoreDungeonLevel(state, restored);
+        _maze = _dungeonLevel.ActiveArea.Maze;
         CaptureExpeditionEnemyTemplates();
         _player = restored.Player;
-        _fogOfWar = restored.FogOfWar;
+        _fogOfWar = _dungeonLevel.ActiveArea.FogOfWar;
         _leaderFacing = restored.LeaderFacing;
         _formation = PartyFormationRules.Normalize(state.Formation,
             CharacterRoster.Party.Members.Select(member => member.Id), PartyLeader.Id);
@@ -240,7 +258,7 @@ public sealed partial class Game
         _renderer.DrawDeveloperMessage(_locationKind == AdventureLocationKind.Quest
             ? $"Mentés betöltve: {state.MainCharacterName}, {_maze.LevelName} ({_difficultyLevel}. nehézség)."
             : $"Mentés betöltve: {state.MainCharacterName}, {_mazeLevel}. pálya.");
-        _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, _fogOfWar.IsRevealed(_maze.Exit));
+        _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, IsLevelExitDiscovered());
         if (_locationKind == AdventureLocationKind.Quest &&
             string.Equals(_locationId, QuestLocationConfigurations.RodericMalrec, StringComparison.OrdinalIgnoreCase) &&
             FindRodericFollower() is { StoryStateId: "TRUSTED" } legacyRoderic)
@@ -250,9 +268,43 @@ public sealed partial class Game
             FindRodericFollower() is { StoryStateId: "MALREC_DEFEATED" })
             _pendingRodericReturn = true;
         else if (_locationKind == AdventureLocationKind.Campaign && _suspendedCampaignState is null &&
-                 FindRodericFollower() is { StoryStateId: "MALREC_READY" } &&
-                 _questManager.Roderic.Quests.OathbreakerKnight.State is (QuestState.Locked or QuestState.Available))
+                  FindRodericFollower() is { StoryStateId: "MALREC_READY" } &&
+                  _questManager.Roderic.Quests.OathbreakerKnight.State is (QuestState.Locked or QuestState.Available))
             _pendingRodericExpedition = true;
+    }
+
+    private DungeonLevel RestoreDungeonLevel(GameSaveData state, RestoredGameState activeState,
+        bool skipDepartedNpcCharacters = false)
+    {
+        var restoredAreas = new List<DungeonArea>();
+        var savedAreas = state.Areas ?? [];
+        if (savedAreas.Count == 0)
+        {
+            restoredAreas.Add(new DungeonArea("AREA_1", activeState.Maze, activeState.FogOfWar));
+            state.ActiveAreaId = "AREA_1";
+        }
+        else
+        {
+            foreach (var savedArea in savedAreas)
+            {
+                var areaState = string.Equals(savedArea.Id, state.ActiveAreaId, StringComparison.Ordinal)
+                    ? activeState
+                    : _gameStateMapper.Restore(new GameSaveData
+                    {
+                        MazeLevel = state.MazeLevel,
+                        Maze = savedArea.Maze,
+                        Fog = savedArea.Fog,
+                        PlayerPosition = new Position(2, 2)
+                    }, skipDepartedNpcCharacters);
+                var area = new DungeonArea(savedArea.Id, areaState.Maze, areaState.FogOfWar);
+                var now = DateTime.UtcNow;
+                foreach (var enemyMove in areaState.NextEnemyMoves)
+                    area.EnemyMoveDelays[enemyMove.Key] = enemyMove.Value > now
+                        ? enemyMove.Value - now : TimeSpan.Zero;
+                restoredAreas.Add(area);
+            }
+        }
+        return new DungeonLevel(restoredAreas, state.ActiveAreaId);
     }
 
     private void TryRestParty()
@@ -439,8 +491,11 @@ public sealed partial class Game
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
 
         var newlyRevealed = RevealFor(PartyLeader, _player.Position, advanceEnemyMemory: true);
-        var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit;
+        var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit &&
+                              _dungeonLevel.ActiveArea == _dungeonLevel.Areas[^1];
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
+        if (_maze.GetPassageAt(_player.Position) is not null)
+            _renderer.DrawInventoryMessage("⇄ Átjáró a szint másik területére. Enter: átkelés.", ConsoleColor.Cyan);
         CheckBossDiscoveryAt(newlyRevealed, PartyLeader);
         PlayCharacterStepSound(PartyLeader);
         CollectTreasureChest(PartyLeader, _player.Position, shareLootWithParty: true);
@@ -564,7 +619,9 @@ public sealed partial class Game
         }
         else
         {
-            var action = GameInputBindings.LeaderAction(key, _player.Position == _maze.Exit);
+            var action = GameInputBindings.LeaderAction(key,
+                _maze.GetPassageAt(_player.Position) is not null ||
+                _player.Position == _maze.Exit && _dungeonLevel.ActiveArea == _dungeonLevel.Areas[^1]);
             if (action is not null)
                 command = new LeaderActionCommand(_session.HostPlayerId, commandId, PartyLeader.Id, action.Value);
         }

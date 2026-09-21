@@ -2830,7 +2830,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         if (mapObject is null && fogOfWar.EnemyMemoryAt(position) is { } memory)
             return new MapCellVisual(new Rune('?'), memory.IsSoundCue ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray,
                 ConsoleColor.Black);
-        return new MapCellVisual(mapObject?.Symbol ?? maze.Tiles[position.X, position.Y],
+        return new MapCellVisual(mapObject?.Symbol ??
+            (maze.GetPassageAt(position) is not null ? MazePassage.Symbol : maze.Tiles[position.X, position.Y]),
             GetForegroundColor(maze, position), ConsoleColor.Black);
     }
 
@@ -2912,6 +2913,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             DoorState.Smashed => ConsoleColor.DarkGray,
             _ => ConsoleColor.Gray
         };
+        if (maze.GetPassageAt(position) is not null) return ConsoleColor.Cyan;
 
         return maze.Tiles[position.X, position.Y] switch
         {

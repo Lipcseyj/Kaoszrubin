@@ -19,6 +19,7 @@ public sealed class Maze
     private readonly List<WorldNpc> _worldNpcs = [];
     private readonly List<GroundItemPile> _groundItemPiles = [];
     private readonly List<MazeTrap> _traps = [];
+    private readonly Dictionary<Position, MazePassage> _passages = [];
     private readonly Dictionary<Position, MazeDoor> _doors = [];
     private readonly Dictionary<Position, TreasureChest> _treasureChestsByPosition = [];
     private readonly Dictionary<Position, Enemy> _enemiesByPosition = [];
@@ -38,6 +39,7 @@ public sealed class Maze
     public IReadOnlyList<WorldNpc> WorldNpcs => _worldNpcs;
     public IReadOnlyList<GroundItemPile> GroundItemPiles => _groundItemPiles;
     public IReadOnlyList<MazeTrap> Traps => _traps;
+    public IReadOnlyCollection<MazePassage> Passages => _passages.Values;
     public IReadOnlyCollection<MazeDoor> Doors => _doors.Values;
     public Room? StartingRoom { get; private set; }
     public int Width { get; }
@@ -110,6 +112,16 @@ public sealed class Maze
     }
 
     public MazeDoor? GetDoorAt(Position position) => _doors.GetValueOrDefault(position);
+    public MazePassage? GetPassageAt(Position position) => _passages.GetValueOrDefault(position);
+
+    public void AddPassage(MazePassage passage)
+    {
+        if (!IsWalkable(passage.Position) || GetObjectAt(passage.Position) is not null ||
+            _doors.ContainsKey(passage.Position))
+            throw new ArgumentException("Átjáró csak szabad, járható mezőre helyezhető.", nameof(passage));
+        _passages[passage.Position] = passage;
+        NavigationRevision++;
+    }
 
     public bool RemoveDoor(Position position)
     {

@@ -44,6 +44,7 @@ public sealed partial class Game : ISessionCommandHandler
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
     private readonly GameDataCatalog _gameData;
     private MazeGenerator _generator = null!;
+    private DungeonLevel _dungeonLevel = null!;
     private readonly ConsoleRenderer _renderer;
     private Maze _maze = null!;
     private Player _player = null!;

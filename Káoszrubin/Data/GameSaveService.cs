@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 26;
+    public const int CurrentVersion = 27;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -136,10 +136,19 @@ public static class GameSaveFormat
                 23 => MigrateVersion23To24(state),
                 24 => MigrateVersion24To25(state),
                 25 => MigrateVersion25To26(state),
+                26 => MigrateVersion26To27(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion26To27(GameSaveData state)
+    {
+        state.ActiveAreaId = "AREA_1";
+        state.Areas = [];
+        state.Version = 27;
         return state;
     }
 
@@ -363,6 +372,8 @@ public sealed class GameSaveData
     public int EnemyMoveRemainingMilliseconds { get; set; }
     public MazeSaveData Maze { get; set; } = new();
     public FogSaveData Fog { get; set; } = new();
+    public string ActiveAreaId { get; set; } = "AREA_1";
+    public List<DungeonAreaSaveData> Areas { get; set; } = [];
     public List<QuestJournalSaveData> QuestJournal { get; set; } = [];
     public QuestSaveData? Quests { get; set; }
     public List<string> UsedAdHocConversationIds { get; set; } = [];
@@ -397,7 +408,11 @@ public sealed class MazeSaveData
     public List<WorldNpcSaveData> Npcs { get; set; } = [];
     public List<GroundPileSaveData> GroundPiles { get; set; } = [];
     public List<TrapSaveData> Traps { get; set; } = [];
+    public List<MazePassageSaveData> Passages { get; set; } = [];
 }
+
+public sealed record DungeonAreaSaveData(string Id, MazeSaveData Maze, FogSaveData Fog);
+public sealed record MazePassageSaveData(Position Position, string DestinationAreaId, Position DestinationPosition);
 
 public sealed class FogSaveData
 {

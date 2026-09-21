@@ -1012,7 +1012,9 @@ internal sealed class InnController
         var leaders = configuration.RoomEncounters.SelectMany(encounter => encounter.Members)
             .Where(member => member.Role == EnemyGroupRole.Leader)
             .Select(member => _gameData.GetEnemy(member.EnemyId).Name).Distinct().ToList();
-        var corridorText = configuration.DoubleWidthCorridorChance switch
+        var corridorText = configuration.Layout is WideMazeLayoutConfiguration wide
+            ? $"{wide.AreaCount.Minimum}–{wide.AreaCount.Maximum} összekapcsolt terület, többnyire hárommezős folyosókkal"
+            : configuration.DoubleWidthCorridorChance switch
         {
             >= 0.9 => "szinte mindenütt széles, páros folyosók",
             >= 0.7 => "többnyire széles folyosók",

@@ -61,6 +61,7 @@ public sealed class MazeLevelConfiguration
     public required int Level { get; init; }
     public required string Name { get; init; }
     public double DoubleWidthCorridorChance { get; init; } = 0.80;
+    public MazeLayoutConfiguration? Layout { get; init; }
     public System.Text.Rune WallRune { get; init; } = new('█');
     public ConsoleColor WallColor { get; init; } = ConsoleColor.DarkGray;
     public required IntRange RoomCount { get; init; }
@@ -85,7 +86,12 @@ public sealed class MazeLevelConfiguration
 
     public MazeGenerationSettings CreateGenerationSettings(Random random) => new()
     {
-        DoubleWidthCorridorChance = DoubleWidthCorridorChance,
+        DoubleWidthCorridorChance = Layout is ClassicMazeLayoutConfiguration classic
+            ? classic.DoubleWidthCorridorChance
+            : DoubleWidthCorridorChance,
+        WideCorridorNarrowingChance = Layout is WideMazeLayoutConfiguration wide
+            ? wide.NarrowingChance
+            : 0,
         RoomCount = RoomCount.Roll(random),
         MinimumRoomSize = RoomSize.Minimum,
         MaximumRoomSize = RoomSize.Maximum,
@@ -309,6 +315,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 6,
                 Name = "A nagy csarnokok szintje",
+                Layout = new WideMazeLayoutConfiguration(new IntRange(2, 2), NarrowingChance: 0.12),
                 DoubleWidthCorridorChance = 0.20,
                 WallRune = new('▦'),
                 WallColor = ConsoleColor.DarkYellow,
@@ -326,7 +333,8 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Solo(MonsterIds.Ork, Amount.Few, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Hobgoblin, Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.Solo(MonsterIds.Gnoll, Amount.Few)
+                    Encounters.Mixed(MonsterIds.Gnoll, Amount.Few, MonsterIds.Ork, Amount.Few, Amount.Few,
+                        EnemyMovementProfile.Patrol)
                 ]
             },
             [7] = new()

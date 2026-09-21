@@ -284,14 +284,14 @@ public sealed partial class Game
         _leaderTrail.Add(_player.Position);
         _nextPartyMoves.Clear();
         PlacePartyMembersNear(_player.Position);
-        CaptureExpeditionEnemyTemplates();
-
         _formation = PartyFormationRules.CreateDefault(
             CharacterRoster.Party.Members.Select(member => member.Id), PartyLeader.Id);
         _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
         _renderer.CharacterSheet.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
+        _dungeonLevel = new DungeonLevel([new DungeonArea("AREA_1", _maze, _fogOfWar)], "AREA_1");
+        CaptureExpeditionEnemyTemplates();
         RevealFor(PartyLeader, _player.Position);
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
         _fogOfWar.ToggleDeveloperReveal();

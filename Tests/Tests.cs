@@ -238,6 +238,8 @@ internal static partial class Program
     ("A közös észlelés felfedi a lopakodót és pontatlan hangjelet ad", PartyPerceptionDetectsStealthAndSound),
     ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
     ("A csapdakészlet és darabszám a labirintusszinttel nehezedik", TrapConfigurationScalesByMazeLevel),
+    ("A széles pályatípus hárommezős folyosókat és külön konfigurációt használ", WideMazeUsesThreeCellCorridors),
+    ("A képernyőátjáró a mentésben és a világmodellben is megmarad", MazePassageSurvivesSaveRoundTrip),
     ("A mentés visszaállítja a szörny alatt fekvő csapdát", SavedTrapCanShareEnemyPosition),
     ("A tárgyátok esélye pályánként konfigurálható", CursedLootChanceIsConfiguredPerMazeLevel),
     ("A karakter kasztja, faja és átmeneti hatásai módosítják a látótávot", CharacterVisionRangeUsesClassRaceAndEffects),

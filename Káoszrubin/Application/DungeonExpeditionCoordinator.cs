@@ -6,7 +6,8 @@ using KaoszRubin.Domain.Combat;
 namespace KaoszRubin.Application;
 
 public sealed record ExpeditionEnemyTemplate(string DefinitionId, Position Position,
-    EnemyMovementProfile MovementProfile, Direction PatrolDirection, string? GroupId, EnemyGroupRole GroupRole);
+    EnemyMovementProfile MovementProfile, Direction PatrolDirection, string? GroupId, EnemyGroupRole GroupRole,
+    string AreaId = "AREA_1");
 
 public sealed class DungeonExpeditionCoordinator
 {
@@ -22,25 +23,30 @@ public sealed class DungeonExpeditionCoordinator
     public static void CaptureExpeditionEnemyTemplates(
         List<ExpeditionEnemyTemplate> templates,
         Maze maze,
-        GameDataCatalog gameData)
+        GameDataCatalog gameData,
+        string areaId = "AREA_1",
+        bool clear = true)
     {
-        templates.Clear();
+        if (clear) templates.Clear();
         templates.AddRange(maze.Enemies.Where(enemy => !enemy.Definition.IsBoss &&
             enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) != true).Select(enemy =>
             new ExpeditionEnemyTemplate(enemy.Definition.Id, enemy.Position, enemy.MovementProfile,
-                enemy.PatrolDirection, enemy.GroupId, enemy.GroupRole)));
+                enemy.PatrolDirection, enemy.GroupId, enemy.GroupRole, areaId)));
         templates.AddRange(maze.Corpses.OfType<MonsterCorpse>()
             .Where(corpse => !gameData.GetEnemy(corpse.EnemyDefinitionId).IsBoss &&
                              corpse.EnemyDefinitionId != MonsterIds.ÉlőholtPátriárka &&
                              corpse.GuaranteedLootIds.Count == 0)
             .Select(corpse => new ExpeditionEnemyTemplate(corpse.EnemyDefinitionId, corpse.Position,
-                EnemyMovementProfile.Wander, Direction.Right, null, EnemyGroupRole.Member)));
+                EnemyMovementProfile.Wander, Direction.Right, null, EnemyGroupRole.Member, areaId)));
     }
 
     public void ReplenishExpeditionEnemies(
         List<ExpeditionEnemyTemplate> templates,
-        Maze maze)
+        Maze maze,
+        string areaId = "AREA_1")
     {
+        templates = templates.Where(template => string.Equals(template.AreaId, areaId,
+            StringComparison.Ordinal)).ToList();
         var currentNormalCount = maze.Enemies.Count(enemy => !enemy.Definition.IsBoss &&
             enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) != true);
         var needed = ReturnExpeditionRules.AdditionalEnemiesNeeded(templates.Count, currentNormalCount);
