@@ -585,10 +585,72 @@ internal static partial class Program
         var generator = new RandomCharacterGenerator(catalog, new Random(7281));
         var characterClass = catalog.GetCharacterClass(CharacterClassIds.Harcos);
         var recruits = Enumerable.Range(0, 30)
-            .Select(index => generator.CreateRecruit(characterClass, 5, [$"WorldNpc{index}"]))
+            .Select(index => generator.GenerateWorldNpc(characterClass, 5, [$"WorldNpc{index}"]))
             .ToArray();
         Assert(recruits.All(recruit => recruit.Color != ConsoleColor.White),
             "A world-NPC generátor fehér karakterszínt választott.");
+    }
+
+    static void GeneratedCharacterEquipmentProfilesAreLevelBounded()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var characterClass = catalog.GetCharacterClass(CharacterClassIds.Harcos);
+        var generator = new RandomCharacterGenerator(catalog, new Random(8142));
+        var lowLevelNpcs = Enumerable.Range(0, 20)
+            .Select(index => generator.GenerateWorldNpc(characterClass, 4, [$"LowNpc{index}"],
+                RandomCharacterGenerator.EquipmentOptions.Scaled(includeMagicItems: false,
+                    addSupplies: false)))
+            .ToArray();
+        var highLevelNpcs = Enumerable.Range(0, 30)
+            .Select(index => generator.GenerateWorldNpc(characterClass, 15, [$"HighNpc{index}"],
+                RandomCharacterGenerator.EquipmentOptions.Scaled(includeMagicItems: false,
+                    addSupplies: false)))
+            .ToArray();
+
+        static IEnumerable<IItemDefinition> WornEquipment(LiveCharacter character) =>
+            character.WeaponSlots.Where(item => item is not null).Cast<IItemDefinition>()
+                .Concat(character.Armor is null ? [] : [character.Armor]);
+
+        Assert(lowLevelNpcs.SelectMany(WornEquipment).All(item => item.MagicPower == 0),
+            "A 4. szintű, skálázott világ-NPC varázstierű felszerelést kapott.");
+        var highLevelPowers = highLevelNpcs.SelectMany(WornEquipment).Select(item => item.MagicPower).ToArray();
+        Assert(highLevelPowers.All(power => power is >= 2 and <= 3) &&
+               highLevelPowers.Contains(2) && highLevelPowers.Contains(3),
+            "A 15. szintű világ-NPC felszerelése nem a szinthez illő, változó 2–3. tierből készült.");
+
+        var fixedTierNpc = generator.GenerateWorldNpc(characterClass, 20, ["FixedTierNpc"],
+            RandomCharacterGenerator.EquipmentOptions.AtTier(
+                RandomCharacterGenerator.EquipmentTier.LesserMagic,
+                includeMagicItems: false, addSupplies: false));
+        Assert(WornEquipment(fixedTierNpc).All(item => item.MagicPower <= 1),
+            "A fix felszerelési tier fölötti tárgy került a generált NPC-re.");
+    }
+
+    static void LateInnRecruitsAreLowerLevelAndStillCostGold()
+    {
+        Assert(!RecruitmentRules.UsesLowerLevelCandidates(4) &&
+               RecruitmentRules.UsesLowerLevelCandidates(5),
+            "A zsoldosszint-váltás nem az 5. pálya utáni fogadóban történik.");
+        Assert(RecruitmentRules.LowerRecruitLevel(10, 10) == 9 &&
+               RecruitmentRules.LowerRecruitLevel(10, 40) == 6 &&
+               RecruitmentRules.LowerRecruitLevel(2, 10) == 1,
+            "A késői zsoldos nem 10–40%-kal, legalább egy teljes szinttel marad el a vezértől.");
+        Assert(RecruitmentRules.Price(7, 10, 4, 100) == 0 &&
+               RecruitmentRules.Price(7, 10, 5, 100) == 700 &&
+               RecruitmentRules.Price(7, 10, 5, 50) == 350 &&
+               RecruitmentRules.Price(7, 10, 5, 150) == 1050,
+            "A korai ingyenes és a késői fizetős zsoldosárazás nem a szintalapú 50–150%-os képletet használja.");
+
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var generator = new RandomCharacterGenerator(catalog, new Random(5050));
+        var characterClass = catalog.GetCharacterClass(CharacterClassIds.Harcos);
+        var recruits = Enumerable.Range(0, 30)
+            .Select(index => generator.GenerateMercenary(characterClass, 10, [$"LateRecruit{index}"], 5))
+            .ToArray();
+        Assert(recruits.All(recruit => recruit.Level is >= 6 and <= 9),
+            "Az 5. pálya utáni generátor a vezérnél nem alacsonyabb vagy 40%-nál gyengébb zsoldost készített.");
     }
 
     static void TemporaryFollowerKeepsWorldNpcMapColors()

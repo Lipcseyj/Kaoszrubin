@@ -525,7 +525,7 @@ internal static partial class Program
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         var generator = new RandomCharacterGenerator(data, new Random(4202));
         var characters = new[] { CharacterClassIds.Mágus, CharacterClassIds.Pap, CharacterClassIds.Lovag }
-            .Select(classId => generator.CreateCombatTestCharacter(data.GetCharacterClass(classId), 12, []))
+            .Select(classId => generator.GenerateCombatTestCharacter(data.GetCharacterClass(classId), 12, []))
             .ToArray();
 
         Assert(characters.All(character => character.Level == 12 && character.IsAlive &&

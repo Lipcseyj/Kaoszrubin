@@ -1240,8 +1240,9 @@ public sealed partial class Game
             _ => new[] { CharacterClassIds.Harcos }
         };
         var characterClass = _gameData.GetCharacterClass(preferredClassIds[_random.Next(preferredClassIds.Length)]);
-        var recruit = new RandomCharacterGenerator(_gameData, _random).CreateLevelOne(characterClass,
-            CharacterRoster.Characters.Select(character => character.Name).ToArray());
+        var recruit = new RandomCharacterGenerator(_gameData, _random).GenerateWorldNpc(characterClass, 1,
+            CharacterRoster.Characters.Select(character => character.Name).ToArray(),
+            RandomCharacterGenerator.EquipmentOptions.Starting);
 
         var candidates = new List<Position>();
         for (var y = 0; y < _maze.Height; y++)
@@ -1311,9 +1312,9 @@ public sealed partial class Game
                         ? RodericTargetLevel()
                         : null)
                 : definition.Unique && definition.RaceId is { } raceId
-                    ? generator.CreateUniqueRecruit(definition.Name, _gameData.GetRace(raceId),
+                    ? generator.GenerateUniqueWorldNpc(definition.Name, _gameData.GetRace(raceId),
                         _gameData.GetCharacterClass(definition.CharacterClassId), PartyLeader.Level)
-                : generator.CreateRecruit(_gameData.GetCharacterClass(definition.CharacterClassId),
+                : generator.GenerateWorldNpc(_gameData.GetCharacterClass(definition.CharacterClassId),
                     PartyLeader.Level, CharacterRoster.Characters.Select(character => character.Name).ToArray());
             CharacterRoster.Add(recruit);
             var friendliness = definition.Unique ? 4 : RollNpcFriendliness(definition);

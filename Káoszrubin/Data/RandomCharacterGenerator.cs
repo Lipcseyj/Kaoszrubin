@@ -5,65 +5,13 @@ using KaoszRubin.Domain.Magic;
 
 namespace KaoszRubin.Data;
 
-/// <summary>Fejlesztői és későbbi NPC-célra teljesen adatvezérelt, véletlen karaktereket készít.</summary>
-public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random random)
+public sealed partial class RandomCharacterGenerator(GameDataCatalog gameData, Random random)
 {
     private const int AbilityPointTotal = 25;
     private readonly GameDataCatalog _gameData = gameData;
     private readonly Random _random = random;
 
-    public LiveCharacter Create(IReadOnlyCollection<string> usedNames)
-    {
-        var character = CreateLevelOne(usedNames);
-        RaiseToRandomLevel(character);
-        AddRandomPerks(character);
-        AddRandomTacticalDisciplines(character);
-        AddRandomWeaponProficiencies(character);
-        FillRandomEquipment(character);
-        return character;
-    }
-
-    public LiveCharacter CreateDevelopmentCharacter(CharacterClassDefinition characterClass,
-        IReadOnlyCollection<string> usedNames)
-    {
-        var character = CreateLevelOne(characterClass, usedNames);
-        RaiseToRandomLevel(character);
-        AddRandomPerks(character);
-        AddRandomTacticalDisciplines(character);
-        AddRandomWeaponProficiencies(character);
-        FillRandomEquipment(character);
-        EquipDevelopmentMagicItems(character);
-        GiveDevelopmentKey(character);
-        return character;
-    }
-
-    /// <summary>Alapfelszerelésű, de a megadott szint minden fejlődési elemével és véletlenül
-    /// memorizált, elérhető varázslataival rendelkező harci teszt-NPC-t készít.</summary>
-    public LiveCharacter CreateCombatTestCharacter(CharacterClassDefinition characterClass, int targetLevel,
-        IReadOnlyCollection<string> usedNames)
-    {
-        var character = CreateLevelOne(characterClass, usedNames);
-        PrepareForCombatTest(character, targetLevel);
-        return character;
-    }
-
-    public void PrepareForCombatTest(LiveCharacter character, int targetLevel)
-    {
-        if (targetLevel < character.Level)
-            throw new ArgumentOutOfRangeException(nameof(targetLevel),
-                "A fejlesztői teszt nem csökkentheti egy karakter szintjét.");
-        RaiseToLevel(character, targetLevel);
-        AddRandomPerks(character);
-        AddRandomTacticalDisciplines(character);
-        AddRandomWeaponProficiencies(character);
-        if (character.IsSpellcaster)
-            character.SetMemorizedSpells(character.KnownSpells.OrderBy(_ => _random.Next())
-                .Take(character.MemorizationCapacity));
-        character.RestoreVitality(Math.Max(0, character.MaximumVitality - character.CurrentVitality));
-        character.RestoreMana(Math.Max(0, character.MaximumMana - character.CurrentMana));
-    }
-
-    public LiveCharacter CreateLevelOne(IReadOnlyCollection<string> usedNames)
+    private LiveCharacter CreateLevelOneCore(IReadOnlyCollection<string> usedNames)
     {
         for (var attempt = 0; attempt < 2_000; attempt++)
         {
@@ -86,7 +34,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         throw new InvalidOperationException("A jelenlegi játékadatokból nem generálható véletlen partitárs.");
     }
 
-    public LiveCharacter CreateLevelOne(CharacterClassDefinition characterClass, IReadOnlyCollection<string> usedNames)
+    private LiveCharacter CreateLevelOneCore(CharacterClassDefinition characterClass, IReadOnlyCollection<string> usedNames)
     {
         for (var attempt = 0; attempt < 2_000; attempt++)
         {
@@ -106,10 +54,8 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         throw new InvalidOperationException($"A(z) {characterClass.Name} osztályhoz nem sikerült fejlesztői karaktert generálni.");
     }
 
-    /// <summary>Egy előre kiválasztott osztályú, a vezér szintjéhez igazított NPC-t készít.
-    /// Fehér karakterszín csak a közvetlen fogadói toborzáshoz engedélyezhető.</summary>
-    public LiveCharacter CreateRecruit(CharacterClassDefinition characterClass, int leaderLevel,
-        IReadOnlyCollection<string> usedNames, bool allowWhiteColor = false)
+    private LiveCharacter GenerateNpcCore(CharacterClassDefinition characterClass, int targetLevel,
+        IReadOnlyCollection<string> usedNames, bool allowWhiteColor, EquipmentOptions equipment)
     {
         for (var attempt = 0; attempt < 2_000; attempt++)
         {
@@ -122,45 +68,27 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             var character = LiveCharacterFactory.Create(ChooseName(characterClass.Id, usedNames), race,
                 characterClass, rolledAbilities, _random.Next(1, 16), _random.Next(1, 16), _gameData,
                 RandomCharacterColor(allowWhiteColor), adaptableAbilityBonus);
-            character.SetNpcBehavior(BehaviorFor(characterClass.Id));
-            SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
-            var maximumLevel = Math.Max(1, _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(1).Max());
-            var targetLevel = Math.Clamp(leaderLevel + _random.Next(-3, 4), 1, maximumLevel);
-            RaiseToLevel(character, targetLevel);
-            AddRandomPerks(character);
-            AddRandomTacticalDisciplines(character);
-            AddRandomWeaponProficiencies(character);
-            ImproveRecruitEquipment(character);
-            FillRecruitBackpack(character);
+            InitializeGeneratedCharacter(character, targetLevel);
+            ApplyEquipment(character, equipment);
             return character;
         }
 
-        throw new InvalidOperationException($"A(z) {characterClass.Name} osztályhoz nem sikerült érvényes zsoldost generálni.");
+        throw new InvalidOperationException($"A(z) {characterClass.Name} osztályhoz nem sikerült érvényes NPC-t generálni.");
     }
 
-    public LiveCharacter CreateUniqueRecruit(string name, RaceDefinition race,
-        CharacterClassDefinition characterClass, int leaderLevel)
+    private void InitializeGeneratedCharacter(LiveCharacter character, int targetLevel)
     {
-        for (var attempt = 0; attempt < 2_000; attempt++)
-        {
-            var adaptableAbilityBonus = RandomAdaptableAbilityBonus(race);
-            var rolledAbilities = RollAbilities();
-            var finalAbilities = (rolledAbilities + race.AbilityBonuses + adaptableAbilityBonus).Clamp(1, 13);
-            if (!finalAbilities.MeetsMinimum(characterClass.MinimumAbilities)) continue;
-            var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
-                _random.Next(1, 16), _random.Next(1, 16), _gameData,
-                RandomCharacterColor(), adaptableAbilityBonus);
-            character.SetNpcBehavior(BehaviorFor(characterClass.Id));
-            SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
-            RaiseToLevel(character, Math.Max(1, leaderLevel));
-            AddRandomPerks(character);
-            AddRandomTacticalDisciplines(character);
-            AddRandomWeaponProficiencies(character);
-            ImproveRecruitEquipment(character);
-            FillRecruitBackpack(character);
-            return character;
-        }
-        throw new InvalidOperationException($"A(z) {name} egyedi NPC nem generálható a megadott fajjal és kaszttal.");
+        character.SetNpcBehavior(BehaviorFor(character.CharacterClass.Id));
+        SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
+        RaiseToLevel(character, Math.Max(1, targetLevel));
+        CompleteGeneratedProgression(character);
+    }
+
+    private void CompleteGeneratedProgression(LiveCharacter character)
+    {
+        AddRandomPerks(character);
+        AddRandomTacticalDisciplines(character);
+        AddRandomWeaponProficiencies(character);
     }
 
     private NpcBehavior BehaviorFor(string characterClassId) => characterClassId.ToUpperInvariant() switch
@@ -208,28 +136,80 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         }
     }
 
-    private void ImproveRecruitEquipment(LiveCharacter character)
+    private void ApplyEquipment(LiveCharacter character, EquipmentOptions options)
     {
-        var upgradeChance = Math.Clamp((character.Level - 3) * 0.06, 0, 0.75);
+        if (options.Selection == EquipmentSelection.KeepStartingEquipment)
+        {
+            if (options.AddSupplies) FillRecruitBackpack(character);
+            return;
+        }
+        if (options.Selection == EquipmentSelection.UnrestrictedRandom)
+        {
+            FillRandomEquipment(character, options.AllowLegendary);
+            return;
+        }
+
+        var maximumTier = options.Selection == EquipmentSelection.ScaleWithLevel
+            ? Math.Clamp(character.Level / 5, 0, (int)EquipmentTier.Masterwork)
+            : (int)options.Tier;
         for (var slot = 0; slot < character.WeaponSlots.Count; slot++)
         {
             var current = character.WeaponSlots[slot];
-            if (current is null || _random.NextDouble() >= upgradeChance) continue;
-            var upgrades = _gameData.Weapons.Where(candidate =>
-                string.Equals(candidate.BaseWeaponId, current.Id, StringComparison.OrdinalIgnoreCase) &&
-                candidate.Rarity != ItemRarity.Legendary && candidate.MagicPower <= Math.Max(1, character.Level / 5) &&
+            if (current is null) continue;
+            var rootId = current.BaseWeaponId ?? current.Id;
+            var candidates = _gameData.Weapons.Where(candidate =>
+                (string.Equals(candidate.Id, rootId, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(candidate.BaseWeaponId, rootId, StringComparison.OrdinalIgnoreCase)) &&
+                candidate.Rarity != ItemRarity.Legendary && candidate.MagicPower <= maximumTier &&
                 candidate.CanBeEquippedBy(character.CharacterClass.Id, character.Abilities.Strength)).ToList();
-            if (upgrades.Count > 0) character.EquipWeapon(slot, upgrades[_random.Next(upgrades.Count)]);
+            var selected = SelectTierCandidate(candidates, maximumTier, options.TierVariance);
+            if (selected is not null) character.EquipWeapon(slot, selected);
         }
 
-        if (character.Armor is { } armor && _random.NextDouble() < upgradeChance)
+        if (character.Armor is { } armor)
         {
-            var upgrades = _gameData.Armors.Where(candidate =>
-                string.Equals(candidate.BaseArmorId, armor.Id, StringComparison.OrdinalIgnoreCase) &&
-                candidate.Rarity != ItemRarity.Legendary && candidate.MagicPower <= Math.Max(1, character.Level / 5) &&
+            var rootId = armor.BaseArmorId ?? armor.Id;
+            var candidates = _gameData.Armors.Where(candidate =>
+                (string.Equals(candidate.Id, rootId, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(candidate.BaseArmorId, rootId, StringComparison.OrdinalIgnoreCase)) &&
+                candidate.Rarity != ItemRarity.Legendary && candidate.MagicPower <= maximumTier &&
                 candidate.CanBeEquippedBy(character.CharacterClass.Id)).ToList();
-            if (upgrades.Count > 0) character.EquipArmor(upgrades[_random.Next(upgrades.Count)]);
+            var selected = SelectTierCandidate(candidates, maximumTier, options.TierVariance);
+            if (selected is not null) character.EquipArmor(selected);
         }
+
+        if (options.IncludeMagicItems) FillScaledMagicItems(character, maximumTier, options.TierVariance);
+        if (options.AddSupplies) FillRecruitBackpack(character);
+    }
+
+    private T? SelectTierCandidate<T>(IReadOnlyList<T> candidates, int maximumTier, int variance)
+        where T : class, IItemDefinition
+    {
+        if (candidates.Count == 0) return null;
+        var minimumTier = Math.Max(0, maximumTier - variance);
+        var targetTier = _random.Next(minimumTier, maximumTier + 1);
+        var nearestDistance = candidates.Min(candidate => Math.Abs(candidate.MagicPower - targetTier));
+        var nearest = candidates.Where(candidate => Math.Abs(candidate.MagicPower - targetTier) == nearestDistance)
+            .ToList();
+        return nearest[_random.Next(nearest.Count)];
+    }
+
+    private void FillScaledMagicItems(LiveCharacter character, int maximumTier, int variance)
+    {
+        for (var index = 0; index < LiveCharacter.MaximumMagicItemCount; index++)
+            character.SetInventoryItem(InventorySlotKind.MagicItem, index, null);
+        if (maximumTier == 0) return;
+
+        var minimumTier = Math.Max(1, maximumTier - variance);
+        var candidates = _gameData.MagicItems.Where(item =>
+                !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item) &&
+                item.Rarity != ItemRarity.Legendary && item.MagicPower >= minimumTier &&
+                item.MagicPower <= maximumTier && item.CanBeEquippedBy(character.CharacterClass.Id))
+            .OrderBy(_ => _random.Next()).ToList();
+        var minimumCount = maximumTier >= 2 ? 1 : 0;
+        var maximumCount = Math.Min(maximumTier, LiveCharacter.MaximumMagicItemCount);
+        var count = _random.Next(minimumCount, maximumCount + 1);
+        foreach (var item in candidates.Take(count)) character.AddMagicItem(item);
     }
 
     private void FillRecruitBackpack(LiveCharacter character)
@@ -274,10 +254,10 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
         }
     }
 
-    private void FillRandomEquipment(LiveCharacter character)
+    private void FillRandomEquipment(LiveCharacter character, bool allowLegendary)
     {
-        var allowLegendary = character.Level >= 15 && _random.NextDouble() < 0.02;
-        var maximumMagicPower = Math.Clamp(character.Level / 5, 0, 3);
+        allowLegendary = allowLegendary && _random.NextDouble() < 0.02;
+        var maximumMagicPower = (int)EquipmentTier.Masterwork;
         var usableWeapons = _gameData.Weapons.Where(weapon =>
             weapon.CanBeEquippedBy(character.CharacterClass.Id, character.Abilities.Strength) &&
             IsEquipmentTierAvailable(weapon, maximumMagicPower, allowLegendary)).ToList();
