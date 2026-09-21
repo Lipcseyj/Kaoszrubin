@@ -1098,6 +1098,30 @@ internal static partial class Program
     static void WeaponCsvPropertiesAreInherited()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var expectedEnemyShields = new Dictionary<string, string>
+        {
+            [MonsterIds.Goblin] = "W024",
+            [MonsterIds.Csontváz] = "W025",
+            [MonsterIds.Ork] = "W027",
+            [MonsterIds.Hobgoblin] = "W027",
+            [MonsterIds.Gnoll] = "W035",
+            [MonsterIds.Útonálló] = "W024",
+            [MonsterIds.Patkányember] = "W024",
+            [MonsterIds.CsontvázLovag] = "W029",
+            [MonsterIds.ÉlőholtPátriárka] = "W028",
+            [MonsterIds.GoblinFőnök] = "W036",
+            [MonsterIds.PáncélozottZombi] = "W035",
+            [MonsterIds.Káoszkultista] = "W035",
+            [MonsterIds.Kígyóember] = "W026",
+            [MonsterIds.ÉlőPáncél] = "W034",
+            [MonsterIds.Martalóc] = "W015",
+            [MonsterIds.Káoszlovag] = "W033"
+        };
+        Assert(expectedEnemyShields.All(pair =>
+                   data.GetEnemy(pair.Key).ShieldOption is { } shield && shield.Id == pair.Value &&
+                   shield.MinimumStrength <= (data.GetEnemy(pair.Key).Strength ?? 0)) &&
+               expectedEnemyShields.Values.Distinct(StringComparer.OrdinalIgnoreCase).Count() >= 10,
+            "A pajzsos ellenfelek nem tematikus, változatos vagy az erejükhöz illő pajzsot kaptak.");
         Assert(data.Enemies.All(enemy => enemy.Weapons is { Count: > 0 } &&
                 enemy.Weapons.Select(weapon => weapon.Id).SequenceEqual(enemy.WeaponIds ?? [])),
             "Fegyver nélküli vagy hibás fegyverlistájú szörny.");
