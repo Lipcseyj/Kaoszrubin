@@ -109,7 +109,7 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
     /// <summary>Egy előre kiválasztott osztályú, a vezér szintjéhez igazított NPC-t készít.
     /// Fehér karakterszín csak a közvetlen fogadói toborzáshoz engedélyezhető.</summary>
     public LiveCharacter CreateRecruit(CharacterClassDefinition characterClass, int leaderLevel,
-        IReadOnlyCollection<string> usedNames, bool allowWhiteColor = false)
+        IReadOnlyCollection<string> usedNames, int completedLevel = 0, bool allowWhiteColor = false)
     {
         for (var attempt = 0; attempt < 2_000; attempt++)
         {
@@ -125,7 +125,9 @@ public sealed class RandomCharacterGenerator(GameDataCatalog gameData, Random ra
             character.SetNpcBehavior(BehaviorFor(characterClass.Id));
             SpellcastingRules.GiveAutomaticStartingSpells(character, _gameData, _random);
             var maximumLevel = Math.Max(1, _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(1).Max());
-            var targetLevel = Math.Clamp(leaderLevel + _random.Next(-3, 4), 1, maximumLevel);
+            var targetLevel = RecruitmentRules.UsesLowerLevelCandidates(completedLevel)
+                ? RecruitmentRules.LowerRecruitLevel(leaderLevel, _random.Next(10, 41))
+                : Math.Clamp(leaderLevel + _random.Next(-3, 4), 1, maximumLevel);
             RaiseToLevel(character, targetLevel);
             AddRandomPerks(character);
             AddRandomTacticalDisciplines(character);

@@ -142,6 +142,7 @@ internal static partial class Program
     ("A parti megjegyzései CSV-ből, teljes idézőjeles szöveggel töltődnek", PartyRemarksLoadFromCsv),
     ("A parti megjegyzéseinek esélyei és beszélőszámai követik a szabályt", PartyRemarkProbabilitiesFollowRules),
     ("A world-NPC generálás kizárja a fehér karakterszínt", WorldNpcGenerationExcludesWhiteColor),
+    ("Az 5. pálya utáni zsoldos legalább egy szinttel gyengébb és fizetős", LateInnRecruitsAreLowerLevelAndStillCostGold),
     ("Az ideiglenes követő megtartja a world-NPC inverz térképszíneit", TemporaryFollowerKeepsWorldNpcMapColors),
     ("A hosszú NPC-párbeszéd az ablakon belül sortörést kap", NpcDialogueWrapsInsideRecruitmentWindow),
     ("A közös küldetésnapló elkülöníti az aktív és teljesített küldetéseket", QuestJournalBuildsSharedHistory),

@@ -591,6 +591,32 @@ internal static partial class Program
             "A world-NPC generátor fehér karakterszínt választott.");
     }
 
+    static void LateInnRecruitsAreLowerLevelAndStillCostGold()
+    {
+        Assert(!RecruitmentRules.UsesLowerLevelCandidates(4) &&
+               RecruitmentRules.UsesLowerLevelCandidates(5),
+            "A zsoldosszint-váltás nem az 5. pálya utáni fogadóban történik.");
+        Assert(RecruitmentRules.LowerRecruitLevel(10, 10) == 9 &&
+               RecruitmentRules.LowerRecruitLevel(10, 40) == 6 &&
+               RecruitmentRules.LowerRecruitLevel(2, 10) == 1,
+            "A késői zsoldos nem 10–40%-kal, legalább egy teljes szinttel marad el a vezértől.");
+        Assert(RecruitmentRules.Price(7, 10, 4, 100) == 0 &&
+               RecruitmentRules.Price(7, 10, 5, 100) == 700 &&
+               RecruitmentRules.Price(7, 10, 5, 50) == 350 &&
+               RecruitmentRules.Price(7, 10, 5, 150) == 1050,
+            "A korai ingyenes és a késői fizetős zsoldosárazás nem a szintalapú 50–150%-os képletet használja.");
+
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var generator = new RandomCharacterGenerator(catalog, new Random(5050));
+        var characterClass = catalog.GetCharacterClass(CharacterClassIds.Harcos);
+        var recruits = Enumerable.Range(0, 30)
+            .Select(index => generator.CreateRecruit(characterClass, 10, [$"LateRecruit{index}"], 5))
+            .ToArray();
+        Assert(recruits.All(recruit => recruit.Level is >= 6 and <= 9),
+            "Az 5. pálya utáni generátor a vezérnél nem alacsonyabb vagy 40%-nál gyengébb zsoldost készített.");
+    }
+
     static void TemporaryFollowerKeepsWorldNpcMapColors()
     {
         var character = CreateCharacter("Elira");

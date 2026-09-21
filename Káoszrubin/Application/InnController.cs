@@ -260,14 +260,13 @@ internal sealed class InnController
             foreach (var characterClass in classes)
             {
                 var candidate = generator.CreateRecruit(characterClass, _partyLeader.Level,
-                    usedNames.Concat(_recruitCandidates.Select(character => character.Name)).ToList(), allowWhiteColor: true);
+                    usedNames.Concat(_recruitCandidates.Select(character => character.Name)).ToList(),
+                    completedLevel, allowWhiteColor: true);
                 _recruitCandidates.Add(candidate);
             }
             foreach (var candidate in _recruitCandidates)
             {
-                _recruitmentPrices[candidate] = candidate.Level < _partyLeader.Level
-                    ? 0
-                    : Math.Max(1, candidate.Level * 100 * _random.Next(50, 151) / 100);
+                _recruitmentPrices[candidate] = RecruitmentPrice(candidate, completedLevel);
             }
             foreach (var candidate in _specialRecruitCandidates().Where(candidate =>
                          !_characterRoster.Party.Members.Contains(candidate) && !_recruitCandidates.Contains(candidate)))
@@ -852,9 +851,7 @@ internal sealed class InnController
     {
         var candidates = _recruitCandidates ?? new List<LiveCharacter>();
         var recruitmentPrices = _recruitmentPrices ?? candidates.ToDictionary(candidate => candidate,
-            candidate => candidate.Level < _partyLeader.Level
-                ? 0
-                : Math.Max(1, candidate.Level * 100 * _random.Next(50, 151) / 100));
+            candidate => RecruitmentPrice(candidate, _innLevel));
 
         var selectedIndex = 0;
         var message = "A fogadós bemutatja az utazásra kész zsoldosokat.";
@@ -930,6 +927,9 @@ internal sealed class InnController
     private static string FormatRecruitmentPricePaid(int price) => price == 0
         ? " ingyen"
         : $" {price} aranyért";
+
+    private int RecruitmentPrice(LiveCharacter candidate, int completedLevel) =>
+        RecruitmentRules.Price(candidate.Level, _partyLeader.Level, completedLevel, _random.Next(50, 151));
 
     private int? ChoosePartyMemberToReplace(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable)
     {
