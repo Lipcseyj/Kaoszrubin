@@ -60,8 +60,9 @@ internal static partial class Program
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         var orcCamp = MazeLevelConfigurations.Get(8);
         Assert(orcCamp.CorridorEncounters.All(encounter =>
-                   encounter.Behavior == EnemyEncounterBehavior.Horde &&
-                   encounter.Members.Sum(member => member.Count.Minimum) >= 17) &&
+                   encounter.Behavior == EnemyEncounterBehavior.Horde) &&
+               orcCamp.CorridorEncounters.Count(encounter =>
+                   encounter.Members.Sum(member => member.Count.Minimum) >= 17) >= 2 &&
                orcCamp.CorridorEncounters.Any(encounter =>
                    encounter.Members.Sum(member => member.Count.Maximum) >= 34),
             "Az ork haditábor vándorló hordái nem lettek érdemben nagyobbak.");

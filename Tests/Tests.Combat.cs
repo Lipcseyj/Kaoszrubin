@@ -482,8 +482,8 @@ internal static partial class Program
         var braced = bracedSystem.ResolveMonsterStrengthContest(attacker, bracedDefender, bracedRuntime);
         Assert(plain.Roll == braced.Roll && plain.ResistanceRoll == braced.ResistanceRoll &&
                plain.Total == braced.Total && braced.StrengthPressure == (braced.Strength + 1) / 2 &&
-               braced.ShieldBonus == 2 && braced.DefensiveBonus == 2 &&
-               braced.Resistance == plain.Resistance + 4,
+               braced.ShieldBonus == 4 && braced.DefensiveBonus == 2 &&
+               braced.Resistance == plain.Resistance + 6,
             "A pajzs vagy a védekező állás nem növelte helyesen az Erőpróba ellenállását.");
         Assert(plain.Outcome == (plain.Margin >= 5 ? MonsterStrengthContestOutcome.Push :
                    plain.Margin >= 1 ? MonsterStrengthContestOutcome.Stagger : MonsterStrengthContestOutcome.Resisted),

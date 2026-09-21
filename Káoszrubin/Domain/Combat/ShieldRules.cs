@@ -26,6 +26,7 @@ public sealed record ShieldBlockResult(bool Attempted, int Roll, int BlockRating
 public static class ShieldRules
 {
     public const int MaximumCriticalBlockRating = 4;
+    public const int BaseStaggerStabilityBonus = 2;
 
     public static bool IsShield(WeaponDefinition? weapon) =>
         weapon is not null && (string.Equals(weapon.FamilyId, WeaponFamilies.Shield,
@@ -58,6 +59,13 @@ public static class ShieldRules
         };
         return shield.ShieldTier + proficiencyBonus + (hasShieldWall ? 1 : 0);
     }
+
+    /// <summary>A pajzs tömegéből származó lendület- és stabilitásbónusz.</summary>
+    public static int StaggerWeightBonus(WeaponDefinition? shield) =>
+        IsShield(shield) ? Math.Max(1, (int)Math.Floor(shield!.Weight / 2d)) : 0;
+
+    public static int StaggerStabilityBonus(WeaponDefinition? shield) =>
+        IsShield(shield) ? BaseStaggerStabilityBonus + StaggerWeightBonus(shield) : 0;
 
     public static bool IsCriticalBlock(int d20Roll, int blockRating) =>
         blockRating > 0 && d20Roll >= 21 - Math.Clamp(blockRating, 1, MaximumCriticalBlockRating);

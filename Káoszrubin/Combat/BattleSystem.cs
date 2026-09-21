@@ -358,7 +358,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var strengthPressure = (strength + 1) / 2;
         var roll = _random.Next(1, 11);
         var resistanceRoll = _random.Next(1, 11);
-        var shieldBonus = defender.OperationalWeapons.Any(item => item?.WeaponTypeId == DefenseWeaponTypeId) ? 2 : 0;
+        var defenderShield = defender.OperationalWeapons.FirstOrDefault(ShieldRules.IsShield);
+        var shieldBonus = ShieldRules.StaggerStabilityBonus(defenderShield);
         var defensiveBonus = defenderRuntime.Tactic == BattleTactic.FighterDefensive ? 2 : 0;
         var resistance = resistanceRoll + defender.EffectiveAbilities.Health + shieldBonus + defensiveBonus;
         var total = strengthPressure + roll;
@@ -378,10 +379,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         ArgumentNullException.ThrowIfNull(shield);
         var rank = attacker.WeaponProficiencyRankFor(WeaponFamilies.Shield);
         var shieldPower = ShieldRules.BashPower(shield, rank, attacker.HasPerk(PerkIds.KnightShieldWall));
+        var shieldWeightBonus = ShieldRules.StaggerWeightBonus(shield);
         var strength = attacker.EffectiveAbilities.Strength;
         var defenderStability = Math.Max(1, ((defender.Definition.Strength ?? 1) + 1) / 2) +
                                 Math.Max(1, defender.Definition.StrengthTier);
-        var result = ResolveShieldBash(strength, shieldPower, defenderStability);
+        var defenderShieldBonus = ShieldRules.StaggerStabilityBonus(defender.EquippedShield);
+        var result = ResolveShieldBash(strength, shieldPower, shieldWeightBonus,
+            defenderStability, defenderShieldBonus);
         var shieldSlot = Enumerable.Range(0, 2).FirstOrDefault(index =>
             ReferenceEquals(attacker.GetInventoryItem(InventorySlotKind.Weapon, index), shield), -1);
         if (shieldSlot >= 0)
@@ -397,18 +401,21 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var shield = attacker.EquippedShield ??
                      throw new InvalidOperationException("A pajzslökéshez pajzs szükséges.");
         var strength = attacker.Definition.Strength ?? 1;
-        var defenderShieldBonus = defender.OperationalWeapons.Any(ShieldRules.IsShield) ? 2 : 0;
-        var defenderStability = defender.EffectiveAbilities.Health + defenderShieldBonus;
-        return ResolveShieldBash(strength, ShieldRules.BashPower(shield), defenderStability);
+        var defenderShield = defender.OperationalWeapons.FirstOrDefault(ShieldRules.IsShield);
+        var defenderShieldBonus = ShieldRules.StaggerStabilityBonus(defenderShield);
+        return ResolveShieldBash(strength, ShieldRules.BashPower(shield),
+            ShieldRules.StaggerWeightBonus(shield), defender.EffectiveAbilities.Health, defenderShieldBonus);
     }
 
-    private ShieldBashContestResult ResolveShieldBash(int strength, int shieldPower, int defenderStability)
+    private ShieldBashContestResult ResolveShieldBash(int strength, int shieldPower, int shieldWeightBonus,
+        int defenderStability, int defenderShieldBonus)
     {
         var attackerRoll = _random.Next(1, 11);
         var defenderRoll = _random.Next(1, 11);
         var strengthPressure = (Math.Max(1, strength) + 1) / 2;
-        var attackTotal = attackerRoll + strengthPressure + Math.Max(0, shieldPower);
-        var defenseTotal = defenderRoll + Math.Max(0, defenderStability);
+        var attackTotal = attackerRoll + strengthPressure + Math.Max(0, shieldPower) +
+                          Math.Max(0, shieldWeightBonus);
+        var defenseTotal = defenderRoll + Math.Max(0, defenderStability) + Math.Max(0, defenderShieldBonus);
         var margin = attackTotal - defenseTotal;
         var outcome = margin >= 5 ? MonsterStrengthContestOutcome.Push :
             margin >= 1 ? MonsterStrengthContestOutcome.Stagger : MonsterStrengthContestOutcome.Resisted;
@@ -416,7 +423,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             ? 0
             : Math.Max(1, shieldPower + AbilityDamageBonus(strength) / 2);
         return new ShieldBashContestResult(attackerRoll, strength, strengthPressure, shieldPower,
-            attackTotal, defenderRoll, defenderStability, defenseTotal, margin, outcome, damage);
+            shieldWeightBonus, attackTotal, defenderRoll, defenderStability, defenderShieldBonus,
+            defenseTotal, margin, outcome, damage);
     }
 
     public static BattleActionDetails DescribeShieldBash(string attackerName, string defenderName,
@@ -432,8 +440,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return new BattleActionDetails(Guid.NewGuid(), attackerName, defenderName,
             [$"🛡️ Pajzslökés: {outcome}", $"📏 Különbség: {result.Margin:+#;-#;0}"],
             [
-                $"🎲 Támadó: d10 {result.AttackerRoll} + Erőhatás {result.StrengthPressure} + pajzserő {result.ShieldPower} = {result.AttackTotal}",
-                $"🛡️ Stabilitás: d10 {result.DefenderRoll} + {result.DefenderStability} = {result.DefenseTotal}",
+                $"🎲 Támadó: d10 {result.AttackerRoll} + Erőhatás {result.StrengthPressure} + pajzserő {result.ShieldPower} + pajzssúly {result.ShieldWeightBonus} = {result.AttackTotal}",
+                $"🛡️ Stabilitás: d10 {result.DefenderRoll} + alap {result.DefenderStability} + pajzs {result.DefenderShieldBonus} = {result.DefenseTotal}",
                 $"📐 Eredmény: 1–4 megingás; 5+ lökés; sebzés {result.Damage}"
             ]);
     }
@@ -2047,8 +2055,8 @@ public sealed record MonsterStrengthContestResult(int Strength, int StrengthPres
     int Health, int ResistanceRoll, int ShieldBonus, int DefensiveBonus, int Resistance, int Margin,
     MonsterStrengthContestOutcome Outcome);
 public sealed record ShieldBashContestResult(int AttackerRoll, int AttackerStrength, int StrengthPressure,
-    int ShieldPower, int AttackTotal, int DefenderRoll, int DefenderStability, int DefenseTotal,
-    int Margin, MonsterStrengthContestOutcome Outcome, int Damage);
+    int ShieldPower, int ShieldWeightBonus, int AttackTotal, int DefenderRoll, int DefenderStability,
+    int DefenderShieldBonus, int DefenseTotal, int Margin, MonsterStrengthContestOutcome Outcome, int Damage);
 public sealed record EnemyTurnStartResult(bool CanAct, IReadOnlyList<BattleLogEntry> Entries);
 public sealed record BattlePlayerAction(string Message, BattleLogKind Kind = BattleLogKind.PlayerAttack,
     int DamageToEnemy = 0, int ExtraPlayerActions = 0);

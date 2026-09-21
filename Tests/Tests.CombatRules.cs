@@ -664,6 +664,9 @@ internal static partial class Program
         Assert(ShieldRules.CriticalBlockRating(wood) == 1 &&
                ShieldRules.CriticalBlockRating(steel, WeaponProficiencyRank.Trained) == 4 &&
                ShieldRules.CriticalBlockRating(legendary, WeaponProficiencyRank.Master, true) == 4 &&
+               ShieldRules.StaggerWeightBonus(wood) == 2 &&
+               ShieldRules.StaggerWeightBonus(steel) == 3 &&
+               ShieldRules.StaggerWeightBonus(data.GetWeapon("W032")) == 4 &&
                damagedSnapshot.BlockRating == 1 && guaranteedBlock is
                { Attempted: true, Roll: 17, BlockRating: 4, IsCriticalBlock: true } &&
                elementalAttempt == ShieldBlockResult.NotAttempted,
@@ -679,8 +682,9 @@ internal static partial class Program
         var wearBefore = fighter.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage;
         var bash = system.ResolvePlayerShieldBash(fighter, enemy, fighter.WeaponSlots[1]!);
         var wearAfter = fighter.GetInventoryItemState(InventorySlotKind.Weapon, 1)!.Value.DurabilityDamage;
-        Assert(bash.ShieldPower == 5 && bash.AttackTotal == bash.AttackerRoll + bash.StrengthPressure + 5 &&
-               bash.DefenseTotal == bash.DefenderRoll + bash.DefenderStability &&
+        Assert(bash.ShieldPower == 5 && bash.ShieldWeightBonus == 3 &&
+               bash.AttackTotal == bash.AttackerRoll + bash.StrengthPressure + 5 + 3 &&
+               bash.DefenseTotal == bash.DefenderRoll + bash.DefenderStability + bash.DefenderShieldBonus &&
                (bash.Outcome == MonsterStrengthContestOutcome.Resisted) == (bash.Damage == 0) &&
                wearAfter == wearBefore + 1,
             "A pajzslökés nem a tiert és jártasságot használta, vagy nem koptatta a pajzsot.");
