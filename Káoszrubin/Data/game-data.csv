@@ -641,6 +641,29 @@ E079;65;igen;igen;igen;Sima;Legendás;6;10000
 E080;70;nem;nem;igen;Varázs;Legendás;7;12000
 E081;100;igen;igen;igen;Varázs;Legendás;10;30000
 
+#Csapdák
+Id;Név;Jel;Hatás;MinimumSzint;ÉszlelésiNehézség;HatástalanításiNehézség;MinimumSebzés;MaximumSebzés;Állapotesély;ÉszlelésiXP;HatástalanításiXP;Leírás
+TR001;Tüskés verem;⌄;Damage;1;7;7;3;7;0;25;75;Éles tüskék nyílnak fel a padlóból.
+TR002;Mérgezett tű;†;Poison;3;8;9;1;4;35;40;120;A falból mérgezett tű repül elő.
+TR003;Riasztórúna;◎;Alert;4;9;8;0;0;100;40;120;A felizzó rúna magára vonja a közeli lények figyelmét.
+TR004;Ingapengék;╳;Damage;7;10;11;7;12;0;60;180;A falakból egymást keresztező rozsdás pengék csapnak ki.
+TR005;Dögvészfelhő;≋;Poison;10;11;12;4;8;60;90;270;Fojtó zöld gáz tör elő a repedt padlólapok alól.
+TR006;Káoszpecsét;✹;Alert;14;13;13;4;9;100;135;405;A felhasadó pecsét energiakitörése megsebzi az áldozatot és odahívja a közeli szörnyeket.
+TR007;Lélektű;♦;Poison;18;15;15;8;14;75;200;600;Árnyékból formált tű sebzi meg a testet és mérgezi meg a lelket.
+TR008;Koromfelhő;☁;Darkness;5;9;9;0;0;100;50;150;Sűrű fekete korom borítja el az áldozat látását.
+
+#Quest ládák
+Id;Név;Arany
+RODERIC_ORDER_RELICS;Az Ezüst Eskü ereklyeládája;0
+
+#Quest láda tartalom
+Id;TárgyId;Darab
+RODERIC_ORDER_RELICS;T027;1
+RODERIC_ORDER_RELICS;T012;12
+RODERIC_ORDER_RELICS;T004;10
+RODERIC_ORDER_RELICS;T006;8
+RODERIC_ORDER_RELICS;T002;16
+
 #Varázslatok
 Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs
 S001;Mágikus lövedék;1;6;Biztosan célba találó arkán lövedék amely a varázsló erejével növekszik.;Enemy;8;0;igen;Both;Blue;700
@@ -1117,17 +1140,6 @@ PL047;A fogadó mögötti sikátorban néha egy fekete macska ül, nyakában ara
 PL048;Egy kereskedő szerint a Káoszrubin nem is egyetlen kő, hanem egy nagyobb drágakő széttört darabja. Amikor ezt elmesélte, két csuklyás alak azonnal elhagyta a fogadót.
 PL049;Azt mondják, valahol a mélységben egy fekete sárkány olyan kincshalmon alszik, amelyből egyetlen arany is gazdaggá tenne egy embert. Azt már kevesebben mesélik, hányan próbálták megszerezni.
 PL050;Egy őrült öreg szerint egyszer eljön egy kalandozó, aki megtalálja a Káoszrubint és eldönti vele a világ sorsát. A fogadós szerint ugyanezt minden új vendégnek elmondja egy korsó sörért.
-
-#Csapdák
-Id;Név;Jel;Hatás;MinimumSzint;ÉszlelésiNehézség;HatástalanításiNehézség;MinimumSebzés;MaximumSebzés;Állapotesély;ÉszlelésiXP;HatástalanításiXP;Leírás
-TR001;Tüskés verem;⌄;Damage;1;7;7;3;7;0;25;75;Éles tüskék nyílnak fel a padlóból.
-TR002;Mérgezett tű;†;Poison;3;8;9;1;4;35;40;120;A falból mérgezett tű repül elő.
-TR003;Riasztórúna;◎;Alert;4;9;8;0;0;100;40;120;A felizzó rúna magára vonja a közeli lények figyelmét.
-TR004;Ingapengék;╳;Damage;7;10;11;7;12;0;60;180;A falakból egymást keresztező rozsdás pengék csapnak ki.
-TR005;Dögvészfelhő;≋;Poison;10;11;12;4;8;60;90;270;Fojtó zöld gáz tör elő a repedt padlólapok alól.
-TR006;Káoszpecsét;✹;Alert;14;13;13;4;9;100;135;405;A felhasadó pecsét energiakitörése megsebzi az áldozatot és odahívja a közeli szörnyeket.
-TR007;Lélektű;♦;Poison;18;15;15;8;14;75;200;600;Árnyékból formált tű sebzi meg a testet és mérgezi meg a lelket.
-TR008;Koromfelhő;☁;Darkness;5;9;9;0;0;100;50;150;Sűrű fekete korom borítja el az áldozat látását.
 
 #NPC-k
 Id;Név;OsztályId;Viszony;Viselkedés;Toborozható;Egyedi;FajId;TörténetId
@@ -2146,14 +2158,88 @@ S009;RPP025;;;Vizet kérek. Az Ezüst Esküre mondom kiszáradva még az eskü s
 S009;RPP026;;;Igyunk társaim. A fegyelem nem azt jelenti hogy figyelmen kívül hagyjuk a testünk jelzéseit.;Sir Roderic;Nem
 S009;RPP027;;;A kulacsom üres. Töltsük fel mielőtt a következő ütközetben vesszük észre.;Sir Roderic;Nem
 
-#Quest ládák
-Id;Név;Arany
-RODERIC_ORDER_RELICS;Az Ezüst Eskü ereklyeládája;0
+#Lény mondatok
+Id;Mondat1;Mondat2;Mondat3
+CS001;Kardot rántottál? Remek, már kezdtem unatkozni.;Maradj mögöttem, majd én felfogom az ütéseket.;Egy jó kard és egy biztos kéz többet ér száz varázsigénél.
+CS002;Ki akarja megtudni, milyen messzire tudok hajítani egy goblint?;Beszélgetni jöttél vagy verekedni? Remélem, az utóbbi.;Ha eltörik a fegyverem, majd folytatom ököllel!
+CS003;A becsületem a pajzsom, az acélom pedig a válaszom.;Állj meg és nevezd meg magad, idegen!;Aki ártatlanokra támad, annak velem gyűlik meg a baja.
+CS004;Ne aggódj, nem loptam el semmit. Még.;Ha eltűnik az erszényed, biztosan csak rossz helyre tetted.;Te nézd az ajtót, én addig... körülnézek.
+CS005;Az istenek fénye vezesse lépteidet.;Ha megsebesülsz, szólj. Ha meghalsz, szólj hangosabban.;Imádkozni mindig van idő. Kivéve, amikor egy troll rohan felénk.
+CS006;A mágia veszélyes tudomány. Ezért olyan szórakoztató.;Ne zavard meg a koncentrációmat, hacsak nem égsz.;Van erre egy varázslatom. Valószínűleg.
 
-#Quest láda tartalom
-Id;TárgyId;Darab
-RODERIC_ORDER_RELICS;T027;1
-RODERIC_ORDER_RELICS;T012;12
-RODERIC_ORDER_RELICS;T004;10
-RODERIC_ORDER_RELICS;T006;8
-RODERIC_ORDER_RELICS;T002;16
+ES001;Cinc-cinc! Ez az én járatom!;Ne nézz így rám, én voltam itt előbb!;Cinc! A csizmád ehetőnek tűnik.
+ES002;Hé, nagyember! Mit keresel a koboldok járatában?;Én nem félek tőled! Csak... taktikai távolságot tartok.;Add ide, ami fénylik, és talán nem szúrlak meg!
+ES003;Hé! Az a szép kard biztosan jobban állna nálam.;Goblin föld! Te meg goblin vacsora!;Ne nézd a méretemet! Nézd a késemet!
+ES004;Krrr... végre valaki, akinek még van húsa.;A sír nyugalma kellemesebb volt, mint a társaságod.;Csak csont és acél maradt belőlem. Mindkettő elég a harchoz.
+ES005;Grrrr... rossz helyre tévedtél.;Érzem rajtad a félelmet.;Fuss csak! Sokkal izgalmasabb úgy a vadászat.
+ES006;Emberhúsra éhezem... nyami.;Agyvelőőő... van nálad?;Ne fuss... én sem tudok gyorsan.
+ES007;Ember! Jó! Az ork fejsze már unatkozott.;Ha erős vagy, harcolj! Ha gyenge vagy, fuss!;Összetörlek, aztán elveszem a csizmádat!
+ES008;A goblinok fecsegnek. Mi harcolunk.;Egyetlen döféssel elintézlek.;Ne becsülj alá csak azért, mert ronda vagyok!
+ES009;Ne ficánkolj... csak rosszabb lesz a hálóban.;Nyolc lábam van. Szerinted el tudsz futni?;Gyere közelebb, olyan soványnak tűnik a hálóm.
+ES010;Érzem a hús szagát rajtad.;A falkámnak ma friss vacsorája lesz.;Mire meghallod a vonyításomat, már túl késő.
+ES011;Élő hús... meleg vér...;Futhatsz, de az árnyékod velem marad.;A halál szaga már rajtad van.
+ES012;Te kicsi. Én nagy. Ez könnyű.;Ogre éhes. Te húsból vagy. Jó.;Ne fuss! Ogre utál futni!
+ES013;Hé, apróság! Szereted, ha összelapítanak?;A sebeim begyógyulnak. A tieid nem.;Remélem, keményebb vagy, mint amilyennek kinézel.
+ES014;Beléptél a labirintusomba. Ez hiba volt.;A szarvaim között végzed, idegen.;Fuss csak! Szeretem az üldözést.
+ES015;Évszázadok óta vártam erre a pillanatra.;Ne nyúlj a pólyáimhoz! Nehéz volt ilyen szépen feltekerni.;A síromba léptél. Most már maradsz is.
+ES016;Nézz a szemembe... csak egy pillanatra.;Milyen szép szobor lennél.;Ne fordítsd el a tekinteted! Udvariatlanság.
+ES017;Három torokból üvöltök, de egyetlen gyomrom éhes.;Melyik fejemet akarod először feldühíteni?;Fuss! Majd eldöntjük, melyik fej kapja a nagyobb falatot.
+ES018;Látlak. Minden irányból.;Ennyi szemmel nehéz meglepni.;Ne aggódj, csak az egyik szemem fog rád sugarat lőni. Talán.
+ES019;Milyen kellemesen dobog a szíved.;Nem kérek sokat. Csak néhány kortyot.;Az örökkévalóság hosszú. Jó társaságra van szükségem.
+ES020;Ma éjjel a hold nekem vadászik.;Érzem a véred szagát.;Fuss! A bennem élő farkas szereti a játékot.
+ES021;Apró halandó, mégis beléptél a barlangomba?;Aranyat akarsz? Előbb éld túl a tüzet.;Egyetlen leheletem elég, hogy hamuvá válj.
+ES022;A halál nem végállomás. Én vagyok rá a bizonyíték.;Évszázadokat tanultam. Te hány percig készültél erre?;A tested elpusztul. A lelkedet viszont megtartom.
+ES023;Az acélod gyenge. A lelked még gyengébb.;A pokol tüze edzette a páncélomat.;Térdelj le, és talán gyors halált kapsz.
+ES024;Érzem rajtad a félelmet, halandó!;A láng, amely bennem ég, világokat emésztett már fel.;Üvölts csak! A mélység szereti a zenét.
+ES025;A sötétség nem körülöttem van. Belőlem árad.;Nem marad utánad más, csak megfeketedett csont.;A vörös sárkányok kérkednek. Én egyszerűen ölök.
+ES026;Screee! Ez az én barlangom!;Ne hadonássz! Attól csak idegesebb leszek.;Sötét van? Nekem pont megfelel.
+ES027;Blub... te szilárd vagy. Ezen segíthetek.;Ne lépj belém! Vagy lépj. Nekem mindegy.;Minden megemészthető, ha elég savas vagy.
+ES028;Az erszényt vagy az életedet! Igazából jöhet mindkettő.;Semmi személyes, barátom. Csak kell a pénzed.;Szép felszerelés. Kár lenne, ha gazdát cserélne.
+ES029;Ssssz... meleg hús közeledik.;Ne aggódj, csak egy kicsit harapok.;Ez az én kövem. Keress magadnak másikat!
+ES030;Cinc... közelebb! Hadd köhögjek rád.;Nem én vagyok beteg. Mindenki más túl egészséges.;Egy harapás, és máris lesz bennünk valami közös.
+ES031;Te túl kicsi vagy ekkora fegyverhez.;Bugbear nem beszél sokat. Bugbear üt.;Ha sikítasz, legalább tudom, hogy eltaláltalak.
+ES032;Micsoda csinos arc! Kár lenne összekarmolni.;Gyere csak közelebb, szépségem!;Sikíts hangosabban! Szeretem, ha visszhangzik.
+ES033;Hús... friss hús...;Ne félj! A halottakat már nem eszem meg. Többnyire.;Éhes vagyok, te pedig feltűnően ehető.
+ES034;Ne nézz sokáig a szemembe! Még gyakorlok.;Ha nagy leszek, mindenki kővé változik!;Ssssz... anya azt mondta, idegeneket szabad megharapni.
+ES035;A szellemek már tudják, hogyan végződik ez.;Ősök, adjatok erőt a fejszémnek!;Nevess csak a botomon! Mindjárt villám jön belőle.
+ES036;Én megütlek! Nem, én ütöm meg!;Két fej jobb, mint egy! Kivéve vitatkozáskor.;Balra menj! Nem, jobbra! Addig is maradj ott!
+ES037;Az élet melege sérti a szememet.;A sír hidege hamarosan átjár téged is.;Csatlakozz hozzánk. Az örökkévalóság csendes.
+ES038;Screee! Földön járó falat!;A magasból mindenki aprónak látszik.;A farkam mérge gyorsabb, mint a kardod.
+ES039;BETOLAKODÓ ÉSZLELVE.;A kő nem fél. A kő nem fárad.;Üss csak. A hegyet sem győznéd le ököllel.
+ES040;Gyere közelebb, gyermekem... hadd lássalak jobban.;Olyan fiatal vagy. Szinte irigylésre méltó.;Egy csók, egy átok... ugyan mi baj történhetne?
+ES041;Apró vagy, mint egy hópehely.;A csontjaid szépen ropognak majd a fagyban.;Északon az ilyen időt kellemes tavasznak hívjuk.
+ES042;Én már meghaltam egyszer. Te még csak most fogsz.;A kardom nem ismer kegyelmet.;A halál szolgál engem, és hamarosan te is.
+ES043;Levágod az egyik fejem? Nő helyette másik.;Három fejjel háromszor olyan éhes vagyok.;Válassz egy fejet! Mindegyik harap.
+ES044;A hús elporlad. A csont örök.;Nincs tüdőm, mégis érzem rajtad a félelmet.;Sárkány voltam életben. A halál csak könnyebbé tett.
+ES045;A hálóm nem selyemből készül, hanem rémálmokból.;Nyolc láb, nyolc ok arra, hogy fuss.;A pokolban a legyek sokkal nagyobbak. Te megteszed helyettük.
+ES046;A te véredben még ott az élet íze.;Királyságok születtek és pusztultak el előttem.;Ne félj a haláltól. Félj attól, ami utána következik.
+ES047;Halandó, még a nevedet sem érdemes megjegyeznem.;Birodalmak égtek el egyetlen parancsomra.;Térdelj le a pokol fejedelme előtt!
+ES048;Fiatal koromban csak tíz szemem volt.;Minden trükködet láttam már. Egyszerre több szemmel is.;Ne pislogj! Én sem fogok.
+ES049;A halál nem tudta elvenni tőlem az eget.;Csontjaim között ősi mágia izzik.;Megölték a testemet. Hiba volt meghagyni a lelkemet.
+ES050;A rend véget ér ott, ahol én megjelenek.;A valóság sikolt körülöttem.;Nem legyőzni foglak. Kitöröllek.
+ES051;Cinc! Ne nézz rám úgy, legalább nadrágot viselek.;A patkányok szerint túl ember vagyok. Az emberek szerint túl patkány.;Add ide a sajtot, és talán tárgyalhatunk.
+ES052;Életemben lovag voltam. Halálomban sem lettem gyávább.;A húsom elrohadt, az esküm megmaradt.;Acél az acél ellen, halandó!
+ES053;Sir Malrec vagyok. E nevet jól jegyezd meg a sírod számára.;A becsület meghalt bennem azon az éjszakán.;Túl messz jutottál. Innen már csak a sír vezet tovább.
+ES061;Gyermekeim, a sír kapui nyitva állnak előttetek.;Évszázadok halottai engedelmeskednek szavamnak.;Térdeljetek le, és talán épen marad a lelketek.
+ES062;Én vagyok a főnök! Látszik a koronámon is!;Aki legyőz, az lehet a főnök. De senki nem győz le!;Goblinok! Előre! Én majd... hátulról irányítok.
+ES063;Az én törzsem nem ismer félelmet!;Emberkoponyából iszom a reggeli italomat.;Ha legyőzöl, tied a törzsem. Haha! Mintha sikerülne!
+ES064;Hallod a kaszám suhogását? Az a te időd fogyása.;Egyetlen aratás maradt mára.;Ne fuss! A halál úgyis utolér.
+ES065;Évszázadok alatt volt időm gyakorolni.;A kardod mozdulatából már tudom, hogyan fogsz meghalni.;Véred és acélod egyaránt az enyém lesz.
+ES066;Állj! A holtak termeibe nincs belépés.;Őrségben állok, amíg az utolsó csontom is porrá nem válik.;Nincs szemem, mégis látom, hogy bajban vagy.
+ES067;Húúús... páncélban is éhes vagyok.;Régen lovag voltam... vagy szakács? Mindegy.;A páncél nehéz. Gondolkodni még nehezebb.
+ES068;Ez az én barlangom! Még a cseppkövek is az enyémek!;Gyere közelebb, hogy ne kelljen felállnom.;Troll erős. Barlangi troll még erősebb!
+ES069;Fiatalember, halkabban! Több ezer éve próbálok aludni.;Az átkom idősebb, mint a családfád.;A pólyáim alatt olyan dolgok vannak, amiket jobb nem látni.
+ES070;A falka engem követ. Hamarosan a te szagodat is.;Én vagyok az éjszaka legerősebb vadásza.;A hold ma vért kíván.
+ES071;Sok hős próbált már kijutni ebből a labirintusból.;A szarvaim több pajzsot törtek össze, mint ahányat te láttál.;A labirintus emlékszik a lépteidre. Én is.
+ES072;A Káosz lát téged.;A rend csak gyenge elmék kapaszkodója.;Véred nyitja majd meg az utat az uram előtt.
+ES073;Ha megláttál, már hibáztam. Ha életben maradsz, kétszer.;Ne fordíts hátat nekem. Bár igazából fordíts.;A csend a legszebb hang közvetlenül egy penge után.
+ES074;A halottaidból kiváló szolgák lesznek.;Miért félsz a haláltól? Olyan könnyű visszacsinálni.;Ölj meg, ha tudsz. Talán majd én támasztalak fel.
+ES075;Évszázadokig kő voltam. Most végre mozoghatok.;A kardod eltörik rajtam. Próbáld csak ki.;Nem szobor vagyok! Bár érthető a tévedés.
+ES076;Két olló, nyolc láb és egy mérges farok. Neked mid van?;Katt-katt... gyere csak közelebb.;A páncélod keménynek tűnik. Majd keresek rajta rést.
+ES077;Grrrr... a pokol kapui mögött rosszabbak is vannak nálam.;Fuss! Szeretem, amikor a vacsora megdolgoztat.;A lángjaim nem csak világítanak.
+ES078;Ssssz... idegen jár a járatokban.;A nyelvem villás, de a szavam egyértelmű: távozz!;Szeretnéd tudni, mérges vagyok-e? Gyere közelebb.
+ES079;Egy szemem van, de pont elég, hogy célba vegyelek.;Ne integess! Attól még nem látlak kétszer.;Kicsi ember, nagy bunkó. Egyszerű matematika.
+ES080;A fényed kialszik, amikor hozzád érek.;Nem vagyok árnyék. Az árnyék fél tőlem.;Fuss a fény felé! Ott könnyebb lesz megtalálnom.
+ES081;Nincs testem, amit megsebezhetnél.;A páncél üres. A harag nem.;Kardod van? Nekem én magam vagyok a páncél.
+ES082;Dobd el a fegyvert, és talán csak a pénzedet viszem el.;Sokat beszélsz valakihez képest, akit mindjárt kirabolnak.;A zsákmányodat vagy az életedet! Ma akciósan mindkettőt kérem.
+ES083;A Káosz acélja nem törik meg.;A rend szolgái mindig ugyanúgy sikoltanak.;Lépj elő, halandó! Hadd lássuk, mit ér a lelked.

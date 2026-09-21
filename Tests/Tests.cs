@@ -55,6 +55,7 @@ internal static partial class Program
     ("A főmenü rubintüze teljes szélességben terjed és korlátos marad", RubyFireSpreadsAcrossMenuWidth),
     ("A főmenü rubinja félpercenként egy gyors magentahullámmal pulzál", RubyPulseUsesSlowSineWave),
     ("A főmenü sárkányszemének fénye 45 másodpercenként felizzik", DragonEyesFlashEveryFortyFiveSeconds),
+    ("A lénymondatok osztályhoz vagy szörnyhöz és főmenüportréhoz oldódnak", CreatureQuotesLoadAndResolveForMainMenu),
     ("A Windows Terminal újraindítás debuggerben és gyermekfolyamatban kimarad", WindowsTerminalRelaunchGuardsAreStable),
     ("A Windows Terminal gyermek-kézfogás argumentuma szigorúan validált", WindowsTerminalHandshakeArgumentIsValidated),
     ("A hiányzó háttérzene callbackje kontextusonként egyszer jelez", BackgroundMusicMissingTrackReportingIsBounded),

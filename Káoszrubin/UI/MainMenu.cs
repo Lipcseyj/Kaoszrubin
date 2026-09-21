@@ -23,6 +23,7 @@ public sealed class MainMenu
     private readonly BackgroundMusicPlayer _backgroundMusicPlayer;
     private readonly Random _random = new();
     private readonly SoundEffects _soundEffects;
+    private readonly MainMenuCreature? _mainMenuCreature;
     private readonly GameSettingsService _musicSettings = new();
     private string? _menuStatus;
     bool _menuSoundPlayed = false;
@@ -95,6 +96,7 @@ public sealed class MainMenu
     {
         Log.Info("main-menu.initialization.start");
         _gameData = gameData;
+        _mainMenuCreature = MainMenuCreaturePanel.ChooseCreature(gameData, _random);
         _characterSaveService = new CharacterSaveService(characterSavePath, gameData);
         _gameSaveService = new GameSaveService(gameSaveDirectory, _characterSaveService);
         _applicationVersion = applicationVersion;
@@ -1264,6 +1266,8 @@ public sealed class MainMenu
             "Esc) Kilépés"
         };
         DrawSidePanel("KÁOSZRUBIN", lines);
+        if (_mainMenuCreature is not null)
+            MainMenuCreaturePanel.Draw(_mainMenuCreature, _random, SideMenuLeft, SideMenuWidth);
     }
 
     private void DrawMainBackdrop()
