@@ -60,6 +60,7 @@ public sealed class MazeLevelConfiguration
 {
     public required int Level { get; init; }
     public required string Name { get; init; }
+    /// <summary>Csak a klasszikus pályán hat; Wide layoutnál a NarrowingChance használatos.</summary>
     public double DoubleWidthCorridorChance { get; init; } = 0.80;
     public MazeLayoutConfiguration? Layout { get; init; }
     public System.Text.Rune WallRune { get; init; } = new('█');
@@ -316,7 +317,6 @@ public static class MazeLevelConfigurations
                 Level = 6,
                 Name = "A nagy csarnokok szintje",
                 Layout = new WideMazeLayoutConfiguration(new IntRange(2, 2), NarrowingChance: 0.12),
-                DoubleWidthCorridorChance = 0.20,
                 WallRune = new('▦'),
                 WallColor = ConsoleColor.DarkYellow,
                 RoomCount = Amount.Lots.Range(),

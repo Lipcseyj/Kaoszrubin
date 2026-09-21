@@ -89,6 +89,8 @@ public sealed class Maze
     public void PlaceExit(Position position)
     {
         if (!IsWalkable(position)) throw new ArgumentException("A kijáratnak járható cellán kell lennie.", nameof(position));
+        if (IsInside(Exit) && Tiles[Exit.X, Exit.Y] == ExitMarker)
+            Tiles[Exit.X, Exit.Y] = Floor;
         Exit = position;
         Tiles[Exit.X, Exit.Y] = ExitMarker;
         NavigationRevision++;

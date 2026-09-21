@@ -720,12 +720,16 @@ internal static partial class Program
     static void ShieldCsvValidationRejectsInvalidDefinitions()
     {
         var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-        var missingTier = source.Replace(";SHIELD;50;1", ";SHIELD;50;0", StringComparison.Ordinal);
-        Assert(missingTier != source, "A pajzstiert törlő teszt nem találta a fapajzs sorát.");
+        var shieldLine = source.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Single(line => line.StartsWith("W014;", StringComparison.Ordinal));
+        var fields = shieldLine.Split(';');
+        fields[^1] = "0";
+        var missingTier = source.Replace(shieldLine, string.Join(';', fields), StringComparison.Ordinal);
         AssertCsvLoadFails(missingTier, "W014", "PajzsTier", "1 és 4");
 
-        var mismatchedFamily = source.Replace(";SHIELD;50;1", ";SWORD;50;1", StringComparison.Ordinal);
-        Assert(mismatchedFamily != source, "A pajzscsaládot módosító teszt nem találta a fapajzs sorát.");
+        fields = shieldLine.Split(';');
+        fields[^3] = "SWORD";
+        var mismatchedFamily = source.Replace(shieldLine, string.Join(';', fields), StringComparison.Ordinal);
         AssertCsvLoadFails(mismatchedFamily, "W014", "nincs összhangban");
     }
 

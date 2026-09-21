@@ -34,6 +34,25 @@ internal static partial class Program
                     Assert(maze.IsWalkable(new Position(nodeX + lane, nodeY + width + offset)),
                         "Egy függőleges széles folyosó nem három mező széles.");
         }
+
+        var otherMaze = new WideMazeGenerator(settings, [], [], new Random(118)).Create(43, 31);
+        var oldExit = maze.Exit;
+        var departure = MazeEdgePassageCarver.Carve(maze, new Random(119));
+        var arrival = MazeEdgePassageCarver.Carve(otherMaze, new Random(120),
+            departure.OppositeEdge, departure.RelativeOffset);
+        maze.PlaceExit(departure.Position);
+        Assert(arrival.Edge == departure.OppositeEdge &&
+               Math.Abs(arrival.RelativeOffset - departure.RelativeOffset) <= 1d / 30 &&
+               IsOnEdge(maze, departure.Position) && IsOnEdge(otherMaze, arrival.Position),
+            "Az átjáró két vége nem egymással szemközti, közel azonos falszakaszra került.");
+        Assert(maze.Tiles[oldExit.X, oldExit.Y] == Maze.Floor &&
+               maze.CheckFullAccessibility().IsFullyAccessible &&
+               otherMaze.CheckFullAccessibility().IsFullyAccessible,
+            "A szélső átjáró járata nem bejárható, vagy megmaradt a régi jobb alsó kijáratjel.");
+
+        static bool IsOnEdge(Maze candidate, Position position) =>
+            position.X == 0 || position.Y == 0 ||
+            position.X == candidate.Width - 1 || position.Y == candidate.Height - 1;
     }
 
     static void MazePassageSurvivesSaveRoundTrip()

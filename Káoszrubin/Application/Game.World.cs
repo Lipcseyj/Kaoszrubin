@@ -853,8 +853,15 @@ public sealed partial class Game
         {
             var source = areas[index];
             var destination = areas[index + 1];
-            source.Maze.AddPassage(new MazePassage(source.Maze.Exit, destination.Id, destination.Maze.Entrance));
-            destination.Maze.AddPassage(new MazePassage(destination.Maze.Entrance, source.Id, source.Maze.Exit));
+            var sourcePassage = MazeEdgePassageCarver.Carve(source.Maze, _random);
+            var destinationPassage = MazeEdgePassageCarver.Carve(destination.Maze, _random,
+                sourcePassage.OppositeEdge, sourcePassage.RelativeOffset);
+            // Köztes képernyőn nincs valódi szintkijárat: a régi jobb alsó jel helyét az átjáró veszi át.
+            source.Maze.PlaceExit(sourcePassage.Position);
+            source.Maze.AddPassage(new MazePassage(sourcePassage.Position, destination.Id,
+                destinationPassage.Position));
+            destination.Maze.AddPassage(new MazePassage(destinationPassage.Position, source.Id,
+                sourcePassage.Position));
         }
         return new DungeonLevel(areas, areas[0].Id);
     }
