@@ -124,6 +124,7 @@ public sealed class MainMenu
         var readyLogged = false;
         var rubyFire = new RubyFireEffect(SideMenuLeft + SideMenuWidth, RubyFireHeight, _random);
         var rubyPulse = new RubyPulseEffect(AsciiArts.GetMainScreen());
+        var dragonEyes = new DragonEyeFlashEffect();
 
         while (true)
         {
@@ -144,7 +145,7 @@ public sealed class MainMenu
                 readyLogged = true;
             }
 
-            switch (ReadMainMenuKey(rubyFire, rubyPulse).Key)
+            switch (ReadMainMenuKey(rubyFire, rubyPulse, dragonEyes).Key)
             {
                 case ConsoleKey.D1:
                 case ConsoleKey.NumPad1:
@@ -194,11 +195,13 @@ public sealed class MainMenu
         }
     }
 
-    private static ConsoleKeyInfo ReadMainMenuKey(RubyFireEffect rubyFire, RubyPulseEffect rubyPulse)
+    private static ConsoleKeyInfo ReadMainMenuKey(RubyFireEffect rubyFire, RubyPulseEffect rubyPulse,
+        DragonEyeFlashEffect dragonEyes)
     {
         while (true)
         {
             rubyPulse.Render(Console.WindowWidth, Console.WindowHeight);
+            dragonEyes.Render(Console.WindowWidth, Console.WindowHeight);
             rubyFire.Update();
             var visibleWidth = Math.Min(rubyFire.Width, Console.WindowWidth);
             var visibleHeight = Math.Min(rubyFire.Height,

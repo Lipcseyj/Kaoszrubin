@@ -30,6 +30,18 @@ internal static partial class Program
             "A rubin fénye nem harminc másodpercenkénti gyors, kifelé terjedő impulzust használ.");
     }
 
+    static void DragonEyesFlashEveryFortyFiveSeconds()
+    {
+        Assert(Math.Abs(DragonEyeFlashEffect.BrightnessAt(0)) < 0.0001 &&
+               DragonEyeFlashEffect.BrightnessAt(1.5) > 0.99 &&
+               Math.Abs(DragonEyeFlashEffect.BrightnessAt(4)) < 0.0001 &&
+               Math.Abs(DragonEyeFlashEffect.BrightnessAt(44)) < 0.0001 &&
+               DragonEyeFlashEffect.BrightnessAt(46.5) > 0.99 &&
+               DragonEyeFlashEffect.EyeColor(0) == ConsoleColor.DarkMagenta &&
+               DragonEyeFlashEffect.EyeColor(1) == ConsoleColor.White,
+            "A sárkányszemek nem 45 másodpercenként felizzó, három másodperces effektet használnak.");
+    }
+
     static void BackgroundMusicMissingTrackReportingIsBounded()
     {
         var settings = new GameSettings { MusicEnabled = true };
