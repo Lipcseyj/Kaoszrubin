@@ -326,6 +326,7 @@ internal static partial class Program
     ("A tesztfuttató névszűrése kis- és nagybetűtől független", TestRunnerFilterIsCaseInsensitive),
     ("Az ellenséges varázshasználói profilok adatvezéreltek és teljesek", EnemySpellcasterProfilesAreDataDrivenAndComplete),
     ("Az ellenséges varázslás mannát használ, a partit célozza és menthető", EnemySpellcastingUsesManaTargetsPartyAndPersists),
+    ("A casterek ritka, tematikus pályacsoportokat vezetnek", EnemyCastersLeadRareThematicLevelGroups),
     ("A SignalR LAN host elindítható és leállítható", () =>
         SignalRServerStartsAndStops().GetAwaiter().GetResult()),
     ("A SignalR kliens végigviszi a LAN coop kapcsolatot", () =>
