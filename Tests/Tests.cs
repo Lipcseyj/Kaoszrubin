@@ -52,6 +52,7 @@ internal static partial class Program
     ("A becsapódások területe, tölcsére, lánca és színhulláma pontos", SpellImpactTests.FootprintsAndAnimation),
     ("A támadó becsapódás a sebzés előtt az összes lánccélpontot megkapja", SpellImpactTests.ImpactPrecedesDamage),
     ("A terminál méretőre pontosan a teljes játékképernyőt követeli meg", TerminalViewportRequiresCompleteGameScreen),
+    ("A főmenü rubintüze teljes szélességben terjed és korlátos marad", RubyFireSpreadsAcrossMenuWidth),
     ("A Windows Terminal újraindítás debuggerben és gyermekfolyamatban kimarad", WindowsTerminalRelaunchGuardsAreStable),
     ("A Windows Terminal gyermek-kézfogás argumentuma szigorúan validált", WindowsTerminalHandshakeArgumentIsValidated),
     ("A hiányzó háttérzene callbackje kontextusonként egyszer jelez", BackgroundMusicMissingTrackReportingIsBounded),

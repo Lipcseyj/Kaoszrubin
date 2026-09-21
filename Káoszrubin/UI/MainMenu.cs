@@ -27,9 +27,12 @@ public sealed class MainMenu
     private string? _menuStatus;
     bool _menuSoundPlayed = false;
 
-    private const int SideMenuWidth = 52;
-    private const int SideMenuLeft = 142;
+    public const int SideMenuWidth = 52;
+    public const int SideMenuLeft = 142;
     private const int SideMenuTop = 8;
+    private const int RubyFireTop = 43;
+    private const int RubyFireHeight = 8;
+    private const int RubyFireFrameMilliseconds = 85;
 
     public static string AppVersion => (Assembly.GetEntryAssembly()!.GetName().Version ?? new Version(0, 0, 0)).ToString(3);
 
@@ -118,6 +121,7 @@ public sealed class MainMenu
     public void Run()
     {
         var readyLogged = false;
+        var rubyFire = new RubyFireEffect(SideMenuLeft + SideMenuWidth, RubyFireHeight, _random);
 
         while (true)
         {
@@ -138,7 +142,7 @@ public sealed class MainMenu
                 readyLogged = true;
             }
 
-            switch (Console.ReadKey(intercept: true).Key)
+            switch (ReadMainMenuKey(rubyFire).Key)
             {
                 case ConsoleKey.D1:
                 case ConsoleKey.NumPad1:
@@ -185,6 +189,24 @@ public sealed class MainMenu
                     Console.Clear();
                     return;
             }
+        }
+    }
+
+    private static ConsoleKeyInfo ReadMainMenuKey(RubyFireEffect rubyFire)
+    {
+        while (true)
+        {
+            rubyFire.Update();
+            var visibleWidth = Math.Min(rubyFire.Width, Console.WindowWidth);
+            var visibleHeight = Math.Min(rubyFire.Height,
+                Math.Max(0, Console.WindowHeight - RubyFireTop - 1));
+            if (visibleWidth > 0 && visibleHeight > 0)
+                rubyFire.Render(0, RubyFireTop, visibleWidth, visibleHeight);
+
+            if (Console.KeyAvailable)
+                return Console.ReadKey(intercept: true);
+
+            Thread.Sleep(RubyFireFrameMilliseconds);
         }
     }
 

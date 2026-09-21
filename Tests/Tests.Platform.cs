@@ -1,5 +1,20 @@
 internal static partial class Program
 {
+    static void RubyFireSpreadsAcrossMenuWidth()
+    {
+        var fire = new RubyFireEffect(ConsoleRenderer.PlayfieldWidth, 8, new Random(43050));
+        for (var frame = 0; frame < 24; frame++) fire.Update();
+
+        Assert(fire.Width == ConsoleRenderer.PlayfieldWidth && fire.Height == 8,
+            "A rubintűz nem a főmenü képszélességét vagy a 43–50. sor nyolc sorát használja.");
+        Assert(Enumerable.Range(0, fire.Width).All(x => fire.IntensityAt(x, fire.Height - 1) > 0),
+            "A rubintűz forrássora nem ér végig a kép szélességén.");
+        Assert(Enumerable.Range(0, fire.Width).Any(x => fire.IntensityAt(x, 0) > 0) &&
+               Enumerable.Range(0, fire.Width).SelectMany(x => Enumerable.Range(0, fire.Height)
+                   .Select(y => fire.IntensityAt(x, y))).All(value => value <= 9),
+            "A láng nem terjed fel a teljes sávban, vagy kilépett az intenzitástartományból.");
+    }
+
     static void BackgroundMusicMissingTrackReportingIsBounded()
     {
         var settings = new GameSettings { MusicEnabled = true };
