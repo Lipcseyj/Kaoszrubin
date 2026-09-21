@@ -379,7 +379,7 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo(MonsterIds.Óriásdenevér, Amount.Several),
+                    Encounters.Horde(MonsterIds.Óriásdenevér, Amount.Several, Amount.Several),
                     Encounters.Solo(MonsterIds.BarlangiGyík, Amount.Few, EnemyMovementProfile.Patrol)
                 ]
             },

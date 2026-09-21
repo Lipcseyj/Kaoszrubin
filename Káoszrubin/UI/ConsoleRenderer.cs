@@ -11,7 +11,6 @@ using KaoszRubin.Domain.Quests;
 using KaoszRubin.UI;
 using Microsoft.AspNetCore.Routing.Matching;
 using NAudio.CoreAudioApi;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -140,6 +139,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
     private readonly HashSet<Position> _battleFocusPositions = [];
+    private readonly List<SpellImpactAnimation> _activeSpellImpacts = [];
+    private readonly HashSet<Position> _spellImpactDrawnCells = [];
+    private Maze? _spellImpactMaze;
     private readonly HashSet<CharacterId> _staggeredBattleCharacterIds = [];
     private readonly HashSet<WorldEntityId> _staggeredBattleEnemyIds = [];
     private readonly HashSet<CharacterId> _ragingBattleCharacterIds = [];
@@ -2747,50 +2749,77 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     {
         if (spell.EffectiveImpactDurationMilliseconds <= 0 || Console.IsOutputRedirected) return;
         var cells = SpellImpactVisual.GetCells(spell, casterPosition, target, enemyTargets, maze)
-            .Where(fogOfWar.IsVisible)
-            .ToDictionary(position => position, position => GetMapCellVisual(maze, fogOfWar, position, playerPosition));
-        if (cells.Count == 0) return;
+            .Where(fogOfWar.IsVisible).Distinct().ToArray();
+        if (cells.Length == 0) return;
+
+        if (!ReferenceEquals(_spellImpactMaze, maze))
+        {
+            _activeSpellImpacts.Clear();
+            _spellImpactDrawnCells.Clear();
+            _spellImpactMaze = maze;
+        }
         var origin = spell.TargetType == SpellTargetType.Direction ? casterPosition : target;
-        var watch = Stopwatch.StartNew();
+        _activeSpellImpacts.Add(new SpellImpactAnimation(spell, origin, cells, DateTime.UtcNow));
+        UpdateSpellImpacts(maze, fogOfWar, playerPosition);
+    }
+
+    public void UpdateSpellImpacts(Maze maze, FogOfWar fogOfWar, Position playerPosition)
+    {
+        if (Console.IsOutputRedirected) return;
+        if (!ReferenceEquals(_spellImpactMaze, maze))
+        {
+            _activeSpellImpacts.Clear();
+            _spellImpactDrawnCells.Clear();
+            _spellImpactMaze = maze;
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        _activeSpellImpacts.RemoveAll(impact => !impact.IsActiveAt(now));
+        if (_spellCastingOverlaySnapshot is not null || _replicatedWindowBackground is not null) return;
+
         try
         {
-            while (watch.Elapsed.TotalMilliseconds < spell.EffectiveImpactDurationMilliseconds)
+            var visibleCells = _activeSpellImpacts
+                .SelectMany(impact => impact.Cells)
+                .Where(fogOfWar.IsVisible).ToHashSet();
+            foreach (var position in _spellImpactDrawnCells.Where(position => !visibleCells.Contains(position)).ToArray())
+                DrawCurrentMapCell(maze, fogOfWar, position, playerPosition);
+
+            if (_activeSpellImpacts.Count > 0 &&
+                TerminalViewport.TryGetSize(out var size) && size.CanFit(maze.Width, maze.Height))
             {
-                if (!TerminalViewport.TryGetSize(out var size) || !size.CanFit(maze.Width, maze.Height)) break;
-                var elapsed = watch.Elapsed.TotalMilliseconds;
-                foreach (var (position, visual) in cells)
+                foreach (var impact in _activeSpellImpacts)
                 {
-                    var colors = SpellImpactVisual.GetColors(spell, position, origin, elapsed);
-                    Console.SetCursorPosition(position.X, position.Y);
-                    WriteRuneWithColor(visual.Rune, colors.Foreground, colors.Background);
+                    var elapsed = impact.ElapsedMillisecondsAt(now);
+                    foreach (var position in impact.Cells.Where(fogOfWar.IsVisible))
+                    {
+                        var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
+                        var colors = SpellImpactVisual.GetColors(impact.Spell, position, impact.Origin, elapsed);
+                        Console.SetCursorPosition(position.X, position.Y);
+                        WriteRuneWithColor(visual.Rune, colors.Foreground, colors.Background);
+                    }
                 }
-                Thread.Sleep((int)Math.Max(1, Math.Min(50,
-                    spell.EffectiveImpactDurationMilliseconds - watch.Elapsed.TotalMilliseconds)));
             }
+            _spellImpactDrawnCells.Clear();
+            _spellImpactDrawnCells.UnionWith(visibleCells);
         }
         catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception))
         {
-            // Resizing may interrupt the animation, but must not cancel a paid spell.
+            // A következő játékhurok-képkocka folytatja vagy helyreállítja az effektet.
         }
-        finally
+    }
+
+    private void DrawCurrentMapCell(Maze maze, FogOfWar fogOfWar, Position position, Position playerPosition)
+    {
+        Console.SetCursorPosition(position.X, position.Y);
+        var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
+        if (_battleFocusPositions.Contains(position))
         {
-            try
-            {
-                foreach (var (position, visual) in cells)
-                {
-                    Console.SetCursorPosition(position.X, position.Y);
-                    var focused = _battleFocusPositions.Contains(position);
-                    WriteRuneWithColor(visual.Rune,
-                        focused ? visual.BackgroundColor : visual.ForegroundColor,
-                        focused ? visual.ForegroundColor : visual.BackgroundColor);
-                }
-                ResetColorCache();
-            }
-            catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception))
-            {
-                // The main viewport loop restores the screen once the terminal fits again.
-            }
+            WriteRuneWithColor(visual.Rune, visual.BackgroundColor, visual.ForegroundColor);
+            return;
         }
+        WriteRuneWithColor(visual.Rune, visual.ForegroundColor, visual.BackgroundColor);
     }
 
     public void DrawSpellTargetCursor(Maze maze, FogOfWar fogOfWar, Position? previousPosition,

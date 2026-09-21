@@ -27,7 +27,7 @@ A Káoszrubin egy .NET 10 konzolos, egyjátékos labirintusjáték. Az alkalmaz�
 
 A buffok és gyógyítások a `defensive-spell.wav` hangot használják térképen és csatában is. Ez közös session-hang: akkor is hallható a helyi és coop játékosok számára, ha másik partitag varázsol önmagára vagy egy társára. A `BecsapódásIdőMs = 0` csak a vizuális effektet kapcsolja ki, a hangot nem.
 
-A támadóvarázslatok becsapódását az egycélpontos és lánctámadásoknál pulzáló előtér/háttér, területi támadásoknál kifelé futó színhullám jelzi. A lángtölcsér a sebzés tényleges kúpalakját követi. A lények jelei az effekt alatt is megmaradnak; a halálos sebzés csak az animáció után távolítja el őket. Csak felfedett térképcellák rajzolódnak, majd helyreáll az eredeti megjelenítés és a harci fókuszjelölés.
+A támadóvarázslatok becsapódását az egycélpontos és lánctámadásoknál pulzáló előtér/háttér, területi támadásoknál kifelé futó színhullám jelzi. A lángtölcsér a sebzés tényleges kúpalakját követi. Csak felfedett térképcellák rajzolódnak; minden képkocka az aktuális térképállapot jelét színezi át, lejáratkor pedig az aktuális mező és harci fókusz áll helyre.
 
 A `#Varázslatok` és `#Papi varázslatok` szekció három opcionális utolsó oszlopa:
 
@@ -37,7 +37,7 @@ A `#Varázslatok` és `#Papi varázslatok` szekció három opcionális utolsó o
 
 A mellékelt CSV minden effekt nélküli varázslatnál (buff, gyógyítás, teleportáció, feltámasztás és általános mágiaoszlatás) explicit `0` értéket használ. A 24 támadóvarázslat különböző, jellegéhez igazított időt kapott 500–5000 ms között: a Villámcsapás 500, a Mágikus lövedék 700, a Tűzgolyó 3000, a Meteorzápor 4700, az Arkán kataklizma 5000 ms. Az ellenséges gyengítések, például a Vakítás és a Lassítás, továbbra is becsapódási effektet kapnak.
 
-Az animáció a közös varázsvégrehajtásból indul, ezért a tárgyból és az NPC által elsütött támadásokat is kezeli. Térképes játék közben szünetel a világ, és ugyanennyivel eltolódnak a mozgás, szükségletek, NPC-önellátás és beszélgetések határidői. Csata közben a következő kör az effekt után folytatódik. Átirányított konzolkimenetnél és nem látható becsapódásnál nincs animációs várakozás.
+Az animáció a közös varázsvégrehajtásból indul, ezért a tárgyból, NPC-től és ellenségtől érkező támadásokat is kezeli. A végrehajtás csak regisztrálja az időalapú effektet, a normál játékhurok pedig képkockánként rajzolja; nincs várakozó ciklus vagy háttérszálas konzolírás. A sebzés, a következő harci kör, a mozgás, a szükségletek, az NPC-önellátás, a beszélgetések és a coop feldolgozás az animáció közben is folytatódhat. Egymást átfedő effektek egyszerre élhetnek, a később indított kerül felülre. Átirányított konzolkimenetnél és nem látható becsapódásnál nem indul vizuális effekt.
 
 ### Halottűzés
 

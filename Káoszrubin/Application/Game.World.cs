@@ -405,6 +405,7 @@ public sealed partial class Game
                     _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
                     _renderer.CharacterSheet.SetCharacterSheetFocused(_characterSheetFocused);
                 }
+                _renderer.UpdateSpellImpacts(_maze, _fogOfWar, _player.Position);
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);

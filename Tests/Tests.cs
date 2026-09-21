@@ -50,6 +50,7 @@ internal static partial class Program
     ("A buff és gyógyítás hangját a varázslótól és célponttól eltérő játékos is hallja", DefensiveSpellSoundIsShared),
     ("A becsapódások CSV-színe, ideje, alapértéke és validációja működik", SpellImpactTests.CsvSettings),
     ("A becsapódások területe, tölcsére, lánca és színhulláma pontos", SpellImpactTests.FootprintsAndAnimation),
+    ("A varázseffekt idővonala nem blokkolja a játékhurkot", SpellImpactTests.AnimationTimelineDoesNotOwnTheGameLoop),
     ("A támadó becsapódás a sebzés előtt az összes lánccélpontot megkapja", SpellImpactTests.ImpactPrecedesDamage),
     ("A terminál méretőre pontosan a teljes játékképernyőt követeli meg", TerminalViewportRequiresCompleteGameScreen),
     ("A főmenü rubintüze teljes szélességben terjed és korlátos marad", RubyFireSpreadsAcrossMenuWidth),

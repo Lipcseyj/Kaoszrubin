@@ -411,20 +411,8 @@ public sealed partial class Game
             targets => PlaySpellImpact(spell, casterPosition, target, targets));
 
     private void PlaySpellImpact(SpellDefinition spell, Position casterPosition, Position target,
-        IReadOnlyList<Position> enemyTargets)
-    {
-        var watch = System.Diagnostics.Stopwatch.StartNew();
-        try
-        {
-            _renderer.PlaySpellImpact(_maze, _fogOfWar, _player.Position, spell, casterPosition, target, enemyTargets);
-        }
-        finally
-        {
-            // This runs on the game loop: no world action advances during the animation.
-            // Move deadlines too, so wall-clock time cannot cause catch-up actions afterwards.
-            if (!_battleStarted) ShiftExplorationSchedules(watch.Elapsed);
-        }
-    }
+        IReadOnlyList<Position> enemyTargets) =>
+        _renderer.PlaySpellImpact(_maze, _fogOfWar, _player.Position, spell, casterPosition, target, enemyTargets);
 
     private void ShiftExplorationSchedules(TimeSpan pause)
     {

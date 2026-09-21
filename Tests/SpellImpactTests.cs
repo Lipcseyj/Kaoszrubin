@@ -78,6 +78,20 @@ internal static class SpellImpactTests
             "Az egycélpontos effekt nem pulzál.");
     }
 
+    public static void AnimationTimelineDoesNotOwnTheGameLoop()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var spell = catalog.GetSpell("S001");
+        var started = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var animation = new SpellImpactAnimation(spell, new Position(2, 2), [new Position(2, 2)], started);
+
+        Require(animation.IsActiveAt(started) &&
+                animation.IsActiveAt(started.AddMilliseconds(spell.EffectiveImpactDurationMilliseconds - 1)) &&
+                !animation.IsActiveAt(started.AddMilliseconds(spell.EffectiveImpactDurationMilliseconds)) &&
+                animation.ElapsedMillisecondsAt(started.AddMilliseconds(-100)) == 0,
+            "A varázseffekt nem külső képkockaidő alapján indul vagy jár le.");
+    }
+
     public static void ImpactPrecedesDamage()
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

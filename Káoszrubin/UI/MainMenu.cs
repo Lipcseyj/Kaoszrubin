@@ -33,7 +33,11 @@ public sealed class MainMenu
     private const int SideMenuTop = 8;
     private const int RubyFireTop = 43;
     private const int RubyFireHeight = 8;
-    private const int RubyFireFrameMilliseconds = 85;
+    private const int MainMenuInputPollMilliseconds = 8;
+
+    private const int RubyPulseFrameMilliseconds = 40;  // 25 FPS
+    private const int DragonEyeFrameMilliseconds = 50; // 20 FPS
+    private const int RubyFireFrameMilliseconds = 85;  // ~12 FPS
 
     public static string AppVersion => (Assembly.GetEntryAssembly()!.GetName().Version ?? new Version(0, 0, 0)).ToString(3);
 
@@ -197,25 +201,154 @@ public sealed class MainMenu
         }
     }
 
-    private static ConsoleKeyInfo ReadMainMenuKey(RubyFireEffect rubyFire, RubyPulseEffect rubyPulse,
+    private static ConsoleKeyInfo ReadMainMenuKey(
+        RubyFireEffect rubyFire,
+        RubyPulseEffect rubyPulse,
         DragonEyeFlashEffect dragonEyes)
     {
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+
+        long nextRubyPulseAt = 0;
+        long nextDragonEyesAt = 0;
+        long nextRubyFireAt = 0;
+
         while (true)
         {
-            rubyPulse.Render(Console.WindowWidth, Console.WindowHeight);
-            dragonEyes.Render(Console.WindowWidth, Console.WindowHeight);
-            rubyFire.Update();
-            var visibleWidth = Math.Min(rubyFire.Width, Console.WindowWidth);
-            var visibleHeight = Math.Min(rubyFire.Height,
-                Math.Max(0, Console.WindowHeight - RubyFireTop - 1));
-            if (visibleWidth > 0 && visibleHeight > 0)
-                rubyFire.Render(0, RubyFireTop, visibleWidth, visibleHeight);
+            // ========================================================
+            // ⌨️ INPUT
+            // ========================================================
 
+            // Ezt minden loopban ellenőrizzük, ezért a menü gyorsan reagál,
+            // függetlenül az animációk frissítési sebességétől.
             if (Console.KeyAvailable)
                 return Console.ReadKey(intercept: true);
 
-            Thread.Sleep(RubyFireFrameMilliseconds);
+            var now = timer.ElapsedMilliseconds;
+
+            var windowWidth = Console.WindowWidth;
+            var windowHeight = Console.WindowHeight;
+
+
+            // ========================================================
+            // 💎 RUBIN PULZÁLÁS
+            // ========================================================
+
+            if (now >= nextRubyPulseAt)
+            {
+                rubyPulse.Render(
+                    windowWidth,
+                    windowHeight);
+
+                nextRubyPulseAt = AdvanceDeadline(
+                    nextRubyPulseAt,
+                    RubyPulseFrameMilliseconds,
+                    timer.ElapsedMilliseconds);
+            }
+
+
+            // ========================================================
+            // 🐉 SÁRKÁNYSZEM
+            // ========================================================
+
+            if (now >= nextDragonEyesAt)
+            {
+                dragonEyes.Render(
+                    windowWidth,
+                    windowHeight);
+
+                nextDragonEyesAt = AdvanceDeadline(
+                    nextDragonEyesAt,
+                    DragonEyeFrameMilliseconds,
+                    timer.ElapsedMilliseconds);
+            }
+
+
+            // ========================================================
+            // 🔥 RUBINTŰZ
+            // ========================================================
+
+            if (now >= nextRubyFireAt)
+            {
+                rubyFire.Update();
+
+                var visibleWidth =
+                    Math.Min(
+                        rubyFire.Width,
+                        windowWidth);
+
+                var visibleHeight =
+                    Math.Min(
+                        rubyFire.Height,
+                        Math.Max(
+                            0,
+                            windowHeight - RubyFireTop - 1));
+
+                if (visibleWidth > 0 &&
+                    visibleHeight > 0)
+                {
+                    rubyFire.Render(
+                        0,
+                        RubyFireTop,
+                        visibleWidth,
+                        visibleHeight);
+                }
+
+                nextRubyFireAt = AdvanceDeadline(
+                    nextRubyFireAt,
+                    RubyFireFrameMilliseconds,
+                    timer.ElapsedMilliseconds);
+            }
+
+
+            // ========================================================
+            // 😴 KÖVETKEZŐ ESEMÉNYIG VÁRUNK
+            // ========================================================
+
+            now = timer.ElapsedMilliseconds;
+
+            var nextAnimationAt = Math.Min(
+                nextRubyPulseAt,
+                Math.Min(
+                    nextDragonEyesAt,
+                    nextRubyFireAt));
+
+            var millisecondsUntilNextAnimation =
+                nextAnimationAt - now;
+
+            /*
+             * Nem alszunk 40–80 ms-ot akkor sem, ha a következő animáció
+             * csak később esedékes, mert az inputot sűrűn akarjuk figyelni.
+             */
+            var sleepMilliseconds = (int)Math.Clamp(
+                millisecondsUntilNextAnimation,
+                1,
+                MainMenuInputPollMilliseconds);
+
+            Thread.Sleep(sleepMilliseconds);
         }
+    }
+
+    /// <summary>
+    /// Továbbtolja egy effekt következő határidejét úgy,
+    /// hogy hosszabb renderelés esetén se kezdjen el időben elcsúszni.
+    /// </summary>
+    private static long AdvanceDeadline(
+        long previousDeadline,
+        int intervalMilliseconds,
+        long now)
+    {
+        var next = previousDeadline + intervalMilliseconds;
+
+        /*
+         * Ha valamiért annyira lemaradtunk, hogy egy vagy több frame
+         * kimaradt, nem próbáljuk őket utólag lerenderelni.
+         *
+         * Egyszerűen átugorjuk őket.
+         */
+        while (next <= now)
+            next += intervalMilliseconds;
+
+        return next;
     }
 
     private void ApplyAudioSettings()

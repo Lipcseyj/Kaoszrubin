@@ -49,3 +49,13 @@ internal static class SpellImpactVisual
         };
     }
 }
+
+internal sealed record SpellImpactAnimation(SpellDefinition Spell, Position Origin,
+    IReadOnlyList<Position> Cells, DateTime StartedUtc)
+{
+    public double ElapsedMillisecondsAt(DateTime utcNow) =>
+        Math.Max(0, (utcNow - StartedUtc).TotalMilliseconds);
+
+    public bool IsActiveAt(DateTime utcNow) =>
+        ElapsedMillisecondsAt(utcNow) < Spell.EffectiveImpactDurationMilliseconds;
+}
