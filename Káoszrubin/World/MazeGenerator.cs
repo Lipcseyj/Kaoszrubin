@@ -189,7 +189,7 @@ public class MazeGenerator
             var positions = AvailableRoomPositions(maze, room)
                 .OrderBy(position => Manhattan(position, center)).ThenBy(_ => Random.Next())
                 .Take(members.Count).ToList();
-            PlaceGroup(maze, encounter, members, positions);
+            PlaceGroup(maze, encounter, members, positions, roamingHorde: false);
         }
     }
 
@@ -204,7 +204,7 @@ public class MazeGenerator
             var anchor = available.ElementAt(Random.Next(available.Count));
             var positions = ConnectedPositions(anchor, available, members.Count);
             if (positions.Count < members.Count) continue;
-            PlaceGroup(maze, encounter, members, positions);
+            PlaceGroup(maze, encounter, members, positions, roamingHorde: members.Count > 1);
         }
     }
 
@@ -243,15 +243,21 @@ public class MazeGenerator
 
     private void PlaceGroup(Maze maze, ResolvedEnemyEncounter encounter,
         IReadOnlyList<(EnemyDefinition Definition, EnemyGroupRole Role)> members,
-        IReadOnlyList<Position> positions)
+        IReadOnlyList<Position> positions, bool roamingHorde)
     {
-        var groupId = Guid.NewGuid().ToString("N");
+        var groupId = (roamingHorde ? Enemy.HordeGroupPrefix : string.Empty) + Guid.NewGuid().ToString("N");
+        var leaderIndex = roamingHorde
+            ? Math.Max(0, members.ToList().FindIndex(member => member.Role == EnemyGroupRole.Leader))
+            : -1;
         var placed = new List<ConfiguredEnemy>();
         for (var index = 0; index < members.Count; index++)
         {
             var member = members[index];
             var enemy = CreateEnemy(maze, positions[index], member.Definition, encounter.MovementProfile);
-            enemy.ConfigureGroup(groupId, member.Role);
+            var role = roamingHorde
+                ? index == leaderIndex ? EnemyGroupRole.Leader : EnemyGroupRole.Member
+                : member.Role;
+            enemy.ConfigureGroup(groupId, role);
             maze.AddEnemy(enemy);
             placed.Add(enemy);
         }

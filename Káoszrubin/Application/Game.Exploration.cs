@@ -145,6 +145,7 @@ public sealed partial class Game
             {
                 if (area == _dungeonLevel.ActiveArea)
                     return new DungeonAreaSaveData(area.Id, state.Maze, state.Fog);
+                ShiftPausedHordeTimers(area, now, remainPaused: true);
                 var schedule = area.Maze.Enemies.ToDictionary(enemy => enemy, enemy => now +
                     area.EnemyMoveDelays.GetValueOrDefault(enemy, EnemyMoveInterval(enemy)));
                 var areaState = _gameStateMapper.Create(_mazeLevel, area.Maze,

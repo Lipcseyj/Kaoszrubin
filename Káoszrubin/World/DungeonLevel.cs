@@ -18,19 +18,30 @@ public sealed class DungeonArea(string id, Maze maze, FogOfWar fogOfWar)
     public Maze Maze { get; } = maze ?? throw new ArgumentNullException(nameof(maze));
     public FogOfWar FogOfWar { get; } = fogOfWar ?? throw new ArgumentNullException(nameof(fogOfWar));
     public Dictionary<Enemy, TimeSpan> EnemyMoveDelays { get; } = [];
+    public DateTime? PausedAtUtc { get; set; }
 }
 
-public sealed class DungeonLevel(IReadOnlyList<DungeonArea> areas, string activeAreaId)
+public sealed class DungeonLevel
 {
-    private readonly Dictionary<string, DungeonArea> _areas = areas
-        .ToDictionary(area => area.Id, StringComparer.Ordinal);
+    private readonly Dictionary<string, DungeonArea> _areas;
 
-    public IReadOnlyList<DungeonArea> Areas { get; } = areas.Count > 0
-        ? areas
-        : throw new ArgumentException("A szintnek legalább egy területet tartalmaznia kell.", nameof(areas));
-    public string ActiveAreaId { get; private set; } = activeAreaId;
+    public IReadOnlyList<DungeonArea> Areas { get; }
+    public string ActiveAreaId { get; private set; }
     public DungeonArea ActiveArea => _areas[ActiveAreaId];
     public bool IsMultiArea => Areas.Count > 1;
+
+    public DungeonLevel(IReadOnlyList<DungeonArea> areas, string activeAreaId)
+    {
+        Areas = areas.Count > 0
+            ? areas
+            : throw new ArgumentException("A szintnek legalább egy területet tartalmaznia kell.", nameof(areas));
+        _areas = areas.ToDictionary(area => area.Id, StringComparer.Ordinal);
+        ActiveAreaId = activeAreaId;
+        _ = ActiveArea;
+        var now = DateTime.UtcNow;
+        foreach (var area in Areas)
+            area.PausedAtUtc = string.Equals(area.Id, activeAreaId, StringComparison.Ordinal) ? null : now;
+    }
 
     public DungeonArea GetArea(string id) => _areas.TryGetValue(id, out var area)
         ? area

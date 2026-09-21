@@ -15,6 +15,7 @@ public sealed record EnemyEquipmentSelection(string? WeaponId, string? ShieldId)
 
 public abstract class Enemy(Position position) : WorldObject(position)
 {
+    public const string HordeGroupPrefix = "HORDE:";
     public const int MinimumPursuitMemoryMoves = 8;
     public const int MaximumPursuitMemoryMoves = 12;
     public const int PursuitPathFailureTolerance = 3;
@@ -53,6 +54,10 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public IReadOnlySet<Position> SearchVisitedPositions => _searchVisitedPositions;
     public string? GroupId { get; private set; }
     public EnemyGroupRole GroupRole { get; private set; } = EnemyGroupRole.Member;
+    public bool IsRoamingHordeMember => GroupId?.StartsWith(HordeGroupPrefix,
+        StringComparison.Ordinal) == true;
+    public Position? HordeDestination { get; private set; }
+    public DateTime? HordeCampUntilUtc { get; private set; }
     private readonly List<ActiveSpellEffect> _activeSpellEffects = [];
     private int _spellActionCounter;
     public IReadOnlyList<ActiveSpellEffect> ActiveSpellEffects => _activeSpellEffects;
@@ -309,6 +314,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
         _searchVisitedPositions.Clear();
         SearchRole = EnemySearchRole.None;
         Alertness = EnemyAlertness.Alert;
+        HordeDestination = null;
+        HordeCampUntilUtc = null;
     }
 
     public void RefreshKnownTarget(Position position, int pursuitMemoryMoves = MinimumPursuitMemoryMoves)
@@ -403,6 +410,32 @@ public abstract class Enemy(Position position) : WorldObject(position)
     {
         GroupId = string.IsNullOrWhiteSpace(groupId) ? null : groupId;
         GroupRole = role;
+    }
+
+    public void SetHordeDestination(Position destination)
+    {
+        if (!IsRoamingHordeMember) throw new InvalidOperationException("Csak hordatag kaphat közös vándorlási célt.");
+        HordeDestination = destination;
+        HordeCampUntilUtc = null;
+    }
+
+    public void BeginHordeCamp(DateTime untilUtc)
+    {
+        if (!IsRoamingHordeMember) throw new InvalidOperationException("Csak hordatag táborozhat hordaként.");
+        HordeDestination = null;
+        HordeCampUntilUtc = untilUtc.Kind == DateTimeKind.Utc ? untilUtc : untilUtc.ToUniversalTime();
+    }
+
+    public void RestoreHordeRoaming(Position? destination, DateTime? campUntilUtc)
+    {
+        if (!IsRoamingHordeMember) return;
+        HordeDestination = destination;
+        HordeCampUntilUtc = campUntilUtc;
+    }
+
+    public void ShiftHordeCamp(TimeSpan duration)
+    {
+        if (HordeCampUntilUtc is { } until) HordeCampUntilUtc = until + duration;
     }
     public void ConfigureGuaranteedLoot(IEnumerable<string> itemIds)
     {

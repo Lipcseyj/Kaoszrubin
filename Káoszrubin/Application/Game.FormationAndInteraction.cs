@@ -530,9 +530,11 @@ public sealed partial class Game
             sourceArea.EnemyMoveDelays[enemy] = _nextEnemyMoves.TryGetValue(enemy, out var scheduled)
                 ? scheduled > now ? scheduled - now : TimeSpan.Zero
                 : EnemyMoveInterval(enemy);
+        sourceArea.PausedAtUtc = now;
 
         foreach (var member in sourceArea.Maze.PartyMembers.ToArray()) sourceArea.Maze.RemovePartyMember(member);
         _dungeonLevel.Activate(destinationArea.Id);
+        ShiftPausedHordeTimers(destinationArea, now, remainPaused: false);
         _maze = destinationArea.Maze;
         _fogOfWar = destinationArea.FogOfWar;
         _player.TeleportTo(passage.DestinationPosition);
@@ -570,6 +572,16 @@ public sealed partial class Game
         ForceCoopSnapshotPublish();
     }
 
+    private static void ShiftPausedHordeTimers(DungeonArea area, DateTime now, bool remainPaused)
+    {
+        if (area.PausedAtUtc is { } pausedAt)
+        {
+            var pause = now > pausedAt ? now - pausedAt : TimeSpan.Zero;
+            foreach (var enemy in area.Maze.Enemies) enemy.ShiftHordeCamp(pause);
+        }
+        area.PausedAtUtc = remainPaused ? now : null;
+    }
+
     private string? ReturnExpeditionReason(int completedLevel)
     {
         var quest = _questManager.GetActiveQuests().FirstOrDefault(candidate =>
@@ -600,8 +612,10 @@ public sealed partial class Game
         var returningParty = _maze.PartyMembers.Where(member => member.Character.IsAlive)
             .Select(member => (member.Character, member.TemporaryFollower)).ToList();
         foreach (var member in _maze.PartyMembers.ToArray()) _maze.RemovePartyMember(member);
+        _dungeonLevel.ActiveArea.PausedAtUtc = DateTime.UtcNow;
         var firstArea = _dungeonLevel.Areas[0];
         _dungeonLevel.Activate(firstArea.Id);
+        ShiftPausedHordeTimers(firstArea, DateTime.UtcNow, remainPaused: false);
         _maze = firstArea.Maze;
         _fogOfWar = firstArea.FogOfWar;
         RepositionPartyAtEntrance(returningParty);

@@ -253,6 +253,8 @@ internal static partial class Program
     ("A szörnyek ébersége, felderítése és alvásképessége adatvezérelt", EnemyAwarenessAndSearchAreDataDriven),
     ("A falka közös keresési pont körül felderítőkre és biztosítókra oszlik", EnemyPackSearchStaysCoordinated),
     ("A felderítő a még be nem járt folyosóágakat választja és együtt marad", EnemySearchExploresCorridorFrontiers),
+    ("A folyosói szörnycsapat pontosan egy vezérrel mozgó hordává válik", CorridorGroupsBecomeLedHordes),
+    ("A horda vándorlási és táborozási állapota menthető és üldözéskor megszakad", HordeRoamingStatePersistsAndYieldsToPursuit),
     ("A szaglás és hatodik érzék CSV-ből, útvonaltávolsággal működik", EnemyTrackingSenseIsDataDriven),
     ("A szörnyjellemzők és képességparaméterek külön töltődnek", MonsterTraitsAndAbilitiesAreDataDriven),
     ("A regeneráció és a leheletlehűlés példányonként működik", MonsterRegenerationAndBreathCooldownWork),

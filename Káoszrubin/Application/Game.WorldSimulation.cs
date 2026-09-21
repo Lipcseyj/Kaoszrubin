@@ -168,8 +168,12 @@ public sealed partial class Game
             }
             else if (enemy.SearchRole != EnemySearchRole.None)
                 direction = EnemySearchOrReturnDirection(enemy);
+            else if (enemy.Alertness == EnemyAlertness.Sleeping)
+                direction = null;
+            else if (TryChooseHordeDirection(enemy, now, out var hordeDirection))
+                direction = hordeDirection;
             else
-                direction = enemy.Alertness == EnemyAlertness.Sleeping ? null : enemy.MovementProfile switch
+                direction = enemy.MovementProfile switch
                 {
                     EnemyMovementProfile.Stationary => null,
                     EnemyMovementProfile.Patrol => enemy.PatrolDirection,
@@ -260,6 +264,79 @@ public sealed partial class Game
         ? [member]
         : _maze.Enemies.Where(enemy => string.Equals(enemy.GroupId, member.GroupId,
             StringComparison.Ordinal)).ToList();
+
+    private bool TryChooseHordeDirection(Enemy enemy, DateTime now, out Direction? direction)
+    {
+        direction = null;
+        if (!enemy.IsRoamingHordeMember) return false;
+        var group = EnemyGroup(enemy);
+        if (group.Count < 2) return false;
+
+        var leader = group.FirstOrDefault(member => member.GroupRole == EnemyGroupRole.Leader);
+        if (leader is null)
+        {
+            leader = group.OrderByDescending(member => member.CurrentHitPoints).First();
+            leader.ConfigureGroup(leader.GroupId, EnemyGroupRole.Leader);
+        }
+        if (leader.HordeCampUntilUtc is { } campUntil && campUntil > now) return true;
+
+        if (enemy != leader)
+        {
+            if (Manhattan(enemy.Position, leader.Position) > 1)
+                direction = FindEnemyStepToward(enemy, leader.Position);
+            return true;
+        }
+
+        // A vezér bevárja a szétszakadó horda végét, ezért a csoport együtt érkezik meg.
+        if (group.Where(member => member != leader)
+            .Any(member => Manhattan(member.Position, leader.Position) > 5)) return true;
+
+        if (leader.HordeDestination is not { } destination)
+        {
+            destination = ChooseHordeDestination(leader);
+            if (destination == leader.Position)
+            {
+                BeginHordeCamp(group, now);
+                return true;
+            }
+            leader.SetHordeDestination(destination);
+        }
+        if (leader.Position == destination)
+        {
+            // A tábor csak akkor áll fel, amikor a kísérők is megérkeztek a vezér köré.
+            if (group.Where(member => member != leader)
+                .Any(member => Manhattan(member.Position, leader.Position) > 2)) return true;
+            BeginHordeCamp(group, now);
+            return true;
+        }
+        direction = FindEnemyStepToward(leader, destination);
+        if (direction is null) BeginHordeCamp(group, now);
+        return true;
+    }
+
+    private Position ChooseHordeDestination(Enemy leader)
+    {
+        var minimumDistance = Math.Max(8, Math.Min(_maze.Width, _maze.Height) / 4);
+        var reachable = EnemyDistanceMap(leader.Position);
+        var candidates = new List<Position>();
+        for (var y = 1; y < _maze.Height - 1; y++)
+        for (var x = 1; x < _maze.Width - 1; x++)
+        {
+            var position = new Position(x, y);
+            if (!_maze.IsWalkable(position) || _maze.Rooms.Any(room => room.Contains(position)) ||
+                _maze.GetObjectAt(position) is not null || _maze.GetPassageAt(position) is not null ||
+                position == _maze.Entrance || position == _maze.Exit ||
+                Manhattan(position, leader.Position) < minimumDistance) continue;
+            if (reachable.ContainsKey(position)) candidates.Add(position);
+        }
+        return candidates.Count == 0 ? leader.Position : candidates[_random.Next(candidates.Count)];
+    }
+
+    private void BeginHordeCamp(IReadOnlyList<Enemy> group, DateTime now)
+    {
+        var until = now + TimeSpan.FromSeconds(_random.Next(60, 181));
+        foreach (var member in group) member.BeginHordeCamp(until);
+    }
 
     private void BeginEnemySearch(Enemy observer)
     {

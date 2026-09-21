@@ -336,6 +336,61 @@ internal static partial class Program
             "A falka nem közös pont körül, összehangolt szerepekkel kezdte meg a keresést.");
     }
 
+    static void CorridorGroupsBecomeLedHordes()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var encounter = new ResolvedEnemyEncounter(new IntRange(1, 1),
+            [new ResolvedEnemyGroupMember(data.GetEnemy(MonsterIds.Ork), new IntRange(4, 4), EnemyGroupRole.Member)],
+            EnemyMovementProfile.Patrol);
+        var maze = new MazeGenerator(new MazeGenerationSettings
+        {
+            RoomCount = 0,
+            TreasureChestCount = 0
+        }, [], [encounter], new Random(701)).Create(43, 31);
+        var horde = maze.Enemies.ToArray();
+
+        Assert(horde.Length == 4 && horde.Select(enemy => enemy.GroupId).Distinct().Count() == 1 &&
+               horde.All(enemy => enemy.IsRoamingHordeMember) &&
+               horde.Count(enemy => enemy.GroupRole == EnemyGroupRole.Leader) == 1,
+            "A folyosói csoport nem egyetlen vezér köré szervezett hordaként jött létre.");
+    }
+
+    static void HordeRoamingStatePersistsAndYieldsToPursuit()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var character = CreateCharacter("Hordaőr");
+        var roster = new CharacterRoster();
+        roster.Add(character);
+        roster.Select(character);
+        var maze = new Maze(9, 9);
+        var enemyPosition = new Position(3, 2);
+        maze.Carve(enemyPosition);
+        maze.Carve(maze.Exit);
+        maze.PlaceExit(maze.Exit);
+        var leader = new ConfiguredEnemy(enemyPosition, data.GetEnemy(MonsterIds.Ork));
+        leader.ConfigureGroup(Enemy.HordeGroupPrefix + "SAVE", EnemyGroupRole.Leader);
+        var campUntil = DateTime.UtcNow + TimeSpan.FromMinutes(2);
+        leader.BeginHordeCamp(campUntil);
+        maze.AddEnemy(leader);
+        var mapper = new GameStateMapper(data, roster, character);
+        var save = mapper.Create(6, maze, new Player(maze.Entrance, character),
+            new FogOfWar(maze.Width, maze.Height, 5), Direction.Right, [maze.Entrance],
+            false, false, false, false, null, DateTime.UtcNow,
+            new Dictionary<Enemy, DateTime> { [leader] = DateTime.UtcNow }, [], []);
+        var restored = mapper.Restore(JsonSerializer.Deserialize<GameSaveData>(JsonSerializer.Serialize(save))!);
+        var restoredLeader = restored.Maze.Enemies.Single();
+
+        Assert(restoredLeader.IsRoamingHordeMember &&
+               restoredLeader.GroupRole == EnemyGroupRole.Leader &&
+               restoredLeader.HordeCampUntilUtc is { } restoredUntil &&
+               restoredUntil > DateTime.UtcNow + TimeSpan.FromMinutes(1),
+            "A horda táborozási állapota nem élte túl a mentési kört.");
+        restoredLeader.BeginPursuit(character.Id, new Position(6, 6), 0);
+        Assert(restoredLeader.HordeCampUntilUtc is null && restoredLeader.HordeDestination is null &&
+               restoredLeader.PursuitState == EnemyPursuitState.Pursuing,
+            "A horda táborozása nem szakadt meg, amikor észlelte a partit.");
+    }
+
     static void EnemySearchExploresCorridorFrontiers()
     {
         var directions = Enum.GetValues<Direction>();

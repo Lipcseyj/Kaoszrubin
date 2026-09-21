@@ -63,7 +63,10 @@ internal sealed class GameStateMapper
                     StringComparer.OrdinalIgnoreCase), enemy.LastKnownTargetDirection,
                 enemy.ConsecutivePursuitPathFailures, enemy.SearchAnchorPosition,
                 enemy.SearchVisitedPositions.ToList(),
-                new EnemyEquipmentSaveData(enemy.EquippedWeapon?.Id, enemy.EquippedShield?.Id))).ToList(),
+                new EnemyEquipmentSaveData(enemy.EquippedWeapon?.Id, enemy.EquippedShield?.Id),
+                enemy.HordeDestination,
+                enemy.HordeCampUntilUtc is { } campUntil
+                    ? Math.Max(0, (int)(campUntil - now).TotalMilliseconds) : 0)).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -191,6 +194,10 @@ internal sealed class GameStateMapper
                 savedEnemy.ConsecutivePursuitPathFailures, savedEnemy.SearchAnchorPosition,
                 savedEnemy.SearchVisitedPositions);
             enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
+            enemy.RestoreHordeRoaming(savedEnemy.HordeDestination,
+                savedEnemy.HordeCampRemainingMilliseconds > 0
+                    ? now + TimeSpan.FromMilliseconds(savedEnemy.HordeCampRemainingMilliseconds)
+                    : null);
             enemy.ConfigureGuaranteedLoot(savedEnemy.GuaranteedLootIds ?? []);
             enemy.RestoreCombatCooldowns(savedEnemy.AbilityCooldowns ?? [], savedEnemy.WeaponCooldowns ?? [],
                 savedEnemy.PreparedWeaponId, savedEnemy.RemainingAbilityCharges);
