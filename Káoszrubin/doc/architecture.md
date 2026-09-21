@@ -29,10 +29,11 @@ A buffok és gyógyítások a `defensive-spell.wav` hangot használják térkép
 
 A támadóvarázslatok becsapódását az egycélpontos és lánctámadásoknál pulzáló előtér/háttér, területi támadásoknál kifelé futó színhullám jelzi. A lángtölcsér a sebzés tényleges kúpalakját követi. A lények jelei az effekt alatt is megmaradnak; a halálos sebzés csak az animáció után távolítja el őket. Csak felfedett térképcellák rajzolódnak, majd helyreáll az eredeti megjelenítés és a harci fókuszjelölés.
 
-A `#Varázslatok` és `#Papi varázslatok` szekció két opcionális utolsó oszlopa:
+A `#Varázslatok` és `#Papi varázslatok` szekció három opcionális utolsó oszlopa:
 
-- `BecsapódásSzín`: `Red` (tűz/pusztítás), `Blue` (jég/arkán) vagy `YellowBrown` (villám/szent fény). Az előtér és a háttér együtt változik. Üres mezőnél az arkán iskola kék, a papi iskola sárgásbarna.
+- `BecsapódásSzín`: `Red` (tűz/pusztítás), `Blue` (jég/arkán), `YellowBrown` (villám/szent fény), továbbá a sötét varázslatokhoz `Purple`, `SicklyGreen`, `Shadow` vagy `BloodRed`. Az előtér és a háttér együtt változik. Üres mezőnél az arkán iskola kék, a papi iskola sárgásbarna.
 - `BecsapódásIdőMs`: nemnegatív egész ezredmásodperc. `1500` = 1,5 másodperc, `3000` = 3 másodperc, `0` = kikapcsolva. Üres vagy hiányzó oszlop esetén egy célpont és lánc: 1500 ms, terület és irány/tölcsér: 3000 ms. Ez csak a látvány ideje; a varázshatások körökben megadott időtartama külön adat marad.
+- `CsakEllenség`: `igen` esetén a varázslat kizárólag ellenséges varázsprofilba kerülhet; játékos nem tanulhatja, memorizálhatja vagy használhatja varázstárgyból.
 
 A mellékelt CSV minden effekt nélküli varázslatnál (buff, gyógyítás, teleportáció, feltámasztás és általános mágiaoszlatás) explicit `0` értéket használ. A 24 támadóvarázslat különböző, jellegéhez igazított időt kapott 500–5000 ms között: a Villámcsapás 500, a Mágikus lövedék 700, a Tűzgolyó 3000, a Meteorzápor 4700, az Arkán kataklizma 5000 ms. Az ellenséges gyengítések, például a Vakítás és a Lassítás, továbbra is becsapódási effektet kapnak.
 
@@ -548,7 +549,9 @@ is megőrzi. Tehát egy félig elhasznált pálca mozgatással vagy mentés-viss
 
 ### Varázslatdefiníciók és szintek
 
-A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív alap-mannaköltséget, leírást és célzási metaadatokat tartalmaz. Az `game-data.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`, `Célzás`, `Hatótáv`, `Terület`, `Látóvonal`, `HasználatiMód`. A célzás típusa `Self`, `Party`, `PartyMember`, `Enemy`, `Corpse`, `Cell`, `Area` vagy `Direction`; a használati mód `Exploration`, `Combat` vagy `Both`. Mindkét iskola mannaköltsége és leírása a tényleges CSV-s hatásokhoz van hangolva.
+A `SpellDefinition` stabil azonosítót, nevet, `Arcane` vagy `Divine` iskolát, 1–5 közötti varázslatszintet, pozitív alap-mannaköltséget, leírást és célzási metaadatokat tartalmaz. Az `game-data.csv` `#Varázslatok` és `#Papi varázslatok` szekcióinak oszlopai: `Id`, `Név`, `Szint`, `Manna`, `Leírás`, `Célzás`, `Hatótáv`, `Terület`, `Látóvonal`, `HasználatiMód`, `BecsapódásSzín`, `BecsapódásIdőMs`, `CsakEllenség`. A célzás típusa `Self`, `Party`, `PartyMember`, `Enemy`, `Corpse`, `Cell`, `Area` vagy `Direction`; a használati mód `Exploration`, `Combat` vagy `Both`. Mindkét iskola mannaköltsége és leírása a tényleges CSV-s hatásokhoz van hangolva.
+
+A `D001`–`D017` sötét készlet meglévő hatástípusokra épülő, ellenség-only támadó, kontrolláló, védő és gyógyító varázslatokat tartalmaz. A caster profilok erősség és szerep szerint kapnak belőlük; a játékosoldali listázás, tanulás, memorizálás, tárgyvalidáció és végrehajtás egymástól függetlenül is kizárja ezeket.
 
 Mindkét iskolában pontosan 20 varázslat található, szintenként pontosan négy:
 

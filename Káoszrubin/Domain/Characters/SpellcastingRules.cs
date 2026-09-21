@@ -141,7 +141,7 @@ public static class SpellcastingRules
         if (!TryGetSchool(character.CharacterClass.Id, out var school)) return [];
         if (!LearnsSpellAtLevel(character.CharacterClass.Id, atCharacterLevel)) return [];
         var maximumLevel = MaximumSpellLevel(character.CharacterClass.Id, atCharacterLevel);
-        return gameData.Spells.Where(spell => spell.School == school)
+        return gameData.Spells.Where(spell => !spell.EnemyOnly && spell.School == school)
             .Where(spell => spell.Level <= maximumLevel &&
                 character.KnownSpells.All(known => !string.Equals(known.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).ToList();

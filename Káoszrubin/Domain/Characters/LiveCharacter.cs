@@ -256,6 +256,7 @@ public sealed class LiveCharacter
 
     public bool LearnSpell(SpellDefinition spell)
     {
+        if (spell.EnemyOnly) return false;
         if (!SpellcastingRules.LearnsSpellAtLevel(CharacterClass.Id, Level)) return false;
         if (!SpellcastingRules.TryGetSchool(CharacterClass.Id, out var school) || spell.School != school ||
             spell.Level > SpellcastingRules.MaximumSpellLevel(CharacterClass.Id, Level) ||
@@ -267,7 +268,7 @@ public sealed class LiveCharacter
     public bool SetMemorizedSpells(IEnumerable<SpellDefinition> spells)
     {
         var selected = spells.DistinctBy(spell => spell.Id, StringComparer.OrdinalIgnoreCase).ToList();
-        if (selected.Count > MemorizationCapacity || selected.Any(spell =>
+        if (selected.Count > MemorizationCapacity || selected.Any(spell => spell.EnemyOnly ||
                 _knownSpells.All(known => !string.Equals(known.Id, spell.Id, StringComparison.OrdinalIgnoreCase)))) return false;
         _memorizedSpells.Clear();
         _memorizedSpells.AddRange(selected);

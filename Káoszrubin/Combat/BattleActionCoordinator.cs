@@ -141,11 +141,11 @@ public sealed class BattleActionCoordinator
         Func<LiveCharacter, Position, SpellDefinition, Enemy, bool> hasValidSpellTarget)
     {
         return (character.CanCastSpells && character.MemorizedSpells.Any(spell =>
-                spell.CanUseInCombat && SpellcastingRules.EffectiveManaCost(character, spell) <= character.CurrentMana &&
+                !spell.EnemyOnly && spell.CanUseInCombat && SpellcastingRules.EffectiveManaCost(character, spell) <= character.CurrentMana &&
                 (!timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id).All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
                 hasValidSpellTarget(character, characterPosition, spell, enemy))) ||
             equippedCastingItems.Any(item =>
-                _gameData.GetSpell(item.SpellId!) is { } spell && spell.CanUseInCombat &&
+                _gameData.GetSpell(item.SpellId!) is { EnemyOnly: false } spell && spell.CanUseInCombat &&
                 (!timeStopUsedThisBattle || _gameData.GetSpellEffects(spell.Id).All(effect => effect.Type != SpellEffectType.ExtraActions)) &&
                 hasValidSpellTarget(character, characterPosition, spell, enemy));
     }
@@ -160,7 +160,7 @@ public sealed class BattleActionCoordinator
     {
         var quickSpells = character.QuickSpells;
         return character.MemorizedSpells
-            .Where(spell => inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration)
+            .Where(spell => !spell.EnemyOnly && (inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration))
             .Select(spell => (Spell: spell, Item: (MagicItemDefinition?)null, Slot: (int?)null))
             .Concat(character.MagicItems.Select((item, index) => (Item: item, Index: index))
                 .Where(entry => entry.Item?.Kind is MagicItemKind.Scroll or MagicItemKind.Wand &&
@@ -168,7 +168,8 @@ public sealed class BattleActionCoordinator
                                 entry.Item.SpellId is not null && character.MagicItemCharges[entry.Index] > 0)
                 .Select(entry => (Spell: _gameData.GetSpell(entry.Item!.SpellId!), Item: (MagicItemDefinition?)entry.Item,
                     Slot: (int?)entry.Index))
-                .Where(entry => (inCombat ? entry.Spell.CanUseInCombat : entry.Spell.CanUseDuringExploration) &&
+                .Where(entry => !entry.Spell.EnemyOnly &&
+                                (inCombat ? entry.Spell.CanUseInCombat : entry.Spell.CanUseDuringExploration) &&
                                 SpellcastingRules.CanUseCastingItem(character, entry.Item!, entry.Spell)))
             .OrderBy(entry => entry.Spell.Level).ThenBy(entry => entry.Spell.Name)
             .ThenBy(entry => entry.Item is not null)

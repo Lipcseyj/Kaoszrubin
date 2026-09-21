@@ -31,7 +31,11 @@ public enum SpellImpactPalette
 {
     Red,
     Blue,
-    YellowBrown
+    YellowBrown,
+    Purple,
+    SicklyGreen,
+    Shadow,
+    BloodRed
 }
 
 public sealed record SpellDefinition(string Id, string Name, SpellSchool School, int Level,
@@ -40,6 +44,7 @@ public sealed record SpellDefinition(string Id, string Name, SpellSchool School,
 {
     public SpellImpactPalette ImpactPalette { get; init; } = SpellImpactPalette.Blue;
     public int? ImpactDurationMilliseconds { get; init; }
+    public bool EnemyOnly { get; init; }
     public bool HasAreaImpact => TargetType is SpellTargetType.Area or SpellTargetType.Direction;
     public int EffectiveImpactDurationMilliseconds => ImpactDurationMilliseconds ?? (HasAreaImpact ? 3000 : 1500);
     public bool CanUseInCombat => UsageMode is SpellUsageMode.Combat or SpellUsageMode.Both;

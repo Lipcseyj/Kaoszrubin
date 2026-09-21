@@ -473,7 +473,8 @@ public static class CsvGameDataLoader
                     RequiredSpellUsageMode(cells, id))
                 {
                     ImpactPalette = OptionalImpactPalette(cells, id, SpellImpactPalette.Blue),
-                    ImpactDurationMilliseconds = OptionalImpactDuration(cells, id)
+                    ImpactDurationMilliseconds = OptionalImpactDuration(cells, id),
+                    EnemyOnly = IsYes(cells, 12)
                 });
                 break;
             case DataSection.StrengthHitBonuses:
@@ -503,7 +504,8 @@ public static class CsvGameDataLoader
                     RequiredSpellUsageMode(cells, id))
                 {
                     ImpactPalette = OptionalImpactPalette(cells, id, SpellImpactPalette.YellowBrown),
-                    ImpactDurationMilliseconds = OptionalImpactDuration(cells, id)
+                    ImpactDurationMilliseconds = OptionalImpactDuration(cells, id),
+                    EnemyOnly = IsYes(cells, 12)
                 });
                 break;
             case DataSection.SpellEffects:
@@ -1084,8 +1086,13 @@ public static class CsvGameDataLoader
         var spellsById = spells.ToDictionary(spell => spell.Id, StringComparer.OrdinalIgnoreCase);
         foreach (var item in magicItems)
         {
-            if (item.SpellId is { } spellId && !spellsById.ContainsKey(spellId))
-                throw new InvalidOperationException($"A(z) '{item.Id}' varázstárgy ismeretlen varázslatra hivatkozik: '{spellId}'.");
+            if (item.SpellId is { } spellId)
+            {
+                if (!spellsById.TryGetValue(spellId, out var itemSpell))
+                    throw new InvalidOperationException($"A(z) '{item.Id}' varázstárgy ismeretlen varázslatra hivatkozik: '{spellId}'.");
+                if (itemSpell.EnemyOnly)
+                    throw new InvalidOperationException($"A(z) '{item.Id}' varázstárgy csak ellenséges varázslatra hivatkozik: '{spellId}'.");
+            }
             if (item.Kind == MagicItemKind.Wand && (item.SpellId is null || item.MaximumCharges <= 1))
                 throw new InvalidOperationException($"A(z) '{item.Id}' varázspálcának több töltetű varázslatot kell tartalmaznia.");
             if (item.Kind == MagicItemKind.Scroll && (item.SpellId is null || item.MaximumCharges != 1))
@@ -1100,7 +1107,7 @@ public static class CsvGameDataLoader
         string.IsNullOrWhiteSpace(Cell(cells, 10)) ? fallback :
         Enum.TryParse<SpellImpactPalette>(Cell(cells, 10), true, out var palette) && Enum.IsDefined(palette)
             ? palette
-            : throw new InvalidOperationException($"A(z) '{id}' becsapódásszíne Red, Blue vagy YellowBrown legyen.");
+            : throw new InvalidOperationException($"A(z) '{id}' becsapódásszíne Red, Blue, YellowBrown, Purple, SicklyGreen, Shadow vagy BloodRed legyen.");
 
     private static int? OptionalImpactDuration(string[] cells, string id) =>
         string.IsNullOrWhiteSpace(Cell(cells, 11)) ? null :

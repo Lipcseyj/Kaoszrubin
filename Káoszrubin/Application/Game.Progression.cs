@@ -331,7 +331,7 @@ public sealed partial class Game
         var learningCount = result.Bonuses.Count(bonus =>
         {
             if (!SpellcastingRules.TryGetSchool(character.CharacterClass.Id, out var school)) return false;
-            var candidate = _gameData.Spells.FirstOrDefault(spell => spell.School == school &&
+            var candidate = _gameData.Spells.FirstOrDefault(spell => !spell.EnemyOnly && spell.School == school &&
                 spell.Level <= SpellcastingRules.MaximumSpellLevel(character.CharacterClass.Id, bonus.Level) && !simulatedKnown.Contains(spell.Id));
             if (candidate is null) return false;
             simulatedKnown.Add(candidate.Id);
@@ -413,7 +413,7 @@ public sealed partial class Game
         foreach (var bonus in result.Bonuses)
         {
             if (!SpellcastingRules.TryGetSchool(character.CharacterClass.Id, out var school)) break;
-            var simulatedChoice = _gameData.Spells.FirstOrDefault(spell => spell.School == school &&
+            var simulatedChoice = _gameData.Spells.FirstOrDefault(spell => !spell.EnemyOnly && spell.School == school &&
                 spell.Level <= SpellcastingRules.MaximumSpellLevel(character.CharacterClass.Id, bonus.Level) && !simulatedKnown.Contains(spell.Id));
             if (simulatedChoice is null) continue;
             simulatedKnown.Add(simulatedChoice.Id);

@@ -12,8 +12,12 @@ internal static class SpellImpactTests
         var catalog = CsvGameDataLoader.Load(path);
         Require(catalog.GetSpell("S007").ImpactPalette == SpellImpactPalette.Red &&
                 catalog.GetSpell("S008").ImpactPalette == SpellImpactPalette.Blue &&
-                catalog.GetSpell("P002").ImpactPalette == SpellImpactPalette.YellowBrown,
-            "A tűz, jég és szent varázslatok színe hibás.");
+                catalog.GetSpell("P002").ImpactPalette == SpellImpactPalette.YellowBrown &&
+                catalog.GetSpell("D004").ImpactPalette == SpellImpactPalette.Purple &&
+                catalog.GetSpell("D009").ImpactPalette == SpellImpactPalette.SicklyGreen &&
+                catalog.GetSpell("D001").ImpactPalette == SpellImpactPalette.Shadow &&
+                catalog.GetSpell("D006").ImpactPalette == SpellImpactPalette.BloodRed,
+            "A normál vagy sötét varázslatok becsapódási színe hibás.");
         var original = File.ReadAllLines(path);
         var spellLine = original.Single(line => line.StartsWith("S001;Mágikus lövedék;") ||
             line.StartsWith("S001,Mágikus lövedék,"));
@@ -21,7 +25,7 @@ internal static class SpellImpactTests
         var temporary = Path.GetTempFileName();
         try
         {
-            foreach (var suffix in new[] { "", ",Red,725", ",Blue,0", ",YellowBrown," })
+            foreach (var suffix in new[] { "", ",Red,725", ",Blue,0", ",YellowBrown,", ",Purple,", ",SicklyGreen,", ",Shadow,", ",BloodRed," })
             {
                 File.WriteAllLines(temporary, original.Select(line =>
                     line.StartsWith($"S001{separator}Mágikus lövedék{separator}") || line.StartsWith($"S007{separator}Tűzgolyó{separator}")

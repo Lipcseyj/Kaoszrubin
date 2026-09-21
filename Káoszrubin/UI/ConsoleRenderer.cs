@@ -1848,12 +1848,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             var character = casters[casterIndex];
             var playerPosition = casterPosition(character);
             var spells = character.MemorizedSpells
-                .Where(spell => inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration)
+                .Where(spell => !spell.EnemyOnly && (inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration))
                 .Select(spell => (Spell: spell, CastingItem: (MagicItemDefinition?)null, SlotIndex: (int?)null))
                 .Concat(character.MagicItems.Select((item, index) => (Item: item, Index: index))
                     .Where(entry => entry.Item?.Kind is MagicItemKind.Scroll or MagicItemKind.Wand &&
                         entry.Item.SpellId is not null && character.MagicItemCharges[entry.Index] > 0)
                     .Select(entry => (Spell: _gameData.GetSpell(entry.Item!.SpellId!), CastingItem: (MagicItemDefinition?)entry.Item, SlotIndex: (int?)entry.Index))
+                    .Where(entry => !entry.Spell.EnemyOnly)
                     .Where(entry => SpellcastingRules.CanUseCastingItem(character, entry.CastingItem!, entry.Spell))
                     .Where(entry => inCombat ? entry.Spell.CanUseInCombat : entry.Spell.CanUseDuringExploration))
                 .OrderBy(entry => entry.Spell.Level).ThenBy(entry => entry.Spell.Name).ThenBy(entry => entry.CastingItem is not null)

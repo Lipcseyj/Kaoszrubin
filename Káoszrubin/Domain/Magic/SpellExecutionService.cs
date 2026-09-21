@@ -38,6 +38,8 @@ public sealed class SpellExecutionService
     {
         if (!caster.IsAlive)
             return new SpellCastAttempt(false, $"{caster.Name} nem képes varázsolni.", BattleLogKind.Information);
+        if (spell.EnemyOnly)
+            return new SpellCastAttempt(false, $"A(z) {spell.Name} csak ellenséges varázshasználók számára elérhető.", BattleLogKind.Information);
         var usingItem = castingItem is not null;
         var castingItemIndex = usingItem ? castingItemSlotIndex ?? -1 : -1;
         if (usingItem && (castingItem!.Kind is not (MagicItemKind.Scroll or MagicItemKind.Wand) || castingItem.SpellId != spell.Id ||

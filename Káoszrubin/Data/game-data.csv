@@ -682,7 +682,7 @@ RODERIC_ORDER_RELICS;T006;8
 RODERIC_ORDER_RELICS;T002;16
 
 #Varázslatok
-Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs
+Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség
 S001;Mágikus lövedék;1;6;Biztosan célba találó arkán lövedék amely a varázsló erejével növekszik.;Enemy;8;0;igen;Both;Blue;700
 S002;Fagyasztó érintés;1;5;Fagyos közelharci varázslat amely megsebzi és lelassítja az ellenfelet.;Enemy;1;0;igen;Both;Blue;1200
 S003;Égő kéz;1;8;Rövid lángtölcsér amely több ellenfelet megsebezhet és lángra lobbanthat.;Direction;2;1;igen;Both;Red;2200
@@ -711,9 +711,26 @@ S018;Dezintegráció;5;40;Elsöprő sugár amely súlyosan sebzi és a legyengü
 S019;Dimenziókapu;5;32;A teljes élő parti egy távoli felfedezett területre teleportál.;Cell;10;0;nem;Both;Blue;0
 S020;Arkán kataklizma;5;50;Hatalmas területi pusztítás amely véletlen elemi utóhatást kelt.;Area;10;4;igen;Both;Blue;5000
 S025;Lélekvihar;5;44;Sötét arkán vihar tépi az ellenfeleket és még több körön át pusztítja őket.;Area;9;3;igen;Both;Red;4200
+D001;Árnyéktű;1;6;Sötét erőből szőtt lövedék amely könyörtelenül követi áldozatát.;Enemy;8;0;igen;Combat;Shadow;900;igen
+D002;Dermesztő átok;1;5;Síri hideggel marja és lassítja meg a közeli áldozatot.;Enemy;1;0;igen;Combat;SicklyGreen;1300;igen
+D003;Pokoli lehelet;1;8;Alvilági lángok tölcsére perzseli fel a varázshasználó előtti területet.;Direction;2;1;igen;Combat;BloodRed;2400;igen
+D004;Kárhozat nyila;1;7;Átkozott tűznyíl amely tovább emészti a célpont testét.;Enemy;8;0;igen;Combat;Purple;1200;igen
+D005;Árnyékpajzs;1;6;Sűrű árnyékmező óvja rövid időre a varázshasználót.;Self;0;0;nem;Combat;Shadow;0;igen
+D006;Vérvillám;2;12;Bíbor villám tépi fel egyetlen áldozat életerejét.;Enemy;6;0;igen;Combat;BloodRed;700;igen
+D007;Fekete bilincs;2;11;Élő árnyékok béklyózzák meg és akasztják meg az áldozat mozdulatait.;Enemy;8;0;igen;Combat;Shadow;2100;igen
+D017;Vérgyógyítás;2;11;Tiltott vérmágia állítja helyre egy szövetséges életerejét.;PartyMember;6;0;igen;Combat;BloodRed;0;igen
+D008;Pokoltűzgömb;3;18;Robbanó pokoltűz borítja lángba a célterületet.;Area;8;2;igen;Combat;BloodRed;3200;igen
+D009;Dögvészvihar;3;18;Mérgező zöld vihar sebzi és lassítja a terület áldozatait.;Area;8;2;igen;Combat;SicklyGreen;3700;igen
+D010;Rémület hulláma;3;15;Sötét látomások bénítják meg és bizonytalanítják el a közel állókat.;Area;7;1;igen;Combat;Purple;3500;igen
+D013;Vérbástya;3;18;Vérrel táplált oltalom védi a varázshasználó szövetségeseit.;Party;0;0;nem;Combat;BloodRed;0;igen
+D014;Sötét litánia;3;14;Baljós ima fokozza a szövetségesek harci erejét és gyorsaságát.;Party;0;0;nem;Combat;Purple;0;igen
+D011;Kárhozatvihar;4;26;Tartós sötét villámvihar emészti a teljes célterületet.;Area;8;2;igen;Combat;Purple;4000;igen
+D012;Léleklánc;4;28;Áldozatról áldozatra ugró fekete energia tépi ki az életerőt.;Enemy;8;0;igen;Combat;Shadow;2800;igen
+D015;Véráldozat;4;30;Tiltott rítus egyszerre tölti fel a teljes ellenséges csapat életerejét.;Party;0;0;nem;Combat;BloodRed;0;igen
+D016;Fekete nap;5;50;Mindenséget elemésztő sötétség és kaotikus energia söpör végig a területen.;Area;10;4;igen;Combat;Shadow;5200;igen
 
 #Papi varázslatok
-Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs
+Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség
 P001;Gyógyító érintés;1;5;Érintéssel gyógyít 2d8 plusz Intelligencia plusz karakterszint HP-t.;PartyMember;1;0;igen;Both;YellowBrown;0
 P002;Szent fény;1;6;Szent fényt lő egy ellenfélre amely élőholt és démoni célpont ellen másfélszeres sebzést okoz.;Enemy;8;0;igen;Both;YellowBrown;800
 P003;Áldás;1;8;Négy körre találatot védelmet és kezdeményezést ad minden élő part tagnak.;Party;0;0;nem;Both;YellowBrown;0
@@ -789,6 +806,35 @@ FX-S027-1;S027;1;HitBonus;;0;0;-4;4;100;SaveNegates;;Négy körre négy ponttal 
 FX-S027-2;S027;2;VisionBonus;;0;0;-3;4;100;SaveNegates;;Négy körre három mezővel csökkenti a célpont látótávját.
 FX-S028-1;S028;1;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;Sikertelen ellenpróbánál a célpont következő akciója kimarad.
 FX-S028-2;S028;2;HitBonus;;0;0;-2;3;100;SaveNegates;;Három körre két ponttal csökkenti a célpont találati értékét.
+FX-D001-1;D001;1;Damage;2d6;1;1;0;0;100;Auto;;Automatikusan célba találó sötét sebzés.
+FX-D002-1;D002;1;Damage;2d6;0.5;1;0;0;100;Attack;;Közelharci síri sebzés.
+FX-D002-2;D002;2;SpeedPenalty;;0;0;3;4;100;Attack;;Találatkor négy körre lelassítja az áldozatot.
+FX-D003-1;D003;1;Damage;3d6;1;1;0;0;100;SaveHalf;;Területi pokoltűz sebzés mentőre felezve.
+FX-D003-2;D003;2;Burning;1d4;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél tovább éget.
+FX-D004-1;D004;1;Damage;3d6;1;1;0;0;100;Attack;;Átkozott tűzsebzés.
+FX-D004-2;D004;2;Burning;1d4;0;0;0;2;100;Attack;;Találatkor tovább perzsel.
+FX-D005-1;D005;1;DefenseBonus;;0;0;3;15;100;Auto;;Tizenöt körre árnyékos védelmet ad.
+FX-D006-1;D006;1;Damage;5d8;2;3;0;0;100;Attack;;Nagy erejű bíbor villámsebzés.
+FX-D007-1;D007;1;SpeedPenalty;;0;0;5;3;100;SaveNegates;;Három körre súlyosan lelassítja az áldozatot.
+FX-D007-2;D007;2;SkipAlternate;;0;0;1;2;100;SaveNegates;;Minden második akciót megakaszt.
+FX-D017-1;D017;1;Heal;5d8;2;2;0;0;100;Auto;;Egy szövetséges életerejét állítja helyre.
+FX-D008-1;D008;1;Damage;8d8;3;5;0;0;100;SaveHalf;;Nagy területi pokoltűz sebzés mentőre felezve.
+FX-D008-2;D008;2;Burning;1d6;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél tovább éget.
+FX-D009-1;D009;1;Damage;6d8;3;5;0;0;100;SaveHalf;;Területi dögvészsebzés mentőre felezve.
+FX-D009-2;D009;2;SpeedPenalty;;0;0;4;3;100;SaveNegates;;Három körre beteges gyengeséget okoz.
+FX-D010-1;D010;1;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;Sikertelen ellenpróbánál kimarad a következő akció.
+FX-D010-2;D010;2;HitBonus;;0;0;-2;3;100;SaveNegates;;Három körre rontja a találati értéket.
+FX-D013-1;D013;1;DefenseBonus;;0;0;3;4;100;Auto;;Négy körre védelmet ad a teljes ellenséges csapatnak.
+FX-D013-2;D013;2;PhysicalReduction;;0;0;25;4;100;Auto;;Négy körre csökkenti a fizikai sérülést.
+FX-D014-1;D014;1;HitBonus;;0;0;2;5;100;Auto;;Öt körre találati bónuszt ad.
+FX-D014-2;D014;2;DamageBonus;;0;0;2;5;100;Auto;;Öt körre fizikai sebzésbónuszt ad.
+FX-D014-3;D014;3;InitiativeBonus;;0;0;3;5;100;Auto;;Öt körre kezdeményezési bónuszt ad.
+FX-D011-1;D011;1;Damage;10d10;4;8;0;0;100;SaveHalf;;A kárhozatvihar kezdeti területi sebzése.
+FX-D011-2;D011;2;Storm;3d10;1;0;0;3;100;SaveNegates;;Három körig további sötét sebzést okoz.
+FX-D012-1;D012;1;ChainDamage;12d8;4;8;0;0;100;SaveHalf;100|75|50|25;Legfeljebb három további célpontra ugrik.
+FX-D015-1;D015;1;Heal;5d8;2;3;0;0;100;Auto;;A teljes ellenséges csapatot gyógyítja.
+FX-D016-1;D016;1;Damage;24d12;6;20;0;0;100;SaveHalf;;Hatalmas területi sötét sebzés mentőre felezve.
+FX-D016-2;D016;2;RandomElement;4d10;0;0;4;3;30;SaveNegates;Fire|Frost|Lightning;Véletlen pusztító utóhatást okoz.
 FX-P001-1;P001;1;Heal;2d8;1;1;0;0;100;Auto;;Érintéssel helyreállított életerő.
 FX-P002-1;P002;1;Damage;2d6;1;1;0;0;100;Attack;Holy50;Szent sebzés élőholt és démoni célpont ellen másfélszeres erővel.
 FX-P003-1;P003;1;HitBonus;;0;0;1;4;100;Auto;;Négy körre találati bónuszt ad a teljes partinak.
@@ -835,21 +881,21 @@ FX-P028-2;P028;2;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;Sikertelen ellenpr�
 
 #Ellenséges varázshasználók
 EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEsély%;Profil;VarázslatLehűlés
-E090;S001|S003|S021;18;6;20;45;BattleMage;1
-E091;S001|S005|S021|S027;26;7;20;55;Controller;1
-E092;P001|P003|P004|P009;34;8;25;55;Support;1
-E035;S001|S005|S021|S022;30;8;20;55;BattleMage;1
-E093;S002|S014|S027|S028;42;10;20;65;Controller;1
-E094;P005|P009|P015|P023;50;11;20;65;Support;1
-E095;P005|P009|P010|P028;58;12;20;70;Support;1
-E096;S004|S007|S013|S014|S023;70;14;15;75;Artillery;1
-E097;S008|S014|S017|P005;78;15;20;75;Support;1
-E098;S005|S007|S016|P005;86;16;15;80;Artillery;1
-E099;P005|P010|P011|P017|P018;105;18;15;85;Support;1
-E074;S008|S014|S025|S028;90;17;10;80;Necromancer;1
-E022;S002|S014|S025|S028;120;19;10;85;Necromancer;1
-E049;S009|S014|S025|S028;150;21;10;80;Necromancer;2
-E100;S009|S016|S018|S020|S025;180;23;5;90;Artillery;1
+E090;D001|D003|D005;18;6;20;45;BattleMage;1
+E091;D001|D004|D005|D010;26;7;20;55;Controller;1
+E092;D017|D013|D014|P009;34;8;25;55;Support;1
+E035;D001|D004|D005|D007;30;8;20;55;BattleMage;1
+E093;D002|S014|S027|D010;42;10;20;65;Controller;1
+E094;D017|P009|D014|P023;50;11;20;65;Support;1
+E095;D017|P009|D013|P028;58;12;20;70;Support;1
+E096;D006|D008|S013|S014|D012;70;14;15;75;Artillery;1
+E097;D009|S014|S017|D017;78;15;20;75;Support;1
+E098;D004|D008|D012|D017;86;16;15;80;Artillery;1
+E099;D017|D013|P011|D015|P018;105;18;15;85;Support;1
+E074;D009|S014|S025|D010;90;17;10;80;Necromancer;1
+E022;D002|S014|S025|D010;120;19;10;85;Necromancer;1
+E049;D011|S014|S025|D010;150;21;10;80;Necromancer;2
+E100;D011|D012|S018|D016|S025;180;23;5;90;Artillery;1
 
 #Karakternevek
 Id;Név;OsztályId

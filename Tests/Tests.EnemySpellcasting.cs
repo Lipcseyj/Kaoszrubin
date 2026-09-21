@@ -12,12 +12,36 @@ internal static partial class Program
         };
         Assert(data.EnemySpellcasters.Select(profile => profile.EnemyId).SequenceEqual(expected),
             "Az ellenséges varázshasználók erősorrendje vagy készlete eltér a tervezettől.");
+        Assert(data.Spells.Count(spell => spell.EnemyOnly) == 17 &&
+               data.Spells.Where(spell => spell.EnemyOnly).All(spell => spell.Id.StartsWith('D')),
+            "A sötét ellenséges varázslatkészlet hiányos vagy hibásan van megjelölve.");
         foreach (var enemyId in expected)
         {
             var enemy = data.GetEnemy(enemyId);
-            Assert(enemy.SpellcasterProfile is { SpellIds.Count: > 0, MaximumMana: > 0, Intelligence: > 0 },
+            var profile = enemy.SpellcasterProfile;
+            Assert(profile is { SpellIds.Count: > 0, MaximumMana: > 0, Intelligence: > 0 },
                 $"A(z) {enemyId} ellenség feloldott varázsprofilja hiányzik.");
+            Assert(profile!.SpellIds.Select(data.GetSpell).Any(spell => spell.EnemyOnly),
+                $"A(z) {enemyId} ellenség nem kapott sötét varázslatot.");
         }
+    }
+
+    static void DarkSpellsRemainEnemyOnly()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var darkSpell = data.GetSpell("D001");
+        var mage = CreateCharacter("Tiltott mágus", vitality: 30, characterClassId: CharacterClassIds.Mágus);
+
+        Assert(darkSpell.EnemyOnly && !data.GetSpells(darkSpell.School, darkSpell.Level)
+                .Any(spell => string.Equals(spell.Id, darkSpell.Id, StringComparison.OrdinalIgnoreCase)),
+            "A sötét varázslat bekerült a játékosok választható varázslatlistájába.");
+        Assert(!SpellcastingRules.AvailableUnknownSpells(mage, data, mage.Level)
+                .Any(spell => spell.EnemyOnly) && !mage.LearnSpell(darkSpell),
+            "A játékos meg tudta tanulni a csak ellenségeknek szánt varázslatot.");
+        var rejection = new SpellExecutionService(data, new Random(1)).ValidateSpellCast(
+            mage, new Position(1, 1), darkSpell, true, null);
+        Assert(rejection?.Message.Contains("csak ellenséges", StringComparison.OrdinalIgnoreCase) == true,
+            "A végrehajtási védelem nem utasította el az ellenséges varázslatot.");
     }
 
     static void EnemySpellcastingUsesManaTargetsPartyAndPersists()
@@ -26,7 +50,7 @@ internal static partial class Program
         var baseDefinition = data.GetEnemy(MonsterIds.GoblinVajákos);
         var profile = baseDefinition.SpellcasterProfile! with
         {
-            SpellIds = ["S001"], CastingChancePercent = 100, ManaReservePercent = 0
+            SpellIds = ["D001"], CastingChancePercent = 100, ManaReservePercent = 0
         };
         var caster = new ConfiguredEnemy(new Position(2, 2), baseDefinition with { SpellcasterProfile = profile },
             new Random(1));
@@ -34,7 +58,7 @@ internal static partial class Program
         var service = new EnemySpellcastingService(data, new Random(2));
 
         var plan = service.SelectSpell(caster, [caster], [(target, new Position(4, 2))], (_, _, _) => true);
-        Assert(plan is { Spell.Id: "S001", HostileTargets.Count: 1 } && plan.HostileTargets[0] == target,
+        Assert(plan is { Spell.Id: "D001", HostileTargets.Count: 1 } && plan.HostileTargets[0] == target,
             "Az ellenséges varázsló nem a parti érvényes célpontját választotta.");
         var manaBefore = caster.CurrentMana;
         var hpBefore = target.CurrentVitality;
@@ -55,7 +79,7 @@ internal static partial class Program
         var artillery = new ConfiguredEnemy(new Position(2, 2), data.GetEnemy(MonsterIds.Káoszmágus) with
         {
             SpellcasterProfile = data.GetEnemy(MonsterIds.Káoszmágus).SpellcasterProfile! with
-            { SpellIds = ["S007"], CastingChancePercent = 100, ManaReservePercent = 0 }
+            { SpellIds = ["D008"], CastingChancePercent = 100, ManaReservePercent = 0 }
         });
         var secondTarget = CreateCharacter("Második cél", vitality: 100);
         var areaPlan = service.SelectSpell(artillery, [artillery],
@@ -67,7 +91,7 @@ internal static partial class Program
         var healer = new ConfiguredEnemy(new Position(2, 2), healerDefinition with
         {
             SpellcasterProfile = healerDefinition.SpellcasterProfile! with
-            { SpellIds = ["P005"], CastingChancePercent = 100, ManaReservePercent = 0 }
+            { SpellIds = ["D017"], CastingChancePercent = 100, ManaReservePercent = 0 }
         });
         var woundedAlly = new ConfiguredEnemy(new Position(3, 2), baseDefinition);
         woundedAlly.SetCurrentHitPoints(1);

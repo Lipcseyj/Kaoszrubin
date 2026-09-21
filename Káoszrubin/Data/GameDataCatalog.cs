@@ -77,7 +77,7 @@ public sealed class GameDataCatalog
     public ItemCurseDefinition GetItemCurse(string id) => FindById(ItemCurses, id, "tárgyátok");
     public SpellDefinition GetSpell(string id) => FindById(Spells, id, "varázslat");
     public IReadOnlyList<SpellDefinition> GetSpells(SpellSchool school, int level) => Spells
-        .Where(spell => spell.School == school && spell.Level == level).ToList();
+        .Where(spell => !spell.EnemyOnly && spell.School == school && spell.Level == level).ToList();
     public IReadOnlyList<SpellEffectDefinition> GetSpellEffects(string spellId) => SpellEffects
         .Where(effect => string.Equals(effect.SpellId, spellId, StringComparison.OrdinalIgnoreCase))
         .OrderBy(effect => effect.Order).ToList();
