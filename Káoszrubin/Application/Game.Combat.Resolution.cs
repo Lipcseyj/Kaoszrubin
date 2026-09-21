@@ -208,6 +208,24 @@ public sealed partial class Game
             .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character))).ToArray();
         var closestDistance = livingTargets.Length == 0 ? int.MaxValue :
             TacticalDistance.Between(enemy.Position, GetCasterPosition(livingTargets[0]));
+        var spellPlan = enemy.PreparedWeaponId is null
+            ? _enemySpellcastingService.SelectSpell(enemy,
+                battle.Enemies.Where(candidate => candidate.CurrentHitPoints > 0).ToArray(),
+                livingTargets.Select(target => (target, GetCasterPosition(target))).ToArray(),
+                (origin, target, range) => FogOfWar.CanSee(_maze, origin, target, range))
+            : null;
+        if (spellPlan is not null)
+        {
+            if (spellPlan.HostileTargets.Count > 0) battle.FaceEnemyToward(enemy, spellPlan.HostileTargets[0]);
+            PlaySpellImpact(spellPlan.Spell, enemy.Position, spellPlan.TargetPosition,
+                spellPlan.HostileTargets.Select(GetCasterPosition).ToArray());
+            PresentBattleEntries([_enemySpellcastingService.Execute(enemy, spellPlan)]);
+            if (spellPlan.HostileTargets.Count > 0) battle.RecordAttack(BattleSide.Hostile);
+            foreach (var target in spellPlan.HostileTargets.Where(target => !target.IsAlive))
+                ResolveCharacterDefeat(battle, target);
+            AdvanceBattleTurn(battle);
+            return;
+        }
         var activeAbility = enemy.PreparedWeaponId is null
             ? _battleSystem.SelectEnemyActiveAbility(enemy, closestDistance)
             : null;

@@ -66,7 +66,10 @@ internal sealed class GameStateMapper
                 new EnemyEquipmentSaveData(enemy.EquippedWeapon?.Id, enemy.EquippedShield?.Id),
                 enemy.HordeDestination,
                 enemy.HordeCampUntilUtc is { } campUntil
-                    ? Math.Max(0, (int)(campUntil - now).TotalMilliseconds) : 0)).ToList(),
+                    ? Math.Max(0, (int)(campUntil - now).TotalMilliseconds) : 0,
+                enemy.CurrentMana,
+                enemy.SpellCooldowns.ToDictionary(item => item.Key, item => item.Value,
+                    StringComparer.OrdinalIgnoreCase))).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -201,6 +204,7 @@ internal sealed class GameStateMapper
             enemy.ConfigureGuaranteedLoot(savedEnemy.GuaranteedLootIds ?? []);
             enemy.RestoreCombatCooldowns(savedEnemy.AbilityCooldowns ?? [], savedEnemy.WeaponCooldowns ?? [],
                 savedEnemy.PreparedWeaponId, savedEnemy.RemainingAbilityCharges);
+            enemy.RestoreSpellcasting(savedEnemy.CurrentMana ?? enemy.MaximumMana, savedEnemy.SpellCooldowns);
             foreach (var effect in savedEnemy.ActiveSpellEffects ?? []) enemy.RestoreSpellEffect(effect);
             maze.AddEnemy(enemy);
             var remaining = savedEnemy.NextMoveRemainingMilliseconds >= 0

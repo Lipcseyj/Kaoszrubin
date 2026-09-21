@@ -12,7 +12,8 @@ public sealed record EnemyDefinition(string Id, string Name, string Appearance, 
     bool ChoosesWeapon = false, DamageResistance? Resistances = null,
     IReadOnlyList<WeaponDefinition>? Weapons = null,
     EnemyTraits Traits = EnemyTraits.None, int AbilityThreat = 0, int TrackingSense = 0, 
-    string? ShieldId = null, WeaponDefinition? ShieldOption = null, int MagicResistance = 0) : IGameDefinition
+    string? ShieldId = null, WeaponDefinition? ShieldOption = null, int MagicResistance = 0,
+    Magic.EnemySpellcasterProfile? SpellcasterProfile = null) : IGameDefinition
 {
     public int AverageArmor => Armor is null ? 0 : (Armor.Minimum + Armor.Maximum) / 2;
 

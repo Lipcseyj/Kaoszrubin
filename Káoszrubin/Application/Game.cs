@@ -86,6 +86,7 @@ public sealed partial class Game : ISessionCommandHandler
     private readonly GameSettingsService _gameSettings;
     private readonly GameSession _session;
     private readonly SpellExecutionService _spellExecutionService;
+    private readonly EnemySpellcastingService _enemySpellcastingService;
     private readonly BattleActionCoordinator _battleActionCoordinator;
     private readonly TacticalBattleCoordinator _battleCoordinator;
     private readonly NpcQuestCoordinator _npcQuestCoordinator;
@@ -532,6 +533,7 @@ public sealed partial class Game : ISessionCommandHandler
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
         _spellExecutionService = new SpellExecutionService(gameData, _random);
+        _enemySpellcastingService = new EnemySpellcastingService(gameData, _random);
         _battleActionCoordinator = new BattleActionCoordinator(gameData, _battleSystem, _spellExecutionService, _random);
         _battleCoordinator = new TacticalBattleCoordinator(gameData, _battleSystem, _random);
         _storyConversationCoordinator = new StoryConversationCoordinator(gameData, _random);

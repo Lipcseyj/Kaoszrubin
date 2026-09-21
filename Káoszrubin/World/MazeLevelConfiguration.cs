@@ -247,7 +247,8 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Same(MonsterIds.Kobold, Amount.Few, Amount.Several),
                     Encounters.Mixed(MonsterIds.Goblin, Amount.Several, MonsterIds.Kobold, Amount.Few, Amount.Few),
-                    Encounters.Same(MonsterIds.Csontváz, Amount.Few, Amount.Few)
+                    Encounters.Same(MonsterIds.Csontváz, Amount.Few, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.GoblinVajákos, MonsterIds.Goblin, Amount.One, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
@@ -394,7 +395,8 @@ public static class MazeLevelConfigurations
                     Encounters.Same(MonsterIds.Goblin, Amount.Handful, Amount.Pack),
                     Encounters.Same(MonsterIds.Ork, Amount.Handful, Amount.Several),
                     Encounters.Mixed(MonsterIds.Hobgoblin, Amount.Few, MonsterIds.Bugbear, Amount.Few, Amount.Handful),
-                    Encounters.LeaderGroup(MonsterIds.OrkSámán, MonsterIds.Ork, Amount.Few, Amount.Several)
+                    Encounters.LeaderGroup(MonsterIds.OrkSámán, MonsterIds.Ork, Amount.Few, Amount.Several),
+                    Encounters.LeaderGroup(MonsterIds.OrkVérpap, MonsterIds.Ork, Amount.One, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
@@ -422,7 +424,8 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Same(MonsterIds.Múmia, Amount.Several, Amount.Several),
                     Encounters.Mixed(MonsterIds.Wight, Amount.Several, MonsterIds.Ghoul, Amount.Several, Amount.Few),
-                    Encounters.LeaderGroup(MonsterIds.ÉjiBanya, MonsterIds.Múmia, Amount.Few, Amount.Several)
+                    Encounters.LeaderGroup(MonsterIds.ÉjiBanya, MonsterIds.Múmia, Amount.Few, Amount.Several),
+                    Encounters.LeaderGroup(MonsterIds.Boszorkány, MonsterIds.Ghoul, Amount.One, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
@@ -474,7 +477,9 @@ public static class MazeLevelConfigurations
                     Encounters.Same(MonsterIds.Káoszkultista, Amount.Handful, Amount.Pack),
                     Encounters.Same(MonsterIds.Wyvern, Amount.Handful, Amount.Few),
                     Encounters.Mixed(MonsterIds.Kiméra, Amount.Few, MonsterIds.OrkSámán, Amount.Several, Amount.Few),
-                    Encounters.LeaderGroup(MonsterIds.VörösSárkány, MonsterIds.OrkSámán, Amount.One, Amount.Pack)
+                    Encounters.LeaderGroup(MonsterIds.VörösSárkány, MonsterIds.OrkSámán, Amount.One, Amount.Pack),
+                    Encounters.LeaderGroup(MonsterIds.KáoszmágusTanítvány, MonsterIds.Káoszkultista, Amount.Few, Amount.Pack),
+                    Encounters.LeaderGroup(MonsterIds.Káoszpap, MonsterIds.Káoszkultista, Amount.One, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
@@ -503,7 +508,9 @@ public static class MazeLevelConfigurations
                     Encounters.Same(MonsterIds.PestishordozóPatkány, Amount.Handful, Amount.Pack),
                     Encounters.Same(MonsterIds.Savanyálka, Amount.Handful, Amount.Several),
                     Encounters.Mixed(MonsterIds.PestishordozóPatkány, Amount.Pack, MonsterIds.Óriáspók, Amount.Several, Amount.Handful),
-                    Encounters.LeaderGroup(MonsterIds.Hidra, MonsterIds.BarlangiGyík, Amount.One, Amount.Pack)
+                    Encounters.LeaderGroup(MonsterIds.Hidra, MonsterIds.BarlangiGyík, Amount.One, Amount.Pack),
+                    Encounters.LeaderGroup(MonsterIds.Kígyópap, MonsterIds.Kígyóember, Amount.One, Amount.Several),
+                    Encounters.LeaderGroup(MonsterIds.SötétDruida, MonsterIds.Óriáspók, Amount.One, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
@@ -604,7 +611,8 @@ public static class MazeLevelConfigurations
                     Encounters.Same(MonsterIds.Ghoul, Amount.Handful, Amount.Pack),
                     Encounters.Same(MonsterIds.Vámpír, Amount.Handful, Amount.Handful),
                     Encounters.Mixed(MonsterIds.Halállovag, Amount.Few, MonsterIds.Wight, Amount.Several, Amount.Few),
-                    Encounters.LeaderGroup(MonsterIds.Ősvámpír, MonsterIds.Vámpír, Amount.One, Amount.Several)
+                    Encounters.LeaderGroup(MonsterIds.Ősvámpír, MonsterIds.Vámpír, Amount.One, Amount.Several),
+                    Encounters.LeaderGroup(MonsterIds.Nekromanta, MonsterIds.Ghoul, Amount.Few, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
@@ -662,7 +670,9 @@ public static class MazeLevelConfigurations
                     Encounters.Mixed(MonsterIds.Parázsdémon, Amount.Several, MonsterIds.KarmosDémon, Amount.Few,
                         Amount.Few),
                     Encounters.LeaderGroup(MonsterIds.Pokolőr, MonsterIds.Parázsdémon, Amount.Few, Amount.Several),
-                    Encounters.LeaderGroup(MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, Amount.One, Amount.Pack)
+                    Encounters.LeaderGroup(MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, Amount.One, Amount.Pack),
+                    Encounters.LeaderGroup(MonsterIds.Káoszmágus, MonsterIds.Pokolfajzat, Amount.Few, Amount.Lots),
+                    Encounters.LeaderGroup(MonsterIds.Vérmágus, MonsterIds.DémoniKorcs, Amount.One, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
@@ -696,7 +706,8 @@ public static class MazeLevelConfigurations
                     Encounters.Mixed(MonsterIds.Pokolőr, Amount.Few, MonsterIds.Vérdémon, Amount.Few, Amount.Few),
                     Encounters.Mixed(MonsterIds.Pokolfejedelem, Amount.Few, MonsterIds.Démonpók, Amount.Several,
                         Amount.Few),
-                    Encounters.LeaderGroup(MonsterIds.BalorDémon, MonsterIds.Démonlovag, Amount.Few, Amount.Several)
+                    Encounters.LeaderGroup(MonsterIds.BalorDémon, MonsterIds.Démonlovag, Amount.Few, Amount.Several),
+                    Encounters.LeaderGroup(MonsterIds.KáoszFőpap, MonsterIds.Pokolfajzat, Amount.Few, Amount.Lots)
                 ],
                 CorridorEncounters =
                 [
@@ -725,7 +736,8 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Mixed(MonsterIds.VénBeholder, Amount.Few, MonsterIds.Drakolich, Amount.Few, Amount.Few),
                     Encounters.LeaderGroup(MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, Amount.Few, Amount.Several),
-                    Encounters.LeaderGroup(MonsterIds.Káoszsárkány, MonsterIds.Drakolich, Amount.One, Amount.Few)
+                    Encounters.LeaderGroup(MonsterIds.Káoszsárkány, MonsterIds.Drakolich, Amount.One, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Feketemágus, MonsterIds.Káoszlovag, Amount.One, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [

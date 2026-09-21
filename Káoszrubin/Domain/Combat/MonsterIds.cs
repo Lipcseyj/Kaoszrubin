@@ -85,6 +85,17 @@ public static class MonsterIds
     public const string KarmosDémon = "E087";
     public const string Pokolőr = "E088";
     public const string Vérdémon = "E089";
+    public const string GoblinVajákos = "E090";
+    public const string KáoszmágusTanítvány = "E091";
+    public const string Káoszpap = "E092";
+    public const string Boszorkány = "E093";
+    public const string OrkVérpap = "E094";
+    public const string Kígyópap = "E095";
+    public const string Káoszmágus = "E096";
+    public const string SötétDruida = "E097";
+    public const string Vérmágus = "E098";
+    public const string KáoszFőpap = "E099";
+    public const string Feketemágus = "E100";
 
     public static IReadOnlySet<string> Bosses { get; } = new HashSet<string>(
     [

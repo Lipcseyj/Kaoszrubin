@@ -458,7 +458,9 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     List<Position>? SearchVisitedPositions = null,
     EnemyEquipmentSaveData? Equipment = null,
     Position? HordeDestination = null,
-    int HordeCampRemainingMilliseconds = 0);
+    int HordeCampRemainingMilliseconds = 0,
+    int? CurrentMana = null,
+    Dictionary<string, int>? SpellCooldowns = null);
 public sealed record EnemyEquipmentSaveData(string? WeaponId, string? ShieldId);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null,

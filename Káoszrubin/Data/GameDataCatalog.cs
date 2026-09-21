@@ -31,6 +31,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<ItemCurseDefinition> ItemCurses { get; init; } = [];
     public IReadOnlyList<SpellDefinition> Spells { get; init; } = [];
     public IReadOnlyList<SpellEffectDefinition> SpellEffects { get; init; } = [];
+    public IReadOnlyList<EnemySpellcasterProfile> EnemySpellcasters { get; init; } = [];
     public IReadOnlyList<PerkDefinition> Perks { get; init; } = [];
     public IReadOnlyList<StatusDefinition> Statuses { get; init; } = [];
     public IReadOnlyList<CharacterNameDefinition> CharacterNames { get; init; } = [];
@@ -80,6 +81,8 @@ public sealed class GameDataCatalog
     public IReadOnlyList<SpellEffectDefinition> GetSpellEffects(string spellId) => SpellEffects
         .Where(effect => string.Equals(effect.SpellId, spellId, StringComparison.OrdinalIgnoreCase))
         .OrderBy(effect => effect.Order).ToList();
+    public EnemySpellcasterProfile? GetEnemySpellcaster(string enemyId) => EnemySpellcasters.FirstOrDefault(profile =>
+        string.Equals(profile.EnemyId, enemyId, StringComparison.OrdinalIgnoreCase));
     public MiscItemDefinition GetItem(string id) => FindById(Items, id, "tárgy");
     public IItemDefinition GetItemDefinition(string id) => FindById(
         Items.Cast<IItemDefinition>().Concat(Weapons).Concat(Armors).Concat(MagicItems).ToArray(),

@@ -41,6 +41,7 @@ public static class CsvGameDataLoader
         var itemCurses = new List<ItemCurseDefinition>();
         var spells = new List<SpellDefinition>();
         var spellEffects = new List<SpellEffectDefinition>();
+        var enemySpellcasters = new List<EnemySpellcasterProfile>();
         var perks = new List<PerkDefinition>();
         var statuses = new List<StatusDefinition>();
         var characterNames = new List<CharacterNameDefinition>();
@@ -103,7 +104,7 @@ public static class CsvGameDataLoader
                     partySituations, partyRemarks, creatureQuotes, itemUpgrades,
                     raceBonuses, classMinimums, minimumVitalityByHealth, minimumManaByIntelligence, experienceByLevel,
                     vitalityGrowthByHealth, manaGrowthByIntelligence, startingEquipmentByClass,
-                    characterResourceGrowthByClass, ref baseLevelCompletionExperience);
+                    characterResourceGrowthByClass, enemySpellcasters, ref baseLevelCompletionExperience);
             }
             catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException or ArgumentException)
             {
@@ -153,6 +154,7 @@ public static class CsvGameDataLoader
             ("Tárgybővítések", itemUpgrades.Select(value => value.Id)));
         ValidateSpells(spells);
         ValidateSpellEffects(spells, spellEffects);
+        ValidateEnemySpellcasters(enemies, spells, spellEffects, enemySpellcasters);
         ValidateMagicItems(magicItems, spells);
         ValidateShields(weapons);
         for (var index = 0; index < enemies.Count; index++)
@@ -195,7 +197,9 @@ public static class CsvGameDataLoader
             enemies[index] = enemy with
             {
                 Weapons = resolvedWeapons,
-                ShieldOption = resolvedShield
+                ShieldOption = resolvedShield,
+                SpellcasterProfile = enemySpellcasters.FirstOrDefault(profile =>
+                    string.Equals(profile.EnemyId, enemy.Id, StringComparison.OrdinalIgnoreCase))
             };
         }
         var monsterAbilityById = monsterAbilities.ToDictionary(ability => ability.Id, StringComparer.OrdinalIgnoreCase);
@@ -205,6 +209,10 @@ public static class CsvGameDataLoader
             var threat = enemy.AbilityIds.Where(monsterAbilityById.ContainsKey)
                 .Select(id => monsterAbilityById[id]).Sum(AbilityThreat);
             if (enemy.HasTrait(EnemyTraits.Flying)) threat += 5;
+            if (enemy.SpellcasterProfile is { } spellcaster)
+                threat += spellcaster.SpellIds.Select(id => spells.First(spell =>
+                        string.Equals(spell.Id, id, StringComparison.OrdinalIgnoreCase)).Level)
+                    .DefaultIfEmpty().Max() * 5 + spellcaster.Intelligence / 2;
             enemies[index] = enemy with { AbilityThreat = threat };
         }
         ValidateEnemies(enemies, monsterAbilities);
@@ -255,6 +263,7 @@ public static class CsvGameDataLoader
             ItemCurses = itemCurses,
             Spells = spells,
             SpellEffects = spellEffects,
+            EnemySpellcasters = enemySpellcasters,
             Perks = perks,
             Statuses = statuses,
             CharacterNames = characterNames,
@@ -351,6 +360,7 @@ public static class CsvGameDataLoader
         IDictionary<int, ValueRange> vitalityGrowthByHealth, IDictionary<int, ValueRange> manaGrowthByIntelligence,
         IDictionary<string, StartingEquipmentDefinition> startingEquipmentByClass,
         IDictionary<string, CharacterResourceGrowthDefinition> characterResourceGrowthByClass,
+        ICollection<EnemySpellcasterProfile> enemySpellcasters,
         ref int? baseLevelCompletionExperience)
     {
         var id = Cell(cells, 0);
@@ -503,6 +513,15 @@ public static class CsvGameDataLoader
                     Integer(cells, 8) ?? 0, Math.Clamp(Integer(cells, 9) ?? 100, 0, 100),
                     ParseRequiredEnum<SpellResolution>(cells, 10, id, "ellenpróba"),
                     EmptyAsNull(Cell(cells, 11)), Cell(cells, 12)));
+                break;
+            case DataSection.EnemySpellcasters:
+                enemySpellcasters.Add(new EnemySpellcasterProfile(id, IdList(Cell(cells, 1)),
+                    RequiredNonNegativeInteger(cells, 2, id, "maximális manna"),
+                    RequiredNonNegativeInteger(cells, 3, id, "intelligencia"),
+                    Math.Clamp(Integer(cells, 4) ?? 0, 0, 100),
+                    Math.Clamp(Integer(cells, 5) ?? 0, 0, 100),
+                    ParseRequiredEnum<EnemySpellcastingStyle>(cells, 6, id, "varázsprofil"),
+                    Math.Max(0, Integer(cells, 7) ?? 1)));
                 break;
             case DataSection.Perks:
                 if (Integer(cells, 4) is { } tier)
@@ -1151,6 +1170,42 @@ public static class CsvGameDataLoader
                 throw new InvalidOperationException($"A(z) '{spell.Id}' varázslathoz legalább egy #Varázshatások sor szükséges.");
     }
 
+    private static void ValidateEnemySpellcasters(IReadOnlyCollection<EnemyDefinition> enemies,
+        IReadOnlyCollection<SpellDefinition> spells, IReadOnlyCollection<SpellEffectDefinition> effects,
+        IReadOnlyCollection<EnemySpellcasterProfile> profiles)
+    {
+        var enemyIds = enemies.Select(enemy => enemy.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var spellById = spells.ToDictionary(spell => spell.Id, StringComparer.OrdinalIgnoreCase);
+        var duplicates = profiles.GroupBy(profile => profile.EnemyId, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicates is not null)
+            throw new InvalidDataException($"Egy ellenséghez csak egy varázsprofil tartozhat: {duplicates.Key}.");
+
+        var unsupportedEffects = new HashSet<SpellEffectType>
+        {
+            SpellEffectType.TeleportSelf, SpellEffectType.TeleportParty, SpellEffectType.ExtraActions,
+            SpellEffectType.Resurrect, SpellEffectType.RestoreNeeds, SpellEffectType.BreakItemCurse,
+            SpellEffectType.CureStatus, SpellEffectType.GuardianAngel
+        };
+        foreach (var profile in profiles)
+        {
+            if (!enemyIds.Contains(profile.EnemyId))
+                throw new InvalidDataException($"Az ellenséges varázsprofil ismeretlen ellenfélre hivatkozik: {profile.EnemyId}.");
+            if (profile.SpellIds.Count == 0 || profile.MaximumMana <= 0 || profile.Intelligence <= 0)
+                throw new InvalidDataException($"A(z) {profile.EnemyId} ellenséges varázsprofilja hiányos.");
+            foreach (var spellId in profile.SpellIds)
+            {
+                if (!spellById.TryGetValue(spellId, out var spell))
+                    throw new InvalidDataException($"A(z) {profile.EnemyId} varázsprofilja ismeretlen varázslatot tartalmaz: {spellId}.");
+                if (!spell.CanUseInCombat || spell.TargetType is SpellTargetType.Corpse or SpellTargetType.Cell)
+                    throw new InvalidDataException($"A(z) {profile.EnemyId} varázsprofiljában nem használható harci varázslat van: {spellId}.");
+                if (effects.Where(effect => string.Equals(effect.SpellId, spellId, StringComparison.OrdinalIgnoreCase))
+                    .Any(effect => unsupportedEffects.Contains(effect.Type)))
+                    throw new InvalidDataException($"A(z) {profile.EnemyId} varázsprofiljában még nem támogatott hatás van: {spellId}.");
+            }
+        }
+    }
+
     private static T ParseRequiredEnum<T>(string[] cells, int index, string id, string fieldName) where T : struct, Enum =>
         Enum.TryParse<T>(Cell(cells, index), true, out var value)
             ? value
@@ -1508,7 +1563,7 @@ public static class CsvGameDataLoader
     }
 
     private static bool IsHeaderRow(string value) => Normalize(value) is "id" or "npcid" or "fajid" or "osztalyid" or
-        "szornyid" or "szituacioid" or "egeszseg" or "intelligencia" or "szint";
+        "szornyid" or "ellensegid" or "szituacioid" or "egeszseg" or "intelligencia" or "szint";
     private static string Cell(string[] cells, int index) => index < cells.Length ? cells[index] : string.Empty;
     private static string? EmptyAsNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
@@ -1608,6 +1663,7 @@ public static class CsvGameDataLoader
         "varazslatok" => DataSection.ArcaneSpells,
         "papi varazslatok" => DataSection.DivineSpells,
         "varazshatasok" => DataSection.SpellEffects,
+        "ellenseges varazshasznalok" => DataSection.EnemySpellcasters,
         "tehetsegek" => DataSection.Perks,
         "allapotok" => DataSection.Statuses,
         "karakternevek" => DataSection.CharacterNames,
@@ -1666,6 +1722,7 @@ public static class CsvGameDataLoader
         ArcaneSpells,
         DivineSpells,
         SpellEffects,
+        EnemySpellcasters,
         Perks,
         Statuses,
         CharacterNames,

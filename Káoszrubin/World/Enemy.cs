@@ -66,9 +66,13 @@ public abstract class Enemy(Position position) : WorldObject(position)
     private readonly List<string> _guaranteedLootIds = [];
     private readonly Dictionary<string, int> _abilityCooldowns = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _weaponCooldowns = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _spellCooldowns = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _remainingAbilityCharges = new(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyDictionary<string, int> AbilityCooldowns => _abilityCooldowns;
     public IReadOnlyDictionary<string, int> WeaponCooldowns => _weaponCooldowns;
+    public IReadOnlyDictionary<string, int> SpellCooldowns => _spellCooldowns;
+    public int MaximumMana => Definition.SpellcasterProfile?.MaximumMana ?? 0;
+    public int CurrentMana { get; private set; }
     public IReadOnlyDictionary<string, int> RemainingAbilityCharges => _remainingAbilityCharges;
     public string? PreparedWeaponId { get; private set; }
     public IReadOnlyList<string> CarriedWeaponIds
@@ -106,6 +110,22 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public bool IsWeaponReady(string weaponId) => _weaponCooldowns.GetValueOrDefault(weaponId) <= 0;
     public void StartAbilityCooldown(string abilityId, int turns) => SetCooldown(_abilityCooldowns, abilityId, turns);
     public void StartWeaponCooldown(string weaponId, int turns) => SetCooldown(_weaponCooldowns, weaponId, turns);
+    public bool IsSpellReady(string spellId) => _spellCooldowns.GetValueOrDefault(spellId) <= 0;
+    public void StartSpellCooldown(string spellId, int turns) => SetCooldown(_spellCooldowns, spellId, turns);
+    public bool SpendMana(int amount)
+    {
+        if (amount < 0 || CurrentMana < amount) return false;
+        CurrentMana -= amount;
+        return true;
+    }
+    public void InitializeSpellcasting() => CurrentMana = MaximumMana;
+    public void RestoreSpellcasting(int currentMana, IEnumerable<KeyValuePair<string, int>>? spellCooldowns)
+    {
+        CurrentMana = Math.Clamp(currentMana, 0, MaximumMana);
+        _spellCooldowns.Clear();
+        foreach (var item in spellCooldowns?.Where(item => item.Value > 0) ?? [])
+            _spellCooldowns[item.Key] = item.Value;
+    }
     public bool IsWeaponPrepared(string weaponId) =>
         string.Equals(PreparedWeaponId, weaponId, StringComparison.OrdinalIgnoreCase);
     public void PrepareWeapon(string weaponId) => PreparedWeaponId = weaponId;
@@ -142,6 +162,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     {
         AdvanceCooldowns(_abilityCooldowns);
         AdvanceCooldowns(_weaponCooldowns);
+        AdvanceCooldowns(_spellCooldowns);
     }
 
     private static void SetCooldown(IDictionary<string, int> cooldowns, string id, int turns)
@@ -536,6 +557,7 @@ public sealed class ConfiguredEnemy : Enemy
         }
 
         Definition = definition;
+        InitializeSpellcasting();
         AttackWeapons = usableWeapons;
         EquippedWeapon = definition.ChoosesWeapon ? selectedWeapon : null;
         EquippedShield = selectedShield;

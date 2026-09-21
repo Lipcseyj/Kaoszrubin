@@ -324,6 +324,8 @@ internal static partial class Program
     ("A hálózati lifecycle és a szimulációs esemény nem deadlockol", GatewayAndSimulationDoNotDeadlock),
     ("A tesztfuttató argumentumai szigorúan validáltak", TestRunnerOptionsAreValidated),
     ("A tesztfuttató névszűrése kis- és nagybetűtől független", TestRunnerFilterIsCaseInsensitive),
+    ("Az ellenséges varázshasználói profilok adatvezéreltek és teljesek", EnemySpellcasterProfilesAreDataDrivenAndComplete),
+    ("Az ellenséges varázslás mannát használ, a partit célozza és menthető", EnemySpellcastingUsesManaTargetsPartyAndPersists),
     ("A SignalR LAN host elindítható és leállítható", () =>
         SignalRServerStartsAndStops().GetAwaiter().GetResult()),
     ("A SignalR kliens végigviszi a LAN coop kapcsolatot", () =>

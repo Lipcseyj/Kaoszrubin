@@ -77,7 +77,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public int RollEnemyInitiative(Enemy enemy)
     {
         ArgumentNullException.ThrowIfNull(enemy);
-        return RollInitiative(enemy.EffectiveSpeed +
+        return RollInitiative(enemy.EffectiveSpeed + enemy.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus) +
             MonsterAbilityValue(enemy.Definition, MonsterAbilityEffect.InitiativeBonus)).Total;
     }
 
@@ -120,7 +120,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(defender);
         var target = EnemyDefenseSnapshot.From(defender, armorPenalty,
-            MonsterAbilityValue(defender.Definition, MonsterAbilityEffect.ArmorBonus));
+            MonsterAbilityValue(defender.Definition, MonsterAbilityEffect.ArmorBonus) +
+            defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus));
         var attackOptions = new PlayerAttackOptions(
             PositionalHitBonus: positionalHitBonus,
             PositionalAdvantage: positionalAdvantage,
@@ -1009,6 +1010,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var shieldRoll = defender.Shield?.Shield.Damage is { } shieldDefense ? Roll(shieldDefense) : 0;
 
         var damage = ApplyDefense((rawDamage * damageMultiplierPercent + 99) / 100, effectiveArmor + shieldRoll);
+        if (damageType.IsPhysical() && defender.PhysicalReduction > 0)
+            damage = Math.Max(1, damage * (100 - Math.Clamp(defender.PhysicalReduction, 0, 100)) / 100);
 
         var statusDamagePenalty = player.StatusPhysicalDamagePenalty;
         Modifier(damageCalculations, player.HasStatus(CharacterStatusIds.Hungry) ? "🍖 Éhség: fizikai sebzés" : "💥 Állapotbüntetés",
@@ -1524,7 +1527,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var matchingBonusDamage = monsterBonusRolls.Where(bonus =>
             bonus.DamageType is null || bonus.DamageType == damageType).Sum(bonus => bonus.Value);
 
-        var rawDamage = strengthBonus + baseDamage + matchingBonusDamage;
+        var rawDamage = strengthBonus + baseDamage + matchingBonusDamage +
+                        attacker.SpellEffectValue(ActiveSpellEffectType.DamageBonus);
         var damage = Math.Max(0, ApplyDefense(rawDamage * criticalMultiplier, armor + shield + perkDefense) - reduction);
 
         var physicalReduction = damageType.IsPhysical()
@@ -1983,6 +1987,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         int ArmorAbilityBonus,
         bool IsUndead,
         DamageResistance? Resistances,
+        int PhysicalReduction,
         ShieldDefenseSnapshot? Shield,
         WeaponDefinition? Weapon)
     {
@@ -2007,6 +2012,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 armorAbilityBonus,
                 enemy.Definition.HasTrait(EnemyTraits.Undead),
                 enemy.Definition.Resistances,
+                enemy.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction),
                 enemy.EquippedShield is { } shield ? new ShieldDefenseSnapshot(shield) : null,
                 enemy.EquippedWeapon);
         }
