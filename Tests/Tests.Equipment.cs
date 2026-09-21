@@ -944,7 +944,11 @@ internal static partial class Program
                WindowFrameConfiguration.For(FramedWindow.LevelUpChoice) == WindowFrameStyle.Sword &&
                WindowFrameConfiguration.For(FramedWindow.SpellLearning) == WindowFrameStyle.Magic2 &&
                WindowFrameConfiguration.For(FramedWindow.SpellPreparation) == WindowFrameStyle.Magic2 &&
-               WindowFrameConfiguration.For(FramedWindow.Inn) == WindowFrameStyle.Ruby,
+               WindowFrameConfiguration.For(FramedWindow.Inn) == WindowFrameStyle.Ruby &&
+               WindowFrameConfiguration.For(FramedWindow.CharacterManagement) == WindowFrameStyle.Scroll &&
+               CharacterMenuSurface.MazeGlyph(0, 0) == '┼' &&
+               CharacterMenuSurface.MazeGlyph(1, 0) == '─' &&
+               CharacterMenuSurface.MazeGlyph(0, 1) == '│',
             "Az első körös ablak–keret alapbeállítások hibásak.");
     }
 }
