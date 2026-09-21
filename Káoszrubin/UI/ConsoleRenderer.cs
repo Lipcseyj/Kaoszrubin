@@ -750,6 +750,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     /// </summary>
     public void DrawGameOver(string characterName)
     {
+        ScreenBurnEffect.Play();
         var lines = new[]
         {
             "💀  JÁTÉK VÉGE  💀",
@@ -764,18 +765,24 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         DrawGameOverFrame(lines);
     }
 
-    public static void DrawCoopGuestGameOver(string characterName) => DrawGameOverFrame(
-    [
-        "💀  JÁTÉK VÉGE  💀",
-        string.Empty,
-        $"{characterName}, elestél a labirintus mélyén.",
-        "A kalandod ezen a ponton véget ért.",
-        "A host csapata nélküled folytathatja az utat.",
-        "Új coop játékhoz válassz vagy készíts egy élő karaktert,",
-        "majd csatlakozz újra a host címére.",
-        string.Empty,
-        "Nyomj meg egy billentyűt a főmenühöz."
-    ]);
+    public static void DrawCoopGuestGameOver(string characterName)
+    {
+        ScreenBurnEffect.Play();
+        DrawGameOverFrame(
+        [
+            "💀  JÁTÉK VÉGE  💀",
+            string.Empty,
+            $"{characterName}, elestél a labirintus mélyén.",
+            "A kalandod ezen a ponton véget ért.",
+            "A host csapata nélküled folytathatja az utat.",
+            "Új coop játékhoz válassz vagy készíts egy élő karaktert,",
+            "majd csatlakozz újra a host címére.",
+            string.Empty,
+            "Nyomj meg egy billentyűt a főmenühöz."
+        ]);
+    }
+
+    public void PlayScreenBurnEffect() => ScreenBurnEffect.Play();
 
     public void DrawCompanionDeath(string characterName)
     {

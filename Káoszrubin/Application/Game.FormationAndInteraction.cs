@@ -491,6 +491,7 @@ public sealed partial class Game
         }
         var completedLevel = _mazeLevel;
         PlaySessionSound(SoundEffect.LevelComplete);
+        _renderer.PlayScreenBurnEffect();
         _backgroundMusic.EnterInn();
         _session.SetPhase(GameSessionPhase.Inn);
         var expeditionReason = ReturnExpeditionReason(completedLevel);

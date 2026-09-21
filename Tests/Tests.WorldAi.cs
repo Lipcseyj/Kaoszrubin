@@ -161,10 +161,10 @@ internal static partial class Program
         var golemDefinition = catalog.GetEnemy("E039");
         var blackDragonDefinition = catalog.GetEnemy("E025");
         Assert(golemDefinition.Armor is { Minimum: 7, Maximum: 13 } &&
-               golemDefinition.AverageArmor == 10 && golemDefinition.MagicResistance == 40 &&
+               golemDefinition.AverageArmor == 10 && golemDefinition.MagicResistance == 45 &&
                blackDragonDefinition.Armor is { Minimum: 7, Maximum: 13 } &&
-               blackDragonDefinition.MagicResistance == 30,
-            "Az ellenfélpáncél kis szórású tartománya vagy a CSV-s varázsvédelem hibás.");
+               blackDragonDefinition.MagicResistance == 35,
+            "Az ellenfél CSV-ben megadott páncélja vagy varázsvédelme hibás.");
 
         var resistantEnemy = new ConfiguredEnemy(new Position(3, 3), golemDefinition);
         var testSpell = new SpellDefinition("TEST-MAGIC-RESISTANCE", "Próbavarázs", SpellSchool.Arcane,
@@ -173,8 +173,8 @@ internal static partial class Program
             SpellEffectType.Damage, null, 0, 0, 100, 0, 100, SpellResolution.Auto, null, "");
         var resistedDamage = service.ResolveSpellDamage(ally, testDamage, testSpell, resistantEnemy,
             new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), []);
-        Assert(resistedDamage == 60,
-            "A 40 százalékos varázsvédelem nem csökkentette 100-ról 60-ra a közvetlen varázssebzést.");
+        Assert(resistedDamage == 55,
+            "A 45 százalékos varázsvédelem nem csökkentette 100-ról 55-re a közvetlen varázssebzést.");
     }
 
     static void MonsterRegenerationAndBreathCooldownWork()

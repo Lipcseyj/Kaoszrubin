@@ -15,6 +15,22 @@ internal static partial class Program
             "A láng nem terjed fel a teljes sávban, vagy kilépett az intenzitástartományból.");
     }
 
+    static void ScreenBurnRisesAndConsumesTheWholeScreen()
+    {
+        const int width = 170;
+        const int height = 50;
+        Assert(Enumerable.Range(0, width).All(x =>
+                   ScreenBurnEffect.FrontRowAt(0, x, height) >= height - 3) &&
+               Enumerable.Range(0, width).All(x =>
+                   ScreenBurnEffect.FrontRowAt(ScreenBurnEffect.FrameCount - 1, x, height) < 0) &&
+               Enumerable.Range(0, width).All(x =>
+                   ScreenBurnEffect.IsBurned(1, x, height - 1, height)) &&
+               ScreenBurnEffect.FlameColor(0) == ConsoleColor.White &&
+               ScreenBurnEffect.FlameColor(1) == ConsoleColor.Yellow &&
+               ScreenBurnEffect.FlameColor(3) == ConsoleColor.DarkRed,
+            "A képernyőégetés nem alulról felfelé halad, nem égeti fel a teljes képet vagy hibás a lángszíne.");
+    }
+
     static void RubyPulseUsesSlowSineWave()
     {
         Assert(Math.Abs(RubyPulseEffect.BrightnessAt(0)) < 0.0001 &&

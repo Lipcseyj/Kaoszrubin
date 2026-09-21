@@ -399,11 +399,11 @@ public static class MazeLevelConfigurations
                 CorridorEncounters =
                 [
                     Encounters.LeaderHorde(MonsterIds.Hobgoblin, MonsterIds.Goblin,
-                        Amount.Handful, Amount.Pack),
-                    Encounters.MixedHorde(MonsterIds.Gnoll, Amount.Few, MonsterIds.Farkas, Amount.Several,
+                        Amount.Handful, Amount.Lots),
+                    Encounters.MixedHorde(MonsterIds.Ork, Amount.Several, MonsterIds.Goblin, Amount.Lots,
                         Amount.Handful),
-                    Encounters.LeaderHorde(MonsterIds.Ork, MonsterIds.Goblin,
-                        Amount.Handful, Amount.Several)
+                    Encounters.LeaderHorde(MonsterIds.OrkSámán, MonsterIds.Ork,
+                        Amount.Few, Amount.Pack)
                 ]
             },
             [9] = new()
@@ -656,19 +656,24 @@ public static class MazeLevelConfigurations
                 ItemCurseChancePercent = 25,
                 RoomEncounters =
                 [
-                    Encounters.Same(MonsterIds.Káoszkultista, Amount.Handful, Amount.Pack),
-                    Encounters.Same(MonsterIds.Démonpók, Amount.Handful, Amount.Handful),
-                    Encounters.Mixed(MonsterIds.Démonlovag, Amount.Few, MonsterIds.Démonpók, Amount.Handful, Amount.Few),
+                    Encounters.Same(MonsterIds.Pokolfajzat, Amount.Handful, Amount.Pack),
+                    Encounters.Mixed(MonsterIds.DémoniKorcs, Amount.Several, MonsterIds.Pokolfajzat, Amount.Pack,
+                        Amount.Handful),
+                    Encounters.Mixed(MonsterIds.Parázsdémon, Amount.Several, MonsterIds.KarmosDémon, Amount.Few,
+                        Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Pokolőr, MonsterIds.Parázsdémon, Amount.Few, Amount.Several),
                     Encounters.LeaderGroup(MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, Amount.One, Amount.Pack)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.LeaderHorde(MonsterIds.Káoszlovag, MonsterIds.Káoszkultista,
-                        Amount.Handful, Amount.Pack),
-                    Encounters.MixedHorde(MonsterIds.Pokolkutya, Amount.Few, MonsterIds.Démonpók, Amount.Handful,
+                    Encounters.LeaderHorde(MonsterIds.KarmosDémon, MonsterIds.Pokolfajzat,
+                        Amount.Handful, Amount.Lots),
+                    Encounters.MixedHorde(MonsterIds.DémoniKorcs, Amount.Several, MonsterIds.Pokolfajzat, Amount.Lots,
                         Amount.Handful),
-                    Encounters.LeaderHorde(MonsterIds.Démonlovag, MonsterIds.Káoszkultista,
-                        Amount.Handful, Amount.Several)
+                    Encounters.LeaderHorde(MonsterIds.Pokolőr, MonsterIds.Parázsdémon,
+                        Amount.Handful, Amount.Pack),
+                    Encounters.LeaderHorde(MonsterIds.Démonlovag, MonsterIds.DémoniKorcs,
+                        Amount.Few, Amount.Pack)
                 ]
             },
             [19] = new()
@@ -685,21 +690,24 @@ public static class MazeLevelConfigurations
                 ItemCurseChancePercent = 25,
                 RoomEncounters =
                 [
-                    Encounters.Same(MonsterIds.Káoszlovag, Amount.Handful, Amount.Pack),
-                    Encounters.Same(MonsterIds.Démonlovag, Amount.Handful, Amount.Handful),
-                    Encounters.Mixed(MonsterIds.Pokolfejedelem, Amount.Few, MonsterIds.Démonpók, Amount.Several, Amount.Few),
+                    Encounters.Same(MonsterIds.DémoniKorcs, Amount.Handful, Amount.Pack),
+                    Encounters.Mixed(MonsterIds.Parázsdémon, Amount.Several, MonsterIds.KarmosDémon, Amount.Handful,
+                        Amount.Handful),
+                    Encounters.Mixed(MonsterIds.Pokolőr, Amount.Few, MonsterIds.Vérdémon, Amount.Few, Amount.Few),
+                    Encounters.Mixed(MonsterIds.Pokolfejedelem, Amount.Few, MonsterIds.Démonpók, Amount.Several,
+                        Amount.Few),
                     Encounters.LeaderGroup(MonsterIds.BalorDémon, MonsterIds.Démonlovag, Amount.Few, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.LeaderHorde(MonsterIds.Káoszlovag, MonsterIds.Káoszkultista,
+                    Encounters.LeaderHorde(MonsterIds.Pokolőr, MonsterIds.DémoniKorcs,
                         Amount.Handful, Amount.Pack),
-                    Encounters.MixedHorde(MonsterIds.Démonpók, Amount.Handful, MonsterIds.Pokolkutya, Amount.Handful,
+                    Encounters.MixedHorde(MonsterIds.Vérdémon, Amount.Few, MonsterIds.Pokolfajzat, Amount.Lots,
                         Amount.Handful),
-                    Encounters.LeaderHorde(MonsterIds.Démonlovag, MonsterIds.Káoszlovag,
-                        Amount.Handful, Amount.Several),
-                    Encounters.LeaderHorde(MonsterIds.Pokolfejedelem, MonsterIds.Káoszkultista,
-                        Amount.Handful, Amount.Pack)
+                    Encounters.LeaderHorde(MonsterIds.Démonlovag, MonsterIds.Parázsdémon,
+                        Amount.Handful, Amount.Pack),
+                    Encounters.LeaderHorde(MonsterIds.Pokolfejedelem, MonsterIds.Pokolfajzat,
+                        Amount.Few, Amount.Lots)
                 ]
             },
             [20] = new()

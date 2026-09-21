@@ -746,6 +746,7 @@ public sealed partial class Game
 
         PlaySessionSound(SoundEffect.LevelComplete);
         PlaySessionSound(SoundEffect.Victory);
+        _renderer.PlayScreenBurnEffect();
         ShowSynchronizedNarrative(NarrativeKind.CampaignFinale, "GRATULÁLUNK, KULCSHORDOZÓK!",
             "XV. fejezet — A csillagok választottai",
             StoryNarratives.CreateCampaignFinale(CharacterRoster.Party.Members.Where(character => character.IsAlive), PartyLeader.Name));

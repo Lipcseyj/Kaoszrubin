@@ -58,6 +58,13 @@ internal static partial class Program
     static void WideLevelsHaveBalancedDiverseHordes()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var orcCamp = MazeLevelConfigurations.Get(8);
+        Assert(orcCamp.CorridorEncounters.All(encounter =>
+                   encounter.Behavior == EnemyEncounterBehavior.Horde &&
+                   encounter.Members.Sum(member => member.Count.Minimum) >= 17) &&
+               orcCamp.CorridorEncounters.Any(encounter =>
+                   encounter.Members.Sum(member => member.Count.Maximum) >= 34),
+            "Az ork haditábor vándorló hordái nem lettek érdemben nagyobbak.");
         var expectedWeakerEnemy = new Dictionary<int, string>
         {
             [8] = MonsterIds.Goblin,
@@ -65,8 +72,8 @@ internal static partial class Program
             [11] = MonsterIds.Káoszkultista,
             [12] = MonsterIds.PestishordozóPatkány,
             [16] = MonsterIds.Csontváz,
-            [18] = MonsterIds.Káoszkultista,
-            [19] = MonsterIds.Káoszkultista
+            [18] = MonsterIds.Pokolfajzat,
+            [19] = MonsterIds.Pokolfajzat
         };
         foreach (var (levelNumber, weakerEnemyId) in expectedWeakerEnemy)
         {
@@ -114,6 +121,23 @@ internal static partial class Program
                    generated.Enemies.Count(enemy => enemy.IsRoamingHordeMember) >= 2,
                 $"A(z) {levelNumber}. szint egy képernyőnyi profilja nem generálható bejárható, hordás pályává.");
         }
+
+        var demonLevels = new[] { MazeLevelConfigurations.Get(18), MazeLevelConfigurations.Get(19) };
+        var configuredDemonIds = demonLevels
+            .SelectMany(level => level.RoomEncounters.Concat(level.CorridorEncounters))
+            .SelectMany(encounter => encounter.Members)
+            .Select(member => member.EnemyId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var newDemonIds = new[]
+        {
+            MonsterIds.Pokolfajzat, MonsterIds.DémoniKorcs, MonsterIds.Parázsdémon,
+            MonsterIds.KarmosDémon, MonsterIds.Pokolőr, MonsterIds.Vérdémon
+        };
+        Assert(newDemonIds.All(configuredDemonIds.Contains) &&
+               demonLevels.All(level => level.CorridorEncounters.Any(encounter =>
+                   encounter.Members.Any(member => member.EnemyId == MonsterIds.Pokolfajzat) &&
+                   encounter.Members.Sum(member => member.Count.Minimum) >= 17)),
+            "Az új démonok nem mind kerültek be, vagy hiányzik a tömeges Pokolfajzat meatshield-horda.");
     }
 
     static void MazePassageSurvivesSaveRoundTrip()

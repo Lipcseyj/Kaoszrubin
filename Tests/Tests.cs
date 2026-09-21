@@ -53,6 +53,7 @@ internal static partial class Program
     ("A támadó becsapódás a sebzés előtt az összes lánccélpontot megkapja", SpellImpactTests.ImpactPrecedesDamage),
     ("A terminál méretőre pontosan a teljes játékképernyőt követeli meg", TerminalViewportRequiresCompleteGameScreen),
     ("A főmenü rubintüze teljes szélességben terjed és korlátos marad", RubyFireSpreadsAcrossMenuWidth),
+    ("A képernyő alulról felfelé ég el", ScreenBurnRisesAndConsumesTheWholeScreen),
     ("A főmenü rubinja félpercenként egy gyors magentahullámmal pulzál", RubyPulseUsesSlowSineWave),
     ("A főmenü sárkányszemének fénye 45 másodpercenként felizzik", DragonEyesFlashEveryFortyFiveSeconds),
     ("A lénymondatok osztályhoz vagy szörnyhöz és főmenüportréhoz oldódnak", CreatureQuotesLoadAndResolveForMainMenu),
