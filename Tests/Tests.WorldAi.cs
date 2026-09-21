@@ -339,20 +339,30 @@ internal static partial class Program
     static void CorridorGroupsBecomeLedHordes()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-        var encounter = new ResolvedEnemyEncounter(new IntRange(1, 1),
+        var hordeEncounter = new ResolvedEnemyEncounter(new IntRange(1, 1),
             [new ResolvedEnemyGroupMember(data.GetEnemy(MonsterIds.Ork), new IntRange(4, 4), EnemyGroupRole.Member)],
-            EnemyMovementProfile.Patrol);
-        var maze = new MazeGenerator(new MazeGenerationSettings
+            EnemyMovementProfile.Wander, EnemyEncounterBehavior.Horde);
+        var regularEncounter = hordeEncounter with
+        {
+            MovementProfile = EnemyMovementProfile.Patrol,
+            Behavior = EnemyEncounterBehavior.Default
+        };
+        var settings = new MazeGenerationSettings
         {
             RoomCount = 0,
             TreasureChestCount = 0
-        }, [], [encounter], new Random(701)).Create(43, 31);
-        var horde = maze.Enemies.ToArray();
+        };
+        var horde = new MazeGenerator(settings, [], [hordeEncounter], new Random(701))
+            .Create(43, 31).Enemies.ToArray();
+        var regularGroup = new MazeGenerator(settings, [], [regularEncounter], new Random(702))
+            .Create(43, 31).Enemies.ToArray();
 
         Assert(horde.Length == 4 && horde.Select(enemy => enemy.GroupId).Distinct().Count() == 1 &&
                horde.All(enemy => enemy.IsRoamingHordeMember) &&
-               horde.Count(enemy => enemy.GroupRole == EnemyGroupRole.Leader) == 1,
-            "A folyosói csoport nem egyetlen vezér köré szervezett hordaként jött létre.");
+               horde.Count(enemy => enemy.GroupRole == EnemyGroupRole.Leader) == 1 &&
+               regularGroup.Length == 4 && regularGroup.All(enemy => !enemy.IsRoamingHordeMember) &&
+               regularGroup.All(enemy => enemy.MovementProfile == EnemyMovementProfile.Patrol),
+            "A Horde jelölés nem explicit módon vezérli a folyosói horda létrejöttét.");
     }
 
     static void HordeRoamingStatePersistsAndYieldsToPursuit()

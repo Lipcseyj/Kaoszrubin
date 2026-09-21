@@ -822,7 +822,8 @@ public sealed partial class Game
             encounter.GroupCount,
             encounter.Members.Select(member => new ResolvedEnemyGroupMember(
                 _gameData.GetEnemy(member.EnemyId), member.Count, member.Role)).ToList(),
-            encounter.MovementProfile);
+            encounter.MovementProfile,
+            encounter.Behavior);
 
         var layout = configuration.Layout ??
                      new ClassicMazeLayoutConfiguration(configuration.DoubleWidthCorridorChance);
@@ -934,7 +935,8 @@ public sealed partial class Game
             encounter.GroupCount,
             encounter.Members.Select(member => new ResolvedEnemyGroupMember(
                 _gameData.GetEnemy(member.EnemyId), member.Count, member.Role)).ToList(),
-            encounter.MovementProfile);
+            encounter.MovementProfile,
+            encounter.Behavior);
         _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
             configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
             configuration.CorridorEncounters.Select(ResolveEncounter).ToList());

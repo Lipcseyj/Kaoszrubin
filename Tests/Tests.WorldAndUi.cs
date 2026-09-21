@@ -78,7 +78,9 @@ internal static partial class Program
             var minimumGroups = level.CorridorEncounters.Sum(encounter => encounter.GroupCount.Minimum);
             var minimumEnemies = level.CorridorEncounters.Sum(encounter =>
                 encounter.GroupCount.Minimum * encounter.Members.Sum(member => member.Count.Minimum));
-            Assert(level.CorridorEncounters.All(encounter => encounter.Members.Sum(member => member.Count.Minimum) >= 2) &&
+            Assert(level.CorridorEncounters.All(encounter =>
+                       encounter.Behavior == EnemyEncounterBehavior.Horde &&
+                       encounter.Members.Sum(member => member.Count.Minimum) >= 2) &&
                    minimumGroups >= areaCount * 2 && minimumEnemies >= areaCount * 12,
                 $"A(z) {levelNumber}. szint folyosói találkozásai nem adnak képernyőnként elég hordát.");
             Assert(level.CorridorEncounters.SelectMany(encounter => encounter.Members)
@@ -90,7 +92,8 @@ internal static partial class Program
                 new IntRange(1, Math.Max(1, (encounter.GroupCount.Maximum + areaCount - 1) / areaCount)),
                 encounter.Members.Select(member => new ResolvedEnemyGroupMember(
                     data.GetEnemy(member.EnemyId), member.Count, member.Role)).ToArray(),
-                encounter.MovementProfile);
+                encounter.MovementProfile,
+                encounter.Behavior);
             var settings = new MazeGenerationSettings
             {
                 RoomCount = (level.RoomCount.Maximum + areaCount - 1) / areaCount,

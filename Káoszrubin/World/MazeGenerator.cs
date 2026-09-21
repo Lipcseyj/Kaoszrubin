@@ -189,7 +189,8 @@ public class MazeGenerator
             var positions = AvailableRoomPositions(maze, room)
                 .OrderBy(position => Manhattan(position, center)).ThenBy(_ => Random.Next())
                 .Take(members.Count).ToList();
-            PlaceGroup(maze, encounter, members, positions, roamingHorde: false);
+            PlaceGroup(maze, encounter, members, positions,
+                roamingHorde: encounter.Behavior == EnemyEncounterBehavior.Horde);
         }
     }
 
@@ -204,7 +205,8 @@ public class MazeGenerator
             var anchor = available.ElementAt(Random.Next(available.Count));
             var positions = ConnectedPositions(anchor, available, members.Count);
             if (positions.Count < members.Count) continue;
-            PlaceGroup(maze, encounter, members, positions, roamingHorde: members.Count > 1);
+            PlaceGroup(maze, encounter, members, positions,
+                roamingHorde: encounter.Behavior == EnemyEncounterBehavior.Horde);
         }
     }
 

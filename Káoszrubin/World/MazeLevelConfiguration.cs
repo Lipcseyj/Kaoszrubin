@@ -26,12 +26,15 @@ public static class AmountRanges
 
 public sealed record EnemyGroupMemberConfiguration(string EnemyId, IntRange Count,
     EnemyGroupRole Role = EnemyGroupRole.Member);
+public enum EnemyEncounterBehavior { Default, Horde }
 public sealed record EnemyEncounterConfiguration(IntRange GroupCount,
     IReadOnlyList<EnemyGroupMemberConfiguration> Members,
-    EnemyMovementProfile? MovementProfile = null);
+    EnemyMovementProfile? MovementProfile = null,
+    EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default);
 public sealed record ResolvedEnemyGroupMember(EnemyDefinition Definition, IntRange Count, EnemyGroupRole Role);
 public sealed record ResolvedEnemyEncounter(IntRange GroupCount,
-    IReadOnlyList<ResolvedEnemyGroupMember> Members, EnemyMovementProfile? MovementProfile);
+    IReadOnlyList<ResolvedEnemyGroupMember> Members, EnemyMovementProfile? MovementProfile,
+    EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default);
 public sealed record QuestRoomEnemyEncounterConfiguration(string RoomId, string EnemyId, int Count,
     string? GuaranteedItemId = null);
 
@@ -54,6 +57,21 @@ public static class Encounters
         Amount groups, Amount followers, EnemyMovementProfile? movement = EnemyMovementProfile.Stationary) =>
         new(groups.Range(),
             [new(leaderId, Amount.One.Range(), EnemyGroupRole.Leader), new(followerId, followers.Range())], movement);
+
+    public static EnemyEncounterConfiguration Horde(string enemyId, Amount groups, Amount size) =>
+        new(groups.Range(), [new(enemyId, size.Range())], EnemyMovementProfile.Wander,
+            EnemyEncounterBehavior.Horde);
+
+    public static EnemyEncounterConfiguration MixedHorde(string firstEnemyId, Amount firstCount,
+        string secondEnemyId, Amount secondCount, Amount groups) =>
+        new(groups.Range(), [new(firstEnemyId, firstCount.Range()), new(secondEnemyId, secondCount.Range())],
+            EnemyMovementProfile.Wander, EnemyEncounterBehavior.Horde);
+
+    public static EnemyEncounterConfiguration LeaderHorde(string leaderId, string followerId,
+        Amount groups, Amount followers) =>
+        new(groups.Range(),
+            [new(leaderId, Amount.One.Range(), EnemyGroupRole.Leader), new(followerId, followers.Range())],
+            EnemyMovementProfile.Wander, EnemyEncounterBehavior.Horde);
 }
 
 public sealed class MazeLevelConfiguration
@@ -309,7 +327,7 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Solo(MonsterIds.Csontváz, Amount.Several, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Zombi, Amount.Few),
-                    Encounters.Mixed(MonsterIds.Zombi, Amount.Few, MonsterIds.Csontváz, Amount.Few, Amount.Few),
+                    Encounters.MixedHorde(MonsterIds.Zombi, Amount.Few, MonsterIds.Csontváz, Amount.Few, Amount.Few),
                 ]
             },
             [6] = new()
@@ -333,8 +351,7 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Solo(MonsterIds.Ork, Amount.Few, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Hobgoblin, Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.Mixed(MonsterIds.Gnoll, Amount.Few, MonsterIds.Ork, Amount.Few, Amount.Few,
-                        EnemyMovementProfile.Patrol)
+                    Encounters.MixedHorde(MonsterIds.Gnoll, Amount.Few, MonsterIds.Ork, Amount.Few, Amount.Few)
                 ]
             },
             [7] = new()
@@ -381,12 +398,12 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.LeaderGroup(MonsterIds.Hobgoblin, MonsterIds.Goblin,
-                        Amount.Handful, Amount.Pack, EnemyMovementProfile.Patrol),
-                    Encounters.Mixed(MonsterIds.Gnoll, Amount.Few, MonsterIds.Farkas, Amount.Several,
-                        Amount.Handful, EnemyMovementProfile.Patrol),
-                    Encounters.LeaderGroup(MonsterIds.Ork, MonsterIds.Goblin,
-                        Amount.Handful, Amount.Several, EnemyMovementProfile.Patrol)
+                    Encounters.LeaderHorde(MonsterIds.Hobgoblin, MonsterIds.Goblin,
+                        Amount.Handful, Amount.Pack),
+                    Encounters.MixedHorde(MonsterIds.Gnoll, Amount.Few, MonsterIds.Farkas, Amount.Several,
+                        Amount.Handful),
+                    Encounters.LeaderHorde(MonsterIds.Ork, MonsterIds.Goblin,
+                        Amount.Handful, Amount.Several)
                 ]
             },
             [9] = new()
@@ -433,12 +450,12 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.LeaderGroup(MonsterIds.Ogre, MonsterIds.Ork,
-                        Amount.Handful, Amount.Pack, EnemyMovementProfile.Patrol),
-                    Encounters.Mixed(MonsterIds.Bugbear, Amount.Handful, MonsterIds.Gnoll, Amount.Handful,
-                        Amount.Handful, EnemyMovementProfile.Patrol),
-                    Encounters.LeaderGroup(MonsterIds.Ettin, MonsterIds.Goblin,
-                        Amount.Handful, Amount.Pack, EnemyMovementProfile.Patrol)
+                    Encounters.LeaderHorde(MonsterIds.Ogre, MonsterIds.Ork,
+                        Amount.Handful, Amount.Pack),
+                    Encounters.MixedHorde(MonsterIds.Bugbear, Amount.Handful, MonsterIds.Gnoll, Amount.Handful,
+                        Amount.Handful),
+                    Encounters.LeaderHorde(MonsterIds.Ettin, MonsterIds.Goblin,
+                        Amount.Handful, Amount.Pack)
                 ]
             },
             [11] = new()
@@ -461,12 +478,12 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.LeaderGroup(MonsterIds.OrkSámán, MonsterIds.Káoszkultista,
-                        Amount.Handful, Amount.Pack, EnemyMovementProfile.Patrol),
-                    Encounters.Mixed(MonsterIds.Hárpia, Amount.Handful, MonsterIds.Óriásdenevér, Amount.Several,
-                        Amount.Handful, EnemyMovementProfile.Patrol),
-                    Encounters.LeaderGroup(MonsterIds.Wyvern, MonsterIds.Goblin,
-                        Amount.Handful, Amount.Several, EnemyMovementProfile.Patrol)
+                    Encounters.LeaderHorde(MonsterIds.OrkSámán, MonsterIds.Káoszkultista,
+                        Amount.Handful, Amount.Pack),
+                    Encounters.MixedHorde(MonsterIds.Hárpia, Amount.Handful, MonsterIds.Óriásdenevér, Amount.Several,
+                        Amount.Handful),
+                    Encounters.LeaderHorde(MonsterIds.Wyvern, MonsterIds.Goblin,
+                        Amount.Handful, Amount.Several)
                 ]
             },
             [12] = new()
@@ -490,12 +507,12 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.LeaderGroup(MonsterIds.BarlangiGyík, MonsterIds.PestishordozóPatkány,
-                        Amount.Handful, Amount.Pack, EnemyMovementProfile.Patrol),
-                    Encounters.Mixed(MonsterIds.Óriáspók, Amount.Several, MonsterIds.PestishordozóPatkány, Amount.Several,
-                        Amount.Handful, EnemyMovementProfile.Patrol),
-                    Encounters.LeaderGroup(MonsterIds.ÉjiBanya, MonsterIds.Savanyálka,
-                        Amount.Handful, Amount.Several, EnemyMovementProfile.Patrol)
+                    Encounters.LeaderHorde(MonsterIds.BarlangiGyík, MonsterIds.PestishordozóPatkány,
+                        Amount.Handful, Amount.Pack),
+                    Encounters.MixedHorde(MonsterIds.Óriáspók, Amount.Several, MonsterIds.PestishordozóPatkány, Amount.Several,
+                        Amount.Handful),
+                    Encounters.LeaderHorde(MonsterIds.ÉjiBanya, MonsterIds.Savanyálka,
+                        Amount.Handful, Amount.Several)
                 ]
             },
             [13] = new()
@@ -591,14 +608,14 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.LeaderGroup(MonsterIds.Wight, MonsterIds.Csontváz,
-                        Amount.Handful, Amount.Pack, EnemyMovementProfile.Patrol),
-                    Encounters.Mixed(MonsterIds.Ghoul, Amount.Several, MonsterIds.Múmia, Amount.Handful,
-                        Amount.Handful, EnemyMovementProfile.Patrol),
-                    Encounters.LeaderGroup(MonsterIds.Vámpír, MonsterIds.Lidércfarkas,
-                        Amount.Handful, Amount.Several, EnemyMovementProfile.Patrol),
-                    Encounters.LeaderGroup(MonsterIds.Halállovag, MonsterIds.Zombi,
-                        Amount.Handful, Amount.Pack, EnemyMovementProfile.Patrol)
+                    Encounters.LeaderHorde(MonsterIds.Wight, MonsterIds.Csontváz,
+                        Amount.Handful, Amount.Pack),
+                    Encounters.MixedHorde(MonsterIds.Ghoul, Amount.Several, MonsterIds.Múmia, Amount.Handful,
+                        Amount.Handful),
+                    Encounters.LeaderHorde(MonsterIds.Vámpír, MonsterIds.Lidércfarkas,
+                        Amount.Handful, Amount.Several),
+                    Encounters.LeaderHorde(MonsterIds.Halállovag, MonsterIds.Zombi,
+                        Amount.Handful, Amount.Pack)
                 ]
             },
             [17] = new()
@@ -646,12 +663,12 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.LeaderGroup(MonsterIds.Káoszlovag, MonsterIds.Káoszkultista,
-                        Amount.Handful, Amount.Pack, EnemyMovementProfile.Patrol),
-                    Encounters.Mixed(MonsterIds.Pokolkutya, Amount.Few, MonsterIds.Démonpók, Amount.Handful,
-                        Amount.Handful, EnemyMovementProfile.Patrol),
-                    Encounters.LeaderGroup(MonsterIds.Démonlovag, MonsterIds.Káoszkultista,
-                        Amount.Handful, Amount.Several, EnemyMovementProfile.Patrol)
+                    Encounters.LeaderHorde(MonsterIds.Káoszlovag, MonsterIds.Káoszkultista,
+                        Amount.Handful, Amount.Pack),
+                    Encounters.MixedHorde(MonsterIds.Pokolkutya, Amount.Few, MonsterIds.Démonpók, Amount.Handful,
+                        Amount.Handful),
+                    Encounters.LeaderHorde(MonsterIds.Démonlovag, MonsterIds.Káoszkultista,
+                        Amount.Handful, Amount.Several)
                 ]
             },
             [19] = new()
@@ -675,14 +692,14 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.LeaderGroup(MonsterIds.Káoszlovag, MonsterIds.Káoszkultista,
-                        Amount.Handful, Amount.Pack, EnemyMovementProfile.Patrol),
-                    Encounters.Mixed(MonsterIds.Démonpók, Amount.Handful, MonsterIds.Pokolkutya, Amount.Handful,
-                        Amount.Handful, EnemyMovementProfile.Patrol),
-                    Encounters.LeaderGroup(MonsterIds.Démonlovag, MonsterIds.Káoszlovag,
-                        Amount.Handful, Amount.Several, EnemyMovementProfile.Patrol),
-                    Encounters.LeaderGroup(MonsterIds.Pokolfejedelem, MonsterIds.Káoszkultista,
-                        Amount.Handful, Amount.Pack, EnemyMovementProfile.Patrol)
+                    Encounters.LeaderHorde(MonsterIds.Káoszlovag, MonsterIds.Káoszkultista,
+                        Amount.Handful, Amount.Pack),
+                    Encounters.MixedHorde(MonsterIds.Démonpók, Amount.Handful, MonsterIds.Pokolkutya, Amount.Handful,
+                        Amount.Handful),
+                    Encounters.LeaderHorde(MonsterIds.Démonlovag, MonsterIds.Káoszlovag,
+                        Amount.Handful, Amount.Several),
+                    Encounters.LeaderHorde(MonsterIds.Pokolfejedelem, MonsterIds.Káoszkultista,
+                        Amount.Handful, Amount.Pack)
                 ]
             },
             [20] = new()
@@ -731,10 +748,10 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Mixed(MonsterIds.Wyvern, Amount.Few, MonsterIds.Hárpia, Amount.Several,
-                        Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.Mixed(MonsterIds.Troll, Amount.Few, MonsterIds.ÉjiBanya, Amount.Few, Amount.Few),
-                    Encounters.Mixed(MonsterIds.Wight, Amount.Few, MonsterIds.Démonpók, Amount.Several, Amount.Few),
+                    Encounters.MixedHorde(MonsterIds.Wyvern, Amount.Few, MonsterIds.Hárpia, Amount.Several,
+                        Amount.Few),
+                    Encounters.MixedHorde(MonsterIds.Troll, Amount.Few, MonsterIds.ÉjiBanya, Amount.Few, Amount.Few),
+                    Encounters.MixedHorde(MonsterIds.Wight, Amount.Few, MonsterIds.Démonpók, Amount.Several, Amount.Few),
                     Encounters.Solo(MonsterIds.VénBeholder, Amount.Few, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Pokolfejedelem, Amount.Few)
                 ]
