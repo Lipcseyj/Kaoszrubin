@@ -55,6 +55,64 @@ internal static partial class Program
             position.X == candidate.Width - 1 || position.Y == candidate.Height - 1;
     }
 
+    static void WideLevelsHaveBalancedDiverseHordes()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var expectedWeakerEnemy = new Dictionary<int, string>
+        {
+            [8] = MonsterIds.Goblin,
+            [10] = MonsterIds.Ork,
+            [11] = MonsterIds.Káoszkultista,
+            [12] = MonsterIds.PestishordozóPatkány,
+            [16] = MonsterIds.Csontváz,
+            [18] = MonsterIds.Káoszkultista,
+            [19] = MonsterIds.Káoszkultista
+        };
+        foreach (var (levelNumber, weakerEnemyId) in expectedWeakerEnemy)
+        {
+            var level = MazeLevelConfigurations.Get(levelNumber);
+            Assert(level.Layout is WideMazeLayoutConfiguration { AreaCount.Minimum: >= 2 },
+                $"A(z) {levelNumber}. szint nem többterületes Wide pálya.");
+            var wide = (WideMazeLayoutConfiguration)level.Layout!;
+            var areaCount = wide.AreaCount.Maximum;
+            var minimumGroups = level.CorridorEncounters.Sum(encounter => encounter.GroupCount.Minimum);
+            var minimumEnemies = level.CorridorEncounters.Sum(encounter =>
+                encounter.GroupCount.Minimum * encounter.Members.Sum(member => member.Count.Minimum));
+            Assert(level.CorridorEncounters.All(encounter => encounter.Members.Sum(member => member.Count.Minimum) >= 2) &&
+                   minimumGroups >= areaCount * 2 && minimumEnemies >= areaCount * 12,
+                $"A(z) {levelNumber}. szint folyosói találkozásai nem adnak képernyőnként elég hordát.");
+            Assert(level.CorridorEncounters.SelectMany(encounter => encounter.Members)
+                       .Any(member => member.EnemyId == weakerEnemyId) &&
+                   level.RoomCount.Minimum >= areaCount * 6,
+                $"A(z) {levelNumber}. szintről hiányzik a gyengébb tömegellenfél vagy túl ritka a többképernyős tartalom.");
+
+            ResolvedEnemyEncounter ResolveForOneArea(EnemyEncounterConfiguration encounter) => new(
+                new IntRange(1, Math.Max(1, (encounter.GroupCount.Maximum + areaCount - 1) / areaCount)),
+                encounter.Members.Select(member => new ResolvedEnemyGroupMember(
+                    data.GetEnemy(member.EnemyId), member.Count, member.Role)).ToArray(),
+                encounter.MovementProfile);
+            var settings = new MazeGenerationSettings
+            {
+                RoomCount = (level.RoomCount.Maximum + areaCount - 1) / areaCount,
+                MinimumRoomSize = level.RoomSize.Minimum,
+                MaximumRoomSize = level.RoomSize.Maximum,
+                TreasureChestCount = (level.TreasureChestCount.Maximum + areaCount - 1) / areaCount,
+                TreasureGoldRange = level.TreasureGold,
+                WideCorridorNarrowingChance = wide.NarrowingChance,
+                WallRune = level.WallRune,
+                WallColor = level.WallColor,
+                LevelName = level.Name
+            };
+            var generated = new WideMazeGenerator(settings,
+                level.RoomEncounters.Select(ResolveForOneArea).ToArray(),
+                level.CorridorEncounters.Select(ResolveForOneArea).ToArray(),
+                new Random(9000 + levelNumber)).Create(ConsoleRenderer.PlayfieldWidth, ConsoleRenderer.PlayfieldHeight);
+            Assert(generated.CheckFullAccessibility().IsFullyAccessible &&
+                   generated.Enemies.Count(enemy => enemy.IsRoamingHordeMember) >= 2,
+                $"A(z) {levelNumber}. szint egy képernyőnyi profilja nem generálható bejárható, hordás pályává.");
+        }
+    }
+
     static void MazePassageSurvivesSaveRoundTrip()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

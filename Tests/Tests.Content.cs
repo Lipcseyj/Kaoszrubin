@@ -632,15 +632,15 @@ internal static partial class Program
         Assert(!RecruitmentRules.UsesLowerLevelCandidates(4) &&
                RecruitmentRules.UsesLowerLevelCandidates(5),
             "A zsoldosszint-váltás nem az 5. pálya utáni fogadóban történik.");
-        Assert(RecruitmentRules.LowerRecruitLevel(10, 10) == 9 &&
-               RecruitmentRules.LowerRecruitLevel(10, 40) == 6 &&
-               RecruitmentRules.LowerRecruitLevel(2, 10) == 1,
-            "A késői zsoldos nem 10–40%-kal, legalább egy teljes szinttel marad el a vezértől.");
+        Assert(RecruitmentRules.LowerRecruitLevel(10, 25) == 7 &&
+               RecruitmentRules.LowerRecruitLevel(10, 50) == 5 &&
+               RecruitmentRules.LowerRecruitLevel(2, 25) == 1,
+            "A késői zsoldos nem 25–50%-kal, legalább egy teljes szinttel marad el a vezértől.");
         Assert(RecruitmentRules.Price(7, 10, 4, 100) == 0 &&
-               RecruitmentRules.Price(7, 10, 5, 100) == 700 &&
-               RecruitmentRules.Price(7, 10, 5, 50) == 350 &&
-               RecruitmentRules.Price(7, 10, 5, 150) == 1050,
-            "A korai ingyenes és a késői fizetős zsoldosárazás nem a szintalapú 50–150%-os képletet használja.");
+               RecruitmentRules.Price(7, 10, 5, 100) == 1400 &&
+               RecruitmentRules.Price(7, 10, 5, 50) == 700 &&
+               RecruitmentRules.Price(7, 10, 5, 150) == 2100,
+            "A korai ingyenes és a késői, szintenként 200 aranyas zsoldosárazás nem a 50–150%-os képletet használja.");
 
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
             CsvGameDataLoader.GameDataFileName));
@@ -649,8 +649,8 @@ internal static partial class Program
         var recruits = Enumerable.Range(0, 30)
             .Select(index => generator.GenerateMercenary(characterClass, 10, [$"LateRecruit{index}"], 5))
             .ToArray();
-        Assert(recruits.All(recruit => recruit.Level is >= 6 and <= 9),
-            "Az 5. pálya utáni generátor a vezérnél nem alacsonyabb vagy 40%-nál gyengébb zsoldost készített.");
+        Assert(recruits.All(recruit => recruit.Level is >= 5 and <= 7),
+            "Az 5. pálya utáni generátor nem 25–50%-kal gyengébb zsoldost készített.");
     }
 
     static void TemporaryFollowerKeepsWorldNpcMapColors()

@@ -111,7 +111,7 @@ public sealed partial class RandomCharacterGenerator
     {
         var maximumLevel = Math.Max(1, _gameData.ExperienceByLevel.Keys.DefaultIfEmpty(1).Max());
         var targetLevel = RecruitmentRules.UsesLowerLevelCandidates(completedLevel)
-            ? RecruitmentRules.LowerRecruitLevel(leaderLevel, _random.Next(10, 41))
+            ? RecruitmentRules.LowerRecruitLevel(leaderLevel, _random.Next(25, 51))
             : Math.Clamp(leaderLevel + _random.Next(-3, 4), 1, maximumLevel);
         return GenerateNpcCore(characterClass, targetLevel, usedNames, allowWhiteColor,
             equipment ?? EquipmentOptions.Scaled());
