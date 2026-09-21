@@ -10,7 +10,7 @@ public static class RecruitmentRules
     public static int LowerRecruitLevel(int leaderLevel, int reductionPercent)
     {
         leaderLevel = Math.Max(1, leaderLevel);
-        reductionPercent = Math.Clamp(reductionPercent, 20, 50);
+        reductionPercent = Math.Clamp(reductionPercent, 25, 50);
         var levelReduction = Math.Max(1,
             (int)Math.Ceiling(leaderLevel * reductionPercent / 100.0));
         return Math.Max(1, leaderLevel - levelReduction);

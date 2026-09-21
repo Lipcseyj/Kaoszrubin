@@ -259,7 +259,7 @@ internal sealed class InnController
             var usedNames = _characterRoster.Characters.Select(character => character.Name).ToList();
             foreach (var characterClass in classes)
             {
-                var candidate = generator.CreateRecruit(characterClass, _partyLeader.Level,
+                var candidate = generator.GenerateMercenary(characterClass, _partyLeader.Level,
                     usedNames.Concat(_recruitCandidates.Select(character => character.Name)).ToList(),
                     completedLevel, allowWhiteColor: true);
                 _recruitCandidates.Add(candidate);

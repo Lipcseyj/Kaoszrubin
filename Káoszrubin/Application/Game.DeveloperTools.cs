@@ -231,7 +231,7 @@ public sealed partial class Game
         foreach (var previousCompanion in _developerBattleTestCompanions.ToArray())
             CharacterRoster.Remove(previousCompanion);
         _developerBattleTestCompanions.Clear();
-        generator.PrepareForCombatTest(PartyLeader, options.PartyLevel);
+        generator.PrepareExistingCharacterForTest(PartyLeader, options.PartyLevel);
         foreach (var status in PartyLeader.Statuses.ToArray())
             PartyLeader.RemoveStatus(status.Id);
         PartyLeader.RemoveSpellEffects();
@@ -243,7 +243,7 @@ public sealed partial class Game
         var companions = new List<LiveCharacter>();
         foreach (var classId in new[] { CharacterClassIds.Mágus, CharacterClassIds.Pap, CharacterClassIds.Lovag })
         {
-            var companion = generator.CreateCombatTestCharacter(_gameData.GetCharacterClass(classId),
+            var companion = generator.GenerateCombatTestCharacter(_gameData.GetCharacterClass(classId),
                 options.PartyLevel, CharacterRoster.Characters.Concat(companions)
                     .Select(character => character.Name).ToArray());
             CharacterRoster.Add(companion);
@@ -336,7 +336,7 @@ public sealed partial class Game
         foreach (var characterClassId in characterClassIds)
         {
             if (CharacterRoster.Party.Members.Count >= Party.MaximumSize) break;
-            var member = generator.CreateDevelopmentCharacter(_gameData.GetCharacterClass(characterClassId),
+            var member = generator.GenerateDevelopmentCharacter(_gameData.GetCharacterClass(characterClassId),
                 CharacterRoster.Characters.Select(character => character.Name).ToList());
             CharacterRoster.Add(member);
             CharacterRoster.Party.Add(member);
@@ -359,7 +359,8 @@ public sealed partial class Game
         }
 
         var generator = new RandomCharacterGenerator(_gameData, _random);
-        var member = generator.CreateLevelOne(CharacterRoster.Characters.Select(character => character.Name).ToList());
+        var member = generator.GenerateLevelOneTestCharacter(
+            CharacterRoster.Characters.Select(character => character.Name).ToList());
         CharacterRoster.Add(member);
         CharacterRoster.Party.Add(member);
         PlacePartyMembersNear(_player.Position);
