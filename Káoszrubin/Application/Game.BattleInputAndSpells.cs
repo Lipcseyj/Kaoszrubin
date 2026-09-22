@@ -727,7 +727,8 @@ public sealed partial class Game
                 isMiniBoss ? "MINIBOSS KÖZELEG" : "BOSS KÖZELEG",
                 narrative.ChapterTitle, narrative.Speech,
                 new BossPresentationSnapshot(boss.Name, boss.Definition.Appearance,
-                    boss.Definition.StrengthTier, isMiniBoss ? "⚔ Nincs aranykulcs" : "🔑 Aranykulcs"));
+                    boss.Definition.StrengthTier, isMiniBoss ? "⚔ Nincs aranykulcs" : "🔑 Aranykulcs",
+                    boss.BossTier));
         }
     }
 

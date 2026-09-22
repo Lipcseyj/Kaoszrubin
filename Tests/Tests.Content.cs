@@ -823,6 +823,40 @@ internal static partial class Program
             "A közös harci prompt elvesztette a taktikai esélyt vagy valamelyik vezérlést.");
     }
 
+    static void KeyBossInstancesHaveDistinctStarsAndStats()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var definition = catalog.GetEnemy(MonsterIds.Patkányember);
+        var boss = new ConfiguredEnemy(new Position(3, 3), definition, new Random(71));
+        Assert(boss.BossHitPointBonusPercent is >= 10 and <= 50 &&
+               boss.BossTier == BossTierRules.TierForBonus(boss.BossHitPointBonusPercent) &&
+               boss.MaximumHitPoints == (int)Math.Ceiling((definition.HitPoints ?? 0) *
+                   (100 + boss.BossHitPointBonusPercent) / 100.0) &&
+               boss.CurrentHitPoints == boss.MaximumHitPoints &&
+               boss.EffectiveStrength == (definition.Strength ?? 1) + 1 &&
+               boss.EffectiveSpeed == (definition.Speed ?? 1) + 1,
+            "A kulcsboss-példány bónusza nem egyezik a HP-alapú csillagszámmal és statisztikákkal.");
+        var maze = new Maze(7, 7);
+        maze.Carve(boss.Position);
+        maze.AddEnemy(boss);
+        var fog = new FogOfWar(7, 7, 5);
+        fog.UpdatePartyVisibility(maze, [(maze.Entrance, 5)], advanceEnemyMemory: false);
+        var visibleBoss = WorldSnapshotProjector.Create(maze, fog).Enemies.Single();
+        Assert(visibleBoss.BossTier == boss.BossTier &&
+               visibleBoss.MaximumHitPoints == boss.MaximumHitPoints &&
+               visibleBoss.Color == ConsoleColor.Black &&
+               visibleBoss.BackgroundColor == BossTierRules.Background(boss.BossTier),
+            "A coop térképkép nem őrzi a boss csillagját, HP-ját vagy saját színeit.");
+        var lines = NarrativeWindow.Build("BOSS KÖZELEG", "Próba", [], "Tovább",
+            kind: NarrativeKind.BossIntroduction,
+            boss: new BossPresentationSnapshot(boss.Name, definition.Appearance,
+                definition.StrengthTier, "Aranykulcs", boss.BossTier));
+        Assert(lines.Any(line => line.Text.Contains($"({boss.BossTier}/5)", StringComparison.Ordinal) &&
+                                 line.Text.Split("⭐").Length - 1 == boss.BossTier),
+            "A bossbemutató nem mutatja a példány csillagszámát.");
+    }
+
     static void AbilityMagicItemsAreUniversalAndCapped()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

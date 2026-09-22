@@ -169,7 +169,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var statusText = finishAction ? FinishCharacterAction(attacker, runtime) : string.Empty;
             return new BattleLogEntry(
                 $"{FormatAttackSummary(attacker.Name, defender.Name, attacks,
-                    defender.CurrentHitPoints, defender.Definition.HitPoints ?? defender.CurrentHitPoints)}{statusText}",
+                    defender.CurrentHitPoints, defender.MaximumHitPoints)}{statusText}",
             critical ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack,
             DescribeAction(attacker.Name, defender.Name, attacks, statusText),
             attacks.SelectMany(attack => attack.DurabilityNotices).ToArray(),
@@ -238,7 +238,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             var restored = enemy.RestoreHitPoints(regeneration);
             if (restored > 0)
                 entries.Add(new BattleLogEntry($"♻️ {enemy.Name} regenerálódik: +{restored} HP " +
-                    $"({enemy.CurrentHitPoints}/{enemy.Definition.HitPoints}).", BattleLogKind.Information));
+                    $"({enemy.CurrentHitPoints}/{enemy.MaximumHitPoints}).", BattleLogKind.Information));
         }
         if (enemy.CurrentHitPoints <= 0) return new EnemyTurnStartResult(false, entries);
         if (spellTick.SkipAction)
@@ -355,7 +355,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
         ArgumentNullException.ThrowIfNull(defenderRuntime);
-        var strength = attacker.Definition.Strength ?? 1;
+        var strength = attacker.EffectiveStrength;
         var strengthPressure = (strength + 1) / 2;
         var roll = _random.Next(1, 11);
         var resistanceRoll = _random.Next(1, 11);
@@ -382,7 +382,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var shieldPower = ShieldRules.BashPower(shield, rank, attacker.HasPerk(PerkIds.KnightShieldWall));
         var shieldWeightBonus = ShieldRules.StaggerWeightBonus(shield);
         var strength = attacker.EffectiveAbilities.Strength;
-        var defenderStability = Math.Max(1, ((defender.Definition.Strength ?? 1) + 1) / 2) +
+        var defenderStability = Math.Max(1, (defender.EffectiveStrength + 1) / 2) +
                                 Math.Max(1, defender.Definition.StrengthTier);
         var defenderShieldBonus = ShieldRules.StaggerStabilityBonus(defender.EquippedShield);
         var result = ResolveShieldBash(strength, shieldPower, shieldWeightBonus,
@@ -401,7 +401,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         ArgumentNullException.ThrowIfNull(defender);
         var shield = attacker.EquippedShield ??
                      throw new InvalidOperationException("A pajzslökéshez pajzs szükséges.");
-        var strength = attacker.Definition.Strength ?? 1;
+        var strength = attacker.EffectiveStrength;
         var defenderShield = defender.OperationalWeapons.FirstOrDefault(ShieldRules.IsShield);
         var defenderShieldBonus = ShieldRules.StaggerStabilityBonus(defenderShield);
         return ResolveShieldBash(strength, ShieldRules.BashPower(shield),
@@ -1247,7 +1247,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                     (WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Sword &&
                      character.WeaponProficiencyRankFor(WeaponFamilies.Sword) is not null ? 1 : 0) +
                     (UsesRodericOathblade(character, weapon) ? 1 : 0) - durabilityHitPenalty +
-                    (enemy.CurrentHitPoints * 2 <= Math.Max(1, enemy.Definition.HitPoints ?? enemy.CurrentHitPoints) &&
+                    (enemy.CurrentHitPoints * 2 <= Math.Max(1, enemy.MaximumHitPoints) &&
                      character.HasTacticalDiscipline(TacticalDisciplines.Finisher) ? 2 : 0);
         var target = 11 + enemy.EffectiveSpeed;
         var successfulRolls = Enumerable.Range(1, 20).Count(roll =>
@@ -2034,7 +2034,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
         public static EnemyDefenseSnapshot From(Enemy enemy, int armorPenalty, int armorAbilityBonus)
         {
-            var maximumHitPoints = enemy.Definition.HitPoints ?? enemy.CurrentHitPoints;
+            var maximumHitPoints = enemy.MaximumHitPoints;
             return new EnemyDefenseSnapshot(
                 enemy.Name,
                 enemy.CurrentHitPoints,

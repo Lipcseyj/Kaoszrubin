@@ -96,7 +96,8 @@ public static class WorldDeltaProjector
         first.Position == second.Position && first.CurrentHitPoints == second.CurrentHitPoints &&
         first.MaximumHitPoints == second.MaximumHitPoints && first.GroupId == second.GroupId &&
         first.GroupRole == second.GroupRole && first.ActiveEffectTypes.SequenceEqual(second.ActiveEffectTypes) &&
-        first.Color == second.Color && first.SymbolCodePoint == second.SymbolCodePoint;
+        first.Color == second.Color && first.SymbolCodePoint == second.SymbolCodePoint &&
+        first.BackgroundColor == second.BackgroundColor && first.BossTier == second.BossTier;
 
     private static bool GroundPileEquals(WorldGroundPileSnapshot first, WorldGroundPileSnapshot second) =>
         first.EntityId == second.EntityId && first.Position == second.Position && first.Revision == second.Revision &&

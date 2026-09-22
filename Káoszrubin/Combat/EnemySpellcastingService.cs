@@ -116,12 +116,12 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                 (spell.Range == 0 || TacticalDistance.Between(caster.Position, ally.Position) <= spell.Range)).ToArray();
         if (eligibleAllies.Length == 0) return null;
         var allyTarget = isHeal
-            ? eligibleAllies.OrderBy(ally => ally.CurrentHitPoints / (double)Math.Max(1, ally.Definition.HitPoints ?? 1)).First()
+            ? eligibleAllies.OrderBy(ally => ally.CurrentHitPoints / (double)Math.Max(1, ally.MaximumHitPoints)).First()
             : eligibleAllies.FirstOrDefault(ally => !HasAllEffects(ally, effects)) ?? eligibleAllies[0];
-        if (isHeal && allyTarget.CurrentHitPoints >= allyTarget.Definition.HitPoints ||
+        if (isHeal && allyTarget.CurrentHitPoints >= allyTarget.MaximumHitPoints ||
             !isHeal && !harmful && HasAllEffects(allyTarget, effects)) return null;
         var affected = spell.TargetType == SpellTargetType.Party ? eligibleAllies : [allyTarget];
-        var missing = affected.Sum(ally => Math.Max(0, (ally.Definition.HitPoints ?? 0) - ally.CurrentHitPoints));
+        var missing = affected.Sum(ally => Math.Max(0, ally.MaximumHitPoints - ally.CurrentHitPoints));
         return new EnemySpellPlan(spell, allyTarget.Position, [], affected,
             isHeal ? Math.Min(220, 60 + missing) : 65 + affected.Length * 12);
     }
@@ -143,7 +143,7 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
             foreach (var ally in plan.AlliedTargets)
             {
                 var amount = RollPower(caster, plan.Spell, effect);
-                var restored = ally.RestoreHitPoints(effect.Parameter == "Full" ? ally.Definition.HitPoints ?? amount : amount);
+                var restored = ally.RestoreHitPoints(effect.Parameter == "Full" ? ally.MaximumHitPoints : amount);
                 if (restored > 0) notes.Add($"{ally.ShortName} +{restored} HP");
             }
             return;

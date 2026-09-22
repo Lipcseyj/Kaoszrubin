@@ -1,5 +1,6 @@
 using System.Text;
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Quests;
 using KaoszRubin.Infrastructure.Quests;
@@ -69,7 +70,8 @@ internal sealed class GameStateMapper
                     ? Math.Max(0, (int)(campUntil - now).TotalMilliseconds) : 0,
                 enemy.CurrentMana,
                 enemy.SpellCooldowns.ToDictionary(item => item.Key, item => item.Value,
-                    StringComparer.OrdinalIgnoreCase))).ToList(),
+                    StringComparer.OrdinalIgnoreCase),
+                enemy.BossHitPointBonusPercent)).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -185,9 +187,20 @@ internal sealed class GameStateMapper
                 : null;
             var definition = _gameData.GetEnemy(savedEnemy.DefinitionId);
             var enemy = equipment is null
-                ? ConfiguredEnemy.RestoreLegacy(savedEnemy.Position, definition, savedEnemy.SelectedWeaponId)
-                : new ConfiguredEnemy(savedEnemy.Position, definition, equipment: equipment);
-            enemy.SetCurrentHitPoints(savedEnemy.CurrentHitPoints);
+                ? ConfiguredEnemy.RestoreLegacy(savedEnemy.Position, definition, savedEnemy.SelectedWeaponId,
+                    bossHitPointBonusPercent: savedEnemy.BossHitPointBonusPercent)
+                : new ConfiguredEnemy(savedEnemy.Position, definition, equipment: equipment,
+                    bossHitPointBonusPercent: savedEnemy.BossHitPointBonusPercent);
+            var bossBonus = definition.IsBoss && definition.Rank == EnemyRank.Boss &&
+                            savedEnemy.BossHitPointBonusPercent == 0
+                ? Random.Shared.Next(10, 51) // Régi mentésben még nem volt példányonkénti bossbónusz.
+                : savedEnemy.BossHitPointBonusPercent;
+            enemy.ConfigureBossHitPointBonus(bossBonus);
+            var restoredHitPoints = bossBonus > 0 && savedEnemy.BossHitPointBonusPercent == 0
+                ? (int)Math.Ceiling(savedEnemy.CurrentHitPoints * enemy.MaximumHitPoints /
+                    (double)Math.Max(1, definition.HitPoints ?? 1))
+                : savedEnemy.CurrentHitPoints;
+            enemy.SetCurrentHitPoints(Math.Min(restoredHitPoints, enemy.MaximumHitPoints));
             enemy.ConfigureMovement(savedEnemy.MovementProfile, savedEnemy.PatrolDirection, savedEnemy.PursuitState,
                 savedEnemy.PursuitTargetCharacterId, savedEnemy.PursuitMemoryRemainingMoves);
             enemy.ConfigureAwareness(savedEnemy.Alertness, savedEnemy.HomePosition,

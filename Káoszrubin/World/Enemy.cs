@@ -35,6 +35,13 @@ public abstract class Enemy(Position position) : WorldObject(position)
         : Definition.Name;
     public string ShortName => Definition.Name;
     public int CurrentHitPoints { get; private set; }
+    /// <summary>A példány saját kulcsboss-bónusza; normál és miniboss ellenfélnél nulla.</summary>
+    public int BossHitPointBonusPercent { get; private set; }
+    public int BossTier => BossHitPointBonusPercent == 0 ? 0 : BossTierRules.TierForBonus(BossHitPointBonusPercent);
+    public int MaximumHitPoints => Definition.HitPoints is { } baseHitPoints
+        ? (int)Math.Ceiling(baseHitPoints * (100 + BossHitPointBonusPercent) / 100.0)
+        : CurrentHitPoints;
+    public int EffectiveStrength => (Definition.Strength ?? 1) + (BossTier > 0 ? 1 : 0);
     public EnemyMovementProfile MovementProfile { get; private set; } = EnemyMovementProfile.Wander;
     public Direction PatrolDirection { get; private set; } = Direction.Right;
     public EnemyPursuitState PursuitState { get; private set; } = EnemyPursuitState.Undecided;
@@ -102,7 +109,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public int RestoreHitPoints(int amount)
     {
         var before = CurrentHitPoints;
-        CurrentHitPoints = Math.Min(Definition.HitPoints ?? CurrentHitPoints, CurrentHitPoints + Math.Max(0, amount));
+        CurrentHitPoints = Math.Min(MaximumHitPoints, CurrentHitPoints + Math.Max(0, amount));
         return CurrentHitPoints - before;
     }
 
@@ -180,7 +187,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
             else cooldowns[id] = remaining;
         }
     }
-    public int EffectiveSpeed => Math.Max(0, (Definition.Speed ?? 1) -
+    public int EffectiveSpeed => Math.Max(0, (Definition.Speed ?? 1) + (BossTier > 0 ? 1 : 0) -
         _activeSpellEffects.Where(effect => effect.Type is ActiveSpellEffectType.SpeedPenalty or ActiveSpellEffectType.Frost)
             .Sum(effect => effect.Value));
     public int SpellEffectValue(ActiveSpellEffectType type) => _activeSpellEffects
@@ -464,6 +471,19 @@ public abstract class Enemy(Position position) : WorldObject(position)
         _guaranteedLootIds.AddRange(itemIds.Where(id => !string.IsNullOrWhiteSpace(id)));
     }
 
+    /// <summary>Új kulcsboss bónuszát állítja be, vagy mentésből állítja vissza.</summary>
+    public void ConfigureBossHitPointBonus(int bonusPercent)
+    {
+        if (!Definition.IsBoss || Definition.Rank != EnemyRank.Boss)
+        {
+            if (bonusPercent != 0) throw new InvalidOperationException("Csak kulcsboss kaphat bossbónuszt.");
+            return;
+        }
+        if (bonusPercent != 0) BossTierRules.TierForBonus(bonusPercent);
+        BossHitPointBonusPercent = bonusPercent;
+        if (CurrentHitPoints > MaximumHitPoints) CurrentHitPoints = MaximumHitPoints;
+    }
+
     public void MoveTo(Position position)
     {
         SetPosition(position);
@@ -482,13 +502,15 @@ public sealed class ConfiguredEnemy : Enemy
         Position position,
         EnemyDefinition definition,
         Random? random = null,
-        EnemyEquipmentSelection? equipment = null)
-        : this(position, definition, random, equipment, null)
+        EnemyEquipmentSelection? equipment = null,
+        int? bossHitPointBonusPercent = null)
+        : this(position, definition, random, equipment, null, bossHitPointBonusPercent)
     {
     }
 
     private ConfiguredEnemy(Position position, EnemyDefinition definition, Random? random,
-        EnemyEquipmentSelection? equipment, string? legacySelectedWeaponId) : base(position)
+        EnemyEquipmentSelection? equipment, string? legacySelectedWeaponId,
+        int? bossHitPointBonusPercent) : base(position)
     {
         var rng = random ?? Random.Shared;
         var weapons = definition.Weapons ?? [];
@@ -562,14 +584,15 @@ public sealed class ConfiguredEnemy : Enemy
         EquippedWeapon = definition.ChoosesWeapon ? selectedWeapon : null;
         EquippedShield = selectedShield;
 
-        Symbol = Rune.GetRuneAt(definition.Appearance, 0);
-        InitializeHitPoints(definition.HitPoints ?? 0);
+        if (definition.IsBoss && definition.Rank == EnemyRank.Boss)
+            ConfigureBossHitPointBonus(bossHitPointBonusPercent ?? rng.Next(10, 51));
+        InitializeHitPoints(MaximumHitPoints);
     }
 
     public static ConfiguredEnemy RestoreLegacy(Position position, EnemyDefinition definition,
-        string? selectedWeaponId, Random? random = null) =>
-        new(position, definition, random, null, selectedWeaponId);
+        string? selectedWeaponId, Random? random = null, int? bossHitPointBonusPercent = null) =>
+        new(position, definition, random, null, selectedWeaponId, bossHitPointBonusPercent);
 
     public override EnemyDefinition Definition { get; }
-    public override Rune Symbol { get; }
+    public override Rune Symbol => Rune.GetRuneAt(Definition.Appearance, 0);
 }

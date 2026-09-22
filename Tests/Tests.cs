@@ -301,6 +301,7 @@ internal static partial class Program
     ("A host és a vendég közös pihenési összegzőt használ", RestSummaryUiIsShared),
     ("A vendég tárgyvizsgálata nem vágja le a sebzésértéket", GuestItemInspectionKeepsDamageValue),
     ("A boss-ablak és a harci promptok közös UI-modellt használnak", BossAndBattlePromptsAreShared),
+    ("A kulcsboss példánya HP-alapú csillagokat és erősebb statisztikákat kap", KeyBossInstancesHaveDistinctStarsAndStats),
     ("A kompakt party státusz HP-t és manát százalékosan mutat", CompactPartyStatusShowsResources),
     ("Az ablakkeret-katalógus méretezhető és konfigurálható", WindowFrameCatalogIsResizableAndConfigured),
     ("A vendég snapshot kasztbetűt és karakterszínt őriz", GuestAvatarUsesClassGlyphAndCharacterColor),

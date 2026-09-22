@@ -1602,7 +1602,7 @@ public sealed class CoopGuestScreen
             Put(grid, enemy.Position, char.ConvertFromUtf32(enemy.SymbolCodePoint), enemy.Color,
                 staggeredEnemyIds.Contains(enemy.EntityId)
                     ? ConsoleRenderer.StaggerBackgroundColor
-                    : ConsoleColor.Black);
+                    : enemy.BackgroundColor);
         foreach (var character in snapshot.Party.Where(ShouldDrawPartyAvatar))
             Put(grid, character.Position!.Value, CharacterSheetPanel.PartyAvatarGlyph(character.CharacterClassId,
                     _musicSettings.Settings.PartyAvatars),

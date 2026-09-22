@@ -2872,8 +2872,10 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
                 partyMember.ForegroundColor, partyMember.BackgroundColor);
         if (maze.GetEnemyAt(position) is { } visibleEnemy &&
             fogOfWar.IsEnemyVisible(visibleEnemy.Id, visibleEnemy.Position))
-            return new MapCellVisual(visibleEnemy.Symbol, GetEnemyColor(visibleEnemy),
-                IsStaggeredBattleEnemy(visibleEnemy) ? StaggerBackgroundColor : ConsoleColor.Black);
+            return new MapCellVisual(visibleEnemy.Symbol,
+                visibleEnemy.BossTier > 0 ? ConsoleColor.Black : GetEnemyColor(visibleEnemy),
+                IsStaggeredBattleEnemy(visibleEnemy) ? StaggerBackgroundColor :
+                visibleEnemy.BossTier > 0 ? BossTierRules.Background(visibleEnemy.BossTier) : ConsoleColor.Black);
         if (maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap)
             return new MapCellVisual(trap.Symbol, trap.State == TrapState.Detected
                 ? ConsoleColor.Yellow : ConsoleColor.DarkGray, ConsoleColor.Black);

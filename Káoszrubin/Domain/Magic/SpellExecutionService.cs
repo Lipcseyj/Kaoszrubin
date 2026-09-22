@@ -271,7 +271,7 @@ public sealed class SpellExecutionService
                     {
                         var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, resolutionCache);
                         if (!resolution.Applies || enemy.Definition.StrengthTier >= 5 ||
-                            initialHitPoints[enemy] * 100 > enemy.Definition.HitPoints * effect.Value) continue;
+                            initialHitPoints[enemy] * 100 > enemy.MaximumHitPoints * effect.Value) continue;
                         damage[enemy] = Math.Max(damage[enemy], enemy.CurrentHitPoints);
                         notes.Add($"💀 {enemy.Name}: megsemmisítés");
                     }

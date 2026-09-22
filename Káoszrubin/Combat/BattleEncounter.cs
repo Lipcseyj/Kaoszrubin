@@ -594,7 +594,7 @@ public sealed class BattleEncounter
         character.SpellEffectValue(ActiveSpellEffectType.InitiativeBonus) - character.StatusInitiativePenalty;
 
     private static int DynamicInitiativeModifier(Enemy enemy) =>
-        enemy.EffectiveSpeed - (enemy.Definition.Speed ?? 1);
+        enemy.EffectiveSpeed - ((enemy.Definition.Speed ?? 1) + (enemy.BossTier > 0 ? 1 : 0));
 
     public void RecordMovement(BattleSide side) => _activeSidesThisCycle.Add(side);
     public void RecordAttack(BattleSide side) => _activeSidesThisCycle.Add(side);

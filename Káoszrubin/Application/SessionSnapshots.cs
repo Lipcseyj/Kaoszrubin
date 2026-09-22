@@ -111,7 +111,7 @@ public sealed record LevelImageSnapshot(Guid ImageId, string LevelName, string F
 public sealed record InnDepartureSnapshot(string Message);
 
 public sealed record BossPresentationSnapshot(string Name, string Appearance, int StrengthTier,
-    string Reward);
+    string Reward, int BossTier = 0);
 
 public enum InnVendorKind
 {

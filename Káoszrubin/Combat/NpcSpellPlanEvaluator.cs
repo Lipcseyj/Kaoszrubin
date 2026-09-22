@@ -115,8 +115,8 @@ public static class NpcSpellPlanEvaluator
     private static bool CanExecute(SpellEffectDefinition effect, Enemy enemy)
     {
         if (effect.Type != SpellEffectType.Execute || enemy.Definition.StrengthTier >= 5 ||
-            enemy.Definition.HitPoints is not { } maximumHitPoints || maximumHitPoints <= 0 ||
-            enemy.CurrentHitPoints * 100 > maximumHitPoints * effect.Value) return false;
+            enemy.MaximumHitPoints <= 0 ||
+            enemy.CurrentHitPoints * 100 > enemy.MaximumHitPoints * effect.Value) return false;
         return true;
     }
 

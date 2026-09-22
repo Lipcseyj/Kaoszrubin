@@ -18,7 +18,9 @@ public static class NarrativeWindow
                 ("⚔️👑  BOSS KÖZELEG  👑⚔️", ConsoleColor.Red),
                 (subtitle, ConsoleColor.Magenta),
                 ($"{boss.Appearance}  {boss.Name}", ConsoleColor.Yellow),
-                ($"Erősség: {boss.StrengthTier}/5     Jutalom: {boss.Reward}", ConsoleColor.Cyan),
+                (boss.BossTier > 0
+                    ? $"Boss: {string.Concat(Enumerable.Repeat("⭐", boss.BossTier))} ({boss.BossTier}/5)     Jutalom: {boss.Reward}"
+                    : $"Erősség: {boss.StrengthTier}/5     Jutalom: {boss.Reward}", ConsoleColor.Cyan),
                 (new string('─', TextWidth), ConsoleColor.DarkMagenta),
                 (string.Empty, ConsoleColor.Gray)
             }

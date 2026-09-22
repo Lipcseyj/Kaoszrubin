@@ -191,7 +191,7 @@ public sealed partial class Game
         var tactics = NpcTacticsFor(caster).EffectiveProfile(
             livingEnemies.Any(enemy => IsUnholy(enemy.Definition)));
         var enemyStrength = NpcSpellPlanningPolicy.EnemyStrength(
-            livingEnemies.Select(enemy => enemy.Definition.Strength ?? 1));
+            livingEnemies.Select(enemy => enemy.EffectiveStrength));
         var mayCastOffensively = NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, enemyStrength,
             battle.OffensiveSpellCastsFor(caster));
         if (_locationId == DeveloperBattleTestLocationId)
@@ -209,7 +209,7 @@ public sealed partial class Game
                 $"battle={battle.Id}; cycle={battle.Turns.Cycle}; caster={caster.Name}; " +
                 $"position={GetCasterPosition(caster)}; MP={caster.CurrentMana}/{caster.MaximumMana}; " +
                 $"enemies={livingEnemies.Length}; strength={enemyStrength}; " +
-                $"strengthBreakdown={string.Join(',', livingEnemies.Select(enemy => enemy.Definition.Strength ?? 1))}; " +
+                $"strengthBreakdown={string.Join(',', livingEnemies.Select(enemy => enemy.EffectiveStrength))}; " +
                 $"profile={DeveloperBattleLog.FormatTactics(tactics)}; " +
                 $"offensiveCasts={battle.OffensiveSpellCastsFor(caster)}; allowed={mayCastOffensively}; " +
                 $"spells={string.Join(" / ", spellDiagnostics)}");
@@ -540,7 +540,7 @@ public sealed partial class Game
         var livingEnemies = battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0).ToArray();
         var tactics = configuredTactics.EffectiveProfile(livingEnemies.Any(enemy => IsUnholy(enemy.Definition)));
         var enemyStrength = NpcSpellPlanningPolicy.EnemyStrength(
-            livingEnemies.Select(enemy => enemy.Definition.Strength ?? 1));
+            livingEnemies.Select(enemy => enemy.EffectiveStrength));
         var withinCastingPlan = NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, enemyStrength,
             battle.OffensiveSpellCastsFor(caster));
         var activePlan = battle.NpcSpellPlanFor(caster);
@@ -825,7 +825,7 @@ public sealed partial class Game
         var configuredTactics = NpcTacticsFor(caster);
         var tactics = configuredTactics.EffectiveProfile(livingEnemies.Any(enemy => IsUnholy(enemy.Definition)));
         var enemyStrength = NpcSpellPlanningPolicy.EnemyStrength(
-            livingEnemies.Select(enemy => enemy.Definition.Strength ?? 1));
+            livingEnemies.Select(enemy => enemy.EffectiveStrength));
         var mayCastOffensively = NpcSpellPlanningPolicy.ShouldCastOffensively(tactics, enemyStrength,
             battle.OffensiveSpellCastsFor(caster));
 

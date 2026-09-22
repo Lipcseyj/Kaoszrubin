@@ -87,7 +87,7 @@ public sealed partial class Game
 
         var participantEnemies = enemyParticipants.Select(value => value.Enemy).ToArray();
 
-        if (participantEnemies.Sum(e => e.Definition.Strength) > characterParticipants.Sum(c => c.Character.Abilities.Strength) ||
+        if (participantEnemies.Sum(e => e.EffectiveStrength) > characterParticipants.Sum(c => c.Character.Abilities.Strength) ||
             (participantEnemies.Count() > characterParticipants.Count() + 2))
         {
             _backgroundMusic.EnterLargeBattle();

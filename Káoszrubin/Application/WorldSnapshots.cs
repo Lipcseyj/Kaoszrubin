@@ -25,7 +25,7 @@ public sealed record WorldDoorSnapshot(Position Position, DoorState State, int S
 public sealed record WorldEnemySnapshot(WorldEntityId EntityId, string DefinitionId, string Name,
     Position Position, int CurrentHitPoints, int MaximumHitPoints, string? GroupId,
     EnemyGroupRole GroupRole, IReadOnlyList<string> ActiveEffectTypes, ConsoleColor Color = ConsoleColor.Red,
-    int SymbolCodePoint = 'e');
+    int SymbolCodePoint = 'e', ConsoleColor BackgroundColor = ConsoleColor.Black, int BossTier = 0);
 
 public sealed record WorldLastKnownEnemySnapshot(WorldEntityId EntityId, Position Position,
     int RemainingPartyMoves, bool IsSoundCue = false);
@@ -105,9 +105,9 @@ public static class WorldSnapshotProjector
         {
             var hitPoints = enemy.CurrentHitPoints;
             return new WorldEnemySnapshot(enemy.Id, enemy.Definition.Id, enemy.Name, enemy.Position, hitPoints,
-                enemy.Definition.HitPoints ?? hitPoints, enemy.GroupId, enemy.GroupRole,
+                enemy.MaximumHitPoints, enemy.GroupId, enemy.GroupRole,
                 enemy.ActiveSpellEffects.Select(effect => effect.Type.ToString()).ToArray(),
-                enemy.Definition.StrengthTier switch
+                enemy.BossTier > 0 ? ConsoleColor.Black : enemy.Definition.StrengthTier switch
                 {
                     1 => ConsoleColor.Green,
                     2 => ConsoleColor.Yellow,
@@ -115,7 +115,9 @@ public static class WorldSnapshotProjector
                     4 => ConsoleColor.Red,
                     5 => ConsoleColor.Magenta,
                     _ => ConsoleColor.Gray
-                }, enemy.Symbol.Value);
+                }, enemy.Symbol.Value,
+                enemy.BossTier > 0 ? BossTierRules.Background(enemy.BossTier) : ConsoleColor.Black,
+                enemy.BossTier);
         }).ToArray();
         var chests = maze.TreasureChests.Where(chest => IsVisible(chest.Position))
             .Select(chest => new WorldChestSnapshot(chest.Id, chest.Position, chest.Symbol.Value,
