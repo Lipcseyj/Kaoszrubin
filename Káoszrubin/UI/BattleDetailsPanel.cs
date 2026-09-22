@@ -70,6 +70,7 @@ public static class BattleDetailsPanel
 
         var detailLines = details.Summary
             .Concat(details.Calculation)
+            .Where(line => !string.Equals(line, $"⚔️ {heading}", StringComparison.Ordinal))
             .ToArray();
 
         var normalLines = detailLines

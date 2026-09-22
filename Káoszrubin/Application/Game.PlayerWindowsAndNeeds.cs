@@ -377,8 +377,16 @@ public sealed partial class Game
                 _renderer.CharacterSheet.DrawBattleDetails(_lastBattleActionDetails);
             }
         }
+        var actorNames = _activeBattle is { } currentBattle
+            ? currentBattle.Characters.Select(character => character.Name)
+                .Concat(currentBattle.Enemies.Select(enemy => enemy.Name)).ToArray()
+            : [];
+        var displayEntries = materialized.Select(entry => entry with
+        {
+            Message = BattleLogFormatter.Format(entry.Message, actorNames)
+        }).ToArray();
         _sessionEventService.PresentBattleEntries(
-            materialized,
+            displayEntries,
             _isQuickBattle,
             entry => _renderer.DrawBattleRound(entry),
             _ => _renderer.CharacterSheet.RefreshBattleStatusRows(),

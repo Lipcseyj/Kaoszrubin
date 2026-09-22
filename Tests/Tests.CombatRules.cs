@@ -543,6 +543,28 @@ internal static partial class Program
             "Egy teszt-NPC nem kapta meg a kaszt alapfegyverzetét.");
     }
 
+    static void BattleLogActorsShareAttackColumn()
+    {
+        var names = new[] { "Arin", "Ork", "Ork Sámán" };
+        var movement = BattleLogFormatter.Format("Arin\t👣 3 mezőt mozog", names);
+        var enemyMovement = BattleLogFormatter.Format("Ork Sámán 2 mezőt közeledik.", names);
+        var decorated = BattleLogFormatter.Format("🔮 Arin varázsol.", names);
+        var offhand = BattleLogFormatter.Format("⚔️ Mellékkéz — Arin → Ork 🎯 TALÁLAT", names);
+        var attack = BattleSystem.PadRightDisplay("Arin", BattleLogFormatter.ActorColumnWidth) +
+                     " → Ork Sámán 🎯 TALÁLAT";
+        Assert(movement == BattleSystem.PadRightDisplay("Arin", BattleLogFormatter.ActorColumnWidth) +
+                   " → 👣 3 mezőt mozog" &&
+               enemyMovement == BattleSystem.PadRightDisplay("Ork Sámán", BattleLogFormatter.ActorColumnWidth) +
+                   " → 2 mezőt közeledik." &&
+               decorated == BattleSystem.PadRightDisplay("Arin", BattleLogFormatter.ActorColumnWidth) +
+                   " → 🔮 varázsol." &&
+               offhand == BattleSystem.PadRightDisplay("Arin", BattleLogFormatter.ActorColumnWidth) +
+                   " → ⚔️ Mellékkéz — Ork 🎯 TALÁLAT" &&
+               BattleLogFormatter.Format(attack, names) == attack &&
+               BattleLogFormatter.Format("A harc kezdődik.", names) == "A harc kezdődik.",
+            "A csatanapló szereplői nem a támadások névoszlopába kerülnek, vagy egy rendszerüzenet megváltozott.");
+    }
+
     static void KnightBattleWeaponSwapCommandIsAccepted()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

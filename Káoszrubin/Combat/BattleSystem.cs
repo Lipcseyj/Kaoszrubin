@@ -530,7 +530,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
      int currentHitPoints,
      int maximumHitPoints)
     {
-        const int AttackerWidth = 23;
+        const int AttackerWidth = BattleLogFormatter.ActorColumnWidth;
         const int DefenderWidth = 23;
         const int OutcomeWidth = 16;
         const int DamageWidth = 14;
@@ -903,13 +903,6 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 BuildCalculation().ToArray())
         };
 
-
-        // ============================================================
-        // ÖSSZEFOGLALÓ – 1–2. SOR
-        // ============================================================
-
-        calculationSummary.Add(
-            $"⚔️ {player.Name} → {defender.Name}");
 
         calculationSummary.Add(
             $"🎯 {totalHitRoll} vs {hitTarget} " +
@@ -1347,8 +1340,6 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         // ============================================================
         // ADATGYŰJTÉS
         // ============================================================
-
-        calculationSummary.Add($"⚔️ {attacker.Name} → {defender.Name}");
 
         var criticalChance = 0d;
         var hitDescription = "Automatikus elkerülés";

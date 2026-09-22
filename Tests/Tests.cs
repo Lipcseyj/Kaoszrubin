@@ -65,6 +65,7 @@ internal static partial class Program
     ("A fejlesztői fegyvercsomag követi a kategóriákat és a hátizsák kapacitását", DevelopmentWeaponsRespectCapacity),
     ("A harci tesztpálya a kért csoportokat, jelölőládákat és középső folyosót építi", DeveloperBattleTestScenarioHasRequestedLayout),
     ("A harci teszt-NPC-k pontos szinttel és véletlenül memorizált elérhető varázslatokkal készülnek", CombatTestCharactersMatchRequestedLevelAndSpells),
+    ("A csatanapló szereplői a támadások névoszlopában jelennek meg", BattleLogActorsShareAttackColumn),
     ("A mentésből indított tesztcsata önállóan helyreállítja a csatalogot", LoadedDeveloperBattleCreatesRecoveryLog),
     ("A lovag harci fegyvercsere-parancsa átjut a session ellenőrzésén", KnightBattleWeaponSwapCommandIsAccepted),
     ("A széles csapás csak kölcsönösen szomszédos célpontokat ér", WeaponSweepRequiresMutualAdjacency),
