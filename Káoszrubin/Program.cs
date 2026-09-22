@@ -9,6 +9,7 @@ Log.Initialize();
 Log.Info("process.start", Log.EnvironmentSummary());
 AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
 {
+    KeyboardRepeatSettings.Restore();
     Log.Warning("process.last-chance", $"isTerminating={eventArgs.IsTerminating}");
     if (eventArgs.ExceptionObject is Exception exception)
         Log.Error("process.unhandled-exception", exception);
@@ -17,12 +18,15 @@ AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
 };
 TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
 {
+    KeyboardRepeatSettings.Restore();
     Log.Error("process.unobserved-task-exception", eventArgs.Exception);
     eventArgs.SetObserved();
 };
 
 try
 {
+    KeyboardRepeatSettings.ApplyFastestDelay();
+
     if (!SystemHelpers.EnsureWindowsTerminal(args))
     {
         Log.Info("process.relaunch-parent-exit");
@@ -84,6 +88,7 @@ catch (Exception exception)
 }
 finally
 {
+    KeyboardRepeatSettings.Restore();
     Log.Info("process.end", $"exitCode={Environment.ExitCode}");
 }
 
