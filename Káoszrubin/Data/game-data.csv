@@ -8,7 +8,7 @@ R004;Félork;Relentless
 #Osztályok
 Id;Név;XP módosító
 C001;Harcos;1
-C002;Barbár;0.95
+C002;Barbárr;0.95
 C003;Lovag;1.05
 C004;Tolvaj;0.85
 C005;Pap;1
@@ -364,6 +364,33 @@ W020;tüzes ostor;WT001;8-17;8;nem;nem;nem;nem;Pokoli lánggal izzó ostor amely
 W021;varázsbot;WT001;10-22;2;nem;nem;nem;igen;Sötét fából készült bot amelynek vége egy sötét vörösen pulzáló ékkövet fog körbe.;0;;;;2;nekrotikus;1;igen;STAFF
 W022;elf tőr;WT002;3-6;1;nem;igen;nem;igen;Hosszabb hajlított pengéjű elf tőr. Két elf tőrt használva mindkettő +1 sebzést okoz.;90;;;;1;vágás;1;nem;DAGGER
 W023;kasza;WT001;8-17;8;igen;nem;nem;nem;Hosszú nyelű, széles pengéjű kasza, amelyet élőholt aratók és más szörnyek használnak.;0;;;;6;vágás;2;igen;POLEARM;
+WN001;fogak;WT001;2-6;1;nem;nem;nem;nem;Természetes harapás.;0;;;;1;szúrás;1;nem;NATURAL
+WN002;karmok;WT001;4-10;1;nem;nem;nem;nem;Természetes karmolás.;0;;;;1;vágás;1;nem;NATURAL
+WN025;puszta kéz;WT001;1-5;1;nem;nem;nem;nem;Nehéz természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
+WN003;ököl;WT001;5-12;1;nem;nem;nem;nem;Nehéz természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
+WN004;sárkányfogak;WT001;10-24;1;nem;nem;nem;nem;Hatalmas agyarak.;0;;;;1;szúrás;1;nem;NATURAL
+WN005;farokcsapás;WT001;9-18;1;nem;nem;nem;nem;Súlyos természetes farokcsapás.;0;;;;1;zúzás;1;nem;NATURAL
+WN006;tüzes lehelet;WT001;12-26;1;nem;nem;nem;nem;Lángoló sárkánylehelet.;0;;;;1;tűz;3;nem;NATURAL
+WN007;agyarak;WT001;4-10;1;nem;nem;nem;nem;Hosszú hegyes agyarakkal végrehajtott harapás.;0;;;;1;szúrás;1;nem;NATURAL
+WN008;csőr;WT001;3-8;1;nem;nem;nem;nem;Éles csőrrel végrehajtott gyors támadás.;0;;;;1;szúrás;1;nem;NATURAL
+WN009;szarvöklelés;WT001;7-15;1;nem;nem;nem;nem;Nagy erővel végrehajtott roham és szarvdöfés.;0;;;;2;szúrás;1;nem;NATURAL
+WN010;fullánk;WT001;7-15;1;nem;nem;nem;nem;Hosszú hegyes fullánkkal végrehajtott döfés.;0;;;;1;szúrás;1;nem;NATURAL
+WN011;erős harapás;WT001;6-14;1;nem;nem;nem;nem;Erőteljes állkapoccsal végrehajtott harapás.;0;;;;2;szúrás;1;nem;NATURAL
+WN012;óriáskarmok;WT001;7-16;1;nem;nem;nem;nem;Hatalmas karmokkal végrehajtott tépő támadás.;0;;;;2;vágás;1;nem;NATURAL
+WN013;csápütés;WT001;5-12;1;nem;nem;nem;nem;Hosszú végtaggal vagy csáppal végrehajtott súlyos csapás.;0;;;;1;zúzás;1;nem;NATURAL
+WN014;sokfejű harapás;WT001;10-22;1;nem;nem;nem;nem;Több fej egyszerre csap le különböző áldozatokra.;0;;;;3;szúrás;2;nem;NATURAL
+WN015;savas lehelet;WT001;12-26;1;nem;nem;nem;nem;Maró savfelhőt okádó sárkánylehelet.;0;;;;1;sav;2;nem;NATURAL
+WN016;nekrotikus lehelet;WT001;13-28;1;nem;nem;nem;nem;Életerőt elsorvasztó holt sárkánylehelet.;0;;;;1;nekrotikus;2;nem;NATURAL
+WN017;káoszlehelet;WT001;15-30;1;nem;nem;nem;nem;A valóságot szaggató kiszámíthatatlan káoszenergia.;0;;;;1;káosz;4;nem;NATURAL
+WN018;méregfogak;WT001;6-13;1;nem;nem;nem;nem;Méregmirigyekhez kapcsolódó hosszú fogak.;0;;;;1;szúrás;1;nem;NATURAL
+WN019;vámpírfogak;WT001;7-15;1;nem;nem;nem;nem;Hosszú szemfogak az áldozat vérének kiszívására.;0;;;;1;szúrás;1;nem;NATURAL
+WN020;kőököl;WT001;9-20;1;nem;nem;nem;nem;Tömör kőből formált hatalmas ököl.;0;;;;4;zúzás;1;nem;NATURAL
+WN021;kígyóhaj;WT001;5-11;1;nem;nem;nem;nem;A medúza hajában tekergő kígyók marása.;0;;;;1;szúrás;1;nem;NATURAL
+WN022;savas csáp;WT001;5-12;1;nem;nem;nem;nem;Maró váladékkal borított nyálkás nyúlvány.;0;;;;1;sav;1;nem;NATURAL
+WN023;lidércharapás;WT001;7-15;1;nem;nem;nem;nem;Természetellenes harapás amely a test mellett az életerőt is marcangolja.;0;;;;1;nekrotikus;1;nem;NATURAL
+WN024;démoni csáprágók;WT001;9-19;1;nem;nem;nem;nem;Hatalmas pokoli pókszájszerv amely húsba és páncélrésbe egyaránt belemar.;0;;;;2;szúrás;1;nem;NATURAL
+WN025;csáprágók;WT001;7-12;1;nem;nem;nem;nem;Óriás csáprágók harapása.;0;;;;1;szúrás;1;nem;NATURAL
+WN026;lidérckarmok;WT001;5-17;1;nem;nem;nem;nem;Természetellenes karmolás.;0;;;;1;vágás;1;nem;NATURAL
 
 W024;kis kerek pajzs;WT003;1-2;1;nem;igen;nem;nem;Apró ökölpajzs, amely alig terheli a viselőjét. Fürge harcosok és tolvajok számára ideális.;160;;;;1;zúzás;1;nem;SHIELD;40;1
 W036;gilf ökölpajzs;WT003;2-3;1;nem;igen;nem;nem;Apró ökölpajzs, amely alig terheli a viselőjét. Fürge harcosok és tolvajok számára ideális. Gilf feketeacél anyaga miatt erősebb;1100;;;;1;zúzás;1;nem;SHIELD;90;2
@@ -405,30 +432,6 @@ LW017;Ezüsthold;WT002;12-22;7;igen;igen;nem;igen;Holdfényben kovácsolt katana
 LW018;Mélységszúró;WT002;10-18;4;nem;igen;nem;igen;Tengermélyi kristályból csiszolt tőr nyugtalanító kék ragyogással.;7100;Legendás;W001;5;1;szúrás;1;nem;DAGGER;180
 LW019;Főnixlándzsa;WT001;14-25;7;igen;nem;igen;nem;Újjászülető lánggal égő lándzsa amelynek hegye sosem hűl ki.;10200;Legendás;W011;6;4;szúrás;2;igen;POLEARM;260
 LW020;Koronatörő;WT001;16-30;11;igen;nem;nem;nem;Királyok bukását megélt pallos aranyrepedésekkel a pengéjén.;13500;Legendás;W009;7;8;vágás;2;nem;SWORD;300
-WN001;fogak;WT001;2-6;1;nem;nem;nem;nem;Természetes harapás.;0;;;;1;szúrás;1;nem;NATURAL
-WN002;karmok;WT001;4-10;1;nem;nem;nem;nem;Természetes karmolás.;0;;;;1;vágás;1;nem;NATURAL
-WN003;ököl;WT001;5-12;1;nem;nem;nem;nem;Nehéz természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
-WN004;sárkányfogak;WT001;10-24;1;nem;nem;nem;nem;Hatalmas agyarak.;0;;;;1;szúrás;1;nem;NATURAL
-WN005;farokcsapás;WT001;9-18;1;nem;nem;nem;nem;Súlyos természetes farokcsapás.;0;;;;1;zúzás;1;nem;NATURAL
-WN006;tüzes lehelet;WT001;12-26;1;nem;nem;nem;nem;Lángoló sárkánylehelet.;0;;;;1;tűz;3;nem;NATURAL
-WN007;agyarak;WT001;4-10;1;nem;nem;nem;nem;Hosszú hegyes agyarakkal végrehajtott harapás.;0;;;;1;szúrás;1;nem;NATURAL
-WN008;csőr;WT001;3-8;1;nem;nem;nem;nem;Éles csőrrel végrehajtott gyors támadás.;0;;;;1;szúrás;1;nem;NATURAL
-WN009;szarvöklelés;WT001;7-15;1;nem;nem;nem;nem;Nagy erővel végrehajtott roham és szarvdöfés.;0;;;;2;szúrás;1;nem;NATURAL
-WN010;fullánk;WT001;7-15;1;nem;nem;nem;nem;Hosszú hegyes fullánkkal végrehajtott döfés.;0;;;;1;szúrás;1;nem;NATURAL
-WN011;erős harapás;WT001;6-14;1;nem;nem;nem;nem;Erőteljes állkapoccsal végrehajtott harapás.;0;;;;2;szúrás;1;nem;NATURAL
-WN012;óriáskarmok;WT001;7-16;1;nem;nem;nem;nem;Hatalmas karmokkal végrehajtott tépő támadás.;0;;;;2;vágás;1;nem;NATURAL
-WN013;csápütés;WT001;5-12;1;nem;nem;nem;nem;Hosszú végtaggal vagy csáppal végrehajtott súlyos csapás.;0;;;;1;zúzás;1;nem;NATURAL
-WN014;sokfejű harapás;WT001;10-22;1;nem;nem;nem;nem;Több fej egyszerre csap le különböző áldozatokra.;0;;;;3;szúrás;2;nem;NATURAL
-WN015;savas lehelet;WT001;12-26;1;nem;nem;nem;nem;Maró savfelhőt okádó sárkánylehelet.;0;;;;1;sav;2;nem;NATURAL
-WN016;nekrotikus lehelet;WT001;13-28;1;nem;nem;nem;nem;Életerőt elsorvasztó holt sárkánylehelet.;0;;;;1;nekrotikus;2;nem;NATURAL
-WN017;káoszlehelet;WT001;15-30;1;nem;nem;nem;nem;A valóságot szaggató kiszámíthatatlan káoszenergia.;0;;;;1;káosz;4;nem;NATURAL
-WN018;méregfogak;WT001;6-13;1;nem;nem;nem;nem;Méregmirigyekhez kapcsolódó hosszú fogak.;0;;;;1;szúrás;1;nem;NATURAL
-WN019;vámpírfogak;WT001;7-15;1;nem;nem;nem;nem;Hosszú szemfogak az áldozat vérének kiszívására.;0;;;;1;szúrás;1;nem;NATURAL
-WN020;kőököl;WT001;9-20;1;nem;nem;nem;nem;Tömör kőből formált hatalmas ököl.;0;;;;4;zúzás;1;nem;NATURAL
-WN021;kígyóhaj;WT001;5-11;1;nem;nem;nem;nem;A medúza hajában tekergő kígyók marása.;0;;;;1;szúrás;1;nem;NATURAL
-WN022;savas csáp;WT001;5-12;1;nem;nem;nem;nem;Maró váladékkal borított nyálkás nyúlvány.;0;;;;1;sav;1;nem;NATURAL
-WN023;lidércharapás;WT001;7-15;1;nem;nem;nem;nem;Természetellenes harapás amely a test mellett az életerőt is marcangolja.;0;;;;1;nekrotikus;1;nem;NATURAL
-WN024;démoni csáprágók;WT001;9-19;1;nem;nem;nem;nem;Hatalmas pokoli pókszájszerv amely húsba és páncélrésbe egyaránt belemar.;0;;;;2;szúrás;1;nem;NATURAL
 
 #Páncélok
 Id;Név;Védelem;Barbár;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;VágásVédelem;SzúrásVédelem;ZúzásVédelem;TűzVédelem;SavVédelem;NekrotikusVédelem;KáoszVédelem;MaxTartósság
@@ -564,6 +567,24 @@ E097;Sötét druida;ð;8;300;7;6;1300;4;MA008;;8;3;1;igen;W022;nem;1;1;0;1;2;3;3
 E098;Vérmágus;Ѿ;10;350;7;7;3200;4;MA004;;8;2;1;nem;W021|W022;nem;0;0;0;2;1;4;4;6;;40
 E099;Káosz főpap;҂;14;400;10;6;5000;5;MA013;;8;1;2;nem;W021|W013;nem;2;2;0;3;2;4;6;7;W033;50
 E100;Feketemágus;Ӻ;22;2300;11;8;10000;5;MA013;;8;3;0;nem;W021|W020;nem;2;2;-2;4;3;6;7;8;;60
+
+#Ellenséges varázshasználók
+EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEsély%;Profil;VarázslatLehűlés
+E090;D001|D003|D005|P001;26;6;0;90;BattleMage;1
+E091;D001|D004|D005|D010|S002|S013|S014;38;7;0;100;Controller;1
+E092;D017|D013|D014|P009;34;8;25;55;Support;1
+E035;D001|D004|D005|D007;30;8;20;85;BattleMage;1
+E093;D002|S014|S027|D010;42;10;20;65;Controller;1
+E094;D017|P009|D014|P023;50;11;20;65;Support;1
+E095;D017|P009|D013|P028;58;12;20;70;Support;1
+E096;D006|D008|S013|S014|D012;70;14;15;75;Artillery;1
+E097;D009|S014|S017|D017;78;15;20;75;Support;1
+E098;D004|D008|D012|D017;86;16;15;80;Artillery;1
+E099;D017|D013|P011|D015|P018;105;18;15;85;Support;1
+E074;D009|S014|S025|D010;90;17;10;80;Necromancer;1
+E022;D002|S014|S025|D010;120;19;10;85;Necromancer;1
+E049;D011|S014|S025|D010;150;21;10;80;Necromancer;2
+E100;D011|D012|S018|D016|S025;180;23;5;90;Artillery;1
 
 #Szörnyképességek
 Id;Név;Hatás;AktiválásiEsély;Érték;Leírás;Aktiválás;Lehűlés;Hatótáv;MaxCélpont;ÁllapotId;AI súly;FegyverIds;Sebzéstípus;TovábbiHatások;HasználatCsatánként
@@ -704,11 +725,11 @@ S001;Mágikus lövedék;1;6;Biztosan célba találó arkán lövedék amely a va
 S002;Fagyasztó érintés;1;5;Fagyos közelharci varázslat amely megsebzi és lelassítja az ellenfelet.;Enemy;1;0;igen;Both;Blue;1200
 S003;Égő kéz;1;8;Rövid lángtölcsér amely több ellenfelet megsebezhet és lángra lobbanthat.;Direction;2;1;igen;Both;Red;2200
 S005;Lángoló nyíl;1;7;Nagy hatótávú tűznyíl amely találatkor égést okoz.;Enemy;8;0;igen;Both;Red;1000
-S021;Erőpajzs;1;6;Sűrű arkán mező amely rövid időre megerősíti a mágus védelmét.;Self;0;0;nem;Both;Blue;0
+S021;Erőpajzs;1;6;Sűrű arkán mező amely hosszú időre megerősíti a mágus védelmét.;Self;0;0;nem;Both;Blue;0
 S026;Fényvarázslat;1;6;Arkán fény veszi körül a mágust és messzebbre tárja fel előtte a labirintust.;Self;0;0;nem;Exploration;Blue;0
 S004;Villámcsapás;2;12;Egyetlen célpontba vezetett nagy erejű villámcsapás.;Enemy;6;0;igen;Both;YellowBrown;500
 S006;Láthatatlanság;2;11;Egy partitag eltűnik az ellenfelek szeme elől amíg támadást nem indít.;PartyMember;6;0;igen;Both;Blue;0
-S013;Arkán páncél;2;10;Mágikus védőréteg amely ideiglenesen növeli a varázsló védelmét.;Self;0;0;nem;Both;Blue;0
+S013;Arkán páncél;2;10;Mágikus védőréteg amely rövid időre erős védelmet ad.;Self;0;0;nem;Both;Blue;0
 S014;Lassítás;2;12;Megzavarja az ellenfél időérzékét és minden második akcióját elveheti.;Enemy;8;0;igen;Both;Blue;1600
 S022;Jégbilincs;2;11;Fagyos bilincsek lassítják az ellenfelet és megakasztják minden második mozdulatát.;Enemy;8;0;igen;Both;Blue;2000
 S027;Vakítás;2;11;Vakító arkán villanás homályosítja el az ellenfél látását és jelentősen rontja a támadásainak pontosságát.;Enemy;8;0;igen;Both;YellowBrown;600
@@ -830,7 +851,7 @@ FX-D003-1;D003;1;Damage;3d6;1;1;0;0;100;SaveHalf;;Területi pokoltűz sebzés me
 FX-D003-2;D003;2;Burning;1d4;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél tovább éget.
 FX-D004-1;D004;1;Damage;3d6;1;1;0;0;100;Attack;;Átkozott tűzsebzés.
 FX-D004-2;D004;2;Burning;1d4;0;0;0;2;100;Attack;;Találatkor tovább perzsel.
-FX-D005-1;D005;1;DefenseBonus;;0;0;3;15;100;Auto;;Tizenöt körre árnyékos védelmet ad.
+FX-D005-1;D005;1;DefenseBonus;;0;0;3;15;100;Auto;;Tizenöt körre homály fedi a varázslót.
 FX-D006-1;D006;1;Damage;5d8;2;3;0;0;100;Attack;;Nagy erejű bíbor villámsebzés.
 FX-D007-1;D007;1;SpeedPenalty;;0;0;5;3;100;SaveNegates;;Három körre súlyosan lelassítja az áldozatot.
 FX-D007-2;D007;2;SkipAlternate;;0;0;1;2;100;SaveNegates;;Minden második akciót megakaszt.
@@ -895,24 +916,6 @@ FX-P027-1;P027;1;Dispel;;0;0;0;0;100;Auto;HarmfulOnly;Eltávolítja a célpontot
 FX-P027-2;P027;2;BreakItemCurse;;0;0;0;0;100;Auto;;Végleg megtöri a célpont legerősebb aktív tárgyátkát és feloldja a tárgy kötését.
 FX-P028-1;P028;1;Damage;6d8;2;3;0;0;100;SaveHalf;Holy50;Szent területi sebzés amely élőholt és démoni célpont ellen másfélszeres erővel hat.
 FX-P028-2;P028;2;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;Sikertelen ellenpróbánál a célpont következő akciója kimarad.
-
-#Ellenséges varázshasználók
-EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEsély%;Profil;VarázslatLehűlés
-E090;D001|D003|D005;18;6;20;45;BattleMage;1
-E091;D001|D004|D005|D010;26;7;20;55;Controller;1
-E092;D017|D013|D014|P009;34;8;25;55;Support;1
-E035;D001|D004|D005|D007;30;8;20;55;BattleMage;1
-E093;D002|S014|S027|D010;42;10;20;65;Controller;1
-E094;D017|P009|D014|P023;50;11;20;65;Support;1
-E095;D017|P009|D013|P028;58;12;20;70;Support;1
-E096;D006|D008|S013|S014|D012;70;14;15;75;Artillery;1
-E097;D009|S014|S017|D017;78;15;20;75;Support;1
-E098;D004|D008|D012|D017;86;16;15;80;Artillery;1
-E099;D017|D013|P011|D015|P018;105;18;15;85;Support;1
-E074;D009|S014|S025|D010;90;17;10;80;Necromancer;1
-E022;D002|S014|S025|D010;120;19;10;85;Necromancer;1
-E049;D011|S014|S025|D010;150;21;10;80;Necromancer;2
-E100;D011|D012|S018|D016|S025;180;23;5;90;Artillery;1
 
 #Karakternevek
 Id;Név;OsztályId
@@ -2341,3 +2344,20 @@ ES080;A fényed kialszik, amikor hozzád érek.;Nem vagyok árnyék. Az árnyék
 ES081;Nincs testem, amit megsebezhetnél.;A páncél üres. A harag nem.;Kardod van? Nekem én magam vagyok a páncél.
 ES082;Dobd el a fegyvert, és talán csak a pénzedet viszem el.;Sokat beszélsz valakihez képest, akit mindjárt kirabolnak.;A zsákmányodat vagy az életedet! Ma akciósan mindkettőt kérem.
 ES083;A Káosz acélja nem törik meg.;A rend szolgái mindig ugyanúgy sikoltanak.;Lépj elő, halandó! Hadd lássuk, mit ér a lelked.
+ES084;Érzem rajtatok a félelmet... finom illata van.;A Pokol mélyén ennél melegebb a fogadtatás.;Szaladjatok csak! Sokkal élvezetesebb az üldözés!
+ES085;Nem vagyok szép, de legalább éhes vagyok.;A csontotokból jó kis fogpiszkáló lesz.;Ne nézzetek így rám! Ti sem lesztek sokkal szebbek, mire végzek.
+ES086;Égni fogtok! Mindannyian égni fogtok!;A hús hamar megperzselődik... a lélek valamivel lassabban.;Gyere közelebb! Ígérem, nem fogsz fázni.
+ES087;Ezek a karmok nem dísznek vannak.;Melyikőtöket tépjem ketté először?;Fussatok! A karmom szereti a mozgó célpontot.
+ES088;A Pokol kapuján én állok őrt.;Egyetlen lépéssel közelebb, és összezúzlak.;Sokan próbáltak áttörni rajtam. A páncélomon még látszanak.
+ES089;Hallom a véretek dobbanását.;A véretek engem erősít.;Harcoljatok csak! Annál édesebb lesz, amikor elcsendesedtek.
+ES090;Hehehe... már meg is átkoztalak. Talán.;A csontok azt mondják, rossz napotok lesz.;Ne nevess! A múltkor majdnem működött ez a varázslat!
+ES091;A Mester szerint már majdnem igazi mágus vagyok.;A Káosz hall engem... néha.;Ezt a varázslatot tegnap tanultam. Reméljük, jól emlékszem rá.
+ES092;Térdeljetek le a Káosz előtt!;A Káosz nem kér hitet. Csak engedelmességet.;A lelketekből is lehet áldozat.
+ES093;Egy csipet méreg, egy marék átok... és már kész is.;Jaj, milyen fiatalok vagytok. Kár értetek.;Ne aggódjatok, békává változtatni még nem tudlak benneteket. Azt hiszem.
+ES094;A vér beszél. Nekem pedig sokat mesél.;Az isteneitek nem hallanak itt benneteket.;Az ork vére erős. A tietek majd kiderül.
+ES095;Sssszép áldozatok érkeztek.;A méreg lassssú... de biztos.;A Nagy Kígyó már érzi a lépteiteket.
+ES096;A Káosz nem pusztít. Átalakít.;Egyetlen gondolattal szétszakítom az elméteket.;Ti szabályokat láttok. Én lehetőségeket.
+ES097;A természet nem jó és nem gonosz. Csak éhes.;A gyökerek már érzik a véretek szagát.;Az erdő visszaveszi, ami valaha az övé volt.
+ES098;Minden csepp véretek egy újabb varázslat.;Nektek seb. Nekem hatalom.;A legerősebb mágiához mindig kell egy kis áldozat.
+ES099;A Káosz előtt király és koldus egyaránt térdre hull.;Én vagyok az akarata, ti pedig csak az áldozatai.;Imádkozzatok, ha még emlékeztek hogyan kell.
+ES100;A fény csak addig létezik, amíg én el nem oltom.;Annyi lelket láttam elbukni, hogy a tietek már fel sem tűnik.;Ne féljetek a haláltól. Van annál sokkal rosszabb is.
