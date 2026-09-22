@@ -825,7 +825,175 @@ public static class AsciiPortraits
                  /|==|██|==|\
                    /|___|\
                """),
+           // E084 - Pokolfajzat
+           [MonsterIds.Pokolfajzat] = Portrait(
+               """
+                    _/\_/\
+                   / ◉  ◉ \
+                  |   ▽▽   |
+                  |  /__\  |
+                   ~~    ~~
+               """),
 
+           // E085 - Démoni korcs
+           [MonsterIds.DémoniKorcs] = Portrait(
+               """
+                  /\_   _/\
+                 / ◉\_/◉  \
+                |   /▲\    |
+                 \_▽▽▽▽__/
+                  /_/ \_\ 
+               """),
+
+           // E086 - Parázsdémon
+           [MonsterIds.Parázsdémon] = Portrait(
+               """
+                   .-^^-.
+                  / ◉  ◉ \
+                 |  ╲▲╱   |
+                 |  ▽▽▽   |
+                  \_🔥🔥_/
+               """),
+
+           // E087 - Karmos démon
+           [MonsterIds.KarmosDémon] = Portrait(
+               """
+                  /\_   _/\
+                 / ◉\_/◉  \
+                |   ▽▲▽    |
+                /|_/   \_|\ 
+                  /_/ \_\ 
+               """),
+
+           // E088 - Pokolőr
+           [MonsterIds.Pokolőr] = Portrait(
+               """
+                   /|____|\
+                  | ◉    ◉ |
+                  |  /▲\   |
+                 /|==|██|==|\
+                    /_  _\ 
+               """),
+
+           // E089 - Vérdémon
+           [MonsterIds.Vérdémon] = Portrait(
+               """
+                  /\_____/\
+                 / ◉  ▽  ◉ \
+                |   \▲/    |
+                |  ▼▼ ▼▼   |
+                 \_/███\_/
+               """),
+
+           // E090 - Goblin vajákos
+           [MonsterIds.GoblinVajákos] = Portrait(
+               """
+                  /\_____/\ 
+                 <  ò   ó  >
+                  \  ▽▽▽  /
+                   |☼☼☼|  |
+                    /  \  
+               """),
+
+           // E091 - Káoszmágus tanítvány
+           [MonsterIds.KáoszmágusTanítvány] = Portrait(
+               """
+                      /\
+                     /✦\
+                     (◉◉)  
+                    /|╳|\
+                     /_\
+               """),
+
+           // E092 - Káoszpap
+           [MonsterIds.Káoszpap] = Portrait(
+               """
+                      _☼_
+                     (◉◉)
+                    /|╳|\
+                    /|█|\  †
+                     /_\
+               """),
+
+           // E093 - Boszorkány
+           [MonsterIds.Boszorkány] = Portrait(
+               """
+                     __~_~
+                    / ◉ ◉ \
+                    \  ▽  /
+                    /|~~~|\*
+                     /___\
+               """),
+
+           // E094 - Ork vérpap
+           [MonsterIds.OrkVérpap] = Portrait(
+               """
+                    ______
+                   / ò  ó \
+                  |  _▲_   |
+                  \_/☼☼\_/†
+                   /|██|\ 
+               """),
+
+           // E095 - Kígyópap
+           [MonsterIds.Kígyópap] = Portrait(
+               """
+                  ~s~s~s~s~
+                 s/ ◉  ◉  \s
+                 s|   ▲    |s
+                  \  ▽▽   /
+                   \_| |_/
+               """),
+
+           // E096 - Káoszmágus
+           [MonsterIds.Káoszmágus] = Portrait(
+               """
+                      /\
+                     /╳╳\
+                     (◉◉) 
+                    /|▒✦|\
+                    /_||_\
+               """),
+
+           // E097 - Sötét druida
+           [MonsterIds.SötétDruida] = Portrait(
+               """
+                    ~\^^/~ 
+                   / ◉  ◉ \
+                  |   ▲    |
+                  |  \_/  |*
+                   /|__|\ 
+               """),
+
+           // E098 - Vérmágus
+           [MonsterIds.Vérmágus] = Portrait(
+               """
+                      /\
+                     /▒▒\
+                     (◉◉)  
+                    /|▒▒|\
+                    / \_/ \
+               """),
+
+           // E099 - Káosz főpap
+           [MonsterIds.KáoszFőpap] = Portrait(
+               """
+                      ☼╳☼
+                     /◉◉\
+                    /|██|\
+                   /_|██|_\†
+                     /__\
+               """),
+
+           // E100 - Feketemágus
+           [MonsterIds.Feketemágus] = Portrait(
+               """
+                      /\
+                     /☠\
+                     (◉◉) 
+                    /|╳|\
+                    /_||_\
+               """),
        };
 
     private static readonly AsciiPortrait Unknown = Portrait(
