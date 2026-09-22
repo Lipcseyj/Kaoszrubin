@@ -163,6 +163,7 @@ public sealed partial class Game : ISessionCommandHandler
     private bool _hasRestedThisLevel;
     private bool _developerPhasing;
     private int _lastDeveloperUniqueNpcIndex = -1;
+    private int _lastDeveloperBossIndex = -1;
     private readonly HashSet<string> _collectedBossKeyIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _seenBossIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<WorldEntityId> _spottedEnemyIds = [];

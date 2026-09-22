@@ -302,6 +302,7 @@ internal static partial class Program
     ("A vendég tárgyvizsgálata nem vágja le a sebzésértéket", GuestItemInspectionKeepsDamageValue),
     ("A boss-ablak és a harci promptok közös UI-modellt használnak", BossAndBattlePromptsAreShared),
     ("A kulcsboss példánya HP-alapú csillagokat és erősebb statisztikákat kap", KeyBossInstancesHaveDistinctStarsAndStats),
+    ("A fejlesztői boss-teleport sorrendje és parti-célmezői érvényesek", DeveloperBossTeleportTargetsAndDestinationsAreValid),
     ("A kompakt party státusz HP-t és manát százalékosan mutat", CompactPartyStatusShowsResources),
     ("Az ablakkeret-katalógus méretezhető és konfigurálható", WindowFrameCatalogIsResizableAndConfigured),
     ("A vendég snapshot kasztbetűt és karakterszínt őriz", GuestAvatarUsesClassGlyphAndCharacterColor),

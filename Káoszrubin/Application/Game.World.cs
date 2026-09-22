@@ -664,6 +664,11 @@ public sealed partial class Game
             TeleportLeaderToNextUniqueNpc();
             devToolStarted = true;
         }
+        if (IsTeleportPartyToNextBossShortcut(keyInfo))
+        {
+            TeleportPartyToNextBoss();
+            devToolStarted = true;
+        }
         if (IsTeleportPartyToPositionShortcut(keyInfo))
         {
             TeleportPartyToSelectedPosition();

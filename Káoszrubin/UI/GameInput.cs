@@ -58,6 +58,9 @@ internal static class GameInput
         keyInfo.Key == ConsoleKey.N &&
         HasControlAlt(keyInfo);
 
+    public static bool IsTeleportPartyToNextBossShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.B && HasControlAlt(keyInfo);
+
     public static bool IsTeleportPartyToPositionShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.K && HasControlAlt(keyInfo);
 

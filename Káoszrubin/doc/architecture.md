@@ -14,6 +14,7 @@ Az alábbi rejtett gyorsbillentyűk közvetlenül be vannak kötve a játék fő
 - `Ctrl+Shift+Í`: egy véletlen osztályú, első szintű NPC hozzáadása, ha van szabad partihely;
 - `Ctrl+Shift+I`: a falakon való áthaladás be- és kikapcsolása.
 - `Ctrl+Alt+N`: teleport a következő egyedi npc-hez.
+- `Ctrl+Alt+B`: teleport a következő boss-hoz.
 - `Ctrl+Alt+K`: teleport egy pozícióra.
 - `Ctrl+Alt+T`: paraméterezhető harci tesztpálya létrehozása. A vezér mellé azonos szintű Mágus, Pap és Lovag kerül alapfelszereléssel és véletlenül memorizált, szintjükön elérhető varázslatokkal. A felső térfélen legfeljebb 8, egyenként legfeljebb 12 fős, helyben várakozó ellenségcsoport áll; mindegyik mellett egy jelölőláda látható. A pálya kezdetben teljesen felfedett, a köd `Ctrl+Shift+U`-val kapcsolható vissza.
 

@@ -857,6 +857,40 @@ internal static partial class Program
             "A bossbemutató nem mutatja a példány csillagszámát.");
     }
 
+    static void DeveloperBossTeleportTargetsAndDestinationsAreValid()
+    {
+#if DEBUG
+        Assert(GameInput.IsTeleportPartyToNextBossShortcut(
+                   new ConsoleKeyInfo('b', ConsoleKey.B, false, true, true)) &&
+               !GameInput.IsTeleportPartyToNextBossShortcut(
+                   new ConsoleKeyInfo('b', ConsoleKey.B, false, false, true)),
+            "A Ctrl+Alt+B boss-teleport gyorsbillentyűje hibás.");
+#endif
+        var targets = DeveloperBossTeleport.Targets();
+        Assert(targets.Count == MonsterIds.Bosses.Count &&
+               targets.Select(target => target.EnemyId).ToHashSet(StringComparer.OrdinalIgnoreCase)
+                   .SetEquals(MonsterIds.Bosses) &&
+               targets.Select(target => target.MazeLevel).SequenceEqual(
+                   targets.Select(target => target.MazeLevel).Order()),
+            "A fejlesztői boss-teleport nem az összes kulcsbosst követi pályasorrendben.");
+
+        var maze = new Maze(9, 9);
+        for (var y = 1; y < 8; y++)
+        for (var x = 1; x < 8; x++) maze.Carve(new Position(x, y));
+        var bossPosition = new Position(4, 4);
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        maze.AddEnemy(new ConfiguredEnemy(bossPosition, data.GetEnemy(targets[0].EnemyId), new Random(67)));
+        var companion = new PartyMemberAvatar(new Position(2, 2), CreateCharacter("Bosstárs"));
+        maze.AddPartyMember(companion);
+        var positions = DeveloperBossTeleport.FindPartyDestinations(maze, bossPosition, [companion]);
+        Assert(positions.Count == 2 && positions.Distinct().Count() == 2 &&
+               positions.All(position => maze.IsWalkable(position) && position != bossPosition) &&
+               Math.Abs(positions[0].X - bossPosition.X) +
+               Math.Abs(positions[0].Y - bossPosition.Y) == 1,
+            "A fejlesztői boss-teleport nem talál biztonságos, közeli helyet az egész partinak.");
+    }
+
     static void AbilityMagicItemsAreUniversalAndCapped()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

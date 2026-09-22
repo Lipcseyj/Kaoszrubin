@@ -161,6 +161,109 @@ public sealed partial class Game
         RequestCoopSnapshotPublish();
     }
 
+    private void TeleportPartyToNextBoss()
+    {
+        var targets = DeveloperBossTeleport.Targets();
+        if (targets.Count == 0)
+        {
+            _renderer.DrawDeveloperMessage("Fejlesztői mód: nincs konfigurált kulcsboss.");
+            return;
+        }
+
+        _lastDeveloperBossIndex = (_lastDeveloperBossIndex + 1) % targets.Count;
+        var target = targets[_lastDeveloperBossIndex];
+        var destinationArea = _mazeLevel == target.MazeLevel
+            ? _dungeonLevel.Areas.FirstOrDefault(area => area.Maze.Enemies.Any(enemy =>
+                enemy.Definition.IsBoss && enemy.GroupRole == EnemyGroupRole.Leader &&
+                string.Equals(enemy.Definition.Id, target.EnemyId, StringComparison.OrdinalIgnoreCase)))
+            : null;
+        if (destinationArea is null)
+        {
+            _mazeLevel = target.MazeLevel;
+            StartNewMaze(showLevelImage: false);
+            destinationArea = _dungeonLevel.Areas.FirstOrDefault(area => area.Maze.Enemies.Any(enemy =>
+                enemy.Definition.IsBoss && enemy.GroupRole == EnemyGroupRole.Leader &&
+                string.Equals(enemy.Definition.Id, target.EnemyId, StringComparison.OrdinalIgnoreCase)));
+        }
+        var boss = destinationArea?.Maze.Enemies.FirstOrDefault(enemy =>
+            enemy.Definition.IsBoss && enemy.GroupRole == EnemyGroupRole.Leader &&
+            string.Equals(enemy.Definition.Id, target.EnemyId, StringComparison.OrdinalIgnoreCase));
+        if (boss is null)
+        {
+            _renderer.DrawDeveloperMessage($"Fejlesztői mód: a(z) {target.MazeLevel}. pályán " +
+                $"nem jött létre a keresett boss ({target.EnemyId}).");
+            return;
+        }
+
+        var companions = _maze.PartyMembers.Where(member => member.Character.IsAlive).ToArray();
+        var destinations = DeveloperBossTeleport.FindPartyDestinations(destinationArea!.Maze,
+            boss.Position, companions);
+        if (destinations.Count != companions.Length + 1)
+        {
+            _renderer.DrawDeveloperMessage($"Fejlesztői mód: nincs elég szabad mező {boss.ShortName} közelében.");
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        if (destinationArea != _dungeonLevel.ActiveArea)
+        {
+            var sourceArea = _dungeonLevel.ActiveArea;
+            sourceArea.EnemyMoveDelays.Clear();
+            foreach (var enemy in sourceArea.Maze.Enemies)
+                sourceArea.EnemyMoveDelays[enemy] = _nextEnemyMoves.TryGetValue(enemy, out var scheduled)
+                    ? scheduled > now ? scheduled - now : TimeSpan.Zero
+                    : EnemyMoveInterval(enemy);
+            sourceArea.PausedAtUtc = now;
+            var travelers = companions.Select(member => (member.Character, member.TemporaryFollower)).ToArray();
+            foreach (var member in companions) sourceArea.Maze.RemovePartyMember(member);
+            _dungeonLevel.Activate(destinationArea.Id);
+            ShiftPausedHordeTimers(destinationArea, now, remainPaused: false);
+            _maze = destinationArea.Maze;
+            _fogOfWar = destinationArea.FogOfWar;
+            companions = travelers.Select((traveler, index) =>
+            {
+                var avatar = new PartyMemberAvatar(destinations[index + 1], traveler.Character,
+                    traveler.TemporaryFollower);
+                _maze.AddPartyMember(avatar);
+                return avatar;
+            }).ToArray();
+            _nextEnemyMoves.Clear();
+            foreach (var enemy in _maze.Enemies)
+                _nextEnemyMoves[enemy] = now + destinationArea.EnemyMoveDelays.GetValueOrDefault(enemy,
+                    EnemyMoveInterval(enemy));
+            RefreshNextEnemyActionUtc();
+            _spottedEnemyIds.Clear();
+            _spottedChestIds.Clear();
+        }
+        else
+        {
+            for (var index = 0; index < companions.Length; index++)
+                companions[index].MoveTo(destinations[index + 1]);
+        }
+
+        _player.TeleportTo(destinations[0]);
+        _leaderTrail.Clear();
+        _leaderTrail.Add(_player.Position);
+        _nextPartyMoves.Clear();
+        foreach (var member in companions) ScheduleNextPartyMove(member, now);
+        _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
+        _session.SetFormationMovementLocked(false);
+        _partyHoldingPosition = false;
+        _partyRegrouping = false;
+        _partyAttackMode = false;
+        _partyScatterUntil = DateTime.MinValue;
+        RevealFor(PartyLeader, _player.Position);
+        foreach (var member in companions) RevealFor(member.Character, member.Position);
+        RevealFor(PartyLeader, boss.Position);
+        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.DrawDeveloperMessage($"Fejlesztői mód: boss " +
+            $"{_lastDeveloperBossIndex + 1}/{targets.Count} — {boss.ShortName}, " +
+            $"{_mazeLevel}. pálya; az egész parti áthelyezve.");
+        CheckBossDiscovery([boss], PartyLeader);
+        ForceCoopSnapshotPublish();
+    }
+
     private bool TryFindUniqueNpcPosition(NpcDefinition definition, out Position position)
     {
         var worldNpc = _maze.WorldNpcs.FirstOrDefault(npc =>
