@@ -625,6 +625,37 @@ internal static partial class Program
                 includeMagicItems: false, addSupplies: false));
         Assert(WornEquipment(fixedTierNpc).All(item => item.MagicPower <= 1),
             "A fix felszerelési tier fölötti tárgy került a generált NPC-re.");
+
+        characterClass = catalog.GetCharacterClass(CharacterClassIds.Harcos);
+        var c1 = generator.GenerateMercenary(characterClass, 6, []);
+
+        characterClass = catalog.GetCharacterClass(CharacterClassIds.Lovag);
+        var c2 = generator.GenerateMercenary(characterClass, 9, []);
+
+        characterClass = catalog.GetCharacterClass(CharacterClassIds.Tolvaj);
+        var c3 = generator.GenerateMercenary(characterClass, 12, []);
+
+        characterClass = catalog.GetCharacterClass(CharacterClassIds.Mágus);
+        var c4 = generator.GenerateMercenary(characterClass, 15, []);
+
+        characterClass = catalog.GetCharacterClass(CharacterClassIds.Mágus);
+        var c5 = generator.GenerateMercenary(characterClass, 22, []);
+
+        characterClass = catalog.GetCharacterClass(CharacterClassIds.Harcos);
+        var n1 = generator.GenerateWorldNpc(characterClass, 6, []);
+
+        characterClass = catalog.GetCharacterClass(CharacterClassIds.Lovag);
+        var n2 = generator.GenerateWorldNpc(characterClass, 9, []);
+
+        characterClass = catalog.GetCharacterClass(CharacterClassIds.Tolvaj);
+        var n3 = generator.GenerateWorldNpc(characterClass, 12, []);
+
+        characterClass = catalog.GetCharacterClass(CharacterClassIds.Mágus);
+        var n4 = generator.GenerateWorldNpc(characterClass, 15, []);
+
+        characterClass = catalog.GetCharacterClass(CharacterClassIds.Mágus);
+        var n5 = generator.GenerateWorldNpc(characterClass, 22, []);
+
     }
 
     static void LateInnRecruitsAreLowerLevelAndStillCostGold()

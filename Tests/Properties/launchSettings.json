@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "KaoszrubinTests": {
+      "commandName": "Project",
+      "commandLineArgs": "--filter GeneratedCharacterEquipmentProfilesAreLevelBounded"
+    }
+  }
+}

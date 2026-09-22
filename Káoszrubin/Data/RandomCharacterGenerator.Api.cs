@@ -69,15 +69,14 @@ public sealed partial class RandomCharacterGenerator
     }
 
     /// <summary>
-    /// Harci tesztkaraktert készít pontos szinten. Alapértelmezésben megtartja a kaszt
-    /// alapfelszerelését, így a harci szabálytesztek nem függnek véletlen tárgyaktól.
+    /// Harci tesztkaraktert készít pontos szinten. Alapértelmezésben skálázott felszerelést kap.
     /// </summary>
     public LiveCharacter GenerateCombatTestCharacter(CharacterClassDefinition characterClass, int targetLevel,
         IReadOnlyCollection<string> usedNames, EquipmentOptions? equipment = null)
     {
         var character = CreateLevelOneCore(characterClass, usedNames);
         PrepareExistingCharacterForTest(character, targetLevel);
-        ApplyEquipment(character, equipment ?? EquipmentOptions.Starting);
+        ApplyEquipment(character, equipment ?? EquipmentOptions.Scaled());
         return character;
     }
 
@@ -105,6 +104,7 @@ public sealed partial class RandomCharacterGenerator
     /// Fogadói zsoldost készít. Az 5. pálya utáni szintkorlátozást a
     /// <see cref="RecruitmentRules"/> alkalmazza; a felszerelés alapból a kapott szinthez skálázódik.
     /// </summary>
+    /// <param name="usedNames">The names NOT to pick for the mercenary</param>
     public LiveCharacter GenerateMercenary(CharacterClassDefinition characterClass, int leaderLevel,
         IReadOnlyCollection<string> usedNames, int completedLevel = 0, bool allowWhiteColor = true,
         EquipmentOptions? equipment = null)
