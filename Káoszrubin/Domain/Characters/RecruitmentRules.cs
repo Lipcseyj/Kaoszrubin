@@ -19,6 +19,9 @@ public static class RecruitmentRules
     public static int Price(int recruitLevel, int leaderLevel, int completedLevel, int pricePercent)
     {
         if (!UsesLowerLevelCandidates(completedLevel) && recruitLevel < leaderLevel) return 0;
-        return Math.Max(1, Math.Max(1, recruitLevel) * 200 * Math.Clamp(pricePercent, 50, 150) / 100);
+        return StandardPrice(recruitLevel, pricePercent);
     }
+
+    public static int StandardPrice(int recruitLevel, int pricePercent = 100) =>
+        Math.Max(1, Math.Max(1, recruitLevel) * 200 * Math.Clamp(pricePercent, 50, 150) / 100);
 }

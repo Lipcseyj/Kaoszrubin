@@ -684,6 +684,29 @@ internal static partial class Program
             "Az 5. pálya utáni generátor nem 25–50%-kal gyengébb zsoldost készített.");
     }
 
+    static void DismissedCompanionOfferIsStandardPricedAndPersisted()
+    {
+        Assert(RecruitmentRules.StandardPrice(3) == 600 &&
+               RecruitmentRules.StandardPrice(3, 50) == 300 &&
+               RecruitmentRules.StandardPrice(3, 150) == 900,
+            "A visszaváró társ ára nem a véletlen szorzó nélküli standard zsoldosár.");
+
+        var characterId = Guid.NewGuid();
+        var save = new GameSaveData
+        {
+            WaitingDismissedCompanions = [new(characterId, 2)]
+        };
+        var restored = JsonSerializer.Deserialize<GameSaveData>(JsonSerializer.Serialize(save))!;
+        Assert(restored.WaitingDismissedCompanions is
+               [{ CharacterId: var restoredId, InnVisitsRemaining: 2 }] && restoredId == characterId,
+            "Az elküldött társ kétfogadós ajánlata nem maradt meg a mentésben.");
+
+        var legacy = GameSaveFormat.MigrateToCurrent(new GameSaveData { Version = 27 });
+        Assert(legacy.Version == GameSaveFormat.CurrentVersion &&
+               legacy.WaitingDismissedCompanions.Count == 0,
+            "A régi mentéshez a migráció nem biztonságosan üres várakozólistát adott.");
+    }
+
     static void TemporaryFollowerKeepsWorldNpcMapColors()
     {
         var character = CreateCharacter("Elira");

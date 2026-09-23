@@ -147,6 +147,7 @@ internal static partial class Program
     ("A world-NPC generálás kizárja a fehér karakterszínt", WorldNpcGenerationExcludesWhiteColor),
     ("A karaktergenerátor felszerelési profiljai szinthez kötöttek és konfigurálhatók", GeneratedCharacterEquipmentProfilesAreLevelBounded),
     ("Az 5. pálya utáni zsoldos legalább egy szinttel gyengébb és fizetős", LateInnRecruitsAreLowerLevelAndStillCostGold),
+    ("Az elküldött társ két fogadós ajánlata standard árú és menthető", DismissedCompanionOfferIsStandardPricedAndPersisted),
     ("Az ideiglenes követő megtartja a world-NPC inverz térképszíneit", TemporaryFollowerKeepsWorldNpcMapColors),
     ("A hosszú NPC-párbeszéd az ablakon belül sortörést kap", NpcDialogueWrapsInsideRecruitmentWindow),
     ("A közös küldetésnapló elkülöníti az aktív és teljesített küldetéseket", QuestJournalBuildsSharedHistory),

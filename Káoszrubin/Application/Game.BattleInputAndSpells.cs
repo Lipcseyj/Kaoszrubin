@@ -650,23 +650,50 @@ public sealed partial class Game
 
     private IReadOnlyList<LiveCharacter> GetSpecialInnRecruitCandidates()
     {
-        if (_eliraWaitingAtInn is null) return [];
-        if (_eliraInnVisitsRemaining <= 0)
+        var candidates = new List<LiveCharacter>();
+        if (_eliraWaitingAtInn is not null && _eliraInnVisitsRemaining <= 0)
         {
             AbandonActiveQuestsFromNpc("NPC020");
             CharacterRoster.Remove(_eliraWaitingAtInn);
             _eliraWaitingAtInn = null;
-            return [];
         }
-        _eliraInnVisitsRemaining--;
-        return [_eliraWaitingAtInn];
+        if (_eliraWaitingAtInn is not null)
+        {
+            _eliraInnVisitsRemaining--;
+            candidates.Add(_eliraWaitingAtInn);
+        }
+
+        foreach (var expired in _waitingDismissedCompanions
+                     .Where(waiting => waiting.InnVisitsRemaining <= 0).ToArray())
+        {
+            CharacterRoster.Remove(expired.Character);
+            _waitingDismissedCompanions.Remove(expired);
+        }
+        foreach (var waiting in _waitingDismissedCompanions.ToArray())
+        {
+            candidates.Add(waiting.Character);
+            var index = _waitingDismissedCompanions.IndexOf(waiting);
+            _waitingDismissedCompanions[index] = waiting with
+            {
+                InnVisitsRemaining = waiting.InnVisitsRemaining - 1
+            };
+        }
+        return candidates;
     }
+
+    private int? SpecialInnRecruitmentPrice(LiveCharacter recruit, int completedLevel) =>
+        _waitingDismissedCompanions.Any(waiting => ReferenceEquals(waiting.Character, recruit))
+            ? RecruitmentRules.StandardPrice(recruit.Level)
+            : null;
 
     private void SpecialInnRecruitAccepted(LiveCharacter recruit)
     {
-        if (!ReferenceEquals(recruit, _eliraWaitingAtInn)) return;
-        _eliraWaitingAtInn = null;
-        _eliraInnVisitsRemaining = 0;
+        if (ReferenceEquals(recruit, _eliraWaitingAtInn))
+        {
+            _eliraWaitingAtInn = null;
+            _eliraInnVisitsRemaining = 0;
+        }
+        _waitingDismissedCompanions.RemoveAll(waiting => ReferenceEquals(waiting.Character, recruit));
     }
 
     private void PlaceCarriedTemporaryFollowersNear(Position leaderPosition)

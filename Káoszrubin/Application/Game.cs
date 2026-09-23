@@ -23,6 +23,9 @@ public sealed record NpcQuestUiEntry(string Title, QuestState State, int Progres
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
 public sealed partial class Game : ISessionCommandHandler
 {
+    private sealed record WaitingDismissedCompanion(LiveCharacter Character, int InnVisitsRemaining);
+    private enum PartyMemberDismissalChoice { Cancel, Permanent, WaitForParty }
+
     private const string EliraStoryId = "ELIRA_RESCUE";
     private const string RodericStoryId = "RODERIC_OATH";
     private const string RodericMalrecQuestId = "NPCQ039";
@@ -173,6 +176,7 @@ public sealed partial class Game : ISessionCommandHandler
     private readonly List<LiveCharacter> _developerBattleTestCompanions = [];
     private LiveCharacter? _eliraWaitingAtInn;
     private int _eliraInnVisitsRemaining;
+    private readonly List<WaitingDismissedCompanion> _waitingDismissedCompanions = [];
     private bool _isReturnExpedition;
     private MazeQuestWorldContext _questWorldContext;
     private readonly QuestManager _questManager;
@@ -529,7 +533,8 @@ public sealed partial class Game : ISessionCommandHandler
             ShowSynchronizedRest, () => _maze?.PartyMembers
                 .Where(member => member.IsTemporaryFollower)
                 .Select(member => member.Character)
-                .ToArray() ?? [], GetSpecialInnRecruitCandidates, SpecialInnRecruitAccepted,
+                .ToArray() ?? [], GetSpecialInnRecruitCandidates, SpecialInnRecruitmentPrice,
+            SpecialInnRecruitAccepted,
             RunHostWindow, _backgroundMusic);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);

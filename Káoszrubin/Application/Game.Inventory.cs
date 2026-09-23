@@ -115,24 +115,20 @@ public sealed partial class Game
             return;
         }
 
+        var avatar = _maze.PartyMembers.FirstOrDefault(member => member.Character == character);
+        var canWait = _session.Phase == GameSessionPhase.Exploration && character.IsAlive && avatar is not null;
         CancelHeldInventoryItem();
-        _renderer.DrawInventoryMessage(
-            $"⚠️ Biztosan kirúgod {character.Name} karaktert? Felszerelésével együtt végleg távozik. I/Y: igen | N/Esc: nem",
-            ConsoleColor.Red);
-        while (true)
+        var choice = ChoosePartyMemberDismissal(character, canWait);
+        if (choice == PartyMemberDismissalChoice.Cancel)
         {
-            var key = Console.ReadKey(intercept: true).Key;
-            if (key is ConsoleKey.N or ConsoleKey.Escape)
-            {
-                _renderer.DrawInventoryMessage($"{character.Name} a partiban marad.", ConsoleColor.DarkYellow);
-                return;
-            }
-            if (key is not (ConsoleKey.I or ConsoleKey.Y)) continue;
-            break;
+            _renderer.DrawInventoryMessage($"{character.Name} a partiban marad.", ConsoleColor.DarkYellow);
+            return;
         }
 
+        var guestCharacterId = _session.CharacterControls
+            .FirstOrDefault(control => control.CharacterId == character.Id &&
+                                       control.ControllerKind == CharacterControllerKind.RemotePlayer)?.CharacterId;
         var changedPositions = new List<Position>();
-        var avatar = _maze.PartyMembers.FirstOrDefault(member => member.Character == character);
         if (avatar is not null)
         {
             changedPositions.Add(avatar.Position);
@@ -146,18 +142,55 @@ public sealed partial class Game
             _maze.RemoveCorpse(corpse);
         }
 
-        CharacterRoster.Remove(character);
+        if (choice == PartyMemberDismissalChoice.WaitForParty)
+        {
+            CharacterRoster.Party.Remove(character);
+            _waitingDismissedCompanions.RemoveAll(waiting => ReferenceEquals(waiting.Character, character));
+            _waitingDismissedCompanions.Add(new WaitingDismissedCompanion(character, 2));
+            _maze.AddWorldNpc(new WorldNpc(avatar!.Position, "NPC-FIRST-COMPANION", character,
+                NpcDisposition.Friendly, recruitable: false, isQuestNpc: false,
+                "Itt maradok a kijáratig. Utána két fogadón át megtaláltok, ha ismét fel akartok fogadni.",
+                friendliness: 10, behavior: NpcWorldBehavior.Friendly));
+        }
+        else
+        {
+            CharacterRoster.Remove(character);
+        }
+        _npcSpellcasterTactics.Remove(character.Id);
+        _humanMemberIds.Remove(character.Id);
+        _formation = PartyFormationRules.Normalize(_formation,
+            CharacterRoster.Party.Members.Select(member => member.Id), PartyLeader.Id);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
+        _session.SynchronizeParty();
         foreach (var position in changedPositions.Distinct())
             _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, position, _player.Position);
         _renderer.CharacterSheet.RefreshAfterPartyMemberRemoved(character, PartyLeader);
-        var sackMemberMsg = $"👋 {character.Name} felszerelésével együtt végleg távozott a partiból.";
+        var sackMemberMsg = choice == PartyMemberDismissalChoice.WaitForParty
+            ? $"👋 {character.Name} itt vár a kijáratig, majd két fogadón át ismét felfogadható lesz standard áron."
+            : $"👋 {character.Name} felszerelésével együtt végleg távozott a partiból.";
         _renderer.DrawInventoryMessage(sackMemberMsg, ConsoleColor.DarkYellow);
-        var guestCharacterId = _session.CharacterControls.FirstOrDefault(cc => cc.ControllerKind == CharacterControllerKind.RemotePlayer)?.CharacterId;
         if (guestCharacterId is not null)
         {
             RecordSessionActivity(SessionActivityKind.System, sackMemberMsg, ConsoleColor.DarkYellow, [guestCharacterId.Value]);
         }
+        RequestCoopSnapshotPublish();
         TryFinalizeRodericPermanentJoin();
+    }
+
+    private PartyMemberDismissalChoice ChoosePartyMemberDismissal(LiveCharacter character, bool canWait)
+    {
+        _renderer.DrawInventoryMessage(canWait
+            ? $"⚠️ Mi történjen {character.Name} karakterrel? V: végleg távozik | R: itt vár rátok | N/Esc: marad"
+            : $"⚠️ Biztosan kirúgod {character.Name} karaktert? Felszerelésével együtt végleg távozik. I/Y: igen | N/Esc: nem",
+            ConsoleColor.Red);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key is ConsoleKey.N or ConsoleKey.Escape) return PartyMemberDismissalChoice.Cancel;
+            if (canWait && key == ConsoleKey.R) return PartyMemberDismissalChoice.WaitForParty;
+            if ((canWait && key == ConsoleKey.V) || (!canWait && key is ConsoleKey.I or ConsoleKey.Y))
+                return PartyMemberDismissalChoice.Permanent;
+        }
     }
 
     private bool ConfirmReturnToMainMenu()

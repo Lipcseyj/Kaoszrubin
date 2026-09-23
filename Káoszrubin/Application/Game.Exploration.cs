@@ -179,6 +179,10 @@ public sealed partial class Game
             ? -1 : CharacterRoster.Characters.ToList().IndexOf(_eliraWaitingAtInn);
         state.EliraInnCharacterIndex = waitingIndex >= 0 ? waitingIndex : null;
         state.EliraInnVisitsRemaining = state.EliraInnCharacterIndex is null ? 0 : _eliraInnVisitsRemaining;
+        state.WaitingDismissedCompanions = _waitingDismissedCompanions
+            .Where(waiting => CharacterRoster.Characters.Contains(waiting.Character))
+            .Select(waiting => new WaitingDismissedCompanionSaveData(
+                waiting.Character.Id.Value, waiting.InnVisitsRemaining)).ToList();
         return state;
     }
 
@@ -211,6 +215,16 @@ public sealed partial class Game
             : null;
         _eliraInnVisitsRemaining = _eliraWaitingAtInn is null
             ? 0 : Math.Clamp(state.EliraInnVisitsRemaining, 0, 3);
+        _waitingDismissedCompanions.Clear();
+        foreach (var saved in state.WaitingDismissedCompanions ?? [])
+        {
+            var character = CharacterRoster.Characters.FirstOrDefault(candidate =>
+                candidate.Id.Value == saved.CharacterId);
+            if (character is not null && !CharacterRoster.Party.Members.Contains(character) &&
+                saved.InnVisitsRemaining >= 0)
+                _waitingDismissedCompanions.Add(new WaitingDismissedCompanion(character,
+                    Math.Clamp(saved.InnVisitsRemaining, 0, 2)));
+        }
         _collectedBossKeyIds.Clear();
         _collectedBossKeyIds.UnionWith(state.CollectedBossKeyIds ?? []);
         _seenBossIds.Clear();

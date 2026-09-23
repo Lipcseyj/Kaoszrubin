@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 27;
+    public const int CurrentVersion = 28;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -137,10 +137,20 @@ public static class GameSaveFormat
                 24 => MigrateVersion24To25(state),
                 25 => MigrateVersion25To26(state),
                 26 => MigrateVersion26To27(state),
+                27 => MigrateVersion27To28(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion27To28(GameSaveData state)
+    {
+        // A 28-as formátum a partiból elküldött, fogadóban még visszafogadható
+        // zsoldosokat őrzi. Korábbi mentésben ilyen ajánlat nincs.
+        state.WaitingDismissedCompanions = [];
+        state.Version = 28;
         return state;
     }
 
@@ -381,7 +391,10 @@ public sealed class GameSaveData
     public int AdHocConversationMazeLevel { get; set; } = -1;
     public int? EliraInnCharacterIndex { get; set; }
     public int EliraInnVisitsRemaining { get; set; }
+    public List<WaitingDismissedCompanionSaveData> WaitingDismissedCompanions { get; set; } = [];
 }
+
+public sealed record WaitingDismissedCompanionSaveData(Guid CharacterId, int InnVisitsRemaining);
 
 public enum AdventureLocationKind { Campaign, Quest }
 

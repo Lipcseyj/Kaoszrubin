@@ -50,6 +50,7 @@ internal sealed class InnController
     private Dictionary<LiveCharacter, int>? _recruitmentPrices;
     private readonly Func<IReadOnlyList<LiveCharacter>> _temporaryFollowers;
     private readonly Func<IReadOnlyList<LiveCharacter>> _specialRecruitCandidates;
+    private readonly Func<LiveCharacter, int, int?> _specialRecruitmentPrice;
     private readonly Action<LiveCharacter> _specialRecruitAccepted;
     private readonly Action<string, string, Action> _runHostWindow;
 
@@ -63,6 +64,7 @@ internal sealed class InnController
         Action<PartyRestSnapshot>? reportRest = null,
         Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null,
         Func<IReadOnlyList<LiveCharacter>>? specialRecruitCandidates = null,
+        Func<LiveCharacter, int, int?>? specialRecruitmentPrice = null,
         Action<LiveCharacter>? specialRecruitAccepted = null,
         Action<string, string, Action>? runHostWindow = null, BackgroundMusicPlayer? backgroundMusicPlayer = null)
     {
@@ -79,6 +81,7 @@ internal sealed class InnController
         _reportRest = reportRest ?? (_ => { });
         _temporaryFollowers = temporaryFollowers ?? (() => []);
         _specialRecruitCandidates = specialRecruitCandidates ?? (() => []);
+        _specialRecruitmentPrice = specialRecruitmentPrice ?? ((_, _) => null);
         _specialRecruitAccepted = specialRecruitAccepted ?? (_ => { });
         _runHostWindow = runHostWindow ?? ((_, _, action) => action());
     }
@@ -272,7 +275,7 @@ internal sealed class InnController
                          !_characterRoster.Party.Members.Contains(candidate) && !_recruitCandidates.Contains(candidate)))
             {
                 _recruitCandidates.Add(candidate);
-                _recruitmentPrices[candidate] = 0;
+                _recruitmentPrices[candidate] = _specialRecruitmentPrice(candidate, completedLevel) ?? 0;
             }
         }
 

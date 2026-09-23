@@ -391,6 +391,8 @@ WN023;lidércharapás;WT001;7-15;1;nem;nem;nem;nem;Természetellenes harapás am
 WN024;démoni csáprágók;WT001;9-19;1;nem;nem;nem;nem;Hatalmas pokoli pókszájszerv amely húsba és páncélrésbe egyaránt belemar.;0;;;;2;szúrás;1;nem;NATURAL
 WN025;csáprágók;WT001;7-12;1;nem;nem;nem;nem;Óriás csáprágók harapása.;0;;;;1;szúrás;1;nem;NATURAL
 WN026;lidérckarmok;WT001;5-17;1;nem;nem;nem;nem;Természetellenes karmolás.;0;;;;1;vágás;1;nem;NATURAL
+WN027;démonkarmok;WT001;6-13;1;nem;nem;nem;nem;Démoni karmolás.;0;;;;1;vágás;1;nem;NATURAL
+WN028;démonagyarak;WT001;5-11;1;nem;nem;nem;nem;Hosszú hegyes démoni agyarakkal végrehajtott harapás.;0;;;;1;szúrás;1;nem;NATURAL
 
 W024;kis kerek pajzs;WT003;1-2;1;nem;igen;nem;nem;Apró ökölpajzs, amely alig terheli a viselőjét. Fürge harcosok és tolvajok számára ideális.;160;;;;1;zúzás;1;nem;SHIELD;40;1
 W036;gilf ökölpajzs;WT003;2-3;1;nem;igen;nem;nem;Apró ökölpajzs, amely alig terheli a viselőjét. Fürge harcosok és tolvajok számára ideális. Gilf feketeacél anyaga miatt erősebb;1100;;;;1;zúzás;1;nem;SHIELD;90;2
