@@ -39,6 +39,9 @@ internal static partial class Program
         var remote = session.RegisterRemotePlayer();
         Assert(session.TryAssignRemoteControl(remote, companion.Id, out var error), error);
         var valid = new ChangeCharacterColorCommand(remote, 1, companion.Id, ConsoleColor.Yellow);
+        Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(valid)) is ChangeCharacterColorCommand
+               { Color: ConsoleColor.Yellow },
+            "A karakterszín-parancs nem éli túl a coop wire-körutat.");
         session.Submit(valid);
         Assert(session.TryReadCommand(out var accepted) && accepted == valid,
             "A vendég saját, választható karakterszínét elutasította a session.");
@@ -207,6 +210,7 @@ internal static partial class Program
                GameInputBindings.LeaderAction(ConsoleKey.G, false) == LeaderAction.ToggleRegrouping &&
                GameInputBindings.LeaderAction(ConsoleKey.H, false) == LeaderAction.ToggleHoldPosition &&
                GameInputBindings.LeaderAction(ConsoleKey.T, false) == LeaderAction.ToggleAttackMode &&
+               GameInputBindings.LeaderAction(ConsoleKey.C, false) == LeaderAction.OrderNpcThiefToDisarmTrap &&
                GameInputBindings.LeaderAction(ConsoleKey.Enter, false) is null &&
                GameInputBindings.LeaderAction(ConsoleKey.Enter, true) == LeaderAction.ActivateExit,
             "A leader-only billentyűkiosztás hibás.");

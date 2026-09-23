@@ -49,6 +49,7 @@ public static class GameInputBindings
         ConsoleKey.H => Application.LeaderAction.ToggleHoldPosition,
         ConsoleKey.M => Application.LeaderAction.ScatterParty,
         ConsoleKey.T => Application.LeaderAction.ToggleAttackMode,
+        ConsoleKey.C => Application.LeaderAction.OrderNpcThiefToDisarmTrap,
         ConsoleKey.P => Application.LeaderAction.Rest,
         ConsoleKey.Enter when canActivateExit => Application.LeaderAction.ActivateExit,
         _ => null

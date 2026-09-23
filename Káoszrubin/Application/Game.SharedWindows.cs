@@ -258,6 +258,9 @@ public sealed partial class Game
             case LeaderAction.ToggleAttackMode:
                 TogglePartyAttackMode();
                 break;
+            case LeaderAction.OrderNpcThiefToDisarmTrap:
+                TryOrderNpcThiefToDisarmTrap();
+                break;
             case LeaderAction.Rest:
                 TryRestParty();
                 break;

@@ -84,6 +84,7 @@ public enum LeaderAction
     ToggleHoldPosition,
     ScatterParty,
     ToggleAttackMode,
+    OrderNpcThiefToDisarmTrap,
     Rest,
     ActivateExit
 }

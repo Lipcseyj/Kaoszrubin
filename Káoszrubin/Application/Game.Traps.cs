@@ -26,7 +26,7 @@ public sealed partial class Game
         if (trap is null || !trap.IsActive) return true;
         if (trap.State == TrapState.Detected)
         {
-            ShowTrapMessage($"⚠️ {trap.Definition.Name} zárja el az utat. A mellette álló karakter K-val megpróbálhatja hatástalanítani.",
+            ShowTrapMessage($"⚠️ {trap.Definition.Name} zárja el az utat. K: saját hatástalanítás | C: közeli NPC tolvaj utasítása.",
                 ConsoleColor.Yellow, character);
             return false;
         }
@@ -58,7 +58,42 @@ public sealed partial class Game
         var traps = Directions.Select(direction => _maze.GetTrapAt(position + direction))
             .Where(trap => trap is { State: TrapState.Detected }).Cast<MazeTrap>().ToArray();
         if (traps.Length == 0) return false;
-        var trap = traps[0];
+        return TryDisarmTrap(character, traps[0]);
+    }
+
+    private void TryOrderNpcThiefToDisarmTrap()
+    {
+        var trap = Directions.Select(direction => _maze.GetTrapAt(_player.Position + direction))
+            .FirstOrDefault(candidate => candidate is { State: TrapState.Detected });
+        if (trap is null)
+        {
+            ReportTrapOrder("🧰 A vezér mellett nincs felfedezett, hatástalanítható csapda.",
+                ConsoleColor.DarkYellow);
+            return;
+        }
+
+        var npcControlledIds = _session.CharacterControls
+            .Where(control => control.ControllerKind == CharacterControllerKind.Npc)
+            .Select(control => control.CharacterId).ToHashSet();
+        var thief = _maze.PartyMembers
+            .Where(member => member.Character.IsAlive && npcControlledIds.Contains(member.Character.Id) &&
+                             CharacterClassRules.IsThief(member.Character.CharacterClass.Id) &&
+                             Manhattan(member.Position, _player.Position) <= 4)
+            .OrderBy(member => Manhattan(member.Position, trap.Position))
+            .ThenBy(member => member.Character.Name, StringComparer.CurrentCulture)
+            .FirstOrDefault();
+        if (thief is null)
+        {
+            ReportTrapOrder("🧰 Nincs elég közel élő, NPC-ként irányított tolvaj társ. Gyűjtsd a vezér köré a partit.",
+                ConsoleColor.DarkYellow);
+            return;
+        }
+
+        TryDisarmTrap(thief.Character, trap);
+    }
+
+    private bool TryDisarmTrap(LiveCharacter character, MazeTrap trap)
+    {
         var chance = TrapDisarmChance(character, trap.Definition);
         if (_random.Next(100) < chance)
         {
@@ -76,6 +111,12 @@ public sealed partial class Game
             ConsoleColor.DarkYellow, character);
         if (trap.FailedDisarmAttempts >= 2 && _random.Next(2) == 0) ApplyTrap(character, trap);
         return true;
+    }
+
+    private void ReportTrapOrder(string message, ConsoleColor color)
+    {
+        _renderer.DrawInventoryMessage(message, color);
+        RecordSessionActivity(SessionActivityKind.System, message, color);
     }
 
     private void TriggerTrapAt(LiveCharacter character, Position position)
