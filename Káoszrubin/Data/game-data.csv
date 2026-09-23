@@ -573,7 +573,7 @@ EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEs�
 E090;D001|D003|D005|P001;26;6;0;90;BattleMage;1
 E091;D001|D004|D005|D010|S002|S013|S014;38;7;0;100;Controller;1
 E092;D017|D013|D014|P009;34;8;25;55;Support;1
-E035;D001|D004|D005|D007;30;8;20;85;BattleMage;1
+E035;D001|D004|D005|D007|D018;30;8;20;85;BattleMage;1
 E093;D002|S014|S027|D010;42;10;20;65;Controller;1
 E094;D017|P009|D014|P023;50;11;20;65;Support;1
 E095;D017|P009|D013|P028;58;12;20;70;Support;1
@@ -766,6 +766,7 @@ D011;Kárhozatvihar;4;26;Tartós sötét villámvihar emészti a teljes célter�
 D012;Léleklánc;4;28;Áldozatról áldozatra ugró fekete energia tépi ki az életerőt.;Enemy;8;0;igen;Combat;Shadow;2800;igen
 D015;Véráldozat;4;30;Tiltott rítus egyszerre tölti fel a teljes ellenséges csapat életerejét.;Party;0;0;nem;Combat;BloodRed;0;igen
 D016;Fekete nap;5;50;Mindenséget elemésztő sötétség és kaotikus energia söpör végig a területen.;Area;10;4;igen;Combat;Shadow;5200;igen
+D017;Kőbőr;2;10;Mindenséget elemésztő sötétség és kaotikus energia söpör végig a területen.;PartyMember;5;4;nem;Combat;SiyklyGreen;1500;igen
 
 #Papi varázslatok
 Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség
@@ -873,6 +874,7 @@ FX-D012-1;D012;1;ChainDamage;12d8;4;8;0;0;100;SaveHalf;100|75|50|25;Legfeljebb h
 FX-D015-1;D015;1;Heal;5d8;2;3;0;0;100;Auto;;A teljes ellenséges csapatot gyógyítja.
 FX-D016-1;D016;1;Damage;24d12;6;20;0;0;100;SaveHalf;;Hatalmas területi sötét sebzés mentőre felezve.
 FX-D016-2;D016;2;RandomElement;4d10;0;0;4;3;30;SaveNegates;Fire|Frost|Lightning;Véletlen pusztító utóhatást okoz.
+FX-D018-1;D018;1;PhysicalReduction;;0;0;80;3;100;Auto;;Három körre nyolcvan százalékkal csökkenti a fizikai sebzést.
 FX-P001-1;P001;1;Heal;2d8;1;1;0;0;100;Auto;;Érintéssel helyreállított életerő.
 FX-P002-1;P002;1;Damage;2d6;1;1;0;0;100;Attack;Holy50;Szent sebzés élőholt és démoni célpont ellen másfélszeres erővel.
 FX-P003-1;P003;1;HitBonus;;0;0;1;4;100;Auto;;Négy körre találati bónuszt ad a teljes partinak.
