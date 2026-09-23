@@ -854,9 +854,18 @@ public sealed partial class Game
 
     private void ShowCharacterDetails()
     {
+        var character = _renderer.CharacterSheet.DisplayedCharacter;
+        ConsoleColor? selectedColor = null;
         RunHostPersonalWindow(PlayerWindowKind.CharacterDetails,
-            () => CharacterDetailsWindow.Show(CreateCharacterDetailsSnapshot(_renderer.CharacterSheet.DisplayedCharacter),
+            () => selectedColor = CharacterDetailsWindow.Show(CreateCharacterDetailsSnapshot(character),
                 _gameData, CurrentHostCoopWindowStatus));
+        if (selectedColor is not { } color || !character.ChangeColor(color)) return;
+        _renderer.CharacterSheet.RefreshCharacterSheet();
+        _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar,
+            character == PartyLeader ? _player.Position :
+            _maze.PartyMembers.FirstOrDefault(member => member.Character == character)?.Position ?? _player.Position,
+            _player.Position);
+        RequestCoopSnapshotPublish();
     }
 
     private IReadOnlyList<QuestJournalEntrySnapshot> OrderedQuestJournal()

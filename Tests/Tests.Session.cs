@@ -24,6 +24,29 @@ internal static partial class Program
             "A host érvényes mozgási parancsa nem olvasható ki.");
     }
 
+    static void CharacterColorCanBeChangedFromPalette()
+    {
+        var character = CreateCharacter("Színes");
+        Assert(character.ChangeColor(ConsoleColor.Magenta) && character.Color == ConsoleColor.Magenta &&
+               !character.ChangeColor(ConsoleColor.Black) && character.Color == ConsoleColor.Magenta,
+            "A karakter elfogadott tiltott színt, vagy nem tartotta meg a kiválasztott színt.");
+        Assert(CharacterColorPalette.Move(0, ConsoleKey.RightArrow) == 1 &&
+               CharacterColorPalette.Move(0, ConsoleKey.LeftArrow) == CharacterColors.Selectable.Count - 1 &&
+               CharacterColorPalette.Move(0, ConsoleKey.DownArrow) == CharacterColorPalette.Columns,
+            "A 4 oszlopos színpaletta nyilas navigációja hibás.");
+
+        var (session, _, companion) = CreateSession();
+        var remote = session.RegisterRemotePlayer();
+        Assert(session.TryAssignRemoteControl(remote, companion.Id, out var error), error);
+        var valid = new ChangeCharacterColorCommand(remote, 1, companion.Id, ConsoleColor.Yellow);
+        session.Submit(valid);
+        Assert(session.TryReadCommand(out var accepted) && accepted == valid,
+            "A vendég saját, választható karakterszínét elutasította a session.");
+        session.Submit(new ChangeCharacterColorCommand(remote, 2, companion.Id, ConsoleColor.Black));
+        Assert(!session.TryReadCommand(out _),
+            "A session elfogadta a palettán nem szereplő karakterszínt.");
+    }
+
     static void RemotePlayerCanTakeNpcControl()
     {
         var (session, _, companion) = CreateSession();

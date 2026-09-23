@@ -5,6 +5,7 @@ namespace KaoszRubin.Application;
 public interface ISessionCommandHandler
 {
     void OnSetPlayerWindowVisibility(SetPlayerWindowVisibilityCommand command);
+    void OnChangeCharacterColor(ChangeCharacterColorCommand command);
     bool IsPausedByPlayerWindow();
     void OnMoveLeader(Direction direction, bool preserveFormationFacing);
     void OnMoveRemoteMember(MoveCharacterCommand command);
@@ -55,6 +56,11 @@ public sealed class SessionCommandDispatcher
             if (command is SetPlayerWindowVisibilityCommand playerWindow)
             {
                 _handler.OnSetPlayerWindowVisibility(playerWindow);
+                continue;
+            }
+            if (command is ChangeCharacterColorCommand changeColor)
+            {
+                _handler.OnChangeCharacterColor(changeColor);
                 continue;
             }
             if (_handler.IsPausedByPlayerWindow() && !IsPersonalWindowCommand(command))
@@ -139,5 +145,5 @@ public sealed class SessionCommandDispatcher
     private static bool IsPersonalWindowCommand(GameCommand command) => command is
         InventoryTransferCommand or UseInventoryItemCommand or DropInventoryItemCommand or
         SplitInventoryStackCommand or DistributeInventoryStackCommand or GiveFollowerStackCommand or
-        AssignQuickSpellCommand or AcknowledgeSharedWindowCommand;
+        AssignQuickSpellCommand or AcknowledgeSharedWindowCommand or ChangeCharacterColorCommand;
 }

@@ -57,6 +57,9 @@ public sealed record SetPlayerWindowVisibilityCommand(PlayerId SenderId, long Co
     CharacterId CharacterId, PlayerWindowKind Kind, Guid WindowId, bool IsOpen)
     : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record ChangeCharacterColorCommand(PlayerId SenderId, long CommandId,
+    CharacterId CharacterId, ConsoleColor Color) : GameCommand(SenderId, CommandId, CharacterId);
+
 public sealed record MoveCharacterCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     Direction Direction, bool PreserveFormationFacing = false) : GameCommand(SenderId, CommandId, CharacterId);
 

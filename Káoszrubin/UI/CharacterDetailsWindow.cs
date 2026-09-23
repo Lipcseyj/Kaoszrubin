@@ -97,7 +97,7 @@ public static class CharacterDetailsWindow
         return lines;
     }
 
-    public static void Show(SessionCharacterSnapshot character, GameDataCatalog data,
+    public static ConsoleColor? Show(SessionCharacterSnapshot character, GameDataCatalog data,
         Func<string?>? coopStatusProvider = null)
     {
         var allLines = Build(character, data);
@@ -115,10 +115,16 @@ public static class CharacterDetailsWindow
             offset = Math.Clamp(offset, 0, maximumOffset);
             var page = allLines.Skip(offset).Take(pageSize).ToList();
             page.Add(($"↑/↓, PgUp/PgDn: lapozás  {offset + 1}–{Math.Min(allLines.Count, offset + pageSize)}/{allLines.Count}", ConsoleColor.DarkYellow));
-            page.Add(("R / Enter / Esc: bezárás", ConsoleColor.DarkYellow));
+            page.Add(("C: karakterszín   R / Enter / Esc: bezárás", ConsoleColor.DarkYellow));
             Draw(page);
             var key = CoopWindowStatusBanner.ReadKey(coopStatusProvider).Key;
-            if (key is ConsoleKey.R or ConsoleKey.Enter or ConsoleKey.Escape) return;
+            if (key == ConsoleKey.C)
+            {
+                var selectedColor = CharacterColorPalette.Show(character.Color, coopStatusProvider);
+                if (selectedColor is not null) return selectedColor;
+                continue;
+            }
+            if (key is ConsoleKey.R or ConsoleKey.Enter or ConsoleKey.Escape) return null;
             offset = key switch { ConsoleKey.UpArrow => offset - 1, ConsoleKey.DownArrow => offset + 1,
                 ConsoleKey.PageUp => offset - pageSize, ConsoleKey.PageDown => offset + pageSize, _ => offset };
         }
@@ -126,7 +132,7 @@ public static class CharacterDetailsWindow
 
     public static IReadOnlyList<(string Text, ConsoleColor Color)> Page(IReadOnlyList<(string Text, ConsoleColor Color)> lines,
         int offset, int pageSize) => lines.Skip(Math.Clamp(offset, 0, Math.Max(0, lines.Count - pageSize)))
-        .Take(pageSize).Append(("↑/↓, PgUp/PgDn: lapozás | R/Esc: bezárás", ConsoleColor.DarkYellow)).ToArray();
+        .Take(pageSize).Append(("↑/↓, PgUp/PgDn: lapozás | C: szín | R/Esc: bezárás", ConsoleColor.DarkYellow)).ToArray();
 
     private static void AddSection(List<(string, ConsoleColor)> lines, string title, IEnumerable<string> values,
         string empty)

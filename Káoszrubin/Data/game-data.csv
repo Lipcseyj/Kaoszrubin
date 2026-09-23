@@ -366,11 +366,10 @@ W022;elf tőr;WT002;3-6;1;nem;igen;nem;igen;Hosszabb hajlított pengéjű elf t�
 W023;kasza;WT001;8-17;8;igen;nem;nem;nem;Hosszú nyelű, széles pengéjű kasza, amelyet élőholt aratók és más szörnyek használnak.;0;;;;6;vágás;2;igen;POLEARM;
 WN001;fogak;WT001;2-6;1;nem;nem;nem;nem;Természetes harapás.;0;;;;1;szúrás;1;nem;NATURAL
 WN002;karmok;WT001;4-10;1;nem;nem;nem;nem;Természetes karmolás.;0;;;;1;vágás;1;nem;NATURAL
-WN025;puszta kéz;WT001;1-5;1;nem;nem;nem;nem;Nehéz természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
 WN003;ököl;WT001;5-12;1;nem;nem;nem;nem;Nehéz természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
 WN004;sárkányfogak;WT001;10-24;1;nem;nem;nem;nem;Hatalmas agyarak.;0;;;;1;szúrás;1;nem;NATURAL
 WN005;farokcsapás;WT001;9-18;1;nem;nem;nem;nem;Súlyos természetes farokcsapás.;0;;;;1;zúzás;1;nem;NATURAL
-WN006;tüzes lehelet;WT001;12-26;1;nem;nem;nem;nem;Lángoló sárkánylehelet.;0;;;;1;tűz;3;nem;NATURAL
+WN006;sárkánytűz;WT001;12-26;1;nem;nem;nem;nem;Lángoló sárkánylehelet.;0;;;;1;tűz;3;nem;NATURAL
 WN007;agyarak;WT001;4-10;1;nem;nem;nem;nem;Hosszú hegyes agyarakkal végrehajtott harapás.;0;;;;1;szúrás;1;nem;NATURAL
 WN008;csőr;WT001;3-8;1;nem;nem;nem;nem;Éles csőrrel végrehajtott gyors támadás.;0;;;;1;szúrás;1;nem;NATURAL
 WN009;szarvöklelés;WT001;7-15;1;nem;nem;nem;nem;Nagy erővel végrehajtott roham és szarvdöfés.;0;;;;2;szúrás;1;nem;NATURAL
@@ -393,6 +392,8 @@ WN025;csáprágók;WT001;7-12;1;nem;nem;nem;nem;Óriás csáprágók harapása.;
 WN026;lidérckarmok;WT001;5-17;1;nem;nem;nem;nem;Természetellenes karmolás.;0;;;;1;vágás;1;nem;NATURAL
 WN027;démonkarmok;WT001;6-13;1;nem;nem;nem;nem;Démoni karmolás.;0;;;;1;vágás;1;nem;NATURAL
 WN028;démonagyarak;WT001;5-11;1;nem;nem;nem;nem;Hosszú hegyes démoni agyarakkal végrehajtott harapás.;0;;;;1;szúrás;1;nem;NATURAL
+WN029;tűzfelhő;WT001;8-16;1;nem;nem;nem;nem;Tüzes felhő.;0;;;;1;tűz;3;nem;NATURAL
+WN030;puszta kéz;WT001;1-5;1;nem;nem;nem;nem;Nehéz természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
 
 W024;kis kerek pajzs;WT003;1-2;1;nem;igen;nem;nem;Apró ökölpajzs, amely alig terheli a viselőjét. Fürge harcosok és tolvajok számára ideális.;160;;;;1;zúzás;1;nem;SHIELD;40;1
 W036;gilf ökölpajzs;WT003;2-3;1;nem;igen;nem;nem;Apró ökölpajzs, amely alig terheli a viselőjét. Fürge harcosok és tolvajok számára ideális. Gilf feketeacél anyaga miatt erősebb;1100;;;;1;zúzás;1;nem;SHIELD;90;2
@@ -574,7 +575,7 @@ E100;Feketemágus;Ӻ;22;2300;11;8;10000;5;MA013;;8;3;0;nem;W021|W020;nem;2;2;-2;
 EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEsély%;Profil;VarázslatLehűlés
 E090;D001|D003|D005|P001;26;6;0;90;BattleMage;1
 E091;D001|D004|D005|D010|S002|S013|S014;38;7;0;100;Controller;1
-E092;D017|D013|D014|P009;34;8;25;55;Support;1
+E092;D017|D013|D014|P009;44;8;25;88;Support;1
 E035;D001|D004|D005|D007|D018;30;8;20;85;BattleMage;1
 E093;D002|S014|S027|D010;42;10;20;65;Controller;1
 E094;D017|P009|D014|P023;50;11;20;65;Support;1
@@ -768,7 +769,7 @@ D011;Kárhozatvihar;4;26;Tartós sötét villámvihar emészti a teljes célter�
 D012;Léleklánc;4;28;Áldozatról áldozatra ugró fekete energia tépi ki az életerőt.;Enemy;8;0;igen;Combat;Shadow;2800;igen
 D015;Véráldozat;4;30;Tiltott rítus egyszerre tölti fel a teljes ellenséges csapat életerejét.;Party;0;0;nem;Combat;BloodRed;0;igen
 D016;Fekete nap;5;50;Mindenséget elemésztő sötétség és kaotikus energia söpör végig a területen.;Area;10;4;igen;Combat;Shadow;5200;igen
-D017;Kőbőr;2;10;Mindenséget elemésztő sötétség és kaotikus energia söpör végig a területen.;PartyMember;5;4;nem;Combat;SiyklyGreen;1500;igen
+D018;Kőbőr;2;10;Mindenséget elemésztő sötétség és kaotikus energia söpör végig a területen.;PartyMember;5;4;nem;Combat;SicklyGreen;1500;igen
 
 #Papi varázslatok
 Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség

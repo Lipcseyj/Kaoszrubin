@@ -55,7 +55,7 @@ public sealed class LiveCharacter
 
     public CharacterId Id { get; }
     public string Name { get; }
-    public ConsoleColor Color { get; }
+    public ConsoleColor Color { get; private set; }
     public NpcBehavior? NpcBehavior { get; private set; }
     public RaceDefinition Race { get; }
     public CharacterClassDefinition CharacterClass { get; }
@@ -82,6 +82,13 @@ public sealed class LiveCharacter
     public int ManaBonus { get; }
     public bool UsesMana => CharacterClass.UsesMana;
     public bool IsAlive => CurrentVitality > 0;
+
+    public bool ChangeColor(ConsoleColor color)
+    {
+        if (!CharacterColors.Selectable.Contains(color)) return false;
+        Color = color;
+        return true;
+    }
     public int FoodLevel { get; private set; } = 100;
     public int WaterLevel { get; private set; } = 100;
     public int Gold { get; private set; }

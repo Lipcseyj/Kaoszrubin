@@ -58,6 +58,22 @@ public sealed partial class Game
         UpdatePlayerBlockingWindowState(command.SenderId, command.CharacterId, command.Kind, command.WindowId,
             command.IsOpen);
 
+    void ISessionCommandHandler.OnChangeCharacterColor(ChangeCharacterColorCommand command)
+    {
+        var character = CharacterRoster.Party.Members.FirstOrDefault(member => member.Id == command.CharacterId);
+        if (character is null || !character.ChangeColor(command.Color))
+        {
+            _session.RejectExecutedCommand(command, "A karakterszín nem módosítható.");
+            return;
+        }
+        _renderer.CharacterSheet.RefreshCharacterSheet();
+        var position = character == PartyLeader ? _player.Position :
+            _maze.PartyMembers.FirstOrDefault(member => member.Character == character)?.Position;
+        if (position is { } visiblePosition)
+            _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, visiblePosition, _player.Position);
+        RequestCoopSnapshotPublish();
+    }
+
     bool ISessionCommandHandler.IsPausedByPlayerWindow() => _openPlayerWindows.Count > 0;
 
     void ISessionCommandHandler.OnMoveLeader(Direction direction, bool preserveFormationFacing) =>

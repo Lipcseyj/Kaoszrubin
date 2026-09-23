@@ -84,6 +84,7 @@ internal static partial class Program
     ("A sebzéstípusok és a szörnyfegyverek módosítják a valódi sebzést", PhysicalDamageUsesTypesAndWeapons),
     ("A CSV új fegyverei adatvezéreltek és örökítik a harci tulajdonságokat", WeaponCsvPropertiesAreInherited),
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
+    ("A karakterszín palettáról módosítható és a coop parancs validált", CharacterColorCanBeChangedFromPalette),
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
     ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),
     ("Az emberi vendég ráléphet a kincsesláda mezőjére", RemotePlayerCanStepOntoTreasureChest),

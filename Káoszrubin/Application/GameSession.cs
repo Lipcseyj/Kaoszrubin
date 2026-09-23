@@ -386,6 +386,13 @@ public sealed class GameSession
             reason = string.Empty;
             return true;
         }
+        if (command is ChangeCharacterColorCommand changeColor)
+        {
+            if (!CharacterColors.Selectable.Contains(changeColor.Color))
+                return Fail("Nem választható karakterszín.", out reason);
+            reason = string.Empty;
+            return true;
+        }
         if (command is MoveCharacterCommand && _formationMovementLocked &&
             control.ControllerKind == CharacterControllerKind.RemotePlayer)
             return Fail("Zárt alakzatban csak a vezető adhat mozgásparancsot.", out reason);

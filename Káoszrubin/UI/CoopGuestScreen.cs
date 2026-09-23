@@ -31,6 +31,8 @@ public sealed class CoopGuestScreen
     private int _inventorySelection;
     private bool _characterDetailsOpen;
     private int _characterDetailsOffset;
+    private bool _characterColorPaletteOpen;
+    private int _characterColorPaletteSelection;
     private readonly QuestJournalNotificationTracker _questNotifications = new();
     private readonly List<QuestJournalEntrySnapshot> _newQuestOffers = [];
     private readonly List<QuestJournalEntrySnapshot> _questCompletions = [];
@@ -397,9 +399,37 @@ public sealed class CoopGuestScreen
         // Az oldalsó inventory nem blokkoló ablak; közös eseménynél átadja a fókuszt.
         if (_characterDetailsOpen)
         {
+            var detailedCharacter = snapshot.Party.FirstOrDefault(character =>
+                character.CharacterId == (_displayedCharacterId ?? characterId));
+            if (_characterColorPaletteOpen)
+            {
+                if (key == ConsoleKey.Escape)
+                    _characterColorPaletteOpen = false;
+                else if (key == ConsoleKey.Enter && detailedCharacter?.CharacterId == characterId)
+                {
+                    var color = CharacterColors.Selectable[_characterColorPaletteSelection];
+                    await client.SendCommandAsync(new ChangeCharacterColorCommand(client.PlayerId!.Value,
+                        client.NextCommandId(), characterId, color), cancellationToken);
+                    _characterColorPaletteOpen = false;
+                }
+                else
+                    _characterColorPaletteSelection = CharacterColorPalette.Move(
+                        _characterColorPaletteSelection, key);
+                Interlocked.Exchange(ref _redrawRequested, 1);
+                return;
+            }
+            if (key == ConsoleKey.C && detailedCharacter?.CharacterId == characterId)
+            {
+                _characterColorPaletteOpen = true;
+                _characterColorPaletteSelection = Math.Max(0,
+                    CharacterColors.Selectable.ToList().IndexOf(detailedCharacter.Color));
+                Interlocked.Exchange(ref _redrawRequested, 1);
+                return;
+            }
             if (key is ConsoleKey.R or ConsoleKey.Escape or ConsoleKey.Enter)
             {
                 _characterDetailsOpen = false;
+                _characterColorPaletteOpen = false;
                 if (_personalWindowId is { } detailsWindowId)
                 {
                     _personalWindowKind = null;
@@ -1205,6 +1235,7 @@ public sealed class CoopGuestScreen
         {
             case InventoryInputAction.CharacterDetails:
                 _characterDetailsOpen = true;
+                _characterColorPaletteOpen = false;
                 _characterDetailsOffset = 0;
                 _personalWindowId = Guid.NewGuid();
                 _personalWindowKind = PlayerWindowKind.CharacterDetails;
@@ -2509,11 +2540,50 @@ public sealed class CoopGuestScreen
     private void ApplyCharacterDetailsUi(GuestMapCell[,] grid, SessionCharacterSnapshot? character)
     {
         if (!_characterDetailsOpen || character?.CharacterSheet is null) return;
+        if (_characterColorPaletteOpen)
+        {
+            ApplyCharacterColorPaletteUi(grid, character);
+            return;
+        }
         var allLines = CharacterDetailsWindow.Build(character, _gameData);
         var pageSize = Math.Max(4, grid.GetLength(1) - 8);
         _characterDetailsOffset = Math.Clamp(_characterDetailsOffset, 0, Math.Max(0, allLines.Count - pageSize));
         DrawGuestOverlay(grid, CharacterDetailsWindow.Page(allLines, _characterDetailsOffset, pageSize),
             ConsoleColor.Magenta, CharacterDetailsWindow.Width, FramedWindow.CharacterDetails);
+    }
+
+    private void ApplyCharacterColorPaletteUi(GuestMapCell[,] grid, SessionCharacterSnapshot character)
+    {
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ($"KARAKTERSZÍN — {character.Name}", ConsoleColor.Yellow),
+            ("Nyilak: választás   Enter: mentés   Esc: mégse", ConsoleColor.DarkCyan),
+            (string.Empty, ConsoleColor.Gray), (string.Empty, ConsoleColor.Gray),
+            (string.Empty, ConsoleColor.Gray), (string.Empty, ConsoleColor.Gray),
+            (string.Empty, ConsoleColor.Gray), (string.Empty, ConsoleColor.Gray),
+            ($"Kiválasztva: {CharacterColors.NameOf(CharacterColors.Selectable[_characterColorPaletteSelection])}",
+                CharacterColors.Selectable[_characterColorPaletteSelection])
+        };
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, CharacterColorPalette.Width,
+            FramedWindow.CharacterDetails);
+
+        var width = Math.Min(CharacterColorPalette.Width, Math.Max(10, grid.GetLength(0) - 2));
+        var left = Math.Max(0, (grid.GetLength(0) - width) / 2);
+        var top = Math.Max(0, (grid.GetLength(1) - lines.Count - 2) / 2);
+        for (var index = 0; index < CharacterColors.Selectable.Count; index++)
+        {
+            var row = index / CharacterColorPalette.Columns;
+            var column = index % CharacterColorPalette.Columns;
+            var x = left + 5 + column * CharacterColorPalette.CellWidth;
+            var y = top + 4 + row * 2;
+            var color = CharacterColors.Selectable[index];
+            Put(grid, new Position(x - 2, y), index == _characterColorPaletteSelection ? "▶" : " ",
+                index == _characterColorPaletteSelection ? ConsoleColor.Yellow : ConsoleColor.Gray);
+            for (var swatchY = 0; swatchY < 2; swatchY++)
+            for (var swatchX = 0; swatchX < 8; swatchX++)
+                if (x + swatchX < grid.GetLength(0) && y + swatchY < grid.GetLength(1))
+                    grid[x + swatchX, y + swatchY] = new GuestMapCell("█", color, color);
+        }
     }
 
     private static TacticalBattleParticipantSnapshot? NextBattleTarget(BattleSnapshot battle,
