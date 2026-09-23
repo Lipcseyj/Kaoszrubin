@@ -415,9 +415,9 @@ public sealed partial class Game
                         _renderer.CharacterSheet.PageBattleDetails(detailDirection);
                         continue;
                     }
-                    if (keyInfo.Key is ConsoleKey.PageUp or ConsoleKey.PageDown)
+                    if (MessageLogNavigationRules.TryFromKey(keyInfo.Key, out var logNavigation))
                     {
-                        _renderer.ScrollMessageLog(keyInfo.Key == ConsoleKey.PageUp);
+                        _renderer.NavigateMessageLog(logNavigation);
                         continue;
                     }
                     if (GameInput.IsSettingsShortcut(keyInfo))

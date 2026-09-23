@@ -306,6 +306,7 @@ internal static partial class Program
     ("A fejlesztői boss-teleport sorrendje és parti-célmezői érvényesek", DeveloperBossTeleportTargetsAndDestinationsAreValid),
     ("A kompakt party státusz HP-t és manát százalékosan mutat", CompactPartyStatusShowsResources),
     ("Az ablakkeret-katalógus méretezhető és konfigurálható", WindowFrameCatalogIsResizableAndConfigured),
+    ("A csatalog 200 sort őriz és látható oldalanként navigál", MessageLogStoresAndNavigatesFullHistory),
     ("A vendég snapshot kasztbetűt és karakterszínt őriz", GuestAvatarUsesClassGlyphAndCharacterColor),
     ("A vendég nem rajzol újra puszta snapshot-sorszám változásra", GuestRedrawIgnoresReplicationSequences),
     ("A vendég a teljes party inventory read modeljét megkapja", ReplicationPublisherSharesPartyInventories),

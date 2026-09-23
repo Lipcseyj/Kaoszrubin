@@ -908,7 +908,7 @@ internal static partial class Program
                    ConsoleRenderer.ScreenRowCountForMessageLogLineCount(ConsoleRenderer.StandardMessageLogLineCount)) == ConsoleRenderer.StandardMessageLogLineCount &&
                ConsoleRenderer.MessageLogLineCountForWindowHeight(
                    ConsoleRenderer.ScreenRowCountForMessageLogLineCount(ConsoleRenderer.StandardMessageLogLineCount) + 3) == ConsoleRenderer.StandardMessageLogLineCount + 3 &&
-               ConsoleRenderer.MessageLogBufferLineCount == ConsoleRenderer.MessageLogLineCount * 3 &&
+               ConsoleRenderer.MessageLogBufferLineCount == 200 &&
                ConsoleRenderer.ScreenRowCount == ConsoleRenderer.PlayfieldHeight +
                    ConsoleRenderer.MessageLogLineCount + 1,
             "A fő játékfelület 1200p-s négy extra logsora vagy a hozzá igazodó magassága hibás.");
@@ -953,5 +953,20 @@ internal static partial class Program
                Enumerable.Range(0, 48).Select(x => CharacterMenuSurface.BlockGlyph(x, x / 2))
                    .ToHashSet().SetEquals(['░', '▒', '▓', '█']),
             "Az első körös ablak–keret alapbeállítások hibásak.");
+    }
+
+    static void MessageLogStoresAndNavigatesFullHistory()
+    {
+        Assert(ConsoleRenderer.MessageLogBufferLineCount == 200 &&
+               MessageLogNavigationRules.CalculateOffset(0, 200, 11, MessageLogNavigation.OlderPage) == 11 &&
+               MessageLogNavigationRules.CalculateOffset(11, 200, 11, MessageLogNavigation.OlderPage) == 22 &&
+               MessageLogNavigationRules.CalculateOffset(22, 200, 11, MessageLogNavigation.NewerPage) == 11 &&
+               MessageLogNavigationRules.CalculateOffset(0, 200, 11, MessageLogNavigation.Oldest) == 189 &&
+               MessageLogNavigationRules.CalculateOffset(189, 200, 11, MessageLogNavigation.Newest) == 0 &&
+               MessageLogNavigationRules.TryFromKey(ConsoleKey.Home, out var homeNavigation) &&
+               homeNavigation == MessageLogNavigation.Oldest &&
+               MessageLogNavigationRules.TryFromKey(ConsoleKey.End, out var endNavigation) &&
+               endNavigation == MessageLogNavigation.Newest,
+            "A csatalog kapacitása, dinamikus lapozása vagy Home/End navigációja hibás.");
     }
 }

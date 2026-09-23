@@ -34,7 +34,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     public const int TallDisplayExtraMessageLines = 4;
     public const int TallDisplayMinimumPixelHeight = 1200;
     public static int MessageLogLineCount => MessageLogLineCountForWindowHeight(SafeConsoleWindowHeight());
-    public static int MessageLogBufferLineCount => MessageLogLineCount * 3;
+    public const int MessageLogBufferLineCount = 200;
     public static int ScreenRowCount => PlayfieldHeight + MessageLogLineCount + 1;
     public static string MoneyIcon { get; } = IsWindows11OrLater() ? "🪙" : "💰";
     public static string WandIcon { get; } = IsWindows11OrLater() ? "🪄" : "✨";
@@ -2735,12 +2735,10 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _replicatedWindowBackground = null;
     }
 
-    public void ScrollMessageLog(bool towardOlderMessages)
+    public void NavigateMessageLog(MessageLogNavigation navigation)
     {
-        var maximumOffset = Math.Max(0, _messageLog.Count - MessageLineCount);
-        _messageLogScrollOffset = towardOlderMessages
-            ? Math.Min(maximumOffset, _messageLogScrollOffset + MessageLineCount)
-            : Math.Max(0, _messageLogScrollOffset - MessageLineCount);
+        _messageLogScrollOffset = MessageLogNavigationRules.CalculateOffset(
+            _messageLogScrollOffset, _messageLog.Count, MessageLineCount, navigation);
         RenderMessageLog();
     }
 

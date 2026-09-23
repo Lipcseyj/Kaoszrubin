@@ -210,9 +210,10 @@ public sealed class CoopGuestScreen
                         Interlocked.Exchange(ref _redrawRequested, 1);
                         continue;
                     }
-                    if (!_characterDetailsOpen && key.Key is ConsoleKey.PageUp or ConsoleKey.PageDown)
+                    if (!_characterDetailsOpen &&
+                        MessageLogNavigationRules.TryFromKey(key.Key, out var logNavigation))
                     {
-                        ScrollMessageLog(key.Key == ConsoleKey.PageUp);
+                        NavigateMessageLog(logNavigation);
                         continue;
                     }
                     if (GameInput.IsSettingsShortcut(key))
@@ -2616,12 +2617,10 @@ public sealed class CoopGuestScreen
         Interlocked.Exchange(ref _redrawRequested, 1);
     }
 
-    private void ScrollMessageLog(bool towardOlderMessages)
+    private void NavigateMessageLog(MessageLogNavigation navigation)
     {
-        var maximumOffset = Math.Max(0, _messageLog.Count - MessageLineCount);
-        _messageLogScrollOffset = towardOlderMessages
-            ? Math.Min(maximumOffset, _messageLogScrollOffset + MessageLineCount)
-            : Math.Max(0, _messageLogScrollOffset - MessageLineCount);
+        _messageLogScrollOffset = MessageLogNavigationRules.CalculateOffset(
+            _messageLogScrollOffset, _messageLog.Count, MessageLineCount, navigation);
         Interlocked.Exchange(ref _redrawRequested, 1);
     }
 
