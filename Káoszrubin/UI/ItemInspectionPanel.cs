@@ -148,7 +148,15 @@ public static class ItemInspectionPanel
                 yield return ($"👊 Minimum Erő: {weapon.MinimumStrength}", ConsoleColor.Gray);
                 yield return ($"🎯 Célpontok száma: {weapon.MaximumTargets}", ConsoleColor.Gray);
                 yield return ($"↘ Hátsó sorból használható: {(weapon.CanAttackFromRear ? "igen" : "nem")}", ConsoleColor.Gray);
+                if (weapon.IsRanged)
+                {
+                    yield return ($"🏹 Hatótáv: {weapon.MinimumRange}–{weapon.MaximumRange} mező", ConsoleColor.Cyan);
+                    if (weapon.AmmunitionItemId is { } ammunitionId)
+                        yield return ($"➶ Lőszer: {gameData.GetItem(ammunitionId).Name}", ConsoleColor.Cyan);
+                }
                 yield return ($"🤲 Kezelés: {(weapon.IsTwoHanded ? "kétkezes" : "egykezes")}", ConsoleColor.Gray);
+                if (weapon.EffectiveArmorPenetrationPercent > 0)
+                    yield return ($"⚒ Páncéltörés: {weapon.EffectiveArmorPenetrationPercent}%", ConsoleColor.Cyan);
                 yield return ($"🎓 Engedélyezett kasztok: {AllowedClassNames(weapon.AllowedClassIds, gameData)}", ConsoleColor.Gray);
                 if (!string.IsNullOrWhiteSpace(weapon.FamilyId))
                     yield return ($"🧬 Fegyvercsalád: {weapon.FamilyId}", ConsoleColor.DarkCyan);

@@ -140,6 +140,7 @@ public sealed partial class RandomCharacterGenerator(GameDataCatalog gameData, R
     {
         if (options.Selection == EquipmentSelection.KeepStartingEquipment)
         {
+            EnsureEquippedWeaponAmmunition(character);
             if (options.AddSupplies) FillRecruitBackpack(character);
             return;
         }
@@ -154,6 +155,7 @@ public sealed partial class RandomCharacterGenerator(GameDataCatalog gameData, R
             : (int)options.Tier;
         ApplyConfiguredWeapons(character, maximumTier);
         ApplyConfiguredArmor(character, maximumTier);
+        EnsureEquippedWeaponAmmunition(character);
 
         if (options.IncludeMagicItems) FillScaledMagicItems(character, maximumTier, options.TierVariance);
         if (options.AddSupplies) FillRecruitBackpack(character);
@@ -357,6 +359,7 @@ public sealed partial class RandomCharacterGenerator(GameDataCatalog gameData, R
             if (!firstWeapon.IsTwoHanded && usableSecondWeapons.Count > 0)
                 character.EquipWeapon(1, usableSecondWeapons[_random.Next(usableSecondWeapons.Count)]);
         }
+        EnsureEquippedWeaponAmmunition(character);
         var usableArmors = _gameData.Armors.Where(armor => armor.CanBeEquippedBy(character.CharacterClass.Id) &&
             IsEquipmentTierAvailable(armor, maximumMagicPower, allowLegendary)).ToList();
         if (usableArmors.Count > 0) character.EquipArmor(usableArmors[_random.Next(usableArmors.Count)]);
@@ -373,6 +376,26 @@ public sealed partial class RandomCharacterGenerator(GameDataCatalog gameData, R
         var targetCount = _random.Next(3, LiveCharacter.MaximumBackpackItemCount + 1);
         while (character.Backpack.Count(item => item is not null) < targetCount)
             character.AddToBackpack(allItems[_random.Next(allItems.Count)]);
+    }
+
+    private void EnsureEquippedWeaponAmmunition(LiveCharacter character)
+    {
+        foreach (var ammunitionId in character.WeaponSlots
+                     .OfType<WeaponDefinition>()
+                     .Where(weapon => weapon.UsesAmmunition && weapon.AmmunitionItemId is not null)
+                     .Select(weapon => weapon.AmmunitionItemId!)
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var ammunition = _gameData.GetItem(ammunitionId);
+            int Count() => Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
+                .Where(index => string.Equals(
+                    character.GetInventoryItem(InventorySlotKind.Backpack, index)?.Id,
+                    ammunitionId, StringComparison.OrdinalIgnoreCase))
+                .Sum(index => character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index));
+            while (Count() < 12 && character.AddToBackpack(ammunition))
+            {
+            }
+        }
     }
 
     private void EquipDevelopmentMagicItems(LiveCharacter character)
@@ -441,7 +464,11 @@ public sealed partial class RandomCharacterGenerator(GameDataCatalog gameData, R
     {
         var desiredAdvances = WeaponProficiencyProgression.EarnedAdvances(
             character.CharacterClass.Id, character.Level);
-        var families = WeaponFamilies.AvailableFor(character.CharacterClass.Id, _gameData.Weapons);
+        // A távolsági családok tudatos játékosi szakosodások; a véletlen NPC-generálás
+        // nem írja felül velük a korábbi közelharci szerepköröket.
+        var families = WeaponFamilies.AvailableFor(character.CharacterClass.Id, _gameData.Weapons)
+            .Where(family => family.Id is not WeaponFamilies.Bow and not WeaponFamilies.Crossbow)
+            .ToArray();
         while (character.WeaponProficiencyAdvances < desiredAdvances)
         {
             var choices = families.Where(family =>

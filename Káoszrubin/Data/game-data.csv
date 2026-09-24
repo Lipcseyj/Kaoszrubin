@@ -256,6 +256,8 @@ T025;Fáklya;Olajos fáklya amely tizenkét körre kettővel növeli a hordozó 
 T026;Elesett lovag jelvénye;Megfakult rendjel Roderic egykori bajtársainak címerével.;1;None;0;nem
 T027;Az Ezüst Eskü pecsétje;Az Ezüst Eskü Rendjének ősi nagypecsétje. Egy kard előtt álló ezüst pajzs díszíti.;1;None;0;nem
 T028;Javítókészlet;Kalapácsot szegecseket bőrfoltot és fenőkövet tartalmazó készlet. Terepen egy felszerelést 50 ponttal javít de legfeljebb 75%-os állapotig.;180;RepairEquipment;50;nem;0.8
+T029;Nyíl;Vasból kovácsolt hegyű szabványos nyíl íjakhoz.;2;None;0;nem;0.05
+T030;Íjpuskalövedék;Rövid vastag vessző íjpuskákhoz.;3;None;0;nem;0.08
 
 #Varázstárgyak
 Id;Név;Típus;Kategória;Ár;Töltet;VarázslatId;Hatás;Érték;CsakMágus;Jellemzés;MágikusErő;Súly
@@ -343,7 +345,7 @@ WT002;Ügyesség
 WT003;Védelem
 
 #Fegyverek
-Id;Név;Típus;Sebzés;MinimumErő;Kétkezes;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;Sebzéstípus;MaxCélpont;HátsóSor;Fegyvercsalád;MaxTartósság;PajzsTier
+Id;Név;Típus;Sebzés;MinimumErő;Kétkezes;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;Sebzéstípus;MaxCélpont;HátsóSor;Fegyvercsalád;MaxTartósság;PajzsTier;Támadásmód;MinHatótáv;MaxHatótáv;LőszerId;Páncéltörés%;EngedélyezettKasztIds
 W001;tőr;WT002;2-5;1;nem;igen;nem;igen;Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.;35;;;;1;szúrás;1;nem;DAGGER
 W002;rövid kard;WT002;3-7;3;nem;igen;nem;nem;Fordulékony egykezes kard amely szűk helyen is jól használható.;70;;;;2;szúrás;1;nem;SWORD
 W003;katana;WT002;5-10;4;igen;igen;nem;nem;Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.;420;;;;4;vágás;1;nem;SWORD
@@ -366,6 +368,12 @@ W022;elf tőr;WT002;3-6;1;nem;igen;nem;igen;Hosszabb hajlított pengéjű elf t�
 W023;szellemkasza;WT001;8-17;8;igen;nem;nem;nem;Hosszú nyelű, széles pengéjű kasza, amelyet élőholt aratók és más szörnyek használnak.;0;;;;6;vágás;2;igen;POLEARM;
 W037;óriásbalta;WT001;9-25;9;igen;nem;nem;nem;Óriásoknak készül brutális méretű csatabárd.;500;;;;15;vágás;2;nem;AXE
 W038;óriáspallos;WT001;12-22;9;igen;nem;nem;nem;Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.;550;;;;14;vágás;2;nem;SWORD
+W039;rövidíj;WT002;3-6;2;igen;igen;nem;nem;Könnyű íj gyors lövésekhez és szűk folyosókhoz.;90;;;;2;szúrás;1;nem;BOW;90;0;Projectile;1;4;T029;0;C001|C004
+W040;hosszúíj;WT002;4-9;5;igen;nem;nem;nem;Nagy húzóerejű hosszúíj pontos távoli lövésekhez.;260;;;;4;szúrás;1;nem;BOW;110;0;Projectile;1;5;T029;0;C001
+W041;harci íj;WT002;6-12;8;igen;nem;nem;nem;Megerősített harci íj amely csak erős és gyakorlott kézben engedelmes.;520;;;;6;szúrás;1;nem;BOW;130;0;Projectile;1;5;T029;0;C001
+W042;kézi íjpuska;WT002;4-7;2;nem;igen;nem;nem;Egy kézzel is elsüthető rövid íjpuska közelibb célpontok ellen.;180;;;;2;szúrás;1;nem;CROSSBOW;100;0;Projectile;1;3;T030;10;C001|C004
+W043;könnyű íjpuska;WT002;5-10;4;igen;igen;nem;nem;Kétkezes könnyű íjpuska biztos mechanikával és jó átütőerővel.;340;;;;4;szúrás;1;nem;CROSSBOW;130;0;Projectile;1;4;T030;20;C001|C004
+W044;nehéz íjpuska;WT002;7-14;7;igen;nem;nem;nem;Acélíves nehéz íjpuska páncélozott célpontok átütésére.;680;;;;7;szúrás;1;nem;CROSSBOW;160;0;Projectile;1;5;T030;30;C001
 WN001;fogak;WT001;2-6;1;nem;nem;nem;nem;Természetes harapás.;0;;;;1;szúrás;1;nem;NATURAL
 WN002;karmok;WT001;4-10;1;nem;nem;nem;nem;Természetes karmolás.;0;;;;1;vágás;1;nem;NATURAL
 WN003;ököl;WT001;5-12;1;nem;nem;nem;nem;Nehéz természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
@@ -515,6 +523,12 @@ W034;18;30
 W035;12;30
 W037;31;31
 W038;31;31
+W039;5;30
+W040;7;30
+W041;10;30
+W042;5;30
+W043;7;30
+W044;12;30
 A001;1;30
 A002;1;2
 A003;2;7
@@ -537,6 +551,8 @@ E001;Óriáspatkány;r;2;20;0;5;100;1;MA003;;3;1;2;igen;WN001;nem;0;0;0;0;0;0;0;
 E002;Kobold;k;3;30;1;6;150;1;MA006;;4;1;2;igen;W001|W005;igen;0;0;0;0;0;0;0;2;;0
 E003;Goblin;g;4;45;2;6;200;1;;;4;;;igen;W001|W002|W005|W006;igen;0;0;0;0;0;0;0;1;W024;0
 E004;Csontváz;I;5;80;3;3;250;1;;Undead;4;;;nem;W002|W004|W006;igen;2;4;-3;-1;0;1;0;5;W025;0
+E101;Goblin íjász;ĝ;4;45;2;6;200;1;;;4;;;igen;W039;nem;0;0;0;0;0;0;0;1;;0
+E102;Csontváz íjász;Į;5;80;3;3;250;1;;Undead;4;;;nem;W039;nem;2;4;-3;-1;0;1;0;5;;0
 E005;Farkas;w;4;55;1;8;300;1;MA006|MA004;;6;1;3;igen;WN007;nem;0;0;0;0;0;0;0;8;;0
 E006;Zombi;z;5;100;2;2;330;1;MA003;Undead;3;;;nem;WN001|W005|WN030;igen;0;0;0;-3;0;1;0;5;;0
 E026;Óriásdenevér;b;3;35;0;9;160;1;MA006;Flying;7;1;4;igen;WN001;nem;0;0;0;0;0;0;0;8;;0
@@ -548,6 +564,7 @@ E084;Pokolfajzat;ߟ;5;90;2;8;350;1;MA006|MA004;Demonic;5;2;2;nem;WN007;nem;0;0;0
 E090;Goblin vajákos;ǵ;4;45;1;6;350;1;;;5;2;1;igen;W018|W001;nem;0;0;0;0;0;0;1;3;;0
 E091;Káoszmágus tanítvány;ӎ;3;80;0;6;500;1;;;6;1;1;igen;W018;nem;0;0;0;0;0;0;2;3;;15
 E007;Ork;o;7;120;4;5;400;2;MA005;;5;;;igen;W010|W004|W006|W017;igen;0;0;0;0;0;0;0;2;W014;0
+E103;Ork íjász;ô;7;120;4;5;400;2;MA005;;5;;;igen;W041;nem;0;0;0;0;0;0;0;2;;0
 E008;Hobgoblin;h;6;90;6;7;450;2;MA007|MA005;;5;;;igen;W004|W006|W011;igen;0;0;0;0;0;0;0;2;W027;0
 E009;Óriáspók;ᛤ;8;150;5;7;680;2;MA002|MA007;;5;2;1;igen;WN025;nem;0;0;0;0;1;0;0;5;;5
 E010;Gnoll;n;7;140;3;7;600;2;MA004|MA005;;5;;;igen;W006|W010|W007|W011;igen;0;0;0;0;0;0;0;6;W035;0
@@ -754,6 +771,9 @@ E097;75;igen;nem;igen;Varázs;Legendás;5;7500
 E098;85;igen;nem;igen;Varázs;Legendás;7;13000
 E099;95;igen;igen;igen;Varázs;Legendás;9;22000
 E100;100;igen;nem;igen;Varázs;Legendás;12;40000
+E101;40;igen;igen;nem;Sima;Sima;0;100
+E102;15;igen;igen;nem;Sima;Sima;0;250
+E103;45;igen;igen;nem;Sima;Sima;0;250
 
 #Csapdák
 Id;Név;Jel;Hatás;MinimumSzint;ÉszlelésiNehézség;HatástalanításiNehézség;MinimumSebzés;MaximumSebzés;Állapotesély;ÉszlelésiXP;HatástalanításiXP;Leírás

@@ -1133,7 +1133,7 @@ internal static partial class Program
             [MonsterIds.ÉlőholtPátriárka] = "W028",
             [MonsterIds.GoblinFőnök] = "W036",
             [MonsterIds.PáncélozottZombi] = "W035",
-            [MonsterIds.Káoszkultista] = "W035",
+            [MonsterIds.Orgyilkos] = "W035",
             [MonsterIds.Kígyóember] = "W026",
             [MonsterIds.ÉlőPáncél] = "W034",
             [MonsterIds.Martalóc] = "W015",

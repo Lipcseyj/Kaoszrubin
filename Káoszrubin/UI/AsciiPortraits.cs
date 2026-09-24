@@ -397,7 +397,7 @@ public static class AsciiPortraits
                """),
 
            // E034 - Ifjú baziliszkusz
-           [MonsterIds.IfjúBaziliszkusz] = Portrait(
+           [MonsterIds.ÓriásBaziliszkusz] = Portrait(
                """
                    ^ ^ ^
                 __/◉___◉\___
@@ -627,7 +627,7 @@ public static class AsciiPortraits
                """),
 
            // E064 - Kaszás Wight
-           [MonsterIds.KaszásWight] = Portrait(
+           [MonsterIds.ŐsiHidra] = Portrait(
                """
                     .~~~~.
                    / ◉  ◉ \   )
@@ -707,7 +707,7 @@ public static class AsciiPortraits
                """),
 
            // E072 - Káoszkultista
-           [MonsterIds.Káoszkultista] = Portrait(
+           [MonsterIds.Orgyilkos] = Portrait(
                """
                      /\
                     /╳ \

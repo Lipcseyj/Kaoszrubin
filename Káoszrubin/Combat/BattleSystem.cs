@@ -114,11 +114,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         bool tacticalBackstab = false, WeaponDefinition? attackWeapon = null,
         bool allowTriggeredExtraAttacks = true, bool allowAmbush = true,
         int armorPenalty = 0, string damageScaleName = "Söprési mellékcélpont",
-        int? attackWeaponSlotIndex = null)
+        int? attackWeaponSlotIndex = null, int rangedHitModifier = 0)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(defender);
+        var resolvedWeapon = attackWeapon ?? attacker.AttackWeapon;
         var target = EnemyDefenseSnapshot.From(defender, armorPenalty,
             MonsterAbilityValue(defender.Definition, MonsterAbilityEffect.ArmorBonus) +
             defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus));
@@ -126,16 +127,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             PositionalHitBonus: positionalHitBonus,
             PositionalAdvantage: positionalAdvantage,
             TacticalBackstab: tacticalBackstab,
-            AttackWeapon: attackWeapon,
+            AttackWeapon: resolvedWeapon,
             AllowAmbush: allowAmbush,
             AttackWeaponSlotIndex: attackWeaponSlotIndex,
-            WoundedTarget: target.IsWounded);
+            WoundedTarget: target.IsWounded,
+            RangedHitModifier: rangedHitModifier);
         var count = allowTriggeredExtraAttacks && attacker.HasPerk(PerkIds.BarbarianBerserkerRage) &&
                     attacker.CurrentVitality * 2 < attacker.MaximumVitality ? 2 : 1;
         var attacks = new List<AttackResult>();
         var critical = false;
         for (var index = 0; index < count && target.CurrentHitPoints > 0; index++)
         {
+            if (!RangedWeaponRules.TryConsumeAmmunition(attacker, resolvedWeapon)) break;
             var attack = ResolveCharacterWeaponAttack(attacker, target, runtime.Context, attackOptions);
             if (attack.Hit && damagePercent != 100)
             {
@@ -156,7 +159,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             target = target.Apply(attack);
             attacks.Add(attack);
             if (allowTriggeredExtraAttacks && index == 0 && attack.Hit && target.CurrentHitPoints > 0 &&
-                attacker.HasPerk(PerkIds.FighterSteelStorm) && _random.NextDouble() < 0.35)
+                attacker.HasPerk(PerkIds.FighterSteelStorm) && _random.NextDouble() < 0.35 &&
+                RangedWeaponRules.TryConsumeAmmunition(attacker, resolvedWeapon))
             {
                 var extra = ResolveCharacterWeaponAttack(attacker, target, runtime.Context,
                     attackOptions with { WoundedTarget = target.IsWounded });
@@ -165,6 +169,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 attacks.Add(extra with { Message = $"Acélvihar: {extra.Message}" });
             }
         }
+        if (attacks.Count == 0)
+            return new BattleLogEntry($"{attacker.Name} nem tud lőni: elfogyott a lőszere.",
+                BattleLogKind.Information);
         defender.SetCurrentHitPoints(target.CurrentHitPoints);
         var statusText = finishAction ? FinishCharacterAction(attacker, runtime) : string.Empty;
             return new BattleLogEntry(
@@ -628,6 +635,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var attackWeapon = options.AttackWeapon;
         var allowAmbush = options.AllowAmbush;
         var attackWeaponSlotIndex = options.AttackWeaponSlotIndex;
+        var rangedHitModifier = options.RangedHitModifier;
         // ============================================================
         // RÉSZLETES HARCI INFORMÁCIÓK GYŰJTŐI
         // ============================================================
@@ -699,6 +707,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var classHitBonus = ClassHitBonus(player);
         var weaponFamily = WeaponFamilies.ForWeapon(weapon);
         var weaponRank = player.WeaponProficiencyRankFor(weaponFamily);
+        var rangedFamilyHitBonus = weaponFamily is WeaponFamilies.Bow or WeaponFamilies.Crossbow &&
+                                   weaponRank is not null ? 1 : 0;
         var oathbladeBonus = UsesRodericOathblade(player, weapon) ? 1 : 0;
         var retaliation = context.KnightRetaliationReady;
         context.KnightRetaliationReady = false;
@@ -706,7 +716,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var hitBonus = CharacterHitBonus(player, context.Tactic, weapon is not null, invisibilityBonus,
             strengthHitBonus, blessedWeaponBonus) + (weapon?.MagicPower ?? 0) + (retaliation ? 2 : 0) +
                        (weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0) + finisherBonus +
-                       Math.Max(0, positionalHitBonus);
+                       rangedFamilyHitBonus + Math.Max(0, positionalHitBonus) + rangedHitModifier;
         hitBonus += oathbladeBonus - durabilityHitPenalty;
         var hit = HitRoll(player.EffectiveAbilities.Dexterity, defenderSpeed, hitBonus - player.StatusHitPenalty, forcedHit);
         if (invisibilityBonus > 0) player.BreakInvisibility();
@@ -725,6 +735,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var positionalHitText = positionalHitBonus > 0
             ? $" [{positionalAdvantage ?? "Pozíció"} +{positionalHitBonus} találat]"
             : string.Empty;
+        var rangedHitText = rangedHitModifier == 0
+            ? string.Empty
+            : $" [Közeli lövés {rangedHitModifier:+#;-#;0} találat]";
         var criticalChanceBonusPercent = weapon?.MagicPower switch
         {
             2 => 5,
@@ -795,6 +808,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             hitCalculations,
             "🎯 Kardjártasság",
             weaponFamily == WeaponFamilies.Sword && weaponRank is not null ? 1 : 0);
+        Modifier(hitCalculations, "🎯 Távolsági fegyverjártasság", rangedFamilyHitBonus);
+        Modifier(hitCalculations, "🎯 Közeli lövés", rangedHitModifier);
 
         Modifier(hitCalculations, "🎯 Esküpenge", oathbladeBonus);
         Modifier(hitCalculations, "🎯 Megtorlás", retaliation ? 2 : 0);
@@ -930,9 +945,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                         $"{magicWeaponCriticalText} → 💨." +
                         $"{strengthHitText}" +
                         $"{classHitText}" +
-                        $"{positionalHitText}"));
+                        $"{positionalHitText}{rangedHitText}"));
             }
-            return Detailed(AttackResult.Miss($"találat: {hit.Description}{thirstHitText}{magicWeaponHitText}{magicWeaponCriticalText} → 💨.{strengthHitText}{classHitText}{positionalHitText}"));
+            return Detailed(AttackResult.Miss($"találat: {hit.Description}{thirstHitText}{magicWeaponHitText}{magicWeaponCriticalText} → 💨.{strengthHitText}{classHitText}{positionalHitText}{rangedHitText}"));
         }
 
         // ============================================================
@@ -1001,8 +1016,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var armor = Math.Max(0, armorRoll + defender.ArmorAbilityBonus + typeDefense);
         var powerfulMastery = context.Tactic == BattleTactic.FighterPowerful &&
                               player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful);
-        var armorPiercing = weapon?.IsTwoHanded == true || context.Tactic == BattleTactic.FighterPowerful;
-        var armorAfterPiercing = powerfulMastery ? (armor + 3) / 4 : armorPiercing ? (armor + 1) / 2 : armor;
+        var tacticArmorPenetration = powerfulMastery ? 75 :
+            context.Tactic == BattleTactic.FighterPowerful ? 50 : 0;
+        var armorPenetration = Math.Max(weapon?.EffectiveArmorPenetrationPercent ?? 0, tacticArmorPenetration);
+        var armorPiercing = armorPenetration > 0;
+        var armorAfterPiercing = (armor * (100 - armorPenetration) + 99) / 100;
         var bluntArmorIgnored = weaponFamily == WeaponFamilies.Blunt ? weaponRank switch
         {
             WeaponProficiencyRank.Master => 4,
@@ -1105,7 +1123,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var noteText = notes.Count == 0 ? string.Empty : $" [{string.Join(", ", notes)}]";
         var perkBonusText = perkBonus == 0 ? string.Empty : $" + bónusz {perkBonus}";
         var armorText = armorPiercing
-            ? $"páncél {armor} → {armorAfterPiercing} ({(context.Tactic == BattleTactic.FighterPowerful ? "💥 erőteljes páncéltörés" : "⚒️ páncéltörés")})"
+            ? $"páncél {armor} → {armorAfterPiercing} ({armorPenetration}% páncéltörés)"
             : $"páncél {armor}";
         if (bluntArmorIgnored > 0)
             armorText += $" → {effectiveArmor} (🔨 jártasság -{bluntArmorIgnored})";
@@ -1217,7 +1235,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             $"💥 {damage} ({damageType.Name()})");
 
         return Detailed(AttackResult.HitFor(damage,
-            $"találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText}{positionalHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplierPercent / 100d:0.##} - {armorText} = {damageText}.{noteText}",
+            $"találat: {hit.Description}{thirstHitText} → 🎯;{strengthHitText}{classHitText}{positionalHitText}{rangedHitText} sebzés: (alap {baseDamage} + képesség {abilityBonus} + dobás {randomBonus}{perkBonusText}) ×{damageMultiplierPercent / 100d:0.##} - {armorText} = {damageText}.{noteText}",
             criticalMultiplier > 1,
             DurabilityNotice(player.Name, weapon?.Name, "fegyvere", weaponWear, defensive: false),
             shieldBlock));
@@ -2051,7 +2069,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         WeaponDefinition? AttackWeapon = null,
         bool AllowAmbush = true,
         int? AttackWeaponSlotIndex = null,
-        bool WoundedTarget = false);
+        bool WoundedTarget = false,
+        int RangedHitModifier = 0);
 
     private sealed record EnemyAttackOptions(
         WeaponDefinition? AttackWeapon = null,

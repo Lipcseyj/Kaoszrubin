@@ -70,7 +70,7 @@ internal static partial class Program
         {
             [8] = MonsterIds.Goblin,
             [10] = MonsterIds.Ork,
-            [11] = MonsterIds.Káoszkultista,
+            [11] = MonsterIds.Orgyilkos,
             [12] = MonsterIds.PestishordozóPatkány,
             [16] = MonsterIds.Csontváz,
             [18] = MonsterIds.Pokolfajzat,

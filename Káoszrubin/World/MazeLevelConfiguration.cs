@@ -375,7 +375,7 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Same(MonsterIds.Óriáspók, Amount.Several, Amount.Several),
                     Encounters.Mixed(MonsterIds.Savanyálka, Amount.Several, MonsterIds.BarlangiGyík, Amount.Several, Amount.Few),
-                    Encounters.LeaderGroup(MonsterIds.IfjúBaziliszkusz, MonsterIds.Óriáspók, Amount.Few, Amount.Several)
+                    Encounters.LeaderGroup(MonsterIds.ÓriásBaziliszkusz, MonsterIds.Óriáspók, Amount.Few, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
@@ -478,17 +478,17 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(750, 1500),
                 RoomEncounters =
                 [
-                    Encounters.Same(MonsterIds.Káoszkultista, Amount.Handful, Amount.Pack),
+                    Encounters.Same(MonsterIds.Orgyilkos, Amount.Handful, Amount.Pack),
                     Encounters.Same(MonsterIds.Wyvern, Amount.Handful, Amount.Few),
                     Encounters.Mixed(MonsterIds.Kiméra, Amount.Few, MonsterIds.Ork, Amount.Several, Amount.Few),
-                    Encounters.LeaderGroup(MonsterIds.VörösSárkány, MonsterIds.Káoszkultista, Amount.One, Amount.Pack),
+                    Encounters.LeaderGroup(MonsterIds.VörösSárkány, MonsterIds.Orgyilkos, Amount.One, Amount.Pack),
                     Encounters.Mixed(MonsterIds.KáoszmágusTanítvány, Amount.Few,
-                        MonsterIds.Káoszkultista, Amount.Pack, Amount.Few),
-                    Encounters.LeaderGroup(MonsterIds.Káoszpap, MonsterIds.Káoszkultista, Amount.One, Amount.Several)
+                        MonsterIds.Orgyilkos, Amount.Pack, Amount.Few),
+                    Encounters.LeaderGroup(MonsterIds.Káoszpap, MonsterIds.Orgyilkos, Amount.One, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.LeaderHorde(MonsterIds.OrkSámán, MonsterIds.Káoszkultista,
+                    Encounters.LeaderHorde(MonsterIds.OrkSámán, MonsterIds.Orgyilkos,
                         Amount.Few, Amount.Pack),
                     Encounters.MixedHorde(MonsterIds.Hárpia, Amount.Handful, MonsterIds.Óriásdenevér, Amount.Several,
                         Amount.Handful),

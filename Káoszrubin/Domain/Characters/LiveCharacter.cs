@@ -426,7 +426,8 @@ public sealed class LiveCharacter
         var stackIndex = Enumerable.Range(0, _backpack.Length).FirstOrDefault(index =>
             _backpack[index] is { } existing && InventoryStackingRules.AreCompatible(
                 existing, _backpackItemCharges[index], _backpackItemStates[index],
-                item, charges, incomingState) && _backpackItemQuantities[index] < MaximumBackpackStackSize, -1);
+                item, charges, incomingState) && _backpackItemQuantities[index] <
+                MaximumStackSize(InventorySlotKind.Backpack, item), -1);
         if (stackIndex >= 0)
         {
             ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.Backpack, stackIndex, item, charges,
@@ -447,7 +448,7 @@ public sealed class LiveCharacter
             .Any(entry => entry.existing is not null &&
                 InventoryStackingRules.AreCompatible(entry.existing, _backpackItemCharges[entry.index],
                     _backpackItemStates[entry.index], item, charges, incomingState) &&
-                _backpackItemQuantities[entry.index] < MaximumBackpackStackSize);
+                _backpackItemQuantities[entry.index] < MaximumStackSize(InventorySlotKind.Backpack, item));
     }
 
     public bool RemoveFromBackpack(string itemId)
@@ -874,7 +875,7 @@ public sealed class LiveCharacter
                 _backpack[index] = item;
                 _backpackItemCharges[index] = InitialCharges(item, change.Charges);
                 _backpackItemQuantities[index] = item is null ? 0 : Math.Clamp(change.Quantity ?? 1, 1,
-                    MaximumBackpackStackSize);
+                    MaximumStackSize(InventorySlotKind.Backpack, item));
                 _backpackItemStates[index] = state;
                 break;
         }
@@ -895,7 +896,7 @@ public sealed class LiveCharacter
 
     public static int MaximumStackSize(InventorySlotKind kind, IItemDefinition item) => kind switch
     {
-        InventorySlotKind.Backpack => MaximumBackpackStackSize,
+        InventorySlotKind.Backpack => RangedWeaponRules.MaximumStackSize(item),
         InventorySlotKind.MagicItem when item is MagicItemDefinition { Kind: MagicItemKind.Scroll } =>
             MaximumEquippedScrollStackSize,
         _ => 1

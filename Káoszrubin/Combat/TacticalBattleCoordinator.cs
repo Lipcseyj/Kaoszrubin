@@ -72,8 +72,18 @@ public sealed class TacticalBattleCoordinator
         battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 &&
             TacticalDistance.IsMeleeAdjacent(characterPosition, enemy.Position));
 
-    public static IEnumerable<Enemy> ReachableEnemies(BattleEncounter battle, LiveCharacter character, Position characterPosition)
+    public static IEnumerable<Enemy> ReachableEnemies(BattleEncounter battle, LiveCharacter character,
+        Position characterPosition, Func<Position, Position, int, bool>? canSee = null)
     {
+        var weapon = character.AttackWeapon;
+        if (weapon?.IsRanged == true)
+        {
+            if (!RangedWeaponRules.HasAmmunition(character, weapon)) return [];
+            return battle.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 &&
+                RangedWeaponRules.CanReach(weapon, TacticalDistance.Between(characterPosition, enemy.Position)) &&
+                (canSee is null || canSee(characterPosition, enemy.Position, weapon.MaximumRange)));
+        }
+
         var adjacent = AdjacentEnemies(battle, character, characterPosition).ToArray();
         return adjacent.Concat(battle.RearFormationEnemiesInReach(character))
             .Where(enemy => enemy.CurrentHitPoints > 0)
@@ -208,15 +218,16 @@ public sealed class TacticalBattleCoordinator
             !battle.IsProtectedRearTarget(character, enemy.Position));
 
     public static IReadOnlyList<LiveCharacter> EnemyAttackTargets(BattleEncounter battle, Enemy enemy,
-        WeaponDefinition? weapon, Func<LiveCharacter, Position> getCharacterPosition)
+        WeaponDefinition? weapon, Func<LiveCharacter, Position> getCharacterPosition,
+        Func<Position, Position, int, bool>? canSee = null)
     {
-        var maximumRange = weapon?.CanAttackFromRear == true ? 2 : 1;
         bool InRange(LiveCharacter character)
         {
             var position = getCharacterPosition(character);
-            return maximumRange == 1
-                ? TacticalDistance.IsMeleeAdjacent(enemy.Position, position)
-                : TacticalDistance.IsWithin(enemy.Position, position, maximumRange) && position != enemy.Position;
+            var distance = TacticalDistance.Between(enemy.Position, position);
+            if (!RangedWeaponRules.CanReach(weapon, distance)) return false;
+            return weapon?.IsRanged != true || canSee is null ||
+                   canSee(enemy.Position, position, weapon.MaximumRange);
         }
 
         var directCandidates = EnemyTargets(battle, enemy).Where(InRange)
@@ -318,14 +329,15 @@ public sealed class TacticalBattleCoordinator
     public IReadOnlyList<BattleActionKind> GetAllowedBattleActions(BattleEncounter battle,
         LiveCharacter character, Enemy focusEnemy, LiveCharacter selectedCharacter,
         Position characterPosition, bool hasUsableCombatSpell,
-        IReadOnlyDictionary<LiveCharacter, int> turnUndeadNextAvailableRounds)
+        IReadOnlyDictionary<LiveCharacter, int> turnUndeadNextAvailableRounds,
+        Func<Position, Position, int, bool>? canSee = null)
     {
         var runtime = battle.RuntimeFor(character);
         if (runtime.RequiresTacticSelection)
             return character.CharacterClass.Id == CharacterClassIds.Harcos
                 ? [BattleActionKind.FighterPrecise, BattleActionKind.FighterPowerful, BattleActionKind.FighterDefensive]
                 : [BattleActionKind.ThiefAmbush, BattleActionKind.ThiefObserve, BattleActionKind.ThiefPoison];
-        var reachable = ReachableEnemies(battle, character, characterPosition).ToArray();
+        var reachable = ReachableEnemies(battle, character, characterPosition, canSee).ToArray();
         var canShieldBash = AdjacentEnemies(battle, character, characterPosition).Any() &&
                             character.OperationalWeapons.Any(ShieldRules.IsShield);
         var combatantId = CombatantId.ForCharacter(character.Id);

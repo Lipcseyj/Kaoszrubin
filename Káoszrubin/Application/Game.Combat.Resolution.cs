@@ -23,17 +23,24 @@ public sealed partial class Game
     private void ResolveCharacterAttack(BattleEncounter battle, LiveCharacter character, Enemy enemy)
     {
         battle.RecordAttack(BattleSide.Friendly);
-        if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), enemy.Position))
+        var origin = GetCasterPosition(character);
+        var activeWeapon = character.AttackWeapon;
+        var rangedAttack = activeWeapon?.IsRanged == true;
+        if (!rangedAttack && TacticalDistance.IsMeleeAdjacent(origin, enemy.Position))
             battle.Engage(character, enemy);
         var dualWielding = DualWieldingRules.TryGetWeapons(character, out var mainHand, out var offhand);
-        var targets = TacticalBattleCoordinator.SweepTargets(battle, character, GetCasterPosition(character), enemy);
+        var targets = rangedAttack
+            ? new List<Enemy> { enemy }
+            : TacticalBattleCoordinator.SweepTargets(battle, character, origin, enemy);
         var positionalDaggerHit = false;
         for (var index = 0; index < targets.Count; index++)
         {
             var target = targets[index];
             var rearFormationStrike = battle.RearFormationEnemiesInReach(character).Contains(target);
-            var advantage = TacticalBattleCoordinator.AttackAdvantage(battle, character, target);
-            if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), target.Position))
+            var advantage = rangedAttack
+                ? TacticalAttackAdvantage.Front
+                : TacticalBattleCoordinator.AttackAdvantage(battle, character, target);
+            if (!rangedAttack && TacticalDistance.IsMeleeAdjacent(origin, target.Position))
                 battle.Engage(character, target);
             var before = target.CurrentHitPoints;
             var damagePercent = TacticalBattleCoordinator.SweepDamagePercent(character,
@@ -46,7 +53,9 @@ public sealed partial class Game
                                    (advantage.IsRear || rearFormationStrike),
                 attackWeapon: dualWielding ? mainHand : null,
                 attackWeaponSlotIndex: dualWielding ? 0 : null,
-                armorPenalty: battle.EnemyArmorPenalty(target));
+                armorPenalty: battle.EnemyArmorPenalty(target),
+                rangedHitModifier: RangedWeaponRules.CloseRangeModifier(character,
+                    dualWielding ? mainHand : activeWeapon, TacticalDistance.Between(origin, target.Position)));
             var hit = target.CurrentHitPoints < before;
 
             if (_gameSettings.Settings.CombatSpeed == CombatSpeed.PauseAfterHit && hit)
@@ -288,9 +297,10 @@ public sealed partial class Game
         }
 
         var attackWeapon = _battleSystem.SelectEnemyAttackWeapon(enemy, weapon =>
-            TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, weapon, GetCasterPosition).Count);
+            TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, weapon, GetCasterPosition,
+                HasBattleLineOfSight).Count);
         var targets = TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, attackWeapon,
-            GetCasterPosition);
+            GetCasterPosition, HasBattleLineOfSight);
         if (targets.Count == 0)
         {
             var target = EnemyTargets(battle, enemy)
@@ -541,7 +551,7 @@ public sealed partial class Game
         if (IsBattleMovementInProgress(battle)) return [BattleActionKind.Move, BattleActionKind.Pass];
         return _battleCoordinator.GetAllowedBattleActions(battle, character, focusEnemy, PartyLeader,
             GetCasterPosition(character), HasUsableCombatSpell(character, GetCasterPosition(character), focusEnemy),
-            _turnUndeadNextAvailableRounds);
+            _turnUndeadNextAvailableRounds, HasBattleLineOfSight);
     }
 
     private IReadOnlyList<BattleTacticOptionSnapshot>? GetBattleTacticOptions(BattleEncounter battle,
@@ -573,7 +583,11 @@ public sealed partial class Game
         TacticalBattleCoordinator.AdjacentEnemies(battle, character, GetCasterPosition(character));
 
     private IEnumerable<Enemy> ReachableEnemies(BattleEncounter battle, LiveCharacter character) =>
-        TacticalBattleCoordinator.ReachableEnemies(battle, character, GetCasterPosition(character));
+        TacticalBattleCoordinator.ReachableEnemies(battle, character, GetCasterPosition(character),
+            HasBattleLineOfSight);
+
+    private bool HasBattleLineOfSight(Position origin, Position target, int range) =>
+        FogOfWar.CanSee(_maze, origin, target, range);
 
     private IEnumerable<Enemy> TurnUndeadTargets(BattleEncounter battle, LiveCharacter character) =>
         TacticalBattleCoordinator.TurnUndeadTargets(battle, character, GetCasterPosition(character));
@@ -648,7 +662,7 @@ public sealed partial class Game
             ? new[] { selected }
             : enemy.AttackWeapons;
         if (possibleWeapons.Any(weapon => TacticalBattleCoordinator.EnemyAttackTargets(
-                battle, enemy, weapon, GetCasterPosition).Count > 0)) return true;
+                battle, enemy, weapon, GetCasterPosition, HasBattleLineOfSight).Count > 0)) return true;
         if (battle.IsEngaged(enemy)) return false;
         var target = EnemyTargets(battle, enemy)
             .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))

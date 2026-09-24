@@ -35,7 +35,7 @@ public static class MonsterIds
     public const string Bugbear = "E031";
     public const string Hárpia = "E032";
     public const string Ghoul = "E033";
-    public const string IfjúBaziliszkusz = "E034";
+    public const string ÓriásBaziliszkusz = "E034";
     public const string OrkSámán = "E035";
     public const string Ettin = "E036";
     public const string Wight = "E037";
@@ -58,7 +58,7 @@ public static class MonsterIds
     public const string ÉlőholtPátriárka = "E061";
     public const string GoblinFőnök = "E062";
     public const string OrkTörzsfő = "E063";
-    public const string KaszásWight = "E064";
+    public const string ŐsiHidra = "E064";
     public const string VámpírKardmester = "E065";
     public const string CsontvázŐr = "E066";
     public const string PáncélozottZombi = "E067";
@@ -67,7 +67,7 @@ public static class MonsterIds
     public const string AlfaVérfarkas = "E070";
     public const string ŐsiMinotaurusz = "E071";
 
-    public const string Káoszkultista = "E072";
+    public const string Orgyilkos = "E072";
     public const string SötételfOrgyilkos = "E073";
     public const string Nekromanta = "E074";
     public const string Gargoyle = "E075";
@@ -96,6 +96,9 @@ public static class MonsterIds
     public const string Vérmágus = "E098";
     public const string KáoszFőpap = "E099";
     public const string Feketemágus = "E100";
+    public const string GoblinÍjász = "E101";
+    public const string CsontvázÍjász = "E102";
+    public const string OrkÍjász = "E103";
 
     public static IReadOnlySet<string> Bosses { get; } = new HashSet<string>(
     [

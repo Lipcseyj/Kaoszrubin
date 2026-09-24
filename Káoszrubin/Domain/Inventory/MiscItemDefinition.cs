@@ -1,3 +1,5 @@
+using KaoszRubin.Domain.Combat;
+
 namespace KaoszRubin.Domain.Inventory;
 
 /// <summary>Általános tárgy (például élelem vagy kulacs).</summary>
@@ -34,6 +36,8 @@ public static class MiscItemIds
     public const string FallenKnightInsignia = "T026";
     public const string SilverOathSeal = "T027";
     public const string RepairKit = "T028";
+    public const string Arrow = AmmunitionIds.Arrow;
+    public const string CrossbowBolt = AmmunitionIds.CrossbowBolt;
 }
 
 public static class QuestItemIds

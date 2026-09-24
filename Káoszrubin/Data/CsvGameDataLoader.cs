@@ -171,6 +171,7 @@ public static class CsvGameDataLoader
         ValidateEnemySpellcasters(enemies, spells, spellEffects, enemySpellcasters);
         ValidateMagicItems(magicItems, spells);
         ValidateShields(weapons);
+        ValidateRangedWeapons(weapons, items, characterClasses);
         for (var index = 0; index < enemies.Count; index++)
         {
             var enemy = enemies[index];
@@ -354,6 +355,41 @@ public static class CsvGameDataLoader
         return reach;
     }
 
+    private static WeaponAttackMode ParseWeaponAttackMode(string[] cells, int index)
+    {
+        var value = Cell(cells, index);
+        if (string.IsNullOrWhiteSpace(value)) return WeaponAttackMode.Melee;
+        return Enum.TryParse<WeaponAttackMode>(value, true, out var mode)
+            ? mode
+            : throw new InvalidDataException($"Ismeretlen fegyveres támadásmód: '{value}'.");
+    }
+
+    private static int RequiredWeaponRange(string[] cells, int index, int fallback, string id, string fieldName)
+    {
+        var value = Integer(cells, index) ?? fallback;
+        if (value is < 1 or > 10)
+            throw new InvalidDataException($"A(z) '{id}' fegyver {fieldName} értéke 1–10 lehet.");
+        return value;
+    }
+
+    private static int WeaponArmorPenetration(string[] cells, bool twoHanded)
+    {
+        var value = Integer(cells, 25) ?? (twoHanded ? 50 : 0);
+        if (value is < 0 or > 100)
+            throw new InvalidDataException("A fegyver páncéltörése 0–100 százalék lehet.");
+        return value;
+    }
+
+    private static IReadOnlySet<string> WeaponAllowedClasses(string[] cells)
+    {
+        var explicitIds = IdList(Cell(cells, 26));
+        return explicitIds.Count > 0
+            ? explicitIds.ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : AllowedClasses(cells, (CharacterClassIds.Harcos, null), (CharacterClassIds.Barbár, null),
+                (CharacterClassIds.Lovag, null), (CharacterClassIds.Tolvaj, 6),
+                (CharacterClassIds.Pap, 7), (CharacterClassIds.Mágus, 8));
+    }
+
     private static void AddDefinition(DataSection section, string[] cells,
         ICollection<RaceDefinition> races, ICollection<CharacterClassDefinition> characterClasses,
         ICollection<EnemyDefinition> enemies, ICollection<MonsterAbilityDefinition> monsterAbilities,
@@ -445,14 +481,19 @@ public static class CsvGameDataLoader
                 weaponTypes.Add(new WeaponTypeDefinition(id, name));
                 break;
             case DataSection.Weapons:
+                var twoHanded = IsYes(cells, 5);
+                var attackMode = ParseWeaponAttackMode(cells, 21);
                 weapons.Add(new WeaponDefinition(id, name, EmptyAsNull(Cell(cells, 2)), ValueRangeFrom(cells, 3),
-                    RequiredWeaponStrength(cells, 4, id), IsYes(cells, 5),
-                    AllowedClasses(cells, (CharacterClassIds.Harcos, null), (CharacterClassIds.Barbár, null), (CharacterClassIds.Lovag, null),
-                        (CharacterClassIds.Tolvaj, 6), (CharacterClassIds.Pap, 7), (CharacterClassIds.Mágus, 8)),
+                    RequiredWeaponStrength(cells, 4, id), twoHanded,
+                    WeaponAllowedClasses(cells),
                     Cell(cells, 9), NonNegativeWeaponPrice(cells, 10, id), ParseRarity(cells, 11),
                     EmptyAsNull(Cell(cells, 12)), Integer(cells, 13) ?? 0,
                     PositiveWeight(cells, 14, id, "fegyver"), ParseDamageType(Cell(cells, 15)), WeaponMaximumTargets(cells), IsYes(cells, 17), EmptyAsNull(Cell(cells, 18)),
-                    WeaponMaximumDurability(cells, id), Integer(cells, 20) ?? 0));
+                    WeaponMaximumDurability(cells, id), Integer(cells, 20) ?? 0, attackMode,
+                    RequiredWeaponRange(cells, 22, 1, id, "minimum hatótáv"),
+                    RequiredWeaponRange(cells, 23,
+                        attackMode == WeaponAttackMode.Melee && IsYes(cells, 17) ? 2 : 1, id, "maximum hatótáv"),
+                    EmptyAsNull(Cell(cells, 24)), WeaponArmorPenetration(cells, twoHanded)));
                 break;
             case DataSection.Armors:
                 armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),
@@ -1335,6 +1376,35 @@ public static class CsvGameDataLoader
             if (!shieldType && weapon.ShieldTier != 0)
                 throw new InvalidDataException(
                     $"A(z) {weapon.Id} nem pajzs, ezért a PajzsTier értéke csak 0 lehet.");
+        }
+    }
+
+    private static void ValidateRangedWeapons(IEnumerable<WeaponDefinition> weapons,
+        IReadOnlyCollection<MiscItemDefinition> items,
+        IReadOnlyCollection<CharacterClassDefinition> characterClasses)
+    {
+        var itemIds = items.Select(item => item.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var classIds = characterClasses.Select(characterClass => characterClass.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var weapon in weapons)
+        {
+            if (weapon.MinimumRange > weapon.MaximumRange)
+                throw new InvalidDataException(
+                    $"A(z) {weapon.Id} fegyver minimum hatótávja nagyobb a maximumánál.");
+            if (weapon.AllowedClassIds.Any(classId => !classIds.Contains(classId)))
+                throw new InvalidDataException($"A(z) {weapon.Id} fegyver ismeretlen kasztot engedélyez.");
+            if (weapon.AttackMode == WeaponAttackMode.Melee && weapon.AmmunitionItemId is not null)
+                throw new InvalidDataException($"A(z) {weapon.Id} közelharci fegyver nem kérhet lőszert.");
+            if (weapon.AttackMode == WeaponAttackMode.Projectile)
+            {
+                if (weapon.MaximumRange < 2)
+                    throw new InvalidDataException($"A(z) {weapon.Id} lövedékes fegyver hatótávja legalább 2 legyen.");
+                if (weapon.AmmunitionItemId is not { Length: > 0 } ammunitionId ||
+                    !itemIds.Contains(ammunitionId) || !AmmunitionIds.IsAmmunition(ammunitionId))
+                    throw new InvalidDataException($"A(z) {weapon.Id} lövedékes fegyver lőszere hiányzik vagy érvénytelen.");
+            }
+            if (weapon.AttackMode == WeaponAttackMode.NaturalRanged && weapon.AmmunitionItemId is not null)
+                throw new InvalidDataException($"A(z) {weapon.Id} természetes távolsági fegyver nem használhat tárgyi lőszert.");
         }
     }
 

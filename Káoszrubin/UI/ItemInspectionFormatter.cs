@@ -39,11 +39,17 @@ public static class ItemInspectionFormatter
                 (weapon.ShieldTier > 0 ? $"pajzstier: {weapon.ShieldTier} | alap kritikus blokk: {weapon.ShieldTier * 5}% | " : string.Empty) +
                 $"sebzéstípus: {weapon.DamageType.Name()} | célpontok: {weapon.MaximumTargets} | " +
                 (weapon.CanAttackFromRear ? "hátsó sorból is használható | " : string.Empty) +
+                (weapon.IsRanged
+                    ? $"távolsági | hatótáv: {weapon.MinimumRange}–{weapon.MaximumRange} | " +
+                      (weapon.AmmunitionItemId is { } ammunitionId
+                          ? $"lőszer: {gameData.GetItem(ammunitionId).Name} | "
+                          : string.Empty)
+                    : string.Empty) +
                 $"sebzés: {weapon.Damage?.ToString() ?? "nincs"} | minimum Erő: {weapon.MinimumStrength} | " +
                 $"súly: {weapon.Weight} | " +
                 $"{(weapon.IsTwoHanded ? "kétkezes" : "egykezes")} | " +
-                (weapon.IsTwoHanded
-                    ? "⚒️ páncéltörő: az ellenfél páncéljának 50%-át figyelmen kívül hagyja | "
+                (weapon.EffectiveArmorPenetrationPercent > 0
+                    ? $"⚒️ páncéltörő: az ellenfél páncéljának {weapon.EffectiveArmorPenetrationPercent}%-át figyelmen kívül hagyja | "
                     : string.Empty) + $"kasztok: {AllowedClassNames(weapon.AllowedClassIds, gameData)}",
             ArmorDefinition armor =>
                 $"Páncél | típusvédelem: {armor.Resistances ?? new DamageResistance()} | védelem: {armor.Defense?.ToString() ?? "nincs"} | súly: {armor.Weight} | " +

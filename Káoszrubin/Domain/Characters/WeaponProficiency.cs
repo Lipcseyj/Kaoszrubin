@@ -19,6 +19,8 @@ public static class WeaponFamilies
     public const string Polearm = "POLEARM";
     public const string Shield = "SHIELD";
     public const string Staff = "STAFF";
+    public const string Bow = "BOW";
+    public const string Crossbow = "CROSSBOW";
 
     public static readonly IReadOnlyList<WeaponFamilyDefinition> All =
     [
@@ -28,7 +30,9 @@ public static class WeaponFamilies
         new(Blunt, "Zúzófegyver", "🔨", "Az ellenfél páncéljából 2 pontot figyelmen kívül hagy.", "Összesen 4 pont páncélt hagy figyelmen kívül; találattal megszakítja az előkészített szörnyfegyvert, máskülönben megtorpasztja a következő közeledését."),
         new(Polearm, "Szálfegyver", "🔱", "+3 kezdeményezés; vonalban a cél mögötti ellenfelet is eléri.", "A csata első sikeres találata ×1,5 sebzés, és feltartóztatja a fegyver hatókörébe belépő ellenfelet."),
         new(Shield, "Pajzs", "🛡️", "Felszerelt pajzzsal +1 védelem és +1 társi fedezet; a kritikus blokk és pajzslökés +1 erőt kap.", "A pajzsdobás kétszer történik; a kritikus blokk és pajzslökés további +1 erőt, a társi fedezet +2-t, lovagnál +3-at kap."),
-        new(Staff, "Harci bot", "🦯", "Felszerelve +1 védelem és -5% harci varázskudarc.", "Felszerelve összesen +2 védelem és -10% harci varázskudarc.")
+        new(Staff, "Harci bot", "🦯", "Felszerelve +1 védelem és -5% harci varázskudarc.", "Felszerelve összesen +2 védelem és -10% harci varázskudarc."),
+        new(Bow, "Íj", "🏹", "+1 találat íjjal.", "Közvetlen közelről is találati büntetés nélkül használható."),
+        new(Crossbow, "Íjpuska", "➶", "+1 találat íjpuskával.", "Közvetlen közelről is találati büntetés nélkül használható.")
     ];
 
     public static WeaponFamilyDefinition? Find(string id) => All.FirstOrDefault(family =>
@@ -47,6 +51,8 @@ public static class WeaponFamilies
             "W011" or "W012" => Polearm,
             "W014" or "W015" or "W016" => Shield,
             "W018" => Staff,
+            "W039" or "W040" or "W041" => Bow,
+            "W042" or "W043" or "W044" => Crossbow,
             _ => null
         };
     }
