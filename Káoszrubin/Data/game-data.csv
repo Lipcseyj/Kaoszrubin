@@ -577,8 +577,8 @@ E001;Óriáspatkány;r;2;20;0;5;100;1;MA003;;3;1;2;igen;WN001;nem;0;0;0;0;0;0;0;
 E002;Kobold;k;3;30;1;6;150;1;MA006;;4;1;2;igen;W001|W005;igen;0;0;0;0;0;0;0;2;;0
 E003;Goblin;g;4;45;2;6;200;1;;;4;;;igen;W001|W002|W005|W006;igen;0;0;0;0;0;0;0;1;W024;0
 E004;Csontváz;I;5;80;3;3;250;1;;Undead;4;;;nem;W002|W004|W006;igen;2;4;-3;-1;0;1;0;5;W025;0
-E101;Goblin íjász;ĝ;4;45;2;6;200;1;;;4;;;igen;W039;nem;0;0;0;0;0;0;0;1;;0
-E102;Csontváz íjász;Į;5;80;3;3;250;1;;Undead;4;;;nem;W039;nem;2;4;-3;-1;0;1;0;5;;0
+E101;Goblin íjász;ĝ;4;45;2;6;200;1;MA014;;4;;;igen;W039;nem;0;0;0;0;0;0;0;1;;0
+E102;Csontváz íjász;Į;5;80;3;3;250;1;MA015;Undead;4;;;nem;W039;nem;2;4;-3;-1;0;1;0;5;;0
 E005;Farkas;w;4;55;1;8;300;1;MA006|MA004;;6;1;3;igen;WN007;nem;0;0;0;0;0;0;0;8;;0
 E006;Zombi;z;5;100;2;2;330;1;MA003;Undead;3;;;nem;WN001|W005|WN030;igen;0;0;0;-3;0;1;0;5;;0
 E026;Óriásdenevér;b;3;35;0;9;160;1;MA006;Flying;7;1;4;igen;WN001;nem;0;0;0;0;0;0;0;8;;0
@@ -590,7 +590,7 @@ E084;Pokolfajzat;ߟ;5;90;2;8;350;1;MA006|MA004;Demonic;5;2;2;nem;WN007;nem;0;0;0
 E090;Goblin vajákos;ǵ;4;45;1;6;350;1;;;5;2;1;igen;W018|W001;nem;0;0;0;0;0;0;1;3;;0
 E091;Káoszmágus tanítvány;ӎ;3;80;0;6;500;1;;;6;1;1;igen;W018;nem;0;0;0;0;0;0;2;3;;15
 E007;Ork;o;7;120;4;5;400;2;MA005;;5;;;igen;W010|W004|W006|W017;igen;0;0;0;0;0;0;0;2;W014;0
-E103;Ork íjász;ô;7;120;4;5;400;2;MA005;;5;;;igen;W041;nem;0;0;0;0;0;0;0;2;;0
+E103;Ork íjász;ô;7;120;4;5;400;2;MA005|MA016;;5;;;igen;W041;nem;0;0;0;0;0;0;0;2;;0
 E008;Hobgoblin;h;6;90;6;7;450;2;MA007|MA005;;5;;;igen;W004|W006|W011;igen;0;0;0;0;0;0;0;2;W027;0
 E009;Óriáspók;ᛤ;8;150;5;7;680;2;MA002|MA007;;5;2;1;igen;WN025;nem;0;0;0;0;1;0;0;5;;5
 E010;Gnoll;n;7;140;3;7;600;2;MA004|MA005;;5;;;igen;W006|W010|W007|W011;igen;0;0;0;0;0;0;0;6;W035;0
@@ -605,7 +605,7 @@ E052;Csontváz lovag;ǂ;7;105;5;4;330;2;;Undead;4;;;nem;W004|W006|W007|W008|W009
 E062;Goblin főnök;Ǥ;7;180;6;6;750;2;MA005|MA006;;6;;;igen;W004|W006|W010;igen;0;0;0;0;0;0;0;3;W036;0
 E066;Csontváz őr;ᚰ;5;90;4;4;350;1;;Undead;4;;;nem;W011|W012;igen;2;4;-3;0;0;1;0;5;;10
 E067;Páncélozott zombi;Ƶ;6;130;6;2;490;1;MA003|MA007;Undead;4;;;nem;W005|W006;igen;2;2;0;-2;0;2;0;5;W025;
-E072;Orgyilkos;c;8;110;4;7;800;2;MA004|MA002|MA006;;6;3;;igen;W001|W042;nem;0;0;0;0;0;0;2;3;;
+E072;Orgyilkos;c;8;110;4;7;800;2;MA004|MA002|MA006|MA017;;6;3;;igen;W001|W042;nem;0;0;0;0;0;0;2;3;;
 E082;Martalóc;o;7;130;3;6;400;2;;;5;;;igen;W004|W006|W007|W008|W009|W010|W011|W012;igen;0;0;0;0;0;0;0;3;W015;
 E085;Démoni korcs;¤;8;180;4;6;700;2;MA005|MA007;Demonic;5;;;nem;WN027|WN028;nem;1;1;0;4;1;-5;2;5;;10
 E086;Parázsdémon;Ք;10;280;5;7;1100;2;MA006|MA007;Demonic;6;1;2;nem;WN029|WN007;nem;1;1;0;7;1;-5;3;6;;10
@@ -624,7 +624,7 @@ E040;Éji banya;ñ;13;320;1;8;1900;3;MA003|MA006;;6;2;1;igen;WN002|WN031;nem;0;0
 E061;Élőholt pátriárka;Ɨ;8;180;6;4;700;3;;Undead;5;;;nem;W006|W007|W008;igen;2;3;-2;0;0;3;1;7;W028;
 E063;Ork törzsfő;Ø;11;360;8;5;1350;3;MA005;;6;;;igen;W009|W017;igen;0;0;0;0;0;0;0;3;;0
 E068;Barlangi troll;Ť;16;550;8;5;2000;3;MA008|MA007;;6;;;igen;WN012|WN011;nem;2;2;1;-9;1;0;0;4;;10
-E073;Sötételf orgyilkos;æ;11;220;5;9;1250;3;MA006;;7;3;1;igen;W022|W043;nem;0;0;0;0;0;0;0;6;;
+E073;Sötételf orgyilkos;æ;11;220;5;9;1250;3;MA006|MA017;;7;3;1;igen;W022|W043;nem;0;0;0;0;0;0;0;6;;
 E074;Nekromanta;Ɲ;6;130;1;6;2100;3;MA013;;7;2;1;nem;W022;nem;0;0;0;0;0;5;2;5;;35
 E075;Gargoyle;Γ;11;350;9;6;2200;3;MA007;Flying;6;1;2;nem;WN002|WN009;nem;4;4;-5;2;3;3;2;4;;40
 E076;Óriásskorpió;ϟ;13;460;7;7;1800;3;MA002|MA007;;5;1;2;igen;WN010|WN018;nem;2;3;2;-3;4;-3;0;2;;
@@ -689,7 +689,7 @@ E049;D011|S014|S025|D010;150;21;10;80;Necromancer;2
 E100;D011|D012|S018|D016|S025;180;23;5;90;Artillery;1
 
 #Szörnyképességek
-Id;Név;Hatás;AktiválásiEsély;Érték;Leírás;Aktiválás;Lehűlés;Hatótáv;MaxCélpont;ÁllapotId;AI súly;FegyverIds;Sebzéstípus;TovábbiHatások;HasználatCsatánként
+Id;Név;Hatás;AktiválásiEsély;Érték;Leírás;Aktiválás;Lehűlés;Hatótáv;MaxCélpont;ÁllapotId;AI súly;FegyverIds;Sebzéstípus;TovábbiHatások;HasználatCsatánként;Látóvonal;TávolságiTalálatiPróba;HátrálásHasználatUtán
 MA002;Mérges támadás;ApplyStatus;25;0;Sikeres találat után mérgezést okozhat.;OnHit;0;1;1;STATUS003;100;W042|WN004|WN007|WN010|WN014|WN018|WN021|WN022|WN024;;;0
 MA003;Fertőzéshordozó;ApplyStatus;20;0;Sikeres találat után betegséget terjeszthet.;OnHit;0;1;1;STATUS004;100;W001|W002|W004|W005|W006|W018|WN001|WN002|WN003|WN004|WN007|WN019;;;0
 MA004;Vérontó;ApplyStatus;25;0;Sikeres találat után vérzést okozhat.;OnHit;0;1;1;STATUS005;100;W001|W002|W009|W010|W042|WN002|WN007|WN008|WN012|WN024;;;0
@@ -697,9 +697,13 @@ MA005;Zúzócsapás;ExtraDamage;25;6;Sikeres találatkor további zúzó sebzés
 MA006;Villámgyors;InitiativeBonus;100;2;A szörny 2 pont bónuszt kap a kezdeményezéséhez.;Passive;0;1;1;;100;;;;0
 MA007;Vastag bőr;ArmorBonus;100;2;A szörny 2 pont állandó páncélbónuszt kap.;Passive;0;1;1;;100;;;;0
 MA008;Regeneráció;Regeneration;100;20;A szörny minden saját köre elején legfeljebb 20 HP-t gyógyul.;TurnStart;0;1;1;;100;;;;0
-MA011;Dermesztő tekintet;ApplyStatus;70;0;A Medúza tekintete rövid időre kődermedtséget okozhat.;Active;3;3;1;STATUS006;45;;;;2
-MA012;Bénító sugár;ApplyStatus;55;0;A mágikus tekintet megmerevíti és sebzi az áldozatot.;Active;3;4;1;STATUS006;50;;;ExtraDamage:4::nekrotikus;2
+MA011;Dermesztő tekintet;ApplyStatus;70;0;A Medúza tekintete rövid időre kődermedtséget okozhat.;Active;3;3;1;STATUS006;45;;;;2;igen;nem;0
+MA012;Bénító sugár;ApplyStatus;55;0;A mágikus tekintet megmerevíti és sebzi az áldozatot.;Active;3;4;1;STATUS006;50;;;ExtraDamage:4::nekrotikus;2;igen;nem;0
 MA013;Rémületkeltés;ApplyStatus;60;0;A természetfeletti jelenlét rettegést és nekrotikus fájdalmat kelt.;Active;4;3;2;STATUS007;35;;;ExtraDamage:6::nekrotikus;1
+MA014;Menekülő lövés;ExtraDamage;100;4;A goblin kapkodva lő, majd megpróbál hátrálni.;Active;3;4;1;;45;;szúrás;;2;igen;igen;1
+MA015;Csonthegyű nyíl;ExtraDamage;100;5;A csontváz recés nyílhegye súlyos sebet tép.;Active;4;4;1;;40;;szúrás;ApplyStatus:0:STATUS005;1;igen;igen;0
+MA016;Megakasztó lövés;ExtraDamage;100;7;Az ork nehéz nyila megtorpasztja a célpontot.;Active;4;5;1;;45;;szúrás;Stagger:1;2;igen;igen;0
+MA017;Mérgezett célbalövés;ExtraDamage;100;5;Az orgyilkos gondosan célzott mérgezett lövedéket indít.;Active;5;4;1;;50;;szúrás;ApplyStatus:0:STATUS003;1;igen;igen;0
 
 #Zsákmány paraméterek
 Id;Érték

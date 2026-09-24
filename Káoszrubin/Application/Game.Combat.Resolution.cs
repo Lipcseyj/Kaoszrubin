@@ -236,20 +236,39 @@ public sealed partial class Game
             return;
         }
         var activeAbility = enemy.PreparedWeaponId is null
-            ? _battleSystem.SelectEnemyActiveAbility(enemy, closestDistance)
+            ? _battleSystem.SelectEnemyActiveAbility(enemy, closestDistance, ability =>
+                (!ability.UsesRangedAttackRoll || !battle.IsEngaged(enemy) ||
+                 enemy.AttackWeapons.All(weapon => weapon.IsRanged)) &&
+                livingTargets.Any(target => EnemyAbilityCanTarget(enemy, target, ability)))
             : null;
         if (activeAbility is not null)
         {
-            var abilityTargets = livingTargets.Where(character =>
-                    TacticalDistance.Between(enemy.Position, GetCasterPosition(character)) <= activeAbility.Range)
+            var abilityTargets = livingTargets.Where(character => EnemyAbilityCanTarget(enemy, character,
+                    activeAbility))
                 .Take(activeAbility.MaximumTargets).ToArray();
             if (abilityTargets.Length > 0) battle.FaceEnemyToward(enemy, abilityTargets[0]);
-            PresentBattleEntries(abilityTargets.Select((target, index) =>
-                _battleSystem.ResolveEnemyAbility(enemy, target, battle.RuntimeFor(target), activeAbility,
-                    consumeResources: index == 0)).ToArray());
+            var abilityEntries = abilityTargets.Select((target, index) =>
+            {
+                var entry = _battleSystem.ResolveEnemyAbility(enemy, target, battle.RuntimeFor(target), activeAbility,
+                    consumeResources: index == 0,
+                    targetDistance: TacticalDistance.Between(enemy.Position, GetCasterPosition(target)));
+                if (entry.Kind != BattleLogKind.Information &&
+                    activeAbility.Effects.FirstOrDefault(effect => effect.Effect == MonsterAbilityEffect.Stagger)
+                        is { } stagger)
+                {
+                    battle.StaggerCharacter(target, stagger.Value >= 3 ? StaggerSeverity.Heavy :
+                        stagger.Value >= 2 ? StaggerSeverity.Normal : StaggerSeverity.Light);
+                    entry = entry with { Message = entry.Message + $" {target.Name} meginog." };
+                }
+                return entry;
+            }).ToArray();
+            PresentBattleEntries(abilityEntries);
             battle.RecordAttack(BattleSide.Hostile);
             foreach (var target in abilityTargets.Where(target => !target.IsAlive))
                 ResolveCharacterDefeat(battle, target);
+            if (activeAbility.RetreatStepsAfterUse > 0 && !battle.IsEngaged(enemy))
+                TryRetreatEnemyAfterAbility(battle, enemy, abilityTargets,
+                    activeAbility.RetreatStepsAfterUse);
             AdvanceBattleTurn(battle);
             return;
         }
@@ -298,7 +317,12 @@ public sealed partial class Game
 
         var attackWeapon = _battleSystem.SelectEnemyAttackWeapon(enemy, weapon =>
             TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, weapon, GetCasterPosition,
-                HasBattleLineOfSight).Count);
+                HasBattleLineOfSight).Count, closestDistance);
+        if (attackWeapon?.IsRanged == true && !battle.IsEngaged(enemy) &&
+            !battle.IsMovementBlocked(CombatantId.ForEnemy(enemy.Id)) &&
+            closestDistance < PreferredEnemyRangedDistance(attackWeapon) &&
+            TryMoveEnemyToPreferredRangedPosition(battle, enemy, attackWeapon, livingTargets))
+            return;
         var targets = TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, attackWeapon,
             GetCasterPosition, HasBattleLineOfSight);
         if (targets.Count == 0)
@@ -327,7 +351,9 @@ public sealed partial class Game
             var resolution = _battleSystem.ResolveEnemyActionDetailed(enemy, target, battle.RuntimeFor(target),
                 attackWeapon, advanceAttackerEffects: index == 0,
                 alliedGuardDefense: TacticalBattleCoordinator.AlliedGuardDefense(
-                    battle, target, GetCasterPosition));
+                    battle, target, GetCasterPosition),
+                rangedHitModifier: EnemyRangedHitModifier(attackWeapon,
+                    TacticalDistance.Between(enemy.Position, GetCasterPosition(target))));
 
             if (_gameSettings.Settings.CombatSpeed == CombatSpeed.PauseAfterHit && resolution.Hit)
             {
@@ -392,7 +418,8 @@ public sealed partial class Game
                 .OrderByDescending(enemy => enemy.EffectiveSpeed).FirstOrDefault();
             if (attacker is null) continue;
             var entry = _battleSystem.ResolveEnemyAttackOnRetreatingCharacter(attacker, retreatingCharacter,
-                battle.RuntimeFor(retreatingCharacter));
+                battle.RuntimeFor(retreatingCharacter),
+                TacticalDistance.Between(attacker.Position, GetCasterPosition(retreatingCharacter)));
             PresentBattleEntries([entry]);
             if (!retreatingCharacter.IsAlive) ResolveCharacterDefeat(battle, retreatingCharacter);
         }
@@ -763,6 +790,101 @@ public sealed partial class Game
                 BattleLogKind.Information)]);
         }
         AdvanceBattleTurn(battle);
+    }
+
+    private static int PreferredEnemyRangedDistance(WeaponDefinition weapon) =>
+        Math.Clamp(weapon.MaximumRange - 1, 2, weapon.MaximumRange);
+
+    private bool EnemyAbilityCanTarget(Enemy enemy, LiveCharacter target, MonsterAbilityDefinition ability)
+    {
+        var targetPosition = GetCasterPosition(target);
+        return TacticalDistance.Between(enemy.Position, targetPosition) <= ability.Range &&
+               (!ability.RequiresLineOfSight ||
+                HasBattleLineOfSight(enemy.Position, targetPosition, ability.Range));
+    }
+
+    private static int EnemyRangedHitModifier(WeaponDefinition? weapon, int distance) =>
+        weapon is { IsRanged: true } && distance <= 1 ? RangedWeaponRules.CloseRangeHitPenalty : 0;
+
+    private bool TryMoveEnemyToPreferredRangedPosition(BattleEncounter battle, Enemy enemy,
+        WeaponDefinition weapon, IReadOnlyList<LiveCharacter> targets)
+    {
+        if (targets.Count == 0) return false;
+        var origin = enemy.Position;
+        var actorId = CombatantId.ForEnemy(enemy.Id);
+        var allowance = Math.Max(1, battle.Current.MovementAllowance);
+        var currentSafety = targets.Min(target => TacticalDistance.Between(origin, GetCasterPosition(target)));
+        var preferred = PreferredEnemyRangedDistance(weapon);
+        var candidates = new List<(IReadOnlyList<Position> Path, int Safety, int VisibleTargets)>();
+        for (var y = Math.Max(0, origin.Y - allowance); y <= Math.Min(_maze.Height - 1, origin.Y + allowance); y++)
+        for (var x = Math.Max(0, origin.X - allowance * TacticalDistance.HorizontalCellsPerUnit);
+             x <= Math.Min(_maze.Width - 1, origin.X + allowance * TacticalDistance.HorizontalCellsPerUnit); x++)
+        {
+            var position = new Position(x, y);
+            if (position == origin || !CanBattleEnter(battle, position, actorId)) continue;
+            var path = FindBattlePath(battle, origin, [position], actorId);
+            if (path.Count == 0 || path.Count > allowance) continue;
+            var visibleTargets = targets.Count(target =>
+                RangedWeaponRules.CanReach(weapon,
+                    TacticalDistance.Between(position, GetCasterPosition(target))) &&
+                HasBattleLineOfSight(position, GetCasterPosition(target), weapon.MaximumRange));
+            if (visibleTargets == 0) continue;
+            var safety = targets.Min(target => TacticalDistance.Between(position, GetCasterPosition(target)));
+            if (safety <= currentSafety) continue;
+            candidates.Add((path, safety, visibleTargets));
+        }
+        var selected = candidates.OrderByDescending(candidate => Math.Min(candidate.Safety, preferred))
+            .ThenByDescending(candidate => candidate.VisibleTargets)
+            .ThenBy(candidate => candidate.Path.Count).FirstOrDefault();
+        if (selected.Path is null) return false;
+        var previousPosition = enemy.Position;
+        var steps = selected.Path.Take(allowance).ToArray();
+        if (steps.Length == 0) return false;
+        battle.RecordMovement(BattleSide.Hostile);
+        enemy.MoveTo(steps[^1]);
+        battle.UpdatePosition(enemy);
+        if (!_isQuickBattle)
+            _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
+        PresentBattleEntries([new BattleLogEntry(
+            $"{enemy.Name} {steps.Length} mezőt hátrál egy jobb tüzelőállásba.",
+            BattleLogKind.Information)]);
+        AdvanceBattleTurn(battle);
+        return true;
+    }
+
+    private bool TryRetreatEnemyAfterAbility(BattleEncounter battle, Enemy enemy,
+        IReadOnlyList<LiveCharacter> targets, int maximumSteps)
+    {
+        if (targets.Count == 0 || maximumSteps <= 0) return false;
+        var actorId = CombatantId.ForEnemy(enemy.Id);
+        var origin = enemy.Position;
+        var currentSafety = targets.Min(target => TacticalDistance.Between(origin, GetCasterPosition(target)));
+        var candidates = new List<(Position Position, IReadOnlyList<Position> Path, int Safety)>();
+        for (var y = Math.Max(0, origin.Y - maximumSteps); y <= Math.Min(_maze.Height - 1, origin.Y + maximumSteps); y++)
+        for (var x = Math.Max(0, origin.X - maximumSteps * TacticalDistance.HorizontalCellsPerUnit);
+             x <= Math.Min(_maze.Width - 1, origin.X + maximumSteps * TacticalDistance.HorizontalCellsPerUnit); x++)
+        {
+            var position = new Position(x, y);
+            if (position == origin || !CanBattleEnter(battle, position, actorId)) continue;
+            var path = FindBattlePath(battle, origin, [position], actorId);
+            if (path.Count == 0 || path.Count > maximumSteps) continue;
+            var safety = targets.Min(target => TacticalDistance.Between(position, GetCasterPosition(target)));
+            if (safety > currentSafety) candidates.Add((position, path, safety));
+        }
+        var selected = candidates
+            .OrderByDescending(candidate => candidate.Safety)
+            .ThenBy(candidate => candidate.Path.Count)
+            .FirstOrDefault();
+        if (selected.Path is null) return false;
+        var destination = selected.Position;
+        battle.RecordMovement(BattleSide.Hostile);
+        enemy.MoveTo(destination);
+        battle.UpdatePosition(enemy);
+        if (!_isQuickBattle)
+            _renderer.DrawEnemyMovement(_maze, _fogOfWar, origin, destination, _player.Position);
+        PresentBattleEntries([new BattleLogEntry(
+            $"{enemy.Name} a lövés után fedezékbe húzódik.", BattleLogKind.Information)]);
+        return true;
     }
 
     private IReadOnlyList<Position> EnemyApproachPositions(BattleEncounter battle, Enemy enemy,

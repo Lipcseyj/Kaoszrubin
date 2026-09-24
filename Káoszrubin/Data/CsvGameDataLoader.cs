@@ -488,7 +488,8 @@ public static class CsvGameDataLoader
                     Math.Clamp(Integer(cells, 8) ?? 1, 1, 8), Math.Clamp(Integer(cells, 9) ?? 1, 1, 4),
                     EmptyAsNull(Cell(cells, 10)), Math.Clamp(Integer(cells, 11) ?? 100, 0, 100),
                     IdList(Cell(cells, 12)), ParseOptionalDamageType(Cell(cells, 13)),
-                    ParseMonsterAbilityComponents(Cell(cells, 14)), Math.Max(0, Integer(cells, 15) ?? 0)));
+                    ParseMonsterAbilityComponents(Cell(cells, 14)), Math.Max(0, Integer(cells, 15) ?? 0),
+                    IsYes(cells, 16), IsYes(cells, 17), Math.Clamp(Integer(cells, 18) ?? 0, 0, 3)));
                 break;
             case DataSection.WeaponTypes:
                 weaponTypes.Add(new WeaponTypeDefinition(id, name));
@@ -1370,6 +1371,7 @@ public static class CsvGameDataLoader
             MonsterAbilityEffect.Regeneration => Math.Max(2, component.Value * 2),
             MonsterAbilityEffect.ArmorBonus => component.Value * 3,
             MonsterAbilityEffect.InitiativeBonus => component.Value * 2,
+            MonsterAbilityEffect.Stagger => Math.Max(2, component.Value * 3),
             _ => 1
         }) * Math.Max(1, ability.MaximumTargets));
 
@@ -1559,6 +1561,13 @@ public static class CsvGameDataLoader
                                                $"'{unknownWeapon}'.");
             if (ability.Trigger == MonsterAbilityTrigger.Active && ability.Cooldown <= 0)
                 throw new InvalidDataException($"A(z) '{ability.Id}' aktív szörnyképességhez pozitív lehűlés szükséges.");
+            if ((ability.RequiresLineOfSight || ability.UsesRangedAttackRoll ||
+                 ability.RetreatStepsAfterUse > 0) && ability.Trigger != MonsterAbilityTrigger.Active)
+                throw new InvalidDataException($"A(z) '{ability.Id}' célzott lövési beállításai csak aktív képességnél használhatók.");
+            foreach (var component in ability.Effects.Where(component =>
+                         component.Effect == MonsterAbilityEffect.Stagger))
+                if (component.Value is < 1 or > 3 || ability.Trigger != MonsterAbilityTrigger.Active)
+                    throw new InvalidDataException($"A(z) '{ability.Id}' megingása aktív képességnél 1 és 3 közötti legyen.");
         }
     }
 

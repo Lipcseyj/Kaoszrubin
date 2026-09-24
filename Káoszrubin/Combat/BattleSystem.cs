@@ -220,6 +220,31 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             breaths.Length > 0 ? breaths[_random.Next(breaths.Length)].Weapon : ready[_random.Next(ready.Length)];
     }
 
+    public WeaponDefinition? SelectEnemyAttackWeapon(Enemy attacker, Func<WeaponDefinition, int> targetCount,
+        int nearestTargetDistance)
+    {
+        ArgumentNullException.ThrowIfNull(targetCount);
+        if (attacker.PreparedWeaponId is not null || attacker.EquippedWeapon is not null)
+            return SelectEnemyAttackWeapon(attacker);
+        var ready = attacker.AttackWeapons.Where(weapon => attacker.IsWeaponReady(weapon.Id)).ToArray();
+        if (ready.Length == 0) return null;
+        var breaths = ready.Where(IsTelegraphedWeapon).Select(weapon => (Weapon: weapon, Targets: targetCount(weapon)))
+            .Where(candidate => candidate.Targets > 0).ToArray();
+        var groupBreath = breaths.Where(candidate => candidate.Targets >= 2)
+            .OrderByDescending(candidate => candidate.Targets)
+            .ThenByDescending(candidate => candidate.Weapon.Damage?.Maximum ?? 0).FirstOrDefault();
+        if (groupBreath.Weapon is not null) return groupBreath.Weapon;
+        if (breaths.Length > 0 && _random.Next(100) < 35)
+            return breaths[_random.Next(breaths.Length)].Weapon;
+        var ordinary = ready.Where(weapon => !IsTelegraphedWeapon(weapon) && targetCount(weapon) > 0)
+            .OrderByDescending(weapon => nearestTargetDistance <= 1 ? !weapon.IsRanged : weapon.IsRanged)
+            .ThenByDescending(targetCount)
+            .ThenByDescending(weapon => weapon.Damage?.Maximum ?? 0)
+            .ToArray();
+        return ordinary.FirstOrDefault() ??
+               (breaths.Length > 0 ? breaths[_random.Next(breaths.Length)].Weapon : ready[_random.Next(ready.Length)]);
+    }
+
     public static bool IsTelegraphedWeapon(WeaponDefinition? weapon) =>
         weapon is { MaximumTargets: > 1 } && !weapon.DamageType.IsPhysical();
 
@@ -256,13 +281,14 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return new EnemyTurnStartResult(true, entries);
     }
 
-    public MonsterAbilityDefinition? SelectEnemyActiveAbility(Enemy enemy, int targetDistance)
+    public MonsterAbilityDefinition? SelectEnemyActiveAbility(Enemy enemy, int targetDistance,
+        Func<MonsterAbilityDefinition, bool>? canUse = null)
     {
         var candidates = enemy.Definition.AbilityIds.Where(_monsterAbilities.ContainsKey)
             .Select(id => _monsterAbilities[id])
             .Where(ability => ability.Trigger == MonsterAbilityTrigger.Active &&
                               enemy.IsAbilityReady(ability.Id) && enemy.HasAbilityCharge(ability) &&
-                              targetDistance <= ability.Range)
+                              targetDistance <= ability.Range && (canUse?.Invoke(ability) ?? true))
             .ToArray();
         if (candidates.Length == 0) return null;
         var selected = candidates[_random.Next(candidates.Length)];
@@ -275,12 +301,24 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         ResolveEnemyAbility(attacker, defender, defenderRuntime.Context, ability, consumeResources);
 
     private BattleLogEntry ResolveEnemyAbility(Enemy attacker, LiveCharacter defender,
-        BattleRuntimeContext defenderContext, MonsterAbilityDefinition ability, bool consumeResources = true)
+        BattleRuntimeContext defenderContext, MonsterAbilityDefinition ability, bool consumeResources = true,
+        int targetDistance = 1)
     {
         if (consumeResources)
         {
             attacker.StartAbilityCooldown(ability.Id, ability.Cooldown);
             attacker.ConsumeAbilityCharge(ability);
+        }
+        if (ability.UsesRangedAttackRoll)
+        {
+            var closeRangeModifier = targetDistance <= 1 ? RangedWeaponRules.CloseRangeHitPenalty : 0;
+            var hit = HitRoll(attacker.EffectiveSpeed, defender.EffectiveAbilities.Dexterity,
+                closeRangeModifier, false);
+            if (!hit.Hit)
+                return new BattleLogEntry(
+                    $"🏹 {attacker.Name} használja: {ability.Name}, de elhibázza {defender.Name} karaktert" +
+                    (closeRangeModifier < 0 ? $" ({closeRangeModifier} közeli lövés)." : "."),
+                    BattleLogKind.Information);
         }
         if (_random.Next(100) >= ability.ChancePercent)
             return new BattleLogEntry($"👁️ {attacker.Name} használja: {ability.Name}, de {defender.Name} ellenáll.",
@@ -317,6 +355,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             (effects.Count == 0 ? "A hatás elmarad." : string.Join("; ", effects)), BattleLogKind.EnemyAttack);
     }
 
+    public BattleLogEntry ResolveEnemyAbility(Enemy attacker, LiveCharacter defender,
+        CharacterBattleChoices defenderRuntime, MonsterAbilityDefinition ability,
+        bool consumeResources, int targetDistance) => ResolveEnemyAbility(attacker, defender,
+        defenderRuntime.Context, ability, consumeResources, targetDistance);
+
     public void MarkEnemyWeaponUsed(Enemy enemy, WeaponDefinition? weapon)
     {
         if (IsTelegraphedWeapon(weapon))
@@ -334,7 +377,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     public EnemyAttackResolution ResolveEnemyActionDetailed(Enemy attacker, LiveCharacter defender,
         CharacterBattleChoices defenderRuntime, WeaponDefinition? attackWeapon = null,
-        bool advanceAttackerEffects = true, int alliedGuardDefense = 0)
+        bool advanceAttackerEffects = true, int alliedGuardDefense = 0, int rangedHitModifier = 0)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
@@ -342,7 +385,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         attackWeapon ??= SelectEnemyAttackWeapon(attacker);
         var attack = ResolveEnemyWeaponAttack(attacker, defender, defenderRuntime.Context,
             new EnemyAttackOptions(AttackWeapon: attackWeapon, AllowWeaponFallback: false,
-                AlliedGuardDefense: alliedGuardDefense));
+                AlliedGuardDefense: alliedGuardDefense, RangedHitModifier: rangedHitModifier));
         var vitalityBefore = defender.CurrentVitality;
         var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
         var entry = new BattleLogEntry(
@@ -493,7 +536,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         };
 
     public BattleLogEntry ResolveEnemyAttackOnRetreatingCharacter(Enemy attacker, LiveCharacter defender,
-        CharacterBattleChoices defenderRuntime)
+        CharacterBattleChoices defenderRuntime, int targetDistance = 1)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
@@ -505,7 +548,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             ? selected
             : weapons.Length > 0 ? weapons[_random.Next(weapons.Length)] : null;
         var attack = ResolveEnemyWeaponAttack(attacker, defender, defenderRuntime.Context,
-            new EnemyAttackOptions(AttackWeapon: opportunityWeapon, AllowWeaponFallback: false));
+            new EnemyAttackOptions(AttackWeapon: opportunityWeapon, AllowWeaponFallback: false,
+                RangedHitModifier: opportunityWeapon is { IsRanged: true } && targetDistance <= 1
+                    ? RangedWeaponRules.CloseRangeHitPenalty
+                    : 0));
         var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
         return new BattleLogEntry(
             $"↪️ {FormatAttackSummary(attacker.Name, defender.Name, [attack],
@@ -1398,16 +1444,18 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         }
 
         var spellHitModifier = attacker.SpellEffectValue(ActiveSpellEffectType.HitBonus);
-        var hit = HitRoll(attackerSpeed, defender.EffectiveAbilities.Dexterity, spellHitModifier, false);
+        var rangedHitModifier = options.RangedHitModifier;
+        var hitModifier = spellHitModifier + rangedHitModifier;
+        var hit = HitRoll(attackerSpeed, defender.EffectiveAbilities.Dexterity, hitModifier, false);
         hitDescription = hit.Description;
 
         var hitTarget = 11 + defender.EffectiveAbilities.Dexterity;
-        var totalHitModifier = spellHitModifier;
+        var totalHitModifier = hitModifier;
         var totalHitRoll = hit.NaturalRoll + attackerSpeed + totalHitModifier;
 
         criticalChance = Enumerable.Range(1, 20).Count(roll =>
             roll != 1 &&
-            (roll == 20 || roll + attackerSpeed + spellHitModifier >= hitTarget) &&
+            (roll == 20 || roll + attackerSpeed + hitModifier >= hitTarget) &&
             roll == 20) * 5d;
 
         var criticalMultiplier = hit.NaturalRoll == 20 ? 2 : 1;
@@ -1422,6 +1470,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         hitCalculations.Add($"🎯 Cél: 11 + ügyesség {defender.EffectiveAbilities.Dexterity} = {hitTarget}");
         hitCalculations.Add($"🎯 Összes módosító: {totalHitModifier:+#;-#;0}");
         Modifier(hitCalculations, "🎯 Varázshatás", spellHitModifier);
+        Modifier(hitCalculations, "🎯 Közeli lövés", rangedHitModifier);
         // ============================================================
 
 
@@ -2076,7 +2125,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private sealed record EnemyAttackOptions(
         WeaponDefinition? AttackWeapon = null,
         bool AllowWeaponFallback = true,
-        int AlliedGuardDefense = 0);
+        int AlliedGuardDefense = 0,
+        int RangedHitModifier = 0);
 
     private sealed record InitiativeRoll(int Total, string ModifierText);
     private sealed record HitRollResult(bool Hit, int NaturalRoll, string Description);

@@ -8,7 +8,9 @@ public sealed record MonsterAbilityDefinition(string Id, string Name, MonsterAbi
     MonsterAbilityTrigger Trigger = MonsterAbilityTrigger.OnHit, int Cooldown = 0, int Range = 1,
     int MaximumTargets = 1, string? StatusId = null, int AiWeight = 100,
     IReadOnlyList<string>? WeaponIds = null, DamageType? DamageType = null,
-    IReadOnlyList<MonsterAbilityComponent>? AdditionalEffects = null, int ChargesPerBattle = 0) : IGameDefinition
+    IReadOnlyList<MonsterAbilityComponent>? AdditionalEffects = null, int ChargesPerBattle = 0,
+    bool RequiresLineOfSight = false, bool UsesRangedAttackRoll = false,
+    int RetreatStepsAfterUse = 0) : IGameDefinition
 {
     public IReadOnlyList<MonsterAbilityComponent> Effects =>
     [
@@ -38,7 +40,8 @@ public enum MonsterAbilityEffect
     InitiativeBonus,
     ArmorBonus,
     Regeneration,
-    ApplyStatus
+    ApplyStatus,
+    Stagger
 }
 
 [Flags]
