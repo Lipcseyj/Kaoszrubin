@@ -28,6 +28,7 @@ public static class CsvGameDataLoader
         var characterClasses = new List<CharacterClassDefinition>();
         var enemies = new List<EnemyDefinition>();
         var monsterAbilities = new List<MonsterAbilityDefinition>();
+        var monsterAbilityEffects = new List<MonsterAbilityEffectRow>();
         var strengthHitBonuses = new List<StrengthHitBonusDefinition>();
         var monsterLoot = new List<MonsterLootDefinition>();
         var lootRuleValues = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -117,6 +118,11 @@ public static class CsvGameDataLoader
                     if (!string.IsNullOrWhiteSpace(itemId)) tradeExcludedItemIds.Add(itemId);
                     continue;
                 }
+                if (section == DataSection.MonsterAbilityEffects)
+                {
+                    monsterAbilityEffects.Add(ParseMonsterAbilityEffectRow(cells));
+                    continue;
+                }
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
                     monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, itemCurses, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps,
                     npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcStoryChoices, npcQuests,
@@ -148,6 +154,7 @@ public static class CsvGameDataLoader
             ("Osztályok", characterClasses.Select(value => value.Id)),
             ("Ellenségek", enemies.Select(value => value.Id)),
             ("Szörnyképességek", monsterAbilities.Select(value => value.Id)),
+            ("Szörnyképesség-hatások", monsterAbilityEffects.Select(value => $"{value.AbilityId}:{value.Order}")),
             ("Fegyvertípus", weaponTypes.Select(value => value.Id)),
             ("Fegyverek", weapons.Select(value => value.Id)),
             ("Páncélok", armors.Select(value => value.Id)),
@@ -174,6 +181,7 @@ public static class CsvGameDataLoader
             ("Karaktergenerálási felszerelés", characterGenerationEquipment.Select(value => value.ItemId)),
             ("Karaktergenerálási tárgybővítések", characterGenerationUpgrades.Select(value => value.UpgradeId)),
             ("Kereskedelemből tiltott tárgyak", tradeExcludedItemIds));
+        monsterAbilities = ResolveMonsterAbilityEffects(monsterAbilities, monsterAbilityEffects);
         ValidateSpells(spells);
         ValidateSpellEffects(spells, spellEffects);
         ValidateEnemySpellcasters(enemies, spells, spellEffects, enemySpellcasters);
@@ -482,14 +490,16 @@ public static class CsvGameDataLoader
                     MagicResistance: Math.Clamp(Integer(cells, 26) ?? 0, 0, 100)));
                 break;
             case DataSection.MonsterAbilities:
-                monsterAbilities.Add(new MonsterAbilityDefinition(id, name, ParseMonsterAbilityEffect(cells, 2),
-                    Math.Clamp(Integer(cells, 3) ?? 0, 0, 100), Integer(cells, 4) ?? 0, Cell(cells, 5),
-                    ParseMonsterAbilityTrigger(cells, 6), Math.Max(0, Integer(cells, 7) ?? 0),
-                    Math.Clamp(Integer(cells, 8) ?? 1, 1, 8), Math.Clamp(Integer(cells, 9) ?? 1, 1, 4),
-                    EmptyAsNull(Cell(cells, 10)), Math.Clamp(Integer(cells, 11) ?? 100, 0, 100),
-                    IdList(Cell(cells, 12)), ParseOptionalDamageType(Cell(cells, 13)),
-                    ParseMonsterAbilityComponents(Cell(cells, 14)), Math.Max(0, Integer(cells, 15) ?? 0),
-                    IsYes(cells, 16), IsYes(cells, 17), Math.Clamp(Integer(cells, 18) ?? 0, 0, 3)));
+                monsterAbilities.Add(new MonsterAbilityDefinition(id, name, Cell(cells, 2),
+                    ParseMonsterAbilityTrigger(cells, 3), ParseMonsterAbilityResolutionMode(cells, 4),
+                    ParseMonsterAbilityTargeting(cells, 5), Math.Clamp(Integer(cells, 6) ?? 100, 0, 100),
+                    Math.Max(0, Integer(cells, 7) ?? 0), Math.Clamp(Integer(cells, 8) ?? 1, 1, 8),
+                    Math.Clamp(Integer(cells, 9) ?? 1, 1, 4),
+                    Math.Clamp(Integer(cells, 10) ?? 100, 0, 100), IdList(Cell(cells, 11)),
+                    Math.Max(0, Integer(cells, 12) ?? 0), IsYes(cells, 13),
+                    Math.Clamp(Integer(cells, 14) ?? 0, 0, 3),
+                    Math.Clamp(Integer(cells, 15) ?? 1, 1, 4), EmptyAsNull(Cell(cells, 16)),
+                    Math.Clamp(Integer(cells, 17) ?? 0, 0, 3)));
                 break;
             case DataSection.WeaponTypes:
                 weaponTypes.Add(new WeaponTypeDefinition(id, name));
@@ -1330,6 +1340,28 @@ public static class CsvGameDataLoader
             : throw new InvalidOperationException($"Ismeretlen szörnyképesség-aktiválás: '{value}'.");
     }
 
+    private static MonsterAbilityResolutionMode ParseMonsterAbilityResolutionMode(string[] cells, int index) =>
+        Enum.TryParse<MonsterAbilityResolutionMode>(Cell(cells, index), true, out var mode)
+            ? mode
+            : throw new InvalidOperationException(
+                $"Ismeretlen szörnyképesség-végrehajtás: '{Cell(cells, index)}'.");
+
+    private static MonsterAbilityTargeting ParseMonsterAbilityTargeting(string[] cells, int index) =>
+        Enum.TryParse<MonsterAbilityTargeting>(Cell(cells, index), true, out var targeting)
+            ? targeting
+            : throw new InvalidOperationException(
+                $"Ismeretlen szörnyképesség-célzás: '{Cell(cells, index)}'.");
+
+    private static MonsterResistanceAbility ParseMonsterResistanceAbility(string[] cells, int index)
+    {
+        var value = Cell(cells, index);
+        if (string.IsNullOrWhiteSpace(value)) return MonsterResistanceAbility.None;
+        return Enum.TryParse<MonsterResistanceAbility>(value, true, out var ability)
+            ? ability
+            : throw new InvalidOperationException(
+                $"Ismeretlen szörnyképesség-ellenállás: '{value}'.");
+    }
+
     private static EnemyTraits ParseEnemyTraits(string value)
     {
         var result = EnemyTraits.None;
@@ -1345,21 +1377,42 @@ public static class CsvGameDataLoader
     private static DamageType? ParseOptionalDamageType(string value) =>
         string.IsNullOrWhiteSpace(value) ? null : ParseDamageType(value);
 
-    private static IReadOnlyList<MonsterAbilityComponent> ParseMonsterAbilityComponents(string value)
+    private static MonsterAbilityEffectRow ParseMonsterAbilityEffectRow(string[] cells)
     {
-        if (string.IsNullOrWhiteSpace(value)) return [];
-        var result = new List<MonsterAbilityComponent>();
-        foreach (var encoded in value.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        var abilityId = Cell(cells, 0);
+        var order = Integer(cells, 1) is > 0 and var parsedOrder
+            ? parsedOrder
+            : throw new InvalidDataException(
+                $"A(z) '{abilityId}' szörnyképesség-hatás sorrendje pozitív egész legyen.");
+        return new MonsterAbilityEffectRow(abilityId, order,
+            new MonsterAbilityComponent(ParseMonsterAbilityEffect(cells, 2), Integer(cells, 3) ?? 0,
+                EmptyAsNull(Cell(cells, 5)), ParseOptionalDamageType(Cell(cells, 6)), ValueRangeFrom(cells, 4),
+                Math.Clamp(Integer(cells, 7) ?? 100, 0, 100), ParseMonsterResistanceAbility(cells, 8),
+                Math.Max(0, Integer(cells, 9) ?? 0), Math.Max(0, Integer(cells, 10) ?? 0)));
+    }
+
+    private static List<MonsterAbilityDefinition> ResolveMonsterAbilityEffects(
+        IReadOnlyCollection<MonsterAbilityDefinition> abilities,
+        IReadOnlyCollection<MonsterAbilityEffectRow> effectRows)
+    {
+        var abilityIds = abilities.Select(ability => ability.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var unknownAbility = effectRows.FirstOrDefault(row => !abilityIds.Contains(row.AbilityId));
+        if (unknownAbility is not null)
+            throw new InvalidDataException(
+                $"A szörnyképesség-hatás ismeretlen képességre hivatkozik: '{unknownAbility.AbilityId}'.");
+
+        return abilities.Select(ability =>
         {
-            var parts = encoded.Split(':', StringSplitOptions.TrimEntries);
-            if (!Enum.TryParse<MonsterAbilityEffect>(parts[0], true, out var effect))
-                throw new InvalidDataException($"Ismeretlen további szörnyképesség-hatás: '{parts[0]}'.");
-            var amount = parts.Length > 1 && int.TryParse(parts[1], out var parsedAmount) ? parsedAmount : 0;
-            var statusId = parts.Length > 2 ? EmptyAsNull(parts[2]) : null;
-            var damageType = parts.Length > 3 ? ParseOptionalDamageType(parts[3]) : null;
-            result.Add(new MonsterAbilityComponent(effect, amount, statusId, damageType));
-        }
-        return result;
+            var effects = effectRows
+                .Where(row => string.Equals(row.AbilityId, ability.Id, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(row => row.Order)
+                .Select(row => row.Component)
+                .ToArray();
+            if (effects.Length == 0)
+                throw new InvalidDataException(
+                    $"A(z) '{ability.Id}' szörnyképességhez legalább egy #Szörnyképesség-hatások sor szükséges.");
+            return ability with { ConfiguredEffects = effects };
+        }).ToList();
     }
 
     private static int AbilityThreat(MonsterAbilityDefinition ability) => ability.Effects.Sum(component =>
@@ -1550,6 +1603,8 @@ public static class CsvGameDataLoader
         var weaponIds = weapons.Select(weapon => weapon.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var ability in abilities)
         {
+            if (ability.Effects.Count == 0)
+                throw new InvalidDataException($"A(z) '{ability.Id}' szörnyképességnek nincs hatása.");
             foreach (var component in ability.Effects.Where(component =>
                          component.Effect == MonsterAbilityEffect.ApplyStatus))
                 if (component.StatusId is null || !statusIds.Contains(component.StatusId))
@@ -1561,9 +1616,38 @@ public static class CsvGameDataLoader
                                                $"'{unknownWeapon}'.");
             if (ability.Trigger == MonsterAbilityTrigger.Active && ability.Cooldown <= 0)
                 throw new InvalidDataException($"A(z) '{ability.Id}' aktív szörnyképességhez pozitív lehűlés szükséges.");
+            if (ability.Trigger != MonsterAbilityTrigger.Active &&
+                (ability.PreparationTurns > 0 || ability.AttackCount > 1))
+                throw new InvalidDataException(
+                    $"A(z) '{ability.Id}' előkészítése és többszörös támadása csak aktív képességnél használható.");
             if ((ability.RequiresLineOfSight || ability.UsesRangedAttackRoll ||
                  ability.RetreatStepsAfterUse > 0) && ability.Trigger != MonsterAbilityTrigger.Active)
                 throw new InvalidDataException($"A(z) '{ability.Id}' célzott lövési beállításai csak aktív képességnél használhatók.");
+            if (ability.AttackCount > 1 && ability.ResolutionMode is not
+                    (MonsterAbilityResolutionMode.WeaponAttack or MonsterAbilityResolutionMode.AbilityAttack))
+                throw new InvalidDataException(
+                    $"A(z) '{ability.Id}' többszörös támadásához támadódobásos végrehajtás szükséges.");
+            if (ability.Targeting is MonsterAbilityTargeting.Self or MonsterAbilityTargeting.SingleEnemy &&
+                ability.MaximumTargets != 1)
+                throw new InvalidDataException(
+                    $"A(z) '{ability.Id}' egycélpontos célzásához a MaxCélpont értéke 1 legyen.");
+            if (ability.Targeting == MonsterAbilityTargeting.MultipleEnemies && ability.MaximumTargets < 2)
+                throw new InvalidDataException(
+                    $"A(z) '{ability.Id}' többcélpontos célzásához legalább 2 MaxCélpont szükséges.");
+            if (ability.ResolutionMode == MonsterAbilityResolutionMode.SavingThrow &&
+                !ability.Effects.Any(component => component.ResistanceAbility != MonsterResistanceAbility.None))
+                throw new InvalidDataException(
+                    $"A(z) '{ability.Id}' ellenállási próbájához legalább egy ellenállással rendelkező hatás szükséges.");
+            foreach (var component in ability.Effects)
+            {
+                if (component.ResistanceAbility == MonsterResistanceAbility.None && component.ResistanceDifficulty != 0 ||
+                    component.ResistanceAbility != MonsterResistanceAbility.None && component.ResistanceDifficulty <= 0)
+                    throw new InvalidDataException(
+                        $"A(z) '{ability.Id}' hatásának ellenállása és nehézsége nincs összhangban.");
+                if (component.Duration < 0)
+                    throw new InvalidDataException(
+                        $"A(z) '{ability.Id}' hatásának időtartama nem lehet negatív.");
+            }
             foreach (var component in ability.Effects.Where(component =>
                          component.Effect == MonsterAbilityEffect.Stagger))
                 if (component.Value is < 1 or > 3 || ability.Trigger != MonsterAbilityTrigger.Active)
@@ -1748,7 +1832,7 @@ public static class CsvGameDataLoader
     }
 
     private static bool IsHeaderRow(string value) => Normalize(value) is "id" or "npcid" or "fajid" or "osztalyid" or
-        "szornyid" or "ellensegid" or "szituacioid" or "egeszseg" or "intelligencia" or "szint";
+        "szornyid" or "ellensegid" or "kepessegid" or "szituacioid" or "egeszseg" or "intelligencia" or "szint";
     private static string Cell(string[] cells, int index) => index < cells.Length ? cells[index] : string.Empty;
     private static string? EmptyAsNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
@@ -1838,6 +1922,7 @@ public static class CsvGameDataLoader
         "osztalyok" => DataSection.CharacterClasses,
         "ellensegek" => DataSection.Enemies,
         "szornykepessegek" => DataSection.MonsterAbilities,
+        "szornykepesseg-hatasok" => DataSection.MonsterAbilityEffects,
         "fegyvertipus" => DataSection.WeaponTypes,
         "fegyverek" => DataSection.Weapons,
         "pancelok" => DataSection.Armors,
@@ -1900,6 +1985,7 @@ public static class CsvGameDataLoader
         CharacterClasses,
         Enemies,
         MonsterAbilities,
+        MonsterAbilityEffects,
         WeaponTypes,
         Weapons,
         Armors,

@@ -183,6 +183,7 @@ A CSV `#` karakterrel kezdődő szekciókból áll. A betöltő az ékezeteket �
 - karakterállapotok;
 - szintlépési XP-küszöbök;
 - ellenfelek;
+- szörnyképességek és külön, sorrendezett szörnyképesség-hatások;
 - fegyverek és fegyvertípusok;
 - páncélok;
 - képességek és tárgyak;
@@ -766,7 +767,9 @@ A térképi szörnyrúnák erősség szerinti színe:
 | 4 | piros |
 | 5 | magenta |
 
-A `MonsterAbilityDefinition` az alapadatokon túl aktiválási pontot (`Passive`, `OnHit`, `TurnStart`, `Active`), lehűlést, hatótávot, célpontszámot, állapotazonosítót, AI-súlyt, opcionális fegyverszűrőt, sebzéstípust és csatánkénti használati korlátot tartalmaz. A `TovábbiHatások` CSV-oszlopban `Hatás:Érték:ÁllapotId:Sebzéstípus` alakban, `|` jellel elválasztva több hatás rendelhető ugyanahhoz az aktiváláshoz; például az `ExtraDamage:4::nekrotikus` négy nekrotikus sebzést ad. Egyetlen sikeres aktiválási dobás után az elsődleges és az összes további hatás végrehajtódik. A `HasználatCsatánként` nulla értéke korlátlan használatot jelent. Jelenlegi hatások:
+A `MonsterAbilityDefinition` metaadatai a `#Szörnyképességek`, sorrendezett hatásai pedig a `#Szörnyképesség-hatások` szekcióból érkeznek. A fejléc az aktiválási pont (`Passive`, `OnHit`, `TurnStart`, `Active`) mellett külön végrehajtási módot (`WeaponAttack`, `AbilityAttack`, `SavingThrow`, `Automatic`), célzást, lehűlést, hatótávot, célpontszámot, AI-súlyt, opcionális fegyverszűrőt, csatánkénti használati korlátot, előkészítési időt, támadásszámot, képességcsoportot és használat utáni hátrálást tartalmaz. A `HasználatCsatánként` nulla értéke korlátlan használatot jelent.
+
+Minden hatássor saját típust, fix értéket vagy dobástartományt, állapotazonosítót, sebzéstípust, esélyt, ellenállási tulajdonságot és nehézséget, valamint időtartamot hordozhat. A sorok a képességazonosító és a pozitív `Sorrend` alapján kapcsolódnak a fejlécükhöz; ismeretlen fejléc, hiányzó hatás vagy ismétlődő sorrend betöltési hiba. Az első migrációs lépés a korábbi működést őrzi: a meglévő képességek globális sikeresélye után minden felsorolt hatás végrehajtódik. A hatásonkénti esély, ellenállás, dobás, időtartam, továbbá az előkészítés, támadásszám és képességcsoport végrehajtása a következő rendszerlépések számára előkészített adat; ezek már betöltődnek és az egymásnak ellentmondó beállításokat a betöltő elutasítja. Jelenlegi hatások:
 
 - `Poison`, `Disease`, `Bleeding`: sikeres szörnytámadás után a CSV-s eséllyel hozzáadja a Mérgezés, Betegség vagy Vérzés karakterállapotot;
 - `ExtraDamage`: sikeres találatkor a megadott eséllyel hozzáadja a konfigurált extra sebzést;
@@ -1172,7 +1175,7 @@ Az automatikusan irányított csapattag a fegyverválasztáskor figyelembe veszi
 
 A lövős ellenfél a fegyver maximuma alatti biztonságos lőtávot részesíti előnyben. Ha nincs lekötve és túl közel került, olyan elérhető mezőre hátrál, ahonnan továbbra is legalább egy célpontot lát és elér; távolról a lövőfegyvert, közvetlen közelről az elérhető közelharci támadást választja. Lekötött, kizárólag távolsági támadással rendelkező ellenfél továbbra is lőhet, de ugyanazt a -3 közeli találati büntetést kapja, amely a részletes harci bontásban is megjelenik.
 
-Az aktív szörnyképességek CSV-sora a csatánkénti használatszám után `Látóvonal`, `TávolságiTalálatiPróba` és `HátrálásHasználatUtán` mezőket tartalmazhat. A célzott lövések normál szörny-találati dobást és közeli lövési büntetést használnak; a `Stagger` további hatás 1–3 értéke könnyű, normál vagy súlyos megingást jelent. Az első ilyen képességek a goblin íjász Menekülő lövése, a csontváz íjász Csonthegyű nyila, az ork íjász Megakasztó lövése és az orgyilkosok Mérgezett célbalövése. A Medúza Dermesztő tekintete és a beholder Bénító sugara mostantól lővonalat igényel, de a későbbi teljes képességreformig megtartja saját hatásesélyét.
+Az aktív szörnyképességek `Látóvonal`, `Végrehajtás` és `HátrálásHasználatUtán` mezői írják le a célzott lövéseket. Az `AbilityAttack` végrehajtás normál szörny-találati dobást és közeli lövési büntetést használ; a külön hatássorban megadott `Stagger` 1–3 értéke könnyű, normál vagy súlyos megingást jelent. Az első ilyen képességek a goblin íjász Menekülő lövése, a csontváz íjász Csonthegyű nyila, az ork íjász Megakasztó lövése és az orgyilkosok Mérgezett célbalövése. A Medúza Dermesztő tekintete és a beholder Bénító sugara lővonalat igényel, de a későbbi teljes képességreformig megtartja saját globális hatásesélyét.
 
 A fegyver CSV-sora a súly után a következő oszlopokat tartalmazza: Sebzéstípus (vágás/szúrás/zúzás/tűz/sav/nekrotikus/káosz), MaxCélpont (1–4), HátsóSor (igen/nem), Fegyvercsalád. A pallos (W009), nagybalta (W017) és kétkezes pöröly (W013) alapból két célpontot érhet el. Ez nem távolsági támadás: mindkét célpontnak szomszédosnak kell lennie a támadóval és egymással is. A kiválasztott ellenfél az első célpont, a második a megfelelő élő szomszédokból rögzített térképi sorrendben választódik. Célpontonként külön találati és sebzési dobás történik, de az állapothatások és a körléptetés csak egyszer futnak.
 
