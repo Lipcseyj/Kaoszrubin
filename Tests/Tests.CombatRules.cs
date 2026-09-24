@@ -1282,6 +1282,60 @@ internal static partial class Program
             "Nincs mind a négy új sebzéstípushoz két erős, eltérő alaptípusú legendás páncél.");
     }
 
+    static void RangedMonstersUseRangedWeaponsAndTargets()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var expectedWeapons = new Dictionary<string, string>
+        {
+            [MonsterIds.GoblinÍjász] = "W039",
+            [MonsterIds.CsontvázÍjász] = "W039",
+            [MonsterIds.OrkÍjász] = "W041",
+            [MonsterIds.Orgyilkos] = "W042",
+            [MonsterIds.SötételfOrgyilkos] = "W043",
+            [MonsterIds.Medúza] = "WN021",
+            [MonsterIds.ÉjiBanya] = "WN031",
+            [MonsterIds.Beholder] = "WN032",
+            [MonsterIds.VénBeholder] = "WN033",
+            [MonsterIds.Küklopsz] = "WN034",
+            [MonsterIds.Lich] = "W021",
+            [MonsterIds.Káoszmágus] = "W021",
+            [MonsterIds.SötétDruida] = "WN035"
+        };
+
+        Assert(expectedWeapons.All(pair =>
+        {
+            var enemy = data.GetEnemy(pair.Key);
+            var weapon = enemy.Weapons?.FirstOrDefault(candidate => candidate.Id == pair.Value);
+            return weapon is { IsRanged: true, MaximumRange: >= 3 };
+        }), "Nem minden kijelölt lövős szörny kapta meg a megfelelő távolsági fegyverét.");
+
+        Assert(data.GetWeapon("W042") is { AttackMode: WeaponAttackMode.Projectile,
+                   AmmunitionItemId: AmmunitionIds.CrossbowBolt } &&
+               data.GetWeapon("WN032") is { AttackMode: WeaponAttackMode.NaturalRanged,
+                   AmmunitionItemId: null } &&
+               data.GetWeapon("W021") is { AttackMode: WeaponAttackMode.NaturalRanged,
+                   DamageType: DamageType.Necrotic },
+            "A normál és természetes szörnylövések lőszer- vagy támadásmódja hibás.");
+
+        var target = CreateCharacter("Sugárcél", vitality: 100);
+        var targetSystem = CreateBattleSystem(2601);
+        var preparation = targetSystem.PrepareCharacter(target);
+        var beholder = new ConfiguredEnemy(new Position(3, 3), data.GetEnemy(MonsterIds.Beholder));
+        var battle = new BattleEncounter(new Position(3, 3),
+            [new BattleCharacterParticipant(target, new Position(9, 3), TacticalParticipantKind.PartyMember,
+                preparation.Initiative, 3, 1, preparation.Runtime)],
+            [new BattleEnemyParticipant(beholder, 5, 2, 1)], target.Id, beholder.Id);
+        Assert(TacticalBattleCoordinator.EnemyAttackTargets(battle, beholder, data.GetWeapon("WN032"),
+                   _ => new Position(9, 3)).Single() == target,
+            "A szemsugár nem éri el a három taktikai mezőre álló célpontot.");
+
+        var cyclops = new ConfiguredEnemy(new Position(3, 3), data.GetEnemy(MonsterIds.Küklopsz));
+        Assert(targetSystem.SelectEnemyAttackWeapon(cyclops,
+                   weapon => weapon.IsRanged ? 1 : 0)?.Id == "WN034",
+            "A küklopsz nem a sziklahajítást választja, ha csak távoli célpont érhető el.");
+    }
+
 }
 
 file sealed class MaximumRandom : Random

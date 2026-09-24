@@ -306,7 +306,7 @@ public sealed partial class Game
             var target = EnemyTargets(battle, enemy)
                 .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))
                 .First();
-            MoveEnemyToward(battle, enemy, GetCasterPosition(target));
+            MoveEnemyToward(battle, enemy, GetCasterPosition(target), attackWeapon);
             return;
         }
         battle.FaceEnemyToward(enemy, targets[0]);
@@ -321,9 +321,9 @@ public sealed partial class Game
         for (var index = 0; index < targets.Count; index++)
         {
             var target = targets[index];
-            if (TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target)))
-                battle.Engage(target, enemy);
-            var meleeAttack = TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target));
+            var meleeAttack = attackWeapon?.IsRanged != true &&
+                              TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target));
+            if (meleeAttack) battle.Engage(target, enemy);
             var resolution = _battleSystem.ResolveEnemyActionDetailed(enemy, target, battle.RuntimeFor(target),
                 attackWeapon, advanceAttackerEffects: index == 0,
                 alliedGuardDefense: TacticalBattleCoordinator.AlliedGuardDefense(
@@ -667,9 +667,9 @@ public sealed partial class Game
         var target = EnemyTargets(battle, enemy)
             .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character)))
             .First();
-        var goals = MeleePositions(GetCasterPosition(target))
-            .Where(position => CanBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)))
-            .ToArray();
+        var goals = possibleWeapons.SelectMany(weapon =>
+                EnemyApproachPositions(battle, enemy, GetCasterPosition(target), weapon))
+            .Distinct().ToArray();
         return FindBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id)).Count > 0;
     }
 
@@ -686,7 +686,8 @@ public sealed partial class Game
         CompleteCharacterMovement(battle, character, path);
     }
 
-    private void MoveEnemyToward(BattleEncounter battle, Enemy enemy, Position target)
+    private void MoveEnemyToward(BattleEncounter battle, Enemy enemy, Position target,
+        WeaponDefinition? attackWeapon)
     {
         if (battle.IsMovementBlocked(CombatantId.ForEnemy(enemy.Id)))
         {
@@ -696,9 +697,7 @@ public sealed partial class Game
             AdvanceBattleTurn(battle);
             return;
         }
-        var goals = MeleePositions(target)
-            .Where(position => CanBattleEnter(battle, position, CombatantId.ForEnemy(enemy.Id)))
-            .ToArray();
+        var goals = EnemyApproachPositions(battle, enemy, target, attackWeapon);
         var path = FindBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id));
         var traversed = path.Take(battle.Current.MovementAllowance).ToArray();
         LiveCharacter? interceptor = null;
@@ -733,6 +732,30 @@ public sealed partial class Game
                 BattleLogKind.Information)]);
         }
         AdvanceBattleTurn(battle);
+    }
+
+    private IReadOnlyList<Position> EnemyApproachPositions(BattleEncounter battle, Enemy enemy,
+        Position target, WeaponDefinition? weapon)
+    {
+        var actorId = CombatantId.ForEnemy(enemy.Id);
+        if (weapon?.IsRanged != true)
+            return MeleePositions(target)
+                .Where(position => CanBattleEnter(battle, position, actorId))
+                .ToArray();
+
+        var positions = new List<Position>();
+        for (var y = target.Y - weapon.MaximumRange; y <= target.Y + weapon.MaximumRange; y++)
+        for (var x = target.X - weapon.MaximumRange * TacticalDistance.HorizontalCellsPerUnit;
+             x <= target.X + weapon.MaximumRange * TacticalDistance.HorizontalCellsPerUnit; x++)
+        {
+            var position = new Position(x, y);
+            var distance = TacticalDistance.Between(position, target);
+            if (!RangedWeaponRules.CanReach(weapon, distance) ||
+                !CanBattleEnter(battle, position, actorId) ||
+                !HasBattleLineOfSight(position, target, weapon.MaximumRange)) continue;
+            positions.Add(position);
+        }
+        return positions;
     }
 
     private (BattleLogEntry? LogEntry, BattleActionDetails Details) ResolveMonsterStrengthPressure(

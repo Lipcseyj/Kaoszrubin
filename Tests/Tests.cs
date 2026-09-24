@@ -83,6 +83,7 @@ internal static partial class Program
     ("A kétkezes tartalékfegyver atomian elteszi a pajzsot", ReserveTwoHandedSwapStowsShield),
     ("A sebzéstípusok és a szörnyfegyverek módosítják a valódi sebzést", PhysicalDamageUsesTypesAndWeapons),
     ("A CSV új fegyverei adatvezéreltek és örökítik a harci tulajdonságokat", WeaponCsvPropertiesAreInherited),
+    ("A kijelölt lövős szörnyek távolsági fegyvert és távoli célpontot használnak", RangedMonstersUseRangedWeaponsAndTargets),
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
     ("A karakterszín palettáról módosítható és a coop parancs validált", CharacterColorCanBeChangedFromPalette),
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
