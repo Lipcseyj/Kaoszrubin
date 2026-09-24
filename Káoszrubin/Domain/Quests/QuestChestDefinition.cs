@@ -1,3 +1,4 @@
+using System.Text;
 using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Domain.Quests;
@@ -16,4 +17,5 @@ public readonly record struct QuestChestId
 
 public sealed record QuestChestItem(IItemDefinition Item, int Quantity);
 public sealed record QuestChestDefinition(QuestChestId Id, string Name, int Gold,
-    IReadOnlyList<QuestChestItem> Items);
+    IReadOnlyList<QuestChestItem> Items, Rune MapSymbol,
+    ConsoleColor MapForegroundColor, ConsoleColor MapBackgroundColor);

@@ -7,6 +7,8 @@ public sealed class TreasureChest : WorldObject
 {
     public int GoldAmount { get; private set; }
     public QuestChestDefinition? Definition { get; }
+    public ConsoleColor MapForegroundColor => Definition?.MapForegroundColor ?? ConsoleColor.Yellow;
+    public ConsoleColor MapBackgroundColor => Definition?.MapBackgroundColor ?? ConsoleColor.Black;
     public bool IsOpened { get; private set; }
     private readonly List<QuestChestItem> _items = [];
     public IReadOnlyList<QuestChestItem> RemainingItems => _items.AsReadOnly();
@@ -56,5 +58,5 @@ public sealed class TreasureChest : WorldObject
         }
         return count;
     }
-    public override Rune Symbol => new(IsOpened ? '□' : '▣');
+    public override Rune Symbol => IsOpened ? new Rune('□') : Definition?.MapSymbol ?? new Rune('▣');
 }

@@ -767,8 +767,8 @@ TR007;Lélektű;♦;Poison;18;15;15;8;14;75;200;600;Árnyékból formált tű se
 TR008;Koromfelhő;☁;Darkness;5;9;9;0;0;100;50;150;Sűrű fekete korom borítja el az áldozat látását.
 
 #Quest ládák
-Id;Név;Arany
-RODERIC_ORDER_RELICS;Az Ezüst Eskü ereklyeládája;0
+Id;Név;Arany;Térképjel;Előtérszín;Háttérszín
+RODERIC_ORDER_RELICS;Az Ezüst Eskü ereklyeládája;0;◈;White;DarkBlue
 
 #Quest láda tartalom
 Id;TárgyId;Darab

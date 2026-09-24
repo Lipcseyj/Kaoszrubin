@@ -2882,6 +2882,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         WorldObject? mapObject = maze.GetTreasureChestAt(position) as WorldObject ??
                                  maze.GetCorpseAt(position) as WorldObject ??
                                  maze.GetGroundItemPileAt(position);
+        if (mapObject is TreasureChest chest)
+            return new MapCellVisual(chest.Symbol, chest.MapForegroundColor, chest.MapBackgroundColor);
         if (mapObject is null && fogOfWar.EnemyMemoryAt(position) is { } memory)
             return new MapCellVisual(new Rune('?'), memory.IsSoundCue ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray,
                 ConsoleColor.Black);
@@ -2954,7 +2956,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         if (maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap)
             return trap.State == TrapState.Detected ? ConsoleColor.Yellow : ConsoleColor.DarkGray;
         var mapObject = maze.GetObjectAt(position);
-        if (mapObject is TreasureChest) return ConsoleColor.Yellow;
+        if (mapObject is TreasureChest chest) return chest.MapForegroundColor;
         if (mapObject is Enemy enemy) return GetEnemyColor(enemy);
         if (mapObject is Corpse) return ConsoleColor.DarkRed;
         if (mapObject is GroundItemPile) return ConsoleColor.Cyan;
