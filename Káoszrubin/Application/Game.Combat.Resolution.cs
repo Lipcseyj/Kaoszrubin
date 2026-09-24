@@ -687,14 +687,34 @@ public sealed partial class Game
     private Enemy ClosestLivingEnemy(BattleEncounter battle, Position origin) =>
         TacticalBattleCoordinator.ClosestLivingEnemy(battle, origin);
 
-    private void MoveCharacterToward(BattleEncounter battle, LiveCharacter character, Position target)
+    private void MoveCharacterToward(BattleEncounter battle, LiveCharacter character, Position target,
+        WeaponDefinition? attackWeapon)
     {
-        var goals = MeleePositions(target)
-            .Where(position => CanBattleEnter(battle, position, CombatantId.ForCharacter(character.Id)))
-            .ToArray();
+        var actorId = CombatantId.ForCharacter(character.Id);
+        var goals = CharacterApproachPositions(battle, target, attackWeapon, actorId);
         var path = FindBattlePath(battle, GetCasterPosition(character), goals,
-            CombatantId.ForCharacter(character.Id));
+            actorId);
         CompleteCharacterMovement(battle, character, path);
+    }
+
+    private IReadOnlyList<Position> CharacterApproachPositions(BattleEncounter battle, Position target,
+        WeaponDefinition? weapon, CombatantId actorId)
+    {
+        if (weapon?.IsRanged != true)
+            return MeleePositions(target).Where(position => CanBattleEnter(battle, position, actorId)).ToArray();
+
+        var positions = new List<Position>();
+        for (var y = target.Y - weapon.MaximumRange; y <= target.Y + weapon.MaximumRange; y++)
+        for (var x = target.X - weapon.MaximumRange * TacticalDistance.HorizontalCellsPerUnit;
+             x <= target.X + weapon.MaximumRange * TacticalDistance.HorizontalCellsPerUnit; x++)
+        {
+            var position = new Position(x, y);
+            if (!RangedWeaponRules.CanReach(weapon, TacticalDistance.Between(position, target)) ||
+                !CanBattleEnter(battle, position, actorId) ||
+                !HasBattleLineOfSight(position, target, weapon.MaximumRange)) continue;
+            positions.Add(position);
+        }
+        return positions;
     }
 
     private void MoveEnemyToward(BattleEncounter battle, Enemy enemy, Position target,

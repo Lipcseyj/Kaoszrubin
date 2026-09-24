@@ -95,7 +95,7 @@ public sealed partial class Game
             return;
         }
         var target = ClosestLivingEnemy(battle, GetCasterPosition(character));
-        MoveCharacterToward(battle, character, target.Position);
+        MoveCharacterToward(battle, character, target.Position, character.AttackWeapon);
     }
 
     private bool TryExecuteAiHealingPotion(BattleEncounter battle, LiveCharacter character,
@@ -114,7 +114,13 @@ public sealed partial class Game
 
     private bool TryExecuteAiReserveWeaponSwap(BattleEncounter battle, LiveCharacter character)
     {
-        if (!TacticalBattleCoordinator.ShouldNpcSwapToReserveWeapon(character)) return false;
+        var currentWeapon = character.AttackWeapon;
+        var reserveWeapon = character.GetInventoryItem(InventorySlotKind.Weapon, 2) as WeaponDefinition;
+        var currentWeaponHasTarget = NpcWeaponHasTarget(battle, character, currentWeapon);
+        var reserveWeaponHasTarget = NpcWeaponHasTarget(battle, character, reserveWeapon);
+        var engaged = battle.IsEngaged(character);
+        if (!TacticalBattleCoordinator.ShouldNpcSwapToReserveWeapon(character, engaged,
+                currentWeaponHasTarget, reserveWeaponHasTarget)) return false;
         var unusableWeapon = Enumerable.Range(0, 2)
             .Where(index => character.InventoryItemCondition(InventorySlotKind.Weapon, index) ==
                             EquipmentCondition.Broken)
@@ -124,14 +130,33 @@ public sealed partial class Game
         var replacement = character.AttackWeapon;
         var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         _renderer.RefreshCharacterSheet(PartyLeader);
-        var reason = unusableWeapon is null
-            ? "használható aktív fegyver híján"
-            : $"eltört {unusableWeapon.Name} helyett";
+        var reason = unusableWeapon is not null
+            ? $"eltört {unusableWeapon.Name} helyett"
+            : currentWeapon is { IsRanged: true } && engaged && replacement?.IsRanged == false
+                ? "közelharci lekötésben"
+                : currentWeapon is { IsRanged: true } && !RangedWeaponRules.HasAmmunition(character, currentWeapon)
+                    ? $"a(z) {currentWeapon.Name} lőszerének elfogyása miatt"
+                    : currentWeapon is null
+                        ? "használható aktív fegyver híján"
+                        : "a célpont eléréséhez";
         PresentBattleEntries([new BattleLogEntry(
             $"🔄 {character.Name} {reason} előveszi a tartalékát: {replacement?.Name}.{statusText}",
             BattleLogKind.Information)]);
         AdvanceBattleTurn(battle);
         return true;
+    }
+
+    private bool NpcWeaponHasTarget(BattleEncounter battle, LiveCharacter character, WeaponDefinition? weapon)
+    {
+        if (weapon is null) return AdjacentEnemies(battle, character).Any();
+        if (!RangedWeaponRules.HasAmmunition(character, weapon)) return false;
+        var origin = GetCasterPosition(character);
+        return battle.Enemies.Any(enemy => enemy.CurrentHitPoints > 0 &&
+            RangedWeaponRules.CanReach(weapon, TacticalDistance.Between(origin, enemy.Position)) &&
+            (weapon.IsRanged
+                ? HasBattleLineOfSight(origin, enemy.Position, weapon.MaximumRange)
+                : TacticalDistance.IsMeleeAdjacent(origin, enemy.Position) ||
+                  weapon.CanAttackFromRear && battle.RearFormationEnemiesInReach(character).Contains(enemy)));
     }
 
     private bool TryExecuteAiTurnUndead(BattleEncounter battle, LiveCharacter character)

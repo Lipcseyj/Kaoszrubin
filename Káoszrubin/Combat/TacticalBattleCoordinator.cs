@@ -44,13 +44,20 @@ public sealed class TacticalBattleCoordinator
         enemy.Definition.IsBoss || enemy.Definition.Rank is EnemyRank.MiniBoss or EnemyRank.Boss ||
         enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) == true;
 
-    public static bool ShouldNpcSwapToReserveWeapon(LiveCharacter character)
+    public static bool ShouldNpcSwapToReserveWeapon(LiveCharacter character, bool engaged = false,
+        bool currentWeaponHasTarget = true, bool reserveWeaponHasTarget = false)
     {
         ArgumentNullException.ThrowIfNull(character);
-        if (character.AttackWeapon is not null || !character.CanSwapReserveWeapon) return false;
-        return character.GetInventoryItem(InventorySlotKind.Weapon, 2) is WeaponDefinition reserve &&
-               reserve.WeaponTypeId != "WT003" &&
-               character.IsInventoryItemOperational(InventorySlotKind.Weapon, 2);
+        if (!character.CanSwapReserveWeapon ||
+            character.GetInventoryItem(InventorySlotKind.Weapon, 2) is not WeaponDefinition reserve ||
+            reserve.WeaponTypeId == "WT003" ||
+            !character.IsInventoryItemOperational(InventorySlotKind.Weapon, 2) ||
+            !RangedWeaponRules.HasAmmunition(character, reserve)) return false;
+        var current = character.AttackWeapon;
+        if (current is null) return true;
+        if (engaged && current.IsRanged && !reserve.IsRanged) return true;
+        if (current.IsRanged && !RangedWeaponRules.HasAmmunition(character, current)) return true;
+        return !currentWeaponHasTarget && reserveWeaponHasTarget;
     }
 
     public static Enemy ClosestLivingEnemy(BattleEncounter battle, Position origin) =>
