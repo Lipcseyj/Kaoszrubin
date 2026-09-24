@@ -535,97 +535,97 @@ PLUS3;14;30
 Id;Név;Kinézet;Erő;HP;Páncél;Gyorsaság;XP érték;Erősség;KépességIds;Jellemzők;Látótáv;Lopakodás;Zaj;Alhat;FegyverIds;FegyvertVálaszt;VágásVédelem;SzúrásVédelem;ZúzásVédelem;TűzVédelem;SavVédelem;NekrotikusVédelem;KáoszVédelem;Nyomérzék;PajzsId;Varázsvédelem%
 E001;Óriáspatkány;r;2;20;0;5;100;1;MA003;;3;1;2;igen;WN001;nem;0;0;0;0;0;0;0;6;;0
 E002;Kobold;k;3;30;1;6;150;1;MA006;;4;1;2;igen;W001|W005;igen;0;0;0;0;0;0;0;2;;0
-E003;Goblin;g;4;45;2;6;200;1;;;4;;;igen;W001|W002|W005;igen;0;0;0;0;0;0;0;1;W024;0
-E004;Csontváz;I;5;80;3;3;250;1;MA007;Undead;4;;;nem;W002|W004|W006;igen;2;3;-3;0;0;1;0;5;W025;5
+E003;Goblin;g;4;45;2;6;200;1;;;4;;;igen;W001|W002|W005|W006;igen;0;0;0;0;0;0;0;1;W024;0
+E004;Csontváz;I;5;80;3;3;250;1;;Undead;4;;;nem;W002|W004|W006;igen;2;4;-3;-1;0;1;0;5;W025;0
 E005;Farkas;w;4;55;1;8;300;1;MA006|MA004;;6;1;3;igen;WN007;nem;0;0;0;0;0;0;0;8;;0
-E006;Zombi;z;5;100;2;2;330;1;MA003;Undead;3;;;nem;WN003|W005;igen;0;0;0;-1;0;1;0;5;;5
-E007;Ork;o;7;120;4;5;400;2;MA005;;5;;;igen;W010|W004|W006;igen;0;0;0;0;0;0;0;2;W027;0
-E008;Hobgoblin;h;8;150;5;5;450;2;MA007|MA005;;5;;;igen;W004|W006|W011;igen;0;0;0;0;0;0;0;2;W027;0
-E009;Óriáspók;s;6;90;3;7;470;2;MA002|MA006;;5;2;1;igen;WN018;nem;0;0;0;0;1;0;0;5;;5
-E010;Gnoll;n;9;170;4;6;600;2;MA004|MA005;;6;;;igen;W006|W010;igen;0;0;0;0;0;0;0;6;W035;0
-E011;Lidércfarkas;W;10;220;5;9;700;2;MA006;Undead;7;;;nem;WN023;nem;1;1;0;0;0;3;1;8;;15
-E012;Ogre;O;12;320;5;3;900;3;MA005|MA007;;4;;;igen;W019|WN003;nem;0;0;0;0;0;0;0;3;;0
-E013;Troll;T;14;500;6;4;1000;3;MA008|MA007;;5;;;igen;WN012|WN011;nem;1;1;1;-3;1;0;0;3;;5
-E014;Minotaurusz;Ñ;15;650;7;5;1200;3;MA005|MA006;;5;;;igen;W017|WN009;nem;0;0;0;0;0;0;0;6;;0
-E015;Múmia;m;12;400;7;3;1400;3;MA003;Undead;4;;;nem;WN003;nem;1;1;0;-3;0;3;0;5;;15
-E016;Medúza;Ƶ;13;450;6;6;1500;3;MA002|MA006|MA011;;6;;;igen;W001|WN021;nem;0;0;0;0;1;1;1;2;;20
-E017;Kiméra;C;16;800;7;7;2000;4;MA005|MA007;;6;;;igen;WN012|WN009|WN006;nem;1;1;0;3;0;0;0;5;;10
-E018;Beholder;B;17;1000;8;4;2800;4;MA006|MA005|MA012;;7;;;igen;WN011;nem;0;0;0;1;1;2;2;6;;35
-E019;Vámpír;Ѵ;15;750;7;8;3000;4;MA003;Undead;7;2;1;nem;WN019|WN002;nem;1;1;0;-2;0;4;1;7;;25
-E020;Vérfarkas;L;16;850;6;9;3200;4;MA004|MA006;;7;;;igen;WN012|WN007;nem;1;1;1;0;0;0;0;8;;10
-E021;Vörös sárkány;D;18;1500;9;7;5000;5;MA007|MA005;Flying;7;;;igen;WN004|WN005|WN006;nem;4;3;2;8;2;1;2;6;;30
-E022;Lich;l;17;1200;8;5;4000;5;MA007|MA013;Undead;7;;;nem;W021;nem;3;4;-3;1;2;7;3;8;;45
-E023;Démonlovag;Ŧ;18;1800;9;6;5000;5;MA004;Demonic;6;;;nem;W009|W013|W017;igen;2;2;1;5;2;3;4;6;;25
-E024;Balor démon;Ψ;19;2500;10;8;7500;5;MA005|MA013;Demonic;7;;;nem;W009|W020;nem;3;3;2;8;3;4;5;8;;35
-E025;Fekete sárkány;Ð;20;2000;10;8;10000;5;MA007|MA002;Flying;7;;;igen;WN004|WN005|WN015;nem;5;4;2;2;8;2;2;6;;35
-E026;Óriásdenevér;b;3;35;0;9;160;1;MA006;Flying;7;1;4;igen;WN007;nem;0;0;0;0;0;0;0;8;;0
-E027;Savanyálka;ξ;4;65;2;2;230;1;MA002|MA007;;2;;;nem;WN022;nem;-2;4;1;0;8;0;0;3;;10
+E006;Zombi;z;5;100;2;2;330;1;MA003;Undead;3;;;nem;WN001|W005|WN030;igen;0;0;0;-3;0;1;0;5;;0
+E026;Óriásdenevér;b;3;35;0;9;160;1;MA006;Flying;7;1;4;igen;WN001;nem;0;0;0;0;0;0;0;8;;0
+E027;Savanyálka;ξ;4;65;2;2;230;1;MA002|MA007;;2;;;nem;WN022;nem;-2;4;1;-5;8;0;0;3;;10
 E028;Útonálló;u;5;70;2;6;260;1;MA004;;5;2;1;igen;W002|W001|W005;igen;0;0;0;0;0;0;0;1;W024;0
-E029;Barlangi gyík;j;4;60;2;7;240;1;MA006;;5;;;igen;WN011;nem;1;1;0;0;0;0;0;5;;0
-E030;Pestishordozó patkány;p;3;55;1;6;280;1;MA003|MA002;;3;;;igen;WN007;nem;0;0;0;0;0;0;0;7;;0
-E031;Bugbear;q;9;190;5;5;650;2;MA005|MA007;;5;;;igen;W005|W008|W010;igen;0;0;0;0;0;0;0;3;;0
-E032;Hárpia;H;8;160;3;9;680;2;MA004;Flying;6;1;3;igen;WN002|WN008;nem;0;0;0;0;0;0;0;4;;0
-E033;Ghoul;G;9;210;4;7;720;2;MA003;Undead;5;;;nem;WN002|WN007;nem;1;1;0;-1;0;2;0;7;;10
-E034;Ifjú baziliszkusz;β;10;240;6;4;780;2;MA002|MA007|MA012;;5;;;igen;WN018;nem;2;2;1;0;3;0;0;4;;15
-E035;Ork sámán;ó;8;180;3;6;750;2;MA006|MA003;;6;;;igen;W018|W001;nem;0;0;0;0;0;0;0;4;;15
-E036;Ettin;E;15;720;8;3;1700;3;MA005|MA007;;5;;;igen;W008|W010;nem;0;0;0;0;0;0;0;3;;0
-E037;Wight;Ŵ;13;560;7;6;1650;3;MA003;Undead;6;;;nem;W004|W006;igen;2;3;-2;0;0;4;1;7;;20
-E038;Wyvern;Y;14;620;6;9;1850;3;MA002;Flying;7;;;igen;WN011|WN010;nem;3;2;1;0;2;0;0;6;;10
-E039;Kőgólem;K;16;900;10;2;2100;3;MA007|MA005;;3;;;nem;WN020;nem;5;5;-4;3;4;5;3;2;;45
-E040;Éji banya;ñ;13;520;6;8;1900;3;MA003|MA006;;6;2;1;igen;WN002;nem;0;0;0;0;1;3;2;7;;25
-E041;Fagyóriás;F;18;1300;10;5;3800;4;MA005|MA007;;6;;;igen;W017|W013;igen;1;1;1;-2;0;0;0;4;;10
-E042;Halállovag;†;17;1150;11;6;4000;4;MA007;Undead;6;;;nem;W009|W013|W017;igen;3;3;-2;1;1;4;2;7;;30
-E043;Hidra;Ξ;18;1450;8;7;4300;4;MA002|MA008;;6;;;igen;WN014;nem;2;2;1;-1;3;0;0;5;;10
-E044;Csontsárkány;δ;19;1600;11;6;4800;4;MA007;Undead|Flying;7;;;nem;WN004|WN005|WN016;nem;5;5;-4;2;2;6;2;8;;35
-E045;Démonpók;§;17;1050;8;10;4200;4;MA002|MA004;Demonic;6;3;1;nem;WN024;nem;2;3;1;5;4;2;3;7;;25
-E046;Ősvámpír;Ѷ;20;1900;11;10;8500;5;MA006;Undead;8;3;1;nem;WN019|WN012;nem;2;2;1;-1;1;6;3;8;;40
-E047;Pokolfejedelem;Φ;22;2800;13;7;11000;5;MA005;Demonic;7;;;nem;W013|W017|W009;igen;4;4;3;9;4;5;6;8;;50
-E048;Vén beholder;Θ;21;2400;12;8;10500;5;MA006|MA005|MA012|MA013;;8;;;igen;WN011;nem;1;1;0;2;2;4;4;8;;55
-E049;Drakolich;Ł;23;3200;14;7;14000;5;MA007|MA013;Undead|Flying;8;;;nem;WN004|WN005|WN016;nem;6;6;-4;3;3;8;4;8;;55
-E050;Káoszsárkány;Ж;24;3600;13;10;16000;5;MA002|MA003;Flying;8;;;igen;WN004|WN005|WN017;nem;6;5;3;4;4;5;9;8;;50
-E051;Patkányember;Ʒ;7;105;4;7;600;2;MA003;;5;;;igen;W001|W002|W005;igen;0;0;0;0;0;0;0;6;W024;0
-E052;Csontváz lovag;ǂ;7;105;5;4;330;2;MA007;Undead;4;;;nem;W004|W006|W007|W008|W009|W010|W011|W012|W013;igen;3;4;-3;0;0;1;0;6;W029;10
-E053;Sir Malrec az Esküszegő;‡;11;420;9;5;1800;4;MA005;Undead;6;1;3;nem;W009;nem;2;3;-2;1;1;4;2;8;;25
-E061;Élőholt pátriárka;Ɨ;8;180;6;4;700;3;MA007;Undead;5;;;nem;W006|W007|W008;igen;2;3;-2;0;0;3;1;7;W028;20
-E062;Goblin főnök;Ǥ;7;180;6;6;750;2;MA005|MA006;;6;;;igen;W004|W006|W010;igen;0;0;0;0;0;0;0;3;W036;0
-E063;Ork törzsfő;Ø;11;360;8;5;1350;3;MA005|MA007;;6;;;igen;W009|W017;igen;0;0;0;0;0;0;0;3;;0
-E064;Kaszás Wight;Ŵ;15;720;8;6;2300;4;MA013|MA007;Undead;7;;;nem;W023|W013;igen;3;3;-2;0;0;5;2;7;;30
-E065;Vámpír kardmester;џ;17;980;8;9;3900;4;MA006;Undead;7;2;1;nem;W009|W003;igen;2;2;1;-1;1;5;2;7;;30
-E066;Csontváz őr;ǂ;9;240;7;4;800;2;MA007;Undead;5;;;nem;W011|W012;igen;3;4;-3;0;0;1;0;6;;10
-E067;Páncélozott zombi;Ƶ;8;260;6;2;780;2;MA003|MA007;Undead;4;;;nem;W005|W006;igen;2;2;0;-1;0;2;0;5;W035;10
-E068;Barlangi troll;Ť;16;780;8;5;2000;3;MA008|MA007;;6;;;igen;WN012|WN011;nem;2;2;1;-3;1;0;0;4;;10
-E069;Vén múmia;ϻ;15;700;9;3;2400;4;MA003|MA013;Undead;5;;;nem;WN003;nem;2;2;0;-4;0;5;1;6;;30
-E070;Alfa vérfarkas;Ŀ;19;1250;8;10;4500;4;MA004|MA006|MA007;;8;2;2;igen;WN012|WN007;nem;2;2;1;0;0;0;1;8;;15
-E071;Ősi minotaurusz;Ṅ;19;1450;10;6;4700;4;MA005|MA007;;6;;;igen;W017|W012;igen;1;1;1;0;0;0;0;7;;10
-E072;Káoszkultista;c;8;190;4;6;720;2;MA004;;6;1;2;igen;W001|W002;igen;0;0;0;0;0;0;2;3;W035;10
-E073;Sötételf orgyilkos;æ;11;330;5;9;1250;3;MA006;;7;3;1;igen;W001|W003;igen;0;0;0;0;0;0;0;4;;10
-E074;Nekromanta;Ɲ;14;520;6;6;2100;3;MA013;;7;2;1;nem;W021|W018;igen;0;0;0;0;0;5;2;5;;35
-E075;Gargoyle;Γ;14;680;9;6;2200;3;MA007;Flying;6;1;2;nem;WN002|WN009;nem;4;4;-2;2;3;3;2;4;;40
-E076;Óriásskorpió;ϟ;13;610;7;7;2050;3;MA002|MA007;;5;1;2;igen;WN010|WN018;nem;2;3;2;0;4;0;0;6;;10
-E077;Pokolkutya;ʘ;15;760;7;9;2800;4;MA006;Demonic;7;2;3;nem;WN007|WN006;nem;1;1;0;8;1;2;3;8;;20
-E078;Kígyóember;փ;13;540;6;8;1900;3;MA006;;7;2;1;igen;W001|W002|W003|W004|W011;igen;1;2;0;0;3;0;0;6;W026;15
-E079;Küklopsz;Ç;20;1550;9;4;5000;4;MA005|MA007;;6;;;igen;W019|W017;igen;1;1;1;0;0;0;0;5;;10
-E080;Árnylidérc;Ȝ;18;1100;8;10;4600;4;MA006|MA013;Undead;8;4;0;nem;WN002;nem;4;4;-4;1;1;7;3;8;;45
-E081;Élő páncél;₳;21;2100;13;3;7200;5;MA005|MA007;;5;;;nem;W004|W006;igen;6;6;-3;3;3;4;3;2;W034;45
-E082;Martalóc;o;7;130;4;6;400;2;MA005;;5;;;igen;W004|W006|W007|W008|W009|W010|W011|W012;igen;0;0;0;0;0;0;0;3;W015;0
-E083;Káoszlovag;Ø;10;380;9;5;1350;3;MA005|MA007;;6;;;igen;W004|W006|W007|W008|W009|W010|W013|W017;igen;2;2;1;2;1;2;4;3;W033;25
+E029;Barlangi gyík;j;4;60;2;7;240;1;;;4;2;;igen;WN011;nem;1;1;0;0;0;0;0;3;;0
+E030;Pestishordozó patkány;p;3;55;1;6;280;1;MA003|MA002;;3;;;igen;WN001;nem;0;0;0;0;0;0;0;7;;0
 E084;Pokolfajzat;ߟ;5;90;2;8;350;1;MA006|MA004;Demonic;5;2;2;nem;WN007;nem;0;0;0;3;0;1;2;6;;10
-E085;Démoni korcs;¤;8;180;4;6;700;2;MA005|MA007;Demonic;5;;;nem;WN012|WN011;nem;1;1;0;4;1;1;2;5;;15
-E086;Parázsdémon;Ք;10;280;5;7;1100;2;MA006|MA007;Demonic;6;1;2;nem;WN006|WN007;nem;1;1;0;7;1;2;3;6;;20
-E087;Karmos démon;Җ;13;500;7;9;1900;3;MA004|MA006;Demonic;6;2;2;nem;WN012|WN007;nem;2;2;1;5;1;2;3;7;;20
-E088;Pokolőr;Ƥ;15;800;9;5;3000;4;MA005|MA007;Demonic;6;;;nem;W006|W010|W013;igen;3;3;2;6;2;3;4;5;;30
-E089;Vérdémon;Ѫ;17;1100;8;8;4000;4;MA004|MA013;Demonic;7;1;2;nem;W009|W017|W020;igen;2;2;1;6;2;4;5;7;;35
-E090;Goblin vajákos;ǵ;5;85;2;6;350;1;MA006;;6;2;1;igen;W018|W001;nem;0;0;0;0;0;0;1;3;;10
-E091;Káoszmágus tanítvány;ӎ;6;110;2;6;500;1;;;6;1;1;igen;W018;nem;0;0;0;0;0;0;2;3;;15
-E092;Káoszpap;ƈҟ;8;190;4;5;800;2;MA003;;6;1;2;igen;W018|W005;nem;0;0;0;0;0;1;3;4;W025;20
-E093;Boszorkány;ẅ;9;80;3;7;1000;2;MA006;;7;3;1;igen;W018|W001;nem;0;0;0;0;1;2;2;5;;25
-E094;Ork vérpap;ǿ;8;120;6;2;1400;3;MA004;;6;0;2;igen;W018|W006;nem;1;1;0;0;0;2;2;4;W014;20
-E095;Kígyópap;Ϡ;13;120;6;7;2000;3;MA002|MA006;;7;2;1;igen;W018|W003;nem;1;2;0;0;3;1;2;6;;25
-E096;Káoszmágus;Ҩ;8;250;6;7;1800;4;;;8;2;1;nem;W021|W018;nem;0;0;0;2;1;2;5;5;;35
-E097;Sötét druida;ð;8;300;7;6;1300;4;MA008;;8;3;1;igen;W022;nem;1;1;0;1;2;3;3;7;;35
-E098;Vérmágus;Ѿ;10;350;7;7;3200;4;MA004;;8;2;1;nem;W021|W022;nem;0;0;0;2;1;4;4;6;;40
-E099;Káosz főpap;҂;14;400;10;6;5000;5;MA013;;8;1;2;nem;W021|W013;nem;2;2;0;3;2;4;6;7;W033;50
-E100;Feketemágus;Ӻ;22;2300;11;8;10000;5;MA013;;8;3;0;nem;W021|W020;nem;2;2;-2;4;3;6;7;8;;60
+E090;Goblin vajákos;ǵ;4;45;1;6;350;1;;;5;2;1;igen;W018|W001;nem;0;0;0;0;0;0;1;3;;0
+E091;Káoszmágus tanítvány;ӎ;3;80;0;6;500;1;;;6;1;1;igen;W018;nem;0;0;0;0;0;0;2;3;;15
+E007;Ork;o;7;120;4;5;400;2;MA005;;5;;;igen;W010|W004|W006|W017;igen;0;0;0;0;0;0;0;2;W014;0
+E008;Hobgoblin;h;6;90;6;7;450;2;MA007|MA005;;5;;;igen;W004|W006|W011;igen;0;0;0;0;0;0;0;2;W027;0
+E009;Óriáspók;ᛤ;8;150;5;7;680;2;MA002|MA007;;5;2;1;igen;WN025;nem;0;0;0;0;1;0;0;5;;5
+E010;Gnoll;n;7;140;3;7;600;2;MA004|MA005;;5;;;igen;W006|W010|W007|W011;igen;0;0;0;0;0;0;0;6;W035;0
+E011;Lidércfarkas;ᛥ;8;220;5;9;700;2;MA006;Undead;7;;;nem;WN023|WN026;nem;1;1;0;0;0;3;1;8;;10
+E031;Ork testőr;q;9;190;6;6;650;2;MA005;;5;;;igen;W007|W008|W009|W012;igen;0;0;0;0;0;0;0;3;W027;0
+E032;Hárpia;H;7;140;3;9;680;2;MA004;Flying;6;1;3;igen;WN002|WN008;nem;0;0;0;0;0;0;0;4;;0
+E033;Ghoul;G;8;210;4;7;720;2;MA003;Undead;5;;;nem;WN002|WN007;nem;1;1;0;-2;0;2;0;7;;10
+E034;Óriás baziliszkusz;β;8;240;6;4;780;2;MA002||MA011;;5;;;igen;WN018;nem;2;2;1;0;3;0;0;4;;15
+E035;Ork sámán;ó;7;120;3;6;750;2;;;6;;;igen;W018|W001|W006;nem;0;0;0;2;0;0;2;4;;0
+E051;Patkányember;Ʒ;7;105;4;7;600;2;MA003;;5;;;igen;W001|W002|W005|W006|W007;igen;0;0;0;0;0;0;0;6;W024;0
+E052;Csontváz lovag;ǂ;7;105;5;4;330;2;;Undead;4;;;nem;W004|W006|W007|W008|W009|W010|W011|W012|W013;igen;2;4;-3;0;0;1;0;6;W029;10
+E062;Goblin főnök;Ǥ;7;180;6;6;750;2;MA005|MA006;;6;;;igen;W004|W006|W010;igen;0;0;0;0;0;0;0;3;W036;0
+E066;Csontváz őr;ᚰ;5;90;4;4;350;1;;Undead;4;;;nem;W011|W012;igen;2;4;-3;0;0;1;0;5;;10
+E067;Páncélozott zombi;Ƶ;6;130;6;2;490;1;MA003|MA007;Undead;4;;;nem;W005|W006;igen;2;2;0;-2;0;2;0;5;W025;
+E072;Orgyilkos;c;8;110;4;7;800;2;MA004|MA002|MA006;;6;3;;igen;W001|W002|W022;igen;0;0;0;0;0;0;2;3;;
+E082;Martalóc;o;7;130;3;6;400;2;;;5;;;igen;W004|W006|W007|W008|W009|W010|W011|W012;igen;0;0;0;0;0;0;0;3;W015;
+E085;Démoni korcs;¤;8;180;4;6;700;2;MA005|MA007;Demonic;5;;;nem;WN027|WN028;nem;1;1;0;4;1;-5;2;5;;10
+E086;Parázsdémon;Ք;10;280;5;7;1100;2;MA006|MA007;Demonic;6;1;2;nem;WN029|WN007;nem;1;1;0;7;1;-5;3;6;;10
+E092;Káoszpap;ƈҟ;8;130;3;5;1000;2;MA003;;6;1;2;igen;W018|W006|W007;nem;0;0;0;0;0;1;3;4;W025;20
+E093;Boszorkány;ẅ;8;80;3;7;1000;2;MA006;;7;3;1;igen;W018|W001;nem;0;0;0;0;1;2;2;5;;25
+E012;Ogre;O;12;320;5;3;900;3;MA005|MA007;;4;;;igen;W019|WN003;nem;0;0;0;0;0;0;0;3;;0
+E013;Troll;T;14;500;6;4;1200;3;MA008|MA007;;5;;;igen;WN012|WN011;nem;1;1;1;-7;1;0;0;3;;5
+E014;Minotaurusz;Ñ;11;300;7;5;1000;3;;;5;;;igen;W017|WN009;nem;0;0;0;0;0;0;0;6;;0
+E015;Múmia;m;9;250;7;3;1400;3;MA003;Undead;4;;;nem;WN003;nem;-2;1;0;-5;0;3;0;5;;15
+E016;Medúza;Ƶ;11;250;6;6;1500;3;MA002|MA006|MA011;;6;;;igen;W001|WN021;nem;0;0;0;0;1;1;1;2;;
+E036;Ettin;E;15;720;8;3;1700;3;MA005|MA007;;5;;;igen;W017|W019;nem;0;0;0;0;0;0;0;3;;0
+E037;Wight;Ŵ;13;560;7;6;1650;3;;Undead;6;;;nem;W023;nem;2;3;-2;0;0;4;1;7;;
+E038;Wyvern;Y;14;620;6;8;1850;3;MA002;Flying;7;;;igen;WN011|WN010;nem;3;2;1;0;2;0;0;6;;
+E039;Kőgólem;K;12;450;10;2;1800;3;MA005;;3;;;nem;WN020;nem;5;5;-5;3;4;5;3;2;;45
+E040;Éji banya;ñ;13;320;1;8;1900;3;MA003|MA006;;6;2;1;igen;WN002;nem;0;0;0;0;1;3;2;7;;25
+E061;Élőholt pátriárka;Ɨ;8;180;6;4;700;3;;Undead;5;;;nem;W006|W007|W008;igen;2;3;-2;0;0;3;1;7;W028;
+E063;Ork törzsfő;Ø;11;360;8;5;1350;3;MA005;;6;;;igen;W009|W017;igen;0;0;0;0;0;0;0;3;;0
+E068;Barlangi troll;Ť;16;550;8;5;2000;3;MA008|MA007;;6;;;igen;WN012|WN011;nem;2;2;1;-9;1;0;0;4;;10
+E073;Sötételf orgyilkos;æ;11;220;5;9;1250;3;MA006;;7;3;1;igen;W001|W003|W022;igen;0;0;0;0;0;0;0;6;;
+E074;Nekromanta;Ɲ;6;130;1;6;2100;3;MA013;;7;2;1;nem;W022;nem;0;0;0;0;0;5;2;5;;35
+E075;Gargoyle;Γ;11;350;9;6;2200;3;MA007;Flying;6;1;2;nem;WN002|WN009;nem;4;4;-5;2;3;3;2;4;;40
+E076;Óriásskorpió;ϟ;13;460;7;7;1800;3;MA002|MA007;;5;1;2;igen;WN010|WN018;nem;2;3;2;-3;4;-3;0;2;;
+E078;Kígyóember;փ;9;170;4;8;850;3;;;7;2;1;igen;W001|W002|W003|W004|W011;igen;1;2;0;0;3;0;0;6;W026;
+E083;Káoszlovag;Ø;10;200;8-10;5;1000;3;;;4;;;igen;W004|W006|W007|W008|W009|W010|W013|W017;igen;3;1;-2;2;-3;-2;4;3;W033;
+E087;Karmos démon;Җ;13;500;5;9;1900;3;MA004|MA006;Demonic;6;2;2;nem;WN012|WN007;nem;2;2;1;5;1;-5;3;7;;10
+E094;Ork vérpap;ǿ;6;120;1;5;700;3;;;6;0;2;igen;W022|W006;igen;0;0;0;0;0;-2;2;4;;
+E095;Kígyópap;Ϡ;8;150;3;7;2000;3;;;7;2;1;igen;W002|W003|W004|W012;igen;1;2;0;0;3;1;2;7;W028;
+E017;Kiméra;C;12;300;5;7;1000;3;;;6;;;igen;WN012|WN009|WN006;nem;0;-3;0;3;0;0;0;5;;
+E018;Beholder;B;17;400;6;4;2500;4;MA012;;7;;;igen;WN011;nem;0;-7;0;1;1;2;2;6;;25
+E019;Vámpír;Ѵ;15;450;7;8;2500;4;;Undead;7;2;1;nem;WN019|WN002;nem;1;1;0;-3;0;4;1;7;;
+E020;Vérfarkas;L;16;450;6;9;3200;4;MA004|MA008;;7;;;igen;WN012|WN007;nem;0;0;0;0;0;-7;0;8;;
+E041;Fagyóriás;F;18;1300;2;5;3800;4;MA005|MA007;;6;;;igen;W037|W013;igen;0;0;0;-2;0;-4;0;4;;
+E042;Halállovag;†;15;400;11;6;2400;4;;Undead;6;;;nem;W009|W013|W004|W008;igen;3;3;-2;1;-7;4;2;7;W016;
+E043;Hidra;Ξ;18;1450;8;7;4300;4;MA002|MA008;;6;;;igen;WN014;nem;0;0;1;-7;3;-3;0;5;;
+E044;Csontsárkány;δ;17;1200;5;6;4000;4;;Undead|Flying;7;;;nem;WN004|WN005|WN016;nem;4;5;-4;2;-4;6;2;8;;
+E045;Démonpók;§;17;1050;8;10;4200;4;MA002|MA004;Demonic;6;3;1;nem;WN024;nem;2;-1;1;5;4;-5;3;7;;10
+E053;Sir Malrec az Esküszegő;‡;11;420;9;5;1800;4;MA005;Undead;6;1;3;nem;W009;nem;2;3;-2;1;1;4;2;8;;
+E064;Ősi hidra;Ŵ;18;1600;8;6;5000;4;MA002|MA007|MA008;;6;;;nem;WN014;igen;0;0;1;-6;4;-3;0;5;;
+E065;Vámpír kardmester;џ;15;450;8;8;2500;4;;Undead;7;2;1;nem;W009|W003;igen;1;1;1;-3;1;4;1;7;;
+E069;Vén múmia;ϻ;10;350;7;3;2400;4;MA003|MA013;Undead;5;;;nem;WN003;nem;-2;2;0;-4;0;5;1;6;;30
+E070;Alfa vérfarkas;Ŀ;17;600;8;10;4500;4;MA004|MA006|MA007|MA008;;8;2;2;igen;WN012|WN007;nem;2;0;1;0;0;0;1;8;;
+E071;Ősi minotaurusz;Ṅ;16;800;10;6;4700;4;MA005|MA007;;6;;;igen;W037|W012;igen;1;0;1;0;0;-4;0;7;;
+E077;Pokolkutya;ʘ;13;520;3;9;2800;4;MA006;Demonic;7;2;3;nem;WN011|WN012;nem;0;0;0;8;1;-2;3;8;;
+E079;Küklopsz;Ç;18;1000;0;4;3850;4;MA005|MA007;;6;;;igen;W019;igen;1;1;1;0;0;0;0;5;;
+E080;Árnylidérc;Ȝ;18;650;8;10;4600;4;MA006|MA013;Undead;8;4;0;nem;WN002;nem;4;4;4;1;1;7;3;8;;
+E088;Pokolőr;Ƥ;15;800;9;5;3000;4;MA005|MA007;Demonic;6;;;nem;W006|W010|W013;igen;3;3;0;6;2;-3;4;5;;10
+E089;Vérdémon;Ѫ;17;1100;6;8;4000;4;MA004|MA013;Demonic;7;1;2;nem;W037|W038;igen;0;0;1;6;2;-4;5;7;;10
+E096;Káoszmágus;Ҩ;11;200;3;7;1800;4;;;8;2;1;nem;W021|W018;nem;0;0;0;2;1;2;5;5;;30
+E097;Sötét druida;ð;11;200;3;6;1800;4;MA008;;8;3;1;igen;W022;nem;1;1;0;1;2;3;3;7;;30
+E098;Vérmágus;Ѿ;10;200;2;8;1800;4;MA004;;8;2;1;nem;W021|W022;nem;0;0;0;2;1;4;4;6;;30
+E021;Vörös sárkány;D;18;1500;9;7;5000;5;MA007|MA005;Flying;7;;;igen;WN004|WN005|WN006;nem;4;1;2;8;2;-2;2;6;;
+E022;Lich;l;13;400;5;5;2500;5;MA013;Undead;7;;;nem;W021;nem;0;0;-1;-1;-2;7;3;8;;30
+E023;Démonlovag;Ŧ;15;500;10-15;6;2600;5;MA004;Demonic;6;;;nem;W009|W013|W017|W008|W010;igen;2;1;1;5;-2;-5;4;6;W035;15
+E024;Balor démon;Ψ;19;2500;4;8;7500;5;MA005|MA013;Demonic;7;;;nem;W009|W020;nem;0;0;0;8;3;4;5;8;;15
+E025;Fekete sárkány;Ð;20;2000;10;8;10000;5;MA007|MA002;Flying;7;;;igen;WN004|WN005|WN015;nem;5;4;2;2;8;-2;2;6;;50
+E046;Ősvámpír;Ѷ;20;1900;9;10;8500;5;;Undead;8;3;1;nem;WN019|WN012;nem;2;2;1;-1;1;6;3;8;;
+E047;Pokolfejedelem;Φ;22;2800;13;7;11000;5;MA005;Demonic;7;;;nem;W013|W017|W009;igen;4;4;3;9;4;1;6;8;;15
+E048;Vén beholder;Θ;21;2400;12;8;10500;5;MA006|MA005|MA012|MA013;;8;;;igen;WN011;nem;1;1;0;2;2;4;4;8;;35
+E049;Drakolich;Ł;23;3200;14;7;14000;5;MA007|MA013;Undead|Flying;8;;;nem;WN004|WN005|WN016;nem;6;6;-4;3;3;8;4;8;;25
+E050;Káoszsárkány;Ж;24;3600;13;10;16000;5;MA002|MA003;Flying;8;;;igen;WN004|WN005|WN017;nem;6;5;3;4;4;5;9;8;;
+E081;Élő páncél;₳;21;2100;13;3;7200;5;MA005|MA007;;5;;;nem;W004|W006;igen;6;6;-3;3;3;4;3;2;W034;75
+E099;Káosz főpap;҂;14;400;10;6;5000;5;MA013;;8;1;2;nem;W021|W013;nem;2;2;0;3;2;4;6;7;;20
+E100;Feketemágus;Ӻ;13;1000;11;8;10000;5;MA013;;8;3;0;nem;W021|W020;nem;-2;2;-2;4;3;6;7;8;;20
 
 #Ellenséges varázshasználók
 EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEsély%;Profil;VarázslatLehűlés
@@ -780,83 +780,84 @@ RODERIC_ORDER_RELICS;T002;16
 
 #Varázslatok
 Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség
-S001;Mágikus lövedék;1;6;Biztosan célba találó arkán lövedék amely a varázsló erejével növekszik.;Enemy;8;0;igen;Both;Blue;700
-S002;Fagyasztó érintés;1;5;Fagyos közelharci varázslat amely megsebzi és lelassítja az ellenfelet.;Enemy;1;0;igen;Both;Blue;1200
-S003;Égő kéz;1;8;Rövid lángtölcsér amely több ellenfelet megsebezhet és lángra lobbanthat.;Direction;2;1;igen;Both;Red;2200
-S005;Lángoló nyíl;1;7;Nagy hatótávú tűznyíl amely találatkor égést okoz.;Enemy;8;0;igen;Both;Red;1000
-S021;Erőpajzs;1;6;Sűrű arkán mező amely hosszú időre megerősíti a mágus védelmét.;Self;0;0;nem;Both;Blue;0
-S026;Fényvarázslat;1;6;Arkán fény veszi körül a mágust és messzebbre tárja fel előtte a labirintust.;Self;0;0;nem;Exploration;Blue;0
-S004;Villámcsapás;2;12;Egyetlen célpontba vezetett nagy erejű villámcsapás.;Enemy;6;0;igen;Both;YellowBrown;500
-S006;Láthatatlanság;2;11;Egy partitag eltűnik az ellenfelek szeme elől amíg támadást nem indít.;PartyMember;6;0;igen;Both;Blue;0
-S013;Arkán páncél;2;10;Mágikus védőréteg amely rövid időre erős védelmet ad.;Self;0;0;nem;Both;Blue;0
-S014;Lassítás;2;12;Megzavarja az ellenfél időérzékét és minden második akcióját elveheti.;Enemy;8;0;igen;Both;Blue;1600
-S022;Jégbilincs;2;11;Fagyos bilincsek lassítják az ellenfelet és megakasztják minden második mozdulatát.;Enemy;8;0;igen;Both;Blue;2000
-S027;Vakítás;2;11;Vakító arkán villanás homályosítja el az ellenfél látását és jelentősen rontja a támadásainak pontosságát.;Enemy;8;0;igen;Both;YellowBrown;600
-S007;Tűzgolyó;3;18;Nagy területen robbanó tűzgömb amely égő sebeket hagy maga után.;Area;8;2;igen;Both;Red;3000
-S008;Jégvihar;3;18;Fagyos vihar amely megsebzi és több körre lelassítja az ellenfeleket.;Area;8;2;igen;Both;Blue;3600
-S010;Teleportáció;3;14;A varázsló egy már felfedezett szabad mezőre teleportál.;Cell;8;0;nem;Both;Blue;0
-S015;Mágia szétoszlatása;3;16;Megszünteti a célterületen működő ideiglenes mágikus hatásokat.;Area;6;1;igen;Both;Blue;0
-S023;Hasadó villám;3;18;Egy villámív több egymáshoz közeli ellenfélen is végigfut.;Enemy;8;0;igen;Both;YellowBrown;1800
-S028;Rémkép;3;15;Rémisztő látomásokat idéz az ellenségek elméjébe amelyek megtorpannak és bizonytalanabbul támadnak.;Area;7;1;igen;Both;Blue;3400
-S009;Villámvihar;4;26;Tartós villámvihar amely a kezdeti csapás után tovább sebzi az ellenfeleket.;Area;8;2;igen;Both;YellowBrown;3800
-S011;Meteorzápor;4;30;Meteorok pusztítják el a célterületet és égő talajt hagynak hátra.;Area;10;3;igen;Both;Red;4700
-S016;Láncvillám;4;28;A villám az első célpontról legfeljebb három közeli ellenfélre ugrik.;Enemy;8;0;igen;Both;YellowBrown;2600
-S017;Kőbőr;4;24;Egy partitag kőkemény bőrt kap amely felezi a fizikai sérülést és megakadályozza a vérzést.;PartyMember;6;0;igen;Both;Blue;0
-S024;Harci gyorsítás;4;25;Felgyorsítja a teljes partit és pontosabbá teszi a támadásaikat.;Party;0;0;nem;Both;Blue;0
-S012;Időmegállítás;5;42;A mágus rövid időre megállítja környezetét és két további akciót kap.;Self;0;0;nem;Combat;Blue;0
-S018;Dezintegráció;5;40;Elsöprő sugár amely súlyosan sebzi és a legyengült ellenfelet elpusztíthatja.;Enemy;8;0;igen;Both;Red;2800
-S019;Dimenziókapu;5;32;A teljes élő parti egy távoli felfedezett területre teleportál.;Cell;10;0;nem;Both;Blue;0
-S020;Arkán kataklizma;5;50;Hatalmas területi pusztítás amely véletlen elemi utóhatást kelt.;Area;10;4;igen;Both;Blue;5000
-S025;Lélekvihar;5;44;Sötét arkán vihar tépi az ellenfeleket és még több körön át pusztítja őket.;Area;9;3;igen;Both;Red;4200
+S001;Mágikus lövedék;1;6;Biztosan célba találó arkán lövedék amely a varázsló erejével növekszik.;Enemy;8;0;igen;Both;Blue;700;
+S002;Fagyasztó érintés;1;5;Fagyos közelharci varázslat amely megsebzi és lelassítja az ellenfelet.;Enemy;1;0;igen;Both;Blue;1200;
+S003;Égő kéz;1;8;Rövid lángtölcsér amely több ellenfelet megsebezhet és lángra lobbanthat.;Direction;2;1;igen;Both;Red;2200;
+S004;Villámcsapás;2;12;Egyetlen célpontba vezetett nagy erejű villámcsapás.;Enemy;6;0;igen;Both;YellowBrown;500;
+S005;Lángoló nyíl;1;7;Nagy hatótávú tűznyíl amely találatkor égést okoz.;Enemy;8;0;igen;Both;Red;1000;
+S006;Láthatatlanság;2;11;Egy partitag eltűnik az ellenfelek szeme elől amíg támadást nem indít.;PartyMember;6;0;igen;Both;Blue;0;
+S007;Tűzgolyó;3;18;Nagy területen robbanó tűzgömb amely égő sebeket hagy maga után.;Area;8;2;igen;Both;Red;3000;
+S008;Jégvihar;3;18;Fagyos vihar amely megsebzi és több körre lelassítja az ellenfeleket.;Area;8;2;igen;Both;Blue;3600;
+S009;Villámvihar;4;26;Tartós villámvihar amely a kezdeti csapás után tovább sebzi az ellenfeleket.;Area;8;2;igen;Both;YellowBrown;3800;
+S010;Teleportáció;3;14;A varázsló egy már felfedezett szabad mezőre teleportál.;Cell;8;0;nem;Both;Blue;0;
+S011;Meteorzápor;4;30;Meteorok pusztítják el a célterületet és égő talajt hagynak hátra.;Area;10;3;igen;Both;Red;4700;
+S012;Időmegállítás;5;42;A mágus rövid időre megállítja környezetét és két további akciót kap.;Self;0;0;nem;Combat;Blue;0;
+S013;Arkán páncél;2;10;Mágikus védőréteg amely rövid időre erős védelmet ad.;Self;0;0;nem;Both;Blue;0;
+S014;Lassítás;2;12;Megzavarja az ellenfél időérzékét és minden második akcióját elveheti.;Enemy;8;0;igen;Both;Blue;1600;
+S015;Mágia szétoszlatása;3;16;Megszünteti a célterületen működő ideiglenes mágikus hatásokat.;Area;6;1;igen;Both;Blue;0;
+S016;Láncvillám;4;28;A villám az első célpontról legfeljebb három közeli ellenfélre ugrik.;Enemy;8;0;igen;Both;YellowBrown;2600;
+S017;Kőbőr;4;24;Egy partitag kőkemény bőrt kap amely felezi a fizikai sérülést és megakadályozza a vérzést.;PartyMember;6;0;igen;Both;Blue;0;
+S018;Dezintegráció;5;40;Elsöprő sugár amely súlyosan sebzi és a legyengült ellenfelet elpusztíthatja.;Enemy;8;0;igen;Both;Red;2800;
+S019;Dimenziókapu;5;32;A teljes élő parti egy távoli felfedezett területre teleportál.;Cell;10;0;nem;Both;Blue;0;
+S020;Arkán kataklizma;5;50;Hatalmas területi pusztítás amely véletlen elemi utóhatást kelt.;Area;10;4;igen;Both;Blue;5000;
+S021;Erőpajzs;1;6;Sűrű arkán mező amely hosszú időre megerősíti a mágus védelmét.;Self;0;0;nem;Both;Blue;0;
+S022;Jégbilincs;2;11;Fagyos bilincsek lassítják az ellenfelet és megakasztják minden második mozdulatát.;Enemy;8;0;igen;Both;Blue;2000;
+S023;Hasadó villám;3;18;Egy villámív több egymáshoz közeli ellenfélen is végigfut.;Enemy;8;0;igen;Both;YellowBrown;1800;
+S024;Harci gyorsítás;4;25;Felgyorsítja a teljes partit és pontosabbá teszi a támadásaikat.;Party;0;0;nem;Both;Blue;0;
+S025;Lélekvihar;5;44;Sötét arkán vihar tépi az ellenfeleket és még több körön át pusztítja őket.;Area;9;3;igen;Both;Red;4200;
+S026;Fényvarázslat;1;6;Arkán fény veszi körül a mágust és messzebbre tárja fel előtte a labirintust.;Self;0;0;nem;Exploration;Blue;0;
+S027;Vakítás;2;11;Vakító arkán villanás homályosítja el az ellenfél látását és jelentősen rontja a támadásainak pontosságát.;Enemy;8;0;igen;Both;YellowBrown;600;
+S028;Rémkép;3;15;Rémisztő látomásokat idéz az ellenségek elméjébe amelyek megtorpannak és bizonytalanabbul támadnak.;Area;7;1;igen;Both;Blue;3400;
+
 D001;Árnyéktű;1;6;Sötét erőből szőtt lövedék amely könyörtelenül követi áldozatát.;Enemy;8;0;igen;Combat;Shadow;900;igen
 D002;Dermesztő átok;1;5;Síri hideggel marja és lassítja meg a közeli áldozatot.;Enemy;1;0;igen;Combat;SicklyGreen;1300;igen
 D003;Pokoli lehelet;1;8;Alvilági lángok tölcsére perzseli fel a varázshasználó előtti területet.;Direction;2;1;igen;Combat;BloodRed;2400;igen
 D004;Kárhozat nyila;1;7;Átkozott tűznyíl amely tovább emészti a célpont testét.;Enemy;8;0;igen;Combat;Purple;1200;igen
-D005;Árnyékpajzs;1;6;Sűrű árnyékmező óvja rövid időre a varázshasználót.;Self;0;0;nem;Combat;Shadow;0;igen
+D005;Árnyékpajzs;1;6;Sűrű árnyékmező óvja rövid időre a varázshasználót.;Self;0;0;nem;Combat;Shadow;1100;igen
 D006;Vérvillám;2;12;Bíbor villám tépi fel egyetlen áldozat életerejét.;Enemy;6;0;igen;Combat;BloodRed;700;igen
 D007;Fekete bilincs;2;11;Élő árnyékok béklyózzák meg és akasztják meg az áldozat mozdulatait.;Enemy;8;0;igen;Combat;Shadow;2100;igen
-D017;Vérgyógyítás;2;11;Tiltott vérmágia állítja helyre egy szövetséges életerejét.;PartyMember;6;0;igen;Combat;BloodRed;0;igen
 D008;Pokoltűzgömb;3;18;Robbanó pokoltűz borítja lángba a célterületet.;Area;8;2;igen;Combat;BloodRed;3200;igen
 D009;Dögvészvihar;3;18;Mérgező zöld vihar sebzi és lassítja a terület áldozatait.;Area;8;2;igen;Combat;SicklyGreen;3700;igen
 D010;Rémület hulláma;3;15;Sötét látomások bénítják meg és bizonytalanítják el a közel állókat.;Area;7;1;igen;Combat;Purple;3500;igen
-D013;Vérbástya;3;18;Vérrel táplált oltalom védi a varázshasználó szövetségeseit.;Party;0;0;nem;Combat;BloodRed;0;igen
-D014;Sötét litánia;3;14;Baljós ima fokozza a szövetségesek harci erejét és gyorsaságát.;Party;0;0;nem;Combat;Purple;0;igen
 D011;Kárhozatvihar;4;26;Tartós sötét villámvihar emészti a teljes célterületet.;Area;8;2;igen;Combat;Purple;4000;igen
 D012;Léleklánc;4;28;Áldozatról áldozatra ugró fekete energia tépi ki az életerőt.;Enemy;8;0;igen;Combat;Shadow;2800;igen
+D013;Vérbástya;3;18;Vérrel táplált oltalom védi a varázshasználó szövetségeseit.;Party;0;0;nem;Combat;BloodRed;0;igen
+D014;Sötét litánia;3;14;Baljós ima fokozza a szövetségesek harci erejét és gyorsaságát.;Party;0;0;nem;Combat;Purple;0;igen
 D015;Véráldozat;4;30;Tiltott rítus egyszerre tölti fel a teljes ellenséges csapat életerejét.;Party;0;0;nem;Combat;BloodRed;0;igen
 D016;Fekete nap;5;50;Mindenséget elemésztő sötétség és kaotikus energia söpör végig a területen.;Area;10;4;igen;Combat;Shadow;5200;igen
-D018;Kőbőr;2;10;Mindenséget elemésztő sötétség és kaotikus energia söpör végig a területen.;PartyMember;5;4;nem;Combat;SicklyGreen;1500;igen
+D017;Vérgyógyítás;2;11;Tiltott vérmágia állítja helyre egy szövetséges életerejét.;PartyMember;6;0;igen;Combat;BloodRed;0;igen
+
 
 #Papi varázslatok
 Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség
-P001;Gyógyító érintés;1;5;Érintéssel gyógyít 2d8 plusz Intelligencia plusz karakterszint HP-t.;PartyMember;1;0;igen;Both;YellowBrown;0
-P002;Szent fény;1;6;Szent fényt lő egy ellenfélre amely élőholt és démoni célpont ellen másfélszeres sebzést okoz.;Enemy;8;0;igen;Both;YellowBrown;800
-P003;Áldás;1;8;Négy körre találatot védelmet és kezdeményezést ad minden élő part tagnak.;Party;0;0;nem;Both;YellowBrown;0
-P006;Méregűzés;1;5;Eltávolítja a Mérgezés állapotot egy élő part tagjáról.;PartyMember;6;0;igen;Both;YellowBrown;0
-P021;Étel és ital teremtése;1;6;Mennyei útravalót és tiszta vizet teremt amely az egész parti szükségleteit enyhíti.;Party;0;0;nem;Exploration;YellowBrown;0
-P026;Fegyveráldás;1;6;A pap rövid időre szent erővel áldja meg saját fegyverét amely pontosabban és nagyobb erővel sújt le.;Self;0;0;nem;Both;YellowBrown;0
-P004;Szent pajzs;2;10;Négy körre öt pont védelmet ad egy élő part tagnak.;PartyMember;6;0;igen;Both;YellowBrown;0
-P005;Gyógyítás;2;11;Hat mezőről nagy mennyiségű életerőt állít vissza egy élő part tagnak.;PartyMember;6;0;igen;Both;YellowBrown;0
-P007;Védelem a gonosztól;2;12;Öt körre védelmet és sebzéscsökkentést ad élőholt vagy démoni támadó ellen.;PartyMember;6;0;igen;Both;YellowBrown;0
-P013;Betegségűzés;2;10;Eltávolítja a Betegség állapotot és visszaállítja a normál erőforrásmaximumokat.;PartyMember;6;0;igen;Both;YellowBrown;0
-P022;Remény imája;2;12;Szelíd isteni erő gyógyítja egyszerre a teljes élő partit.;Party;0;0;nem;Both;YellowBrown;0
-P027;Átoktörés;2;11;Isteni erő töri meg az egy partitagot sújtó káros mágikus hatásokat és annak legerősebb aktív tárgyátkát.;PartyMember;6;0;igen;Both;YellowBrown;0
-P009;Szent csapás;3;17;Súlyos szent sebzést okoz és rontott ellenpróbánál elveszi a következő ellenséges akciót.;Enemy;8;0;igen;Both;YellowBrown;1400
-P010;Isteni védelem;3;18;Négy körre védelmet és huszonöt százalék fizikai sebzéscsökkentést ad a teljes partinak.;Party;0;0;nem;Both;YellowBrown;0
-P014;Megtisztítás;3;15;Eltávolítja a Mérgezés Betegség és Vérzés állapotot majd gyógyítja a célpontot.;PartyMember;6;0;igen;Both;YellowBrown;0
-P015;Bátorság imája;3;14;Öt körre találatot fizikai sebzést és kezdeményezést ad a teljes partinak.;Party;0;0;nem;Both;YellowBrown;0
-P023;Szent fegyver;3;16;Áldott erő teszi pontosabbá és pusztítóbbá a teljes parti fegyvereit.;Party;0;0;nem;Both;YellowBrown;0
-P028;Fénykitörés;3;16;Robbanásszerű szent fény sújtja a célterület ellenségeit és megrendítheti őket.;Area;7;1;igen;Both;YellowBrown;2400
-P008;Feltámasztás;4;30;Egy elesett társat huszonöt százalék HP-val és nulla mannával hoz vissza.;Corpse;6;0;igen;Both;YellowBrown;0
-P011;Szent ítélet;4;28;Nagy szent sebzést okoz és rontott ellenpróbánál eltávolítja a pozitív varázshatásokat.;Enemy;8;0;igen;Both;YellowBrown;3200
-P016;Őrangyal;4;26;Öt körig kivédi a célpont első halálos csapását majd gyógyítja őt.;PartyMember;6;0;igen;Both;YellowBrown;0
-P017;Tömeges gyógyítás;4;30;Minden élő part tagnak egyszerre nagy mennyiségű életerőt állít vissza.;Party;0;0;nem;Both;YellowBrown;0
-P024;Égi bástya;4;27;Mennyei oltalom növeli a teljes parti védelmét és csökkenti a fizikai sérüléseket.;Party;0;0;nem;Both;YellowBrown;0
-P012;Isteni csoda;5;45;Maximumra gyógyítja és minden súlyos állapottól megtisztítja a teljes élő partit.;Party;0;0;nem;Both;YellowBrown;0
-P018;Isteni harag;5;46;Hatalmas területi szent sebzést okoz minden ellenségnek de a partit nem sebzi.;Area;8;3;igen;Both;YellowBrown;4000
-P019;Szentély;5;38;Négy körre felére csökkenti a közeli part tagokat érő sebzést és állapotvédelmet ad.;Self;0;3;nem;Both;YellowBrown;0
-P020;Igazi feltámasztás;5;50;Egy elesett társat teljes HP-val fél mannával és negatív állapotok nélkül hoz vissza.;Corpse;8;0;igen;Both;YellowBrown;0
-P025;Mennyei tűz;5;45;Tiszta égi láng borítja el az ellenségeket és tovább perzseli őket.;Area;9;3;igen;Both;Red;4500
+P001;Gyógyító érintés;1;5;Érintéssel gyógyít 2d8 plusz Intelligencia plusz karakterszint HP-t.;PartyMember;1;0;igen;Both;YellowBrown;0;
+P002;Szent fény;1;6;Szent fényt lő egy ellenfélre amely élőholt és démoni célpont ellen másfélszeres sebzést okoz.;Enemy;8;0;igen;Both;YellowBrown;800;
+P003;Áldás;1;8;Négy körre találatot védelmet és kezdeményezést ad minden élő part tagnak.;Party;0;0;nem;Both;YellowBrown;0;
+P004;Szent pajzs;2;10;Négy körre öt pont védelmet ad egy élő part tagnak.;PartyMember;6;0;igen;Both;YellowBrown;0;
+P005;Gyógyítás;2;11;Hat mezőről nagy mennyiségű életerőt állít vissza egy élő part tagnak.;PartyMember;6;0;igen;Both;YellowBrown;0;
+P006;Méregűzés;1;5;Eltávolítja a Mérgezés állapotot egy élő part tagjáról.;PartyMember;6;0;igen;Both;YellowBrown;0;
+P007;Védelem a gonosztól;2;12;Öt körre védelmet és sebzéscsökkentést ad élőholt vagy démoni támadó ellen.;PartyMember;6;0;igen;Both;YellowBrown;0;
+P008;Feltámasztás;4;30;Egy elesett társat huszonöt százalék HP-val és nulla mannával hoz vissza.;Corpse;6;0;igen;Both;YellowBrown;0;
+P009;Szent csapás;3;17;Súlyos szent sebzést okoz és rontott ellenpróbánál elveszi a következő ellenséges akciót.;Enemy;8;0;igen;Both;YellowBrown;1400;
+P010;Isteni védelem;3;18;Négy körre védelmet és huszonöt százalék fizikai sebzéscsökkentést ad a teljes partinak.;Party;0;0;nem;Both;YellowBrown;0;
+P011;Szent ítélet;4;28;Nagy szent sebzést okoz és rontott ellenpróbánál eltávolítja a pozitív varázshatásokat.;Enemy;8;0;igen;Both;YellowBrown;3200;
+P012;Isteni csoda;5;45;Maximumra gyógyítja és minden súlyos állapottól megtisztítja a teljes élő partit.;Party;0;0;nem;Both;YellowBrown;0;
+P013;Betegségűzés;2;10;Eltávolítja a Betegség állapotot és visszaállítja a normál erőforrásmaximumokat.;PartyMember;6;0;igen;Both;YellowBrown;0;
+P014;Megtisztítás;3;15;Eltávolítja a Mérgezés Betegség és Vérzés állapotot majd gyógyítja a célpontot.;PartyMember;6;0;igen;Both;YellowBrown;0;
+P015;Bátorság imája;3;14;Öt körre találatot fizikai sebzést és kezdeményezést ad a teljes partinak.;Party;0;0;nem;Both;YellowBrown;0;
+P016;Őrangyal;4;26;Öt körig kivédi a célpont első halálos csapását majd gyógyítja őt.;PartyMember;6;0;igen;Both;YellowBrown;0;
+P017;Tömeges gyógyítás;4;30;Minden élő part tagnak egyszerre nagy mennyiségű életerőt állít vissza.;Party;0;0;nem;Both;YellowBrown;0;
+P018;Isteni harag;5;46;Hatalmas területi szent sebzést okoz minden ellenségnek de a partit nem sebzi.;Area;8;3;igen;Both;YellowBrown;4000;
+P019;Szentély;5;38;Négy körre felére csökkenti a közeli part tagokat érő sebzést és állapotvédelmet ad.;Self;0;3;nem;Both;YellowBrown;0;
+P020;Igazi feltámasztás;5;50;Egy elesett társat teljes HP-val fél mannával és negatív állapotok nélkül hoz vissza.;Corpse;8;0;igen;Both;YellowBrown;0;
+P021;Étel és ital teremtése;1;6;Mennyei útravalót és tiszta vizet teremt amely az egész parti szükségleteit enyhíti.;Party;0;0;nem;Exploration;YellowBrown;0;
+P022;Remény imája;2;12;Szelíd isteni erő gyógyítja egyszerre a teljes élő partit.;Party;0;0;nem;Both;YellowBrown;0;
+P023;Szent fegyver;3;16;Áldott erő teszi pontosabbá és pusztítóbbá a teljes parti fegyvereit.;Party;0;0;nem;Both;YellowBrown;0;
+P024;Égi bástya;4;27;Mennyei oltalom növeli a teljes parti védelmét és csökkenti a fizikai sérüléseket.;Party;0;0;nem;Both;YellowBrown;0;
+P025;Mennyei tűz;5;45;Tiszta égi láng borítja el az ellenségeket és tovább perzseli őket.;Area;9;3;igen;Both;Red;4500;
+P026;Fegyveráldás;1;6;A pap rövid időre szent erővel áldja meg saját fegyverét amely pontosabban és nagyobb erővel sújt le.;Self;0;0;nem;Both;YellowBrown;0;
+P027;Átoktörés;2;11;Isteni erő töri meg az egy partitagot sújtó káros mágikus hatásokat és annak legerősebb aktív tárgyátkát.;PartyMember;6;0;igen;Both;YellowBrown;0;
+P028;Fénykitörés;3;16;Robbanásszerű szent fény sújtja a célterület ellenségeit és megrendítheti őket.;Area;7;1;igen;Both;YellowBrown;2400;
 
 #Varázshatások
 Id;VarázslatId;Sorrend;Típus;Kocka;IntSzorzó;SzintSzorzó;Érték;IdőtartamKör;Esély;Ellenpróba;Paraméter;Leírás
@@ -933,7 +934,6 @@ FX-D012-1;D012;1;ChainDamage;12d8;4;8;0;0;100;SaveHalf;100|75|50|25;Legfeljebb h
 FX-D015-1;D015;1;Heal;5d8;2;3;0;0;100;Auto;;A teljes ellenséges csapatot gyógyítja.
 FX-D016-1;D016;1;Damage;24d12;6;20;0;0;100;SaveHalf;;Hatalmas területi sötét sebzés mentőre felezve.
 FX-D016-2;D016;2;RandomElement;4d10;0;0;4;3;30;SaveNegates;Fire|Frost|Lightning;Véletlen pusztító utóhatást okoz.
-FX-D018-1;D018;1;PhysicalReduction;;0;0;80;3;100;Auto;;Három körre nyolcvan százalékkal csökkenti a fizikai sebzést.
 FX-P001-1;P001;1;Heal;2d8;1;1;0;0;100;Auto;;Érintéssel helyreállított életerő.
 FX-P002-1;P002;1;Damage;2d6;1;1;0;0;100;Attack;Holy50;Szent sebzés élőholt és démoni célpont ellen másfélszeres erővel.
 FX-P003-1;P003;1;HitBonus;;0;0;1;4;100;Auto;;Négy körre találati bónuszt ad a teljes partinak.
