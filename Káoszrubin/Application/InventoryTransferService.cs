@@ -81,28 +81,27 @@ public static class InventoryTransferService
             return Fail("A mellékkézbe csak használható pajzs, illetve Kétfegyveres harccal és megfelelő jártassággal tőr vagy kard tehető.",
                 out plan, out error);
 
-        var compatibleStack = command.DestinationKind == InventorySlotKind.Backpack && displaced is not null &&
+        var destinationStackSize = LiveCharacter.MaximumStackSize(command.DestinationKind, sourceItem);
+        var compatibleStack = destinationStackSize > 1 && displaced is not null &&
             string.Equals(sourceItem.Id, displaced.Id, StringComparison.OrdinalIgnoreCase) &&
             sourceState?.IsIdentified == true && displacedState?.IsIdentified == true &&
-            sourceCharges == displacedCharges && displacedQuantity < LiveCharacter.MaximumBackpackStackSize;
+            sourceCharges == displacedCharges && displacedQuantity < destinationStackSize;
         if (compatibleStack)
         {
-            var moved = Math.Min(sourceQuantity, LiveCharacter.MaximumBackpackStackSize - displacedQuantity);
+            var moved = Math.Min(sourceQuantity, destinationStackSize - displacedQuantity);
             AddChange(changes, source, new InventorySlotChange(command.SourceKind, command.SourceIndex,
                 sourceQuantity == moved ? null : sourceItem, sourceCharges, sourceQuantity - moved,
                 sourceQuantity == moved ? null : sourceState));
             AddChange(changes, destination, new InventorySlotChange(command.DestinationKind,
                 command.DestinationIndex, displaced, displacedCharges, displacedQuantity + moved, displacedState));
         }
-        else if (command.SourceKind == InventorySlotKind.Backpack && sourceQuantity > 1 &&
-                 command.DestinationKind != InventorySlotKind.Backpack)
+        else if (sourceQuantity > 1 && displaced is null && sourceQuantity > destinationStackSize)
         {
-            if (displaced is not null)
-                return Fail("Kötegből csak üres felszereléshelyre tehető egy tárgy.", out plan, out error);
+            var moved = destinationStackSize;
             AddChange(changes, source, new InventorySlotChange(command.SourceKind, command.SourceIndex,
-                sourceItem, sourceCharges, sourceQuantity - 1, sourceState));
+                sourceItem, sourceCharges, sourceQuantity - moved, sourceState));
             AddChange(changes, destination, new InventorySlotChange(command.DestinationKind,
-                command.DestinationIndex, sourceItem, sourceCharges, 1,
+                command.DestinationIndex, sourceItem, sourceCharges, moved,
                 sourceState is { } state ? state with { InstanceId = Guid.NewGuid() } : null));
         }
         else

@@ -155,7 +155,8 @@ public sealed class CharacterSaveService
                 if (SpellcastingRules.IsLegacyStartingFocusId(magicItemId)) continue;
                 character.ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.MagicItem, index,
                     FindSavedDefinition(_gameData.MagicItems, magicItemId, saved.MagicItemNames.ElementAtOrDefault(index), "varázstárgy"),
-                    index < saved.MagicItemCharges.Count ? saved.MagicItemCharges[index] : null, 1,
+                    index < saved.MagicItemCharges.Count ? saved.MagicItemCharges[index] : null,
+                    index < saved.MagicItemQuantities.Count ? saved.MagicItemQuantities[index] : 1,
                     RestoreItemState(saved.MagicItemStates.ElementAtOrDefault(index))));
             }
         var requiredFocusId = SpellcastingRules.RequiredFocusItemId(character.CharacterClass.Id);
@@ -243,6 +244,7 @@ public sealed class CharacterSaveService
         ArmorItemState = SaveItemState(character.GetInventoryItemState(InventorySlotKind.Armor, 0)),
         MagicItemIds = character.MagicItems.Select(item => item?.Id).ToList(),
         MagicItemCharges = character.MagicItemCharges.ToList(),
+        MagicItemQuantities = character.MagicItemQuantities.ToList(),
         MagicItemStates = Enumerable.Range(0, LiveCharacter.MaximumMagicItemCount).Select(index =>
             SaveItemState(character.GetInventoryItemState(InventorySlotKind.MagicItem, index))).ToList(),
         BackpackItems = character.Backpack.Select((item, index) => item is null ? null :
@@ -345,6 +347,7 @@ public sealed class CharacterSaveService
         public ItemInstanceSaveData? ArmorItemState { get; init; }
         public List<string?> MagicItemIds { get; init; } = [];
         public List<int> MagicItemCharges { get; init; } = [];
+        public List<int> MagicItemQuantities { get; init; } = [];
         public List<ItemInstanceSaveData?> MagicItemStates { get; init; } = [];
         public List<string?> WeaponNames { get; init; } = [];
         public string? ArmorName { get; init; }

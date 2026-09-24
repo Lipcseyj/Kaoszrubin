@@ -1259,6 +1259,8 @@ internal sealed class InnController
         var stock = new List<InnStockOffer>();
         AddRandomMagicItemOffer(stock, MagicItemKind.Wand);
         AddRandomMagicItemOffer(stock, MagicItemKind.Scroll);
+        for (var index = 0; index < 5; index++)
+            AddRandomMagicItemOffer(stock, MagicItemKind.Scroll);
         return stock;
     }
 
@@ -1277,7 +1279,7 @@ internal sealed class InnController
         var options = new List<(string Label, string Description)>
         {
             ($"{ConsoleRenderer.WandIcon} Kiürült varázspálcák feltöltése", "Teljes feltöltés a pálca eredeti árának kétharmadáért."),
-            ("📜 Varázsportékák", "Egy véletlen varázspálca és egy véletlen tekercs, egyszeri készletről."),
+            ("📜 Varázsportékák", "Egy véletlen varázspálca és hat véletlen tekercs, egyszeri készletről."),
             ("🔮 Varázstárgy azonosítása", "Ismeretlen mágikus tárgyak teljes feltárása az értékükhöz és erejükhöz igazodó díjért."),
             ("✨ Tárgyátok megtörése", "Azonosított átkozott tárgy végleges megtisztítása és kötésének feloldása."),
             ("🚪 Vissza", "Visszatérés a fogadó főtermébe.")

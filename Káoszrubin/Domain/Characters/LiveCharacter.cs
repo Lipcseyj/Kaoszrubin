@@ -12,6 +12,7 @@ public sealed class LiveCharacter
     private readonly InventoryItemInstanceState?[] _weaponItemStates = new InventoryItemInstanceState?[3];
     private readonly MagicItemDefinition?[] _magicItems = new MagicItemDefinition?[MaximumMagicItemCount];
     private readonly int[] _magicItemCharges = new int[MaximumMagicItemCount];
+    private readonly int[] _magicItemQuantities = new int[MaximumMagicItemCount];
     private readonly InventoryItemInstanceState?[] _magicItemStates = new InventoryItemInstanceState?[MaximumMagicItemCount];
     private readonly IItemDefinition?[] _backpack = new IItemDefinition?[MaximumBackpackItemCount];
     private readonly int[] _backpackItemCharges = new int[MaximumBackpackItemCount];
@@ -138,6 +139,7 @@ public sealed class LiveCharacter
     public ArmorDefinition? Armor { get; private set; }
     public IReadOnlyList<MagicItemDefinition?> MagicItems => _magicItems;
     public IReadOnlyList<int> MagicItemCharges => _magicItemCharges;
+    public IReadOnlyList<int> MagicItemQuantities => _magicItemQuantities;
     public IReadOnlyList<IItemDefinition?> Backpack => _backpack;
     public IReadOnlyList<PerkDefinition> Perks => _perks;
     public IReadOnlyList<ClassFeatureUpgradeDefinition> ClassFeatureUpgrades => _classFeatureUpgrades;
@@ -242,8 +244,9 @@ public sealed class LiveCharacter
     public void RestoreKnightRetaliation(bool ready) => KnightRetaliationReady = ready;
     public int MemorizationCapacity => SpellcastingRules.MemorizationCapacity(this);
     public const int MaximumMagicItemCount = 3;
+    public const int MaximumEquippedScrollStackSize = 5;
     public const int MaximumBackpackItemCount = 12;
-    public const int MaximumBackpackStackSize = 9;
+    public const int MaximumBackpackStackSize = 10;
     public const int MaximumQuickSpellCount = 8;
 
     public void SetNpcBehavior(NpcBehavior? behavior) => NpcBehavior = behavior;
@@ -397,9 +400,20 @@ public sealed class LiveCharacter
 
     public bool AddMagicItem(MagicItemDefinition item)
     {
+        if (item.Kind == MagicItemKind.Scroll)
+        {
+            var stackIndex = Enumerable.Range(0, _magicItems.Length).FirstOrDefault(index =>
+                string.Equals(_magicItems[index]?.Id, item.Id, StringComparison.OrdinalIgnoreCase) &&
+                _magicItemStates[index]?.IsIdentified == true &&
+                _magicItemCharges[index] == item.MaximumCharges &&
+                _magicItemQuantities[index] < MaximumEquippedScrollStackSize, -1);
+            if (stackIndex >= 0)
+                return SetInventoryItem(InventorySlotKind.MagicItem, stackIndex, item,
+                    item.MaximumCharges, _magicItemQuantities[stackIndex] + 1, _magicItemStates[stackIndex]);
+        }
         var index = Array.FindIndex(_magicItems, existing => existing is null);
         if (index < 0) return false;
-        return SetInventoryItem(InventorySlotKind.MagicItem, index, item);
+        return SetInventoryItem(InventorySlotKind.MagicItem, index, item, null, 1);
     }
 
     public bool AddToBackpack(IItemDefinition item, bool identified = true, Guid? instanceId = null,
@@ -460,6 +474,8 @@ public sealed class LiveCharacter
 
     public int GetInventoryItemQuantity(InventorySlotKind kind, int index) => kind switch
     {
+        InventorySlotKind.MagicItem when index is >= 0 and < MaximumMagicItemCount =>
+            _magicItems[index] is null ? 0 : Math.Max(1, _magicItemQuantities[index]),
         InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount =>
             _backpack[index] is null ? 0 : Math.Max(1, _backpackItemQuantities[index]),
         _ => GetInventoryItem(kind, index) is null ? 0 : 1
@@ -706,11 +722,10 @@ public sealed class LiveCharacter
                 return false;
             }
 
-            if (change.Kind == InventorySlotKind.Backpack &&
-                change.Item is not null &&
-                change.Quantity is < 1 or > MaximumBackpackStackSize)
+            if (change.Item is not null &&
+                (change.Quantity is < 1 || change.Quantity > MaximumStackSize(change.Kind, change.Item)))
             {
-                error = "Érvénytelen tárgymennyiség a hátizsákban.";
+                error = "Érvénytelen tárgymennyiség ezen a felszereléshelyen.";
                 return false;
             }
 
@@ -850,6 +865,8 @@ public sealed class LiveCharacter
             case InventorySlotKind.MagicItem when index is >= 0 and < MaximumMagicItemCount:
                 _magicItems[index] = (MagicItemDefinition?)item;
                 _magicItemCharges[index] = InitialCharges(item, change.Charges);
+                _magicItemQuantities[index] = item is null ? 0 : Math.Clamp(change.Quantity ?? 1, 1,
+                    MaximumStackSize(InventorySlotKind.MagicItem, item));
                 _magicItemStates[index] = state;
                 break;
             case InventorySlotKind.Backpack when index is >= 0 and < MaximumBackpackItemCount:
@@ -875,13 +892,27 @@ public sealed class LiveCharacter
             ? Math.Clamp(charges ?? magic.MaximumCharges, 0, magic.MaximumCharges)
             : 0;
 
+    public static int MaximumStackSize(InventorySlotKind kind, IItemDefinition item) => kind switch
+    {
+        InventorySlotKind.Backpack => MaximumBackpackStackSize,
+        InventorySlotKind.MagicItem when item is MagicItemDefinition { Kind: MagicItemKind.Scroll } =>
+            MaximumEquippedScrollStackSize,
+        _ => 1
+    };
+
     public bool ConsumeMagicItemCharge(int slotIndex)
     {
         if (slotIndex is < 0 or >= MaximumMagicItemCount || _magicItems[slotIndex] is not { } item ||
             item.Kind is not (MagicItemKind.Wand or MagicItemKind.Scroll) || _magicItemCharges[slotIndex] <= 0) return false;
-        _magicItemCharges[slotIndex]--;
         if (item.Kind == MagicItemKind.Scroll)
-            ApplyInventoryChangesUnchecked(new InventorySlotChange(InventorySlotKind.MagicItem, slotIndex, null));
+        {
+            var quantity = GetInventoryItemQuantity(InventorySlotKind.MagicItem, slotIndex);
+            ApplyInventoryChangesUnchecked(new InventorySlotChange(InventorySlotKind.MagicItem, slotIndex,
+                quantity > 1 ? item : null, quantity > 1 ? item.MaximumCharges : null,
+                quantity > 1 ? quantity - 1 : 0, quantity > 1 ? _magicItemStates[slotIndex] : null));
+        }
+        else
+            _magicItemCharges[slotIndex]--;
         InventoryRevision++;
         return true;
     }

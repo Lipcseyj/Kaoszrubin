@@ -363,7 +363,9 @@ W019;óriásdorong;WT001;7-16;10;igen;nem;nem;nem;Hatalmas fatörzsből durván 
 W020;tüzes ostor;WT001;8-17;8;nem;nem;nem;nem;Pokoli lánggal izzó ostor amely messziről is lecsap az áldozatra.;0;;;;4;tűz;1;igen;WHIP
 W021;varázsbot;WT001;10-22;2;nem;nem;nem;igen;Sötét fából készült bot amelynek vége egy sötét vörösen pulzáló ékkövet fog körbe.;0;;;;2;nekrotikus;1;igen;STAFF
 W022;elf tőr;WT002;3-6;1;nem;igen;nem;igen;Hosszabb hajlított pengéjű elf tőr. Két elf tőrt használva mindkettő +1 sebzést okoz.;90;;;;1;vágás;1;nem;DAGGER
-W023;kasza;WT001;8-17;8;igen;nem;nem;nem;Hosszú nyelű, széles pengéjű kasza, amelyet élőholt aratók és más szörnyek használnak.;0;;;;6;vágás;2;igen;POLEARM;
+W023;szellemkasza;WT001;8-17;8;igen;nem;nem;nem;Hosszú nyelű, széles pengéjű kasza, amelyet élőholt aratók és más szörnyek használnak.;0;;;;6;vágás;2;igen;POLEARM;
+W037;óriásbalta;WT001;9-25;9;igen;nem;nem;nem;Óriásoknak készül brutális méretű csatabárd.;500;;;;15;vágás;2;nem;AXE
+W038;óriáspallos;WT001;12-22;9;igen;nem;nem;nem;Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.;550;;;;14;vágás;2;nem;SWORD
 WN001;fogak;WT001;2-6;1;nem;nem;nem;nem;Természetes harapás.;0;;;;1;szúrás;1;nem;NATURAL
 WN002;karmok;WT001;4-10;1;nem;nem;nem;nem;Természetes karmolás.;0;;;;1;vágás;1;nem;NATURAL
 WN003;ököl;WT001;5-12;1;nem;nem;nem;nem;Nehéz természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
@@ -393,7 +395,7 @@ WN026;lidérckarmok;WT001;5-17;1;nem;nem;nem;nem;Természetellenes karmolás.;0;
 WN027;démonkarmok;WT001;6-13;1;nem;nem;nem;nem;Démoni karmolás.;0;;;;1;vágás;1;nem;NATURAL
 WN028;démonagyarak;WT001;5-11;1;nem;nem;nem;nem;Hosszú hegyes démoni agyarakkal végrehajtott harapás.;0;;;;1;szúrás;1;nem;NATURAL
 WN029;tűzfelhő;WT001;8-16;1;nem;nem;nem;nem;Tüzes felhő.;0;;;;1;tűz;3;nem;NATURAL
-WN030;puszta kéz;WT001;1-5;1;nem;nem;nem;nem;Nehéz természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
+WN030;puszta kéz;WT001;1-5;1;nem;nem;nem;nem;Természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
 
 W024;kis kerek pajzs;WT003;1-2;1;nem;igen;nem;nem;Apró ökölpajzs, amely alig terheli a viselőjét. Fürge harcosok és tolvajok számára ideális.;160;;;;1;zúzás;1;nem;SHIELD;40;1
 W036;gilf ökölpajzs;WT003;2-3;1;nem;igen;nem;nem;Apró ökölpajzs, amely alig terheli a viselőjét. Fürge harcosok és tolvajok számára ideális. Gilf feketeacél anyaga miatt erősebb;1100;;;;1;zúzás;1;nem;SHIELD;90;2
@@ -481,6 +483,7 @@ W001;1;30
 W002;1;7
 W003;4;16
 W004;2;11
+W005;1;1
 W006;1;5
 W007;3;8
 W008;5;11
@@ -508,6 +511,8 @@ W032;14;30
 W033;11;25
 W034;18;30
 W035;12;30
+W037;31;31
+W038;31;31
 A001;1;30
 A002;1;2
 A003;2;7
@@ -625,10 +630,10 @@ EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEs�
 E090;D001|D003|D005|P001;26;6;0;90;BattleMage;1
 E091;D001|D004|D005|D010|S002|S013|S014;38;7;0;100;Controller;1
 E092;D017|D013|D014|P009;44;8;25;88;Support;1
-E035;D001|D004|D005|D007|D018;30;8;20;85;BattleMage;1
+E035;D001|D004|D005|D007|S017;30;8;20;85;BattleMage;1
 E093;D002|S014|S027|D010;42;10;20;65;Controller;1
-E094;D017|P009|D014|P023;50;11;20;65;Support;1
-E095;D017|P009|D013|P028;58;12;20;70;Support;1
+E094;D017|P009|D014|D013|P023;60;11;20;65;Support;1
+E095;D017|P009|D013|P028;58;10;20;70;Support;1
 E096;D006|D008|S013|S014|D012;70;14;15;75;Artillery;1
 E097;D009|S014|S017|D017;78;15;20;75;Support;1
 E098;D004|D008|D012|D017;86;16;15;80;Artillery;1

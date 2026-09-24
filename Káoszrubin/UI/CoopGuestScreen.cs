@@ -2045,7 +2045,7 @@ public sealed class CoopGuestScreen
                 var mageOptions = new[]
                 {
                     ($"{ConsoleRenderer.WandIcon} Kiürült varázspálcák feltöltése", "Teljes feltöltés a pálca eredeti árának kétharmadáért.", true),
-                    ("📜 Varázsportékák", "Egy véletlen varázspálca és egy véletlen tekercs, egyszeri készletről.", false),
+                    ("📜 Varázsportékák", "Egy véletlen varázspálca és hat véletlen tekercs, egyszeri készletről.", false),
                     ("🔮 Varázstárgy azonosítása", "A leader a Vándormágusnál az egész parti ismeretlen tárgyait azonosíthatja.", true),
                     ("✨ Tárgyátok megtörése", "A leader azonosított átkozott tárgyat tisztíttathat meg és oldhat fel.", true),
                     ("🚪 Vissza", "Visszatérés a fogadó főtermébe.", false)

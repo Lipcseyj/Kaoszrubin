@@ -31,7 +31,9 @@ public static class CharacterMobilityRules
         var weight = character.ActiveWeapons.Where(weapon => weapon is not null).Sum(weapon => weapon!.Weight) +
                      (character.Armor?.Weight ?? 0) +
                      (character.WeaponSlots[2]?.Weight ?? 0) +
-                     character.MagicItems.Where(item => item is not null).Sum(item => item!.Weight);
+                     Enumerable.Range(0, LiveCharacter.MaximumMagicItemCount).Sum(index =>
+                         (character.MagicItems[index]?.Weight ?? 0) *
+                         character.GetInventoryItemQuantity(InventorySlotKind.MagicItem, index));
         weight += character.GetActiveCurseValue(ItemCurseEffect.CombatWeight);
         var carriedWeight = weight +
                             Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount).Sum(index =>

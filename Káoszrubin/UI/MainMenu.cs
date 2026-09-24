@@ -1144,7 +1144,7 @@ public sealed class MainMenu
             Hotkey("CÉLZÁS: ENTER", "A célpont megerősítése."),
             Hotkey("CÉLZÁS: ESC", "Célzás megszakítása."),
             Blank(),
-            Text("📜 A tekercs 0 mannás és egyszer használható (mágus: mágusige vagy papi ima; pap/lovag: papi ima)."),
+            Text("📜 A tekercs 0 mannás és egyszer használható (mágus: mágusige vagy papi ima; pap/lovag: papi ima). Azonos tekercsekből a varázstárgyhelyen 5, a hátizsákban 10 fér egy kötegbe."),
             Text($"{ConsoleRenderer.WandIcon} A felszerelt pálcát minden kaszt használhatja 0 mannából; elsütésenként egy töltet fogy."),
             Blank(),
             Text("🧠 Memóriaképlet: Mágus = 2 + INT/3 + szint/5; Pap = 2 + INT/4 + szint/5; Lovag = 1 + INT/5 + szint/10, legfeljebb 4. Az osztások lefelé kerekülnek."),
