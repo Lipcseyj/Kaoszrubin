@@ -150,49 +150,127 @@ public sealed partial class RandomCharacterGenerator(GameDataCatalog gameData, R
         }
 
         var maximumTier = options.Selection == EquipmentSelection.ScaleWithLevel
-            ? Math.Clamp(character.Level / 5, 0, (int)EquipmentTier.Masterwork)
+            ? MaximumConfiguredUpgradePower(character.Level)
             : (int)options.Tier;
-        for (var slot = 0; slot < character.WeaponSlots.Count; slot++)
-        {
-            var current = character.WeaponSlots[slot];
-            if (current is null) continue;
-            var rootId = current.BaseWeaponId ?? current.Id;
-            var candidates = _gameData.Weapons.Where(candidate =>
-                (string.Equals(candidate.Id, rootId, StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(candidate.BaseWeaponId, rootId, StringComparison.OrdinalIgnoreCase)) &&
-                candidate.Rarity != ItemRarity.Legendary && candidate.MagicPower <= maximumTier &&
-                candidate.CanBeEquippedBy(character.CharacterClass.Id, character.Abilities.Strength)).ToList();
-            var selected = SelectTierCandidate(candidates, maximumTier, options.TierVariance);
-            if (selected is not null) character.EquipWeapon(slot, selected);
-        }
-
-        if (character.Armor is { } armor)
-        {
-            var rootId = armor.BaseArmorId ?? armor.Id;
-            var candidates = _gameData.Armors.Where(candidate =>
-                (string.Equals(candidate.Id, rootId, StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(candidate.BaseArmorId, rootId, StringComparison.OrdinalIgnoreCase)) &&
-                candidate.Rarity != ItemRarity.Legendary && candidate.MagicPower <= maximumTier &&
-                candidate.CanBeEquippedBy(character.CharacterClass.Id)).ToList();
-            var selected = SelectTierCandidate(candidates, maximumTier, options.TierVariance);
-            if (selected is not null) character.EquipArmor(selected);
-        }
+        ApplyConfiguredWeapons(character, maximumTier);
+        ApplyConfiguredArmor(character, maximumTier);
 
         if (options.IncludeMagicItems) FillScaledMagicItems(character, maximumTier, options.TierVariance);
         if (options.AddSupplies) FillRecruitBackpack(character);
     }
 
-    private T? SelectTierCandidate<T>(IReadOnlyList<T> candidates, int maximumTier, int variance)
-        where T : class, IItemDefinition
+    private int MaximumConfiguredUpgradePower(int level)
+    {
+        var powers = from rule in _gameData.CharacterGenerationUpgrades
+            where rule.Includes(level)
+            join upgrade in _gameData.ItemUpgrades on rule.UpgradeId.ToUpperInvariant()
+                equals upgrade.Id.ToUpperInvariant()
+            select upgrade.MagicPower;
+        return powers.DefaultIfEmpty(0).Max();
+    }
+
+    private void ApplyConfiguredWeapons(LiveCharacter character, int maximumMagicPower)
+    {
+        var slotKinds = character.WeaponSlots.Select(weapon => weapon is null
+            ? WeaponSlotGenerationKind.Empty
+            : WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Shield
+                ? WeaponSlotGenerationKind.Shield
+                : WeaponSlotGenerationKind.Attack).ToArray();
+        for (var slot = 0; slot < character.WeaponSlots.Count; slot++) character.EquipWeapon(slot, null);
+
+        for (var slot = 0; slot < slotKinds.Length; slot++)
+        {
+            if (slotKinds[slot] == WeaponSlotGenerationKind.Empty) continue;
+            var wantsShield = slotKinds[slot] == WeaponSlotGenerationKind.Shield;
+            var candidates = _gameData.Weapons.Where(weapon =>
+                    weapon.Rarity == ItemRarity.Normal && weapon.BaseWeaponId is null &&
+                    weapon.CanBeEquippedBy(character.CharacterClass.Id, character.Abilities.Strength) &&
+                    (WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Shield) == wantsShield &&
+                    _gameData.CharacterGenerationEquipmentByItemId.TryGetValue(weapon.Id, out var rule) &&
+                    rule.Includes(character.Level))
+                .Where(weapon => slot != 1 || DualWieldingRules.CanEquipOffhand(
+                    character, character.WeaponSlots[0], weapon)).ToList();
+            if (candidates.Count == 0) continue;
+
+            var proficient = candidates.Where(weapon =>
+                character.WeaponProficiencyRankFor(WeaponFamilies.ForWeapon(weapon)) is not null).ToList();
+            var selectedBase = SelectWeightedByLevel(proficient.Count > 0 ? proficient : candidates,
+                character.Level);
+            if (selectedBase is null) continue;
+            character.EquipWeapon(slot, SelectMagicVariant(selectedBase, character.Level, maximumMagicPower));
+
+            // A kétkezes főfegyver természetesen megszünteti a mellékkéz generálását.
+            if (slot == 0 && selectedBase.IsTwoHanded && slotKinds.Length > 1)
+                slotKinds[1] = WeaponSlotGenerationKind.Empty;
+        }
+    }
+
+    private void ApplyConfiguredArmor(LiveCharacter character, int maximumMagicPower)
+    {
+        if (character.Armor is null) return;
+        var candidates = _gameData.Armors.Where(armor =>
+            armor.Rarity == ItemRarity.Normal && armor.BaseArmorId is null &&
+            armor.CanBeEquippedBy(character.CharacterClass.Id) &&
+            _gameData.CharacterGenerationEquipmentByItemId.TryGetValue(armor.Id, out var rule) &&
+            rule.Includes(character.Level)).ToList();
+        var selectedBase = SelectWeightedByLevel(candidates, character.Level);
+        if (selectedBase is not null)
+            character.EquipArmor(SelectMagicVariant(selectedBase, character.Level, maximumMagicPower));
+    }
+
+    private T? SelectWeightedByLevel<T>(IReadOnlyList<T> candidates, int level) where T : class, IItemDefinition
     {
         if (candidates.Count == 0) return null;
-        var minimumTier = Math.Max(0, maximumTier - variance);
-        var targetTier = _random.Next(minimumTier, maximumTier + 1);
-        var nearestDistance = candidates.Min(candidate => Math.Abs(candidate.MagicPower - targetTier));
-        var nearest = candidates.Where(candidate => Math.Abs(candidate.MagicPower - targetTier) == nearestDistance)
-            .ToList();
-        return nearest[_random.Next(nearest.Count)];
+        var weighted = candidates.Select(candidate => new
+        {
+            Item = candidate,
+            Weight = _gameData.CharacterGenerationEquipmentByItemId[candidate.Id].SelectionWeight(level)
+        }).Where(candidate => candidate.Weight > 0).ToArray();
+        var totalWeight = weighted.Sum(candidate => candidate.Weight);
+        if (totalWeight <= 0) return null;
+        var roll = _random.Next(totalWeight);
+        foreach (var candidate in weighted)
+        {
+            if (roll < candidate.Weight) return candidate.Item;
+            roll -= candidate.Weight;
+        }
+        return weighted[^1].Item;
     }
+
+    private WeaponDefinition SelectMagicVariant(WeaponDefinition baseWeapon, int level, int maximumMagicPower)
+    {
+        var upgrade = RollMagicUpgrade(level, maximumMagicPower);
+        if (upgrade is null) return baseWeapon;
+        var generatedId = $"{baseWeapon.Id}-{upgrade.Id}";
+        return _gameData.Weapons.FirstOrDefault(weapon =>
+            string.Equals(weapon.Id, generatedId, StringComparison.OrdinalIgnoreCase)) ?? baseWeapon;
+    }
+
+    private ArmorDefinition SelectMagicVariant(ArmorDefinition baseArmor, int level, int maximumMagicPower)
+    {
+        var upgrade = RollMagicUpgrade(level, maximumMagicPower);
+        if (upgrade is null) return baseArmor;
+        var generatedId = $"{baseArmor.Id}-{upgrade.Id}";
+        return _gameData.Armors.FirstOrDefault(armor =>
+            string.Equals(armor.Id, generatedId, StringComparison.OrdinalIgnoreCase)) ?? baseArmor;
+    }
+
+    private ItemUpgradeDefinition? RollMagicUpgrade(int level, int maximumMagicPower)
+    {
+        var choices = from rule in _gameData.CharacterGenerationUpgrades
+            where rule.Includes(level)
+            join upgrade in _gameData.ItemUpgrades on rule.UpgradeId.ToUpperInvariant()
+                equals upgrade.Id.ToUpperInvariant()
+            where upgrade.MagicPower <= maximumMagicPower
+            orderby upgrade.MagicPower descending
+            select (Rule: rule, Upgrade: upgrade);
+        foreach (var choice in choices)
+            if (_random.Next(100) < choice.Rule.ChancePercent(level))
+                return choice.Upgrade;
+        return null;
+    }
+
+    private enum WeaponSlotGenerationKind { Empty, Attack, Shield }
 
     private void FillScaledMagicItems(LiveCharacter character, int maximumTier, int variance)
     {

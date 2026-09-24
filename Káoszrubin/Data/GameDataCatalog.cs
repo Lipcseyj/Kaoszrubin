@@ -28,6 +28,7 @@ public sealed class GameDataCatalog
     public IReadOnlyList<AbilityDefinition> Abilities { get; init; } = [];
     public IReadOnlyList<MiscItemDefinition> Items { get; init; } = [];
     public IReadOnlyList<MagicItemDefinition> MagicItems { get; init; } = [];
+    public IReadOnlyList<ItemUpgradeDefinition> ItemUpgrades { get; init; } = [];
     public IReadOnlyList<ItemCurseDefinition> ItemCurses { get; init; } = [];
     public IReadOnlyList<SpellDefinition> Spells { get; init; } = [];
     public IReadOnlyList<SpellEffectDefinition> SpellEffects { get; init; } = [];
@@ -52,6 +53,9 @@ public sealed class GameDataCatalog
     public IReadOnlyList<PartySituationDefinition> PartySituations { get; init; } = [];
     public IReadOnlyList<PartyRemarkDefinition> PartyRemarks { get; init; } = [];
     public IReadOnlyList<CreatureQuoteDefinition> CreatureQuotes { get; init; } = [];
+    public IReadOnlyDictionary<string, CharacterGenerationEquipmentRule> CharacterGenerationEquipmentByItemId
+        { get; init; } = new Dictionary<string, CharacterGenerationEquipmentRule>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyList<CharacterGenerationUpgradeRule> CharacterGenerationUpgrades { get; init; } = [];
     public IReadOnlyDictionary<string, StartingEquipmentDefinition> StartingEquipmentByClass { get; init; } = new Dictionary<string, StartingEquipmentDefinition>();
     public IReadOnlyDictionary<int, int> MinimumVitalityByHealth { get; init; } = new Dictionary<int, int>();
     public IReadOnlyDictionary<int, int> MinimumManaByIntelligence { get; init; } = new Dictionary<int, int>();

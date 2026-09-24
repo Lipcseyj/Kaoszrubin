@@ -59,6 +59,8 @@ public static class CsvGameDataLoader
         var partyRemarks = new List<PartyRemarkDefinition>();
         var creatureQuotes = new List<CreatureQuoteDefinition>();
         var itemUpgrades = new List<ItemUpgradeDefinition>();
+        var characterGenerationEquipment = new List<CharacterGenerationEquipmentRule>();
+        var characterGenerationUpgrades = new List<CharacterGenerationUpgradeRule>();
         var raceBonuses = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var classMinimums = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var minimumVitalityByHealth = new Dictionary<int, int>();
@@ -98,6 +100,16 @@ public static class CsvGameDataLoader
             {
                 if (section == DataSection.QuestChests) { questChests.AddDefinition(cells); continue; }
                 if (section == DataSection.QuestChestItems) { questChests.AddItem(cells); continue; }
+                if (section == DataSection.CharacterGenerationEquipment)
+                {
+                    characterGenerationEquipment.Add(ParseCharacterGenerationEquipmentRule(cells));
+                    continue;
+                }
+                if (section == DataSection.CharacterGenerationUpgrades)
+                {
+                    characterGenerationUpgrades.Add(ParseCharacterGenerationUpgradeRule(cells));
+                    continue;
+                }
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
                     monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, itemCurses, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps,
                     npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcStoryChoices, npcQuests,
@@ -151,7 +163,9 @@ public static class CsvGameDataLoader
             ("Szituációk", partySituations.Select(value => value.Id)),
             ("Parti megjegyzések", partyRemarks.Select(value => value.Id)),
             ("Lény mondatok", creatureQuotes.Select(value => value.Id)),
-            ("Tárgybővítések", itemUpgrades.Select(value => value.Id)));
+            ("Tárgybővítések", itemUpgrades.Select(value => value.Id)),
+            ("Karaktergenerálási felszerelés", characterGenerationEquipment.Select(value => value.ItemId)),
+            ("Karaktergenerálási tárgybővítések", characterGenerationUpgrades.Select(value => value.UpgradeId)));
         ValidateSpells(spells);
         ValidateSpellEffects(spells, spellEffects);
         ValidateEnemySpellcasters(enemies, spells, spellEffects, enemySpellcasters);
@@ -226,6 +240,8 @@ public static class CsvGameDataLoader
         ValidateMonsterLoot(enemies, monsterLoot);
         if (itemUpgrades.Any(upgrade => upgrade.DurabilityBonusPercent < 0))
             throw new InvalidOperationException("A tárgybővítések tartósságbónusza nem lehet negatív.");
+        ValidateCharacterGenerationEquipment(weapons, armors, itemUpgrades,
+            characterGenerationEquipment, characterGenerationUpgrades);
         ValidateTrapConfigurations(traps);
         ValidateQuestRoomEncounters(enemies, items);
         ValidateNpcData(npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcStoryChoices, npcQuests,
@@ -260,6 +276,7 @@ public static class CsvGameDataLoader
             Abilities = abilities,
             Items = items,
             MagicItems = magicItems,
+            ItemUpgrades = itemUpgrades,
             ItemCurses = itemCurses,
             Spells = spells,
             SpellEffects = spellEffects,
@@ -278,6 +295,9 @@ public static class CsvGameDataLoader
             PartySituations = partySituations,
             PartyRemarks = partyRemarks,
             CreatureQuotes = creatureQuotes,
+            CharacterGenerationEquipmentByItemId = characterGenerationEquipment.ToDictionary(
+                rule => rule.ItemId, StringComparer.OrdinalIgnoreCase),
+            CharacterGenerationUpgrades = characterGenerationUpgrades,
             MinimumVitalityByHealth = minimumVitalityByHealth,
             MinimumManaByIntelligence = minimumManaByIntelligence,
             ExperienceByLevel = experienceByLevel,
@@ -1335,6 +1355,73 @@ public static class CsvGameDataLoader
         return new CreatureQuoteDefinition(id, kind, $"{id[0]}{id[2..]}", quotes);
     }
 
+    private static CharacterGenerationEquipmentRule ParseCharacterGenerationEquipmentRule(string[] cells) =>
+        new(Cell(cells, 0), RequiredPositiveLevel(cells, 1), RequiredPositiveLevel(cells, 2));
+
+    private static CharacterGenerationUpgradeRule ParseCharacterGenerationUpgradeRule(string[] cells) =>
+        new(Cell(cells, 0), RequiredPositiveLevel(cells, 1), RequiredPositiveLevel(cells, 2));
+
+    private static int RequiredPositiveLevel(string[] cells, int index) => Integer(cells, index) is > 0 and var value
+        ? value
+        : throw new InvalidDataException("A karaktergenerálási minimum- és maximumszint pozitív egész szám legyen.");
+
+    private static void ValidateCharacterGenerationEquipment(
+        IReadOnlyCollection<WeaponDefinition> weapons,
+        IReadOnlyCollection<ArmorDefinition> armors,
+        IReadOnlyCollection<ItemUpgradeDefinition> upgrades,
+        IReadOnlyCollection<CharacterGenerationEquipmentRule> equipmentRules,
+        IReadOnlyCollection<CharacterGenerationUpgradeRule> upgradeRules)
+    {
+        static void ValidateRange(string id, int minimum, int maximum)
+        {
+            if (maximum < minimum)
+                throw new InvalidDataException(
+                    $"A(z) '{id}' karaktergenerálási maximumszintje nem lehet kisebb a minimumszintnél.");
+        }
+
+        foreach (var rule in equipmentRules)
+        {
+            ValidateRange(rule.ItemId, rule.MinimumLevel, rule.MaximumLevel);
+            var weapon = weapons.FirstOrDefault(item =>
+                string.Equals(item.Id, rule.ItemId, StringComparison.OrdinalIgnoreCase));
+            var armor = armors.FirstOrDefault(item =>
+                string.Equals(item.Id, rule.ItemId, StringComparison.OrdinalIgnoreCase));
+            if (weapon is null && armor is null)
+                throw new InvalidDataException(
+                    $"A karaktergenerálási felszerelés ismeretlen tárgyra hivatkozik: '{rule.ItemId}'.");
+            if (weapon is { Rarity: not ItemRarity.Normal } or { IsMonsterOnly: true } ||
+                armor is { Rarity: not ItemRarity.Normal })
+                throw new InvalidDataException(
+                    $"A(z) '{rule.ItemId}' karaktergenerálási sorának normál, játékos által használható alaptárgyra kell hivatkoznia.");
+        }
+
+        var configuredIds = equipmentRules.Select(rule => rule.ItemId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missingIds = weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal && !weapon.IsMonsterOnly)
+            .Select(weapon => weapon.Id)
+            .Concat(armors.Where(armor => armor.Rarity == ItemRarity.Normal).Select(armor => armor.Id))
+            .Where(id => !configuredIds.Contains(id)).ToArray();
+        if (missingIds.Length > 0)
+            throw new InvalidDataException(
+                "Hiányzó #Karaktergenerálási felszerelés sor(ok): " + string.Join(", ", missingIds) + ".");
+
+        var upgradeById = upgrades.ToDictionary(upgrade => upgrade.Id, StringComparer.OrdinalIgnoreCase);
+        foreach (var rule in upgradeRules)
+        {
+            ValidateRange(rule.UpgradeId, rule.MinimumLevel, rule.MaximumLevel);
+            if (!upgradeById.ContainsKey(rule.UpgradeId))
+                throw new InvalidDataException(
+                    $"A karaktergenerálási tárgybővítés ismeretlen bővítésre hivatkozik: '{rule.UpgradeId}'.");
+        }
+        var missingUpgradeIds = upgrades.Select(upgrade => upgrade.Id)
+            .Where(id => upgradeRules.All(rule =>
+                !string.Equals(rule.UpgradeId, id, StringComparison.OrdinalIgnoreCase))).ToArray();
+        if (missingUpgradeIds.Length > 0)
+            throw new InvalidDataException(
+                "Hiányzó #Karaktergenerálási tárgybővítések sor(ok): " +
+                string.Join(", ", missingUpgradeIds) + ".");
+    }
+
     private static void ValidateCreatureQuotes(IReadOnlyCollection<CreatureQuoteDefinition> quotes,
         IReadOnlyCollection<CharacterClassDefinition> characterClasses,
         IReadOnlyCollection<EnemyDefinition> enemies)
@@ -1465,8 +1552,7 @@ public static class CsvGameDataLoader
         IReadOnlyCollection<WeaponDefinition> weapons, IReadOnlyCollection<ItemUpgradeDefinition> upgrades)
     {
         var result = weapons.ToList();
-        foreach (var weapon in weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal &&
-                     weapon.Id != "W005" && !weapon.IsMonsterOnly))
+        foreach (var weapon in weapons.Where(weapon => weapon.Rarity == ItemRarity.Normal && !weapon.IsMonsterOnly))
             foreach (var upgrade in upgrades)
                 result.Add(weapon with
                 {
@@ -1703,6 +1789,8 @@ public static class CsvGameDataLoader
         "szintlepes manna novekedes" => DataSection.ManaGrowth,
         "base xp palya vegen" => DataSection.LevelCompletionExperience,
         "targybovitesek" => DataSection.ItemUpgrades,
+        "karaktergeneralasi felszereles" => DataSection.CharacterGenerationEquipment,
+        "karaktergeneralasi targybovitesek" => DataSection.CharacterGenerationUpgrades,
         _ => DataSection.None
     };
 
@@ -1761,7 +1849,9 @@ public static class CsvGameDataLoader
         VitalityGrowth,
         ManaGrowth,
         LevelCompletionExperience,
-        ItemUpgrades
+        ItemUpgrades,
+        CharacterGenerationEquipment,
+        CharacterGenerationUpgrades
     }
 }
 

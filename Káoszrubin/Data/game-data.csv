@@ -475,6 +475,55 @@ PLUS1;+1;1;2.0;1;15
 PLUS2;+2;2;4.0;2;30
 PLUS3;+3;3;7.0;3;50
 
+#Karaktergenerálási felszerelés
+Id;MinimumSzint;MaximumSzint
+W001;1;30
+W002;1;7
+W003;4;16
+W004;2;11
+W006;1;5
+W007;3;8
+W008;5;11
+W009;4;14
+W010;3;12
+W011;2;10
+W012;6;18
+W013;6;18
+W017;8;30
+W018;1;30
+W022;3;30
+W024;1;4
+W036;5;30
+W025;1;6
+W014;2;8
+W026;3;12
+W027;4;10
+W028;5;30
+W015;6;14
+W029;7;16
+W030;7;18
+W016;9;20
+W031;10;22
+W032;14;30
+W033;11;25
+W034;18;30
+W035;12;30
+A001;1;30
+A002;1;2
+A003;2;7
+A004;3;9
+A005;4;11
+A006;6;12
+A007;7;30
+A008;9;22
+A009;13;30
+
+#Karaktergenerálási tárgybővítések
+Id;MinimumSzint;MaximumSzint
+PLUS1;3;12
+PLUS2;8;20
+PLUS3;14;30
+
 #Ellenségek
 Id;Név;Kinézet;Erő;HP;Páncél;Gyorsaság;XP érték;Erősség;KépességIds;Jellemzők;Látótáv;Lopakodás;Zaj;Alhat;FegyverIds;FegyvertVálaszt;VágásVédelem;SzúrásVédelem;ZúzásVédelem;TűzVédelem;SavVédelem;NekrotikusVédelem;KáoszVédelem;Nyomérzék;PajzsId;Varázsvédelem%
 E001;Óriáspatkány;r;2;20;0;5;100;1;MA003;;3;1;2;igen;WN001;nem;0;0;0;0;0;0;0;6;;0

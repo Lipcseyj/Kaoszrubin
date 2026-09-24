@@ -44,15 +44,18 @@ public sealed partial class RandomCharacterGenerator
             EquipmentSelection.KeepStartingEquipment, AddSupplies: false, IncludeMagicItems: false);
 
         /// <summary>
-        /// A karakter szintjéből számít felső felszerelési tiert, azon belül pedig véletlenül
-        /// egy legfeljebb <paramref name="tierVariance"/> fokkal gyengébb minőséget választ.
+        /// A CSV-ben megadott szinttartományokból választ alapfelszerelést és mágikus bővítést.
+        /// A <paramref name="tierVariance"/> a külön viselhető varázstárgyak tierszórását szabályozza.
         /// </summary>
         public static EquipmentOptions Scaled(int tierVariance = 1, bool includeMagicItems = true,
             bool addSupplies = true) => new(EquipmentSelection.ScaleWithLevel,
             TierVariance: ValidateVariance(tierVariance), IncludeMagicItems: includeMagicItems,
             AddSupplies: addSupplies);
 
-        /// <summary>Fix felszerelési tierből, opcionális lefelé irányuló szórással választ.</summary>
+        /// <summary>
+        /// A CSV-ből választ szinthez illő alapfelszerelést, a mágikus bővítés erősségét pedig
+        /// a megadott tierrel korlátozza. A tierszórás a külön viselhető varázstárgyakra vonatkozik.
+        /// </summary>
         public static EquipmentOptions AtTier(EquipmentTier tier, int tierVariance = 0,
             bool includeMagicItems = true, bool addSupplies = true) => new(
             EquipmentSelection.FixedTier, tier, ValidateVariance(tierVariance), includeMagicItems,
