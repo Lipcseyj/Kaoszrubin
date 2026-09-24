@@ -261,6 +261,9 @@ public sealed partial class Game
             case LeaderAction.OrderNpcThiefToDisarmTrap:
                 TryOrderNpcThiefToDisarmTrap();
                 break;
+            case LeaderAction.OrderStrongestPartyMemberToSmashDoor:
+                TryOrderStrongestPartyMemberToSmashNearestLockedDoor();
+                break;
             case LeaderAction.Rest:
                 TryRestParty();
                 break;

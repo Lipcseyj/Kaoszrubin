@@ -104,8 +104,41 @@ internal sealed class DoorInteractionController
             }
         }
 
+        TryResolveStrengthSmash(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter, door, costMessage);
+    }
+
+    public void TrySmashLockedDoor(Maze maze, FogOfWar fogOfWar, Position actorPosition,
+        Position leaderPosition, LiveCharacter selectedCharacter, Position doorPosition,
+        bool isSenderLeader = false)
+    {
+        _isSenderleader = isSenderLeader;
+        var door = maze.GetDoorAt(doorPosition);
+        if (door is null)
+        {
+            Report("A kijelölt helyen nincs ajtó.", selectedCharacter);
+            return;
+        }
+        if (door.State != DoorState.Locked)
+        {
+            Report("A kijelölt ajtó nincs kulcsra zárva.", selectedCharacter);
+            return;
+        }
+        if (!_tryGrantQuestAccess(door))
+        {
+            Report("Az ajtót küldetés zárja le. Előbb vedd fel a hozzá tartozó küldetést.", selectedCharacter);
+            return;
+        }
+
+        var attemptCost = ConsumeLockedDoorAttemptNeeds(selectedCharacter);
+        var costMessage = $" Próba ára: 🍖 -{attemptCost.Food}, 💧 -{attemptCost.Water}.";
+        TryResolveStrengthSmash(maze, fogOfWar, actorPosition, leaderPosition, selectedCharacter, door, costMessage);
+    }
+
+    private void TryResolveStrengthSmash(Maze maze, FogOfWar fogOfWar, Position actorPosition,
+        Position leaderPosition, LiveCharacter selectedCharacter, MazeDoor door, string costMessage)
+    {
         var strengthRoll = _random.Next(1, 21);
-        var racialStrengthBonus = selectedCharacter.Race.HasTrait(RaceTraits.Relentless) ? 2 : 0;
+        var racialStrengthBonus = DoorSmashStrengthBonus(selectedCharacter);
         var effectiveStrength = selectedCharacter.EffectiveAbilities.Strength + racialStrengthBonus;
         if (strengthRoll <= effectiveStrength)
         {
@@ -126,6 +159,12 @@ internal sealed class DoorInteractionController
                 selectedCharacter, ConsoleColor.Red);
         }
     }
+
+    public static int DoorSmashStrength(LiveCharacter character) =>
+        character.EffectiveAbilities.Strength + DoorSmashStrengthBonus(character);
+
+    private static int DoorSmashStrengthBonus(LiveCharacter character) =>
+        character.Race.HasTrait(RaceTraits.Relentless) ? 2 : 0;
 
     public void TryCloseAdjacentDoor(Maze maze, FogOfWar fogOfWar, Position actorPosition,
         Position leaderPosition, LiveCharacter selectedCharacter, Position? targetDoorPosition = null)

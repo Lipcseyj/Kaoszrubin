@@ -378,6 +378,43 @@ public sealed partial class Game
             .ToArray();
     }
 
+    private void TryOrderStrongestPartyMemberToSmashNearestLockedDoor()
+    {
+        const int maximumDistance = 4;
+        var door = _maze.Doors
+            .Where(candidate => candidate.State == DoorState.Locked &&
+                                Manhattan(candidate.Position, _player.Position) <= maximumDistance)
+            .OrderBy(candidate => Manhattan(candidate.Position, _player.Position))
+            .ThenBy(candidate => candidate.Position.Y)
+            .ThenBy(candidate => candidate.Position.X)
+            .FirstOrDefault();
+        if (door is null)
+        {
+            AnnouncePartyCommand("🚪 A vezértől 4 mezőn belül nincs kulcsra zárt ajtó.",
+                ConsoleColor.DarkYellow);
+            return;
+        }
+
+        var breaker = CharacterRoster.Party.Members
+            .Where(character => character.IsAlive && GetCharacterWorldPosition(character) is not null)
+            .OrderByDescending(DoorInteractionController.DoorSmashStrength)
+            .ThenBy(character => Manhattan(GetCharacterWorldPosition(character)!.Value, door.Position))
+            .ThenBy(character => character.Name, StringComparer.CurrentCulture)
+            .FirstOrDefault();
+        if (breaker is null || GetCharacterWorldPosition(breaker) is not { } breakerPosition)
+        {
+            AnnouncePartyCommand("🚪 Nincs élő partitag, aki megpróbálhatná betörni az ajtót.",
+                ConsoleColor.DarkYellow);
+            return;
+        }
+
+        AnnouncePartyCommand(
+            $"🚪 BETÖRÉS: {breaker.Name} megpróbálja bezúzni a legközelebbi kulcsra zárt ajtót.",
+            ConsoleColor.Yellow);
+        _doorInteractions.TrySmashLockedDoor(_maze, _fogOfWar, breakerPosition, _player.Position,
+            breaker, door.Position, isSenderLeader: true);
+    }
+
     private (Position Origin, Position? Target) ResolveDoorInteraction(LiveCharacter character,
         Position actorPosition, CharacterAction action, Position? requestedTarget)
     {

@@ -50,6 +50,7 @@ public static class GameInputBindings
         ConsoleKey.M => Application.LeaderAction.ScatterParty,
         ConsoleKey.T => Application.LeaderAction.ToggleAttackMode,
         ConsoleKey.C => Application.LeaderAction.OrderNpcThiefToDisarmTrap,
+        ConsoleKey.B => Application.LeaderAction.OrderStrongestPartyMemberToSmashDoor,
         ConsoleKey.P => Application.LeaderAction.Rest,
         ConsoleKey.Enter when canActivateExit => Application.LeaderAction.ActivateExit,
         _ => null
