@@ -14,14 +14,8 @@ internal sealed class InnController
     internal const ConsoleKey StateChangedKey = ConsoleKey.F24;
     private const int SecretStashLevelAdvance = 4;
     private const int FeastBasePricePerPerson = 90;
-    private static readonly HashSet<string> VendorStockExcludedItemIds = ["W001", "W005", "A001", "A002",
-        "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020", "T023", "T024"];
     private static readonly HashSet<string> DiscountedBuybackItemIds = ["W001", "W005", "A001", "A002"];
     private static readonly HashSet<string> WitcherOnlyItemIds = ["T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020"];
-    private static readonly HashSet<string> DedicatedRangedStockItemIds =
-        [AmmunitionIds.Arrow, AmmunitionIds.CrossbowBolt, "W039", "W040", "W041", "W042", "W043", "W044"];
-    private static readonly (string ItemId, int UnlockLevel)[] RangedWeaponStock =
-        [("W039", 5), ("W042", 5), ("W040", 7), ("W043", 7), ("W041", 10), ("W044", 12)];
     private const int AmmunitionBundleSize = 12;
 
     private readonly GameDataCatalog _gameData;
@@ -685,7 +679,7 @@ internal sealed class InnController
         bool includePremiumStock, bool includeRandomLegendary, bool includePremiumSupplies)
     {
         var allItems = AllTradableItems().Where(item => item.Rarity != ItemRarity.Legendary &&
-                !DedicatedRangedStockItemIds.Contains(item.Id))
+                !IsDedicatedRangedStockItem(item))
             .OrderBy(item => item.BasePrice).ToList();
         var normalUnlockedCount = Math.Min(allItems.Count, 8 + unlockLevel * 8);
         var normalPool = allItems.Take(normalUnlockedCount).ToList();
@@ -809,11 +803,11 @@ internal sealed class InnController
 
         foreach (var family in new[] { WeaponFamilies.Bow, WeaponFamilies.Crossbow })
         {
-            var current = RangedWeaponStock.Where(entry => entry.UnlockLevel <= completedLevel)
-                .Select(entry => _gameData.Weapons.FirstOrDefault(weapon =>
-                    string.Equals(weapon.Id, entry.ItemId, StringComparison.OrdinalIgnoreCase)))
-                .Where(weapon => weapon is not null && WeaponFamilies.ForWeapon(weapon) == family)
-                .OrderByDescending(weapon => weapon!.BasePrice).FirstOrDefault();
+            var current = UnlockedRangedWeapons(completedLevel)
+                .Where(weapon => WeaponFamilies.ForWeapon(weapon) == family)
+                .OrderByDescending(weapon =>
+                    _gameData.CharacterGenerationEquipmentByItemId[weapon.Id].MinimumLevel)
+                .ThenByDescending(weapon => weapon.BasePrice).FirstOrDefault();
             if (current is not null) stock.Add(CreateMerchantStockOffer(current, 1.0, completedLevel));
         }
     }
@@ -1158,7 +1152,17 @@ internal sealed class InnController
 
     private IReadOnlyList<IItemDefinition> AllTradableItems() => AllGameItems()
         .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item))
-        .Where(item => !VendorStockExcludedItemIds.Contains(item.Id)).ToList();
+        .Where(item => !_gameData.IsTradeExcluded(item.Id)).ToList();
+
+    private bool IsDedicatedRangedStockItem(IItemDefinition item) =>
+        AmmunitionIds.IsAmmunition(item.Id) ||
+        item is WeaponDefinition { IsRanged: true, IsMonsterOnly: false };
+
+    private IEnumerable<WeaponDefinition> UnlockedRangedWeapons(int completedLevel) => _gameData.Weapons
+        .Where(weapon => weapon is { IsRanged: true, IsMonsterOnly: false } &&
+            !_gameData.IsTradeExcluded(weapon.Id) &&
+            _gameData.CharacterGenerationEquipmentByItemId.TryGetValue(weapon.Id, out var rule) &&
+            rule.MinimumLevel <= completedLevel);
 
     private IReadOnlyList<InnStockOffer> CreateWitcherStock(int completedLevel)
     {
@@ -1283,8 +1287,8 @@ internal sealed class InnController
             : _gameData.Armors.Cast<IItemDefinition>();
         source = source
             .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item))
-            .Where(item => !VendorStockExcludedItemIds.Contains(item.Id))
-            .Where(item => !DedicatedRangedStockItemIds.Contains(item.Id));
+            .Where(item => !_gameData.IsTradeExcluded(item.Id))
+            .Where(item => !IsDedicatedRangedStockItem(item));
         var normalPool = source.Where(item => item.Rarity == ItemRarity.Normal).OrderBy(_ => _random.Next()).ToList();
         var magicPool = source.Where(item => item.Rarity == ItemRarity.Magic && item.MagicPower == magicPower)
             .OrderBy(_ => _random.Next()).ToList();
@@ -1301,13 +1305,8 @@ internal sealed class InnController
             .OrderBy(offer => offer.Price).ToList();
         if (category == ItemCategory.Weapon)
         {
-            foreach (var (itemId, unlockLevel) in RangedWeaponStock.Where(entry =>
-                         entry.UnlockLevel <= completedLevel))
-            {
-                var weapon = _gameData.Weapons.FirstOrDefault(item => string.Equals(item.Id, itemId,
-                    StringComparison.OrdinalIgnoreCase));
-                if (weapon is not null) stock.Add(CreateMerchantStockOffer(weapon, 1.0, completedLevel));
-            }
+            foreach (var weapon in UnlockedRangedWeapons(completedLevel))
+                stock.Add(CreateMerchantStockOffer(weapon, 1.0, completedLevel));
         }
         return stock.OrderBy(offer => offer.Price).ToList();
     }

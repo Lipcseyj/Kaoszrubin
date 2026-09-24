@@ -61,6 +61,7 @@ public static class CsvGameDataLoader
         var itemUpgrades = new List<ItemUpgradeDefinition>();
         var characterGenerationEquipment = new List<CharacterGenerationEquipmentRule>();
         var characterGenerationUpgrades = new List<CharacterGenerationUpgradeRule>();
+        var tradeExcludedItemIds = new List<string>();
         var raceBonuses = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var classMinimums = new Dictionary<string, PrimaryAbilities>(StringComparer.OrdinalIgnoreCase);
         var minimumVitalityByHealth = new Dictionary<int, int>();
@@ -108,6 +109,12 @@ public static class CsvGameDataLoader
                 if (section == DataSection.CharacterGenerationUpgrades)
                 {
                     characterGenerationUpgrades.Add(ParseCharacterGenerationUpgradeRule(cells));
+                    continue;
+                }
+                if (section == DataSection.TradeExcludedItems)
+                {
+                    var itemId = Cell(cells, 0);
+                    if (!string.IsNullOrWhiteSpace(itemId)) tradeExcludedItemIds.Add(itemId);
                     continue;
                 }
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
@@ -165,13 +172,18 @@ public static class CsvGameDataLoader
             ("Lény mondatok", creatureQuotes.Select(value => value.Id)),
             ("Tárgybővítések", itemUpgrades.Select(value => value.Id)),
             ("Karaktergenerálási felszerelés", characterGenerationEquipment.Select(value => value.ItemId)),
-            ("Karaktergenerálási tárgybővítések", characterGenerationUpgrades.Select(value => value.UpgradeId)));
+            ("Karaktergenerálási tárgybővítések", characterGenerationUpgrades.Select(value => value.UpgradeId)),
+            ("Kereskedelemből tiltott tárgyak", tradeExcludedItemIds));
         ValidateSpells(spells);
         ValidateSpellEffects(spells, spellEffects);
         ValidateEnemySpellcasters(enemies, spells, spellEffects, enemySpellcasters);
         ValidateMagicItems(magicItems, spells);
         ValidateShields(weapons);
         ValidateRangedWeapons(weapons, items, characterClasses);
+        var knownItemIds = items.Cast<IItemDefinition>().Concat(weapons).Concat(armors).Concat(magicItems)
+            .Select(item => item.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var itemId in tradeExcludedItemIds.Where(itemId => !knownItemIds.Contains(itemId)))
+            throw new InvalidDataException($"Ismeretlen, kereskedelemből tiltott tárgy: {itemId}.");
         for (var index = 0; index < enemies.Count; index++)
         {
             var enemy = enemies[index];
@@ -296,6 +308,7 @@ public static class CsvGameDataLoader
             PartySituations = partySituations,
             PartyRemarks = partyRemarks,
             CreatureQuotes = creatureQuotes,
+            TradeExcludedItemIds = tradeExcludedItemIds.ToHashSet(StringComparer.OrdinalIgnoreCase),
             CharacterGenerationEquipmentByItemId = characterGenerationEquipment.ToDictionary(
                 rule => rule.ItemId, StringComparer.OrdinalIgnoreCase),
             CharacterGenerationUpgrades = characterGenerationUpgrades,
@@ -1859,6 +1872,7 @@ public static class CsvGameDataLoader
         "szintlepes manna novekedes" => DataSection.ManaGrowth,
         "base xp palya vegen" => DataSection.LevelCompletionExperience,
         "targybovitesek" => DataSection.ItemUpgrades,
+        "kereskedelembol tiltott targyak" => DataSection.TradeExcludedItems,
         "karaktergeneralasi felszereles" => DataSection.CharacterGenerationEquipment,
         "karaktergeneralasi targybovitesek" => DataSection.CharacterGenerationUpgrades,
         _ => DataSection.None
@@ -1920,6 +1934,7 @@ public static class CsvGameDataLoader
         ManaGrowth,
         LevelCompletionExperience,
         ItemUpgrades,
+        TradeExcludedItems,
         CharacterGenerationEquipment,
         CharacterGenerationUpgrades
     }

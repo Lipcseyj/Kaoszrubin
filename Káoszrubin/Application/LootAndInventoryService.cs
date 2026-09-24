@@ -34,6 +34,7 @@ public sealed class LootAndInventoryService
         bool Eligible(IItemDefinition item) => item.Rarity >= loot.MinimumRarity &&
             item.Rarity <= loot.MaximumRarity && item.MagicPower <= loot.MaximumMagicPower &&
             item.BasePrice <= loot.MaximumBasePrice &&
+            !_gameData.IsTradeExcluded(item.Id) &&
             !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item);
 
         var categoryCandidates = new List<List<IItemDefinition>>();
@@ -51,7 +52,8 @@ public sealed class LootAndInventoryService
 
     public WeaponDefinition? RollCarriedWeapon(IReadOnlyList<string> weaponIds, int chancePercent)
     {
-        var candidates = weaponIds.Select(_gameData.GetWeapon).Where(weapon => !weapon.IsMonsterOnly).ToArray();
+        var candidates = weaponIds.Select(_gameData.GetWeapon)
+            .Where(weapon => !weapon.IsMonsterOnly && !_gameData.IsTradeExcluded(weapon.Id)).ToArray();
         if (candidates.Length == 0 || _random.Next(100) >= Math.Clamp(chancePercent, 0, 100)) return null;
         return candidates[_random.Next(candidates.Length)];
     }
@@ -73,7 +75,8 @@ public sealed class LootAndInventoryService
     public IItemDefinition? RollMasterThiefChestLoot(LiveCharacter character, IEnumerable<IItemDefinition> allTradableItems)
     {
         if (!character.HasPerk(PerkIds.ThiefMasterThief) || _random.Next(100) >= 25) return null;
-        var candidates = allTradableItems.Where(item => item.Rarity == ItemRarity.Magic).ToList();
+        var candidates = allTradableItems.Where(item => item.Rarity == ItemRarity.Magic &&
+            !_gameData.IsTradeExcluded(item.Id)).ToList();
         return candidates.Count == 0 ? null : candidates[_random.Next(candidates.Count)];
     }
 

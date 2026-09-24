@@ -492,6 +492,27 @@ PLUS1;+1;1;2.0;1;15
 PLUS2;+2;2;4.0;2;30
 PLUS3;+3;3;7.0;3;50
 
+#Kereskedelemből tiltott tárgyak
+Id
+W001
+W005
+A001
+A002
+T011
+T012
+T013
+T014
+T015
+T016
+T017
+T018
+T019
+T020
+T023
+T024
+W037
+W038
+
 #Karaktergenerálási felszerelés
 Id;MinimumSzint;MaximumSzint
 W001;1;30

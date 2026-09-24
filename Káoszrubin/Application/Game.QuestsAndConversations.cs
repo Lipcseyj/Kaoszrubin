@@ -888,6 +888,7 @@ public sealed partial class Game
 
     private IEnumerable<IItemDefinition> QuestRewardItems() => _gameData.Items.Cast<IItemDefinition>()
         .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems)
+        .Where(item => !_gameData.IsTradeExcluded(item.Id))
         .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item));
 
     private int CountPartyBackpackItems(string itemId) => CharacterRoster.Party.Members.Sum(character =>

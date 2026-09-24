@@ -31,17 +31,10 @@ public sealed partial class Game
     private IReadOnlyList<ExperienceAward> DistributeExperience(LiveCharacter winner, int totalExperience, bool isQuest) =>
         _progressionService.DistributeExperience(winner, totalExperience, CharacterRoster.Party.Members, isQuest);
 
-    private static readonly HashSet<string> MerchantExcludedItemIds = ["W001", "W005", "A001", "A002",
-        // Witcher-only consumables (potions and medical supplies)
-        "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020",
-        // Secret-stash-only drinks
-        "T023", "T024"];
-
-
     private IReadOnlyList<IItemDefinition> AllTradableItems() => _gameData.Items.Cast<IItemDefinition>()
         .Concat(_gameData.Weapons).Concat(_gameData.Armors).Concat(_gameData.MagicItems)
         .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item))
-        .Where(item => !MerchantExcludedItemIds.Contains(item.Id)).ToList();
+        .Where(item => !_gameData.IsTradeExcluded(item.Id)).ToList();
 
     private ExperienceAward AwardExperience(LiveCharacter character, int amount) =>
         _progressionService.AwardExperience(character, amount);

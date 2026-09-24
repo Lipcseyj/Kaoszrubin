@@ -53,6 +53,8 @@ public sealed class GameDataCatalog
     public IReadOnlyList<PartySituationDefinition> PartySituations { get; init; } = [];
     public IReadOnlyList<PartyRemarkDefinition> PartyRemarks { get; init; } = [];
     public IReadOnlyList<CreatureQuoteDefinition> CreatureQuotes { get; init; } = [];
+    public IReadOnlySet<string> TradeExcludedItemIds { get; init; } =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyDictionary<string, CharacterGenerationEquipmentRule> CharacterGenerationEquipmentByItemId
         { get; init; } = new Dictionary<string, CharacterGenerationEquipmentRule>(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyList<CharacterGenerationUpgradeRule> CharacterGenerationUpgrades { get; init; } = [];
@@ -91,6 +93,7 @@ public sealed class GameDataCatalog
     public IItemDefinition GetItemDefinition(string id) => FindById(
         Items.Cast<IItemDefinition>().Concat(Weapons).Concat(Armors).Concat(MagicItems).ToArray(),
         id, "tárgy");
+    public bool IsTradeExcluded(string? itemId) => itemId is not null && TradeExcludedItemIds.Contains(itemId);
     public PerkDefinition GetPerk(string id) => FindById(Perks, id, "tehetség");
     public StatusDefinition GetStatus(string id) => FindById(Statuses, id, "állapot");
     public TrapDefinition GetTrap(string id) => FindById(Traps, id, "csapda");
