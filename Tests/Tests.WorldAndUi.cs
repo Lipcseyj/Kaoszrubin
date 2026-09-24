@@ -856,15 +856,15 @@ static void BattleHitHighlightsDamageAndHealth()
         for (var count = 0; count < 10; count++)
             Assert(character.AddToBackpack(ration), "Az azonos tárgy nem fért be a hátizsákba.");
         Assert(character.Backpack.Count == 12 &&
-               character.GetInventoryItemQuantity(InventorySlotKind.Backpack, 0) == 9 &&
-               character.GetInventoryItemQuantity(InventorySlotKind.Backpack, 1) == 1,
-            "A hátizsák nem kilences kötegre és új slotra bontotta a tíz azonos tárgyat.");
+               character.GetInventoryItemQuantity(InventorySlotKind.Backpack, 0) == 10 &&
+               character.GetInventoryItem(InventorySlotKind.Backpack, 1) is null,
+            "A hátizsák nem egyetlen, legfeljebb tizenkét darabos kötegbe rendezte a tárgyakat.");
         Assert(character.RemoveOneInventoryItem(InventorySlotKind.Backpack, 0) &&
-               character.GetInventoryItemQuantity(InventorySlotKind.Backpack, 0) == 8,
+               character.GetInventoryItemQuantity(InventorySlotKind.Backpack, 0) == 9,
             "Egy tárgy elvétele nem pontosan eggyel csökkentette a köteget.");
         var snapshot = InventorySnapshotProjector.Create(character);
         Assert(snapshot.Slots.Single(slot => slot.Kind == InventorySlotKind.Backpack && slot.Index == 0)
-                   .Item?.Quantity == 8,
+                    .Item?.Quantity == 9,
             "A coop inventory snapshot nem továbbította a köteg darabszámát.");
     }
 

@@ -281,7 +281,7 @@ internal static partial class Program
     ("A kliens store teljes snapshotot és régi baseline-ról érkező deltát alkalmaz", ClientStoreAppliesReplicationFrames),
     ("Hiányzó delta-baseline esetén a kliens resyncet kér", ClientStoreRequestsResyncForMissingBaseline),
     ("Az inventory snapshot explicit slotokat és revíziót tartalmaz", InventorySnapshotHasSlotsAndRevision),
-    ("A hátizsák 12 helyes és kilences kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
+    ("A hátizsák 12 helyes és tizenkét darabos kötegeket képez", BackpackStacksIdenticalItemsUpToNine),
     ("Az azonosítatlan varázstárgy példányállapota mentés és mozgatás közben megmarad", MagicItemIdentificationStatePersists),
     ("A felszerelés tartóssága adatvezérelt és menthető", EquipmentDurabilityDataAndStatePersist),
     ("A tárgyvizsgálat és a részletes karakterinfó mutatja a felszerelés állapotát", EquipmentDurabilityIsVisible),

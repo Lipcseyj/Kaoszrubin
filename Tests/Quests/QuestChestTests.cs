@@ -15,7 +15,7 @@ internal static class QuestChestTests
     private static readonly QuestChestId ChestId = new("RELIC_TEST");
     private const string Rows = @"
 #Quest ládák
-RELIC_TEST;Próba ereklyeláda;17
+RELIC_TEST;Próba ereklyeláda;17;◈;White;DarkBlue
 #Quest láda tartalom
 RELIC_TEST;T001;2
 RELIC_TEST;T011;3

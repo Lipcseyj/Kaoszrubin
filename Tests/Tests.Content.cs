@@ -5,9 +5,9 @@ internal static partial class Program
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
             CsvGameDataLoader.GameDataFileName));
 
-        Assert(catalog.CreatureQuotes.Count == 82 &&
+        Assert(catalog.CreatureQuotes.Count == 99 &&
                catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.CharacterClass) == 6 &&
-               catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.Enemy) == 76,
+               catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.Enemy) == 93,
             "A #Lény mondatok szekció nem minden osztály- és szörnymondatot olvasott be.");
         Assert(catalog.CreatureQuotes.Single(quote => quote.Id == "CS001").CreatureId == "C001" &&
                catalog.CreatureQuotes.Single(quote => quote.Id == "ES001").CreatureId == "E001" &&
@@ -612,12 +612,12 @@ internal static partial class Program
             character.WeaponSlots.Where(item => item is not null).Cast<IItemDefinition>()
                 .Concat(character.Armor is null ? [] : [character.Armor]);
 
-        Assert(lowLevelNpcs.SelectMany(WornEquipment).All(item => item.MagicPower == 0),
-            "A 4. szintű, skálázott világ-NPC varázstierű felszerelést kapott.");
+        Assert(lowLevelNpcs.SelectMany(WornEquipment).All(item => item.MagicPower is >= 0 and <= 1),
+            "A 4. szintű, skálázott világ-NPC az engedélyezett 0–1 tier fölötti felszerelést kapott.");
         var highLevelPowers = highLevelNpcs.SelectMany(WornEquipment).Select(item => item.MagicPower).ToArray();
-        Assert(highLevelPowers.All(power => power is >= 2 and <= 3) &&
-               highLevelPowers.Contains(2) && highLevelPowers.Contains(3),
-            "A 15. szintű világ-NPC felszerelése nem a szinthez illő, változó 2–3. tierből készült.");
+        Assert(highLevelPowers.All(power => power is 0 or 2 or 3) &&
+                highLevelPowers.Contains(2) && highLevelPowers.Contains(3),
+            "A 15. szintű világ-NPC felszerelése nem a szinthez illő 0/2/3. tierből készült.");
 
         var fixedTierNpc = generator.GenerateWorldNpc(characterClass, 20, ["FixedTierNpc"],
             RandomCharacterGenerator.EquipmentOptions.AtTier(

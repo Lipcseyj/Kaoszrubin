@@ -163,7 +163,7 @@ internal static partial class Program
         Assert(golemDefinition.Armor is { Minimum: 7, Maximum: 13 } &&
                golemDefinition.AverageArmor == 10 && golemDefinition.MagicResistance == 45 &&
                blackDragonDefinition.Armor is { Minimum: 7, Maximum: 13 } &&
-               blackDragonDefinition.MagicResistance == 35,
+                blackDragonDefinition.MagicResistance == 50,
             "Az ellenfél CSV-ben megadott páncélja vagy varázsvédelme hibás.");
 
         var resistantEnemy = new ConfiguredEnemy(new Position(3, 3), golemDefinition);
@@ -184,7 +184,7 @@ internal static partial class Program
         troll.SetCurrentHitPoints(400);
         var battle = new BattleSystem(new Random(7), data.MonsterAbilities, data.Statuses, data.StrengthHitBonuses);
         var start = battle.BeginEnemyTurn(troll);
-        Assert(troll.CurrentHitPoints == 405 && start.Entries.Any(entry => entry.Message.Contains("regenerálódik")),
+        Assert(troll.CurrentHitPoints == 420 && start.Entries.Any(entry => entry.Message.Contains("regenerálódik")),
             "A Troll kör eleji regenerációja nem működik.");
 
         var dragon = new ConfiguredEnemy(new Position(1, 1), data.GetEnemy("E021"));

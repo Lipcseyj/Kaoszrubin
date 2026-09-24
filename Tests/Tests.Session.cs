@@ -549,7 +549,9 @@ static void BarbarianRageTriggersAfterFiveDamage()
         var sword = data.GetWeapon("W004");
         Assert(WeaponFamilies.ForWeapon(sword) == WeaponFamilies.Sword &&
                WeaponFamilies.ForWeapon(data.GetWeapon("LW004")) == WeaponFamilies.Sword &&
-               WeaponFamilies.All.Count == 7,
+               WeaponFamilies.ForWeapon(data.GetWeapon("W039")) == WeaponFamilies.Bow &&
+               WeaponFamilies.ForWeapon(data.GetWeapon("W042")) == WeaponFamilies.Crossbow &&
+               WeaponFamilies.All.Count == 9,
             "A normál vagy legendás fegyver családbesorolása hibás.");
         Assert(fighter.EquipWeapon(0, sword), "A tesztkarakter nem tudta felszerelni a hosszú kardot.");
         var system = CreateBattleSystem(2201);

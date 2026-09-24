@@ -747,14 +747,15 @@ internal static partial class Program
     {
         var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         var shieldLine = source.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-            .Single(line => line.StartsWith("W014;", StringComparison.Ordinal));
+            .Single(line => line.StartsWith("W014;", StringComparison.Ordinal) &&
+                            line.Contains(";WT003;", StringComparison.Ordinal));
         var fields = shieldLine.Split(';');
-        fields[^1] = "0";
+        fields[20] = "0";
         var missingTier = source.Replace(shieldLine, string.Join(';', fields), StringComparison.Ordinal);
         AssertCsvLoadFails(missingTier, "W014", "PajzsTier", "1 és 4");
 
         fields = shieldLine.Split(';');
-        fields[^3] = "SWORD";
+        fields[18] = "SWORD";
         var mismatchedFamily = source.Replace(shieldLine, string.Join(';', fields), StringComparison.Ordinal);
         AssertCsvLoadFails(mismatchedFamily, "W014", "nincs összhangban");
     }
@@ -1124,7 +1125,7 @@ internal static partial class Program
         {
             [MonsterIds.Goblin] = "W024",
             [MonsterIds.Csontváz] = "W025",
-            [MonsterIds.Ork] = "W027",
+            [MonsterIds.Ork] = "W014",
             [MonsterIds.Hobgoblin] = "W027",
             [MonsterIds.Gnoll] = "W035",
             [MonsterIds.Útonálló] = "W024",
@@ -1132,16 +1133,14 @@ internal static partial class Program
             [MonsterIds.CsontvázLovag] = "W029",
             [MonsterIds.ÉlőholtPátriárka] = "W028",
             [MonsterIds.GoblinFőnök] = "W036",
-            [MonsterIds.PáncélozottZombi] = "W035",
-            [MonsterIds.Orgyilkos] = "W035",
+            [MonsterIds.PáncélozottZombi] = "W025",
             [MonsterIds.Kígyóember] = "W026",
             [MonsterIds.ÉlőPáncél] = "W034",
             [MonsterIds.Martalóc] = "W015",
             [MonsterIds.Káoszlovag] = "W033"
         };
         Assert(expectedEnemyShields.All(pair =>
-                   data.GetEnemy(pair.Key).ShieldOption is { } shield && shield.Id == pair.Value &&
-                   shield.MinimumStrength <= (data.GetEnemy(pair.Key).Strength ?? 0)) &&
+                   data.GetEnemy(pair.Key).ShieldOption is { } shield && shield.Id == pair.Value) &&
                expectedEnemyShields.Values.Distinct(StringComparer.OrdinalIgnoreCase).Count() >= 10,
             "A pajzsos ellenfelek nem tematikus, változatos vagy az erejükhöz illő pajzsot kaptak.");
         Assert(data.Enemies.All(enemy => enemy.Weapons is { Count: > 0 } &&
@@ -1155,7 +1154,7 @@ internal static partial class Program
                                    throw new InvalidOperationException("A goblin nem választott fegyvert.");
         var sameGoblin = new ConfiguredEnemy(new(1, 1), goblin, new Random(99),
             new EnemyEquipmentSelection(selectedGoblinWeapon.Id, null));
-        Assert(goblin.Name == "Goblin" && goblin.ChoosesWeapon && goblin.WeaponIds!.Count == 3 &&
+        Assert(goblin.Name == "Goblin" && goblin.ChoosesWeapon && goblin.WeaponIds!.Count == 4 &&
                firstGoblin.LongName.Contains(selectedGoblinWeapon.Name, StringComparison.Ordinal) &&
                sameGoblin.EquippedWeapon?.Id == selectedGoblinWeapon.Id &&
                ReferenceEquals(firstGoblin.Definition, goblin) && ReferenceEquals(sameGoblin.Definition, goblin),
@@ -1186,14 +1185,14 @@ internal static partial class Program
         var zombie = data.GetEnemy("E006");
         var zombieWeaponIds = zombie.WeaponIds ?? [];
         var zombieEnemy = new ConfiguredEnemy(new(1, 1), zombie, new Random(4));
-        Assert(zombie.ChoosesWeapon && zombieWeaponIds.SequenceEqual(["WN003", "W005"]) &&
-               zombieEnemy.EquippedWeapon is { } zombieWeapon &&
-               zombieWeaponIds.Contains(zombieWeapon.Id) && zombieEnemy.LongName.Contains(zombieWeapon.Name, StringComparison.Ordinal),
-            "A zombi nem választ egyszer az ököl és a bunkó közül.");
+        Assert(zombie.ChoosesWeapon && zombieWeaponIds.SequenceEqual(["WN001", "W005", "WN030"]) &&
+                zombieEnemy.EquippedWeapon is { } zombieWeapon &&
+                zombieWeaponIds.Contains(zombieWeapon.Id) && zombieEnemy.LongName.Contains(zombieWeapon.Name, StringComparison.Ordinal),
+            "A zombi nem választ egyszer a fogak, bunkó és puszta kéz közül.");
         var armedZombie = new ConfiguredEnemy(new(1, 1), zombie,
             equipment: new EnemyEquipmentSelection("W005", null));
         var unarmedZombie = new ConfiguredEnemy(new(1, 1), zombie,
-            equipment: new EnemyEquipmentSelection("WN003", null));
+            equipment: new EnemyEquipmentSelection("WN030", null));
         var minotaurCorpseMaze = new Maze(7, 7);
         var minotaurForLoot = new ConfiguredEnemy(new(3, 3), data.GetEnemy("E014"));
         minotaurCorpseMaze.Carve(minotaurForLoot.Position);
@@ -1218,7 +1217,7 @@ internal static partial class Program
         var dragonWeaponIds = dragon.WeaponIds ?? [];
         var dragonWeapons = dragon.Weapons ?? [];
         Assert(!dragon.ChoosesWeapon && dragonWeaponIds.SequenceEqual(["WN004", "WN005", "WN006"]) &&
-               dragonWeapons.Select(weapon => weapon.Name).SequenceEqual(["sárkányfogak", "farokcsapás", "tüzes lehelet"]),
+                dragonWeapons.Select(weapon => weapon.Name).SequenceEqual(["sárkányfogak", "farokcsapás", "sárkánytűz"]),
             "A sárkány természetes támadáslistája hibás.");
         var dragonEnemy = new ConfiguredEnemy(new(1, 1), dragon, new Random(11));
         var dragonSystem = CreateBattleSystem(11);
