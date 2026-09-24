@@ -83,9 +83,8 @@ public static class InventoryTransferService
 
         var destinationStackSize = LiveCharacter.MaximumStackSize(command.DestinationKind, sourceItem);
         var compatibleStack = destinationStackSize > 1 && displaced is not null &&
-            string.Equals(sourceItem.Id, displaced.Id, StringComparison.OrdinalIgnoreCase) &&
-            sourceState?.IsIdentified == true && displacedState?.IsIdentified == true &&
-            sourceCharges == displacedCharges && displacedQuantity < destinationStackSize;
+            InventoryStackingRules.AreCompatible(sourceItem, sourceCharges, sourceState,
+                displaced, displacedCharges, displacedState) && displacedQuantity < destinationStackSize;
         if (compatibleStack)
         {
             var moved = Math.Min(sourceQuantity, destinationStackSize - displacedQuantity);

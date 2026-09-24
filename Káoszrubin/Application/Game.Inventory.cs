@@ -396,11 +396,11 @@ public sealed partial class Game
             command.DestinationBackpackIndex);
         var destinationState = character.GetInventoryItemState(InventorySlotKind.Backpack,
             command.DestinationBackpackIndex);
-        if (destinationItem is not null && (!string.Equals(destinationItem.Id, entry.Item.Id,
-                StringComparison.OrdinalIgnoreCase) ||
-            destinationState?.IsIdentified != true || !entry.State.IsIdentified ||
-            character.GetInventoryItemCharges(InventorySlotKind.Backpack, command.DestinationBackpackIndex) !=
-            entry.Charges || destinationQuantity >= LiveCharacter.MaximumBackpackStackSize)) return;
+        if (destinationItem is not null && (!InventoryStackingRules.AreCompatible(
+                destinationItem,
+                character.GetInventoryItemCharges(InventorySlotKind.Backpack, command.DestinationBackpackIndex),
+                destinationState, entry.Item, entry.Charges, entry.State) ||
+            destinationQuantity >= LiveCharacter.MaximumBackpackStackSize)) return;
         var change = new InventorySlotChange(InventorySlotKind.Backpack, command.DestinationBackpackIndex,
             entry.Item, entry.Charges, destinationQuantity + 1,
             destinationItem is null ? entry.State : destinationState);

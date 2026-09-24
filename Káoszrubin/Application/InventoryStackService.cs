@@ -50,10 +50,13 @@ public static class InventoryStackService
         var newQuantity = quantity / 2;
         var remainingQuantity = quantity - newQuantity;
         var charges = character.GetInventoryItemCharges(InventorySlotKind.Backpack, command.BackpackIndex);
+        var state = character.GetInventoryItemState(InventorySlotKind.Backpack, command.BackpackIndex);
+        if (state is null) return Fail("A köteg példányállapota hiányzik.", out plan, out error);
         InventorySlotChange[] changes =
         [
-            new(InventorySlotKind.Backpack, command.BackpackIndex, item, charges, remainingQuantity),
-            new(InventorySlotKind.Backpack, destinationIndex, item, charges, newQuantity)
+            new(InventorySlotKind.Backpack, command.BackpackIndex, item, charges, remainingQuantity, state),
+            new(InventorySlotKind.Backpack, destinationIndex, item, charges, newQuantity,
+                InventoryStackingRules.CopyAsNewInstance(state.Value))
         ];
         if (!character.CanApplyInventoryChanges(changes))
             return Fail("A köteg nem felezhető el a hátizsákban.", out plan, out error);

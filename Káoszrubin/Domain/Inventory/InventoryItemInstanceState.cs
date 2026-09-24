@@ -16,6 +16,25 @@ public readonly record struct InventoryItemInstanceState(Guid InstanceId, bool I
                             CurseEffect != ItemCurseEffect.None && CurseValue > 0;
 }
 
+/// <summary>A kötegben közösen tárolható tárgypéldányok állapotazonossága.</summary>
+public static class InventoryStackingRules
+{
+    public static bool AreCompatible(IItemDefinition firstItem, int firstCharges,
+        InventoryItemInstanceState? firstState, IItemDefinition secondItem, int secondCharges,
+        InventoryItemInstanceState? secondState) =>
+        string.Equals(firstItem.Id, secondItem.Id, StringComparison.OrdinalIgnoreCase) &&
+        firstCharges == secondCharges && firstState is { } first && secondState is { } second &&
+        first.IsIdentified && second.IsIdentified &&
+        string.Equals(first.CurseId, second.CurseId, StringComparison.OrdinalIgnoreCase) &&
+        first.CurseEffect == second.CurseEffect && first.CurseValue == second.CurseValue &&
+        first.CurseStrength == second.CurseStrength && first.IsCurseActivated == second.IsCurseActivated &&
+        first.BoundCharacterId == second.BoundCharacterId && first.IsPurified == second.IsPurified &&
+        first.DurabilityDamage == second.DurabilityDamage;
+
+    public static InventoryItemInstanceState CopyAsNewInstance(InventoryItemInstanceState state) =>
+        state with { InstanceId = Guid.NewGuid() };
+}
+
 public enum EquipmentCondition
 {
     NotApplicable,

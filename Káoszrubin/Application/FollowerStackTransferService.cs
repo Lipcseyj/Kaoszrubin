@@ -29,10 +29,14 @@ public static class FollowerStackTransferService
         var transferred = quantity / 2;
         var remaining = quantity - transferred;
         var charges = source.GetInventoryItemCharges(InventorySlotKind.Backpack, command.BackpackIndex);
+        var sourceState = source.GetInventoryItemState(InventorySlotKind.Backpack, command.BackpackIndex);
+        if (sourceState is null) return Fail("A köteg példányállapota hiányzik.", out error);
         var destination = Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount).FirstOrDefault(index =>
             follower.GetInventoryItem(InventorySlotKind.Backpack, index) is { } existing &&
-            string.Equals(existing.Id, item.Id, StringComparison.OrdinalIgnoreCase) &&
-            follower.GetInventoryItemCharges(InventorySlotKind.Backpack, index) == charges &&
+            InventoryStackingRules.AreCompatible(existing,
+                follower.GetInventoryItemCharges(InventorySlotKind.Backpack, index),
+                follower.GetInventoryItemState(InventorySlotKind.Backpack, index),
+                item, charges, sourceState) &&
             follower.GetInventoryItemQuantity(InventorySlotKind.Backpack, index) + transferred <=
             LiveCharacter.MaximumBackpackStackSize, -1);
         if (destination < 0)
@@ -41,10 +45,12 @@ public static class FollowerStackTransferService
         if (destination < 0) return Fail("A követő hátizsákjában nincs hely a fél kötegnek.", out error);
 
         var sourceChange = new InventorySlotChange(InventorySlotKind.Backpack, command.BackpackIndex,
-            item, charges, remaining);
+            item, charges, remaining, sourceState);
         var destinationQuantity = follower.GetInventoryItemQuantity(InventorySlotKind.Backpack, destination) + transferred;
+        var destinationState = follower.GetInventoryItemState(InventorySlotKind.Backpack, destination) ??
+                               InventoryStackingRules.CopyAsNewInstance(sourceState.Value);
         var destinationChange = new InventorySlotChange(InventorySlotKind.Backpack, destination,
-            item, charges, destinationQuantity);
+            item, charges, destinationQuantity, destinationState);
         if (!source.CanApplyInventoryChanges(sourceChange) || !follower.CanApplyInventoryChanges(destinationChange))
             return Fail("A köteg nem adható át a követőnek.", out error);
         source.ApplyInventoryChanges(sourceChange);

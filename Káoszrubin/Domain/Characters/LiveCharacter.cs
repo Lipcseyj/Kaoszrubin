@@ -246,7 +246,7 @@ public sealed class LiveCharacter
     public const int MaximumMagicItemCount = 3;
     public const int MaximumEquippedScrollStackSize = 5;
     public const int MaximumBackpackItemCount = 12;
-    public const int MaximumBackpackStackSize = 10;
+    public const int MaximumBackpackStackSize = 12;
     public const int MaximumQuickSpellCount = 8;
 
     public void SetNpcBehavior(NpcBehavior? behavior) => NpcBehavior = behavior;
@@ -400,12 +400,13 @@ public sealed class LiveCharacter
 
     public bool AddMagicItem(MagicItemDefinition item)
     {
+        var incomingState = InventoryItemInstanceState.Create();
         if (item.Kind == MagicItemKind.Scroll)
         {
             var stackIndex = Enumerable.Range(0, _magicItems.Length).FirstOrDefault(index =>
-                string.Equals(_magicItems[index]?.Id, item.Id, StringComparison.OrdinalIgnoreCase) &&
-                _magicItemStates[index]?.IsIdentified == true &&
-                _magicItemCharges[index] == item.MaximumCharges &&
+                _magicItems[index] is { } existing && InventoryStackingRules.AreCompatible(
+                    existing, _magicItemCharges[index], _magicItemStates[index],
+                    item, item.MaximumCharges, incomingState) &&
                 _magicItemQuantities[index] < MaximumEquippedScrollStackSize, -1);
             if (stackIndex >= 0)
                 return SetInventoryItem(InventorySlotKind.MagicItem, stackIndex, item,
@@ -413,19 +414,19 @@ public sealed class LiveCharacter
         }
         var index = Array.FindIndex(_magicItems, existing => existing is null);
         if (index < 0) return false;
-        return SetInventoryItem(InventorySlotKind.MagicItem, index, item, null, 1);
+        return SetInventoryItem(InventorySlotKind.MagicItem, index, item, null, 1, incomingState);
     }
 
     public bool AddToBackpack(IItemDefinition item, bool identified = true, Guid? instanceId = null,
         InventoryItemInstanceState? instanceState = null)
     {
         var charges = InitialCharges(item, null);
+        var incomingState = instanceState ?? new InventoryItemInstanceState(
+            instanceId ?? Guid.NewGuid(), identified);
         var stackIndex = Enumerable.Range(0, _backpack.Length).FirstOrDefault(index =>
-            _backpack[index] is { } existing &&
-            string.Equals(existing.Id, item.Id, StringComparison.OrdinalIgnoreCase) &&
-            identified && _backpackItemStates[index]?.IsIdentified == true &&
-            _backpackItemCharges[index] == charges && _backpackItemQuantities[index] < MaximumBackpackStackSize,
-            -1);
+            _backpack[index] is { } existing && InventoryStackingRules.AreCompatible(
+                existing, _backpackItemCharges[index], _backpackItemStates[index],
+                item, charges, incomingState) && _backpackItemQuantities[index] < MaximumBackpackStackSize, -1);
         if (stackIndex >= 0)
         {
             ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.Backpack, stackIndex, item, charges,
@@ -435,17 +436,17 @@ public sealed class LiveCharacter
         var index = Array.FindIndex(_backpack, existing => existing is null);
         if (index < 0) return false;
         return SetInventoryItem(InventorySlotKind.Backpack, index, item, charges, 1,
-            instanceState ?? new InventoryItemInstanceState(instanceId ?? Guid.NewGuid(), identified));
+            incomingState);
     }
 
     public bool CanAddToBackpack(IItemDefinition item, bool identified = true)
     {
         var charges = InitialCharges(item, null);
+        var incomingState = InventoryItemInstanceState.Create(identified);
         return _backpack.Any(existing => existing is null) || _backpack.Select((existing, index) => (existing, index))
             .Any(entry => entry.existing is not null &&
-                string.Equals(entry.existing.Id, item.Id, StringComparison.OrdinalIgnoreCase) &&
-                identified && _backpackItemStates[entry.index]?.IsIdentified == true &&
-                _backpackItemCharges[entry.index] == charges &&
+                InventoryStackingRules.AreCompatible(entry.existing, _backpackItemCharges[entry.index],
+                    _backpackItemStates[entry.index], item, charges, incomingState) &&
                 _backpackItemQuantities[entry.index] < MaximumBackpackStackSize);
     }
 

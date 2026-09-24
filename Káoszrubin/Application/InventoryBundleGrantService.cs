@@ -1,5 +1,6 @@
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Inventory;
+using KaoszRubin.Domain.Magic;
 
 namespace KaoszRubin.Application;
 
@@ -31,9 +32,18 @@ public static class InventoryBundleGrantService
         foreach (var group in bundle.GroupBy(entry => entry.Item.Id, StringComparer.OrdinalIgnoreCase))
         {
             var quantity = group.Sum(entry => Math.Max(0, entry.Quantity));
+            var item = group.First().Item;
+            var charges = item is MagicItemDefinition magic &&
+                          magic.Kind is MagicItemKind.Wand or MagicItemKind.Scroll
+                ? magic.MaximumCharges
+                : 0;
+            var incomingState = InventoryItemInstanceState.Create();
             var existingCapacity = Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
-                .Where(index => string.Equals(character.Backpack[index]?.Id, group.Key,
-                    StringComparison.OrdinalIgnoreCase))
+                .Where(index => character.Backpack[index] is { } existing &&
+                    InventoryStackingRules.AreCompatible(existing,
+                        character.GetInventoryItemCharges(InventorySlotKind.Backpack, index),
+                        character.GetInventoryItemState(InventorySlotKind.Backpack, index),
+                        item, charges, incomingState))
                 .Sum(index => LiveCharacter.MaximumBackpackStackSize -
                               character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index));
             var remainder = Math.Max(0, quantity - existingCapacity);

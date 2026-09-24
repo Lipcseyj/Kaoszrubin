@@ -51,7 +51,10 @@ public static class InventoryDistributionService
         var states = members.Select(character => Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
             .Select(index => new SlotState(character.GetInventoryItem(InventorySlotKind.Backpack, index),
                 character.GetInventoryItemCharges(InventorySlotKind.Backpack, index),
-                character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index))).ToArray()).ToArray();
+                character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index),
+                character.GetInventoryItemState(InventorySlotKind.Backpack, index))).ToArray()).ToArray();
+        var sourceState = states[sourceCharacterIndex][command.BackpackIndex].State;
+        if (sourceState is null) return Fail("A köteg példányállapota hiányzik.", out plan, out error);
         states[sourceCharacterIndex][command.BackpackIndex].Quantity = 1;
         var allocations = new int[members.Length];
         var remaining = originalQuantity - 1;
@@ -62,7 +65,7 @@ public static class InventoryDistributionService
             for (var attempt = 0; attempt < members.Length; attempt++)
             {
                 var memberIndex = (cursor + attempt) % members.Length;
-                var destination = FindDestination(states[memberIndex], item);
+                var destination = FindDestination(states[memberIndex], item, sourceState.Value);
                 if (destination < 0) continue;
                 var slot = states[memberIndex][destination];
                 if (slot.Item is null)
@@ -70,6 +73,7 @@ public static class InventoryDistributionService
                     slot.Item = item;
                     slot.Charges = 0;
                     slot.Quantity = 1;
+                    slot.State = InventoryStackingRules.CopyAsNewInstance(sourceState.Value);
                 }
                 else slot.Quantity++;
                 allocations[memberIndex]++;
@@ -95,7 +99,7 @@ public static class InventoryDistributionService
                 if (ReferenceEquals(state.Item, originalItem) && state.Charges == originalCharges &&
                     state.Quantity == originalSlotQuantity) continue;
                 changes.Add(new InventorySlotChange(InventorySlotKind.Backpack, slotIndex, state.Item,
-                    state.Charges, state.Quantity));
+                    state.Charges, state.Quantity, state.State));
             }
             if (changes.Count == 0) continue;
             if (!members[memberIndex].CanApplyInventoryChanges(changes.ToArray()))
@@ -114,12 +118,13 @@ public static class InventoryDistributionService
         return true;
     }
 
-    private static int FindDestination(IReadOnlyList<SlotState> slots, IItemDefinition item)
+    private static int FindDestination(IReadOnlyList<SlotState> slots, IItemDefinition item,
+        InventoryItemInstanceState sourceState)
     {
         for (var index = 0; index < slots.Count; index++)
             if (slots[index].Item is { } existing &&
-                string.Equals(existing.Id, item.Id, StringComparison.OrdinalIgnoreCase) &&
-                slots[index].Charges == 0 && slots[index].Quantity < LiveCharacter.MaximumBackpackStackSize)
+                InventoryStackingRules.AreCompatible(existing, slots[index].Charges, slots[index].State,
+                    item, 0, sourceState) && slots[index].Quantity < LiveCharacter.MaximumBackpackStackSize)
                 return index;
         for (var index = 0; index < slots.Count; index++)
             if (slots[index].Item is null) return index;
@@ -133,11 +138,13 @@ public static class InventoryDistributionService
         return false;
     }
 
-    private sealed class SlotState(IItemDefinition? item, int charges, int quantity)
+    private sealed class SlotState(IItemDefinition? item, int charges, int quantity,
+        InventoryItemInstanceState? state)
     {
         public IItemDefinition? Item { get; set; } = item;
         public int Charges { get; set; } = charges;
         public int Quantity { get; set; } = quantity;
+        public InventoryItemInstanceState? State { get; set; } = state;
     }
     private sealed record CharacterPlan(LiveCharacter Character, InventorySlotChange[] Changes);
     private sealed record DistributionPlan(MiscItemDefinition Item, int DistributedQuantity,
