@@ -464,10 +464,9 @@ public sealed partial class RandomCharacterGenerator(GameDataCatalog gameData, R
     {
         var desiredAdvances = WeaponProficiencyProgression.EarnedAdvances(
             character.CharacterClass.Id, character.Level);
-        // A távolsági családok tudatos játékosi szakosodások; a véletlen NPC-generálás
-        // nem írja felül velük a korábbi közelharci szerepköröket.
         var families = WeaponFamilies.AvailableFor(character.CharacterClass.Id, _gameData.Weapons)
-            .Where(family => family.Id is not WeaponFamilies.Bow and not WeaponFamilies.Crossbow)
+            .Where(family => character.Level >= 5 ||
+                             family.Id is not WeaponFamilies.Bow and not WeaponFamilies.Crossbow)
             .ToArray();
         while (character.WeaponProficiencyAdvances < desiredAdvances)
         {

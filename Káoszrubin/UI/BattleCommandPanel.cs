@@ -66,7 +66,7 @@ public sealed class BattleCommandPanel
     }
 
     public static string Format(IEnumerable<BattleActionKind> actions, bool isHumanControlled, string actorName,
-        IReadOnlyList<BattleTacticOptionSnapshot>? tactics = null)
+        IReadOnlyList<BattleTacticOptionSnapshot>? tactics = null, string? physicalAttackLabel = null)
     {
         if (!isHumanControlled) return Decorate($"Space: végrehajtja {actorName} akcióját.");
 
@@ -83,7 +83,8 @@ public sealed class BattleCommandPanel
         if (actionSet.Contains(BattleActionKind.SwapWeapon)) commands.Add("C: fegyvercsere");
         if (actionSet.Contains(BattleActionKind.PrepareRearLeft)) commands.Add("B: bal hátul készülj");
         if (actionSet.Contains(BattleActionKind.PrepareRearRight)) commands.Add("J: jobb hátul készülj");
-        if (actionSet.Contains(BattleActionKind.PhysicalAttack)) commands.Add("Space: támadás");
+        if (actionSet.Contains(BattleActionKind.PhysicalAttack))
+            commands.Add($"Space: {physicalAttackLabel ?? "támadás"}");
         if (actionSet.Contains(BattleActionKind.ShieldBash)) commands.Add("Q: pajzslökés");
         if (actionSet.Contains(BattleActionKind.Move) || actionSet.Contains(BattleActionKind.MoveFormation))
             commands.Add("nyilak: mozgás");
@@ -102,9 +103,9 @@ public sealed class BattleCommandPanel
     /// </summary>
     public static IReadOnlyList<TextSegment> FormatWithHighlighting(IEnumerable<BattleActionKind> actions,
         IReadOnlyList<BattleTacticOptionSnapshot>? tactics = null, bool isHumanControlled = true,
-        ConsoleColor? hotkeyColor = null, string? actorName = null)
+        ConsoleColor? hotkeyColor = null, string? actorName = null, string? physicalAttackLabel = null)
     {
-        var plainText = Format(actions, isHumanControlled, actorName ?? "na", tactics);
+        var plainText = Format(actions, isHumanControlled, actorName ?? "na", tactics, physicalAttackLabel);
         if (string.IsNullOrEmpty(plainText)) return [];
 
         return ParseHotkeysPublic(plainText, hotkeyColor);

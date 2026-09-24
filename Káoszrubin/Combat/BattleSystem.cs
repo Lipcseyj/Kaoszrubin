@@ -1033,7 +1033,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         {
             damageMultiplierPercent = player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefAmbush) ? 250 : 200;
             context.AmbushAvailable = false;
-            notes.Add($"{(tacticalBackstab ? "ℹ️ Hátbatámadás: " : string.Empty)}Orvtámadás ×{damageMultiplierPercent / 100d:0.##}");
+            var ambushName = weapon?.IsRanged == true ? "Rejtett lövés" : "Orvtámadás";
+            notes.Add($"{(tacticalBackstab ? "ℹ️ Hátbatámadás: " : string.Empty)}{ambushName} ×{damageMultiplierPercent / 100d:0.##}");
         }
         if (criticalMultiplier > 1)
             notes.Add(criticalMultiplier == 3
@@ -1072,15 +1073,15 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             case BattleTactic.FighterPrecise:
                 var precisePercent = player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? 85 : 75;
                 damage = Math.Max(1, damage * precisePercent / 100);
-                notes.Add($"ℹ️ Pontos: +2 találat, ×0,{precisePercent} sebzés");
+                notes.Add($"ℹ️ {(weapon?.IsRanged == true ? "Célzott lövés" : "Pontos")}: +2 találat, ×0,{precisePercent} sebzés");
                 break;
             case BattleTactic.FighterPowerful:
                 damage = Math.Max(1, (damage * 125 + 99) / 100);
-                notes.Add($"ℹ️💥 Erőteljes: -1 találat, ×1,25 sebzés, {(powerfulMastery ? 75 : 50)}% páncéltörés");
+                notes.Add($"ℹ️💥 {(weapon?.IsRanged == true ? "Páncéltörő lövés" : "Erőteljes")}: -1 találat, ×1,25 sebzés, {(powerfulMastery ? 75 : 50)}% páncéltörés");
                 break;
             case BattleTactic.FighterDefensive:
                 damage = Math.Max(1, damage * 75 / 100);
-                notes.Add($"ℹ️ Védekező: ×0,75 sebzés, +{(player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)} védelem");
+                notes.Add($"ℹ️ {(weapon?.IsRanged == true ? "Biztosító lövés" : "Védekező")}: ×0,75 sebzés, +{(player.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)} védelem");
                 break;
         }
         if (durabilityDamagePenalty > 0)
@@ -1109,7 +1110,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             var poison = Roll(player.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefPoison)
                 ? new ValueRange(2, 6) : new ValueRange(1, 4));
             damage += poison;
-            notes.Add($"ℹ️☠️ Mérgezett penge +{poison}");
+            notes.Add($"ℹ️☠️ {(weapon?.IsRanged == true ? "Mérgezett lövedék" : "Mérgezett penge")} +{poison}");
         }
         if (context.BarbarianRageActionsRemaining > 0 &&
             player.HasClassFeatureUpgrade(ClassFeatureUpgrades.BarbarianBloodRage))

@@ -959,9 +959,10 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             if (buying)
             {
                 var offer = vendor.Offers[index];
+                var itemName = offer.Item.Name + (offer.Item.Quantity > 1 ? $" ×{offer.Item.Quantity}" : string.Empty);
                 lines.Add((usesRepairLayout
-                    ? $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {offer.Item.Name,-32} javítás {offer.Price,5} {MoneyIcon}"
-                    : $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} {MoneyIcon}",
+                    ? $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {itemName,-32} javítás {offer.Price,5} {MoneyIcon}"
+                    : $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {itemName,-24} alapár {offer.Item.BasePrice * offer.Item.Quantity,5}   fogadói ár {offer.Price,5} {MoneyIcon}",
                     selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
             }
             else
@@ -1163,7 +1164,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     {
         ClearInnMenuScreen();
         var vendor = new InnVendorSnapshot(InnVendorKind.Market, "Kereskedő", stock.Select((offer, index) =>
-            new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item), offer.Price)).ToArray());
+            new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item) with { Quantity = offer.Quantity },
+                offer.Price)).ToArray());
         var sales = sellOffers.Select(offer =>
         {
             var identified = offer.Owner.IsInventoryItemIdentified(InventorySlotKind.Backpack, offer.BackpackIndex);
@@ -1217,7 +1219,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             if (index >= entryCount) { lines.Add((string.Empty, ConsoleColor.Gray)); continue; }
             var selected = index == selectedIndex;
             var offer = stock[index];
-            lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} {MoneyIcon}",
+            var offerName = offer.Item.Name + (offer.Quantity > 1 ? $" ×{offer.Quantity}" : string.Empty);
+            lines.Add(($"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offerName,-24} alapár {offer.Item.BasePrice * offer.Quantity,5}   fogadói ár {offer.Price,5} {MoneyIcon}",
                 selected ? ConsoleColor.White : ItemRarityColor(offer.Item.Rarity)));
         }
         var selectedItem = entryCount == 0 ? null : stock[selectedIndex].Item;
@@ -1236,7 +1239,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             : title.Contains("PÁNCÉL", StringComparison.OrdinalIgnoreCase) ? InnVendorKind.Armorer
             : InnVendorKind.WanderingMage;
         var vendor = new InnVendorSnapshot(kind, title, stock.Select((offer, index) =>
-            new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item), offer.Price)).ToArray());
+            new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item) with { Quantity = offer.Quantity },
+                offer.Price)).ToArray());
         DrawCenteredFrame(InnMarketFrameWidth, BuildInnVendorLines(vendor, InnMarketMode.Buy, [], selectedIndex,
             leader.Gold, freeBackpackSlots, message, innName), FramedWindow.Inn);
     }

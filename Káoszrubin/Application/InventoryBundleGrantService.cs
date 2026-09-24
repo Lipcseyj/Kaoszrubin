@@ -25,7 +25,7 @@ public static class InventoryBundleGrantService
         return true;
     }
 
-    private static bool CanFit(LiveCharacter character, IReadOnlyList<InventoryBundleEntry> bundle)
+    public static bool CanFit(LiveCharacter character, IReadOnlyList<InventoryBundleEntry> bundle)
     {
         var freeSlots = character.Backpack.Count(item => item is null);
         var newSlotsNeeded = 0;
@@ -44,11 +44,11 @@ public static class InventoryBundleGrantService
                         character.GetInventoryItemCharges(InventorySlotKind.Backpack, index),
                         character.GetInventoryItemState(InventorySlotKind.Backpack, index),
                         item, charges, incomingState))
-                .Sum(index => LiveCharacter.MaximumBackpackStackSize -
+                .Sum(index => LiveCharacter.MaximumStackSize(InventorySlotKind.Backpack, item) -
                               character.GetInventoryItemQuantity(InventorySlotKind.Backpack, index));
             var remainder = Math.Max(0, quantity - existingCapacity);
-            newSlotsNeeded += (remainder + LiveCharacter.MaximumBackpackStackSize - 1) /
-                              LiveCharacter.MaximumBackpackStackSize;
+            var stackSize = LiveCharacter.MaximumStackSize(InventorySlotKind.Backpack, item);
+            newSlotsNeeded += (remainder + stackSize - 1) / stackSize;
         }
         return newSlotsNeeded <= freeSlots;
     }

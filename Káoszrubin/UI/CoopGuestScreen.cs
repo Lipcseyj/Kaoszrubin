@@ -1857,7 +1857,8 @@ public sealed class CoopGuestScreen
                         battle.TacticOptions,
                         battle.IsPlayerTurn,
                         _battleCommandPanel.HotkeyColor,
-                        actingCharacter?.Name ?? "Vendég")).ToArray()
+                        actingCharacter?.Name ?? "Vendég",
+                        battle.PhysicalAttackLabel)).ToArray()
             : [];
         var commandLine = commandSegments.Length == 0
             ? _battleCommandPanel.Close()

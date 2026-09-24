@@ -574,9 +574,20 @@ public sealed partial class Game
             ? prompt.TacticOptions
             : null;
         var message = BattleCommandPanel.Format(prompt.AllowedActions, isHumanControlled, currentActorName,
-            tacticOptions);
+            tacticOptions, PhysicalAttackLabel(prompt.ActingCharacter));
         _renderer.DrawBattleCommandPanel(message);
         RequestCoopSnapshotPublish();
+    }
+
+    private static string? PhysicalAttackLabel(LiveCharacter? character)
+    {
+        var weapon = character?.AttackWeapon;
+        if (weapon?.IsRanged != true) return null;
+        if (!weapon.UsesAmmunition) return "lövés";
+        var ammunition = RangedWeaponRules.AmmunitionCount(character!, weapon);
+        var ammunitionName = string.Equals(weapon.AmmunitionItemId, AmmunitionIds.Arrow,
+            StringComparison.OrdinalIgnoreCase) ? "nyíl" : "lövedék";
+        return $"lövés ({ammunition} {ammunitionName})";
     }
 
     private IEnumerable<Enemy> AdjacentEnemies(BattleEncounter battle, LiveCharacter character) =>

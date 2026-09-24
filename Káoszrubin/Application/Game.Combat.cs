@@ -502,7 +502,13 @@ public sealed partial class Game
         var allowed = GetAllowedBattleActions(battle, character, focusEnemy);
         if (!allowed.Contains(command.Action))
         {
-            RejectBattleAction(command, "Ez az akció most nem használható.");
+            var rejection = command.Action == BattleActionKind.PhysicalAttack &&
+                            character.AttackWeapon is { IsRanged: true } rangedWeapon
+                ? !RangedWeaponRules.HasAmmunition(character, rangedWeapon)
+                    ? $"Elfogyott a(z) {rangedWeapon.Name} lőszere."
+                    : "Nincs lőtávon és rálátásban támadható ellenfél."
+                : "Ez az akció most nem használható.";
+            RejectBattleAction(command, rejection);
             return;
         }
         switch (command.Action)
@@ -543,7 +549,9 @@ public sealed partial class Game
                     : PreferredActionTarget(battle, physicalTargets);
                 if (target is null)
                 {
-                    RejectBattleAction(command, "A választott ellenfél nincs közelharci távolságban.");
+                    RejectBattleAction(command, character.AttackWeapon?.IsRanged == true
+                        ? "A választott ellenfél nincs lőtávon vagy nincs rá tiszta rálátás."
+                        : "A választott ellenfél nincs közelharci távolságban.");
                     return;
                 }
                 ResolveCharacterAttack(battle, character, target);

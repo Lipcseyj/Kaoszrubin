@@ -5,7 +5,7 @@ namespace KaoszRubin.Application;
 
 public enum InnMarketMode { Buy, Sell }
 
-public sealed record InnStockOffer(IItemDefinition Item, int Price);
+public sealed record InnStockOffer(IItemDefinition Item, int Price, int Quantity = 1);
 
 public sealed record InnSellOffer(LiveCharacter Owner, int BackpackIndex, IItemDefinition Item, int Price);
 

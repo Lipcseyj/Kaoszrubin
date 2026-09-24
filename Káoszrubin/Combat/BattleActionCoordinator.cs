@@ -91,16 +91,24 @@ public sealed class BattleActionCoordinator
         _ => throw new ArgumentOutOfRangeException(nameof(action))
     };
 
-    public static string BattleTacticName(BattleTactic tactic, LiveCharacter character) => tactic switch
+    public static string BattleTacticName(BattleTactic tactic, LiveCharacter character)
     {
-        BattleTactic.FighterPrecise => $"Pontos állás (+2 találat, ×{(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? "0,85" : "0,75")} sebzés)",
-        BattleTactic.FighterPowerful => $"Erőteljes állás (-1 találat, ×1,25 sebzés, {(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) ? 75 : 50)}% páncéltörés)",
-        BattleTactic.FighterDefensive => $"Védekező állás (×0,75 sebzés, +{(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)} védelem)",
-        BattleTactic.ThiefAmbush => "Orvtámadás (az első sikeres támadás dupla sebzés)",
-        BattleTactic.ThiefObserve => "Megfigyelés (+2 találat)",
-        BattleTactic.ThiefPoison => "Mérgezett penge (+1-4 sebzés találatonként)",
-        _ => tactic.ToString()
-    };
+        var ranged = character.AttackWeapon?.IsRanged == true;
+        return tactic switch
+        {
+            BattleTactic.FighterPrecise => $"{(ranged ? "Célzott lövés" : "Pontos állás")} (+2 találat, ×{(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPrecise) ? "0,85" : "0,75")} sebzés)",
+            BattleTactic.FighterPowerful => $"{(ranged ? "Páncéltörő lövés" : "Erőteljes állás")} (-1 találat, ×1,25 sebzés, {(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterPowerful) ? 75 : 50)}% páncéltörés)",
+            BattleTactic.FighterDefensive => $"{(ranged ? "Biztosító lövés" : "Védekező állás")} (×0,75 sebzés, +{(character.HasClassFeatureUpgrade(ClassFeatureUpgrades.FighterDefensive) ? 4 : 3)} védelem)",
+            BattleTactic.ThiefAmbush => ranged
+                ? "Rejtett lövés (az első sikeres lövés dupla sebzés)"
+                : "Orvtámadás (az első sikeres támadás dupla sebzés)",
+            BattleTactic.ThiefObserve => ranged ? "Gyengepont-lövés (+2 találat)" : "Megfigyelés (+2 találat)",
+            BattleTactic.ThiefPoison => ranged
+                ? "Mérgezett lövedék (+1-4 sebzés találatonként)"
+                : "Mérgezett penge (+1-4 sebzés találatonként)",
+            _ => tactic.ToString()
+        };
+    }
 
     public static BattleActionKind TacticActionFor(string characterClassId, int option) =>
         characterClassId == CharacterClassIds.Harcos

@@ -873,13 +873,19 @@ public sealed partial class Game
         var carriedWeaponChance = corpse.CarriedWeaponIds.Count == 0
             ? 0
             : AdjustedSearchChance(character, rules.CarriedWeaponChancePercent);
+        var ammunitionChance = _lootService.HasCarriedAmmunition(corpse.CarriedWeaponIds)
+            ? AdjustedSearchChance(character, LootAndInventoryService.CarriedAmmunitionChancePercent)
+            : 0;
         messages.Add($"esélyek: 🔑 {keyChance}%, {ConsoleRenderer.MoneyIcon} {goldChance}%" +
                      (carriedWeaponChance == 0 ? string.Empty : $", ⚔ saját fegyver {carriedWeaponChance}%") +
+                     (ammunitionChance == 0 ? string.Empty : $", 🏹 lőszer {ammunitionChance}%") +
                      (equipmentDefinition is null ? string.Empty : $", 🎁 {equipmentChance}%"));
 
-        var foundItems = corpse.GuaranteedLootIds.Select(_gameData.GetItem).Cast<IItemDefinition>().ToList();
+        var foundItems = corpse.GuaranteedLootIds.Select(id =>
+            new InventoryBundleEntry(_gameData.GetItem(id), 1)).ToList();
         var foundGold = false;
-        if (_random.Next(100) < keyChance) foundItems.Add(_gameData.GetItem(MiscItemIds.Key));
+        if (_random.Next(100) < keyChance)
+            foundItems.Add(new InventoryBundleEntry(_gameData.GetItem(MiscItemIds.Key), 1));
         if (_random.Next(100) < goldChance)
         {
             var maximumGold = Math.Max(1, enemy.StrengthTier * rules.GoldPerStrengthTier);
@@ -889,25 +895,49 @@ public sealed partial class Game
             messages.Add($"{ConsoleRenderer.MoneyIcon} {gold} arany");
         }
         if (_lootService.RollCarriedWeapon(corpse.CarriedWeaponIds, carriedWeaponChance) is { } carriedWeapon)
-            foundItems.Add(carriedWeapon);
+            foundItems.Add(new InventoryBundleEntry(carriedWeapon, 1));
         else if (equipmentDefinition is not null && _random.Next(100) < equipmentChance &&
                  RollEquipmentLoot(equipmentDefinition) is { } equipment)
-            foundItems.Add(equipment);
+            foundItems.Add(new InventoryBundleEntry(equipment, 1));
+        if (_lootService.RollCarriedAmmunition(corpse.CarriedWeaponIds, ammunitionChance) is { } ammunition)
+            foundItems.Add(ammunition);
 
-        foreach (var item in foundItems)
+        foreach (var entry in foundItems)
         {
-            var identification = RollLootItemState(item);
-            if (TryStoreSearchedLoot(character, item, shareLootWithParty, out var owner, identification.State))
+            if (entry.Quantity == 1)
             {
-                messages.Add($"{ItemIdentificationRules.DisplayName(item, identification.State.IsIdentified)} → {owner} hátizsákja" +
-                             FormatMageIdentification(identification));
+                var identification = RollLootItemState(entry.Item);
+                if (TryStoreSearchedLoot(character, entry.Item, shareLootWithParty, out var owner,
+                        identification.State))
+                    messages.Add($"{ItemIdentificationRules.DisplayName(entry.Item, identification.State.IsIdentified)} → {owner} hátizsákja" +
+                                 FormatMageIdentification(identification));
+                else
+                {
+                    _maze.DropItem(position, entry.Item, state: identification.State);
+                    messages.Add($"{ItemIdentificationRules.DisplayName(entry.Item, identification.State.IsIdentified)} a földön maradt (a hátizsákok tele vannak)" +
+                                 FormatMageIdentification(identification));
+                }
+                continue;
             }
-            else
+
+            var storedByOwner = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var dropped = 0;
+            for (var count = 0; count < entry.Quantity; count++)
             {
-                _maze.DropItem(position, item, state: identification.State);
-                messages.Add($"{ItemIdentificationRules.DisplayName(item, identification.State.IsIdentified)} a földön maradt (a hátizsákok tele vannak)" +
-                             FormatMageIdentification(identification));
+                var identification = RollLootItemState(entry.Item);
+                if (TryStoreSearchedLoot(character, entry.Item, shareLootWithParty, out var owner,
+                        identification.State))
+                    storedByOwner[owner] = storedByOwner.GetValueOrDefault(owner) + 1;
+                else
+                {
+                    _maze.DropItem(position, entry.Item, state: identification.State);
+                    dropped++;
+                }
             }
+            foreach (var (owner, quantity) in storedByOwner)
+                messages.Add($"{entry.Item.Name}{(quantity > 1 ? $" ×{quantity}" : string.Empty)} → {owner} hátizsákja");
+            if (dropped > 0)
+                messages.Add($"{entry.Item.Name}{(dropped > 1 ? $" ×{dropped}" : string.Empty)} a földön maradt (a hátizsákok tele vannak)");
         }
         if (foundItems.Count == 0 && messages.All(message => !message.StartsWith(ConsoleRenderer.MoneyIcon, StringComparison.Ordinal)))
             messages.Add("a tetemnél nem találtál zsákmányt");

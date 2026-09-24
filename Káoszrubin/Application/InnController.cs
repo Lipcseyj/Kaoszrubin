@@ -18,6 +18,11 @@ internal sealed class InnController
         "T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020", "T023", "T024"];
     private static readonly HashSet<string> DiscountedBuybackItemIds = ["W001", "W005", "A001", "A002"];
     private static readonly HashSet<string> WitcherOnlyItemIds = ["T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020"];
+    private static readonly HashSet<string> DedicatedRangedStockItemIds =
+        [AmmunitionIds.Arrow, AmmunitionIds.CrossbowBolt, "W039", "W040", "W041", "W042", "W043", "W044"];
+    private static readonly (string ItemId, int UnlockLevel)[] RangedWeaponStock =
+        [("W039", 5), ("W042", 5), ("W040", 7), ("W043", 7), ("W041", 10), ("W044", 12)];
+    private const int AmmunitionBundleSize = 12;
 
     private readonly GameDataCatalog _gameData;
     private readonly CharacterRoster _characterRoster;
@@ -92,7 +97,8 @@ internal sealed class InnController
     {
         if (!_active) return null;
         var vendors = _vendorStocks.Select(pair => new InnVendorSnapshot(pair.Key, VendorName(pair.Key),
-            pair.Value.Select((offer, index) => new InnOfferSnapshot(index, ToSnapshot(offer.Item), offer.Price)).ToArray()))
+            pair.Value.Select((offer, index) => new InnOfferSnapshot(index,
+                ToSnapshot(offer.Item) with { Quantity = offer.Quantity }, offer.Price)).ToArray()))
             .ToList();
         if (_vendorStocks.ContainsKey(InnVendorKind.Blacksmith))
             vendors.Add(CreateRepairVendorSnapshot(InnVendorKind.BlacksmithRepair));
@@ -117,16 +123,16 @@ internal sealed class InnController
         if (!_vendorStocks.TryGetValue(vendor, out var stock)) { message = "Ez a kereskedő most nincs jelen."; return false; }
         if (offerIndex < 0 || offerIndex >= stock.Count) { message = "Az ajánlat már nem érhető el."; return false; }
         var offer = stock[offerIndex];
-        if (!recipient.CanAddToBackpack(offer.Item))
+        if (!CanFitOffer(recipient, offer))
         { message = $"{recipient.Name} hátizsákja tele van."; return false; }
         if (!_partyLeader.SpendGold(offer.Price))
         { message = $"Nincs elég közös arany: még {offer.Price - _partyLeader.Gold} hiányzik."; return false; }
-        recipient.AddToBackpack(offer.Item);
+        GrantOffer(recipient, offer);
         stock.RemoveAt(offerIndex);
         _renderer.CharacterSheet.RefreshInnTransactionRows();
         _revision++;
-        message = $"Megvetted: {offer.Item.Name} ({offer.Price} arany).";
-        RecordTransaction(InnTransactionKind.Purchase, recipient.Name, offer.Item.Name, offer.Price,
+        message = $"Megvetted: {OfferName(offer)} ({offer.Price} arany).";
+        RecordTransaction(InnTransactionKind.Purchase, recipient.Name, OfferName(offer), offer.Price,
             recipient.Name, announceOnHost: true);
         return true;
     }
@@ -570,15 +576,15 @@ internal sealed class InnController
                 if (stock.Count == 0) { selectedIndex = 0; continue; }
                 selectedIndex = Math.Clamp(selectedIndex, 0, stock.Count - 1);
                 var offer = stock[selectedIndex];
-                var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
+                var recipient = _characterRoster.Party.Members.FirstOrDefault(character => CanFitOffer(character, offer));
                 if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
                 if (!_partyLeader.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _partyLeader.Gold} hiányzik."; continue; }
-                recipient.AddToBackpack(offer.Item);
+                GrantOffer(recipient, offer);
                 stock.RemoveAt(selectedIndex);
                 _renderer.CharacterSheet.RefreshInnTransactionRows();
                 _revision++;
-                message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
-                RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, offer.Item.Name,
+                message = $"✅ Megvetted: {OfferName(offer)} → {recipient.Name} hátizsákja ({offer.Price} arany).";
+                RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, OfferName(offer),
                     offer.Price, recipient.Name);
             }
             else
@@ -598,9 +604,13 @@ internal sealed class InnController
         }
     }
 
-    private IReadOnlyList<InnStockOffer> CreateMerchantStock(int completedLevel) =>
-        CreateMerchantStock(completedLevel, completedLevel, 1.0, includePremiumStock: true,
-            includeRandomLegendary: true, includePremiumSupplies: false);
+    private IReadOnlyList<InnStockOffer> CreateMerchantStock(int completedLevel)
+    {
+        var stock = CreateMerchantStock(completedLevel, completedLevel, 1.0, includePremiumStock: true,
+            includeRandomLegendary: true, includePremiumSupplies: false).ToList();
+        AddRangedGeneralStock(stock, completedLevel);
+        return stock.OrderBy(offer => offer.Price).ToList();
+    }
 
     private void RunInnSecretStash(int completedLevel)
     {
@@ -658,15 +668,15 @@ internal sealed class InnController
             redraw = true;
 
             var offer = stock[selectedIndex];
-            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
+            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => CanFitOffer(character, offer));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
             if (!_partyLeader.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _partyLeader.Gold} hiányzik."; continue; }
-            recipient.AddToBackpack(offer.Item);
+            GrantOffer(recipient, offer);
             stock.RemoveAt(selectedIndex);
             _renderer.CharacterSheet.RefreshInnTransactionRows();
             _revision++;
-            message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
-            RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, offer.Item.Name,
+            message = $"✅ Megvetted: {OfferName(offer)} → {recipient.Name} hátizsákja ({offer.Price} arany).";
+            RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, OfferName(offer),
                 offer.Price, recipient.Name);
         }
     }
@@ -674,7 +684,9 @@ internal sealed class InnController
     private IReadOnlyList<InnStockOffer> CreateMerchantStock(int completedLevel, int unlockLevel, double priceMultiplier,
         bool includePremiumStock, bool includeRandomLegendary, bool includePremiumSupplies)
     {
-        var allItems = AllTradableItems().Where(item => item.Rarity != ItemRarity.Legendary).OrderBy(item => item.BasePrice).ToList();
+        var allItems = AllTradableItems().Where(item => item.Rarity != ItemRarity.Legendary &&
+                !DedicatedRangedStockItemIds.Contains(item.Id))
+            .OrderBy(item => item.BasePrice).ToList();
         var normalUnlockedCount = Math.Min(allItems.Count, 8 + unlockLevel * 8);
         var normalPool = allItems.Take(normalUnlockedCount).ToList();
         var baseStockCount = Math.Min(normalPool.Count, Math.Min(12, 5 + completedLevel));
@@ -777,6 +789,47 @@ internal sealed class InnController
         var price = ModifyPriceOfItem(item, completedLevel, priceMultiplier);
         return new InnStockOffer(item, price);
     }
+
+    private InnStockOffer CreateMerchantStockOffer(IItemDefinition item, double priceMultiplier,
+        int completedLevel, int quantity)
+    {
+        var price = ModifyPriceOfItem(item.BasePrice * Math.Max(1, quantity), completedLevel, priceMultiplier);
+        return new InnStockOffer(item, price, Math.Max(1, quantity));
+    }
+
+    private void AddRangedGeneralStock(ICollection<InnStockOffer> stock, int completedLevel)
+    {
+        foreach (var ammunitionId in new[] { AmmunitionIds.Arrow, AmmunitionIds.CrossbowBolt })
+        {
+            var ammunition = _gameData.Items.FirstOrDefault(item => string.Equals(item.Id, ammunitionId,
+                StringComparison.OrdinalIgnoreCase));
+            if (ammunition is not null)
+                stock.Add(CreateMerchantStockOffer(ammunition, 1.0, completedLevel, AmmunitionBundleSize));
+        }
+
+        foreach (var family in new[] { WeaponFamilies.Bow, WeaponFamilies.Crossbow })
+        {
+            var current = RangedWeaponStock.Where(entry => entry.UnlockLevel <= completedLevel)
+                .Select(entry => _gameData.Weapons.FirstOrDefault(weapon =>
+                    string.Equals(weapon.Id, entry.ItemId, StringComparison.OrdinalIgnoreCase)))
+                .Where(weapon => weapon is not null && WeaponFamilies.ForWeapon(weapon) == family)
+                .OrderByDescending(weapon => weapon!.BasePrice).FirstOrDefault();
+            if (current is not null) stock.Add(CreateMerchantStockOffer(current, 1.0, completedLevel));
+        }
+    }
+
+    private static bool CanFitOffer(LiveCharacter character, InnStockOffer offer) =>
+        InventoryBundleGrantService.CanFit(character, [new InventoryBundleEntry(offer.Item, offer.Quantity)]);
+
+    private static void GrantOffer(LiveCharacter character, InnStockOffer offer)
+    {
+        if (!InventoryBundleGrantService.TryGrant([character],
+                [new InventoryBundleEntry(offer.Item, offer.Quantity)], out _))
+            throw new InvalidOperationException("Az előzetesen ellenőrzött fogadói vásárlás nem fért el.");
+    }
+
+    private static string OfferName(InnStockOffer offer) => offer.Item.Name +
+        (offer.Quantity > 1 ? $" ×{offer.Quantity}" : string.Empty);
 
     private IReadOnlyList<InnSellOffer> CreateSellOffers(IReadOnlyDictionary<string, int> buybackPrices) =>
         _characterRoster.Party.Members.SelectMany(character => character.Backpack
@@ -1206,15 +1259,15 @@ internal sealed class InnController
             if (stock.Count == 0) { selectedIndex = 0; continue; }
             selectedIndex = Math.Clamp(selectedIndex, 0, stock.Count - 1);
             var offer = stock[selectedIndex];
-            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
+            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => CanFitOffer(character, offer));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; continue; }
             if (!_partyLeader.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _partyLeader.Gold} hiányzik."; continue; }
-            recipient.AddToBackpack(offer.Item);
+            GrantOffer(recipient, offer);
             stock.RemoveAt(selectedIndex);
             _renderer.CharacterSheet.RefreshInnTransactionRows();
             _revision++;
-            message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
-            RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, offer.Item.Name,
+            message = $"✅ Megvetted: {OfferName(offer)} → {recipient.Name} hátizsákja ({offer.Price} arany).";
+            RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, OfferName(offer),
                 offer.Price, recipient.Name);
         }
     }
@@ -1230,7 +1283,8 @@ internal sealed class InnController
             : _gameData.Armors.Cast<IItemDefinition>();
         source = source
             .Where(item => !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item))
-            .Where(item => !VendorStockExcludedItemIds.Contains(item.Id));
+            .Where(item => !VendorStockExcludedItemIds.Contains(item.Id))
+            .Where(item => !DedicatedRangedStockItemIds.Contains(item.Id));
         var normalPool = source.Where(item => item.Rarity == ItemRarity.Normal).OrderBy(_ => _random.Next()).ToList();
         var magicPool = source.Where(item => item.Rarity == ItemRarity.Magic && item.MagicPower == magicPower)
             .OrderBy(_ => _random.Next()).ToList();
@@ -1242,9 +1296,20 @@ internal sealed class InnController
             var replaceIndex = selected.FindIndex(item => item.Rarity == ItemRarity.Magic);
             if (legendary is not null && replaceIndex >= 0) selected[replaceIndex] = legendary;
         }
-        return selected.Select(item => new InnStockOffer(item,
+        var stock = selected.Select(item => new InnStockOffer(item,
                 Math.Max(1, (int)Math.Round(item.BasePrice * _random.Next(90, 151) / 100.0))))
             .OrderBy(offer => offer.Price).ToList();
+        if (category == ItemCategory.Weapon)
+        {
+            foreach (var (itemId, unlockLevel) in RangedWeaponStock.Where(entry =>
+                         entry.UnlockLevel <= completedLevel))
+            {
+                var weapon = _gameData.Weapons.FirstOrDefault(item => string.Equals(item.Id, itemId,
+                    StringComparison.OrdinalIgnoreCase));
+                if (weapon is not null) stock.Add(CreateMerchantStockOffer(weapon, 1.0, completedLevel));
+            }
+        }
+        return stock.OrderBy(offer => offer.Price).ToList();
     }
 
     private void AddRepairKitStock(ICollection<InnStockOffer> stock, int completedLevel)
@@ -1673,15 +1738,15 @@ internal sealed class InnController
             if (key != ConsoleKey.Enter || stock.Count == 0) continue;
             selectedIndex = Math.Clamp(selectedIndex, 0, stock.Count - 1);
             var offer = stock[selectedIndex];
-            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => character.CanAddToBackpack(offer.Item));
+            var recipient = _characterRoster.Party.Members.FirstOrDefault(character => CanFitOffer(character, offer));
             if (recipient is null) { message = "🎒 A parti összes hátizsákja tele van."; redraw = true; continue; }
             if (!_partyLeader.SpendGold(offer.Price)) { message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {offer.Price - _partyLeader.Gold} hiányzik."; redraw = true; continue; }
-            recipient.AddToBackpack(offer.Item);
+            GrantOffer(recipient, offer);
             stock.RemoveAt(selectedIndex);
             _renderer.CharacterSheet.RefreshInnTransactionRows();
             _revision++;
-            message = $"✅ Megvetted: {offer.Item.Name} → {recipient.Name} hátizsákja ({offer.Price} arany).";
-            RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, offer.Item.Name,
+            message = $"✅ Megvetted: {OfferName(offer)} → {recipient.Name} hátizsákja ({offer.Price} arany).";
+            RecordTransaction(InnTransactionKind.Purchase, _partyLeader.Name, OfferName(offer),
                 offer.Price, recipient.Name);
             redraw = true;
         }

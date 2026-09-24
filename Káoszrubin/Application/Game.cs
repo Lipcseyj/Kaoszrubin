@@ -337,7 +337,8 @@ public sealed partial class Game : ISessionCommandHandler
             IsQuickBattle: _isQuickBattle,
             ActionDetails: _lastBattleActionDetails,
             TurnUndeadTargetEnemyId: prompt.TurnUndeadTargetEnemyId,
-            ActionTargets: prompt.ActionTargets);
+            ActionTargets: prompt.ActionTargets,
+            PhysicalAttackLabel: PhysicalAttackLabel(prompt.ActingCharacter));
     }
 
     private BattlePromptState CreateBattlePromptState(BattleEncounter battle)

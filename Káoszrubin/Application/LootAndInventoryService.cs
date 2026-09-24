@@ -8,6 +8,8 @@ namespace KaoszRubin.Application;
 
 public sealed class LootAndInventoryService
 {
+    public const int CarriedAmmunitionChancePercent = 65;
+    private static readonly ValueRange CarriedAmmunitionQuantity = new(2, 6);
     private readonly GameDataCatalog _gameData;
     private readonly Random _random;
 
@@ -52,6 +54,20 @@ public sealed class LootAndInventoryService
         var candidates = weaponIds.Select(_gameData.GetWeapon).Where(weapon => !weapon.IsMonsterOnly).ToArray();
         if (candidates.Length == 0 || _random.Next(100) >= Math.Clamp(chancePercent, 0, 100)) return null;
         return candidates[_random.Next(candidates.Length)];
+    }
+
+    public bool HasCarriedAmmunition(IReadOnlyList<string> weaponIds) => weaponIds
+        .Select(_gameData.GetWeapon).Any(weapon => weapon.UsesAmmunition);
+
+    public InventoryBundleEntry? RollCarriedAmmunition(IReadOnlyList<string> weaponIds, int chancePercent)
+    {
+        var ammunitionIds = weaponIds.Select(_gameData.GetWeapon)
+            .Where(weapon => weapon is { UsesAmmunition: true, AmmunitionItemId: { Length: > 0 } })
+            .Select(weapon => weapon.AmmunitionItemId!).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (ammunitionIds.Length == 0 || _random.Next(100) >= Math.Clamp(chancePercent, 0, 100)) return null;
+        var ammunition = _gameData.GetItem(ammunitionIds[_random.Next(ammunitionIds.Length)]);
+        return new InventoryBundleEntry(ammunition, _random.Next(
+            CarriedAmmunitionQuantity.Minimum, CarriedAmmunitionQuantity.Maximum + 1));
     }
 
     public IItemDefinition? RollMasterThiefChestLoot(LiveCharacter character, IEnumerable<IItemDefinition> allTradableItems)

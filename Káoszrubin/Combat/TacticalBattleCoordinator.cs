@@ -421,24 +421,30 @@ public sealed class TacticalBattleCoordinator
         LiveCharacter character, Enemy enemy)
     {
         if (!battle.RuntimeFor(character).RequiresTacticSelection) return null;
+        var ranged = character.AttackWeapon?.IsRanged == true;
         return character.CharacterClass.Id switch
         {
             CharacterClassIds.Harcos =>
             [
-                new(BattleActionKind.FighterPrecise, "🎯 Pontos", "nagyobb találati esély, kisebb sebzés",
+                new(BattleActionKind.FighterPrecise, ranged ? "🎯 Célzott lövés" : "🎯 Pontos",
+                    "nagyobb találati esély, kisebb sebzés",
                     _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.FighterPrecise)),
-                new(BattleActionKind.FighterPowerful, "💥 Erőteljes", "páncéltörés és nagyobb sebzés",
+                new(BattleActionKind.FighterPowerful, ranged ? "💥 Páncéltörő lövés" : "💥 Erőteljes",
+                    "páncéltörés és nagyobb sebzés",
                     _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.FighterPowerful)),
-                new(BattleActionKind.FighterDefensive, "🛡️ Védekező", "nagyobb védelem, kisebb sebzés",
+                new(BattleActionKind.FighterDefensive, ranged ? "🛡️ Biztosító lövés" : "🛡️ Védekező",
+                    "nagyobb védelem, kisebb sebzés",
                     _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.FighterDefensive))
             ],
             CharacterClassIds.Tolvaj =>
             [
-                new(BattleActionKind.ThiefAmbush, "🗡️ Orvtámadás", "első találat ×2; tőrrel, illetve jártas rövid karddal hátsó sorból is; hátba kerülve ismételhető",
+                new(BattleActionKind.ThiefAmbush, ranged ? "🌑 Rejtett lövés" : "🗡️ Orvtámadás",
+                    ranged ? "első sikeres lövés ×2" : "első találat ×2; tőrrel, illetve jártas rövid karddal hátsó sorból is; hátba kerülve ismételhető",
                     _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.ThiefAmbush)),
-                new(BattleActionKind.ThiefObserve, "👁️ Megfigyelés", "+2 találat",
+                new(BattleActionKind.ThiefObserve, ranged ? "👁️ Gyengepont-lövés" : "👁️ Megfigyelés", "+2 találat",
                     _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.ThiefObserve)),
-                new(BattleActionKind.ThiefPoison, "☠️ Mérgezett penge", "+1–4 sebzés találatonként",
+                new(BattleActionKind.ThiefPoison, ranged ? "☠️ Mérgezett lövedék" : "☠️ Mérgezett penge",
+                    "+1–4 sebzés találatonként",
                     _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.ThiefPoison))
             ],
             _ => null
