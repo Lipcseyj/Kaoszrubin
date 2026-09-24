@@ -281,10 +281,17 @@ public sealed class BattleEncounter
     {
         var weapon = character.AttackWeapon;
         var daggerFamily = WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Dagger;
-        var thiefRearStrike = character.CharacterClass.Id == CharacterClassIds.Tolvaj && daggerFamily &&
-                              (RuntimeFor(character).Tactic == BattleTactic.ThiefAmbush ||
-                               character.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefAmbush) ||
-                               character.WeaponProficiencyRankFor(WeaponFamilies.Dagger) == WeaponProficiencyRank.Master);
+        var shortSword = string.Equals(weapon?.BaseWeaponId ?? weapon?.Id, "W002",
+            StringComparison.OrdinalIgnoreCase);
+        var familyId = WeaponFamilies.ForWeapon(weapon);
+        var proficiency = character.WeaponProficiencyRankFor(familyId);
+        var trainedAmbush = RuntimeFor(character).Tactic == BattleTactic.ThiefAmbush &&
+                            (!shortSword || proficiency is not null);
+        var rearStrikeTraining = trainedAmbush ||
+                                 character.HasClassFeatureUpgrade(ClassFeatureUpgrades.ThiefAmbush) ||
+                                 proficiency == WeaponProficiencyRank.Master;
+        var thiefRearStrike = character.CharacterClass.Id == CharacterClassIds.Tolvaj &&
+                              (daggerFamily || shortSword) && rearStrikeTraining;
         if (!HasProtectiveFormation || !IsRearRow(character) ||
             weapon?.CanAttackFromRear != true && !thiefRearStrike ||
             FrontPartnerOf(character) is not { IsAlive: true })

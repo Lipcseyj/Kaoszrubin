@@ -437,6 +437,8 @@ LW017;Ezüsthold;WT002;12-22;7;igen;igen;nem;igen;Holdfényben kovácsolt katana
 LW018;Mélységszúró;WT002;10-18;4;nem;igen;nem;igen;Tengermélyi kristályból csiszolt tőr nyugtalanító kék ragyogással.;7100;Legendás;W001;5;1;szúrás;1;nem;DAGGER;180
 LW019;Főnixlándzsa;WT001;14-25;7;igen;nem;igen;nem;Újjászülető lánggal égő lándzsa amelynek hegye sosem hűl ki.;10200;Legendás;W011;6;4;szúrás;2;igen;POLEARM;260
 LW020;Koronatörő;WT001;16-30;11;igen;nem;nem;nem;Királyok bukását megélt pallos aranyrepedésekkel a pengéjén.;13500;Legendás;W009;7;8;vágás;2;nem;SWORD;300
+LW021;Viharszúró;WT002;10-19;3;nem;igen;nem;nem;Villámjárta rövid kard amely kékes szikrával találja meg a páncél réseit.;7900;Legendás;W002;5;2;szúrás;1;nem;SWORD;210
+LW022;Alkonyhasító;WT002;11-21;4;nem;igen;nem;nem;Bíbor alkonyfénybe burkolózó rövid kard amely hangtalan ívet húz a sötétben.;9400;Legendás;W002;6;2;vágás;1;nem;SWORD;230
 
 #Páncélok
 Id;Név;Védelem;Barbár;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;VágásVédelem;SzúrásVédelem;ZúzásVédelem;TűzVédelem;SavVédelem;NekrotikusVédelem;KáoszVédelem;MaxTartósság

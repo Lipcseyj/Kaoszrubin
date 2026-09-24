@@ -422,7 +422,7 @@ public sealed class TacticalBattleCoordinator
             ],
             CharacterClassIds.Tolvaj =>
             [
-                new(BattleActionKind.ThiefAmbush, "🗡️ Orvtámadás", "első találat ×2; tőrrel hátsó sorból is, hátba kerülve ismételhető",
+                new(BattleActionKind.ThiefAmbush, "🗡️ Orvtámadás", "első találat ×2; tőrrel, illetve jártas rövid karddal hátsó sorból is; hátba kerülve ismételhető",
                     _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.ThiefAmbush)),
                 new(BattleActionKind.ThiefObserve, "👁️ Megfigyelés", "+2 találat",
                     _battleSystem.EstimateCharacterHitChance(character, enemy, BattleTactic.ThiefObserve)),
