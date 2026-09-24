@@ -13,7 +13,8 @@ public sealed record MonsterAbilityDefinition(string Id, string Name, string Des
 {
     public IReadOnlyList<MonsterAbilityComponent> Effects => ConfiguredEffects ?? [];
     public MonsterAbilityEffect Effect => Effects.FirstOrDefault()?.Effect ?? MonsterAbilityEffect.Trait;
-    public int Value => Effects.FirstOrDefault()?.Value ?? 0;
+    public int Value => Effects.FirstOrDefault()?.AverageValue ?? 0;
+    public string ValueDisplay => Effects.FirstOrDefault()?.ValueDisplay ?? "0";
     public string? StatusId => Effects.FirstOrDefault()?.StatusId;
     public DamageType? DamageType => Effects.FirstOrDefault()?.DamageType;
     public IReadOnlyList<MonsterAbilityComponent> AdditionalEffects => Effects.Skip(1).ToArray();
@@ -23,7 +24,11 @@ public sealed record MonsterAbilityDefinition(string Id, string Name, string Des
 public sealed record MonsterAbilityComponent(MonsterAbilityEffect Effect, int Value = 0,
     string? StatusId = null, DamageType? DamageType = null, ValueRange? Dice = null,
     int ChancePercent = 100, MonsterResistanceAbility ResistanceAbility = MonsterResistanceAbility.None,
-    int ResistanceDifficulty = 0, int Duration = 0);
+    int ResistanceDifficulty = 0, int Duration = 0)
+{
+    public int AverageValue => Dice is { } dice ? (dice.Minimum + dice.Maximum) / 2 : Value;
+    public string ValueDisplay => Dice?.ToString() ?? Value.ToString();
+}
 
 public sealed record MonsterAbilityEffectRow(string AbilityId, int Order, MonsterAbilityComponent Component);
 

@@ -1385,10 +1385,52 @@ public static class CsvGameDataLoader
             : throw new InvalidDataException(
                 $"A(z) '{abilityId}' szörnyképesség-hatás sorrendje pozitív egész legyen.");
         return new MonsterAbilityEffectRow(abilityId, order,
-            new MonsterAbilityComponent(ParseMonsterAbilityEffect(cells, 2), Integer(cells, 3) ?? 0,
-                EmptyAsNull(Cell(cells, 5)), ParseOptionalDamageType(Cell(cells, 6)), ValueRangeFrom(cells, 4),
-                Math.Clamp(Integer(cells, 7) ?? 100, 0, 100), ParseMonsterResistanceAbility(cells, 8),
-                Math.Max(0, Integer(cells, 9) ?? 0), Math.Max(0, Integer(cells, 10) ?? 0)));
+            new MonsterAbilityComponent(ParseMonsterAbilityEffect(cells, 2),
+                MonsterEffectInteger(cells, 3, abilityId, "Érték", 0), EmptyAsNull(Cell(cells, 5)),
+                ParseOptionalDamageType(Cell(cells, 6)), MonsterEffectDice(cells, 4, abilityId),
+                MonsterEffectPercentage(cells, 7, abilityId), ParseMonsterResistanceAbility(cells, 8),
+                MonsterEffectNonNegativeInteger(cells, 9, abilityId, "Nehézség"),
+                MonsterEffectNonNegativeInteger(cells, 10, abilityId, "Időtartam")));
+    }
+
+    private static int MonsterEffectInteger(string[] cells, int index, string abilityId, string fieldName,
+        int defaultValue)
+    {
+        var raw = Cell(cells, index);
+        if (string.IsNullOrWhiteSpace(raw)) return defaultValue;
+        return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : throw new InvalidDataException(
+                $"A(z) '{abilityId}' szörnyképesség-hatás {fieldName} mezője egész szám legyen.");
+    }
+
+    private static int MonsterEffectPercentage(string[] cells, int index, string abilityId)
+    {
+        var value = MonsterEffectInteger(cells, index, abilityId, "Esély", 100);
+        return value is >= 0 and <= 100
+            ? value
+            : throw new InvalidDataException(
+                $"A(z) '{abilityId}' szörnyképesség-hatás Esély mezője 0 és 100 közé essen.");
+    }
+
+    private static int MonsterEffectNonNegativeInteger(string[] cells, int index, string abilityId,
+        string fieldName)
+    {
+        var value = MonsterEffectInteger(cells, index, abilityId, fieldName, 0);
+        return value >= 0
+            ? value
+            : throw new InvalidDataException(
+                $"A(z) '{abilityId}' szörnyképesség-hatás {fieldName} mezője nemnegatív legyen.");
+    }
+
+    private static ValueRange? MonsterEffectDice(string[] cells, int index, string abilityId)
+    {
+        var raw = Cell(cells, index);
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        return ValueRangeFrom(cells, index) is { } range
+            ? range
+            : throw new InvalidDataException(
+                $"A(z) '{abilityId}' szörnyképesség-hatás Dobás mezője érvényes minimum-maximum tartomány legyen.");
     }
 
     private static List<MonsterAbilityDefinition> ResolveMonsterAbilityEffects(
@@ -1418,10 +1460,12 @@ public static class CsvGameDataLoader
     private static int AbilityThreat(MonsterAbilityDefinition ability) => ability.Effects.Sum(component =>
         (component.Effect switch
         {
-            MonsterAbilityEffect.ExtraDamage => Math.Max(1, component.Value * ability.ChancePercent / 100),
+            MonsterAbilityEffect.ExtraDamage => Math.Max(1,
+                component.AverageValue * ability.ChancePercent * component.ChancePercent / 10_000),
             MonsterAbilityEffect.ApplyStatus or MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease or
                 MonsterAbilityEffect.Bleeding => ability.Trigger == MonsterAbilityTrigger.Active ? 10 : 5,
-            MonsterAbilityEffect.Regeneration => Math.Max(2, component.Value * 2),
+            MonsterAbilityEffect.Regeneration => Math.Max(2,
+                component.AverageValue * component.ChancePercent / 50),
             MonsterAbilityEffect.ArmorBonus => component.Value * 3,
             MonsterAbilityEffect.InitiativeBonus => component.Value * 2,
             MonsterAbilityEffect.Stagger => Math.Max(2, component.Value * 3),
@@ -1647,6 +1691,28 @@ public static class CsvGameDataLoader
                 if (component.Duration < 0)
                     throw new InvalidDataException(
                         $"A(z) '{ability.Id}' hatásának időtartama nem lehet negatív.");
+                if (component.Duration > 0 && !IsMonsterStatusEffect(component.Effect))
+                    throw new InvalidDataException(
+                        $"A(z) '{ability.Id}' időtartama csak állapothatáshoz adható meg.");
+                if (component.Dice is not null && component.Value != 0)
+                    throw new InvalidDataException(
+                        $"A(z) '{ability.Id}' hatása fix Érték és Dobás közül csak az egyiket használhatja.");
+                if (component.Dice is { Minimum: < 0 } || component.Value < 0 &&
+                    component.Effect is MonsterAbilityEffect.ExtraDamage or MonsterAbilityEffect.Regeneration)
+                    throw new InvalidDataException(
+                        $"A(z) '{ability.Id}' sebző vagy gyógyító hatása nem lehet negatív.");
+                if (component.Dice is not null && component.Effect is not
+                    (MonsterAbilityEffect.ExtraDamage or MonsterAbilityEffect.Regeneration))
+                    throw new InvalidDataException(
+                        $"A(z) '{ability.Id}' Dobás mezője csak sebzéshez vagy regenerációhoz használható.");
+                if (component.ResistanceAbility != MonsterResistanceAbility.None &&
+                    ability.Trigger is MonsterAbilityTrigger.Passive or MonsterAbilityTrigger.TurnStart)
+                    throw new InvalidDataException(
+                        $"A(z) '{ability.Id}' célpont nélküli hatásához nem adható ellenállási próba.");
+                if (ability.Trigger == MonsterAbilityTrigger.Passive &&
+                    (component.ChancePercent != 100 || component.Dice is not null || component.Duration > 0))
+                    throw new InvalidDataException(
+                        $"A(z) '{ability.Id}' passzív hatása nem lehet véletlenszerű vagy időzített.");
             }
             foreach (var component in ability.Effects.Where(component =>
                          component.Effect == MonsterAbilityEffect.Stagger))
@@ -1654,6 +1720,10 @@ public static class CsvGameDataLoader
                     throw new InvalidDataException($"A(z) '{ability.Id}' megingása aktív képességnél 1 és 3 közötti legyen.");
         }
     }
+
+    private static bool IsMonsterStatusEffect(MonsterAbilityEffect effect) => effect is
+        MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease or MonsterAbilityEffect.Bleeding or
+        MonsterAbilityEffect.ApplyStatus;
 
     private static void ValidateStrengthHitBonuses(IEnumerable<CharacterClassDefinition> characterClasses,
         IReadOnlyCollection<StrengthHitBonusDefinition> bonuses)

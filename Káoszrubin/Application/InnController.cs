@@ -1129,16 +1129,16 @@ internal sealed class InnController
             {
                 var activation = ability.Trigger switch
                 {
-                    MonsterAbilityTrigger.Passive => $"állandó, érték {ability.Value}",
-                    MonsterAbilityTrigger.TurnStart => $"kör elején, érték {ability.Value}",
+                    MonsterAbilityTrigger.Passive => $"állandó, érték {ability.ValueDisplay}",
+                    MonsterAbilityTrigger.TurnStart => $"kör elején, érték {ability.ValueDisplay}",
                     MonsterAbilityTrigger.Active => $"aktív, {ability.Range} mező, {ability.Cooldown} kör lehűlés" +
                         (ability.ChargesPerBattle > 0 ? $", {ability.ChargesPerBattle} használat/csata" : string.Empty),
-                    _ => $"találatkor {ability.ChancePercent}% esély, érték {ability.Value}"
+                    _ => $"találatkor {ability.ChancePercent}% esély, érték {ability.ValueDisplay}"
                 };
                 var extraEffects = ability.AdditionalEffects is { Count: > 0 }
                     ? $" További hatások: {string.Join(", ", ability.AdditionalEffects.Select(effect =>
                         effect.Effect == MonsterAbilityEffect.ExtraDamage
-                            ? $"{effect.Value} {effect.DamageType?.Name() ?? "sebzés"}"
+                            ? $"{effect.ValueDisplay} {effect.DamageType?.Name() ?? "sebzés"}"
                             : effect.StatusId ?? effect.Effect.ToString()))}."
                     : string.Empty;
                 lines.Add($"{ability.Name} — {activation}. {ability.Description}{extraEffects}");
