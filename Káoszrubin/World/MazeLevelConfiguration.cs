@@ -7,7 +7,7 @@ public sealed record IntRange(int Minimum, int Maximum)
     public int Roll(Random random) => random.Next(Minimum, Maximum + 1);
 }
 
-public enum Amount { One, Few, Handful, Several, Pack, Lots, Horde }
+public enum Amount { One, Few, TwoThree, Handful, Several, Pack, Lots, Horde }
 
 public static class AmountRanges
 {
@@ -15,6 +15,7 @@ public static class AmountRanges
     {
         Amount.One => new(1, 1),
         Amount.Few => new(1, 2),
+        Amount.TwoThree => new(2, 3),
         Amount.Handful => new(2, 4),
         Amount.Several => new(5, 9),
         Amount.Pack => new(10, 15),
@@ -197,18 +198,21 @@ public static class MazeLevelConfigurations
                 Level = 1,
                 RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 5),
-                TreasureChestCount = new(2, 2),
-                TreasureGold = new(40, 100),
+                TreasureChestCount = new(2, 3),
+                TreasureGold = new(50, 120),
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Óriáspatkány, Amount.Several, Amount.Handful),
+                    Encounters.Mixed(MonsterIds.Óriáspatkány, Amount.Handful, MonsterIds.Óriásdenevér, Amount.Handful, Amount.One),
                     Encounters.Same(MonsterIds.Kobold, Amount.Few, Amount.Several),
                     Encounters.Same(MonsterIds.Goblin, Amount.Few, Amount.Few)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo(MonsterIds.Óriáspatkány, Amount.Several),
-                    Encounters.Solo(MonsterIds.Kobold, Amount.Few)
+                    Encounters.Solo(MonsterIds.Óriáspatkány, Amount.Few),
+                    Encounters.Solo(MonsterIds.Óriásdenevér, Amount.Few),
+                    Encounters.Solo(MonsterIds.Kobold, Amount.Few),
+                    Encounters.Horde(MonsterIds.Óriáspatkány, Amount.Few, Amount.Handful)
                 ]
             },
             [2] = new()
@@ -219,17 +223,19 @@ public static class MazeLevelConfigurations
                 RoomCount = Amount.Several.Range(),
                 RoomSize = new(3, 5),
                 TreasureChestCount = Amount.Handful.Range(),
-                TreasureGold = new(60, 140),
+                TreasureGold = new(60, 160),
                 RoomEncounters =
                 [
+                    Encounters.Mixed(MonsterIds.Óriáspatkány, Amount.Handful, MonsterIds.Óriásdenevér, Amount.Handful, Amount.Few),
                     Encounters.Same(MonsterIds.Óriáspatkány, Amount.Few, Amount.Handful),
                     Encounters.Same(MonsterIds.Csontváz, Amount.One, Amount.One),
                     Encounters.LeaderGroup(MonsterIds.Patkányember, MonsterIds.Óriáspatkány, Amount.One, Amount.Handful)
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo(MonsterIds.Óriáspatkány, Amount.Pack),
-                    Encounters.Solo(MonsterIds.Kobold, Amount.Few)
+                    Encounters.Solo(MonsterIds.Óriáspatkány, Amount.Handful),
+                    Encounters.Solo(MonsterIds.Kobold, Amount.Few),
+                    Encounters.Horde(MonsterIds.Óriáspatkány, Amount.Handful, Amount.Handful)
                 ]
             },
             [3] = new()
@@ -245,16 +251,19 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(80, 200),
                 RoomEncounters =
                 [
-                    Encounters.Same(MonsterIds.Kobold, Amount.Few, Amount.Several),
+                    Encounters.Same(MonsterIds.Kobold, Amount.Few, Amount.Few),
                     Encounters.Mixed(MonsterIds.Goblin, Amount.Several, MonsterIds.Kobold, Amount.Few, Amount.Few),
+                    Encounters.Mixed(MonsterIds.Goblin, Amount.Several, MonsterIds.GoblinÍjász, Amount.Handful, Amount.Few),
                     Encounters.Same(MonsterIds.Csontváz, Amount.Few, Amount.Few),
-                    Encounters.LeaderGroup(MonsterIds.GoblinVajákos, MonsterIds.Goblin, Amount.One, Amount.Several)
+                    Encounters.LeaderGroup(MonsterIds.GoblinVajákos, MonsterIds.Goblin, Amount.One, Amount.Several),
+                    Encounters.LeaderGroup(MonsterIds.GoblinÍjász, MonsterIds.Goblin, Amount.One, Amount.Several)
                 ],
                 CorridorEncounters =
                 [
                     Encounters.Solo(MonsterIds.Óriáspatkány, Amount.Few),
                     Encounters.Solo(MonsterIds.Goblin, Amount.Several, EnemyMovementProfile.Patrol),
-                    Encounters.Solo(MonsterIds.Farkas, Amount.Few, EnemyMovementProfile.Patrol)
+                    Encounters.Solo(MonsterIds.Farkas, Amount.Few, EnemyMovementProfile.Patrol),
+                    Encounters.Horde(MonsterIds.Farkas, Amount.Few, Amount.TwoThree)
                 ]
             },
             [4] = new()

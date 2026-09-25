@@ -430,10 +430,10 @@ public static class AsciiPortraits
            [MonsterIds.Wight] = Portrait(
                """
                    .~~~~.
-                  / ◉  ◉ \
-                 |   ▽▽   |
-                 \__||||__/
-                 ~~/|  |\~~
+                  / ◉  ◉ \    )
+                 |   ▽▽   |  /
+                 \__||||__/=/
+                 ~~/|  |\  /
                """),
 
            // E038 - Wyvern
@@ -490,7 +490,7 @@ public static class AsciiPortraits
            [MonsterIds.Hidra] = Portrait(
                """
                 /\  /\  /\
-               (◉ )(◉ )(◉ )
+               (◉◉)(◉◉)(◉◉)
                 \▲/\▲/\▲/
                  \▽▽▽▽▽/
                   /| | |\
@@ -626,14 +626,14 @@ public static class AsciiPortraits
                    /|  |\
                """),
 
-           // E064 - Kaszás Wight
+           // E064 - Ősi hidra
            [MonsterIds.ŐsiHidra] = Portrait(
                """
-                    .~~~~.
-                   / ◉  ◉ \   )
-                  |   ▽▽   |  /
-                  \__||||__/=/
-                  ~~/|  |\ /
+               (◉◉)(◉◉)(◉◉)
+                ||__||__||
+                \░/\░/\░/
+                 \▽▽▽▽▽/
+                 /| | |\
                """),
 
            // E065 - Vámpír kardmester
@@ -689,11 +689,11 @@ public static class AsciiPortraits
            // E070 - Alfa vérfarkas
            [MonsterIds.AlfaVérfarkas] = Portrait(
                """
-                 /\         /\
-                /  \_______/  \
-               |   ò       ó   |
-                \   /▽▽▽\    /
-                /\/\/   \/\/\
+                 /\      /\
+                /  \____/  \
+               |   ò    ó   |
+                \  /▽▽▽\   /
+                /\/\/ \/\/\
                """),
 
            // E071 - Ősi minotaurusz
@@ -709,10 +709,11 @@ public static class AsciiPortraits
            // E072 - Káoszkultista
            [MonsterIds.Orgyilkos] = Portrait(
                """
-                     /\
-                    /╳ \
-                   /(◉ ◉)\
-                  /_| ▽ |_\  †
+                     
+                     ▒▒▒ 
+                   ▒(◉ ◉)▒
+                   /|___|▒
+                  /_|   |_\  
                     /|_|\
                """),
 
@@ -759,11 +760,11 @@ public static class AsciiPortraits
            // E077 - Pokolkutya
            [MonsterIds.Pokolkutya] = Portrait(
                """
-                 ^/\_______/\^
-                /   ◉     ◉   \
-               |     /▲\      |
-                \__▽▽▽▽▽____/
-                 ~~/\/  \/\~~
+                ^/\_____/\^
+                /  ◉   ◉  \
+               |    /▲\    |
+                \__▽▽▽▽▽__/
+                ~~/\/  \/\~~
                """),
 
            // E078 - Kígyóember
