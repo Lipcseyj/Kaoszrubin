@@ -302,9 +302,12 @@ public sealed partial class Game
         if (spellPlan is not null)
         {
             if (spellPlan.HostileTargets.Count > 0) battle.FaceEnemyToward(enemy, spellPlan.HostileTargets[0]);
-            PlaySpellImpact(spellPlan.Spell, enemy.Position, spellPlan.TargetPosition,
-                spellPlan.HostileTargets.Select(GetCasterPosition).ToArray());
-            PresentBattleEntries([_enemySpellcastingService.Execute(enemy, spellPlan)]);
+            var failureChance = EnemySpellFailureChance(enemy, battle.IsEngaged(enemy));
+            var spellEntry = _enemySpellcastingService.Execute(enemy, spellPlan, failureChance);
+            if (!spellEntry.Message.Contains("meghiúsul", StringComparison.OrdinalIgnoreCase))
+                PlaySpellImpact(spellPlan.Spell, enemy.Position, spellPlan.TargetPosition,
+                    spellPlan.HostileTargets.Select(GetCasterPosition).ToArray());
+            PresentBattleEntries([spellEntry]);
             if (spellPlan.HostileTargets.Count > 0) battle.RecordAttack(BattleSide.Hostile);
             foreach (var target in spellPlan.HostileTargets.Where(target => !target.IsAlive))
                 ResolveCharacterDefeat(battle, target);
@@ -1553,12 +1556,21 @@ public sealed partial class Game
 
     private static double ScoreEnemySpell(Enemy enemy, EnemySpellPlan plan, bool engaged)
     {
-        double score = plan.Score;
-        if (engaged)
-            score -= enemy.Definition.SpellcasterProfile?.Style == EnemySpellcastingStyle.BattleMage ? 20 : 45;
+        var failureChance = EnemySpellFailureChance(enemy, engaged);
+        double score = plan.Score * (100 - failureChance) / 100d;
+        if (engaged) score -= enemy.Definition.SpellcasterProfile?.Style == EnemySpellcastingStyle.BattleMage ? 5 : 15;
         if (enemy.CurrentHitPoints * 100 <= enemy.MaximumHitPoints * 30 && plan.HostileTargets.Count > 0)
             score -= 15;
         return score;
+    }
+
+    private static int EnemySpellFailureChance(Enemy enemy, bool engaged)
+    {
+        var intelligence = enemy.Definition.SpellcasterProfile?.Intelligence ?? 0;
+        var usesStaff = enemy.EquippedWeapon is { } weapon &&
+                        WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Staff;
+        return SpellcastingRules.CombatFailureChance(intelligence, enemy.EffectiveSpeed, engaged,
+            usesStaff ? 5 : 0);
     }
 
     private double ScoreEnemyWeapon(Enemy enemy, WeaponDefinition weapon,

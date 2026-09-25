@@ -67,6 +67,20 @@ internal static partial class Program
                !caster.IsSpellReady(plan.Spell.Id),
             "A varázslás nem fogyasztott mannát, nem sebzett vagy nem indította el a lehűlést.");
 
+        var interruptedCaster = new ConfiguredEnemy(new Position(2, 2),
+            baseDefinition with { SpellcasterProfile = profile }, new Random(1));
+        var interruptedTarget = CreateCharacter("Lekötött cél", vitality: 100);
+        var interruptedPlan = service.SelectSpell(interruptedCaster, [interruptedCaster],
+            [(interruptedTarget, new Position(3, 2))], (_, _, _) => true)!;
+        var interruptedMana = interruptedCaster.CurrentMana;
+        var interruptedHp = interruptedTarget.CurrentVitality;
+        var interrupted = service.Execute(interruptedCaster, interruptedPlan, combatFailureChance: 100);
+        Assert(interrupted.Message.Contains("meghiúsul", StringComparison.OrdinalIgnoreCase) &&
+               interruptedCaster.CurrentMana == interruptedMana - interruptedPlan.Spell.ManaCost &&
+               !interruptedCaster.IsSpellReady(interruptedPlan.Spell.Id) &&
+               interruptedTarget.CurrentVitality == interruptedHp,
+            "A lekötött ellenség elrontott varázslata nem veszítette el szabályosan a mannát és az akciót.");
+
         var saved = new EnemySaveData(caster.Position, caster.Definition.Id, caster.CurrentHitPoints,
             CurrentMana: caster.CurrentMana,
             SpellCooldowns: caster.SpellCooldowns.ToDictionary(item => item.Key, item => item.Value));

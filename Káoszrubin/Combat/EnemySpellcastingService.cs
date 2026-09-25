@@ -60,12 +60,18 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
         return score * percent / 100;
     }
 
-    public BattleLogEntry Execute(Enemy caster, EnemySpellPlan plan)
+    public BattleLogEntry Execute(Enemy caster, EnemySpellPlan plan, int combatFailureChance = 0)
     {
         if (!caster.SpendMana(plan.Spell.ManaCost))
             return new BattleLogEntry($"{caster.Name} nem tudja befejezni a varázslatot.", BattleLogKind.Information);
         caster.StartSpellCooldown(plan.Spell.Id,
             Math.Max(1, caster.Definition.SpellcasterProfile?.SpellCooldownRounds ?? 1));
+        var failureRoll = combatFailureChance > 0 ? random.Next(1, 101) : 101;
+        if (failureRoll <= combatFailureChance)
+            return new BattleLogEntry(
+                $"💫 {caster.Name} varázslata meghiúsul a közelharci lekötésben: {plan.Spell.Name} — " +
+                $"kockázat {combatFailureChance}%, dobás {failureRoll}; -{plan.Spell.ManaCost} manna.",
+                BattleLogKind.Information);
 
         var notes = new List<string>();
         foreach (var effect in gameData.GetSpellEffects(plan.Spell.Id))
