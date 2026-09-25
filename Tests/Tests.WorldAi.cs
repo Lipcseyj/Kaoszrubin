@@ -139,8 +139,28 @@ internal static partial class Program
     static void NewSpellEffectsAreSupported()
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-        foreach (var id in new[] { "S027", "S028", "P026", "P027", "P028" })
+        foreach (var id in new[] { "S027", "S028", "S029", "S030", "P026", "P027", "P028", "P029", "P030" })
             Assert(catalog.GetSpellEffects(id).Count > 0, $"A(z) {id} varázslat hatásai hiányoznak.");
+
+        var weapon = catalog.GetWeapon("W005");
+        var enchanted = CreateCharacter("Fegyverbűvös");
+        Assert(enchanted.EffectiveWeaponDamageType(weapon) == weapon.DamageType,
+            "Varázshatás nélkül megváltozott a fegyver sebzéstípusa.");
+        var fireEffect = catalog.GetSpellEffects("P029").Single();
+        var necroticEffect = catalog.GetSpellEffects("S029").Single();
+        new SpellExecutionService(catalog, new Random(2)).ApplyCharacterEffect(enchanted, enchanted,
+            fireEffect, catalog.GetSpell("P029"), ActiveSpellEffectType.WeaponDamageType);
+        Assert(enchanted.EffectiveWeaponDamageType(weapon) == DamageType.Fire,
+            "A Lángáldás nem változtatta tűzzé a támadó fegyver sebzéstípusát.");
+        new SpellExecutionService(catalog, new Random(3)).ApplyCharacterEffect(enchanted, enchanted,
+            necroticEffect, catalog.GetSpell("S029"), ActiveSpellEffectType.WeaponDamageType);
+        Assert(enchanted.EffectiveWeaponDamageType(weapon) == DamageType.Necrotic &&
+               enchanted.ActiveSpellEffects.Count(effect =>
+                   effect.Type == ActiveSpellEffectType.WeaponDamageType) == 1,
+            "A Sírpenge nem írta felül egységesen a korábbi fegyverbűvölést.");
+        for (var round = 0; round < 4; round++) enchanted.AdvanceSpellEffects();
+        Assert(enchanted.EffectiveWeaponDamageType(weapon) == weapon.DamageType,
+            "A fegyver eredeti sebzéstípusa nem állt vissza a varázslat lejártakor.");
 
         var enemy = new ConfiguredEnemy(new Position(3, 3), catalog.GetEnemy("E001"));
         enemy.ApplySpellEffect(new ActiveSpellEffect("S027", ActiveSpellEffectType.HitBonus, -4, 4));

@@ -192,9 +192,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 BattleLogKind.Information);
         var hitPointsBefore = defender.CurrentHitPoints;
         defender.SetCurrentHitPoints(target.CurrentHitPoints);
+        var resolvedDamageType = attacker.EffectiveWeaponDamageType(resolvedWeapon);
         if (defender.CurrentHitPoints < hitPointsBefore &&
-            resolvedWeapon?.DamageType is DamageType.Fire or DamageType.Acid)
-            defender.SuppressRegeneration(resolvedWeapon.DamageType);
+            resolvedDamageType is DamageType.Fire or DamageType.Acid)
+            defender.SuppressRegeneration(resolvedDamageType);
         var statusText = finishAction ? FinishCharacterAction(attacker, runtime) : string.Empty;
             return new BattleLogEntry(
                 $"{FormatAttackSummary(attacker.Name, defender.Name, attacks,
@@ -1153,8 +1154,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         // ============================================================
 
         var baseDamage = weapon?.Damage is { } range ? Roll(range) : Roll(new ValueRange(1, 2));
+        var damageType = player.EffectiveWeaponDamageType(weapon);
         var thickHideChance = criticalMultiplier > 1 ||
-                              !(weapon?.DamageType ?? DamageType.Bludgeoning).IsPhysical()
+                              !damageType.IsPhysical()
             ? 0
             : Math.Clamp(((weapon?.Damage?.Maximum ?? 2) - baseDamage) * defender.ThickHidePercentPerPoint,
                 0, 50);
@@ -1223,7 +1225,6 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         // VÉDELMI FÁZIS – SEBZÉSTÍPUS, PÁNCÉL ÉS PAJZS
         // ============================================================
 
-        var damageType = weapon?.DamageType ?? DamageType.Bludgeoning;
         var typeDefense = defender.Resistances?.Against(damageType) ?? 0;
         defenseCalculations.Add($"🛡️ Sebzéstípus: {damageType.Name()}");
         defenseCalculations.Add($"🛡️ Típusvédelem {typeDefense:+#;-#;0}");

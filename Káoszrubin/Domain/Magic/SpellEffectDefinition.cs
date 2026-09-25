@@ -33,7 +33,8 @@ public enum SpellEffectType
     DispelBeneficial,
     RestoreNeeds,
     VisionBonus,
-    BreakItemCurse
+    BreakItemCurse,
+    WeaponDamageType
 }
 
 public enum SpellResolution
@@ -89,7 +90,8 @@ public enum ActiveSpellEffectType
     GuardianAngel,
     Sanctuary,
     SkipNext,
-    VisionBonus
+    VisionBonus,
+    WeaponDamageType
 }
 
 public sealed record ActiveSpellEffect(string SourceSpellId, ActiveSpellEffectType Type, int Value,

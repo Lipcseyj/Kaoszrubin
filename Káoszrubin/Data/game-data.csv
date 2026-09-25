@@ -898,6 +898,8 @@ S025;Lélekvihar;5;44;Sötét arkán vihar tépi az ellenfeleket és még több 
 S026;Fényvarázslat;1;6;Arkán fény veszi körül a mágust és messzebbre tárja fel előtte a labirintust.;Self;0;0;nem;Exploration;Blue;0;
 S027;Vakítás;2;11;Vakító arkán villanás homályosítja el az ellenfél látását és jelentősen rontja a támadásainak pontosságát.;Enemy;8;0;igen;Both;YellowBrown;600;
 S028;Rémkép;3;15;Rémisztő látomásokat idéz az ellenségek elméjébe amelyek megtorpannak és bizonytalanabbul támadnak.;Area;7;1;igen;Both;Blue;3400;
+S029;Sírpenge;2;11;Nekrotikus energiával itatja át egy partitag támadó fegyverét négy körre.;PartyMember;6;0;igen;Both;Shadow;0;
+S030;Halálosztó fegyverzet;4;28;Nekrotikus energiával itatja át a teljes élő parti támadó fegyvereit négy körre.;Party;0;0;nem;Both;Shadow;0;
 
 D001;Árnyéktű;1;6;Sötét erőből szőtt lövedék amely könyörtelenül követi áldozatát.;Enemy;8;0;igen;Combat;Shadow;900;igen
 D002;Dermesztő átok;1;5;Síri hideggel marja és lassítja meg a közeli áldozatot.;Enemy;1;0;igen;Combat;SicklyGreen;1300;igen
@@ -948,6 +950,8 @@ P025;Mennyei tűz;5;45;Tiszta égi láng borítja el az ellenségeket és továb
 P026;Fegyveráldás;1;6;A pap rövid időre szent erővel áldja meg saját fegyverét amely pontosabban és nagyobb erővel sújt le.;Self;0;0;nem;Both;YellowBrown;0;
 P027;Átoktörés;2;11;Isteni erő töri meg az egy partitagot sújtó káros mágikus hatásokat és annak legerősebb aktív tárgyátkát.;PartyMember;6;0;igen;Both;YellowBrown;0;
 P028;Fénykitörés;3;16;Robbanásszerű szent fény sújtja a célterület ellenségeit és megrendítheti őket.;Area;7;1;igen;Both;YellowBrown;2400;
+P029;Lángáldás;2;11;Isteni lánggal vonja be egy partitag támadó fegyverét négy körre.;PartyMember;6;0;igen;Both;Red;0;
+P030;Lángoló fegyverzet;4;28;Isteni lánggal vonja be a teljes élő parti támadó fegyvereit négy körre.;Party;0;0;nem;Both;Red;0;
 
 #Varázshatások
 Id;VarázslatId;Sorrend;Típus;Kocka;IntSzorzó;SzintSzorzó;Érték;IdőtartamKör;Esély;Ellenpróba;Paraméter;Leírás
@@ -995,6 +999,8 @@ FX-S027-1;S027;1;HitBonus;;0;0;-4;4;100;SaveNegates;;Négy körre négy ponttal 
 FX-S027-2;S027;2;VisionBonus;;0;0;-3;4;100;SaveNegates;;Négy körre három mezővel csökkenti a célpont látótávját.
 FX-S028-1;S028;1;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;Sikertelen ellenpróbánál a célpont következő akciója kimarad.
 FX-S028-2;S028;2;HitBonus;;0;0;-2;3;100;SaveNegates;;Három körre két ponttal csökkenti a célpont találati értékét.
+FX-S029-1;S029;1;WeaponDamageType;;0;0;0;4;100;Auto;Necrotic;Négy körre nekrotikussá változtatja a célpont fegyversebzését.
+FX-S030-1;S030;1;WeaponDamageType;;0;0;0;4;100;Auto;Necrotic;Négy körre nekrotikussá változtatja a teljes parti fegyversebzését.
 FX-D001-1;D001;1;Damage;2d6;1;1;0;0;100;Auto;;Automatikusan célba találó sötét sebzés.
 FX-D002-1;D002;1;Damage;2d6;0.5;1;0;0;100;Attack;;Közelharci síri sebzés.
 FX-D002-2;D002;2;SpeedPenalty;;0;0;3;4;100;Attack;;Találatkor négy körre lelassítja az áldozatot.
@@ -1067,6 +1073,8 @@ FX-P027-1;P027;1;Dispel;;0;0;0;0;100;Auto;HarmfulOnly;Eltávolítja a célpontot
 FX-P027-2;P027;2;BreakItemCurse;;0;0;0;0;100;Auto;;Végleg megtöri a célpont legerősebb aktív tárgyátkát és feloldja a tárgy kötését.
 FX-P028-1;P028;1;Damage;6d8;2;3;0;0;100;SaveHalf;Holy50;Szent területi sebzés amely élőholt és démoni célpont ellen másfélszeres erővel hat.
 FX-P028-2;P028;2;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;Sikertelen ellenpróbánál a célpont következő akciója kimarad.
+FX-P029-1;P029;1;WeaponDamageType;;0;0;0;4;100;Auto;Fire;Négy körre tűzzé változtatja a célpont fegyversebzését.
+FX-P030-1;P030;1;WeaponDamageType;;0;0;0;4;100;Auto;Fire;Négy körre tűzzé változtatja a teljes parti fegyversebzését.
 
 #Karakternevek
 Id;Név;OsztályId

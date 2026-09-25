@@ -1278,6 +1278,10 @@ public static class CsvGameDataLoader
                 throw new InvalidOperationException($"A(z) '{effect.Id}' hatás ismeretlen varázslatra hivatkozik: '{effect.SpellId}'.");
             if (effect.Order <= 0 || effect.Duration < 0)
                 throw new InvalidOperationException($"A(z) '{effect.Id}' hatás sorrendje legyen pozitív és időtartama nemnegatív.");
+            if (effect.Type == SpellEffectType.WeaponDamageType &&
+                (effect.Duration <= 0 || !Enum.TryParse<DamageType>(effect.Parameter, true, out _)))
+                throw new InvalidOperationException(
+                    $"A(z) '{effect.Id}' fegyversebzés-típus hatásához érvényes típus és pozitív időtartam szükséges.");
         }
         foreach (var spell in spells)
             if (!effects.Any(effect => string.Equals(effect.SpellId, spell.Id, StringComparison.OrdinalIgnoreCase)))

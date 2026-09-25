@@ -163,7 +163,7 @@ public sealed partial class Game : ISessionCommandHandler
     private GameSaveData? _suspendedCampaignState;
     private bool _pendingRodericExpedition;
     private bool _pendingRodericReturn;
-    private bool _hasRestedThisLevel;
+    private readonly DungeonRestState _dungeonRestState = new();
     private bool _developerPhasing;
     private int _lastDeveloperUniqueNpcIndex = -1;
     private int _lastDeveloperBossIndex = -1;

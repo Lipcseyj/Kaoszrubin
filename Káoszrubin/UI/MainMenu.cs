@@ -983,7 +983,7 @@ public sealed class MainMenu
             Hotkey("N", "🚪 A melletted levő ajtó kinyitása; zárt alakzatban bármelyik partitag melletti ajtó választható. Ha tolvaj partitárssal akarod a nyitást megcsináltatni, legyen a társ 2 mezős közelségben."),
             Hotkey("Z", "🔒 Nyitott ajtó becsukása, csukott ajtó kulcsra zárása; zárt alakzatban bármelyik partitag melletti ajtó választható. Ha tolvaj partitárssal akarod a zárást megcsináltatni, legyen a társ 2 mezős közelségben."),
             Hotkey("B", "🚪 A legerősebb élő partitag megpróbálja betörni a vezérhez legközelebbi, legfeljebb 4 mezőre levő kulcsra zárt ajtót."),
-            Hotkey("P", "💤 Pihenés pályánként egyszer, ellenségmentes és kulcsra zárt szobában."),
+            Hotkey("P", "💤 Pihenés pályaképernyőnként egyszer, ellenségmentes és kulcsra zárt szobában."),
             Blank(),
             Hotkey("LÁDÁRA LÉPÉS", "💰 Az arany felvétele."),
             Hotkey("KIJÁRAT (⌂) + ENTER", "🚪 Továbbjutás a következő labirintusszintre."),

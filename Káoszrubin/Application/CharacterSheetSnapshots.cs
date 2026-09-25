@@ -59,6 +59,8 @@ public static class CharacterSheetSnapshotProjector
                 ActiveSpellEffectType.ProtectionFromEvil => "✝️🛡️",
                 ActiveSpellEffectType.GuardianAngel => "👼",
                 ActiveSpellEffectType.Sanctuary => "⛪",
+                ActiveSpellEffectType.WeaponDamageType when string.Equals(effect.Parameter, "Fire", StringComparison.OrdinalIgnoreCase) => "🔥⚔️",
+                ActiveSpellEffectType.WeaponDamageType => "☠️⚔️",
                 ActiveSpellEffectType.VisionBonus when effect.Value < 0 => "🌑",
                 ActiveSpellEffectType.VisionBonus => "🔆",
                 _ => "✨"

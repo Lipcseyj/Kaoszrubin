@@ -299,6 +299,15 @@ public sealed class SpellExecutionService
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.DamageBonus, divineJudgment);
                     notes.Add($"+{effect.Value} fizikai sebzés {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
+                case SpellEffectType.WeaponDamageType:
+                    ApplyCharacterEffects(caster, characterTargets, effect, spell,
+                        ActiveSpellEffectType.WeaponDamageType, divineJudgment);
+                    var weaponType = Enum.TryParse<DamageType>(effect.Parameter, true, out var parsedType)
+                        ? parsedType.Name()
+                        : effect.Parameter ?? "mágikus";
+                    notes.Add($"a fegyversebzés típusa {weaponType} " +
+                              $"{AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
+                    break;
                 case SpellEffectType.InitiativeBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.InitiativeBonus, divineJudgment);
                     notes.Add($"+{effect.Value} kezdeményezés {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");

@@ -312,7 +312,8 @@ public sealed class LiveCharacter
     public void ApplySpellEffect(ActiveSpellEffect effect)
     {
         _activeSpellEffects.RemoveAll(existing => existing.Type == effect.Type &&
-            string.Equals(existing.SourceSpellId, effect.SourceSpellId, StringComparison.OrdinalIgnoreCase));
+            (effect.Type == ActiveSpellEffectType.WeaponDamageType ||
+             string.Equals(existing.SourceSpellId, effect.SourceSpellId, StringComparison.OrdinalIgnoreCase)));
         _activeSpellEffects.Add(effect);
     }
 
@@ -320,6 +321,14 @@ public sealed class LiveCharacter
     public bool HasSpellEffect(ActiveSpellEffectType type) => _activeSpellEffects.Any(effect => effect.Type == type);
     public int SpellEffectValue(ActiveSpellEffectType type) => _activeSpellEffects
         .Where(effect => effect.Type == type).Sum(effect => effect.Value);
+    public DamageType EffectiveWeaponDamageType(WeaponDefinition? weapon)
+    {
+        var original = weapon?.DamageType ?? DamageType.Bludgeoning;
+        if (weapon is null) return original;
+        var parameter = _activeSpellEffects.LastOrDefault(effect =>
+            effect.Type == ActiveSpellEffectType.WeaponDamageType)?.Parameter;
+        return Enum.TryParse<DamageType>(parameter, true, out var overrideType) ? overrideType : original;
+    }
     public int RemoveSpellEffects(Func<ActiveSpellEffect, bool>? predicate = null) =>
         _activeSpellEffects.RemoveAll(effect => predicate?.Invoke(effect) ?? true);
     public ActiveSpellEffect? TakeSpellEffect(ActiveSpellEffectType type)

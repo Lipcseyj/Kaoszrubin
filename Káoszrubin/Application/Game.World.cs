@@ -771,7 +771,7 @@ public sealed partial class Game
         _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
         _renderer.CharacterSheet.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
-        _hasRestedThisLevel = false;
+        _dungeonRestState.Reset();
         _spottedEnemyIds.Clear();
         _spottedChestIds.Clear();
         foreach (var character in CharacterRoster.Party.Members)
@@ -947,7 +947,7 @@ public sealed partial class Game
         _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
         _renderer.CharacterSheet.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
-        _hasRestedThisLevel = false;
+        _dungeonRestState.Reset();
         _spottedEnemyIds.Clear();
         _spottedChestIds.Clear();
 
@@ -1113,7 +1113,8 @@ public sealed partial class Game
         _partyHoldingPosition = restored.PartyHoldingPosition;
         _partyRegrouping = restored.PartyRegrouping;
         _partyAttackMode = restored.PartyAttackMode;
-        _hasRestedThisLevel = restored.HasRestedThisLevel;
+        _dungeonRestState.Restore(suspended.RestedAreaIds, restored.HasRestedThisLevel,
+            _dungeonLevel.Areas.Select(area => area.Id));
         _partyScatterUntil = restored.PartyScatterUntil;
         _nextNeedsDrain = restored.NextNeedsDrain;
         _nextEnemyMoves.Clear();

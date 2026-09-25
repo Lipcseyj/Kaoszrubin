@@ -64,6 +64,7 @@ public static class NpcSpellcastingPolicy
             SpellEffectType.ProtectionFromEvil => Math.Max(0, effect.Value) / 4,
             SpellEffectType.GuardianAngel => 20,
             SpellEffectType.Sanctuary => Math.Max(0, effect.Value) / 5,
+            SpellEffectType.WeaponDamageType => 15,
             SpellEffectType.Invisibility => 12,
             SpellEffectType.BleedingImmunity => 4,
             _ => 0
@@ -88,7 +89,8 @@ public static class NpcSpellcastingPolicy
         SpellEffectType.PhysicalReduction or SpellEffectType.BleedingImmunity or
         SpellEffectType.HitBonus or SpellEffectType.DamageBonus or
         SpellEffectType.InitiativeBonus or SpellEffectType.ProtectionFromEvil or
-        SpellEffectType.GuardianAngel or SpellEffectType.Sanctuary;
+        SpellEffectType.GuardianAngel or SpellEffectType.Sanctuary or
+        SpellEffectType.WeaponDamageType;
 
     public static bool IsSingleTargetOffensive(SpellDefinition spell,
         IEnumerable<SpellEffectDefinition> effects)
@@ -113,6 +115,7 @@ public static class NpcSpellcastingPolicy
         SpellEffectType.ProtectionFromEvil => ActiveSpellEffectType.ProtectionFromEvil,
         SpellEffectType.GuardianAngel => ActiveSpellEffectType.GuardianAngel,
         SpellEffectType.Sanctuary => ActiveSpellEffectType.Sanctuary,
+        SpellEffectType.WeaponDamageType => ActiveSpellEffectType.WeaponDamageType,
         _ => null
     };
 

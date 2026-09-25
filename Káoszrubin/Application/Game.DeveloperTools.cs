@@ -367,7 +367,7 @@ public sealed partial class Game
         _pendingRodericExpedition = false;
         _pendingRodericReturn = false;
         _temporaryFollowersEnteringNextMaze.Clear();
-        _hasRestedThisLevel = false;
+        _dungeonRestState.Reset();
         _spottedEnemyIds.Clear();
         _spottedChestIds.Clear();
         _npcSpellcasterTactics.Clear();

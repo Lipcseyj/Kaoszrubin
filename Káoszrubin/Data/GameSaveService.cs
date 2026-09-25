@@ -392,6 +392,7 @@ public sealed class GameSaveData
     public bool PartyRegrouping { get; set; }
     public bool PartyAttackMode { get; set; }
     public bool HasRestedThisLevel { get; set; }
+    public List<string> RestedAreaIds { get; set; } = [];
     public int ScatterRemainingMilliseconds { get; set; }
     public int NeedsDrainRemainingMilliseconds { get; set; }
     public int EnemyMoveRemainingMilliseconds { get; set; }

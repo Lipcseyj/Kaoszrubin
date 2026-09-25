@@ -55,7 +55,8 @@ internal static partial class Program
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         foreach (var school in Enum.GetValues<SpellSchool>())
             for (var level = 1; level <= 5; level++)
-                Assert(catalog.GetSpells(school, level).Count == (level <= 3 ? 6 : 5),
+                Assert(catalog.GetSpells(school, level).Count ==
+                       (level <= 3 ? 6 : 5) + (level is 2 or 4 ? 1 : 0),
                     $"A(z) {school} iskola {level}. szintjén hibás a varázslatok száma.");
 
         var light = catalog.GetSpell("S026");

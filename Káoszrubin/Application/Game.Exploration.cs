@@ -135,7 +135,8 @@ public sealed partial class Game
     {
         SynchronizeInventoryQuests();
         var state = _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
-            _leaderTrail, _partyHoldingPosition, _partyRegrouping, _partyAttackMode, _hasRestedThisLevel, _partyScatterUntil,
+            _leaderTrail, _partyHoldingPosition, _partyRegrouping, _partyAttackMode,
+            _dungeonRestState.HasRested(_dungeonLevel?.ActiveAreaId ?? "AREA_1"), _partyScatterUntil,
             _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
         if (_dungeonLevel is not null)
         {
@@ -150,11 +151,12 @@ public sealed partial class Game
                     area.EnemyMoveDelays.GetValueOrDefault(enemy, EnemyMoveInterval(enemy)));
                 var areaState = _gameStateMapper.Create(_mazeLevel, area.Maze,
                     new Player(area.Maze.Entrance, PartyLeader), area.FogOfWar, _leaderFacing,
-                    [area.Maze.Entrance], false, false, false, _hasRestedThisLevel, null,
+                    [area.Maze.Entrance], false, false, false, _dungeonRestState.HasRested(area.Id), null,
                     _nextNeedsDrain, schedule, [], []);
                 return new DungeonAreaSaveData(area.Id, areaState.Maze, areaState.Fog);
             }).ToList();
         }
+        state.RestedAreaIds = _dungeonRestState.RestedAreaIds.OrderBy(id => id, StringComparer.Ordinal).ToList();
         state.QuestJournal = _questJournal.Values.Select(entry => new QuestJournalSaveData(LegacyQuestIdMap.ToExternalId(entry.Key.QuestId),
             entry.Status, entry.Progress, entry.ExperienceReward,
             entry.CompletionExperienceSummary, entry.CompletionItemRewardSummary)).ToList();
@@ -254,7 +256,8 @@ public sealed partial class Game
         _partyHoldingPosition = restored.PartyHoldingPosition;
         _partyRegrouping = restored.PartyRegrouping;
         _partyAttackMode = restored.PartyAttackMode;
-        _hasRestedThisLevel = restored.HasRestedThisLevel;
+        _dungeonRestState.Restore(state.RestedAreaIds, restored.HasRestedThisLevel,
+            _dungeonLevel.Areas.Select(area => area.Id));
         _partyScatterUntil = restored.PartyScatterUntil;
         _nextNeedsDrain = restored.NextNeedsDrain;
         _nextEnemyMoves.Clear();
@@ -324,9 +327,10 @@ public sealed partial class Game
 
     private void TryRestParty()
     {
-        if (_hasRestedThisLevel)
+        var activeAreaId = _dungeonLevel?.ActiveAreaId ?? "AREA_1";
+        if (_dungeonRestState.HasRested(activeAreaId))
         {
-            _renderer.DrawDeveloperMessage("Ezen a pályán már pihentetek egyszer.");
+            _renderer.DrawDeveloperMessage("Ezen a képernyőn már pihentetek egyszer.");
             return;
         }
         var room = _maze.Rooms.FirstOrDefault(candidate => candidate.Contains(_player.Position));
@@ -383,7 +387,7 @@ public sealed partial class Game
                 character.CurrentVitality, character.MaximumVitality, character.CurrentMana, character.MaximumMana,
                 character.UsesMana, cured));
         }
-        _hasRestedThisLevel = true;
+        _dungeonRestState.TryMarkRested(activeAreaId);
         PlaySessionSound(SoundEffect.Rest);
         ShowSynchronizedRest(new PartyRestSnapshot(Guid.NewGuid(), false, restResults, []));
         TryLogPartyComments(PartySituationIds.Resting);

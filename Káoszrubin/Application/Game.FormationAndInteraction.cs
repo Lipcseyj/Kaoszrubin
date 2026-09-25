@@ -667,7 +667,7 @@ public sealed partial class Game
         _spottedEnemyIds.Clear();
         _spottedChestIds.Clear();
         _battleStarted = false;
-        _hasRestedThisLevel = true;
+        _dungeonRestState.MarkAll(_dungeonLevel.Areas.Select(area => area.Id));
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         RevealFor(PartyLeader, _player.Position);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);

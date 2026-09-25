@@ -1,5 +1,24 @@
 internal static partial class Program
 {
+    static void RestLimitIsTrackedPerScreen()
+    {
+        var rests = new DungeonRestState();
+        Assert(rests.TryMarkRested("AREA_1") && rests.HasRested("AREA_1") &&
+               !rests.HasRested("AREA_2") && !rests.TryMarkRested("AREA_1"),
+            "Az egyik képernyő pihenése lezárta a másikat, vagy ugyanott kétszer engedett pihenni.");
+
+        var restored = new DungeonRestState();
+        restored.Restore(["AREA_2"], legacyHasRestedThisLevel: false, ["AREA_1", "AREA_2", "AREA_3"]);
+        Assert(!restored.HasRested("AREA_1") && restored.HasRested("AREA_2") &&
+               restored.RestedAreaIds.Count == 1,
+            "A képernyőnkénti pihenési állapot nem állt vissza pontosan.");
+
+        var legacy = new DungeonRestState();
+        legacy.Restore([], legacyHasRestedThisLevel: true, ["AREA_1", "AREA_2", "AREA_3"]);
+        Assert(legacy.RestedAreaIds.Count == 3,
+            "A régi, szintenkénti pihenési jelző nem zárta le visszafelé kompatibilisen az összes képernyőt.");
+    }
+
     static void EncountersCanTargetASpecificScreen()
     {
         var configured = Encounters.Same("E-TEST", Amount.Few, Amount.One, screen: 2);
