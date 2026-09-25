@@ -31,5 +31,6 @@ public enum QuestNpcId
     GiantHunter,
 
     EliraSilverbranch,
-    SirRoderic
+    SirRoderic,
+    AureliosEmissary
 }

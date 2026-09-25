@@ -57,6 +57,7 @@ public static class LegacyQuestIdMap
             "NPCQ039" => QuestId.RodericOathbreakerKnight,
             "NPCQ040" => QuestId.RodericTheDeadAreNotPrey,
             "NPCQ041" => QuestId.RodericOrderRelics,
+            "NPCQ042" => QuestId.AureliosEmissaryChest,
 
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest-azonosító: '{legacyId}'.")
@@ -105,6 +106,7 @@ public static class LegacyQuestIdMap
         QuestId.RodericOathbreakerKnight => "NPCQ039",
         QuestId.RodericTheDeadAreNotPrey => "NPCQ040",
         QuestId.RodericOrderRelics => "NPCQ041",
+        QuestId.AureliosEmissaryChest => "NPCQ042",
         _ => throw new InvalidDataException("Ismeretlen típusos questazonosító.")
     };
 }

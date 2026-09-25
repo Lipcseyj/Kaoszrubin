@@ -37,6 +37,7 @@ public static class LegacyNpcIdMap
             "NPC019" => QuestNpcId.GiantHunter,
             "NPC020" => QuestNpcId.EliraSilverbranch,
             "NPC021" => QuestNpcId.SirRoderic,
+            "NPC022" => QuestNpcId.AureliosEmissary,
             "NPC-FIRST-COMPANION" => QuestNpcId.None,
 
             _ => throw new InvalidDataException(
@@ -66,6 +67,7 @@ public static class LegacyNpcIdMap
         QuestNpcId.GiantHunter => "NPC019",
         QuestNpcId.EliraSilverbranch => "NPC020",
         QuestNpcId.SirRoderic => "NPC021",
+        QuestNpcId.AureliosEmissary => "NPC022",
         _ => throw new InvalidDataException("Ismeretlen típusos questadó-azonosító.")
     };
 }
